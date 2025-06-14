@@ -410,13 +410,8 @@ export class PromptLineRenderer {
         this.historyList.innerHTML = `<div class="history-empty">${emptyMessage}</div>`;
         return;
       }
-
-      const maxVisibleItems = this.userSettings?.history?.maxDisplayItems ?? LIMITS.DEFAULT_MAX_VISIBLE_ITEMS;
-      
       // 0 means unlimited, so show all items
-      const isUnlimited = maxVisibleItems === 0;
-      const itemsToShow = isUnlimited ? dataToRender.length : maxVisibleItems;
-      const visibleItems = dataToRender.slice(0, itemsToShow);
+      const visibleItems = dataToRender.slice(0, LIMITS.MAX_VISIBLE_ITEMS);
       const fragment = document.createDocumentFragment();
 
       visibleItems.forEach((item) => {
@@ -427,10 +422,10 @@ export class PromptLineRenderer {
       this.historyList.innerHTML = '';
       this.historyList.appendChild(fragment);
 
-      if (!isUnlimited && dataToRender.length > maxVisibleItems) {
+      if (dataToRender.length > LIMITS.MAX_VISIBLE_ITEMS) {
         const moreIndicator = document.createElement('div');
         moreIndicator.className = 'history-more';
-        moreIndicator.textContent = `+${dataToRender.length - maxVisibleItems} more items`;
+        moreIndicator.textContent = `+${dataToRender.length - LIMITS.MAX_VISIBLE_ITEMS} more items`;
         moreIndicator.style.cssText = `
           padding: 8px 16px;
           text-align: center;
@@ -507,12 +502,7 @@ export class PromptLineRenderer {
 
     // Enable keyboard navigation mode and disable hover effects
     this.enableKeyboardNavigation();
-
-    const maxVisibleItems = this.userSettings?.history?.maxDisplayItems ?? LIMITS.DEFAULT_MAX_VISIBLE_ITEMS;
-    
-    // 0 means unlimited, so use all items
-    const isUnlimited = maxVisibleItems === 0;
-    const visibleItemsCount = isUnlimited ? dataToNavigate.length : Math.min(dataToNavigate.length, maxVisibleItems);
+    const visibleItemsCount = Math.min(dataToNavigate.length, LIMITS.MAX_VISIBLE_ITEMS);
 
     if (direction === 'next') {
       if (this.historyIndex === -1) {

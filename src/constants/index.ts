@@ -32,10 +32,7 @@ export const DELAYS = {
 // Size and limit constants
 export const LIMITS = {
   MAX_PASTE_TEXT_BYTES: 1024 * 1024, // 1MB
-  DEFAULT_MAX_VISIBLE_ITEMS: 20,
-  MAX_HISTORY_ITEMS: 50,
-  MAX_DISPLAY_ITEMS: 10,
-  BACKUP_CLEANUP_DAYS: 7
+  MAX_VISIBLE_ITEMS: 100,
 } as const;
 
 // UI-related constants
