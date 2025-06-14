@@ -4,7 +4,9 @@ This module contains the renderer process files that handle UI and user interact
 
 ## Files
 
-### input.html
+### Core Files
+
+#### input.html
 Main HTML template for the application window:
 - Clean, minimal UI structure
 - Text input area with proper focus management
@@ -13,21 +15,59 @@ Main HTML template for the application window:
 - Keyboard shortcut indicators
 - Dark theme styling
 
-### renderer.ts
+#### renderer.ts
 Main renderer process class (PromptLineRenderer) with TypeScript:
 - Class-based architecture with proper encapsulation
-- DOM initialization and event binding with type safety
-- Integrated keyboard shortcut handling (Cmd+Enter, Esc, Cmd+V, Tab, Cmd+F)
+- Coordinates all manager classes (DomManager, LifecycleManager, etc.)
 - IPC communication with main process using typed interfaces
 - History display and click selection with type-safe data structures
-- Draft auto-save coordination with debouncing
 - Image paste functionality with error handling
-- Comprehensive type definitions for WindowData, AppInfo, UserSettings, HistoryItem
-- Manages EventHandler and SearchManager instances
 - Keyboard navigation for history with Cmd+Up/Down
 - Filtered history support for search results
 
-### event-handler.ts
+#### types.ts
+Comprehensive TypeScript type definitions:
+- IpcRenderer and ElectronWindow interfaces for Electron APIs
+- HistoryItem, AppInfo, UserSettings, WindowData interfaces
+- Config, PasteResult, ImageResult interfaces
+- Global window type declarations
+- Backwards compatibility exports
+
+### Manager Classes
+
+#### dom-manager.ts
+DOM element management and basic UI operations:
+- Centralized DOM element references with null safety
+- Element initialization and validation
+- Character count updates
+- App name display updates
+- Error message display with temporary styling
+
+#### lifecycle-manager.ts
+Window lifecycle and initialization management:
+- Window show/hide event handling
+- Draft restoration and initialization
+- User settings updates
+- App name display logic
+- Draft notification system
+- Cursor positioning and text selection
+
+#### draft-manager.ts
+Draft auto-save functionality:
+- Debounced draft saving (500ms delay) for performance
+- Draft persistence and restoration
+- Draft clear operations
+- Integration with IPC communication
+
+#### history-ui-manager.ts
+History display and interaction management:
+- Dynamic history list rendering with click handlers
+- XSS prevention through HTML escaping
+- Efficient DOM updates for history items
+- Support for filtered history during search
+- Empty state handling
+
+#### event-handler.ts
 Dedicated event handling class (EventHandler):
 - Centralized keyboard and DOM event management
 - Composition event handling for IME support
@@ -36,9 +76,8 @@ Dedicated event handling class (EventHandler):
 - Tab key insertion functionality
 - History navigation keyboard shortcuts
 - Search mode toggle functionality
-- Proper TypeScript interfaces for results (PasteResult, ImageResult)
 
-### search-manager.ts
+#### search-manager.ts
 Search functionality management class (SearchManager):
 - Search mode toggle and UI state management
 - Real-time history filtering based on search query
@@ -47,9 +86,8 @@ Search functionality management class (SearchManager):
 - Escape key handling to exit search mode
 - Click/touch event handling for search close button
 - Integration with renderer for filtered history display
-- Maintains search state and filtered data
 
-### ui-manager.ts
+#### ui-manager.ts
 Advanced UI management class providing:
 - Theme management (dark/light modes with CSS custom properties)
 - Type-safe theme configuration with Theme interface
@@ -57,10 +95,33 @@ Advanced UI management class providing:
 - Notification system with toast messages
 - Visual feedback for user actions
 - Loading states and cursor management
-- Character count with color coding
-- Empty state handling for history
 - Cross-platform shortcut display
-- Proper element caching with TypeScript interfaces
+
+### Utility Functions
+
+#### utils/shortcut-formatter.ts
+Keyboard shortcut formatting utilities:
+- Cross-platform shortcut symbol conversion (⌘, ⇧, ⌥, etc.)
+- Dynamic shortcut display updates
+- Header and history shortcut formatting
+- Platform-specific key mappings
+
+#### utils/time-formatter.ts
+Time and timestamp formatting utilities:
+- Relative time display ("Just now", "5m ago", "2h ago", "3d ago")
+- Integration with shared time constants
+- Human-readable timestamp conversion
+
+### Styling Structure
+
+#### styles/
+Organized CSS architecture:
+- **main.css**: Main stylesheet entry point
+- **base/**: Foundation styles (reset.css, variables.css)
+- **layout/**: Layout components (container.css, sections)
+- **components/**: UI component styles (buttons, history items, search)
+- **themes/**: Theme definitions and variations
+- **animations/**: Transition and animation styles
 
 ## Key Functionality
 
@@ -91,7 +152,11 @@ Advanced UI management class providing:
 
 ### Class Structure
 ```
-PromptLineRenderer (Main Controller)
+ PromptLineRenderer (Main Controller)
+├── DomManager (DOM Element Management)
+├── LifecycleManager (Window Lifecycle)
+├── DraftManager (Draft Auto-Save)
+├── HistoryUIManager (History Display)
 ├── EventHandler (Event Management)
 ├── SearchManager (Search Functionality)
 └── UIManager (UI State & Themes)
@@ -99,24 +164,27 @@ PromptLineRenderer (Main Controller)
 
 ### Data Flow
 1. User input → EventHandler → PromptLineRenderer → IPC
-2. Search query → SearchManager → Filter history → Update UI
-3. IPC response → PromptLineRenderer → UI update
+2. Search query → SearchManager → Filter history → HistoryUIManager → Update UI
+3. Draft changes → DraftManager → Debounced save → IPC
+4. Window lifecycle → LifecycleManager → Initialize/cleanup → DomManager
+5. IPC response → PromptLineRenderer → Manager delegation → UI update
 
 ## Implementation Details
 
-### History Rendering
+### History Rendering (HistoryUIManager)
 - Dynamic list generation from history data with click handlers
-- Relative timestamp display using formatTime() method
-- XSS prevention through escapeHtml() sanitization
+- Relative timestamp display using time-formatter utility
+- XSS prevention through HTML escaping utilities
 - Efficient DOM updates with innerHTML replacement
 - Support for filtered history during search mode
+- Empty state handling and user feedback
 
-### Input Management
-- Auto-focus on window show with 50ms delay
-- Debounced draft saving (500ms delay) for performance optimization
+### Input Management (DomManager + DraftManager)
+- Auto-focus on window show with configurable delay
+- Debounced draft saving (500ms delay) via DraftManager
 - Image paste integration with cursor positioning
 - Tab character insertion support
-- Character count updates and validation
+- Real-time character count updates
 - Optimized DOM updates for responsive UI
 - IME composition event handling
 
@@ -129,9 +197,11 @@ PromptLineRenderer (Main Controller)
 
 ### State Synchronization
 - Keep UI in sync with main process state
-- Handle window show/hide state transitions
+- Handle window show/hide state transitions via LifecycleManager
 - Manage focus and selection state across window lifecycle
-- Coordinate between EventHandler, SearchManager, and UI updates
+- Coordinate between all manager classes for consistent state
+- Draft persistence across window sessions
+- Settings synchronization and real-time updates
 
 ## Security Considerations
 - Sanitize all user input before display
@@ -142,10 +212,13 @@ PromptLineRenderer (Main Controller)
 
 ## Testing Strategy
 - Mock IPC communication for isolation testing
-- Test integrated keyboard event handling
+- Test manager class interactions and coordination
 - Verify DOM manipulation and XSS prevention
 - Test image paste functionality and error handling
-- Test draft auto-save timing and debouncing
+- Test draft auto-save timing and debouncing (DraftManager)
 - Verify UI manager animation and theme systems
 - Test search functionality and filtering logic
 - Test event handler composition and blur events
+- Test lifecycle manager window transitions
+- Test utility function formatting and calculations
+- Integration testing between manager classes
