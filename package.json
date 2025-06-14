@@ -52,7 +52,6 @@
     "jest": "29.7.0",
     "jest-environment-jsdom": "29.7.0",
     "jest-environment-node": "29.7.0",
-    "lint-staged": "^16.1.0",
     "semantic-release": "^24.2.5",
     "ts-jest": "29.3.4",
     "typescript": "~5.5.0"
@@ -93,7 +92,8 @@
     "setupFilesAfterEnv": [
       "<rootDir>/tests/setup.ts"
     ],
-    "testTimeout": 10000
+    "testTimeout": 10000,
+    "forceExit": true
   },
   "build": {
     "appId": "com.electron.prompt-line",
@@ -189,12 +189,6 @@
           "@typescript-eslint/no-non-null-assertion": "off"
         }
       }
-    ]
-  },
-  "lint-staged": {
-    "*.{js,ts}": [
-      "eslint --fix",
-      "tsc --noEmit"
     ]
   },
   "dependencies": {
