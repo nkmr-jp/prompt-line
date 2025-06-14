@@ -29,8 +29,7 @@ jest.mock('js-yaml', () => ({
     if (data.includes('main: Alt+Space')) {
       return {
         shortcuts: { main: 'Alt+Space', paste: 'Enter', close: 'Escape' },
-        window: { position: 'center', width: 800, height: 400 },
-        history: { maxItems: 100, maxDisplayItems: 20 }
+        window: { position: 'center', width: 800, height: 400 }
       };
     }
     return null;
@@ -80,9 +79,7 @@ describe('SettingsManager', () => {
 window:
   position: center
   width: 800
-  height: 400
-history:
-  maxDisplayItems: 20`;
+  height: 400`;
       mockedFs.readFile.mockResolvedValue(yamlSettings);
 
       await settingsManager.init();

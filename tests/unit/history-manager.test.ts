@@ -38,9 +38,6 @@ jest.mock('../../src/utils/utils', () => ({
 jest.mock('../../src/config/app-config', () => ({
     paths: {
         historyFile: '/test/history.jsonl'
-    },
-    history: {
-        maxItems: 50
     }
 }));
 
@@ -315,8 +312,7 @@ describe('HistoryManager', () => {
                 totalCharacters: 0,
                 averageLength: 0,
                 oldestTimestamp: null,
-                newestTimestamp: null,
-                maxItems: 10000
+                newestTimestamp: null
             });
         });
 

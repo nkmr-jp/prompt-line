@@ -55,7 +55,7 @@ describe('Error Handling Integration Tests', () => {
 
     function renderHistoryWithErrorHandling(
         historyData: HistoryItem[], 
-        settings: UserSettings | null
+        _settings: UserSettings | null
     ): void {
         try {
             const historyList = document.getElementById('historyList');
@@ -66,7 +66,7 @@ describe('Error Handling Integration Tests', () => {
                 return;
             }
 
-            const maxVisibleItems = settings?.history?.maxDisplayItems ?? 15;
+            const maxVisibleItems = 20; // MAX_VISIBLE_ITEMS constant
             const visibleItems = historyData.slice(0, maxVisibleItems);
             const fragment = document.createDocumentFragment();
 
@@ -98,8 +98,8 @@ describe('Error Handling Integration Tests', () => {
         }
     }
 
-    describe('Invalid maxDisplayItems values', () => {
-        test('should handle extremely large maxDisplayItems values', () => {
+    describe('Error handling scenarios', () => {
+        test('should handle large datasets without crashing', () => {
             const historyItems: HistoryItem[] = Array.from({ length: 100 }, (_, i) => ({
                 text: `Item ${i + 1}`,
                 timestamp: Date.now() - i * 1000,
@@ -108,8 +108,7 @@ describe('Error Handling Integration Tests', () => {
 
             const settings: UserSettings = {
                 shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k' },
-                window: { position: 'cursor', width: 800, height: 400 },
-                history: { maxDisplayItems: Number.MAX_SAFE_INTEGER }
+                window: { position: 'cursor', width: 800, height: 400 }
             };
 
             // Should not crash or hang
@@ -120,55 +119,42 @@ describe('Error Handling Integration Tests', () => {
             const historyList = document.getElementById('historyList');
             const renderedItems = historyList?.querySelectorAll('.history-item');
             
-            // Should render reasonable number (not crash browser)
-            expect(renderedItems?.length).toBeLessThanOrEqual(1000);
+            // Should render up to MAX_VISIBLE_ITEMS (20)
+            expect(renderedItems?.length).toBe(20);
         });
 
-        test('should handle negative maxDisplayItems values', () => {
+        test('should handle null settings gracefully', () => {
             const historyItems: HistoryItem[] = [
                 { text: 'Test item', timestamp: Date.now(), id: 'test-1' }
             ];
-
-            const settings: UserSettings = {
-                shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k' },
-                window: { position: 'cursor', width: 800, height: 400 },
-                history: { maxDisplayItems: -10 }
-            };
 
             // Should handle gracefully without crashing
             expect(() => {
-                renderHistoryWithErrorHandling(historyItems, settings);
+                renderHistoryWithErrorHandling(historyItems, null);
             }).not.toThrow();
 
-            // Should render 0 items (negative treated as 0)
+            // Should render the item with default behavior
             const historyList = document.getElementById('historyList');
             const renderedItems = historyList?.querySelectorAll('.history-item');
-            expect(renderedItems?.length).toBe(0);
+            expect(renderedItems?.length).toBe(1);
         });
 
-        test('should handle NaN and Infinity maxDisplayItems values', () => {
-            const problematicValues = [NaN, Infinity, -Infinity];
+        test('should handle malformed settings', () => {
             const historyItems: HistoryItem[] = [
                 { text: 'Test item', timestamp: Date.now(), id: 'test-1' }
             ];
 
-            for (const value of problematicValues) {
-                const settings: UserSettings = {
-                    shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k' },
-                    window: { position: 'cursor', width: 800, height: 400 },
-                    history: { maxDisplayItems: value }
-                };
+            const malformedSettings = { invalid: 'structure' } as any;
 
-                // Should handle gracefully without crashing
-                expect(() => {
-                    renderHistoryWithErrorHandling(historyItems, settings);
-                }).not.toThrow();
+            // Should handle gracefully without crashing
+            expect(() => {
+                renderHistoryWithErrorHandling(historyItems, malformedSettings);
+            }).not.toThrow();
 
-                // Should fallback to default behavior
-                const historyList = document.getElementById('historyList');
-                const renderedItems = historyList?.querySelectorAll('.history-item');
-                expect(renderedItems?.length).toBeGreaterThanOrEqual(0);
-            }
+            // Should fallback to default behavior
+            const historyList = document.getElementById('historyList');
+            const renderedItems = historyList?.querySelectorAll('.history-item');
+            expect(renderedItems?.length).toBeGreaterThanOrEqual(0);
         });
     });
 
@@ -235,11 +221,10 @@ more broken content: }}}
                 renderHistoryWithErrorHandling(historyItems, null);
             }).not.toThrow();
 
-            // Test undefined maxDisplayItems
+            // Test partial settings
             const partialSettings = {
                 shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k' },
-                window: { position: 'cursor', width: 800, height: 400 },
-                history: { maxDisplayItems: 10 }
+                window: { position: 'cursor', width: 800, height: 400 }
             } as any;
 
             expect(() => {
@@ -255,15 +240,12 @@ shortcuts:
 window:
   position: cursor
   width: not_a_number
-history:
-  maxDisplayItems: 10
-  maxDisplayItems: also_not_a_number
   invalid_field: [broken array syntax
 `.trim();
 
             await fs.writeFile(settingsFile, mixedYaml, 'utf8');
 
-            // Test that renderer handles settings with invalid maxDisplayItems
+            // Test that renderer handles malformed settings
             const historyItems: HistoryItem[] = Array.from({ length: 20 }, (_, i) => ({
                 text: `Mixed item ${i + 1}`,
                 timestamp: Date.now() - i * 1000,
@@ -272,15 +254,14 @@ history:
 
             const invalidSettings = {
                 shortcuts: { main: 'Cmd+Shift+Space', paste: 'Enter', close: 'Escape' },
-                window: { position: 'cursor', width: 'not_a_number', height: 400 },
-                history: { maxDisplayItems: 'also_not_a_number' }
+                window: { position: 'cursor', width: 'not_a_number', height: 400 }
             } as any;
 
             expect(() => {
                 renderHistoryWithErrorHandling(historyItems, invalidSettings);
             }).not.toThrow();
 
-            // Should handle invalid maxDisplayItems gracefully
+            // Should handle invalid settings gracefully
             const historyList = document.getElementById('historyList');
             const renderedItems = historyList?.querySelectorAll('.history-item');
             expect(renderedItems?.length).toBeGreaterThanOrEqual(0);
@@ -355,11 +336,8 @@ history:
             const hugeSettings = {
                 shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k' },
                 window: { position: 'cursor', width: 800, height: 400 },
-                history: { 
-                                        maxDisplayItems: 2,
-                    // Add large data to simulate memory pressure
-                    largeData: new Array(1000).fill('large_data_item')
-                }
+                // Add large data to simulate memory pressure
+                largeData: new Array(1000).fill('large_data_item')
             } as any;
 
             expect(() => {
@@ -368,7 +346,7 @@ history:
 
             const historyList = document.getElementById('historyList');
             const renderedItems = historyList?.querySelectorAll('.history-item');
-            expect(renderedItems?.length).toBe(2); // Should respect maxDisplayItems
+            expect(renderedItems?.length).toBe(3); // Should render all items
         });
     });
 
@@ -383,8 +361,7 @@ history:
 
             const settings: UserSettings = {
                 shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k' },
-                window: { position: 'cursor', width: 800, height: 400 },
-                history: { maxDisplayItems: 5 }
+                window: { position: 'cursor', width: 800, height: 400 }
             };
 
             // Should not crash when DOM elements are missing
@@ -414,8 +391,7 @@ history:
 
             const settings: UserSettings = {
                 shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k' },
-                window: { position: 'cursor', width: 800, height: 400 },
-                history: { maxDisplayItems: 1000 } // Large display count
+                window: { position: 'cursor', width: 800, height: 400 }
             };
 
             // Should not hang or crash
@@ -428,11 +404,11 @@ history:
             // Should complete in reasonable time (< 5 seconds)
             expect(endTime - startTime).toBeLessThan(5000);
 
-            // Should actually render elements
+            // Should actually render elements up to MAX_VISIBLE_ITEMS
             const historyList = document.getElementById('historyList');
             const renderedItems = historyList?.querySelectorAll('.history-item');
             expect(renderedItems?.length).toBeGreaterThan(0);
-            expect(renderedItems?.length).toBeLessThanOrEqual(1000); // Should respect maxDisplayItems
+            expect(renderedItems?.length).toBeLessThanOrEqual(20); // Should respect MAX_VISIBLE_ITEMS
         });
 
         test('should handle history items with problematic content', () => {
@@ -460,8 +436,7 @@ history:
 
             const settings: UserSettings = {
                 shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k' },
-                window: { position: 'cursor', width: 800, height: 400 },
-                history: { maxDisplayItems: 10 }
+                window: { position: 'cursor', width: 800, height: 400 }
             };
 
             expect(() => {
@@ -504,7 +479,7 @@ history:
             for (let i = 0; i < 100; i++) {
                 const tempFile = path.join(testDir, `temp-${i}.yaml`);
                 promises.push(
-                    fs.writeFile(tempFile, `history:\n  maxDisplayItems: ${i % 20}`, 'utf8')
+                    fs.writeFile(tempFile, `window:\n  width: ${600 + i * 10}`, 'utf8')
                         .then(() => fs.unlink(tempFile).catch(() => {})) // Ignore cleanup errors
                 );
             }
@@ -540,8 +515,7 @@ history:
             for (let i = 1; i <= 20; i++) {
                 const settings: UserSettings = {
                     shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k' },
-                    window: { position: 'cursor', width: 800, height: 400 },
-                    history: { maxDisplayItems: i }
+                    window: { position: 'cursor', width: 800 + i * 10, height: 400 }
                 };
 
                 expect(() => {
@@ -549,12 +523,12 @@ history:
                 }).not.toThrow();
 
                 const renderedItems = document.querySelectorAll('.history-item');
-                expect(renderedItems.length).toBe(Math.min(i, historyItems.length));
+                expect(renderedItems.length).toBe(Math.min(20, historyItems.length)); // Always limited to MAX_VISIBLE_ITEMS
             }
 
             // Verify final state is clean
             const finalItems = document.querySelectorAll('.history-item');
-            expect(finalItems.length).toBe(20); // Last iteration was i=20
+            expect(finalItems.length).toBe(20); // Limited to MAX_VISIBLE_ITEMS
         });
 
         test('should handle stress test with large data and rapid changes', () => {
@@ -573,13 +547,12 @@ history:
             }));
 
             // Rapidly change settings and re-render
-            const stressValues = [0, 1, 5, 10, 50, 100, 500, 999, 1000, 2000];
+            const stressWidths = [600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500];
             
-            for (const maxDisplay of stressValues) {
+            for (const width of stressWidths) {
                 const settings: UserSettings = {
                     shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k' },
-                    window: { position: 'cursor', width: 800, height: 400 },
-                    history: { maxDisplayItems: maxDisplay }
+                    window: { position: 'cursor', width: width, height: 400 }
                 };
 
                 const startTime = Date.now();
@@ -591,7 +564,7 @@ history:
                 expect(renderTime).toBeLessThan(1000); // Should complete within 1 second
 
                 const renderedItems = document.querySelectorAll('.history-item');
-                const expectedCount = Math.min(maxDisplay, largeHistory.length);
+                const expectedCount = Math.min(20, largeHistory.length); // Always limited to MAX_VISIBLE_ITEMS
                 expect(renderedItems.length).toBe(expectedCount);
             }
         });
