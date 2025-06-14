@@ -294,5 +294,6 @@ export class PromptLineRenderer {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  (window as ElectronWindow & { promptLineRenderer: PromptLineRenderer }).promptLineRenderer = new PromptLineRenderer();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (window as any).promptLineRenderer = new PromptLineRenderer();
 });
