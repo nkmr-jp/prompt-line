@@ -385,7 +385,6 @@ describe('OptimizedHistoryManager', () => {
       expect(stats.averageLength).toBe(11); // 21 / 2 = 10.5 → 11
       expect(stats.oldestTimestamp).toBe(1000);
       expect(stats.newestTimestamp).toBe(2000);
-      expect(stats.maxItems).toBe(-1); // 無制限
     });
   });
 

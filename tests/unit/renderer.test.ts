@@ -369,8 +369,7 @@ describe('PromptLineRenderer', () => {
         test('should store user settings when provided', () => {
             const settings = {
                 shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape' },
-                window: { position: 'cursor', width: 800, height: 400 },
-                history: { maxItems: 100, maxDisplayItems: 25 }
+                window: { position: 'cursor', width: 800, height: 400 }
             };
 
             const data = {
@@ -477,7 +476,7 @@ describe('PromptLineRenderer', () => {
             `;
         });
 
-        test('should render actual DOM elements with default maxDisplayItems', () => {
+        test('should render actual DOM elements with default visible items limit', () => {
             const renderer = new PromptLineRenderer();
             (renderer as any).userSettings = null; // No settings, should use default
 
@@ -505,12 +504,11 @@ describe('PromptLineRenderer', () => {
             expect(moreIndicator).toBeNull();
         });
 
-        test('should respect maxDisplayItems from user settings in real DOM', () => {
+        test('should always show MAX_VISIBLE_ITEMS (20) in real DOM', () => {
             const renderer = new PromptLineRenderer();
             (renderer as any).userSettings = {
                 shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape' },
-                window: { position: 'cursor', width: 800, height: 400 },
-                history: { maxItems: 100, maxDisplayItems: 0 } // 0 means unlimited
+                window: { position: 'cursor', width: 800, height: 400 }
             };
 
             const historyItems = Array.from({ length: 12 }, (_, i) => ({
@@ -552,12 +550,11 @@ describe('PromptLineRenderer', () => {
             expect(historyElements?.length).toBe(0);
         });
 
-        test('should handle edge case maxDisplayItems = 0 in real DOM', () => {
+        test('should always limit to MAX_VISIBLE_ITEMS in real DOM', () => {
             const renderer = new PromptLineRenderer();
             (renderer as any).userSettings = {
                 shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape' },
-                window: { position: 'cursor', width: 800, height: 400 },
-                history: { maxItems: 100, maxDisplayItems: 0 }
+                window: { position: 'cursor', width: 800, height: 400 }
             };
 
             const historyItems = Array.from({ length: 3 }, (_, i) => ({
@@ -572,8 +569,7 @@ describe('PromptLineRenderer', () => {
 
             const historyList = document.getElementById('historyList');
             const historyElements = historyList?.querySelectorAll('.history-item');
-            // Note: This is actually a bug - the renderer uses || instead of ?? 
-            // so maxDisplayItems: 0 falls back to 20. This test documents current behavior.
+            // Always shows MAX_VISIBLE_ITEMS (20) regardless of settings
             expect(historyElements?.length).toBe(3); // Shows all items due to fallback
 
             // Should not show more indicator when all items are displayed
@@ -585,8 +581,7 @@ describe('PromptLineRenderer', () => {
             const renderer = new PromptLineRenderer();
             (renderer as any).userSettings = {
                 shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape' },
-                window: { position: 'cursor', width: 800, height: 400 },
-                history: { maxItems: 100, maxDisplayItems: 2 }
+                window: { position: 'cursor', width: 800, height: 400 }
             };
 
             const historyItems = [
@@ -628,8 +623,7 @@ describe('PromptLineRenderer', () => {
             const renderer = new PromptLineRenderer();
             (renderer as any).userSettings = {
                 shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape' },
-                window: { position: 'cursor', width: 800, height: 400 },
-                history: { maxItems: 100, maxDisplayItems: 1 }
+                window: { position: 'cursor', width: 800, height: 400 }
             };
 
             const longText = 'This is a very long text with multiple\nlines and\ttabs that should be handled properly in the display';

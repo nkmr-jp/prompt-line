@@ -8,9 +8,5 @@
     "position": "cursor",
     "width": 600,
     "height": 300
-  },
-  "history": {
-    "maxItems": 50,
-    "maxDisplayItems": 10
   }
 }

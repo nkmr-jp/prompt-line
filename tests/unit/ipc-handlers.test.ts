@@ -113,8 +113,7 @@ describe('IPCHandlers', () => {
         const mockSettingsManager = {
             getSettings: jest.fn(() => ({
                 shortcuts: { main: 'Ctrl+Space', paste: 'Enter', close: 'Escape' },
-                window: { position: 'cursor', width: 600, height: 300 },
-                history: { maxDisplayItems: 20 }
+                window: { position: 'cursor', width: 600, height: 300 }
             })),
             updateSettings: jest.fn(),
             resetSettings: jest.fn()
@@ -428,8 +427,7 @@ describe('IPCHandlers', () => {
                 history: [{ text: 'test', timestamp: Date.now(), id: 'test-1' }],
                 settings: {
                     shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape' },
-                    window: { position: 'cursor', width: 800, height: 400 },
-                    history: { maxItems: 100, maxDisplayItems: 20 }
+                    window: { position: 'cursor', width: 800, height: 400 }
                 }
             };
 

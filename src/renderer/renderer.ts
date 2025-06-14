@@ -40,10 +40,6 @@ interface UserSettings {
     width: number;
     height: number;
   };
-  history: {
-    maxItems: number;
-    maxDisplayItems: number;
-  };
 }
 
 interface WindowData {

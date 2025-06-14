@@ -16,11 +16,12 @@ import type {
   IHistoryManager,
   HistoryConfig
 } from '../types';
+import {LIMITS} from "../constants";
 
 
 class OptimizedHistoryManager implements IHistoryManager {
   private recentCache: HistoryItem[] = []; // 最新N件のキャッシュ
-  private cacheSize = 100; // キャッシュサイズ（表示より多めに保持）
+  private cacheSize = LIMITS.MAX_VISIBLE_ITEMS; // キャッシュサイズ（表示より多めに保持）
   private historyFile: string;
   private totalItemCount = 0;
   private totalItemCountCached = false; // カウントがキャッシュされているかどうか
@@ -395,7 +396,6 @@ class OptimizedHistoryManager implements IHistoryManager {
       averageLength: cachedItems.length > 0 ? Math.round(totalCharacters / cachedItems.length) : 0,
       oldestTimestamp,
       newestTimestamp,
-      maxItems: -1 // 無制限
     };
   }
 

@@ -17,7 +17,6 @@ import type {
 class HistoryManager implements IHistoryManager {
   private historyData: HistoryItem[] = [];
   private historyFile: string;
-  private maxItems: number;
   private pendingSave = false;
   private hasUnsavedChanges = false;
   private debouncedSave: DebounceFunction<[]>;
@@ -25,7 +24,6 @@ class HistoryManager implements IHistoryManager {
 
   constructor() {
     this.historyFile = config.paths.historyFile;
-    this.maxItems = 10000; // Default large value for legacy HistoryManager
     
     this.debouncedSave = debounce(this.performSave.bind(this), 2000);
     this.criticalSave = debounce(this.performSave.bind(this), 500);
@@ -59,11 +57,6 @@ class HistoryManager implements IHistoryManager {
       }
       
       this.historyData.sort((a, b) => b.timestamp - a.timestamp);
-      
-      if (this.historyData.length > this.maxItems) {
-        this.historyData = this.historyData.slice(0, this.maxItems);
-        await this.saveHistory();
-      }
       
       logger.debug(`Loaded ${this.historyData.length} history items from JSONL`);
     } catch (error) {
@@ -126,10 +119,6 @@ class HistoryManager implements IHistoryManager {
       };
       
       this.historyData.unshift(historyItem);
-      
-      if (this.historyData.length > this.maxItems) {
-        this.historyData = this.historyData.slice(0, this.maxItems);
-      }
       
       this.criticalSave();
       
@@ -231,7 +220,6 @@ class HistoryManager implements IHistoryManager {
       averageLength: totalItems > 0 ? Math.round(totalCharacters / totalItems) : 0,
       oldestTimestamp,
       newestTimestamp,
-      maxItems: this.maxItems
     };
   }
 
@@ -266,7 +254,6 @@ class HistoryManager implements IHistoryManager {
       }
 
       this.historyData.sort((a, b) => b.timestamp - a.timestamp);
-      this.historyData = this.historyData.slice(0, this.maxItems);
 
       await this.saveHistory();
       logger.info(`History imported: ${exportData.history.length} items, merge: ${merge}`);

@@ -28,7 +28,6 @@ export interface HistoryStats {
   averageLength: number;
   oldestTimestamp: number | null;
   newestTimestamp: number | null;
-  maxItems: number;
 }
 
 export interface DraftStats {
@@ -171,9 +170,6 @@ export interface UserSettings {
     position: StartupPosition;
     width: number;
     height: number;
-  };
-  history: {
-    maxDisplayItems: number;
   };
 }
 

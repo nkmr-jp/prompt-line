@@ -32,8 +32,7 @@ npm run compile
 ```bash
 # 無制限履歴機能を有効化
 echo "history:
-  unlimited: true
-  maxDisplayItems: 10" >> ~/.prompt-line/settings.yaml
+  unlimited: true" >> ~/.prompt-line/settings.yaml
 ```
 
 ## 📊 負荷テスト実行手順

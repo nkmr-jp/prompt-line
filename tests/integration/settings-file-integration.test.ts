@@ -42,7 +42,7 @@ describe('Settings File Integration Tests', () => {
 
 
     describe('YAML file format validation', () => {
-        test('should correctly parse valid YAML with maxDisplayItems', async () => {
+        test('should correctly parse valid YAML', async () => {
             const validYaml = `
 shortcuts:
   main: Cmd+Shift+Space
@@ -54,22 +54,20 @@ window:
   height: 300
 history:
   maxItems: 50
-  maxDisplayItems: 7
 `.trim();
 
             await createTestYAMLFile(validYaml);
             
             // Verify file was written correctly
             const readContent = await readTestYAMLFile();
-            expect(readContent).toContain('maxDisplayItems: 7');
             expect(readContent).toContain('maxItems: 50');
         });
 
         test('should handle different YAML number formats', async () => {
             const formats = [
-                'maxDisplayItems: 15',    // Unquoted integer
-                'maxDisplayItems: "20"',  // Quoted string
-                'maxDisplayItems:   25',  // Extra spaces
+                'maxItems: 50',    // Unquoted integer
+                'maxItems: "60"',  // Quoted string
+                'maxItems:   70',  // Extra spaces
             ];
 
             for (const format of formats) {

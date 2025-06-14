@@ -50,7 +50,7 @@ describe('DOM Integration Tests for maxDisplayItems', () => {
             return;
         }
 
-        const maxVisibleItems = settings?.history?.maxDisplayItems ?? 15;
+        const maxVisibleItems = 20; // MAX_VISIBLE_ITEMS constant
         const visibleItems = historyData.slice(0, maxVisibleItems);
         const fragment = document.createDocumentFragment();
 
@@ -81,7 +81,6 @@ describe('DOM Integration Tests for maxDisplayItems', () => {
             const settings: UserSettings = {
                 shortcuts: { main: 'Cmd+Shift+Space', paste: 'Cmd+Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k' },
                 window: { position: 'cursor', width: 600, height: 300 },
-                history: { maxDisplayItems: 5 }
             };
 
             renderHistoryWithSettings(historyData, settings);
@@ -123,7 +122,6 @@ describe('DOM Integration Tests for maxDisplayItems', () => {
             const settings: UserSettings = {
                 shortcuts: { main: 'Cmd+Shift+Space', paste: 'Cmd+Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k' },
                 window: { position: 'cursor', width: 600, height: 300 },
-                history: { maxDisplayItems: 0 }
             };
 
             renderHistoryWithSettings(historyData, settings);
@@ -147,7 +145,6 @@ describe('DOM Integration Tests for maxDisplayItems', () => {
             const settings: UserSettings = {
                 shortcuts: { main: 'Cmd+Shift+Space', paste: 'Cmd+Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k' },
                 window: { position: 'cursor', width: 600, height: 300 },
-                history: { maxDisplayItems: 10 }
             };
 
             renderHistoryWithSettings(historyData, settings);
@@ -167,7 +164,6 @@ describe('DOM Integration Tests for maxDisplayItems', () => {
             const settings: UserSettings = {
                 shortcuts: { main: 'Cmd+Shift+Space', paste: 'Cmd+Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k' },
                 window: { position: 'cursor', width: 600, height: 300 },
-                history: { maxDisplayItems: 10 }
             };
 
             renderHistoryWithSettings(historyData, settings);
@@ -189,7 +185,6 @@ describe('DOM Integration Tests for maxDisplayItems', () => {
             const settings: UserSettings = {
                 shortcuts: { main: 'Cmd+Shift+Space', paste: 'Cmd+Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k' },
                 window: { position: 'cursor', width: 600, height: 300 },
-                history: { maxDisplayItems: 1 }
             };
 
             renderHistoryWithSettings(historyData, settings);
