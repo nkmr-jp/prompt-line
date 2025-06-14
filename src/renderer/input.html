@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Prompt Line</title>
+    <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+    <div class="container">
+        <div class="main-content">
+            <div class="input-section">
+                <div class="input-wrapper">
+                    <div class="header">
+                        <div class="app-name" id="appName">Prompt Line</div>
+                        <div class="shortcuts" id="headerShortcuts">
+                            <kbd>⌘</kbd>+<kbd>↵</kbd> Paste
+                            <kbd>Esc</kbd> Close
+                        </div>
+                    </div>
+                    
+                    <textarea 
+                        id="textInput" 
+                        placeholder="Enter text to paste..."
+                        autofocus
+                        spellcheck="false"
+                        autocomplete="off"
+                        autocapitalize="off"
+                        role="textbox"
+                        aria-label="Text input"
+                        aria-autocomplete="none"
+                    ></textarea>
+                    
+                    <div class="input-footer">
+                        <div class="hint">Multi-line text and Image supported</div>
+                        <div class="char-count" id="charCount">0 chars</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="history-section">
+                <div class="history-header">
+                    <div class="history-title">History <span id="historyShortcuts" style="font-size: 10px; color: rgba(255, 255, 255, 0.4); font-weight: normal;"><kbd style="font-size: 9px; padding: 1px 4px;">Ctrl</kbd>+<kbd style="font-size: 9px; padding: 1px 4px;">jk</kbd></span></div>
+                    
+                    <!-- Search overlay moved inside history-header -->
+                    <div class="search-overlay" id="searchOverlay">
+                        <div class="search-container">
+                            <input type="text" class="search-input" id="searchInput" placeholder="Search history..." autocomplete="off" spellcheck="false">
+                            <button class="search-close" id="searchClose" title="Close search" type="button" tabindex="0">
+                                ×
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <button class="search-button" id="searchButton" title="Search history">
+                        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"/>
+                            <path d="m21 21-4.35-4.35"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="history-list" id="historyList">
+                    <div class="history-empty">No history items</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Load modular JavaScript -->
+    <script src="../../dist/renderer/ui-manager.js"></script>
+    <script src="../../dist/renderer/renderer.js"></script>
+</body>
+</html>

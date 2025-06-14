@@ -1,0 +1,140 @@
+/* Input Section Layout */
+.input-section {
+    flex: 2;
+    display: flex;
+    flex-direction: column;
+}
+
+.input-wrapper {
+    width: 100%;
+    height: 100%;
+    background: var(--bg-primary);
+    border-radius: 0;
+    box-shadow: none;
+    display: flex;
+    flex-direction: column;
+    padding: var(--spacing-lg);
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+    min-height: 24px;
+}
+
+.app-name {
+    font-size: var(--font-size-md);
+    color: rgba(255, 255, 255, 0.5);
+    font-weight: 500;
+}
+
+.shortcuts {
+    font-size: var(--font-size-base);
+    color: var(--text-tertiary);
+}
+
+#textInput {
+    flex: 1;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    outline: none;
+    resize: none;
+    transition: all var(--animation-normal) ease;
+    font-family: inherit;
+}
+
+#textInput:focus {
+    background: var(--bg-tertiary);
+    border-color: rgba(255, 255, 255, 0.25);
+    box-shadow: 0 0 0 1px var(--bg-tertiary);
+}
+
+#textInput::placeholder {
+    color: var(--text-tertiary);
+}
+
+/* Scrollbar styles */
+#textInput::-webkit-scrollbar {
+    width: 8px;
+}
+
+#textInput::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-sm);
+}
+
+#textInput::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-sm);
+}
+
+#textInput::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Disable IME suggestions */
+#textInput::-webkit-input-placeholder {
+    color: var(--text-tertiary);
+}
+
+#textInput::-webkit-textfield-decoration-container {
+    display: none !important;
+}
+
+/* Hide form autofill */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0px 1000px transparent inset !important;
+    background-color: transparent !important;
+}
+
+.footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: var(--spacing-md);
+    padding-top: var(--spacing-md);
+    border-top: 1px solid var(--border-primary);
+}
+
+.hint {
+    font-size: var(--font-size-base);
+    color: var(--text-tertiary);
+}
+
+.char-count {
+    font-size: var(--font-size-base);
+    color: rgba(255, 255, 255, 0.3);
+    font-variant-numeric: tabular-nums;
+    transition: color var(--animation-normal) ease;
+}
+
+.char-count.warning {
+    color: #ff9500;
+}
+
+.char-count.error {
+    color: #ff3b30;
+}
+
+kbd {
+    display: inline-block;
+    padding: 2px 6px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    font-family: inherit;
+    margin: 0 2px;
+}
