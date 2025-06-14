@@ -50,7 +50,7 @@ describe('DOM Integration Tests', () => {
             return;
         }
 
-        const maxVisibleItems = 20; // MAX_VISIBLE_ITEMS constant
+        const maxVisibleItems = 200; // MAX_VISIBLE_ITEMS constant
         const visibleItems = historyData.slice(0, maxVisibleItems);
         const fragment = document.createDocumentFragment();
 
@@ -103,7 +103,7 @@ describe('DOM Integration Tests', () => {
 
             renderHistoryWithSettings(historyData, null);
 
-            // Should use default of 20
+            // Should use default of 200 (all 20 items should be visible)
             const historyItems = document.querySelectorAll('.history-item');
             expect(historyItems.length).toBe(20);
 

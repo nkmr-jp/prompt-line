@@ -93,7 +93,8 @@
     "setupFilesAfterEnv": [
       "<rootDir>/tests/setup.ts"
     ],
-    "testTimeout": 10000
+    "testTimeout": 10000,
+    "forceExit": true
   },
   "build": {
     "appId": "com.electron.prompt-line",

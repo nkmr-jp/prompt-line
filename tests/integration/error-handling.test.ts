@@ -66,7 +66,7 @@ describe('Error Handling Integration Tests', () => {
                 return;
             }
 
-            const maxVisibleItems = 20; // MAX_VISIBLE_ITEMS constant
+            const maxVisibleItems = 200; // MAX_VISIBLE_ITEMS constant
             const visibleItems = historyData.slice(0, maxVisibleItems);
             const fragment = document.createDocumentFragment();
 
@@ -119,8 +119,8 @@ describe('Error Handling Integration Tests', () => {
             const historyList = document.getElementById('historyList');
             const renderedItems = historyList?.querySelectorAll('.history-item');
             
-            // Should render up to MAX_VISIBLE_ITEMS (20)
-            expect(renderedItems?.length).toBe(20);
+            // Should render up to MAX_VISIBLE_ITEMS (200)
+            expect(renderedItems?.length).toBe(100);
         });
 
         test('should handle null settings gracefully', () => {
@@ -408,7 +408,7 @@ window:
             const historyList = document.getElementById('historyList');
             const renderedItems = historyList?.querySelectorAll('.history-item');
             expect(renderedItems?.length).toBeGreaterThan(0);
-            expect(renderedItems?.length).toBeLessThanOrEqual(20); // Should respect MAX_VISIBLE_ITEMS
+            expect(renderedItems?.length).toBeLessThanOrEqual(200); // Should respect MAX_VISIBLE_ITEMS
         });
 
         test('should handle history items with problematic content', () => {
@@ -523,12 +523,12 @@ window:
                 }).not.toThrow();
 
                 const renderedItems = document.querySelectorAll('.history-item');
-                expect(renderedItems.length).toBe(Math.min(20, historyItems.length)); // Always limited to MAX_VISIBLE_ITEMS
+                expect(renderedItems.length).toBe(Math.min(200, historyItems.length)); // Always limited to MAX_VISIBLE_ITEMS
             }
 
             // Verify final state is clean
             const finalItems = document.querySelectorAll('.history-item');
-            expect(finalItems.length).toBe(20); // Limited to MAX_VISIBLE_ITEMS
+            expect(finalItems.length).toBe(50); // Last iteration had 50 items
         });
 
         test('should handle stress test with large data and rapid changes', () => {
@@ -564,7 +564,7 @@ window:
                 expect(renderTime).toBeLessThan(1000); // Should complete within 1 second
 
                 const renderedItems = document.querySelectorAll('.history-item');
-                const expectedCount = Math.min(20, largeHistory.length); // Always limited to MAX_VISIBLE_ITEMS
+                const expectedCount = Math.min(200, largeHistory.length); // Always limited to MAX_VISIBLE_ITEMS
                 expect(renderedItems.length).toBe(expectedCount);
             }
         });

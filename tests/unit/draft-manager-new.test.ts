@@ -19,6 +19,13 @@ describe('DraftManager', () => {
     jest.clearAllMocks();
   });
 
+  afterEach(() => {
+    // Clean up any timers to prevent Jest from hanging
+    if (draftManager) {
+      draftManager.cleanup();
+    }
+  });
+
   describe('configuration', () => {
     test('should set config', () => {
       const config: Config = {

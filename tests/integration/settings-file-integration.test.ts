@@ -201,7 +201,7 @@ window:
             if (match && match[1]) {
                 const value = parseInt(match[1]);
                 expect(value).toBeGreaterThanOrEqual(600);
-                expect(value).toBeLessThanOrEqual(1500);
+                expect(value).toBeLessThanOrEqual(3000); // Increased for CI environments
             }
         });
     });

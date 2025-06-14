@@ -157,6 +157,13 @@ describe('PromptLineRenderer (Refactored)', () => {
         await new Promise(resolve => setTimeout(resolve, 0));
     });
 
+    afterEach(() => {
+        // Clean up any timers to prevent Jest from hanging
+        if (renderer) {
+            renderer.cleanup();
+        }
+    });
+
     describe('initialization', () => {
         test('should initialize with manager pattern', () => {
             expect((renderer as any).domManager).toBeDefined();

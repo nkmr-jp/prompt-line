@@ -61,6 +61,37 @@ npm install        # Installs husky and sets up hooks automatically via "prepare
 ```bash
 github             # Open repository in GitHub Desktop
 ```
+
+### Commit Message Guidelines
+Follow the Angular Commit Message Conventions:
+
+**Format:**
+```
+<type>(<scope>): <subject>
+
+<body>
+
+<footer>
+```
+
+**Types:**
+- `feat`: A new feature
+- `fix`: A bug fix
+- `docs`: Documentation only changes
+- `style`: Changes that do not affect the meaning of the code (white-space, formatting, missing semi-colons, etc)
+- `refactor`: A code change that neither fixes a bug nor adds a feature
+- `perf`: A code change that improves performance
+- `test`: Adding missing tests or correcting existing tests
+- `chore`: Changes to the build process or auxiliary tools and libraries
+
+**Examples:**
+```
+feat(history): add search functionality to paste history
+fix(window): resolve positioning issue on multi-monitor setups
+docs(readme): update installation instructions
+```
+
+For full guidelines, see: https://github.com/angular/angular/blob/main/contributing-docs/commit-message-guidelines.md
 ## Architecture Overview
 
 ### Electron Process Architecture
