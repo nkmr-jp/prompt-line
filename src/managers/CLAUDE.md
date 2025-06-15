@@ -1,80 +1,130 @@
 # Managers Module
 
-This module contains specialized managers that handle core application functionality using the Manager Pattern.
+This module contains specialized managers that handle core application functionality using the Manager Pattern. The managers are designed for optimal performance, reliability, and user experience with advanced features like native app integration, optimized history management, and intelligent draft handling.
 
-## Files
+## Files Overview
+
+The managers module consists of five main components:
+- **window-manager.ts**: Advanced window lifecycle management with native app integration
+- **history-manager.ts**: Traditional unlimited history management with JSONL format
+- **optimized-history-manager.ts**: Performance-optimized history management with caching
+- **draft-manager.ts**: Intelligent draft auto-save with backup system
+- **settings-manager.ts**: YAML-based user configuration management
+
+## Implementation Details
 
 ### window-manager.ts
-WindowManager class controlling Electron window lifecycle with advanced features:
+WindowManager class controlling Electron window lifecycle with native macOS integration:
 
 **Core Window Management:**
-- BrowserWindow creation with comprehensive config-driven settings
-- Advanced window positioning with three modes:
+- BrowserWindow creation with dynamic configuration from settings
+- Advanced window positioning with three positioning modes:
   - `active-window-center`: Centers within currently active window (default)
-  - `cursor`: Positions at mouse cursor location
-  - `center`: Centers on primary display
+  - `cursor`: Positions at mouse cursor location  
+  - `center`: Centers on primary display with slight upward offset (-100px)
 - Multi-monitor aware positioning with screen boundary constraints
-- Window recreation on each show for optimal performance and state management
-- Proper focus management with `focus()` and `show()` coordination
+- Intelligent window reuse: checks if window exists and is visible before creating new
+- Window state management with proper show/hide/focus coordination
 
-**Active Window Detection:**
-- AppleScript integration to detect active window bounds (`getActiveWindowBounds()`)
-- Robust parsing of AppleScript output with comma/space cleanup
-- Error handling with graceful fallback to cursor positioning
-- Real-time window bounds calculation for dynamic positioning
-- 3-second timeout protection for unresponsive AppleScript calls
+**Native App Integration:**
+- Previous app detection using `getCurrentApp()` before showing window
+- App restoration via `focusPreviousApp()` with native keyboard simulator
+- Native tool integration: Uses compiled binary at `src/native-tools/keyboard-simulator`
+- Bundle ID and app name support for reliable app activation
+- JSON response parsing from native tools with error handling
+- 3-second timeout protection for native tool execution
 
-**Previous App Integration:**
-- Previous app detection using `getCurrentApp()` utility with AppleScript
-- App restoration via `focusPreviousApp()` with AppleScript activation
-- Support for both string app names and AppInfo objects with bundle IDs
-- Error handling for app detection failures with graceful fallbacks
+**Advanced Positioning Algorithm:**
+```typescript
+// Active window center positioning
+const activeWindowBounds = await getActiveWindowBounds();
+x = activeWindowBounds.x + (activeWindowBounds.width - windowWidth) / 2;
+y = activeWindowBounds.y + (activeWindowBounds.height - windowHeight) / 2;
 
-**Advanced Features:**
+// Multi-monitor boundary constraints
+const display = screen.getDisplayNearestPoint(point);
+const bounds = display.bounds;
+x = Math.max(bounds.x, Math.min(x, bounds.x + bounds.width - windowWidth));
+y = Math.max(bounds.y, Math.min(y, bounds.y + bounds.height - windowHeight));
+```
+
+**Event Handling & Security:**
 - Context menu prevention via webContents event handling
 - Tab key prevention to avoid unwanted navigation
-- Data communication to renderer via IPC channels (`window-shown` event)
-- Window bounds calculation with screen boundary constraints
-- Event listener setup for blur and closed events
-- Proper cleanup with window destruction
+- Custom event listener setup for blur and closed events
+- WindowData communication to renderer via `window-shown` IPC event
+- Settings-driven window customization with runtime updates
 
 ### history-manager.ts
-HistoryManager class with comprehensive JSONL-based history management:
+Traditional HistoryManager with full-file based JSONL persistence:
 
 **File Format & Persistence:**
-- JSONL (JSON Lines) format for efficient append operations and corruption resistance
-- Each line: `{"text": "content", "timestamp": 1234567890, "id": "abc123"}`
-- Atomic write operations with complete file rewrite to prevent corruption
-- Graceful handling of missing or corrupt history files with fallback to empty state
+- JSONL (JSON Lines) format: `{"text": "content", "timestamp": 1234567890, "id": "abc123"}`
+- Complete file rewrite strategy for atomic operations
+- Chronological file storage (oldest first) with in-memory reverse sorting for display
+- Graceful handling of corrupt lines with line-by-line JSON parsing
 
-**Performance Optimization:**
-- Debounced save operations: 2s standard delay, 500ms for critical operations
-- Batched save operations to minimize disk I/O
-- In-memory sorting with `sort((a, b) => b.timestamp - a.timestamp)`
-- Optimized unlimited storage with LRU caching for memory efficiency
+**Debounced Save Operations:**
+- Standard save: 2000ms debounce for regular operations
+- Critical save: 500ms debounce for important operations (add/remove items)
+- Immediate save: Synchronous save for shutdown scenarios
+- Pending save protection to prevent concurrent write operations
 
 **Data Management:**
-- Duplicate prevention by filtering existing items before adding new ones
-- Unique ID generation using `generateId()` utility
-- Search functionality with case-insensitive `toLowerCase().includes()` matching
-- Statistics tracking: totalItems, totalCharacters, averageLength, oldest/newest timestamps
-- Export/import functionality with version control and merge options
+- Duplicate prevention: Filters existing items by text content before adding
+- In-memory data with `sort((a, b) => b.timestamp - a.timestamp)` for newest-first display
+- Search with case-insensitive `toLowerCase().includes()` matching
+- Unlimited storage capacity with full dataset in memory
 
-**Configuration & Storage:**
-- Unlimited history storage with OptimizedHistoryManager by default
-- Display limit of 200 most recent items in UI (MAX_VISIBLE_ITEMS constant)
-- Immediate save option for critical operations (app shutdown)
+**Export/Import System:**
+```typescript
+interface ExportData {
+  version: '1.0';
+  exportDate: string;
+  history: HistoryItem[];
+  stats: HistoryStats;
+}
+```
+
+### optimized-history-manager.ts
+Performance-optimized HistoryManager for large datasets with caching strategy:
+
+**Caching Architecture:**
+- LRU cache of recent items (LIMITS.MAX_VISIBLE_ITEMS = 200)
+- Duplicate check set for O(1) duplicate detection in cache
+- Background total count calculation to avoid blocking startup
+- Append-only file operations for better performance with large files
+
+**Advanced File Operations:**
+- `readLastNLines()`: Efficient backward file reading with 8KB chunks
+- Streaming line processing for large files using readline interface
+- Append queue with debounced batch writes (100ms debounce)
+- Atomic file operations for item removal with temporary file strategy
+
+**Memory Management:**
+```typescript
+private recentCache: HistoryItem[] = []; // 最新N件のキャッシュ
+private duplicateCheckSet = new Set<string>(); // O(1) duplicate detection
+private totalItemCount = 0; // Background calculated total
+private appendQueue: HistoryItem[] = []; // Batch append queue
+```
+
+**Performance Features:**
+- Lazy total count calculation (background after startup)
+- Cache-first operations for UI responsiveness
+- Streaming export/import for large datasets
+- Optimized search within cached items only
 
 ### draft-manager.ts
-DraftManager class with intelligent auto-save and backup system:
+Intelligent draft management with adaptive auto-save and backup system:
 
-**Auto-Save Intelligence:**
-- Adaptive debouncing: 500ms for small text (<200 chars), 1000ms for larger text
-- Change detection to prevent unnecessary saves (`lastSavedContent` comparison)
+**Adaptive Auto-Save Logic:**
+- Text size based debouncing: >200 chars = 1000ms, ≤200 chars = 500ms
+- Change detection: Compares with `lastSavedContent` to skip unnecessary saves
 - Immediate save mode for critical operations (window close, app shutdown)
 - Pending save state management to prevent concurrent writes
 
-**File Format & Structure:**
+**File Format & Security:**
 ```json
 {
   "text": "draft content",
@@ -83,66 +133,95 @@ DraftManager class with intelligent auto-save and backup system:
 }
 ```
 
-**Advanced Features:**
-- Draft backup system with timestamp-based file naming
-- Backup cleanup with configurable max age (default: 7 days)
-- Path validation to prevent directory traversal attacks
-- Draft statistics: hasContent, length, wordCount, lineCount, isMultiline
-- Safe JSON operations with fallback handling
+**Backup System:**
+- Timestamp-based backup naming: `${draftFile}.backup.${ISO-timestamp}`
+- Path validation with `path.normalize()` to prevent directory traversal
+- Configurable cleanup of old backups (default: 7 days)
+- Backup restoration with format validation
+
+**Extended Statistics:**
+```typescript
+interface DraftStatsExtended {
+  hasContent: boolean;
+  length: number;
+  wordCount: number;
+  lineCount: number;
+  isMultiline?: boolean;
+}
+```
 
 **State Management:**
-- In-memory draft caching for performance
-- Empty draft detection with automatic cleanup
-- Flush pending saves on app shutdown
-- Proper cleanup with debounce cancellation
+- In-memory current draft caching
+- Empty draft detection with automatic file cleanup
+- Debounce cancellation on destroy
+- Flush pending saves during shutdown
 
 ### settings-manager.ts
-SettingsManager class with YAML-based user configuration:
+YAML-based configuration management with deep merge and validation:
 
 **Configuration Structure:**
 ```yaml
 shortcuts:
   main: "Cmd+Shift+Space"
-  paste: "Cmd+Enter"
+  paste: "Cmd+Enter"  
   close: "Escape"
+  historyNext: "Ctrl+j"
+  historyPrev: "Ctrl+k"
 window:
-  position: "active-window-center"  # Default: centers within active window
-  # Available options: "active-window-center", "cursor", "center"
+  position: "active-window-center"
   width: 600
   height: 300
 ```
 
-**Window Position Options:**
-- `active-window-center`: Centers prompt window within the currently active application window (using native window detection) - Default
-- `cursor`: Positions at mouse cursor location
-- `center`: Centers on primary display screen
+**Deep Merge Strategy:**
+```typescript
+private mergeWithDefaults(userSettings: Partial<UserSettings>): UserSettings {
+  return {
+    shortcuts: { ...this.defaultSettings.shortcuts, ...userSettings.shortcuts },
+    window: { ...this.defaultSettings.window, ...userSettings.window }
+  };
+}
+```
 
 **Features:**
-- YAML file format for human-readable configuration
-- Default settings with deep merge functionality
-- Settings validation and fallback to defaults
-- Automatic settings file creation if missing
-- Individual section updates (shortcuts, window, history)
-- Settings reset functionality
-- Type-safe configuration access
+- YAML format for human-readable configuration files
+- Automatic settings file creation with defaults if missing
+- Section-specific updates (shortcuts, window) with deep merge
+- Settings validation with fallback to defaults
+- Type-safe configuration access with TypeScript interfaces
+- File path: `~/.prompt-line/settings.yaml`
 
 ## Manager Pattern Implementation
 
 ### Common Patterns
-- **Class-based architecture** with constructor dependency injection
-- **Initialization lifecycle**: `constructor()` → `initialize()` → `ready state`
-- **Async/await patterns** with comprehensive error catching and logging
-- **Structured logging** integration with contextual data for debugging
-- **Config-driven behavior** using centralized app-config module
-- **Safe operations** using utility functions for JSON, file I/O, and system calls
-- **Resource cleanup** with proper `destroy()` methods and promise handling
+All managers follow consistent architectural patterns:
+
+**Class-based Architecture:**
+- Constructor dependency injection with config-driven paths
+- Async initialization lifecycle: `constructor()` → `initialize()`/`init()` → ready state
+- Proper resource cleanup with `destroy()` methods
+
+**Error Handling & Logging:**
+- Comprehensive error catching with structured logging
+- Graceful degradation with fallback behaviors
+- Contextual debug information for troubleshooting
+
+**Performance Optimization:**
+- Debounced operations to reduce I/O overhead
+- Caching strategies for frequently accessed data
+- Async/await patterns with proper error propagation
+
+**File System Integration:**
+- Safe JSON operations using utility functions
+- Atomic file operations to prevent corruption
+- Proper handling of missing files and permissions
 
 ### Dependencies
-- **Core Config**: `src/config/app-config` - Configuration-driven paths and settings
+- **Core Config**: `src/config/app-config` - Centralized configuration paths and settings
 - **Utilities**: `src/utils/utils` - Logger, safe JSON operations, ID generation, AppleScript integration
 - **Electron APIs**: BrowserWindow, screen, ipcMain for system integration
 - **Node.js APIs**: fs.promises for async file operations, path for cross-platform paths
-- **External Libraries**: js-yaml for YAML parsing in SettingsManager
+- **External Libraries**: js-yaml for YAML parsing, readline for streaming file operations
 
 ### Data Flow
 ```
@@ -157,63 +236,58 @@ Main Process → Manager.method() → Async Operation → Result
 
 ## Critical Implementation Details
 
-### Window Positioning Algorithm (window-manager.ts:95-127)
-1. **Cursor Detection**: `screen.getCursorScreenPoint()` for precise cursor location
-2. **Display Management**: `screen.getDisplayNearestPoint()` for multi-monitor support
-3. **Previous App Capture**: `getCurrentApp()` AppleScript before window creation
-4. **Window Recreation**: Destroy existing window and create new one for clean state
-5. **Position Calculation**: 
-   - Cursor mode: `point.x - (windowWidth / 2)`, `point.y - (windowHeight / 2)`
-   - Boundary constraints: `Math.max(bounds.x, Math.min(x, bounds.x + bounds.width - windowWidth))`
-6. **Data Injection**: Send WindowData via `window-shown` IPC event after DOM ready
+### Window Positioning Algorithm (window-manager.ts:120-178)
+The window positioning system uses a sophisticated multi-step process:
 
-### History Management (history-manager.ts)
-**JSONL File Format:**
-- Each line: `JSON.stringify({text, timestamp, id}) + '\n'`
-- Chronological append for write efficiency
-- In-memory reverse sort for display: `sort((a, b) => b.timestamp - a.timestamp)`
+1. **Settings Integration**: Reads position mode from user settings with fallback to defaults
+2. **Window State Check**: Avoids unnecessary repositioning if window already visible
+3. **Position Calculation**: Three distinct algorithms based on selected mode
+4. **Boundary Constraints**: Ensures window stays within screen bounds on multi-monitor setups
+5. **Precise Positioning**: Uses `Math.round()` for pixel-perfect placement
 
-**Optimization Strategies:**
-- **Write Batching**: `debouncedSave` (2s) vs `criticalSave` (500ms)
-- **Duplicate Prevention**: `filter(item => item.text !== trimmedText)` before add
-- **Memory Management**: LRU cache with configurable display limits
-- **Corruption Recovery**: Line-by-line JSON parsing with error skipping
+### History Management Strategies
 
-**Data Structure:**
+**Traditional HistoryManager (history-manager.ts):**
+- Complete file rewrite approach for atomic operations
+- Full dataset loaded into memory for fast access
+- Suitable for moderate history sizes (< 10,000 items)
+
+**OptimizedHistoryManager (optimized-history-manager.ts):**
+- Streaming file operations with LRU caching
+- Background total count calculation
+- Designed for unlimited history with minimal memory footprint
+- Suitable for large datasets (> 10,000 items)
+
+### Draft Persistence Strategy (draft-manager.ts)
+**Adaptive Debouncing Logic:**
 ```typescript
-interface HistoryItem {
-  text: string;     // User input content
-  timestamp: number; // Date.now() for chronological ordering
-  id: string;       // generateId() for unique identification
+if (text.length > 200) {
+  this.debouncedSave(text); // 1000ms delay
+} else {
+  this.quickSave(text); // 500ms delay
 }
 ```
 
-### Draft Persistence (draft-manager.ts)
-**Adaptive Auto-Save:**
-- **Size-based debouncing**: `text.length > 200 ? debouncedSave : quickSave`
-- **Change detection**: Skip save if `lastSavedContent === text`
-- **Immediate mode**: `saveDraftImmediately()` for critical operations
-
-**File Structure:**
-```json
-{
-  "text": "draft content",
-  "timestamp": 1234567890,
-  "version": "1.0"
+**Change Detection Optimization:**
+```typescript
+if (this.lastSavedContent === text) {
+  logger.debug('Draft save skipped - no changes');
+  return;
 }
 ```
 
-**Backup System:**
-- **Backup naming**: `${draftFile}.backup.${timestamp}`
-- **Path validation**: Prevent directory traversal with `path.normalize()` checks
-- **Cleanup routine**: Remove backups older than configurable max age
+### Native Integration Details (window-manager.ts)
+**Keyboard Simulator Integration:**
+- Compiled binary at `src/native-tools/keyboard-simulator`
+- JSON-based communication protocol
+- Bundle ID and app name support for reliable activation
+- Timeout protection (3000ms) to prevent hanging
 
-### Settings Management (settings-manager.ts)
-**YAML Configuration:**
-- **File location**: `~/.prompt-line/settings.yaml`
-- **Deep merge**: `mergeWithDefaults()` preserves user settings while adding new defaults
-- **Validation**: Type checking and fallback to defaults for invalid values
-- **Auto-creation**: Create settings file with defaults if missing
+**App Detection Flow:**
+1. Capture current app before showing window
+2. Store app info (name + bundleId) for later restoration
+3. Use native tool to activate previous app after paste operation
+4. Handle both string names and AppInfo objects
 
 ## Testing Strategy
 
@@ -226,13 +300,13 @@ interface HistoryItem {
 ### Manager-Specific Testing
 **WindowManager:**
 - Mock BrowserWindow and screen APIs
-- Test cursor positioning algorithms with various screen configurations
-- Verify previous app detection and restoration flows
+- Test positioning algorithms with various screen configurations
+- Verify native app detection and restoration flows
 - Test window recreation and data injection
 
-**HistoryManager:**
+**HistoryManager/OptimizedHistoryManager:**
 - Test JSONL file parsing with malformed lines
-- Verify duplicate prevention and automatic trimming
+- Verify duplicate prevention and caching behavior
 - Test search functionality with various query patterns
 - Verify export/import operations with version handling
 
@@ -253,3 +327,18 @@ interface HistoryItem {
 - Verify complete workflows (paste operation, window lifecycle)
 - Test error propagation and recovery across manager boundaries
 - Verify resource cleanup during app shutdown
+
+## Migration Notes
+
+### From HistoryManager to OptimizedHistoryManager
+The application can use either history manager implementation:
+- **HistoryManager**: Traditional approach with full file operations
+- **OptimizedHistoryManager**: Streaming approach with caching for better performance
+
+Both implement the same `IHistoryManager` interface ensuring seamless interchangeability.
+
+### Key Differences:
+- **Memory Usage**: OptimizedHistoryManager uses fixed-size cache vs full dataset in memory
+- **Startup Time**: OptimizedHistoryManager has faster startup with background total count
+- **File Operations**: OptimizedHistoryManager uses append-only operations vs complete rewrites
+- **Search Scope**: OptimizedHistoryManager searches within cache only vs full dataset
