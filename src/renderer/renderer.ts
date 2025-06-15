@@ -222,6 +222,10 @@ export class PromptLineRenderer {
     try {
       this.lifecycleManager.handleWindowShown(data);
       this.updateHistoryAndSettings(data);
+      
+      // Reset search mode and scroll position when window is shown
+      this.searchManager?.exitSearchMode();
+      this.resetHistoryScrollPosition();
     } catch (error) {
       console.error('Error handling window shown:', error);
     }
@@ -283,6 +287,12 @@ export class PromptLineRenderer {
     if (!isSearchMode) {
       // Return focus to main textarea when exiting search
       this.searchManager?.focusMainTextarea();
+    }
+  }
+
+  private resetHistoryScrollPosition(): void {
+    if (this.domManager.historyList) {
+      this.domManager.historyList.scrollTop = 0;
     }
   }
 
