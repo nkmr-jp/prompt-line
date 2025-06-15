@@ -30,7 +30,7 @@ Prompt Lineは、[Claude Code](https://github.com/anthropics/claude-code)、[Ope
    ```bash
    git clone https://github.com/nkmr-jp/prompt-line.git
    cd prompt-line
-   git checkout v1.3.0  # 必要なバージョンタグに置き換え
+   git checkout v0.2.1  # 必要なバージョンタグに置き換え
    ```
 
 2. 依存関係をインストール:
@@ -46,8 +46,8 @@ Prompt Lineは、[Claude Code](https://github.com/anthropics/claude-code)、[Ope
 4. ビルドされたアプリは `dist/` ディレクトリに作成されます
 5. dmgファイルを開く
    ```bash
-   open dist/Prompt-Line-1.3.0-arm64.dmg # Apple Silicon
-   open dist/Prompt-Line-1.3.0-x64.dmg # Intel
+   open dist/Prompt-Line-0.2.1-arm64.dmg # Apple Silicon
+   open dist/Prompt-Line-0.2.1-x64.dmg # Intel
    ```
 6. Prompt Line.appをApplicationsフォルダにドラッグ
 7. **アクセシビリティ権限を許可**（初回使用時、貼り付けに必要）

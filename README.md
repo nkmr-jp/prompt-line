@@ -29,7 +29,7 @@ While it works across any macOS application, the main focus is enhancing termina
    ```bash
    git clone https://github.com/nkmr-jp/prompt-line.git
    cd prompt-line
-   git checkout v1.3.0  # Replace with desired version tag
+   git checkout v0.2.1  # Replace with desired version tag
    ```
 
 2. Install dependencies:
@@ -45,8 +45,8 @@ While it works across any macOS application, the main focus is enhancing termina
 4. The built app will be available in the `dist/` directory
 5. Open a dmg file
    ```bash
-   open dist/Prompt-Line-1.3.0-arm64.dmg # Apple Silicon
-   open dist/Prompt-Line-1.3.0-x64.dmg # Intel
+   open dist/Prompt-Line-0.2.1-arm64.dmg # Apple Silicon
+   open dist/Prompt-Line-0.2.1-x64.dmg # Intel
    ```
 6. Drag Prompt Line.app to your Applications folder
 7. **Grant accessibility permissions** when prompted on first use (required for pasting)
