@@ -33,7 +33,7 @@ export interface ImageResult {
 export class EventHandler {
   private textarea: HTMLTextAreaElement | null = null;
   private isComposing = false;
-  private searchManager: { isInSearchMode(): boolean } | null = null;
+  private searchManager: { isInSearchMode(): boolean; exitSearchMode(): void } | null = null;
   private onTextPaste: (text: string) => Promise<void>;
   private onWindowHide: () => Promise<void>;
   private onTabKeyInsert: (e: KeyboardEvent) => void;
@@ -58,7 +58,7 @@ export class EventHandler {
     this.textarea = textarea;
   }
 
-  public setSearchManager(searchManager: { isInSearchMode(): boolean }): void {
+  public setSearchManager(searchManager: { isInSearchMode(): boolean; exitSearchMode(): void }): void {
     this.searchManager = searchManager;
   }
 
@@ -105,12 +105,13 @@ export class EventHandler {
 
       // Handle Escape for hide window
       if (e.key === 'Escape') {
+        e.preventDefault();
         // Check if search mode is active
         if (this.searchManager && this.searchManager.isInSearchMode()) {
-          // Let the search manager handle it
+          // Exit search mode instead of hiding window
+          this.searchManager.exitSearchMode();
           return;
         }
-        e.preventDefault();
         await this.onWindowHide();
         return;
       }
