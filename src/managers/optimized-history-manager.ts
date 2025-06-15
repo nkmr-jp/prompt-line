@@ -294,18 +294,16 @@ class OptimizedHistoryManager implements IHistoryManager {
     try {
       // キャッシュから削除
       const initialLength = this.recentCache.length;
+      const removedItem = this.recentCache.find(item => item.id === id);
       this.recentCache = this.recentCache.filter(item => item.id !== id);
       
-      if (this.recentCache.length < initialLength) {
-        // ファイルからも削除（バックグラウンドで）
-        this.removeFromFile(id).catch(error => {
-          logger.error('Failed to remove item from file:', error);
-        });
+      if (this.recentCache.length < initialLength && removedItem) {
+        // duplicateCheckSetからも削除
+        this.duplicateCheckSet.delete(removedItem.text);
         
-        if (this.totalItemCountCached) {
-          this.totalItemCount = Math.max(0, this.totalItemCount - 1);
-        }
-        logger.debug('Removed history item:', id);
+        // ファイルは永続保護するため、メモリキャッシュのみ削除
+        // totalItemCountはファイルがそのままなので変更しない
+        logger.debug('Removed history item from cache (file preserved):', id);
         return true;
       }
       
@@ -317,46 +315,19 @@ class OptimizedHistoryManager implements IHistoryManager {
     }
   }
 
-  private async removeFromFile(idToRemove: string): Promise<void> {
-    const tempFile = `${this.historyFile}.tmp`;
-    const readStream = createReadStream(this.historyFile);
-    const writeStream = await fs.open(tempFile, 'w');
-    
-    const rl = createInterface({
-      input: readStream,
-      crlfDelay: Infinity
-    });
-
-    try {
-      for await (const line of rl) {
-        const item = safeJsonParse<HistoryItem>(line);
-        if (item && item.id !== idToRemove) {
-          await writeStream.write(line + '\n');
-        }
-      }
-      
-      await writeStream.close();
-      await fs.rename(tempFile, this.historyFile);
-    } catch (error) {
-      await writeStream.close();
-      await fs.unlink(tempFile).catch(() => {});
-      throw error;
-    }
-  }
 
   async clearHistory(): Promise<void> {
     try {
       await this.flushAppendQueue();
       this.recentCache = [];
       this.duplicateCheckSet.clear();
-      this.totalItemCount = 0;
-      this.totalItemCountCached = true; // 0個なので確定
       this.appendQueue = [];
       
-      await fs.writeFile(this.historyFile, '');
-      logger.info('History cleared');
+      // ファイルは永続保護するため、メモリキャッシュのみクリア
+      // totalItemCountはファイルがそのままなので変更しない
+      logger.info('History cache cleared (file preserved)');
     } catch (error) {
-      logger.error('Failed to clear history:', error);
+      logger.error('Failed to clear history cache:', error);
       throw error;
     }
   }
