@@ -34,26 +34,27 @@
     "node": ">=20.8.1"
   },
   "devDependencies": {
-    "@jest/globals": "29.7.0",
+    "@eslint/js": "^9.29.0",
+    "@jest/globals": "^30.0.0",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
     "@semantic-release/github": "^11.0.3",
-    "@types/jest": "29.5.14",
+    "@types/jest": "^29.5.14",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "20.17.57",
-    "@typescript-eslint/eslint-plugin": "^7.18.0",
-    "@typescript-eslint/parser": "^7.18.0",
+    "@typescript-eslint/eslint-plugin": "^8.34.0",
+    "@typescript-eslint/parser": "^8.34.0",
     "electron": "36.4.0",
-    "electron-builder": "24.13.3",
+    "electron-builder": "^26.0.16",
     "electron-mock-ipc": "0.3.12",
-    "eslint": "8.57.1",
-    "eslint-plugin-jest": "27.9.0",
+    "eslint": "^9.29.0",
+    "eslint-plugin-jest": "^28.11.0",
     "husky": "^9.1.7",
-    "jest": "29.7.0",
-    "jest-environment-jsdom": "29.7.0",
-    "jest-environment-node": "29.7.0",
+    "jest": "^30.0.0",
+    "jest-environment-jsdom": "^30.0.0",
+    "jest-environment-node": "^30.0.0",
     "semantic-release": "^24.2.5",
-    "ts-jest": "29.3.4",
+    "ts-jest": "^29.4.0",
     "typescript": "~5.5.0"
   },
   "jest": {
@@ -152,44 +153,6 @@
         }
       ]
     }
-  },
-  "eslintConfig": {
-    "env": {
-      "node": true,
-      "es2021": true,
-      "jest": true
-    },
-    "extends": [
-      "eslint:recommended",
-      "plugin:@typescript-eslint/recommended"
-    ],
-    "parser": "@typescript-eslint/parser",
-    "plugins": [
-      "jest",
-      "@typescript-eslint"
-    ],
-    "rules": {
-      "no-unused-vars": "off",
-      "@typescript-eslint/no-unused-vars": [
-        "warn",
-        {
-          "argsIgnorePattern": "^_"
-        }
-      ],
-      "no-console": "off",
-      "@typescript-eslint/ban-types": "off"
-    },
-    "overrides": [
-      {
-        "files": [
-          "tests/**/*.{js,ts}"
-        ],
-        "rules": {
-          "@typescript-eslint/no-explicit-any": "off",
-          "@typescript-eslint/no-non-null-assertion": "off"
-        }
-      }
-    ]
   },
   "dependencies": {
     "js-yaml": "^4.1.0"
