@@ -426,8 +426,8 @@ describe('IPCHandlers', () => {
             const windowData = {
                 history: [{ text: 'test', timestamp: Date.now(), id: 'test-1' }],
                 settings: {
-                    shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape' },
-                    window: { position: 'cursor', width: 800, height: 400 }
+                    shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'ArrowDown', historyPrev: 'ArrowUp' },
+                    window: { position: 'cursor' as const, width: 800, height: 400 }
                 }
             };
 

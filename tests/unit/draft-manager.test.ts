@@ -377,7 +377,7 @@ describe('DraftManager', () => {
 
     describe('cleanupBackups', () => {
         beforeEach(() => {
-            // eslint-disable-next-line @typescript-eslint/no-var-requires
+             
             const path = require('path');
             path.dirname.mockReturnValue('/test');
             path.basename.mockReturnValue('draft.json');

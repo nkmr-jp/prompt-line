@@ -46,6 +46,6 @@ export function updateShortcutsDisplay(
     const nextKey = historyNext.split('+').pop() || 'j';
     const prevKey = historyPrev.split('+').pop() || 'k';
     
-    historyShortcutsEl.innerHTML = `<kbd style="font-size: 9px; padding: 1px 4px;">Ctrl</kbd>+<kbd style="font-size: 9px; padding: 1px 4px;">${nextKey}${prevKey}</kbd>`;
+    historyShortcutsEl.innerHTML = `<kbd style="font-size: 9px; padding: 1px 4px;">Ctrl</kbd>+<kbd style="font-size: 9px; padding: 1px 4px;">${nextKey}</kbd>/<kbd style="font-size: 9px; padding: 1px 4px;">${prevKey}</kbd>`;
   }
 }

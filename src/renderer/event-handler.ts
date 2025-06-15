@@ -97,6 +97,12 @@ export class EventHandler {
 
   private async handleDocumentKeyDown(e: KeyboardEvent): Promise<void> {
     try {
+      // Skip if event originated from search input to avoid duplicate handling
+      const target = e.target as HTMLElement;
+      if (target && target.id === 'searchInput') {
+        return;
+      }
+
       // Handle Cmd+Enter for paste action
       if (e.key === 'Enter' && e.metaKey) {
         e.preventDefault();

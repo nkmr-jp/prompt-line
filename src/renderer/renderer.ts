@@ -134,9 +134,14 @@ export class PromptLineRenderer {
       this.domManager.searchInput.addEventListener('keydown', (e) => {
         // Use eventHandler's user settings if available
         if (this.eventHandler && this.userSettings?.shortcuts) {
-          this.eventHandler.handleHistoryNavigationShortcuts(e, (direction) => {
+          const handled = this.eventHandler.handleHistoryNavigationShortcuts(e, (direction) => {
             this.navigateHistory(e, direction);
           });
+          // Prevent event propagation to avoid duplicate handling by document listener
+          if (handled) {
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+          }
         }
       });
     }
@@ -288,9 +293,16 @@ export class PromptLineRenderer {
   }
 
   private handleSearchStateChange(isSearchMode: boolean, filteredData: HistoryItem[]): void {
+    // Only clear history selection when entering search mode or when filter actually changes data length
+    const shouldClearSelection = !isSearchMode || filteredData.length !== this.filteredHistoryData.length;
+    
     this.filteredHistoryData = filteredData;
     this.renderHistory();
-    
+
+    if (shouldClearSelection) {
+      this.historyUIManager.clearHistorySelection();
+    }
+
     if (!isSearchMode) {
       // Return focus to main textarea when exiting search
       this.searchManager?.focusMainTextarea();

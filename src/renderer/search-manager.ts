@@ -97,12 +97,13 @@ export class SearchManager {
   }
 
   public toggleSearchMode(): void {
-    this.isSearchMode = !this.isSearchMode;
-    
     if (this.isSearchMode) {
-      this.enterSearchMode();
+      // If already in search mode, just focus the search input
+      this.searchInput?.focus();
     } else {
-      this.exitSearchMode();
+      // Enter search mode
+      this.isSearchMode = true;
+      this.enterSearchMode();
     }
   }
 
