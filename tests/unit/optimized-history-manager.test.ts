@@ -336,7 +336,8 @@ describe('OptimizedHistoryManager', () => {
       await manager.clearHistory();
       
       expect(manager.getHistory()).toHaveLength(0);
-      expect(mockFs.writeFile).toHaveBeenCalledWith('/test/history.jsonl', '');
+      // ファイルは永続保護されるため、writeFileは呼ばれない
+      expect(mockFs.writeFile).not.toHaveBeenCalledWith('/test/history.jsonl', '');
     });
   });
 
