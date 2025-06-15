@@ -100,7 +100,7 @@ describe('updateShortcutsDisplay', () => {
 
     updateShortcutsDisplay(headerShortcutsEl, historyShortcutsEl, shortcuts);
 
-    expect(historyShortcutsEl.innerHTML).toBe('<kbd style="font-size: 9px; padding: 1px 4px;">Ctrl</kbd>+<kbd style="font-size: 9px; padding: 1px 4px;">jk</kbd>');
+    expect(historyShortcutsEl.innerHTML).toBe('<kbd style="font-size: 9px; padding: 1px 4px;">Ctrl</kbd>+<kbd style="font-size: 9px; padding: 1px 4px;">j</kbd>/<kbd style="font-size: 9px; padding: 1px 4px;">k</kbd>');
   });
 
   test('should use default history shortcuts when not provided', () => {
@@ -111,7 +111,7 @@ describe('updateShortcutsDisplay', () => {
 
     updateShortcutsDisplay(headerShortcutsEl, historyShortcutsEl, shortcuts);
 
-    expect(historyShortcutsEl.innerHTML).toBe('<kbd style="font-size: 9px; padding: 1px 4px;">Ctrl</kbd>+<kbd style="font-size: 9px; padding: 1px 4px;">jk</kbd>');
+    expect(historyShortcutsEl.innerHTML).toBe('<kbd style="font-size: 9px; padding: 1px 4px;">Ctrl</kbd>+<kbd style="font-size: 9px; padding: 1px 4px;">j</kbd>/<kbd style="font-size: 9px; padding: 1px 4px;">k</kbd>');
   });
 
   test('should handle complex paste shortcuts', () => {
@@ -163,7 +163,7 @@ describe('updateShortcutsDisplay', () => {
 
     updateShortcutsDisplay(null, historyShortcutsEl, shortcuts);
 
-    expect(historyShortcutsEl.innerHTML).toBe('<kbd style="font-size: 9px; padding: 1px 4px;">Ctrl</kbd>+<kbd style="font-size: 9px; padding: 1px 4px;">DownUp</kbd>');
+    expect(historyShortcutsEl.innerHTML).toBe('<kbd style="font-size: 9px; padding: 1px 4px;">Ctrl</kbd>+<kbd style="font-size: 9px; padding: 1px 4px;">Down</kbd>/<kbd style="font-size: 9px; padding: 1px 4px;">Up</kbd>');
   });
 
   test('should extract key from complex shortcuts', () => {
@@ -176,6 +176,6 @@ describe('updateShortcutsDisplay', () => {
 
     updateShortcutsDisplay(headerShortcutsEl, historyShortcutsEl, shortcuts);
 
-    expect(historyShortcutsEl.innerHTML).toBe('<kbd style="font-size: 9px; padding: 1px 4px;">Ctrl</kbd>+<kbd style="font-size: 9px; padding: 1px 4px;">jk</kbd>');
+    expect(historyShortcutsEl.innerHTML).toBe('<kbd style="font-size: 9px; padding: 1px 4px;">Ctrl</kbd>+<kbd style="font-size: 9px; padding: 1px 4px;">j</kbd>/<kbd style="font-size: 9px; padding: 1px 4px;">k</kbd>');
   });
 });
