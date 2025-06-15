@@ -49,6 +49,7 @@
     "electron-mock-ipc": "0.3.12",
     "eslint": "^9.29.0",
     "eslint-plugin-jest": "^28.11.0",
+    "globals": "^16.2.0",
     "husky": "^9.1.7",
     "jest": "^30.0.0",
     "jest-environment-jsdom": "^30.0.0",

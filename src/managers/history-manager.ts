@@ -51,7 +51,7 @@ class HistoryManager implements IHistoryManager {
           if (item && item.text && item.timestamp && item.id) {
             this.historyData.push(item);
           }
-        } catch (parseError) {
+        } catch {
           logger.warn('Invalid JSONL line in history file:', line);
         }
       }
