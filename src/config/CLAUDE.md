@@ -1,11 +1,11 @@
 # Configuration Module
 
-This module handles application configuration settings and constants with a comprehensive, type-safe configuration system.
+This module provides centralized configuration management for the Prompt Line application with a comprehensive, type-safe configuration system using a singleton pattern.
 
 ## Files
 
 ### app-config.ts
-Comprehensive AppConfigClass providing centralized configuration management:
+Comprehensive AppConfigClass providing centralized configuration management through a singleton instance exported as default.
 
 **Window Configuration:**
 ```typescript
@@ -13,7 +13,8 @@ window: {
   width: 600,
   height: 300,
   frame: false,
-  transparent: true,
+  transparent: false,           // Updated: Set to non-transparent
+  backgroundColor: '#141414',   // Dark background color
   alwaysOnTop: true,
   skipTaskbar: true,
   resizable: false,
@@ -36,7 +37,7 @@ window: {
 **Path Management System:**
 ```typescript
 paths: {
-  userDataDir: '~/.prompt-line',
+  userDataDir: path.join(os.homedir(), '.prompt-line'),
   get historyFile() { return path.join(userDataDir, 'history.jsonl'); },
   get draftFile() { return path.join(userDataDir, 'draft.json'); },
   get logFile() { return path.join(userDataDir, 'app.log'); },
@@ -50,24 +51,25 @@ paths: {
 **Keyboard Shortcuts:**
 ```typescript
 shortcuts: {
-  main: 'Cmd+Shift+Space',  // Primary app activation
-  paste: 'Cmd+Enter',       // Paste and close action
-  close: 'Escape'           // Close window action
+  main: 'Cmd+Shift+Space',      // Primary app activation
+  paste: 'Cmd+Enter',           // Paste and close action
+  close: 'Escape',              // Close window action
+  historyNext: 'Ctrl+j',        // Navigate to next history item
+  historyPrev: 'Ctrl+k'         // Navigate to previous history item
 }
 ```
 
 **Performance & Timing Configuration:**
 ```typescript
 history: {
-  maxItems: 50,        // Memory and file size management
-  saveInterval: 1000   // Batch save optimization
+  saveInterval: 1000   // Batch save optimization (milliseconds)
 },
 draft: {
-  saveDelay: 500       // Auto-save debounce timing
+  saveDelay: 500       // Auto-save debounce timing (milliseconds)
 },
 timing: {
-  windowHideDelay: 10, // Window hide animation timing
-  appFocusDelay: 50    // App switching delay for stability
+  windowHideDelay: 10, // Window hide animation timing (milliseconds)
+  appFocusDelay: 50    // App switching delay for stability (milliseconds)
 }
 ```
 
@@ -92,7 +94,7 @@ platform: {
 **Logging System:**
 ```typescript
 logging: {
-  level: process.env.NODE_ENV === 'development' ? 'debug' : 'info',
+  level: (process.env.NODE_ENV === 'development' ? 'debug' : 'info') as LogLevel,
   enableFileLogging: true,
   maxLogFileSize: 5 * 1024 * 1024,  // 5MB
   maxLogFiles: 3                     // Rotation limit
@@ -102,25 +104,30 @@ logging: {
 ## Key Responsibilities
 
 ### Configuration Architecture
-- **Singleton Pattern**: Single instance exported as default for consistent access
-- **Type Safety**: Comprehensive TypeScript interfaces for all configuration sections
-- **Environment Awareness**: Dynamic behavior based on NODE_ENV
-- **Cross-platform Compatibility**: Platform-specific path and feature handling
-- **Performance Optimization**: Getter-based lazy evaluation for expensive operations
+- **Singleton Pattern**: Single instance exported as default for consistent access across the application
+- **Type Safety**: Comprehensive TypeScript interfaces defined in `src/types/index.ts` ensure type safety
+- **Environment Awareness**: Dynamic behavior based on NODE_ENV for logging levels
+- **Cross-platform Compatibility**: Platform-specific path and feature handling using `os.homedir()` and `process.platform`
+- **Performance Optimization**: Getter-based lazy evaluation for path generation
 
 ### Dynamic Configuration System
+The AppConfigClass provides several utility methods for accessing configuration:
+
 ```typescript
 class AppConfigClass {
+  // Generic section access with type safety
   get<K extends keyof this>(section: K): this[K] {
     return this[section] || {} as this[K];
   }
   
+  // Dot-notation path access for nested values
   getValue(path: string): unknown {
     return path.split('.').reduce((obj, key) => 
       obj && (obj as Record<string, unknown>)[key], this as unknown
     );
   }
   
+  // Environment detection utilities
   isDevelopment(): boolean {
     return process.env.NODE_ENV === 'development';
   }
@@ -129,15 +136,28 @@ class AppConfigClass {
     return process.env.NODE_ENV === 'production';
   }
   
+  // HTML path resolution for renderer process
   getInputHtmlPath(): string {
+    // In production, HTML file is copied to dist/renderer directory
+    // __dirname is dist/config
     return path.join(__dirname, '..', 'renderer', 'input.html');
   }
 }
 ```
 
+### Initialization Process
+The configuration is initialized through a private `init()` method called in the constructor:
+
+1. **Window Configuration**: Sets up Electron BrowserWindow options with security and performance optimizations
+2. **Keyboard Shortcuts**: Defines global shortcuts including new history navigation shortcuts (`Ctrl+j`, `Ctrl+k`)
+3. **Path Management**: Creates getter-based path system for all application data files
+4. **Timing Configuration**: Sets debounce and delay values for optimal performance
+5. **Platform Detection**: Determines runtime platform for conditional behavior
+6. **Logging Setup**: Configures logging levels based on environment
+
 ### Path Management Strategy
-- **User Data Directory**: `~/.prompt-line` for all application data
-- **Getter-based Paths**: Dynamic path generation for flexibility
+- **User Data Directory**: `~/.prompt-line` for all application data (uses `os.homedir()`)
+- **Getter-based Paths**: Dynamic path generation for flexibility and cross-platform compatibility
 - **File Type Organization**:
   - `history.jsonl`: JSONL format for efficient append operations
   - `draft.json`: JSON format for structured draft data
@@ -167,16 +187,22 @@ if (config.isDevelopment()) {
 if (config.platform.isMac) {
   // macOS-specific code
 }
+
+// New history navigation shortcuts
+console.log(config.shortcuts.historyNext); // 'Ctrl+j'
+console.log(config.shortcuts.historyPrev); // 'Ctrl+k'
 ```
 
 ### Dynamic Configuration Access
 ```typescript
 // Generic section access
 const draftConfig = config.get('draft');
+const timingConfig = config.get('timing');
 
 // Dot-notation value access
 const saveDelay = config.getValue('draft.saveDelay');
-const maxItems = config.getValue('history.maxItems');
+const saveInterval = config.getValue('history.saveInterval');
+const windowHideDelay = config.getValue('timing.windowHideDelay');
 
 // HTML path resolution
 const inputHtmlPath = config.getInputHtmlPath();
@@ -191,6 +217,59 @@ const logLevel = config.logging.level; // 'debug' in dev, 'info' in prod
 const isDev = config.isDevelopment();
 const enableVerboseLogging = isDev;
 const enableDevTools = isDev;
+
+// Window appearance
+const backgroundColor = config.window.backgroundColor; // '#141414'
+const isTransparent = config.window.transparent; // false
+```
+
+## Type Safety and Integration
+
+### TypeScript Integration
+The configuration system uses comprehensive TypeScript interfaces defined in `src/types/index.ts`:
+
+- `WindowConfig`: Electron BrowserWindow configuration
+- `ShortcutsConfig`: Keyboard shortcut definitions
+- `PathsConfig`: File path configurations
+- `HistoryConfig`, `DraftConfig`, `TimingConfig`: Performance settings
+- `AppConfig`: Application metadata
+- `PlatformConfig`: Platform detection
+- `LoggingConfig`: Logging configuration with `LogLevel` union type
+
+### Manager Integration
+The configuration is used throughout the application:
+
+```typescript
+// In HistoryManager
+import config from '../config/app-config';
+const saveInterval = config.history.saveInterval;
+
+// In WindowManager
+const windowOptions = config.window;
+const position = config.window.position;
+
+// In DraftManager
+const saveDelay = config.draft.saveDelay;
+```
+
+### Real-world Usage Examples
+```typescript
+// Main process window creation
+const window = new BrowserWindow({
+  ...config.window,
+  webPreferences: {
+    ...config.window.webPreferences
+  }
+});
+
+// Renderer process keyboard handling
+electron.ipcRenderer.on('shortcut-pressed', (event, shortcut) => {
+  if (shortcut === config.shortcuts.historyNext) {
+    navigateHistory(1);
+  } else if (shortcut === config.shortcuts.historyPrev) {
+    navigateHistory(-1);
+  }
+});
 ```
 
 ## Testing Strategy
@@ -209,14 +288,19 @@ describe('AppConfig', () => {
     expect(config.platform).toBeDefined();
     expect(config.logging).toBeDefined();
   });
+  
+  it('should include new history navigation shortcuts', () => {
+    expect(config.shortcuts.historyNext).toBe('Ctrl+j');
+    expect(config.shortcuts.historyPrev).toBe('Ctrl+k');
+  });
 });
 ```
 
 ### Path Generation Testing
 - **Getter Functionality**: Verify path getters return correct absolute paths
-- **Cross-platform Paths**: Test path generation on different operating systems
+- **Cross-platform Paths**: Test path generation on different operating systems using `os.homedir()`
 - **Directory Structure**: Validate user data directory creation and access
-- **HTML Path Resolution**: Verify correct renderer HTML file path
+- **HTML Path Resolution**: Verify correct renderer HTML file path resolution
 
 ### Environment Testing
 ```typescript
@@ -225,6 +309,7 @@ it('should detect development environment', () => {
   process.env.NODE_ENV = 'development';
   expect(config.isDevelopment()).toBe(true);
   expect(config.isProduction()).toBe(false);
+  expect(config.logging.level).toBe('debug');
 });
 
 // Platform detection
@@ -245,4 +330,4 @@ it('should detect platform correctly', () => {
 - **Manager Integration**: Test configuration usage in manager classes
 - **Path Validation**: Verify all file paths are accessible and writable
 - **Settings Coordination**: Test interaction with SettingsManager
-- **Performance Impact**: Measure configuration access performance
+- **Performance Impact**: Measure configuration access performance with getter-based paths
