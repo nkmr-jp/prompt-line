@@ -4,6 +4,8 @@
  */
 
 import { TIMEOUTS } from '../constants';
+import { matchesShortcutString } from './utils/shortcut-parser';
+import type { UserSettings } from './types';
 
 // Browser environment - use global require with typed interface
 interface IpcRenderer {
@@ -34,6 +36,7 @@ export class EventHandler {
   private textarea: HTMLTextAreaElement | null = null;
   private isComposing = false;
   private searchManager: { isInSearchMode(): boolean } | null = null;
+  private userSettings: UserSettings | null = null;
   private onTextPaste: (text: string) => Promise<void>;
   private onWindowHide: () => Promise<void>;
   private onTabKeyInsert: (e: KeyboardEvent) => void;
@@ -60,6 +63,10 @@ export class EventHandler {
 
   public setSearchManager(searchManager: { isInSearchMode(): boolean }): void {
     this.searchManager = searchManager;
+  }
+
+  public setUserSettings(settings: UserSettings): void {
+    this.userSettings = settings;
   }
 
   public setupEventListeners(): void {
@@ -125,24 +132,29 @@ export class EventHandler {
         return;
       }
 
-      // Handle Ctrl+J (or Down Arrow) for next history item
-      if ((e.key === 'ArrowDown' || e.key === 'j') && e.ctrlKey) {
-        // Skip shortcut if IME is active to avoid conflicts with Japanese input
-        if (this.isComposing || e.isComposing) {
+      // Handle history navigation shortcuts
+      if (this.userSettings?.shortcuts) {
+        // Check for historyNext shortcut
+        if (matchesShortcutString(e, this.userSettings.shortcuts.historyNext)) {
+          // Skip shortcut if IME is active to avoid conflicts with Japanese input
+          if (this.isComposing || e.isComposing) {
+            return;
+          }
+          e.preventDefault();
+          this.onHistoryNavigation(e, 'next');
           return;
         }
-        this.onHistoryNavigation(e, 'next');
-        return;
-      }
 
-      // Handle Ctrl+K (or Up Arrow) for previous history item
-      if ((e.key === 'ArrowUp' || e.key === 'k') && e.ctrlKey) {
-        // Skip shortcut if IME is active to avoid conflicts with Japanese input
-        if (this.isComposing || e.isComposing) {
+        // Check for historyPrev shortcut
+        if (matchesShortcutString(e, this.userSettings.shortcuts.historyPrev)) {
+          // Skip shortcut if IME is active to avoid conflicts with Japanese input
+          if (this.isComposing || e.isComposing) {
+            return;
+          }
+          e.preventDefault();
+          this.onHistoryNavigation(e, 'prev');
           return;
         }
-        this.onHistoryNavigation(e, 'prev');
-        return;
       }
 
       // Handle Cmd+F for search
@@ -213,6 +225,39 @@ export class EventHandler {
 
   public getIsComposing(): boolean {
     return this.isComposing;
+  }
+
+  /**
+   * Handle history navigation shortcuts for use by other components
+   */
+  public handleHistoryNavigationShortcuts(e: KeyboardEvent, onNavigate: (direction: 'next' | 'prev') => void): boolean {
+    if (!this.userSettings?.shortcuts) {
+      return false;
+    }
+
+    // Check for historyNext shortcut
+    if (matchesShortcutString(e, this.userSettings.shortcuts.historyNext)) {
+      // Skip shortcut if IME is active to avoid conflicts with Japanese input
+      if (this.isComposing || e.isComposing) {
+        return false;
+      }
+      e.preventDefault();
+      onNavigate('next');
+      return true;
+    }
+
+    // Check for historyPrev shortcut
+    if (matchesShortcutString(e, this.userSettings.shortcuts.historyPrev)) {
+      // Skip shortcut if IME is active to avoid conflicts with Japanese input
+      if (this.isComposing || e.isComposing) {
+        return false;
+      }
+      e.preventDefault();
+      onNavigate('prev');
+      return true;
+    }
+
+    return false;
   }
 
   public destroy(): void {

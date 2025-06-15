@@ -5,7 +5,8 @@ import type {
   WindowData, 
   Config, 
   PasteResult, 
-  ImageResult 
+  ImageResult,
+  UserSettings 
 } from './types';
 import { EventHandler } from './event-handler';
 import { SearchManager } from './search-manager';
@@ -21,6 +22,7 @@ export class PromptLineRenderer {
   private historyData: HistoryItem[] = [];
   private filteredHistoryData: HistoryItem[] = [];
   private config: Config = {};
+  private userSettings: UserSettings | null = null;
   private eventHandler: EventHandler | null = null;
   private searchManager: SearchManager | null = null;
   private domManager: DomManager;
@@ -127,19 +129,14 @@ export class PromptLineRenderer {
       this.historyUIManager.clearHistorySelection();
     });
 
-    // Search navigation in search input (allow Ctrl+j/k even when search input is focused)
+    // Search navigation in search input (allow history navigation shortcuts even when search input is focused)
     if (this.domManager.searchInput) {
       this.domManager.searchInput.addEventListener('keydown', (e) => {
-        if ((e.key === 'ArrowDown' || e.key === 'j') && e.ctrlKey) {
-          e.preventDefault();
-          this.navigateHistory(e, 'next');
-          return;
-        }
-        
-        if ((e.key === 'ArrowUp' || e.key === 'k') && e.ctrlKey) {
-          e.preventDefault();
-          this.navigateHistory(e, 'prev');
-          return;
+        // Use eventHandler's user settings if available
+        if (this.eventHandler && this.userSettings?.shortcuts) {
+          this.eventHandler.handleHistoryNavigationShortcuts(e, (direction) => {
+            this.navigateHistory(e, direction);
+          });
         }
       });
     }
@@ -236,6 +233,16 @@ export class PromptLineRenderer {
     this.historyData = data.history || [];
     this.filteredHistoryData = [...this.historyData];
     this.searchManager?.updateHistoryData(this.historyData);
+    
+    // Update user settings if provided
+    if (data.settings) {
+      this.userSettings = data.settings;
+      // Pass settings to event handler
+      if (this.eventHandler) {
+        this.eventHandler.setUserSettings(data.settings);
+      }
+    }
+    
     this.renderHistory();
   }
 
