@@ -62,7 +62,7 @@ HistoryManager class with comprehensive JSONL-based history management:
 
 **Configuration & Storage:**
 - Unlimited history storage with OptimizedHistoryManager by default
-- Configurable display limits via `maxDisplayItems` setting
+- Display limit of 200 most recent items in UI (MAX_VISIBLE_ITEMS constant)
 - Immediate save option for critical operations (app shutdown)
 
 ### draft-manager.ts
@@ -110,8 +110,6 @@ window:
   # Available options: "active-window-center", "cursor", "center"
   width: 600
   height: 300
-history:
-  maxDisplayItems: 20  # Number of items shown in history panel (unlimited storage)
 ```
 
 **Window Position Options:**

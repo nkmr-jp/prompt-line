@@ -29,8 +29,7 @@ jest.mock('js-yaml', () => ({
     if (data.includes('main: Alt+Space')) {
       return {
         shortcuts: { main: 'Alt+Space', paste: 'Enter', close: 'Escape' },
-        window: { position: 'center', width: 800, height: 400 },
-        history: { maxItems: 100, maxDisplayItems: 20 }
+        window: { position: 'center', width: 800, height: 400 }
       };
     }
     return null;
@@ -43,10 +42,7 @@ jest.mock('js-yaml', () => ({
 window:
   position: ${(data as any).window.position}
   width: ${(data as any).window.width}
-  height: ${(data as any).window.height}
-history:
-  maxItems: ${(data as any).history.maxItems}
-  maxDisplayItems: ${(data as any).history.maxDisplayItems}`;
+  height: ${(data as any).window.height}`;
     return yaml;
   })
 }));
@@ -83,9 +79,7 @@ describe('SettingsManager', () => {
 window:
   position: center
   width: 800
-  height: 400
-history:
-  maxDisplayItems: 20`;
+  height: 400`;
       mockedFs.readFile.mockResolvedValue(yamlSettings);
 
       await settingsManager.init();
@@ -93,7 +87,6 @@ history:
       const settings = settingsManager.getSettings();
       expect(settings.shortcuts.main).toBe('Alt+Space');
       expect(settings.window.position).toBe('center');
-      expect(settings.history.maxDisplayItems).toBe(20);
     });
 
     it('should handle corrupted settings file and use defaults', async () => {
@@ -132,9 +125,6 @@ history:
           position: 'active-window-center',
           width: 600,
           height: 300
-        },
-        history: {
-          maxDisplayItems: 20
         }
       });
     });
@@ -202,15 +192,6 @@ history:
       expect(updatedWindowSettings.height).toBe(300); // Should remain unchanged
     });
 
-    it('should get and update history settings', async () => {
-      const historySettings = settingsManager.getHistorySettings();
-      expect(historySettings.maxDisplayItems).toBe(20);
-
-      await settingsManager.updateHistorySettings({ maxDisplayItems: 20 });
-      
-      const updatedHistorySettings = settingsManager.getHistorySettings();
-      expect(updatedHistorySettings.maxDisplayItems).toBe(20);
-    });
   });
 
   describe('utility methods', () => {
@@ -236,9 +217,6 @@ history:
           position: 'active-window-center',
           width: 600,
           height: 300
-        },
-        history: {
-          maxDisplayItems: 20
         }
       });
 

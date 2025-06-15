@@ -6,5 +6,3 @@ window:
   position: cursor
   width: 600
   height: 300
-history:
-  maxDisplayItems: 20  # Number of items to display in UI

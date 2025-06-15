@@ -106,17 +106,12 @@ window:
   position: "cursor"         # ウィンドウ位置："cursor"（デフォルト）、"active-window-center"、または"center"
   width: 600                 # ウィンドウ幅（ピクセル）
   height: 300                # ウィンドウ高さ（ピクセル）
-
-history:
-  maxItems: 50               # 保存する最大履歴項目数
-  maxDisplayItems: 10        # 履歴パネルに表示する最大項目数
 ```
 
 **設定オプション：**
 
 - **ショートカット**: 形式：`Cmd`、`Ctrl`、`Alt`、`Shift` + 任意のキー
 - **ウィンドウ位置**: `cursor`（デフォルト）、`active-window-center`、または`center`
-- **履歴設定**: 保存と表示の制限を調整
 
 ## 開発
 

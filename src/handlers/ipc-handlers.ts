@@ -207,12 +207,8 @@ class IPCHandlers {
 
   private async handleGetHistory(_event: IpcMainInvokeEvent): Promise<HistoryItem[]> {
     try {
-      // ユーザー設定からmaxDisplayItemsを取得
-      const settings = this.settingsManager.getSettings();
-      const maxDisplayItems = settings.history?.maxDisplayItems || 20;
-      
-      const history = await this.historyManager.getHistory(maxDisplayItems);
-      logger.debug('History requested', { count: history.length, maxDisplayItems });
+      const history = await this.historyManager.getHistory();
+      logger.debug('History requested', { count: history.length });
       return history;
     } catch (error) {
       logger.error('Failed to get history:', error);

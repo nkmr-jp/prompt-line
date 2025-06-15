@@ -251,8 +251,7 @@ class PromptLineApp {
 
       const draft = this.draftManager.getCurrentDraft();
       const settings = this.settingsManager.getSettings();
-      const maxDisplayItems = settings.history?.maxDisplayItems || 20;
-      const history = this.historyManager.getHistory(maxDisplayItems);
+      const history = this.historyManager.getHistory();
       const windowData: WindowData = {
         history,
         draft: draft || null,

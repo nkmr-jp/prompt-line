@@ -25,9 +25,6 @@ class SettingsManager {
         position: 'active-window-center',
         width: 600,
         height: 300
-      },
-      history: {
-        maxDisplayItems: 20
       }
     };
 
@@ -85,10 +82,6 @@ class SettingsManager {
       window: {
         ...this.defaultSettings.window,
         ...userSettings.window
-      },
-      history: {
-        ...this.defaultSettings.history,
-        ...userSettings.history
       }
     };
   }
@@ -165,24 +158,11 @@ class SettingsManager {
     });
   }
 
-  getHistorySettings(): UserSettings['history'] {
-    return { ...this.currentSettings.history };
-  }
-
-  async updateHistorySettings(history: Partial<UserSettings['history']>): Promise<void> {
-    await this.updateSettings({
-      history: {
-        ...this.currentSettings.history,
-        ...history
-      }
-    });
-  }
 
   getDefaultSettings(): UserSettings {
     return {
       shortcuts: { ...this.defaultSettings.shortcuts },
-      window: { ...this.defaultSettings.window },
-      history: { ...this.defaultSettings.history }
+      window: { ...this.defaultSettings.window }
     };
   }
 

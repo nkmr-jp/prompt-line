@@ -108,15 +108,12 @@ window:
   width: 600                 # Window width in pixels
   height: 300                # Window height in pixels
 
-history:
-  maxDisplayItems: 20        # Maximum items shown in history panel (unlimited storage by default)
 ```
 
 **Configuration Options:**
 
 - **Shortcuts**: Format: `Cmd`, `Ctrl`, `Alt`, `Shift` + any key
 - **Window Position**: `cursor` (default), `active-window-center`, or `center`
-- **History Settings**: Adjust display limits (storage is unlimited by default)
 
 ## Development
 
