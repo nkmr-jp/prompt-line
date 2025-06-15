@@ -15,7 +15,7 @@ import { TIMEOUTS, TIME_CALCULATIONS } from '../constants';
 function getNativeToolsPath(): string {
   try {
     // Try to import app to check if packaged
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+     
     const { app } = require('electron');
     
     if (app && app.isPackaged) {
@@ -26,7 +26,7 @@ function getNativeToolsPath(): string {
       
       return nativeToolsPath;
     }
-  } catch (error) {
+  } catch {
     // App object not available (e.g., in renderer process or tests)
   }
   
@@ -59,7 +59,7 @@ class Logger {
 
   private initializeConfig(): void {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
+       
       const config = require('../config/app-config');
       if (config && config.logging) {
         this.level = config.logging.level || 'info';
@@ -68,7 +68,7 @@ class Logger {
       if (config && config.paths && config.paths.logFile) {
         this.logFile = config.paths.logFile;
       }
-    } catch (error) {
+    } catch {
       // Config not available yet, use defaults
     }
   }
