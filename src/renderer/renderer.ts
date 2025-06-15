@@ -290,7 +290,10 @@ export class PromptLineRenderer {
   private handleSearchStateChange(isSearchMode: boolean, filteredData: HistoryItem[]): void {
     this.filteredHistoryData = filteredData;
     this.renderHistory();
-    
+
+    // 検索フィルタリングが適用された時は履歴選択状態をクリア
+    this.historyUIManager.clearHistorySelection();
+
     if (!isSearchMode) {
       // Return focus to main textarea when exiting search
       this.searchManager?.focusMainTextarea();
