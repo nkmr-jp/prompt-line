@@ -225,3 +225,66 @@ The window supports multiple positioning modes with dynamic configuration:
 - No app sandboxing (required for auto-paste functionality)
 - Requires explicit user permissions for accessibility
 - All data stored locally, no network requests
+
+## Investigation and Troubleshooting
+
+### Investigation Task Guidelines
+When conducting investigations (CI failures, bugs, security issues, design considerations, implementation planning, etc.), follow these guidelines:
+
+1. **Documentation**: Always document investigation results in `.claude/scratch/` directory
+2. **File Format**: Use markdown format for all investigation reports
+3. **File Naming**: Use descriptive names like:
+   - `ci-failure-investigation-YYYYMMDD.md`
+   - `bug-report-issue-123.md`
+   - `design-plan-feature-name.md`
+   - `implementation-plan-YYYYMMDD.md`
+4. **Content Structure**: Include:
+   - Summary of the issue/task
+   - Investigation/analysis steps taken
+   - Root cause analysis (for bugs/issues) or design considerations (for planning)
+   - Resolution recommendations or implementation plan
+   - Next steps and follow-up actions
+
+**Example Report Structures:**
+
+*For Investigations:*
+```markdown
+# [Issue Type] Investigation
+
+**Date:** YYYY-MM-DD
+**Issue:** Brief description
+**Status:** In Progress/Resolved/Blocked
+
+## Summary
+Brief overview of the issue and findings
+
+## Investigation Details
+Detailed steps taken and findings
+
+## Root Cause Analysis
+Technical analysis of the underlying cause
+
+## Resolution Recommendations
+Proposed solutions and next steps
+```
+
+*For Design/Implementation Planning:*
+```markdown
+# [Feature/Component] Design/Implementation Plan
+
+**Date:** YYYY-MM-DD
+**Scope:** Brief description of what's being planned
+**Status:** Planning/In Progress/Ready for Implementation
+
+## Summary
+Overview of the feature/component and objectives
+
+## Analysis & Design Considerations
+Requirements analysis, constraints, and design decisions
+
+## Implementation Plan
+Detailed implementation steps and approach
+
+## Next Steps
+Action items and implementation timeline
+```

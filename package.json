@@ -31,7 +31,8 @@
   "author": "nkmr-jp",
   "license": "MIT",
   "engines": {
-    "node": ">=20.8.1"
+    "node": ">=20.8.1",
+    "npm": ">=10.8.2"
   },
   "devDependencies": {
     "@jest/globals": "29.7.0",
