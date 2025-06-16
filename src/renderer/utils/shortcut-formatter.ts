@@ -20,6 +20,7 @@ export function updateShortcutsDisplay(
     close: string;
     historyNext?: string;
     historyPrev?: string;
+    search?: string;
   }
 ): void {
   // Update header shortcuts
@@ -47,5 +48,12 @@ export function updateShortcutsDisplay(
     const prevKey = historyPrev.split('+').pop() || 'k';
     
     historyShortcutsEl.innerHTML = `<kbd style="font-size: 9px; padding: 1px 4px;">Ctrl</kbd>+<kbd style="font-size: 9px; padding: 1px 4px;">${nextKey}</kbd>/<kbd style="font-size: 9px; padding: 1px 4px;">${prevKey}</kbd>`;
+  }
+
+  // Update search button tooltip
+  const searchButtonEl = document.getElementById('searchButton');
+  if (searchButtonEl && shortcuts.search) {
+    const searchKey = formatShortcut(shortcuts.search);
+    searchButtonEl.title = `Search history (${searchKey})`;
   }
 }

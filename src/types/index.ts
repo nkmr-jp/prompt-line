@@ -82,6 +82,7 @@ export interface ShortcutsConfig {
   close: string;
   historyNext: string;
   historyPrev: string;
+  search: string;
 }
 
 export interface PathsConfig {
@@ -156,7 +157,7 @@ export interface WindowBounds {
   height: number;
 }
 
-export type StartupPosition = 'cursor' | 'center' | 'active-window-center';
+export type StartupPosition = 'cursor' | 'center' | 'active-window-center' | 'active-text-field';
 
 export interface UserSettings {
   shortcuts: {
@@ -165,6 +166,7 @@ export interface UserSettings {
     close: string;
     historyNext: string;
     historyPrev: string;
+    search: string;
   };
   window: {
     position: StartupPosition;

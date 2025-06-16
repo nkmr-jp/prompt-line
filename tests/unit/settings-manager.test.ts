@@ -28,7 +28,7 @@ jest.mock('js-yaml', () => ({
   load: jest.fn((data: string) => {
     if (data.includes('main: Alt+Space')) {
       return {
-        shortcuts: { main: 'Alt+Space', paste: 'Enter', close: 'Escape' },
+        shortcuts: { main: 'Alt+Space', paste: 'Enter', close: 'Escape', search: 'Cmd+f' },
         window: { position: 'center', width: 800, height: 400 }
       };
     }
@@ -98,7 +98,7 @@ window:
 
       const settings = settingsManager.getSettings();
       expect(settings.shortcuts.main).toBe('Cmd+Shift+Space');
-      expect(settings.window.position).toBe('active-window-center');
+      expect(settings.window.position).toBe('active-text-field');
     });
   });
 
@@ -119,10 +119,11 @@ window:
           paste: 'Cmd+Enter',
           close: 'Escape',
           historyNext: 'Ctrl+j',
-          historyPrev: 'Ctrl+k'
+          historyPrev: 'Ctrl+k',
+          search: 'Cmd+f'
         },
         window: {
-          position: 'active-window-center',
+          position: 'active-text-field',
           width: 600,
           height: 300
         }
@@ -136,7 +137,8 @@ window:
           paste: 'Enter',
           close: 'Escape',
           historyNext: 'Ctrl+j',
-          historyPrev: 'Ctrl+k'
+          historyPrev: 'Ctrl+k',
+          search: 'Cmd+f'
         }
       };
 
@@ -157,7 +159,7 @@ window:
       await settingsManager.resetSettings();
 
       const settings = settingsManager.getSettings();
-      expect(settings.window.position).toBe('active-window-center');
+      expect(settings.window.position).toBe('active-text-field');
       expect(settings.window.width).toBe(600);
     });
   });
@@ -182,7 +184,7 @@ window:
 
     it('should get and update window settings', async () => {
       const windowSettings = settingsManager.getWindowSettings();
-      expect(windowSettings.position).toBe('active-window-center');
+      expect(windowSettings.position).toBe('active-text-field');
 
       await settingsManager.updateWindowSettings({ position: 'center', width: 800 });
       
@@ -211,10 +213,11 @@ window:
           paste: 'Cmd+Enter',
           close: 'Escape',
           historyNext: 'Ctrl+j',
-          historyPrev: 'Ctrl+k'
+          historyPrev: 'Ctrl+k',
+          search: 'Cmd+f'
         },
         window: {
-          position: 'active-window-center',
+          position: 'active-text-field',
           width: 600,
           height: 300
         }

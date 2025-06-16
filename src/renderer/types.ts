@@ -27,6 +27,7 @@ export interface UserSettings {
     close: string;
     historyNext: string;
     historyPrev: string;
+    search: string;
   };
   window: {
     position: string;
