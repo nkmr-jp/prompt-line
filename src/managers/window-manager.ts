@@ -1,5 +1,7 @@
 import { BrowserWindow, screen } from 'electron';
 import { exec } from 'child_process';
+import { writeFileSync, unlinkSync } from 'fs';
+import { tmpdir } from 'os';
 import path from 'path';
 import config from '../config/app-config';
 import { getCurrentApp, getActiveWindowBounds, logger } from '../utils/utils';
@@ -241,58 +243,66 @@ class WindowManager {
       return null;
     }
 
-    const script = `
-      tell application "System Events"
-        try
-          -- Check if we have accessibility permissions first
-          if not (exists (application processes)) then
-            return "no_permission"
-          end if
-          
-          set frontApp to first application process whose frontmost is true
-          
-          -- Try to get focused element with error handling
-          try
-            set focusedElement to focused UI element of frontApp
-          on error
-            return "no_focus"
-          end try
-          
-          -- Check if focused element exists and get its role
-          if focusedElement is missing value then
-            return "no_element"
-          end if
-          
-          try
-            set elementRole to role of focusedElement
-          on error
-            return "no_role"
-          end try
-          
-          -- Check if focused element is a text field
-          if elementRole is in {"AXTextField", "AXTextArea", "AXSecureTextField", "AXComboBox"} then
-            try
-              set elementPosition to position of focusedElement
-              set elementSize to size of focusedElement
-              
-              set x to item 1 of elementPosition
-              set y to item 2 of elementPosition
-              set width to item 1 of elementSize
-              set height to item 2 of elementSize
-              
-              set jsonResult to "{" & (ASCII character 34) & "x" & (ASCII character 34) & ":" & x & "," & (ASCII character 34) & "y" & (ASCII character 34) & ":" & y & "," & (ASCII character 34) & "width" & (ASCII character 34) & ":" & width & "," & (ASCII character 34) & "height" & (ASCII character 34) & ":" & height & "," & (ASCII character 34) & "role" & (ASCII character 34) & ":" & (ASCII character 34) & elementRole & (ASCII character 34) & "}"
-              return jsonResult
-            on error posErr
-              return "position_error"
-            end try
-          else
-            return "not_text_field:" & elementRole
-          end if
-        on error errMsg
-          return "error:" & errMsg
-        end try
-      end tell
-    `;
+    const script = `tell application "System Events"
+	try
+		-- Check if we have accessibility permissions first
+		if not (exists (application processes)) then
+			return "no_permission"
+		end if
+		
+		set frontApp to first application process whose frontmost is true
+		
+		-- Try to get focused element with error handling
+		try
+			set focusedElement to focused UI element of frontApp
+		on error
+			return "no_focus"
+		end try
+		
+		-- Check if focused element exists and get its role
+		if focusedElement is missing value then
+			return "no_element"
+		end if
+		
+		try
+			set elementRole to role of focusedElement
+		on error
+			return "no_role"
+		end try
+		
+		-- Check if focused element is a text field
+		if elementRole is in {"AXTextField", "AXTextArea", "AXSecureTextField", "AXComboBox"} then
+			try
+				set elementPosition to position of focusedElement
+				set elementSize to size of focusedElement
+				
+				set x to item 1 of elementPosition
+				set y to item 2 of elementPosition
+				set width to item 1 of elementSize
+				set height to item 2 of elementSize
+				
+				set jsonResult to "{" & (ASCII character 34) & "x" & (ASCII character 34) & ":" & x & "," & (ASCII character 34) & "y" & (ASCII character 34) & ":" & y & "," & (ASCII character 34) & "width" & (ASCII character 34) & ":" & width & "," & (ASCII character 34) & "height" & (ASCII character 34) & ":" & height & "," & (ASCII character 34) & "role" & (ASCII character 34) & ":" & (ASCII character 34) & elementRole & (ASCII character 34) & "}"
+				return jsonResult
+			on error posErr
+				return "position_error"
+			end try
+		else
+			return "not_text_field:" & elementRole
+		end if
+	on error errMsg
+		return "error:" & errMsg
+	end try
+end tell`;
+
+    // Create temporary AppleScript file to avoid shell escaping issues
+    const tempScriptPath = path.join(tmpdir(), `text-field-detector-${Date.now()}.scpt`);
+    
+    try {
+      writeFileSync(tempScriptPath, script);
+    } catch (writeError) {
+      logger.debug('Failed to write temporary AppleScript file:', writeError);
+      return null;
+    }
 
     const options = {
       timeout: 3000,
@@ -300,7 +310,7 @@ class WindowManager {
     };
 
     return new Promise((resolve) => {
-      exec(`osascript -e '${script.replace(/'/g, "\\'")}'`, options, (error: Error | null, stdout?: string) => {
+      exec(`osascript "${tempScriptPath}"`, options, (error: Error | null, stdout?: string) => {
         if (error) {
           logger.debug('Error getting text field bounds:', error);
           resolve(null);
@@ -341,6 +351,13 @@ class WindowManager {
             logger.debug('Error processing AppleScript result:', parseError);
             resolve(null);
           }
+        }
+        
+        // Clean up temporary file
+        try {
+          unlinkSync(tempScriptPath);
+        } catch (cleanupError) {
+          logger.debug('Failed to clean up temporary AppleScript file:', cleanupError);
         }
       });
     });
