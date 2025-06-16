@@ -1,14 +1,10 @@
 import { BrowserWindow, screen } from 'electron';
 import { exec } from 'child_process';
-import path from 'path';
 import config from '../config/app-config';
-import { getCurrentApp, getActiveWindowBounds, logger } from '../utils/utils';
+import { getCurrentApp, getActiveWindowBounds, logger, KEYBOARD_SIMULATOR_PATH, TEXT_FIELD_DETECTOR_PATH } from '../utils/utils';
 import type { AppInfo, WindowData, StartupPosition } from '../types';
 
-// Native tools paths
-const NATIVE_TOOLS_DIR = path.join(__dirname, '..', 'native-tools');
-const KEYBOARD_SIMULATOR_PATH = path.join(NATIVE_TOOLS_DIR, 'keyboard-simulator');
-const TEXT_FIELD_DETECTOR_PATH = path.join(NATIVE_TOOLS_DIR, 'text-field-detector');
+// Native tools paths are imported from utils to ensure correct paths in packaged app
 
 class WindowManager {
   private inputWindow: BrowserWindow | null = null;
