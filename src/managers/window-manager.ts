@@ -244,27 +244,52 @@ class WindowManager {
     const script = `
       tell application "System Events"
         try
+          -- Check if we have accessibility permissions first
+          if not (exists (application processes)) then
+            return "no_permission"
+          end if
+          
           set frontApp to first application process whose frontmost is true
-          set focusedElement to focused UI element of frontApp
+          
+          -- Try to get focused element with error handling
+          try
+            set focusedElement to focused UI element of frontApp
+          on error
+            return "no_focus"
+          end try
+          
+          -- Check if focused element exists and get its role
+          if focusedElement is missing value then
+            return "no_element"
+          end if
+          
+          try
+            set elementRole to role of focusedElement
+          on error
+            return "no_role"
+          end try
           
           -- Check if focused element is a text field
-          set elementRole to role of focusedElement
           if elementRole is in {"AXTextField", "AXTextArea", "AXSecureTextField", "AXComboBox"} then
-            set elementPosition to position of focusedElement
-            set elementSize to size of focusedElement
-            
-            set x to item 1 of elementPosition
-            set y to item 2 of elementPosition
-            set width to item 1 of elementSize
-            set height to item 2 of elementSize
-            
-            set jsonResult to "{" & (ASCII character 34) & "x" & (ASCII character 34) & ":" & x & "," & (ASCII character 34) & "y" & (ASCII character 34) & ":" & y & "," & (ASCII character 34) & "width" & (ASCII character 34) & ":" & width & "," & (ASCII character 34) & "height" & (ASCII character 34) & ":" & height & "," & (ASCII character 34) & "role" & (ASCII character 34) & ":" & (ASCII character 34) & elementRole & (ASCII character 34) & "}"
-            return jsonResult
+            try
+              set elementPosition to position of focusedElement
+              set elementSize to size of focusedElement
+              
+              set x to item 1 of elementPosition
+              set y to item 2 of elementPosition
+              set width to item 1 of elementSize
+              set height to item 2 of elementSize
+              
+              set jsonResult to "{" & (ASCII character 34) & "x" & (ASCII character 34) & ":" & x & "," & (ASCII character 34) & "y" & (ASCII character 34) & ":" & y & "," & (ASCII character 34) & "width" & (ASCII character 34) & ":" & width & "," & (ASCII character 34) & "height" & (ASCII character 34) & ":" & height & "," & (ASCII character 34) & "role" & (ASCII character 34) & ":" & (ASCII character 34) & elementRole & (ASCII character 34) & "}"
+              return jsonResult
+            on error posErr
+              return "position_error"
+            end try
           else
-            return "null"
+            return "not_text_field:" & elementRole
           end if
         on error errMsg
-          return "null"
+          return "error:" & errMsg
         end try
       end tell
     `;
@@ -282,16 +307,38 @@ class WindowManager {
         } else {
           try {
             const result = stdout?.trim();
+            logger.debug('AppleScript result:', result);
+            
             if (result === 'null' || !result) {
               logger.debug('No active text field found');
               resolve(null);
+            } else if (result === 'no_permission') {
+              logger.warn('No accessibility permission for text field detection');
+              resolve(null);
+            } else if (result === 'no_focus' || result === 'no_element' || result === 'no_role') {
+              logger.debug('No focused element or unable to get element info:', result);
+              resolve(null);
+            } else if (result.startsWith('not_text_field:')) {
+              logger.debug('Focused element is not a text field:', result);
+              resolve(null);
+            } else if (result.startsWith('error:')) {
+              logger.debug('AppleScript error:', result);
+              resolve(null);
+            } else if (result === 'position_error') {
+              logger.debug('Could not get position/size of text field');
+              resolve(null);
             } else {
-              const bounds = JSON.parse(result);
-              logger.debug('Text field bounds found:', bounds);
-              resolve(bounds);
+              try {
+                const bounds = JSON.parse(result);
+                logger.debug('Text field bounds found:', bounds);
+                resolve(bounds);
+              } catch (parseError) {
+                logger.debug('Error parsing text field bounds:', parseError);
+                resolve(null);
+              }
             }
           } catch (parseError) {
-            logger.debug('Error parsing text field bounds:', parseError);
+            logger.debug('Error processing AppleScript result:', parseError);
             resolve(null);
           }
         }
