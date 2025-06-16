@@ -67,10 +67,17 @@ class WindowManager {
       
       // If window exists but is hidden, reposition and show it
       if (this.inputWindow && !this.inputWindow.isDestroyed() && !this.inputWindow.isVisible()) {
-        // Always reposition for active-window-center to get current active window
+        // Always reposition for dynamic positioning modes (active-window-center, cursor)
+        // or when position setting has changed
         const currentPosition = this.customWindowSettings.position || 'active-window-center';
+        logger.debug('Checking repositioning conditions', { 
+          currentPosition, 
+          windowSettingsPosition: data.settings?.window?.position 
+        });
         if (currentPosition === 'active-window-center' || 
+            currentPosition === 'cursor' ||
             (data.settings?.window?.position && data.settings.window.position !== currentPosition)) {
+          logger.debug('Repositioning window for position:', currentPosition);
           await this.positionWindow();
         }
         this.inputWindow.show();
@@ -125,49 +132,7 @@ class WindowManager {
       const windowHeight = this.customWindowSettings.height || config.window.height;
       const position = this.customWindowSettings.position || 'active-window-center';
 
-      let x: number, y: number;
-
-      if (position === 'center') {
-        const display = screen.getPrimaryDisplay();
-        const bounds = display.bounds;
-        x = bounds.x + (bounds.width - windowWidth) / 2;
-        y = bounds.y + (bounds.height - windowHeight) / 2 - 100;
-      } else if (position === 'active-window-center') {
-        try {
-          const activeWindowBounds = await getActiveWindowBounds();
-          if (activeWindowBounds) {
-            x = activeWindowBounds.x + (activeWindowBounds.width - windowWidth) / 2;
-            y = activeWindowBounds.y + (activeWindowBounds.height - windowHeight) / 2;
-            
-            const point = { x: activeWindowBounds.x + activeWindowBounds.width / 2, y: activeWindowBounds.y + activeWindowBounds.height / 2 };
-            const display = screen.getDisplayNearestPoint(point);
-            const bounds = display.bounds;
-            x = Math.max(bounds.x, Math.min(x, bounds.x + bounds.width - windowWidth));
-            y = Math.max(bounds.y, Math.min(y, bounds.y + bounds.height - windowHeight));
-          } else {
-            logger.warn('Could not get active window bounds, falling back to center position');
-            const display = screen.getPrimaryDisplay();
-            const bounds = display.bounds;
-            x = bounds.x + (bounds.width - windowWidth) / 2;
-            y = bounds.y + (bounds.height - windowHeight) / 2 - 100;
-          }
-        } catch (error) {
-          logger.warn('Error getting active window bounds, falling back to center position:', error);
-          const display = screen.getPrimaryDisplay();
-          const bounds = display.bounds;
-          x = bounds.x + (bounds.width - windowWidth) / 2;
-          y = bounds.y + (bounds.height - windowHeight) / 2 - 100;
-        }
-      } else {
-        const point = screen.getCursorScreenPoint();
-        const display = screen.getDisplayNearestPoint(point);
-        x = point.x - (windowWidth / 2);
-        y = point.y - (windowHeight / 2);
-        
-        const bounds = display.bounds;
-        x = Math.max(bounds.x, Math.min(x, bounds.x + bounds.width - windowWidth));
-        y = Math.max(bounds.y, Math.min(y, bounds.y + bounds.height - windowHeight));
-      }
+      const { x, y } = await this.calculateWindowPosition(position, windowWidth, windowHeight);
       
       this.inputWindow.setPosition(Math.round(x), Math.round(y));
       
@@ -175,6 +140,85 @@ class WindowManager {
     } catch (error) {
       logger.error('Failed to position window:', error);
     }
+  }
+
+  private async calculateWindowPosition(
+    position: string,
+    windowWidth: number,
+    windowHeight: number
+  ): Promise<{ x: number; y: number }> {
+    switch (position) {
+      case 'center':
+        return this.calculateCenterPosition(windowWidth, windowHeight);
+      
+      case 'active-window-center':
+        return this.calculateActiveWindowCenterPosition(windowWidth, windowHeight);
+      
+      case 'cursor':
+        return this.calculateCursorPosition(windowWidth, windowHeight);
+      
+      default:
+        logger.warn('Invalid position value, falling back to active-window-center', { position });
+        return this.calculateActiveWindowCenterPosition(windowWidth, windowHeight);
+    }
+  }
+
+  private calculateCenterPosition(windowWidth: number, windowHeight: number): { x: number; y: number } {
+    const display = screen.getPrimaryDisplay();
+    const bounds = display.bounds;
+    return {
+      x: bounds.x + (bounds.width - windowWidth) / 2,
+      y: bounds.y + (bounds.height - windowHeight) / 2 - 100
+    };
+  }
+
+  private async calculateActiveWindowCenterPosition(
+    windowWidth: number,
+    windowHeight: number
+  ): Promise<{ x: number; y: number }> {
+    try {
+      const activeWindowBounds = await getActiveWindowBounds();
+      if (activeWindowBounds) {
+        const x = activeWindowBounds.x + (activeWindowBounds.width - windowWidth) / 2;
+        const y = activeWindowBounds.y + (activeWindowBounds.height - windowHeight) / 2;
+        
+        const point = { 
+          x: activeWindowBounds.x + activeWindowBounds.width / 2, 
+          y: activeWindowBounds.y + activeWindowBounds.height / 2 
+        };
+        
+        return this.constrainToScreenBounds({ x, y }, windowWidth, windowHeight, point);
+      } else {
+        logger.warn('Could not get active window bounds, falling back to center position');
+        return this.calculateCenterPosition(windowWidth, windowHeight);
+      }
+    } catch (error) {
+      logger.warn('Error getting active window bounds, falling back to center position:', error);
+      return this.calculateCenterPosition(windowWidth, windowHeight);
+    }
+  }
+
+  private calculateCursorPosition(windowWidth: number, windowHeight: number): { x: number; y: number } {
+    const point = screen.getCursorScreenPoint();
+    const x = point.x - (windowWidth / 2);
+    const y = point.y - (windowHeight / 2);
+    
+    return this.constrainToScreenBounds({ x, y }, windowWidth, windowHeight, point);
+  }
+
+  private constrainToScreenBounds(
+    position: { x: number; y: number },
+    windowWidth: number,
+    windowHeight: number,
+    referencePoint: { x: number; y: number }
+  ): { x: number; y: number } {
+    const display = screen.getDisplayNearestPoint(referencePoint);
+    const bounds = display.bounds;
+    
+    return {
+      x: Math.max(bounds.x, Math.min(position.x, bounds.x + bounds.width - windowWidth)),
+      y: Math.max(bounds.y, Math.min(position.y, bounds.y + bounds.height - windowHeight))
+    };
   }
 
   async focusPreviousApp(): Promise<boolean> {
