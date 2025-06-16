@@ -75,6 +75,7 @@ class WindowManager {
           windowSettingsPosition: data.settings?.window?.position 
         });
         if (currentPosition === 'active-window-center' || 
+            currentPosition === 'active-text-field' ||
             currentPosition === 'cursor' ||
             (data.settings?.window?.position && data.settings.window.position !== currentPosition)) {
           logger.debug('Repositioning window for position:', currentPosition);
@@ -154,6 +155,9 @@ class WindowManager {
       case 'active-window-center':
         return this.calculateActiveWindowCenterPosition(windowWidth, windowHeight);
       
+      case 'active-text-field':
+        return this.calculateActiveTextFieldPosition(windowWidth, windowHeight);
+      
       case 'cursor':
         return this.calculateCursorPosition(windowWidth, windowHeight);
       
@@ -204,6 +208,95 @@ class WindowManager {
     const y = point.y - (windowHeight / 2);
     
     return this.constrainToScreenBounds({ x, y }, windowWidth, windowHeight, point);
+  }
+
+  private async calculateActiveTextFieldPosition(
+    windowWidth: number,
+    windowHeight: number
+  ): Promise<{ x: number; y: number }> {
+    try {
+      const textFieldBounds = await this.getActiveTextFieldBounds();
+      if (textFieldBounds) {
+        // Position the window below the text field with some padding
+        const x = textFieldBounds.x;
+        const y = textFieldBounds.y + textFieldBounds.height + 8;
+        
+        return this.constrainToScreenBounds({ x, y }, windowWidth, windowHeight, { 
+          x: textFieldBounds.x + textFieldBounds.width / 2, 
+          y: textFieldBounds.y + textFieldBounds.height / 2 
+        });
+      } else {
+        logger.warn('Could not get active text field bounds, falling back to active-window-center');
+        return this.calculateActiveWindowCenterPosition(windowWidth, windowHeight);
+      }
+    } catch (error) {
+      logger.warn('Error getting active text field bounds, falling back to active-window-center:', error);
+      return this.calculateActiveWindowCenterPosition(windowWidth, windowHeight);
+    }
+  }
+
+  private async getActiveTextFieldBounds(): Promise<{ x: number; y: number; width: number; height: number } | null> {
+    if (!config.platform.isMac) {
+      logger.debug('Text field detection only supported on macOS');
+      return null;
+    }
+
+    const script = `
+      tell application "System Events"
+        try
+          set frontApp to first application process whose frontmost is true
+          set focusedElement to focused UI element of frontApp
+          
+          -- Check if focused element is a text field
+          set elementRole to role of focusedElement
+          if elementRole is in {"AXTextField", "AXTextArea", "AXSecureTextField", "AXComboBox"} then
+            set elementPosition to position of focusedElement
+            set elementSize to size of focusedElement
+            
+            set x to item 1 of elementPosition
+            set y to item 2 of elementPosition
+            set width to item 1 of elementSize
+            set height to item 2 of elementSize
+            
+            set jsonResult to "{" & (ASCII character 34) & "x" & (ASCII character 34) & ":" & x & "," & (ASCII character 34) & "y" & (ASCII character 34) & ":" & y & "," & (ASCII character 34) & "width" & (ASCII character 34) & ":" & width & "," & (ASCII character 34) & "height" & (ASCII character 34) & ":" & height & "," & (ASCII character 34) & "role" & (ASCII character 34) & ":" & (ASCII character 34) & elementRole & (ASCII character 34) & "}"
+            return jsonResult
+          else
+            return "null"
+          end if
+        on error errMsg
+          return "null"
+        end try
+      end tell
+    `;
+
+    const options = {
+      timeout: 3000,
+      killSignal: 'SIGTERM' as const
+    };
+
+    return new Promise((resolve) => {
+      exec(`osascript -e '${script.replace(/'/g, "\\'")}'`, options, (error: Error | null, stdout?: string) => {
+        if (error) {
+          logger.debug('Error getting text field bounds:', error);
+          resolve(null);
+        } else {
+          try {
+            const result = stdout?.trim();
+            if (result === 'null' || !result) {
+              logger.debug('No active text field found');
+              resolve(null);
+            } else {
+              const bounds = JSON.parse(result);
+              logger.debug('Text field bounds found:', bounds);
+              resolve(bounds);
+            }
+          } catch (parseError) {
+            logger.debug('Error parsing text field bounds:', parseError);
+            resolve(null);
+          }
+        }
+      });
+    });
   }
 
   private constrainToScreenBounds(
