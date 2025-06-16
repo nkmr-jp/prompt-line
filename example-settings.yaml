@@ -26,7 +26,7 @@ shortcuts:
   
   # Shortcut to enable search mode in history
   # Used to filter paste history items
-  search: Ctrl+f
+  search: Cmd+f
 
 # Window appearance and positioning configuration
 window:
