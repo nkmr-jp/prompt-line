@@ -157,7 +157,7 @@ export interface WindowBounds {
   height: number;
 }
 
-export type StartupPosition = 'cursor' | 'active-display-center' | 'active-window-center' | 'active-text-field';
+export type StartupPosition = 'cursor' | 'center' | 'active-window-center' | 'active-text-field';
 
 export interface UserSettings {
   shortcuts: {

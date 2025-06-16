@@ -22,7 +22,7 @@ WindowManager class controlling Electron window lifecycle with native macOS inte
   - `active-text-field`: Positions near currently focused text field (default)
   - `active-window-center`: Centers within currently active window
   - `cursor`: Positions at mouse cursor location  
-  - `active-display-center`: Centers on active display (where cursor is located) with slight upward offset (-100px)
+  - `center`: Centers on primary display with slight upward offset (-100px)
 - Multi-monitor aware positioning with screen boundary constraints
 - Intelligent window reuse: checks if window exists and is visible before creating new
 - Window state management with proper show/hide/focus coordination
