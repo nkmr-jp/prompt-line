@@ -108,13 +108,13 @@ The app uses Electron's two-process model with clean separation:
 Core functionality is organized into specialized managers:
 
 - **WindowManager**: Controls window creation, positioning, and lifecycle
-  - Supports multiple positioning modes: cursor (default), active-window-center, center
-  - Advanced AppleScript integration for window detection
+  - Supports multiple positioning modes: active-text-field (default), active-window-center, cursor, active-display-center
+  - Advanced native Swift integration for text field and window detection
   - Multi-monitor aware positioning with boundary constraints
 - **HistoryManager**: Manages unlimited paste history with optimized performance (persisted to JSONL)
 - **DraftManager**: Auto-saves input drafts with debouncing
 - **SettingsManager**: Manages user preferences with YAML-based configuration
-  - Default window positioning mode: `active-window-center`
+  - Default window positioning mode: `active-text-field`
   - Real-time settings updates with deep merge functionality
   - Automatic settings file creation with sensible defaults
 
@@ -191,22 +191,24 @@ npm test -- --verbose
 ### Window Positioning
 The window supports multiple positioning modes with dynamic configuration:
 
-**Default Mode: active-window-center**
-- Centers prompt window within the currently active window
-- Uses AppleScript to detect active window bounds
-- Provides better context by staying within the user's current workspace
+**Default Mode: active-text-field**
+- Positions prompt window near the currently focused text field
+- Uses native Swift tools to detect text field bounds with multiple fallback methods
+- Falls back to active-window-center when no text field is detected
+- Provides optimal context by appearing near the text insertion point
 
 **Available Positioning Options:**
-- `active-window-center`: Center within the currently active window (default)
+- `active-text-field`: Position near the currently focused text field (default)
+- `active-window-center`: Center within the currently active window
 - `cursor`: Position at mouse cursor location
-- `center`: Center on primary display
+- `active-display-center`: Center on the active display (where cursor is located)
 
 **Implementation Details:**
-1. Get active window bounds via AppleScript (with robust error handling)
-2. Calculate center position within detected window bounds
+1. Detect focused text field bounds via native Swift tools (with multiple fallback methods)
+2. Calculate optimal position based on selected positioning mode
 3. Apply screen boundary constraints for multi-monitor setups
 4. Create and position window with sub-pixel precision
-5. Handle AppleScript parsing with comma/space cleanup for reliability
+5. Handle error cases with graceful fallback to alternative positioning modes
 
 ### Draft Auto-Save
 - Debounced at 500ms to prevent excessive writes
