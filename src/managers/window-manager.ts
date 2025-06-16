@@ -218,9 +218,9 @@ class WindowManager {
     try {
       const textFieldBounds = await this.getActiveTextFieldBounds();
       if (textFieldBounds) {
-        // Position the window's bottom-left corner at the text field's bottom-left corner
-        const x = textFieldBounds.x;
-        const y = textFieldBounds.y + textFieldBounds.height - windowHeight;
+        // Position the window at the center of the text field (or its visible container)
+        const x = textFieldBounds.x + (textFieldBounds.width - windowWidth) / 2;
+        const y = textFieldBounds.y + (textFieldBounds.height - windowHeight) / 2;
         
         return this.constrainToScreenBounds({ x, y }, windowWidth, windowHeight, { 
           x: textFieldBounds.x + textFieldBounds.width / 2, 
