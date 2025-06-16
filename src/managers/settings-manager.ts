@@ -23,7 +23,7 @@ class SettingsManager {
         search: 'Cmd+f'
       },
       window: {
-        position: 'active-window-center',
+        position: 'active-text-field',
         width: 600,
         height: 300
       }
