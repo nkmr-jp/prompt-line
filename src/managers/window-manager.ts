@@ -8,6 +8,7 @@ import type { AppInfo, WindowData, StartupPosition } from '../types';
 // Native tools paths
 const NATIVE_TOOLS_DIR = path.join(__dirname, '..', 'native-tools');
 const KEYBOARD_SIMULATOR_PATH = path.join(NATIVE_TOOLS_DIR, 'keyboard-simulator');
+const TEXT_FIELD_DETECTOR_PATH = path.join(NATIVE_TOOLS_DIR, 'text-field-detector');
 
 class WindowManager {
   private inputWindow: BrowserWindow | null = null;
@@ -247,84 +248,42 @@ class WindowManager {
     };
 
     return new Promise((resolve) => {
-      // Step 1: Get the front app name
-      exec('osascript -e "tell application \\"System Events\\" to return name of first application process whose frontmost is true"', options, (error: Error | null, stdout?: string) => {
+      exec(`"${TEXT_FIELD_DETECTOR_PATH}" text-field-bounds`, options, (error: Error | null, stdout?: string) => {
         if (error) {
-          logger.debug('Error getting front app:', error);
+          logger.debug('Error getting text field bounds via native tool:', error);
           resolve(null);
           return;
         }
 
-        const frontAppName = stdout?.trim();
-        logger.debug('Front app detected:', frontAppName);
-
-        // Step 2: Get focused element role  
-        const roleScript = `tell application "System Events"
-  set frontApp to first application process whose frontmost is true
-  try
-    return role of (focused UI element of frontApp)
-  on error
-    return "no_focus"
-  end try
-end tell`;
-
-        exec(`osascript -e '${roleScript.replace(/'/g, "'\"'\"'")}'`, options, (roleError: Error | null, roleStdout?: string) => {
-          if (roleError) {
-            logger.debug('Error getting element role:', roleError);
+        try {
+          const result = JSON.parse(stdout?.trim() || '{}');
+          logger.debug('Text field detector result:', result);
+          
+          if (result.error) {
+            logger.debug('Text field detector error:', result.error);
             resolve(null);
             return;
           }
 
-          const elementRole = roleStdout?.trim();
-          logger.debug('Element role detected:', elementRole);
-
-          if (!elementRole || elementRole === 'no_focus' || 
-              !['AXTextField', 'AXTextArea', 'AXSecureTextField', 'AXComboBox'].includes(elementRole)) {
-            logger.debug('Not a text field element:', elementRole);
-            resolve(null);
+          if (result.success && typeof result.x === 'number' && typeof result.y === 'number' &&
+              typeof result.width === 'number' && typeof result.height === 'number') {
+            const bounds = {
+              x: result.x,
+              y: result.y,
+              width: result.width,
+              height: result.height
+            };
+            logger.debug('Text field bounds found:', bounds);
+            resolve(bounds);
             return;
           }
 
-          // Step 3: Get element position and size
-          const positionScript = `tell application "System Events"
-  set frontApp to first application process whose frontmost is true
-  set focusedElement to focused UI element of frontApp
-  set elementPos to position of focusedElement
-  set elementSize to size of focusedElement
-  return (item 1 of elementPos) & "," & (item 2 of elementPos) & "," & (item 1 of elementSize) & "," & (item 2 of elementSize)
-end tell`;
-
-          exec(`osascript -e '${positionScript.replace(/'/g, "'\"'\"'")}'`, options, (posError: Error | null, posStdout?: string) => {
-            if (posError) {
-              logger.debug('Error getting element position:', posError);
-              resolve(null);
-              return;
-            }
-
-            const positionData = posStdout?.trim();
-            logger.debug('Position data:', positionData);
-
-            if (positionData) {
-              const parts = positionData.split(',');
-              if (parts.length === 4 && parts[0] && parts[1] && parts[2] && parts[3]) {
-                const x = parseInt(parts[0], 10);
-                const y = parseInt(parts[1], 10);
-                const width = parseInt(parts[2], 10);
-                const height = parseInt(parts[3], 10);
-                
-                if (!isNaN(x) && !isNaN(y) && !isNaN(width) && !isNaN(height)) {
-                  const bounds = { x, y, width, height };
-                  logger.debug('Text field bounds found:', bounds);
-                  resolve(bounds);
-                  return;
-                }
-              }
-            }
-
-            logger.debug('Invalid position data received');
-            resolve(null);
-          });
-        });
+          logger.debug('Invalid text field bounds data received');
+          resolve(null);
+        } catch (parseError) {
+          logger.debug('Error parsing text field detector output:', parseError);
+          resolve(null);
+        }
       });
     });
   }
