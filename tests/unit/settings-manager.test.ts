@@ -28,7 +28,7 @@ jest.mock('js-yaml', () => ({
   load: jest.fn((data: string) => {
     if (data.includes('main: Alt+Space')) {
       return {
-        shortcuts: { main: 'Alt+Space', paste: 'Enter', close: 'Escape' },
+        shortcuts: { main: 'Alt+Space', paste: 'Enter', close: 'Escape', search: 'Cmd+f' },
         window: { position: 'center', width: 800, height: 400 }
       };
     }
@@ -119,7 +119,8 @@ window:
           paste: 'Cmd+Enter',
           close: 'Escape',
           historyNext: 'Ctrl+j',
-          historyPrev: 'Ctrl+k'
+          historyPrev: 'Ctrl+k',
+          search: 'Cmd+f'
         },
         window: {
           position: 'active-window-center',
@@ -136,7 +137,8 @@ window:
           paste: 'Enter',
           close: 'Escape',
           historyNext: 'Ctrl+j',
-          historyPrev: 'Ctrl+k'
+          historyPrev: 'Ctrl+k',
+          search: 'Cmd+f'
         }
       };
 
@@ -211,7 +213,8 @@ window:
           paste: 'Cmd+Enter',
           close: 'Escape',
           historyNext: 'Ctrl+j',
-          historyPrev: 'Ctrl+k'
+          historyPrev: 'Ctrl+k',
+          search: 'Cmd+f'
         },
         window: {
           position: 'active-window-center',

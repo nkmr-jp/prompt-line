@@ -19,7 +19,8 @@ class SettingsManager {
         paste: 'Cmd+Enter',
         close: 'Escape',
         historyNext: 'Ctrl+j',
-        historyPrev: 'Ctrl+k'
+        historyPrev: 'Ctrl+k',
+        search: 'Cmd+f'
       },
       window: {
         position: 'active-window-center',
