@@ -102,7 +102,7 @@ class HistoryManager implements IHistoryManager {
     }
   }
 
-  async addToHistory(text: string): Promise<HistoryItem | null> {
+  async addToHistory(text: string, appName?: string): Promise<HistoryItem | null> {
     try {
       const trimmedText = text.trim();
       if (!trimmedText) {
@@ -115,7 +115,8 @@ class HistoryManager implements IHistoryManager {
       const historyItem: HistoryItem = {
         text: trimmedText,
         timestamp: Date.now(),
-        id: generateId()
+        id: generateId(),
+        ...(appName && { appName })
       };
       
       this.historyData.unshift(historyItem);
@@ -125,6 +126,7 @@ class HistoryManager implements IHistoryManager {
       logger.debug('Added item to history (batch save queued):', { 
         id: historyItem.id, 
         length: trimmedText.length,
+        appName: appName || 'unknown',
         totalItems: this.historyData.length 
       });
       
