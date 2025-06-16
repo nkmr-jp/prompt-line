@@ -1,7 +1,5 @@
 import { BrowserWindow, screen } from 'electron';
 import { exec } from 'child_process';
-import { writeFileSync, unlinkSync } from 'fs';
-import { tmpdir } from 'os';
 import path from 'path';
 import config from '../config/app-config';
 import { getCurrentApp, getActiveWindowBounds, logger } from '../utils/utils';
@@ -243,122 +241,90 @@ class WindowManager {
       return null;
     }
 
-    const script = `tell application "System Events"
-	try
-		-- Check if we have accessibility permissions first
-		if not (exists (application processes)) then
-			return "no_permission"
-		end if
-		
-		set frontApp to first application process whose frontmost is true
-		
-		-- Try to get focused element with error handling
-		try
-			set focusedElement to focused UI element of frontApp
-		on error
-			return "no_focus"
-		end try
-		
-		-- Check if focused element exists and get its role
-		if focusedElement is missing value then
-			return "no_element"
-		end if
-		
-		try
-			set elementRole to role of focusedElement
-		on error
-			return "no_role"
-		end try
-		
-		-- Check if focused element is a text field
-		if elementRole is in {"AXTextField", "AXTextArea", "AXSecureTextField", "AXComboBox"} then
-			try
-				set elementPosition to position of focusedElement
-				set elementSize to size of focusedElement
-				
-				set x to item 1 of elementPosition
-				set y to item 2 of elementPosition
-				set width to item 1 of elementSize
-				set height to item 2 of elementSize
-				
-				set jsonResult to "{" & (ASCII character 34) & "x" & (ASCII character 34) & ":" & x & "," & (ASCII character 34) & "y" & (ASCII character 34) & ":" & y & "," & (ASCII character 34) & "width" & (ASCII character 34) & ":" & width & "," & (ASCII character 34) & "height" & (ASCII character 34) & ":" & height & "," & (ASCII character 34) & "role" & (ASCII character 34) & ":" & (ASCII character 34) & elementRole & (ASCII character 34) & "}"
-				return jsonResult
-			on error posErr
-				return "position_error"
-			end try
-		else
-			return "not_text_field:" & elementRole
-		end if
-	on error errMsg
-		return "error:" & errMsg
-	end try
-end tell`;
-
-    // Create temporary AppleScript file to avoid shell escaping issues
-    const tempScriptPath = path.join(tmpdir(), `text-field-detector-${Date.now()}.scpt`);
-    
-    try {
-      writeFileSync(tempScriptPath, script);
-    } catch (writeError) {
-      logger.debug('Failed to write temporary AppleScript file:', writeError);
-      return null;
-    }
-
     const options = {
       timeout: 3000,
       killSignal: 'SIGTERM' as const
     };
 
     return new Promise((resolve) => {
-      exec(`osascript "${tempScriptPath}"`, options, (error: Error | null, stdout?: string) => {
+      // Step 1: Get the front app name
+      exec('osascript -e "tell application \\"System Events\\" to return name of first application process whose frontmost is true"', options, (error: Error | null, stdout?: string) => {
         if (error) {
-          logger.debug('Error getting text field bounds:', error);
+          logger.debug('Error getting front app:', error);
           resolve(null);
-        } else {
-          try {
-            const result = stdout?.trim();
-            logger.debug('AppleScript result:', result);
-            
-            if (result === 'null' || !result) {
-              logger.debug('No active text field found');
+          return;
+        }
+
+        const frontAppName = stdout?.trim();
+        logger.debug('Front app detected:', frontAppName);
+
+        // Step 2: Get focused element role  
+        const roleScript = `tell application "System Events"
+  set frontApp to first application process whose frontmost is true
+  try
+    return role of (focused UI element of frontApp)
+  on error
+    return "no_focus"
+  end try
+end tell`;
+
+        exec(`osascript -e '${roleScript.replace(/'/g, "'\"'\"'")}'`, options, (roleError: Error | null, roleStdout?: string) => {
+          if (roleError) {
+            logger.debug('Error getting element role:', roleError);
+            resolve(null);
+            return;
+          }
+
+          const elementRole = roleStdout?.trim();
+          logger.debug('Element role detected:', elementRole);
+
+          if (!elementRole || elementRole === 'no_focus' || 
+              !['AXTextField', 'AXTextArea', 'AXSecureTextField', 'AXComboBox'].includes(elementRole)) {
+            logger.debug('Not a text field element:', elementRole);
+            resolve(null);
+            return;
+          }
+
+          // Step 3: Get element position and size
+          const positionScript = `tell application "System Events"
+  set frontApp to first application process whose frontmost is true
+  set focusedElement to focused UI element of frontApp
+  set elementPos to position of focusedElement
+  set elementSize to size of focusedElement
+  return (item 1 of elementPos) & "," & (item 2 of elementPos) & "," & (item 1 of elementSize) & "," & (item 2 of elementSize)
+end tell`;
+
+          exec(`osascript -e '${positionScript.replace(/'/g, "'\"'\"'")}'`, options, (posError: Error | null, posStdout?: string) => {
+            if (posError) {
+              logger.debug('Error getting element position:', posError);
               resolve(null);
-            } else if (result === 'no_permission') {
-              logger.warn('No accessibility permission for text field detection');
-              resolve(null);
-            } else if (result === 'no_focus' || result === 'no_element' || result === 'no_role') {
-              logger.debug('No focused element or unable to get element info:', result);
-              resolve(null);
-            } else if (result.startsWith('not_text_field:')) {
-              logger.debug('Focused element is not a text field:', result);
-              resolve(null);
-            } else if (result.startsWith('error:')) {
-              logger.debug('AppleScript error:', result);
-              resolve(null);
-            } else if (result === 'position_error') {
-              logger.debug('Could not get position/size of text field');
-              resolve(null);
-            } else {
-              try {
-                const bounds = JSON.parse(result);
-                logger.debug('Text field bounds found:', bounds);
-                resolve(bounds);
-              } catch (parseError) {
-                logger.debug('Error parsing text field bounds:', parseError);
-                resolve(null);
+              return;
+            }
+
+            const positionData = posStdout?.trim();
+            logger.debug('Position data:', positionData);
+
+            if (positionData) {
+              const parts = positionData.split(',');
+              if (parts.length === 4 && parts[0] && parts[1] && parts[2] && parts[3]) {
+                const x = parseInt(parts[0], 10);
+                const y = parseInt(parts[1], 10);
+                const width = parseInt(parts[2], 10);
+                const height = parseInt(parts[3], 10);
+                
+                if (!isNaN(x) && !isNaN(y) && !isNaN(width) && !isNaN(height)) {
+                  const bounds = { x, y, width, height };
+                  logger.debug('Text field bounds found:', bounds);
+                  resolve(bounds);
+                  return;
+                }
               }
             }
-          } catch (parseError) {
-            logger.debug('Error processing AppleScript result:', parseError);
+
+            logger.debug('Invalid position data received');
             resolve(null);
-          }
-        }
-        
-        // Clean up temporary file
-        try {
-          unlinkSync(tempScriptPath);
-        } catch (cleanupError) {
-          logger.debug('Failed to clean up temporary AppleScript file:', cleanupError);
-        }
+          });
+        });
       });
     });
   }
