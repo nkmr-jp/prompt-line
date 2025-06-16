@@ -29,7 +29,7 @@ jest.mock('js-yaml', () => ({
     if (data.includes('main: Alt+Space')) {
       return {
         shortcuts: { main: 'Alt+Space', paste: 'Enter', close: 'Escape' },
-        window: { position: 'center', width: 800, height: 400 }
+        window: { width: 800, height: 400 }
       };
     }
     return null;
@@ -40,7 +40,6 @@ jest.mock('js-yaml', () => ({
   paste: ${(data as any).shortcuts.paste}
   close: ${(data as any).shortcuts.close}
 window:
-  position: ${(data as any).window.position}
   width: ${(data as any).window.width}
   height: ${(data as any).window.height}`;
     return yaml;
@@ -77,7 +76,6 @@ describe('SettingsManager', () => {
   paste: Enter
   close: Escape
 window:
-  position: center
   width: 800
   height: 400`;
       mockedFs.readFile.mockResolvedValue(yamlSettings);
@@ -86,7 +84,7 @@ window:
 
       const settings = settingsManager.getSettings();
       expect(settings.shortcuts.main).toBe('Alt+Space');
-      expect(settings.window.position).toBe('center');
+      expect(settings.window.width).toBe(800);
     });
 
     it('should handle corrupted settings file and use defaults', async () => {
@@ -98,7 +96,7 @@ window:
 
       const settings = settingsManager.getSettings();
       expect(settings.shortcuts.main).toBe('Cmd+Shift+Space');
-      expect(settings.window.position).toBe('active-window-center');
+      expect(settings.window.width).toBe(600);
     });
   });
 
@@ -122,7 +120,6 @@ window:
           historyPrev: 'Ctrl+k'
         },
         window: {
-          position: 'active-window-center',
           width: 600,
           height: 300
         }
@@ -150,15 +147,15 @@ window:
     it('should reset settings to defaults', async () => {
       // First update settings
       await settingsManager.updateSettings({
-        window: { position: 'center', width: 800, height: 400 }
+        window: { width: 800, height: 400 }
       });
 
       // Then reset
       await settingsManager.resetSettings();
 
       const settings = settingsManager.getSettings();
-      expect(settings.window.position).toBe('active-window-center');
       expect(settings.window.width).toBe(600);
+      expect(settings.window.height).toBe(300);
     });
   });
 
@@ -182,12 +179,11 @@ window:
 
     it('should get and update window settings', async () => {
       const windowSettings = settingsManager.getWindowSettings();
-      expect(windowSettings.position).toBe('active-window-center');
+      expect(windowSettings.width).toBe(600);
 
-      await settingsManager.updateWindowSettings({ position: 'center', width: 800 });
+      await settingsManager.updateWindowSettings({ width: 800 });
       
       const updatedWindowSettings = settingsManager.getWindowSettings();
-      expect(updatedWindowSettings.position).toBe('center');
       expect(updatedWindowSettings.width).toBe(800);
       expect(updatedWindowSettings.height).toBe(300); // Should remain unchanged
     });
@@ -214,7 +210,6 @@ window:
           historyPrev: 'Ctrl+k'
         },
         window: {
-          position: 'active-window-center',
           width: 600,
           height: 300
         }

@@ -80,7 +80,7 @@ describe('DOM Integration Tests', () => {
 
             const settings: UserSettings = {
                 shortcuts: { main: 'Cmd+Shift+Space', paste: 'Cmd+Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k' },
-                window: { position: 'cursor', width: 600, height: 300 }
+                window: { width: 600, height: 300 }
             };
 
             renderHistoryWithSettings(historyData, settings);
@@ -114,7 +114,7 @@ describe('DOM Integration Tests', () => {
         test('should handle empty history', () => {
             const settings: UserSettings = {
                 shortcuts: { main: 'Cmd+Shift+Space', paste: 'Cmd+Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k' },
-                window: { position: 'cursor', width: 600, height: 300 }
+                window: { width: 600, height: 300 }
             };
 
             renderHistoryWithSettings([], settings);
@@ -137,7 +137,7 @@ describe('DOM Integration Tests', () => {
 
             const settings: UserSettings = {
                 shortcuts: { main: 'Cmd+Shift+Space', paste: 'Cmd+Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k' },
-                window: { position: 'cursor', width: 600, height: 300 }
+                window: { width: 600, height: 300 }
             };
 
             renderHistoryWithSettings(historyData, settings);
@@ -159,7 +159,7 @@ describe('DOM Integration Tests', () => {
 
             const settings: UserSettings = {
                 shortcuts: { main: 'Cmd+Shift+Space', paste: 'Cmd+Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k' },
-                window: { position: 'cursor', width: 600, height: 300 }
+                window: { width: 600, height: 300 }
             };
 
             renderHistoryWithSettings(historyData, settings);

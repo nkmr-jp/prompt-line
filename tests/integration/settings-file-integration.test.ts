@@ -49,7 +49,6 @@ shortcuts:
   paste: Cmd+Enter
   close: Escape
 window:
-  position: cursor
   width: 600
   height: 300
 `.trim();
@@ -58,20 +57,20 @@ window:
             
             // Verify file was written correctly
             const readContent = await readTestYAMLFile();
-            expect(readContent).toContain('position: cursor');
+            expect(readContent).toContain('width: 600');
         });
 
         test('should handle different YAML string formats', async () => {
             const formats = [
-                'position: cursor',    // Unquoted string
-                'position: "center"',  // Quoted string
-                'position:   center',  // Extra spaces
+                'width: 600',    // Unquoted number
+                'width: "700"',  // Quoted string
+                'width:   800',  // Extra spaces
             ];
 
             for (const format of formats) {
                 const yamlContent = `
 window:
-  width: 600
+  height: 300
   ${format}
 `.trim();
 
@@ -88,7 +87,6 @@ shortcuts:
   paste: Cmd+Enter
   close: Escape
 window:
-  position: cursor
   width: 600
   height: 300
 `.trim();
@@ -145,7 +143,6 @@ shortcuts:
   paste: Enter
   close: Escape
 window:
-  position: center
   width: 800
   height: 400
 `.trim();
@@ -158,7 +155,6 @@ window:
 
             const finalContent = await readTestYAMLFile();
             expect(finalContent).toContain('main: Ctrl+Alt+Space'); // Preserved
-            expect(finalContent).toContain('position: center'); // Preserved  
             expect(finalContent).toContain('height: 400'); // Preserved
             expect(finalContent).toContain('width: 1200'); // Updated
         });

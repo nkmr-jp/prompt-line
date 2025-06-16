@@ -108,7 +108,7 @@ describe('Error Handling Integration Tests', () => {
 
             const settings: UserSettings = {
                 shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k' },
-                window: { position: 'cursor', width: 800, height: 400 }
+                window: { width: 800, height: 400 }
             };
 
             // Should not crash or hang
@@ -224,7 +224,7 @@ more broken content: }}}
             // Test partial settings
             const partialSettings = {
                 shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k' },
-                window: { position: 'cursor', width: 800, height: 400 }
+                window: { width: 800, height: 400 }
             } as any;
 
             expect(() => {
@@ -238,7 +238,6 @@ shortcuts:
   main: Cmd+Shift+Space
   paste: }invalid{
 window:
-  position: cursor
   width: not_a_number
   invalid_field: [broken array syntax
 `.trim();
@@ -254,7 +253,7 @@ window:
 
             const invalidSettings = {
                 shortcuts: { main: 'Cmd+Shift+Space', paste: 'Enter', close: 'Escape' },
-                window: { position: 'cursor', width: 'not_a_number', height: 400 }
+                window: { width: 'not_a_number', height: 400 }
             } as any;
 
             expect(() => {
@@ -335,7 +334,7 @@ window:
             // Simulate disk space issues by testing with very large settings objects
             const hugeSettings = {
                 shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k' },
-                window: { position: 'cursor', width: 800, height: 400 },
+                window: { width: 800, height: 400 },
                 // Add large data to simulate memory pressure
                 largeData: new Array(1000).fill('large_data_item')
             } as any;
@@ -361,7 +360,7 @@ window:
 
             const settings: UserSettings = {
                 shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k' },
-                window: { position: 'cursor', width: 800, height: 400 }
+                window: { width: 800, height: 400 }
             };
 
             // Should not crash when DOM elements are missing
@@ -391,7 +390,7 @@ window:
 
             const settings: UserSettings = {
                 shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k' },
-                window: { position: 'cursor', width: 800, height: 400 }
+                window: { width: 800, height: 400 }
             };
 
             // Should not hang or crash
@@ -436,7 +435,7 @@ window:
 
             const settings: UserSettings = {
                 shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k' },
-                window: { position: 'cursor', width: 800, height: 400 }
+                window: { width: 800, height: 400 }
             };
 
             expect(() => {
@@ -515,7 +514,7 @@ window:
             for (let i = 1; i <= 20; i++) {
                 const settings: UserSettings = {
                     shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k' },
-                    window: { position: 'cursor', width: 800 + i * 10, height: 400 }
+                    window: { width: 800 + i * 10, height: 400 }
                 };
 
                 expect(() => {
@@ -552,7 +551,7 @@ window:
             for (const width of stressWidths) {
                 const settings: UserSettings = {
                     shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k' },
-                    window: { position: 'cursor', width: width, height: 400 }
+                    window: { width: width, height: 400 }
                 };
 
                 const startTime = Date.now();

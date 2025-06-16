@@ -162,33 +162,41 @@ describe('WindowManager', () => {
             expect(mockWindow.show).toHaveBeenCalled();
         });
 
-        test('should position window at cursor location', async () => {
+        test('should position window at active window center when available', async () => {
             // Ensure no existing window so it creates a new one and positions it
             (windowManager as any).inputWindow = null;
             // Reset mocks to ensure clean state
             jest.clearAllMocks();
-            // Force cursor positioning
-            (windowManager as any).customWindowSettings = { position: 'cursor' };
+            (windowManager as any).customWindowSettings = { width: 600, height: 300 };
+            
+            // Mock getActiveWindowBounds to return a mock window
+            getActiveWindowBounds.mockResolvedValue({
+                x: 100, y: 100, width: 800, height: 600
+            });
             
             await windowManager.showInputWindow();
 
-            // Window should be positioned near cursor (500, 300) minus half window size
-            expect(mockWindow.setPosition).toHaveBeenCalledWith(200, 150);
+            // Window should be positioned at center of active window: (100 + (800 - 600) / 2, 100 + (600 - 300) / 2) = (200, 250)
+            expect(mockWindow.setPosition).toHaveBeenCalledWith(200, 250);
         });
 
         test('should keep window within screen bounds', async () => {
-            // Cursor near edge of screen
-            (screen.getCursorScreenPoint as jest.Mock).mockReturnValue({ x: 1900, y: 1000 });
             // Ensure no existing window so it creates a new one and positions it
             (windowManager as any).inputWindow = null;
             // Reset mocks to ensure clean state
             jest.clearAllMocks();
-            // Force cursor positioning
-            (windowManager as any).customWindowSettings = { position: 'cursor' };
+            (windowManager as any).customWindowSettings = { width: 600, height: 300 };
+
+            // Mock active window near edge of screen that would push window out of bounds
+            getActiveWindowBounds.mockResolvedValue({
+                x: 1800, y: 900, width: 200, height: 200
+            });
 
             await windowManager.showInputWindow();
 
-            // Window should be adjusted to stay within bounds
+            // Window should be positioned but constrained within bounds: 
+            // Centered at: (1800 + (200 - 600) / 2, 900 + (200 - 300) / 2) = (1600, 850)
+            // But constrained to: (1320, 780) to fit within (1920, 1080) screen
             expect(mockWindow.setPosition).toHaveBeenCalledWith(1320, 780);
         });
 
