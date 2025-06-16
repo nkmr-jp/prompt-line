@@ -164,15 +164,17 @@ export class EventHandler {
         }
       }
 
-      // Handle Cmd+F for search
-      if (e.key === 'f' && e.metaKey) {
-        // Skip shortcut if IME is active
-        if (this.isComposing || e.isComposing) {
+      // Handle search shortcut
+      if (this.userSettings?.shortcuts?.search) {
+        if (matchesShortcutString(e, this.userSettings.shortcuts.search)) {
+          // Skip shortcut if IME is active
+          if (this.isComposing || e.isComposing) {
+            return;
+          }
+          e.preventDefault();
+          this.onSearchToggle();
           return;
         }
-        e.preventDefault();
-        this.onSearchToggle();
-        return;
       }
 
       // Handle Cmd+V for image paste
