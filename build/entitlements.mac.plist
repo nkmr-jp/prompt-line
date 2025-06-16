@@ -6,14 +6,6 @@
     <key>com.apple.security.automation.apple-events</key>
     <true/>
     
-    <!-- Required for accessing System Events and UI element information -->
-    <key>com.apple.security.system-events</key>
-    <true/>
-    
-    <!-- Required for accessibility API access to detect focused UI elements -->
-    <key>com.apple.security.accessibility</key>
-    <true/>
-    
     <!-- May be required for Electron's internal workings - remove if app works without it -->
     <key>com.apple.security.cs.disable-library-validation</key>
     <true/>
