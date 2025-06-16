@@ -37,6 +37,7 @@ function getNativeToolsPath(): string {
 const NATIVE_TOOLS_DIR = getNativeToolsPath();
 const WINDOW_DETECTOR_PATH = path.join(NATIVE_TOOLS_DIR, 'window-detector');
 const KEYBOARD_SIMULATOR_PATH = path.join(NATIVE_TOOLS_DIR, 'keyboard-simulator');
+const TEXT_FIELD_DETECTOR_PATH = path.join(NATIVE_TOOLS_DIR, 'text-field-detector');
 
 // Accessibility permission check result
 interface AccessibilityStatus {
@@ -555,5 +556,8 @@ export {
   formatTimeAgo,
   ensureDir,
   fileExists,
-  sleep
+  sleep,
+  KEYBOARD_SIMULATOR_PATH,
+  TEXT_FIELD_DETECTOR_PATH,
+  WINDOW_DETECTOR_PATH
 };
