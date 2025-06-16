@@ -130,9 +130,10 @@ shortcuts:
 window:
   # Window positioning mode
   # Options:
-  #   - 'active-window-center': Center within the currently active window (default)
+  #   - 'active-text-field': Position near the currently focused text field (default, falls back to active-window-center)
+  #   - 'active-window-center': Center within the currently active window
   #   - 'cursor': Position at mouse cursor location
-  #   - 'center': Center on primary display
+  #   - 'active-display-center': Center on the active display (where cursor is located)
   position: ${settings.window.position}
   
   # Window width in pixels

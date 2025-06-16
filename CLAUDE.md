@@ -197,9 +197,10 @@ The window supports multiple positioning modes with dynamic configuration:
 - Provides better context by staying within the user's current workspace
 
 **Available Positioning Options:**
-- `active-window-center`: Center within the currently active window (default)
+- `active-text-field`: Position near the currently focused text field (default, falls back to active-window-center)
+- `active-window-center`: Center within the currently active window
 - `cursor`: Position at mouse cursor location
-- `center`: Center on primary display
+- `active-display-center`: Center on the active display (where cursor is located)
 
 **Implementation Details:**
 1. Get active window bounds via AppleScript (with robust error handling)
