@@ -30,50 +30,176 @@ class TextFieldDetector {
         
         let axElement = element as! AXUIElement
         
-        // Get element role
+        // Try to get element role (but don't fail if unavailable)
+        var elementRole = "Unknown"
         var role: CFTypeRef?
         let roleResult = AXUIElementCopyAttributeValue(axElement, kAXRoleAttribute as CFString, &role)
         
-        if roleResult != AXError.success {
-            return ["error": "cannot_get_role"]
+        if roleResult == AXError.success, let roleString = role as? String {
+            elementRole = roleString
+            
+            // If we can get role, check if it's a text field
+            let textFieldRoles = ["AXTextField", "AXTextArea", "AXSecureTextField", "AXComboBox"]
+            if !textFieldRoles.contains(elementRole) {
+                return ["error": "not_text_field", "role": elementRole]
+            }
         }
+        // If role is unavailable, continue anyway - the element might still be a text field
         
-        guard let elementRole = role as? String else {
-            return ["error": "invalid_role"]
-        }
+        // Try multiple methods to get position and size information
+        var point = CGPoint()
+        var cgSize = CGSize()
+        var boundsObtained = false
+        var lastError = "unknown_error"
+        var methodUsed = "none"
         
-        // Check if element is a text field
-        let textFieldRoles = ["AXTextField", "AXTextArea", "AXSecureTextField", "AXComboBox"]
-        if !textFieldRoles.contains(elementRole) {
-            return ["error": "not_text_field", "role": elementRole]
-        }
-        
-        // Get element position
+        // Method 1: Standard kAXPositionAttribute and kAXSizeAttribute
         var position: CFTypeRef?
-        let positionResult = AXUIElementCopyAttributeValue(axElement, kAXPositionAttribute as CFString, &position)
-        
-        if positionResult != AXError.success {
-            return ["error": "cannot_get_position"]
-        }
-        
-        // Get element size
         var size: CFTypeRef?
+        
+        let positionResult = AXUIElementCopyAttributeValue(axElement, kAXPositionAttribute as CFString, &position)
         let sizeResult = AXUIElementCopyAttributeValue(axElement, kAXSizeAttribute as CFString, &size)
         
-        if sizeResult != AXError.success {
-            return ["error": "cannot_get_size"]
+        if positionResult == AXError.success && sizeResult == AXError.success,
+           let positionValue = position, let sizeValue = size {
+            let pointResult = AXValueGetValue(positionValue as! AXValue, .cgPoint, &point)
+            let sizeValueResult = AXValueGetValue(sizeValue as! AXValue, .cgSize, &cgSize)
+            
+            if pointResult && sizeValueResult {
+                boundsObtained = true
+                methodUsed = "standard_attributes"
+            } else {
+                lastError = "cannot_convert_standard_values"
+            }
+        } else {
+            lastError = "cannot_get_standard_attributes"
         }
         
-        // Extract position values
-        var point = CGPoint.zero
-        if !AXValueGetValue(position as! AXValue, .cgPoint, &point) {
-            return ["error": "invalid_position_data"]
+        // Method 2: Try getting bounds information from parent elements
+        if !boundsObtained {
+            var parent: CFTypeRef?
+            let parentResult = AXUIElementCopyAttributeValue(axElement, kAXParentAttribute as CFString, &parent)
+            
+            if parentResult == AXError.success, let parentElement = parent {
+                let parentAXElement = parentElement as! AXUIElement
+                
+                // Try to get parent position and size
+                var parentPosition: CFTypeRef?
+                var parentSize: CFTypeRef?
+                
+                let parentPosResult = AXUIElementCopyAttributeValue(parentAXElement, kAXPositionAttribute as CFString, &parentPosition)
+                let parentSizeResult = AXUIElementCopyAttributeValue(parentAXElement, kAXSizeAttribute as CFString, &parentSize)
+                
+                if parentPosResult == AXError.success && parentSizeResult == AXError.success,
+                   let parentPosValue = parentPosition, let parentSizeValue = parentSize {
+                    var parentPoint = CGPoint()
+                    var parentSize = CGSize()
+                    let parentPointResult = AXValueGetValue(parentPosValue as! AXValue, .cgPoint, &parentPoint)
+                    let parentSizeValueResult = AXValueGetValue(parentSizeValue as! AXValue, .cgSize, &parentSize)
+                    
+                    if parentPointResult && parentSizeValueResult {
+                        // Use parent bounds as text field estimate
+                        point.x = parentPoint.x + 10  // Small offset from parent edge
+                        point.y = parentPoint.y + 10
+                        cgSize.width = max(200, min(400, parentSize.width - 20))  // Reasonable width within parent
+                        cgSize.height = min(30, parentSize.height - 20)  // Text field height within parent
+                        boundsObtained = true
+                        methodUsed = "parent_bounds"
+                    } else {
+                        lastError = "cannot_convert_parent_values"
+                    }
+                } else {
+                    lastError = "cannot_get_parent_attributes"
+                }
+            } else {
+                lastError = "cannot_get_parent_element"
+            }
         }
         
-        // Extract size values
-        var cgSize = CGSize.zero
-        if !AXValueGetValue(size as! AXValue, .cgSize, &cgSize) {
-            return ["error": "invalid_size_data"]
+        // Method 3: Try kAXWindowAttribute to get parent window bounds and estimate
+        if !boundsObtained {
+            var window: CFTypeRef?
+            let windowResult = AXUIElementCopyAttributeValue(axElement, kAXWindowAttribute as CFString, &window)
+            
+            if windowResult == AXError.success, let windowElement = window {
+                let windowAXElement = windowElement as! AXUIElement
+                
+                // Try to get window position and size
+                var windowPosition: CFTypeRef?
+                var windowSize: CFTypeRef?
+                
+                let windowPosResult = AXUIElementCopyAttributeValue(windowAXElement, kAXPositionAttribute as CFString, &windowPosition)
+                let windowSizeResult = AXUIElementCopyAttributeValue(windowAXElement, kAXSizeAttribute as CFString, &windowSize)
+                
+                if windowPosResult == AXError.success && windowSizeResult == AXError.success,
+                   let windowPosValue = windowPosition, let windowSizeValue = windowSize {
+                    var windowPoint = CGPoint()
+                    var windowSize = CGSize()
+                    let windowPointResult = AXValueGetValue(windowPosValue as! AXValue, .cgPoint, &windowPoint)
+                    let windowSizeValueResult = AXValueGetValue(windowSizeValue as! AXValue, .cgSize, &windowSize)
+                    
+                    if windowPointResult && windowSizeValueResult {
+                        // Estimate text field position within window
+                        point.x = windowPoint.x + 50  // Reasonable offset from window edge
+                        point.y = windowPoint.y + 100 // Estimate for typical text field position
+                        cgSize.width = min(400, max(300, windowSize.width - 100))  // Reasonable width
+                        cgSize.height = 30  // Standard text field height
+                        boundsObtained = true
+                        methodUsed = "window_estimate"
+                    } else {
+                        lastError = "cannot_convert_window_values"
+                    }
+                } else {
+                    lastError = "cannot_get_window_attributes"
+                }
+            } else {
+                lastError = "cannot_get_window_element"
+            }
+        }
+        
+        // Method 4: Use CGWindowListCopyWindowInfo as fallback
+        if !boundsObtained {
+            let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
+            guard let windowList = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else {
+                return ["error": "cannot_get_window_list_fallback"]
+            }
+            
+            // Find the active window for this app
+            for windowInfo in windowList {
+                if let windowPid = windowInfo[kCGWindowOwnerPID as String] as? Int32,
+                   windowPid == pid,
+                   let bounds = windowInfo[kCGWindowBounds as String] as? [String: CGFloat],
+                   let layer = windowInfo[kCGWindowLayer as String] as? Int,
+                   layer == 0 {  // Main window layer
+                    
+                    if let x = bounds["X"], let y = bounds["Y"],
+                       let width = bounds["Width"], let height = bounds["Height"] {
+                        // Estimate text field position in center-bottom of window
+                        point.x = x + width * 0.2  // 20% from left edge
+                        point.y = y + height * 0.7 // 70% down from top
+                        cgSize.width = min(400, max(300, width * 0.6))  // 60% of window width
+                        cgSize.height = 30  // Standard text field height
+                        boundsObtained = true
+                        methodUsed = "window_list_estimate"
+                        break
+                    }
+                }
+            }
+            
+            if !boundsObtained {
+                lastError = "no_suitable_window_found_in_list"
+            }
+        }
+        
+        // If all methods failed, return error with debugging info
+        if !boundsObtained {
+            return [
+                "error": "all_bounds_methods_failed", 
+                "lastError": lastError,
+                "role": elementRole,
+                "appName": frontApp.localizedName ?? "Unknown",
+                "appPid": pid
+            ]
         }
         
         // Get additional text field information
@@ -94,14 +220,14 @@ class TextFieldDetector {
         }
         
         // Get current text value if available and safe (not for secure fields)
-        if elementRole != "AXSecureTextField" {
-            var value: CFTypeRef?
-            if AXUIElementCopyAttributeValue(axElement, kAXValueAttribute as CFString, &value) == AXError.success,
-               let valueString = value as? String {
-                additionalInfo["value"] = valueString
-                additionalInfo["hasContent"] = !valueString.isEmpty
-            }
-        }
+//        if elementRole != "AXSecureTextField" {
+//            var value: CFTypeRef?
+//            if AXUIElementCopyAttributeValue(axElement, kAXValueAttribute as CFString, &value) == AXError.success,
+//               let valueString = value as? String {
+//                additionalInfo["value"] = valueString
+//                additionalInfo["hasContent"] = !valueString.isEmpty
+//            }
+//        }
         
         // Get text field state information
         var enabled: CFTypeRef?
@@ -157,6 +283,7 @@ class TextFieldDetector {
             "width": Int(cgSize.width),
             "height": Int(cgSize.height),
             "role": elementRole,
+            "methodUsed": methodUsed,
             "appName": frontApp.localizedName ?? "Unknown",
             "appPid": pid
         ]

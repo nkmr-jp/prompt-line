@@ -94,6 +94,73 @@ window-detector window-bounds   # Get active window bounds
 }
 ```
 
+### text-field-detector.swift
+Native tool for focused text field detection using multiple fallback methods:
+
+**Core Functionality:**
+```swift
+class TextFieldDetector {
+    static func getTextFieldBounds() -> [String: Any]
+    static func checkAccessibilityPermission() -> [String: Any]
+    static func getFocusedElementInfo() -> [String: Any]
+}
+```
+
+**Robust Position Detection:**
+The tool uses multiple methods to detect text field positions, especially for applications with incomplete Accessibility API implementations (like GoLand terminal):
+
+1. **Standard Attributes**: `kAXPositionAttribute` and `kAXSizeAttribute`
+2. **Parent Bounds**: Uses parent element bounds when direct attributes fail
+3. **Window Estimation**: Estimates position within parent window bounds
+4. **Window List Fallback**: Uses `CGWindowListCopyWindowInfo` as final fallback
+
+**Command-Line Interface:**
+```bash
+text-field-detector text-field-bounds    # Get focused text field bounds
+text-field-detector check-permission     # Check accessibility permissions
+text-field-detector focused-element      # Get detailed element information
+```
+
+**JSON Response Format:**
+```json
+// Success Response
+{
+  "success": true,
+  "x": 100,
+  "y": 200,
+  "width": 400,
+  "height": 30,
+  "role": "AXTextField",
+  "methodUsed": "standard_attributes",
+  "appName": "Terminal",
+  "bundleId": "com.apple.Terminal",
+  "appPid": 12345,
+  "parent": {
+    "role": "AXScrollArea",
+    "x": 80,
+    "y": 180,
+    "width": 440,
+    "height": 100,
+    "isVisibleContainer": true
+  }
+}
+
+// Error Response (with debugging info)
+{
+  "error": "all_bounds_methods_failed",
+  "lastError": "cannot_get_standard_attributes", 
+  "role": "Unknown",
+  "appName": "GoLand",
+  "appPid": 23456
+}
+```
+
+**Application Compatibility:**
+- **Works with**: Standard macOS apps, Safari, Chrome, TextEdit, Terminal
+- **Improved support**: GoLand terminal, IntelliJ IDEA, custom UI frameworks
+- **Fallback handling**: Apps with incomplete Accessibility API implementation
+- **Container detection**: Scrollable text fields, embedded forms
+
 ### keyboard-simulator.swift
 Native tool for keyboard simulation and application activation:
 
