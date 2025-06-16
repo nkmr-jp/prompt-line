@@ -125,6 +125,10 @@ shortcuts:
   # Shortcut to navigate to previous history item
   # Used when browsing paste history
   historyPrev: ${settings.shortcuts.historyPrev}
+  
+  # Shortcut to enable search mode in history
+  # Used to filter paste history items
+  search: ${settings.shortcuts.search}
 
 # Window appearance and positioning configuration
 window:
