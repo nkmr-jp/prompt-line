@@ -23,7 +23,7 @@ class SettingsManager {
         search: 'Cmd+f'
       },
       window: {
-        position: 'active-window-center',
+        position: 'active-text-field',
         width: 600,
         height: 300
       }
@@ -130,7 +130,8 @@ shortcuts:
 window:
   # Window positioning mode
   # Options:
-  #   - 'active-window-center': Center within the currently active window (default)
+  #   - 'active-text-field': Position near the currently focused text field (default, falls back to active-window-center)
+  #   - 'active-window-center': Center within the currently active window
   #   - 'cursor': Position at mouse cursor location
   #   - 'center': Center on primary display
   position: ${settings.window.position}

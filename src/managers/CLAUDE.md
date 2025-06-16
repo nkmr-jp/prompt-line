@@ -18,8 +18,9 @@ WindowManager class controlling Electron window lifecycle with native macOS inte
 
 **Core Window Management:**
 - BrowserWindow creation with dynamic configuration from settings
-- Advanced window positioning with three positioning modes:
-  - `active-window-center`: Centers within currently active window (default)
+- Advanced window positioning with four positioning modes:
+  - `active-text-field`: Positions near currently focused text field (default)
+  - `active-window-center`: Centers within currently active window
   - `cursor`: Positions at mouse cursor location  
   - `center`: Centers on primary display with slight upward offset (-100px)
 - Multi-monitor aware positioning with screen boundary constraints
@@ -168,7 +169,7 @@ shortcuts:
   historyNext: "Ctrl+j"
   historyPrev: "Ctrl+k"
 window:
-  position: "active-window-center"
+  position: "active-text-field"  # default
   width: 600
   height: 300
 ```

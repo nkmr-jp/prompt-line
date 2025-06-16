@@ -8,6 +8,7 @@ import type { AppInfo, WindowData, StartupPosition } from '../types';
 // Native tools paths
 const NATIVE_TOOLS_DIR = path.join(__dirname, '..', 'native-tools');
 const KEYBOARD_SIMULATOR_PATH = path.join(NATIVE_TOOLS_DIR, 'keyboard-simulator');
+const TEXT_FIELD_DETECTOR_PATH = path.join(NATIVE_TOOLS_DIR, 'text-field-detector');
 
 class WindowManager {
   private inputWindow: BrowserWindow | null = null;
@@ -75,6 +76,7 @@ class WindowManager {
           windowSettingsPosition: data.settings?.window?.position 
         });
         if (currentPosition === 'active-window-center' || 
+            currentPosition === 'active-text-field' ||
             currentPosition === 'cursor' ||
             (data.settings?.window?.position && data.settings.window.position !== currentPosition)) {
           logger.debug('Repositioning window for position:', currentPosition);
@@ -154,6 +156,9 @@ class WindowManager {
       case 'active-window-center':
         return this.calculateActiveWindowCenterPosition(windowWidth, windowHeight);
       
+      case 'active-text-field':
+        return this.calculateActiveTextFieldPosition(windowWidth, windowHeight);
+      
       case 'cursor':
         return this.calculateCursorPosition(windowWidth, windowHeight);
       
@@ -204,6 +209,98 @@ class WindowManager {
     const y = point.y - (windowHeight / 2);
     
     return this.constrainToScreenBounds({ x, y }, windowWidth, windowHeight, point);
+  }
+
+  private async calculateActiveTextFieldPosition(
+    windowWidth: number,
+    windowHeight: number
+  ): Promise<{ x: number; y: number }> {
+    try {
+      const textFieldBounds = await this.getActiveTextFieldBounds();
+      if (textFieldBounds) {
+        // Position the window at the center of the text field (or its visible container)
+        const x = textFieldBounds.x + (textFieldBounds.width - windowWidth) / 2;
+        const y = textFieldBounds.y + (textFieldBounds.height - windowHeight) / 2;
+        
+        return this.constrainToScreenBounds({ x, y }, windowWidth, windowHeight, { 
+          x: textFieldBounds.x + textFieldBounds.width / 2, 
+          y: textFieldBounds.y + textFieldBounds.height / 2 
+        });
+      } else {
+        logger.warn('Could not get active text field bounds, falling back to active-window-center');
+        return this.calculateActiveWindowCenterPosition(windowWidth, windowHeight);
+      }
+    } catch (error) {
+      logger.warn('Error getting active text field bounds, falling back to active-window-center:', error);
+      return this.calculateActiveWindowCenterPosition(windowWidth, windowHeight);
+    }
+  }
+
+  private async getActiveTextFieldBounds(): Promise<{ x: number; y: number; width: number; height: number } | null> {
+    if (!config.platform.isMac) {
+      logger.debug('Text field detection only supported on macOS');
+      return null;
+    }
+
+    const options = {
+      timeout: 3000,
+      killSignal: 'SIGTERM' as const
+    };
+
+    return new Promise((resolve) => {
+      exec(`"${TEXT_FIELD_DETECTOR_PATH}" text-field-bounds`, options, (error: Error | null, stdout?: string) => {
+        if (error) {
+          logger.debug('Error getting text field bounds via native tool:', error);
+          resolve(null);
+          return;
+        }
+
+        try {
+          const result = JSON.parse(stdout?.trim() || '{}');
+          logger.debug('Text field detector result:', result);
+          
+          if (result.error) {
+            logger.debug('Text field detector error:', result.error);
+            resolve(null);
+            return;
+          }
+
+          if (result.success && typeof result.x === 'number' && typeof result.y === 'number' &&
+              typeof result.width === 'number' && typeof result.height === 'number') {
+            
+            let bounds = {
+              x: result.x,
+              y: result.y,
+              width: result.width,
+              height: result.height
+            };
+            
+            // Use parent container bounds if available for better positioning with scrollable content
+            if (result.parent && result.parent.isVisibleContainer && 
+                typeof result.parent.x === 'number' && typeof result.parent.y === 'number' &&
+                typeof result.parent.width === 'number' && typeof result.parent.height === 'number') {
+              logger.debug('Using parent container bounds for scrollable text field:', result.parent);
+              bounds = {
+                x: result.parent.x,
+                y: result.parent.y,
+                width: result.parent.width,
+                height: result.parent.height
+              };
+            }
+            
+            logger.debug('Text field bounds found:', bounds);
+            resolve(bounds);
+            return;
+          }
+
+          logger.debug('Invalid text field bounds data received');
+          resolve(null);
+        } catch (parseError) {
+          logger.debug('Error parsing text field detector output:', parseError);
+          resolve(null);
+        }
+      });
+    });
   }
 
   private constrainToScreenBounds(
