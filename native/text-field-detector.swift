@@ -112,6 +112,43 @@ class TextFieldDetector {
         
         // Note: kAXVisibleAttribute doesn't exist, skip this check
         
+        // Get parent element information for better positioning with scrollable content
+        var parentInfo: [String: Any] = [:]
+        var parent: CFTypeRef?
+        if AXUIElementCopyAttributeValue(axElement, kAXParentAttribute as CFString, &parent) == AXError.success,
+           let parentElement = parent {
+            let parentAXElement = parentElement as! AXUIElement
+            
+            // Get parent role
+            var parentRole: CFTypeRef?
+            if AXUIElementCopyAttributeValue(parentAXElement, kAXRoleAttribute as CFString, &parentRole) == AXError.success,
+               let parentRoleString = parentRole as? String {
+                parentInfo["role"] = parentRoleString
+                
+                // If parent is a scroll area or similar container, get its visible bounds
+                if parentRoleString == "AXScrollArea" || parentRoleString == "AXGroup" || parentRoleString == "AXSplitGroup" {
+                    var parentPosition: CFTypeRef?
+                    var parentSize: CFTypeRef?
+                    
+                    if AXUIElementCopyAttributeValue(parentAXElement, kAXPositionAttribute as CFString, &parentPosition) == AXError.success,
+                       AXUIElementCopyAttributeValue(parentAXElement, kAXSizeAttribute as CFString, &parentSize) == AXError.success {
+                        
+                        var parentPoint = CGPoint.zero
+                        var parentCGSize = CGSize.zero
+                        
+                        if AXValueGetValue(parentPosition as! AXValue, .cgPoint, &parentPoint),
+                           AXValueGetValue(parentSize as! AXValue, .cgSize, &parentCGSize) {
+                            parentInfo["x"] = Int(parentPoint.x)
+                            parentInfo["y"] = Int(parentPoint.y)
+                            parentInfo["width"] = Int(parentCGSize.width)
+                            parentInfo["height"] = Int(parentCGSize.height)
+                            parentInfo["isVisibleContainer"] = true
+                        }
+                    }
+                }
+            }
+        }
+        
         // Return comprehensive text field information
         var result: [String: Any] = [
             "success": true,
@@ -130,6 +167,11 @@ class TextFieldDetector {
         
         // Merge additional information
         result.merge(additionalInfo) { (_, new) in new }
+        
+        // Add parent container info if available
+        if !parentInfo.isEmpty {
+            result["parent"] = parentInfo
+        }
         
         return result
     }

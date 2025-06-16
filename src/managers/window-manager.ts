@@ -267,12 +267,27 @@ class WindowManager {
 
           if (result.success && typeof result.x === 'number' && typeof result.y === 'number' &&
               typeof result.width === 'number' && typeof result.height === 'number') {
-            const bounds = {
+            
+            let bounds = {
               x: result.x,
               y: result.y,
               width: result.width,
               height: result.height
             };
+            
+            // Use parent container bounds if available for better positioning with scrollable content
+            if (result.parent && result.parent.isVisibleContainer && 
+                typeof result.parent.x === 'number' && typeof result.parent.y === 'number' &&
+                typeof result.parent.width === 'number' && typeof result.parent.height === 'number') {
+              logger.debug('Using parent container bounds for scrollable text field:', result.parent);
+              bounds = {
+                x: result.parent.x,
+                y: result.parent.y,
+                width: result.parent.width,
+                height: result.parent.height
+              };
+            }
+            
             logger.debug('Text field bounds found:', bounds);
             resolve(bounds);
             return;
