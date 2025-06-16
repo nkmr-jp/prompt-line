@@ -108,13 +108,12 @@ The app uses Electron's two-process model with clean separation:
 Core functionality is organized into specialized managers:
 
 - **WindowManager**: Controls window creation, positioning, and lifecycle
-  - Supports multiple positioning modes: cursor (default), active-window-center, center
+  - Fixed positioning: always centers within the currently active window
   - Advanced AppleScript integration for window detection
   - Multi-monitor aware positioning with boundary constraints
 - **HistoryManager**: Manages unlimited paste history with optimized performance (persisted to JSONL)
 - **DraftManager**: Auto-saves input drafts with debouncing
 - **SettingsManager**: Manages user preferences with YAML-based configuration
-  - Default window positioning mode: `active-window-center`
   - Real-time settings updates with deep merge functionality
   - Automatic settings file creation with sensible defaults
 
@@ -151,7 +150,7 @@ The app uses AppleScript (`osascript`) to simulate Cmd+V in the previously activ
 All data is stored in `~/.prompt-line/`:
 - `history.jsonl`: Paste history (JSONL format for efficient append operations)
 - `draft.json`: Auto-saved drafts
-- `settings.yaml`: User preferences including window positioning mode
+- `settings.yaml`: User preferences (shortcuts and window size)
 - `app.log`: Application logs with debug information
 
 ### Build Output
@@ -189,17 +188,13 @@ npm test -- --verbose
 ## Critical Implementation Details
 
 ### Window Positioning
-The window supports multiple positioning modes with dynamic configuration:
+The window positioning is fixed to always center within the currently active window:
 
-**Default Mode: active-window-center**
+**Active Window Center Mode:**
 - Centers prompt window within the currently active window
 - Uses AppleScript to detect active window bounds
 - Provides better context by staying within the user's current workspace
-
-**Available Positioning Options:**
-- `active-window-center`: Center within the currently active window (default)
-- `cursor`: Position at mouse cursor location
-- `center`: Center on primary display
+- Falls back to center of primary display if active window detection fails
 
 **Implementation Details:**
 1. Get active window bounds via AppleScript (with robust error handling)

@@ -3,7 +3,7 @@ import { exec } from 'child_process';
 import path from 'path';
 import config from '../config/app-config';
 import { getCurrentApp, getActiveWindowBounds, logger } from '../utils/utils';
-import type { AppInfo, WindowData, StartupPosition } from '../types';
+import type { AppInfo, WindowData } from '../types';
 
 // Native tools paths
 const NATIVE_TOOLS_DIR = path.join(__dirname, '..', 'native-tools');
@@ -12,7 +12,7 @@ const KEYBOARD_SIMULATOR_PATH = path.join(NATIVE_TOOLS_DIR, 'keyboard-simulator'
 class WindowManager {
   private inputWindow: BrowserWindow | null = null;
   private previousApp: AppInfo | string | null = null;
-  private customWindowSettings: { position?: StartupPosition; width?: number; height?: number } = {};
+  private customWindowSettings: { width?: number; height?: number } = {};
 
   createInputWindow(): BrowserWindow {
     try {
@@ -68,11 +68,7 @@ class WindowManager {
       // If window exists but is hidden, reposition and show it
       if (this.inputWindow && !this.inputWindow.isDestroyed() && !this.inputWindow.isVisible()) {
         // Always reposition for active-window-center to get current active window
-        const currentPosition = this.customWindowSettings.position || 'active-window-center';
-        if (currentPosition === 'active-window-center' || 
-            (data.settings?.window?.position && data.settings.window.position !== currentPosition)) {
-          await this.positionWindow();
-        }
+        await this.positionWindow();
         this.inputWindow.show();
         this.inputWindow.focus();
       } else if (!this.inputWindow || this.inputWindow.isDestroyed()) {
@@ -123,55 +119,39 @@ class WindowManager {
 
       const windowWidth = this.customWindowSettings.width || config.window.width;
       const windowHeight = this.customWindowSettings.height || config.window.height;
-      const position = this.customWindowSettings.position || 'active-window-center';
 
       let x: number, y: number;
 
-      if (position === 'center') {
-        const display = screen.getPrimaryDisplay();
-        const bounds = display.bounds;
-        x = bounds.x + (bounds.width - windowWidth) / 2;
-        y = bounds.y + (bounds.height - windowHeight) / 2 - 100;
-      } else if (position === 'active-window-center') {
-        try {
-          const activeWindowBounds = await getActiveWindowBounds();
-          if (activeWindowBounds) {
-            x = activeWindowBounds.x + (activeWindowBounds.width - windowWidth) / 2;
-            y = activeWindowBounds.y + (activeWindowBounds.height - windowHeight) / 2;
-            
-            const point = { x: activeWindowBounds.x + activeWindowBounds.width / 2, y: activeWindowBounds.y + activeWindowBounds.height / 2 };
-            const display = screen.getDisplayNearestPoint(point);
-            const bounds = display.bounds;
-            x = Math.max(bounds.x, Math.min(x, bounds.x + bounds.width - windowWidth));
-            y = Math.max(bounds.y, Math.min(y, bounds.y + bounds.height - windowHeight));
-          } else {
-            logger.warn('Could not get active window bounds, falling back to center position');
-            const display = screen.getPrimaryDisplay();
-            const bounds = display.bounds;
-            x = bounds.x + (bounds.width - windowWidth) / 2;
-            y = bounds.y + (bounds.height - windowHeight) / 2 - 100;
-          }
-        } catch (error) {
-          logger.warn('Error getting active window bounds, falling back to center position:', error);
+      // Always use active-window-center positioning
+      try {
+        const activeWindowBounds = await getActiveWindowBounds();
+        if (activeWindowBounds) {
+          x = activeWindowBounds.x + (activeWindowBounds.width - windowWidth) / 2;
+          y = activeWindowBounds.y + (activeWindowBounds.height - windowHeight) / 2;
+          
+          const point = { x: activeWindowBounds.x + activeWindowBounds.width / 2, y: activeWindowBounds.y + activeWindowBounds.height / 2 };
+          const display = screen.getDisplayNearestPoint(point);
+          const bounds = display.bounds;
+          x = Math.max(bounds.x, Math.min(x, bounds.x + bounds.width - windowWidth));
+          y = Math.max(bounds.y, Math.min(y, bounds.y + bounds.height - windowHeight));
+        } else {
+          logger.warn('Could not get active window bounds, falling back to center position');
           const display = screen.getPrimaryDisplay();
           const bounds = display.bounds;
           x = bounds.x + (bounds.width - windowWidth) / 2;
           y = bounds.y + (bounds.height - windowHeight) / 2 - 100;
         }
-      } else {
-        const point = screen.getCursorScreenPoint();
-        const display = screen.getDisplayNearestPoint(point);
-        x = point.x - (windowWidth / 2);
-        y = point.y - (windowHeight / 2);
-        
+      } catch (error) {
+        logger.warn('Error getting active window bounds, falling back to center position:', error);
+        const display = screen.getPrimaryDisplay();
         const bounds = display.bounds;
-        x = Math.max(bounds.x, Math.min(x, bounds.x + bounds.width - windowWidth));
-        y = Math.max(bounds.y, Math.min(y, bounds.y + bounds.height - windowHeight));
+        x = bounds.x + (bounds.width - windowWidth) / 2;
+        y = bounds.y + (bounds.height - windowHeight) / 2 - 100;
       }
       
       this.inputWindow.setPosition(Math.round(x), Math.round(y));
       
-      logger.debug('Window positioned', { x: Math.round(x), y: Math.round(y), position });
+      logger.debug('Window positioned', { x: Math.round(x), y: Math.round(y), position: 'active-window-center' });
     } catch (error) {
       logger.error('Failed to position window:', error);
     }
@@ -280,12 +260,12 @@ class WindowManager {
     logger.debug('Window event listeners set up');
   }
 
-  updateWindowSettings(settings: { position?: StartupPosition; width?: number; height?: number }): void {
+  updateWindowSettings(settings: { width?: number; height?: number }): void {
     this.customWindowSettings = { ...this.customWindowSettings, ...settings };
     logger.debug('Window settings updated', settings);
   }
 
-  getWindowSettings(): { position?: StartupPosition; width?: number; height?: number } {
+  getWindowSettings(): { width?: number; height?: number } {
     return { ...this.customWindowSettings };
   }
 }

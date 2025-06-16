@@ -156,8 +156,6 @@ export interface WindowBounds {
   height: number;
 }
 
-export type StartupPosition = 'cursor' | 'center' | 'active-window-center';
-
 export interface UserSettings {
   shortcuts: {
     main: string;
@@ -167,7 +165,6 @@ export interface UserSettings {
     historyPrev: string;
   };
   window: {
-    position: StartupPosition;
     width: number;
     height: number;
   };

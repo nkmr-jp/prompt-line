@@ -3,6 +3,5 @@ shortcuts:
   paste: Cmd+Enter
   close: Escape
 window:
-  position: cursor
   width: 600
   height: 300

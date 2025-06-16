@@ -29,7 +29,6 @@ export interface UserSettings {
     historyPrev: string;
   };
   window: {
-    position: string;
     width: number;
     height: number;
   };

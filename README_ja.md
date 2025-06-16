@@ -103,7 +103,6 @@ shortcuts:
   close: "Escape"            # ウィンドウを閉じる（ドラフト保存）
 
 window:
-  position: "cursor"         # ウィンドウ位置："cursor"（デフォルト）、"active-window-center"、または"center"
   width: 600                 # ウィンドウ幅（ピクセル）
   height: 300                # ウィンドウ高さ（ピクセル）
 ```
@@ -111,7 +110,6 @@ window:
 **設定オプション：**
 
 - **ショートカット**: 形式：`Cmd`、`Ctrl`、`Alt`、`Shift` + 任意のキー
-- **ウィンドウ位置**: `cursor`（デフォルト）、`active-window-center`、または`center`
 
 ## 開発
 

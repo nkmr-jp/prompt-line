@@ -22,7 +22,6 @@ class SettingsManager {
         historyPrev: 'Ctrl+k'
       },
       window: {
-        position: 'active-window-center',
         width: 600,
         height: 300
       }

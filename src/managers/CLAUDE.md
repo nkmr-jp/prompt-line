@@ -18,10 +18,9 @@ WindowManager class controlling Electron window lifecycle with native macOS inte
 
 **Core Window Management:**
 - BrowserWindow creation with dynamic configuration from settings
-- Advanced window positioning with three positioning modes:
-  - `active-window-center`: Centers within currently active window (default)
-  - `cursor`: Positions at mouse cursor location  
-  - `center`: Centers on primary display with slight upward offset (-100px)
+- Fixed window positioning: always centers within currently active window
+  - Uses AppleScript to detect active window bounds
+  - Falls back to center of primary display if window detection fails
 - Multi-monitor aware positioning with screen boundary constraints
 - Intelligent window reuse: checks if window exists and is visible before creating new
 - Window state management with proper show/hide/focus coordination
@@ -168,7 +167,6 @@ shortcuts:
   historyNext: "Ctrl+j"
   historyPrev: "Ctrl+k"
 window:
-  position: "active-window-center"
   width: 600
   height: 300
 ```
@@ -239,9 +237,9 @@ Main Process → Manager.method() → Async Operation → Result
 ### Window Positioning Algorithm (window-manager.ts:120-178)
 The window positioning system uses a sophisticated multi-step process:
 
-1. **Settings Integration**: Reads position mode from user settings with fallback to defaults
-2. **Window State Check**: Avoids unnecessary repositioning if window already visible
-3. **Position Calculation**: Three distinct algorithms based on selected mode
+1. **Active Window Detection**: Uses AppleScript to get active window bounds
+2. **Position Calculation**: Centers window within active window bounds
+3. **Fallback Handling**: Centers on primary display if detection fails
 4. **Boundary Constraints**: Ensures window stays within screen bounds on multi-monitor setups
 5. **Precise Positioning**: Uses `Math.round()` for pixel-perfect placement
 
@@ -300,7 +298,7 @@ if (this.lastSavedContent === text) {
 ### Manager-Specific Testing
 **WindowManager:**
 - Mock BrowserWindow and screen APIs
-- Test positioning algorithms with various screen configurations
+- Test active window centering with various screen configurations
 - Verify native app detection and restoration flows
 - Test window recreation and data injection
 

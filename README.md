@@ -104,7 +104,6 @@ shortcuts:
   close: "Escape"            # Close window (saves draft)
 
 window:
-  position: "cursor"         # Window position: "cursor" (default), "active-window-center", or "center"
   width: 600                 # Window width in pixels
   height: 300                # Window height in pixels
 
@@ -113,7 +112,6 @@ window:
 **Configuration Options:**
 
 - **Shortcuts**: Format: `Cmd`, `Ctrl`, `Alt`, `Shift` + any key
-- **Window Position**: `cursor` (default), `active-window-center`, or `center`
 
 ## Development
 
