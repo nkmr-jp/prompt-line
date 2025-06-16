@@ -17,7 +17,10 @@ jest.mock('../../src/utils/utils', () => ({
         debug: jest.fn(),
         warn: jest.fn(),
         error: jest.fn()
-    }
+    },
+    KEYBOARD_SIMULATOR_PATH: '/path/to/keyboard-simulator',
+    TEXT_FIELD_DETECTOR_PATH: '/path/to/text-field-detector',
+    WINDOW_DETECTOR_PATH: '/path/to/window-detector'
 }));
 
 // Mock the config module
