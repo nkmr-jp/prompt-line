@@ -29,7 +29,7 @@ jest.mock('js-yaml', () => ({
     if (data.includes('main: Alt+Space')) {
       return {
         shortcuts: { main: 'Alt+Space', paste: 'Enter', close: 'Escape', search: 'Cmd+f' },
-        window: { position: 'active-display-center', width: 800, height: 400 }
+        window: { position: 'center', width: 800, height: 400 }
       };
     }
     return null;
@@ -77,7 +77,7 @@ describe('SettingsManager', () => {
   paste: Enter
   close: Escape
 window:
-  position: active-display-center
+  position: center
   width: 800
   height: 400`;
       mockedFs.readFile.mockResolvedValue(yamlSettings);
@@ -86,7 +86,7 @@ window:
 
       const settings = settingsManager.getSettings();
       expect(settings.shortcuts.main).toBe('Alt+Space');
-      expect(settings.window.position).toBe('active-display-center');
+      expect(settings.window.position).toBe('center');
     });
 
     it('should handle corrupted settings file and use defaults', async () => {
@@ -152,7 +152,7 @@ window:
     it('should reset settings to defaults', async () => {
       // First update settings
       await settingsManager.updateSettings({
-        window: { position: 'active-display-center', width: 800, height: 400 }
+        window: { position: 'center', width: 800, height: 400 }
       });
 
       // Then reset
@@ -186,10 +186,10 @@ window:
       const windowSettings = settingsManager.getWindowSettings();
       expect(windowSettings.position).toBe('active-text-field');
 
-      await settingsManager.updateWindowSettings({ position: 'active-display-center', width: 800 });
+      await settingsManager.updateWindowSettings({ position: 'center', width: 800 });
       
       const updatedWindowSettings = settingsManager.getWindowSettings();
-      expect(updatedWindowSettings.position).toBe('active-display-center');
+      expect(updatedWindowSettings.position).toBe('center');
       expect(updatedWindowSettings.width).toBe(800);
       expect(updatedWindowSettings.height).toBe(300); // Should remain unchanged
     });

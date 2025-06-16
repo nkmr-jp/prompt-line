@@ -133,7 +133,7 @@ window:
   #   - 'active-text-field': Position near the currently focused text field (default, falls back to active-window-center)
   #   - 'active-window-center': Center within the currently active window
   #   - 'cursor': Position at mouse cursor location
-  #   - 'active-display-center': Center on the active display (where cursor is located)
+  #   - 'center': Center on primary display
   position: ${settings.window.position}
   
   # Window width in pixels

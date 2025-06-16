@@ -150,8 +150,8 @@ class WindowManager {
     windowHeight: number
   ): Promise<{ x: number; y: number }> {
     switch (position) {
-      case 'active-display-center':
-        return this.calculateActiveDisplayCenterPosition(windowWidth, windowHeight);
+      case 'center':
+        return this.calculateCenterPosition(windowWidth, windowHeight);
       
       case 'active-window-center':
         return this.calculateActiveWindowCenterPosition(windowWidth, windowHeight);
@@ -168,10 +168,8 @@ class WindowManager {
     }
   }
 
-  private calculateActiveDisplayCenterPosition(windowWidth: number, windowHeight: number): { x: number; y: number } {
-    // Get the display where the mouse cursor is currently located (active display)
-    const cursorPoint = screen.getCursorScreenPoint();
-    const display = screen.getDisplayNearestPoint(cursorPoint);
+  private calculateCenterPosition(windowWidth: number, windowHeight: number): { x: number; y: number } {
+    const display = screen.getPrimaryDisplay();
     const bounds = display.bounds;
     return {
       x: bounds.x + (bounds.width - windowWidth) / 2,
@@ -196,12 +194,12 @@ class WindowManager {
         
         return this.constrainToScreenBounds({ x, y }, windowWidth, windowHeight, point);
       } else {
-        logger.warn('Could not get active window bounds, falling back to active display center position');
-        return this.calculateActiveDisplayCenterPosition(windowWidth, windowHeight);
+        logger.warn('Could not get active window bounds, falling back to center position');
+        return this.calculateCenterPosition(windowWidth, windowHeight);
       }
     } catch (error) {
-      logger.warn('Error getting active window bounds, falling back to active display center position:', error);
-      return this.calculateActiveDisplayCenterPosition(windowWidth, windowHeight);
+      logger.warn('Error getting active window bounds, falling back to center position:', error);
+      return this.calculateCenterPosition(windowWidth, windowHeight);
     }
   }
 
