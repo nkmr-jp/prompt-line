@@ -1,4 +1,4 @@
-import { app, globalShortcut, Tray, Menu, nativeImage } from 'electron';
+import { app, globalShortcut, Tray, Menu, nativeImage, shell } from 'electron';
 import fs from 'fs';
 import path from 'path';
 
@@ -168,6 +168,17 @@ class PromptLineApp {
           label: 'Hide Window',
           click: async () => {
             await this.hideInputWindow();
+          }
+        },
+        { type: 'separator' },
+        {
+          label: `Version ${config.app.version}`,
+          enabled: false
+        },
+        {
+          label: 'Release Notes',
+          click: () => {
+            shell.openExternal('https://github.com/nkmr-jp/prompt-line/blob/main/CHANGELOG.md');
           }
         },
         { type: 'separator' },
