@@ -8,6 +8,25 @@
 const fs = require('fs');
 const path = require('path');
 
+// アプリケーション名のパターン
+const appNames = [
+  'Terminal',
+  'iTerm2',
+  'Code',
+  'Cursor',
+  'Windsurf',
+  'Sublime Text',
+  'Slack',
+  'Chrome',
+  'Obsidian',
+  'Notion',
+  'Linear',
+  'Xcode',
+  'GoLand',
+  'Claude',
+  null, // 時々nullを含める（アプリ名が取得できなかった場合をシミュレート）
+];
+
 // サンプルテキストのパターン
 const textPatterns = {
   shortTexts: [
@@ -217,11 +236,21 @@ function generateHistoryItem(index, totalCount, baseTimestamp) {
   const timeOffset = Math.floor(Math.random() * 60 * 60 * 24 * 30 * 1000); // 30日間の範囲
   const timestamp = baseTimestamp - (index * 1000) - timeOffset;
   
-  return {
+  // アプリ名を選択（70%の確率でアプリ名を含める）
+  const appName = Math.random() < 0.7 ? getRandomElement(appNames) : null;
+  
+  const item = {
     text: generateRandomText(index, totalCount),
     timestamp: timestamp,
     id: generateId()
   };
+  
+  // appNameがnullでない場合のみフィールドを追加
+  if (appName !== null) {
+    item.appName = appName;
+  }
+  
+  return item;
 }
 
 function generateTestHistory(count = 1000, outputFile = null) {
@@ -250,6 +279,12 @@ function generateTestHistory(count = 1000, outputFile = null) {
   // 出力ファイルの決定
   if (!outputFile) {
     outputFile = path.join(__dirname, 'data', `test-history-${count}.jsonl`);
+  }
+  
+  // dataディレクトリが存在しない場合は作成
+  const outputDir = path.dirname(outputFile);
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
   }
   
   fs.writeFileSync(outputFile, jsonlContent);
