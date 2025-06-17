@@ -107,7 +107,7 @@ describe('Error Handling Integration Tests', () => {
             }));
 
             const settings: UserSettings = {
-                shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k', search: 'Cmd+f' },
+                shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k', search: 'Cmd+f', settings: 'Cmd+,' },
                 window: { position: 'cursor', width: 800, height: 400 }
             };
 
@@ -223,7 +223,7 @@ more broken content: }}}
 
             // Test partial settings
             const partialSettings = {
-                shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k', search: 'Cmd+f' },
+                shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k', search: 'Cmd+f', settings: 'Cmd+,' },
                 window: { position: 'cursor', width: 800, height: 400 }
             } as any;
 
@@ -253,7 +253,7 @@ window:
             }));
 
             const invalidSettings = {
-                shortcuts: { main: 'Cmd+Shift+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k', search: 'Cmd+f' },
+                shortcuts: { main: 'Cmd+Shift+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k', search: 'Cmd+f', settings: 'Cmd+,' },
                 window: { position: 'cursor', width: 'not_a_number', height: 400 }
             } as any;
 
@@ -334,7 +334,7 @@ window:
 
             // Simulate disk space issues by testing with very large settings objects
             const hugeSettings = {
-                shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k', search: 'Cmd+f' },
+                shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k', search: 'Cmd+f', settings: 'Cmd+,' },
                 window: { position: 'cursor', width: 800, height: 400 },
                 // Add large data to simulate memory pressure
                 largeData: new Array(1000).fill('large_data_item')
@@ -360,7 +360,7 @@ window:
             ];
 
             const settings: UserSettings = {
-                shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k', search: 'Cmd+f' },
+                shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k', search: 'Cmd+f', settings: 'Cmd+,' },
                 window: { position: 'cursor', width: 800, height: 400 }
             };
 
@@ -390,7 +390,7 @@ window:
             }));
 
             const settings: UserSettings = {
-                shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k', search: 'Cmd+f' },
+                shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k', search: 'Cmd+f', settings: 'Cmd+,' },
                 window: { position: 'cursor', width: 800, height: 400 }
             };
 
@@ -435,7 +435,7 @@ window:
             ];
 
             const settings: UserSettings = {
-                shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k', search: 'Cmd+f' },
+                shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k', search: 'Cmd+f', settings: 'Cmd+,' },
                 window: { position: 'cursor', width: 800, height: 400 }
             };
 
@@ -514,7 +514,7 @@ window:
             // Rapidly re-render with different settings
             for (let i = 1; i <= 20; i++) {
                 const settings: UserSettings = {
-                    shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k', search: 'Cmd+f' },
+                    shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k', search: 'Cmd+f', settings: 'Cmd+,' },
                     window: { position: 'cursor', width: 800 + i * 10, height: 400 }
                 };
 
@@ -551,7 +551,7 @@ window:
             
             for (const width of stressWidths) {
                 const settings: UserSettings = {
-                    shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k', search: 'Cmd+f' },
+                    shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k', search: 'Cmd+f', settings: 'Cmd+,' },
                     window: { position: 'cursor', width: width, height: 400 }
                 };
 

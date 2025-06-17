@@ -120,7 +120,8 @@ window:
           close: 'Escape',
           historyNext: 'Ctrl+j',
           historyPrev: 'Ctrl+k',
-          search: 'Cmd+f'
+          search: 'Cmd+f',
+          settings: 'Cmd+,'
         },
         window: {
           position: 'active-text-field',
@@ -138,7 +139,8 @@ window:
           close: 'Escape',
           historyNext: 'Ctrl+j',
           historyPrev: 'Ctrl+k',
-          search: 'Cmd+f'
+          search: 'Cmd+f',
+          settings: 'Cmd+,'
         }
       };
 
@@ -214,7 +216,8 @@ window:
           close: 'Escape',
           historyNext: 'Ctrl+j',
           historyPrev: 'Ctrl+k',
-          search: 'Cmd+f'
+          search: 'Cmd+f',
+          settings: 'Cmd+,'
         },
         window: {
           position: 'active-text-field',

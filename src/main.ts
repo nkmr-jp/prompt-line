@@ -98,21 +98,49 @@ class PromptLineApp {
   private registerShortcuts(): void {
     try {
       const settings = this.settingsManager?.getSettings();
-      const shortcut = settings?.shortcuts.main || config.shortcuts.main;
+      const mainShortcut = settings?.shortcuts.main || config.shortcuts.main;
+      const settingsShortcut = settings?.shortcuts.settings || config.shortcuts.settings;
       
-      const registered = globalShortcut.register(shortcut, async () => {
+      const mainRegistered = globalShortcut.register(mainShortcut, async () => {
         await this.showInputWindow();
       });
 
-      if (registered) {
-        logger.info('Global shortcut registered:', shortcut);
+      const settingsRegistered = globalShortcut.register(settingsShortcut, async () => {
+        await this.openSettingsFile();
+      });
+
+      if (mainRegistered) {
+        logger.info('Global shortcut registered:', mainShortcut);
       } else {
-        logger.error('Failed to register global shortcut:', shortcut);
-        throw new Error(`Failed to register shortcut: ${shortcut}`);
+        logger.error('Failed to register global shortcut:', mainShortcut);
+        throw new Error(`Failed to register shortcut: ${mainShortcut}`);
+      }
+
+      if (settingsRegistered) {
+        logger.info('Settings shortcut registered:', settingsShortcut);
+      } else {
+        logger.error('Failed to register settings shortcut:', settingsShortcut);
+        throw new Error(`Failed to register settings shortcut: ${settingsShortcut}`);
       }
     } catch (error) {
       logger.error('Error registering shortcuts:', error);
       throw error;
+    }
+  }
+
+  private async openSettingsFile(): Promise<void> {
+    try {
+      if (!this.settingsManager) {
+        logger.warn('Settings manager not initialized');
+        return;
+      }
+
+      const settingsFilePath = this.settingsManager.getSettingsFilePath();
+      logger.info('Opening settings file:', settingsFilePath);
+      
+      await shell.openPath(settingsFilePath);
+    } catch (error) {
+      logger.error('Failed to open settings file:', error);
     }
   }
 
@@ -168,6 +196,13 @@ class PromptLineApp {
           label: 'Hide Window',
           click: async () => {
             await this.hideInputWindow();
+          }
+        },
+        { type: 'separator' },
+        {
+          label: 'Settings',
+          click: async () => {
+            await this.openSettingsFile();
           }
         },
         { type: 'separator' },
