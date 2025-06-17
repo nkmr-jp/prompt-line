@@ -486,6 +486,10 @@ class IPCHandlers {
       const buffer = image.toPNG();
       await fs.writeFile(normalizedPath, buffer);
 
+      // Clear clipboard text to prevent markdown syntax from being pasted
+      // when copying images from markdown editors like Bear
+      clipboard.writeText('');
+
       logger.info('Image saved successfully', { filepath: normalizedPath });
 
       return { success: true, path: filepath };
