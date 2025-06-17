@@ -176,6 +176,6 @@ describe('updateShortcutsDisplay', () => {
 
     updateShortcutsDisplay(headerShortcutsEl, historyShortcutsEl, shortcuts);
 
-    expect(historyShortcutsEl.innerHTML).toBe('<kbd style="font-size: 9px; padding: 1px 4px;">Ctrl</kbd>+<kbd style="font-size: 9px; padding: 1px 4px;">j</kbd>/<kbd style="font-size: 9px; padding: 1px 4px;">k</kbd>');
+    expect(historyShortcutsEl.innerHTML).toBe('<kbd style="font-size: 9px; padding: 1px 4px;">⌘+⇧</kbd>+<kbd style="font-size: 9px; padding: 1px 4px;">j</kbd>/<kbd style="font-size: 9px; padding: 1px 4px;">k</kbd>');
   });
 });
