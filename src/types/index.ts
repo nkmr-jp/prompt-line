@@ -84,6 +84,7 @@ export interface ShortcutsConfig {
   historyNext: string;
   historyPrev: string;
   search: string;
+  settings: string;
 }
 
 export interface PathsConfig {
@@ -168,6 +169,7 @@ export interface UserSettings {
     historyNext: string;
     historyPrev: string;
     search: string;
+    settings: string;
   };
   window: {
     position: StartupPosition;
