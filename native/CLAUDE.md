@@ -150,7 +150,7 @@ keyboard-simulator activate-and-paste-bundle "com.apple.Terminal"  # Combined op
 ## Architecture Integration
 
 ### Build Process Integration
-1. **Development Build**: `npm run dev` includes native tool compilation via `make install`
+1. **Development Build**: Development build includes native tool compilation via `make install`
 2. **Production Build**: `npm run build` ensures native tools are compiled and distributed
 3. **Distribution**: Native binaries are packaged with the Electron app in `dist/native-tools/`
 4. **Platform Detection**: Build process only compiles on macOS systems

@@ -16,7 +16,15 @@ Prompt Lineは、[Claude Code](https://github.com/anthropics/claude-code)、[Ope
 3. `Cmd+Enter`を押す → アクティブなアプリケーションにテキストを貼り付け
 4. ウィンドウは自動的に非表示
 
+TODO: DEMO
+
 ## 📦 インストール
+
+### システム要件
+
+- macOS 10.14以降
+- Node.js 20以上
+- Xcodeコマンドラインツール または Xcode（ネイティブツールのコンパイル用）
 
 ### ソースからビルド
 
@@ -50,18 +58,15 @@ Prompt Lineは、[Claude Code](https://github.com/anthropics/claude-code)、[Ope
    open dist/Prompt-Line-0.2.1-x64.dmg # Intel
    ```
 6. Prompt Line.appをApplicationsフォルダにドラッグ
-7. **アクセシビリティ権限を許可**（初回使用時、貼り付けに必要）
-8. アプリを起動
-9. 完了！ `Cmd+Shift+Space`で使い始められます
+7. Prompt Lineを起動。システムトレーにアイコンが表示されます。
+8. `Cmd+Shift+Space`で使い始められます。
 
 ### アクセシビリティ権限
 
 Prompt Lineが他のアプリケーションにテキストを貼り付けるには、アクセシビリティ権限が必要です：
 
-1. アプリ初回実行時にmacOSが権限ダイアログを表示
-2. 「システム設定を開く」（macOS 13以降）または「システム環境設定を開く」（macOS 12以前）をクリック
-3. 「Prompt Line」の横のスイッチをONにする
-4. 必要に応じてアプリを再起動
+初回使用時にダイアログボックスが表示されるので、指示に従って設定してください。
+ダイアログボックスが表示されない場合は以下の手順で設定してください。
 
 **手動設定:**
 1. **システム設定** → **プライバシーとセキュリティ** → **アクセシビリティ**を開く
@@ -84,14 +89,6 @@ Prompt Lineが他のアプリケーションにテキストを貼り付けるに
 - **検索** - 過去に入力したテキストを検索
 - **画像サポート** - `Cmd+V`でクリップボード画像を貼り付け
 
-### キーボードショートカット
-
-| キー | アクション |
-|-----|--------|
-| `Cmd+Shift+Space` | Prompt Lineを開く |
-| `Cmd+Enter` | 貼り付けて閉じる |
-| `Esc` | 閉じる（ドラフト保存） |
-
 ## ⚙️ 設定
 
 `~/.prompt-line/settings.yaml`に設定ファイルを作成してPrompt Lineの動作をカスタマイズできます：
@@ -107,53 +104,6 @@ window:
   width: 600                 # ウィンドウ幅（ピクセル）
   height: 300                # ウィンドウ高さ（ピクセル）
 ```
-
-**設定オプション：**
-
-- **ショートカット**: 形式：`Cmd`、`Ctrl`、`Alt`、`Shift` + 任意のキー
-- **ウィンドウ位置**: `cursor`（デフォルト）、`active-window-center`、または`center`
-
-## 開発
-
-### ビルド要件
-
-- **macOS**（ネイティブツールのコンパイルに必要）
-- **Node.js 20以上**
-- **Xcodeコマンドラインツール** または **Xcode**
-  ```bash
-  xcode-select --install  # コマンドラインツールをインストール
-  ```
-
-### コマンド
-```bash
-npm run dev          # ホットリロード付き開発モード
-npm test             # テスト実行
-npm run lint         # コードリンティング
-npm run typecheck    # TypeScript型チェック
-npm run build        # macOSアプリケーションビルド（両アーキテクチャ）
-npm run build:x64    # Intel Mac用ビルド
-npm run build:arm64  # Apple Silicon Mac用ビルド
-```
-
-### アーキテクチャ
-Electron + TypeScriptでManager Patternを使用して構築：
-
-- **WindowManager** - ウィンドウライフサイクルと配置
-- **HistoryManager** - 重複除去機能付きJSONLベース永続ストレージ
-- **DraftManager** - バックアップシステム付きデバウンス自動保存
-- **SettingsManager** - ユーザー設定と構成
-- **IPCHandlers** - メイン/レンダラープロセス間通信
-
-## システム要件
-
-### ユーザー向け
-- macOS 10.14以降
-- 100MBの利用可能ディスク容量
-
-### 開発者向け
-- macOS 10.14以降
-- Node.js 20以上
-- Xcodeコマンドラインツール または Xcode（ネイティブツールのコンパイル用）
 
 ## プライバシー
 

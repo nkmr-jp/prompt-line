@@ -17,19 +17,13 @@ While it works across any macOS application, the main focus is enhancing termina
 3. Press `Cmd+Enter` → Text pastes into the active application
 4. Window disappears automatically
 
-## 📦 Setup & Installation
+## 📦 Installation
 
+### Development Setup
 1. Clone the repository:
    ```bash
    git clone https://github.com/nkmr-jp/prompt-line.git
    cd prompt-line
-   ```
-
-   To build a specific version:
-   ```bash
-   git clone https://github.com/nkmr-jp/prompt-line.git
-   cd prompt-line
-   git checkout v0.2.1  # Replace with desired version tag
    ```
 
 2. Install dependencies:
@@ -42,16 +36,13 @@ While it works across any macOS application, the main focus is enhancing termina
    npm run build
    ```
 
-4. The built app will be available in the `dist/` directory
-5. Open a dmg file
-   ```bash
-   open dist/Prompt-Line-0.2.1-arm64.dmg # Apple Silicon
-   open dist/Prompt-Line-0.2.1-x64.dmg # Intel
-   ```
-6. Drag Prompt Line.app to your Applications folder
-7. **Grant accessibility permissions** when prompted on first use (required for pasting)
-8. Launch the app
-9. Done! Press `Cmd+Shift+Space` to start using
+4. The built application will be available in `dist/app/`:
+   - `dist/app/mac-arm64/Prompt Line.app` for Apple Silicon Macs (M1/M2/M3)
+   - `dist/app/mac-x64/Prompt Line.app` for Intel Macs
+
+5. **Grant accessibility permissions** when prompted on first use (required for pasting)
+
+6. Launch the app and press `Cmd+Shift+Space` to start using
 
 ### Accessibility Permissions
 
@@ -115,47 +106,19 @@ window:
 - **Shortcuts**: Format: `Cmd`, `Ctrl`, `Alt`, `Shift` + any key
 - **Window Position**: `cursor` (default), `active-window-center`, or `center`
 
-## Development
-
-### Build Requirements
-
-- **macOS** (required for native tools compilation)
-- **Node.js 20+**
-- **Xcode Command Line Tools** or **Xcode**
-  ```bash
-  xcode-select --install  # Install command line tools
-  ```
-
-### Commands
-```bash
-npm run dev          # Development mode with hot reload
-npm test             # Run tests
-npm run lint         # Code linting
-npm run typecheck    # TypeScript type checking
-npm run build        # Build macOS application (both architectures)
-npm run build:x64    # Build for Intel Macs
-npm run build:arm64  # Build for Apple Silicon Macs
-```
-
-### Architecture
-Built with Electron + TypeScript using a Manager Pattern:
-
-- **WindowManager** - Window lifecycle and positioning
-- **HistoryManager** - JSONL-based persistent storage with deduplication  
-- **DraftManager** - Debounced auto-save with backup system
-- **SettingsManager** - User preferences and configuration
-- **IPCHandlers** - Main/renderer process communication
 
 ## System Requirements
+
+### For Development
+- macOS 10.14 or later
+- Node.js 16.x or later
+- npm 8.x or later
+- 500MB available disk space (for development dependencies)
 
 ### For Users
 - macOS 10.14 or later
 - 100MB available disk space
 
-### For Development
-- macOS 10.14 or later
-- Node.js 20+
-- Xcode Command Line Tools or Xcode (for native tools compilation)
 
 ## Privacy
 
