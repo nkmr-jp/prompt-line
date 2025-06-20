@@ -177,6 +177,19 @@ export class EventHandler {
         }
       }
 
+      // Handle Cmd+, for opening settings (local shortcut only when window is active)
+      if (e.key === ',' && e.metaKey) {
+        e.preventDefault();
+        
+        try {
+          await ipcRenderer.invoke('open-settings');
+          console.log('Settings file opened');
+        } catch (error) {
+          console.error('Failed to open settings:', error);
+        }
+        return;
+      }
+
       // Image paste is handled by PromptLineRenderer to avoid duplication
     } catch (error) {
       console.error('Error handling keydown:', error);

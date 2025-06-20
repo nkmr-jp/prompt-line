@@ -1,4 +1,4 @@
-import { ipcMain, clipboard, IpcMainInvokeEvent, dialog } from 'electron';
+import { ipcMain, clipboard, IpcMainInvokeEvent, dialog, shell } from 'electron';
 import { promises as fs } from 'fs';
 import { exec } from 'child_process';
 import path from 'path';
@@ -98,6 +98,7 @@ class IPCHandlers {
     ipcMain.handle('get-settings', this.handleGetSettings.bind(this));
     ipcMain.handle('update-settings', this.handleUpdateSettings.bind(this));
     ipcMain.handle('reset-settings', this.handleResetSettings.bind(this));
+    ipcMain.handle('open-settings', this.handleOpenSettings.bind(this));
 
     logger.info('IPC handlers set up successfully');
   }
@@ -535,6 +536,19 @@ class IPCHandlers {
     }
   }
 
+  private async handleOpenSettings(_event: IpcMainInvokeEvent): Promise<IPCResult> {
+    try {
+      const settingsFilePath = this.settingsManager.getSettingsFilePath();
+      logger.info('Opening settings file:', settingsFilePath);
+      
+      await shell.openPath(settingsFilePath);
+      return { success: true };
+    } catch (error) {
+      logger.error('Failed to open settings file:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
   removeAllHandlers(): void {
     const handlers = [
       'paste-text',
@@ -554,7 +568,8 @@ class IPCHandlers {
       'paste-image',
       'get-settings',
       'update-settings',
-      'reset-settings'
+      'reset-settings',
+      'open-settings'
     ];
 
     handlers.forEach(handler => {
