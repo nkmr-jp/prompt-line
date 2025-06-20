@@ -430,7 +430,7 @@ describe('IPCHandlers', () => {
             const windowData = {
                 history: [{ text: 'test', timestamp: Date.now(), id: 'test-1' }],
                 settings: {
-                    shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'ArrowDown', historyPrev: 'ArrowUp', search: 'Cmd+f', settings: 'Cmd+,' },
+                    shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'ArrowDown', historyPrev: 'ArrowUp', search: 'Cmd+f' },
                     window: { position: 'cursor' as const, width: 800, height: 400 }
                 }
             };
@@ -496,7 +496,7 @@ describe('IPCHandlers', () => {
             ipcHandlers.removeAllHandlers();
 
             // Should be called for each handler (including new settings handlers)
-            expect(ipcMain.removeAllListeners).toHaveBeenCalledTimes(18);
+            expect(ipcMain.removeAllListeners).toHaveBeenCalledTimes(19);
             expect(logger.info).toHaveBeenCalledWith('All IPC handlers removed');
         });
     });

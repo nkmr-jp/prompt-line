@@ -120,8 +120,7 @@ window:
           close: 'Escape',
           historyNext: 'Ctrl+j',
           historyPrev: 'Ctrl+k',
-          search: 'Cmd+f',
-          settings: 'Cmd+,'
+          search: 'Cmd+f'
         },
         window: {
           position: 'active-text-field',
@@ -139,8 +138,7 @@ window:
           close: 'Escape',
           historyNext: 'Ctrl+j',
           historyPrev: 'Ctrl+k',
-          search: 'Cmd+f',
-          settings: 'Cmd+,'
+          search: 'Cmd+f'
         }
       };
 
@@ -216,8 +214,7 @@ window:
           close: 'Escape',
           historyNext: 'Ctrl+j',
           historyPrev: 'Ctrl+k',
-          search: 'Cmd+f',
-          settings: 'Cmd+,'
+          search: 'Cmd+f'
         },
         window: {
           position: 'active-text-field',
@@ -254,4 +251,5 @@ window:
       await expect(settingsManager.init()).rejects.toThrow('Permission denied');
     });
   });
+
 });

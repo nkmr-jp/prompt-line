@@ -62,8 +62,7 @@ class AppConfigClass {
       close: 'Escape',
       historyNext: 'Ctrl+j',
       historyPrev: 'Ctrl+k',
-      search: 'Cmd+f',
-      settings: 'Cmd+,'
+      search: 'Cmd+f'
     };
 
     const userDataDir = path.join(os.homedir(), '.prompt-line');

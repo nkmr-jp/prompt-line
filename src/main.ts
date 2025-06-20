@@ -99,14 +99,9 @@ class PromptLineApp {
     try {
       const settings = this.settingsManager?.getSettings();
       const mainShortcut = settings?.shortcuts.main || config.shortcuts.main;
-      const settingsShortcut = settings?.shortcuts.settings || config.shortcuts.settings;
       
       const mainRegistered = globalShortcut.register(mainShortcut, async () => {
         await this.showInputWindow();
-      });
-
-      const settingsRegistered = globalShortcut.register(settingsShortcut, async () => {
-        await this.openSettingsFile();
       });
 
       if (mainRegistered) {
@@ -114,13 +109,6 @@ class PromptLineApp {
       } else {
         logger.error('Failed to register global shortcut:', mainShortcut);
         throw new Error(`Failed to register shortcut: ${mainShortcut}`);
-      }
-
-      if (settingsRegistered) {
-        logger.info('Settings shortcut registered:', settingsShortcut);
-      } else {
-        logger.error('Failed to register settings shortcut:', settingsShortcut);
-        throw new Error(`Failed to register settings shortcut: ${settingsShortcut}`);
       }
     } catch (error) {
       logger.error('Error registering shortcuts:', error);
