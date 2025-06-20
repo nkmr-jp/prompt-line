@@ -1,6 +1,6 @@
 {
   "name": "prompt-line",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "プロンプト入力アプリ - カーソル位置にテキストを素早く貼り付け",
   "main": "dist/main.js",
   "scripts": {
