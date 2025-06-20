@@ -79,7 +79,7 @@ describe('DOM Integration Tests', () => {
             }));
 
             const settings: UserSettings = {
-                shortcuts: { main: 'Cmd+Shift+Space', paste: 'Cmd+Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k', search: 'Cmd+f', settings: 'Cmd+,' },
+                shortcuts: { main: 'Cmd+Shift+Space', paste: 'Cmd+Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k', search: 'Cmd+f' },
                 window: { position: 'cursor', width: 600, height: 300 }
             };
 
@@ -113,7 +113,7 @@ describe('DOM Integration Tests', () => {
 
         test('should handle empty history', () => {
             const settings: UserSettings = {
-                shortcuts: { main: 'Cmd+Shift+Space', paste: 'Cmd+Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k', search: 'Cmd+f', settings: 'Cmd+,' },
+                shortcuts: { main: 'Cmd+Shift+Space', paste: 'Cmd+Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k', search: 'Cmd+f' },
                 window: { position: 'cursor', width: 600, height: 300 }
             };
 
@@ -136,7 +136,7 @@ describe('DOM Integration Tests', () => {
             }));
 
             const settings: UserSettings = {
-                shortcuts: { main: 'Cmd+Shift+Space', paste: 'Cmd+Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k', search: 'Cmd+f', settings: 'Cmd+,' },
+                shortcuts: { main: 'Cmd+Shift+Space', paste: 'Cmd+Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k', search: 'Cmd+f' },
                 window: { position: 'cursor', width: 600, height: 300 }
             };
 
@@ -158,7 +158,7 @@ describe('DOM Integration Tests', () => {
             ];
 
             const settings: UserSettings = {
-                shortcuts: { main: 'Cmd+Shift+Space', paste: 'Cmd+Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k', search: 'Cmd+f', settings: 'Cmd+,' },
+                shortcuts: { main: 'Cmd+Shift+Space', paste: 'Cmd+Enter', close: 'Escape', historyNext: 'Ctrl+j', historyPrev: 'Ctrl+k', search: 'Cmd+f' },
                 window: { position: 'cursor', width: 600, height: 300 }
             };
 
