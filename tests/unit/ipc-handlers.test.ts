@@ -148,7 +148,7 @@ describe('IPCHandlers', () => {
             const result = await (ipcHandlers as any).handlePasteText(null, 'test text');
 
             expect(result.success).toBe(true);
-            expect(mockHistoryManager.addToHistory).toHaveBeenCalledWith('test text');
+            expect(mockHistoryManager.addToHistory).toHaveBeenCalledWith('test text', 'TestApp');
             expect(mockDraftManager.clearDraft).toHaveBeenCalled();
             expect(clipboard.writeText).toHaveBeenCalledWith('test text');
             expect(mockWindowManager.hideInputWindow).toHaveBeenCalled();
@@ -192,11 +192,13 @@ describe('IPCHandlers', () => {
             mockWindowManager.hideInputWindow.mockResolvedValue();
             mockWindowManager.focusPreviousApp.mockResolvedValue(true);
             pasteWithNativeTool.mockResolvedValue();
+            // Reset getPreviousApp to return the default mock value
+            mockWindowManager.getPreviousApp.mockReturnValue({ name: 'TestApp', bundleId: 'com.test.app' });
 
             await (ipcHandlers as any).handlePasteText(null, 'test text');
 
             expect(mockDraftManager.clearDraft).toHaveBeenCalledTimes(1);
-            expect(mockHistoryManager.addToHistory).toHaveBeenCalledWith('test text');
+            expect(mockHistoryManager.addToHistory).toHaveBeenCalledWith('test text', 'TestApp');
         });
 
         test('should clear draft even when paste fails', async () => {
@@ -204,12 +206,14 @@ describe('IPCHandlers', () => {
             mockWindowManager.hideInputWindow.mockResolvedValue();
             mockWindowManager.focusPreviousApp.mockResolvedValue(true);
             pasteWithNativeTool.mockRejectedValue(new Error('Paste script failed'));
+            // Reset getPreviousApp to return the default mock value
+            mockWindowManager.getPreviousApp.mockReturnValue({ name: 'TestApp', bundleId: 'com.test.app' });
 
             const result = await (ipcHandlers as any).handlePasteText(null, 'test text');
 
             expect(result.success).toBe(false);
             expect(mockDraftManager.clearDraft).toHaveBeenCalledTimes(1);
-            expect(mockHistoryManager.addToHistory).toHaveBeenCalledWith('test text');
+            expect(mockHistoryManager.addToHistory).toHaveBeenCalledWith('test text', 'TestApp');
         });
 
         test('should not clear draft when text is empty', async () => {
@@ -426,7 +430,7 @@ describe('IPCHandlers', () => {
             const windowData = {
                 history: [{ text: 'test', timestamp: Date.now(), id: 'test-1' }],
                 settings: {
-                    shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'ArrowDown', historyPrev: 'ArrowUp', search: 'Cmd+f' },
+                    shortcuts: { main: 'Cmd+Space', paste: 'Enter', close: 'Escape', historyNext: 'ArrowDown', historyPrev: 'ArrowUp', search: 'Cmd+f', settings: 'Cmd+,' },
                     window: { position: 'cursor' as const, width: 800, height: 400 }
                 }
             };

@@ -20,7 +20,8 @@ class SettingsManager {
         close: 'Escape',
         historyNext: 'Ctrl+j',
         historyPrev: 'Ctrl+k',
-        search: 'Cmd+f'
+        search: 'Cmd+f',
+        settings: 'Cmd+,'
       },
       window: {
         position: 'active-text-field',
@@ -129,6 +130,10 @@ shortcuts:
   # Shortcut to enable search mode in history
   # Used to filter paste history items
   search: ${settings.shortcuts.search}
+  
+  # Shortcut to open settings file for editing
+  # Opens the settings.yaml file in the default editor
+  settings: ${settings.shortcuts.settings}
 
 # Window appearance and positioning configuration
 window:

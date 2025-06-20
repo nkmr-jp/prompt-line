@@ -214,8 +214,16 @@ class WindowManager {
     try {
       const textFieldBounds = await this.getActiveTextFieldBounds();
       if (textFieldBounds) {
-        // Position the window at the center of the text field (or its visible container)
-        const x = textFieldBounds.x + (textFieldBounds.width - windowWidth) / 2;
+        // If text field is narrower than window, align to left edge of text field
+        // Otherwise, center the window horizontally within the text field
+        let x: number;
+        if (textFieldBounds.width < windowWidth) {
+          x = textFieldBounds.x;
+        } else {
+          x = textFieldBounds.x + (textFieldBounds.width - windowWidth) / 2;
+        }
+        
+        // Always center vertically
         const y = textFieldBounds.y + (textFieldBounds.height - windowHeight) / 2;
         
         return this.constrainToScreenBounds({ x, y }, windowWidth, windowHeight, { 
@@ -253,7 +261,6 @@ class WindowManager {
 
         try {
           const result = JSON.parse(stdout?.trim() || '{}');
-          logger.debug('Text field detector result:', result);
           
           if (result.error) {
             logger.debug('Text field detector error:', result.error);
@@ -275,7 +282,7 @@ class WindowManager {
             if (result.parent && result.parent.isVisibleContainer && 
                 typeof result.parent.x === 'number' && typeof result.parent.y === 'number' &&
                 typeof result.parent.width === 'number' && typeof result.parent.height === 'number') {
-              logger.debug('Using parent container bounds for scrollable text field:', result.parent);
+              logger.debug('Using parent container bounds for scrollable text field');
               bounds = {
                 x: result.parent.x,
                 y: result.parent.y,

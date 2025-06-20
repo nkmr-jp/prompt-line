@@ -177,11 +177,7 @@ export class EventHandler {
         }
       }
 
-      // Handle Cmd+V for image paste
-      if (e.key === 'v' && e.metaKey) {
-        await this.handleImagePaste(e);
-        return;
-      }
+      // Image paste is handled by PromptLineRenderer to avoid duplication
     } catch (error) {
       console.error('Error handling keydown:', error);
     }
@@ -199,38 +195,6 @@ export class EventHandler {
     }
   }
 
-  private async handleImagePaste(e: KeyboardEvent): Promise<void> {
-    try {
-      if (!this.textarea) return;
-
-      const result = await ipcRenderer.invoke('paste-image') as ImageResult;
-      
-      if (result.success && result.path) {
-        e.preventDefault();
-        
-        // Get current cursor position
-        const start = this.textarea.selectionStart;
-        const end = this.textarea.selectionEnd;
-        const currentValue = this.textarea.value;
-        
-        // Insert the image path at cursor position
-        const newValue = currentValue.substring(0, start) + result.path + currentValue.substring(end);
-        this.textarea.value = newValue;
-        
-        // Update cursor position
-        const newCursorPos = start + result.path.length;
-        this.textarea.setSelectionRange(newCursorPos, newCursorPos);
-        
-        // Trigger input event for any listeners
-        this.textarea.dispatchEvent(new Event('input', { bubbles: true }));
-      } else if (result.error) {
-        console.warn('Image paste failed:', result.error);
-      }
-      // If no image in clipboard, let the default Cmd+V behavior proceed
-    } catch (error) {
-      console.error('Error handling image paste:', error);
-    }
-  }
 
   public getIsComposing(): boolean {
     return this.isComposing;

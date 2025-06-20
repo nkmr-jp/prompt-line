@@ -122,17 +122,27 @@ class IPCHandlers {
       }
 
 
+      // Get previous app info before hiding window
+      const previousApp = await this.getPreviousAppAsync();
+      
+      // Extract app name for history
+      let appName: string | undefined;
+      if (previousApp) {
+        if (typeof previousApp === 'string') {
+          appName = previousApp;
+        } else if (previousApp.name) {
+          appName = previousApp.name;
+        }
+      }
+
       await Promise.all([
-        this.historyManager.addToHistory(text),
+        this.historyManager.addToHistory(text, appName),
         this.draftManager.clearDraft(),
         this.setClipboardAsync(text)
       ]);
 
       const hideWindowPromise = this.windowManager.hideInputWindow();
-      const [, previousApp] = await Promise.all([
-        hideWindowPromise,
-        this.getPreviousAppAsync()
-      ]);
+      await hideWindowPromise;
 
       await sleep(Math.max(config.timing.windowHideDelay, 5));
 
@@ -475,6 +485,10 @@ class IPCHandlers {
 
       const buffer = image.toPNG();
       await fs.writeFile(normalizedPath, buffer);
+
+      // Clear clipboard text to prevent markdown syntax from being pasted
+      // when copying images from markdown editors like Bear
+      clipboard.writeText('');
 
       logger.info('Image saved successfully', { filepath: normalizedPath });
 

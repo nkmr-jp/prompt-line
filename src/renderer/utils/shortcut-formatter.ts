@@ -43,11 +43,19 @@ export function updateShortcutsDisplay(
     const historyNext = shortcuts.historyNext || 'Ctrl+j';
     const historyPrev = shortcuts.historyPrev || 'Ctrl+k';
     
-    // Extract key parts (e.g., "Ctrl+j" -> "j", "Ctrl+k" -> "k")
-    const nextKey = historyNext.split('+').pop() || 'j';
-    const prevKey = historyPrev.split('+').pop() || 'k';
+    // Format the shortcuts properly
+    const formattedNext = formatShortcut(historyNext);
+    const formattedPrev = formatShortcut(historyPrev);
     
-    historyShortcutsEl.innerHTML = `<kbd style="font-size: 9px; padding: 1px 4px;">Ctrl</kbd>+<kbd style="font-size: 9px; padding: 1px 4px;">${nextKey}</kbd>/<kbd style="font-size: 9px; padding: 1px 4px;">${prevKey}</kbd>`;
+    // Extract modifier and key parts for both shortcuts
+    const nextParts = formattedNext.split('+');
+    const prevParts = formattedPrev.split('+');
+    
+    const nextModifier = nextParts.slice(0, -1).join('+');
+    const nextKey = nextParts[nextParts.length - 1];
+    const prevKey = prevParts[prevParts.length - 1];
+    
+    historyShortcutsEl.innerHTML = `<kbd style="font-size: 9px; padding: 1px 4px;">${nextModifier}</kbd>+<kbd style="font-size: 9px; padding: 1px 4px;">${nextKey}</kbd>/<kbd style="font-size: 9px; padding: 1px 4px;">${prevKey}</kbd>`;
   }
 
   // Update search button tooltip

@@ -93,12 +93,11 @@ class TextFieldDetector {
             additionalInfo["placeholder"] = placeholderString
         }
         
-        // Get current text value if available and safe (not for secure fields)
+        // Check if text field has content without capturing the actual value
         if elementRole != "AXSecureTextField" {
             var value: CFTypeRef?
             if AXUIElementCopyAttributeValue(axElement, kAXValueAttribute as CFString, &value) == AXError.success,
                let valueString = value as? String {
-                additionalInfo["value"] = valueString
                 additionalInfo["hasContent"] = !valueString.isEmpty
             }
         }

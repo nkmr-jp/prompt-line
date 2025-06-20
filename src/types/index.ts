@@ -2,6 +2,7 @@ export interface HistoryItem {
   text: string;
   timestamp: number;
   id: string;
+  appName?: string;
 }
 
 export interface DraftData {
@@ -83,6 +84,7 @@ export interface ShortcutsConfig {
   historyNext: string;
   historyPrev: string;
   search: string;
+  settings: string;
 }
 
 export interface PathsConfig {
@@ -135,7 +137,7 @@ export interface ExportData {
 
 export interface IHistoryManager {
   initialize(): Promise<void>;
-  addToHistory(text: string): Promise<HistoryItem | null>;
+  addToHistory(text: string, appName?: string): Promise<HistoryItem | null>;
   getHistory(limit?: number): Promise<HistoryItem[]> | HistoryItem[];
   getHistoryItem(id: string): HistoryItem | null;
   getRecentHistory(limit?: number): HistoryItem[];
@@ -167,6 +169,7 @@ export interface UserSettings {
     historyNext: string;
     historyPrev: string;
     search: string;
+    settings: string;
   };
   window: {
     position: StartupPosition;

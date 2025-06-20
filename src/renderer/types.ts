@@ -13,6 +13,7 @@ export interface HistoryItem {
   text: string;
   timestamp: number;
   id: string;
+  appName?: string;
 }
 
 export interface AppInfo {
