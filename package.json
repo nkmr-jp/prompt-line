@@ -42,7 +42,7 @@
     "@types/node": "20.17.57",
     "@typescript-eslint/eslint-plugin": "^8.34.0",
     "@typescript-eslint/parser": "^8.34.0",
-    "electron": "36.4.0",
+    "electron": "^36.5.0",
     "electron-builder": "^26.0.16",
     "electron-mock-ipc": "0.3.12",
     "eslint": "^9.29.0",
@@ -115,7 +115,7 @@
     "afterSign": "scripts/afterSign.js",
     "mac": {
       "category": "public.app-category.productivity",
-      "hardenedRuntime": false,
+      "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",

@@ -1,6 +1,5 @@
 // Import types and dependencies
 import type { 
-  ElectronWindow, 
   HistoryItem, 
   WindowData, 
   Config, 
@@ -15,7 +14,12 @@ import { DraftManager } from './draft-manager';
 import { HistoryUIManager } from './history-ui-manager';
 import { LifecycleManager } from './lifecycle-manager';
 
-const { ipcRenderer } = (window as ElectronWindow).require('electron');
+// 🔒 セキュリティ強化: プリロードスクリプト経由でのAPI取得
+const electronAPI = (window as any).electronAPI;
+
+if (!electronAPI) {
+  throw new Error('Electron API not available. Preload script may not be loaded correctly.');
+}
 
 // Export the renderer class for testing
 export class PromptLineRenderer {
@@ -32,7 +36,7 @@ export class PromptLineRenderer {
 
   constructor() {
     this.domManager = new DomManager();
-    this.draftManager = new DraftManager(ipcRenderer, () => this.domManager.getCurrentText());
+    this.draftManager = new DraftManager(electronAPI, () => this.domManager.getCurrentText());
     this.historyUIManager = new HistoryUIManager(
       () => this.domManager.historyList,
       (text: string) => this.domManager.setText(text),
@@ -40,7 +44,7 @@ export class PromptLineRenderer {
       () => this.searchManager
     );
     this.lifecycleManager = new LifecycleManager(
-      ipcRenderer,
+      electronAPI,
       () => this.domManager.appNameEl,
       () => this.domManager.headerShortcutsEl,
       () => this.domManager.historyShortcutsEl,
@@ -56,7 +60,7 @@ export class PromptLineRenderer {
   private async init(): Promise<void> {
     try {
       this.domManager.initializeElements();
-      this.config = await ipcRenderer.invoke('get-config') as Config;
+      this.config = await electronAPI.config.get('') as Config;
       this.draftManager.setConfig(this.config);
       
       this.setupEventHandler();
@@ -148,7 +152,7 @@ export class PromptLineRenderer {
   }
 
   private setupIPCListeners(): void {
-    ipcRenderer.on('window-shown', (_event: unknown, ...args: unknown[]) => {
+    electronAPI.on('window-shown', (...args: unknown[]) => {
       const data = args[0] as WindowData;
       this.handleWindowShown(data);
     });
@@ -160,7 +164,7 @@ export class PromptLineRenderer {
 
       if (e.key === 'v' && (e.metaKey || e.ctrlKey)) {
         // Check if there's an image in clipboard first
-        const result = await ipcRenderer.invoke('paste-image') as ImageResult;
+        const result = await electronAPI.invoke('paste-image') as ImageResult;
         if (result.success && result.path) {
           e.preventDefault();
           this.domManager.insertTextAtCursor(result.path);
@@ -182,7 +186,7 @@ export class PromptLineRenderer {
 
 
   private async handleTextPasteCallback(text: string): Promise<void> {
-    const result = await ipcRenderer.invoke('paste-text', text) as PasteResult;
+    const result = await electronAPI.pasteText(text) as PasteResult;
     if (!result.success) {
       console.error('Paste error:', result.error);
       this.domManager.showError('Paste failed: ' + result.error);
@@ -197,7 +201,7 @@ export class PromptLineRenderer {
   private async handleWindowHideCallback(): Promise<void> {
     try {
       await this.draftManager.saveDraftImmediate();
-      await ipcRenderer.invoke('hide-window', true);
+      await electronAPI.window.hide();
     } catch (error) {
       console.error('Error handling window hide:', error);
     }
@@ -323,6 +327,6 @@ export class PromptLineRenderer {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   (window as any).promptLineRenderer = new PromptLineRenderer();
 });
