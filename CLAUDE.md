@@ -7,7 +7,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Development
 ```bash
 npm start          # Run app in production mode
-npm run dev        # Run app in development mode with detailed logging
 ```
 
 ### Testing

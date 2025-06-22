@@ -1,23 +1,57 @@
 [English](README.md) | [日本語](README_ja.md)
 
-# Prompt Line
+# 🧑‍💻 Prompt Line
 
-A floating text input for macOS that enables quick text entry across any application.
+macOS floating text input tool that enables quick text entry across any application.
 
 ## Overview
 
-Prompt Line was primarily designed to improve the terminal prompt input experience for CLI-based AI coding agents like [Claude Code](https://github.com/anthropics/claude-code), [OpenAI Codex CLI](https://github.com/openai/codex), and [aider](https://github.com/paul-gauthier/aider). Terminal input for multi-byte characters (Japanese, Chinese, etc.) often has poor UX, which this app solves with a dedicated floating input interface.
+Prompt Line is a macOS app developed to improve the prompt input experience in the terminal for CLI-based AI coding agents such as [Claude Code](https://github.com/anthropics/claude-code), [OpenAI Codex CLI](https://github.com/openai/codex), and [Aider](https://github.com/paul-gauthier/aider).
+It addresses UX challenges related to multi-byte character input (e.g., Japanese) by providing a dedicated floating input interface. 
 
-While it works across any macOS application, the main focus is enhancing terminal-based AI coding experience.
+This greatly reduces stress when entering text in the following cases in particular. 
 
-## How It Works
+1. **Prompt input for CLI-based AI coding agents in the terminal** 
+2. **Chat apps where pressing Enter sends the message at an unintended time** 
+3. **Text editor with slow input response (e.g., large Confluence documents)**
 
-1. Press `Cmd+Shift+Space` → Input window appears
-2. Type your text → Supports multi-line input with auto-save  
-3. Press `Cmd+Enter` → Text pastes into the active application
-4. Window disappears automatically
 
-## 📦 Setup & Installation
+## Features
+
+### Quick Launch, Quick Paste
+Quick launch with shortcut (`Cmd+Shift+Space`).<br>
+Type text and quick paste (`Cmd+Enter`).
+![doc1.gif](assets/doc1.gif)
+
+### Perfect for Editing Voice-Inputted Text
+The operation is the same as a typical text editor. <br>
+Of course, you can also use it in combination with a voice input app. <br>
+Pressing Enter will not automatically send the text, so you don't have to worry about line breaks. <br>
+It is also ideal for editing text entered by voice. <br>
+(This video uses [superwhisper](https://superwhisper.com/).)
+![doc2.gif](assets/doc2.gif)
+
+### Search and Reuse Prompt History
+Prompt history is saved and can be reused from the right menu. <br>
+Search is also available. (`Cmd+f`)
+![doc3.gif](assets/doc3.gif)
+
+### Launch Anywhere
+Can be launched anywhere there's a text input field. <br>
+Also convenient when you want to reuse the same prompt in other apps.
+![doc4.gif](assets/doc4.gif)
+Of course, it works outside of terminal too.
+![doc5.gif](assets/doc5.gif)
+
+## 📦 Installation
+
+### System Requirements
+
+- macOS 10.14 or later
+- Node.js 20 or later
+- Xcode Command Line Tools or Xcode (for compiling native tools)
+
+### Build from Source
 
 1. Clone the repository:
    ```bash
@@ -29,7 +63,7 @@ While it works across any macOS application, the main focus is enhancing termina
    ```bash
    git clone https://github.com/nkmr-jp/prompt-line.git
    cd prompt-line
-   git checkout v0.2.1  # Replace with desired version tag
+   git checkout v0.4.1  # Replace with desired version tag
    ```
 
 2. Install dependencies:
@@ -42,27 +76,28 @@ While it works across any macOS application, the main focus is enhancing termina
    npm run build
    ```
 
-4. The built app will be available in the `dist/` directory
-5. Open a dmg file
+4. The built app will be created in the `dist/` directory
+5. Open the dmg file:
    ```bash
-   open dist/Prompt-Line-0.2.1-arm64.dmg # Apple Silicon
-   open dist/Prompt-Line-0.2.1-x64.dmg # Intel
+   open dist/Prompt-Line-0.4.1-arm64.dmg # Apple Silicon
+   open dist/Prompt-Line-0.4.1-x64.dmg # Intel
    ```
-6. Drag Prompt Line.app to your Applications folder
-7. **Grant accessibility permissions** when prompted on first use (required for pasting)
-8. Launch the app
-9. Done! Press `Cmd+Shift+Space` to start using
+6. Drag Prompt Line.app to Applications folder
+7. Launch Prompt Line. An icon will appear in the system tray.
+<div><img src="assets/doc6.png" width="200"></div>
+8. You can start using it with `Cmd+Shift+Space`.
 
 ### Accessibility Permissions
 
-Prompt Line requires accessibility permissions to paste text into other applications:
+Prompt Line requires accessibility permissions to paste text into other applications.
+A dialog box will appear on first use, so follow the instructions to set it up.
 
-1. When you first run the app, macOS will show a permission dialog
-2. Click "Open System Settings" (macOS 13+) or "Open System Preferences" (macOS 12-)
-3. Toggle ON the switch next to "Prompt Line"
-4. Restart the app if needed
+<div><img src="assets/doc7.png" width="200"></div>
 
 **Manual setup:**
+
+If the dialog box doesn't appear, follow these steps:
+
 1. Open **System Settings** → **Privacy & Security** → **Accessibility**
 2. Find "Prompt Line" in the list and enable it
 3. If not listed, click "+" and add Prompt Line from Applications
@@ -71,97 +106,82 @@ Prompt Line requires accessibility permissions to paste text into other applicat
 ## Usage
 
 ### Basic Workflow
-1. Position yourself where you want to type
+1. Move to where you want to input
 2. Press `Cmd+Shift+Space` to open Prompt Line
-3. Type your text (supports multiple lines)
+3. Type your text
 4. Press `Cmd+Enter` to paste text
 5. Continue working
 
 ### Features
 
-- **Unlimited History** - Store unlimited paste history with optimized performance
-- **History Panel** - Click previous entries to reuse
+- **History Panel** - Click previous entries to reuse. Search is also available.
 - **Draft Autosave** - Automatically saves your work
-- **Search** - Find previously typed text
 - **Image Support** - Paste clipboard images with `Cmd+V`
 
-### Keyboard Shortcuts
+## ⚙️ Settings
 
-| Key | Action              |
-|-----|---------------------|
-| `Cmd+Shift+Space` | Open Prompt Line    |
-| `Cmd+Enter` | Paste & close       |
-| `Esc` | Close (saves draft) |
-
-## ⚙️ Configuration
-
-Create a settings file at `~/.prompt-line/settings.yaml`:
+You can customize Prompt Line's behavior by creating a settings file at `~/.prompt-line/settings.yaml`:
 
 ```yaml
+# Prompt Line Settings Configuration
+# This file is automatically generated but can be manually edited
+
+# Keyboard shortcuts configuration
 shortcuts:
-  main: "Cmd+Shift+Space"    # Global shortcut to open Prompt Line
-  paste: "Cmd+Enter"         # Paste text and close window
-  close: "Escape"            # Close window (saves draft)
+  # Global shortcut to show/hide the input window
+  # Format: Modifier+Key (e.g., Cmd+Shift+Space, Ctrl+Alt+Space)
+  # Available modifiers: Cmd, Ctrl, Alt, Shift
+  main: Cmd+Shift+Space
 
+  # Shortcut to paste selected text and close window
+  # Used when typing in the input window
+  paste: Cmd+Enter
+
+  # Shortcut to close window without pasting
+  # Used to cancel input and close window
+  close: Escape
+
+  # Shortcut to navigate to next history item
+  # Used when browsing paste history
+  historyNext: Ctrl+j
+
+  # Shortcut to navigate to previous history item
+  # Used when browsing paste history
+  historyPrev: Ctrl+k
+
+  # Shortcut to enable search mode in history
+  # Used to filter paste history items
+  search: Cmd+f
+
+# Window appearance and positioning configuration
 window:
-  position: "cursor"         # Window position: "cursor" (default), "active-window-center", or "center"
-  width: 600                 # Window width in pixels
-  height: 300                # Window height in pixels
+  # Window positioning mode
+  # Options:
+  #   - 'active-text-field': Position near the currently focused text field (default, falls back to active-window-center)
+  #   - 'active-window-center': Center within the currently active window
+  #   - 'cursor': Position at mouse cursor location
+  #   - 'center': Center on primary display
+  position: active-text-field
+
+  # Window width in pixels
+  # Recommended range: 400-800 pixels
+  width: 600
+
+  # Window height in pixels
+  # Recommended range: 200-400 pixels
+  height: 300
 
 ```
 
-**Configuration Options:**
 
-- **Shortcuts**: Format: `Cmd`, `Ctrl`, `Alt`, `Shift` + any key
-- **Window Position**: `cursor` (default), `active-window-center`, or `center`
-
-## Development
-
-### Build Requirements
-
-- **macOS** (required for native tools compilation)
-- **Node.js 20+**
-- **Xcode Command Line Tools** or **Xcode**
-  ```bash
-  xcode-select --install  # Install command line tools
-  ```
-
-### Commands
-```bash
-npm run dev          # Development mode with hot reload
-npm test             # Run tests
-npm run lint         # Code linting
-npm run typecheck    # TypeScript type checking
-npm run build        # Build macOS application (both architectures)
-npm run build:x64    # Build for Intel Macs
-npm run build:arm64  # Build for Apple Silicon Macs
-```
-
-### Architecture
-Built with Electron + TypeScript using a Manager Pattern:
-
-- **WindowManager** - Window lifecycle and positioning
-- **HistoryManager** - JSONL-based persistent storage with deduplication  
-- **DraftManager** - Debounced auto-save with backup system
-- **SettingsManager** - User preferences and configuration
-- **IPCHandlers** - Main/renderer process communication
-
-## System Requirements
-
-### For Users
-- macOS 10.14 or later
-- 100MB available disk space
-
-### For Development
-- macOS 10.14 or later
-- Node.js 20+
-- Xcode Command Line Tools or Xcode (for native tools compilation)
-
-## Privacy
+## Prompt History
 
 - All data stored locally on your Mac
 - No internet connection required
-- Text history saved in `~/.prompt-line/`
+- Prompt history saved in `~/.prompt-line/history.jsonl`
+- Saved in JSON Lines format, so you can analyze it using [DuckDB](https://duckdb.org/)
+
+![doc8.png](assets/doc8.png)
 
 ## 📄 License
 

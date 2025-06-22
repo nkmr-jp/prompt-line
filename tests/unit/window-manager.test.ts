@@ -149,6 +149,7 @@ describe('WindowManager', () => {
             
             expect(mockWindow.webContents.send).toHaveBeenCalledWith('window-shown', {
                 sourceApp: 'TestApp',
+                currentSpaceInfo: null,
                 history: [],
                 draft: 'test draft'
             });

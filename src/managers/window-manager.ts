@@ -2,6 +2,7 @@ import { BrowserWindow, screen } from 'electron';
 import { exec } from 'child_process';
 import config from '../config/app-config';
 import { getCurrentApp, getActiveWindowBounds, logger, KEYBOARD_SIMULATOR_PATH, TEXT_FIELD_DETECTOR_PATH } from '../utils/utils';
+import DesktopSpaceManager from './desktop-space-manager';
 import type { AppInfo, WindowData, StartupPosition } from '../types';
 
 // Native tools paths are imported from utils to ensure correct paths in packaged app
@@ -10,6 +11,27 @@ class WindowManager {
   private inputWindow: BrowserWindow | null = null;
   private previousApp: AppInfo | string | null = null;
   private customWindowSettings: { position?: StartupPosition; width?: number; height?: number } = {};
+  private desktopSpaceManager: DesktopSpaceManager | null = null;
+  private lastSpaceSignature: string | null = null;
+
+  async initialize(): Promise<void> {
+    try {
+      logger.info('Initializing WindowManager...');
+      
+      // Initialize desktop space manager
+      this.desktopSpaceManager = new DesktopSpaceManager();
+      await this.desktopSpaceManager.initialize();
+      
+      // Pre-create window for faster first-time startup
+      this.createInputWindow();
+      logger.debug('Pre-created input window for faster startup');
+      
+      logger.info('WindowManager initialized successfully');
+    } catch (error) {
+      logger.error('Failed to initialize WindowManager:', error);
+      throw error;
+    }
+  }
 
   createInputWindow(): BrowserWindow {
     try {
@@ -19,6 +41,8 @@ class WindowManager {
         height: this.customWindowSettings.height || config.window.height,
         show: false
       });
+
+      // Note: Desktop space configuration moved to showInputWindow for better control
 
       this.inputWindow.loadFile(config.getInputHtmlPath());
       
@@ -40,72 +64,164 @@ class WindowManager {
     }
   }
 
+
+
+
   async showInputWindow(data: WindowData = {}): Promise<void> {
+    const startTime = performance.now();
+    logger.debug('🕐 Starting showInputWindow()');
+    
     try {
       // Update window settings from data if provided
+      const settingsStartTime = performance.now();
       if (data.settings?.window) {
         this.updateWindowSettings(data.settings.window);
       }
+      logger.debug(`⏱️  Window settings update: ${(performance.now() - settingsStartTime).toFixed(2)}ms`);
       
-      // If window already exists and is visible, just focus it
-      if (this.inputWindow && !this.inputWindow.isDestroyed() && this.inputWindow.isVisible()) {
-        this.inputWindow.focus();
-        logger.debug('Window already visible, just focusing');
-        return;
-      }
-      
-      // Get current app before showing window
-      try {
-        this.previousApp = await getCurrentApp();
-      } catch (error) {
-        logger.error('Failed to get current app:', error);
+      // Get current app and space information in parallel for better performance
+      const appSpaceStartTime = performance.now();
+      const [currentAppResult, currentSpaceResult] = await Promise.allSettled([
+        getCurrentApp(),
+        this.desktopSpaceManager && this.desktopSpaceManager.isReady() 
+          ? this.desktopSpaceManager.getCurrentSpaceInfo(null) // We'll update with actual app later
+          : Promise.resolve(null)
+      ]);
+      logger.debug(`⏱️  App + Space detection (parallel): ${(performance.now() - appSpaceStartTime).toFixed(2)}ms`);
+
+      // Process current app result
+      if (currentAppResult.status === 'fulfilled') {
+        this.previousApp = currentAppResult.value;
+      } else {
+        logger.error('Failed to get current app:', currentAppResult.reason);
         this.previousApp = null;
       }
+
+      // Process space information result
+      const spaceProcessStartTime = performance.now();
+      let currentSpaceInfo = null;
+      let needsWindowRecreation = false;
       
-      // If window exists but is hidden, reposition and show it
-      if (this.inputWindow && !this.inputWindow.isDestroyed() && !this.inputWindow.isVisible()) {
-        // Always reposition for dynamic positioning modes (active-window-center, cursor)
-        // or when position setting has changed
-        const currentPosition = this.customWindowSettings.position || 'active-window-center';
-        logger.debug('Checking repositioning conditions', { 
-          currentPosition, 
-          windowSettingsPosition: data.settings?.window?.position 
+      if (currentSpaceResult.status === 'fulfilled' && currentSpaceResult.value) {
+        currentSpaceInfo = currentSpaceResult.value;
+        
+        // Update space info with actual app information
+        if (this.previousApp && this.desktopSpaceManager) {
+          try {
+            const spaceUpdateStartTime = performance.now();
+            currentSpaceInfo = await this.desktopSpaceManager.getCurrentSpaceInfo(this.previousApp);
+            logger.debug(`⏱️  Space info update with app: ${(performance.now() - spaceUpdateStartTime).toFixed(2)}ms`);
+          } catch (error) {
+            logger.debug('Failed to update space info with app:', error);
+          }
+        }
+        
+        logger.debug('Current space info:', {
+          signature: currentSpaceInfo.signature,
+          appCount: currentSpaceInfo.appCount,
+          method: currentSpaceInfo.method
         });
+        
+        // Check if desktop space has changed
+        if (this.lastSpaceSignature !== currentSpaceInfo.signature) {
+          needsWindowRecreation = true;
+          logger.debug('Desktop space changed, window recreation needed', {
+            lastSignature: this.lastSpaceSignature,
+            currentSignature: currentSpaceInfo.signature
+          });
+        }
+        
+        this.lastSpaceSignature = currentSpaceInfo.signature;
+      } else {
+        // If space detection is not available, use simple logic
+        needsWindowRecreation = !this.inputWindow || this.inputWindow.isDestroyed();
+        if (currentSpaceResult.status === 'rejected') {
+          logger.warn('Failed to get current space info:', currentSpaceResult.reason);
+        }
+      }
+      logger.debug(`⏱️  Space processing: ${(performance.now() - spaceProcessStartTime).toFixed(2)}ms`);
+
+      // Handle window creation/reuse based on space changes
+      const windowMgmtStartTime = performance.now();
+      
+      if (needsWindowRecreation && this.inputWindow && !this.inputWindow.isDestroyed()) {
+        const destroyStartTime = performance.now();
+        this.inputWindow.destroy();
+        this.inputWindow = null;
+        logger.debug(`⏱️  Window destruction: ${(performance.now() - destroyStartTime).toFixed(2)}ms`);
+        logger.debug('Destroyed existing window due to desktop space change');
+      }
+      
+      if (!this.inputWindow || this.inputWindow.isDestroyed()) {
+        const createStartTime = performance.now();
+        this.createInputWindow();
+        logger.debug(`⏱️  Window creation: ${(performance.now() - createStartTime).toFixed(2)}ms`);
+        
+        const positionStartTime = performance.now();
+        await this.positionWindow();
+        logger.debug(`⏱️  Window positioning: ${(performance.now() - positionStartTime).toFixed(2)}ms`);
+        
+        logger.debug('New window created on current desktop space');
+      } else {
+        // Reuse existing window but reposition if needed
+        const currentPosition = this.customWindowSettings.position || 'active-window-center';
         if (currentPosition === 'active-window-center' || 
             currentPosition === 'active-text-field' ||
             currentPosition === 'cursor' ||
             (data.settings?.window?.position && data.settings.window.position !== currentPosition)) {
-          logger.debug('Repositioning window for position:', currentPosition);
+          logger.debug('Repositioning existing window for position:', currentPosition);
+          const repositionStartTime = performance.now();
           await this.positionWindow();
+          logger.debug(`⏱️  Window repositioning: ${(performance.now() - repositionStartTime).toFixed(2)}ms`);
         }
-        this.inputWindow.show();
-        this.inputWindow.focus();
-      } else if (!this.inputWindow || this.inputWindow.isDestroyed()) {
-        // Create new window if needed
-        this.createInputWindow();
-        await this.positionWindow();
+        logger.debug('Reusing existing window on same desktop space');
       }
+      
+      logger.debug(`⏱️  Window management total: ${(performance.now() - windowMgmtStartTime).toFixed(2)}ms`);
       
       const windowData: WindowData = {
         sourceApp: this.previousApp,
+        currentSpaceInfo,
         ...data
       };
       
-      if (this.inputWindow!.webContents.isLoading()) {
+      // Note: Desktop space is handled by creating window at the right time
+
+      // Handle window display efficiently
+      const displayStartTime = performance.now();
+      
+      if (this.inputWindow!.isVisible()) {
+        // Window is already visible, just update data and focus
+        const updateStartTime = performance.now();
+        this.inputWindow!.webContents.send('window-shown', windowData);
+        this.inputWindow!.focus();
+        logger.debug(`⏱️  Window data update + focus: ${(performance.now() - updateStartTime).toFixed(2)}ms`);
+        logger.debug('Updated existing visible window');
+      } else if (this.inputWindow!.webContents.isLoading()) {
+        // Window is loading, wait for completion
+        logger.debug('⏱️  Window waiting for load completion...');
         this.inputWindow!.webContents.once('did-finish-load', () => {
+          const loadCompleteStartTime = performance.now();
           this.inputWindow!.webContents.send('window-shown', windowData);
           this.inputWindow!.show();
           this.inputWindow!.focus();
+          logger.debug(`⏱️  Window load completion handling: ${(performance.now() - loadCompleteStartTime).toFixed(2)}ms`);
         });
       } else {
+        // Window is ready, show it
+        const showStartTime = performance.now();
         this.inputWindow!.webContents.send('window-shown', windowData);
         this.inputWindow!.show();
         this.inputWindow!.focus();
+        logger.debug(`⏱️  Window show + focus: ${(performance.now() - showStartTime).toFixed(2)}ms`);
       }
       
+      logger.debug(`⏱️  Display handling: ${(performance.now() - displayStartTime).toFixed(2)}ms`);
+      logger.debug(`🏁 Total showInputWindow time: ${(performance.now() - startTime).toFixed(2)}ms`);
       logger.debug('Input window shown', { sourceApp: this.previousApp });
     } catch (error) {
       logger.error('Failed to show input window:', error);
+      logger.error(`❌ Failed after ${(performance.now() - startTime).toFixed(2)}ms`);
       throw error;
     }
   }
@@ -116,27 +232,38 @@ class WindowManager {
         this.inputWindow.hide();
         logger.debug('Input window hidden');
       }
-    } catch (error) {
+    } catch (error) { 
       logger.error('Failed to hide input window:', error);
       throw error;
     }
   }
 
   private async positionWindow(): Promise<void> {
+    const positionStartTime = performance.now();
+    logger.debug('🕐 Starting positionWindow()');
+    
     try {
       if (!this.inputWindow) return;
 
+      const configStartTime = performance.now();
       const windowWidth = this.customWindowSettings.width || config.window.width;
       const windowHeight = this.customWindowSettings.height || config.window.height;
       const position = this.customWindowSettings.position || 'active-window-center';
+      logger.debug(`⏱️  Position config: ${(performance.now() - configStartTime).toFixed(2)}ms`);
 
+      const calcStartTime = performance.now();
       const { x, y } = await this.calculateWindowPosition(position, windowWidth, windowHeight);
+      logger.debug(`⏱️  Position calculation: ${(performance.now() - calcStartTime).toFixed(2)}ms`);
       
+      const setStartTime = performance.now();
       this.inputWindow.setPosition(Math.round(x), Math.round(y));
+      logger.debug(`⏱️  Position setting: ${(performance.now() - setStartTime).toFixed(2)}ms`);
       
+      logger.debug(`🏁 Total positionWindow time: ${(performance.now() - positionStartTime).toFixed(2)}ms`);
       logger.debug('Window positioned', { x: Math.round(x), y: Math.round(y), position });
     } catch (error) {
       logger.error('Failed to position window:', error);
+      logger.error(`❌ Position failed after ${(performance.now() - positionStartTime).toFixed(2)}ms`);
     }
   }
 
@@ -145,23 +272,51 @@ class WindowManager {
     windowWidth: number,
     windowHeight: number
   ): Promise<{ x: number; y: number }> {
+    const methodStartTime = performance.now();
+    logger.debug(`🕐 Calculating position for: ${position}`);
+    
+    let result: { x: number; y: number };
+    
     switch (position) {
-      case 'center':
-        return this.calculateCenterPosition(windowWidth, windowHeight);
+      case 'center': {
+        const centerStartTime = performance.now();
+        result = this.calculateCenterPosition(windowWidth, windowHeight);
+        logger.debug(`⏱️  Center calculation: ${(performance.now() - centerStartTime).toFixed(2)}ms`);
+        break;
+      }
       
-      case 'active-window-center':
-        return this.calculateActiveWindowCenterPosition(windowWidth, windowHeight);
+      case 'active-window-center': {
+        const awcStartTime = performance.now();
+        result = await this.calculateActiveWindowCenterPosition(windowWidth, windowHeight);
+        logger.debug(`⏱️  Active window center calculation: ${(performance.now() - awcStartTime).toFixed(2)}ms`);
+        break;
+      }
       
-      case 'active-text-field':
-        return this.calculateActiveTextFieldPosition(windowWidth, windowHeight);
+      case 'active-text-field': {
+        const atfStartTime = performance.now();
+        result = await this.calculateActiveTextFieldPosition(windowWidth, windowHeight);
+        logger.debug(`⏱️  Active text field calculation: ${(performance.now() - atfStartTime).toFixed(2)}ms`);
+        break;
+      }
       
-      case 'cursor':
-        return this.calculateCursorPosition(windowWidth, windowHeight);
+      case 'cursor': {
+        const cursorStartTime = performance.now();
+        result = this.calculateCursorPosition(windowWidth, windowHeight);
+        logger.debug(`⏱️  Cursor calculation: ${(performance.now() - cursorStartTime).toFixed(2)}ms`);
+        break;
+      }
       
-      default:
+      default: {
         logger.warn('Invalid position value, falling back to active-window-center', { position });
-        return this.calculateActiveWindowCenterPosition(windowWidth, windowHeight);
+        const fallbackStartTime = performance.now();
+        result = await this.calculateActiveWindowCenterPosition(windowWidth, windowHeight);
+        logger.debug(`⏱️  Fallback calculation: ${(performance.now() - fallbackStartTime).toFixed(2)}ms`);
+        break;
+      }
     }
+    
+    logger.debug(`🏁 Total position calculation (${position}): ${(performance.now() - methodStartTime).toFixed(2)}ms`);
+    return result;
   }
 
   private calculateCenterPosition(windowWidth: number, windowHeight: number): { x: number; y: number } {
@@ -398,8 +553,14 @@ class WindowManager {
         this.inputWindow = null;
         logger.debug('Input window destroyed');
       }
+
+      if (this.desktopSpaceManager) {
+        this.desktopSpaceManager.destroy();
+        this.desktopSpaceManager = null;
+        logger.debug('Desktop space manager destroyed');
+      }
     } catch (error) {
-      logger.error('Failed to destroy input window:', error);
+      logger.error('Failed to destroy window manager:', error);
     }
   }
 

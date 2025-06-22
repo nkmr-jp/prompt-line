@@ -5,9 +5,7 @@
   "main": "dist/main.js",
   "scripts": {
     "start": "npm run compile && electron .",
-    "dev": "npm run compile:watch && electron . --dev",
     "compile": "tsc && node scripts/fix-renderer.js && cd native && make install && cp -r ../src/native-tools ../dist/",
-    "compile:watch": "tsc --watch",
     "typecheck": "tsc --noEmit",
     "build": "npm run compile && electron-builder --mac --publish=never",
     "clean": "rm -rf dist/mac* dist/*.dmg dist/*.zip dist/*.blockmap",
