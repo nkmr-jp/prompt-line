@@ -38,7 +38,7 @@ class AppConfigClass {
       frame: false,
       transparent: false,
       backgroundColor: '#141414',
-      alwaysOnTop: true,
+      alwaysOnTop: false,  // Changed to false to prevent forcing to Desktop 1
       skipTaskbar: true,
       resizable: false,
       webPreferences: {
