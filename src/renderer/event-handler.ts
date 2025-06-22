@@ -7,18 +7,8 @@ import { TIMEOUTS } from '../constants';
 import { matchesShortcutString } from './utils/shortcut-parser';
 import type { UserSettings } from './types';
 
-// Browser environment - use global require with typed interface
-interface IpcRenderer {
-  invoke(channel: string, ...args: unknown[]): Promise<unknown>;
-  send(channel: string, ...args: unknown[]): void;
-  on(channel: string, listener: (event: unknown, ...args: unknown[]) => void): void;
-}
-
-interface ElectronWindow extends Window {
-  require: (module: string) => { ipcRenderer: IpcRenderer };
-}
-
-const { ipcRenderer } = (window as ElectronWindow).require('electron');
+// Browser environment - use secure electronAPI from preload
+const electronAPI = (window as any).electronAPI;
 
 export interface PasteResult {
   success: boolean;
@@ -182,7 +172,7 @@ export class EventHandler {
         e.preventDefault();
         
         try {
-          await ipcRenderer.invoke('open-settings');
+          await electronAPI.invoke('open-settings');
           console.log('Settings file opened');
         } catch (error) {
           console.error('Failed to open settings:', error);
@@ -201,7 +191,7 @@ export class EventHandler {
       // Hide window when focus moves to another application
       // This should happen regardless of which element has focus within the window
       setTimeout(async () => {
-        await ipcRenderer.invoke('hide-window', false);
+        await electronAPI.invoke('hide-window', false);
       }, TIMEOUTS.WINDOW_BLUR_HIDE_DELAY);
     } catch (error) {
       console.error('Error handling window blur:', error);
