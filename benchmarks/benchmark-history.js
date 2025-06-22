@@ -116,7 +116,7 @@ class TestOptimizedHistoryManager {
     };
   }
 
-  async addToHistory(text) {
+  async addToHistory(text, appName = null) {
     const startTime = performance.now();
     
     const item = {
@@ -124,6 +124,11 @@ class TestOptimizedHistoryManager {
       timestamp: Date.now(),
       id: Date.now().toString(36) + Math.random().toString(36).substring(2, 11)
     };
+    
+    // appNameがある場合は追加
+    if (appName) {
+      item.appName = appName;
+    }
     
     // キャッシュに追加
     this.recentCache.unshift(item);
@@ -279,6 +284,15 @@ class BenchmarkRunner {
       'JSON example: {"name": "test", "value": 123, "nested": {"key": "value"}}'
     ];
     
+    // テスト用のアプリ名
+    const testAppNames = [
+      'Terminal',
+      'Visual Studio Code',
+      'Slack',
+      null,
+      'Claude Code'
+    ];
+    
     this.results.add = {
       individual: {},
       batch: {}
@@ -288,14 +302,16 @@ class BenchmarkRunner {
     console.log('  Testing individual adds...');
     for (let i = 0; i < testTexts.length; i++) {
       const text = testTexts[i];
-      const result = await manager.addToHistory(text);
+      const appName = testAppNames[i % testAppNames.length];
+      const result = await manager.addToHistory(text, appName);
       
       this.results.add.individual[`text_${i + 1}`] = {
         addTime: result.addTime,
-        textLength: text.length
+        textLength: text.length,
+        appName: appName || 'none'
       };
       
-      console.log(`    Text ${i + 1}: ${result.addTime.toFixed(2)}ms (${text.length} chars)`);
+      console.log(`    Text ${i + 1}: ${result.addTime.toFixed(2)}ms (${text.length} chars, app: ${appName || 'none'})`);
     }
     
     // バッチ追加テスト
@@ -307,7 +323,9 @@ class BenchmarkRunner {
       
       for (let i = 0; i < batchSize; i++) {
         const text = `Batch test item ${i + 1}`;
-        await manager.addToHistory(text);
+        // バッチテストでもアプリ名をランダムに選択
+        const appName = i % 3 === 0 ? null : testAppNames[i % testAppNames.length];
+        await manager.addToHistory(text, appName);
       }
       
       const endTime = performance.now();
