@@ -20,11 +20,11 @@ import {LIMITS} from "../constants";
 
 
 class OptimizedHistoryManager implements IHistoryManager {
-  private recentCache: HistoryItem[] = []; // 最新N件のキャッシュ
-  private cacheSize = LIMITS.MAX_VISIBLE_ITEMS; // キャッシュサイズ（表示より多めに保持）
+  private recentCache: HistoryItem[] = [];
+  private cacheSize = LIMITS.MAX_VISIBLE_ITEMS;
   private historyFile: string;
   private totalItemCount = 0;
-  private totalItemCountCached = false; // カウントがキャッシュされているかどうか
+  private totalItemCountCached = false;
   private appendQueue: HistoryItem[] = [];
   private debouncedAppend: DebounceFunction<[]>;
   private duplicateCheckSet = new Set<string>();
@@ -38,10 +38,9 @@ class OptimizedHistoryManager implements IHistoryManager {
     try {
       await this.ensureHistoryFile();
       await this.loadRecentHistory();
-      // totalItemCountは遅延実行で、起動時は実行しない
       logger.info(`Optimized history manager initialized with ${this.recentCache.length} cached items (total count will be calculated when needed)`);
       
-      // バックグラウンドでカウントを実行（起動をブロックしない）
+      // Background count calculation to avoid blocking startup
       this.countTotalItemsAsync().catch((error: Error) => {
         logger.warn('Background total count failed:', error);
       });
@@ -163,14 +162,14 @@ class OptimizedHistoryManager implements IHistoryManager {
   }
 
   private async countTotalItemsAsync(): Promise<void> {
-    // バックグラウンドでカウント実行（非同期）
+    // Async background count execution
     setTimeout(async () => {
       try {
         await this.countTotalItems();
       } catch (error) {
         logger.warn('Background total items count failed:', error);
       }
-    }, 100); // 100ms後に実行
+    }, 100);
   }
 
   async addToHistory(text: string, appName?: string): Promise<HistoryItem | null> {
@@ -181,9 +180,8 @@ class OptimizedHistoryManager implements IHistoryManager {
         return null;
       }
 
-      // 重複チェック（キャッシュ内）
       if (this.duplicateCheckSet.has(trimmedText)) {
-        // 既存アイテムを最新に移動
+        // Move existing item to latest position
         this.recentCache = this.recentCache.filter(item => item.text !== trimmedText);
         const existingItem = this.recentCache.find(item => item.text === trimmedText);
         if (existingItem) {
@@ -203,7 +201,7 @@ class OptimizedHistoryManager implements IHistoryManager {
         ...(appName && { appName })
       };
 
-      // キャッシュに追加
+      // Add to cache
       this.recentCache.unshift(historyItem);
       this.duplicateCheckSet.add(trimmedText);
 
@@ -214,7 +212,7 @@ class OptimizedHistoryManager implements IHistoryManager {
         }
       }
 
-      // 追記キューに追加
+      // Add to append queue
       this.appendQueue.push(historyItem);
       this.debouncedAppend();
 

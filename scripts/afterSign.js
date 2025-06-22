@@ -34,23 +34,18 @@ exports.default = async function afterSign(context) {
       console.warn('⚠️ Failed to remove from accessibility list (normal):', tccError.message);
     }
     
-    // 既存フロー: 署名削除
     console.log('Removing existing signature...');
     execSync(`codesign --remove-signature "${appPath}"`);
     
-    // 🆕 新機能: ネイティブバイナリの署名
     console.log('Signing native binaries...');
     await signNativeBinaries(appPath);
     
-    // 既存フロー: ad-hoc署名適用
     console.log('Applying ad-hoc signature...');
     execSync(`codesign --force --deep --sign - --entitlements "${entitlementsPath}" "${appPath}"`);
     
-    // 既存フロー: 署名検証
     console.log('Verifying signature...');
     execSync(`codesign --verify --verbose "${appPath}"`);
     
-    // 🆕 新機能: セキュリティ検証
     console.log('Running security verification...');
     await runSecurityChecks(appPath);
     
@@ -99,19 +94,16 @@ async function runSecurityChecks(appPath) {
     const entitlements = execSync(`codesign -d --entitlements - "${appPath}"`, { encoding: 'utf8' });
     console.log('Active entitlements:', entitlements.substring(0, 500) + '...');
     
-    // 実行権限の確認
     console.log('📋 Checking executable permissions...');
     const permissions = execSync(`ls -la "${appPath}/Contents/MacOS/"`, { encoding: 'utf8' });
     console.log('Executable permissions:', permissions);
     
-    // バイナリサイズの確認（異常値検出）
     const stats = fs.statSync(appPath);
     console.log(`📋 App bundle size: ${(stats.size / 1024 / 1024).toFixed(2)} MB`);
     
-    // セキュリティ設定の確認
     console.log('📋 Checking for security configurations...');
     
-    // Main process fileはapp.asarアーカイブ内にある場合と、unpackedにある場合がある
+    // Check for main process file location
     const appAsarPath = path.join(appPath, 'Contents', 'Resources', 'app.asar');
     const mainJsUnpackedPath = path.join(appPath, 'Contents', 'Resources', 'app.asar.unpacked', 'dist', 'main.js');
     

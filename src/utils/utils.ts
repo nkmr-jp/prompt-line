@@ -414,7 +414,7 @@ function checkAccessibilityPermission(): Promise<AccessibilityStatus> {
         logger.warn('AppleScript security warnings detected', { warnings: securityWarnings });
       }
 
-      // 安全なAppleScript実行
+      // Safe AppleScript execution
       executeAppleScriptSafely(script, TIMEOUTS.ACCESSIBILITY_CHECK_TIMEOUT)
         .then((stdout) => {
           const result = stdout.trim();

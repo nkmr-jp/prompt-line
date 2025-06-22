@@ -1,20 +1,20 @@
 /**
- * AppleScript Sanitizer - 安全なAppleScript実行のためのサニタイゼーション
+ * AppleScript Sanitizer - Sanitization for safe AppleScript execution
  * 
- * AppleScriptコマンドを安全に実行するため、全ての危険な文字をエスケープし
- * インジェクション攻撃を防止します。
+ * Escapes all dangerous characters to safely execute AppleScript commands
+ * and prevents injection attacks.
  */
 
 /**
- * AppleScriptコマンドを安全にサニタイズする
- * 全ての危険な文字をエスケープしてインジェクション攻撃を防ぐ
+ * Safely sanitize AppleScript commands
+ * Escapes all dangerous characters to prevent injection attacks
  * 
- * @param input - サニタイズするAppleScript文字列
- * @returns サニタイズされた安全なAppleScript文字列
- * @throws Error - 入力が文字列でない場合、または長すぎる場合
+ * @param input - AppleScript string to sanitize
+ * @returns Sanitized safe AppleScript string
+ * @throws Error - If input is not a string or too long
  */
 export function sanitizeAppleScript(input: string): string {
-  // 入力検証
+  // Input validation
   if (typeof input !== 'string') {
     throw new Error('Input must be a string');
   }
@@ -25,42 +25,42 @@ export function sanitizeAppleScript(input: string): string {
   }
 
   return input
-    // バックスラッシュ（最初に処理する必要がある）
+    // Backslash (must be processed first)
     .replace(/\\/g, '\\\\')
-    // 単引用符（AppleScriptの文字列区切り文字）
+    // Single quotes
     .replace(/'/g, "\\'")
-    // 二重引用符
+    // Double quotes
     .replace(/"/g, '\\"')
     // 改行文字
     .replace(/\n/g, '\\n')
-    // キャリッジリターン
+    // Carriage return
     .replace(/\r/g, '\\r')
-    // タブ文字
+    // Tab character
     .replace(/\t/g, '\\t')
-    // ドル記号（変数展開防止）
+    // Dollar sign (prevent variable expansion)
     .replace(/\$/g, '\\$')
-    // バッククォート（コマンド実行防止）
+    // Backtick (prevent command execution)
     .replace(/`/g, '\\`')
-    // NULL文字削除
+    // Remove NULL character
     .replace(/\x00/g, '')
-    // その他の制御文字削除（ASCII 1-31, 127）
+    // Remove other control characters (ASCII 1-31, 127)
     .replace(/[\x01-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
 }
 
 /**
- * AppleScriptを安全に実行するためのラッパー関数
- * サニタイゼーションとタイムアウト処理を含む
+ * Wrapper function for safe AppleScript execution
+ * Includes sanitization and timeout handling
  * 
- * @param script - 実行するAppleScript
- * @param timeout - タイムアウト時間（ミリ秒、デフォルト: 3000）
- * @returns Promise<string> - AppleScriptの実行結果
+ * @param script - AppleScript to execute
+ * @param timeout - Timeout in milliseconds (default: 3000)
+ * @returns Promise<string> - AppleScript execution result
  */
 export function executeAppleScriptSafely(script: string, timeout: number = 3000): Promise<string> {
   return new Promise((resolve, reject) => {
     try {
       const sanitizedScript = sanitizeAppleScript(script);
       
-      // child_processを動的にインポート（循環参照回避）
+      // Dynamic import of child_process to avoid circular dependencies
       const { exec } = require('child_process');
       
       exec(`osascript -e '${sanitizedScript}'`, 
