@@ -66,47 +66,6 @@ class WindowDetector {
         
         return result
     }
-    
-    static func getCurrentSpaceInfo() -> [String: Any] {
-        // Get the frontmost application
-        guard let frontApp = NSWorkspace.shared.frontmostApplication else {
-            return ["error": "No active application found"]
-        }
-        
-        let pid = frontApp.processIdentifier
-        
-        // Get window list for the frontmost application
-        guard let windowList = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else {
-            return ["error": "Failed to get window list"]
-        }
-        
-        // Find a window from the frontmost app to determine which space it's on
-        for window in windowList {
-            if let windowPID = window[kCGWindowOwnerPID as String] as? Int32,
-               let windowLayer = window[kCGWindowLayer as String] as? Int,
-               windowPID == pid && windowLayer == 0 {
-                
-                // Get window number for identification
-                if let windowNumber = window[kCGWindowNumber as String] as? Int {
-                    return [
-                        "success": true,
-                        "appName": frontApp.localizedName ?? "Unknown",
-                        "bundleId": frontApp.bundleIdentifier ?? NSNull(),
-                        "windowNumber": windowNumber,
-                        "note": "Window found on current space"
-                    ]
-                }
-            }
-        }
-        
-        // If no window found, the app might be on a different space
-        return [
-            "success": false,
-            "appName": frontApp.localizedName ?? "Unknown",
-            "bundleId": frontApp.bundleIdentifier ?? NSNull(),
-            "note": "No window found on current space"
-        ]
-    }
 }
 
 func main() {
@@ -114,7 +73,7 @@ func main() {
     
     guard arguments.count >= 2 else {
         fputs("Usage: \(arguments[0]) <command>\n", stderr)
-        fputs("Commands: window-bounds, current-app, current-space\n", stderr)
+        fputs("Commands: window-bounds, current-app\n", stderr)
         exit(1)
     }
     
@@ -127,9 +86,6 @@ func main() {
         
     case "current-app":
         result = WindowDetector.getCurrentApp()
-        
-    case "current-space":
-        result = WindowDetector.getCurrentSpaceInfo()
         
     default:
         fputs("Unknown command: \(command)\n", stderr)

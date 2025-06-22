@@ -32,12 +32,6 @@ class WindowManager {
         }
       });
 
-      // Set window to appear on current desktop space on macOS
-      if (config.platform.isMac) {
-        this.inputWindow.setVisibleOnAllWorkspaces(false);
-        logger.debug('Configured window for current desktop space');
-      }
-
       logger.debug('Input window created successfully');
       return this.inputWindow;
     } catch (error) {
@@ -53,6 +47,12 @@ class WindowManager {
         this.updateWindowSettings(data.settings.window);
       }
       
+      // If window already exists and is visible, just focus it
+      if (this.inputWindow && !this.inputWindow.isDestroyed() && this.inputWindow.isVisible()) {
+        this.inputWindow.focus();
+        logger.debug('Window already visible, just focusing');
+        return;
+      }
       
       // Get current app before showing window
       try {
@@ -62,11 +62,29 @@ class WindowManager {
         this.previousApp = null;
       }
       
-      // Always create new window to ensure it appears on current desktop
-      if (!this.inputWindow || this.inputWindow.isDestroyed()) {
+      // If window exists but is hidden, reposition and show it
+      if (this.inputWindow && !this.inputWindow.isDestroyed() && !this.inputWindow.isVisible()) {
+        // Always reposition for dynamic positioning modes (active-window-center, cursor)
+        // or when position setting has changed
+        const currentPosition = this.customWindowSettings.position || 'active-window-center';
+        logger.debug('Checking repositioning conditions', { 
+          currentPosition, 
+          windowSettingsPosition: data.settings?.window?.position 
+        });
+        if (currentPosition === 'active-window-center' || 
+            currentPosition === 'active-text-field' ||
+            currentPosition === 'cursor' ||
+            (data.settings?.window?.position && data.settings.window.position !== currentPosition)) {
+          logger.debug('Repositioning window for position:', currentPosition);
+          await this.positionWindow();
+        }
+        this.inputWindow.show();
+        this.inputWindow.focus();
+      } else if (!this.inputWindow || this.inputWindow.isDestroyed()) {
+        // Create new window if needed
         this.createInputWindow();
+        await this.positionWindow();
       }
-      await this.positionWindow();
       
       const windowData: WindowData = {
         sourceApp: this.previousApp,
@@ -77,13 +95,11 @@ class WindowManager {
         this.inputWindow!.webContents.once('did-finish-load', () => {
           this.inputWindow!.webContents.send('window-shown', windowData);
           this.inputWindow!.show();
-          this.inputWindow!.setAlwaysOnTop(true, 'floating');
           this.inputWindow!.focus();
         });
       } else {
         this.inputWindow!.webContents.send('window-shown', windowData);
         this.inputWindow!.show();
-        this.inputWindow!.setAlwaysOnTop(true, 'floating');
         this.inputWindow!.focus();
       }
       
@@ -96,10 +112,9 @@ class WindowManager {
 
   async hideInputWindow(): Promise<void> {
     try {
-      if (this.inputWindow && !this.inputWindow.isDestroyed()) {
-        this.inputWindow.destroy();
-        this.inputWindow = null;
-        logger.debug('Input window destroyed to ensure correct desktop space on next show');
+      if (this.inputWindow && this.inputWindow.isVisible()) {
+        this.inputWindow.hide();
+        logger.debug('Input window hidden');
       }
     } catch (error) {
       logger.error('Failed to hide input window:', error);

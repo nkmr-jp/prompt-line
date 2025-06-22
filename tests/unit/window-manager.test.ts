@@ -73,8 +73,6 @@ describe('WindowManager', () => {
             isVisible: jest.fn(() => false),
             isDestroyed: jest.fn(() => false),
             setPosition: jest.fn(),
-            setVisibleOnAllWorkspaces: jest.fn(),
-            setAlwaysOnTop: jest.fn(),
             on: jest.fn(),
             webContents: {
                 send: jest.fn(),
@@ -214,18 +212,18 @@ describe('WindowManager', () => {
             mockWindow.isVisible.mockReturnValue(true);
         });
 
-        test('should destroy window', async () => {
+        test('should hide visible window', async () => {
             await windowManager.hideInputWindow();
 
-            expect(mockWindow.destroy).toHaveBeenCalled();
+            expect(mockWindow.hide).toHaveBeenCalled();
         });
 
-        test('should not destroy if window is destroyed', async () => {
-            mockWindow.isDestroyed.mockReturnValue(true);
+        test('should not hide if window is not visible', async () => {
+            mockWindow.isVisible.mockReturnValue(false);
 
             await windowManager.hideInputWindow();
 
-            expect(mockWindow.destroy).not.toHaveBeenCalled();
+            expect(mockWindow.hide).not.toHaveBeenCalled();
         });
 
         test('should handle case when window does not exist', async () => {
@@ -234,7 +232,7 @@ describe('WindowManager', () => {
             await windowManager.hideInputWindow();
 
             // Should not throw error
-            expect(mockWindow.destroy).not.toHaveBeenCalled();
+            expect(mockWindow.hide).not.toHaveBeenCalled();
         });
     });
 
