@@ -27,11 +27,19 @@ npm test -- --testNamePattern="formatTimeAgo"
 ### Build & Distribution
 ```bash
 npm run build      # Build the application for local use (creates app directory)
+npm run compile    # Full build: TypeScript + Renderer + Native Tools compilation
 npm run lint       # Check code style
 npm run lint:fix   # Auto-fix code style issues
 npm run typecheck  # Run TypeScript type checking
 npm run pre-push   # Run all pre-push checks (lint + typecheck + test)
 ```
+
+**Build Process Details:**
+The `npm run compile` command performs:
+1. TypeScript compilation (`tsc`)
+2. Renderer build (`npm run build:renderer`)  
+3. Native tools compilation (`cd native && make install`)
+4. Copy compiled tools to distribution directory
 
 ### Git Hooks & Quality Assurance
 The project uses automated git hooks to ensure code quality:
@@ -96,26 +104,28 @@ For full guidelines, see: https://github.com/angular/angular/blob/main/contribut
 ### Electron Process Architecture
 The app uses Electron's two-process model with clean separation:
 
-- **Main Process** (`src/main.js`): Controls application lifecycle, window management, and system interactions
+- **Main Process** (`src/main.ts`): Controls application lifecycle, window management, and system interactions
 - **Renderer Process** (`src/renderer/`): Handles UI and user interactions
-  - `renderer.js`: Main renderer class with integrated keyboard handling
-  - `ui-manager.js`: Advanced UI management with themes, animations, and notifications
+  - `renderer.ts`: Main renderer class with integrated keyboard handling and manager pattern
+  - `ui-manager.ts`: Advanced UI management with themes, animations, and notifications
   - `input.html`: Main window template
-- **IPC Bridge** (`src/handlers/ipc-handlers.js`): All communication between processes goes through well-defined IPC channels
+- **IPC Bridge** (`src/handlers/ipc-handlers.ts`): All communication between processes goes through well-defined IPC channels
 
 ### Manager Pattern
 Core functionality is organized into specialized managers:
 
 - **WindowManager**: Controls window creation, positioning, and lifecycle
-  - Supports multiple positioning modes: cursor (default), active-window-center, center
-  - Advanced AppleScript integration for window detection
+  - Supports multiple positioning modes: active-text-field (default), active-window-center, cursor, center
+  - Native Swift tools integration for window and text field detection
   - Multi-monitor aware positioning with boundary constraints
 - **HistoryManager**: Manages unlimited paste history with optimized performance (persisted to JSONL)
-- **DraftManager**: Auto-saves input drafts with debouncing
+- **OptimizedHistoryManager**: Performance-optimized history management with LRU caching for large datasets
+- **DraftManager**: Auto-saves input drafts with adaptive debouncing
 - **SettingsManager**: Manages user preferences with YAML-based configuration
-  - Default window positioning mode: `active-window-center`
+  - Default window positioning mode: `active-text-field`
   - Real-time settings updates with deep merge functionality
   - Automatic settings file creation with sensible defaults
+- **DesktopSpaceManager**: Ultra-fast desktop space change detection for window recreation
 
 ### Data Flow
 ```
@@ -135,16 +145,18 @@ User Input → Renderer → IPC Event → Handler → Manager → Data/System
 ## Platform-Specific Implementation
 
 ### macOS Auto-Paste
-The app uses AppleScript (`osascript`) to simulate Cmd+V in the previously active application. This requires:
+The app uses compiled Swift native tools to simulate Cmd+V in the previously active application. This requires:
 - Accessibility permissions (prompted on first use)
 - Proper window management to restore focus
 
-**AppleScript Integration Features:**
-- **Window Detection**: Advanced AppleScript to get active window bounds with position and size
-- **Robust Parsing**: Handles AppleScript output with commas and spaces (`"1028, |, 44, |, 1028, |, 1285"`)
-- **Error Recovery**: Graceful fallback from window detection to cursor positioning
-- **Timeout Protection**: 3-second timeout prevents hanging on unresponsive AppleScript calls
-- **Security**: Command injection prevention through proper string escaping
+**Native Swift Tools Integration:**
+- **Window Detector**: Compiled Swift binary for reliable window bounds and app detection
+- **Keyboard Simulator**: Native Cmd+V simulation and app activation with bundle ID support
+- **Text Field Detector**: Focused text field detection for precise positioning using Accessibility APIs
+- **JSON Communication**: Structured data exchange prevents parsing vulnerabilities
+- **Error Recovery**: Graceful fallback from text field → window center → cursor → center positioning
+- **Timeout Protection**: 3-second timeout prevents hanging on unresponsive operations
+- **Security**: Compiled binaries eliminate script injection vulnerabilities
 
 ### Data Storage
 All data is stored in `~/.prompt-line/`:
@@ -190,10 +202,11 @@ npm test -- --verbose
 ### Window Positioning
 The window supports multiple positioning modes with dynamic configuration:
 
-**Default Mode: active-window-center**
-- Centers prompt window within the currently active window
-- Uses AppleScript to detect active window bounds
-- Provides better context by staying within the user's current workspace
+**Default Mode: active-text-field**
+- Positions prompt window near the currently focused text field
+- Uses native text-field-detector tool for precise positioning
+- Falls back to active-window-center if no text field is focused
+- Provides optimal context by staying near the user's current input focus
 
 **Available Positioning Options:**
 - `active-text-field`: Position near the currently focused text field (default, falls back to active-window-center)
@@ -202,29 +215,46 @@ The window supports multiple positioning modes with dynamic configuration:
 - `center`: Center on primary display
 
 **Implementation Details:**
-1. Get active window bounds via AppleScript (with robust error handling)
-2. Calculate center position within detected window bounds
-3. Apply screen boundary constraints for multi-monitor setups
-4. Create and position window with sub-pixel precision
-5. Handle AppleScript parsing with comma/space cleanup for reliability
+1. Detect focused text field using native text-field-detector tool with JSON response
+2. If text field found, position window near text field with offset
+3. If no text field, get active window bounds via native window-detector tool
+4. Calculate optimal position within detected bounds (text field > window center > cursor > screen center)
+5. Apply screen boundary constraints for multi-monitor setups
+6. Create and position window with sub-pixel precision
+7. Handle fallback chain gracefully with comprehensive error handling
 
 ### Draft Auto-Save
-- Debounced at 500ms to prevent excessive writes
+- Adaptive debouncing: 500ms for short text (≤200 chars), 1000ms for longer text
+- Change detection prevents unnecessary saves when content hasn't changed
 - Draft persists until explicitly cleared by successful paste (Cmd+Enter)
 - Closing with Esc preserves the draft
+- Backup system with timestamp-based naming for recovery
 
 ### History Management
-- Unlimited storage with optimized performance
-- Newest items appear at top
-- Duplicates are prevented
-- Configurable display limit (default: 20 items)
-- LRU caching for efficient memory usage
-- Relative timestamps update on each render
+- **Two implementations**: Traditional HistoryManager and OptimizedHistoryManager for large datasets
+- **LRU Caching**: OptimizedHistoryManager uses 200-item cache for performance
+- **Unlimited storage** with optimized performance (JSONL format)
+- **Newest items appear at top** with timestamp-based sorting
+- **Duplicates are prevented** through content comparison
+- **Configurable display limit** (default: 20 items) prevents DOM bloat
+- **Real-time search** with highlighting and case-insensitive matching
+- **Streaming operations** for large files with efficient append-only strategy
+
+### Desktop Space Management
+- **Ultra-fast detection**: <5ms performance target for space changes
+- **Space signatures**: Hash-based identification for efficient comparison
+- **Window recreation**: Automatic window recreation when desktop space changes
+- **Cache optimization**: 2-second TTL cache prevents expensive repeated operations
+- **Accessibility integration**: Seamless integration with macOS accessibility APIs
 
 ### Security Considerations
-- No app sandboxing (required for auto-paste functionality)
-- Requires explicit user permissions for accessibility
-- All data stored locally, no network requests
+- **Native tools security**: Compiled Swift binaries eliminate script injection vulnerabilities
+- **Input sanitization**: AppleScript sanitization with 64KB limits and character escaping
+- **Path validation**: Comprehensive path normalization prevents directory traversal
+- **No app sandboxing** (required for auto-paste functionality)
+- **Explicit permissions**: Requires user accessibility permissions with guided setup
+- **Local data only**: All data stored locally, no network requests
+- **JSON communication**: Structured data exchange prevents parsing attacks
 
 ## Investigation and Troubleshooting
 

@@ -27,17 +27,17 @@ const ALLOWED_CHANNELS = [
   'clipboard-read-text',
   'clipboard-write-image',
   'focus-window',
-  'window-shown'  // 🆕 ウィンドウ表示イベント
+  'window-shown'
 ];
 
-// IPCチャンネルの検証
+// IPC channel validation
 function validateChannel(channel: string): boolean {
   return ALLOWED_CHANNELS.includes(channel);
 }
 
-// 安全なAPI公開
+// Secure API exposure
 const electronAPI = {
-  // IPC通信（チャンネル制限付き）
+  // IPC communication (with channel restrictions)
   invoke: async (channel: string, ...args: any[]): Promise<any> => {
     if (!validateChannel(channel)) {
       throw new Error(`Unauthorized IPC channel: ${channel}`);
@@ -51,7 +51,7 @@ const electronAPI = {
     }
   },
 
-  // イベントリスナー（制限付き）
+  // Event listeners (with restrictions)
   on: (channel: string, func: (...args: any[]) => void): void => {
     if (!validateChannel(channel)) {
       throw new Error(`Unauthorized IPC channel: ${channel}`);
@@ -66,7 +66,7 @@ const electronAPI = {
     });
   },
 
-  // イベントリスナー削除
+  // Remove event listeners
   removeAllListeners: (channel: string): void => {
     if (!validateChannel(channel)) {
       throw new Error(`Unauthorized IPC channel: ${channel}`);
@@ -74,7 +74,7 @@ const electronAPI = {
     ipcRenderer.removeAllListeners(channel);
   },
 
-  // クリップボード操作
+  // Clipboard operations
   clipboard: {
     writeText: async (text: string): Promise<void> => {
       return ipcRenderer.invoke('clipboard-write-text', text);
@@ -87,7 +87,7 @@ const electronAPI = {
     }
   },
 
-  // ウィンドウ制御
+  // Window control
   window: {
     hide: async (): Promise<void> => {
       return ipcRenderer.invoke('hide-window');
@@ -100,11 +100,11 @@ const electronAPI = {
     }
   },
 
-  // 設定管理
+  // Configuration management
   config: {
     get: async (section: string): Promise<any> => {
       if (section === '') {
-        // 全設定取得の場合
+        // Get all configuration
         return ipcRenderer.invoke('get-config');
       }
       return ipcRenderer.invoke('get-config', section);
@@ -114,7 +114,7 @@ const electronAPI = {
     }
   },
 
-  // アプリケーション情報
+  // Application information
   app: {
     getVersion: async (): Promise<string> => {
       return ipcRenderer.invoke('get-app-version');
@@ -124,12 +124,12 @@ const electronAPI = {
     }
   },
 
-  // テキスト貼り付け（メイン機能）
+  // Text pasting (main feature)
   pasteText: async (text: string): Promise<any> => {
     return ipcRenderer.invoke('paste-text', text);
   },
 
-  // 履歴管理
+  // History management
   history: {
     get: async (): Promise<any[]> => {
       return ipcRenderer.invoke('get-history');
@@ -145,7 +145,7 @@ const electronAPI = {
     }
   },
 
-  // 下書き管理
+  // Draft management
   draft: {
     save: async (text: string): Promise<void> => {
       return ipcRenderer.invoke('save-draft', text);
@@ -159,10 +159,10 @@ const electronAPI = {
   }
 };
 
-// contextBridge経由で安全にAPIを公開
+// Safely expose API via contextBridge
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);
 
-// TypeScript型定義のエクスポート（コンパイル時のみ）
+// TypeScript type definitions export (compile-time only)
 export interface ElectronAPI {
   invoke: (channel: string, ...args: any[]) => Promise<any>;
   on: (channel: string, func: (...args: any[]) => void) => void;
@@ -199,7 +199,7 @@ export interface ElectronAPI {
   };
 }
 
-// グローバル型定義
+// Global type definitions
 declare global {
   interface Window {
     electronAPI: ElectronAPI;

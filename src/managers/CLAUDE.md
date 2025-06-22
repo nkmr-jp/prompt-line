@@ -4,12 +4,13 @@ This module contains specialized managers that handle core application functiona
 
 ## Files Overview
 
-The managers module consists of five main components:
+The managers module consists of six main components:
 - **window-manager.ts**: Advanced window lifecycle management with native app integration
 - **history-manager.ts**: Traditional unlimited history management with JSONL format
 - **optimized-history-manager.ts**: Performance-optimized history management with caching
 - **draft-manager.ts**: Intelligent draft auto-save with backup system
 - **settings-manager.ts**: YAML-based user configuration management
+- **desktop-space-manager.ts**: Ultra-fast desktop space change detection for window recreation
 
 ## Implementation Details
 
@@ -28,12 +29,14 @@ WindowManager class controlling Electron window lifecycle with native macOS inte
 - Window state management with proper show/hide/focus coordination
 
 **Native App Integration:**
-- Previous app detection using `getCurrentApp()` before showing window
-- App restoration via `focusPreviousApp()` with native keyboard simulator
-- Native tool integration: Uses compiled binary at `src/native-tools/keyboard-simulator`
+- Previous app detection using `getCurrentApp()` with native `window-detector` tool
+- App restoration via `focusPreviousApp()` with native `keyboard-simulator` tool
+- Text field detection using native `text-field-detector` for precise positioning
+- Native Swift tools: `window-detector`, `keyboard-simulator`, `text-field-detector`
 - Bundle ID and app name support for reliable app activation
-- JSON response parsing from native tools with error handling
+- JSON response parsing from native tools with comprehensive error handling
 - 3-second timeout protection for native tool execution
+- Accessibility permission management with automatic user guidance
 
 **Advanced Positioning Algorithm:**
 ```typescript
@@ -192,6 +195,51 @@ private mergeWithDefaults(userSettings: Partial<UserSettings>): UserSettings {
 - Type-safe configuration access with TypeScript interfaces
 - File path: `~/.prompt-line/settings.yaml`
 
+### desktop-space-manager.ts
+Ultra-fast desktop space change detection for intelligent window recreation:
+
+**Core Responsibilities:**
+- Desktop space change detection with <5ms performance target
+- Space signature generation for change comparison
+- Accessibility permission management for space detection
+- Synthetic data creation for performance optimization
+
+**Performance Features:**
+- **2-second cache TTL**: Prevents repeated expensive detection operations
+- **Hash-based signatures**: Efficient space identification using string hashing
+- **Ultra-fast mode**: Sacrifices precision for extreme speed when needed
+- **Synthetic data creation**: Lightweight space signatures instead of full detection
+
+**Space Detection Strategy:**
+```typescript
+interface SpaceInfo {
+  signature: string;
+  timestamp: number;
+  isValid: boolean;
+  isSynthetic?: boolean;
+}
+
+// Cache-based detection with TTL
+private getCurrentSpaceInfo(): Promise<SpaceInfo> {
+  if (this.cacheIsValid()) {
+    return this.cachedSpaceInfo;
+  }
+  
+  return this.generateSpaceSignature();
+}
+```
+
+**Integration with WindowManager:**
+- Window recreation on desktop space changes
+- Previous space signature comparison
+- Non-blocking space detection during window show operations
+- Fallback to center positioning when space detection fails
+
+**Security and Permissions:**
+- Accessibility permission validation before space detection
+- Graceful degradation when permissions unavailable
+- Safe error handling without blocking window operations
+
 ## Manager Pattern Implementation
 
 ### Common Patterns
@@ -219,9 +267,10 @@ All managers follow consistent architectural patterns:
 
 ### Dependencies
 - **Core Config**: `src/config/app-config` - Centralized configuration paths and settings
-- **Utilities**: `src/utils/utils` - Logger, safe JSON operations, ID generation, AppleScript integration
+- **Utilities**: `src/utils/utils` - Logger, safe JSON operations, ID generation, native tools integration
+- **Native Tools**: Swift binaries for macOS system integration (`window-detector`, `keyboard-simulator`, `text-field-detector`)
 - **Electron APIs**: BrowserWindow, screen, ipcMain for system integration
-- **Node.js APIs**: fs.promises for async file operations, path for cross-platform paths
+- **Node.js APIs**: fs.promises for async file operations, path for cross-platform paths, child_process for native tool execution
 - **External Libraries**: js-yaml for YAML parsing, readline for streaming file operations
 
 ### Data Flow
@@ -278,17 +327,36 @@ if (this.lastSavedContent === text) {
 ```
 
 ### Native Integration Details (window-manager.ts)
-**Keyboard Simulator Integration:**
-- Compiled binary at `src/native-tools/keyboard-simulator`
-- JSON-based communication protocol
+**Swift Native Tools Integration:**
+- **window-detector**: Compiled Swift binary for window bounds and app detection
+- **keyboard-simulator**: Compiled Swift binary for Cmd+V simulation and app activation
+- **text-field-detector**: Compiled Swift binary for focused text field detection
+- JSON-based communication protocol for all native tools
 - Bundle ID and app name support for reliable activation
-- Timeout protection (3000ms) to prevent hanging
+- Timeout protection (3000ms) to prevent hanging operations
+- Accessibility permission management with user guidance dialogs
+
+**Text Field Positioning Integration:**
+```typescript
+// Active text field positioning with native tool
+const textFieldBounds = await getActiveTextFieldBounds();
+if (textFieldBounds) {
+  // Position window near focused text field
+  x = textFieldBounds.x;
+  y = textFieldBounds.y + textFieldBounds.height + 10;
+} else {
+  // Fallback to active window center
+  const windowBounds = await getActiveWindowBounds();
+  x = windowBounds.x + (windowBounds.width - windowWidth) / 2;
+  y = windowBounds.y + (windowBounds.height - windowHeight) / 2;
+}
+```
 
 **App Detection Flow:**
-1. Capture current app before showing window
+1. Capture current app using native `window-detector` before showing window
 2. Store app info (name + bundleId) for later restoration
-3. Use native tool to activate previous app after paste operation
-4. Handle both string names and AppInfo objects
+3. Use native `keyboard-simulator` to activate previous app after paste operation
+4. Handle both string names and AppInfo objects with comprehensive error handling
 
 ## Testing Strategy
 
@@ -322,6 +390,13 @@ if (this.lastSavedContent === text) {
 - Verify deep merge functionality with partial updates
 - Test settings validation and fallback behavior
 - Verify file creation and permission handling
+
+**DesktopSpaceManager:**
+- Test space signature generation and comparison
+- Verify cache TTL behavior with time advancement
+- Test accessibility permission handling and fallbacks
+- Verify synthetic data creation for performance mode
+- Test integration with WindowManager for space change detection
 
 ### Integration Testing
 - Test manager interactions through IPC handlers
