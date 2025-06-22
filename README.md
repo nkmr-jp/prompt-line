@@ -9,11 +9,11 @@ macOS floating text input tool that enables quick text entry across any applicat
 Prompt Line is a macOS app developed to improve the prompt input experience in the terminal for CLI-based AI coding agents such as [Claude Code](https://github.com/anthropics/claude-code), [OpenAI Codex CLI](https://github.com/openai/codex), and [Aider](https://github.com/paul-gauthier/aider).
 It addresses UX challenges related to multi-byte character input (e.g., Japanese) by providing a dedicated floating input interface. 
 
-This significantly reduces text input stress in the following scenarios: 
+The stress of text input is greatly reduced in the following cases. 
 
 1. **Prompt input for CLI-based AI coding agents in the terminal** 
 2. **Chat apps where pressing Enter sends the message at an unintended time** 
-3. **Text editors with heavy input (e.g., large Confluence documents)**
+3. **Text editor with slow input response (e.g., large Confluence documents)**
 
 
 ## Features
@@ -24,10 +24,10 @@ Type text and quick paste (`Cmd+Enter`).
 ![doc1.gif](assets/doc1.gif)
 
 ### Perfect for Editing Voice-Inputted Text
-Operations are the same as general text editors. <br>
-Of course, you can also use it in combination with voice input apps. <br>
-Since pressing Enter doesn't automatically send, you don't need to worry about line breaks. <br>
-Perfect for editing voice-inputted text. <br>
+The operation is the same as a typical text editor. <br>
+Of course, you can also use it in combination with a voice input app. <br>
+Pressing Enter will not automatically send the text, so you don't have to worry about line breaks. <br>
+It is also ideal for editing text entered by voice. <br>
 (This video uses [superwhisper](https://superwhisper.com/).)
 ![doc2.gif](assets/doc2.gif)
 
@@ -38,7 +38,7 @@ Search is also available. (`Cmd+f`)
 
 ### Launch Anywhere
 Can be launched anywhere there's a text input field. <br>
-Convenient when you want to reuse the same prompt in other apps.
+Also convenient when you want to reuse the same prompt in other apps.
 ![doc4.gif](assets/doc4.gif)
 Of course, it works outside of terminal too.
 ![doc5.gif](assets/doc5.gif)
