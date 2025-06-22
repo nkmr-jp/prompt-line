@@ -7,7 +7,7 @@ import { TIMEOUTS } from '../constants';
 import { matchesShortcutString } from './utils/shortcut-parser';
 import type { UserSettings } from './types';
 
-// Browser environment - use secure electronAPI from preload
+// Secure electronAPI access via preload script
 const electronAPI = (window as any).electronAPI;
 
 export interface PasteResult {

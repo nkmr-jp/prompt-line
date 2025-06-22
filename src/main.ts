@@ -6,11 +6,11 @@ import path from 'path';
 if (process.platform === 'darwin') {
   app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling');
   
-  // セキュリティ警告の段階的有効化: 開発環境では表示、本番環境では非表示
+  // Security warnings: enabled in development, disabled in production
   if (process.env.NODE_ENV === 'production') {
     process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
   } else {
-    // 開発環境ではセキュリティ警告を表示
+    // Show security warnings in development environment
     delete process.env.ELECTRON_DISABLE_SECURITY_WARNINGS;
   }
   

@@ -408,7 +408,7 @@ function checkAccessibilityPermission(): Promise<AccessibilityStatus> {
         end tell
       `;
 
-      // セキュリティチェック実行
+      // Execute security check
       const securityWarnings = validateAppleScriptSecurity(script);
       if (securityWarnings.length > 0) {
         logger.warn('AppleScript security warnings detected', { warnings: securityWarnings });

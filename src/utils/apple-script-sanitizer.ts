@@ -86,11 +86,11 @@ export function executeAppleScriptSafely(script: string, timeout: number = 3000)
 }
 
 /**
- * AppleScript実行のセキュリティ検証
- * 危険なパターンをチェックして警告を出力
+ * Security validation for AppleScript execution
+ * Checks for dangerous patterns and outputs warnings
  * 
- * @param script - 検証するAppleScript
- * @returns 危険なパターンが検出された場合の警告配列
+ * @param script - AppleScript to validate
+ * @returns Array of warnings if dangerous patterns are detected
  */
 export function validateAppleScriptSecurity(script: string): string[] {
   const warnings: string[] = [];

@@ -81,7 +81,7 @@ export interface WindowConfig {
     nodeIntegration: boolean;
     contextIsolation: boolean;
     webSecurity: boolean;
-    preload?: string;  // 🆕 プリロードスクリプトのパス
+    preload?: string;  // Preload script path
     spellcheck: boolean;
     disableDialogs: boolean;
     enableWebSQL: boolean;
@@ -90,8 +90,8 @@ export interface WindowConfig {
     offscreen: boolean;
     enablePreferredSizeMode: boolean;
     disableHtmlFullscreenWindowResize: boolean;
-    allowRunningInsecureContent?: boolean;  // 🆕 セキュリティ設定
-    sandbox?: boolean;  // 🆕 サンドボックス設定
+    allowRunningInsecureContent?: boolean;  // Security setting
+    sandbox?: boolean;  // Sandbox setting
   };
 }
 

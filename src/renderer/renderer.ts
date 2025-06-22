@@ -14,7 +14,7 @@ import { DraftManager } from './draft-manager';
 import { HistoryUIManager } from './history-ui-manager';
 import { LifecycleManager } from './lifecycle-manager';
 
-// 🔒 セキュリティ強化: プリロードスクリプト経由でのAPI取得
+// Secure electronAPI access via preload script
 const electronAPI = (window as any).electronAPI;
 
 if (!electronAPI) {

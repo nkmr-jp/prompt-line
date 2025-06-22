@@ -1,13 +1,12 @@
 /**
  * Preload Script for Secure Electron IPC Bridge
  * 
- * セキュリティを強化したElectronアプリケーション用のプリロードスクリプト
- * contextBridgeを使用して安全なAPIブリッジを提供
+ * Provides secure API bridge using contextBridge for enhanced security
  */
 
 import { contextBridge, ipcRenderer } from 'electron';
 
-// セキュリティ: 許可されたIPCチャンネルのみ公開
+// Security: Only expose allowed IPC channels
 const ALLOWED_CHANNELS = [
   'paste-text',
   'paste-image', 
@@ -207,8 +206,8 @@ declare global {
   }
 }
 
-// セキュリティログ（開発環境でのみ）
+// Security logging (development environment only)
 if (process.env.NODE_ENV === 'development') {
-  console.log('🔒 Secure preload script initialized with contextBridge');
-  console.log('📋 Allowed IPC channels:', ALLOWED_CHANNELS);
+  console.log('Secure preload script initialized with contextBridge');
+  console.log('Allowed IPC channels:', ALLOWED_CHANNELS);
 }

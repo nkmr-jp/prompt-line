@@ -42,13 +42,13 @@ class AppConfigClass {
       skipTaskbar: true,
       resizable: false,
       webPreferences: {
-        // セキュリティ設定の段階的強化
-        nodeIntegration: false,  // 🔒 セキュリティ強化: false に変更
-        contextIsolation: true,  // 🔒 セキュリティ強化: true に変更  
-        webSecurity: true,       // 🔒 セキュリティ強化: true に変更
-        preload: path.join(__dirname, '..', 'preload', 'preload.js'), // 🆕 プリロードスクリプト
+        // Enhanced security configuration
+        nodeIntegration: false,
+        contextIsolation: true,
+        webSecurity: true,
+        preload: path.join(__dirname, '..', 'preload', 'preload.js'),
         
-        // 既存の設定を維持
+        // Maintain existing settings
         spellcheck: false,
         disableDialogs: true,
         enableWebSQL: false,
@@ -58,9 +58,9 @@ class AppConfigClass {
         enablePreferredSizeMode: false,
         disableHtmlFullscreenWindowResize: true,
         
-        // 追加のセキュリティ設定
-        allowRunningInsecureContent: false,  // 🔒 非安全コンテンツの実行を禁止
-        sandbox: false  // アクセシビリティ機能のため無効（将来的に検討）
+        // Additional security settings
+        allowRunningInsecureContent: false,
+        sandbox: false  // Disabled for accessibility features
       }
     };
 

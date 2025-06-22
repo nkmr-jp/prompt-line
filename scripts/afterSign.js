@@ -25,7 +25,7 @@ exports.default = async function afterSign(context) {
   console.log(`Entitlements file: ${entitlementsPath}`);
 
   try {
-    // 既存フロー: TCCリセット
+    // Reset accessibility permissions
     console.log('Removing from accessibility permissions list...');
     try {
       execSync(`tccutil reset Accessibility com.electron.prompt-line`);
