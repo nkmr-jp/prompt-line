@@ -79,32 +79,42 @@ class WindowManager {
       }
       logger.debug(`⏱️  Window settings update: ${(performance.now() - settingsStartTime).toFixed(2)}ms`);
       
-      // Get current app first, then space info with app context (single call)
-      const appStartTime = performance.now();
-      try {
-        this.previousApp = await getCurrentApp();
-        logger.debug(`⏱️  App detection: ${(performance.now() - appStartTime).toFixed(2)}ms`);
-      } catch (error) {
-        logger.error('Failed to get current app:', error);
-        logger.debug(`⏱️  App detection (error): ${(performance.now() - appStartTime).toFixed(2)}ms`);
+      // Get current app and space information in parallel for better performance
+      const appSpaceStartTime = performance.now();
+      const [currentAppResult, currentSpaceResult] = await Promise.allSettled([
+        getCurrentApp(),
+        this.desktopSpaceManager && this.desktopSpaceManager.isReady() 
+          ? this.desktopSpaceManager.getCurrentSpaceInfo(null) // We'll update with actual app later
+          : Promise.resolve(null)
+      ]);
+      logger.debug(`⏱️  App + Space detection (parallel): ${(performance.now() - appSpaceStartTime).toFixed(2)}ms`);
+
+      // Process current app result
+      if (currentAppResult.status === 'fulfilled') {
+        this.previousApp = currentAppResult.value;
+      } else {
+        logger.error('Failed to get current app:', currentAppResult.reason);
         this.previousApp = null;
       }
 
-      // Get space information with app context
-      const spaceStartTime = performance.now();
+      // Process space information result
+      const spaceProcessStartTime = performance.now();
       let currentSpaceInfo = null;
       let needsWindowRecreation = false;
       
-      if (this.desktopSpaceManager && this.desktopSpaceManager.isReady()) {
-        try {
-          currentSpaceInfo = await this.desktopSpaceManager.getCurrentSpaceInfo(this.previousApp);
-          logger.debug(`⏱️  Space detection: ${(performance.now() - spaceStartTime).toFixed(2)}ms`);
-        } catch (error) {
-          logger.warn('Failed to get current space info:', error);
+      if (currentSpaceResult.status === 'fulfilled' && currentSpaceResult.value) {
+        currentSpaceInfo = currentSpaceResult.value;
+        
+        // Update space info with actual app information
+        if (this.previousApp && this.desktopSpaceManager) {
+          try {
+            const spaceUpdateStartTime = performance.now();
+            currentSpaceInfo = await this.desktopSpaceManager.getCurrentSpaceInfo(this.previousApp);
+            logger.debug(`⏱️  Space info update with app: ${(performance.now() - spaceUpdateStartTime).toFixed(2)}ms`);
+          } catch (error) {
+            logger.debug('Failed to update space info with app:', error);
+          }
         }
-      }
-      
-      if (currentSpaceInfo) {
         
         logger.debug('Current space info:', {
           signature: currentSpaceInfo.signature,
@@ -125,7 +135,11 @@ class WindowManager {
       } else {
         // If space detection is not available, use simple logic
         needsWindowRecreation = !this.inputWindow || this.inputWindow.isDestroyed();
+        if (currentSpaceResult.status === 'rejected') {
+          logger.warn('Failed to get current space info:', currentSpaceResult.reason);
+        }
       }
+      logger.debug(`⏱️  Space processing: ${(performance.now() - spaceProcessStartTime).toFixed(2)}ms`);
 
       // Handle window creation/reuse based on space changes
       const windowMgmtStartTime = performance.now();
@@ -165,14 +179,11 @@ class WindowManager {
       
       logger.debug(`⏱️  Window management total: ${(performance.now() - windowMgmtStartTime).toFixed(2)}ms`);
       
-      // Prepare window data
-      const dataStartTime = performance.now();
       const windowData: WindowData = {
         sourceApp: this.previousApp,
         currentSpaceInfo,
         ...data
       };
-      logger.debug(`⏱️  Window data preparation: ${(performance.now() - dataStartTime).toFixed(2)}ms`);
       
       // Note: Desktop space is handled by creating window at the right time
 

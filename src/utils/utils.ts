@@ -148,28 +148,13 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 
-// Cache for getCurrentApp to improve performance
-let appCache: { app: AppInfo | null; timestamp: number } | null = null;
-const APP_CACHE_TTL = 500; // Cache for 500ms to balance freshness vs performance
-
 function getCurrentApp(): Promise<AppInfo | null> {
   const startTime = performance.now();
   logger.debug('🕐 Starting getCurrentApp()');
   
-  // Check cache first
-  const now = Date.now();
-  if (appCache && (now - appCache.timestamp) < APP_CACHE_TTL) {
-    logger.debug(`⏱️  Using cached app info (${now - appCache.timestamp}ms old): ${(performance.now() - startTime).toFixed(2)}ms`);
-    logger.debug(`🏁 Total getCurrentApp time (cached): ${(performance.now() - startTime).toFixed(2)}ms`);
-    return Promise.resolve(appCache.app);
-  }
-  
   return new Promise((resolve) => {
     // Check platform directly instead of using config to avoid dependency
     if (process.platform !== 'darwin') {
-      // Cache null result for non-macOS platforms
-      appCache = { app: null, timestamp: Date.now() };
-      
       logger.debug(`⏱️  Platform check (non-darwin): ${(performance.now() - startTime).toFixed(2)}ms`);
       resolve(null);
       return;
@@ -185,9 +170,6 @@ function getCurrentApp(): Promise<AppInfo | null> {
       const execDuration = performance.now() - execStartTime;
       
       if (error) {
-        // Cache null result to avoid repeated failed calls
-        appCache = { app: null, timestamp: Date.now() };
-        
         logger.warn('Error getting current app (non-blocking):', error.message);
         logger.debug(`⏱️  getCurrentApp exec (error): ${execDuration.toFixed(2)}ms`);
         logger.debug(`🏁 Total getCurrentApp time (error): ${(performance.now() - startTime).toFixed(2)}ms`);
@@ -199,9 +181,6 @@ function getCurrentApp(): Promise<AppInfo | null> {
           logger.debug(`⏱️  JSON parsing: ${(performance.now() - parseStartTime).toFixed(2)}ms`);
           
           if (result.error) {
-            // Cache null result for tool errors too
-            appCache = { app: null, timestamp: Date.now() };
-            
             logger.warn('Native tool returned error:', result.error);
             logger.debug(`⏱️  getCurrentApp exec (tool error): ${execDuration.toFixed(2)}ms`);
             logger.debug(`🏁 Total getCurrentApp time (tool error): ${(performance.now() - startTime).toFixed(2)}ms`);
@@ -214,17 +193,11 @@ function getCurrentApp(): Promise<AppInfo | null> {
             bundleId: result.bundleId === null ? null : result.bundleId
           };
           
-          // Cache the result
-          appCache = { app: appInfo, timestamp: Date.now() };
-          
           logger.debug(`⏱️  getCurrentApp exec (success): ${execDuration.toFixed(2)}ms`);
           logger.debug(`🏁 Total getCurrentApp time: ${(performance.now() - startTime).toFixed(2)}ms`);
           logger.debug('Current app detected:', appInfo);
           resolve(appInfo);
         } catch (parseError) {
-          // Cache null result for parse errors too
-          appCache = { app: null, timestamp: Date.now() };
-          
           logger.warn('Error parsing app info:', parseError);
           logger.debug(`⏱️  getCurrentApp exec (parse error): ${execDuration.toFixed(2)}ms`);
           logger.debug(`🏁 Total getCurrentApp time (parse error): ${(performance.now() - startTime).toFixed(2)}ms`);
