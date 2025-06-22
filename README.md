@@ -9,7 +9,7 @@ macOS floating text input tool that enables quick text entry across any applicat
 Prompt Line is a macOS app developed to improve the prompt input experience in the terminal for CLI-based AI coding agents such as [Claude Code](https://github.com/anthropics/claude-code), [OpenAI Codex CLI](https://github.com/openai/codex), and [Aider](https://github.com/paul-gauthier/aider).
 It addresses UX challenges related to multi-byte character input (e.g., Japanese) by providing a dedicated floating input interface. 
 
-The stress of text input is greatly reduced in the following cases. 
+This greatly reduces stress when entering text in the following cases in particular. 
 
 1. **Prompt input for CLI-based AI coding agents in the terminal** 
 2. **Chat apps where pressing Enter sends the message at an unintended time** 
