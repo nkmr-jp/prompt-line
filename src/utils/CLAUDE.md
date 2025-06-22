@@ -7,6 +7,50 @@
 ### utils.ts
 Comprehensive utility module with native tool integration and performance optimization for macOS systems:
 
+### apple-script-sanitizer.ts
+Security-focused AppleScript sanitization and execution module providing comprehensive protection against script injection attacks:
+
+**Core Security Functions:**
+```typescript
+function sanitizeAppleScript(input: string): string {
+  // Comprehensive input sanitization
+  // Length limits: 64KB maximum to prevent DoS attacks
+  // Character escaping: Quotes, backslashes, special characters
+  // Pattern detection: Identifies dangerous operations
+}
+
+function executeAppleScriptSafely(script: string, timeout = 3000): Promise<string> {
+  // Wrapper with sanitization and timeout handling
+  // Automatic input sanitization before execution
+  // Configurable timeout protection
+  // Error isolation and recovery
+}
+
+function validateAppleScriptSecurity(script: string): { isValid: boolean; issues: string[] } {
+  // Security validation with pattern detection
+  // Identifies dangerous operations (shell scripts, file deletion, credential access)
+  // Returns validation results with specific security issues
+}
+```
+
+**Security Features:**
+- **Input Sanitization**: 64KB length limits prevent DoS attacks
+- **Character Escaping**: Comprehensive escaping of quotes, backslashes, and special characters
+- **Pattern Detection**: Identifies dangerous operations like shell scripts and file access
+- **Timeout Protection**: Configurable timeout (default 3 seconds) prevents hanging
+- **Error Isolation**: AppleScript failures don't affect main process
+- **Validation System**: Pre-execution security checks with detailed issue reporting
+
+**Threat Protection:**
+- **Script Injection**: Input sanitization prevents malicious script execution
+- **Command Injection**: Character escaping prevents shell command injection
+- **DoS Prevention**: Length limits and timeout protection
+- **File System Protection**: Pattern detection prevents unauthorized file operations
+- **Credential Protection**: Detects attempts to access keychain or passwords
+
+### utils.ts (continued)
+Comprehensive utility module with native tool integration and performance optimization for macOS systems:
+
 **Logger Class:**
 ```typescript
 class Logger {
@@ -46,6 +90,7 @@ function getNativeToolsPath(): string {
 - **Native Executables**: Uses compiled native tools for security and performance
 - **Window Detector**: `window-detector` binary for window bounds and app detection
 - **Keyboard Simulator**: `keyboard-simulator` binary for secure paste operations
+- **Text Field Detector**: `text-field-detector` binary for focused text field positioning
 
 **macOS Native App Detection:**
 ```typescript
@@ -528,6 +573,34 @@ describe('Safe JSON Operations', () => {
 });
 ```
 
+**AppleScript Security Testing:**
+```typescript
+describe('AppleScript Security Functions', () => {
+  it('should sanitize dangerous input', () => {
+    const maliciousInput = 'do shell script "rm -rf /"';
+    const sanitized = sanitizeAppleScript(maliciousInput);
+    expect(sanitized).not.toContain('do shell script');
+  });
+  
+  it('should validate script security', () => {
+    const dangerousScript = 'tell application "Keychain Access" to get password';
+    const validation = validateAppleScriptSecurity(dangerousScript);
+    expect(validation.isValid).toBe(false);
+    expect(validation.issues).toContain('Potential credential access detected');
+  });
+  
+  it('should enforce length limits', () => {
+    const longScript = 'a'.repeat(70000); // Exceeds 64KB limit
+    expect(() => sanitizeAppleScript(longScript)).toThrow('Input too long');
+  });
+  
+  it('should handle timeout in executeAppleScriptSafely', async () => {
+    const hangingScript = 'delay 10'; // 10 second delay
+    await expect(executeAppleScriptSafely(hangingScript, 1000)).rejects.toThrow('timeout');
+  });
+});
+```
+
 ### Integration Testing
 - **Cross-platform Testing**: Test file operations on different operating systems
 - **Performance Testing**: Measure debouncing timing and memory usage
@@ -624,12 +697,8 @@ The utils module exports the following functions:
 
 ```typescript
 export {
+  // Core utilities
   logger,                           // Logger instance
-  getCurrentApp,                    // Get current active application info
-  getActiveWindowBounds,           // Get active window bounds
-  pasteWithNativeTool,            // Simple paste using native tool
-  activateAndPasteWithNativeTool, // Activate app and paste
-  checkAccessibilityPermission,   // Check accessibility permissions
   debounce,                       // Function debouncing
   throttle,                       // Function throttling
   safeJsonParse,                  // Safe JSON parsing
@@ -638,7 +707,24 @@ export {
   formatTimeAgo,                  // Format relative timestamps
   ensureDir,                      // Ensure directory exists
   fileExists,                     // Check file existence
-  sleep                           // Promise-based delay
+  sleep,                          // Promise-based delay
+  
+  // Native macOS integration
+  getCurrentApp,                    // Get current active application info
+  getActiveWindowBounds,           // Get active window bounds
+  pasteWithNativeTool,            // Simple paste using native tool
+  activateAndPasteWithNativeTool, // Activate app and paste
+  checkAccessibilityPermission,   // Check accessibility permissions
+  
+  // Native tool paths
+  KEYBOARD_SIMULATOR_PATH,        // Path to keyboard-simulator binary
+  WINDOW_DETECTOR_PATH,           // Path to window-detector binary
+  TEXT_FIELD_DETECTOR_PATH,       // Path to text-field-detector binary
+  
+  // AppleScript security (from apple-script-sanitizer.ts)
+  sanitizeAppleScript,            // Sanitize AppleScript input
+  executeAppleScriptSafely,       // Execute AppleScript with security
+  validateAppleScriptSecurity     // Validate AppleScript security
 };
 ```
 
@@ -647,7 +733,8 @@ export {
 - **Node.js Built-ins**: `child_process`, `fs/promises`, `path`, `os`
 - **Electron**: `app` (for packaged mode detection)
 - **Internal**: `../types`, `../constants`, `../config/app-config`
-- **Native Tools**: `window-detector`, `keyboard-simulator` binaries
+- **Native Tools**: `window-detector`, `keyboard-simulator`, `text-field-detector` binaries
+- **Security Module**: `./apple-script-sanitizer` for AppleScript security functions
 
 ## Platform Support
 

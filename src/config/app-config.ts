@@ -42,9 +42,13 @@ class AppConfigClass {
       skipTaskbar: true,
       resizable: false,
       webPreferences: {
-        nodeIntegration: true,
-        contextIsolation: false,
-        webSecurity: false,
+        // Enhanced security configuration
+        nodeIntegration: false,
+        contextIsolation: true,
+        webSecurity: true,
+        preload: path.join(__dirname, '..', 'preload', 'preload.js'),
+        
+        // Maintain existing settings
         spellcheck: false,
         disableDialogs: true,
         enableWebSQL: false,
@@ -52,7 +56,11 @@ class AppConfigClass {
         defaultEncoding: 'UTF-8',
         offscreen: false,
         enablePreferredSizeMode: false,
-        disableHtmlFullscreenWindowResize: true
+        disableHtmlFullscreenWindowResize: true,
+        
+        // Additional security settings
+        allowRunningInsecureContent: false,
+        sandbox: false  // Disabled for accessibility features
       }
     };
 

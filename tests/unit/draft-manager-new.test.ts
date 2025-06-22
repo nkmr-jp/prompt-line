@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, jest } from '@jest/globals';
+import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { DraftManager } from '../../src/renderer/draft-manager';
 import type { IpcRenderer, Config } from '../../src/renderer/types';
 
@@ -14,9 +14,23 @@ describe('DraftManager', () => {
       on: jest.fn()
     } as any;
 
+    const mockElectronAPI = {
+      draft: {
+        save: jest.fn().mockImplementation((...args: any[]) => {
+          return mockIpcRenderer.invoke('save-draft', ...args);
+        }),
+        clear: jest.fn().mockImplementation((...args: any[]) => {
+          return mockIpcRenderer.invoke('clear-draft', ...args);
+        })
+      }
+    };
+
     mockGetText = jest.fn();
-    draftManager = new DraftManager(mockIpcRenderer, mockGetText);
-    jest.clearAllMocks();
+    draftManager = new DraftManager(mockElectronAPI, mockGetText);
+    
+    // Clear only the call history, not the mock implementations
+    mockIpcRenderer.invoke.mockClear();
+    mockGetText.mockClear();
   });
 
   afterEach(() => {
@@ -87,13 +101,13 @@ describe('DraftManager', () => {
 
       await draftManager.saveDraftImmediate();
 
-      expect(mockIpcRenderer.invoke).toHaveBeenCalledWith('save-draft', 'test text', true);
+      expect(mockIpcRenderer.invoke).toHaveBeenCalledWith('save-draft', 'test text');
     });
 
     test('should save provided text immediately', async () => {
       await draftManager.saveDraftImmediate('provided text');
 
-      expect(mockIpcRenderer.invoke).toHaveBeenCalledWith('save-draft', 'provided text', true);
+      expect(mockIpcRenderer.invoke).toHaveBeenCalledWith('save-draft', 'provided text');
       expect(mockGetText).not.toHaveBeenCalled();
     });
 

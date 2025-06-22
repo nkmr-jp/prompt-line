@@ -10,6 +10,7 @@ import type {
   WindowBounds
 } from '../types';
 import { TIMEOUTS, TIME_CALCULATIONS } from '../constants';
+import { sanitizeAppleScript, executeAppleScriptSafely, validateAppleScriptSecurity } from './apple-script-sanitizer';
 
 // Native tools paths - handle both packaged and development modes
 function getNativeToolsPath(): string {
@@ -407,24 +408,30 @@ function checkAccessibilityPermission(): Promise<AccessibilityStatus> {
         end tell
       `;
 
-      exec(`osascript -e '${script.replace(/'/g, "\\'")}'`, { timeout: TIMEOUTS.ACCESSIBILITY_CHECK_TIMEOUT }, (error, stdout) => {
-        if (error) {
+      // Execute security check
+      const securityWarnings = validateAppleScriptSecurity(script);
+      if (securityWarnings.length > 0) {
+        logger.warn('AppleScript security warnings detected', { warnings: securityWarnings });
+      }
+
+      // Safe AppleScript execution
+      executeAppleScriptSafely(script, TIMEOUTS.ACCESSIBILITY_CHECK_TIMEOUT)
+        .then((stdout) => {
+          const result = stdout.trim();
+          const hasPermission = result === 'true';
+          
+          logger.debug('Accessibility permission check result', { 
+            hasPermission, 
+            bundleId: actualBundleId,
+            rawResult: result 
+          });
+
+          resolve({ hasPermission, bundleId: actualBundleId });
+        })
+        .catch((error) => {
           logger.warn('Accessibility check failed with error, assuming no permission:', error);
           resolve({ hasPermission: false, bundleId: actualBundleId });
-          return;
-        }
-
-        const result = stdout.trim();
-        const hasPermission = result === 'true';
-        
-        logger.debug('Accessibility permission check result', { 
-          hasPermission, 
-          bundleId: actualBundleId,
-          rawResult: result 
         });
-
-        resolve({ hasPermission, bundleId: actualBundleId });
-      });
     } catch (error) {
       logger.error('Failed to check accessibility permission:', error);
       resolve({ hasPermission: false, bundleId: 'com.electron.prompt-line' });
@@ -578,5 +585,8 @@ export {
   sleep,
   KEYBOARD_SIMULATOR_PATH,
   TEXT_FIELD_DETECTOR_PATH,
-  WINDOW_DETECTOR_PATH
+  WINDOW_DETECTOR_PATH,
+  sanitizeAppleScript,
+  executeAppleScriptSafely,
+  validateAppleScriptSecurity
 };

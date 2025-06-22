@@ -12,7 +12,7 @@ exports.default = async function afterSign(context) {
   const appName = context.packager.appInfo.productFilename;
   const appPath = path.join(appOutDir, `${appName}.app`);
 
-  console.log('=== Custom Code Signing Process ===');
+  console.log('=== Enhanced Custom Code Signing Process ===');
   console.log(`App Path: ${appPath}`);
 
   // Use build/entitlements.mac.plist file
@@ -25,30 +25,101 @@ exports.default = async function afterSign(context) {
   console.log(`Entitlements file: ${entitlementsPath}`);
 
   try {
-    // Remove from accessibility permissions list using bundle identifier
+    // Reset accessibility permissions
     console.log('Removing from accessibility permissions list...');
     try {
       execSync(`tccutil reset Accessibility com.electron.prompt-line`);
       console.log('✅ Successfully removed from accessibility list');
     } catch (tccError) {
-      console.warn('⚠️ Failed to remove from accessibility list (this is normal on some systems):', tccError.message);
+      console.warn('⚠️ Failed to remove from accessibility list (normal):', tccError.message);
     }
     
-    // Remove existing signature
     console.log('Removing existing signature...');
     execSync(`codesign --remove-signature "${appPath}"`);
     
-    // Apply ad-hoc signature
+    console.log('Signing native binaries...');
+    await signNativeBinaries(appPath);
+    
     console.log('Applying ad-hoc signature...');
     execSync(`codesign --force --deep --sign - --entitlements "${entitlementsPath}" "${appPath}"`);
     
-    // Verify signature
     console.log('Verifying signature...');
     execSync(`codesign --verify --verbose "${appPath}"`);
     
-    console.log('✅ Code signing completed successfully');
+    console.log('Running security verification...');
+    await runSecurityChecks(appPath);
+    
+    console.log('✅ Enhanced code signing completed successfully');
   } catch (error) {
     console.error('Code signing error:', error);
     throw error;
   }
 };
+
+// Native binary signing function
+async function signNativeBinaries(appPath) {
+  const binariesPath = path.join(appPath, 'Contents', 'Resources', 'app.asar.unpacked', 'dist', 'native-tools');
+  
+  if (!fs.existsSync(binariesPath)) {
+    console.log('ℹ️ Native binaries not found, skipping signing');
+    return;
+  }
+
+  const binaries = fs.readdirSync(binariesPath).filter(file => 
+    !file.endsWith('.js') && !file.endsWith('.json') && !file.startsWith('.')
+  );
+
+  for (const binary of binaries) {
+    const binaryPath = path.join(binariesPath, binary);
+    try {
+      // Apply ad-hoc signature to native binary
+      execSync(`codesign --force --sign - "${binaryPath}"`);
+      console.log(`✅ Signed: ${binary}`);
+    } catch (error) {
+      console.warn(`⚠️ Failed to sign ${binary}:`, error.message);
+    }
+  }
+}
+
+// Security check function
+async function runSecurityChecks(appPath) {
+  try {
+    // Detailed signature verification
+    console.log('📋 Checking signature details...');
+    const signInfo = execSync(`codesign -dv --verbose=4 "${appPath}"`, { encoding: 'utf8' });
+    console.log('Signature info:', signInfo);
+    
+    // Check entitlements
+    console.log('📋 Checking active entitlements...');
+    const entitlements = execSync(`codesign -d --entitlements - "${appPath}"`, { encoding: 'utf8' });
+    console.log('Active entitlements:', entitlements.substring(0, 500) + '...');
+    
+    console.log('📋 Checking executable permissions...');
+    const permissions = execSync(`ls -la "${appPath}/Contents/MacOS/"`, { encoding: 'utf8' });
+    console.log('Executable permissions:', permissions);
+    
+    const stats = fs.statSync(appPath);
+    console.log(`📋 App bundle size: ${(stats.size / 1024 / 1024).toFixed(2)} MB`);
+    
+    console.log('📋 Checking for security configurations...');
+    
+    // Check for main process file location
+    const appAsarPath = path.join(appPath, 'Contents', 'Resources', 'app.asar');
+    const mainJsUnpackedPath = path.join(appPath, 'Contents', 'Resources', 'app.asar.unpacked', 'dist', 'main.js');
+    
+    if (fs.existsSync(appAsarPath)) {
+      console.log('✅ App bundle (app.asar) found');
+    } else {
+      console.warn('⚠️ app.asar not found');
+    }
+    
+    if (fs.existsSync(mainJsUnpackedPath)) {
+      console.log('✅ Main process file found in unpacked location');
+    } else {
+      console.log('ℹ️ Main process file is packaged in app.asar (normal)');
+    }
+    
+  } catch (error) {
+    console.warn('⚠️ Security check warnings:', error.message);
+  }
+}
