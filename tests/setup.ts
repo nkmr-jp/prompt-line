@@ -52,10 +52,14 @@ jest.mock('electron', () => ({
             isDestroyed: jest.fn(() => false),
             isVisible: jest.fn(() => false),
             setPosition: jest.fn(),
+            setVisibleOnAllWorkspaces: jest.fn(),
+            setAlwaysOnTop: jest.fn(),
             on: jest.fn(() => mockWindow),
             webContents: {
                 send: jest.fn(),
-                on: jest.fn()
+                on: jest.fn(),
+                once: jest.fn(),
+                isLoading: jest.fn(() => false)
             }
         };
         return mockWindow;
