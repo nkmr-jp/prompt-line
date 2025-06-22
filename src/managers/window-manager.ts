@@ -83,11 +83,12 @@ class WindowManager {
       const appStartTime = performance.now();
       try {
         this.previousApp = await getCurrentApp();
+        logger.debug(`⏱️  App detection: ${(performance.now() - appStartTime).toFixed(2)}ms`);
       } catch (error) {
         logger.error('Failed to get current app:', error);
+        logger.debug(`⏱️  App detection (error): ${(performance.now() - appStartTime).toFixed(2)}ms`);
         this.previousApp = null;
       }
-      logger.debug(`⏱️  App detection: ${(performance.now() - appStartTime).toFixed(2)}ms`);
 
       // Get space information with app context
       const spaceStartTime = performance.now();
@@ -164,11 +165,14 @@ class WindowManager {
       
       logger.debug(`⏱️  Window management total: ${(performance.now() - windowMgmtStartTime).toFixed(2)}ms`);
       
+      // Prepare window data
+      const dataStartTime = performance.now();
       const windowData: WindowData = {
         sourceApp: this.previousApp,
         currentSpaceInfo,
         ...data
       };
+      logger.debug(`⏱️  Window data preparation: ${(performance.now() - dataStartTime).toFixed(2)}ms`);
       
       // Note: Desktop space is handled by creating window at the right time
 
