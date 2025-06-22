@@ -1,19 +1,17 @@
 [English](README.md) | [日本語](README_ja.md)
 
-# Prompt Line
+# 🧑‍💻 Prompt Line
 
 macOS用フローティングテキスト入力ツール。あらゆるアプリケーションで素早くテキスト入力が可能です。
 
 ## 概要
 
-Prompt Lineは、[Claude Code](https://github.com/anthropics/claude-code)、[OpenAI Codex CLI](https://github.com/openai/codex)、[aider](https://github.com/paul-gauthier/aider) などのCLI型AIコーディングエージェントでのターミナルでのプロンプト入力体験を改善することを目的として開発したmacOSアプリです。
-日本語などのマルチバイト文字入力時のUXの課題を専用のフローティング入力インターフェースで解決します。ターミナルでの利用を想定していますが、Enterキーを押すと即送信されてしまうチャットアプリや、入力が重たいテキストエディタなど、様々なアプリケーションで快適に使用できます。
+Prompt Lineは、[Claude Code](https://github.com/anthropics/claude-code)、[OpenAI Codex CLI](https://github.com/openai/codex)、[Aider](https://github.com/paul-gauthier/aider) などのCLI型AIコーディングエージェントのターミナルでのプロンプト入力体験を改善することを目的として開発したmacOSアプリです。
+以下のようなケースでテキスト入力がとても快適になります。
 
-以下のようなケースでのテキスト入力がとても快適になります。
-
-1. **ターミナルでのAIエージェントへのプロンプト入力**
+1. **ターミナルでのCLI型AIコーディングエージェントへのプロンプト入力**
 2. **Enterを押したら意図しないタイミングで送信されてしまうチャットアプリ**
-3. **入力の重たいテキストエディタ(巨大なコンフルエンスのドキュメントなど)**
+3. **入力の重たいテキストエディタ(例：巨大なコンフルエンスのドキュメントなど)**
 
 
 ## 特徴
