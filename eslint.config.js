@@ -12,7 +12,22 @@ const globals = require('globals');
 module.exports = [
   js.configs.recommended,
   {
-    ignores: ['eslint.config.js']
+    ignores: ['eslint.config.js', 'dist/**/*']
+  },
+  // Node.js scripts configuration
+  {
+    files: ['scripts/**/*.js', 'test-functionality.js'],
+    languageOptions: {
+      ecmaVersion: 2021,
+      sourceType: 'commonjs',
+      globals: {
+        ...globals.node
+      }
+    },
+    rules: {
+      'no-console': 'off',
+      '@typescript-eslint/no-var-requires': 'off'
+    }
   },
   {
     files: ['src/**/*.ts'],
@@ -41,7 +56,9 @@ module.exports = [
       '@typescript-eslint/ban-types': 'off',
       '@typescript-eslint/no-empty-object-type': 'off',
       '@typescript-eslint/no-require-imports': 'off',
-      '@typescript-eslint/no-unsafe-function-type': 'off'
+      '@typescript-eslint/no-unsafe-function-type': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+      'no-control-regex': 'off'
     }
   },
   {
@@ -71,7 +88,40 @@ module.exports = [
       'no-console': 'off',
       '@typescript-eslint/ban-types': 'off',
       '@typescript-eslint/no-empty-object-type': 'off',
-      '@typescript-eslint/no-require-imports': 'off'
+      '@typescript-eslint/no-require-imports': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+      'no-control-regex': 'off'
+    }
+  },
+  {
+    files: ['src/preload/**/*.ts'],
+    languageOptions: {
+      parser: tsparser,
+      ecmaVersion: 2021,
+      sourceType: 'module',
+      globals: {
+        ...globals.node,
+        NodeJS: 'readonly'
+      }
+    },
+    plugins: {
+      '@typescript-eslint': tseslint
+    },
+    rules: {
+      ...tseslint.configs.recommended.rules,
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        {
+          argsIgnorePattern: '^_'
+        }
+      ],
+      'no-console': 'off',
+      '@typescript-eslint/ban-types': 'off',
+      '@typescript-eslint/no-empty-object-type': 'off',
+      '@typescript-eslint/no-require-imports': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+      'no-control-regex': 'off'
     }
   },
   {

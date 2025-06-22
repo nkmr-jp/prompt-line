@@ -3,6 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <title>Prompt Line</title>
+    
+    <!-- Content Security Policy (CSP) for enhanced security -->
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline';
+        style-src 'self' 'unsafe-inline';
+        img-src 'self' data: blob:;
+        font-src 'self';
+        connect-src 'none';
+        object-src 'none';
+        media-src 'none';
+        frame-src 'none';
+        worker-src 'none';
+        manifest-src 'none';
+        base-uri 'self';
+        form-action 'none';
+    ">
+    
     <link rel="stylesheet" href="styles/main.css">
 </head>
 <body>
@@ -65,8 +83,7 @@
         </div>
     </div>
     
-    <!-- Load modular JavaScript -->
-    <script src="../../dist/renderer/ui-manager.js"></script>
-    <script src="../../dist/renderer/renderer.js"></script>
+    <!-- Single bundled JavaScript file -->
+    <script src="bundle.js"></script>
 </body>
 </html>

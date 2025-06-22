@@ -1,12 +1,12 @@
 import { TIMEOUTS } from '../constants';
 import { updateShortcutsDisplay } from './utils/shortcut-formatter';
-import type { WindowData, AppInfo, UserSettings, IpcRenderer } from './types';
+import type { WindowData, AppInfo, UserSettings } from './types';
 
 export class LifecycleManager {
   private userSettings: UserSettings | null = null;
 
   constructor(
-    private ipcRenderer: IpcRenderer,
+    private electronAPI: any,
     private getAppNameEl: () => HTMLElement | null,
     private getHeaderShortcutsEl: () => HTMLElement | null,
     private getHistoryShortcutsEl: () => HTMLElement | null,
@@ -38,9 +38,9 @@ export class LifecycleManager {
     try {
       const appNameEl = this.getAppNameEl();
       if (appNameEl?.textContent?.trim()) {
-        await this.ipcRenderer.invoke('save-draft', appNameEl.textContent, true);
+        await this.electronAPI.draft.save(appNameEl.textContent);
       }
-      await this.ipcRenderer.invoke('hide-window', true);
+      await this.electronAPI.window.hide();
     } catch (error) {
       console.error('Error handling window hide:', error);
     }

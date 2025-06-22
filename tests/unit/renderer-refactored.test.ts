@@ -126,6 +126,44 @@ jest.mock('../../src/renderer/lifecycle-manager', () => ({
     return {};
 });
 
+// Mock window.electronAPI
+const mockPasteText = jest.fn() as jest.MockedFunction<any>;
+const mockPasteImage = jest.fn() as jest.MockedFunction<any>;
+mockPasteText.mockResolvedValue({ success: true });
+mockPasteImage.mockResolvedValue({ success: true, path: '/tmp/image.png' });
+
+(window as any).electronAPI = {
+    pasteText: mockPasteText,
+    pasteImage: mockPasteImage,
+    invoke: jest.fn(),
+    on: jest.fn(),
+    paste: {
+        text: jest.fn(),
+        image: jest.fn()
+    },
+    draft: {
+        save: jest.fn(),
+        clear: jest.fn(),
+        get: jest.fn()
+    },
+    history: {
+        get: jest.fn(),
+        clear: jest.fn(),
+        remove: jest.fn(),
+        search: jest.fn()
+    },
+    window: {
+        hide: jest.fn(),
+        show: jest.fn()
+    },
+    config: {
+        get: jest.fn()
+    },
+    app: {
+        getInfo: jest.fn()
+    }
+};
+
 // Set up DOM
 beforeEach(() => {
     // Clear document
@@ -141,14 +179,22 @@ beforeEach(() => {
         draft: { saveDelay: 500 }
     });
 
+    // Setup electronAPI.invoke to delegate to mockIpcRenderer.invoke
+    (window as any).electronAPI.invoke = mockIpcRenderer.invoke;
+
     jest.clearAllMocks();
 });
 
-// Import the renderer class directly
-import { PromptLineRenderer } from '../../src/renderer/renderer';
+// Import the renderer class directly - moved after mocks are set up
+let PromptLineRenderer: any;
+beforeAll(async () => {
+    // Dynamically import after mocks are set up
+    const rendererModule = await import('../../src/renderer/renderer');
+    PromptLineRenderer = rendererModule.PromptLineRenderer;
+});
 
 describe('PromptLineRenderer (Refactored)', () => {
-    let renderer: PromptLineRenderer;
+    let renderer: any;
 
     beforeEach(async () => {
         renderer = new PromptLineRenderer();
@@ -293,7 +339,7 @@ describe('PromptLineRenderer (Refactored)', () => {
 
     describe('text paste callback', () => {
         test('should clear text and draft on successful paste', async () => {
-            mockIpcRenderer.invoke.mockResolvedValue({ success: true });
+            (window as any).electronAPI.pasteText.mockResolvedValue({ success: true });
 
             await (renderer as any).handleTextPasteCallback('test text');
 
@@ -303,7 +349,7 @@ describe('PromptLineRenderer (Refactored)', () => {
         });
 
         test('should show error on paste failure', async () => {
-            mockIpcRenderer.invoke.mockResolvedValue({ 
+            (window as any).electronAPI.pasteText.mockResolvedValue({ 
                 success: false, 
                 error: 'Paste failed' 
             });

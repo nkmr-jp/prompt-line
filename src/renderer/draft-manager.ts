@@ -1,12 +1,12 @@
 import { DELAYS } from '../constants';
-import type { Config, IpcRenderer } from './types';
+import type { Config } from './types';
 
 export class DraftManager {
   private draftSaveTimeout: NodeJS.Timeout | null = null;
   private config: Config = {};
 
   constructor(
-    private ipcRenderer: IpcRenderer,
+    private electronAPI: any,
     private getTextCallback: () => string
   ) {}
 
@@ -20,19 +20,19 @@ export class DraftManager {
     }
     this.draftSaveTimeout = setTimeout(() => {
       const text = this.getTextCallback();
-      this.ipcRenderer.invoke('save-draft', text);
+      this.electronAPI.draft.save(text);
     }, this.config.draft?.saveDelay || DELAYS.DEFAULT_DRAFT_SAVE);
   }
 
   public async saveDraftImmediate(text?: string): Promise<void> {
     const textToSave = text ?? this.getTextCallback();
     if (textToSave.trim()) {
-      await this.ipcRenderer.invoke('save-draft', textToSave, true);
+      await this.electronAPI.draft.save(textToSave);
     }
   }
 
   public async clearDraft(): Promise<void> {
-    await this.ipcRenderer.invoke('clear-draft');
+    await this.electronAPI.draft.clear();
   }
 
   public extractDraftValue(draft: string | { text: string } | null | undefined): string {
