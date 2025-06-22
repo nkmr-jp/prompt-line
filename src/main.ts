@@ -64,7 +64,7 @@ class PromptLineApp {
       );
 
 
-      // Note: Window creation moved to showInputWindow for better desktop space control
+      // Note: Window is now pre-created during WindowManager initialization
       this.registerShortcuts();
       this.createTray();
       this.setupAppEventListeners();
