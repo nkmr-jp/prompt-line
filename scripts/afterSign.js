@@ -56,7 +56,7 @@ exports.default = async function afterSign(context) {
   }
 };
 
-// 🆕 ネイティブバイナリ署名関数
+// Native binary signing function
 async function signNativeBinaries(appPath) {
   const binariesPath = path.join(appPath, 'Contents', 'Resources', 'app.asar.unpacked', 'dist', 'native-tools');
   
@@ -72,7 +72,7 @@ async function signNativeBinaries(appPath) {
   for (const binary of binaries) {
     const binaryPath = path.join(binariesPath, binary);
     try {
-      // ネイティブバイナリもad-hoc署名
+      // Apply ad-hoc signature to native binary
       execSync(`codesign --force --sign - "${binaryPath}"`);
       console.log(`✅ Signed: ${binary}`);
     } catch (error) {
@@ -81,15 +81,15 @@ async function signNativeBinaries(appPath) {
   }
 }
 
-// 🆕 セキュリティチェック関数
+// Security check function
 async function runSecurityChecks(appPath) {
   try {
-    // 署名状態の詳細確認
+    // Detailed signature verification
     console.log('📋 Checking signature details...');
     const signInfo = execSync(`codesign -dv --verbose=4 "${appPath}"`, { encoding: 'utf8' });
     console.log('Signature info:', signInfo);
     
-    // entitlementsの確認
+    // Check entitlements
     console.log('📋 Checking active entitlements...');
     const entitlements = execSync(`codesign -d --entitlements - "${appPath}"`, { encoding: 'utf8' });
     console.log('Active entitlements:', entitlements.substring(0, 500) + '...');
