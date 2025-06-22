@@ -63,11 +63,13 @@ class DesktopSpaceManager {
   private monitoringInterval: NodeJS.Timeout | null = null;
   
   // Performance optimization: cache system
-  private lastSpaceCheck: { timestamp: number; signature: string; windows: WindowBasicInfo[] } | null = null;
-  private readonly CACHE_TTL_MS = 2000; // Cache for 2 seconds - longer cache for better performance
+  private lastSpaceCheck: { timestamp: number; signature: string; windows: WindowBasicInfo[]; method: string } | null = null;
+  private readonly CACHE_TTL_MS = 1000; // Shorter cache for better desktop switch detection
   
   // Ultra-fast mode: lightweight space detection (sacrifices precision for speed)
   private readonly ULTRA_FAST_MODE = true; // Enable ultra-fast mode for <100ms target
+  private readonly ADAPTIVE_PRECISION_MODE = true; // Use precise detection when needed
+  private lastPrecisionCheck: number = 0; // Track when we last used precision mode
 
   async initialize(): Promise<void> {
     try {
@@ -127,30 +129,49 @@ class DesktopSpaceManager {
         throw new Error('DesktopSpaceManager not initialized');
       }
 
-      // Check cache first for performance - use longer cache for better UX
+      // Check cache first for performance - use shorter cache for better desktop switch detection
       const now = Date.now();
       if (this.lastSpaceCheck && (now - this.lastSpaceCheck.timestamp) < this.CACHE_TTL_MS) {
-        logger.debug(`⏱️  Using cached space info (${Math.round(now - this.lastSpaceCheck.timestamp)}ms old): ${(performance.now() - startTime).toFixed(2)}ms`);
-        const spaceInfo: SpaceInfo = {
-          method: 'Cached + Limited CGWindowList',
-          signature: this.lastSpaceCheck.signature,
-          frontmostApp: frontmostApp || null,
-          windowCount: this.lastSpaceCheck.windows.length,
-          appCount: this.getUniqueAppCount(this.lastSpaceCheck.windows),
-          apps: this.getAppsFromWindows(this.lastSpaceCheck.windows, frontmostApp)
-        };
-        logger.debug(`🏁 Total getCurrentSpaceInfo time (cached): ${(performance.now() - startTime).toFixed(2)}ms`);
-        return spaceInfo;
+        // Only use cache if it wasn't from adaptive precision mode (to avoid stale desktop detection)
+        const shouldSkipCache = this.lastSpaceCheck.method.includes('Adaptive Precision') && (now - this.lastSpaceCheck.timestamp) > 500;
+        
+        if (!shouldSkipCache) {
+          logger.debug(`⏱️  Using cached space info (${Math.round(now - this.lastSpaceCheck.timestamp)}ms old): ${(performance.now() - startTime).toFixed(2)}ms`);
+          const spaceInfo: SpaceInfo = {
+            method: `Cached + ${this.lastSpaceCheck.method}`,
+            signature: this.lastSpaceCheck.signature,
+            frontmostApp: frontmostApp || null,
+            windowCount: this.lastSpaceCheck.windows.length,
+            appCount: this.getUniqueAppCount(this.lastSpaceCheck.windows),
+            apps: this.getAppsFromWindows(this.lastSpaceCheck.windows, frontmostApp)
+          };
+          logger.debug(`🏁 Total getCurrentSpaceInfo time (cached): ${(performance.now() - startTime).toFixed(2)}ms`);
+          return spaceInfo;
+        } else {
+          logger.debug('Skipping cache due to recent adaptive precision detection');
+        }
       }
 
       // Get windows using optimized method
       const windowsStartTime = performance.now();
       let cgWindows: WindowBasicInfo[];
       
+      let usedAdaptivePrecision = false;
+      
       if (this.ULTRA_FAST_MODE) {
-        // Ultra-fast mode: Use simple app-based detection (no CGWindowList)
-        cgWindows = await this.getWindowsUltraFast(frontmostApp);
-        logger.debug(`⏱️  Ultra-fast detection: ${(performance.now() - windowsStartTime).toFixed(2)}ms`);
+        // Check if we need adaptive precision for accurate desktop switching detection
+        const shouldUsePrecision = this.shouldUseAdaptivePrecision();
+        
+        if (shouldUsePrecision && this.ADAPTIVE_PRECISION_MODE) {
+          // Use precise detection when desktop might have changed recently
+          cgWindows = await this.getWindowsWithoutScreenRecording();
+          usedAdaptivePrecision = true;
+          logger.debug(`⏱️  Adaptive precision detection: ${(performance.now() - windowsStartTime).toFixed(2)}ms`);
+        } else {
+          // Ultra-fast mode: Use simple app-based detection (no CGWindowList)
+          cgWindows = await this.getWindowsUltraFast(frontmostApp);
+          logger.debug(`⏱️  Ultra-fast detection: ${(performance.now() - windowsStartTime).toFixed(2)}ms`);
+        }
       } else {
         // Standard mode: Use CGWindowList (accurate but slow)
         cgWindows = await this.getWindowsWithoutScreenRecording();
@@ -162,16 +183,21 @@ class DesktopSpaceManager {
       const signature = this.generateSpaceSignature(cgWindows);
       logger.debug(`⏱️  Signature generation: ${(performance.now() - signatureStartTime).toFixed(2)}ms`);
 
+      // Create method name
+      const method = this.ULTRA_FAST_MODE 
+        ? (usedAdaptivePrecision ? 'Adaptive Precision Detection' : 'Ultra-Fast App-Based Detection')
+        : 'Optimized + Limited CGWindowList';
+
       // Cache the result
       this.lastSpaceCheck = {
         timestamp: now,
         signature,
-        windows: cgWindows
+        windows: cgWindows,
+        method
       };
-
-      // Create space info
+      
       const spaceInfo: SpaceInfo = {
-        method: this.ULTRA_FAST_MODE ? 'Ultra-Fast App-Based Detection' : 'Optimized + Limited CGWindowList',
+        method,
         signature,
         frontmostApp: frontmostApp || null,
         windowCount: cgWindows.length,
@@ -265,6 +291,33 @@ class DesktopSpaceManager {
   }
 
   /**
+   * Determine if we should use adaptive precision mode
+   * Uses precise detection when desktop switching might have occurred
+   */
+  private shouldUseAdaptivePrecision(): boolean {
+    const now = Date.now();
+    
+    // Use precision detection in these cases:
+    // 1. No cache exists (first run)
+    // 2. Cache is relatively old (>500ms) - possible desktop switch
+    // 3. Haven't used precision mode recently (every 10 seconds)
+    
+    const noCacheExists = !this.lastSpaceCheck;
+    const cacheIsOld = this.lastSpaceCheck && (now - this.lastSpaceCheck.timestamp) > 500;
+    const shouldPeriodicCheck = (now - this.lastPrecisionCheck) > 10000; // Every 10 seconds
+    
+    if (noCacheExists || cacheIsOld || shouldPeriodicCheck) {
+      this.lastPrecisionCheck = now;
+      logger.debug('Using adaptive precision mode', { 
+        reason: noCacheExists ? 'no-cache' : cacheIsOld ? 'cache-old' : 'periodic-check' 
+      });
+      return true;
+    }
+    
+    return false;
+  }
+
+  /**
    * Ultra-fast window detection using app-based signatures only
    * Sacrifices precision for extreme speed (<5ms target)
    */
@@ -289,7 +342,8 @@ class DesktopSpaceManager {
       }
       
       // Add timestamp-based variation to detect changes over time
-      const timeSlot = Math.floor(Date.now() / 10000); // 10-second slots
+      // Use shorter time slots for better desktop switching detection
+      const timeSlot = Math.floor(Date.now() / 1000); // 1-second slots for better precision
       windows.push({
         windowID: timeSlot,
         ownerPID: timeSlot,
