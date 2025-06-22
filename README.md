@@ -40,7 +40,8 @@ Search is also available. (`Cmd+f`)
 Can be launched anywhere there's a text input field. <br>
 Also convenient when you want to reuse the same prompt in other apps.
 ![doc4.gif](assets/doc4.gif)
-Of course, it works outside of terminal too.
+
+Of course, it also works with apps other than Terminal.
 ![doc5.gif](assets/doc5.gif)
 
 ## 📦 Installation
