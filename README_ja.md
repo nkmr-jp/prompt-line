@@ -41,6 +41,7 @@ Enterを押しても勝手に送信されないので、改行する場合も気
 テキスト入力フィールドであればどこでも起動できます。<br>
 同じプロンプトを他のアプリで再利用したい場合にも便利です。
 ![doc1.gif](assets/doc4.gif)
+
 もちろん、ターミナル以外でも使えます。
 ![doc5.gif](assets/doc5.gif)
 
@@ -64,7 +65,7 @@ Enterを押しても勝手に送信されないので、改行する場合も気
    ```bash
    git clone https://github.com/nkmr-jp/prompt-line.git
    cd prompt-line
-   git checkout v0.4.1  # 必要なバージョンタグに置き換え
+   git checkout v0.x.x  # 必要なバージョンタグに置き換え
    ```
 
 2. 依存関係をインストール:
@@ -80,8 +81,8 @@ Enterを押しても勝手に送信されないので、改行する場合も気
 4. ビルドされたアプリは `dist/` ディレクトリに作成されます
 5. dmgファイルを開く
    ```bash
-   open dist/Prompt-Line-0.4.1-arm64.dmg # Apple Silicon
-   open dist/Prompt-Line-0.4.1-x64.dmg # Intel
+   open dist/Prompt-Line-0.x.x-arm64.dmg # Apple Silicon
+   open dist/Prompt-Line-0.x.x-x64.dmg # Intel
    ```
 6. Prompt Line.appをApplicationsフォルダにドラッグ
 7. Prompt Lineを起動。システムトレーにアイコンが表示されます。
