@@ -42,6 +42,7 @@ class PromptLineApp {
       this.draftManager = new DraftManager();
       this.settingsManager = new SettingsManager();
 
+      await this.windowManager.initialize();
       await this.draftManager.initialize();
       await this.settingsManager.init();
 
@@ -63,7 +64,7 @@ class PromptLineApp {
       );
 
 
-      this.windowManager.createInputWindow();
+      // Note: Window creation moved to showInputWindow for better desktop space control
       this.registerShortcuts();
       this.createTray();
       this.setupAppEventListeners();

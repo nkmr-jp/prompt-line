@@ -2,6 +2,7 @@ import { BrowserWindow, screen } from 'electron';
 import { exec } from 'child_process';
 import config from '../config/app-config';
 import { getCurrentApp, getActiveWindowBounds, logger, KEYBOARD_SIMULATOR_PATH, TEXT_FIELD_DETECTOR_PATH } from '../utils/utils';
+import DesktopSpaceManager from './desktop-space-manager';
 import type { AppInfo, WindowData, StartupPosition } from '../types';
 
 // Native tools paths are imported from utils to ensure correct paths in packaged app
@@ -10,6 +11,22 @@ class WindowManager {
   private inputWindow: BrowserWindow | null = null;
   private previousApp: AppInfo | string | null = null;
   private customWindowSettings: { position?: StartupPosition; width?: number; height?: number } = {};
+  private desktopSpaceManager: DesktopSpaceManager | null = null;
+
+  async initialize(): Promise<void> {
+    try {
+      logger.info('Initializing WindowManager...');
+      
+      // Initialize desktop space manager
+      this.desktopSpaceManager = new DesktopSpaceManager();
+      await this.desktopSpaceManager.initialize();
+      
+      logger.info('WindowManager initialized successfully');
+    } catch (error) {
+      logger.error('Failed to initialize WindowManager:', error);
+      throw error;
+    }
+  }
 
   createInputWindow(): BrowserWindow {
     try {
@@ -19,6 +36,8 @@ class WindowManager {
         height: this.customWindowSettings.height || config.window.height,
         show: false
       });
+
+      // Note: Desktop space configuration moved to showInputWindow for better control
 
       this.inputWindow.loadFile(config.getInputHtmlPath());
       
@@ -40,6 +59,9 @@ class WindowManager {
     }
   }
 
+
+
+
   async showInputWindow(data: WindowData = {}): Promise<void> {
     try {
       // Update window settings from data if provided
@@ -47,11 +69,11 @@ class WindowManager {
         this.updateWindowSettings(data.settings.window);
       }
       
-      // If window already exists and is visible, just focus it
-      if (this.inputWindow && !this.inputWindow.isDestroyed() && this.inputWindow.isVisible()) {
-        this.inputWindow.focus();
-        logger.debug('Window already visible, just focusing');
-        return;
+      // For desktop space issues, always recreate window to ensure it appears on current space
+      if (this.inputWindow && !this.inputWindow.isDestroyed()) {
+        this.inputWindow.destroy();
+        this.inputWindow = null;
+        logger.debug('Destroyed existing window to ensure current desktop space');
       }
       
       // Get current app before showing window
@@ -61,45 +83,50 @@ class WindowManager {
         logger.error('Failed to get current app:', error);
         this.previousApp = null;
       }
-      
-      // If window exists but is hidden, reposition and show it
-      if (this.inputWindow && !this.inputWindow.isDestroyed() && !this.inputWindow.isVisible()) {
-        // Always reposition for dynamic positioning modes (active-window-center, cursor)
-        // or when position setting has changed
-        const currentPosition = this.customWindowSettings.position || 'active-window-center';
-        logger.debug('Checking repositioning conditions', { 
-          currentPosition, 
-          windowSettingsPosition: data.settings?.window?.position 
-        });
-        if (currentPosition === 'active-window-center' || 
-            currentPosition === 'active-text-field' ||
-            currentPosition === 'cursor' ||
-            (data.settings?.window?.position && data.settings.window.position !== currentPosition)) {
-          logger.debug('Repositioning window for position:', currentPosition);
-          await this.positionWindow();
+
+      // Get current desktop space information
+      let currentSpaceInfo = null;
+      if (this.desktopSpaceManager && this.desktopSpaceManager.isReady()) {
+        try {
+          currentSpaceInfo = await this.desktopSpaceManager.getCurrentSpaceInfo(this.previousApp);
+          logger.debug('Current space info:', {
+            signature: currentSpaceInfo.signature,
+            appCount: currentSpaceInfo.appCount,
+            method: currentSpaceInfo.method
+          });
+        } catch (error) {
+          logger.warn('Failed to get current space info:', error);
         }
-        this.inputWindow.show();
-        this.inputWindow.focus();
-      } else if (!this.inputWindow || this.inputWindow.isDestroyed()) {
-        // Create new window if needed
+      }
+      
+      // Always create new window to ensure it appears on current desktop space
+      if (!this.inputWindow || this.inputWindow.isDestroyed()) {
         this.createInputWindow();
         await this.positionWindow();
+        logger.debug('New window created on current desktop space');
       }
       
       const windowData: WindowData = {
         sourceApp: this.previousApp,
+        currentSpaceInfo,
         ...data
       };
       
+      // Note: Desktop space is handled by creating window at the right time
+
       if (this.inputWindow!.webContents.isLoading()) {
         this.inputWindow!.webContents.once('did-finish-load', () => {
           this.inputWindow!.webContents.send('window-shown', windowData);
-          this.inputWindow!.show();
+          if (!this.inputWindow!.isVisible()) {
+            this.inputWindow!.show();
+          }
           this.inputWindow!.focus();
         });
       } else {
         this.inputWindow!.webContents.send('window-shown', windowData);
-        this.inputWindow!.show();
+        if (!this.inputWindow!.isVisible()) {
+          this.inputWindow!.show();
+        }
         this.inputWindow!.focus();
       }
       
@@ -116,7 +143,7 @@ class WindowManager {
         this.inputWindow.hide();
         logger.debug('Input window hidden');
       }
-    } catch (error) {
+    } catch (error) { 
       logger.error('Failed to hide input window:', error);
       throw error;
     }
@@ -398,8 +425,14 @@ class WindowManager {
         this.inputWindow = null;
         logger.debug('Input window destroyed');
       }
+
+      if (this.desktopSpaceManager) {
+        this.desktopSpaceManager.destroy();
+        this.desktopSpaceManager = null;
+        logger.debug('Desktop space manager destroyed');
+      }
     } catch (error) {
-      logger.error('Failed to destroy input window:', error);
+      logger.error('Failed to destroy window manager:', error);
     }
   }
 

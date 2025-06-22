@@ -16,8 +16,23 @@ export interface AppInfo {
   bundleId?: string | null;
 }
 
+export interface SpaceInfo {
+  method: string;
+  signature: string;
+  frontmostApp?: AppInfo | string | null;
+  windowCount: number;
+  appCount: number;
+  apps: Array<{
+    name: string;
+    pid: number;
+    windowCount: number;
+    isActive: boolean;
+  }>;
+}
+
 export interface WindowData {
   sourceApp?: AppInfo | string | null;
+  currentSpaceInfo?: SpaceInfo | null;
   history?: HistoryItem[];
   draft?: string | DraftData | null;
   settings?: UserSettings;
