@@ -64,7 +64,7 @@ Of course, it also works with apps other than Terminal.
    ```bash
    git clone https://github.com/nkmr-jp/prompt-line.git
    cd prompt-line
-   git checkout v0.4.1  # Replace with desired version tag
+   git checkout v0.x.x  # Replace with desired version tag
    ```
 
 2. Install dependencies:
@@ -80,8 +80,8 @@ Of course, it also works with apps other than Terminal.
 4. The built app will be created in the `dist/` directory
 5. Open the dmg file:
    ```bash
-   open dist/Prompt-Line-0.4.1-arm64.dmg # Apple Silicon
-   open dist/Prompt-Line-0.4.1-x64.dmg # Intel
+   open dist/Prompt-Line-0.x.x-arm64.dmg # Apple Silicon
+   open dist/Prompt-Line-0.x.x-x64.dmg # Intel
    ```
 6. Drag Prompt Line.app to Applications folder
 7. Launch Prompt Line. An icon will appear in the system tray.
