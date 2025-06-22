@@ -289,7 +289,7 @@ class DesktopSpaceManager {
       }
       
       // Add timestamp-based variation to detect changes over time
-      const timeSlot = Math.floor(Date.now() / 10000); // 10-second slots
+      const timeSlot = Math.floor(Date.now() / 1000); // 1-second slots
       windows.push({
         windowID: timeSlot,
         ownerPID: timeSlot,
