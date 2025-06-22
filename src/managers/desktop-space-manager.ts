@@ -64,7 +64,7 @@ class DesktopSpaceManager {
   
   // Performance optimization: cache system
   private lastSpaceCheck: { timestamp: number; signature: string; windows: WindowBasicInfo[]; method: string } | null = null;
-  private readonly CACHE_TTL_MS = 1000; // Shorter cache for better desktop switch detection
+  private readonly CACHE_TTL_MS = 1500; // Balanced cache for performance vs accuracy
   
   // Ultra-fast mode: lightweight space detection (sacrifices precision for speed)
   private readonly ULTRA_FAST_MODE = true; // Enable ultra-fast mode for <100ms target
@@ -133,7 +133,7 @@ class DesktopSpaceManager {
       const now = Date.now();
       if (this.lastSpaceCheck && (now - this.lastSpaceCheck.timestamp) < this.CACHE_TTL_MS) {
         // Only use cache if it wasn't from adaptive precision mode (to avoid stale desktop detection)
-        const shouldSkipCache = this.lastSpaceCheck.method.includes('Adaptive Precision') && (now - this.lastSpaceCheck.timestamp) > 500;
+        const shouldSkipCache = this.lastSpaceCheck.method.includes('Adaptive Precision') && (now - this.lastSpaceCheck.timestamp) > 800;
         
         if (!shouldSkipCache) {
           logger.debug(`⏱️  Using cached space info (${Math.round(now - this.lastSpaceCheck.timestamp)}ms old): ${(performance.now() - startTime).toFixed(2)}ms`);
@@ -297,22 +297,34 @@ class DesktopSpaceManager {
   private shouldUseAdaptivePrecision(): boolean {
     const now = Date.now();
     
-    // Use precision detection in these cases:
-    // 1. No cache exists (first run)
-    // 2. Cache is relatively old (>500ms) - possible desktop switch
-    // 3. Haven't used precision mode recently (every 10 seconds)
+    // More conservative adaptive precision triggers for better performance:
+    // 1. No cache exists (first run only)
+    // 2. Cache is very old (>2000ms) - likely desktop switch
+    // 3. Haven't used precision mode recently (every 30 seconds)
     
     const noCacheExists = !this.lastSpaceCheck;
-    const cacheIsOld = this.lastSpaceCheck && (now - this.lastSpaceCheck.timestamp) > 500;
-    const shouldPeriodicCheck = (now - this.lastPrecisionCheck) > 10000; // Every 10 seconds
+    const cacheIsVeryOld = this.lastSpaceCheck && (now - this.lastSpaceCheck.timestamp) > 2000;
+    const shouldPeriodicCheck = (now - this.lastPrecisionCheck) > 30000; // Every 30 seconds
     
-    if (noCacheExists || cacheIsOld || shouldPeriodicCheck) {
+    // Special case: If we have recent ultra-fast data, trust it more
+    const hasRecentUltraFastData = this.lastSpaceCheck && 
+      this.lastSpaceCheck.method.includes('Ultra-Fast') && 
+      (now - this.lastSpaceCheck.timestamp) < 1500;
+    
+    if ((noCacheExists || cacheIsVeryOld || shouldPeriodicCheck) && !hasRecentUltraFastData) {
       this.lastPrecisionCheck = now;
       logger.debug('Using adaptive precision mode', { 
-        reason: noCacheExists ? 'no-cache' : cacheIsOld ? 'cache-old' : 'periodic-check' 
+        reason: noCacheExists ? 'no-cache' : cacheIsVeryOld ? 'cache-very-old' : 'periodic-check' 
       });
       return true;
     }
+    
+    logger.debug('Skipping adaptive precision mode', {
+      noCacheExists,
+      cacheAge: this.lastSpaceCheck ? now - this.lastSpaceCheck.timestamp : 'N/A',
+      timeSinceLastPrecision: now - this.lastPrecisionCheck,
+      hasRecentUltraFastData
+    });
     
     return false;
   }
