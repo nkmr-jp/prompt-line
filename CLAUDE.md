@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Development
 ```bash
 npm start          # Run app in production mode
+npm run reset-accessibility  # Reset accessibility permissions for Prompt Line
 ```
 
 ### Testing

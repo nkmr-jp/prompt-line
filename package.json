@@ -19,7 +19,8 @@
     "lint": "eslint 'src/**/*.{js,ts}' 'tests/**/*.{js,ts}'",
     "lint:fix": "eslint 'src/**/*.{js,ts}' 'tests/**/*.{js,ts}' --fix",
     "pre-push": "npm run lint && npm run typecheck && npm test",
-    "prepare": "husky"
+    "prepare": "husky",
+    "reset-accessibility": "tccutil reset Accessibility com.electron.prompt-line && echo '✅ Accessibility permissions for Prompt Line have been reset'"
   },
   "keywords": [
     "paste",

@@ -95,14 +95,25 @@ A dialog box will appear on first use, so follow the instructions to set it up.
 
 <div><img src="assets/doc7.png" width="200"></div>
 
-**Manual setup:**
 
-If the dialog box doesn't appear, follow these steps:
+## Troubleshooting
 
-1. Open **System Settings** → **Privacy & Security** → **Accessibility**
-2. Find "Prompt Line" in the list and enable it
-3. If not listed, click "+" and add Prompt Line from Applications
+### If the accessibility permissions dialog box does not appear
 
+1. Open **System Settings** → **Privacy and Security** → **Accessibility**.
+2. Find “Prompt Line” in the list and enable it.
+3. If it is not in the list, add Prompt Line from Applications using the “+” button.
+
+### If “Prompt Line” is enabled in Accessibility Permissions but you still cannot paste
+
+1. Open **System Settings** → **Privacy and Security** → **Accessibility**
+2. Delete “Prompt Line” from Applications using the “-” button to reset permissions
+3. The issue should be resolved after reconfiguring settings.
+
+Accessibility permissions can also be reset using the following command:
+```bash
+npm run reset-accessibility
+```
 
 ## Usage
 
