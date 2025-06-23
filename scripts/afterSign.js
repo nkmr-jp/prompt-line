@@ -25,15 +25,6 @@ exports.default = async function afterSign(context) {
   console.log(`Entitlements file: ${entitlementsPath}`);
 
   try {
-    // Reset accessibility permissions
-    console.log('Removing from accessibility permissions list...');
-    try {
-      execSync(`tccutil reset Accessibility com.electron.prompt-line`);
-      console.log('✅ Successfully removed from accessibility list');
-    } catch (tccError) {
-      console.warn('⚠️ Failed to remove from accessibility list (normal):', tccError.message);
-    }
-    
     console.log('Removing existing signature...');
     execSync(`codesign --remove-signature "${appPath}"`);
     

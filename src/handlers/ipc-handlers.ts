@@ -351,22 +351,7 @@ class IPCHandlers {
           const focusSuccess = await this.windowManager.focusPreviousApp();
           
           if (!focusSuccess) {
-            logger.warn('Failed to focus previous app via native tools');
-            // As a fallback, try to hide dock icon to force focus to previous app
-            try {
-              exec('osascript -e "tell application (path to frontmost application as text) to activate"', 
-                { timeout: 2000 }, 
-                (error: Error | null) => {
-                  if (error) {
-                    logger.warn('Fallback focus attempt failed:', error);
-                  } else {
-                    logger.debug('Fallback focus attempt completed');
-                  }
-                }
-              );
-            } catch (fallbackError) {
-              logger.warn('Fallback focus script failed:', fallbackError);
-            }
+            logger.warn('Failed to focus previous app via native tools - no fallback available for security reasons');
           } else {
             logger.debug('Successfully focused previous app');
           }
