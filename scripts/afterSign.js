@@ -98,8 +98,9 @@ async function runSecurityChecks(appPath) {
     const permissions = execSync(`ls -la "${appPath}/Contents/MacOS/"`, { encoding: 'utf8' });
     console.log('Executable permissions:', permissions);
     
-    const stats = fs.statSync(appPath);
-    console.log(`📋 App bundle size: ${(stats.size / 1024 / 1024).toFixed(2)} MB`);
+    // Get actual app bundle size using du command
+    const sizeOutput = execSync(`du -sh "${appPath}" | cut -f1`, { encoding: 'utf8' }).trim();
+    console.log(`📋 App bundle size: ${sizeOutput}`);
     
     console.log('📋 Checking for security configurations...');
     
