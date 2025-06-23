@@ -5,9 +5,5 @@
     <!-- Required for AppleScript automation to check accessibility permissions and activate applications -->
     <key>com.apple.security.automation.apple-events</key>
     <true/>
-    
-    <!-- May be required for Electron's internal workings - remove if app works without it -->
-    <key>com.apple.security.cs.disable-library-validation</key>
-    <true/>
 </dict>
 </plist>
