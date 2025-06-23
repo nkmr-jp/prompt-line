@@ -25,26 +25,29 @@ export function sanitizeAppleScript(input: string): string {
   }
 
   return input
-    // Backslash (must be processed first)
+    // Remove NULL character (process first to avoid interference)
+    .replace(/\x00/g, '')
+    // Remove other control characters (ASCII 1-31, 127) except \n, \r, \t
+    .replace(/[\x01-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+    // Backslash (must be processed first to avoid double-escaping)
     .replace(/\\/g, '\\\\')
-    // Single quotes
-    .replace(/'/g, "\\'")
-    // Double quotes
+    // Single quotes: In shell single-quoted strings, single quotes cannot be escaped with backslash
+    // The only way is to end the quoted string, add escaped quote, then start new quoted string
+    // Use '\'' which is more readable than '\"'\"'
+    .replace(/'/g, "'\\''")
+    // Double quotes (escape for AppleScript content)  
     .replace(/"/g, '\\"')
-    // 改行文字
+    // 改行文字 (escape for AppleScript content)
     .replace(/\n/g, '\\n')
-    // Carriage return
+    // Carriage return (escape for AppleScript content)
     .replace(/\r/g, '\\r')
-    // Tab character
+    // Tab character (escape for AppleScript content)
     .replace(/\t/g, '\\t')
+    // These characters don't need escaping in shell single quotes, but we escape for AppleScript
     // Dollar sign (prevent variable expansion)
     .replace(/\$/g, '\\$')
     // Backtick (prevent command execution)
-    .replace(/`/g, '\\`')
-    // Remove NULL character
-    .replace(/\x00/g, '')
-    // Remove other control characters (ASCII 1-31, 127)
-    .replace(/[\x01-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+    .replace(/`/g, '\\`');
 }
 
 /**
