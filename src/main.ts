@@ -6,13 +6,9 @@ import path from 'path';
 if (process.platform === 'darwin') {
   app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling');
   
-  // Security warnings: enabled in development, disabled in production
-  if (process.env.NODE_ENV === 'production') {
-    process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
-  } else {
-    // Show security warnings in development environment
-    delete process.env.ELECTRON_DISABLE_SECURITY_WARNINGS;
-  }
+  // Security warnings: enabled in all environments for better security
+  // Note: Security warnings help identify potential security issues
+  delete process.env.ELECTRON_DISABLE_SECURITY_WARNINGS;
   
   process.env.ELECTRON_ENABLE_LOGGING = 'false';
   process.noDeprecation = true;

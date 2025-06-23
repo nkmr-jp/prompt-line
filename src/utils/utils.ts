@@ -12,6 +12,66 @@ import type {
 import { TIMEOUTS, TIME_CALCULATIONS } from '../constants';
 import { sanitizeAppleScript, executeAppleScriptSafely, validateAppleScriptSecurity } from './apple-script-sanitizer';
 
+/**
+ * Sanitizes command line arguments to prevent command injection
+ * Removes dangerous characters and limits length for safe shell execution
+ * @param input - The input string to sanitize
+ * @param maxLength - Maximum allowed length (default: 256)
+ * @returns Sanitized string safe for command execution
+ */
+function sanitizeCommandArgument(input: string, maxLength = 256): string {
+  if (typeof input !== 'string') {
+    throw new Error('Input must be a string');
+  }
+
+  // Limit input length to prevent buffer overflows
+  if (input.length > maxLength) {
+    logger.warn(`Command argument truncated from ${input.length} to ${maxLength} characters`);
+    input = input.substring(0, maxLength);
+  }
+
+  // Remove dangerous characters that could be used for command injection
+  // Allow only alphanumeric, dots, hyphens, underscores, spaces, and safe punctuation
+  const sanitized = input
+    .replace(/[;&|`$(){}[\]<>"'\\*?~^]/g, '') // Remove shell metacharacters
+    .replace(/\x00/g, '') // Remove null bytes
+    .replace(/[\r\n]/g, '') // Remove newlines
+    .trim(); // Remove leading/trailing whitespace
+
+  // Log if sanitization occurred
+  if (sanitized !== input.trim()) {
+    logger.warn('Command argument sanitized', {
+      original: input,
+      sanitized,
+      removedChars: input.length - sanitized.length
+    });
+  }
+
+  return sanitized;
+}
+
+/**
+ * Validates that a command argument contains only safe characters
+ * @param input - The input string to validate
+ * @returns boolean indicating if the input is safe
+ */
+function isCommandArgumentSafe(input: string): boolean {
+  if (typeof input !== 'string') {
+    return false;
+  }
+
+  // Check for dangerous patterns
+  const dangerousPatterns = [
+    /[;&|`$(){}[\]<>"'\\*?~^]/, // Shell metacharacters
+    /\x00/, // Null bytes
+    /[\r\n]/, // Newlines
+    /^-/, // Arguments starting with dash (could be interpreted as flags)
+    /\.\./, // Path traversal attempts
+  ];
+
+  return !dangerousPatterns.some(pattern => pattern.test(input));
+}
+
 // Native tools paths - handle both packaged and development modes
 function getNativeToolsPath(): string {
   try {
@@ -509,18 +569,50 @@ function activateAndPasteWithNativeTool(appInfo: AppInfo | string): Promise<void
       return;
     }
 
+    // Validate inputs before sanitization
+    if (!isCommandArgumentSafe(appName)) {
+      logger.error('App name contains unsafe characters:', { appName });
+      reject(new Error('App name contains unsafe characters'));
+      return;
+    }
+
+    if (bundleId && !isCommandArgumentSafe(bundleId)) {
+      logger.error('Bundle ID contains unsafe characters:', { bundleId });
+      reject(new Error('Bundle ID contains unsafe characters'));
+      return;
+    }
+
+    // Sanitize inputs to prevent command injection
+    try {
+      appName = sanitizeCommandArgument(appName, 128);
+      if (bundleId) {
+        bundleId = sanitizeCommandArgument(bundleId, 128);
+      }
+    } catch (sanitizeError) {
+      logger.error('Failed to sanitize command arguments:', sanitizeError);
+      reject(new Error('Invalid characters in app information'));
+      return;
+    }
+
+    // Additional validation for empty values after sanitization
+    if (!appName || appName.length === 0) {
+      logger.error('App name is empty after sanitization');
+      reject(new Error('App name is required'));
+      return;
+    }
+
     const options = {
       timeout: TIMEOUTS.ACTIVATE_PASTE_TIMEOUT,
       killSignal: 'SIGTERM' as const
     };
 
     let command: string;
-    if (bundleId) {
+    if (bundleId && bundleId.length > 0) {
       command = `"${KEYBOARD_SIMULATOR_PATH}" activate-and-paste-bundle "${bundleId}"`;
-      logger.debug('Using bundle ID for app activation and paste:', { appName, bundleId });
+      logger.debug('Using sanitized bundle ID for app activation and paste:', { appName, bundleId });
     } else {
       command = `"${KEYBOARD_SIMULATOR_PATH}" activate-and-paste-name "${appName}"`;
-      logger.debug('Using app name for app activation and paste:', { appName });
+      logger.debug('Using sanitized app name for app activation and paste:', { appName });
     }
 
     logger.debug('Executing native activate and paste command', { 
@@ -588,5 +680,7 @@ export {
   WINDOW_DETECTOR_PATH,
   sanitizeAppleScript,
   executeAppleScriptSafely,
-  validateAppleScriptSecurity
+  validateAppleScriptSecurity,
+  sanitizeCommandArgument,
+  isCommandArgumentSafe
 };

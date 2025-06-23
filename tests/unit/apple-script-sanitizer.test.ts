@@ -5,15 +5,15 @@ import {
 
 describe('AppleScript Sanitizer', () => {
   describe('sanitizeAppleScript', () => {
-    test('should escape single quotes', () => {
+    test('should escape single quotes properly for shell single-quoted context', () => {
       const input = "tell application 'Finder'";
-      const expected = "tell application \\'Finder\\'";
+      const expected = "tell application '\\''Finder'\\''";
       expect(sanitizeAppleScript(input)).toBe(expected);
     });
 
     test('should prevent command injection', () => {
       const input = "'; rm -rf /; echo '";
-      const expected = "\\'; rm -rf /; echo \\'";
+      const expected = "'\\''; rm -rf /; echo '\\''";
       expect(sanitizeAppleScript(input)).toBe(expected);
     });
 
@@ -71,7 +71,29 @@ describe('AppleScript Sanitizer', () => {
     test('should handle complex injection attempt', () => {
       const maliciousInput = `'; do shell script "rm -rf /"; tell application "Terminal" to activate; '`;
       const result = sanitizeAppleScript(maliciousInput);
-      expect(result).toBe(`\\'; do shell script \\"rm -rf /\\"; tell application \\"Terminal\\" to activate; \\'`);
+      expect(result).toBe(`'\\''; do shell script \\"rm -rf /\\"; tell application \\"Terminal\\" to activate; '\\''`);
+    });
+
+    test('should properly escape single quotes in shell context', () => {
+      // Test that the escaped string would be safe when used in osascript -e 'ESCAPED_STRING'
+      const input = "It's a test";
+      const result = sanitizeAppleScript(input);
+      expect(result).toBe("It'\\''s a test");
+      
+      // The shell command would be: osascript -e 'It'\''s a test'
+      // Which shell interprets as: osascript -e It's a test (three concatenated parts)
+    });
+
+    test('should handle multiple consecutive single quotes', () => {
+      const input = "'''";
+      const result = sanitizeAppleScript(input);
+      expect(result).toBe("'\\'''\\'''\\''");
+    });
+
+    test('should handle mixed quotes and special characters', () => {
+      const input = `'hello' "world" \\ \n \t $ \``;
+      const result = sanitizeAppleScript(input);
+      expect(result).toBe(`'\\''hello'\\'' \\"world\\" \\\\ \\n \\t \\$ \\` + '`');
     });
   });
 
@@ -120,7 +142,7 @@ describe('AppleScript Sanitizer', () => {
             return name of frontApp
           end try
         end tell
-      `;
+      `.trim();
       
       const warnings = validateAppleScriptSecurity(safeScript);
       expect(warnings).toEqual([]);
