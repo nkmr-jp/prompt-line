@@ -56,11 +56,6 @@ export interface PasteResult {
   warning?: string;
 }
 
-export interface ImageResult {
-  success: boolean;
-  path?: string;
-  error?: string;
-}
 
 declare global {
   interface Window {

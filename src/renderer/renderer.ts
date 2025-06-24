@@ -3,10 +3,10 @@ import type {
   HistoryItem, 
   WindowData, 
   Config, 
-  PasteResult, 
-  ImageResult,
+  PasteResult,
   UserSettings 
 } from './types';
+import type { ImageResult } from '../types';
 import { EventHandler } from './event-handler';
 import { SearchManager } from './search-manager';
 import { DomManager } from './dom-manager';
@@ -114,6 +114,10 @@ export class PromptLineRenderer {
       this.handleKeyDown(e);
     });
 
+    this.domManager.textarea.addEventListener('paste', (e) => {
+      this.handlePaste(e);
+    });
+
     document.addEventListener('contextmenu', (e) => {
       e.preventDefault();
     });
@@ -158,21 +162,39 @@ export class PromptLineRenderer {
     });
   }
 
-  private async handleKeyDown(e: KeyboardEvent): Promise<void> {
+  private async handlePaste(e: ClipboardEvent): Promise<void> {
     try {
       if (!this.domManager.textarea) return;
 
-      if (e.key === 'v' && (e.metaKey || e.ctrlKey)) {
-        // Check if there's an image in clipboard first
-        const result = await electronAPI.invoke('paste-image') as ImageResult;
-        if (result.success && result.path) {
-          e.preventDefault();
-          this.domManager.insertTextAtCursor(result.path);
-          this.draftManager.saveDraftDebounced();
-        }
-        // If no image, let the default paste behavior handle text
+      // Always prevent default to control paste behavior
+      e.preventDefault();
+
+      // Check if there's an image in clipboard
+      const result = await electronAPI.invoke('paste-image') as ImageResult;
+      if (result.success && result.path) {
+        // Insert image path
+        this.domManager.insertTextAtCursor(result.path);
+        this.draftManager.saveDraftDebounced();
+        // Don't paste any text that might be in clipboard (e.g., markdown syntax from Bear)
         return;
       }
+
+      // If no image, manually paste the text content
+      if (e.clipboardData) {
+        const text = e.clipboardData.getData('text/plain');
+        if (text) {
+          this.domManager.insertTextAtCursor(text);
+          this.draftManager.saveDraftDebounced();
+        }
+      }
+    } catch (error) {
+      console.error('Error handling paste:', error);
+    }
+  }
+
+  private async handleKeyDown(e: KeyboardEvent): Promise<void> {
+    try {
+      if (!this.domManager.textarea) return;
 
       // Skip shortcuts if IME is active to avoid conflicts with Japanese input
       const isComposing = this.eventHandler?.getIsComposing() || e.isComposing;

@@ -13,7 +13,7 @@ import {
 import type WindowManager from '../managers/window-manager';
 import type DraftManager from '../managers/draft-manager';
 import type SettingsManager from '../managers/settings-manager';
-import type { AppInfo, WindowData, HistoryItem, HistoryStats, UserSettings, IHistoryManager } from '../types';
+import type { AppInfo, WindowData, HistoryItem, HistoryStats, UserSettings, IHistoryManager, ImageResult } from '../types';
 
 interface IPCResult {
   success: boolean;
@@ -24,6 +24,7 @@ interface IPCResult {
 interface PasteResult extends IPCResult {
   warning?: string;
 }
+
 
 interface AppInfoResult {
   name: string;
@@ -51,9 +52,6 @@ interface HandlerStats {
   timestamp: number;
 }
 
-interface ImageResult extends IPCResult {
-  path?: string;
-}
 
 // Constants
 const MAX_PASTE_TEXT_LENGTH_BYTES = 1024 * 1024; // 1MB limit for paste text
@@ -446,6 +444,11 @@ class IPCHandlers {
         return { success: false, error: 'No image in clipboard' };
       }
 
+      // Check if there's text in clipboard (e.g., markdown syntax from Bear)
+      const clipboardText = clipboard.readText();
+      const hasMarkdownText = clipboardText.includes('![](') || clipboardText.includes('.png)') || clipboardText.includes('.jpg)');
+      logger.debug('Clipboard text detected:', { hasText: !!clipboardText, hasMarkdownText });
+
       const imagesDir = config.paths.imagesDir;
       try {
         await fs.mkdir(imagesDir, { recursive: true });
@@ -476,9 +479,9 @@ class IPCHandlers {
       // when copying images from markdown editors like Bear
       clipboard.writeText('');
 
-      logger.info('Image saved successfully', { filepath: normalizedPath });
+      logger.info('Image saved successfully', { filepath: normalizedPath, hadClipboardText: !!clipboardText });
 
-      return { success: true, path: filepath };
+      return { success: true, path: filepath, hadClipboardText: !!clipboardText };
     } catch (error) {
       logger.error('Failed to handle paste image:', error);
       return { success: false, error: (error as Error).message };
