@@ -11,7 +11,7 @@ class SettingsManager {
   private defaultSettings: UserSettings;
 
   constructor() {
-    this.settingsFile = path.join(os.homedir(), '.prompt-line', 'settings.yaml');
+    this.settingsFile = path.join(os.homedir(), '.prompt-line', 'settings.yml');
     
     this.defaultSettings = {
       shortcuts: {

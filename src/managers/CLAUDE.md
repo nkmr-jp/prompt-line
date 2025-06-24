@@ -193,7 +193,7 @@ private mergeWithDefaults(userSettings: Partial<UserSettings>): UserSettings {
 - Section-specific updates (shortcuts, window) with deep merge
 - Settings validation with fallback to defaults
 - Type-safe configuration access with TypeScript interfaces
-- File path: `~/.prompt-line/settings.yaml`
+- File path: `~/.prompt-line/settings.yml`
 
 ### desktop-space-manager.ts
 Ultra-fast desktop space change detection for intelligent window recreation:
