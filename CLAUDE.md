@@ -163,7 +163,7 @@ The app uses compiled Swift native tools to simulate Cmd+V in the previously act
 All data is stored in `~/.prompt-line/`:
 - `history.jsonl`: Paste history (JSONL format for efficient append operations)
 - `draft.json`: Auto-saved drafts
-- `settings.yaml`: User preferences including window positioning mode
+- `settings.yml`: User preferences including window positioning mode
 - `app.log`: Application logs with debug information
 
 ### Build Output

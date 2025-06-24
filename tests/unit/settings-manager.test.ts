@@ -51,7 +51,7 @@ const mockedFs = fs as jest.Mocked<typeof fs>;
 
 describe('SettingsManager', () => {
   let settingsManager: SettingsManager;
-  const settingsPath = path.join(os.homedir(), '.prompt-line', 'settings.yaml');
+  const settingsPath = path.join(os.homedir(), '.prompt-line', 'settings.yml');
 
   beforeEach(() => {
     jest.clearAllMocks();

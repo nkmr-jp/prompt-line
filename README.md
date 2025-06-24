@@ -132,7 +132,7 @@ npm run reset-accessibility
 
 ## ⚙️ Settings
 
-You can customize Prompt Line's behavior by creating a settings file at `~/.prompt-line/settings.yaml`:
+You can customize Prompt Line's behavior by creating a settings file at `~/.prompt-line/settings.yml`:
 
 ```yaml
 # Prompt Line Settings Configuration

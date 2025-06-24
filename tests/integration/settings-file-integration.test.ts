@@ -14,7 +14,7 @@ describe('Settings File Integration Tests', () => {
     beforeEach(async () => {
         // Create temporary directory for test files
         testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'prompt-line-settings-test-'));
-        settingsFile = path.join(testDir, 'settings.yaml');
+        settingsFile = path.join(testDir, 'settings.yml');
         
         // Store original constructor to restore later
         originalSettingsManager = SettingsManager.prototype.constructor;
@@ -224,7 +224,7 @@ window:
             const deepDir = path.join(testDir, 'very', 'deep', 'nested');
             await fs.mkdir(deepDir, { recursive: true });
             
-            const nestedFile = path.join(deepDir, 'settings.yaml');
+            const nestedFile = path.join(deepDir, 'settings.yml');
             await fs.writeFile(nestedFile, 'window:\n  width: 1024', 'utf8');
             
             const content = await fs.readFile(nestedFile, 'utf8');

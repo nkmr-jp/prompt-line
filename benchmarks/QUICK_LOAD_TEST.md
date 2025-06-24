@@ -38,7 +38,7 @@ cp benchmarks/data/test-history-5000.jsonl ~/.prompt-line/history.jsonl
 
 # 無制限履歴を有効化
 echo "history:
-  unlimited: true" >> ~/.prompt-line/settings.yaml
+  unlimited: true" >> ~/.prompt-line/settings.yml
 
 # アプリケーション起動（起動時間を測定）
 time npm start
