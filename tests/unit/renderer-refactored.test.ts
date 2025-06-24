@@ -304,20 +304,19 @@ describe('PromptLineRenderer (Refactored)', () => {
                 return Promise.resolve({});
             });
 
-            const event = new KeyboardEvent('keydown', {
-                key: 'v',
-                metaKey: true
-            });
-            event.preventDefault = jest.fn();
+            const event = {
+                preventDefault: jest.fn(),
+                clipboardData: null
+            } as any;
 
-            await (renderer as any).handleKeyDown(event);
+            await (renderer as any).handlePaste(event);
 
             expect(event.preventDefault).toHaveBeenCalled();
             expect((renderer as any).domManager.insertTextAtCursor).toHaveBeenCalledWith('/tmp/image.png');
             expect((renderer as any).draftManager.saveDraftDebounced).toHaveBeenCalled();
         });
 
-        test('should not prevent default when no image', async () => {
+        test('should handle text paste when no image', async () => {
             mockIpcRenderer.invoke.mockImplementation((channel: string) => {
                 if (channel === 'paste-image') {
                     return Promise.resolve({ success: false });
@@ -325,15 +324,20 @@ describe('PromptLineRenderer (Refactored)', () => {
                 return Promise.resolve({});
             });
 
-            const event = new KeyboardEvent('keydown', {
-                key: 'v',
-                metaKey: true
-            });
-            event.preventDefault = jest.fn();
+            const clipboardData = {
+                getData: jest.fn().mockReturnValue('sample text')
+            };
+            const event = {
+                preventDefault: jest.fn(),
+                clipboardData: clipboardData
+            } as any;
 
-            await (renderer as any).handleKeyDown(event);
+            await (renderer as any).handlePaste(event);
 
-            expect(event.preventDefault).not.toHaveBeenCalled();
+            expect(event.preventDefault).toHaveBeenCalled();
+            expect(clipboardData.getData).toHaveBeenCalledWith('text/plain');
+            expect((renderer as any).domManager.insertTextAtCursor).toHaveBeenCalledWith('sample text');
+            expect((renderer as any).draftManager.saveDraftDebounced).toHaveBeenCalled();
         });
     });
 
