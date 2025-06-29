@@ -16,6 +16,11 @@ export interface PasteResult {
   warning?: string;
 }
 
+export interface ImageResult {
+  success: boolean;
+  path?: string;
+  error?: string;
+}
 
 export class EventHandler {
   private textarea: HTMLTextAreaElement | null = null;

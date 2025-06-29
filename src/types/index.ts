@@ -53,13 +53,6 @@ export interface DraftStats {
   autoSaveEnabled: boolean;
 }
 
-export interface ImageResult {
-  success: boolean;
-  path?: string;
-  error?: string;
-  hadClipboardText?: boolean;
-}
-
 export interface AppStats {
   isInitialized: boolean;
   historyStats: HistoryStats;
