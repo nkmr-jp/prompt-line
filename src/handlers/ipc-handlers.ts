@@ -97,6 +97,7 @@ class IPCHandlers {
     ipcMain.handle('update-settings', this.handleUpdateSettings.bind(this));
     ipcMain.handle('reset-settings', this.handleResetSettings.bind(this));
     ipcMain.handle('open-settings', this.handleOpenSettings.bind(this));
+    ipcMain.handle('get-clipboard-text', this.handleGetClipboardText.bind(this));
 
     logger.info('IPC handlers set up successfully');
   }
@@ -574,6 +575,17 @@ class IPCHandlers {
       registeredHandlers: handlers,
       timestamp: Date.now()
     };
+  }
+
+  private async handleGetClipboardText(_event: IpcMainInvokeEvent): Promise<string> {
+    try {
+      const text = clipboard.readText();
+      logger.debug('Clipboard text requested via Electron API', { length: text.length });
+      return text;
+    } catch (error) {
+      logger.error('Failed to read clipboard text:', error);
+      return '';
+    }
   }
 
   private showAccessibilityWarning(bundleId: string): void {

@@ -170,25 +170,57 @@ export class PromptLineRenderer {
       e.preventDefault();
 
       // Check if there's an image in clipboard
-      const result = await electronAPI.invoke('paste-image') as ImageResult;
-      if (result.success && result.path) {
-        // Insert image path
-        this.domManager.insertTextAtCursor(result.path);
-        this.draftManager.saveDraftDebounced();
-        // Don't paste any text that might be in clipboard (e.g., markdown syntax from Bear)
-        return;
+      try {
+        const result = await electronAPI.invoke('paste-image') as ImageResult;
+        if (result.success && result.path) {
+          // Insert image path
+          this.domManager.insertTextAtCursor(result.path);
+          this.draftManager.saveDraftDebounced();
+          // Don't paste any text that might be in clipboard (e.g., markdown syntax from Bear)
+          return;
+        }
+      } catch (imageError) {
+        // Continue to text paste
       }
 
       // If no image, manually paste the text content
       if (e.clipboardData) {
-        const text = e.clipboardData.getData('text/plain');
-        if (text) {
-          this.domManager.insertTextAtCursor(text);
-          this.draftManager.saveDraftDebounced();
+        // Try different text formats
+        const plainText = e.clipboardData.getData('text/plain');
+        const htmlText = e.clipboardData.getData('text/html');
+        const textUri = e.clipboardData.getData('text/uri-list');
+
+        // Try accessing system clipboard via Electron API as fallback
+        try {
+          const systemClipboard = await electronAPI.invoke('get-clipboard-text');
+          const text = plainText || htmlText || textUri || systemClipboard;
+          if (text) {
+            this.domManager.insertTextAtCursor(text);
+            this.draftManager.saveDraftDebounced();
+          }
+        } catch (clipboardError) {
+          const text = plainText || htmlText || textUri;
+          if (text) {
+            this.domManager.insertTextAtCursor(text);
+            this.draftManager.saveDraftDebounced();
+          }
         }
       }
     } catch (error) {
       console.error('Error handling paste:', error);
+      // Fallback: manual paste
+      if (e.clipboardData) {
+        const text = e.clipboardData.getData('text/plain');
+        if (text && this.domManager.textarea) {
+          const cursorPos = this.domManager.textarea.selectionStart;
+          const currentText = this.domManager.textarea.value;
+          const newText = currentText.slice(0, cursorPos) + text + currentText.slice(this.domManager.textarea.selectionEnd);
+          this.domManager.textarea.value = newText;
+          this.domManager.textarea.setSelectionRange(cursorPos + text.length, cursorPos + text.length);
+          this.domManager.updateCharCount();
+          this.draftManager.saveDraftDebounced();
+        }
+      }
     }
   }
 

@@ -26,6 +26,7 @@ const ALLOWED_CHANNELS = [
   'clipboard-write-text',
   'clipboard-read-text',
   'clipboard-write-image',
+  'get-clipboard-text',
   'focus-window',
   'window-shown'
 ];
