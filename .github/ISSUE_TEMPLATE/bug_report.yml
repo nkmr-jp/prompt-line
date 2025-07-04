@@ -75,15 +75,6 @@ body:
       description: If applicable, add screenshots or videos to help explain your problem.
       placeholder: Drag and drop images/videos here or paste links...
 
-  - type: textarea
-    id: logs
-    attributes:
-      label: Log Output
-      description: |
-        Error messages from `~/.prompt-line/app.log` if applicable.
-      placeholder: Paste error messages here...
-      render: text
-
   - type: checkboxes
     id: terms
     attributes:

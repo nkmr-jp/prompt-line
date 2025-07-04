@@ -192,14 +192,9 @@ window:
 
 ![doc8.png](assets/doc8.png)
 
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=nkmr-jp/prompt-line&type=Date)](https://www.star-history.com/#nkmr-jp/prompt-line&Date)
-
-
-## 貢献
-[Contribution Guide](CONTRIBUTING_ja.md)をご確認ください。
-
 ## 📄 ライセンス
 
 MIT License - 詳細は[LICENSE](./LICENSE)をご覧ください。
+
+## 貢献
+[Contribution Guide](CONTRIBUTING_ja.md) をご確認ください。
