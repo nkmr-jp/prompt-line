@@ -203,3 +203,6 @@ window:
 ## 📄 License
 
 MIT License - see [LICENSE](./LICENSE) for details.
+
+## Contributing
+See [Contribution Guide](CONTRIBUTING_ja.md)

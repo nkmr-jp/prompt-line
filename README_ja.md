@@ -195,3 +195,6 @@ window:
 ## 📄 ライセンス
 
 MIT License - 詳細は[LICENSE](./LICENSE)をご覧ください。
+
+## 貢献
+[Contribution Guide](CONTRIBUTING_ja.md) をご確認ください。
