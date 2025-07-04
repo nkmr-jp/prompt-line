@@ -47,6 +47,6 @@ While this may be unusual for OSS, we've decided to limit acceptance of external
 ClaudeCode also accepts Issues but not external code (as it's not published as OSS), which is a similar policy approach. (This might also be an AI Slop countermeasure.)
 
 ### References
-* [【AI slop】AI生成によるゴミをプルリクするのをやめろ](https://qiita.com/rana_kualu/items/6b1f09786038e894970e)
-* [利用者は数十億人！？ SQLiteはどこが凄いデータベース管理システムなのか調べてみた](https://qiita.com/ko1nksm/items/87d27a287e1b6005d11c#%E3%82%AA%E3%83%BC%E3%83%97%E3%83%B3%E3%82%BD%E3%83%BC%E3%82%B9%E3%81%A7%E3%82%82%E5%8D%B1%E9%99%BA%E3%81%AA%E3%82%B3%E3%83%BC%E3%83%89%E3%81%AE%E6%B7%B7%E5%85%A5%E3%81%AF%E3%81%AA%E3%81%84)
-* [AI Slop PR's are burning me and my team out hard, anyone else experiencing this?](https://www.reddit.com/r/ExperiencedDevs/comments/1kr8clp/ai_slop_prs_are_burning_me_and_my_team_out_hard/)
+* https://qiita.com/rana_kualu/items/6b1f09786038e894970e
+* https://qiita.com/ko1nksm/items/87d27a287e1b6005d11c
+* https://www.reddit.com/r/ExperiencedDevs/comments/1kr8clp/ai_slop_prs_are_burning_me_and_my_team_out_hard/
