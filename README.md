@@ -23,14 +23,6 @@ Quick launch with shortcut (`Cmd+Shift+Space`).<br>
 Type text and quick paste (`Cmd+Enter`).
 ![doc1.gif](assets/doc1.gif)
 
-### Perfect for Editing Voice-Inputted Text
-The operation is the same as a typical text editor. <br>
-Of course, you can also use it in combination with a voice input app. <br>
-Pressing Enter will not automatically send the text, so you don't have to worry about line breaks. <br>
-It is also ideal for editing text entered by voice. <br>
-(This video uses [superwhisper](https://superwhisper.com/).)
-![doc2.gif](assets/doc2.gif)
-
 ### Search and Reuse Prompt History
 Prompt history is saved and can be reused from the right menu. <br>
 Search is also available. (`Cmd+f`)
@@ -43,6 +35,15 @@ Also convenient when you want to reuse the same prompt in other apps.
 
 Of course, it also works with apps other than Terminal.
 ![doc5.gif](assets/doc5.gif)
+
+### Perfect for Editing Voice-Inputted Text
+The operation is the same as a typical text editor. <br>
+Of course, you can also use it in combination with a voice input app. <br>
+Pressing Enter will not automatically send the text, so you don't have to worry about line breaks. <br>
+It is also ideal for editing text entered by voice. <br>
+(This video uses [superwhisper](https://superwhisper.com/).)
+![doc2.gif](assets/doc2.gif)
+
 
 ## 📦 Installation
 
