@@ -196,10 +196,6 @@ window:
 
 ![doc8.png](assets/doc8.png)
 
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=nkmr-jp/prompt-line&type=Date)](https://www.star-history.com/#nkmr-jp/prompt-line&Date)
-
 ## 📄 License
 
 MIT License - see [LICENSE](./LICENSE) for details.
