@@ -1,6 +1,4 @@
 # Contributing to Prompt Line
-Prompt Lineを使っていただいてありがとうございます！<br>
-また、個人の貴重な時間を使ってプロジェクトに貢献しようと考えてくださったことに感謝いたします。
 
 # 運用ポリシー
 このプロジェクトは個人のOSSプロジェクトなので、できる限り省エネ運用していく方針です。<br>
@@ -13,7 +11,7 @@ Prompt Lineを使っていただいてありがとうございます！<br>
 * ご自身の環境に合わせて自由にカスタマイズして使ってください。
 * ClaudeなどのAIに頼めば大抵の機能は実装してくれると思います。
 * WindowsやLinuxユーザーの方は移植に挑戦してみるのもいいかもしれません。 
-  > コードのほとんどの部分はTypeScriptで実装してElectronでビルドしているため、ネイティブの機能呼び出しの部分だけ各プラットフォーム別の実装に置き換えてやれば、比較的簡単に移植出来るのではないかと思います。 
+  * コードのほとんどの部分はTypeScriptで実装してElectronでビルドしているため、ネイティブの機能呼び出しの部分だけ各プラットフォーム別の実装に置き換えてやれば、比較的簡単に移植出来るのではないかと思います。
 
 ## 2. バグの報告はISSUEを作成してください
 * 作者の環境でも再現するバグについてはなるべく対応しようと思っています。
@@ -47,6 +45,6 @@ OSSとしては少し特殊かもしれませんが「オープンソースだ�
 ClaudeCodeもISSUEは受けいれるが外部コードは受け入れない(OSSとして公開してない)という運用なので、これもポリシーとしては近いと思います。(これもAI Slop対策なのかもしれませんね。)
 
 ### 参考資料
-* [【AI slop】AI生成によるゴミをプルリクするのをやめろ](https://qiita.com/rana_kualu/items/6b1f09786038e894970e)
-* [利用者は数十億人！？ SQLiteはどこが凄いデータベース管理システムなのか調べてみた](https://qiita.com/ko1nksm/items/87d27a287e1b6005d11c#%E3%82%AA%E3%83%BC%E3%83%97%E3%83%B3%E3%82%BD%E3%83%BC%E3%82%B9%E3%81%A7%E3%82%82%E5%8D%B1%E9%99%BA%E3%81%AA%E3%82%B3%E3%83%BC%E3%83%89%E3%81%AE%E6%B7%B7%E5%85%A5%E3%81%AF%E3%81%AA%E3%81%84)
-* [AI Slop PR's are burning me and my team out hard, anyone else experiencing this?](https://www.reddit.com/r/ExperiencedDevs/comments/1kr8clp/ai_slop_prs_are_burning_me_and_my_team_out_hard/)
+* https://qiita.com/rana_kualu/items/6b1f09786038e894970e
+* https://qiita.com/ko1nksm/items/87d27a287e1b6005d11c
+* https://www.reddit.com/r/ExperiencedDevs/comments/1kr8clp/ai_slop_prs_are_burning_me_and_my_team_out_hard/
