@@ -1,6 +1,4 @@
 # Contributing to Prompt Line
-Thank you for using Prompt Line!<br>
-We deeply appreciate that you're considering contributing your valuable personal time to this project.
 
 # Operating Policy
 This is a personal OSS project, so we aim to operate it with minimal overhead.<br>
@@ -11,14 +9,14 @@ We basically expect users to freely customize and use it in their own environmen
 
 ## 1. Feel free to fork and customize
 * Please customize it freely according to your environment.
-* Most features can be implemented by asking AI coding agents like Claude.
+* Most features can be implemented by using AI like Claude.
 * Windows and Linux users might enjoy the challenge of porting it.
-  > Since most of the code is implemented in TypeScript and built with Electron, porting should be relatively straightforward by replacing only the native function calls with platform-specific implementations.
+  * Since most of the code is implemented in TypeScript and built with Electron, porting should be relatively straightforward by replacing only the native function calls with platform-specific implementations.
 
 ## 2. Please create an Issue for bug reports
 * We will try to address bugs that can be reproduced in the author's environment.
 * Please provide detailed information when reporting.
-* For environment-specific bugs, testing and support may be difficult, so please consult AI coding agents like Claude.
+* For environment-specific bugs, testing and support may be difficult, so please consult AI like Claude.
 * Please refrain from submitting AI-generated Issues.
 
 ### Bug Reports
