@@ -192,9 +192,10 @@ window:
 
 ![doc8.png](assets/doc8.png)
 
-## 📄 ライセンス
-
-MIT License - 詳細は[LICENSE](./LICENSE)をご覧ください。
-
 ## 貢献
-[Contribution Guide](CONTRIBUTING_ja.md) をご確認ください。
+
+詳細は [Contribution Guide](CONTRIBUTING_ja.md) をご確認ください。
+
+## ライセンス
+
+MIT License - 詳細は [LICENSE](./LICENSE) をご確認ください。

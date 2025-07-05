@@ -196,9 +196,10 @@ window:
 
 ![doc8.png](assets/doc8.png)
 
-## 📄 License
+## Contributing
+
+See [Contribution Guide](CONTRIBUTING.md) for details.
+
+## License
 
 MIT License - see [LICENSE](./LICENSE) for details.
-
-## Contributing
-See [Contribution Guide](CONTRIBUTING.md)
