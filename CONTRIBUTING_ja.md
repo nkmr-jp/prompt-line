@@ -41,6 +41,6 @@
   * 近年、AI生成された低品質なコードのPRが問題となっている
 
 # 参考資料
-* [How ‘open’ should your open source be?](https://github.com/readme/featured/how-open-is-open-source?utm_source=lowendbox.com)
-* [AI Slop PR's are burning me and my team out hard, anyone else experiencing this?](https://www.reddit.com/r/ExperiencedDevs/comments/1kr8clp/ai_slop_prs_are_burning_me_and_my_team_out_hard/)
-* [【AI slop】AI生成によるゴミをプルリクするのをやめろ](https://qiita.com/rana_kualu/items/6b1f09786038e894970e)
+* https://github.com/readme/featured/how-open-is-open-source
+* https://www.reddit.com/r/ExperiencedDevs/comments/1kr8clp/ai_slop_prs_are_burning_me_and_my_team_out_hard/
+* https://qiita.com/rana_kualu/items/6b1f09786038e894970e
