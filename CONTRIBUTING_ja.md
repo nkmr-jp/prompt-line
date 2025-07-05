@@ -10,7 +10,7 @@
 ## 1. Forkして自由にカスタマイズして使ってください
 * ご自身の環境に合わせて自由にカスタマイズして使ってください。
 * ClaudeなどのAIに頼めば大抵の機能は実装してくれると思います。
-* WindowsやLinuxユーザーの方は移植に挑戦してみるのもいいかもしれません。 
+* WindowsやLinuxユーザーの方は移植に挑戦してみるのもいいかもしれません。
   * コードのほとんどの部分はTypeScriptで実装してElectronでビルドしているため、ネイティブの機能呼び出しの部分だけ各プラットフォーム別の実装に置き換えてやれば、比較的簡単に移植出来るのではないかと思います。
 
 ## 2. バグの報告はISSUEを作成してください
@@ -40,11 +40,7 @@
 * **AI Slopという問題**
   * 近年、AI生成された低品質なコードのPRが問題となっている
 
-OSSとしては少し特殊かもしれませんが「オープンソースだがオープンコントリビュートではない」というSQLiteで採用しているポリシーなども参考にして外部からのコードの受け入れは制限することにしました。
-
-ClaudeCodeもISSUEは受けいれるが外部コードは受け入れない(OSSとして公開してない)という運用なので、これもポリシーとしては近いと思います。(これもAI Slop対策なのかもしれませんね。)
-
-### 参考資料
-* https://qiita.com/rana_kualu/items/6b1f09786038e894970e
-* https://qiita.com/ko1nksm/items/87d27a287e1b6005d11c
-* https://www.reddit.com/r/ExperiencedDevs/comments/1kr8clp/ai_slop_prs_are_burning_me_and_my_team_out_hard/
+# 参考資料
+* [How ‘open’ should your open source be?](https://github.com/readme/featured/how-open-is-open-source?utm_source=lowendbox.com)
+* [AI Slop PR's are burning me and my team out hard, anyone else experiencing this?](https://www.reddit.com/r/ExperiencedDevs/comments/1kr8clp/ai_slop_prs_are_burning_me_and_my_team_out_hard/)
+* [【AI slop】AI生成によるゴミをプルリクするのをやめろ](https://qiita.com/rana_kualu/items/6b1f09786038e894970e)
