@@ -1,6 +1,8 @@
 # Contributing to Prompt Line
 
 # Operating Policy
+Welcome and thank you for wanting to contribute!
+
 This is a personal OSS project, so we aim to operate it with minimal overhead. <br>
 The basic approach is to "build features I want and share them publicly" with a relaxed stance. <br>
 Additionally, we have a policy of not adding features that I don't personally use, as they increase maintenance burden.
@@ -41,6 +43,6 @@ We are not currently accepting Pull Requests from third parties for the followin
   * In recent years, low-quality AI-generated code PRs have become problematic
 
 # References
-* [How ‘open’ should your open source be?](https://github.com/readme/featured/how-open-is-open-source?utm_source=lowendbox.com)
-* [AI Slop PR's are burning me and my team out hard, anyone else experiencing this?](https://www.reddit.com/r/ExperiencedDevs/comments/1kr8clp/ai_slop_prs_are_burning_me_and_my_team_out_hard/)
-* [【AI slop】AI生成によるゴミをプルリクするのをやめろ](https://qiita.com/rana_kualu/items/6b1f09786038e894970e)
+* https://github.com/readme/featured/how-open-is-open-source
+* https://www.reddit.com/r/ExperiencedDevs/comments/1kr8clp/ai_slop_prs_are_burning_me_and_my_team_out_hard/
+* https://qiita.com/rana_kualu/items/6b1f09786038e894970e
