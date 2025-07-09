@@ -304,15 +304,26 @@ describe('PromptLineRenderer (Refactored)', () => {
                 return Promise.resolve({});
             });
 
+            // Mock textarea properties for the new implementation
+            (renderer as any).domManager.textarea.selectionStart = 0;
+            (renderer as any).domManager.getCurrentText = jest.fn().mockReturnValue('initial text');
+            (renderer as any).domManager.setCursorPosition = jest.fn();
+
             const event = new KeyboardEvent('keydown', {
                 key: 'v',
                 metaKey: true
             });
             event.preventDefault = jest.fn();
 
+            // Handle the keydown event (which sets up the setTimeout)
             await (renderer as any).handleKeyDown(event);
 
-            expect(event.preventDefault).toHaveBeenCalled();
+            // Wait for the setTimeout to execute
+            await new Promise(resolve => setTimeout(resolve, 10));
+
+            // With the new implementation, the image paste restores original text then inserts image path
+            expect((renderer as any).domManager.setText).toHaveBeenCalledWith('initial text');
+            expect((renderer as any).domManager.setCursorPosition).toHaveBeenCalledWith(0);
             expect((renderer as any).domManager.insertTextAtCursor).toHaveBeenCalledWith('/tmp/image.png');
             expect((renderer as any).draftManager.saveDraftDebounced).toHaveBeenCalled();
         });
