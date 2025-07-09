@@ -8,7 +8,8 @@ if (process.platform === 'darwin') {
   
   // Security warnings: enabled in all environments for better security
   // Note: Security warnings help identify potential security issues
-  delete process.env.ELECTRON_DISABLE_SECURITY_WARNINGS;
+  // Explicitly enable security warnings in all environments
+  process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'false';
   
   process.env.ELECTRON_ENABLE_LOGGING = 'false';
   process.noDeprecation = true;
