@@ -20,11 +20,9 @@ import {
     getCurrentApp, 
     pasteWithNativeTool,
     debounce,
-    throttle,
     safeJsonParse,
     safeJsonStringify,
     generateId,
-    formatTimeAgo,
     ensureDir,
     fileExists,
     sleep,
@@ -251,29 +249,6 @@ describe('Utils', () => {
         });
     });
 
-    describe('throttle', () => {
-        jest.useFakeTimers();
-
-        test('should limit function calls', () => {
-            const fn = jest.fn();
-            const throttledFn = throttle(fn, 100);
-            
-            throttledFn();
-            throttledFn();
-            throttledFn();
-            
-            expect(fn).toHaveBeenCalledTimes(1);
-            
-            jest.advanceTimersByTime(100);
-            throttledFn();
-            
-            expect(fn).toHaveBeenCalledTimes(2);
-        });
-
-        afterEach(() => {
-            jest.clearAllTimers();
-        });
-    });
 
     describe('safeJsonParse', () => {
         test('should parse valid JSON', () => {
@@ -326,31 +301,6 @@ describe('Utils', () => {
         });
     });
 
-    describe('formatTimeAgo', () => {
-        test('should format recent timestamps', () => {
-            const now = Date.now();
-            const result = formatTimeAgo(now - 30000); // 30 seconds ago
-            expect(result).toBe('Just now');
-        });
-
-        test('should format minutes ago', () => {
-            const now = Date.now();
-            const result = formatTimeAgo(now - 120000); // 2 minutes ago
-            expect(result).toBe('2m ago');
-        });
-
-        test('should format hours ago', () => {
-            const now = Date.now();
-            const result = formatTimeAgo(now - 7200000); // 2 hours ago
-            expect(result).toBe('2h ago');
-        });
-
-        test('should format days ago', () => {
-            const now = Date.now();
-            const result = formatTimeAgo(now - 172800000); // 2 days ago
-            expect(result).toBe('2d ago');
-        });
-    });
 
     describe('ensureDir', () => {
         test('should resolve when directory exists', async () => {

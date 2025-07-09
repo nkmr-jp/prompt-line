@@ -343,28 +343,6 @@ function debounce<T extends unknown[]>(
   return debouncedFunction;
 }
 
-function throttle<T extends unknown[]>(
-  func: (...args: T) => void, 
-  wait: number
-): (...args: T) => void {
-  let timeout: NodeJS.Timeout | undefined;
-  let lastRan: number | undefined;
-  
-  return function(this: unknown, ...args: T) {
-    if (!lastRan) {
-      func.apply(this, args);
-      lastRan = Date.now();
-    } else {
-      clearTimeout(timeout);
-      timeout = setTimeout(() => {
-        if (lastRan && (Date.now() - lastRan) >= wait) {
-          func.apply(this, args);
-          lastRan = Date.now();
-        }
-      }, wait - (Date.now() - lastRan));
-    }
-  };
-}
 
 function safeJsonParse<T = unknown>(jsonString: string, fallback?: T): T | null {
   try {
@@ -390,18 +368,6 @@ function generateId(): string {
   return Date.now().toString(TIME_CALCULATIONS.TIMESTAMP_BASE) + Math.random().toString(TIME_CALCULATIONS.TIMESTAMP_BASE).substring(TIME_CALCULATIONS.RANDOM_ID_START, TIME_CALCULATIONS.RANDOM_ID_END);
 }
 
-function formatTimeAgo(timestamp: number): string {
-  const now = Date.now();
-  const diff = now - timestamp;
-  const minutes = Math.floor(diff / TIME_CALCULATIONS.MILLISECONDS_PER_MINUTE);
-  const hours = Math.floor(diff / TIME_CALCULATIONS.MILLISECONDS_PER_HOUR);
-  const days = Math.floor(diff / TIME_CALCULATIONS.MILLISECONDS_PER_DAY);
-
-  if (minutes < 1) return 'Just now';
-  if (minutes < 60) return `${minutes}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  return `${days}d ago`;
-}
 
 async function ensureDir(dirPath: string): Promise<void> {
   try {
@@ -667,11 +633,9 @@ export {
   activateAndPasteWithNativeTool,
   checkAccessibilityPermission,
   debounce,
-  throttle,
   safeJsonParse,
   safeJsonStringify,
   generateId,
-  formatTimeAgo,
   ensureDir,
   fileExists,
   sleep,
