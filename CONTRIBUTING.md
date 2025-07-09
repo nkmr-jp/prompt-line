@@ -3,11 +3,11 @@
 # Operating Policy
 Welcome and thank you for wanting to contribute!
 
-This is a personal OSS project, so we aim to operate it with minimal overhead. <br>
-The basic approach is to "build features I want and share them publicly" with a relaxed stance. <br>
-Additionally, we have a policy of not adding features that I don't personally use, as they increase maintenance burden.
+This is a personal OSS project, so I aim to operate it with minimal overhead. <br>
+The basic approach is to "build features I want and share them publicly". <br>
+Additionally, I have a policy of not adding features that I don't personally use, as they increase maintenance burden.
 
-We basically expect users to freely customize and use it in their own environments.
+I basically expect users to freely customize and use it in their own environments.
 
 ## 1. Feel free to fork and customize
 * Please customize it freely according to your environment.
@@ -16,7 +16,7 @@ We basically expect users to freely customize and use it in their own environmen
   * Since most of the code is implemented in TypeScript and built with Electron, porting should be possible with relatively few code changes, such as replacing the native API calls with platform-specific implementations.
 
 ## 2. Please create an Issue for bug reports
-* We will try to address bugs that can be reproduced in the author's environment.
+* I will try to address bugs that can be reproduced in my environment.
 * Please provide detailed information when reporting.
 * For environment-specific bugs, testing and support may be difficult, so please consult AI like Claude.
 * Please refrain from submitting AI-generated Issues.
@@ -31,11 +31,11 @@ When reporting a bug, please include the following information:
 * **Screenshots**: If applicable. Videos are also acceptable.
 
 ## 3. Pull Requests are not currently accepted
-We are not currently accepting Pull Requests from third parties for the following reasons:
+Prompt Line is not currently accepting Pull Requests from third parties for the following reasons:
 * **Review and testing overhead**
-  * As a personal project, we want to avoid spending time on PR reviews and testing
+  * As a personal project, I want to avoid spending time on PR reviews and testing
   * Explanation of project policies and implementation patterns is high cost
-  * We want to avoid the effort of adjusting different implementation styles
+  * I want to avoid the effort of adjusting different implementation styles
 * **Security concerns**
   * External code may contain security risks
   * Security is particularly important for an app requiring accessibility permissions
