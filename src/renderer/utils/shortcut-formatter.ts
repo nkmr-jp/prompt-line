@@ -55,7 +55,7 @@ export function updateShortcutsDisplay(
     const nextKey = nextParts[nextParts.length - 1];
     const prevKey = prevParts[prevParts.length - 1];
     
-    historyShortcutsEl.innerHTML = `<kbd style="font-size: 9px; padding: 1px 4px;">${nextModifier}</kbd>+<kbd style="font-size: 9px; padding: 1px 4px;">${nextKey}</kbd>/<kbd style="font-size: 9px; padding: 1px 4px;">${prevKey}</kbd>`;
+    historyShortcutsEl.innerHTML = `<kbd class="history-kbd">${nextModifier}</kbd>+<kbd class="history-kbd">${nextKey}</kbd>/<kbd class="history-kbd">${prevKey}</kbd>`;
   }
 
   // Update search button tooltip
