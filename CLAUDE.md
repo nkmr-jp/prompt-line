@@ -265,10 +265,10 @@ When conducting investigations (CI failures, bugs, security issues, design consi
 1. **Documentation**: Always document investigation results in `.claude/scratch/` directory
 2. **File Format**: Use markdown format for all investigation reports
 3. **File Naming**: Use descriptive names like:
-   - `ci-failure-investigation-YYYYMMDD.md`
-   - `bug-report-issue-123.md`
-   - `design-plan-feature-name.md`
-   - `implementation-plan-YYYYMMDD.md`
+   - `YYYYMMDD-ci-failure-investigation.md`
+   - `YYYYMMDD-bug-report-issue-123.md`
+   - `YYYYMMDD-design-plan-feature-name.md`
+   - `YYYYMMDD-implementation-plan.md`
 4. **Content Structure**: Include:
    - Summary of the issue/task
    - Investigation/analysis steps taken
