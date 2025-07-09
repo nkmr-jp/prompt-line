@@ -22,6 +22,14 @@ Prompt Lineは、[Claude Code](https://github.com/anthropics/claude-code)、[Gem
 テキスト入力してサクッと貼付け(`Cmd+Enter`)。
 ![doc1.gif](assets/doc1.gif)
 
+### 音声入力したテキストの編集にも最適
+操作性は一般的なテキストエディタと同じです。<br>
+もちろん音声入力アプリと組み合わせて使うこともできます。<br>
+Enterを押しても勝手に送信されないので、改行する場合も気をつける必要はありません。 <br>
+音声入力したテキストの編集にも最適です。<br>
+(この動画では[superwhisper](https://superwhisper.com/)を使っています。)
+![doc2.gif](assets/doc2.gif)
+
 ### プロンプト履歴を検索して再利用可能
 プロンプト履歴は保存されており、右のメニューから再利用可能です。<br>
 検索もできます。(`Cmd+f`)
@@ -34,14 +42,6 @@ Prompt Lineは、[Claude Code](https://github.com/anthropics/claude-code)、[Gem
 
 もちろん、ターミナル以外でも使えます。
 ![doc5.gif](assets/doc5.gif)
-
-### 音声入力したテキストの編集にも最適
-操作性は一般的なテキストエディタと同じです。<br>
-もちろん音声入力アプリと組み合わせて使うこともできます。<br>
-Enterを押しても勝手に送信されないので、改行する場合も気をつける必要はありません。 <br>
-音声入力したテキストの編集にも最適です。<br>
-(この動画では[superwhisper](https://superwhisper.com/)を使っています。)
-![doc2.gif](assets/doc2.gif)
 
 ## 📦 インストール
 

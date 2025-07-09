@@ -13,7 +13,7 @@ import {
 import type WindowManager from '../managers/window-manager';
 import type DraftManager from '../managers/draft-manager';
 import type SettingsManager from '../managers/settings-manager';
-import type { AppInfo, WindowData, HistoryItem, HistoryStats, UserSettings, IHistoryManager } from '../types';
+import type { AppInfo, WindowData, HistoryItem, IHistoryManager } from '../types';
 
 interface IPCResult {
   success: boolean;
@@ -85,19 +85,14 @@ class IPCHandlers {
     ipcMain.handle('clear-history', this.handleClearHistory.bind(this));
     ipcMain.handle('remove-history-item', this.handleRemoveHistoryItem.bind(this));
     ipcMain.handle('search-history', this.handleSearchHistory.bind(this));
-    ipcMain.handle('get-history-stats', this.handleGetHistoryStats.bind(this));
     ipcMain.handle('save-draft', this.handleSaveDraft.bind(this));
     ipcMain.handle('clear-draft', this.handleClearDraft.bind(this));
     ipcMain.handle('get-draft', this.handleGetDraft.bind(this));
-    ipcMain.handle('get-draft-stats', this.handleGetDraftStats.bind(this));
     ipcMain.handle('hide-window', this.handleHideWindow.bind(this));
     ipcMain.handle('show-window', this.handleShowWindow.bind(this));
     ipcMain.handle('get-app-info', this.handleGetAppInfo.bind(this));
     ipcMain.handle('get-config', this.handleGetConfig.bind(this));
     ipcMain.handle('paste-image', this.handlePasteImage.bind(this));
-    ipcMain.handle('get-settings', this.handleGetSettings.bind(this));
-    ipcMain.handle('update-settings', this.handleUpdateSettings.bind(this));
-    ipcMain.handle('reset-settings', this.handleResetSettings.bind(this));
     ipcMain.handle('open-settings', this.handleOpenSettings.bind(this));
 
     logger.info('IPC handlers set up successfully');
@@ -271,16 +266,6 @@ class IPCHandlers {
     }
   }
 
-  private async handleGetHistoryStats(_event: IpcMainInvokeEvent): Promise<HistoryStats | {}> {
-    try {
-      const stats = this.historyManager.getHistoryStats();
-      logger.debug('History stats requested');
-      return stats;
-    } catch (error) {
-      logger.error('Failed to get history stats:', error);
-      return {};
-    }
-  }
 
   private async handleSaveDraft(
     _event: IpcMainInvokeEvent, 
@@ -324,16 +309,6 @@ class IPCHandlers {
     }
   }
 
-  private async handleGetDraftStats(_event: IpcMainInvokeEvent): Promise<Record<string, unknown>> {
-    try {
-      const stats = this.draftManager.getDraftStats();
-      logger.debug('Draft stats requested');
-      return stats as unknown as Record<string, unknown>;
-    } catch (error) {
-      logger.error('Failed to get draft stats:', error);
-      return {};
-    }
-  }
 
   private async handleHideWindow(_event: IpcMainInvokeEvent, restoreFocus: boolean = true): Promise<IPCResult> {
     try {
@@ -453,8 +428,15 @@ class IPCHandlers {
         logger.error('Failed to create images directory:', error);
       }
 
-      const timestamp = Date.now();
-      const filename = `image-${timestamp}.png`;
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      
+      const filename = `${year}${month}${day}_${hours}${minutes}${seconds}.png`;
       const filepath = path.join(imagesDir, filename);
       
       // Normalize and validate path to prevent path traversal
@@ -484,43 +466,7 @@ class IPCHandlers {
       return { success: false, error: (error as Error).message };
     }
   }
-
-  private async handleGetSettings(_event: IpcMainInvokeEvent): Promise<UserSettings | {}> {
-    try {
-      const settings = this.settingsManager.getSettings();
-      logger.debug('Settings requested');
-      return settings;
-    } catch (error) {
-      logger.error('Failed to get settings:', error);
-      return {};
-    }
-  }
-
-  private async handleUpdateSettings(
-    _event: IpcMainInvokeEvent, 
-    newSettings: Partial<UserSettings>
-  ): Promise<IPCResult> {
-    try {
-      await this.settingsManager.updateSettings(newSettings);
-      logger.info('Settings updated via IPC');
-      return { success: true };
-    } catch (error) {
-      logger.error('Failed to update settings:', error);
-      return { success: false, error: (error as Error).message };
-    }
-  }
-
-  private async handleResetSettings(_event: IpcMainInvokeEvent): Promise<IPCResult> {
-    try {
-      await this.settingsManager.resetSettings();
-      logger.info('Settings reset via IPC');
-      return { success: true };
-    } catch (error) {
-      logger.error('Failed to reset settings:', error);
-      return { success: false, error: (error as Error).message };
-    }
-  }
-
+  
   private async handleOpenSettings(_event: IpcMainInvokeEvent): Promise<IPCResult> {
     try {
       const settingsFilePath = this.settingsManager.getSettingsFilePath();
@@ -541,19 +487,14 @@ class IPCHandlers {
       'clear-history',
       'remove-history-item',
       'search-history',
-      'get-history-stats',
       'save-draft',
       'clear-draft',
       'get-draft',
-      'get-draft-stats',
       'hide-window',
       'show-window',
       'get-app-info',
       'get-config',
       'paste-image',
-      'get-settings',
-      'update-settings',
-      'reset-settings',
       'open-settings'
     ];
 

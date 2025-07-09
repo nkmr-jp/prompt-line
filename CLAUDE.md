@@ -33,6 +33,12 @@ npm run lint       # Check code style
 npm run lint:fix   # Auto-fix code style issues
 npm run typecheck  # Run TypeScript type checking
 npm run pre-push   # Run all pre-push checks (lint + typecheck + test)
+
+# Additional build commands
+npm run build:renderer  # Vite build for renderer process
+npm run clean      # Removes build artifacts
+npm run release    # Semantic release process
+npm run prepare    # Husky setup
 ```
 
 **Build Process Details:**
@@ -46,7 +52,9 @@ The `npm run compile` command performs:
 The project uses automated git hooks to ensure code quality:
 
 **Pre-commit hooks (via husky):**
-- `lint-staged`: Automatically runs ESLint with --fix on staged .js and .ts files
+- Custom script: Automatically runs ESLint with --fix on staged .js and .ts files
+- Runs TypeScript type checking
+- Re-adds auto-fixed files to staging
 - Only processes files that are actually being committed (faster than full project linting)
 
 **Pre-push hooks:**
@@ -57,7 +65,6 @@ The project uses automated git hooks to ensure code quality:
 **Manual quality checks:**
 ```bash
 npm run pre-push   # Run all pre-push checks manually
-npx lint-staged    # Run lint-staged manually on staged files
 ```
 
 **Setup for new contributors:**
@@ -110,6 +117,9 @@ The app uses Electron's two-process model with clean separation:
   - `renderer.ts`: Main renderer class with integrated keyboard handling and manager pattern
   - `ui-manager.ts`: Advanced UI management with themes, animations, and notifications
   - `input.html`: Main window template
+  - 9 specialized managers: DOM, events, search, lifecycle, shortcuts, animation, and more
+  - Comprehensive CSS architecture with themes and modular stylesheets
+  - TypeScript configuration and utility functions
 - **IPC Bridge** (`src/handlers/ipc-handlers.ts`): All communication between processes goes through well-defined IPC channels
 
 ### Manager Pattern
@@ -142,6 +152,7 @@ User Input → Renderer → IPC Event → Handler → Manager → Data/System
 - `save-draft`, `clear-draft`, `get-draft`: Draft management
 - `hide-window`, `show-window`: Window control
 - `get-config`, `get-app-info`: Configuration and app metadata
+- Additional channels: Settings management, statistics, configuration, and more (18 total channels)
 
 ## Platform-Specific Implementation
 
@@ -162,24 +173,26 @@ The app uses compiled Swift native tools to simulate Cmd+V in the previously act
 ### Data Storage
 All data is stored in `~/.prompt-line/`:
 - `history.jsonl`: Paste history (JSONL format for efficient append operations)
-- `draft.json`: Auto-saved drafts
+- `draft.json`: Auto-saved drafts (created on-demand when drafts are saved)
 - `settings.yml`: User preferences including window positioning mode
 - `app.log`: Application logs with debug information
+- `images/`: Directory for image storage
 
 ### Build Output
-The built application is stored in `dist/app/`:
-- `dist/app/mac-arm64/`: Apple Silicon build
-- `dist/app/mac-x64/`: Intel build
-- Each folder contains the complete `Prompt Line.app` ready for use
+The built application is stored in `dist/`:
+- `dist/mac-arm64/Prompt Line.app`: Apple Silicon build
+- `dist/mac/Prompt Line.app`: Intel build
+- DMG files: `Prompt-Line-{version}-arm64.dmg` and `Prompt-Line-{version}-x64.dmg`
 
 ## Testing Strategy
 
 ### Mock Infrastructure
-Tests use comprehensive mocks defined in `tests/setup.js`:
-- Electron APIs (app, BrowserWindow, clipboard, etc.)
+Tests use comprehensive mocks defined in `tests/setup.ts`:
+- Electron APIs (app, BrowserWindow, clipboard, screen, etc.)
 - File system operations
 - Child process execution
 - IPC communication
+- Advanced mocking with full TypeScript support
 
 ### Test Organization
 - **Unit tests**: Test individual managers/utilities in isolation
@@ -265,10 +278,10 @@ When conducting investigations (CI failures, bugs, security issues, design consi
 1. **Documentation**: Always document investigation results in `.claude/scratch/` directory
 2. **File Format**: Use markdown format for all investigation reports
 3. **File Naming**: Use descriptive names like:
-   - `ci-failure-investigation-YYYYMMDD.md`
-   - `bug-report-issue-123.md`
-   - `design-plan-feature-name.md`
-   - `implementation-plan-YYYYMMDD.md`
+   - `YYYYMMDD-ci-failure-investigation.md`
+   - `YYYYMMDD-bug-report-issue-123.md`
+   - `YYYYMMDD-design-plan-feature-name.md`
+   - `YYYYMMDD-implementation-plan.md`
 4. **Content Structure**: Include:
    - Summary of the issue/task
    - Investigation/analysis steps taken

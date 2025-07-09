@@ -44,13 +44,6 @@ export class HistoryUIManager {
         const moreIndicator = document.createElement('div');
         moreIndicator.className = 'history-more';
         moreIndicator.textContent = `+${dataToRender.length - LIMITS.MAX_VISIBLE_ITEMS} more items`;
-        moreIndicator.style.cssText = `
-          padding: 8px 16px;
-          text-align: center;
-          color: rgba(255, 255, 255, 0.4);
-          font-size: 11px;
-          border-top: 1px solid rgba(255, 255, 255, 0.05);
-        `;
         historyList.appendChild(moreIndicator);
       }
 
