@@ -163,14 +163,26 @@ export class PromptLineRenderer {
       if (!this.domManager.textarea) return;
 
       if (e.key === 'v' && (e.metaKey || e.ctrlKey)) {
-        // Check if there's an image in clipboard first
-        const result = await electronAPI.invoke('paste-image') as ImageResult;
-        if (result.success && result.path) {
-          e.preventDefault();
-          this.domManager.insertTextAtCursor(result.path);
-          this.draftManager.saveDraftDebounced();
-        }
-        // If no image, let the default paste behavior handle text
+        // Store current text content before paste operation
+        const textBeforePaste = this.domManager.getCurrentText();
+        const cursorPosition = this.domManager.textarea.selectionStart;
+        
+        // Let default paste happen first, then check if we need to handle image
+        setTimeout(async () => {
+          try {
+            const result = await electronAPI.invoke('paste-image') as ImageResult;
+            if (result.success && result.path) {
+              // Image paste successful - remove any text that was pasted and insert image path
+              this.domManager.setText(textBeforePaste);
+              this.domManager.setCursorPosition(cursorPosition);
+              this.domManager.insertTextAtCursor(result.path);
+              this.draftManager.saveDraftDebounced();
+            }
+            // If no image, the default text paste behavior is preserved
+          } catch (error) {
+            console.error('Error handling image paste:', error);
+          }
+        }, 0);
         return;
       }
 
