@@ -26,9 +26,7 @@ export class LifecycleManager {
       const appName = this.getAppDisplayName(data.sourceApp);
       this.updateAppNameCallback(appName);
       
-      if (draftValue && draftValue.trim()) {
-        this.showDraftRestoredNotification(appName);
-      }
+      // Draft is loaded instantly, no notification needed
     } catch (error) {
       console.error('Error handling window shown:', error);
     }
@@ -84,15 +82,6 @@ export class LifecycleManager {
     return 'Prompt Line';
   }
 
-  private showDraftRestoredNotification(originalAppName: string): void {
-    const appNameEl = this.getAppNameEl();
-    if (!appNameEl) return;
-
-    this.updateAppNameCallback(appNameEl.textContent + ' (draft restored)');
-    setTimeout(() => {
-      this.updateAppNameCallback(originalAppName);
-    }, 2000);
-  }
 
   private updateShortcutsDisplay(): void {
     if (!this.userSettings) return;
