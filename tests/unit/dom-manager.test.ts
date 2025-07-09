@@ -18,10 +18,27 @@ describe('DomManager', () => {
     select: jest.fn()
   });
 
-  const createMockElement = () => ({
-    textContent: '',
-    style: {} as CSSStyleDeclaration
-  });
+  const createMockElement = () => {
+    const classes = new Set<string>();
+    return {
+      textContent: '',
+      style: {} as CSSStyleDeclaration,
+      classList: {
+        add: jest.fn((className: string) => classes.add(className)),
+        remove: jest.fn((className: string) => classes.delete(className)),
+        contains: jest.fn((className: string) => classes.has(className)),
+        toggle: jest.fn((className: string) => {
+          if (classes.has(className)) {
+            classes.delete(className);
+            return false;
+          } else {
+            classes.add(className);
+            return true;
+          }
+        })
+      }
+    };
+  };
 
   beforeEach(() => {
     // Clear document
@@ -184,7 +201,7 @@ describe('DomManager', () => {
       domManager.showError('Test error');
 
       expect(domManager.appNameEl!.textContent).toBe('Error: Test error');
-      expect(domManager.appNameEl!.style.color).toBe('#ff6b6b');
+      expect(domManager.appNameEl!.classList.contains('app-name-error')).toBe(true);
     });
 
     test('should restore original text after error duration', (done) => {
@@ -194,7 +211,7 @@ describe('DomManager', () => {
 
       setTimeout(() => {
         expect(domManager.appNameEl!.textContent).toBe('Original Text');
-        expect(domManager.appNameEl!.style.color).toBe('');
+        expect(domManager.appNameEl!.classList.contains('app-name-error')).toBe(false);
         done();
       }, 150);
     });

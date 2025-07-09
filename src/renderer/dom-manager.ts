@@ -39,12 +39,12 @@ export class DomManager {
     
     const originalText = this.appNameEl.textContent;
     this.appNameEl.textContent = `Error: ${message}`;
-    this.appNameEl.style.color = '#ff6b6b';
+    this.appNameEl.classList.add('app-name-error');
 
     setTimeout(() => {
       if (this.appNameEl) {
         this.appNameEl.textContent = originalText;
-        this.appNameEl.style.color = '';
+        this.appNameEl.classList.remove('app-name-error');
       }
     }, duration);
   }

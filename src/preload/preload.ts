@@ -30,9 +30,48 @@ const ALLOWED_CHANNELS = [
   'window-shown'
 ];
 
-// IPC channel validation
+// IPC channel validation with additional security checks
 function validateChannel(channel: string): boolean {
-  return ALLOWED_CHANNELS.includes(channel);
+  // Check if channel is in allowed list
+  if (!ALLOWED_CHANNELS.includes(channel)) {
+    return false;
+  }
+  
+  // Additional validation: prevent prototype pollution
+  if (channel.includes('__proto__') || channel.includes('constructor') || channel.includes('prototype')) {
+    return false;
+  }
+  
+  // Prevent path traversal attempts
+  if (channel.includes('../') || channel.includes('..\\')) {
+    return false;
+  }
+  
+  return true;
+}
+
+// Input sanitization helper
+function sanitizeInput(input: any): any {
+  if (typeof input === 'string') {
+    // Prevent excessive length
+    if (input.length > 1000000) { // 1MB limit
+      throw new Error('Input too long');
+    }
+    
+    // Basic sanitization
+    return input.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+  }
+  
+  if (typeof input === 'object' && input !== null) {
+    // Prevent prototype pollution
+    if (Object.prototype.hasOwnProperty.call(input, '__proto__') || 
+        Object.prototype.hasOwnProperty.call(input, 'constructor') || 
+        Object.prototype.hasOwnProperty.call(input, 'prototype')) {
+      throw new Error('Potentially dangerous object properties detected');
+    }
+  }
+  
+  return input;
 }
 
 // Secure API exposure
@@ -43,8 +82,11 @@ const electronAPI = {
       throw new Error(`Unauthorized IPC channel: ${channel}`);
     }
     
+    // Sanitize input arguments
+    const sanitizedArgs = args.map(arg => sanitizeInput(arg));
+    
     try {
-      return await ipcRenderer.invoke(channel, ...args);
+      return await ipcRenderer.invoke(channel, ...sanitizedArgs);
     } catch (error) {
       console.error(`IPC invoke error on channel ${channel}:`, error);
       throw error;

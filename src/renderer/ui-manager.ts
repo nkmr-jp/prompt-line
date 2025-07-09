@@ -97,30 +97,6 @@ class UIManager {
     const notification = document.createElement('div');
     notification.className = `notification notification-${type} fade-in`;
     notification.textContent = message;
-    notification.style.cssText = `
-      position: fixed;
-      top: 16px;
-      right: 16px;
-      padding: 12px 16px;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 500;
-      z-index: 10000;
-      max-width: 300px;
-      word-wrap: break-word;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-    `;
-
-    const colors = {
-      info: { bg: '#007AFF', text: '#ffffff' },
-      success: { bg: '#28a745', text: '#ffffff' },
-      warning: { bg: '#ffc107', text: '#000000' },
-      error: { bg: '#dc3545', text: '#ffffff' }
-    };
-
-    const color = colors[type] || colors.info;
-    notification.style.backgroundColor = color.bg;
-    notification.style.color = color.text;
 
     document.body.appendChild(notification);
 
@@ -170,14 +146,15 @@ class UIManager {
     const text = `${count} char${count !== 1 ? 's' : ''}`;
     this.elements.charCount.textContent = text;
 
+    // Remove existing color classes
+    this.elements.charCount.classList.remove('char-count-warning', 'char-count-error');
+
     if (maxCount) {
       const percentage = count / maxCount;
       if (percentage > 0.9) {
-        this.elements.charCount.style.color = '#dc3545';
+        this.elements.charCount.classList.add('char-count-error');
       } else if (percentage > 0.7) {
-        this.elements.charCount.style.color = '#ffc107';
-      } else {
-        this.elements.charCount.style.color = '';
+        this.elements.charCount.classList.add('char-count-warning');
       }
     }
   }
@@ -191,17 +168,17 @@ class UIManager {
     if (loading) {
       if (this.elements.textarea) {
         this.elements.textarea.disabled = true;
-        this.elements.textarea.style.opacity = '0.6';
+        this.elements.textarea.classList.add('textarea-loading');
       }
       
-      document.body.style.cursor = 'wait';
+      document.body.classList.add('loading');
     } else {
       if (this.elements.textarea) {
         this.elements.textarea.disabled = false;
-        this.elements.textarea.style.opacity = '';
+        this.elements.textarea.classList.remove('textarea-loading');
       }
       
-      document.body.style.cursor = '';
+      document.body.classList.remove('loading');
     }
   }
 
@@ -215,9 +192,9 @@ class UIManager {
     if (this.elements.historyList) {
       this.elements.historyList.innerHTML = `
         <div class="history-empty">
-          <div style="margin-bottom: 8px;">📝</div>
+          <div class="history-empty-icon">📝</div>
           <div>No history items</div>
-          <div style="font-size: 11px; margin-top: 4px; opacity: 0.6;">
+          <div class="history-empty-subtitle">
             Start typing to create history
           </div>
         </div>

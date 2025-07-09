@@ -48,6 +48,17 @@
     margin: 0;
 }
 
+.history-shortcuts {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.4);
+    font-weight: normal;
+}
+
+.history-shortcuts kbd {
+    font-size: 9px;
+    padding: 1px 4px;
+}
+
 .history-list {
     flex: 1;
     overflow-y: auto;

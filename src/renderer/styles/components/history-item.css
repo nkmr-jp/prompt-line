@@ -51,3 +51,11 @@
     color: var(--text-tertiary);
     font-size: 11px;
 }
+
+.history-more {
+    padding: 8px 16px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 11px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
