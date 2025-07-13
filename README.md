@@ -96,6 +96,7 @@ Of course, it also works with apps other than Terminal.
 6. Drag Prompt Line.app to Applications folder
 7. Launch Prompt Line. An icon will appear in the system tray.
 <div><img src="assets/doc6.png" width="200"></div>
+
 8. You can start using it with `Cmd+Shift+Space`.
 
 ### Accessibility Permissions
