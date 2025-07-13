@@ -1,4 +1,6 @@
-[English](README.md) | [日本語](README_ja.md)
+<!-- Keep these links. Translations will automatically update with the README. -->
+[English](README.md) |
+日本語
 
 # 🧑‍💻 Prompt Line
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/nkmr-jp/prompt-line)
@@ -86,6 +88,7 @@ Enterを押しても勝手に送信されないので、改行する場合も気
 6. Prompt Line.appをApplicationsフォルダにドラッグ
 7. Prompt Lineを起動。システムトレーにアイコンが表示されます。
 <div><img src="assets/doc6.png" width="200"></div>
+
 8. `Cmd+Shift+Space`で使い始められます。
 
 ### アクセシビリティ権限
