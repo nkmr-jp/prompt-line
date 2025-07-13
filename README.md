@@ -1,4 +1,13 @@
-[English](README.md) | [日本語](README_ja.md)
+<!-- Keep these links. Translations will automatically update with the README. -->
+[Deutsch](https://readme-i18n.com/nkmr-jp/prompt-line?lang=de) |
+[English](https://readme-i18n.com/nkmr-jp/prompt-line?lang=en) |
+[Español](https://readme-i18n.com/nkmr-jp/prompt-line?lang=es) |
+[français](https://readme-i18n.com/nkmr-jp/prompt-line?lang=fr) |
+[日本語](https://readme-i18n.com/nkmr-jp/prompt-line?lang=ja) |
+[한국어](https://readme-i18n.com/nkmr-jp/prompt-line?lang=ko) |
+[Português](https://readme-i18n.com/nkmr-jp/prompt-line?lang=pt) |
+[Русский](https://readme-i18n.com/nkmr-jp/prompt-line?lang=ru) |
+[中文](https://readme-i18n.com/nkmr-jp/prompt-line?lang=zh)
 
 # 🧑‍💻 Prompt Line
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/nkmr-jp/prompt-line)
