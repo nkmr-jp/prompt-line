@@ -2,7 +2,6 @@
 English |
 [日本語](README_ja.md) |
 [Deutsch](https://readme-i18n.com/nkmr-jp/prompt-line?lang=de) |
-[English](https://readme-i18n.com/nkmr-jp/prompt-line?lang=en) |
 [Español](https://readme-i18n.com/nkmr-jp/prompt-line?lang=es) |
 [français](https://readme-i18n.com/nkmr-jp/prompt-line?lang=fr) |
 [한국어](https://readme-i18n.com/nkmr-jp/prompt-line?lang=ko) |
