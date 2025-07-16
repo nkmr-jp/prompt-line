@@ -30,11 +30,11 @@
           "types": [
             {"type": "feat","hidden": false, "section": "Features"},
             {"type": "fix","hidden": false, "section": "Bug Fixes"},
-            {"type": "style","hidden": false, "section": "Miscellaneous"},
-            {"type": "refactor","hidden": false, "section": "Miscellaneous"},
+            {"type": "style","hidden": false, "section": "Code Style"},
+            {"type": "refactor","hidden": false, "section": "Code Refactoring"},
             {"type": "perf","hidden": false, "section": "Performance Improvements"},
-            {"type": "test","hidden": false, "section": "Miscellaneous"},
-            {"type": "chore","hidden": false, "section": "Miscellaneous"}
+            {"type": "test","hidden": false, "section": "Tests"},
+            {"type": "chore","hidden": false, "section": "Maintenance"}
           ]
         }
       }
