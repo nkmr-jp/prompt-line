@@ -98,15 +98,15 @@ A dialog box will appear on first use, so follow the instructions to set it up.
 <div><img src="assets/doc7.png" width="200"></div>
 
 
-## Troubleshooting
+### Troubleshooting
 
-### If the accessibility permissions dialog box does not appear
+#### If the accessibility permissions dialog box does not appear
 
 1. Open **System Settings** → **Privacy and Security** → **Accessibility**.
 2. Find “Prompt Line” in the list and enable it.
 3. If it is not in the list, add Prompt Line from Applications using the “+” button.
 
-### If “Prompt Line” is enabled in Accessibility Permissions but you still cannot paste
+#### If “Prompt Line” is enabled in Accessibility Permissions but you still cannot paste
 
 1. Open **System Settings** → **Privacy and Security** → **Accessibility**
 2. Delete “Prompt Line” from Applications using the “-” button to reset permissions
@@ -117,12 +117,12 @@ Accessibility permissions can also be reset using the following command:
 npm run reset-accessibility
 ```
 
-## 📦 Update
+## 📦 Update to the latest version
 1. Reset the accessibility permissions for the Prompt Line with the following command
 ```bash
 npm run reset-accessibility
 ```
-2. Refer to the “📦 Install” section and reinstall.
+2. Refer to the “📦 Installation” section and reinstall.
 
 ## Usage
 
