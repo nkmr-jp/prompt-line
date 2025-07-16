@@ -10,8 +10,9 @@
     [
       "@semantic-release/commit-analyzer",
       {
-        "preset": "angular",
+        "preset": "conventionalcommits",
         "releaseRules": [
+          {"type": "feat", "release": "minor"},
           {"type": "fix", "release": "patch"},
           {"type": "style", "release": "patch"},
           {"type": "refactor", "release": "patch"},
@@ -24,16 +25,16 @@
     [
       "@semantic-release/release-notes-generator",
       {
-        "preset": "angular",
+        "preset": "conventionalcommits",
         "presetConfig": {
           "types": [
             {"type": "feat","hidden": false, "section": "Features"},
             {"type": "fix","hidden": false, "section": "Bug Fixes"},
-            {"type": "style","hidden": false, "section": "Code Style"},
-            {"type": "refactor","hidden": false, "section": "Code Refactoring"},
+            {"type": "style","hidden": false, "section": "Miscellaneous"},
+            {"type": "refactor","hidden": false, "section": "Miscellaneous"},
             {"type": "perf","hidden": false, "section": "Performance Improvements"},
-            {"type": "test","hidden": false, "section": "Tests"},
-            {"type": "chore","hidden": false, "section": "Maintenance"}
+            {"type": "test","hidden": false, "section": "Miscellaneous"},
+            {"type": "chore","hidden": false, "section": "Miscellaneous"}
           ]
         }
       }
