@@ -1,11 +1,8 @@
-<!-- Keep these links. Translations will automatically update with the README. -->
-[English](README.md) |
-日本語
-
 # 🧑‍💻 Prompt Line
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/nkmr-jp/prompt-line)
 
-macOS用フローティングテキスト入力ツール。あらゆるアプリケーションで素早くテキスト入力が可能です。
+[English](README.md) |
+日本語
 
 ## 概要
 

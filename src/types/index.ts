@@ -46,22 +46,6 @@ export interface HistoryStats {
   newestTimestamp: number | null;
 }
 
-export interface DraftStats {
-  hasData: boolean;
-  length: number;
-  lastSaved: number | null;
-  autoSaveEnabled: boolean;
-}
-
-export interface AppStats {
-  isInitialized: boolean;
-  historyStats: HistoryStats;
-  draftStats: DraftStats;
-  windowVisible: boolean;
-  platform: string;
-  version: string;
-}
-
 export interface PlatformConfig {
   isMac: boolean;
   isWindows: boolean;
