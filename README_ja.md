@@ -114,6 +114,15 @@ Prompt Lineが他のアプリケーションにテキストを貼り付けるに
 npm run reset-accessibility
 ```
 
+
+## 📦 アップデート
+1. 以下のコマンドでPrompt Lineのアクセシビリティ権限をリセット
+```bash
+npm run reset-accessibility
+```
+2. 「📦 インストール」の項目を参照して、再度インストールしてください。
+
+
 ## 使用方法
 
 ### 基本的なワークフロー

@@ -117,6 +117,13 @@ Accessibility permissions can also be reset using the following command:
 npm run reset-accessibility
 ```
 
+## 📦 Update
+1. Reset the accessibility permissions for the Prompt Line with the following command
+```bash
+npm run reset-accessibility
+```
+2. Refer to the “📦 Install” section and reinstall.
+
 ## Usage
 
 ### Basic Workflow
