@@ -21,7 +21,23 @@
         ]
       }
     ],
-    "@semantic-release/release-notes-generator",
+    [
+      "@semantic-release/release-notes-generator",
+      {
+        "preset": "angular",
+        "presetConfig": {
+          "types": [
+            {"type": "feat", "section": "Features"},
+            {"type": "fix", "section": "Bug Fixes"},
+            {"type": "style", "section": "Code Style"},
+            {"type": "refactor", "section": "Code Refactoring"},
+            {"type": "perf", "section": "Performance Improvements"},
+            {"type": "test", "section": "Tests"},
+            {"type": "chore", "section": "Maintenance"}
+          ]
+        }
+      }
+    ],
     "@semantic-release/changelog",
     [
       "@semantic-release/npm",
