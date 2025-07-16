@@ -23,7 +23,7 @@ import DraftManager from './managers/draft-manager';
 import SettingsManager from './managers/settings-manager';
 import IPCHandlers from './handlers/ipc-handlers';
 import { logger, ensureDir } from './utils/utils';
-import type { AppStats, HistoryStats, WindowData, DraftStats } from './types';
+import type { WindowData } from './types';
 
 class PromptLineApp {
   private windowManager: WindowManager | null = null;
@@ -316,31 +316,6 @@ class PromptLineApp {
     } catch (error) {
       logger.error('Failed to hide input window:', error);
     }
-  }
-
-  getAppStats(): AppStats {
-    const defaultDraftStats: DraftStats = {
-      hasData: false,
-      length: 0,
-      lastSaved: null,
-      autoSaveEnabled: false
-    };
-
-    const draftStats = this.draftManager ? this.draftManager.getDraftStats() : defaultDraftStats;
-    
-    return {
-      isInitialized: this.isInitialized,
-      historyStats: this.historyManager ? this.historyManager.getHistoryStats() : {} as HistoryStats,
-      draftStats: {
-        hasData: 'hasContent' in draftStats ? draftStats.hasContent || false : false,
-        length: draftStats.length || 0,
-        lastSaved: null,
-        autoSaveEnabled: false
-      },
-      windowVisible: this.windowManager ? this.windowManager.isVisible() : false,
-      platform: process.platform,
-      version: config.app.version
-    };
   }
 
   private async cleanup(): Promise<void> {

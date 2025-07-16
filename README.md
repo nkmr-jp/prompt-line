@@ -1,18 +1,9 @@
-<!-- Keep these links. Translations will automatically update with the README. -->
-English |
-[日本語](README_ja.md) |
-[Deutsch](https://readme-i18n.com/nkmr-jp/prompt-line?lang=de) |
-[Español](https://readme-i18n.com/nkmr-jp/prompt-line?lang=es) |
-[français](https://readme-i18n.com/nkmr-jp/prompt-line?lang=fr) |
-[한국어](https://readme-i18n.com/nkmr-jp/prompt-line?lang=ko) |
-[Português](https://readme-i18n.com/nkmr-jp/prompt-line?lang=pt) |
-[Русский](https://readme-i18n.com/nkmr-jp/prompt-line?lang=ru) |
-[中文](https://readme-i18n.com/nkmr-jp/prompt-line?lang=zh)
-
 # 🧑‍💻 Prompt Line
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/nkmr-jp/prompt-line)
 
-macOS floating text input tool that enables quick text entry across any application.
+<!-- Keep these links. Translations will automatically update with the README. -->
+English |
+[日本語](README_ja.md)
 
 ## Overview
 

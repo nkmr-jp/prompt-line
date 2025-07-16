@@ -56,7 +56,6 @@ import {
 - **`remove-history-item`**: Removes specific item with ID format validation
   - Regex validation: `/^[a-z0-9]+$/` (coupled with utils.generateId())
 - **`search-history`**: Full-text search with configurable result limits
-- **`get-history-stats`**: Returns HistoryStats object with metadata
 
 ### Draft Management
 - **`save-draft`**: Draft persistence with debouncing control
@@ -64,7 +63,6 @@ import {
   - Uses DraftManager's debounced or immediate save methods
 - **`clear-draft`**: Explicit draft removal
 - **`get-draft`**: Current draft content retrieval
-- **`get-draft-stats`**: Draft metadata and statistics
 
 ### Window Management
 - **`show-window`**: Window display with optional WindowData context
