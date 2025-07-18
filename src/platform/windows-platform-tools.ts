@@ -23,6 +23,9 @@ function initializeFFI() {
     windowDetector = ffi.Library(dllPath, {
       'GetCurrentApp': ['pointer', []],
       'GetActiveWindowBounds': ['pointer', []],
+      'SendKeyboardInput': ['pointer', []],
+      'ActivateApp': ['pointer', ['pointer']],
+      'ActivateAppAndPaste': ['pointer', ['pointer']],
       'FreeString': ['void', ['pointer']]
     });
     
@@ -54,6 +57,31 @@ function callDLLFunction(functionName: string): any {
   
   try {
     const ptr = windowDetector[functionName]();
+    if (!ptr || ptr.isNull()) {
+      return null;
+    }
+    
+    const jsonString = ref.readCString(ptr);
+    windowDetector.FreeString(ptr);
+    
+    return JSON.parse(jsonString);
+  } catch (error) {
+    console.warn(`Error calling ${functionName}:`, error);
+    return null;
+  }
+}
+
+function callDLLFunctionWithString(functionName: string, stringArg: string): any {
+  if (!windowDetector) {
+    if (!initializeFFI()) {
+      return null;
+    }
+  }
+  
+  try {
+    const stringPtr = ref.allocCString(stringArg);
+    const ptr = windowDetector[functionName](stringPtr);
+    
     if (!ptr || ptr.isNull()) {
       return null;
     }
@@ -106,30 +134,51 @@ export class WindowsPlatformTools implements IPlatformTools {
   }
 
   async pasteText(): Promise<void> {
-    // TODO: Implement using SendInput API for Ctrl+V
+    if (process.platform !== 'win32') {
+      return;
+    }
+    
     // For now, provide a stub implementation to avoid test failures
     if (process.env.NODE_ENV === 'test') {
       return;
     }
-    console.warn('pasteText not implemented for Windows');
+    
+    const result = callDLLFunction('SendKeyboardInput');
+    if (!result || result.error) {
+      throw new Error(result?.error || 'Failed to send keyboard input');
+    }
   }
 
-  async activateApp(_identifier: string, _useBundle: boolean = false): Promise<void> {
-    // TODO: Implement using SetForegroundWindow
+  async activateApp(identifier: string, _useBundle: boolean = false): Promise<void> {
+    if (process.platform !== 'win32') {
+      return;
+    }
+    
     // For now, provide a stub implementation to avoid test failures
     if (process.env.NODE_ENV === 'test') {
       return;
     }
-    console.warn('activateApp not implemented for Windows');
+    
+    const result = callDLLFunctionWithString('ActivateApp', identifier);
+    if (!result || result.error) {
+      throw new Error(result?.error || `Failed to activate application: ${identifier}`);
+    }
   }
 
-  async activateAndPaste(_identifier: string, _useBundle: boolean = false): Promise<void> {
-    // TODO: Implement combination of SetForegroundWindow and SendInput
+  async activateAndPaste(identifier: string, _useBundle: boolean = false): Promise<void> {
+    if (process.platform !== 'win32') {
+      return;
+    }
+    
     // For now, provide a stub implementation to avoid test failures
     if (process.env.NODE_ENV === 'test') {
       return;
     }
-    console.warn('activateAndPaste not implemented for Windows');
+    
+    const result = callDLLFunctionWithString('ActivateAppAndPaste', identifier);
+    if (!result || result.error) {
+      throw new Error(result?.error || `Failed to activate application and paste: ${identifier}`);
+    }
   }
 
   async getActiveTextFieldBounds(): Promise<TextFieldBounds | null> {

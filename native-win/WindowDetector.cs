@@ -26,6 +26,33 @@ namespace WindowDetector
         [DllImport("user32.dll")]
         private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
 
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        [DllImport("user32.dll")]
+        private static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
+
+        [DllImport("kernel32.dll")]
+        private static extern uint GetCurrentThreadId();
+
+        [DllImport("user32.dll")]
+        private static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+
+        [DllImport("user32.dll")]
+        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr processId);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
+
+        [DllImport("user32.dll")]
+        private static extern bool IsWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern bool IsWindowVisible(IntPtr hWnd);
+
         [StructLayout(LayoutKind.Sequential)]
         private struct RECT
         {
@@ -34,6 +61,61 @@ namespace WindowDetector
             public int Right;
             public int Bottom;
         }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct INPUT
+        {
+            public uint Type;
+            public InputUnion Data;
+        }
+
+        [StructLayout(LayoutKind.Explicit)]
+        private struct InputUnion
+        {
+            [FieldOffset(0)]
+            public MOUSEINPUT Mouse;
+            [FieldOffset(0)]
+            public KEYBDINPUT Keyboard;
+            [FieldOffset(0)]
+            public HARDWAREINPUT Hardware;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct MOUSEINPUT
+        {
+            public int X;
+            public int Y;
+            public uint MouseData;
+            public uint Flags;
+            public uint Time;
+            public IntPtr ExtraInfo;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct KEYBDINPUT
+        {
+            public ushort VirtualKey;
+            public ushort ScanCode;
+            public uint Flags;
+            public uint Time;
+            public IntPtr ExtraInfo;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct HARDWAREINPUT
+        {
+            public uint Msg;
+            public ushort ParamL;
+            public ushort ParamH;
+        }
+
+        // Constants
+        private const uint INPUT_KEYBOARD = 1;
+        private const uint KEYEVENTF_KEYUP = 0x0002;
+        private const ushort VK_CONTROL = 0x11;
+        private const ushort VK_V = 0x56;
+        private const int SW_RESTORE = 9;
+        private const int SW_SHOW = 5;
 
         #endregion
 
@@ -58,6 +140,12 @@ namespace WindowDetector
         public class ErrorResponse
         {
             public string Error { get; set; } = "";
+        }
+
+        public class SuccessResponse
+        {
+            public bool Success { get; set; } = true;
+            public string Message { get; set; } = "";
         }
 
         #endregion
@@ -97,6 +185,137 @@ namespace WindowDetector
         private static IntPtr MarshalStringToPtr(string str)
         {
             return Marshal.StringToHGlobalAnsi(str);
+        }
+
+        private static IntPtr FindWindowByProcessName(string processName)
+        {
+            try
+            {
+                var processes = Process.GetProcessesByName(processName);
+                foreach (var process in processes)
+                {
+                    if (process.MainWindowHandle != IntPtr.Zero)
+                    {
+                        return process.MainWindowHandle;
+                    }
+                }
+                return IntPtr.Zero;
+            }
+            catch
+            {
+                return IntPtr.Zero;
+            }
+        }
+
+        private static bool ActivateWindow(IntPtr hWnd)
+        {
+            if (hWnd == IntPtr.Zero || !IsWindow(hWnd))
+                return false;
+
+            // Get the thread ID of the target window
+            uint targetThreadId = GetWindowThreadProcessId(hWnd, IntPtr.Zero);
+            uint currentThreadId = GetCurrentThreadId();
+
+            try
+            {
+                // Attach threads to allow SetForegroundWindow to work
+                if (targetThreadId != currentThreadId)
+                {
+                    AttachThreadInput(currentThreadId, targetThreadId, true);
+                }
+
+                // Restore the window if it's minimized
+                ShowWindow(hWnd, SW_RESTORE);
+                
+                // Set as foreground window
+                bool result = SetForegroundWindow(hWnd);
+
+                return result;
+            }
+            finally
+            {
+                // Detach threads
+                if (targetThreadId != currentThreadId)
+                {
+                    AttachThreadInput(currentThreadId, targetThreadId, false);
+                }
+            }
+        }
+
+        private static bool SendCtrlV()
+        {
+            var inputs = new INPUT[4];
+
+            // Press Ctrl
+            inputs[0] = new INPUT
+            {
+                Type = INPUT_KEYBOARD,
+                Data = new InputUnion
+                {
+                    Keyboard = new KEYBDINPUT
+                    {
+                        VirtualKey = VK_CONTROL,
+                        ScanCode = 0,
+                        Flags = 0,
+                        Time = 0,
+                        ExtraInfo = IntPtr.Zero
+                    }
+                }
+            };
+
+            // Press V
+            inputs[1] = new INPUT
+            {
+                Type = INPUT_KEYBOARD,
+                Data = new InputUnion
+                {
+                    Keyboard = new KEYBDINPUT
+                    {
+                        VirtualKey = VK_V,
+                        ScanCode = 0,
+                        Flags = 0,
+                        Time = 0,
+                        ExtraInfo = IntPtr.Zero
+                    }
+                }
+            };
+
+            // Release V
+            inputs[2] = new INPUT
+            {
+                Type = INPUT_KEYBOARD,
+                Data = new InputUnion
+                {
+                    Keyboard = new KEYBDINPUT
+                    {
+                        VirtualKey = VK_V,
+                        ScanCode = 0,
+                        Flags = KEYEVENTF_KEYUP,
+                        Time = 0,
+                        ExtraInfo = IntPtr.Zero
+                    }
+                }
+            };
+
+            // Release Ctrl
+            inputs[3] = new INPUT
+            {
+                Type = INPUT_KEYBOARD,
+                Data = new InputUnion
+                {
+                    Keyboard = new KEYBDINPUT
+                    {
+                        VirtualKey = VK_CONTROL,
+                        ScanCode = 0,
+                        Flags = KEYEVENTF_KEYUP,
+                        Time = 0,
+                        ExtraInfo = IntPtr.Zero
+                    }
+                }
+            };
+
+            uint result = SendInput(4, inputs, Marshal.SizeOf(typeof(INPUT)));
+            return result == 4;
         }
 
         #endregion
@@ -165,6 +384,128 @@ namespace WindowDetector
                 };
 
                 return MarshalStringToPtr(JsonSerializer.Serialize(bounds));
+            }
+            catch (Exception ex)
+            {
+                var error = new ErrorResponse { Error = ex.Message };
+                return MarshalStringToPtr(JsonSerializer.Serialize(error));
+            }
+        }
+
+        [UnmanagedCallersOnly(EntryPoint = "SendKeyboardInput", CallConvs = new[] { typeof(CallConvStdcall) })]
+        public static IntPtr SendKeyboardInput()
+        {
+            try
+            {
+                bool success = SendCtrlV();
+                if (success)
+                {
+                    var response = new SuccessResponse 
+                    { 
+                        Success = true, 
+                        Message = "Ctrl+V sent successfully" 
+                    };
+                    return MarshalStringToPtr(JsonSerializer.Serialize(response));
+                }
+                else
+                {
+                    var error = new ErrorResponse { Error = "Failed to send Ctrl+V" };
+                    return MarshalStringToPtr(JsonSerializer.Serialize(error));
+                }
+            }
+            catch (Exception ex)
+            {
+                var error = new ErrorResponse { Error = ex.Message };
+                return MarshalStringToPtr(JsonSerializer.Serialize(error));
+            }
+        }
+
+        [UnmanagedCallersOnly(EntryPoint = "ActivateApp", CallConvs = new[] { typeof(CallConvStdcall) })]
+        public static IntPtr ActivateApp(IntPtr processNamePtr)
+        {
+            try
+            {
+                string processName = Marshal.PtrToStringAnsi(processNamePtr) ?? "";
+                if (string.IsNullOrEmpty(processName))
+                {
+                    var error = new ErrorResponse { Error = "Process name cannot be empty" };
+                    return MarshalStringToPtr(JsonSerializer.Serialize(error));
+                }
+
+                IntPtr hWnd = FindWindowByProcessName(processName);
+                if (hWnd == IntPtr.Zero)
+                {
+                    var error = new ErrorResponse { Error = $"No window found for process: {processName}" };
+                    return MarshalStringToPtr(JsonSerializer.Serialize(error));
+                }
+
+                bool success = ActivateWindow(hWnd);
+                if (success)
+                {
+                    var response = new SuccessResponse 
+                    { 
+                        Success = true, 
+                        Message = $"Application {processName} activated successfully" 
+                    };
+                    return MarshalStringToPtr(JsonSerializer.Serialize(response));
+                }
+                else
+                {
+                    var error = new ErrorResponse { Error = $"Failed to activate application: {processName}" };
+                    return MarshalStringToPtr(JsonSerializer.Serialize(error));
+                }
+            }
+            catch (Exception ex)
+            {
+                var error = new ErrorResponse { Error = ex.Message };
+                return MarshalStringToPtr(JsonSerializer.Serialize(error));
+            }
+        }
+
+        [UnmanagedCallersOnly(EntryPoint = "ActivateAppAndPaste", CallConvs = new[] { typeof(CallConvStdcall) })]
+        public static IntPtr ActivateAppAndPaste(IntPtr processNamePtr)
+        {
+            try
+            {
+                string processName = Marshal.PtrToStringAnsi(processNamePtr) ?? "";
+                if (string.IsNullOrEmpty(processName))
+                {
+                    var error = new ErrorResponse { Error = "Process name cannot be empty" };
+                    return MarshalStringToPtr(JsonSerializer.Serialize(error));
+                }
+
+                IntPtr hWnd = FindWindowByProcessName(processName);
+                if (hWnd == IntPtr.Zero)
+                {
+                    var error = new ErrorResponse { Error = $"No window found for process: {processName}" };
+                    return MarshalStringToPtr(JsonSerializer.Serialize(error));
+                }
+
+                bool activated = ActivateWindow(hWnd);
+                if (!activated)
+                {
+                    var error = new ErrorResponse { Error = $"Failed to activate application: {processName}" };
+                    return MarshalStringToPtr(JsonSerializer.Serialize(error));
+                }
+
+                // Small delay to ensure window is fully activated
+                System.Threading.Thread.Sleep(100);
+
+                bool pasteSent = SendCtrlV();
+                if (pasteSent)
+                {
+                    var response = new SuccessResponse 
+                    { 
+                        Success = true, 
+                        Message = $"Application {processName} activated and Ctrl+V sent successfully" 
+                    };
+                    return MarshalStringToPtr(JsonSerializer.Serialize(response));
+                }
+                else
+                {
+                    var error = new ErrorResponse { Error = "Application activated but failed to send Ctrl+V" };
+                    return MarshalStringToPtr(JsonSerializer.Serialize(error));
+                }
             }
             catch (Exception ex)
             {
