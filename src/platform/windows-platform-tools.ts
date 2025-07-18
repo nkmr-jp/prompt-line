@@ -26,6 +26,7 @@ function initializeFFI() {
       'SendKeyboardInput': ['pointer', []],
       'ActivateApp': ['pointer', ['pointer']],
       'ActivateAppAndPaste': ['pointer', ['pointer']],
+      'GetActiveTextFieldBounds': ['pointer', []],
       'FreeString': ['void', ['pointer']]
     });
     
@@ -182,13 +183,34 @@ export class WindowsPlatformTools implements IPlatformTools {
   }
 
   async getActiveTextFieldBounds(): Promise<TextFieldBounds | null> {
-    // TODO: Implement using UI Automation API
+    if (process.platform !== 'win32') {
+      return null;
+    }
+    
     // For now, provide a stub implementation to avoid test failures
     if (process.env.NODE_ENV === 'test') {
       return null;
     }
-    console.warn('getActiveTextFieldBounds not implemented for Windows');
-    return null;
+    
+    const result = callDLLFunction('GetActiveTextFieldBounds');
+    if (!result || result.error) {
+      // Don't log warnings for "No focused text field found" as this is expected
+      if (result?.error !== 'No focused text field found') {
+        console.warn('getActiveTextFieldBounds failed:', result?.error);
+      }
+      return null;
+    }
+    
+    return {
+      x: result.x,
+      y: result.y,
+      width: result.width,
+      height: result.height,
+      appName: result.appName,
+      bundleId: result.bundleId,
+      controlType: result.controlType,
+      name: result.name
+    };
   }
 
   async checkAccessibilityPermissions(): Promise<boolean> {

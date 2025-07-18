@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Diagnostics;
 using System.Text;
 using System.Runtime.CompilerServices;
+using System.Windows.Automation;
 
 namespace WindowDetector
 {
@@ -146,6 +147,18 @@ namespace WindowDetector
         {
             public bool Success { get; set; } = true;
             public string Message { get; set; } = "";
+        }
+
+        public class TextFieldBounds
+        {
+            public int X { get; set; }
+            public int Y { get; set; }
+            public int Width { get; set; }
+            public int Height { get; set; }
+            public string AppName { get; set; } = "";
+            public string? BundleId { get; set; } = null;
+            public string ControlType { get; set; } = "";
+            public string Name { get; set; } = "";
         }
 
         #endregion
@@ -316,6 +329,97 @@ namespace WindowDetector
 
             uint result = SendInput(4, inputs, Marshal.SizeOf(typeof(INPUT)));
             return result == 4;
+        }
+
+        private static AutomationElement? GetFocusedTextFieldElement()
+        {
+            try
+            {
+                // Get the focused element
+                AutomationElement focusedElement = AutomationElement.FocusedElement;
+                if (focusedElement == null)
+                {
+                    return null;
+                }
+
+                // Check if the focused element is a text-input control
+                var controlType = focusedElement.Current.ControlType;
+                
+                // Check for text input controls
+                if (controlType == ControlType.Edit ||
+                    controlType == ControlType.Document ||
+                    controlType == ControlType.Text)
+                {
+                    return focusedElement;
+                }
+
+                // Check for ComboBox with text input capability
+                if (controlType == ControlType.ComboBox)
+                {
+                    var isEditable = focusedElement.GetCurrentPropertyValue(AutomationElement.IsKeyboardFocusableProperty);
+                    if (isEditable is bool editable && editable)
+                    {
+                        return focusedElement;
+                    }
+                }
+
+                // Check for custom text controls by looking for ValuePattern
+                object valuePattern;
+                if (focusedElement.TryGetCurrentPattern(ValuePattern.Pattern, out valuePattern))
+                {
+                    var pattern = valuePattern as ValuePattern;
+                    if (pattern != null && !pattern.Current.IsReadOnly)
+                    {
+                        return focusedElement;
+                    }
+                }
+
+                return null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static TextFieldBounds? GetTextFieldBounds(AutomationElement element)
+        {
+            try
+            {
+                var boundingRect = element.Current.BoundingRectangle;
+                var controlType = element.Current.ControlType;
+                var name = element.Current.Name ?? "";
+
+                // Get the parent window to determine the app name
+                var window = element;
+                while (window != null && window.Current.ControlType != ControlType.Window)
+                {
+                    window = TreeWalker.ControlViewWalker.GetParent(window);
+                }
+
+                string appName = "";
+                if (window != null)
+                {
+                    var processId = window.Current.ProcessId;
+                    appName = GetProcessName((uint)processId);
+                }
+
+                return new TextFieldBounds
+                {
+                    X = (int)boundingRect.X,
+                    Y = (int)boundingRect.Y,
+                    Width = (int)boundingRect.Width,
+                    Height = (int)boundingRect.Height,
+                    AppName = appName,
+                    BundleId = null,
+                    ControlType = controlType.LocalizedControlType ?? controlType.ProgrammaticName,
+                    Name = name
+                };
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         #endregion
@@ -506,6 +610,34 @@ namespace WindowDetector
                     var error = new ErrorResponse { Error = "Application activated but failed to send Ctrl+V" };
                     return MarshalStringToPtr(JsonSerializer.Serialize(error));
                 }
+            }
+            catch (Exception ex)
+            {
+                var error = new ErrorResponse { Error = ex.Message };
+                return MarshalStringToPtr(JsonSerializer.Serialize(error));
+            }
+        }
+
+        [UnmanagedCallersOnly(EntryPoint = "GetActiveTextFieldBounds", CallConvs = new[] { typeof(CallConvStdcall) })]
+        public static IntPtr GetActiveTextFieldBounds()
+        {
+            try
+            {
+                var focusedElement = GetFocusedTextFieldElement();
+                if (focusedElement == null)
+                {
+                    var error = new ErrorResponse { Error = "No focused text field found" };
+                    return MarshalStringToPtr(JsonSerializer.Serialize(error));
+                }
+
+                var bounds = GetTextFieldBounds(focusedElement);
+                if (bounds == null)
+                {
+                    var error = new ErrorResponse { Error = "Failed to get text field bounds" };
+                    return MarshalStringToPtr(JsonSerializer.Serialize(error));
+                }
+
+                return MarshalStringToPtr(JsonSerializer.Serialize(bounds));
             }
             catch (Exception ex)
             {

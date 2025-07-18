@@ -17,7 +17,7 @@ try {
     }
     
     # Copy DLL to native-tools directory
-    $sourceDir = "bin\Release\net8.0\win-x64"
+    $sourceDir = "bin\Release\net8.0-windows\win-x64"
     $targetDir = "..\src\native-tools"
     
     if (!(Test-Path $targetDir)) {
@@ -26,9 +26,13 @@ try {
     
     Copy-Item "$sourceDir\WindowDetector.dll" "$targetDir\WindowDetector.dll" -Force
     
-    # Also copy required runtime files if they exist
-    if (Test-Path "$sourceDir\System.Text.Json.dll") {
-        Copy-Item "$sourceDir\System.Text.Json.dll" "$targetDir\System.Text.Json.dll" -Force
+    # Also copy required runtime configuration files
+    if (Test-Path "$sourceDir\WindowDetector.runtimeconfig.json") {
+        Copy-Item "$sourceDir\WindowDetector.runtimeconfig.json" "$targetDir\WindowDetector.runtimeconfig.json" -Force
+    }
+    
+    if (Test-Path "$sourceDir\WindowDetector.deps.json") {
+        Copy-Item "$sourceDir\WindowDetector.deps.json" "$targetDir\WindowDetector.deps.json" -Force
     }
     
     Write-Host "✅ WindowDetector.dll built successfully!" -ForegroundColor Green

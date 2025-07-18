@@ -17,6 +17,10 @@ export interface TextFieldBounds {
   height: number;
   isEnabled?: boolean;
   hasText?: boolean;
+  appName?: string;
+  bundleId?: string | null;
+  controlType?: string;
+  name?: string;
 }
 
 export interface IPlatformTools {
