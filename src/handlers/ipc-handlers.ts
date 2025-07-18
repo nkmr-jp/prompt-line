@@ -5,11 +5,9 @@ import path from 'path';
 import config from '../config/app-config';
 import { 
   logger, 
-  pasteWithNativeTool, 
-  activateAndPasteWithNativeTool, 
-  sleep,
-  checkAccessibilityPermission 
+  sleep
 } from '../utils/utils';
+import { createPlatformTools } from '../platform/platform-factory';
 import type WindowManager from '../managers/window-manager';
 import type DraftManager from '../managers/draft-manager';
 import type SettingsManager from '../managers/settings-manager';
@@ -64,6 +62,7 @@ class IPCHandlers {
   private historyManager: IHistoryManager;
   private draftManager: DraftManager;
   private settingsManager: SettingsManager;
+  private platformTools = createPlatformTools();
 
   constructor(
     windowManager: WindowManager, 
@@ -143,20 +142,21 @@ class IPCHandlers {
       await sleep(Math.max(config.timing.windowHideDelay, 5));
 
       try {
-        if (previousApp && config.platform.isMac) {
-          await activateAndPasteWithNativeTool(previousApp);
+        if (previousApp && (config.platform.isMac || config.platform.isWindows)) {
+          const identifier = typeof previousApp === 'string' ? previousApp : previousApp.name;
+          await this.platformTools.activateAndPaste(identifier);
           logger.info('Activate and paste operation completed successfully');
           return { success: true };
-        } else if (config.platform.isMac) {
+        } else if (config.platform.isMac || config.platform.isWindows) {
           const focusSuccess = await this.windowManager.focusPreviousApp();
 
           if (focusSuccess) {
             await sleep(config.timing.appFocusDelay);
-            await pasteWithNativeTool();
+            await this.platformTools.pasteText();
             logger.info('Paste operation completed successfully');
             return { success: true };
           } else {
-            await pasteWithNativeTool();
+            await this.platformTools.pasteText();
             logger.warn('Paste attempted without focus confirmation');
             return { success: true, warning: 'Could not focus previous application' };
           }
@@ -167,14 +167,16 @@ class IPCHandlers {
       } catch (pasteError) {
         logger.error('Paste operation failed:', pasteError);
         
-        // Check accessibility permission after paste failure on macOS
-        if (config.platform.isMac) {
+        // Check accessibility permission after paste failure
+        if (config.platform.isMac || config.platform.isWindows) {
           try {
-            const { hasPermission, bundleId } = await checkAccessibilityPermission();
+            const hasPermission = await this.platformTools.checkAccessibilityPermissions();
             
             if (!hasPermission) {
-              logger.warn('Paste failed - accessibility permission not granted', { bundleId });
-              this.showAccessibilityWarning(bundleId);
+              logger.warn('Paste failed - accessibility permission not granted');
+              if (config.platform.isMac) {
+                this.showAccessibilityWarning(config.app.name);
+              }
               return { success: false, error: 'Accessibility permission required. Please grant permission and try again.' };
             }
           } catch (accessibilityError) {

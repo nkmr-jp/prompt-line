@@ -2,8 +2,11 @@ import { app, globalShortcut, Tray, Menu, nativeImage, shell } from 'electron';
 import fs from 'fs';
 import path from 'path';
 
+// Import config first to use platform detection
+import config from './config/app-config';
+
 // Optimized macOS configuration for performance and IMK error prevention
-if (process.platform === 'darwin') {
+if (config.platform.isMac) {
   app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling');
   
   // Security warnings: enabled in all environments for better security
@@ -15,7 +18,6 @@ if (process.platform === 'darwin') {
   process.noDeprecation = true;
 }
 
-import config from './config/app-config';
 import WindowManager from './managers/window-manager';
 import HistoryManager from './managers/history-manager';
 import OptimizedHistoryManager from './managers/optimized-history-manager';
@@ -175,7 +177,9 @@ class PromptLineApp {
         });
       }
       
-      icon.setTemplateImage(true); // Make it a template image for proper macOS menu bar appearance
+      if (config.platform.isMac) {
+        icon.setTemplateImage(true); // Make it a template image for proper macOS menu bar appearance
+      }
       this.tray = new Tray(icon);
       
       const contextMenu = Menu.buildFromTemplate([

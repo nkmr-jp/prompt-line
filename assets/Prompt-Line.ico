@@ -1,0 +1,13 @@
+# Placeholder Windows Icon
+# This is a placeholder file for the Windows icon
+# In a real implementation, this would be a proper .ico file
+# with multiple sizes (16x16, 32x32, 48x48, 64x64, 128x128, 256x256)
+# 
+# To create a proper Windows icon:
+# 1. Convert the existing icon.svg to PNG at multiple sizes
+# 2. Use a tool like ImageMagick to create a proper .ico file:
+#    convert icon-16.png icon-32.png icon-48.png icon-64.png icon-128.png icon-256.png Prompt-Line.ico
+# 
+# Or use online converters like:
+# - https://convertio.co/svg-ico/
+# - https://www.icoconvert.com/

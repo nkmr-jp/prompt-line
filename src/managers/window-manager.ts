@@ -1,7 +1,7 @@
 import { BrowserWindow, screen } from 'electron';
-import { exec } from 'child_process';
 import config from '../config/app-config';
-import { getCurrentApp, getActiveWindowBounds, logger, KEYBOARD_SIMULATOR_PATH, TEXT_FIELD_DETECTOR_PATH } from '../utils/utils';
+import { logger } from '../utils/utils';
+import { createPlatformTools } from '../platform/platform-factory';
 import DesktopSpaceManager from './desktop-space-manager';
 import type { AppInfo, WindowData, StartupPosition } from '../types';
 
@@ -13,6 +13,7 @@ class WindowManager {
   private customWindowSettings: { position?: StartupPosition; width?: number; height?: number } = {};
   private desktopSpaceManager: DesktopSpaceManager | null = null;
   private lastSpaceSignature: string | null = null;
+  private platformTools = createPlatformTools();
 
   async initialize(): Promise<void> {
     try {
@@ -82,7 +83,7 @@ class WindowManager {
       // Get current app and space information in parallel for better performance
       const appSpaceStartTime = performance.now();
       const [currentAppResult, currentSpaceResult] = await Promise.allSettled([
-        getCurrentApp(),
+        this.platformTools.getCurrentApp(),
         this.desktopSpaceManager && this.desktopSpaceManager.isReady() 
           ? this.desktopSpaceManager.getCurrentSpaceInfo(null) // We'll update with actual app later
           : Promise.resolve(null)
@@ -333,7 +334,7 @@ class WindowManager {
     windowHeight: number
   ): Promise<{ x: number; y: number }> {
     try {
-      const activeWindowBounds = await getActiveWindowBounds();
+      const activeWindowBounds = await this.platformTools.getActiveWindowBounds();
       if (activeWindowBounds) {
         const x = activeWindowBounds.x + (activeWindowBounds.width - windowWidth) / 2;
         const y = activeWindowBounds.y + (activeWindowBounds.height - windowHeight) / 2;
@@ -396,69 +397,24 @@ class WindowManager {
   }
 
   private async getActiveTextFieldBounds(): Promise<{ x: number; y: number; width: number; height: number } | null> {
-    if (!config.platform.isMac) {
-      logger.debug('Text field detection only supported on macOS');
+    try {
+      const textFieldBounds = await this.platformTools.getActiveTextFieldBounds();
+      
+      if (!textFieldBounds) {
+        logger.debug('No text field detected');
+        return null;
+      }
+      
+      return {
+        x: textFieldBounds.x,
+        y: textFieldBounds.y,
+        width: textFieldBounds.width,
+        height: textFieldBounds.height
+      };
+    } catch (error) {
+      logger.debug('Error getting text field bounds:', error);
       return null;
     }
-
-    const options = {
-      timeout: 3000,
-      killSignal: 'SIGTERM' as const
-    };
-
-    return new Promise((resolve) => {
-      exec(`"${TEXT_FIELD_DETECTOR_PATH}" text-field-bounds`, options, (error: Error | null, stdout?: string) => {
-        if (error) {
-          logger.debug('Error getting text field bounds via native tool:', error);
-          resolve(null);
-          return;
-        }
-
-        try {
-          const result = JSON.parse(stdout?.trim() || '{}');
-          
-          if (result.error) {
-            logger.debug('Text field detector error:', result.error);
-            resolve(null);
-            return;
-          }
-
-          if (result.success && typeof result.x === 'number' && typeof result.y === 'number' &&
-              typeof result.width === 'number' && typeof result.height === 'number') {
-            
-            let bounds = {
-              x: result.x,
-              y: result.y,
-              width: result.width,
-              height: result.height
-            };
-            
-            // Use parent container bounds if available for better positioning with scrollable content
-            if (result.parent && result.parent.isVisibleContainer && 
-                typeof result.parent.x === 'number' && typeof result.parent.y === 'number' &&
-                typeof result.parent.width === 'number' && typeof result.parent.height === 'number') {
-              logger.debug('Using parent container bounds for scrollable text field');
-              bounds = {
-                x: result.parent.x,
-                y: result.parent.y,
-                width: result.parent.width,
-                height: result.parent.height
-              };
-            }
-            
-            logger.debug('Text field bounds found:', bounds);
-            resolve(bounds);
-            return;
-          }
-
-          logger.debug('Invalid text field bounds data received');
-          resolve(null);
-        } catch (parseError) {
-          logger.debug('Error parsing text field detector output:', parseError);
-          resolve(null);
-        }
-      });
-    });
   }
 
   private constrainToScreenBounds(
@@ -478,60 +434,31 @@ class WindowManager {
 
   async focusPreviousApp(): Promise<boolean> {
     try {
-      if (!this.previousApp || !config.platform.isMac) {
-        logger.debug('No previous app to focus or not on macOS');
+      if (!this.previousApp || (!config.platform.isMac && !config.platform.isWindows)) {
+        logger.debug('No previous app to focus or unsupported platform');
         return false;
       }
 
-      let appName: string;
-      let bundleId: string | null = null;
+      let identifier: string;
+      let useBundle = false;
       
       if (typeof this.previousApp === 'string') {
-        appName = this.previousApp;
+        identifier = this.previousApp;
       } else if (this.previousApp && typeof this.previousApp === 'object') {
-        appName = this.previousApp.name;
-        bundleId = this.previousApp.bundleId || null;
+        if (this.previousApp.bundleId) {
+          identifier = this.previousApp.bundleId;
+          useBundle = true;
+        } else {
+          identifier = this.previousApp.name;
+        }
       } else {
         logger.error('Invalid previousApp format:', this.previousApp);
         return false;
       }
 
-      const options = {
-        timeout: 3000,
-        killSignal: 'SIGTERM' as const
-      };
-
-      let command: string;
-      if (bundleId) {
-        command = `"${KEYBOARD_SIMULATOR_PATH}" activate-bundle "${bundleId}"`;
-        logger.debug('Using bundle ID for app activation:', { appName, bundleId });
-      } else {
-        command = `"${KEYBOARD_SIMULATOR_PATH}" activate-name "${appName}"`;
-        logger.debug('Using app name for activation:', { appName });
-      }
-      
-      return new Promise((resolve) => {
-        exec(command, options, (error: Error | null, stdout?: string) => {
-          if (error) {
-            logger.error('Error focusing previous app:', error);
-            resolve(false);
-          } else {
-            try {
-              const result = JSON.parse(stdout?.trim() || '{}');
-              if (result.success) {
-                logger.debug('Successfully focused previous app:', { appName, bundleId });
-                resolve(true);
-              } else {
-                logger.warn('Native tool failed to focus app:', result);
-                resolve(false);
-              }
-            } catch (parseError) {
-              logger.warn('Error parsing focus app result:', parseError);
-              resolve(false);
-            }
-          }
-        });
-      });
+      await this.platformTools.activateApp(identifier, useBundle);
+      logger.debug('Successfully focused previous app:', { identifier, useBundle });
+      return true;
     } catch (error) {
       logger.error('Failed to focus previous app:', error);
       return false;

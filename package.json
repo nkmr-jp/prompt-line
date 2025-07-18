@@ -5,11 +5,15 @@
   "main": "dist/main.js",
   "scripts": {
     "start": "npm run compile && electron .",
-    "compile": "tsc && npm run build:renderer && cd native && make install && cp -r ../src/native-tools ../dist/",
-    "build:renderer": "vite build && cp src/renderer/input.html dist/renderer/input.html && cp -r src/renderer/styles dist/renderer/",
+    "compile": "node scripts/compile-platform.js",
+    "compile:mac": "cd native && make install && cp -r ../src/native-tools ../dist/",
+    "compile:win": "node scripts/build-windows-tools.js",
+    "build:renderer": "vite build && node scripts/copy-renderer-files.js",
     "typecheck": "tsc --noEmit",
     "build": "npm run compile && electron-builder --mac --publish=never",
-    "clean": "rm -rf dist/mac* dist/*.dmg dist/*.zip dist/*.blockmap",
+    "build:win": "npm run compile && electron-builder --win --publish=never",
+    "build:all": "npm run compile && electron-builder --mac --win --publish=never",
+    "clean": "node scripts/clean.js",
     "release": "semantic-release",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -108,8 +112,11 @@
       "package.json",
       "!dist/mac",
       "!dist/mac-arm64",
+      "!dist/win*",
       "!dist/*.dmg",
       "!dist/*.zip",
+      "!dist/*.exe",
+      "!dist/*.msi",
       "!dist/*.blockmap",
       "!dist/builder-*"
     ],
@@ -141,6 +148,33 @@
         }
       ]
     },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64", "ia32"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64", "ia32"]
+        }
+      ],
+      "icon": "assets/Prompt-Line.ico",
+      "verifyUpdateCodeSignature": false,
+      "requestedExecutionLevel": "asInvoker",
+      "artifactName": "Prompt-Line-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Prompt Line",
+      "installerIcon": "assets/Prompt-Line.ico",
+      "uninstallerIcon": "assets/Prompt-Line.ico",
+      "installerHeaderIcon": "assets/Prompt-Line.ico",
+      "deleteAppDataOnUninstall": false
+    },
     "dmg": {
       "contents": [
         {
@@ -158,6 +192,8 @@
     }
   },
   "dependencies": {
-    "js-yaml": "^4.1.0"
+    "js-yaml": "^4.1.0",
+    "fs-extra": "^11.2.0",
+    "glob": "^10.3.10"
   }
 }
