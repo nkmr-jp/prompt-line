@@ -5,13 +5,31 @@ import path from 'path';
 // Import config first to use platform detection
 import config from './config/app-config';
 
-// Optimized macOS configuration for performance and IMK error prevention
+// Platform-specific configuration for performance and error prevention
 if (config.platform.isMac) {
   app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling');
   
   // Security warnings: enabled in all environments for better security
   // Note: Security warnings help identify potential security issues
   // Explicitly enable security warnings in all environments
+  process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'false';
+  
+  process.env.ELECTRON_ENABLE_LOGGING = 'false';
+  process.noDeprecation = true;
+}
+
+// Windows-specific configuration for GPU and process handling
+if (config.platform.isWindows) {
+  // Disable GPU sandbox for Windows compatibility
+  app.commandLine.appendSwitch('disable-gpu-sandbox');
+  app.commandLine.appendSwitch('disable-software-rasterizer');
+  app.commandLine.appendSwitch('disable-background-timer-throttling');
+  app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+  app.commandLine.appendSwitch('disable-renderer-backgrounding');
+  app.commandLine.appendSwitch('disable-features', 'TranslateUI');
+  app.commandLine.appendSwitch('disable-ipc-flooding-protection');
+  
+  // Security warnings: enabled in all environments for better security
   process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'false';
   
   process.env.ELECTRON_ENABLE_LOGGING = 'false';

@@ -61,16 +61,37 @@ class AppConfigClass {
         // Additional security settings
         allowRunningInsecureContent: false,
         sandbox: false,  // Disabled for accessibility features (required for auto-paste)
+        
+        // Windows-specific GPU configuration
+        ...(process.platform === 'win32' ? {
+          additionalArguments: [
+            '--disable-gpu-sandbox',
+            '--disable-software-rasterizer',
+            '--disable-background-timer-throttling',
+            '--disable-backgrounding-occluded-windows',
+            '--disable-renderer-backgrounding',
+            '--disable-features=TranslateUI',
+            '--disable-ipc-flooding-protection'
+          ]
+        } : {})
       }
     };
 
+    // Initialize platform first
+    this.platform = {
+      isMac: process.platform === 'darwin',
+      isWindows: process.platform === 'win32',
+      isLinux: process.platform === 'linux'
+    };
+
+    // Initialize shortcuts based on platform
     this.shortcuts = {
-      main: 'Cmd+Shift+Space',
-      paste: 'Cmd+Enter',
+      main: this.platform.isMac ? 'Cmd+Shift+Space' : 'Ctrl+Enter',
+      paste: this.platform.isMac ? 'Cmd+Enter' : 'Ctrl+Shift+Enter',
       close: 'Escape',
       historyNext: 'Ctrl+j',
       historyPrev: 'Ctrl+k',
-      search: 'Cmd+f'
+      search: this.platform.isMac ? 'Cmd+f' : 'Ctrl+f'
     };
 
     const userDataDir = path.join(os.homedir(), '.prompt-line');
@@ -107,12 +128,6 @@ class AppConfigClass {
       name: 'Prompt Line',
       version: packageJson.version,
       description: 'プロンプトラインアプリ - カーソル位置にテキストを素早く貼り付け'
-    };
-
-    this.platform = {
-      isMac: process.platform === 'darwin',
-      isWindows: process.platform === 'win32',
-      isLinux: process.platform === 'linux'
     };
 
     this.logging = {

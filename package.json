@@ -43,12 +43,12 @@
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
     "@semantic-release/github": "^11.0.3",
-    "conventional-changelog-conventionalcommits": "^9.1.0",
     "@types/jest": "^29.5.14",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "20.17.57",
     "@typescript-eslint/eslint-plugin": "^8.34.0",
     "@typescript-eslint/parser": "^8.34.0",
+    "conventional-changelog-conventionalcommits": "^9.1.0",
     "electron": "^36.5.0",
     "electron-builder": "^26.0.16",
     "electron-mock-ipc": "0.3.12",
@@ -152,11 +152,17 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64", "ia32"]
+          "arch": [
+            "x64",
+            "ia32"
+          ]
         },
         {
           "target": "portable",
-          "arch": ["x64", "ia32"]
+          "arch": [
+            "x64",
+            "ia32"
+          ]
         }
       ],
       "icon": "assets/Prompt-Line.ico",
@@ -192,8 +198,12 @@
     }
   },
   "dependencies": {
-    "js-yaml": "^4.1.0",
     "fs-extra": "^11.2.0",
-    "glob": "^10.3.10"
+    "glob": "^10.3.10",
+    "js-yaml": "^4.1.0"
+  },
+  "optionalDependencies": {
+    "ffi-napi": "^4.0.3",
+    "ref-napi": "^3.0.3"
   }
 }

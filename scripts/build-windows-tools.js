@@ -39,13 +39,12 @@ try {
     return;
   }
 
-  // Check if Windows development tools are available
-  const hasVisualStudio = checkVisualStudio();
-  const hasNodeGyp = checkNodeGyp();
+  // Check if .NET SDK is available for C# DLL compilation
+  const hasDotNet = checkDotNet();
   
-  if (!hasVisualStudio || !hasNodeGyp) {
-    console.warn('⚠️  Missing Windows development tools - creating placeholders');
-    console.warn('   Install Visual Studio Build Tools and node-gyp for native compilation');
+  if (!hasDotNet) {
+    console.warn('⚠️  Missing .NET SDK - creating placeholders');
+    console.warn('   Install .NET 6.0 SDK or later for C# DLL compilation');
     
     // Create placeholder tools for now
     fs.ensureDirSync(nativeToolsDir);
@@ -62,34 +61,69 @@ try {
     }
     
     console.log('ℹ️  To build actual native tools, install:');
-    console.log('   npm install -g node-gyp');
-    console.log('   npm install -g windows-build-tools');
+    console.log('   - .NET 6.0 SDK or later');
+    console.log('   - PowerShell execution policy allows script execution');
     return;
   }
 
-  // TODO: Implement actual Windows native tools compilation
-  console.log('🚧 Windows native tools compilation not yet implemented');
-  console.log('    This will compile C++ tools using node-gyp and Windows API');
+  // Build C# DLL instead of executables
+  console.log('🔨 Building C# DLL for Windows native tools...');
   
-  // For now, create placeholder tools
-  fs.ensureDirSync(nativeToolsDir);
-  const tools = [
-    'window-detector.exe',
-    'keyboard-simulator.exe',
-    'text-field-detector.exe'
-  ];
-  
-  for (const tool of tools) {
-    const toolPath = path.join(nativeToolsDir, tool);
-    fs.writeFileSync(toolPath, '# Windows native tool - to be implemented\n');
-    console.log(`📝 Created: ${tool}`);
+  // Check if .NET SDK is available
+  try {
+    execSync('dotnet --version', { stdio: 'ignore' });
+  } catch (error) {
+    console.log('❌ .NET SDK not found. Please install .NET 6.0 SDK or later');
+    console.log('   Download from: https://dotnet.microsoft.com/download');
+    process.exit(1);
   }
-  
-  console.log('✅ Windows native tools build completed (placeholders)');
+
+  // Build C# DLL
+  const nativeWinDir = path.join(__dirname, '..', 'native-win');
+  const buildScript = path.join(nativeWinDir, 'build.ps1');
+
+  try {
+    console.log('🔨 Building WindowDetector.dll...');
+    execSync(`powershell -ExecutionPolicy Bypass -File "${buildScript}"`, { 
+      cwd: nativeWinDir,
+      stdio: 'inherit'
+    });
+    console.log('✅ Windows native tools built successfully!');
+  } catch (error) {
+    console.log('❌ Failed to build Windows native tools:', error.message);
+    
+    // Create placeholder executables as fallback
+    fs.ensureDirSync(nativeToolsDir);
+    const tools = [
+      'window-detector.exe',
+      'keyboard-simulator.exe',
+      'text-field-detector.exe'
+    ];
+    
+    for (const tool of tools) {
+      const toolPath = path.join(nativeToolsDir, tool);
+      fs.writeFileSync(toolPath, '# Windows native tool placeholder\n');
+      console.log(`📝 Created placeholder: ${tool}`);
+    }
+    
+    console.log('ℹ️  To build actual native tools, ensure:');
+    console.log('   - .NET 6.0 SDK is installed');
+    console.log('   - PowerShell execution policy allows script execution');
+    console.log('   - Run: Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser');
+  }
   
 } catch (error) {
   console.error('❌ Failed to build Windows native tools:', error.message);
   process.exit(1);
+}
+
+function checkDotNet() {
+  try {
+    execSync('dotnet --version', { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function checkVisualStudio() {

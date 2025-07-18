@@ -18,6 +18,12 @@ src/**/*.map
 src/native-tools/keyboard-simulator
 src/native-tools/window-detector
 src/native-tools/text-field-detector
+src/native-tools/WindowDetector.dll
+
+# Windows C# build artifacts
+native-win/bin/
+native-win/obj/
+native-win/nul
 
 # Local configuration
 .claude/

@@ -49,9 +49,16 @@ Of course, it also works with apps other than Terminal.
 
 ### System Requirements
 
+#### macOS
 - macOS 10.14 or later
 - Node.js 20 or later
 - Xcode Command Line Tools or Xcode (for compiling native tools)
+
+#### Windows
+- Windows 10 or later
+- Node.js 20 or later
+- .NET 8.0 SDK (for compiling C# native tools)
+- PowerShell (for build scripts)
 
 ### Build from Source
 
@@ -75,7 +82,14 @@ Of course, it also works with apps other than Terminal.
 
 3. Build the application:
    ```bash
+   # For macOS
    npm run build
+   
+   # For Windows
+   npm run build:win
+   
+   # For both platforms
+   npm run build:all
    ```
 
 4. The built app will be created in the `dist/` directory
