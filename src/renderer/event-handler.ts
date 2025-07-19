@@ -93,8 +93,8 @@ export class EventHandler {
         return;
       }
 
-      // Handle Cmd+Enter for paste action
-      if (e.key === 'Enter' && e.metaKey) {
+      // Handle paste shortcut from settings
+      if (this.userSettings?.shortcuts?.paste && matchesShortcutString(e, this.userSettings.shortcuts.paste)) {
         e.preventDefault();
         
         if (this.textarea) {
