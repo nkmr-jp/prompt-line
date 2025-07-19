@@ -7,7 +7,7 @@
     "start": "npm run compile && electron .",
     "compile": "node scripts/compile-platform.js",
     "compile:mac": "cd native && make install && cp -r ../src/native-tools ../dist/",
-    "compile:win": "node scripts/build-windows-tools.js",
+    "compile:win": "cd native-win && powershell -ExecutionPolicy Bypass -File build-all.ps1 && cd ..",
     "build:renderer": "vite build && node scripts/copy-renderer-files.js",
     "typecheck": "tsc --noEmit",
     "build": "npm run compile && electron-builder --mac --publish=never",
@@ -203,7 +203,5 @@
     "js-yaml": "^4.1.0"
   },
   "optionalDependencies": {
-    "ffi-napi": "^4.0.3",
-    "ref-napi": "^3.0.3"
   }
 }

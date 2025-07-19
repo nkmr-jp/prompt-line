@@ -20,7 +20,23 @@ src/native-tools/window-detector
 src/native-tools/text-field-detector
 src/native-tools/WindowDetector.dll
 
+# Windows native tools (built from native-win/ source)
+src/native-tools/window-detector.exe
+src/native-tools/window-detector.dll
+src/native-tools/window-detector.runtimeconfig.json
+src/native-tools/window-detector.deps.json
+src/native-tools/keyboard-simulator.exe
+src/native-tools/keyboard-simulator.dll
+src/native-tools/keyboard-simulator.runtimeconfig.json
+src/native-tools/keyboard-simulator.deps.json
+src/native-tools/text-field-detector.exe
+src/native-tools/text-field-detector.dll
+src/native-tools/text-field-detector.runtimeconfig.json
+src/native-tools/text-field-detector.deps.json
+
 # Windows C# build artifacts
+native-win/*/bin/
+native-win/*/obj/
 native-win/bin/
 native-win/obj/
 native-win/nul

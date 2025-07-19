@@ -1,101 +1,25 @@
 import { IPlatformTools, WindowBounds, AppInfo, TextFieldBounds } from './platform-interface';
+import { exec } from 'child_process';
 import path from 'path';
 import { app } from 'electron';
 
-let ffi: any = null;
-let ref: any = null;
-let windowDetector: any = null;
-
-// Initialize FFI only on Windows
-function initializeFFI() {
-  if (process.platform !== 'win32') {
-    return false;
-  }
-  
-  try {
-    ffi = require('ffi-napi');
-    ref = require('ref-napi');
-    
-    // Get DLL path
-    const dllPath = getDLLPath();
-    
-    // Load the WindowDetector.dll
-    windowDetector = ffi.Library(dllPath, {
-      'GetCurrentApp': ['pointer', []],
-      'GetActiveWindowBounds': ['pointer', []],
-      'SendKeyboardInput': ['pointer', []],
-      'ActivateApp': ['pointer', ['pointer']],
-      'ActivateAppAndPaste': ['pointer', ['pointer']],
-      'GetActiveTextFieldBounds': ['pointer', []],
-      'FreeString': ['void', ['pointer']]
-    });
-    
-    return true;
-  } catch (error) {
-    console.warn('FFI initialization failed:', error);
-    return false;
-  }
-}
-
-function getDLLPath(): string {
+// Get paths to Windows native tools
+function getNativeToolsPath(): string {
   if (app && app.isPackaged) {
-    // In packaged mode, DLL is in the .asar.unpacked directory
+    // In packaged mode, native tools are in the .asar.unpacked directory
     const appPath = app.getAppPath();
     const resourcesPath = path.dirname(appPath);
-    return path.join(resourcesPath, 'app.asar.unpacked', 'dist', 'native-tools', 'WindowDetector.dll');
+    return path.join(resourcesPath, 'app.asar.unpacked', 'dist', 'native-tools');
   }
   
   // Development mode
-  return path.join(__dirname, '..', '..', 'src', 'native-tools', 'WindowDetector.dll');
+  return path.join(__dirname, '..', '..', 'src', 'native-tools');
 }
 
-function callDLLFunction(functionName: string): any {
-  if (!windowDetector) {
-    if (!initializeFFI()) {
-      return null;
-    }
-  }
-  
-  try {
-    const ptr = windowDetector[functionName]();
-    if (!ptr || ptr.isNull()) {
-      return null;
-    }
-    
-    const jsonString = ref.readCString(ptr);
-    windowDetector.FreeString(ptr);
-    
-    return JSON.parse(jsonString);
-  } catch (error) {
-    console.warn(`Error calling ${functionName}:`, error);
-    return null;
-  }
-}
-
-function callDLLFunctionWithString(functionName: string, stringArg: string): any {
-  if (!windowDetector) {
-    if (!initializeFFI()) {
-      return null;
-    }
-  }
-  
-  try {
-    const stringPtr = ref.allocCString(stringArg);
-    const ptr = windowDetector[functionName](stringPtr);
-    
-    if (!ptr || ptr.isNull()) {
-      return null;
-    }
-    
-    const jsonString = ref.readCString(ptr);
-    windowDetector.FreeString(ptr);
-    
-    return JSON.parse(jsonString);
-  } catch (error) {
-    console.warn(`Error calling ${functionName}:`, error);
-    return null;
-  }
-}
+const NATIVE_TOOLS_DIR = getNativeToolsPath();
+const WINDOW_DETECTOR_PATH = path.join(NATIVE_TOOLS_DIR, 'window-detector.exe');
+const KEYBOARD_SIMULATOR_PATH = path.join(NATIVE_TOOLS_DIR, 'keyboard-simulator.exe');
+const TEXT_FIELD_DETECTOR_PATH = path.join(NATIVE_TOOLS_DIR, 'text-field-detector.exe');
 
 export class WindowsPlatformTools implements IPlatformTools {
   async getActiveWindowBounds(): Promise<WindowBounds | null> {
@@ -103,18 +27,39 @@ export class WindowsPlatformTools implements IPlatformTools {
       return null;
     }
     
-    const result = callDLLFunction('GetActiveWindowBounds');
-    if (!result || result.error) {
-      console.warn('getActiveWindowBounds failed:', result?.error);
-      return null;
-    }
-    
-    return {
-      x: result.x,
-      y: result.y,
-      width: result.width,
-      height: result.height
+    const options = {
+      timeout: 2000,
+      killSignal: 'SIGTERM' as const
     };
+
+    return new Promise((resolve) => {
+      exec(`"${WINDOW_DETECTOR_PATH}" window-bounds`, options, (error: Error | null, stdout?: string) => {
+        if (error) {
+          console.warn('getActiveWindowBounds failed:', error);
+          resolve(null);
+          return;
+        }
+
+        try {
+          const result = JSON.parse(stdout?.trim() || '{}');
+          if (result.error) {
+            console.warn('getActiveWindowBounds failed:', result.error);
+            resolve(null);
+            return;
+          }
+          
+          resolve({
+            x: result.x,
+            y: result.y,
+            width: result.width,
+            height: result.height
+          });
+        } catch (parseError) {
+          console.warn('Error parsing getActiveWindowBounds result:', parseError);
+          resolve(null);
+        }
+      });
+    });
   }
 
   async getCurrentApp(): Promise<AppInfo | null> {
@@ -122,16 +67,37 @@ export class WindowsPlatformTools implements IPlatformTools {
       return null;
     }
     
-    const result = callDLLFunction('GetCurrentApp');
-    if (!result || result.error) {
-      console.warn('getCurrentApp failed:', result?.error);
-      return null;
-    }
-    
-    return {
-      name: result.name,
-      bundleId: result.bundleId
+    const options = {
+      timeout: 2000,
+      killSignal: 'SIGTERM' as const
     };
+
+    return new Promise((resolve) => {
+      exec(`"${WINDOW_DETECTOR_PATH}" current-app`, options, (error: Error | null, stdout?: string) => {
+        if (error) {
+          console.warn('getCurrentApp failed:', error);
+          resolve(null);
+          return;
+        }
+
+        try {
+          const result = JSON.parse(stdout?.trim() || '{}');
+          if (result.error) {
+            console.warn('getCurrentApp failed:', result.error);
+            resolve(null);
+            return;
+          }
+          
+          resolve({
+            name: result.name,
+            bundleId: result.bundleId
+          });
+        } catch (parseError) {
+          console.warn('Error parsing getCurrentApp result:', parseError);
+          resolve(null);
+        }
+      });
+    });
   }
 
   async pasteText(): Promise<void> {
@@ -144,10 +110,30 @@ export class WindowsPlatformTools implements IPlatformTools {
       return;
     }
     
-    const result = callDLLFunction('SendKeyboardInput');
-    if (!result || result.error) {
-      throw new Error(result?.error || 'Failed to send keyboard input');
-    }
+    const options = {
+      timeout: 3000,
+      killSignal: 'SIGTERM' as const
+    };
+
+    return new Promise((resolve, reject) => {
+      exec(`"${KEYBOARD_SIMULATOR_PATH}" paste`, options, (error: Error | null, stdout?: string) => {
+        if (error) {
+          reject(new Error(`Failed to send keyboard input: ${error.message}`));
+          return;
+        }
+
+        try {
+          const result = JSON.parse(stdout?.trim() || '{}');
+          if (result.success) {
+            resolve();
+          } else {
+            reject(new Error(result.error || 'Failed to send keyboard input'));
+          }
+        } catch (parseError) {
+          reject(new Error(`Error parsing paste result: ${parseError}`));
+        }
+      });
+    });
   }
 
   async activateApp(identifier: string, _useBundle: boolean = false): Promise<void> {
@@ -160,10 +146,30 @@ export class WindowsPlatformTools implements IPlatformTools {
       return;
     }
     
-    const result = callDLLFunctionWithString('ActivateApp', identifier);
-    if (!result || result.error) {
-      throw new Error(result?.error || `Failed to activate application: ${identifier}`);
-    }
+    const options = {
+      timeout: 3000,
+      killSignal: 'SIGTERM' as const
+    };
+
+    return new Promise((resolve, reject) => {
+      exec(`"${KEYBOARD_SIMULATOR_PATH}" activate-name "${identifier}"`, options, (error: Error | null, stdout?: string) => {
+        if (error) {
+          reject(new Error(`Failed to activate application: ${error.message}`));
+          return;
+        }
+
+        try {
+          const result = JSON.parse(stdout?.trim() || '{}');
+          if (result.success) {
+            resolve();
+          } else {
+            reject(new Error(result.error || `Failed to activate application: ${identifier}`));
+          }
+        } catch (parseError) {
+          reject(new Error(`Error parsing activate app result: ${parseError}`));
+        }
+      });
+    });
   }
 
   async activateAndPaste(identifier: string, _useBundle: boolean = false): Promise<void> {
@@ -176,10 +182,30 @@ export class WindowsPlatformTools implements IPlatformTools {
       return;
     }
     
-    const result = callDLLFunctionWithString('ActivateAppAndPaste', identifier);
-    if (!result || result.error) {
-      throw new Error(result?.error || `Failed to activate application and paste: ${identifier}`);
-    }
+    const options = {
+      timeout: 3000,
+      killSignal: 'SIGTERM' as const
+    };
+
+    return new Promise((resolve, reject) => {
+      exec(`"${KEYBOARD_SIMULATOR_PATH}" activate-and-paste-name "${identifier}"`, options, (error: Error | null, stdout?: string) => {
+        if (error) {
+          reject(new Error(`Failed to activate application and paste: ${error.message}`));
+          return;
+        }
+
+        try {
+          const result = JSON.parse(stdout?.trim() || '{}');
+          if (result.success) {
+            resolve();
+          } else {
+            reject(new Error(result.error || `Failed to activate application and paste: ${identifier}`));
+          }
+        } catch (parseError) {
+          reject(new Error(`Error parsing activate and paste result: ${parseError}`));
+        }
+      });
+    });
   }
 
   async getActiveTextFieldBounds(): Promise<TextFieldBounds | null> {
@@ -192,25 +218,46 @@ export class WindowsPlatformTools implements IPlatformTools {
       return null;
     }
     
-    const result = callDLLFunction('GetActiveTextFieldBounds');
-    if (!result || result.error) {
-      // Don't log warnings for "No focused text field found" as this is expected
-      if (result?.error !== 'No focused text field found') {
-        console.warn('getActiveTextFieldBounds failed:', result?.error);
-      }
-      return null;
-    }
-    
-    return {
-      x: result.x,
-      y: result.y,
-      width: result.width,
-      height: result.height,
-      appName: result.appName,
-      bundleId: result.bundleId,
-      controlType: result.controlType,
-      name: result.name
+    const options = {
+      timeout: 3000,
+      killSignal: 'SIGTERM' as const
     };
+
+    return new Promise((resolve) => {
+      exec(`"${TEXT_FIELD_DETECTOR_PATH}"`, options, (error: Error | null, stdout?: string) => {
+        if (error) {
+          console.warn('getActiveTextFieldBounds failed:', error);
+          resolve(null);
+          return;
+        }
+
+        try {
+          const result = JSON.parse(stdout?.trim() || '{}');
+          if (result.error) {
+            // Don't log warnings for "No focused text field found" as this is expected
+            if (result.error !== 'No focused text field found') {
+              console.warn('getActiveTextFieldBounds failed:', result.error);
+            }
+            resolve(null);
+            return;
+          }
+          
+          resolve({
+            x: result.x,
+            y: result.y,
+            width: result.width,
+            height: result.height,
+            appName: result.appName,
+            bundleId: result.bundleId,
+            controlType: result.controlType,
+            name: result.name
+          });
+        } catch (parseError) {
+          console.warn('Error parsing getActiveTextFieldBounds result:', parseError);
+          resolve(null);
+        }
+      });
+    });
   }
 
   async checkAccessibilityPermissions(): Promise<boolean> {

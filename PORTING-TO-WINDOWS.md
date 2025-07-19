@@ -29,7 +29,7 @@ Prompt Line は主に Electron で構築されており、Mac ネイティブ部
 ### 2. ビルドシステム
 
 - **Makefile**: Swift コンパイラ設定
-- **Windows 対応**: Visual Studio または MinGW でのビルド設定が必要
+- **Windows 対応**: PowerShell スクリプトでのビルド設定
 
 ## プラットフォーム依存コード
 
@@ -105,8 +105,8 @@ Prompt Line は主に Electron で構築されており、Mac ネイティブ部
    - 利点: 高速、直接的な API アクセス
    - 欠点: 開発が複雑
 
-2. **C# with .NET + FFI** ⭐ **採用**
-   - 利点: 開発が容易、豊富なライブラリ、プロセス起動オーバーヘッドなし
+2. **C# with .NET プロセス実行** ⭐ **採用**
+   - 利点: 開発が容易、豊富なライブラリ、Mac版との構造統一
    - 欠点: .NET ランタイムが必要
 
 3. **Node.js ネイティブモジュール**
@@ -115,38 +115,51 @@ Prompt Line は主に Electron で構築されており、Mac ネイティブ部
 
 ### 採用した実装アプローチ
 
-**C# DLL + FFI（Foreign Function Interface）**
+**C# 実行ファイル + プロセス実行**
 
-Mac版はプロセス起動のオーバーヘッドがあるため、Windows版ではC# DLLを直接呼び出すFFIアプローチを採用。
+Mac版と同じアーキテクチャを採用。標準入出力でJSONをやり取りし、FFIの複雑性を回避。
 
 ```csharp
-// WindowDetector.cs の例
-[UnmanagedCallersOnly(EntryPoint = "GetActiveWindowBounds")]
-public static IntPtr GetActiveWindowBounds()
+// window-detector/WindowDetector.cs の例
+static void Main(string[] args)
+{
+    switch (args[0])
+    {
+        case "current-app":
+            GetCurrentApp();
+            break;
+        case "window-bounds":
+            GetActiveWindowBounds();
+            break;
+    }
+}
+
+private static void GetCurrentApp()
 {
     var hWnd = GetForegroundWindow();
-    GetWindowRect(hWnd, out RECT rect);
+    GetWindowThreadProcessId(hWnd, out uint processId);
+    var processName = GetProcessName(processId);
     
-    var bounds = new WindowBounds
-    {
-        X = rect.Left,
-        Y = rect.Top,
-        Width = rect.Right - rect.Left,
-        Height = rect.Bottom - rect.Top
-    };
-    
-    return Marshal.StringToHGlobalAnsi(JsonSerializer.Serialize(bounds));
+    var result = new { name = processName, bundleId = (string?)null };
+    Console.WriteLine(JsonSerializer.Serialize(result));
 }
 ```
 
-```javascript
-// Node.js側（FFI）
-const ffi = require('ffi-napi');
-const windowDetector = ffi.Library('WindowDetector.dll', {
-    'GetActiveWindowBounds': ['pointer', []]
+```typescript
+// Node.js側（プロセス実行）
+exec(`"${WINDOW_DETECTOR_PATH}" current-app`, options, (error, stdout) => {
+  if (error) {
+    resolve(null);
+    return;
+  }
+  
+  try {
+    const result = JSON.parse(stdout.trim());
+    resolve(result);
+  } catch (parseError) {
+    resolve(null);
+  }
 });
-
-const result = windowDetector.GetActiveWindowBounds();
 ```
 
 ## 移植作業進捗チェックリスト
@@ -166,17 +179,15 @@ const result = windowDetector.GetActiveWindowBounds();
 - [x] Windows アイコンファイルの作成（プレースホルダー）
 - [x] ファイル操作スクリプトの作成 (copy-renderer-files.js, clean.js)
 
-### Phase 3: Windows ネイティブツール実装 ⏳
-- [x] C# DLL + FFI アーキテクチャの設計・実装
+### Phase 3: Windows ネイティブツール実装 ✅
+- [x] C# 実行ファイル + プロセス実行アーキテクチャの設計・実装
 - [x] window-detector の Windows 実装 (C# + Win32 API)
-- [x] FFI統合の実装 (ffi-napi + ref-napi)
-- [x] .NET 8.0 + UnmanagedCallersOnly アプローチ
+- [x] keyboard-simulator の Windows 実装 (SendInput API)
+- [x] text-field-detector の Windows 実装 (UI Automation)
+- [x] Mac版との統一アーキテクチャ実装
 - [x] PowerShell ビルドスクリプト
 - [x] キーボードショートカットの調整 (Cmd→Ctrl)
 - [x] Windows GPU設定の追加
-- [ ] keyboard-simulator の Windows 実装 (SendInput API) ⏳
-- [ ] text-field-detector の Windows 実装 (UI Automation)
-- [ ] Windows 版アクセシビリティ権限チェック
 
 ### Phase 4: 高度な機能 ⏳
 - [ ] 仮想デスクトップ対応 (desktop-space-manager)
@@ -199,50 +210,50 @@ const result = windowDetector.GetActiveWindowBounds();
 
 ## 現在の状況
 
-**完了済み (Phase 1-3 部分完了):**
+**完了済み (Phase 1-3 完了):**
 - プラットフォーム抽象化レイヤー (`src/platform/`) を実装済み
 - Mac 専用コードをプラットフォーム依存部分として分離
 - TypeScript ビルドエラーを全て解決
 - クロスプラットフォームビルドスクリプトを作成・テスト済み
 - Windows 向け electron-builder 設定を追加
 - 基本ビルドが Windows 環境で動作することを確認
-- **C# DLL + FFI アーキテクチャを実装**
-- **window-detector の Windows 実装完了**
-- **FFI統合（ffi-napi + ref-napi）完了**
+- **C# プロセス実行アーキテクチャを実装**
+- **3つの独立したWindows native tools完了**
+- **Mac版との統一アーキテクチャ完了**
 - **Windows GPU設定とキーボードショートカット修正完了**
 
 **実装済みのファイル:**
 - `scripts/compile-platform.js` - プラットフォーム検出とビルド振り分け
 - `scripts/copy-renderer-files.js` - クロスプラットフォームファイルコピー
 - `scripts/clean.js` - クロスプラットフォームクリーンアップ
-- `scripts/build-windows-tools.js` - Windows C# DLL ビルド
 - `src/platform/` - プラットフォーム抽象化レイヤー
-- `native-win/` - Windows C# DLL プロジェクト
-  - `WindowDetector.csproj` - .NET 8.0 プロジェクト
-  - `WindowDetector.cs` - C# 実装
-  - `build.ps1` - PowerShell ビルドスクリプト
+- `native-win/` - Windows C# プロジェクト群
+  - `window-detector/` - C# プロジェクト（ウィンドウ検出）
+  - `keyboard-simulator/` - C# プロジェクト（キーボード操作）
+  - `text-field-detector/` - C# プロジェクト（テキストフィールド検出）
+  - `build-all.ps1` - PowerShell 統合ビルドスクリプト
+  - `README.md` - Windows実装ドキュメント
 - `assets/Prompt-Line.ico` - Windows アイコン（プレースホルダー）
-- `package.json` - 更新済み（ffi-napi対応、Windows ビルド設定）
+- `package.json` - 更新済み（Windows ビルド設定、FFI依存削除）
 
-**次のステップ (Phase 3 継続):**
-- keyboard-simulator の Windows 実装 (SendInput API)
-- text-field-detector の Windows 実装 (UI Automation)
+**次のステップ (Phase 4):**
+- 仮想デスクトップ対応
+- システムトレイの完全な Windows 対応
 - 統合テストとデバッグ
 
 ## 注意事項
 
-1. **セキュリティ**: C# DLLによりスクリプトインジェクションを防ぐ
+1. **セキュリティ**: C# コンパイル済み実行ファイルによりスクリプトインジェクションを防ぐ
 2. **権限**: Windows では UAC や管理者権限は不要（キーボードフックを使わない限り）
 3. **アンチウイルス**: キーボードシミュレーションはアンチウイルスソフトに検出される可能性があるため、デジタル署名が重要
 4. **互換性**: Windows 10/11 をターゲットとし、古いバージョンは考慮しない
-5. **要件**: .NET 8.0 SDK が必要、PowerShell 実行ポリシーの設定が必要
-6. **FFI**: ffi-napi のビルドには C++ コンパイラが必要（オプション依存関係として設定済み）
+5. **要件**: .NET 8.0 Runtime が必要、PowerShell 実行ポリシーの設定が必要
 
 ## 構築手順
 
 ### 前提条件
 - Node.js 20 以上
-- .NET 8.0 SDK
+- .NET 8.0 SDK（開発時）/ .NET 8.0 Runtime（実行時）
 - PowerShell（Windows 標準）
 - Git
 
@@ -263,87 +274,106 @@ npm run build:win  # パッケージ作成用
 ### トラブルシューティング
 - PowerShell 実行ポリシーエラー: `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
 - .NET SDK エラー: https://dotnet.microsoft.com/download から .NET 8.0 SDK をダウンロード
-- ffi-napi ビルドエラー: Visual Studio Build Tools が必要（オプション）
 
 ## アーキテクチャ概要
 
-### Mac版との違い
+### Mac版との統一
 
 | 項目 | Mac版 | Windows版 |
 |------|-------|-----------|
 | **実装言語** | Swift | C# |
-| **実行方式** | プロセス起動 | FFI直接呼び出し |
-| **パフォーマンス** | プロセス起動オーバーヘッド有り | オーバーヘッドなし |
-| **セキュリティ** | コンパイル済みバイナリ | コンパイル済みDLL |
+| **実行方式** | プロセス実行 | プロセス実行 |
+| **通信方式** | JSON標準入出力 | JSON標準入出力 |
+| **パフォーマンス** | プロセス起動オーバーヘッド有り | プロセス起動オーバーヘッド有り |
+| **セキュリティ** | コンパイル済みバイナリ | コンパイル済み実行ファイル |
 | **ビルド要件** | Xcode | .NET 8.0 SDK |
 
 ### 実装済みの機能
 
 #### ✅ window-detector
-- `GetCurrentApp()` - アクティブアプリケーション取得
-- `GetActiveWindowBounds()` - ウィンドウ位置・サイズ取得
+- `current-app` - アクティブアプリケーション取得
+- `window-bounds` - ウィンドウ位置・サイズ取得
 - Win32 API（GetForegroundWindow, GetWindowRect）を使用
-- JSON形式で結果を返す
+- JSON形式で結果を標準出力に返す
 
-#### ⏳ keyboard-simulator（実装中）
-- `SendKeyboardInput()` - Ctrl+V シミュレーション
-- `ActivateApp()` - アプリケーションアクティベーション
+#### ✅ keyboard-simulator
+- `paste` - Ctrl+V シミュレーション
+- `activate-name <app>` - アプリケーションアクティベーション
+- `activate-and-paste-name <app>` - 複合操作
 - Win32 API（SendInput, SetForegroundWindow）を使用
 
-#### ⏳ text-field-detector（未実装）
-- `GetActiveTextFieldBounds()` - フォーカス中テキストフィールド検出
-- UI Automation API を使用予定
+#### ✅ text-field-detector
+- デフォルト - フォーカス中テキストフィールド検出
+- `bounds` - 同上
+- UI Automation API を使用
 
 ### 技術的な選択理由
 
-1. **C# DLL + FFI**：プロセス起動のオーバーヘッドを回避
-2. **.NET 8.0**：最新の UnmanagedCallersOnly サポート
+1. **C# プロセス実行**：Mac版との構造統一、FFIの複雑性回避
+2. **.NET 8.0**：最新の安定版、優れた Win32 API サポート
 3. **PowerShell ビルド**：Windows 標準環境でのビルド
-4. **ffi-napi**：オプション依存関係として設定し、ビルドエラーを回避
+4. **JSON通信**：構造化データ、パースエラーの最小化
 
 ### Windows ネイティブツール開発戦略
 
-#### 採用: C# DLL + FFI アプローチ
+#### 採用: C# プロセス実行アプローチ
 
 **利点:**
-- プロセス起動のオーバーヘッドなし（Mac版の問題を解決）
-- C# の開発効率
-- .NET 8.0 の UnmanagedCallersOnly による高速な相互運用
+- Mac版との完全な統一
+- FFI（ffi-napi）の複雑性回避
+- 開発・デバッグの容易さ
 - 型安全性とメモリ管理
+- プロセス分離によるセキュリティ
 
 **実装例:**
 ```csharp
-// native-win/WindowDetector.cs
-[UnmanagedCallersOnly(EntryPoint = "GetCurrentApp")]
-public static IntPtr GetCurrentApp()
+// native-win/window-detector/WindowDetector.cs
+static void Main(string[] args)
 {
-    var hWnd = GetForegroundWindow();
-    GetWindowThreadProcessId(hWnd, out uint processId);
-    var processName = GetProcessName(processId);
-    
-    var appInfo = new AppInfo
+    if (args.Length == 0)
     {
-        Name = processName,
-        BundleId = null
-    };
-    
-    return Marshal.StringToHGlobalAnsi(JsonSerializer.Serialize(appInfo));
+        Console.WriteLine(JsonSerializer.Serialize(new { error = "No command specified" }));
+        Environment.Exit(1);
+    }
+
+    switch (args[0])
+    {
+        case "current-app":
+            GetCurrentApp();
+            break;
+        case "window-bounds":
+            GetActiveWindowBounds();
+            break;
+    }
 }
 ```
 
-```javascript
+```typescript
 // src/platform/windows-platform-tools.ts
-const ffi = require('ffi-napi');
-const ref = require('ref-napi');
+exec(`"${WINDOW_DETECTOR_PATH}" current-app`, options, (error: Error | null, stdout?: string) => {
+  if (error) {
+    console.warn('getCurrentApp failed:', error);
+    resolve(null);
+    return;
+  }
 
-const windowDetector = ffi.Library('WindowDetector.dll', {
-    'GetCurrentApp': ['pointer', []],
-    'GetActiveWindowBounds': ['pointer', []]
+  try {
+    const result = JSON.parse(stdout?.trim() || '{}');
+    if (result.error) {
+      console.warn('getCurrentApp failed:', result.error);
+      resolve(null);
+      return;
+    }
+    
+    resolve({
+      name: result.name,
+      bundleId: result.bundleId
+    });
+  } catch (parseError) {
+    console.warn('Error parsing getCurrentApp result:', parseError);
+    resolve(null);
+  }
 });
-
-const result = windowDetector.GetCurrentApp();
-const json = ref.readCString(result);
-return JSON.parse(json);
 ```
 
 ### 実装済みファイル一覧
@@ -352,13 +382,13 @@ return JSON.parse(json);
    - `compile-platform.js` - OS 検出とビルド振り分け ✅
    - `copy-renderer-files.js` - クロスプラットフォームファイルコピー ✅
    - `clean.js` - クロスプラットフォームクリーンアップ ✅
-   - `build-windows-tools.js` - Windows C# DLL ビルド ✅
 
 2. **native-win/** ✅
-   - `WindowDetector.csproj` - .NET 8.0 プロジェクト ✅
-   - `WindowDetector.cs` - C# 実装 ✅
-   - `build.ps1` - PowerShell ビルドスクリプト ✅
-   - `README.md` - 実装ドキュメント ✅
+   - `window-detector/` - ウィンドウ検出C#プロジェクト ✅
+   - `keyboard-simulator/` - キーボード操作C#プロジェクト ✅
+   - `text-field-detector/` - テキストフィールド検出C#プロジェクト ✅
+   - `build-all.ps1` - PowerShell 統合ビルドスクリプト ✅
+   - `README.md` - Windows実装ドキュメント ✅
 
 3. **assets/** ✅
    - `Prompt-Line.ico` - Windows アイコン（256x256, 128x128, 64x64, 32x32, 16x16）✅
@@ -369,4 +399,3 @@ return JSON.parse(json);
 - [UI Automation Overview](https://docs.microsoft.com/en-us/windows/win32/winauto/uiauto-uiautomationoverview)
 - [Electron Platform-Specific Code](https://www.electronjs.org/docs/latest/tutorial/platform-integration)
 - [.NET 8.0 P/Invoke Documentation](https://docs.microsoft.com/en-us/dotnet/standard/native-interop/pinvoke)
-- [ffi-napi Documentation](https://github.com/node-ffi-napi/node-ffi-napi)
