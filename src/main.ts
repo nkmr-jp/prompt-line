@@ -84,7 +84,8 @@ class PromptLineApp {
         this.windowManager,
         this.historyManager,
         this.draftManager,
-        this.settingsManager
+        this.settingsManager,
+        this.reregisterMainShortcut.bind(this)
       );
 
 
@@ -138,6 +139,41 @@ class PromptLineApp {
     } catch (error) {
       logger.error('Error registering shortcuts:', error);
       throw error;
+    }
+  }
+
+  private unregisterMainShortcut(): void {
+    try {
+      const settings = this.settingsManager?.getSettings();
+      const mainShortcut = settings?.shortcuts.main || config.shortcuts.main;
+      
+      if (globalShortcut.isRegistered(mainShortcut)) {
+        globalShortcut.unregister(mainShortcut);
+        logger.debug('Main shortcut unregistered while window is visible');
+      }
+    } catch (error) {
+      logger.error('Error unregistering main shortcut:', error);
+    }
+  }
+
+  private async reregisterMainShortcut(): Promise<void> {
+    try {
+      const settings = this.settingsManager?.getSettings();
+      const mainShortcut = settings?.shortcuts.main || config.shortcuts.main;
+      
+      if (!globalShortcut.isRegistered(mainShortcut)) {
+        const mainRegistered = globalShortcut.register(mainShortcut, async () => {
+          await this.showInputWindow();
+        });
+
+        if (mainRegistered) {
+          logger.debug('Main shortcut re-registered after window hidden');
+        } else {
+          logger.error('Failed to re-register main shortcut:', mainShortcut);
+        }
+      }
+    } catch (error) {
+      logger.error('Error re-registering main shortcut:', error);
     }
   }
 
@@ -310,6 +346,9 @@ class PromptLineApp {
         return;
       }
 
+      // Unregister main shortcut to prevent conflicts while window is visible
+      this.unregisterMainShortcut();
+
       const draft = this.draftManager.getCurrentDraft();
       const settings = this.settingsManager.getSettings();
       const history = this.historyManager.getHistory();
@@ -333,6 +372,8 @@ class PromptLineApp {
     try {
       if (this.windowManager) {
         await this.windowManager.hideInputWindow();
+        // Re-register main shortcut after window is hidden
+        this.reregisterMainShortcut();
         logger.debug('Input window hidden');
       }
     } catch (error) {

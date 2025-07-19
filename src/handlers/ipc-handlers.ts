@@ -63,17 +63,20 @@ class IPCHandlers {
   private draftManager: DraftManager;
   private settingsManager: SettingsManager;
   private platformTools = createPlatformTools();
+  private onWindowHide: (() => Promise<void>) | undefined;
 
   constructor(
     windowManager: WindowManager, 
     historyManager: IHistoryManager, 
     draftManager: DraftManager,
-    settingsManager: SettingsManager
+    settingsManager: SettingsManager,
+    onWindowHide?: () => Promise<void>
   ) {
     this.windowManager = windowManager;
     this.historyManager = historyManager;
     this.draftManager = draftManager;
     this.settingsManager = settingsManager;
+    this.onWindowHide = onWindowHide;
 
     this.setupHandlers();
   }
@@ -138,6 +141,11 @@ class IPCHandlers {
 
       const hideWindowPromise = this.windowManager.hideInputWindow();
       await hideWindowPromise;
+      
+      // Re-register main shortcut after window is hidden
+      if (this.onWindowHide) {
+        await this.onWindowHide();
+      }
 
       await sleep(Math.max(config.timing.windowHideDelay, 5));
 
@@ -317,6 +325,11 @@ class IPCHandlers {
       logger.debug('Window hide requested, restoreFocus:', restoreFocus);
 
       await this.windowManager.hideInputWindow();
+      
+      // Re-register main shortcut after window is hidden
+      if (this.onWindowHide) {
+        await this.onWindowHide();
+      }
       
       // Focus the previous app when hiding the window (only if restoreFocus is true)
       if (config.platform.isMac && restoreFocus) {
