@@ -55,8 +55,8 @@ Prompt Line は主に Electron で構築されており、Mac ネイティブ部
 
 | ファイル | 用途 | Windows 対応 |
 |---------|------|-------------|
-| `src/utils/apple-script-sanitizer.ts` | AppleScript 実行 | PowerShell または WSH に置き換え |
-| `src/utils/utils.ts` | アクセシビリティ権限チェック | Windows では不要（削除） |
+| `src/utils/apple-script-sanitizer.ts` | AppleScript 実行 | ✅ プラットフォーム抽象化により分離済み |
+| `src/utils/utils.ts` | アクセシビリティ権限チェック | ✅ Windows では不要（`return true`で対応） |
 | `src/managers/desktop-space-manager.ts` | デスクトップスペース検出 | 仮想デスクトップ API 使用 |
 
 ### 4. ファイルパス

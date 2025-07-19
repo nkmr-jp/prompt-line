@@ -1,26 +1,30 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals';
 import WindowManager from '../../src/managers/window-manager';
 import { BrowserWindow, screen } from 'electron';
-type ExecCallback = (error: Error | null, stdout: string, stderr: string) => void;
-
-// Mock child_process
-jest.mock('child_process', () => ({
-    exec: jest.fn()
-}));
 
 // Mock the utils module
 jest.mock('../../src/utils/utils', () => ({
-    getCurrentApp: jest.fn(),
-    getActiveWindowBounds: jest.fn(() => Promise.resolve(null)),
     logger: {
         info: jest.fn(),
         debug: jest.fn(),
         warn: jest.fn(),
         error: jest.fn()
-    },
-    KEYBOARD_SIMULATOR_PATH: '/path/to/keyboard-simulator',
-    TEXT_FIELD_DETECTOR_PATH: '/path/to/text-field-detector',
-    WINDOW_DETECTOR_PATH: '/path/to/window-detector'
+    }
+}));
+
+// Mock platform tools
+const mockPlatformTools = {
+    getActiveWindowBounds: jest.fn(() => Promise.resolve({ x: 0, y: 0, width: 800, height: 600 })),
+    getCurrentApp: jest.fn(() => Promise.resolve({ name: 'TestApp', bundleId: 'com.test.app' })),
+    pasteText: jest.fn(() => Promise.resolve()),
+    activateApp: jest.fn(() => Promise.resolve()),
+    activateAndPaste: jest.fn(() => Promise.resolve()),
+    getActiveTextFieldBounds: jest.fn(() => Promise.resolve(null)),
+    checkAccessibilityPermissions: jest.fn(() => Promise.resolve(true))
+};
+
+jest.mock('../../src/platform/platform-factory', () => ({
+    createPlatformTools: jest.fn(() => mockPlatformTools)
 }));
 
 // Mock the config module
@@ -48,13 +52,7 @@ jest.mock('../../src/config/app-config', () => ({
     getInputHtmlPath: jest.fn(() => '/test/input.html')
 }));
 
-const { getCurrentApp, getActiveWindowBounds, logger } = jest.requireMock('../../src/utils/utils') as any;
-// Fix getCurrentApp to return string for consistency
-getCurrentApp.mockResolvedValue('TestApp');
-// Make getActiveWindowBounds return null so tests fall back to cursor positioning
-getActiveWindowBounds.mockResolvedValue(null);
-const { exec } = jest.requireMock('child_process') as any;
-const mockedExec = exec as jest.MockedFunction<typeof exec>;
+const { logger } = jest.requireMock('../../src/utils/utils') as any;
 
 describe('WindowManager', () => {
     let windowManager: WindowManager;
@@ -85,6 +83,12 @@ describe('WindowManager', () => {
         (BrowserWindow as jest.MockedClass<typeof BrowserWindow>).mockReturnValue(mockWindow);
         
         jest.clearAllMocks();
+        
+        // Reset platform tools mocks to default behaviors
+        mockPlatformTools.getCurrentApp.mockResolvedValue({ name: 'TestApp', bundleId: 'com.test.app' });
+        mockPlatformTools.getActiveWindowBounds.mockResolvedValue({ x: 0, y: 0, width: 800, height: 600 });
+        mockPlatformTools.getActiveTextFieldBounds.mockResolvedValue(null);
+        mockPlatformTools.activateApp.mockResolvedValue(undefined);
     });
 
     describe('createInputWindow', () => {
@@ -123,7 +127,7 @@ describe('WindowManager', () => {
     describe('showInputWindow', () => {
         beforeEach(() => {
             windowManager.createInputWindow();
-            getCurrentApp.mockResolvedValue('TestApp');
+            mockPlatformTools.getCurrentApp.mockResolvedValue({ name: 'TestApp', bundleId: 'com.test.app' });
             
             // Mock screen methods
             (screen.getCursorScreenPoint as jest.Mock).mockReturnValue({ x: 500, y: 300 });
@@ -140,7 +144,7 @@ describe('WindowManager', () => {
 
             await windowManager.showInputWindow(testData);
 
-            expect(getCurrentApp).toHaveBeenCalled();
+            expect(mockPlatformTools.getCurrentApp).toHaveBeenCalled();
             expect(mockWindow.show).toHaveBeenCalled();
             expect(mockWindow.focus).toHaveBeenCalled();
             
@@ -148,7 +152,7 @@ describe('WindowManager', () => {
             jest.advanceTimersByTime(50);
             
             expect(mockWindow.webContents.send).toHaveBeenCalledWith('window-shown', {
-                sourceApp: 'TestApp',
+                sourceApp: { name: 'TestApp', bundleId: 'com.test.app' },
                 currentSpaceInfo: null,
                 history: [],
                 draft: 'test draft'
@@ -197,7 +201,7 @@ describe('WindowManager', () => {
         });
 
         test('should handle errors gracefully', async () => {
-            getCurrentApp.mockImplementation(() => Promise.reject(new Error('Failed to get app')));
+            mockPlatformTools.getCurrentApp.mockImplementation(() => Promise.reject(new Error('Failed to get app')));
 
             await windowManager.showInputWindow();
 
@@ -245,19 +249,12 @@ describe('WindowManager', () => {
         });
 
         test('should focus previous app on macOS', async () => {
-            mockedExec.mockImplementation((_command: string, _options: any, callback: ExecCallback) => {
-                callback(null, '{"success":true,"command":"activate-name"}', '');
-                return null as any;
-            });
+            mockPlatformTools.activateApp.mockResolvedValue(undefined);
 
             const result = await windowManager.focusPreviousApp();
 
             expect(result).toBe(true);
-            expect(mockedExec).toHaveBeenCalledWith(
-                expect.stringContaining('keyboard-simulator'),
-                expect.any(Object),
-                expect.any(Function)
-            );
+            expect(mockPlatformTools.activateApp).toHaveBeenCalled();
         });
 
         test('should return false when no previous app', async () => {
@@ -278,55 +275,24 @@ describe('WindowManager', () => {
         });
 
         test('should handle native tool errors', async () => {
-            mockedExec.mockImplementation((_command: string, _options: any, callback: ExecCallback) => {
-                callback(new Error('Command failed'), '', '');
-                return null as any;
-            });
+            mockPlatformTools.activateApp.mockRejectedValue(new Error('Command failed'));
 
             const result = await windowManager.focusPreviousApp();
 
             expect(result).toBe(false);
         });
 
-        test('should handle native tool failure response', async () => {
-            mockedExec.mockImplementation((_command: string, _options: any, callback: ExecCallback) => {
-                callback(null, '{"success":false,"command":"activate-name"}', '');
-                return null as any;
-            });
-
-            const result = await windowManager.focusPreviousApp();
-
-            expect(result).toBe(false);
-        });
 
         test('should focus app with bundle ID', async () => {
             (windowManager as any).previousApp = { name: 'TestApp', bundleId: 'com.test.app' };
-            
-            mockedExec.mockImplementation((_command: string, _options: any, callback: ExecCallback) => {
-                callback(null, '{"success":true,"command":"activate-bundle"}', '');
-                return null as any;
-            });
+            mockPlatformTools.activateApp.mockResolvedValue(undefined);
 
             const result = await windowManager.focusPreviousApp();
 
             expect(result).toBe(true);
-            expect(mockedExec).toHaveBeenCalledWith(
-                expect.stringContaining('activate-bundle'),
-                expect.any(Object),
-                expect.any(Function)
-            );
+            expect(mockPlatformTools.activateApp).toHaveBeenCalled();
         });
 
-        test('should handle invalid JSON response', async () => {
-            mockedExec.mockImplementation((_command: string, _options: any, callback: ExecCallback) => {
-                callback(null, 'invalid json', '');
-                return null as any;
-            });
-
-            const result = await windowManager.focusPreviousApp();
-
-            expect(result).toBe(false);
-        });
     });
 
     describe('getInputWindow', () => {

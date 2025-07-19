@@ -65,9 +65,22 @@ jest.mock('../../src/utils/utils', () => ({
         warn: jest.fn(),
         error: jest.fn()
     },
-    pasteWithNativeTool: jest.fn(() => Promise.resolve()),
-    activateAndPasteWithNativeTool: jest.fn(() => Promise.resolve()),
     sleep: jest.fn(() => Promise.resolve())
+}));
+
+// Mock platform tools
+const mockPlatformTools = {
+    getActiveWindowBounds: jest.fn(() => Promise.resolve({ x: 0, y: 0, width: 800, height: 600 })),
+    getCurrentApp: jest.fn(() => Promise.resolve({ name: 'TestApp', bundleId: 'com.test.app' })),
+    pasteText: jest.fn(() => Promise.resolve()),
+    activateApp: jest.fn(() => Promise.resolve()),
+    activateAndPaste: jest.fn(() => Promise.resolve()),
+    getActiveTextFieldBounds: jest.fn(() => Promise.resolve(null)),
+    checkAccessibilityPermissions: jest.fn(() => Promise.resolve(true))
+};
+
+jest.mock('../../src/platform/platform-factory', () => ({
+    createPlatformTools: jest.fn(() => mockPlatformTools)
 }));
 
 // Mock config
@@ -101,7 +114,7 @@ jest.mock('../../src/config/app-config', () => ({
     })
 }));
 
-const { logger, pasteWithNativeTool, activateAndPasteWithNativeTool } = jest.requireMock('../../src/utils/utils') as any;
+const { logger } = jest.requireMock('../../src/utils/utils') as any;
 
 describe('IPCHandlers', () => {
     let ipcHandlers: IPCHandlers;
@@ -109,6 +122,11 @@ describe('IPCHandlers', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         (ipcMain.handle as jest.Mock).mockClear();
+        
+        // Reset platform tools mocks to default behaviors
+        mockPlatformTools.activateAndPaste.mockResolvedValue(undefined);
+        mockPlatformTools.pasteText.mockResolvedValue(undefined);
+        mockPlatformTools.checkAccessibilityPermissions.mockResolvedValue(true);
         
         const mockSettingsManager = {
             getSettings: jest.fn(() => ({
@@ -143,7 +161,7 @@ describe('IPCHandlers', () => {
             (clipboard.writeText as jest.Mock).mockImplementation(() => {});
             mockWindowManager.hideInputWindow.mockResolvedValue();
             mockWindowManager.focusPreviousApp.mockResolvedValue(true);
-            activateAndPasteWithNativeTool.mockResolvedValue();
+            mockPlatformTools.pasteText.mockResolvedValue();
 
             const result = await (ipcHandlers as any).handlePasteText(null, 'test text');
 
@@ -166,7 +184,7 @@ describe('IPCHandlers', () => {
             (clipboard.writeText as jest.Mock).mockImplementation(() => {});
             mockWindowManager.hideInputWindow.mockResolvedValue();
             mockWindowManager.getPreviousApp.mockReturnValue({ name: 'TestApp', bundleId: 'com.test.app' });
-            activateAndPasteWithNativeTool.mockRejectedValue(new Error('Paste failed'));
+            mockPlatformTools.activateAndPaste.mockRejectedValue(new Error('Paste failed'));
 
             const result = await (ipcHandlers as any).handlePasteText(null, 'test text');
 
@@ -179,7 +197,7 @@ describe('IPCHandlers', () => {
             mockWindowManager.hideInputWindow.mockResolvedValue();
             mockWindowManager.getPreviousApp.mockReturnValue(null); // No previous app
             mockWindowManager.focusPreviousApp.mockResolvedValue(false);
-            pasteWithNativeTool.mockResolvedValue();
+            mockPlatformTools.pasteText.mockResolvedValue();
 
             const result = await (ipcHandlers as any).handlePasteText(null, 'test text');
 
@@ -191,7 +209,7 @@ describe('IPCHandlers', () => {
             (clipboard.writeText as jest.Mock).mockImplementation(() => {});
             mockWindowManager.hideInputWindow.mockResolvedValue();
             mockWindowManager.focusPreviousApp.mockResolvedValue(true);
-            pasteWithNativeTool.mockResolvedValue();
+            mockPlatformTools.pasteText.mockResolvedValue();
             // Reset getPreviousApp to return the default mock value
             mockWindowManager.getPreviousApp.mockReturnValue({ name: 'TestApp', bundleId: 'com.test.app' });
 
@@ -205,7 +223,7 @@ describe('IPCHandlers', () => {
             (clipboard.writeText as jest.Mock).mockImplementation(() => {});
             mockWindowManager.hideInputWindow.mockResolvedValue();
             mockWindowManager.focusPreviousApp.mockResolvedValue(true);
-            pasteWithNativeTool.mockRejectedValue(new Error('Paste script failed'));
+            mockPlatformTools.activateAndPaste.mockRejectedValue(new Error('Paste script failed'));
             // Reset getPreviousApp to return the default mock value
             mockWindowManager.getPreviousApp.mockReturnValue({ name: 'TestApp', bundleId: 'com.test.app' });
 

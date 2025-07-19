@@ -15,6 +15,22 @@ jest.mock('fs', () => ({
     }
 }));
 
+// Mock config to simulate macOS environment for native tool tests
+jest.mock('../../src/config/app-config', () => ({
+    platform: {
+        isMac: true,
+        isWindows: false
+    },
+    window: {},
+    timing: {
+        windowHideDelay: 100,
+        appFocusDelay: 200
+    },
+    app: {
+        name: 'Prompt Line'
+    }
+}));
+
 import { 
     logger, 
     getCurrentApp, 
@@ -94,15 +110,6 @@ describe('Utils', () => {
     });
 
     describe('getCurrentApp', () => {
-        test('should return null on non-macOS platforms', async () => {
-            const originalPlatform = process.platform;
-            Object.defineProperty(process, 'platform', { value: 'linux' });
-            
-            const result = await getCurrentApp();
-            expect(result).toBeNull();
-            
-            Object.defineProperty(process, 'platform', { value: originalPlatform });
-        });
 
         test('should handle exec errors gracefully', async () => {
             const originalPlatform = process.platform;
@@ -208,14 +215,6 @@ describe('Utils', () => {
             Object.defineProperty(process, 'platform', { value: originalPlatform });
         });
 
-        test('should throw error on non-macOS platforms', async () => {
-            const originalPlatform = process.platform;
-            Object.defineProperty(process, 'platform', { value: 'linux' });
-            
-            await expect(pasteWithNativeTool()).rejects.toThrow('Native paste only supported on macOS');
-            
-            Object.defineProperty(process, 'platform', { value: originalPlatform });
-        });
     });
 
     describe('debounce', () => {

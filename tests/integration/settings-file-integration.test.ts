@@ -164,6 +164,12 @@ window:
         });
 
         test('should handle permission errors gracefully', async () => {
+            // Skip this test on Windows as chmod behavior is different
+            if (process.platform === 'win32') {
+                console.log('Skipping permission test on Windows');
+                return;
+            }
+
             // Create file first
             await createTestYAMLFile('test: content');
             
