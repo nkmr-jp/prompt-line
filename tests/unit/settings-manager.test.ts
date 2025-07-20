@@ -126,7 +126,8 @@ window:
           position: 'active-text-field',
           width: 600,
           height: 300
-        }
+        },
+        ignore_apps: []
       });
     });
 
@@ -220,7 +221,8 @@ window:
           position: 'active-text-field',
           width: 600,
           height: 300
-        }
+        },
+        ignore_apps: []
       });
 
       // Ensure it's a copy and not reference

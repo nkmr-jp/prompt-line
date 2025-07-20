@@ -42,7 +42,7 @@ import OptimizedHistoryManager from './managers/optimized-history-manager';
 import DraftManager from './managers/draft-manager';
 import SettingsManager from './managers/settings-manager';
 import IPCHandlers from './handlers/ipc-handlers';
-import { logger, ensureDir } from './utils/utils';
+import { logger, ensureDir, getCurrentApp } from './utils/utils';
 import type { WindowData } from './types';
 
 class PromptLineApp {
@@ -53,6 +53,9 @@ class PromptLineApp {
   private ipcHandlers: IPCHandlers | null = null;
   private tray: Tray | null = null;
   private isInitialized = false;
+  private appMonitorInterval: NodeJS.Timeout | null = null;
+  private lastActiveApp: string | null = null;
+  private isWindowVisible = false;
 
   async initialize(): Promise<void> {
     try {
@@ -85,12 +88,18 @@ class PromptLineApp {
         this.historyManager,
         this.draftManager,
         this.settingsManager,
-        this.reregisterMainShortcut.bind(this)
+        async () => {
+          // ウィンドウが非表示になったことを記録
+          this.isWindowVisible = false;
+          // メインショートカットを再登録
+          await this.reregisterMainShortcut();
+        }
       );
 
 
       // Note: Window is now pre-created during WindowManager initialization
       this.registerShortcuts();
+      this.setupDynamicShortcuts();
       this.createTray();
       this.setupAppEventListeners();
 
@@ -127,6 +136,9 @@ class PromptLineApp {
       const mainShortcut = settings?.shortcuts.main || config.shortcuts.main;
       
       const mainRegistered = globalShortcut.register(mainShortcut, async () => {
+        if (await this.shouldIgnoreCurrentApp()) {
+          return;
+        }
         await this.showInputWindow();
       });
 
@@ -163,6 +175,9 @@ class PromptLineApp {
       
       if (!globalShortcut.isRegistered(mainShortcut)) {
         const mainRegistered = globalShortcut.register(mainShortcut, async () => {
+          if (await this.shouldIgnoreCurrentApp()) {
+            return;
+          }
           await this.showInputWindow();
         });
 
@@ -174,6 +189,116 @@ class PromptLineApp {
       }
     } catch (error) {
       logger.error('Error re-registering main shortcut:', error);
+    }
+  }
+
+  private setupDynamicShortcuts(): void {
+    try {
+      logger.info('Setting up dynamic shortcut management (100ms interval)');
+      
+      this.appMonitorInterval = setInterval(async () => {
+        await this.checkAndUpdateShortcuts();
+      }, 100);
+      
+    } catch (error) {
+      logger.error('Error setting up dynamic shortcuts:', error);
+    }
+  }
+
+  private async checkAndUpdateShortcuts(): Promise<void> {
+    try {
+      // ウィンドウが表示されている間はグローバルショートカットを登録しない
+      if (this.isWindowVisible) {
+        return;
+      }
+      
+      const currentApp = await getCurrentApp();
+      const currentAppName = currentApp?.name || null;
+      
+      // アプリが変わった場合のみ処理
+      if (currentAppName === this.lastActiveApp) {
+        return;
+      }
+      
+      logger.info('App changed in dynamic shortcut check', {
+        from: this.lastActiveApp,
+        to: currentAppName
+      });
+      
+      this.lastActiveApp = currentAppName;
+      
+      const settings = this.settingsManager?.getSettings();
+      const ignoreApps = settings?.ignore_apps || [];
+      const mainShortcut = settings?.shortcuts.main || config.shortcuts.main;
+      
+      const shouldIgnore = currentAppName && ignoreApps.includes(currentAppName);
+      const isRegistered = globalShortcut.isRegistered(mainShortcut);
+      
+      logger.debug('Dynamic shortcut state check', {
+        appName: currentAppName,
+        shouldIgnore,
+        isRegistered,
+        ignoreApps,
+        shortcut: mainShortcut
+      });
+      
+      if (shouldIgnore && isRegistered) {
+        // 無視すべきアプリがアクティブ → ショートカット解除
+        globalShortcut.unregister(mainShortcut);
+        logger.info('Shortcut unregistered for ignored app', { 
+          appName: currentAppName,
+          shortcut: mainShortcut 
+        });
+      } else if (!shouldIgnore && !isRegistered) {
+        // 通常のアプリがアクティブ → ショートカット登録
+        const registered = globalShortcut.register(mainShortcut, async () => {
+          if (await this.shouldIgnoreCurrentApp()) {
+            return;
+          }
+          await this.showInputWindow();
+        });
+        
+        if (registered) {
+          logger.info('Shortcut re-registered for allowed app', { 
+            appName: currentAppName || 'Unknown',
+            shortcut: mainShortcut 
+          });
+        } else {
+          logger.warn('Failed to re-register shortcut', { 
+            appName: currentAppName,
+            shortcut: mainShortcut 
+          });
+        }
+      }
+      
+    } catch (error) {
+      logger.error('Error in dynamic shortcut check:', error);
+    }
+  }
+
+  private async shouldIgnoreCurrentApp(): Promise<boolean> {
+    try {
+      const settings = this.settingsManager?.getSettings();
+      const ignoreApps = settings?.ignore_apps;
+      
+      if (!ignoreApps || ignoreApps.length === 0) {
+        return false;
+      }
+
+      const currentApp = await getCurrentApp();
+      if (!currentApp) {
+        return false;
+      }
+
+      const isIgnored = ignoreApps.includes(currentApp.name);
+      if (isIgnored) {
+        logger.debug('Ignoring shortcut from app', { appName: currentApp.name });
+      }
+
+      return isIgnored;
+    } catch (error) {
+      logger.error('Error checking app ignore list:', error);
+      return false; // Default to not ignoring on error
     }
   }
 
@@ -348,6 +473,9 @@ class PromptLineApp {
 
       // Unregister main shortcut to prevent conflicts while window is visible
       this.unregisterMainShortcut();
+      
+      // ウィンドウが表示されていることを記録
+      this.isWindowVisible = true;
 
       const draft = this.draftManager.getCurrentDraft();
       const settings = this.settingsManager.getSettings();
@@ -372,6 +500,10 @@ class PromptLineApp {
     try {
       if (this.windowManager) {
         await this.windowManager.hideInputWindow();
+        
+        // ウィンドウが非表示になったことを記録
+        this.isWindowVisible = false;
+        
         // Re-register main shortcut after window is hidden
         this.reregisterMainShortcut();
         logger.debug('Input window hidden');
@@ -386,6 +518,13 @@ class PromptLineApp {
       logger.info('Cleaning up application resources...');
 
       const cleanupPromises: Promise<unknown>[] = [];
+
+      // Stop dynamic shortcut monitoring
+      if (this.appMonitorInterval) {
+        clearInterval(this.appMonitorInterval);
+        this.appMonitorInterval = null;
+        logger.debug('Dynamic shortcut monitoring stopped');
+      }
 
       globalShortcut.unregisterAll();
 

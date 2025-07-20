@@ -26,7 +26,8 @@ class SettingsManager {
         position: 'active-text-field',
         width: 600,
         height: 300
-      }
+      },
+      ignore_apps: []
     };
 
     this.currentSettings = { ...this.defaultSettings };
@@ -83,7 +84,8 @@ class SettingsManager {
       window: {
         ...this.defaultSettings.window,
         ...userSettings.window
-      }
+      },
+      ignore_apps: userSettings.ignore_apps || this.defaultSettings.ignore_apps || []
     };
   }
 
@@ -147,6 +149,12 @@ window:
   # Window height in pixels
   # Recommended range: 200-400 pixels
   height: ${settings.window.height}
+
+# Application filtering configuration  
+# List of application names to ignore when the main shortcut is pressed
+# This is useful for multi-platform environments (e.g., Parallels, VMware)
+# Format: List of app names (case-sensitive)
+ignore_apps:${settings.ignore_apps?.length ? settings.ignore_apps.map(app => `\n  - ${app}`).join('') : ' []'}
 `;
   }
 
@@ -206,11 +214,21 @@ window:
     });
   }
 
+  getIgnoreApps(): string[] {
+    return this.currentSettings.ignore_apps ? [...this.currentSettings.ignore_apps] : [];
+  }
+
+  async updateIgnoreApps(ignore_apps: string[]): Promise<void> {
+    await this.updateSettings({
+      ignore_apps: [...ignore_apps]
+    });
+  }
 
   getDefaultSettings(): UserSettings {
     return {
       shortcuts: { ...this.defaultSettings.shortcuts },
-      window: { ...this.defaultSettings.window }
+      window: { ...this.defaultSettings.window },
+      ignore_apps: this.defaultSettings.ignore_apps ? [...this.defaultSettings.ignore_apps] : []
     };
   }
 

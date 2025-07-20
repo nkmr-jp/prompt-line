@@ -176,5 +176,6 @@ export interface UserSettings {
     width: number;
     height: number;
   };
+  ignore_apps?: string[];
 }
 
