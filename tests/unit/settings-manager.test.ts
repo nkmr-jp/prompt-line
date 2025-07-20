@@ -2,6 +2,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
 import SettingsManager from '../../src/managers/settings-manager';
+import config from '../../src/config/app-config';
 import type { UserSettings } from '../../src/types';
 
 // Mock fs module
@@ -10,6 +11,13 @@ jest.mock('fs', () => ({
     mkdir: jest.fn(),
     readFile: jest.fn(),
     writeFile: jest.fn()
+  }
+}));
+
+// Mock config
+jest.mock('../../src/config/app-config', () => ({
+  platform: {
+    isMac: true
   }
 }));
 
@@ -112,15 +120,16 @@ window:
 
     it('should return default settings', () => {
       const settings = settingsManager.getSettings();
+      const modifier = config.platform.isMac ? 'Cmd' : 'Ctrl';
       
       expect(settings).toEqual({
         shortcuts: {
-          main: 'Cmd+Shift+Space',
-          paste: 'Cmd+Enter',
+          main: `${modifier}+Shift+Space`,
+          paste: `${modifier}+Enter`,
           close: 'Escape',
           historyNext: 'Ctrl+j',
           historyPrev: 'Ctrl+k',
-          search: 'Cmd+f'
+          search: `${modifier}+f`
         },
         window: {
           position: 'active-text-field',
@@ -207,15 +216,16 @@ window:
 
     it('should return default settings copy', () => {
       const defaults = settingsManager.getDefaultSettings();
+      const modifier = config.platform.isMac ? 'Cmd' : 'Ctrl';
       
       expect(defaults).toEqual({
         shortcuts: {
-          main: 'Cmd+Shift+Space',
-          paste: 'Cmd+Enter',
+          main: `${modifier}+Shift+Space`,
+          paste: `${modifier}+Enter`,
           close: 'Escape',
           historyNext: 'Ctrl+j',
           historyPrev: 'Ctrl+k',
-          search: 'Cmd+f'
+          search: `${modifier}+f`
         },
         window: {
           position: 'active-text-field',

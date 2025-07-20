@@ -3,6 +3,7 @@ import path from 'path';
 import os from 'os';
 import * as yaml from 'js-yaml';
 import { logger } from '../utils/utils';
+import config from '../config/app-config';
 import type { UserSettings } from '../types';
 
 class SettingsManager {
@@ -13,14 +14,17 @@ class SettingsManager {
   constructor() {
     this.settingsFile = path.join(os.homedir(), '.prompt-line', 'settings.yml');
     
+    // Platform-specific default shortcuts
+    const modifier = config.platform.isMac ? 'Cmd' : 'Ctrl';
+    
     this.defaultSettings = {
       shortcuts: {
-        main: 'Cmd+Shift+Space',
-        paste: 'Cmd+Enter',
+        main: `${modifier}+Shift+Space`,
+        paste: `${modifier}+Enter`,
         close: 'Escape',
         historyNext: 'Ctrl+j',
         historyPrev: 'Ctrl+k',
-        search: 'Cmd+f'
+        search: `${modifier}+f`
       },
       window: {
         position: 'active-text-field',

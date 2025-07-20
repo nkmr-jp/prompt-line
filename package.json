@@ -165,7 +165,6 @@
           ]
         }
       ],
-      "icon": "assets/Prompt-Line.ico",
       "verifyUpdateCodeSignature": false,
       "requestedExecutionLevel": "asInvoker",
       "artifactName": "Prompt-Line-${version}-${arch}.${ext}"
@@ -176,9 +175,6 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Prompt Line",
-      "installerIcon": "assets/Prompt-Line.ico",
-      "uninstallerIcon": "assets/Prompt-Line.ico",
-      "installerHeaderIcon": "assets/Prompt-Line.ico",
       "deleteAppDataOnUninstall": false
     },
     "dmg": {
