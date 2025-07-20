@@ -39,6 +39,9 @@ npm run build:renderer  # Vite build for renderer process
 npm run clean      # Removes build artifacts
 npm run release    # Semantic release process
 npm run prepare    # Husky setup
+
+# Windows-specific build command
+npm run build:win  # IMPORTANT: On Windows, use this instead of npm run build
 ```
 
 **Build Process Details:**

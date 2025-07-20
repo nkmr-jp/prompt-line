@@ -176,7 +176,7 @@ exec(`"${WINDOW_DETECTOR_PATH}" current-app`, options, (error, stdout) => {
 - [x] クロスプラットフォームビルドスクリプトの作成
 - [x] Windows 向け electron-builder 設定の追加
 - [x] 基本ビルドの確認（ネイティブ機能なし）
-- [x] Windows アイコンファイルの作成（プレースホルダー）
+- [x] Windows アイコンファイルの作成 ✅
 - [x] ファイル操作スクリプトの作成 (copy-renderer-files.js, clean.js)
 
 ### Phase 3: Windows ネイティブツール実装 ✅
@@ -195,12 +195,13 @@ exec(`"${WINDOW_DETECTOR_PATH}" current-app`, options, (error, stdout) => {
 - [x] システムトレイの Windows 対応 (条件分岐実装済み)
 - [x] アプリケーション切り替え機能の実装 (keyboard-simulatorで実装済み)
 
-### Phase 5: テスト・パッケージング ⏳
+### Phase 5: テスト・パッケージング ✅
 - [x] Windows 開発環境のセットアップ
 - [x] テストの作成/修正 (settings-manager等のテスト修正済み)
 - [x] Windows でのビルド確認 (ビルド・実行確認済み)
-- [ ] パッケージング設定 (NSIS インストーラー)
-- [ ] インストーラーの作成とテスト
+- [x] パッケージング設定 (NSIS インストーラー、ポータブル版)
+- [x] インストーラーの作成とテスト
+- [ ] NSIS カスタムスクリプト (installer.nsh) - 一時見送り ※
 
 ### Phase 6: 品質保証 ⏳
 - [x] Windows 10/11 での動作確認 (基本動作確認済み)
@@ -210,7 +211,7 @@ exec(`"${WINDOW_DETECTOR_PATH}" current-app`, options, (error, stdout) => {
 
 ## 現在の状況
 
-**完了済み (Phase 1-4 ほぼ完了):**
+**完了済み (Phase 1-5 ほぼ完了):**
 - プラットフォーム抽象化レイヤー (`src/platform/`) を実装済み
 - Mac 専用コードをプラットフォーム依存部分として分離
 - TypeScript ビルドエラーを全て解決
@@ -223,11 +224,14 @@ exec(`"${WINDOW_DETECTOR_PATH}" current-app`, options, (error, stdout) => {
 - **Windows GPU設定とキーボードショートカット修正完了**
 - **システムトレイ・アプリケーション切り替え機能実装完了**
 - **テスト修正とWindows動作確認完了**
+- **Windows用アイコン作成とパッケージング完了**
+- **NSISインストーラーとポータブル版の作成完了**
 
 **実装済みのファイル:**
 - `scripts/compile-platform.js` - プラットフォーム検出とビルド振り分け
 - `scripts/copy-renderer-files.js` - クロスプラットフォームファイルコピー
 - `scripts/clean.js` - クロスプラットフォームクリーンアップ
+- `scripts/create-windows-icon.js` - Windows アイコン生成スクリプト
 - `src/platform/` - プラットフォーム抽象化レイヤー
 - `native-win/` - Windows C# プロジェクト群
   - `window-detector/` - C# プロジェクト（ウィンドウ検出）
@@ -235,16 +239,15 @@ exec(`"${WINDOW_DETECTOR_PATH}" current-app`, options, (error, stdout) => {
   - `text-field-detector/` - C# プロジェクト（テキストフィールド検出）
   - `build-all.ps1` - PowerShell 統合ビルドスクリプト
   - `README.md` - Windows実装ドキュメント
-- `assets/Prompt-Line.ico` - Windows アイコン（プレースホルダー）
+- `assets/Prompt-Line.ico` - Windows アイコン（実装済み）
 - `package.json` - 更新済み（Windows ビルド設定、koffi依存削除）
 - `tests/unit/settings-manager.test.ts` - Windows対応テスト修正
 - `tests/integration/error-handling.test.ts` - プラットフォーム固有テスト調整
 
-**次のステップ (Phase 4-6 残りタスク):**
-- 仮想デスクトップ対応 (desktop-space-manager)
-- パッケージング設定 (NSIS インストーラー)
-- インストーラーの作成とテスト
-- アンチウイルスソフトでの検証 (低優先度: Windows Defenderで問題なし確認済み)
+**次のステップ (残りタスク):**
+- 仮想デスクトップ対応 (desktop-space-manager) - Phase 4
+- NSISカスタムスクリプト対応 (installer.nsh) - Phase 5（一時見送り）
+- アンチウイルスソフトでの検証 - Phase 6（低優先度）
 
 ## 注意事項
 
@@ -387,6 +390,7 @@ exec(`"${WINDOW_DETECTOR_PATH}" current-app`, options, (error: Error | null, std
    - `compile-platform.js` - OS 検出とビルド振り分け ✅
    - `copy-renderer-files.js` - クロスプラットフォームファイルコピー ✅
    - `clean.js` - クロスプラットフォームクリーンアップ ✅
+   - `create-windows-icon.js` - Windows アイコン生成スクリプト ✅
 
 2. **native-win/** ✅
    - `window-detector/` - ウィンドウ検出C#プロジェクト ✅
@@ -458,6 +462,19 @@ exec(`"${WINDOW_DETECTOR_PATH}" current-app`, options, (error: Error | null, std
 - 代替手段（OCR、スクリーン解析等）の検討
 
 この制約により、現状ではWindowsでのElectronアプリ使用時にmacOSと完全に同等の位置精度は実現できないが、基本的な機能は問題なく動作する。
+
+### NSISカスタムスクリプトについて ※
+
+**状況**: `build/installer.nsh.bak` として保存されているカスタムNSISスクリプトは、electron-builderのテンプレートとの競合により一時的に無効化。
+
+**実装しようとしていた機能:**
+1. .NET 8.0 Runtime のインストールチェック
+2. 未インストールの場合、ダウンロードページへの誘導
+3. アンインストール時のユーザーデータ削除オプション
+
+**影響**: これらの機能がなくても基本的な動作には問題なし。.NET 8.0 は Windows native tools の実行に必要だが、未インストールの場合はエラーメッセージで判断可能。
+
+**今後の対応**: electron-builder の NSIS カスタマイズ方法を再調査し、テンプレートとの競合を避ける実装方法を検討。
 
 ## 参考リソース
 

@@ -1,0 +1,83 @@
+# Windows NSIS installer customization script for Prompt Line
+# This script provides additional installer features and requirements
+
+!include MUI2.nsh
+!include WinMessages.nsh
+!include nsDialogs.nsh
+
+# Check for .NET 8.0 Runtime requirement
+Function CheckDotNetRuntime
+  # Check if .NET 8.0 Runtime is installed
+  ReadRegStr $0 HKLM "SOFTWARE\dotnet\Setup\InstalledVersions\x64\sharedhost" "Version"
+  ${If} $0 == ""
+    # .NET not found, show information dialog
+    MessageBox MB_YESNO|MB_ICONQUESTION ".NET 8.0 Runtime is required to run Prompt Line.$\r$\n$\r$\nWould you like to download it now?" IDYES download_dotnet IDNO skip_dotnet
+    
+    download_dotnet:
+      ExecShell "open" "https://dotnet.microsoft.com/download/dotnet/8.0/runtime"
+      MessageBox MB_OK "Please install .NET 8.0 Runtime and run this installer again."
+      Abort
+    
+    skip_dotnet:
+      MessageBox MB_OK|MB_ICONEXCLAMATION "Warning: .NET 8.0 Runtime was not detected.$\r$\n$\r$\nPrompt Line may not work correctly without it."
+  ${EndIf}
+FunctionEnd
+
+# Installer initialization
+!macro preInit
+  Call CheckDotNetRuntime
+!macroend
+
+# Custom installer page for requirements
+!macro customPageFunction
+  Page custom RequirementsPage
+!macroend
+
+Function RequirementsPage
+  nsDialogs::Create 1018
+  Pop $0
+  
+  ${NSD_CreateLabel} 0 0 100% 20u "Prompt Line Requirements:"
+  Pop $1
+  
+  ${NSD_CreateLabel} 10 25u 90% 40u "• .NET 8.0 Runtime (automatically checked)$\r$\n• Windows 10 version 1903 or later$\r$\n• PowerShell 5.1 or later (included in Windows)"
+  Pop $2
+  
+  ${NSD_CreateLabel} 0 80u 100% 20u "Installation will continue automatically."
+  Pop $3
+  
+  nsDialogs::Show
+FunctionEnd
+
+# Post-installation tasks - use customInstall macro
+!macro customInstall
+  # Create data directory in user profile
+  CreateDirectory "$APPDATA\prompt-line"
+  
+  # Register file associations if needed (optional for future use)
+  # WriteRegStr HKCR ".promptline" "" "PromptLineFile"
+  # WriteRegStr HKCR "PromptLineFile" "" "Prompt Line Configuration"
+!macroend
+
+# Uninstaller customization
+Function un.AskUserData
+  # Ask user if they want to keep their data
+  MessageBox MB_YESNO|MB_ICONQUESTION "Do you want to keep your Prompt Line data (history, settings)?$\r$\n$\r$\nChoose 'No' to completely remove all data." IDYES keep_data IDNO remove_data
+  
+  remove_data:
+    RMDir /r "$APPDATA\prompt-line"
+    Goto cleanup_done
+  
+  keep_data:
+    # Keep data, just remove the app
+    Goto cleanup_done
+  
+  cleanup_done:
+    # Clean up registry entries if any were created
+    DeleteRegKey HKCR ".promptline"
+    DeleteRegKey HKCR "PromptLineFile"
+FunctionEnd
+
+!macro customUnInstall
+  Call un.AskUserData
+!macroend
