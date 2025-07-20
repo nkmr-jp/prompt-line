@@ -1,6 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Diagnostics;
 using System.Windows.Automation;
 
@@ -8,7 +9,29 @@ namespace TextFieldDetector
 {
     class Program
     {
+        #region Win32 API declarations
+        
+        [DllImport("user32.dll")]
+        private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+        
+        [StructLayout(LayoutKind.Sequential)]
+        private struct RECT
+        {
+            public int Left;
+            public int Top;
+            public int Right;
+            public int Bottom;
+        }
+        
+        #endregion
+        
         #region Helper Methods
+        
+        private static readonly JsonSerializerOptions JsonOptions = new JsonSerializerOptions
+        {
+            NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals,
+            WriteIndented = false
+        };
 
         private static string GetProcessName(uint processId)
         {
@@ -37,12 +60,21 @@ namespace TextFieldDetector
                 // Check if the focused element is a text-input control
                 var controlType = focusedElement.Current.ControlType;
                 
+                // Log control type for debugging
+                Console.Error.WriteLine($"[DEBUG] Focused element ControlType: {controlType.ProgrammaticName}, Name: {focusedElement.Current.Name ?? "null"}");
+                
                 // Check for text input controls
                 if (controlType == ControlType.Edit ||
-                    controlType == ControlType.Document ||
                     controlType == ControlType.Text)
                 {
                     return focusedElement;
+                }
+                
+                // Document type (common in Electron apps) doesn't have valid bounds
+                if (controlType == ControlType.Document)
+                {
+                    Console.Error.WriteLine("[DEBUG] Document type detected - not a valid text field for positioning");
+                    return null;
                 }
 
                 // Check for ComboBox with text input capability
@@ -68,11 +100,13 @@ namespace TextFieldDetector
 
                 return null;
             }
-            catch
+            catch (Exception ex)
             {
+                Console.Error.WriteLine($"[ERROR] GetFocusedTextFieldElement: {ex.Message}");
                 return null;
             }
         }
+        
 
         private static object GetTextFieldBounds(AutomationElement element)
         {
@@ -96,6 +130,26 @@ namespace TextFieldDetector
                     appName = GetProcessName((uint)processId);
                 }
 
+                // Log bounding rectangle details
+                Console.Error.WriteLine($"[DEBUG] BoundingRectangle: X={boundingRect.X}, Y={boundingRect.Y}, W={boundingRect.Width}, H={boundingRect.Height}");
+                Console.Error.WriteLine($"[DEBUG] IsEmpty={boundingRect.IsEmpty}, AppName={appName}");
+
+                // Check if bounding rectangle is valid
+                if (boundingRect.IsEmpty || 
+                    boundingRect.X == int.MinValue || 
+                    boundingRect.Y == int.MinValue ||
+                    boundingRect.Width <= 0 ||
+                    boundingRect.Height <= 0 ||
+                    double.IsInfinity(boundingRect.X) ||
+                    double.IsInfinity(boundingRect.Y) ||
+                    double.IsInfinity(boundingRect.Width) ||
+                    double.IsInfinity(boundingRect.Height))
+                {
+                    Console.Error.WriteLine("[DEBUG] Invalid bounding rectangle detected");
+                    return new { error = "Invalid bounding rectangle" };
+                }
+
+                Console.Error.WriteLine("[DEBUG] Using normal BoundingRectangle");
                 return new
                 {
                     x = (int)boundingRect.X,
@@ -125,16 +179,74 @@ namespace TextFieldDetector
                 var focusedElement = GetFocusedTextFieldElement();
                 if (focusedElement == null)
                 {
-                    Console.WriteLine(JsonSerializer.Serialize(new { error = "No focused text field found" }));
+                    Console.WriteLine(JsonSerializer.Serialize(new { error = "No focused text field found" }, JsonOptions));
                     return;
                 }
 
                 var bounds = GetTextFieldBounds(focusedElement);
-                Console.WriteLine(JsonSerializer.Serialize(bounds));
+                Console.WriteLine(JsonSerializer.Serialize(bounds, JsonOptions));
             }
             catch (Exception ex)
             {
-                Console.WriteLine(JsonSerializer.Serialize(new { error = ex.Message }));
+                Console.WriteLine(JsonSerializer.Serialize(new { error = ex.Message }, JsonOptions));
+            }
+        }
+        
+        private static void GetFocusedElementInfo()
+        {
+            try
+            {
+                // Get the focused element
+                AutomationElement focusedElement = AutomationElement.FocusedElement;
+                if (focusedElement == null)
+                {
+                    Console.WriteLine(JsonSerializer.Serialize(new { error = "No focused element" }, JsonOptions));
+                    return;
+                }
+
+                var controlType = focusedElement.Current.ControlType;
+                var bounds = focusedElement.Current.BoundingRectangle;
+                
+                // Get the parent window to determine the app name
+                var window = focusedElement;
+                while (window != null && window.Current.ControlType != ControlType.Window)
+                {
+                    window = TreeWalker.ControlViewWalker.GetParent(window);
+                }
+
+                string appName = "";
+                if (window != null)
+                {
+                    var processId = window.Current.ProcessId;
+                    appName = GetProcessName((uint)processId);
+                }
+
+                var result = new
+                {
+                    controlType = controlType.ProgrammaticName,
+                    localizedControlType = controlType.LocalizedControlType,
+                    name = focusedElement.Current.Name ?? "",
+                    className = focusedElement.Current.ClassName ?? "",
+                    automationId = focusedElement.Current.AutomationId ?? "",
+                    appName = appName,
+                    bounds = new
+                    {
+                        x = bounds.X,
+                        y = bounds.Y,
+                        width = bounds.Width,
+                        height = bounds.Height,
+                        isEmpty = bounds.IsEmpty
+                    },
+                    hasKeyboardFocus = focusedElement.Current.HasKeyboardFocus,
+                    isEnabled = focusedElement.Current.IsEnabled,
+                    nativeWindowHandle = focusedElement.Current.NativeWindowHandle != IntPtr.Zero
+                };
+
+                Console.WriteLine(JsonSerializer.Serialize(result, JsonOptions));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(JsonSerializer.Serialize(new { error = ex.Message }, JsonOptions));
             }
         }
 
@@ -155,8 +267,11 @@ namespace TextFieldDetector
                 case "text-field-bounds":
                     GetActiveTextFieldBounds();
                     break;
+                case "focused-element":
+                    GetFocusedElementInfo();
+                    break;
                 default:
-                    Console.WriteLine(JsonSerializer.Serialize(new { error = $"Unknown command: {args[0]}" }));
+                    Console.WriteLine(JsonSerializer.Serialize(new { error = $"Unknown command: {args[0]}" }, JsonOptions));
                     Environment.Exit(1);
                     break;
             }

@@ -393,6 +393,67 @@ exec(`"${WINDOW_DETECTOR_PATH}" current-app`, options, (error: Error | null, std
 3. **assets/** ✅
    - `Prompt-Line.ico` - Windows アイコン（256x256, 128x128, 64x64, 32x32, 16x16）✅
 
+## 既知の制約・問題
+
+### ElectronアプリでのUI Automationの制限
+
+**問題**: VSCode、Slack、Discord、TeamsなどのElectronアプリにおいて、WindowsとmacOSでUI Automationの挙動が大きく異なる
+
+#### macOS（正常動作）
+- フォーカス要素が `AXTextField` として正確に認識される
+- 有効な座標値（x, y, width, height）が取得可能
+- Prompt Lineが正確なテキストフィールド位置に表示される
+
+**例（Mac版 VSCode）:**
+```json
+{
+  "x": -2393,
+  "y": 1420, 
+  "width": 7,
+  "height": 14,
+  "role": "AXTextField",
+  "appName": "Code"
+}
+```
+
+#### Windows（制限あり）
+- フォーカス要素が `ControlType.Document` として認識される
+- BoundingRectangleが無限大値（Infinity/-Infinity）で無効
+- テキストフィールドの正確な位置が取得できない
+
+**例（Windows版 VSCode）:**
+```json
+{
+  "controlType": "ControlType.Document",
+  "bounds": {
+    "x": "Infinity",
+    "y": "Infinity", 
+    "width": "-Infinity",
+    "height": "-Infinity",
+    "isEmpty": true
+  },
+  "hasKeyboardFocus": true,
+  "appName": "Code"
+}
+```
+
+#### 根本原因
+1. **WebView要素の認識差異**: ElectronアプリはChromium WebViewを使用しており、WindowsのUI AutomationとmacOSのAccessibility APIでHTML要素の認識方法が根本的に異なる
+2. **Document型の制限**: Windows版では実際のテキスト入力要素ではなく、WebView全体がDocument型として返される
+3. **座標計算の失敗**: WebView内のHTML要素の座標をネイティブAPIで正確に取得することができない
+
+#### 現在の対応策
+- Document型が検出された場合は `null` を返す（Mac版と同じ動作）
+- `active-text-field` モードでテキストフィールドが検出できない場合、自動的に `active-window-center` にフォールバック
+- Electronアプリでは画面中央やや上側に表示される
+
+#### 将来的な改善可能性
+- Electron/Chromiumのアクセシビリティ実装が改善される可能性
+- WebView2ベースの実装への移行により改善される可能性
+- 代替手段（OCR、スクリーン解析等）の検討
+
+この制約により、現状ではWindowsでのElectronアプリ使用時にmacOSと完全に同等の位置精度は実現できないが、基本的な機能は問題なく動作する。
+
 ## 参考リソース
 
 - [Win32 API Documentation](https://docs.microsoft.com/en-us/windows/win32/)

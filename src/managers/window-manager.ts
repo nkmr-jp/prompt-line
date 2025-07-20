@@ -379,7 +379,7 @@ class WindowManager {
           x = textFieldBounds.x + (textFieldBounds.width - windowWidth) / 2;
         }
         
-        // Always center vertically
+        // Center the window vertically within the text field
         const y = textFieldBounds.y + (textFieldBounds.height - windowHeight) / 2;
         
         return this.constrainToScreenBounds({ x, y }, windowWidth, windowHeight, { 
@@ -403,6 +403,18 @@ class WindowManager {
       if (!textFieldBounds) {
         logger.debug('No text field detected');
         return null;
+      }
+      
+      // Debug logging for Windows coordinate system
+      if (config.platform.isWindows) {
+        logger.debug('Windows text field bounds detected:', {
+          x: textFieldBounds.x,
+          y: textFieldBounds.y,
+          width: textFieldBounds.width,
+          height: textFieldBounds.height,
+          appName: textFieldBounds.appName,
+          controlType: textFieldBounds.controlType
+        });
       }
       
       return {
