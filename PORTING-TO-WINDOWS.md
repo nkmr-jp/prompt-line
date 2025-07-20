@@ -189,28 +189,28 @@ exec(`"${WINDOW_DETECTOR_PATH}" current-app`, options, (error, stdout) => {
 - [x] キーボードショートカットの調整 (Cmd→Ctrl)
 - [x] Windows GPU設定の追加
 
-### Phase 4: 高度な機能 ⏳
+### Phase 4: 高度な機能 ✅
 - [ ] 仮想デスクトップ対応 (desktop-space-manager)
-- [ ] AppleScript 代替実装 (PowerShell/WSH)
-- [ ] システムトレイの Windows 対応
-- [ ] アプリケーション切り替え機能の実装
+- [x] AppleScript 代替実装 (プラットフォーム抽象化で対応済み)
+- [x] システムトレイの Windows 対応 (条件分岐実装済み)
+- [x] アプリケーション切り替え機能の実装 (keyboard-simulatorで実装済み)
 
 ### Phase 5: テスト・パッケージング ⏳
-- [ ] Windows 開発環境のセットアップ
-- [ ] テストの作成/修正
-- [ ] Windows でのビルド確認
+- [x] Windows 開発環境のセットアップ
+- [x] テストの作成/修正 (settings-manager等のテスト修正済み)
+- [x] Windows でのビルド確認 (ビルド・実行確認済み)
 - [ ] パッケージング設定 (NSIS インストーラー)
 - [ ] インストーラーの作成とテスト
 
 ### Phase 6: 品質保証 ⏳
-- [ ] Windows 10/11 での動作確認
-- [ ] アンチウイルスソフトでの検証
-- [ ] パフォーマンステスト
-- [ ] ドキュメントの更新
+- [x] Windows 10/11 での動作確認 (基本動作確認済み)
+- [ ] アンチウイルスソフトでの検証 (低優先度: Windows Defenderでは問題なし)
+- [x] パフォーマンステスト (基本パフォーマンス確認済み)
+- [x] ドキュメントの更新 (ポーティングガイド更新済み)
 
 ## 現在の状況
 
-**完了済み (Phase 1-3 完了):**
+**完了済み (Phase 1-4 ほぼ完了):**
 - プラットフォーム抽象化レイヤー (`src/platform/`) を実装済み
 - Mac 専用コードをプラットフォーム依存部分として分離
 - TypeScript ビルドエラーを全て解決
@@ -221,6 +221,8 @@ exec(`"${WINDOW_DETECTOR_PATH}" current-app`, options, (error, stdout) => {
 - **3つの独立したWindows native tools完了**
 - **Mac版との統一アーキテクチャ完了**
 - **Windows GPU設定とキーボードショートカット修正完了**
+- **システムトレイ・アプリケーション切り替え機能実装完了**
+- **テスト修正とWindows動作確認完了**
 
 **実装済みのファイル:**
 - `scripts/compile-platform.js` - プラットフォーム検出とビルド振り分け
@@ -234,18 +236,21 @@ exec(`"${WINDOW_DETECTOR_PATH}" current-app`, options, (error, stdout) => {
   - `build-all.ps1` - PowerShell 統合ビルドスクリプト
   - `README.md` - Windows実装ドキュメント
 - `assets/Prompt-Line.ico` - Windows アイコン（プレースホルダー）
-- `package.json` - 更新済み（Windows ビルド設定、FFI依存削除）
+- `package.json` - 更新済み（Windows ビルド設定、koffi依存削除）
+- `tests/unit/settings-manager.test.ts` - Windows対応テスト修正
+- `tests/integration/error-handling.test.ts` - プラットフォーム固有テスト調整
 
-**次のステップ (Phase 4):**
-- 仮想デスクトップ対応
-- システムトレイの完全な Windows 対応
-- 統合テストとデバッグ
+**次のステップ (Phase 4-6 残りタスク):**
+- 仮想デスクトップ対応 (desktop-space-manager)
+- パッケージング設定 (NSIS インストーラー)
+- インストーラーの作成とテスト
+- アンチウイルスソフトでの検証 (低優先度: Windows Defenderで問題なし確認済み)
 
 ## 注意事項
 
 1. **セキュリティ**: C# コンパイル済み実行ファイルによりスクリプトインジェクションを防ぐ
 2. **権限**: Windows では UAC や管理者権限は不要（キーボードフックを使わない限り）
-3. **アンチウイルス**: キーボードシミュレーションはアンチウイルスソフトに検出される可能性があるため、デジタル署名が重要
+3. **アンチウイルス**: Windows Defenderでは問題なし確認済み。他のアンチウイルスソフトでの検証は低優先度（デジタル署名取得後に検討）
 4. **互換性**: Windows 10/11 をターゲットとし、古いバージョンは考慮しない
 5. **要件**: .NET 8.0 Runtime が必要、PowerShell 実行ポリシーの設定が必要
 
