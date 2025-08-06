@@ -1,3 +1,9 @@
+## [0.8.7](https://github.com/nkmr-jp/prompt-line/compare/v0.8.6...v0.8.7) (2025-08-06)
+
+### Maintenance
+
+* **deps-dev:** bump tmp in the npm_and_yarn group across 1 directory ([c942748](https://github.com/nkmr-jp/prompt-line/commit/c942748f10b2369af83a55de62e68c9ed0574e60))
+
 ## [0.8.6](https://github.com/nkmr-jp/prompt-line/compare/v0.8.5...v0.8.6) (2025-07-22)
 
 ### Maintenance
