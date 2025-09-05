@@ -1,3 +1,9 @@
+## [0.8.8](https://github.com/nkmr-jp/prompt-line/compare/v0.8.7...v0.8.8) (2025-09-05)
+
+### Maintenance
+
+* **deps-dev:** bump electron ([f1a20fe](https://github.com/nkmr-jp/prompt-line/commit/f1a20fe36a55f91fa28e30348692eb40647214a4))
+
 ## [0.8.7](https://github.com/nkmr-jp/prompt-line/compare/v0.8.6...v0.8.7) (2025-08-06)
 
 ### Maintenance
