@@ -1,3 +1,9 @@
+## [0.8.9](https://github.com/nkmr-jp/prompt-line/compare/v0.8.8...v0.8.9) (2025-09-10)
+
+### Maintenance
+
+* **deps-dev:** bump vite in the npm_and_yarn group across 1 directory ([1ab9523](https://github.com/nkmr-jp/prompt-line/commit/1ab95238da3450f8a3b2c5a0a11a857d224ed1ef))
+
 ## [0.8.8](https://github.com/nkmr-jp/prompt-line/compare/v0.8.7...v0.8.8) (2025-09-05)
 
 ### Maintenance
