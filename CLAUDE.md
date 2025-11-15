@@ -36,7 +36,9 @@ npm run pre-push   # Run all pre-push checks (lint + typecheck + test)
 
 # Additional build commands
 npm run build:renderer  # Vite build for renderer process
-npm run clean      # Removes build artifacts
+npm run clean      # Removes build artifacts (DMG, zip files, etc.)
+npm run clean:cache     # Clears build caches (node_modules/.cache, electron caches)
+npm run clean:full      # Full cleanup (build artifacts + caches + dist directory)
 npm run release    # Semantic release process
 npm run prepare    # Husky setup
 ```
@@ -268,6 +270,89 @@ The window supports multiple positioning modes with dynamic configuration:
 - **Explicit permissions**: Requires user accessibility permissions with guided setup
 - **Local data only**: All data stored locally, no network requests
 - **JSON communication**: Structured data exchange prevents parsing attacks
+
+## Common Build Issues and Troubleshooting
+
+### Build Failures
+
+#### electron-builder ENOENT Error
+If you encounter an error like `ENOENT: no such file or directory, rename '...Electron' -> '...Prompt Line'`:
+
+**Root Cause:** Corrupted electron-builder cache or incomplete Electron binary download.
+
+**Solution:**
+```bash
+# Full cleanup and rebuild
+npm run clean:full
+npm install
+npm run build
+```
+
+**Quick Fix (cache only):**
+```bash
+npm run clean:cache
+npm run build
+```
+
+#### TypeScript Compilation Errors
+If `tsc` command is not found or TypeScript compilation fails:
+
+**Solution:**
+```bash
+# Reinstall dependencies
+npm install
+npm run build
+```
+
+#### Native Tools Compilation Errors
+If Swift compilation fails for native tools:
+
+**Common Issues:**
+- Xcode Command Line Tools not installed
+- Incompatible macOS SDK version
+
+**Solution:**
+```bash
+# Install Xcode Command Line Tools
+xcode-select --install
+
+# Verify installation
+xcode-select -p
+```
+
+### Performance Issues
+
+#### Slow Build Times
+- Use `npm run compile` instead of full `npm run build` for faster development iterations
+- Native tools are cached after first compilation
+- Consider using SSD for faster I/O operations
+
+#### Large Distribution Size
+- DMG files are ~100-110MB per architecture (expected size)
+- App bundle contains full Electron framework
+- Use `npm run clean` to remove old build artifacts
+
+### Cleanup Commands Reference
+
+| Command | Purpose | When to Use |
+|---------|---------|-------------|
+| `npm run clean` | Remove build artifacts only | After each build to clean up DMG/zip files |
+| `npm run clean:cache` | Clear build caches | When experiencing cache-related build issues |
+| `npm run clean:full` | Complete cleanup | Before fresh build or when troubleshooting build errors |
+
+### Build Process Verification
+
+To verify a successful build:
+```bash
+# Check generated files
+ls -lh dist/*.dmg
+
+# Verify app bundles exist
+ls -la dist/mac*/Prompt\ Line.app
+
+# Check native tools
+ls -la dist/mac*/Prompt\ Line.app/Contents/Resources/app.asar.unpacked/dist/native-tools/
+```
 
 ## Investigation and Troubleshooting
 
