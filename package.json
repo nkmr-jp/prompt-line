@@ -10,6 +10,8 @@
     "typecheck": "tsc --noEmit",
     "build": "npm run compile && electron-builder --mac --publish=never",
     "clean": "rm -rf dist/mac* dist/*.dmg dist/*.zip dist/*.blockmap",
+    "clean:cache": "rm -rf node_modules/.cache ~/Library/Caches/electron-builder ~/Library/Caches/electron",
+    "clean:full": "npm run clean && npm run clean:cache && rm -rf dist/",
     "release": "semantic-release",
     "test": "jest",
     "test:watch": "jest --watch",
