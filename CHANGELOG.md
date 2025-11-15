@@ -1,3 +1,22 @@
+## [0.8.12](https://github.com/nkmr-jp/prompt-line/compare/v0.8.11...v0.8.12) (2025-11-15)
+
+### Maintenance
+
+* **deps:** bump js-yaml in the npm_and_yarn group across 1 directory ([cc863ad](https://github.com/nkmr-jp/prompt-line/commit/cc863adee0d9b7c61f8c134cdf289bac57c9327f))
+
+## [0.8.11](https://github.com/nkmr-jp/prompt-line/compare/v0.8.10...v0.8.11) (2025-10-21)
+
+### Maintenance
+
+* **deps-dev:** bump vite in the npm_and_yarn group across 1 directory ([ee7416f](https://github.com/nkmr-jp/prompt-line/commit/ee7416f039a2bc4416018c80d884f9a863c7c59e))
+
+## [0.8.10](https://github.com/nkmr-jp/prompt-line/compare/v0.8.9...v0.8.10) (2025-10-03)
+
+### Maintenance
+
+* add aqua.yaml for pinact dependency management ([f27b9c7](https://github.com/nkmr-jp/prompt-line/commit/f27b9c726d431708c33d6f936b5f37b5d741d935))
+* **ci:** pin GitHub Actions to commit hashes using pinact ([bff2e60](https://github.com/nkmr-jp/prompt-line/commit/bff2e6061d90490aad74433eda9d37a83206640d))
+
 ## [0.8.9](https://github.com/nkmr-jp/prompt-line/compare/v0.8.8...v0.8.9) (2025-09-10)
 
 ### Maintenance
