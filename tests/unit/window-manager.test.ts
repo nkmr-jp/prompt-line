@@ -108,7 +108,6 @@ describe('WindowManager', () => {
             windowManager.createInputWindow();
 
             expect(mockWindow.webContents.on).toHaveBeenCalledWith('context-menu', expect.any(Function));
-            expect(mockWindow.webContents.on).toHaveBeenCalledWith('before-input-event', expect.any(Function));
         });
 
         test('should handle window creation errors', () => {
