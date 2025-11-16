@@ -4,11 +4,11 @@
   "description": "Prompt Line is a macOS app developed to improve the prompt input experience in the terminal for CLI-based AI coding agents such as Claude Code, OpenAI Codex CLI, and Aider.",
   "main": "dist/main.js",
   "scripts": {
-    "start": "npm run compile && electron .",
+    "start": "NODE_ENV=development npm run compile && NODE_ENV=development electron .",
     "compile": "tsc && npm run build:renderer && cd native && make install && cp -r ../src/native-tools ../dist/",
     "build:renderer": "vite build && cp src/renderer/input.html dist/renderer/input.html && cp -r src/renderer/styles dist/renderer/",
     "typecheck": "tsc --noEmit",
-    "build": "npm run compile && electron-builder --mac --publish=never",
+    "build": "NODE_ENV=production npm run compile && NODE_ENV=production electron-builder --mac --publish=never",
     "clean": "rm -rf dist/mac* dist/*.dmg dist/*.zip dist/*.blockmap",
     "clean:cache": "rm -rf node_modules/.cache ~/Library/Caches/electron-builder ~/Library/Caches/electron",
     "clean:full": "npm run clean && npm run clean:cache && rm -rf dist/",

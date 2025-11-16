@@ -115,8 +115,26 @@ class AppConfigClass {
       isLinux: process.platform === 'linux'
     };
 
+    // Determine log level based on environment and packaging status
+    let logLevel: LogLevel = 'info'; // Default to info
+
+    // Only enable debug logging in development mode when not packaged
+    try {
+      const electron = require('electron');
+      const app = electron.app;
+
+      if (process.env.NODE_ENV === 'development' && !app?.isPackaged) {
+        logLevel = 'debug';
+      }
+    } catch {
+      // Electron not available (e.g., in tests), use NODE_ENV only
+      if (process.env.NODE_ENV === 'development') {
+        logLevel = 'debug';
+      }
+    }
+
     this.logging = {
-      level: (process.env.NODE_ENV === 'development' ? 'debug' : 'info') as LogLevel,
+      level: logLevel,
       enableFileLogging: true,
       maxLogFileSize: 5 * 1024 * 1024,
       maxLogFiles: 3

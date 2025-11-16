@@ -6,9 +6,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Development
 ```bash
-npm start          # Run app in production mode
+npm start          # Run app in development mode (with DEBUG logging enabled)
 npm run reset-accessibility  # Reset accessibility permissions for Prompt Line
 ```
+
+**Development vs Production Modes:**
+- **Development Mode** (`npm start`):
+  - Sets `NODE_ENV=development`
+  - Enables DEBUG level logging
+  - Shows detailed debug information in console and log files
+  - Only active when running `npm start` (not in packaged builds)
+
+- **Production Mode** (packaged app):
+  - Built apps always use INFO level logging (DEBUG logs disabled)
+  - Determined by `app.isPackaged` status
+  - Provides cleaner logs for end users
 
 ### Testing
 ```bash
