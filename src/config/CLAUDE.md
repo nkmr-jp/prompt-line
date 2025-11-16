@@ -93,36 +93,45 @@ platform: {
 
 **Logging System:**
 ```typescript
-// Determine log level based on environment and packaging status
+// Determine log level based on LOG_LEVEL environment variable
 let logLevel: LogLevel = 'info'; // Default to info
 
-// Only enable debug logging in development mode when not packaged
+// Only enable debug logging when LOG_LEVEL=debug is explicitly set
+// This ensures packaged apps never log debug, and development mode
+// only logs debug when explicitly requested
 try {
   const electron = require('electron');
   const app = electron.app;
 
-  if (process.env.NODE_ENV === 'development' && !app?.isPackaged) {
+  // Check if app is packaged
+  const appPath = app?.getAppPath?.() || '';
+  const isPackaged = appPath.includes('.asar') || appPath.includes('app.asar');
+
+  // Only allow debug logging in non-packaged apps with LOG_LEVEL=debug
+  if (!isPackaged && process.env.LOG_LEVEL === 'debug') {
     logLevel = 'debug';
   }
-} catch {
-  // Electron not available (e.g., in tests), use NODE_ENV only
-  if (process.env.NODE_ENV === 'development') {
+} catch (error) {
+  // Electron not available (e.g., in tests)
+  // Check LOG_LEVEL environment variable
+  if (process.env.LOG_LEVEL === 'debug') {
     logLevel = 'debug';
   }
 }
 
 logging: {
-  level: logLevel,                   // DEBUG in dev mode, INFO in production/packaged
+  level: logLevel,                   // DEBUG only when LOG_LEVEL=debug, INFO otherwise
   enableFileLogging: true,
   maxLogFileSize: 5 * 1024 * 1024,  // 5MB
   maxLogFiles: 3                     // Rotation limit
 }
 ```
-- **Intelligent Log Level Selection**:
-  - Development mode (`npm start`): Uses DEBUG level when `NODE_ENV=development` and app is not packaged
-  - Production/Packaged mode: Always uses INFO level (DEBUG logs disabled)
-  - Test mode: Falls back to NODE_ENV check when Electron is unavailable
-- **Dual Condition Check**: Requires both `NODE_ENV=development` AND `!app.isPackaged` for DEBUG logging
+- **Environment Variable Based Log Level**:
+  - Development mode (`npm start`): Uses DEBUG level when `LOG_LEVEL=debug` is set
+  - Production/Packaged mode: Always uses INFO level (ignores LOG_LEVEL)
+  - Test mode: Uses DEBUG level if `LOG_LEVEL=debug`, otherwise INFO
+- **Packaging Status Check**: Packaged apps (containing `.asar`) always use INFO level
+- **Explicit Control**: Requires explicit `LOG_LEVEL=debug` to enable debug logging
 - **Safe Fallback**: Uses try-catch to handle cases where Electron app object is unavailable
 
 ## Key Responsibilities
