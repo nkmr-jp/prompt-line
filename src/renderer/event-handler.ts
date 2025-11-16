@@ -98,7 +98,14 @@ export class EventHandler {
 
           // Prevent default Tab behavior (focus change)
           e.preventDefault();
-          this.onTabKeyInsert(e);
+          // Stop propagation to prevent duplicate handling by document listener
+          e.stopPropagation();
+
+          // Only insert tab if Shift key is not pressed
+          // Shift+Tab is typically used for reverse indent, but we ignore it for now
+          if (!e.shiftKey) {
+            this.onTabKeyInsert(e);
+          }
         }
       });
     }
@@ -155,6 +162,12 @@ export class EventHandler {
 
       // Handle Tab for tab insertion
       if (e.key === 'Tab') {
+        // Skip if event originated from textarea to avoid duplicate handling
+        // Textarea-level handler will handle Tab key events
+        if (target && target === this.textarea) {
+          return;
+        }
+
         // Skip Tab key if IME is active to avoid conflicts with Japanese input
         // Only check this.isComposing (managed by compositionstart/end events)
         // Don't check e.isComposing as it may be unreliable
@@ -162,7 +175,11 @@ export class EventHandler {
           return;
         }
 
-        this.onTabKeyInsert(e);
+        // Only insert tab if Shift key is not pressed
+        // Shift+Tab is typically used for reverse indent, but we ignore it for now
+        if (!e.shiftKey) {
+          this.onTabKeyInsert(e);
+        }
         return;
       }
 
