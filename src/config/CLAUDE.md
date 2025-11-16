@@ -93,13 +93,37 @@ platform: {
 
 **Logging System:**
 ```typescript
+// Determine log level based on environment and packaging status
+let logLevel: LogLevel = 'info'; // Default to info
+
+// Only enable debug logging in development mode when not packaged
+try {
+  const electron = require('electron');
+  const app = electron.app;
+
+  if (process.env.NODE_ENV === 'development' && !app?.isPackaged) {
+    logLevel = 'debug';
+  }
+} catch {
+  // Electron not available (e.g., in tests), use NODE_ENV only
+  if (process.env.NODE_ENV === 'development') {
+    logLevel = 'debug';
+  }
+}
+
 logging: {
-  level: (process.env.NODE_ENV === 'development' ? 'debug' : 'info') as LogLevel,
+  level: logLevel,                   // DEBUG in dev mode, INFO in production/packaged
   enableFileLogging: true,
   maxLogFileSize: 5 * 1024 * 1024,  // 5MB
   maxLogFiles: 3                     // Rotation limit
 }
 ```
+- **Intelligent Log Level Selection**:
+  - Development mode (`npm start`): Uses DEBUG level when `NODE_ENV=development` and app is not packaged
+  - Production/Packaged mode: Always uses INFO level (DEBUG logs disabled)
+  - Test mode: Falls back to NODE_ENV check when Electron is unavailable
+- **Dual Condition Check**: Requires both `NODE_ENV=development` AND `!app.isPackaged` for DEBUG logging
+- **Safe Fallback**: Uses try-catch to handle cases where Electron app object is unavailable
 
 ## Key Responsibilities
 
