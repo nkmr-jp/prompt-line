@@ -50,7 +50,9 @@ export class DomManager {
   }
 
   public insertTextAtCursor(text: string): void {
-    if (!this.textarea) return;
+    if (!this.textarea) {
+      return;
+    }
 
     const start = this.textarea.selectionStart;
     const end = this.textarea.selectionEnd;
@@ -58,6 +60,7 @@ export class DomManager {
 
     this.textarea.value = value.substring(0, start) + text + value.substring(end);
     this.textarea.selectionStart = this.textarea.selectionEnd = start + text.length;
+
     this.updateCharCount();
   }
 
