@@ -115,6 +115,12 @@ export class PromptLineRenderer {
       this.domManager.updateCharCount();
       this.draftManager.saveDraftDebounced();
       this.historyUIManager.clearHistorySelection();
+
+      // 編集開始時にスナップショットをクリア
+      if (this.snapshotManager.hasSnapshot()) {
+        this.snapshotManager.clearSnapshot();
+        console.debug('Snapshot cleared on text edit');
+      }
     });
 
     this.domManager.textarea.addEventListener('keydown', (e) => {
