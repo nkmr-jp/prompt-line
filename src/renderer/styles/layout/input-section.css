@@ -49,6 +49,11 @@
     resize: none;
     transition: all var(--animation-normal) ease;
     font-family: inherit;
+
+    /* Text wrapping control - prevent horizontal overflow from spaces/tabs */
+    white-space: break-spaces;        /* Preserve line breaks, collapse whitespace, wrap as needed */
+    overflow-wrap: break-word;    /* Break long words to prevent overflow */
+    word-break: normal;           /* Break at word boundaries when possible */
 }
 
 #textInput:focus {
