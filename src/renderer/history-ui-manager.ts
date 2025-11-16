@@ -5,13 +5,23 @@ import type { HistoryItem } from './types';
 export class HistoryUIManager {
   private historyIndex: number = -1;
   private keyboardNavigationTimeout: NodeJS.Timeout | null = null;
+  private getCurrentText: () => string;
+  private getCursorPosition: () => number;
+  private saveSnapshotCallback: (text: string, cursorPosition: number) => void;
 
   constructor(
     private getHistoryList: () => HTMLElement | null,
     private setTextCallback: (text: string) => void,
     private focusTextCallback: () => void,
-    private getSearchManager: () => { isInSearchMode(): boolean; getSearchTerm(): string; highlightSearchTerms(text: string, term: string): string } | null
-  ) {}
+    private getSearchManager: () => { isInSearchMode(): boolean; getSearchTerm(): string; highlightSearchTerms(text: string, term: string): string } | null,
+    getCurrentText: () => string,
+    getCursorPosition: () => number,
+    saveSnapshotCallback: (text: string, cursorPosition: number) => void
+  ) {
+    this.getCurrentText = getCurrentText;
+    this.getCursorPosition = getCursorPosition;
+    this.saveSnapshotCallback = saveSnapshotCallback;
+  }
 
   public renderHistory(historyData: HistoryItem[]): void {
     try {
@@ -92,6 +102,12 @@ export class HistoryUIManager {
   }
 
   private selectHistoryItem(text: string): void {
+    // Save snapshot before overwriting text
+    const currentText = this.getCurrentText();
+    const cursorPosition = this.getCursorPosition();
+    this.saveSnapshotCallback(currentText, cursorPosition);
+
+    // Set history text
     this.setTextCallback(text);
     this.focusTextCallback();
   }

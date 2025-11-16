@@ -32,6 +32,7 @@ export class EventHandler {
   private onTabKeyInsert: (e: KeyboardEvent) => void;
   private onHistoryNavigation: (e: KeyboardEvent, direction: 'next' | 'prev') => void;
   private onSearchToggle: () => void;
+  private onUndo: () => boolean;
 
   constructor(callbacks: {
     onTextPaste: (text: string) => Promise<void>;
@@ -39,12 +40,14 @@ export class EventHandler {
     onTabKeyInsert: (e: KeyboardEvent) => void;
     onHistoryNavigation: (e: KeyboardEvent, direction: 'next' | 'prev') => void;
     onSearchToggle: () => void;
+    onUndo: () => boolean;
   }) {
     this.onTextPaste = callbacks.onTextPaste;
     this.onWindowHide = callbacks.onWindowHide;
     this.onTabKeyInsert = callbacks.onTabKeyInsert;
     this.onHistoryNavigation = callbacks.onHistoryNavigation;
     this.onSearchToggle = callbacks.onSearchToggle;
+    this.onUndo = callbacks.onUndo;
   }
 
   public setTextarea(textarea: HTMLTextAreaElement | null): void {
@@ -106,6 +109,21 @@ export class EventHandler {
       // Skip if event originated from search input to avoid duplicate handling
       const target = e.target as HTMLElement;
       if (target && target.id === 'searchInput') {
+        return;
+      }
+
+      // Handle Cmd+Z for Undo (Add this BEFORE other handlers)
+      if (e.key === 'z' && e.metaKey && !e.shiftKey) {
+        // Skip if IME is active to avoid conflicts with Japanese input
+        if (this.isComposing || e.isComposing) {
+          return;
+        }
+
+        // Call undo handler - it will decide whether to preventDefault
+        const shouldHandle = this.onUndo();
+        if (shouldHandle) {
+          e.preventDefault();
+        }
         return;
       }
 
