@@ -95,4 +95,15 @@ export class DomManager {
       this.textarea.setSelectionRange(position, position);
     }
   }
+
+  /**
+   * Get the current cursor position in the textarea
+   * @returns The cursor position (selection start)
+   */
+  public getCursorPosition(): number {
+    if (!this.textarea) {
+      return 0;
+    }
+    return this.textarea.selectionStart;
+  }
 }

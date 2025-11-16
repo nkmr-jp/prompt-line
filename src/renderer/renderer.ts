@@ -1,11 +1,11 @@
 // Import types and dependencies
-import type { 
-  HistoryItem, 
-  WindowData, 
-  Config, 
-  PasteResult, 
+import type {
+  HistoryItem,
+  WindowData,
+  Config,
+  PasteResult,
   ImageResult,
-  UserSettings 
+  UserSettings
 } from './types';
 import { EventHandler } from './event-handler';
 import { SearchManager } from './search-manager';
@@ -13,6 +13,7 @@ import { DomManager } from './dom-manager';
 import { DraftManager } from './draft-manager';
 import { HistoryUIManager } from './history-ui-manager';
 import { LifecycleManager } from './lifecycle-manager';
+import { SimpleSnapshotManager } from './snapshot-manager';
 
 // Secure electronAPI access via preload script
 const electronAPI = (window as any).electronAPI;
@@ -33,15 +34,22 @@ export class PromptLineRenderer {
   private draftManager: DraftManager;
   private historyUIManager: HistoryUIManager;
   private lifecycleManager: LifecycleManager;
+  private snapshotManager: SimpleSnapshotManager;
 
   constructor() {
     this.domManager = new DomManager();
     this.draftManager = new DraftManager(electronAPI, () => this.domManager.getCurrentText());
+    this.snapshotManager = new SimpleSnapshotManager();
     this.historyUIManager = new HistoryUIManager(
       () => this.domManager.historyList,
       (text: string) => this.domManager.setText(text),
       () => this.domManager.focusTextarea(),
-      () => this.searchManager
+      () => this.searchManager,
+      () => this.domManager.getCurrentText(),
+      () => this.domManager.getCursorPosition(),
+      (text: string, cursorPosition: number) => {
+        this.snapshotManager.saveSnapshot(text, cursorPosition);
+      }
     );
     this.lifecycleManager = new LifecycleManager(
       electronAPI,
@@ -78,7 +86,8 @@ export class PromptLineRenderer {
       onWindowHide: this.handleWindowHideCallback.bind(this),
       onTabKeyInsert: this.handleTabKeyCallback.bind(this),
       onHistoryNavigation: this.navigateHistory.bind(this),
-      onSearchToggle: this.handleSearchToggle.bind(this)
+      onSearchToggle: this.handleSearchToggle.bind(this),
+      onUndo: this.handleUndo.bind(this)
     });
 
     this.eventHandler.setTextarea(this.domManager.textarea);
@@ -106,6 +115,12 @@ export class PromptLineRenderer {
       this.domManager.updateCharCount();
       this.draftManager.saveDraftDebounced();
       this.historyUIManager.clearHistorySelection();
+
+      // 編集開始時にスナップショットをクリア
+      if (this.snapshotManager.hasSnapshot()) {
+        this.snapshotManager.clearSnapshot();
+        console.debug('Snapshot cleared on text edit');
+      }
     });
 
     this.domManager.textarea.addEventListener('keydown', (e) => {
@@ -203,9 +218,31 @@ export class PromptLineRenderer {
     } else if (result.warning) {
       console.warn('Paste warning:', result.warning);
     } else {
+      // Clear snapshot after successful paste
+      this.snapshotManager.clearSnapshot();
       await this.clearTextAndDraft();
       this.historyUIManager.clearHistorySelection();
     }
+  }
+
+  /**
+   * Handle Cmd+Z undo operation
+   * @returns true if snapshot was restored, false otherwise
+   */
+  private handleUndo(): boolean {
+    if (this.snapshotManager.hasSnapshot()) {
+      const snapshot = this.snapshotManager.restore();
+      if (snapshot) {
+        this.domManager.setText(snapshot.text);
+        this.domManager.setCursorPosition(snapshot.cursorPosition);
+        this.domManager.focusTextarea();
+        console.debug('Snapshot restored successfully');
+        return true;
+      }
+    }
+    // Let browser handle default undo
+    console.debug('No snapshot, using browser default undo');
+    return false;
   }
 
   private async handleWindowHideCallback(): Promise<void> {
