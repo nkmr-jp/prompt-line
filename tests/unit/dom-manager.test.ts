@@ -9,14 +9,20 @@ describe('DomManager', () => {
   let domManager: DomManager;
 
   // Mock DOM elements
-  const createMockTextarea = () => ({
-    value: '',
-    selectionStart: 0,
-    selectionEnd: 0,
-    setSelectionRange: jest.fn(),
-    focus: jest.fn(),
-    select: jest.fn()
-  });
+  const createMockTextarea = () => {
+    const mock = {
+      value: '',
+      selectionStart: 0,
+      selectionEnd: 0,
+      setSelectionRange: jest.fn((start: number, end: number) => {
+        mock.selectionStart = start;
+        mock.selectionEnd = end;
+      }),
+      focus: jest.fn(),
+      select: jest.fn()
+    };
+    return mock;
+  };
 
   const createMockElement = () => {
     const classes = new Set<string>();
@@ -229,6 +235,7 @@ describe('DomManager', () => {
         domManager.focusTextarea();
         domManager.selectAll();
         domManager.setCursorPosition(0);
+        domManager.outdentAtCursor();
       }).not.toThrow();
     });
 
@@ -241,6 +248,105 @@ describe('DomManager', () => {
         domManager.showError('Error');
         domManager.updateCharCount();
       }).not.toThrow();
+    });
+  });
+
+  describe('outdent functionality', () => {
+    beforeEach(() => {
+      domManager.initializeElements();
+    });
+
+    test('should remove leading tab from single line', () => {
+      domManager.textarea!.value = '\thello world';
+      domManager.textarea!.selectionStart = 1;
+      domManager.textarea!.selectionEnd = 1;
+
+      domManager.outdentAtCursor();
+
+      expect(domManager.textarea!.value).toBe('hello world');
+    });
+
+    test('should remove up to 4 leading spaces from single line', () => {
+      domManager.textarea!.value = '    hello world';
+      domManager.textarea!.selectionStart = 4;
+      domManager.textarea!.selectionEnd = 4;
+
+      domManager.outdentAtCursor();
+
+      expect(domManager.textarea!.value).toBe('hello world');
+    });
+
+    test('should remove only 2 leading spaces if only 2 exist', () => {
+      domManager.textarea!.value = '  hello world';
+      domManager.textarea!.selectionStart = 2;
+      domManager.textarea!.selectionEnd = 2;
+
+      domManager.outdentAtCursor();
+
+      expect(domManager.textarea!.value).toBe('hello world');
+    });
+
+    test('should do nothing if no leading whitespace', () => {
+      domManager.textarea!.value = 'hello world';
+      domManager.textarea!.selectionStart = 5;
+      domManager.textarea!.selectionEnd = 5;
+
+      domManager.outdentAtCursor();
+
+      expect(domManager.textarea!.value).toBe('hello world');
+    });
+
+    test('should outdent multiple selected lines', () => {
+      domManager.textarea!.value = '\tline1\n    line2\n  line3';
+      domManager.textarea!.selectionStart = 0;
+      domManager.textarea!.selectionEnd = domManager.textarea!.value.length;
+
+      domManager.outdentAtCursor();
+
+      expect(domManager.textarea!.value).toBe('line1\nline2\nline3');
+    });
+
+    test('should outdent only lines with indentation in selection', () => {
+      domManager.textarea!.value = '\tindented\nno indent\n    also indented';
+      domManager.textarea!.selectionStart = 0;
+      domManager.textarea!.selectionEnd = domManager.textarea!.value.length;
+
+      domManager.outdentAtCursor();
+
+      expect(domManager.textarea!.value).toBe('indented\nno indent\nalso indented');
+    });
+
+    test('should maintain cursor position after outdent', () => {
+      domManager.textarea!.value = '\thello world';
+      domManager.textarea!.selectionStart = 5;
+      domManager.textarea!.selectionEnd = 5;
+
+      domManager.outdentAtCursor();
+
+      expect(domManager.textarea!.selectionStart).toBe(4);
+      expect(domManager.textarea!.selectionEnd).toBe(4);
+    });
+
+    test('should maintain selection range after outdent', () => {
+      domManager.textarea!.value = '\tline1\n\tline2';
+      domManager.textarea!.selectionStart = 0;
+      domManager.textarea!.selectionEnd = 13;
+
+      domManager.outdentAtCursor();
+
+      expect(domManager.textarea!.value).toBe('line1\nline2');
+      expect(domManager.textarea!.selectionStart).toBe(0);
+      expect(domManager.textarea!.selectionEnd).toBe(11);
+    });
+
+    test('should prefer removing tab over spaces', () => {
+      domManager.textarea!.value = '\t    hello';
+      domManager.textarea!.selectionStart = 1;
+      domManager.textarea!.selectionEnd = 1;
+
+      domManager.outdentAtCursor();
+
+      expect(domManager.textarea!.value).toBe('    hello');
     });
   });
 });

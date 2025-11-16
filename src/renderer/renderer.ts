@@ -85,6 +85,7 @@ export class PromptLineRenderer {
       onTextPaste: this.handleTextPasteCallback.bind(this),
       onWindowHide: this.handleWindowHideCallback.bind(this),
       onTabKeyInsert: this.handleTabKeyCallback.bind(this),
+      onShiftTabKeyPress: this.handleShiftTabKeyCallback.bind(this),
       onHistoryNavigation: this.navigateHistory.bind(this),
       onSearchToggle: this.handleSearchToggle.bind(this),
       onUndo: this.handleUndo.bind(this)
@@ -260,6 +261,15 @@ export class PromptLineRenderer {
     e.stopImmediatePropagation();
 
     this.domManager.insertTextAtCursor('\t');
+    this.draftManager.saveDraftDebounced();
+  }
+
+  private handleShiftTabKeyCallback(e: KeyboardEvent): void {
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+
+    this.domManager.outdentAtCursor();
     this.draftManager.saveDraftDebounced();
   }
 

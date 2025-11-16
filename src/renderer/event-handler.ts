@@ -30,6 +30,7 @@ export class EventHandler {
   private onTextPaste: (text: string) => Promise<void>;
   private onWindowHide: () => Promise<void>;
   private onTabKeyInsert: (e: KeyboardEvent) => void;
+  private onShiftTabKeyPress: (e: KeyboardEvent) => void;
   private onHistoryNavigation: (e: KeyboardEvent, direction: 'next' | 'prev') => void;
   private onSearchToggle: () => void;
   private onUndo: () => boolean;
@@ -38,6 +39,7 @@ export class EventHandler {
     onTextPaste: (text: string) => Promise<void>;
     onWindowHide: () => Promise<void>;
     onTabKeyInsert: (e: KeyboardEvent) => void;
+    onShiftTabKeyPress: (e: KeyboardEvent) => void;
     onHistoryNavigation: (e: KeyboardEvent, direction: 'next' | 'prev') => void;
     onSearchToggle: () => void;
     onUndo: () => boolean;
@@ -45,6 +47,7 @@ export class EventHandler {
     this.onTextPaste = callbacks.onTextPaste;
     this.onWindowHide = callbacks.onWindowHide;
     this.onTabKeyInsert = callbacks.onTabKeyInsert;
+    this.onShiftTabKeyPress = callbacks.onShiftTabKeyPress;
     this.onHistoryNavigation = callbacks.onHistoryNavigation;
     this.onSearchToggle = callbacks.onSearchToggle;
     this.onUndo = callbacks.onUndo;
@@ -101,9 +104,11 @@ export class EventHandler {
           // Stop propagation to prevent duplicate handling by document listener
           e.stopPropagation();
 
-          // Only insert tab if Shift key is not pressed
-          // Shift+Tab is typically used for reverse indent, but we ignore it for now
-          if (!e.shiftKey) {
+          if (e.shiftKey) {
+            // Shift+Tab: outdent (remove indentation)
+            this.onShiftTabKeyPress(e);
+          } else {
+            // Tab: insert tab character
             this.onTabKeyInsert(e);
           }
         }
@@ -175,9 +180,11 @@ export class EventHandler {
           return;
         }
 
-        // Only insert tab if Shift key is not pressed
-        // Shift+Tab is typically used for reverse indent, but we ignore it for now
-        if (!e.shiftKey) {
+        if (e.shiftKey) {
+          // Shift+Tab: outdent (remove indentation)
+          this.onShiftTabKeyPress(e);
+        } else {
+          // Tab: insert tab character
           this.onTabKeyInsert(e);
         }
         return;

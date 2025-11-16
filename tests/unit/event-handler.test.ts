@@ -11,6 +11,7 @@ describe('EventHandler', () => {
     onTextPaste: jest.Mock;
     onWindowHide: jest.Mock;
     onTabKeyInsert: jest.Mock;
+    onShiftTabKeyPress: jest.Mock;
     onHistoryNavigation: jest.Mock;
     onSearchToggle: jest.Mock;
   };
@@ -25,6 +26,7 @@ describe('EventHandler', () => {
       onTextPaste: jest.fn(async () => {}),
       onWindowHide: jest.fn(async () => {}),
       onTabKeyInsert: jest.fn(),
+      onShiftTabKeyPress: jest.fn(),
       onHistoryNavigation: jest.fn(),
       onSearchToggle: jest.fn()
     };
@@ -63,7 +65,7 @@ describe('EventHandler', () => {
       }));
     });
 
-    test('should NOT call onTabKeyInsert when Shift+Tab is pressed', () => {
+    test('should call onShiftTabKeyPress when Shift+Tab is pressed', () => {
       // Setup composition events
       eventHandler.setupEventListeners();
 
@@ -79,6 +81,13 @@ describe('EventHandler', () => {
 
       // Verify onTabKeyInsert was NOT called
       expect(mockCallbacks.onTabKeyInsert).not.toHaveBeenCalled();
+
+      // Verify onShiftTabKeyPress WAS called
+      expect(mockCallbacks.onShiftTabKeyPress).toHaveBeenCalledTimes(1);
+      expect(mockCallbacks.onShiftTabKeyPress).toHaveBeenCalledWith(expect.objectContaining({
+        key: 'Tab',
+        shiftKey: true
+      }));
     });
 
     test('should NOT call onTabKeyInsert when Tab is pressed during IME composition', () => {
