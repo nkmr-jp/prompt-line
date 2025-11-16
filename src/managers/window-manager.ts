@@ -49,12 +49,10 @@ class WindowManager {
       this.inputWindow.webContents.on('context-menu', (e) => {
         e.preventDefault();
       });
-      
-      this.inputWindow.webContents.on('before-input-event', (event, input) => {
-        if (input.key === 'Tab') {
-          event.preventDefault();
-        }
-      });
+
+      // Note: Tab key handling is done in renderer process to support IME state detection
+      // Previously, Tab key was blocked here with event.preventDefault(), which prevented
+      // renderer from receiving Tab key events. Now renderer handles Tab key properly.
 
       logger.debug('Input window created successfully');
       return this.inputWindow;

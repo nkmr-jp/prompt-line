@@ -82,6 +82,22 @@ export class EventHandler {
       this.textarea.addEventListener('compositionend', () => {
         this.isComposing = false;
       });
+
+      // Add keydown handler at textarea level to capture all keys including Tab
+      // This ensures Tab key is captured before default browser handling
+      this.textarea.addEventListener('keydown', (e: KeyboardEvent) => {
+        if (e.key === 'Tab') {
+          // Skip Tab key if IME is active to avoid conflicts with Japanese input
+          // Only check this.isComposing (managed by compositionstart/end events)
+          if (this.isComposing) {
+            return;
+          }
+
+          // Prevent default Tab behavior (focus change)
+          e.preventDefault();
+          this.onTabKeyInsert(e);
+        }
+      });
     }
   }
 
@@ -121,10 +137,13 @@ export class EventHandler {
 
       // Handle Tab for tab insertion
       if (e.key === 'Tab') {
-        // Skip shortcut if IME is active to avoid conflicts with Japanese input
-        if (this.isComposing || e.isComposing) {
+        // Skip Tab key if IME is active to avoid conflicts with Japanese input
+        // Only check this.isComposing (managed by compositionstart/end events)
+        // Don't check e.isComposing as it may be unreliable
+        if (this.isComposing) {
           return;
         }
+
         this.onTabKeyInsert(e);
         return;
       }

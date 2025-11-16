@@ -1,3 +1,15 @@
+## [0.8.13](https://github.com/nkmr-jp/prompt-line/compare/v0.8.12...v0.8.13) (2025-11-15)
+
+### Bug Fixes
+
+* **deps:** update js-yaml to 4.1.1 to fix prototype pollution vulnerability ([e366778](https://github.com/nkmr-jp/prompt-line/commit/e366778d143e34d0f3291947fed291d345caae3a)), closes [#11](https://github.com/nkmr-jp/prompt-line/issues/11)
+* **deps:** use npm overrides to force js-yaml 4.1.1 for all dependencies ([4862547](https://github.com/nkmr-jp/prompt-line/commit/48625475b1578d418403646e9197362da90e6670))
+
+### Maintenance
+
+* add build cleanup scripts and troubleshooting guide ([1e118ca](https://github.com/nkmr-jp/prompt-line/commit/1e118caaec0555c46c82abca5c38eafeebb752f7))
+* **deps:** update @eslint/plugin-kit and vite to latest versions ([27df0f3](https://github.com/nkmr-jp/prompt-line/commit/27df0f318558f6cbbf2d1291ad4b4bd2462d31f4))
+
 ## [0.8.12](https://github.com/nkmr-jp/prompt-line/compare/v0.8.11...v0.8.12) (2025-11-15)
 
 ### Maintenance

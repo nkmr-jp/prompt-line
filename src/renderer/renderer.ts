@@ -62,13 +62,11 @@ export class PromptLineRenderer {
       this.domManager.initializeElements();
       this.config = await electronAPI.config.get('') as Config;
       this.draftManager.setConfig(this.config);
-      
+
       this.setupEventHandler();
       this.setupSearchManager();
       this.setupEventListeners();
       this.setupIPCListeners();
-
-      console.log('Prompt Line renderer initialized');
     } catch (error) {
       console.error('Failed to initialize renderer:', error);
     }
@@ -82,7 +80,7 @@ export class PromptLineRenderer {
       onHistoryNavigation: this.navigateHistory.bind(this),
       onSearchToggle: this.handleSearchToggle.bind(this)
     });
-    
+
     this.eventHandler.setTextarea(this.domManager.textarea);
     this.eventHandler.setupEventListeners();
   }
@@ -339,6 +337,5 @@ export class PromptLineRenderer {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-   
   (window as any).promptLineRenderer = new PromptLineRenderer();
 });
