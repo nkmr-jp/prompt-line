@@ -30,6 +30,7 @@ export class EventHandler {
   private onTextPaste: (text: string) => Promise<void>;
   private onWindowHide: () => Promise<void>;
   private onTabKeyInsert: (e: KeyboardEvent) => void;
+  private onShiftTabKeyPress: (e: KeyboardEvent) => void;
   private onHistoryNavigation: (e: KeyboardEvent, direction: 'next' | 'prev') => void;
   private onSearchToggle: () => void;
   private onUndo: () => boolean;
@@ -38,6 +39,7 @@ export class EventHandler {
     onTextPaste: (text: string) => Promise<void>;
     onWindowHide: () => Promise<void>;
     onTabKeyInsert: (e: KeyboardEvent) => void;
+    onShiftTabKeyPress: (e: KeyboardEvent) => void;
     onHistoryNavigation: (e: KeyboardEvent, direction: 'next' | 'prev') => void;
     onSearchToggle: () => void;
     onUndo: () => boolean;
@@ -45,6 +47,7 @@ export class EventHandler {
     this.onTextPaste = callbacks.onTextPaste;
     this.onWindowHide = callbacks.onWindowHide;
     this.onTabKeyInsert = callbacks.onTabKeyInsert;
+    this.onShiftTabKeyPress = callbacks.onShiftTabKeyPress;
     this.onHistoryNavigation = callbacks.onHistoryNavigation;
     this.onSearchToggle = callbacks.onSearchToggle;
     this.onUndo = callbacks.onUndo;
@@ -98,7 +101,16 @@ export class EventHandler {
 
           // Prevent default Tab behavior (focus change)
           e.preventDefault();
-          this.onTabKeyInsert(e);
+          // Stop propagation to prevent duplicate handling by document listener
+          e.stopPropagation();
+
+          if (e.shiftKey) {
+            // Shift+Tab: outdent (remove indentation)
+            this.onShiftTabKeyPress(e);
+          } else {
+            // Tab: insert tab character
+            this.onTabKeyInsert(e);
+          }
         }
       });
     }
@@ -155,6 +167,12 @@ export class EventHandler {
 
       // Handle Tab for tab insertion
       if (e.key === 'Tab') {
+        // Skip if event originated from textarea to avoid duplicate handling
+        // Textarea-level handler will handle Tab key events
+        if (target && target === this.textarea) {
+          return;
+        }
+
         // Skip Tab key if IME is active to avoid conflicts with Japanese input
         // Only check this.isComposing (managed by compositionstart/end events)
         // Don't check e.isComposing as it may be unreliable
@@ -162,7 +180,13 @@ export class EventHandler {
           return;
         }
 
-        this.onTabKeyInsert(e);
+        if (e.shiftKey) {
+          // Shift+Tab: outdent (remove indentation)
+          this.onShiftTabKeyPress(e);
+        } else {
+          // Tab: insert tab character
+          this.onTabKeyInsert(e);
+        }
         return;
       }
 
