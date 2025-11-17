@@ -1,3 +1,28 @@
+## [0.9.0](https://github.com/nkmr-jp/prompt-line/compare/v0.8.13...v0.9.0) (2025-11-17)
+
+### Features
+
+* **input:** implement Shift+Tab outdent functionality ([12c6e86](https://github.com/nkmr-jp/prompt-line/commit/12c6e86f9a564b2079950e41361ab055b61019f7))
+* **logging:** control DEBUG log output based on environment ([63acd85](https://github.com/nkmr-jp/prompt-line/commit/63acd85f867d9b456b032ff470088a20c1e88102))
+* **snapshot:** implement undo functionality for history selection ([0013c3c](https://github.com/nkmr-jp/prompt-line/commit/0013c3c1d4e5f2b4130b082b3c3b652acd29f5bc))
+
+### Bug Fixes
+
+* **editor:** prevent horizontal overflow from spaces and tabs ([3add19f](https://github.com/nkmr-jp/prompt-line/commit/3add19ffa0ec8ab1b79de4be0a31520be002d6a7))
+* **input:** enable Tab key input with proper IME handling ([df7426b](https://github.com/nkmr-jp/prompt-line/commit/df7426b87a68d6b1b49eaf3ee3b33978dae990df))
+* **input:** prevent Shift+Tab from inserting tab character ([b2eccaf](https://github.com/nkmr-jp/prompt-line/commit/b2eccaf68b46d53b4705e6c14ce74b214f7213d6))
+* **logging:** use LOG_LEVEL env var for debug logging control ([81bd815](https://github.com/nkmr-jp/prompt-line/commit/81bd8156145aed1039d19e7643a0065e4bd4a3f4))
+* **scripts:** remove redundant node_modules deletion in clean:full ([898527b](https://github.com/nkmr-jp/prompt-line/commit/898527b7224ce3040382115ec792316573334a18))
+* **snapshot:** clear snapshot on text edit to preserve browser undo ([30873a6](https://github.com/nkmr-jp/prompt-line/commit/30873a699ebdea339df369bf25988a21fc2967c4))
+
+### Code Refactoring
+
+* **logger:** simplify early return pattern in log method ([0042465](https://github.com/nkmr-jp/prompt-line/commit/00424655401391a7d0cd0f1f2e1b2750e3538af1))
+
+### Tests
+
+* remove before-input-event listener expectation ([06b48f2](https://github.com/nkmr-jp/prompt-line/commit/06b48f225c2d666ee116d549b5e8451c381dbb95))
+
 ## [0.8.13](https://github.com/nkmr-jp/prompt-line/compare/v0.8.12...v0.8.13) (2025-11-15)
 
 ### Bug Fixes
