@@ -30,21 +30,27 @@ export class EventHandler {
   private onTextPaste: (text: string) => Promise<void>;
   private onWindowHide: () => Promise<void>;
   private onTabKeyInsert: (e: KeyboardEvent) => void;
+  private onShiftTabKeyPress: (e: KeyboardEvent) => void;
   private onHistoryNavigation: (e: KeyboardEvent, direction: 'next' | 'prev') => void;
   private onSearchToggle: () => void;
+  private onUndo: () => boolean;
 
   constructor(callbacks: {
     onTextPaste: (text: string) => Promise<void>;
     onWindowHide: () => Promise<void>;
     onTabKeyInsert: (e: KeyboardEvent) => void;
+    onShiftTabKeyPress: (e: KeyboardEvent) => void;
     onHistoryNavigation: (e: KeyboardEvent, direction: 'next' | 'prev') => void;
     onSearchToggle: () => void;
+    onUndo: () => boolean;
   }) {
     this.onTextPaste = callbacks.onTextPaste;
     this.onWindowHide = callbacks.onWindowHide;
     this.onTabKeyInsert = callbacks.onTabKeyInsert;
+    this.onShiftTabKeyPress = callbacks.onShiftTabKeyPress;
     this.onHistoryNavigation = callbacks.onHistoryNavigation;
     this.onSearchToggle = callbacks.onSearchToggle;
+    this.onUndo = callbacks.onUndo;
   }
 
   public setTextarea(textarea: HTMLTextAreaElement | null): void {
@@ -82,6 +88,31 @@ export class EventHandler {
       this.textarea.addEventListener('compositionend', () => {
         this.isComposing = false;
       });
+
+      // Add keydown handler at textarea level to capture all keys including Tab
+      // This ensures Tab key is captured before default browser handling
+      this.textarea.addEventListener('keydown', (e: KeyboardEvent) => {
+        if (e.key === 'Tab') {
+          // Skip Tab key if IME is active to avoid conflicts with Japanese input
+          // Only check this.isComposing (managed by compositionstart/end events)
+          if (this.isComposing) {
+            return;
+          }
+
+          // Prevent default Tab behavior (focus change)
+          e.preventDefault();
+          // Stop propagation to prevent duplicate handling by document listener
+          e.stopPropagation();
+
+          if (e.shiftKey) {
+            // Shift+Tab: outdent (remove indentation)
+            this.onShiftTabKeyPress(e);
+          } else {
+            // Tab: insert tab character
+            this.onTabKeyInsert(e);
+          }
+        }
+      });
     }
   }
 
@@ -90,6 +121,21 @@ export class EventHandler {
       // Skip if event originated from search input to avoid duplicate handling
       const target = e.target as HTMLElement;
       if (target && target.id === 'searchInput') {
+        return;
+      }
+
+      // Handle Cmd+Z for Undo (Add this BEFORE other handlers)
+      if (e.key === 'z' && e.metaKey && !e.shiftKey) {
+        // Skip if IME is active to avoid conflicts with Japanese input
+        if (this.isComposing || e.isComposing) {
+          return;
+        }
+
+        // Call undo handler - it will decide whether to preventDefault
+        const shouldHandle = this.onUndo();
+        if (shouldHandle) {
+          e.preventDefault();
+        }
         return;
       }
 
@@ -121,11 +167,26 @@ export class EventHandler {
 
       // Handle Tab for tab insertion
       if (e.key === 'Tab') {
-        // Skip shortcut if IME is active to avoid conflicts with Japanese input
-        if (this.isComposing || e.isComposing) {
+        // Skip if event originated from textarea to avoid duplicate handling
+        // Textarea-level handler will handle Tab key events
+        if (target && target === this.textarea) {
           return;
         }
-        this.onTabKeyInsert(e);
+
+        // Skip Tab key if IME is active to avoid conflicts with Japanese input
+        // Only check this.isComposing (managed by compositionstart/end events)
+        // Don't check e.isComposing as it may be unreliable
+        if (this.isComposing) {
+          return;
+        }
+
+        if (e.shiftKey) {
+          // Shift+Tab: outdent (remove indentation)
+          this.onShiftTabKeyPress(e);
+        } else {
+          // Tab: insert tab character
+          this.onTabKeyInsert(e);
+        }
         return;
       }
 

@@ -57,15 +57,16 @@ class Logger {
   private level: LogLevel = 'info';
   private enableFileLogging: boolean = true;
   private logFile: string;
-  
+
   constructor() {
     this.logFile = path.join(os.homedir(), '.prompt-line', 'app.log');
     this.initializeConfig();
   }
-  
+
   log(level: LogLevel, message: string, data?: unknown): void {
-    // Console output with level filtering
-    // Non-blocking file append operations  
+    // Early return if log level doesn't meet threshold
+    // Console output with appropriate method (log/warn/error)
+    // Non-blocking file append operations
     // Structured logging with ISO timestamps
   }
 }
@@ -75,8 +76,10 @@ class Logger {
 - **Performance**: Non-blocking file writes using `fs.appendFile()` without await
 - **Structured Data**: JSON serialization for complex data objects
 - **ISO Timestamps**: Consistent timestamp formatting across all log entries
-- **Dynamic Configuration**: Loads config from app-config module with fallback defaults
-- **Circular Dependency Prevention**: Safe initialization to avoid dependency issues
+- **Dynamic Configuration**: Loads config from app-config module (uses LOG_LEVEL env var)
+- **Environment-based Control**: DEBUG logs only enabled when LOG_LEVEL=debug in non-packaged apps
+- **Circular Dependency Prevention**: Uses ES6 import to avoid require() circular dependency issues
+- **Early Return Pattern**: Simplified code flow with early returns for better readability
 
 **Native Tools Integration:**
 ```typescript

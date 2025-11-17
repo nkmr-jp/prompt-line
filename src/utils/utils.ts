@@ -11,6 +11,7 @@ import type {
 } from '../types';
 import { TIMEOUTS, TIME_CALCULATIONS } from '../constants';
 import { sanitizeAppleScript, executeAppleScriptSafely, validateAppleScriptSecurity } from './apple-script-sanitizer';
+import config from "../config/app-config";
 
 /**
  * Sanitizes command line arguments to prevent command injection
@@ -121,8 +122,6 @@ class Logger {
 
   private initializeConfig(): void {
     try {
-       
-      const config = require('../config/app-config');
       if (config && config.logging) {
         this.level = config.logging.level || 'info';
         this.enableFileLogging = config.logging.enableFileLogging !== false;
@@ -139,13 +138,13 @@ class Logger {
     const timestamp = new Date().toISOString();
     const logMessage = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
 
-    if (this.shouldLog(level)) {
-      const consoleMethod = this.getConsoleMethod(level);
-      if (data) {
-        consoleMethod(logMessage, data);
-      } else {
-        consoleMethod(logMessage);
-      }
+    if (!this.shouldLog(level)) return;
+
+    const consoleMethod = this.getConsoleMethod(level);
+    if (data) {
+      consoleMethod(logMessage, data);
+    } else {
+      consoleMethod(logMessage);
     }
 
     if (this.enableFileLogging) {

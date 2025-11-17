@@ -115,8 +115,14 @@ class AppConfigClass {
       isLinux: process.platform === 'linux'
     };
 
+    // Determine log level based on LOG_LEVEL environment variable
+    let logLevel: LogLevel = 'info'; // Default to info
+    if (process.env.LOG_LEVEL === 'debug') {
+      logLevel = 'debug';
+    }
+
     this.logging = {
-      level: (process.env.NODE_ENV === 'development' ? 'debug' : 'info') as LogLevel,
+      level: logLevel,
       enableFileLogging: true,
       maxLogFileSize: 5 * 1024 * 1024,
       maxLogFiles: 3
