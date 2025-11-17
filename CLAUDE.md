@@ -12,14 +12,14 @@ npm run reset-accessibility  # Reset accessibility permissions for Prompt Line
 
 **Development vs Production Modes:**
 - **Development Mode** (`npm start`):
-  - Sets `NODE_ENV=development`
+  - Sets `LOG_LEVEL=debug` environment variable
   - Enables DEBUG level logging
   - Shows detailed debug information in console and log files
-  - Only active when running `npm start` (not in packaged builds)
+  - Only active when running `npm start` with `LOG_LEVEL=debug`
 
 - **Production Mode** (packaged app):
-  - Built apps always use INFO level logging (DEBUG logs disabled)
-  - Determined by `app.isPackaged` status
+  - Packaged apps (.dmg, .app) always use INFO level logging (DEBUG logs disabled)
+  - Cannot be overridden by environment variables in packaged builds
   - Provides cleaner logs for end users
 
 ### Testing
