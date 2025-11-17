@@ -138,13 +138,13 @@ class Logger {
     const timestamp = new Date().toISOString();
     const logMessage = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
 
-    if (this.shouldLog(level)) {
-      const consoleMethod = this.getConsoleMethod(level);
-      if (data) {
-        consoleMethod(logMessage, data);
-      } else {
-        consoleMethod(logMessage);
-      }
+    if (!this.shouldLog(level)) return;
+
+    const consoleMethod = this.getConsoleMethod(level);
+    if (data) {
+      consoleMethod(logMessage, data);
+    } else {
+      consoleMethod(logMessage);
     }
 
     if (this.enableFileLogging) {
