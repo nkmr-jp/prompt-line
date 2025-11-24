@@ -17,11 +17,14 @@ export class SlashCommandManager {
   private selectedIndex: number = 0;
   private isActive: boolean = false;
   private onCommandSelect: (command: string) => void;
+  private onCommandInsert: (command: string) => void;
 
   constructor(callbacks: {
     onCommandSelect: (command: string) => void;
+    onCommandInsert?: (command: string) => void;
   }) {
     this.onCommandSelect = callbacks.onCommandSelect;
+    this.onCommandInsert = callbacks.onCommandInsert || (() => {});
   }
 
   public initializeElements(): void {
@@ -230,13 +233,13 @@ export class SlashCommandManager {
       case 'Enter':
         e.preventDefault();
         e.stopPropagation();
-        this.selectCommand(this.selectedIndex);
+        this.selectCommand(this.selectedIndex, true); // Paste immediately
         break;
 
       case 'Tab':
         e.preventDefault();
         e.stopPropagation();
-        this.selectCommand(this.selectedIndex);
+        this.selectCommand(this.selectedIndex, false); // Insert for editing
         break;
 
       case 'Escape':
@@ -267,8 +270,10 @@ export class SlashCommandManager {
 
   /**
    * Select a command and insert it into the textarea
+   * @param index - The index of the command to select
+   * @param shouldPaste - If true, paste immediately (Enter). If false, insert for editing (Tab).
    */
-  private selectCommand(index: number): void {
+  private selectCommand(index: number, shouldPaste: boolean = true): void {
     if (index < 0 || index >= this.filteredCommands.length) return;
 
     const command = this.filteredCommands[index];
@@ -276,15 +281,27 @@ export class SlashCommandManager {
 
     const commandText = `/${command.name}`;
 
-    if (this.textarea) {
-      // Replace the current input with the selected command
-      this.textarea.value = commandText;
-      this.textarea.setSelectionRange(commandText.length, commandText.length);
-      this.textarea.focus();
-    }
-
+    // Hide suggestions first to restore normal key behavior
     this.hideSuggestions();
-    this.onCommandSelect(commandText);
+
+    if (shouldPaste) {
+      // Enter: Paste immediately
+      if (this.textarea) {
+        this.textarea.value = commandText;
+        this.textarea.setSelectionRange(commandText.length, commandText.length);
+        this.textarea.focus();
+      }
+      this.onCommandSelect(commandText);
+    } else {
+      // Tab: Insert with trailing space for editing arguments
+      const commandWithSpace = commandText + ' ';
+      if (this.textarea) {
+        this.textarea.value = commandWithSpace;
+        this.textarea.setSelectionRange(commandWithSpace.length, commandWithSpace.length);
+        this.textarea.focus();
+      }
+      this.onCommandInsert(commandWithSpace);
+    }
   }
 
   /**

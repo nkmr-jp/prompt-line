@@ -2,7 +2,7 @@
 
 .slash-command-suggestions {
   position: absolute;
-  top: 52px;
+  top: 16px;
   left: 16px;
   max-height: 200px;
   overflow-y: auto;

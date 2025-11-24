@@ -114,8 +114,17 @@ export class PromptLineRenderer {
 
   private setupSlashCommandManager(): void {
     this.slashCommandManager = new SlashCommandManager({
-      onCommandSelect: (command: string) => {
-        console.debug('Slash command selected:', command);
+      onCommandSelect: async (command: string) => {
+        console.debug('Slash command selected (Enter):', command);
+        // Paste the selected command immediately
+        if (command) {
+          await this.handleTextPasteCallback(command);
+        }
+      },
+      onCommandInsert: (command: string) => {
+        console.debug('Slash command inserted (Tab):', command);
+        // Just insert into textarea for editing, don't paste
+        // The command is already inserted by SlashCommandManager
       }
     });
 
