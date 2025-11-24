@@ -116,21 +116,28 @@ class SlashCommandLoader {
   }
 
   /**
-   * Parse a single .md file to extract command name and description
+   * Parse a single .md file to extract command name, description, and argument-hint
    */
   private async parseCommandFile(filePath: string, fileName: string): Promise<SlashCommandItem | null> {
     try {
       const content = await fs.readFile(filePath, 'utf8');
-      const description = this.extractDescription(content);
+      const { description, argumentHint } = this.extractFrontmatter(content);
 
       // Command name is the filename without .md extension
       const name = fileName.replace(/\.md$/, '');
 
-      return {
+      const command: SlashCommandItem = {
         name,
         description: description || '',
         filePath
       };
+
+      // Only set argumentHint if it has a value (exactOptionalPropertyTypes)
+      if (argumentHint) {
+        command.argumentHint = argumentHint;
+      }
+
+      return command;
     } catch (error) {
       logger.warn('Failed to parse command file', { filePath, error });
       return null;
@@ -138,34 +145,47 @@ class SlashCommandLoader {
   }
 
   /**
-   * Extract description from YAML frontmatter
+   * Extract description and argument-hint from YAML frontmatter
    * Supports format:
    * ---
    * description: Some description here
+   * argument-hint: <required argument>
    * ---
    */
-  private extractDescription(content: string): string {
+  private extractFrontmatter(content: string): { description: string; argumentHint: string } {
     // Match YAML frontmatter between --- markers
     const frontmatterMatch = content.match(/^---\s*\n([\s\S]*?)\n---/);
     if (!frontmatterMatch || !frontmatterMatch[1]) {
-      return '';
+      return { description: '', argumentHint: '' };
     }
 
     const frontmatter = frontmatterMatch[1];
 
     // Extract description field (simple parsing without full YAML library)
+    let description = '';
     const descriptionMatch = frontmatter.match(/^description:\s*(.+)$/m);
     if (descriptionMatch && descriptionMatch[1]) {
       // Remove quotes if present
-      let description = descriptionMatch[1].trim();
+      description = descriptionMatch[1].trim();
       if ((description.startsWith('"') && description.endsWith('"')) ||
           (description.startsWith("'") && description.endsWith("'"))) {
         description = description.slice(1, -1);
       }
-      return description;
     }
 
-    return '';
+    // Extract argument-hint field
+    let argumentHint = '';
+    const argumentHintMatch = frontmatter.match(/^argument-hint:\s*(.+)$/m);
+    if (argumentHintMatch && argumentHintMatch[1]) {
+      // Remove quotes if present
+      argumentHint = argumentHintMatch[1].trim();
+      if ((argumentHint.startsWith('"') && argumentHint.endsWith('"')) ||
+          (argumentHint.startsWith("'") && argumentHint.endsWith("'"))) {
+        argumentHint = argumentHint.slice(1, -1);
+      }
+    }
+
+    return { description, argumentHint };
   }
 
   /**

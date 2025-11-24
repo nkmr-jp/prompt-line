@@ -206,7 +206,8 @@ export class EventHandler {
       }
 
       // Handle history navigation shortcuts
-      if (this.userSettings?.shortcuts) {
+      // Skip if slash command menu is active (let slash command manager handle Ctrl+j/k)
+      if (this.userSettings?.shortcuts && !this.slashCommandManager?.isActiveMode()) {
         // Check for historyNext shortcut
         if (matchesShortcutString(e, this.userSettings.shortcuts.historyNext)) {
           // Skip shortcut if IME is active to avoid conflicts with Japanese input
@@ -284,6 +285,11 @@ export class EventHandler {
    */
   public handleHistoryNavigationShortcuts(e: KeyboardEvent, onNavigate: (direction: 'next' | 'prev') => void): boolean {
     if (!this.userSettings?.shortcuts) {
+      return false;
+    }
+
+    // Skip if slash command menu is active (let slash command manager handle Ctrl+j/k)
+    if (this.slashCommandManager?.isActiveMode()) {
       return false;
     }
 

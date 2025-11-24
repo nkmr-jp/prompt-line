@@ -6,6 +6,7 @@
 interface SlashCommandItem {
   name: string;
   description: string;
+  argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
   filePath: string;
 }
 
@@ -343,9 +344,12 @@ export class SlashCommandManager {
     item.className = 'slash-suggestion-item selected';
     item.dataset.index = '0';
 
+    // Use argumentHint if available, otherwise use description
+    const hintText = command.argumentHint || command.description;
+
     item.innerHTML = `
       <span class="slash-command-name">/${this.escapeHtml(command.name)}</span>
-      ${command.description ? `<span class="slash-command-description">${this.escapeHtml(command.description)}</span>` : ''}
+      ${hintText ? `<span class="slash-command-description">${this.escapeHtml(hintText)}</span>` : ''}
     `;
 
     this.suggestionsContainer.appendChild(item);

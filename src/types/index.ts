@@ -184,6 +184,7 @@ export interface UserSettings {
 export interface SlashCommandItem {
   name: string;
   description: string;
+  argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
   filePath: string;
 }
 
