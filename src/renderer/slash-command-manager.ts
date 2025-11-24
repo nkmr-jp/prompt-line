@@ -16,6 +16,8 @@ export class SlashCommandManager {
   private filteredCommands: SlashCommandItem[] = [];
   private selectedIndex: number = 0;
   private isActive: boolean = false;
+  private isEditingMode: boolean = false; // True when Tab selected a command and user is editing arguments
+  private editingCommandName: string = ''; // The command name being edited
   private onCommandSelect: (command: string) => void;
   private onCommandInsert: (command: string) => void;
 
@@ -94,6 +96,26 @@ export class SlashCommandManager {
     if (text.startsWith('/')) {
       const parts = text.slice(1).split(/\s/);
       const query = parts[0] || ''; // Get first word after /
+
+      // If in editing mode (Tab selected), check if command name still matches
+      if (this.isEditingMode) {
+        // Exit editing mode if user modified the command name
+        if (query !== this.editingCommandName) {
+          this.isEditingMode = false;
+          this.editingCommandName = '';
+          // Continue to show suggestions based on new query
+        } else {
+          // Command name still matches, keep showing selected command
+          return;
+        }
+      }
+
+      // Hide suggestions if there's a space after the command (user is typing arguments)
+      if (parts.length > 1 || text.includes(' ')) {
+        this.hideSuggestions();
+        return;
+      }
+
       this.showSuggestions(query);
     } else {
       this.hideSuggestions();
@@ -185,6 +207,8 @@ export class SlashCommandManager {
    */
   public hideSuggestions(): void {
     this.isActive = false;
+    this.isEditingMode = false;
+    this.editingCommandName = '';
     this.selectedIndex = 0;
     if (this.suggestionsContainer) {
       this.suggestionsContainer.style.display = 'none';
@@ -281,11 +305,10 @@ export class SlashCommandManager {
 
     const commandText = `/${command.name}`;
 
-    // Hide suggestions first to restore normal key behavior
-    this.hideSuggestions();
-
     if (shouldPaste) {
-      // Enter: Paste immediately
+      // Enter: Paste immediately and hide suggestions
+      this.hideSuggestions();
+
       if (this.textarea) {
         this.textarea.value = commandText;
         this.textarea.setSelectionRange(commandText.length, commandText.length);
@@ -294,6 +317,9 @@ export class SlashCommandManager {
       this.onCommandSelect(commandText);
     } else {
       // Tab: Insert with trailing space for editing arguments
+      // Show only the selected command in suggestions
+      this.showSelectedCommandOnly(command);
+
       const commandWithSpace = commandText + ' ';
       if (this.textarea) {
         this.textarea.value = commandWithSpace;
@@ -302,6 +328,34 @@ export class SlashCommandManager {
       }
       this.onCommandInsert(commandWithSpace);
     }
+  }
+
+  /**
+   * Show only the selected command in suggestions (for Tab selection)
+   */
+  private showSelectedCommandOnly(command: SlashCommandItem): void {
+    if (!this.suggestionsContainer) return;
+
+    this.suggestionsContainer.innerHTML = '';
+    this.suggestionsContainer.style.display = 'block';
+
+    const item = document.createElement('div');
+    item.className = 'slash-suggestion-item selected';
+    item.dataset.index = '0';
+
+    item.innerHTML = `
+      <span class="slash-command-name">/${this.escapeHtml(command.name)}</span>
+      ${command.description ? `<span class="slash-command-description">${this.escapeHtml(command.description)}</span>` : ''}
+    `;
+
+    this.suggestionsContainer.appendChild(item);
+
+    // Keep active state but update filtered commands to just this one
+    this.filteredCommands = [command];
+    this.selectedIndex = 0;
+    this.isActive = false; // Disable keyboard navigation since we're in editing mode
+    this.isEditingMode = true; // Keep showing the selected command while editing arguments
+    this.editingCommandName = command.name; // Track the command name for validation
   }
 
   /**
