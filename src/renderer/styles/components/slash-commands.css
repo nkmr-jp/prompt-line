@@ -2,21 +2,18 @@
 
 .slash-command-suggestions {
   position: absolute;
-  left: 0;
-  right: 0;
+  top: 52px;
+  left: 16px;
   max-height: 200px;
   overflow-y: auto;
-  background: var(--bg-secondary, #1a1a1a);
-  border: 1px solid var(--border-color, #333);
+  background: #333;
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   z-index: 100;
-  margin-top: 4px;
 }
 
 .slash-suggestion-item {
-  display: flex;
-  flex-direction: column;
+  display: block;
   padding: 8px 12px;
   cursor: pointer;
   border-bottom: 1px solid var(--border-color, #333);
