@@ -177,7 +177,7 @@ export interface UserSettings {
     height: number;
   };
   commands?: {
-    directory: string;
+    directories: string[];
   };
 }
 

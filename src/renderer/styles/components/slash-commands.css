@@ -4,8 +4,11 @@
   position: absolute;
   top: 16px;
   left: 16px;
-  max-height: 200px;
-  overflow-y: auto;
+  /*margin-right: 16px;*/
+  max-height: 95%;
+  max-width: 95%;
+  overflow-y: scroll;
+  overflow-x: hidden;
   background: #333;
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
@@ -13,7 +16,9 @@
 }
 
 .slash-suggestion-item {
-  display: block;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
   padding: 8px 12px;
   cursor: pointer;
   border-bottom: 1px solid var(--border-color, #333);
@@ -33,9 +38,10 @@
 }
 
 .slash-command-name {
-  font-family: var(--font-mono, 'SF Mono', Menlo, Monaco, 'Courier New', monospace);
+  padding-right: 8px;
   font-size: 13px;
   font-weight: 500;
+  white-space: nowrap;
   color: var(--text-primary, #fff);
 }
 

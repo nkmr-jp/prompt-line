@@ -155,13 +155,14 @@ window:
   # Window height in pixels
   # Recommended range: 200-400 pixels
   height: ${settings.window.height}
-${settings.commands?.directory ? `
+${settings.commands?.directories && settings.commands.directories.length > 0 ? `
 # Custom slash commands configuration
 commands:
-  # Directory containing custom slash command .md files
+  # Directories containing custom slash command .md files
   # Each .md file should have a description in YAML frontmatter
-  # Example: /Users/username/.claude/commands
-  directory: ${settings.commands.directory}
+  # First directory takes precedence for duplicate command names
+  directories:
+${settings.commands.directories.map(dir => `    - ${dir}`).join('\n')}
 ` : ''}`;
   }
 

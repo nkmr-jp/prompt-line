@@ -8,31 +8,38 @@ import type { SlashCommandItem } from '../types';
  * Each .md file should have YAML frontmatter with a description field.
  */
 class SlashCommandLoader {
-  private commandsDirectory: string | undefined;
+  private commandsDirectories: string[] = [];
   private cachedCommands: SlashCommandItem[] = [];
   private lastLoadTime: number = 0;
   private cacheTTL: number = 5000; // 5 seconds cache
 
   constructor() {
-    this.commandsDirectory = undefined;
+    this.commandsDirectories = [];
   }
 
   /**
-   * Set the directory path for slash commands
+   * Set the directory paths for slash commands
    */
-  setDirectory(directory: string | undefined): void {
-    if (this.commandsDirectory !== directory) {
-      this.commandsDirectory = directory;
+  setDirectories(directories: string[] | undefined): void {
+    const newDirs = directories || [];
+    const currentDirs = this.commandsDirectories;
+
+    // Check if directories changed
+    const changed = newDirs.length !== currentDirs.length ||
+      newDirs.some((dir, i) => dir !== currentDirs[i]);
+
+    if (changed) {
+      this.commandsDirectories = newDirs;
       this.invalidateCache();
-      logger.debug('Slash command directory set', { directory });
+      logger.debug('Slash command directories set', { directories: newDirs });
     }
   }
 
   /**
-   * Get the configured directory path
+   * Get the configured directory paths
    */
-  getDirectory(): string | undefined {
-    return this.commandsDirectory;
+  getDirectories(): string[] {
+    return [...this.commandsDirectories];
   }
 
   /**
@@ -47,7 +54,7 @@ class SlashCommandLoader {
    * Get all available slash commands, using cache if valid
    */
   async getCommands(): Promise<SlashCommandItem[]> {
-    if (!this.commandsDirectory) {
+    if (this.commandsDirectories.length === 0) {
       return [];
     }
 
@@ -67,48 +74,71 @@ class SlashCommandLoader {
   }
 
   /**
-   * Load all .md files from the commands directory
+   * Load all .md files from all configured directories
    */
   private async loadCommands(): Promise<SlashCommandItem[]> {
-    if (!this.commandsDirectory) {
+    if (this.commandsDirectories.length === 0) {
       return [];
     }
 
+    const allCommands: SlashCommandItem[] = [];
+    const seenNames = new Set<string>();
+
+    for (const directory of this.commandsDirectories) {
+      const commands = await this.loadCommandsFromDirectory(directory);
+      for (const command of commands) {
+        // Skip duplicates (first directory takes precedence)
+        if (!seenNames.has(command.name)) {
+          seenNames.add(command.name);
+          allCommands.push(command);
+        } else {
+          logger.debug('Skipping duplicate command', { name: command.name, directory });
+        }
+      }
+    }
+
+    // Sort commands alphabetically by name
+    allCommands.sort((a, b) => a.name.localeCompare(b.name));
+
+    logger.info('Slash commands loaded', { count: allCommands.length, directories: this.commandsDirectories.length });
+    return allCommands;
+  }
+
+  /**
+   * Load all .md files from a single directory
+   */
+  private async loadCommandsFromDirectory(directory: string): Promise<SlashCommandItem[]> {
     try {
       // Validate directory exists
-      const stats = await fs.stat(this.commandsDirectory);
+      const stats = await fs.stat(directory);
       if (!stats.isDirectory()) {
-        logger.warn('Commands path is not a directory', { path: this.commandsDirectory });
+        logger.warn('Commands path is not a directory', { path: directory });
         return [];
       }
 
       // Read directory contents
-      const files = await fs.readdir(this.commandsDirectory);
+      const files = await fs.readdir(directory);
       const mdFiles = files.filter(f => f.endsWith('.md'));
 
       logger.debug('Found .md files in commands directory', {
-        directory: this.commandsDirectory,
+        directory,
         count: mdFiles.length
       });
 
       // Parse each .md file
       const commands: SlashCommandItem[] = [];
       for (const file of mdFiles) {
-        const filePath = path.join(this.commandsDirectory, file);
+        const filePath = path.join(directory, file);
         const command = await this.parseCommandFile(filePath, file);
         if (command) {
           commands.push(command);
         }
       }
 
-      // Sort commands alphabetically by name
-      commands.sort((a, b) => a.name.localeCompare(b.name));
-
-      logger.info('Slash commands loaded', { count: commands.length });
       return commands;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        logger.warn('Commands directory does not exist', { path: this.commandsDirectory });
+        logger.warn('Commands directory does not exist', { path: directory });
         return [];
       }
       throw error;

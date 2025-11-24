@@ -81,8 +81,8 @@ class IPCHandlers {
 
     // Initialize slash command loader with settings
     const settings = this.settingsManager.getSettings();
-    if (settings.commands?.directory) {
-      this.slashCommandLoader.setDirectory(settings.commands.directory);
+    if (settings.commands?.directories) {
+      this.slashCommandLoader.setDirectories(settings.commands.directories);
     }
 
     this.setupHandlers();
@@ -495,9 +495,9 @@ class IPCHandlers {
     query?: string
   ): Promise<SlashCommandItem[]> {
     try {
-      // Refresh directory from settings in case it changed
+      // Refresh directories from settings in case they changed
       const settings = this.settingsManager.getSettings();
-      this.slashCommandLoader.setDirectory(settings.commands?.directory);
+      this.slashCommandLoader.setDirectories(settings.commands?.directories);
 
       if (query) {
         const commands = await this.slashCommandLoader.searchCommands(query);
