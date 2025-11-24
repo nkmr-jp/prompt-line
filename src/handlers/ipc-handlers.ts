@@ -13,7 +13,8 @@ import {
 import type WindowManager from '../managers/window-manager';
 import type DraftManager from '../managers/draft-manager';
 import type SettingsManager from '../managers/settings-manager';
-import type { AppInfo, WindowData, HistoryItem, IHistoryManager } from '../types';
+import SlashCommandLoader from '../managers/slash-command-loader';
+import type { AppInfo, WindowData, HistoryItem, IHistoryManager, SlashCommandItem } from '../types';
 
 interface IPCResult {
   success: boolean;
@@ -64,10 +65,11 @@ class IPCHandlers {
   private historyManager: IHistoryManager;
   private draftManager: DraftManager;
   private settingsManager: SettingsManager;
+  private slashCommandLoader: SlashCommandLoader;
 
   constructor(
-    windowManager: WindowManager, 
-    historyManager: IHistoryManager, 
+    windowManager: WindowManager,
+    historyManager: IHistoryManager,
     draftManager: DraftManager,
     settingsManager: SettingsManager
   ) {
@@ -75,6 +77,13 @@ class IPCHandlers {
     this.historyManager = historyManager;
     this.draftManager = draftManager;
     this.settingsManager = settingsManager;
+    this.slashCommandLoader = new SlashCommandLoader();
+
+    // Initialize slash command loader with settings
+    const settings = this.settingsManager.getSettings();
+    if (settings.commands?.directory) {
+      this.slashCommandLoader.setDirectory(settings.commands.directory);
+    }
 
     this.setupHandlers();
   }
@@ -94,6 +103,7 @@ class IPCHandlers {
     ipcMain.handle('get-config', this.handleGetConfig.bind(this));
     ipcMain.handle('paste-image', this.handlePasteImage.bind(this));
     ipcMain.handle('open-settings', this.handleOpenSettings.bind(this));
+    ipcMain.handle('get-slash-commands', this.handleGetSlashCommands.bind(this));
 
     logger.info('IPC handlers set up successfully');
   }
@@ -471,12 +481,36 @@ class IPCHandlers {
     try {
       const settingsFilePath = this.settingsManager.getSettingsFilePath();
       logger.info('Opening settings file:', settingsFilePath);
-      
+
       await shell.openPath(settingsFilePath);
       return { success: true };
     } catch (error) {
       logger.error('Failed to open settings file:', error);
       return { success: false, error: (error as Error).message };
+    }
+  }
+
+  private async handleGetSlashCommands(
+    _event: IpcMainInvokeEvent,
+    query?: string
+  ): Promise<SlashCommandItem[]> {
+    try {
+      // Refresh directory from settings in case it changed
+      const settings = this.settingsManager.getSettings();
+      this.slashCommandLoader.setDirectory(settings.commands?.directory);
+
+      if (query) {
+        const commands = await this.slashCommandLoader.searchCommands(query);
+        logger.debug('Slash commands searched', { query, count: commands.length });
+        return commands;
+      } else {
+        const commands = await this.slashCommandLoader.getCommands();
+        logger.debug('Slash commands requested', { count: commands.length });
+        return commands;
+      }
+    } catch (error) {
+      logger.error('Failed to get slash commands:', error);
+      return [];
     }
   }
 
@@ -495,7 +529,8 @@ class IPCHandlers {
       'get-app-info',
       'get-config',
       'paste-image',
-      'open-settings'
+      'open-settings',
+      'get-slash-commands'
     ];
 
     handlers.forEach(handler => {

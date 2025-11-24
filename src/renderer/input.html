@@ -39,8 +39,8 @@
                         </div>
                     </div>
                     
-                    <textarea 
-                        id="textInput" 
+                    <textarea
+                        id="textInput"
                         placeholder="Enter text to paste..."
                         autofocus
                         spellcheck="false"
@@ -50,7 +50,11 @@
                         aria-label="Text input"
                         aria-autocomplete="none"
                     ></textarea>
-                    
+
+                    <!-- Slash command suggestions -->
+                    <div class="slash-command-suggestions" id="slashCommandSuggestions" style="display: none;" role="listbox" aria-label="Slash command suggestions">
+                    </div>
+
                     <div class="footer">
                         <div class="hint">Multi-line text and Image supported</div>
                         <div class="char-count" id="charCount">0 chars</div>

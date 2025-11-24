@@ -176,5 +176,14 @@ export interface UserSettings {
     width: number;
     height: number;
   };
+  commands?: {
+    directory: string;
+  };
+}
+
+export interface SlashCommandItem {
+  name: string;
+  description: string;
+  filePath: string;
 }
 
