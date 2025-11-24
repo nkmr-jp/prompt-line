@@ -27,7 +27,8 @@ const ALLOWED_CHANNELS = [
   'clipboard-read-text',
   'clipboard-write-image',
   'focus-window',
-  'window-shown'
+  'window-shown',
+  'get-slash-commands'
 ];
 
 // IPC channel validation with additional security checks
@@ -198,6 +199,13 @@ const electronAPI = {
     clear: async (): Promise<void> => {
       return ipcRenderer.invoke('clear-draft');
     }
+  },
+
+  // Slash commands
+  slashCommands: {
+    get: async (query?: string): Promise<any[]> => {
+      return ipcRenderer.invoke('get-slash-commands', query);
+    }
   }
 };
 
@@ -238,6 +246,9 @@ export interface ElectronAPI {
     save: (text: string) => Promise<void>;
     get: () => Promise<string | null>;
     clear: () => Promise<void>;
+  };
+  slashCommands: {
+    get: (query?: string) => Promise<any[]>;
   };
 }
 

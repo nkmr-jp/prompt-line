@@ -176,5 +176,15 @@ export interface UserSettings {
     width: number;
     height: number;
   };
+  commands?: {
+    directories: string[];
+  };
+}
+
+export interface SlashCommandItem {
+  name: string;
+  description: string;
+  argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
+  filePath: string;
 }
 

@@ -14,6 +14,7 @@
 @import './components/search.css';
 @import './components/history-item.css';
 @import './components/notifications.css';
+@import './components/slash-commands.css';
 
 /* Themes */
 @import './themes/themes.css';

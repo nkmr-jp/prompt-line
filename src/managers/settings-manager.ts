@@ -27,6 +27,7 @@ class SettingsManager {
         width: 600,
         height: 300
       }
+      // commands is optional - not set by default
     };
 
     this.currentSettings = { ...this.defaultSettings };
@@ -75,7 +76,7 @@ class SettingsManager {
   }
 
   private mergeWithDefaults(userSettings: Partial<UserSettings>): UserSettings {
-    return {
+    const result: UserSettings = {
       shortcuts: {
         ...this.defaultSettings.shortcuts,
         ...userSettings.shortcuts
@@ -85,6 +86,13 @@ class SettingsManager {
         ...userSettings.window
       }
     };
+
+    // Only set commands if it exists in user settings
+    if (userSettings.commands) {
+      result.commands = userSettings.commands;
+    }
+
+    return result;
   }
 
   async saveSettings(): Promise<void> {
@@ -143,11 +151,19 @@ window:
   # Window width in pixels
   # Recommended range: 400-800 pixels
   width: ${settings.window.width}
-  
+
   # Window height in pixels
   # Recommended range: 200-400 pixels
   height: ${settings.window.height}
-`;
+
+# Custom slash commands configuration
+# commands:
+  ## Directories containing custom slash command .md files
+  ## Each .md file should have a description in YAML frontmatter
+  ## First directory takes precedence for duplicate command names
+  # directories:
+  #   - /Users/your-username/.claude/commands
+  `;
   }
 
   getSettings(): UserSettings {

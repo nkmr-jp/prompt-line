@@ -9,6 +9,7 @@ import type {
 } from './types';
 import { EventHandler } from './event-handler';
 import { SearchManager } from './search-manager';
+import { SlashCommandManager } from './slash-command-manager';
 import { DomManager } from './dom-manager';
 import { DraftManager } from './draft-manager';
 import { HistoryUIManager } from './history-ui-manager';
@@ -30,6 +31,7 @@ export class PromptLineRenderer {
   private userSettings: UserSettings | null = null;
   private eventHandler: EventHandler | null = null;
   private searchManager: SearchManager | null = null;
+  private slashCommandManager: SlashCommandManager | null = null;
   private domManager: DomManager;
   private draftManager: DraftManager;
   private historyUIManager: HistoryUIManager;
@@ -73,6 +75,7 @@ export class PromptLineRenderer {
 
       this.setupEventHandler();
       this.setupSearchManager();
+      this.setupSlashCommandManager();
       this.setupEventListeners();
       this.setupIPCListeners();
     } catch (error) {
@@ -99,14 +102,42 @@ export class PromptLineRenderer {
     this.searchManager = new SearchManager({
       onSearchStateChange: this.handleSearchStateChange.bind(this)
     });
-    
+
     this.searchManager.initializeElements();
     this.searchManager.setupEventListeners();
-    
+
     // Set SearchManager reference in EventHandler
     if (this.eventHandler) {
       this.eventHandler.setSearchManager(this.searchManager);
     }
+  }
+
+  private setupSlashCommandManager(): void {
+    this.slashCommandManager = new SlashCommandManager({
+      onCommandSelect: async (command: string) => {
+        console.debug('Slash command selected (Enter):', command);
+        // Paste the selected command immediately
+        if (command) {
+          await this.handleTextPasteCallback(command);
+        }
+      },
+      onCommandInsert: (command: string) => {
+        console.debug('Slash command inserted (Tab):', command);
+        // Just insert into textarea for editing, don't paste
+        // The command is already inserted by SlashCommandManager
+      }
+    });
+
+    this.slashCommandManager.initializeElements();
+    this.slashCommandManager.setupEventListeners();
+
+    // Set SlashCommandManager reference in EventHandler
+    if (this.eventHandler) {
+      this.eventHandler.setSlashCommandManager(this.slashCommandManager);
+    }
+
+    // Pre-load commands
+    this.slashCommandManager.loadCommands();
   }
 
   private setupEventListeners(): void {

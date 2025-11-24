@@ -39,8 +39,8 @@
                         </div>
                     </div>
                     
-                    <textarea 
-                        id="textInput" 
+                    <textarea
+                        id="textInput"
                         placeholder="Enter text to paste..."
                         autofocus
                         spellcheck="false"
@@ -50,7 +50,31 @@
                         aria-label="Text input"
                         aria-autocomplete="none"
                     ></textarea>
-                    
+
+                    <!-- Slash command suggestions -->
+                    <div class="slash-command-suggestions" id="slashCommandSuggestions" role="listbox" aria-label="Slash command suggestions">
+<!--                        <div class="slash-suggestion-item selected" data-index="0">-->
+<!--                            <span class="slash-command-name">/commit</span>-->
+<!--                            <span class="slash-command-description">Create a git commit with conventional format</span>-->
+<!--                        </div>-->
+<!--                        <div class="slash-suggestion-item" data-index="1">-->
+<!--                            <span class="slash-command-name">/review</span>-->
+<!--                            <span class="slash-command-description">Review code changes and suggest improvements</span>-->
+<!--                        </div>-->
+<!--                        <div class="slash-suggestion-item" data-index="2">-->
+<!--                            <span class="slash-command-name">/refactor</span>-->
+<!--                            <span class="slash-command-description">Refactor selected code for better readability</span>-->
+<!--                        </div>-->
+<!--                        <div class="slash-suggestion-item" data-index="3">-->
+<!--                            <span class="slash-command-name">/test</span>-->
+<!--                            <span class="slash-command-description">Generate unit tests for the current file</span>-->
+<!--                        </div>-->
+<!--                        <div class="slash-suggestion-item" data-index="4">-->
+<!--                            <span class="slash-command-name">/explain</span>-->
+<!--                            <span class="slash-command-description">Explain how the selected code works</span>-->
+<!--                        </div>-->
+                    </div>
+
                     <div class="footer">
                         <div class="hint">Multi-line text and Image supported</div>
                         <div class="char-count" id="charCount">0 chars</div>
