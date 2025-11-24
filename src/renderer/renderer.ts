@@ -122,6 +122,11 @@ export class PromptLineRenderer {
     this.slashCommandManager.initializeElements();
     this.slashCommandManager.setupEventListeners();
 
+    // Set SlashCommandManager reference in EventHandler
+    if (this.eventHandler) {
+      this.eventHandler.setSlashCommandManager(this.slashCommandManager);
+    }
+
     // Pre-load commands
     this.slashCommandManager.loadCommands();
   }

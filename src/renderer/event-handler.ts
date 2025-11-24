@@ -26,6 +26,7 @@ export class EventHandler {
   private textarea: HTMLTextAreaElement | null = null;
   private isComposing = false;
   private searchManager: { isInSearchMode(): boolean; exitSearchMode(): void } | null = null;
+  private slashCommandManager: { isActiveMode(): boolean } | null = null;
   private userSettings: UserSettings | null = null;
   private onTextPaste: (text: string) => Promise<void>;
   private onWindowHide: () => Promise<void>;
@@ -61,6 +62,10 @@ export class EventHandler {
     this.searchManager = searchManager;
   }
 
+  public setSlashCommandManager(slashCommandManager: { isActiveMode(): boolean }): void {
+    this.slashCommandManager = slashCommandManager;
+  }
+
   public setUserSettings(settings: UserSettings): void {
     this.userSettings = settings;
   }
@@ -93,6 +98,11 @@ export class EventHandler {
       // This ensures Tab key is captured before default browser handling
       this.textarea.addEventListener('keydown', (e: KeyboardEvent) => {
         if (e.key === 'Tab') {
+          // Skip if slash command menu is active (let slash command manager handle it)
+          if (this.slashCommandManager?.isActiveMode()) {
+            return;
+          }
+
           // Skip Tab key if IME is active to avoid conflicts with Japanese input
           // Only check this.isComposing (managed by compositionstart/end events)
           if (this.isComposing) {
@@ -154,6 +164,11 @@ export class EventHandler {
 
       // Handle Escape for hide window
       if (e.key === 'Escape') {
+        // Skip if slash command menu is active (let slash command manager handle it)
+        if (this.slashCommandManager?.isActiveMode()) {
+          return;
+        }
+
         e.preventDefault();
         // Check if search mode is active
         if (this.searchManager && this.searchManager.isInSearchMode()) {

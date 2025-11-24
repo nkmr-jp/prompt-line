@@ -191,8 +191,27 @@ export class SlashCommandManager {
 
   /**
    * Handle keyboard navigation
+   * Supports: ArrowDown/Ctrl+n/Ctrl+j (next), ArrowUp/Ctrl+p/Ctrl+k (previous), Enter/Tab (select), Escape (close)
    */
   private handleKeyDown(e: KeyboardEvent): void {
+    // Ctrl+n or Ctrl+j: Move down (same as ArrowDown)
+    if (e.ctrlKey && (e.key === 'n' || e.key === 'j')) {
+      e.preventDefault();
+      e.stopPropagation();
+      this.selectedIndex = Math.min(this.selectedIndex + 1, this.filteredCommands.length - 1);
+      this.updateSelection();
+      return;
+    }
+
+    // Ctrl+p or Ctrl+k: Move up (same as ArrowUp)
+    if (e.ctrlKey && (e.key === 'p' || e.key === 'k')) {
+      e.preventDefault();
+      e.stopPropagation();
+      this.selectedIndex = Math.max(this.selectedIndex - 1, 0);
+      this.updateSelection();
+      return;
+    }
+
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
