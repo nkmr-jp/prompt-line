@@ -15,6 +15,7 @@
 @import './components/history-item.css';
 @import './components/notifications.css';
 @import './components/slash-commands.css';
+@import './components/file-suggestions.css';
 
 /* Themes */
 @import './themes/themes.css';

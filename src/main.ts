@@ -22,7 +22,7 @@ import OptimizedHistoryManager from './managers/optimized-history-manager';
 import DraftManager from './managers/draft-manager';
 import SettingsManager from './managers/settings-manager';
 import IPCHandlers from './handlers/ipc-handlers';
-import { logger, ensureDir } from './utils/utils';
+import { logger, ensureDir, detectCurrentDirectoryWithFiles } from './utils/utils';
 import type { WindowData } from './types';
 
 class PromptLineApp {
@@ -97,6 +97,51 @@ class PromptLineApp {
     } catch (error) {
       logger.error('Failed to initialize application:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Test directory detection feature on startup (for debugging)
+   */
+  private async testDirectoryDetection(): Promise<void> {
+    try {
+      logger.debug('Testing directory detection feature...');
+      const startTime = performance.now();
+
+      const result = await detectCurrentDirectoryWithFiles();
+      const duration = performance.now() - startTime;
+
+      if (result.error) {
+        logger.debug('Directory detection result (error):', {
+          error: result.error,
+          appName: result.appName,
+          bundleId: result.bundleId,
+          duration: `${duration.toFixed(2)}ms`
+        });
+      } else {
+        logger.debug('Directory detection result (success):', {
+          directory: result.directory,
+          fileCount: result.fileCount,
+          method: result.method,
+          tty: result.tty,
+          pid: result.pid,
+          idePid: result.idePid,
+          appName: result.appName,
+          bundleId: result.bundleId,
+          duration: `${duration.toFixed(2)}ms`
+        });
+
+        // Log first 5 files as sample
+        if (result.files && result.files.length > 0) {
+          const sampleFiles = result.files.slice(0, 5).map(f => ({
+            name: f.name,
+            isDirectory: f.isDirectory
+          }));
+          logger.debug('Sample files:', sampleFiles);
+        }
+      }
+    } catch (error) {
+      logger.warn('Directory detection test failed:', error);
     }
   }
 
@@ -302,6 +347,9 @@ class PromptLineApp {
         historyItems: windowData.history?.length || 0,
         hasDraft: !!windowData.draft
       });
+
+      // Debug: Test directory detection when editor is shown
+      this.testDirectoryDetection();
     } catch (error) {
       logger.error('Failed to show input window:', error);
     }

@@ -37,11 +37,29 @@ export interface UserSettings {
   };
 }
 
+export interface FileInfo {
+  name: string;
+  path: string;
+  isDirectory: boolean;
+}
+
+export interface DirectoryInfo {
+  success?: boolean;
+  directory?: string;
+  files?: FileInfo[];
+  fileCount?: number;
+  error?: string;
+  partial?: boolean;          // true for Stage 1 (quick), false for Stage 2 (recursive)
+  searchMode?: 'quick' | 'recursive';
+  usedFd?: boolean;           // true if fd command was used
+}
+
 export interface WindowData {
   sourceApp?: AppInfo | string | null;
   history?: HistoryItem[];
   draft?: string | { text: string } | null;
   settings?: UserSettings;
+  directoryData?: DirectoryInfo;
 }
 
 export interface Config {

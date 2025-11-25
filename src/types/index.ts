@@ -36,6 +36,7 @@ export interface WindowData {
   history?: HistoryItem[];
   draft?: string | DraftData | null;
   settings?: UserSettings;
+  directoryData?: DirectoryInfo;
 }
 
 export interface HistoryStats {
@@ -179,6 +180,22 @@ export interface UserSettings {
   commands?: {
     directories: string[];
   };
+  fileSearch?: {
+    // Use fd command (falls back to find if not installed)
+    useFd?: boolean;
+    // Respect .gitignore files (fd only, default: true)
+    respectGitignore?: boolean;
+    // Additional exclude patterns (applied on top of .gitignore)
+    excludePatterns?: string[];
+    // Include patterns (force include even if in .gitignore)
+    includePatterns?: string[];
+    // Maximum number of files to return (default: 5000)
+    maxFiles?: number;
+    // Include hidden files (starting with .)
+    includeHidden?: boolean;
+    // Maximum directory depth (null = unlimited)
+    maxDepth?: number | null;
+  };
 }
 
 export interface SlashCommandItem {
@@ -186,5 +203,62 @@ export interface SlashCommandItem {
   description: string;
   argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
   filePath: string;
+}
+
+export interface FileInfo {
+  name: string;
+  path: string;
+  isDirectory: boolean;
+  isSymlink?: boolean;
+  size?: number;
+  modifiedAt?: string;
+  error?: string;
+}
+
+export interface DirectoryInfo {
+  success?: boolean;
+  directory?: string;
+  files?: FileInfo[];
+  fileCount?: number;
+  tty?: string;
+  pid?: number;
+  idePid?: number;
+  method?: 'tty' | 'window-title' | 'ide-shell-fast' | 'electron-pty';
+  appName?: string;
+  bundleId?: string;
+  error?: string;
+  filesError?: string;
+  // File search related fields
+  partial?: boolean;          // true for Stage 1 (quick), false for Stage 2 (recursive)
+  searchMode?: 'quick' | 'recursive';
+  usedFd?: boolean;           // true if fd command was used
+}
+
+// File search settings configuration
+export interface FileSearchSettings {
+  // Use fd command (falls back to find if not installed)
+  useFd: boolean;
+  // Respect .gitignore files (fd only, default: true)
+  respectGitignore: boolean;
+  // Additional exclude patterns (applied on top of .gitignore)
+  excludePatterns: string[];
+  // Include patterns (force include even if in .gitignore)
+  includePatterns: string[];
+  // Maximum number of files to return (default: 5000)
+  maxFiles: number;
+  // Include hidden files (starting with .)
+  includeHidden: boolean;
+  // Maximum directory depth (null = unlimited)
+  maxDepth: number | null;
+}
+
+// Directory data for file search (cached in renderer)
+export interface DirectoryData {
+  directory: string;
+  files: FileInfo[];
+  timestamp: number;
+  partial?: boolean;          // true for Stage 1 (quick), false for Stage 2 (recursive)
+  searchMode?: 'quick' | 'recursive';
+  usedFd?: boolean;           // true if fd command was used
 }
 
