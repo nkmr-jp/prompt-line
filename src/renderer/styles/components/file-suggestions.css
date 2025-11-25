@@ -1,0 +1,121 @@
+/* File Suggestions Component Styles */
+/* Aligned with slash-commands.css for consistency */
+
+.file-suggestions {
+  position: absolute;
+  /* top and left are set dynamically by FileSearchManager.positionSuggestions() */
+  max-height: 40vh; /* 40% of viewport height */
+  min-width: 200px;
+  max-width: 90%;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  background: #333;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+}
+
+.file-suggestion-header {
+  padding: 6px 12px;
+  font-size: 11px;
+  color: var(--text-secondary, #888);
+  background: var(--bg-tertiary, #2a2a2a);
+  border-bottom: 1px solid var(--border-color, #333);
+  font-family: monospace;
+}
+
+.file-suggestion-item {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  padding: 4px 10px;
+  cursor: pointer;
+  gap: 6px;
+  border-bottom: 1px solid var(--border-color, #333);
+  transition: background-color 0.1s ease;
+  min-width: 0;
+}
+
+.file-suggestion-item:last-child {
+  border-bottom: none;
+}
+
+/* Note: :hover is intentionally NOT used here.
+   Mouse hover highlighting is handled via JavaScript (mousemove event)
+   to prevent accidental highlighting when menu appears under stationary mouse cursor.
+   The .hovered class is added only when mouse actually moves over an item. */
+
+.file-suggestion-item.hovered {
+  background: var(--bg-hover, #2a2a2a);
+}
+
+.file-suggestion-item.selected {
+  background: var(--bg-active, #3a3a3a);
+}
+
+.file-icon {
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+  font-size: 12px;
+}
+
+.file-name {
+  flex-shrink: 1;
+  min-width: 0;
+  color: var(--text-primary, #fff);
+  font-weight: 500;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-name .highlight {
+  background: rgba(255, 200, 0, 0.3);
+  color: var(--text-primary, #fff);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+.file-name .file-count {
+  color: var(--text-secondary, #888);
+  font-weight: normal;
+  font-size: 10px;
+  margin-left: 4px;
+}
+
+.file-path {
+  flex: 1;
+  color: var(--text-secondary, #888);
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-suggestion-empty {
+  padding: 16px;
+  text-align: center;
+  color: var(--text-secondary, #888);
+  font-size: 13px;
+}
+
+/* Scrollbar styling */
+.file-suggestions::-webkit-scrollbar {
+  width: 6px;
+}
+
+.file-suggestions::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.file-suggestions::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb, #555);
+  border-radius: 3px;
+}
+
+.file-suggestions::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover, #666);
+}

@@ -6,6 +6,7 @@ export class DomManager {
   public headerShortcutsEl: HTMLElement | null = null;
   public historyShortcutsEl: HTMLElement | null = null;
   public searchInput: HTMLInputElement | null = null;
+  public hintTextEl: HTMLElement | null = null;
 
   public initializeElements(): void {
     this.textarea = document.getElementById('textInput') as HTMLTextAreaElement;
@@ -15,6 +16,7 @@ export class DomManager {
     this.headerShortcutsEl = document.getElementById('headerShortcuts');
     this.historyShortcutsEl = document.getElementById('historyShortcuts');
     this.searchInput = document.getElementById('searchInput') as HTMLInputElement;
+    this.hintTextEl = document.getElementById('hintText');
 
     if (!this.textarea || !this.appNameEl || !this.charCountEl || !this.historyList) {
       throw new Error('Required DOM elements not found');
@@ -31,6 +33,12 @@ export class DomManager {
   public updateAppName(name: string): void {
     if (this.appNameEl) {
       this.appNameEl.textContent = name;
+    }
+  }
+
+  public updateHintText(text: string): void {
+    if (this.hintTextEl) {
+      this.hintTextEl.textContent = text;
     }
   }
 

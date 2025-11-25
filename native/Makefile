@@ -5,8 +5,8 @@ SWIFTC = swiftc
 SWIFT_FLAGS = -O
 FRAMEWORKS = -framework Cocoa -framework ApplicationServices
 OUTPUT_DIR = ../src/native-tools
-SOURCES = window-detector.swift keyboard-simulator.swift text-field-detector.swift
-TARGETS = $(OUTPUT_DIR)/window-detector $(OUTPUT_DIR)/keyboard-simulator $(OUTPUT_DIR)/text-field-detector
+SOURCES = window-detector.swift keyboard-simulator.swift text-field-detector.swift directory-detector.swift
+TARGETS = $(OUTPUT_DIR)/window-detector $(OUTPUT_DIR)/keyboard-simulator $(OUTPUT_DIR)/text-field-detector $(OUTPUT_DIR)/directory-detector
 
 .PHONY: all clean install
 
@@ -22,6 +22,9 @@ $(OUTPUT_DIR)/keyboard-simulator: keyboard-simulator.swift | $(OUTPUT_DIR)
 	$(SWIFTC) $(SWIFT_FLAGS) $(FRAMEWORKS) -o $@ $<
 
 $(OUTPUT_DIR)/text-field-detector: text-field-detector.swift | $(OUTPUT_DIR)
+	$(SWIFTC) $(SWIFT_FLAGS) $(FRAMEWORKS) -o $@ $<
+
+$(OUTPUT_DIR)/directory-detector: directory-detector.swift | $(OUTPUT_DIR)
 	$(SWIFTC) $(SWIFT_FLAGS) $(FRAMEWORKS) -o $@ $<
 
 install: all

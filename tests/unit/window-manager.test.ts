@@ -20,7 +20,8 @@ jest.mock('../../src/utils/utils', () => ({
     },
     KEYBOARD_SIMULATOR_PATH: '/path/to/keyboard-simulator',
     TEXT_FIELD_DETECTOR_PATH: '/path/to/text-field-detector',
-    WINDOW_DETECTOR_PATH: '/path/to/window-detector'
+    WINDOW_DETECTOR_PATH: '/path/to/window-detector',
+    DIRECTORY_DETECTOR_PATH: '/path/to/directory-detector'
 }));
 
 // Mock the config module
@@ -82,9 +83,31 @@ describe('WindowManager', () => {
             }
         };
         
-        (BrowserWindow as jest.MockedClass<typeof BrowserWindow>).mockReturnValue(mockWindow);
-        
         jest.clearAllMocks();
+
+        // Re-apply mocks after clearAllMocks
+        (BrowserWindow as jest.MockedClass<typeof BrowserWindow>).mockReturnValue(mockWindow);
+
+        // Mock exec for directory-detector and text-field-detector calls
+        mockedExec.mockImplementation((command: string, _options: any, callback: ExecCallback) => {
+            if (command.includes('directory-detector')) {
+                // Mock directory detection response
+                callback(null, JSON.stringify({
+                    success: true,
+                    directory: '/test/directory',
+                    files: [],
+                    fileCount: 0,
+                    searchMode: 'quick',
+                    partial: true
+                }), '');
+            } else if (command.includes('text-field-detector')) {
+                // Mock text field detection (no text field found)
+                callback(null, JSON.stringify({ success: false }), '');
+            } else {
+                callback(null, '', '');
+            }
+            return {} as any; // Return mock ChildProcess
+        });
     });
 
     describe('createInputWindow', () => {
@@ -149,6 +172,14 @@ describe('WindowManager', () => {
             expect(mockWindow.webContents.send).toHaveBeenCalledWith('window-shown', {
                 sourceApp: 'TestApp',
                 currentSpaceInfo: null,
+                directoryData: {
+                    success: true,
+                    directory: '/test/directory',
+                    files: [],
+                    fileCount: 0,
+                    searchMode: 'quick',
+                    partial: true
+                },
                 history: [],
                 draft: 'test draft'
             });

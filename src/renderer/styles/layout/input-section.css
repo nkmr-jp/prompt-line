@@ -3,6 +3,7 @@
     flex: 2;
     display: flex;
     flex-direction: column;
+    position: relative; /* Required for file suggestions absolute positioning */
 }
 
 .input-wrapper {

@@ -26,8 +26,18 @@ class SettingsManager {
         position: 'active-text-field',
         width: 600,
         height: 300
-      }
+      },
       // commands is optional - not set by default
+      // fileSearch is optional - defaults below are applied when accessing
+      fileSearch: {
+        useFd: true,
+        respectGitignore: true,
+        excludePatterns: [],
+        includePatterns: [],
+        maxFiles: 5000,
+        includeHidden: false,
+        maxDepth: null
+      }
     };
 
     this.currentSettings = { ...this.defaultSettings };
@@ -84,6 +94,10 @@ class SettingsManager {
       window: {
         ...this.defaultSettings.window,
         ...userSettings.window
+      },
+      fileSearch: {
+        ...this.defaultSettings.fileSearch,
+        ...userSettings.fileSearch
       }
     };
 
@@ -163,6 +177,37 @@ window:
   ## First directory takes precedence for duplicate command names
   # directories:
   #   - /Users/your-username/.claude/commands
+
+# File search configuration for @ mentions
+# fileSearch:
+  ## Use fd command for faster searches (falls back to find if not installed)
+  ## Install fd: brew install fd
+  # useFd: ${settings.fileSearch?.useFd ?? true}
+
+  ## Respect .gitignore files (fd only, default: true)
+  # respectGitignore: ${settings.fileSearch?.respectGitignore ?? true}
+
+  ## Additional patterns to exclude from search
+  ## Default excludes already include: node_modules, .git, dist, build, etc.
+  # excludePatterns:
+  #   - "*.log"
+  #   - "*.tmp"
+  #   - "tmp/"
+
+  ## Patterns to force include even if in .gitignore
+  ## Useful for searching in build output or generated files
+  # includePatterns:
+  #   - "dist/**/*.js"
+  #   - ".storybook/**/*"
+
+  ## Maximum number of files to return (default: 5000)
+  # maxFiles: ${settings.fileSearch?.maxFiles ?? 5000}
+
+  ## Include hidden files starting with . (default: false)
+  # includeHidden: ${settings.fileSearch?.includeHidden ?? false}
+
+  ## Maximum directory depth to search (null = unlimited)
+  # maxDepth: null
   `;
   }
 
@@ -226,8 +271,25 @@ window:
   getDefaultSettings(): UserSettings {
     return {
       shortcuts: { ...this.defaultSettings.shortcuts },
-      window: { ...this.defaultSettings.window }
+      window: { ...this.defaultSettings.window },
+      fileSearch: { ...this.defaultSettings.fileSearch }
     };
+  }
+
+  getFileSearchSettings(): NonNullable<UserSettings['fileSearch']> {
+    return {
+      ...this.defaultSettings.fileSearch,
+      ...this.currentSettings.fileSearch
+    };
+  }
+
+  async updateFileSearchSettings(fileSearch: Partial<NonNullable<UserSettings['fileSearch']>>): Promise<void> {
+    await this.updateSettings({
+      fileSearch: {
+        ...this.currentSettings.fileSearch,
+        ...fileSearch
+      }
+    });
   }
 
   getSettingsFilePath(): string {

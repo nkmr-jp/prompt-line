@@ -9,7 +9,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 // Security: Only expose allowed IPC channels
 const ALLOWED_CHANNELS = [
   'paste-text',
-  'paste-image', 
+  'paste-image',
   'get-history',
   'clear-history',
   'remove-history-item',
@@ -28,7 +28,9 @@ const ALLOWED_CHANNELS = [
   'clipboard-write-image',
   'focus-window',
   'window-shown',
-  'get-slash-commands'
+  'get-slash-commands',
+  'directory-data-updated',
+  'open-settings'
 ];
 
 // IPC channel validation with additional security checks

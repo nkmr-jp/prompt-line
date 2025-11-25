@@ -5,7 +5,8 @@ import type {
   Config,
   PasteResult,
   ImageResult,
-  UserSettings
+  UserSettings,
+  DirectoryInfo
 } from './types';
 import { EventHandler } from './event-handler';
 import { SearchManager } from './search-manager';
@@ -15,9 +16,20 @@ import { DraftManager } from './draft-manager';
 import { HistoryUIManager } from './history-ui-manager';
 import { LifecycleManager } from './lifecycle-manager';
 import { SimpleSnapshotManager } from './snapshot-manager';
+import { FileSearchManager } from './file-search-manager';
 
 // Secure electronAPI access via preload script
 const electronAPI = (window as any).electronAPI;
+
+/**
+ * Format object for console output (Electron renderer -> main process)
+ */
+function formatLog(obj: Record<string, unknown>): string {
+  const entries = Object.entries(obj)
+    .map(([key, value]) => `  ${key}: ${typeof value === 'string' ? `'${value}'` : value}`)
+    .join(',\n');
+  return '{\n' + entries + '\n}';
+}
 
 if (!electronAPI) {
   throw new Error('Electron API not available. Preload script may not be loaded correctly.');
@@ -32,6 +44,7 @@ export class PromptLineRenderer {
   private eventHandler: EventHandler | null = null;
   private searchManager: SearchManager | null = null;
   private slashCommandManager: SlashCommandManager | null = null;
+  private fileSearchManager: FileSearchManager | null = null;
   private domManager: DomManager;
   private draftManager: DraftManager;
   private historyUIManager: HistoryUIManager;
@@ -76,6 +89,7 @@ export class PromptLineRenderer {
       this.setupEventHandler();
       this.setupSearchManager();
       this.setupSlashCommandManager();
+      this.setupFileSearchManager();
       this.setupEventListeners();
       this.setupIPCListeners();
     } catch (error) {
@@ -140,6 +154,28 @@ export class PromptLineRenderer {
     this.slashCommandManager.loadCommands();
   }
 
+  private setupFileSearchManager(): void {
+    this.fileSearchManager = new FileSearchManager({
+      onFileSelected: (filePath: string) => {
+        console.debug('[FileSearchManager] File selected:', filePath);
+        // File path is already inserted by FileSearchManager
+        this.draftManager.saveDraftDebounced();
+      },
+      getTextContent: () => this.domManager.getCurrentText(),
+      setTextContent: (text: string) => this.domManager.setText(text),
+      getCursorPosition: () => this.domManager.getCursorPosition(),
+      setCursorPosition: (position: number) => this.domManager.setCursorPosition(position)
+    });
+
+    this.fileSearchManager.initializeElements();
+    this.fileSearchManager.setupEventListeners();
+
+    // Set FileSearchManager reference in EventHandler
+    if (this.eventHandler) {
+      this.eventHandler.setFileSearchManager(this.fileSearchManager);
+    }
+  }
+
   private setupEventListeners(): void {
     if (!this.domManager.textarea) return;
 
@@ -200,6 +236,12 @@ export class PromptLineRenderer {
     electronAPI.on('window-shown', (...args: unknown[]) => {
       const data = args[0] as WindowData;
       this.handleWindowShown(data);
+    });
+
+    // Listen for Stage 2 directory data updates
+    electronAPI.on('directory-data-updated', (...args: unknown[]) => {
+      const data = args[0] as DirectoryInfo;
+      this.handleDirectoryDataUpdated(data);
     });
   }
 
@@ -314,14 +356,44 @@ export class PromptLineRenderer {
 
   private handleWindowShown(data: WindowData): void {
     try {
+      console.debug('[Renderer] handleWindowShown called', formatLog({
+        hasDirectoryData: !!data.directoryData,
+        directoryDataDirectory: data.directoryData?.directory,
+        directoryDataFileCount: data.directoryData?.files?.length,
+        hasFileSearchManager: !!this.fileSearchManager
+      }));
+
       this.lifecycleManager.handleWindowShown(data);
       this.updateHistoryAndSettings(data);
-      
+
       // Reset search mode and scroll position when window is shown
       this.searchManager?.exitSearchMode();
       this.resetHistoryScrollPosition();
+
+      // Cache directory data for file search (Stage 1)
+      if (data.directoryData) {
+        console.debug('[Renderer] caching directory data for file search');
+        this.fileSearchManager?.cacheDirectoryData(data.directoryData);
+
+        // Update hint text with directory basename
+        if (data.directoryData.directory) {
+          const basename = data.directoryData.directory.split('/').pop() || data.directoryData.directory;
+          this.domManager.updateHintText(basename);
+        }
+      } else {
+        console.debug('[Renderer] no directory data in window-shown event');
+      }
     } catch (error) {
       console.error('Error handling window shown:', error);
+    }
+  }
+
+  private handleDirectoryDataUpdated(data: DirectoryInfo): void {
+    try {
+      // Update cache with Stage 2 data
+      this.fileSearchManager?.updateCache(data);
+    } catch (error) {
+      console.error('Error handling directory data update:', error);
     }
   }
 
@@ -411,6 +483,7 @@ export class PromptLineRenderer {
   public cleanup(): void {
     this.draftManager.cleanup();
     this.historyUIManager.cleanup();
+    this.fileSearchManager?.destroy();
   }
 }
 

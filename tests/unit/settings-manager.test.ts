@@ -112,7 +112,7 @@ window:
 
     it('should return default settings', () => {
       const settings = settingsManager.getSettings();
-      
+
       expect(settings).toEqual({
         shortcuts: {
           main: 'Cmd+Shift+Space',
@@ -126,6 +126,15 @@ window:
           position: 'active-text-field',
           width: 600,
           height: 300
+        },
+        fileSearch: {
+          useFd: true,
+          respectGitignore: true,
+          includeHidden: false,
+          maxFiles: 5000,
+          maxDepth: null,
+          includePatterns: [],
+          excludePatterns: []
         }
       });
     });
@@ -206,7 +215,7 @@ window:
 
     it('should return default settings copy', () => {
       const defaults = settingsManager.getDefaultSettings();
-      
+
       expect(defaults).toEqual({
         shortcuts: {
           main: 'Cmd+Shift+Space',
@@ -220,6 +229,15 @@ window:
           position: 'active-text-field',
           width: 600,
           height: 300
+        },
+        fileSearch: {
+          useFd: true,
+          respectGitignore: true,
+          includeHidden: false,
+          maxFiles: 5000,
+          maxDepth: null,
+          includePatterns: [],
+          excludePatterns: []
         }
       });
 
