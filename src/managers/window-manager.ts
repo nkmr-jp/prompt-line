@@ -187,10 +187,20 @@ class WindowManager {
       
       logger.debug(`⏱️  Window management total: ${(performance.now() - windowMgmtStartTime).toFixed(2)}ms`);
 
-      // Window data without directoryData - directory detection will be done in background
+      // Stage 1: Quick directory detection (< 50ms target)
+      const dirDetectStartTime = performance.now();
+      let directoryData: DirectoryInfo | null = null;
+      try {
+        directoryData = await this.executeDirectoryDetector('quick', 2000);
+        logger.debug(`⏱️  Stage 1 directory detection: ${(performance.now() - dirDetectStartTime).toFixed(2)}ms`);
+      } catch (error) {
+        logger.warn('Stage 1 directory detection failed:', error);
+      }
+
       const windowData: WindowData = {
         sourceApp: this.previousApp,
         currentSpaceInfo,
+        ...(directoryData ? { directoryData } : {}),
         ...data
       };
 
@@ -227,13 +237,16 @@ class WindowManager {
       logger.debug(`🏁 Total showInputWindow time: ${(performance.now() - startTime).toFixed(2)}ms`);
       logger.debug('Input window shown', { sourceApp: this.previousApp });
 
-      // Background directory detection (non-blocking)
-      // Run both Stage 1 (quick) and Stage 2 (recursive) in background AFTER window is shown
-      setImmediate(() => {
-        this.executeBackgroundDirectoryDetection().catch(error => {
-          logger.warn('Background directory detection error:', error);
+      // Stage 2: Background recursive directory detection (non-blocking)
+      // Only run if Stage 1 detected a directory and we have a valid window
+      if (directoryData?.directory) {
+        // Use setImmediate to ensure this doesn't block the main thread
+        setImmediate(() => {
+          this.executeBackgroundDirectoryDetection().catch(error => {
+            logger.warn('Background directory detection error:', error);
+          });
         });
-      });
+      }
     } catch (error) {
       logger.error('Failed to show input window:', error);
       logger.error(`❌ Failed after ${(performance.now() - startTime).toFixed(2)}ms`);
