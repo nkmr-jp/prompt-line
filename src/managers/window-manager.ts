@@ -673,7 +673,10 @@ class WindowManager {
 
     const options = {
       timeout,
-      killSignal: 'SIGTERM' as const
+      killSignal: 'SIGTERM' as const,
+      // Increase maxBuffer for large file lists (default is 1MB)
+      // 50,000 files × ~200 bytes/file = ~10MB, so use 50MB for safety
+      maxBuffer: 50 * 1024 * 1024
     };
 
     return new Promise((resolve) => {
