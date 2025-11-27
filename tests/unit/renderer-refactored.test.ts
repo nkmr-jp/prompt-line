@@ -39,6 +39,8 @@ jest.mock('../../src/renderer/event-handler', () => ({
     EventHandler: jest.fn().mockImplementation(() => ({
         setTextarea: jest.fn(),
         setSearchManager: jest.fn(),
+        setSlashCommandManager: jest.fn(),
+        setFileSearchManager: jest.fn(),
         setupEventListeners: jest.fn(),
         getIsComposing: jest.fn().mockReturnValue(false)
     }))
