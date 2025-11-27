@@ -5,18 +5,32 @@ import type {
   Config,
   PasteResult,
   ImageResult,
-  UserSettings
+  UserSettings,
+  DirectoryInfo,
+  AppInfo
 } from './types';
 import { EventHandler } from './event-handler';
 import { SearchManager } from './search-manager';
+import { SlashCommandManager } from './slash-command-manager';
 import { DomManager } from './dom-manager';
 import { DraftManager } from './draft-manager';
 import { HistoryUIManager } from './history-ui-manager';
 import { LifecycleManager } from './lifecycle-manager';
 import { SimpleSnapshotManager } from './snapshot-manager';
+import { FileSearchManager } from './file-search-manager';
 
 // Secure electronAPI access via preload script
 const electronAPI = (window as any).electronAPI;
+
+/**
+ * Format object for console output (Electron renderer -> main process)
+ */
+function formatLog(obj: Record<string, unknown>): string {
+  const entries = Object.entries(obj)
+    .map(([key, value]) => `  ${key}: ${typeof value === 'string' ? `'${value}'` : value}`)
+    .join(',\n');
+  return '{\n' + entries + '\n}';
+}
 
 if (!electronAPI) {
   throw new Error('Electron API not available. Preload script may not be loaded correctly.');
@@ -30,6 +44,8 @@ export class PromptLineRenderer {
   private userSettings: UserSettings | null = null;
   private eventHandler: EventHandler | null = null;
   private searchManager: SearchManager | null = null;
+  private slashCommandManager: SlashCommandManager | null = null;
+  private fileSearchManager: FileSearchManager | null = null;
   private domManager: DomManager;
   private draftManager: DraftManager;
   private historyUIManager: HistoryUIManager;
@@ -73,6 +89,8 @@ export class PromptLineRenderer {
 
       this.setupEventHandler();
       this.setupSearchManager();
+      this.setupSlashCommandManager();
+      this.setupFileSearchManager();
       this.setupEventListeners();
       this.setupIPCListeners();
     } catch (error) {
@@ -99,13 +117,63 @@ export class PromptLineRenderer {
     this.searchManager = new SearchManager({
       onSearchStateChange: this.handleSearchStateChange.bind(this)
     });
-    
+
     this.searchManager.initializeElements();
     this.searchManager.setupEventListeners();
-    
+
     // Set SearchManager reference in EventHandler
     if (this.eventHandler) {
       this.eventHandler.setSearchManager(this.searchManager);
+    }
+  }
+
+  private setupSlashCommandManager(): void {
+    this.slashCommandManager = new SlashCommandManager({
+      onCommandSelect: async (command: string) => {
+        console.debug('Slash command selected (Enter):', command);
+        // Paste the selected command immediately
+        if (command) {
+          await this.handleTextPasteCallback(command);
+        }
+      },
+      onCommandInsert: (command: string) => {
+        console.debug('Slash command inserted (Tab):', command);
+        // Just insert into textarea for editing, don't paste
+        // The command is already inserted by SlashCommandManager
+      }
+    });
+
+    this.slashCommandManager.initializeElements();
+    this.slashCommandManager.setupEventListeners();
+
+    // Set SlashCommandManager reference in EventHandler
+    if (this.eventHandler) {
+      this.eventHandler.setSlashCommandManager(this.slashCommandManager);
+    }
+
+    // Pre-load commands
+    this.slashCommandManager.loadCommands();
+  }
+
+  private setupFileSearchManager(): void {
+    this.fileSearchManager = new FileSearchManager({
+      onFileSelected: (filePath: string) => {
+        console.debug('[FileSearchManager] File selected:', filePath);
+        // File path is already inserted by FileSearchManager
+        this.draftManager.saveDraftDebounced();
+      },
+      getTextContent: () => this.domManager.getCurrentText(),
+      setTextContent: (text: string) => this.domManager.setText(text),
+      getCursorPosition: () => this.domManager.getCursorPosition(),
+      setCursorPosition: (position: number) => this.domManager.setCursorPosition(position)
+    });
+
+    this.fileSearchManager.initializeElements();
+    this.fileSearchManager.setupEventListeners();
+
+    // Set FileSearchManager reference in EventHandler
+    if (this.eventHandler) {
+      this.eventHandler.setFileSearchManager(this.fileSearchManager);
     }
   }
 
@@ -169,6 +237,12 @@ export class PromptLineRenderer {
     electronAPI.on('window-shown', (...args: unknown[]) => {
       const data = args[0] as WindowData;
       this.handleWindowShown(data);
+    });
+
+    // Listen for Stage 2 directory data updates
+    electronAPI.on('directory-data-updated', (...args: unknown[]) => {
+      const data = args[0] as DirectoryInfo;
+      this.handleDirectoryDataUpdated(data);
     });
   }
 
@@ -277,23 +351,170 @@ export class PromptLineRenderer {
   private async clearTextAndDraft(): Promise<void> {
     this.domManager.clearText();
     await this.draftManager.clearDraft();
+    // Clear tracked @paths when text is cleared
+    this.fileSearchManager?.clearAtPaths();
   }
 
 
 
   private handleWindowShown(data: WindowData): void {
     try {
+      console.debug('[Renderer] handleWindowShown called', formatLog({
+        hasDirectoryData: !!data.directoryData,
+        directoryDataDirectory: data.directoryData?.directory,
+        directoryDataFileCount: data.directoryData?.files?.length,
+        hasFileSearchManager: !!this.fileSearchManager
+      }));
+
       this.lifecycleManager.handleWindowShown(data);
       this.updateHistoryAndSettings(data);
-      
+
       // Reset search mode and scroll position when window is shown
       this.searchManager?.exitSearchMode();
       this.resetHistoryScrollPosition();
+
+      // Cache directory data for file search (Stage 1)
+      if (data.directoryData) {
+        console.debug('[Renderer] caching directory data for file search');
+        this.fileSearchManager?.cacheDirectoryData(data.directoryData);
+
+        // Update hint text with formatted directory path
+        if (data.directoryData.directory) {
+          const formattedPath = this.formatDirectoryPath(data.directoryData.directory);
+          this.domManager.updateHintText(formattedPath);
+        }
+      } else {
+        console.debug('[Renderer] no directory data in window-shown event');
+        // Show loading message only for apps that support directory detection
+        // Otherwise, keep the default hint text
+        if (this.isDirectoryDetectionCapable(data.sourceApp)) {
+          this.domManager.updateHintText('Detecting directory...');
+        }
+        // If not directory-capable, leave the default hint text unchanged
+      }
     } catch (error) {
       console.error('Error handling window shown:', error);
     }
   }
 
+  private handleDirectoryDataUpdated(data: DirectoryInfo): void {
+    try {
+      console.debug('[Renderer] handleDirectoryDataUpdated called', {
+        directory: data.directory,
+        fileCount: data.files?.length
+      });
+
+      // Update cache with directory data (handles both Stage 1 and Stage 2)
+      this.fileSearchManager?.updateCache(data);
+
+      // Update hint text with formatted directory path
+      if (data.directory) {
+        const formattedPath = this.formatDirectoryPath(data.directory);
+        this.domManager.updateHintText(formattedPath);
+      }
+    } catch (error) {
+      console.error('Error handling directory data update:', error);
+    }
+  }
+
+
+  /**
+   * Check if the source app supports directory detection
+   * Terminal emulators and IDEs typically support detecting the current working directory
+   */
+  private isDirectoryDetectionCapable(sourceApp: AppInfo | string | null | undefined): boolean {
+    if (!sourceApp) return false;
+
+    // Extract app name
+    const appName = typeof sourceApp === 'string' ? sourceApp : sourceApp.name;
+    if (!appName) return false;
+
+    // List of apps that support directory detection (terminals and IDEs)
+    const directoryCapableApps = [
+      // Terminal emulators
+      'terminal',
+      'iterm',
+      'iterm2',
+      'hyper',
+      'alacritty',
+      'kitty',
+      'warp',
+      'tabby',
+      'wezterm',
+      // IDEs and editors
+      'visual studio code',
+      'code',
+      'vscode',
+      'goland',
+      'intellij',
+      'webstorm',
+      'phpstorm',
+      'pycharm',
+      'rubymine',
+      'rider',
+      'clion',
+      'datagrip',
+      'android studio',
+      'xcode',
+      'sublime text',
+      'atom',
+      'vim',
+      'neovim',
+      'emacs',
+      'cursor',
+      'zed'
+    ];
+
+    const lowerAppName = appName.toLowerCase();
+    return directoryCapableApps.some(app => lowerAppName.includes(app));
+  }
+
+  /**
+   * Format directory path for display in hint text
+   * - Replace user home directory with ~
+   * - Remove trailing slash
+   * - Truncate from left if too long, always showing basename
+   */
+  private formatDirectoryPath(dirPath: string): string {
+    // Remove trailing slash
+    let path = dirPath.replace(/\/+$/, '');
+
+    // Replace user home directory with ~ (macOS: /Users/xxx, Linux: /home/xxx)
+    const homePattern = /^\/(?:Users|home)\/[^/]+/;
+    path = path.replace(homePattern, '~');
+
+    const maxLength = 35; // Max characters that can fit in the hint area
+
+    if (path.length <= maxLength) {
+      return path;
+    }
+
+    // Truncate from left, keeping the basename visible
+    const parts = path.split('/');
+    const basename = parts.pop() || path;
+
+    // If basename alone is too long, just show basename (will be truncated by CSS)
+    if (basename.length >= maxLength - 3) {
+      return basename;
+    }
+
+    // Build path from right, adding as many parent directories as fit
+    let result = basename;
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const candidate = parts[i] + '/' + result;
+      if (candidate.length + 3 > maxLength) { // +3 for "..."
+        break;
+      }
+      result = candidate;
+    }
+
+    // Add ellipsis if we truncated
+    if (result !== path) {
+      result = '...' + result;
+    }
+
+    return result;
+  }
 
   private updateHistoryAndSettings(data: WindowData): void {
     this.historyData = data.history || [];
@@ -380,6 +601,7 @@ export class PromptLineRenderer {
   public cleanup(): void {
     this.draftManager.cleanup();
     this.historyUIManager.cleanup();
+    this.fileSearchManager?.destroy();
   }
 }
 

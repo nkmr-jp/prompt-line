@@ -195,6 +195,63 @@ window:
 
 ```
 
+## 📁 Custom Commands
+
+You can create custom slash commands that can be quickly accessed by typing `/` in the input field.
+
+### Setting Up Commands Directories
+
+Add the `commands.directories` setting to your `~/.prompt-line/settings.yml`:
+
+```yaml
+# Custom slash commands configuration
+commands:
+  # Directories containing custom slash command .md files
+  # First directory takes precedence for duplicate command names
+  directories:
+    - /Users/your-username/.claude/commands
+    - /Users/your-username/my-prompts
+```
+
+### Creating Command Files
+
+Each command is a Markdown file (`.md`) with YAML frontmatter:
+
+```markdown
+---
+description: Brief description of what this command does
+argument-hint: <optional argument hint shown after Tab selection>
+---
+
+Your command prompt template here.
+Use $ARGUMENTS to include user-provided arguments.
+```
+
+**Example:** `~/.claude/commands/review.md`
+```markdown
+---
+description: Review code changes
+argument-hint: <file path or PR number>
+---
+
+Please review the following code and provide feedback:
+$ARGUMENTS
+```
+
+### Using Commands
+
+1. Type `/` in the input field to see available commands
+2. Use arrow keys or `Ctrl+j`/`Ctrl+k` to navigate
+3. Press **Enter** to select and paste immediately
+4. Press **Tab** to select and edit arguments (shows argument-hint if available)
+5. Press **Escape** to close the suggestions
+
+### Frontmatter Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `description` | No | Brief description shown in the suggestion list |
+| `argument-hint` | No | Hint text shown after Tab selection (defaults to description if not set) |
 
 ## Prompt History
 

@@ -26,6 +26,17 @@ class SettingsManager {
         position: 'active-text-field',
         width: 600,
         height: 300
+      },
+      // commands is optional - not set by default
+      // fileSearch is optional - defaults below are applied when accessing
+      fileSearch: {
+        useFd: true,
+        respectGitignore: true,
+        excludePatterns: [],
+        includePatterns: [],
+        maxFiles: 5000,
+        includeHidden: false,
+        maxDepth: null
       }
     };
 
@@ -75,7 +86,7 @@ class SettingsManager {
   }
 
   private mergeWithDefaults(userSettings: Partial<UserSettings>): UserSettings {
-    return {
+    const result: UserSettings = {
       shortcuts: {
         ...this.defaultSettings.shortcuts,
         ...userSettings.shortcuts
@@ -83,8 +94,19 @@ class SettingsManager {
       window: {
         ...this.defaultSettings.window,
         ...userSettings.window
+      },
+      fileSearch: {
+        ...this.defaultSettings.fileSearch,
+        ...userSettings.fileSearch
       }
     };
+
+    // Only set commands if it exists in user settings
+    if (userSettings.commands) {
+      result.commands = userSettings.commands;
+    }
+
+    return result;
   }
 
   async saveSettings(): Promise<void> {
@@ -143,11 +165,50 @@ window:
   # Window width in pixels
   # Recommended range: 400-800 pixels
   width: ${settings.window.width}
-  
+
   # Window height in pixels
   # Recommended range: 200-400 pixels
   height: ${settings.window.height}
-`;
+
+# Custom slash commands configuration
+# commands:
+  ## Directories containing custom slash command .md files
+  ## Each .md file should have a description in YAML frontmatter
+  ## First directory takes precedence for duplicate command names
+  # directories:
+  #   - /Users/your-username/.claude/commands
+
+# File search configuration for @ mentions
+# fileSearch:
+  ## Use fd command for faster searches (falls back to find if not installed)
+  ## Install fd: brew install fd
+  # useFd: ${settings.fileSearch?.useFd ?? true}
+
+  ## Respect .gitignore files (fd only, default: true)
+  # respectGitignore: ${settings.fileSearch?.respectGitignore ?? true}
+
+  ## Additional patterns to exclude from search
+  ## Default excludes already include: node_modules, .git, dist, build, etc.
+  # excludePatterns:
+  #   - "*.log"
+  #   - "*.tmp"
+  #   - "tmp/"
+
+  ## Patterns to force include even if in .gitignore
+  ## Useful for searching in build output or generated files
+  # includePatterns:
+  #   - "dist/**/*.js"
+  #   - ".storybook/**/*"
+
+  ## Maximum number of files to return (default: 5000)
+  # maxFiles: ${settings.fileSearch?.maxFiles ?? 5000}
+
+  ## Include hidden files starting with . (default: false)
+  # includeHidden: ${settings.fileSearch?.includeHidden ?? false}
+
+  ## Maximum directory depth to search (null = unlimited)
+  # maxDepth: null
+  `;
   }
 
   getSettings(): UserSettings {
@@ -210,8 +271,25 @@ window:
   getDefaultSettings(): UserSettings {
     return {
       shortcuts: { ...this.defaultSettings.shortcuts },
-      window: { ...this.defaultSettings.window }
+      window: { ...this.defaultSettings.window },
+      fileSearch: { ...this.defaultSettings.fileSearch }
     };
+  }
+
+  getFileSearchSettings(): NonNullable<UserSettings['fileSearch']> {
+    return {
+      ...this.defaultSettings.fileSearch,
+      ...this.currentSettings.fileSearch
+    };
+  }
+
+  async updateFileSearchSettings(fileSearch: Partial<NonNullable<UserSettings['fileSearch']>>): Promise<void> {
+    await this.updateSettings({
+      fileSearch: {
+        ...this.currentSettings.fileSearch,
+        ...fileSearch
+      }
+    });
   }
 
   getSettingsFilePath(): string {

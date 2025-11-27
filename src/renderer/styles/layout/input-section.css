@@ -3,6 +3,7 @@
     flex: 2;
     display: flex;
     flex-direction: column;
+    position: relative; /* Required for file suggestions absolute positioning */
 }
 
 .input-wrapper {
@@ -35,10 +36,52 @@
     color: var(--text-tertiary);
 }
 
+/* Text input container for highlight backdrop */
+.text-input-container {
+    flex: 1;
+    position: relative;
+    display: flex;
+    width: 100%;
+}
+
+/* Highlight backdrop - mirrors textarea content with highlights */
+.highlight-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    font-size: 15px;
+    line-height: 1.5;
+    font-family: inherit;
+    pointer-events: none;
+    overflow: hidden;
+
+    /* Text wrapping control - must match textarea */
+    white-space: break-spaces;
+    overflow-wrap: break-word;
+    word-break: normal;
+
+    /* Make text invisible, only show highlights */
+    color: transparent;
+}
+
+.highlight-backdrop .at-path-highlight {
+    background: rgba(59, 130, 246, 0.4);
+    border-radius: var(--radius-md);
+    color: transparent;
+    padding: 1px 2px;
+    margin: -1px -2px;
+}
+
 #textInput {
     flex: 1;
     width: 100%;
-    background: rgba(255, 255, 255, 0.08);
+    background: transparent;
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: var(--radius-md);
     padding: var(--spacing-md);
@@ -47,8 +90,10 @@
     color: var(--text-primary);
     outline: none;
     resize: none;
-    transition: all var(--animation-normal) ease;
+    transition: border-color var(--animation-normal) ease, box-shadow var(--animation-normal) ease;
     font-family: inherit;
+    position: relative;
+    z-index: 1;
 
     /* Text wrapping control - prevent horizontal overflow from spaces/tabs */
     white-space: break-spaces;        /* Preserve line breaks, collapse whitespace, wrap as needed */
@@ -57,9 +102,14 @@
 }
 
 #textInput:focus {
-    background: var(--bg-tertiary);
+    background: transparent;
     border-color: rgba(255, 255, 255, 0.25);
     box-shadow: 0 0 0 1px var(--bg-tertiary);
+}
+
+/* Update backdrop background on textarea focus */
+.text-input-container:focus-within .highlight-backdrop {
+    background: var(--bg-tertiary);
 }
 
 #textInput::placeholder {
@@ -109,14 +159,19 @@ textarea:-webkit-autofill:focus {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-top: var(--spacing-md);
+    /*margin-top: var(--spacing-md);*/
     padding-top: var(--spacing-md);
-    border-top: 1px solid var(--border-primary);
+    /*border-top: 1px solid var(--border-primary);*/
 }
 
 .hint {
-    font-size: var(--font-size-base);
+    font-size: var(--font-size-sm);
     color: var(--text-tertiary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 60%;
+    margin-right: var(--spacing-md);
 }
 
 .char-count {

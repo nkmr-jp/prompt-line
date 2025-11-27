@@ -1,0 +1,99 @@
+# Prompt Line Settings Configuration Example
+# Copy this file to ~/.prompt-line/settings.yml and customize as needed
+#
+# Documentation: https://github.com/nkmr-jp/prompt-line
+
+# ==============================================================================
+# Keyboard Shortcuts Configuration
+# ==============================================================================
+# Format: Modifier+Key (e.g., Cmd+Shift+Space, Ctrl+Alt+Space)
+# Available modifiers: Cmd, Ctrl, Alt, Shift
+shortcuts:
+  # Global shortcut to show/hide the input window
+  main: Cmd+Shift+Space
+
+  # Paste selected text and close window
+  paste: Cmd+Enter
+
+  # Close window without pasting (preserves draft)
+  close: Escape
+
+  # Navigate to next history item
+  historyNext: Ctrl+j
+
+  # Navigate to previous history item
+  historyPrev: Ctrl+k
+
+  # Enable search mode in history
+  search: Cmd+f
+
+# ==============================================================================
+# Window Appearance and Positioning
+# ==============================================================================
+window:
+  # Window positioning mode
+  # Options:
+  #   - 'active-text-field': Position near the currently focused text field
+  #                          (default, falls back to active-window-center)
+  #   - 'active-window-center': Center within the currently active window
+  #   - 'cursor': Position at mouse cursor location
+  #   - 'center': Center on primary display
+  position: active-text-field
+
+  # Window dimensions in pixels
+  width: 600   # Recommended range: 400-800
+  height: 300  # Recommended range: 200-400
+
+# ==============================================================================
+# Custom Slash Commands (Optional)
+# ==============================================================================
+# Configure directories containing custom slash command .md files
+# Each .md file should have a description in YAML frontmatter:
+#
+#   ---
+#   description: Brief description of the command
+#   ---
+#   Command content here...
+#
+# First directory takes precedence for duplicate command names
+#
+# commands:
+#   directories:
+#     - ~/.claude/commands
+#     - ~/.claude/agents
+
+# ==============================================================================
+# File Search Configuration for @ Mentions (Optional)
+# ==============================================================================
+# Configure file search behavior when using @ mentions in the input
+#
+# fileSearch:
+#   # Use fd command for faster searches (falls back to find if not installed)
+#   # Install fd: brew install fd (macOS) / apt install fd-find (Ubuntu)
+#   useFd: true
+#
+#   # Respect .gitignore files when searching (fd only)
+#   respectGitignore: true
+#
+#   # Additional patterns to exclude from search
+#   # Default excludes already include: node_modules, .git, dist, build, etc.
+#   excludePatterns:
+#     - "*.log"
+#     - "*.tmp"
+#     - "tmp/"
+#     - "coverage/"
+#
+#   # Patterns to force include even if in .gitignore
+#   # Useful for searching in build output or generated files
+#   includePatterns:
+#     - "dist/**/*.js"
+#     - ".storybook/**/*"
+#
+#   # Maximum number of files to return (default: 5000)
+#   maxFiles: 5000
+#
+#   # Include hidden files starting with . (default: false)
+#   includeHidden: false
+#
+#   # Maximum directory depth to search (null = unlimited)
+#   maxDepth: null

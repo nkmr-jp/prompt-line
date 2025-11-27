@@ -3,11 +3,12 @@ import { promises as fs } from 'fs';
 import { app } from 'electron';
 import path from 'path';
 import os from 'os';
-import type { 
-  AppInfo, 
-  LogLevel, 
+import type {
+  AppInfo,
+  LogLevel,
   DebounceFunction,
-  WindowBounds
+  WindowBounds,
+  DirectoryInfo
 } from '../types';
 import { TIMEOUTS, TIME_CALCULATIONS } from '../constants';
 import { sanitizeAppleScript, executeAppleScriptSafely, validateAppleScriptSecurity } from './apple-script-sanitizer';
@@ -100,6 +101,7 @@ const NATIVE_TOOLS_DIR = getNativeToolsPath();
 const WINDOW_DETECTOR_PATH = path.join(NATIVE_TOOLS_DIR, 'window-detector');
 const KEYBOARD_SIMULATOR_PATH = path.join(NATIVE_TOOLS_DIR, 'keyboard-simulator');
 const TEXT_FIELD_DETECTOR_PATH = path.join(NATIVE_TOOLS_DIR, 'text-field-detector');
+const DIRECTORY_DETECTOR_PATH = path.join(NATIVE_TOOLS_DIR, 'directory-detector');
 
 // Accessibility permission check result
 interface AccessibilityStatus {
@@ -624,6 +626,177 @@ function activateAndPasteWithNativeTool(appInfo: AppInfo | string): Promise<void
   });
 }
 
+/**
+ * Options for directory detection with source app override
+ */
+interface DirectoryDetectionOptions {
+  /** Source app PID (for when Prompt Line window is in front) */
+  pid?: number;
+  /** Source app bundle ID */
+  bundleId?: string;
+}
+
+/**
+ * Detect current directory from active terminal (Terminal.app or iTerm2)
+ * @param options - Optional PID and bundleId to override frontmost app detection
+ * @returns Promise<DirectoryInfo> - Object with directory info or error
+ */
+function detectCurrentDirectory(options?: DirectoryDetectionOptions): Promise<DirectoryInfo> {
+  return new Promise((resolve) => {
+    if (process.platform !== 'darwin') {
+      resolve({ error: 'Directory detection only supported on macOS' });
+      return;
+    }
+
+    const execOptions = {
+      timeout: TIMEOUTS.WINDOW_BOUNDS_TIMEOUT,
+      killSignal: 'SIGTERM' as const
+    };
+
+    // Build command with optional PID and/or bundleId arguments
+    // bundleId alone is supported - Swift will look up the PID
+    let command = `"${DIRECTORY_DETECTOR_PATH}" detect`;
+    if (options?.bundleId) {
+      command += ` --bundleId "${options.bundleId}"`;
+      if (options?.pid) {
+        command += ` --pid ${options.pid}`;
+      }
+    }
+
+    exec(command, execOptions, (error, stdout) => {
+      if (error) {
+        logger.warn('Error detecting current directory (non-blocking):', error.message);
+        resolve({ error: error.message });
+      } else {
+        try {
+          const result = JSON.parse(stdout.trim()) as DirectoryInfo;
+          if (result.error) {
+            logger.debug('Directory detection returned error:', result.error);
+          } else {
+            logger.debug('Current directory detected:', result.directory);
+          }
+          resolve(result);
+        } catch (parseError) {
+          logger.warn('Error parsing directory detection result:', parseError);
+          resolve({ error: 'Failed to parse directory detection result' });
+        }
+      }
+    });
+  });
+}
+
+/**
+ * Detect current directory from active terminal and list files
+ * @param options - Optional PID and bundleId to override frontmost app detection
+ * @returns Promise<DirectoryInfo> - Object with directory info and file list
+ */
+function detectCurrentDirectoryWithFiles(options?: DirectoryDetectionOptions): Promise<DirectoryInfo> {
+  return new Promise((resolve) => {
+    if (process.platform !== 'darwin') {
+      resolve({ error: 'Directory detection only supported on macOS' });
+      return;
+    }
+
+    const execOptions = {
+      timeout: TIMEOUTS.WINDOW_BOUNDS_TIMEOUT,
+      killSignal: 'SIGTERM' as const
+    };
+
+    // Build command with optional PID and/or bundleId arguments
+    // bundleId alone is supported - Swift will look up the PID
+    let command = `"${DIRECTORY_DETECTOR_PATH}" detect-with-files`;
+    if (options?.bundleId) {
+      command += ` --bundleId "${options.bundleId}"`;
+      if (options?.pid) {
+        command += ` --pid ${options.pid}`;
+      }
+    }
+
+    exec(command, execOptions, (error, stdout) => {
+      if (error) {
+        logger.warn('Error detecting current directory with files (non-blocking):', error.message);
+        resolve({ error: error.message });
+      } else {
+        try {
+          const result = JSON.parse(stdout.trim()) as DirectoryInfo;
+          if (result.error) {
+            logger.debug('Directory detection with files returned error:', result.error);
+          } else {
+            logger.debug('Current directory detected with files:', {
+              directory: result.directory,
+              fileCount: result.fileCount
+            });
+          }
+          resolve(result);
+        } catch (parseError) {
+          logger.warn('Error parsing directory detection result:', parseError);
+          resolve({ error: 'Failed to parse directory detection result' });
+        }
+      }
+    });
+  });
+}
+
+/**
+ * List files in a specified directory
+ * @param directoryPath - Path to the directory to list
+ * @returns Promise<DirectoryInfo> - Object with file list or error
+ */
+function listDirectory(directoryPath: string): Promise<DirectoryInfo> {
+  return new Promise((resolve) => {
+    if (process.platform !== 'darwin') {
+      resolve({ error: 'Directory listing only supported on macOS' });
+      return;
+    }
+
+    // Validate path input
+    if (!directoryPath || typeof directoryPath !== 'string') {
+      resolve({ error: 'Invalid directory path' });
+      return;
+    }
+
+    // Sanitize path to prevent command injection
+    const sanitizedPath = directoryPath
+      .replace(/[;&|`$(){}[\]<>"'\\*?~^]/g, '')
+      .replace(/\x00/g, '')
+      .replace(/[\r\n]/g, '')
+      .trim();
+
+    if (sanitizedPath.length === 0) {
+      resolve({ error: 'Directory path is empty after sanitization' });
+      return;
+    }
+
+    const options = {
+      timeout: TIMEOUTS.WINDOW_BOUNDS_TIMEOUT,
+      killSignal: 'SIGTERM' as const
+    };
+
+    exec(`"${DIRECTORY_DETECTOR_PATH}" list "${sanitizedPath}"`, options, (error, stdout) => {
+      if (error) {
+        logger.warn('Error listing directory (non-blocking):', error.message);
+        resolve({ error: error.message });
+      } else {
+        try {
+          const result = JSON.parse(stdout.trim()) as DirectoryInfo;
+          if (result.error) {
+            logger.debug('Directory listing returned error:', result.error);
+          } else {
+            logger.debug('Directory listed:', {
+              directory: result.directory,
+              fileCount: result.fileCount
+            });
+          }
+          resolve(result);
+        } catch (parseError) {
+          logger.warn('Error parsing directory listing result:', parseError);
+          resolve({ error: 'Failed to parse directory listing result' });
+        }
+      }
+    });
+  });
+}
+
 export {
   logger,
   getCurrentApp,
@@ -631,6 +804,9 @@ export {
   pasteWithNativeTool,
   activateAndPasteWithNativeTool,
   checkAccessibilityPermission,
+  detectCurrentDirectory,
+  detectCurrentDirectoryWithFiles,
+  listDirectory,
   debounce,
   safeJsonParse,
   safeJsonStringify,
@@ -641,9 +817,12 @@ export {
   KEYBOARD_SIMULATOR_PATH,
   TEXT_FIELD_DETECTOR_PATH,
   WINDOW_DETECTOR_PATH,
+  DIRECTORY_DETECTOR_PATH,
   sanitizeAppleScript,
   executeAppleScriptSafely,
   validateAppleScriptSecurity,
   sanitizeCommandArgument,
   isCommandArgumentSafe
 };
+
+export type { DirectoryDetectionOptions };

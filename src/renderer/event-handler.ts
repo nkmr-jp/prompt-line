@@ -26,6 +26,8 @@ export class EventHandler {
   private textarea: HTMLTextAreaElement | null = null;
   private isComposing = false;
   private searchManager: { isInSearchMode(): boolean; exitSearchMode(): void } | null = null;
+  private slashCommandManager: { isActiveMode(): boolean } | null = null;
+  private fileSearchManager: { isActive(): boolean } | null = null;
   private userSettings: UserSettings | null = null;
   private onTextPaste: (text: string) => Promise<void>;
   private onWindowHide: () => Promise<void>;
@@ -61,6 +63,14 @@ export class EventHandler {
     this.searchManager = searchManager;
   }
 
+  public setSlashCommandManager(slashCommandManager: { isActiveMode(): boolean }): void {
+    this.slashCommandManager = slashCommandManager;
+  }
+
+  public setFileSearchManager(fileSearchManager: { isActive(): boolean }): void {
+    this.fileSearchManager = fileSearchManager;
+  }
+
   public setUserSettings(settings: UserSettings): void {
     this.userSettings = settings;
   }
@@ -93,6 +103,16 @@ export class EventHandler {
       // This ensures Tab key is captured before default browser handling
       this.textarea.addEventListener('keydown', (e: KeyboardEvent) => {
         if (e.key === 'Tab') {
+          // Skip if slash command menu is active (let slash command manager handle it)
+          if (this.slashCommandManager?.isActiveMode()) {
+            return;
+          }
+
+          // Skip if file search suggestions are active (let file search manager handle it)
+          if (this.fileSearchManager?.isActive()) {
+            return;
+          }
+
           // Skip Tab key if IME is active to avoid conflicts with Japanese input
           // Only check this.isComposing (managed by compositionstart/end events)
           if (this.isComposing) {
@@ -154,6 +174,16 @@ export class EventHandler {
 
       // Handle Escape for hide window
       if (e.key === 'Escape') {
+        // Skip if slash command menu is active (let slash command manager handle it)
+        if (this.slashCommandManager?.isActiveMode()) {
+          return;
+        }
+
+        // Skip if file search suggestions are active (let file search manager handle it)
+        if (this.fileSearchManager?.isActive()) {
+          return;
+        }
+
         e.preventDefault();
         // Check if search mode is active
         if (this.searchManager && this.searchManager.isInSearchMode()) {
@@ -170,6 +200,11 @@ export class EventHandler {
         // Skip if event originated from textarea to avoid duplicate handling
         // Textarea-level handler will handle Tab key events
         if (target && target === this.textarea) {
+          return;
+        }
+
+        // Skip if file search suggestions are active (let file search manager handle it)
+        if (this.fileSearchManager?.isActive()) {
           return;
         }
 
@@ -191,7 +226,9 @@ export class EventHandler {
       }
 
       // Handle history navigation shortcuts
-      if (this.userSettings?.shortcuts) {
+      // Skip if slash command menu is active (let slash command manager handle Ctrl+j/k)
+      // Skip if file search is active (let file search manager handle Ctrl+j/k)
+      if (this.userSettings?.shortcuts && !this.slashCommandManager?.isActiveMode() && !this.fileSearchManager?.isActive()) {
         // Check for historyNext shortcut
         if (matchesShortcutString(e, this.userSettings.shortcuts.historyNext)) {
           // Skip shortcut if IME is active to avoid conflicts with Japanese input
@@ -269,6 +306,16 @@ export class EventHandler {
    */
   public handleHistoryNavigationShortcuts(e: KeyboardEvent, onNavigate: (direction: 'next' | 'prev') => void): boolean {
     if (!this.userSettings?.shortcuts) {
+      return false;
+    }
+
+    // Skip if slash command menu is active (let slash command manager handle Ctrl+j/k)
+    if (this.slashCommandManager?.isActiveMode()) {
+      return false;
+    }
+
+    // Skip if file search is active (let file search manager handle Ctrl+j/k)
+    if (this.fileSearchManager?.isActive()) {
       return false;
     }
 
