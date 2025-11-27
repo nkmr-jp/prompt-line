@@ -6,7 +6,8 @@ import type {
   PasteResult,
   ImageResult,
   UserSettings,
-  DirectoryInfo
+  DirectoryInfo,
+  AppInfo
 } from './types';
 import { EventHandler } from './event-handler';
 import { SearchManager } from './search-manager';
@@ -350,6 +351,8 @@ export class PromptLineRenderer {
   private async clearTextAndDraft(): Promise<void> {
     this.domManager.clearText();
     await this.draftManager.clearDraft();
+    // Clear tracked @paths when text is cleared
+    this.fileSearchManager?.clearAtPaths();
   }
 
 
@@ -375,13 +378,19 @@ export class PromptLineRenderer {
         console.debug('[Renderer] caching directory data for file search');
         this.fileSearchManager?.cacheDirectoryData(data.directoryData);
 
-        // Update hint text with directory basename
+        // Update hint text with formatted directory path
         if (data.directoryData.directory) {
-          const basename = data.directoryData.directory.split('/').pop() || data.directoryData.directory;
-          this.domManager.updateHintText(basename);
+          const formattedPath = this.formatDirectoryPath(data.directoryData.directory);
+          this.domManager.updateHintText(formattedPath);
         }
       } else {
         console.debug('[Renderer] no directory data in window-shown event');
+        // Show loading message only for apps that support directory detection
+        // Otherwise, keep the default hint text
+        if (this.isDirectoryDetectionCapable(data.sourceApp)) {
+          this.domManager.updateHintText('Detecting directory...');
+        }
+        // If not directory-capable, leave the default hint text unchanged
       }
     } catch (error) {
       console.error('Error handling window shown:', error);
@@ -390,13 +399,122 @@ export class PromptLineRenderer {
 
   private handleDirectoryDataUpdated(data: DirectoryInfo): void {
     try {
-      // Update cache with Stage 2 data
+      console.debug('[Renderer] handleDirectoryDataUpdated called', {
+        directory: data.directory,
+        fileCount: data.files?.length
+      });
+
+      // Update cache with directory data (handles both Stage 1 and Stage 2)
       this.fileSearchManager?.updateCache(data);
+
+      // Update hint text with formatted directory path
+      if (data.directory) {
+        const formattedPath = this.formatDirectoryPath(data.directory);
+        this.domManager.updateHintText(formattedPath);
+      }
     } catch (error) {
       console.error('Error handling directory data update:', error);
     }
   }
 
+
+  /**
+   * Check if the source app supports directory detection
+   * Terminal emulators and IDEs typically support detecting the current working directory
+   */
+  private isDirectoryDetectionCapable(sourceApp: AppInfo | string | null | undefined): boolean {
+    if (!sourceApp) return false;
+
+    // Extract app name
+    const appName = typeof sourceApp === 'string' ? sourceApp : sourceApp.name;
+    if (!appName) return false;
+
+    // List of apps that support directory detection (terminals and IDEs)
+    const directoryCapableApps = [
+      // Terminal emulators
+      'terminal',
+      'iterm',
+      'iterm2',
+      'hyper',
+      'alacritty',
+      'kitty',
+      'warp',
+      'tabby',
+      'wezterm',
+      // IDEs and editors
+      'visual studio code',
+      'code',
+      'vscode',
+      'goland',
+      'intellij',
+      'webstorm',
+      'phpstorm',
+      'pycharm',
+      'rubymine',
+      'rider',
+      'clion',
+      'datagrip',
+      'android studio',
+      'xcode',
+      'sublime text',
+      'atom',
+      'vim',
+      'neovim',
+      'emacs',
+      'cursor',
+      'zed'
+    ];
+
+    const lowerAppName = appName.toLowerCase();
+    return directoryCapableApps.some(app => lowerAppName.includes(app));
+  }
+
+  /**
+   * Format directory path for display in hint text
+   * - Replace user home directory with ~
+   * - Remove trailing slash
+   * - Truncate from left if too long, always showing basename
+   */
+  private formatDirectoryPath(dirPath: string): string {
+    // Remove trailing slash
+    let path = dirPath.replace(/\/+$/, '');
+
+    // Replace user home directory with ~ (macOS: /Users/xxx, Linux: /home/xxx)
+    const homePattern = /^\/(?:Users|home)\/[^/]+/;
+    path = path.replace(homePattern, '~');
+
+    const maxLength = 35; // Max characters that can fit in the hint area
+
+    if (path.length <= maxLength) {
+      return path;
+    }
+
+    // Truncate from left, keeping the basename visible
+    const parts = path.split('/');
+    const basename = parts.pop() || path;
+
+    // If basename alone is too long, just show basename (will be truncated by CSS)
+    if (basename.length >= maxLength - 3) {
+      return basename;
+    }
+
+    // Build path from right, adding as many parent directories as fit
+    let result = basename;
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const candidate = parts[i] + '/' + result;
+      if (candidate.length + 3 > maxLength) { // +3 for "..."
+        break;
+      }
+      result = candidate;
+    }
+
+    // Add ellipsis if we truncated
+    if (result !== path) {
+      result = '...' + result;
+    }
+
+    return result;
+  }
 
   private updateHistoryAndSettings(data: WindowData): void {
     this.historyData = data.history || [];

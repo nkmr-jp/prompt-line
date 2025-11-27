@@ -57,7 +57,7 @@ export class SlashCommandManager {
       }, 200);
     });
 
-    // Setup click handling on suggestions container
+    // Setup click and mousemove handling on suggestions container
     if (this.suggestionsContainer) {
       this.suggestionsContainer.addEventListener('click', (e) => {
         const target = e.target as HTMLElement;
@@ -66,6 +66,11 @@ export class SlashCommandManager {
           const index = parseInt(suggestionItem.dataset.index || '0', 10);
           this.selectCommand(index);
         }
+      });
+
+      // Enable hover styles only when mouse explicitly moves
+      this.suggestionsContainer.addEventListener('mousemove', () => {
+        this.suggestionsContainer?.classList.add('hover-enabled');
       });
     }
   }
@@ -132,12 +137,37 @@ export class SlashCommandManager {
       await this.loadCommands();
     }
 
-    // Filter commands
+    // Filter and sort commands - prioritize: prefix match > contains match > description match
     const lowerQuery = query.toLowerCase();
-    this.filteredCommands = this.commands.filter(cmd =>
-      cmd.name.toLowerCase().includes(lowerQuery) ||
-      cmd.description.toLowerCase().includes(lowerQuery)
-    );
+    this.filteredCommands = this.commands
+      .filter(cmd =>
+        cmd.name.toLowerCase().includes(lowerQuery) ||
+        cmd.description.toLowerCase().includes(lowerQuery)
+      )
+      .sort((a, b) => {
+        const aName = a.name.toLowerCase();
+        const bName = b.name.toLowerCase();
+        const aNamePrefix = aName.startsWith(lowerQuery);
+        const bNamePrefix = bName.startsWith(lowerQuery);
+        const aNameContains = aName.includes(lowerQuery);
+        const bNameContains = bName.includes(lowerQuery);
+
+        // 1. Prioritize prefix matches in name
+        if (aNamePrefix && !bNamePrefix) return -1;
+        if (!aNamePrefix && bNamePrefix) return 1;
+
+        // 2. If both are prefix matches, sort by name alphabetically
+        if (aNamePrefix && bNamePrefix) {
+          return a.name.localeCompare(b.name);
+        }
+
+        // 3. Prioritize contains matches in name over description-only matches
+        if (aNameContains && !bNameContains) return -1;
+        if (!aNameContains && bNameContains) return 1;
+
+        // 4. Sort by name alphabetically
+        return a.name.localeCompare(b.name);
+      });
 
     if (this.filteredCommands.length === 0) {
       this.hideSuggestions();
@@ -157,6 +187,8 @@ export class SlashCommandManager {
 
     this.suggestionsContainer.innerHTML = '';
     this.suggestionsContainer.style.display = 'block';
+    // Reset hover-enabled class when re-rendering (will be re-added on mousemove)
+    this.suggestionsContainer.classList.remove('hover-enabled');
 
     const fragment = document.createDocumentFragment();
 
@@ -214,6 +246,7 @@ export class SlashCommandManager {
     if (this.suggestionsContainer) {
       this.suggestionsContainer.style.display = 'none';
       this.suggestionsContainer.innerHTML = '';
+      this.suggestionsContainer.classList.remove('hover-enabled');
     }
   }
 
@@ -339,6 +372,7 @@ export class SlashCommandManager {
 
     this.suggestionsContainer.innerHTML = '';
     this.suggestionsContainer.style.display = 'block';
+    this.suggestionsContainer.classList.remove('hover-enabled');
 
     const item = document.createElement('div');
     item.className = 'slash-suggestion-item selected';

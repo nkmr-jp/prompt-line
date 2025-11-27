@@ -29,6 +29,31 @@
 <body>
     <div class="container">
         <div class="main-content">
+            <!-- Slash command suggestions (positioned relative to main-content) -->
+            <div class="slash-command-suggestions" id="slashCommandSuggestions" role="listbox" aria-label="Slash command suggestions" style="display: block;">
+                <!-- DUMMY ITEMS FOR LAYOUT TESTING - REMOVE LATER -->
+<!--                <div class="slash-suggestion-item selected" data-index="0">-->
+<!--                    <span class="slash-command-name">/commit</span>-->
+<!--                    <span class="slash-command-description">Create a git commit with conventional formatCreate a git commit with conventional formatCreate a git commit with conventional formatCreate a git commit with conventional format</span>-->
+<!--                </div>-->
+<!--                <div class="slash-suggestion-item" data-index="1">-->
+<!--                    <span class="slash-command-name">/review</span>-->
+<!--                    <span class="slash-command-description">Review code changes and suggest improvements</span>-->
+<!--                </div>-->
+<!--                <div class="slash-suggestion-item" data-index="2">-->
+<!--                    <span class="slash-command-name">/refactor</span>-->
+<!--                    <span class="slash-command-description">Refactor selected code for better readability</span>-->
+<!--                </div>-->
+<!--                <div class="slash-suggestion-item" data-index="3">-->
+<!--                    <span class="slash-command-name">/test</span>-->
+<!--                    <span class="slash-command-description">Generate unit tests for the current file</span>-->
+<!--                </div>-->
+<!--                <div class="slash-suggestion-item" data-index="4">-->
+<!--                    <span class="slash-command-name">/explain</span>-->
+<!--                    <span class="slash-command-description">Explain how the selected code works</span>-->
+<!--                </div>-->
+            </div>
+
             <div class="input-section">
                 <div class="input-wrapper">
                     <div class="header">
@@ -38,41 +63,20 @@
                             <kbd>Esc</kbd> Close
                         </div>
                     </div>
-                    
-                    <textarea
-                        id="textInput"
-                        placeholder="Enter text to paste..."
-                        autofocus
-                        spellcheck="false"
-                        autocomplete="off"
-                        autocapitalize="off"
-                        role="textbox"
-                        aria-label="Text input"
-                        aria-autocomplete="none"
-                    ></textarea>
 
-                    <!-- Slash command suggestions -->
-                    <div class="slash-command-suggestions" id="slashCommandSuggestions" role="listbox" aria-label="Slash command suggestions">
-<!--                        <div class="slash-suggestion-item selected" data-index="0">-->
-<!--                            <span class="slash-command-name">/commit</span>-->
-<!--                            <span class="slash-command-description">Create a git commit with conventional format</span>-->
-<!--                        </div>-->
-<!--                        <div class="slash-suggestion-item" data-index="1">-->
-<!--                            <span class="slash-command-name">/review</span>-->
-<!--                            <span class="slash-command-description">Review code changes and suggest improvements</span>-->
-<!--                        </div>-->
-<!--                        <div class="slash-suggestion-item" data-index="2">-->
-<!--                            <span class="slash-command-name">/refactor</span>-->
-<!--                            <span class="slash-command-description">Refactor selected code for better readability</span>-->
-<!--                        </div>-->
-<!--                        <div class="slash-suggestion-item" data-index="3">-->
-<!--                            <span class="slash-command-name">/test</span>-->
-<!--                            <span class="slash-command-description">Generate unit tests for the current file</span>-->
-<!--                        </div>-->
-<!--                        <div class="slash-suggestion-item" data-index="4">-->
-<!--                            <span class="slash-command-name">/explain</span>-->
-<!--                            <span class="slash-command-description">Explain how the selected code works</span>-->
-<!--                        </div>-->
+                    <div class="text-input-container">
+                        <div class="highlight-backdrop" id="highlightBackdrop" aria-hidden="true"></div>
+                        <textarea
+                            id="textInput"
+                            placeholder="Enter text to paste..."
+                            autofocus
+                            spellcheck="false"
+                            autocomplete="off"
+                            autocapitalize="off"
+                            role="textbox"
+                            aria-label="Text input"
+                            aria-autocomplete="none"
+                        ></textarea>
                     </div>
 
                     <div class="footer">

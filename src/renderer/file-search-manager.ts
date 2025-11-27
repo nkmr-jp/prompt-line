@@ -34,9 +34,16 @@ interface FileSearchCallbacks {
   setCursorPosition: (position: number) => void;
 }
 
+// Represents a tracked @path in the text
+interface AtPathRange {
+  start: number;  // Position of @
+  end: number;    // Position after the last character of the path
+}
+
 export class FileSearchManager {
   private suggestionsContainer: HTMLElement | null = null;
   private textInput: HTMLTextAreaElement | null = null;
+  private highlightBackdrop: HTMLDivElement | null = null;
   private cachedDirectoryData: DirectoryData | null = null;
   private selectedIndex: number = 0;
   private filteredFiles: FileInfo[] = [];
@@ -46,6 +53,7 @@ export class FileSearchManager {
   private callbacks: FileSearchCallbacks;
   private currentPath: string = ''; // Current directory path being browsed (relative from root)
   private mirrorDiv: HTMLDivElement | null = null; // Hidden div for caret position calculation
+  private atPaths: AtPathRange[] = []; // Tracked @paths in the text
 
   // Constants
   private static readonly MAX_SUGGESTIONS = 15;
@@ -117,7 +125,8 @@ export class FileSearchManager {
 
   public initializeElements(): void {
     this.textInput = document.getElementById('textInput') as HTMLTextAreaElement;
-    console.debug('[FileSearchManager] initializeElements: textInput found:', !!this.textInput);
+    this.highlightBackdrop = document.getElementById('highlightBackdrop') as HTMLDivElement;
+    console.debug('[FileSearchManager] initializeElements: textInput found:', !!this.textInput, 'highlightBackdrop found:', !!this.highlightBackdrop);
 
     // Create suggestions container if it doesn't exist
     this.suggestionsContainer = document.getElementById('fileSuggestions');
@@ -149,17 +158,26 @@ export class FileSearchManager {
 
     console.debug('[FileSearchManager] setupEventListeners: setting up event listeners');
 
-    // Listen for input changes to detect @ mentions
+    // Listen for input changes to detect @ mentions and update highlights
     this.textInput.addEventListener('input', () => {
       console.debug('[FileSearchManager] input event fired');
       this.checkForFileSearch();
+      this.updateHighlightBackdrop();
     });
 
-    // Listen for keydown for navigation
+    // Listen for keydown for navigation and backspace handling
     this.textInput.addEventListener('keydown', (e) => {
       if (this.isVisible) {
         this.handleKeyDown(e);
+      } else if (e.key === 'Backspace') {
+        // Handle backspace to delete entire @path if cursor is at the end of one
+        this.handleBackspaceForAtPath(e);
       }
+    });
+
+    // Sync scroll position between textarea and backdrop
+    this.textInput.addEventListener('scroll', () => {
+      this.syncBackdropScroll();
     });
 
     // Hide suggestions on blur (with small delay to allow click selection)
@@ -1110,8 +1128,189 @@ export class FileSearchManager {
     const newCursorPos = this.atStartPosition + 1 + path.length;
     this.callbacks.setCursorPosition(newCursorPos);
 
+    // Add space after the path for better UX
+    const textWithSpace = newText.substring(0, newCursorPos) + ' ' + newText.substring(newCursorPos);
+    this.callbacks.setTextContent(textWithSpace);
+    this.callbacks.setCursorPosition(newCursorPos + 1);
+
+    // Track the @path range (including the space)
+    this.addAtPath(this.atStartPosition, newCursorPos);
+
+    // Update highlight backdrop
+    this.updateHighlightBackdrop();
+
     // Reset state
     this.atStartPosition = -1;
+  }
+
+  /**
+   * Add an @path range to the tracking list
+   */
+  private addAtPath(start: number, end: number): void {
+    // Remove any overlapping paths
+    this.atPaths = this.atPaths.filter(p => p.end <= start || p.start >= end);
+
+    // Add the new path
+    this.atPaths.push({ start, end });
+
+    // Sort by start position
+    this.atPaths.sort((a, b) => a.start - b.start);
+
+    console.debug('[FileSearchManager] addAtPath:', formatLog({ start, end, totalPaths: this.atPaths.length }));
+  }
+
+  /**
+   * Find @path at or just before the cursor position
+   */
+  private findAtPathAtCursor(cursorPos: number): AtPathRange | null {
+    // Check if cursor is at the end of any @path (including one character after for space)
+    for (const path of this.atPaths) {
+      if (cursorPos === path.end || cursorPos === path.end + 1) {
+        return path;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Handle backspace key to delete entire @path if cursor is at the end
+   */
+  private handleBackspaceForAtPath(e: KeyboardEvent): void {
+    const cursorPos = this.callbacks.getCursorPosition();
+    const atPath = this.findAtPathAtCursor(cursorPos);
+
+    if (atPath) {
+      e.preventDefault();
+
+      const text = this.callbacks.getTextContent();
+
+      // Delete the @path (and trailing space if present)
+      let deleteEnd = atPath.end;
+      if (text[deleteEnd] === ' ') {
+        deleteEnd++;
+      }
+
+      const newText = text.substring(0, atPath.start) + text.substring(deleteEnd);
+      this.callbacks.setTextContent(newText);
+      this.callbacks.setCursorPosition(atPath.start);
+
+      // Remove the path from tracking
+      this.atPaths = this.atPaths.filter(p => p !== atPath);
+
+      // Adjust positions of remaining paths
+      const deletedLength = deleteEnd - atPath.start;
+      this.atPaths = this.atPaths.map(p => {
+        if (p.start > atPath.start) {
+          return {
+            start: p.start - deletedLength,
+            end: p.end - deletedLength
+          };
+        }
+        return p;
+      });
+
+      // Update highlight backdrop
+      this.updateHighlightBackdrop();
+
+      console.debug('[FileSearchManager] deleted @path:', formatLog({
+        deletedStart: atPath.start,
+        deletedEnd: deleteEnd,
+        remainingPaths: this.atPaths.length
+      }));
+    }
+  }
+
+  /**
+   * Sync the scroll position of the highlight backdrop with the textarea
+   */
+  private syncBackdropScroll(): void {
+    if (this.textInput && this.highlightBackdrop) {
+      this.highlightBackdrop.scrollTop = this.textInput.scrollTop;
+      this.highlightBackdrop.scrollLeft = this.textInput.scrollLeft;
+    }
+  }
+
+  /**
+   * Update the highlight backdrop to show @path highlights
+   */
+  public updateHighlightBackdrop(): void {
+    if (!this.highlightBackdrop || !this.textInput) return;
+
+    const text = this.textInput.value;
+
+    // Re-scan for @paths in the text (in case user edited)
+    this.rescanAtPaths(text);
+
+    if (this.atPaths.length === 0) {
+      // No @paths, just mirror the text
+      this.highlightBackdrop.textContent = text;
+      return;
+    }
+
+    // Build highlighted content
+    const fragment = document.createDocumentFragment();
+    let lastEnd = 0;
+
+    for (const atPath of this.atPaths) {
+      // Add text before this @path
+      if (atPath.start > lastEnd) {
+        fragment.appendChild(document.createTextNode(text.substring(lastEnd, atPath.start)));
+      }
+
+      // Add highlighted @path
+      const span = document.createElement('span');
+      span.className = 'at-path-highlight';
+      span.textContent = text.substring(atPath.start, atPath.end);
+      fragment.appendChild(span);
+
+      lastEnd = atPath.end;
+    }
+
+    // Add remaining text
+    if (lastEnd < text.length) {
+      fragment.appendChild(document.createTextNode(text.substring(lastEnd)));
+    }
+
+    this.highlightBackdrop.innerHTML = '';
+    this.highlightBackdrop.appendChild(fragment);
+
+    // Sync scroll
+    this.syncBackdropScroll();
+  }
+
+  /**
+   * Re-scan text for @paths (validates existing paths and finds new ones)
+   * Only highlights @paths that were explicitly selected from the file suggestions,
+   * not ones that are currently being typed/searched.
+   */
+  private rescanAtPaths(text: string): void {
+    // Validate existing tracked paths
+    this.atPaths = this.atPaths.filter(path => {
+      // Check if the path still exists at this position
+      if (path.start >= text.length) return false;
+      if (text[path.start] !== '@') return false;
+
+      // Check if path content looks like a file path
+      const pathContent = text.substring(path.start + 1, path.end);
+      if (!pathContent || pathContent.includes(' ') || pathContent.includes('\n')) return false;
+
+      return true;
+    });
+
+    // NOTE: We do NOT auto-detect new @paths here.
+    // Only paths that are explicitly selected from file suggestions (via selectFile/insertFilePath)
+    // get added to atPaths. This prevents highlighting of partially typed @paths during search.
+
+    // Sort by start position
+    this.atPaths.sort((a, b) => a.start - b.start);
+  }
+
+  /**
+   * Clear all tracked @paths (called when text is cleared)
+   */
+  public clearAtPaths(): void {
+    this.atPaths = [];
+    this.updateHighlightBackdrop();
   }
 
   /**

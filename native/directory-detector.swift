@@ -5,6 +5,7 @@ import Foundation
 // MARK: - File Search Settings
 
 struct FileSearchSettings {
+    let useFd: Bool
     let respectGitignore: Bool
     let excludePatterns: [String]
     let includePatterns: [String]
@@ -13,6 +14,7 @@ struct FileSearchSettings {
     let maxDepth: Int?
 
     static let `default` = FileSearchSettings(
+        useFd: true,
         respectGitignore: true,
         excludePatterns: [],
         includePatterns: [],
@@ -23,6 +25,7 @@ struct FileSearchSettings {
 
     /// Parse settings from command line arguments
     static func fromArguments(_ args: [String]) -> FileSearchSettings {
+        var useFd = true
         var respectGitignore = true
         var excludePatterns: [String] = []
         var includePatterns: [String] = []
@@ -33,6 +36,9 @@ struct FileSearchSettings {
         var i = 0
         while i < args.count {
             switch args[i] {
+            case "--no-fd":
+                useFd = false
+                i += 1
             case "--no-gitignore":
                 respectGitignore = false
                 i += 1
@@ -73,6 +79,7 @@ struct FileSearchSettings {
         }
 
         return FileSearchSettings(
+            useFd: useFd,
             respectGitignore: respectGitignore,
             excludePatterns: excludePatterns,
             includePatterns: includePatterns,
@@ -181,29 +188,50 @@ class DirectoryDetector {
         return isJetBrainsIDE(bundleId) || isElectronIDE(bundleId)
     }
 
-    /// Get project directory from IDE window title using Accessibility API
-    /// Most IDEs show the project path or name in the window title
-    static func getDirectoryFromWindowTitle(pid: pid_t, bundleId: String) -> String? {
+    /// Get the focused window title for an application using Accessibility API
+    /// Uses kAXFocusedWindowAttribute to get the currently focused window (not just the first window)
+    static func getWindowTitle(pid: pid_t, bundleId: String) -> String? {
         let appRef = AXUIElementCreateApplication(pid)
 
-        var windowsRef: CFTypeRef?
-        let result = AXUIElementCopyAttributeValue(appRef, kAXWindowsAttribute as CFString, &windowsRef)
+        // First, try to get the focused window (most reliable for multi-window scenarios)
+        var focusedWindowRef: CFTypeRef?
+        let focusedResult = AXUIElementCopyAttributeValue(appRef, kAXFocusedWindowAttribute as CFString, &focusedWindowRef)
 
-        guard result == .success,
-              let windows = windowsRef as? [AXUIElement],
-              let frontWindow = windows.first else {
+        var targetWindow: AXUIElement?
+
+        if focusedResult == .success, let focusedWindow = focusedWindowRef {
+            targetWindow = (focusedWindow as! AXUIElement)
+        } else {
+            // Fallback: try to get the first window from the windows list
+            var windowsRef: CFTypeRef?
+            let result = AXUIElementCopyAttributeValue(appRef, kAXWindowsAttribute as CFString, &windowsRef)
+
+            guard result == .success,
+                  let windows = windowsRef as? [AXUIElement],
+                  let firstWindow = windows.first else {
+                return nil
+            }
+            targetWindow = firstWindow
+        }
+
+        guard let window = targetWindow else {
             return nil
         }
 
         var titleRef: CFTypeRef?
-        let titleResult = AXUIElementCopyAttributeValue(frontWindow, kAXTitleAttribute as CFString, &titleRef)
+        let titleResult = AXUIElementCopyAttributeValue(window, kAXTitleAttribute as CFString, &titleRef)
 
         guard titleResult == .success,
               let title = titleRef as? String else {
             return nil
         }
 
-        // Parse project path from window title
+        return title
+    }
+
+    /// Parse project directory path from window title
+    /// Returns nil if no valid path is found in the title
+    static func parsePathFromWindowTitle(_ title: String, bundleId: String) -> String? {
         // JetBrains format: "project-name – path/to/project – filename.ext"
         // VSCode format: "filename.ext — project-name" or "filename - project-name - Visual Studio Code"
 
@@ -240,9 +268,77 @@ class DirectoryDetector {
         return nil
     }
 
+    /// Get project directory from IDE window title using Accessibility API (legacy function for compatibility)
+    /// Most IDEs show the project path or name in the window title
+    /// Uses kAXFocusedWindowAttribute to get the currently focused window (not just the first window)
+    static func getDirectoryFromWindowTitle(pid: pid_t, bundleId: String) -> String? {
+        guard let title = getWindowTitle(pid: pid, bundleId: bundleId) else {
+            return nil
+        }
+        return parsePathFromWindowTitle(title, bundleId: bundleId)
+    }
+
+    /// Extract project name from JetBrains IDE window title
+    /// Window title format: "project-name – file.ext [branch]" or "project-name – path/to/file [branch]"
+    private static func extractProjectNameFromTitle(_ title: String) -> String? {
+        // JetBrains format: first part before " – " is usually the project name
+        let parts = title.components(separatedBy: " – ")
+        if let projectPart = parts.first {
+            let projectName = projectPart.trimmingCharacters(in: .whitespaces)
+            // Exclude empty or obviously wrong values
+            if !projectName.isEmpty && !projectName.hasPrefix("/") {
+                return projectName
+            }
+        }
+        return nil
+    }
+
+    /// Get TTY modification time for a process
+    private static func getTtyModTime(for pid: pid_t) -> TimeInterval? {
+        // Get TTY for the process
+        let psProcess = Process()
+        psProcess.executableURL = URL(fileURLWithPath: "/bin/ps")
+        psProcess.arguments = ["-p", String(pid), "-o", "tty="]
+
+        let psPipe = Pipe()
+        psProcess.standardOutput = psPipe
+        psProcess.standardError = FileHandle.nullDevice
+
+        do {
+            try psProcess.run()
+            psProcess.waitUntilExit()
+
+            let psData = psPipe.fileHandleForReading.readDataToEndOfFile()
+            guard let ttyOutput = String(data: psData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !ttyOutput.isEmpty,
+                  ttyOutput != "??" else {
+                return nil
+            }
+
+            // Convert tty name to device path
+            let ttyPath: String
+            if ttyOutput.hasPrefix("/dev/") {
+                ttyPath = ttyOutput
+            } else {
+                ttyPath = "/dev/\(ttyOutput)"
+            }
+
+            // Get modification time of the TTY device
+            let fileManager = FileManager.default
+            if let attrs = try? fileManager.attributesOfItem(atPath: ttyPath),
+               let modDate = attrs[.modificationDate] as? Date {
+                return modDate.timeIntervalSince1970
+            }
+        } catch {
+            // Ignore errors
+        }
+        return nil
+    }
+
     /// Fast method to get IDE terminal directory using pgrep
     /// This is a simplified version that's much faster than full process tree traversal
-    static func getIDETerminalDirectoryFast(idePid: pid_t) -> (directory: String?, shellPid: pid_t?) {
+    /// Enhanced to find the most recently active terminal based on TTY modification time
+    static func getIDETerminalDirectoryFast(idePid: pid_t, projectNameHint: String? = nil) -> (directory: String?, shellPid: pid_t?) {
         // Use pgrep to quickly find shell processes with the IDE as ancestor
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
@@ -264,25 +360,65 @@ class DirectoryDetector {
             // Get direct child shells
             let shellPids = output.split(separator: "\n").compactMap { Int32(String($0)) }
 
-            // Try each shell, preferring higher PIDs (newer processes)
-            let sortedPids = shellPids.sorted(by: >)
+            guard !shellPids.isEmpty else {
+                return (nil, nil)
+            }
+
+            // Collect shell info with cwd and TTY mod time
+            struct ShellInfo {
+                let pid: pid_t
+                let cwd: String
+                let ttyModTime: TimeInterval?
+            }
+
+            var shellInfos: [ShellInfo] = []
             let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
 
-            for pid in sortedPids {
+            for pid in shellPids {
                 if let cwd = getCwdFromPid(pid) {
-                    if cwd != homeDir || sortedPids.count == 1 {
-                        return (cwd, pid)
-                    }
+                    let modTime = getTtyModTime(for: pid)
+                    shellInfos.append(ShellInfo(pid: pid, cwd: cwd, ttyModTime: modTime))
                 }
             }
 
-            // If all in home dir, return first
-            if let firstPid = sortedPids.first,
-               let cwd = getCwdFromPid(firstPid) {
-                return (cwd, firstPid)
+            guard !shellInfos.isEmpty else {
+                return (nil, nil)
             }
 
-            return (nil, nil)
+            // If we have a project name hint, try to match the directory containing it
+            if let projectName = projectNameHint {
+                let matchingShells = shellInfos.filter { info in
+                    let components = info.cwd.components(separatedBy: "/")
+                    return components.contains { $0.lowercased().contains(projectName.lowercased()) }
+                }
+
+                if matchingShells.count == 1 {
+                    // Exact match found
+                    let matched = matchingShells[0]
+                    return (matched.cwd, matched.pid)
+                } else if matchingShells.count > 1 {
+                    // Multiple matches, prefer the one with most recent TTY activity
+                    let sorted = matchingShells.sorted { a, b in
+                        (a.ttyModTime ?? 0) > (b.ttyModTime ?? 0)
+                    }
+                    return (sorted[0].cwd, sorted[0].pid)
+                }
+            }
+
+            // Sort by TTY modification time (most recent first)
+            let sortedByModTime = shellInfos.sorted { a, b in
+                (a.ttyModTime ?? 0) > (b.ttyModTime ?? 0)
+            }
+
+            // Prefer non-home directories with the most recent TTY activity
+            for info in sortedByModTime {
+                if info.cwd != homeDir {
+                    return (info.cwd, info.pid)
+                }
+            }
+
+            // If all in home dir, return most recently active
+            return (sortedByModTime[0].cwd, sortedByModTime[0].pid)
         } catch {
             return (nil, nil)
         }
@@ -867,6 +1003,7 @@ class DirectoryDetector {
     }
 
     /// Convert glob pattern to regex for fd
+    /// Note: fd uses --absolute-path, so patterns must match absolute paths
     static func convertGlobToRegex(_ pattern: String) -> String {
         var regex = pattern
 
@@ -892,7 +1029,45 @@ class DirectoryDetector {
         // ? to . (match single character)
         regex = regex.replacingOccurrences(of: "?", with: ".")
 
+        // Prepend pattern to match absolute paths
+        // If pattern doesn't start with /, add .* prefix so it matches anywhere in the path
+        if !regex.hasPrefix("/") && !regex.hasPrefix("\\.") {
+            regex = ".*/" + regex
+        }
+
+        // Append $ to match end of path (ensure pattern matches the file, not a substring)
+        regex = regex + "$"
+
         return regex
+    }
+
+    /// Parse a glob pattern into directory and file pattern components
+    /// e.g., "dist/**/*.js" -> ("dist", "*.js")
+    /// e.g., ".storybook/**/*" -> (".storybook", "*")
+    /// e.g., "node_modules/**/*" -> ("node_modules", "*")
+    static func parseGlobPattern(_ pattern: String) -> (directory: String?, filePattern: String) {
+        // Find the first ** or * in the pattern
+        if let starRange = pattern.range(of: "**") {
+            let beforeStar = String(pattern[..<starRange.lowerBound])
+            let afterStar = String(pattern[starRange.upperBound...])
+
+            // Remove trailing slash from directory
+            var dir = beforeStar.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            if dir.isEmpty {
+                dir = "."
+            }
+
+            // Extract file pattern (e.g., "/*.js" -> "*.js")
+            var filePattern = afterStar.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            if filePattern.isEmpty {
+                filePattern = "*"
+            }
+
+            return (dir, filePattern)
+        }
+
+        // No ** found, use the pattern as-is
+        return (nil, pattern)
     }
 
     /// Execute fd search with given parameters
@@ -904,11 +1079,42 @@ class DirectoryDetector {
         includePattern: String?,
         includeHidden: Bool,
         maxDepth: Int?,
-        maxFiles: Int
+        maxFiles: Int,
+        skipAttributes: Bool = false  // Skip file attributes for large directory searches
     ) -> [[String: Any]]? {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: fdPath)
-        process.currentDirectoryURL = URL(fileURLWithPath: directory)
+
+        // Determine search directory and pattern
+        var searchDirectory = directory
+        var searchPattern: String
+        var useGlob = false
+
+        if let pattern = includePattern {
+            // Parse the include pattern to extract directory and file pattern
+            let parsed = parseGlobPattern(pattern)
+
+            if let subDir = parsed.directory {
+                // Use the parsed directory relative to the base directory
+                let subDirPath = URL(fileURLWithPath: directory).appendingPathComponent(subDir).path
+                if FileManager.default.fileExists(atPath: subDirPath) {
+                    searchDirectory = subDirPath
+                    searchPattern = parsed.filePattern
+                    useGlob = true
+                } else {
+                    // Directory doesn't exist, skip this pattern
+                    fputs("Include pattern directory not found: \(subDirPath)\n", stderr)
+                    return []
+                }
+            } else {
+                searchPattern = parsed.filePattern
+                useGlob = true
+            }
+        } else {
+            searchPattern = "."  // Match all files
+        }
+
+        process.currentDirectoryURL = URL(fileURLWithPath: searchDirectory)
 
         var args: [String] = [
             "--type", "f",           // Files only
@@ -948,11 +1154,11 @@ class DirectoryDetector {
         }
 
         // Search pattern
-        if let pattern = includePattern {
-            let regexPattern = convertGlobToRegex(pattern)
-            args.append(regexPattern)
+        if useGlob {
+            args.append("--glob")
+            args.append(searchPattern)
         } else {
-            args.append(".")  // Match all files
+            args.append(searchPattern)
         }
 
         process.arguments = args
@@ -961,6 +1167,32 @@ class DirectoryDetector {
         let errorPipe = Pipe()
         process.standardOutput = outputPipe
         process.standardError = errorPipe
+
+        // Use async pipe reading to prevent deadlock with large output
+        // (Pipe buffer is ~64KB, but fd can output 2MB+ for node_modules)
+        var outputData = Data()
+        var errorData = Data()
+        let outputLock = NSLock()
+        let errorLock = NSLock()
+
+        // Set up async reading handlers BEFORE running the process
+        outputPipe.fileHandleForReading.readabilityHandler = { handle in
+            let data = handle.availableData
+            if !data.isEmpty {
+                outputLock.lock()
+                outputData.append(data)
+                outputLock.unlock()
+            }
+        }
+
+        errorPipe.fileHandleForReading.readabilityHandler = { handle in
+            let data = handle.availableData
+            if !data.isEmpty {
+                errorLock.lock()
+                errorData.append(data)
+                errorLock.unlock()
+            }
+        }
 
         do {
             try process.run()
@@ -978,19 +1210,38 @@ class DirectoryDetector {
             if result == .timedOut {
                 process.terminate()
                 timedOut = true
+                // Clean up handlers
+                outputPipe.fileHandleForReading.readabilityHandler = nil
+                errorPipe.fileHandleForReading.readabilityHandler = nil
                 fputs("fd process timed out\n", stderr)
                 return nil
             }
 
+            // Clean up handlers after process exits
+            outputPipe.fileHandleForReading.readabilityHandler = nil
+            errorPipe.fileHandleForReading.readabilityHandler = nil
+
+            // Read any remaining data in the pipes
+            outputLock.lock()
+            let remainingOutput = outputPipe.fileHandleForReading.availableData
+            if !remainingOutput.isEmpty {
+                outputData.append(remainingOutput)
+            }
+            outputLock.unlock()
+
             if process.terminationStatus != 0 && !timedOut {
-                let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+                errorLock.lock()
+                let remainingError = errorPipe.fileHandleForReading.availableData
+                if !remainingError.isEmpty {
+                    errorData.append(remainingError)
+                }
                 if let errorString = String(data: errorData, encoding: .utf8), !errorString.isEmpty {
                     fputs("fd error: \(errorString)\n", stderr)
                 }
+                errorLock.unlock()
                 return nil
             }
 
-            let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
             guard let outputString = String(data: outputData, encoding: .utf8) else {
                 return nil
             }
@@ -1010,12 +1261,15 @@ class DirectoryDetector {
                 ]
 
                 // Get file attributes (optional, for size and modifiedAt)
-                if let attributes = try? FileManager.default.attributesOfItem(atPath: path) {
-                    if let size = attributes[.size] as? Int64 {
-                        fileInfo["size"] = size
-                    }
-                    if let modDate = attributes[.modificationDate] as? Date {
-                        fileInfo["modifiedAt"] = ISO8601DateFormatter().string(from: modDate)
+                // Skip for include pattern searches to improve performance on large directories
+                if !skipAttributes {
+                    if let attributes = try? FileManager.default.attributesOfItem(atPath: path) {
+                        if let size = attributes[.size] as? Int64 {
+                            fileInfo["size"] = size
+                        }
+                        if let modDate = attributes[.modificationDate] as? Date {
+                            fileInfo["modifiedAt"] = ISO8601DateFormatter().string(from: modDate)
+                        }
                     }
                 }
 
@@ -1080,6 +1334,20 @@ class DirectoryDetector {
         process.standardOutput = outputPipe
         process.standardError = errorPipe
 
+        // Use async pipe reading to prevent deadlock with large output
+        var outputData = Data()
+        let outputLock = NSLock()
+
+        // Set up async reading handlers BEFORE running the process
+        outputPipe.fileHandleForReading.readabilityHandler = { handle in
+            let data = handle.availableData
+            if !data.isEmpty {
+                outputLock.lock()
+                outputData.append(data)
+                outputLock.unlock()
+            }
+        }
+
         do {
             try process.run()
 
@@ -1094,11 +1362,23 @@ class DirectoryDetector {
             let result = semaphore.wait(timeout: .now() + 5.0)
             if result == .timedOut {
                 process.terminate()
+                // Clean up handlers
+                outputPipe.fileHandleForReading.readabilityHandler = nil
                 fputs("find process timed out\n", stderr)
                 return nil
             }
 
-            let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
+            // Clean up handlers after process exits
+            outputPipe.fileHandleForReading.readabilityHandler = nil
+
+            // Read any remaining data in the pipe
+            outputLock.lock()
+            let remainingOutput = outputPipe.fileHandleForReading.availableData
+            if !remainingOutput.isEmpty {
+                outputData.append(remainingOutput)
+            }
+            outputLock.unlock()
+
             guard let outputString = String(data: outputData, encoding: .utf8) else {
                 return nil
             }
@@ -1151,7 +1431,7 @@ class DirectoryDetector {
     static func getFileListRecursive(from directory: String, settings: FileSearchSettings = .default) -> [[String: Any]]? {
         var allFiles: [[String: Any]] = []
 
-        if let fdPath = getFdPath() {
+        if settings.useFd, let fdPath = getFdPath() {
             // Step 1: Normal search (respecting .gitignore + excludePatterns)
             if let normalFiles = executeFdSearch(
                 fdPath: fdPath,
@@ -1167,6 +1447,7 @@ class DirectoryDetector {
             }
 
             // Step 2: Include patterns (ignoring .gitignore for these specific patterns)
+            // Skip file attributes for large directory searches like node_modules
             if !settings.includePatterns.isEmpty {
                 for pattern in settings.includePatterns {
                     if let includedFiles = executeFdSearch(
@@ -1177,7 +1458,8 @@ class DirectoryDetector {
                         includePattern: pattern,
                         includeHidden: true,      // Allow hidden files in include patterns
                         maxDepth: settings.maxDepth,
-                        maxFiles: settings.maxFiles
+                        maxFiles: settings.maxFiles,
+                        skipAttributes: true      // Skip file attributes for performance
                     ) {
                         allFiles.append(contentsOf: includedFiles)
                     }
@@ -1272,7 +1554,8 @@ class DirectoryDetector {
             result["fileCount"] = files.count
             result["partial"] = false  // Indicates this is Stage 2 (complete) data
             result["searchMode"] = "recursive"
-            result["usedFd"] = isFdAvailable()
+            // usedFd reflects whether fd was actually used (useFd setting AND fd available)
+            result["usedFd"] = settings.useFd && isFdAvailable()
         } else {
             result["files"] = []
             result["fileCount"] = 0
@@ -1349,20 +1632,29 @@ class DirectoryDetector {
                     return result
                 }
             } else if isJetBrainsIDE(bundleId) {
-                // JetBrains IDEs: Try window title first (usually contains full path)
-                if let directory = getDirectoryFromWindowTitle(pid: appPid, bundleId: bundleId) {
-                    return [
-                        "success": true,
-                        "directory": directory,
-                        "appName": appName,
-                        "bundleId": bundleId,
-                        "idePid": appPid,
-                        "method": "window-title"
-                    ]
+                // JetBrains IDEs: First try to get project name from focused window title
+                // Then use it as a hint to find the correct shell process
+                var projectNameHint: String? = nil
+
+                // Try to get project name from window title first
+                if let windowTitle = getWindowTitle(pid: appPid, bundleId: bundleId) {
+                    projectNameHint = extractProjectNameFromTitle(windowTitle)
+
+                    // Also try to extract full path from window title (some JetBrains versions include it)
+                    if let directory = parsePathFromWindowTitle(windowTitle, bundleId: bundleId) {
+                        return [
+                            "success": true,
+                            "directory": directory,
+                            "appName": appName,
+                            "bundleId": bundleId,
+                            "idePid": appPid,
+                            "method": "window-title"
+                        ]
+                    }
                 }
 
-                // Fallback: Shell processes are direct children of the IDE process
-                let (directory, shellPid) = getIDETerminalDirectoryFast(idePid: appPid)
+                // Use project name as hint to find correct shell among multiple IDE terminals
+                let (directory, shellPid) = getIDETerminalDirectoryFast(idePid: appPid, projectNameHint: projectNameHint)
 
                 if let cwd = directory {
                     var result: [String: Any] = [
@@ -1646,6 +1938,8 @@ func main() {
         }
 
         if let files = DirectoryDetector.getFileListRecursive(from: expandedPath, settings: settings) {
+            // usedFd reflects whether fd was actually used (useFd setting AND fd available)
+            let actuallyUsedFd = settings.useFd && DirectoryDetector.isFdAvailable()
             result = [
                 "success": true,
                 "directory": expandedPath,
@@ -1653,7 +1947,7 @@ func main() {
                 "fileCount": files.count,
                 "searchMode": "recursive",
                 "partial": false,
-                "usedFd": DirectoryDetector.isFdAvailable()
+                "usedFd": actuallyUsedFd
             ]
         } else {
             result = ["error": "Failed to list files recursively", "directory": expandedPath]

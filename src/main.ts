@@ -336,6 +336,12 @@ class PromptLineApp {
       const draft = this.draftManager.getCurrentDraft();
       const settings = this.settingsManager.getSettings();
       const history = this.historyManager.getHistory();
+
+      logger.debug('Settings from settingsManager:', {
+        hasFileSearch: !!settings.fileSearch,
+        fileSearch: settings.fileSearch
+      });
+
       const windowData: WindowData = {
         history,
         draft: draft || null,

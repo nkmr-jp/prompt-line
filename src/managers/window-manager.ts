@@ -77,6 +77,11 @@ class WindowManager {
         this.updateWindowSettings(data.settings.window);
       }
       // Update file search settings if provided
+      logger.debug('File search settings from data:', {
+        hasSettings: !!data.settings,
+        hasFileSearch: !!data.settings?.fileSearch,
+        fileSearch: data.settings?.fileSearch
+      });
       if (data.settings?.fileSearch) {
         this.updateFileSearchSettings(data.settings.fileSearch as FileSearchSettings);
       }
@@ -182,28 +187,16 @@ class WindowManager {
       
       logger.debug(`⏱️  Window management total: ${(performance.now() - windowMgmtStartTime).toFixed(2)}ms`);
 
-      // Stage 1: Quick directory detection (< 50ms target)
-      const dirDetectStartTime = performance.now();
-      let directoryData: DirectoryInfo | null = null;
-      try {
-        directoryData = await this.executeDirectoryDetector('quick', 2000);
-        logger.debug(`⏱️  Stage 1 directory detection: ${(performance.now() - dirDetectStartTime).toFixed(2)}ms`);
-      } catch (error) {
-        logger.warn('Stage 1 directory detection failed:', error);
-      }
-
+      // Prepare window data WITHOUT directory data (will be sent later via background detection)
       const windowData: WindowData = {
         sourceApp: this.previousApp,
         currentSpaceInfo,
-        ...(directoryData ? { directoryData } : {}),
         ...data
       };
 
-      // Note: Desktop space is handled by creating window at the right time
-
-      // Handle window display efficiently
+      // Handle window display efficiently - show window FIRST before directory detection
       const displayStartTime = performance.now();
-      
+
       if (this.inputWindow!.isVisible()) {
         // Window is already visible, just update data and focus
         const updateStartTime = performance.now();
@@ -229,21 +222,18 @@ class WindowManager {
         this.inputWindow!.focus();
         logger.debug(`⏱️  Window show + focus: ${(performance.now() - showStartTime).toFixed(2)}ms`);
       }
-      
+
       logger.debug(`⏱️  Display handling: ${(performance.now() - displayStartTime).toFixed(2)}ms`);
       logger.debug(`🏁 Total showInputWindow time: ${(performance.now() - startTime).toFixed(2)}ms`);
       logger.debug('Input window shown', { sourceApp: this.previousApp });
 
-      // Stage 2: Background recursive directory detection (non-blocking)
-      // Only run if Stage 1 detected a directory and we have a valid window
-      if (directoryData?.directory) {
-        // Use setImmediate to ensure this doesn't block the main thread
-        setImmediate(() => {
-          this.executeBackgroundDirectoryUpdate().catch(error => {
-            logger.warn('Background directory update error:', error);
-          });
+      // Background directory detection (non-blocking) - runs AFTER window is shown
+      // Use setImmediate to ensure this doesn't block the main thread
+      setImmediate(() => {
+        this.executeBackgroundDirectoryDetection().catch(error => {
+          logger.warn('Background directory detection error:', error);
         });
-      }
+      });
     } catch (error) {
       logger.error('Failed to show input window:', error);
       logger.error(`❌ Failed after ${(performance.now() - startTime).toFixed(2)}ms`);
@@ -647,6 +637,9 @@ class WindowManager {
 
     // Apply file search settings if available
     if (this.fileSearchSettings) {
+      if (this.fileSearchSettings.useFd === false) {
+        command += ' --no-fd';
+      }
       if (!this.fileSearchSettings.respectGitignore) {
         command += ' --no-gitignore';
       }
@@ -676,9 +669,14 @@ class WindowManager {
       command += ` --bundleId "${this.previousApp.bundleId}"`;
     }
 
+    logger.debug('Directory detector command:', { command, fileSearchSettings: this.fileSearchSettings });
+
     const options = {
       timeout,
-      killSignal: 'SIGTERM' as const
+      killSignal: 'SIGTERM' as const,
+      // Increase maxBuffer for large file lists (default is 1MB)
+      // 50,000 files × ~200 bytes/file = ~10MB, so use 50MB for safety
+      maxBuffer: 50 * 1024 * 1024
     };
 
     return new Promise((resolve) => {
@@ -717,26 +715,42 @@ class WindowManager {
   }
 
   /**
-   * Execute Stage 2 (recursive) directory detection in background
-   * and send update to renderer when complete
+   * Execute directory detection in background (both Stage 1 quick and Stage 2 recursive)
+   * This ensures window shows immediately without waiting for directory detection
    */
-  private async executeBackgroundDirectoryUpdate(): Promise<void> {
+  private async executeBackgroundDirectoryDetection(): Promise<void> {
     try {
       const startTime = performance.now();
-      logger.debug('🔄 Starting background directory detection (Stage 2)...');
+      logger.debug('🔄 Starting background directory detection...');
 
-      const fullResult = await this.executeDirectoryDetector('recursive', 5000);
+      // Stage 1: Quick directory detection first
+      const quickResult = await this.executeDirectoryDetector('quick', 2000);
 
-      if (fullResult && this.inputWindow && !this.inputWindow.isDestroyed()) {
-        this.inputWindow.webContents.send('directory-data-updated', fullResult);
-        logger.debug(`✅ Background directory detection completed in ${(performance.now() - startTime).toFixed(2)}ms`, {
-          directory: fullResult.directory,
-          fileCount: fullResult.fileCount,
-          usedFd: fullResult.usedFd
+      if (quickResult && this.inputWindow && !this.inputWindow.isDestroyed()) {
+        // Send Stage 1 result immediately
+        this.inputWindow.webContents.send('directory-data-updated', quickResult);
+        logger.debug(`✅ Stage 1 (quick) completed in ${(performance.now() - startTime).toFixed(2)}ms`, {
+          directory: quickResult.directory,
+          fileCount: quickResult.fileCount
         });
+
+        // Stage 2: Recursive detection for more complete file list
+        const recursiveStartTime = performance.now();
+        const fullResult = await this.executeDirectoryDetector('recursive', 5000);
+
+        if (fullResult && this.inputWindow && !this.inputWindow.isDestroyed()) {
+          this.inputWindow.webContents.send('directory-data-updated', fullResult);
+          logger.debug(`✅ Stage 2 (recursive) completed in ${(performance.now() - recursiveStartTime).toFixed(2)}ms`, {
+            directory: fullResult.directory,
+            fileCount: fullResult.fileCount,
+            usedFd: fullResult.usedFd
+          });
+        }
       } else {
         logger.debug('Background directory detection: no result or window not available');
       }
+
+      logger.debug(`🏁 Total background directory detection time: ${(performance.now() - startTime).toFixed(2)}ms`);
     } catch (error) {
       logger.warn('Background directory detection failed:', error);
     }

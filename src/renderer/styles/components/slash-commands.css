@@ -4,8 +4,7 @@
   position: absolute;
   top: 16px;
   left: 16px;
-  /*margin-right: 16px;*/
-  max-height: 85%;
+  max-height: 90%;
   max-width: 95%;
   overflow-y: scroll;
   overflow-x: hidden;
@@ -13,6 +12,7 @@
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   z-index: 100;
+  box-sizing: border-box;
 }
 
 .slash-suggestion-item {
@@ -30,7 +30,8 @@
   border-bottom: none;
 }
 
-.slash-suggestion-item:hover {
+/* Hover style only when mouse has explicitly moved (hover-enabled class is added by JS) */
+.slash-command-suggestions.hover-enabled .slash-suggestion-item:hover {
   background: var(--bg-hover, #2a2a2a);
 }
 
