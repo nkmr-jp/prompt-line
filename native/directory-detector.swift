@@ -1168,6 +1168,32 @@ class DirectoryDetector {
         process.standardOutput = outputPipe
         process.standardError = errorPipe
 
+        // Use async pipe reading to prevent deadlock with large output
+        // (Pipe buffer is ~64KB, but fd can output 2MB+ for node_modules)
+        var outputData = Data()
+        var errorData = Data()
+        let outputLock = NSLock()
+        let errorLock = NSLock()
+
+        // Set up async reading handlers BEFORE running the process
+        outputPipe.fileHandleForReading.readabilityHandler = { handle in
+            let data = handle.availableData
+            if !data.isEmpty {
+                outputLock.lock()
+                outputData.append(data)
+                outputLock.unlock()
+            }
+        }
+
+        errorPipe.fileHandleForReading.readabilityHandler = { handle in
+            let data = handle.availableData
+            if !data.isEmpty {
+                errorLock.lock()
+                errorData.append(data)
+                errorLock.unlock()
+            }
+        }
+
         do {
             try process.run()
 
@@ -1184,19 +1210,38 @@ class DirectoryDetector {
             if result == .timedOut {
                 process.terminate()
                 timedOut = true
+                // Clean up handlers
+                outputPipe.fileHandleForReading.readabilityHandler = nil
+                errorPipe.fileHandleForReading.readabilityHandler = nil
                 fputs("fd process timed out\n", stderr)
                 return nil
             }
 
+            // Clean up handlers after process exits
+            outputPipe.fileHandleForReading.readabilityHandler = nil
+            errorPipe.fileHandleForReading.readabilityHandler = nil
+
+            // Read any remaining data in the pipes
+            outputLock.lock()
+            let remainingOutput = outputPipe.fileHandleForReading.availableData
+            if !remainingOutput.isEmpty {
+                outputData.append(remainingOutput)
+            }
+            outputLock.unlock()
+
             if process.terminationStatus != 0 && !timedOut {
-                let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+                errorLock.lock()
+                let remainingError = errorPipe.fileHandleForReading.availableData
+                if !remainingError.isEmpty {
+                    errorData.append(remainingError)
+                }
                 if let errorString = String(data: errorData, encoding: .utf8), !errorString.isEmpty {
                     fputs("fd error: \(errorString)\n", stderr)
                 }
+                errorLock.unlock()
                 return nil
             }
 
-            let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
             guard let outputString = String(data: outputData, encoding: .utf8) else {
                 return nil
             }
@@ -1289,6 +1334,20 @@ class DirectoryDetector {
         process.standardOutput = outputPipe
         process.standardError = errorPipe
 
+        // Use async pipe reading to prevent deadlock with large output
+        var outputData = Data()
+        let outputLock = NSLock()
+
+        // Set up async reading handlers BEFORE running the process
+        outputPipe.fileHandleForReading.readabilityHandler = { handle in
+            let data = handle.availableData
+            if !data.isEmpty {
+                outputLock.lock()
+                outputData.append(data)
+                outputLock.unlock()
+            }
+        }
+
         do {
             try process.run()
 
@@ -1303,11 +1362,23 @@ class DirectoryDetector {
             let result = semaphore.wait(timeout: .now() + 5.0)
             if result == .timedOut {
                 process.terminate()
+                // Clean up handlers
+                outputPipe.fileHandleForReading.readabilityHandler = nil
                 fputs("find process timed out\n", stderr)
                 return nil
             }
 
-            let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
+            // Clean up handlers after process exits
+            outputPipe.fileHandleForReading.readabilityHandler = nil
+
+            // Read any remaining data in the pipe
+            outputLock.lock()
+            let remainingOutput = outputPipe.fileHandleForReading.availableData
+            if !remainingOutput.isEmpty {
+                outputData.append(remainingOutput)
+            }
+            outputLock.unlock()
+
             guard let outputString = String(data: outputData, encoding: .utf8) else {
                 return nil
             }
