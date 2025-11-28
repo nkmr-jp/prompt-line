@@ -36,7 +36,8 @@ class SettingsManager {
         includePatterns: [],
         maxFiles: 5000,
         includeHidden: false,
-        maxDepth: null
+        maxDepth: null,
+        followSymlinks: false
       }
     };
 
@@ -208,6 +209,10 @@ window:
 
   ## Maximum directory depth to search (null = unlimited)
   # maxDepth: null
+
+  ## Follow symbolic links in file search (default: false)
+  ## When enabled, files inside symlinked directories will be included in search results
+  # followSymlinks: false
   `;
   }
 

@@ -134,7 +134,8 @@ window:
           maxFiles: 5000,
           maxDepth: null,
           includePatterns: [],
-          excludePatterns: []
+          excludePatterns: [],
+          followSymlinks: false
         }
       });
     });
@@ -237,7 +238,8 @@ window:
           maxFiles: 5000,
           maxDepth: null,
           includePatterns: [],
-          excludePatterns: []
+          excludePatterns: [],
+          followSymlinks: false
         }
       });
 

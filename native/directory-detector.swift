@@ -12,6 +12,7 @@ struct FileSearchSettings {
     let maxFiles: Int
     let includeHidden: Bool
     let maxDepth: Int?
+    let followSymlinks: Bool
 
     static let `default` = FileSearchSettings(
         useFd: true,
@@ -20,7 +21,8 @@ struct FileSearchSettings {
         includePatterns: [],
         maxFiles: 5000,
         includeHidden: false,
-        maxDepth: nil
+        maxDepth: nil,
+        followSymlinks: false
     )
 
     /// Parse settings from command line arguments
@@ -32,6 +34,7 @@ struct FileSearchSettings {
         var maxFiles = 5000
         var includeHidden = false
         var maxDepth: Int? = nil
+        var followSymlinks = false
 
         var i = 0
         while i < args.count {
@@ -73,6 +76,9 @@ struct FileSearchSettings {
                 } else {
                     i += 1
                 }
+            case "--follow-symlinks":
+                followSymlinks = true
+                i += 1
             default:
                 i += 1
             }
@@ -85,7 +91,8 @@ struct FileSearchSettings {
             includePatterns: includePatterns,
             maxFiles: maxFiles,
             includeHidden: includeHidden,
-            maxDepth: maxDepth
+            maxDepth: maxDepth,
+            followSymlinks: followSymlinks
         )
     }
 }
@@ -1103,7 +1110,8 @@ class DirectoryDetector {
         includeHidden: Bool,
         maxDepth: Int?,
         maxFiles: Int,
-        skipAttributes: Bool = false  // Skip file attributes for large directory searches
+        skipAttributes: Bool = false,  // Skip file attributes for large directory searches
+        followSymlinks: Bool = false   // Follow symbolic links
     ) -> [[String: Any]]? {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: fdPath)
@@ -1155,6 +1163,9 @@ class DirectoryDetector {
         if includeHidden {
             args.append("--hidden")
         }
+
+        // Note: We don't use --follow here because we handle symlink directories
+        // separately in getFileListRecursive() to preserve symlink paths in results
 
         // Depth limit
         if let depth = maxDepth {
@@ -1314,13 +1325,19 @@ class DirectoryDetector {
         excludePatterns: [String],
         includeHidden: Bool,
         maxDepth: Int?,
-        maxFiles: Int
+        maxFiles: Int,
+        followSymlinks: Bool = false
     ) -> [[String: Any]]? {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/find")
         process.currentDirectoryURL = URL(fileURLWithPath: directory)
 
-        var args: [String] = ["."]
+        var args: [String] = []
+
+        // Note: We don't use -L (follow symlinks) here because we handle symlink directories
+        // separately in getFileListRecursive() to preserve symlink paths in results
+
+        args.append(".")
 
         // Depth limit
         if let depth = maxDepth {
@@ -1328,7 +1345,7 @@ class DirectoryDetector {
             args.append(String(depth))
         }
 
-        // File type
+        // File type - only regular files
         args.append("-type")
         args.append("f")
 
@@ -1449,6 +1466,64 @@ class DirectoryDetector {
 
     // MARK: - Recursive File List (fd/find integration)
 
+    /// Find symlink directories in the given directory (single level)
+    /// Returns array of tuples: (symlinkPath, resolvedPath)
+    static func findSymlinkDirectories(in directory: String, settings: FileSearchSettings) -> [(symlinkPath: String, resolvedPath: String)] {
+        let fileManager = FileManager.default
+        var symlinkDirs: [(symlinkPath: String, resolvedPath: String)] = []
+
+        guard let contents = try? fileManager.contentsOfDirectory(atPath: directory) else {
+            return symlinkDirs
+        }
+
+        let allExcludes = DEFAULT_EXCLUDES + settings.excludePatterns
+
+        for item in contents {
+            // Skip hidden files unless explicitly included
+            if !settings.includeHidden && item.hasPrefix(".") {
+                continue
+            }
+
+            // Skip excluded patterns
+            if allExcludes.contains(item) {
+                continue
+            }
+
+            let fullPath = (directory as NSString).appendingPathComponent(item)
+
+            // Check if it's a symbolic link
+            guard let attrs = try? fileManager.attributesOfItem(atPath: fullPath),
+                  let fileType = attrs[.type] as? FileAttributeType,
+                  fileType == .typeSymbolicLink else {
+                continue
+            }
+
+            // Resolve the symlink and check if it points to a directory
+            guard let resolvedPath = try? fileManager.destinationOfSymbolicLink(atPath: fullPath) else {
+                continue
+            }
+
+            // Handle relative paths
+            let absoluteResolvedPath: String
+            if resolvedPath.hasPrefix("/") {
+                absoluteResolvedPath = resolvedPath
+            } else {
+                absoluteResolvedPath = (directory as NSString).appendingPathComponent(resolvedPath)
+            }
+
+            // Normalize the path
+            let normalizedPath = (absoluteResolvedPath as NSString).standardizingPath
+
+            // Check if the resolved path is a directory
+            var isDir: ObjCBool = false
+            if fileManager.fileExists(atPath: normalizedPath, isDirectory: &isDir), isDir.boolValue {
+                symlinkDirs.append((symlinkPath: fullPath, resolvedPath: normalizedPath))
+            }
+        }
+
+        return symlinkDirs
+    }
+
     /// Get file list recursively using fd (preferred) or find (fallback)
     /// Stage 2: Full recursive scan
     static func getFileListRecursive(from directory: String, settings: FileSearchSettings = .default) -> [[String: Any]]? {
@@ -1456,6 +1531,7 @@ class DirectoryDetector {
 
         if settings.useFd, let fdPath = getFdPath() {
             // Step 1: Normal search (respecting .gitignore + excludePatterns)
+            // Note: Don't use --follow here to avoid resolving symlink paths
             if let normalFiles = executeFdSearch(
                 fdPath: fdPath,
                 directory: directory,
@@ -1464,9 +1540,43 @@ class DirectoryDetector {
                 includePattern: nil,
                 includeHidden: settings.includeHidden,
                 maxDepth: settings.maxDepth,
-                maxFiles: settings.maxFiles
+                maxFiles: settings.maxFiles,
+                followSymlinks: false  // Don't follow symlinks in main search
             ) {
                 allFiles.append(contentsOf: normalFiles)
+            }
+
+            // Step 1.5: Search inside symlink directories with symlink path preserved
+            if settings.followSymlinks {
+                let symlinkDirs = findSymlinkDirectories(in: directory, settings: settings)
+                for (symlinkPath, resolvedPath) in symlinkDirs {
+                    // Search inside the resolved directory
+                    if let symlinkFiles = executeFdSearch(
+                        fdPath: fdPath,
+                        directory: resolvedPath,
+                        respectGitignore: settings.respectGitignore,
+                        excludePatterns: settings.excludePatterns,
+                        includePattern: nil,
+                        includeHidden: settings.includeHidden,
+                        maxDepth: settings.maxDepth,
+                        maxFiles: settings.maxFiles,
+                        followSymlinks: false  // Don't recursively follow symlinks
+                    ) {
+                        // Replace resolved path with symlink path in results
+                        for var file in symlinkFiles {
+                            if let path = file["path"] as? String {
+                                // Replace the resolved path prefix with the symlink path
+                                let newPath = path.replacingOccurrences(of: resolvedPath, with: symlinkPath)
+                                file["path"] = newPath
+                                // Update the display name to show it's from a symlink
+                                if let name = file["name"] as? String {
+                                    file["name"] = name
+                                }
+                            }
+                            allFiles.append(file)
+                        }
+                    }
+                }
             }
 
             // Step 2: Include patterns (ignoring .gitignore for these specific patterns)
@@ -1482,7 +1592,8 @@ class DirectoryDetector {
                         includeHidden: true,      // Allow hidden files in include patterns
                         maxDepth: settings.maxDepth,
                         maxFiles: settings.maxFiles,
-                        skipAttributes: true      // Skip file attributes for performance
+                        skipAttributes: true,     // Skip file attributes for performance
+                        followSymlinks: false     // Don't follow symlinks in include patterns
                     ) {
                         allFiles.append(contentsOf: includedFiles)
                     }
@@ -1495,9 +1606,33 @@ class DirectoryDetector {
                 excludePatterns: settings.excludePatterns,
                 includeHidden: settings.includeHidden,
                 maxDepth: settings.maxDepth,
-                maxFiles: settings.maxFiles
+                maxFiles: settings.maxFiles,
+                followSymlinks: false  // Don't follow symlinks in main search
             ) {
                 allFiles.append(contentsOf: findFiles)
+            }
+
+            // Search inside symlink directories with symlink path preserved
+            if settings.followSymlinks {
+                let symlinkDirs = findSymlinkDirectories(in: directory, settings: settings)
+                for (symlinkPath, resolvedPath) in symlinkDirs {
+                    if let symlinkFiles = executeFindSearch(
+                        directory: resolvedPath,
+                        excludePatterns: settings.excludePatterns,
+                        includeHidden: settings.includeHidden,
+                        maxDepth: settings.maxDepth,
+                        maxFiles: settings.maxFiles,
+                        followSymlinks: false
+                    ) {
+                        for var file in symlinkFiles {
+                            if let path = file["path"] as? String {
+                                let newPath = path.replacingOccurrences(of: resolvedPath, with: symlinkPath)
+                                file["path"] = newPath
+                            }
+                            allFiles.append(file)
+                        }
+                    }
+                }
             }
         }
 
@@ -1837,6 +1972,7 @@ func main() {
         fputs("  --max-files <n>    - Maximum number of files to return (default: 5000)\n", stderr)
         fputs("  --include-hidden   - Include hidden files (starting with .)\n", stderr)
         fputs("  --max-depth <n>    - Maximum directory depth to search\n", stderr)
+        fputs("  --follow-symlinks  - Follow symbolic links (default: false)\n", stderr)
         exit(1)
     }
 
