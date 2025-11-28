@@ -7,7 +7,7 @@
   max-height: 40vh; /* 40% of viewport height */
   min-width: 200px;
   max-width: 90%;
-  overflow-y: scroll;
+  overflow-y: auto;
   overflow-x: hidden;
   background: #222;
   /*border: 1px solid #444;*/

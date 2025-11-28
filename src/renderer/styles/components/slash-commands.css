@@ -6,7 +6,7 @@
   left: 16px;
   max-height: 90%;
   max-width: 95%;
-  overflow-y: scroll;
+  overflow-y: auto;
   overflow-x: hidden;
   background: #222;
   /*border: 1px solid #444;*/
