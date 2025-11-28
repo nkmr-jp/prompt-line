@@ -9,7 +9,7 @@
   overflow-y: scroll;
   overflow-x: hidden;
   background: #222;
-  border: 1px solid #444;
+  /*border: 1px solid #444;*/
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   z-index: 100;
