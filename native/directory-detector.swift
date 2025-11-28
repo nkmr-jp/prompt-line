@@ -12,6 +12,7 @@ struct FileSearchSettings {
     let maxFiles: Int
     let includeHidden: Bool
     let maxDepth: Int?
+    let followSymlinks: Bool
 
     static let `default` = FileSearchSettings(
         useFd: true,
@@ -20,7 +21,8 @@ struct FileSearchSettings {
         includePatterns: [],
         maxFiles: 5000,
         includeHidden: false,
-        maxDepth: nil
+        maxDepth: nil,
+        followSymlinks: false
     )
 
     /// Parse settings from command line arguments
@@ -32,6 +34,7 @@ struct FileSearchSettings {
         var maxFiles = 5000
         var includeHidden = false
         var maxDepth: Int? = nil
+        var followSymlinks = false
 
         var i = 0
         while i < args.count {
@@ -73,6 +76,9 @@ struct FileSearchSettings {
                 } else {
                     i += 1
                 }
+            case "--follow-symlinks":
+                followSymlinks = true
+                i += 1
             default:
                 i += 1
             }
@@ -85,7 +91,8 @@ struct FileSearchSettings {
             includePatterns: includePatterns,
             maxFiles: maxFiles,
             includeHidden: includeHidden,
-            maxDepth: maxDepth
+            maxDepth: maxDepth,
+            followSymlinks: followSymlinks
         )
     }
 }
@@ -1103,7 +1110,8 @@ class DirectoryDetector {
         includeHidden: Bool,
         maxDepth: Int?,
         maxFiles: Int,
-        skipAttributes: Bool = false  // Skip file attributes for large directory searches
+        skipAttributes: Bool = false,  // Skip file attributes for large directory searches
+        followSymlinks: Bool = false   // Follow symbolic links
     ) -> [[String: Any]]? {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: fdPath)
@@ -1154,6 +1162,11 @@ class DirectoryDetector {
         // Hidden files setting
         if includeHidden {
             args.append("--hidden")
+        }
+
+        // Follow symbolic links setting
+        if followSymlinks {
+            args.append("--follow")
         }
 
         // Depth limit
@@ -1314,13 +1327,21 @@ class DirectoryDetector {
         excludePatterns: [String],
         includeHidden: Bool,
         maxDepth: Int?,
-        maxFiles: Int
+        maxFiles: Int,
+        followSymlinks: Bool = false
     ) -> [[String: Any]]? {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/find")
         process.currentDirectoryURL = URL(fileURLWithPath: directory)
 
-        var args: [String] = ["."]
+        var args: [String] = []
+
+        // Follow symbolic links (-L must be before the path)
+        if followSymlinks {
+            args.append("-L")
+        }
+
+        args.append(".")
 
         // Depth limit
         if let depth = maxDepth {
@@ -1464,7 +1485,8 @@ class DirectoryDetector {
                 includePattern: nil,
                 includeHidden: settings.includeHidden,
                 maxDepth: settings.maxDepth,
-                maxFiles: settings.maxFiles
+                maxFiles: settings.maxFiles,
+                followSymlinks: settings.followSymlinks
             ) {
                 allFiles.append(contentsOf: normalFiles)
             }
@@ -1482,7 +1504,8 @@ class DirectoryDetector {
                         includeHidden: true,      // Allow hidden files in include patterns
                         maxDepth: settings.maxDepth,
                         maxFiles: settings.maxFiles,
-                        skipAttributes: true      // Skip file attributes for performance
+                        skipAttributes: true,     // Skip file attributes for performance
+                        followSymlinks: settings.followSymlinks
                     ) {
                         allFiles.append(contentsOf: includedFiles)
                     }
@@ -1495,7 +1518,8 @@ class DirectoryDetector {
                 excludePatterns: settings.excludePatterns,
                 includeHidden: settings.includeHidden,
                 maxDepth: settings.maxDepth,
-                maxFiles: settings.maxFiles
+                maxFiles: settings.maxFiles,
+                followSymlinks: settings.followSymlinks
             ) {
                 allFiles.append(contentsOf: findFiles)
             }
@@ -1837,6 +1861,7 @@ func main() {
         fputs("  --max-files <n>    - Maximum number of files to return (default: 5000)\n", stderr)
         fputs("  --include-hidden   - Include hidden files (starting with .)\n", stderr)
         fputs("  --max-depth <n>    - Maximum directory depth to search\n", stderr)
+        fputs("  --follow-symlinks  - Follow symbolic links (default: false)\n", stderr)
         exit(1)
     }
 

@@ -195,6 +195,8 @@ export interface UserSettings {
     includeHidden?: boolean;
     // Maximum directory depth (null = unlimited)
     maxDepth?: number | null;
+    // Follow symbolic links (default: false)
+    followSymlinks?: boolean;
   };
 }
 
@@ -250,6 +252,8 @@ export interface FileSearchSettings {
   includeHidden: boolean;
   // Maximum directory depth (null = unlimited)
   maxDepth: number | null;
+  // Follow symbolic links (default: false)
+  followSymlinks: boolean;
 }
 
 // Directory data for file search (cached in renderer)

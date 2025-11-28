@@ -662,6 +662,9 @@ class WindowManager {
       if (this.fileSearchSettings.maxDepth !== null && this.fileSearchSettings.maxDepth !== undefined) {
         command += ` --max-depth ${this.fileSearchSettings.maxDepth}`;
       }
+      if (this.fileSearchSettings.followSymlinks) {
+        command += ' --follow-symlinks';
+      }
     }
 
     // Add bundleId if available for accurate directory detection
