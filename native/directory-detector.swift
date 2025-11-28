@@ -1153,6 +1153,13 @@ class DirectoryDetector {
             "--absolute-path"        // Absolute paths
         ]
 
+        // Include symbolic links when followSymlinks is enabled
+        // This allows searching by symlink name itself
+        if followSymlinks {
+            args.append("--type")
+            args.append("l")         // Also include symbolic links
+        }
+
         // .gitignore setting
         if !respectGitignore {
             args.append("--no-ignore")
@@ -1164,7 +1171,7 @@ class DirectoryDetector {
             args.append("--hidden")
         }
 
-        // Follow symbolic links setting
+        // Follow symbolic links setting (traverse into symlinked directories)
         if followSymlinks {
             args.append("--follow")
         }
@@ -1349,9 +1356,20 @@ class DirectoryDetector {
             args.append(String(depth))
         }
 
-        // File type
-        args.append("-type")
-        args.append("f")
+        // File type - include symbolic links when followSymlinks is enabled
+        if followSymlinks {
+            // Match files OR symbolic links: \( -type f -o -type l \)
+            args.append("(")
+            args.append("-type")
+            args.append("f")
+            args.append("-o")
+            args.append("-type")
+            args.append("l")
+            args.append(")")
+        } else {
+            args.append("-type")
+            args.append("f")
+        }
 
         // Exclude patterns
         let allExcludes = DEFAULT_EXCLUDES + excludePatterns
