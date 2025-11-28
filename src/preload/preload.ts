@@ -30,7 +30,8 @@ const ALLOWED_CHANNELS = [
   'window-shown',
   'get-slash-commands',
   'directory-data-updated',
-  'open-settings'
+  'open-settings',
+  'get-agents'
 ];
 
 // IPC channel validation with additional security checks
@@ -208,6 +209,13 @@ const electronAPI = {
     get: async (query?: string): Promise<any[]> => {
       return ipcRenderer.invoke('get-slash-commands', query);
     }
+  },
+
+  // Agents
+  agents: {
+    get: async (query?: string): Promise<any[]> => {
+      return ipcRenderer.invoke('get-agents', query);
+    }
   }
 };
 
@@ -250,6 +258,9 @@ export interface ElectronAPI {
     clear: () => Promise<void>;
   };
   slashCommands: {
+    get: (query?: string) => Promise<any[]>;
+  };
+  agents: {
     get: (query?: string) => Promise<any[]>;
   };
 }

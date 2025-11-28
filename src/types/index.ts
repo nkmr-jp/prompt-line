@@ -180,6 +180,9 @@ export interface UserSettings {
   commands?: {
     directories: string[];
   };
+  agents?: {
+    directories: string[];
+  };
   fileSearch?: {
     // Use fd command (falls back to find if not installed)
     useFd?: boolean;
@@ -204,6 +207,12 @@ export interface SlashCommandItem {
   name: string;
   description: string;
   argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
+  filePath: string;
+}
+
+export interface AgentItem {
+  name: string;
+  description: string;
   filePath: string;
 }
 
