@@ -65,7 +65,8 @@
 
 /* Scrollbar styling */
 .slash-command-suggestions::-webkit-scrollbar {
-  display: none;
+  /*display: none;*/
+  width: 3px;
 }
 
 .slash-command-suggestions::-webkit-scrollbar-track {

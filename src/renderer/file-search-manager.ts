@@ -786,8 +786,13 @@ export class FileSearchManager {
         </div>
       `;
       this.suggestionsContainer.style.display = 'block';
+      // Reset scroll position to top
+      this.suggestionsContainer.scrollTop = 0;
       return;
     }
+
+    // Reset scroll position to top when search text changes
+    this.suggestionsContainer.scrollTop = 0;
 
     const fragment = document.createDocumentFragment();
     const baseDir = this.cachedDirectoryData?.directory || '';
