@@ -170,7 +170,7 @@ textarea:-webkit-autofill:focus {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    max-width: 60%;
+    max-width: 80%;
     margin-right: var(--spacing-md);
 }
 
