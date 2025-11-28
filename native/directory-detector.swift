@@ -1173,14 +1173,14 @@ class DirectoryDetector {
             args.append(String(depth))
         }
 
-        // Exclude patterns (only for normal search, not include patterns)
-        if includePattern == nil {
-            for exclude in excludePatterns {
-                args.append("--exclude")
-                args.append(exclude)
-            }
+        // Exclude patterns (always apply user-specified excludes)
+        for exclude in excludePatterns {
+            args.append("--exclude")
+            args.append(exclude)
+        }
 
-            // Add default excludes
+        // Add default excludes only for normal search (not include patterns)
+        if includePattern == nil {
             for exclude in DEFAULT_EXCLUDES {
                 args.append("--exclude")
                 args.append(exclude)
@@ -1587,7 +1587,7 @@ class DirectoryDetector {
                         fdPath: fdPath,
                         directory: directory,
                         respectGitignore: false,  // Ignore .gitignore for include patterns
-                        excludePatterns: [],      // No excludes for include patterns
+                        excludePatterns: settings.excludePatterns,  // Apply user-specified excludes
                         includePattern: pattern,
                         includeHidden: true,      // Allow hidden files in include patterns
                         maxDepth: settings.maxDepth,
