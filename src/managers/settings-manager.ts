@@ -107,6 +107,11 @@ class SettingsManager {
       result.commands = userSettings.commands;
     }
 
+    // Only set agents if it exists in user settings
+    if (userSettings.agents) {
+      result.agents = userSettings.agents;
+    }
+
     return result;
   }
 
