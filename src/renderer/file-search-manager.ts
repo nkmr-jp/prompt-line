@@ -632,8 +632,9 @@ export class FileSearchManager {
 
   /**
    * Handle Cmd+click on @path or absolute path in textarea to open the file in editor
+   * Supports: file paths, agent names, and absolute paths (including ~)
    */
-  private handleCmdClickOnAtPath(e: MouseEvent): void {
+  private async handleCmdClickOnAtPath(e: MouseEvent): Promise<void> {
     if (!this.textInput) return;
 
     const text = this.textInput.value;
@@ -645,13 +646,41 @@ export class FileSearchManager {
       e.preventDefault();
       e.stopPropagation();
 
-      // Resolve the file path
-      const filePath = this.resolveAtPathToAbsolute(atPath);
-      if (filePath) {
-        // Suppress blur before opening file to prevent window from closing
-        this.callbacks.onBeforeOpenFile?.();
-        window.electronAPI.file.openInEditor(filePath)
-          .catch((err: Error) => console.error('Failed to open file in editor:', err));
+      // Check if it looks like a file path (contains / or . in the original input)
+      const looksLikeFilePath = atPath.includes('/') || atPath.includes('.');
+
+      if (looksLikeFilePath) {
+        // Resolve as file path first
+        const filePath = this.resolveAtPathToAbsolute(atPath);
+        if (filePath) {
+          this.callbacks.onBeforeOpenFile?.();
+          window.electronAPI.file.openInEditor(filePath)
+            .catch((err: Error) => console.error('Failed to open file in editor:', err));
+          return;
+        }
+      }
+
+      // Try to resolve as agent name (for names like @backend-architect)
+      try {
+        const agentFilePath = await window.electronAPI.agents.getFilePath(atPath);
+        if (agentFilePath) {
+          this.callbacks.onBeforeOpenFile?.();
+          window.electronAPI.file.openInEditor(agentFilePath)
+            .catch((err: Error) => console.error('Failed to open agent file in editor:', err));
+          return;
+        }
+      } catch (err) {
+        console.error('Failed to resolve agent file path:', err);
+      }
+
+      // Fallback: try to open as file path if it wasn't already tried
+      if (!looksLikeFilePath) {
+        const filePath = this.resolveAtPathToAbsolute(atPath);
+        if (filePath) {
+          this.callbacks.onBeforeOpenFile?.();
+          window.electronAPI.file.openInEditor(filePath)
+            .catch((err: Error) => console.error('Failed to open file in editor:', err));
+        }
       }
       return;
     }
@@ -694,11 +723,13 @@ export class FileSearchManager {
   /**
    * Find absolute file path at the given cursor position
    * Returns the path if found, null otherwise
+   * Supports both / and ~ (home directory) prefixed paths
    */
   private findAbsolutePathAtPosition(text: string, cursorPos: number): string | null {
-    // Pattern to match absolute paths starting with /
+    // Pattern to match absolute paths starting with / or ~
     // Matches paths like /Users/name/.prompt-line/images/file.png
-    const absolutePathPattern = /\/[^\s"'<>|*?\n]+/g;
+    // or ~/.prompt-line/images/file.png
+    const absolutePathPattern = /(?:\/|~\/)[^\s"'<>|*?\n]+/g;
     let match;
 
     while ((match = absolutePathPattern.exec(text)) !== null) {
@@ -732,8 +763,8 @@ export class FileSearchManager {
       }
     }
 
-    // Then check absolute paths
-    const absolutePathPattern = /\/[^\s"'<>|*?\n]+/g;
+    // Then check absolute paths (including ~ for home directory)
+    const absolutePathPattern = /(?:\/|~\/)[^\s"'<>|*?\n]+/g;
     while ((match = absolutePathPattern.exec(text)) !== null) {
       const start = match.index;
       const end = start + match[0].length;
