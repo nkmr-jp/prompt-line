@@ -163,3 +163,40 @@
 .file-suggestions::-webkit-scrollbar-thumb:hover {
   background: var(--scrollbar-thumb-hover, #666);
 }
+
+/* Frontmatter Popup Styles */
+.frontmatter-popup {
+  position: fixed;
+  background: #1a1a1a; /* Darker than menu for contrast */
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 8px 10px;
+  max-height: 150px;
+  overflow-y: auto;
+  z-index: 101; /* Above suggestions container */
+  font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--text-secondary, #aaa);
+  white-space: pre-wrap;
+  word-break: break-word;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+  box-sizing: border-box;
+}
+
+.frontmatter-popup::-webkit-scrollbar {
+  width: 4px;
+}
+
+.frontmatter-popup::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.frontmatter-popup::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb, #555);
+  border-radius: 4px;
+}
+
+.frontmatter-popup::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover, #666);
+}
