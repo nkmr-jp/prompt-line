@@ -165,7 +165,11 @@ export class PromptLineRenderer {
       getTextContent: () => this.domManager.getCurrentText(),
       setTextContent: (text: string) => this.domManager.setText(text),
       getCursorPosition: () => this.domManager.getCursorPosition(),
-      setCursorPosition: (position: number) => this.domManager.setCursorPosition(position)
+      setCursorPosition: (position: number) => this.domManager.setCursorPosition(position),
+      onBeforeOpenFile: () => {
+        // Suppress blur event to prevent window from closing when opening file
+        this.eventHandler?.setSuppressBlurHide(true);
+      }
     });
 
     this.fileSearchManager.initializeElements();

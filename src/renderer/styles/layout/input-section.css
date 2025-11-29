@@ -78,6 +78,22 @@
     margin: -1px -2px;
 }
 
+/* File path link style for Cmd+hover */
+.highlight-backdrop .file-path-link {
+    color: #3b82f6;
+    text-decoration: underline;
+    text-decoration-color: #3b82f6;
+    cursor: pointer;
+}
+
+/* @path with link style (Cmd+hover over @path) */
+.highlight-backdrop .at-path-highlight.file-path-link {
+    color: #3b82f6;
+    text-decoration: underline;
+    text-decoration-color: #3b82f6;
+    background: rgba(59, 130, 246, 0.4);
+}
+
 #textInput {
     flex: 1;
     width: 100%;

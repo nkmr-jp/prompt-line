@@ -29,6 +29,7 @@ export class EventHandler {
   private slashCommandManager: { isActiveMode(): boolean } | null = null;
   private fileSearchManager: { isActive(): boolean } | null = null;
   private userSettings: UserSettings | null = null;
+  private suppressBlurHide = false;
   private onTextPaste: (text: string) => Promise<void>;
   private onWindowHide: () => Promise<void>;
   private onTabKeyInsert: (e: KeyboardEvent) => void;
@@ -286,6 +287,11 @@ export class EventHandler {
 
   private async handleWindowBlur(): Promise<void> {
     try {
+      // Check blur suppression flag (used when opening files to prevent window from closing)
+      if (this.suppressBlurHide) {
+        this.suppressBlurHide = false; // Reset after one use
+        return;
+      }
       // Hide window when focus moves to another application
       // This should happen regardless of which element has focus within the window
       setTimeout(async () => {
@@ -294,6 +300,14 @@ export class EventHandler {
     } catch (error) {
       console.error('Error handling window blur:', error);
     }
+  }
+
+  /**
+   * Suppress the next blur event from hiding the window
+   * Used when opening files to prevent the window from closing
+   */
+  public setSuppressBlurHide(value: boolean): void {
+    this.suppressBlurHide = value;
   }
 
 
