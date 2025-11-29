@@ -17,6 +17,8 @@ const ALLOWED_CHANNELS = [
   'save-draft',
   'clear-draft',
   'get-draft',
+  'set-draft-directory',
+  'get-draft-directory',
   'hide-window',
   'show-window',
   'get-config',
@@ -31,7 +33,8 @@ const ALLOWED_CHANNELS = [
   'get-slash-commands',
   'directory-data-updated',
   'open-settings',
-  'get-agents'
+  'get-agents',
+  'open-file-in-editor'
 ];
 
 // IPC channel validation with additional security checks
@@ -201,6 +204,12 @@ const electronAPI = {
     },
     clear: async (): Promise<void> => {
       return ipcRenderer.invoke('clear-draft');
+    },
+    setDirectory: async (directory: string | null): Promise<void> => {
+      return ipcRenderer.invoke('set-draft-directory', directory);
+    },
+    getDirectory: async (): Promise<string | null> => {
+      return ipcRenderer.invoke('get-draft-directory');
     }
   },
 
@@ -215,6 +224,13 @@ const electronAPI = {
   agents: {
     get: async (query?: string): Promise<any[]> => {
       return ipcRenderer.invoke('get-agents', query);
+    }
+  },
+
+  // File operations
+  file: {
+    openInEditor: async (filePath: string): Promise<{ success: boolean; error?: string }> => {
+      return ipcRenderer.invoke('open-file-in-editor', filePath);
     }
   }
 };
@@ -256,12 +272,17 @@ export interface ElectronAPI {
     save: (text: string) => Promise<void>;
     get: () => Promise<string | null>;
     clear: () => Promise<void>;
+    setDirectory: (directory: string | null) => Promise<void>;
+    getDirectory: () => Promise<string | null>;
   };
   slashCommands: {
     get: (query?: string) => Promise<any[]>;
   };
   agents: {
     get: (query?: string) => Promise<any[]>;
+  };
+  file: {
+    openInEditor: (filePath: string) => Promise<{ success: boolean; error?: string }>;
   };
 }
 

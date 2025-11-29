@@ -105,6 +105,8 @@ class IPCHandlers {
     ipcMain.handle('save-draft', this.handleSaveDraft.bind(this));
     ipcMain.handle('clear-draft', this.handleClearDraft.bind(this));
     ipcMain.handle('get-draft', this.handleGetDraft.bind(this));
+    ipcMain.handle('set-draft-directory', this.handleSetDraftDirectory.bind(this));
+    ipcMain.handle('get-draft-directory', this.handleGetDraftDirectory.bind(this));
     ipcMain.handle('hide-window', this.handleHideWindow.bind(this));
     ipcMain.handle('show-window', this.handleShowWindow.bind(this));
     ipcMain.handle('get-app-info', this.handleGetAppInfo.bind(this));
@@ -113,6 +115,7 @@ class IPCHandlers {
     ipcMain.handle('open-settings', this.handleOpenSettings.bind(this));
     ipcMain.handle('get-slash-commands', this.handleGetSlashCommands.bind(this));
     ipcMain.handle('get-agents', this.handleGetAgents.bind(this));
+    ipcMain.handle('open-file-in-editor', this.handleOpenFileInEditor.bind(this));
 
     logger.info('IPC handlers set up successfully');
   }
@@ -139,7 +142,7 @@ class IPCHandlers {
 
       // Get previous app info before hiding window
       const previousApp = await this.getPreviousAppAsync();
-      
+
       // Extract app name for history
       let appName: string | undefined;
       if (previousApp) {
@@ -150,8 +153,11 @@ class IPCHandlers {
         }
       }
 
+      // Get directory from draft manager
+      const directory = this.draftManager.getDirectory() || undefined;
+
       await Promise.all([
-        this.historyManager.addToHistory(text, appName),
+        this.historyManager.addToHistory(text, appName, directory),
         this.draftManager.clearDraft(),
         this.setClipboardAsync(text)
       ]);
@@ -328,6 +334,30 @@ class IPCHandlers {
     }
   }
 
+  private async handleSetDraftDirectory(
+    _event: IpcMainInvokeEvent,
+    directory: string | null
+  ): Promise<IPCResult> {
+    try {
+      this.draftManager.setDirectory(directory);
+      logger.debug('Draft directory set via IPC', { directory });
+      return { success: true };
+    } catch (error) {
+      logger.error('Failed to set draft directory:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
+  private async handleGetDraftDirectory(_event: IpcMainInvokeEvent): Promise<string | null> {
+    try {
+      const directory = this.draftManager.getDirectory();
+      logger.debug('Draft directory requested', { directory });
+      return directory;
+    } catch (error) {
+      logger.error('Failed to get draft directory:', error);
+      return null;
+    }
+  }
 
   private async handleHideWindow(_event: IpcMainInvokeEvent, restoreFocus: boolean = true): Promise<IPCResult> {
     try {
@@ -547,6 +577,43 @@ class IPCHandlers {
     }
   }
 
+  private async handleOpenFileInEditor(
+    _event: IpcMainInvokeEvent,
+    filePath: string
+  ): Promise<IPCResult> {
+    try {
+      logger.info('Opening file in editor:', { filePath });
+
+      // Validate input
+      if (!filePath || typeof filePath !== 'string') {
+        return { success: false, error: 'Invalid file path provided' };
+      }
+
+      // Convert to absolute path if relative
+      const absolutePath = path.isAbsolute(filePath)
+        ? filePath
+        : path.join(process.cwd(), filePath);
+
+      // Normalize and validate path to prevent path traversal
+      const normalizedPath = path.normalize(absolutePath);
+
+      // Open file with system default application
+      const result = await shell.openPath(normalizedPath);
+
+      if (result) {
+        // shell.openPath returns an error string if failed, empty string on success
+        logger.error('Failed to open file in editor:', { error: result, path: normalizedPath });
+        return { success: false, error: result };
+      }
+
+      logger.info('File opened successfully in editor:', { path: normalizedPath });
+      return { success: true };
+    } catch (error) {
+      logger.error('Failed to open file in editor:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
   removeAllHandlers(): void {
     const handlers = [
       'paste-text',
@@ -557,6 +624,8 @@ class IPCHandlers {
       'save-draft',
       'clear-draft',
       'get-draft',
+      'set-draft-directory',
+      'get-draft-directory',
       'hide-window',
       'show-window',
       'get-app-info',
@@ -564,7 +633,8 @@ class IPCHandlers {
       'paste-image',
       'open-settings',
       'get-slash-commands',
-      'get-agents'
+      'get-agents',
+      'open-file-in-editor'
     ];
 
     handlers.forEach(handler => {

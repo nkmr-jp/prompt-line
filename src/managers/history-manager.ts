@@ -102,34 +102,36 @@ class HistoryManager implements IHistoryManager {
     }
   }
 
-  async addToHistory(text: string, appName?: string): Promise<HistoryItem | null> {
+  async addToHistory(text: string, appName?: string, directory?: string): Promise<HistoryItem | null> {
     try {
       const trimmedText = text.trim();
       if (!trimmedText) {
         logger.debug('Attempted to add empty text to history');
         return null;
       }
-      
+
       this.historyData = this.historyData.filter(item => item.text !== trimmedText);
-      
+
       const historyItem: HistoryItem = {
         text: trimmedText,
         timestamp: Date.now(),
         id: generateId(),
-        ...(appName && { appName })
+        ...(appName && { appName }),
+        ...(directory && { directory })
       };
-      
+
       this.historyData.unshift(historyItem);
-      
+
       this.criticalSave();
-      
-      logger.debug('Added item to history (batch save queued):', { 
-        id: historyItem.id, 
+
+      logger.debug('Added item to history (batch save queued):', {
+        id: historyItem.id,
         length: trimmedText.length,
         appName: appName || 'unknown',
-        totalItems: this.historyData.length 
+        directory: directory || 'unknown',
+        totalItems: this.historyData.length
       });
-      
+
       return historyItem;
     } catch (error) {
       logger.error('Failed to add item to history:', error);

@@ -17,6 +17,7 @@ interface DraftMetadata {
   version: string;
   wordCount: number;
   lineCount: number;
+  directory?: string;
 }
 
 interface DraftBackup {
@@ -38,6 +39,7 @@ class DraftManager {
   private draftFile: string;
   private saveDelay: number;
   private currentDraft: string | null = null;
+  private currentDirectory: string | null = null;
   private pendingSave = false;
   private hasUnsavedChanges = false;
   private lastSavedContent: string | null = null;
@@ -65,16 +67,20 @@ class DraftManager {
   async loadDraft(): Promise<string> {
     try {
       const data = await fs.readFile(this.draftFile, 'utf8');
-      
+
       if (!data || data.trim().length === 0) {
         logger.debug('Draft file is empty');
         return '';
       }
-      
-      const parsed = safeJsonParse<{ text?: string }>(data, {});
-      
+
+      const parsed = safeJsonParse<{ text?: string; directory?: string }>(data, {});
+
       if (parsed && typeof parsed.text === 'string') {
-        logger.debug('Draft loaded:', { length: parsed.text.length });
+        // Also load the directory if available
+        if (parsed.directory) {
+          this.currentDirectory = parsed.directory;
+        }
+        logger.debug('Draft loaded:', { length: parsed.text.length, directory: this.currentDirectory });
         return parsed.text;
       } else {
         logger.debug('No valid draft found');
@@ -126,19 +132,24 @@ class DraftManager {
 
     this.pendingSave = true;
     try {
-      const draft = {
+      const draft: { text: string; timestamp: number; version: string; directory?: string } = {
         text: text,
         timestamp: Date.now(),
         version: '1.0'
       };
-      
+
+      // Include directory if set
+      if (this.currentDirectory) {
+        draft.directory = this.currentDirectory;
+      }
+
       const data = safeJsonStringify(draft);
       await fs.writeFile(this.draftFile, data);
-      
+
       this.lastSavedContent = text;
       this.hasUnsavedChanges = false;
-      
-      logger.debug('Draft saved to file (optimized):', { length: text.length });
+
+      logger.debug('Draft saved to file (optimized):', { length: text.length, directory: this.currentDirectory });
     } catch (error) {
       logger.error('Failed to save draft to file:', error);
       throw error;
@@ -173,11 +184,12 @@ class DraftManager {
   async clearDraft(): Promise<void> {
     try {
       this.currentDraft = null;
-      
+      this.currentDirectory = null;
+
       if (this.debouncedSave.cancel) {
         this.debouncedSave.cancel();
       }
-      
+
       await fs.unlink(this.draftFile);
       logger.debug('Draft cleared and file removed');
     } catch (error) {
@@ -196,6 +208,21 @@ class DraftManager {
 
   hasDraft(): boolean {
     return !!(this.currentDraft && this.currentDraft.trim());
+  }
+
+  /**
+   * Set the current directory associated with the draft
+   */
+  setDirectory(directory: string | null): void {
+    this.currentDirectory = directory;
+    logger.debug('Draft directory set:', { directory });
+  }
+
+  /**
+   * Get the directory associated with the draft
+   */
+  getDirectory(): string | null {
+    return this.currentDirectory;
   }
 
   async getDraftMetadata(): Promise<DraftMetadata | null> {
