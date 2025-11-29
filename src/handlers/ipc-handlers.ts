@@ -14,7 +14,8 @@ import type WindowManager from '../managers/window-manager';
 import type DraftManager from '../managers/draft-manager';
 import type SettingsManager from '../managers/settings-manager';
 import SlashCommandLoader from '../managers/slash-command-loader';
-import type { AppInfo, WindowData, HistoryItem, IHistoryManager, SlashCommandItem } from '../types';
+import AgentLoader from '../managers/agent-loader';
+import type { AppInfo, WindowData, HistoryItem, IHistoryManager, SlashCommandItem, AgentItem } from '../types';
 
 interface IPCResult {
   success: boolean;
@@ -66,6 +67,7 @@ class IPCHandlers {
   private draftManager: DraftManager;
   private settingsManager: SettingsManager;
   private slashCommandLoader: SlashCommandLoader;
+  private agentLoader: AgentLoader;
 
   constructor(
     windowManager: WindowManager,
@@ -78,11 +80,17 @@ class IPCHandlers {
     this.draftManager = draftManager;
     this.settingsManager = settingsManager;
     this.slashCommandLoader = new SlashCommandLoader();
+    this.agentLoader = new AgentLoader();
 
-    // Initialize slash command loader with settings
+    // Initialize slash command loader and agent loader with settings
     const settings = this.settingsManager.getSettings();
     if (settings.commands?.directories) {
       this.slashCommandLoader.setDirectories(settings.commands.directories);
+      logger.info('Slash command directories configured', { directories: settings.commands.directories });
+    }
+    if (settings.agents?.directories) {
+      this.agentLoader.setDirectories(settings.agents.directories);
+      logger.info('Agent directories configured', { directories: settings.agents.directories });
     }
 
     this.setupHandlers();
@@ -104,6 +112,7 @@ class IPCHandlers {
     ipcMain.handle('paste-image', this.handlePasteImage.bind(this));
     ipcMain.handle('open-settings', this.handleOpenSettings.bind(this));
     ipcMain.handle('get-slash-commands', this.handleGetSlashCommands.bind(this));
+    ipcMain.handle('get-agents', this.handleGetAgents.bind(this));
 
     logger.info('IPC handlers set up successfully');
   }
@@ -514,6 +523,30 @@ class IPCHandlers {
     }
   }
 
+  private async handleGetAgents(
+    _event: IpcMainInvokeEvent,
+    query?: string
+  ): Promise<AgentItem[]> {
+    try {
+      // Refresh directories from settings in case they changed
+      const settings = this.settingsManager.getSettings();
+      this.agentLoader.setDirectories(settings.agents?.directories);
+
+      if (query) {
+        const agents = await this.agentLoader.searchAgents(query);
+        logger.debug('Agents searched', { query, count: agents.length });
+        return agents;
+      } else {
+        const agents = await this.agentLoader.getAgents();
+        logger.debug('Agents requested', { count: agents.length });
+        return agents;
+      }
+    } catch (error) {
+      logger.error('Failed to get agents:', error);
+      return [];
+    }
+  }
+
   removeAllHandlers(): void {
     const handlers = [
       'paste-text',
@@ -530,7 +563,8 @@ class IPCHandlers {
       'get-config',
       'paste-image',
       'open-settings',
-      'get-slash-commands'
+      'get-slash-commands',
+      'get-agents'
     ];
 
     handlers.forEach(handler => {

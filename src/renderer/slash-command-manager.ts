@@ -189,6 +189,8 @@ export class SlashCommandManager {
     this.suggestionsContainer.style.display = 'block';
     // Reset hover-enabled class when re-rendering (will be re-added on mousemove)
     this.suggestionsContainer.classList.remove('hover-enabled');
+    // Reset scroll position to top when search text changes
+    this.suggestionsContainer.scrollTop = 0;
 
     const fragment = document.createDocumentFragment();
 

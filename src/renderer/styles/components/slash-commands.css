@@ -6,10 +6,10 @@
   left: 16px;
   max-height: 90%;
   max-width: 95%;
-  overflow-y: scroll;
+  overflow-y: auto;
   overflow-x: hidden;
   background: #222;
-  border: 1px solid #444;
+  /*border: 1px solid #444;*/
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   z-index: 100;
@@ -65,7 +65,8 @@
 
 /* Scrollbar styling */
 .slash-command-suggestions::-webkit-scrollbar {
-  display: none;
+  /*display: none;*/
+  width: 3px;
 }
 
 .slash-command-suggestions::-webkit-scrollbar-track {

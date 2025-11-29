@@ -3,7 +3,7 @@
  * Manages @ file mention functionality with incremental search
  */
 
-import type { FileInfo, DirectoryInfo } from '../types';
+import type { FileInfo, DirectoryInfo, AgentItem } from '../types';
 
 /**
  * Format object for console output (Electron renderer -> main process)
@@ -47,6 +47,7 @@ export class FileSearchManager {
   private cachedDirectoryData: DirectoryData | null = null;
   private selectedIndex: number = 0;
   private filteredFiles: FileInfo[] = [];
+  private filteredAgents: AgentItem[] = []; // Agents matching the query
   private isVisible: boolean = false;
   private currentQuery: string = '';
   private atStartPosition: number = -1;
@@ -57,6 +58,7 @@ export class FileSearchManager {
 
   // Constants
   private static readonly MAX_SUGGESTIONS = 15;
+  private static readonly MAX_AGENTS = 5; // Max agents to show in suggestions
 
   constructor(callbacks: FileSearchCallbacks) {
     this.callbacks = callbacks;
@@ -137,13 +139,13 @@ export class FileSearchManager {
       this.suggestionsContainer.setAttribute('role', 'listbox');
       this.suggestionsContainer.setAttribute('aria-label', 'File suggestions');
 
-      // Insert after textarea
-      const inputSection = document.querySelector('.input-section');
-      if (inputSection) {
-        inputSection.appendChild(this.suggestionsContainer);
-        console.debug('[FileSearchManager] initializeElements: suggestionsContainer created and appended');
+      // Insert into main-content (allows suggestions to span across input-section and history-section)
+      const mainContent = document.querySelector('.main-content');
+      if (mainContent) {
+        mainContent.appendChild(this.suggestionsContainer);
+        console.debug('[FileSearchManager] initializeElements: suggestionsContainer created and appended to main-content');
       } else {
-        console.warn('[FileSearchManager] initializeElements: .input-section not found!');
+        console.warn('[FileSearchManager] initializeElements: .main-content not found!');
       }
     } else {
       console.debug('[FileSearchManager] initializeElements: suggestionsContainer already exists');
@@ -341,7 +343,7 @@ export class FileSearchManager {
   /**
    * Show file suggestions based on the query
    */
-  public showSuggestions(query: string): void {
+  public async showSuggestions(query: string): Promise<void> {
     console.debug('[FileSearchManager] showSuggestions called', formatLog({
       query,
       currentPath: this.currentPath,
@@ -349,8 +351,8 @@ export class FileSearchManager {
       hasCachedData: !!this.cachedDirectoryData
     }));
 
-    if (!this.suggestionsContainer || !this.cachedDirectoryData) {
-      console.debug('[FileSearchManager] showSuggestions: early return - missing container or data');
+    if (!this.suggestionsContainer) {
+      console.debug('[FileSearchManager] showSuggestions: early return - missing container');
       return;
     }
 
@@ -362,15 +364,49 @@ export class FileSearchManager {
     const searchTerm = this.currentPath ? query.substring(this.currentPath.length) : query;
 
     this.currentQuery = searchTerm;
-    this.filteredFiles = this.filterFiles(searchTerm);
+
+    // Fetch agents matching the query (only at root level without path navigation)
+    if (!this.currentPath) {
+      this.filteredAgents = await this.searchAgents(searchTerm);
+    } else {
+      this.filteredAgents = [];
+    }
+
+    // Filter files if directory data is available
+    if (this.cachedDirectoryData) {
+      this.filteredFiles = this.filterFiles(searchTerm);
+    } else {
+      this.filteredFiles = [];
+    }
+
     this.selectedIndex = 0;
     this.isVisible = true;
 
-    console.debug('[FileSearchManager] showSuggestions: filtered files count:', this.filteredFiles.length, 'searchTerm:', searchTerm);
+    console.debug('[FileSearchManager] showSuggestions: filtered', formatLog({
+      agents: this.filteredAgents.length,
+      files: this.filteredFiles.length,
+      searchTerm
+    }));
     this.renderSuggestions();
     this.positionSuggestions();
     this.updateSelection();
     console.debug('[FileSearchManager] showSuggestions: render complete, isVisible:', this.isVisible);
+  }
+
+  /**
+   * Search agents via IPC
+   */
+  private async searchAgents(query: string): Promise<AgentItem[]> {
+    try {
+      const electronAPI = (window as any).electronAPI;
+      if (electronAPI?.agents?.get) {
+        const agents = await electronAPI.agents.get(query);
+        return agents.slice(0, FileSearchManager.MAX_AGENTS);
+      }
+    } catch (error) {
+      console.error('[FileSearchManager] Failed to search agents:', error);
+    }
+    return [];
   }
 
   /**
@@ -413,6 +449,7 @@ export class FileSearchManager {
    * Position the suggestions container near the @ position
    * Shows above the cursor if there's not enough space below
    * Dynamically adjusts max-height based on available space
+   * Uses main-content as positioning reference to allow spanning across input and history sections
    */
   private positionSuggestions(): void {
     if (!this.suggestionsContainer || !this.textInput || this.atStartPosition < 0) return;
@@ -420,19 +457,19 @@ export class FileSearchManager {
     const coords = this.getCaretCoordinates(this.atStartPosition);
     if (!coords) return;
 
-    // Get input section for relative positioning
-    const inputSection = this.textInput.closest('.input-section');
-    if (!inputSection) return;
+    // Get main-content for relative positioning (allows spanning across sections)
+    const mainContent = this.textInput.closest('.main-content');
+    if (!mainContent) return;
 
-    const inputSectionRect = inputSection.getBoundingClientRect();
+    const mainContentRect = mainContent.getBoundingClientRect();
     const lineHeight = parseInt(window.getComputedStyle(this.textInput).lineHeight) || 20;
 
-    // Calculate position relative to input-section
-    const caretTop = coords.top - inputSectionRect.top;
-    const left = Math.max(8, coords.left - inputSectionRect.left);
+    // Calculate position relative to main-content
+    const caretTop = coords.top - mainContentRect.top;
+    const left = Math.max(8, coords.left - mainContentRect.left);
 
     // Calculate available space below and above the cursor
-    const spaceBelow = inputSectionRect.height - (caretTop + lineHeight) - 8; // 8px margin
+    const spaceBelow = mainContentRect.height - (caretTop + lineHeight) - 8; // 8px margin
     const spaceAbove = caretTop - 8; // 8px margin
 
     let top: number = 0;
@@ -462,9 +499,23 @@ export class FileSearchManager {
       if (top < 0) top = 0;
     }
 
-    // Ensure the menu doesn't go off the right edge
-    const maxLeft = inputSectionRect.width - 200; // Leave at least 200px for the menu
-    const adjustedLeft = Math.min(left, Math.max(8, maxLeft));
+    // Calculate dynamic max-width and adjust left position if needed
+    // This allows the menu to span into the history section if needed
+    const minMenuWidth = 500; // Minimum width for readable descriptions
+    const rightMargin = 8; // Margin from right edge
+    let availableWidth = mainContentRect.width - left - rightMargin;
+    let adjustedLeft = left;
+
+    // If not enough space on the right, shift the menu left to ensure minimum width
+    if (availableWidth < minMenuWidth) {
+      // Calculate how much to shift left
+      const shiftAmount = minMenuWidth - availableWidth;
+      adjustedLeft = Math.max(8, left - shiftAmount); // Don't go past left edge
+      availableWidth = mainContentRect.width - adjustedLeft - rightMargin;
+    }
+
+    const dynamicMaxWidth = Math.max(minMenuWidth, availableWidth);
+    this.suggestionsContainer.style.maxWidth = `${dynamicMaxWidth}px`;
 
     this.suggestionsContainer.style.top = `${top}px`;
     this.suggestionsContainer.style.left = `${adjustedLeft}px`;
@@ -475,10 +526,12 @@ export class FileSearchManager {
       atPosition: this.atStartPosition,
       top,
       left: adjustedLeft,
+      originalLeft: left,
       showAbove,
       spaceBelow,
       spaceAbove,
-      dynamicMaxHeight
+      dynamicMaxHeight,
+      dynamicMaxWidth
     }));
   }
 
@@ -492,6 +545,7 @@ export class FileSearchManager {
     this.suggestionsContainer.style.display = 'none';
     this.suggestionsContainer.innerHTML = '';
     this.filteredFiles = [];
+    this.filteredAgents = []; // Clear agents as well
     this.currentQuery = '';
     this.atStartPosition = -1;
     this.currentPath = ''; // Reset directory navigation state
@@ -774,98 +828,201 @@ export class FileSearchManager {
   }
 
   /**
+   * Get total count of items (agents + files) for navigation
+   */
+  private getTotalItemCount(): number {
+    return this.filteredAgents.length + this.filteredFiles.length;
+  }
+
+  /**
    * Render the suggestions in the dropdown
    */
   private renderSuggestions(): void {
     if (!this.suggestionsContainer) return;
 
-    if (this.filteredFiles.length === 0) {
+    const totalItems = this.getTotalItemCount();
+
+    if (totalItems === 0) {
       this.suggestionsContainer.innerHTML = `
         <div class="file-suggestion-empty">
-          No matching files found
+          No matching items found
         </div>
       `;
       this.suggestionsContainer.style.display = 'block';
+      // Reset scroll position to top
+      this.suggestionsContainer.scrollTop = 0;
       return;
     }
 
-    const fragment = document.createDocumentFragment();
-    const baseDir = this.cachedDirectoryData?.directory || '';
+    // Reset scroll position to top when search text changes
+    this.suggestionsContainer.scrollTop = 0;
 
-    // Add path header if we're in a subdirectory
-    if (this.currentPath) {
-      const header = document.createElement('div');
-      header.className = 'file-suggestion-header';
-      header.textContent = this.currentPath;
-      fragment.appendChild(header);
+    const fragment = document.createDocumentFragment();
+    let itemIndex = 0;
+
+    // Render agents section
+    if (this.filteredAgents.length > 0) {
+      const agentHeader = document.createElement('div');
+      agentHeader.className = 'suggestion-section-header';
+      agentHeader.textContent = 'Agents';
+      fragment.appendChild(agentHeader);
+
+      this.filteredAgents.forEach((agent) => {
+        const item = document.createElement('div');
+        item.className = 'file-suggestion-item agent-suggestion-item';
+        item.setAttribute('role', 'option');
+        item.setAttribute('data-index', itemIndex.toString());
+        item.setAttribute('data-type', 'agent');
+        item.setAttribute('data-agent-index', this.filteredAgents.indexOf(agent).toString());
+
+        // Create icon
+        const icon = document.createElement('span');
+        icon.className = 'file-icon agent-icon';
+        icon.textContent = '🤖';
+
+        // Create name with highlighting
+        const name = document.createElement('span');
+        name.className = 'file-name agent-name';
+        name.innerHTML = this.highlightMatch(agent.name, this.currentQuery);
+
+        // Create description
+        const desc = document.createElement('span');
+        desc.className = 'file-path agent-description';
+        desc.textContent = agent.description;
+
+        item.appendChild(icon);
+        item.appendChild(name);
+        item.appendChild(desc);
+
+        // Click handler
+        const currentIndex = itemIndex;
+        item.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this.selectItem(currentIndex);
+        });
+
+        // Mouse move handler
+        item.addEventListener('mousemove', () => {
+          const allItems = this.suggestionsContainer?.querySelectorAll('.file-suggestion-item');
+          allItems?.forEach(el => el.classList.remove('hovered'));
+          item.classList.add('hovered');
+        });
+
+        item.addEventListener('mouseleave', () => {
+          item.classList.remove('hovered');
+        });
+
+        fragment.appendChild(item);
+        itemIndex++;
+      });
     }
 
-    this.filteredFiles.forEach((file, index) => {
-      const item = document.createElement('div');
-      item.className = 'file-suggestion-item';
-      item.setAttribute('role', 'option');
-      item.setAttribute('data-index', index.toString());
+    // Render files section
+    if (this.filteredFiles.length > 0) {
+      const baseDir = this.cachedDirectoryData?.directory || '';
 
-      // Create icon
-      const icon = document.createElement('span');
-      icon.className = 'file-icon';
-      icon.textContent = file.isDirectory ? '📁' : this.getFileIcon(file.name);
-
-      // Create name with highlighting
-      const name = document.createElement('span');
-      name.className = 'file-name';
-
-      if (file.isDirectory) {
-        // For directories: show name with file count
-        const fileCount = this.countFilesInDirectory(file.path);
-        const displayName = this.highlightMatch(file.name, this.currentQuery);
-        name.innerHTML = `${displayName} <span class="file-count">(${fileCount} files)</span>`;
-      } else {
-        // For files: just show the name
-        name.innerHTML = this.highlightMatch(file.name, this.currentQuery);
+      // Add section header if there are agents
+      if (this.filteredAgents.length > 0) {
+        const fileHeader = document.createElement('div');
+        fileHeader.className = 'suggestion-section-header';
+        fileHeader.textContent = 'Files';
+        fragment.appendChild(fileHeader);
       }
 
-      item.appendChild(icon);
-      item.appendChild(name);
-
-      // Show the directory path next to the filename (for both files and directories)
-      const relativePath = this.getRelativePath(file.path, baseDir);
-      const dirPath = this.getDirectoryFromPath(relativePath);
-      if (dirPath) {
-        const pathEl = document.createElement('span');
-        pathEl.className = 'file-path';
-        pathEl.textContent = dirPath;
-        item.appendChild(pathEl);
+      // Add path header if we're in a subdirectory
+      if (this.currentPath) {
+        const header = document.createElement('div');
+        header.className = 'file-suggestion-header';
+        header.textContent = this.currentPath;
+        fragment.appendChild(header);
       }
 
-      // Click handler
-      item.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        this.selectFile(index);
-      });
+      this.filteredFiles.forEach((file) => {
+        const item = document.createElement('div');
+        item.className = 'file-suggestion-item';
+        item.setAttribute('role', 'option');
+        item.setAttribute('data-index', itemIndex.toString());
+        item.setAttribute('data-type', 'file');
+        item.setAttribute('data-file-index', this.filteredFiles.indexOf(file).toString());
 
-      // Mouse move handler - only highlight when mouse actually moves
-      // This prevents accidental highlighting when menu appears under stationary mouse cursor
-      item.addEventListener('mousemove', () => {
-        // Remove hovered class from all items
-        const allItems = this.suggestionsContainer?.querySelectorAll('.file-suggestion-item');
-        allItems?.forEach(el => el.classList.remove('hovered'));
-        // Add hovered class to this item
-        item.classList.add('hovered');
-      });
+        // Create icon
+        const icon = document.createElement('span');
+        icon.className = 'file-icon';
+        icon.textContent = file.isDirectory ? '📁' : this.getFileIcon(file.name);
 
-      // Remove hover when mouse leaves the item
-      item.addEventListener('mouseleave', () => {
-        item.classList.remove('hovered');
-      });
+        // Create name with highlighting
+        const name = document.createElement('span');
+        name.className = 'file-name';
 
-      fragment.appendChild(item);
-    });
+        if (file.isDirectory) {
+          // For directories: show name with file count
+          const fileCount = this.countFilesInDirectory(file.path);
+          const displayName = this.highlightMatch(file.name, this.currentQuery);
+          name.innerHTML = `${displayName} <span class="file-count">(${fileCount} files)</span>`;
+        } else {
+          // For files: just show the name
+          name.innerHTML = this.highlightMatch(file.name, this.currentQuery);
+        }
+
+        item.appendChild(icon);
+        item.appendChild(name);
+
+        // Show the directory path next to the filename (for both files and directories)
+        const relativePath = this.getRelativePath(file.path, baseDir);
+        const dirPath = this.getDirectoryFromPath(relativePath);
+        if (dirPath) {
+          const pathEl = document.createElement('span');
+          pathEl.className = 'file-path';
+          pathEl.textContent = dirPath;
+          item.appendChild(pathEl);
+        }
+
+        // Click handler
+        const currentIndex = itemIndex;
+        item.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this.selectItem(currentIndex);
+        });
+
+        // Mouse move handler - only highlight when mouse actually moves
+        // This prevents accidental highlighting when menu appears under stationary mouse cursor
+        item.addEventListener('mousemove', () => {
+          // Remove hovered class from all items
+          const allItems = this.suggestionsContainer?.querySelectorAll('.file-suggestion-item');
+          allItems?.forEach(el => el.classList.remove('hovered'));
+          // Add hovered class to this item
+          item.classList.add('hovered');
+        });
+
+        // Remove hover when mouse leaves the item
+        item.addEventListener('mouseleave', () => {
+          item.classList.remove('hovered');
+        });
+
+        fragment.appendChild(item);
+        itemIndex++;
+      });
+    }
 
     this.suggestionsContainer.innerHTML = '';
     this.suggestionsContainer.appendChild(fragment);
     this.suggestionsContainer.style.display = 'block';
+  }
+
+  /**
+   * Select an item (agent or file) by combined index
+   */
+  private selectItem(index: number): void {
+    if (index < this.filteredAgents.length) {
+      // It's an agent
+      this.selectAgent(index);
+    } else {
+      // It's a file
+      const fileIndex = index - this.filteredAgents.length;
+      this.selectFile(fileIndex);
+    }
   }
 
   /**
@@ -956,11 +1113,13 @@ export class FileSearchManager {
   public handleKeyDown(e: KeyboardEvent): void {
     if (!this.isVisible) return;
 
+    const totalItems = this.getTotalItemCount();
+
     // Ctrl+n or Ctrl+j: Move down (same as ArrowDown)
     if (e.ctrlKey && (e.key === 'n' || e.key === 'j')) {
       e.preventDefault();
       e.stopPropagation();
-      this.selectedIndex = Math.min(this.selectedIndex + 1, this.filteredFiles.length - 1);
+      this.selectedIndex = Math.min(this.selectedIndex + 1, totalItems - 1);
       this.updateSelection();
       return;
     }
@@ -978,7 +1137,7 @@ export class FileSearchManager {
       case 'ArrowDown':
         e.preventDefault();
         e.stopPropagation();
-        this.selectedIndex = Math.min(this.selectedIndex + 1, this.filteredFiles.length - 1);
+        this.selectedIndex = Math.min(this.selectedIndex + 1, totalItems - 1);
         this.updateSelection();
         break;
 
@@ -990,27 +1149,33 @@ export class FileSearchManager {
         break;
 
       case 'Enter':
-        // Enter: Always insert the path (file or directory)
-        if (this.filteredFiles.length > 0) {
+        // Enter: Select the currently highlighted item (agent or file)
+        if (totalItems > 0) {
           e.preventDefault();
           e.stopPropagation();
-          this.selectFile(this.selectedIndex);
+          this.selectItem(this.selectedIndex);
         }
         break;
 
       case 'Tab':
-        // Tab: Navigate into directory, or insert file path
-        if (this.filteredFiles.length > 0) {
+        // Tab: Navigate into directory (for files), or select item (for agents/files)
+        if (totalItems > 0) {
           e.preventDefault();
           e.stopPropagation();
-          const file = this.filteredFiles[this.selectedIndex];
-          if (file?.isDirectory) {
-            // Navigate into directory
-            this.navigateIntoDirectory(file);
-          } else {
-            // Insert file path
-            this.selectFile(this.selectedIndex);
+
+          // Check if current selection is a file (directory navigation)
+          if (this.selectedIndex >= this.filteredAgents.length) {
+            const fileIndex = this.selectedIndex - this.filteredAgents.length;
+            const file = this.filteredFiles[fileIndex];
+            if (file?.isDirectory) {
+              // Navigate into directory
+              this.navigateIntoDirectory(file);
+              return;
+            }
           }
+
+          // Otherwise select the item (agent or file)
+          this.selectItem(this.selectedIndex);
         }
         break;
 
@@ -1106,6 +1271,21 @@ export class FileSearchManager {
 
     // Callback for external handling
     this.callbacks.onFileSelected(relativePath);
+  }
+
+  /**
+   * Select an agent and insert its name with @ prefix
+   */
+  private selectAgent(index: number): void {
+    const agent = this.filteredAgents[index];
+    if (!agent) return;
+
+    // Insert agent name (the name already serves as the identifier)
+    this.insertFilePath(agent.name);
+    this.hideSuggestions();
+
+    // Callback for external handling (using agent name as path)
+    this.callbacks.onFileSelected(`@${agent.name}`);
   }
 
   /**
