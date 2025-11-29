@@ -369,6 +369,11 @@ export class PromptLineRenderer {
       this.lifecycleManager.handleWindowShown(data);
       this.updateHistoryAndSettings(data);
 
+      // Restore @paths highlighting for restored draft text (after small delay to ensure text is set)
+      setTimeout(() => {
+        this.fileSearchManager?.restoreAtPathsFromText();
+      }, 50);
+
       // Reset search mode and scroll position when window is shown
       this.searchManager?.exitSearchMode();
       this.resetHistoryScrollPosition();

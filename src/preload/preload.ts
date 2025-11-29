@@ -31,7 +31,8 @@ const ALLOWED_CHANNELS = [
   'get-slash-commands',
   'directory-data-updated',
   'open-settings',
-  'get-agents'
+  'get-agents',
+  'open-file-in-editor'
 ];
 
 // IPC channel validation with additional security checks
@@ -216,6 +217,13 @@ const electronAPI = {
     get: async (query?: string): Promise<any[]> => {
       return ipcRenderer.invoke('get-agents', query);
     }
+  },
+
+  // File operations
+  file: {
+    openInEditor: async (filePath: string): Promise<{ success: boolean; error?: string }> => {
+      return ipcRenderer.invoke('open-file-in-editor', filePath);
+    }
   }
 };
 
@@ -262,6 +270,9 @@ export interface ElectronAPI {
   };
   agents: {
     get: (query?: string) => Promise<any[]>;
+  };
+  file: {
+    openInEditor: (filePath: string) => Promise<{ success: boolean; error?: string }>;
   };
 }
 

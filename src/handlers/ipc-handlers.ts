@@ -113,6 +113,7 @@ class IPCHandlers {
     ipcMain.handle('open-settings', this.handleOpenSettings.bind(this));
     ipcMain.handle('get-slash-commands', this.handleGetSlashCommands.bind(this));
     ipcMain.handle('get-agents', this.handleGetAgents.bind(this));
+    ipcMain.handle('open-file-in-editor', this.handleOpenFileInEditor.bind(this));
 
     logger.info('IPC handlers set up successfully');
   }
@@ -547,6 +548,43 @@ class IPCHandlers {
     }
   }
 
+  private async handleOpenFileInEditor(
+    _event: IpcMainInvokeEvent,
+    filePath: string
+  ): Promise<IPCResult> {
+    try {
+      logger.info('Opening file in editor:', { filePath });
+
+      // Validate input
+      if (!filePath || typeof filePath !== 'string') {
+        return { success: false, error: 'Invalid file path provided' };
+      }
+
+      // Convert to absolute path if relative
+      const absolutePath = path.isAbsolute(filePath)
+        ? filePath
+        : path.join(process.cwd(), filePath);
+
+      // Normalize and validate path to prevent path traversal
+      const normalizedPath = path.normalize(absolutePath);
+
+      // Open file with system default application
+      const result = await shell.openPath(normalizedPath);
+
+      if (result) {
+        // shell.openPath returns an error string if failed, empty string on success
+        logger.error('Failed to open file in editor:', { error: result, path: normalizedPath });
+        return { success: false, error: result };
+      }
+
+      logger.info('File opened successfully in editor:', { path: normalizedPath });
+      return { success: true };
+    } catch (error) {
+      logger.error('Failed to open file in editor:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
   removeAllHandlers(): void {
     const handlers = [
       'paste-text',
@@ -564,7 +602,8 @@ class IPCHandlers {
       'paste-image',
       'open-settings',
       'get-slash-commands',
-      'get-agents'
+      'get-agents',
+      'open-file-in-editor'
     ];
 
     handlers.forEach(handler => {

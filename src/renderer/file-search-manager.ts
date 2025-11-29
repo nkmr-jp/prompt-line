@@ -368,6 +368,78 @@ export class FileSearchManager {
         this.hideSuggestions();
       }
     });
+
+    // Handle Cmd+click on @path in textarea to open in editor
+    this.textInput.addEventListener('click', (e) => {
+      if (e.metaKey) {
+        this.handleCmdClickOnAtPath(e);
+      }
+    });
+  }
+
+  /**
+   * Handle Cmd+click on @path in textarea to open the file in editor
+   */
+  private handleCmdClickOnAtPath(e: MouseEvent): void {
+    if (!this.textInput) return;
+
+    const text = this.textInput.value;
+    const cursorPos = this.textInput.selectionStart;
+
+    // Find @path at or near cursor position
+    const atPath = this.findAtPathAtPosition(text, cursorPos);
+    if (atPath) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Resolve the file path
+      const filePath = this.resolveAtPathToAbsolute(atPath);
+      if (filePath) {
+        window.electronAPI.file.openInEditor(filePath)
+          .catch((err: Error) => console.error('Failed to open file in editor:', err));
+      }
+    }
+  }
+
+  /**
+   * Find @path at the given cursor position
+   * Returns the path (without @) if found, null otherwise
+   */
+  private findAtPathAtPosition(text: string, cursorPos: number): string | null {
+    // Pattern to match @path (file paths after @)
+    const atPathPattern = /@([^\s@]+)/g;
+    let match;
+
+    while ((match = atPathPattern.exec(text)) !== null) {
+      const start = match.index;
+      const end = start + match[0].length;
+
+      // Check if cursor is within this @path
+      if (cursorPos >= start && cursorPos <= end) {
+        return match[1] ?? null; // Return path without @
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Resolve a relative file path to absolute path
+   */
+  private resolveAtPathToAbsolute(relativePath: string): string | null {
+    const baseDir = this.cachedDirectoryData?.directory;
+    if (!baseDir) {
+      // If no base directory, try to use the path as-is
+      return relativePath;
+    }
+
+    // Check if it's already an absolute path
+    if (relativePath.startsWith('/')) {
+      return relativePath;
+    }
+
+    // Combine with base directory
+    return `${baseDir}/${relativePath}`;
   }
 
   /**
@@ -1194,9 +1266,30 @@ export class FileSearchManager {
 
       // Click handler
       const currentIndex = itemIndex;
-      item.addEventListener('click', (e) => {
+      item.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
+
+        // Cmd+クリック（macOS）でエディタで開く
+        if (e.metaKey) {
+          const clickedSuggestion = this.mergedSuggestions[currentIndex];
+          if (clickedSuggestion) {
+            const filePath = clickedSuggestion.type === 'file'
+              ? clickedSuggestion.file?.path
+              : clickedSuggestion.agent?.filePath;
+            if (filePath) {
+              try {
+                await window.electronAPI.file.openInEditor(filePath);
+                this.hideSuggestions();
+              } catch (error) {
+                console.error('Failed to open file in editor:', error);
+              }
+              return;
+            }
+          }
+        }
+
+        // 通常クリックは既存の動作（テキスト挿入）
         this.selectItem(currentIndex);
       });
 
@@ -1361,9 +1454,27 @@ export class FileSearchManager {
 
       case 'Enter':
         // Enter: Select the currently highlighted item (agent or file)
+        // Ctrl+Enter: Open the file in editor
         if (totalItems > 0) {
           e.preventDefault();
           e.stopPropagation();
+
+          if (e.ctrlKey) {
+            // Ctrl+Enterでエディタで開く
+            const suggestion = this.mergedSuggestions[this.selectedIndex];
+            if (suggestion) {
+              const filePath = suggestion.type === 'file'
+                ? suggestion.file?.path
+                : suggestion.agent?.filePath;
+              if (filePath) {
+                window.electronAPI.file.openInEditor(filePath)
+                  .then(() => this.hideSuggestions())
+                  .catch((error: Error) => console.error('Failed to open file in editor:', error));
+                return;
+              }
+            }
+          }
+
           this.selectItem(this.selectedIndex);
         }
         break;
@@ -1703,6 +1814,38 @@ export class FileSearchManager {
    */
   public clearAtPaths(): void {
     this.atPaths = [];
+    this.updateHighlightBackdrop();
+  }
+
+  /**
+   * Restore @paths from text (called when draft is restored)
+   * This auto-detects @paths in the text and adds them to tracking
+   */
+  public restoreAtPathsFromText(): void {
+    if (!this.textInput) return;
+
+    const text = this.textInput.value;
+    if (!text) return;
+
+    // Clear existing paths
+    this.atPaths = [];
+
+    // Find all @paths in text
+    const atPathPattern = /@([^\s@]+)/g;
+    let match;
+
+    while ((match = atPathPattern.exec(text)) !== null) {
+      const pathContent = match[1];
+      // Only add paths that look like file paths (contain / or .)
+      if (pathContent && (pathContent.includes('/') || pathContent.includes('.'))) {
+        this.atPaths.push({
+          start: match.index,
+          end: match.index + match[0].length
+        });
+      }
+    }
+
+    console.debug('[FileSearchManager] Restored @paths from text:', this.atPaths.length);
     this.updateHighlightBackdrop();
   }
 
