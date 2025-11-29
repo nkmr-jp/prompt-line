@@ -142,7 +142,7 @@ class IPCHandlers {
 
       // Get previous app info before hiding window
       const previousApp = await this.getPreviousAppAsync();
-      
+
       // Extract app name for history
       let appName: string | undefined;
       if (previousApp) {
@@ -153,8 +153,11 @@ class IPCHandlers {
         }
       }
 
+      // Get directory from draft manager
+      const directory = this.draftManager.getDirectory() || undefined;
+
       await Promise.all([
-        this.historyManager.addToHistory(text, appName),
+        this.historyManager.addToHistory(text, appName, directory),
         this.draftManager.clearDraft(),
         this.setClipboardAsync(text)
       ]);

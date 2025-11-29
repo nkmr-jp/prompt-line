@@ -3,6 +3,7 @@ export interface HistoryItem {
   timestamp: number;
   id: string;
   appName?: string;
+  directory?: string;
 }
 
 export interface DraftData {
@@ -139,7 +140,7 @@ export interface ExportData {
 
 export interface IHistoryManager {
   initialize(): Promise<void>;
-  addToHistory(text: string, appName?: string): Promise<HistoryItem | null>;
+  addToHistory(text: string, appName?: string, directory?: string): Promise<HistoryItem | null>;
   getHistory(limit?: number): Promise<HistoryItem[]> | HistoryItem[];
   getHistoryItem(id: string): HistoryItem | null;
   getRecentHistory(limit?: number): HistoryItem[];
