@@ -214,6 +214,7 @@ export interface AgentItem {
   name: string;
   description: string;
   filePath: string;
+  frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
 }
 
 export interface FileInfo {

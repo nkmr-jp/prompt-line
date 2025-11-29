@@ -152,15 +152,23 @@ class AgentLoader {
     try {
       const content = await fs.readFile(filePath, 'utf8');
       const description = this.extractDescription(content);
+      const frontmatter = this.extractFrontmatter(content);
 
       // Agent name is the filename without .md extension
       const name = fileName.replace(/\.md$/, '');
 
-      return {
+      const result: AgentItem = {
         name,
         description: description || '',
         filePath
       };
+
+      // Only add frontmatter if it exists
+      if (frontmatter) {
+        result.frontmatter = frontmatter;
+      }
+
+      return result;
     } catch (error) {
       logger.warn('Failed to parse agent file', { filePath, error });
       return null;
@@ -197,6 +205,20 @@ class AgentLoader {
     }
 
     return description;
+  }
+
+  /**
+   * Extract full frontmatter content for popup display
+   * Returns the raw frontmatter text between --- markers
+   */
+  private extractFrontmatter(content: string): string {
+    // Match YAML frontmatter between --- markers
+    const frontmatterMatch = content.match(/^---\s*\n([\s\S]*?)\n---/);
+    if (!frontmatterMatch || !frontmatterMatch[1]) {
+      return '';
+    }
+
+    return frontmatterMatch[1].trim();
   }
 
   /**

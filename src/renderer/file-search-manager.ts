@@ -88,6 +88,12 @@ export class FileSearchManager {
   private mirrorDiv: HTMLDivElement | null = null; // Hidden div for caret position calculation
   private atPaths: AtPathRange[] = []; // Tracked @paths in the text
 
+  // Frontmatter popup elements
+  private frontmatterPopup: HTMLDivElement | null = null;
+  private popupHideTimeout: ReturnType<typeof setTimeout> | null = null;
+  private isPopupVisible: boolean = false; // Track if popup is currently visible
+  private static readonly POPUP_HIDE_DELAY = 100; // ms delay before hiding popup
+
   // Constants
   private static readonly MAX_SUGGESTIONS = 15;
   private static readonly MAX_AGENTS = 5; // Max agents to show in suggestions
@@ -181,6 +187,137 @@ export class FileSearchManager {
       }
     } else {
       console.debug('[FileSearchManager] initializeElements: suggestionsContainer already exists');
+    }
+
+    // Create frontmatter popup element
+    this.createFrontmatterPopup();
+  }
+
+  /**
+   * Create the frontmatter popup element for agent hover display
+   */
+  private createFrontmatterPopup(): void {
+    if (this.frontmatterPopup) return;
+
+    this.frontmatterPopup = document.createElement('div');
+    this.frontmatterPopup.id = 'frontmatterPopup';
+    this.frontmatterPopup.className = 'frontmatter-popup';
+    this.frontmatterPopup.style.display = 'none';
+
+    // Prevent popup from closing when hovering over it
+    this.frontmatterPopup.addEventListener('mouseenter', () => {
+      this.cancelPopupHide();
+    });
+
+    this.frontmatterPopup.addEventListener('mouseleave', () => {
+      this.schedulePopupHide();
+    });
+
+    // Capture wheel events on document when popup is visible
+    document.addEventListener('wheel', (e) => {
+      if (this.isPopupVisible && this.frontmatterPopup) {
+        // Prevent default scrolling behavior
+        e.preventDefault();
+        // Scroll the popup instead
+        this.frontmatterPopup.scrollTop += e.deltaY;
+      }
+    }, { passive: false });
+
+    // Append to main-content
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent) {
+      mainContent.appendChild(this.frontmatterPopup);
+      console.debug('[FileSearchManager] createFrontmatterPopup: popup created');
+    }
+  }
+
+  /**
+   * Show frontmatter popup for an agent
+   */
+  private showFrontmatterPopup(agent: AgentItem, targetElement: HTMLElement): void {
+    if (!this.frontmatterPopup || !agent.frontmatter || !this.suggestionsContainer) return;
+
+    // Cancel any pending hide
+    this.cancelPopupHide();
+
+    // Set content
+    this.frontmatterPopup.textContent = agent.frontmatter;
+
+    // Get the icon element from the target (suggestion item)
+    const iconElement = targetElement.querySelector('.file-icon');
+    const iconRect = iconElement?.getBoundingClientRect();
+    const itemRect = targetElement.getBoundingClientRect();
+    const containerRect = this.suggestionsContainer.getBoundingClientRect();
+
+    if (iconRect && containerRect) {
+      // Position: starts a bit right of the icon
+      // Width: narrower than container with margin on both sides
+      const leftOffset = 20; // Start more to the right
+      const rightMargin = 10; // Margin from container right edge
+      const left = iconRect.right + leftOffset;
+      const width = containerRect.right - iconRect.right - leftOffset - rightMargin;
+
+      // Gap between popup and item (larger gap makes popup disappear when mouse moves)
+      const verticalGap = 8;
+
+      // Calculate available space below and above the item
+      const spaceBelow = window.innerHeight - itemRect.bottom - 10; // 10px margin from bottom
+      const spaceAbove = itemRect.top - 10; // 10px margin from top
+      const minPopupHeight = 80;
+
+      // Decide whether to show popup above or below
+      const showAbove = spaceBelow < minPopupHeight && spaceAbove > spaceBelow;
+
+      let top: number;
+      let maxHeight: number;
+
+      if (showAbove) {
+        // Position above the item (icon's right-top)
+        maxHeight = Math.max(minPopupHeight, Math.min(150, spaceAbove - verticalGap));
+        top = itemRect.top - maxHeight - verticalGap;
+      } else {
+        // Position below the item (icon's right-bottom)
+        top = itemRect.bottom + verticalGap;
+        maxHeight = Math.max(minPopupHeight, Math.min(150, spaceBelow - verticalGap));
+      }
+
+      this.frontmatterPopup.style.left = `${left}px`;
+      this.frontmatterPopup.style.top = `${top}px`;
+      this.frontmatterPopup.style.width = `${width}px`;
+      this.frontmatterPopup.style.maxHeight = `${maxHeight}px`;
+    }
+
+    this.frontmatterPopup.style.display = 'block';
+    this.isPopupVisible = true;
+  }
+
+  /**
+   * Hide frontmatter popup
+   */
+  private hideFrontmatterPopup(): void {
+    if (this.frontmatterPopup) {
+      this.frontmatterPopup.style.display = 'none';
+    }
+    this.isPopupVisible = false;
+  }
+
+  /**
+   * Schedule popup hide with delay
+   */
+  private schedulePopupHide(): void {
+    this.cancelPopupHide();
+    this.popupHideTimeout = setTimeout(() => {
+      this.hideFrontmatterPopup();
+    }, FileSearchManager.POPUP_HIDE_DELAY);
+  }
+
+  /**
+   * Cancel scheduled popup hide
+   */
+  private cancelPopupHide(): void {
+    if (this.popupHideTimeout) {
+      clearTimeout(this.popupHideTimeout);
+      this.popupHideTimeout = null;
     }
   }
 
@@ -586,6 +723,10 @@ export class FileSearchManager {
     this.currentQuery = '';
     this.atStartPosition = -1;
     this.currentPath = ''; // Reset directory navigation state
+
+    // Hide frontmatter popup
+    this.hideFrontmatterPopup();
+    this.cancelPopupHide();
   }
 
   /**
@@ -1064,11 +1205,21 @@ export class FileSearchManager {
         const allItems = this.suggestionsContainer?.querySelectorAll('.file-suggestion-item');
         allItems?.forEach(el => el.classList.remove('hovered'));
         item.classList.add('hovered');
+
+        // Show frontmatter popup for agents
+        if (suggestion.type === 'agent' && suggestion.agent?.frontmatter) {
+          this.showFrontmatterPopup(suggestion.agent, item);
+        }
       });
 
       // Remove hover when mouse leaves the item
       item.addEventListener('mouseleave', () => {
         item.classList.remove('hovered');
+
+        // Schedule popup hide for agents
+        if (suggestion.type === 'agent') {
+          this.schedulePopupHide();
+        }
       });
 
       fragment.appendChild(item);
@@ -1150,9 +1301,28 @@ export class FileSearchManager {
   /**
    * Handle keyboard navigation
    * Supports: ArrowDown/Ctrl+n/Ctrl+j (next), ArrowUp/Ctrl+p/Ctrl+k (previous), Enter/Tab (select), Escape (close)
+   * When frontmatter popup is visible, arrow keys scroll the popup instead of navigating
    */
   public handleKeyDown(e: KeyboardEvent): void {
     if (!this.isVisible) return;
+
+    const scrollAmount = 30; // Pixels to scroll per keypress
+
+    // When popup is visible, arrow keys scroll the popup
+    if (this.isPopupVisible && this.frontmatterPopup) {
+      if (e.key === 'ArrowDown' || (e.ctrlKey && (e.key === 'n' || e.key === 'j'))) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.frontmatterPopup.scrollTop += scrollAmount;
+        return;
+      }
+      if (e.key === 'ArrowUp' || (e.ctrlKey && (e.key === 'p' || e.key === 'k'))) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.frontmatterPopup.scrollTop -= scrollAmount;
+        return;
+      }
+    }
 
     const totalItems = this.getTotalItemCount();
 
