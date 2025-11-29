@@ -382,6 +382,9 @@ export class PromptLineRenderer {
         if (data.directoryData.directory) {
           const formattedPath = this.formatDirectoryPath(data.directoryData.directory);
           this.domManager.updateHintText(formattedPath);
+
+          // Save directory to draft for history recording
+          await electronAPI.invoke('set-draft-directory', data.directoryData.directory);
         }
       } else {
         console.debug('[Renderer] no directory data in window-shown event');
@@ -417,6 +420,9 @@ export class PromptLineRenderer {
       if (data.directory) {
         const formattedPath = this.formatDirectoryPath(data.directory);
         this.domManager.updateHintText(formattedPath);
+
+        // Save directory to draft for history recording
+        await electronAPI.invoke('set-draft-directory', data.directory);
 
         // Try to restore @paths now that we have directory data
         // This handles the case where directory detection completes after initial window shown
