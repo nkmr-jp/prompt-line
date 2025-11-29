@@ -126,7 +126,6 @@ When creating pull requests:
 
 - **Target Branch**: Always create PRs against the `develop` branch (not `main`)
 - **Language**: Write all PR titles and descriptions in English
-- **Format**: Follow the standard PR template with Summary and Test Plan sections
 
 ## Architecture Overview
 
