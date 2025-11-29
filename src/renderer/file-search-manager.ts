@@ -549,29 +549,61 @@ export class FileSearchManager {
     // Re-scan for @paths
     this.rescanAtPaths(text);
 
-    // Build highlighted content with link style on hovered @path
+    // Check if hoveredAtPath is an @path or an absolute path
+    const isHoveredAtPathInAtPaths = this.atPaths.some(
+      ap => ap.start === this.hoveredAtPath?.start && ap.end === this.hoveredAtPath?.end
+    );
+
+    // Merge @paths and hoveredAtPath (if it's an absolute path not in atPaths)
+    const allHighlightRanges: Array<AtPathRange & { isAtPath: boolean; isHovered: boolean }> = [];
+
+    // Add @paths
+    for (const atPath of this.atPaths) {
+      const isHovered = this.hoveredAtPath !== null &&
+        atPath.start === this.hoveredAtPath.start &&
+        atPath.end === this.hoveredAtPath.end;
+      allHighlightRanges.push({ ...atPath, isAtPath: true, isHovered });
+    }
+
+    // Add absolute path if not already in @paths
+    if (!isHoveredAtPathInAtPaths && this.hoveredAtPath) {
+      allHighlightRanges.push({
+        start: this.hoveredAtPath.start,
+        end: this.hoveredAtPath.end,
+        isAtPath: false,
+        isHovered: true
+      });
+    }
+
+    // Sort by start position
+    allHighlightRanges.sort((a, b) => a.start - b.start);
+
+    // Build highlighted content with link style on hovered path
     const fragment = document.createDocumentFragment();
     let lastEnd = 0;
 
-    for (const atPath of this.atPaths) {
-      // Add text before this @path
-      if (atPath.start > lastEnd) {
-        fragment.appendChild(document.createTextNode(text.substring(lastEnd, atPath.start)));
+    for (const range of allHighlightRanges) {
+      // Add text before this range
+      if (range.start > lastEnd) {
+        fragment.appendChild(document.createTextNode(text.substring(lastEnd, range.start)));
       }
 
-      // Add highlighted @path with optional link style
+      // Add highlighted span
       const span = document.createElement('span');
-      span.className = 'at-path-highlight';
 
-      // Add link style if this is the hovered @path
-      if (this.hoveredAtPath && atPath.start === this.hoveredAtPath.start) {
+      if (range.isAtPath) {
+        span.className = 'at-path-highlight';
+      }
+
+      // Add link style if this is the hovered path
+      if (range.isHovered) {
         span.classList.add('file-path-link');
       }
 
-      span.textContent = text.substring(atPath.start, atPath.end);
+      span.textContent = text.substring(range.start, range.end);
       fragment.appendChild(span);
 
-      lastEnd = atPath.end;
+      lastEnd = range.end;
     }
 
     // Add remaining text
