@@ -59,8 +59,16 @@
 .file-icon {
   flex-shrink: 0;
   width: 16px;
-  text-align: center;
-  font-size: 12px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.file-icon svg {
+  width: 16px;
+  height: 16px;
+  display: block;
 }
 
 .file-name {
@@ -122,7 +130,7 @@
 }
 
 .agent-icon {
-  font-size: 12px;
+  /* SVG icon styling handled by .file-icon */
 }
 
 .agent-name {
