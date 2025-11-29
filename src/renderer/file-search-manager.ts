@@ -4,6 +4,7 @@
  */
 
 import type { FileInfo, DirectoryInfo, AgentItem } from '../types';
+import { getFileIconSvg, getAgentIconSvg } from './assets/icons/file-icons';
 
 /**
  * Format object for console output (Electron renderer -> main process)
@@ -14,6 +15,28 @@ function formatLog(obj: Record<string, unknown>): string {
     .map(([key, value]) => `  ${key}: ${typeof value === 'string' ? `'${value}'` : value}`)
     .join(',\n');
   return '{\n' + entries + '\n}';
+}
+
+/**
+ * Safely parse and insert SVG content using DOMParser
+ * This avoids innerHTML for security while allowing SVG insertion
+ */
+function insertSvgIntoElement(element: HTMLElement, svgString: string): void {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(svgString, 'image/svg+xml');
+  const svgElement = doc.documentElement;
+
+  // Check for parsing errors
+  const parserError = doc.querySelector('parsererror');
+  if (parserError) {
+    console.warn('[FileSearchManager] SVG parse error, using fallback');
+    element.textContent = '📄';
+    return;
+  }
+
+  // Clear existing content and append SVG
+  element.textContent = '';
+  element.appendChild(element.ownerDocument.importNode(svgElement, true));
 }
 
 // Directory data for file search (cached in renderer)
@@ -40,6 +63,14 @@ interface AtPathRange {
   end: number;    // Position after the last character of the path
 }
 
+// Unified suggestion item (file or agent) with score for mixed sorting
+interface SuggestionItem {
+  type: 'file' | 'agent';
+  file?: FileInfo;
+  agent?: AgentItem;
+  score: number;
+}
+
 export class FileSearchManager {
   private suggestionsContainer: HTMLElement | null = null;
   private textInput: HTMLTextAreaElement | null = null;
@@ -48,6 +79,7 @@ export class FileSearchManager {
   private selectedIndex: number = 0;
   private filteredFiles: FileInfo[] = [];
   private filteredAgents: AgentItem[] = []; // Agents matching the query
+  private mergedSuggestions: SuggestionItem[] = []; // Merged and sorted suggestions
   private isVisible: boolean = false;
   private currentQuery: string = '';
   private atStartPosition: number = -1;
@@ -379,12 +411,16 @@ export class FileSearchManager {
       this.filteredFiles = [];
     }
 
+    // Merge files and agents into a single sorted list
+    this.mergedSuggestions = this.mergeSuggestions(searchTerm);
+
     this.selectedIndex = 0;
     this.isVisible = true;
 
     console.debug('[FileSearchManager] showSuggestions: filtered', formatLog({
       agents: this.filteredAgents.length,
       files: this.filteredFiles.length,
+      merged: this.mergedSuggestions.length,
       searchTerm
     }));
     this.renderSuggestions();
@@ -545,7 +581,8 @@ export class FileSearchManager {
     this.suggestionsContainer.style.display = 'none';
     this.suggestionsContainer.innerHTML = '';
     this.filteredFiles = [];
-    this.filteredAgents = []; // Clear agents as well
+    this.filteredAgents = [];
+    this.mergedSuggestions = [];
     this.currentQuery = '';
     this.atStartPosition = -1;
     this.currentPath = ''; // Reset directory navigation state
@@ -828,10 +865,84 @@ export class FileSearchManager {
   }
 
   /**
-   * Get total count of items (agents + files) for navigation
+   * Get total count of merged suggestion items
    */
   private getTotalItemCount(): number {
-    return this.filteredAgents.length + this.filteredFiles.length;
+    return this.mergedSuggestions.length;
+  }
+
+  /**
+   * Merge files and agents into a single sorted list based on match score
+   * When query is empty, prioritize directories first
+   */
+  private mergeSuggestions(query: string): SuggestionItem[] {
+    const items: SuggestionItem[] = [];
+    const queryLower = query.toLowerCase();
+
+    // Add files with scores
+    for (const file of this.filteredFiles) {
+      const score = this.calculateMatchScore(file, queryLower);
+      items.push({ type: 'file', file, score });
+    }
+
+    // Add agents with scores
+    for (const agent of this.filteredAgents) {
+      const score = this.calculateAgentMatchScore(agent, queryLower);
+      items.push({ type: 'agent', agent, score });
+    }
+
+    // Sort: when no query, directories first then by name; otherwise by score
+    if (!query) {
+      items.sort((a, b) => {
+        // Directories first
+        const aIsDir = a.type === 'file' && a.file?.isDirectory;
+        const bIsDir = b.type === 'file' && b.file?.isDirectory;
+        if (aIsDir && !bIsDir) return -1;
+        if (!aIsDir && bIsDir) return 1;
+
+        // Then by name alphabetically
+        const aName = a.type === 'file' ? a.file?.name || '' : a.agent?.name || '';
+        const bName = b.type === 'file' ? b.file?.name || '' : b.agent?.name || '';
+        return aName.localeCompare(bName);
+      });
+    } else {
+      // Sort by score descending
+      items.sort((a, b) => b.score - a.score);
+    }
+
+    // Limit to MAX_SUGGESTIONS
+    return items.slice(0, FileSearchManager.MAX_SUGGESTIONS);
+  }
+
+  /**
+   * Calculate match score for an agent
+   */
+  private calculateAgentMatchScore(agent: AgentItem, queryLower: string): number {
+    if (!queryLower) return 50; // Base score for no query
+
+    const nameLower = agent.name.toLowerCase();
+    const descLower = agent.description.toLowerCase();
+
+    let score = 0;
+
+    // Exact name match
+    if (nameLower === queryLower) {
+      score += 1000;
+    }
+    // Name starts with query
+    else if (nameLower.startsWith(queryLower)) {
+      score += 500;
+    }
+    // Name contains query
+    else if (nameLower.includes(queryLower)) {
+      score += 200;
+    }
+    // Description contains query
+    else if (descLower.includes(queryLower)) {
+      score += 50;
+    }
+
+    return score;
   }
 
   /**
@@ -858,98 +969,31 @@ export class FileSearchManager {
     this.suggestionsContainer.scrollTop = 0;
 
     const fragment = document.createDocumentFragment();
-    let itemIndex = 0;
+    const baseDir = this.cachedDirectoryData?.directory || '';
 
-    // Render agents section
-    if (this.filteredAgents.length > 0) {
-      const agentHeader = document.createElement('div');
-      agentHeader.className = 'suggestion-section-header';
-      agentHeader.textContent = 'Agents';
-      fragment.appendChild(agentHeader);
-
-      this.filteredAgents.forEach((agent) => {
-        const item = document.createElement('div');
-        item.className = 'file-suggestion-item agent-suggestion-item';
-        item.setAttribute('role', 'option');
-        item.setAttribute('data-index', itemIndex.toString());
-        item.setAttribute('data-type', 'agent');
-        item.setAttribute('data-agent-index', this.filteredAgents.indexOf(agent).toString());
-
-        // Create icon
-        const icon = document.createElement('span');
-        icon.className = 'file-icon agent-icon';
-        icon.textContent = '🤖';
-
-        // Create name with highlighting
-        const name = document.createElement('span');
-        name.className = 'file-name agent-name';
-        name.innerHTML = this.highlightMatch(agent.name, this.currentQuery);
-
-        // Create description
-        const desc = document.createElement('span');
-        desc.className = 'file-path agent-description';
-        desc.textContent = agent.description;
-
-        item.appendChild(icon);
-        item.appendChild(name);
-        item.appendChild(desc);
-
-        // Click handler
-        const currentIndex = itemIndex;
-        item.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          this.selectItem(currentIndex);
-        });
-
-        // Mouse move handler
-        item.addEventListener('mousemove', () => {
-          const allItems = this.suggestionsContainer?.querySelectorAll('.file-suggestion-item');
-          allItems?.forEach(el => el.classList.remove('hovered'));
-          item.classList.add('hovered');
-        });
-
-        item.addEventListener('mouseleave', () => {
-          item.classList.remove('hovered');
-        });
-
-        fragment.appendChild(item);
-        itemIndex++;
-      });
+    // Add path header if we're in a subdirectory
+    if (this.currentPath) {
+      const header = document.createElement('div');
+      header.className = 'file-suggestion-header';
+      header.textContent = this.currentPath;
+      fragment.appendChild(header);
     }
 
-    // Render files section
-    if (this.filteredFiles.length > 0) {
-      const baseDir = this.cachedDirectoryData?.directory || '';
+    // Render merged suggestions (files and agents mixed by score)
+    this.mergedSuggestions.forEach((suggestion, itemIndex) => {
+      const item = document.createElement('div');
 
-      // Add section header if there are agents
-      if (this.filteredAgents.length > 0) {
-        const fileHeader = document.createElement('div');
-        fileHeader.className = 'suggestion-section-header';
-        fileHeader.textContent = 'Files';
-        fragment.appendChild(fileHeader);
-      }
-
-      // Add path header if we're in a subdirectory
-      if (this.currentPath) {
-        const header = document.createElement('div');
-        header.className = 'file-suggestion-header';
-        header.textContent = this.currentPath;
-        fragment.appendChild(header);
-      }
-
-      this.filteredFiles.forEach((file) => {
-        const item = document.createElement('div');
+      if (suggestion.type === 'file' && suggestion.file) {
+        const file = suggestion.file;
         item.className = 'file-suggestion-item';
         item.setAttribute('role', 'option');
         item.setAttribute('data-index', itemIndex.toString());
         item.setAttribute('data-type', 'file');
-        item.setAttribute('data-file-index', this.filteredFiles.indexOf(file).toString());
 
-        // Create icon
+        // Create icon using SVG
         const icon = document.createElement('span');
         icon.className = 'file-icon';
-        icon.textContent = file.isDirectory ? '📁' : this.getFileIcon(file.name);
+        insertSvgIntoElement(icon, getFileIconSvg(file.name, file.isDirectory));
 
         // Create name with highlighting
         const name = document.createElement('span');
@@ -958,11 +1002,14 @@ export class FileSearchManager {
         if (file.isDirectory) {
           // For directories: show name with file count
           const fileCount = this.countFilesInDirectory(file.path);
-          const displayName = this.highlightMatch(file.name, this.currentQuery);
-          name.innerHTML = `${displayName} <span class="file-count">(${fileCount} files)</span>`;
+          this.insertHighlightedText(name, file.name, this.currentQuery);
+          const countSpan = document.createElement('span');
+          countSpan.className = 'file-count';
+          countSpan.textContent = ` (${fileCount} files)`;
+          name.appendChild(countSpan);
         } else {
           // For files: just show the name
-          name.innerHTML = this.highlightMatch(file.name, this.currentQuery);
+          this.insertHighlightedText(name, file.name, this.currentQuery);
         }
 
         item.appendChild(icon);
@@ -977,34 +1024,55 @@ export class FileSearchManager {
           pathEl.textContent = dirPath;
           item.appendChild(pathEl);
         }
+      } else if (suggestion.type === 'agent' && suggestion.agent) {
+        const agent = suggestion.agent;
+        item.className = 'file-suggestion-item agent-suggestion-item';
+        item.setAttribute('role', 'option');
+        item.setAttribute('data-index', itemIndex.toString());
+        item.setAttribute('data-type', 'agent');
 
-        // Click handler
-        const currentIndex = itemIndex;
-        item.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          this.selectItem(currentIndex);
-        });
+        // Create icon using SVG
+        const icon = document.createElement('span');
+        icon.className = 'file-icon agent-icon';
+        insertSvgIntoElement(icon, getAgentIconSvg());
 
-        // Mouse move handler - only highlight when mouse actually moves
-        // This prevents accidental highlighting when menu appears under stationary mouse cursor
-        item.addEventListener('mousemove', () => {
-          // Remove hovered class from all items
-          const allItems = this.suggestionsContainer?.querySelectorAll('.file-suggestion-item');
-          allItems?.forEach(el => el.classList.remove('hovered'));
-          // Add hovered class to this item
-          item.classList.add('hovered');
-        });
+        // Create name with highlighting
+        const name = document.createElement('span');
+        name.className = 'file-name agent-name';
+        this.insertHighlightedText(name, agent.name, this.currentQuery);
 
-        // Remove hover when mouse leaves the item
-        item.addEventListener('mouseleave', () => {
-          item.classList.remove('hovered');
-        });
+        // Create description
+        const desc = document.createElement('span');
+        desc.className = 'file-path agent-description';
+        desc.textContent = agent.description;
 
-        fragment.appendChild(item);
-        itemIndex++;
+        item.appendChild(icon);
+        item.appendChild(name);
+        item.appendChild(desc);
+      }
+
+      // Click handler
+      const currentIndex = itemIndex;
+      item.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.selectItem(currentIndex);
       });
-    }
+
+      // Mouse move handler - only highlight when mouse actually moves
+      item.addEventListener('mousemove', () => {
+        const allItems = this.suggestionsContainer?.querySelectorAll('.file-suggestion-item');
+        allItems?.forEach(el => el.classList.remove('hovered'));
+        item.classList.add('hovered');
+      });
+
+      // Remove hover when mouse leaves the item
+      item.addEventListener('mouseleave', () => {
+        item.classList.remove('hovered');
+      });
+
+      fragment.appendChild(item);
+    });
 
     this.suggestionsContainer.innerHTML = '';
     this.suggestionsContainer.appendChild(fragment);
@@ -1012,16 +1080,16 @@ export class FileSearchManager {
   }
 
   /**
-   * Select an item (agent or file) by combined index
+   * Select an item from merged suggestions by index
    */
   private selectItem(index: number): void {
-    if (index < this.filteredAgents.length) {
-      // It's an agent
-      this.selectAgent(index);
-    } else {
-      // It's a file
-      const fileIndex = index - this.filteredAgents.length;
-      this.selectFile(fileIndex);
+    const suggestion = this.mergedSuggestions[index];
+    if (!suggestion) return;
+
+    if (suggestion.type === 'file' && suggestion.file) {
+      this.selectFileByInfo(suggestion.file);
+    } else if (suggestion.type === 'agent' && suggestion.agent) {
+      this.selectAgentByInfo(suggestion.agent);
     }
   }
 
@@ -1035,64 +1103,37 @@ export class FileSearchManager {
   }
 
   /**
-   * Get file icon based on extension
+   * Insert highlighted text into an element using safe DOM manipulation
+   * This avoids innerHTML for security while allowing highlighting
    */
-  private getFileIcon(filename: string): string {
-    const ext = filename.split('.').pop()?.toLowerCase() || '';
+  private insertHighlightedText(element: HTMLElement, text: string, query: string): void {
+    // Clear existing content
+    element.textContent = '';
 
-    const iconMap: Record<string, string> = {
-      'ts': '📘',
-      'tsx': '⚛️',
-      'js': '📒',
-      'jsx': '⚛️',
-      'json': '📋',
-      'md': '📝',
-      'html': '🌐',
-      'css': '🎨',
-      'scss': '🎨',
-      'py': '🐍',
-      'rb': '💎',
-      'go': '🐹',
-      'rs': '🦀',
-      'swift': '🍎',
-      'java': '☕',
-      'kt': '🎯',
-      'yml': '⚙️',
-      'yaml': '⚙️',
-      'sh': '🖥️',
-      'bash': '🖥️',
-      'zsh': '🖥️',
-      'sql': '🗃️',
-      'png': '🖼️',
-      'jpg': '🖼️',
-      'jpeg': '🖼️',
-      'gif': '🖼️',
-      'svg': '🎭'
-    };
+    if (!query) {
+      element.textContent = text;
+      return;
+    }
 
-    return iconMap[ext] || '📄';
-  }
+    // Create regex for matching (case-insensitive)
+    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(${escapedQuery})`, 'gi');
 
-  /**
-   * Highlight matching text
-   */
-  private highlightMatch(text: string, query: string): string {
-    if (!query) return this.escapeHtml(text);
+    // Split text by matches
+    const parts = text.split(regex);
 
-    const escaped = this.escapeHtml(text);
-    const queryEscaped = this.escapeHtml(query);
-    const regex = new RegExp(`(${queryEscaped.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-
-    return escaped.replace(regex, '<span class="highlight">$1</span>');
-  }
-
-  /**
-   * Escape HTML characters
-   */
-  private escapeHtml(text: string): string {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    parts.forEach(part => {
+      if (part.toLowerCase() === query.toLowerCase()) {
+        // This part matches - wrap in highlight span
+        const highlight = document.createElement('span');
+        highlight.className = 'highlight';
+        highlight.textContent = part;
+        element.appendChild(highlight);
+      } else if (part) {
+        // Non-matching part - add as text node
+        element.appendChild(document.createTextNode(part));
+      }
+    });
   }
 
   /**
@@ -1163,18 +1204,15 @@ export class FileSearchManager {
           e.preventDefault();
           e.stopPropagation();
 
-          // Check if current selection is a file (directory navigation)
-          if (this.selectedIndex >= this.filteredAgents.length) {
-            const fileIndex = this.selectedIndex - this.filteredAgents.length;
-            const file = this.filteredFiles[fileIndex];
-            if (file?.isDirectory) {
-              // Navigate into directory
-              this.navigateIntoDirectory(file);
-              return;
-            }
+          // Check if current selection is a directory (for navigation)
+          const suggestion = this.mergedSuggestions[this.selectedIndex];
+          if (suggestion?.type === 'file' && suggestion.file?.isDirectory) {
+            // Navigate into directory
+            this.navigateIntoDirectory(suggestion.file);
+            return;
           }
 
-          // Otherwise select the item (agent or file)
+          // Otherwise select the item (file or agent)
           this.selectItem(this.selectedIndex);
         }
         break;
@@ -1230,6 +1268,8 @@ export class FileSearchManager {
     this.currentQuery = '';
     this.selectedIndex = 0;
     this.filteredFiles = this.filterFiles('');
+    this.filteredAgents = []; // No agents when navigating into subdirectory
+    this.mergedSuggestions = this.mergeSuggestions(''); // Update merged suggestions
     this.renderSuggestions();
     this.updateSelection();
   }
@@ -1256,12 +1296,18 @@ export class FileSearchManager {
   }
 
   /**
-   * Select a file and insert its path
+   * Select a file by index (kept for backwards compatibility)
    */
   public selectFile(index: number): void {
     const file = this.filteredFiles[index];
     if (!file) return;
+    this.selectFileByInfo(file);
+  }
 
+  /**
+   * Select a file by FileInfo object and insert its path
+   */
+  private selectFileByInfo(file: FileInfo): void {
     // Get relative path from base directory
     const baseDir = this.cachedDirectoryData?.directory || '';
     const relativePath = this.getRelativePath(file.path, baseDir);
@@ -1274,12 +1320,9 @@ export class FileSearchManager {
   }
 
   /**
-   * Select an agent and insert its name with @ prefix
+   * Select an agent by AgentItem object and insert its name
    */
-  private selectAgent(index: number): void {
-    const agent = this.filteredAgents[index];
-    if (!agent) return;
-
+  private selectAgentByInfo(agent: AgentItem): void {
     // Insert agent name (the name already serves as the identifier)
     this.insertFilePath(agent.name);
     this.hideSuggestions();
