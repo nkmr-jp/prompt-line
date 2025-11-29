@@ -224,6 +224,9 @@ const electronAPI = {
   agents: {
     get: async (query?: string): Promise<any[]> => {
       return ipcRenderer.invoke('get-agents', query);
+    },
+    getFilePath: async (agentName: string): Promise<string | null> => {
+      return ipcRenderer.invoke('get-agent-file-path', agentName);
     }
   },
 
@@ -280,6 +283,7 @@ export interface ElectronAPI {
   };
   agents: {
     get: (query?: string) => Promise<any[]>;
+    getFilePath: (agentName: string) => Promise<string | null>;
   };
   file: {
     openInEditor: (filePath: string) => Promise<{ success: boolean; error?: string }>;

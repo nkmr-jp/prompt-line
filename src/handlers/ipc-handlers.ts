@@ -2,6 +2,7 @@ import { ipcMain, clipboard, IpcMainInvokeEvent, dialog, shell } from 'electron'
 import { promises as fs } from 'fs';
 import { exec } from 'child_process';
 import path from 'path';
+import os from 'os';
 import config from '../config/app-config';
 import { 
   logger, 
@@ -115,6 +116,7 @@ class IPCHandlers {
     ipcMain.handle('open-settings', this.handleOpenSettings.bind(this));
     ipcMain.handle('get-slash-commands', this.handleGetSlashCommands.bind(this));
     ipcMain.handle('get-agents', this.handleGetAgents.bind(this));
+    ipcMain.handle('get-agent-file-path', this.handleGetAgentFilePath.bind(this));
     ipcMain.handle('open-file-in-editor', this.handleOpenFileInEditor.bind(this));
 
     logger.info('IPC handlers set up successfully');
@@ -577,6 +579,35 @@ class IPCHandlers {
     }
   }
 
+  private async handleGetAgentFilePath(
+    _event: IpcMainInvokeEvent,
+    agentName: string
+  ): Promise<string | null> {
+    try {
+      if (!agentName || typeof agentName !== 'string') {
+        return null;
+      }
+
+      // Refresh directories from settings in case they changed
+      const settings = this.settingsManager.getSettings();
+      this.agentLoader.setDirectories(settings.agents?.directories);
+
+      const agents = await this.agentLoader.getAgents();
+      const agent = agents.find(a => a.name === agentName);
+
+      if (agent) {
+        logger.debug('Agent file path resolved', { agentName, filePath: agent.filePath });
+        return agent.filePath;
+      }
+
+      logger.debug('Agent not found', { agentName });
+      return null;
+    } catch (error) {
+      logger.error('Failed to get agent file path:', error);
+      return null;
+    }
+  }
+
   private async handleOpenFileInEditor(
     _event: IpcMainInvokeEvent,
     filePath: string
@@ -589,10 +620,18 @@ class IPCHandlers {
         return { success: false, error: 'Invalid file path provided' };
       }
 
+      // Expand ~ to home directory
+      let expandedPath = filePath;
+      if (filePath.startsWith('~/')) {
+        expandedPath = path.join(os.homedir(), filePath.slice(2));
+      } else if (filePath === '~') {
+        expandedPath = os.homedir();
+      }
+
       // Convert to absolute path if relative
-      const absolutePath = path.isAbsolute(filePath)
-        ? filePath
-        : path.join(process.cwd(), filePath);
+      const absolutePath = path.isAbsolute(expandedPath)
+        ? expandedPath
+        : path.join(process.cwd(), expandedPath);
 
       // Normalize and validate path to prevent path traversal
       const normalizedPath = path.normalize(absolutePath);
@@ -634,6 +673,7 @@ class IPCHandlers {
       'open-settings',
       'get-slash-commands',
       'get-agents',
+      'get-agent-file-path',
       'open-file-in-editor'
     ];
 
