@@ -499,21 +499,34 @@ export class FileSearchManager {
       if (top < 0) top = 0;
     }
 
-    // Calculate dynamic max-width based on available space from @ position to right edge
+    // Calculate dynamic max-width and adjust left position if needed
     // This allows the menu to span into the history section if needed
-    const availableWidth = mainContentRect.width - left - 8; // 8px margin from right edge
-    const dynamicMaxWidth = Math.max(300, availableWidth); // Minimum 300px width
+    const minMenuWidth = 500; // Minimum width for readable descriptions
+    const rightMargin = 8; // Margin from right edge
+    let availableWidth = mainContentRect.width - left - rightMargin;
+    let adjustedLeft = left;
+
+    // If not enough space on the right, shift the menu left to ensure minimum width
+    if (availableWidth < minMenuWidth) {
+      // Calculate how much to shift left
+      const shiftAmount = minMenuWidth - availableWidth;
+      adjustedLeft = Math.max(8, left - shiftAmount); // Don't go past left edge
+      availableWidth = mainContentRect.width - adjustedLeft - rightMargin;
+    }
+
+    const dynamicMaxWidth = Math.max(minMenuWidth, availableWidth);
     this.suggestionsContainer.style.maxWidth = `${dynamicMaxWidth}px`;
 
     this.suggestionsContainer.style.top = `${top}px`;
-    this.suggestionsContainer.style.left = `${left}px`;
+    this.suggestionsContainer.style.left = `${adjustedLeft}px`;
     this.suggestionsContainer.style.right = 'auto';
     this.suggestionsContainer.style.bottom = 'auto';
 
     console.debug('[FileSearchManager] positionSuggestions:', formatLog({
       atPosition: this.atStartPosition,
       top,
-      left,
+      left: adjustedLeft,
+      originalLeft: left,
       showAbove,
       spaceBelow,
       spaceAbove,
