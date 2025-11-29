@@ -55,6 +55,7 @@ interface FileSearchCallbacks {
   setTextContent: (text: string) => void;
   getCursorPosition: () => number;
   setCursorPosition: (position: number) => void;
+  onBeforeOpenFile?: () => void; // Called before opening file in editor to suppress blur
 }
 
 // Represents a tracked @path in the text
@@ -93,6 +94,10 @@ export class FileSearchManager {
   private popupHideTimeout: ReturnType<typeof setTimeout> | null = null;
   private isPopupVisible: boolean = false; // Track if popup is currently visible
   private static readonly POPUP_HIDE_DELAY = 100; // ms delay before hiding popup
+
+  // Cmd+hover state for file path link
+  private isCmdHoverActive: boolean = false;
+  private hoveredAtPath: AtPathRange | null = null;
 
   // Constants
   private static readonly MAX_SUGGESTIONS = 15;
@@ -375,10 +380,226 @@ export class FileSearchManager {
         this.handleCmdClickOnAtPath(e);
       }
     });
+
+    // Handle Cmd+hover for link style on @paths
+    this.textInput.addEventListener('mousemove', (e) => {
+      this.handleMouseMove(e);
+    });
+
+    // Clear link style when mouse leaves textarea
+    this.textInput.addEventListener('mouseleave', () => {
+      this.clearFilePathHighlight();
+    });
+
+    // Handle Cmd key press/release for link style
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Meta' && !this.isCmdHoverActive) {
+        this.isCmdHoverActive = true;
+        // Re-check current mouse position for @path
+        this.updateHoverStateAtLastPosition();
+      }
+    });
+
+    document.addEventListener('keyup', (e) => {
+      if (e.key === 'Meta' && this.isCmdHoverActive) {
+        this.isCmdHoverActive = false;
+        this.clearFilePathHighlight();
+      }
+    });
+
+    // Clear on window blur (Cmd key release detection may fail)
+    window.addEventListener('blur', () => {
+      this.isCmdHoverActive = false;
+      this.clearFilePathHighlight();
+    });
+  }
+
+  // Track last mouse position for Cmd key press detection
+  private lastMouseX: number = 0;
+  private lastMouseY: number = 0;
+
+  /**
+   * Handle mouse move for Cmd+hover link style
+   */
+  private handleMouseMove(e: MouseEvent): void {
+    this.lastMouseX = e.clientX;
+    this.lastMouseY = e.clientY;
+
+    if (!e.metaKey) {
+      if (this.hoveredAtPath) {
+        this.clearFilePathHighlight();
+      }
+      return;
+    }
+
+    this.isCmdHoverActive = true;
+    this.checkAndHighlightAtPath(e.clientX, e.clientY);
   }
 
   /**
-   * Handle Cmd+click on @path in textarea to open the file in editor
+   * Update hover state when Cmd key is pressed
+   */
+  private updateHoverStateAtLastPosition(): void {
+    if (this.lastMouseX && this.lastMouseY) {
+      this.checkAndHighlightAtPath(this.lastMouseX, this.lastMouseY);
+    }
+  }
+
+  /**
+   * Check if mouse is over an @path or absolute path and highlight it
+   */
+  private checkAndHighlightAtPath(clientX: number, clientY: number): void {
+    if (!this.textInput) return;
+
+    const text = this.textInput.value;
+    const charPos = this.getCharPositionFromCoordinates(clientX, clientY);
+
+    if (charPos === null) {
+      this.clearFilePathHighlight();
+      return;
+    }
+
+    // Check for @path first
+    const atPath = this.findAtPathAtPosition(text, charPos);
+    if (atPath) {
+      // Find the AtPathRange that contains this position
+      const atPathRange = this.findAtPathRangeAtPosition(charPos);
+      if (atPathRange && atPathRange !== this.hoveredAtPath) {
+        this.hoveredAtPath = atPathRange;
+        this.renderFilePathHighlight();
+      }
+      return;
+    }
+
+    // Check for absolute path (starting with /)
+    const clickablePath = this.findClickablePathAtPosition(text, charPos);
+    if (clickablePath) {
+      // Create a temporary AtPathRange for the absolute path
+      const tempRange: AtPathRange = { start: clickablePath.start, end: clickablePath.end };
+      if (!this.hoveredAtPath || this.hoveredAtPath.start !== tempRange.start || this.hoveredAtPath.end !== tempRange.end) {
+        this.hoveredAtPath = tempRange;
+        this.renderFilePathHighlight();
+      }
+      return;
+    }
+
+    this.clearFilePathHighlight();
+  }
+
+  /**
+   * Find AtPathRange at the given position
+   */
+  private findAtPathRangeAtPosition(charPos: number): AtPathRange | null {
+    for (const atPath of this.atPaths) {
+      if (charPos >= atPath.start && charPos < atPath.end) {
+        return atPath;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Get character position from mouse coordinates using mirror div
+   */
+  private getCharPositionFromCoordinates(clientX: number, clientY: number): number | null {
+    if (!this.textInput) return null;
+
+    const textareaRect = this.textInput.getBoundingClientRect();
+    const relativeX = clientX - textareaRect.left + this.textInput.scrollLeft;
+    const relativeY = clientY - textareaRect.top + this.textInput.scrollTop;
+
+    // Simple approximation based on line height and character width
+    const style = window.getComputedStyle(this.textInput);
+    const lineHeight = parseFloat(style.lineHeight) || 20;
+    const fontSize = parseFloat(style.fontSize) || 15;
+    const charWidth = fontSize * 0.55; // Approximate character width
+
+    const paddingTop = parseFloat(style.paddingTop) || 0;
+    const paddingLeft = parseFloat(style.paddingLeft) || 0;
+
+    const text = this.textInput.value;
+    const lines = text.split('\n');
+
+    // Calculate which line
+    const lineIndex = Math.floor((relativeY - paddingTop) / lineHeight);
+    if (lineIndex < 0 || lineIndex >= lines.length) return null;
+
+    // Calculate position within line
+    let charIndex = Math.floor((relativeX - paddingLeft) / charWidth);
+    charIndex = Math.max(0, Math.min(charIndex, lines[lineIndex]?.length || 0));
+
+    // Calculate absolute position
+    let absolutePos = 0;
+    for (let i = 0; i < lineIndex; i++) {
+      absolutePos += (lines[i]?.length || 0) + 1; // +1 for newline
+    }
+    absolutePos += charIndex;
+
+    return Math.min(absolutePos, text.length);
+  }
+
+  /**
+   * Render file path highlight (link style) while preserving @path highlights
+   */
+  private renderFilePathHighlight(): void {
+    if (!this.highlightBackdrop || !this.textInput || !this.hoveredAtPath) return;
+
+    const text = this.textInput.value;
+
+    // Re-scan for @paths
+    this.rescanAtPaths(text);
+
+    // Build highlighted content with link style on hovered @path
+    const fragment = document.createDocumentFragment();
+    let lastEnd = 0;
+
+    for (const atPath of this.atPaths) {
+      // Add text before this @path
+      if (atPath.start > lastEnd) {
+        fragment.appendChild(document.createTextNode(text.substring(lastEnd, atPath.start)));
+      }
+
+      // Add highlighted @path with optional link style
+      const span = document.createElement('span');
+      span.className = 'at-path-highlight';
+
+      // Add link style if this is the hovered @path
+      if (this.hoveredAtPath && atPath.start === this.hoveredAtPath.start) {
+        span.classList.add('file-path-link');
+      }
+
+      span.textContent = text.substring(atPath.start, atPath.end);
+      fragment.appendChild(span);
+
+      lastEnd = atPath.end;
+    }
+
+    // Add remaining text
+    if (lastEnd < text.length) {
+      fragment.appendChild(document.createTextNode(text.substring(lastEnd)));
+    }
+
+    // Clear existing content using DOM methods (avoid innerHTML for security)
+    while (this.highlightBackdrop.firstChild) {
+      this.highlightBackdrop.removeChild(this.highlightBackdrop.firstChild);
+    }
+    this.highlightBackdrop.appendChild(fragment);
+
+    // Sync scroll
+    this.syncBackdropScroll();
+  }
+
+  /**
+   * Clear file path highlight (link style) while preserving @path highlights
+   */
+  private clearFilePathHighlight(): void {
+    this.hoveredAtPath = null;
+    // Re-render without link style (just @path highlights)
+    this.updateHighlightBackdrop();
+  }
+
+  /**
+   * Handle Cmd+click on @path or absolute path in textarea to open the file in editor
    */
   private handleCmdClickOnAtPath(e: MouseEvent): void {
     if (!this.textInput) return;
@@ -395,9 +616,24 @@ export class FileSearchManager {
       // Resolve the file path
       const filePath = this.resolveAtPathToAbsolute(atPath);
       if (filePath) {
+        // Suppress blur before opening file to prevent window from closing
+        this.callbacks.onBeforeOpenFile?.();
         window.electronAPI.file.openInEditor(filePath)
           .catch((err: Error) => console.error('Failed to open file in editor:', err));
       }
+      return;
+    }
+
+    // Find absolute path at cursor position
+    const absolutePath = this.findAbsolutePathAtPosition(text, cursorPos);
+    if (absolutePath) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Suppress blur before opening file to prevent window from closing
+      this.callbacks.onBeforeOpenFile?.();
+      window.electronAPI.file.openInEditor(absolutePath)
+        .catch((err: Error) => console.error('Failed to open file in editor:', err));
     }
   }
 
@@ -417,6 +653,61 @@ export class FileSearchManager {
       // Check if cursor is within this @path
       if (cursorPos >= start && cursorPos <= end) {
         return match[1] ?? null; // Return path without @
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Find absolute file path at the given cursor position
+   * Returns the path if found, null otherwise
+   */
+  private findAbsolutePathAtPosition(text: string, cursorPos: number): string | null {
+    // Pattern to match absolute paths starting with /
+    // Matches paths like /Users/name/.prompt-line/images/file.png
+    const absolutePathPattern = /\/[^\s"'<>|*?\n]+/g;
+    let match;
+
+    while ((match = absolutePathPattern.exec(text)) !== null) {
+      const start = match.index;
+      const end = start + match[0].length;
+
+      // Check if cursor is within this path
+      if (cursorPos >= start && cursorPos <= end) {
+        return match[0]; // Return the full path
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Find any clickable file path at the given position
+   * Returns { path, start, end } if found
+   */
+  private findClickablePathAtPosition(text: string, cursorPos: number): { path: string; start: number; end: number } | null {
+    // First check @path
+    const atPathPattern = /@([^\s@]+)/g;
+    let match;
+
+    while ((match = atPathPattern.exec(text)) !== null) {
+      const start = match.index;
+      const end = start + match[0].length;
+
+      if (cursorPos >= start && cursorPos <= end) {
+        return { path: match[1] ?? '', start, end };
+      }
+    }
+
+    // Then check absolute paths
+    const absolutePathPattern = /\/[^\s"'<>|*?\n]+/g;
+    while ((match = absolutePathPattern.exec(text)) !== null) {
+      const start = match.index;
+      const end = start + match[0].length;
+
+      if (cursorPos >= start && cursorPos <= end) {
+        return { path: match[0], start, end };
       }
     }
 
@@ -1279,6 +1570,8 @@ export class FileSearchManager {
               : clickedSuggestion.agent?.filePath;
             if (filePath) {
               try {
+                // Suppress blur before opening file to prevent window from closing
+                this.callbacks.onBeforeOpenFile?.();
                 await window.electronAPI.file.openInEditor(filePath);
                 this.hideSuggestions();
               } catch (error) {
@@ -1467,6 +1760,8 @@ export class FileSearchManager {
                 ? suggestion.file?.path
                 : suggestion.agent?.filePath;
               if (filePath) {
+                // Suppress blur before opening file to prevent window from closing
+                this.callbacks.onBeforeOpenFile?.();
                 window.electronAPI.file.openInEditor(filePath)
                   .then(() => this.hideSuggestions())
                   .catch((error: Error) => console.error('Failed to open file in editor:', error));
