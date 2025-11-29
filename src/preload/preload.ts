@@ -17,6 +17,8 @@ const ALLOWED_CHANNELS = [
   'save-draft',
   'clear-draft',
   'get-draft',
+  'set-draft-directory',
+  'get-draft-directory',
   'hide-window',
   'show-window',
   'get-config',
@@ -202,6 +204,12 @@ const electronAPI = {
     },
     clear: async (): Promise<void> => {
       return ipcRenderer.invoke('clear-draft');
+    },
+    setDirectory: async (directory: string | null): Promise<void> => {
+      return ipcRenderer.invoke('set-draft-directory', directory);
+    },
+    getDirectory: async (): Promise<string | null> => {
+      return ipcRenderer.invoke('get-draft-directory');
     }
   },
 
@@ -264,6 +272,8 @@ export interface ElectronAPI {
     save: (text: string) => Promise<void>;
     get: () => Promise<string | null>;
     clear: () => Promise<void>;
+    setDirectory: (directory: string | null) => Promise<void>;
+    getDirectory: () => Promise<string | null>;
   };
   slashCommands: {
     get: (query?: string) => Promise<any[]>;

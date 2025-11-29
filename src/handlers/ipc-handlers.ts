@@ -105,6 +105,8 @@ class IPCHandlers {
     ipcMain.handle('save-draft', this.handleSaveDraft.bind(this));
     ipcMain.handle('clear-draft', this.handleClearDraft.bind(this));
     ipcMain.handle('get-draft', this.handleGetDraft.bind(this));
+    ipcMain.handle('set-draft-directory', this.handleSetDraftDirectory.bind(this));
+    ipcMain.handle('get-draft-directory', this.handleGetDraftDirectory.bind(this));
     ipcMain.handle('hide-window', this.handleHideWindow.bind(this));
     ipcMain.handle('show-window', this.handleShowWindow.bind(this));
     ipcMain.handle('get-app-info', this.handleGetAppInfo.bind(this));
@@ -329,6 +331,30 @@ class IPCHandlers {
     }
   }
 
+  private async handleSetDraftDirectory(
+    _event: IpcMainInvokeEvent,
+    directory: string | null
+  ): Promise<IPCResult> {
+    try {
+      this.draftManager.setDirectory(directory);
+      logger.debug('Draft directory set via IPC', { directory });
+      return { success: true };
+    } catch (error) {
+      logger.error('Failed to set draft directory:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
+  private async handleGetDraftDirectory(_event: IpcMainInvokeEvent): Promise<string | null> {
+    try {
+      const directory = this.draftManager.getDirectory();
+      logger.debug('Draft directory requested', { directory });
+      return directory;
+    } catch (error) {
+      logger.error('Failed to get draft directory:', error);
+      return null;
+    }
+  }
 
   private async handleHideWindow(_event: IpcMainInvokeEvent, restoreFocus: boolean = true): Promise<IPCResult> {
     try {
@@ -595,6 +621,8 @@ class IPCHandlers {
       'save-draft',
       'clear-draft',
       'get-draft',
+      'set-draft-directory',
+      'get-draft-directory',
       'hide-window',
       'show-window',
       'get-app-info',

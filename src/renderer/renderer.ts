@@ -357,7 +357,7 @@ export class PromptLineRenderer {
 
 
 
-  private handleWindowShown(data: WindowData): void {
+  private async handleWindowShown(data: WindowData): Promise<void> {
     try {
       console.debug('[Renderer] handleWindowShown called', formatLog({
         hasDirectoryData: !!data.directoryData,
@@ -368,11 +368,6 @@ export class PromptLineRenderer {
 
       this.lifecycleManager.handleWindowShown(data);
       this.updateHistoryAndSettings(data);
-
-      // Restore @paths highlighting for restored draft text (after small delay to ensure text is set)
-      setTimeout(() => {
-        this.fileSearchManager?.restoreAtPathsFromText();
-      }, 50);
 
       // Reset search mode and scroll position when window is shown
       this.searchManager?.exitSearchMode();
@@ -397,12 +392,18 @@ export class PromptLineRenderer {
         }
         // If not directory-capable, leave the default hint text unchanged
       }
+
+      // Restore @paths highlighting for restored draft text (after small delay to ensure text is set)
+      // Highlights only @paths that exist in the cached file list
+      setTimeout(() => {
+        this.fileSearchManager?.restoreAtPathsFromText();
+      }, 50);
     } catch (error) {
       console.error('Error handling window shown:', error);
     }
   }
 
-  private handleDirectoryDataUpdated(data: DirectoryInfo): void {
+  private async handleDirectoryDataUpdated(data: DirectoryInfo): Promise<void> {
     try {
       console.debug('[Renderer] handleDirectoryDataUpdated called', {
         directory: data.directory,
@@ -416,6 +417,10 @@ export class PromptLineRenderer {
       if (data.directory) {
         const formattedPath = this.formatDirectoryPath(data.directory);
         this.domManager.updateHintText(formattedPath);
+
+        // Try to restore @paths now that we have directory data
+        // This handles the case where directory detection completes after initial window shown
+        this.fileSearchManager?.restoreAtPathsFromText();
       }
     } catch (error) {
       console.error('Error handling directory data update:', error);
