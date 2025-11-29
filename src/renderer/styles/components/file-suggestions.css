@@ -6,7 +6,8 @@
   /* top and left are set dynamically by FileSearchManager.positionSuggestions() */
   max-height: 40vh; /* 40% of viewport height */
   min-width: 200px;
-  max-width: 90%;
+  /* Expanded width to span across input-section and history-section */
+  max-width: calc(100% - 16px);
   overflow-y: auto;
   overflow-x: hidden;
   background: #222;

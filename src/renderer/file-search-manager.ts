@@ -139,13 +139,13 @@ export class FileSearchManager {
       this.suggestionsContainer.setAttribute('role', 'listbox');
       this.suggestionsContainer.setAttribute('aria-label', 'File suggestions');
 
-      // Insert after textarea
-      const inputSection = document.querySelector('.input-section');
-      if (inputSection) {
-        inputSection.appendChild(this.suggestionsContainer);
-        console.debug('[FileSearchManager] initializeElements: suggestionsContainer created and appended');
+      // Insert into main-content (allows suggestions to span across input-section and history-section)
+      const mainContent = document.querySelector('.main-content');
+      if (mainContent) {
+        mainContent.appendChild(this.suggestionsContainer);
+        console.debug('[FileSearchManager] initializeElements: suggestionsContainer created and appended to main-content');
       } else {
-        console.warn('[FileSearchManager] initializeElements: .input-section not found!');
+        console.warn('[FileSearchManager] initializeElements: .main-content not found!');
       }
     } else {
       console.debug('[FileSearchManager] initializeElements: suggestionsContainer already exists');
@@ -449,6 +449,7 @@ export class FileSearchManager {
    * Position the suggestions container near the @ position
    * Shows above the cursor if there's not enough space below
    * Dynamically adjusts max-height based on available space
+   * Uses main-content as positioning reference to allow spanning across input and history sections
    */
   private positionSuggestions(): void {
     if (!this.suggestionsContainer || !this.textInput || this.atStartPosition < 0) return;
@@ -456,19 +457,19 @@ export class FileSearchManager {
     const coords = this.getCaretCoordinates(this.atStartPosition);
     if (!coords) return;
 
-    // Get input section for relative positioning
-    const inputSection = this.textInput.closest('.input-section');
-    if (!inputSection) return;
+    // Get main-content for relative positioning (allows spanning across sections)
+    const mainContent = this.textInput.closest('.main-content');
+    if (!mainContent) return;
 
-    const inputSectionRect = inputSection.getBoundingClientRect();
+    const mainContentRect = mainContent.getBoundingClientRect();
     const lineHeight = parseInt(window.getComputedStyle(this.textInput).lineHeight) || 20;
 
-    // Calculate position relative to input-section
-    const caretTop = coords.top - inputSectionRect.top;
-    const left = Math.max(8, coords.left - inputSectionRect.left);
+    // Calculate position relative to main-content
+    const caretTop = coords.top - mainContentRect.top;
+    const left = Math.max(8, coords.left - mainContentRect.left);
 
     // Calculate available space below and above the cursor
-    const spaceBelow = inputSectionRect.height - (caretTop + lineHeight) - 8; // 8px margin
+    const spaceBelow = mainContentRect.height - (caretTop + lineHeight) - 8; // 8px margin
     const spaceAbove = caretTop - 8; // 8px margin
 
     let top: number = 0;
@@ -498,8 +499,8 @@ export class FileSearchManager {
       if (top < 0) top = 0;
     }
 
-    // Ensure the menu doesn't go off the right edge
-    const maxLeft = inputSectionRect.width - 200; // Leave at least 200px for the menu
+    // Ensure the menu doesn't go off the right edge (use main-content width for wider menu)
+    const maxLeft = mainContentRect.width - 300; // Leave space for wider menu
     const adjustedLeft = Math.min(left, Math.max(8, maxLeft));
 
     this.suggestionsContainer.style.top = `${top}px`;
