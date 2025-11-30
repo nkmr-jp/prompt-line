@@ -120,10 +120,12 @@ class IPCHandlers {
     ipcMain.handle('paste-image', this.handlePasteImage.bind(this));
     ipcMain.handle('open-settings', this.handleOpenSettings.bind(this));
     ipcMain.handle('get-slash-commands', this.handleGetSlashCommands.bind(this));
+    ipcMain.handle('get-slash-command-file-path', this.handleGetSlashCommandFilePath.bind(this));
     ipcMain.handle('get-agents', this.handleGetAgents.bind(this));
     ipcMain.handle('get-agent-file-path', this.handleGetAgentFilePath.bind(this));
     ipcMain.handle('open-file-in-editor', this.handleOpenFileInEditor.bind(this));
     ipcMain.handle('check-file-exists', this.handleCheckFileExists.bind(this));
+    ipcMain.handle('open-external-url', this.handleOpenExternalUrl.bind(this));
 
     logger.info('IPC handlers set up successfully');
   }
@@ -576,6 +578,35 @@ class IPCHandlers {
     }
   }
 
+  private async handleGetSlashCommandFilePath(
+    _event: IpcMainInvokeEvent,
+    commandName: string
+  ): Promise<string | null> {
+    try {
+      if (!commandName || typeof commandName !== 'string') {
+        return null;
+      }
+
+      // Refresh directories from settings in case they changed
+      const settings = this.settingsManager.getSettings();
+      this.slashCommandLoader.setDirectories(settings.commands?.directories);
+
+      const commands = await this.slashCommandLoader.getCommands();
+      const command = commands.find(c => c.name === commandName);
+
+      if (command) {
+        logger.debug('Slash command file path resolved', { commandName, filePath: command.filePath });
+        return command.filePath;
+      }
+
+      logger.debug('Slash command not found', { commandName });
+      return null;
+    } catch (error) {
+      logger.error('Failed to get slash command file path:', error);
+      return null;
+    }
+  }
+
   private async handleGetAgents(
     _event: IpcMainInvokeEvent,
     query?: string
@@ -709,6 +740,41 @@ class IPCHandlers {
     }
   }
 
+  private async handleOpenExternalUrl(
+    _event: IpcMainInvokeEvent,
+    url: string
+  ): Promise<IPCResult> {
+    try {
+      logger.info('Opening external URL:', { url });
+
+      // Validate input
+      if (!url || typeof url !== 'string') {
+        return { success: false, error: 'Invalid URL provided' };
+      }
+
+      // Validate URL format
+      if (!url.match(/^https?:\/\//i)) {
+        return { success: false, error: 'URL must start with http:// or https://' };
+      }
+
+      // Additional security: check for potentially dangerous URLs
+      const urlLower = url.toLowerCase();
+      if (urlLower.includes('file://') || urlLower.includes('javascript:')) {
+        logger.warn('Attempted to open potentially dangerous URL:', { url });
+        return { success: false, error: 'Invalid URL protocol' };
+      }
+
+      // Open URL with system default browser
+      await shell.openExternal(url);
+
+      logger.info('URL opened successfully in browser:', { url });
+      return { success: true };
+    } catch (error) {
+      logger.error('Failed to open external URL:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
   removeAllHandlers(): void {
     const handlers = [
       'paste-text',
@@ -729,10 +795,12 @@ class IPCHandlers {
       'paste-image',
       'open-settings',
       'get-slash-commands',
+      'get-slash-command-file-path',
       'get-agents',
       'get-agent-file-path',
       'open-file-in-editor',
-      'check-file-exists'
+      'check-file-exists',
+      'open-external-url'
     ];
 
     handlers.forEach(handler => {
