@@ -828,9 +828,7 @@ export class FileSearchManager {
       if (looksLikeFilePath) {
         const filePath = this.resolveAtPathToAbsolute(atPath);
         if (filePath) {
-          this.callbacks.onBeforeOpenFile?.();
-          window.electronAPI.file.openInEditor(filePath)
-            .catch((err: Error) => console.error('Failed to open file in editor:', err));
+          await this.openFileAndRestoreFocus(filePath);
           return;
         }
       }
@@ -839,9 +837,7 @@ export class FileSearchManager {
       try {
         const agentFilePath = await window.electronAPI.agents.getFilePath(atPath);
         if (agentFilePath) {
-          this.callbacks.onBeforeOpenFile?.();
-          window.electronAPI.file.openInEditor(agentFilePath)
-            .catch((err: Error) => console.error('Failed to open agent file in editor:', err));
+          await this.openFileAndRestoreFocus(agentFilePath);
           return;
         }
       } catch (err) {
@@ -852,9 +848,7 @@ export class FileSearchManager {
       if (!looksLikeFilePath) {
         const filePath = this.resolveAtPathToAbsolute(atPath);
         if (filePath) {
-          this.callbacks.onBeforeOpenFile?.();
-          window.electronAPI.file.openInEditor(filePath)
-            .catch((err: Error) => console.error('Failed to open file in editor:', err));
+          await this.openFileAndRestoreFocus(filePath);
         }
       }
       return;
@@ -866,9 +860,7 @@ export class FileSearchManager {
       e.preventDefault();
       e.stopPropagation();
 
-      this.callbacks.onBeforeOpenFile?.();
-      window.electronAPI.file.openInEditor(absolutePath)
-        .catch((err: Error) => console.error('Failed to open file in editor:', err));
+      await this.openFileAndRestoreFocus(absolutePath);
     }
   }
 
@@ -895,9 +887,7 @@ export class FileSearchManager {
         // Resolve as file path first
         const filePath = this.resolveAtPathToAbsolute(atPath);
         if (filePath) {
-          this.callbacks.onBeforeOpenFile?.();
-          window.electronAPI.file.openInEditor(filePath)
-            .catch((err: Error) => console.error('Failed to open file in editor:', err));
+          await this.openFileAndRestoreFocus(filePath);
           return;
         }
       }
@@ -906,9 +896,7 @@ export class FileSearchManager {
       try {
         const agentFilePath = await window.electronAPI.agents.getFilePath(atPath);
         if (agentFilePath) {
-          this.callbacks.onBeforeOpenFile?.();
-          window.electronAPI.file.openInEditor(agentFilePath)
-            .catch((err: Error) => console.error('Failed to open agent file in editor:', err));
+          await this.openFileAndRestoreFocus(agentFilePath);
           return;
         }
       } catch (err) {
@@ -919,9 +907,7 @@ export class FileSearchManager {
       if (!looksLikeFilePath) {
         const filePath = this.resolveAtPathToAbsolute(atPath);
         if (filePath) {
-          this.callbacks.onBeforeOpenFile?.();
-          window.electronAPI.file.openInEditor(filePath)
-            .catch((err: Error) => console.error('Failed to open file in editor:', err));
+          await this.openFileAndRestoreFocus(filePath);
         }
       }
       return;
@@ -933,10 +919,7 @@ export class FileSearchManager {
       e.preventDefault();
       e.stopPropagation();
 
-      // Suppress blur before opening file to prevent window from closing
-      this.callbacks.onBeforeOpenFile?.();
-      window.electronAPI.file.openInEditor(absolutePath)
-        .catch((err: Error) => console.error('Failed to open file in editor:', err));
+      await this.openFileAndRestoreFocus(absolutePath);
     }
   }
 
@@ -1036,6 +1019,25 @@ export class FileSearchManager {
 
     // Combine with base directory
     return `${baseDir}/${relativePath}`;
+  }
+
+  /**
+   * Open file in editor and restore focus to PromptLine window
+   * @param filePath - Path to the file to open
+   */
+  private async openFileAndRestoreFocus(filePath: string): Promise<void> {
+    try {
+      this.callbacks.onBeforeOpenFile?.();
+      await window.electronAPI.file.openInEditor(filePath);
+      // Restore focus to PromptLine window after a short delay
+      setTimeout(() => {
+        window.electronAPI.window.focus().catch((err: Error) =>
+          console.error('Failed to restore focus:', err)
+        );
+      }, 100);
+    } catch (err) {
+      console.error('Failed to open file in editor:', err);
+    }
   }
 
   /**
@@ -1874,14 +1876,8 @@ export class FileSearchManager {
               ? clickedSuggestion.file?.path
               : clickedSuggestion.agent?.filePath;
             if (filePath) {
-              try {
-                // Suppress blur before opening file to prevent window from closing
-                this.callbacks.onBeforeOpenFile?.();
-                await window.electronAPI.file.openInEditor(filePath);
-                this.hideSuggestions();
-              } catch (error) {
-                console.error('Failed to open file in editor:', error);
-              }
+              await this.openFileAndRestoreFocus(filePath);
+              this.hideSuggestions();
               return;
             }
           }
@@ -2065,11 +2061,8 @@ export class FileSearchManager {
                 ? suggestion.file?.path
                 : suggestion.agent?.filePath;
               if (filePath) {
-                // Suppress blur before opening file to prevent window from closing
-                this.callbacks.onBeforeOpenFile?.();
-                window.electronAPI.file.openInEditor(filePath)
-                  .then(() => this.hideSuggestions())
-                  .catch((error: Error) => console.error('Failed to open file in editor:', error));
+                this.openFileAndRestoreFocus(filePath)
+                  .then(() => this.hideSuggestions());
                 return;
               }
             }
