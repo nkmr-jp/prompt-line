@@ -3,7 +3,7 @@ import path from 'path';
 import os from 'os';
 import * as yaml from 'js-yaml';
 import { logger } from '../utils/utils';
-import type { UserSettings } from '../types';
+import type { UserSettings, FileSearchSettings } from '../types';
 
 class SettingsManager {
   private settingsFile: string;
@@ -35,7 +35,7 @@ class SettingsManager {
         excludePatterns: [],
         includePatterns: [],
         maxFiles: 5000,
-        includeHidden: false,
+        includeHidden: true,
         maxDepth: null,
         followSymlinks: false
       }
@@ -209,8 +209,8 @@ window:
   ## Maximum number of files to return (default: 5000)
   # maxFiles: ${settings.fileSearch?.maxFiles ?? 5000}
 
-  ## Include hidden files starting with . (default: false)
-  # includeHidden: ${settings.fileSearch?.includeHidden ?? false}
+  ## Include hidden files starting with . (default: true)
+  # includeHidden: ${settings.fileSearch?.includeHidden ?? true}
 
   ## Maximum directory depth to search (null = unlimited)
   # maxDepth: null
@@ -286,11 +286,11 @@ window:
     };
   }
 
-  getFileSearchSettings(): NonNullable<UserSettings['fileSearch']> {
+  getFileSearchSettings(): FileSearchSettings {
     return {
       ...this.defaultSettings.fileSearch,
       ...this.currentSettings.fileSearch
-    };
+    } as FileSearchSettings;
   }
 
   async updateFileSearchSettings(fileSearch: Partial<NonNullable<UserSettings['fileSearch']>>): Promise<void> {

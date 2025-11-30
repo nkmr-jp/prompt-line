@@ -59,6 +59,7 @@ class PromptLineApp {
       await this.historyManager.initialize();
       
       this.windowManager.updateWindowSettings(userSettings.window);
+      this.windowManager.updateFileSearchSettings(this.settingsManager.getFileSearchSettings());
 
       this.ipcHandlers = new IPCHandlers(
         this.windowManager,
