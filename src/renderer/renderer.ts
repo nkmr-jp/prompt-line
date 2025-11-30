@@ -59,7 +59,11 @@ export class PromptLineRenderer {
     this.snapshotManager = new SimpleSnapshotManager();
     this.historyUIManager = new HistoryUIManager(
       () => this.domManager.historyList,
-      (text: string) => this.domManager.setText(text),
+      (text: string) => {
+        this.domManager.setText(text);
+        // Clear @path highlights when setting text from history
+        this.fileSearchManager?.clearAtPaths();
+      },
       () => this.domManager.focusTextarea(),
       () => this.searchManager,
       () => this.domManager.getCurrentText(),
