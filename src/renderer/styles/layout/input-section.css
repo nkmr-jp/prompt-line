@@ -23,6 +23,64 @@
     align-items: center;
     margin-bottom: var(--spacing-md);
     min-height: 24px;
+    padding: var(--spacing-sm) var(--spacing-md);
+    margin: calc(-1 * var(--spacing-sm)) calc(-1 * var(--spacing-md));
+    margin-bottom: var(--spacing-sm);
+    border-radius: var(--radius-md);
+    transition: background-color 0.2s ease;
+}
+
+/* Draggable header state - enables window dragging */
+.header.draggable {
+    -webkit-app-region: drag;
+    cursor: grab;
+    background-color: rgba(59, 130, 246, 0.15);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.header.draggable:active {
+    cursor: grabbing;
+}
+
+/* Drag indicator - shows when window is draggable */
+.drag-indicator {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    color: rgba(59, 130, 246, 0.9);
+    font-size: var(--font-size-sm);
+    animation: fadeInPulse 0.3s ease-out;
+}
+
+.header.draggable .drag-indicator {
+    display: flex;
+}
+
+/* Hide shortcuts when draggable */
+.header.draggable .shortcuts {
+    display: none;
+}
+
+.drag-icon {
+    width: 16px;
+    height: 16px;
+    opacity: 0.8;
+}
+
+.drag-text {
+    font-weight: 500;
+    letter-spacing: 0.02em;
+}
+
+@keyframes fadeInPulse {
+    0% {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 .app-name {

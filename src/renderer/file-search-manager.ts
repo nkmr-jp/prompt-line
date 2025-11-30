@@ -58,6 +58,7 @@ interface FileSearchCallbacks {
   onBeforeOpenFile?: () => void; // Called before opening file in editor to suppress blur
   updateHintText?: (text: string) => void; // Update hint text in footer
   getDefaultHintText?: () => string; // Get default hint text (directory path)
+  setDraggable?: (enabled: boolean) => void; // Enable/disable window dragging during file open
 }
 
 // Represents a tracked @path in the text
@@ -1023,13 +1024,17 @@ export class FileSearchManager {
 
   /**
    * Open file in editor and restore focus to PromptLine window
+   * Enables window dragging during file open operation
    * @param filePath - Path to the file to open
    */
   private async openFileAndRestoreFocus(filePath: string): Promise<void> {
     try {
       this.callbacks.onBeforeOpenFile?.();
+      // Enable draggable state while file is opening
+      this.callbacks.setDraggable?.(true);
       await window.electronAPI.file.openInEditor(filePath);
       // Restore focus to PromptLine window after a short delay
+      // Keep draggable state enabled so user can move window while file is open
       setTimeout(() => {
         window.electronAPI.window.focus().catch((err: Error) =>
           console.error('Failed to restore focus:', err)
@@ -1037,6 +1042,8 @@ export class FileSearchManager {
       }, 100);
     } catch (err) {
       console.error('Failed to open file in editor:', err);
+      // Disable draggable state on error
+      this.callbacks.setDraggable?.(false);
     }
   }
 

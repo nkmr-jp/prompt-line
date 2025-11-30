@@ -178,7 +178,11 @@ export class PromptLineRenderer {
       updateHintText: (text: string) => {
         this.domManager.updateHintText(text);
       },
-      getDefaultHintText: () => this.defaultHintText
+      getDefaultHintText: () => this.defaultHintText,
+      setDraggable: (enabled: boolean) => {
+        // Enable/disable draggable state on header during file open
+        this.domManager.setDraggable(enabled);
+      }
     });
 
     this.fileSearchManager.initializeElements();
@@ -385,6 +389,9 @@ export class PromptLineRenderer {
       // Reset search mode and scroll position when window is shown
       this.searchManager?.exitSearchMode();
       this.resetHistoryScrollPosition();
+
+      // Reset draggable state when window is shown (new session)
+      this.domManager.setDraggable(false);
 
       // Cache directory data for file search (Stage 1)
       if (data.directoryData) {
