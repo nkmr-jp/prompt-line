@@ -716,7 +716,7 @@ export class FileSearchManager {
    */
   private showFileOpenHint(): void {
     if (this.callbacks.updateHintText) {
-      this.callbacks.updateHintText('Ctrl + ↵ でファイルを開く');
+      this.callbacks.updateHintText('Ctrl + ↵ to open file');
     }
   }
 
