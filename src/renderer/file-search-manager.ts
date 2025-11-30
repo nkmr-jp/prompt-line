@@ -56,6 +56,9 @@ interface FileSearchCallbacks {
   getCursorPosition: () => number;
   setCursorPosition: (position: number) => void;
   onBeforeOpenFile?: () => void; // Called before opening file in editor to suppress blur
+  updateHintText?: (text: string) => void; // Update hint text in footer
+  getDefaultHintText?: () => string; // Get default hint text (directory path)
+  setDraggable?: (enabled: boolean) => void; // Enable/disable window dragging during file open
 }
 
 // Represents a tracked @path in the text
@@ -98,6 +101,9 @@ export class FileSearchManager {
   // Cmd+hover state for file path link
   private isCmdHoverActive: boolean = false;
   private hoveredAtPath: AtPathRange | null = null;
+
+  // Cursor position state for file path link
+  private cursorPositionPath: AtPathRange | null = null;
 
   // Constants
   private static readonly MAX_SUGGESTIONS = 15;
@@ -339,6 +345,8 @@ export class FileSearchManager {
       console.debug('[FileSearchManager] input event fired');
       this.checkForFileSearch();
       this.updateHighlightBackdrop();
+      // Update cursor position highlight after input
+      this.updateCursorPositionHighlight();
     });
 
     // Listen for keydown for navigation and backspace handling
@@ -348,6 +356,28 @@ export class FileSearchManager {
       } else if (e.key === 'Backspace') {
         // Handle backspace to delete entire @path if cursor is at the end of one
         this.handleBackspaceForAtPath(e);
+      } else if (e.key === 'Enter' && e.ctrlKey) {
+        // Ctrl+Enter: open file at cursor position
+        this.handleCtrlEnterOpenFile(e);
+      }
+    });
+
+    // Listen for cursor position changes (click, arrow keys)
+    this.textInput.addEventListener('click', () => {
+      this.updateCursorPositionHighlight();
+    });
+
+    this.textInput.addEventListener('keyup', (e) => {
+      // Update on arrow keys that move cursor
+      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) {
+        this.updateCursorPositionHighlight();
+      }
+    });
+
+    // Also listen for selectionchange on document (handles all cursor movements)
+    document.addEventListener('selectionchange', () => {
+      if (document.activeElement === this.textInput) {
+        this.updateCursorPositionHighlight();
       }
     });
 
@@ -626,8 +656,213 @@ export class FileSearchManager {
    */
   private clearFilePathHighlight(): void {
     this.hoveredAtPath = null;
-    // Re-render without link style (just @path highlights)
-    this.updateHighlightBackdrop();
+    // Re-render without link style (just @path highlights, with cursor highlight)
+    this.renderHighlightBackdropWithCursor();
+  }
+
+  /**
+   * Update cursor position highlight (called when cursor moves)
+   * Only highlights absolute file paths, not @paths (which already have their own highlight)
+   * Also updates hint text to show Ctrl+Enter shortcut when on a clickable path
+   */
+  private updateCursorPositionHighlight(): void {
+    if (!this.textInput) return;
+
+    const text = this.textInput.value;
+    const cursorPos = this.textInput.selectionStart;
+
+    // First check if cursor is on an @path - still show hint but no extra highlight
+    const atPath = this.findAtPathAtPosition(text, cursorPos);
+    if (atPath) {
+      // Show hint for @path too
+      this.showFileOpenHint();
+      if (this.cursorPositionPath) {
+        this.cursorPositionPath = null;
+        this.renderHighlightBackdropWithCursor();
+      }
+      return;
+    }
+
+    // Find absolute path at cursor position (paths starting with / or ~)
+    const absolutePath = this.findAbsolutePathAtPosition(text, cursorPos);
+
+    if (absolutePath) {
+      // Show hint for absolute path
+      this.showFileOpenHint();
+      // Get the range for the absolute path
+      const pathInfo = this.findClickablePathAtPosition(text, cursorPos);
+      if (pathInfo && !pathInfo.path.startsWith('@')) {
+        const newRange: AtPathRange = { start: pathInfo.start, end: pathInfo.end };
+        // Only update if position changed
+        if (!this.cursorPositionPath ||
+            this.cursorPositionPath.start !== newRange.start ||
+            this.cursorPositionPath.end !== newRange.end) {
+          this.cursorPositionPath = newRange;
+          this.renderHighlightBackdropWithCursor();
+        }
+      }
+    } else {
+      // Restore default hint when not on a clickable path
+      this.restoreDefaultHint();
+      if (this.cursorPositionPath) {
+        // Clear cursor highlight
+        this.cursorPositionPath = null;
+        this.renderHighlightBackdropWithCursor();
+      }
+    }
+  }
+
+  /**
+   * Show hint for opening file with Ctrl+Enter
+   */
+  private showFileOpenHint(): void {
+    if (this.callbacks.updateHintText) {
+      this.callbacks.updateHintText('Ctrl + ↵ to open file');
+    }
+  }
+
+  /**
+   * Restore the default hint text (directory path)
+   */
+  private restoreDefaultHint(): void {
+    if (this.callbacks.updateHintText && this.callbacks.getDefaultHintText) {
+      this.callbacks.updateHintText(this.callbacks.getDefaultHintText());
+    }
+  }
+
+  /**
+   * Render highlight backdrop with cursor position highlight
+   * @paths get their own highlight, absolute paths get cursor highlight
+   */
+  private renderHighlightBackdropWithCursor(): void {
+    if (!this.highlightBackdrop || !this.textInput) return;
+
+    const text = this.textInput.value;
+
+    // Re-scan for @paths
+    this.rescanAtPaths(text);
+
+    // If there's an active Cmd+hover, use the full link style rendering
+    if (this.hoveredAtPath) {
+      this.renderFilePathHighlight();
+      return;
+    }
+
+    // Collect all highlight ranges: @paths and cursor position (for absolute paths only)
+    const allHighlightRanges: Array<AtPathRange & { isAtPath: boolean; isCursorHighlight: boolean }> = [];
+
+    // Add @paths (no cursor highlight for @paths - they have their own style)
+    for (const atPath of this.atPaths) {
+      allHighlightRanges.push({ ...atPath, isAtPath: true, isCursorHighlight: false });
+    }
+
+    // Add cursor position path for absolute paths (not @paths)
+    if (this.cursorPositionPath) {
+      allHighlightRanges.push({
+        start: this.cursorPositionPath.start,
+        end: this.cursorPositionPath.end,
+        isAtPath: false,
+        isCursorHighlight: true
+      });
+    }
+
+    // Sort by start position
+    allHighlightRanges.sort((a, b) => a.start - b.start);
+
+    // Build highlighted content
+    const fragment = document.createDocumentFragment();
+    let lastEnd = 0;
+
+    for (const range of allHighlightRanges) {
+      // Add text before this range
+      if (range.start > lastEnd) {
+        fragment.appendChild(document.createTextNode(text.substring(lastEnd, range.start)));
+      }
+
+      // Add highlighted span
+      const span = document.createElement('span');
+
+      if (range.isAtPath) {
+        span.className = 'at-path-highlight';
+      } else if (range.isCursorHighlight) {
+        span.className = 'file-path-cursor-highlight';
+      }
+
+      span.textContent = text.substring(range.start, range.end);
+      fragment.appendChild(span);
+
+      lastEnd = range.end;
+    }
+
+    // Add remaining text
+    if (lastEnd < text.length) {
+      fragment.appendChild(document.createTextNode(text.substring(lastEnd)));
+    }
+
+    // Clear existing content using DOM methods (avoid innerHTML for security)
+    while (this.highlightBackdrop.firstChild) {
+      this.highlightBackdrop.removeChild(this.highlightBackdrop.firstChild);
+    }
+    this.highlightBackdrop.appendChild(fragment);
+
+    // Sync scroll
+    this.syncBackdropScroll();
+  }
+
+  /**
+   * Handle Ctrl+Enter to open file at cursor position
+   */
+  private async handleCtrlEnterOpenFile(e: KeyboardEvent): Promise<void> {
+    if (!this.textInput) return;
+
+    const text = this.textInput.value;
+    const cursorPos = this.textInput.selectionStart;
+
+    // Find @path at cursor position
+    const atPath = this.findAtPathAtPosition(text, cursorPos);
+    if (atPath) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const looksLikeFilePath = atPath.includes('/') || atPath.includes('.');
+
+      if (looksLikeFilePath) {
+        const filePath = this.resolveAtPathToAbsolute(atPath);
+        if (filePath) {
+          await this.openFileAndRestoreFocus(filePath);
+          return;
+        }
+      }
+
+      // Try as agent name
+      try {
+        const agentFilePath = await window.electronAPI.agents.getFilePath(atPath);
+        if (agentFilePath) {
+          await this.openFileAndRestoreFocus(agentFilePath);
+          return;
+        }
+      } catch (err) {
+        console.error('Failed to resolve agent file path:', err);
+      }
+
+      // Fallback
+      if (!looksLikeFilePath) {
+        const filePath = this.resolveAtPathToAbsolute(atPath);
+        if (filePath) {
+          await this.openFileAndRestoreFocus(filePath);
+        }
+      }
+      return;
+    }
+
+    // Find absolute path at cursor position
+    const absolutePath = this.findAbsolutePathAtPosition(text, cursorPos);
+    if (absolutePath) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      await this.openFileAndRestoreFocus(absolutePath);
+    }
   }
 
   /**
@@ -653,9 +888,7 @@ export class FileSearchManager {
         // Resolve as file path first
         const filePath = this.resolveAtPathToAbsolute(atPath);
         if (filePath) {
-          this.callbacks.onBeforeOpenFile?.();
-          window.electronAPI.file.openInEditor(filePath)
-            .catch((err: Error) => console.error('Failed to open file in editor:', err));
+          await this.openFileAndRestoreFocus(filePath);
           return;
         }
       }
@@ -664,9 +897,7 @@ export class FileSearchManager {
       try {
         const agentFilePath = await window.electronAPI.agents.getFilePath(atPath);
         if (agentFilePath) {
-          this.callbacks.onBeforeOpenFile?.();
-          window.electronAPI.file.openInEditor(agentFilePath)
-            .catch((err: Error) => console.error('Failed to open agent file in editor:', err));
+          await this.openFileAndRestoreFocus(agentFilePath);
           return;
         }
       } catch (err) {
@@ -677,9 +908,7 @@ export class FileSearchManager {
       if (!looksLikeFilePath) {
         const filePath = this.resolveAtPathToAbsolute(atPath);
         if (filePath) {
-          this.callbacks.onBeforeOpenFile?.();
-          window.electronAPI.file.openInEditor(filePath)
-            .catch((err: Error) => console.error('Failed to open file in editor:', err));
+          await this.openFileAndRestoreFocus(filePath);
         }
       }
       return;
@@ -691,10 +920,7 @@ export class FileSearchManager {
       e.preventDefault();
       e.stopPropagation();
 
-      // Suppress blur before opening file to prevent window from closing
-      this.callbacks.onBeforeOpenFile?.();
-      window.electronAPI.file.openInEditor(absolutePath)
-        .catch((err: Error) => console.error('Failed to open file in editor:', err));
+      await this.openFileAndRestoreFocus(absolutePath);
     }
   }
 
@@ -794,6 +1020,31 @@ export class FileSearchManager {
 
     // Combine with base directory
     return `${baseDir}/${relativePath}`;
+  }
+
+  /**
+   * Open file in editor and restore focus to PromptLine window
+   * Enables window dragging during file open operation
+   * @param filePath - Path to the file to open
+   */
+  private async openFileAndRestoreFocus(filePath: string): Promise<void> {
+    try {
+      this.callbacks.onBeforeOpenFile?.();
+      // Enable draggable state while file is opening
+      this.callbacks.setDraggable?.(true);
+      await window.electronAPI.file.openInEditor(filePath);
+      // Restore focus to PromptLine window after a short delay
+      // Keep draggable state enabled so user can move window while file is open
+      setTimeout(() => {
+        window.electronAPI.window.focus().catch((err: Error) =>
+          console.error('Failed to restore focus:', err)
+        );
+      }, 100);
+    } catch (err) {
+      console.error('Failed to open file in editor:', err);
+      // Disable draggable state on error
+      this.callbacks.setDraggable?.(false);
+    }
   }
 
   /**
@@ -1632,14 +1883,8 @@ export class FileSearchManager {
               ? clickedSuggestion.file?.path
               : clickedSuggestion.agent?.filePath;
             if (filePath) {
-              try {
-                // Suppress blur before opening file to prevent window from closing
-                this.callbacks.onBeforeOpenFile?.();
-                await window.electronAPI.file.openInEditor(filePath);
-                this.hideSuggestions();
-              } catch (error) {
-                console.error('Failed to open file in editor:', error);
-              }
+              await this.openFileAndRestoreFocus(filePath);
+              this.hideSuggestions();
               return;
             }
           }
@@ -1823,11 +2068,8 @@ export class FileSearchManager {
                 ? suggestion.file?.path
                 : suggestion.agent?.filePath;
               if (filePath) {
-                // Suppress blur before opening file to prevent window from closing
-                this.callbacks.onBeforeOpenFile?.();
-                window.electronAPI.file.openInEditor(filePath)
-                  .then(() => this.hideSuggestions())
-                  .catch((error: Error) => console.error('Failed to open file in editor:', error));
+                this.openFileAndRestoreFocus(filePath)
+                  .then(() => this.hideSuggestions());
                 return;
               }
             }
@@ -2178,14 +2420,18 @@ export class FileSearchManager {
   /**
    * Restore @paths from text (called when draft is restored or directory data is updated)
    * This auto-detects @paths in the text and adds them to tracking
-   * Only highlights @paths that actually exist in the cached file list
+   * Only highlights @paths that actually exist (checked against cached file list or filesystem)
+   *
+   * @param checkFilesystem - If true, checks filesystem for file existence when cached file list is empty.
+   *                          Use this when restoring from draft with empty file list (fromDraft).
    */
-  public restoreAtPathsFromText(): void {
+  public async restoreAtPathsFromText(checkFilesystem = false): Promise<void> {
     console.debug('[FileSearchManager] restoreAtPathsFromText called:', formatLog({
       hasTextInput: !!this.textInput,
       hasHighlightBackdrop: !!this.highlightBackdrop,
       hasCachedData: !!this.cachedDirectoryData,
-      cachedFileCount: this.cachedDirectoryData?.files?.length || 0
+      cachedFileCount: this.cachedDirectoryData?.files?.length || 0,
+      checkFilesystem
     }));
 
     if (!this.textInput) {
@@ -2202,59 +2448,97 @@ export class FileSearchManager {
     // Clear existing paths
     this.atPaths = [];
 
-    // Need cached directory data to check if files exist
-    if (!this.cachedDirectoryData?.files || !this.cachedDirectoryData?.directory) {
-      console.debug('[FileSearchManager] restoreAtPathsFromText: no cached data, skipping highlight');
+    // Need cached directory data to check if files exist (or need to check filesystem)
+    const hasValidCachedData = this.cachedDirectoryData?.files &&
+                                this.cachedDirectoryData.files.length > 0 &&
+                                this.cachedDirectoryData?.directory;
+    const baseDir = this.cachedDirectoryData?.directory;
+
+    if (!checkFilesystem && !hasValidCachedData) {
+      console.debug('[FileSearchManager] restoreAtPathsFromText: no cached data and not checking filesystem, skipping highlight');
       this.updateHighlightBackdrop();
       return;
     }
 
-    const baseDir = this.cachedDirectoryData.directory;
-    const files = this.cachedDirectoryData.files;
-
-    // Build a set of relative paths for quick lookup
-    const relativePaths = new Set<string>();
-    for (const file of files) {
-      const relativePath = this.getRelativePath(file.path, baseDir);
-      relativePaths.add(relativePath);
-      // Also add without trailing slash for directories
-      if (relativePath.endsWith('/')) {
-        relativePaths.add(relativePath.slice(0, -1));
+    // Build a set of relative paths for quick lookup (only if we have valid cached data)
+    let relativePaths: Set<string> | null = null;
+    if (hasValidCachedData) {
+      const files = this.cachedDirectoryData!.files!;
+      relativePaths = new Set<string>();
+      for (const file of files) {
+        const relativePath = this.getRelativePath(file.path, baseDir!);
+        relativePaths.add(relativePath);
+        // Also add without trailing slash for directories
+        if (relativePath.endsWith('/')) {
+          relativePaths.add(relativePath.slice(0, -1));
+        }
       }
-    }
 
-    console.debug('[FileSearchManager] Built relative path set:', formatLog({
-      pathCount: relativePaths.size
-    }));
+      console.debug('[FileSearchManager] Built relative path set:', formatLog({
+        pathCount: relativePaths.size
+      }));
+    }
 
     // Find all @paths in text
     const atPathPattern = /@([^\s@]+)/g;
     let match;
+    const pathsToCheck: Array<{ pathContent: string; start: number; end: number }> = [];
 
     while ((match = atPathPattern.exec(text)) !== null) {
       const pathContent = match[1];
       // Only add paths that look like file paths (contain / or .)
       if (pathContent && (pathContent.includes('/') || pathContent.includes('.'))) {
-        // Check if this path exists in the cached file list
-        if (relativePaths.has(pathContent)) {
-          this.atPaths.push({
-            start: match.index,
-            end: match.index + match[0].length
-          });
-          console.debug('[FileSearchManager] Found existing @path:', formatLog({
+        pathsToCheck.push({
+          pathContent,
+          start: match.index,
+          end: match.index + match[0].length
+        });
+      }
+    }
+
+    // Check each path for existence
+    for (const { pathContent, start, end } of pathsToCheck) {
+      let shouldHighlight = false;
+
+      // First, check against cached file list if available
+      if (relativePaths && relativePaths.has(pathContent)) {
+        shouldHighlight = true;
+      }
+      // If no cached data but checkFilesystem is enabled, check actual filesystem
+      else if (checkFilesystem && baseDir) {
+        // Construct full path and check filesystem
+        const fullPath = `${baseDir}/${pathContent}`;
+        try {
+          const exists = await window.electronAPI.file.checkExists(fullPath);
+          shouldHighlight = exists;
+          console.debug('[FileSearchManager] Filesystem check for @path:', formatLog({
             pathContent,
-            start: match.index,
-            end: match.index + match[0].length
+            fullPath,
+            exists
           }));
-        } else {
-          console.debug('[FileSearchManager] Skipping non-existent @path:', pathContent);
+        } catch (err) {
+          console.error('[FileSearchManager] Error checking file existence:', err);
+          shouldHighlight = false;
         }
+      }
+
+      if (shouldHighlight) {
+        this.atPaths.push({ start, end });
+        console.debug('[FileSearchManager] Found @path:', formatLog({
+          pathContent,
+          start,
+          end,
+          checkFilesystem
+        }));
+      } else {
+        console.debug('[FileSearchManager] Skipping non-existent @path:', pathContent);
       }
     }
 
     console.debug('[FileSearchManager] Restored @paths from text:', formatLog({
       count: this.atPaths.length,
-      textLength: text.length
+      textLength: text.length,
+      checkFilesystem
     }));
     this.updateHighlightBackdrop();
   }

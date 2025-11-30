@@ -3,6 +3,7 @@ import { exec } from 'child_process';
 import config from '../config/app-config';
 import { getCurrentApp, getActiveWindowBounds, logger, KEYBOARD_SIMULATOR_PATH, TEXT_FIELD_DETECTOR_PATH, DIRECTORY_DETECTOR_PATH } from '../utils/utils';
 import DesktopSpaceManager from './desktop-space-manager';
+import type DirectoryManager from './directory-manager';
 import type { AppInfo, WindowData, StartupPosition, DirectoryInfo, FileSearchSettings } from '../types';
 
 // Native tools paths are imported from utils to ensure correct paths in packaged app
@@ -14,6 +15,8 @@ class WindowManager {
   private desktopSpaceManager: DesktopSpaceManager | null = null;
   private lastSpaceSignature: string | null = null;
   private fileSearchSettings: FileSearchSettings | null = null;
+  private directoryManager: DirectoryManager | null = null;
+  private savedDirectory: string | null = null; // Directory from DirectoryManager for fallback
 
   async initialize(): Promise<void> {
     try {
@@ -187,12 +190,30 @@ class WindowManager {
       
       logger.debug(`⏱️  Window management total: ${(performance.now() - windowMgmtStartTime).toFixed(2)}ms`);
 
-      // Prepare window data WITHOUT directory data (will be sent later via background detection)
+      // Get saved directory from DirectoryManager for fallback feature
+      // This directory will be used as initial value and as fallback if detection fails
+      this.savedDirectory = this.directoryManager?.getDirectory() || null;
+      logger.debug('Saved directory for fallback:', { savedDirectory: this.savedDirectory });
+
+      // Prepare window data with draft directory as initial directoryData (if available)
+      // This enables @path highlighting immediately on window show
       const windowData: WindowData = {
         sourceApp: this.previousApp,
         currentSpaceInfo,
         ...data
       };
+
+      if (this.savedDirectory) {
+        windowData.directoryData = {
+          success: true,
+          directory: this.savedDirectory,
+          files: [], // Empty files - will be populated by background detection
+          fileCount: 0,
+          partial: true,
+          searchMode: 'quick',
+          fromDraft: true // Flag indicating this is from draft fallback
+        };
+      }
 
       // Handle window display efficiently - show window FIRST before directory detection
       const displayStartTime = performance.now();
@@ -247,8 +268,20 @@ class WindowManager {
         this.inputWindow.hide();
         logger.debug('Input window hidden');
       }
-    } catch (error) { 
+    } catch (error) {
       logger.error('Failed to hide input window:', error);
+      throw error;
+    }
+  }
+
+  focusWindow(): void {
+    try {
+      if (this.inputWindow) {
+        this.inputWindow.focus();
+        logger.debug('Input window focused');
+      }
+    } catch (error) {
+      logger.error('Failed to focus input window:', error);
       throw error;
     }
   }
@@ -615,6 +648,14 @@ class WindowManager {
   }
 
   /**
+   * Set DirectoryManager reference for directory fallback feature
+   */
+  setDirectoryManager(directoryManager: DirectoryManager): void {
+    this.directoryManager = directoryManager;
+    logger.debug('DirectoryManager reference set in WindowManager');
+  }
+
+  /**
    * Execute directory-detector native tool with specified mode and settings
    * @param mode 'quick' for Stage 1 (single-level), 'recursive' for Stage 2 (full recursive)
    * @param timeout Timeout in milliseconds
@@ -720,29 +761,64 @@ class WindowManager {
   /**
    * Execute directory detection in background (both Stage 1 quick and Stage 2 recursive)
    * This ensures window shows immediately without waiting for directory detection
+   *
+   * Draft Directory Fallback Logic:
+   * - If detection succeeds: update draft directory and send result with directoryChanged flag
+   * - If detection fails: keep using draft directory (do nothing)
+   * - directoryChanged flag is true when detected directory differs from saved draft directory
    */
   private async executeBackgroundDirectoryDetection(): Promise<void> {
     try {
       const startTime = performance.now();
-      logger.debug('🔄 Starting background directory detection...');
+      logger.debug('🔄 Starting background directory detection...', {
+        savedDirectory: this.savedDirectory
+      });
 
       // Stage 1: Quick directory detection first
       const quickResult = await this.executeDirectoryDetector('quick', 2000);
 
-      if (quickResult && this.inputWindow && !this.inputWindow.isDestroyed()) {
-        // Send Stage 1 result immediately
-        this.inputWindow.webContents.send('directory-data-updated', quickResult);
+      if (quickResult && quickResult.directory && this.inputWindow && !this.inputWindow.isDestroyed()) {
+        // Detection succeeded - check if directory changed from draft
+        const detectedDirectory = quickResult.directory;
+        const directoryChanged = this.savedDirectory !== null && detectedDirectory !== this.savedDirectory;
+
+        // Add directoryChanged flag to result
+        const resultWithFlags: DirectoryInfo = {
+          ...quickResult,
+          directoryChanged
+        };
+        // Only add previousDirectory if directory actually changed
+        if (directoryChanged && this.savedDirectory) {
+          resultWithFlags.previousDirectory = this.savedDirectory;
+        }
+
+        // Send Stage 1 result with directoryChanged flag
+        this.inputWindow.webContents.send('directory-data-updated', resultWithFlags);
         logger.debug(`✅ Stage 1 (quick) completed in ${(performance.now() - startTime).toFixed(2)}ms`, {
-          directory: quickResult.directory,
-          fileCount: quickResult.fileCount
+          directory: detectedDirectory,
+          fileCount: quickResult.fileCount,
+          directoryChanged,
+          previousDirectory: this.savedDirectory
         });
+
+        // Update directory manager with detected directory (detection succeeded)
+        if (this.directoryManager) {
+          this.directoryManager.setDirectory(detectedDirectory);
+          this.savedDirectory = detectedDirectory; // Update local reference
+        }
 
         // Stage 2: Recursive detection for more complete file list
         const recursiveStartTime = performance.now();
         const fullResult = await this.executeDirectoryDetector('recursive', 5000);
 
-        if (fullResult && this.inputWindow && !this.inputWindow.isDestroyed()) {
-          this.inputWindow.webContents.send('directory-data-updated', fullResult);
+        if (fullResult && fullResult.directory && this.inputWindow && !this.inputWindow.isDestroyed()) {
+          // Stage 2 uses same directory, so directoryChanged is false for subsequent updates
+          const stage2Result: DirectoryInfo = {
+            ...fullResult,
+            directoryChanged: false // Same directory as Stage 1
+          };
+
+          this.inputWindow.webContents.send('directory-data-updated', stage2Result);
           logger.debug(`✅ Stage 2 (recursive) completed in ${(performance.now() - recursiveStartTime).toFixed(2)}ms`, {
             directory: fullResult.directory,
             fileCount: fullResult.fileCount,
@@ -750,12 +826,17 @@ class WindowManager {
           });
         }
       } else {
-        logger.debug('Background directory detection: no result or window not available');
+        // Detection failed - keep using draft directory (fallback)
+        // Do NOT send any update, keep the initial draft directory data
+        logger.debug('Background directory detection: no result or window not available, keeping draft directory', {
+          savedDirectory: this.savedDirectory
+        });
       }
 
       logger.debug(`🏁 Total background directory detection time: ${(performance.now() - startTime).toFixed(2)}ms`);
     } catch (error) {
       logger.warn('Background directory detection failed:', error);
+      // Detection failed - keep using draft directory (fallback)
     }
   }
 }

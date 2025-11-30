@@ -34,7 +34,8 @@ const ALLOWED_CHANNELS = [
   'directory-data-updated',
   'open-settings',
   'get-agents',
-  'open-file-in-editor'
+  'open-file-in-editor',
+  'check-file-exists'
 ];
 
 // IPC channel validation with additional security checks
@@ -234,6 +235,9 @@ const electronAPI = {
   file: {
     openInEditor: async (filePath: string): Promise<{ success: boolean; error?: string }> => {
       return ipcRenderer.invoke('open-file-in-editor', filePath);
+    },
+    checkExists: async (filePath: string): Promise<boolean> => {
+      return ipcRenderer.invoke('check-file-exists', filePath);
     }
   }
 };
@@ -287,6 +291,7 @@ export interface ElectronAPI {
   };
   file: {
     openInEditor: (filePath: string) => Promise<{ success: boolean; error?: string }>;
+    checkExists: (filePath: string) => Promise<boolean>;
   };
 }
 

@@ -20,6 +20,7 @@ import WindowManager from './managers/window-manager';
 import HistoryManager from './managers/history-manager';
 import OptimizedHistoryManager from './managers/optimized-history-manager';
 import DraftManager from './managers/draft-manager';
+import DirectoryManager from './managers/directory-manager';
 import SettingsManager from './managers/settings-manager';
 import IPCHandlers from './handlers/ipc-handlers';
 import { logger, ensureDir, detectCurrentDirectoryWithFiles } from './utils/utils';
@@ -29,6 +30,7 @@ class PromptLineApp {
   private windowManager: WindowManager | null = null;
   private historyManager: HistoryManager | OptimizedHistoryManager | null = null;
   private draftManager: DraftManager | null = null;
+  private directoryManager: DirectoryManager | null = null;
   private settingsManager: SettingsManager | null = null;
   private ipcHandlers: IPCHandlers | null = null;
   private tray: Tray | null = null;
@@ -44,10 +46,12 @@ class PromptLineApp {
 
       this.windowManager = new WindowManager();
       this.draftManager = new DraftManager();
+      this.directoryManager = new DirectoryManager();
       this.settingsManager = new SettingsManager();
 
       await this.windowManager.initialize();
       await this.draftManager.initialize();
+      await this.directoryManager.initialize();
       await this.settingsManager.init();
 
       const userSettings = this.settingsManager.getSettings();
@@ -60,11 +64,13 @@ class PromptLineApp {
       
       this.windowManager.updateWindowSettings(userSettings.window);
       this.windowManager.updateFileSearchSettings(this.settingsManager.getFileSearchSettings());
+      this.windowManager.setDirectoryManager(this.directoryManager);
 
       this.ipcHandlers = new IPCHandlers(
         this.windowManager,
         this.historyManager,
         this.draftManager,
+        this.directoryManager,
         this.settingsManager
       );
 

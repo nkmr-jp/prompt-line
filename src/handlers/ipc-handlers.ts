@@ -13,6 +13,7 @@ import {
 } from '../utils/utils';
 import type WindowManager from '../managers/window-manager';
 import type DraftManager from '../managers/draft-manager';
+import type DirectoryManager from '../managers/directory-manager';
 import type SettingsManager from '../managers/settings-manager';
 import SlashCommandLoader from '../managers/slash-command-loader';
 import AgentLoader from '../managers/agent-loader';
@@ -66,6 +67,7 @@ class IPCHandlers {
   private windowManager: WindowManager;
   private historyManager: IHistoryManager;
   private draftManager: DraftManager;
+  private directoryManager: DirectoryManager;
   private settingsManager: SettingsManager;
   private slashCommandLoader: SlashCommandLoader;
   private agentLoader: AgentLoader;
@@ -74,11 +76,13 @@ class IPCHandlers {
     windowManager: WindowManager,
     historyManager: IHistoryManager,
     draftManager: DraftManager,
+    directoryManager: DirectoryManager,
     settingsManager: SettingsManager
   ) {
     this.windowManager = windowManager;
     this.historyManager = historyManager;
     this.draftManager = draftManager;
+    this.directoryManager = directoryManager;
     this.settingsManager = settingsManager;
     this.slashCommandLoader = new SlashCommandLoader();
     this.agentLoader = new AgentLoader();
@@ -110,6 +114,7 @@ class IPCHandlers {
     ipcMain.handle('get-draft-directory', this.handleGetDraftDirectory.bind(this));
     ipcMain.handle('hide-window', this.handleHideWindow.bind(this));
     ipcMain.handle('show-window', this.handleShowWindow.bind(this));
+    ipcMain.handle('focus-window', this.handleFocusWindow.bind(this));
     ipcMain.handle('get-app-info', this.handleGetAppInfo.bind(this));
     ipcMain.handle('get-config', this.handleGetConfig.bind(this));
     ipcMain.handle('paste-image', this.handlePasteImage.bind(this));
@@ -118,6 +123,7 @@ class IPCHandlers {
     ipcMain.handle('get-agents', this.handleGetAgents.bind(this));
     ipcMain.handle('get-agent-file-path', this.handleGetAgentFilePath.bind(this));
     ipcMain.handle('open-file-in-editor', this.handleOpenFileInEditor.bind(this));
+    ipcMain.handle('check-file-exists', this.handleCheckFileExists.bind(this));
 
     logger.info('IPC handlers set up successfully');
   }
@@ -155,8 +161,8 @@ class IPCHandlers {
         }
       }
 
-      // Get directory from draft manager
-      const directory = this.draftManager.getDirectory() || undefined;
+      // Get directory from directory manager
+      const directory = this.directoryManager.getDirectory() || undefined;
 
       await Promise.all([
         this.historyManager.addToHistory(text, appName, directory),
@@ -341,22 +347,26 @@ class IPCHandlers {
     directory: string | null
   ): Promise<IPCResult> {
     try {
-      this.draftManager.setDirectory(directory);
-      logger.debug('Draft directory set via IPC', { directory });
+      if (directory) {
+        await this.directoryManager.saveDirectory(directory);
+      } else {
+        this.directoryManager.setDirectory(null);
+      }
+      logger.debug('Directory set via IPC', { directory });
       return { success: true };
     } catch (error) {
-      logger.error('Failed to set draft directory:', error);
+      logger.error('Failed to set directory:', error);
       return { success: false, error: (error as Error).message };
     }
   }
 
   private async handleGetDraftDirectory(_event: IpcMainInvokeEvent): Promise<string | null> {
     try {
-      const directory = this.draftManager.getDirectory();
-      logger.debug('Draft directory requested', { directory });
+      const directory = this.directoryManager.getDirectory();
+      logger.debug('Directory requested', { directory });
       return directory;
     } catch (error) {
-      logger.error('Failed to get draft directory:', error);
+      logger.error('Failed to get directory:', error);
       return null;
     }
   }
@@ -395,7 +405,7 @@ class IPCHandlers {
   }
 
   private async handleShowWindow(
-    _event: IpcMainInvokeEvent, 
+    _event: IpcMainInvokeEvent,
     data: WindowData = {}
   ): Promise<IPCResult> {
     try {
@@ -404,6 +414,17 @@ class IPCHandlers {
       return { success: true };
     } catch (error) {
       logger.error('Failed to show window:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
+  private async handleFocusWindow(_event: IpcMainInvokeEvent): Promise<IPCResult> {
+    try {
+      this.windowManager.focusWindow();
+      logger.debug('Window focus requested');
+      return { success: true };
+    } catch (error) {
+      logger.error('Failed to focus window:', error);
       return { success: false, error: (error as Error).message };
     }
   }
@@ -653,6 +674,41 @@ class IPCHandlers {
     }
   }
 
+  private async handleCheckFileExists(
+    _event: IpcMainInvokeEvent,
+    filePath: string
+  ): Promise<boolean> {
+    try {
+      // Validate input
+      if (!filePath || typeof filePath !== 'string') {
+        return false;
+      }
+
+      // Expand ~ to home directory
+      let expandedPath = filePath;
+      if (filePath.startsWith('~/')) {
+        expandedPath = path.join(os.homedir(), filePath.slice(2));
+      } else if (filePath === '~') {
+        expandedPath = os.homedir();
+      }
+
+      // Convert to absolute path if relative
+      const absolutePath = path.isAbsolute(expandedPath)
+        ? expandedPath
+        : path.join(process.cwd(), expandedPath);
+
+      // Normalize path
+      const normalizedPath = path.normalize(absolutePath);
+
+      // Check if file exists
+      await fs.access(normalizedPath);
+      return true;
+    } catch {
+      // File does not exist or cannot be accessed
+      return false;
+    }
+  }
+
   removeAllHandlers(): void {
     const handlers = [
       'paste-text',
@@ -667,6 +723,7 @@ class IPCHandlers {
       'get-draft-directory',
       'hide-window',
       'show-window',
+      'focus-window',
       'get-app-info',
       'get-config',
       'paste-image',
@@ -674,7 +731,8 @@ class IPCHandlers {
       'get-slash-commands',
       'get-agents',
       'get-agent-file-path',
-      'open-file-in-editor'
+      'open-file-in-editor',
+      'check-file-exists'
     ];
 
     handlers.forEach(handler => {

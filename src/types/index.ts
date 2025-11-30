@@ -96,6 +96,7 @@ export interface PathsConfig {
   draftFile: string;
   logFile: string;
   imagesDir: string;
+  directoryFile: string;
 }
 
 export interface HistoryConfig {
@@ -245,6 +246,10 @@ export interface DirectoryInfo {
   partial?: boolean;          // true for Stage 1 (quick), false for Stage 2 (recursive)
   searchMode?: 'quick' | 'recursive';
   usedFd?: boolean;           // true if fd command was used
+  // Draft directory fallback related fields
+  directoryChanged?: boolean;  // true if directory changed from previous (draft) directory
+  previousDirectory?: string;  // previous directory (from draft) for comparison
+  fromDraft?: boolean;         // true if this data is from draft fallback (not actual detection)
 }
 
 // File search settings configuration
