@@ -20,7 +20,7 @@ struct FileSearchSettings {
         excludePatterns: [],
         includePatterns: [],
         maxFiles: 5000,
-        includeHidden: false,
+        includeHidden: true,
         maxDepth: nil,
         followSymlinks: false
     )
@@ -32,7 +32,7 @@ struct FileSearchSettings {
         var excludePatterns: [String] = []
         var includePatterns: [String] = []
         var maxFiles = 5000
-        var includeHidden = false
+        var includeHidden = true
         var maxDepth: Int? = nil
         var followSymlinks = false
 

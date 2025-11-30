@@ -92,8 +92,8 @@ window:
 #   # Maximum number of files to return (default: 5000)
 #   maxFiles: 5000
 #
-#   # Include hidden files starting with . (default: false)
-#   includeHidden: false
+#   # Include hidden files starting with . (default: true)
+#   includeHidden: true
 #
 #   # Maximum directory depth to search (null = unlimited)
 #   maxDepth: null
