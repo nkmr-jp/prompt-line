@@ -380,6 +380,7 @@ export class PromptLineRenderer {
         hasDirectoryData: !!data.directoryData,
         directoryDataDirectory: data.directoryData?.directory,
         directoryDataFileCount: data.directoryData?.files?.length,
+        directoryDataFromDraft: data.directoryData?.fromDraft,
         hasFileSearchManager: !!this.fileSearchManager
       }));
 
@@ -393,9 +394,11 @@ export class PromptLineRenderer {
       // Reset draggable state when window is shown (new session)
       this.domManager.setDraggable(false);
 
-      // Cache directory data for file search (Stage 1)
+      // Cache directory data for file search (Stage 1 or draft fallback)
       if (data.directoryData) {
-        console.debug('[Renderer] caching directory data for file search');
+        console.debug('[Renderer] caching directory data for file search', {
+          fromDraft: data.directoryData.fromDraft
+        });
         this.fileSearchManager?.cacheDirectoryData(data.directoryData);
 
         // Update hint text with formatted directory path
@@ -404,8 +407,11 @@ export class PromptLineRenderer {
           this.defaultHintText = formattedPath; // Save as default hint
           this.domManager.updateHintText(formattedPath);
 
-          // Save directory to draft for history recording
-          await electronAPI.invoke('set-draft-directory', data.directoryData.directory);
+          // Only save directory to draft if it's NOT already from draft
+          // (to avoid redundant IPC call when directory is from draft fallback)
+          if (!data.directoryData.fromDraft) {
+            await electronAPI.invoke('set-draft-directory', data.directoryData.directory);
+          }
         }
       } else {
         console.debug('[Renderer] no directory data in window-shown event');
@@ -418,9 +424,12 @@ export class PromptLineRenderer {
       }
 
       // Restore @paths highlighting for restored draft text (after small delay to ensure text is set)
-      // Highlights only @paths that exist in the cached file list
+      // When directory is from draft fallback, @paths should be restored immediately
+      // (they're from the same directory context as the draft text)
+      // Skip existence check when fromDraft because file list is empty
+      const skipExistenceCheck = data.directoryData?.fromDraft || false;
       setTimeout(() => {
-        this.fileSearchManager?.restoreAtPathsFromText();
+        this.fileSearchManager?.restoreAtPathsFromText(skipExistenceCheck);
       }, 50);
     } catch (error) {
       console.error('Error handling window shown:', error);
@@ -431,8 +440,20 @@ export class PromptLineRenderer {
     try {
       console.debug('[Renderer] handleDirectoryDataUpdated called', {
         directory: data.directory,
-        fileCount: data.files?.length
+        fileCount: data.files?.length,
+        directoryChanged: data.directoryChanged,
+        previousDirectory: data.previousDirectory
       });
+
+      // If directory changed from draft directory, clear @path highlights first
+      // This prevents stale highlights from wrong directory
+      if (data.directoryChanged) {
+        console.debug('[Renderer] Directory changed from draft, clearing @path highlights', {
+          from: data.previousDirectory,
+          to: data.directory
+        });
+        this.fileSearchManager?.clearAtPaths();
+      }
 
       // Update cache with directory data (handles both Stage 1 and Stage 2)
       this.fileSearchManager?.updateCache(data);
@@ -448,7 +469,10 @@ export class PromptLineRenderer {
 
         // Try to restore @paths now that we have directory data
         // This handles the case where directory detection completes after initial window shown
-        this.fileSearchManager?.restoreAtPathsFromText();
+        // Only restore if directory didn't change (otherwise @paths are from wrong directory)
+        if (!data.directoryChanged) {
+          this.fileSearchManager?.restoreAtPathsFromText();
+        }
       }
     } catch (error) {
       console.error('Error handling directory data update:', error);

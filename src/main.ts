@@ -60,6 +60,7 @@ class PromptLineApp {
       
       this.windowManager.updateWindowSettings(userSettings.window);
       this.windowManager.updateFileSearchSettings(this.settingsManager.getFileSearchSettings());
+      this.windowManager.setDraftManager(this.draftManager);
 
       this.ipcHandlers = new IPCHandlers(
         this.windowManager,

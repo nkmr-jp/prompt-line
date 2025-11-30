@@ -2420,14 +2420,18 @@ export class FileSearchManager {
   /**
    * Restore @paths from text (called when draft is restored or directory data is updated)
    * This auto-detects @paths in the text and adds them to tracking
-   * Only highlights @paths that actually exist in the cached file list
+   * Only highlights @paths that actually exist in the cached file list (unless skipExistenceCheck is true)
+   *
+   * @param skipExistenceCheck - If true, highlights all @path patterns without checking file existence.
+   *                             Use this when restoring from draft with empty file list (fromDraft).
    */
-  public restoreAtPathsFromText(): void {
+  public restoreAtPathsFromText(skipExistenceCheck = false): void {
     console.debug('[FileSearchManager] restoreAtPathsFromText called:', formatLog({
       hasTextInput: !!this.textInput,
       hasHighlightBackdrop: !!this.highlightBackdrop,
       hasCachedData: !!this.cachedDirectoryData,
-      cachedFileCount: this.cachedDirectoryData?.files?.length || 0
+      cachedFileCount: this.cachedDirectoryData?.files?.length || 0,
+      skipExistenceCheck
     }));
 
     if (!this.textInput) {
@@ -2444,30 +2448,33 @@ export class FileSearchManager {
     // Clear existing paths
     this.atPaths = [];
 
-    // Need cached directory data to check if files exist
-    if (!this.cachedDirectoryData?.files || !this.cachedDirectoryData?.directory) {
+    // Need cached directory data to check if files exist (unless skipping check)
+    const hasValidCachedData = this.cachedDirectoryData?.files && this.cachedDirectoryData?.directory;
+    if (!skipExistenceCheck && !hasValidCachedData) {
       console.debug('[FileSearchManager] restoreAtPathsFromText: no cached data, skipping highlight');
       this.updateHighlightBackdrop();
       return;
     }
 
-    const baseDir = this.cachedDirectoryData.directory;
-    const files = this.cachedDirectoryData.files;
-
-    // Build a set of relative paths for quick lookup
-    const relativePaths = new Set<string>();
-    for (const file of files) {
-      const relativePath = this.getRelativePath(file.path, baseDir);
-      relativePaths.add(relativePath);
-      // Also add without trailing slash for directories
-      if (relativePath.endsWith('/')) {
-        relativePaths.add(relativePath.slice(0, -1));
+    // Build a set of relative paths for quick lookup (only if not skipping check)
+    let relativePaths: Set<string> | null = null;
+    if (!skipExistenceCheck && hasValidCachedData) {
+      const baseDir = this.cachedDirectoryData!.directory!;
+      const files = this.cachedDirectoryData!.files!;
+      relativePaths = new Set<string>();
+      for (const file of files) {
+        const relativePath = this.getRelativePath(file.path, baseDir);
+        relativePaths.add(relativePath);
+        // Also add without trailing slash for directories
+        if (relativePath.endsWith('/')) {
+          relativePaths.add(relativePath.slice(0, -1));
+        }
       }
-    }
 
-    console.debug('[FileSearchManager] Built relative path set:', formatLog({
-      pathCount: relativePaths.size
-    }));
+      console.debug('[FileSearchManager] Built relative path set:', formatLog({
+        pathCount: relativePaths.size
+      }));
+    }
 
     // Find all @paths in text
     const atPathPattern = /@([^\s@]+)/g;
@@ -2477,16 +2484,18 @@ export class FileSearchManager {
       const pathContent = match[1];
       // Only add paths that look like file paths (contain / or .)
       if (pathContent && (pathContent.includes('/') || pathContent.includes('.'))) {
-        // Check if this path exists in the cached file list
-        if (relativePaths.has(pathContent)) {
+        // Check if this path exists in the cached file list (or skip check if fromDraft)
+        const shouldHighlight = skipExistenceCheck || (relativePaths && relativePaths.has(pathContent));
+        if (shouldHighlight) {
           this.atPaths.push({
             start: match.index,
             end: match.index + match[0].length
           });
-          console.debug('[FileSearchManager] Found existing @path:', formatLog({
+          console.debug('[FileSearchManager] Found @path:', formatLog({
             pathContent,
             start: match.index,
-            end: match.index + match[0].length
+            end: match.index + match[0].length,
+            skipExistenceCheck
           }));
         } else {
           console.debug('[FileSearchManager] Skipping non-existent @path:', pathContent);
@@ -2496,7 +2505,8 @@ export class FileSearchManager {
 
     console.debug('[FileSearchManager] Restored @paths from text:', formatLog({
       count: this.atPaths.length,
-      textLength: text.length
+      textLength: text.length,
+      skipExistenceCheck
     }));
     this.updateHighlightBackdrop();
   }
