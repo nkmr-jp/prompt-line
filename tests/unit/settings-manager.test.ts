@@ -130,7 +130,7 @@ window:
         fileSearch: {
           useFd: true,
           respectGitignore: true,
-          includeHidden: false,
+          includeHidden: true,
           maxFiles: 5000,
           maxDepth: null,
           includePatterns: [],
@@ -234,7 +234,7 @@ window:
         fileSearch: {
           useFd: true,
           respectGitignore: true,
-          includeHidden: false,
+          includeHidden: true,
           maxFiles: 5000,
           maxDepth: null,
           includePatterns: [],
