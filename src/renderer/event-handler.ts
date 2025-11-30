@@ -28,6 +28,7 @@ export class EventHandler {
   private searchManager: { isInSearchMode(): boolean; exitSearchMode(): void } | null = null;
   private slashCommandManager: { isActiveMode(): boolean } | null = null;
   private fileSearchManager: { isActive(): boolean } | null = null;
+  private domManager: { isDraggable(): boolean } | null = null;
   private userSettings: UserSettings | null = null;
   private suppressBlurHide = false;
   private onTextPaste: (text: string) => Promise<void>;
@@ -70,6 +71,10 @@ export class EventHandler {
 
   public setFileSearchManager(fileSearchManager: { isActive(): boolean }): void {
     this.fileSearchManager = fileSearchManager;
+  }
+
+  public setDomManager(domManager: { isDraggable(): boolean }): void {
+    this.domManager = domManager;
   }
 
   public setUserSettings(settings: UserSettings): void {
@@ -292,6 +297,14 @@ export class EventHandler {
         this.suppressBlurHide = false; // Reset after one use
         return;
       }
+
+      // Check if window is in draggable state (file was opened from link)
+      // In this state, don't close the window when focus moves to another application
+      // This allows the user to interact with the opened file while keeping the prompt window visible
+      if (this.domManager?.isDraggable()) {
+        return;
+      }
+
       // Hide window when focus moves to another application
       // This should happen regardless of which element has focus within the window
       setTimeout(async () => {

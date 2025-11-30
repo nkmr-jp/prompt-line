@@ -115,6 +115,7 @@ export class PromptLineRenderer {
     });
 
     this.eventHandler.setTextarea(this.domManager.textarea);
+    this.eventHandler.setDomManager(this.domManager);
     this.eventHandler.setupEventListeners();
   }
 
