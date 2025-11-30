@@ -51,6 +51,7 @@ export class PromptLineRenderer {
   private historyUIManager: HistoryUIManager;
   private lifecycleManager: LifecycleManager;
   private snapshotManager: SimpleSnapshotManager;
+  private defaultHintText: string = ''; // Default hint text (directory path)
 
   constructor() {
     this.domManager = new DomManager();
@@ -169,7 +170,11 @@ export class PromptLineRenderer {
       onBeforeOpenFile: () => {
         // Suppress blur event to prevent window from closing when opening file
         this.eventHandler?.setSuppressBlurHide(true);
-      }
+      },
+      updateHintText: (text: string) => {
+        this.domManager.updateHintText(text);
+      },
+      getDefaultHintText: () => this.defaultHintText
     });
 
     this.fileSearchManager.initializeElements();
@@ -385,6 +390,7 @@ export class PromptLineRenderer {
         // Update hint text with formatted directory path
         if (data.directoryData.directory) {
           const formattedPath = this.formatDirectoryPath(data.directoryData.directory);
+          this.defaultHintText = formattedPath; // Save as default hint
           this.domManager.updateHintText(formattedPath);
 
           // Save directory to draft for history recording
@@ -423,6 +429,7 @@ export class PromptLineRenderer {
       // Update hint text with formatted directory path
       if (data.directory) {
         const formattedPath = this.formatDirectoryPath(data.directory);
+        this.defaultHintText = formattedPath; // Save as default hint
         this.domManager.updateHintText(formattedPath);
 
         // Save directory to draft for history recording

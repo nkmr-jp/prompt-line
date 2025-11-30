@@ -56,6 +56,8 @@ interface FileSearchCallbacks {
   getCursorPosition: () => number;
   setCursorPosition: (position: number) => void;
   onBeforeOpenFile?: () => void; // Called before opening file in editor to suppress blur
+  updateHintText?: (text: string) => void; // Update hint text in footer
+  getDefaultHintText?: () => string; // Get default hint text (directory path)
 }
 
 // Represents a tracked @path in the text
@@ -660,6 +662,7 @@ export class FileSearchManager {
   /**
    * Update cursor position highlight (called when cursor moves)
    * Only highlights absolute file paths, not @paths (which already have their own highlight)
+   * Also updates hint text to show Ctrl+Enter shortcut when on a clickable path
    */
   private updateCursorPositionHighlight(): void {
     if (!this.textInput) return;
@@ -667,10 +670,11 @@ export class FileSearchManager {
     const text = this.textInput.value;
     const cursorPos = this.textInput.selectionStart;
 
-    // First check if cursor is on an @path - if so, skip cursor highlight
-    // @paths already have their own highlight style
+    // First check if cursor is on an @path - still show hint but no extra highlight
     const atPath = this.findAtPathAtPosition(text, cursorPos);
     if (atPath) {
+      // Show hint for @path too
+      this.showFileOpenHint();
       if (this.cursorPositionPath) {
         this.cursorPositionPath = null;
         this.renderHighlightBackdropWithCursor();
@@ -682,6 +686,8 @@ export class FileSearchManager {
     const absolutePath = this.findAbsolutePathAtPosition(text, cursorPos);
 
     if (absolutePath) {
+      // Show hint for absolute path
+      this.showFileOpenHint();
       // Get the range for the absolute path
       const pathInfo = this.findClickablePathAtPosition(text, cursorPos);
       if (pathInfo && !pathInfo.path.startsWith('@')) {
@@ -694,10 +700,32 @@ export class FileSearchManager {
           this.renderHighlightBackdropWithCursor();
         }
       }
-    } else if (this.cursorPositionPath) {
-      // Clear cursor highlight
-      this.cursorPositionPath = null;
-      this.renderHighlightBackdropWithCursor();
+    } else {
+      // Restore default hint when not on a clickable path
+      this.restoreDefaultHint();
+      if (this.cursorPositionPath) {
+        // Clear cursor highlight
+        this.cursorPositionPath = null;
+        this.renderHighlightBackdropWithCursor();
+      }
+    }
+  }
+
+  /**
+   * Show hint for opening file with Ctrl+Enter
+   */
+  private showFileOpenHint(): void {
+    if (this.callbacks.updateHintText) {
+      this.callbacks.updateHintText('Ctrl + ↵ でファイルを開く');
+    }
+  }
+
+  /**
+   * Restore the default hint text (directory path)
+   */
+  private restoreDefaultHint(): void {
+    if (this.callbacks.updateHintText && this.callbacks.getDefaultHintText) {
+      this.callbacks.updateHintText(this.callbacks.getDefaultHintText());
     }
   }
 
