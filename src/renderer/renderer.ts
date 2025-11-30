@@ -424,12 +424,11 @@ export class PromptLineRenderer {
       }
 
       // Restore @paths highlighting for restored draft text (after small delay to ensure text is set)
-      // When directory is from draft fallback, @paths should be restored immediately
-      // (they're from the same directory context as the draft text)
-      // Skip existence check when fromDraft because file list is empty
-      const skipExistenceCheck = data.directoryData?.fromDraft || false;
+      // When directory is from draft fallback, @paths should be restored with filesystem check
+      // (file list is empty, so check actual filesystem for file existence)
+      const checkFilesystem = data.directoryData?.fromDraft || false;
       setTimeout(() => {
-        this.fileSearchManager?.restoreAtPathsFromText(skipExistenceCheck);
+        this.fileSearchManager?.restoreAtPathsFromText(checkFilesystem);
       }, 50);
     } catch (error) {
       console.error('Error handling window shown:', error);

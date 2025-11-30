@@ -119,6 +119,7 @@ class IPCHandlers {
     ipcMain.handle('get-agents', this.handleGetAgents.bind(this));
     ipcMain.handle('get-agent-file-path', this.handleGetAgentFilePath.bind(this));
     ipcMain.handle('open-file-in-editor', this.handleOpenFileInEditor.bind(this));
+    ipcMain.handle('check-file-exists', this.handleCheckFileExists.bind(this));
 
     logger.info('IPC handlers set up successfully');
   }
@@ -665,6 +666,41 @@ class IPCHandlers {
     }
   }
 
+  private async handleCheckFileExists(
+    _event: IpcMainInvokeEvent,
+    filePath: string
+  ): Promise<boolean> {
+    try {
+      // Validate input
+      if (!filePath || typeof filePath !== 'string') {
+        return false;
+      }
+
+      // Expand ~ to home directory
+      let expandedPath = filePath;
+      if (filePath.startsWith('~/')) {
+        expandedPath = path.join(os.homedir(), filePath.slice(2));
+      } else if (filePath === '~') {
+        expandedPath = os.homedir();
+      }
+
+      // Convert to absolute path if relative
+      const absolutePath = path.isAbsolute(expandedPath)
+        ? expandedPath
+        : path.join(process.cwd(), expandedPath);
+
+      // Normalize path
+      const normalizedPath = path.normalize(absolutePath);
+
+      // Check if file exists
+      await fs.access(normalizedPath);
+      return true;
+    } catch {
+      // File does not exist or cannot be accessed
+      return false;
+    }
+  }
+
   removeAllHandlers(): void {
     const handlers = [
       'paste-text',
@@ -687,7 +723,8 @@ class IPCHandlers {
       'get-slash-commands',
       'get-agents',
       'get-agent-file-path',
-      'open-file-in-editor'
+      'open-file-in-editor',
+      'check-file-exists'
     ];
 
     handlers.forEach(handler => {

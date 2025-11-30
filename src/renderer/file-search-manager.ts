@@ -2420,18 +2420,18 @@ export class FileSearchManager {
   /**
    * Restore @paths from text (called when draft is restored or directory data is updated)
    * This auto-detects @paths in the text and adds them to tracking
-   * Only highlights @paths that actually exist in the cached file list (unless skipExistenceCheck is true)
+   * Only highlights @paths that actually exist (checked against cached file list or filesystem)
    *
-   * @param skipExistenceCheck - If true, highlights all @path patterns without checking file existence.
-   *                             Use this when restoring from draft with empty file list (fromDraft).
+   * @param checkFilesystem - If true, checks filesystem for file existence when cached file list is empty.
+   *                          Use this when restoring from draft with empty file list (fromDraft).
    */
-  public restoreAtPathsFromText(skipExistenceCheck = false): void {
+  public async restoreAtPathsFromText(checkFilesystem = false): Promise<void> {
     console.debug('[FileSearchManager] restoreAtPathsFromText called:', formatLog({
       hasTextInput: !!this.textInput,
       hasHighlightBackdrop: !!this.highlightBackdrop,
       hasCachedData: !!this.cachedDirectoryData,
       cachedFileCount: this.cachedDirectoryData?.files?.length || 0,
-      skipExistenceCheck
+      checkFilesystem
     }));
 
     if (!this.textInput) {
@@ -2448,22 +2448,25 @@ export class FileSearchManager {
     // Clear existing paths
     this.atPaths = [];
 
-    // Need cached directory data to check if files exist (unless skipping check)
-    const hasValidCachedData = this.cachedDirectoryData?.files && this.cachedDirectoryData?.directory;
-    if (!skipExistenceCheck && !hasValidCachedData) {
-      console.debug('[FileSearchManager] restoreAtPathsFromText: no cached data, skipping highlight');
+    // Need cached directory data to check if files exist (or need to check filesystem)
+    const hasValidCachedData = this.cachedDirectoryData?.files &&
+                                this.cachedDirectoryData.files.length > 0 &&
+                                this.cachedDirectoryData?.directory;
+    const baseDir = this.cachedDirectoryData?.directory;
+
+    if (!checkFilesystem && !hasValidCachedData) {
+      console.debug('[FileSearchManager] restoreAtPathsFromText: no cached data and not checking filesystem, skipping highlight');
       this.updateHighlightBackdrop();
       return;
     }
 
-    // Build a set of relative paths for quick lookup (only if not skipping check)
+    // Build a set of relative paths for quick lookup (only if we have valid cached data)
     let relativePaths: Set<string> | null = null;
-    if (!skipExistenceCheck && hasValidCachedData) {
-      const baseDir = this.cachedDirectoryData!.directory!;
+    if (hasValidCachedData) {
       const files = this.cachedDirectoryData!.files!;
       relativePaths = new Set<string>();
       for (const file of files) {
-        const relativePath = this.getRelativePath(file.path, baseDir);
+        const relativePath = this.getRelativePath(file.path, baseDir!);
         relativePaths.add(relativePath);
         // Also add without trailing slash for directories
         if (relativePath.endsWith('/')) {
@@ -2479,34 +2482,63 @@ export class FileSearchManager {
     // Find all @paths in text
     const atPathPattern = /@([^\s@]+)/g;
     let match;
+    const pathsToCheck: Array<{ pathContent: string; start: number; end: number }> = [];
 
     while ((match = atPathPattern.exec(text)) !== null) {
       const pathContent = match[1];
       // Only add paths that look like file paths (contain / or .)
       if (pathContent && (pathContent.includes('/') || pathContent.includes('.'))) {
-        // Check if this path exists in the cached file list (or skip check if fromDraft)
-        const shouldHighlight = skipExistenceCheck || (relativePaths && relativePaths.has(pathContent));
-        if (shouldHighlight) {
-          this.atPaths.push({
-            start: match.index,
-            end: match.index + match[0].length
-          });
-          console.debug('[FileSearchManager] Found @path:', formatLog({
+        pathsToCheck.push({
+          pathContent,
+          start: match.index,
+          end: match.index + match[0].length
+        });
+      }
+    }
+
+    // Check each path for existence
+    for (const { pathContent, start, end } of pathsToCheck) {
+      let shouldHighlight = false;
+
+      // First, check against cached file list if available
+      if (relativePaths && relativePaths.has(pathContent)) {
+        shouldHighlight = true;
+      }
+      // If no cached data but checkFilesystem is enabled, check actual filesystem
+      else if (checkFilesystem && baseDir) {
+        // Construct full path and check filesystem
+        const fullPath = `${baseDir}/${pathContent}`;
+        try {
+          const exists = await window.electronAPI.file.checkExists(fullPath);
+          shouldHighlight = exists;
+          console.debug('[FileSearchManager] Filesystem check for @path:', formatLog({
             pathContent,
-            start: match.index,
-            end: match.index + match[0].length,
-            skipExistenceCheck
+            fullPath,
+            exists
           }));
-        } else {
-          console.debug('[FileSearchManager] Skipping non-existent @path:', pathContent);
+        } catch (err) {
+          console.error('[FileSearchManager] Error checking file existence:', err);
+          shouldHighlight = false;
         }
+      }
+
+      if (shouldHighlight) {
+        this.atPaths.push({ start, end });
+        console.debug('[FileSearchManager] Found @path:', formatLog({
+          pathContent,
+          start,
+          end,
+          checkFilesystem
+        }));
+      } else {
+        console.debug('[FileSearchManager] Skipping non-existent @path:', pathContent);
       }
     }
 
     console.debug('[FileSearchManager] Restored @paths from text:', formatLog({
       count: this.atPaths.length,
       textLength: text.length,
-      skipExistenceCheck
+      checkFilesystem
     }));
     this.updateHighlightBackdrop();
   }
