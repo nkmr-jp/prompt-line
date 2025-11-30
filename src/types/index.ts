@@ -96,6 +96,7 @@ export interface PathsConfig {
   draftFile: string;
   logFile: string;
   imagesDir: string;
+  directoryFile: string;
 }
 
 export interface HistoryConfig {

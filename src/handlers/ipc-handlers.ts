@@ -13,6 +13,7 @@ import {
 } from '../utils/utils';
 import type WindowManager from '../managers/window-manager';
 import type DraftManager from '../managers/draft-manager';
+import type DirectoryManager from '../managers/directory-manager';
 import type SettingsManager from '../managers/settings-manager';
 import SlashCommandLoader from '../managers/slash-command-loader';
 import AgentLoader from '../managers/agent-loader';
@@ -66,6 +67,7 @@ class IPCHandlers {
   private windowManager: WindowManager;
   private historyManager: IHistoryManager;
   private draftManager: DraftManager;
+  private directoryManager: DirectoryManager;
   private settingsManager: SettingsManager;
   private slashCommandLoader: SlashCommandLoader;
   private agentLoader: AgentLoader;
@@ -74,11 +76,13 @@ class IPCHandlers {
     windowManager: WindowManager,
     historyManager: IHistoryManager,
     draftManager: DraftManager,
+    directoryManager: DirectoryManager,
     settingsManager: SettingsManager
   ) {
     this.windowManager = windowManager;
     this.historyManager = historyManager;
     this.draftManager = draftManager;
+    this.directoryManager = directoryManager;
     this.settingsManager = settingsManager;
     this.slashCommandLoader = new SlashCommandLoader();
     this.agentLoader = new AgentLoader();
@@ -157,8 +161,8 @@ class IPCHandlers {
         }
       }
 
-      // Get directory from draft manager
-      const directory = this.draftManager.getDirectory() || undefined;
+      // Get directory from directory manager
+      const directory = this.directoryManager.getDirectory() || undefined;
 
       await Promise.all([
         this.historyManager.addToHistory(text, appName, directory),
@@ -343,22 +347,26 @@ class IPCHandlers {
     directory: string | null
   ): Promise<IPCResult> {
     try {
-      this.draftManager.setDirectory(directory);
-      logger.debug('Draft directory set via IPC', { directory });
+      if (directory) {
+        await this.directoryManager.saveDirectory(directory);
+      } else {
+        this.directoryManager.setDirectory(null);
+      }
+      logger.debug('Directory set via IPC', { directory });
       return { success: true };
     } catch (error) {
-      logger.error('Failed to set draft directory:', error);
+      logger.error('Failed to set directory:', error);
       return { success: false, error: (error as Error).message };
     }
   }
 
   private async handleGetDraftDirectory(_event: IpcMainInvokeEvent): Promise<string | null> {
     try {
-      const directory = this.draftManager.getDirectory();
-      logger.debug('Draft directory requested', { directory });
+      const directory = this.directoryManager.getDirectory();
+      logger.debug('Directory requested', { directory });
       return directory;
     } catch (error) {
-      logger.error('Failed to get draft directory:', error);
+      logger.error('Failed to get directory:', error);
       return null;
     }
   }

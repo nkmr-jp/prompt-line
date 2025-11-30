@@ -3,7 +3,7 @@ import { exec } from 'child_process';
 import config from '../config/app-config';
 import { getCurrentApp, getActiveWindowBounds, logger, KEYBOARD_SIMULATOR_PATH, TEXT_FIELD_DETECTOR_PATH, DIRECTORY_DETECTOR_PATH } from '../utils/utils';
 import DesktopSpaceManager from './desktop-space-manager';
-import type DraftManager from './draft-manager';
+import type DirectoryManager from './directory-manager';
 import type { AppInfo, WindowData, StartupPosition, DirectoryInfo, FileSearchSettings } from '../types';
 
 // Native tools paths are imported from utils to ensure correct paths in packaged app
@@ -15,8 +15,8 @@ class WindowManager {
   private desktopSpaceManager: DesktopSpaceManager | null = null;
   private lastSpaceSignature: string | null = null;
   private fileSearchSettings: FileSearchSettings | null = null;
-  private draftManager: DraftManager | null = null;
-  private savedDirectory: string | null = null; // Directory from draft for fallback
+  private directoryManager: DirectoryManager | null = null;
+  private savedDirectory: string | null = null; // Directory from DirectoryManager for fallback
 
   async initialize(): Promise<void> {
     try {
@@ -190,10 +190,10 @@ class WindowManager {
       
       logger.debug(`⏱️  Window management total: ${(performance.now() - windowMgmtStartTime).toFixed(2)}ms`);
 
-      // Get saved directory from draft for fallback feature
+      // Get saved directory from DirectoryManager for fallback feature
       // This directory will be used as initial value and as fallback if detection fails
-      this.savedDirectory = this.draftManager?.getDirectory() || null;
-      logger.debug('Draft directory for fallback:', { savedDirectory: this.savedDirectory });
+      this.savedDirectory = this.directoryManager?.getDirectory() || null;
+      logger.debug('Saved directory for fallback:', { savedDirectory: this.savedDirectory });
 
       // Prepare window data with draft directory as initial directoryData (if available)
       // This enables @path highlighting immediately on window show
@@ -648,11 +648,11 @@ class WindowManager {
   }
 
   /**
-   * Set DraftManager reference for draft directory fallback feature
+   * Set DirectoryManager reference for directory fallback feature
    */
-  setDraftManager(draftManager: DraftManager): void {
-    this.draftManager = draftManager;
-    logger.debug('DraftManager reference set in WindowManager');
+  setDirectoryManager(directoryManager: DirectoryManager): void {
+    this.directoryManager = directoryManager;
+    logger.debug('DirectoryManager reference set in WindowManager');
   }
 
   /**
@@ -801,9 +801,9 @@ class WindowManager {
           previousDirectory: this.savedDirectory
         });
 
-        // Update draft directory with detected directory (detection succeeded)
-        if (this.draftManager) {
-          this.draftManager.setDirectory(detectedDirectory);
+        // Update directory manager with detected directory (detection succeeded)
+        if (this.directoryManager) {
+          this.directoryManager.setDirectory(detectedDirectory);
           this.savedDirectory = detectedDirectory; // Update local reference
         }
 

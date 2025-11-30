@@ -87,6 +87,9 @@ class AppConfigClass {
       },
       get imagesDir() {
         return path.join(userDataDir, 'images');
+      },
+      get directoryFile() {
+        return path.join(userDataDir, 'directory.json');
       }
     };
 

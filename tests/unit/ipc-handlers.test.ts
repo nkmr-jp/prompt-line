@@ -121,10 +121,17 @@ describe('IPCHandlers', () => {
             resetSettings: jest.fn()
         };
 
+        const mockDirectoryManager = {
+            getDirectory: jest.fn(() => null),
+            setDirectory: jest.fn(),
+            saveDirectory: jest.fn()
+        };
+
         ipcHandlers = new IPCHandlers(
             mockWindowManager,
             mockHistoryManager,
             mockDraftManager,
+            mockDirectoryManager as any,
             mockSettingsManager as any
         );
     });
@@ -497,8 +504,8 @@ describe('IPCHandlers', () => {
 
             ipcHandlers.removeAllHandlers();
 
-            // Should be called for each handler (updated count after adding focus-window)
-            expect(ipcMain.removeAllListeners).toHaveBeenCalledTimes(21);
+            // Should be called for each handler (updated count: 22 handlers)
+            expect(ipcMain.removeAllListeners).toHaveBeenCalledTimes(22);
             expect(logger.info).toHaveBeenCalledWith('All IPC handlers removed');
         });
     });
