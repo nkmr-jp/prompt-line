@@ -1,6 +1,6 @@
 import { ipcMain, clipboard, IpcMainInvokeEvent, dialog, shell } from 'electron';
 import { promises as fs } from 'fs';
-import { exec } from 'child_process';
+import { exec, execFile } from 'child_process';
 import path from 'path';
 import os from 'os';
 import config from '../config/app-config';
@@ -636,7 +636,23 @@ class IPCHandlers {
       // Normalize and validate path to prevent path traversal
       const normalizedPath = path.normalize(absolutePath);
 
-      // Open file with system default application
+      // On macOS, use 'open -g' to open file in background (without stealing focus)
+      if (process.platform === 'darwin') {
+        return new Promise((resolve) => {
+          // Use execFile instead of exec for security (no shell injection)
+          execFile('open', ['-g', normalizedPath], (error) => {
+            if (error) {
+              logger.error('Failed to open file in editor:', { error: error.message, path: normalizedPath });
+              resolve({ success: false, error: error.message });
+            } else {
+              logger.info('File opened successfully in editor (background):', { path: normalizedPath });
+              resolve({ success: true });
+            }
+          });
+        });
+      }
+
+      // On other platforms, use shell.openPath (will steal focus)
       const result = await shell.openPath(normalizedPath);
 
       if (result) {
