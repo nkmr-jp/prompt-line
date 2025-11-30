@@ -504,8 +504,8 @@ describe('IPCHandlers', () => {
 
             ipcHandlers.removeAllHandlers();
 
-            // Should be called for each handler (updated count: 22 handlers)
-            expect(ipcMain.removeAllListeners).toHaveBeenCalledTimes(22);
+            // Should be called for each handler (updated count: 23 handlers)
+            expect(ipcMain.removeAllListeners).toHaveBeenCalledTimes(23);
             expect(logger.info).toHaveBeenCalledWith('All IPC handlers removed');
         });
     });
