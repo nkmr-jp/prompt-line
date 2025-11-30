@@ -99,6 +99,9 @@ export class FileSearchManager {
   private isCmdHoverActive: boolean = false;
   private hoveredAtPath: AtPathRange | null = null;
 
+  // Cursor position state for file path link
+  private cursorPositionPath: AtPathRange | null = null;
+
   // Constants
   private static readonly MAX_SUGGESTIONS = 15;
   private static readonly MAX_AGENTS = 5; // Max agents to show in suggestions
@@ -339,6 +342,8 @@ export class FileSearchManager {
       console.debug('[FileSearchManager] input event fired');
       this.checkForFileSearch();
       this.updateHighlightBackdrop();
+      // Update cursor position highlight after input
+      this.updateCursorPositionHighlight();
     });
 
     // Listen for keydown for navigation and backspace handling
@@ -348,6 +353,28 @@ export class FileSearchManager {
       } else if (e.key === 'Backspace') {
         // Handle backspace to delete entire @path if cursor is at the end of one
         this.handleBackspaceForAtPath(e);
+      } else if (e.key === 'Enter' && e.ctrlKey) {
+        // Ctrl+Enter: open file at cursor position
+        this.handleCtrlEnterOpenFile(e);
+      }
+    });
+
+    // Listen for cursor position changes (click, arrow keys)
+    this.textInput.addEventListener('click', () => {
+      this.updateCursorPositionHighlight();
+    });
+
+    this.textInput.addEventListener('keyup', (e) => {
+      // Update on arrow keys that move cursor
+      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) {
+        this.updateCursorPositionHighlight();
+      }
+    });
+
+    // Also listen for selectionchange on document (handles all cursor movements)
+    document.addEventListener('selectionchange', () => {
+      if (document.activeElement === this.textInput) {
+        this.updateCursorPositionHighlight();
       }
     });
 
@@ -626,8 +653,189 @@ export class FileSearchManager {
    */
   private clearFilePathHighlight(): void {
     this.hoveredAtPath = null;
-    // Re-render without link style (just @path highlights)
-    this.updateHighlightBackdrop();
+    // Re-render without link style (just @path highlights, with cursor highlight)
+    this.renderHighlightBackdropWithCursor();
+  }
+
+  /**
+   * Update cursor position highlight (called when cursor moves)
+   */
+  private updateCursorPositionHighlight(): void {
+    if (!this.textInput) return;
+
+    const text = this.textInput.value;
+    const cursorPos = this.textInput.selectionStart;
+
+    // Find clickable path at cursor position
+    const clickablePath = this.findClickablePathAtPosition(text, cursorPos);
+
+    if (clickablePath) {
+      const newRange: AtPathRange = { start: clickablePath.start, end: clickablePath.end };
+      // Only update if position changed
+      if (!this.cursorPositionPath ||
+          this.cursorPositionPath.start !== newRange.start ||
+          this.cursorPositionPath.end !== newRange.end) {
+        this.cursorPositionPath = newRange;
+        this.renderHighlightBackdropWithCursor();
+      }
+    } else if (this.cursorPositionPath) {
+      // Clear cursor highlight
+      this.cursorPositionPath = null;
+      this.renderHighlightBackdropWithCursor();
+    }
+  }
+
+  /**
+   * Render highlight backdrop with cursor position highlight
+   */
+  private renderHighlightBackdropWithCursor(): void {
+    if (!this.highlightBackdrop || !this.textInput) return;
+
+    const text = this.textInput.value;
+
+    // Re-scan for @paths
+    this.rescanAtPaths(text);
+
+    // If there's an active Cmd+hover, use the full link style rendering
+    if (this.hoveredAtPath) {
+      this.renderFilePathHighlight();
+      return;
+    }
+
+    // Determine if hoveredAtPath or cursorPositionPath is an @path
+    const isCursorAtPathInAtPaths = this.cursorPositionPath && this.atPaths.some(
+      ap => ap.start === this.cursorPositionPath?.start && ap.end === this.cursorPositionPath?.end
+    );
+
+    // Merge @paths and cursor position path (if different)
+    const allHighlightRanges: Array<AtPathRange & { isAtPath: boolean; isCursorHighlight: boolean }> = [];
+
+    // Add @paths
+    for (const atPath of this.atPaths) {
+      const isCursorHere = this.cursorPositionPath !== null &&
+        atPath.start === this.cursorPositionPath.start &&
+        atPath.end === this.cursorPositionPath.end;
+      allHighlightRanges.push({ ...atPath, isAtPath: true, isCursorHighlight: isCursorHere });
+    }
+
+    // Add cursor position path if it's not an @path (e.g., absolute path)
+    if (!isCursorAtPathInAtPaths && this.cursorPositionPath) {
+      allHighlightRanges.push({
+        start: this.cursorPositionPath.start,
+        end: this.cursorPositionPath.end,
+        isAtPath: false,
+        isCursorHighlight: true
+      });
+    }
+
+    // Sort by start position
+    allHighlightRanges.sort((a, b) => a.start - b.start);
+
+    // Build highlighted content
+    const fragment = document.createDocumentFragment();
+    let lastEnd = 0;
+
+    for (const range of allHighlightRanges) {
+      // Add text before this range
+      if (range.start > lastEnd) {
+        fragment.appendChild(document.createTextNode(text.substring(lastEnd, range.start)));
+      }
+
+      // Add highlighted span
+      const span = document.createElement('span');
+
+      if (range.isAtPath) {
+        span.className = 'at-path-highlight';
+      }
+
+      // Add cursor highlight style if cursor is here
+      if (range.isCursorHighlight) {
+        span.classList.add('file-path-cursor-highlight');
+      }
+
+      span.textContent = text.substring(range.start, range.end);
+      fragment.appendChild(span);
+
+      lastEnd = range.end;
+    }
+
+    // Add remaining text
+    if (lastEnd < text.length) {
+      fragment.appendChild(document.createTextNode(text.substring(lastEnd)));
+    }
+
+    // Clear existing content using DOM methods (avoid innerHTML for security)
+    while (this.highlightBackdrop.firstChild) {
+      this.highlightBackdrop.removeChild(this.highlightBackdrop.firstChild);
+    }
+    this.highlightBackdrop.appendChild(fragment);
+
+    // Sync scroll
+    this.syncBackdropScroll();
+  }
+
+  /**
+   * Handle Ctrl+Enter to open file at cursor position
+   */
+  private async handleCtrlEnterOpenFile(e: KeyboardEvent): Promise<void> {
+    if (!this.textInput) return;
+
+    const text = this.textInput.value;
+    const cursorPos = this.textInput.selectionStart;
+
+    // Find @path at cursor position
+    const atPath = this.findAtPathAtPosition(text, cursorPos);
+    if (atPath) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const looksLikeFilePath = atPath.includes('/') || atPath.includes('.');
+
+      if (looksLikeFilePath) {
+        const filePath = this.resolveAtPathToAbsolute(atPath);
+        if (filePath) {
+          this.callbacks.onBeforeOpenFile?.();
+          window.electronAPI.file.openInEditor(filePath)
+            .catch((err: Error) => console.error('Failed to open file in editor:', err));
+          return;
+        }
+      }
+
+      // Try as agent name
+      try {
+        const agentFilePath = await window.electronAPI.agents.getFilePath(atPath);
+        if (agentFilePath) {
+          this.callbacks.onBeforeOpenFile?.();
+          window.electronAPI.file.openInEditor(agentFilePath)
+            .catch((err: Error) => console.error('Failed to open agent file in editor:', err));
+          return;
+        }
+      } catch (err) {
+        console.error('Failed to resolve agent file path:', err);
+      }
+
+      // Fallback
+      if (!looksLikeFilePath) {
+        const filePath = this.resolveAtPathToAbsolute(atPath);
+        if (filePath) {
+          this.callbacks.onBeforeOpenFile?.();
+          window.electronAPI.file.openInEditor(filePath)
+            .catch((err: Error) => console.error('Failed to open file in editor:', err));
+        }
+      }
+      return;
+    }
+
+    // Find absolute path at cursor position
+    const absolutePath = this.findAbsolutePathAtPosition(text, cursorPos);
+    if (absolutePath) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      this.callbacks.onBeforeOpenFile?.();
+      window.electronAPI.file.openInEditor(absolutePath)
+        .catch((err: Error) => console.error('Failed to open file in editor:', err));
+    }
   }
 
   /**
