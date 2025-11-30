@@ -497,8 +497,8 @@ describe('IPCHandlers', () => {
 
             ipcHandlers.removeAllHandlers();
 
-            // Should be called for each handler (updated count after adding get-agent-file-path)
-            expect(ipcMain.removeAllListeners).toHaveBeenCalledTimes(20);
+            // Should be called for each handler (updated count after adding focus-window)
+            expect(ipcMain.removeAllListeners).toHaveBeenCalledTimes(21);
             expect(logger.info).toHaveBeenCalledWith('All IPC handlers removed');
         });
     });

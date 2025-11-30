@@ -247,8 +247,20 @@ class WindowManager {
         this.inputWindow.hide();
         logger.debug('Input window hidden');
       }
-    } catch (error) { 
+    } catch (error) {
       logger.error('Failed to hide input window:', error);
+      throw error;
+    }
+  }
+
+  focusWindow(): void {
+    try {
+      if (this.inputWindow) {
+        this.inputWindow.focus();
+        logger.debug('Input window focused');
+      }
+    } catch (error) {
+      logger.error('Failed to focus input window:', error);
       throw error;
     }
   }

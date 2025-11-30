@@ -110,6 +110,7 @@ class IPCHandlers {
     ipcMain.handle('get-draft-directory', this.handleGetDraftDirectory.bind(this));
     ipcMain.handle('hide-window', this.handleHideWindow.bind(this));
     ipcMain.handle('show-window', this.handleShowWindow.bind(this));
+    ipcMain.handle('focus-window', this.handleFocusWindow.bind(this));
     ipcMain.handle('get-app-info', this.handleGetAppInfo.bind(this));
     ipcMain.handle('get-config', this.handleGetConfig.bind(this));
     ipcMain.handle('paste-image', this.handlePasteImage.bind(this));
@@ -395,7 +396,7 @@ class IPCHandlers {
   }
 
   private async handleShowWindow(
-    _event: IpcMainInvokeEvent, 
+    _event: IpcMainInvokeEvent,
     data: WindowData = {}
   ): Promise<IPCResult> {
     try {
@@ -404,6 +405,17 @@ class IPCHandlers {
       return { success: true };
     } catch (error) {
       logger.error('Failed to show window:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
+  private async handleFocusWindow(_event: IpcMainInvokeEvent): Promise<IPCResult> {
+    try {
+      this.windowManager.focusWindow();
+      logger.debug('Window focus requested');
+      return { success: true };
+    } catch (error) {
+      logger.error('Failed to focus window:', error);
       return { success: false, error: (error as Error).message };
     }
   }
@@ -667,6 +679,7 @@ class IPCHandlers {
       'get-draft-directory',
       'hide-window',
       'show-window',
+      'focus-window',
       'get-app-info',
       'get-config',
       'paste-image',
