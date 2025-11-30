@@ -96,22 +96,14 @@
     background: rgba(96, 165, 250, 0.3);
 }
 
-/* Cursor-position highlight (lighter than Cmd+hover) */
+/* Cursor-position highlight for absolute file paths (background highlight) */
 .highlight-backdrop .file-path-cursor-highlight {
-    /* Subtle highlight when cursor is on a linkable word */
-    color: #93c5fd !important;
-    text-decoration: underline;
-    text-decoration-style: dotted;
-    text-decoration-color: #93c5fd;
-}
-
-/* @path with cursor highlight */
-.highlight-backdrop .at-path-highlight.file-path-cursor-highlight {
-    color: #93c5fd !important;
-    text-decoration: underline;
-    text-decoration-style: dotted;
-    text-decoration-color: #93c5fd;
-    background: rgba(147, 197, 253, 0.2);
+    /* Background highlight when cursor is on a linkable file path */
+    background: rgba(59, 130, 246, 0.4);
+    border-radius: var(--radius-sm);
+    color: transparent;
+    padding: 1px 2px;
+    margin: -1px -2px;
 }
 
 #textInput {

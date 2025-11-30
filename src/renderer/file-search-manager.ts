@@ -659,6 +659,7 @@ export class FileSearchManager {
 
   /**
    * Update cursor position highlight (called when cursor moves)
+   * Only highlights absolute file paths, not @paths (which already have their own highlight)
    */
   private updateCursorPositionHighlight(): void {
     if (!this.textInput) return;
@@ -666,17 +667,32 @@ export class FileSearchManager {
     const text = this.textInput.value;
     const cursorPos = this.textInput.selectionStart;
 
-    // Find clickable path at cursor position
-    const clickablePath = this.findClickablePathAtPosition(text, cursorPos);
-
-    if (clickablePath) {
-      const newRange: AtPathRange = { start: clickablePath.start, end: clickablePath.end };
-      // Only update if position changed
-      if (!this.cursorPositionPath ||
-          this.cursorPositionPath.start !== newRange.start ||
-          this.cursorPositionPath.end !== newRange.end) {
-        this.cursorPositionPath = newRange;
+    // First check if cursor is on an @path - if so, skip cursor highlight
+    // @paths already have their own highlight style
+    const atPath = this.findAtPathAtPosition(text, cursorPos);
+    if (atPath) {
+      if (this.cursorPositionPath) {
+        this.cursorPositionPath = null;
         this.renderHighlightBackdropWithCursor();
+      }
+      return;
+    }
+
+    // Find absolute path at cursor position (paths starting with / or ~)
+    const absolutePath = this.findAbsolutePathAtPosition(text, cursorPos);
+
+    if (absolutePath) {
+      // Get the range for the absolute path
+      const pathInfo = this.findClickablePathAtPosition(text, cursorPos);
+      if (pathInfo && !pathInfo.path.startsWith('@')) {
+        const newRange: AtPathRange = { start: pathInfo.start, end: pathInfo.end };
+        // Only update if position changed
+        if (!this.cursorPositionPath ||
+            this.cursorPositionPath.start !== newRange.start ||
+            this.cursorPositionPath.end !== newRange.end) {
+          this.cursorPositionPath = newRange;
+          this.renderHighlightBackdropWithCursor();
+        }
       }
     } else if (this.cursorPositionPath) {
       // Clear cursor highlight
@@ -687,6 +703,7 @@ export class FileSearchManager {
 
   /**
    * Render highlight backdrop with cursor position highlight
+   * @paths get their own highlight, absolute paths get cursor highlight
    */
   private renderHighlightBackdropWithCursor(): void {
     if (!this.highlightBackdrop || !this.textInput) return;
@@ -702,24 +719,16 @@ export class FileSearchManager {
       return;
     }
 
-    // Determine if hoveredAtPath or cursorPositionPath is an @path
-    const isCursorAtPathInAtPaths = this.cursorPositionPath && this.atPaths.some(
-      ap => ap.start === this.cursorPositionPath?.start && ap.end === this.cursorPositionPath?.end
-    );
-
-    // Merge @paths and cursor position path (if different)
+    // Collect all highlight ranges: @paths and cursor position (for absolute paths only)
     const allHighlightRanges: Array<AtPathRange & { isAtPath: boolean; isCursorHighlight: boolean }> = [];
 
-    // Add @paths
+    // Add @paths (no cursor highlight for @paths - they have their own style)
     for (const atPath of this.atPaths) {
-      const isCursorHere = this.cursorPositionPath !== null &&
-        atPath.start === this.cursorPositionPath.start &&
-        atPath.end === this.cursorPositionPath.end;
-      allHighlightRanges.push({ ...atPath, isAtPath: true, isCursorHighlight: isCursorHere });
+      allHighlightRanges.push({ ...atPath, isAtPath: true, isCursorHighlight: false });
     }
 
-    // Add cursor position path if it's not an @path (e.g., absolute path)
-    if (!isCursorAtPathInAtPaths && this.cursorPositionPath) {
+    // Add cursor position path for absolute paths (not @paths)
+    if (this.cursorPositionPath) {
       allHighlightRanges.push({
         start: this.cursorPositionPath.start,
         end: this.cursorPositionPath.end,
@@ -746,11 +755,8 @@ export class FileSearchManager {
 
       if (range.isAtPath) {
         span.className = 'at-path-highlight';
-      }
-
-      // Add cursor highlight style if cursor is here
-      if (range.isCursorHighlight) {
-        span.classList.add('file-path-cursor-highlight');
+      } else if (range.isCursorHighlight) {
+        span.className = 'file-path-cursor-highlight';
       }
 
       span.textContent = text.substring(range.start, range.end);
