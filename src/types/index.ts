@@ -97,6 +97,8 @@ export interface PathsConfig {
   logFile: string;
   imagesDir: string;
   directoryFile: string;
+  cacheDir: string;             // Cache root directory
+  fileListsCacheDir: string;    // File lists cache directory
 }
 
 export interface HistoryConfig {
@@ -251,6 +253,9 @@ export interface DirectoryInfo {
   directoryChanged?: boolean;  // true if directory changed from previous (draft) directory
   previousDirectory?: string;  // previous directory (from draft) for comparison
   fromDraft?: boolean;         // true if this data is from draft fallback (not actual detection)
+  // Cache related fields
+  fromCache?: boolean;         // true if data was loaded from cache
+  cacheAge?: number;           // milliseconds since cache was updated
 }
 
 // File search settings configuration
@@ -281,5 +286,58 @@ export interface DirectoryData {
   partial?: boolean;          // true for Stage 1 (quick), false for Stage 2 (recursive)
   searchMode?: 'quick' | 'recursive';
   usedFd?: boolean;           // true if fd command was used
+}
+
+// ============================================================================
+// File Cache Related Types
+// ============================================================================
+
+// Cache metadata for a cached directory
+export interface FileCacheMetadata {
+  version: string;
+  directory: string;
+  createdAt: string;
+  updatedAt: string;
+  fileCount: number;
+  searchMode?: 'quick' | 'recursive';
+  usedFd?: boolean;
+  gitignoreRespected?: boolean;
+  ttlSeconds?: number;
+}
+
+// Cached directory data returned from FileCacheManager
+export interface CachedDirectoryData {
+  directory: string;
+  files: FileInfo[];
+  metadata: FileCacheMetadata;
+}
+
+// Cache entry stored in files.jsonl
+export interface CachedFileEntry {
+  path: string;
+  name: string;
+  type: 'file' | 'directory';
+  size?: number;
+  mtime?: number;
+}
+
+// Global cache metadata for tracking recent directories
+export interface GlobalCacheMetadata {
+  version: string;
+  lastUsedDirectory: string | null;
+  lastUsedAt: string | null;
+  recentDirectories: Array<{
+    directory: string;
+    lastUsedAt: string;
+  }>;
+}
+
+// Cache statistics
+export interface FileCacheStats {
+  totalCaches: number;
+  totalFiles: number;
+  oldestCache: string | null;
+  newestCache: string | null;
+  totalSizeBytes: number;
 }
 

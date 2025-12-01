@@ -47,6 +47,9 @@ interface DirectoryData {
   partial?: boolean;          // true for Stage 1 (quick), false for Stage 2 (recursive)
   searchMode?: 'quick' | 'recursive';
   usedFd?: boolean;           // true if fd command was used
+  fromCache?: boolean;        // true if data was loaded from disk cache
+  cacheAge?: number;          // milliseconds since cache was updated
+  fromDraft?: boolean;        // true if this is from draft fallback (empty files)
 }
 
 interface FileSearchCallbacks {
@@ -202,6 +205,55 @@ export class FileSearchManager {
 
     // Create frontmatter popup element
     this.createFrontmatterPopup();
+  }
+
+  /**
+   * Handle cached directory data from window-shown event
+   * This enables instant file search when window opens
+   */
+  public handleCachedDirectoryData(data: DirectoryInfo | undefined): void {
+    if (!data || !data.directory) {
+      console.debug('[FileSearchManager] No cached directory data');
+      return;
+    }
+
+    // Check if this is from cache or just draft fallback
+    const fromCache = data.fromCache === true;
+    const fromDraft = data.fromDraft === true;
+
+    if (fromDraft && (!data.files || data.files.length === 0)) {
+      // Draft fallback with no files - just store directory for later
+      console.debug('[FileSearchManager] Draft directory fallback:', data.directory);
+      // Don't cache empty data, but remember the directory
+      this.cachedDirectoryData = {
+        directory: data.directory,
+        files: [],
+        timestamp: Date.now(),
+        partial: true,
+        searchMode: 'quick'
+      };
+      return;
+    }
+
+    // Cache the data with appropriate flags
+    this.cachedDirectoryData = {
+      directory: data.directory,
+      files: data.files || [],
+      timestamp: Date.now(),
+      ...(data.partial !== undefined ? { partial: data.partial } : {}),
+      ...(data.searchMode !== undefined ? { searchMode: data.searchMode } : {}),
+      ...(data.usedFd !== undefined ? { usedFd: data.usedFd } : {}),
+      ...(fromCache ? { fromCache: true } : {}),
+      ...(data.cacheAge !== undefined ? { cacheAge: data.cacheAge } : {})
+    };
+
+    console.debug('[FileSearchManager] handleCachedDirectoryData:', formatLog({
+      directory: data.directory,
+      fileCount: this.cachedDirectoryData.files.length,
+      fromCache: fromCache,
+      cacheAge: data.cacheAge,
+      searchMode: data.searchMode
+    }));
   }
 
   /**
@@ -1264,61 +1316,61 @@ export class FileSearchManager {
   }
 
   /**
-   * Cache directory data from window-shown event (Stage 1 or Stage 2)
+   * Cache directory data from window-shown event (Stage 1 quick data)
+   * @deprecated Use handleCachedDirectoryData instead for better cache support
    */
   public cacheDirectoryData(data: DirectoryInfo | DirectoryData): void {
-    if (!data || !data.directory) return;
+    // Forward to new method for consistency
+    this.handleCachedDirectoryData(data);
+  }
+
+  /**
+   * Update cache with new data from directory-data-updated event (Stage 2 recursive data)
+   * Only updates if we have more complete data
+   */
+  public updateCache(data: DirectoryInfo | DirectoryData): void {
+    if (!data.directory || !data.files) {
+      console.debug('[FileSearchManager] updateCache: invalid data');
+      return;
+    }
+
+    // Check if this is an update to the same directory
+    const isSameDirectory = this.cachedDirectoryData?.directory === data.directory;
+
+    // Only update if:
+    // 1. No existing data
+    // 2. Different directory
+    // 3. More complete data (recursive > quick, more files)
+    const shouldUpdate = !this.cachedDirectoryData ||
+      !isSameDirectory ||
+      (data.searchMode === 'recursive') ||
+      (data.files.length > (this.cachedDirectoryData?.files.length || 0));
+
+    if (!shouldUpdate) {
+      console.debug('[FileSearchManager] updateCache: skipping update, existing data is sufficient');
+      return;
+    }
 
     this.cachedDirectoryData = {
       directory: data.directory,
-      files: data.files || [],
+      files: data.files,
       timestamp: Date.now(),
       ...(data.partial !== undefined ? { partial: data.partial } : {}),
       ...(data.searchMode !== undefined ? { searchMode: data.searchMode } : {}),
       ...(data.usedFd !== undefined ? { usedFd: data.usedFd } : {})
+      // Cache flags (fromCache, cacheAge) are intentionally omitted for fresh data
     };
 
-    console.debug('[FileSearchManager] Cached directory data:', formatLog({
+    console.debug('[FileSearchManager] updateCache:', formatLog({
       directory: data.directory,
-      fileCount: data.files?.length || 0,
+      fileCount: data.files.length,
       searchMode: data.searchMode,
-      partial: data.partial
+      usedFd: data.usedFd
     }));
-  }
 
-  /**
-   * Update cache with new data (used for Stage 2 background update)
-   */
-  public updateCache(data: DirectoryInfo | DirectoryData): void {
-    if (!data || !data.directory) return;
-
-    // Only update if it's for the same directory and is more complete
-    if (this.cachedDirectoryData?.directory === data.directory) {
-      if (!data.partial || !this.cachedDirectoryData.partial) {
-        this.cachedDirectoryData = {
-          directory: data.directory,
-          files: data.files || [],
-          timestamp: Date.now(),
-          ...(data.partial !== undefined ? { partial: data.partial } : {}),
-          ...(data.searchMode !== undefined ? { searchMode: data.searchMode } : {}),
-          ...(data.usedFd !== undefined ? { usedFd: data.usedFd } : {})
-        };
-
-        console.debug('[FileSearchManager] Updated cache with Stage 2 data:', formatLog({
-          directory: data.directory,
-          fileCount: data.files?.length || 0,
-          searchMode: data.searchMode,
-          usedFd: data.usedFd
-        }));
-
-        // If suggestions are visible, refresh them with new data
-        if (this.isVisible && this.currentQuery) {
-          this.showSuggestions(this.currentQuery);
-        }
-      }
-    } else {
-      // Different directory, replace cache
-      this.cacheDirectoryData(data);
+    // If suggestions are currently visible and not actively searching, refresh them
+    if (this.isVisible && !this.currentQuery) {
+      this.refreshSuggestions();
     }
   }
 
@@ -1328,6 +1380,41 @@ export class FileSearchManager {
   public clearCache(): void {
     this.cachedDirectoryData = null;
     this.hideSuggestions();
+  }
+
+  /**
+   * Refresh suggestions with current cached data
+   * Called when cache is updated in background
+   */
+  private refreshSuggestions(): void {
+    if (!this.isVisible) return;
+
+    // Re-filter with current query
+    if (this.currentQuery) {
+      this.filterFiles(this.currentQuery);
+    }
+    this.renderSuggestions();
+  }
+
+  /**
+   * Get cache status for display (e.g., in footer hint)
+   */
+  public getCacheStatus(): { fromCache: boolean; cacheAge?: number | undefined; directory?: string | undefined } | null {
+    if (!this.cachedDirectoryData) return null;
+
+    const status: { fromCache: boolean; cacheAge?: number | undefined; directory?: string | undefined } = {
+      fromCache: this.cachedDirectoryData.fromCache || false
+    };
+
+    if (this.cachedDirectoryData.cacheAge !== undefined) {
+      status.cacheAge = this.cachedDirectoryData.cacheAge;
+    }
+
+    if (this.cachedDirectoryData.directory !== undefined) {
+      status.directory = this.cachedDirectoryData.directory;
+    }
+
+    return status;
   }
 
   /**

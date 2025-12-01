@@ -56,6 +56,9 @@ export interface DirectoryInfo {
   directoryChanged?: boolean;  // true if directory changed from previous (draft) directory
   previousDirectory?: string;  // previous directory (from draft) for comparison
   fromDraft?: boolean;         // true if this data is from draft fallback (not actual detection)
+  // Cache related fields
+  fromCache?: boolean;         // true if data was loaded from disk cache
+  cacheAge?: number;           // milliseconds since cache was updated
 }
 
 export interface WindowData {

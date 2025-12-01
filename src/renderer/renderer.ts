@@ -395,12 +395,14 @@ export class PromptLineRenderer {
       // Reset draggable state when window is shown (new session)
       this.domManager.setDraggable(false);
 
-      // Cache directory data for file search (Stage 1 or draft fallback)
+      // Cache directory data for file search (from cache, Stage 1, or draft fallback)
       if (data.directoryData) {
         console.debug('[Renderer] caching directory data for file search', {
-          fromDraft: data.directoryData.fromDraft
+          fromDraft: data.directoryData.fromDraft,
+          fromCache: data.directoryData.fromCache,
+          cacheAge: data.directoryData.cacheAge
         });
-        this.fileSearchManager?.cacheDirectoryData(data.directoryData);
+        this.fileSearchManager?.handleCachedDirectoryData(data.directoryData);
 
         // Update hint text with formatted directory path
         if (data.directoryData.directory) {
