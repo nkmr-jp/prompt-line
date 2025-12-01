@@ -3,8 +3,9 @@ import { exec } from 'child_process';
 import config from '../config/app-config';
 import { getCurrentApp, getActiveWindowBounds, logger, KEYBOARD_SIMULATOR_PATH, TEXT_FIELD_DETECTOR_PATH, DIRECTORY_DETECTOR_PATH } from '../utils/utils';
 import DesktopSpaceManager from './desktop-space-manager';
+import FileCacheManager from './file-cache-manager';
 import type DirectoryManager from './directory-manager';
-import type { AppInfo, WindowData, StartupPosition, DirectoryInfo, FileSearchSettings } from '../types';
+import type { AppInfo, WindowData, StartupPosition, DirectoryInfo, FileSearchSettings, FileInfo } from '../types';
 
 // Native tools paths are imported from utils to ensure correct paths in packaged app
 
@@ -17,19 +18,24 @@ class WindowManager {
   private fileSearchSettings: FileSearchSettings | null = null;
   private directoryManager: DirectoryManager | null = null;
   private savedDirectory: string | null = null; // Directory from DirectoryManager for fallback
+  private fileCacheManager: FileCacheManager | null = null;
 
   async initialize(): Promise<void> {
     try {
       logger.info('Initializing WindowManager...');
-      
+
       // Initialize desktop space manager
       this.desktopSpaceManager = new DesktopSpaceManager();
       await this.desktopSpaceManager.initialize();
-      
+
+      // Initialize file cache manager
+      this.fileCacheManager = new FileCacheManager();
+      await this.fileCacheManager.initialize();
+
       // Pre-create window for faster first-time startup
       this.createInputWindow();
       logger.debug('Pre-created input window for faster startup');
-      
+
       logger.info('WindowManager initialized successfully');
     } catch (error) {
       logger.error('Failed to initialize WindowManager:', error);
@@ -203,15 +209,25 @@ class WindowManager {
         ...data
       };
 
-      if (this.savedDirectory) {
+      // Load cached file data for immediate file search availability
+      const cachedData = await this.loadCachedFilesForWindow();
+      if (cachedData) {
+        windowData.directoryData = cachedData;
+        logger.debug('Loaded cached directory data', {
+          directory: cachedData.directory,
+          fileCount: cachedData.fileCount,
+          fromCache: cachedData.fromCache
+        });
+      } else if (this.savedDirectory) {
+        // Fallback to draft directory with empty files if no cache
         windowData.directoryData = {
           success: true,
           directory: this.savedDirectory,
-          files: [], // Empty files - will be populated by background detection
+          files: [],
           fileCount: 0,
           partial: true,
           searchMode: 'quick',
-          fromDraft: true // Flag indicating this is from draft fallback
+          fromDraft: true
         };
       }
 
@@ -259,6 +275,68 @@ class WindowManager {
       logger.error('Failed to show input window:', error);
       logger.error(`❌ Failed after ${(performance.now() - startTime).toFixed(2)}ms`);
       throw error;
+    }
+  }
+
+  /**
+   * Load cached files for window show - provides instant file search availability
+   * Priority: savedDirectory cache > lastUsedDirectory cache
+   */
+  private async loadCachedFilesForWindow(): Promise<DirectoryInfo | null> {
+    if (!this.fileCacheManager) return null;
+
+    try {
+      // Priority 1: Try to load cache for savedDirectory (from DirectoryManager)
+      if (this.savedDirectory) {
+        const cached = await this.fileCacheManager.loadCache(this.savedDirectory);
+        if (cached && this.fileCacheManager.isCacheValid(cached.metadata)) {
+          const result: DirectoryInfo = {
+            success: true,
+            directory: cached.directory,
+            files: cached.files,
+            fileCount: cached.files.length,
+            partial: false,
+            fromCache: true,
+            cacheAge: Date.now() - new Date(cached.metadata.updatedAt).getTime()
+          };
+          if (cached.metadata.searchMode) {
+            result.searchMode = cached.metadata.searchMode;
+          }
+          if (cached.metadata.usedFd !== undefined) {
+            result.usedFd = cached.metadata.usedFd;
+          }
+          return result;
+        }
+      }
+
+      // Priority 2: Try to load cache for lastUsedDirectory
+      const lastUsedDir = await this.fileCacheManager.getLastUsedDirectory();
+      if (lastUsedDir && lastUsedDir !== this.savedDirectory) {
+        const cached = await this.fileCacheManager.loadCache(lastUsedDir);
+        if (cached && this.fileCacheManager.isCacheValid(cached.metadata)) {
+          const result: DirectoryInfo = {
+            success: true,
+            directory: cached.directory,
+            files: cached.files,
+            fileCount: cached.files.length,
+            partial: false,
+            fromCache: true,
+            cacheAge: Date.now() - new Date(cached.metadata.updatedAt).getTime()
+          };
+          if (cached.metadata.searchMode) {
+            result.searchMode = cached.metadata.searchMode;
+          }
+          if (cached.metadata.usedFd !== undefined) {
+            result.usedFd = cached.metadata.usedFd;
+          }
+          return result;
+        }
+      }
+
+      return null;
+    } catch (error) {
+      logger.error('Failed to load cached files:', error);
+      return null;
     }
   }
 
@@ -766,6 +844,11 @@ class WindowManager {
    * - If detection succeeds: update draft directory and send result with directoryChanged flag
    * - If detection fails: keep using draft directory (do nothing)
    * - directoryChanged flag is true when detected directory differs from saved draft directory
+   *
+   * Cache Integration:
+   * - Background detection always runs to catch file changes
+   * - If files changed, update cache and notify renderer
+   * - If no changes, just update cache timestamp (no renderer notification)
    */
   private async executeBackgroundDirectoryDetection(): Promise<void> {
     try {
@@ -811,19 +894,64 @@ class WindowManager {
         const recursiveStartTime = performance.now();
         const fullResult = await this.executeDirectoryDetector('recursive', 5000);
 
-        if (fullResult && fullResult.directory && this.inputWindow && !this.inputWindow.isDestroyed()) {
-          // Stage 2 uses same directory, so directoryChanged is false for subsequent updates
-          const stage2Result: DirectoryInfo = {
-            ...fullResult,
-            directoryChanged: false // Same directory as Stage 1
-          };
+        if (fullResult && fullResult.directory && fullResult.files && this.inputWindow && !this.inputWindow.isDestroyed()) {
+          // Check if file list has changed compared to cache
+          let hasChanges = true;
 
-          this.inputWindow.webContents.send('directory-data-updated', stage2Result);
-          logger.debug(`✅ Stage 2 (recursive) completed in ${(performance.now() - recursiveStartTime).toFixed(2)}ms`, {
-            directory: fullResult.directory,
-            fileCount: fullResult.fileCount,
-            usedFd: fullResult.usedFd
-          });
+          if (this.fileCacheManager) {
+            const existingCache = await this.fileCacheManager.loadCache(detectedDirectory);
+            if (existingCache) {
+              hasChanges = this.hasFileListChanges(existingCache.files, fullResult.files);
+            }
+
+            // Update lastUsedDirectory
+            await this.fileCacheManager.setLastUsedDirectory(detectedDirectory);
+
+            if (hasChanges) {
+              // Save updated cache
+              const cacheOptions: {
+                searchMode: 'recursive';
+                usedFd?: boolean;
+              } = {
+                searchMode: 'recursive'
+              };
+              if (fullResult.usedFd !== undefined) {
+                cacheOptions.usedFd = fullResult.usedFd;
+              }
+              await this.fileCacheManager.saveCache(
+                detectedDirectory,
+                fullResult.files,
+                cacheOptions
+              );
+              logger.debug(`Cache updated for ${detectedDirectory}, ${fullResult.files.length} files`);
+            } else {
+              // Just update timestamp
+              await this.fileCacheManager.updateCacheTimestamp(detectedDirectory);
+              logger.debug(`Cache timestamp updated for ${detectedDirectory}, no file changes`);
+            }
+          }
+
+          // Only notify renderer if there are changes
+          if (hasChanges) {
+            // Stage 2 uses same directory, so directoryChanged is false for subsequent updates
+            const stage2Result: DirectoryInfo = {
+              ...fullResult,
+              directoryChanged: false // Same directory as Stage 1
+            };
+
+            this.inputWindow.webContents.send('directory-data-updated', stage2Result);
+            logger.debug(`✅ Stage 2 (recursive) completed in ${(performance.now() - recursiveStartTime).toFixed(2)}ms`, {
+              directory: fullResult.directory,
+              fileCount: fullResult.fileCount,
+              usedFd: fullResult.usedFd,
+              hasChanges
+            });
+          } else {
+            logger.debug(`✅ Stage 2 completed, no changes detected, skipping renderer notification`, {
+              directory: fullResult.directory,
+              fileCount: fullResult.fileCount
+            });
+          }
         }
       } else {
         // Detection failed - keep using draft directory (fallback)
@@ -838,6 +966,29 @@ class WindowManager {
       logger.warn('Background directory detection failed:', error);
       // Detection failed - keep using draft directory (fallback)
     }
+  }
+
+  /**
+   * Check if file list has changed (for cache update decision)
+   */
+  private hasFileListChanges(
+    oldFiles: FileInfo[] | undefined,
+    newFiles: FileInfo[]
+  ): boolean {
+    if (!oldFiles) return true;
+    if (oldFiles.length !== newFiles.length) return true;
+
+    // Create path sets for comparison (order-independent)
+    const oldPaths = new Set(oldFiles.map(f => f.path));
+    const newPaths = new Set(newFiles.map(f => f.path));
+
+    if (oldPaths.size !== newPaths.size) return true;
+
+    for (const path of newPaths) {
+      if (!oldPaths.has(path)) return true;
+    }
+
+    return false;
   }
 }
 

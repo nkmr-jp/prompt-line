@@ -90,6 +90,12 @@ class AppConfigClass {
       },
       get directoryFile() {
         return path.join(userDataDir, 'directory.json');
+      },
+      get cacheDir() {
+        return path.join(userDataDir, 'cache');
+      },
+      get fileListsCacheDir() {
+        return path.join(userDataDir, 'cache', 'file-lists');
       }
     };
 
