@@ -190,47 +190,47 @@ window:
   height: ${settings.window.height}
 
 # Custom slash commands configuration
-# commands:
+#commands:
   ## Directories containing custom slash command .md files
   ## Each .md file should have a description in YAML frontmatter
   ## First directory takes precedence for duplicate command names
-  # directories:
-  #   - /Users/your-username/.claude/commands
+  #directories:
+  #  - /Users/your-username/.claude/commands
 
 # File search configuration for @ mentions
-# fileSearch:
+#fileSearch:
   ## Use fd command for faster searches (falls back to find if not installed)
   ## Install fd: brew install fd
-  # useFd: ${settings.fileSearch?.useFd ?? true}
+  #useFd: ${settings.fileSearch?.useFd ?? true}
 
   ## Respect .gitignore files (fd only, default: true)
-  # respectGitignore: ${settings.fileSearch?.respectGitignore ?? true}
+  #respectGitignore: ${settings.fileSearch?.respectGitignore ?? true}
 
   ## Additional patterns to exclude from search
   ## Default excludes already include: node_modules, .git, dist, build, etc.
-  # excludePatterns:
-  #   - "*.log"
-  #   - "*.tmp"
-  #   - "tmp/"
+  #excludePatterns:
+  #  - "*.log"
+  #  - "*.tmp"
+  #  - "tmp/"
 
   ## Patterns to force include even if in .gitignore
   ## Useful for searching in build output or generated files
-  # includePatterns:
-  #   - "dist/**/*.js"
-  #   - ".storybook/**/*"
+  #includePatterns:
+  #  - "dist/**/*.js"
+  #  - ".storybook/**/*"
 
   ## Maximum number of files to return (default: 5000)
-  # maxFiles: ${settings.fileSearch?.maxFiles ?? 5000}
+  #maxFiles: ${settings.fileSearch?.maxFiles ?? 5000}
 
   ## Include hidden files starting with . (default: true)
-  # includeHidden: ${settings.fileSearch?.includeHidden ?? true}
+  #includeHidden: ${settings.fileSearch?.includeHidden ?? true}
 
   ## Maximum directory depth to search (null = unlimited)
-  # maxDepth: null
+  #maxDepth: null
 
   ## Follow symbolic links in file search (default: false)
   ## When enabled, files inside symlinked directories will be included in search results
-  # followSymlinks: false
+  #followSymlinks: false
 
 # File opener application configuration
 # Configure which applications to use when opening file links
