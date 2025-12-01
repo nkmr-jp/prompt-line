@@ -35,7 +35,8 @@ const ALLOWED_CHANNELS = [
   'open-settings',
   'get-agents',
   'open-file-in-editor',
-  'check-file-exists'
+  'check-file-exists',
+  'open-external-url'
 ];
 
 // IPC channel validation with additional security checks
@@ -218,6 +219,9 @@ const electronAPI = {
   slashCommands: {
     get: async (query?: string): Promise<any[]> => {
       return ipcRenderer.invoke('get-slash-commands', query);
+    },
+    getFilePath: async (commandName: string): Promise<string | null> => {
+      return ipcRenderer.invoke('get-slash-command-file-path', commandName);
     }
   },
 
@@ -238,6 +242,13 @@ const electronAPI = {
     },
     checkExists: async (filePath: string): Promise<boolean> => {
       return ipcRenderer.invoke('check-file-exists', filePath);
+    }
+  },
+
+  // Shell operations
+  shell: {
+    openExternal: async (url: string): Promise<{ success: boolean; error?: string }> => {
+      return ipcRenderer.invoke('open-external-url', url);
     }
   }
 };
@@ -284,6 +295,7 @@ export interface ElectronAPI {
   };
   slashCommands: {
     get: (query?: string) => Promise<any[]>;
+    getFilePath: (commandName: string) => Promise<string | null>;
   };
   agents: {
     get: (query?: string) => Promise<any[]>;
@@ -292,6 +304,9 @@ export interface ElectronAPI {
   file: {
     openInEditor: (filePath: string) => Promise<{ success: boolean; error?: string }>;
     checkExists: (filePath: string) => Promise<boolean>;
+  };
+  shell: {
+    openExternal: (url: string) => Promise<{ success: boolean; error?: string }>;
   };
 }
 

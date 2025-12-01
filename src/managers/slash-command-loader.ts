@@ -151,7 +151,7 @@ class SlashCommandLoader {
   private async parseCommandFile(filePath: string, fileName: string): Promise<SlashCommandItem | null> {
     try {
       const content = await fs.readFile(filePath, 'utf8');
-      const { description, argumentHint } = this.extractFrontmatter(content);
+      const { description, argumentHint, rawFrontmatter } = this.extractFrontmatter(content);
 
       // Command name is the filename without .md extension
       const name = fileName.replace(/\.md$/, '');
@@ -167,6 +167,11 @@ class SlashCommandLoader {
         command.argumentHint = argumentHint;
       }
 
+      // Only set frontmatter if it has a value (exactOptionalPropertyTypes)
+      if (rawFrontmatter) {
+        command.frontmatter = rawFrontmatter;
+      }
+
       return command;
     } catch (error) {
       logger.warn('Failed to parse command file', { filePath, error });
@@ -175,18 +180,18 @@ class SlashCommandLoader {
   }
 
   /**
-   * Extract description and argument-hint from YAML frontmatter
+   * Extract description, argument-hint, and raw frontmatter from YAML frontmatter
    * Supports format:
    * ---
    * description: Some description here
    * argument-hint: <required argument>
    * ---
    */
-  private extractFrontmatter(content: string): { description: string; argumentHint: string } {
+  private extractFrontmatter(content: string): { description: string; argumentHint: string; rawFrontmatter: string } {
     // Match YAML frontmatter between --- markers
     const frontmatterMatch = content.match(/^---\s*\n([\s\S]*?)\n---/);
     if (!frontmatterMatch || !frontmatterMatch[1]) {
-      return { description: '', argumentHint: '' };
+      return { description: '', argumentHint: '', rawFrontmatter: '' };
     }
 
     const frontmatter = frontmatterMatch[1];
@@ -215,7 +220,7 @@ class SlashCommandLoader {
       }
     }
 
-    return { description, argumentHint };
+    return { description, argumentHint, rawFrontmatter: frontmatter.trim() };
   }
 
   /**

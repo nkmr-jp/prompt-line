@@ -476,7 +476,7 @@ export class FileSearchManager {
   }
 
   /**
-   * Check if mouse is over an @path or absolute path and highlight it
+   * Check if mouse is over an @path, absolute path, or URL and highlight it
    */
   private checkAndHighlightAtPath(clientX: number, clientY: number): void {
     if (!this.textInput) return;
@@ -496,6 +496,30 @@ export class FileSearchManager {
       const atPathRange = this.findAtPathRangeAtPosition(charPos);
       if (atPathRange && atPathRange !== this.hoveredAtPath) {
         this.hoveredAtPath = atPathRange;
+        this.renderFilePathHighlight();
+      }
+      return;
+    }
+
+    // Check for URL
+    const url = this.findUrlAtPosition(text, charPos);
+    if (url) {
+      // Create a temporary AtPathRange for the URL
+      const tempRange: AtPathRange = { start: url.start, end: url.end };
+      if (!this.hoveredAtPath || this.hoveredAtPath.start !== tempRange.start || this.hoveredAtPath.end !== tempRange.end) {
+        this.hoveredAtPath = tempRange;
+        this.renderFilePathHighlight();
+      }
+      return;
+    }
+
+    // Check for slash command (like /commit, /help)
+    const slashCommand = this.findSlashCommandAtPosition(text, charPos);
+    if (slashCommand) {
+      // Create a temporary AtPathRange for the slash command
+      const tempRange: AtPathRange = { start: slashCommand.start, end: slashCommand.end };
+      if (!this.hoveredAtPath || this.hoveredAtPath.start !== tempRange.start || this.hoveredAtPath.end !== tempRange.end) {
+        this.hoveredAtPath = tempRange;
         this.renderFilePathHighlight();
       }
       return;
@@ -662,8 +686,8 @@ export class FileSearchManager {
 
   /**
    * Update cursor position highlight (called when cursor moves)
-   * Only highlights absolute file paths, not @paths (which already have their own highlight)
-   * Also updates hint text to show Ctrl+Enter shortcut when on a clickable path
+   * Only highlights absolute file paths and URLs, not @paths (which already have their own highlight)
+   * Also updates hint text to show Ctrl+Enter shortcut when on a clickable path or URL
    */
   private updateCursorPositionHighlight(): void {
     if (!this.textInput) return;
@@ -678,6 +702,38 @@ export class FileSearchManager {
       this.showFileOpenHint();
       if (this.cursorPositionPath) {
         this.cursorPositionPath = null;
+        this.renderHighlightBackdropWithCursor();
+      }
+      return;
+    }
+
+    // Check if cursor is on a URL
+    const url = this.findUrlAtPosition(text, cursorPos);
+    if (url) {
+      // Show hint for URL
+      this.showUrlOpenHint();
+      const newRange: AtPathRange = { start: url.start, end: url.end };
+      // Only update if position changed
+      if (!this.cursorPositionPath ||
+          this.cursorPositionPath.start !== newRange.start ||
+          this.cursorPositionPath.end !== newRange.end) {
+        this.cursorPositionPath = newRange;
+        this.renderHighlightBackdropWithCursor();
+      }
+      return;
+    }
+
+    // Check if cursor is on a slash command
+    const slashCommand = this.findSlashCommandAtPosition(text, cursorPos);
+    if (slashCommand) {
+      // Show hint for slash command
+      this.showSlashCommandOpenHint();
+      const newRange: AtPathRange = { start: slashCommand.start, end: slashCommand.end };
+      // Only update if position changed
+      if (!this.cursorPositionPath ||
+          this.cursorPositionPath.start !== newRange.start ||
+          this.cursorPositionPath.end !== newRange.end) {
+        this.cursorPositionPath = newRange;
         this.renderHighlightBackdropWithCursor();
       }
       return;
@@ -717,7 +773,25 @@ export class FileSearchManager {
    */
   private showFileOpenHint(): void {
     if (this.callbacks.updateHintText) {
-      this.callbacks.updateHintText('Ctrl + ↵ to open file');
+      this.callbacks.updateHintText('Ctrl + ↵ to open');
+    }
+  }
+
+  /**
+   * Show hint for opening URL with Ctrl+Enter
+   */
+  private showUrlOpenHint(): void {
+    if (this.callbacks.updateHintText) {
+      this.callbacks.updateHintText('Ctrl + ↵ to open URL in browser');
+    }
+  }
+
+  /**
+   * Show hint for opening slash command file with Ctrl+Enter
+   */
+  private showSlashCommandOpenHint(): void {
+    if (this.callbacks.updateHintText) {
+      this.callbacks.updateHintText('Ctrl + ↵ to open command file');
     }
   }
 
@@ -810,13 +884,41 @@ export class FileSearchManager {
   }
 
   /**
-   * Handle Ctrl+Enter to open file at cursor position
+   * Handle Ctrl+Enter to open file or URL at cursor position
    */
   private async handleCtrlEnterOpenFile(e: KeyboardEvent): Promise<void> {
     if (!this.textInput) return;
 
     const text = this.textInput.value;
     const cursorPos = this.textInput.selectionStart;
+
+    // Check for URL first
+    const url = this.findUrlAtPosition(text, cursorPos);
+    if (url) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      await this.openUrlInBrowser(url.url);
+      return;
+    }
+
+    // Check for slash command (like /commit, /help)
+    const slashCommand = this.findSlashCommandAtPosition(text, cursorPos);
+    if (slashCommand) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      try {
+        const commandFilePath = await window.electronAPI.slashCommands.getFilePath(slashCommand.command);
+        if (commandFilePath) {
+          await this.openFileAndRestoreFocus(commandFilePath);
+          return;
+        }
+      } catch (err) {
+        console.error('Failed to resolve slash command file path:', err);
+      }
+      return;
+    }
 
     // Find @path at cursor position
     const atPath = this.findAtPathAtPosition(text, cursorPos);
@@ -866,14 +968,42 @@ export class FileSearchManager {
   }
 
   /**
-   * Handle Cmd+click on @path or absolute path in textarea to open the file in editor
-   * Supports: file paths, agent names, and absolute paths (including ~)
+   * Handle Cmd+click on @path, absolute path, or URL in textarea
+   * Supports: URLs, file paths, agent names, and absolute paths (including ~)
    */
   private async handleCmdClickOnAtPath(e: MouseEvent): Promise<void> {
     if (!this.textInput) return;
 
     const text = this.textInput.value;
     const cursorPos = this.textInput.selectionStart;
+
+    // Check for URL first
+    const url = this.findUrlAtPosition(text, cursorPos);
+    if (url) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      await this.openUrlInBrowser(url.url);
+      return;
+    }
+
+    // Check for slash command (like /commit, /help)
+    const slashCommand = this.findSlashCommandAtPosition(text, cursorPos);
+    if (slashCommand) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      try {
+        const commandFilePath = await window.electronAPI.slashCommands.getFilePath(slashCommand.command);
+        if (commandFilePath) {
+          await this.openFileAndRestoreFocus(commandFilePath);
+          return;
+        }
+      } catch (err) {
+        console.error('Failed to resolve slash command file path:', err);
+      }
+      return;
+    }
 
     // Find @path at or near cursor position
     const atPath = this.findAtPathAtPosition(text, cursorPos);
@@ -947,6 +1077,58 @@ export class FileSearchManager {
   }
 
   /**
+   * Find URL at the given cursor position
+   * Returns { url, start, end } if found, null otherwise
+   * Supports both http:// and https:// URLs
+   */
+  private findUrlAtPosition(text: string, cursorPos: number): { url: string; start: number; end: number } | null {
+    // Pattern to match URLs starting with http:// or https://
+    const urlPattern = /https?:\/\/[^\s"'<>|*?\n]+/gi;
+    let match;
+
+    while ((match = urlPattern.exec(text)) !== null) {
+      const start = match.index;
+      const end = start + match[0].length;
+
+      // Check if cursor is within this URL
+      if (cursorPos >= start && cursorPos <= end) {
+        return { url: match[0], start, end };
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Find slash command at the given cursor position
+   * Returns { command, start, end } if found, null otherwise
+   * Slash commands are like /commit, /help (single word after /)
+   */
+  private findSlashCommandAtPosition(text: string, cursorPos: number): { command: string; start: number; end: number } | null {
+    // Pattern to match slash commands: /word (no slashes in the middle)
+    // This matches /commit, /help, etc. but not /path/to/file
+    const slashCommandPattern = /\/([a-zA-Z][a-zA-Z0-9_-]*)/g;
+    let match;
+
+    while ((match = slashCommandPattern.exec(text)) !== null) {
+      const start = match.index;
+      const end = start + match[0].length;
+      const commandName = match[1] ?? '';
+
+      // Check if cursor is within this slash command
+      if (cursorPos >= start && cursorPos <= end) {
+        // Make sure it's at the start of text or after whitespace (not part of a path)
+        const prevChar = start > 0 ? text[start - 1] : ' ';
+        if (prevChar === ' ' || prevChar === '\n' || prevChar === '\t' || start === 0) {
+          return { command: commandName, start, end };
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * Find absolute file path at the given cursor position
    * Returns the path if found, null otherwise
    * Supports both / and ~ (home directory) prefixed paths
@@ -974,6 +1156,7 @@ export class FileSearchManager {
   /**
    * Find any clickable file path at the given position
    * Returns { path, start, end } if found
+   * Excludes slash commands (e.g., /commit) from absolute path detection
    */
   private findClickablePathAtPosition(text: string, cursorPos: number): { path: string; start: number; end: number } | null {
     // First check @path
@@ -990,7 +1173,8 @@ export class FileSearchManager {
     }
 
     // Then check absolute paths (including ~ for home directory)
-    const absolutePathPattern = /(?:\/|~\/)[^\s"'<>|*?\n]+/g;
+    // Excludes single-level paths like /commit (slash commands)
+    const absolutePathPattern = /(?:\/(?:[^\s"'<>|*?\n/]+\/)+[^\s"'<>|*?\n]*|~\/[^\s"'<>|*?\n]+)/g;
     while ((match = absolutePathPattern.exec(text)) !== null) {
       const start = match.index;
       const end = start + match[0].length;
@@ -1020,6 +1204,38 @@ export class FileSearchManager {
 
     // Combine with base directory
     return `${baseDir}/${relativePath}`;
+  }
+
+  /**
+   * Open URL in external browser and restore focus to PromptLine window
+   * Enables window dragging during URL open operation (same behavior as file open)
+   * @param url - URL to open
+   */
+  private async openUrlInBrowser(url: string): Promise<void> {
+    try {
+      this.callbacks.onBeforeOpenFile?.();
+      // Enable draggable state while URL is opening
+      this.callbacks.setDraggable?.(true);
+      const result = await window.electronAPI.shell.openExternal(url);
+      if (!result.success) {
+        console.error('Failed to open URL in browser:', result.error);
+        // Disable draggable state on error
+        this.callbacks.setDraggable?.(false);
+      } else {
+        console.log('URL opened successfully in browser:', url);
+        // Restore focus to PromptLine window after a short delay
+        // Keep draggable state enabled so user can move window while browser is open
+        setTimeout(() => {
+          window.electronAPI.window.focus().catch((err: Error) =>
+            console.error('Failed to restore focus:', err)
+          );
+        }, 100);
+      }
+    } catch (err) {
+      console.error('Failed to open URL in browser:', err);
+      // Disable draggable state on error
+      this.callbacks.setDraggable?.(false);
+    }
   }
 
   /**
@@ -1867,6 +2083,24 @@ export class FileSearchManager {
         item.appendChild(icon);
         item.appendChild(name);
         item.appendChild(desc);
+
+        // Add info icon for frontmatter popup (only if frontmatter exists)
+        if (agent.frontmatter) {
+          const infoIcon = document.createElement('span');
+          infoIcon.className = 'frontmatter-info-icon';
+          infoIcon.textContent = 'ⓘ';
+
+          // Show popup on info icon hover
+          infoIcon.addEventListener('mouseenter', () => {
+            this.showFrontmatterPopup(agent, item);
+          });
+
+          infoIcon.addEventListener('mouseleave', () => {
+            this.schedulePopupHide();
+          });
+
+          item.appendChild(infoIcon);
+        }
       }
 
       // Click handler
@@ -1899,21 +2133,11 @@ export class FileSearchManager {
         const allItems = this.suggestionsContainer?.querySelectorAll('.file-suggestion-item');
         allItems?.forEach(el => el.classList.remove('hovered'));
         item.classList.add('hovered');
-
-        // Show frontmatter popup for agents
-        if (suggestion.type === 'agent' && suggestion.agent?.frontmatter) {
-          this.showFrontmatterPopup(suggestion.agent, item);
-        }
       });
 
       // Remove hover when mouse leaves the item
       item.addEventListener('mouseleave', () => {
         item.classList.remove('hovered');
-
-        // Schedule popup hide for agents
-        if (suggestion.type === 'agent') {
-          this.schedulePopupHide();
-        }
       });
 
       fragment.appendChild(item);
