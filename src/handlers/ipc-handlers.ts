@@ -17,6 +17,7 @@ import type DirectoryManager from '../managers/directory-manager';
 import type SettingsManager from '../managers/settings-manager';
 import SlashCommandLoader from '../managers/slash-command-loader';
 import AgentLoader from '../managers/agent-loader';
+import FileOpenerManager from '../managers/file-opener-manager';
 import type { AppInfo, WindowData, HistoryItem, IHistoryManager, SlashCommandItem, AgentItem } from '../types';
 
 interface IPCResult {
@@ -71,6 +72,7 @@ class IPCHandlers {
   private settingsManager: SettingsManager;
   private slashCommandLoader: SlashCommandLoader;
   private agentLoader: AgentLoader;
+  private fileOpenerManager: FileOpenerManager;
 
   constructor(
     windowManager: WindowManager,
@@ -86,6 +88,7 @@ class IPCHandlers {
     this.settingsManager = settingsManager;
     this.slashCommandLoader = new SlashCommandLoader();
     this.agentLoader = new AgentLoader();
+    this.fileOpenerManager = new FileOpenerManager(settingsManager);
 
     // Initialize slash command loader and agent loader with settings
     const settings = this.settingsManager.getSettings();
@@ -688,17 +691,8 @@ class IPCHandlers {
       // Normalize and validate path to prevent path traversal
       const normalizedPath = path.normalize(absolutePath);
 
-      // Open file with system default application
-      const result = await shell.openPath(normalizedPath);
-
-      if (result) {
-        // shell.openPath returns an error string if failed, empty string on success
-        logger.error('Failed to open file in editor:', { error: result, path: normalizedPath });
-        return { success: false, error: result };
-      }
-
-      logger.info('File opened successfully in editor:', { path: normalizedPath });
-      return { success: true };
+      // Open file using FileOpenerManager (respects user settings for app selection)
+      return await this.fileOpenerManager.openFile(normalizedPath);
     } catch (error) {
       logger.error('Failed to open file in editor:', error);
       return { success: false, error: (error as Error).message };
