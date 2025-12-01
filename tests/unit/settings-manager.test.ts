@@ -136,6 +136,10 @@ window:
           includePatterns: [],
           excludePatterns: [],
           followSymlinks: false
+        },
+        fileOpener: {
+          extensions: {},
+          defaultEditor: null
         }
       });
     });
@@ -240,6 +244,10 @@ window:
           includePatterns: [],
           excludePatterns: [],
           followSymlinks: false
+        },
+        fileOpener: {
+          extensions: {},
+          defaultEditor: null
         }
       });
 

@@ -205,6 +205,12 @@ export interface UserSettings {
     // Follow symbolic links (default: false)
     followSymlinks?: boolean;
   };
+  fileOpener?: {
+    // Extension-specific application settings (e.g., { "ts": "WebStorm", "md": "Typora" })
+    extensions?: Record<string, string>;
+    // Default editor when no extension-specific setting exists
+    defaultEditor?: string | null;
+  };
 }
 
 export interface SlashCommandItem {
