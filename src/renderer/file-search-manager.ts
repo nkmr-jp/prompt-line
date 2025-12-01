@@ -2083,6 +2083,25 @@ export class FileSearchManager {
         item.appendChild(icon);
         item.appendChild(name);
         item.appendChild(desc);
+
+        // Add info icon for frontmatter popup (only if frontmatter exists)
+        if (agent.frontmatter) {
+          const infoIcon = document.createElement('span');
+          infoIcon.className = 'frontmatter-info-icon';
+          infoIcon.textContent = 'ⓘ';
+          infoIcon.title = 'Show details';
+
+          // Show popup on info icon hover
+          infoIcon.addEventListener('mouseenter', () => {
+            this.showFrontmatterPopup(agent, item);
+          });
+
+          infoIcon.addEventListener('mouseleave', () => {
+            this.schedulePopupHide();
+          });
+
+          item.appendChild(infoIcon);
+        }
       }
 
       // Click handler
@@ -2115,21 +2134,11 @@ export class FileSearchManager {
         const allItems = this.suggestionsContainer?.querySelectorAll('.file-suggestion-item');
         allItems?.forEach(el => el.classList.remove('hovered'));
         item.classList.add('hovered');
-
-        // Show frontmatter popup for agents
-        if (suggestion.type === 'agent' && suggestion.agent?.frontmatter) {
-          this.showFrontmatterPopup(suggestion.agent, item);
-        }
       });
 
       // Remove hover when mouse leaves the item
       item.addEventListener('mouseleave', () => {
         item.classList.remove('hovered');
-
-        // Schedule popup hide for agents
-        if (suggestion.type === 'agent') {
-          this.schedulePopupHide();
-        }
       });
 
       fragment.appendChild(item);

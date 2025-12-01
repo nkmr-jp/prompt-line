@@ -116,29 +116,9 @@ export class SlashCommandManager {
         }
       });
 
-      // Enable hover styles only when mouse explicitly moves, and show frontmatter popup
-      this.suggestionsContainer.addEventListener('mousemove', (e) => {
+      // Enable hover styles only when mouse explicitly moves
+      this.suggestionsContainer.addEventListener('mousemove', () => {
         this.suggestionsContainer?.classList.add('hover-enabled');
-
-        // Check if hovering over a suggestion item and show frontmatter popup
-        const target = e.target as HTMLElement;
-        const suggestionItem = target.closest('.slash-suggestion-item') as HTMLElement;
-        if (suggestionItem) {
-          const index = parseInt(suggestionItem.dataset.index || '0', 10);
-          const command = this.filteredCommands[index];
-          if (command?.frontmatter) {
-            this.showFrontmatterPopup(command, suggestionItem);
-          } else {
-            this.schedulePopupHide();
-          }
-        } else {
-          this.schedulePopupHide();
-        }
-      });
-
-      // Hide popup when mouse leaves the suggestions container
-      this.suggestionsContainer.addEventListener('mouseleave', () => {
-        this.schedulePopupHide();
       });
     }
   }
@@ -270,14 +250,38 @@ export class SlashCommandManager {
       }
       item.dataset.index = index.toString();
 
-      // Highlight matching text
-      const highlightedName = this.highlightMatch(cmd.name, query);
-      const highlightedDesc = cmd.description ? this.highlightMatch(cmd.description, query) : '';
+      // Create name element with highlighting
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'slash-command-name';
+      nameSpan.innerHTML = '/' + this.highlightMatch(cmd.name, query);
+      item.appendChild(nameSpan);
 
-      item.innerHTML = `
-        <span class="slash-command-name">/${highlightedName}</span>
-        ${highlightedDesc ? `<span class="slash-command-description">${highlightedDesc}</span>` : ''}
-      `;
+      // Create description element with highlighting
+      if (cmd.description) {
+        const descSpan = document.createElement('span');
+        descSpan.className = 'slash-command-description';
+        descSpan.innerHTML = this.highlightMatch(cmd.description, query);
+        item.appendChild(descSpan);
+      }
+
+      // Add info icon for frontmatter popup (only if frontmatter exists)
+      if (cmd.frontmatter) {
+        const infoIcon = document.createElement('span');
+        infoIcon.className = 'frontmatter-info-icon';
+        infoIcon.textContent = 'ⓘ';
+        infoIcon.title = 'Show details';
+
+        // Show popup on info icon hover
+        infoIcon.addEventListener('mouseenter', () => {
+          this.showFrontmatterPopup(cmd, item);
+        });
+
+        infoIcon.addEventListener('mouseleave', () => {
+          this.schedulePopupHide();
+        });
+
+        item.appendChild(infoIcon);
+      }
 
       fragment.appendChild(item);
     });
