@@ -27,6 +27,13 @@ export class FileOpenerManager {
     const app = settings.fileOpener?.extensions?.[ext]
                 || settings.fileOpener?.defaultEditor;
 
+    logger.debug('FileOpenerManager: openFile called', {
+      filePath,
+      ext,
+      fileOpenerSettings: settings.fileOpener,
+      selectedApp: app || 'system default'
+    });
+
     if (app) {
       return this.openWithApp(filePath, app);
     }
