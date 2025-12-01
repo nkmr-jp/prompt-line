@@ -210,6 +210,7 @@ export interface SlashCommandItem {
   description: string;
   argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
   filePath: string;
+  frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
 }
 
 export interface AgentItem {

@@ -8,9 +8,12 @@ interface SlashCommandItem {
   description: string;
   argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
   filePath: string;
+  frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
 }
 
 export class SlashCommandManager {
+  private static readonly POPUP_HIDE_DELAY = 100; // ms delay before hiding popup
+
   private suggestionsContainer: HTMLElement | null = null;
   private textarea: HTMLTextAreaElement | null = null;
   private commands: SlashCommandItem[] = [];
@@ -21,6 +24,11 @@ export class SlashCommandManager {
   private editingCommandName: string = ''; // The command name being edited
   private onCommandSelect: (command: string) => void;
   private onCommandInsert: (command: string) => void;
+
+  // Frontmatter popup
+  private frontmatterPopup: HTMLElement | null = null;
+  private popupHideTimeout: ReturnType<typeof setTimeout> | null = null;
+  private isPopupVisible: boolean = false;
 
   constructor(callbacks: {
     onCommandSelect: (command: string) => void;
@@ -33,6 +41,46 @@ export class SlashCommandManager {
   public initializeElements(): void {
     this.suggestionsContainer = document.getElementById('slashCommandSuggestions');
     this.textarea = document.getElementById('textInput') as HTMLTextAreaElement;
+
+    // Create frontmatter popup element
+    this.createFrontmatterPopup();
+  }
+
+  /**
+   * Create the frontmatter popup element for slash command hover display
+   */
+  private createFrontmatterPopup(): void {
+    if (this.frontmatterPopup) return;
+
+    this.frontmatterPopup = document.createElement('div');
+    this.frontmatterPopup.id = 'slashCommandFrontmatterPopup';
+    this.frontmatterPopup.className = 'frontmatter-popup';
+    this.frontmatterPopup.style.display = 'none';
+
+    // Prevent popup from closing when hovering over it
+    this.frontmatterPopup.addEventListener('mouseenter', () => {
+      this.cancelPopupHide();
+    });
+
+    this.frontmatterPopup.addEventListener('mouseleave', () => {
+      this.schedulePopupHide();
+    });
+
+    // Capture wheel events on document when popup is visible
+    document.addEventListener('wheel', (e) => {
+      if (this.isPopupVisible && this.frontmatterPopup) {
+        // Prevent default scrolling behavior
+        e.preventDefault();
+        // Scroll the popup instead
+        this.frontmatterPopup.scrollTop += e.deltaY;
+      }
+    }, { passive: false });
+
+    // Append to main-content
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent) {
+      mainContent.appendChild(this.frontmatterPopup);
+    }
   }
 
   public setupEventListeners(): void {
@@ -68,9 +116,29 @@ export class SlashCommandManager {
         }
       });
 
-      // Enable hover styles only when mouse explicitly moves
-      this.suggestionsContainer.addEventListener('mousemove', () => {
+      // Enable hover styles only when mouse explicitly moves, and show frontmatter popup
+      this.suggestionsContainer.addEventListener('mousemove', (e) => {
         this.suggestionsContainer?.classList.add('hover-enabled');
+
+        // Check if hovering over a suggestion item and show frontmatter popup
+        const target = e.target as HTMLElement;
+        const suggestionItem = target.closest('.slash-suggestion-item') as HTMLElement;
+        if (suggestionItem) {
+          const index = parseInt(suggestionItem.dataset.index || '0', 10);
+          const command = this.filteredCommands[index];
+          if (command?.frontmatter) {
+            this.showFrontmatterPopup(command, suggestionItem);
+          } else {
+            this.schedulePopupHide();
+          }
+        } else {
+          this.schedulePopupHide();
+        }
+      });
+
+      // Hide popup when mouse leaves the suggestions container
+      this.suggestionsContainer.addEventListener('mouseleave', () => {
+        this.schedulePopupHide();
       });
     }
   }
@@ -247,8 +315,96 @@ export class SlashCommandManager {
     this.selectedIndex = 0;
     if (this.suggestionsContainer) {
       this.suggestionsContainer.style.display = 'none';
-      this.suggestionsContainer.innerHTML = '';
+      this.suggestionsContainer.textContent = '';
       this.suggestionsContainer.classList.remove('hover-enabled');
+    }
+    // Also hide frontmatter popup
+    this.hideFrontmatterPopup();
+  }
+
+  /**
+   * Show frontmatter popup for a slash command
+   */
+  private showFrontmatterPopup(command: SlashCommandItem, targetElement: HTMLElement): void {
+    if (!this.frontmatterPopup || !command.frontmatter || !this.suggestionsContainer) return;
+
+    // Cancel any pending hide
+    this.cancelPopupHide();
+
+    // Set content (using textContent for XSS safety)
+    this.frontmatterPopup.textContent = command.frontmatter;
+
+    // Get the item and container rectangles for positioning
+    const itemRect = targetElement.getBoundingClientRect();
+    const containerRect = this.suggestionsContainer.getBoundingClientRect();
+
+    // Position: starts at the left edge of the item with some offset
+    // Width: slightly narrower than container
+    const leftOffset = 20;
+    const rightMargin = 10;
+    const left = containerRect.left + leftOffset;
+    const width = containerRect.width - leftOffset - rightMargin;
+
+    // Gap between popup and item
+    const verticalGap = 8;
+
+    // Calculate available space below and above the item
+    const spaceBelow = window.innerHeight - itemRect.bottom - 10;
+    const spaceAbove = itemRect.top - 10;
+    const minPopupHeight = 80;
+
+    // Decide whether to show popup above or below
+    const showAbove = spaceBelow < minPopupHeight && spaceAbove > spaceBelow;
+
+    let top: number;
+    let maxHeight: number;
+
+    if (showAbove) {
+      // Position above the item
+      maxHeight = Math.max(minPopupHeight, Math.min(150, spaceAbove - verticalGap));
+      top = itemRect.top - maxHeight - verticalGap;
+    } else {
+      // Position below the item
+      top = itemRect.bottom + verticalGap;
+      maxHeight = Math.max(minPopupHeight, Math.min(150, spaceBelow - verticalGap));
+    }
+
+    this.frontmatterPopup.style.left = `${left}px`;
+    this.frontmatterPopup.style.top = `${top}px`;
+    this.frontmatterPopup.style.width = `${width}px`;
+    this.frontmatterPopup.style.maxHeight = `${maxHeight}px`;
+
+    this.frontmatterPopup.style.display = 'block';
+    this.isPopupVisible = true;
+  }
+
+  /**
+   * Hide frontmatter popup
+   */
+  private hideFrontmatterPopup(): void {
+    if (this.frontmatterPopup) {
+      this.frontmatterPopup.style.display = 'none';
+    }
+    this.isPopupVisible = false;
+  }
+
+  /**
+   * Schedule popup hide with delay
+   */
+  private schedulePopupHide(): void {
+    this.cancelPopupHide();
+    this.popupHideTimeout = setTimeout(() => {
+      this.hideFrontmatterPopup();
+    }, SlashCommandManager.POPUP_HIDE_DELAY);
+  }
+
+  /**
+   * Cancel scheduled popup hide
+   */
+  private cancelPopupHide(): void {
+    if (this.popupHideTimeout) {
+      clearTimeout(this.popupHideTimeout);
+      this.popupHideTimeout = null;
     }
   }
 
