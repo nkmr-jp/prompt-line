@@ -234,21 +234,21 @@ window:
 
 # File opener application configuration
 # Configure which applications to use when opening file links
-# fileOpener:
+#fileOpener:
   ## Extension-specific application settings
   ## Specify which application to use for each file extension
   ## Examples:
-  # extensions:
-  #   ts: "WebStorm"
-  #   js: "WebStorm"
-  #   md: "Typora"
-  #   pdf: "Preview"
-  #   txt: "TextEdit"
+  #extensions:
+  #  ts: "WebStorm"
+  #  js: "WebStorm"
+  #  md: "Typora"
+  #  pdf: "Preview"
+  #  txt: "TextEdit"
 
   ## Default editor for files without extension-specific settings
   ## Set to null or omit to use system default
   ## Examples: "Visual Studio Code", "Sublime Text", "Atom"
-  # defaultEditor: null
+  #defaultEditor: null
   `;
   }
 
