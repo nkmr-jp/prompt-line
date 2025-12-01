@@ -269,7 +269,6 @@ export class SlashCommandManager {
         const infoIcon = document.createElement('span');
         infoIcon.className = 'frontmatter-info-icon';
         infoIcon.textContent = 'ⓘ';
-        infoIcon.title = 'Show details';
 
         // Show popup on info icon hover
         infoIcon.addEventListener('mouseenter', () => {
