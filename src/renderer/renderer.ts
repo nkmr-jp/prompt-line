@@ -462,7 +462,7 @@ export class PromptLineRenderer {
         console.debug('[Renderer] Directory detection timed out', {
           directory: data.directory
         });
-        const timeoutMessage = '@file unavailable - check settings.yml';
+        const timeoutMessage = 'large dir (adjust settings.yml)';
         this.defaultHintText = timeoutMessage;
         this.domManager.updateHintText(timeoutMessage);
         return;
