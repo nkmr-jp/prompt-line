@@ -457,20 +457,14 @@ export class PromptLineRenderer {
         this.fileSearchManager?.clearAtPaths();
       }
 
-      // Handle timeout case - show hint about large directories
+      // Handle timeout case - show hint about large directories (no directory path displayed)
       if (data.detectionTimedOut) {
         console.debug('[Renderer] Directory detection timed out', {
           directory: data.directory
         });
-        // Show hint about timeout with directory path if available
-        if (data.directory) {
-          const formattedPath = this.formatDirectoryPath(data.directory);
-          const hintText = `${formattedPath} (file search: cd to project dir)`;
-          this.defaultHintText = hintText;
-          this.domManager.updateHintText(hintText);
-        } else {
-          this.domManager.updateHintText('File search: cd to project directory');
-        }
+        const timeoutMessage = 'File search unavailable (large directory)';
+        this.defaultHintText = timeoutMessage;
+        this.domManager.updateHintText(timeoutMessage);
         return;
       }
 
