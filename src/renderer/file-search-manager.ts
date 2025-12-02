@@ -1239,6 +1239,32 @@ export class FileSearchManager {
   }
 
   /**
+   * Normalize a path by resolving . and .. segments
+   * This is a browser-compatible implementation since Node's path module isn't available
+   */
+  private normalizePath(filePath: string): string {
+    const parts = filePath.split('/');
+    const result: string[] = [];
+
+    for (const part of parts) {
+      if (part === '..') {
+        // Go up one directory (remove last segment)
+        if (result.length > 0 && result[result.length - 1] !== '') {
+          result.pop();
+        }
+      } else if (part !== '.' && part !== '') {
+        // Skip current directory marker and empty parts (except for leading empty for absolute paths)
+        result.push(part);
+      } else if (part === '' && result.length === 0) {
+        // Preserve leading empty string for absolute paths (e.g., /Users/...)
+        result.push(part);
+      }
+    }
+
+    return result.join('/') || '/';
+  }
+
+  /**
    * Resolve a relative file path to absolute path
    */
   private resolveAtPathToAbsolute(relativePath: string): string | null {
@@ -1253,8 +1279,9 @@ export class FileSearchManager {
       return relativePath;
     }
 
-    // Combine with base directory
-    return `${baseDir}/${relativePath}`;
+    // Combine with base directory and normalize (handles ../ etc.)
+    const combined = `${baseDir}/${relativePath}`;
+    return this.normalizePath(combined);
   }
 
   /**
