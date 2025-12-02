@@ -1238,9 +1238,16 @@ class DirectoryDetector {
         return symlinkDirs
     }
 
+    /// Result type for getFileList function
+    struct FileListResult {
+        let files: [[String: Any]]
+        let fileLimitReached: Bool
+        let maxFiles: Int
+    }
+
     /// Get file list recursively using fd
     /// fd is required - returns nil if fd is not available
-    static func getFileList(from directory: String, settings: FileSearchSettings = .default) -> [[String: Any]]? {
+    static func getFileList(from directory: String, settings: FileSearchSettings = .default) -> FileListResult? {
         // fd is required
         guard let fdPath = getFdPath() else {
             fputs("fd not found. Please install fd: brew install fd\n", stderr)
@@ -1331,9 +1338,11 @@ class DirectoryDetector {
         }
 
         // Check file count limit
+        var fileLimitReached = false
         if uniqueFiles.count > settings.maxFiles {
             fputs("Warning: File count (\(uniqueFiles.count)) exceeds limit (\(settings.maxFiles))\n", stderr)
-            return Array(uniqueFiles.prefix(settings.maxFiles))
+            uniqueFiles = Array(uniqueFiles.prefix(settings.maxFiles))
+            fileLimitReached = true
         }
 
         // Sort by name
@@ -1343,7 +1352,7 @@ class DirectoryDetector {
             return aName.localizedCaseInsensitiveCompare(bName) == .orderedAscending
         }
 
-        return uniqueFiles
+        return FileListResult(files: uniqueFiles, fileLimitReached: fileLimitReached, maxFiles: settings.maxFiles)
     }
 
     // MARK: - Detect with Files
@@ -1361,11 +1370,15 @@ class DirectoryDetector {
             return result
         }
 
-        if let files = getFileList(from: directory, settings: settings) {
-            result["files"] = files
-            result["fileCount"] = files.count
+        if let fileListResult = getFileList(from: directory, settings: settings) {
+            result["files"] = fileListResult.files
+            result["fileCount"] = fileListResult.files.count
             result["partial"] = false  // Always complete with fd
             result["searchMode"] = "recursive"
+            if fileListResult.fileLimitReached {
+                result["fileLimitReached"] = true
+                result["maxFiles"] = fileListResult.maxFiles
+            }
         } else {
             result["files"] = []
             result["fileCount"] = 0
@@ -1563,15 +1576,20 @@ class DirectoryDetector {
             return ["error": "Path is not a directory", "path": expandedPath]
         }
 
-        if let files = getFileList(from: expandedPath, settings: settings) {
-            return [
+        if let fileListResult = getFileList(from: expandedPath, settings: settings) {
+            var result: [String: Any] = [
                 "success": true,
                 "directory": expandedPath,
-                "files": files,
-                "fileCount": files.count,
+                "files": fileListResult.files,
+                "fileCount": fileListResult.files.count,
                 "searchMode": "recursive",
                 "partial": false
             ]
+            if fileListResult.fileLimitReached {
+                result["fileLimitReached"] = true
+                result["maxFiles"] = fileListResult.maxFiles
+            }
+            return result
         } else {
             return [
                 "error": "Failed to list files (fd required)",

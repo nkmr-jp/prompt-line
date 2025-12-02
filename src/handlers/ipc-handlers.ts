@@ -684,12 +684,28 @@ class IPCHandlers {
       }
 
       // Convert to absolute path if relative
-      const absolutePath = path.isAbsolute(expandedPath)
-        ? expandedPath
-        : path.join(process.cwd(), expandedPath);
+      let absolutePath: string;
+      if (path.isAbsolute(expandedPath)) {
+        absolutePath = expandedPath;
+      } else {
+        // Use DirectoryManager's directory as base for relative paths
+        const baseDir = this.directoryManager.getDirectory();
+        if (baseDir) {
+          absolutePath = path.join(baseDir, expandedPath);
+        } else {
+          // Fallback to process.cwd() if no directory is set
+          absolutePath = path.join(process.cwd(), expandedPath);
+        }
+      }
 
       // Normalize and validate path to prevent path traversal
       const normalizedPath = path.normalize(absolutePath);
+
+      logger.debug('Resolved file path:', {
+        original: filePath,
+        baseDir: this.directoryManager.getDirectory(),
+        resolved: normalizedPath
+      });
 
       // Open file using FileOpenerManager (respects user settings for app selection)
       return await this.fileOpenerManager.openFile(normalizedPath);
@@ -718,9 +734,19 @@ class IPCHandlers {
       }
 
       // Convert to absolute path if relative
-      const absolutePath = path.isAbsolute(expandedPath)
-        ? expandedPath
-        : path.join(process.cwd(), expandedPath);
+      let absolutePath: string;
+      if (path.isAbsolute(expandedPath)) {
+        absolutePath = expandedPath;
+      } else {
+        // Use DirectoryManager's directory as base for relative paths
+        const baseDir = this.directoryManager.getDirectory();
+        if (baseDir) {
+          absolutePath = path.join(baseDir, expandedPath);
+        } else {
+          // Fallback to process.cwd() if no directory is set
+          absolutePath = path.join(process.cwd(), expandedPath);
+        }
+      }
 
       // Normalize path
       const normalizedPath = path.normalize(absolutePath);

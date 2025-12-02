@@ -67,6 +67,7 @@ interface FileSearchCallbacks {
 interface AtPathRange {
   start: number;  // Position of @
   end: number;    // Position after the last character of the path
+  path?: string;  // The path content (without @) for re-searching after edits (only set for tracked paths)
 }
 
 // Unified suggestion item (file or agent) with score for mixed sorting
@@ -1239,6 +1240,32 @@ export class FileSearchManager {
   }
 
   /**
+   * Normalize a path by resolving . and .. segments
+   * This is a browser-compatible implementation since Node's path module isn't available
+   */
+  private normalizePath(filePath: string): string {
+    const parts = filePath.split('/');
+    const result: string[] = [];
+
+    for (const part of parts) {
+      if (part === '..') {
+        // Go up one directory (remove last segment)
+        if (result.length > 0 && result[result.length - 1] !== '') {
+          result.pop();
+        }
+      } else if (part !== '.' && part !== '') {
+        // Skip current directory marker and empty parts (except for leading empty for absolute paths)
+        result.push(part);
+      } else if (part === '' && result.length === 0) {
+        // Preserve leading empty string for absolute paths (e.g., /Users/...)
+        result.push(part);
+      }
+    }
+
+    return result.join('/') || '/';
+  }
+
+  /**
    * Resolve a relative file path to absolute path
    */
   private resolveAtPathToAbsolute(relativePath: string): string | null {
@@ -1253,8 +1280,9 @@ export class FileSearchManager {
       return relativePath;
     }
 
-    // Combine with base directory
-    return `${baseDir}/${relativePath}`;
+    // Combine with base directory and normalize (handles ../ etc.)
+    const combined = `${baseDir}/${relativePath}`;
+    return this.normalizePath(combined);
   }
 
   /**
@@ -2546,7 +2574,7 @@ export class FileSearchManager {
     this.callbacks.setCursorPosition(newCursorPos + 1);
 
     // Track the @path range (including the space)
-    this.addAtPath(this.atStartPosition, newCursorPos);
+    this.addAtPath(this.atStartPosition, newCursorPos, path);
 
     // Update highlight backdrop
     this.updateHighlightBackdrop();
@@ -2558,17 +2586,17 @@ export class FileSearchManager {
   /**
    * Add an @path range to the tracking list
    */
-  private addAtPath(start: number, end: number): void {
+  private addAtPath(start: number, end: number, pathContent: string): void {
     // Remove any overlapping paths
     this.atPaths = this.atPaths.filter(p => p.end <= start || p.start >= end);
 
-    // Add the new path
-    this.atPaths.push({ start, end });
+    // Add the new path with content for re-searching
+    this.atPaths.push({ start, end, path: pathContent });
 
     // Sort by start position
     this.atPaths.sort((a, b) => a.start - b.start);
 
-    console.debug('[FileSearchManager] addAtPath:', formatLog({ start, end, totalPaths: this.atPaths.length }));
+    console.debug('[FileSearchManager] addAtPath:', formatLog({ start, end, path: pathContent, totalPaths: this.atPaths.length }));
   }
 
   /**
@@ -2613,10 +2641,12 @@ export class FileSearchManager {
       const deletedLength = deleteEnd - atPath.start;
       this.atPaths = this.atPaths.map(p => {
         if (p.start > atPath.start) {
-          return {
+          const adjusted: AtPathRange = {
             start: p.start - deletedLength,
             end: p.end - deletedLength
           };
+          if (p.path) adjusted.path = p.path;
+          return adjusted;
         }
         return p;
       });
@@ -2694,24 +2724,54 @@ export class FileSearchManager {
    * Re-scan text for @paths (validates existing paths and finds new ones)
    * Only highlights @paths that were explicitly selected from the file suggestions,
    * not ones that are currently being typed/searched.
+   *
+   * This method re-searches for each tracked path by its content (path string),
+   * which handles cases where text was inserted/deleted before the @path.
    */
   private rescanAtPaths(text: string): void {
-    // Validate existing tracked paths
-    this.atPaths = this.atPaths.filter(path => {
-      // Check if the path still exists at this position
-      if (path.start >= text.length) return false;
-      if (text[path.start] !== '@') return false;
+    // Re-search for each tracked path by its content
+    const updatedPaths: AtPathRange[] = [];
+    const usedPositions = new Set<number>(); // Prevent duplicate matches
 
-      // Check if path content looks like a file path
-      const pathContent = text.substring(path.start + 1, path.end);
-      if (!pathContent || pathContent.includes(' ') || pathContent.includes('\n')) return false;
+    for (const trackedPath of this.atPaths) {
+      // Skip if no path content (shouldn't happen for tracked paths)
+      if (!trackedPath.path) continue;
 
-      return true;
-    });
+      // Search for @{path} in the text
+      const searchString = '@' + trackedPath.path;
+      let searchStart = 0;
 
-    // NOTE: We do NOT auto-detect new @paths here.
-    // Only paths that are explicitly selected from file suggestions (via selectFile/insertFilePath)
-    // get added to atPaths. This prevents highlighting of partially typed @paths during search.
+      while (searchStart < text.length) {
+        const foundIndex = text.indexOf(searchString, searchStart);
+        if (foundIndex === -1) break;
+
+        // Check if this position is already used by another path
+        if (usedPositions.has(foundIndex)) {
+          searchStart = foundIndex + 1;
+          continue;
+        }
+
+        // Verify it's a complete @path (not followed by more path characters)
+        const endPos = foundIndex + searchString.length;
+        const charAfter = text[endPos];
+        const isCompleteAtPath = !charAfter || charAfter === ' ' || charAfter === '\n' || charAfter === '\t' || charAfter === '@';
+
+        if (isCompleteAtPath) {
+          // Found a valid match - update the position
+          updatedPaths.push({
+            start: foundIndex,
+            end: endPos,
+            path: trackedPath.path
+          });
+          usedPositions.add(foundIndex);
+          break; // Found a match for this path, move to next
+        }
+
+        searchStart = foundIndex + 1;
+      }
+    }
+
+    this.atPaths = updatedPaths;
 
     // Sort by start position
     this.atPaths.sort((a, b) => a.start - b.start);
@@ -2831,7 +2891,7 @@ export class FileSearchManager {
       }
 
       if (shouldHighlight) {
-        this.atPaths.push({ start, end });
+        this.atPaths.push({ start, end, path: pathContent });
         console.debug('[FileSearchManager] Found @path:', formatLog({
           pathContent,
           start,
