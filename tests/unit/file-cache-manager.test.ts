@@ -218,7 +218,6 @@ describe('FileCacheManager', () => {
 
       await cacheManager.saveCache(directory, files, {
         searchMode: 'recursive',
-        usedFd: true,
         gitignoreRespected: true
       });
 

@@ -49,9 +49,8 @@ export interface DirectoryInfo {
   files?: FileInfo[];
   fileCount?: number;
   error?: string;
-  partial?: boolean;          // true for Stage 1 (quick), false for Stage 2 (recursive)
-  searchMode?: 'quick' | 'recursive';
-  usedFd?: boolean;           // true if fd command was used
+  partial?: boolean;          // Always false (single stage with fd)
+  searchMode?: 'recursive';   // Always 'recursive' (single stage with fd)
   // Draft directory fallback related fields
   directoryChanged?: boolean;  // true if directory changed from previous (draft) directory
   previousDirectory?: string;  // previous directory (from draft) for comparison
@@ -59,6 +58,8 @@ export interface DirectoryInfo {
   // Cache related fields
   fromCache?: boolean;         // true if data was loaded from disk cache
   cacheAge?: number;           // milliseconds since cache was updated
+  // Detection status
+  detectionTimedOut?: boolean; // true if directory detection timed out (e.g., large directories like home)
 }
 
 export interface WindowData {

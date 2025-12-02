@@ -44,9 +44,8 @@ interface DirectoryData {
   directory: string;
   files: FileInfo[];
   timestamp: number;
-  partial?: boolean;          // true for Stage 1 (quick), false for Stage 2 (recursive)
-  searchMode?: 'quick' | 'recursive';
-  usedFd?: boolean;           // true if fd command was used
+  partial?: boolean;          // Always false (single stage with fd)
+  searchMode?: 'recursive';   // Always 'recursive' (single stage with fd)
   fromCache?: boolean;        // true if data was loaded from disk cache
   cacheAge?: number;          // milliseconds since cache was updated
   fromDraft?: boolean;        // true if this is from draft fallback (empty files)
@@ -229,8 +228,9 @@ export class FileSearchManager {
         directory: data.directory,
         files: [],
         timestamp: Date.now(),
-        partial: true,
-        searchMode: 'quick'
+        partial: false,  // Always false (single stage with fd)
+        searchMode: 'recursive',  // Always recursive (fd is required)
+        fromDraft: true
       };
       return;
     }
@@ -240,9 +240,8 @@ export class FileSearchManager {
       directory: data.directory,
       files: data.files || [],
       timestamp: Date.now(),
-      ...(data.partial !== undefined ? { partial: data.partial } : {}),
-      ...(data.searchMode !== undefined ? { searchMode: data.searchMode } : {}),
-      ...(data.usedFd !== undefined ? { usedFd: data.usedFd } : {}),
+      partial: false,  // Always false (single stage with fd)
+      searchMode: 'recursive',  // Always recursive (fd is required)
       ...(fromCache ? { fromCache: true } : {}),
       ...(data.cacheAge !== undefined ? { cacheAge: data.cacheAge } : {})
     };
@@ -1355,17 +1354,15 @@ export class FileSearchManager {
       directory: data.directory,
       files: data.files,
       timestamp: Date.now(),
-      ...(data.partial !== undefined ? { partial: data.partial } : {}),
-      ...(data.searchMode !== undefined ? { searchMode: data.searchMode } : {}),
-      ...(data.usedFd !== undefined ? { usedFd: data.usedFd } : {})
+      partial: false,  // Always false (single stage with fd)
+      searchMode: 'recursive'  // Always recursive (fd is required)
       // Cache flags (fromCache, cacheAge) are intentionally omitted for fresh data
     };
 
     console.debug('[FileSearchManager] updateCache:', formatLog({
       directory: data.directory,
       fileCount: data.files.length,
-      searchMode: data.searchMode,
-      usedFd: data.usedFd
+      searchMode: 'recursive'
     }));
 
     // If suggestions are currently visible and not actively searching, refresh them

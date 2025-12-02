@@ -457,6 +457,17 @@ export class PromptLineRenderer {
         this.fileSearchManager?.clearAtPaths();
       }
 
+      // Handle timeout case - show hint about large directories (no directory path displayed)
+      if (data.detectionTimedOut) {
+        console.debug('[Renderer] Directory detection timed out', {
+          directory: data.directory
+        });
+        const timeoutMessage = 'large dir (adjust settings.yml)';
+        this.defaultHintText = timeoutMessage;
+        this.domManager.updateHintText(timeoutMessage);
+        return;
+      }
+
       // Update cache with directory data (handles both Stage 1 and Stage 2)
       this.fileSearchManager?.updateCache(data);
 

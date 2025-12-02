@@ -128,7 +128,6 @@ window:
           height: 300
         },
         fileSearch: {
-          useFd: true,
           respectGitignore: true,
           includeHidden: true,
           maxFiles: 5000,
@@ -236,7 +235,6 @@ window:
           height: 300
         },
         fileSearch: {
-          useFd: true,
           respectGitignore: true,
           includeHidden: true,
           maxFiles: 5000,
