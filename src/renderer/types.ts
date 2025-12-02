@@ -60,6 +60,9 @@ export interface DirectoryInfo {
   cacheAge?: number;           // milliseconds since cache was updated
   // Detection status
   detectionTimedOut?: boolean; // true if directory detection timed out (e.g., large directories like home)
+  // File limit status
+  fileLimitReached?: boolean;  // true if file count reached maxFiles limit
+  maxFiles?: number;           // the maxFiles limit that was applied
 }
 
 export interface WindowData {

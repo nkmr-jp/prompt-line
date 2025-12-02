@@ -407,8 +407,15 @@ export class PromptLineRenderer {
         // Update hint text with formatted directory path
         if (data.directoryData.directory) {
           const formattedPath = this.formatDirectoryPath(data.directoryData.directory);
-          this.defaultHintText = formattedPath; // Save as default hint
-          this.domManager.updateHintText(formattedPath);
+          // If file limit reached, show limit message instead of path
+          if (data.directoryData.fileLimitReached) {
+            const limitMessage = `${data.directoryData.maxFiles || 5000} files (adjust settings.yml)`;
+            this.defaultHintText = limitMessage;
+            this.domManager.updateHintText(limitMessage);
+          } else {
+            this.defaultHintText = formattedPath; // Save as default hint
+            this.domManager.updateHintText(formattedPath);
+          }
 
           // Only save directory to draft if it's NOT already from draft
           // (to avoid redundant IPC call when directory is from draft fallback)
@@ -474,8 +481,15 @@ export class PromptLineRenderer {
       // Update hint text with formatted directory path
       if (data.directory) {
         const formattedPath = this.formatDirectoryPath(data.directory);
-        this.defaultHintText = formattedPath; // Save as default hint
-        this.domManager.updateHintText(formattedPath);
+        // If file limit reached, show limit message instead of path
+        if (data.fileLimitReached) {
+          const limitMessage = `${data.maxFiles || 5000} files (adjust settings.yml)`;
+          this.defaultHintText = limitMessage;
+          this.domManager.updateHintText(limitMessage);
+        } else {
+          this.defaultHintText = formattedPath; // Save as default hint
+          this.domManager.updateHintText(formattedPath);
+        }
 
         // Save directory to draft for history recording
         await electronAPI.invoke('set-draft-directory', data.directory);
