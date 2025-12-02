@@ -225,8 +225,8 @@ class WindowManager {
           directory: this.savedDirectory,
           files: [],
           fileCount: 0,
-          partial: true,
-          searchMode: 'quick',
+          partial: false,  // Always false (single stage with fd)
+          searchMode: 'recursive',  // Always recursive (fd is required)
           fromDraft: true
         };
       }
@@ -297,14 +297,9 @@ class WindowManager {
             fileCount: cached.files.length,
             partial: false,
             fromCache: true,
-            cacheAge: Date.now() - new Date(cached.metadata.updatedAt).getTime()
+            cacheAge: Date.now() - new Date(cached.metadata.updatedAt).getTime(),
+            searchMode: 'recursive'
           };
-          if (cached.metadata.searchMode) {
-            result.searchMode = cached.metadata.searchMode;
-          }
-          if (cached.metadata.usedFd !== undefined) {
-            result.usedFd = cached.metadata.usedFd;
-          }
           return result;
         }
       }
@@ -321,14 +316,9 @@ class WindowManager {
             fileCount: cached.files.length,
             partial: false,
             fromCache: true,
-            cacheAge: Date.now() - new Date(cached.metadata.updatedAt).getTime()
+            cacheAge: Date.now() - new Date(cached.metadata.updatedAt).getTime(),
+            searchMode: 'recursive'
           };
-          if (cached.metadata.searchMode) {
-            result.searchMode = cached.metadata.searchMode;
-          }
-          if (cached.metadata.usedFd !== undefined) {
-            result.usedFd = cached.metadata.usedFd;
-          }
           return result;
         }
       }
@@ -734,13 +724,12 @@ class WindowManager {
   }
 
   /**
-   * Execute directory-detector native tool with specified mode and settings
-   * @param mode 'quick' for Stage 1 (single-level), 'recursive' for Stage 2 (full recursive)
+   * Execute directory-detector native tool with fd (single stage)
+   * fd is required - always uses recursive search mode
    * @param timeout Timeout in milliseconds
    * @returns DirectoryInfo or null on error
    */
   private async executeDirectoryDetector(
-    mode: 'quick' | 'recursive',
     timeout: number
   ): Promise<DirectoryInfo | null> {
     if (!config.platform.isMac) {
@@ -749,16 +738,12 @@ class WindowManager {
     }
 
     const startTime = performance.now();
-    const modeFlag = mode === 'quick' ? '--quick' : '--recursive';
 
-    // Build command with settings
-    let command = `"${DIRECTORY_DETECTOR_PATH}" detect-with-files ${modeFlag}`;
+    // Build command with settings (fd is always used, single stage)
+    let command = `"${DIRECTORY_DETECTOR_PATH}" detect-with-files`;
 
     // Apply file search settings if available
     if (this.fileSearchSettings) {
-      if (this.fileSearchSettings.useFd === false) {
-        command += ' --no-fd';
-      }
       if (!this.fileSearchSettings.respectGitignore) {
         command += ' --no-gitignore';
       }
@@ -806,7 +791,7 @@ class WindowManager {
         const elapsed = performance.now() - startTime;
 
         if (error) {
-          logger.warn(`Directory detection (${mode}) failed after ${elapsed.toFixed(2)}ms:`, error);
+          logger.warn(`Directory detection failed after ${elapsed.toFixed(2)}ms:`, error);
           resolve(null);
           return;
         }
@@ -815,21 +800,20 @@ class WindowManager {
           const result = JSON.parse(stdout?.trim() || '{}') as DirectoryInfo;
 
           if (result.error) {
-            logger.debug(`Directory detection (${mode}) returned error:`, result.error);
+            logger.debug('Directory detection returned error:', result.error);
             resolve(null);
             return;
           }
 
-          logger.debug(`⏱️  Directory detection (${mode}) completed in ${elapsed.toFixed(2)}ms`, {
+          logger.debug(`⏱️  Directory detection completed in ${elapsed.toFixed(2)}ms`, {
             directory: result.directory,
             fileCount: result.fileCount,
-            usedFd: result.usedFd,
             searchMode: result.searchMode
           });
 
           resolve(result);
         } catch (parseError) {
-          logger.warn(`Error parsing directory detection (${mode}) result:`, parseError);
+          logger.warn('Error parsing directory detection result:', parseError);
           resolve(null);
         }
       });
@@ -837,7 +821,7 @@ class WindowManager {
   }
 
   /**
-   * Execute directory detection in background (both Stage 1 quick and Stage 2 recursive)
+   * Execute directory detection in background (single stage with fd)
    * This ensures window shows immediately without waiting for directory detection
    *
    * Draft Directory Fallback Logic:
@@ -857,32 +841,40 @@ class WindowManager {
         savedDirectory: this.savedDirectory
       });
 
-      // Stage 1: Quick directory detection first
-      const quickResult = await this.executeDirectoryDetector('quick', 2000);
+      // Single stage directory detection with fd (10 second timeout for large directories)
+      const result = await this.executeDirectoryDetector(10000);
 
-      if (quickResult && quickResult.directory && this.inputWindow && !this.inputWindow.isDestroyed()) {
+      if (result && result.directory && this.inputWindow && !this.inputWindow.isDestroyed()) {
         // Detection succeeded - check if directory changed from draft
-        const detectedDirectory = quickResult.directory;
+        const detectedDirectory = result.directory;
         const directoryChanged = this.savedDirectory !== null && detectedDirectory !== this.savedDirectory;
 
-        // Add directoryChanged flag to result
-        const resultWithFlags: DirectoryInfo = {
-          ...quickResult,
-          directoryChanged
-        };
-        // Only add previousDirectory if directory actually changed
-        if (directoryChanged && this.savedDirectory) {
-          resultWithFlags.previousDirectory = this.savedDirectory;
-        }
+        // Check if file list has changed compared to cache
+        let hasChanges = true;
 
-        // Send Stage 1 result with directoryChanged flag
-        this.inputWindow.webContents.send('directory-data-updated', resultWithFlags);
-        logger.debug(`✅ Stage 1 (quick) completed in ${(performance.now() - startTime).toFixed(2)}ms`, {
-          directory: detectedDirectory,
-          fileCount: quickResult.fileCount,
-          directoryChanged,
-          previousDirectory: this.savedDirectory
-        });
+        if (this.fileCacheManager && result.files) {
+          const existingCache = await this.fileCacheManager.loadCache(detectedDirectory);
+          if (existingCache) {
+            hasChanges = this.hasFileListChanges(existingCache.files, result.files);
+          }
+
+          // Update lastUsedDirectory
+          await this.fileCacheManager.setLastUsedDirectory(detectedDirectory);
+
+          if (hasChanges) {
+            // Save updated cache
+            await this.fileCacheManager.saveCache(
+              detectedDirectory,
+              result.files,
+              { searchMode: 'recursive' }
+            );
+            logger.debug(`Cache updated for ${detectedDirectory}, ${result.files.length} files`);
+          } else {
+            // Just update timestamp
+            await this.fileCacheManager.updateCacheTimestamp(detectedDirectory);
+            logger.debug(`Cache timestamp updated for ${detectedDirectory}, no file changes`);
+          }
+        }
 
         // Update directory manager with detected directory (detection succeeded)
         if (this.directoryManager) {
@@ -890,68 +882,30 @@ class WindowManager {
           this.savedDirectory = detectedDirectory; // Update local reference
         }
 
-        // Stage 2: Recursive detection for more complete file list
-        const recursiveStartTime = performance.now();
-        const fullResult = await this.executeDirectoryDetector('recursive', 5000);
-
-        if (fullResult && fullResult.directory && fullResult.files && this.inputWindow && !this.inputWindow.isDestroyed()) {
-          // Check if file list has changed compared to cache
-          let hasChanges = true;
-
-          if (this.fileCacheManager) {
-            const existingCache = await this.fileCacheManager.loadCache(detectedDirectory);
-            if (existingCache) {
-              hasChanges = this.hasFileListChanges(existingCache.files, fullResult.files);
-            }
-
-            // Update lastUsedDirectory
-            await this.fileCacheManager.setLastUsedDirectory(detectedDirectory);
-
-            if (hasChanges) {
-              // Save updated cache
-              const cacheOptions: {
-                searchMode: 'recursive';
-                usedFd?: boolean;
-              } = {
-                searchMode: 'recursive'
-              };
-              if (fullResult.usedFd !== undefined) {
-                cacheOptions.usedFd = fullResult.usedFd;
-              }
-              await this.fileCacheManager.saveCache(
-                detectedDirectory,
-                fullResult.files,
-                cacheOptions
-              );
-              logger.debug(`Cache updated for ${detectedDirectory}, ${fullResult.files.length} files`);
-            } else {
-              // Just update timestamp
-              await this.fileCacheManager.updateCacheTimestamp(detectedDirectory);
-              logger.debug(`Cache timestamp updated for ${detectedDirectory}, no file changes`);
-            }
+        // Only notify renderer if there are changes or directory changed
+        if (hasChanges || directoryChanged) {
+          // Add directoryChanged flag to result
+          const resultWithFlags: DirectoryInfo = {
+            ...result,
+            directoryChanged
+          };
+          // Only add previousDirectory if directory actually changed
+          if (directoryChanged && this.savedDirectory !== null && this.savedDirectory !== detectedDirectory) {
+            resultWithFlags.previousDirectory = this.savedDirectory;
           }
 
-          // Only notify renderer if there are changes
-          if (hasChanges) {
-            // Stage 2 uses same directory, so directoryChanged is false for subsequent updates
-            const stage2Result: DirectoryInfo = {
-              ...fullResult,
-              directoryChanged: false // Same directory as Stage 1
-            };
-
-            this.inputWindow.webContents.send('directory-data-updated', stage2Result);
-            logger.debug(`✅ Stage 2 (recursive) completed in ${(performance.now() - recursiveStartTime).toFixed(2)}ms`, {
-              directory: fullResult.directory,
-              fileCount: fullResult.fileCount,
-              usedFd: fullResult.usedFd,
-              hasChanges
-            });
-          } else {
-            logger.debug(`✅ Stage 2 completed, no changes detected, skipping renderer notification`, {
-              directory: fullResult.directory,
-              fileCount: fullResult.fileCount
-            });
-          }
+          this.inputWindow.webContents.send('directory-data-updated', resultWithFlags);
+          logger.debug(`✅ Directory detection completed in ${(performance.now() - startTime).toFixed(2)}ms`, {
+            directory: detectedDirectory,
+            fileCount: result.fileCount,
+            directoryChanged,
+            hasChanges
+          });
+        } else {
+          logger.debug(`✅ Directory detection completed, no changes detected, skipping renderer notification`, {
+            directory: detectedDirectory,
+            fileCount: result.fileCount
+          });
         }
       } else {
         // Detection failed - keep using draft directory (fallback)

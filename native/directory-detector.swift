@@ -5,7 +5,6 @@ import Foundation
 // MARK: - File Search Settings
 
 struct FileSearchSettings {
-    let useFd: Bool
     let respectGitignore: Bool
     let excludePatterns: [String]
     let includePatterns: [String]
@@ -15,7 +14,6 @@ struct FileSearchSettings {
     let followSymlinks: Bool
 
     static let `default` = FileSearchSettings(
-        useFd: true,
         respectGitignore: true,
         excludePatterns: [],
         includePatterns: [],
@@ -27,7 +25,6 @@ struct FileSearchSettings {
 
     /// Parse settings from command line arguments
     static func fromArguments(_ args: [String]) -> FileSearchSettings {
-        var useFd = true
         var respectGitignore = true
         var excludePatterns: [String] = []
         var includePatterns: [String] = []
@@ -39,9 +36,6 @@ struct FileSearchSettings {
         var i = 0
         while i < args.count {
             switch args[i] {
-            case "--no-fd":
-                useFd = false
-                i += 1
             case "--no-gitignore":
                 respectGitignore = false
                 i += 1
@@ -85,7 +79,6 @@ struct FileSearchSettings {
         }
 
         return FileSearchSettings(
-            useFd: useFd,
             respectGitignore: respectGitignore,
             excludePatterns: excludePatterns,
             includePatterns: includePatterns,
@@ -876,139 +869,6 @@ class DirectoryDetector {
         return getCwdFromPidFast(pid)
     }
 
-    // MARK: - Get file list from directory
-
-    static func getFileList(from directory: String) -> [[String: Any]]? {
-        let fileManager = FileManager.default
-
-        do {
-            let contents = try fileManager.contentsOfDirectory(atPath: directory)
-            var files: [[String: Any]] = []
-
-            for item in contents {
-                let fullPath = (directory as NSString).appendingPathComponent(item)
-
-                var fileInfo: [String: Any] = [
-                    "name": item,
-                    "path": fullPath
-                ]
-
-                do {
-                    let attributes = try fileManager.attributesOfItem(atPath: fullPath)
-
-                    if let fileType = attributes[.type] as? FileAttributeType {
-                        fileInfo["isDirectory"] = (fileType == .typeDirectory)
-                        fileInfo["isSymlink"] = (fileType == .typeSymbolicLink)
-                    }
-
-                    if let size = attributes[.size] as? Int64 {
-                        fileInfo["size"] = size
-                    }
-
-                    if let modDate = attributes[.modificationDate] as? Date {
-                        fileInfo["modifiedAt"] = ISO8601DateFormatter().string(from: modDate)
-                    }
-                } catch {
-                    fileInfo["isDirectory"] = false
-                    fileInfo["error"] = "Failed to get attributes"
-                }
-
-                files.append(fileInfo)
-            }
-
-            // Sort: directories first, then by name
-            files.sort { (a, b) in
-                let aIsDir = a["isDirectory"] as? Bool ?? false
-                let bIsDir = b["isDirectory"] as? Bool ?? false
-
-                if aIsDir != bIsDir {
-                    return aIsDir
-                }
-
-                let aName = a["name"] as? String ?? ""
-                let bName = b["name"] as? String ?? ""
-                return aName.localizedCaseInsensitiveCompare(bName) == .orderedAscending
-            }
-
-            return files
-        } catch {
-            return nil
-        }
-    }
-
-    // MARK: - Quick File List (Single Level with Excludes)
-
-    /// Get file list from directory with default excludes applied (Stage 1: Quick mode)
-    /// Only returns files from the immediate directory (no recursion)
-    static func getFileListQuick(from directory: String, settings: FileSearchSettings = .default) -> [[String: Any]]? {
-        let fileManager = FileManager.default
-
-        do {
-            let contents = try fileManager.contentsOfDirectory(atPath: directory)
-            var files: [[String: Any]] = []
-
-            let allExcludes = DEFAULT_EXCLUDES + settings.excludePatterns
-
-            for item in contents {
-                // Skip hidden files unless explicitly included
-                if !settings.includeHidden && item.hasPrefix(".") {
-                    continue
-                }
-
-                // Skip excluded patterns
-                if allExcludes.contains(item) {
-                    continue
-                }
-
-                let fullPath = (directory as NSString).appendingPathComponent(item)
-
-                var fileInfo: [String: Any] = [
-                    "name": item,
-                    "path": fullPath
-                ]
-
-                do {
-                    let attributes = try fileManager.attributesOfItem(atPath: fullPath)
-
-                    if let fileType = attributes[.type] as? FileAttributeType {
-                        fileInfo["isDirectory"] = (fileType == .typeDirectory)
-                        fileInfo["isSymlink"] = (fileType == .typeSymbolicLink)
-                    }
-
-                    if let size = attributes[.size] as? Int64 {
-                        fileInfo["size"] = size
-                    }
-
-                    if let modDate = attributes[.modificationDate] as? Date {
-                        fileInfo["modifiedAt"] = ISO8601DateFormatter().string(from: modDate)
-                    }
-                } catch {
-                    fileInfo["isDirectory"] = false
-                }
-
-                files.append(fileInfo)
-            }
-
-            // Sort: directories first, then by name
-            files.sort { (a, b) in
-                let aIsDir = a["isDirectory"] as? Bool ?? false
-                let bIsDir = b["isDirectory"] as? Bool ?? false
-
-                if aIsDir != bIsDir {
-                    return aIsDir
-                }
-
-                let aName = a["name"] as? String ?? ""
-                let bName = b["name"] as? String ?? ""
-                return aName.localizedCaseInsensitiveCompare(bName) == .orderedAscending
-            }
-
-            return files
-        } catch {
-            return nil
-        }
-    }
-
     // MARK: - fd Integration
 
     /// Check if fd command is available
@@ -1231,7 +1091,7 @@ class DirectoryDetector {
         do {
             try process.run()
 
-            // Timeout processing (5 seconds)
+            // Timeout processing (10 seconds for large directories like home)
             let semaphore = DispatchSemaphore(value: 0)
             var timedOut = false
 
@@ -1240,7 +1100,7 @@ class DirectoryDetector {
                 semaphore.signal()
             }
 
-            let result = semaphore.wait(timeout: .now() + 5.0)
+            let result = semaphore.wait(timeout: .now() + 10.0)
             if result == .timedOut {
                 process.terminate()
                 timedOut = true
@@ -1317,152 +1177,6 @@ class DirectoryDetector {
         }
     }
 
-    // MARK: - find Integration (Fallback)
-
-    /// Execute find search as fallback when fd is not available
-    static func executeFindSearch(
-        directory: String,
-        excludePatterns: [String],
-        includeHidden: Bool,
-        maxDepth: Int?,
-        maxFiles: Int,
-        followSymlinks: Bool = false
-    ) -> [[String: Any]]? {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/find")
-        process.currentDirectoryURL = URL(fileURLWithPath: directory)
-
-        var args: [String] = []
-
-        // Note: We don't use -L (follow symlinks) here because we handle symlink directories
-        // separately in getFileListRecursive() to preserve symlink paths in results
-
-        args.append(".")
-
-        // Depth limit
-        if let depth = maxDepth {
-            args.append("-maxdepth")
-            args.append(String(depth))
-        }
-
-        // File type - only regular files
-        args.append("-type")
-        args.append("f")
-
-        // Exclude patterns
-        let allExcludes = DEFAULT_EXCLUDES + excludePatterns
-        for exclude in allExcludes {
-            args.append("-not")
-            args.append("-path")
-            args.append("*/\(exclude)/*")
-        }
-
-        // Exclude hidden files if not included
-        if !includeHidden {
-            args.append("-not")
-            args.append("-path")
-            args.append("*/.*")
-            args.append("-not")
-            args.append("-name")
-            args.append(".*")
-        }
-
-        process.arguments = args
-
-        let outputPipe = Pipe()
-        let errorPipe = Pipe()
-        process.standardOutput = outputPipe
-        process.standardError = errorPipe
-
-        // Use async pipe reading to prevent deadlock with large output
-        var outputData = Data()
-        let outputLock = NSLock()
-
-        // Set up async reading handlers BEFORE running the process
-        outputPipe.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            if !data.isEmpty {
-                outputLock.lock()
-                outputData.append(data)
-                outputLock.unlock()
-            }
-        }
-
-        do {
-            try process.run()
-
-            // Timeout processing (5 seconds)
-            let semaphore = DispatchSemaphore(value: 0)
-
-            DispatchQueue.global(qos: .userInitiated).async {
-                process.waitUntilExit()
-                semaphore.signal()
-            }
-
-            let result = semaphore.wait(timeout: .now() + 5.0)
-            if result == .timedOut {
-                process.terminate()
-                // Clean up handlers
-                outputPipe.fileHandleForReading.readabilityHandler = nil
-                fputs("find process timed out\n", stderr)
-                return nil
-            }
-
-            // Clean up handlers after process exits
-            outputPipe.fileHandleForReading.readabilityHandler = nil
-
-            // Read any remaining data in the pipe
-            outputLock.lock()
-            let remainingOutput = outputPipe.fileHandleForReading.availableData
-            if !remainingOutput.isEmpty {
-                outputData.append(remainingOutput)
-            }
-            outputLock.unlock()
-
-            guard let outputString = String(data: outputData, encoding: .utf8) else {
-                return nil
-            }
-
-            let lines = outputString.components(separatedBy: "\n").filter { !$0.isEmpty }
-            var fileList: [[String: Any]] = []
-
-            for line in lines.prefix(maxFiles) {
-                var path = line.trimmingCharacters(in: .whitespaces)
-
-                // Convert relative path to absolute
-                if path.hasPrefix("./") {
-                    path = (directory as NSString).appendingPathComponent(String(path.dropFirst(2)))
-                } else if !path.hasPrefix("/") {
-                    path = (directory as NSString).appendingPathComponent(path)
-                }
-
-                let fileName = URL(fileURLWithPath: path).lastPathComponent
-
-                var fileInfo: [String: Any] = [
-                    "name": fileName,
-                    "path": path,
-                    "isDirectory": false
-                ]
-
-                // Get file attributes
-                if let attributes = try? FileManager.default.attributesOfItem(atPath: path) {
-                    if let size = attributes[.size] as? Int64 {
-                        fileInfo["size"] = size
-                    }
-                    if let modDate = attributes[.modificationDate] as? Date {
-                        fileInfo["modifiedAt"] = ISO8601DateFormatter().string(from: modDate)
-                    }
-                }
-
-                fileList.append(fileInfo)
-            }
-
-            return fileList
-        } catch {
-            fputs("Failed to execute find: \(error.localizedDescription)\n", stderr)
-            return nil
-        }
-    }
 
     // MARK: - Recursive File List (fd/find integration)
 
@@ -1524,119 +1238,86 @@ class DirectoryDetector {
         return symlinkDirs
     }
 
-    /// Get file list recursively using fd (preferred) or find (fallback)
-    /// Stage 2: Full recursive scan
-    static func getFileListRecursive(from directory: String, settings: FileSearchSettings = .default) -> [[String: Any]]? {
+    /// Get file list recursively using fd
+    /// fd is required - returns nil if fd is not available
+    static func getFileList(from directory: String, settings: FileSearchSettings = .default) -> [[String: Any]]? {
+        // fd is required
+        guard let fdPath = getFdPath() else {
+            fputs("fd not found. Please install fd: brew install fd\n", stderr)
+            return nil
+        }
+
         var allFiles: [[String: Any]] = []
 
-        if settings.useFd, let fdPath = getFdPath() {
-            // Step 1: Normal search (respecting .gitignore + excludePatterns)
-            // Note: Don't use --follow here to avoid resolving symlink paths
-            if let normalFiles = executeFdSearch(
-                fdPath: fdPath,
-                directory: directory,
-                respectGitignore: settings.respectGitignore,
-                excludePatterns: settings.excludePatterns,
-                includePattern: nil,
-                includeHidden: settings.includeHidden,
-                maxDepth: settings.maxDepth,
-                maxFiles: settings.maxFiles,
-                followSymlinks: false  // Don't follow symlinks in main search
-            ) {
-                allFiles.append(contentsOf: normalFiles)
-            }
+        // Step 1: Normal search (respecting .gitignore + excludePatterns)
+        // Note: Don't use --follow here to avoid resolving symlink paths
+        if let normalFiles = executeFdSearch(
+            fdPath: fdPath,
+            directory: directory,
+            respectGitignore: settings.respectGitignore,
+            excludePatterns: settings.excludePatterns,
+            includePattern: nil,
+            includeHidden: settings.includeHidden,
+            maxDepth: settings.maxDepth,
+            maxFiles: settings.maxFiles,
+            skipAttributes: true,
+            followSymlinks: false  // Don't follow symlinks in main search
+        ) {
+            allFiles.append(contentsOf: normalFiles)
+        }
 
-            // Step 1.5: Search inside symlink directories with symlink path preserved
-            if settings.followSymlinks {
-                let symlinkDirs = findSymlinkDirectories(in: directory, settings: settings)
-                for (symlinkPath, resolvedPath) in symlinkDirs {
-                    // Search inside the resolved directory
-                    if let symlinkFiles = executeFdSearch(
-                        fdPath: fdPath,
-                        directory: resolvedPath,
-                        respectGitignore: settings.respectGitignore,
-                        excludePatterns: settings.excludePatterns,
-                        includePattern: nil,
-                        includeHidden: settings.includeHidden,
-                        maxDepth: settings.maxDepth,
-                        maxFiles: settings.maxFiles,
-                        followSymlinks: false  // Don't recursively follow symlinks
-                    ) {
-                        // Replace resolved path with symlink path in results
-                        for var file in symlinkFiles {
-                            if let path = file["path"] as? String {
-                                // Replace the resolved path prefix with the symlink path
-                                let newPath = path.replacingOccurrences(of: resolvedPath, with: symlinkPath)
-                                file["path"] = newPath
-                                // Update the display name to show it's from a symlink
-                                if let name = file["name"] as? String {
-                                    file["name"] = name
-                                }
-                            }
-                            allFiles.append(file)
+        // Step 2: Search inside symlink directories with symlink path preserved
+        if settings.followSymlinks {
+            let symlinkDirs = findSymlinkDirectories(in: directory, settings: settings)
+            for (symlinkPath, resolvedPath) in symlinkDirs {
+                // Search inside the resolved directory
+                if let symlinkFiles = executeFdSearch(
+                    fdPath: fdPath,
+                    directory: resolvedPath,
+                    respectGitignore: settings.respectGitignore,
+                    excludePatterns: settings.excludePatterns,
+                    includePattern: nil,
+                    includeHidden: settings.includeHidden,
+                    maxDepth: settings.maxDepth,
+                    maxFiles: settings.maxFiles,
+                    skipAttributes: true,
+                    followSymlinks: false  // Don't recursively follow symlinks
+                ) {
+                    // Replace resolved path with symlink path in results
+                    for var file in symlinkFiles {
+                        if let path = file["path"] as? String {
+                            // Replace the resolved path prefix with the symlink path
+                            let newPath = path.replacingOccurrences(of: resolvedPath, with: symlinkPath)
+                            file["path"] = newPath
                         }
-                    }
-                }
-            }
-
-            // Step 2: Include patterns (ignoring .gitignore for these specific patterns)
-            // Skip file attributes for large directory searches like node_modules
-            if !settings.includePatterns.isEmpty {
-                for pattern in settings.includePatterns {
-                    if let includedFiles = executeFdSearch(
-                        fdPath: fdPath,
-                        directory: directory,
-                        respectGitignore: false,  // Ignore .gitignore for include patterns
-                        excludePatterns: settings.excludePatterns,  // Apply user-specified excludes
-                        includePattern: pattern,
-                        includeHidden: true,      // Allow hidden files in include patterns
-                        maxDepth: settings.maxDepth,
-                        maxFiles: settings.maxFiles,
-                        skipAttributes: true,     // Skip file attributes for performance
-                        followSymlinks: false     // Don't follow symlinks in include patterns
-                    ) {
-                        allFiles.append(contentsOf: includedFiles)
-                    }
-                }
-            }
-        } else {
-            // Fallback to find command
-            if let findFiles = executeFindSearch(
-                directory: directory,
-                excludePatterns: settings.excludePatterns,
-                includeHidden: settings.includeHidden,
-                maxDepth: settings.maxDepth,
-                maxFiles: settings.maxFiles,
-                followSymlinks: false  // Don't follow symlinks in main search
-            ) {
-                allFiles.append(contentsOf: findFiles)
-            }
-
-            // Search inside symlink directories with symlink path preserved
-            if settings.followSymlinks {
-                let symlinkDirs = findSymlinkDirectories(in: directory, settings: settings)
-                for (symlinkPath, resolvedPath) in symlinkDirs {
-                    if let symlinkFiles = executeFindSearch(
-                        directory: resolvedPath,
-                        excludePatterns: settings.excludePatterns,
-                        includeHidden: settings.includeHidden,
-                        maxDepth: settings.maxDepth,
-                        maxFiles: settings.maxFiles,
-                        followSymlinks: false
-                    ) {
-                        for var file in symlinkFiles {
-                            if let path = file["path"] as? String {
-                                let newPath = path.replacingOccurrences(of: resolvedPath, with: symlinkPath)
-                                file["path"] = newPath
-                            }
-                            allFiles.append(file)
-                        }
+                        allFiles.append(file)
                     }
                 }
             }
         }
 
-        // Step 3: Remove duplicates (by path)
+        // Step 3: Include patterns (ignoring .gitignore for these specific patterns)
+        // Skip file attributes for large directory searches like node_modules
+        if !settings.includePatterns.isEmpty {
+            for pattern in settings.includePatterns {
+                if let includedFiles = executeFdSearch(
+                    fdPath: fdPath,
+                    directory: directory,
+                    respectGitignore: false,  // Ignore .gitignore for include patterns
+                    excludePatterns: settings.excludePatterns,  // Apply user-specified excludes
+                    includePattern: pattern,
+                    includeHidden: true,      // Allow hidden files in include patterns
+                    maxDepth: settings.maxDepth,
+                    maxFiles: settings.maxFiles,
+                    skipAttributes: true,     // Skip file attributes for performance
+                    followSymlinks: false     // Don't follow symlinks in include patterns
+                ) {
+                    allFiles.append(contentsOf: includedFiles)
+                }
+            }
+        }
+
+        // Step 4: Remove duplicates (by path)
         var uniquePaths = Set<String>()
         var uniqueFiles: [[String: Any]] = []
 
@@ -1665,10 +1346,10 @@ class DirectoryDetector {
         return uniqueFiles
     }
 
-    // MARK: - Detect with Files (Quick and Recursive modes)
+    // MARK: - Detect with Files
 
-    /// Detect current directory with quick file list (Stage 1)
-    static func detectCurrentDirectoryWithFilesQuick(
+    /// Detect current directory with file list
+    static func detectCurrentDirectoryWithFiles(
         overridePid: pid_t? = nil,
         overrideBundleId: String? = nil,
         settings: FileSearchSettings = .default
@@ -1680,44 +1361,15 @@ class DirectoryDetector {
             return result
         }
 
-        if let files = getFileListQuick(from: directory, settings: settings) {
+        if let files = getFileList(from: directory, settings: settings) {
             result["files"] = files
             result["fileCount"] = files.count
-            result["partial"] = true  // Indicates this is Stage 1 (partial) data
-            result["searchMode"] = "quick"
-        } else {
-            result["files"] = []
-            result["fileCount"] = 0
-            result["filesError"] = "Failed to list files"
-        }
-
-        return result
-    }
-
-    /// Detect current directory with recursive file list (Stage 2)
-    static func detectCurrentDirectoryWithFilesRecursive(
-        overridePid: pid_t? = nil,
-        overrideBundleId: String? = nil,
-        settings: FileSearchSettings = .default
-    ) -> [String: Any] {
-        var result = detectCurrentDirectory(overridePid: overridePid, overrideBundleId: overrideBundleId)
-
-        guard result["error"] == nil,
-              let directory = result["directory"] as? String else {
-            return result
-        }
-
-        if let files = getFileListRecursive(from: directory, settings: settings) {
-            result["files"] = files
-            result["fileCount"] = files.count
-            result["partial"] = false  // Indicates this is Stage 2 (complete) data
+            result["partial"] = false  // Always complete with fd
             result["searchMode"] = "recursive"
-            // usedFd reflects whether fd was actually used (useFd setting AND fd available)
-            result["usedFd"] = settings.useFd && isFdAvailable()
         } else {
             result["files"] = []
             result["fileCount"] = 0
-            result["filesError"] = "Failed to list files recursively"
+            result["filesError"] = "Failed to list files (fd required)"
         }
 
         return result
@@ -1897,27 +1549,7 @@ class DirectoryDetector {
         ]
     }
 
-    static func detectCurrentDirectoryWithFiles(overridePid: pid_t? = nil, overrideBundleId: String? = nil) -> [String: Any] {
-        var result = detectCurrentDirectory(overridePid: overridePid, overrideBundleId: overrideBundleId)
-
-        guard result["error"] == nil,
-              let directory = result["directory"] as? String else {
-            return result
-        }
-
-        if let files = getFileList(from: directory) {
-            result["files"] = files
-            result["fileCount"] = files.count
-        } else {
-            result["files"] = []
-            result["fileCount"] = 0
-            result["filesError"] = "Failed to list files"
-        }
-
-        return result
-    }
-
-    static func listDirectory(_ path: String) -> [String: Any] {
+    static func listDirectory(_ path: String, settings: FileSearchSettings = .default) -> [String: Any] {
         let expandedPath = NSString(string: path).expandingTildeInPath
 
         let fileManager = FileManager.default
@@ -1931,16 +1563,18 @@ class DirectoryDetector {
             return ["error": "Path is not a directory", "path": expandedPath]
         }
 
-        if let files = getFileList(from: expandedPath) {
+        if let files = getFileList(from: expandedPath, settings: settings) {
             return [
                 "success": true,
                 "directory": expandedPath,
                 "files": files,
-                "fileCount": files.count
+                "fileCount": files.count,
+                "searchMode": "recursive",
+                "partial": false
             ]
         } else {
             return [
-                "error": "Failed to list files",
+                "error": "Failed to list files (fd required)",
                 "directory": expandedPath
             ]
         }
@@ -1954,25 +1588,21 @@ func main() {
         fputs("Usage: \(arguments[0]) <command> [options]\n", stderr)
         fputs("Commands:\n", stderr)
         fputs("  detect [--pid <pid> --bundleId <bundleId>] - Detect current directory from active terminal\n", stderr)
-        fputs("  detect-with-files [--pid <pid> --bundleId <bundleId>] - Detect current directory and list files\n", stderr)
-        fputs("  detect-with-files --quick [options] - Quick mode: list files from current directory only (Stage 1)\n", stderr)
-        fputs("  detect-with-files --recursive [options] - Recursive mode: list all files recursively (Stage 2)\n", stderr)
-        fputs("  list <path>      - List files in specified directory\n", stderr)
-        fputs("  list-quick <path> - List files from directory with excludes (no recursion)\n", stderr)
-        fputs("  list-recursive <path> [options] - List files recursively with fd/find\n", stderr)
+        fputs("  detect-with-files [--pid <pid> --bundleId <bundleId>] [options] - Detect current directory and list files recursively with fd\n", stderr)
+        fputs("  list <path> [options] - List files in specified directory recursively with fd\n", stderr)
         fputs("  check-fd         - Check if fd command is available\n", stderr)
         fputs("\nOptions:\n", stderr)
         fputs("  --pid <pid>        - Use specific process ID instead of frontmost app\n", stderr)
         fputs("  --bundleId <id>    - Bundle ID of the app (required with --pid)\n", stderr)
-        fputs("  --quick            - Stage 1: Quick mode (current directory only)\n", stderr)
-        fputs("  --recursive        - Stage 2: Recursive mode (all subdirectories)\n", stderr)
-        fputs("  --no-gitignore     - Don't respect .gitignore files (fd only)\n", stderr)
+        fputs("  --no-gitignore     - Don't respect .gitignore files\n", stderr)
         fputs("  --exclude <pattern> - Add exclude pattern (can be used multiple times)\n", stderr)
         fputs("  --include <pattern> - Add include pattern for .gitignored files (can be used multiple times)\n", stderr)
         fputs("  --max-files <n>    - Maximum number of files to return (default: 5000)\n", stderr)
         fputs("  --include-hidden   - Include hidden files (starting with .)\n", stderr)
         fputs("  --max-depth <n>    - Maximum directory depth to search\n", stderr)
         fputs("  --follow-symlinks  - Follow symbolic links (default: false)\n", stderr)
+        fputs("\nNote: fd (https://github.com/sharkdp/fd) is required for file listing.\n", stderr)
+        fputs("      Install with: brew install fd\n", stderr)
         exit(1)
     }
 
@@ -1982,8 +1612,6 @@ func main() {
     // Parse optional --pid and --bundleId arguments
     var overridePid: pid_t? = nil
     var overrideBundleId: String? = nil
-    var isQuickMode = false
-    var isRecursiveMode = false
 
     var i = 2
     while i < arguments.count {
@@ -1995,12 +1623,6 @@ func main() {
         } else if arguments[i] == "--bundleId" && i + 1 < arguments.count {
             overrideBundleId = arguments[i + 1]
             i += 2
-        } else if arguments[i] == "--quick" {
-            isQuickMode = true
-            i += 1
-        } else if arguments[i] == "--recursive" {
-            isRecursiveMode = true
-            i += 1
         } else {
             i += 1
         }
@@ -2014,24 +1636,11 @@ func main() {
         result = DirectoryDetector.detectCurrentDirectory(overridePid: overridePid, overrideBundleId: overrideBundleId)
 
     case "detect-with-files":
-        if isQuickMode {
-            // Stage 1: Quick mode
-            result = DirectoryDetector.detectCurrentDirectoryWithFilesQuick(
-                overridePid: overridePid,
-                overrideBundleId: overrideBundleId,
-                settings: settings
-            )
-        } else if isRecursiveMode {
-            // Stage 2: Recursive mode
-            result = DirectoryDetector.detectCurrentDirectoryWithFilesRecursive(
-                overridePid: overridePid,
-                overrideBundleId: overrideBundleId,
-                settings: settings
-            )
-        } else {
-            // Default: Original behavior (single level, no excludes)
-            result = DirectoryDetector.detectCurrentDirectoryWithFiles(overridePid: overridePid, overrideBundleId: overrideBundleId)
-        }
+        result = DirectoryDetector.detectCurrentDirectoryWithFiles(
+            overridePid: overridePid,
+            overrideBundleId: overrideBundleId,
+            settings: settings
+        )
 
     case "list":
         guard arguments.count >= 3 else {
@@ -2039,78 +1648,7 @@ func main() {
             exit(1)
         }
         let path = arguments[2]
-        result = DirectoryDetector.listDirectory(path)
-
-    case "list-quick":
-        guard arguments.count >= 3 else {
-            fputs("Error: 'list-quick' command requires a path argument\n", stderr)
-            exit(1)
-        }
-        let path = arguments[2]
-        let expandedPath = NSString(string: path).expandingTildeInPath
-
-        let fileManager = FileManager.default
-        var isDir: ObjCBool = false
-
-        guard fileManager.fileExists(atPath: expandedPath, isDirectory: &isDir) else {
-            result = ["error": "Path does not exist", "path": expandedPath]
-            break
-        }
-
-        guard isDir.boolValue else {
-            result = ["error": "Path is not a directory", "path": expandedPath]
-            break
-        }
-
-        if let files = DirectoryDetector.getFileListQuick(from: expandedPath, settings: settings) {
-            result = [
-                "success": true,
-                "directory": expandedPath,
-                "files": files,
-                "fileCount": files.count,
-                "searchMode": "quick",
-                "partial": true
-            ]
-        } else {
-            result = ["error": "Failed to list files", "directory": expandedPath]
-        }
-
-    case "list-recursive":
-        guard arguments.count >= 3 else {
-            fputs("Error: 'list-recursive' command requires a path argument\n", stderr)
-            exit(1)
-        }
-        let path = arguments[2]
-        let expandedPath = NSString(string: path).expandingTildeInPath
-
-        let fileManager = FileManager.default
-        var isDir: ObjCBool = false
-
-        guard fileManager.fileExists(atPath: expandedPath, isDirectory: &isDir) else {
-            result = ["error": "Path does not exist", "path": expandedPath]
-            break
-        }
-
-        guard isDir.boolValue else {
-            result = ["error": "Path is not a directory", "path": expandedPath]
-            break
-        }
-
-        if let files = DirectoryDetector.getFileListRecursive(from: expandedPath, settings: settings) {
-            // usedFd reflects whether fd was actually used (useFd setting AND fd available)
-            let actuallyUsedFd = settings.useFd && DirectoryDetector.isFdAvailable()
-            result = [
-                "success": true,
-                "directory": expandedPath,
-                "files": files,
-                "fileCount": files.count,
-                "searchMode": "recursive",
-                "partial": false,
-                "usedFd": actuallyUsedFd
-            ]
-        } else {
-            result = ["error": "Failed to list files recursively", "directory": expandedPath]
-        }
+        result = DirectoryDetector.listDirectory(path, settings: settings)
 
     case "check-fd":
         let fdAvailable = DirectoryDetector.isFdAvailable()
