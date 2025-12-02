@@ -444,7 +444,8 @@ export class PromptLineRenderer {
         directory: data.directory,
         fileCount: data.files?.length,
         directoryChanged: data.directoryChanged,
-        previousDirectory: data.previousDirectory
+        previousDirectory: data.previousDirectory,
+        partial: data.partial
       });
 
       // If directory changed from draft directory, clear @path highlights first
@@ -468,10 +469,8 @@ export class PromptLineRenderer {
         return;
       }
 
-      // Update cache with directory data (handles both Stage 1 and Stage 2)
-      this.fileSearchManager?.updateCache(data);
-
-      // Update hint text with formatted directory path
+      // Update hint text with formatted directory path immediately (Phase 1)
+      // This provides instant feedback even before file list is ready
       if (data.directory) {
         const formattedPath = this.formatDirectoryPath(data.directory);
         this.defaultHintText = formattedPath; // Save as default hint
@@ -479,6 +478,12 @@ export class PromptLineRenderer {
 
         // Save directory to draft for history recording
         await electronAPI.invoke('set-draft-directory', data.directory);
+      }
+
+      // Update cache with directory data only if files are included (Phase 2)
+      // Skip cache update for directory-only updates (partial: true)
+      if (data.files && data.files.length > 0 && !data.partial) {
+        this.fileSearchManager?.updateCache(data);
 
         // Try to restore @paths now that we have directory data
         // This handles the case where directory detection completes after initial window shown

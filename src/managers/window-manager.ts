@@ -724,12 +724,77 @@ class WindowManager {
   }
 
   /**
+   * Execute directory-detector native tool (directory only, very fast)
+   * Uses the 'detect' command which only detects the current directory
+   * without listing files (typically completes in a few milliseconds)
+   * @param timeout Timeout in milliseconds
+   * @returns DirectoryInfo or null on error
+   */
+  private async executeDirectoryDetectorFast(
+    timeout: number
+  ): Promise<DirectoryInfo | null> {
+    if (!config.platform.isMac) {
+      logger.debug('Directory detection only supported on macOS');
+      return null;
+    }
+
+    const startTime = performance.now();
+
+    // Use 'detect' command for directory only (very fast, no file listing)
+    let command = `"${DIRECTORY_DETECTOR_PATH}" detect`;
+
+    // Add bundleId if available for accurate directory detection
+    if (this.previousApp && typeof this.previousApp === 'object' && this.previousApp.bundleId) {
+      command += ` --bundleId "${this.previousApp.bundleId}"`;
+    }
+
+    logger.debug('Directory detector fast command:', { command });
+
+    const options = {
+      timeout,
+      killSignal: 'SIGTERM' as const
+    };
+
+    return new Promise((resolve) => {
+      exec(command, options, (error: Error | null, stdout?: string) => {
+        const elapsed = performance.now() - startTime;
+
+        if (error) {
+          logger.warn(`Fast directory detection failed after ${elapsed.toFixed(2)}ms:`, error);
+          resolve(null);
+          return;
+        }
+
+        try {
+          const result = JSON.parse(stdout?.trim() || '{}') as DirectoryInfo;
+
+          if (result.error) {
+            logger.debug('Fast directory detection returned error:', result.error);
+            resolve(null);
+            return;
+          }
+
+          logger.debug(`⏱️  Fast directory detection completed in ${elapsed.toFixed(2)}ms`, {
+            directory: result.directory,
+            method: result.method
+          });
+
+          resolve(result);
+        } catch (parseError) {
+          logger.warn('Error parsing fast directory detection result:', parseError);
+          resolve(null);
+        }
+      });
+    });
+  }
+
+  /**
    * Execute directory-detector native tool with fd (single stage)
    * fd is required - always uses recursive search mode
    * @param timeout Timeout in milliseconds
    * @returns DirectoryInfo or null on error
    */
-  private async executeDirectoryDetector(
+  private async executeDirectoryDetectorWithFiles(
     timeout: number
   ): Promise<DirectoryInfo | null> {
     if (!config.platform.isMac) {
@@ -821,7 +886,10 @@ class WindowManager {
   }
 
   /**
-   * Execute directory detection in background (single stage with fd)
+   * Execute directory detection in background (two-phase approach)
+   * Phase 1: Fast directory-only detection (few ms) - updates UI immediately
+   * Phase 2: File listing with fd (may take seconds) - updates file search cache
+   *
    * This ensures window shows immediately without waiting for directory detection
    *
    * Draft Directory Fallback Logic:
@@ -837,97 +905,128 @@ class WindowManager {
   private async executeBackgroundDirectoryDetection(): Promise<void> {
     try {
       const startTime = performance.now();
-      logger.debug('🔄 Starting background directory detection...', {
+      logger.debug('🔄 Starting background directory detection (two-phase)...', {
         savedDirectory: this.savedDirectory
       });
 
-      // Single stage directory detection with fd (5 second timeout)
-      const result = await this.executeDirectoryDetector(5000);
+      // Phase 1: Fast directory-only detection (1 second timeout, typically completes in ms)
+      const fastResult = await this.executeDirectoryDetectorFast(1000);
 
-      if (result && result.directory && this.inputWindow && !this.inputWindow.isDestroyed()) {
-        // Detection succeeded - check if directory changed from draft
-        const detectedDirectory = result.directory;
+      if (fastResult && fastResult.directory && this.inputWindow && !this.inputWindow.isDestroyed()) {
+        const detectedDirectory = fastResult.directory;
         const directoryChanged = this.savedDirectory !== null && detectedDirectory !== this.savedDirectory;
 
-        // Check if file list has changed compared to cache
-        let hasChanges = true;
-
-        if (this.fileCacheManager && result.files) {
-          const existingCache = await this.fileCacheManager.loadCache(detectedDirectory);
-          if (existingCache) {
-            hasChanges = this.hasFileListChanges(existingCache.files, result.files);
-          }
-
-          // Update lastUsedDirectory
-          await this.fileCacheManager.setLastUsedDirectory(detectedDirectory);
-
-          if (hasChanges) {
-            // Save updated cache
-            await this.fileCacheManager.saveCache(
-              detectedDirectory,
-              result.files,
-              { searchMode: 'recursive' }
-            );
-            logger.debug(`Cache updated for ${detectedDirectory}, ${result.files.length} files`);
-          } else {
-            // Just update timestamp
-            await this.fileCacheManager.updateCacheTimestamp(detectedDirectory);
-            logger.debug(`Cache timestamp updated for ${detectedDirectory}, no file changes`);
-          }
-        }
-
-        // Update directory manager with detected directory (detection succeeded)
+        // Update directory manager immediately
         if (this.directoryManager) {
           this.directoryManager.setDirectory(detectedDirectory);
-          this.savedDirectory = detectedDirectory; // Update local reference
+          this.savedDirectory = detectedDirectory;
         }
 
-        // Only notify renderer if there are changes or directory changed
-        if (hasChanges || directoryChanged) {
-          // Add directoryChanged flag to result
-          const resultWithFlags: DirectoryInfo = {
-            ...result,
-            directoryChanged
-          };
-          // Only add previousDirectory if directory actually changed
-          if (directoryChanged && this.savedDirectory !== null && this.savedDirectory !== detectedDirectory) {
-            resultWithFlags.previousDirectory = this.savedDirectory;
+        // Update lastUsedDirectory immediately
+        if (this.fileCacheManager) {
+          await this.fileCacheManager.setLastUsedDirectory(detectedDirectory);
+        }
+
+        // Send directory info to renderer immediately (without files)
+        // Note: files and fileCount are intentionally omitted (will be sent in Phase 2)
+        const directoryOnlyResult: DirectoryInfo = {
+          success: true,
+          directory: detectedDirectory,
+          directoryChanged,
+          // Mark as directory-only update (files will be sent in Phase 2)
+          partial: true
+        };
+        // Only add optional fields if they have values
+        if (fastResult.method) directoryOnlyResult.method = fastResult.method;
+        if (fastResult.appName) directoryOnlyResult.appName = fastResult.appName;
+        if (fastResult.bundleId) directoryOnlyResult.bundleId = fastResult.bundleId;
+        if (fastResult.pid) directoryOnlyResult.pid = fastResult.pid;
+        if (fastResult.tty) directoryOnlyResult.tty = fastResult.tty;
+        if (directoryChanged && this.savedDirectory !== null && this.savedDirectory !== detectedDirectory) {
+          directoryOnlyResult.previousDirectory = this.savedDirectory;
+        }
+
+        this.inputWindow.webContents.send('directory-data-updated', directoryOnlyResult);
+        logger.debug(`✅ Phase 1 (directory-only) completed in ${(performance.now() - startTime).toFixed(2)}ms`, {
+          directory: detectedDirectory,
+          directoryChanged
+        });
+
+        // Phase 2: File listing with fd (10 second timeout)
+        const phase2StartTime = performance.now();
+        const result = await this.executeDirectoryDetectorWithFiles(10000);
+
+        if (result && result.directory && result.files && this.inputWindow && !this.inputWindow.isDestroyed()) {
+          // Phase 2 succeeded - update cache and send file data to renderer
+          let hasChanges = true;
+
+          if (this.fileCacheManager && result.files) {
+            const existingCache = await this.fileCacheManager.loadCache(detectedDirectory);
+            if (existingCache) {
+              hasChanges = this.hasFileListChanges(existingCache.files, result.files);
+            }
+
+            if (hasChanges) {
+              // Save updated cache
+              await this.fileCacheManager.saveCache(
+                detectedDirectory,
+                result.files,
+                { searchMode: 'recursive' }
+              );
+              logger.debug(`Cache updated for ${detectedDirectory}, ${result.files.length} files`);
+            } else {
+              // Just update timestamp
+              await this.fileCacheManager.updateCacheTimestamp(detectedDirectory);
+              logger.debug(`Cache timestamp updated for ${detectedDirectory}, no file changes`);
+            }
           }
 
-          this.inputWindow.webContents.send('directory-data-updated', resultWithFlags);
-          logger.debug(`✅ Directory detection completed in ${(performance.now() - startTime).toFixed(2)}ms`, {
-            directory: detectedDirectory,
-            fileCount: result.fileCount,
-            directoryChanged,
-            hasChanges
-          });
+          // Only notify renderer if there are file changes
+          if (hasChanges) {
+            const resultWithFlags: DirectoryInfo = {
+              ...result,
+              directoryChanged: false, // Directory already sent in Phase 1
+              partial: false // This is the complete file list
+            };
+
+            this.inputWindow.webContents.send('directory-data-updated', resultWithFlags);
+            logger.debug(`✅ Phase 2 (file listing) completed in ${(performance.now() - phase2StartTime).toFixed(2)}ms`, {
+              directory: detectedDirectory,
+              fileCount: result.fileCount,
+              hasChanges
+            });
+          } else {
+            logger.debug(`✅ Phase 2 completed, no file changes, skipping renderer notification`, {
+              directory: detectedDirectory,
+              fileCount: result.fileCount
+            });
+          }
         } else {
-          logger.debug(`✅ Directory detection completed, no changes detected, skipping renderer notification`, {
-            directory: detectedDirectory,
-            fileCount: result.fileCount
+          // Phase 2 failed (file listing timeout) - notify renderer
+          logger.debug('Phase 2 (file listing) failed or timed out', {
+            savedDirectory: this.savedDirectory
           });
+
+          if (this.inputWindow && !this.inputWindow.isDestroyed()) {
+            const timeoutInfo: DirectoryInfo = {
+              success: false,
+              detectionTimedOut: true,
+              directory: detectedDirectory // Keep the directory from Phase 1
+            };
+            this.inputWindow.webContents.send('directory-data-updated', timeoutInfo);
+          }
         }
+
+        logger.debug(`🏁 Total background directory detection time: ${(performance.now() - startTime).toFixed(2)}ms`);
       } else {
-        // Detection failed (likely timeout) - keep using draft directory (fallback)
-        // Notify renderer about timeout so it can show hint
-        logger.debug('Background directory detection: no result or window not available, keeping draft directory', {
+        // Phase 1 failed - keep using draft directory (fallback)
+        logger.debug('Phase 1 (fast directory detection) failed, keeping draft directory', {
           savedDirectory: this.savedDirectory
         });
 
-        // Send timeout notification to renderer if window is available
-        if (this.inputWindow && !this.inputWindow.isDestroyed()) {
-          const timeoutInfo: DirectoryInfo = {
-            success: false,
-            detectionTimedOut: true
-          };
-          if (this.savedDirectory) {
-            timeoutInfo.directory = this.savedDirectory;
-          }
-          this.inputWindow.webContents.send('directory-data-updated', timeoutInfo);
-        }
+        // Don't send timeout notification for Phase 1 failure
+        // Draft directory will continue to be displayed
       }
-
-      logger.debug(`🏁 Total background directory detection time: ${(performance.now() - startTime).toFixed(2)}ms`);
     } catch (error) {
       logger.warn('Background directory detection failed:', error);
       // Detection failed - keep using draft directory (fallback)
