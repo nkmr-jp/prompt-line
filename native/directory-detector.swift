@@ -1100,7 +1100,7 @@ class DirectoryDetector {
                 semaphore.signal()
             }
 
-            let result = semaphore.wait(timeout: .now() + 5.0)
+            let result = semaphore.wait(timeout: .now() + 3.0)
             if result == .timedOut {
                 process.terminate()
                 timedOut = true
