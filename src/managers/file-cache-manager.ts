@@ -103,8 +103,7 @@ class FileCacheManager {
     directory: string,
     files: FileInfo[],
     options?: {
-      searchMode?: 'quick' | 'recursive';
-      usedFd?: boolean;
+      searchMode?: 'recursive';
       gitignoreRespected?: boolean;
     }
   ): Promise<void> {
@@ -125,8 +124,7 @@ class FileCacheManager {
         updatedAt: now,
         fileCount: files.length,
         ttlSeconds: FileCacheManager.DEFAULT_TTL_SECONDS,
-        ...(options?.searchMode && { searchMode: options.searchMode }),
-        ...(options?.usedFd !== undefined && { usedFd: options.usedFd }),
+        searchMode: 'recursive',  // Always recursive (fd is required)
         ...(options?.gitignoreRespected !== undefined && {
           gitignoreRespected: options.gitignoreRespected
         })

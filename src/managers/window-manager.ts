@@ -841,8 +841,8 @@ class WindowManager {
         savedDirectory: this.savedDirectory
       });
 
-      // Single stage directory detection with fd (10 second timeout for large directories)
-      const result = await this.executeDirectoryDetector(10000);
+      // Single stage directory detection with fd (5 second timeout)
+      const result = await this.executeDirectoryDetector(5000);
 
       if (result && result.directory && this.inputWindow && !this.inputWindow.isDestroyed()) {
         // Detection succeeded - check if directory changed from draft
@@ -908,17 +908,40 @@ class WindowManager {
           });
         }
       } else {
-        // Detection failed - keep using draft directory (fallback)
-        // Do NOT send any update, keep the initial draft directory data
+        // Detection failed (likely timeout) - keep using draft directory (fallback)
+        // Notify renderer about timeout so it can show hint
         logger.debug('Background directory detection: no result or window not available, keeping draft directory', {
           savedDirectory: this.savedDirectory
         });
+
+        // Send timeout notification to renderer if window is available
+        if (this.inputWindow && !this.inputWindow.isDestroyed()) {
+          const timeoutInfo: DirectoryInfo = {
+            success: false,
+            detectionTimedOut: true
+          };
+          if (this.savedDirectory) {
+            timeoutInfo.directory = this.savedDirectory;
+          }
+          this.inputWindow.webContents.send('directory-data-updated', timeoutInfo);
+        }
       }
 
       logger.debug(`🏁 Total background directory detection time: ${(performance.now() - startTime).toFixed(2)}ms`);
     } catch (error) {
       logger.warn('Background directory detection failed:', error);
       // Detection failed - keep using draft directory (fallback)
+      // Notify renderer about failure
+      if (this.inputWindow && !this.inputWindow.isDestroyed()) {
+        const errorInfo: DirectoryInfo = {
+          success: false,
+          detectionTimedOut: true
+        };
+        if (this.savedDirectory) {
+          errorInfo.directory = this.savedDirectory;
+        }
+        this.inputWindow.webContents.send('directory-data-updated', errorInfo);
+      }
     }
   }
 

@@ -1091,7 +1091,7 @@ class DirectoryDetector {
         do {
             try process.run()
 
-            // Timeout processing (10 seconds for large directories like home)
+            // Timeout processing (5 seconds)
             let semaphore = DispatchSemaphore(value: 0)
             var timedOut = false
 
@@ -1100,7 +1100,7 @@ class DirectoryDetector {
                 semaphore.signal()
             }
 
-            let result = semaphore.wait(timeout: .now() + 10.0)
+            let result = semaphore.wait(timeout: .now() + 5.0)
             if result == .timedOut {
                 process.terminate()
                 timedOut = true

@@ -188,8 +188,6 @@ export interface UserSettings {
     directories: string[];
   };
   fileSearch?: {
-    // Use fd command (falls back to find if not installed)
-    useFd?: boolean;
     // Respect .gitignore files (fd only, default: true)
     respectGitignore?: boolean;
     // Additional exclude patterns (applied on top of .gitignore)
@@ -251,10 +249,9 @@ export interface DirectoryInfo {
   bundleId?: string;
   error?: string;
   filesError?: string;
-  // File search related fields
-  partial?: boolean;          // true for Stage 1 (quick), false for Stage 2 (recursive)
-  searchMode?: 'quick' | 'recursive';
-  usedFd?: boolean;           // true if fd command was used
+  // File search related fields (fd is always used)
+  partial?: boolean;          // Always false (single stage with fd)
+  searchMode?: 'recursive';   // Always 'recursive' (single stage with fd)
   // Draft directory fallback related fields
   directoryChanged?: boolean;  // true if directory changed from previous (draft) directory
   previousDirectory?: string;  // previous directory (from draft) for comparison
@@ -262,12 +259,12 @@ export interface DirectoryInfo {
   // Cache related fields
   fromCache?: boolean;         // true if data was loaded from cache
   cacheAge?: number;           // milliseconds since cache was updated
+  // Detection status
+  detectionTimedOut?: boolean; // true if directory detection timed out (e.g., large directories like home)
 }
 
 // File search settings configuration
 export interface FileSearchSettings {
-  // Use fd command (falls back to find if not installed)
-  useFd: boolean;
   // Respect .gitignore files (fd only, default: true)
   respectGitignore: boolean;
   // Additional exclude patterns (applied on top of .gitignore)
@@ -289,9 +286,8 @@ export interface DirectoryData {
   directory: string;
   files: FileInfo[];
   timestamp: number;
-  partial?: boolean;          // true for Stage 1 (quick), false for Stage 2 (recursive)
-  searchMode?: 'quick' | 'recursive';
-  usedFd?: boolean;           // true if fd command was used
+  partial?: boolean;          // Always false (single stage with fd)
+  searchMode?: 'recursive';   // Always 'recursive' (single stage with fd)
 }
 
 // ============================================================================
@@ -305,8 +301,7 @@ export interface FileCacheMetadata {
   createdAt: string;
   updatedAt: string;
   fileCount: number;
-  searchMode?: 'quick' | 'recursive';
-  usedFd?: boolean;
+  searchMode?: 'recursive';   // Always 'recursive' (single stage with fd)
   gitignoreRespected?: boolean;
   ttlSeconds?: number;
 }
