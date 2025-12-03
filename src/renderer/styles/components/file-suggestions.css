@@ -203,6 +203,7 @@
 
 /* Frontmatter Info Icon */
 .frontmatter-info-icon {
+  margin-left: auto;
   padding-left: 8px;
   font-size: 12px;
   color: var(--text-tertiary, #666);
