@@ -146,6 +146,14 @@ export class PromptLineRenderer {
         console.debug('Slash command inserted (Tab):', command);
         // Just insert into textarea for editing, don't paste
         // The command is already inserted by SlashCommandManager
+      },
+      onBeforeOpenFile: () => {
+        // Suppress blur event to prevent window from closing when opening file
+        this.eventHandler?.setSuppressBlurHide(true);
+      },
+      setDraggable: (enabled: boolean) => {
+        // Enable/disable draggable state on header during file open
+        this.domManager.setDraggable(enabled);
       }
     });
 

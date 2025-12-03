@@ -24,6 +24,8 @@ export class SlashCommandManager {
   private editingCommandName: string = ''; // The command name being edited
   private onCommandSelect: (command: string) => void;
   private onCommandInsert: (command: string) => void;
+  private onBeforeOpenFile: (() => void) | undefined;
+  private setDraggable: ((enabled: boolean) => void) | undefined;
 
   // Frontmatter popup
   private frontmatterPopup: HTMLElement | null = null;
@@ -34,9 +36,13 @@ export class SlashCommandManager {
   constructor(callbacks: {
     onCommandSelect: (command: string) => void;
     onCommandInsert?: (command: string) => void;
+    onBeforeOpenFile?: () => void;
+    setDraggable?: (enabled: boolean) => void;
   }) {
     this.onCommandSelect = callbacks.onCommandSelect;
     this.onCommandInsert = callbacks.onCommandInsert || (() => {});
+    this.onBeforeOpenFile = callbacks.onBeforeOpenFile;
+    this.setDraggable = callbacks.setDraggable;
   }
 
   public initializeElements(): void {
@@ -631,18 +637,31 @@ export class SlashCommandManager {
 
   /**
    * Open the command file in editor without inserting command text
-   * Similar to FileSearchManager behavior - window stays open
+   * Similar to FileSearchManager behavior - window stays open and becomes draggable
    */
-  private openCommandFile(index: number): void {
+  private async openCommandFile(index: number): Promise<void> {
     if (index < 0 || index >= this.filteredCommands.length) return;
 
     const command = this.filteredCommands[index];
     if (!command?.filePath) return;
 
-    // Open the file in editor (window stays open, like FileSearchManager)
-    const electronAPI = (window as any).electronAPI;
-    if (electronAPI?.file?.openInEditor) {
-      electronAPI.file.openInEditor(command.filePath);
+    try {
+      // Suppress blur event to prevent window from closing
+      this.onBeforeOpenFile?.();
+      // Enable draggable state while file is opening
+      this.setDraggable?.(true);
+
+      // Open the file in editor
+      const electronAPI = (window as any).electronAPI;
+      if (electronAPI?.file?.openInEditor) {
+        await electronAPI.file.openInEditor(command.filePath);
+      }
+      // Note: Do not restore focus to PromptLine window
+      // The opened file's application should stay in foreground
+    } catch (err) {
+      console.error('Failed to open command file in editor:', err);
+      // Disable draggable state on error
+      this.setDraggable?.(false);
     }
   }
 
