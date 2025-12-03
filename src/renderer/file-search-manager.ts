@@ -318,7 +318,7 @@ export class FileSearchManager {
     // Add hint message at the bottom
     const hintDiv = document.createElement('div');
     hintDiv.className = 'frontmatter-hint';
-    hintDiv.textContent = this.autoShowTooltip ? 'Ctrl+I: hide tooltip' : 'Ctrl+I: auto-show tooltip';
+    hintDiv.textContent = this.autoShowTooltip ? 'Ctrl+i: hide tooltip' : 'Ctrl+i: auto-show tooltip';
     this.frontmatterPopup.appendChild(hintDiv);
 
     // Get the icon element from the target (suggestion item)
