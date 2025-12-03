@@ -1,15 +1,7 @@
-import { shell } from 'electron';
 import { execFile } from 'child_process';
 import { FileOpenerManager } from '../../src/managers/file-opener-manager';
 import type SettingsManager from '../../src/managers/settings-manager';
 import type { UserSettings } from '../../src/types';
-
-// Mock electron shell
-jest.mock('electron', () => ({
-  shell: {
-    openPath: jest.fn()
-  }
-}));
 
 // Mock child_process
 jest.mock('child_process', () => ({
@@ -37,7 +29,6 @@ jest.mock('../../src/utils/utils', () => ({
   }
 }));
 
-const mockedShell = shell as jest.Mocked<typeof shell>;
 const mockedExecFile = execFile as jest.MockedFunction<typeof execFile>;
 
 describe('FileOpenerManager', () => {
@@ -111,7 +102,7 @@ describe('FileOpenerManager', () => {
           ['-a', 'WebStorm', '/path/to/file.ts'],
           expect.any(Function)
         );
-        expect(mockedShell.openPath).not.toHaveBeenCalled();
+        // openコマンドでファイルを開く（-aオプションなし）
       });
 
       it('should open .md file with Typora when configured', async () => {
@@ -223,13 +214,20 @@ describe('FileOpenerManager', () => {
           }
         });
 
-        mockedShell.openPath.mockResolvedValue('');
+        // execFileを成功させる（openコマンドでファイルを開く）
+        mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
+          callback(null);
+          return {} as any;
+        });
 
         const result = await fileOpenerManager.openFile('/path/to/file.txt');
 
         expect(result.success).toBe(true);
-        expect(mockedShell.openPath).toHaveBeenCalledWith('/path/to/file.txt');
-        expect(mockedExecFile).not.toHaveBeenCalled();
+        expect(mockedExecFile).toHaveBeenCalledWith(
+          'open',
+          ['/path/to/file.txt'],
+          expect.any(Function)
+        );
       });
 
       it('should open file with system default when extension not configured', async () => {
@@ -241,15 +239,22 @@ describe('FileOpenerManager', () => {
           }
         });
 
-        mockedShell.openPath.mockResolvedValue('');
+        mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
+          callback(null);
+          return {} as any;
+        });
 
         const result = await fileOpenerManager.openFile('/path/to/file.js');
 
         expect(result.success).toBe(true);
-        expect(mockedShell.openPath).toHaveBeenCalledWith('/path/to/file.js');
+        expect(mockedExecFile).toHaveBeenCalledWith(
+          'open',
+          ['/path/to/file.js'],
+          expect.any(Function)
+        );
       });
 
-      it('should return error when shell.openPath fails', async () => {
+      it('should return error when open command fails', async () => {
         mockSettingsManager.getSettings.mockReturnValue({
           ...defaultSettings,
           fileOpener: {
@@ -258,7 +263,10 @@ describe('FileOpenerManager', () => {
           }
         });
 
-        mockedShell.openPath.mockResolvedValue('File not found');
+        mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
+          callback(new Error('File not found'));
+          return {} as any;
+        });
 
         const result = await fileOpenerManager.openFile('/path/to/nonexistent.txt');
 
@@ -277,20 +285,38 @@ describe('FileOpenerManager', () => {
           }
         });
 
-        // execFile fails (app not found)
-        mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
-          callback(new Error('App not found'));
+        let callCount = 0;
+        // First call: execFile fails (app not found), Second call: fallback succeeds
+        mockedExecFile.mockImplementation((_cmd, args, callback: any) => {
+          callCount++;
+          if (callCount === 1) {
+            // First call with -a option fails
+            expect(args).toContain('-a');
+            callback(new Error('App not found'));
+          } else {
+            // Second call without -a option succeeds
+            expect(args).not.toContain('-a');
+            callback(null);
+          }
           return {} as any;
         });
-
-        // fallback to shell.openPath succeeds
-        mockedShell.openPath.mockResolvedValue('');
 
         const result = await fileOpenerManager.openFile('/path/to/file.ts');
 
         expect(result.success).toBe(true);
-        expect(mockedExecFile).toHaveBeenCalled();
-        expect(mockedShell.openPath).toHaveBeenCalledWith('/path/to/file.ts');
+        expect(mockedExecFile).toHaveBeenCalledTimes(2);
+        // First call: open -a NonExistentApp /path/to/file.ts
+        expect(mockedExecFile).toHaveBeenNthCalledWith(1,
+          'open',
+          ['-a', 'NonExistentApp', '/path/to/file.ts'],
+          expect.any(Function)
+        );
+        // Second call: open /path/to/file.ts (fallback)
+        expect(mockedExecFile).toHaveBeenNthCalledWith(2,
+          'open',
+          ['/path/to/file.ts'],
+          expect.any(Function)
+        );
       });
 
       it('should return error when both app and system default fail', async () => {
@@ -302,14 +328,15 @@ describe('FileOpenerManager', () => {
           }
         });
 
-        // execFile fails
-        mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
-          callback(new Error('App not found'));
+        // All execFile calls fail
+        mockedExecFile.mockImplementation((_cmd, args, callback: any) => {
+          if (Array.isArray(args) && args.includes('-a')) {
+            callback(new Error('App not found'));
+          } else {
+            callback(new Error('File not found'));
+          }
           return {} as any;
         });
-
-        // shell.openPath also fails
-        mockedShell.openPath.mockResolvedValue('File not found');
 
         const result = await fileOpenerManager.openFile('/path/to/file.ts');
 
@@ -480,12 +507,19 @@ describe('FileOpenerManager', () => {
         }
       });
 
-      mockedShell.openPath.mockResolvedValue('');
+      mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
+        callback(null);
+        return {} as any;
+      });
 
       const result = await fileOpenerManager.openFile('/Users/test/project/file.txt');
 
       expect(result.success).toBe(true);
-      expect(mockedShell.openPath).toHaveBeenCalledWith('/Users/test/project/file.txt');
+      expect(mockedExecFile).toHaveBeenCalledWith(
+        'open',
+        ['/Users/test/project/file.txt'],
+        expect.any(Function)
+      );
     });
   });
 });
