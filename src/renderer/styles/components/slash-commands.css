@@ -19,7 +19,7 @@
 .slash-suggestion-item {
   display: flex;
   flex-direction: row;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
   padding: 8px 12px;
   cursor: pointer;
@@ -50,13 +50,14 @@
 }
 
 .slash-command-description {
-  flex: 1;
-  min-width: 0;
   font-size: 11px;
   color: var(--text-secondary, #888);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  /* Take remaining space on the second row, leaving room for info icon */
+  flex: 1 1 calc(100% - 30px);
+  min-width: 0;
 }
 
 .slash-highlight {
