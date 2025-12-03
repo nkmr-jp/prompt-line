@@ -1366,8 +1366,8 @@ export class FileSearchManager {
   }
 
   /**
-   * Open file in editor and restore focus to PromptLine window
-   * Enables window dragging during file open operation
+   * Open file in editor
+   * The opened file's application will be brought to foreground
    * @param filePath - Path to the file to open
    */
   private async openFileAndRestoreFocus(filePath: string): Promise<void> {
@@ -1376,13 +1376,8 @@ export class FileSearchManager {
       // Enable draggable state while file is opening
       this.callbacks.setDraggable?.(true);
       await window.electronAPI.file.openInEditor(filePath);
-      // Restore focus to PromptLine window after a short delay
-      // Keep draggable state enabled so user can move window while file is open
-      setTimeout(() => {
-        window.electronAPI.window.focus().catch((err: Error) =>
-          console.error('Failed to restore focus:', err)
-        );
-      }, 100);
+      // Note: Do not restore focus to PromptLine window
+      // The opened file's application should stay in foreground
     } catch (err) {
       console.error('Failed to open file in editor:', err);
       // Disable draggable state on error
