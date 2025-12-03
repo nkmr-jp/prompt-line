@@ -631,6 +631,7 @@ export class SlashCommandManager {
 
   /**
    * Open the command file in editor without inserting command text
+   * Similar to FileSearchManager behavior - window stays open
    */
   private openCommandFile(index: number): void {
     if (index < 0 || index >= this.filteredCommands.length) return;
@@ -638,16 +639,7 @@ export class SlashCommandManager {
     const command = this.filteredCommands[index];
     if (!command?.filePath) return;
 
-    // Clear the slash command text from textarea
-    if (this.textarea) {
-      this.textarea.value = '';
-      this.textarea.focus();
-    }
-
-    // Hide suggestions
-    this.hideSuggestions();
-
-    // Open the file in editor
+    // Open the file in editor (window stays open, like FileSearchManager)
     const electronAPI = (window as any).electronAPI;
     if (electronAPI?.file?.openInEditor) {
       electronAPI.file.openInEditor(command.filePath);
