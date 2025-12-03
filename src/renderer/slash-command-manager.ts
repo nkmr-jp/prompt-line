@@ -24,18 +24,25 @@ export class SlashCommandManager {
   private editingCommandName: string = ''; // The command name being edited
   private onCommandSelect: (command: string) => void;
   private onCommandInsert: (command: string) => void;
+  private onBeforeOpenFile: (() => void) | undefined;
+  private setDraggable: ((enabled: boolean) => void) | undefined;
 
   // Frontmatter popup
   private frontmatterPopup: HTMLElement | null = null;
   private popupHideTimeout: ReturnType<typeof setTimeout> | null = null;
   private isPopupVisible: boolean = false;
+  private autoShowTooltip: boolean = false; // Auto-show tooltip for selected item
 
   constructor(callbacks: {
     onCommandSelect: (command: string) => void;
     onCommandInsert?: (command: string) => void;
+    onBeforeOpenFile?: () => void;
+    setDraggable?: (enabled: boolean) => void;
   }) {
     this.onCommandSelect = callbacks.onCommandSelect;
     this.onCommandInsert = callbacks.onCommandInsert || (() => {});
+    this.onBeforeOpenFile = callbacks.onBeforeOpenFile;
+    this.setDraggable = callbacks.setDraggable;
   }
 
   public initializeElements(): void {
@@ -272,7 +279,7 @@ export class SlashCommandManager {
 
         // Show popup on info icon hover
         infoIcon.addEventListener('mouseenter', () => {
-          this.showFrontmatterPopup(cmd, item);
+          this.showFrontmatterPopup(cmd, infoIcon);
         });
 
         infoIcon.addEventListener('mouseleave', () => {
@@ -334,47 +341,60 @@ export class SlashCommandManager {
     // Cancel any pending hide
     this.cancelPopupHide();
 
-    // Set content (using textContent for XSS safety)
-    this.frontmatterPopup.textContent = command.frontmatter;
+    // Clear previous content using safe DOM method
+    while (this.frontmatterPopup.firstChild) {
+      this.frontmatterPopup.removeChild(this.frontmatterPopup.firstChild);
+    }
 
-    // Get the item and container rectangles for positioning
-    const itemRect = targetElement.getBoundingClientRect();
+    // Create content container (using textContent for XSS safety)
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'frontmatter-content';
+    contentDiv.textContent = command.frontmatter;
+    this.frontmatterPopup.appendChild(contentDiv);
+
+    // Add hint message at the bottom
+    const hintDiv = document.createElement('div');
+    hintDiv.className = 'frontmatter-hint';
+    hintDiv.textContent = this.autoShowTooltip ? 'Ctrl+i: hide tooltip' : 'Ctrl+i: auto-show tooltip';
+    this.frontmatterPopup.appendChild(hintDiv);
+
+    // Get the info icon and container rectangles for positioning
+    const iconRect = targetElement.getBoundingClientRect();
     const containerRect = this.suggestionsContainer.getBoundingClientRect();
 
-    // Position: starts at the left edge of the item with some offset
-    // Width: slightly narrower than container
-    const leftOffset = 20;
-    const rightMargin = 10;
-    const left = containerRect.left + leftOffset;
-    const width = containerRect.width - leftOffset - rightMargin;
+    // Position popup to the left of the info icon
+    const popupWidth = containerRect.width - 40;
+    const horizontalGap = 8;
+    const right = window.innerWidth - iconRect.left + horizontalGap;
 
-    // Gap between popup and item
-    const verticalGap = 8;
+    // Gap between popup and icon
+    const verticalGap = 4;
 
-    // Calculate available space below and above the item
-    const spaceBelow = window.innerHeight - itemRect.bottom - 10;
-    const spaceAbove = itemRect.top - 10;
+    // Calculate available space below and above the icon
+    const spaceBelow = window.innerHeight - iconRect.bottom - 10;
+    const spaceAbove = iconRect.top - 10;
     const minPopupHeight = 80;
 
-    // Decide whether to show popup above or below
+    // Decide whether to show popup above or below the icon
     const showAbove = spaceBelow < minPopupHeight && spaceAbove > spaceBelow;
 
     let top: number;
     let maxHeight: number;
 
     if (showAbove) {
-      // Position above the item
+      // Position above the icon (bottom of popup aligns with top of icon)
       maxHeight = Math.max(minPopupHeight, Math.min(150, spaceAbove - verticalGap));
-      top = itemRect.top - maxHeight - verticalGap;
+      top = iconRect.top - maxHeight - verticalGap;
     } else {
-      // Position below the item
-      top = itemRect.bottom + verticalGap;
+      // Position below the icon (top of popup aligns with bottom of icon)
+      top = iconRect.bottom + verticalGap;
       maxHeight = Math.max(minPopupHeight, Math.min(150, spaceBelow - verticalGap));
     }
 
-    this.frontmatterPopup.style.left = `${left}px`;
+    this.frontmatterPopup.style.right = `${right}px`;
+    this.frontmatterPopup.style.left = 'auto';
     this.frontmatterPopup.style.top = `${top}px`;
-    this.frontmatterPopup.style.width = `${width}px`;
+    this.frontmatterPopup.style.width = `${popupWidth}px`;
     this.frontmatterPopup.style.maxHeight = `${maxHeight}px`;
 
     this.frontmatterPopup.style.display = 'block';
@@ -412,10 +432,52 @@ export class SlashCommandManager {
   }
 
   /**
+   * Toggle auto-show tooltip feature
+   */
+  private toggleAutoShowTooltip(): void {
+    this.autoShowTooltip = !this.autoShowTooltip;
+    if (this.autoShowTooltip) {
+      // Show tooltip for currently selected item
+      this.showTooltipForSelectedItem();
+    } else {
+      // Hide tooltip
+      this.hideFrontmatterPopup();
+    }
+  }
+
+  /**
+   * Show tooltip for the currently selected item
+   */
+  private showTooltipForSelectedItem(): void {
+    if (!this.autoShowTooltip || !this.suggestionsContainer) return;
+
+    const selectedCommand = this.filteredCommands[this.selectedIndex];
+    if (!selectedCommand?.frontmatter) {
+      this.hideFrontmatterPopup();
+      return;
+    }
+
+    // Find the info icon element for the selected item
+    const selectedItem = this.suggestionsContainer.querySelector('.slash-suggestion-item.selected');
+    const infoIcon = selectedItem?.querySelector('.frontmatter-info-icon') as HTMLElement;
+    if (infoIcon) {
+      this.showFrontmatterPopup(selectedCommand, infoIcon);
+    }
+  }
+
+  /**
    * Handle keyboard navigation
-   * Supports: ArrowDown/Ctrl+n/Ctrl+j (next), ArrowUp/Ctrl+p/Ctrl+k (previous), Enter/Tab (select), Escape (close)
+   * Supports: ArrowDown/Ctrl+n/Ctrl+j (next), ArrowUp/Ctrl+p/Ctrl+k (previous), Enter/Tab (select), Escape (close), Ctrl+i (toggle tooltip)
    */
   private handleKeyDown(e: KeyboardEvent): void {
+    // Ctrl+i: Toggle auto-show tooltip
+    if (e.ctrlKey && e.key === 'i') {
+      e.preventDefault();
+      e.stopPropagation();
+      this.toggleAutoShowTooltip();
+      return;
+    }
+
     // Ctrl+n or Ctrl+j: Move down (same as ArrowDown)
     if (e.ctrlKey && (e.key === 'n' || e.key === 'j')) {
       e.preventDefault();
@@ -452,7 +514,13 @@ export class SlashCommandManager {
       case 'Enter':
         e.preventDefault();
         e.stopPropagation();
-        this.selectCommand(this.selectedIndex, true); // Paste immediately
+        if (e.ctrlKey) {
+          // Ctrl+Enter: Open file in editor without inserting command
+          this.openCommandFile(this.selectedIndex);
+        } else {
+          // Enter: Paste immediately
+          this.selectCommand(this.selectedIndex, true);
+        }
         break;
 
       case 'Tab':
@@ -485,6 +553,9 @@ export class SlashCommandManager {
         item.classList.remove('selected');
       }
     });
+
+    // Update tooltip if auto-show is enabled
+    this.showTooltipForSelectedItem();
   }
 
   /**
@@ -562,6 +633,36 @@ export class SlashCommandManager {
    */
   public isActiveMode(): boolean {
     return this.isActive;
+  }
+
+  /**
+   * Open the command file in editor without inserting command text
+   * Similar to FileSearchManager behavior - window stays open and becomes draggable
+   */
+  private async openCommandFile(index: number): Promise<void> {
+    if (index < 0 || index >= this.filteredCommands.length) return;
+
+    const command = this.filteredCommands[index];
+    if (!command?.filePath) return;
+
+    try {
+      // Suppress blur event to prevent window from closing
+      this.onBeforeOpenFile?.();
+      // Enable draggable state while file is opening
+      this.setDraggable?.(true);
+
+      // Open the file in editor
+      const electronAPI = (window as any).electronAPI;
+      if (electronAPI?.file?.openInEditor) {
+        await electronAPI.file.openInEditor(command.filePath);
+      }
+      // Note: Do not restore focus to PromptLine window
+      // The opened file's application should stay in foreground
+    } catch (err) {
+      console.error('Failed to open command file in editor:', err);
+      // Disable draggable state on error
+      this.setDraggable?.(false);
+    }
   }
 
   /**

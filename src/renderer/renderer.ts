@@ -146,6 +146,14 @@ export class PromptLineRenderer {
         console.debug('Slash command inserted (Tab):', command);
         // Just insert into textarea for editing, don't paste
         // The command is already inserted by SlashCommandManager
+      },
+      onBeforeOpenFile: () => {
+        // Suppress blur event to prevent window from closing when opening file
+        this.eventHandler?.setSuppressBlurHide(true);
+      },
+      setDraggable: (enabled: boolean) => {
+        // Enable/disable draggable state on header during file open
+        this.domManager.setDraggable(enabled);
       }
     });
 
@@ -409,7 +417,7 @@ export class PromptLineRenderer {
           const formattedPath = this.formatDirectoryPath(data.directoryData.directory);
           // If file limit reached, show limit message instead of path
           if (data.directoryData.fileLimitReached) {
-            const limitMessage = `${data.directoryData.maxFiles || 5000} files (adjust settings.yml)`;
+            const limitMessage = `Over ${data.directoryData.maxFiles || 5000} files (adjust settings.yml)`;
             this.defaultHintText = limitMessage;
             this.domManager.updateHintText(limitMessage);
           } else {
@@ -469,7 +477,7 @@ export class PromptLineRenderer {
         console.debug('[Renderer] Directory detection timed out', {
           directory: data.directory
         });
-        const timeoutMessage = 'large dir (adjust settings.yml)';
+        const timeoutMessage = 'Large directory (adjust settings.yml)';
         this.defaultHintText = timeoutMessage;
         this.domManager.updateHintText(timeoutMessage);
         return;
@@ -483,7 +491,7 @@ export class PromptLineRenderer {
         const formattedPath = this.formatDirectoryPath(data.directory);
         // If file limit reached, show limit message instead of path
         if (data.fileLimitReached) {
-          const limitMessage = `${data.maxFiles || 5000} files (adjust settings.yml)`;
+          const limitMessage = `Over ${data.maxFiles || 5000} files (adjust settings.yml)`;
           this.defaultHintText = limitMessage;
           this.domManager.updateHintText(limitMessage);
         } else {

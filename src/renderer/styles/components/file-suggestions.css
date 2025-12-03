@@ -201,6 +201,22 @@
   background: var(--scrollbar-thumb-hover, #666);
 }
 
+/* Frontmatter Content */
+.frontmatter-content {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Frontmatter Hint */
+.frontmatter-hint {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid #333;
+  font-size: 9px;
+  color: var(--text-tertiary, #666);
+  text-align: right;
+}
+
 /* Frontmatter Info Icon */
 .frontmatter-info-icon {
   margin-left: auto;

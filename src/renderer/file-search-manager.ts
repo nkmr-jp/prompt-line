@@ -100,6 +100,7 @@ export class FileSearchManager {
   private popupHideTimeout: ReturnType<typeof setTimeout> | null = null;
   private isPopupVisible: boolean = false; // Track if popup is currently visible
   private static readonly POPUP_HIDE_DELAY = 100; // ms delay before hiding popup
+  private autoShowTooltip: boolean = false; // Auto-show tooltip for selected item
 
   // Cmd+hover state for file path link
   private isCmdHoverActive: boolean = false;
@@ -303,8 +304,22 @@ export class FileSearchManager {
     // Cancel any pending hide
     this.cancelPopupHide();
 
-    // Set content
-    this.frontmatterPopup.textContent = agent.frontmatter;
+    // Clear previous content using safe DOM method
+    while (this.frontmatterPopup.firstChild) {
+      this.frontmatterPopup.removeChild(this.frontmatterPopup.firstChild);
+    }
+
+    // Create content container (using textContent for XSS safety)
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'frontmatter-content';
+    contentDiv.textContent = agent.frontmatter;
+    this.frontmatterPopup.appendChild(contentDiv);
+
+    // Add hint message at the bottom
+    const hintDiv = document.createElement('div');
+    hintDiv.className = 'frontmatter-hint';
+    hintDiv.textContent = this.autoShowTooltip ? 'Ctrl+i: hide tooltip' : 'Ctrl+i: auto-show tooltip';
+    this.frontmatterPopup.appendChild(hintDiv);
 
     // Get the icon element from the target (suggestion item)
     const iconElement = targetElement.querySelector('.file-icon');
@@ -381,6 +396,39 @@ export class FileSearchManager {
     if (this.popupHideTimeout) {
       clearTimeout(this.popupHideTimeout);
       this.popupHideTimeout = null;
+    }
+  }
+
+  /**
+   * Toggle auto-show tooltip feature
+   */
+  private toggleAutoShowTooltip(): void {
+    this.autoShowTooltip = !this.autoShowTooltip;
+    if (this.autoShowTooltip) {
+      // Show tooltip for currently selected item
+      this.showTooltipForSelectedItem();
+    } else {
+      // Hide tooltip
+      this.hideFrontmatterPopup();
+    }
+  }
+
+  /**
+   * Show tooltip for the currently selected item (agent only)
+   */
+  private showTooltipForSelectedItem(): void {
+    if (!this.autoShowTooltip || !this.suggestionsContainer) return;
+
+    const suggestion = this.mergedSuggestions[this.selectedIndex];
+    if (!suggestion || suggestion.type !== 'agent' || !suggestion.agent?.frontmatter) {
+      this.hideFrontmatterPopup();
+      return;
+    }
+
+    // Find the selected item element
+    const selectedItem = this.suggestionsContainer.querySelector('.file-suggestion-item.selected') as HTMLElement;
+    if (selectedItem) {
+      this.showFrontmatterPopup(suggestion.agent, selectedItem);
     }
   }
 
@@ -1318,8 +1366,8 @@ export class FileSearchManager {
   }
 
   /**
-   * Open file in editor and restore focus to PromptLine window
-   * Enables window dragging during file open operation
+   * Open file in editor
+   * The opened file's application will be brought to foreground
    * @param filePath - Path to the file to open
    */
   private async openFileAndRestoreFocus(filePath: string): Promise<void> {
@@ -1328,13 +1376,8 @@ export class FileSearchManager {
       // Enable draggable state while file is opening
       this.callbacks.setDraggable?.(true);
       await window.electronAPI.file.openInEditor(filePath);
-      // Restore focus to PromptLine window after a short delay
-      // Keep draggable state enabled so user can move window while file is open
-      setTimeout(() => {
-        window.electronAPI.window.focus().catch((err: Error) =>
-          console.error('Failed to restore focus:', err)
-        );
-      }, 100);
+      // Note: Do not restore focus to PromptLine window
+      // The opened file's application should stay in foreground
     } catch (err) {
       console.error('Failed to open file in editor:', err);
       // Disable draggable state on error
@@ -1735,6 +1778,28 @@ export class FileSearchManager {
   }
 
   /**
+   * Remove the @query text from the textarea without inserting a file path
+   * Used when opening a file with Ctrl+Enter
+   */
+  private removeAtQueryText(): void {
+    if (this.atStartPosition === -1) return;
+
+    const currentText = this.callbacks.getTextContent();
+    const cursorPos = this.callbacks.getCursorPosition();
+
+    // Calculate the end position of the @query (current cursor position)
+    const endPosition = cursorPos;
+
+    // Remove the @query text
+    const before = currentText.slice(0, this.atStartPosition);
+    const after = currentText.slice(endPosition);
+    const newText = before + after;
+
+    this.callbacks.setTextContent(newText);
+    this.callbacks.setCursorPosition(this.atStartPosition);
+  }
+
+  /**
    * Filter files based on query (fuzzy matching) and currentPath
    * When there's a query at root level, search recursively across all files
    */
@@ -1880,6 +1945,9 @@ export class FileSearchManager {
       .filter(item => item.score > 0);
 
     // Also find matching directories (by path containing the query)
+    // Track seen directory names to avoid duplicates from symlinks
+    const seenDirNames = new Map<string, { path: string; depth: number }>();
+
     for (const file of allFiles) {
       const relativePath = this.getRelativePath(file.path, baseDir);
       const pathParts = relativePath.split('/').filter(p => p);
@@ -1894,6 +1962,16 @@ export class FileSearchManager {
         // Check if directory name or path matches query
         if (dirName.toLowerCase().includes(queryLower) || dirPath.toLowerCase().includes(queryLower)) {
           seenDirs.add(dirPath);
+
+          // Check if we already have a directory with the same name
+          // Prefer the one with shorter path (likely the original, not symlink-resolved)
+          const depth = pathParts.length;
+          const existing = seenDirNames.get(dirName);
+          if (existing && existing.depth <= depth) {
+            continue; // Skip this one, we already have a shorter path
+          }
+
+          seenDirNames.set(dirName, { path: dirPath, depth });
           const virtualDir: FileInfo = {
             name: dirName,
             path: baseDir + '/' + dirPath,
@@ -1904,8 +1982,13 @@ export class FileSearchManager {
       }
     }
 
-    // Score directories
-    const scoredDirs = matchingDirs.map(dir => ({
+    // Remove duplicate directories by name (keep shortest path)
+    const uniqueDirs = Array.from(seenDirNames.entries()).map(([name, info]) => {
+      return matchingDirs.find(d => d.name === name && d.path === baseDir + '/' + info.path);
+    }).filter((d): d is FileInfo => d !== undefined);
+
+    // Score directories (use uniqueDirs to avoid duplicates from symlinks)
+    const scoredDirs = uniqueDirs.map(dir => ({
       file: dir,
       score: this.calculateMatchScore(dir, queryLower),
       relativePath: this.getRelativePath(dir.path, baseDir)
@@ -2321,6 +2404,10 @@ export class FileSearchManager {
    * Get relative path from base directory
    */
   private getRelativePath(fullPath: string, baseDir: string): string {
+    // If baseDir is empty or root '/', return fullPath as-is (it's already absolute)
+    if (!baseDir || baseDir === '/') {
+      return fullPath;
+    }
     if (fullPath.startsWith(baseDir)) {
       const relative = fullPath.substring(baseDir.length);
       return relative.startsWith('/') ? relative.substring(1) : relative;
@@ -2330,11 +2417,19 @@ export class FileSearchManager {
 
   /**
    * Handle keyboard navigation
-   * Supports: ArrowDown/Ctrl+n/Ctrl+j (next), ArrowUp/Ctrl+p/Ctrl+k (previous), Enter/Tab (select), Escape (close)
+   * Supports: ArrowDown/Ctrl+n/Ctrl+j (next), ArrowUp/Ctrl+p/Ctrl+k (previous), Enter/Tab (select), Escape (close), Ctrl+i (toggle tooltip)
    * When frontmatter popup is visible, arrow keys scroll the popup instead of navigating
    */
   public handleKeyDown(e: KeyboardEvent): void {
     if (!this.isVisible) return;
+
+    // Ctrl+i: Toggle auto-show tooltip
+    if (e.ctrlKey && e.key === 'i') {
+      e.preventDefault();
+      e.stopPropagation();
+      this.toggleAutoShowTooltip();
+      return;
+    }
 
     const scrollAmount = 30; // Pixels to scroll per keypress
 
@@ -2397,13 +2492,15 @@ export class FileSearchManager {
           e.stopPropagation();
 
           if (e.ctrlKey) {
-            // Ctrl+Enterでエディタで開く
+            // Ctrl+Enterでエディタで開く（@検索テキストは削除、パス挿入なし）
             const suggestion = this.mergedSuggestions[this.selectedIndex];
             if (suggestion) {
               const filePath = suggestion.type === 'file'
                 ? suggestion.file?.path
                 : suggestion.agent?.filePath;
               if (filePath) {
+                // Remove @query text without inserting file path
+                this.removeAtQueryText();
                 this.openFileAndRestoreFocus(filePath)
                   .then(() => this.hideSuggestions());
                 return;
@@ -2459,6 +2556,9 @@ export class FileSearchManager {
         item.setAttribute('aria-selected', 'false');
       }
     });
+
+    // Update tooltip if auto-show is enabled
+    this.showTooltipForSelectedItem();
   }
 
   /**

@@ -1,4 +1,3 @@
-import { shell } from 'electron';
 import { execFile } from 'child_process';
 import path from 'path';
 import { logger } from '../utils/utils';
@@ -48,6 +47,7 @@ export class FileOpenerManager {
   private openWithApp(filePath: string, appName: string): Promise<OpenFileResult> {
     return new Promise((resolve) => {
       // execFileを使用（引数を配列で渡すことでシェルインジェクションを防止）
+      // デフォルトでアプリはフロントに持ってくる（-g を付けないことでフォアグラウンドで開く）
       execFile('open', ['-a', appName, filePath], (error) => {
         if (error) {
           // アプリが見つからない等のエラー時はフォールバック
@@ -71,21 +71,26 @@ export class FileOpenerManager {
 
   /**
    * システムデフォルトで開く
+   * openコマンドを使用してアプリをフォアグラウンドで開く
    */
-  private async openWithDefault(filePath: string): Promise<OpenFileResult> {
-    const result = await shell.openPath(filePath);
+  private openWithDefault(filePath: string): Promise<OpenFileResult> {
+    return new Promise((resolve) => {
+      // openコマンドを使用（shell.openPathはアプリをフロントに持ってこない場合がある）
+      // -g オプションを付けないことでフォアグラウンドで開く
+      execFile('open', [filePath], (error) => {
+        if (error) {
+          logger.error('Failed to open file with default app', {
+            error: error.message,
+            filePath
+          });
+          resolve({ success: false, error: error.message });
+          return;
+        }
 
-    if (result) {
-      // shell.openPath returns an error string if failed, empty string on success
-      logger.error('Failed to open file with default app', {
-        error: result,
-        filePath
+        logger.info('File opened successfully with default app', { filePath });
+        resolve({ success: true });
       });
-      return { success: false, error: result };
-    }
-
-    logger.info('File opened successfully with default app', { filePath });
-    return { success: true };
+    });
   }
 
   /**
