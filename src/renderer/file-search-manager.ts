@@ -100,6 +100,7 @@ export class FileSearchManager {
   private popupHideTimeout: ReturnType<typeof setTimeout> | null = null;
   private isPopupVisible: boolean = false; // Track if popup is currently visible
   private static readonly POPUP_HIDE_DELAY = 100; // ms delay before hiding popup
+  private autoShowTooltip: boolean = false; // Auto-show tooltip for selected item
 
   // Cmd+hover state for file path link
   private isCmdHoverActive: boolean = false;
@@ -303,8 +304,22 @@ export class FileSearchManager {
     // Cancel any pending hide
     this.cancelPopupHide();
 
-    // Set content
-    this.frontmatterPopup.textContent = agent.frontmatter;
+    // Clear previous content using safe DOM method
+    while (this.frontmatterPopup.firstChild) {
+      this.frontmatterPopup.removeChild(this.frontmatterPopup.firstChild);
+    }
+
+    // Create content container (using textContent for XSS safety)
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'frontmatter-content';
+    contentDiv.textContent = agent.frontmatter;
+    this.frontmatterPopup.appendChild(contentDiv);
+
+    // Add hint message at the bottom
+    const hintDiv = document.createElement('div');
+    hintDiv.className = 'frontmatter-hint';
+    hintDiv.textContent = this.autoShowTooltip ? 'Ctrl+I: hide tooltip' : 'Ctrl+I: auto-show tooltip';
+    this.frontmatterPopup.appendChild(hintDiv);
 
     // Get the icon element from the target (suggestion item)
     const iconElement = targetElement.querySelector('.file-icon');
@@ -381,6 +396,39 @@ export class FileSearchManager {
     if (this.popupHideTimeout) {
       clearTimeout(this.popupHideTimeout);
       this.popupHideTimeout = null;
+    }
+  }
+
+  /**
+   * Toggle auto-show tooltip feature
+   */
+  private toggleAutoShowTooltip(): void {
+    this.autoShowTooltip = !this.autoShowTooltip;
+    if (this.autoShowTooltip) {
+      // Show tooltip for currently selected item
+      this.showTooltipForSelectedItem();
+    } else {
+      // Hide tooltip
+      this.hideFrontmatterPopup();
+    }
+  }
+
+  /**
+   * Show tooltip for the currently selected item (agent only)
+   */
+  private showTooltipForSelectedItem(): void {
+    if (!this.autoShowTooltip || !this.suggestionsContainer) return;
+
+    const suggestion = this.mergedSuggestions[this.selectedIndex];
+    if (!suggestion || suggestion.type !== 'agent' || !suggestion.agent?.frontmatter) {
+      this.hideFrontmatterPopup();
+      return;
+    }
+
+    // Find the selected item element
+    const selectedItem = this.suggestionsContainer.querySelector('.file-suggestion-item.selected') as HTMLElement;
+    if (selectedItem) {
+      this.showFrontmatterPopup(suggestion.agent, selectedItem);
     }
   }
 
@@ -2352,11 +2400,19 @@ export class FileSearchManager {
 
   /**
    * Handle keyboard navigation
-   * Supports: ArrowDown/Ctrl+n/Ctrl+j (next), ArrowUp/Ctrl+p/Ctrl+k (previous), Enter/Tab (select), Escape (close)
+   * Supports: ArrowDown/Ctrl+n/Ctrl+j (next), ArrowUp/Ctrl+p/Ctrl+k (previous), Enter/Tab (select), Escape (close), Ctrl+i (toggle tooltip)
    * When frontmatter popup is visible, arrow keys scroll the popup instead of navigating
    */
   public handleKeyDown(e: KeyboardEvent): void {
     if (!this.isVisible) return;
+
+    // Ctrl+i: Toggle auto-show tooltip
+    if (e.ctrlKey && e.key === 'i') {
+      e.preventDefault();
+      e.stopPropagation();
+      this.toggleAutoShowTooltip();
+      return;
+    }
 
     const scrollAmount = 30; // Pixels to scroll per keypress
 
@@ -2481,6 +2537,9 @@ export class FileSearchManager {
         item.setAttribute('aria-selected', 'false');
       }
     });
+
+    // Update tooltip if auto-show is enabled
+    this.showTooltipForSelectedItem();
   }
 
   /**

@@ -29,6 +29,7 @@ export class SlashCommandManager {
   private frontmatterPopup: HTMLElement | null = null;
   private popupHideTimeout: ReturnType<typeof setTimeout> | null = null;
   private isPopupVisible: boolean = false;
+  private autoShowTooltip: boolean = false; // Auto-show tooltip for selected item
 
   constructor(callbacks: {
     onCommandSelect: (command: string) => void;
@@ -334,8 +335,22 @@ export class SlashCommandManager {
     // Cancel any pending hide
     this.cancelPopupHide();
 
-    // Set content (using textContent for XSS safety)
-    this.frontmatterPopup.textContent = command.frontmatter;
+    // Clear previous content using safe DOM method
+    while (this.frontmatterPopup.firstChild) {
+      this.frontmatterPopup.removeChild(this.frontmatterPopup.firstChild);
+    }
+
+    // Create content container (using textContent for XSS safety)
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'frontmatter-content';
+    contentDiv.textContent = command.frontmatter;
+    this.frontmatterPopup.appendChild(contentDiv);
+
+    // Add hint message at the bottom
+    const hintDiv = document.createElement('div');
+    hintDiv.className = 'frontmatter-hint';
+    hintDiv.textContent = this.autoShowTooltip ? 'Ctrl+I: hide tooltip' : 'Ctrl+I: auto-show tooltip';
+    this.frontmatterPopup.appendChild(hintDiv);
 
     // Get the info icon and container rectangles for positioning
     const iconRect = targetElement.getBoundingClientRect();
@@ -411,10 +426,52 @@ export class SlashCommandManager {
   }
 
   /**
+   * Toggle auto-show tooltip feature
+   */
+  private toggleAutoShowTooltip(): void {
+    this.autoShowTooltip = !this.autoShowTooltip;
+    if (this.autoShowTooltip) {
+      // Show tooltip for currently selected item
+      this.showTooltipForSelectedItem();
+    } else {
+      // Hide tooltip
+      this.hideFrontmatterPopup();
+    }
+  }
+
+  /**
+   * Show tooltip for the currently selected item
+   */
+  private showTooltipForSelectedItem(): void {
+    if (!this.autoShowTooltip || !this.suggestionsContainer) return;
+
+    const selectedCommand = this.filteredCommands[this.selectedIndex];
+    if (!selectedCommand?.frontmatter) {
+      this.hideFrontmatterPopup();
+      return;
+    }
+
+    // Find the info icon element for the selected item
+    const selectedItem = this.suggestionsContainer.querySelector('.slash-suggestion-item.selected');
+    const infoIcon = selectedItem?.querySelector('.frontmatter-info-icon') as HTMLElement;
+    if (infoIcon) {
+      this.showFrontmatterPopup(selectedCommand, infoIcon);
+    }
+  }
+
+  /**
    * Handle keyboard navigation
-   * Supports: ArrowDown/Ctrl+n/Ctrl+j (next), ArrowUp/Ctrl+p/Ctrl+k (previous), Enter/Tab (select), Escape (close)
+   * Supports: ArrowDown/Ctrl+n/Ctrl+j (next), ArrowUp/Ctrl+p/Ctrl+k (previous), Enter/Tab (select), Escape (close), Ctrl+i (toggle tooltip)
    */
   private handleKeyDown(e: KeyboardEvent): void {
+    // Ctrl+i: Toggle auto-show tooltip
+    if (e.ctrlKey && e.key === 'i') {
+      e.preventDefault();
+      e.stopPropagation();
+      this.toggleAutoShowTooltip();
+      return;
+    }
+
     // Ctrl+n or Ctrl+j: Move down (same as ArrowDown)
     if (e.ctrlKey && (e.key === 'n' || e.key === 'j')) {
       e.preventDefault();
@@ -484,6 +541,9 @@ export class SlashCommandManager {
         item.classList.remove('selected');
       }
     });
+
+    // Update tooltip if auto-show is enabled
+    this.showTooltipForSelectedItem();
   }
 
   /**
