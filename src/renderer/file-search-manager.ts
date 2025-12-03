@@ -1880,6 +1880,9 @@ export class FileSearchManager {
       .filter(item => item.score > 0);
 
     // Also find matching directories (by path containing the query)
+    // Track seen directory names to avoid duplicates from symlinks
+    const seenDirNames = new Map<string, { path: string; depth: number }>();
+
     for (const file of allFiles) {
       const relativePath = this.getRelativePath(file.path, baseDir);
       const pathParts = relativePath.split('/').filter(p => p);
@@ -1894,6 +1897,16 @@ export class FileSearchManager {
         // Check if directory name or path matches query
         if (dirName.toLowerCase().includes(queryLower) || dirPath.toLowerCase().includes(queryLower)) {
           seenDirs.add(dirPath);
+
+          // Check if we already have a directory with the same name
+          // Prefer the one with shorter path (likely the original, not symlink-resolved)
+          const depth = pathParts.length;
+          const existing = seenDirNames.get(dirName);
+          if (existing && existing.depth <= depth) {
+            continue; // Skip this one, we already have a shorter path
+          }
+
+          seenDirNames.set(dirName, { path: dirPath, depth });
           const virtualDir: FileInfo = {
             name: dirName,
             path: baseDir + '/' + dirPath,
@@ -1904,8 +1917,13 @@ export class FileSearchManager {
       }
     }
 
-    // Score directories
-    const scoredDirs = matchingDirs.map(dir => ({
+    // Remove duplicate directories by name (keep shortest path)
+    const uniqueDirs = Array.from(seenDirNames.entries()).map(([name, info]) => {
+      return matchingDirs.find(d => d.name === name && d.path === baseDir + '/' + info.path);
+    }).filter((d): d is FileInfo => d !== undefined);
+
+    // Score directories (use uniqueDirs to avoid duplicates from symlinks)
+    const scoredDirs = uniqueDirs.map(dir => ({
       file: dir,
       score: this.calculateMatchScore(dir, queryLower),
       relativePath: this.getRelativePath(dir.path, baseDir)
@@ -2321,8 +2339,8 @@ export class FileSearchManager {
    * Get relative path from base directory
    */
   private getRelativePath(fullPath: string, baseDir: string): string {
-    // If baseDir is root '/', return fullPath as-is (it's already absolute)
-    if (baseDir === '/') {
+    // If baseDir is empty or root '/', return fullPath as-is (it's already absolute)
+    if (!baseDir || baseDir === '/') {
       return fullPath;
     }
     if (fullPath.startsWith(baseDir)) {
