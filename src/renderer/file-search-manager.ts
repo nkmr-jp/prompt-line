@@ -2321,6 +2321,10 @@ export class FileSearchManager {
    * Get relative path from base directory
    */
   private getRelativePath(fullPath: string, baseDir: string): string {
+    // If baseDir is root '/', return fullPath as-is (it's already absolute)
+    if (baseDir === '/') {
+      return fullPath;
+    }
     if (fullPath.startsWith(baseDir)) {
       const relative = fullPath.substring(baseDir.length);
       return relative.startsWith('/') ? relative.substring(1) : relative;
