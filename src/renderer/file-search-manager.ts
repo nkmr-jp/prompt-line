@@ -1783,6 +1783,28 @@ export class FileSearchManager {
   }
 
   /**
+   * Remove the @query text from the textarea without inserting a file path
+   * Used when opening a file with Ctrl+Enter
+   */
+  private removeAtQueryText(): void {
+    if (this.atStartPosition === -1) return;
+
+    const currentText = this.callbacks.getTextContent();
+    const cursorPos = this.callbacks.getCursorPosition();
+
+    // Calculate the end position of the @query (current cursor position)
+    const endPosition = cursorPos;
+
+    // Remove the @query text
+    const before = currentText.slice(0, this.atStartPosition);
+    const after = currentText.slice(endPosition);
+    const newText = before + after;
+
+    this.callbacks.setTextContent(newText);
+    this.callbacks.setCursorPosition(this.atStartPosition);
+  }
+
+  /**
    * Filter files based on query (fuzzy matching) and currentPath
    * When there's a query at root level, search recursively across all files
    */
@@ -2475,13 +2497,15 @@ export class FileSearchManager {
           e.stopPropagation();
 
           if (e.ctrlKey) {
-            // Ctrl+Enterでエディタで開く
+            // Ctrl+Enterでエディタで開く（@検索テキストは削除、パス挿入なし）
             const suggestion = this.mergedSuggestions[this.selectedIndex];
             if (suggestion) {
               const filePath = suggestion.type === 'file'
                 ? suggestion.file?.path
                 : suggestion.agent?.filePath;
               if (filePath) {
+                // Remove @query text without inserting file path
+                this.removeAtQueryText();
                 this.openFileAndRestoreFocus(filePath)
                   .then(() => this.hideSuggestions());
                 return;
