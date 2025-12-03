@@ -272,7 +272,7 @@ export class SlashCommandManager {
 
         // Show popup on info icon hover
         infoIcon.addEventListener('mouseenter', () => {
-          this.showFrontmatterPopup(cmd, item);
+          this.showFrontmatterPopup(cmd, infoIcon);
         });
 
         infoIcon.addEventListener('mouseleave', () => {
@@ -337,44 +337,43 @@ export class SlashCommandManager {
     // Set content (using textContent for XSS safety)
     this.frontmatterPopup.textContent = command.frontmatter;
 
-    // Get the item and container rectangles for positioning
-    const itemRect = targetElement.getBoundingClientRect();
+    // Get the info icon and container rectangles for positioning
+    const iconRect = targetElement.getBoundingClientRect();
     const containerRect = this.suggestionsContainer.getBoundingClientRect();
 
-    // Position: starts at the left edge of the item with some offset
-    // Width: slightly narrower than container
-    const leftOffset = 20;
-    const rightMargin = 10;
-    const left = containerRect.left + leftOffset;
-    const width = containerRect.width - leftOffset - rightMargin;
+    // Position popup to the left of the info icon
+    const popupWidth = containerRect.width - 40;
+    const horizontalGap = 8;
+    const right = window.innerWidth - iconRect.left + horizontalGap;
 
-    // Gap between popup and item
-    const verticalGap = 8;
+    // Gap between popup and icon
+    const verticalGap = 4;
 
-    // Calculate available space below and above the item
-    const spaceBelow = window.innerHeight - itemRect.bottom - 10;
-    const spaceAbove = itemRect.top - 10;
+    // Calculate available space below and above the icon
+    const spaceBelow = window.innerHeight - iconRect.bottom - 10;
+    const spaceAbove = iconRect.top - 10;
     const minPopupHeight = 80;
 
-    // Decide whether to show popup above or below
+    // Decide whether to show popup above or below the icon
     const showAbove = spaceBelow < minPopupHeight && spaceAbove > spaceBelow;
 
     let top: number;
     let maxHeight: number;
 
     if (showAbove) {
-      // Position above the item
+      // Position above the icon (bottom of popup aligns with top of icon)
       maxHeight = Math.max(minPopupHeight, Math.min(150, spaceAbove - verticalGap));
-      top = itemRect.top - maxHeight - verticalGap;
+      top = iconRect.top - maxHeight - verticalGap;
     } else {
-      // Position below the item
-      top = itemRect.bottom + verticalGap;
+      // Position below the icon (top of popup aligns with bottom of icon)
+      top = iconRect.bottom + verticalGap;
       maxHeight = Math.max(minPopupHeight, Math.min(150, spaceBelow - verticalGap));
     }
 
-    this.frontmatterPopup.style.left = `${left}px`;
+    this.frontmatterPopup.style.right = `${right}px`;
+    this.frontmatterPopup.style.left = 'auto';
     this.frontmatterPopup.style.top = `${top}px`;
-    this.frontmatterPopup.style.width = `${width}px`;
+    this.frontmatterPopup.style.width = `${popupWidth}px`;
     this.frontmatterPopup.style.maxHeight = `${maxHeight}px`;
 
     this.frontmatterPopup.style.display = 'block';
