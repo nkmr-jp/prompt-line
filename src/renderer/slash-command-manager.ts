@@ -508,7 +508,13 @@ export class SlashCommandManager {
       case 'Enter':
         e.preventDefault();
         e.stopPropagation();
-        this.selectCommand(this.selectedIndex, true); // Paste immediately
+        if (e.ctrlKey) {
+          // Ctrl+Enter: Open file in editor without inserting command
+          this.openCommandFile(this.selectedIndex);
+        } else {
+          // Enter: Paste immediately
+          this.selectCommand(this.selectedIndex, true);
+        }
         break;
 
       case 'Tab':
@@ -621,6 +627,31 @@ export class SlashCommandManager {
    */
   public isActiveMode(): boolean {
     return this.isActive;
+  }
+
+  /**
+   * Open the command file in editor without inserting command text
+   */
+  private openCommandFile(index: number): void {
+    if (index < 0 || index >= this.filteredCommands.length) return;
+
+    const command = this.filteredCommands[index];
+    if (!command?.filePath) return;
+
+    // Clear the slash command text from textarea
+    if (this.textarea) {
+      this.textarea.value = '';
+      this.textarea.focus();
+    }
+
+    // Hide suggestions
+    this.hideSuggestions();
+
+    // Open the file in editor
+    const electronAPI = (window as any).electronAPI;
+    if (electronAPI?.file?.openInEditor) {
+      electronAPI.file.openInEditor(command.filePath);
+    }
   }
 
   /**
