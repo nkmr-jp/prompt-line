@@ -187,6 +187,7 @@ window:
 #    path: ~/.claude/agents
 #    pattern: "*.md"
 #    maxSuggestions: 20
+#    searchPrefix: "agent:"           # Require @agent: prefix for this entry (optional)
 
 # --- File Search (@ mentions) ---
 # Note: fd command is required (install: brew install fd)
