@@ -54,7 +54,8 @@ Useful when you want to check the content of images while entering prompts.
 ### File Search
 You can search for files by typing @.<br>
 ※ [fd](https://github.com/sharkdp/fd) command installation is required. (`brew install fd`)<br>
-※ You need to configure `fileSearch` in `~/.prompt-line/settings.yml`. See "⚙️ Settings" section.
+※ You need to configure `fileSearch` in `~/.prompt-line/settings.yml`. See "⚙️ Settings" section.<br>
+※ Supported applications: Terminal.app, iTerm2, JetBrains IDEs (IntelliJ, WebStorm, etc.), VSCode, Cursor, Windsurf
 
 ![doc10.png](assets/doc10.png)
 
@@ -160,9 +161,12 @@ If you already have an older version installed and want to update to the latest 
 
 ### Features
 
-- **History Panel** - Click previous entries to reuse. Search is also available.
+- **History Panel** - Click previous entries to reuse. Search is also available. (`Cmd+f`)
 - **Draft Autosave** - Automatically saves your work
 - **Image Support** - Paste clipboard images with `Cmd+V`
+- **File Opener** - Open files from file path text (`Ctrl+Enter` or `Cmd+Click`)
+- **File Search** - Search files by typing `@` (requires fd command and settings configuration)
+- **Markdown Search** - Search slash commands by typing `/` or sub-agents by typing `@` (requires settings configuration)
 
 ## ⚙️ Settings
 
@@ -221,6 +225,9 @@ fileOpener:
 # ============================================================================
 # Note: fd command is required for file search (install: brew install fd)
 # When this section is commented out, file search feature is disabled
+#
+# Supported Applications:
+#   Terminal.app, iTerm2, JetBrains IDEs, VSCode, Cursor, Windsurf
 
 #fileSearch:                        # File search for @ mentions (uncomment to enable)
 #  respectGitignore: true             # Respect .gitignore files

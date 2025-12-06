@@ -22,19 +22,20 @@ SWIFTC = swiftc
 SWIFT_FLAGS = -O
 FRAMEWORKS = -framework Cocoa -framework ApplicationServices
 OUTPUT_DIR = ../src/native-tools
-SOURCES = window-detector.swift keyboard-simulator.swift
-TARGETS = $(OUTPUT_DIR)/window-detector $(OUTPUT_DIR)/keyboard-simulator
+SOURCES = window-detector.swift keyboard-simulator.swift text-field-detector.swift directory-detector.swift
+TARGETS = $(OUTPUT_DIR)/window-detector $(OUTPUT_DIR)/keyboard-simulator $(OUTPUT_DIR)/text-field-detector $(OUTPUT_DIR)/directory-detector
 ```
 
 **Build Process:**
 - **Compiler**: Uses `swiftc` with optimization flags (`-O`)
 - **Frameworks**: Links against Cocoa and ApplicationServices
 - **Output**: Creates binaries in `src/native-tools/` directory
-- **Targets**: `window-detector` and `keyboard-simulator` executables
+- **Targets**: `window-detector`, `keyboard-simulator`, `text-field-detector`, and `directory-detector` executables
+- **Bridging Header**: `directory-detector` uses `libproc-bridge.h` for fast CWD detection via libproc
 
 **Build Commands:**
 ```bash
-make all           # Build both tools
+make all           # Build all tools
 make install       # Build and set executable permissions
 make clean         # Remove built binaries
 make rebuild       # Clean and rebuild everything
@@ -144,6 +145,134 @@ keyboard-simulator activate-and-paste-bundle "com.apple.Terminal"  # Combined op
   "success": false,
   "command": "paste",
   "hasAccessibility": false
+}
+```
+
+### text-field-detector.swift
+Native tool for detecting focused text fields using macOS Accessibility APIs:
+
+**Core Functionality:**
+- Detects the currently focused text field in any application
+- Returns position and size of the focused element
+- Used for `active-text-field` window positioning mode
+- Falls back gracefully when no text field is focused
+
+**Command-Line Interface:**
+```bash
+text-field-detector detect   # Detect focused text field position
+```
+
+**JSON Response Format:**
+```json
+// Success Response
+{
+  "success": true,
+  "x": 100,
+  "y": 200,
+  "width": 300,
+  "height": 24,
+  "appName": "Terminal",
+  "bundleId": "com.apple.Terminal"
+}
+
+// Error Response
+{
+  "error": "No focused text field found"
+}
+```
+
+### directory-detector.swift
+Native tool for terminal/IDE directory detection and file search:
+
+**Core Functionality:**
+```swift
+class DirectoryDetector {
+    static func detectCurrentDirectory() -> [String: Any]
+    static func getFileList(from directory: String) -> FileListResult?
+    static func getCwdFromPid(_ pid: pid_t) -> String?
+}
+```
+
+**Supported Applications:**
+- **Terminal.app** (`com.apple.Terminal`) - Uses AppleScript to get TTY, then libproc for CWD
+- **iTerm2** (`com.googlecode.iterm2`) - Uses AppleScript to get TTY, then libproc for CWD
+- **JetBrains IDEs** (`com.jetbrains.*`) - IntelliJ IDEA, WebStorm, PyCharm, etc. Uses window title parsing and shell process detection
+- **VSCode** (`com.microsoft.VSCode`, `com.microsoft.VSCodeInsiders`, `com.vscodium.VSCodium`) - Uses pty-host process tree traversal
+- **Cursor** (`com.todesktop.230313mzl4w4u92`) - Uses Electron pty-host detection
+- **Windsurf** (`com.exafunction.windsurf`) - Uses Electron pty-host detection
+
+**CWD Detection:**
+- Uses libproc `proc_pidinfo()` for 10-50x faster CWD detection compared to `lsof`
+- Performance: ~1-5ms vs 50-200ms for lsof
+- Automatic fallback to lsof if libproc fails
+- Requires `libproc-bridge.h` bridging header
+
+**File Search Integration:**
+- Requires `fd` command (https://github.com/sharkdp/fd)
+- Supports `.gitignore` respect, exclude/include patterns
+- Handles symlink directories with path preservation
+- Default excludes: node_modules, .git, dist, build, etc.
+- Configurable max files, depth, and hidden file inclusion
+
+**Command-Line Interface:**
+```bash
+directory-detector detect                        # Detect CWD from active terminal/IDE
+directory-detector detect --bundleId <id>        # Detect from specific app
+directory-detector detect-with-files [options]   # Detect CWD and list files
+directory-detector list <path> [options]         # List files in directory
+directory-detector check-fd                      # Check if fd is available
+
+# Options:
+#   --pid <pid>            Use specific process ID
+#   --bundleId <id>        Bundle ID of the app
+#   --no-gitignore         Don't respect .gitignore
+#   --exclude <pattern>    Add exclude pattern
+#   --include <pattern>    Include pattern for .gitignored files
+#   --max-files <n>        Maximum files (default: 5000)
+#   --include-hidden       Include hidden files
+#   --max-depth <n>        Maximum directory depth
+#   --follow-symlinks      Follow symbolic links
+```
+
+**JSON Response Format:**
+```json
+// Detect Response (Terminal)
+{
+  "success": true,
+  "directory": "/Users/user/project",
+  "tty": "/dev/ttys001",
+  "pid": 12345,
+  "appName": "Terminal",
+  "bundleId": "com.apple.Terminal",
+  "method": "tty"
+}
+
+// Detect Response (IDE)
+{
+  "success": true,
+  "directory": "/Users/user/project",
+  "appName": "Code",
+  "bundleId": "com.microsoft.VSCode",
+  "idePid": 12345,
+  "pid": 12346,
+  "method": "electron-pty"
+}
+
+// Detect with Files Response
+{
+  "success": true,
+  "directory": "/Users/user/project",
+  "files": [{"name": "index.ts", "path": "/Users/user/project/index.ts", "isDirectory": false}],
+  "fileCount": 150,
+  "searchMode": "recursive",
+  "partial": false
+}
+
+// Error Response
+{
+  "error": "Not a supported terminal or IDE application",
+  "appName": "Safari",
+  "bundleId": "com.apple.Safari"
 }
 ```
 
@@ -293,6 +422,21 @@ npm run compile  # Builds TypeScript + native tools + copies to dist/
 
 # Test combined operations
 ../src/native-tools/keyboard-simulator activate-and-paste-name "Terminal"
+
+# Test text field detection
+../src/native-tools/text-field-detector detect
+
+# Test directory detection (from active terminal/IDE)
+../src/native-tools/directory-detector detect
+
+# Test directory detection with files
+../src/native-tools/directory-detector detect-with-files
+
+# Test file listing
+../src/native-tools/directory-detector list /path/to/project
+
+# Check fd availability
+../src/native-tools/directory-detector check-fd
 ```
 
 ### Debugging
@@ -326,6 +470,9 @@ npm run compile  # Builds TypeScript + native tools + copies to dist/
 3. **Keyboard Simulation**: `pasteWithNativeTool()` in `utils.ts` for Cmd+V simulation
 4. **App Activation**: `activateAndPasteWithNativeTool()` in `utils.ts` for combined operations
 5. **Window Management**: `focusPreviousApp()` in `window-manager.ts` for app switching
+6. **Text Field Detection**: `detectTextFieldPosition()` in `window-manager.ts` for `active-text-field` positioning
+7. **Directory Detection**: `detectDirectory()` in `window-manager.ts` for terminal/IDE CWD detection
+8. **File Search**: `getFileListWithDirectory()` in `window-manager.ts` for @ mention file search
 
 ### Timeout Configuration
 ```typescript
@@ -333,7 +480,9 @@ const TIMEOUTS = {
   CURRENT_APP_TIMEOUT: 2000,        // getCurrentApp()
   WINDOW_BOUNDS_TIMEOUT: 2000,      // getActiveWindowBounds()
   NATIVE_PASTE_TIMEOUT: 3000,       // pasteWithNativeTool()
-  ACTIVATE_PASTE_TIMEOUT: 3000      // activateAndPasteWithNativeTool()
+  ACTIVATE_PASTE_TIMEOUT: 3000,     // activateAndPasteWithNativeTool()
+  TEXT_FIELD_DETECTION: 3000,       // detectTextFieldPosition()
+  DIRECTORY_DETECTION: 5000         // detectDirectory(), fd process timeout
 };
 ```
 

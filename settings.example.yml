@@ -65,7 +65,20 @@ fileOpener:
 # File Search Configuration for @ Mentions
 # ==============================================================================
 # Configure file search behavior when using @ mentions in the input
-# Note: fd command is required for file search (install: brew install fd)
+#
+# Requirements:
+#   - fd command is required (install: brew install fd)
+#
+# Supported Applications (directory-detector):
+#   - Terminal.app
+#   - iTerm2
+#   - JetBrains IDEs (IntelliJ IDEA, WebStorm, PyCharm, etc.)
+#   - VSCode (including VSCode Insiders, VSCodium)
+#   - Cursor
+#   - Windsurf
+#
+# Note: File search only works when activated from one of the supported apps above.
+#       The working directory is automatically detected from the terminal/IDE.
 fileSearch:
   # Respect .gitignore files when searching
   respectGitignore: true

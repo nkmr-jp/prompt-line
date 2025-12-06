@@ -52,7 +52,8 @@ Enterを押しても勝手に送信されないので、改行する場合も気
 ### ファイル検索
 @を入力するとファイルを検索できます。<br>
 ※ [fd](https://github.com/sharkdp/fd)コマンドのインストールが必要です。( `brew install fd` )<br>
-※ `~/.prompt-line/settings.yml` で `fileSearch`の項目を設定する必要があります。 「⚙️ 設定」の項目参照
+※ `~/.prompt-line/settings.yml` で `fileSearch`の項目を設定する必要があります。 「⚙️ 設定」の項目参照<br>
+※ 対応アプリ: Terminal.app, iTerm2, JetBrains IDE（IntelliJ, WebStormなど）, VSCode, Cursor, Windsurf
 
 ![doc10.png](assets/doc10.png)
 
@@ -158,9 +159,12 @@ npm run reset-accessibility
 
 ### 機能
 
-- **履歴パネル** - 過去のエントリをクリックして再利用。検索も可能。
+- **履歴パネル** - 過去のエントリをクリックして再利用。検索も可能。(`Cmd+f`)
 - **ドラフト自動保存** - 作業内容を自動的に保存
 - **画像サポート** - `Cmd+V`でクリップボード画像を貼り付け
+- **ファイルオープン** - ファイルパスのテキストからファイルを起動 (`Ctrl+Enter` or `Cmd+クリック`)
+- **ファイル検索** - `@`を入力してファイルを検索 (fdコマンドと設定が必要)
+- **マークダウン検索** - `/`を入力してスラッシュコマンドを検索、または`@`でサブエージェントを検索 (設定が必要)
 
 ## ⚙️ 設定
 
@@ -219,6 +223,9 @@ fileOpener:
 # ============================================================================
 # Note: fd command is required for file search (install: brew install fd)
 # When this section is commented out, file search feature is disabled
+#
+# Supported Applications:
+#   Terminal.app, iTerm2, JetBrains IDEs, VSCode, Cursor, Windsurf
 
 #fileSearch:                        # File search for @ mentions (uncomment to enable)
 #  respectGitignore: true             # Respect .gitignore files

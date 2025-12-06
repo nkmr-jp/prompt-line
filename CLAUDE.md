@@ -308,6 +308,13 @@ The window supports multiple positioning modes with dynamic configuration:
 - **Hybrid loading strategy**: Stage 1 (quick single-level) + Stage 2 (recursive fd command)
 - **Disabled by default**: Enable via settings for stability
 - **fd command integration**: Uses `fd` for fast recursive file discovery
+- **Supported applications** (directory-detector):
+  - Terminal.app (`com.apple.Terminal`)
+  - iTerm2 (`com.googlecode.iterm2`)
+  - JetBrains IDEs (`com.jetbrains.*` - IntelliJ IDEA, WebStorm, PyCharm, etc.)
+  - VSCode (`com.microsoft.VSCode`, VSCode Insiders, VSCodium)
+  - Cursor (`com.todesktop.230313mzl4w4u92`)
+  - Windsurf (`com.exafunction.windsurf`)
 
 ### Slash Commands & Agents
 - **Slash command system**: Type `/` to access commands
