@@ -252,51 +252,249 @@ class MdSearchLoader {
 
   /**
    * パターンに一致するファイルを検索
-   * サポートするパターン: "*.md", "SKILL.md", "**\/*.md"
+   * サポートするパターン:
+   * - "*.md" - ルート直下の .md ファイル
+   * - "SKILL.md" - 具体的なファイル名
+   * - "**\/*.md" - 再帰的な .md ファイル検索
+   * - "**\/commands/*.md" - 再帰的に commands ディレクトリを探して .md ファイル
+   * - "**\/*\/SKILL.md" - 再帰的な任意ディレクトリ内の SKILL.md
+   * - "**\/{commands,agents}/*.md" - ブレース展開対応
    */
   private async findFiles(directory: string, pattern: string): Promise<string[]> {
+    // ブレース展開を処理（例: {commands,agents} → ['commands', 'agents']）
+    const expandedPatterns = this.expandBraces(pattern);
+
+    const allFiles: string[] = [];
+    for (const expandedPattern of expandedPatterns) {
+      const files = await this.findFilesWithPattern(directory, expandedPattern, '');
+      allFiles.push(...files);
+    }
+
+    // 重複を除去
+    return [...new Set(allFiles)];
+  }
+
+  /**
+   * ブレース展開を処理
+   * 例: "**\/{commands,agents}/*.md" → ["**\/commands/*.md", "**\/agents/*.md"]
+   */
+  private expandBraces(pattern: string): string[] {
+    const braceMatch = pattern.match(/\{([^}]+)\}/);
+    if (!braceMatch || !braceMatch[1]) {
+      return [pattern];
+    }
+
+    const fullMatch = braceMatch[0];
+    const content = braceMatch[1];
+    const alternatives = content.split(',').map(s => s.trim());
+    const prefix = pattern.slice(0, braceMatch.index);
+    const suffix = pattern.slice((braceMatch.index ?? 0) + fullMatch.length);
+
+    const results: string[] = [];
+    for (const alt of alternatives) {
+      const expanded = prefix + alt + suffix;
+      // 再帰的にブレース展開を処理
+      results.push(...this.expandBraces(expanded));
+    }
+
+    return results;
+  }
+
+  /**
+   * パターンに一致するファイルを再帰的に検索
+   * @param directory 検索対象ディレクトリ
+   * @param pattern 検索パターン
+   * @param relativePath ルートからの相対パス（パターンマッチング用）
+   */
+  private async findFilesWithPattern(
+    directory: string,
+    pattern: string,
+    relativePath: string
+  ): Promise<string[]> {
     const files: string[] = [];
 
-    // 再帰検索かどうか判定
-    const isRecursive = pattern.includes('**');
+    // パターンを解析
+    const parsed = this.parsePattern(pattern);
 
-    // パターンから拡張子やファイル名を抽出
-    const patternParts = pattern.replace('**/', '').replace('**\\', '');
+    try {
+      const entries = await fs.readdir(directory, { withFileTypes: true });
 
-    // ディレクトリを読み取り
-    const entries = await fs.readdir(directory, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(directory, entry.name);
+        const entryRelativePath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
 
-    for (const entry of entries) {
-      const fullPath = path.join(directory, entry.name);
-
-      if (entry.isDirectory() && isRecursive) {
-        // 再帰検索の場合、サブディレクトリも検索
-        const subFiles = await this.findFiles(fullPath, patternParts);
-        files.push(...subFiles);
-      } else if (entry.isFile()) {
-        // ファイルがパターンに一致するか確認
-        if (this.matchesPattern(entry.name, patternParts)) {
-          files.push(fullPath);
+        if (entry.isDirectory()) {
+          if (parsed.isRecursive) {
+            // 再帰検索
+            if (parsed.intermediatePattern) {
+              // 中間パターンがある場合（例: **/commands/*.md, **/plugins/*/commands/*.md）
+              // パスの末尾が中間パターンにマッチするか確認
+              if (this.matchesIntermediatePathSuffix(entryRelativePath, parsed.intermediatePattern)) {
+                // 中間パスにマッチした場合、その中でファイルを検索
+                const subFiles = await this.findFilesInDir(fullPath, parsed.filePattern);
+                files.push(...subFiles);
+              }
+            }
+            // 常に再帰的にサブディレクトリも検索
+            const subFiles = await this.findFilesWithPattern(fullPath, pattern, entryRelativePath);
+            files.push(...subFiles);
+          }
+        } else if (entry.isFile()) {
+          // ファイルがパターンに一致するか確認
+          if (this.matchesFilePattern(entry.name, entryRelativePath, parsed)) {
+            files.push(fullPath);
+          }
         }
       }
+    } catch (error) {
+      // ディレクトリ読み取りエラーは無視（権限エラー等）
+      logger.debug('Failed to read directory', { directory, error });
     }
 
     return files;
   }
 
   /**
-   * ファイル名がパターンに一致するか確認
-   * サポートするパターン: "*.md", "SKILL.md"
+   * ディレクトリ内のファイルを検索（再帰なし）
    */
-  private matchesPattern(fileName: string, pattern: string): boolean {
-    // ワイルドカードパターン (e.g., "*.md")
-    if (pattern.startsWith('*.')) {
-      const extension = pattern.slice(1); // ".md"
-      return fileName.endsWith(extension);
+  private async findFilesInDir(directory: string, filePattern: string): Promise<string[]> {
+    const files: string[] = [];
+
+    try {
+      const entries = await fs.readdir(directory, { withFileTypes: true });
+
+      for (const entry of entries) {
+        if (entry.isFile() && this.matchesGlobPattern(entry.name, filePattern)) {
+          files.push(path.join(directory, entry.name));
+        }
+      }
+    } catch (error) {
+      logger.debug('Failed to read directory', { directory, error });
     }
 
-    // 具体的なファイル名 (e.g., "SKILL.md")
-    return fileName === pattern;
+    return files;
+  }
+
+  /**
+   * パターンを解析
+   */
+  private parsePattern(pattern: string): {
+    isRecursive: boolean;
+    intermediatePattern: string | null;
+    filePattern: string;
+  } {
+    const isRecursive = pattern.startsWith('**/');
+
+    if (!isRecursive) {
+      return {
+        isRecursive: false,
+        intermediatePattern: null,
+        filePattern: pattern,
+      };
+    }
+
+    // "**/" を除去
+    const withoutPrefix = pattern.slice(3);
+
+    // 中間パスとファイルパターンを分離
+    const lastSlashIndex = withoutPrefix.lastIndexOf('/');
+    if (lastSlashIndex === -1) {
+      // "**/*.md" のようなパターン
+      return {
+        isRecursive: true,
+        intermediatePattern: null,
+        filePattern: withoutPrefix,
+      };
+    }
+
+    // "**/commands/*.md" または "**/*/SKILL.md" のようなパターン
+    const intermediatePattern = withoutPrefix.slice(0, lastSlashIndex);
+    const filePattern = withoutPrefix.slice(lastSlashIndex + 1);
+
+    return {
+      isRecursive: true,
+      intermediatePattern,
+      filePattern,
+    };
+  }
+
+  /**
+   * 相対パスの末尾が中間パターンにマッチするか確認
+   * 例: "project1/commands" が "commands" にマッチ（末尾が一致）
+   * 例: "plugins/my-plugin/commands" が "plugins/star/commands" にマッチ (star=*)
+   * 例: "plugin1" が "*" にマッチ
+   */
+  private matchesIntermediatePathSuffix(relativePath: string, intermediatePattern: string): boolean {
+    const pathSegments = relativePath.split('/');
+    const patternSegments = intermediatePattern.split('/');
+
+    // パスセグメント数がパターンセグメント数より少ない場合はマッチしない
+    if (pathSegments.length < patternSegments.length) {
+      return false;
+    }
+
+    // パスの末尾からパターンをマッチさせる
+    const startIndex = pathSegments.length - patternSegments.length;
+
+    for (let i = 0; i < patternSegments.length; i++) {
+      const pathSeg = pathSegments[startIndex + i];
+      const patternSeg = patternSegments[i];
+      if (pathSeg === undefined || patternSeg === undefined) {
+        return false;
+      }
+      if (!this.matchesGlobPattern(pathSeg, patternSeg)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * ファイルがパターンに一致するか確認
+   */
+  private matchesFilePattern(
+    fileName: string,
+    relativePath: string,
+    parsed: { isRecursive: boolean; intermediatePattern: string | null; filePattern: string }
+  ): boolean {
+    if (!parsed.isRecursive) {
+      // 非再帰パターン: ルート直下のみ
+      return relativePath === fileName && this.matchesGlobPattern(fileName, parsed.filePattern);
+    }
+
+    if (parsed.intermediatePattern) {
+      // 中間パターンがある場合は、findFilesInDirで処理されるため、ここでは false
+      return false;
+    }
+
+    // "**/*.md" のような単純な再帰パターン
+    return this.matchesGlobPattern(fileName, parsed.filePattern);
+  }
+
+  /**
+   * ファイル名/ディレクトリ名がglobパターンに一致するか確認
+   * サポートするパターン:
+   * - "*.md" - ワイルドカード + 拡張子
+   * - "*" - 全てにマッチ
+   * - "SKILL.md" - 具体的なファイル名
+   * - "test-*.md" - 前方一致 + ワイルドカード
+   * - "*-test.md" - ワイルドカード + 後方一致
+   */
+  private matchesGlobPattern(name: string, pattern: string): boolean {
+    // "*" は全てにマッチ
+    if (pattern === '*') {
+      return true;
+    }
+
+    // パターンを正規表現に変換
+    const regexPattern = pattern
+      .replace(/[.+^${}()|[\]\\]/g, '\\$&') // 特殊文字をエスケープ
+      .replace(/\*/g, '.*')  // * を .* に変換
+      .replace(/\?/g, '.');   // ? を . に変換
+
+    const regex = new RegExp(`^${regexPattern}$`);
+    return regex.test(name);
   }
 }
 

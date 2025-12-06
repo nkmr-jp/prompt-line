@@ -439,6 +439,222 @@ describe('MdSearchLoader', () => {
       expect(items).toHaveLength(2);
       expect(items.map(i => i.name).sort()).toEqual(['nested', 'root']);
     });
+
+    test('should handle intermediate directory pattern **/commands/*.md', async () => {
+      loader = new MdSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          path: '/path/to/root',
+          pattern: '**/commands/*.md',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockImplementation((dir) => {
+        const dirStr = String(dir);
+        if (dirStr === '/path/to/root') {
+          return Promise.resolve([
+            createDirent('root.md', true),
+            createDirent('project1', false), // directory
+            createDirent('project2', false), // directory
+          ] as any);
+        }
+        if (dirStr === '/path/to/root/project1') {
+          return Promise.resolve([
+            createDirent('commands', false), // directory
+            createDirent('other', false), // directory
+          ] as any);
+        }
+        if (dirStr === '/path/to/root/project1/commands') {
+          return Promise.resolve([
+            createDirent('cmd1.md', true),
+            createDirent('cmd2.md', true),
+          ] as any);
+        }
+        if (dirStr === '/path/to/root/project1/other') {
+          return Promise.resolve([
+            createDirent('not-matched.md', true),
+          ] as any);
+        }
+        if (dirStr === '/path/to/root/project2') {
+          return Promise.resolve([
+            createDirent('commands', false), // directory
+          ] as any);
+        }
+        if (dirStr === '/path/to/root/project2/commands') {
+          return Promise.resolve([
+            createDirent('cmd3.md', true),
+          ] as any);
+        }
+        return Promise.resolve([] as any);
+      });
+      mockedFs.readFile.mockResolvedValue('---\ndescription: Command\n---\nContent');
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(3);
+      expect(items.map(i => i.name).sort()).toEqual(['cmd1', 'cmd2', 'cmd3']);
+    });
+
+    test('should handle wildcard intermediate pattern **/*/*.md', async () => {
+      loader = new MdSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          path: '/path/to/root',
+          pattern: '**/*/*.md',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockImplementation((dir) => {
+        const dirStr = String(dir);
+        if (dirStr === '/path/to/root') {
+          return Promise.resolve([
+            createDirent('plugin1', false),
+            createDirent('plugin2', false),
+          ] as any);
+        }
+        if (dirStr === '/path/to/root/plugin1') {
+          return Promise.resolve([
+            createDirent('skill1.md', true),
+            createDirent('README.md', true),
+          ] as any);
+        }
+        if (dirStr === '/path/to/root/plugin2') {
+          return Promise.resolve([
+            createDirent('skill2.md', true),
+          ] as any);
+        }
+        return Promise.resolve([] as any);
+      });
+      mockedFs.readFile.mockResolvedValue('---\ndescription: Skill\n---\nContent');
+
+      const items = await loader.getItems('command');
+
+      // Three different files matched: skill1.md, README.md, skill2.md
+      expect(items).toHaveLength(3);
+      expect(items.map(i => i.name).sort()).toEqual(['README', 'skill1', 'skill2']);
+    });
+
+    test('should handle brace expansion pattern **/{commands,agents}/*.md', async () => {
+      loader = new MdSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          path: '/path/to/root',
+          pattern: '**/{commands,agents}/*.md',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockImplementation((dir) => {
+        const dirStr = String(dir);
+        if (dirStr === '/path/to/root') {
+          return Promise.resolve([
+            createDirent('commands', false),
+            createDirent('agents', false),
+            createDirent('other', false),
+          ] as any);
+        }
+        if (dirStr === '/path/to/root/commands') {
+          return Promise.resolve([
+            createDirent('cmd1.md', true),
+          ] as any);
+        }
+        if (dirStr === '/path/to/root/agents') {
+          return Promise.resolve([
+            createDirent('agent1.md', true),
+          ] as any);
+        }
+        if (dirStr === '/path/to/root/other') {
+          return Promise.resolve([
+            createDirent('not-matched.md', true),
+          ] as any);
+        }
+        return Promise.resolve([] as any);
+      });
+      mockedFs.readFile.mockResolvedValue('---\ndescription: Item\n---\nContent');
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(2);
+      expect(items.map(i => i.name).sort()).toEqual(['agent1', 'cmd1']);
+    });
+
+    test('should handle deeply nested intermediate directory pattern', async () => {
+      loader = new MdSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          path: '/path/to/root',
+          pattern: '**/plugins/*/commands/*.md',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockImplementation((dir) => {
+        const dirStr = String(dir);
+        if (dirStr === '/path/to/root') {
+          return Promise.resolve([
+            createDirent('plugins', false),
+          ] as any);
+        }
+        if (dirStr === '/path/to/root/plugins') {
+          return Promise.resolve([
+            createDirent('my-plugin', false),
+          ] as any);
+        }
+        if (dirStr === '/path/to/root/plugins/my-plugin') {
+          return Promise.resolve([
+            createDirent('commands', false),
+          ] as any);
+        }
+        if (dirStr === '/path/to/root/plugins/my-plugin/commands') {
+          return Promise.resolve([
+            createDirent('deep-cmd.md', true),
+          ] as any);
+        }
+        return Promise.resolve([] as any);
+      });
+      mockedFs.readFile.mockResolvedValue('---\ndescription: Deep Command\n---\nContent');
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(1);
+      expect(items[0]?.name).toBe('deep-cmd');
+    });
+
+    test('should handle pattern with wildcard prefix test-*.md', async () => {
+      loader = new MdSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          path: '/path/to/commands',
+          pattern: 'test-*.md',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([
+        createDirent('test-command.md', true),
+        createDirent('test-other.md', true),
+        createDirent('command.md', true),
+        createDirent('not-test.md', true),
+      ] as any);
+      mockedFs.readFile.mockResolvedValue('---\ndescription: Test\n---\nContent');
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(2);
+      expect(items.map(i => i.name).sort()).toEqual(['test-command', 'test-other']);
+    });
   });
 
   describe('duplicate handling', () => {
