@@ -629,9 +629,8 @@ class IPCHandlers {
       this.mdSearchLoader.updateConfig(settings.mdSearch);
 
       // Get mentions (agents) from MdSearchLoader
-      const items = query
-        ? await this.mdSearchLoader.searchItems('mention', query)
-        : await this.mdSearchLoader.getItems('mention');
+      // Always use searchItems to apply searchPrefix filtering, even for empty query
+      const items = await this.mdSearchLoader.searchItems('mention', query ?? '');
 
       // Convert MdSearchItem to AgentItem for backward compatibility
       const agents: AgentItem[] = items.map(item => {
