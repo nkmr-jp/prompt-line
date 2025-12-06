@@ -337,6 +337,7 @@ export class FileSearchManager {
 
   /**
    * Show frontmatter popup for an agent
+   * Position: to the left of the info icon (same as slash command popup)
    */
   private showFrontmatterPopup(agent: AgentItem, targetElement: HTMLElement): void {
     if (!this.frontmatterPopup || !agent.frontmatter || !this.suggestionsContainer) return;
@@ -361,49 +362,44 @@ export class FileSearchManager {
     hintDiv.textContent = this.autoShowTooltip ? 'Ctrl+i: hide tooltip' : 'Ctrl+i: auto-show tooltip';
     this.frontmatterPopup.appendChild(hintDiv);
 
-    // Get the icon element from the target (suggestion item)
-    const iconElement = targetElement.querySelector('.file-icon');
-    const iconRect = iconElement?.getBoundingClientRect();
-    const itemRect = targetElement.getBoundingClientRect();
+    // Get the info icon and container rectangles for positioning
+    const iconRect = targetElement.getBoundingClientRect();
     const containerRect = this.suggestionsContainer.getBoundingClientRect();
 
-    if (iconRect && containerRect) {
-      // Position: starts a bit right of the icon
-      // Width: narrower than container with margin on both sides
-      const leftOffset = 20; // Start more to the right
-      const rightMargin = 10; // Margin from container right edge
-      const left = iconRect.right + leftOffset;
-      const width = containerRect.right - iconRect.right - leftOffset - rightMargin;
+    // Position popup to the left of the info icon (same as slash command popup)
+    const popupWidth = containerRect.width - 40;
+    const horizontalGap = 8;
+    const right = window.innerWidth - iconRect.left + horizontalGap;
 
-      // Gap between popup and item (larger gap makes popup disappear when mouse moves)
-      const verticalGap = 8;
+    // Gap between popup and icon
+    const verticalGap = 4;
 
-      // Calculate available space below and above the item
-      const spaceBelow = window.innerHeight - itemRect.bottom - 10; // 10px margin from bottom
-      const spaceAbove = itemRect.top - 10; // 10px margin from top
-      const minPopupHeight = 80;
+    // Calculate available space below and above the icon
+    const spaceBelow = window.innerHeight - iconRect.bottom - 10;
+    const spaceAbove = iconRect.top - 10;
+    const minPopupHeight = 80;
 
-      // Decide whether to show popup above or below
-      const showAbove = spaceBelow < minPopupHeight && spaceAbove > spaceBelow;
+    // Decide whether to show popup above or below the icon
+    const showAbove = spaceBelow < minPopupHeight && spaceAbove > spaceBelow;
 
-      let top: number;
-      let maxHeight: number;
+    let top: number;
+    let maxHeight: number;
 
-      if (showAbove) {
-        // Position above the item (icon's right-top)
-        maxHeight = Math.max(minPopupHeight, Math.min(150, spaceAbove - verticalGap));
-        top = itemRect.top - maxHeight - verticalGap;
-      } else {
-        // Position below the item (icon's right-bottom)
-        top = itemRect.bottom + verticalGap;
-        maxHeight = Math.max(minPopupHeight, Math.min(150, spaceBelow - verticalGap));
-      }
-
-      this.frontmatterPopup.style.left = `${left}px`;
-      this.frontmatterPopup.style.top = `${top}px`;
-      this.frontmatterPopup.style.width = `${width}px`;
-      this.frontmatterPopup.style.maxHeight = `${maxHeight}px`;
+    if (showAbove) {
+      // Position above the icon (bottom of popup aligns with top of icon)
+      maxHeight = Math.max(minPopupHeight, Math.min(150, spaceAbove - verticalGap));
+      top = iconRect.top - maxHeight - verticalGap;
+    } else {
+      // Position below the icon (top of popup aligns with bottom of icon)
+      top = iconRect.bottom + verticalGap;
+      maxHeight = Math.max(minPopupHeight, Math.min(150, spaceBelow - verticalGap));
     }
+
+    this.frontmatterPopup.style.right = `${right}px`;
+    this.frontmatterPopup.style.left = 'auto';
+    this.frontmatterPopup.style.top = `${top}px`;
+    this.frontmatterPopup.style.width = `${popupWidth}px`;
+    this.frontmatterPopup.style.maxHeight = `${maxHeight}px`;
 
     this.frontmatterPopup.style.display = 'block';
   }
@@ -463,10 +459,11 @@ export class FileSearchManager {
       return;
     }
 
-    // Find the selected item element
-    const selectedItem = this.suggestionsContainer.querySelector('.file-suggestion-item.selected') as HTMLElement;
-    if (selectedItem) {
-      this.showFrontmatterPopup(suggestion.agent, selectedItem);
+    // Find the info icon element for the selected item
+    const selectedItem = this.suggestionsContainer.querySelector('.file-suggestion-item.selected');
+    const infoIcon = selectedItem?.querySelector('.frontmatter-info-icon') as HTMLElement;
+    if (infoIcon) {
+      this.showFrontmatterPopup(suggestion.agent, infoIcon);
     }
   }
 
@@ -2373,9 +2370,9 @@ export class FileSearchManager {
           infoIcon.className = 'frontmatter-info-icon';
           infoIcon.textContent = 'ⓘ';
 
-          // Show popup on info icon hover
+          // Show popup on info icon hover (pass infoIcon as target for positioning)
           infoIcon.addEventListener('mouseenter', () => {
-            this.showFrontmatterPopup(agent, item);
+            this.showFrontmatterPopup(agent, infoIcon);
           });
 
           infoIcon.addEventListener('mouseleave', () => {
