@@ -15,7 +15,7 @@ export function getDefaultMdSearchConfig(): MdSearchEntry[] {
       argumentHint: '{frontmatter@argument-hint}',
     },
     {
-      name: '{basename}',
+      name: 'agent-{basename}',
       type: 'mention',
       description: '{frontmatter@description}',
       path: '~/.claude/agents',
