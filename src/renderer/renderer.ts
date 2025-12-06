@@ -413,7 +413,12 @@ export class PromptLineRenderer {
         this.fileSearchManager?.handleCachedDirectoryData(data.directoryData);
 
         // Update hint text with formatted directory path
-        if (data.directoryData.directory) {
+        // But prioritize hint message (e.g., fd not installed) over directory path
+        if (data.directoryData.hint) {
+          // Show hint message (e.g., "Install fd for file search: brew install fd")
+          this.defaultHintText = data.directoryData.hint;
+          this.domManager.updateHintText(data.directoryData.hint);
+        } else if (data.directoryData.directory) {
           const formattedPath = this.formatDirectoryPath(data.directoryData.directory);
           // If file limit reached, show limit message instead of path
           if (data.directoryData.fileLimitReached) {
@@ -487,7 +492,12 @@ export class PromptLineRenderer {
       this.fileSearchManager?.updateCache(data);
 
       // Update hint text with formatted directory path
-      if (data.directory) {
+      // But prioritize hint message (e.g., fd not installed) over directory path
+      if (data.hint) {
+        // Show hint message (e.g., "Install fd for file search: brew install fd")
+        this.defaultHintText = data.hint;
+        this.domManager.updateHintText(data.hint);
+      } else if (data.directory) {
         const formattedPath = this.formatDirectoryPath(data.directory);
         // If file limit reached, show limit message instead of path
         if (data.fileLimitReached) {
