@@ -4,7 +4,7 @@
  */
 
 import type { FileInfo, DirectoryInfo, AgentItem } from '../types';
-import { getFileIconSvg, getAgentIconSvg } from './assets/icons/file-icons';
+import { getFileIconSvg, getMentionIconSvg } from './assets/icons/file-icons';
 
 /**
  * Format object for console output (Electron renderer -> main process)
@@ -2486,8 +2486,8 @@ export class FileSearchManager {
 
         // Create icon using SVG
         const icon = document.createElement('span');
-        icon.className = 'file-icon agent-icon';
-        insertSvgIntoElement(icon, getAgentIconSvg());
+        icon.className = 'file-icon mention-icon';
+        insertSvgIntoElement(icon, getMentionIconSvg());
 
         // Create name with highlighting
         const name = document.createElement('span');

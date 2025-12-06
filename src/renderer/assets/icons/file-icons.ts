@@ -123,8 +123,8 @@ export const fileIcons: Record<string, string> = {
 // Folder icon
 export const folderIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path fill="#ff7043" d="m13.844 7.536-1.288-1.072A2 2 0 0 0 11.276 6H4a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h24a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2H15.124a2 2 0 0 1-1.28-.464"/><path fill="#ffccbc" d="M22 10a10 10 0 1 0 10 10 10 10 0 0 0-10-10m-6 12.125a2 2 0 1 1 2-2 2 2 0 0 1-2 2m6 0a2 2 0 1 1 2-2 2 2 0 0 1-2 2m6 0a2 2 0 1 1 2-2 2 2 0 0 1-2 2"/></svg>`;
 
-// Agent/Robot icon
-export const agentIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path fill="#00bfa5" d="M25.172 6 28 8.828v14.344L25.172 26H6.828L4 23.172V8.828L6.828 6zM26 4H6L2 8v16l4 4h20l4-4V8z"/><path fill="#00bfa5" d="M8 20h16v2H8zm0-6v2h2v-2a2 2 0 0 1 2-2 2 2 0 0 1 2 2v2h2v-2a4 4 0 0 0-4-4 4 4 0 0 0-4 4m9.876.268 5.196-3 1 1.732-5.196 3z"/></svg>`;
+// Mention icon (@ symbol)
+export const mentionIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#00bfa5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/></svg>`;
 
 // Default file icon
 export const defaultFileIcon = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path d="M0 0h24v24H0z"/><path fill="#42a5f5" d="M8 16h8v2H8zm0-4h8v2H8zm6-10H6c-1.1 0-2 .9-2 2v16c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8zm4 18H6V4h7v5h5z"/></svg>`;
@@ -167,9 +167,9 @@ export function getFileIconSvg(filename: string, isDirectory: boolean = false): 
 }
 
 /**
- * Get the agent icon SVG
- * @returns SVG string for agent icon
+ * Get the mention icon SVG (@ symbol)
+ * @returns SVG string for mention icon
  */
-export function getAgentIconSvg(): string {
-  return agentIconSvg;
+export function getMentionIconSvg(): string {
+  return mentionIconSvg;
 }
