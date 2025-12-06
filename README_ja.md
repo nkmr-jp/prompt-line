@@ -50,14 +50,14 @@ Enterを押しても勝手に送信されないので、改行する場合も気
 ![doc9.png](assets/doc9.png)
 
 ### ファイル検索
-@を入力してファイルを検索できるように設定できます。<br>
+@を入力するとファイルを検索できます。<br>
 ※ [fd](https://github.com/sharkdp/fd)コマンドのインストールが必要です。( `brew install fd` )<br>
 ※ `~/.prompt-line/settings.yml` で `fileSearch`の項目を設定する必要があります。 「⚙️ 設定」の項目参照
 
 ![doc10.png](assets/doc10.png)
 
 ### マークダウン検索
-/を入力してスラッシュコマンドを検索できます。<br>
+/を入力するとスラッシュコマンドを検索できます。<br>
 ※ `~/.prompt-line/settings.yml` で `mdSearch`の項目を設定する必要があります。 「⚙️ 設定」の項目参照
 
 ![doc11.png](assets/doc11.png)
