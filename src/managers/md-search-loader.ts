@@ -4,7 +4,7 @@ import os from 'os';
 import { logger } from '../utils/utils';
 import type { MdSearchEntry, MdSearchItem, MdSearchType } from '../types';
 import { resolveTemplate, getBasename, parseFrontmatter, extractRawFrontmatter } from '../lib/template-resolver';
-import { getDefaultMdSearchConfig } from '../lib/default-md-search-config';
+import { getDefaultMdSearchConfig, DEFAULT_MAX_SUGGESTIONS } from '../lib/default-md-search-config';
 
 /**
  * MdSearchLoader - 設定ベースの統合Markdownファイルローダー
@@ -65,6 +65,18 @@ class MdSearchLoader {
       item.name.toLowerCase().includes(lowerQuery) ||
       item.description.toLowerCase().includes(lowerQuery)
     );
+  }
+
+  /**
+   * 指定タイプのmaxSuggestionsを取得（複数エントリがある場合は最大値を返す）
+   */
+  getMaxSuggestions(type: MdSearchType): number {
+    const entries = this.config.filter(entry => entry.type === type);
+    if (entries.length === 0) {
+      return DEFAULT_MAX_SUGGESTIONS;
+    }
+    // 複数エントリがある場合は最大値を使用
+    return Math.max(...entries.map(entry => entry.maxSuggestions ?? DEFAULT_MAX_SUGGESTIONS));
   }
 
   /**

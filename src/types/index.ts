@@ -374,6 +374,8 @@ export interface MdSearchEntry {
   pattern: string;
   /** オプション: argumentHintテンプレート */
   argumentHint?: string;
+  /** オプション: 検索候補の最大表示数（デフォルト: 20） */
+  maxSuggestions?: number;
 }
 
 /**

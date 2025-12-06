@@ -110,10 +110,43 @@ export class FileSearchManager {
   private cursorPositionPath: AtPathRange | null = null;
 
   // Constants
-  private static readonly MAX_SUGGESTIONS = 15;
+  private static readonly DEFAULT_MAX_SUGGESTIONS = 20;
+
+  // Cached maxSuggestions per type
+  private maxSuggestionsCache: Map<string, number> = new Map();
 
   constructor(callbacks: FileSearchCallbacks) {
     this.callbacks = callbacks;
+  }
+
+  /**
+   * Get maxSuggestions for a given type (cached)
+   */
+  private async getMaxSuggestions(type: 'command' | 'mention'): Promise<number> {
+    // Check cache first
+    if (this.maxSuggestionsCache.has(type)) {
+      return this.maxSuggestionsCache.get(type)!;
+    }
+
+    try {
+      const electronAPI = (window as any).electronAPI;
+      if (electronAPI?.mdSearch?.getMaxSuggestions) {
+        const maxSuggestions = await electronAPI.mdSearch.getMaxSuggestions(type);
+        this.maxSuggestionsCache.set(type, maxSuggestions);
+        return maxSuggestions;
+      }
+    } catch (error) {
+      console.error('[FileSearchManager] Failed to get maxSuggestions:', error);
+    }
+
+    return FileSearchManager.DEFAULT_MAX_SUGGESTIONS;
+  }
+
+  /**
+   * Clear maxSuggestions cache (call when settings might have changed)
+   */
+  public clearMaxSuggestionsCache(): void {
+    this.maxSuggestionsCache.clear();
   }
 
   /**
@@ -1657,7 +1690,8 @@ export class FileSearchManager {
       const electronAPI = (window as any).electronAPI;
       if (electronAPI?.agents?.get) {
         const agents = await electronAPI.agents.get(query);
-        return agents.slice(0, FileSearchManager.MAX_SUGGESTIONS);
+        const maxSuggestions = await this.getMaxSuggestions('mention');
+        return agents.slice(0, maxSuggestions);
       }
     } catch (error) {
       console.error('[FileSearchManager] Failed to search agents:', error);
@@ -1904,7 +1938,7 @@ export class FileSearchManager {
           // Then sort by name
           return a.name.localeCompare(b.name);
         });
-        return sorted.slice(0, FileSearchManager.MAX_SUGGESTIONS);
+        return sorted.slice(0, FileSearchManager.DEFAULT_MAX_SUGGESTIONS);
       }
 
       const queryLower = query.toLowerCase();
@@ -1917,7 +1951,7 @@ export class FileSearchManager {
         }))
         .filter(item => item.score > 0)
         .sort((a, b) => b.score - a.score)
-        .slice(0, FileSearchManager.MAX_SUGGESTIONS);
+        .slice(0, FileSearchManager.DEFAULT_MAX_SUGGESTIONS);
 
       return scored.map(item => item.file);
     }
@@ -1966,7 +2000,7 @@ export class FileSearchManager {
         // Then sort by name
         return a.name.localeCompare(b.name);
       });
-      return sorted.slice(0, FileSearchManager.MAX_SUGGESTIONS);
+      return sorted.slice(0, FileSearchManager.DEFAULT_MAX_SUGGESTIONS);
     }
 
     // With query at root level - search ALL files recursively and show matching ones
@@ -2038,7 +2072,7 @@ export class FileSearchManager {
     // Combine and sort by score
     const allScored = [...scoredFiles, ...scoredDirs]
       .sort((a, b) => b.score - a.score)
-      .slice(0, FileSearchManager.MAX_SUGGESTIONS);
+      .slice(0, FileSearchManager.DEFAULT_MAX_SUGGESTIONS);
 
     return allScored.map(item => item.file);
   }
@@ -2180,8 +2214,8 @@ export class FileSearchManager {
       items.sort((a, b) => b.score - a.score);
     }
 
-    // Limit to MAX_SUGGESTIONS
-    return items.slice(0, FileSearchManager.MAX_SUGGESTIONS);
+    // Limit to DEFAULT_MAX_SUGGESTIONS
+    return items.slice(0, FileSearchManager.DEFAULT_MAX_SUGGESTIONS);
   }
 
   /**

@@ -180,11 +180,13 @@ window:
 #    path: ~/.claude/commands
 #    pattern: "*.md"                  # Glob pattern: *.md, **/*.md, SKILL.md
 #    argumentHint: "{frontmatter@argument-hint}"  # Optional hint after selection
+#    maxSuggestions: 20               # Max number of suggestions (default: 20)
 #  - name: "agent-{basename}"
 #    type: mention
 #    description: "{frontmatter@description}"
 #    path: ~/.claude/agents
 #    pattern: "*.md"
+#    maxSuggestions: 20
 
 # --- File Search (@ mentions) ---
 # Note: fd command is required (install: brew install fd)

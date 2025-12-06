@@ -119,6 +119,7 @@ class IPCHandlers {
     ipcMain.handle('get-slash-command-file-path', this.handleGetSlashCommandFilePath.bind(this));
     ipcMain.handle('get-agents', this.handleGetAgents.bind(this));
     ipcMain.handle('get-agent-file-path', this.handleGetAgentFilePath.bind(this));
+    ipcMain.handle('get-md-search-max-suggestions', this.handleGetMdSearchMaxSuggestions.bind(this));
     ipcMain.handle('open-file-in-editor', this.handleOpenFileInEditor.bind(this));
     ipcMain.handle('check-file-exists', this.handleCheckFileExists.bind(this));
     ipcMain.handle('open-external-url', this.handleOpenExternalUrl.bind(this));
@@ -681,6 +682,24 @@ class IPCHandlers {
     }
   }
 
+  private handleGetMdSearchMaxSuggestions(
+    _event: IpcMainInvokeEvent,
+    type: 'command' | 'mention'
+  ): number {
+    try {
+      // Refresh config from settings in case they changed
+      const settings = this.settingsManager.getSettings();
+      this.mdSearchLoader.updateConfig(settings.mdSearch);
+
+      const maxSuggestions = this.mdSearchLoader.getMaxSuggestions(type);
+      logger.debug('MdSearch maxSuggestions requested', { type, maxSuggestions });
+      return maxSuggestions;
+    } catch (error) {
+      logger.error('Failed to get MdSearch maxSuggestions:', error);
+      return 20; // Default fallback
+    }
+  }
+
   private async handleOpenFileInEditor(
     _event: IpcMainInvokeEvent,
     filePath: string
@@ -836,6 +855,7 @@ class IPCHandlers {
       'get-slash-command-file-path',
       'get-agents',
       'get-agent-file-path',
+      'get-md-search-max-suggestions',
       'open-file-in-editor',
       'check-file-exists',
       'open-external-url'
