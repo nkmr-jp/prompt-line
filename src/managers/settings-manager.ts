@@ -41,7 +41,8 @@ class SettingsManager {
       fileOpener: {
         extensions: {},
         defaultEditor: null
-      }
+      },
+      mdSearch: []
     };
 
     this.currentSettings = { ...this.defaultSettings };
@@ -111,13 +112,10 @@ class SettingsManager {
           ...this.defaultSettings.fileOpener?.extensions,
           ...userSettings.fileOpener?.extensions
         }
-      }
+      },
+      // Use user's mdSearch if provided, otherwise use default (empty array)
+      mdSearch: userSettings.mdSearch ?? this.defaultSettings.mdSearch ?? []
     };
-
-    // Only set mdSearch if it exists in user settings
-    if (userSettings.mdSearch) {
-      result.mdSearch = userSettings.mdSearch;
-    }
 
     return result;
   }

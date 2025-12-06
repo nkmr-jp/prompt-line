@@ -139,7 +139,8 @@ window:
         fileOpener: {
           extensions: {},
           defaultEditor: null
-        }
+        },
+        mdSearch: []
       });
     });
 
