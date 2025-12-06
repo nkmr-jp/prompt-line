@@ -137,14 +137,16 @@ The app uses Electron's two-process model with clean separation:
   - `renderer.ts`: Main renderer class with integrated keyboard handling and manager pattern
   - `ui-manager.ts`: Advanced UI management with themes, animations, and notifications
   - `input.html`: Main window template
-  - 9 specialized managers: DOM, events, search, lifecycle, shortcuts, animation, and more
+  - 13+ specialized managers: DOM, events, search, lifecycle, shortcuts, animation, file-search, slash-commands, history-ui, and more
   - Comprehensive CSS architecture with themes and modular stylesheets
   - TypeScript configuration and utility functions
+- **Preload Script** (`src/preload/preload.ts`): Secure context bridge with whitelisted IPC channels
 - **IPC Bridge** (`src/handlers/ipc-handlers.ts`): All communication between processes goes through well-defined IPC channels
 
 ### Manager Pattern
 Core functionality is organized into specialized managers:
 
+**Main Process Managers:**
 - **WindowManager**: Controls window creation, positioning, and lifecycle
   - Supports multiple positioning modes: active-text-field (default), active-window-center, cursor, center
   - Native Swift tools integration for window and text field detection
@@ -157,6 +159,18 @@ Core functionality is organized into specialized managers:
   - Real-time settings updates with deep merge functionality
   - Automatic settings file creation with sensible defaults
 - **DesktopSpaceManager**: Ultra-fast desktop space change detection for window recreation
+- **FileCacheManager**: File caching with invalidation for performance optimization
+- **MdSearchLoader**: Markdown file search and loading functionality
+- **DirectoryManager**: Directory operations and management
+- **FileOpenerManager**: File opening with custom editor support
+
+**Renderer Process Managers:**
+- **DomManager**: DOM element management and manipulation
+- **EventHandler**: Centralized event processing
+- **SearchManager**: Search functionality implementation
+- **SlashCommandManager**: Slash command processing and execution
+- **FileSearchManager**: @ mention file search with fuzzy matching (disabled by default)
+- **HistoryUIManager**: History display and interaction management
 
 ### Data Flow
 ```
@@ -166,13 +180,26 @@ User Input → Renderer → IPC Event → Handler → Manager → Data/System
 ```
 
 ### Key IPC Channels
+**Core Operations:**
 - `paste-text`: Main action - pastes text to previous application
 - `paste-image`: Clipboard image pasting support
+- `hide-window`, `show-window`, `focus-window`, `window-shown`: Window control
+
+**History & Draft:**
 - `get-history`, `clear-history`, `remove-history-item`, `search-history`: History operations
-- `save-draft`, `clear-draft`, `get-draft`: Draft management
-- `hide-window`, `show-window`: Window control
-- `get-config`, `get-app-info`: Configuration and app metadata
-- Additional channels: Settings management, statistics, configuration, and more (18 total channels)
+- `save-draft`, `clear-draft`, `get-draft`, `get-draft-directory`, `set-draft-directory`: Draft management
+
+**Configuration:**
+- `get-config`, `get-app-info`, `get-settings`, `update-settings`: Configuration and settings
+
+**Feature Channels:**
+- `get-slash-commands`, `get-slash-command-file-path`: Slash command support
+- `get-agents`, `get-agent-file-path`: Agent selection and management
+- `check-file-exists`, `open-file-in-editor`, `open-external-url`: File operations
+- `directory-data-updated`: Directory change notifications
+- `clipboard-*`: Clipboard operations
+
+Total: 25+ IPC channels
 
 ## Platform-Specific Implementation
 
@@ -185,6 +212,7 @@ The app uses compiled Swift native tools to simulate Cmd+V in the previously act
 - **Window Detector**: Compiled Swift binary for reliable window bounds and app detection
 - **Keyboard Simulator**: Native Cmd+V simulation and app activation with bundle ID support
 - **Text Field Detector**: Focused text field detection for precise positioning using Accessibility APIs
+- **Directory Detector**: Fast CWD (current working directory) detection using libproc for 10-50x faster performance
 - **JSON Communication**: Structured data exchange prevents parsing vulnerabilities
 - **Error Recovery**: Graceful fallback from text field → window center → cursor → center positioning
 - **Timeout Protection**: 3-second timeout prevents hanging on unresponsive operations
@@ -274,6 +302,19 @@ The window supports multiple positioning modes with dynamic configuration:
 - **Real-time search** with highlighting and case-insensitive matching
 - **Streaming operations** for large files with efficient append-only strategy
 
+### File Search Feature
+- **@ mention syntax**: Type `@` to trigger file search
+- **Fuzzy matching**: Intelligent file path matching
+- **Hybrid loading strategy**: Stage 1 (quick single-level) + Stage 2 (recursive fd command)
+- **Disabled by default**: Enable via settings for stability
+- **fd command integration**: Uses `fd` for fast recursive file discovery
+
+### Slash Commands & Agents
+- **Slash command system**: Type `/` to access commands
+- **Custom commands**: User-defined commands from markdown files
+- **Agent selection**: Choose from available agents
+- **File path integration**: Commands can reference file paths
+
 ### Desktop Space Management
 - **Ultra-fast detection**: <5ms performance target for space changes
 - **Space signatures**: Hash-based identification for efficient comparison
@@ -283,8 +324,10 @@ The window supports multiple positioning modes with dynamic configuration:
 
 ### Security Considerations
 - **Native tools security**: Compiled Swift binaries eliminate script injection vulnerabilities
-- **Input sanitization**: AppleScript sanitization with 64KB limits and character escaping
+- **Input sanitization**: AppleScript sanitization with 64KB limits and character escaping, input size limits (1MB)
 - **Path validation**: Comprehensive path normalization prevents directory traversal
+- **Preload script security**: Context bridge with whitelisted IPC channels only
+- **Prototype pollution prevention**: Input validation against prototype attacks
 - **No app sandboxing** (required for auto-paste functionality)
 - **Explicit permissions**: Requires user accessibility permissions with guided setup
 - **Local data only**: All data stored locally, no network requests
@@ -378,7 +421,7 @@ ls -la dist/mac*/Prompt\ Line.app/Contents/Resources/app.asar.unpacked/dist/nati
 ### Investigation Task Guidelines
 When conducting investigations (CI failures, bugs, security issues, design considerations, implementation planning, etc.), follow these guidelines:
 
-1. **Documentation**: Always document investigation results in `.claude/scratch/` directory
+1. **Documentation**: Always document investigation results in `.claude/artifact/` directory
 2. **File Format**: Use markdown format for all investigation reports
 3. **File Naming**: Use descriptive names like:
    - `YYYYMMDD-ci-failure-investigation.md`
