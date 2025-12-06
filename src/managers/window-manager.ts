@@ -233,35 +233,38 @@ class WindowManager {
         ...data
       };
 
-      // Load cached file data for immediate file search availability
-      const cachedData = await this.loadCachedFilesForWindow();
-      if (cachedData) {
-        windowData.directoryData = cachedData;
-        logger.debug('Loaded cached directory data', {
-          directory: cachedData.directory,
-          fileCount: cachedData.fileCount,
-          fromCache: cachedData.fromCache
-        });
-      } else if (this.savedDirectory) {
-        // Fallback to draft directory with empty files if no cache
-        windowData.directoryData = {
-          success: true,
-          directory: this.savedDirectory,
-          files: [],
-          fileCount: 0,
-          partial: false,  // Always false (single stage with fd)
-          searchMode: 'recursive',  // Always recursive (fd is required)
-          fromDraft: true
-        };
-      }
-
-      // Add hint message if fd command is not available (only when fileSearch is enabled)
-      if (this.isFileSearchEnabled() && !this.fdCommandAvailable) {
-        if (!windowData.directoryData) {
-          windowData.directoryData = { success: false };
+      // Only load directory data and check fd when fileSearch is enabled
+      if (this.isFileSearchEnabled()) {
+        // Load cached file data for immediate file search availability
+        const cachedData = await this.loadCachedFilesForWindow();
+        if (cachedData) {
+          windowData.directoryData = cachedData;
+          logger.debug('Loaded cached directory data', {
+            directory: cachedData.directory,
+            fileCount: cachedData.fileCount,
+            fromCache: cachedData.fromCache
+          });
+        } else if (this.savedDirectory) {
+          // Fallback to draft directory with empty files if no cache
+          windowData.directoryData = {
+            success: true,
+            directory: this.savedDirectory,
+            files: [],
+            fileCount: 0,
+            partial: false,  // Always false (single stage with fd)
+            searchMode: 'recursive',  // Always recursive (fd is required)
+            fromDraft: true
+          };
         }
-        windowData.directoryData.hint = 'Install fd for file search: brew install fd';
-        logger.debug('Added fd not available hint to directoryData');
+
+        // Add hint message if fd command is not available
+        if (!this.fdCommandAvailable) {
+          if (!windowData.directoryData) {
+            windowData.directoryData = { success: false };
+          }
+          windowData.directoryData.hint = 'Install fd for file search: brew install fd';
+          logger.debug('Added fd not available hint to directoryData');
+        }
       }
 
       // Handle window display efficiently - show window FIRST before directory detection
