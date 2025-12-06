@@ -28,16 +28,8 @@ class SettingsManager {
         height: 300
       },
       // commands is optional - not set by default
-      // fileSearch is optional - defaults below are applied when accessing
-      fileSearch: {
-        respectGitignore: true,
-        excludePatterns: [],
-        includePatterns: [],
-        maxFiles: 5000,
-        includeHidden: true,
-        maxDepth: null,
-        followSymlinks: false
-      },
+      // fileSearch is optional - when undefined, file search feature is disabled
+      // fileOpener is optional - when undefined, uses system default
       fileOpener: {
         extensions: {},
         defaultEditor: null
@@ -100,10 +92,6 @@ class SettingsManager {
         ...this.defaultSettings.window,
         ...userSettings.window
       },
-      fileSearch: {
-        ...this.defaultSettings.fileSearch,
-        ...userSettings.fileSearch
-      },
       fileOpener: {
         ...this.defaultSettings.fileOpener,
         ...userSettings.fileOpener,
@@ -116,6 +104,11 @@ class SettingsManager {
       // Use user's mdSearch if provided, otherwise use default (empty array)
       mdSearch: userSettings.mdSearch ?? this.defaultSettings.mdSearch ?? []
     };
+
+    // Only set fileSearch if it exists in user settings (feature is disabled when undefined)
+    if (userSettings.fileSearch) {
+      result.fileSearch = userSettings.fileSearch;
+    }
 
     return result;
   }
@@ -156,18 +149,46 @@ class SettingsManager {
     maxSuggestions: ${entry.maxSuggestions ?? 20}${entry.searchPrefix ? `\n    searchPrefix: "${entry.searchPrefix}"` : ''}`).join('\n');
     };
 
-    // Build excludePatterns section
-    const excludePatternsSection = settings.fileSearch?.excludePatterns && settings.fileSearch.excludePatterns.length > 0
-      ? `excludePatterns:${formatArrayAsList(settings.fileSearch.excludePatterns)}  # Additional exclude patterns`
-      : `#excludePatterns:                  # Additional exclude patterns (uncomment to enable)
+    // Build fileSearch section - if fileSearch is defined, output values; otherwise comment out entire section
+    const buildFileSearchSection = (): string => {
+      if (!settings.fileSearch) {
+        // Feature is disabled - output commented template
+        return `#fileSearch:                        # File search for @ mentions (uncomment to enable)
+#  respectGitignore: true             # Respect .gitignore files
+#  includeHidden: true                # Include hidden files (starting with .)
+#  maxFiles: 5000                     # Maximum files to return
+#  maxDepth: null                     # Directory depth limit (null = unlimited)
+#  followSymlinks: false              # Follow symbolic links
+#  #excludePatterns:                  # Additional exclude patterns
+#  #  - "*.log"
+#  #  - "*.tmp"
+#  #includePatterns:                  # Force include patterns (override .gitignore)
+#  #  - "dist/**/*.js"`;
+      }
+
+      // Feature is enabled - output actual values
+      const excludePatternsSection = settings.fileSearch.excludePatterns && settings.fileSearch.excludePatterns.length > 0
+        ? `excludePatterns:${formatArrayAsList(settings.fileSearch.excludePatterns)}  # Additional exclude patterns`
+        : `#excludePatterns:                  # Additional exclude patterns (uncomment to enable)
   #  - "*.log"
   #  - "*.tmp"`;
 
-    // Build includePatterns section
-    const includePatternsSection = settings.fileSearch?.includePatterns && settings.fileSearch.includePatterns.length > 0
-      ? `includePatterns:${formatArrayAsList(settings.fileSearch.includePatterns)}  # Force include patterns (override .gitignore)`
-      : `#includePatterns:                  # Force include patterns (uncomment to enable)
+      const includePatternsSection = settings.fileSearch.includePatterns && settings.fileSearch.includePatterns.length > 0
+        ? `includePatterns:${formatArrayAsList(settings.fileSearch.includePatterns)}  # Force include patterns (override .gitignore)`
+        : `#includePatterns:                  # Force include patterns (uncomment to enable)
   #  - "dist/**/*.js"`;
+
+      return `fileSearch:
+  respectGitignore: ${settings.fileSearch.respectGitignore ?? true}    # Respect .gitignore files
+  includeHidden: ${settings.fileSearch.includeHidden ?? true}          # Include hidden files (starting with .)
+  maxFiles: ${settings.fileSearch.maxFiles ?? 5000}                    # Maximum files to return
+  maxDepth: ${settings.fileSearch.maxDepth ?? 'null'}                  # Directory depth limit (null = unlimited)
+  followSymlinks: ${settings.fileSearch.followSymlinks ?? false}       # Follow symbolic links
+  ${excludePatternsSection}
+  ${includePatternsSection}`;
+    };
+
+    const fileSearchSection = buildFileSearchSection();
 
     // Build extensions section
     const extensionsSection = settings.fileOpener?.extensions && Object.keys(settings.fileOpener.extensions).length > 0
@@ -228,20 +249,6 @@ window:
   height: ${settings.window.height}                     # Recommended: 200-400 pixels
 
 # ============================================================================
-# FILE SEARCH SETTINGS (@ mentions)
-# ============================================================================
-# Note: fd command is required for file search (install: brew install fd)
-
-fileSearch:
-  respectGitignore: ${settings.fileSearch?.respectGitignore ?? true}    # Respect .gitignore files
-  includeHidden: ${settings.fileSearch?.includeHidden ?? true}          # Include hidden files (starting with .)
-  maxFiles: ${settings.fileSearch?.maxFiles ?? 5000}                    # Maximum files to return
-  maxDepth: ${settings.fileSearch?.maxDepth ?? 'null'}                  # Directory depth limit (null = unlimited)
-  followSymlinks: ${settings.fileSearch?.followSymlinks ?? false}       # Follow symbolic links
-  ${excludePatternsSection}
-  ${includePatternsSection}
-
-# ============================================================================
 # FILE OPENER SETTINGS
 # ============================================================================
 # Configure which applications to use when opening file links
@@ -253,6 +260,14 @@ fileOpener:
   defaultEditor: ${settings.fileOpener?.defaultEditor === null || settings.fileOpener?.defaultEditor === undefined ? 'null' : `"${settings.fileOpener.defaultEditor}"`}
   # Extension-specific applications (overrides defaultEditor)
   ${extensionsSection}
+
+# ============================================================================
+# FILE SEARCH SETTINGS (@ mentions)
+# ============================================================================
+# Note: fd command is required for file search (install: brew install fd)
+# When this section is commented out, file search feature is disabled
+
+${fileSearchSection}
 
 # ============================================================================
 # MARKDOWN SEARCH SETTINGS (Slash Commands & Mentions)
@@ -333,11 +348,16 @@ ${mdSearchSection}
     };
   }
 
-  getFileSearchSettings(): FileSearchSettings {
-    return {
-      ...this.defaultSettings.fileSearch,
-      ...this.currentSettings.fileSearch
-    } as FileSearchSettings;
+  getFileSearchSettings(): FileSearchSettings | undefined {
+    // Return undefined if fileSearch is not configured (feature disabled)
+    if (!this.currentSettings.fileSearch) {
+      return undefined;
+    }
+    return this.currentSettings.fileSearch as FileSearchSettings;
+  }
+
+  isFileSearchEnabled(): boolean {
+    return this.currentSettings.fileSearch !== undefined;
   }
 
   async updateFileSearchSettings(fileSearch: Partial<NonNullable<UserSettings['fileSearch']>>): Promise<void> {

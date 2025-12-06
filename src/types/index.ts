@@ -38,6 +38,7 @@ export interface WindowData {
   draft?: string | DraftData | null;
   settings?: UserSettings;
   directoryData?: DirectoryInfo;
+  fileSearchEnabled?: boolean;
 }
 
 export interface HistoryStats {

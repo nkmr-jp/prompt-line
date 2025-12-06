@@ -45,6 +45,23 @@ window:
   height: 300  # Recommended range: 200-400
 
 # ==============================================================================
+# File Opener Configuration
+# ==============================================================================
+# Configure which applications to use when opening file links
+# When defaultEditor is null, system default application is used
+fileOpener:
+  # Default editor for all files
+  # Set to null to use system default application
+  # Example values: "Visual Studio Code", "Sublime Text", "WebStorm"
+  defaultEditor: null
+
+  # Extension-specific applications (uncomment to enable)
+  #extensions:
+  #  ts: "WebStorm"
+  #  md: "Typora"
+  #  pdf: "Preview"
+
+# ==============================================================================
 # File Search Configuration for @ Mentions
 # ==============================================================================
 # Configure file search behavior when using @ mentions in the input
@@ -76,23 +93,6 @@ fileSearch:
   #includePatterns:
   #  - "dist/**/*.js"
   #  - ".storybook/**/*"
-
-# ==============================================================================
-# File Opener Configuration
-# ==============================================================================
-# Configure which applications to use when opening file links
-# When defaultEditor is null, system default application is used
-fileOpener:
-  # Default editor for all files
-  # Set to null to use system default application
-  # Example values: "Visual Studio Code", "Sublime Text", "WebStorm"
-  defaultEditor: null
-
-  # Extension-specific applications (uncomment to enable)
-  #extensions:
-  #  ts: "WebStorm"
-  #  md: "Typora"
-  #  pdf: "Preview"
 
 # ==============================================================================
 # Markdown Search Configuration (Slash Commands & Mentions)

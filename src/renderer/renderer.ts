@@ -404,7 +404,8 @@ export class PromptLineRenderer {
       this.domManager.setDraggable(false);
 
       // Cache directory data for file search (from cache, Stage 1, or draft fallback)
-      if (data.directoryData) {
+      // Only process directory data and show hints when fileSearch is enabled
+      if (data.fileSearchEnabled && data.directoryData) {
         console.debug('[Renderer] caching directory data for file search', {
           fromDraft: data.directoryData.fromDraft,
           fromCache: data.directoryData.fromCache,
@@ -436,7 +437,7 @@ export class PromptLineRenderer {
             await electronAPI.invoke('set-draft-directory', data.directoryData.directory);
           }
         }
-      } else {
+      } else if (data.fileSearchEnabled) {
         console.debug('[Renderer] no directory data in window-shown event');
         // Show loading message only for apps that support directory detection
         // Otherwise, keep the default hint text
@@ -444,6 +445,8 @@ export class PromptLineRenderer {
           this.domManager.updateHintText('Detecting directory...');
         }
         // If not directory-capable, leave the default hint text unchanged
+      } else {
+        console.debug('[Renderer] fileSearch is disabled, skipping directory hint display');
       }
 
       // Restore @paths highlighting for restored draft text (after small delay to ensure text is set)

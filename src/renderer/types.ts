@@ -73,6 +73,7 @@ export interface WindowData {
   draft?: string | { text: string } | null;
   settings?: UserSettings;
   directoryData?: DirectoryInfo;
+  fileSearchEnabled?: boolean;
 }
 
 export interface Config {

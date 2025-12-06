@@ -229,6 +229,7 @@ class WindowManager {
       const windowData: WindowData = {
         sourceApp: this.previousApp,
         currentSpaceInfo,
+        fileSearchEnabled: this.isFileSearchEnabled(),
         ...data
       };
 
@@ -742,9 +743,13 @@ class WindowManager {
     return { ...this.customWindowSettings };
   }
 
-  updateFileSearchSettings(settings: FileSearchSettings): void {
-    this.fileSearchSettings = settings;
-    logger.debug('File search settings updated', settings);
+  updateFileSearchSettings(settings: FileSearchSettings | null | undefined): void {
+    this.fileSearchSettings = settings ?? null;
+    logger.debug('File search settings updated', { enabled: settings !== null && settings !== undefined, settings });
+  }
+
+  isFileSearchEnabled(): boolean {
+    return this.fileSearchSettings !== null;
   }
 
   /**
