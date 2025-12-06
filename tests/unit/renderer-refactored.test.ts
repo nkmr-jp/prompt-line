@@ -83,6 +83,7 @@ jest.mock('../../src/renderer/dom-manager', () => ({
         searchInput: { addEventListener: jest.fn() },
         updateCharCount: jest.fn(),
         updateAppName: jest.fn(),
+        updateHintText: jest.fn(),
         showError: jest.fn(),
         insertTextAtCursor: jest.fn(),
         clearText: jest.fn(),

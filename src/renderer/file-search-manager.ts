@@ -905,6 +905,33 @@ export class FileSearchManager {
   }
 
   /**
+   * Check if file index is being built
+   * Returns true if directory data is not yet available or is from draft fallback with no files
+   */
+  private isIndexBeingBuilt(): boolean {
+    // No cached data at all - index is being built
+    if (!this.cachedDirectoryData) {
+      return true;
+    }
+
+    // Draft fallback with no files - index is being built
+    if (this.cachedDirectoryData.fromDraft && this.cachedDirectoryData.files.length === 0) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Show hint that file index is being built
+   */
+  private showIndexingHint(): void {
+    if (this.callbacks.updateHintText) {
+      this.callbacks.updateHintText('Building file index...');
+    }
+  }
+
+  /**
    * Render highlight backdrop with cursor position highlight
    * @paths get their own highlight, absolute paths get cursor highlight
    */
@@ -1589,6 +1616,9 @@ export class FileSearchManager {
       this.filteredAgents = [];
     }
 
+    // Check if index is being built
+    const isIndexBuilding = this.isIndexBeingBuilt();
+
     // Filter files if directory data is available
     if (this.cachedDirectoryData) {
       this.filteredFiles = this.filterFiles(searchTerm);
@@ -1602,13 +1632,19 @@ export class FileSearchManager {
     this.selectedIndex = 0;
     this.isVisible = true;
 
+    // Show indexing hint if index is being built
+    if (isIndexBuilding) {
+      this.showIndexingHint();
+    }
+
     console.debug('[FileSearchManager] showSuggestions: filtered', formatLog({
       agents: this.filteredAgents.length,
       files: this.filteredFiles.length,
       merged: this.mergedSuggestions.length,
-      searchTerm
+      searchTerm,
+      isIndexBuilding
     }));
-    this.renderSuggestions();
+    this.renderSuggestions(isIndexBuilding);
     this.positionSuggestions();
     this.updateSelection();
     console.debug('[FileSearchManager] showSuggestions: render complete, isVisible:', this.isVisible);
@@ -1764,13 +1800,19 @@ export class FileSearchManager {
 
     this.isVisible = false;
     this.suggestionsContainer.style.display = 'none';
-    this.suggestionsContainer.innerHTML = '';
+    // Clear container safely
+    while (this.suggestionsContainer.firstChild) {
+      this.suggestionsContainer.removeChild(this.suggestionsContainer.firstChild);
+    }
     this.filteredFiles = [];
     this.filteredAgents = [];
     this.mergedSuggestions = [];
     this.currentQuery = '';
     this.atStartPosition = -1;
     this.currentPath = ''; // Reset directory navigation state
+
+    // Restore default hint text
+    this.restoreDefaultHint();
 
     // Hide frontmatter popup
     this.hideFrontmatterPopup();
@@ -2176,18 +2218,25 @@ export class FileSearchManager {
 
   /**
    * Render the suggestions in the dropdown
+   * @param isIndexBuilding - Whether the file index is currently being built
    */
-  private renderSuggestions(): void {
+  private renderSuggestions(isIndexBuilding: boolean = false): void {
     if (!this.suggestionsContainer) return;
 
     const totalItems = this.getTotalItemCount();
 
     if (totalItems === 0) {
-      this.suggestionsContainer.innerHTML = `
-        <div class="file-suggestion-empty">
-          No matching items found
-        </div>
-      `;
+      // Clear existing content safely
+      while (this.suggestionsContainer.firstChild) {
+        this.suggestionsContainer.removeChild(this.suggestionsContainer.firstChild);
+      }
+
+      // Create empty state element using safe DOM methods
+      const emptyDiv = document.createElement('div');
+      emptyDiv.className = isIndexBuilding ? 'file-suggestion-empty indexing' : 'file-suggestion-empty';
+      emptyDiv.textContent = isIndexBuilding ? 'Building file index...' : 'No matching items found';
+      this.suggestionsContainer.appendChild(emptyDiv);
+
       this.suggestionsContainer.style.display = 'block';
       // Reset scroll position to top
       this.suggestionsContainer.scrollTop = 0;
