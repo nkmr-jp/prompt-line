@@ -529,7 +529,8 @@ const results = await this.historyManager.searchHistory(query, limit);
 
       const imagesDir = config.paths.imagesDir;
       try {
-        await fs.mkdir(imagesDir, { recursive: true });
+        // Set restrictive directory permissions (owner read/write/execute only)
+        await fs.mkdir(imagesDir, { recursive: true, mode: 0o700 });
       } catch (error) {
         logger.error('Failed to create images directory:', error);
       }
@@ -577,7 +578,8 @@ const results = await this.historyManager.searchHistory(query, limit);
       }
 
       const buffer = image.toPNG();
-      await fs.writeFile(normalizedPath, buffer);
+      // Set restrictive file permissions (owner read/write only)
+      await fs.writeFile(normalizedPath, buffer, { mode: 0o600 });
 
       // Clear clipboard text to prevent markdown syntax from being pasted
       // when copying images from markdown editors like Bear

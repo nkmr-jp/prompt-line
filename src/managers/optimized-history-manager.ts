@@ -56,7 +56,8 @@ class OptimizedHistoryManager implements IHistoryManager {
     try {
       await fs.access(this.historyFile);
     } catch {
-      await fs.writeFile(this.historyFile, '');
+      // Set restrictive file permissions (owner read/write only)
+      await fs.writeFile(this.historyFile, '', { mode: 0o600 });
       logger.debug('Created new history file');
     }
   }

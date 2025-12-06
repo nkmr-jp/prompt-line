@@ -96,7 +96,8 @@ class HistoryManager implements IHistoryManager {
         .map(item => JSON.stringify(item))
         .join('\n');
 
-      await fs.writeFile(this.historyFile, jsonlData + '\n');
+      // Set restrictive file permissions (owner read/write only)
+      await fs.writeFile(this.historyFile, jsonlData + '\n', { mode: 0o600 });
       this.hasUnsavedChanges = false;
       logger.debug(`Batch saved ${this.historyData.length} history items to JSONL`);
     } catch (error) {

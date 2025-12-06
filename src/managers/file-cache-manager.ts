@@ -30,7 +30,8 @@ class FileCacheManager {
    */
   async initialize(): Promise<void> {
     try {
-      await fs.mkdir(this.cacheDir, { recursive: true });
+      // Set restrictive directory permissions (owner read/write/execute only)
+      await fs.mkdir(this.cacheDir, { recursive: true, mode: 0o700 });
       logger.debug('File cache manager initialized');
     } catch (error) {
       logger.error('Failed to initialize file cache manager:', error);
@@ -112,8 +113,8 @@ class FileCacheManager {
       const metadataPath = path.join(cachePath, 'metadata.json');
       const filesPath = path.join(cachePath, 'files.jsonl');
 
-      // Create cache directory
-      await fs.mkdir(cachePath, { recursive: true });
+      // Create cache directory with restrictive permissions (owner read/write/execute only)
+      await fs.mkdir(cachePath, { recursive: true, mode: 0o700 });
 
       // Prepare metadata
       const now = new Date().toISOString();
@@ -130,8 +131,8 @@ class FileCacheManager {
         })
       };
 
-      // Write metadata
-      await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2));
+      // Write metadata with restrictive file permissions (owner read/write only)
+      await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), { mode: 0o600 });
 
       // Convert files to cache entries and write JSONL
       const entries = files.map(file => this.fileInfoToCacheEntry(file));
@@ -187,8 +188,8 @@ class FileCacheManager {
       // Update only the updatedAt field
       metadata.updatedAt = new Date().toISOString();
 
-      // Write back
-      await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2));
+      // Write back with restrictive file permissions (owner read/write only)
+      await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), { mode: 0o600 });
 
       logger.debug(`Updated cache timestamp for directory: ${directory}`);
     } catch (error) {
@@ -507,7 +508,8 @@ class FileCacheManager {
     entries: CachedFileEntry[]
   ): Promise<void> {
     return new Promise((resolve, reject) => {
-      const writeStream = createWriteStream(filePath);
+      // Set restrictive file permissions (owner read/write only)
+      const writeStream = createWriteStream(filePath, { mode: 0o600 });
 
       writeStream.on('error', reject);
       writeStream.on('finish', resolve);

@@ -84,7 +84,7 @@ describe('OptimizedHistoryManager', () => {
 
       await manager.initialize();
 
-      expect(mockFs.writeFile).toHaveBeenCalledWith('/test/history.jsonl', '');
+      expect(mockFs.writeFile).toHaveBeenCalledWith('/test/history.jsonl', '', { mode: 0o600 });
     });
 
     it('should load recent history on initialize', async () => {

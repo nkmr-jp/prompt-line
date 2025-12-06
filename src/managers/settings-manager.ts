@@ -52,11 +52,15 @@ class SettingsManager {
 
   private async loadSettings(): Promise<void> {
     try {
-      await fs.mkdir(path.dirname(this.settingsFile), { recursive: true });
+      // Set restrictive directory permissions (owner read/write/execute only)
+      await fs.mkdir(path.dirname(this.settingsFile), { recursive: true, mode: 0o700 });
 
       try {
         const data = await fs.readFile(this.settingsFile, 'utf8');
-        const parsed = yaml.load(data) as UserSettings;
+        // Use JSON_SCHEMA to prevent arbitrary code execution from malicious YAML
+        // JSON_SCHEMA only allows JSON-compatible types (strings, numbers, booleans, null, arrays, objects)
+        // which prevents JavaScript-specific type coercion attacks
+        const parsed = yaml.load(data, { schema: yaml.JSON_SCHEMA }) as UserSettings;
         
         if (parsed && typeof parsed === 'object') {
           this.currentSettings = this.mergeWithDefaults(parsed);
@@ -117,7 +121,8 @@ class SettingsManager {
     try {
       const settingsWithComments = this.addCommentsToSettings(this.currentSettings);
       
-      await fs.writeFile(this.settingsFile, settingsWithComments, 'utf8');
+      // Set restrictive file permissions (owner read/write only)
+      await fs.writeFile(this.settingsFile, settingsWithComments, { encoding: 'utf8', mode: 0o600 });
       logger.debug('Settings saved to YAML file', { file: this.settingsFile });
     } catch (error) {
       logger.error('Failed to save settings:', error);

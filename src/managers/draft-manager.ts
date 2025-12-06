@@ -144,7 +144,8 @@ class DraftManager {
       };
 
       const data = safeJsonStringify(draft);
-      await fs.writeFile(this.draftFile, data);
+      // Set restrictive file permissions (owner read/write only)
+      await fs.writeFile(this.draftFile, data, { mode: 0o600 });
 
       this.lastSavedContent = text;
       this.hasUnsavedChanges = false;
@@ -297,8 +298,9 @@ class DraftManager {
       };
       
       const data = safeJsonStringify(draft);
-      await fs.writeFile(backupFile, data);
-      
+      // Set restrictive file permissions (owner read/write only)
+      await fs.writeFile(backupFile, data, { mode: 0o600 });
+
       logger.info('Draft backed up to:', backupFile);
       return backupFile;
     } catch (error) {

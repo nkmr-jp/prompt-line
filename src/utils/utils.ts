@@ -444,7 +444,8 @@ async function ensureDir(dirPath: string): Promise<void> {
     await fs.access(dirPath);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      await fs.mkdir(dirPath, { recursive: true });
+      // Set restrictive directory permissions (owner read/write/execute only)
+      await fs.mkdir(dirPath, { recursive: true, mode: 0o700 });
       logger.debug('Created directory:', dirPath);
     } else {
       throw error;
