@@ -87,6 +87,15 @@ jest.mock('child_process', () => ({
     exec: jest.fn((_command: string, callback: (error: Error | null, stdout?: string) => void) => {
         // Mock successful execution
         callback(null, 'mocked output');
+    }),
+    execFile: jest.fn((_file: string, _args: string[], _options: unknown, callback: (error: Error | null, stdout?: string, stderr?: string) => void) => {
+        // Mock successful execution
+        if (typeof _options === 'function') {
+            // Handle case where options is omitted and callback is in options position
+            (_options as (error: Error | null, stdout?: string, stderr?: string) => void)(null, 'mocked output', '');
+        } else if (callback) {
+            callback(null, 'mocked output', '');
+        }
     })
 }));
 

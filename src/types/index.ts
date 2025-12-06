@@ -203,6 +203,8 @@ export interface UserSettings {
     maxDepth?: number | null;
     // Follow symbolic links (default: false)
     followSymlinks?: boolean;
+    // Custom path to fd command (null = auto-detect from common paths)
+    fdPath?: string | null;
   };
   fileOpener?: {
     // Extension-specific application settings (e.g., { "ts": "WebStorm", "md": "Typora" })
@@ -287,6 +289,8 @@ export interface FileSearchSettings {
   maxDepth: number | null;
   // Follow symbolic links (default: false)
   followSymlinks: boolean;
+  // Custom path to fd command (null = auto-detect from common paths)
+  fdPath: string | null;
 }
 
 // Directory data for file search (cached in renderer)

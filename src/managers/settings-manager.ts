@@ -159,6 +159,7 @@ class SettingsManager {
 #  maxFiles: 5000                     # Maximum files to return
 #  maxDepth: null                     # Directory depth limit (null = unlimited)
 #  followSymlinks: false              # Follow symbolic links
+#  fdPath: null                       # Custom path to fd command (null = auto-detect)
 #  #excludePatterns:                  # Additional exclude patterns
 #  #  - "*.log"
 #  #  - "*.tmp"
@@ -178,12 +179,17 @@ class SettingsManager {
         : `#includePatterns:                  # Force include patterns (uncomment to enable)
   #  - "dist/**/*.js"`;
 
+      const fdPathSection = settings.fileSearch.fdPath
+        ? `fdPath: "${settings.fileSearch.fdPath}"                       # Custom path to fd command`
+        : `#fdPath: null                       # Custom path to fd command (null = auto-detect)`;
+
       return `fileSearch:
   respectGitignore: ${settings.fileSearch.respectGitignore ?? true}    # Respect .gitignore files
   includeHidden: ${settings.fileSearch.includeHidden ?? true}          # Include hidden files (starting with .)
   maxFiles: ${settings.fileSearch.maxFiles ?? 5000}                    # Maximum files to return
   maxDepth: ${settings.fileSearch.maxDepth ?? 'null'}                  # Directory depth limit (null = unlimited)
   followSymlinks: ${settings.fileSearch.followSymlinks ?? false}       # Follow symbolic links
+  ${fdPathSection}
   ${excludePatternsSection}
   ${includePatternsSection}`;
     };
