@@ -120,6 +120,7 @@ class IPCHandlers {
     ipcMain.handle('get-agents', this.handleGetAgents.bind(this));
     ipcMain.handle('get-agent-file-path', this.handleGetAgentFilePath.bind(this));
     ipcMain.handle('get-md-search-max-suggestions', this.handleGetMdSearchMaxSuggestions.bind(this));
+    ipcMain.handle('get-md-search-prefixes', this.handleGetMdSearchPrefixes.bind(this));
     ipcMain.handle('open-file-in-editor', this.handleOpenFileInEditor.bind(this));
     ipcMain.handle('check-file-exists', this.handleCheckFileExists.bind(this));
     ipcMain.handle('open-external-url', this.handleOpenExternalUrl.bind(this));
@@ -697,6 +698,24 @@ class IPCHandlers {
     } catch (error) {
       logger.error('Failed to get MdSearch maxSuggestions:', error);
       return 20; // Default fallback
+    }
+  }
+
+  private handleGetMdSearchPrefixes(
+    _event: IpcMainInvokeEvent,
+    type: 'command' | 'mention'
+  ): string[] {
+    try {
+      // Refresh config from settings in case they changed
+      const settings = this.settingsManager.getSettings();
+      this.mdSearchLoader.updateConfig(settings.mdSearch);
+
+      const prefixes = this.mdSearchLoader.getSearchPrefixes(type);
+      logger.debug('MdSearch searchPrefixes requested', { type, prefixes });
+      return prefixes;
+    } catch (error) {
+      logger.error('Failed to get MdSearch searchPrefixes:', error);
+      return []; // Default fallback
     }
   }
 

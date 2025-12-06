@@ -239,6 +239,9 @@ const electronAPI = {
   mdSearch: {
     getMaxSuggestions: async (type: 'command' | 'mention'): Promise<number> => {
       return ipcRenderer.invoke('get-md-search-max-suggestions', type);
+    },
+    getSearchPrefixes: async (type: 'command' | 'mention'): Promise<string[]> => {
+      return ipcRenderer.invoke('get-md-search-prefixes', type);
     }
   },
 

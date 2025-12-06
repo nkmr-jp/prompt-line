@@ -776,4 +776,88 @@ Content`;
       expect(results.map(r => r.name).sort()).toEqual(['agent-helper', 'agent-search-bot']);
     });
   });
+
+  describe('getSearchPrefixes', () => {
+    test('should return empty array when no prefixes configured', () => {
+      const noPrefixLoader = new MdSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          path: '/path/to/commands',
+          pattern: '*.md',
+        },
+      ]);
+
+      const prefixes = noPrefixLoader.getSearchPrefixes('command');
+      expect(prefixes).toEqual([]);
+    });
+
+    test('should return configured prefixes for type', () => {
+      const prefixLoader = new MdSearchLoader([
+        {
+          name: 'agent-{basename}',
+          type: 'mention',
+          description: '{frontmatter@description}',
+          path: '/path/to/agents',
+          pattern: '*.md',
+          searchPrefix: 'agent:',
+        },
+      ]);
+
+      const prefixes = prefixLoader.getSearchPrefixes('mention');
+      expect(prefixes).toEqual(['agent:']);
+    });
+
+    test('should return multiple prefixes when configured', () => {
+      const multiPrefixLoader = new MdSearchLoader([
+        {
+          name: 'agent-{basename}',
+          type: 'mention',
+          description: '{frontmatter@description}',
+          path: '/path/to/agents',
+          pattern: '*.md',
+          searchPrefix: 'agent:',
+        },
+        {
+          name: 'tool-{basename}',
+          type: 'mention',
+          description: '{frontmatter@description}',
+          path: '/path/to/tools',
+          pattern: '*.md',
+          searchPrefix: 'tool:',
+        },
+      ]);
+
+      const prefixes = multiPrefixLoader.getSearchPrefixes('mention');
+      expect(prefixes).toEqual(['agent:', 'tool:']);
+    });
+
+    test('should only return prefixes for specified type', () => {
+      const mixedLoader = new MdSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          path: '/path/to/commands',
+          pattern: '*.md',
+          searchPrefix: 'cmd:',
+        },
+        {
+          name: 'agent-{basename}',
+          type: 'mention',
+          description: '{frontmatter@description}',
+          path: '/path/to/agents',
+          pattern: '*.md',
+          searchPrefix: 'agent:',
+        },
+      ]);
+
+      const commandPrefixes = mixedLoader.getSearchPrefixes('command');
+      expect(commandPrefixes).toEqual(['cmd:']);
+
+      const mentionPrefixes = mixedLoader.getSearchPrefixes('mention');
+      expect(mentionPrefixes).toEqual(['agent:']);
+    });
+  });
 });

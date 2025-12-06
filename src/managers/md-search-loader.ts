@@ -115,6 +115,14 @@ class MdSearchLoader {
   }
 
   /**
+   * 指定タイプのsearchPrefixリストを取得
+   */
+  getSearchPrefixes(type: MdSearchType): string[] {
+    const entries = this.config.filter(entry => entry.type === type && entry.searchPrefix);
+    return entries.map(entry => entry.searchPrefix!);
+  }
+
+  /**
    * 全設定エントリからアイテムをロード
    */
   private async loadAll(): Promise<MdSearchItem[]> {

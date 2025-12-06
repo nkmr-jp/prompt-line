@@ -114,6 +114,9 @@ export class FileSearchManager {
   // Cached maxSuggestions per type
   private maxSuggestionsCache: Map<string, number> = new Map();
 
+  // Cached searchPrefixes per type
+  private searchPrefixesCache: Map<string, string[]> = new Map();
+
   constructor(callbacks: FileSearchCallbacks) {
     this.callbacks = callbacks;
   }
@@ -146,6 +149,44 @@ export class FileSearchManager {
    */
   public clearMaxSuggestionsCache(): void {
     this.maxSuggestionsCache.clear();
+  }
+
+  /**
+   * Get searchPrefixes for a given type (cached)
+   */
+  private async getSearchPrefixes(type: 'command' | 'mention'): Promise<string[]> {
+    // Check cache first
+    if (this.searchPrefixesCache.has(type)) {
+      return this.searchPrefixesCache.get(type)!;
+    }
+
+    try {
+      const electronAPI = (window as any).electronAPI;
+      if (electronAPI?.mdSearch?.getSearchPrefixes) {
+        const prefixes = await electronAPI.mdSearch.getSearchPrefixes(type);
+        this.searchPrefixesCache.set(type, prefixes);
+        return prefixes;
+      }
+    } catch (error) {
+      console.error('[FileSearchManager] Failed to get searchPrefixes:', error);
+    }
+
+    return [];
+  }
+
+  /**
+   * Clear searchPrefixes cache (call when settings might have changed)
+   */
+  public clearSearchPrefixesCache(): void {
+    this.searchPrefixesCache.clear();
+  }
+
+  /**
+   * Check if query matches any searchPrefix for the given type
+   */
+  private async matchesSearchPrefix(query: string, type: 'command' | 'mention'): Promise<boolean> {
+    const prefixes = await this.getSearchPrefixes(type);
+    return prefixes.some(prefix => query.startsWith(prefix));
   }
 
   /**
@@ -1635,9 +1676,18 @@ export class FileSearchManager {
       return;
     }
 
+    // Check if query matches any searchPrefix for mention type
+    // If so, skip file search and only show agents
+    const matchesPrefix = await this.matchesSearchPrefix(query, 'mention');
+
     // Adjust currentPath based on query
     // If query doesn't start with currentPath, navigate up to the matching level
-    this.adjustCurrentPathToQuery(query);
+    // Skip path navigation when searchPrefix is matched (agents don't use paths)
+    if (!matchesPrefix) {
+      this.adjustCurrentPathToQuery(query);
+    } else {
+      this.currentPath = '';
+    }
 
     // Extract search term (part after currentPath)
     const searchTerm = this.currentPath ? query.substring(this.currentPath.length) : query;
@@ -1655,7 +1705,10 @@ export class FileSearchManager {
     const isIndexBuilding = this.isIndexBeingBuilt();
 
     // Filter files if directory data is available
-    if (this.cachedDirectoryData) {
+    // Skip file search when searchPrefix is matched (show only agents)
+    if (matchesPrefix) {
+      this.filteredFiles = [];
+    } else if (this.cachedDirectoryData) {
       this.filteredFiles = this.filterFiles(searchTerm);
     } else {
       this.filteredFiles = [];
@@ -1667,8 +1720,8 @@ export class FileSearchManager {
     this.selectedIndex = 0;
     this.isVisible = true;
 
-    // Show indexing hint if index is being built
-    if (isIndexBuilding) {
+    // Show indexing hint if index is being built (not relevant when prefix matched)
+    if (isIndexBuilding && !matchesPrefix) {
       this.showIndexingHint();
     }
 
@@ -1677,9 +1730,10 @@ export class FileSearchManager {
       files: this.filteredFiles.length,
       merged: this.mergedSuggestions.length,
       searchTerm,
-      isIndexBuilding
+      isIndexBuilding,
+      matchesPrefix
     }));
-    this.renderSuggestions(isIndexBuilding);
+    this.renderSuggestions(isIndexBuilding && !matchesPrefix);
     this.positionSuggestions();
     this.updateSelection();
     console.debug('[FileSearchManager] showSuggestions: render complete, isVisible:', this.isVisible);
