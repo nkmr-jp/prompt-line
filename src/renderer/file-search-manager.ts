@@ -1011,6 +1011,10 @@ export class FileSearchManager {
    * Show hint that file index is being built
    */
   private showIndexingHint(): void {
+    // Don't show "Building Index" if there's a more important hint (e.g., fd not installed)
+    if (this.cachedDirectoryData?.hint) {
+      return;
+    }
     if (this.callbacks.updateHintText) {
       this.callbacks.updateHintText('Building file index...');
     }
