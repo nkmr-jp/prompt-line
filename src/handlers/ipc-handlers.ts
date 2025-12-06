@@ -15,8 +15,7 @@ import type WindowManager from '../managers/window-manager';
 import type DraftManager from '../managers/draft-manager';
 import type DirectoryManager from '../managers/directory-manager';
 import type SettingsManager from '../managers/settings-manager';
-import SlashCommandLoader from '../managers/slash-command-loader';
-import AgentLoader from '../managers/agent-loader';
+import MdSearchLoader from '../managers/md-search-loader';
 import FileOpenerManager from '../managers/file-opener-manager';
 import type { AppInfo, WindowData, HistoryItem, IHistoryManager, SlashCommandItem, AgentItem } from '../types';
 
@@ -70,8 +69,7 @@ class IPCHandlers {
   private draftManager: DraftManager;
   private directoryManager: DirectoryManager;
   private settingsManager: SettingsManager;
-  private slashCommandLoader: SlashCommandLoader;
-  private agentLoader: AgentLoader;
+  private mdSearchLoader: MdSearchLoader;
   private fileOpenerManager: FileOpenerManager;
 
   constructor(
@@ -86,19 +84,14 @@ class IPCHandlers {
     this.draftManager = draftManager;
     this.directoryManager = directoryManager;
     this.settingsManager = settingsManager;
-    this.slashCommandLoader = new SlashCommandLoader();
-    this.agentLoader = new AgentLoader();
+    this.mdSearchLoader = new MdSearchLoader();
     this.fileOpenerManager = new FileOpenerManager(settingsManager);
 
-    // Initialize slash command loader and agent loader with settings
+    // Initialize MdSearchLoader with settings
     const settings = this.settingsManager.getSettings();
-    if (settings.commands?.directories) {
-      this.slashCommandLoader.setDirectories(settings.commands.directories);
-      logger.info('Slash command directories configured', { directories: settings.commands.directories });
-    }
-    if (settings.agents?.directories) {
-      this.agentLoader.setDirectories(settings.agents.directories);
-      logger.info('Agent directories configured', { directories: settings.agents.directories });
+    if (settings.mdSearch) {
+      this.mdSearchLoader.updateConfig(settings.mdSearch);
+      logger.info('MdSearch config updated from settings');
     }
 
     this.setupHandlers();
@@ -562,19 +555,33 @@ class IPCHandlers {
     query?: string
   ): Promise<SlashCommandItem[]> {
     try {
-      // Refresh directories from settings in case they changed
+      // Refresh config from settings in case they changed
       const settings = this.settingsManager.getSettings();
-      this.slashCommandLoader.setDirectories(settings.commands?.directories);
+      this.mdSearchLoader.updateConfig(settings.mdSearch);
 
-      if (query) {
-        const commands = await this.slashCommandLoader.searchCommands(query);
-        logger.debug('Slash commands searched', { query, count: commands.length });
-        return commands;
-      } else {
-        const commands = await this.slashCommandLoader.getCommands();
-        logger.debug('Slash commands requested', { count: commands.length });
-        return commands;
-      }
+      // Get commands from MdSearchLoader
+      const items = query
+        ? await this.mdSearchLoader.searchItems('command', query)
+        : await this.mdSearchLoader.getItems('command');
+
+      // Convert MdSearchItem to SlashCommandItem for backward compatibility
+      const commands: SlashCommandItem[] = items.map(item => {
+        const cmd: SlashCommandItem = {
+          name: item.name,
+          description: item.description,
+          filePath: item.filePath,
+        };
+        if (item.argumentHint) {
+          cmd.argumentHint = item.argumentHint;
+        }
+        if (item.frontmatter) {
+          cmd.frontmatter = item.frontmatter;
+        }
+        return cmd;
+      });
+
+      logger.debug('Slash commands requested', { query, count: commands.length });
+      return commands;
     } catch (error) {
       logger.error('Failed to get slash commands:', error);
       return [];
@@ -590,12 +597,12 @@ class IPCHandlers {
         return null;
       }
 
-      // Refresh directories from settings in case they changed
+      // Refresh config from settings in case they changed
       const settings = this.settingsManager.getSettings();
-      this.slashCommandLoader.setDirectories(settings.commands?.directories);
+      this.mdSearchLoader.updateConfig(settings.mdSearch);
 
-      const commands = await this.slashCommandLoader.getCommands();
-      const command = commands.find(c => c.name === commandName);
+      const items = await this.mdSearchLoader.getItems('command');
+      const command = items.find(c => c.name === commandName);
 
       if (command) {
         logger.debug('Slash command file path resolved', { commandName, filePath: command.filePath });
@@ -615,19 +622,30 @@ class IPCHandlers {
     query?: string
   ): Promise<AgentItem[]> {
     try {
-      // Refresh directories from settings in case they changed
+      // Refresh config from settings in case they changed
       const settings = this.settingsManager.getSettings();
-      this.agentLoader.setDirectories(settings.agents?.directories);
+      this.mdSearchLoader.updateConfig(settings.mdSearch);
 
-      if (query) {
-        const agents = await this.agentLoader.searchAgents(query);
-        logger.debug('Agents searched', { query, count: agents.length });
-        return agents;
-      } else {
-        const agents = await this.agentLoader.getAgents();
-        logger.debug('Agents requested', { count: agents.length });
-        return agents;
-      }
+      // Get mentions (agents) from MdSearchLoader
+      const items = query
+        ? await this.mdSearchLoader.searchItems('mention', query)
+        : await this.mdSearchLoader.getItems('mention');
+
+      // Convert MdSearchItem to AgentItem for backward compatibility
+      const agents: AgentItem[] = items.map(item => {
+        const agent: AgentItem = {
+          name: item.name,
+          description: item.description,
+          filePath: item.filePath,
+        };
+        if (item.frontmatter) {
+          agent.frontmatter = item.frontmatter;
+        }
+        return agent;
+      });
+
+      logger.debug('Agents requested', { query, count: agents.length });
+      return agents;
     } catch (error) {
       logger.error('Failed to get agents:', error);
       return [];
@@ -643,12 +661,12 @@ class IPCHandlers {
         return null;
       }
 
-      // Refresh directories from settings in case they changed
+      // Refresh config from settings in case they changed
       const settings = this.settingsManager.getSettings();
-      this.agentLoader.setDirectories(settings.agents?.directories);
+      this.mdSearchLoader.updateConfig(settings.mdSearch);
 
-      const agents = await this.agentLoader.getAgents();
-      const agent = agents.find(a => a.name === agentName);
+      const items = await this.mdSearchLoader.getItems('mention');
+      const agent = items.find(a => a.name === agentName);
 
       if (agent) {
         logger.debug('Agent file path resolved', { agentName, filePath: agent.filePath });

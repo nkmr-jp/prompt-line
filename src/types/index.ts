@@ -209,6 +209,8 @@ export interface UserSettings {
     // Default editor when no extension-specific setting exists
     defaultEditor?: string | null;
   };
+  // mdSearch configuration (unified command and mention loading)
+  mdSearch?: MdSearchEntry[];
 }
 
 export interface SlashCommandItem {
@@ -343,5 +345,54 @@ export interface FileCacheStats {
   oldestCache: string | null;
   newestCache: string | null;
   totalSizeBytes: number;
+}
+
+// ============================================================================
+// MdSearch Related Types
+// ============================================================================
+
+/**
+ * mdSearch エントリの種類
+ * - command: スラッシュコマンド（/で始まる）
+ * - mention: メンション（@で始まる）
+ */
+export type MdSearchType = 'command' | 'mention';
+
+/**
+ * mdSearch 設定エントリ
+ */
+export interface MdSearchEntry {
+  /** 名前テンプレート（例: "{basename}", "agent-{frontmatter@name}"） */
+  name: string;
+  /** 検索タイプ */
+  type: MdSearchType;
+  /** 説明テンプレート（例: "{frontmatter@description}"） */
+  description: string;
+  /** 検索ディレクトリパス */
+  path: string;
+  /** ファイルパターン（glob形式、例: "*.md", "SKILL.md"） */
+  pattern: string;
+  /** オプション: argumentHintテンプレート */
+  argumentHint?: string;
+}
+
+/**
+ * 検索結果アイテム（統一型）
+ */
+export interface MdSearchItem {
+  /** 解決済み名前 */
+  name: string;
+  /** 解決済み説明 */
+  description: string;
+  /** ソースタイプ */
+  type: MdSearchType;
+  /** ファイルパス */
+  filePath: string;
+  /** 元のfrontmatter文字列 */
+  frontmatter?: string;
+  /** argumentHint（commandタイプのみ） */
+  argumentHint?: string;
+  /** 検索ソースの識別子（path + pattern） */
+  sourceId: string;
 }
 
