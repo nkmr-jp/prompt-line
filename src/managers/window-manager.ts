@@ -19,6 +19,7 @@ class WindowManager {
   private directoryManager: DirectoryManager | null = null;
   private savedDirectory: string | null = null; // Directory from DirectoryManager for fallback
   private fileCacheManager: FileCacheManager | null = null;
+  private fdCommandAvailable: boolean = true; // fd command availability (checked on init)
 
   async initialize(): Promise<void> {
     try {
@@ -32,6 +33,9 @@ class WindowManager {
       this.fileCacheManager = new FileCacheManager();
       await this.fileCacheManager.initialize();
 
+      // Check if fd command is available
+      await this.checkFdCommandAvailability();
+
       // Pre-create window for faster first-time startup
       this.createInputWindow();
       logger.debug('Pre-created input window for faster startup');
@@ -41,6 +45,25 @@ class WindowManager {
       logger.error('Failed to initialize WindowManager:', error);
       throw error;
     }
+  }
+
+  /**
+   * Check if fd command is available on the system
+   */
+  private async checkFdCommandAvailability(): Promise<void> {
+    const { execFile } = require('child_process');
+    return new Promise((resolve) => {
+      execFile('which', ['fd'], (error: Error | null) => {
+        if (error) {
+          this.fdCommandAvailable = false;
+          logger.warn('fd command is not available. File search will not work. Install with: brew install fd');
+        } else {
+          this.fdCommandAvailable = true;
+          logger.debug('fd command is available');
+        }
+        resolve();
+      });
+    });
   }
 
   createInputWindow(): BrowserWindow {
@@ -229,6 +252,15 @@ class WindowManager {
           searchMode: 'recursive',  // Always recursive (fd is required)
           fromDraft: true
         };
+      }
+
+      // Add hint message if fd command is not available
+      if (!this.fdCommandAvailable) {
+        if (!windowData.directoryData) {
+          windowData.directoryData = { success: false };
+        }
+        windowData.directoryData.hint = 'Install fd for file search: brew install fd';
+        logger.debug('Added fd not available hint to directoryData');
       }
 
       // Handle window display efficiently - show window FIRST before directory detection
