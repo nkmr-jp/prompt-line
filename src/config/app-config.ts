@@ -60,7 +60,7 @@ class AppConfigClass {
         
         // Additional security settings
         allowRunningInsecureContent: false,
-        sandbox: false,  // Disabled for accessibility features (required for auto-paste)
+        sandbox: true,  // Enabled for enhanced security (accessibility features work via main process)
       }
     };
 
