@@ -209,6 +209,32 @@ export class FileSearchManager {
   }
 
   /**
+   * Synchronously check if command type is enabled (from cache)
+   * Returns false if cache is not populated yet
+   */
+  private isCommandEnabledSync(): boolean {
+    const prefixes = this.searchPrefixesCache.get('command');
+    return prefixes !== undefined && prefixes.length > 0;
+  }
+
+  /**
+   * Preload searchPrefixes cache for command and mention types
+   * Call this early (e.g., on window-shown) to populate cache for sync checks
+   */
+  public async preloadSearchPrefixesCache(): Promise<void> {
+    try {
+      // Load both command and mention prefixes in parallel
+      await Promise.all([
+        this.getSearchPrefixes('command'),
+        this.getSearchPrefixes('mention')
+      ]);
+      console.debug('[FileSearchManager] SearchPrefixes cache preloaded');
+    } catch (error) {
+      console.error('[FileSearchManager] Failed to preload searchPrefixes cache:', error);
+    }
+  }
+
+  /**
    * Calculate the pixel position of a character in the textarea
    * Uses a mirror div technique to measure text position
    */
@@ -716,16 +742,18 @@ export class FileSearchManager {
       return;
     }
 
-    // Check for slash command (like /commit, /help)
-    const slashCommand = this.findSlashCommandAtPosition(text, charPos);
-    if (slashCommand) {
-      // Create a temporary AtPathRange for the slash command
-      const tempRange: AtPathRange = { start: slashCommand.start, end: slashCommand.end };
-      if (!this.hoveredAtPath || this.hoveredAtPath.start !== tempRange.start || this.hoveredAtPath.end !== tempRange.end) {
-        this.hoveredAtPath = tempRange;
-        this.renderFilePathHighlight();
+    // Check for slash command (like /commit, /help) - only if command type is enabled
+    if (this.isCommandEnabledSync()) {
+      const slashCommand = this.findSlashCommandAtPosition(text, charPos);
+      if (slashCommand) {
+        // Create a temporary AtPathRange for the slash command
+        const tempRange: AtPathRange = { start: slashCommand.start, end: slashCommand.end };
+        if (!this.hoveredAtPath || this.hoveredAtPath.start !== tempRange.start || this.hoveredAtPath.end !== tempRange.end) {
+          this.hoveredAtPath = tempRange;
+          this.renderFilePathHighlight();
+        }
+        return;
       }
-      return;
     }
 
     // Check for absolute path (starting with /)
@@ -926,20 +954,22 @@ export class FileSearchManager {
       return;
     }
 
-    // Check if cursor is on a slash command
-    const slashCommand = this.findSlashCommandAtPosition(text, cursorPos);
-    if (slashCommand) {
-      // Show hint for slash command
-      this.showSlashCommandOpenHint();
-      const newRange: AtPathRange = { start: slashCommand.start, end: slashCommand.end };
-      // Only update if position changed
-      if (!this.cursorPositionPath ||
-          this.cursorPositionPath.start !== newRange.start ||
-          this.cursorPositionPath.end !== newRange.end) {
-        this.cursorPositionPath = newRange;
-        this.renderHighlightBackdropWithCursor();
+    // Check if cursor is on a slash command (only if command type is enabled)
+    if (this.isCommandEnabledSync()) {
+      const slashCommand = this.findSlashCommandAtPosition(text, cursorPos);
+      if (slashCommand) {
+        // Show hint for slash command
+        this.showSlashCommandOpenHint();
+        const newRange: AtPathRange = { start: slashCommand.start, end: slashCommand.end };
+        // Only update if position changed
+        if (!this.cursorPositionPath ||
+            this.cursorPositionPath.start !== newRange.start ||
+            this.cursorPositionPath.end !== newRange.end) {
+          this.cursorPositionPath = newRange;
+          this.renderHighlightBackdropWithCursor();
+        }
+        return;
       }
-      return;
     }
 
     // Find absolute path at cursor position (paths starting with / or ~)
@@ -1140,22 +1170,24 @@ export class FileSearchManager {
       return;
     }
 
-    // Check for slash command (like /commit, /help)
-    const slashCommand = this.findSlashCommandAtPosition(text, cursorPos);
-    if (slashCommand) {
-      e.preventDefault();
-      e.stopPropagation();
+    // Check for slash command (like /commit, /help) - only if command type is enabled
+    if (this.isCommandEnabledSync()) {
+      const slashCommand = this.findSlashCommandAtPosition(text, cursorPos);
+      if (slashCommand) {
+        e.preventDefault();
+        e.stopPropagation();
 
-      try {
-        const commandFilePath = await window.electronAPI.slashCommands.getFilePath(slashCommand.command);
-        if (commandFilePath) {
-          await this.openFileAndRestoreFocus(commandFilePath);
-          return;
+        try {
+          const commandFilePath = await window.electronAPI.slashCommands.getFilePath(slashCommand.command);
+          if (commandFilePath) {
+            await this.openFileAndRestoreFocus(commandFilePath);
+            return;
+          }
+        } catch (err) {
+          console.error('Failed to resolve slash command file path:', err);
         }
-      } catch (err) {
-        console.error('Failed to resolve slash command file path:', err);
+        return;
       }
-      return;
     }
 
     // Find @path at cursor position
@@ -1225,22 +1257,24 @@ export class FileSearchManager {
       return;
     }
 
-    // Check for slash command (like /commit, /help)
-    const slashCommand = this.findSlashCommandAtPosition(text, cursorPos);
-    if (slashCommand) {
-      e.preventDefault();
-      e.stopPropagation();
+    // Check for slash command (like /commit, /help) - only if command type is enabled
+    if (this.isCommandEnabledSync()) {
+      const slashCommand = this.findSlashCommandAtPosition(text, cursorPos);
+      if (slashCommand) {
+        e.preventDefault();
+        e.stopPropagation();
 
-      try {
-        const commandFilePath = await window.electronAPI.slashCommands.getFilePath(slashCommand.command);
-        if (commandFilePath) {
-          await this.openFileAndRestoreFocus(commandFilePath);
-          return;
+        try {
+          const commandFilePath = await window.electronAPI.slashCommands.getFilePath(slashCommand.command);
+          if (commandFilePath) {
+            await this.openFileAndRestoreFocus(commandFilePath);
+            return;
+          }
+        } catch (err) {
+          console.error('Failed to resolve slash command file path:', err);
         }
-      } catch (err) {
-        console.error('Failed to resolve slash command file path:', err);
+        return;
       }
-      return;
     }
 
     // Find @path at or near cursor position

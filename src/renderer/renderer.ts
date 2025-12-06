@@ -400,6 +400,9 @@ export class PromptLineRenderer {
       // Update file search enabled state in FileSearchManager
       this.fileSearchManager?.setFileSearchEnabled(data.fileSearchEnabled ?? false);
 
+      // Preload searchPrefixes cache for command/mention (enables sync checks for slash command hints)
+      this.fileSearchManager?.preloadSearchPrefixesCache();
+
       // Reset search mode and scroll position when window is shown
       this.searchManager?.exitSearchMode();
       this.resetHistoryScrollPosition();
