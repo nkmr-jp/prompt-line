@@ -65,21 +65,17 @@ fileSearch:
   # Follow symbolic links
   followSymlinks: false
 
-  # Additional patterns to exclude from search
-  # Default excludes already include: node_modules, .git, dist, build, etc.
-  excludePatterns: []
-    # Example:
-    # - "*.log"
-    # - "*.tmp"
-    # - "tmp/"
-    # - "coverage/"
+  # Additional patterns to exclude from search (uncomment to enable)
+  # excludePatterns:
+  #   - "*.log"
+  #   - "*.tmp"
+  #   - "tmp/"
+  #   - "coverage/"
 
-  # Patterns to force include even if in .gitignore
-  # Useful for searching in build output or generated files
-  includePatterns: []
-    # Example:
-    # - "dist/**/*.js"
-    # - ".storybook/**/*"
+  # Patterns to force include even if in .gitignore (uncomment to enable)
+  # includePatterns:
+  #   - "dist/**/*.js"
+  #   - ".storybook/**/*"
 
 # ==============================================================================
 # File Opener Configuration
@@ -92,32 +88,31 @@ fileOpener:
   # Example values: "Visual Studio Code", "Sublime Text", "WebStorm"
   defaultEditor: null
 
-  # Extension-specific applications (overrides defaultEditor)
-  extensions: {}
-    # Example:
-    # ts: "WebStorm"
-    # md: "Typora"
-    # pdf: "Preview"
+  # Extension-specific applications (uncomment to enable)
+  # extensions:
+  #   ts: "WebStorm"
+  #   md: "Typora"
+  #   pdf: "Preview"
 
 # ==============================================================================
 # Markdown Search Configuration (Slash Commands & Mentions)
 # ==============================================================================
 # Configure sources for slash commands (/) and mentions (@)
 # Template variables: {basename}, {frontmatter@fieldName}
-# Leave as empty array [] if not using this feature
-mdSearch: []
-  # Example configuration:
-  # - name: "{basename}"
-  #   type: command                    # 'command' for / or 'mention' for @
-  #   description: "{frontmatter@description}"
-  #   path: ~/.claude/commands
-  #   pattern: "*.md"                  # Glob pattern: *.md, **/*.md, SKILL.md
-  #   argumentHint: "{frontmatter@argument-hint}"  # Optional hint after selection
-  #   maxSuggestions: 20               # Max number of suggestions (default: 20)
-  # - name: "agent-{basename}"
-  #   type: mention
-  #   description: "{frontmatter@description}"
-  #   path: ~/.claude/agents
-  #   pattern: "*.md"
-  #   maxSuggestions: 20
-  #   searchPrefix: "agent:"           # Require @agent: prefix for this entry (optional)
+# Uncomment to enable:
+
+# mdSearch:
+#   - name: "{basename}"
+#     type: command                    # 'command' for / or 'mention' for @
+#     description: "{frontmatter@description}"
+#     path: ~/.claude/commands
+#     pattern: "*.md"                  # Glob pattern: *.md, **/*.md, SKILL.md
+#     argumentHint: "{frontmatter@argument-hint}"  # Optional hint after selection
+#     maxSuggestions: 20               # Max number of suggestions (default: 20)
+#   - name: "agent-{basename}"
+#     type: mention
+#     description: "{frontmatter@description}"
+#     path: ~/.claude/agents
+#     pattern: "*.md"
+#     maxSuggestions: 20
+#     searchPrefix: "agent:"           # Require @agent: prefix for this entry (optional)
