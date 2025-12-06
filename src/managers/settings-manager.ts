@@ -213,11 +213,14 @@ class SettingsManager {
     const mdSearchSection = settings.mdSearch && settings.mdSearch.length > 0
       ? `mdSearch:${formatMdSearch(settings.mdSearch)}`
       : `#mdSearch:                         # Slash commands & mentions (uncomment to enable)
-#  # ─────────────────────────────────────────────────────────────────────────
-#  # Basic patterns - Simple file matching
-#  # ─────────────────────────────────────────────────────────────────────────
+#  # Pattern examples:
+#  #   "*.md"                  - Root directory only
+#  #   "**/*.md"               - All subdirectories (recursive)
+#  #   "**/commands/*.md"      - Any "commands" subdirectory
+#  #   "**/*/SKILL.md"         - SKILL.md in any subdirectory
+#  #   "**/{cmd,agent}/*.md"   - Brace expansion (cmd or agent dirs)
+#  #   "test-*.md"             - Wildcard prefix
 #
-#  # Pattern: *.md - Match all .md files in the root directory only
 #  - name: "{basename}"
 #    type: command                     # 'command' for / or 'mention' for @
 #    description: "{frontmatter@description}"
@@ -226,96 +229,19 @@ class SettingsManager {
 #    argumentHint: "{frontmatter@argument-hint}"  # Optional hint after selection
 #    maxSuggestions: 20                # Max number of suggestions (default: 20)
 #
-#  # Pattern: SKILL.md - Match a specific filename only
-#  - name: "skill-{basename}"
-#    type: mention
-#    description: "{frontmatter@description}"
-#    path: ~/.claude/plugins
-#    pattern: "SKILL.md"
-#    maxSuggestions: 20
-#
-#  # ─────────────────────────────────────────────────────────────────────────
-#  # Recursive patterns - Search in subdirectories
-#  # ─────────────────────────────────────────────────────────────────────────
-#
-#  # Pattern: **/*.md - Match all .md files recursively (any depth)
 #  - name: "agent-{basename}"
 #    type: mention
 #    description: "{frontmatter@description}"
 #    path: ~/.claude/agents
-#    pattern: "**/*.md"
+#    pattern: "*.md"
 #    maxSuggestions: 20
 #    searchPrefix: "agent:"            # Require @agent: prefix for this entry (optional)
 #
-#  # Pattern: **/commands/*.md - Match .md files in any "commands" subdirectory
-#  # Example matches: plugins/foo/commands/bar.md, tools/commands/help.md
-#  - name: "{basename}"
-#    type: command
-#    description: "{frontmatter@description}"
-#    path: ~/.claude/plugins
-#    pattern: "**/commands/*.md"
-#    maxSuggestions: 20
-#
-#  # ─────────────────────────────────────────────────────────────────────────
-#  # Advanced patterns - Complex matching
-#  # ─────────────────────────────────────────────────────────────────────────
-#
-#  # Pattern: **/*/*.md - Match .md files in any immediate subdirectory (one level)
-#  # Example matches: pluginA/file.md, pluginB/other.md (but NOT root/file.md)
-#  - name: "plugin-{basename}"
+#  - name: "skill-{basename}"
 #    type: mention
 #    description: "{frontmatter@description}"
 #    path: ~/.claude/plugins
-#    pattern: "**/*/*.md"
-#    maxSuggestions: 20
-#
-#  # Pattern: **/*/SKILL.md - Match SKILL.md in any subdirectory
-#  # Example matches: pluginA/SKILL.md, tools/editor/SKILL.md
-#  - name: "{basename}"
-#    type: mention
-#    description: "{frontmatter@description}"
-#    path: ~/.claude/plugins
-#    pattern: "**/*/SKILL.md"
-#    maxSuggestions: 20
-#
-#  # Pattern: **/{commands,agents}/*.md - Brace expansion for multiple directory names
-#  # Example matches: foo/commands/bar.md, foo/agents/baz.md
-#  - name: "{basename}"
-#    type: command
-#    description: "{frontmatter@description}"
-#    path: ~/.claude/plugins
-#    pattern: "**/{commands,agents}/*.md"
-#    maxSuggestions: 20
-#
-#  # Pattern: **/plugins/*/commands/*.md - Deep nested structure
-#  # Example matches: org/plugins/editor/commands/format.md
-#  - name: "cmd-{basename}"
-#    type: command
-#    description: "{frontmatter@description}"
-#    path: ~/my-tools
-#    pattern: "**/plugins/*/commands/*.md"
-#    maxSuggestions: 20
-#
-#  # ─────────────────────────────────────────────────────────────────────────
-#  # Wildcard filename patterns
-#  # ─────────────────────────────────────────────────────────────────────────
-#
-#  # Pattern: test-*.md - Match files with prefix
-#  # Example matches: test-unit.md, test-integration.md
-#  - name: "{basename}"
-#    type: command
-#    description: "{frontmatter@description}"
-#    path: ~/.claude/tests
-#    pattern: "test-*.md"
-#    maxSuggestions: 20
-#
-#  # Pattern: *.prompt.md - Match files with suffix
-#  # Example matches: chat.prompt.md, code.prompt.md
-#  - name: "{basename}"
-#    type: mention
-#    description: "{frontmatter@description}"
-#    path: ~/.claude/prompts
-#    pattern: "*.prompt.md"
+#    pattern: "**/*/SKILL.md"          # Match SKILL.md in any plugin subdirectory
 #    maxSuggestions: 20`;
 
     return `# Prompt Line Settings Configuration
