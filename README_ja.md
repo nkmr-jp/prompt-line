@@ -43,6 +43,30 @@ Enterを押しても勝手に送信されないので、改行する場合も気
 もちろん、ターミナル以外でも使えます。
 ![doc5.gif](assets/doc5.gif)
 
+### ファイルオープン
+ファイルパスのテキストからファイルを起動できます。(`Ctrl+Enter` or `Cmd+クリック`)<br>
+画像などの内容を確認しながらプロンプトを入力する場合に便利です。
+
+![doc9.png](assets/doc9.png)
+
+### ファイル検索
+@を入力してファイルを検索できるように設定できます。<br>
+※ [fd](https://github.com/sharkdp/fd)コマンドのインストールが必要です。( `brew install fd` )<br>
+※ `~/.prompt-line/settings.yml` で `fileSearch`の項目を設定する必要があります。 「⚙️ 設定」の項目参照
+
+![doc10.png](assets/doc10.png)
+
+### マークダウン検索
+/を入力してスラッシュコマンドを検索できます。<br>
+※ `~/.prompt-line/settings.yml` で `mdSearch`の項目を設定する必要があります。 「⚙️ 設定」の項目参照
+
+![doc11.png](assets/doc11.png)
+
+@を入力してサブエージェントを検索できるようにも設定できます。<br>
+
+![doc12.png](assets/doc12.png)
+
+
 ## 📦 インストール
 
 ### システム要件
