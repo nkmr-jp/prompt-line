@@ -96,18 +96,28 @@ class DraftManager {
     try {
       this.currentDraft = text;
       this.hasUnsavedChanges = true;
-      
+
       if (!text || !text.trim()) {
         await this.clearDraft();
         return;
       }
-      
+
+      // サイズ制限を追加（1MB）
+      const MAX_DRAFT_SIZE = 1024 * 1024; // 1MB
+      if (Buffer.byteLength(text, 'utf8') > MAX_DRAFT_SIZE) {
+        logger.warn('Draft too large, rejecting', {
+          size: Buffer.byteLength(text, 'utf8'),
+          limit: MAX_DRAFT_SIZE
+        });
+        throw new Error('Draft size exceeds 1MB limit');
+      }
+
       if (text.length > 200) {
         this.debouncedSave(text);
       } else {
         this.quickSave(text);
       }
-      
+
       logger.debug('Draft save scheduled (optimized):', { length: text.length });
     } catch (error) {
       logger.error('Failed to schedule draft save:', error);
@@ -134,7 +144,8 @@ class DraftManager {
       };
 
       const data = safeJsonStringify(draft);
-      await fs.writeFile(this.draftFile, data);
+      // Set restrictive file permissions (owner read/write only)
+      await fs.writeFile(this.draftFile, data, { mode: 0o600 });
 
       this.lastSavedContent = text;
       this.hasUnsavedChanges = false;
@@ -151,12 +162,22 @@ class DraftManager {
   async saveDraftImmediately(text: string): Promise<void> {
     try {
       this.currentDraft = text;
-      
+
       if (!text || !text.trim()) {
         await this.clearDraft();
         return;
       }
-      
+
+      // サイズ制限を追加（1MB）
+      const MAX_DRAFT_SIZE = 1024 * 1024; // 1MB
+      if (Buffer.byteLength(text, 'utf8') > MAX_DRAFT_SIZE) {
+        logger.warn('Draft too large, rejecting', {
+          size: Buffer.byteLength(text, 'utf8'),
+          limit: MAX_DRAFT_SIZE
+        });
+        throw new Error('Draft size exceeds 1MB limit');
+      }
+
       await this._saveDraft(text);
       logger.debug('Draft saved immediately (optimized):', { length: text.length });
     } catch (error) {
@@ -277,8 +298,9 @@ class DraftManager {
       };
       
       const data = safeJsonStringify(draft);
-      await fs.writeFile(backupFile, data);
-      
+      // Set restrictive file permissions (owner read/write only)
+      await fs.writeFile(backupFile, data, { mode: 0o600 });
+
       logger.info('Draft backed up to:', backupFile);
       return backupFile;
     } catch (error) {

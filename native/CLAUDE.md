@@ -288,7 +288,7 @@ directory-detector check-fd                      # Check if fd is available
 **NPM Script Integration:**
 ```json
 {
-  "compile": "tsc && node scripts/fix-renderer.js && cd native && make install && cp -r ../src/native-tools ../dist/"
+  "compile": "node node_modules/electron/install.js && tsc && npm run build:renderer && cd native && make install && cp -r ../src/native-tools ../dist/"
 }
 ```
 

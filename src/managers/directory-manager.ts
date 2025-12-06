@@ -137,7 +137,8 @@ class DirectoryManager {
       }
 
       const jsonData = safeJsonStringify(data);
-      await fs.writeFile(this.directoryFile, jsonData);
+      // Set restrictive file permissions (owner read/write only)
+      await fs.writeFile(this.directoryFile, jsonData, { mode: 0o600 });
 
       logger.debug('Directory saved:', {
         directory: this.currentDirectory,

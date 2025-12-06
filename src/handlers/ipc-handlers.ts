@@ -4,12 +4,13 @@ import { execFile } from 'child_process';
 import path from 'path';
 import os from 'os';
 import config from '../config/app-config';
-import { 
-  logger, 
-  pasteWithNativeTool, 
-  activateAndPasteWithNativeTool, 
+import {
+  logger,
+  pasteWithNativeTool,
+  activateAndPasteWithNativeTool,
   sleep,
-  checkAccessibilityPermission 
+  checkAccessibilityPermission,
+  SecureErrors
 } from '../utils/utils';
 import type WindowManager from '../managers/window-manager';
 import type DraftManager from '../managers/draft-manager';
@@ -134,17 +135,20 @@ class IPCHandlers {
 
       // Validate input
       if (typeof text !== 'string') {
-        return { success: false, error: 'Invalid text provided' };
+        logger.warn('Invalid input type for paste text', { type: typeof text });
+        return { success: false, error: SecureErrors.INVALID_INPUT };
       }
 
       if (!text.trim()) {
-        return { success: false, error: 'Empty text provided' };
+        logger.debug('Empty text provided for paste');
+        return { success: false, error: SecureErrors.INVALID_INPUT };
       }
 
       // Add reasonable length limit (1MB) to prevent DoS attacks
       // Use Buffer.byteLength for accurate byte-based limit instead of character count
       if (Buffer.byteLength(text, 'utf8') > MAX_PASTE_TEXT_LENGTH_BYTES) {
-        return { success: false, error: 'Text too large (max 1MB)' };
+        logger.warn('Text size exceeds limit', { size: Buffer.byteLength(text, 'utf8'), limit: MAX_PASTE_TEXT_LENGTH_BYTES });
+        return { success: false, error: SecureErrors.SIZE_LIMIT_EXCEEDED };
       }
 
 
@@ -198,28 +202,31 @@ class IPCHandlers {
           return { success: true, warning: 'Auto-paste not supported on this platform' };
         }
       } catch (pasteError) {
-        logger.error('Paste operation failed:', pasteError);
-        
+        const err = pasteError as Error;
+        logger.error('Paste operation failed:', { message: err.message, stack: err.stack });
+
         // Check accessibility permission after paste failure on macOS
         if (config.platform.isMac) {
           try {
             const { hasPermission, bundleId } = await checkAccessibilityPermission();
-            
+
             if (!hasPermission) {
               logger.warn('Paste failed - accessibility permission not granted', { bundleId });
               this.showAccessibilityWarning(bundleId);
-              return { success: false, error: 'Accessibility permission required. Please grant permission and try again.' };
+              return { success: false, error: SecureErrors.PERMISSION_DENIED };
             }
           } catch (accessibilityError) {
-            logger.error('Failed to check accessibility permission after paste failure:', accessibilityError);
+            const accErr = accessibilityError as Error;
+            logger.error('Failed to check accessibility permission after paste failure:', { message: accErr.message });
           }
         }
-        
-        return { success: false, error: (pasteError as Error).message };
+
+        return { success: false, error: SecureErrors.OPERATION_FAILED };
       }
     } catch (error) {
-      logger.error('Failed to handle paste text:', error);
-      return { success: false, error: (error as Error).message };
+      const err = error as Error;
+      logger.error('Failed to handle paste text:', { message: err.message, stack: err.stack });
+      return { success: false, error: SecureErrors.OPERATION_FAILED };
     }
   }
 
@@ -246,7 +253,7 @@ class IPCHandlers {
 
   private async handleGetHistory(_event: IpcMainInvokeEvent): Promise<HistoryItem[]> {
     try {
-      const history = await this.historyManager.getHistory();
+const history = await this.historyManager.getHistory();
       logger.debug('History requested', { count: history.length });
       return history;
     } catch (error) {
@@ -257,40 +264,47 @@ class IPCHandlers {
 
   private async handleClearHistory(_event: IpcMainInvokeEvent): Promise<IPCResult> {
     try {
+      // Rate limiting check
+
       await this.historyManager.clearHistory();
       logger.info('History cleared via IPC');
       return { success: true };
     } catch (error) {
-      logger.error('Failed to clear history:', error);
-      return { success: false, error: (error as Error).message };
+      const err = error as Error;
+      logger.error('Failed to clear history:', { message: err.message, stack: err.stack });
+      return { success: false, error: SecureErrors.OPERATION_FAILED };
     }
   }
 
   private async handleRemoveHistoryItem(_event: IpcMainInvokeEvent, id: string): Promise<IPCResult> {
     try {
+      // Rate limiting check
+
       // Validate ID format (must match generateId() output: lowercase alphanumeric)
       // NOTE: This regex is coupled with utils.generateId() - update both if ID format changes
-      if (!id || typeof id !== 'string' || !id.match(/^[a-z0-9]+$/)) {
+      const MAX_ID_LENGTH = 32; // generateId()の出力に合わせた適切な長さ制限
+      if (!id || typeof id !== 'string' || !id.match(/^[a-z0-9]+$/) || id.length > MAX_ID_LENGTH) {
         logger.warn('Invalid history item ID format', { id });
-        return { success: false, error: 'Invalid ID format' };
+        return { success: false, error: SecureErrors.INVALID_FORMAT };
       }
-      
+
       const removed = await this.historyManager.removeHistoryItem(id);
       logger.info('History item removal requested', { id, removed });
       return { success: removed };
     } catch (error) {
-      logger.error('Failed to remove history item:', error);
-      return { success: false, error: (error as Error).message };
+      const err = error as Error;
+      logger.error('Failed to remove history item:', { message: err.message, stack: err.stack });
+      return { success: false, error: SecureErrors.OPERATION_FAILED };
     }
   }
 
   private async handleSearchHistory(
-    _event: IpcMainInvokeEvent, 
-    query: string, 
+    _event: IpcMainInvokeEvent,
+    query: string,
     limit = 10
   ): Promise<HistoryItem[]> {
     try {
-      const results = await this.historyManager.searchHistory(query, limit);
+const results = await this.historyManager.searchHistory(query, limit);
       logger.debug('History search requested', { query, results: results.length });
       return results;
     } catch (error) {
@@ -301,8 +315,8 @@ class IPCHandlers {
 
 
   private async handleSaveDraft(
-    _event: IpcMainInvokeEvent, 
-    text: string, 
+    _event: IpcMainInvokeEvent,
+    text: string,
     immediate = false
   ): Promise<IPCResult> {
     try {
@@ -315,8 +329,9 @@ class IPCHandlers {
       logger.debug('Draft save requested', { length: text.length, immediate });
       return { success: true };
     } catch (error) {
-      logger.error('Failed to save draft:', error);
-      return { success: false, error: (error as Error).message };
+      const err = error as Error;
+      logger.error('Failed to save draft:', { message: err.message, stack: err.stack });
+      return { success: false, error: SecureErrors.OPERATION_FAILED };
     }
   }
 
@@ -326,8 +341,9 @@ class IPCHandlers {
       logger.info('Draft cleared via IPC');
       return { success: true };
     } catch (error) {
-      logger.error('Failed to clear draft:', error);
-      return { success: false, error: (error as Error).message };
+      const err = error as Error;
+      logger.error('Failed to clear draft:', { message: err.message, stack: err.stack });
+      return { success: false, error: SecureErrors.OPERATION_FAILED };
     }
   }
 
@@ -450,32 +466,48 @@ class IPCHandlers {
   }
 
   private async handleGetConfig(
-    _event: IpcMainInvokeEvent, 
+    _event: IpcMainInvokeEvent,
     section: string | null = null
   ): Promise<ConfigData | Record<string, unknown> | {}> {
     try {
       if (section) {
+        // セクション名の型検証を強化
+        if (typeof section !== 'string') {
+          logger.warn('Invalid config section type', { type: typeof section });
+          return {};
+        }
+
         // Validate section name against whitelist
         if (!VALID_CONFIG_SECTIONS.includes(section)) {
           logger.warn('Invalid config section requested', { section });
           return {};
         }
-        
-        const configData = config.get(section as keyof typeof config);
-        logger.debug('Config section requested', { section });
-        return configData;
-      } else {
-        const safeConfig: ConfigData = {
-          shortcuts: config.shortcuts as unknown as Record<string, string>,
-          history: config.history as unknown as Record<string, unknown>,
-          draft: config.draft as unknown as Record<string, unknown>,
-          timing: config.timing as unknown as Record<string, unknown>,
-          app: config.app as unknown as Record<string, unknown>,
-          platform: config.platform as unknown as Record<string, unknown>
-        };
 
-        logger.debug('Full config requested');
-        return safeConfig;
+        try {
+          const configData = config.get(section as keyof typeof config);
+          logger.debug('Config section requested', { section });
+          return configData || {};
+        } catch (sectionError) {
+          logger.error('Failed to get config section:', { section, error: sectionError });
+          return {};
+        }
+      } else {
+        try {
+          const safeConfig: ConfigData = {
+            shortcuts: config.shortcuts as unknown as Record<string, string>,
+            history: config.history as unknown as Record<string, unknown>,
+            draft: config.draft as unknown as Record<string, unknown>,
+            timing: config.timing as unknown as Record<string, unknown>,
+            app: config.app as unknown as Record<string, unknown>,
+            platform: config.platform as unknown as Record<string, unknown>
+          };
+
+          logger.debug('Full config requested');
+          return safeConfig;
+        } catch (configError) {
+          logger.error('Failed to build full config:', configError);
+          return {};
+        }
       }
     } catch (error) {
       logger.error('Failed to get config:', error);
@@ -485,6 +517,8 @@ class IPCHandlers {
 
   private async handlePasteImage(_event: IpcMainInvokeEvent): Promise<ImageResult> {
     try {
+      // Rate limiting check
+
       logger.info('Paste image requested');
 
       const image = clipboard.readImage();
@@ -495,7 +529,8 @@ class IPCHandlers {
 
       const imagesDir = config.paths.imagesDir;
       try {
-        await fs.mkdir(imagesDir, { recursive: true });
+        // Set restrictive directory permissions (owner read/write/execute only)
+        await fs.mkdir(imagesDir, { recursive: true, mode: 0o700 });
       } catch (error) {
         logger.error('Failed to create images directory:', error);
       }
@@ -509,22 +544,42 @@ class IPCHandlers {
       const seconds = String(now.getSeconds()).padStart(2, '0');
       
       const filename = `${year}${month}${day}_${hours}${minutes}${seconds}.png`;
+
+      // ファイル名の追加検証（危険な文字を含まないことを確認）
+      const SAFE_FILENAME_REGEX = /^[0-9_]+\.png$/;
+      if (!SAFE_FILENAME_REGEX.test(filename)) {
+        logger.error('Invalid filename generated', { filename });
+        return { success: false, error: 'Invalid filename' };
+      }
+
       const filepath = path.join(imagesDir, filename);
-      
+
       // Normalize and validate path to prevent path traversal
       const normalizedPath = path.normalize(filepath);
       if (!normalizedPath.startsWith(path.normalize(imagesDir))) {
-        logger.error('Attempted path traversal detected - potential security threat', { 
-          filepath, 
-          normalizedPath, 
+        logger.error('Attempted path traversal detected - potential security threat', {
+          filepath,
+          normalizedPath,
           timestamp: Date.now(),
           source: 'handlePasteImage'
         });
         return { success: false, error: 'Invalid file path' };
       }
 
+      // 既存のパス検証に加えて、実際のパスが期待通りかを確認
+      const expectedDir = path.normalize(imagesDir);
+      const actualDir = path.dirname(normalizedPath);
+      if (actualDir !== expectedDir) {
+        logger.error('Unexpected directory in path', {
+          expected: expectedDir,
+          actual: actualDir
+        });
+        return { success: false, error: 'Invalid file path' };
+      }
+
       const buffer = image.toPNG();
-      await fs.writeFile(normalizedPath, buffer);
+      // Set restrictive file permissions (owner read/write only)
+      await fs.writeFile(normalizedPath, buffer, { mode: 0o600 });
 
       // Clear clipboard text to prevent markdown syntax from being pasted
       // when copying images from markdown editors like Bear
@@ -762,6 +817,14 @@ class IPCHandlers {
         resolved: normalizedPath
       });
 
+      // ファイル存在確認を追加（TOCTOU対策）
+      try {
+        await fs.access(normalizedPath);
+      } catch {
+        logger.warn('File does not exist:', { normalizedPath });
+        return { success: false, error: 'File does not exist' };
+      }
+
       // Open file using FileOpenerManager (respects user settings for app selection)
       return await this.fileOpenerManager.openFile(normalizedPath);
     } catch (error) {
@@ -827,16 +890,22 @@ class IPCHandlers {
         return { success: false, error: 'Invalid URL provided' };
       }
 
-      // Validate URL format
-      if (!url.match(/^https?:\/\//i)) {
-        return { success: false, error: 'URL must start with http:// or https://' };
+      // Validate URL format using URL parser
+      let parsedUrl: URL;
+      try {
+        parsedUrl = new URL(url);
+      } catch {
+        return { success: false, error: 'Invalid URL format' };
       }
 
-      // Additional security: check for potentially dangerous URLs
-      const urlLower = url.toLowerCase();
-      if (urlLower.includes('file://') || urlLower.includes('javascript:')) {
-        logger.warn('Attempted to open potentially dangerous URL:', { url });
-        return { success: false, error: 'Invalid URL protocol' };
+      // Whitelist protocols
+      const allowedProtocols = ['http:', 'https:'];
+      if (!allowedProtocols.includes(parsedUrl.protocol)) {
+        logger.warn('Attempted to open URL with disallowed protocol:', {
+          url,
+          protocol: parsedUrl.protocol
+        });
+        return { success: false, error: 'Only http:// and https:// URLs are allowed' };
       }
 
       // Open URL with system default browser

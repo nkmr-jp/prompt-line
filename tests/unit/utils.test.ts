@@ -318,7 +318,7 @@ describe('Utils', () => {
             mockedFs.mkdir.mockResolvedValue(undefined);
             
             await expect(ensureDir('/test/path')).resolves.toBeUndefined();
-            expect(mockedFs.mkdir).toHaveBeenCalledWith('/test/path', { recursive: true });
+            expect(mockedFs.mkdir).toHaveBeenCalledWith('/test/path', { recursive: true, mode: 0o700 });
         });
 
         test('should throw error for access issues other than ENOENT', async () => {

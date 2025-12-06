@@ -185,6 +185,24 @@ Design decisions:
 - Fixed positioning for notifications with z-index management
 - Global window attachment for browser environment compatibility
 
+### SnapshotManager
+Undo/redo functionality with text and cursor state tracking:
+- **State Snapshots**: Captures text content and cursor position together
+- **History Stack**: Maintains undo/redo history with configurable depth
+- **Cursor Preservation**: Restores cursor position along with text content
+- **Integration**: Works with DomManager for text operations
+
+Key methods:
+- `saveSnapshot()`: Captures current text and cursor state
+- `undo()`: Reverts to previous state with cursor restoration
+- `redo()`: Restores previously undone state
+- `clear()`: Clears snapshot history
+
+Implementation:
+- Lightweight state storage with minimal memory footprint
+- Debounced snapshot creation to avoid excessive history entries
+- Maximum history depth limit for memory management
+
 ## Utility Functions
 
 ### utils/shortcut-formatter.ts

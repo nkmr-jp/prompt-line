@@ -66,7 +66,7 @@ describe('SettingsManager', () => {
 
       await settingsManager.init();
 
-      expect(mockedFs.mkdir).toHaveBeenCalledWith(path.dirname(settingsPath), { recursive: true });
+      expect(mockedFs.mkdir).toHaveBeenCalledWith(path.dirname(settingsPath), { recursive: true, mode: 0o700 });
       expect(mockedFs.writeFile).toHaveBeenCalled();
     });
 

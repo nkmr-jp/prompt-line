@@ -157,10 +157,25 @@ export class SearchManager {
   }
 
   public highlightSearchTerms(text: string, searchTerm: string): string {
-    if (!searchTerm) return text;
-    
-    const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-    return text.replace(regex, '<span class="search-highlight">$1</span>');
+    if (!searchTerm) return this.escapeHtml(text);
+
+    // まずHTMLエスケープ
+    const escapedText = this.escapeHtml(text);
+    const escapedSearchTerm = this.escapeHtml(searchTerm);
+
+    const regex = new RegExp(`(${escapedSearchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    return escapedText.replace(regex, '<span class="search-highlight">$1</span>');
+  }
+
+  private escapeHtml(text: string): string {
+    const map: Record<string, string> = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, (char) => map[char] || char);
   }
 
   public getSearchTerm(): string {

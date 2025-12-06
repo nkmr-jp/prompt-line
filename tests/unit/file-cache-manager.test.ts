@@ -68,7 +68,7 @@ describe('FileCacheManager', () => {
 
       expect(mockedFs.mkdir).toHaveBeenCalledWith(
         '/test/.prompt-line/cache/file-lists',
-        { recursive: true }
+        { recursive: true, mode: 0o700 }
       );
     });
 

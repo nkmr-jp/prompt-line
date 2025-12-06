@@ -200,6 +200,8 @@ class DirectoryDetector {
         var targetWindow: AXUIElement?
 
         if focusedResult == .success, let focusedWindow = focusedWindowRef {
+            // Note: AXUIElement is a toll-free bridged CoreFoundation type
+            // The guard let above ensures focusedWindow is not nil, so force unwrap is safe
             targetWindow = (focusedWindow as! AXUIElement)
         } else {
             // Fallback: try to get the first window from the windows list

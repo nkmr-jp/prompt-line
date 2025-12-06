@@ -84,6 +84,24 @@ import {
 - **`get-settings`**: Current UserSettings retrieval
 - **`update-settings`**: Settings modification with validation
 - **`reset-settings`**: Settings reset to defaults
+- **`open-settings`**: Opens settings file in default editor
+
+### Slash Commands & Agents
+- **`get-slash-commands`**: Retrieves slash commands with optional query filtering
+- **`get-slash-command-file-path`**: Resolves slash command file path
+- **`get-agents`**: Retrieves agent definitions with optional query filtering
+- **`get-agent-file-path`**: Resolves agent file path
+- **`get-md-search-max-suggestions`**: Gets max suggestions for search type
+- **`get-md-search-prefixes`**: Gets search prefixes for search type
+
+### File Operations
+- **`open-file-in-editor`**: Opens file with configured editor based on extension
+- **`check-file-exists`**: File existence check with path validation
+- **`open-external-url`**: Opens URLs with protocol whitelist (http://, https://)
+
+### Draft Directory Management
+- **`set-draft-directory`**: Sets the draft directory for file operations
+- **`get-draft-directory`**: Retrieves the current draft directory
 
 ## Implementation Details
 

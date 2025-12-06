@@ -4,13 +4,17 @@ This module contains specialized managers that handle core application functiona
 
 ## Files Overview
 
-The managers module consists of six main components:
+The managers module consists of ten main components:
 - **window-manager.ts**: Advanced window lifecycle management with native app integration
 - **history-manager.ts**: Traditional unlimited history management with JSONL format
 - **optimized-history-manager.ts**: Performance-optimized history management with caching
 - **draft-manager.ts**: Intelligent draft auto-save with backup system
 - **settings-manager.ts**: YAML-based user configuration management
 - **desktop-space-manager.ts**: Ultra-fast desktop space change detection for window recreation
+- **file-cache-manager.ts**: File caching with invalidation for performance optimization
+- **md-search-loader.ts**: Markdown file search and loading functionality for slash commands and agents
+- **file-opener-manager.ts**: File opening with custom editor support
+- **directory-manager.ts**: Directory operations and CWD management
 
 ## Implementation Details
 
@@ -239,6 +243,122 @@ private getCurrentSpaceInfo(): Promise<SpaceInfo> {
 - Accessibility permission validation before space detection
 - Graceful degradation when permissions unavailable
 - Safe error handling without blocking window operations
+
+### file-cache-manager.ts
+File caching system for performance optimization with TTL-based invalidation:
+
+**Core Functionality:**
+- Caches directory file lists with metadata in JSONL format
+- TTL-based cache invalidation for freshness
+- Git ignore pattern support for filtering
+- Efficient streaming file operations
+
+**Cache Structure:**
+```typescript
+interface FileCacheMetadata {
+  directory: string;
+  timestamp: number;
+  fileCount: number;
+  ttl: number;
+}
+
+interface CachedDirectoryData {
+  files: FileInfo[];
+  metadata: FileCacheMetadata;
+}
+```
+
+**Storage Format:**
+- `~/.prompt-line/cache/files.jsonl`: Cached file lists
+- `~/.prompt-line/cache/metadata.json`: Cache metadata
+
+**Features:**
+- LRU-style cache management with configurable TTL
+- Background cache refresh for non-blocking UI
+- Efficient JSONL streaming for large file lists
+- Integration with directory-detector for source data
+
+### md-search-loader.ts
+Markdown file search and loading functionality for slash commands and agents:
+
+**Core Functionality:**
+```typescript
+class MdSearchLoader {
+  loadSlashCommands(directory: string, query?: string): Promise<SlashCommandItem[]>
+  loadAgents(directory: string, query?: string): Promise<AgentItem[]>
+  getMaxSuggestions(type: MdSearchType): number
+  getPrefixes(type: MdSearchType): string[]
+}
+```
+
+**Features:**
+- Loads slash commands from markdown files in specified directories
+- Loads agent definitions from markdown files
+- Flexible name/description templating with YAML frontmatter support
+- Search prefix filtering (e.g., "agent:" prefix)
+- Configurable max suggestions per search type
+
+**File Format Support:**
+- YAML frontmatter for metadata extraction
+- Markdown content for descriptions
+- Configurable file patterns and directory structures
+
+### file-opener-manager.ts
+File opening with custom editor support based on file extension:
+
+**Core Functionality:**
+```typescript
+class FileOpenerManager {
+  openFile(filePath: string): Promise<void>
+  openWithEditor(filePath: string, editorApp: string): Promise<void>
+  getEditorForExtension(extension: string): string | null
+}
+```
+
+**Features:**
+- Extension-specific application mapping from user settings
+- Default editor fallback when no specific mapping exists
+- Path expansion and validation before opening
+- Uses `shell.openPath()` for default system handling
+- Uses macOS `open -a` command for specific editor applications
+
+**Configuration:**
+```yaml
+fileOpener:
+  extensions:
+    ".ts": "Visual Studio Code"
+    ".md": "Typora"
+    ".json": "Visual Studio Code"
+  defaultEditor: "Visual Studio Code"
+```
+
+### directory-manager.ts
+Directory operations and CWD (current working directory) management:
+
+**Core Functionality:**
+```typescript
+class DirectoryManager {
+  getCurrentDirectory(): Promise<string | null>
+  setDirectory(directory: string): Promise<void>
+  getStoredDirectory(): Promise<string | null>
+}
+```
+
+**Features:**
+- Detects and manages current working directory for file search
+- Stores directory at `~/.prompt-line/directory.json`
+- Fallback to draft directory if detection fails
+- Integration with native directory-detector for terminal/IDE detection
+- Supports multiple source applications (Terminal, iTerm2, VSCode, JetBrains IDEs, Cursor, Windsurf)
+
+**Storage Format:**
+```json
+{
+  "directory": "/Users/user/project",
+  "timestamp": 1234567890,
+  "source": "Terminal"
+}
+```
 
 ## Manager Pattern Implementation
 
