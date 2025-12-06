@@ -45,6 +45,30 @@ Also convenient when you want to reuse the same prompt in other apps.
 Of course, it also works with apps other than Terminal.
 ![doc5.gif](assets/doc5.gif)
 
+### File Opener
+You can open files from file path text. (`Ctrl+Enter` or `Cmd+Click`)<br>
+Useful when you want to check the content of images while entering prompts.
+
+![doc9.png](assets/doc9.png)
+
+### File Search
+You can search for files by typing @.<br>
+※ [fd](https://github.com/sharkdp/fd) command installation is required. (`brew install fd`)<br>
+※ You need to configure `fileSearch` in `~/.prompt-line/settings.yml`. See "⚙️ Settings" section.
+
+![doc10.png](assets/doc10.png)
+
+### Markdown Search
+You can search for slash commands by typing /.<br>
+※ You need to configure `mdSearch` in `~/.prompt-line/settings.yml`. See "⚙️ Settings" section.
+
+![doc11.png](assets/doc11.png)
+
+You can also configure to search for sub-agents by typing @.<br>
+
+![doc12.png](assets/doc12.png)
+
+
 ## 📦 Installation
 
 ### System Requirements
