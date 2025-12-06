@@ -171,6 +171,7 @@ Core functionality is organized into specialized managers:
 - **SlashCommandManager**: Slash command processing and execution
 - **FileSearchManager**: @ mention file search with fuzzy matching (disabled by default)
 - **HistoryUIManager**: History display and interaction management
+- **SnapshotManager**: Undo/redo functionality with text and cursor state tracking
 
 ### Data Flow
 ```
@@ -195,11 +196,13 @@ User Input → Renderer → IPC Event → Handler → Manager → Data/System
 **Feature Channels:**
 - `get-slash-commands`, `get-slash-command-file-path`: Slash command support
 - `get-agents`, `get-agent-file-path`: Agent selection and management
+- `get-md-search-max-suggestions`, `get-md-search-prefixes`: Search configuration
 - `check-file-exists`, `open-file-in-editor`, `open-external-url`: File operations
+- `open-settings`: Settings file management
 - `directory-data-updated`: Directory change notifications
 - `clipboard-*`: Clipboard operations
 
-Total: 25+ IPC channels
+Total: 30+ IPC channels
 
 ## Platform-Specific Implementation
 
@@ -223,8 +226,10 @@ All data is stored in `~/.prompt-line/`:
 - `history.jsonl`: Paste history (JSONL format for efficient append operations)
 - `draft.json`: Auto-saved drafts (created on-demand when drafts are saved)
 - `settings.yml`: User preferences including window positioning mode
+- `directory.json`: Current working directory tracking for file search
 - `app.log`: Application logs with debug information
 - `images/`: Directory for image storage
+- `cache/`: Directory for file caching and metadata
 
 ### Build Output
 The built application is stored in `dist/`:

@@ -723,6 +723,7 @@ export {
   KEYBOARD_SIMULATOR_PATH,        // Path to keyboard-simulator binary
   WINDOW_DETECTOR_PATH,           // Path to window-detector binary
   TEXT_FIELD_DETECTOR_PATH,       // Path to text-field-detector binary
+  DIRECTORY_DETECTOR_PATH,        // Path to directory-detector binary
   
   // AppleScript security (from apple-script-sanitizer.ts)
   sanitizeAppleScript,            // Sanitize AppleScript input
