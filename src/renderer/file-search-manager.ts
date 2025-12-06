@@ -49,6 +49,7 @@ interface DirectoryData {
   fromCache?: boolean;        // true if data was loaded from disk cache
   cacheAge?: number;          // milliseconds since cache was updated
   fromDraft?: boolean;        // true if this is from draft fallback (empty files)
+  hint?: string;              // hint message to display to user (e.g., "Install fd: brew install fd")
 }
 
 interface FileSearchCallbacks {
@@ -317,15 +318,23 @@ export class FileSearchManager {
       partial: false,  // Always false (single stage with fd)
       searchMode: 'recursive',  // Always recursive (fd is required)
       ...(fromCache ? { fromCache: true } : {}),
-      ...(data.cacheAge !== undefined ? { cacheAge: data.cacheAge } : {})
+      ...(data.cacheAge !== undefined ? { cacheAge: data.cacheAge } : {}),
+      ...(data.hint ? { hint: data.hint } : {})
     };
+
+    // Show hint message in footer if present (e.g., fd not installed)
+    if (data.hint && this.callbacks.updateHintText) {
+      this.callbacks.updateHintText(data.hint);
+      console.warn('[FileSearchManager] Hint:', data.hint);
+    }
 
     console.debug('[FileSearchManager] handleCachedDirectoryData:', formatLog({
       directory: data.directory,
       fileCount: this.cachedDirectoryData.files.length,
       fromCache: fromCache,
       cacheAge: data.cacheAge,
-      searchMode: data.searchMode
+      searchMode: data.searchMode,
+      hint: data.hint
     }));
   }
 
@@ -1524,19 +1533,30 @@ export class FileSearchManager {
       return;
     }
 
+    // Get hint from DirectoryInfo if available
+    const hint = 'hint' in data ? (data as DirectoryInfo).hint : undefined;
+
     this.cachedDirectoryData = {
       directory: data.directory,
       files: data.files,
       timestamp: Date.now(),
       partial: false,  // Always false (single stage with fd)
-      searchMode: 'recursive'  // Always recursive (fd is required)
+      searchMode: 'recursive',  // Always recursive (fd is required)
       // Cache flags (fromCache, cacheAge) are intentionally omitted for fresh data
+      ...(hint ? { hint } : {})
     };
+
+    // Show hint message in footer if present (e.g., fd not installed)
+    if (hint && this.callbacks.updateHintText) {
+      this.callbacks.updateHintText(hint);
+      console.warn('[FileSearchManager] Hint:', hint);
+    }
 
     console.debug('[FileSearchManager] updateCache:', formatLog({
       directory: data.directory,
       fileCount: data.files.length,
-      searchMode: 'recursive'
+      searchMode: 'recursive',
+      hint
     }));
 
     // If suggestions are currently visible and not actively searching, refresh them

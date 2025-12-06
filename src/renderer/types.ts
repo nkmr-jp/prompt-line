@@ -63,6 +63,8 @@ export interface DirectoryInfo {
   // File limit status
   fileLimitReached?: boolean;  // true if file count reached maxFiles limit
   maxFiles?: number;           // the maxFiles limit that was applied
+  // User hint message
+  hint?: string;               // hint message to display to user (e.g., "Install fd: brew install fd")
 }
 
 export interface WindowData {

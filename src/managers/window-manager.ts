@@ -805,6 +805,12 @@ class WindowManager {
             return;
           }
 
+          // Add hint message if fd command is not available
+          if (result.filesError && result.filesError.includes('fd required')) {
+            result.hint = 'Install fd for file search: brew install fd';
+            logger.warn('fd command not found. File search will not work. Install with: brew install fd');
+          }
+
           logger.debug(`⏱️  Directory detection completed in ${elapsed.toFixed(2)}ms`, {
             directory: result.directory,
             fileCount: result.fileCount,
