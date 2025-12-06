@@ -45,55 +45,74 @@ window:
   height: 300  # Recommended range: 200-400
 
 # ==============================================================================
-# Custom Slash Commands (Optional)
+# File Opener Configuration
 # ==============================================================================
-# Configure directories containing custom slash command .md files
-# Each .md file should have a description in YAML frontmatter:
-#
-#   ---
-#   description: Brief description of the command
-#   ---
-#   Command content here...
-#
-# First directory takes precedence for duplicate command names
-#
-# commands:
-#   directories:
-#     - ~/.claude/commands
-#     - ~/.claude/agents
+# Configure which applications to use when opening file links
+# When defaultEditor is null, system default application is used
+fileOpener:
+  # Default editor for all files
+  # Set to null to use system default application
+  # Example values: "Visual Studio Code", "Sublime Text", "WebStorm"
+  defaultEditor: null
+
+  # Extension-specific applications (uncomment to enable)
+  #extensions:
+  #  ts: "WebStorm"
+  #  md: "Typora"
+  #  pdf: "Preview"
 
 # ==============================================================================
-# File Search Configuration for @ Mentions (Optional)
+# File Search Configuration for @ Mentions
 # ==============================================================================
 # Configure file search behavior when using @ mentions in the input
-#
-# fileSearch:
-#   # Use fd command for faster searches (falls back to find if not installed)
-#   # Install fd: brew install fd (macOS) / apt install fd-find (Ubuntu)
-#   useFd: true
-#
-#   # Respect .gitignore files when searching (fd only)
-#   respectGitignore: true
-#
-#   # Additional patterns to exclude from search
-#   # Default excludes already include: node_modules, .git, dist, build, etc.
-#   excludePatterns:
-#     - "*.log"
-#     - "*.tmp"
-#     - "tmp/"
-#     - "coverage/"
-#
-#   # Patterns to force include even if in .gitignore
-#   # Useful for searching in build output or generated files
-#   includePatterns:
-#     - "dist/**/*.js"
-#     - ".storybook/**/*"
-#
-#   # Maximum number of files to return (default: 5000)
-#   maxFiles: 5000
-#
-#   # Include hidden files starting with . (default: true)
-#   includeHidden: true
-#
-#   # Maximum directory depth to search (null = unlimited)
-#   maxDepth: null
+# Note: fd command is required for file search (install: brew install fd)
+fileSearch:
+  # Respect .gitignore files when searching
+  respectGitignore: true
+
+  # Include hidden files starting with . (default: true)
+  includeHidden: true
+
+  # Maximum number of files to return
+  maxFiles: 5000
+
+  # Maximum directory depth to search (null = unlimited)
+  maxDepth: null
+
+  # Follow symbolic links
+  followSymlinks: false
+
+  # Additional patterns to exclude from search (uncomment to enable)
+  #excludePatterns:
+  #  - "*.log"
+  #  - "*.tmp"
+  #  - "tmp/"
+  #  - "coverage/"
+
+  # Patterns to force include even if in .gitignore (uncomment to enable)
+  #includePatterns:
+  #  - "dist/**/*.js"
+  #  - ".storybook/**/*"
+
+# ==============================================================================
+# Markdown Search Configuration (Slash Commands & Mentions)
+# ==============================================================================
+# Configure sources for slash commands (/) and mentions (@)
+# Template variables: {basename}, {frontmatter@fieldName}
+# Uncomment to enable:
+
+#mdSearch:
+#  - name: "{basename}"
+#    type: command                     # 'command' for / or 'mention' for @
+#    description: "{frontmatter@description}"
+#    path: ~/.claude/commands
+#    pattern: "*.md"                   # Glob pattern: *.md, **/*.md, SKILL.md
+#    argumentHint: "{frontmatter@argument-hint}"  # Optional hint after selection
+#    maxSuggestions: 20                # Max number of suggestions (default: 20)
+#  - name: "agent-{basename}"
+#    type: mention
+#    description: "{frontmatter@description}"
+#    path: ~/.claude/agents
+#    pattern: "*.md"
+#    maxSuggestions: 20
+#    searchPrefix: "agent:"            # Require @agent: prefix for this entry (optional)

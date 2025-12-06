@@ -28,20 +28,13 @@ class SettingsManager {
         height: 300
       },
       // commands is optional - not set by default
-      // fileSearch is optional - defaults below are applied when accessing
-      fileSearch: {
-        respectGitignore: true,
-        excludePatterns: [],
-        includePatterns: [],
-        maxFiles: 5000,
-        includeHidden: true,
-        maxDepth: null,
-        followSymlinks: false
-      },
+      // fileSearch is optional - when undefined, file search feature is disabled
+      // fileOpener is optional - when undefined, uses system default
       fileOpener: {
         extensions: {},
         defaultEditor: null
-      }
+      },
+      mdSearch: []
     };
 
     this.currentSettings = { ...this.defaultSettings };
@@ -99,10 +92,6 @@ class SettingsManager {
         ...this.defaultSettings.window,
         ...userSettings.window
       },
-      fileSearch: {
-        ...this.defaultSettings.fileSearch,
-        ...userSettings.fileSearch
-      },
       fileOpener: {
         ...this.defaultSettings.fileOpener,
         ...userSettings.fileOpener,
@@ -111,17 +100,14 @@ class SettingsManager {
           ...this.defaultSettings.fileOpener?.extensions,
           ...userSettings.fileOpener?.extensions
         }
-      }
+      },
+      // Use user's mdSearch if provided, otherwise use default (empty array)
+      mdSearch: userSettings.mdSearch ?? this.defaultSettings.mdSearch ?? []
     };
 
-    // Only set commands if it exists in user settings
-    if (userSettings.commands) {
-      result.commands = userSettings.commands;
-    }
-
-    // Only set agents if it exists in user settings
-    if (userSettings.agents) {
-      result.agents = userSettings.agents;
+    // Only set fileSearch if it exists in user settings (feature is disabled when undefined)
+    if (userSettings.fileSearch) {
+      result.fileSearch = userSettings.fileSearch;
     }
 
     return result;
@@ -140,6 +126,97 @@ class SettingsManager {
   }
 
   private addCommentsToSettings(settings: UserSettings): string {
+    // Helper to format arrays for YAML output (list format)
+    const formatArrayAsList = (arr: unknown[] | undefined, indent: string = '    '): string => {
+      if (!arr || arr.length === 0) return '';
+      return arr.map(item => `\n${indent}- "${item}"`).join('');
+    };
+
+    // Helper to format extensions object for YAML output (list format)
+    const formatExtensionsAsList = (ext: Record<string, string> | undefined): string => {
+      if (!ext || Object.keys(ext).length === 0) return '';
+      return Object.entries(ext).map(([key, val]) => `\n    ${key}: "${val}"`).join('');
+    };
+
+    // Helper to format mdSearch array
+    const formatMdSearch = (mdSearch: UserSettings['mdSearch']): string => {
+      if (!mdSearch || mdSearch.length === 0) return '';
+      return '\n' + mdSearch.map(entry => `  - name: "${entry.name}"
+    type: ${entry.type}
+    description: "${entry.description || ''}"
+    path: ${entry.path}
+    pattern: "${entry.pattern}"${entry.argumentHint ? `\n    argumentHint: "${entry.argumentHint}"` : ''}
+    maxSuggestions: ${entry.maxSuggestions ?? 20}${entry.searchPrefix ? `\n    searchPrefix: "${entry.searchPrefix}"` : ''}`).join('\n');
+    };
+
+    // Build fileSearch section - if fileSearch is defined, output values; otherwise comment out entire section
+    const buildFileSearchSection = (): string => {
+      if (!settings.fileSearch) {
+        // Feature is disabled - output commented template
+        return `#fileSearch:                        # File search for @ mentions (uncomment to enable)
+#  respectGitignore: true             # Respect .gitignore files
+#  includeHidden: true                # Include hidden files (starting with .)
+#  maxFiles: 5000                     # Maximum files to return
+#  maxDepth: null                     # Directory depth limit (null = unlimited)
+#  followSymlinks: false              # Follow symbolic links
+#  #excludePatterns:                  # Additional exclude patterns
+#  #  - "*.log"
+#  #  - "*.tmp"
+#  #includePatterns:                  # Force include patterns (override .gitignore)
+#  #  - "dist/**/*.js"`;
+      }
+
+      // Feature is enabled - output actual values
+      const excludePatternsSection = settings.fileSearch.excludePatterns && settings.fileSearch.excludePatterns.length > 0
+        ? `excludePatterns:${formatArrayAsList(settings.fileSearch.excludePatterns)}  # Additional exclude patterns`
+        : `#excludePatterns:                  # Additional exclude patterns (uncomment to enable)
+  #  - "*.log"
+  #  - "*.tmp"`;
+
+      const includePatternsSection = settings.fileSearch.includePatterns && settings.fileSearch.includePatterns.length > 0
+        ? `includePatterns:${formatArrayAsList(settings.fileSearch.includePatterns)}  # Force include patterns (override .gitignore)`
+        : `#includePatterns:                  # Force include patterns (uncomment to enable)
+  #  - "dist/**/*.js"`;
+
+      return `fileSearch:
+  respectGitignore: ${settings.fileSearch.respectGitignore ?? true}    # Respect .gitignore files
+  includeHidden: ${settings.fileSearch.includeHidden ?? true}          # Include hidden files (starting with .)
+  maxFiles: ${settings.fileSearch.maxFiles ?? 5000}                    # Maximum files to return
+  maxDepth: ${settings.fileSearch.maxDepth ?? 'null'}                  # Directory depth limit (null = unlimited)
+  followSymlinks: ${settings.fileSearch.followSymlinks ?? false}       # Follow symbolic links
+  ${excludePatternsSection}
+  ${includePatternsSection}`;
+    };
+
+    const fileSearchSection = buildFileSearchSection();
+
+    // Build extensions section
+    const extensionsSection = settings.fileOpener?.extensions && Object.keys(settings.fileOpener.extensions).length > 0
+      ? `extensions:${formatExtensionsAsList(settings.fileOpener.extensions)}`
+      : `#extensions:                       # Extension-specific apps (uncomment to enable)
+  #  ts: "WebStorm"
+  #  md: "Typora"
+  #  pdf: "Preview"`;
+
+    // Build mdSearch section
+    const mdSearchSection = settings.mdSearch && settings.mdSearch.length > 0
+      ? `mdSearch:${formatMdSearch(settings.mdSearch)}`
+      : `#mdSearch:                         # Slash commands & mentions (uncomment to enable)
+#  - name: "{basename}"
+#    type: command                     # 'command' for / or 'mention' for @
+#    description: "{frontmatter@description}"
+#    path: ~/.claude/commands
+#    pattern: "*.md"                   # Glob pattern: *.md, **/*.md, SKILL.md
+#    argumentHint: "{frontmatter@argument-hint}"  # Optional hint after selection
+#    maxSuggestions: 20                # Max number of suggestions (default: 20)
+#  - name: "agent-{basename}"
+#    type: mention
+#    description: "{frontmatter@description}"
+#    path: ~/.claude/agents
+#    pattern: "*.md"
+#    maxSuggestions: 20
+#    searchPrefix: "agent:"            # Require @agent: prefix for this entry (optional)`;
+
     return `# Prompt Line Settings Configuration
 # This file is automatically generated but can be manually edited
 
@@ -172,36 +249,33 @@ window:
   height: ${settings.window.height}                     # Recommended: 200-400 pixels
 
 # ============================================================================
-# OPTIONAL SETTINGS (uncomment to enable)
+# FILE OPENER SETTINGS
 # ============================================================================
-
-# --- Custom Slash Commands ---
-#commands:
-#  directories:
-#    - /Users/your-username/.claude/commands
-
-# --- File Search (@ mentions) ---
-# Note: fd command is required (install: brew install fd)
-#fileSearch:
-#  respectGitignore: true           # Respect .gitignore files
-#  includeHidden: true              # Include hidden files (starting with .)
-#  maxFiles: 5000                   # Maximum files to return
-#  maxDepth: null                   # Directory depth limit (null = unlimited)
-#  followSymlinks: false            # Follow symbolic links
-#  excludePatterns:                 # Additional exclude patterns
-#    - "*.log"
-#    - "*.tmp"
-#  includePatterns:                 # Force include patterns (override .gitignore)
-#    - "dist/**/*.js"
-
-# --- File Opener ---
 # Configure which applications to use when opening file links
-#fileOpener:
-#  defaultEditor: null              # Default editor (e.g., "Visual Studio Code")
-#  extensions:                      # Extension-specific apps
-#    ts: "WebStorm"
-#    md: "Typora"
-#    pdf: "Preview"
+# When defaultEditor is null, system default application is used
+
+fileOpener:
+  # Default editor for all files (null = use system default application)
+  # Example values: "Visual Studio Code", "Sublime Text", "WebStorm"
+  defaultEditor: ${settings.fileOpener?.defaultEditor === null || settings.fileOpener?.defaultEditor === undefined ? 'null' : `"${settings.fileOpener.defaultEditor}"`}
+  # Extension-specific applications (overrides defaultEditor)
+  ${extensionsSection}
+
+# ============================================================================
+# FILE SEARCH SETTINGS (@ mentions)
+# ============================================================================
+# Note: fd command is required for file search (install: brew install fd)
+# When this section is commented out, file search feature is disabled
+
+${fileSearchSection}
+
+# ============================================================================
+# MARKDOWN SEARCH SETTINGS (Slash Commands & Mentions)
+# ============================================================================
+# Configure sources for slash commands (/) and mentions (@)
+# Template variables: {basename}, {frontmatter@fieldName}
+
+${mdSearchSection}
 `;
   }
 
@@ -274,11 +348,16 @@ window:
     };
   }
 
-  getFileSearchSettings(): FileSearchSettings {
-    return {
-      ...this.defaultSettings.fileSearch,
-      ...this.currentSettings.fileSearch
-    } as FileSearchSettings;
+  getFileSearchSettings(): FileSearchSettings | undefined {
+    // Return undefined if fileSearch is not configured (feature disabled)
+    if (!this.currentSettings.fileSearch) {
+      return undefined;
+    }
+    return this.currentSettings.fileSearch as FileSearchSettings;
+  }
+
+  isFileSearchEnabled(): boolean {
+    return this.currentSettings.fileSearch !== undefined;
   }
 
   async updateFileSearchSettings(fileSearch: Partial<NonNullable<UserSettings['fileSearch']>>): Promise<void> {

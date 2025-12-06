@@ -113,6 +113,7 @@ window:
     it('should return default settings', () => {
       const settings = settingsManager.getSettings();
 
+      // fileSearch is undefined by default (feature disabled)
       expect(settings).toEqual({
         shortcuts: {
           main: 'Cmd+Shift+Space',
@@ -127,19 +128,11 @@ window:
           width: 600,
           height: 300
         },
-        fileSearch: {
-          respectGitignore: true,
-          includeHidden: true,
-          maxFiles: 5000,
-          maxDepth: null,
-          includePatterns: [],
-          excludePatterns: [],
-          followSymlinks: false
-        },
         fileOpener: {
           extensions: {},
           defaultEditor: null
-        }
+        },
+        mdSearch: []
       });
     });
 
@@ -220,6 +213,7 @@ window:
     it('should return default settings copy', () => {
       const defaults = settingsManager.getDefaultSettings();
 
+      // fileSearch is undefined in getDefaultSettings (spread of undefined)
       expect(defaults).toEqual({
         shortcuts: {
           main: 'Cmd+Shift+Space',
@@ -234,15 +228,7 @@ window:
           width: 600,
           height: 300
         },
-        fileSearch: {
-          respectGitignore: true,
-          includeHidden: true,
-          maxFiles: 5000,
-          maxDepth: null,
-          includePatterns: [],
-          excludePatterns: [],
-          followSymlinks: false
-        },
+        fileSearch: {},  // spread of undefined results in empty object
         fileOpener: {
           extensions: {},
           defaultEditor: null

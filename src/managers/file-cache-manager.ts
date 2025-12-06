@@ -149,15 +149,24 @@ class FileCacheManager {
 
   /**
    * Check if cache is valid (within TTL)
+   * Returns false if:
+   * - Cache is older than TTL
+   * - Cache has fileCount of 0 (indicates failed indexing, should re-index)
    */
   isCacheValid(metadata: FileCacheMetadata, ttlSeconds?: number): boolean {
+    // Invalidate cache if fileCount is 0 (indicates failed indexing)
+    if (metadata.fileCount === 0) {
+      logger.debug('Cache invalid: fileCount is 0 (will re-index)');
+      return false;
+    }
+
     const ttl = ttlSeconds ?? metadata.ttlSeconds ?? FileCacheManager.DEFAULT_TTL_SECONDS;
     const updatedAt = new Date(metadata.updatedAt).getTime();
     const now = Date.now();
     const ageMs = now - updatedAt;
     const isValid = ageMs < ttl * 1000;
 
-    logger.debug(`Cache validity check: age=${ageMs}ms, ttl=${ttl}s, valid=${isValid}`);
+    logger.debug(`Cache validity check: age=${ageMs}ms, ttl=${ttl}s, valid=${isValid}, fileCount=${metadata.fileCount}`);
 
     return isValid;
   }

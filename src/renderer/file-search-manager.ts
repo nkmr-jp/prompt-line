@@ -49,6 +49,7 @@ interface DirectoryData {
   fromCache?: boolean;        // true if data was loaded from disk cache
   cacheAge?: number;          // milliseconds since cache was updated
   fromDraft?: boolean;        // true if this is from draft fallback (empty files)
+  hint?: string;              // hint message to display to user (e.g., "Install fd: brew install fd")
 }
 
 interface FileSearchCallbacks {
@@ -98,7 +99,6 @@ export class FileSearchManager {
   // Frontmatter popup elements
   private frontmatterPopup: HTMLDivElement | null = null;
   private popupHideTimeout: ReturnType<typeof setTimeout> | null = null;
-  private isPopupVisible: boolean = false; // Track if popup is currently visible
   private static readonly POPUP_HIDE_DELAY = 100; // ms delay before hiding popup
   private autoShowTooltip: boolean = false; // Auto-show tooltip for selected item
 
@@ -110,11 +110,128 @@ export class FileSearchManager {
   private cursorPositionPath: AtPathRange | null = null;
 
   // Constants
-  private static readonly MAX_SUGGESTIONS = 15;
-  private static readonly MAX_AGENTS = 5; // Max agents to show in suggestions
+  private static readonly DEFAULT_MAX_SUGGESTIONS = 20;
+
+  // Cached maxSuggestions per type
+  private maxSuggestionsCache: Map<string, number> = new Map();
+
+  // Cached searchPrefixes per type
+  private searchPrefixesCache: Map<string, string[]> = new Map();
+
+  // Whether file search feature is enabled (from settings)
+  private fileSearchEnabled: boolean = false;
 
   constructor(callbacks: FileSearchCallbacks) {
     this.callbacks = callbacks;
+  }
+
+  /**
+   * Set whether file search is enabled
+   */
+  public setFileSearchEnabled(enabled: boolean): void {
+    this.fileSearchEnabled = enabled;
+    console.debug('[FileSearchManager] File search enabled:', enabled);
+  }
+
+  /**
+   * Check if file search is enabled
+   */
+  public isFileSearchEnabled(): boolean {
+    return this.fileSearchEnabled;
+  }
+
+  /**
+   * Get maxSuggestions for a given type (cached)
+   */
+  private async getMaxSuggestions(type: 'command' | 'mention'): Promise<number> {
+    // Check cache first
+    if (this.maxSuggestionsCache.has(type)) {
+      return this.maxSuggestionsCache.get(type)!;
+    }
+
+    try {
+      const electronAPI = (window as any).electronAPI;
+      if (electronAPI?.mdSearch?.getMaxSuggestions) {
+        const maxSuggestions = await electronAPI.mdSearch.getMaxSuggestions(type);
+        this.maxSuggestionsCache.set(type, maxSuggestions);
+        return maxSuggestions;
+      }
+    } catch (error) {
+      console.error('[FileSearchManager] Failed to get maxSuggestions:', error);
+    }
+
+    return FileSearchManager.DEFAULT_MAX_SUGGESTIONS;
+  }
+
+  /**
+   * Clear maxSuggestions cache (call when settings might have changed)
+   */
+  public clearMaxSuggestionsCache(): void {
+    this.maxSuggestionsCache.clear();
+  }
+
+  /**
+   * Get searchPrefixes for a given type (cached)
+   */
+  private async getSearchPrefixes(type: 'command' | 'mention'): Promise<string[]> {
+    // Check cache first
+    if (this.searchPrefixesCache.has(type)) {
+      return this.searchPrefixesCache.get(type)!;
+    }
+
+    try {
+      const electronAPI = (window as any).electronAPI;
+      if (electronAPI?.mdSearch?.getSearchPrefixes) {
+        const prefixes = await electronAPI.mdSearch.getSearchPrefixes(type);
+        this.searchPrefixesCache.set(type, prefixes);
+        return prefixes;
+      }
+    } catch (error) {
+      console.error('[FileSearchManager] Failed to get searchPrefixes:', error);
+    }
+
+    return [];
+  }
+
+  /**
+   * Clear searchPrefixes cache (call when settings might have changed)
+   */
+  public clearSearchPrefixesCache(): void {
+    this.searchPrefixesCache.clear();
+  }
+
+  /**
+   * Check if query matches any searchPrefix for the given type
+   */
+  private async matchesSearchPrefix(query: string, type: 'command' | 'mention'): Promise<boolean> {
+    const prefixes = await this.getSearchPrefixes(type);
+    return prefixes.some(prefix => query.startsWith(prefix));
+  }
+
+  /**
+   * Synchronously check if command type is enabled (from cache)
+   * Returns false if cache is not populated yet
+   */
+  private isCommandEnabledSync(): boolean {
+    const prefixes = this.searchPrefixesCache.get('command');
+    return prefixes !== undefined && prefixes.length > 0;
+  }
+
+  /**
+   * Preload searchPrefixes cache for command and mention types
+   * Call this early (e.g., on window-shown) to populate cache for sync checks
+   */
+  public async preloadSearchPrefixesCache(): Promise<void> {
+    try {
+      // Load both command and mention prefixes in parallel
+      await Promise.all([
+        this.getSearchPrefixes('command'),
+        this.getSearchPrefixes('mention')
+      ]);
+      console.debug('[FileSearchManager] SearchPrefixes cache preloaded');
+    } catch (error) {
+      console.error('[FileSearchManager] Failed to preload searchPrefixes cache:', error);
+    }
   }
 
   /**
@@ -245,15 +362,23 @@ export class FileSearchManager {
       partial: false,  // Always false (single stage with fd)
       searchMode: 'recursive',  // Always recursive (fd is required)
       ...(fromCache ? { fromCache: true } : {}),
-      ...(data.cacheAge !== undefined ? { cacheAge: data.cacheAge } : {})
+      ...(data.cacheAge !== undefined ? { cacheAge: data.cacheAge } : {}),
+      ...(data.hint ? { hint: data.hint } : {})
     };
+
+    // Show hint message in footer if present (e.g., fd not installed)
+    if (data.hint && this.callbacks.updateHintText) {
+      this.callbacks.updateHintText(data.hint);
+      console.warn('[FileSearchManager] Hint:', data.hint);
+    }
 
     console.debug('[FileSearchManager] handleCachedDirectoryData:', formatLog({
       directory: data.directory,
       fileCount: this.cachedDirectoryData.files.length,
       fromCache: fromCache,
       cacheAge: data.cacheAge,
-      searchMode: data.searchMode
+      searchMode: data.searchMode,
+      hint: data.hint
     }));
   }
 
@@ -277,13 +402,22 @@ export class FileSearchManager {
       this.schedulePopupHide();
     });
 
-    // Capture wheel events on document when popup is visible
-    document.addEventListener('wheel', (e) => {
-      if (this.isPopupVisible && this.frontmatterPopup) {
-        // Prevent default scrolling behavior
-        e.preventDefault();
-        // Scroll the popup instead
-        this.frontmatterPopup.scrollTop += e.deltaY;
+    // Handle wheel events on popup element only (scroll popup content)
+    this.frontmatterPopup.addEventListener('wheel', (e) => {
+      // Only prevent default when popup can scroll
+      const popup = this.frontmatterPopup;
+      if (popup) {
+        const canScrollDown = popup.scrollTop < popup.scrollHeight - popup.clientHeight;
+        const canScrollUp = popup.scrollTop > 0;
+        const scrollingDown = e.deltaY > 0;
+        const scrollingUp = e.deltaY < 0;
+
+        // Only prevent default if we're actually scrolling the popup content
+        if ((scrollingDown && canScrollDown) || (scrollingUp && canScrollUp)) {
+          e.preventDefault();
+          e.stopPropagation();
+          popup.scrollTop += e.deltaY;
+        }
       }
     }, { passive: false });
 
@@ -297,6 +431,7 @@ export class FileSearchManager {
 
   /**
    * Show frontmatter popup for an agent
+   * Position: to the left of the info icon (same as slash command popup)
    */
   private showFrontmatterPopup(agent: AgentItem, targetElement: HTMLElement): void {
     if (!this.frontmatterPopup || !agent.frontmatter || !this.suggestionsContainer) return;
@@ -321,52 +456,46 @@ export class FileSearchManager {
     hintDiv.textContent = this.autoShowTooltip ? 'Ctrl+i: hide tooltip' : 'Ctrl+i: auto-show tooltip';
     this.frontmatterPopup.appendChild(hintDiv);
 
-    // Get the icon element from the target (suggestion item)
-    const iconElement = targetElement.querySelector('.file-icon');
-    const iconRect = iconElement?.getBoundingClientRect();
-    const itemRect = targetElement.getBoundingClientRect();
+    // Get the info icon and container rectangles for positioning
+    const iconRect = targetElement.getBoundingClientRect();
     const containerRect = this.suggestionsContainer.getBoundingClientRect();
 
-    if (iconRect && containerRect) {
-      // Position: starts a bit right of the icon
-      // Width: narrower than container with margin on both sides
-      const leftOffset = 20; // Start more to the right
-      const rightMargin = 10; // Margin from container right edge
-      const left = iconRect.right + leftOffset;
-      const width = containerRect.right - iconRect.right - leftOffset - rightMargin;
+    // Position popup to the left of the info icon (same as slash command popup)
+    const popupWidth = containerRect.width - 40;
+    const horizontalGap = 8;
+    const right = window.innerWidth - iconRect.left + horizontalGap;
 
-      // Gap between popup and item (larger gap makes popup disappear when mouse moves)
-      const verticalGap = 8;
+    // Gap between popup and icon
+    const verticalGap = 4;
 
-      // Calculate available space below and above the item
-      const spaceBelow = window.innerHeight - itemRect.bottom - 10; // 10px margin from bottom
-      const spaceAbove = itemRect.top - 10; // 10px margin from top
-      const minPopupHeight = 80;
+    // Calculate available space below and above the icon
+    const spaceBelow = window.innerHeight - iconRect.bottom - 10;
+    const spaceAbove = iconRect.top - 10;
+    const minPopupHeight = 80;
 
-      // Decide whether to show popup above or below
-      const showAbove = spaceBelow < minPopupHeight && spaceAbove > spaceBelow;
+    // Decide whether to show popup above or below the icon
+    const showAbove = spaceBelow < minPopupHeight && spaceAbove > spaceBelow;
 
-      let top: number;
-      let maxHeight: number;
+    let top: number;
+    let maxHeight: number;
 
-      if (showAbove) {
-        // Position above the item (icon's right-top)
-        maxHeight = Math.max(minPopupHeight, Math.min(150, spaceAbove - verticalGap));
-        top = itemRect.top - maxHeight - verticalGap;
-      } else {
-        // Position below the item (icon's right-bottom)
-        top = itemRect.bottom + verticalGap;
-        maxHeight = Math.max(minPopupHeight, Math.min(150, spaceBelow - verticalGap));
-      }
-
-      this.frontmatterPopup.style.left = `${left}px`;
-      this.frontmatterPopup.style.top = `${top}px`;
-      this.frontmatterPopup.style.width = `${width}px`;
-      this.frontmatterPopup.style.maxHeight = `${maxHeight}px`;
+    if (showAbove) {
+      // Position above the icon (bottom of popup aligns with top of icon)
+      maxHeight = Math.max(minPopupHeight, Math.min(150, spaceAbove - verticalGap));
+      top = iconRect.top - maxHeight - verticalGap;
+    } else {
+      // Position below the icon (top of popup aligns with bottom of icon)
+      top = iconRect.bottom + verticalGap;
+      maxHeight = Math.max(minPopupHeight, Math.min(150, spaceBelow - verticalGap));
     }
 
+    this.frontmatterPopup.style.right = `${right}px`;
+    this.frontmatterPopup.style.left = 'auto';
+    this.frontmatterPopup.style.top = `${top}px`;
+    this.frontmatterPopup.style.width = `${popupWidth}px`;
+    this.frontmatterPopup.style.maxHeight = `${maxHeight}px`;
+
     this.frontmatterPopup.style.display = 'block';
-    this.isPopupVisible = true;
   }
 
   /**
@@ -376,7 +505,6 @@ export class FileSearchManager {
     if (this.frontmatterPopup) {
       this.frontmatterPopup.style.display = 'none';
     }
-    this.isPopupVisible = false;
   }
 
   /**
@@ -425,10 +553,11 @@ export class FileSearchManager {
       return;
     }
 
-    // Find the selected item element
-    const selectedItem = this.suggestionsContainer.querySelector('.file-suggestion-item.selected') as HTMLElement;
-    if (selectedItem) {
-      this.showFrontmatterPopup(suggestion.agent, selectedItem);
+    // Find the info icon element for the selected item
+    const selectedItem = this.suggestionsContainer.querySelector('.file-suggestion-item.selected');
+    const infoIcon = selectedItem?.querySelector('.frontmatter-info-icon') as HTMLElement;
+    if (infoIcon) {
+      this.showFrontmatterPopup(suggestion.agent, infoIcon);
     }
   }
 
@@ -613,16 +742,18 @@ export class FileSearchManager {
       return;
     }
 
-    // Check for slash command (like /commit, /help)
-    const slashCommand = this.findSlashCommandAtPosition(text, charPos);
-    if (slashCommand) {
-      // Create a temporary AtPathRange for the slash command
-      const tempRange: AtPathRange = { start: slashCommand.start, end: slashCommand.end };
-      if (!this.hoveredAtPath || this.hoveredAtPath.start !== tempRange.start || this.hoveredAtPath.end !== tempRange.end) {
-        this.hoveredAtPath = tempRange;
-        this.renderFilePathHighlight();
+    // Check for slash command (like /commit, /help) - only if command type is enabled
+    if (this.isCommandEnabledSync()) {
+      const slashCommand = this.findSlashCommandAtPosition(text, charPos);
+      if (slashCommand) {
+        // Create a temporary AtPathRange for the slash command
+        const tempRange: AtPathRange = { start: slashCommand.start, end: slashCommand.end };
+        if (!this.hoveredAtPath || this.hoveredAtPath.start !== tempRange.start || this.hoveredAtPath.end !== tempRange.end) {
+          this.hoveredAtPath = tempRange;
+          this.renderFilePathHighlight();
+        }
+        return;
       }
-      return;
     }
 
     // Check for absolute path (starting with /)
@@ -823,20 +954,22 @@ export class FileSearchManager {
       return;
     }
 
-    // Check if cursor is on a slash command
-    const slashCommand = this.findSlashCommandAtPosition(text, cursorPos);
-    if (slashCommand) {
-      // Show hint for slash command
-      this.showSlashCommandOpenHint();
-      const newRange: AtPathRange = { start: slashCommand.start, end: slashCommand.end };
-      // Only update if position changed
-      if (!this.cursorPositionPath ||
-          this.cursorPositionPath.start !== newRange.start ||
-          this.cursorPositionPath.end !== newRange.end) {
-        this.cursorPositionPath = newRange;
-        this.renderHighlightBackdropWithCursor();
+    // Check if cursor is on a slash command (only if command type is enabled)
+    if (this.isCommandEnabledSync()) {
+      const slashCommand = this.findSlashCommandAtPosition(text, cursorPos);
+      if (slashCommand) {
+        // Show hint for slash command
+        this.showSlashCommandOpenHint();
+        const newRange: AtPathRange = { start: slashCommand.start, end: slashCommand.end };
+        // Only update if position changed
+        if (!this.cursorPositionPath ||
+            this.cursorPositionPath.start !== newRange.start ||
+            this.cursorPositionPath.end !== newRange.end) {
+          this.cursorPositionPath = newRange;
+          this.renderHighlightBackdropWithCursor();
+        }
+        return;
       }
-      return;
     }
 
     // Find absolute path at cursor position (paths starting with / or ~)
@@ -872,6 +1005,10 @@ export class FileSearchManager {
    * Show hint for opening file with Ctrl+Enter
    */
   private showFileOpenHint(): void {
+    // Skip hint if file search is disabled
+    if (!this.fileSearchEnabled) {
+      return;
+    }
     if (this.callbacks.updateHintText) {
       this.callbacks.updateHintText('Ctrl + ↵ to open');
     }
@@ -901,6 +1038,37 @@ export class FileSearchManager {
   private restoreDefaultHint(): void {
     if (this.callbacks.updateHintText && this.callbacks.getDefaultHintText) {
       this.callbacks.updateHintText(this.callbacks.getDefaultHintText());
+    }
+  }
+
+  /**
+   * Check if file index is being built
+   * Returns true if directory data is not yet available or is from draft fallback with no files
+   */
+  private isIndexBeingBuilt(): boolean {
+    // No cached data at all - index is being built
+    if (!this.cachedDirectoryData) {
+      return true;
+    }
+
+    // Draft fallback with no files - index is being built
+    if (this.cachedDirectoryData.fromDraft && this.cachedDirectoryData.files.length === 0) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Show hint that file index is being built
+   */
+  private showIndexingHint(): void {
+    // Don't show "Building Index" if there's a more important hint (e.g., fd not installed)
+    if (this.cachedDirectoryData?.hint) {
+      return;
+    }
+    if (this.callbacks.updateHintText) {
+      this.callbacks.updateHintText('Building file index...');
     }
   }
 
@@ -1002,22 +1170,24 @@ export class FileSearchManager {
       return;
     }
 
-    // Check for slash command (like /commit, /help)
-    const slashCommand = this.findSlashCommandAtPosition(text, cursorPos);
-    if (slashCommand) {
-      e.preventDefault();
-      e.stopPropagation();
+    // Check for slash command (like /commit, /help) - only if command type is enabled
+    if (this.isCommandEnabledSync()) {
+      const slashCommand = this.findSlashCommandAtPosition(text, cursorPos);
+      if (slashCommand) {
+        e.preventDefault();
+        e.stopPropagation();
 
-      try {
-        const commandFilePath = await window.electronAPI.slashCommands.getFilePath(slashCommand.command);
-        if (commandFilePath) {
-          await this.openFileAndRestoreFocus(commandFilePath);
-          return;
+        try {
+          const commandFilePath = await window.electronAPI.slashCommands.getFilePath(slashCommand.command);
+          if (commandFilePath) {
+            await this.openFileAndRestoreFocus(commandFilePath);
+            return;
+          }
+        } catch (err) {
+          console.error('Failed to resolve slash command file path:', err);
         }
-      } catch (err) {
-        console.error('Failed to resolve slash command file path:', err);
+        return;
       }
-      return;
     }
 
     // Find @path at cursor position
@@ -1087,22 +1257,24 @@ export class FileSearchManager {
       return;
     }
 
-    // Check for slash command (like /commit, /help)
-    const slashCommand = this.findSlashCommandAtPosition(text, cursorPos);
-    if (slashCommand) {
-      e.preventDefault();
-      e.stopPropagation();
+    // Check for slash command (like /commit, /help) - only if command type is enabled
+    if (this.isCommandEnabledSync()) {
+      const slashCommand = this.findSlashCommandAtPosition(text, cursorPos);
+      if (slashCommand) {
+        e.preventDefault();
+        e.stopPropagation();
 
-      try {
-        const commandFilePath = await window.electronAPI.slashCommands.getFilePath(slashCommand.command);
-        if (commandFilePath) {
-          await this.openFileAndRestoreFocus(commandFilePath);
-          return;
+        try {
+          const commandFilePath = await window.electronAPI.slashCommands.getFilePath(slashCommand.command);
+          if (commandFilePath) {
+            await this.openFileAndRestoreFocus(commandFilePath);
+            return;
+          }
+        } catch (err) {
+          console.error('Failed to resolve slash command file path:', err);
         }
-      } catch (err) {
-        console.error('Failed to resolve slash command file path:', err);
+        return;
       }
-      return;
     }
 
     // Find @path at or near cursor position
@@ -1421,19 +1593,30 @@ export class FileSearchManager {
       return;
     }
 
+    // Get hint from DirectoryInfo if available
+    const hint = 'hint' in data ? (data as DirectoryInfo).hint : undefined;
+
     this.cachedDirectoryData = {
       directory: data.directory,
       files: data.files,
       timestamp: Date.now(),
       partial: false,  // Always false (single stage with fd)
-      searchMode: 'recursive'  // Always recursive (fd is required)
+      searchMode: 'recursive',  // Always recursive (fd is required)
       // Cache flags (fromCache, cacheAge) are intentionally omitted for fresh data
+      ...(hint ? { hint } : {})
     };
+
+    // Show hint message in footer if present (e.g., fd not installed)
+    if (hint && this.callbacks.updateHintText) {
+      this.callbacks.updateHintText(hint);
+      console.warn('[FileSearchManager] Hint:', hint);
+    }
 
     console.debug('[FileSearchManager] updateCache:', formatLog({
       directory: data.directory,
       fileCount: data.files.length,
-      searchMode: 'recursive'
+      searchMode: 'recursive',
+      hint
     }));
 
     // If suggestions are currently visible and not actively searching, refresh them
@@ -1489,6 +1672,11 @@ export class FileSearchManager {
    * Check if file search should be triggered based on cursor position
    */
   public checkForFileSearch(): void {
+    // Skip if file search is disabled
+    if (!this.fileSearchEnabled) {
+      return;
+    }
+
     console.debug('[FileSearchManager] checkForFileSearch called', formatLog({
       hasTextInput: !!this.textInput,
       hasCachedData: !!this.cachedDirectoryData,
@@ -1573,9 +1761,18 @@ export class FileSearchManager {
       return;
     }
 
+    // Check if query matches any searchPrefix for mention type
+    // If so, skip file search and only show agents
+    const matchesPrefix = await this.matchesSearchPrefix(query, 'mention');
+
     // Adjust currentPath based on query
     // If query doesn't start with currentPath, navigate up to the matching level
-    this.adjustCurrentPathToQuery(query);
+    // Skip path navigation when searchPrefix is matched (agents don't use paths)
+    if (!matchesPrefix) {
+      this.adjustCurrentPathToQuery(query);
+    } else {
+      this.currentPath = '';
+    }
 
     // Extract search term (part after currentPath)
     const searchTerm = this.currentPath ? query.substring(this.currentPath.length) : query;
@@ -1589,8 +1786,14 @@ export class FileSearchManager {
       this.filteredAgents = [];
     }
 
+    // Check if index is being built
+    const isIndexBuilding = this.isIndexBeingBuilt();
+
     // Filter files if directory data is available
-    if (this.cachedDirectoryData) {
+    // Skip file search when searchPrefix is matched (show only agents)
+    if (matchesPrefix) {
+      this.filteredFiles = [];
+    } else if (this.cachedDirectoryData) {
       this.filteredFiles = this.filterFiles(searchTerm);
     } else {
       this.filteredFiles = [];
@@ -1602,13 +1805,20 @@ export class FileSearchManager {
     this.selectedIndex = 0;
     this.isVisible = true;
 
+    // Show indexing hint if index is being built (not relevant when prefix matched)
+    if (isIndexBuilding && !matchesPrefix) {
+      this.showIndexingHint();
+    }
+
     console.debug('[FileSearchManager] showSuggestions: filtered', formatLog({
       agents: this.filteredAgents.length,
       files: this.filteredFiles.length,
       merged: this.mergedSuggestions.length,
-      searchTerm
+      searchTerm,
+      isIndexBuilding,
+      matchesPrefix
     }));
-    this.renderSuggestions();
+    this.renderSuggestions(isIndexBuilding && !matchesPrefix);
     this.positionSuggestions();
     this.updateSelection();
     console.debug('[FileSearchManager] showSuggestions: render complete, isVisible:', this.isVisible);
@@ -1622,7 +1832,8 @@ export class FileSearchManager {
       const electronAPI = (window as any).electronAPI;
       if (electronAPI?.agents?.get) {
         const agents = await electronAPI.agents.get(query);
-        return agents.slice(0, FileSearchManager.MAX_AGENTS);
+        const maxSuggestions = await this.getMaxSuggestions('mention');
+        return agents.slice(0, maxSuggestions);
       }
     } catch (error) {
       console.error('[FileSearchManager] Failed to search agents:', error);
@@ -1764,13 +1975,19 @@ export class FileSearchManager {
 
     this.isVisible = false;
     this.suggestionsContainer.style.display = 'none';
-    this.suggestionsContainer.innerHTML = '';
+    // Clear container safely
+    while (this.suggestionsContainer.firstChild) {
+      this.suggestionsContainer.removeChild(this.suggestionsContainer.firstChild);
+    }
     this.filteredFiles = [];
     this.filteredAgents = [];
     this.mergedSuggestions = [];
     this.currentQuery = '';
     this.atStartPosition = -1;
     this.currentPath = ''; // Reset directory navigation state
+
+    // Restore default hint text
+    this.restoreDefaultHint();
 
     // Hide frontmatter popup
     this.hideFrontmatterPopup();
@@ -1863,7 +2080,7 @@ export class FileSearchManager {
           // Then sort by name
           return a.name.localeCompare(b.name);
         });
-        return sorted.slice(0, FileSearchManager.MAX_SUGGESTIONS);
+        return sorted.slice(0, FileSearchManager.DEFAULT_MAX_SUGGESTIONS);
       }
 
       const queryLower = query.toLowerCase();
@@ -1876,7 +2093,7 @@ export class FileSearchManager {
         }))
         .filter(item => item.score > 0)
         .sort((a, b) => b.score - a.score)
-        .slice(0, FileSearchManager.MAX_SUGGESTIONS);
+        .slice(0, FileSearchManager.DEFAULT_MAX_SUGGESTIONS);
 
       return scored.map(item => item.file);
     }
@@ -1925,7 +2142,7 @@ export class FileSearchManager {
         // Then sort by name
         return a.name.localeCompare(b.name);
       });
-      return sorted.slice(0, FileSearchManager.MAX_SUGGESTIONS);
+      return sorted.slice(0, FileSearchManager.DEFAULT_MAX_SUGGESTIONS);
     }
 
     // With query at root level - search ALL files recursively and show matching ones
@@ -1997,7 +2214,7 @@ export class FileSearchManager {
     // Combine and sort by score
     const allScored = [...scoredFiles, ...scoredDirs]
       .sort((a, b) => b.score - a.score)
-      .slice(0, FileSearchManager.MAX_SUGGESTIONS);
+      .slice(0, FileSearchManager.DEFAULT_MAX_SUGGESTIONS);
 
     return allScored.map(item => item.file);
   }
@@ -2139,8 +2356,8 @@ export class FileSearchManager {
       items.sort((a, b) => b.score - a.score);
     }
 
-    // Limit to MAX_SUGGESTIONS
-    return items.slice(0, FileSearchManager.MAX_SUGGESTIONS);
+    // Limit to DEFAULT_MAX_SUGGESTIONS
+    return items.slice(0, FileSearchManager.DEFAULT_MAX_SUGGESTIONS);
   }
 
   /**
@@ -2176,18 +2393,25 @@ export class FileSearchManager {
 
   /**
    * Render the suggestions in the dropdown
+   * @param isIndexBuilding - Whether the file index is currently being built
    */
-  private renderSuggestions(): void {
+  private renderSuggestions(isIndexBuilding: boolean = false): void {
     if (!this.suggestionsContainer) return;
 
     const totalItems = this.getTotalItemCount();
 
     if (totalItems === 0) {
-      this.suggestionsContainer.innerHTML = `
-        <div class="file-suggestion-empty">
-          No matching items found
-        </div>
-      `;
+      // Clear existing content safely
+      while (this.suggestionsContainer.firstChild) {
+        this.suggestionsContainer.removeChild(this.suggestionsContainer.firstChild);
+      }
+
+      // Create empty state element using safe DOM methods
+      const emptyDiv = document.createElement('div');
+      emptyDiv.className = isIndexBuilding ? 'file-suggestion-empty indexing' : 'file-suggestion-empty';
+      emptyDiv.textContent = isIndexBuilding ? 'Building file index...' : 'No matching items found';
+      this.suggestionsContainer.appendChild(emptyDiv);
+
       this.suggestionsContainer.style.display = 'block';
       // Reset scroll position to top
       this.suggestionsContainer.scrollTop = 0;
@@ -2285,9 +2509,9 @@ export class FileSearchManager {
           infoIcon.className = 'frontmatter-info-icon';
           infoIcon.textContent = 'ⓘ';
 
-          // Show popup on info icon hover
+          // Show popup on info icon hover (pass infoIcon as target for positioning)
           infoIcon.addEventListener('mouseenter', () => {
-            this.showFrontmatterPopup(agent, item);
+            this.showFrontmatterPopup(agent, infoIcon);
           });
 
           infoIcon.addEventListener('mouseleave', () => {
@@ -2418,7 +2642,6 @@ export class FileSearchManager {
   /**
    * Handle keyboard navigation
    * Supports: ArrowDown/Ctrl+n/Ctrl+j (next), ArrowUp/Ctrl+p/Ctrl+k (previous), Enter/Tab (select), Escape (close), Ctrl+i (toggle tooltip)
-   * When frontmatter popup is visible, arrow keys scroll the popup instead of navigating
    */
   public handleKeyDown(e: KeyboardEvent): void {
     if (!this.isVisible) return;
@@ -2429,24 +2652,6 @@ export class FileSearchManager {
       e.stopPropagation();
       this.toggleAutoShowTooltip();
       return;
-    }
-
-    const scrollAmount = 30; // Pixels to scroll per keypress
-
-    // When popup is visible, arrow keys scroll the popup
-    if (this.isPopupVisible && this.frontmatterPopup) {
-      if (e.key === 'ArrowDown' || (e.ctrlKey && (e.key === 'n' || e.key === 'j'))) {
-        e.preventDefault();
-        e.stopPropagation();
-        this.frontmatterPopup.scrollTop += scrollAmount;
-        return;
-      }
-      if (e.key === 'ArrowUp' || (e.ctrlKey && (e.key === 'p' || e.key === 'k'))) {
-        e.preventDefault();
-        e.stopPropagation();
-        this.frontmatterPopup.scrollTop -= scrollAmount;
-        return;
-      }
     }
 
     const totalItems = this.getTotalItemCount();

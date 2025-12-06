@@ -112,6 +112,11 @@
   font-size: 13px;
 }
 
+.file-suggestion-empty.indexing {
+  color: var(--text-tertiary, #666);
+  font-style: italic;
+}
+
 /* Section headers for Agents/Files */
 .suggestion-section-header {
   padding: 4px 10px;

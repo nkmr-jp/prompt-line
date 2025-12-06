@@ -19,6 +19,8 @@ class WindowManager {
   private directoryManager: DirectoryManager | null = null;
   private savedDirectory: string | null = null; // Directory from DirectoryManager for fallback
   private fileCacheManager: FileCacheManager | null = null;
+  private fdCommandAvailable: boolean = true; // fd command availability
+  private fdCommandChecked: boolean = false; // Whether fd check has been performed
 
   async initialize(): Promise<void> {
     try {
@@ -32,6 +34,9 @@ class WindowManager {
       this.fileCacheManager = new FileCacheManager();
       await this.fileCacheManager.initialize();
 
+      // Note: fd command availability check is deferred to showInputWindow
+      // when fileSearch settings are available and enabled
+
       // Pre-create window for faster first-time startup
       this.createInputWindow();
       logger.debug('Pre-created input window for faster startup');
@@ -41,6 +46,31 @@ class WindowManager {
       logger.error('Failed to initialize WindowManager:', error);
       throw error;
     }
+  }
+
+  /**
+   * Check if fd command is available on the system (only once)
+   */
+  private async checkFdCommandAvailability(): Promise<void> {
+    // Only check once
+    if (this.fdCommandChecked) {
+      return;
+    }
+    this.fdCommandChecked = true;
+
+    const { execFile } = require('child_process');
+    return new Promise((resolve) => {
+      execFile('which', ['fd'], (error: Error | null) => {
+        if (error) {
+          this.fdCommandAvailable = false;
+          logger.warn('fd command is not available. File search will not work. Install with: brew install fd');
+        } else {
+          this.fdCommandAvailable = true;
+          logger.debug('fd command is available');
+        }
+        resolve();
+      });
+    });
   }
 
   createInputWindow(): BrowserWindow {
@@ -206,29 +236,46 @@ class WindowManager {
       const windowData: WindowData = {
         sourceApp: this.previousApp,
         currentSpaceInfo,
+        fileSearchEnabled: this.isFileSearchEnabled(),
         ...data
       };
 
-      // Load cached file data for immediate file search availability
-      const cachedData = await this.loadCachedFilesForWindow();
-      if (cachedData) {
-        windowData.directoryData = cachedData;
-        logger.debug('Loaded cached directory data', {
-          directory: cachedData.directory,
-          fileCount: cachedData.fileCount,
-          fromCache: cachedData.fromCache
-        });
-      } else if (this.savedDirectory) {
-        // Fallback to draft directory with empty files if no cache
-        windowData.directoryData = {
-          success: true,
-          directory: this.savedDirectory,
-          files: [],
-          fileCount: 0,
-          partial: false,  // Always false (single stage with fd)
-          searchMode: 'recursive',  // Always recursive (fd is required)
-          fromDraft: true
-        };
+      // Only load directory data and check fd when fileSearch is enabled
+      if (this.isFileSearchEnabled()) {
+        // Check fd command availability (only when fileSearch is enabled)
+        // This is deferred from initialize() since settings aren't available there
+        await this.checkFdCommandAvailability();
+
+        // Load cached file data for immediate file search availability
+        const cachedData = await this.loadCachedFilesForWindow();
+        if (cachedData) {
+          windowData.directoryData = cachedData;
+          logger.debug('Loaded cached directory data', {
+            directory: cachedData.directory,
+            fileCount: cachedData.fileCount,
+            fromCache: cachedData.fromCache
+          });
+        } else if (this.savedDirectory) {
+          // Fallback to draft directory with empty files if no cache
+          windowData.directoryData = {
+            success: true,
+            directory: this.savedDirectory,
+            files: [],
+            fileCount: 0,
+            partial: false,  // Always false (single stage with fd)
+            searchMode: 'recursive',  // Always recursive (fd is required)
+            fromDraft: true
+          };
+        }
+
+        // Add hint message if fd command is not available
+        if (!this.fdCommandAvailable) {
+          if (!windowData.directoryData) {
+            windowData.directoryData = { success: false };
+          }
+          windowData.directoryData.hint = 'Install fd for file search: brew install fd';
+          logger.debug('Added fd not available hint to directoryData');
+        }
       }
 
       // Handle window display efficiently - show window FIRST before directory detection
@@ -265,12 +312,15 @@ class WindowManager {
       logger.debug('Input window shown', { sourceApp: this.previousApp });
 
       // Background directory detection (non-blocking) - runs AFTER window is shown
-      // Use setImmediate to ensure this doesn't block the main thread
-      setImmediate(() => {
-        this.executeBackgroundDirectoryDetection().catch(error => {
-          logger.warn('Background directory detection error:', error);
+      // Only execute when fileSearch is enabled
+      if (this.isFileSearchEnabled()) {
+        // Use setImmediate to ensure this doesn't block the main thread
+        setImmediate(() => {
+          this.executeBackgroundDirectoryDetection().catch(error => {
+            logger.warn('Background directory detection error:', error);
+          });
         });
-      });
+      }
     } catch (error) {
       logger.error('Failed to show input window:', error);
       logger.error(`❌ Failed after ${(performance.now() - startTime).toFixed(2)}ms`);
@@ -710,9 +760,13 @@ class WindowManager {
     return { ...this.customWindowSettings };
   }
 
-  updateFileSearchSettings(settings: FileSearchSettings): void {
-    this.fileSearchSettings = settings;
-    logger.debug('File search settings updated', settings);
+  updateFileSearchSettings(settings: FileSearchSettings | null | undefined): void {
+    this.fileSearchSettings = settings ?? null;
+    logger.debug('File search settings updated', { enabled: settings !== null && settings !== undefined, settings });
+  }
+
+  isFileSearchEnabled(): boolean {
+    return this.fileSearchSettings !== null;
   }
 
   /**
@@ -805,6 +859,12 @@ class WindowManager {
             return;
           }
 
+          // Add hint message if fd command is not available
+          if (result.filesError && result.filesError.includes('fd required')) {
+            result.hint = 'Install fd for file search: brew install fd';
+            logger.warn('fd command not found. File search will not work. Install with: brew install fd');
+          }
+
           logger.debug(`⏱️  Directory detection completed in ${elapsed.toFixed(2)}ms`, {
             directory: result.directory,
             fileCount: result.fileCount,
@@ -882,8 +942,9 @@ class WindowManager {
           this.savedDirectory = detectedDirectory; // Update local reference
         }
 
-        // Only notify renderer if there are changes or directory changed
-        if (hasChanges || directoryChanged) {
+        // Notify renderer if there are changes, directory changed, or hint exists
+        // hint needs to be sent even without file changes (e.g., fd not installed)
+        if (hasChanges || directoryChanged || result.hint) {
           // Add directoryChanged flag to result
           const resultWithFlags: DirectoryInfo = {
             ...result,
@@ -899,7 +960,8 @@ class WindowManager {
             directory: detectedDirectory,
             fileCount: result.fileCount,
             directoryChanged,
-            hasChanges
+            hasChanges,
+            hint: result.hint
           });
         } else {
           logger.debug(`✅ Directory detection completed, no changes detected, skipping renderer notification`, {

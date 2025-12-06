@@ -237,13 +237,13 @@ describe('FileCacheManager', () => {
   });
 
   describe('isCacheValid', () => {
-    test('should return true for fresh cache', () => {
+    test('should return true for fresh cache with files', () => {
       const metadata = {
         version: '1.0',
         directory: '/test',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        fileCount: 0,
+        fileCount: 100,  // Must have files to be valid
         ttlSeconds: 3600
       };
 
@@ -259,8 +259,23 @@ describe('FileCacheManager', () => {
         directory: '/test',
         createdAt: oldDate.toISOString(),
         updatedAt: oldDate.toISOString(),
-        fileCount: 0,
+        fileCount: 100,
         ttlSeconds: 3600 // 1 hour
+      };
+
+      const result = cacheManager.isCacheValid(metadata);
+
+      expect(result).toBe(false);
+    });
+
+    test('should return false for cache with fileCount 0 (indicates failed indexing)', () => {
+      const metadata = {
+        version: '1.0',
+        directory: '/test',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        fileCount: 0,  // Zero files indicates failed indexing, should re-index
+        ttlSeconds: 3600
       };
 
       const result = cacheManager.isCacheValid(metadata);
@@ -275,7 +290,7 @@ describe('FileCacheManager', () => {
         directory: '/test',
         createdAt: oldDate.toISOString(),
         updatedAt: oldDate.toISOString(),
-        fileCount: 0,
+        fileCount: 100,  // Must have files to be valid
         ttlSeconds: 3600 // 1 hour (should be overridden)
       };
 

@@ -38,6 +38,7 @@ export interface WindowData {
   draft?: string | DraftData | null;
   settings?: UserSettings;
   directoryData?: DirectoryInfo;
+  fileSearchEnabled?: boolean;
 }
 
 export interface HistoryStats {
@@ -209,6 +210,8 @@ export interface UserSettings {
     // Default editor when no extension-specific setting exists
     defaultEditor?: string | null;
   };
+  // mdSearch configuration (unified command and mention loading)
+  mdSearch?: MdSearchEntry[];
 }
 
 export interface SlashCommandItem {
@@ -264,6 +267,8 @@ export interface DirectoryInfo {
   // File limit status
   fileLimitReached?: boolean;  // true if file count reached maxFiles limit
   maxFiles?: number;           // the maxFiles limit that was applied
+  // User hint message
+  hint?: string;               // hint message to display to user (e.g., "Install fd: brew install fd")
 }
 
 // File search settings configuration
@@ -343,5 +348,58 @@ export interface FileCacheStats {
   oldestCache: string | null;
   newestCache: string | null;
   totalSizeBytes: number;
+}
+
+// ============================================================================
+// MdSearch Related Types
+// ============================================================================
+
+/**
+ * mdSearch エントリの種類
+ * - command: スラッシュコマンド（/で始まる）
+ * - mention: メンション（@で始まる）
+ */
+export type MdSearchType = 'command' | 'mention';
+
+/**
+ * mdSearch 設定エントリ
+ */
+export interface MdSearchEntry {
+  /** 名前テンプレート（例: "{basename}", "agent-{frontmatter@name}"） */
+  name: string;
+  /** 検索タイプ */
+  type: MdSearchType;
+  /** 説明テンプレート（例: "{frontmatter@description}"） */
+  description: string;
+  /** 検索ディレクトリパス */
+  path: string;
+  /** ファイルパターン（glob形式、例: "*.md", "SKILL.md"） */
+  pattern: string;
+  /** オプション: argumentHintテンプレート */
+  argumentHint?: string;
+  /** オプション: 検索候補の最大表示数（デフォルト: 20） */
+  maxSuggestions?: number;
+  /** オプション: 検索プレフィックス（例: "agent:"）- このプレフィックスで始まるクエリのみ検索対象 */
+  searchPrefix?: string;
+}
+
+/**
+ * 検索結果アイテム（統一型）
+ */
+export interface MdSearchItem {
+  /** 解決済み名前 */
+  name: string;
+  /** 解決済み説明 */
+  description: string;
+  /** ソースタイプ */
+  type: MdSearchType;
+  /** ファイルパス */
+  filePath: string;
+  /** 元のfrontmatter文字列 */
+  frontmatter?: string;
+  /** argumentHint（commandタイプのみ） */
+  argumentHint?: string;
+  /** 検索ソースの識別子（path + pattern） */
+  sourceId: string;
 }
 
