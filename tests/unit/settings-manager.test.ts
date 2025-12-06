@@ -113,6 +113,8 @@ window:
     it('should return default settings', () => {
       const settings = settingsManager.getSettings();
 
+      // OPTIONAL SETTINGS (fileSearch, fileOpener, mdSearch) are not included by default
+      // They are only enabled when explicitly configured in settings.yml
       expect(settings).toEqual({
         shortcuts: {
           main: 'Cmd+Shift+Space',
@@ -126,19 +128,6 @@ window:
           position: 'active-text-field',
           width: 600,
           height: 300
-        },
-        fileSearch: {
-          respectGitignore: true,
-          includeHidden: true,
-          maxFiles: 5000,
-          maxDepth: null,
-          includePatterns: [],
-          excludePatterns: [],
-          followSymlinks: false
-        },
-        fileOpener: {
-          extensions: {},
-          defaultEditor: null
         }
       });
     });
@@ -220,6 +209,8 @@ window:
     it('should return default settings copy', () => {
       const defaults = settingsManager.getDefaultSettings();
 
+      // OPTIONAL SETTINGS (fileSearch, fileOpener, mdSearch) are not included in defaults
+      // They are only enabled when explicitly configured in settings.yml
       expect(defaults).toEqual({
         shortcuts: {
           main: 'Cmd+Shift+Space',
@@ -233,19 +224,6 @@ window:
           position: 'active-text-field',
           width: 600,
           height: 300
-        },
-        fileSearch: {
-          respectGitignore: true,
-          includeHidden: true,
-          maxFiles: 5000,
-          maxDepth: null,
-          includePatterns: [],
-          excludePatterns: [],
-          followSymlinks: false
-        },
-        fileOpener: {
-          extensions: {},
-          defaultEditor: null
         }
       });
 
