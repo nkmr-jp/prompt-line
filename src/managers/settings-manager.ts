@@ -159,6 +159,7 @@ class SettingsManager {
 #  maxFiles: 5000                     # Maximum files to return
 #  maxDepth: null                     # Directory depth limit (null = unlimited)
 #  followSymlinks: false              # Follow symbolic links
+#  fdPath: null                       # Custom path to fd command (null = auto-detect)
 #  #excludePatterns:                  # Additional exclude patterns
 #  #  - "*.log"
 #  #  - "*.tmp"
