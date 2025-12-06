@@ -888,8 +888,9 @@ class WindowManager {
           this.savedDirectory = detectedDirectory; // Update local reference
         }
 
-        // Only notify renderer if there are changes or directory changed
-        if (hasChanges || directoryChanged) {
+        // Notify renderer if there are changes, directory changed, or hint exists
+        // hint needs to be sent even without file changes (e.g., fd not installed)
+        if (hasChanges || directoryChanged || result.hint) {
           // Add directoryChanged flag to result
           const resultWithFlags: DirectoryInfo = {
             ...result,
@@ -905,7 +906,8 @@ class WindowManager {
             directory: detectedDirectory,
             fileCount: result.fileCount,
             directoryChanged,
-            hasChanges
+            hasChanges,
+            hint: result.hint
           });
         } else {
           logger.debug(`✅ Directory detection completed, no changes detected, skipping renderer notification`, {
