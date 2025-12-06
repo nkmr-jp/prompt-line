@@ -1,4 +1,4 @@
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promises as fs } from 'fs';
 import { app } from 'electron';
 import path from 'path';
@@ -228,7 +228,7 @@ function getCurrentApp(): Promise<AppInfo | null> {
     };
 
     const execStartTime = performance.now();
-    exec(`"${WINDOW_DETECTOR_PATH}" current-app`, options, (error, stdout) => {
+    execFile(WINDOW_DETECTOR_PATH, ['current-app'], options, (error, stdout) => {
       const execDuration = performance.now() - execStartTime;
       
       if (error) {
@@ -282,14 +282,14 @@ function pasteWithNativeTool(): Promise<void> {
       killSignal: 'SIGTERM' as const
     };
 
-    const command = `"${KEYBOARD_SIMULATOR_PATH}" paste`;
-    logger.debug('Executing native paste command', { 
-      command, 
-      keyboardSimulatorPath: KEYBOARD_SIMULATOR_PATH,
+    const args = ['paste'];
+    logger.debug('Executing native paste command', {
+      executable: KEYBOARD_SIMULATOR_PATH,
+      args,
       nativeToolsDir: NATIVE_TOOLS_DIR
     });
 
-    exec(command, options, (error, stdout, stderr) => {
+    execFile(KEYBOARD_SIMULATOR_PATH, args, options, (error, stdout, stderr) => {
       if (error) {
         if (error.killed) {
           logger.warn('Native paste timed out (non-critical)');
@@ -300,7 +300,8 @@ function pasteWithNativeTool(): Promise<void> {
             code: error.code,
             signal: error.signal,
             stderr,
-            command
+            executable: KEYBOARD_SIMULATOR_PATH,
+            args
           });
           reject(error);
         }
@@ -478,7 +479,7 @@ function getActiveWindowBounds(): Promise<WindowBounds | null> {
       killSignal: 'SIGTERM' as const
     };
 
-    exec(`"${WINDOW_DETECTOR_PATH}" window-bounds`, options, (error, stdout) => {
+    execFile(WINDOW_DETECTOR_PATH, ['window-bounds'], options, (error, stdout) => {
       if (error) {
         logger.warn('Error getting active window bounds (non-blocking):', error.message);
         resolve(null);
@@ -573,24 +574,24 @@ function activateAndPasteWithNativeTool(appInfo: AppInfo | string): Promise<void
       killSignal: 'SIGTERM' as const
     };
 
-    let command: string;
+    let args: string[];
     if (bundleId && bundleId.length > 0) {
-      command = `"${KEYBOARD_SIMULATOR_PATH}" activate-and-paste-bundle "${bundleId}"`;
+      args = ['activate-and-paste-bundle', bundleId];
       logger.debug('Using sanitized bundle ID for app activation and paste:', { appName, bundleId });
     } else {
-      command = `"${KEYBOARD_SIMULATOR_PATH}" activate-and-paste-name "${appName}"`;
+      args = ['activate-and-paste-name', appName];
       logger.debug('Using sanitized app name for app activation and paste:', { appName });
     }
 
-    logger.debug('Executing native activate and paste command', { 
-      command, 
-      keyboardSimulatorPath: KEYBOARD_SIMULATOR_PATH,
+    logger.debug('Executing native activate and paste command', {
+      executable: KEYBOARD_SIMULATOR_PATH,
+      args,
       nativeToolsDir: NATIVE_TOOLS_DIR,
       appName,
       bundleId
     });
 
-    exec(command, options, (error, stdout, stderr) => {
+    execFile(KEYBOARD_SIMULATOR_PATH, args, options, (error, stdout, stderr) => {
       if (error) {
         if (error.killed) {
           logger.warn('Native activate+paste timed out, attempting graceful fallback');
@@ -601,7 +602,8 @@ function activateAndPasteWithNativeTool(appInfo: AppInfo | string): Promise<void
             code: error.code,
             signal: error.signal,
             stderr,
-            command,
+            executable: KEYBOARD_SIMULATOR_PATH,
+            args,
             appName,
             bundleId
           });
@@ -653,17 +655,17 @@ function detectCurrentDirectory(options?: DirectoryDetectionOptions): Promise<Di
       killSignal: 'SIGTERM' as const
     };
 
-    // Build command with optional PID and/or bundleId arguments
+    // Build args array with optional PID and/or bundleId arguments
     // bundleId alone is supported - Swift will look up the PID
-    let command = `"${DIRECTORY_DETECTOR_PATH}" detect`;
+    const args: string[] = ['detect'];
     if (options?.bundleId) {
-      command += ` --bundleId "${options.bundleId}"`;
+      args.push('--bundleId', options.bundleId);
       if (options?.pid) {
-        command += ` --pid ${options.pid}`;
+        args.push('--pid', String(options.pid));
       }
     }
 
-    exec(command, execOptions, (error, stdout) => {
+    execFile(DIRECTORY_DETECTOR_PATH, args, execOptions, (error, stdout) => {
       if (error) {
         logger.warn('Error detecting current directory (non-blocking):', error.message);
         resolve({ error: error.message });
@@ -702,17 +704,17 @@ function detectCurrentDirectoryWithFiles(options?: DirectoryDetectionOptions): P
       killSignal: 'SIGTERM' as const
     };
 
-    // Build command with optional PID and/or bundleId arguments
+    // Build args array with optional PID and/or bundleId arguments
     // bundleId alone is supported - Swift will look up the PID
-    let command = `"${DIRECTORY_DETECTOR_PATH}" detect-with-files`;
+    const args: string[] = ['detect-with-files'];
     if (options?.bundleId) {
-      command += ` --bundleId "${options.bundleId}"`;
+      args.push('--bundleId', options.bundleId);
       if (options?.pid) {
-        command += ` --pid ${options.pid}`;
+        args.push('--pid', String(options.pid));
       }
     }
 
-    exec(command, execOptions, (error, stdout) => {
+    execFile(DIRECTORY_DETECTOR_PATH, args, execOptions, (error, stdout) => {
       if (error) {
         logger.warn('Error detecting current directory with files (non-blocking):', error.message);
         resolve({ error: error.message });
@@ -772,7 +774,7 @@ function listDirectory(directoryPath: string): Promise<DirectoryInfo> {
       killSignal: 'SIGTERM' as const
     };
 
-    exec(`"${DIRECTORY_DETECTOR_PATH}" list "${sanitizedPath}"`, options, (error, stdout) => {
+    execFile(DIRECTORY_DETECTOR_PATH, ['list', sanitizedPath], options, (error, stdout) => {
       if (error) {
         logger.warn('Error listing directory (non-blocking):', error.message);
         resolve({ error: error.message });

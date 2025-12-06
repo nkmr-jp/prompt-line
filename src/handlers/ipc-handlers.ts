@@ -1,6 +1,6 @@
 import { ipcMain, clipboard, IpcMainInvokeEvent, dialog, shell } from 'electron';
 import { promises as fs } from 'fs';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import path from 'path';
 import os from 'os';
 import config from '../config/app-config';
@@ -908,7 +908,7 @@ class IPCHandlers {
     }).then((result: { response: number }) => {
       if (result.response === 0) {
         // Open System Preferences accessibility settings
-        exec('open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"');
+        execFile('open', ['x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility']);
       }
     }).catch((error: Error) => {
       logger.error('Failed to show accessibility warning dialog:', error);

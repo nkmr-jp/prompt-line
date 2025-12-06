@@ -5,7 +5,8 @@ type ExecCallback = (error: Error | null, stdout: string, stderr: string) => voi
 
 // Mock child_process
 jest.mock('child_process', () => ({
-    exec: jest.fn()
+    exec: jest.fn(),
+    execFile: jest.fn()
 }));
 
 // Mock the utils module
@@ -54,8 +55,10 @@ const { getCurrentApp, getActiveWindowBounds, logger } = jest.requireMock('../..
 getCurrentApp.mockResolvedValue('TestApp');
 // Make getActiveWindowBounds return null so tests fall back to cursor positioning
 getActiveWindowBounds.mockResolvedValue(null);
-const { exec } = jest.requireMock('child_process') as any;
-const mockedExec = exec as jest.MockedFunction<typeof exec>;
+const { execFile } = jest.requireMock('child_process') as any;
+const mockedExecFile = execFile as jest.MockedFunction<typeof execFile>;
+// Keep mockedExec as alias for backward compatibility in tests
+const mockedExec = mockedExecFile;
 
 describe('WindowManager', () => {
     let windowManager: WindowManager;
@@ -88,9 +91,9 @@ describe('WindowManager', () => {
         // Re-apply mocks after clearAllMocks
         (BrowserWindow as jest.MockedClass<typeof BrowserWindow>).mockReturnValue(mockWindow);
 
-        // Mock exec for directory-detector and text-field-detector calls
-        mockedExec.mockImplementation((command: string, _options: any, callback: ExecCallback) => {
-            if (command.includes('directory-detector')) {
+        // Mock execFile for directory-detector, text-field-detector, and keyboard-simulator calls
+        mockedExec.mockImplementation((file: string, args: string[], _options: any, callback: ExecCallback) => {
+            if (file.includes('directory-detector')) {
                 // Mock directory detection response
                 callback(null, JSON.stringify({
                     success: true,
@@ -100,9 +103,12 @@ describe('WindowManager', () => {
                     searchMode: 'quick',
                     partial: true
                 }), '');
-            } else if (command.includes('text-field-detector')) {
+            } else if (file.includes('text-field-detector')) {
                 // Mock text field detection (no text field found)
                 callback(null, JSON.stringify({ success: false }), '');
+            } else if (file.includes('keyboard-simulator')) {
+                // Mock keyboard simulator response
+                callback(null, JSON.stringify({ success: true, command: args[0] || 'unknown' }), '');
             } else {
                 callback(null, '', '');
             }
@@ -268,9 +274,9 @@ describe('WindowManager', () => {
         });
 
         test('should focus previous app on macOS', async () => {
-            mockedExec.mockImplementation((_command: string, _options: any, callback: ExecCallback) => {
+            mockedExec.mockImplementation((_file: string, _args: string[], _options: any, callback: ExecCallback) => {
                 callback(null, '{"success":true,"command":"activate-name"}', '');
-                return null as any;
+                return {} as any;
             });
 
             const result = await windowManager.focusPreviousApp();
@@ -278,6 +284,7 @@ describe('WindowManager', () => {
             expect(result).toBe(true);
             expect(mockedExec).toHaveBeenCalledWith(
                 expect.stringContaining('keyboard-simulator'),
+                expect.arrayContaining(['activate-name']),
                 expect.any(Object),
                 expect.any(Function)
             );
@@ -301,9 +308,9 @@ describe('WindowManager', () => {
         });
 
         test('should handle native tool errors', async () => {
-            mockedExec.mockImplementation((_command: string, _options: any, callback: ExecCallback) => {
+            mockedExec.mockImplementation((_file: string, _args: string[], _options: any, callback: ExecCallback) => {
                 callback(new Error('Command failed'), '', '');
-                return null as any;
+                return {} as any;
             });
 
             const result = await windowManager.focusPreviousApp();
@@ -312,9 +319,9 @@ describe('WindowManager', () => {
         });
 
         test('should handle native tool failure response', async () => {
-            mockedExec.mockImplementation((_command: string, _options: any, callback: ExecCallback) => {
+            mockedExec.mockImplementation((_file: string, _args: string[], _options: any, callback: ExecCallback) => {
                 callback(null, '{"success":false,"command":"activate-name"}', '');
-                return null as any;
+                return {} as any;
             });
 
             const result = await windowManager.focusPreviousApp();
@@ -324,26 +331,27 @@ describe('WindowManager', () => {
 
         test('should focus app with bundle ID', async () => {
             (windowManager as any).previousApp = { name: 'TestApp', bundleId: 'com.test.app' };
-            
-            mockedExec.mockImplementation((_command: string, _options: any, callback: ExecCallback) => {
+
+            mockedExec.mockImplementation((_file: string, _args: string[], _options: any, callback: ExecCallback) => {
                 callback(null, '{"success":true,"command":"activate-bundle"}', '');
-                return null as any;
+                return {} as any;
             });
 
             const result = await windowManager.focusPreviousApp();
 
             expect(result).toBe(true);
             expect(mockedExec).toHaveBeenCalledWith(
-                expect.stringContaining('activate-bundle'),
+                expect.stringContaining('keyboard-simulator'),
+                expect.arrayContaining(['activate-bundle']),
                 expect.any(Object),
                 expect.any(Function)
             );
         });
 
         test('should handle invalid JSON response', async () => {
-            mockedExec.mockImplementation((_command: string, _options: any, callback: ExecCallback) => {
+            mockedExec.mockImplementation((_file: string, _args: string[], _options: any, callback: ExecCallback) => {
                 callback(null, 'invalid json', '');
-                return null as any;
+                return {} as any;
             });
 
             const result = await windowManager.focusPreviousApp();

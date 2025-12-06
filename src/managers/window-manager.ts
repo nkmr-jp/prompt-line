@@ -1,5 +1,5 @@
 import { BrowserWindow, screen } from 'electron';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import config from '../config/app-config';
 import { getCurrentApp, getActiveWindowBounds, logger, KEYBOARD_SIMULATOR_PATH, TEXT_FIELD_DETECTOR_PATH, DIRECTORY_DETECTOR_PATH } from '../utils/utils';
 import DesktopSpaceManager from './desktop-space-manager';
@@ -573,7 +573,7 @@ class WindowManager {
     };
 
     return new Promise((resolve) => {
-      exec(`"${TEXT_FIELD_DETECTOR_PATH}" text-field-bounds`, options, (error: Error | null, stdout?: string) => {
+      execFile(TEXT_FIELD_DETECTOR_PATH, ['text-field-bounds'], options, (error: Error | null, stdout?: string) => {
         if (error) {
           logger.debug('Error getting text field bounds via native tool:', error);
           resolve(null);
@@ -667,17 +667,17 @@ class WindowManager {
         killSignal: 'SIGTERM' as const
       };
 
-      let command: string;
+      let args: string[];
       if (bundleId) {
-        command = `"${KEYBOARD_SIMULATOR_PATH}" activate-bundle "${bundleId}"`;
+        args = ['activate-bundle', bundleId];
         logger.debug('Using bundle ID for app activation:', { appName, bundleId });
       } else {
-        command = `"${KEYBOARD_SIMULATOR_PATH}" activate-name "${appName}"`;
+        args = ['activate-name', appName];
         logger.debug('Using app name for activation:', { appName });
       }
-      
+
       return new Promise((resolve) => {
-        exec(command, options, (error: Error | null, stdout?: string) => {
+        execFile(KEYBOARD_SIMULATOR_PATH, args, options, (error: Error | null, stdout?: string) => {
           if (error) {
             logger.error('Error focusing previous app:', error);
             resolve(false);
@@ -793,44 +793,44 @@ class WindowManager {
 
     const startTime = performance.now();
 
-    // Build command with settings (fd is always used, single stage)
-    let command = `"${DIRECTORY_DETECTOR_PATH}" detect-with-files`;
+    // Build args array with settings (fd is always used, single stage)
+    const args: string[] = ['detect-with-files'];
 
     // Apply file search settings if available
     if (this.fileSearchSettings) {
       if (!this.fileSearchSettings.respectGitignore) {
-        command += ' --no-gitignore';
+        args.push('--no-gitignore');
       }
       if (this.fileSearchSettings.excludePatterns && this.fileSearchSettings.excludePatterns.length > 0) {
         for (const pattern of this.fileSearchSettings.excludePatterns) {
-          command += ` --exclude "${pattern}"`;
+          args.push('--exclude', pattern);
         }
       }
       if (this.fileSearchSettings.includePatterns && this.fileSearchSettings.includePatterns.length > 0) {
         for (const pattern of this.fileSearchSettings.includePatterns) {
-          command += ` --include "${pattern}"`;
+          args.push('--include', pattern);
         }
       }
       if (this.fileSearchSettings.maxFiles) {
-        command += ` --max-files ${this.fileSearchSettings.maxFiles}`;
+        args.push('--max-files', String(this.fileSearchSettings.maxFiles));
       }
       if (this.fileSearchSettings.includeHidden) {
-        command += ' --include-hidden';
+        args.push('--include-hidden');
       }
       if (this.fileSearchSettings.maxDepth !== null && this.fileSearchSettings.maxDepth !== undefined) {
-        command += ` --max-depth ${this.fileSearchSettings.maxDepth}`;
+        args.push('--max-depth', String(this.fileSearchSettings.maxDepth));
       }
       if (this.fileSearchSettings.followSymlinks) {
-        command += ' --follow-symlinks';
+        args.push('--follow-symlinks');
       }
     }
 
     // Add bundleId if available for accurate directory detection
     if (this.previousApp && typeof this.previousApp === 'object' && this.previousApp.bundleId) {
-      command += ` --bundleId "${this.previousApp.bundleId}"`;
+      args.push('--bundleId', this.previousApp.bundleId);
     }
 
-    logger.debug('Directory detector command:', { command, fileSearchSettings: this.fileSearchSettings });
+    logger.debug('Directory detector command:', { executable: DIRECTORY_DETECTOR_PATH, args, fileSearchSettings: this.fileSearchSettings });
 
     const options = {
       timeout,
@@ -841,7 +841,7 @@ class WindowManager {
     };
 
     return new Promise((resolve) => {
-      exec(command, options, (error: Error | null, stdout?: string) => {
+      execFile(DIRECTORY_DETECTOR_PATH, args, options, (error: Error | null, stdout?: string) => {
         const elapsed = performance.now() - startTime;
 
         if (error) {
