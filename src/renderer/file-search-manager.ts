@@ -98,7 +98,6 @@ export class FileSearchManager {
   // Frontmatter popup elements
   private frontmatterPopup: HTMLDivElement | null = null;
   private popupHideTimeout: ReturnType<typeof setTimeout> | null = null;
-  private isPopupVisible: boolean = false; // Track if popup is currently visible
   private static readonly POPUP_HIDE_DELAY = 100; // ms delay before hiding popup
   private autoShowTooltip: boolean = false; // Auto-show tooltip for selected item
 
@@ -309,13 +308,22 @@ export class FileSearchManager {
       this.schedulePopupHide();
     });
 
-    // Capture wheel events on document when popup is visible
-    document.addEventListener('wheel', (e) => {
-      if (this.isPopupVisible && this.frontmatterPopup) {
-        // Prevent default scrolling behavior
-        e.preventDefault();
-        // Scroll the popup instead
-        this.frontmatterPopup.scrollTop += e.deltaY;
+    // Handle wheel events on popup element only (scroll popup content)
+    this.frontmatterPopup.addEventListener('wheel', (e) => {
+      // Only prevent default when popup can scroll
+      const popup = this.frontmatterPopup;
+      if (popup) {
+        const canScrollDown = popup.scrollTop < popup.scrollHeight - popup.clientHeight;
+        const canScrollUp = popup.scrollTop > 0;
+        const scrollingDown = e.deltaY > 0;
+        const scrollingUp = e.deltaY < 0;
+
+        // Only prevent default if we're actually scrolling the popup content
+        if ((scrollingDown && canScrollDown) || (scrollingUp && canScrollUp)) {
+          e.preventDefault();
+          e.stopPropagation();
+          popup.scrollTop += e.deltaY;
+        }
       }
     }, { passive: false });
 
@@ -398,7 +406,6 @@ export class FileSearchManager {
     }
 
     this.frontmatterPopup.style.display = 'block';
-    this.isPopupVisible = true;
   }
 
   /**
@@ -408,7 +415,6 @@ export class FileSearchManager {
     if (this.frontmatterPopup) {
       this.frontmatterPopup.style.display = 'none';
     }
-    this.isPopupVisible = false;
   }
 
   /**
@@ -2500,7 +2506,6 @@ export class FileSearchManager {
   /**
    * Handle keyboard navigation
    * Supports: ArrowDown/Ctrl+n/Ctrl+j (next), ArrowUp/Ctrl+p/Ctrl+k (previous), Enter/Tab (select), Escape (close), Ctrl+i (toggle tooltip)
-   * When frontmatter popup is visible, arrow keys scroll the popup instead of navigating
    */
   public handleKeyDown(e: KeyboardEvent): void {
     if (!this.isVisible) return;
@@ -2511,24 +2516,6 @@ export class FileSearchManager {
       e.stopPropagation();
       this.toggleAutoShowTooltip();
       return;
-    }
-
-    const scrollAmount = 30; // Pixels to scroll per keypress
-
-    // When popup is visible, arrow keys scroll the popup
-    if (this.isPopupVisible && this.frontmatterPopup) {
-      if (e.key === 'ArrowDown' || (e.ctrlKey && (e.key === 'n' || e.key === 'j'))) {
-        e.preventDefault();
-        e.stopPropagation();
-        this.frontmatterPopup.scrollTop += scrollAmount;
-        return;
-      }
-      if (e.key === 'ArrowUp' || (e.ctrlKey && (e.key === 'p' || e.key === 'k'))) {
-        e.preventDefault();
-        e.stopPropagation();
-        this.frontmatterPopup.scrollTop -= scrollAmount;
-        return;
-      }
     }
 
     const totalItems = this.getTotalItemCount();
