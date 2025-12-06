@@ -2696,6 +2696,12 @@ export class FileSearchManager {
           e.preventDefault();
           e.stopPropagation();
 
+          // 未選択状態（selectedIndex = -1）の場合、現在のディレクトリパスを展開
+          if (this.selectedIndex < 0) {
+            this.expandCurrentDirectory();
+            return;
+          }
+
           if (e.ctrlKey) {
             // Ctrl+Enterでエディタで開く（@検索テキストは削除、パス挿入なし）
             const suggestion = this.mergedSuggestions[this.selectedIndex];
@@ -2722,6 +2728,12 @@ export class FileSearchManager {
         if (totalItems > 0) {
           e.preventDefault();
           e.stopPropagation();
+
+          // 未選択状態（selectedIndex = -1）の場合、現在のディレクトリパスを展開
+          if (this.selectedIndex < 0) {
+            this.expandCurrentDirectory();
+            return;
+          }
 
           // Check if current selection is a directory (for navigation)
           const suggestion = this.mergedSuggestions[this.selectedIndex];
@@ -2787,13 +2799,30 @@ export class FileSearchManager {
     this.updateTextInputWithPath(this.currentPath);
 
     // Clear the query and show files in the new directory
+    // selectedIndex = -1 で未選択状態にする（Tab/Enterでディレクトリ自体を展開可能）
     this.currentQuery = '';
-    this.selectedIndex = 0;
+    this.selectedIndex = -1;
     this.filteredFiles = this.filterFiles('');
     this.filteredAgents = []; // No agents when navigating into subdirectory
     this.mergedSuggestions = this.mergeSuggestions(''); // Update merged suggestions
     this.renderSuggestions();
     this.updateSelection();
+  }
+
+  /**
+   * Expand current directory path (for Enter/Tab when no item is selected)
+   * 未選択状態でTab/Enterを押した時に現在のディレクトリパスを展開する
+   */
+  private expandCurrentDirectory(): void {
+    if (!this.currentPath) return;
+
+    // 末尾に/を付けてパスを挿入
+    const pathWithSlash = this.currentPath.endsWith('/') ? this.currentPath : this.currentPath + '/';
+    this.insertFilePath(pathWithSlash);
+    this.hideSuggestions();
+
+    // Callback for external handling
+    this.callbacks.onFileSelected(pathWithSlash);
   }
 
   /**
@@ -2832,7 +2861,12 @@ export class FileSearchManager {
   private selectFileByInfo(file: FileInfo): void {
     // Get relative path from base directory
     const baseDir = this.cachedDirectoryData?.directory || '';
-    const relativePath = this.getRelativePath(file.path, baseDir);
+    let relativePath = this.getRelativePath(file.path, baseDir);
+
+    // ディレクトリの場合は末尾に/を付ける
+    if (file.isDirectory && !relativePath.endsWith('/')) {
+      relativePath += '/';
+    }
 
     this.insertFilePath(relativePath);
     this.hideSuggestions();
