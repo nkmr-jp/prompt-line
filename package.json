@@ -54,52 +54,13 @@
     "eslint-plugin-jest": "^28.11.0",
     "globals": "^16.2.0",
     "husky": "^9.1.7",
-    "jest": "^30.0.0",
+    "jest": "^29.7.0",
     "jest-environment-jsdom": "^30.0.0",
-    "jest-environment-node": "^30.0.0",
-    "semantic-release": "^24.2.5",
+    "jest-environment-node": "^27.5.1",
+    "semantic-release": "^25.0.2",
     "ts-jest": "^29.4.0",
     "typescript": "~5.5.0",
     "vite": "^6.4.1"
-  },
-  "jest": {
-    "preset": "ts-jest",
-    "testEnvironment": "node",
-    "roots": [
-      "<rootDir>/src",
-      "<rootDir>/tests"
-    ],
-    "testMatch": [
-      "**/__tests__/**/*.{js,ts}",
-      "**/?(*.)+(spec|test).{js,ts}"
-    ],
-    "transform": {
-      "^.+\\.tsx?$": "ts-jest"
-    },
-    "moduleFileExtensions": [
-      "ts",
-      "tsx",
-      "js",
-      "jsx",
-      "json",
-      "node"
-    ],
-    "collectCoverageFrom": [
-      "src/**/*.{js,ts}",
-      "!src/main.{js,ts}",
-      "!**/node_modules/**"
-    ],
-    "coverageDirectory": "coverage",
-    "coverageReporters": [
-      "text",
-      "lcov",
-      "html"
-    ],
-    "setupFilesAfterEnv": [
-      "<rootDir>/tests/setup.ts"
-    ],
-    "testTimeout": 10000,
-    "forceExit": true
   },
   "build": {
     "appId": "com.electron.prompt-line",

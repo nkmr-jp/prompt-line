@@ -17,6 +17,7 @@ interface DraftMetadata {
   version: string;
   wordCount: number;
   lineCount: number;
+  directory?: string;
 }
 
 interface DraftBackup {
@@ -65,14 +66,14 @@ class DraftManager {
   async loadDraft(): Promise<string> {
     try {
       const data = await fs.readFile(this.draftFile, 'utf8');
-      
+
       if (!data || data.trim().length === 0) {
         logger.debug('Draft file is empty');
         return '';
       }
-      
+
       const parsed = safeJsonParse<{ text?: string }>(data, {});
-      
+
       if (parsed && typeof parsed.text === 'string') {
         logger.debug('Draft loaded:', { length: parsed.text.length });
         return parsed.text;
@@ -131,13 +132,13 @@ class DraftManager {
         timestamp: Date.now(),
         version: '1.0'
       };
-      
+
       const data = safeJsonStringify(draft);
       await fs.writeFile(this.draftFile, data);
-      
+
       this.lastSavedContent = text;
       this.hasUnsavedChanges = false;
-      
+
       logger.debug('Draft saved to file (optimized):', { length: text.length });
     } catch (error) {
       logger.error('Failed to save draft to file:', error);
@@ -173,11 +174,11 @@ class DraftManager {
   async clearDraft(): Promise<void> {
     try {
       this.currentDraft = null;
-      
+
       if (this.debouncedSave.cancel) {
         this.debouncedSave.cancel();
       }
-      
+
       await fs.unlink(this.draftFile);
       logger.debug('Draft cleared and file removed');
     } catch (error) {

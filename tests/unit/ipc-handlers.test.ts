@@ -54,7 +54,9 @@ const mockDraftManager: jest.Mocked<DraftManager> = {
     backupDraft: jest.fn(),
     restoreDraft: jest.fn(),
     cleanupBackups: jest.fn(),
-    destroy: jest.fn()
+    destroy: jest.fn(),
+    setDirectory: jest.fn(),
+    getDirectory: jest.fn(() => null)
 } as any;
 
 // Mock utils
@@ -119,10 +121,17 @@ describe('IPCHandlers', () => {
             resetSettings: jest.fn()
         };
 
+        const mockDirectoryManager = {
+            getDirectory: jest.fn(() => null),
+            setDirectory: jest.fn(),
+            saveDirectory: jest.fn()
+        };
+
         ipcHandlers = new IPCHandlers(
             mockWindowManager,
             mockHistoryManager,
             mockDraftManager,
+            mockDirectoryManager as any,
             mockSettingsManager as any
         );
     });
@@ -148,7 +157,7 @@ describe('IPCHandlers', () => {
             const result = await (ipcHandlers as any).handlePasteText(null, 'test text');
 
             expect(result.success).toBe(true);
-            expect(mockHistoryManager.addToHistory).toHaveBeenCalledWith('test text', 'TestApp');
+            expect(mockHistoryManager.addToHistory).toHaveBeenCalledWith('test text', 'TestApp', undefined);
             expect(mockDraftManager.clearDraft).toHaveBeenCalled();
             expect(clipboard.writeText).toHaveBeenCalledWith('test text');
             expect(mockWindowManager.hideInputWindow).toHaveBeenCalled();
@@ -198,7 +207,7 @@ describe('IPCHandlers', () => {
             await (ipcHandlers as any).handlePasteText(null, 'test text');
 
             expect(mockDraftManager.clearDraft).toHaveBeenCalledTimes(1);
-            expect(mockHistoryManager.addToHistory).toHaveBeenCalledWith('test text', 'TestApp');
+            expect(mockHistoryManager.addToHistory).toHaveBeenCalledWith('test text', 'TestApp', undefined);
         });
 
         test('should clear draft even when paste fails', async () => {
@@ -213,7 +222,7 @@ describe('IPCHandlers', () => {
 
             expect(result.success).toBe(false);
             expect(mockDraftManager.clearDraft).toHaveBeenCalledTimes(1);
-            expect(mockHistoryManager.addToHistory).toHaveBeenCalledWith('test text', 'TestApp');
+            expect(mockHistoryManager.addToHistory).toHaveBeenCalledWith('test text', 'TestApp', undefined);
         });
 
         test('should not clear draft when text is empty', async () => {
@@ -495,8 +504,8 @@ describe('IPCHandlers', () => {
 
             ipcHandlers.removeAllHandlers();
 
-            // Should be called for each handler (updated count after refactoring)
-            expect(ipcMain.removeAllListeners).toHaveBeenCalledTimes(14);
+            // Should be called for each handler (updated count: 25 handlers)
+            expect(ipcMain.removeAllListeners).toHaveBeenCalledTimes(25);
             expect(logger.info).toHaveBeenCalledWith('All IPC handlers removed');
         });
     });

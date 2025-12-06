@@ -39,6 +39,10 @@ jest.mock('../../src/renderer/event-handler', () => ({
     EventHandler: jest.fn().mockImplementation(() => ({
         setTextarea: jest.fn(),
         setSearchManager: jest.fn(),
+        setSlashCommandManager: jest.fn(),
+        setFileSearchManager: jest.fn(),
+        setDomManager: jest.fn(),
+        setUserSettings: jest.fn(),
         setupEventListeners: jest.fn(),
         getIsComposing: jest.fn().mockReturnValue(false)
     }))
@@ -79,6 +83,7 @@ jest.mock('../../src/renderer/dom-manager', () => ({
         searchInput: { addEventListener: jest.fn() },
         updateCharCount: jest.fn(),
         updateAppName: jest.fn(),
+        updateHintText: jest.fn(),
         showError: jest.fn(),
         insertTextAtCursor: jest.fn(),
         clearText: jest.fn(),

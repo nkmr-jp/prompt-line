@@ -6,6 +6,8 @@ export class DomManager {
   public headerShortcutsEl: HTMLElement | null = null;
   public historyShortcutsEl: HTMLElement | null = null;
   public searchInput: HTMLInputElement | null = null;
+  public hintTextEl: HTMLElement | null = null;
+  public headerEl: HTMLElement | null = null;
 
   public initializeElements(): void {
     this.textarea = document.getElementById('textInput') as HTMLTextAreaElement;
@@ -15,10 +17,35 @@ export class DomManager {
     this.headerShortcutsEl = document.getElementById('headerShortcuts');
     this.historyShortcutsEl = document.getElementById('historyShortcuts');
     this.searchInput = document.getElementById('searchInput') as HTMLInputElement;
+    this.hintTextEl = document.getElementById('hintText');
+    this.headerEl = document.getElementById('header');
 
     if (!this.textarea || !this.appNameEl || !this.charCountEl || !this.historyList) {
       throw new Error('Required DOM elements not found');
     }
+  }
+
+  /**
+   * Enable or disable draggable state on the header
+   * When enabled, the header becomes a drag region for the window
+   * @param enabled - Whether to enable draggable state
+   */
+  public setDraggable(enabled: boolean): void {
+    if (!this.headerEl) return;
+
+    if (enabled) {
+      this.headerEl.classList.add('draggable');
+    } else {
+      this.headerEl.classList.remove('draggable');
+    }
+  }
+
+  /**
+   * Check if the header is currently in draggable state
+   * @returns true if draggable
+   */
+  public isDraggable(): boolean {
+    return this.headerEl?.classList.contains('draggable') ?? false;
   }
 
   public updateCharCount(): void {
@@ -31,6 +58,12 @@ export class DomManager {
   public updateAppName(name: string): void {
     if (this.appNameEl) {
       this.appNameEl.textContent = name;
+    }
+  }
+
+  public updateHintText(text: string): void {
+    if (this.hintTextEl) {
+      this.hintTextEl.textContent = text;
     }
   }
 

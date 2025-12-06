@@ -1,7 +1,7 @@
 // Desktop Space Detection Manager for Prompt Line
 // Uses accessibility permissions only - no screen recording permission required
 
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { logger } from '../utils/utils';
 import config from '../config/app-config';
 import type { AppInfo } from '../types';
@@ -88,8 +88,8 @@ class DesktopSpaceManager {
         return true
       end tell
       `;
-      
-      const { stdout } = await this.execAsync(`osascript -e '${script}'`);
+
+      const { stdout } = await this.execOsascript(script);
       return stdout.trim() === 'true';
     } catch (error) {
       logger.debug('Error checking accessibility permission:', error);
@@ -279,11 +279,11 @@ class DesktopSpaceManager {
   }
 
   /**
-   * Utility method for async exec
+   * Utility method for async osascript execution
    */
-  private execAsync(command: string): Promise<{ stdout: string; stderr: string }> {
+  private execOsascript(script: string): Promise<{ stdout: string; stderr: string }> {
     return new Promise((resolve, reject) => {
-      exec(command, { timeout: 5000 }, (error: Error | null, stdout: string, stderr: string) => {
+      execFile('osascript', ['-e', script], { timeout: 5000 }, (error: Error | null, stdout: string, stderr: string) => {
         if (error) {
           reject(error);
         } else {

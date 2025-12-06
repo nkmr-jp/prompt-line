@@ -60,7 +60,7 @@ class AppConfigClass {
         
         // Additional security settings
         allowRunningInsecureContent: false,
-        sandbox: false,  // Disabled for accessibility features (required for auto-paste)
+        sandbox: true,  // Enabled for enhanced security (accessibility features work via main process)
       }
     };
 
@@ -87,6 +87,15 @@ class AppConfigClass {
       },
       get imagesDir() {
         return path.join(userDataDir, 'images');
+      },
+      get directoryFile() {
+        return path.join(userDataDir, 'directory.json');
+      },
+      get cacheDir() {
+        return path.join(userDataDir, 'cache');
+      },
+      get fileListsCacheDir() {
+        return path.join(userDataDir, 'cache', 'file-lists');
       }
     };
 

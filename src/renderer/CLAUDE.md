@@ -140,6 +140,37 @@ User experience features:
 - Auto-focus on search input when entering search mode
 - Seamless transition back to main textarea on search exit
 
+### FileSearchManager
+File search functionality with @ mention detection:
+- **@ Mention Detection**: Triggers file search when user types `@` anywhere in textarea
+- **Incremental Search**: Real-time file filtering as user types after `@`
+- **Hybrid Loading**: Stage 1 (quick single-level) + Stage 2 (recursive with fd/find)
+- **Fuzzy Matching**: Intelligent file matching with score-based ranking
+- **Keyboard Navigation**: Arrow keys, Enter/Tab to select, Escape to close
+- **Cache Management**: Caches directory data from window-shown and directory-data-updated events
+
+Implementation details:
+- Uses fd command (if available) for fast recursive file searching
+- Respects .gitignore patterns with optional override via includePatterns
+- Supports hidden files via includeHidden setting
+- Configurable maxFiles limit (default: 5000) and maxDepth
+- File icons based on extension with emoji indicators
+- Search highlighting with matched text emphasis
+
+Key methods:
+- `cacheDirectoryData()`: Stage 1 data from window-shown event
+- `updateCache()`: Stage 2 data from background directory-data-updated event
+- `checkForFileSearch()`: Detects @ patterns and triggers suggestions
+- `filterFiles()`: Fuzzy matching with score-based sorting
+- `selectFile()`: Inserts relative file path, replacing @query
+
+User experience features:
+- Dropdown appears above textarea with smooth positioning
+- Visual feedback with file icons and relative paths
+- Mouse hover and click selection support
+- Auto-scrolling to selected item during keyboard navigation
+- XSS prevention in file name display
+
 ### UIManager
 Theme and notification management (currently optimized for performance):
 - **Theme System**: CSS custom property-based theming with type-safe theme definitions
@@ -218,6 +249,7 @@ Interactive component styling:
 - **buttons.css**: Button states, hover effects, and accessibility features
 - **search.css**: Search overlay and input styling with transitions
 - **history-item.css**: Individual history item styling with interaction states
+- **file-suggestions.css**: File search dropdown styling with keyboard navigation states
 
 #### styles/themes/
 Theme definitions and variations:
@@ -254,6 +286,14 @@ Performance-optimized animation definitions:
 - **Visual Feedback**: Search overlay with smooth transitions
 - **Multi-modal Close**: Mouse, touch, and keyboard close options
 
+### File Search (@ Mention)
+- **Trigger**: Type `@` anywhere in textarea to activate file search
+- **Incremental Search**: Filter files as you type after `@`
+- **Fuzzy Matching**: Intelligent matching with filename and path search
+- **Keyboard Navigation**: Arrow keys to navigate, Enter/Tab to select, Escape to close
+- **Hybrid Loading**: Fast Stage 1 (single-level) + Background Stage 2 (recursive with fd)
+- **Configurable**: Settings for fd usage, gitignore respect, hidden files, max files/depth
+
 ### History Management
 - **Infinite Scrolling**: Configurable visible item limits with "more items" indicator
 - **Click Selection**: Mouse-based history item selection
@@ -277,7 +317,8 @@ Performance-optimized animation definitions:
 - **`save-draft`/`clear-draft`**: Draft persistence operations
 - **`get-config`**: Configuration retrieval for initialization
 - **`hide-window`/`show-window`**: Window visibility control
-- **`window-shown`**: Window lifecycle event with data payload
+- **`window-shown`**: Window lifecycle with history, draft, settings, and directory data (Stage 1)
+- **`directory-data-updated`**: Background file list update (Stage 2 recursive search)
 
 ## State Management
 

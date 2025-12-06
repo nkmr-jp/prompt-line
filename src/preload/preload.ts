@@ -9,7 +9,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 // Security: Only expose allowed IPC channels
 const ALLOWED_CHANNELS = [
   'paste-text',
-  'paste-image', 
+  'paste-image',
   'get-history',
   'clear-history',
   'remove-history-item',
@@ -17,6 +17,8 @@ const ALLOWED_CHANNELS = [
   'save-draft',
   'clear-draft',
   'get-draft',
+  'set-draft-directory',
+  'get-draft-directory',
   'hide-window',
   'show-window',
   'get-config',
@@ -27,7 +29,14 @@ const ALLOWED_CHANNELS = [
   'clipboard-read-text',
   'clipboard-write-image',
   'focus-window',
-  'window-shown'
+  'window-shown',
+  'get-slash-commands',
+  'directory-data-updated',
+  'open-settings',
+  'get-agents',
+  'open-file-in-editor',
+  'check-file-exists',
+  'open-external-url'
 ];
 
 // IPC channel validation with additional security checks
@@ -197,6 +206,59 @@ const electronAPI = {
     },
     clear: async (): Promise<void> => {
       return ipcRenderer.invoke('clear-draft');
+    },
+    setDirectory: async (directory: string | null): Promise<void> => {
+      return ipcRenderer.invoke('set-draft-directory', directory);
+    },
+    getDirectory: async (): Promise<string | null> => {
+      return ipcRenderer.invoke('get-draft-directory');
+    }
+  },
+
+  // Slash commands
+  slashCommands: {
+    get: async (query?: string): Promise<any[]> => {
+      return ipcRenderer.invoke('get-slash-commands', query);
+    },
+    getFilePath: async (commandName: string): Promise<string | null> => {
+      return ipcRenderer.invoke('get-slash-command-file-path', commandName);
+    }
+  },
+
+  // Agents
+  agents: {
+    get: async (query?: string): Promise<any[]> => {
+      return ipcRenderer.invoke('get-agents', query);
+    },
+    getFilePath: async (agentName: string): Promise<string | null> => {
+      return ipcRenderer.invoke('get-agent-file-path', agentName);
+    }
+  },
+
+  // MdSearch settings
+  mdSearch: {
+    getMaxSuggestions: async (type: 'command' | 'mention'): Promise<number> => {
+      return ipcRenderer.invoke('get-md-search-max-suggestions', type);
+    },
+    getSearchPrefixes: async (type: 'command' | 'mention'): Promise<string[]> => {
+      return ipcRenderer.invoke('get-md-search-prefixes', type);
+    }
+  },
+
+  // File operations
+  file: {
+    openInEditor: async (filePath: string): Promise<{ success: boolean; error?: string }> => {
+      return ipcRenderer.invoke('open-file-in-editor', filePath);
+    },
+    checkExists: async (filePath: string): Promise<boolean> => {
+      return ipcRenderer.invoke('check-file-exists', filePath);
+    }
+  },
+
+  // Shell operations
+  shell: {
+    openExternal: async (url: string): Promise<{ success: boolean; error?: string }> => {
+      return ipcRenderer.invoke('open-external-url', url);
     }
   }
 };
@@ -238,6 +300,23 @@ export interface ElectronAPI {
     save: (text: string) => Promise<void>;
     get: () => Promise<string | null>;
     clear: () => Promise<void>;
+    setDirectory: (directory: string | null) => Promise<void>;
+    getDirectory: () => Promise<string | null>;
+  };
+  slashCommands: {
+    get: (query?: string) => Promise<any[]>;
+    getFilePath: (commandName: string) => Promise<string | null>;
+  };
+  agents: {
+    get: (query?: string) => Promise<any[]>;
+    getFilePath: (agentName: string) => Promise<string | null>;
+  };
+  file: {
+    openInEditor: (filePath: string) => Promise<{ success: boolean; error?: string }>;
+    checkExists: (filePath: string) => Promise<boolean>;
+  };
+  shell: {
+    openExternal: (url: string) => Promise<{ success: boolean; error?: string }>;
   };
 }
 

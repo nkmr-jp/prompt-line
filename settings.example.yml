@@ -1,0 +1,131 @@
+# Prompt Line Settings Configuration Example
+# Copy this file to ~/.prompt-line/settings.yml and customize as needed
+#
+# Documentation: https://github.com/nkmr-jp/prompt-line
+
+# ==============================================================================
+# Keyboard Shortcuts Configuration
+# ==============================================================================
+# Format: Modifier+Key (e.g., Cmd+Shift+Space, Ctrl+Alt+Space)
+# Available modifiers: Cmd, Ctrl, Alt, Shift
+shortcuts:
+  # Global shortcut to show/hide the input window
+  main: Cmd+Shift+Space
+
+  # Paste selected text and close window
+  paste: Cmd+Enter
+
+  # Close window without pasting (preserves draft)
+  close: Escape
+
+  # Navigate to next history item
+  historyNext: Ctrl+j
+
+  # Navigate to previous history item
+  historyPrev: Ctrl+k
+
+  # Enable search mode in history
+  search: Cmd+f
+
+# ==============================================================================
+# Window Appearance and Positioning
+# ==============================================================================
+window:
+  # Window positioning mode
+  # Options:
+  #   - 'active-text-field': Position near the currently focused text field
+  #                          (default, falls back to active-window-center)
+  #   - 'active-window-center': Center within the currently active window
+  #   - 'cursor': Position at mouse cursor location
+  #   - 'center': Center on primary display
+  position: active-text-field
+
+  # Window dimensions in pixels
+  width: 600   # Recommended range: 400-800
+  height: 300  # Recommended range: 200-400
+
+# ==============================================================================
+# File Opener Configuration
+# ==============================================================================
+# Configure which applications to use when opening file links
+# When defaultEditor is null, system default application is used
+fileOpener:
+  # Default editor for all files
+  # Set to null to use system default application
+  # Example values: "Visual Studio Code", "Sublime Text", "WebStorm"
+  defaultEditor: null
+
+  # Extension-specific applications (uncomment to enable)
+  #extensions:
+  #  ts: "WebStorm"
+  #  md: "Typora"
+  #  pdf: "Preview"
+
+# ==============================================================================
+# File Search Configuration for @ Mentions
+# ==============================================================================
+# Configure file search behavior when using @ mentions in the input
+#
+# Requirements:
+#   - fd command is required (install: brew install fd)
+#
+# Supported Applications (directory-detector):
+#   - Terminal.app
+#   - iTerm2
+#   - JetBrains IDEs (IntelliJ IDEA, WebStorm, PyCharm, etc.)
+#   - VSCode (including VSCode Insiders, VSCodium)
+#   - Cursor
+#   - Windsurf
+#
+# Note: File search only works when activated from one of the supported apps above.
+#       The working directory is automatically detected from the terminal/IDE.
+fileSearch:
+  # Respect .gitignore files when searching
+  respectGitignore: true
+
+  # Include hidden files starting with . (default: true)
+  includeHidden: true
+
+  # Maximum number of files to return
+  maxFiles: 5000
+
+  # Maximum directory depth to search (null = unlimited)
+  maxDepth: null
+
+  # Follow symbolic links
+  followSymlinks: false
+
+  # Additional patterns to exclude from search (uncomment to enable)
+  #excludePatterns:
+  #  - "*.log"
+  #  - "*.tmp"
+  #  - "tmp/"
+  #  - "coverage/"
+
+  # Patterns to force include even if in .gitignore (uncomment to enable)
+  #includePatterns:
+  #  - "dist/**/*.js"
+  #  - ".storybook/**/*"
+
+# ==============================================================================
+# Markdown Search Configuration (Slash Commands & Mentions)
+# ==============================================================================
+# Configure sources for slash commands (/) and mentions (@)
+# Template variables: {basename}, {frontmatter@fieldName}
+# Uncomment to enable:
+
+#mdSearch:
+#  - name: "{basename}"
+#    type: command                     # 'command' for / or 'mention' for @
+#    description: "{frontmatter@description}"
+#    path: ~/.claude/commands
+#    pattern: "*.md"                   # Glob pattern: *.md, **/*.md, SKILL.md
+#    argumentHint: "{frontmatter@argument-hint}"  # Optional hint after selection
+#    maxSuggestions: 20                # Max number of suggestions (default: 20)
+#  - name: "agent-{basename}"
+#    type: mention
+#    description: "{frontmatter@description}"
+#    path: ~/.claude/agents
+#    pattern: "*.md"
+#    maxSuggestions: 20
+#    searchPrefix: "agent:"            # Require @agent: prefix for this entry (optional)
