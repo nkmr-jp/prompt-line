@@ -114,14 +114,9 @@ class SettingsManager {
       }
     };
 
-    // Only set commands if it exists in user settings
-    if (userSettings.commands) {
-      result.commands = userSettings.commands;
-    }
-
-    // Only set agents if it exists in user settings
-    if (userSettings.agents) {
-      result.agents = userSettings.agents;
+    // Only set mdSearch if it exists in user settings
+    if (userSettings.mdSearch) {
+      result.mdSearch = userSettings.mdSearch;
     }
 
     return result;
@@ -175,10 +170,21 @@ window:
 # OPTIONAL SETTINGS (uncomment to enable)
 # ============================================================================
 
-# --- Custom Slash Commands ---
-#commands:
-#  directories:
-#    - /Users/your-username/.claude/commands
+# --- Markdown Search (Slash Commands & Mentions) ---
+# Configure sources for slash commands (/) and mentions (@)
+# Template variables: {basename}, {frontmatter@fieldName}
+#mdSearch:
+#  - name: "{basename}"
+#    type: command                    # 'command' for / or 'mention' for @
+#    description: "{frontmatter@description}"
+#    path: ~/.claude/commands
+#    pattern: "*.md"                  # Glob pattern: *.md, **/*.md, SKILL.md
+#    argumentHint: "{frontmatter@argument-hint}"  # Optional hint after selection
+#  - name: "{basename}"
+#    type: mention
+#    description: "{frontmatter@description}"
+#    path: ~/.claude/agents
+#    pattern: "*.md"
 
 # --- File Search (@ mentions) ---
 # Note: fd command is required (install: brew install fd)
