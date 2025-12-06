@@ -63,10 +63,7 @@ class PromptLineApp {
       await this.historyManager.initialize();
       
       this.windowManager.updateWindowSettings(userSettings.window);
-      const fileSearchSettings = this.settingsManager.getFileSearchSettings();
-      if (fileSearchSettings) {
-        this.windowManager.updateFileSearchSettings(fileSearchSettings);
-      }
+      this.windowManager.updateFileSearchSettings(this.settingsManager.getFileSearchSettings());
       this.windowManager.setDirectoryManager(this.directoryManager);
 
       this.ipcHandlers = new IPCHandlers(
