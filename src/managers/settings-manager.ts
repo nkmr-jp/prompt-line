@@ -26,22 +26,11 @@ class SettingsManager {
         position: 'active-text-field',
         width: 600,
         height: 300
-      },
-      // commands is optional - not set by default
-      // fileSearch is optional - defaults below are applied when accessing
-      fileSearch: {
-        respectGitignore: true,
-        excludePatterns: [],
-        includePatterns: [],
-        maxFiles: 5000,
-        includeHidden: true,
-        maxDepth: null,
-        followSymlinks: false
-      },
-      fileOpener: {
-        extensions: {},
-        defaultEditor: null
       }
+      // OPTIONAL SETTINGS - only enabled when explicitly configured by user:
+      // - fileSearch: File search settings (uncomment in settings.yml to enable)
+      // - fileOpener: File opener settings (uncomment in settings.yml to enable)
+      // - mdSearch: Markdown search settings (uncomment in settings.yml to enable)
     };
 
     this.currentSettings = { ...this.defaultSettings };
@@ -98,23 +87,19 @@ class SettingsManager {
       window: {
         ...this.defaultSettings.window,
         ...userSettings.window
-      },
-      fileSearch: {
-        ...this.defaultSettings.fileSearch,
-        ...userSettings.fileSearch
-      },
-      fileOpener: {
-        ...this.defaultSettings.fileOpener,
-        ...userSettings.fileOpener,
-        // Deep merge for extensions object
-        extensions: {
-          ...this.defaultSettings.fileOpener?.extensions,
-          ...userSettings.fileOpener?.extensions
-        }
       }
     };
 
-    // Only set mdSearch if it exists in user settings
+    // OPTIONAL SETTINGS - only set if explicitly configured by user
+    // These are not merged with defaults, only included when user uncomments them in settings.yml
+    if (userSettings.fileSearch) {
+      result.fileSearch = userSettings.fileSearch;
+    }
+
+    if (userSettings.fileOpener) {
+      result.fileOpener = userSettings.fileOpener;
+    }
+
     if (userSettings.mdSearch) {
       result.mdSearch = userSettings.mdSearch;
     }
@@ -274,20 +259,21 @@ window:
   getDefaultSettings(): UserSettings {
     return {
       shortcuts: { ...this.defaultSettings.shortcuts },
-      window: { ...this.defaultSettings.window },
-      fileSearch: { ...this.defaultSettings.fileSearch },
-      fileOpener: {
-        extensions: { ...this.defaultSettings.fileOpener?.extensions },
-        defaultEditor: this.defaultSettings.fileOpener?.defaultEditor ?? null
-      }
+      window: { ...this.defaultSettings.window }
+      // OPTIONAL SETTINGS are not included in defaults
+      // User must explicitly configure them in settings.yml
     };
   }
 
-  getFileSearchSettings(): FileSearchSettings {
-    return {
-      ...this.defaultSettings.fileSearch,
-      ...this.currentSettings.fileSearch
-    } as FileSearchSettings;
+  /**
+   * Returns file search settings if configured by user, or null if not enabled.
+   * File search is only available when user uncomments the fileSearch section in settings.yml.
+   */
+  getFileSearchSettings(): FileSearchSettings | null {
+    if (!this.currentSettings.fileSearch) {
+      return null;
+    }
+    return this.currentSettings.fileSearch as FileSearchSettings;
   }
 
   async updateFileSearchSettings(fileSearch: Partial<NonNullable<UserSettings['fileSearch']>>): Promise<void> {
