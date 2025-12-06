@@ -111,7 +111,6 @@ export class FileSearchManager {
 
   // Constants
   private static readonly MAX_SUGGESTIONS = 15;
-  private static readonly MAX_AGENTS = 5; // Max agents to show in suggestions
 
   constructor(callbacks: FileSearchCallbacks) {
     this.callbacks = callbacks;
@@ -1658,7 +1657,7 @@ export class FileSearchManager {
       const electronAPI = (window as any).electronAPI;
       if (electronAPI?.agents?.get) {
         const agents = await electronAPI.agents.get(query);
-        return agents.slice(0, FileSearchManager.MAX_AGENTS);
+        return agents.slice(0, FileSearchManager.MAX_SUGGESTIONS);
       }
     } catch (error) {
       console.error('[FileSearchManager] Failed to search agents:', error);
