@@ -27,7 +27,9 @@ class TextFieldDetector {
         guard let element = focusedElement else {
             return ["error": "focused_element_null"]
         }
-        
+
+        // Note: AXUIElement is a toll-free bridged CoreFoundation type
+        // The guard let above ensures element is not nil, so force unwrap is safe
         let axElement = element as! AXUIElement
         
         // Get element role
@@ -65,12 +67,16 @@ class TextFieldDetector {
         }
         
         // Extract position values
+        // Note: AXValue is a toll-free bridged CoreFoundation type
+        // The guard let above for position ensures it is not nil, so force unwrap is safe
         var point = CGPoint.zero
         if !AXValueGetValue(position as! AXValue, .cgPoint, &point) {
             return ["error": "invalid_position_data"]
         }
-        
+
         // Extract size values
+        // Note: AXValue is a toll-free bridged CoreFoundation type
+        // The guard let above for size ensures it is not nil, so force unwrap is safe
         var cgSize = CGSize.zero
         if !AXValueGetValue(size as! AXValue, .cgSize, &cgSize) {
             return ["error": "invalid_size_data"]
@@ -116,6 +122,8 @@ class TextFieldDetector {
         var parent: CFTypeRef?
         if AXUIElementCopyAttributeValue(axElement, kAXParentAttribute as CFString, &parent) == AXError.success,
            let parentElement = parent {
+            // Note: AXUIElement is a toll-free bridged CoreFoundation type
+            // The guard let above ensures parentElement is not nil, so force unwrap is safe
             let parentAXElement = parentElement as! AXUIElement
             
             // Get parent role
@@ -131,10 +139,12 @@ class TextFieldDetector {
                     
                     if AXUIElementCopyAttributeValue(parentAXElement, kAXPositionAttribute as CFString, &parentPosition) == AXError.success,
                        AXUIElementCopyAttributeValue(parentAXElement, kAXSizeAttribute as CFString, &parentSize) == AXError.success {
-                        
+
                         var parentPoint = CGPoint.zero
                         var parentCGSize = CGSize.zero
-                        
+
+                        // Note: AXValue is a toll-free bridged CoreFoundation type
+                        // The guard let above ensures values are not nil, so force unwrap is safe
                         if AXValueGetValue(parentPosition as! AXValue, .cgPoint, &parentPoint),
                            AXValueGetValue(parentSize as! AXValue, .cgSize, &parentCGSize) {
                             parentInfo["x"] = Int(parentPoint.x)
@@ -219,7 +229,9 @@ class TextFieldDetector {
         guard let element = focusedElement else {
             return ["error": "focused_element_null"]
         }
-        
+
+        // Note: AXUIElement is a toll-free bridged CoreFoundation type
+        // The guard let above ensures element is not nil, so force unwrap is safe
         let axElement = element as! AXUIElement
         
         // Get basic element information
@@ -266,10 +278,12 @@ class TextFieldDetector {
         
         if AXUIElementCopyAttributeValue(axElement, kAXPositionAttribute as CFString, &position) == AXError.success,
            AXUIElementCopyAttributeValue(axElement, kAXSizeAttribute as CFString, &size) == AXError.success {
-            
+
             var point = CGPoint.zero
             var cgSize = CGSize.zero
-            
+
+            // Note: AXValue is a toll-free bridged CoreFoundation type
+            // The guard let above ensures values are not nil, so force unwrap is safe
             if AXValueGetValue(position as! AXValue, .cgPoint, &point),
                AXValueGetValue(size as! AXValue, .cgSize, &cgSize) {
                 elementInfo["x"] = Int(point.x)

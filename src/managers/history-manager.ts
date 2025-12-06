@@ -17,16 +17,16 @@ import type {
 class HistoryManager implements IHistoryManager {
   private historyData: HistoryItem[] = [];
   private historyFile: string;
-  private pendingSave = false;
   private hasUnsavedChanges = false;
   private debouncedSave: DebounceFunction<[]>;
   private criticalSave: DebounceFunction<[]>;
+  private saveQueue: Promise<void> = Promise.resolve();
 
   constructor() {
     this.historyFile = config.paths.historyFile;
-    
-    this.debouncedSave = debounce(this.performSave.bind(this), 2000);
-    this.criticalSave = debounce(this.performSave.bind(this), 500);
+
+    this.debouncedSave = debounce(this.queueSave.bind(this), 2000);
+    this.criticalSave = debounce(this.queueSave.bind(this), 500);
   }
 
   async initialize(): Promise<void> {
@@ -72,33 +72,36 @@ class HistoryManager implements IHistoryManager {
 
   async saveHistory(immediate = false): Promise<void> {
     if (immediate) {
-      return this.performSave();
+      return this.queueSave();
     } else {
       this.hasUnsavedChanges = true;
       this.debouncedSave();
     }
   }
 
-  private async performSave(): Promise<void> {
-    if (this.pendingSave) {
-      return;
-    }
+  private async queueSave(): Promise<void> {
+    // Add new save operation to queue
+    this.saveQueue = this.saveQueue
+      .then(() => this.performSave())
+      .catch((error) => {
+        logger.error('Queued save failed:', error);
+      });
+    return this.saveQueue;
+  }
 
-    this.pendingSave = true;
+  private async performSave(): Promise<void> {
     try {
       const sortedData = [...this.historyData].sort((a, b) => a.timestamp - b.timestamp);
       const jsonlData = sortedData
         .map(item => JSON.stringify(item))
         .join('\n');
-      
+
       await fs.writeFile(this.historyFile, jsonlData + '\n');
       this.hasUnsavedChanges = false;
       logger.debug(`Batch saved ${this.historyData.length} history items to JSONL`);
     } catch (error) {
       logger.error('Failed to save history:', error);
       throw error;
-    } finally {
-      this.pendingSave = false;
     }
   }
 
@@ -107,6 +110,16 @@ class HistoryManager implements IHistoryManager {
       const trimmedText = text.trim();
       if (!trimmedText) {
         logger.debug('Attempted to add empty text to history');
+        return null;
+      }
+
+      // サイズ制限を追加（1MB）
+      const MAX_HISTORY_ITEM_SIZE = 1024 * 1024; // 1MB
+      if (Buffer.byteLength(trimmedText, 'utf8') > MAX_HISTORY_ITEM_SIZE) {
+        logger.warn('History item too large, rejecting', {
+          size: Buffer.byteLength(trimmedText, 'utf8'),
+          limit: MAX_HISTORY_ITEM_SIZE
+        });
         return null;
       }
 
@@ -199,7 +212,9 @@ class HistoryManager implements IHistoryManager {
 
   async flushPendingSaves(): Promise<void> {
     if (this.hasUnsavedChanges) {
-      await this.performSave();
+      await this.queueSave();
+      // Wait for all queued saves to complete
+      await this.saveQueue;
     }
   }
 

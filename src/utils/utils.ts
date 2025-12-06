@@ -109,6 +109,71 @@ interface AccessibilityStatus {
   bundleId: string;
 }
 
+// Secure error messages (user-facing - no internal information)
+export const SecureErrors = {
+  INVALID_INPUT: 'Invalid input provided',
+  OPERATION_FAILED: 'Operation failed',
+  FILE_NOT_FOUND: 'File not found',
+  PERMISSION_DENIED: 'Permission denied',
+  INTERNAL_ERROR: 'An internal error occurred',
+  INVALID_FORMAT: 'Invalid format',
+  SIZE_LIMIT_EXCEEDED: 'Size limit exceeded',
+} as const;
+
+// Error handler helper - separates user-facing and internal log messages
+export function handleError(error: Error, context: string): { logMessage: string; userMessage: string } {
+  return {
+    logMessage: `${context}: ${error.message}`,
+    userMessage: SecureErrors.OPERATION_FAILED,
+  };
+}
+
+// Sensitive information patterns for masking
+const SENSITIVE_PATTERNS = [
+  { pattern: /password['":\s]*['"]?[\w!@#$%^&*]+/gi, replacement: 'password: [MASKED]' },
+  { pattern: /token['":\s]*['"]?[\w\-.]+/gi, replacement: 'token: [MASKED]' },
+  { pattern: /api[_-]?key['":\s]*['"]?[\w-]+/gi, replacement: 'api_key: [MASKED]' },
+  { pattern: /secret['":\s]*['"]?[\w-]+/gi, replacement: 'secret: [MASKED]' },
+  { pattern: /authorization['":\s]*['"]?Bearer [\w\-.]+/gi, replacement: 'authorization: Bearer [MASKED]' },
+];
+
+// Sensitive key names that should be masked
+const SENSITIVE_KEYS = ['password', 'token', 'secret', 'apikey', 'api_key', 'authorization', 'bearer', 'auth'];
+
+/**
+ * Masks sensitive data in strings and objects before logging
+ * @param data - Data to mask (string, object, or primitive)
+ * @returns Masked data with sensitive information replaced
+ */
+export function maskSensitiveData(data: unknown): unknown {
+  if (typeof data === 'string') {
+    let masked = data;
+    for (const { pattern, replacement } of SENSITIVE_PATTERNS) {
+      masked = masked.replace(pattern, replacement);
+    }
+    return masked;
+  }
+
+  if (typeof data === 'object' && data !== null) {
+    if (Array.isArray(data)) {
+      return data.map(item => maskSensitiveData(item));
+    }
+
+    const masked: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(data)) {
+      const lowerKey = key.toLowerCase();
+      if (SENSITIVE_KEYS.some(k => lowerKey.includes(k))) {
+        masked[key] = '[MASKED]';
+      } else {
+        masked[key] = maskSensitiveData(value);
+      }
+    }
+    return masked;
+  }
+
+  return data;
+}
+
 class Logger {
   private level: LogLevel = 'info';
   private enableFileLogging: boolean = true;
@@ -142,15 +207,18 @@ class Logger {
 
     if (!this.shouldLog(level)) return;
 
+    // Mask sensitive data before logging
+    const maskedData = data ? maskSensitiveData(data) : null;
+
     const consoleMethod = this.getConsoleMethod(level);
-    if (data) {
-      consoleMethod(logMessage, data);
+    if (maskedData) {
+      consoleMethod(logMessage, maskedData);
     } else {
       consoleMethod(logMessage);
     }
 
     if (this.enableFileLogging) {
-      this.writeToFile(logMessage, data);
+      this.writeToFile(logMessage, maskedData);
     }
   }
 

@@ -46,6 +46,20 @@ export class FileOpenerManager {
    */
   private openWithApp(filePath: string, appName: string): Promise<OpenFileResult> {
     return new Promise((resolve) => {
+      // アプリ名の検証
+      if (!appName || typeof appName !== 'string') {
+        logger.warn('Invalid app name provided', { appName });
+        this.openWithDefault(filePath).then(resolve);
+        return;
+      }
+
+      // パストラバーサルパターンの検出
+      if (appName.includes('..') || appName.includes('/')) {
+        logger.warn('Potentially malicious app name detected', { appName });
+        this.openWithDefault(filePath).then(resolve);
+        return;
+      }
+
       // execFileを使用（引数を配列で渡すことでシェルインジェクションを防止）
       // デフォルトでアプリはフロントに持ってくる（-g を付けないことでフォアグラウンドで開く）
       execFile('open', ['-a', appName, filePath], (error) => {

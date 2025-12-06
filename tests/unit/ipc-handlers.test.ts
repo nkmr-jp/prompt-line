@@ -69,7 +69,17 @@ jest.mock('../../src/utils/utils', () => ({
     },
     pasteWithNativeTool: jest.fn(() => Promise.resolve()),
     activateAndPasteWithNativeTool: jest.fn(() => Promise.resolve()),
-    sleep: jest.fn(() => Promise.resolve())
+    sleep: jest.fn(() => Promise.resolve()),
+    SecureErrors: {
+        INVALID_INPUT: 'Invalid input provided',
+        OPERATION_FAILED: 'Operation failed',
+        FILE_NOT_FOUND: 'File not found',
+        PERMISSION_DENIED: 'Permission denied',
+        INTERNAL_ERROR: 'An internal error occurred',
+        INVALID_FORMAT: 'Invalid format',
+        SIZE_LIMIT_EXCEEDED: 'Size limit exceeded'
+    },
+    checkAccessibilityPermission: jest.fn(() => Promise.resolve({ hasPermission: true, bundleId: 'test' }))
 }));
 
 // Mock config
@@ -167,7 +177,7 @@ describe('IPCHandlers', () => {
             const result = await (ipcHandlers as any).handlePasteText(null, '   ');
 
             expect(result.success).toBe(false);
-            expect(result.error).toBe('Empty text provided');
+            expect(result.error).toBe('Invalid input provided');
             expect(mockHistoryManager.addToHistory).not.toHaveBeenCalled();
         });
 
@@ -180,7 +190,7 @@ describe('IPCHandlers', () => {
             const result = await (ipcHandlers as any).handlePasteText(null, 'test text');
 
             expect(result.success).toBe(false);
-            expect(result.error).toBe('Paste failed');
+            expect(result.error).toBe('Operation failed');
         });
 
         test('should handle focus app failure', async () => {
@@ -229,7 +239,7 @@ describe('IPCHandlers', () => {
             const result = await (ipcHandlers as any).handlePasteText(null, '   ');
 
             expect(result.success).toBe(false);
-            expect(result.error).toBe('Empty text provided');
+            expect(result.error).toBe('Invalid input provided');
             expect(mockDraftManager.clearDraft).not.toHaveBeenCalled();
             expect(mockHistoryManager.addToHistory).not.toHaveBeenCalled();
         });
@@ -274,7 +284,7 @@ describe('IPCHandlers', () => {
             const result = await (ipcHandlers as any).handleClearHistory();
 
             expect(result.success).toBe(false);
-            expect(result.error).toBe('Clear failed');
+            expect(result.error).toBe('Operation failed');
         });
     });
 
@@ -340,7 +350,7 @@ describe('IPCHandlers', () => {
             const result = await (ipcHandlers as any).handleSaveDraft(null, 'test draft');
 
             expect(result.success).toBe(false);
-            expect(result.error).toBe('Save failed');
+            expect(result.error).toBe('Operation failed');
         });
     });
 
