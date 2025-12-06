@@ -51,7 +51,7 @@ export class PromptLineRenderer {
   private historyUIManager: HistoryUIManager;
   private lifecycleManager: LifecycleManager;
   private snapshotManager: SimpleSnapshotManager;
-  private defaultHintText: string = ''; // Default hint text (directory path)
+  private defaultHintText: string = 'Multi-line text and Image supported'; // Default hint text
 
   constructor() {
     this.domManager = new DomManager();
