@@ -58,9 +58,22 @@ class WindowManager {
     }
     this.fdCommandChecked = true;
 
+    const fs = require('fs');
+
+    // Check custom fdPath from settings first
+    const customFdPath = this.fileSearchSettings?.fdPath;
+    if (customFdPath) {
+      if (fs.existsSync(customFdPath)) {
+        this.fdCommandAvailable = true;
+        logger.debug(`fd command found at custom path: ${customFdPath}`);
+        return;
+      } else {
+        logger.warn(`Custom fdPath "${customFdPath}" does not exist, falling back to auto-detect`);
+      }
+    }
+
     // Check common fd installation paths directly
     // This avoids PATH issues when Electron is launched outside of shell
-    const fs = require('fs');
     const fdPaths = [
       '/opt/homebrew/bin/fd',  // Apple Silicon Homebrew
       '/usr/local/bin/fd',     // Intel Homebrew
