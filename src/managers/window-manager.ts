@@ -19,7 +19,8 @@ class WindowManager {
   private directoryManager: DirectoryManager | null = null;
   private savedDirectory: string | null = null; // Directory from DirectoryManager for fallback
   private fileCacheManager: FileCacheManager | null = null;
-  private fdCommandAvailable: boolean = true; // fd command availability (checked on init)
+  private fdCommandAvailable: boolean = true; // fd command availability
+  private fdCommandChecked: boolean = false; // Whether fd check has been performed
 
   async initialize(): Promise<void> {
     try {
@@ -33,8 +34,8 @@ class WindowManager {
       this.fileCacheManager = new FileCacheManager();
       await this.fileCacheManager.initialize();
 
-      // Check if fd command is available
-      await this.checkFdCommandAvailability();
+      // Note: fd command availability check is deferred to showInputWindow
+      // when fileSearch settings are available and enabled
 
       // Pre-create window for faster first-time startup
       this.createInputWindow();
@@ -48,9 +49,15 @@ class WindowManager {
   }
 
   /**
-   * Check if fd command is available on the system
+   * Check if fd command is available on the system (only once)
    */
   private async checkFdCommandAvailability(): Promise<void> {
+    // Only check once
+    if (this.fdCommandChecked) {
+      return;
+    }
+    this.fdCommandChecked = true;
+
     const { execFile } = require('child_process');
     return new Promise((resolve) => {
       execFile('which', ['fd'], (error: Error | null) => {
@@ -235,6 +242,10 @@ class WindowManager {
 
       // Only load directory data and check fd when fileSearch is enabled
       if (this.isFileSearchEnabled()) {
+        // Check fd command availability (only when fileSearch is enabled)
+        // This is deferred from initialize() since settings aren't available there
+        await this.checkFdCommandAvailability();
+
         // Load cached file data for immediate file search availability
         const cachedData = await this.loadCachedFilesForWindow();
         if (cachedData) {
@@ -301,12 +312,15 @@ class WindowManager {
       logger.debug('Input window shown', { sourceApp: this.previousApp });
 
       // Background directory detection (non-blocking) - runs AFTER window is shown
-      // Use setImmediate to ensure this doesn't block the main thread
-      setImmediate(() => {
-        this.executeBackgroundDirectoryDetection().catch(error => {
-          logger.warn('Background directory detection error:', error);
+      // Only execute when fileSearch is enabled
+      if (this.isFileSearchEnabled()) {
+        // Use setImmediate to ensure this doesn't block the main thread
+        setImmediate(() => {
+          this.executeBackgroundDirectoryDetection().catch(error => {
+            logger.warn('Background directory detection error:', error);
+          });
         });
-      });
+      }
     } catch (error) {
       logger.error('Failed to show input window:', error);
       logger.error(`❌ Failed after ${(performance.now() - startTime).toFixed(2)}ms`);
