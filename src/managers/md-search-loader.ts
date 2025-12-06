@@ -52,18 +52,53 @@ class MdSearchLoader {
 
   /**
    * 指定タイプのアイテムを検索
+   * searchPrefixが設定されているエントリは、クエリがそのプレフィックスで始まる場合のみ検索対象
    */
   async searchItems(type: MdSearchType, query: string): Promise<MdSearchItem[]> {
-    const items = await this.getItems(type);
+    const allItems = await this.loadAll();
+
+    // タイプでフィルタリング
+    let items = allItems.filter(item => item.type === type);
+
+    // searchPrefixが設定されているエントリをフィルタリング
+    items = items.filter(item => {
+      const entry = this.findEntryForItem(item);
+      if (!entry?.searchPrefix) {
+        // searchPrefixが未設定の場合は常に検索対象
+        return true;
+      }
+      // queryがsearchPrefixで始まるかチェック
+      return query.startsWith(entry.searchPrefix);
+    });
 
     if (!query) {
       return items;
     }
 
-    const lowerQuery = query.toLowerCase();
-    return items.filter(item =>
-      item.name.toLowerCase().includes(lowerQuery) ||
-      item.description.toLowerCase().includes(lowerQuery)
+    // 各アイテムの実際の検索クエリを計算（searchPrefixを除去）
+    return items.filter(item => {
+      const entry = this.findEntryForItem(item);
+      const prefix = entry?.searchPrefix || '';
+      const actualQuery = query.startsWith(prefix) ? query.slice(prefix.length) : query;
+
+      // プレフィックスのみの場合は全て表示
+      if (!actualQuery) {
+        return true;
+      }
+
+      const lowerActualQuery = actualQuery.toLowerCase();
+      return item.name.toLowerCase().includes(lowerActualQuery) ||
+             item.description.toLowerCase().includes(lowerActualQuery);
+    });
+  }
+
+  /**
+   * アイテムに対応する設定エントリを検索
+   */
+  private findEntryForItem(item: MdSearchItem): MdSearchEntry | undefined {
+    return this.config.find(entry =>
+      entry.type === item.type &&
+      `${entry.path}:${entry.pattern}` === item.sourceId
     );
   }
 

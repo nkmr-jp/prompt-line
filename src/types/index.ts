@@ -376,6 +376,8 @@ export interface MdSearchEntry {
   argumentHint?: string;
   /** オプション: 検索候補の最大表示数（デフォルト: 20） */
   maxSuggestions?: number;
+  /** オプション: 検索プレフィックス（例: "agent:"）- このプレフィックスで始まるクエリのみ検索対象 */
+  searchPrefix?: string;
 }
 
 /**

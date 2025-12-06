@@ -25,6 +25,7 @@ export function getDefaultMdSearchConfig(): MdSearchEntry[] {
       path: '~/.claude/agents',
       pattern: '*.md',
       maxSuggestions: DEFAULT_MAX_SUGGESTIONS,
+      searchPrefix: 'agent:',
     },
   ];
 }

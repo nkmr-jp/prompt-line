@@ -621,4 +621,159 @@ Content`;
       expect(items[0]?.sourceId).toBe('/path/to/commands:*.md');
     });
   });
+
+  describe('searchPrefix', () => {
+    let prefixLoader: MdSearchLoader;
+
+    beforeEach(() => {
+      // searchPrefixが設定されたmention設定を持つローダーを作成
+      prefixLoader = new MdSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          path: '/path/to/commands',
+          pattern: '*.md',
+          // searchPrefixなし - 常に検索対象
+        },
+        {
+          name: 'agent-{basename}',
+          type: 'mention',
+          description: '{frontmatter@description}',
+          path: '/path/to/agents',
+          pattern: '*.md',
+          searchPrefix: 'agent:',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockImplementation((dir) => {
+        if (String(dir).includes('commands')) {
+          return Promise.resolve([createDirent('test-cmd.md', true)] as any);
+        }
+        return Promise.resolve([
+          createDirent('helper.md', true),
+          createDirent('search-bot.md', true),
+        ] as any);
+      });
+      mockedFs.readFile.mockImplementation(((filePath: any) => {
+        const pathStr = String(filePath);
+        if (pathStr.includes('test-cmd')) {
+          return Promise.resolve('---\ndescription: Test command\n---\n');
+        }
+        if (pathStr.includes('helper')) {
+          return Promise.resolve('---\ndescription: Helper agent for tasks\n---\n');
+        }
+        return Promise.resolve('---\ndescription: Search bot agent\n---\n');
+      }) as any);
+    });
+
+    test('should exclude items with searchPrefix when query does not start with prefix', async () => {
+      // クエリがプレフィックスで始まらない場合、searchPrefix付きエントリは除外
+      const results = await prefixLoader.searchItems('mention', 'search');
+
+      expect(results).toHaveLength(0);
+    });
+
+    test('should include items with searchPrefix when query starts with prefix', async () => {
+      // クエリがプレフィックスで始まる場合、searchPrefix付きエントリを含む
+      const results = await prefixLoader.searchItems('mention', 'agent:');
+
+      expect(results).toHaveLength(2);
+    });
+
+    test('should search with actual query after removing prefix', async () => {
+      // プレフィックス除去後のクエリで検索
+      const results = await prefixLoader.searchItems('mention', 'agent:search');
+
+      expect(results).toHaveLength(1);
+      expect(results[0]?.name).toBe('agent-search-bot');
+    });
+
+    test('should search by description with prefix', async () => {
+      // 説明でも検索可能
+      const results = await prefixLoader.searchItems('mention', 'agent:helper');
+
+      expect(results).toHaveLength(1);
+      expect(results[0]?.name).toBe('agent-helper');
+    });
+
+    test('should always include items without searchPrefix', async () => {
+      // searchPrefixが設定されていないエントリは常に検索対象
+      const results = await prefixLoader.searchItems('command', '');
+
+      expect(results).toHaveLength(1);
+      expect(results[0]?.type).toBe('command');
+    });
+
+    test('should be case-sensitive for prefix matching', async () => {
+      // プレフィックスマッチングは大文字小文字を区別
+      const results = await prefixLoader.searchItems('mention', 'AGENT:search');
+
+      expect(results).toHaveLength(0);
+    });
+
+    test('should handle multiple entries with different searchPrefix', async () => {
+      // 複数エントリで異なるsearchPrefixの場合
+      const multiPrefixLoader = new MdSearchLoader([
+        {
+          name: 'agent-{basename}',
+          type: 'mention',
+          description: '{frontmatter@description}',
+          path: '/path/to/agents',
+          pattern: '*.md',
+          searchPrefix: 'agent:',
+        },
+        {
+          name: 'tool-{basename}',
+          type: 'mention',
+          description: '{frontmatter@description}',
+          path: '/path/to/tools',
+          pattern: '*.md',
+          searchPrefix: 'tool:',
+        },
+      ]);
+
+      mockedFs.readdir.mockImplementation((dir) => {
+        if (String(dir).includes('agents')) {
+          return Promise.resolve([createDirent('helper.md', true)] as any);
+        }
+        if (String(dir).includes('tools')) {
+          return Promise.resolve([createDirent('formatter.md', true)] as any);
+        }
+        return Promise.resolve([] as any);
+      });
+      mockedFs.readFile.mockImplementation(((filePath: any) => {
+        const pathStr = String(filePath);
+        if (pathStr.includes('helper')) {
+          return Promise.resolve('---\ndescription: Helper agent\n---\n');
+        }
+        return Promise.resolve('---\ndescription: Formatter tool\n---\n');
+      }) as any);
+
+      // agent:で検索 - agentのみ
+      const agentResults = await multiPrefixLoader.searchItems('mention', 'agent:');
+      expect(agentResults).toHaveLength(1);
+      expect(agentResults[0]?.name).toBe('agent-helper');
+
+      // tool:で検索 - toolのみ
+      multiPrefixLoader.invalidateCache();
+      const toolResults = await multiPrefixLoader.searchItems('mention', 'tool:');
+      expect(toolResults).toHaveLength(1);
+      expect(toolResults[0]?.name).toBe('tool-formatter');
+
+      // プレフィックスなしで検索 - 両方除外
+      multiPrefixLoader.invalidateCache();
+      const noResults = await multiPrefixLoader.searchItems('mention', '');
+      expect(noResults).toHaveLength(0);
+    });
+
+    test('should return all items when prefix only is provided', async () => {
+      // プレフィックスのみ入力時は全アイテム表示
+      const results = await prefixLoader.searchItems('mention', 'agent:');
+
+      expect(results).toHaveLength(2);
+      expect(results.map(r => r.name).sort()).toEqual(['agent-helper', 'agent-search-bot']);
+    });
+  });
 });
