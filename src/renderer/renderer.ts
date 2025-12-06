@@ -390,11 +390,15 @@ export class PromptLineRenderer {
         directoryDataDirectory: data.directoryData?.directory,
         directoryDataFileCount: data.directoryData?.files?.length,
         directoryDataFromDraft: data.directoryData?.fromDraft,
-        hasFileSearchManager: !!this.fileSearchManager
+        hasFileSearchManager: !!this.fileSearchManager,
+        fileSearchEnabled: data.fileSearchEnabled
       }));
 
       this.lifecycleManager.handleWindowShown(data);
       this.updateHistoryAndSettings(data);
+
+      // Update file search enabled state in FileSearchManager
+      this.fileSearchManager?.setFileSearchEnabled(data.fileSearchEnabled ?? false);
 
       // Reset search mode and scroll position when window is shown
       this.searchManager?.exitSearchMode();

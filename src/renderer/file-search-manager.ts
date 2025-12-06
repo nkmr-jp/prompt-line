@@ -118,8 +118,26 @@ export class FileSearchManager {
   // Cached searchPrefixes per type
   private searchPrefixesCache: Map<string, string[]> = new Map();
 
+  // Whether file search feature is enabled (from settings)
+  private fileSearchEnabled: boolean = false;
+
   constructor(callbacks: FileSearchCallbacks) {
     this.callbacks = callbacks;
+  }
+
+  /**
+   * Set whether file search is enabled
+   */
+  public setFileSearchEnabled(enabled: boolean): void {
+    this.fileSearchEnabled = enabled;
+    console.debug('[FileSearchManager] File search enabled:', enabled);
+  }
+
+  /**
+   * Check if file search is enabled
+   */
+  public isFileSearchEnabled(): boolean {
+    return this.fileSearchEnabled;
   }
 
   /**
@@ -957,6 +975,10 @@ export class FileSearchManager {
    * Show hint for opening file with Ctrl+Enter
    */
   private showFileOpenHint(): void {
+    // Skip hint if file search is disabled
+    if (!this.fileSearchEnabled) {
+      return;
+    }
     if (this.callbacks.updateHintText) {
       this.callbacks.updateHintText('Ctrl + ↵ to open');
     }
@@ -1616,6 +1638,11 @@ export class FileSearchManager {
    * Check if file search should be triggered based on cursor position
    */
   public checkForFileSearch(): void {
+    // Skip if file search is disabled
+    if (!this.fileSearchEnabled) {
+      return;
+    }
+
     console.debug('[FileSearchManager] checkForFileSearch called', formatLog({
       hasTextInput: !!this.textInput,
       hasCachedData: !!this.cachedDirectoryData,
