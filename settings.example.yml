@@ -66,16 +66,16 @@ fileSearch:
   followSymlinks: false
 
   # Additional patterns to exclude from search (uncomment to enable)
-  # excludePatterns:
-  #   - "*.log"
-  #   - "*.tmp"
-  #   - "tmp/"
-  #   - "coverage/"
+  #excludePatterns:
+  #  - "*.log"
+  #  - "*.tmp"
+  #  - "tmp/"
+  #  - "coverage/"
 
   # Patterns to force include even if in .gitignore (uncomment to enable)
-  # includePatterns:
-  #   - "dist/**/*.js"
-  #   - ".storybook/**/*"
+  #includePatterns:
+  #  - "dist/**/*.js"
+  #  - ".storybook/**/*"
 
 # ==============================================================================
 # File Opener Configuration
@@ -89,10 +89,10 @@ fileOpener:
   defaultEditor: null
 
   # Extension-specific applications (uncomment to enable)
-  # extensions:
-  #   ts: "WebStorm"
-  #   md: "Typora"
-  #   pdf: "Preview"
+  #extensions:
+  #  ts: "WebStorm"
+  #  md: "Typora"
+  #  pdf: "Preview"
 
 # ==============================================================================
 # Markdown Search Configuration (Slash Commands & Mentions)
@@ -101,18 +101,18 @@ fileOpener:
 # Template variables: {basename}, {frontmatter@fieldName}
 # Uncomment to enable:
 
-# mdSearch:
-#   - name: "{basename}"
-#     type: command                    # 'command' for / or 'mention' for @
-#     description: "{frontmatter@description}"
-#     path: ~/.claude/commands
-#     pattern: "*.md"                  # Glob pattern: *.md, **/*.md, SKILL.md
-#     argumentHint: "{frontmatter@argument-hint}"  # Optional hint after selection
-#     maxSuggestions: 20               # Max number of suggestions (default: 20)
-#   - name: "agent-{basename}"
-#     type: mention
-#     description: "{frontmatter@description}"
-#     path: ~/.claude/agents
-#     pattern: "*.md"
-#     maxSuggestions: 20
-#     searchPrefix: "agent:"           # Require @agent: prefix for this entry (optional)
+#mdSearch:
+#  - name: "{basename}"
+#    type: command                     # 'command' for / or 'mention' for @
+#    description: "{frontmatter@description}"
+#    path: ~/.claude/commands
+#    pattern: "*.md"                   # Glob pattern: *.md, **/*.md, SKILL.md
+#    argumentHint: "{frontmatter@argument-hint}"  # Optional hint after selection
+#    maxSuggestions: 20                # Max number of suggestions (default: 20)
+#  - name: "agent-{basename}"
+#    type: mention
+#    description: "{frontmatter@description}"
+#    path: ~/.claude/agents
+#    pattern: "*.md"
+#    maxSuggestions: 20
+#    searchPrefix: "agent:"            # Require @agent: prefix for this entry (optional)
