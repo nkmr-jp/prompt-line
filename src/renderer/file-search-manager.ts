@@ -3175,9 +3175,17 @@ export class FileSearchManager {
       for (const file of files) {
         const relativePath = this.getRelativePath(file.path, baseDir!);
         relativePaths.add(relativePath);
-        // Also add without trailing slash for directories
-        if (relativePath.endsWith('/')) {
-          relativePaths.add(relativePath.slice(0, -1));
+        // For directories: add both with and without trailing slash
+        // getRelativePath doesn't add trailing slash, but selectFileByInfo adds it for directories
+        // So we need both versions to match @paths in text
+        if (file.isDirectory) {
+          // Add with trailing slash if not already present
+          if (!relativePath.endsWith('/')) {
+            relativePaths.add(relativePath + '/');
+          } else {
+            // Also add without trailing slash
+            relativePaths.add(relativePath.slice(0, -1));
+          }
         }
       }
 
