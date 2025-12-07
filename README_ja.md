@@ -223,9 +223,6 @@ fileOpener:
 # ============================================================================
 # Note: fd command is required for file search (install: brew install fd)
 # When this section is commented out, file search feature is disabled
-#
-# Supported Applications:
-#   Terminal.app, iTerm2, JetBrains IDEs, VSCode, Cursor, Windsurf
 
 #fileSearch:                        # File search for @ mentions (uncomment to enable)
 #  respectGitignore: true             # Respect .gitignore files
@@ -247,13 +244,22 @@ fileOpener:
 # Template variables: {basename}, {frontmatter@fieldName}
 
 #mdSearch:                         # Slash commands & mentions (uncomment to enable)
+#  # Pattern examples:
+#  #   "*.md"                  - Root directory only
+#  #   "**/*.md"               - All subdirectories (recursive)
+#  #   "**/commands/*.md"      - Any "commands" subdirectory
+#  #   "**/*/SKILL.md"         - SKILL.md in any subdirectory
+#  #   "**/{cmd,agent}/*.md"   - Brace expansion (cmd or agent dirs)
+#  #   "test-*.md"             - Wildcard prefix
+#
 #  - name: "{basename}"
 #    type: command                     # 'command' for / or 'mention' for @
 #    description: "{frontmatter@description}"
 #    path: ~/.claude/commands
-#    pattern: "*.md"                   # Glob pattern: *.md, **/*.md, SKILL.md
+#    pattern: "*.md"
 #    argumentHint: "{frontmatter@argument-hint}"  # Optional hint after selection
 #    maxSuggestions: 20                # Max number of suggestions (default: 20)
+#
 #  - name: "agent-{basename}"
 #    type: mention
 #    description: "{frontmatter@description}"
@@ -261,6 +267,14 @@ fileOpener:
 #    pattern: "*.md"
 #    maxSuggestions: 20
 #    searchPrefix: "agent:"            # Require @agent: prefix for this entry (optional)
+#
+#  - name: "{frontmatter@name}"
+#    type: mention
+#    description: "{frontmatter@description}"
+#    path: ~/.claude/plugins
+#    pattern: "**/*/SKILL.md"          # Match SKILL.md in any plugin subdirectory
+#    maxSuggestions: 20
+#    searchPrefix: "skill:"            # Require @skill: prefix for this entry
 ```
 
 ## プロンプト履歴
