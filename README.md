@@ -46,8 +46,7 @@ Of course, it also works with apps other than Terminal.
 ![doc5.gif](assets/doc5.gif)
 
 ### File Opener
-You can open files from file path text. (`Ctrl+Enter` or `Cmd+Click`)<br>
-Useful when you want to check the content of images while entering prompts.
+You can launch a file searched for with a file path or @ and check its contents. (`Ctrl+Enter` or `Cmd+Click`)
 
 ![doc9.png](assets/doc9.png)
 
@@ -65,7 +64,7 @@ You can search for slash commands by typing /.<br>
 
 ![doc11.png](assets/doc11.png)
 
-You can also configure to search for sub-agents by typing @.<br>
+You can also configure to search for sub-agents and skills by typing @.
 
 ![doc12.png](assets/doc12.png)
 
