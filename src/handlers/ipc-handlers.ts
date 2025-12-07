@@ -1,19 +1,24 @@
 import { ipcMain, clipboard, IpcMainInvokeEvent, dialog, shell } from 'electron';
 import { promises as fs } from 'fs';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import path from 'path';
+import os from 'os';
 import config from '../config/app-config';
-import { 
-  logger, 
-  pasteWithNativeTool, 
-  activateAndPasteWithNativeTool, 
+import {
+  logger,
+  pasteWithNativeTool,
+  activateAndPasteWithNativeTool,
   sleep,
-  checkAccessibilityPermission 
+  checkAccessibilityPermission,
+  SecureErrors
 } from '../utils/utils';
 import type WindowManager from '../managers/window-manager';
 import type DraftManager from '../managers/draft-manager';
+import type DirectoryManager from '../managers/directory-manager';
 import type SettingsManager from '../managers/settings-manager';
-import type { AppInfo, WindowData, HistoryItem, IHistoryManager } from '../types';
+import MdSearchLoader from '../managers/md-search-loader';
+import FileOpenerManager from '../managers/file-opener-manager';
+import type { AppInfo, WindowData, HistoryItem, IHistoryManager, SlashCommandItem, AgentItem } from '../types';
 
 interface IPCResult {
   success: boolean;
@@ -63,18 +68,32 @@ class IPCHandlers {
   private windowManager: WindowManager;
   private historyManager: IHistoryManager;
   private draftManager: DraftManager;
+  private directoryManager: DirectoryManager;
   private settingsManager: SettingsManager;
+  private mdSearchLoader: MdSearchLoader;
+  private fileOpenerManager: FileOpenerManager;
 
   constructor(
-    windowManager: WindowManager, 
-    historyManager: IHistoryManager, 
+    windowManager: WindowManager,
+    historyManager: IHistoryManager,
     draftManager: DraftManager,
+    directoryManager: DirectoryManager,
     settingsManager: SettingsManager
   ) {
     this.windowManager = windowManager;
     this.historyManager = historyManager;
     this.draftManager = draftManager;
+    this.directoryManager = directoryManager;
     this.settingsManager = settingsManager;
+    this.mdSearchLoader = new MdSearchLoader();
+    this.fileOpenerManager = new FileOpenerManager(settingsManager);
+
+    // Initialize MdSearchLoader with settings
+    const settings = this.settingsManager.getSettings();
+    if (settings.mdSearch) {
+      this.mdSearchLoader.updateConfig(settings.mdSearch);
+      logger.info('MdSearch config updated from settings');
+    }
 
     this.setupHandlers();
   }
@@ -88,12 +107,24 @@ class IPCHandlers {
     ipcMain.handle('save-draft', this.handleSaveDraft.bind(this));
     ipcMain.handle('clear-draft', this.handleClearDraft.bind(this));
     ipcMain.handle('get-draft', this.handleGetDraft.bind(this));
+    ipcMain.handle('set-draft-directory', this.handleSetDraftDirectory.bind(this));
+    ipcMain.handle('get-draft-directory', this.handleGetDraftDirectory.bind(this));
     ipcMain.handle('hide-window', this.handleHideWindow.bind(this));
     ipcMain.handle('show-window', this.handleShowWindow.bind(this));
+    ipcMain.handle('focus-window', this.handleFocusWindow.bind(this));
     ipcMain.handle('get-app-info', this.handleGetAppInfo.bind(this));
     ipcMain.handle('get-config', this.handleGetConfig.bind(this));
     ipcMain.handle('paste-image', this.handlePasteImage.bind(this));
     ipcMain.handle('open-settings', this.handleOpenSettings.bind(this));
+    ipcMain.handle('get-slash-commands', this.handleGetSlashCommands.bind(this));
+    ipcMain.handle('get-slash-command-file-path', this.handleGetSlashCommandFilePath.bind(this));
+    ipcMain.handle('get-agents', this.handleGetAgents.bind(this));
+    ipcMain.handle('get-agent-file-path', this.handleGetAgentFilePath.bind(this));
+    ipcMain.handle('get-md-search-max-suggestions', this.handleGetMdSearchMaxSuggestions.bind(this));
+    ipcMain.handle('get-md-search-prefixes', this.handleGetMdSearchPrefixes.bind(this));
+    ipcMain.handle('open-file-in-editor', this.handleOpenFileInEditor.bind(this));
+    ipcMain.handle('check-file-exists', this.handleCheckFileExists.bind(this));
+    ipcMain.handle('open-external-url', this.handleOpenExternalUrl.bind(this));
 
     logger.info('IPC handlers set up successfully');
   }
@@ -104,23 +135,26 @@ class IPCHandlers {
 
       // Validate input
       if (typeof text !== 'string') {
-        return { success: false, error: 'Invalid text provided' };
+        logger.warn('Invalid input type for paste text', { type: typeof text });
+        return { success: false, error: SecureErrors.INVALID_INPUT };
       }
 
       if (!text.trim()) {
-        return { success: false, error: 'Empty text provided' };
+        logger.debug('Empty text provided for paste');
+        return { success: false, error: SecureErrors.INVALID_INPUT };
       }
 
       // Add reasonable length limit (1MB) to prevent DoS attacks
       // Use Buffer.byteLength for accurate byte-based limit instead of character count
       if (Buffer.byteLength(text, 'utf8') > MAX_PASTE_TEXT_LENGTH_BYTES) {
-        return { success: false, error: 'Text too large (max 1MB)' };
+        logger.warn('Text size exceeds limit', { size: Buffer.byteLength(text, 'utf8'), limit: MAX_PASTE_TEXT_LENGTH_BYTES });
+        return { success: false, error: SecureErrors.SIZE_LIMIT_EXCEEDED };
       }
 
 
       // Get previous app info before hiding window
       const previousApp = await this.getPreviousAppAsync();
-      
+
       // Extract app name for history
       let appName: string | undefined;
       if (previousApp) {
@@ -131,8 +165,11 @@ class IPCHandlers {
         }
       }
 
+      // Get directory from directory manager
+      const directory = this.directoryManager.getDirectory() || undefined;
+
       await Promise.all([
-        this.historyManager.addToHistory(text, appName),
+        this.historyManager.addToHistory(text, appName, directory),
         this.draftManager.clearDraft(),
         this.setClipboardAsync(text)
       ]);
@@ -165,28 +202,31 @@ class IPCHandlers {
           return { success: true, warning: 'Auto-paste not supported on this platform' };
         }
       } catch (pasteError) {
-        logger.error('Paste operation failed:', pasteError);
-        
+        const err = pasteError as Error;
+        logger.error('Paste operation failed:', { message: err.message, stack: err.stack });
+
         // Check accessibility permission after paste failure on macOS
         if (config.platform.isMac) {
           try {
             const { hasPermission, bundleId } = await checkAccessibilityPermission();
-            
+
             if (!hasPermission) {
               logger.warn('Paste failed - accessibility permission not granted', { bundleId });
               this.showAccessibilityWarning(bundleId);
-              return { success: false, error: 'Accessibility permission required. Please grant permission and try again.' };
+              return { success: false, error: SecureErrors.PERMISSION_DENIED };
             }
           } catch (accessibilityError) {
-            logger.error('Failed to check accessibility permission after paste failure:', accessibilityError);
+            const accErr = accessibilityError as Error;
+            logger.error('Failed to check accessibility permission after paste failure:', { message: accErr.message });
           }
         }
-        
-        return { success: false, error: (pasteError as Error).message };
+
+        return { success: false, error: SecureErrors.OPERATION_FAILED };
       }
     } catch (error) {
-      logger.error('Failed to handle paste text:', error);
-      return { success: false, error: (error as Error).message };
+      const err = error as Error;
+      logger.error('Failed to handle paste text:', { message: err.message, stack: err.stack });
+      return { success: false, error: SecureErrors.OPERATION_FAILED };
     }
   }
 
@@ -213,7 +253,7 @@ class IPCHandlers {
 
   private async handleGetHistory(_event: IpcMainInvokeEvent): Promise<HistoryItem[]> {
     try {
-      const history = await this.historyManager.getHistory();
+const history = await this.historyManager.getHistory();
       logger.debug('History requested', { count: history.length });
       return history;
     } catch (error) {
@@ -224,40 +264,47 @@ class IPCHandlers {
 
   private async handleClearHistory(_event: IpcMainInvokeEvent): Promise<IPCResult> {
     try {
+      // Rate limiting check
+
       await this.historyManager.clearHistory();
       logger.info('History cleared via IPC');
       return { success: true };
     } catch (error) {
-      logger.error('Failed to clear history:', error);
-      return { success: false, error: (error as Error).message };
+      const err = error as Error;
+      logger.error('Failed to clear history:', { message: err.message, stack: err.stack });
+      return { success: false, error: SecureErrors.OPERATION_FAILED };
     }
   }
 
   private async handleRemoveHistoryItem(_event: IpcMainInvokeEvent, id: string): Promise<IPCResult> {
     try {
+      // Rate limiting check
+
       // Validate ID format (must match generateId() output: lowercase alphanumeric)
       // NOTE: This regex is coupled with utils.generateId() - update both if ID format changes
-      if (!id || typeof id !== 'string' || !id.match(/^[a-z0-9]+$/)) {
+      const MAX_ID_LENGTH = 32; // generateId()の出力に合わせた適切な長さ制限
+      if (!id || typeof id !== 'string' || !id.match(/^[a-z0-9]+$/) || id.length > MAX_ID_LENGTH) {
         logger.warn('Invalid history item ID format', { id });
-        return { success: false, error: 'Invalid ID format' };
+        return { success: false, error: SecureErrors.INVALID_FORMAT };
       }
-      
+
       const removed = await this.historyManager.removeHistoryItem(id);
       logger.info('History item removal requested', { id, removed });
       return { success: removed };
     } catch (error) {
-      logger.error('Failed to remove history item:', error);
-      return { success: false, error: (error as Error).message };
+      const err = error as Error;
+      logger.error('Failed to remove history item:', { message: err.message, stack: err.stack });
+      return { success: false, error: SecureErrors.OPERATION_FAILED };
     }
   }
 
   private async handleSearchHistory(
-    _event: IpcMainInvokeEvent, 
-    query: string, 
+    _event: IpcMainInvokeEvent,
+    query: string,
     limit = 10
   ): Promise<HistoryItem[]> {
     try {
-      const results = await this.historyManager.searchHistory(query, limit);
+const results = await this.historyManager.searchHistory(query, limit);
       logger.debug('History search requested', { query, results: results.length });
       return results;
     } catch (error) {
@@ -268,8 +315,8 @@ class IPCHandlers {
 
 
   private async handleSaveDraft(
-    _event: IpcMainInvokeEvent, 
-    text: string, 
+    _event: IpcMainInvokeEvent,
+    text: string,
     immediate = false
   ): Promise<IPCResult> {
     try {
@@ -282,8 +329,9 @@ class IPCHandlers {
       logger.debug('Draft save requested', { length: text.length, immediate });
       return { success: true };
     } catch (error) {
-      logger.error('Failed to save draft:', error);
-      return { success: false, error: (error as Error).message };
+      const err = error as Error;
+      logger.error('Failed to save draft:', { message: err.message, stack: err.stack });
+      return { success: false, error: SecureErrors.OPERATION_FAILED };
     }
   }
 
@@ -293,8 +341,9 @@ class IPCHandlers {
       logger.info('Draft cleared via IPC');
       return { success: true };
     } catch (error) {
-      logger.error('Failed to clear draft:', error);
-      return { success: false, error: (error as Error).message };
+      const err = error as Error;
+      logger.error('Failed to clear draft:', { message: err.message, stack: err.stack });
+      return { success: false, error: SecureErrors.OPERATION_FAILED };
     }
   }
 
@@ -309,6 +358,34 @@ class IPCHandlers {
     }
   }
 
+  private async handleSetDraftDirectory(
+    _event: IpcMainInvokeEvent,
+    directory: string | null
+  ): Promise<IPCResult> {
+    try {
+      if (directory) {
+        await this.directoryManager.saveDirectory(directory);
+      } else {
+        this.directoryManager.setDirectory(null);
+      }
+      logger.debug('Directory set via IPC', { directory });
+      return { success: true };
+    } catch (error) {
+      logger.error('Failed to set directory:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
+  private async handleGetDraftDirectory(_event: IpcMainInvokeEvent): Promise<string | null> {
+    try {
+      const directory = this.directoryManager.getDirectory();
+      logger.debug('Directory requested', { directory });
+      return directory;
+    } catch (error) {
+      logger.error('Failed to get directory:', error);
+      return null;
+    }
+  }
 
   private async handleHideWindow(_event: IpcMainInvokeEvent, restoreFocus: boolean = true): Promise<IPCResult> {
     try {
@@ -344,7 +421,7 @@ class IPCHandlers {
   }
 
   private async handleShowWindow(
-    _event: IpcMainInvokeEvent, 
+    _event: IpcMainInvokeEvent,
     data: WindowData = {}
   ): Promise<IPCResult> {
     try {
@@ -353,6 +430,17 @@ class IPCHandlers {
       return { success: true };
     } catch (error) {
       logger.error('Failed to show window:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
+  private async handleFocusWindow(_event: IpcMainInvokeEvent): Promise<IPCResult> {
+    try {
+      this.windowManager.focusWindow();
+      logger.debug('Window focus requested');
+      return { success: true };
+    } catch (error) {
+      logger.error('Failed to focus window:', error);
       return { success: false, error: (error as Error).message };
     }
   }
@@ -378,32 +466,48 @@ class IPCHandlers {
   }
 
   private async handleGetConfig(
-    _event: IpcMainInvokeEvent, 
+    _event: IpcMainInvokeEvent,
     section: string | null = null
   ): Promise<ConfigData | Record<string, unknown> | {}> {
     try {
       if (section) {
+        // セクション名の型検証を強化
+        if (typeof section !== 'string') {
+          logger.warn('Invalid config section type', { type: typeof section });
+          return {};
+        }
+
         // Validate section name against whitelist
         if (!VALID_CONFIG_SECTIONS.includes(section)) {
           logger.warn('Invalid config section requested', { section });
           return {};
         }
-        
-        const configData = config.get(section as keyof typeof config);
-        logger.debug('Config section requested', { section });
-        return configData;
-      } else {
-        const safeConfig: ConfigData = {
-          shortcuts: config.shortcuts as unknown as Record<string, string>,
-          history: config.history as unknown as Record<string, unknown>,
-          draft: config.draft as unknown as Record<string, unknown>,
-          timing: config.timing as unknown as Record<string, unknown>,
-          app: config.app as unknown as Record<string, unknown>,
-          platform: config.platform as unknown as Record<string, unknown>
-        };
 
-        logger.debug('Full config requested');
-        return safeConfig;
+        try {
+          const configData = config.get(section as keyof typeof config);
+          logger.debug('Config section requested', { section });
+          return configData || {};
+        } catch (sectionError) {
+          logger.error('Failed to get config section:', { section, error: sectionError });
+          return {};
+        }
+      } else {
+        try {
+          const safeConfig: ConfigData = {
+            shortcuts: config.shortcuts as unknown as Record<string, string>,
+            history: config.history as unknown as Record<string, unknown>,
+            draft: config.draft as unknown as Record<string, unknown>,
+            timing: config.timing as unknown as Record<string, unknown>,
+            app: config.app as unknown as Record<string, unknown>,
+            platform: config.platform as unknown as Record<string, unknown>
+          };
+
+          logger.debug('Full config requested');
+          return safeConfig;
+        } catch (configError) {
+          logger.error('Failed to build full config:', configError);
+          return {};
+        }
       }
     } catch (error) {
       logger.error('Failed to get config:', error);
@@ -413,6 +517,8 @@ class IPCHandlers {
 
   private async handlePasteImage(_event: IpcMainInvokeEvent): Promise<ImageResult> {
     try {
+      // Rate limiting check
+
       logger.info('Paste image requested');
 
       const image = clipboard.readImage();
@@ -423,7 +529,8 @@ class IPCHandlers {
 
       const imagesDir = config.paths.imagesDir;
       try {
-        await fs.mkdir(imagesDir, { recursive: true });
+        // Set restrictive directory permissions (owner read/write/execute only)
+        await fs.mkdir(imagesDir, { recursive: true, mode: 0o700 });
       } catch (error) {
         logger.error('Failed to create images directory:', error);
       }
@@ -437,22 +544,42 @@ class IPCHandlers {
       const seconds = String(now.getSeconds()).padStart(2, '0');
       
       const filename = `${year}${month}${day}_${hours}${minutes}${seconds}.png`;
+
+      // ファイル名の追加検証（危険な文字を含まないことを確認）
+      const SAFE_FILENAME_REGEX = /^[0-9_]+\.png$/;
+      if (!SAFE_FILENAME_REGEX.test(filename)) {
+        logger.error('Invalid filename generated', { filename });
+        return { success: false, error: 'Invalid filename' };
+      }
+
       const filepath = path.join(imagesDir, filename);
-      
+
       // Normalize and validate path to prevent path traversal
       const normalizedPath = path.normalize(filepath);
       if (!normalizedPath.startsWith(path.normalize(imagesDir))) {
-        logger.error('Attempted path traversal detected - potential security threat', { 
-          filepath, 
-          normalizedPath, 
+        logger.error('Attempted path traversal detected - potential security threat', {
+          filepath,
+          normalizedPath,
           timestamp: Date.now(),
           source: 'handlePasteImage'
         });
         return { success: false, error: 'Invalid file path' };
       }
 
+      // 既存のパス検証に加えて、実際のパスが期待通りかを確認
+      const expectedDir = path.normalize(imagesDir);
+      const actualDir = path.dirname(normalizedPath);
+      if (actualDir !== expectedDir) {
+        logger.error('Unexpected directory in path', {
+          expected: expectedDir,
+          actual: actualDir
+        });
+        return { success: false, error: 'Invalid file path' };
+      }
+
       const buffer = image.toPNG();
-      await fs.writeFile(normalizedPath, buffer);
+      // Set restrictive file permissions (owner read/write only)
+      await fs.writeFile(normalizedPath, buffer, { mode: 0o600 });
 
       // Clear clipboard text to prevent markdown syntax from being pasted
       // when copying images from markdown editors like Bear
@@ -471,11 +598,323 @@ class IPCHandlers {
     try {
       const settingsFilePath = this.settingsManager.getSettingsFilePath();
       logger.info('Opening settings file:', settingsFilePath);
-      
+
       await shell.openPath(settingsFilePath);
       return { success: true };
     } catch (error) {
       logger.error('Failed to open settings file:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
+  private async handleGetSlashCommands(
+    _event: IpcMainInvokeEvent,
+    query?: string
+  ): Promise<SlashCommandItem[]> {
+    try {
+      // Refresh config from settings in case they changed
+      const settings = this.settingsManager.getSettings();
+      this.mdSearchLoader.updateConfig(settings.mdSearch);
+
+      // Get commands from MdSearchLoader
+      const items = query
+        ? await this.mdSearchLoader.searchItems('command', query)
+        : await this.mdSearchLoader.getItems('command');
+
+      // Convert MdSearchItem to SlashCommandItem for backward compatibility
+      const commands: SlashCommandItem[] = items.map(item => {
+        const cmd: SlashCommandItem = {
+          name: item.name,
+          description: item.description,
+          filePath: item.filePath,
+        };
+        if (item.argumentHint) {
+          cmd.argumentHint = item.argumentHint;
+        }
+        if (item.frontmatter) {
+          cmd.frontmatter = item.frontmatter;
+        }
+        return cmd;
+      });
+
+      logger.debug('Slash commands requested', { query, count: commands.length });
+      return commands;
+    } catch (error) {
+      logger.error('Failed to get slash commands:', error);
+      return [];
+    }
+  }
+
+  private async handleGetSlashCommandFilePath(
+    _event: IpcMainInvokeEvent,
+    commandName: string
+  ): Promise<string | null> {
+    try {
+      if (!commandName || typeof commandName !== 'string') {
+        return null;
+      }
+
+      // Refresh config from settings in case they changed
+      const settings = this.settingsManager.getSettings();
+      this.mdSearchLoader.updateConfig(settings.mdSearch);
+
+      const items = await this.mdSearchLoader.getItems('command');
+      const command = items.find(c => c.name === commandName);
+
+      if (command) {
+        logger.debug('Slash command file path resolved', { commandName, filePath: command.filePath });
+        return command.filePath;
+      }
+
+      logger.debug('Slash command not found', { commandName });
+      return null;
+    } catch (error) {
+      logger.error('Failed to get slash command file path:', error);
+      return null;
+    }
+  }
+
+  private async handleGetAgents(
+    _event: IpcMainInvokeEvent,
+    query?: string
+  ): Promise<AgentItem[]> {
+    try {
+      // Refresh config from settings in case they changed
+      const settings = this.settingsManager.getSettings();
+      this.mdSearchLoader.updateConfig(settings.mdSearch);
+
+      // Get mentions (agents) from MdSearchLoader
+      // Always use searchItems to apply searchPrefix filtering, even for empty query
+      const items = await this.mdSearchLoader.searchItems('mention', query ?? '');
+
+      // Convert MdSearchItem to AgentItem for backward compatibility
+      const agents: AgentItem[] = items.map(item => {
+        const agent: AgentItem = {
+          name: item.name,
+          description: item.description,
+          filePath: item.filePath,
+        };
+        if (item.frontmatter) {
+          agent.frontmatter = item.frontmatter;
+        }
+        return agent;
+      });
+
+      logger.debug('Agents requested', { query, count: agents.length });
+      return agents;
+    } catch (error) {
+      logger.error('Failed to get agents:', error);
+      return [];
+    }
+  }
+
+  private async handleGetAgentFilePath(
+    _event: IpcMainInvokeEvent,
+    agentName: string
+  ): Promise<string | null> {
+    try {
+      if (!agentName || typeof agentName !== 'string') {
+        return null;
+      }
+
+      // Refresh config from settings in case they changed
+      const settings = this.settingsManager.getSettings();
+      this.mdSearchLoader.updateConfig(settings.mdSearch);
+
+      const items = await this.mdSearchLoader.getItems('mention');
+      const agent = items.find(a => a.name === agentName);
+
+      if (agent) {
+        logger.debug('Agent file path resolved', { agentName, filePath: agent.filePath });
+        return agent.filePath;
+      }
+
+      logger.debug('Agent not found', { agentName });
+      return null;
+    } catch (error) {
+      logger.error('Failed to get agent file path:', error);
+      return null;
+    }
+  }
+
+  private handleGetMdSearchMaxSuggestions(
+    _event: IpcMainInvokeEvent,
+    type: 'command' | 'mention'
+  ): number {
+    try {
+      // Refresh config from settings in case they changed
+      const settings = this.settingsManager.getSettings();
+      this.mdSearchLoader.updateConfig(settings.mdSearch);
+
+      const maxSuggestions = this.mdSearchLoader.getMaxSuggestions(type);
+      logger.debug('MdSearch maxSuggestions requested', { type, maxSuggestions });
+      return maxSuggestions;
+    } catch (error) {
+      logger.error('Failed to get MdSearch maxSuggestions:', error);
+      return 20; // Default fallback
+    }
+  }
+
+  private handleGetMdSearchPrefixes(
+    _event: IpcMainInvokeEvent,
+    type: 'command' | 'mention'
+  ): string[] {
+    try {
+      // Refresh config from settings in case they changed
+      const settings = this.settingsManager.getSettings();
+      this.mdSearchLoader.updateConfig(settings.mdSearch);
+
+      const prefixes = this.mdSearchLoader.getSearchPrefixes(type);
+      logger.debug('MdSearch searchPrefixes requested', { type, prefixes });
+      return prefixes;
+    } catch (error) {
+      logger.error('Failed to get MdSearch searchPrefixes:', error);
+      return []; // Default fallback
+    }
+  }
+
+  private async handleOpenFileInEditor(
+    _event: IpcMainInvokeEvent,
+    filePath: string
+  ): Promise<IPCResult> {
+    try {
+      logger.info('Opening file in editor:', { filePath });
+
+      // Validate input
+      if (!filePath || typeof filePath !== 'string') {
+        return { success: false, error: 'Invalid file path provided' };
+      }
+
+      // Expand ~ to home directory
+      let expandedPath = filePath;
+      if (filePath.startsWith('~/')) {
+        expandedPath = path.join(os.homedir(), filePath.slice(2));
+      } else if (filePath === '~') {
+        expandedPath = os.homedir();
+      }
+
+      // Convert to absolute path if relative
+      let absolutePath: string;
+      if (path.isAbsolute(expandedPath)) {
+        absolutePath = expandedPath;
+      } else {
+        // Use DirectoryManager's directory as base for relative paths
+        const baseDir = this.directoryManager.getDirectory();
+        if (baseDir) {
+          absolutePath = path.join(baseDir, expandedPath);
+        } else {
+          // Fallback to process.cwd() if no directory is set
+          absolutePath = path.join(process.cwd(), expandedPath);
+        }
+      }
+
+      // Normalize and validate path to prevent path traversal
+      const normalizedPath = path.normalize(absolutePath);
+
+      logger.debug('Resolved file path:', {
+        original: filePath,
+        baseDir: this.directoryManager.getDirectory(),
+        resolved: normalizedPath
+      });
+
+      // ファイル存在確認を追加（TOCTOU対策）
+      try {
+        await fs.access(normalizedPath);
+      } catch {
+        logger.warn('File does not exist:', { normalizedPath });
+        return { success: false, error: 'File does not exist' };
+      }
+
+      // Open file using FileOpenerManager (respects user settings for app selection)
+      return await this.fileOpenerManager.openFile(normalizedPath);
+    } catch (error) {
+      logger.error('Failed to open file in editor:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
+  private async handleCheckFileExists(
+    _event: IpcMainInvokeEvent,
+    filePath: string
+  ): Promise<boolean> {
+    try {
+      // Validate input
+      if (!filePath || typeof filePath !== 'string') {
+        return false;
+      }
+
+      // Expand ~ to home directory
+      let expandedPath = filePath;
+      if (filePath.startsWith('~/')) {
+        expandedPath = path.join(os.homedir(), filePath.slice(2));
+      } else if (filePath === '~') {
+        expandedPath = os.homedir();
+      }
+
+      // Convert to absolute path if relative
+      let absolutePath: string;
+      if (path.isAbsolute(expandedPath)) {
+        absolutePath = expandedPath;
+      } else {
+        // Use DirectoryManager's directory as base for relative paths
+        const baseDir = this.directoryManager.getDirectory();
+        if (baseDir) {
+          absolutePath = path.join(baseDir, expandedPath);
+        } else {
+          // Fallback to process.cwd() if no directory is set
+          absolutePath = path.join(process.cwd(), expandedPath);
+        }
+      }
+
+      // Normalize path
+      const normalizedPath = path.normalize(absolutePath);
+
+      // Check if file exists
+      await fs.access(normalizedPath);
+      return true;
+    } catch {
+      // File does not exist or cannot be accessed
+      return false;
+    }
+  }
+
+  private async handleOpenExternalUrl(
+    _event: IpcMainInvokeEvent,
+    url: string
+  ): Promise<IPCResult> {
+    try {
+      logger.info('Opening external URL:', { url });
+
+      // Validate input
+      if (!url || typeof url !== 'string') {
+        return { success: false, error: 'Invalid URL provided' };
+      }
+
+      // Validate URL format using URL parser
+      let parsedUrl: URL;
+      try {
+        parsedUrl = new URL(url);
+      } catch {
+        return { success: false, error: 'Invalid URL format' };
+      }
+
+      // Whitelist protocols
+      const allowedProtocols = ['http:', 'https:'];
+      if (!allowedProtocols.includes(parsedUrl.protocol)) {
+        logger.warn('Attempted to open URL with disallowed protocol:', {
+          url,
+          protocol: parsedUrl.protocol
+        });
+        return { success: false, error: 'Only http:// and https:// URLs are allowed' };
+      }
+
+      // Open URL with system default browser
+      await shell.openExternal(url);
+
+      logger.info('URL opened successfully in browser:', { url });
+      return { success: true };
+    } catch (error) {
+      logger.error('Failed to open external URL:', error);
       return { success: false, error: (error as Error).message };
     }
   }
@@ -490,12 +929,23 @@ class IPCHandlers {
       'save-draft',
       'clear-draft',
       'get-draft',
+      'set-draft-directory',
+      'get-draft-directory',
       'hide-window',
       'show-window',
+      'focus-window',
       'get-app-info',
       'get-config',
       'paste-image',
-      'open-settings'
+      'open-settings',
+      'get-slash-commands',
+      'get-slash-command-file-path',
+      'get-agents',
+      'get-agent-file-path',
+      'get-md-search-max-suggestions',
+      'open-file-in-editor',
+      'check-file-exists',
+      'open-external-url'
     ];
 
     handlers.forEach(handler => {
@@ -526,7 +976,7 @@ class IPCHandlers {
     }).then((result: { response: number }) => {
       if (result.response === 0) {
         // Open System Preferences accessibility settings
-        exec('open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"');
+        execFile('open', ['x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility']);
       }
     }).catch((error: Error) => {
       logger.error('Failed to show accessibility warning dialog:', error);

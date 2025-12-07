@@ -1,13 +1,14 @@
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promises as fs } from 'fs';
 import { app } from 'electron';
 import path from 'path';
 import os from 'os';
-import type { 
-  AppInfo, 
-  LogLevel, 
+import type {
+  AppInfo,
+  LogLevel,
   DebounceFunction,
-  WindowBounds
+  WindowBounds,
+  DirectoryInfo
 } from '../types';
 import { TIMEOUTS, TIME_CALCULATIONS } from '../constants';
 import { sanitizeAppleScript, executeAppleScriptSafely, validateAppleScriptSecurity } from './apple-script-sanitizer';
@@ -100,11 +101,77 @@ const NATIVE_TOOLS_DIR = getNativeToolsPath();
 const WINDOW_DETECTOR_PATH = path.join(NATIVE_TOOLS_DIR, 'window-detector');
 const KEYBOARD_SIMULATOR_PATH = path.join(NATIVE_TOOLS_DIR, 'keyboard-simulator');
 const TEXT_FIELD_DETECTOR_PATH = path.join(NATIVE_TOOLS_DIR, 'text-field-detector');
+const DIRECTORY_DETECTOR_PATH = path.join(NATIVE_TOOLS_DIR, 'directory-detector');
 
 // Accessibility permission check result
 interface AccessibilityStatus {
   hasPermission: boolean;
   bundleId: string;
+}
+
+// Secure error messages (user-facing - no internal information)
+export const SecureErrors = {
+  INVALID_INPUT: 'Invalid input provided',
+  OPERATION_FAILED: 'Operation failed',
+  FILE_NOT_FOUND: 'File not found',
+  PERMISSION_DENIED: 'Permission denied',
+  INTERNAL_ERROR: 'An internal error occurred',
+  INVALID_FORMAT: 'Invalid format',
+  SIZE_LIMIT_EXCEEDED: 'Size limit exceeded',
+} as const;
+
+// Error handler helper - separates user-facing and internal log messages
+export function handleError(error: Error, context: string): { logMessage: string; userMessage: string } {
+  return {
+    logMessage: `${context}: ${error.message}`,
+    userMessage: SecureErrors.OPERATION_FAILED,
+  };
+}
+
+// Sensitive information patterns for masking
+const SENSITIVE_PATTERNS = [
+  { pattern: /password['":\s]*['"]?[\w!@#$%^&*]+/gi, replacement: 'password: [MASKED]' },
+  { pattern: /token['":\s]*['"]?[\w\-.]+/gi, replacement: 'token: [MASKED]' },
+  { pattern: /api[_-]?key['":\s]*['"]?[\w-]+/gi, replacement: 'api_key: [MASKED]' },
+  { pattern: /secret['":\s]*['"]?[\w-]+/gi, replacement: 'secret: [MASKED]' },
+  { pattern: /authorization['":\s]*['"]?Bearer [\w\-.]+/gi, replacement: 'authorization: Bearer [MASKED]' },
+];
+
+// Sensitive key names that should be masked
+const SENSITIVE_KEYS = ['password', 'token', 'secret', 'apikey', 'api_key', 'authorization', 'bearer', 'auth'];
+
+/**
+ * Masks sensitive data in strings and objects before logging
+ * @param data - Data to mask (string, object, or primitive)
+ * @returns Masked data with sensitive information replaced
+ */
+export function maskSensitiveData(data: unknown): unknown {
+  if (typeof data === 'string') {
+    let masked = data;
+    for (const { pattern, replacement } of SENSITIVE_PATTERNS) {
+      masked = masked.replace(pattern, replacement);
+    }
+    return masked;
+  }
+
+  if (typeof data === 'object' && data !== null) {
+    if (Array.isArray(data)) {
+      return data.map(item => maskSensitiveData(item));
+    }
+
+    const masked: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(data)) {
+      const lowerKey = key.toLowerCase();
+      if (SENSITIVE_KEYS.some(k => lowerKey.includes(k))) {
+        masked[key] = '[MASKED]';
+      } else {
+        masked[key] = maskSensitiveData(value);
+      }
+    }
+    return masked;
+  }
+
+  return data;
 }
 
 class Logger {
@@ -140,15 +207,18 @@ class Logger {
 
     if (!this.shouldLog(level)) return;
 
+    // Mask sensitive data before logging
+    const maskedData = data ? maskSensitiveData(data) : null;
+
     const consoleMethod = this.getConsoleMethod(level);
-    if (data) {
-      consoleMethod(logMessage, data);
+    if (maskedData) {
+      consoleMethod(logMessage, maskedData);
     } else {
       consoleMethod(logMessage);
     }
 
     if (this.enableFileLogging) {
-      this.writeToFile(logMessage, data);
+      this.writeToFile(logMessage, maskedData);
     }
   }
 
@@ -226,7 +296,7 @@ function getCurrentApp(): Promise<AppInfo | null> {
     };
 
     const execStartTime = performance.now();
-    exec(`"${WINDOW_DETECTOR_PATH}" current-app`, options, (error, stdout) => {
+    execFile(WINDOW_DETECTOR_PATH, ['current-app'], options, (error, stdout) => {
       const execDuration = performance.now() - execStartTime;
       
       if (error) {
@@ -280,14 +350,14 @@ function pasteWithNativeTool(): Promise<void> {
       killSignal: 'SIGTERM' as const
     };
 
-    const command = `"${KEYBOARD_SIMULATOR_PATH}" paste`;
-    logger.debug('Executing native paste command', { 
-      command, 
-      keyboardSimulatorPath: KEYBOARD_SIMULATOR_PATH,
+    const args = ['paste'];
+    logger.debug('Executing native paste command', {
+      executable: KEYBOARD_SIMULATOR_PATH,
+      args,
       nativeToolsDir: NATIVE_TOOLS_DIR
     });
 
-    exec(command, options, (error, stdout, stderr) => {
+    execFile(KEYBOARD_SIMULATOR_PATH, args, options, (error, stdout, stderr) => {
       if (error) {
         if (error.killed) {
           logger.warn('Native paste timed out (non-critical)');
@@ -298,7 +368,8 @@ function pasteWithNativeTool(): Promise<void> {
             code: error.code,
             signal: error.signal,
             stderr,
-            command
+            executable: KEYBOARD_SIMULATOR_PATH,
+            args
           });
           reject(error);
         }
@@ -373,7 +444,8 @@ async function ensureDir(dirPath: string): Promise<void> {
     await fs.access(dirPath);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      await fs.mkdir(dirPath, { recursive: true });
+      // Set restrictive directory permissions (owner read/write/execute only)
+      await fs.mkdir(dirPath, { recursive: true, mode: 0o700 });
       logger.debug('Created directory:', dirPath);
     } else {
       throw error;
@@ -476,7 +548,7 @@ function getActiveWindowBounds(): Promise<WindowBounds | null> {
       killSignal: 'SIGTERM' as const
     };
 
-    exec(`"${WINDOW_DETECTOR_PATH}" window-bounds`, options, (error, stdout) => {
+    execFile(WINDOW_DETECTOR_PATH, ['window-bounds'], options, (error, stdout) => {
       if (error) {
         logger.warn('Error getting active window bounds (non-blocking):', error.message);
         resolve(null);
@@ -571,24 +643,24 @@ function activateAndPasteWithNativeTool(appInfo: AppInfo | string): Promise<void
       killSignal: 'SIGTERM' as const
     };
 
-    let command: string;
+    let args: string[];
     if (bundleId && bundleId.length > 0) {
-      command = `"${KEYBOARD_SIMULATOR_PATH}" activate-and-paste-bundle "${bundleId}"`;
+      args = ['activate-and-paste-bundle', bundleId];
       logger.debug('Using sanitized bundle ID for app activation and paste:', { appName, bundleId });
     } else {
-      command = `"${KEYBOARD_SIMULATOR_PATH}" activate-and-paste-name "${appName}"`;
+      args = ['activate-and-paste-name', appName];
       logger.debug('Using sanitized app name for app activation and paste:', { appName });
     }
 
-    logger.debug('Executing native activate and paste command', { 
-      command, 
-      keyboardSimulatorPath: KEYBOARD_SIMULATOR_PATH,
+    logger.debug('Executing native activate and paste command', {
+      executable: KEYBOARD_SIMULATOR_PATH,
+      args,
       nativeToolsDir: NATIVE_TOOLS_DIR,
       appName,
       bundleId
     });
 
-    exec(command, options, (error, stdout, stderr) => {
+    execFile(KEYBOARD_SIMULATOR_PATH, args, options, (error, stdout, stderr) => {
       if (error) {
         if (error.killed) {
           logger.warn('Native activate+paste timed out, attempting graceful fallback');
@@ -599,7 +671,8 @@ function activateAndPasteWithNativeTool(appInfo: AppInfo | string): Promise<void
             code: error.code,
             signal: error.signal,
             stderr,
-            command,
+            executable: KEYBOARD_SIMULATOR_PATH,
+            args,
             appName,
             bundleId
           });
@@ -624,6 +697,177 @@ function activateAndPasteWithNativeTool(appInfo: AppInfo | string): Promise<void
   });
 }
 
+/**
+ * Options for directory detection with source app override
+ */
+interface DirectoryDetectionOptions {
+  /** Source app PID (for when Prompt Line window is in front) */
+  pid?: number;
+  /** Source app bundle ID */
+  bundleId?: string;
+}
+
+/**
+ * Detect current directory from active terminal (Terminal.app or iTerm2)
+ * @param options - Optional PID and bundleId to override frontmost app detection
+ * @returns Promise<DirectoryInfo> - Object with directory info or error
+ */
+function detectCurrentDirectory(options?: DirectoryDetectionOptions): Promise<DirectoryInfo> {
+  return new Promise((resolve) => {
+    if (process.platform !== 'darwin') {
+      resolve({ error: 'Directory detection only supported on macOS' });
+      return;
+    }
+
+    const execOptions = {
+      timeout: TIMEOUTS.WINDOW_BOUNDS_TIMEOUT,
+      killSignal: 'SIGTERM' as const
+    };
+
+    // Build args array with optional PID and/or bundleId arguments
+    // bundleId alone is supported - Swift will look up the PID
+    const args: string[] = ['detect'];
+    if (options?.bundleId) {
+      args.push('--bundleId', options.bundleId);
+      if (options?.pid) {
+        args.push('--pid', String(options.pid));
+      }
+    }
+
+    execFile(DIRECTORY_DETECTOR_PATH, args, execOptions, (error, stdout) => {
+      if (error) {
+        logger.warn('Error detecting current directory (non-blocking):', error.message);
+        resolve({ error: error.message });
+      } else {
+        try {
+          const result = JSON.parse(stdout.trim()) as DirectoryInfo;
+          if (result.error) {
+            logger.debug('Directory detection returned error:', result.error);
+          } else {
+            logger.debug('Current directory detected:', result.directory);
+          }
+          resolve(result);
+        } catch (parseError) {
+          logger.warn('Error parsing directory detection result:', parseError);
+          resolve({ error: 'Failed to parse directory detection result' });
+        }
+      }
+    });
+  });
+}
+
+/**
+ * Detect current directory from active terminal and list files
+ * @param options - Optional PID and bundleId to override frontmost app detection
+ * @returns Promise<DirectoryInfo> - Object with directory info and file list
+ */
+function detectCurrentDirectoryWithFiles(options?: DirectoryDetectionOptions): Promise<DirectoryInfo> {
+  return new Promise((resolve) => {
+    if (process.platform !== 'darwin') {
+      resolve({ error: 'Directory detection only supported on macOS' });
+      return;
+    }
+
+    const execOptions = {
+      timeout: TIMEOUTS.WINDOW_BOUNDS_TIMEOUT,
+      killSignal: 'SIGTERM' as const
+    };
+
+    // Build args array with optional PID and/or bundleId arguments
+    // bundleId alone is supported - Swift will look up the PID
+    const args: string[] = ['detect-with-files'];
+    if (options?.bundleId) {
+      args.push('--bundleId', options.bundleId);
+      if (options?.pid) {
+        args.push('--pid', String(options.pid));
+      }
+    }
+
+    execFile(DIRECTORY_DETECTOR_PATH, args, execOptions, (error, stdout) => {
+      if (error) {
+        logger.warn('Error detecting current directory with files (non-blocking):', error.message);
+        resolve({ error: error.message });
+      } else {
+        try {
+          const result = JSON.parse(stdout.trim()) as DirectoryInfo;
+          if (result.error) {
+            logger.debug('Directory detection with files returned error:', result.error);
+          } else {
+            logger.debug('Current directory detected with files:', {
+              directory: result.directory,
+              fileCount: result.fileCount
+            });
+          }
+          resolve(result);
+        } catch (parseError) {
+          logger.warn('Error parsing directory detection result:', parseError);
+          resolve({ error: 'Failed to parse directory detection result' });
+        }
+      }
+    });
+  });
+}
+
+/**
+ * List files in a specified directory
+ * @param directoryPath - Path to the directory to list
+ * @returns Promise<DirectoryInfo> - Object with file list or error
+ */
+function listDirectory(directoryPath: string): Promise<DirectoryInfo> {
+  return new Promise((resolve) => {
+    if (process.platform !== 'darwin') {
+      resolve({ error: 'Directory listing only supported on macOS' });
+      return;
+    }
+
+    // Validate path input
+    if (!directoryPath || typeof directoryPath !== 'string') {
+      resolve({ error: 'Invalid directory path' });
+      return;
+    }
+
+    // Sanitize path to prevent command injection
+    const sanitizedPath = directoryPath
+      .replace(/[;&|`$(){}[\]<>"'\\*?~^]/g, '')
+      .replace(/\x00/g, '')
+      .replace(/[\r\n]/g, '')
+      .trim();
+
+    if (sanitizedPath.length === 0) {
+      resolve({ error: 'Directory path is empty after sanitization' });
+      return;
+    }
+
+    const options = {
+      timeout: TIMEOUTS.WINDOW_BOUNDS_TIMEOUT,
+      killSignal: 'SIGTERM' as const
+    };
+
+    execFile(DIRECTORY_DETECTOR_PATH, ['list', sanitizedPath], options, (error, stdout) => {
+      if (error) {
+        logger.warn('Error listing directory (non-blocking):', error.message);
+        resolve({ error: error.message });
+      } else {
+        try {
+          const result = JSON.parse(stdout.trim()) as DirectoryInfo;
+          if (result.error) {
+            logger.debug('Directory listing returned error:', result.error);
+          } else {
+            logger.debug('Directory listed:', {
+              directory: result.directory,
+              fileCount: result.fileCount
+            });
+          }
+          resolve(result);
+        } catch (parseError) {
+          logger.warn('Error parsing directory listing result:', parseError);
+          resolve({ error: 'Failed to parse directory listing result' });
+        }
+      }
+    });
+  });
+}
+
 export {
   logger,
   getCurrentApp,
@@ -631,6 +875,9 @@ export {
   pasteWithNativeTool,
   activateAndPasteWithNativeTool,
   checkAccessibilityPermission,
+  detectCurrentDirectory,
+  detectCurrentDirectoryWithFiles,
+  listDirectory,
   debounce,
   safeJsonParse,
   safeJsonStringify,
@@ -641,9 +888,12 @@ export {
   KEYBOARD_SIMULATOR_PATH,
   TEXT_FIELD_DETECTOR_PATH,
   WINDOW_DETECTOR_PATH,
+  DIRECTORY_DETECTOR_PATH,
   sanitizeAppleScript,
   executeAppleScriptSafely,
   validateAppleScriptSecurity,
   sanitizeCommandArgument,
   isCommandArgumentSafe
 };
+
+export type { DirectoryDetectionOptions };

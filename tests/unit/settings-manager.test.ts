@@ -66,7 +66,7 @@ describe('SettingsManager', () => {
 
       await settingsManager.init();
 
-      expect(mockedFs.mkdir).toHaveBeenCalledWith(path.dirname(settingsPath), { recursive: true });
+      expect(mockedFs.mkdir).toHaveBeenCalledWith(path.dirname(settingsPath), { recursive: true, mode: 0o700 });
       expect(mockedFs.writeFile).toHaveBeenCalled();
     });
 
@@ -112,7 +112,8 @@ window:
 
     it('should return default settings', () => {
       const settings = settingsManager.getSettings();
-      
+
+      // fileSearch is undefined by default (feature disabled)
       expect(settings).toEqual({
         shortcuts: {
           main: 'Cmd+Shift+Space',
@@ -126,7 +127,12 @@ window:
           position: 'active-text-field',
           width: 600,
           height: 300
-        }
+        },
+        fileOpener: {
+          extensions: {},
+          defaultEditor: null
+        },
+        mdSearch: []
       });
     });
 
@@ -206,7 +212,8 @@ window:
 
     it('should return default settings copy', () => {
       const defaults = settingsManager.getDefaultSettings();
-      
+
+      // fileSearch is undefined in getDefaultSettings (spread of undefined)
       expect(defaults).toEqual({
         shortcuts: {
           main: 'Cmd+Shift+Space',
@@ -220,6 +227,11 @@ window:
           position: 'active-text-field',
           width: 600,
           height: 300
+        },
+        fileSearch: {},  // spread of undefined results in empty object
+        fileOpener: {
+          extensions: {},
+          defaultEditor: null
         }
       });
 

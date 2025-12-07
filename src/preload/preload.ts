@@ -9,7 +9,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 // Security: Only expose allowed IPC channels
 const ALLOWED_CHANNELS = [
   'paste-text',
-  'paste-image', 
+  'paste-image',
   'get-history',
   'clear-history',
   'remove-history-item',
@@ -17,17 +17,25 @@ const ALLOWED_CHANNELS = [
   'save-draft',
   'clear-draft',
   'get-draft',
+  'set-draft-directory',
+  'get-draft-directory',
   'hide-window',
   'show-window',
   'get-config',
-  'set-config',
   'get-app-info',
-  'get-app-version',
-  'clipboard-write-text',
-  'clipboard-read-text',
-  'clipboard-write-image',
   'focus-window',
-  'window-shown'
+  'window-shown',
+  'get-slash-commands',
+  'get-slash-command-file-path',
+  'directory-data-updated',
+  'open-settings',
+  'get-agents',
+  'get-agent-file-path',
+  'get-md-search-max-suggestions',
+  'get-md-search-prefixes',
+  'open-file-in-editor',
+  'check-file-exists',
+  'open-external-url'
 ];
 
 // IPC channel validation with additional security checks
@@ -50,27 +58,48 @@ function validateChannel(channel: string): boolean {
   return true;
 }
 
-// Input sanitization helper
-function sanitizeInput(input: any): any {
+// Input sanitization helper with recursive support
+function sanitizeInput(input: any, depth = 0): any {
+  // 再帰深度制限（無限ループ防止）
+  const MAX_DEPTH = 10;
+  if (depth > MAX_DEPTH) {
+    throw new Error('Input nesting too deep');
+  }
+
   if (typeof input === 'string') {
     // Prevent excessive length
     if (input.length > 1000000) { // 1MB limit
       throw new Error('Input too long');
     }
-    
+
     // Basic sanitization
     return input.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
   }
-  
+
+  if (Array.isArray(input)) {
+    return input.map(item => sanitizeInput(item, depth + 1));
+  }
+
   if (typeof input === 'object' && input !== null) {
     // Prevent prototype pollution
-    if (Object.prototype.hasOwnProperty.call(input, '__proto__') || 
-        Object.prototype.hasOwnProperty.call(input, 'constructor') || 
+    if (Object.prototype.hasOwnProperty.call(input, '__proto__') ||
+        Object.prototype.hasOwnProperty.call(input, 'constructor') ||
         Object.prototype.hasOwnProperty.call(input, 'prototype')) {
       throw new Error('Potentially dangerous object properties detected');
     }
+
+    // 再帰的にサニタイズ
+    const sanitized: Record<string, any> = {};
+    for (const key of Object.keys(input)) {
+      // キー名もチェック
+      if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+        throw new Error('Potentially dangerous object key detected');
+      }
+      sanitized[key] = sanitizeInput(input[key], depth + 1);
+    }
+    return sanitized;
   }
-  
+
   return input;
 }
 
@@ -116,18 +145,8 @@ const electronAPI = {
     ipcRenderer.removeAllListeners(channel);
   },
 
-  // Clipboard operations
-  clipboard: {
-    writeText: async (text: string): Promise<void> => {
-      return ipcRenderer.invoke('clipboard-write-text', text);
-    },
-    readText: async (): Promise<string> => {
-      return ipcRenderer.invoke('clipboard-read-text');
-    },
-    writeImage: async (image: any): Promise<void> => {
-      return ipcRenderer.invoke('clipboard-write-image', image);
-    }
-  },
+  // Note: Clipboard operations are handled internally by the main process
+  // No direct clipboard access is exposed to the renderer for security reasons
 
   // Window control
   window: {
@@ -150,17 +169,11 @@ const electronAPI = {
         return ipcRenderer.invoke('get-config');
       }
       return ipcRenderer.invoke('get-config', section);
-    },
-    set: async (section: string, value: any): Promise<void> => {
-      return ipcRenderer.invoke('set-config', section, value);
     }
   },
 
   // Application information
   app: {
-    getVersion: async (): Promise<string> => {
-      return ipcRenderer.invoke('get-app-version');
-    },
     getInfo: async (): Promise<any> => {
       return ipcRenderer.invoke('get-app-info');
     }
@@ -197,6 +210,59 @@ const electronAPI = {
     },
     clear: async (): Promise<void> => {
       return ipcRenderer.invoke('clear-draft');
+    },
+    setDirectory: async (directory: string | null): Promise<void> => {
+      return ipcRenderer.invoke('set-draft-directory', directory);
+    },
+    getDirectory: async (): Promise<string | null> => {
+      return ipcRenderer.invoke('get-draft-directory');
+    }
+  },
+
+  // Slash commands
+  slashCommands: {
+    get: async (query?: string): Promise<any[]> => {
+      return ipcRenderer.invoke('get-slash-commands', query);
+    },
+    getFilePath: async (commandName: string): Promise<string | null> => {
+      return ipcRenderer.invoke('get-slash-command-file-path', commandName);
+    }
+  },
+
+  // Agents
+  agents: {
+    get: async (query?: string): Promise<any[]> => {
+      return ipcRenderer.invoke('get-agents', query);
+    },
+    getFilePath: async (agentName: string): Promise<string | null> => {
+      return ipcRenderer.invoke('get-agent-file-path', agentName);
+    }
+  },
+
+  // MdSearch settings
+  mdSearch: {
+    getMaxSuggestions: async (type: 'command' | 'mention'): Promise<number> => {
+      return ipcRenderer.invoke('get-md-search-max-suggestions', type);
+    },
+    getSearchPrefixes: async (type: 'command' | 'mention'): Promise<string[]> => {
+      return ipcRenderer.invoke('get-md-search-prefixes', type);
+    }
+  },
+
+  // File operations
+  file: {
+    openInEditor: async (filePath: string): Promise<{ success: boolean; error?: string }> => {
+      return ipcRenderer.invoke('open-file-in-editor', filePath);
+    },
+    checkExists: async (filePath: string): Promise<boolean> => {
+      return ipcRenderer.invoke('check-file-exists', filePath);
+    }
+  },
+
+  // Shell operations
+  shell: {
+    openExternal: async (url: string): Promise<{ success: boolean; error?: string }> => {
+      return ipcRenderer.invoke('open-external-url', url);
     }
   }
 };
@@ -209,11 +275,6 @@ export interface ElectronAPI {
   invoke: (channel: string, ...args: any[]) => Promise<any>;
   on: (channel: string, func: (...args: any[]) => void) => void;
   removeAllListeners: (channel: string) => void;
-  clipboard: {
-    writeText: (text: string) => Promise<void>;
-    readText: () => Promise<string>;
-    writeImage: (image: any) => Promise<void>;
-  };
   window: {
     hide: () => Promise<void>;
     show: () => Promise<void>;
@@ -221,10 +282,8 @@ export interface ElectronAPI {
   };
   config: {
     get: (section: string) => Promise<any>;
-    set: (section: string, value: any) => Promise<void>;
   };
   app: {
-    getVersion: () => Promise<string>;
     getInfo: () => Promise<any>;
   };
   pasteText: (text: string) => Promise<void>;
@@ -238,6 +297,23 @@ export interface ElectronAPI {
     save: (text: string) => Promise<void>;
     get: () => Promise<string | null>;
     clear: () => Promise<void>;
+    setDirectory: (directory: string | null) => Promise<void>;
+    getDirectory: () => Promise<string | null>;
+  };
+  slashCommands: {
+    get: (query?: string) => Promise<any[]>;
+    getFilePath: (commandName: string) => Promise<string | null>;
+  };
+  agents: {
+    get: (query?: string) => Promise<any[]>;
+    getFilePath: (agentName: string) => Promise<string | null>;
+  };
+  file: {
+    openInEditor: (filePath: string) => Promise<{ success: boolean; error?: string }>;
+    checkExists: (filePath: string) => Promise<boolean>;
+  };
+  shell: {
+    openExternal: (url: string) => Promise<{ success: boolean; error?: string }>;
   };
 }
 

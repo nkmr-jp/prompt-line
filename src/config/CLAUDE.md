@@ -19,8 +19,8 @@ window: {
   skipTaskbar: true,
   resizable: false,
   webPreferences: {
-    nodeIntegration: true,        // Required for renderer IPC
-    contextIsolation: false,      // Disabled for legacy compatibility
+    nodeIntegration: false,       // Disabled for security (uses preload script)
+    contextIsolation: true,       // Enabled for security (uses contextBridge)
     webSecurity: false,           // Disabled for local file access
     spellcheck: false,           // Disabled for performance
     disableDialogs: true,        // Prevent unwanted dialogs
@@ -40,8 +40,11 @@ paths: {
   userDataDir: path.join(os.homedir(), '.prompt-line'),
   get historyFile() { return path.join(userDataDir, 'history.jsonl'); },
   get draftFile() { return path.join(userDataDir, 'draft.json'); },
+  get settingsFile() { return path.join(userDataDir, 'settings.yml'); },
   get logFile() { return path.join(userDataDir, 'app.log'); },
-  get imagesDir() { return path.join(userDataDir, 'images'); }
+  get imagesDir() { return path.join(userDataDir, 'images'); },
+  get cacheDir() { return path.join(userDataDir, 'cache'); },
+  get directoryFile() { return path.join(userDataDir, 'directory.json'); }
 }
 ```
 - **Dynamic Path Generation**: Getter-based path construction for flexibility
@@ -194,8 +197,11 @@ The configuration is initialized through a private `init()` method called in the
 - **File Type Organization**:
   - `history.jsonl`: JSONL format for efficient append operations
   - `draft.json`: JSON format for structured draft data
+  - `settings.yml`: YAML format for user preferences
+  - `directory.json`: JSON format for current working directory tracking
   - `app.log`: Plain text for logging output
   - `images/`: Directory for pasted images
+  - `cache/`: Directory for file caching and metadata
 
 ## Usage Patterns
 

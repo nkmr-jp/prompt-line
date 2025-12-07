@@ -37,11 +37,43 @@ export interface UserSettings {
   };
 }
 
+export interface FileInfo {
+  name: string;
+  path: string;
+  isDirectory: boolean;
+}
+
+export interface DirectoryInfo {
+  success?: boolean;
+  directory?: string;
+  files?: FileInfo[];
+  fileCount?: number;
+  error?: string;
+  partial?: boolean;          // Always false (single stage with fd)
+  searchMode?: 'recursive';   // Always 'recursive' (single stage with fd)
+  // Draft directory fallback related fields
+  directoryChanged?: boolean;  // true if directory changed from previous (draft) directory
+  previousDirectory?: string;  // previous directory (from draft) for comparison
+  fromDraft?: boolean;         // true if this data is from draft fallback (not actual detection)
+  // Cache related fields
+  fromCache?: boolean;         // true if data was loaded from disk cache
+  cacheAge?: number;           // milliseconds since cache was updated
+  // Detection status
+  detectionTimedOut?: boolean; // true if directory detection timed out (e.g., large directories like home)
+  // File limit status
+  fileLimitReached?: boolean;  // true if file count reached maxFiles limit
+  maxFiles?: number;           // the maxFiles limit that was applied
+  // User hint message
+  hint?: string;               // hint message to display to user (e.g., "Install fd: brew install fd")
+}
+
 export interface WindowData {
   sourceApp?: AppInfo | string | null;
   history?: HistoryItem[];
   draft?: string | { text: string } | null;
   settings?: UserSettings;
+  directoryData?: DirectoryInfo;
+  fileSearchEnabled?: boolean;
 }
 
 export interface Config {

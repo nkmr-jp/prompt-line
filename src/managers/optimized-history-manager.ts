@@ -56,7 +56,8 @@ class OptimizedHistoryManager implements IHistoryManager {
     try {
       await fs.access(this.historyFile);
     } catch {
-      await fs.writeFile(this.historyFile, '');
+      // Set restrictive file permissions (owner read/write only)
+      await fs.writeFile(this.historyFile, '', { mode: 0o600 });
       logger.debug('Created new history file');
     }
   }
@@ -172,7 +173,7 @@ class OptimizedHistoryManager implements IHistoryManager {
     }, 100);
   }
 
-  async addToHistory(text: string, appName?: string): Promise<HistoryItem | null> {
+  async addToHistory(text: string, appName?: string, directory?: string): Promise<HistoryItem | null> {
     try {
       const trimmedText = text.trim();
       if (!trimmedText) {
@@ -189,6 +190,9 @@ class OptimizedHistoryManager implements IHistoryManager {
           if (appName) {
             existingItem.appName = appName;
           }
+          if (directory) {
+            existingItem.directory = directory;
+          }
           this.recentCache.unshift(existingItem);
           return existingItem;
         }
@@ -198,7 +202,8 @@ class OptimizedHistoryManager implements IHistoryManager {
         text: trimmedText,
         timestamp: Date.now(),
         id: generateId(),
-        ...(appName && { appName })
+        ...(appName && { appName }),
+        ...(directory && { directory })
       };
 
       // Add to cache
@@ -219,11 +224,12 @@ class OptimizedHistoryManager implements IHistoryManager {
       if (this.totalItemCountCached) {
         this.totalItemCount++;
       }
-      
-      logger.debug('Added item to history:', { 
-        id: historyItem.id, 
+
+      logger.debug('Added item to history:', {
+        id: historyItem.id,
         length: trimmedText.length,
         appName: appName || 'unknown',
+        directory: directory || 'unknown',
         cacheSize: this.recentCache.length,
         totalItems: this.totalItemCountCached ? this.totalItemCount : 'not calculated'
       });

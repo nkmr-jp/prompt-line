@@ -1,0 +1,239 @@
+/* File Suggestions Component Styles */
+/* Aligned with slash-commands.css for consistency */
+
+.file-suggestions {
+  position: absolute;
+  /* top and left are set dynamically by FileSearchManager.positionSuggestions() */
+  max-height: 40vh; /* 40% of viewport height */
+  min-width: 200px;
+  /* Width is determined by content, with max-width set dynamically via JS */
+  width: max-content;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #222;
+  /*border: 1px solid #444;*/
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+}
+
+.file-suggestion-header {
+  padding: 6px 12px;
+  font-size: 11px;
+  color: var(--text-secondary, #888);
+  background: var(--bg-tertiary, #2a2a2a);
+  border-bottom: 1px solid var(--border-color, #333);
+  /*font-family: monospace;*/
+}
+
+.file-suggestion-item {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  padding: 4px 10px;
+  cursor: pointer;
+  gap: 6px;
+  /*border-bottom: 1px solid var(--border-color, #333);*/
+  transition: background-color 0.1s ease;
+  min-width: 0;
+}
+
+.file-suggestion-item:last-child {
+  border-bottom: none;
+}
+
+/* Note: :hover is intentionally NOT used here.
+   Mouse hover highlighting is handled via JavaScript (mousemove event)
+   to prevent accidental highlighting when menu appears under stationary mouse cursor.
+   The .hovered class is added only when mouse actually moves over an item. */
+
+.file-suggestion-item.hovered {
+  background: var(--bg-hover, #2a2a2a);
+}
+
+.file-suggestion-item.selected {
+  background: var(--bg-active, #3a3a3a);
+}
+
+.file-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.file-icon svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.file-name {
+  flex-shrink: 1;
+  min-width: 0;
+  color: var(--text-primary, #fff);
+  font-weight: 500;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-name .highlight {
+  background: rgba(255, 200, 0, 0.3);
+  color: var(--text-primary, #fff);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+.file-name .file-count {
+  color: var(--text-secondary, #888);
+  font-weight: normal;
+  font-size: 10px;
+  margin-left: 4px;
+}
+
+.file-path {
+  flex: 1;
+  color: var(--text-secondary, #888);
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-suggestion-empty {
+  padding: 16px;
+  text-align: center;
+  color: var(--text-secondary, #888);
+  font-size: 13px;
+}
+
+.file-suggestion-empty.indexing {
+  color: var(--text-tertiary, #666);
+  font-style: italic;
+}
+
+/* Section headers for Agents/Files */
+.suggestion-section-header {
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary, #888);
+  background: var(--bg-tertiary, #2a2a2a);
+  border-bottom: 1px solid var(--border-color, #333);
+}
+
+/* Agent-specific styles */
+.agent-suggestion-item {
+  /* Inherits from .file-suggestion-item */
+}
+
+.mention-icon {
+  /* SVG icon styling handled by .file-icon */
+}
+
+.agent-name {
+  color: var(--text-primary, #fff);
+}
+
+.agent-description {
+  flex: 1;
+  color: var(--text-secondary, #888);
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Scrollbar styling */
+.file-suggestions::-webkit-scrollbar {
+  width: 3px;
+}
+
+.file-suggestions::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.file-suggestions::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb, #555);
+  border-radius: 3px;
+}
+
+.file-suggestions::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover, #666);
+}
+
+/* Frontmatter Popup Styles */
+.frontmatter-popup {
+  position: fixed;
+  background: #1a1a1a; /* Darker than menu for contrast */
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 8px 10px;
+  max-height: 150px;
+  overflow-y: auto;
+  z-index: 101; /* Above suggestions container */
+  font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--text-secondary, #aaa);
+  white-space: pre-wrap;
+  word-break: break-word;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+  box-sizing: border-box;
+}
+
+.frontmatter-popup::-webkit-scrollbar {
+  width: 4px;
+}
+
+.frontmatter-popup::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.frontmatter-popup::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb, #555);
+  border-radius: 4px;
+}
+
+.frontmatter-popup::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover, #666);
+}
+
+/* Frontmatter Content */
+.frontmatter-content {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Frontmatter Hint */
+.frontmatter-hint {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid #333;
+  font-size: 9px;
+  color: var(--text-tertiary, #666);
+  text-align: right;
+}
+
+/* Frontmatter Info Icon */
+.frontmatter-info-icon {
+  margin-left: auto;
+  padding-left: 8px;
+  font-size: 12px;
+  color: var(--text-tertiary, #666);
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+  flex-shrink: 0;
+}
+
+.frontmatter-info-icon:hover {
+  opacity: 1;
+  color: var(--text-secondary, #aaa);
+}

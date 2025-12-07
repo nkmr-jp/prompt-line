@@ -54,7 +54,9 @@ const mockDraftManager: jest.Mocked<DraftManager> = {
     backupDraft: jest.fn(),
     restoreDraft: jest.fn(),
     cleanupBackups: jest.fn(),
-    destroy: jest.fn()
+    destroy: jest.fn(),
+    setDirectory: jest.fn(),
+    getDirectory: jest.fn(() => null)
 } as any;
 
 // Mock utils
@@ -67,7 +69,17 @@ jest.mock('../../src/utils/utils', () => ({
     },
     pasteWithNativeTool: jest.fn(() => Promise.resolve()),
     activateAndPasteWithNativeTool: jest.fn(() => Promise.resolve()),
-    sleep: jest.fn(() => Promise.resolve())
+    sleep: jest.fn(() => Promise.resolve()),
+    SecureErrors: {
+        INVALID_INPUT: 'Invalid input provided',
+        OPERATION_FAILED: 'Operation failed',
+        FILE_NOT_FOUND: 'File not found',
+        PERMISSION_DENIED: 'Permission denied',
+        INTERNAL_ERROR: 'An internal error occurred',
+        INVALID_FORMAT: 'Invalid format',
+        SIZE_LIMIT_EXCEEDED: 'Size limit exceeded'
+    },
+    checkAccessibilityPermission: jest.fn(() => Promise.resolve({ hasPermission: true, bundleId: 'test' }))
 }));
 
 // Mock config
@@ -119,10 +131,17 @@ describe('IPCHandlers', () => {
             resetSettings: jest.fn()
         };
 
+        const mockDirectoryManager = {
+            getDirectory: jest.fn(() => null),
+            setDirectory: jest.fn(),
+            saveDirectory: jest.fn()
+        };
+
         ipcHandlers = new IPCHandlers(
             mockWindowManager,
             mockHistoryManager,
             mockDraftManager,
+            mockDirectoryManager as any,
             mockSettingsManager as any
         );
     });
@@ -148,7 +167,7 @@ describe('IPCHandlers', () => {
             const result = await (ipcHandlers as any).handlePasteText(null, 'test text');
 
             expect(result.success).toBe(true);
-            expect(mockHistoryManager.addToHistory).toHaveBeenCalledWith('test text', 'TestApp');
+            expect(mockHistoryManager.addToHistory).toHaveBeenCalledWith('test text', 'TestApp', undefined);
             expect(mockDraftManager.clearDraft).toHaveBeenCalled();
             expect(clipboard.writeText).toHaveBeenCalledWith('test text');
             expect(mockWindowManager.hideInputWindow).toHaveBeenCalled();
@@ -158,7 +177,7 @@ describe('IPCHandlers', () => {
             const result = await (ipcHandlers as any).handlePasteText(null, '   ');
 
             expect(result.success).toBe(false);
-            expect(result.error).toBe('Empty text provided');
+            expect(result.error).toBe('Invalid input provided');
             expect(mockHistoryManager.addToHistory).not.toHaveBeenCalled();
         });
 
@@ -171,7 +190,7 @@ describe('IPCHandlers', () => {
             const result = await (ipcHandlers as any).handlePasteText(null, 'test text');
 
             expect(result.success).toBe(false);
-            expect(result.error).toBe('Paste failed');
+            expect(result.error).toBe('Operation failed');
         });
 
         test('should handle focus app failure', async () => {
@@ -198,7 +217,7 @@ describe('IPCHandlers', () => {
             await (ipcHandlers as any).handlePasteText(null, 'test text');
 
             expect(mockDraftManager.clearDraft).toHaveBeenCalledTimes(1);
-            expect(mockHistoryManager.addToHistory).toHaveBeenCalledWith('test text', 'TestApp');
+            expect(mockHistoryManager.addToHistory).toHaveBeenCalledWith('test text', 'TestApp', undefined);
         });
 
         test('should clear draft even when paste fails', async () => {
@@ -213,14 +232,14 @@ describe('IPCHandlers', () => {
 
             expect(result.success).toBe(false);
             expect(mockDraftManager.clearDraft).toHaveBeenCalledTimes(1);
-            expect(mockHistoryManager.addToHistory).toHaveBeenCalledWith('test text', 'TestApp');
+            expect(mockHistoryManager.addToHistory).toHaveBeenCalledWith('test text', 'TestApp', undefined);
         });
 
         test('should not clear draft when text is empty', async () => {
             const result = await (ipcHandlers as any).handlePasteText(null, '   ');
 
             expect(result.success).toBe(false);
-            expect(result.error).toBe('Empty text provided');
+            expect(result.error).toBe('Invalid input provided');
             expect(mockDraftManager.clearDraft).not.toHaveBeenCalled();
             expect(mockHistoryManager.addToHistory).not.toHaveBeenCalled();
         });
@@ -265,7 +284,7 @@ describe('IPCHandlers', () => {
             const result = await (ipcHandlers as any).handleClearHistory();
 
             expect(result.success).toBe(false);
-            expect(result.error).toBe('Clear failed');
+            expect(result.error).toBe('Operation failed');
         });
     });
 
@@ -331,7 +350,7 @@ describe('IPCHandlers', () => {
             const result = await (ipcHandlers as any).handleSaveDraft(null, 'test draft');
 
             expect(result.success).toBe(false);
-            expect(result.error).toBe('Save failed');
+            expect(result.error).toBe('Operation failed');
         });
     });
 
@@ -495,8 +514,8 @@ describe('IPCHandlers', () => {
 
             ipcHandlers.removeAllHandlers();
 
-            // Should be called for each handler (updated count after refactoring)
-            expect(ipcMain.removeAllListeners).toHaveBeenCalledTimes(14);
+            // Should be called for each handler (updated count: 25 handlers)
+            expect(ipcMain.removeAllListeners).toHaveBeenCalledTimes(25);
             expect(logger.info).toHaveBeenCalledWith('All IPC handlers removed');
         });
     });

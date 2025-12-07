@@ -3,7 +3,8 @@ type ExecCallback = (error: Error | null, stdout: string, stderr: string) => voi
 
 // Mock child_process before importing utils
 jest.mock('child_process', () => ({
-    exec: jest.fn()
+    exec: jest.fn(),
+    execFile: jest.fn()
 }));
 
 // Mock fs before importing utils
@@ -32,10 +33,12 @@ import {
     activateAndPasteWithNativeTool
 } from '../../src/utils/utils';
 
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promises as fs } from 'fs';
 
-const mockedExec = jest.mocked(exec);
+const mockedExecFile = jest.mocked(execFile);
+// Keep mockedExec as an alias for backward compatibility
+const mockedExec = mockedExecFile;
 const mockedFs = jest.mocked(fs);
 
 // Console capture helper
@@ -107,60 +110,60 @@ describe('Utils', () => {
         test('should handle exec errors gracefully', async () => {
             const originalPlatform = process.platform;
             Object.defineProperty(process, 'platform', { value: 'darwin' });
-            
-            (mockedExec as any).mockImplementation((_command: string, _options: any, callback: ExecCallback) => {
+
+            (mockedExec as any).mockImplementation((_file: string, _args: string[], _options: any, callback: ExecCallback) => {
                 callback(new Error('Command failed'), '', '');
                 return null as any;
             });
 
             const result = await getCurrentApp();
             expect(result).toBeNull();
-            
+
             Object.defineProperty(process, 'platform', { value: originalPlatform });
         });
 
         test('should return app info on success', async () => {
             const originalPlatform = process.platform;
             Object.defineProperty(process, 'platform', { value: 'darwin' });
-            
-            (mockedExec as any).mockImplementation((_command: string, _options: any, callback: ExecCallback) => {
+
+            (mockedExec as any).mockImplementation((_file: string, _args: string[], _options: any, callback: ExecCallback) => {
                 callback(null, '{"name":"TestApp","bundleId":"com.test.app"}', '');
                 return null as any;
             });
 
             const result = await getCurrentApp();
             expect(result).toEqual({ name: 'TestApp', bundleId: 'com.test.app' });
-            
+
             Object.defineProperty(process, 'platform', { value: originalPlatform });
         });
 
         test('should handle app without bundle ID', async () => {
             const originalPlatform = process.platform;
             Object.defineProperty(process, 'platform', { value: 'darwin' });
-            
-            (mockedExec as any).mockImplementation((_command: string, _options: any, callback: ExecCallback) => {
+
+            (mockedExec as any).mockImplementation((_file: string, _args: string[], _options: any, callback: ExecCallback) => {
                 callback(null, '{"name":"TestApp","bundleId":null}', '');
                 return null as any;
             });
 
             const result = await getCurrentApp();
             expect(result).toEqual({ name: 'TestApp', bundleId: null });
-            
+
             Object.defineProperty(process, 'platform', { value: originalPlatform });
         });
 
         test('should handle native tool errors', async () => {
             const originalPlatform = process.platform;
             Object.defineProperty(process, 'platform', { value: 'darwin' });
-            
-            (mockedExec as any).mockImplementation((_command: string, _options: any, callback: ExecCallback) => {
+
+            (mockedExec as any).mockImplementation((_file: string, _args: string[], _options: any, callback: ExecCallback) => {
                 callback(null, '{"error":"No active application found"}', '');
                 return null as any;
             });
 
             const result = await getCurrentApp();
             expect(result).toBeNull();
-            
+
             Object.defineProperty(process, 'platform', { value: originalPlatform });
         });
     });
@@ -169,51 +172,51 @@ describe('Utils', () => {
         test('should execute paste command on macOS', async () => {
             const originalPlatform = process.platform;
             Object.defineProperty(process, 'platform', { value: 'darwin' });
-            
-            (mockedExec as any).mockImplementation((_command: string, _options: any, callback: ExecCallback) => {
+
+            (mockedExec as any).mockImplementation((_file: string, _args: string[], _options: any, callback: ExecCallback) => {
                 callback(null, '{"success":true,"command":"paste"}', '');
                 return null as any;
             });
 
             await expect(pasteWithNativeTool()).resolves.toBeUndefined();
-            
+
             Object.defineProperty(process, 'platform', { value: originalPlatform });
         });
 
         test('should handle native tool failure', async () => {
             const originalPlatform = process.platform;
             Object.defineProperty(process, 'platform', { value: 'darwin' });
-            
-            (mockedExec as any).mockImplementation((_command: string, _options: any, callback: ExecCallback) => {
+
+            (mockedExec as any).mockImplementation((_file: string, _args: string[], _options: any, callback: ExecCallback) => {
                 callback(null, '{"success":false,"command":"paste"}', '');
                 return null as any;
             });
 
             await expect(pasteWithNativeTool()).rejects.toThrow('Native paste failed');
-            
+
             Object.defineProperty(process, 'platform', { value: originalPlatform });
         });
 
         test('should handle exec errors', async () => {
             const originalPlatform = process.platform;
             Object.defineProperty(process, 'platform', { value: 'darwin' });
-            
-            (mockedExec as any).mockImplementation((_command: string, _options: any, callback: ExecCallback) => {
+
+            (mockedExec as any).mockImplementation((_file: string, _args: string[], _options: any, callback: ExecCallback) => {
                 callback(new Error('Command failed'), '', '');
                 return null as any;
             });
 
             await expect(pasteWithNativeTool()).rejects.toThrow('Command failed');
-            
+
             Object.defineProperty(process, 'platform', { value: originalPlatform });
         });
 
         test('should throw error on non-macOS platforms', async () => {
             const originalPlatform = process.platform;
             Object.defineProperty(process, 'platform', { value: 'linux' });
-            
+
             await expect(pasteWithNativeTool()).rejects.toThrow('Native paste only supported on macOS');
-            
+
             Object.defineProperty(process, 'platform', { value: originalPlatform });
         });
     });
@@ -315,7 +318,7 @@ describe('Utils', () => {
             mockedFs.mkdir.mockResolvedValue(undefined);
             
             await expect(ensureDir('/test/path')).resolves.toBeUndefined();
-            expect(mockedFs.mkdir).toHaveBeenCalledWith('/test/path', { recursive: true });
+            expect(mockedFs.mkdir).toHaveBeenCalledWith('/test/path', { recursive: true, mode: 0o700 });
         });
 
         test('should throw error for access issues other than ENOENT', async () => {
@@ -371,9 +374,9 @@ describe('Utils', () => {
 
         test('should handle successful native tool output', async () => {
             Object.defineProperty(process, 'platform', { value: 'darwin' });
-            
-            // Mock exec to return valid window bounds
-            (mockedExec as any).mockImplementation((_command: string, _options: any, callback?: any) => {
+
+            // Mock execFile to return valid window bounds
+            (mockedExec as any).mockImplementation((_file: string, _args: string[], _options: any, callback?: any) => {
                 if (typeof callback === 'function') {
                     callback(null, '{"x":100,"y":200,"width":800,"height":600,"appName":"TestApp","bundleId":"com.test.app"}', '');
                 }
@@ -390,8 +393,8 @@ describe('Utils', () => {
 
         test('should handle native tool error output', async () => {
             Object.defineProperty(process, 'platform', { value: 'darwin' });
-            
-            (mockedExec as any).mockImplementation((_command: string, _options: any, callback?: any) => {
+
+            (mockedExec as any).mockImplementation((_file: string, _args: string[], _options: any, callback?: any) => {
                 if (typeof callback === 'function') {
                     callback(null, '{"error":"No active window found"}', '');
                 }
@@ -403,8 +406,8 @@ describe('Utils', () => {
 
         test('should handle invalid JSON output', async () => {
             Object.defineProperty(process, 'platform', { value: 'darwin' });
-            
-            (mockedExec as any).mockImplementation((_command: string, _options: any, callback?: any) => {
+
+            (mockedExec as any).mockImplementation((_file: string, _args: string[], _options: any, callback?: any) => {
                 if (typeof callback === 'function') {
                     callback(null, 'invalid json', '');
                 }
@@ -416,8 +419,8 @@ describe('Utils', () => {
 
         test('should handle exec errors', async () => {
             Object.defineProperty(process, 'platform', { value: 'darwin' });
-            
-            (mockedExec as any).mockImplementation((_command: string, _options: any, callback?: any) => {
+
+            (mockedExec as any).mockImplementation((_file: string, _args: string[], _options: any, callback?: any) => {
                 if (typeof callback === 'function') {
                     callback(new Error('Command failed'), '', '');
                 }
@@ -429,8 +432,8 @@ describe('Utils', () => {
 
         test('should handle invalid numeric values', async () => {
             Object.defineProperty(process, 'platform', { value: 'darwin' });
-            
-            (mockedExec as any).mockImplementation((_command: string, _options: any, callback?: any) => {
+
+            (mockedExec as any).mockImplementation((_file: string, _args: string[], _options: any, callback?: any) => {
                 if (typeof callback === 'function') {
                     callback(null, '{"x":"abc","y":"def","width":"ghi","height":"jkl"}', '');
                 }
@@ -639,8 +642,8 @@ describe('Utils', () => {
                 const originalPlatform = process.platform;
                 Object.defineProperty(process, 'platform', { value: 'darwin' });
 
-                // Mock exec to simulate successful execution
-                (mockedExec as any).mockImplementation((_command: string, _options: any, callback: ExecCallback) => {
+                // Mock execFile to simulate successful execution
+                (mockedExec as any).mockImplementation((_file: string, _args: string[], _options: any, callback: ExecCallback) => {
                     callback(null, '{"success":true,"command":"activate-and-paste-name"}', '');
                     return null as any;
                 });
@@ -654,12 +657,13 @@ describe('Utils', () => {
                     activateAndPasteWithNativeTool(safeAppInfo)
                 ).resolves.toBeUndefined();
 
-                // Verify that the command was called with safe values
+                // Verify that execFile was called with the correct arguments
                 // Bundle ID is provided, so it should use activate-and-paste-bundle command
                 expect(mockedExec).toHaveBeenCalledWith(
-                    expect.stringContaining('activate-and-paste-bundle'),
-                    expect.any(Object),
-                    expect.any(Function)
+                    expect.any(String), // file path
+                    expect.arrayContaining(['activate-and-paste-bundle']), // args array
+                    expect.any(Object), // options
+                    expect.any(Function) // callback
                 );
 
                 Object.defineProperty(process, 'platform', { value: originalPlatform });
