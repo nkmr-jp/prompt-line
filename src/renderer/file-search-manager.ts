@@ -3175,9 +3175,30 @@ export class FileSearchManager {
       for (const file of files) {
         const relativePath = this.getRelativePath(file.path, baseDir!);
         relativePaths.add(relativePath);
-        // Also add without trailing slash for directories
-        if (relativePath.endsWith('/')) {
-          relativePaths.add(relativePath.slice(0, -1));
+        // For directories: add both with and without trailing slash
+        // getRelativePath doesn't add trailing slash, but selectFileByInfo adds it for directories
+        // So we need both versions to match @paths in text
+        if (file.isDirectory) {
+          // Add with trailing slash if not already present
+          if (!relativePath.endsWith('/')) {
+            relativePaths.add(relativePath + '/');
+          } else {
+            // Also add without trailing slash
+            relativePaths.add(relativePath.slice(0, -1));
+          }
+        }
+
+        // Also extract and add all parent directories from file paths
+        // This handles cases where directory entries are not in the file list
+        // but files within those directories are (e.g., .github/ISSUE_TEMPLATE/bug_report.yml
+        // should make .github/ and .github/ISSUE_TEMPLATE/ available for highlighting)
+        const pathParts = relativePath.split('/');
+        let parentPath = '';
+        for (let i = 0; i < pathParts.length - 1; i++) {
+          parentPath += (i > 0 ? '/' : '') + pathParts[i];
+          // Add both with and without trailing slash
+          relativePaths.add(parentPath);
+          relativePaths.add(parentPath + '/');
         }
       }
 
