@@ -111,6 +111,67 @@ export class DomManager {
     }
   }
 
+  /**
+   * Set textarea text content with undo support.
+   * Uses Selection API and insertText command to enable browser's native Undo/Redo.
+   * Falls back to direct value assignment if execCommand is not available.
+   * @param text - The new text content to set
+   */
+  public setTextWithUndo(text: string): void {
+    if (!this.textarea) {
+      return;
+    }
+
+    // Focus textarea to ensure execCommand works
+    this.textarea.focus();
+
+    // Select all text
+    this.textarea.setSelectionRange(0, this.textarea.value.length);
+
+    // Use execCommand to replace selected text - this enables native Undo
+    // Note: execCommand is deprecated but still widely supported and is the only
+    // reliable way to enable native Undo for programmatic text changes
+    const success = document.execCommand('insertText', false, text);
+
+    if (!success) {
+      // Fallback to direct value assignment if execCommand fails
+      this.textarea.value = text;
+    }
+
+    this.updateCharCount();
+  }
+
+  /**
+   * Replace a range of text with new text, with undo support.
+   * Uses Selection API and insertText command to enable browser's native Undo/Redo.
+   * @param start - Start position of the range to replace
+   * @param end - End position of the range to replace
+   * @param newText - The replacement text
+   */
+  public replaceRangeWithUndo(start: number, end: number, newText: string): void {
+    if (!this.textarea) {
+      return;
+    }
+
+    // Focus textarea to ensure execCommand works
+    this.textarea.focus();
+
+    // Select the range to replace
+    this.textarea.setSelectionRange(start, end);
+
+    // Use execCommand to replace selected text - this enables native Undo
+    const success = document.execCommand('insertText', false, newText);
+
+    if (!success) {
+      // Fallback to manual replacement if execCommand fails
+      const value = this.textarea.value;
+      this.textarea.value = value.substring(0, start) + newText + value.substring(end);
+      this.textarea.setSelectionRange(start + newText.length, start + newText.length);
+    }
+
+    this.updateCharCount();
+  }
+
   public getCurrentText(): string {
     return this.textarea?.value || '';
   }

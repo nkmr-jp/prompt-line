@@ -64,6 +64,7 @@ interface FileSearchCallbacks {
   updateHintText?: (text: string) => void; // Update hint text in footer
   getDefaultHintText?: () => string; // Get default hint text (directory path)
   setDraggable?: (enabled: boolean) => void; // Enable/disable window dragging during file open
+  replaceRangeWithUndo?: (start: number, end: number, newText: string) => void; // Replace text range with undo support
 }
 
 // Represents a tracked @path in the text
@@ -2915,31 +2916,39 @@ export class FileSearchManager {
 
   /**
    * Insert file path, keeping the @ and replacing only the query part
+   * Uses replaceRangeWithUndo for native Undo/Redo support
    */
   public insertFilePath(path: string): void {
     if (this.atStartPosition < 0) return;
 
-    const text = this.callbacks.getTextContent();
     const cursorPos = this.callbacks.getCursorPosition();
 
-    // Keep @ and replace only the query part with the path
-    const before = text.substring(0, this.atStartPosition + 1); // Include @
-    const after = text.substring(cursorPos);
-    const newText = before + path + after;
+    // The insertion text includes path + space for better UX
+    const insertionText = path + ' ';
 
-    this.callbacks.setTextContent(newText);
+    // Replace the query part (after @) with the new path + space
+    // atStartPosition points to @, so we keep @ and replace from atStartPosition + 1 to cursorPos
+    const replaceStart = this.atStartPosition + 1;
+    const replaceEnd = cursorPos;
 
-    // Position cursor at end of inserted path (after @path)
-    const newCursorPos = this.atStartPosition + 1 + path.length;
+    // Use replaceRangeWithUndo if available for native Undo support
+    if (this.callbacks.replaceRangeWithUndo) {
+      this.callbacks.replaceRangeWithUndo(replaceStart, replaceEnd, insertionText);
+    } else {
+      // Fallback to direct text manipulation (no Undo support)
+      const text = this.callbacks.getTextContent();
+      const before = text.substring(0, replaceStart);
+      const after = text.substring(replaceEnd);
+      const newText = before + insertionText + after;
+      this.callbacks.setTextContent(newText);
+    }
+
+    // Position cursor at end of inserted path + space
+    const newCursorPos = this.atStartPosition + 1 + path.length + 1;
     this.callbacks.setCursorPosition(newCursorPos);
 
-    // Add space after the path for better UX
-    const textWithSpace = newText.substring(0, newCursorPos) + ' ' + newText.substring(newCursorPos);
-    this.callbacks.setTextContent(textWithSpace);
-    this.callbacks.setCursorPosition(newCursorPos + 1);
-
-    // Track the @path range (including the space)
-    this.addAtPath(this.atStartPosition, newCursorPos, path);
+    // Track the @path range (not including the space)
+    this.addAtPath(this.atStartPosition, this.atStartPosition + 1 + path.length, path);
 
     // Update highlight backdrop
     this.updateHighlightBackdrop();
@@ -2979,6 +2988,7 @@ export class FileSearchManager {
 
   /**
    * Handle backspace key to delete entire @path if cursor is at the end
+   * Uses replaceRangeWithUndo for native Undo/Redo support
    */
   private handleBackspaceForAtPath(e: KeyboardEvent): void {
     const cursorPos = this.callbacks.getCursorPosition();
@@ -2995,8 +3005,14 @@ export class FileSearchManager {
         deleteEnd++;
       }
 
-      const newText = text.substring(0, atPath.start) + text.substring(deleteEnd);
-      this.callbacks.setTextContent(newText);
+      // Use replaceRangeWithUndo if available for native Undo support
+      if (this.callbacks.replaceRangeWithUndo) {
+        this.callbacks.replaceRangeWithUndo(atPath.start, deleteEnd, '');
+      } else {
+        // Fallback to direct text manipulation (no Undo support)
+        const newText = text.substring(0, atPath.start) + text.substring(deleteEnd);
+        this.callbacks.setTextContent(newText);
+      }
       this.callbacks.setCursorPosition(atPath.start);
 
       // Remove the path from tracking

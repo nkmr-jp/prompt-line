@@ -191,6 +191,10 @@ export class PromptLineRenderer {
       setDraggable: (enabled: boolean) => {
         // Enable/disable draggable state on header during file open
         this.domManager.setDraggable(enabled);
+      },
+      replaceRangeWithUndo: (start: number, end: number, newText: string) => {
+        // Replace text range with native Undo/Redo support
+        this.domManager.replaceRangeWithUndo(start, end, newText);
       }
     });
 
