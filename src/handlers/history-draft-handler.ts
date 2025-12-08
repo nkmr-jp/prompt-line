@@ -1,3 +1,4 @@
+import type Electron from 'electron';
 import { IpcMainInvokeEvent } from 'electron';
 import { logger, SecureErrors } from '../utils/utils';
 import type DraftManager from '../managers/draft-manager';
