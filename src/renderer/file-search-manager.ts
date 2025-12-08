@@ -1351,11 +1351,12 @@ export class FileSearchManager {
   /**
    * Find URL at the given cursor position
    * Returns { url, start, end } if found, null otherwise
-   * Supports both http:// and https:// URLs
+   * Supports both http:// and https:// URLs including query parameters
    */
   private findUrlAtPosition(text: string, cursorPos: number): { url: string; start: number; end: number } | null {
     // Pattern to match URLs starting with http:// or https://
-    const urlPattern = /https?:\/\/[^\s"'<>|*?\n]+/gi;
+    // Includes query parameters (?key=value) and fragments (#section)
+    const urlPattern = /https?:\/\/[^\s"'<>|*\n]+/gi;
     let match;
 
     while ((match = urlPattern.exec(text)) !== null) {
