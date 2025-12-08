@@ -887,7 +887,8 @@ class WindowManager {
           logger.debug(`⏱️  Directory detection completed in ${elapsed.toFixed(2)}ms`, {
             directory: result.directory,
             fileCount: result.fileCount,
-            searchMode: result.searchMode
+            searchMode: result.searchMode,
+            isGitRepository: result.isGitRepository
           });
 
           resolve(result);

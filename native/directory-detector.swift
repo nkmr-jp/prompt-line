@@ -1357,6 +1357,30 @@ class DirectoryDetector {
         return FileListResult(files: uniqueFiles, fileLimitReached: fileLimitReached, maxFiles: settings.maxFiles)
     }
 
+    // MARK: - Git Repository Detection
+
+    /// Check if a directory is inside a git repository
+    /// Walks up the directory tree to find a .git directory
+    static func isGitRepository(_ directory: String) -> Bool {
+        let fileManager = FileManager.default
+        var currentPath = directory
+
+        // Walk up the directory tree
+        while currentPath != "/" && !currentPath.isEmpty {
+            let gitPath = (currentPath as NSString).appendingPathComponent(".git")
+
+            // Check if .git exists (either as directory or file for worktrees)
+            if fileManager.fileExists(atPath: gitPath) {
+                return true
+            }
+
+            // Move to parent directory
+            currentPath = (currentPath as NSString).deletingLastPathComponent
+        }
+
+        return false
+    }
+
     // MARK: - Detect with Files
 
     /// Detect current directory with file list
@@ -1372,7 +1396,26 @@ class DirectoryDetector {
             return result
         }
 
-        if let fileListResult = getFileList(from: directory, settings: settings) {
+        // Check if directory is inside a git repository
+        let isGitRepo = isGitRepository(directory)
+        result["isGitRepository"] = isGitRepo
+
+        // For security and performance: enforce maxDepth=1 for non-git directories
+        // This prevents deep recursive searches in arbitrary directories (e.g., home directory)
+        var effectiveSettings = settings
+        if !isGitRepo {
+            effectiveSettings = FileSearchSettings(
+                respectGitignore: settings.respectGitignore,
+                excludePatterns: settings.excludePatterns,
+                includePatterns: settings.includePatterns,
+                maxFiles: settings.maxFiles,
+                includeHidden: settings.includeHidden,
+                maxDepth: 1,  // Force maxDepth=1 for non-git directories
+                followSymlinks: settings.followSymlinks
+            )
+        }
+
+        if let fileListResult = getFileList(from: directory, settings: effectiveSettings) {
             result["files"] = fileListResult.files
             result["fileCount"] = fileListResult.files.count
             result["partial"] = false  // Always complete with fd
@@ -1578,14 +1621,32 @@ class DirectoryDetector {
             return ["error": "Path is not a directory", "path": expandedPath]
         }
 
-        if let fileListResult = getFileList(from: expandedPath, settings: settings) {
+        // Check if directory is inside a git repository
+        let isGitRepo = isGitRepository(expandedPath)
+
+        // For security and performance: enforce maxDepth=1 for non-git directories
+        var effectiveSettings = settings
+        if !isGitRepo {
+            effectiveSettings = FileSearchSettings(
+                respectGitignore: settings.respectGitignore,
+                excludePatterns: settings.excludePatterns,
+                includePatterns: settings.includePatterns,
+                maxFiles: settings.maxFiles,
+                includeHidden: settings.includeHidden,
+                maxDepth: 1,  // Force maxDepth=1 for non-git directories
+                followSymlinks: settings.followSymlinks
+            )
+        }
+
+        if let fileListResult = getFileList(from: expandedPath, settings: effectiveSettings) {
             var result: [String: Any] = [
                 "success": true,
                 "directory": expandedPath,
                 "files": fileListResult.files,
                 "fileCount": fileListResult.files.count,
                 "searchMode": "recursive",
-                "partial": false
+                "partial": false,
+                "isGitRepository": isGitRepo
             ]
             if fileListResult.fileLimitReached {
                 result["fileLimitReached"] = true

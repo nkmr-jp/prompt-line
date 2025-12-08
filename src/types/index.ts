@@ -271,6 +271,8 @@ export interface DirectoryInfo {
   maxFiles?: number;           // the maxFiles limit that was applied
   // User hint message
   hint?: string;               // hint message to display to user (e.g., "Install fd: brew install fd")
+  // Git repository status
+  isGitRepository?: boolean;   // true if directory is inside a git repository
 }
 
 // File search settings configuration
