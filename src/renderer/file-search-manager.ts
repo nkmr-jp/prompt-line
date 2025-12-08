@@ -2943,14 +2943,12 @@ export class FileSearchManager {
       this.callbacks.setTextContent(newText);
     }
 
-    // Position cursor at end of inserted path + space
-    const newCursorPos = this.atStartPosition + 1 + path.length + 1;
-    this.callbacks.setCursorPosition(newCursorPos);
-
     // Track the @path range (not including the space)
+    // Note: rescanAtPaths in updateHighlightBackdrop will find the correct positions
+    // based on the path content, so we just need to add this path to tracking
     this.addAtPath(this.atStartPosition, this.atStartPosition + 1 + path.length, path);
 
-    // Update highlight backdrop
+    // Update highlight backdrop (this will rescan all @paths in the text)
     this.updateHighlightBackdrop();
 
     // Reset state

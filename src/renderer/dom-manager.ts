@@ -153,8 +153,10 @@ export class DomManager {
       return;
     }
 
-    // Focus textarea to ensure execCommand works
-    this.textarea.focus();
+    // Focus textarea to ensure execCommand works (only if not already focused)
+    if (document.activeElement !== this.textarea) {
+      this.textarea.focus();
+    }
 
     // Select the range to replace
     this.textarea.setSelectionRange(start, end);
