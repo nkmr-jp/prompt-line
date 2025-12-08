@@ -276,6 +276,8 @@ class WindowManager {
           });
         } else if (this.savedDirectory) {
           // Fallback to draft directory with empty files if no cache
+          // Check if this is root directory - disable file search for security
+          const isRootDirectory = this.savedDirectory === '/';
           windowData.directoryData = {
             success: true,
             directory: this.savedDirectory,
@@ -283,7 +285,8 @@ class WindowManager {
             fileCount: 0,
             partial: false,  // Always false (single stage with fd)
             searchMode: 'recursive',  // Always recursive (fd is required)
-            fromDraft: true
+            fromDraft: true,
+            ...(isRootDirectory ? { filesDisabled: true, filesDisabledReason: 'File search is disabled for root directory' } : {})
           };
         }
 
