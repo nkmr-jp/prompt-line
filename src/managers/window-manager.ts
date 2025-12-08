@@ -351,6 +351,14 @@ class WindowManager {
   }
 
   /**
+   * Check if a directory should have file search disabled
+   * Root directory (/) and certain system directories are excluded for security
+   */
+  private isFileSearchDisabledDirectory(directory: string): boolean {
+    return directory === '/';
+  }
+
+  /**
    * Load cached files for window show - provides instant file search availability
    * Priority: savedDirectory cache > lastUsedDirectory cache
    */
@@ -360,6 +368,21 @@ class WindowManager {
     try {
       // Priority 1: Try to load cache for savedDirectory (from DirectoryManager)
       if (this.savedDirectory) {
+        // Check if this directory has file search disabled
+        if (this.isFileSearchDisabledDirectory(this.savedDirectory)) {
+          return {
+            success: true,
+            directory: this.savedDirectory,
+            files: [],
+            fileCount: 0,
+            partial: false,
+            fromCache: true,
+            searchMode: 'recursive',
+            filesDisabled: true,
+            filesDisabledReason: 'File search is disabled for root directory'
+          };
+        }
+
         const cached = await this.fileCacheManager.loadCache(this.savedDirectory);
         if (cached && this.fileCacheManager.isCacheValid(cached.metadata)) {
           const result: DirectoryInfo = {
@@ -379,6 +402,21 @@ class WindowManager {
       // Priority 2: Try to load cache for lastUsedDirectory
       const lastUsedDir = await this.fileCacheManager.getLastUsedDirectory();
       if (lastUsedDir && lastUsedDir !== this.savedDirectory) {
+        // Check if this directory has file search disabled
+        if (this.isFileSearchDisabledDirectory(lastUsedDir)) {
+          return {
+            success: true,
+            directory: lastUsedDir,
+            files: [],
+            fileCount: 0,
+            partial: false,
+            fromCache: true,
+            searchMode: 'recursive',
+            filesDisabled: true,
+            filesDisabledReason: 'File search is disabled for root directory'
+          };
+        }
+
         const cached = await this.fileCacheManager.loadCache(lastUsedDir);
         if (cached && this.fileCacheManager.isCacheValid(cached.metadata)) {
           const result: DirectoryInfo = {
