@@ -141,13 +141,27 @@ The app uses Electron's two-process model with clean separation:
   - Comprehensive CSS architecture with themes and modular stylesheets
   - TypeScript configuration and utility functions
 - **Preload Script** (`src/preload/preload.ts`): Secure context bridge with whitelisted IPC channels
-- **IPC Bridge** (`src/handlers/ipc-handlers.ts`): All communication between processes goes through well-defined IPC channels
+- **IPC Handlers** (`src/handlers/`): Modular handler architecture with 8 specialized components:
+  - `ipc-handlers.ts`: Main coordinator that delegates to specialized handlers
+  - `paste-handler.ts`: Text and image paste operations with security validation
+  - `history-draft-handler.ts`: History CRUD and draft management operations
+  - `window-handler.ts`: Window visibility and focus control
+  - `system-handler.ts`: App info, config, and settings retrieval
+  - `mdsearch-handler.ts`: Slash commands and agent selection
+  - `file-handler.ts`: File operations and external URL handling
+  - `handler-utils.ts`: Shared validation and utility functions
 
 ### Manager Pattern
 Core functionality is organized into specialized managers:
 
 **Main Process Managers:**
-- **WindowManager**: Controls window creation, positioning, and lifecycle
+- **WindowManager** (`src/managers/window/`): Modular architecture with 6 specialized components:
+  - `window-manager.ts`: Main coordinator for window creation and lifecycle
+  - `directory-detector.ts`: Directory detection and file search orchestration
+  - `position-calculator.ts`: Window positioning algorithms (4 modes)
+  - `native-tool-executor.ts`: Native macOS tool execution with timeout
+  - `types.ts`: Type definitions for window module
+  - `index.ts`: Public API exports
   - Supports multiple positioning modes: active-text-field (default), active-window-center, cursor, center
   - Native Swift tools integration for window and text field detection
   - Multi-monitor aware positioning with boundary constraints
@@ -169,40 +183,75 @@ Core functionality is organized into specialized managers:
 - **EventHandler**: Centralized event processing
 - **SearchManager**: Search functionality implementation
 - **SlashCommandManager**: Slash command processing and execution
-- **FileSearchManager**: @ mention file search with fuzzy matching (disabled by default)
+- **FileSearchManager** (`src/renderer/file-search/`): Modular architecture with 7 components:
+  - `file-search-manager.ts`: Main orchestration layer for @ mention file search
+  - `cache-manager.ts`: Directory data caching with two-stage loading
+  - `fuzzy-matcher.ts`: File filtering and scoring algorithms
+  - `highlighter.ts`: @path highlighting and tracking in textarea
+  - `path-utils.ts`: Path detection, coordinates, and file opening
+  - `types.ts`: Type definitions for file-search module
+  - `index.ts`: Public API exports
+  - Fuzzy matching with score-based ranking (disabled by default)
 - **HistoryUIManager**: History display and interaction management
 - **SnapshotManager**: Undo/redo functionality with text and cursor state tracking
 
 ### Data Flow
 ```
-User Input → Renderer → IPC Event → Handler → Manager → Data/System
-                ↑                                    ↓
-                └────────── IPC Response ────────────┘
+User Input → Renderer → IPC Event → IPCHandlers (coordinator) → Specialized Handler → Manager → Data/System
+                ↑                                                                            ↓
+                └─────────────────────────── IPC Response ───────────────────────────────────┘
 ```
 
-### Key IPC Channels
-**Core Operations:**
-- `paste-text`: Main action - pastes text to previous application
-- `paste-image`: Clipboard image pasting support
-- `hide-window`, `show-window`, `focus-window`, `window-shown`: Window control
+**Handler Coordination Flow:**
+```
+Renderer Process
+    ↓
+IPC invoke request
+    ↓
+IPCHandlers (coordinator)
+    ↓
+Specialized Handler (paste, history-draft, window, system, mdsearch, file)
+    ↓
+Manager (WindowManager, HistoryManager, etc.)
+    ↓
+System/Data
+    ↓
+IPC response → Renderer Process
+```
 
-**History & Draft:**
+### Key IPC Channels (by Handler Module)
+
+**Paste Handler (paste-handler.ts):**
+- `paste-text`: Main action - pastes text to previous application with security validation
+- `paste-image`: Clipboard image handling with path traversal prevention
+
+**History & Draft Handler (history-draft-handler.ts):**
 - `get-history`, `clear-history`, `remove-history-item`, `search-history`: History operations
-- `save-draft`, `clear-draft`, `get-draft`, `get-draft-directory`, `set-draft-directory`: Draft management
+- `save-draft`, `clear-draft`, `get-draft`: Draft management
+- `set-draft-directory`, `get-draft-directory`: Directory tracking
 
-**Configuration:**
-- `get-config`, `get-app-info`, `get-settings`, `update-settings`: Configuration and settings
+**Window Handler (window-handler.ts):**
+- `hide-window`, `show-window`, `focus-window`: Window visibility control
 
-**Feature Channels:**
+**System Handler (system-handler.ts):**
+- `get-app-info`: Application metadata
+- `get-config`: Configuration access with whitelist validation
+- `open-settings`: Settings file management
+
+**MdSearch Handler (mdsearch-handler.ts):**
 - `get-slash-commands`, `get-slash-command-file-path`: Slash command support
 - `get-agents`, `get-agent-file-path`: Agent selection and management
 - `get-md-search-max-suggestions`, `get-md-search-prefixes`: Search configuration
-- `check-file-exists`, `open-file-in-editor`, `open-external-url`: File operations
-- `open-settings`: Settings file management
-- `directory-data-updated`: Directory change notifications
-- `clipboard-*`: Clipboard operations
 
-Total: 30+ IPC channels
+**File Handler (file-handler.ts):**
+- `check-file-exists`, `open-file-in-editor`: File operations
+- `open-external-url`: URL handling with protocol validation
+
+**Events (Renderer → Main):**
+- `window-shown`: Window display with data context
+- `directory-data-updated`: Directory change notifications
+
+Total: 26+ IPC channels across 6 specialized handlers
 
 ## Platform-Specific Implementation
 
@@ -308,10 +357,14 @@ The window supports multiple positioning modes with dynamic configuration:
 - **Streaming operations** for large files with efficient append-only strategy
 
 ### File Search Feature
-- **@ mention syntax**: Type `@` to trigger file search
-- **Fuzzy matching**: Intelligent file path matching
+- **@ mention syntax**: Type `@` to trigger file search with directory navigation support
+- **Modular architecture**: 7 specialized modules (cache-manager, fuzzy-matcher, highlighter, path-utils, etc.)
+- **Fuzzy matching**: Score-based ranking (exact: 1000, starts-with: 500, contains: 200, fuzzy: 10)
 - **Hybrid loading strategy**: Stage 1 (quick single-level) + Stage 2 (recursive fd command)
+- **@path highlighting**: Visual highlighting in textarea with Cmd+click to open files
+- **Undo/redo support**: Full undo/redo integration for file path insertion
 - **Disabled by default**: Enable via settings for stability
+- **Security**: Disabled in root and system directories (/, /System, /Library, etc.)
 - **fd command integration**: Uses `fd` for fast recursive file discovery
 - **Supported applications** (directory-detector):
   - Terminal.app (`com.apple.Terminal`)
@@ -337,13 +390,19 @@ The window supports multiple positioning modes with dynamic configuration:
 ### Security Considerations
 - **Native tools security**: Compiled Swift binaries eliminate script injection vulnerabilities
 - **Input sanitization**: AppleScript sanitization with 64KB limits and character escaping, input size limits (1MB)
-- **Path validation**: Comprehensive path normalization prevents directory traversal
+- **Path validation**: Comprehensive path normalization prevents directory traversal in all handlers
+- **Image file security**: Path traversal prevention with restrictive file permissions (0o700/0o600)
+- **History ID validation**: Strict format validation (lowercase alphanumeric, max 32 chars)
+- **URL protocol whitelist**: Only `http:` and `https:` protocols allowed for external URLs
+- **Config section whitelist**: Configuration access limited to predefined sections
+- **File search restrictions**: Disabled in root and system directories for security
 - **Preload script security**: Context bridge with whitelisted IPC channels only
 - **Prototype pollution prevention**: Input validation against prototype attacks
 - **No app sandboxing** (required for auto-paste functionality)
 - **Explicit permissions**: Requires user accessibility permissions with guided setup
 - **Local data only**: All data stored locally, no network requests
 - **JSON communication**: Structured data exchange prevents parsing attacks
+- **XSS prevention**: Safe SVG injection using DOMParser in file-search module
 
 ## Common Build Issues and Troubleshooting
 

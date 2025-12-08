@@ -50,6 +50,8 @@ interface DirectoryData {
   cacheAge?: number;          // milliseconds since cache was updated
   fromDraft?: boolean;        // true if this is from draft fallback (empty files)
   hint?: string;              // hint message to display to user (e.g., "Install fd: brew install fd")
+  filesDisabled?: boolean;    // true if file search is disabled for this directory
+  filesDisabledReason?: string; // reason why file search is disabled
 }
 
 interface FileSearchCallbacks {
@@ -62,13 +64,14 @@ interface FileSearchCallbacks {
   updateHintText?: (text: string) => void; // Update hint text in footer
   getDefaultHintText?: () => string; // Get default hint text (directory path)
   setDraggable?: (enabled: boolean) => void; // Enable/disable window dragging during file open
+  replaceRangeWithUndo?: (start: number, end: number, newText: string) => void; // Replace text range with undo support
 }
 
 // Represents a tracked @path in the text
 interface AtPathRange {
-  start: number;  // Position of @
-  end: number;    // Position after the last character of the path
-  path?: string;  // The path content (without @) for re-searching after edits (only set for tracked paths)
+  start: number;              // Position of @
+  end: number;                // Position after the last character of the path
+  path?: string | undefined;  // The path content (without @) for highlighting
 }
 
 // Unified suggestion item (file or agent) with score for mixed sorting
@@ -94,7 +97,8 @@ export class FileSearchManager {
   private callbacks: FileSearchCallbacks;
   private currentPath: string = ''; // Current directory path being browsed (relative from root)
   private mirrorDiv: HTMLDivElement | null = null; // Hidden div for caret position calculation
-  private atPaths: AtPathRange[] = []; // Tracked @paths in the text
+  private atPaths: AtPathRange[] = []; // Tracked @paths in the text (computed from selectedPaths)
+  private selectedPaths: Set<string> = new Set(); // Set of path strings that should be highlighted
 
   // Frontmatter popup elements
   private frontmatterPopup: HTMLDivElement | null = null;
@@ -363,7 +367,8 @@ export class FileSearchManager {
       searchMode: 'recursive',  // Always recursive (fd is required)
       ...(fromCache ? { fromCache: true } : {}),
       ...(data.cacheAge !== undefined ? { cacheAge: data.cacheAge } : {}),
-      ...(data.hint ? { hint: data.hint } : {})
+      ...(data.hint ? { hint: data.hint } : {}),
+      ...(data.filesDisabled ? { filesDisabled: data.filesDisabled, filesDisabledReason: data.filesDisabledReason } : {})
     };
 
     // Show hint message in footer if present (e.g., fd not installed)
@@ -1051,6 +1056,11 @@ export class FileSearchManager {
       return true;
     }
 
+    // File search is disabled for this directory (e.g., root directory) - not building
+    if (this.cachedDirectoryData.filesDisabled) {
+      return false;
+    }
+
     // Draft fallback with no files - index is being built
     if (this.cachedDirectoryData.fromDraft && this.cachedDirectoryData.files.length === 0) {
       return true;
@@ -1351,11 +1361,12 @@ export class FileSearchManager {
   /**
    * Find URL at the given cursor position
    * Returns { url, start, end } if found, null otherwise
-   * Supports both http:// and https:// URLs
+   * Supports both http:// and https:// URLs including query parameters
    */
   private findUrlAtPosition(text: string, cursorPos: number): { url: string; start: number; end: number } | null {
     // Pattern to match URLs starting with http:// or https://
-    const urlPattern = /https?:\/\/[^\s"'<>|*?\n]+/gi;
+    // Includes query parameters (?key=value) and fragments (#section)
+    const urlPattern = /https?:\/\/[^\s"'<>|*\n]+/gi;
     let match;
 
     while ((match = urlPattern.exec(text)) !== null) {
@@ -1416,6 +1427,13 @@ export class FileSearchManager {
       const start = match.index;
       const end = start + match[0].length;
 
+      // Check if path is at start of text or preceded by whitespace
+      // This prevents matching paths like "ghq/github.com/..." as absolute paths
+      const prevChar = start > 0 ? text[start - 1] : '';
+      if (prevChar !== '' && prevChar !== ' ' && prevChar !== '\t' && prevChar !== '\n') {
+        continue; // Skip - not a standalone absolute path
+      }
+
       // Check if cursor is within this path
       if (cursorPos >= start && cursorPos <= end) {
         return match[0]; // Return the full path
@@ -1450,6 +1468,13 @@ export class FileSearchManager {
     while ((match = absolutePathPattern.exec(text)) !== null) {
       const start = match.index;
       const end = start + match[0].length;
+
+      // Check if path is at start of text or preceded by whitespace
+      // This prevents matching paths like "ghq/github.com/..." as absolute paths
+      const prevChar = start > 0 ? text[start - 1] : '';
+      if (prevChar !== '' && prevChar !== ' ' && prevChar !== '\t' && prevChar !== '\n') {
+        continue; // Skip - not a standalone absolute path
+      }
 
       if (cursorPos >= start && cursorPos <= end) {
         return { path: match[0], start, end };
@@ -1593,8 +1618,10 @@ export class FileSearchManager {
       return;
     }
 
-    // Get hint from DirectoryInfo if available
+    // Get hint and filesDisabled from DirectoryInfo if available
     const hint = 'hint' in data ? (data as DirectoryInfo).hint : undefined;
+    const filesDisabled = 'filesDisabled' in data ? (data as DirectoryInfo).filesDisabled : undefined;
+    const filesDisabledReason = 'filesDisabledReason' in data ? (data as DirectoryInfo).filesDisabledReason : undefined;
 
     this.cachedDirectoryData = {
       directory: data.directory,
@@ -1603,7 +1630,8 @@ export class FileSearchManager {
       partial: false,  // Always false (single stage with fd)
       searchMode: 'recursive',  // Always recursive (fd is required)
       // Cache flags (fromCache, cacheAge) are intentionally omitted for fresh data
-      ...(hint ? { hint } : {})
+      ...(hint ? { hint } : {}),
+      ...(filesDisabled && filesDisabledReason ? { filesDisabled, filesDisabledReason } : filesDisabled ? { filesDisabled } : {})
     };
 
     // Show hint message in footer if present (e.g., fd not installed)
@@ -2889,53 +2917,42 @@ export class FileSearchManager {
 
   /**
    * Insert file path, keeping the @ and replacing only the query part
+   * Uses replaceRangeWithUndo for native Undo/Redo support
    */
   public insertFilePath(path: string): void {
     if (this.atStartPosition < 0) return;
 
-    const text = this.callbacks.getTextContent();
     const cursorPos = this.callbacks.getCursorPosition();
 
-    // Keep @ and replace only the query part with the path
-    const before = text.substring(0, this.atStartPosition + 1); // Include @
-    const after = text.substring(cursorPos);
-    const newText = before + path + after;
+    // The insertion text includes path + space for better UX
+    const insertionText = path + ' ';
 
-    this.callbacks.setTextContent(newText);
+    // Replace the query part (after @) with the new path + space
+    // atStartPosition points to @, so we keep @ and replace from atStartPosition + 1 to cursorPos
+    const replaceStart = this.atStartPosition + 1;
+    const replaceEnd = cursorPos;
 
-    // Position cursor at end of inserted path (after @path)
-    const newCursorPos = this.atStartPosition + 1 + path.length;
-    this.callbacks.setCursorPosition(newCursorPos);
+    // Use replaceRangeWithUndo if available for native Undo support
+    if (this.callbacks.replaceRangeWithUndo) {
+      this.callbacks.replaceRangeWithUndo(replaceStart, replaceEnd, insertionText);
+    } else {
+      // Fallback to direct text manipulation (no Undo support)
+      const text = this.callbacks.getTextContent();
+      const before = text.substring(0, replaceStart);
+      const after = text.substring(replaceEnd);
+      const newText = before + insertionText + after;
+      this.callbacks.setTextContent(newText);
+    }
 
-    // Add space after the path for better UX
-    const textWithSpace = newText.substring(0, newCursorPos) + ' ' + newText.substring(newCursorPos);
-    this.callbacks.setTextContent(textWithSpace);
-    this.callbacks.setCursorPosition(newCursorPos + 1);
+    // Add the path to the set of selected paths (for highlighting)
+    this.selectedPaths.add(path);
+    console.debug('[FileSearchManager] Added path to selectedPaths:', path, 'total:', this.selectedPaths.size);
 
-    // Track the @path range (including the space)
-    this.addAtPath(this.atStartPosition, newCursorPos, path);
-
-    // Update highlight backdrop
+    // Update highlight backdrop (this will find all occurrences in the text)
     this.updateHighlightBackdrop();
 
     // Reset state
     this.atStartPosition = -1;
-  }
-
-  /**
-   * Add an @path range to the tracking list
-   */
-  private addAtPath(start: number, end: number, pathContent: string): void {
-    // Remove any overlapping paths
-    this.atPaths = this.atPaths.filter(p => p.end <= start || p.start >= end);
-
-    // Add the new path with content for re-searching
-    this.atPaths.push({ start, end, path: pathContent });
-
-    // Sort by start position
-    this.atPaths.sort((a, b) => a.start - b.start);
-
-    console.debug('[FileSearchManager] addAtPath:', formatLog({ start, end, path: pathContent, totalPaths: this.atPaths.length }));
   }
 
   /**
@@ -2953,6 +2970,7 @@ export class FileSearchManager {
 
   /**
    * Handle backspace key to delete entire @path if cursor is at the end
+   * Uses replaceRangeWithUndo for native Undo/Redo support
    */
   private handleBackspaceForAtPath(e: KeyboardEvent): void {
     const cursorPos = this.callbacks.getCursorPosition();
@@ -2962,6 +2980,7 @@ export class FileSearchManager {
       e.preventDefault();
 
       const text = this.callbacks.getTextContent();
+      const deletedPathContent = atPath.path;
 
       // Delete the @path (and trailing space if present)
       let deleteEnd = atPath.end;
@@ -2969,34 +2988,32 @@ export class FileSearchManager {
         deleteEnd++;
       }
 
-      const newText = text.substring(0, atPath.start) + text.substring(deleteEnd);
-      this.callbacks.setTextContent(newText);
+      // Use replaceRangeWithUndo if available for native Undo support
+      if (this.callbacks.replaceRangeWithUndo) {
+        this.callbacks.replaceRangeWithUndo(atPath.start, deleteEnd, '');
+      } else {
+        // Fallback to direct text manipulation (no Undo support)
+        const newText = text.substring(0, atPath.start) + text.substring(deleteEnd);
+        this.callbacks.setTextContent(newText);
+      }
       this.callbacks.setCursorPosition(atPath.start);
 
-      // Remove the path from tracking
-      this.atPaths = this.atPaths.filter(p => p !== atPath);
-
-      // Adjust positions of remaining paths
-      const deletedLength = deleteEnd - atPath.start;
-      this.atPaths = this.atPaths.map(p => {
-        if (p.start > atPath.start) {
-          const adjusted: AtPathRange = {
-            start: p.start - deletedLength,
-            end: p.end - deletedLength
-          };
-          if (p.path) adjusted.path = p.path;
-          return adjusted;
-        }
-        return p;
-      });
-
-      // Update highlight backdrop
+      // Update highlight backdrop (rescanAtPaths will recalculate all positions)
       this.updateHighlightBackdrop();
+
+      // After update, check if this path still exists in the text
+      // If not, remove it from selectedPaths
+      if (deletedPathContent && !this.atPaths.some(p => p.path === deletedPathContent)) {
+        this.selectedPaths.delete(deletedPathContent);
+        console.debug('[FileSearchManager] Removed path from selectedPaths:', deletedPathContent);
+      }
 
       console.debug('[FileSearchManager] deleted @path:', formatLog({
         deletedStart: atPath.start,
         deletedEnd: deleteEnd,
-        remainingPaths: this.atPaths.length
+        deletedPath: deletedPathContent || 'unknown',
+        remainingPaths: this.atPaths.length,
+        selectedPathsCount: this.selectedPaths.size
       }));
     }
   }
@@ -3060,60 +3077,84 @@ export class FileSearchManager {
   }
 
   /**
-   * Re-scan text for @paths (validates existing paths and finds new ones)
-   * Only highlights @paths that were explicitly selected from the file suggestions,
-   * not ones that are currently being typed/searched.
-   *
-   * This method re-searches for each tracked path by its content (path string),
-   * which handles cases where text was inserted/deleted before the @path.
+   * Build a set of valid paths from cached directory data
    */
-  private rescanAtPaths(text: string): void {
-    // Re-search for each tracked path by its content
-    const updatedPaths: AtPathRange[] = [];
-    const usedPositions = new Set<number>(); // Prevent duplicate matches
+  private buildValidPathsSet(): Set<string> | null {
+    if (!this.cachedDirectoryData?.files || this.cachedDirectoryData.files.length === 0) {
+      return null;
+    }
 
-    for (const trackedPath of this.atPaths) {
-      // Skip if no path content (shouldn't happen for tracked paths)
-      if (!trackedPath.path) continue;
+    const baseDir = this.cachedDirectoryData.directory;
+    const validPaths = new Set<string>();
 
-      // Search for @{path} in the text
-      const searchString = '@' + trackedPath.path;
-      let searchStart = 0;
-
-      while (searchStart < text.length) {
-        const foundIndex = text.indexOf(searchString, searchStart);
-        if (foundIndex === -1) break;
-
-        // Check if this position is already used by another path
-        if (usedPositions.has(foundIndex)) {
-          searchStart = foundIndex + 1;
-          continue;
+    for (const file of this.cachedDirectoryData.files) {
+      const relativePath = this.getRelativePath(file.path, baseDir);
+      validPaths.add(relativePath);
+      // For directories: add both with and without trailing slash
+      if (file.isDirectory) {
+        if (!relativePath.endsWith('/')) {
+          validPaths.add(relativePath + '/');
+        } else {
+          validPaths.add(relativePath.slice(0, -1));
         }
-
-        // Verify it's a complete @path (not followed by more path characters)
-        const endPos = foundIndex + searchString.length;
-        const charAfter = text[endPos];
-        const isCompleteAtPath = !charAfter || charAfter === ' ' || charAfter === '\n' || charAfter === '\t' || charAfter === '@';
-
-        if (isCompleteAtPath) {
-          // Found a valid match - update the position
-          updatedPaths.push({
-            start: foundIndex,
-            end: endPos,
-            path: trackedPath.path
-          });
-          usedPositions.add(foundIndex);
-          break; // Found a match for this path, move to next
-        }
-
-        searchStart = foundIndex + 1;
+      }
+      // Also add parent directories
+      const pathParts = relativePath.split('/');
+      let parentPath = '';
+      for (let i = 0; i < pathParts.length - 1; i++) {
+        parentPath += (i > 0 ? '/' : '') + pathParts[i];
+        validPaths.add(parentPath);
+        validPaths.add(parentPath + '/');
       }
     }
 
-    this.atPaths = updatedPaths;
+    return validPaths;
+  }
+
+  /**
+   * Re-scan text for @paths.
+   * Finds ALL @path patterns in text and validates them against:
+   * 1. The selectedPaths set (paths explicitly selected by user)
+   * 2. The cached file list (for Undo support - restores highlights for valid paths)
+   */
+  private rescanAtPaths(text: string): void {
+    const foundPaths: AtPathRange[] = [];
+    const validPaths = this.buildValidPathsSet();
+
+    // Find all @path patterns in text
+    const atPathPattern = /@([^\s@]+)/g;
+    let match;
+
+    while ((match = atPathPattern.exec(text)) !== null) {
+      const pathContent = match[1];
+      if (!pathContent) continue;
+
+      const start = match.index;
+      const end = match.index + match[0].length;
+
+      // Check if this path should be highlighted:
+      // 1. It's in selectedPaths (explicitly selected by user), OR
+      // 2. It exists in the valid paths from cached file list (for Undo support)
+      const isSelected = this.selectedPaths.has(pathContent);
+      const isValidPath = validPaths?.has(pathContent) ?? false;
+
+      if (isSelected || isValidPath) {
+        foundPaths.push({
+          start,
+          end,
+          path: pathContent
+        });
+
+        // If it's a valid path that was restored via Undo, add it to selectedPaths
+        if (isValidPath && !isSelected) {
+          this.selectedPaths.add(pathContent);
+        }
+      }
+    }
 
     // Sort by start position
-    this.atPaths.sort((a, b) => a.start - b.start);
+    foundPaths.sort((a, b) => a.start - b.start);
+    this.atPaths = foundPaths;
   }
 
   /**
@@ -3121,6 +3162,7 @@ export class FileSearchManager {
    */
   public clearAtPaths(): void {
     this.atPaths = [];
+    this.selectedPaths.clear();
     this.updateHighlightBackdrop();
   }
 
@@ -3152,8 +3194,9 @@ export class FileSearchManager {
       return;
     }
 
-    // Clear existing paths
+    // Clear existing paths and selected paths
     this.atPaths = [];
+    this.selectedPaths.clear();
 
     // Need cached directory data to check if files exist (or need to check filesystem)
     const hasValidCachedData = this.cachedDirectoryData?.files &&
@@ -3251,7 +3294,8 @@ export class FileSearchManager {
       }
 
       if (shouldHighlight) {
-        this.atPaths.push({ start, end, path: pathContent });
+        // Add to selectedPaths set (rescanAtPaths will find all occurrences)
+        this.selectedPaths.add(pathContent);
         console.debug('[FileSearchManager] Found @path:', formatLog({
           pathContent,
           start,
@@ -3264,7 +3308,7 @@ export class FileSearchManager {
     }
 
     console.debug('[FileSearchManager] Restored @paths from text:', formatLog({
-      count: this.atPaths.length,
+      selectedPathsCount: this.selectedPaths.size,
       textLength: text.length,
       checkFilesystem
     }));
