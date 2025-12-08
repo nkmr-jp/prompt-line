@@ -3077,36 +3077,78 @@ export class FileSearchManager {
   }
 
   /**
-   * Re-scan text for @paths based on selectedPaths set.
-   * Finds ALL occurrences of each selected path in the text.
-   * This is simpler and more reliable than tracking individual path instances.
+   * Build a set of valid paths from cached directory data
+   */
+  private buildValidPathsSet(): Set<string> | null {
+    if (!this.cachedDirectoryData?.files || this.cachedDirectoryData.files.length === 0) {
+      return null;
+    }
+
+    const baseDir = this.cachedDirectoryData.directory;
+    const validPaths = new Set<string>();
+
+    for (const file of this.cachedDirectoryData.files) {
+      const relativePath = this.getRelativePath(file.path, baseDir);
+      validPaths.add(relativePath);
+      // For directories: add both with and without trailing slash
+      if (file.isDirectory) {
+        if (!relativePath.endsWith('/')) {
+          validPaths.add(relativePath + '/');
+        } else {
+          validPaths.add(relativePath.slice(0, -1));
+        }
+      }
+      // Also add parent directories
+      const pathParts = relativePath.split('/');
+      let parentPath = '';
+      for (let i = 0; i < pathParts.length - 1; i++) {
+        parentPath += (i > 0 ? '/' : '') + pathParts[i];
+        validPaths.add(parentPath);
+        validPaths.add(parentPath + '/');
+      }
+    }
+
+    return validPaths;
+  }
+
+  /**
+   * Re-scan text for @paths.
+   * Finds ALL @path patterns in text and validates them against:
+   * 1. The selectedPaths set (paths explicitly selected by user)
+   * 2. The cached file list (for Undo support - restores highlights for valid paths)
    */
   private rescanAtPaths(text: string): void {
     const foundPaths: AtPathRange[] = [];
+    const validPaths = this.buildValidPathsSet();
 
-    // For each path in selectedPaths, find ALL occurrences in text
-    for (const pathContent of this.selectedPaths) {
-      const searchString = '@' + pathContent;
-      let searchStart = 0;
+    // Find all @path patterns in text
+    const atPathPattern = /@([^\s@]+)/g;
+    let match;
 
-      while (searchStart < text.length) {
-        const foundIndex = text.indexOf(searchString, searchStart);
-        if (foundIndex === -1) break;
+    while ((match = atPathPattern.exec(text)) !== null) {
+      const pathContent = match[1];
+      if (!pathContent) continue;
 
-        // Verify it's a complete @path (not followed by more path characters)
-        const endPos = foundIndex + searchString.length;
-        const charAfter = text[endPos];
-        const isCompleteAtPath = !charAfter || charAfter === ' ' || charAfter === '\n' || charAfter === '\t' || charAfter === '@';
+      const start = match.index;
+      const end = match.index + match[0].length;
 
-        if (isCompleteAtPath) {
-          foundPaths.push({
-            start: foundIndex,
-            end: endPos,
-            path: pathContent
-          });
+      // Check if this path should be highlighted:
+      // 1. It's in selectedPaths (explicitly selected by user), OR
+      // 2. It exists in the valid paths from cached file list (for Undo support)
+      const isSelected = this.selectedPaths.has(pathContent);
+      const isValidPath = validPaths?.has(pathContent) ?? false;
+
+      if (isSelected || isValidPath) {
+        foundPaths.push({
+          start,
+          end,
+          path: pathContent
+        });
+
+        // If it's a valid path that was restored via Undo, add it to selectedPaths
+        if (isValidPath && !isSelected) {
+          this.selectedPaths.add(pathContent);
         }
-
-        searchStart = foundIndex + 1;
       }
     }
 
