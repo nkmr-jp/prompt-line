@@ -1,3 +1,35 @@
+## [0.11.0](https://github.com/nkmr-jp/prompt-line/compare/v0.10.1...v0.11.0) (2025-12-08)
+
+### Features
+
+* **file-search:** enforce maxDepth: 1 for non-git directories ([7557df5](https://github.com/nkmr-jp/prompt-line/commit/7557df5349810417eca7d9fa12205d95e974ce7b))
+
+### Bug Fixes
+
+* **file-search, undo:** resolve highlight and cursor issues ([facac1c](https://github.com/nkmr-jp/prompt-line/commit/facac1ccf6fbc4f9eed0b370daf909d7c11c30d0))
+* **file-search:** add undo/redo support for file path insertion ([69a96b2](https://github.com/nkmr-jp/prompt-line/commit/69a96b2bb8c42c7b568633147a475a0bcdab418c))
+* **file-search:** filter out root-owned files for security ([f388370](https://github.com/nkmr-jp/prompt-line/commit/f388370426d6a9d790f6d3522c30c68026ba1262))
+* **file-search:** hide "Building file index..." hint for disabled directories ([0c8b346](https://github.com/nkmr-jp/prompt-line/commit/0c8b346e5b930c555fd9265b847218cd33cd06ba))
+* **file-search:** prevent "Building file index..." display for disabled root directory ([2397354](https://github.com/nkmr-jp/prompt-line/commit/23973547b8b57326d52a5033671e474d2e7d0133))
+* **file-search:** prevent "Building file index..." display on root directory startup ([ab3b39a](https://github.com/nkmr-jp/prompt-line/commit/ab3b39a02d2c73b0cd66f1ca02bee2f9dc49f33e))
+* **file-search:** prevent cache operations in root-owned system directories ([534fe2c](https://github.com/nkmr-jp/prompt-line/commit/534fe2ceff8ac68b8c6a65f646fef0ff35d4ad92))
+* **file-search:** prevent non-path prefixes from being recognized as clickable links ([4f3e3af](https://github.com/nkmr-jp/prompt-line/commit/4f3e3afa69d07b6050c8c87cbf31a7fcfda91977))
+* **file-search:** respect maxDepth setting and disable search in root directory ([8ffea61](https://github.com/nkmr-jp/prompt-line/commit/8ffea611fec7a190568208cc47e856892ebdb0e4))
+* **file-search:** restore highlight on undo for cached file paths ([ece0c9b](https://github.com/nkmr-jp/prompt-line/commit/ece0c9b0a474e9f36d81f56f2e5d1f004e5f41eb))
+* **file-search:** skip cache creation for disabled file search directories ([ab548cd](https://github.com/nkmr-jp/prompt-line/commit/ab548cdefdd1c60ec7330398c400ad6a7ba7bf17))
+* **file-search:** support query parameters and fragments in URL detection ([a29ebd1](https://github.com/nkmr-jp/prompt-line/commit/a29ebd170bcad466f068418d2acf92fb792011b2))
+* **ipc-handlers:** add missing Electron type import ([93f9e3c](https://github.com/nkmr-jp/prompt-line/commit/93f9e3c5ef9abfa9978a635985678aa08758d524))
+* **paste-handler:** add security validation for image file operations ([d07a9b4](https://github.com/nkmr-jp/prompt-line/commit/d07a9b4cce54e2413e084667e7b7b5312c854bab))
+* **slash-commands:** allow Ctrl+Enter to open files while editing commands ([87a3551](https://github.com/nkmr-jp/prompt-line/commit/87a355106463defb4add64a69099a6bdfa9160a3))
+
+### Code Refactoring
+
+* **file-search:** simplify at-path highlighting with set-based tracking ([dfe83a9](https://github.com/nkmr-jp/prompt-line/commit/dfe83a901d3bc4a3be2c96e4e5cf31b04f66dc41))
+* **ipc-handlers:** split into 8 modular handler components ([2097d62](https://github.com/nkmr-jp/prompt-line/commit/2097d6217e3e78798bcd2f8fed776340bf8c523b))
+* **ipc-handlers:** split monolithic module into 8 specialized handlers ([0b7c3cb](https://github.com/nkmr-jp/prompt-line/commit/0b7c3cba955ccb8be7ddf3f37d599ab1d4a9db2d))
+* **renderer, window-manager:** complete modular architecture refactoring for Phase 1 & 2 ([fe70d1f](https://github.com/nkmr-jp/prompt-line/commit/fe70d1f7c4eb09c4a22bde1725ef4765df4f2e61))
+* **window-manager:** split into modular architecture with 6 specialized modules ([dd1b7d8](https://github.com/nkmr-jp/prompt-line/commit/dd1b7d8bf767b9b181a22423736792a2a50a3571))
+
 ## [0.10.1](https://github.com/nkmr-jp/prompt-line/compare/v0.10.0...v0.10.1) (2025-12-07)
 
 ### Bug Fixes
