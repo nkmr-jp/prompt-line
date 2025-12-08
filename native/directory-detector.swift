@@ -1339,6 +1339,9 @@ class DirectoryDetector {
             }
         }
 
+        // Step 5: Filter out root-owned files for security
+        uniqueFiles = filterOutRootOwnedFiles(uniqueFiles)
+
         // Check file count limit
         var fileLimitReached = false
         if uniqueFiles.count > settings.maxFiles {
@@ -1355,6 +1358,29 @@ class DirectoryDetector {
         }
 
         return FileListResult(files: uniqueFiles, fileLimitReached: fileLimitReached, maxFiles: settings.maxFiles)
+    }
+
+    /// Filter out files/directories owned by root (uid 0) for security
+    static func filterOutRootOwnedFiles(_ files: [[String: Any]]) -> [[String: Any]] {
+        let fileManager = FileManager.default
+        return files.filter { file in
+            guard let path = file["path"] as? String else { return true }
+
+            // Get file attributes to check owner
+            guard let attributes = try? fileManager.attributesOfItem(atPath: path),
+                  let ownerAccountID = attributes[.ownerAccountID] as? NSNumber else {
+                // If we can't get attributes, include the file (might be permission issue)
+                return true
+            }
+
+            // Filter out files owned by root (uid 0)
+            let uid = ownerAccountID.uint32Value
+            if uid == 0 {
+                return false
+            }
+
+            return true
+        }
     }
 
     // MARK: - Git Repository Detection
