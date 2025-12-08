@@ -69,10 +69,9 @@ interface FileSearchCallbacks {
 
 // Represents a tracked @path in the text
 interface AtPathRange {
-  id?: string | undefined;    // Unique identifier for this @path instance (for tracking duplicates, optional for temporary objects)
   start: number;              // Position of @
   end: number;                // Position after the last character of the path
-  path?: string | undefined;  // The path content (without @) for re-searching after edits (only set for tracked paths)
+  path?: string | undefined;  // The path content (without @) for highlighting
 }
 
 // Unified suggestion item (file or agent) with score for mixed sorting
@@ -98,8 +97,8 @@ export class FileSearchManager {
   private callbacks: FileSearchCallbacks;
   private currentPath: string = ''; // Current directory path being browsed (relative from root)
   private mirrorDiv: HTMLDivElement | null = null; // Hidden div for caret position calculation
-  private atPaths: AtPathRange[] = []; // Tracked @paths in the text
-  private atPathIdCounter: number = 0; // Counter for generating unique @path IDs
+  private atPaths: AtPathRange[] = []; // Tracked @paths in the text (computed from selectedPaths)
+  private selectedPaths: Set<string> = new Set(); // Set of path strings that should be highlighted
 
   // Frontmatter popup elements
   private frontmatterPopup: HTMLDivElement | null = null;
@@ -2945,40 +2944,15 @@ export class FileSearchManager {
       this.callbacks.setTextContent(newText);
     }
 
-    // Track the @path range (not including the space)
-    // Note: rescanAtPaths in updateHighlightBackdrop will find the correct positions
-    // based on the path content, so we just need to add this path to tracking
-    this.addAtPath(this.atStartPosition, this.atStartPosition + 1 + path.length, path);
+    // Add the path to the set of selected paths (for highlighting)
+    this.selectedPaths.add(path);
+    console.debug('[FileSearchManager] Added path to selectedPaths:', path, 'total:', this.selectedPaths.size);
 
-    // Update highlight backdrop (this will rescan all @paths in the text)
+    // Update highlight backdrop (this will find all occurrences in the text)
     this.updateHighlightBackdrop();
 
     // Reset state
     this.atStartPosition = -1;
-  }
-
-  /**
-   * Generate a unique ID for a new @path
-   */
-  private generateAtPathId(): string {
-    return `atpath_${++this.atPathIdCounter}`;
-  }
-
-  /**
-   * Add an @path range to the tracking list
-   */
-  private addAtPath(start: number, end: number, pathContent: string): void {
-    // Remove any overlapping paths
-    this.atPaths = this.atPaths.filter(p => p.end <= start || p.start >= end);
-
-    // Add the new path with content for re-searching and unique ID
-    const id = this.generateAtPathId();
-    this.atPaths.push({ id, start, end, path: pathContent });
-
-    // Sort by start position
-    this.atPaths.sort((a, b) => a.start - b.start);
-
-    console.debug('[FileSearchManager] addAtPath:', formatLog({ id, start, end, path: pathContent, totalPaths: this.atPaths.length }));
   }
 
   /**
@@ -3006,6 +2980,7 @@ export class FileSearchManager {
       e.preventDefault();
 
       const text = this.callbacks.getTextContent();
+      const deletedPathContent = atPath.path;
 
       // Delete the @path (and trailing space if present)
       let deleteEnd = atPath.end;
@@ -3023,30 +2998,22 @@ export class FileSearchManager {
       }
       this.callbacks.setCursorPosition(atPath.start);
 
-      // Remove the path from tracking (by ID to handle duplicates correctly)
-      this.atPaths = this.atPaths.filter(p => p.id !== atPath.id);
-
-      // Adjust positions of remaining paths (preserve all properties including id)
-      const deletedLength = deleteEnd - atPath.start;
-      this.atPaths = this.atPaths.map(p => {
-        if (p.start > atPath.start) {
-          return {
-            id: p.id,
-            start: p.start - deletedLength,
-            end: p.end - deletedLength,
-            path: p.path
-          };
-        }
-        return p;
-      });
-
-      // Update highlight backdrop
+      // Update highlight backdrop (rescanAtPaths will recalculate all positions)
       this.updateHighlightBackdrop();
+
+      // After update, check if this path still exists in the text
+      // If not, remove it from selectedPaths
+      if (deletedPathContent && !this.atPaths.some(p => p.path === deletedPathContent)) {
+        this.selectedPaths.delete(deletedPathContent);
+        console.debug('[FileSearchManager] Removed path from selectedPaths:', deletedPathContent);
+      }
 
       console.debug('[FileSearchManager] deleted @path:', formatLog({
         deletedStart: atPath.start,
         deletedEnd: deleteEnd,
-        remainingPaths: this.atPaths.length
+        deletedPath: deletedPathContent || 'unknown',
+        remainingPaths: this.atPaths.length,
+        selectedPathsCount: this.selectedPaths.size
       }));
     }
   }
@@ -3110,24 +3077,16 @@ export class FileSearchManager {
   }
 
   /**
-   * Re-scan text for @paths (validates existing paths and finds new ones)
-   * Only highlights @paths that were explicitly selected from the file suggestions,
-   * not ones that are currently being typed/searched.
-   *
-   * This method re-searches for each tracked path by its content (path string),
-   * which handles cases where text was inserted/deleted before the @path.
-   * Each tracked path has a unique ID to handle multiple instances of the same path.
+   * Re-scan text for @paths based on selectedPaths set.
+   * Finds ALL occurrences of each selected path in the text.
+   * This is simpler and more reliable than tracking individual path instances.
    */
   private rescanAtPaths(text: string): void {
-    // First, find all @path occurrences in the text for each unique path string
-    const pathOccurrences = new Map<string, number[]>(); // path -> [positions]
+    const foundPaths: AtPathRange[] = [];
 
-    // Get unique path strings from tracked paths
-    const uniquePaths = new Set(this.atPaths.map(p => p.path).filter((p): p is string => !!p));
-
-    for (const pathContent of uniquePaths) {
+    // For each path in selectedPaths, find ALL occurrences in text
+    for (const pathContent of this.selectedPaths) {
       const searchString = '@' + pathContent;
-      const positions: number[] = [];
       let searchStart = 0;
 
       while (searchStart < text.length) {
@@ -3140,53 +3099,20 @@ export class FileSearchManager {
         const isCompleteAtPath = !charAfter || charAfter === ' ' || charAfter === '\n' || charAfter === '\t' || charAfter === '@';
 
         if (isCompleteAtPath) {
-          positions.push(foundIndex);
+          foundPaths.push({
+            start: foundIndex,
+            end: endPos,
+            path: pathContent
+          });
         }
 
         searchStart = foundIndex + 1;
       }
-
-      if (positions.length > 0) {
-        pathOccurrences.set(pathContent, positions);
-      }
     }
-
-    // Now match tracked paths with found occurrences
-    // Sort tracked paths by their current start position to maintain order
-    const sortedTrackedPaths = [...this.atPaths].sort((a, b) => a.start - b.start);
-
-    // Track which positions have been used for each path string
-    const usedPositionIndices = new Map<string, number>(); // path -> next index to use
-
-    const updatedPaths: AtPathRange[] = [];
-
-    for (const trackedPath of sortedTrackedPaths) {
-      if (!trackedPath.path) continue;
-
-      const positions = pathOccurrences.get(trackedPath.path);
-      if (!positions || positions.length === 0) continue;
-
-      // Get the next available position for this path string
-      const currentIndex = usedPositionIndices.get(trackedPath.path) || 0;
-      if (currentIndex >= positions.length) continue; // No more positions available
-
-      const foundIndex = positions[currentIndex];
-      if (foundIndex === undefined) continue; // Safety check
-      usedPositionIndices.set(trackedPath.path, currentIndex + 1);
-
-      const searchString = '@' + trackedPath.path;
-      updatedPaths.push({
-        id: trackedPath.id,
-        start: foundIndex,
-        end: foundIndex + searchString.length,
-        path: trackedPath.path
-      });
-    }
-
-    this.atPaths = updatedPaths;
 
     // Sort by start position
-    this.atPaths.sort((a, b) => a.start - b.start);
+    foundPaths.sort((a, b) => a.start - b.start);
+    this.atPaths = foundPaths;
   }
 
   /**
@@ -3194,6 +3120,7 @@ export class FileSearchManager {
    */
   public clearAtPaths(): void {
     this.atPaths = [];
+    this.selectedPaths.clear();
     this.updateHighlightBackdrop();
   }
 
@@ -3225,8 +3152,9 @@ export class FileSearchManager {
       return;
     }
 
-    // Clear existing paths
+    // Clear existing paths and selected paths
     this.atPaths = [];
+    this.selectedPaths.clear();
 
     // Need cached directory data to check if files exist (or need to check filesystem)
     const hasValidCachedData = this.cachedDirectoryData?.files &&
@@ -3324,10 +3252,9 @@ export class FileSearchManager {
       }
 
       if (shouldHighlight) {
-        const id = this.generateAtPathId();
-        this.atPaths.push({ id, start, end, path: pathContent });
+        // Add to selectedPaths set (rescanAtPaths will find all occurrences)
+        this.selectedPaths.add(pathContent);
         console.debug('[FileSearchManager] Found @path:', formatLog({
-          id,
           pathContent,
           start,
           end,
@@ -3339,7 +3266,7 @@ export class FileSearchManager {
     }
 
     console.debug('[FileSearchManager] Restored @paths from text:', formatLog({
-      count: this.atPaths.length,
+      selectedPathsCount: this.selectedPaths.size,
       textLength: text.length,
       checkFilesystem
     }));
