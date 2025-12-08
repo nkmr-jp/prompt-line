@@ -1,5 +1,7 @@
 import { ipcMain, clipboard, IpcMainInvokeEvent, dialog } from 'electron';
+import { promises as fs } from 'fs';
 import { execFile } from 'child_process';
+import path from 'path';
 import config from '../config/app-config';
 import {
   logger,
@@ -163,7 +165,67 @@ class PasteHandler {
         return { success: false, error: 'No image in clipboard' };
       }
 
-      return { success: false, error: 'Image paste not implemented in PasteHandler yet' };
+      const imagesDir = config.paths.imagesDir;
+      try {
+        // Set restrictive directory permissions (owner read/write/execute only)
+        await fs.mkdir(imagesDir, { recursive: true, mode: 0o700 });
+      } catch (error) {
+        logger.error('Failed to create images directory:', error);
+      }
+
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+
+      const filename = `${year}${month}${day}_${hours}${minutes}${seconds}.png`;
+
+      // Validate filename (ensure no dangerous characters)
+      const SAFE_FILENAME_REGEX = /^[0-9_]+\.png$/;
+      if (!SAFE_FILENAME_REGEX.test(filename)) {
+        logger.error('Invalid filename generated', { filename });
+        return { success: false, error: 'Invalid filename' };
+      }
+
+      const filepath = path.join(imagesDir, filename);
+
+      // Normalize and validate path to prevent path traversal
+      const normalizedPath = path.normalize(filepath);
+      if (!normalizedPath.startsWith(path.normalize(imagesDir))) {
+        logger.error('Attempted path traversal detected - potential security threat', {
+          filepath,
+          normalizedPath,
+          timestamp: Date.now(),
+          source: 'handlePasteImage'
+        });
+        return { success: false, error: 'Invalid file path' };
+      }
+
+      // Additional validation: ensure actual directory matches expected directory
+      const expectedDir = path.normalize(imagesDir);
+      const actualDir = path.dirname(normalizedPath);
+      if (actualDir !== expectedDir) {
+        logger.error('Unexpected directory in path', {
+          expected: expectedDir,
+          actual: actualDir
+        });
+        return { success: false, error: 'Invalid file path' };
+      }
+
+      const buffer = image.toPNG();
+      // Set restrictive file permissions (owner read/write only)
+      await fs.writeFile(normalizedPath, buffer, { mode: 0o600 });
+
+      // Clear clipboard text to prevent markdown syntax from being pasted
+      // when copying images from markdown editors like Bear
+      clipboard.writeText('');
+
+      logger.info('Image saved successfully', { filepath: normalizedPath });
+
+      return { success: true, path: filepath };
     } catch (error) {
       logger.error('Failed to handle paste image:', error);
       return { success: false, error: (error as Error).message };
