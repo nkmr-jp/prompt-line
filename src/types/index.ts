@@ -273,6 +273,9 @@ export interface DirectoryInfo {
   hint?: string;               // hint message to display to user (e.g., "Install fd: brew install fd")
   // Git repository status
   isGitRepository?: boolean;   // true if directory is inside a git repository
+  // File search disabled status
+  filesDisabled?: boolean;     // true if file search is disabled for this directory
+  filesDisabledReason?: string; // reason why file search is disabled
 }
 
 // File search settings configuration
@@ -302,6 +305,10 @@ export interface DirectoryData {
   timestamp: number;
   partial?: boolean;          // Always false (single stage with fd)
   searchMode?: 'recursive';   // Always 'recursive' (single stage with fd)
+  fromDraft?: boolean;        // true if data is from draft fallback
+  filesDisabled?: boolean;    // true if file search is disabled for this directory
+  filesDisabledReason?: string; // reason why file search is disabled
+  hint?: string;              // hint message to display to user
 }
 
 // ============================================================================

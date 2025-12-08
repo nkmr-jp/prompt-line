@@ -50,6 +50,8 @@ interface DirectoryData {
   cacheAge?: number;          // milliseconds since cache was updated
   fromDraft?: boolean;        // true if this is from draft fallback (empty files)
   hint?: string;              // hint message to display to user (e.g., "Install fd: brew install fd")
+  filesDisabled?: boolean;    // true if file search is disabled for this directory
+  filesDisabledReason?: string; // reason why file search is disabled
 }
 
 interface FileSearchCallbacks {
@@ -363,7 +365,8 @@ export class FileSearchManager {
       searchMode: 'recursive',  // Always recursive (fd is required)
       ...(fromCache ? { fromCache: true } : {}),
       ...(data.cacheAge !== undefined ? { cacheAge: data.cacheAge } : {}),
-      ...(data.hint ? { hint: data.hint } : {})
+      ...(data.hint ? { hint: data.hint } : {}),
+      ...(data.filesDisabled ? { filesDisabled: data.filesDisabled, filesDisabledReason: data.filesDisabledReason } : {})
     };
 
     // Show hint message in footer if present (e.g., fd not installed)
@@ -1051,6 +1054,11 @@ export class FileSearchManager {
       return true;
     }
 
+    // File search is disabled for this directory (e.g., root directory) - not building
+    if (this.cachedDirectoryData.filesDisabled) {
+      return false;
+    }
+
     // Draft fallback with no files - index is being built
     if (this.cachedDirectoryData.fromDraft && this.cachedDirectoryData.files.length === 0) {
       return true;
@@ -1608,8 +1616,10 @@ export class FileSearchManager {
       return;
     }
 
-    // Get hint from DirectoryInfo if available
+    // Get hint and filesDisabled from DirectoryInfo if available
     const hint = 'hint' in data ? (data as DirectoryInfo).hint : undefined;
+    const filesDisabled = 'filesDisabled' in data ? (data as DirectoryInfo).filesDisabled : undefined;
+    const filesDisabledReason = 'filesDisabledReason' in data ? (data as DirectoryInfo).filesDisabledReason : undefined;
 
     this.cachedDirectoryData = {
       directory: data.directory,
@@ -1618,7 +1628,8 @@ export class FileSearchManager {
       partial: false,  // Always false (single stage with fd)
       searchMode: 'recursive',  // Always recursive (fd is required)
       // Cache flags (fromCache, cacheAge) are intentionally omitted for fresh data
-      ...(hint ? { hint } : {})
+      ...(hint ? { hint } : {}),
+      ...(filesDisabled && filesDisabledReason ? { filesDisabled, filesDisabledReason } : filesDisabled ? { filesDisabled } : {})
     };
 
     // Show hint message in footer if present (e.g., fd not installed)
