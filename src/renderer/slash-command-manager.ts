@@ -102,6 +102,11 @@ export class SlashCommandManager {
     this.textarea.addEventListener('keydown', (e) => {
       if (this.isActive) {
         this.handleKeyDown(e);
+      } else if (this.isEditingMode && e.ctrlKey && e.key === 'Enter') {
+        // Allow Ctrl+Enter to open file even in editing mode
+        e.preventDefault();
+        e.stopPropagation();
+        this.openCommandFile(this.selectedIndex);
       }
     });
 
