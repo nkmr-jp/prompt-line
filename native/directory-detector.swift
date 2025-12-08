@@ -1339,6 +1339,9 @@ class DirectoryDetector {
             }
         }
 
+        // Step 5: Filter out root-owned files for security
+        uniqueFiles = filterOutRootOwnedFiles(uniqueFiles)
+
         // Check file count limit
         var fileLimitReached = false
         if uniqueFiles.count > settings.maxFiles {
@@ -1357,6 +1360,69 @@ class DirectoryDetector {
         return FileListResult(files: uniqueFiles, fileLimitReached: fileLimitReached, maxFiles: settings.maxFiles)
     }
 
+    /// Filter out files/directories owned by root (uid 0) for security
+    static func filterOutRootOwnedFiles(_ files: [[String: Any]]) -> [[String: Any]] {
+        let fileManager = FileManager.default
+        return files.filter { file in
+            guard let path = file["path"] as? String else { return true }
+
+            // Get file attributes to check owner
+            guard let attributes = try? fileManager.attributesOfItem(atPath: path),
+                  let ownerAccountID = attributes[.ownerAccountID] as? NSNumber else {
+                // If we can't get attributes, include the file (might be permission issue)
+                return true
+            }
+
+            // Filter out files owned by root (uid 0)
+            let uid = ownerAccountID.uint32Value
+            if uid == 0 {
+                return false
+            }
+
+            return true
+        }
+    }
+
+    // MARK: - Git Repository Detection
+
+    /// Check if a directory is inside a git repository
+    /// Walks up the directory tree to find a .git directory
+    static func isGitRepository(_ directory: String) -> Bool {
+        let fileManager = FileManager.default
+        var currentPath = directory
+
+        // Walk up the directory tree
+        while currentPath != "/" && !currentPath.isEmpty {
+            let gitPath = (currentPath as NSString).appendingPathComponent(".git")
+
+            // Check if .git exists (either as directory or file for worktrees)
+            if fileManager.fileExists(atPath: gitPath) {
+                return true
+            }
+
+            // Move to parent directory
+            currentPath = (currentPath as NSString).deletingLastPathComponent
+        }
+
+        return false
+    }
+
+    // MARK: - Root-Owned Directory Detection
+
+    /// Check if a directory is owned by root (uid 0)
+    /// Used to disable file search for system directories like /Library
+    static func isRootOwnedDirectory(_ directory: String) -> Bool {
+        let fileManager = FileManager.default
+
+        guard let attributes = try? fileManager.attributesOfItem(atPath: directory),
+              let ownerAccountID = attributes[.ownerAccountID] as? NSNumber else {
+            return false
+        }
+
+        // Root user has uid 0
+        return ownerAccountID.uint32Value == 0
+    }
+
     // MARK: - Detect with Files
 
     /// Detect current directory with file list
@@ -1372,7 +1438,44 @@ class DirectoryDetector {
             return result
         }
 
-        if let fileListResult = getFileList(from: directory, settings: settings) {
+        // Check if directory is inside a git repository
+        let isGitRepo = isGitRepository(directory)
+        result["isGitRepository"] = isGitRepo
+
+        // Disable file search for root directory (/) for security
+        if directory == "/" {
+            result["files"] = []
+            result["fileCount"] = 0
+            result["filesDisabled"] = true
+            result["filesDisabledReason"] = "File search is disabled for root directory"
+            return result
+        }
+
+        // Disable file search for root-owned directories for security
+        if isRootOwnedDirectory(directory) {
+            result["files"] = []
+            result["fileCount"] = 0
+            result["filesDisabled"] = true
+            result["filesDisabledReason"] = "File search is disabled for root-owned directories"
+            return result
+        }
+
+        // For security and performance: enforce maxDepth=1 for non-git directories
+        // This prevents deep recursive searches in arbitrary directories (e.g., home directory)
+        var effectiveSettings = settings
+        if !isGitRepo {
+            effectiveSettings = FileSearchSettings(
+                respectGitignore: settings.respectGitignore,
+                excludePatterns: settings.excludePatterns,
+                includePatterns: settings.includePatterns,
+                maxFiles: settings.maxFiles,
+                includeHidden: settings.includeHidden,
+                maxDepth: 1,  // Force maxDepth=1 for non-git directories
+                followSymlinks: settings.followSymlinks
+            )
+        }
+
+        if let fileListResult = getFileList(from: directory, settings: effectiveSettings) {
             result["files"] = fileListResult.files
             result["fileCount"] = fileListResult.files.count
             result["partial"] = false  // Always complete with fd
@@ -1578,14 +1681,45 @@ class DirectoryDetector {
             return ["error": "Path is not a directory", "path": expandedPath]
         }
 
-        if let fileListResult = getFileList(from: expandedPath, settings: settings) {
+        // Check if directory is inside a git repository
+        let isGitRepo = isGitRepository(expandedPath)
+
+        // Disable file search for root directory (/) for security
+        if expandedPath == "/" {
+            return [
+                "success": true,
+                "directory": expandedPath,
+                "files": [],
+                "fileCount": 0,
+                "isGitRepository": isGitRepo,
+                "filesDisabled": true,
+                "filesDisabledReason": "File search is disabled for root directory"
+            ]
+        }
+
+        // For security and performance: enforce maxDepth=1 for non-git directories
+        var effectiveSettings = settings
+        if !isGitRepo {
+            effectiveSettings = FileSearchSettings(
+                respectGitignore: settings.respectGitignore,
+                excludePatterns: settings.excludePatterns,
+                includePatterns: settings.includePatterns,
+                maxFiles: settings.maxFiles,
+                includeHidden: settings.includeHidden,
+                maxDepth: 1,  // Force maxDepth=1 for non-git directories
+                followSymlinks: settings.followSymlinks
+            )
+        }
+
+        if let fileListResult = getFileList(from: expandedPath, settings: effectiveSettings) {
             var result: [String: Any] = [
                 "success": true,
                 "directory": expandedPath,
                 "files": fileListResult.files,
                 "fileCount": fileListResult.files.count,
                 "searchMode": "recursive",
-                "partial": false
+                "partial": false,
+                "isGitRepository": isGitRepo
             ]
             if fileListResult.fileLimitReached {
                 result["fileLimitReached"] = true

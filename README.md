@@ -45,30 +45,6 @@ Also convenient when you want to reuse the same prompt in other apps.
 Of course, it also works with apps other than Terminal.
 ![doc5.gif](assets/doc5.gif)
 
-### File Opener
-You can launch a file searched for with a file path or @ and check its contents. (`Ctrl+Enter` or `Cmd+Click`)
-
-![doc9.png](assets/doc9.png)
-
-### File Search
-You can search for files by typing @.<br>
-※ [fd](https://github.com/sharkdp/fd) command installation is required. (`brew install fd`)<br>
-※ You need to configure `fileSearch` in `~/.prompt-line/settings.yml`. See "⚙️ Settings" section.<br>
-※ Supported applications: Terminal.app, iTerm2, JetBrains IDEs (IntelliJ, WebStorm, etc.), VSCode, Cursor, Windsurf
-
-![doc10.png](assets/doc10.png)
-
-### Markdown Search
-You can search for slash commands by typing /.<br>
-※ You need to configure `mdSearch` in `~/.prompt-line/settings.yml`. See "⚙️ Settings" section.
-
-![doc11.png](assets/doc11.png)
-
-You can also configure to search for sub-agents and skills by typing @.
-
-![doc12.png](assets/doc12.png)
-
-
 ## 📦 Installation
 
 ### System Requirements
@@ -166,6 +142,30 @@ If you already have an older version installed and want to update to the latest 
 - **File Opener** - Open files from file path text (`Ctrl+Enter` or `Cmd+Click`)
 - **File Search** - Search files by typing `@` (requires fd command and settings configuration)
 - **Markdown Search** - Search slash commands by typing `/` or sub-agents by typing `@` (requires settings configuration)
+
+#### File Opener
+You can launch a file searched for with a file path or @ and check its contents. (`Ctrl+Enter` or `Cmd+Click`)
+
+![doc9.png](assets/doc9.png)
+
+#### File Search
+You can search for files by typing @.<br>
+※ [fd](https://github.com/sharkdp/fd) command installation is required. (`brew install fd`)<br>
+※ You need to configure `fileSearch` in `~/.prompt-line/settings.yml`. See "⚙️ Settings" section.<br>
+※ Supported applications: Terminal.app, iTerm2, JetBrains IDEs (IntelliJ, WebStorm, etc.), VSCode, Cursor, Windsurf
+
+![doc10.png](assets/doc10.png)
+
+#### Markdown Search
+You can search for slash commands by typing /.<br>
+※ You need to configure `mdSearch` in `~/.prompt-line/settings.yml`. See "⚙️ Settings" section.
+
+![doc11.png](assets/doc11.png)
+
+You can also configure to search for sub-agents and skills by typing @.
+
+![doc12.png](assets/doc12.png)
+
 
 ## ⚙️ Settings
 

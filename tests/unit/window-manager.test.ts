@@ -268,7 +268,8 @@ describe('WindowManager', () => {
 
     describe('focusPreviousApp', () => {
         beforeEach(() => {
-            (windowManager as any).previousApp = 'TestApp';
+            // Use the public API to set previous app (delegates to NativeToolExecutor)
+            windowManager.setPreviousApp('TestApp');
             const config = jest.requireMock('../../src/config/app-config') as any;
             config.platform.isMac = true;
         });
@@ -291,7 +292,7 @@ describe('WindowManager', () => {
         });
 
         test('should return false when no previous app', async () => {
-            (windowManager as any).previousApp = null;
+            windowManager.setPreviousApp(null);
 
             const result = await windowManager.focusPreviousApp();
 
@@ -330,7 +331,7 @@ describe('WindowManager', () => {
         });
 
         test('should focus app with bundle ID', async () => {
-            (windowManager as any).previousApp = { name: 'TestApp', bundleId: 'com.test.app' };
+            windowManager.setPreviousApp({ name: 'TestApp', bundleId: 'com.test.app' });
 
             mockedExec.mockImplementation((_file: string, _args: string[], _options: any, callback: ExecCallback) => {
                 callback(null, '{"success":true,"command":"activate-bundle"}', '');
@@ -378,7 +379,7 @@ describe('WindowManager', () => {
 
     describe('getPreviousApp', () => {
         test('should return the previous app name', () => {
-            (windowManager as any).previousApp = 'TestApp';
+            windowManager.setPreviousApp('TestApp');
 
             const app = windowManager.getPreviousApp();
 

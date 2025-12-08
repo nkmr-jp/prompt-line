@@ -1,3 +1,10 @@
+## [0.10.1](https://github.com/nkmr-jp/prompt-line/compare/v0.10.0...v0.10.1) (2025-12-07)
+
+### Bug Fixes
+
+* **file-search:** add parent directories and trailing slashes to relative paths ([05723c6](https://github.com/nkmr-jp/prompt-line/commit/05723c6353df17b4bd06fa99ab8c5c2cebe07e76))
+* **file-search:** highlight directory paths with trailing slashes ([ec424ac](https://github.com/nkmr-jp/prompt-line/commit/ec424ac5e9a9756e8952cd8a51782564c85e5e61))
+
 ## [0.10.0](https://github.com/nkmr-jp/prompt-line/compare/v0.9.0...v0.10.0) (2025-12-07)
 
 ### Features
