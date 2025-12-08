@@ -973,7 +973,10 @@ class WindowManager {
         // Check if file list has changed compared to cache
         let hasChanges = true;
 
-        if (this.fileCacheManager && result.files) {
+        // Skip cache operations for directories with file search disabled (e.g., root directory)
+        const isFileSearchDisabled = this.isFileSearchDisabledDirectory(detectedDirectory) || result.filesDisabled;
+
+        if (this.fileCacheManager && result.files && !isFileSearchDisabled) {
           const existingCache = await this.fileCacheManager.loadCache(detectedDirectory);
           if (existingCache) {
             hasChanges = this.hasFileListChanges(existingCache.files, result.files);
@@ -995,6 +998,17 @@ class WindowManager {
             await this.fileCacheManager.updateCacheTimestamp(detectedDirectory);
             logger.debug(`Cache timestamp updated for ${detectedDirectory}, no file changes`);
           }
+        } else if (isFileSearchDisabled) {
+          // Clear any existing cache for this directory
+          if (this.fileCacheManager) {
+            try {
+              await this.fileCacheManager.clearCache(detectedDirectory);
+              logger.debug(`Cleared cache for ${detectedDirectory} (file search disabled)`);
+            } catch {
+              // Cache may not exist, ignore errors
+            }
+          }
+          logger.debug(`Skipping cache for ${detectedDirectory} (file search disabled)`);
         }
 
         // Update directory manager with detected directory (detection succeeded)
