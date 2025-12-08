@@ -1417,6 +1417,13 @@ export class FileSearchManager {
       const start = match.index;
       const end = start + match[0].length;
 
+      // Check if path is at start of text or preceded by whitespace
+      // This prevents matching paths like "ghq/github.com/..." as absolute paths
+      const prevChar = start > 0 ? text[start - 1] : '';
+      if (prevChar !== '' && prevChar !== ' ' && prevChar !== '\t' && prevChar !== '\n') {
+        continue; // Skip - not a standalone absolute path
+      }
+
       // Check if cursor is within this path
       if (cursorPos >= start && cursorPos <= end) {
         return match[0]; // Return the full path
@@ -1451,6 +1458,13 @@ export class FileSearchManager {
     while ((match = absolutePathPattern.exec(text)) !== null) {
       const start = match.index;
       const end = start + match[0].length;
+
+      // Check if path is at start of text or preceded by whitespace
+      // This prevents matching paths like "ghq/github.com/..." as absolute paths
+      const prevChar = start > 0 ? text[start - 1] : '';
+      if (prevChar !== '' && prevChar !== ' ' && prevChar !== '\t' && prevChar !== '\n') {
+        continue; // Skip - not a standalone absolute path
+      }
 
       if (cursorPos >= start && cursorPos <= end) {
         return { path: match[0], start, end };
