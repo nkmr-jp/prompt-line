@@ -1400,6 +1400,15 @@ class DirectoryDetector {
         let isGitRepo = isGitRepository(directory)
         result["isGitRepository"] = isGitRepo
 
+        // Disable file search for root directory (/) for security
+        if directory == "/" {
+            result["files"] = []
+            result["fileCount"] = 0
+            result["filesDisabled"] = true
+            result["filesDisabledReason"] = "File search is disabled for root directory"
+            return result
+        }
+
         // For security and performance: enforce maxDepth=1 for non-git directories
         // This prevents deep recursive searches in arbitrary directories (e.g., home directory)
         var effectiveSettings = settings
@@ -1623,6 +1632,19 @@ class DirectoryDetector {
 
         // Check if directory is inside a git repository
         let isGitRepo = isGitRepository(expandedPath)
+
+        // Disable file search for root directory (/) for security
+        if expandedPath == "/" {
+            return [
+                "success": true,
+                "directory": expandedPath,
+                "files": [],
+                "fileCount": 0,
+                "isGitRepository": isGitRepo,
+                "filesDisabled": true,
+                "filesDisabledReason": "File search is disabled for root directory"
+            ]
+        }
 
         // For security and performance: enforce maxDepth=1 for non-git directories
         var effectiveSettings = settings
