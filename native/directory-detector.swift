@@ -1407,6 +1407,22 @@ class DirectoryDetector {
         return false
     }
 
+    // MARK: - Root-Owned Directory Detection
+
+    /// Check if a directory is owned by root (uid 0)
+    /// Used to disable file search for system directories like /Library
+    static func isRootOwnedDirectory(_ directory: String) -> Bool {
+        let fileManager = FileManager.default
+
+        guard let attributes = try? fileManager.attributesOfItem(atPath: directory),
+              let ownerAccountID = attributes[.ownerAccountID] as? NSNumber else {
+            return false
+        }
+
+        // Root user has uid 0
+        return ownerAccountID.uint32Value == 0
+    }
+
     // MARK: - Detect with Files
 
     /// Detect current directory with file list
@@ -1432,6 +1448,15 @@ class DirectoryDetector {
             result["fileCount"] = 0
             result["filesDisabled"] = true
             result["filesDisabledReason"] = "File search is disabled for root directory"
+            return result
+        }
+
+        // Disable file search for root-owned directories for security
+        if isRootOwnedDirectory(directory) {
+            result["files"] = []
+            result["fileCount"] = 0
+            result["filesDisabled"] = true
+            result["filesDisabledReason"] = "File search is disabled for root-owned directories"
             return result
         }
 
