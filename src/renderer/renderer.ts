@@ -649,10 +649,6 @@ export class PromptLineRenderer {
       if (this.eventHandler) {
         this.eventHandler.setUserSettings(data.settings);
       }
-      // Update history display limit from settings
-      if (data.settings.history?.displayLimit !== undefined) {
-        this.historyUIManager.setDisplayLimit(data.settings.history.displayLimit);
-      }
     }
 
     this.renderHistory();

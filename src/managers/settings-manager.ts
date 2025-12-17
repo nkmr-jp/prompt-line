@@ -28,7 +28,6 @@ class SettingsManager {
         height: 300
       },
       history: {
-        displayLimit: 20,  // Default: show 20 most recent items (0 = unlimited)
         fetchLimit: 500    // Default: fetch 500 most recent items from storage (0 = unlimited)
       },
       // commands is optional - not set by default
@@ -290,7 +289,6 @@ window:
 # Configure history behavior
 
 history:
-  displayLimit: ${settings.history?.displayLimit ?? 20}                   # Maximum items to show in history list (0 = unlimited)
   fetchLimit: ${settings.history?.fetchLimit ?? 500}                      # Maximum items to fetch from storage (0 = unlimited)
 
 # ============================================================================

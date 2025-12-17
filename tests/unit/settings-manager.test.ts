@@ -129,7 +129,6 @@ window:
           height: 300
         },
         history: {
-          displayLimit: 20,
           fetchLimit: 500
         },
         fileOpener: {
@@ -233,7 +232,6 @@ window:
           height: 300
         },
         history: {
-          displayLimit: 20,
           fetchLimit: 500
         },
         fileSearch: {},  // spread of undefined results in empty object
