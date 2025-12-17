@@ -709,8 +709,9 @@ export class PromptLineRenderer {
   }
 
   private handleSearchStateChange(isSearchMode: boolean, filteredData: HistoryItem[], totalMatches?: number): void {
-    // Only clear history selection when entering search mode or when filter actually changes data length
-    const shouldClearSelection = !isSearchMode || filteredData.length !== this.filteredHistoryData.length;
+    // Only clear history selection when entering search mode or when items are filtered down (not when loading more)
+    const isLoadingMore = filteredData.length > this.filteredHistoryData.length;
+    const shouldClearSelection = !isSearchMode || (filteredData.length !== this.filteredHistoryData.length && !isLoadingMore);
 
     if (isSearchMode) {
       // In search mode: use filtered data from search manager
