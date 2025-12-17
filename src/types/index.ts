@@ -146,6 +146,7 @@ export interface IHistoryManager {
   initialize(): Promise<void>;
   addToHistory(text: string, appName?: string, directory?: string): Promise<HistoryItem | null>;
   getHistory(limit?: number): Promise<HistoryItem[]> | HistoryItem[];
+  getHistoryForSearch(limit: number): Promise<HistoryItem[]>;
   getHistoryItem(id: string): HistoryItem | null;
   getRecentHistory(limit?: number): HistoryItem[];
   searchHistory(query: string, limit?: number): Promise<HistoryItem[]> | HistoryItem[];

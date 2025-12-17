@@ -285,6 +285,38 @@ class OptimizedHistoryManager implements IHistoryManager {
     return this.recentCache.slice(0, Math.min(limit, this.recentCache.length));
   }
 
+  /**
+   * Get history items for search purposes
+   * Reads directly from file to support larger limits than cache
+   * @param limit Maximum number of items to return (e.g., 5000 for search)
+   */
+  async getHistoryForSearch(limit: number): Promise<HistoryItem[]> {
+    try {
+      // If requested limit is within cache, return from cache (faster)
+      if (limit <= this.recentCache.length) {
+        return [...this.recentCache.slice(0, limit)];
+      }
+
+      // Read from file for larger limits
+      const lines = await this.readLastNLines(limit);
+      const items: HistoryItem[] = [];
+
+      for (const line of lines) {
+        const item = safeJsonParse<HistoryItem>(line);
+        if (item && this.validateHistoryItem(item)) {
+          items.unshift(item); // Newest first
+        }
+      }
+
+      logger.debug(`getHistoryForSearch: loaded ${items.length} items for search (limit: ${limit})`);
+      return items;
+    } catch (error) {
+      logger.error('Error in getHistoryForSearch:', error);
+      // Fallback to cache
+      return [...this.recentCache];
+    }
+  }
+
   searchHistory(query: string, limit = 10): HistoryItem[] {
     if (!query || !query.trim()) {
       return [];

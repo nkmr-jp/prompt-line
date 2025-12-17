@@ -25,6 +25,7 @@ export const DELAYS = {
 // Size and limit constants
 export const LIMITS = {
   MAX_VISIBLE_ITEMS: 200,
+  MAX_SEARCH_ITEMS: 5000,
 } as const;
 
 // Time calculation constants
