@@ -26,7 +26,7 @@ export interface HistorySearchConfig {
  */
 export const DEFAULT_CONFIG: HistorySearchConfig = {
   debounceDelay: 150,
-  enableFuzzyMatch: true,
+  enableFuzzyMatch: false,
   maxSearchItems: 5000,
   maxDisplayResults: 50,
   caseSensitive: false
