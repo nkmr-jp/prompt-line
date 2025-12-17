@@ -48,9 +48,6 @@ export class HistoryUIManager {
     const historyList = this.getHistoryList();
     if (!historyList || !this.loadMoreCallback) return;
 
-    const searchManager = this.getSearchManager();
-    if (!searchManager?.isInSearchMode()) return;
-
     // Check if scrolled near bottom (within 50px)
     const scrollTop = historyList.scrollTop;
     const scrollHeight = historyList.scrollHeight;

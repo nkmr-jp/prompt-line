@@ -36,11 +36,15 @@ if (!electronAPI) {
   throw new Error('Electron API not available. Preload script may not be loaded correctly.');
 }
 
+// Default display limit for history items
+const DEFAULT_DISPLAY_LIMIT = 50;
+
 // Export the renderer class for testing
 export class PromptLineRenderer {
   private historyData: HistoryItem[] = [];
   private filteredHistoryData: HistoryItem[] = [];
   private totalMatchCount: number | undefined = undefined;
+  private nonSearchDisplayLimit: number = DEFAULT_DISPLAY_LIMIT;
   private config: Config = {};
   private userSettings: UserSettings | null = null;
   private eventHandler: EventHandler | null = null;
@@ -645,9 +649,12 @@ export class PromptLineRenderer {
 
   private updateHistoryAndSettings(data: WindowData): void {
     this.historyData = data.history || [];
-    this.filteredHistoryData = [...this.historyData];
+    // Reset display limit and limit initial display
+    this.nonSearchDisplayLimit = DEFAULT_DISPLAY_LIMIT;
+    this.filteredHistoryData = this.historyData.slice(0, this.nonSearchDisplayLimit);
+    this.totalMatchCount = this.historyData.length;
     this.searchManager?.updateHistoryData(this.historyData);
-    
+
     // Update user settings if provided
     if (data.settings) {
       this.userSettings = data.settings;
@@ -656,7 +663,7 @@ export class PromptLineRenderer {
         this.eventHandler.setUserSettings(data.settings);
       }
     }
-    
+
     this.renderHistory();
   }
 
@@ -723,6 +730,15 @@ export class PromptLineRenderer {
   private handleLoadMore(): void {
     if (this.searchManager?.isInSearchMode()) {
       this.searchManager.loadMore();
+    } else {
+      // Non-search mode: load more items from historyData
+      if (this.filteredHistoryData.length >= this.historyData.length) {
+        // Already showing all items
+        return;
+      }
+      this.nonSearchDisplayLimit += DEFAULT_DISPLAY_LIMIT;
+      this.filteredHistoryData = this.historyData.slice(0, this.nonSearchDisplayLimit);
+      this.renderHistory();
     }
   }
 
