@@ -641,7 +641,7 @@ export class PromptLineRenderer {
     this.historyData = data.history || [];
     this.filteredHistoryData = [...this.historyData];
     this.searchManager?.updateHistoryData(this.historyData);
-    
+
     // Update user settings if provided
     if (data.settings) {
       this.userSettings = data.settings;
@@ -649,8 +649,12 @@ export class PromptLineRenderer {
       if (this.eventHandler) {
         this.eventHandler.setUserSettings(data.settings);
       }
+      // Update history UI manager with maxVisibleItems setting
+      if (data.settings.history?.maxVisibleItems !== undefined) {
+        this.historyUIManager.setMaxVisibleItems(data.settings.history.maxVisibleItems);
+      }
     }
-    
+
     this.renderHistory();
   }
 

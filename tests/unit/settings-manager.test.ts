@@ -128,6 +128,9 @@ window:
           width: 600,
           height: 300
         },
+        history: {
+          maxVisibleItems: 200
+        },
         fileOpener: {
           extensions: {},
           defaultEditor: null
@@ -227,6 +230,9 @@ window:
           position: 'active-text-field',
           width: 600,
           height: 300
+        },
+        history: {
+          maxVisibleItems: 200
         },
         fileSearch: {},  // spread of undefined results in empty object
         fileOpener: {

@@ -27,6 +27,9 @@ class SettingsManager {
         width: 600,
         height: 300
       },
+      history: {
+        maxVisibleItems: 200
+      },
       // commands is optional - not set by default
       // fileSearch is optional - when undefined, file search feature is disabled
       // fileOpener is optional - when undefined, uses system default
@@ -95,6 +98,10 @@ class SettingsManager {
       window: {
         ...this.defaultSettings.window,
         ...userSettings.window
+      },
+      history: {
+        ...this.defaultSettings.history,
+        ...userSettings.history
       },
       fileOpener: {
         ...this.defaultSettings.fileOpener,
@@ -277,6 +284,14 @@ window:
   height: ${settings.window.height}                     # Recommended: 200-400 pixels
 
 # ============================================================================
+# HISTORY SETTINGS
+# ============================================================================
+# Configure history display behavior
+
+history:
+  maxVisibleItems: ${settings.history?.maxVisibleItems ?? 200}          # Max items to display (default: 200, 0 = unlimited)
+
+# ============================================================================
 # FILE OPENER SETTINGS
 # ============================================================================
 # Configure which applications to use when opening file links
@@ -368,6 +383,7 @@ ${mdSearchSection}
     return {
       shortcuts: { ...this.defaultSettings.shortcuts },
       window: { ...this.defaultSettings.window },
+      history: { ...this.defaultSettings.history },
       fileSearch: { ...this.defaultSettings.fileSearch },
       fileOpener: {
         extensions: { ...this.defaultSettings.fileOpener?.extensions },

@@ -35,6 +35,10 @@ export interface UserSettings {
     width: number;
     height: number;
   };
+  history?: {
+    // Maximum number of items to display in the history list (default: 200, 0 = unlimited)
+    maxVisibleItems?: number;
+  };
 }
 
 export interface FileInfo {

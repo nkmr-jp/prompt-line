@@ -8,6 +8,7 @@ export class HistoryUIManager {
   private getCurrentText: () => string;
   private getCursorPosition: () => number;
   private saveSnapshotCallback: (text: string, cursorPosition: number) => void;
+  private maxVisibleItems: number = LIMITS.MAX_VISIBLE_ITEMS;
 
   constructor(
     private getHistoryList: () => HTMLElement | null,
@@ -21,6 +22,14 @@ export class HistoryUIManager {
     this.getCurrentText = getCurrentText;
     this.getCursorPosition = getCursorPosition;
     this.saveSnapshotCallback = saveSnapshotCallback;
+  }
+
+  /**
+   * Set the maximum number of visible history items
+   * @param maxItems - Maximum items to display (0 = unlimited)
+   */
+  public setMaxVisibleItems(maxItems: number): void {
+    this.maxVisibleItems = maxItems;
   }
 
   public renderHistory(historyData: HistoryItem[]): void {
@@ -39,7 +48,9 @@ export class HistoryUIManager {
       }
 
       // 0 means unlimited, so show all items
-      const visibleItems = dataToRender.slice(0, LIMITS.MAX_VISIBLE_ITEMS);
+      const visibleItems = this.maxVisibleItems === 0
+        ? dataToRender
+        : dataToRender.slice(0, this.maxVisibleItems);
       const fragment = document.createDocumentFragment();
 
       visibleItems.forEach((item) => {
@@ -50,10 +61,10 @@ export class HistoryUIManager {
       historyList.innerHTML = '';
       historyList.appendChild(fragment);
 
-      if (dataToRender.length > LIMITS.MAX_VISIBLE_ITEMS) {
+      if (this.maxVisibleItems > 0 && dataToRender.length > this.maxVisibleItems) {
         const moreIndicator = document.createElement('div');
         moreIndicator.className = 'history-more';
-        moreIndicator.textContent = `+${dataToRender.length - LIMITS.MAX_VISIBLE_ITEMS} more items`;
+        moreIndicator.textContent = `+${dataToRender.length - this.maxVisibleItems} more items`;
         historyList.appendChild(moreIndicator);
       }
 
@@ -124,7 +135,9 @@ export class HistoryUIManager {
 
     // Enable keyboard navigation mode and disable hover effects
     this.enableKeyboardNavigation();
-    const visibleItemsCount = Math.min(dataToNavigate.length, LIMITS.MAX_VISIBLE_ITEMS);
+    const visibleItemsCount = this.maxVisibleItems === 0
+      ? dataToNavigate.length
+      : Math.min(dataToNavigate.length, this.maxVisibleItems);
 
     if (direction === 'next') {
       if (this.historyIndex === -1) {
