@@ -1828,8 +1828,11 @@ export class FileSearchManager {
       this.filteredFiles = [];
     }
 
+    // Get maxSuggestions setting for merged list
+    const maxSuggestions = await this.getMaxSuggestions('mention');
+
     // Merge files and agents into a single sorted list
-    this.mergedSuggestions = this.mergeSuggestions(searchTerm);
+    this.mergedSuggestions = this.mergeSuggestions(searchTerm, maxSuggestions);
 
     this.selectedIndex = 0;
     this.isVisible = true;
@@ -2350,7 +2353,7 @@ export class FileSearchManager {
    * Merge files and agents into a single sorted list based on match score
    * When query is empty, prioritize directories first
    */
-  private mergeSuggestions(query: string): SuggestionItem[] {
+  private mergeSuggestions(query: string, maxSuggestions?: number): SuggestionItem[] {
     const items: SuggestionItem[] = [];
     const queryLower = query.toLowerCase();
 
@@ -2385,8 +2388,9 @@ export class FileSearchManager {
       items.sort((a, b) => b.score - a.score);
     }
 
-    // Limit to DEFAULT_MAX_SUGGESTIONS
-    return items.slice(0, FileSearchManager.DEFAULT_MAX_SUGGESTIONS);
+    // Limit to maxSuggestions (use provided value or fallback to DEFAULT_MAX_SUGGESTIONS)
+    const limit = maxSuggestions ?? FileSearchManager.DEFAULT_MAX_SUGGESTIONS;
+    return items.slice(0, limit);
   }
 
   /**
