@@ -10,7 +10,7 @@ import type {
   AppInfo
 } from './types';
 import { EventHandler } from './event-handler';
-import { SearchManager } from './search-manager';
+import { HistorySearchManager } from './history-search';
 import { SlashCommandManager } from './slash-command-manager';
 import { DomManager } from './dom-manager';
 import { DraftManager } from './draft-manager';
@@ -36,14 +36,19 @@ if (!electronAPI) {
   throw new Error('Electron API not available. Preload script may not be loaded correctly.');
 }
 
+// Default display limit for history items
+const DEFAULT_DISPLAY_LIMIT = 50;
+
 // Export the renderer class for testing
 export class PromptLineRenderer {
   private historyData: HistoryItem[] = [];
   private filteredHistoryData: HistoryItem[] = [];
+  private totalMatchCount: number | undefined = undefined;
+  private nonSearchDisplayLimit: number = DEFAULT_DISPLAY_LIMIT;
   private config: Config = {};
   private userSettings: UserSettings | null = null;
   private eventHandler: EventHandler | null = null;
-  private searchManager: SearchManager | null = null;
+  private searchManager: HistorySearchManager | null = null;
   private slashCommandManager: SlashCommandManager | null = null;
   private fileSearchManager: FileSearchManager | null = null;
   private domManager: DomManager;
@@ -70,7 +75,8 @@ export class PromptLineRenderer {
       () => this.domManager.getCursorPosition(),
       (text: string, cursorPosition: number) => {
         this.snapshotManager.saveSnapshot(text, cursorPosition);
-      }
+      },
+      () => this.handleLoadMore()
     );
     this.lifecycleManager = new LifecycleManager(
       electronAPI,
@@ -120,12 +126,15 @@ export class PromptLineRenderer {
   }
 
   private setupSearchManager(): void {
-    this.searchManager = new SearchManager({
+    this.searchManager = new HistorySearchManager({
       onSearchStateChange: this.handleSearchStateChange.bind(this)
     });
 
     this.searchManager.initializeElements();
     this.searchManager.setupEventListeners();
+
+    // Setup scroll listener for infinite scroll
+    this.historyUIManager.setupScrollListener();
 
     // Set SearchManager reference in EventHandler
     if (this.eventHandler) {
@@ -640,9 +649,12 @@ export class PromptLineRenderer {
 
   private updateHistoryAndSettings(data: WindowData): void {
     this.historyData = data.history || [];
-    this.filteredHistoryData = [...this.historyData];
+    // Reset display limit and limit initial display
+    this.nonSearchDisplayLimit = DEFAULT_DISPLAY_LIMIT;
+    this.filteredHistoryData = this.historyData.slice(0, this.nonSearchDisplayLimit);
+    this.totalMatchCount = this.historyData.length;
     this.searchManager?.updateHistoryData(this.historyData);
-    
+
     // Update user settings if provided
     if (data.settings) {
       this.userSettings = data.settings;
@@ -651,7 +663,7 @@ export class PromptLineRenderer {
         this.eventHandler.setUserSettings(data.settings);
       }
     }
-    
+
     this.renderHistory();
   }
 
@@ -660,7 +672,7 @@ export class PromptLineRenderer {
 
 
   private renderHistory(): void {
-    this.historyUIManager.renderHistory(this.filteredHistoryData);
+    this.historyUIManager.renderHistory(this.filteredHistoryData, this.totalMatchCount);
   }
 
 
@@ -696,11 +708,21 @@ export class PromptLineRenderer {
     this.searchManager?.toggleSearchMode();
   }
 
-  private handleSearchStateChange(isSearchMode: boolean, filteredData: HistoryItem[]): void {
-    // Only clear history selection when entering search mode or when filter actually changes data length
-    const shouldClearSelection = !isSearchMode || filteredData.length !== this.filteredHistoryData.length;
-    
-    this.filteredHistoryData = filteredData;
+  private handleSearchStateChange(isSearchMode: boolean, filteredData: HistoryItem[], totalMatches?: number): void {
+    // Only clear history selection when entering search mode or when items are filtered down (not when loading more)
+    const isLoadingMore = filteredData.length > this.filteredHistoryData.length;
+    const shouldClearSelection = !isSearchMode || (filteredData.length !== this.filteredHistoryData.length && !isLoadingMore);
+
+    if (isSearchMode) {
+      // In search mode: use filtered data from search manager
+      this.filteredHistoryData = filteredData;
+      this.totalMatchCount = totalMatches;
+    } else {
+      // Not in search mode: apply non-search display limit
+      this.nonSearchDisplayLimit = DEFAULT_DISPLAY_LIMIT;
+      this.filteredHistoryData = this.historyData.slice(0, this.nonSearchDisplayLimit);
+      this.totalMatchCount = this.historyData.length;
+    }
     this.renderHistory();
 
     if (shouldClearSelection) {
@@ -710,6 +732,21 @@ export class PromptLineRenderer {
     if (!isSearchMode) {
       // Return focus to main textarea when exiting search
       this.searchManager?.focusMainTextarea();
+    }
+  }
+
+  private handleLoadMore(): void {
+    if (this.searchManager?.isInSearchMode()) {
+      this.searchManager.loadMore();
+    } else {
+      // Non-search mode: load more items from historyData
+      if (this.filteredHistoryData.length >= this.historyData.length) {
+        // Already showing all items
+        return;
+      }
+      this.nonSearchDisplayLimit += DEFAULT_DISPLAY_LIMIT;
+      this.filteredHistoryData = this.historyData.slice(0, this.nonSearchDisplayLimit);
+      this.renderHistory();
     }
   }
 

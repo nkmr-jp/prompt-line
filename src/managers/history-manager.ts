@@ -168,6 +168,15 @@ class HistoryManager implements IHistoryManager {
     return this.historyData.slice(0, Math.min(limit, this.historyData.length));
   }
 
+  /**
+   * Get history items for search purposes
+   * For HistoryManager (non-optimized), this is the same as getHistory with limit
+   * @param limit Maximum number of items to return (e.g., 5000 for search)
+   */
+  async getHistoryForSearch(limit: number): Promise<HistoryItem[]> {
+    return this.historyData.slice(0, Math.min(limit, this.historyData.length));
+  }
+
   searchHistory(query: string, limit = 10): HistoryItem[] {
     if (!query || !query.trim()) {
       return [];
