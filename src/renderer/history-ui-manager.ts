@@ -50,16 +50,18 @@ export class HistoryUIManager {
       historyList.innerHTML = '';
       historyList.appendChild(fragment);
 
-      // Show "more items" indicator
+      // Show item count indicator
       // Use totalMatches for search mode (total matches before display limit)
       // Use dataToRender.length for non-search mode (total items)
       const totalCount = totalMatches !== undefined ? totalMatches : dataToRender.length;
+      const countIndicator = document.createElement('div');
+      countIndicator.className = 'history-more';
       if (totalCount > visibleItems.length) {
-        const moreIndicator = document.createElement('div');
-        moreIndicator.className = 'history-more';
-        moreIndicator.textContent = `+${totalCount - visibleItems.length} more items`;
-        historyList.appendChild(moreIndicator);
+        countIndicator.textContent = `+${totalCount - visibleItems.length} more items`;
+      } else {
+        countIndicator.textContent = `${totalCount} items`;
       }
+      historyList.appendChild(countIndicator);
 
     } catch (error) {
       console.error('Error rendering history:', error);
