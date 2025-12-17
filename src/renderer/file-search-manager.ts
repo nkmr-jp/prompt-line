@@ -2719,6 +2719,11 @@ export class FileSearchManager {
         break;
 
       case 'Enter':
+        // Skip Enter key if IME is active to let IME handle it (for Japanese input confirmation)
+        if (e.isComposing || this.callbacks.getIsComposing?.()) {
+          return;
+        }
+
         // Enter: Select the currently highlighted item (agent or file)
         // Ctrl+Enter: Open the file in editor
         if (totalItems > 0) {
