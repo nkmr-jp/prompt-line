@@ -195,7 +195,8 @@ export class PromptLineRenderer {
       replaceRangeWithUndo: (start: number, end: number, newText: string) => {
         // Replace text range with native Undo/Redo support
         this.domManager.replaceRangeWithUndo(start, end, newText);
-      }
+      },
+      getIsComposing: () => this.eventHandler?.getIsComposing() ?? false
     });
 
     this.fileSearchManager.initializeElements();

@@ -65,6 +65,7 @@ interface FileSearchCallbacks {
   getDefaultHintText?: () => string; // Get default hint text (directory path)
   setDraggable?: (enabled: boolean) => void; // Enable/disable window dragging during file open
   replaceRangeWithUndo?: (start: number, end: number, newText: string) => void; // Replace text range with undo support
+  getIsComposing?: () => boolean; // Check if IME is active to avoid conflicts with Japanese input
 }
 
 // Represents a tracked @path in the text
@@ -2718,6 +2719,11 @@ export class FileSearchManager {
         break;
 
       case 'Enter':
+        // Skip Enter key if IME is active to let IME handle it (for Japanese input confirmation)
+        if (e.isComposing || this.callbacks.getIsComposing?.()) {
+          return;
+        }
+
         // Enter: Select the currently highlighted item (agent or file)
         // Ctrl+Enter: Open the file in editor
         if (totalItems > 0) {
@@ -2752,6 +2758,11 @@ export class FileSearchManager {
         break;
 
       case 'Tab':
+        // Skip Tab key if IME is active to let IME handle it
+        if (e.isComposing || this.callbacks.getIsComposing?.()) {
+          return;
+        }
+
         // Tab: Navigate into directory (for files), or select item (for agents/files)
         if (totalItems > 0) {
           e.preventDefault();
