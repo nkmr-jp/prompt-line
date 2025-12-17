@@ -35,6 +35,10 @@ export interface UserSettings {
     width: number;
     height: number;
   };
+  history?: {
+    // Maximum number of history items to display in the UI (0 = unlimited)
+    displayLimit?: number;
+  };
 }
 
 export interface FileInfo {

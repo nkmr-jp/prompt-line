@@ -27,6 +27,9 @@ class SettingsManager {
         width: 600,
         height: 300
       },
+      history: {
+        displayLimit: 20  // Default: show 20 most recent items (0 = unlimited)
+      },
       // commands is optional - not set by default
       // fileSearch is optional - when undefined, file search feature is disabled
       // fileOpener is optional - when undefined, uses system default
@@ -95,6 +98,10 @@ class SettingsManager {
       window: {
         ...this.defaultSettings.window,
         ...userSettings.window
+      },
+      history: {
+        ...this.defaultSettings.history,
+        ...userSettings.history
       },
       fileOpener: {
         ...this.defaultSettings.fileOpener,
@@ -277,6 +284,14 @@ window:
   height: ${settings.window.height}                     # Recommended: 200-400 pixels
 
 # ============================================================================
+# HISTORY SETTINGS
+# ============================================================================
+# Configure history display behavior
+
+history:
+  displayLimit: ${settings.history?.displayLimit ?? 20}                   # Maximum items to show in history list (0 = unlimited)
+
+# ============================================================================
 # FILE OPENER SETTINGS
 # ============================================================================
 # Configure which applications to use when opening file links
@@ -368,12 +383,26 @@ ${mdSearchSection}
     return {
       shortcuts: { ...this.defaultSettings.shortcuts },
       window: { ...this.defaultSettings.window },
+      history: { ...this.defaultSettings.history },
       fileSearch: { ...this.defaultSettings.fileSearch },
       fileOpener: {
         extensions: { ...this.defaultSettings.fileOpener?.extensions },
         defaultEditor: this.defaultSettings.fileOpener?.defaultEditor ?? null
       }
     };
+  }
+
+  getHistorySettings(): UserSettings['history'] {
+    return { ...this.currentSettings.history };
+  }
+
+  async updateHistorySettings(history: Partial<NonNullable<UserSettings['history']>>): Promise<void> {
+    await this.updateSettings({
+      history: {
+        ...this.currentSettings.history,
+        ...history
+      }
+    });
   }
 
   getFileSearchSettings(): FileSearchSettings | undefined {

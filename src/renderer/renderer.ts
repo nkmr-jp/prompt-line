@@ -641,7 +641,7 @@ export class PromptLineRenderer {
     this.historyData = data.history || [];
     this.filteredHistoryData = [...this.historyData];
     this.searchManager?.updateHistoryData(this.historyData);
-    
+
     // Update user settings if provided
     if (data.settings) {
       this.userSettings = data.settings;
@@ -649,8 +649,12 @@ export class PromptLineRenderer {
       if (this.eventHandler) {
         this.eventHandler.setUserSettings(data.settings);
       }
+      // Update history display limit from settings
+      if (data.settings.history?.displayLimit !== undefined) {
+        this.historyUIManager.setDisplayLimit(data.settings.history.displayLimit);
+      }
     }
-    
+
     this.renderHistory();
   }
 

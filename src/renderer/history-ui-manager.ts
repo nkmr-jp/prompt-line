@@ -2,9 +2,13 @@ import { LIMITS, TIMEOUTS } from '../constants';
 import { formatTime } from './utils/time-formatter';
 import type { HistoryItem } from './types';
 
+// Default display limit when not configured (fallback)
+const DEFAULT_DISPLAY_LIMIT = 20;
+
 export class HistoryUIManager {
   private historyIndex: number = -1;
   private keyboardNavigationTimeout: NodeJS.Timeout | null = null;
+  private displayLimit: number = DEFAULT_DISPLAY_LIMIT;
   private getCurrentText: () => string;
   private getCursorPosition: () => number;
   private saveSnapshotCallback: (text: string, cursorPosition: number) => void;
@@ -23,6 +27,27 @@ export class HistoryUIManager {
     this.saveSnapshotCallback = saveSnapshotCallback;
   }
 
+  /**
+   * Set the maximum number of history items to display
+   * @param limit - Maximum items to show (0 = unlimited)
+   */
+  public setDisplayLimit(limit: number): void {
+    this.displayLimit = limit;
+  }
+
+  /**
+   * Get the effective display limit, accounting for 0 meaning unlimited
+   * Uses LIMITS.MAX_VISIBLE_ITEMS as the hard cap for performance
+   */
+  private getEffectiveDisplayLimit(): number {
+    // 0 means unlimited, but still cap at MAX_VISIBLE_ITEMS for performance
+    if (this.displayLimit === 0) {
+      return LIMITS.MAX_VISIBLE_ITEMS;
+    }
+    // Use the smaller of displayLimit and MAX_VISIBLE_ITEMS
+    return Math.min(this.displayLimit, LIMITS.MAX_VISIBLE_ITEMS);
+  }
+
   public renderHistory(historyData: HistoryItem[]): void {
     try {
       const historyList = this.getHistoryList();
@@ -38,8 +63,9 @@ export class HistoryUIManager {
         return;
       }
 
-      // 0 means unlimited, so show all items
-      const visibleItems = dataToRender.slice(0, LIMITS.MAX_VISIBLE_ITEMS);
+      // Get effective display limit (0 = unlimited, but capped at MAX_VISIBLE_ITEMS)
+      const effectiveLimit = this.getEffectiveDisplayLimit();
+      const visibleItems = dataToRender.slice(0, effectiveLimit);
       const fragment = document.createDocumentFragment();
 
       visibleItems.forEach((item) => {
@@ -50,10 +76,10 @@ export class HistoryUIManager {
       historyList.innerHTML = '';
       historyList.appendChild(fragment);
 
-      if (dataToRender.length > LIMITS.MAX_VISIBLE_ITEMS) {
+      if (dataToRender.length > effectiveLimit) {
         const moreIndicator = document.createElement('div');
         moreIndicator.className = 'history-more';
-        moreIndicator.textContent = `+${dataToRender.length - LIMITS.MAX_VISIBLE_ITEMS} more items`;
+        moreIndicator.textContent = `+${dataToRender.length - effectiveLimit} more items`;
         historyList.appendChild(moreIndicator);
       }
 
@@ -119,12 +145,13 @@ export class HistoryUIManager {
 
   public navigateHistory(e: KeyboardEvent, direction: 'next' | 'prev', dataToNavigate: HistoryItem[]): void {
     e.preventDefault();
-    
+
     if (!dataToNavigate || dataToNavigate.length === 0) return;
 
     // Enable keyboard navigation mode and disable hover effects
     this.enableKeyboardNavigation();
-    const visibleItemsCount = Math.min(dataToNavigate.length, LIMITS.MAX_VISIBLE_ITEMS);
+    const effectiveLimit = this.getEffectiveDisplayLimit();
+    const visibleItemsCount = Math.min(dataToNavigate.length, effectiveLimit);
 
     if (direction === 'next') {
       if (this.historyIndex === -1) {
