@@ -13,6 +13,7 @@ interface SlashCommandItem {
 
 export class SlashCommandManager {
   private static readonly POPUP_HIDE_DELAY = 100; // ms delay before hiding popup
+  private static readonly DEFAULT_MAX_SUGGESTIONS = 20; // Default max suggestions
 
   private suggestionsContainer: HTMLElement | null = null;
   private textarea: HTMLTextAreaElement | null = null;
@@ -32,6 +33,9 @@ export class SlashCommandManager {
   private popupHideTimeout: ReturnType<typeof setTimeout> | null = null;
   private isPopupVisible: boolean = false;
   private autoShowTooltip: boolean = false; // Auto-show tooltip for selected item
+
+  // Cached maxSuggestions
+  private maxSuggestionsCache: number | null = null;
 
   constructor(callbacks: {
     onCommandSelect: (command: string) => void;
@@ -151,6 +155,36 @@ export class SlashCommandManager {
   }
 
   /**
+   * Get maxSuggestions for commands (cached)
+   */
+  private async getMaxSuggestions(): Promise<number> {
+    // Return cached value if available
+    if (this.maxSuggestionsCache !== null) {
+      return this.maxSuggestionsCache;
+    }
+
+    try {
+      const electronAPI = (window as any).electronAPI;
+      if (electronAPI?.mdSearch?.getMaxSuggestions) {
+        const maxSuggestions = await electronAPI.mdSearch.getMaxSuggestions('command');
+        this.maxSuggestionsCache = maxSuggestions;
+        return maxSuggestions;
+      }
+    } catch (error) {
+      console.error('[SlashCommandManager] Failed to get maxSuggestions:', error);
+    }
+
+    return SlashCommandManager.DEFAULT_MAX_SUGGESTIONS;
+  }
+
+  /**
+   * Clear maxSuggestions cache (call when settings might have changed)
+   */
+  public clearMaxSuggestionsCache(): void {
+    this.maxSuggestionsCache = null;
+  }
+
+  /**
    * Check if user is typing a slash command at the beginning of input
    */
   private checkForSlashCommand(): void {
@@ -197,6 +231,9 @@ export class SlashCommandManager {
       await this.loadCommands();
     }
 
+    // Get maxSuggestions setting
+    const maxSuggestions = await this.getMaxSuggestions();
+
     // Filter and sort commands - prioritize: prefix match > contains match > description match
     const lowerQuery = query.toLowerCase();
     this.filteredCommands = this.commands
@@ -227,7 +264,8 @@ export class SlashCommandManager {
 
         // 4. Sort by name alphabetically
         return a.name.localeCompare(b.name);
-      });
+      })
+      .slice(0, maxSuggestions);
 
     if (this.filteredCommands.length === 0) {
       this.hideSuggestions();
