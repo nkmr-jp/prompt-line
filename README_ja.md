@@ -203,6 +203,14 @@ window:
   height: 300                     # Recommended: 200-400 pixels
 
 # ============================================================================
+# HISTORY SETTINGS
+# ============================================================================
+# Configure history display behavior
+
+history:
+  maxVisibleItems: 200          # Max items to display (default: 200, 0 = unlimited)
+
+# ============================================================================
 # FILE OPENER SETTINGS
 # ============================================================================
 # Configure which applications to use when opening file links
