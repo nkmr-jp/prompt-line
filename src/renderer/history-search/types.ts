@@ -13,8 +13,10 @@ export interface HistorySearchConfig {
   debounceDelay: number;
   /** Enable fuzzy matching (default: true) */
   enableFuzzyMatch: boolean;
+  /** Maximum number of items to search through (default: 5000) */
+  maxSearchItems: number;
   /** Maximum number of results to display (default: 200) */
-  maxResults: number;
+  maxDisplayResults: number;
   /** Case sensitive search (default: false) */
   caseSensitive: boolean;
 }
@@ -25,7 +27,8 @@ export interface HistorySearchConfig {
 export const DEFAULT_CONFIG: HistorySearchConfig = {
   debounceDelay: 150,
   enableFuzzyMatch: true,
-  maxResults: 200,
+  maxSearchItems: 5000,
+  maxDisplayResults: 200,
   caseSensitive: false
 };
 

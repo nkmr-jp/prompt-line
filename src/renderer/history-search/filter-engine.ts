@@ -32,24 +32,27 @@ export class HistorySearchFilterEngine {
 
   /**
    * Filter and score history items based on query
-   * Returns items sorted by score (highest first)
+   * Searches through up to maxSearchItems, returns up to maxDisplayResults
    */
   public filter(items: HistoryItem[], query: string): HistoryItem[] {
+    // Limit search scope to maxSearchItems
+    const searchItems = items.slice(0, this.config.maxSearchItems);
+
     if (!query.trim()) {
-      // Return all items when query is empty, limited by maxResults
-      return items.slice(0, this.config.maxResults);
+      // Return items when query is empty, limited by maxDisplayResults
+      return searchItems.slice(0, this.config.maxDisplayResults);
     }
 
     const queryNormalized = this.config.caseSensitive
       ? query.trim()
       : query.trim().toLowerCase();
 
-    // Score and filter items
-    const scored = items
+    // Score and filter items from the search scope
+    const scored = searchItems
       .map(item => this.scoreItem(item, queryNormalized))
       .filter(result => result.score > 0)
       .sort((a, b) => b.score - a.score)
-      .slice(0, this.config.maxResults);
+      .slice(0, this.config.maxDisplayResults);
 
     return scored.map(result => result.item);
   }
