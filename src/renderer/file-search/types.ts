@@ -63,6 +63,7 @@ export interface FileSearchCallbacks {
   getDefaultHintText?: () => string; // Get default hint text (directory path)
   setDraggable?: (enabled: boolean) => void; // Enable/disable window dragging during file open
   replaceRangeWithUndo?: (start: number, end: number, newText: string) => void; // Replace text range with undo support
+  getIsComposing?: () => boolean; // Check if IME is active to avoid conflicts with Japanese input
 }
 
 // Represents a tracked @path in the text

@@ -641,6 +641,10 @@ export class FileSearchManager {
       this.selectedIndex = (this.selectedIndex - 1 + this.mergedSuggestions.length) % this.mergedSuggestions.length;
       this.updateSelection();
     } else if (e.key === 'Enter' || e.key === 'Tab') {
+      // Skip Tab key if IME is active to let IME handle it
+      if (e.key === 'Tab' && (e.isComposing || this.callbacks.getIsComposing?.())) {
+        return;
+      }
       e.preventDefault();
       this.selectCurrentItem();
     } else if (e.key === 'Escape') {
