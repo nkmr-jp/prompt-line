@@ -209,6 +209,35 @@ export class HistorySearchFilterEngine {
   }
 
   /**
+   * Filter with custom display limit (for pagination/load more)
+   */
+  public filterWithLimit(items: HistoryItem[], query: string, displayLimit: number): FilterResult {
+    // Limit search scope to maxSearchItems
+    const searchItems = items.slice(0, this.config.maxSearchItems);
+
+    if (!query.trim()) {
+      return {
+        items: searchItems.slice(0, displayLimit),
+        totalMatches: searchItems.length
+      };
+    }
+
+    const queryNormalized = this.config.caseSensitive
+      ? query.trim()
+      : query.trim().toLowerCase();
+
+    const allMatches = searchItems
+      .map(item => this.scoreItem(item, queryNormalized))
+      .filter(result => result.score > 0)
+      .sort((a, b) => b.score - a.score);
+
+    return {
+      items: allMatches.slice(0, displayLimit).map(result => result.item),
+      totalMatches: allMatches.length
+    };
+  }
+
+  /**
    * Cleanup resources
    */
   public cleanup(): void {

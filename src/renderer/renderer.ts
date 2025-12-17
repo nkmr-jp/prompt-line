@@ -71,7 +71,8 @@ export class PromptLineRenderer {
       () => this.domManager.getCursorPosition(),
       (text: string, cursorPosition: number) => {
         this.snapshotManager.saveSnapshot(text, cursorPosition);
-      }
+      },
+      () => this.handleLoadMore()
     );
     this.lifecycleManager = new LifecycleManager(
       electronAPI,
@@ -127,6 +128,9 @@ export class PromptLineRenderer {
 
     this.searchManager.initializeElements();
     this.searchManager.setupEventListeners();
+
+    // Setup scroll listener for infinite scroll
+    this.historyUIManager.setupScrollListener();
 
     // Set SearchManager reference in EventHandler
     if (this.eventHandler) {
@@ -713,6 +717,12 @@ export class PromptLineRenderer {
       // Return focus to main textarea when exiting search
       this.searchManager?.focusMainTextarea();
       this.totalMatchCount = undefined;
+    }
+  }
+
+  private handleLoadMore(): void {
+    if (this.searchManager?.isInSearchMode()) {
+      this.searchManager.loadMore();
     }
   }
 

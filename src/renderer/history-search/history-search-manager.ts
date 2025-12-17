@@ -6,6 +6,7 @@
 
 import type { HistoryItem } from '../types';
 import type { HistorySearchConfig, HistorySearchCallbacks } from './types';
+import { DEFAULT_CONFIG } from './types';
 import { HistorySearchFilterEngine } from './filter-engine';
 import { HistorySearchHighlighter } from './highlighter';
 
@@ -23,6 +24,7 @@ export class HistorySearchManager {
   // State
   private isSearchMode: boolean = false;
   private historyData: HistoryItem[] = [];
+  private currentDisplayLimit: number = DEFAULT_CONFIG.maxDisplayResults;
 
   // Callbacks
   private callbacks: HistorySearchCallbacks;
@@ -138,6 +140,7 @@ export class HistorySearchManager {
     if (!this.historyHeader || !this.searchButton || !this.searchInput) return;
 
     this.isSearchMode = true;
+    this.currentDisplayLimit = DEFAULT_CONFIG.maxDisplayResults;
     this.historyHeader.classList.add('search-mode');
     this.searchButton.classList.add('active');
 
@@ -146,8 +149,8 @@ export class HistorySearchManager {
       this.searchInput?.focus();
     }, 100);
 
-    // Initialize with all items - use filter to get proper result with totalMatches
-    const result = this.filterEngine.filter(this.historyData, '');
+    // Initialize with all items - use filterWithLimit to get proper result with totalMatches
+    const result = this.filterEngine.filterWithLimit(this.historyData, '', this.currentDisplayLimit);
     this.callbacks.onSearchStateChange(true, result.items, result.totalMatches);
     this.notifyResultCount(result.items.length, result.totalMatches);
   }
@@ -161,6 +164,7 @@ export class HistorySearchManager {
     }
 
     this.isSearchMode = false;
+    this.currentDisplayLimit = DEFAULT_CONFIG.maxDisplayResults;
     this.historyHeader.classList.remove('search-mode');
     this.searchButton.classList.remove('active');
     this.searchInput.value = '';
@@ -180,15 +184,56 @@ export class HistorySearchManager {
 
     const query = this.searchInput.value.trim();
 
-    // Use debounced search
-    this.filterEngine.searchDebounced(
-      this.historyData,
-      query,
-      (result) => {
-        this.callbacks.onSearchStateChange(true, result.items, result.totalMatches);
-        this.notifyResultCount(result.items.length, result.totalMatches);
-      }
-    );
+    // Reset display limit when search query changes
+    this.currentDisplayLimit = DEFAULT_CONFIG.maxDisplayResults;
+
+    // Use debounced search with current display limit
+    this.filterEngine.cancelPendingSearch();
+    const debounceTimer = setTimeout(() => {
+      const result = this.filterEngine.filterWithLimit(this.historyData, query, this.currentDisplayLimit);
+      this.callbacks.onSearchStateChange(true, result.items, result.totalMatches);
+      this.notifyResultCount(result.items.length, result.totalMatches);
+    }, this.filterEngine.getConfig().debounceDelay);
+
+    // Store timer reference for cleanup (using internal mechanism)
+    (this as any)._searchDebounceTimer = debounceTimer;
+  }
+
+  /**
+   * Load more items (for infinite scroll)
+   * Increases display limit by maxDisplayResults and re-filters
+   */
+  public loadMore(): void {
+    if (!this.isSearchMode) return;
+
+    const config = this.filterEngine.getConfig();
+    const query = this.searchInput?.value.trim() || '';
+
+    // Get current total to check if we can load more
+    const currentResult = this.filterEngine.filterWithLimit(this.historyData, query, this.currentDisplayLimit);
+    if (currentResult.items.length >= currentResult.totalMatches) {
+      // Already showing all items
+      return;
+    }
+
+    // Increase display limit
+    this.currentDisplayLimit += config.maxDisplayResults;
+
+    // Re-filter with new limit
+    const result = this.filterEngine.filterWithLimit(this.historyData, query, this.currentDisplayLimit);
+    this.callbacks.onSearchStateChange(true, result.items, result.totalMatches);
+    this.notifyResultCount(result.items.length, result.totalMatches);
+  }
+
+  /**
+   * Check if more items can be loaded
+   */
+  public canLoadMore(): boolean {
+    if (!this.isSearchMode) return false;
+
+    const query = this.searchInput?.value.trim() || '';
+    const result = this.filterEngine.filterWithLimit(this.historyData, query, this.currentDisplayLimit);
+    return result.items.length < result.totalMatches;
   }
 
   /**
