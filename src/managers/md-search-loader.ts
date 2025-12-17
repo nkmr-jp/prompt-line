@@ -17,14 +17,16 @@ class MdSearchLoader {
   private cacheTTL: number = 5000; // 5 seconds
 
   constructor(config?: MdSearchEntry[]) {
-    this.config = config ?? getDefaultMdSearchConfig();
+    // Use default config if config is undefined or empty array
+    this.config = (config && config.length > 0) ? config : getDefaultMdSearchConfig();
   }
 
   /**
    * 設定を更新（設定変更時に呼び出す）
    */
   updateConfig(config: MdSearchEntry[] | undefined): void {
-    const newConfig = config ?? getDefaultMdSearchConfig();
+    // Use default config if config is undefined or empty array
+    const newConfig = (config && config.length > 0) ? config : getDefaultMdSearchConfig();
 
     // 設定が変わった場合のみキャッシュをクリア
     if (JSON.stringify(this.config) !== JSON.stringify(newConfig)) {
