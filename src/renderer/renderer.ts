@@ -10,7 +10,7 @@ import type {
   AppInfo
 } from './types';
 import { EventHandler } from './event-handler';
-import { SearchManager } from './search-manager';
+import { HistorySearchManager } from './history-search';
 import { SlashCommandManager } from './slash-command-manager';
 import { DomManager } from './dom-manager';
 import { DraftManager } from './draft-manager';
@@ -43,7 +43,7 @@ export class PromptLineRenderer {
   private config: Config = {};
   private userSettings: UserSettings | null = null;
   private eventHandler: EventHandler | null = null;
-  private searchManager: SearchManager | null = null;
+  private searchManager: HistorySearchManager | null = null;
   private slashCommandManager: SlashCommandManager | null = null;
   private fileSearchManager: FileSearchManager | null = null;
   private domManager: DomManager;
@@ -120,7 +120,7 @@ export class PromptLineRenderer {
   }
 
   private setupSearchManager(): void {
-    this.searchManager = new SearchManager({
+    this.searchManager = new HistorySearchManager({
       onSearchStateChange: this.handleSearchStateChange.bind(this)
     });
 

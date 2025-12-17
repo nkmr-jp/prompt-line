@@ -48,15 +48,18 @@ jest.mock('../../src/renderer/event-handler', () => ({
     }))
 }));
 
-// Mock SearchManager
-jest.mock('../../src/renderer/search-manager', () => ({
-    SearchManager: jest.fn().mockImplementation(() => ({
+// Mock HistorySearchManager
+jest.mock('../../src/renderer/history-search', () => ({
+    HistorySearchManager: jest.fn().mockImplementation(() => ({
         initializeElements: jest.fn(),
         setupEventListeners: jest.fn(),
         updateHistoryData: jest.fn(),
         isInSearchMode: jest.fn().mockReturnValue(false),
         getSearchTerm: jest.fn().mockReturnValue(''),
-        focusMainTextarea: jest.fn()
+        focusMainTextarea: jest.fn(),
+        exitSearchMode: jest.fn(),
+        highlightSearchTerms: jest.fn((text: string) => text),
+        cleanup: jest.fn()
     }))
 }));
 
