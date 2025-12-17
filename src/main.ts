@@ -55,10 +55,12 @@ class PromptLineApp {
       await this.settingsManager.init();
 
       const userSettings = this.settingsManager.getSettings();
-      
+
       // デフォルトで無制限履歴機能（OptimizedHistoryManager）を使用
-      logger.info('Using OptimizedHistoryManager (unlimited history by default)');
-      this.historyManager = new OptimizedHistoryManager();
+      // history.maxVisibleItems の設定を反映（0 = 無制限）
+      const maxVisibleItems = userSettings.history?.maxVisibleItems ?? 200;
+      logger.info('Using OptimizedHistoryManager', { maxVisibleItems });
+      this.historyManager = new OptimizedHistoryManager(maxVisibleItems);
       
       await this.historyManager.initialize();
       

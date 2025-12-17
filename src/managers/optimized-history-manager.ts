@@ -21,7 +21,7 @@ import {LIMITS} from "../constants";
 
 class OptimizedHistoryManager implements IHistoryManager {
   private recentCache: HistoryItem[] = [];
-  private cacheSize = LIMITS.MAX_VISIBLE_ITEMS;
+  private cacheSize: number;
   private historyFile: string;
   private totalItemCount = 0;
   private totalItemCountCached = false;
@@ -29,8 +29,13 @@ class OptimizedHistoryManager implements IHistoryManager {
   private debouncedAppend: DebounceFunction<[]>;
   private duplicateCheckSet = new Set<string>();
 
-  constructor() {
+  /**
+   * @param maxVisibleItems - Maximum number of items to cache (0 = unlimited, uses all items from file)
+   */
+  constructor(maxVisibleItems: number = LIMITS.MAX_VISIBLE_ITEMS) {
     this.historyFile = config.paths.historyFile;
+    // 0 means unlimited - use a very large number to effectively disable the limit
+    this.cacheSize = maxVisibleItems === 0 ? Number.MAX_SAFE_INTEGER : maxVisibleItems;
     this.debouncedAppend = debounce(this.flushAppendQueue.bind(this), 100);
   }
 
