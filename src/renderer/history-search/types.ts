@@ -37,7 +37,7 @@ export const DEFAULT_CONFIG: HistorySearchConfig = {
  */
 export interface HistorySearchCallbacks {
   /** Called when search state or results change */
-  onSearchStateChange: (isSearchMode: boolean, filteredData: HistoryItem[]) => void;
+  onSearchStateChange: (isSearchMode: boolean, filteredData: HistoryItem[], totalMatches?: number) => void;
   /** Optional callback for result count updates */
   onResultCountChange?: (count: number, total: number) => void;
 }
@@ -66,6 +66,16 @@ export interface HistorySearchState {
   resultCount: number;
   /** Total number of history items */
   totalCount: number;
+}
+
+/**
+ * Filter result with items and total match count
+ */
+export interface FilterResult {
+  /** Filtered items (limited to maxDisplayResults) */
+  items: HistoryItem[];
+  /** Total number of items that matched (before display limit) */
+  totalMatches: number;
 }
 
 /**

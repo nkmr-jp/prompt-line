@@ -146,9 +146,10 @@ export class HistorySearchManager {
       this.searchInput?.focus();
     }, 100);
 
-    // Initialize with all items
-    this.callbacks.onSearchStateChange(true, [...this.historyData]);
-    this.notifyResultCount(this.historyData.length, this.historyData.length);
+    // Initialize with all items - use filter to get proper result with totalMatches
+    const result = this.filterEngine.filter(this.historyData, '');
+    this.callbacks.onSearchStateChange(true, result.items, result.totalMatches);
+    this.notifyResultCount(result.items.length, result.totalMatches);
   }
 
   /**
@@ -167,7 +168,7 @@ export class HistorySearchManager {
     // Cancel any pending search
     this.filterEngine.cancelPendingSearch();
 
-    // Reset to show all history items
+    // Reset to show all history items (no totalMatches when not searching)
     this.callbacks.onSearchStateChange(false, [...this.historyData]);
   }
 
@@ -183,9 +184,9 @@ export class HistorySearchManager {
     this.filterEngine.searchDebounced(
       this.historyData,
       query,
-      (filteredData) => {
-        this.callbacks.onSearchStateChange(true, filteredData);
-        this.notifyResultCount(filteredData.length, this.historyData.length);
+      (result) => {
+        this.callbacks.onSearchStateChange(true, result.items, result.totalMatches);
+        this.notifyResultCount(result.items.length, result.totalMatches);
       }
     );
   }

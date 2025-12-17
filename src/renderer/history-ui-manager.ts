@@ -23,7 +23,7 @@ export class HistoryUIManager {
     this.saveSnapshotCallback = saveSnapshotCallback;
   }
 
-  public renderHistory(historyData: HistoryItem[]): void {
+  public renderHistory(historyData: HistoryItem[], totalMatches?: number): void {
     try {
       const historyList = this.getHistoryList();
       if (!historyList) return;
@@ -50,10 +50,14 @@ export class HistoryUIManager {
       historyList.innerHTML = '';
       historyList.appendChild(fragment);
 
-      if (dataToRender.length > LIMITS.MAX_VISIBLE_ITEMS) {
+      // Show "more items" indicator
+      // Use totalMatches for search mode (total matches before display limit)
+      // Use dataToRender.length for non-search mode (total items)
+      const totalCount = totalMatches !== undefined ? totalMatches : dataToRender.length;
+      if (totalCount > visibleItems.length) {
         const moreIndicator = document.createElement('div');
         moreIndicator.className = 'history-more';
-        moreIndicator.textContent = `+${dataToRender.length - LIMITS.MAX_VISIBLE_ITEMS} more items`;
+        moreIndicator.textContent = `+${totalCount - visibleItems.length} more items`;
         historyList.appendChild(moreIndicator);
       }
 

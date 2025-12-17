@@ -40,6 +40,7 @@ if (!electronAPI) {
 export class PromptLineRenderer {
   private historyData: HistoryItem[] = [];
   private filteredHistoryData: HistoryItem[] = [];
+  private totalMatchCount: number | undefined = undefined;
   private config: Config = {};
   private userSettings: UserSettings | null = null;
   private eventHandler: EventHandler | null = null;
@@ -660,7 +661,7 @@ export class PromptLineRenderer {
 
 
   private renderHistory(): void {
-    this.historyUIManager.renderHistory(this.filteredHistoryData);
+    this.historyUIManager.renderHistory(this.filteredHistoryData, this.totalMatchCount);
   }
 
 
@@ -696,11 +697,12 @@ export class PromptLineRenderer {
     this.searchManager?.toggleSearchMode();
   }
 
-  private handleSearchStateChange(isSearchMode: boolean, filteredData: HistoryItem[]): void {
+  private handleSearchStateChange(isSearchMode: boolean, filteredData: HistoryItem[], totalMatches?: number): void {
     // Only clear history selection when entering search mode or when filter actually changes data length
     const shouldClearSelection = !isSearchMode || filteredData.length !== this.filteredHistoryData.length;
-    
+
     this.filteredHistoryData = filteredData;
+    this.totalMatchCount = totalMatches;
     this.renderHistory();
 
     if (shouldClearSelection) {
@@ -710,6 +712,7 @@ export class PromptLineRenderer {
     if (!isSearchMode) {
       // Return focus to main textarea when exiting search
       this.searchManager?.focusMainTextarea();
+      this.totalMatchCount = undefined;
     }
   }
 

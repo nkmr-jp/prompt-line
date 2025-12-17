@@ -5,7 +5,7 @@
  */
 
 import type { HistoryItem } from '../types';
-import type { HistorySearchConfig, SearchResult } from './types';
+import type { HistorySearchConfig, SearchResult, FilterResult } from './types';
 import { DEFAULT_CONFIG, MATCH_SCORES } from './types';
 
 export class HistorySearchFilterEngine {
@@ -33,14 +33,18 @@ export class HistorySearchFilterEngine {
   /**
    * Filter and score history items based on query
    * Searches through up to maxSearchItems, returns up to maxDisplayResults
+   * Returns both filtered items and total match count
    */
-  public filter(items: HistoryItem[], query: string): HistoryItem[] {
+  public filter(items: HistoryItem[], query: string): FilterResult {
     // Limit search scope to maxSearchItems
     const searchItems = items.slice(0, this.config.maxSearchItems);
 
     if (!query.trim()) {
       // Return items when query is empty, limited by maxDisplayResults
-      return searchItems.slice(0, this.config.maxDisplayResults);
+      return {
+        items: searchItems.slice(0, this.config.maxDisplayResults),
+        totalMatches: searchItems.length
+      };
     }
 
     const queryNormalized = this.config.caseSensitive
@@ -48,13 +52,19 @@ export class HistorySearchFilterEngine {
       : query.trim().toLowerCase();
 
     // Score and filter items from the search scope
-    const scored = searchItems
+    const allMatches = searchItems
       .map(item => this.scoreItem(item, queryNormalized))
       .filter(result => result.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, this.config.maxDisplayResults);
+      .sort((a, b) => b.score - a.score);
 
-    return scored.map(result => result.item);
+    const displayItems = allMatches
+      .slice(0, this.config.maxDisplayResults)
+      .map(result => result.item);
+
+    return {
+      items: displayItems,
+      totalMatches: allMatches.length
+    };
   }
 
   /**
@@ -167,15 +177,15 @@ export class HistorySearchFilterEngine {
   public searchDebounced(
     items: HistoryItem[],
     query: string,
-    callback: (results: HistoryItem[]) => void
+    callback: (result: FilterResult) => void
   ): void {
     // Cancel any pending search
     this.cancelPendingSearch();
 
     // Schedule new search
     this.debounceTimer = setTimeout(() => {
-      const results = this.filter(items, query);
-      callback(results);
+      const result = this.filter(items, query);
+      callback(result);
       this.debounceTimer = null;
     }, this.config.debounceDelay);
   }
@@ -193,7 +203,7 @@ export class HistorySearchFilterEngine {
   /**
    * Execute search immediately (bypass debounce)
    */
-  public searchImmediate(items: HistoryItem[], query: string): HistoryItem[] {
+  public searchImmediate(items: HistoryItem[], query: string): FilterResult {
     this.cancelPendingSearch();
     return this.filter(items, query);
   }

@@ -276,9 +276,10 @@ describe('PromptLineRenderer (Refactored)', () => {
 
         test('should call historyUIManager for rendering', () => {
             (renderer as any).renderHistory();
-            
+
             expect((renderer as any).historyUIManager.renderHistory).toHaveBeenCalledWith(
-                (renderer as any).filteredHistoryData
+                (renderer as any).filteredHistoryData,
+                (renderer as any).totalMatchCount
             );
         });
     });
@@ -382,11 +383,13 @@ describe('PromptLineRenderer (Refactored)', () => {
     describe('search state handling', () => {
         test('should update filtered data and render history', () => {
             const filteredData = [{ text: 'filtered', timestamp: Date.now(), id: '1' }];
+            const totalMatches = 100;
 
-            (renderer as any).handleSearchStateChange(true, filteredData);
+            (renderer as any).handleSearchStateChange(true, filteredData, totalMatches);
 
             expect((renderer as any).filteredHistoryData).toBe(filteredData);
-            expect((renderer as any).historyUIManager.renderHistory).toHaveBeenCalledWith(filteredData);
+            expect((renderer as any).totalMatchCount).toBe(totalMatches);
+            expect((renderer as any).historyUIManager.renderHistory).toHaveBeenCalledWith(filteredData, totalMatches);
         });
 
         test('should focus main textarea when exiting search', () => {

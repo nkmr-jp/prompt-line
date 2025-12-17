@@ -18,6 +18,7 @@ export type {
   HistorySearchCallbacks,
   SearchResult,
   HistorySearchState,
+  FilterResult,
   HistoryItem
 } from './types';
 
