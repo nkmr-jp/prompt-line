@@ -346,7 +346,9 @@ class PromptLineApp {
 
       const draft = this.draftManager.getCurrentDraft();
       const settings = this.settingsManager.getSettings();
-      const history = this.historyManager.getHistory();
+      // Apply fetchLimit from settings (0 = unlimited)
+      const fetchLimit = settings.history?.fetchLimit ?? 500;
+      const history = this.historyManager.getHistory(fetchLimit || undefined);
 
       logger.debug('Settings from settingsManager:', {
         hasFileSearch: !!settings.fileSearch,

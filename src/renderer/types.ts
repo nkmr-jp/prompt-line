@@ -38,6 +38,8 @@ export interface UserSettings {
   history?: {
     // Maximum number of history items to display in the UI (0 = unlimited)
     displayLimit?: number;
+    // Maximum number of history items to fetch from storage (default: 500, 0 = unlimited)
+    fetchLimit?: number;
   };
 }
 

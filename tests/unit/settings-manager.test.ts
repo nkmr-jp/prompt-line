@@ -129,7 +129,8 @@ window:
           height: 300
         },
         history: {
-          displayLimit: 20
+          displayLimit: 20,
+          fetchLimit: 500
         },
         fileOpener: {
           extensions: {},
@@ -232,7 +233,8 @@ window:
           height: 300
         },
         history: {
-          displayLimit: 20
+          displayLimit: 20,
+          fetchLimit: 500
         },
         fileSearch: {},  // spread of undefined results in empty object
         fileOpener: {

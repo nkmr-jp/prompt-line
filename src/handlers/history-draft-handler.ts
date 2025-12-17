@@ -3,6 +3,7 @@ import { IpcMainInvokeEvent } from 'electron';
 import { logger, SecureErrors } from '../utils/utils';
 import type DraftManager from '../managers/draft-manager';
 import type DirectoryManager from '../managers/directory-manager';
+import type SettingsManager from '../managers/settings-manager';
 import type { HistoryItem, IHistoryManager } from '../types';
 
 interface IPCResult {
@@ -23,15 +24,18 @@ class HistoryDraftHandler {
   private historyManager: IHistoryManager;
   private draftManager: DraftManager;
   private directoryManager: DirectoryManager;
+  private settingsManager: SettingsManager;
 
   constructor(
     historyManager: IHistoryManager,
     draftManager: DraftManager,
-    directoryManager: DirectoryManager
+    directoryManager: DirectoryManager,
+    settingsManager: SettingsManager
   ) {
     this.historyManager = historyManager;
     this.draftManager = draftManager;
     this.directoryManager = directoryManager;
+    this.settingsManager = settingsManager;
   }
 
   /**
@@ -81,8 +85,11 @@ class HistoryDraftHandler {
 
   private async handleGetHistory(_event: IpcMainInvokeEvent): Promise<HistoryItem[]> {
     try {
-      const history = await this.historyManager.getHistory();
-      logger.debug('History requested', { count: history.length });
+      // Apply fetchLimit from settings (0 = unlimited)
+      const settings = this.settingsManager.getSettings();
+      const fetchLimit = settings.history?.fetchLimit ?? 500;
+      const history = await this.historyManager.getHistory(fetchLimit || undefined);
+      logger.debug('History requested', { count: history.length, fetchLimit });
       return history;
     } catch (error) {
       logger.error('Failed to get history:', error);

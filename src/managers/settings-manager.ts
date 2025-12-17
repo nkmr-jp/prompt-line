@@ -28,7 +28,8 @@ class SettingsManager {
         height: 300
       },
       history: {
-        displayLimit: 20  // Default: show 20 most recent items (0 = unlimited)
+        displayLimit: 20,  // Default: show 20 most recent items (0 = unlimited)
+        fetchLimit: 500    // Default: fetch 500 most recent items from storage (0 = unlimited)
       },
       // commands is optional - not set by default
       // fileSearch is optional - when undefined, file search feature is disabled
@@ -286,10 +287,11 @@ window:
 # ============================================================================
 # HISTORY SETTINGS
 # ============================================================================
-# Configure history display behavior
+# Configure history behavior
 
 history:
   displayLimit: ${settings.history?.displayLimit ?? 20}                   # Maximum items to show in history list (0 = unlimited)
+  fetchLimit: ${settings.history?.fetchLimit ?? 500}                      # Maximum items to fetch from storage (0 = unlimited)
 
 # ============================================================================
 # FILE OPENER SETTINGS
