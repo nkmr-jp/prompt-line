@@ -21,7 +21,7 @@ import {LIMITS} from "../constants";
 
 class OptimizedHistoryManager implements IHistoryManager {
   private recentCache: HistoryItem[] = [];
-  private cacheSize = LIMITS.MAX_VISIBLE_ITEMS;
+  private cacheSize = LIMITS.MAX_CACHE_ITEMS;
   private historyFile: string;
   private totalItemCount = 0;
   private totalItemCountCached = false;
