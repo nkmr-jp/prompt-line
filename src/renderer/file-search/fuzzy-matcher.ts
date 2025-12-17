@@ -317,12 +317,14 @@ export class FileSearchFuzzyMatcher {
   /**
    * Merge files and agents into a single sorted list based on match score
    * When query is empty, prioritize directories first
+   * @param maxSuggestions - Optional limit for results (uses DEFAULT_MAX_SUGGESTIONS if not provided)
    */
   public mergeSuggestions(
     query: string,
     filteredFiles: FileInfo[],
     filteredAgents: AgentItem[],
-    calculateAgentScore: (agent: AgentItem, query: string) => number
+    calculateAgentScore: (agent: AgentItem, query: string) => number,
+    maxSuggestions?: number
   ): SuggestionItem[] {
     const items: SuggestionItem[] = [];
     const queryLower = query.toLowerCase();
@@ -358,8 +360,9 @@ export class FileSearchFuzzyMatcher {
       items.sort((a, b) => b.score - a.score);
     }
 
-    // Limit to DEFAULT_MAX_SUGGESTIONS
-    return items.slice(0, this.DEFAULT_MAX_SUGGESTIONS);
+    // Limit to maxSuggestions (use provided value or fallback to DEFAULT_MAX_SUGGESTIONS)
+    const limit = maxSuggestions ?? this.DEFAULT_MAX_SUGGESTIONS;
+    return items.slice(0, limit);
   }
 
   /**

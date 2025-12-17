@@ -400,12 +400,16 @@ export class FileSearchManager {
       ? await this.fuzzyMatcher.searchAgents(searchQuery, () => this.cacheManager.getMaxSuggestions('mention'))
       : [];
 
+    // Get maxSuggestions setting for merged list
+    const maxSuggestions = await this.cacheManager.getMaxSuggestions('mention');
+
     // Merge and sort suggestions
     this.mergedSuggestions = this.fuzzyMatcher.mergeSuggestions(
       searchQuery,
       this.filteredFiles,
       this.filteredAgents,
-      (agent, q) => this.fuzzyMatcher.calculateAgentMatchScore(agent, q.toLowerCase())
+      (agent, q) => this.fuzzyMatcher.calculateAgentMatchScore(agent, q.toLowerCase()),
+      maxSuggestions
     );
 
     // Reset selection
