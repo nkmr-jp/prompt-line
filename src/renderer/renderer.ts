@@ -37,7 +37,7 @@ if (!electronAPI) {
 }
 
 // Default display limit for history items
-const DEFAULT_DISPLAY_LIMIT = 2;
+const DEFAULT_DISPLAY_LIMIT = 50;
 
 // Export the renderer class for testing
 export class PromptLineRenderer {
