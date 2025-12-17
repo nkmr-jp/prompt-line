@@ -37,7 +37,7 @@ if (!electronAPI) {
 }
 
 // Default display limit for history items
-const DEFAULT_DISPLAY_LIMIT = 50;
+const DEFAULT_DISPLAY_LIMIT = 2;
 
 // Export the renderer class for testing
 export class PromptLineRenderer {
@@ -712,8 +712,16 @@ export class PromptLineRenderer {
     // Only clear history selection when entering search mode or when filter actually changes data length
     const shouldClearSelection = !isSearchMode || filteredData.length !== this.filteredHistoryData.length;
 
-    this.filteredHistoryData = filteredData;
-    this.totalMatchCount = totalMatches;
+    if (isSearchMode) {
+      // In search mode: use filtered data from search manager
+      this.filteredHistoryData = filteredData;
+      this.totalMatchCount = totalMatches;
+    } else {
+      // Not in search mode: apply non-search display limit
+      this.nonSearchDisplayLimit = DEFAULT_DISPLAY_LIMIT;
+      this.filteredHistoryData = this.historyData.slice(0, this.nonSearchDisplayLimit);
+      this.totalMatchCount = this.historyData.length;
+    }
     this.renderHistory();
 
     if (shouldClearSelection) {
@@ -723,7 +731,6 @@ export class PromptLineRenderer {
     if (!isSearchMode) {
       // Return focus to main textarea when exiting search
       this.searchManager?.focusMainTextarea();
-      this.totalMatchCount = undefined;
     }
   }
 
