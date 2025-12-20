@@ -3,7 +3,7 @@
  * Handles caching of directory data, search prefixes, and max suggestions
  */
 
-import type { DirectoryInfo } from '../../types';
+import type { DirectoryInfo, InputFormatType } from '../../types';
 import type { DirectoryData, FileSearchCallbacks } from './types';
 import { formatLog } from './types';
 
@@ -12,6 +12,7 @@ export class FileSearchCacheManager {
   private maxSuggestionsCache: Map<string, number> = new Map();
   private searchPrefixesCache: Map<string, string[]> = new Map();
   private fileSearchEnabled: boolean = false;
+  private fileSearchInputFormat: InputFormatType = 'path';  // Default to 'path' for file search
   private callbacks: FileSearchCallbacks;
 
   static readonly DEFAULT_MAX_SUGGESTIONS = 20;
@@ -33,6 +34,21 @@ export class FileSearchCacheManager {
    */
   public isFileSearchEnabled(): boolean {
     return this.fileSearchEnabled;
+  }
+
+  /**
+   * Set file search input format
+   */
+  public setFileSearchInputFormat(format: InputFormatType): void {
+    this.fileSearchInputFormat = format;
+    console.debug('[FileSearchManager] File search inputFormat:', format);
+  }
+
+  /**
+   * Get file search input format
+   */
+  public getFileSearchInputFormat(): InputFormatType {
+    return this.fileSearchInputFormat;
   }
 
   /**

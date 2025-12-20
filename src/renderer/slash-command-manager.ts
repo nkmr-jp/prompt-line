@@ -3,12 +3,15 @@
  * Manages slash command suggestions and selection
  */
 
+import type { InputFormatType } from '../types';
+
 interface SlashCommandItem {
   name: string;
   description: string;
   argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
+  inputFormat?: InputFormatType;  // 入力フォーマット（'name' | 'path'）
 }
 
 export class SlashCommandManager {
@@ -612,7 +615,10 @@ export class SlashCommandManager {
     const command = this.filteredCommands[index];
     if (!command) return;
 
-    const commandText = `/${command.name}`;
+    // Determine what to insert based on inputFormat setting
+    // Default to 'name' for commands (backward compatible behavior)
+    const inputFormat = command.inputFormat ?? 'name';
+    const commandText = inputFormat === 'path' ? command.filePath : `/${command.name}`;
 
     if (shouldPaste) {
       // Enter: Paste immediately and hide suggestions

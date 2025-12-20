@@ -3,7 +3,7 @@
  * Manages @ file mention functionality with incremental search
  */
 
-import type { FileInfo, DirectoryInfo, AgentItem } from '../types';
+import type { FileInfo, DirectoryInfo, AgentItem, InputFormatType } from '../types';
 import { getFileIconSvg, getMentionIconSvg } from './assets/icons/file-icons';
 
 /**
@@ -126,6 +126,9 @@ export class FileSearchManager {
   // Whether file search feature is enabled (from settings)
   private fileSearchEnabled: boolean = false;
 
+  // Input format for file search ('name' or 'path')
+  private fileSearchInputFormat: InputFormatType = 'path';  // Default to 'path' for file search
+
   constructor(callbacks: FileSearchCallbacks) {
     this.callbacks = callbacks;
   }
@@ -143,6 +146,21 @@ export class FileSearchManager {
    */
   public isFileSearchEnabled(): boolean {
     return this.fileSearchEnabled;
+  }
+
+  /**
+   * Set file search input format
+   */
+  public setFileSearchInputFormat(format: InputFormatType): void {
+    this.fileSearchInputFormat = format;
+    console.debug('[FileSearchManager] File search inputFormat:', format);
+  }
+
+  /**
+   * Get file search input format
+   */
+  public getFileSearchInputFormat(): InputFormatType {
+    return this.fileSearchInputFormat;
   }
 
   /**
@@ -2914,23 +2932,41 @@ export class FileSearchManager {
       relativePath += '/';
     }
 
-    this.insertFilePath(relativePath);
+    // Determine what to insert based on inputFormat setting
+    if (this.fileSearchInputFormat === 'path') {
+      // For 'path' format, replace @ and query with just the path (no @)
+      this.insertFilePathWithoutAt(relativePath);
+    } else {
+      // For 'name' format, keep @ and insert just the name
+      this.insertFilePath(file.name);
+    }
     this.hideSuggestions();
 
     // Callback for external handling
-    this.callbacks.onFileSelected(relativePath);
+    const insertText = this.fileSearchInputFormat === 'name' ? file.name : relativePath;
+    this.callbacks.onFileSelected(insertText);
   }
 
   /**
    * Select an agent by AgentItem object and insert its name
    */
   private selectAgentByInfo(agent: AgentItem): void {
-    // Insert agent name (the name already serves as the identifier)
-    this.insertFilePath(agent.name);
+    // Determine what to insert based on agent's inputFormat setting
+    // Default to 'name' for agents (backward compatible behavior)
+    const inputFormat = agent.inputFormat ?? 'name';
+
+    if (inputFormat === 'path') {
+      // For 'path' format, replace @ and query with just the file path (no @)
+      this.insertFilePathWithoutAt(agent.filePath);
+    } else {
+      // For 'name' format, keep @ and insert just the name
+      this.insertFilePath(agent.name);
+    }
     this.hideSuggestions();
 
-    // Callback for external handling (using agent name as path)
-    this.callbacks.onFileSelected(`@${agent.name}`);
+    // Callback for external handling
+    const insertText = inputFormat === 'path' ? agent.filePath : agent.name;
+    this.callbacks.onFileSelected(inputFormat === 'name' ? `@${insertText}` : insertText);
   }
 
   /**
@@ -2969,6 +3005,40 @@ export class FileSearchManager {
     // Update highlight backdrop (this will find all occurrences in the text)
     this.updateHighlightBackdrop();
 
+    // Reset state
+    this.atStartPosition = -1;
+  }
+
+  /**
+   * Insert file path without the @ symbol
+   * Replaces both @ and query with just the path
+   * Uses replaceRangeWithUndo for native Undo/Redo support
+   */
+  private insertFilePathWithoutAt(path: string): void {
+    if (this.atStartPosition < 0) return;
+
+    const cursorPos = this.callbacks.getCursorPosition();
+
+    // The insertion text includes path + space for better UX
+    const insertionText = path + ' ';
+
+    // Replace from @ (atStartPosition) to cursorPos - this removes the @ as well
+    const replaceStart = this.atStartPosition;
+    const replaceEnd = cursorPos;
+
+    // Use replaceRangeWithUndo if available for native Undo support
+    if (this.callbacks.replaceRangeWithUndo) {
+      this.callbacks.replaceRangeWithUndo(replaceStart, replaceEnd, insertionText);
+    } else {
+      // Fallback to direct text manipulation (no Undo support)
+      const text = this.callbacks.getTextContent();
+      const before = text.substring(0, replaceStart);
+      const after = text.substring(replaceEnd);
+      const newText = before + insertionText + after;
+      this.callbacks.setTextContent(newText);
+    }
+
+    // Note: Don't add to selectedPaths for path format since there's no @ to highlight
     // Reset state
     this.atStartPosition = -1;
   }

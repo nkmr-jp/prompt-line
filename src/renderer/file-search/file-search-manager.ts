@@ -12,7 +12,7 @@
  * Total: ~950 lines (thin orchestration layer)
  */
 
-import type { FileInfo, DirectoryInfo, AgentItem } from '../../types';
+import type { FileInfo, DirectoryInfo, AgentItem, InputFormatType } from '../../types';
 import { getFileIconSvg, getMentionIconSvg } from '../assets/icons/file-icons';
 import type { DirectoryData, FileSearchCallbacks, AtPathRange, SuggestionItem } from './types';
 import { formatLog, insertSvgIntoElement } from './types';
@@ -247,6 +247,14 @@ export class FileSearchManager {
 
   public isFileSearchEnabled(): boolean {
     return this.cacheManager.isFileSearchEnabled();
+  }
+
+  public setFileSearchInputFormat(format: InputFormatType): void {
+    this.cacheManager.setFileSearchInputFormat(format);
+  }
+
+  public getFileSearchInputFormat(): InputFormatType {
+    return this.cacheManager.getFileSearchInputFormat();
   }
 
   public handleCachedDirectoryData(data: DirectoryInfo | undefined): void {
@@ -730,8 +738,16 @@ export class FileSearchManager {
       return;
     }
 
-    // Insert file path
-    this.insertFilePath(relativePath);
+    // Determine what to insert based on inputFormat setting
+    const inputFormat = this.cacheManager.getFileSearchInputFormat();
+
+    if (inputFormat === 'path') {
+      // For 'path' format, replace @ and query with just the path (no @)
+      this.insertFilePathWithoutAt(relativePath);
+    } else {
+      // For 'name' format, keep @ and insert just the name
+      this.insertFilePath(file.name);
+    }
 
     // Hide suggestions
     this.hideSuggestions();
@@ -741,8 +757,17 @@ export class FileSearchManager {
    * Select an agent from suggestions
    */
   private selectAgent(agent: AgentItem): void {
-    // Insert agent name (without @)
-    this.insertFilePath(agent.name);
+    // Determine what to insert based on agent's inputFormat setting
+    // Default to 'name' for agents (backward compatible behavior)
+    const inputFormat = agent.inputFormat ?? 'name';
+
+    if (inputFormat === 'path') {
+      // For 'path' format, replace @ and query with just the file path (no @)
+      this.insertFilePathWithoutAt(agent.filePath);
+    } else {
+      // For 'name' format, keep @ and insert just the name
+      this.insertFilePath(agent.name);
+    }
 
     // Hide suggestions
     this.hideSuggestions();
@@ -764,6 +789,28 @@ export class FileSearchManager {
     // Set cursor position after insertion
     const newCursorPos = this.atStartPosition + 1 + path.length + 1; // @ + path + space
     this.callbacks.setCursorPosition(newCursorPos);
+  }
+
+  /**
+   * Insert file path without the @ symbol
+   * Replaces both @ and query with just the path
+   */
+  private insertFilePathWithoutAt(path: string): void {
+    this.highlighter.insertFilePathWithoutAt(
+      path,
+      this.atStartPosition,
+      () => this.callbacks.getCursorPosition(),
+      this.callbacks.replaceRangeWithUndo,
+      () => this.callbacks.getTextContent(),
+      (text: string) => this.callbacks.setTextContent(text)
+    );
+
+    // Set cursor position after insertion (no @ prefix, just path + space)
+    const newCursorPos = this.atStartPosition + path.length + 1; // path + space
+    this.callbacks.setCursorPosition(newCursorPos);
+
+    // Reset state
+    this.atStartPosition = -1;
   }
 
   /**

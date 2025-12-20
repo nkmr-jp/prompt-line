@@ -206,6 +206,10 @@ export interface UserSettings {
     followSymlinks?: boolean;
     // Custom path to fd command (null = auto-detect from common paths)
     fdPath?: string | null;
+    // Input format for file path expansion (default: 'path')
+    // 'name': insert only the file name (e.g., "config.ts")
+    // 'path': insert the relative path (e.g., "src/config.ts")
+    inputFormat?: InputFormatType;
   };
   fileOpener?: {
     // Extension-specific application settings (e.g., { "ts": "WebStorm", "md": "Typora" })
@@ -223,6 +227,7 @@ export interface SlashCommandItem {
   argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
+  inputFormat?: InputFormatType;  // 入力フォーマット（'name' | 'path'）
 }
 
 export interface AgentItem {
@@ -230,6 +235,7 @@ export interface AgentItem {
   description: string;
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
+  inputFormat?: InputFormatType;  // 入力フォーマット（'name' | 'path'）
 }
 
 export interface FileInfo {
@@ -297,6 +303,10 @@ export interface FileSearchSettings {
   followSymlinks: boolean;
   // Custom path to fd command (null = auto-detect from common paths)
   fdPath: string | null;
+  // Input format for file path expansion (default: 'path')
+  // 'name': insert only the file name (e.g., "config.ts")
+  // 'path': insert the relative path (e.g., "src/config.ts")
+  inputFormat?: InputFormatType;
 }
 
 // Directory data for file search (cached in renderer)
@@ -369,6 +379,13 @@ export interface FileCacheStats {
 // ============================================================================
 
 /**
+ * 入力フォーマットの種類
+ * - name: 名前のみを挿入（例: "config.ts"）
+ * - path: パスを挿入（例: "src/config.ts"）
+ */
+export type InputFormatType = 'name' | 'path';
+
+/**
  * mdSearch エントリの種類
  * - command: スラッシュコマンド（/で始まる）
  * - mention: メンション（@で始まる）
@@ -397,6 +414,8 @@ export interface MdSearchEntry {
   searchPrefix?: string;
   /** オプション: 名前ソート順（デフォルト: 'asc'） - 'asc': 昇順, 'desc': 降順 */
   sortOrder?: 'asc' | 'desc';
+  /** オプション: 入力フォーマット（デフォルト: 'name'） - 'name': 名前のみ, 'path': ファイルパス */
+  inputFormat?: InputFormatType;
 }
 
 /**
@@ -417,5 +436,7 @@ export interface MdSearchItem {
   argumentHint?: string;
   /** 検索ソースの識別子（path + pattern） */
   sourceId: string;
+  /** 入力フォーマット（'name' | 'path'） */
+  inputFormat?: InputFormatType;
 }
 
