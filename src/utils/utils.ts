@@ -102,6 +102,8 @@ const WINDOW_DETECTOR_PATH = path.join(NATIVE_TOOLS_DIR, 'window-detector');
 const KEYBOARD_SIMULATOR_PATH = path.join(NATIVE_TOOLS_DIR, 'keyboard-simulator');
 const TEXT_FIELD_DETECTOR_PATH = path.join(NATIVE_TOOLS_DIR, 'text-field-detector');
 const DIRECTORY_DETECTOR_PATH = path.join(NATIVE_TOOLS_DIR, 'directory-detector');
+const FILE_SEARCHER_PATH = path.join(NATIVE_TOOLS_DIR, 'file-searcher');
+const SYMBOL_SEARCHER_PATH = path.join(NATIVE_TOOLS_DIR, 'symbol-searcher');
 
 // Accessibility permission check result
 interface AccessibilityStatus {
@@ -758,58 +760,41 @@ function detectCurrentDirectory(options?: DirectoryDetectionOptions): Promise<Di
 
 /**
  * Detect current directory from active terminal and list files
+ * Uses separated tools: directory-detector for CWD, file-searcher for file listing
  * @param options - Optional PID and bundleId to override frontmost app detection
  * @returns Promise<DirectoryInfo> - Object with directory info and file list
  */
-function detectCurrentDirectoryWithFiles(options?: DirectoryDetectionOptions): Promise<DirectoryInfo> {
-  return new Promise((resolve) => {
-    if (process.platform !== 'darwin') {
-      resolve({ error: 'Directory detection only supported on macOS' });
-      return;
-    }
+async function detectCurrentDirectoryWithFiles(options?: DirectoryDetectionOptions): Promise<DirectoryInfo> {
+  if (process.platform !== 'darwin') {
+    return { error: 'Directory detection only supported on macOS' };
+  }
 
-    const execOptions = {
-      timeout: TIMEOUTS.WINDOW_BOUNDS_TIMEOUT,
-      killSignal: 'SIGTERM' as const
-    };
+  // Step 1: Detect current directory using directory-detector
+  const dirResult = await detectCurrentDirectory(options);
+  if (dirResult.error || !dirResult.directory) {
+    return dirResult;
+  }
 
-    // Build args array with optional PID and/or bundleId arguments
-    // bundleId alone is supported - Swift will look up the PID
-    const args: string[] = ['detect-with-files'];
-    if (options?.bundleId) {
-      args.push('--bundleId', options.bundleId);
-      if (options?.pid) {
-        args.push('--pid', String(options.pid));
-      }
-    }
+  // Step 2: List files using file-searcher
+  const fileResult = await listDirectory(dirResult.directory);
+  if (fileResult.error) {
+    // Return directory info without files if file listing fails
+    logger.warn('File listing failed, returning directory only:', fileResult.error);
+    return dirResult;
+  }
 
-    execFile(DIRECTORY_DETECTOR_PATH, args, execOptions, (error, stdout) => {
-      if (error) {
-        logger.warn('Error detecting current directory with files (non-blocking):', error.message);
-        resolve({ error: error.message });
-      } else {
-        try {
-          const result = JSON.parse(stdout.trim()) as DirectoryInfo;
-          if (result.error) {
-            logger.debug('Directory detection with files returned error:', result.error);
-          } else {
-            logger.debug('Current directory detected with files:', {
-              directory: result.directory,
-              fileCount: result.fileCount
-            });
-          }
-          resolve(result);
-        } catch (parseError) {
-          logger.warn('Error parsing directory detection result:', parseError);
-          resolve({ error: 'Failed to parse directory detection result' });
-        }
-      }
-    });
-  });
+  // Combine results - only add file properties if they exist
+  const result: DirectoryInfo = { ...dirResult };
+  if (fileResult.files) result.files = fileResult.files;
+  if (fileResult.fileCount !== undefined) result.fileCount = fileResult.fileCount;
+  if (fileResult.searchMode) result.searchMode = fileResult.searchMode;
+  if (fileResult.partial !== undefined) result.partial = fileResult.partial;
+
+  return result;
 }
 
 /**
- * List files in a specified directory
+ * List files in a specified directory using file-searcher native tool
  * @param directoryPath - Path to the directory to list
  * @returns Promise<DirectoryInfo> - Object with file list or error
  */
@@ -843,7 +828,8 @@ function listDirectory(directoryPath: string): Promise<DirectoryInfo> {
       killSignal: 'SIGTERM' as const
     };
 
-    execFile(DIRECTORY_DETECTOR_PATH, ['list', sanitizedPath], options, (error, stdout) => {
+    // Use file-searcher native tool for file listing
+    execFile(FILE_SEARCHER_PATH, ['list', sanitizedPath], options, (error, stdout) => {
       if (error) {
         logger.warn('Error listing directory (non-blocking):', error.message);
         resolve({ error: error.message });
@@ -889,6 +875,8 @@ export {
   TEXT_FIELD_DETECTOR_PATH,
   WINDOW_DETECTOR_PATH,
   DIRECTORY_DETECTOR_PATH,
+  FILE_SEARCHER_PATH,
+  SYMBOL_SEARCHER_PATH,
   sanitizeAppleScript,
   executeAppleScriptSafely,
   validateAppleScriptSecurity,

@@ -94,8 +94,8 @@ class AppConfigClass {
       get cacheDir() {
         return path.join(userDataDir, 'cache');
       },
-      get fileListsCacheDir() {
-        return path.join(userDataDir, 'cache', 'file-lists');
+      get projectsCacheDir() {
+        return path.join(userDataDir, 'cache', 'projects');
       }
     };
 
