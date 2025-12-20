@@ -319,8 +319,8 @@ export class FileSearchManager {
    * Check for @ mention and show file search if found
    */
   public checkForFileSearch(): void {
-    if (!this.textInput || !this.cacheManager.isFileSearchEnabled()) {
-      console.debug('[FileSearchManager] checkForFileSearch: skip - textInput null or file search disabled');
+    if (!this.textInput) {
+      console.debug('[FileSearchManager] checkForFileSearch: skip - textInput null');
       return;
     }
 
@@ -329,9 +329,20 @@ export class FileSearchManager {
     // If we extracted a query, show suggestions
     if (result) {
       const { query, start } = result;
+
+      // Check if it's a symbol search query (allows symbol search even when file search is disabled)
+      const fullQuery = '@' + query;
+      const isSymbolQuery = this.symbolSearchClient.isSymbolSearchQuery(fullQuery);
+
+      // Skip if file search is disabled AND it's not a symbol search query
+      if (!this.cacheManager.isFileSearchEnabled() && !isSymbolQuery) {
+        console.debug('[FileSearchManager] checkForFileSearch: skip - file search disabled and not symbol query');
+        return;
+      }
+
       this.atStartPosition = start;
       this.currentQuery = query;
-      console.debug('[FileSearchManager] checkForFileSearch: showing suggestions for query:', query);
+      console.debug('[FileSearchManager] checkForFileSearch: showing suggestions for query:', query, 'isSymbolQuery:', isSymbolQuery);
       this.showSuggestions(query);
     } else if (this.isVisible) {
       // Hide if visible and no @ found
@@ -378,16 +389,23 @@ export class FileSearchManager {
    * Show file suggestions with mixed file and agent results
    */
   private async showSuggestions(query: string): Promise<void> {
-    if (!this.suggestionsContainer || !this.cacheManager.isFileSearchEnabled()) {
-      console.debug('[FileSearchManager] showSuggestions: skip - no container or disabled');
+    if (!this.suggestionsContainer) {
+      console.debug('[FileSearchManager] showSuggestions: skip - no container');
       return;
     }
 
-    // Check for symbol search pattern (@lang:query)
+    // Check for symbol search pattern (@lang:query) FIRST
+    // Symbol search works independently of file search enabled state
     // Note: query doesn't include @, so we need to prepend it for the check
     const fullQuery = '@' + query;
     if (this.symbolSearchClient.isSymbolSearchQuery(fullQuery)) {
       await this.showSymbolSuggestions(fullQuery);
+      return;
+    }
+
+    // For file/agent search, check if file search is enabled
+    if (!this.cacheManager.isFileSearchEnabled()) {
+      console.debug('[FileSearchManager] showSuggestions: skip - file search disabled');
       return;
     }
 
