@@ -589,6 +589,9 @@ export class FileSearchManager {
       if (this.isVisible) {
         this.handleKeyDown(e);
       } else if (e.key === 'Backspace') {
+        // Don't override Shift+Backspace or when text is selected
+        if (e.shiftKey) return;
+        if (this.textInput && this.textInput.selectionStart !== this.textInput.selectionEnd) return;
         // Handle backspace to delete entire @path if cursor is at the end of one
         this.handleBackspaceForAtPath(e);
       } else if (e.key === 'Enter' && e.ctrlKey) {
