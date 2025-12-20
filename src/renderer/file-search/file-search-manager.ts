@@ -12,7 +12,7 @@
  * Total: ~950 lines (thin orchestration layer)
  */
 
-import type { FileInfo, DirectoryInfo, AgentItem, InputFormatType } from '../../types';
+import type { FileInfo, DirectoryInfo, AgentItem } from '../../types';
 import { getFileIconSvg, getMentionIconSvg } from '../assets/icons/file-icons';
 import type { DirectoryData, FileSearchCallbacks, AtPathRange, SuggestionItem } from './types';
 import { formatLog, insertSvgIntoElement } from './types';
@@ -247,14 +247,6 @@ export class FileSearchManager {
 
   public isFileSearchEnabled(): boolean {
     return this.cacheManager.isFileSearchEnabled();
-  }
-
-  public setFileSearchInputFormat(format: InputFormatType): void {
-    this.cacheManager.setFileSearchInputFormat(format);
-  }
-
-  public getFileSearchInputFormat(): InputFormatType {
-    return this.cacheManager.getFileSearchInputFormat();
   }
 
   public handleCachedDirectoryData(data: DirectoryInfo | undefined): void {
@@ -738,16 +730,8 @@ export class FileSearchManager {
       return;
     }
 
-    // Determine what to insert based on inputFormat setting
-    const inputFormat = this.cacheManager.getFileSearchInputFormat();
-
-    if (inputFormat === 'path') {
-      // For 'path' format, replace @ and query with just the path (no @)
-      this.insertFilePathWithoutAt(relativePath);
-    } else {
-      // For 'name' format, keep @ and insert just the name
-      this.insertFilePath(file.name);
-    }
+    // Insert file path (with @ prefix)
+    this.insertFilePath(relativePath);
 
     // Hide suggestions
     this.hideSuggestions();

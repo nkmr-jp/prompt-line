@@ -414,11 +414,6 @@ export class PromptLineRenderer {
       // Update file search enabled state in FileSearchManager
       this.fileSearchManager?.setFileSearchEnabled(data.fileSearchEnabled ?? false);
 
-      // Update file search input format from settings
-      if (data.settings?.fileSearch?.inputFormat) {
-        this.fileSearchManager?.setFileSearchInputFormat(data.settings.fileSearch.inputFormat);
-      }
-
       // Preload searchPrefixes cache for command/mention (enables sync checks for slash command hints)
       this.fileSearchManager?.preloadSearchPrefixesCache();
 

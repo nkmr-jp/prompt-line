@@ -35,9 +35,6 @@ export interface UserSettings {
     width: number;
     height: number;
   };
-  fileSearch?: {
-    inputFormat?: 'name' | 'path';
-  };
 }
 
 export interface FileInfo {

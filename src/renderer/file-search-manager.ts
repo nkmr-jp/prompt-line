@@ -3,7 +3,7 @@
  * Manages @ file mention functionality with incremental search
  */
 
-import type { FileInfo, DirectoryInfo, AgentItem, InputFormatType } from '../types';
+import type { FileInfo, DirectoryInfo, AgentItem } from '../types';
 import { getFileIconSvg, getMentionIconSvg } from './assets/icons/file-icons';
 
 /**
@@ -126,9 +126,6 @@ export class FileSearchManager {
   // Whether file search feature is enabled (from settings)
   private fileSearchEnabled: boolean = false;
 
-  // Input format for file search ('name' or 'path')
-  private fileSearchInputFormat: InputFormatType = 'path';  // Default to 'path' for file search
-
   constructor(callbacks: FileSearchCallbacks) {
     this.callbacks = callbacks;
   }
@@ -146,21 +143,6 @@ export class FileSearchManager {
    */
   public isFileSearchEnabled(): boolean {
     return this.fileSearchEnabled;
-  }
-
-  /**
-   * Set file search input format
-   */
-  public setFileSearchInputFormat(format: InputFormatType): void {
-    this.fileSearchInputFormat = format;
-    console.debug('[FileSearchManager] File search inputFormat:', format);
-  }
-
-  /**
-   * Get file search input format
-   */
-  public getFileSearchInputFormat(): InputFormatType {
-    return this.fileSearchInputFormat;
   }
 
   /**
@@ -2932,19 +2914,11 @@ export class FileSearchManager {
       relativePath += '/';
     }
 
-    // Determine what to insert based on inputFormat setting
-    if (this.fileSearchInputFormat === 'path') {
-      // For 'path' format, replace @ and query with just the path (no @)
-      this.insertFilePathWithoutAt(relativePath);
-    } else {
-      // For 'name' format, keep @ and insert just the name
-      this.insertFilePath(file.name);
-    }
+    this.insertFilePath(relativePath);
     this.hideSuggestions();
 
     // Callback for external handling
-    const insertText = this.fileSearchInputFormat === 'name' ? file.name : relativePath;
-    this.callbacks.onFileSelected(insertText);
+    this.callbacks.onFileSelected(relativePath);
   }
 
   /**
