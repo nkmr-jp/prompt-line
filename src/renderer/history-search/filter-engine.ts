@@ -52,10 +52,11 @@ export class HistorySearchFilterEngine {
       : query.trim().toLowerCase();
 
     // Score and filter items from the search scope
+    // Sort by score descending, then by timestamp descending (newest first) for same score
     const allMatches = searchItems
       .map(item => this.scoreItem(item, queryNormalized))
       .filter(result => result.score > 0)
-      .sort((a, b) => b.score - a.score);
+      .sort((a, b) => b.score - a.score || b.item.timestamp - a.item.timestamp);
 
     const displayItems = allMatches
       .slice(0, this.config.maxDisplayResults)
@@ -226,10 +227,11 @@ export class HistorySearchFilterEngine {
       ? query.trim()
       : query.trim().toLowerCase();
 
+    // Sort by score descending, then by timestamp descending (newest first) for same score
     const allMatches = searchItems
       .map(item => this.scoreItem(item, queryNormalized))
       .filter(result => result.score > 0)
-      .sort((a, b) => b.score - a.score);
+      .sort((a, b) => b.score - a.score || b.item.timestamp - a.item.timestamp);
 
     return {
       items: allMatches.slice(0, displayLimit).map(result => result.item),

@@ -4,7 +4,7 @@ import os from 'os';
 import { logger } from '../utils/utils';
 import type { MdSearchEntry, MdSearchItem, MdSearchType } from '../types';
 import { resolveTemplate, getBasename, parseFrontmatter, extractRawFrontmatter } from '../lib/template-resolver';
-import { getDefaultMdSearchConfig, DEFAULT_MAX_SUGGESTIONS } from '../lib/default-md-search-config';
+import { getDefaultMdSearchConfig, DEFAULT_MAX_SUGGESTIONS, DEFAULT_SORT_ORDER } from '../lib/default-md-search-config';
 
 /**
  * MdSearchLoader - 設定ベースの統合Markdownファイルローダー
@@ -49,7 +49,9 @@ class MdSearchLoader {
    */
   async getItems(type: MdSearchType): Promise<MdSearchItem[]> {
     const allItems = await this.loadAll();
-    return allItems.filter(item => item.type === type);
+    const items = allItems.filter(item => item.type === type);
+    const sortOrder = this.getSortOrder(type);
+    return this.sortItems(items, sortOrder);
   }
 
   /**
@@ -73,12 +75,15 @@ class MdSearchLoader {
       return query.startsWith(entry.searchPrefix);
     });
 
+    // クエリに基づいてソート順を決定
+    const sortOrder = this.getSortOrderForQuery(type, query);
+
     if (!query) {
-      return items;
+      return this.sortItems(items, sortOrder);
     }
 
     // 各アイテムの実際の検索クエリを計算（searchPrefixを除去）
-    return items.filter(item => {
+    const filteredItems = items.filter(item => {
       const entry = this.findEntryForItem(item);
       const prefix = entry?.searchPrefix || '';
       const actualQuery = query.startsWith(prefix) ? query.slice(prefix.length) : query;
@@ -92,6 +97,8 @@ class MdSearchLoader {
       return item.name.toLowerCase().includes(lowerActualQuery) ||
              item.description.toLowerCase().includes(lowerActualQuery);
     });
+
+    return this.sortItems(filteredItems, sortOrder);
   }
 
   /**
@@ -122,6 +129,56 @@ class MdSearchLoader {
   getSearchPrefixes(type: MdSearchType): string[] {
     const entries = this.config.filter(entry => entry.type === type && entry.searchPrefix);
     return entries.map(entry => entry.searchPrefix!);
+  }
+
+  /**
+   * 指定タイプのsortOrderを取得（複数エントリがある場合は最初のエントリの設定を返す）
+   */
+  getSortOrder(type: MdSearchType): 'asc' | 'desc' {
+    const entries = this.config.filter(entry => entry.type === type);
+    if (entries.length === 0) {
+      return DEFAULT_SORT_ORDER;
+    }
+    // 最初のエントリの設定を使用（未設定の場合はデフォルト）
+    return entries[0]?.sortOrder ?? DEFAULT_SORT_ORDER;
+  }
+
+  /**
+   * クエリのsearchPrefixにマッチするエントリのsortOrderを取得
+   */
+  getSortOrderForQuery(type: MdSearchType, query: string): 'asc' | 'desc' {
+    const entries = this.config.filter(entry => entry.type === type);
+    if (entries.length === 0) {
+      return DEFAULT_SORT_ORDER;
+    }
+
+    // クエリがsearchPrefixで始まるエントリを探す
+    const matchingEntry = entries.find(entry =>
+      entry.searchPrefix && query.startsWith(entry.searchPrefix)
+    );
+
+    if (matchingEntry) {
+      return matchingEntry.sortOrder ?? DEFAULT_SORT_ORDER;
+    }
+
+    // searchPrefixがマッチしない場合は、searchPrefixが未設定のエントリを探す
+    const defaultEntry = entries.find(entry => !entry.searchPrefix);
+    if (defaultEntry) {
+      return defaultEntry.sortOrder ?? DEFAULT_SORT_ORDER;
+    }
+
+    // フォールバック: 最初のエントリの設定を使用
+    return entries[0]?.sortOrder ?? DEFAULT_SORT_ORDER;
+  }
+
+  /**
+   * アイテムを指定のソート順でソート
+   */
+  private sortItems(items: MdSearchItem[], sortOrder: 'asc' | 'desc'): MdSearchItem[] {
+    return [...items].sort((a, b) => {
+      const comparison = a.name.localeCompare(b.name);
+      return sortOrder === 'desc' ? -comparison : comparison;
+    });
   }
 
   /**

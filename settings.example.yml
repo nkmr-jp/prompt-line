@@ -122,10 +122,12 @@ fileSearch:
 #    pattern: "*.md"                   # Glob pattern: *.md, **/*.md, SKILL.md
 #    argumentHint: "{frontmatter@argument-hint}"  # Optional hint after selection
 #    maxSuggestions: 20                # Max number of suggestions (default: 20)
+#    sortOrder: asc                    # Sort order: 'asc' (A→Z) or 'desc' (Z→A)
 #  - name: "agent-{basename}"
 #    type: mention
 #    description: "{frontmatter@description}"
 #    path: ~/.claude/agents
 #    pattern: "*.md"
 #    maxSuggestions: 20
+#    sortOrder: asc                    # Sort order: 'asc' (A→Z) or 'desc' (Z→A)
 #    searchPrefix: "agent:"            # Require @agent: prefix for this entry (optional)

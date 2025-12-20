@@ -259,6 +259,7 @@ fileOpener:
 #    pattern: "*.md"
 #    argumentHint: "{frontmatter@argument-hint}"  # Optional hint after selection
 #    maxSuggestions: 20                # Max number of suggestions (default: 20)
+#    sortOrder: asc                    # Sort order: 'asc' (A→Z) or 'desc' (Z→A)
 #
 #  - name: "agent-{basename}"
 #    type: mention
@@ -266,6 +267,7 @@ fileOpener:
 #    path: ~/.claude/agents
 #    pattern: "*.md"
 #    maxSuggestions: 20
+#    sortOrder: asc                    # Sort order: 'asc' (A→Z) or 'desc' (Z→A)
 #    searchPrefix: "agent:"            # Require @agent: prefix for this entry (optional)
 #
 #  - name: "{frontmatter@name}"
@@ -274,6 +276,7 @@ fileOpener:
 #    path: ~/.claude/plugins
 #    pattern: "**/*/SKILL.md"          # Match SKILL.md in any plugin subdirectory
 #    maxSuggestions: 20
+#    sortOrder: asc                    # Sort order: 'asc' (A→Z) or 'desc' (Z→A)
 #    searchPrefix: "skill:"            # Require @skill: prefix for this entry
 ```
 
