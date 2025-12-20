@@ -353,8 +353,11 @@ class DirectoryDetector {
             args: listArgs
           });
 
+          // Calculate remaining timeout with minimum threshold
+          const remainingTimeout = Math.max(timeout - detectElapsed, 1000);
+
           const listOptions = {
-            timeout: timeout - detectElapsed, // Use remaining timeout
+            timeout: remainingTimeout,
             killSignal: 'SIGTERM' as const,
             // Increase maxBuffer for large file lists (default is 1MB)
             // 50,000 files × ~200 bytes/file = ~10MB, so use 50MB for safety
