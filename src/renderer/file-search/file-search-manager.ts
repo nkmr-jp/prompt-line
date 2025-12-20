@@ -31,6 +31,10 @@ import {
   resolveAtPathToAbsolute
 } from './path-utils';
 
+// Pattern to detect code search queries (e.g., @ts:, @go:, @py:)
+// These should be handled by CodeSearchManager, not FileSearchManager
+const CODE_SEARCH_PATTERN = /^[a-z]+:/;
+
 export class FileSearchManager {
   // Composed modules
   private cacheManager: FileSearchCacheManager;
@@ -323,6 +327,17 @@ export class FileSearchManager {
     // If we extracted a query, show suggestions
     if (result) {
       const { query, start } = result;
+
+      // Skip if query matches code search pattern (e.g., "ts:", "go:", "py:")
+      // These should be handled by CodeSearchManager instead
+      if (CODE_SEARCH_PATTERN.test(query)) {
+        console.debug('[FileSearchManager] checkForFileSearch: skip - code search pattern detected:', query);
+        if (this.isVisible) {
+          this.hideSuggestions();
+        }
+        return;
+      }
+
       this.atStartPosition = start;
       this.currentQuery = query;
       console.debug('[FileSearchManager] checkForFileSearch: showing suggestions for query:', query);
