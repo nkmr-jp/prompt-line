@@ -395,6 +395,8 @@ export interface MdSearchEntry {
   maxSuggestions?: number;
   /** オプション: 検索プレフィックス（例: "agent:"）- このプレフィックスで始まるクエリのみ検索対象 */
   searchPrefix?: string;
+  /** オプション: 名前ソート順（デフォルト: 'asc'） - 'asc': 昇順, 'desc': 降順 */
+  sortOrder?: 'asc' | 'desc';
 }
 
 /**
