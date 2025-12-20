@@ -288,6 +288,8 @@ class MdSearchLoader {
   loadAgents(directory: string, query?: string): Promise<AgentItem[]>
   getMaxSuggestions(type: MdSearchType): number
   getPrefixes(type: MdSearchType): string[]
+  getSortOrder(type: MdSearchType): 'asc' | 'desc'
+  getSortOrderForQuery(type: MdSearchType, query: string): 'asc' | 'desc'
 }
 ```
 
@@ -297,6 +299,7 @@ class MdSearchLoader {
 - Flexible name/description templating with YAML frontmatter support
 - Search prefix filtering (e.g., "agent:" prefix)
 - Configurable max suggestions per search type
+- Configurable sort order per entry ('asc' for A→Z, 'desc' for Z→A)
 
 **File Format Support:**
 - YAML frontmatter for metadata extraction
