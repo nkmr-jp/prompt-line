@@ -354,7 +354,8 @@ class DirectoryDetector {
           });
 
           // Calculate remaining timeout with minimum threshold
-          const remainingTimeout = Math.max(timeout - detectElapsed, 1000);
+          // Use Math.round to ensure integer value (required by execFile)
+          const remainingTimeout = Math.round(Math.max(timeout - detectElapsed, 1000));
 
           const listOptions = {
             timeout: remainingTimeout,
@@ -364,7 +365,10 @@ class DirectoryDetector {
             maxBuffer: 50 * 1024 * 1024
           };
 
-          execFile(FILE_SEARCHER_PATH, listArgs, listOptions, (listError: Error | null, listStdout?: string) => {
+          logger.debug('Executing file searcher with timeout:', { remainingTimeout });
+
+          try {
+            execFile(FILE_SEARCHER_PATH, listArgs, listOptions, (listError: Error | null, listStdout?: string) => {
             const totalElapsed = performance.now() - startTime;
 
             // Merge results
@@ -413,7 +417,12 @@ class DirectoryDetector {
             });
 
             resolve(result);
-          });
+            });
+          } catch (execError) {
+            logger.warn('Error executing file searcher:', execError);
+            // Return detect result without files on file searcher error
+            resolve(detectResult);
+          }
         } catch (parseError) {
           logger.warn('Error parsing directory detection result:', parseError);
           resolve(null);
