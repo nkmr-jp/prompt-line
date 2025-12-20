@@ -481,6 +481,10 @@ export class FileSearchHighlighter {
   /**
    * Handle backspace key to delete entire @path if cursor is at the end
    * Uses replaceRangeWithUndo for native Undo/Redo support
+   *
+   * Note: Does not override normal backspace behavior when:
+   * - Shift key is pressed (Shift+Backspace)
+   * - Text is selected (let browser delete selection normally)
    */
   public handleBackspaceForAtPath(
     e: KeyboardEvent,
@@ -488,6 +492,17 @@ export class FileSearchHighlighter {
     getTextContent: () => string,
     setCursorPosition: (pos: number) => void
   ): void {
+    // Don't override Shift+Backspace (let it behave as normal backspace)
+    if (e.shiftKey) {
+      return;
+    }
+
+    // Don't override when text is selected (let browser delete selection normally)
+    const textInput = this.getTextInput();
+    if (textInput && textInput.selectionStart !== textInput.selectionEnd) {
+      return;
+    }
+
     const cursorPos = getCursorPosition();
     const atPath = this.findAtPathAtCursor(cursorPos);
 

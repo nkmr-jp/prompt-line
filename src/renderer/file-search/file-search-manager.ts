@@ -655,6 +655,10 @@ export class FileSearchManager {
       e.preventDefault();
       this.hideSuggestions();
     } else if (e.key === 'Backspace') {
+      // Don't override Shift+Backspace or when text is selected
+      if (e.shiftKey) return;
+      if (this.textInput && this.textInput.selectionStart !== this.textInput.selectionEnd) return;
+
       // Navigate up directory when backspace on empty query with path
       if (this.currentQuery === '' && this.currentPath) {
         e.preventDefault();
