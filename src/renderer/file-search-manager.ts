@@ -2914,12 +2914,11 @@ export class FileSearchManager {
       relativePath += '/';
     }
 
-    // Always use name format with @ prefix for file search
-    this.insertFilePath(file.name);
+    this.insertFilePath(relativePath);
     this.hideSuggestions();
 
     // Callback for external handling
-    this.callbacks.onFileSelected(file.name);
+    this.callbacks.onFileSelected(relativePath);
   }
 
   /**

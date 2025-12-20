@@ -730,8 +730,8 @@ export class FileSearchManager {
       return;
     }
 
-    // Always use name format with @ prefix for file search
-    this.insertFilePath(file.name);
+    // Insert file path (with @ prefix)
+    this.insertFilePath(relativePath);
 
     // Hide suggestions
     this.hideSuggestions();
