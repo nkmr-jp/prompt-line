@@ -165,7 +165,7 @@ class SettingsManager {
 #  maxDepth: null                     # Directory depth limit (null = unlimited)
 #  followSymlinks: false              # Follow symbolic links
 #  fdPath: null                       # Custom path to fd command (null = auto-detect)
-#  inputFormat: path                  # 'name' for filename only, 'path' for relative path (default: path)
+#  inputFormat: name                  # 'name' for @filename only (default), 'path' for relative path
 #  #excludePatterns:                  # Additional exclude patterns
 #  #  - "*.log"
 #  #  - "*.tmp"
@@ -189,7 +189,7 @@ class SettingsManager {
         ? `fdPath: "${settings.fileSearch.fdPath}"                       # Custom path to fd command`
         : `#fdPath: null                       # Custom path to fd command (null = auto-detect)`;
 
-      const inputFormatValue = settings.fileSearch.inputFormat ?? 'path';
+      const inputFormatValue = settings.fileSearch.inputFormat ?? 'name';
 
       return `fileSearch:
   respectGitignore: ${settings.fileSearch.respectGitignore ?? true}    # Respect .gitignore files
@@ -197,7 +197,7 @@ class SettingsManager {
   maxFiles: ${settings.fileSearch.maxFiles ?? 5000}                    # Maximum files to return
   maxDepth: ${settings.fileSearch.maxDepth ?? 'null'}                  # Directory depth limit (null = unlimited)
   followSymlinks: ${settings.fileSearch.followSymlinks ?? false}       # Follow symbolic links
-  inputFormat: ${inputFormatValue}                  # 'name' for filename only, 'path' for relative path
+  inputFormat: ${inputFormatValue}                  # 'name' for @filename only (default), 'path' for relative path
   ${fdPathSection}
   ${excludePatternsSection}
   ${includePatternsSection}`;

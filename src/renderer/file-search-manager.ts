@@ -127,7 +127,7 @@ export class FileSearchManager {
   private fileSearchEnabled: boolean = false;
 
   // Input format for file search ('name' or 'path')
-  private fileSearchInputFormat: InputFormatType = 'path';  // Default to 'path' for file search
+  private fileSearchInputFormat: InputFormatType = 'name';  // Default to 'name' for file search (with @ prefix)
 
   constructor(callbacks: FileSearchCallbacks) {
     this.callbacks = callbacks;
