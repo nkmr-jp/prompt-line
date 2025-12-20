@@ -18,6 +18,7 @@ import { HistoryUIManager } from './history-ui-manager';
 import { LifecycleManager } from './lifecycle-manager';
 import { SimpleSnapshotManager } from './snapshot-manager';
 import { FileSearchManager } from './file-search-manager';
+import { CodeSearchManager } from './code-search';
 
 // Secure electronAPI access via preload script
 const electronAPI = (window as any).electronAPI;
@@ -51,6 +52,7 @@ export class PromptLineRenderer {
   private searchManager: HistorySearchManager | null = null;
   private slashCommandManager: SlashCommandManager | null = null;
   private fileSearchManager: FileSearchManager | null = null;
+  private codeSearchManager: CodeSearchManager | null = null;
   private domManager: DomManager;
   private draftManager: DraftManager;
   private historyUIManager: HistoryUIManager;
@@ -102,6 +104,7 @@ export class PromptLineRenderer {
       this.setupSearchManager();
       this.setupSlashCommandManager();
       this.setupFileSearchManager();
+      await this.setupCodeSearchManager();
       this.setupEventListeners();
       this.setupIPCListeners();
     } catch (error) {
@@ -215,6 +218,30 @@ export class PromptLineRenderer {
     if (this.eventHandler) {
       this.eventHandler.setFileSearchManager(this.fileSearchManager);
     }
+  }
+
+  private async setupCodeSearchManager(): Promise<void> {
+    this.codeSearchManager = new CodeSearchManager({
+      onSymbolSelected: (symbol) => {
+        console.debug('[CodeSearchManager] Symbol selected:', symbol.name);
+        this.draftManager.saveDraftDebounced();
+      },
+      getTextContent: () => this.domManager.getCurrentText(),
+      setTextContent: (text: string) => this.domManager.setText(text),
+      getCursorPosition: () => this.domManager.getCursorPosition(),
+      setCursorPosition: (position: number) => this.domManager.setCursorPosition(position),
+      updateHintText: (text: string) => {
+        this.domManager.updateHintText(text);
+      },
+      getDefaultHintText: () => this.defaultHintText,
+      replaceRangeWithUndo: (start: number, end: number, newText: string) => {
+        this.domManager.replaceRangeWithUndo(start, end, newText);
+      },
+      getIsComposing: () => this.eventHandler?.getIsComposing() ?? false
+    });
+
+    await this.codeSearchManager.initialize();
+    this.codeSearchManager.setupEventListeners();
   }
 
   private setupEventListeners(): void {
@@ -434,6 +461,11 @@ export class PromptLineRenderer {
         });
         this.fileSearchManager?.handleCachedDirectoryData(data.directoryData);
 
+        // Set directory for code search
+        if (data.directoryData.directory) {
+          this.codeSearchManager?.setDirectory(data.directoryData.directory);
+        }
+
         // Update hint text with formatted directory path
         // But prioritize hint message (e.g., fd not installed) over directory path
         if (data.directoryData.hint) {
@@ -514,6 +546,11 @@ export class PromptLineRenderer {
 
       // Update cache with directory data (handles both Stage 1 and Stage 2)
       this.fileSearchManager?.updateCache(data);
+
+      // Update directory for code search
+      if (data.directory) {
+        this.codeSearchManager?.setDirectory(data.directory);
+      }
 
       // Update hint text with formatted directory path
       // But prioritize hint message (e.g., fd not installed) over directory path

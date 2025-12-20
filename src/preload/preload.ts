@@ -35,7 +35,13 @@ const ALLOWED_CHANNELS = [
   'get-md-search-prefixes',
   'open-file-in-editor',
   'check-file-exists',
-  'open-external-url'
+  'open-external-url',
+  // Code search channels
+  'check-rg',
+  'get-supported-languages',
+  'search-symbols',
+  'get-cached-symbols',
+  'clear-symbol-cache'
 ];
 
 // IPC channel validation with additional security checks
@@ -264,6 +270,29 @@ const electronAPI = {
     openExternal: async (url: string): Promise<{ success: boolean; error?: string }> => {
       return ipcRenderer.invoke('open-external-url', url);
     }
+  },
+
+  // Code search (symbol search with ripgrep)
+  codeSearch: {
+    checkRg: async (): Promise<{ rgAvailable: boolean; rgPath: string | null }> => {
+      return ipcRenderer.invoke('check-rg');
+    },
+    getSupportedLanguages: async (): Promise<{ languages: Array<{ key: string; displayName: string; extension: string }> }> => {
+      return ipcRenderer.invoke('get-supported-languages');
+    },
+    searchSymbols: async (
+      directory: string,
+      language: string,
+      options?: { maxSymbols?: number; useCache?: boolean }
+    ): Promise<any> => {
+      return ipcRenderer.invoke('search-symbols', directory, language, options);
+    },
+    getCachedSymbols: async (directory: string, language?: string): Promise<any> => {
+      return ipcRenderer.invoke('get-cached-symbols', directory, language);
+    },
+    clearCache: async (directory?: string): Promise<{ success: boolean }> => {
+      return ipcRenderer.invoke('clear-symbol-cache', directory);
+    }
   }
 };
 
@@ -314,6 +343,17 @@ export interface ElectronAPI {
   };
   shell: {
     openExternal: (url: string) => Promise<{ success: boolean; error?: string }>;
+  };
+  codeSearch: {
+    checkRg: () => Promise<{ rgAvailable: boolean; rgPath: string | null }>;
+    getSupportedLanguages: () => Promise<{ languages: Array<{ key: string; displayName: string; extension: string }> }>;
+    searchSymbols: (
+      directory: string,
+      language: string,
+      options?: { maxSymbols?: number; useCache?: boolean }
+    ) => Promise<any>;
+    getCachedSymbols: (directory: string, language?: string) => Promise<any>;
+    clearCache: (directory?: string) => Promise<{ success: boolean }>;
   };
 }
 

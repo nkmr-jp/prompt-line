@@ -23,6 +23,7 @@ import DraftManager from './managers/draft-manager';
 import DirectoryManager from './managers/directory-manager';
 import SettingsManager from './managers/settings-manager';
 import IPCHandlers from './handlers/ipc-handlers';
+import { codeSearchHandler } from './handlers/code-search-handler';
 import { logger, ensureDir, detectCurrentDirectoryWithFiles } from './utils/utils';
 import { LIMITS } from './constants';
 import type { WindowData } from './types';
@@ -79,6 +80,8 @@ class PromptLineApp {
         this.settingsManager
       );
 
+      // Register code search handlers
+      codeSearchHandler.register();
 
       // Note: Window is now pre-created during WindowManager initialization
       this.registerShortcuts();
