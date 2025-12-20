@@ -61,7 +61,9 @@ export class SymbolSearchClient {
    * Returns true if it matches @<lang>: pattern
    */
   isSymbolSearchQuery(input: string): boolean {
-    return SYMBOL_SEARCH_PREFIX_PATTERN.test(input);
+    const result = SYMBOL_SEARCH_PREFIX_PATTERN.test(input);
+    console.debug('[SymbolSearchClient] isSymbolSearchQuery:', { input, pattern: SYMBOL_SEARCH_PREFIX_PATTERN.toString(), result });
+    return result;
   }
 
   /**
@@ -127,7 +129,9 @@ export class SymbolSearchClient {
    * Check if symbol search is enabled
    */
   async isEnabled(): Promise<boolean> {
+    console.debug('[SymbolSearchClient] isEnabled: getting config...');
     const config = await this.getConfig();
+    console.debug('[SymbolSearchClient] isEnabled: config =', config);
     return config.enabled;
   }
 

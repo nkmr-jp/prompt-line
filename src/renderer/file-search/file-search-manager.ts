@@ -398,7 +398,15 @@ export class FileSearchManager {
     // Symbol search works independently of file search enabled state
     // Note: query doesn't include @, so we need to prepend it for the check
     const fullQuery = '@' + query;
-    if (this.symbolSearchClient.isSymbolSearchQuery(fullQuery)) {
+    const isSymbolQuery = this.symbolSearchClient.isSymbolSearchQuery(fullQuery);
+    console.debug('[FileSearchManager] showSuggestions: symbol check', {
+      query,
+      fullQuery,
+      isSymbolQuery,
+      pattern: '/^@\\w+:/'
+    });
+    if (isSymbolQuery) {
+      console.debug('[FileSearchManager] showSuggestions: detected symbol search, calling showSymbolSuggestions');
       await this.showSymbolSuggestions(fullQuery);
       return;
     }
@@ -409,11 +417,20 @@ export class FileSearchManager {
       return;
     }
 
+    // Save query for stale check
+    const queryAtStart = this.currentQuery;
+
     // Reset filtered symbols for non-symbol search mode
     this.filteredSymbols = [];
 
     // Check if we should show agent suggestions (query starts with searchPrefix for 'mention' type)
     const shouldShowAgents = await this.cacheManager.matchesSearchPrefix(query, 'mention');
+
+    // Stale check after async operation
+    if (this.currentQuery !== queryAtStart) {
+      console.debug('[FileSearchManager] showSuggestions: query changed during matchesSearchPrefix, skipping');
+      return;
+    }
 
     // Extract the actual search query (after prefix if present)
     let searchQuery = query;
@@ -435,6 +452,12 @@ export class FileSearchManager {
       ? await this.fuzzyMatcher.searchAgents(searchQuery, () => this.cacheManager.getMaxSuggestions('mention'))
       : [];
 
+    // Stale check after agent search
+    if (this.currentQuery !== queryAtStart) {
+      console.debug('[FileSearchManager] showSuggestions: query changed during agent search, skipping');
+      return;
+    }
+
     // Get maxSuggestions setting for merged list
     const maxSuggestions = await this.cacheManager.getMaxSuggestions('mention');
 
@@ -452,6 +475,12 @@ export class FileSearchManager {
 
     // Check if index is being built
     const isIndexBuilding = this.cacheManager.isIndexBeingBuilt();
+
+    // Final stale check before rendering
+    if (this.currentQuery !== queryAtStart) {
+      console.debug('[FileSearchManager] showSuggestions: query changed before render, skipping');
+      return;
+    }
 
     // Render suggestions
     this.renderSuggestions(isIndexBuilding);
@@ -475,12 +504,32 @@ export class FileSearchManager {
    * Show symbol search suggestions
    */
   private async showSymbolSuggestions(query: string): Promise<void> {
-    if (!this.suggestionsContainer) return;
+    console.debug('[FileSearchManager] showSymbolSuggestions: CALLED with query:', query);
+    if (!this.suggestionsContainer) {
+      console.debug('[FileSearchManager] showSymbolSuggestions: no container');
+      return;
+    }
+
+    // Save query for stale check (async operations may complete after query changes)
+    const queryAtStart = this.currentQuery;
 
     // Check if symbol search is enabled
+    console.debug('[FileSearchManager] showSymbolSuggestions: checking if enabled...');
     const isEnabled = await this.symbolSearchClient.isEnabled();
+    console.debug('[FileSearchManager] showSymbolSuggestions: isEnabled =', isEnabled);
+
+    // Stale check: if query changed during async operation, skip rendering
+    if (this.currentQuery !== queryAtStart) {
+      console.debug('[FileSearchManager] showSymbolSuggestions: query changed during async, skipping', {
+        queryAtStart,
+        currentQuery: this.currentQuery
+      });
+      return;
+    }
+
     if (!isEnabled) {
-      console.debug('[FileSearchManager] showSymbolSuggestions: symbol search disabled');
+      console.debug('[FileSearchManager] showSymbolSuggestions: symbol search disabled, hiding suggestions');
+      this.hideSuggestions();
       return;
     }
 
@@ -499,6 +548,15 @@ export class FileSearchManager {
 
     // Execute symbol search
     this.filteredSymbols = await this.symbolSearchClient.searchFromInput(directory, query);
+
+    // Stale check again after search completes
+    if (this.currentQuery !== queryAtStart) {
+      console.debug('[FileSearchManager] showSymbolSuggestions: query changed during search, skipping render', {
+        queryAtStart,
+        currentQuery: this.currentQuery
+      });
+      return;
+    }
 
     // Convert to suggestion items
     this.mergedSuggestions = this.filteredSymbols.map((symbol, index) => ({
