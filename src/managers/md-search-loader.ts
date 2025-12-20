@@ -295,6 +295,11 @@ class MdSearchLoader {
           }
         }
 
+        // inputFormatを追加（設定されている場合のみ）
+        if (entry.inputFormat) {
+          item.inputFormat = entry.inputFormat;
+        }
+
         items.push(item);
       } catch (error) {
         logger.warn('Failed to parse file', { filePath, error });

@@ -12,7 +12,7 @@
  * Total: ~950 lines (thin orchestration layer)
  */
 
-import type { FileInfo, DirectoryInfo, AgentItem } from '../../types';
+import type { FileInfo, DirectoryInfo, AgentItem, InputFormatType } from '../../types';
 import { getFileIconSvg, getMentionIconSvg } from '../assets/icons/file-icons';
 import type { DirectoryData, FileSearchCallbacks, AtPathRange, SuggestionItem } from './types';
 import { formatLog, insertSvgIntoElement } from './types';
@@ -247,6 +247,14 @@ export class FileSearchManager {
 
   public isFileSearchEnabled(): boolean {
     return this.cacheManager.isFileSearchEnabled();
+  }
+
+  public setFileSearchInputFormat(format: InputFormatType): void {
+    this.cacheManager.setFileSearchInputFormat(format);
+  }
+
+  public getFileSearchInputFormat(): InputFormatType {
+    return this.cacheManager.getFileSearchInputFormat();
   }
 
   public handleCachedDirectoryData(data: DirectoryInfo | undefined): void {
@@ -730,8 +738,12 @@ export class FileSearchManager {
       return;
     }
 
-    // Insert file path
-    this.insertFilePath(relativePath);
+    // Determine what to insert based on inputFormat setting
+    const inputFormat = this.cacheManager.getFileSearchInputFormat();
+    const insertText = inputFormat === 'name' ? file.name : relativePath;
+
+    // Insert file path or name
+    this.insertFilePath(insertText);
 
     // Hide suggestions
     this.hideSuggestions();
@@ -741,8 +753,13 @@ export class FileSearchManager {
    * Select an agent from suggestions
    */
   private selectAgent(agent: AgentItem): void {
-    // Insert agent name (without @)
-    this.insertFilePath(agent.name);
+    // Determine what to insert based on agent's inputFormat setting
+    // Default to 'name' for agents (backward compatible behavior)
+    const inputFormat = agent.inputFormat ?? 'name';
+    const insertText = inputFormat === 'path' ? agent.filePath : agent.name;
+
+    // Insert agent name or file path
+    this.insertFilePath(insertText);
 
     // Hide suggestions
     this.hideSuggestions();

@@ -151,7 +151,7 @@ class SettingsManager {
     description: "${entry.description || ''}"
     path: ${entry.path}
     pattern: "${entry.pattern}"${entry.argumentHint ? `\n    argumentHint: "${entry.argumentHint}"` : ''}
-    maxSuggestions: ${entry.maxSuggestions ?? 20}${entry.searchPrefix ? `\n    searchPrefix: "${entry.searchPrefix}"` : ''}`).join('\n');
+    maxSuggestions: ${entry.maxSuggestions ?? 20}${entry.searchPrefix ? `\n    searchPrefix: "${entry.searchPrefix}"` : ''}${entry.inputFormat ? `\n    inputFormat: ${entry.inputFormat}` : ''}`).join('\n');
     };
 
     // Build fileSearch section - if fileSearch is defined, output values; otherwise comment out entire section
@@ -165,6 +165,7 @@ class SettingsManager {
 #  maxDepth: null                     # Directory depth limit (null = unlimited)
 #  followSymlinks: false              # Follow symbolic links
 #  fdPath: null                       # Custom path to fd command (null = auto-detect)
+#  inputFormat: path                  # 'name' for filename only, 'path' for relative path (default: path)
 #  #excludePatterns:                  # Additional exclude patterns
 #  #  - "*.log"
 #  #  - "*.tmp"
@@ -188,12 +189,15 @@ class SettingsManager {
         ? `fdPath: "${settings.fileSearch.fdPath}"                       # Custom path to fd command`
         : `#fdPath: null                       # Custom path to fd command (null = auto-detect)`;
 
+      const inputFormatValue = settings.fileSearch.inputFormat ?? 'path';
+
       return `fileSearch:
   respectGitignore: ${settings.fileSearch.respectGitignore ?? true}    # Respect .gitignore files
   includeHidden: ${settings.fileSearch.includeHidden ?? true}          # Include hidden files (starting with .)
   maxFiles: ${settings.fileSearch.maxFiles ?? 5000}                    # Maximum files to return
   maxDepth: ${settings.fileSearch.maxDepth ?? 'null'}                  # Directory depth limit (null = unlimited)
   followSymlinks: ${settings.fileSearch.followSymlinks ?? false}       # Follow symbolic links
+  inputFormat: ${inputFormatValue}                  # 'name' for filename only, 'path' for relative path
   ${fdPathSection}
   ${excludePatternsSection}
   ${includePatternsSection}`;
@@ -228,6 +232,7 @@ class SettingsManager {
 #    pattern: "*.md"
 #    argumentHint: "{frontmatter@argument-hint}"  # Optional hint after selection
 #    maxSuggestions: 20                # Max number of suggestions (default: 20)
+#    inputFormat: name                 # 'name' for name only, 'path' for file path (default: name)
 #
 #  - name: "agent-{basename}"
 #    type: mention
@@ -236,6 +241,7 @@ class SettingsManager {
 #    pattern: "*.md"
 #    maxSuggestions: 20
 #    searchPrefix: "agent:"            # Require @agent: prefix for this entry (optional)
+#    inputFormat: path                 # 'name' for name only, 'path' for file path
 #
 #  - name: "{frontmatter@name}"
 #    type: mention

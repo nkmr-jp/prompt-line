@@ -3,7 +3,7 @@
  * Manages @ file mention functionality with incremental search
  */
 
-import type { FileInfo, DirectoryInfo, AgentItem } from '../types';
+import type { FileInfo, DirectoryInfo, AgentItem, InputFormatType } from '../types';
 import { getFileIconSvg, getMentionIconSvg } from './assets/icons/file-icons';
 
 /**
@@ -126,6 +126,9 @@ export class FileSearchManager {
   // Whether file search feature is enabled (from settings)
   private fileSearchEnabled: boolean = false;
 
+  // Input format for file search ('name' or 'path')
+  private fileSearchInputFormat: InputFormatType = 'path';  // Default to 'path' for file search
+
   constructor(callbacks: FileSearchCallbacks) {
     this.callbacks = callbacks;
   }
@@ -143,6 +146,21 @@ export class FileSearchManager {
    */
   public isFileSearchEnabled(): boolean {
     return this.fileSearchEnabled;
+  }
+
+  /**
+   * Set file search input format
+   */
+  public setFileSearchInputFormat(format: InputFormatType): void {
+    this.fileSearchInputFormat = format;
+    console.debug('[FileSearchManager] File search inputFormat:', format);
+  }
+
+  /**
+   * Get file search input format
+   */
+  public getFileSearchInputFormat(): InputFormatType {
+    return this.fileSearchInputFormat;
   }
 
   /**
@@ -2914,23 +2932,30 @@ export class FileSearchManager {
       relativePath += '/';
     }
 
-    this.insertFilePath(relativePath);
+    // Determine what to insert based on inputFormat setting
+    const insertText = this.fileSearchInputFormat === 'name' ? file.name : relativePath;
+
+    this.insertFilePath(insertText);
     this.hideSuggestions();
 
     // Callback for external handling
-    this.callbacks.onFileSelected(relativePath);
+    this.callbacks.onFileSelected(insertText);
   }
 
   /**
    * Select an agent by AgentItem object and insert its name
    */
   private selectAgentByInfo(agent: AgentItem): void {
-    // Insert agent name (the name already serves as the identifier)
-    this.insertFilePath(agent.name);
+    // Determine what to insert based on agent's inputFormat setting
+    // Default to 'name' for agents (backward compatible behavior)
+    const inputFormat = agent.inputFormat ?? 'name';
+    const insertText = inputFormat === 'path' ? agent.filePath : agent.name;
+
+    this.insertFilePath(insertText);
     this.hideSuggestions();
 
-    // Callback for external handling (using agent name as path)
-    this.callbacks.onFileSelected(`@${agent.name}`);
+    // Callback for external handling
+    this.callbacks.onFileSelected(`@${insertText}`);
   }
 
   /**
