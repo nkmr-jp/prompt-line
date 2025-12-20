@@ -740,10 +740,14 @@ export class FileSearchManager {
 
     // Determine what to insert based on inputFormat setting
     const inputFormat = this.cacheManager.getFileSearchInputFormat();
-    const insertText = inputFormat === 'name' ? file.name : relativePath;
 
-    // Insert file path or name
-    this.insertFilePath(insertText);
+    if (inputFormat === 'path') {
+      // For 'path' format, replace @ and query with just the path (no @)
+      this.insertFilePathWithoutAt(relativePath);
+    } else {
+      // For 'name' format, keep @ and insert just the name
+      this.insertFilePath(file.name);
+    }
 
     // Hide suggestions
     this.hideSuggestions();
@@ -756,10 +760,14 @@ export class FileSearchManager {
     // Determine what to insert based on agent's inputFormat setting
     // Default to 'name' for agents (backward compatible behavior)
     const inputFormat = agent.inputFormat ?? 'name';
-    const insertText = inputFormat === 'path' ? agent.filePath : agent.name;
 
-    // Insert agent name or file path
-    this.insertFilePath(insertText);
+    if (inputFormat === 'path') {
+      // For 'path' format, replace @ and query with just the file path (no @)
+      this.insertFilePathWithoutAt(agent.filePath);
+    } else {
+      // For 'name' format, keep @ and insert just the name
+      this.insertFilePath(agent.name);
+    }
 
     // Hide suggestions
     this.hideSuggestions();
@@ -781,6 +789,28 @@ export class FileSearchManager {
     // Set cursor position after insertion
     const newCursorPos = this.atStartPosition + 1 + path.length + 1; // @ + path + space
     this.callbacks.setCursorPosition(newCursorPos);
+  }
+
+  /**
+   * Insert file path without the @ symbol
+   * Replaces both @ and query with just the path
+   */
+  private insertFilePathWithoutAt(path: string): void {
+    this.highlighter.insertFilePathWithoutAt(
+      path,
+      this.atStartPosition,
+      () => this.callbacks.getCursorPosition(),
+      this.callbacks.replaceRangeWithUndo,
+      () => this.callbacks.getTextContent(),
+      (text: string) => this.callbacks.setTextContent(text)
+    );
+
+    // Set cursor position after insertion (no @ prefix, just path + space)
+    const newCursorPos = this.atStartPosition + path.length + 1; // path + space
+    this.callbacks.setCursorPosition(newCursorPos);
+
+    // Reset state
+    this.atStartPosition = -1;
   }
 
   /**

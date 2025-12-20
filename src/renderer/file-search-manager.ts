@@ -2933,12 +2933,17 @@ export class FileSearchManager {
     }
 
     // Determine what to insert based on inputFormat setting
-    const insertText = this.fileSearchInputFormat === 'name' ? file.name : relativePath;
-
-    this.insertFilePath(insertText);
+    if (this.fileSearchInputFormat === 'path') {
+      // For 'path' format, replace @ and query with just the path (no @)
+      this.insertFilePathWithoutAt(relativePath);
+    } else {
+      // For 'name' format, keep @ and insert just the name
+      this.insertFilePath(file.name);
+    }
     this.hideSuggestions();
 
     // Callback for external handling
+    const insertText = this.fileSearchInputFormat === 'name' ? file.name : relativePath;
     this.callbacks.onFileSelected(insertText);
   }
 
@@ -2949,13 +2954,19 @@ export class FileSearchManager {
     // Determine what to insert based on agent's inputFormat setting
     // Default to 'name' for agents (backward compatible behavior)
     const inputFormat = agent.inputFormat ?? 'name';
-    const insertText = inputFormat === 'path' ? agent.filePath : agent.name;
 
-    this.insertFilePath(insertText);
+    if (inputFormat === 'path') {
+      // For 'path' format, replace @ and query with just the file path (no @)
+      this.insertFilePathWithoutAt(agent.filePath);
+    } else {
+      // For 'name' format, keep @ and insert just the name
+      this.insertFilePath(agent.name);
+    }
     this.hideSuggestions();
 
     // Callback for external handling
-    this.callbacks.onFileSelected(`@${insertText}`);
+    const insertText = inputFormat === 'path' ? agent.filePath : agent.name;
+    this.callbacks.onFileSelected(inputFormat === 'name' ? `@${insertText}` : insertText);
   }
 
   /**
@@ -2994,6 +3005,40 @@ export class FileSearchManager {
     // Update highlight backdrop (this will find all occurrences in the text)
     this.updateHighlightBackdrop();
 
+    // Reset state
+    this.atStartPosition = -1;
+  }
+
+  /**
+   * Insert file path without the @ symbol
+   * Replaces both @ and query with just the path
+   * Uses replaceRangeWithUndo for native Undo/Redo support
+   */
+  private insertFilePathWithoutAt(path: string): void {
+    if (this.atStartPosition < 0) return;
+
+    const cursorPos = this.callbacks.getCursorPosition();
+
+    // The insertion text includes path + space for better UX
+    const insertionText = path + ' ';
+
+    // Replace from @ (atStartPosition) to cursorPos - this removes the @ as well
+    const replaceStart = this.atStartPosition;
+    const replaceEnd = cursorPos;
+
+    // Use replaceRangeWithUndo if available for native Undo support
+    if (this.callbacks.replaceRangeWithUndo) {
+      this.callbacks.replaceRangeWithUndo(replaceStart, replaceEnd, insertionText);
+    } else {
+      // Fallback to direct text manipulation (no Undo support)
+      const text = this.callbacks.getTextContent();
+      const before = text.substring(0, replaceStart);
+      const after = text.substring(replaceEnd);
+      const newText = before + insertionText + after;
+      this.callbacks.setTextContent(newText);
+    }
+
+    // Note: Don't add to selectedPaths for path format since there's no @ to highlight
     // Reset state
     this.atStartPosition = -1;
   }

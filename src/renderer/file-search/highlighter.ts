@@ -593,6 +593,45 @@ export class FileSearchHighlighter {
   }
 
   /**
+   * Insert file path without the @ symbol
+   * Replaces both @ and query with just the path
+   * Uses replaceRangeWithUndo for native Undo/Redo support
+   */
+  public insertFilePathWithoutAt(
+    path: string,
+    atStartPosition: number,
+    getCursorPosition: () => number,
+    replaceRangeWithUndo?: (start: number, end: number, text: string) => void,
+    getTextContent?: () => string,
+    setTextContent?: (text: string) => void
+  ): void {
+    if (atStartPosition < 0) return;
+
+    const cursorPos = getCursorPosition();
+
+    // The insertion text includes path + space for better UX
+    const insertionText = path + ' ';
+
+    // Replace from @ (atStartPosition) to cursorPos - this removes the @ as well
+    const replaceStart = atStartPosition;
+    const replaceEnd = cursorPos;
+
+    // Use replaceRangeWithUndo if available for native Undo support
+    if (replaceRangeWithUndo) {
+      replaceRangeWithUndo(replaceStart, replaceEnd, insertionText);
+    } else if (getTextContent && setTextContent) {
+      // Fallback to direct text manipulation (no Undo support)
+      const text = getTextContent();
+      const before = text.substring(0, replaceStart);
+      const after = text.substring(replaceEnd);
+      const newText = before + insertionText + after;
+      setTextContent(newText);
+    }
+
+    // Note: Don't add to selectedPaths for path format since there's no @ to highlight
+  }
+
+  /**
    * Find AtPathRange at the given position
    */
   public findAtPathRangeAtPosition(charPos: number): AtPathRange | null {
