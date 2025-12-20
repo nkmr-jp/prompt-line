@@ -384,8 +384,10 @@ export class FileSearchManager {
     }
 
     // Check for symbol search pattern (@lang:query)
-    if (this.symbolSearchClient.isSymbolSearchQuery(query)) {
-      await this.showSymbolSuggestions(query);
+    // Note: query doesn't include @, so we need to prepend it for the check
+    const fullQuery = '@' + query;
+    if (this.symbolSearchClient.isSymbolSearchQuery(fullQuery)) {
+      await this.showSymbolSuggestions(fullQuery);
       return;
     }
 
