@@ -75,8 +75,10 @@ class MdSearchLoader {
       return query.startsWith(entry.searchPrefix);
     });
 
+    // クエリに基づいてソート順を決定
+    const sortOrder = this.getSortOrderForQuery(type, query);
+
     if (!query) {
-      const sortOrder = this.getSortOrder(type);
       return this.sortItems(items, sortOrder);
     }
 
@@ -96,7 +98,6 @@ class MdSearchLoader {
              item.description.toLowerCase().includes(lowerActualQuery);
     });
 
-    const sortOrder = this.getSortOrder(type);
     return this.sortItems(filteredItems, sortOrder);
   }
 
@@ -139,6 +140,34 @@ class MdSearchLoader {
       return DEFAULT_SORT_ORDER;
     }
     // 最初のエントリの設定を使用（未設定の場合はデフォルト）
+    return entries[0]?.sortOrder ?? DEFAULT_SORT_ORDER;
+  }
+
+  /**
+   * クエリのsearchPrefixにマッチするエントリのsortOrderを取得
+   */
+  getSortOrderForQuery(type: MdSearchType, query: string): 'asc' | 'desc' {
+    const entries = this.config.filter(entry => entry.type === type);
+    if (entries.length === 0) {
+      return DEFAULT_SORT_ORDER;
+    }
+
+    // クエリがsearchPrefixで始まるエントリを探す
+    const matchingEntry = entries.find(entry =>
+      entry.searchPrefix && query.startsWith(entry.searchPrefix)
+    );
+
+    if (matchingEntry) {
+      return matchingEntry.sortOrder ?? DEFAULT_SORT_ORDER;
+    }
+
+    // searchPrefixがマッチしない場合は、searchPrefixが未設定のエントリを探す
+    const defaultEntry = entries.find(entry => !entry.searchPrefix);
+    if (defaultEntry) {
+      return defaultEntry.sortOrder ?? DEFAULT_SORT_ORDER;
+    }
+
+    // フォールバック: 最初のエントリの設定を使用
     return entries[0]?.sortOrder ?? DEFAULT_SORT_ORDER;
   }
 
