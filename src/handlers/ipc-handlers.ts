@@ -15,6 +15,7 @@ import WindowHandler from './window-handler';
 import SystemHandler from './system-handler';
 import MdSearchHandler from './mdsearch-handler';
 import FileHandler from './file-handler';
+import SymbolSearchHandler from './symbol-search-handler';
 
 interface HandlerStats {
   totalHandlers: number;
@@ -44,6 +45,7 @@ class IPCHandlers {
   private systemHandler: SystemHandler;
   private mdSearchHandler: MdSearchHandler;
   private fileHandler: FileHandler;
+  private symbolSearchHandler: SymbolSearchHandler;
 
   constructor(
     windowManager: WindowManager,
@@ -79,6 +81,7 @@ class IPCHandlers {
     this.systemHandler = new SystemHandler(settingsManager);
     this.mdSearchHandler = new MdSearchHandler(mdSearchLoader, settingsManager);
     this.fileHandler = new FileHandler(fileOpenerManager, directoryManager);
+    this.symbolSearchHandler = new SymbolSearchHandler(settingsManager);
 
     // Setup all handlers
     this.setupHandlers();
@@ -94,6 +97,7 @@ class IPCHandlers {
     this.systemHandler.setupHandlers(ipcMain);
     this.mdSearchHandler.setupHandlers(ipcMain);
     this.fileHandler.setupHandlers(ipcMain);
+    this.symbolSearchHandler.setupHandlers(ipcMain);
 
     logger.info('All IPC handlers set up successfully via coordinator');
   }
@@ -108,6 +112,7 @@ class IPCHandlers {
     this.systemHandler.removeHandlers(ipcMain);
     this.mdSearchHandler.removeHandlers(ipcMain);
     this.fileHandler.removeHandlers(ipcMain);
+    this.symbolSearchHandler.removeHandlers(ipcMain);
 
     logger.info('All IPC handlers removed via coordinator');
   }

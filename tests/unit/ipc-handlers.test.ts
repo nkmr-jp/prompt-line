@@ -141,7 +141,12 @@ describe('IPCHandlers', () => {
                 window: { position: 'cursor', width: 600, height: 300 }
             })),
             updateSettings: jest.fn(),
-            resetSettings: jest.fn()
+            resetSettings: jest.fn(),
+            getCodeSymbolSearchSettings: jest.fn(() => ({
+                enabled: false,
+                maxResults: 50,
+                timeout: 5000
+            }))
         };
 
         mockDirectoryManager = {
@@ -623,10 +628,11 @@ describe('IPCHandlers', () => {
 
             ipcHandlers.removeAllHandlers();
 
-            // Should be called for each handler (count: 26 handlers)
+            // Should be called for each handler (count: 29 handlers)
             // paste-handler: 2, window-handler: 3, history-draft-handler: 9
             // system-handler: 3, file-handler: 3, mdsearch-handler: 6
-            expect(ipcMain.removeAllListeners).toHaveBeenCalledTimes(26);
+            // symbol-search-handler: 3
+            expect(ipcMain.removeAllListeners).toHaveBeenCalledTimes(29);
             expect(logger.info).toHaveBeenCalledWith('All IPC handlers removed via coordinator');
         });
     });

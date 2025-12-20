@@ -35,7 +35,10 @@ const ALLOWED_CHANNELS = [
   'get-md-search-prefixes',
   'open-file-in-editor',
   'check-file-exists',
-  'open-external-url'
+  'open-external-url',
+  'search-symbols',
+  'get-symbol-languages',
+  'get-symbol-config'
 ];
 
 // IPC channel validation with additional security checks
@@ -264,6 +267,19 @@ const electronAPI = {
     openExternal: async (url: string): Promise<{ success: boolean; error?: string }> => {
       return ipcRenderer.invoke('open-external-url', url);
     }
+  },
+
+  // Symbol search (code symbol search with @lang: syntax)
+  symbolSearch: {
+    search: async (directory: string, language: string, query: string, symbolType?: string): Promise<any[]> => {
+      return ipcRenderer.invoke('search-symbols', directory, language, query, symbolType);
+    },
+    getLanguages: async (): Promise<string[]> => {
+      return ipcRenderer.invoke('get-symbol-languages');
+    },
+    getConfig: async (): Promise<{ enabled: boolean; maxResults: number; timeout: number }> => {
+      return ipcRenderer.invoke('get-symbol-config');
+    }
   }
 };
 
@@ -314,6 +330,11 @@ export interface ElectronAPI {
   };
   shell: {
     openExternal: (url: string) => Promise<{ success: boolean; error?: string }>;
+  };
+  symbolSearch: {
+    search: (directory: string, language: string, query: string, symbolType?: string) => Promise<any[]>;
+    getLanguages: () => Promise<string[]>;
+    getConfig: () => Promise<{ enabled: boolean; maxResults: number; timeout: number }>;
   };
 }
 

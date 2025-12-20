@@ -12,13 +12,14 @@
  * Total: ~950 lines (thin orchestration layer)
  */
 
-import type { FileInfo, DirectoryInfo, AgentItem } from '../../types';
-import { getFileIconSvg, getMentionIconSvg } from '../assets/icons/file-icons';
+import type { FileInfo, DirectoryInfo, AgentItem, SymbolSearchResult } from '../../types';
+import { getFileIconSvg, getMentionIconSvg, getSymbolIconSvg } from '../assets/icons/file-icons';
 import type { DirectoryData, FileSearchCallbacks, AtPathRange, SuggestionItem } from './types';
 import { formatLog, insertSvgIntoElement } from './types';
 import { FileSearchCacheManager } from './cache-manager';
 import { FileSearchFuzzyMatcher } from './fuzzy-matcher';
 import { FileSearchHighlighter } from './highlighter';
+import { SymbolSearchClient } from './symbol-search-client';
 import {
   CaretPositionCalculator,
   findAtPathAtPosition,
@@ -37,6 +38,7 @@ export class FileSearchManager {
   private fuzzyMatcher: FileSearchFuzzyMatcher;
   private highlighter: FileSearchHighlighter;
   private caretCalculator: CaretPositionCalculator;
+  private symbolSearchClient: SymbolSearchClient;
 
   // DOM elements
   private suggestionsContainer: HTMLElement | null = null;
@@ -47,6 +49,7 @@ export class FileSearchManager {
   private selectedIndex: number = 0;
   private filteredFiles: FileInfo[] = [];
   private filteredAgents: AgentItem[] = [];
+  private filteredSymbols: SymbolSearchResult[] = [];
   private mergedSuggestions: SuggestionItem[] = [];
   private isVisible: boolean = false;
   private currentQuery: string = '';
@@ -89,6 +92,9 @@ export class FileSearchManager {
 
     // Initialize caret calculator
     this.caretCalculator = new CaretPositionCalculator();
+
+    // Initialize symbol search client
+    this.symbolSearchClient = new SymbolSearchClient();
   }
 
   // ============================================================================
@@ -377,6 +383,15 @@ export class FileSearchManager {
       return;
     }
 
+    // Check for symbol search pattern (@lang:query)
+    if (this.symbolSearchClient.isSymbolSearchQuery(query)) {
+      await this.showSymbolSuggestions(query);
+      return;
+    }
+
+    // Reset filtered symbols for non-symbol search mode
+    this.filteredSymbols = [];
+
     // Check if we should show agent suggestions (query starts with searchPrefix for 'mention' type)
     const shouldShowAgents = await this.cacheManager.matchesSearchPrefix(query, 'mention');
 
@@ -433,6 +448,60 @@ export class FileSearchManager {
       agentCount: this.filteredAgents.length,
       mergedCount: this.mergedSuggestions.length,
       isIndexBuilding
+    }));
+  }
+
+  /**
+   * Show symbol search suggestions
+   */
+  private async showSymbolSuggestions(query: string): Promise<void> {
+    if (!this.suggestionsContainer) return;
+
+    // Check if symbol search is enabled
+    const isEnabled = await this.symbolSearchClient.isEnabled();
+    if (!isEnabled) {
+      console.debug('[FileSearchManager] showSymbolSuggestions: symbol search disabled');
+      return;
+    }
+
+    // Clear file and agent filters for symbol search mode
+    this.filteredFiles = [];
+    this.filteredAgents = [];
+
+    // Get current directory
+    const cachedData = this.cacheManager.getCachedDirectoryData();
+    const directory = cachedData?.directory || '';
+
+    if (!directory) {
+      console.debug('[FileSearchManager] showSymbolSuggestions: no directory');
+      return;
+    }
+
+    // Execute symbol search
+    this.filteredSymbols = await this.symbolSearchClient.searchFromInput(directory, query);
+
+    // Convert to suggestion items
+    this.mergedSuggestions = this.filteredSymbols.map((symbol, index) => ({
+      type: 'symbol' as const,
+      symbol,
+      score: 1000 - index // Higher score for earlier results
+    }));
+
+    // Reset selection
+    this.selectedIndex = 0;
+
+    // Render suggestions
+    this.renderSuggestions(false);
+
+    // Position the dropdown
+    this.positionSuggestions();
+
+    this.isVisible = true;
+    this.suggestionsContainer.style.display = 'block';
+
+    console.debug('[FileSearchManager] showSymbolSuggestions:', formatLog({
+      query,
+      symbolCount: this.filteredSymbols.length
     }));
   }
 
@@ -514,6 +583,8 @@ export class FileSearchManager {
         this.renderFileItem(item, suggestion.file);
       } else if (suggestion.type === 'agent' && suggestion.agent) {
         this.renderAgentItem(item, suggestion.agent);
+      } else if (suggestion.type === 'symbol' && suggestion.symbol) {
+        this.renderSymbolItem(item, suggestion.symbol);
       }
 
       // Handle click
@@ -628,6 +699,43 @@ export class FileSearchManager {
   }
 
   /**
+   * Render symbol suggestion item
+   */
+  private renderSymbolItem(item: HTMLElement, symbol: SymbolSearchResult): void {
+    // Icon
+    const iconSpan = document.createElement('span');
+    iconSpan.className = 'file-icon';
+    const iconSvg = getSymbolIconSvg();
+    insertSvgIntoElement(iconSpan, iconSvg);
+    item.appendChild(iconSpan);
+
+    // Symbol name and location
+    const textSpan = document.createElement('span');
+    textSpan.className = 'file-info';
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'file-name';
+    nameSpan.textContent = symbol.symbolName;
+    textSpan.appendChild(nameSpan);
+
+    // Show file path and line number
+    const locationSpan = document.createElement('span');
+    locationSpan.className = 'file-path';
+    locationSpan.textContent = `${symbol.file}:${symbol.line}`;
+    textSpan.appendChild(locationSpan);
+
+    item.appendChild(textSpan);
+
+    // Show symbol type badge
+    if (symbol.symbolType) {
+      const typeBadge = document.createElement('span');
+      typeBadge.className = 'symbol-type-badge';
+      typeBadge.textContent = symbol.symbolType;
+      item.appendChild(typeBadge);
+    }
+  }
+
+  /**
    * Handle keyboard navigation in suggestions
    */
   private handleKeyDown(e: KeyboardEvent): void {
@@ -698,7 +806,7 @@ export class FileSearchManager {
   }
 
   /**
-   * Select current item (file or agent)
+   * Select current item (file, agent, or symbol)
    */
   private selectCurrentItem(): void {
     const suggestion = this.mergedSuggestions[this.selectedIndex];
@@ -708,6 +816,8 @@ export class FileSearchManager {
       this.selectFileByInfo(suggestion.file);
     } else if (suggestion.type === 'agent' && suggestion.agent) {
       this.selectAgent(suggestion.agent);
+    } else if (suggestion.type === 'symbol' && suggestion.symbol) {
+      this.selectSymbol(suggestion.symbol);
     }
   }
 
@@ -752,6 +862,19 @@ export class FileSearchManager {
       // For 'name' format, keep @ and insert just the name
       this.insertFilePath(agent.name);
     }
+
+    // Hide suggestions
+    this.hideSuggestions();
+  }
+
+  /**
+   * Select a symbol from suggestions
+   * Inserts the file path with line number reference
+   */
+  private selectSymbol(symbol: SymbolSearchResult): void {
+    // Insert file:line format for symbol reference
+    const symbolRef = `${symbol.file}:${symbol.line}`;
+    this.insertFilePathWithoutAt(symbolRef);
 
     // Hide suggestions
     this.hideSuggestions();

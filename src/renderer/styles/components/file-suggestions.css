@@ -237,3 +237,17 @@
   opacity: 1;
   color: var(--text-secondary, #aaa);
 }
+
+/* Symbol Type Badge */
+.symbol-type-badge {
+  margin-left: auto;
+  padding: 1px 6px;
+  font-size: 9px;
+  font-weight: 500;
+  color: #ab47bc; /* Purple to match symbol icon */
+  background: rgba(171, 71, 188, 0.15);
+  border: 1px solid rgba(171, 71, 188, 0.3);
+  border-radius: 3px;
+  flex-shrink: 0;
+  text-transform: lowercase;
+}

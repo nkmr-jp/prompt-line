@@ -108,6 +108,35 @@ fileSearch:
   #  - ".storybook/**/*"
 
 # ==============================================================================
+# Code Symbol Search Configuration
+# ==============================================================================
+# Search for code symbols (functions, classes, etc.) using @<lang>:query syntax
+#
+# Syntax:
+#   @go:Handler       - Search for "Handler" in Go files
+#   @ts:class:User    - Search for class "User" in TypeScript files
+#   @py:              - List all Python symbols
+#
+# Requirements:
+#   - ripgrep (rg) must be installed (install: brew install ripgrep)
+#
+# Supported Languages:
+#   go, ts, tsx, js, jsx, py, rb, rs, java, kt, c, cpp, cs, php, swift
+#
+# Symbol Types (optional second parameter):
+#   func, function, class, interface, struct, type, const, var
+#
+codeSymbolSearch:
+  # Enable/disable code symbol search (default: false)
+  enabled: false
+
+  # Maximum number of results to return
+  maxResults: 50
+
+  # Search timeout in milliseconds
+  timeout: 5000
+
+# ==============================================================================
 # Markdown Search Configuration (Slash Commands & Mentions)
 # ==============================================================================
 # Configure sources for slash commands (/) and mentions (@)

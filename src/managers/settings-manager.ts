@@ -3,7 +3,7 @@ import path from 'path';
 import os from 'os';
 import * as yaml from 'js-yaml';
 import { logger } from '../utils/utils';
-import type { UserSettings, FileSearchSettings } from '../types';
+import type { UserSettings, FileSearchSettings, CodeSymbolSearchUserConfig } from '../types';
 
 class SettingsManager {
   private settingsFile: string;
@@ -114,6 +114,11 @@ class SettingsManager {
       result.fileSearch = userSettings.fileSearch;
     }
 
+    // Only set codeSymbolSearch if it exists in user settings (feature is disabled when undefined)
+    if (userSettings.codeSymbolSearch) {
+      result.codeSymbolSearch = userSettings.codeSymbolSearch;
+    }
+
     return result;
   }
 
@@ -200,6 +205,25 @@ class SettingsManager {
     };
 
     const fileSearchSection = buildFileSearchSection();
+
+    // Build codeSymbolSearch section
+    const buildCodeSymbolSearchSection = (): string => {
+      if (!settings.codeSymbolSearch) {
+        // Feature is disabled - output commented template
+        return `#codeSymbolSearch:                  # Code symbol search (uncomment to enable)
+#  enabled: true                      # Enable/disable feature
+#  maxResults: 50                     # Maximum search results
+#  timeout: 5000                      # Search timeout in milliseconds`;
+      }
+
+      // Feature is enabled - output actual values
+      return `codeSymbolSearch:
+  enabled: ${settings.codeSymbolSearch.enabled ?? true}                       # Enable/disable feature
+  maxResults: ${settings.codeSymbolSearch.maxResults ?? 50}                   # Maximum search results
+  timeout: ${settings.codeSymbolSearch.timeout ?? 5000}                       # Search timeout in milliseconds`;
+    };
+
+    const codeSymbolSearchSection = buildCodeSymbolSearchSection();
 
     // Build extensions section
     const extensionsSection = settings.fileOpener?.extensions && Object.keys(settings.fileOpener.extensions).length > 0
@@ -300,6 +324,15 @@ fileOpener:
 ${fileSearchSection}
 
 # ============================================================================
+# CODE SYMBOL SEARCH SETTINGS (@lang: syntax)
+# ============================================================================
+# Search code symbols using ripgrep with @lang:query syntax
+# Example: @go:Handler, @ts:class:User, @py:def
+# When this section is commented out, code symbol search is disabled
+
+${codeSymbolSearchSection}
+
+# ============================================================================
 # MARKDOWN SEARCH SETTINGS (Slash Commands & Mentions)
 # ============================================================================
 # Configure sources for slash commands (/) and mentions (@)
@@ -396,6 +429,28 @@ ${mdSearchSection}
         ...this.currentSettings.fileSearch,
         ...fileSearch
       }
+    });
+  }
+
+  getCodeSymbolSearchSettings(): CodeSymbolSearchUserConfig | undefined {
+    // Return undefined if codeSymbolSearch is not configured (feature disabled)
+    if (!this.currentSettings.codeSymbolSearch) {
+      return undefined;
+    }
+    return this.currentSettings.codeSymbolSearch;
+  }
+
+  isCodeSymbolSearchEnabled(): boolean {
+    return this.currentSettings.codeSymbolSearch !== undefined &&
+           this.currentSettings.codeSymbolSearch.enabled === true;
+  }
+
+  async updateCodeSymbolSearchSettings(codeSymbolSearch: Partial<NonNullable<UserSettings['codeSymbolSearch']>>): Promise<void> {
+    await this.updateSettings({
+      codeSymbolSearch: {
+        ...this.currentSettings.codeSymbolSearch,
+        ...codeSymbolSearch
+      } as CodeSymbolSearchUserConfig
     });
   }
 

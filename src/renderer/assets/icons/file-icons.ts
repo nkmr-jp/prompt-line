@@ -126,6 +126,9 @@ export const folderIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0
 // Mention icon (robot/agent)
 export const mentionIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path fill="#00bfa5" d="M25.172 6 28 8.828v14.344L25.172 26H6.828L4 23.172V8.828L6.828 6zM26 4H6L2 8v16l4 4h20l4-4V8z"/><path fill="#00bfa5" d="M8 20h16v2H8zm0-6v2h2v-2a2 2 0 0 1 2-2 2 2 0 0 1 2 2v2h2v-2a4 4 0 0 0-4-4 4 4 0 0 0-4 4m9.876.268 5.196-3 1 1.732-5.196 3z"/></svg>`;
 
+// Symbol icon (code symbol)
+export const symbolIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#ab47bc" d="M9.4 16.6 4.8 12l4.6-4.6L8 6l-6 6 6 6zm5.2 0 4.6-4.6-4.6-4.6L16 6l6 6-6 6z"/></svg>`;
+
 // Default file icon
 export const defaultFileIcon = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path d="M0 0h24v24H0z"/><path fill="#42a5f5" d="M8 16h8v2H8zm0-4h8v2H8zm6-10H6c-1.1 0-2 .9-2 2v16c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8zm4 18H6V4h7v5h5z"/></svg>`;
 
@@ -172,4 +175,12 @@ export function getFileIconSvg(filename: string, isDirectory: boolean = false): 
  */
 export function getMentionIconSvg(): string {
   return mentionIconSvg;
+}
+
+/**
+ * Get the symbol icon SVG (code symbol)
+ * @returns SVG string for symbol icon
+ */
+export function getSymbolIconSvg(): string {
+  return symbolIconSvg;
 }

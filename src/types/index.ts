@@ -6,6 +6,68 @@ export interface HistoryItem {
   directory?: string;
 }
 
+// ============================================================================
+// Code Symbol Search Types
+// ============================================================================
+
+/**
+ * コードシンボル検索のユーザー設定（settings.yml で設定）
+ */
+export interface CodeSymbolSearchUserConfig {
+  /** 有効/無効（デフォルト: false） */
+  enabled: boolean;
+  /** 検索結果の最大数（デフォルト: 50） */
+  maxResults: number;
+  /** 検索タイムアウト（ms）（デフォルト: 5000） */
+  timeout: number;
+}
+
+/**
+ * 言語別シンボル検索設定（コード内で定義）
+ */
+export interface LanguageSymbolConfig {
+  /** 対象拡張子 */
+  extensions: string[];
+  /** ripgrep の --type オプション値 */
+  rgType: string;
+  /** シンボルタイプ別の正規表現パターン */
+  patterns: Record<string, string>;
+  /** デフォルトで検索するシンボルタイプ */
+  defaultSymbols: string[];
+}
+
+/**
+ * シンボル検索結果
+ */
+export interface SymbolSearchResult {
+  /** ファイルパス */
+  file: string;
+  /** 行番号 */
+  line: number;
+  /** カラム位置 */
+  column: number;
+  /** シンボル名 */
+  symbolName: string;
+  /** シンボルタイプ（func, class, etc.） */
+  symbolType: string;
+  /** マッチした行の内容 */
+  matchedLine: string;
+  /** 言語 */
+  language: string;
+}
+
+/**
+ * プレフィックス解析結果
+ */
+export interface ParsedSymbolPrefix {
+  /** 言語 (go, ts, py, etc.) */
+  language: string;
+  /** シンボルタイプ（オプション） */
+  symbolType?: string;
+  /** 検索クエリ */
+  query: string;
+}
+
 export interface DraftData {
   text: string;
   timestamp: number;
@@ -219,6 +281,8 @@ export interface UserSettings {
   };
   // mdSearch configuration (unified command and mention loading)
   mdSearch?: MdSearchEntry[];
+  // Code symbol search configuration
+  codeSymbolSearch?: CodeSymbolSearchUserConfig;
 }
 
 export interface SlashCommandItem {

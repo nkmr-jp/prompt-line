@@ -2,7 +2,7 @@
  * Type definitions and utility functions for file search functionality
  */
 
-import type { FileInfo, AgentItem } from '../../types';
+import type { FileInfo, AgentItem, SymbolSearchResult } from '../../types';
 
 /**
  * Format object for console output (Electron renderer -> main process)
@@ -73,10 +73,11 @@ export interface AtPathRange {
   path?: string | undefined;  // The path content (without @) for highlighting
 }
 
-// Unified suggestion item (file or agent) with score for mixed sorting
+// Unified suggestion item (file, agent, or symbol) with score for mixed sorting
 export interface SuggestionItem {
-  type: 'file' | 'agent';
+  type: 'file' | 'agent' | 'symbol';
   file?: FileInfo;
   agent?: AgentItem;
+  symbol?: SymbolSearchResult;
   score: number;
 }

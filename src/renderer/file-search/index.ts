@@ -42,3 +42,6 @@ export {
   openUrlInBrowser,
   openFileAndRestoreFocus
 } from './path-utils';
+
+// Symbol search client (code symbol search with @lang: syntax)
+export { SymbolSearchClient, type ParsedSymbolQuery } from './symbol-search-client';
