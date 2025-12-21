@@ -3511,11 +3511,16 @@ export class FileSearchManager {
       const start = match.index;
       const end = match.index + match[0].length;
 
+      // Parse the path to handle symbol paths with line number and symbol name
+      // Format: path:lineNumber#symbolName or just path
+      const parsedPath = this.parsePathWithLineInfo(pathContent);
+      const cleanPath = parsedPath.path;
+
       // Check if this path should be highlighted:
       // 1. It's in selectedPaths (explicitly selected by user), OR
-      // 2. It exists in the valid paths from cached file list (for Undo support)
+      // 2. The clean path (without line number/symbol) exists in the valid paths from cached file list (for Undo support)
       const isSelected = this.selectedPaths.has(pathContent);
-      const isValidPath = validPaths?.has(pathContent) ?? false;
+      const isValidPath = validPaths?.has(cleanPath) ?? false;
 
       if (isSelected || isValidPath) {
         foundPaths.push({
@@ -3650,21 +3655,28 @@ export class FileSearchManager {
     for (const { pathContent, start, end } of pathsToCheck) {
       let shouldHighlight = false;
 
+      // Parse the path to handle symbol paths with line number and symbol name
+      // Format: path:lineNumber#symbolName or just path
+      const parsedPath = this.parsePathWithLineInfo(pathContent);
+      const cleanPath = parsedPath.path;
+
       // First, check against cached file list if available
-      if (relativePaths && relativePaths.has(pathContent)) {
+      if (relativePaths && relativePaths.has(cleanPath)) {
         shouldHighlight = true;
       }
       // If no cached data but checkFilesystem is enabled, check actual filesystem
       else if (checkFilesystem && baseDir) {
         // Construct full path and check filesystem
-        const fullPath = `${baseDir}/${pathContent}`;
+        const fullPath = `${baseDir}/${cleanPath}`;
         try {
           const exists = await window.electronAPI.file.checkExists(fullPath);
           shouldHighlight = exists;
           console.debug('[FileSearchManager] Filesystem check for @path:', formatLog({
             pathContent,
+            cleanPath,
             fullPath,
-            exists
+            exists,
+            isSymbolPath: !!parsedPath.lineNumber
           }));
         } catch (err) {
           console.error('[FileSearchManager] Error checking file existence:', err);
@@ -3674,12 +3686,15 @@ export class FileSearchManager {
 
       if (shouldHighlight) {
         // Add to selectedPaths set (rescanAtPaths will find all occurrences)
+        // Use the full pathContent (including line number and symbol name if present)
         this.selectedPaths.add(pathContent);
         console.debug('[FileSearchManager] Found @path:', formatLog({
           pathContent,
+          cleanPath,
           start,
           end,
-          checkFilesystem
+          checkFilesystem,
+          isSymbolPath: !!parsedPath.lineNumber
         }));
       } else {
         console.debug('[FileSearchManager] Skipping non-existent @path:', pathContent);
