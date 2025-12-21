@@ -15,6 +15,10 @@ let LANGUAGE_PATTERNS: [String: LanguageConfig] = [
             SymbolPattern(type: .interface, regex: "^type\\s+(\\w+)\\s+interface", captureGroup: 1),
             SymbolPattern(type: .typeAlias, regex: "^type\\s+(\\w+)\\s+(?!struct|interface)\\w+", captureGroup: 1),
             SymbolPattern(type: .constant, regex: "^const\\s+(\\w+)\\s*=", captureGroup: 1),
+            // Constants inside const ( ... ) block with type: `Name Type = value`
+            SymbolPattern(type: .constant, regex: "^\\s+(\\w+)\\s+\\w+\\s*=\\s*[\"']", captureGroup: 1),
+            // Constants inside const ( ... ) block without type: `Name = value`
+            SymbolPattern(type: .constant, regex: "^\\s+(\\w+)\\s*=\\s*(?:iota|\\d)", captureGroup: 1),
             SymbolPattern(type: .variable, regex: "^var\\s+(\\w+)\\s+", captureGroup: 1),
         ]
     ),
