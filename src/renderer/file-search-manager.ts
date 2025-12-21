@@ -1561,22 +1561,48 @@ export class FileSearchManager {
   }
 
   /**
+   * Parse a path that may contain line number and symbol name suffix
+   * Format: path:lineNumber#symbolName
+   * Returns: { path: string, lineNumber?: number, symbolName?: string }
+   */
+  private parsePathWithLineInfo(pathStr: string): { path: string; lineNumber?: number; symbolName?: string } {
+    // Match pattern: path:lineNumber#symbolName or path:lineNumber
+    const match = pathStr.match(/^(.+?):(\d+)(#(.+))?$/);
+    if (match && match[1] && match[2]) {
+      const result: { path: string; lineNumber?: number; symbolName?: string } = {
+        path: match[1],
+        lineNumber: parseInt(match[2], 10)
+      };
+      if (match[4]) {
+        result.symbolName = match[4];
+      }
+      return result;
+    }
+    // No line number suffix
+    return { path: pathStr };
+  }
+
+  /**
    * Resolve a relative file path to absolute path
+   * Handles paths with line number and symbol suffix: path:lineNumber#symbolName
    */
   private resolveAtPathToAbsolute(relativePath: string): string | null {
+    // Parse and strip line number/symbol suffix
+    const { path: cleanPath } = this.parsePathWithLineInfo(relativePath);
+
     const baseDir = this.cachedDirectoryData?.directory;
     if (!baseDir) {
       // If no base directory, try to use the path as-is
-      return relativePath;
+      return cleanPath;
     }
 
     // Check if it's already an absolute path
-    if (relativePath.startsWith('/')) {
-      return relativePath;
+    if (cleanPath.startsWith('/')) {
+      return cleanPath;
     }
 
     // Combine with base directory and normalize (handles ../ etc.)
-    const combined = `${baseDir}/${relativePath}`;
+    const combined = `${baseDir}/${cleanPath}`;
     return this.normalizePath(combined);
   }
 
@@ -2859,31 +2885,47 @@ export class FileSearchManager {
   }
 
   /**
-   * Select a symbol and insert its path:lineNumber
+   * Select a symbol and insert its path:lineNumber#symbolName (with @ prefix for highlighting)
    */
   private selectSymbol(symbol: SymbolResult): void {
     if (!this.textInput || this.atStartPosition < 0) return;
 
-    // Format: path/to/file.ext:lineNumber
-    const insertText = `${symbol.relativePath}:${symbol.lineNumber}`;
+    // Format: relativePath:lineNumber#symbolName (keep @ prefix)
+    // The @ is already at atStartPosition, so we insert path after it
+    const pathWithLineAndSymbol = `${symbol.relativePath}:${symbol.lineNumber}#${symbol.name} `;
 
     // Get current cursor position (end of the @query)
     const cursorPos = this.textInput.selectionStart;
 
-    // Replace the @lang:query with the file path
+    // Replace the lang:query part (after @) with the path:line#symbol
+    // atStartPosition is the @ position, so we replace from atStartPosition + 1 to keep @
     if (this.callbacks.replaceRangeWithUndo) {
-      this.callbacks.replaceRangeWithUndo(this.atStartPosition, cursorPos, insertText);
+      this.callbacks.replaceRangeWithUndo(this.atStartPosition + 1, cursorPos, pathWithLineAndSymbol);
     } else {
       // Fallback without undo support
       const text = this.textInput.value;
-      const newText = text.substring(0, this.atStartPosition) + insertText + text.substring(cursorPos);
+      const newText = text.substring(0, this.atStartPosition + 1) + pathWithLineAndSymbol + text.substring(cursorPos);
       this.textInput.value = newText;
-      const newCursorPos = this.atStartPosition + insertText.length;
+      const newCursorPos = this.atStartPosition + 1 + pathWithLineAndSymbol.length;
       this.textInput.setSelectionRange(newCursorPos, newCursorPos);
     }
 
+    // Add to selectedPaths for highlighting and click-to-open
+    // Use the full path including line number and symbol name (without trailing space)
+    const pathForHighlight = `${symbol.relativePath}:${symbol.lineNumber}#${symbol.name}`;
+    this.selectedPaths.add(pathForHighlight);
+    console.debug('[FileSearchManager] Added symbol path to selectedPaths:', pathForHighlight);
+
+    // Update highlight backdrop
+    this.rescanAtPaths(this.textInput.value);
+    this.updateHighlightBackdrop();
+
+    // Set cursor position after the inserted text
+    const newCursorPos = this.atStartPosition + 1 + pathWithLineAndSymbol.length;
+    this.textInput.setSelectionRange(newCursorPos, newCursorPos);
+
     // Notify callback
-    this.callbacks.onFileSelected(insertText);
+    this.callbacks.onFileSelected(pathForHighlight);
 
     // Reset code search state
     this.codeSearchQuery = '';

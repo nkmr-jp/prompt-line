@@ -439,20 +439,22 @@ export class CodeSearchManager {
   }
 
   /**
-   * Select a symbol and insert it
+   * Select a symbol and insert it (with @ prefix for highlighting)
    */
   private selectSymbol(index: number): void {
     const symbol = this.currentSymbols[index];
     if (!symbol || !this.currentQuery) return;
 
-    // Format: path/to/file.ext:lineNumber
-    const insertText = `${symbol.relativePath}:${symbol.lineNumber}`;
+    // Format: relativePath:lineNumber#symbolName (keep @ prefix)
+    // The @ is at startIndex, so we insert path after it
+    const pathWithLineAndSymbol = `${symbol.relativePath}:${symbol.lineNumber}#${symbol.name} `;
 
-    // Replace the @ext:query with the file path
+    // Replace the lang:query part (after @) with the path:line#symbol
+    // startIndex is the @ position, so we replace from startIndex + 1 to keep @
     this.callbacks.replaceRangeWithUndo(
-      this.currentQuery.startIndex,
+      this.currentQuery.startIndex + 1,
       this.currentQuery.endIndex,
-      insertText
+      pathWithLineAndSymbol
     );
 
     // Notify callback
