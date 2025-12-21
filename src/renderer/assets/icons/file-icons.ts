@@ -129,6 +129,46 @@ export const mentionIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="
 // Default file icon
 export const defaultFileIcon = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path d="M0 0h24v24H0z"/><path fill="#42a5f5" d="M8 16h8v2H8zm0-4h8v2H8zm6-10H6c-1.1 0-2 .9-2 2v16c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8zm4 18H6V4h7v5h5z"/></svg>`;
 
+// Symbol icons for code search (from Material Icon Theme)
+export const symbolIcons: Record<string, string> = {
+  // Function - purple box with f
+  function: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="#b388ff" d="M2 2v12h12V2zm6.5 9h-1V8H6V7h1.5V6c0-.75.25-1.5 1.5-1.5h1v1H9.5c-.5 0-.5.25-.5.5v1h1.5v1H9v3z"/></svg>`,
+
+  // Method - purple box with m
+  method: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="#b388ff" d="M2 2v12h12V2zm8 9h-1V7.5L8 9l-1-1.5V11H6V5h1l1 1.5L9 5h1z"/></svg>`,
+
+  // Class - orange box with C
+  class: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="#ffab40" d="M2 2v12h12V2zm7 9c-1.1 0-2-.9-2-2V7c0-1.1.9-2 2-2h1.5v1H9c-.55 0-1 .45-1 1v2c0 .55.45 1 1 1h1.5v1z"/></svg>`,
+
+  // Struct - cyan box with S
+  struct: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="#80deea" d="M2 2v12h12V2zm7.5 9H7c-1.1 0-1.5-.5-1.5-1.5v-1c0-.5.25-1 1-1h2v-.5H6V6h2.5c1.1 0 1.5.5 1.5 1.5v1c0 .5-.25 1-1 1h-2v.5H10v1z"/></svg>`,
+
+  // Interface - teal box with I
+  interface: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="#80cbc4" d="M2 2v12h12V2zm6 9H7V5h2v1H8v4h1v1z"/></svg>`,
+
+  // Type - blue box with T
+  type: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="#82b1ff" d="M2 2v12h12V2zm5.5 8h-1V6H5V5h4v1H7.5z"/></svg>`,
+
+  // Variable - light blue box with v
+  variable: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="#90caf9" d="M2 2v12h12V2zm5.5 9L6 7l-1.5 4H3l2.5-6h1L9 9l1.5-4H12l-2.5 6z"/></svg>`,
+
+  // Constant - amber box with c
+  constant: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="#ffca28" d="M2 2v12h12V2zm6 8c-.55 0-1-.45-1-1V7c0-.55.45-1 1-1h2v1H8v2h2v1z"/></svg>`,
+
+  // Property - light green
+  property: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="#c5e1a5" d="M2 2v12h12V2zm5 9H6V5h1v2.5h2V5h1v6H9V8.5H7z"/></svg>`,
+
+  // Field - same as property
+  field: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="#c5e1a5" d="M2 2v12h12V2zm5 9H6V5h1v2.5h2V5h1v6H9V8.5H7z"/></svg>`,
+
+  // Enum - orange-red box with E
+  enum: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="#ff8a65" d="M2 2v12h12V2zm7 9H6V5h4v1H7v1.5h2.5v1H7V10h3z"/></svg>`,
+
+  // Module/Namespace - brown box
+  module: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="#bcaaa4" d="M2 2v12h12V2zm3.5 3h2l1 2.5L9.5 5h2l-2 3 2 3h-2l-1-2.5L7.5 11h-2l2-3z"/></svg>`,
+  namespace: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="#bcaaa4" d="M2 2v12h12V2zm3.5 3h2l1 2.5L9.5 5h2l-2 3 2 3h-2l-1-2.5L7.5 11h-2l2-3z"/></svg>`,
+};
+
 /**
  * Get the appropriate SVG icon for a file
  * @param filename - The filename to get an icon for
@@ -172,4 +212,16 @@ export function getFileIconSvg(filename: string, isDirectory: boolean = false): 
  */
 export function getMentionIconSvg(): string {
   return mentionIconSvg;
+}
+
+// Default symbol icon
+const defaultSymbolIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="#90a4ae" d="M2 2v12h12V2zm5 9H6V5h2v1H7v4h1v1z"/></svg>`;
+
+/**
+ * Get the appropriate SVG icon for a symbol type
+ * @param symbolType - The symbol type (function, method, class, struct, interface, type, etc.)
+ * @returns SVG string
+ */
+export function getSymbolIconSvg(symbolType: string): string {
+  return symbolIcons[symbolType.toLowerCase()] ?? defaultSymbolIcon;
 }

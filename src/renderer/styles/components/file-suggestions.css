@@ -157,9 +157,7 @@
 }
 
 .symbol-icon {
-  font-size: 14px;
-  font-style: italic;
-  color: var(--text-secondary, #888);
+  /* Inherits from .file-icon for SVG icon sizing */
 }
 
 .symbol-name {

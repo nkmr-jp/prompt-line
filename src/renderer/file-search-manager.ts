@@ -4,9 +4,9 @@
  */
 
 import type { FileInfo, DirectoryInfo, AgentItem } from '../types';
-import { getFileIconSvg, getMentionIconSvg } from './assets/icons/file-icons';
-import type { SymbolResult, LanguageInfo, SymbolSearchResponse, LanguagesResponse, RgCheckResponse } from './code-search/types';
-import { SYMBOL_ICONS, getSymbolTypeDisplay } from './code-search/types';
+import { getFileIconSvg, getMentionIconSvg, getSymbolIconSvg } from './assets/icons/file-icons';
+import type { SymbolResult, LanguageInfo } from './code-search/types';
+import { getSymbolTypeDisplay } from './code-search/types';
 
 // Pattern to detect code search queries (e.g., @ts:, @go:, @py:)
 const CODE_SEARCH_PATTERN = /^([a-z]+):(.*)$/;
@@ -134,8 +134,6 @@ export class FileSearchManager {
 
   // Code/Symbol search properties
   private filteredSymbols: SymbolResult[] = [];
-  private isCodeSearchMode: boolean = false;
-  private codeSearchLanguage: string = '';
   private codeSearchQuery: string = '';
   private rgAvailable: boolean = false;
   private supportedLanguages: Map<string, LanguageInfo> = new Map();
@@ -1773,17 +1771,15 @@ export class FileSearchManager {
 
       // Check if query matches code search pattern (e.g., "ts:", "go:", "py:")
       const codeSearchMatch = query.match(CODE_SEARCH_PATTERN);
-      if (codeSearchMatch) {
+      if (codeSearchMatch && codeSearchMatch[1]) {
         const language = codeSearchMatch[1];
-        const symbolQuery = codeSearchMatch[2] || '';
+        const symbolQuery = codeSearchMatch[2] ?? '';
 
         // Check if language is supported
         if (this.rgAvailable && this.supportedLanguages.has(language)) {
           console.debug('[FileSearchManager] checkForFileSearch: code search pattern detected:', language, symbolQuery);
           this.atStartPosition = startPos;
           this.currentQuery = query;
-          this.isCodeSearchMode = true;
-          this.codeSearchLanguage = language;
           this.codeSearchQuery = symbolQuery;
           this.searchSymbols(language, symbolQuery);
           return;
@@ -1799,7 +1795,6 @@ export class FileSearchManager {
       }
 
       // Normal file search
-      this.isCodeSearchMode = false;
       this.atStartPosition = startPos;
       this.currentQuery = query;
       console.debug('[FileSearchManager] showing suggestions for query:', query);
@@ -1876,15 +1871,15 @@ export class FileSearchManager {
       }
 
       // Filter symbols by query
-      let filtered = response.symbols;
+      let filtered: SymbolResult[] = response.symbols;
       if (query) {
         const lowerQuery = query.toLowerCase();
-        filtered = response.symbols.filter(s =>
+        filtered = response.symbols.filter((s: SymbolResult) =>
           s.name.toLowerCase().includes(lowerQuery)
         );
 
         // Sort by match relevance
-        filtered.sort((a, b) => {
+        filtered.sort((a: SymbolResult, b: SymbolResult) => {
           const aName = a.name.toLowerCase();
           const bName = b.name.toLowerCase();
           const aStarts = aName.startsWith(lowerQuery);
@@ -2177,8 +2172,6 @@ export class FileSearchManager {
     this.currentPath = ''; // Reset directory navigation state
 
     // Reset code search state
-    this.isCodeSearchMode = false;
-    this.codeSearchLanguage = '';
     this.codeSearchQuery = '';
 
     // Restore default hint text
@@ -2726,7 +2719,7 @@ export class FileSearchManager {
         // Create icon for symbol type
         const icon = document.createElement('span');
         icon.className = 'file-icon symbol-icon';
-        icon.textContent = SYMBOL_ICONS[symbol.type] || '?';
+        insertSvgIntoElement(icon, getSymbolIconSvg(symbol.type));
 
         // Create name with highlighting
         const name = document.createElement('span');
@@ -2760,7 +2753,7 @@ export class FileSearchManager {
           const clickedSuggestion = this.mergedSuggestions[currentIndex];
           if (clickedSuggestion) {
             let filePath: string | undefined;
-            let lineNumber: number | undefined;
+            // TODO: Support opening file at specific line number for symbols
 
             if (clickedSuggestion.type === 'file') {
               filePath = clickedSuggestion.file?.path;
@@ -2768,11 +2761,9 @@ export class FileSearchManager {
               filePath = clickedSuggestion.agent?.filePath;
             } else if (clickedSuggestion.type === 'symbol') {
               filePath = clickedSuggestion.symbol?.filePath;
-              lineNumber = clickedSuggestion.symbol?.lineNumber;
             }
 
             if (filePath) {
-              // TODO: Support opening file at specific line number
               await this.openFileAndRestoreFocus(filePath);
               this.hideSuggestions();
               return;
@@ -2847,9 +2838,7 @@ export class FileSearchManager {
     // Notify callback
     this.callbacks.onFileSelected(insertText);
 
-    // Reset code search mode
-    this.isCodeSearchMode = false;
-    this.codeSearchLanguage = '';
+    // Reset code search state
     this.codeSearchQuery = '';
 
     // Hide suggestions
