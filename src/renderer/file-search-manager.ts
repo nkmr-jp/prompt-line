@@ -1585,25 +1585,37 @@ export class FileSearchManager {
   /**
    * Resolve a relative file path to absolute path
    * Handles paths with line number and symbol suffix: path:lineNumber#symbolName
+   * Preserves line number and symbol suffix in the returned path
    */
   private resolveAtPathToAbsolute(relativePath: string): string | null {
-    // Parse and strip line number/symbol suffix
-    const { path: cleanPath } = this.parsePathWithLineInfo(relativePath);
+    // Parse the path to extract line number/symbol suffix
+    const parsed = this.parsePathWithLineInfo(relativePath);
+    const cleanPath = parsed.path;
 
     const baseDir = this.cachedDirectoryData?.directory;
+    let absolutePath: string;
+
     if (!baseDir) {
       // If no base directory, try to use the path as-is
-      return cleanPath;
+      absolutePath = cleanPath;
+    } else if (cleanPath.startsWith('/')) {
+      // Already an absolute path
+      absolutePath = cleanPath;
+    } else {
+      // Combine with base directory and normalize (handles ../ etc.)
+      const combined = `${baseDir}/${cleanPath}`;
+      absolutePath = this.normalizePath(combined);
     }
 
-    // Check if it's already an absolute path
-    if (cleanPath.startsWith('/')) {
-      return cleanPath;
+    // Re-append line number and symbol suffix if they were present
+    if (parsed.lineNumber !== undefined) {
+      absolutePath = `${absolutePath}:${parsed.lineNumber}`;
+      if (parsed.symbolName) {
+        absolutePath = `${absolutePath}#${parsed.symbolName}`;
+      }
     }
 
-    // Combine with base directory and normalize (handles ../ etc.)
-    const combined = `${baseDir}/${cleanPath}`;
-    return this.normalizePath(combined);
+    return absolutePath;
   }
 
   /**
