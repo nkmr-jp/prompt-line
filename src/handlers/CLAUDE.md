@@ -103,6 +103,16 @@ import {
 - **`set-draft-directory`**: Sets the draft directory for file operations
 - **`get-draft-directory`**: Retrieves the current draft directory
 
+### Code Search (code-search-handler.ts)
+- **`check-rg`**: Checks ripgrep availability for symbol search
+- **`get-supported-languages`**: Returns list of 13 supported programming languages
+- **`search-symbols`**: Searches for symbols in a directory for a specific language
+  - Parameters: directory, language, options (maxSymbols, useCache)
+  - Uses native `symbol-searcher` tool with ripgrep
+  - Caches results via `symbolCacheManager`
+- **`get-cached-symbols`**: Retrieves cached symbols for a directory
+- **`clear-symbol-cache`**: Clears symbol cache (specific directory or all)
+
 ## Implementation Details
 
 ### Response Format Standardization
