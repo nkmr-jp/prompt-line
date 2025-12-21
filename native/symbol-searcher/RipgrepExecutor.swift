@@ -50,25 +50,45 @@ class RipgrepExecutor {
             return nil
         }
 
+        // Use parallel execution for all patterns
+        let group = DispatchGroup()
         var allResults: [SymbolResult] = []
+        let resultsLock = NSLock()
 
         for pattern in config.patterns {
-            let args = buildRgArgs(
-                directory: directory,
-                pattern: pattern.regex,
-                rgType: config.rgType,
-                maxCount: maxSymbols
-            )
+            group.enter()
+            DispatchQueue.global(qos: .userInitiated).async {
+                defer { group.leave() }
 
-            if let output = executeRg(rgPath: rgPath, args: args) {
-                let results = parseRgJsonOutput(
-                    output: output,
-                    pattern: pattern,
-                    language: language,
-                    baseDirectory: directory
+                let args = buildRgArgs(
+                    directory: directory,
+                    pattern: pattern.regex,
+                    rgType: config.rgType,
+                    maxCount: maxSymbols
                 )
-                allResults.append(contentsOf: results)
+
+                if let output = executeRg(rgPath: rgPath, args: args) {
+                    let results = parseRgJsonOutput(
+                        output: output,
+                        pattern: pattern,
+                        language: language,
+                        baseDirectory: directory
+                    )
+                    resultsLock.lock()
+                    allResults.append(contentsOf: results)
+                    resultsLock.unlock()
+                }
             }
+        }
+
+        // Wait for all patterns to complete (with timeout)
+        let waitResult = group.wait(timeout: .now() + TIMEOUT_SECONDS * 2)
+        if waitResult == .timedOut {
+            // Return what we have so far
+            resultsLock.lock()
+            let partialResults = allResults
+            resultsLock.unlock()
+            return deduplicateAndSort(results: partialResults, maxSymbols: maxSymbols)
         }
 
         // Deduplicate and sort
@@ -95,7 +115,8 @@ class RipgrepExecutor {
         ]
     }
 
-    /// Execute rg command with timeout
+    /// Execute rg command with timeout and async pipe reading
+    /// Uses concurrent reading to prevent pipe buffer deadlock
     private static func executeRg(rgPath: String, args: [String]) -> String? {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: rgPath)
@@ -104,6 +125,25 @@ class RipgrepExecutor {
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = FileHandle.nullDevice
+
+        // Use concurrent reading to prevent pipe buffer deadlock
+        var outputData = Data()
+        let dataLock = NSLock()
+        let semaphore = DispatchSemaphore(value: 0)
+
+        // Set up async reading before starting process
+        pipe.fileHandleForReading.readabilityHandler = { handle in
+            let chunk = handle.availableData
+            if chunk.isEmpty {
+                // EOF reached
+                pipe.fileHandleForReading.readabilityHandler = nil
+                semaphore.signal()
+                return
+            }
+            dataLock.lock()
+            outputData.append(chunk)
+            dataLock.unlock()
+        }
 
         do {
             try process.run()
@@ -116,11 +156,32 @@ class RipgrepExecutor {
                 }
             }
 
+            // Wait for process to exit
             process.waitUntilExit()
 
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            return String(data: data, encoding: .utf8)
+            // Wait for reading to complete (with timeout)
+            let waitResult = semaphore.wait(timeout: .now() + 1.0)
+
+            // Clean up handler if not already done
+            pipe.fileHandleForReading.readabilityHandler = nil
+
+            // If semaphore timed out, try to read any remaining data
+            if waitResult == .timedOut {
+                let remaining = pipe.fileHandleForReading.availableData
+                if !remaining.isEmpty {
+                    dataLock.lock()
+                    outputData.append(remaining)
+                    dataLock.unlock()
+                }
+            }
+
+            dataLock.lock()
+            let result = String(data: outputData, encoding: .utf8)
+            dataLock.unlock()
+
+            return result
         } catch {
+            pipe.fileHandleForReading.readabilityHandler = nil
             return nil
         }
     }
