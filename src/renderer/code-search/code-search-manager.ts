@@ -249,18 +249,25 @@ export class CodeSearchManager {
         return;
       }
 
-      // Filter symbols by query
+      // Filter symbols by query (search in both name and lineContent)
       let filtered = response.symbols;
       if (query) {
         const lowerQuery = query.toLowerCase();
         filtered = response.symbols.filter(s =>
-          s.name.toLowerCase().includes(lowerQuery)
+          s.name.toLowerCase().includes(lowerQuery) ||
+          s.lineContent.toLowerCase().includes(lowerQuery)
         );
 
-        // Sort by match relevance
+        // Sort by match relevance (name match takes priority)
         filtered.sort((a, b) => {
           const aName = a.name.toLowerCase();
           const bName = b.name.toLowerCase();
+          const aNameMatch = aName.includes(lowerQuery);
+          const bNameMatch = bName.includes(lowerQuery);
+          // Name match takes priority over lineContent match
+          if (aNameMatch && !bNameMatch) return -1;
+          if (!aNameMatch && bNameMatch) return 1;
+          // Within name matches, prefer starts with
           const aStarts = aName.startsWith(lowerQuery);
           const bStarts = bName.startsWith(lowerQuery);
           if (aStarts && !bStarts) return -1;
