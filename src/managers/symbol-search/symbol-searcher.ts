@@ -15,7 +15,7 @@ import type {
 // Default search options
 const DEFAULT_MAX_SYMBOLS = 2000;
 const QUICK_MAX_SYMBOLS = 500;
-const SEARCH_TIMEOUT = 5000; // 5 seconds for symbol search
+const SEARCH_TIMEOUT = 30000; // 30 seconds for symbol search (large codebases can take time)
 
 /**
  * Check if ripgrep (rg) is available
@@ -152,9 +152,15 @@ export async function searchSymbols(
 
     logger.debug('Searching symbols:', { directory, language, maxSymbols });
 
-    execFile(SYMBOL_SEARCHER_PATH, args, execOptions, (error, stdout) => {
+    execFile(SYMBOL_SEARCHER_PATH, args, execOptions, (error, stdout, stderr) => {
       if (error) {
-        logger.warn('Error searching symbols:', error.message);
+        logger.warn('Error searching symbols:', {
+          message: error.message,
+          code: (error as any).code,
+          signal: (error as any).signal,
+          killed: (error as any).killed,
+          stderr: stderr?.toString()?.substring(0, 500)
+        });
         resolve({
           success: false,
           symbols: [],
