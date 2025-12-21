@@ -1639,21 +1639,53 @@ export class FileSearchManager {
 
   /**
    * Update cache with new data from directory-data-updated event (Stage 2 recursive data)
-   * Only updates if we have more complete data
+   * Handles both full updates (with files) and directory-only updates (for code search)
    */
   public updateCache(data: DirectoryInfo | DirectoryData): void {
-    if (!data.directory || !data.files) {
-      console.debug('[FileSearchManager] updateCache: invalid data');
+    if (!data.directory) {
+      console.debug('[FileSearchManager] updateCache: no directory in data');
       return;
     }
+
+    // Get hint and filesDisabled from DirectoryInfo if available
+    const hint = 'hint' in data ? (data as DirectoryInfo).hint : undefined;
+    const filesDisabled = 'filesDisabled' in data ? (data as DirectoryInfo).filesDisabled : undefined;
+    const filesDisabledReason = 'filesDisabledReason' in data ? (data as DirectoryInfo).filesDisabledReason : undefined;
 
     // Check if this is an update to the same directory
     const isSameDirectory = this.cachedDirectoryData?.directory === data.directory;
 
-    // Only update if:
-    // 1. No existing data
-    // 2. Different directory
-    // 3. More complete data (recursive > quick, more files)
+    // Handle directory-only updates (no files - e.g., file listing failed)
+    // This is important for code search which only needs the directory
+    if (!data.files) {
+      // For directory-only updates, only update if directory changed
+      if (!isSameDirectory) {
+        console.debug('[FileSearchManager] updateCache: directory-only update (directory changed)', {
+          from: this.cachedDirectoryData?.directory,
+          to: data.directory
+        });
+        this.cachedDirectoryData = {
+          directory: data.directory,
+          files: [],  // Empty files - code search will work, file search won't
+          timestamp: Date.now(),
+          partial: false,
+          searchMode: 'recursive',
+          ...(hint ? { hint } : {}),
+          ...(filesDisabled && filesDisabledReason ? { filesDisabled, filesDisabledReason } : filesDisabled ? { filesDisabled } : {})
+        };
+
+        // Show hint message if present
+        if (hint && this.callbacks.updateHintText) {
+          this.callbacks.updateHintText(hint);
+          console.warn('[FileSearchManager] Hint:', hint);
+        }
+      } else {
+        console.debug('[FileSearchManager] updateCache: skipping directory-only update (same directory)');
+      }
+      return;
+    }
+
+    // Full update with files - only update if we have more complete data
     const shouldUpdate = !this.cachedDirectoryData ||
       !isSameDirectory ||
       (data.searchMode === 'recursive') ||
@@ -1663,11 +1695,6 @@ export class FileSearchManager {
       console.debug('[FileSearchManager] updateCache: skipping update, existing data is sufficient');
       return;
     }
-
-    // Get hint and filesDisabled from DirectoryInfo if available
-    const hint = 'hint' in data ? (data as DirectoryInfo).hint : undefined;
-    const filesDisabled = 'filesDisabled' in data ? (data as DirectoryInfo).filesDisabled : undefined;
-    const filesDisabledReason = 'filesDisabledReason' in data ? (data as DirectoryInfo).filesDisabledReason : undefined;
 
     this.cachedDirectoryData = {
       directory: data.directory,
