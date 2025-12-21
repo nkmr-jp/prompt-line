@@ -91,6 +91,9 @@ export class PromptLineRenderer {
       (position: number) => this.domManager.setCursorPosition(position),
       () => this.domManager.selectAll()
     );
+    // CRITICAL: Register IPC listeners BEFORE any async operations
+    // to prevent race condition when window-shown event is sent
+    this.setupIPCListeners();
     this.init();
   }
 
@@ -106,7 +109,7 @@ export class PromptLineRenderer {
       this.setupFileSearchManager();
       await this.setupCodeSearchManager();
       this.setupEventListeners();
-      this.setupIPCListeners();
+      // Note: setupIPCListeners() is now called in constructor to prevent race condition
     } catch (error) {
       console.error('Failed to initialize renderer:', error);
     }
