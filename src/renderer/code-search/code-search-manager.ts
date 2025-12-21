@@ -13,7 +13,7 @@ import type {
   RgCheckResponse,
   LanguagesResponse
 } from './types';
-import { SYMBOL_ICONS, getSymbolTypeDisplay } from './types';
+import { SYMBOL_ICONS, getSymbolTypeDisplay, SYMBOL_TYPE_FROM_DISPLAY } from './types';
 
 // Constants
 const CODE_SEARCH_PATTERN = /@([a-z]+):(\S*)$/;
@@ -212,8 +212,27 @@ export class CodeSearchManager {
     }
 
     const language = match[1];
-    // Remove all colons from query (e.g., "func:" → "func", "func:Create" → "funcCreate")
-    const query = (match[2] ?? '').replace(/:/g, '');
+    // Parse query: "func:Create" → symbolTypeFilter="func", query="Create"
+    // Parse query: "func:" → symbolTypeFilter="func", query=""
+    // Parse query: "Handle" → symbolTypeFilter=null, query="Handle"
+    const rawQuery = match[2] ?? '';
+    const colonIndex = rawQuery.indexOf(':');
+    let symbolTypeFilter: string | null = null;
+    let query: string;
+
+    if (colonIndex >= 0) {
+      const potentialType = rawQuery.substring(0, colonIndex).toLowerCase();
+      if (SYMBOL_TYPE_FROM_DISPLAY[potentialType]) {
+        symbolTypeFilter = potentialType;
+        query = rawQuery.substring(colonIndex + 1);
+      } else {
+        // Not a valid symbol type, treat entire string as query
+        query = rawQuery;
+      }
+    } else {
+      query = rawQuery;
+    }
+
     const startIndex = textBeforeCursor.lastIndexOf('@');
     const endIndex = cursorPos;
 
@@ -226,14 +245,15 @@ export class CodeSearchManager {
 
     this.currentQuery = { language, query, startIndex, endIndex };
 
-    // Search symbols
-    await this.searchSymbols(language, query);
+    // Search symbols with optional type filter
+    await this.searchSymbols(language, query, symbolTypeFilter);
   }
 
   /**
    * Search for symbols
+   * @param symbolTypeFilter - Optional symbol type filter (e.g., "func" for functions only)
    */
-  private async searchSymbols(language: string, query: string): Promise<void> {
+  private async searchSymbols(language: string, query: string, symbolTypeFilter: string | null = null): Promise<void> {
     if (!this.currentDirectory) return;
 
     try {
@@ -250,11 +270,20 @@ export class CodeSearchManager {
         return;
       }
 
-      // Filter symbols by query (search in both name and lineContent)
       let filtered = response.symbols;
+
+      // Filter by symbol type first (e.g., @go:func: → only functions)
+      if (symbolTypeFilter) {
+        const targetType = SYMBOL_TYPE_FROM_DISPLAY[symbolTypeFilter];
+        if (targetType) {
+          filtered = filtered.filter(s => s.type === targetType);
+        }
+      }
+
+      // Filter symbols by query (search in both name and lineContent)
       if (query) {
         const lowerQuery = query.toLowerCase();
-        filtered = response.symbols.filter(s =>
+        filtered = filtered.filter(s =>
           s.name.toLowerCase().includes(lowerQuery) ||
           s.lineContent.toLowerCase().includes(lowerQuery)
         );
@@ -284,7 +313,8 @@ export class CodeSearchManager {
       if (this.currentSymbols.length > 0) {
         this.showSuggestions();
       } else {
-        this.callbacks.updateHintText(`No symbols found for "${query}"`);
+        const filterDesc = symbolTypeFilter ? ` (${symbolTypeFilter})` : '';
+        this.callbacks.updateHintText(`No symbols found for "${query}"${filterDesc}`);
         this.hideSuggestions();
       }
     } catch (error) {

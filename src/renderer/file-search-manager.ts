@@ -6,7 +6,7 @@
 import type { FileInfo, DirectoryInfo, AgentItem } from '../types';
 import { getFileIconSvg, getMentionIconSvg, getSymbolIconSvg } from './assets/icons/file-icons';
 import type { SymbolResult, LanguageInfo } from './code-search/types';
-import { getSymbolTypeDisplay } from './code-search/types';
+import { getSymbolTypeDisplay, SYMBOL_TYPE_FROM_DISPLAY } from './code-search/types';
 
 // Pattern to detect code search queries (e.g., @ts:, @go:, @py:)
 const CODE_SEARCH_PATTERN = /^([a-z]+):(.*)$/;
@@ -1843,9 +1843,28 @@ export class FileSearchManager {
       console.debug('[FileSearchManager] checkForFileSearch: query=', query, 'codeSearchMatch=', codeSearchMatch);
       if (codeSearchMatch && codeSearchMatch[1]) {
         const language = codeSearchMatch[1];
-        // Remove all colons from query (e.g., "func:" → "func", "func:Create" → "funcCreate")
-        const symbolQuery = (codeSearchMatch[2] ?? '').replace(/:/g, '');
-        console.debug('[FileSearchManager] checkForFileSearch: code pattern matched, language=', language, 'symbolQuery=', symbolQuery);
+        // Parse query: "func:Create" → symbolTypeFilter="func", symbolQuery="Create"
+        // Parse query: "func:" → symbolTypeFilter="func", symbolQuery=""
+        // Parse query: "Handle" → symbolTypeFilter=null, symbolQuery="Handle"
+        const rawQuery = codeSearchMatch[2] ?? '';
+        const colonIndex = rawQuery.indexOf(':');
+        let symbolTypeFilter: string | null = null;
+        let symbolQuery: string;
+
+        if (colonIndex >= 0) {
+          const potentialType = rawQuery.substring(0, colonIndex).toLowerCase();
+          if (SYMBOL_TYPE_FROM_DISPLAY[potentialType]) {
+            symbolTypeFilter = potentialType;
+            symbolQuery = rawQuery.substring(colonIndex + 1);
+          } else {
+            // Not a valid symbol type, treat entire string as query
+            symbolQuery = rawQuery;
+          }
+        } else {
+          symbolQuery = rawQuery;
+        }
+
+        console.debug('[FileSearchManager] checkForFileSearch: code pattern matched, language=', language, 'symbolTypeFilter=', symbolTypeFilter, 'symbolQuery=', symbolQuery);
         console.debug('[FileSearchManager] checkForFileSearch: rgAvailable=', this.rgAvailable, 'supportedLanguages.size=', this.supportedLanguages.size, 'supportedLanguages.has(language)=', this.supportedLanguages.has(language));
 
         // If code search not yet initialized, wait for it
@@ -1866,7 +1885,7 @@ export class FileSearchManager {
           this.atStartPosition = startPos;
           this.currentQuery = query;
           this.codeSearchQuery = symbolQuery;
-          this.searchSymbols(language, symbolQuery);
+          this.searchSymbols(language, symbolQuery, symbolTypeFilter);
           return;
         } else {
           // Unknown language or rg not available - show hint and hide suggestions
@@ -1935,8 +1954,9 @@ export class FileSearchManager {
 
   /**
    * Search for symbols using ripgrep
+   * @param symbolTypeFilter - Optional symbol type filter (e.g., "func" for functions only)
    */
-  private async searchSymbols(language: string, query: string): Promise<void> {
+  private async searchSymbols(language: string, query: string, symbolTypeFilter: string | null = null): Promise<void> {
     if (!this.cachedDirectoryData?.directory) {
       console.debug('[FileSearchManager] searchSymbols: no directory');
       return;
@@ -1956,11 +1976,20 @@ export class FileSearchManager {
         return;
       }
 
-      // Filter symbols by query (search in both name and lineContent)
       let filtered: SymbolResult[] = response.symbols;
+
+      // Filter by symbol type first (e.g., @go:func: → only functions)
+      if (symbolTypeFilter) {
+        const targetType = SYMBOL_TYPE_FROM_DISPLAY[symbolTypeFilter];
+        if (targetType) {
+          filtered = filtered.filter((s: SymbolResult) => s.type === targetType);
+        }
+      }
+
+      // Filter symbols by query (search in both name and lineContent)
       if (query) {
         const lowerQuery = query.toLowerCase();
-        filtered = response.symbols.filter((s: SymbolResult) =>
+        filtered = filtered.filter((s: SymbolResult) =>
           s.name.toLowerCase().includes(lowerQuery) ||
           s.lineContent.toLowerCase().includes(lowerQuery)
         );

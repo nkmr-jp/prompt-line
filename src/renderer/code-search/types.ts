@@ -118,3 +118,26 @@ export function getSymbolTypeDisplay(type: SymbolType): string {
     default: return type;
   }
 }
+
+// Mapping from display name to SymbolType for filtering
+export const SYMBOL_TYPE_FROM_DISPLAY: Record<string, SymbolType> = {
+  'func': 'function',
+  'function': 'function',
+  'method': 'method',
+  'class': 'class',
+  'struct': 'struct',
+  'iface': 'interface',
+  'interface': 'interface',
+  'type': 'type',
+  'const': 'constant',
+  'constant': 'constant',
+  'var': 'variable',
+  'variable': 'variable',
+  'enum': 'enum',
+  'prop': 'property',
+  'property': 'property',
+  'mod': 'module',
+  'module': 'module',
+  'ns': 'namespace',
+  'namespace': 'namespace'
+};
