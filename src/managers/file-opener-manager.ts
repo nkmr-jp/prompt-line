@@ -8,6 +8,52 @@ interface OpenFileResult {
   error?: string;
 }
 
+interface OpenFileOptions {
+  lineNumber?: number;
+  columnNumber?: number;
+}
+
+// Editor CLI commands and their line number support
+interface EditorConfig {
+  // CLI command to use (if different from app name)
+  cli?: string;
+  // Format for line number argument: 'goto' = --goto file:line, 'line' = --line N file, 'colon' = file:line
+  lineFormat?: 'goto' | 'line' | 'colon' | 'url';
+  // URL scheme for JetBrains-style navigation
+  urlScheme?: string;
+}
+
+// Known editors and their configurations
+const EDITOR_CONFIGS: Record<string, EditorConfig> = {
+  // VSCode and variants
+  'Visual Studio Code': { cli: 'code', lineFormat: 'goto' },
+  'Visual Studio Code - Insiders': { cli: 'code-insiders', lineFormat: 'goto' },
+  'VSCodium': { cli: 'codium', lineFormat: 'goto' },
+  'Cursor': { cli: 'cursor', lineFormat: 'goto' },
+  'Windsurf': { cli: 'windsurf', lineFormat: 'goto' },
+  // JetBrains IDEs (use URL scheme for better line support)
+  'IntelliJ IDEA': { urlScheme: 'idea' },
+  'IntelliJ IDEA Ultimate': { urlScheme: 'idea' },
+  'IntelliJ IDEA Community': { urlScheme: 'idea' },
+  'WebStorm': { urlScheme: 'webstorm' },
+  'PyCharm': { urlScheme: 'pycharm' },
+  'PyCharm Professional': { urlScheme: 'pycharm' },
+  'PyCharm Community': { urlScheme: 'pycharm' },
+  'GoLand': { urlScheme: 'goland' },
+  'RubyMine': { urlScheme: 'rubymine' },
+  'PhpStorm': { urlScheme: 'phpstorm' },
+  'CLion': { urlScheme: 'clion' },
+  'Rider': { urlScheme: 'rider' },
+  'DataGrip': { urlScheme: 'datagrip' },
+  'AppCode': { urlScheme: 'appcode' },
+  'Android Studio': { urlScheme: 'idea' },
+  // Other editors
+  'Sublime Text': { cli: 'subl', lineFormat: 'colon' },
+  'TextMate': { cli: 'mate', lineFormat: 'line' },
+  'Atom': { cli: 'atom', lineFormat: 'colon' },
+  'Zed': { cli: 'zed', lineFormat: 'colon' },
+};
+
 export class FileOpenerManager {
   private settingsManager: SettingsManager;
 
@@ -17,8 +63,10 @@ export class FileOpenerManager {
 
   /**
    * ファイルを適切なアプリで開く
+   * @param filePath ファイルパス
+   * @param options オプション（行番号など）
    */
-  async openFile(filePath: string): Promise<OpenFileResult> {
+  async openFile(filePath: string, options?: OpenFileOptions): Promise<OpenFileResult> {
     const settings = this.settingsManager.getSettings();
     const ext = path.extname(filePath).slice(1).toLowerCase();
 
@@ -29,12 +77,13 @@ export class FileOpenerManager {
     logger.debug('FileOpenerManager: openFile called', {
       filePath,
       ext,
+      lineNumber: options?.lineNumber,
       fileOpenerSettings: settings.fileOpener,
       selectedApp: app || 'system default'
     });
 
     if (app) {
-      return this.openWithApp(filePath, app);
+      return this.openWithApp(filePath, app, options);
     }
 
     // デフォルト動作（システムデフォルトアプリ）
@@ -44,7 +93,7 @@ export class FileOpenerManager {
   /**
    * 指定アプリでファイルを開く（execFileを使用 - シェルインジェクション防止）
    */
-  private openWithApp(filePath: string, appName: string): Promise<OpenFileResult> {
+  private openWithApp(filePath: string, appName: string, options?: OpenFileOptions): Promise<OpenFileResult> {
     return new Promise((resolve) => {
       // アプリ名の検証
       if (!appName || typeof appName !== 'string') {
@@ -60,6 +109,29 @@ export class FileOpenerManager {
         return;
       }
 
+      // Check if we have a line number and the editor supports it
+      const editorConfig = EDITOR_CONFIGS[appName];
+      if (options?.lineNumber && editorConfig) {
+        this.openWithLineNumber(filePath, appName, editorConfig, options)
+          .then(resolve)
+          .catch(() => {
+            // Fallback to regular open if line number open fails
+            logger.warn('Line number open failed, falling back to regular open', { appName, filePath });
+            this.openWithAppSimple(filePath, appName).then(resolve);
+          });
+        return;
+      }
+
+      // No line number or unsupported editor - use simple open
+      this.openWithAppSimple(filePath, appName).then(resolve);
+    });
+  }
+
+  /**
+   * シンプルなアプリ起動（行番号なし）
+   */
+  private openWithAppSimple(filePath: string, appName: string): Promise<OpenFileResult> {
+    return new Promise((resolve) => {
       // execFileを使用（引数を配列で渡すことでシェルインジェクションを防止）
       // デフォルトでアプリはフロントに持ってくる（-g を付けないことでフォアグラウンドで開く）
       execFile('open', ['-a', appName, filePath], (error) => {
@@ -80,6 +152,92 @@ export class FileOpenerManager {
         });
         resolve({ success: true });
       });
+    });
+  }
+
+  /**
+   * 行番号指定でファイルを開く
+   */
+  private openWithLineNumber(
+    filePath: string,
+    appName: string,
+    config: EditorConfig,
+    options: OpenFileOptions
+  ): Promise<OpenFileResult> {
+    return new Promise((resolve, reject) => {
+      const lineNumber = options.lineNumber || 1;
+      const columnNumber = options.columnNumber || 1;
+
+      logger.debug('Opening file with line number', {
+        filePath,
+        appName,
+        lineNumber,
+        columnNumber,
+        config
+      });
+
+      // JetBrains URL scheme
+      if (config.urlScheme) {
+        // Use URL scheme: jetbrains://<ide>/navigate/reference?path=<file>&line=<line>
+        const url = `${config.urlScheme}://open?file=${encodeURIComponent(filePath)}&line=${lineNumber}`;
+        logger.debug('Opening with JetBrains URL scheme', { url });
+        execFile('open', [url], (error) => {
+          if (error) {
+            logger.warn('JetBrains URL scheme failed', { error: error.message, url });
+            reject(error);
+            return;
+          }
+          logger.info('File opened successfully with JetBrains URL scheme', {
+            filePath,
+            lineNumber,
+            app: appName
+          });
+          resolve({ success: true });
+        });
+        return;
+      }
+
+      // CLI-based editors
+      if (config.cli) {
+        let args: string[];
+
+        switch (config.lineFormat) {
+          case 'goto':
+            // VSCode style: --goto file:line:column
+            args = ['--goto', `${filePath}:${lineNumber}:${columnNumber}`];
+            break;
+          case 'line':
+            // TextMate style: -l <line> <file>
+            args = ['-l', String(lineNumber), filePath];
+            break;
+          case 'colon':
+            // Sublime/Atom style: file:line:column
+            args = [`${filePath}:${lineNumber}:${columnNumber}`];
+            break;
+          default:
+            args = [filePath];
+        }
+
+        logger.debug('Opening with CLI', { cli: config.cli, args });
+
+        execFile(config.cli, args, (error) => {
+          if (error) {
+            logger.warn('CLI open failed', { error: error.message, cli: config.cli, args });
+            reject(error);
+            return;
+          }
+          logger.info('File opened successfully with CLI', {
+            filePath,
+            lineNumber,
+            cli: config.cli
+          });
+          resolve({ success: true });
+        });
+        return;
+      }
+
+      // No special handling available
+      reject(new Error('No line number handling available for this editor'));
     });
   }
 

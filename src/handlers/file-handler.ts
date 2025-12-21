@@ -91,8 +91,30 @@ class FileHandler {
   }
 
   /**
+   * Parse a file path that may contain line number and symbol suffix
+   * Format: path:lineNumber#symbolName or path:lineNumber or just path
+   */
+  private parsePathWithLineInfo(pathStr: string): { path: string; lineNumber?: number; symbolName?: string } {
+    // Match pattern: path:lineNumber#symbolName or path:lineNumber
+    const match = pathStr.match(/^(.+?):(\d+)(#(.+))?$/);
+    if (match && match[1] && match[2]) {
+      const result: { path: string; lineNumber?: number; symbolName?: string } = {
+        path: match[1],
+        lineNumber: parseInt(match[2], 10)
+      };
+      if (match[4]) {
+        result.symbolName = match[4];
+      }
+      return result;
+    }
+    // No line number suffix
+    return { path: pathStr };
+  }
+
+  /**
    * Handle open-file-in-editor IPC channel
    * Opens a file in the configured editor based on file extension
+   * Supports paths with line numbers: path:lineNumber or path:lineNumber#symbolName
    */
   private async handleOpenFileInEditor(
     _event: IpcMainInvokeEvent,
@@ -106,13 +128,26 @@ class FileHandler {
         return { success: false, error: 'Invalid file path provided' };
       }
 
-      // Expand and resolve path
-      const normalizedPath = this.expandPath(filePath);
+      // Parse line number and symbol from path
+      const parsedPath = this.parsePathWithLineInfo(filePath);
+      const cleanPath = parsedPath.path;
+
+      logger.debug('Parsed file path:', {
+        original: filePath,
+        cleanPath,
+        lineNumber: parsedPath.lineNumber,
+        symbolName: parsedPath.symbolName
+      });
+
+      // Expand and resolve path (without line number suffix)
+      const normalizedPath = this.expandPath(cleanPath);
 
       logger.debug('Resolved file path:', {
         original: filePath,
+        cleanPath,
         baseDir: this.directoryManager.getDirectory(),
-        resolved: normalizedPath
+        resolved: normalizedPath,
+        lineNumber: parsedPath.lineNumber
       });
 
       // File existence check (TOCTOU mitigation)
@@ -123,8 +158,11 @@ class FileHandler {
         return { success: false, error: 'File does not exist' };
       }
 
-      // Open file using FileOpenerManager (respects user settings for app selection)
-      return await this.fileOpenerManager.openFile(normalizedPath);
+      // Open file using FileOpenerManager with line number option
+      const options = parsedPath.lineNumber !== undefined
+        ? { lineNumber: parsedPath.lineNumber }
+        : undefined;
+      return await this.fileOpenerManager.openFile(normalizedPath, options);
     } catch (error) {
       logger.error('Failed to open file in editor:', error);
       return { success: false, error: (error as Error).message };
