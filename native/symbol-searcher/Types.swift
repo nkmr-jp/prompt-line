@@ -10,6 +10,12 @@ enum SymbolType: String, Codable {
     case structDecl = "struct"
     case interface
     case typeAlias = "type"
+    case constant
+    case variable
+    case enumDecl = "enum"
+    case property
+    case module
+    case namespace
 }
 
 // MARK: - Language Configuration
