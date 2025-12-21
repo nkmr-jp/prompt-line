@@ -87,7 +87,7 @@ class CodeSearchHandler {
         symbolCount: 0,
         searchMode: 'full',
         partial: false,
-        maxSymbols: options?.maxSymbols || 2000,
+        maxSymbols: options?.maxSymbols || 20000,
         error: 'Invalid directory'
       };
     }
@@ -99,7 +99,7 @@ class CodeSearchHandler {
         symbolCount: 0,
         searchMode: 'full',
         partial: false,
-        maxSymbols: options?.maxSymbols || 2000,
+        maxSymbols: options?.maxSymbols || 20000,
         error: 'Invalid language'
       };
     }
@@ -121,7 +121,7 @@ class CodeSearchHandler {
             symbolCount: cachedSymbols.length,
             searchMode: 'cached',
             partial: false,
-            maxSymbols: options?.maxSymbols || 2000
+            maxSymbols: options?.maxSymbols || 20000
           };
         }
       }
@@ -163,7 +163,7 @@ class CodeSearchHandler {
         symbolCount: 0,
         searchMode: 'cached',
         partial: false,
-        maxSymbols: 2000,
+        maxSymbols: 20000,
         error: 'Invalid directory'
       };
     }
@@ -176,7 +176,7 @@ class CodeSearchHandler {
         symbolCount: 0,
         searchMode: 'cached',
         partial: false,
-        maxSymbols: 2000,
+        maxSymbols: 20000,
         error: 'No valid cache found'
       };
     }
@@ -191,7 +191,7 @@ class CodeSearchHandler {
       symbolCount: symbols.length,
       searchMode: 'cached',
       partial: false,
-      maxSymbols: metadata?.totalSymbolCount || 2000
+      maxSymbols: metadata?.totalSymbolCount || 20000
     };
 
     if (language) {

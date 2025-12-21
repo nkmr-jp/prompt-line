@@ -166,7 +166,7 @@ func printUsage() {
 
     Options:
       --language, -l <lang>    Language to search (e.g., go, ts, py, rs)
-      --max-symbols <n>        Maximum number of symbols to return (default: 2000)
+      --max-symbols <n>        Maximum number of symbols to return (default: 20000)
 
     Examples:
       symbol-searcher check-rg

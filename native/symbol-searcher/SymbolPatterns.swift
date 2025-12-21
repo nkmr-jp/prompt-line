@@ -162,6 +162,30 @@ let LANGUAGE_PATTERNS: [String: LanguageConfig] = [
             SymbolPattern(type: .typeAlias, regex: "^typedef\\s+\\w+\\s+(\\w+)\\s*;", captureGroup: 1),
         ]
     ),
+    "sh": LanguageConfig(
+        extensionName: "sh",
+        displayName: "Shell",
+        rgType: "sh",
+        patterns: [
+            // function name() { or function name {
+            SymbolPattern(type: .function, regex: "^function\\s+(\\w+)\\s*(?:\\(\\)|\\{)", captureGroup: 1),
+            // name() { (POSIX style)
+            SymbolPattern(type: .function, regex: "^(\\w+)\\s*\\(\\)\\s*\\{", captureGroup: 1),
+            // Variable assignment (uppercase convention)
+            SymbolPattern(type: .variable, regex: "^([A-Z][A-Z0-9_]*)=", captureGroup: 1),
+        ]
+    ),
+    "make": LanguageConfig(
+        extensionName: "mk",
+        displayName: "Makefile",
+        rgType: "make",
+        patterns: [
+            // Targets (target: or target::)
+            SymbolPattern(type: .function, regex: "^([a-zA-Z_][a-zA-Z0-9_-]*)\\s*::?", captureGroup: 1),
+            // Variable definitions (VAR = or VAR :=)
+            SymbolPattern(type: .variable, regex: "^([A-Z][A-Z0-9_]*)\\s*[:?]?=", captureGroup: 1),
+        ]
+    ),
 ]
 
 /// Get all supported language keys

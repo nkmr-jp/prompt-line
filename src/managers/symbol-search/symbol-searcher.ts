@@ -13,8 +13,8 @@ import type {
 } from './types';
 
 // Default search options
-const DEFAULT_MAX_SYMBOLS = 2000;
-const QUICK_MAX_SYMBOLS = 500;
+const DEFAULT_MAX_SYMBOLS = 20000;
+const QUICK_MAX_SYMBOLS = 5000;
 const SEARCH_TIMEOUT = 30000; // 30 seconds for symbol search (large codebases can take time)
 
 /**

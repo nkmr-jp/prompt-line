@@ -4,7 +4,7 @@ import Foundation
 
 /// Executor for ripgrep (rg) command for symbol search
 class RipgrepExecutor {
-    static let DEFAULT_MAX_SYMBOLS = 2000
+    static let DEFAULT_MAX_SYMBOLS = 20000
     static let TIMEOUT_SECONDS: Double = 5.0
 
     // MARK: - rg Path Detection
