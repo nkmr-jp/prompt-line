@@ -137,6 +137,7 @@ export class FileSearchManager {
   private codeSearchQuery: string = '';
   private rgAvailable: boolean = false;
   private supportedLanguages: Map<string, LanguageInfo> = new Map();
+  private codeSearchInitPromise: Promise<void> | null = null;
 
   constructor(callbacks: FileSearchCallbacks) {
     this.callbacks = callbacks;
@@ -341,8 +342,8 @@ export class FileSearchManager {
     // Create frontmatter popup element
     this.createFrontmatterPopup();
 
-    // Initialize code search (async, don't block)
-    this.initializeCodeSearch();
+    // Initialize code search (async, but store promise for later await)
+    this.codeSearchInitPromise = this.initializeCodeSearch();
   }
 
   /**
@@ -1801,6 +1802,18 @@ export class FileSearchManager {
       if (codeSearchMatch && codeSearchMatch[1]) {
         const language = codeSearchMatch[1];
         const symbolQuery = codeSearchMatch[2] ?? '';
+
+        // If code search not yet initialized, wait for it
+        if (this.codeSearchInitPromise && this.supportedLanguages.size === 0) {
+          console.debug('[FileSearchManager] checkForFileSearch: waiting for code search initialization...');
+          this.codeSearchInitPromise.then(() => {
+            // Re-check after initialization (only if cursor position hasn't changed)
+            if (this.textInput && this.textInput.value.includes(`@${query}`)) {
+              this.checkForFileSearch();
+            }
+          });
+          return;
+        }
 
         // Check if language is supported
         if (this.rgAvailable && this.supportedLanguages.has(language)) {
