@@ -106,13 +106,19 @@ class CodeSearchHandler {
 
     // Check cache first if requested
     if (options?.useCache !== false) {
-      const isCacheValid = await symbolCacheManager.isCacheValid(directory);
       const hasLanguage = await symbolCacheManager.hasLanguageCache(directory, language);
 
-      if (isCacheValid && hasLanguage) {
+      if (hasLanguage) {
         const cachedSymbols = await symbolCacheManager.loadSymbols(directory, language);
         if (cachedSymbols.length > 0) {
-          logger.debug('Returning cached symbols', { count: cachedSymbols.length });
+          logger.debug('Returning cached symbols (stale-while-revalidate)', { count: cachedSymbols.length });
+
+          // Background refresh: update cache without blocking the response
+          const searchOptions = options?.maxSymbols !== undefined
+            ? { maxSymbols: options.maxSymbols }
+            : undefined;
+          this.refreshCacheInBackground(directory, language, searchOptions);
+
           return {
             success: true,
             directory,
@@ -127,7 +133,7 @@ class CodeSearchHandler {
       }
     }
 
-    // Perform fresh search
+    // Perform fresh search (no cache available)
     const searchOptions = options?.maxSymbols !== undefined
       ? { maxSymbols: options.maxSymbols }
       : undefined;
@@ -221,6 +227,40 @@ class CodeSearchHandler {
       logger.error('Error clearing symbol cache:', error);
       return { success: false };
     }
+  }
+
+  /**
+   * Refresh cache in background (stale-while-revalidate pattern)
+   * This runs asynchronously without blocking the main response
+   */
+  private refreshCacheInBackground(
+    directory: string,
+    language: string,
+    options?: { maxSymbols?: number }
+  ): void {
+    // Run in background without awaiting
+    (async () => {
+      try {
+        logger.debug('Background cache refresh started', { directory, language });
+        const result = await searchSymbols(directory, language, options);
+
+        if (result.success && result.symbols.length > 0) {
+          await symbolCacheManager.saveSymbols(
+            directory,
+            language,
+            result.symbols,
+            'full'
+          );
+          logger.debug('Background cache refresh completed', {
+            directory,
+            language,
+            symbolCount: result.symbols.length
+          });
+        }
+      } catch (error) {
+        logger.warn('Background cache refresh failed', { directory, language, error });
+      }
+    })();
   }
 }
 
