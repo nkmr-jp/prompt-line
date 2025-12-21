@@ -1,7 +1,15 @@
 /**
  * Symbol Cache Manager
  * Manages disk caching for symbol search results
- * Uses the same directory structure as file-cache-manager
+ * Uses language-separated files for efficient access
+ *
+ * File structure:
+ *   ~/.prompt-line/cache/<encoded-path>/
+ *     symbol-metadata.json     - Metadata with language info
+ *     symbols-go.jsonl         - Go symbols
+ *     symbols-ts.jsonl         - TypeScript symbols
+ *     symbols-py.jsonl         - Python symbols
+ *     ...
  */
 
 import { promises as fs } from 'fs';
@@ -14,10 +22,10 @@ import type {
 } from './symbol-search/types';
 
 // Cache configuration
-const CACHE_VERSION = '1.0';
+const CACHE_VERSION = '2.0'; // Version bump for new file structure
 const DEFAULT_TTL_SECONDS = 3600; // 1 hour
 const SYMBOL_METADATA_FILE = 'symbol-metadata.json';
-const SYMBOLS_FILE = 'symbols.jsonl';
+const SYMBOLS_FILE_PREFIX = 'symbols-'; // symbols-{language}.jsonl
 
 /**
  * Symbol Cache Manager for disk-based caching
@@ -52,10 +60,12 @@ export class SymbolCacheManager {
   }
 
   /**
-   * Get symbols file path for a project
+   * Get symbols file path for a project and language
+   * @param directory - The project directory
+   * @param language - The language key (e.g., 'go', 'ts', 'py')
    */
-  private getSymbolsPath(directory: string): string {
-    return path.join(this.getProjectCacheDir(directory), SYMBOLS_FILE);
+  private getSymbolsPath(directory: string, language: string): string {
+    return path.join(this.getProjectCacheDir(directory), `${SYMBOLS_FILE_PREFIX}${language}.jsonl`);
   }
 
   /**
@@ -110,10 +120,46 @@ export class SymbolCacheManager {
 
   /**
    * Load cached symbols for a directory and language
+   * If language is specified, loads from language-specific file
+   * If language is not specified, loads from all language files
    */
   async loadSymbols(directory: string, language?: string): Promise<SymbolResult[]> {
     try {
-      const symbolsPath = this.getSymbolsPath(directory);
+      if (language) {
+        // Load from language-specific file
+        return await this.loadSymbolsForLanguage(directory, language);
+      }
+
+      // Load from all language files
+      const metadata = await this.loadMetadata(directory);
+      if (!metadata) {
+        return [];
+      }
+
+      const allSymbols: SymbolResult[] = [];
+      for (const lang of Object.keys(metadata.languages)) {
+        const langSymbols = await this.loadSymbolsForLanguage(directory, lang);
+        allSymbols.push(...langSymbols);
+      }
+
+      logger.debug('Loaded symbols from cache (all languages)', {
+        directory,
+        count: allSymbols.length
+      });
+
+      return allSymbols;
+    } catch (error) {
+      logger.debug('Error loading symbol cache:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Load symbols for a specific language from its dedicated file
+   */
+  private async loadSymbolsForLanguage(directory: string, language: string): Promise<SymbolResult[]> {
+    try {
+      const symbolsPath = this.getSymbolsPath(directory, language);
       const content = await fs.readFile(symbolsPath, 'utf8');
       const lines = content.trim().split('\n').filter(line => line.length > 0);
 
@@ -121,10 +167,7 @@ export class SymbolCacheManager {
       for (const line of lines) {
         try {
           const symbol: SymbolResult = JSON.parse(line);
-          // Filter by language if specified
-          if (!language || symbol.language === language) {
-            symbols.push(symbol);
-          }
+          symbols.push(symbol);
         } catch (parseError) {
           logger.warn('Error parsing symbol line:', parseError);
         }
@@ -138,7 +181,7 @@ export class SymbolCacheManager {
 
       return symbols;
     } catch (error) {
-      logger.debug('Error loading symbol cache:', error);
+      logger.debug('Error loading symbol cache for language:', { language, error });
       return [];
     }
   }
@@ -158,6 +201,7 @@ export class SymbolCacheManager {
 
   /**
    * Save symbols to cache
+   * Each language is saved to its own file for efficient access
    */
   async saveSymbols(
     directory: string,
@@ -192,28 +236,27 @@ export class SymbolCacheManager {
       };
       metadata.updatedAt = now;
 
-      // Load existing symbols (for other languages)
-      const existingSymbols = await this.loadSymbols(directory);
-      const otherLanguageSymbols = existingSymbols.filter(s => s.language !== language);
-      const allSymbols = [...otherLanguageSymbols, ...symbols];
-
-      // Update total count
-      metadata.totalSymbolCount = allSymbols.length;
+      // Calculate total count from all languages
+      let totalCount = 0;
+      for (const langMeta of Object.values(metadata.languages)) {
+        totalCount += langMeta.symbolCount;
+      }
+      metadata.totalSymbolCount = totalCount;
 
       // Save metadata
       const metadataPath = this.getMetadataPath(directory);
       await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), 'utf8');
 
-      // Save symbols as JSONL
-      const symbolsPath = this.getSymbolsPath(directory);
-      const symbolsContent = allSymbols.map(s => JSON.stringify(s)).join('\n');
+      // Save symbols to language-specific file
+      const symbolsPath = this.getSymbolsPath(directory, language);
+      const symbolsContent = symbols.map(s => JSON.stringify(s)).join('\n');
       await fs.writeFile(symbolsPath, symbolsContent, 'utf8');
 
       logger.debug('Saved symbols to cache', {
         directory,
         language,
         symbolCount: symbols.length,
-        totalSymbolCount: allSymbols.length
+        totalSymbolCount: totalCount
       });
     } catch (error) {
       logger.error('Error saving symbol cache:', error);
@@ -249,10 +292,17 @@ export class SymbolCacheManager {
           // Only clear if it has symbol cache
           try {
             await fs.access(symbolMetadataPath);
+
+            // Remove metadata file
             await fs.rm(symbolMetadataPath);
 
-            const symbolsPath = path.join(projectDir, SYMBOLS_FILE);
-            await fs.rm(symbolsPath, { force: true });
+            // Remove all language-specific symbol files
+            const files = await fs.readdir(projectDir);
+            for (const file of files) {
+              if (file.startsWith(SYMBOLS_FILE_PREFIX) && file.endsWith('.jsonl')) {
+                await fs.rm(path.join(projectDir, file), { force: true });
+              }
+            }
 
             logger.debug('Cleared symbol cache for', { dir: entry.name });
           } catch {
@@ -262,6 +312,39 @@ export class SymbolCacheManager {
       }
     } catch (error) {
       logger.warn('Error clearing all symbol caches:', error);
+    }
+  }
+
+  /**
+   * Clear cache for a specific language in a directory
+   */
+  async clearLanguageCache(directory: string, language: string): Promise<void> {
+    try {
+      // Remove language-specific file
+      const symbolsPath = this.getSymbolsPath(directory, language);
+      await fs.rm(symbolsPath, { force: true });
+
+      // Update metadata
+      const metadata = await this.loadMetadata(directory);
+      if (metadata && metadata.languages[language]) {
+        delete metadata.languages[language];
+
+        // Recalculate total count
+        let totalCount = 0;
+        for (const langMeta of Object.values(metadata.languages)) {
+          totalCount += langMeta.symbolCount;
+        }
+        metadata.totalSymbolCount = totalCount;
+        metadata.updatedAt = new Date().toISOString();
+
+        // Save updated metadata
+        const metadataPath = this.getMetadataPath(directory);
+        await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), 'utf8');
+      }
+
+      logger.debug('Cleared symbol cache for language', { directory, language });
+    } catch (error) {
+      logger.warn('Error clearing language cache:', error);
     }
   }
 }
