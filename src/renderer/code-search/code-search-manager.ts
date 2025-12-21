@@ -360,18 +360,34 @@ export class CodeSearchManager {
 
   /**
    * Position suggestions dropdown
+   * Uses main-content as positioning reference (same as FileSearchManager)
    */
   private positionSuggestions(): void {
     if (!this.suggestionsContainer || !this.textInput) return;
 
+    // Get main-content for relative positioning
+    const mainContent = this.textInput.closest('.main-content');
+    if (!mainContent) return;
+
+    const mainContentRect = mainContent.getBoundingClientRect();
     const inputRect = this.textInput.getBoundingClientRect();
 
+    // Calculate position relative to main-content
+    const inputTop = inputRect.top - mainContentRect.top;
+
+    // Calculate available space above the input
+    const spaceAbove = inputTop - 8; // 8px margin
+    const dynamicMaxHeight = Math.max(100, Math.min(300, spaceAbove));
+
     // Position above input
-    this.suggestionsContainer.style.position = 'absolute';
-    this.suggestionsContainer.style.bottom = `${window.innerHeight - inputRect.top + 4}px`;
-    this.suggestionsContainer.style.left = `${inputRect.left}px`;
-    this.suggestionsContainer.style.width = `${inputRect.width}px`;
-    this.suggestionsContainer.style.maxHeight = '300px';
+    const menuHeight = Math.min(this.suggestionsContainer.scrollHeight || dynamicMaxHeight, dynamicMaxHeight);
+    const top = Math.max(0, inputTop - menuHeight - 4);
+
+    this.suggestionsContainer.style.maxHeight = `${dynamicMaxHeight}px`;
+    this.suggestionsContainer.style.top = `${top}px`;
+    this.suggestionsContainer.style.left = '8px';
+    this.suggestionsContainer.style.right = '8px';
+    this.suggestionsContainer.style.bottom = 'auto';
   }
 
   /**
