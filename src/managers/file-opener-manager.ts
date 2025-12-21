@@ -178,14 +178,14 @@ export class FileOpenerManager {
         config
       });
 
-      // macOS 'open -na <app> --args file:line' method (for JetBrains IDEs)
+      // macOS 'open -na <app> --args --line <line> file' method (for JetBrains IDEs)
       if (config.useOpenArgs) {
-        // Use open command with --args to pass file:line directly to the app
-        const fileArg = `${filePath}:${lineNumber}`;
-        logger.debug('Opening with open -na --args', { appName, fileArg });
-        execFile('open', ['-na', appName, '--args', fileArg], (error) => {
+        // JetBrains IDEs use: --line <line> [--column <column>] file
+        const args = ['-na', appName, '--args', '--line', String(lineNumber), filePath];
+        logger.debug('Opening with open -na --args (JetBrains style)', { appName, args });
+        execFile('open', args, (error) => {
           if (error) {
-            logger.warn('open -na --args failed', { error: error.message, appName, fileArg });
+            logger.warn('open -na --args failed', { error: error.message, appName, args });
             reject(error);
             return;
           }
