@@ -46,7 +46,7 @@ export class CodeSearchManager {
    * Initialize elements and check prerequisites
    */
   async initialize(): Promise<void> {
-    this.textInput = document.getElementById('text-input') as HTMLTextAreaElement;
+    this.textInput = document.getElementById('textInput') as HTMLTextAreaElement;
     this.createSuggestionsContainer();
 
     // Check if ripgrep is available
@@ -72,10 +72,19 @@ export class CodeSearchManager {
    * Set up event listeners
    */
   setupEventListeners(): void {
-    if (!this.textInput) return;
+    console.debug('[CodeSearchManager] setupEventListeners called', {
+      hasTextInput: !!this.textInput,
+      isEnabled: this.isEnabled
+    });
+
+    if (!this.textInput) {
+      console.warn('[CodeSearchManager] setupEventListeners: textInput is null, skipping');
+      return;
+    }
 
     this.textInput.addEventListener('input', () => this.handleInput());
     this.textInput.addEventListener('keydown', (e) => this.handleKeyDown(e));
+    console.debug('[CodeSearchManager] setupEventListeners: event listeners attached');
 
     // Click outside to close
     document.addEventListener('click', (e) => {
@@ -123,7 +132,16 @@ export class CodeSearchManager {
    * Handle input event
    */
   private handleInput(): void {
-    if (!this.isEnabled || !this.textInput || this.callbacks.getIsComposing()) return;
+    console.debug('[CodeSearchManager] handleInput called', {
+      isEnabled: this.isEnabled,
+      hasTextInput: !!this.textInput,
+      isComposing: this.callbacks.getIsComposing()
+    });
+
+    if (!this.isEnabled || !this.textInput || this.callbacks.getIsComposing()) {
+      console.debug('[CodeSearchManager] handleInput: early return');
+      return;
+    }
 
     // Debounce input handling
     if (this.debounceTimer) {
@@ -168,16 +186,26 @@ export class CodeSearchManager {
    * Check for @<ext>:<query> pattern and trigger search
    */
   private async checkForCodeSearch(): Promise<void> {
-    if (!this.textInput || !this.currentDirectory) return;
+    console.debug('[CodeSearchManager] checkForCodeSearch called', {
+      hasTextInput: !!this.textInput,
+      currentDirectory: this.currentDirectory
+    });
+
+    if (!this.textInput || !this.currentDirectory) {
+      console.debug('[CodeSearchManager] checkForCodeSearch: early return - missing textInput or directory');
+      return;
+    }
 
     const text = this.callbacks.getTextContent();
     const cursorPos = this.callbacks.getCursorPosition();
 
     // Get text before cursor
     const textBeforeCursor = text.substring(0, cursorPos);
+    console.debug('[CodeSearchManager] checkForCodeSearch: textBeforeCursor:', textBeforeCursor);
 
     // Check for pattern
     const match = textBeforeCursor.match(CODE_SEARCH_PATTERN);
+    console.debug('[CodeSearchManager] checkForCodeSearch: pattern match:', match);
     if (!match || !match[1]) {
       this.hideSuggestions();
       return;
