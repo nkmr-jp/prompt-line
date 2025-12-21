@@ -107,7 +107,8 @@ export class PromptLineRenderer {
       this.setupSearchManager();
       this.setupSlashCommandManager();
       this.setupFileSearchManager();
-      await this.setupCodeSearchManager();
+      // Code search is now integrated into FileSearchManager
+      // await this.setupCodeSearchManager();
       this.setupEventListeners();
       // Note: setupIPCListeners() is now called in constructor to prevent race condition
     } catch (error) {
@@ -463,11 +464,7 @@ export class PromptLineRenderer {
           cacheAge: data.directoryData.cacheAge
         });
         this.fileSearchManager?.handleCachedDirectoryData(data.directoryData);
-
-        // Set directory for code search
-        if (data.directoryData.directory) {
-          this.codeSearchManager?.setDirectory(data.directoryData.directory);
-        }
+        // Note: Code search now uses FileSearchManager's cached directory data
 
         // Update hint text with formatted directory path
         // But prioritize hint message (e.g., fd not installed) over directory path
@@ -549,11 +546,7 @@ export class PromptLineRenderer {
 
       // Update cache with directory data (handles both Stage 1 and Stage 2)
       this.fileSearchManager?.updateCache(data);
-
-      // Update directory for code search
-      if (data.directory) {
-        this.codeSearchManager?.setDirectory(data.directory);
-      }
+      // Note: Code search now uses FileSearchManager's cached directory data
 
       // Update hint text with formatted directory path
       // But prioritize hint message (e.g., fd not installed) over directory path

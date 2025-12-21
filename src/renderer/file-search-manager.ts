@@ -5,10 +5,11 @@
 
 import type { FileInfo, DirectoryInfo, AgentItem } from '../types';
 import { getFileIconSvg, getMentionIconSvg } from './assets/icons/file-icons';
+import type { SymbolResult, LanguageInfo, SymbolSearchResponse, LanguagesResponse, RgCheckResponse } from './code-search/types';
+import { SYMBOL_ICONS, getSymbolTypeDisplay } from './code-search/types';
 
 // Pattern to detect code search queries (e.g., @ts:, @go:, @py:)
-// These should be handled by CodeSearchManager, not FileSearchManager
-const CODE_SEARCH_PATTERN = /^[a-z]+:/;
+const CODE_SEARCH_PATTERN = /^([a-z]+):(.*)$/;
 
 /**
  * Format object for console output (Electron renderer -> main process)
@@ -79,11 +80,12 @@ interface AtPathRange {
   path?: string | undefined;  // The path content (without @) for highlighting
 }
 
-// Unified suggestion item (file or agent) with score for mixed sorting
+// Unified suggestion item (file, agent, or symbol) with score for mixed sorting
 interface SuggestionItem {
-  type: 'file' | 'agent';
+  type: 'file' | 'agent' | 'symbol';
   file?: FileInfo;
   agent?: AgentItem;
+  symbol?: SymbolResult;
   score: number;
 }
 
@@ -129,6 +131,14 @@ export class FileSearchManager {
 
   // Whether file search feature is enabled (from settings)
   private fileSearchEnabled: boolean = false;
+
+  // Code/Symbol search properties
+  private filteredSymbols: SymbolResult[] = [];
+  private isCodeSearchMode: boolean = false;
+  private codeSearchLanguage: string = '';
+  private codeSearchQuery: string = '';
+  private rgAvailable: boolean = false;
+  private supportedLanguages: Map<string, LanguageInfo> = new Map();
 
   constructor(callbacks: FileSearchCallbacks) {
     this.callbacks = callbacks;
@@ -332,6 +342,36 @@ export class FileSearchManager {
 
     // Create frontmatter popup element
     this.createFrontmatterPopup();
+
+    // Initialize code search (async, don't block)
+    this.initializeCodeSearch();
+  }
+
+  /**
+   * Initialize code search functionality
+   * Checks ripgrep availability and loads supported languages
+   */
+  private async initializeCodeSearch(): Promise<void> {
+    try {
+      // Check if ripgrep is available
+      const rgCheck = await window.electronAPI.codeSearch.checkRg();
+      this.rgAvailable = rgCheck.rgAvailable;
+
+      if (!this.rgAvailable) {
+        console.debug('[FileSearchManager] ripgrep not available, code search disabled');
+        return;
+      }
+
+      // Load supported languages
+      const langResponse = await window.electronAPI.codeSearch.getSupportedLanguages();
+      for (const lang of langResponse.languages) {
+        this.supportedLanguages.set(lang.key, lang);
+      }
+
+      console.debug('[FileSearchManager] Code search initialized with languages:', Array.from(this.supportedLanguages.keys()));
+    } catch (error) {
+      console.error('[FileSearchManager] Failed to initialize code search:', error);
+    }
   }
 
   /**
@@ -1731,16 +1771,35 @@ export class FileSearchManager {
     if (result) {
       const { query, startPos } = result;
 
-      // Skip if query matches code search pattern (e.g., "ts:", "go:", "py:")
-      // These should be handled by CodeSearchManager instead
-      if (CODE_SEARCH_PATTERN.test(query)) {
-        console.debug('[FileSearchManager] checkForFileSearch: skip - code search pattern detected:', query);
-        if (this.isVisible) {
+      // Check if query matches code search pattern (e.g., "ts:", "go:", "py:")
+      const codeSearchMatch = query.match(CODE_SEARCH_PATTERN);
+      if (codeSearchMatch) {
+        const language = codeSearchMatch[1];
+        const symbolQuery = codeSearchMatch[2] || '';
+
+        // Check if language is supported
+        if (this.rgAvailable && this.supportedLanguages.has(language)) {
+          console.debug('[FileSearchManager] checkForFileSearch: code search pattern detected:', language, symbolQuery);
+          this.atStartPosition = startPos;
+          this.currentQuery = query;
+          this.isCodeSearchMode = true;
+          this.codeSearchLanguage = language;
+          this.codeSearchQuery = symbolQuery;
+          this.searchSymbols(language, symbolQuery);
+          return;
+        } else {
+          // Unknown language, show hint
+          const langInfo = this.supportedLanguages.get(language);
+          if (!langInfo && this.rgAvailable) {
+            this.callbacks.updateHintText?.(`Unknown language: ${language}`);
+          }
           this.hideSuggestions();
+          return;
         }
-        return;
       }
 
+      // Normal file search
+      this.isCodeSearchMode = false;
       this.atStartPosition = startPos;
       this.currentQuery = query;
       console.debug('[FileSearchManager] showing suggestions for query:', query);
@@ -1791,6 +1850,85 @@ export class FileSearchManager {
     const query = text.substring(atPos + 1, cursorPos);
 
     return { query, startPos: atPos };
+  }
+
+  /**
+   * Search for symbols using ripgrep
+   */
+  private async searchSymbols(language: string, query: string): Promise<void> {
+    if (!this.cachedDirectoryData?.directory) {
+      console.debug('[FileSearchManager] searchSymbols: no directory');
+      return;
+    }
+
+    try {
+      const response = await window.electronAPI.codeSearch.searchSymbols(
+        this.cachedDirectoryData.directory,
+        language,
+        { maxSymbols: 500, useCache: true }
+      );
+
+      if (!response.success) {
+        console.warn('[FileSearchManager] Symbol search failed:', response.error);
+        this.callbacks.updateHintText?.(response.error || 'Search failed');
+        this.hideSuggestions();
+        return;
+      }
+
+      // Filter symbols by query
+      let filtered = response.symbols;
+      if (query) {
+        const lowerQuery = query.toLowerCase();
+        filtered = response.symbols.filter(s =>
+          s.name.toLowerCase().includes(lowerQuery)
+        );
+
+        // Sort by match relevance
+        filtered.sort((a, b) => {
+          const aName = a.name.toLowerCase();
+          const bName = b.name.toLowerCase();
+          const aStarts = aName.startsWith(lowerQuery);
+          const bStarts = bName.startsWith(lowerQuery);
+          if (aStarts && !bStarts) return -1;
+          if (!aStarts && bStarts) return 1;
+          return aName.localeCompare(bName);
+        });
+      }
+
+      // Limit results
+      const maxSuggestions = 20;
+      this.filteredSymbols = filtered.slice(0, maxSuggestions);
+
+      // Clear file and agent results for code search mode
+      this.filteredFiles = [];
+      this.filteredAgents = [];
+
+      // Convert symbols to SuggestionItems
+      this.mergedSuggestions = this.filteredSymbols.map((symbol, index) => ({
+        type: 'symbol' as const,
+        symbol,
+        score: 1000 - index  // Higher score for earlier results
+      }));
+
+      this.selectedIndex = 0;
+      this.isVisible = true;
+
+      if (this.mergedSuggestions.length > 0) {
+        this.renderSuggestions(false);
+        this.positionSuggestions();
+        this.updateSelection();
+
+        // Update hint with symbol count
+        const langInfo = this.supportedLanguages.get(language);
+        this.callbacks.updateHintText?.(`${this.filteredSymbols.length} ${langInfo?.displayName || language} symbols`);
+      } else {
+        this.callbacks.updateHintText?.(`No symbols found for "${query}"`);
+        this.hideSuggestions();
+      }
+    } catch (error) {
+      console.error('[FileSearchManager] Symbol search error:', error);
+      this.hideSuggestions();
+    }
   }
 
   /**
@@ -2032,10 +2170,16 @@ export class FileSearchManager {
     }
     this.filteredFiles = [];
     this.filteredAgents = [];
+    this.filteredSymbols = [];
     this.mergedSuggestions = [];
     this.currentQuery = '';
     this.atStartPosition = -1;
     this.currentPath = ''; // Reset directory navigation state
+
+    // Reset code search state
+    this.isCodeSearchMode = false;
+    this.codeSearchLanguage = '';
+    this.codeSearchQuery = '';
 
     // Restore default hint text
     this.restoreDefaultHint();
@@ -2572,6 +2716,37 @@ export class FileSearchManager {
 
           item.appendChild(infoIcon);
         }
+      } else if (suggestion.type === 'symbol' && suggestion.symbol) {
+        const symbol = suggestion.symbol;
+        item.className = 'file-suggestion-item symbol-suggestion-item';
+        item.setAttribute('role', 'option');
+        item.setAttribute('data-index', itemIndex.toString());
+        item.setAttribute('data-type', 'symbol');
+
+        // Create icon for symbol type
+        const icon = document.createElement('span');
+        icon.className = 'file-icon symbol-icon';
+        icon.textContent = SYMBOL_ICONS[symbol.type] || '?';
+
+        // Create name with highlighting
+        const name = document.createElement('span');
+        name.className = 'file-name symbol-name';
+        this.insertHighlightedText(name, symbol.name, this.codeSearchQuery);
+
+        // Create type badge
+        const typeBadge = document.createElement('span');
+        typeBadge.className = 'symbol-type-badge';
+        typeBadge.textContent = getSymbolTypeDisplay(symbol.type);
+
+        // Create file path with line number
+        const pathEl = document.createElement('span');
+        pathEl.className = 'file-path symbol-path';
+        pathEl.textContent = `${symbol.relativePath}:${symbol.lineNumber}`;
+
+        item.appendChild(icon);
+        item.appendChild(name);
+        item.appendChild(typeBadge);
+        item.appendChild(pathEl);
       }
 
       // Click handler
@@ -2584,10 +2759,20 @@ export class FileSearchManager {
         if (e.metaKey) {
           const clickedSuggestion = this.mergedSuggestions[currentIndex];
           if (clickedSuggestion) {
-            const filePath = clickedSuggestion.type === 'file'
-              ? clickedSuggestion.file?.path
-              : clickedSuggestion.agent?.filePath;
+            let filePath: string | undefined;
+            let lineNumber: number | undefined;
+
+            if (clickedSuggestion.type === 'file') {
+              filePath = clickedSuggestion.file?.path;
+            } else if (clickedSuggestion.type === 'agent') {
+              filePath = clickedSuggestion.agent?.filePath;
+            } else if (clickedSuggestion.type === 'symbol') {
+              filePath = clickedSuggestion.symbol?.filePath;
+              lineNumber = clickedSuggestion.symbol?.lineNumber;
+            }
+
             if (filePath) {
+              // TODO: Support opening file at specific line number
               await this.openFileAndRestoreFocus(filePath);
               this.hideSuggestions();
               return;
@@ -2630,7 +2815,45 @@ export class FileSearchManager {
       this.selectFileByInfo(suggestion.file);
     } else if (suggestion.type === 'agent' && suggestion.agent) {
       this.selectAgentByInfo(suggestion.agent);
+    } else if (suggestion.type === 'symbol' && suggestion.symbol) {
+      this.selectSymbol(suggestion.symbol);
     }
+  }
+
+  /**
+   * Select a symbol and insert its path:lineNumber
+   */
+  private selectSymbol(symbol: SymbolResult): void {
+    if (!this.textInput || this.atStartPosition < 0) return;
+
+    // Format: path/to/file.ext:lineNumber
+    const insertText = `${symbol.relativePath}:${symbol.lineNumber}`;
+
+    // Get current cursor position (end of the @query)
+    const cursorPos = this.textInput.selectionStart;
+
+    // Replace the @lang:query with the file path
+    if (this.callbacks.replaceRangeWithUndo) {
+      this.callbacks.replaceRangeWithUndo(this.atStartPosition, cursorPos, insertText);
+    } else {
+      // Fallback without undo support
+      const text = this.textInput.value;
+      const newText = text.substring(0, this.atStartPosition) + insertText + text.substring(cursorPos);
+      this.textInput.value = newText;
+      const newCursorPos = this.atStartPosition + insertText.length;
+      this.textInput.setSelectionRange(newCursorPos, newCursorPos);
+    }
+
+    // Notify callback
+    this.callbacks.onFileSelected(insertText);
+
+    // Reset code search mode
+    this.isCodeSearchMode = false;
+    this.codeSearchLanguage = '';
+    this.codeSearchQuery = '';
+
+    // Hide suggestions
+    this.hideSuggestions();
   }
 
   /**
