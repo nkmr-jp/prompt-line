@@ -6,6 +6,10 @@
 import type { FileInfo, DirectoryInfo, AgentItem } from '../types';
 import { getFileIconSvg, getMentionIconSvg } from './assets/icons/file-icons';
 
+// Pattern to detect code search queries (e.g., @ts:, @go:, @py:)
+// These should be handled by CodeSearchManager, not FileSearchManager
+const CODE_SEARCH_PATTERN = /^[a-z]+:/;
+
 /**
  * Format object for console output (Electron renderer -> main process)
  * Outputs in a format similar to the main process logger
@@ -1725,10 +1729,22 @@ export class FileSearchManager {
     console.debug('[FileSearchManager] extractQueryAtCursor result:', result ? formatLog(result as Record<string, unknown>) : 'null');
 
     if (result) {
-      this.atStartPosition = result.startPos;
-      this.currentQuery = result.query;
-      console.debug('[FileSearchManager] showing suggestions for query:', result.query);
-      this.showSuggestions(result.query);
+      const { query, startPos } = result;
+
+      // Skip if query matches code search pattern (e.g., "ts:", "go:", "py:")
+      // These should be handled by CodeSearchManager instead
+      if (CODE_SEARCH_PATTERN.test(query)) {
+        console.debug('[FileSearchManager] checkForFileSearch: skip - code search pattern detected:', query);
+        if (this.isVisible) {
+          this.hideSuggestions();
+        }
+        return;
+      }
+
+      this.atStartPosition = startPos;
+      this.currentQuery = query;
+      console.debug('[FileSearchManager] showing suggestions for query:', query);
+      this.showSuggestions(query);
     } else {
       this.hideSuggestions();
     }
