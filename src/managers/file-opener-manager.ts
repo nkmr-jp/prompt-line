@@ -21,6 +21,8 @@ interface EditorConfig {
   lineFormat?: 'goto' | 'line' | 'colon' | 'url';
   // URL scheme for JetBrains-style navigation
   urlScheme?: string;
+  // Use 'open -na <appName> --args' for macOS apps that accept file:line as argument
+  useOpenArgs?: boolean;
 }
 
 // Known editors and their configurations
@@ -31,22 +33,22 @@ const EDITOR_CONFIGS: Record<string, EditorConfig> = {
   'VSCodium': { cli: 'codium', lineFormat: 'goto' },
   'Cursor': { cli: 'cursor', lineFormat: 'goto' },
   'Windsurf': { cli: 'windsurf', lineFormat: 'goto' },
-  // JetBrains IDEs (use CLI with colon format: <cli> <file>:<line>)
-  'IntelliJ IDEA': { cli: 'idea', lineFormat: 'colon' },
-  'IntelliJ IDEA Ultimate': { cli: 'idea', lineFormat: 'colon' },
-  'IntelliJ IDEA Community': { cli: 'idea', lineFormat: 'colon' },
-  'WebStorm': { cli: 'webstorm', lineFormat: 'colon' },
-  'PyCharm': { cli: 'pycharm', lineFormat: 'colon' },
-  'PyCharm Professional': { cli: 'pycharm', lineFormat: 'colon' },
-  'PyCharm Community': { cli: 'pycharm', lineFormat: 'colon' },
-  'GoLand': { cli: 'goland', lineFormat: 'colon' },
-  'RubyMine': { cli: 'rubymine', lineFormat: 'colon' },
-  'PhpStorm': { cli: 'phpstorm', lineFormat: 'colon' },
-  'CLion': { cli: 'clion', lineFormat: 'colon' },
-  'Rider': { cli: 'rider', lineFormat: 'colon' },
-  'DataGrip': { cli: 'datagrip', lineFormat: 'colon' },
-  'AppCode': { cli: 'appcode', lineFormat: 'colon' },
-  'Android Studio': { cli: 'studio', lineFormat: 'colon' },
+  // JetBrains IDEs (use 'open -na <app> --args file:line' for reliable line number support)
+  'IntelliJ IDEA': { useOpenArgs: true },
+  'IntelliJ IDEA Ultimate': { useOpenArgs: true },
+  'IntelliJ IDEA Community': { useOpenArgs: true },
+  'WebStorm': { useOpenArgs: true },
+  'PyCharm': { useOpenArgs: true },
+  'PyCharm Professional': { useOpenArgs: true },
+  'PyCharm Community': { useOpenArgs: true },
+  'GoLand': { useOpenArgs: true },
+  'RubyMine': { useOpenArgs: true },
+  'PhpStorm': { useOpenArgs: true },
+  'CLion': { useOpenArgs: true },
+  'Rider': { useOpenArgs: true },
+  'DataGrip': { useOpenArgs: true },
+  'AppCode': { useOpenArgs: true },
+  'Android Studio': { useOpenArgs: true },
   // Other editors
   'Sublime Text': { cli: 'subl', lineFormat: 'colon' },
   'TextMate': { cli: 'mate', lineFormat: 'line' },
@@ -175,6 +177,27 @@ export class FileOpenerManager {
         columnNumber,
         config
       });
+
+      // macOS 'open -na <app> --args file:line' method (for JetBrains IDEs)
+      if (config.useOpenArgs) {
+        // Use open command with --args to pass file:line directly to the app
+        const fileArg = `${filePath}:${lineNumber}`;
+        logger.debug('Opening with open -na --args', { appName, fileArg });
+        execFile('open', ['-na', appName, '--args', fileArg], (error) => {
+          if (error) {
+            logger.warn('open -na --args failed', { error: error.message, appName, fileArg });
+            reject(error);
+            return;
+          }
+          logger.info('File opened successfully with open -na --args', {
+            filePath,
+            lineNumber,
+            app: appName
+          });
+          resolve({ success: true });
+        });
+        return;
+      }
 
       // JetBrains URL scheme
       if (config.urlScheme) {
