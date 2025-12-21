@@ -239,7 +239,7 @@ export class CodeSearchManager {
       const response = await this.invokeSearchSymbols(
         this.currentDirectory,
         language,
-        { maxSymbols: 500, useCache: true }
+        { maxSymbols: 20000, useCache: true }
       );
 
       if (!response.success) {
@@ -504,7 +504,7 @@ export class CodeSearchManager {
         symbolCount: 0,
         searchMode: 'full',
         partial: false,
-        maxSymbols: 500,
+        maxSymbols: 20000,
         error: String(error)
       };
     }

@@ -52,8 +52,9 @@ let LANGUAGE_PATTERNS: [String: LanguageConfig] = [
         patterns: [
             SymbolPattern(type: .function, regex: "^(?:export\\s+)?(?:async\\s+)?function\\s+(\\w+)", captureGroup: 1),
             SymbolPattern(type: .classDecl, regex: "^(?:export\\s+)?class\\s+(\\w+)", captureGroup: 1),
-            SymbolPattern(type: .constant, regex: "^(?:export\\s+)?const\\s+(\\w+)\\s*=", captureGroup: 1),
-            SymbolPattern(type: .variable, regex: "^(?:export\\s+)?(?:let|var)\\s+(\\w+)\\s*=", captureGroup: 1),
+            SymbolPattern(type: .constant, regex: "^(?:export\\s+)?const\\s+(\\w+)\\s*[=;]", captureGroup: 1),
+            SymbolPattern(type: .variable, regex: "^(?:export\\s+)?let\\s+(\\w+)\\s*[=;,]", captureGroup: 1),
+            SymbolPattern(type: .variable, regex: "^(?:export\\s+)?var\\s+(\\w+)\\s*[=;,]", captureGroup: 1),
         ]
     ),
     "jsx": LanguageConfig(
@@ -63,8 +64,9 @@ let LANGUAGE_PATTERNS: [String: LanguageConfig] = [
         patterns: [
             SymbolPattern(type: .function, regex: "^(?:export\\s+)?(?:async\\s+)?function\\s+(\\w+)", captureGroup: 1),
             SymbolPattern(type: .classDecl, regex: "^(?:export\\s+)?class\\s+(\\w+)", captureGroup: 1),
-            SymbolPattern(type: .constant, regex: "^(?:export\\s+)?const\\s+(\\w+)\\s*=", captureGroup: 1),
-            SymbolPattern(type: .variable, regex: "^(?:export\\s+)?(?:let|var)\\s+(\\w+)\\s*=", captureGroup: 1),
+            SymbolPattern(type: .constant, regex: "^(?:export\\s+)?const\\s+(\\w+)\\s*[=;]", captureGroup: 1),
+            SymbolPattern(type: .variable, regex: "^(?:export\\s+)?let\\s+(\\w+)\\s*[=;,]", captureGroup: 1),
+            SymbolPattern(type: .variable, regex: "^(?:export\\s+)?var\\s+(\\w+)\\s*[=;,]", captureGroup: 1),
         ]
     ),
     "py": LanguageConfig(
@@ -184,6 +186,46 @@ let LANGUAGE_PATTERNS: [String: LanguageConfig] = [
             SymbolPattern(type: .function, regex: "^([a-zA-Z_][a-zA-Z0-9_-]*)\\s*::?", captureGroup: 1),
             // Variable definitions (VAR = or VAR :=)
             SymbolPattern(type: .variable, regex: "^([A-Z][A-Z0-9_]*)\\s*[:?]?=", captureGroup: 1),
+        ]
+    ),
+    "php": LanguageConfig(
+        extensionName: "php",
+        displayName: "PHP",
+        rgType: "php",
+        patterns: [
+            SymbolPattern(type: .function, regex: "^\\s*(?:public\\s+|private\\s+|protected\\s+)?(?:static\\s+)?function\\s+(\\w+)", captureGroup: 1),
+            SymbolPattern(type: .classDecl, regex: "^(?:abstract\\s+|final\\s+)?class\\s+(\\w+)", captureGroup: 1),
+            SymbolPattern(type: .interface, regex: "^interface\\s+(\\w+)", captureGroup: 1),
+            SymbolPattern(type: .interface, regex: "^trait\\s+(\\w+)", captureGroup: 1),
+            SymbolPattern(type: .constant, regex: "^\\s*(?:public\\s+|private\\s+|protected\\s+)?const\\s+(\\w+)\\s*=", captureGroup: 1),
+            SymbolPattern(type: .enumDecl, regex: "^enum\\s+(\\w+)", captureGroup: 1),
+        ]
+    ),
+    "cs": LanguageConfig(
+        extensionName: "cs",
+        displayName: "C#",
+        rgType: "csharp",
+        patterns: [
+            SymbolPattern(type: .classDecl, regex: "^\\s*(?:public\\s+|private\\s+|protected\\s+|internal\\s+)?(?:static\\s+)?(?:sealed\\s+|abstract\\s+|partial\\s+)?class\\s+(\\w+)", captureGroup: 1),
+            SymbolPattern(type: .interface, regex: "^\\s*(?:public\\s+|private\\s+|protected\\s+|internal\\s+)?interface\\s+(\\w+)", captureGroup: 1),
+            SymbolPattern(type: .structDecl, regex: "^\\s*(?:public\\s+|private\\s+|protected\\s+|internal\\s+)?(?:readonly\\s+)?struct\\s+(\\w+)", captureGroup: 1),
+            SymbolPattern(type: .enumDecl, regex: "^\\s*(?:public\\s+|private\\s+|protected\\s+|internal\\s+)?enum\\s+(\\w+)", captureGroup: 1),
+            SymbolPattern(type: .method, regex: "^\\s*(?:public\\s+|private\\s+|protected\\s+|internal\\s+)?(?:static\\s+)?(?:async\\s+)?(?:virtual\\s+|override\\s+|abstract\\s+)?(?:\\w+(?:<[^>]+>)?\\s+)(\\w+)\\s*\\(", captureGroup: 1),
+            SymbolPattern(type: .namespace, regex: "^namespace\\s+([\\w.]+)", captureGroup: 1),
+        ]
+    ),
+    "scala": LanguageConfig(
+        extensionName: "scala",
+        displayName: "Scala",
+        rgType: "scala",
+        patterns: [
+            SymbolPattern(type: .function, regex: "^\\s*(?:private\\s+|protected\\s+)?def\\s+(\\w+)", captureGroup: 1),
+            SymbolPattern(type: .classDecl, regex: "^(?:sealed\\s+|abstract\\s+|final\\s+)?(?:case\\s+)?class\\s+(\\w+)", captureGroup: 1),
+            SymbolPattern(type: .interface, regex: "^(?:sealed\\s+)?trait\\s+(\\w+)", captureGroup: 1),
+            SymbolPattern(type: .module, regex: "^(?:case\\s+)?object\\s+(\\w+)", captureGroup: 1),
+            SymbolPattern(type: .typeAlias, regex: "^\\s*type\\s+(\\w+)", captureGroup: 1),
+            SymbolPattern(type: .constant, regex: "^\\s*(?:private\\s+|protected\\s+)?val\\s+(\\w+)\\s*[=:]", captureGroup: 1),
+            SymbolPattern(type: .variable, regex: "^\\s*(?:private\\s+|protected\\s+)?var\\s+(\\w+)\\s*[=:]", captureGroup: 1),
         ]
     ),
 ]

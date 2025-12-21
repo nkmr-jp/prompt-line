@@ -1907,7 +1907,7 @@ export class FileSearchManager {
       const response = await window.electronAPI.codeSearch.searchSymbols(
         this.cachedDirectoryData.directory,
         language,
-        { maxSymbols: 500, useCache: true }
+        { maxSymbols: 20000, useCache: true }
       );
 
       if (!response.success) {

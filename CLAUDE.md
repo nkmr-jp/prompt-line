@@ -379,7 +379,7 @@ The window supports multiple positioning modes with dynamic configuration:
 - **ripgrep-based**: Uses `rg` (ripgrep) for fast symbol searching
 - **Native Swift tool**: `symbol-searcher` binary in `native/symbol-searcher/`
 - **Symbol caching**: Results cached per directory and language for faster subsequent searches
-- **Supported languages (13)**:
+- **Supported languages (18)**:
   | Language | Key | Example | Symbol Types |
   |----------|-----|---------|--------------|
   | Go | `go` | `@go:Handler` | function, method, struct, interface, type, constant, variable |
@@ -395,6 +395,11 @@ The window supports multiple positioning modes with dynamic configuration:
   | Ruby | `rb` | `@rb:initialize` | function, class, module, constant |
   | C++ | `cpp` | `@cpp:Node` | class, struct, enum, namespace, typedef |
   | C | `c` | `@c:parse` | struct, enum, typedef |
+  | Shell | `sh` | `@sh:build` | function, variable |
+  | Makefile | `make` | `@make:install` | function (targets), variable |
+  | PHP | `php` | `@php:render` | function, class, interface, trait, constant, enum |
+  | C# | `cs` | `@cs:Handle` | class, interface, struct, enum, method, namespace |
+  | Scala | `scala` | `@scala:process` | function, class, trait, object, type, constant, variable |
 - **Requirements**: ripgrep (`rg`) must be installed (`brew install ripgrep`)
 - **File search must be enabled**: Code search is part of the @ mention system
 
