@@ -351,9 +351,11 @@ export class FileSearchManager {
    * Checks ripgrep availability and loads supported languages
    */
   private async initializeCodeSearch(): Promise<void> {
+    console.debug('[FileSearchManager] initializeCodeSearch: starting...');
     try {
       // Check if ripgrep is available
       const rgCheck = await window.electronAPI.codeSearch.checkRg();
+      console.debug('[FileSearchManager] initializeCodeSearch: rgCheck result:', rgCheck);
       this.rgAvailable = rgCheck.rgAvailable;
 
       if (!this.rgAvailable) {
@@ -363,6 +365,7 @@ export class FileSearchManager {
 
       // Load supported languages
       const langResponse = await window.electronAPI.codeSearch.getSupportedLanguages();
+      console.debug('[FileSearchManager] initializeCodeSearch: languages loaded:', langResponse.languages.length);
       for (const lang of langResponse.languages) {
         this.supportedLanguages.set(lang.key, lang);
       }
@@ -1799,9 +1802,12 @@ export class FileSearchManager {
 
       // Check if query matches code search pattern (e.g., "ts:", "go:", "py:")
       const codeSearchMatch = query.match(CODE_SEARCH_PATTERN);
+      console.debug('[FileSearchManager] checkForFileSearch: query=', query, 'codeSearchMatch=', codeSearchMatch);
       if (codeSearchMatch && codeSearchMatch[1]) {
         const language = codeSearchMatch[1];
         const symbolQuery = codeSearchMatch[2] ?? '';
+        console.debug('[FileSearchManager] checkForFileSearch: code pattern matched, language=', language, 'symbolQuery=', symbolQuery);
+        console.debug('[FileSearchManager] checkForFileSearch: rgAvailable=', this.rgAvailable, 'supportedLanguages.size=', this.supportedLanguages.size, 'supportedLanguages.has(language)=', this.supportedLanguages.has(language));
 
         // If code search not yet initialized, wait for it
         if (this.codeSearchInitPromise && this.supportedLanguages.size === 0) {
@@ -1824,7 +1830,8 @@ export class FileSearchManager {
           this.searchSymbols(language, symbolQuery);
           return;
         } else {
-          // Unknown language, show hint
+          // Unknown language or rg not available - show hint and hide suggestions
+          console.debug('[FileSearchManager] checkForFileSearch: code search not available, rgAvailable=', this.rgAvailable);
           const langInfo = this.supportedLanguages.get(language);
           if (!langInfo && this.rgAvailable) {
             this.callbacks.updateHintText?.(`Unknown language: ${language}`);
