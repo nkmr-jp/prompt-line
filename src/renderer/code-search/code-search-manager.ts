@@ -212,7 +212,8 @@ export class CodeSearchManager {
     }
 
     const language = match[1];
-    const query = match[2] ?? '';
+    // Remove all colons from query (e.g., "func:" → "func", "func:Create" → "funcCreate")
+    const query = (match[2] ?? '').replace(/:/g, '');
     const startIndex = textBeforeCursor.lastIndexOf('@');
     const endIndex = cursorPos;
 

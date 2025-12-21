@@ -1843,7 +1843,8 @@ export class FileSearchManager {
       console.debug('[FileSearchManager] checkForFileSearch: query=', query, 'codeSearchMatch=', codeSearchMatch);
       if (codeSearchMatch && codeSearchMatch[1]) {
         const language = codeSearchMatch[1];
-        const symbolQuery = codeSearchMatch[2] ?? '';
+        // Remove all colons from query (e.g., "func:" → "func", "func:Create" → "funcCreate")
+        const symbolQuery = (codeSearchMatch[2] ?? '').replace(/:/g, '');
         console.debug('[FileSearchManager] checkForFileSearch: code pattern matched, language=', language, 'symbolQuery=', symbolQuery);
         console.debug('[FileSearchManager] checkForFileSearch: rgAvailable=', this.rgAvailable, 'supportedLanguages.size=', this.supportedLanguages.size, 'supportedLanguages.has(language)=', this.supportedLanguages.has(language));
 
