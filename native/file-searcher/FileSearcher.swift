@@ -1,8 +1,9 @@
 import Foundation
 
-// MARK: - File Search (fd Integration)
+// MARK: - FileSearcher
 
-extension DirectoryDetector {
+/// File search functionality using fd command
+class FileSearcher {
 
     // MARK: - fd Integration
 
@@ -548,5 +549,75 @@ extension DirectoryDetector {
 
         // Root user has uid 0
         return ownerAccountID.uint32Value == 0
+    }
+
+    // MARK: - List Directory
+
+    /// List files in a directory
+    static func listDirectory(_ path: String, settings: FileSearchSettings = .default) -> [String: Any] {
+        let expandedPath = NSString(string: path).expandingTildeInPath
+
+        let fileManager = FileManager.default
+        var isDir: ObjCBool = false
+
+        guard fileManager.fileExists(atPath: expandedPath, isDirectory: &isDir) else {
+            return ["error": "Path does not exist", "path": expandedPath]
+        }
+
+        guard isDir.boolValue else {
+            return ["error": "Path is not a directory", "path": expandedPath]
+        }
+
+        // Check if directory is inside a git repository
+        let isGitRepo = isGitRepository(expandedPath)
+
+        // Disable file search for root directory (/) for security
+        if expandedPath == "/" {
+            return [
+                "success": true,
+                "directory": expandedPath,
+                "files": [],
+                "fileCount": 0,
+                "isGitRepository": isGitRepo,
+                "filesDisabled": true,
+                "filesDisabledReason": "File search is disabled for root directory"
+            ]
+        }
+
+        // For security and performance: enforce maxDepth=1 for non-git directories
+        var effectiveSettings = settings
+        if !isGitRepo {
+            effectiveSettings = FileSearchSettings(
+                respectGitignore: settings.respectGitignore,
+                excludePatterns: settings.excludePatterns,
+                includePatterns: settings.includePatterns,
+                maxFiles: settings.maxFiles,
+                includeHidden: settings.includeHidden,
+                maxDepth: 1,  // Force maxDepth=1 for non-git directories
+                followSymlinks: settings.followSymlinks
+            )
+        }
+
+        if let fileListResult = getFileList(from: expandedPath, settings: effectiveSettings) {
+            var result: [String: Any] = [
+                "success": true,
+                "directory": expandedPath,
+                "files": fileListResult.files,
+                "fileCount": fileListResult.files.count,
+                "searchMode": "recursive",
+                "partial": false,
+                "isGitRepository": isGitRepo
+            ]
+            if fileListResult.fileLimitReached {
+                result["fileLimitReached"] = true
+                result["maxFiles"] = fileListResult.maxFiles
+            }
+            return result
+        } else {
+            return [
+                "error": "Failed to list files (fd required)",
+                "directory": expandedPath
+            ]
+        }
     }
 }

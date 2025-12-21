@@ -89,6 +89,9 @@ export class PromptLineRenderer {
       (position: number) => this.domManager.setCursorPosition(position),
       () => this.domManager.selectAll()
     );
+    // CRITICAL: Register IPC listeners BEFORE any async operations
+    // to prevent race condition when window-shown event is sent
+    this.setupIPCListeners();
     this.init();
   }
 
@@ -102,8 +105,10 @@ export class PromptLineRenderer {
       this.setupSearchManager();
       this.setupSlashCommandManager();
       this.setupFileSearchManager();
+      // Code search is now integrated into FileSearchManager
+      // await this.setupCodeSearchManager();
       this.setupEventListeners();
-      this.setupIPCListeners();
+      // Note: setupIPCListeners() is now called in constructor to prevent race condition
     } catch (error) {
       console.error('Failed to initialize renderer:', error);
     }
@@ -433,6 +438,7 @@ export class PromptLineRenderer {
           cacheAge: data.directoryData.cacheAge
         });
         this.fileSearchManager?.handleCachedDirectoryData(data.directoryData);
+        // Note: Code search now uses FileSearchManager's cached directory data
 
         // Update hint text with formatted directory path
         // But prioritize hint message (e.g., fd not installed) over directory path
@@ -514,6 +520,7 @@ export class PromptLineRenderer {
 
       // Update cache with directory data (handles both Stage 1 and Stage 2)
       this.fileSearchManager?.updateCache(data);
+      // Note: Code search now uses FileSearchManager's cached directory data
 
       // Update hint text with formatted directory path
       // But prioritize hint message (e.g., fd not installed) over directory path

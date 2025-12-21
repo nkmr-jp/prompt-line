@@ -1,7 +1,7 @@
 import { execFile } from 'child_process';
 import type { BrowserWindow } from 'electron';
 import config from '../../config/app-config';
-import { logger, DIRECTORY_DETECTOR_PATH } from '../../utils/utils';
+import { logger, DIRECTORY_DETECTOR_PATH, FILE_SEARCHER_PATH } from '../../utils/utils';
 import FileCacheManager from '../file-cache-manager';
 import type DirectoryManager from '../directory-manager';
 import type { AppInfo, DirectoryInfo, FileSearchSettings, FileInfo } from '../../types';
@@ -267,90 +267,162 @@ class DirectoryDetector {
 
     const startTime = performance.now();
 
-    // Build args array with settings (fd is always used, single stage)
-    const args: string[] = ['detect-with-files'];
-
-    // Apply file search settings if available
-    if (this.fileSearchSettings) {
-      if (!this.fileSearchSettings.respectGitignore) {
-        args.push('--no-gitignore');
-      }
-      if (this.fileSearchSettings.excludePatterns && this.fileSearchSettings.excludePatterns.length > 0) {
-        for (const pattern of this.fileSearchSettings.excludePatterns) {
-          args.push('--exclude', pattern);
-        }
-      }
-      if (this.fileSearchSettings.includePatterns && this.fileSearchSettings.includePatterns.length > 0) {
-        for (const pattern of this.fileSearchSettings.includePatterns) {
-          args.push('--include', pattern);
-        }
-      }
-      if (this.fileSearchSettings.maxFiles) {
-        args.push('--max-files', String(this.fileSearchSettings.maxFiles));
-      }
-      if (this.fileSearchSettings.includeHidden) {
-        args.push('--include-hidden');
-      }
-      if (this.fileSearchSettings.maxDepth !== null && this.fileSearchSettings.maxDepth !== undefined) {
-        args.push('--max-depth', String(this.fileSearchSettings.maxDepth));
-      }
-      if (this.fileSearchSettings.followSymlinks) {
-        args.push('--follow-symlinks');
-      }
-    }
+    // Step 1: Detect directory using directory-detector
+    const detectArgs: string[] = ['detect'];
 
     // Add bundleId if available for accurate directory detection
     if (this.previousApp && typeof this.previousApp === 'object' && this.previousApp.bundleId) {
-      args.push('--bundleId', this.previousApp.bundleId);
+      detectArgs.push('--bundleId', this.previousApp.bundleId);
     }
 
     logger.debug('Directory detector command:', {
       executable: DIRECTORY_DETECTOR_PATH,
-      args,
-      fileSearchSettings: this.fileSearchSettings
+      args: detectArgs
     });
 
-    const options = {
-      timeout,
-      killSignal: 'SIGTERM' as const,
-      // Increase maxBuffer for large file lists (default is 1MB)
-      // 50,000 files × ~200 bytes/file = ~10MB, so use 50MB for safety
-      maxBuffer: 50 * 1024 * 1024
+    const detectOptions = {
+      timeout: Math.min(timeout, 3000), // Use shorter timeout for detection
+      killSignal: 'SIGTERM' as const
     };
 
     return new Promise((resolve) => {
-      execFile(DIRECTORY_DETECTOR_PATH, args, options, (error: Error | null, stdout?: string) => {
-        const elapsed = performance.now() - startTime;
+      execFile(DIRECTORY_DETECTOR_PATH, detectArgs, detectOptions, async (detectError: Error | null, detectStdout?: string) => {
+        const detectElapsed = performance.now() - startTime;
 
-        if (error) {
-          logger.warn(`Directory detection failed after ${elapsed.toFixed(2)}ms:`, error);
+        if (detectError) {
+          logger.warn(`Directory detection failed after ${detectElapsed.toFixed(2)}ms:`, detectError);
           resolve(null);
           return;
         }
 
         try {
-          const result = JSON.parse(stdout?.trim() || '{}') as DirectoryInfo;
+          const detectResult = JSON.parse(detectStdout?.trim() || '{}') as DirectoryInfo;
 
-          if (result.error) {
-            logger.debug('Directory detection returned error:', result.error);
+          if (detectResult.error) {
+            logger.debug('Directory detection returned error:', detectResult.error);
+            resolve(detectResult); // Return result with error for logging
+            return;
+          }
+
+          if (!detectResult.directory) {
+            logger.debug('No directory detected');
             resolve(null);
             return;
           }
 
-          // Add hint message if fd command is not available
-          if (result.filesError && result.filesError.includes('fd required')) {
-            result.hint = 'Install fd for file search: brew install fd';
-            logger.warn('fd command not found. File search will not work. Install with: brew install fd');
-          }
-
-          logger.debug(`⏱️  Directory detection completed in ${elapsed.toFixed(2)}ms`, {
-            directory: result.directory,
-            fileCount: result.fileCount,
-            searchMode: result.searchMode,
-            isGitRepository: result.isGitRepository
+          logger.debug(`⏱️  Directory detection completed in ${detectElapsed.toFixed(2)}ms`, {
+            directory: detectResult.directory,
+            appName: detectResult.appName,
+            bundleId: detectResult.bundleId
           });
 
-          resolve(result);
+          // Step 2: List files using file-searcher
+          const listArgs: string[] = ['list', detectResult.directory];
+
+          // Apply file search settings if available
+          if (this.fileSearchSettings) {
+            if (!this.fileSearchSettings.respectGitignore) {
+              listArgs.push('--no-gitignore');
+            }
+            if (this.fileSearchSettings.excludePatterns && this.fileSearchSettings.excludePatterns.length > 0) {
+              for (const pattern of this.fileSearchSettings.excludePatterns) {
+                listArgs.push('--exclude', pattern);
+              }
+            }
+            if (this.fileSearchSettings.includePatterns && this.fileSearchSettings.includePatterns.length > 0) {
+              for (const pattern of this.fileSearchSettings.includePatterns) {
+                listArgs.push('--include', pattern);
+              }
+            }
+            if (this.fileSearchSettings.maxFiles) {
+              listArgs.push('--max-files', String(this.fileSearchSettings.maxFiles));
+            }
+            if (this.fileSearchSettings.includeHidden) {
+              listArgs.push('--include-hidden');
+            }
+            if (this.fileSearchSettings.maxDepth !== null && this.fileSearchSettings.maxDepth !== undefined) {
+              listArgs.push('--max-depth', String(this.fileSearchSettings.maxDepth));
+            }
+            if (this.fileSearchSettings.followSymlinks) {
+              listArgs.push('--follow-symlinks');
+            }
+          }
+
+          logger.debug('File searcher command:', {
+            executable: FILE_SEARCHER_PATH,
+            args: listArgs
+          });
+
+          // Calculate remaining timeout with minimum threshold
+          // Use Math.round to ensure integer value (required by execFile)
+          const remainingTimeout = Math.round(Math.max(timeout - detectElapsed, 1000));
+
+          const listOptions = {
+            timeout: remainingTimeout,
+            killSignal: 'SIGTERM' as const,
+            // Increase maxBuffer for large file lists (default is 1MB)
+            // 50,000 files × ~200 bytes/file = ~10MB, so use 50MB for safety
+            maxBuffer: 50 * 1024 * 1024
+          };
+
+          logger.debug('Executing file searcher with timeout:', { remainingTimeout });
+
+          try {
+            execFile(FILE_SEARCHER_PATH, listArgs, listOptions, (listError: Error | null, listStdout?: string) => {
+            const totalElapsed = performance.now() - startTime;
+
+            // Merge results
+            const result: DirectoryInfo = {
+              ...detectResult
+            };
+
+            if (listError) {
+              logger.warn(`File listing failed after ${totalElapsed.toFixed(2)}ms:`, listError);
+              result.filesError = listError.message;
+            } else {
+              try {
+                const listResult = JSON.parse(listStdout?.trim() || '{}');
+
+                if (listResult.files) {
+                  result.files = listResult.files;
+                  result.fileCount = listResult.fileCount;
+                }
+                if (listResult.searchMode) {
+                  result.searchMode = listResult.searchMode;
+                }
+                if (listResult.fileLimitReached) {
+                  result.fileLimitReached = listResult.fileLimitReached;
+                }
+                if (listResult.maxFiles) {
+                  result.maxFiles = listResult.maxFiles;
+                }
+                if (listResult.filesError) {
+                  result.filesError = listResult.filesError;
+                  // Add hint message if fd command is not available
+                  if (listResult.filesError.includes('fd required')) {
+                    result.hint = 'Install fd for file search: brew install fd';
+                    logger.warn('fd command not found. File search will not work. Install with: brew install fd');
+                  }
+                }
+              } catch (parseError) {
+                logger.warn('Error parsing file list result:', parseError);
+                result.filesError = 'Failed to parse file list';
+              }
+            }
+
+            logger.debug(`⏱️  Directory detection + file listing completed in ${totalElapsed.toFixed(2)}ms`, {
+              directory: result.directory,
+              fileCount: result.fileCount,
+              searchMode: result.searchMode
+            });
+
+            resolve(result);
+            });
+          } catch (execError) {
+            logger.warn('Error executing file searcher:', execError);
+            // Return detect result without files on file searcher error
+            resolve(detectResult);
+          }
         } catch (parseError) {
           logger.warn('Error parsing directory detection result:', parseError);
           resolve(null);

@@ -21,7 +21,7 @@ class FileCacheManager {
   private static readonly MAX_RECENT_DIRECTORIES = 10;
 
   constructor() {
-    this.cacheDir = path.join(config.paths.userDataDir, 'cache', 'file-lists');
+    this.cacheDir = path.join(config.paths.userDataDir, 'cache', 'projects');
     this.globalMetadataPath = path.join(this.cacheDir, 'global-metadata.json');
   }
 

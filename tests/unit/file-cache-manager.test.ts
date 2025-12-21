@@ -10,7 +10,7 @@ jest.mock('../../src/config/app-config', () => {
       paths: {
         userDataDir: mockUserDataDir,
         cacheDir: `${mockUserDataDir}/cache`,
-        fileListsCacheDir: `${mockUserDataDir}/cache/file-lists`
+        projectsCacheDir: `${mockUserDataDir}/cache/projects`
       }
     }
   };
@@ -67,7 +67,7 @@ describe('FileCacheManager', () => {
       await cacheManager.initialize();
 
       expect(mockedFs.mkdir).toHaveBeenCalledWith(
-        '/test/.prompt-line/cache/file-lists',
+        '/test/.prompt-line/cache/projects',
         { recursive: true, mode: 0o700 }
       );
     });
@@ -111,7 +111,7 @@ describe('FileCacheManager', () => {
   describe('getCachePath', () => {
     test('should return correct cache path', () => {
       const directory = '/Users/nkmr/project';
-      const expected = '/test/.prompt-line/cache/file-lists/-Users-nkmr-project';
+      const expected = '/test/.prompt-line/cache/projects/-Users-nkmr-project';
 
       const result = cacheManager.getCachePath(directory);
 

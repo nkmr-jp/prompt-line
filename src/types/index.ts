@@ -99,7 +99,7 @@ export interface PathsConfig {
   imagesDir: string;
   directoryFile: string;
   cacheDir: string;             // Cache root directory
-  fileListsCacheDir: string;    // File lists cache directory
+  projectsCacheDir: string;     // Projects cache directory
 }
 
 export interface HistoryConfig {
