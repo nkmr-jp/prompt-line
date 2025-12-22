@@ -236,6 +236,18 @@ export class FileSearchManager {
   }
 
   /**
+   * Synchronously check if query matches any searchPrefix for the given type (from cache)
+   * Returns false if cache is not populated yet
+   */
+  private matchesSearchPrefixSync(query: string, type: 'command' | 'mention'): boolean {
+    const prefixes = this.searchPrefixesCache.get(type);
+    if (!prefixes) {
+      return false;
+    }
+    return prefixes.some(prefix => query.startsWith(prefix));
+  }
+
+  /**
    * Preload searchPrefixes cache for command and mention types
    * Call this early (e.g., on window-shown) to populate cache for sync checks
    */
@@ -1839,9 +1851,11 @@ export class FileSearchManager {
       const { query, startPos } = result;
 
       // Check if query matches code search pattern (e.g., "ts:", "go:", "py:")
+      // BUT skip if query matches a searchPrefix (e.g., "agent:", "skill:")
+      const matchesSearchPrefix = this.matchesSearchPrefixSync(query, 'mention');
       const codeSearchMatch = query.match(CODE_SEARCH_PATTERN);
-      console.debug('[FileSearchManager] checkForFileSearch: query=', query, 'codeSearchMatch=', codeSearchMatch);
-      if (codeSearchMatch && codeSearchMatch[1]) {
+      console.debug('[FileSearchManager] checkForFileSearch: query=', query, 'codeSearchMatch=', codeSearchMatch, 'matchesSearchPrefix=', matchesSearchPrefix);
+      if (codeSearchMatch && codeSearchMatch[1] && !matchesSearchPrefix) {
         const language = codeSearchMatch[1];
         // Parse query: "func:Create" → symbolTypeFilter="func", symbolQuery="Create"
         // Parse query: "func:" → symbolTypeFilter="func", symbolQuery=""
