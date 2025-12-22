@@ -43,10 +43,16 @@ class CodeSearchHandler {
    */
   private getSymbolSearchOptions(): { maxSymbols: number; timeout: number } {
     const symbolSearchSettings = this.settingsManager?.getSymbolSearchSettings();
-    return {
+    const result = {
       maxSymbols: symbolSearchSettings?.maxSymbols ?? DEFAULT_MAX_SYMBOLS,
       timeout: symbolSearchSettings?.timeout ?? DEFAULT_SEARCH_TIMEOUT
     };
+    logger.debug('getSymbolSearchOptions:', {
+      hasSettingsManager: !!this.settingsManager,
+      symbolSearchSettings,
+      effectiveOptions: result
+    });
+    return result;
   }
 
   /**
@@ -140,7 +146,16 @@ class CodeSearchHandler {
       if (hasLanguage) {
         const cachedSymbols = await symbolCacheManager.loadSymbols(directory, language);
         if (cachedSymbols.length > 0) {
-          logger.debug('Returning cached symbols (stale-while-revalidate)', { count: cachedSymbols.length });
+          // Apply maxSymbols limit to cached results
+          const limitedSymbols = cachedSymbols.slice(0, effectiveMaxSymbols);
+          const wasLimited = cachedSymbols.length > effectiveMaxSymbols;
+
+          logger.debug('Returning cached symbols (stale-while-revalidate)', {
+            cachedCount: cachedSymbols.length,
+            returnedCount: limitedSymbols.length,
+            maxSymbols: effectiveMaxSymbols,
+            wasLimited
+          });
 
           // Background refresh: only update cache when refreshCache is explicitly true
           // This prevents unnecessary refreshes during file navigation (e.g., @go vs @go:)
@@ -155,10 +170,10 @@ class CodeSearchHandler {
             success: true,
             directory,
             language,
-            symbols: cachedSymbols,
-            symbolCount: cachedSymbols.length,
+            symbols: limitedSymbols,
+            symbolCount: limitedSymbols.length,
             searchMode: 'cached',
-            partial: false,
+            partial: wasLimited,
             maxSymbols: effectiveMaxSymbols
           };
         }
@@ -222,17 +237,27 @@ class CodeSearchHandler {
       };
     }
 
-    const symbols = await symbolCacheManager.loadSymbols(directory, language);
-    const metadata = await symbolCacheManager.loadMetadata(directory);
+    const allSymbols = await symbolCacheManager.loadSymbols(directory, language);
+
+    // Apply maxSymbols limit to cached results
+    const limitedSymbols = allSymbols.slice(0, settingsOptions.maxSymbols);
+    const wasLimited = allSymbols.length > settingsOptions.maxSymbols;
+
+    logger.debug('Returning cached symbols', {
+      cachedCount: allSymbols.length,
+      returnedCount: limitedSymbols.length,
+      maxSymbols: settingsOptions.maxSymbols,
+      wasLimited
+    });
 
     const response: SymbolSearchResponse = {
       success: true,
       directory,
-      symbols,
-      symbolCount: symbols.length,
+      symbols: limitedSymbols,
+      symbolCount: limitedSymbols.length,
       searchMode: 'cached',
-      partial: false,
-      maxSymbols: metadata?.totalSymbolCount || 20000
+      partial: wasLimited,
+      maxSymbols: settingsOptions.maxSymbols
     };
 
     if (language) {
