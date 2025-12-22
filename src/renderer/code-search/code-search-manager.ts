@@ -483,7 +483,7 @@ export class CodeSearchManager {
     const symbol = this.currentSymbols[index];
     if (!symbol || !this.currentQuery) return;
 
-    // Format: relativePath:lineNumber#symbolName (keep @ prefix)
+    // Format: relativePath:lineNumber#symbolName + space (keep @ prefix)
     // The @ is at startIndex, so we insert path after it
     const pathWithLineAndSymbol = `${symbol.relativePath}:${symbol.lineNumber}#${symbol.name} `;
 
@@ -494,6 +494,10 @@ export class CodeSearchManager {
       this.currentQuery.endIndex,
       pathWithLineAndSymbol
     );
+
+    // Set cursor position after the inserted text (@ + path + space)
+    const newCursorPos = this.currentQuery.startIndex + 1 + pathWithLineAndSymbol.length;
+    this.callbacks.setCursorPosition(newCursorPos);
 
     // Notify callback
     this.callbacks.onSymbolSelected(symbol);

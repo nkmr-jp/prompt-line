@@ -329,8 +329,10 @@ export class FileSearchManager {
       const { query, start } = result;
 
       // Skip if query matches code search pattern (e.g., "ts:", "go:", "py:")
+      // BUT allow if query matches a searchPrefix (e.g., "agent:", "skill:")
       // These should be handled by CodeSearchManager instead
-      if (CODE_SEARCH_PATTERN.test(query)) {
+      const matchesSearchPrefix = this.cacheManager.matchesSearchPrefixSync(query, 'mention');
+      if (CODE_SEARCH_PATTERN.test(query) && !matchesSearchPrefix) {
         console.debug('[FileSearchManager] checkForFileSearch: skip - code search pattern detected:', query);
         if (this.isVisible) {
           this.hideSuggestions();

@@ -236,6 +236,18 @@ export class FileSearchManager {
   }
 
   /**
+   * Synchronously check if query matches any searchPrefix for the given type (from cache)
+   * Returns false if cache is not populated yet
+   */
+  private matchesSearchPrefixSync(query: string, type: 'command' | 'mention'): boolean {
+    const prefixes = this.searchPrefixesCache.get(type);
+    if (!prefixes) {
+      return false;
+    }
+    return prefixes.some(prefix => query.startsWith(prefix));
+  }
+
+  /**
    * Preload searchPrefixes cache for command and mention types
    * Call this early (e.g., on window-shown) to populate cache for sync checks
    */
@@ -1839,9 +1851,11 @@ export class FileSearchManager {
       const { query, startPos } = result;
 
       // Check if query matches code search pattern (e.g., "ts:", "go:", "py:")
+      // BUT skip if query matches a searchPrefix (e.g., "agent:", "skill:")
+      const matchesSearchPrefix = this.matchesSearchPrefixSync(query, 'mention');
       const codeSearchMatch = query.match(CODE_SEARCH_PATTERN);
-      console.debug('[FileSearchManager] checkForFileSearch: query=', query, 'codeSearchMatch=', codeSearchMatch);
-      if (codeSearchMatch && codeSearchMatch[1]) {
+      console.debug('[FileSearchManager] checkForFileSearch: query=', query, 'codeSearchMatch=', codeSearchMatch, 'matchesSearchPrefix=', matchesSearchPrefix);
+      if (codeSearchMatch && codeSearchMatch[1] && !matchesSearchPrefix) {
         const language = codeSearchMatch[1];
         // Parse query: "func:Create" → symbolTypeFilter="func", symbolQuery="Create"
         // Parse query: "func:" → symbolTypeFilter="func", symbolQuery=""
@@ -2946,16 +2960,22 @@ export class FileSearchManager {
     // Get current cursor position (end of the @query)
     const cursorPos = this.textInput.selectionStart;
 
+    // Save atStartPosition before replacement - replaceRangeWithUndo triggers input event
+    // which calls checkForFileSearch() and may set atStartPosition to -1 via hideSuggestions()
+    const savedAtStartPosition = this.atStartPosition;
+
     // Replace the lang:query part (after @) with the path:line#symbol
     // atStartPosition is the @ position, so we replace from atStartPosition + 1 to keep @
     if (this.callbacks.replaceRangeWithUndo) {
-      this.callbacks.replaceRangeWithUndo(this.atStartPosition + 1, cursorPos, pathWithLineAndSymbol);
+      // execCommand('insertText') sets cursor at end of inserted text automatically
+      // Do NOT set cursor position after this - input event handler may have modified atStartPosition
+      this.callbacks.replaceRangeWithUndo(savedAtStartPosition + 1, cursorPos, pathWithLineAndSymbol);
     } else {
-      // Fallback without undo support
+      // Fallback without undo support - need to set cursor position manually
       const text = this.textInput.value;
-      const newText = text.substring(0, this.atStartPosition + 1) + pathWithLineAndSymbol + text.substring(cursorPos);
+      const newText = text.substring(0, savedAtStartPosition + 1) + pathWithLineAndSymbol + text.substring(cursorPos);
       this.textInput.value = newText;
-      const newCursorPos = this.atStartPosition + 1 + pathWithLineAndSymbol.length;
+      const newCursorPos = savedAtStartPosition + 1 + pathWithLineAndSymbol.length;
       this.textInput.setSelectionRange(newCursorPos, newCursorPos);
     }
 
@@ -2965,13 +2985,8 @@ export class FileSearchManager {
     this.selectedPaths.add(pathForHighlight);
     console.debug('[FileSearchManager] Added symbol path to selectedPaths:', pathForHighlight);
 
-    // Update highlight backdrop
-    this.rescanAtPaths(this.textInput.value);
+    // Update highlight backdrop (this also calls rescanAtPaths internally)
     this.updateHighlightBackdrop();
-
-    // Set cursor position after the inserted text
-    const newCursorPos = this.atStartPosition + 1 + pathWithLineAndSymbol.length;
-    this.textInput.setSelectionRange(newCursorPos, newCursorPos);
 
     // Notify callback
     this.callbacks.onFileSelected(pathForHighlight);

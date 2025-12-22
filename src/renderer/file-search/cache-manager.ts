@@ -113,6 +113,18 @@ export class FileSearchCacheManager {
   }
 
   /**
+   * Synchronously check if query matches any searchPrefix for the given type (from cache)
+   * Returns false if cache is not populated yet
+   */
+  public matchesSearchPrefixSync(query: string, type: 'command' | 'mention'): boolean {
+    const prefixes = this.searchPrefixesCache.get(type);
+    if (!prefixes) {
+      return false;
+    }
+    return prefixes.some(prefix => query.startsWith(prefix));
+  }
+
+  /**
    * Preload searchPrefixes cache for command and mention types
    * Call this early (e.g., on window-shown) to populate cache for sync checks
    */
