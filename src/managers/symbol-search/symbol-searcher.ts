@@ -14,7 +14,6 @@ import type {
 
 // Default search options (exported for use by handlers)
 export const DEFAULT_MAX_SYMBOLS = 20000;
-export const QUICK_MAX_SYMBOLS = 5000;
 export const DEFAULT_SEARCH_TIMEOUT = 5000; // 5 seconds for symbol search
 
 /**
@@ -200,28 +199,4 @@ export async function searchSymbols(
       }
     });
   });
-}
-
-/**
- * Quick symbol search with lower limits (for Stage 1 caching)
- * @param directory - The directory to search in
- * @param language - The language key
- */
-export async function searchSymbolsQuick(
-  directory: string,
-  language: string
-): Promise<SymbolSearchResponse> {
-  return searchSymbols(directory, language, { maxSymbols: QUICK_MAX_SYMBOLS });
-}
-
-/**
- * Full symbol search (for Stage 2 caching)
- * @param directory - The directory to search in
- * @param language - The language key
- */
-export async function searchSymbolsFull(
-  directory: string,
-  language: string
-): Promise<SymbolSearchResponse> {
-  return searchSymbols(directory, language, { maxSymbols: DEFAULT_MAX_SYMBOLS });
 }

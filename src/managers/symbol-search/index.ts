@@ -21,9 +21,6 @@ export {
   checkRgAvailable,
   getSupportedLanguages,
   searchSymbols,
-  searchSymbolsQuick,
-  searchSymbolsFull,
   DEFAULT_MAX_SYMBOLS,
-  QUICK_MAX_SYMBOLS,
   DEFAULT_SEARCH_TIMEOUT
 } from './symbol-searcher';
