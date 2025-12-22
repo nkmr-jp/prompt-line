@@ -3165,6 +3165,19 @@ export class FileSearchManager {
             }
           }
 
+          // For files (not directories), Enter inserts path directly (like directories)
+          // Tab navigates into file to show symbols
+          const suggestion = this.mergedSuggestions[this.selectedIndex];
+          if (suggestion?.type === 'file' && suggestion.file && !suggestion.file.isDirectory) {
+            // Insert file path directly (don't navigate into symbols)
+            const baseDir = this.cachedDirectoryData?.directory || '';
+            const relativePath = this.getRelativePath(suggestion.file.path, baseDir);
+            this.insertFilePath(relativePath);
+            this.hideSuggestions();
+            this.callbacks.onFileSelected(relativePath);
+            return;
+          }
+
           this.selectItem(this.selectedIndex);
         }
         break;
@@ -3433,10 +3446,13 @@ export class FileSearchManager {
         this.currentFileSymbols.length, 'out of', response.symbolCount);
 
       if (this.currentFileSymbols.length === 0) {
-        // No symbols found - file path is already in input, just hide suggestions
+        // No symbols found - insert file path directly and close
         this.callbacks.updateHintText?.(`No symbols found in ${relativePath}`);
         this.isInSymbolMode = false;
+        // Use insertFilePath to properly add space at the end
+        this.insertFilePath(relativePath);
         this.hideSuggestions();
+        this.callbacks.onFileSelected(relativePath);
         return;
       }
 
