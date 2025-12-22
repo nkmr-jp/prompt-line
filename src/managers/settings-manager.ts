@@ -206,6 +206,33 @@ class SettingsManager {
 
     const fileSearchSection = buildFileSearchSection();
 
+    // Build symbolSearch section
+    const buildSymbolSearchSection = (): string => {
+      if (!settings.symbolSearch) {
+        // Feature uses defaults - output commented template with default values
+        return `symbolSearch:
+  maxSymbols: 20000                   # Maximum symbols to return (default: 20000)
+  timeout: 5000                       # Search timeout in milliseconds (default: 5000)
+  #rgPaths:                           # Custom paths to rg command (uncomment to override auto-detection)
+  #  - /opt/homebrew/bin/rg
+  #  - /usr/local/bin/rg`;
+      }
+
+      // Feature has custom settings - output actual values
+      const rgPathsSection = settings.symbolSearch.rgPaths && settings.symbolSearch.rgPaths.length > 0
+        ? `rgPaths:${settings.symbolSearch.rgPaths.map(p => `\n    - ${p}`).join('')}`
+        : `#rgPaths:                           # Custom paths to rg command (uncomment to override auto-detection)
+  #  - /opt/homebrew/bin/rg
+  #  - /usr/local/bin/rg`;
+
+      return `symbolSearch:
+  maxSymbols: ${settings.symbolSearch.maxSymbols ?? 20000}                   # Maximum symbols to return (default: 20000)
+  timeout: ${settings.symbolSearch.timeout ?? 5000}                       # Search timeout in milliseconds (default: 5000)
+  ${rgPathsSection}`;
+    };
+
+    const symbolSearchSection = buildSymbolSearchSection();
+
     // Build extensions section
     const extensionsSection = settings.fileOpener?.extensions && Object.keys(settings.fileOpener.extensions).length > 0
       ? `extensions:${formatExtensionsAsList(settings.fileOpener.extensions)}`
@@ -303,6 +330,15 @@ fileOpener:
 # When this section is commented out, file search feature is disabled
 
 ${fileSearchSection}
+
+# ============================================================================
+# SYMBOL SEARCH SETTINGS (Code Search)
+# ============================================================================
+# Configure symbol search behavior for @<language>:<query> syntax
+# Note: ripgrep (rg) command is required (install: brew install ripgrep)
+# Note: File search must be enabled for symbol search to work
+
+${symbolSearchSection}
 
 # ============================================================================
 # MARKDOWN SEARCH SETTINGS (Slash Commands & Mentions)
