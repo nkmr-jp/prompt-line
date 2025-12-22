@@ -257,10 +257,11 @@ export class CodeSearchManager {
     if (!this.currentDirectory) return;
 
     try {
+      // Don't pass maxSymbols - let the handler use settings value
       const response = await this.invokeSearchSymbols(
         this.currentDirectory,
         language,
-        { maxSymbols: 20000, useCache: true }
+        { useCache: true }
       );
 
       if (!response.success) {
@@ -548,7 +549,7 @@ export class CodeSearchManager {
         symbolCount: 0,
         searchMode: 'full',
         partial: false,
-        maxSymbols: 20000,
+        maxSymbols: options?.maxSymbols ?? 0, // Error response - actual value unknown
         error: String(error)
       };
     }
