@@ -3794,8 +3794,11 @@ export class FileSearchManager {
       // which is exactly where we want it (savedStart), so no need to call setCursorPosition
       if (this.callbacks.replaceRangeWithUndo) {
         this.callbacks.replaceRangeWithUndo(savedStart, deleteEnd, '');
-        // Do NOT call setCursorPosition after replaceRangeWithUndo - execCommand already
-        // sets cursor to the correct position (start of deleted range)
+        // Explicitly restore cursor position after deletion
+        // The input event fired by execCommand may trigger code that affects cursor position
+        // (e.g., checkForFileSearch, updateHighlightBackdrop, updateCursorPositionHighlight)
+        // Restoring here ensures cursor stays at the correct deletion point
+        this.callbacks.setCursorPosition(savedStart);
       } else {
         // Fallback to direct text manipulation (no Undo support) - need to set cursor manually
         const newText = text.substring(0, savedStart) + text.substring(deleteEnd);
@@ -3805,6 +3808,10 @@ export class FileSearchManager {
 
       // Update highlight backdrop (rescanAtPaths will recalculate all positions)
       this.updateHighlightBackdrop();
+
+      // Restore cursor position again after updateHighlightBackdrop
+      // This ensures cursor stays at savedStart even if backdrop update affects it
+      this.callbacks.setCursorPosition(savedStart);
 
       // After update, check if this path still exists in the text
       // If not, remove it from selectedPaths
