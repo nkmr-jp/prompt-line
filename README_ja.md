@@ -171,7 +171,7 @@ npm run reset-accessibility
 - `@go:Handler` - "Handler"を含むGoシンボルを検索
 - `@py:parse` - "parse"を含むPythonシンボルを検索
 
-**対応言語 (19言語):**
+**対応言語 (18言語):**
 
 | 言語 | キー | シンボルタイプ |
 |------|------|----------------|

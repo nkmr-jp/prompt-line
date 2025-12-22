@@ -172,7 +172,7 @@ This feature integrates with File Search, so you need to enable File Search firs
 - `@go:Handler` - Search Go symbols containing "Handler"
 - `@py:parse` - Search Python symbols containing "parse"
 
-**Supported Languages (19):**
+**Supported Languages (18):**
 
 | Language | Key | Symbol Types |
 |----------|-----|--------------|

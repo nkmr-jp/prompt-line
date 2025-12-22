@@ -379,7 +379,7 @@ The window supports multiple positioning modes with dynamic configuration:
 - **ripgrep-based**: Uses `rg` (ripgrep) for fast symbol searching
 - **Native Swift tool**: `symbol-searcher` binary in `native/symbol-searcher/`
 - **Symbol caching**: Results cached per directory and language for faster subsequent searches
-- **Supported languages (19)**:
+- **Supported languages (18)**:
   | Language | Key | Example | Symbol Types |
   |----------|-----|---------|--------------|
   | Go | `go` | `@go:Handler` | function, method, struct, interface, type, constant, variable |

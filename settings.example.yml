@@ -122,7 +122,7 @@ fileSearch:
 #   @go:Handler    - Search Go symbols containing "Handler"
 #   @py:parse      - Search Python symbols containing "parse"
 #
-# Supported Languages (19):
+# Supported Languages (18):
 #   go, ts, tsx, js, jsx, py, rs, java, kt, swift,
 #   rb, cpp, c, sh, make/mk, php, cs, scala
 #
