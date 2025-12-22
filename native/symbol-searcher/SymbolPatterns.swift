@@ -192,6 +192,18 @@ let LANGUAGE_PATTERNS: [String: LanguageConfig] = [
             SymbolPattern(type: .variable, regex: "^([A-Z][A-Z0-9_]*)\\s*[:?]?=", captureGroup: 1),
         ]
     ),
+    // Alias: @mk: for Makefile (same as @make:)
+    "mk": LanguageConfig(
+        extensionName: "mk",
+        displayName: "Makefile",
+        rgType: "make",
+        patterns: [
+            // Targets (target: or target::)
+            SymbolPattern(type: .function, regex: "^([a-zA-Z_][a-zA-Z0-9_-]*)\\s*::?", captureGroup: 1),
+            // Variable definitions (VAR = or VAR :=)
+            SymbolPattern(type: .variable, regex: "^([A-Z][A-Z0-9_]*)\\s*[:?]?=", captureGroup: 1),
+        ]
+    ),
     "php": LanguageConfig(
         extensionName: "php",
         displayName: "PHP",
