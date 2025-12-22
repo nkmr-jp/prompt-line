@@ -114,6 +114,11 @@ class SettingsManager {
       result.fileSearch = userSettings.fileSearch;
     }
 
+    // Set symbolSearch if it exists in user settings
+    if (userSettings.symbolSearch) {
+      result.symbolSearch = userSettings.symbolSearch;
+    }
+
     return result;
   }
 
@@ -388,6 +393,10 @@ ${mdSearchSection}
 
   isFileSearchEnabled(): boolean {
     return this.currentSettings.fileSearch !== undefined;
+  }
+
+  getSymbolSearchSettings(): UserSettings['symbolSearch'] {
+    return this.currentSettings.symbolSearch;
   }
 
   async updateFileSearchSettings(fileSearch: Partial<NonNullable<UserSettings['fileSearch']>>): Promise<void> {

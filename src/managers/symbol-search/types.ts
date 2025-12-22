@@ -51,6 +51,7 @@ export interface LanguagesResponse {
 // Symbol search options
 export interface SymbolSearchOptions {
   maxSymbols?: number;
+  timeout?: number;
 }
 
 // Symbol cache metadata for a language

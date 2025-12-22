@@ -81,6 +81,7 @@ class PromptLineApp {
       );
 
       // Register code search handlers
+      codeSearchHandler.setSettingsManager(this.settingsManager);
       codeSearchHandler.register();
 
       // Note: Window is now pre-created during WindowManager initialization

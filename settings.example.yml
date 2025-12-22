@@ -108,6 +108,38 @@ fileSearch:
   #  - ".storybook/**/*"
 
 # ==============================================================================
+# Symbol Search Configuration (Code Search)
+# ==============================================================================
+# Configure symbol search behavior for @<language>:<query> syntax
+#
+# Requirements:
+#   - ripgrep (rg) command is required (install: brew install ripgrep)
+#   - File search must be enabled (@ mention system)
+#
+# Syntax: @<language>:<query>
+# Examples:
+#   @ts:Config     - Search TypeScript symbols containing "Config"
+#   @go:Handler    - Search Go symbols containing "Handler"
+#   @py:parse      - Search Python symbols containing "parse"
+#
+# Supported Languages (19):
+#   go, ts, tsx, js, jsx, py, rs, java, kt, swift,
+#   rb, cpp, c, sh, make/mk, php, cs, scala
+#
+symbolSearch:
+  # Maximum number of symbols to return (default: 20000)
+  maxSymbols: 20000
+
+  # Search timeout in milliseconds (default: 30000)
+  timeout: 30000
+
+  # Custom paths to ripgrep command (uncomment to override auto-detection)
+  # Auto-detected paths: /opt/homebrew/bin/rg, /usr/local/bin/rg, /usr/bin/rg
+  #rgPaths:
+  #  - /opt/homebrew/bin/rg
+  #  - /usr/local/bin/rg
+
+# ==============================================================================
 # Markdown Search Configuration (Slash Commands & Mentions)
 # ==============================================================================
 # Configure sources for slash commands (/) and mentions (@)

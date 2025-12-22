@@ -141,6 +141,7 @@ If you already have an older version installed and want to update to the latest 
 - **Image Support** - Paste clipboard images with `Cmd+V`
 - **File Opener** - Open files from file path text (`Ctrl+Enter` or `Cmd+Click`)
 - **File Search** - Search files by typing `@` (requires fd command and settings configuration)
+- **Symbol Search** - Search code symbols by typing `@<lang>:<query>` (e.g., `@ts:Config`) (requires ripgrep)
 - **Markdown Search** - Search slash commands by typing `/` or sub-agents by typing `@` (requires settings configuration)
 
 #### File Opener
@@ -155,6 +156,43 @@ You can search for files by typing @.<br>
 ※ Supported applications: Terminal.app, iTerm2, JetBrains IDEs (IntelliJ, WebStorm, etc.), VSCode, Cursor, Windsurf
 
 ![doc10.png](assets/doc10.png)
+
+#### Symbol Search
+You can search for code symbols (functions, classes, types, etc.) by typing `@<language>:<query>`.<br>
+This feature integrates with File Search, so you need to enable File Search first.
+
+**Requirements:**
+- [ripgrep](https://github.com/BurntSushi/ripgrep) (rg) command installation is required (`brew install ripgrep`)
+- File Search must be configured in settings
+
+**Syntax:** `@<language>:<query>`
+
+**Examples:**
+- `@ts:Config` - Search TypeScript symbols containing "Config"
+- `@go:Handler` - Search Go symbols containing "Handler"
+- `@py:parse` - Search Python symbols containing "parse"
+
+**Supported Languages (19):**
+| Language | Key | Symbol Types |
+|----------|-----|--------------|
+| Go | `go` | function, method, struct, interface, type, constant, variable |
+| TypeScript | `ts` | function, class, interface, type, enum, constant, namespace |
+| TypeScript React | `tsx` | function, class, interface, type, enum, constant |
+| JavaScript | `js` | function, class, constant, variable |
+| JavaScript React | `jsx` | function, class, constant, variable |
+| Python | `py` | function, class, constant |
+| Rust | `rs` | function, struct, enum, trait, type, constant, variable, module |
+| Java | `java` | class, interface, enum, method |
+| Kotlin | `kt` | function, class, interface, enum, typealias, constant |
+| Swift | `swift` | function, class, struct, protocol, enum, typealias |
+| Ruby | `rb` | function, class, module, constant |
+| C++ | `cpp` | class, struct, enum, namespace, typedef |
+| C | `c` | struct, enum, typedef |
+| Shell | `sh` | function, variable |
+| Makefile | `make`, `mk` | function (targets), variable |
+| PHP | `php` | function, class, interface, trait, constant, enum |
+| C# | `cs` | class, interface, struct, enum, method, namespace |
+| Scala | `scala` | function, class, trait, object, type, constant, variable |
 
 #### Markdown Search
 You can search for slash commands by typing /.<br>
@@ -237,6 +275,20 @@ fileOpener:
 #  #  - "*.tmp"
 #  #includePatterns:                  # Force include patterns (override .gitignore)
 #  #  - "dist/**/*.js"
+
+# ============================================================================
+# SYMBOL SEARCH SETTINGS (Code Search)
+# ============================================================================
+# Configure symbol search behavior for @<language>:<query> syntax
+# Note: ripgrep (rg) command is required (install: brew install ripgrep)
+# Note: File search must be enabled for symbol search to work
+
+symbolSearch:
+  maxSymbols: 20000                   # Maximum symbols to return (default: 20000)
+  timeout: 30000                      # Search timeout in milliseconds (default: 30000)
+  #rgPaths:                           # Custom paths to rg command (uncomment to override auto-detection)
+  #  - /opt/homebrew/bin/rg
+  #  - /usr/local/bin/rg
 
 # ============================================================================
 # MARKDOWN SEARCH SETTINGS (Slash Commands & Mentions)

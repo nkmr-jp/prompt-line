@@ -140,6 +140,7 @@ npm run reset-accessibility
 - **画像サポート** - `Cmd+V`でクリップボード画像を貼り付け
 - **ファイルオープン** - ファイルパスのテキストからファイルを起動 (`Ctrl+Enter` or `Cmd+クリック`)
 - **ファイル検索** - `@`を入力してファイルを検索 (fdコマンドと設定が必要)
+- **シンボル検索** - `@<言語>:<クエリ>`と入力してコードシンボルを検索 (例: `@ts:Config`) (ripgrepが必要)
 - **マークダウン検索** - `/`を入力してスラッシュコマンドを検索、または`@`でサブエージェントを検索 (設定が必要)
 
 #### ファイルオープン
@@ -154,6 +155,43 @@ npm run reset-accessibility
 ※ 対応アプリ: Terminal.app, iTerm2, JetBrains IDE（IntelliJ, WebStormなど）, VSCode, Cursor, Windsurf
 
 ![doc10.png](assets/doc10.png)
+
+#### シンボル検索
+`@<言語>:<クエリ>`と入力することで、コードシンボル（関数、クラス、型など）を検索できます。<br>
+この機能はファイル検索と統合されているため、先にファイル検索を有効にする必要があります。
+
+**必要条件:**
+- [ripgrep](https://github.com/BurntSushi/ripgrep) (rg) コマンドのインストールが必要 (`brew install ripgrep`)
+- 設定でファイル検索を有効化
+
+**構文:** `@<言語>:<クエリ>`
+
+**例:**
+- `@ts:Config` - "Config"を含むTypeScriptシンボルを検索
+- `@go:Handler` - "Handler"を含むGoシンボルを検索
+- `@py:parse` - "parse"を含むPythonシンボルを検索
+
+**対応言語 (19言語):**
+| 言語 | キー | シンボルタイプ |
+|------|------|----------------|
+| Go | `go` | function, method, struct, interface, type, constant, variable |
+| TypeScript | `ts` | function, class, interface, type, enum, constant, namespace |
+| TypeScript React | `tsx` | function, class, interface, type, enum, constant |
+| JavaScript | `js` | function, class, constant, variable |
+| JavaScript React | `jsx` | function, class, constant, variable |
+| Python | `py` | function, class, constant |
+| Rust | `rs` | function, struct, enum, trait, type, constant, variable, module |
+| Java | `java` | class, interface, enum, method |
+| Kotlin | `kt` | function, class, interface, enum, typealias, constant |
+| Swift | `swift` | function, class, struct, protocol, enum, typealias |
+| Ruby | `rb` | function, class, module, constant |
+| C++ | `cpp` | class, struct, enum, namespace, typedef |
+| C | `c` | struct, enum, typedef |
+| Shell | `sh` | function, variable |
+| Makefile | `make`, `mk` | function (targets), variable |
+| PHP | `php` | function, class, interface, trait, constant, enum |
+| C# | `cs` | class, interface, struct, enum, method, namespace |
+| Scala | `scala` | function, class, trait, object, type, constant, variable |
 
 #### マークダウン検索
 /を入力してスラッシュコマンドを検索できるように設定できます。<br>
@@ -236,6 +274,20 @@ fileOpener:
 #  #  - "*.tmp"
 #  #includePatterns:                  # Force include patterns (override .gitignore)
 #  #  - "dist/**/*.js"
+
+# ============================================================================
+# SYMBOL SEARCH SETTINGS (Code Search)
+# ============================================================================
+# Configure symbol search behavior for @<language>:<query> syntax
+# Note: ripgrep (rg) command is required (install: brew install ripgrep)
+# Note: File search must be enabled for symbol search to work
+
+symbolSearch:
+  maxSymbols: 20000                   # Maximum symbols to return (default: 20000)
+  timeout: 30000                      # Search timeout in milliseconds (default: 30000)
+  #rgPaths:                           # Custom paths to rg command (uncomment to override auto-detection)
+  #  - /opt/homebrew/bin/rg
+  #  - /usr/local/bin/rg
 
 # ============================================================================
 # MARKDOWN SEARCH SETTINGS (Slash Commands & Mentions)

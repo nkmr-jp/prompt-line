@@ -12,10 +12,10 @@ import type {
   SymbolSearchOptions
 } from './types';
 
-// Default search options
-const DEFAULT_MAX_SYMBOLS = 20000;
-const QUICK_MAX_SYMBOLS = 5000;
-const SEARCH_TIMEOUT = 30000; // 30 seconds for symbol search (large codebases can take time)
+// Default search options (exported for use by handlers)
+export const DEFAULT_MAX_SYMBOLS = 20000;
+export const QUICK_MAX_SYMBOLS = 5000;
+export const DEFAULT_SEARCH_TIMEOUT = 30000; // 30 seconds for symbol search (large codebases can take time)
 
 /**
  * Check if ripgrep (rg) is available
@@ -28,7 +28,7 @@ export async function checkRgAvailable(): Promise<RgCheckResponse> {
     }
 
     const options = {
-      timeout: SEARCH_TIMEOUT,
+      timeout: DEFAULT_SEARCH_TIMEOUT,
       killSignal: 'SIGTERM' as const
     };
 
@@ -62,7 +62,7 @@ export async function getSupportedLanguages(): Promise<LanguagesResponse> {
     }
 
     const options = {
-      timeout: SEARCH_TIMEOUT,
+      timeout: DEFAULT_SEARCH_TIMEOUT,
       killSignal: 'SIGTERM' as const
     };
 
@@ -138,6 +138,7 @@ export async function searchSymbols(
     }
 
     const maxSymbols = options.maxSymbols || DEFAULT_MAX_SYMBOLS;
+    const timeout = options.timeout || DEFAULT_SEARCH_TIMEOUT;
     const args = [
       'search',
       directory,
@@ -146,7 +147,7 @@ export async function searchSymbols(
     ];
 
     const execOptions = {
-      timeout: SEARCH_TIMEOUT,
+      timeout,
       killSignal: 'SIGTERM' as const
     };
 

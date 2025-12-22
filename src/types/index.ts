@@ -217,6 +217,15 @@ export interface UserSettings {
     // Default editor when no extension-specific setting exists
     defaultEditor?: string | null;
   };
+  // Symbol search configuration (code search with @<language>:<query> syntax)
+  symbolSearch?: {
+    // Maximum number of symbols to return (default: 20000)
+    maxSymbols?: number;
+    // Search timeout in milliseconds (default: 30000)
+    timeout?: number;
+    // Custom paths to ripgrep command (null = auto-detect from common paths)
+    rgPaths?: string[] | null;
+  };
   // mdSearch configuration (unified command and mention loading)
   mdSearch?: MdSearchEntry[];
 }

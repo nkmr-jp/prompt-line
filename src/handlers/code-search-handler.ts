@@ -8,9 +8,12 @@ import { logger } from '../utils/utils';
 import {
   checkRgAvailable,
   getSupportedLanguages,
-  searchSymbols
+  searchSymbols,
+  DEFAULT_MAX_SYMBOLS,
+  DEFAULT_SEARCH_TIMEOUT
 } from '../managers/symbol-search';
 import { symbolCacheManager } from '../managers/symbol-cache-manager';
+import type SettingsManager from '../managers/settings-manager';
 import type {
   SymbolSearchResponse,
   RgCheckResponse,
@@ -25,6 +28,26 @@ class CodeSearchHandler {
   private initialized = false;
   // Track pending background refreshes to avoid duplicates
   private pendingRefreshes = new Map<string, boolean>();
+  private settingsManager: SettingsManager | null = null;
+
+  /**
+   * Set settings manager for symbol search configuration
+   */
+  setSettingsManager(settingsManager: SettingsManager): void {
+    this.settingsManager = settingsManager;
+    logger.debug('CodeSearchHandler: SettingsManager configured');
+  }
+
+  /**
+   * Get symbol search settings with defaults
+   */
+  private getSymbolSearchOptions(): { maxSymbols: number; timeout: number } {
+    const symbolSearchSettings = this.settingsManager?.getSymbolSearchSettings();
+    return {
+      maxSymbols: symbolSearchSettings?.maxSymbols ?? DEFAULT_MAX_SYMBOLS,
+      timeout: symbolSearchSettings?.timeout ?? DEFAULT_SEARCH_TIMEOUT
+    };
+  }
 
   /**
    * Register all IPC handlers
@@ -81,6 +104,10 @@ class CodeSearchHandler {
   ): Promise<SymbolSearchResponse> {
     logger.debug('Handling search-symbols request', { directory, language, options });
 
+    // Get settings-based defaults
+    const settingsOptions = this.getSymbolSearchOptions();
+    const effectiveMaxSymbols = options?.maxSymbols ?? settingsOptions.maxSymbols;
+
     // Validate inputs
     if (!directory || typeof directory !== 'string') {
       return {
@@ -89,7 +116,7 @@ class CodeSearchHandler {
         symbolCount: 0,
         searchMode: 'full',
         partial: false,
-        maxSymbols: options?.maxSymbols || 20000,
+        maxSymbols: effectiveMaxSymbols,
         error: 'Invalid directory'
       };
     }
@@ -101,7 +128,7 @@ class CodeSearchHandler {
         symbolCount: 0,
         searchMode: 'full',
         partial: false,
-        maxSymbols: options?.maxSymbols || 20000,
+        maxSymbols: effectiveMaxSymbols,
         error: 'Invalid language'
       };
     }
@@ -118,10 +145,10 @@ class CodeSearchHandler {
           // Background refresh: only update cache when refreshCache is explicitly true
           // This prevents unnecessary refreshes during file navigation (e.g., @go vs @go:)
           if (options?.refreshCache === true) {
-            const searchOptions = options?.maxSymbols !== undefined
-              ? { maxSymbols: options.maxSymbols }
-              : undefined;
-            this.refreshCacheInBackground(directory, language, searchOptions);
+            this.refreshCacheInBackground(directory, language, {
+              maxSymbols: effectiveMaxSymbols,
+              timeout: settingsOptions.timeout
+            });
           }
 
           return {
@@ -132,16 +159,17 @@ class CodeSearchHandler {
             symbolCount: cachedSymbols.length,
             searchMode: 'cached',
             partial: false,
-            maxSymbols: options?.maxSymbols || 20000
+            maxSymbols: effectiveMaxSymbols
           };
         }
       }
     }
 
     // Perform fresh search (no cache available)
-    const searchOptions = options?.maxSymbols !== undefined
-      ? { maxSymbols: options.maxSymbols }
-      : undefined;
+    const searchOptions = {
+      maxSymbols: effectiveMaxSymbols,
+      timeout: settingsOptions.timeout
+    };
     const result = await searchSymbols(directory, language, searchOptions);
 
     // Cache successful results
@@ -167,6 +195,8 @@ class CodeSearchHandler {
   ): Promise<SymbolSearchResponse> {
     logger.debug('Handling get-cached-symbols request', { directory, language });
 
+    const settingsOptions = this.getSymbolSearchOptions();
+
     if (!directory || typeof directory !== 'string') {
       return {
         success: false,
@@ -174,7 +204,7 @@ class CodeSearchHandler {
         symbolCount: 0,
         searchMode: 'cached',
         partial: false,
-        maxSymbols: 20000,
+        maxSymbols: settingsOptions.maxSymbols,
         error: 'Invalid directory'
       };
     }
@@ -187,7 +217,7 @@ class CodeSearchHandler {
         symbolCount: 0,
         searchMode: 'cached',
         partial: false,
-        maxSymbols: 20000,
+        maxSymbols: settingsOptions.maxSymbols,
         error: 'No valid cache found'
       };
     }
@@ -242,7 +272,7 @@ class CodeSearchHandler {
   private refreshCacheInBackground(
     directory: string,
     language: string,
-    options?: { maxSymbols?: number }
+    options?: { maxSymbols?: number; timeout?: number }
   ): void {
     // Create a unique key for this refresh operation
     const refreshKey = `${directory}:${language}`;
