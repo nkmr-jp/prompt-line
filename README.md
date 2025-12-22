@@ -173,6 +173,7 @@ This feature integrates with File Search, so you need to enable File Search firs
 - `@py:parse` - Search Python symbols containing "parse"
 
 **Supported Languages (19):**
+
 | Language | Key | Symbol Types |
 |----------|-----|--------------|
 | Go | `go` | function, method, struct, interface, type, constant, variable |
@@ -285,7 +286,7 @@ fileOpener:
 
 symbolSearch:
   maxSymbols: 20000                   # Maximum symbols to return (default: 20000)
-  timeout: 30000                      # Search timeout in milliseconds (default: 30000)
+  timeout: 5000                       # Search timeout in milliseconds (default: 5000)
   #rgPaths:                           # Custom paths to rg command (uncomment to override auto-detection)
   #  - /opt/homebrew/bin/rg
   #  - /usr/local/bin/rg

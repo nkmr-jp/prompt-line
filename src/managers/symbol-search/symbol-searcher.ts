@@ -15,7 +15,7 @@ import type {
 // Default search options (exported for use by handlers)
 export const DEFAULT_MAX_SYMBOLS = 20000;
 export const QUICK_MAX_SYMBOLS = 5000;
-export const DEFAULT_SEARCH_TIMEOUT = 30000; // 30 seconds for symbol search (large codebases can take time)
+export const DEFAULT_SEARCH_TIMEOUT = 5000; // 5 seconds for symbol search
 
 /**
  * Check if ripgrep (rg) is available

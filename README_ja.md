@@ -172,6 +172,7 @@ npm run reset-accessibility
 - `@py:parse` - "parse"を含むPythonシンボルを検索
 
 **対応言語 (19言語):**
+
 | 言語 | キー | シンボルタイプ |
 |------|------|----------------|
 | Go | `go` | function, method, struct, interface, type, constant, variable |
@@ -284,7 +285,7 @@ fileOpener:
 
 symbolSearch:
   maxSymbols: 20000                   # Maximum symbols to return (default: 20000)
-  timeout: 30000                      # Search timeout in milliseconds (default: 30000)
+  timeout: 5000                       # Search timeout in milliseconds (default: 5000)
   #rgPaths:                           # Custom paths to rg command (uncomment to override auto-detection)
   #  - /opt/homebrew/bin/rg
   #  - /usr/local/bin/rg

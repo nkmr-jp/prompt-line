@@ -221,7 +221,7 @@ export interface UserSettings {
   symbolSearch?: {
     // Maximum number of symbols to return (default: 20000)
     maxSymbols?: number;
-    // Search timeout in milliseconds (default: 30000)
+    // Search timeout in milliseconds (default: 5000)
     timeout?: number;
     // Custom paths to ripgrep command (null = auto-detect from common paths)
     rgPaths?: string[] | null;

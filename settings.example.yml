@@ -130,8 +130,8 @@ symbolSearch:
   # Maximum number of symbols to return (default: 20000)
   maxSymbols: 20000
 
-  # Search timeout in milliseconds (default: 30000)
-  timeout: 30000
+  # Search timeout in milliseconds (default: 5000)
+  timeout: 5000
 
   # Custom paths to ripgrep command (uncomment to override auto-detection)
   # Auto-detected paths: /opt/homebrew/bin/rg, /usr/local/bin/rg, /usr/bin/rg
