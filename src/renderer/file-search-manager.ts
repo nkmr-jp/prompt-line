@@ -1997,10 +1997,11 @@ export class FileSearchManager {
 
     try {
       // Code search (@go:) - only refresh cache when explicitly requested (first entry to code search mode)
+      // Don't pass maxSymbols - let the handler use settings value
       const response = await window.electronAPI.codeSearch.searchSymbols(
         this.cachedDirectoryData.directory,
         language,
-        { maxSymbols: 20000, useCache: true, refreshCache }
+        { useCache: true, refreshCache }
       );
 
       if (!response.success) {
@@ -3442,11 +3443,11 @@ export class FileSearchManager {
 
     try {
       // Search for symbols in the directory for this language
-      // Use 20000 to ensure we have enough symbols to filter for any file
+      // Don't pass maxSymbols - let the handler use settings value
       let response = await window.electronAPI.codeSearch.searchSymbols(
         cachedData.directory,
         language.key,
-        { maxSymbols: 20000, useCache: true }
+        { useCache: true }
       );
 
       if (!response.success) {
@@ -3466,15 +3467,16 @@ export class FileSearchManager {
         this.currentFileSymbols.length, 'out of', response.symbolCount);
 
       // If no symbols found in cached results, retry without cache
-      // (cache might be stale or have insufficient maxSymbols)
+      // (cache might be stale)
       if (this.currentFileSymbols.length === 0 && response.symbolCount > 0) {
         console.debug('[FileSearchManager] No symbols for file in cache, retrying without cache');
         this.callbacks.updateHintText?.(`Refreshing symbols for ${relativePath}...`);
 
+        // Don't pass maxSymbols - let the handler use settings value
         response = await window.electronAPI.codeSearch.searchSymbols(
           cachedData.directory,
           language.key,
-          { maxSymbols: 20000, useCache: false }
+          { useCache: false }
         );
 
         if (response.success) {

@@ -845,10 +845,11 @@ export class FileSearchManager {
 
     try {
       // Search for symbols in the specific file
+      // Don't pass maxSymbols - let the handler use settings value
       const response = await window.electronAPI.codeSearch.searchSymbols(
         cachedData.directory,
         language.key,
-        { maxSymbols: 1000, useCache: true }
+        { useCache: true }
       );
 
       if (!response.success) {
