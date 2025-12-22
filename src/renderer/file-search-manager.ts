@@ -3355,7 +3355,7 @@ export class FileSearchManager {
   }
 
   /**
-   * Navigate into a file to show its symbols
+   * Navigate into a file to show its symbols (similar to navigateIntoDirectory)
    */
   private async navigateIntoFile(relativePath: string, _absolutePath: string, language: LanguageInfo): Promise<void> {
     const cachedData = this.cachedDirectoryData;
@@ -3365,6 +3365,18 @@ export class FileSearchManager {
     this.isInSymbolMode = true;
     this.currentFilePath = relativePath;
     this.currentQuery = '';
+
+    // Update current path to the file path (like directory navigation)
+    this.currentPath = relativePath;
+
+    console.debug('[FileSearchManager] navigateIntoFile:', formatLog({
+      file: relativePath,
+      currentPath: this.currentPath,
+      language: language.key
+    }));
+
+    // Update the text input to show the file path after @ (like directories)
+    this.updateTextInputWithPath(this.currentPath);
 
     // Show loading state
     this.callbacks.updateHintText?.(`Loading symbols from ${relativePath}...`);
@@ -3379,9 +3391,8 @@ export class FileSearchManager {
 
       if (!response.success) {
         console.warn('[FileSearchManager] Symbol search failed:', response.error);
-        // Fallback to inserting the file path
+        // Fallback: stay on current state with file path shown
         this.isInSymbolMode = false;
-        this.insertFilePath(relativePath);
         this.hideSuggestions();
         return;
       }
@@ -3395,20 +3406,19 @@ export class FileSearchManager {
         this.currentFileSymbols.length, 'out of', response.symbolCount);
 
       if (this.currentFileSymbols.length === 0) {
-        // No symbols found, fallback to inserting file path
+        // No symbols found - file path is already in input, just hide suggestions
         this.callbacks.updateHintText?.(`No symbols found in ${relativePath}`);
         this.isInSymbolMode = false;
-        this.insertFilePath(relativePath);
         this.hideSuggestions();
         return;
       }
 
-      // Show symbols
+      // Show symbols with selectedIndex = -1 (like directory navigation)
+      this.selectedIndex = -1;
       this.showSymbolSuggestions('');
     } catch (error) {
       console.error('[FileSearchManager] Error searching symbols:', error);
       this.isInSymbolMode = false;
-      this.insertFilePath(relativePath);
       this.hideSuggestions();
     }
   }
