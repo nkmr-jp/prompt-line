@@ -171,28 +171,7 @@ npm run reset-accessibility
 - `@go:Handler` - "Handler"を含むGoシンボルを検索
 - `@py:parse` - "parse"を含むPythonシンボルを検索
 
-**対応言語 (18言語):**
-
-| 言語 | キー | シンボルタイプ |
-|------|------|----------------|
-| Go | `go` | function, method, struct, interface, type, constant, variable |
-| TypeScript | `ts` | function, class, interface, type, enum, constant, namespace |
-| TypeScript React | `tsx` | function, class, interface, type, enum, constant |
-| JavaScript | `js` | function, class, constant, variable |
-| JavaScript React | `jsx` | function, class, constant, variable |
-| Python | `py` | function, class, constant |
-| Rust | `rs` | function, struct, enum, trait, type, constant, variable, module |
-| Java | `java` | class, interface, enum, method |
-| Kotlin | `kt` | function, class, interface, enum, typealias, constant |
-| Swift | `swift` | function, class, struct, protocol, enum, typealias |
-| Ruby | `rb` | function, class, module, constant |
-| C++ | `cpp` | class, struct, enum, namespace, typedef |
-| C | `c` | struct, enum, typedef |
-| Shell | `sh` | function, variable |
-| Makefile | `make`, `mk` | function (targets), variable |
-| PHP | `php` | function, class, interface, trait, constant, enum |
-| C# | `cs` | class, interface, struct, enum, method, namespace |
-| Scala | `scala` | function, class, trait, object, type, constant, variable |
+![doc13.png](assets/doc13.png)
 
 #### マークダウン検索
 /を入力してスラッシュコマンドを検索できるように設定できます。<br>

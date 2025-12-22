@@ -172,28 +172,7 @@ This feature integrates with File Search, so you need to enable File Search firs
 - `@go:Handler` - Search Go symbols containing "Handler"
 - `@py:parse` - Search Python symbols containing "parse"
 
-**Supported Languages (18):**
-
-| Language | Key | Symbol Types |
-|----------|-----|--------------|
-| Go | `go` | function, method, struct, interface, type, constant, variable |
-| TypeScript | `ts` | function, class, interface, type, enum, constant, namespace |
-| TypeScript React | `tsx` | function, class, interface, type, enum, constant |
-| JavaScript | `js` | function, class, constant, variable |
-| JavaScript React | `jsx` | function, class, constant, variable |
-| Python | `py` | function, class, constant |
-| Rust | `rs` | function, struct, enum, trait, type, constant, variable, module |
-| Java | `java` | class, interface, enum, method |
-| Kotlin | `kt` | function, class, interface, enum, typealias, constant |
-| Swift | `swift` | function, class, struct, protocol, enum, typealias |
-| Ruby | `rb` | function, class, module, constant |
-| C++ | `cpp` | class, struct, enum, namespace, typedef |
-| C | `c` | struct, enum, typedef |
-| Shell | `sh` | function, variable |
-| Makefile | `make`, `mk` | function (targets), variable |
-| PHP | `php` | function, class, interface, trait, constant, enum |
-| C# | `cs` | class, interface, struct, enum, method, namespace |
-| Scala | `scala` | function, class, trait, object, type, constant, variable |
+![doc13.png](assets/doc13.png)
 
 #### Markdown Search
 You can search for slash commands by typing /.<br>
