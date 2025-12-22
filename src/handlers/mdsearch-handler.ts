@@ -91,6 +91,9 @@ class MdSearchHandler {
         if (item.frontmatter) {
           cmd.frontmatter = item.frontmatter;
         }
+        if (item.inputFormat) {
+          cmd.inputFormat = item.inputFormat;
+        }
         return cmd;
       });
 
@@ -159,6 +162,9 @@ class MdSearchHandler {
         };
         if (item.frontmatter) {
           agent.frontmatter = item.frontmatter;
+        }
+        if (item.inputFormat) {
+          agent.inputFormat = item.inputFormat;
         }
         return agent;
       });

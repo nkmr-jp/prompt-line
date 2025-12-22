@@ -481,6 +481,10 @@ export class FileSearchHighlighter {
   /**
    * Handle backspace key to delete entire @path if cursor is at the end
    * Uses replaceRangeWithUndo for native Undo/Redo support
+   *
+   * Note: Does not override normal backspace behavior when:
+   * - Shift key is pressed (Shift+Backspace)
+   * - Text is selected (let browser delete selection normally)
    */
   public handleBackspaceForAtPath(
     e: KeyboardEvent,
@@ -488,6 +492,17 @@ export class FileSearchHighlighter {
     getTextContent: () => string,
     setCursorPosition: (pos: number) => void
   ): void {
+    // Don't override Shift+Backspace (let it behave as normal backspace)
+    if (e.shiftKey) {
+      return;
+    }
+
+    // Don't override when text is selected (let browser delete selection normally)
+    const textInput = this.getTextInput();
+    if (textInput && textInput.selectionStart !== textInput.selectionEnd) {
+      return;
+    }
+
     const cursorPos = getCursorPosition();
     const atPath = this.findAtPathAtCursor(cursorPos);
 
@@ -497,21 +512,30 @@ export class FileSearchHighlighter {
       const text = getTextContent();
       const deletedPathContent = atPath.path;
 
+      // Save atPath properties before deletion - replaceRangeWithUndo triggers input event
+      // which calls updateHighlightBackdrop() and rescanAtPaths(), modifying this.atPaths
+      const savedStart = atPath.start;
+      const savedEnd = atPath.end;
+
       // Delete the @path (and trailing space if present)
-      let deleteEnd = atPath.end;
+      let deleteEnd = savedEnd;
       if (text[deleteEnd] === ' ') {
         deleteEnd++;
       }
 
       // Use replaceRangeWithUndo if available for native Undo support
+      // Note: execCommand('insertText', false, '') places cursor at the deletion point
+      // which is exactly where we want it (savedStart), so no need to call setCursorPosition
       if (this.callbacks.replaceRangeWithUndo) {
-        this.callbacks.replaceRangeWithUndo(atPath.start, deleteEnd, '');
+        this.callbacks.replaceRangeWithUndo(savedStart, deleteEnd, '');
+        // Do NOT call setCursorPosition after replaceRangeWithUndo - execCommand already
+        // sets cursor to the correct position (start of deleted range)
       } else {
-        // Fallback to direct text manipulation (no Undo support)
-        const newText = text.substring(0, atPath.start) + text.substring(deleteEnd);
+        // Fallback to direct text manipulation (no Undo support) - need to set cursor manually
+        const newText = text.substring(0, savedStart) + text.substring(deleteEnd);
         this.callbacks.setTextContent(newText);
+        setCursorPosition(savedStart);
       }
-      setCursorPosition(atPath.start);
 
       // Update highlight backdrop (rescanAtPaths will recalculate all positions)
       this.updateHighlightBackdrop();
@@ -524,7 +548,7 @@ export class FileSearchHighlighter {
       }
 
       console.debug('[FileSearchHighlighter] deleted @path:', formatLog({
-        deletedStart: atPath.start,
+        deletedStart: savedStart,
         deletedEnd: deleteEnd,
         deletedPath: deletedPathContent || 'unknown',
         remainingPaths: this.atPaths.length,
@@ -575,6 +599,45 @@ export class FileSearchHighlighter {
 
     // Update highlight backdrop (this will find all occurrences in the text)
     this.updateHighlightBackdrop();
+  }
+
+  /**
+   * Insert file path without the @ symbol
+   * Replaces both @ and query with just the path
+   * Uses replaceRangeWithUndo for native Undo/Redo support
+   */
+  public insertFilePathWithoutAt(
+    path: string,
+    atStartPosition: number,
+    getCursorPosition: () => number,
+    replaceRangeWithUndo?: (start: number, end: number, text: string) => void,
+    getTextContent?: () => string,
+    setTextContent?: (text: string) => void
+  ): void {
+    if (atStartPosition < 0) return;
+
+    const cursorPos = getCursorPosition();
+
+    // The insertion text includes path + space for better UX
+    const insertionText = path + ' ';
+
+    // Replace from @ (atStartPosition) to cursorPos - this removes the @ as well
+    const replaceStart = atStartPosition;
+    const replaceEnd = cursorPos;
+
+    // Use replaceRangeWithUndo if available for native Undo support
+    if (replaceRangeWithUndo) {
+      replaceRangeWithUndo(replaceStart, replaceEnd, insertionText);
+    } else if (getTextContent && setTextContent) {
+      // Fallback to direct text manipulation (no Undo support)
+      const text = getTextContent();
+      const before = text.substring(0, replaceStart);
+      const after = text.substring(replaceEnd);
+      const newText = before + insertionText + after;
+      setTextContent(newText);
+    }
+
+    // Note: Don't add to selectedPaths for path format since there's no @ to highlight
   }
 
   /**

@@ -114,6 +114,11 @@ class SettingsManager {
       result.fileSearch = userSettings.fileSearch;
     }
 
+    // Set symbolSearch if it exists in user settings
+    if (userSettings.symbolSearch) {
+      result.symbolSearch = userSettings.symbolSearch;
+    }
+
     return result;
   }
 
@@ -151,7 +156,7 @@ class SettingsManager {
     description: "${entry.description || ''}"
     path: ${entry.path}
     pattern: "${entry.pattern}"${entry.argumentHint ? `\n    argumentHint: "${entry.argumentHint}"` : ''}
-    maxSuggestions: ${entry.maxSuggestions ?? 20}${entry.searchPrefix ? `\n    searchPrefix: "${entry.searchPrefix}"` : ''}`).join('\n');
+    maxSuggestions: ${entry.maxSuggestions ?? 20}${entry.searchPrefix ? `\n    searchPrefix: "${entry.searchPrefix}"` : ''}${entry.inputFormat ? `\n    inputFormat: ${entry.inputFormat}` : ''}`).join('\n');
     };
 
     // Build fileSearch section - if fileSearch is defined, output values; otherwise comment out entire section
@@ -201,6 +206,33 @@ class SettingsManager {
 
     const fileSearchSection = buildFileSearchSection();
 
+    // Build symbolSearch section
+    const buildSymbolSearchSection = (): string => {
+      if (!settings.symbolSearch) {
+        // Feature uses defaults - output commented template with default values
+        return `symbolSearch:
+  maxSymbols: 20000                   # Maximum symbols to return (default: 20000)
+  timeout: 5000                       # Search timeout in milliseconds (default: 5000)
+  #rgPaths:                           # Custom paths to rg command (uncomment to override auto-detection)
+  #  - /opt/homebrew/bin/rg
+  #  - /usr/local/bin/rg`;
+      }
+
+      // Feature has custom settings - output actual values
+      const rgPathsSection = settings.symbolSearch.rgPaths && settings.symbolSearch.rgPaths.length > 0
+        ? `rgPaths:${settings.symbolSearch.rgPaths.map(p => `\n    - ${p}`).join('')}`
+        : `#rgPaths:                           # Custom paths to rg command (uncomment to override auto-detection)
+  #  - /opt/homebrew/bin/rg
+  #  - /usr/local/bin/rg`;
+
+      return `symbolSearch:
+  maxSymbols: ${settings.symbolSearch.maxSymbols ?? 20000}                   # Maximum symbols to return (default: 20000)
+  timeout: ${settings.symbolSearch.timeout ?? 5000}                       # Search timeout in milliseconds (default: 5000)
+  ${rgPathsSection}`;
+    };
+
+    const symbolSearchSection = buildSymbolSearchSection();
+
     // Build extensions section
     const extensionsSection = settings.fileOpener?.extensions && Object.keys(settings.fileOpener.extensions).length > 0
       ? `extensions:${formatExtensionsAsList(settings.fileOpener.extensions)}`
@@ -228,6 +260,7 @@ class SettingsManager {
 #    pattern: "*.md"
 #    argumentHint: "{frontmatter@argument-hint}"  # Optional hint after selection
 #    maxSuggestions: 20                # Max number of suggestions (default: 20)
+#    inputFormat: name                 # 'name' for name only, 'path' for file path (default: name)
 #
 #  - name: "agent-{basename}"
 #    type: mention
@@ -236,6 +269,7 @@ class SettingsManager {
 #    pattern: "*.md"
 #    maxSuggestions: 20
 #    searchPrefix: "agent:"            # Require @agent: prefix for this entry (optional)
+#    inputFormat: path                 # 'name' for name only, 'path' for file path
 #
 #  - name: "{frontmatter@name}"
 #    type: mention
@@ -296,6 +330,15 @@ fileOpener:
 # When this section is commented out, file search feature is disabled
 
 ${fileSearchSection}
+
+# ============================================================================
+# SYMBOL SEARCH SETTINGS (Code Search)
+# ============================================================================
+# Configure symbol search behavior for @<language>:<query> syntax
+# Note: ripgrep (rg) command is required (install: brew install ripgrep)
+# Note: File search must be enabled for symbol search to work
+
+${symbolSearchSection}
 
 # ============================================================================
 # MARKDOWN SEARCH SETTINGS (Slash Commands & Mentions)
@@ -386,6 +429,10 @@ ${mdSearchSection}
 
   isFileSearchEnabled(): boolean {
     return this.currentSettings.fileSearch !== undefined;
+  }
+
+  getSymbolSearchSettings(): UserSettings['symbolSearch'] {
+    return this.currentSettings.symbolSearch;
   }
 
   async updateFileSearchSettings(fileSearch: Partial<NonNullable<UserSettings['fileSearch']>>): Promise<void> {

@@ -108,6 +108,38 @@ fileSearch:
   #  - ".storybook/**/*"
 
 # ==============================================================================
+# Symbol Search Configuration (Code Search)
+# ==============================================================================
+# Configure symbol search behavior for @<language>:<query> syntax
+#
+# Requirements:
+#   - ripgrep (rg) command is required (install: brew install ripgrep)
+#   - File search must be enabled (@ mention system)
+#
+# Syntax: @<language>:<query>
+# Examples:
+#   @ts:Config     - Search TypeScript symbols containing "Config"
+#   @go:Handler    - Search Go symbols containing "Handler"
+#   @py:parse      - Search Python symbols containing "parse"
+#
+# Supported Languages (18):
+#   go, ts, tsx, js, jsx, py, rs, java, kt, swift,
+#   rb, cpp, c, sh, make/mk, php, cs, scala
+#
+symbolSearch:
+  # Maximum number of symbols to return (default: 20000)
+  maxSymbols: 20000
+
+  # Search timeout in milliseconds (default: 5000)
+  timeout: 5000
+
+  # Custom paths to ripgrep command (uncomment to override auto-detection)
+  # Auto-detected paths: /opt/homebrew/bin/rg, /usr/local/bin/rg, /usr/bin/rg
+  #rgPaths:
+  #  - /opt/homebrew/bin/rg
+  #  - /usr/local/bin/rg
+
+# ==============================================================================
 # Markdown Search Configuration (Slash Commands & Mentions)
 # ==============================================================================
 # Configure sources for slash commands (/) and mentions (@)
@@ -122,10 +154,12 @@ fileSearch:
 #    pattern: "*.md"                   # Glob pattern: *.md, **/*.md, SKILL.md
 #    argumentHint: "{frontmatter@argument-hint}"  # Optional hint after selection
 #    maxSuggestions: 20                # Max number of suggestions (default: 20)
+#    sortOrder: asc                    # Sort order: 'asc' (A→Z) or 'desc' (Z→A)
 #  - name: "agent-{basename}"
 #    type: mention
 #    description: "{frontmatter@description}"
 #    path: ~/.claude/agents
 #    pattern: "*.md"
 #    maxSuggestions: 20
+#    sortOrder: asc                    # Sort order: 'asc' (A→Z) or 'desc' (Z→A)
 #    searchPrefix: "agent:"            # Require @agent: prefix for this entry (optional)

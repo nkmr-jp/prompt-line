@@ -374,6 +374,35 @@ The window supports multiple positioning modes with dynamic configuration:
   - Cursor (`com.todesktop.230313mzl4w4u92`)
   - Windsurf (`com.exafunction.windsurf`)
 
+### Code Search / Symbol Search
+- **Syntax**: Type `@<language>:<query>` to search for symbols (e.g., `@ts:Config`, `@go:Handler`)
+- **ripgrep-based**: Uses `rg` (ripgrep) for fast symbol searching
+- **Native Swift tool**: `symbol-searcher` binary in `native/symbol-searcher/`
+- **Symbol caching**: Results cached per directory and language for faster subsequent searches
+- **Supported languages (18)**:
+  | Language | Key | Example | Symbol Types |
+  |----------|-----|---------|--------------|
+  | Go | `go` | `@go:Handler` | function, method, struct, interface, type, constant, variable |
+  | TypeScript | `ts` | `@ts:Config` | function, class, interface, type, enum, constant, namespace |
+  | TypeScript React | `tsx` | `@tsx:Component` | function, class, interface, type, enum, constant |
+  | JavaScript | `js` | `@js:init` | function, class, constant, variable |
+  | JavaScript React | `jsx` | `@jsx:Button` | function, class, constant, variable |
+  | Python | `py` | `@py:parse` | function, class, constant |
+  | Rust | `rs` | `@rs:handle` | function, struct, enum, trait, type, constant, variable, module |
+  | Java | `java` | `@java:Service` | class, interface, enum, method |
+  | Kotlin | `kt` | `@kt:create` | function, class, interface, enum, typealias, constant |
+  | Swift | `swift` | `@swift:detect` | function, class, struct, protocol, enum, typealias |
+  | Ruby | `rb` | `@rb:initialize` | function, class, module, constant |
+  | C++ | `cpp` | `@cpp:Node` | class, struct, enum, namespace, typedef |
+  | C | `c` | `@c:parse` | struct, enum, typedef |
+  | Shell | `sh` | `@sh:build` | function, variable |
+  | Makefile | `make`, `mk` | `@make:install`, `@mk:install` | function (targets), variable |
+  | PHP | `php` | `@php:render` | function, class, interface, trait, constant, enum |
+  | C# | `cs` | `@cs:Handle` | class, interface, struct, enum, method, namespace |
+  | Scala | `scala` | `@scala:process` | function, class, trait, object, type, constant, variable |
+- **Requirements**: ripgrep (`rg`) must be installed (`brew install ripgrep`)
+- **File search must be enabled**: Code search is part of the @ mention system
+
 ### Slash Commands & Agents
 - **Slash command system**: Type `/` to access commands
 - **Custom commands**: User-defined commands from markdown files

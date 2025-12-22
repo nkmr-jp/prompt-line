@@ -3,6 +3,10 @@
  */
 
 import type { FileInfo, AgentItem } from '../../types';
+import type { SymbolResult, SymbolType } from '../code-search/types';
+
+// Re-export for convenience
+export type { SymbolResult, SymbolType };
 
 /**
  * Format object for console output (Electron renderer -> main process)
@@ -63,6 +67,7 @@ export interface FileSearchCallbacks {
   getDefaultHintText?: () => string; // Get default hint text (directory path)
   setDraggable?: (enabled: boolean) => void; // Enable/disable window dragging during file open
   replaceRangeWithUndo?: (start: number, end: number, newText: string) => void; // Replace text range with undo support
+  getIsComposing?: () => boolean; // Check if IME is active to avoid conflicts with Japanese input
 }
 
 // Represents a tracked @path in the text
@@ -72,10 +77,11 @@ export interface AtPathRange {
   path?: string | undefined;  // The path content (without @) for highlighting
 }
 
-// Unified suggestion item (file or agent) with score for mixed sorting
+// Unified suggestion item (file, agent, or symbol) with score for mixed sorting
 export interface SuggestionItem {
-  type: 'file' | 'agent';
+  type: 'file' | 'agent' | 'symbol';
   file?: FileInfo;
   agent?: AgentItem;
+  symbol?: SymbolResult;
   score: number;
 }

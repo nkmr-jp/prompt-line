@@ -7,6 +7,9 @@ import type { MdSearchEntry } from '../types';
 /** デフォルトの検索候補最大表示数 */
 export const DEFAULT_MAX_SUGGESTIONS = 20;
 
+/** デフォルトのソート順 */
+export const DEFAULT_SORT_ORDER: 'asc' | 'desc' = 'asc';
+
 export function getDefaultMdSearchConfig(): MdSearchEntry[] {
   return [
     {
@@ -17,6 +20,7 @@ export function getDefaultMdSearchConfig(): MdSearchEntry[] {
       pattern: '*.md',
       argumentHint: '{frontmatter@argument-hint}',
       maxSuggestions: DEFAULT_MAX_SUGGESTIONS,
+      sortOrder: DEFAULT_SORT_ORDER,
     },
     {
       name: 'agent-{basename}',
@@ -25,6 +29,7 @@ export function getDefaultMdSearchConfig(): MdSearchEntry[] {
       path: '~/.claude/agents',
       pattern: '*.md',
       maxSuggestions: DEFAULT_MAX_SUGGESTIONS,
+      sortOrder: DEFAULT_SORT_ORDER,
       // searchPrefix: 'agent:', // Uncomment to require @agent: prefix for agent search
     },
   ];

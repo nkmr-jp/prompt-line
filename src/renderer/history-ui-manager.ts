@@ -1,4 +1,4 @@
-import { LIMITS, TIMEOUTS } from '../constants';
+import { TIMEOUTS } from '../constants';
 import { formatTime } from './utils/time-formatter';
 import type { HistoryItem } from './types';
 
@@ -8,6 +8,8 @@ export class HistoryUIManager {
   private getCurrentText: () => string;
   private getCursorPosition: () => number;
   private saveSnapshotCallback: (text: string, cursorPosition: number) => void;
+  private loadMoreCallback: (() => void) | null = null;
+  private scrollHandler: (() => void) | null = null;
 
   constructor(
     private getHistoryList: () => HTMLElement | null,
@@ -16,14 +18,47 @@ export class HistoryUIManager {
     private getSearchManager: () => { isInSearchMode(): boolean; getSearchTerm(): string; highlightSearchTerms(text: string, term: string): string } | null,
     getCurrentText: () => string,
     getCursorPosition: () => number,
-    saveSnapshotCallback: (text: string, cursorPosition: number) => void
+    saveSnapshotCallback: (text: string, cursorPosition: number) => void,
+    loadMoreCallback?: () => void
   ) {
     this.getCurrentText = getCurrentText;
     this.getCursorPosition = getCursorPosition;
     this.saveSnapshotCallback = saveSnapshotCallback;
+    this.loadMoreCallback = loadMoreCallback || null;
   }
 
-  public renderHistory(historyData: HistoryItem[]): void {
+  /**
+   * Setup scroll event listener for infinite scroll
+   */
+  public setupScrollListener(): void {
+    const historyList = this.getHistoryList();
+    if (!historyList || this.scrollHandler) return;
+
+    this.scrollHandler = () => {
+      this.checkScrollPosition();
+    };
+
+    historyList.addEventListener('scroll', this.scrollHandler);
+  }
+
+  /**
+   * Check if scrolled to bottom and trigger load more
+   */
+  private checkScrollPosition(): void {
+    const historyList = this.getHistoryList();
+    if (!historyList || !this.loadMoreCallback) return;
+
+    // Check if scrolled near bottom (within 50px)
+    const scrollTop = historyList.scrollTop;
+    const scrollHeight = historyList.scrollHeight;
+    const clientHeight = historyList.clientHeight;
+
+    if (scrollTop + clientHeight >= scrollHeight - 50) {
+      this.loadMoreCallback();
+    }
+  }
+
+  public renderHistory(historyData: HistoryItem[], totalMatches?: number): void {
     try {
       const historyList = this.getHistoryList();
       if (!historyList) return;
@@ -38,11 +73,10 @@ export class HistoryUIManager {
         return;
       }
 
-      // 0 means unlimited, so show all items
-      const visibleItems = dataToRender.slice(0, LIMITS.MAX_VISIBLE_ITEMS);
+      // Items are already limited by filter engine, render all provided items
       const fragment = document.createDocumentFragment();
 
-      visibleItems.forEach((item) => {
+      dataToRender.forEach((item) => {
         const historyItem = this.createHistoryElement(item);
         fragment.appendChild(historyItem);
       });
@@ -50,12 +84,18 @@ export class HistoryUIManager {
       historyList.innerHTML = '';
       historyList.appendChild(fragment);
 
-      if (dataToRender.length > LIMITS.MAX_VISIBLE_ITEMS) {
-        const moreIndicator = document.createElement('div');
-        moreIndicator.className = 'history-more';
-        moreIndicator.textContent = `+${dataToRender.length - LIMITS.MAX_VISIBLE_ITEMS} more items`;
-        historyList.appendChild(moreIndicator);
+      // Show item count indicator
+      // Use totalMatches for search mode (total matches before display limit)
+      // Use dataToRender.length for non-search mode (total items)
+      const totalCount = totalMatches !== undefined ? totalMatches : dataToRender.length;
+      const countIndicator = document.createElement('div');
+      countIndicator.className = 'history-more';
+      if (totalCount > dataToRender.length) {
+        countIndicator.textContent = `+${totalCount - dataToRender.length} more items`;
+      } else {
+        countIndicator.textContent = `${totalCount} items`;
       }
+      historyList.appendChild(countIndicator);
 
     } catch (error) {
       console.error('Error rendering history:', error);
@@ -119,12 +159,12 @@ export class HistoryUIManager {
 
   public navigateHistory(e: KeyboardEvent, direction: 'next' | 'prev', dataToNavigate: HistoryItem[]): void {
     e.preventDefault();
-    
+
     if (!dataToNavigate || dataToNavigate.length === 0) return;
 
     // Enable keyboard navigation mode and disable hover effects
     this.enableKeyboardNavigation();
-    const visibleItemsCount = Math.min(dataToNavigate.length, LIMITS.MAX_VISIBLE_ITEMS);
+    const visibleItemsCount = dataToNavigate.length;
 
     if (direction === 'next') {
       if (this.historyIndex === -1) {
@@ -132,6 +172,10 @@ export class HistoryUIManager {
         this.historyIndex = 0;
       } else if (this.historyIndex < visibleItemsCount - 1) {
         this.historyIndex = this.historyIndex + 1;
+      } else if (this.historyIndex === visibleItemsCount - 1 && this.loadMoreCallback) {
+        // At last item, try to load more
+        this.loadMoreCallback();
+        return;
       }
     } else {
       if (this.historyIndex === -1) {
@@ -244,6 +288,15 @@ export class HistoryUIManager {
     if (this.keyboardNavigationTimeout) {
       clearTimeout(this.keyboardNavigationTimeout);
       this.keyboardNavigationTimeout = null;
+    }
+
+    // Remove scroll event listener
+    if (this.scrollHandler) {
+      const historyList = this.getHistoryList();
+      if (historyList) {
+        historyList.removeEventListener('scroll', this.scrollHandler);
+      }
+      this.scrollHandler = null;
     }
   }
 }

@@ -16,6 +16,7 @@
 @import './components/notifications.css';
 @import './components/slash-commands.css';
 @import './components/file-suggestions.css';
+@import './components/code-suggestions.css';
 
 /* Themes */
 @import './themes/themes.css';

@@ -23,7 +23,9 @@ import DraftManager from './managers/draft-manager';
 import DirectoryManager from './managers/directory-manager';
 import SettingsManager from './managers/settings-manager';
 import IPCHandlers from './handlers/ipc-handlers';
+import { codeSearchHandler } from './handlers/code-search-handler';
 import { logger, ensureDir, detectCurrentDirectoryWithFiles } from './utils/utils';
+import { LIMITS } from './constants';
 import type { WindowData } from './types';
 
 class PromptLineApp {
@@ -78,6 +80,9 @@ class PromptLineApp {
         this.settingsManager
       );
 
+      // Register code search handlers
+      codeSearchHandler.setSettingsManager(this.settingsManager);
+      codeSearchHandler.register();
 
       // Note: Window is now pre-created during WindowManager initialization
       this.registerShortcuts();
@@ -346,7 +351,8 @@ class PromptLineApp {
 
       const draft = this.draftManager.getCurrentDraft();
       const settings = this.settingsManager.getSettings();
-      const history = this.historyManager.getHistory();
+      // Use getHistoryForSearch for larger search scope (5000 items instead of 200)
+      const history = await this.historyManager.getHistoryForSearch(LIMITS.MAX_SEARCH_ITEMS);
 
       logger.debug('Settings from settingsManager:', {
         hasFileSearch: !!settings.fileSearch,

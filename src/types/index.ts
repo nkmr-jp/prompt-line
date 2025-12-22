@@ -99,7 +99,7 @@ export interface PathsConfig {
   imagesDir: string;
   directoryFile: string;
   cacheDir: string;             // Cache root directory
-  fileListsCacheDir: string;    // File lists cache directory
+  projectsCacheDir: string;     // Projects cache directory
 }
 
 export interface HistoryConfig {
@@ -146,6 +146,7 @@ export interface IHistoryManager {
   initialize(): Promise<void>;
   addToHistory(text: string, appName?: string, directory?: string): Promise<HistoryItem | null>;
   getHistory(limit?: number): Promise<HistoryItem[]> | HistoryItem[];
+  getHistoryForSearch(limit: number): Promise<HistoryItem[]>;
   getHistoryItem(id: string): HistoryItem | null;
   getRecentHistory(limit?: number): HistoryItem[];
   searchHistory(query: string, limit?: number): Promise<HistoryItem[]> | HistoryItem[];
@@ -205,12 +206,25 @@ export interface UserSettings {
     followSymlinks?: boolean;
     // Custom path to fd command (null = auto-detect from common paths)
     fdPath?: string | null;
+    // Input format for file path expansion (default: 'path')
+    // 'name': insert only the file name (e.g., "config.ts")
+    // 'path': insert the relative path (e.g., "src/config.ts")
+    inputFormat?: InputFormatType;
   };
   fileOpener?: {
     // Extension-specific application settings (e.g., { "ts": "WebStorm", "md": "Typora" })
     extensions?: Record<string, string>;
     // Default editor when no extension-specific setting exists
     defaultEditor?: string | null;
+  };
+  // Symbol search configuration (code search with @<language>:<query> syntax)
+  symbolSearch?: {
+    // Maximum number of symbols to return (default: 20000)
+    maxSymbols?: number;
+    // Search timeout in milliseconds (default: 5000)
+    timeout?: number;
+    // Custom paths to ripgrep command (null = auto-detect from common paths)
+    rgPaths?: string[] | null;
   };
   // mdSearch configuration (unified command and mention loading)
   mdSearch?: MdSearchEntry[];
@@ -222,6 +236,7 @@ export interface SlashCommandItem {
   argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
+  inputFormat?: InputFormatType;  // 入力フォーマット（'name' | 'path'）
 }
 
 export interface AgentItem {
@@ -229,6 +244,7 @@ export interface AgentItem {
   description: string;
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
+  inputFormat?: InputFormatType;  // 入力フォーマット（'name' | 'path'）
 }
 
 export interface FileInfo {
@@ -296,6 +312,10 @@ export interface FileSearchSettings {
   followSymlinks: boolean;
   // Custom path to fd command (null = auto-detect from common paths)
   fdPath: string | null;
+  // Input format for file path expansion (default: 'path')
+  // 'name': insert only the file name (e.g., "config.ts")
+  // 'path': insert the relative path (e.g., "src/config.ts")
+  inputFormat?: InputFormatType;
 }
 
 // Directory data for file search (cached in renderer)
@@ -368,6 +388,13 @@ export interface FileCacheStats {
 // ============================================================================
 
 /**
+ * 入力フォーマットの種類
+ * - name: 名前のみを挿入（例: "config.ts"）
+ * - path: パスを挿入（例: "src/config.ts"）
+ */
+export type InputFormatType = 'name' | 'path';
+
+/**
  * mdSearch エントリの種類
  * - command: スラッシュコマンド（/で始まる）
  * - mention: メンション（@で始まる）
@@ -394,6 +421,10 @@ export interface MdSearchEntry {
   maxSuggestions?: number;
   /** オプション: 検索プレフィックス（例: "agent:"）- このプレフィックスで始まるクエリのみ検索対象 */
   searchPrefix?: string;
+  /** オプション: 名前ソート順（デフォルト: 'asc'） - 'asc': 昇順, 'desc': 降順 */
+  sortOrder?: 'asc' | 'desc';
+  /** オプション: 入力フォーマット（デフォルト: 'name'） - 'name': 名前のみ, 'path': ファイルパス */
+  inputFormat?: InputFormatType;
 }
 
 /**
@@ -414,5 +445,7 @@ export interface MdSearchItem {
   argumentHint?: string;
   /** 検索ソースの識別子（path + pattern） */
   sourceId: string;
+  /** 入力フォーマット（'name' | 'path'） */
+  inputFormat?: InputFormatType;
 }
 

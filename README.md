@@ -141,6 +141,7 @@ If you already have an older version installed and want to update to the latest 
 - **Image Support** - Paste clipboard images with `Cmd+V`
 - **File Opener** - Open files from file path text (`Ctrl+Enter` or `Cmd+Click`)
 - **File Search** - Search files by typing `@` (requires fd command and settings configuration)
+- **Symbol Search** - Search code symbols by typing `@<lang>:<query>` (e.g., `@ts:Config`) (requires ripgrep)
 - **Markdown Search** - Search slash commands by typing `/` or sub-agents by typing `@` (requires settings configuration)
 
 #### File Opener
@@ -155,6 +156,23 @@ You can search for files by typing @.<br>
 ※ Supported applications: Terminal.app, iTerm2, JetBrains IDEs (IntelliJ, WebStorm, etc.), VSCode, Cursor, Windsurf
 
 ![doc10.png](assets/doc10.png)
+
+#### Symbol Search
+You can search for code symbols (functions, classes, types, etc.) by typing `@<language>:<query>`.<br>
+This feature integrates with File Search, so you need to enable File Search first.
+
+**Requirements:**
+- [ripgrep](https://github.com/BurntSushi/ripgrep) (rg) command installation is required (`brew install ripgrep`)
+- File Search must be configured in settings
+
+**Syntax:** `@<language>:<query>`
+
+**Examples:**
+- `@ts:Config` - Search TypeScript symbols containing "Config"
+- `@go:Handler` - Search Go symbols containing "Handler"
+- `@py:parse` - Search Python symbols containing "parse"
+
+![doc13.png](assets/doc13.png)
 
 #### Markdown Search
 You can search for slash commands by typing /.<br>
@@ -239,6 +257,20 @@ fileOpener:
 #  #  - "dist/**/*.js"
 
 # ============================================================================
+# SYMBOL SEARCH SETTINGS (Code Search)
+# ============================================================================
+# Configure symbol search behavior for @<language>:<query> syntax
+# Note: ripgrep (rg) command is required (install: brew install ripgrep)
+# Note: File search must be enabled for symbol search to work
+
+symbolSearch:
+  maxSymbols: 20000                   # Maximum symbols to return (default: 20000)
+  timeout: 5000                       # Search timeout in milliseconds (default: 5000)
+  #rgPaths:                           # Custom paths to rg command (uncomment to override auto-detection)
+  #  - /opt/homebrew/bin/rg
+  #  - /usr/local/bin/rg
+
+# ============================================================================
 # MARKDOWN SEARCH SETTINGS (Slash Commands & Mentions)
 # ============================================================================
 # Configure sources for slash commands (/) and mentions (@)
@@ -260,6 +292,7 @@ fileOpener:
 #    pattern: "*.md"
 #    argumentHint: "{frontmatter@argument-hint}"  # Optional hint after selection
 #    maxSuggestions: 20                # Max number of suggestions (default: 20)
+#    sortOrder: asc                    # Sort order: 'asc' (A→Z) or 'desc' (Z→A)
 #
 #  - name: "agent-{basename}"
 #    type: mention
@@ -267,6 +300,7 @@ fileOpener:
 #    path: ~/.claude/agents
 #    pattern: "*.md"
 #    maxSuggestions: 20
+#    sortOrder: asc                    # Sort order: 'asc' (A→Z) or 'desc' (Z→A)
 #    searchPrefix: "agent:"            # Require @agent: prefix for this entry (optional)
 #
 #  - name: "{frontmatter@name}"
@@ -275,6 +309,7 @@ fileOpener:
 #    path: ~/.claude/plugins
 #    pattern: "**/*/SKILL.md"          # Match SKILL.md in any plugin subdirectory
 #    maxSuggestions: 20
+#    sortOrder: asc                    # Sort order: 'asc' (A→Z) or 'desc' (Z→A)
 #    searchPrefix: "skill:"            # Require @skill: prefix for this entry
 ```
 
