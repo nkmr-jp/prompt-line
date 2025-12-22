@@ -3423,10 +3423,11 @@ export class FileSearchManager {
 
     try {
       // Search for symbols in the directory for this language
-      const response = await window.electronAPI.codeSearch.searchSymbols(
+      // Use 20000 to ensure we have enough symbols to filter for any file
+      let response = await window.electronAPI.codeSearch.searchSymbols(
         cachedData.directory,
         language.key,
-        { maxSymbols: 1000, useCache: true }
+        { maxSymbols: 20000, useCache: true }
       );
 
       if (!response.success) {
@@ -3444,6 +3445,27 @@ export class FileSearchManager {
 
       console.debug('[FileSearchManager] Found symbols in file:',
         this.currentFileSymbols.length, 'out of', response.symbolCount);
+
+      // If no symbols found in cached results, retry without cache
+      // (cache might be stale or have insufficient maxSymbols)
+      if (this.currentFileSymbols.length === 0 && response.symbolCount > 0) {
+        console.debug('[FileSearchManager] No symbols for file in cache, retrying without cache');
+        this.callbacks.updateHintText?.(`Refreshing symbols for ${relativePath}...`);
+
+        response = await window.electronAPI.codeSearch.searchSymbols(
+          cachedData.directory,
+          language.key,
+          { maxSymbols: 20000, useCache: false }
+        );
+
+        if (response.success) {
+          this.currentFileSymbols = response.symbols.filter(
+            (s: SymbolResult) => s.relativePath === relativePath
+          );
+          console.debug('[FileSearchManager] After refresh, found symbols:',
+            this.currentFileSymbols.length, 'out of', response.symbolCount);
+        }
+      }
 
       if (this.currentFileSymbols.length === 0) {
         // No symbols found - insert file path directly and close
