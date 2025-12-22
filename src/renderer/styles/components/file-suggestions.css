@@ -152,12 +152,17 @@
 }
 
 /* Symbol-specific styles (for code/symbol search @ts:, @go:, etc.) */
-.symbol-suggestion-item {
+.symbol-suggestion-item,
+.file-suggestion-item.symbol-item {
   /* Inherits from .file-suggestion-item */
 }
 
-.symbol-icon {
-  /* Inherits from .file-icon for SVG icon sizing */
+.symbol-icon,
+.file-suggestion-icon.symbol-icon {
+  /* Symbol icon uses text characters for symbol types */
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary, #aaa);
 }
 
 .symbol-name {
@@ -165,7 +170,8 @@
   font-weight: 500;
 }
 
-.symbol-type-badge {
+.symbol-type-badge,
+.file-suggestion-type {
   padding: 1px 4px;
   font-size: 9px;
   font-weight: 500;
@@ -184,6 +190,21 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   margin-left: auto;
+}
+
+/* Back button for symbol navigation */
+.file-suggestion-item.back-item {
+  background: var(--bg-tertiary, #2a2a2a);
+  border-bottom: 1px solid var(--border-color, #333);
+}
+
+.file-suggestion-item.back-item:hover {
+  background: var(--bg-hover, #333);
+}
+
+.file-suggestion-item.back-item .file-suggestion-icon {
+  font-size: 12px;
+  color: var(--text-secondary, #888);
 }
 
 /* Scrollbar styling */

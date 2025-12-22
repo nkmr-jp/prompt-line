@@ -135,9 +135,16 @@ export class FileSearchManager {
   // Code/Symbol search properties
   private filteredSymbols: SymbolResult[] = [];
   private codeSearchQuery: string = '';
+  private codeSearchLanguage: string = ''; // Current language for code search
+  private codeSearchCacheRefreshed: boolean = false; // Whether cache refresh has been triggered for this session
   private rgAvailable: boolean = false;
   private supportedLanguages: Map<string, LanguageInfo> = new Map();
   private codeSearchInitPromise: Promise<void> | null = null;
+
+  // Symbol mode properties (for navigating into file to show symbols)
+  private isInSymbolMode: boolean = false;
+  private currentFilePath: string = ''; // Path of the file being viewed for symbols
+  private currentFileSymbols: SymbolResult[] = []; // Symbols in the current file
 
   constructor(callbacks: FileSearchCallbacks) {
     this.callbacks = callbacks;
@@ -1899,7 +1906,18 @@ export class FileSearchManager {
           this.atStartPosition = startPos;
           this.currentQuery = query;
           this.codeSearchQuery = symbolQuery;
-          this.searchSymbols(language, symbolQuery, symbolTypeFilter);
+
+          // Determine if we need to refresh cache:
+          // - First time entering code search mode for this language
+          // - Language has changed
+          const shouldRefresh = !this.codeSearchCacheRefreshed || this.codeSearchLanguage !== language;
+          this.codeSearchLanguage = language;
+          if (shouldRefresh) {
+            this.codeSearchCacheRefreshed = true;
+            console.debug('[FileSearchManager] checkForFileSearch: triggering cache refresh for language:', language);
+          }
+
+          this.searchSymbols(language, symbolQuery, symbolTypeFilter, shouldRefresh);
           return;
         } else {
           // Unknown language or rg not available - show hint and hide suggestions
@@ -1969,18 +1987,20 @@ export class FileSearchManager {
   /**
    * Search for symbols using ripgrep
    * @param symbolTypeFilter - Optional symbol type filter (e.g., "func" for functions only)
+   * @param refreshCache - Whether to trigger a background cache refresh
    */
-  private async searchSymbols(language: string, query: string, symbolTypeFilter: string | null = null): Promise<void> {
+  private async searchSymbols(language: string, query: string, symbolTypeFilter: string | null = null, refreshCache: boolean = false): Promise<void> {
     if (!this.cachedDirectoryData?.directory) {
       console.debug('[FileSearchManager] searchSymbols: no directory');
       return;
     }
 
     try {
+      // Code search (@go:) - only refresh cache when explicitly requested (first entry to code search mode)
       const response = await window.electronAPI.codeSearch.searchSymbols(
         this.cachedDirectoryData.directory,
         language,
-        { maxSymbols: 20000, useCache: true }
+        { maxSymbols: 20000, useCache: true, refreshCache }
       );
 
       if (!response.success) {
@@ -2070,11 +2090,19 @@ export class FileSearchManager {
       query,
       currentPath: this.currentPath,
       hasSuggestionsContainer: !!this.suggestionsContainer,
-      hasCachedData: !!this.cachedDirectoryData
+      hasCachedData: !!this.cachedDirectoryData,
+      isInSymbolMode: this.isInSymbolMode
     }));
 
     if (!this.suggestionsContainer) {
       console.debug('[FileSearchManager] showSuggestions: early return - missing container');
+      return;
+    }
+
+    // If in symbol mode, show filtered symbols instead of files
+    if (this.isInSymbolMode) {
+      this.currentQuery = query;
+      this.showSymbolSuggestions(query);
       return;
     }
 
@@ -2309,6 +2337,13 @@ export class FileSearchManager {
 
     // Reset code search state
     this.codeSearchQuery = '';
+    this.codeSearchLanguage = '';
+    this.codeSearchCacheRefreshed = false;
+
+    // Reset symbol mode state
+    this.isInSymbolMode = false;
+    this.currentFilePath = '';
+    this.currentFileSymbols = [];
 
     // Restore default hint text
     this.restoreDefaultHint();
@@ -2993,6 +3028,8 @@ export class FileSearchManager {
 
     // Reset code search state
     this.codeSearchQuery = '';
+    this.codeSearchLanguage = '';
+    this.codeSearchCacheRefreshed = false;
 
     // Hide suggestions
     this.hideSuggestions();
@@ -3114,12 +3151,18 @@ export class FileSearchManager {
 
         // Enter: Select the currently highlighted item (agent or file)
         // Ctrl+Enter: Open the file in editor
-        if (totalItems > 0) {
+        if (totalItems > 0 || this.isInSymbolMode) {
           e.preventDefault();
           e.stopPropagation();
 
-          // 未選択状態（selectedIndex = -1）の場合、現在のディレクトリパスを展開
+          // 未選択状態（selectedIndex = -1）の場合
           if (this.selectedIndex < 0) {
+            // シンボルモードの場合はファイルパス自体を挿入
+            if (this.isInSymbolMode) {
+              this.expandCurrentFile();
+              return;
+            }
+            // ディレクトリモードの場合はディレクトリパスを展開
             this.expandCurrentDirectory();
             return;
           }
@@ -3141,6 +3184,19 @@ export class FileSearchManager {
             }
           }
 
+          // For files (not directories), Enter inserts path directly (like directories)
+          // Tab navigates into file to show symbols
+          const suggestion = this.mergedSuggestions[this.selectedIndex];
+          if (suggestion?.type === 'file' && suggestion.file && !suggestion.file.isDirectory) {
+            // Insert file path directly (don't navigate into symbols)
+            const baseDir = this.cachedDirectoryData?.directory || '';
+            const relativePath = this.getRelativePath(suggestion.file.path, baseDir);
+            this.insertFilePath(relativePath);
+            this.hideSuggestions();
+            this.callbacks.onFileSelected(relativePath);
+            return;
+          }
+
           this.selectItem(this.selectedIndex);
         }
         break;
@@ -3152,12 +3208,18 @@ export class FileSearchManager {
         }
 
         // Tab: Navigate into directory (for files), or select item (for agents/files)
-        if (totalItems > 0) {
+        if (totalItems > 0 || this.isInSymbolMode) {
           e.preventDefault();
           e.stopPropagation();
 
-          // 未選択状態（selectedIndex = -1）の場合、現在のディレクトリパスを展開
+          // 未選択状態（selectedIndex = -1）の場合
           if (this.selectedIndex < 0) {
+            // シンボルモードの場合はファイルパス自体を挿入
+            if (this.isInSymbolMode) {
+              this.expandCurrentFile();
+              return;
+            }
+            // ディレクトリモードの場合はディレクトリパスを展開
             this.expandCurrentDirectory();
             return;
           }
@@ -3179,6 +3241,15 @@ export class FileSearchManager {
         e.preventDefault();
         e.stopPropagation();
         this.hideSuggestions();
+        break;
+
+      case 'Backspace':
+        // In symbol mode with empty query, exit symbol mode
+        if (this.isInSymbolMode && this.currentQuery === '') {
+          e.preventDefault();
+          e.stopPropagation();
+          this.exitSymbolMode();
+        }
         break;
     }
   }
@@ -3253,6 +3324,21 @@ export class FileSearchManager {
   }
 
   /**
+   * Expand current file path (for Enter/Tab when no symbol is selected in symbol mode)
+   * シンボルモードで未選択状態の時、ファイルパス自体を挿入する
+   */
+  private expandCurrentFile(): void {
+    if (!this.currentFilePath) return;
+
+    // ファイルパスを挿入（末尾にスペースを追加）
+    this.insertFilePath(this.currentFilePath);
+    this.hideSuggestions();
+
+    // Callback for external handling
+    this.callbacks.onFileSelected(this.currentFilePath);
+  }
+
+  /**
    * Update text input with the current path (keeps @ and updates the path after it)
    */
   private updateTextInputWithPath(path: string): void {
@@ -3295,11 +3381,278 @@ export class FileSearchManager {
       relativePath += '/';
     }
 
+    // If it's a directory, just insert the path (directory navigation handled elsewhere)
+    if (file.isDirectory) {
+      this.insertFilePath(relativePath);
+      this.hideSuggestions();
+      this.callbacks.onFileSelected(relativePath);
+      return;
+    }
+
+    // Check if symbol search is available for this file type
+    const language = this.getLanguageForFile(file.name);
+    if (this.rgAvailable && language) {
+      // Navigate into file to show symbols
+      this.navigateIntoFile(relativePath, file.path, language);
+      return;
+    }
+
+    // Fallback: insert the file path
     this.insertFilePath(relativePath);
     this.hideSuggestions();
 
     // Callback for external handling
     this.callbacks.onFileSelected(relativePath);
+  }
+
+  /**
+   * Get language info for a file based on its extension
+   */
+  private getLanguageForFile(filename: string): LanguageInfo | null {
+    const ext = filename.substring(filename.lastIndexOf('.') + 1).toLowerCase();
+    return this.supportedLanguages.get(ext) || null;
+  }
+
+  /**
+   * Navigate into a file to show its symbols (similar to navigateIntoDirectory)
+   */
+  private async navigateIntoFile(relativePath: string, _absolutePath: string, language: LanguageInfo): Promise<void> {
+    const cachedData = this.cachedDirectoryData;
+    if (!cachedData) return;
+
+    // Update state to symbol mode
+    this.isInSymbolMode = true;
+    this.currentFilePath = relativePath;
+    this.currentQuery = '';
+
+    // Update current path to the file path (like directory navigation)
+    this.currentPath = relativePath;
+
+    console.debug('[FileSearchManager] navigateIntoFile:', formatLog({
+      file: relativePath,
+      currentPath: this.currentPath,
+      language: language.key
+    }));
+
+    // Update the text input to show the file path after @ (like directories)
+    this.updateTextInputWithPath(this.currentPath);
+
+    // Show loading state
+    this.callbacks.updateHintText?.(`Loading symbols from ${relativePath}...`);
+
+    try {
+      // Search for symbols in the directory for this language
+      // Use 20000 to ensure we have enough symbols to filter for any file
+      let response = await window.electronAPI.codeSearch.searchSymbols(
+        cachedData.directory,
+        language.key,
+        { maxSymbols: 20000, useCache: true }
+      );
+
+      if (!response.success) {
+        console.warn('[FileSearchManager] Symbol search failed:', response.error);
+        // Fallback: stay on current state with file path shown
+        this.isInSymbolMode = false;
+        this.hideSuggestions();
+        return;
+      }
+
+      // Filter symbols to only those in the selected file
+      this.currentFileSymbols = response.symbols.filter(
+        (s: SymbolResult) => s.relativePath === relativePath
+      );
+
+      console.debug('[FileSearchManager] Found symbols in file:',
+        this.currentFileSymbols.length, 'out of', response.symbolCount);
+
+      // If no symbols found in cached results, retry without cache
+      // (cache might be stale or have insufficient maxSymbols)
+      if (this.currentFileSymbols.length === 0 && response.symbolCount > 0) {
+        console.debug('[FileSearchManager] No symbols for file in cache, retrying without cache');
+        this.callbacks.updateHintText?.(`Refreshing symbols for ${relativePath}...`);
+
+        response = await window.electronAPI.codeSearch.searchSymbols(
+          cachedData.directory,
+          language.key,
+          { maxSymbols: 20000, useCache: false }
+        );
+
+        if (response.success) {
+          this.currentFileSymbols = response.symbols.filter(
+            (s: SymbolResult) => s.relativePath === relativePath
+          );
+          console.debug('[FileSearchManager] After refresh, found symbols:',
+            this.currentFileSymbols.length, 'out of', response.symbolCount);
+        }
+      }
+
+      if (this.currentFileSymbols.length === 0) {
+        // No symbols found - insert file path directly and close
+        this.callbacks.updateHintText?.(`No symbols found in ${relativePath}`);
+        this.isInSymbolMode = false;
+        // Use insertFilePath to properly add space at the end
+        this.insertFilePath(relativePath);
+        this.hideSuggestions();
+        this.callbacks.onFileSelected(relativePath);
+        return;
+      }
+
+      // Show symbols with selectedIndex = -1 (like directory navigation)
+      this.selectedIndex = -1;
+      this.showSymbolSuggestions('');
+    } catch (error) {
+      console.error('[FileSearchManager] Error searching symbols:', error);
+      this.isInSymbolMode = false;
+      this.hideSuggestions();
+    }
+  }
+
+  /**
+   * Show symbol suggestions for the current file
+   * Uses same pattern as directory navigation: header + items, selectedIndex = -1 for unselected
+   */
+  private showSymbolSuggestions(query: string): void {
+    if (!this.suggestionsContainer) return;
+
+    // Filter symbols by query
+    let filtered = this.currentFileSymbols;
+    if (query) {
+      const lowerQuery = query.toLowerCase();
+      filtered = this.currentFileSymbols.filter(s =>
+        s.name.toLowerCase().includes(lowerQuery) ||
+        s.lineContent.toLowerCase().includes(lowerQuery)
+      );
+
+      // Sort by relevance
+      filtered.sort((a, b) => {
+        const aName = a.name.toLowerCase();
+        const bName = b.name.toLowerCase();
+        const aStarts = aName.startsWith(lowerQuery);
+        const bStarts = bName.startsWith(lowerQuery);
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
+        return aName.localeCompare(bName);
+      });
+    }
+
+    // Limit results
+    const maxSuggestions = 20;
+    filtered = filtered.slice(0, maxSuggestions);
+
+    // Convert to SuggestionItem
+    this.mergedSuggestions = filtered.map((symbol, index) => ({
+      type: 'symbol' as const,
+      symbol,
+      score: 1000 - index
+    }));
+
+    // Set selectedIndex = -1 (unselected state, like directory navigation)
+    // Tab/Enter will insert file path when nothing is selected
+    this.selectedIndex = -1;
+
+    // Clear and render
+    this.suggestionsContainer.innerHTML = '';
+    const fragment = document.createDocumentFragment();
+
+    // Add file path header (like directory header in renderSuggestions)
+    if (this.currentFilePath) {
+      const header = document.createElement('div');
+      header.className = 'file-suggestion-header';
+      header.textContent = this.currentFilePath;
+      fragment.appendChild(header);
+    }
+
+    if (this.mergedSuggestions.length === 0) {
+      this.callbacks.updateHintText?.(`No symbols matching "${query}" in ${this.currentFilePath}`);
+    }
+
+    // Render symbol items
+    this.mergedSuggestions.forEach((suggestion, index) => {
+      if (suggestion.symbol) {
+        const item = this.renderSymbolItem(suggestion.symbol, index);
+        fragment.appendChild(item);
+      }
+    });
+
+    this.suggestionsContainer.appendChild(fragment);
+
+    // Update hint
+    if (this.mergedSuggestions.length > 0) {
+      this.callbacks.updateHintText?.(`${this.mergedSuggestions.length} symbols in ${this.currentFilePath}`);
+    }
+
+    // Position and show
+    this.positionSuggestions();
+    this.suggestionsContainer.style.display = 'block';
+    this.isVisible = true;
+  }
+
+  /**
+   * Render a symbol item for the suggestions list
+   */
+  private renderSymbolItem(symbol: SymbolResult, index: number): HTMLElement {
+    const item = document.createElement('div');
+    item.className = 'file-suggestion-item symbol-item';
+    item.dataset.index = String(index);
+
+    if (index === this.selectedIndex) {
+      item.classList.add('selected');
+    }
+
+    // Symbol type icon
+    const iconSpan = document.createElement('span');
+    iconSpan.className = 'file-icon symbol-icon';
+    const iconSvg = getSymbolIconSvg(symbol.type);
+    insertSvgIntoElement(iconSpan, iconSvg);
+    item.appendChild(iconSpan);
+
+    // Symbol name
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'file-name';
+    nameSpan.textContent = symbol.name;
+    item.appendChild(nameSpan);
+
+    // Symbol type badge
+    const typeBadge = document.createElement('span');
+    typeBadge.className = 'file-suggestion-type';
+    typeBadge.textContent = getSymbolTypeDisplay(symbol.type);
+    item.appendChild(typeBadge);
+
+    // Line number
+    const lineSpan = document.createElement('span');
+    lineSpan.className = 'file-path';
+    lineSpan.textContent = `:${symbol.lineNumber}`;
+    item.appendChild(lineSpan);
+
+    // Mouse events
+    item.addEventListener('mousemove', () => {
+      this.selectedIndex = index;
+      this.updateSelection();
+    });
+
+    item.addEventListener('click', () => {
+      this.selectSymbol(symbol);
+    });
+
+    return item;
+  }
+
+  /**
+   * Exit symbol mode and return to file list
+   */
+  private exitSymbolMode(): void {
+    this.isInSymbolMode = false;
+    this.currentFilePath = '';
+    this.currentFileSymbols = [];
+    this.currentQuery = '';
+
+    // Restore default hint text
+    if (this.callbacks.getDefaultHintText) {
+      this.callbacks.updateHintText?.(this.callbacks.getDefaultHintText());
+    }
+
+    // Re-show file suggestions
+    this.showSuggestions(this.currentPath || '');
   }
 
   /**
@@ -3425,24 +3778,40 @@ export class FileSearchManager {
       const text = this.callbacks.getTextContent();
       const deletedPathContent = atPath.path;
 
+      // Save atPath properties before deletion - replaceRangeWithUndo triggers input event
+      // which calls updateHighlightBackdrop() and rescanAtPaths(), modifying this.atPaths
+      const savedStart = atPath.start;
+      const savedEnd = atPath.end;
+
       // Delete the @path (and trailing space if present)
-      let deleteEnd = atPath.end;
+      let deleteEnd = savedEnd;
       if (text[deleteEnd] === ' ') {
         deleteEnd++;
       }
 
       // Use replaceRangeWithUndo if available for native Undo support
+      // Note: execCommand('insertText', false, '') places cursor at the deletion point
+      // which is exactly where we want it (savedStart), so no need to call setCursorPosition
       if (this.callbacks.replaceRangeWithUndo) {
-        this.callbacks.replaceRangeWithUndo(atPath.start, deleteEnd, '');
+        this.callbacks.replaceRangeWithUndo(savedStart, deleteEnd, '');
+        // Explicitly restore cursor position after deletion
+        // The input event fired by execCommand may trigger code that affects cursor position
+        // (e.g., checkForFileSearch, updateHighlightBackdrop, updateCursorPositionHighlight)
+        // Restoring here ensures cursor stays at the correct deletion point
+        this.callbacks.setCursorPosition(savedStart);
       } else {
-        // Fallback to direct text manipulation (no Undo support)
-        const newText = text.substring(0, atPath.start) + text.substring(deleteEnd);
+        // Fallback to direct text manipulation (no Undo support) - need to set cursor manually
+        const newText = text.substring(0, savedStart) + text.substring(deleteEnd);
         this.callbacks.setTextContent(newText);
+        this.callbacks.setCursorPosition(savedStart);
       }
-      this.callbacks.setCursorPosition(atPath.start);
 
       // Update highlight backdrop (rescanAtPaths will recalculate all positions)
       this.updateHighlightBackdrop();
+
+      // Restore cursor position again after updateHighlightBackdrop
+      // This ensures cursor stays at savedStart even if backdrop update affects it
+      this.callbacks.setCursorPosition(savedStart);
 
       // After update, check if this path still exists in the text
       // If not, remove it from selectedPaths
@@ -3452,7 +3821,7 @@ export class FileSearchManager {
       }
 
       console.debug('[FileSearchManager] deleted @path:', formatLog({
-        deletedStart: atPath.start,
+        deletedStart: savedStart,
         deletedEnd: deleteEnd,
         deletedPath: deletedPathContent || 'unknown',
         remainingPaths: this.atPaths.length,
