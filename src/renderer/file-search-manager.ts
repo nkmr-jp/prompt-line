@@ -3132,12 +3132,18 @@ export class FileSearchManager {
 
         // Enter: Select the currently highlighted item (agent or file)
         // Ctrl+Enter: Open the file in editor
-        if (totalItems > 0) {
+        if (totalItems > 0 || this.isInSymbolMode) {
           e.preventDefault();
           e.stopPropagation();
 
-          // 未選択状態（selectedIndex = -1）の場合、現在のディレクトリパスを展開
+          // 未選択状態（selectedIndex = -1）の場合
           if (this.selectedIndex < 0) {
+            // シンボルモードの場合はファイルパス自体を挿入
+            if (this.isInSymbolMode) {
+              this.expandCurrentFile();
+              return;
+            }
+            // ディレクトリモードの場合はディレクトリパスを展開
             this.expandCurrentDirectory();
             return;
           }
@@ -3170,12 +3176,18 @@ export class FileSearchManager {
         }
 
         // Tab: Navigate into directory (for files), or select item (for agents/files)
-        if (totalItems > 0) {
+        if (totalItems > 0 || this.isInSymbolMode) {
           e.preventDefault();
           e.stopPropagation();
 
-          // 未選択状態（selectedIndex = -1）の場合、現在のディレクトリパスを展開
+          // 未選択状態（selectedIndex = -1）の場合
           if (this.selectedIndex < 0) {
+            // シンボルモードの場合はファイルパス自体を挿入
+            if (this.isInSymbolMode) {
+              this.expandCurrentFile();
+              return;
+            }
+            // ディレクトリモードの場合はディレクトリパスを展開
             this.expandCurrentDirectory();
             return;
           }
@@ -3277,6 +3289,21 @@ export class FileSearchManager {
 
     // Callback for external handling
     this.callbacks.onFileSelected(pathWithSlash);
+  }
+
+  /**
+   * Expand current file path (for Enter/Tab when no symbol is selected in symbol mode)
+   * シンボルモードで未選択状態の時、ファイルパス自体を挿入する
+   */
+  private expandCurrentFile(): void {
+    if (!this.currentFilePath) return;
+
+    // ファイルパスを挿入（末尾にスペースを追加）
+    this.insertFilePath(this.currentFilePath);
+    this.hideSuggestions();
+
+    // Callback for external handling
+    this.callbacks.onFileSelected(this.currentFilePath);
   }
 
   /**
@@ -3425,6 +3452,7 @@ export class FileSearchManager {
 
   /**
    * Show symbol suggestions for the current file
+   * Uses same pattern as directory navigation: header + items, selectedIndex = -1 for unselected
    */
   private showSymbolSuggestions(query: string): void {
     if (!this.suggestionsContainer) return;
@@ -3461,30 +3489,35 @@ export class FileSearchManager {
       score: 1000 - index
     }));
 
-    // Add back button as first item (index -1 to not interfere with symbol selection)
-    // We'll handle back button separately in rendering
-
-    this.selectedIndex = 0;
+    // Set selectedIndex = -1 (unselected state, like directory navigation)
+    // Tab/Enter will insert file path when nothing is selected
+    this.selectedIndex = -1;
 
     // Clear and render
     this.suggestionsContainer.innerHTML = '';
+    const fragment = document.createDocumentFragment();
+
+    // Add file path header (like directory header in renderSuggestions)
+    if (this.currentFilePath) {
+      const header = document.createElement('div');
+      header.className = 'file-suggestion-header';
+      header.textContent = this.currentFilePath;
+      fragment.appendChild(header);
+    }
 
     if (this.mergedSuggestions.length === 0) {
       this.callbacks.updateHintText?.(`No symbols matching "${query}" in ${this.currentFilePath}`);
-      // Still show container with back button
     }
-
-    // Add back button as first item
-    const backItem = this.createBackToFilesItem();
-    this.suggestionsContainer.appendChild(backItem);
 
     // Render symbol items
     this.mergedSuggestions.forEach((suggestion, index) => {
       if (suggestion.symbol) {
         const item = this.renderSymbolItem(suggestion.symbol, index);
-        this.suggestionsContainer!.appendChild(item);
+        fragment.appendChild(item);
       }
     });
+
+    this.suggestionsContainer.appendChild(fragment);
 
     // Update hint
     if (this.mergedSuggestions.length > 0) {
@@ -3495,31 +3528,6 @@ export class FileSearchManager {
     this.positionSuggestions();
     this.suggestionsContainer.style.display = 'block';
     this.isVisible = true;
-  }
-
-  /**
-   * Create a "back to files" item for symbol mode
-   */
-  private createBackToFilesItem(): HTMLElement {
-    const item = document.createElement('div');
-    item.className = 'file-suggestion-item back-item';
-    item.dataset.backButton = 'true';
-
-    const iconSpan = document.createElement('span');
-    iconSpan.className = 'file-icon';
-    iconSpan.textContent = '←';
-    item.appendChild(iconSpan);
-
-    const textSpan = document.createElement('span');
-    textSpan.className = 'file-name';
-    textSpan.textContent = 'Back to files';
-    item.appendChild(textSpan);
-
-    item.addEventListener('click', () => {
-      this.exitSymbolMode();
-    });
-
-    return item;
   }
 
   /**
