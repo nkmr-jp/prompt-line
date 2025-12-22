@@ -3778,21 +3778,30 @@ export class FileSearchManager {
       const text = this.callbacks.getTextContent();
       const deletedPathContent = atPath.path;
 
+      // Save atPath properties before deletion - replaceRangeWithUndo triggers input event
+      // which calls updateHighlightBackdrop() and rescanAtPaths(), modifying this.atPaths
+      const savedStart = atPath.start;
+      const savedEnd = atPath.end;
+
       // Delete the @path (and trailing space if present)
-      let deleteEnd = atPath.end;
+      let deleteEnd = savedEnd;
       if (text[deleteEnd] === ' ') {
         deleteEnd++;
       }
 
       // Use replaceRangeWithUndo if available for native Undo support
+      // Note: execCommand('insertText', false, '') places cursor at the deletion point
+      // which is exactly where we want it (savedStart), so no need to call setCursorPosition
       if (this.callbacks.replaceRangeWithUndo) {
-        this.callbacks.replaceRangeWithUndo(atPath.start, deleteEnd, '');
+        this.callbacks.replaceRangeWithUndo(savedStart, deleteEnd, '');
+        // Do NOT call setCursorPosition after replaceRangeWithUndo - execCommand already
+        // sets cursor to the correct position (start of deleted range)
       } else {
-        // Fallback to direct text manipulation (no Undo support)
-        const newText = text.substring(0, atPath.start) + text.substring(deleteEnd);
+        // Fallback to direct text manipulation (no Undo support) - need to set cursor manually
+        const newText = text.substring(0, savedStart) + text.substring(deleteEnd);
         this.callbacks.setTextContent(newText);
+        this.callbacks.setCursorPosition(savedStart);
       }
-      this.callbacks.setCursorPosition(atPath.start);
 
       // Update highlight backdrop (rescanAtPaths will recalculate all positions)
       this.updateHighlightBackdrop();
@@ -3805,7 +3814,7 @@ export class FileSearchManager {
       }
 
       console.debug('[FileSearchManager] deleted @path:', formatLog({
-        deletedStart: atPath.start,
+        deletedStart: savedStart,
         deletedEnd: deleteEnd,
         deletedPath: deletedPathContent || 'unknown',
         remainingPaths: this.atPaths.length,
