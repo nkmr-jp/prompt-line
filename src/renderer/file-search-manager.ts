@@ -135,6 +135,8 @@ export class FileSearchManager {
   // Code/Symbol search properties
   private filteredSymbols: SymbolResult[] = [];
   private codeSearchQuery: string = '';
+  private codeSearchLanguage: string = ''; // Current language for code search
+  private codeSearchCacheRefreshed: boolean = false; // Whether cache refresh has been triggered for this session
   private rgAvailable: boolean = false;
   private supportedLanguages: Map<string, LanguageInfo> = new Map();
   private codeSearchInitPromise: Promise<void> | null = null;
@@ -1904,7 +1906,18 @@ export class FileSearchManager {
           this.atStartPosition = startPos;
           this.currentQuery = query;
           this.codeSearchQuery = symbolQuery;
-          this.searchSymbols(language, symbolQuery, symbolTypeFilter);
+
+          // Determine if we need to refresh cache:
+          // - First time entering code search mode for this language
+          // - Language has changed
+          const shouldRefresh = !this.codeSearchCacheRefreshed || this.codeSearchLanguage !== language;
+          this.codeSearchLanguage = language;
+          if (shouldRefresh) {
+            this.codeSearchCacheRefreshed = true;
+            console.debug('[FileSearchManager] checkForFileSearch: triggering cache refresh for language:', language);
+          }
+
+          this.searchSymbols(language, symbolQuery, symbolTypeFilter, shouldRefresh);
           return;
         } else {
           // Unknown language or rg not available - show hint and hide suggestions
@@ -1974,19 +1987,20 @@ export class FileSearchManager {
   /**
    * Search for symbols using ripgrep
    * @param symbolTypeFilter - Optional symbol type filter (e.g., "func" for functions only)
+   * @param refreshCache - Whether to trigger a background cache refresh
    */
-  private async searchSymbols(language: string, query: string, symbolTypeFilter: string | null = null): Promise<void> {
+  private async searchSymbols(language: string, query: string, symbolTypeFilter: string | null = null, refreshCache: boolean = false): Promise<void> {
     if (!this.cachedDirectoryData?.directory) {
       console.debug('[FileSearchManager] searchSymbols: no directory');
       return;
     }
 
     try {
-      // Code search (@go:) - enable background cache refresh
+      // Code search (@go:) - only refresh cache when explicitly requested (first entry to code search mode)
       const response = await window.electronAPI.codeSearch.searchSymbols(
         this.cachedDirectoryData.directory,
         language,
-        { maxSymbols: 20000, useCache: true, refreshCache: true }
+        { maxSymbols: 20000, useCache: true, refreshCache }
       );
 
       if (!response.success) {
@@ -2323,6 +2337,8 @@ export class FileSearchManager {
 
     // Reset code search state
     this.codeSearchQuery = '';
+    this.codeSearchLanguage = '';
+    this.codeSearchCacheRefreshed = false;
 
     // Reset symbol mode state
     this.isInSymbolMode = false;
@@ -3012,6 +3028,8 @@ export class FileSearchManager {
 
     // Reset code search state
     this.codeSearchQuery = '';
+    this.codeSearchLanguage = '';
+    this.codeSearchCacheRefreshed = false;
 
     // Hide suggestions
     this.hideSuggestions();
