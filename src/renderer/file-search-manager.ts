@@ -1982,10 +1982,11 @@ export class FileSearchManager {
     }
 
     try {
+      // Code search (@go:) - enable background cache refresh
       const response = await window.electronAPI.codeSearch.searchSymbols(
         this.cachedDirectoryData.directory,
         language,
-        { maxSymbols: 20000, useCache: true }
+        { maxSymbols: 20000, useCache: true, refreshCache: true }
       );
 
       if (!response.success) {

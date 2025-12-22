@@ -283,7 +283,7 @@ const electronAPI = {
     searchSymbols: async (
       directory: string,
       language: string,
-      options?: { maxSymbols?: number; useCache?: boolean }
+      options?: { maxSymbols?: number; useCache?: boolean; refreshCache?: boolean }
     ): Promise<any> => {
       return ipcRenderer.invoke('search-symbols', directory, language, options);
     },
@@ -350,7 +350,7 @@ export interface ElectronAPI {
     searchSymbols: (
       directory: string,
       language: string,
-      options?: { maxSymbols?: number; useCache?: boolean }
+      options?: { maxSymbols?: number; useCache?: boolean; refreshCache?: boolean }
     ) => Promise<any>;
     getCachedSymbols: (directory: string, language?: string) => Promise<any>;
     clearCache: (directory?: string) => Promise<{ success: boolean }>;

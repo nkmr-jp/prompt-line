@@ -77,7 +77,7 @@ class CodeSearchHandler {
     _event: IpcMainInvokeEvent,
     directory: string,
     language: string,
-    options?: { maxSymbols?: number; useCache?: boolean }
+    options?: { maxSymbols?: number; useCache?: boolean; refreshCache?: boolean }
   ): Promise<SymbolSearchResponse> {
     logger.debug('Handling search-symbols request', { directory, language, options });
 
@@ -115,11 +115,14 @@ class CodeSearchHandler {
         if (cachedSymbols.length > 0) {
           logger.debug('Returning cached symbols (stale-while-revalidate)', { count: cachedSymbols.length });
 
-          // Background refresh: update cache without blocking the response
-          const searchOptions = options?.maxSymbols !== undefined
-            ? { maxSymbols: options.maxSymbols }
-            : undefined;
-          this.refreshCacheInBackground(directory, language, searchOptions);
+          // Background refresh: only update cache when refreshCache is explicitly true
+          // This prevents unnecessary refreshes during file navigation (e.g., @go vs @go:)
+          if (options?.refreshCache === true) {
+            const searchOptions = options?.maxSymbols !== undefined
+              ? { maxSymbols: options.maxSymbols }
+              : undefined;
+            this.refreshCacheInBackground(directory, language, searchOptions);
+          }
 
           return {
             success: true,
