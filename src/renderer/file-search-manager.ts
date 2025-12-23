@@ -3407,9 +3407,17 @@ export class FileSearchManager {
   }
 
   /**
-   * Get language info for a file based on its extension
+   * Get language info for a file based on its extension or filename
    */
   private getLanguageForFile(filename: string): LanguageInfo | null {
+    const lowerFilename = filename.toLowerCase();
+
+    // Special case: Makefile (no extension)
+    // supportedLanguages map is keyed by key (make, mk), not extension
+    if (lowerFilename === 'makefile' || lowerFilename === 'gnumakefile') {
+      return this.supportedLanguages.get('make') || this.supportedLanguages.get('mk') || null;
+    }
+
     const ext = filename.substring(filename.lastIndexOf('.') + 1).toLowerCase();
     return this.supportedLanguages.get(ext) || null;
   }
