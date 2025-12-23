@@ -289,6 +289,8 @@ let LANGUAGE_PATTERNS: [String: LanguageConfig] = [
             SymbolPattern(type: .heading, regex: "^#{1,6}\\s+(.+?)(?:\\s+#+)?$", captureGroup: 1),
             // Link reference definitions: [reference]: url
             SymbolPattern(type: .link, regex: "^\\[([^\\]]+)\\]:\\s*\\S", captureGroup: 1),
+            // Inline links: [text](url) - matches first link on each line
+            SymbolPattern(type: .link, regex: "\\[([^\\]]+)\\]\\([^)]+\\)", captureGroup: 1),
         ]
     ),
     // Alias: @markdown: for Markdown (same as @md:)
@@ -299,6 +301,8 @@ let LANGUAGE_PATTERNS: [String: LanguageConfig] = [
         patterns: [
             SymbolPattern(type: .heading, regex: "^#{1,6}\\s+(.+?)(?:\\s+#+)?$", captureGroup: 1),
             SymbolPattern(type: .link, regex: "^\\[([^\\]]+)\\]:\\s*\\S", captureGroup: 1),
+            // Inline links: [text](url) - matches first link on each line
+            SymbolPattern(type: .link, regex: "\\[([^\\]]+)\\]\\([^)]+\\)", captureGroup: 1),
         ]
     ),
 ]
