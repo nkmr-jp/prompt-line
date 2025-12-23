@@ -16,6 +16,8 @@ enum SymbolType: String, Codable {
     case property
     case module
     case namespace
+    case heading
+    case link
 }
 
 // MARK: - Language Configuration

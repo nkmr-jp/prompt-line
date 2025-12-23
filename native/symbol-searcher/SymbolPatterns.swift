@@ -244,6 +244,42 @@ let LANGUAGE_PATTERNS: [String: LanguageConfig] = [
             SymbolPattern(type: .variable, regex: "^\\s*(?:private\\s+|protected\\s+)?var\\s+(\\w+)\\s*[=:]", captureGroup: 1),
         ]
     ),
+    "tf": LanguageConfig(
+        extensionName: "tf",
+        displayName: "Terraform",
+        rgType: "tf",
+        patterns: [
+            // resource "aws_instance" "example" { → captures "example"
+            SymbolPattern(type: .structDecl, regex: "^resource\\s+\"[^\"]+\"\\s+\"([\\w-]+)\"", captureGroup: 1),
+            // data "aws_ami" "example" { → captures "example"
+            SymbolPattern(type: .typeAlias, regex: "^data\\s+\"[^\"]+\"\\s+\"([\\w-]+)\"", captureGroup: 1),
+            // variable "instance_type" { → captures "instance_type"
+            SymbolPattern(type: .variable, regex: "^variable\\s+\"([\\w-]+)\"", captureGroup: 1),
+            // output "instance_ip" { → captures "instance_ip"
+            SymbolPattern(type: .property, regex: "^output\\s+\"([\\w-]+)\"", captureGroup: 1),
+            // module "vpc" { → captures "vpc"
+            SymbolPattern(type: .module, regex: "^module\\s+\"([\\w-]+)\"", captureGroup: 1),
+            // provider "aws" { → captures "aws"
+            SymbolPattern(type: .namespace, regex: "^provider\\s+\"([\\w-]+)\"", captureGroup: 1),
+            // locals { with named values inside: local_name = value
+            SymbolPattern(type: .constant, regex: "^\\s+([a-z][\\w-]*)\\s*=\\s*(?![=])", captureGroup: 1),
+        ]
+    ),
+    // Alias: @terraform: for Terraform (same as @tf:)
+    "terraform": LanguageConfig(
+        extensionName: "tf",
+        displayName: "Terraform",
+        rgType: "tf",
+        patterns: [
+            SymbolPattern(type: .structDecl, regex: "^resource\\s+\"[^\"]+\"\\s+\"([\\w-]+)\"", captureGroup: 1),
+            SymbolPattern(type: .typeAlias, regex: "^data\\s+\"[^\"]+\"\\s+\"([\\w-]+)\"", captureGroup: 1),
+            SymbolPattern(type: .variable, regex: "^variable\\s+\"([\\w-]+)\"", captureGroup: 1),
+            SymbolPattern(type: .property, regex: "^output\\s+\"([\\w-]+)\"", captureGroup: 1),
+            SymbolPattern(type: .module, regex: "^module\\s+\"([\\w-]+)\"", captureGroup: 1),
+            SymbolPattern(type: .namespace, regex: "^provider\\s+\"([\\w-]+)\"", captureGroup: 1),
+            SymbolPattern(type: .constant, regex: "^\\s+([a-z][\\w-]*)\\s*=\\s*(?![=])", captureGroup: 1),
+        ]
+    ),
 ]
 
 /// Get all supported language keys
