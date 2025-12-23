@@ -193,6 +193,34 @@ export class FileSearchManager {
    */
   public clearMaxSuggestionsCache(): void {
     this.maxSuggestionsCache.clear();
+    this.fileSearchMaxSuggestionsCache = null;
+  }
+
+  // Cached fileSearch maxSuggestions
+  private fileSearchMaxSuggestionsCache: number | null = null;
+
+  /**
+   * Get maxSuggestions for file search (cached)
+   * This is for @ mentions file/symbol search, separate from mdSearch settings
+   */
+  private async getFileSearchMaxSuggestions(): Promise<number> {
+    // Check cache first
+    if (this.fileSearchMaxSuggestionsCache !== null) {
+      return this.fileSearchMaxSuggestionsCache;
+    }
+
+    try {
+      const electronAPI = (window as any).electronAPI;
+      if (electronAPI?.fileSearch?.getMaxSuggestions) {
+        const maxSuggestions = await electronAPI.fileSearch.getMaxSuggestions();
+        this.fileSearchMaxSuggestionsCache = maxSuggestions;
+        return maxSuggestions;
+      }
+    } catch (error) {
+      console.error('[FileSearchManager] Failed to get fileSearch maxSuggestions:', error);
+    }
+
+    return FileSearchManager.DEFAULT_MAX_SUGGESTIONS;
   }
 
   /**
@@ -2103,7 +2131,7 @@ export class FileSearchManager {
     // If in symbol mode, show filtered symbols instead of files
     if (this.isInSymbolMode) {
       this.currentQuery = query;
-      this.showSymbolSuggestions(query);
+      await this.showSymbolSuggestions(query);
       return;
     }
 
@@ -3509,7 +3537,7 @@ export class FileSearchManager {
 
       // Show symbols with selectedIndex = -1 (like directory navigation)
       this.selectedIndex = -1;
-      this.showSymbolSuggestions('');
+      await this.showSymbolSuggestions('');
     } catch (error) {
       console.error('[FileSearchManager] Error searching symbols:', error);
       this.isInSymbolMode = false;
@@ -3521,7 +3549,7 @@ export class FileSearchManager {
    * Show symbol suggestions for the current file
    * Uses same pattern as directory navigation: header + items, selectedIndex = -1 for unselected
    */
-  private showSymbolSuggestions(query: string): void {
+  private async showSymbolSuggestions(query: string): Promise<void> {
     if (!this.suggestionsContainer) return;
 
     // Filter symbols by query
@@ -3545,8 +3573,8 @@ export class FileSearchManager {
       });
     }
 
-    // Limit results
-    const maxSuggestions = 20;
+    // Limit results using fileSearch settings (not mdSearch)
+    const maxSuggestions = await this.getFileSearchMaxSuggestions();
     filtered = filtered.slice(0, maxSuggestions);
 
     // Convert to SuggestionItem
