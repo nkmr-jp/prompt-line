@@ -79,4 +79,11 @@ struct LanguageInfo: Codable {
     let key: String
     let extensionName: String  // Renamed to match LanguageConfig
     let displayName: String
+
+    // Map extensionName to "extension" in JSON output to match TypeScript interface
+    enum CodingKeys: String, CodingKey {
+        case key
+        case extensionName = "extension"
+        case displayName
+    }
 }
