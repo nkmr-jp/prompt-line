@@ -11,6 +11,7 @@ export class FileSearchCacheManager {
   private cachedDirectoryData: DirectoryData | null = null;
   private maxSuggestionsCache: Map<string, number> = new Map();
   private searchPrefixesCache: Map<string, string[]> = new Map();
+  private fileSearchMaxSuggestionsCache: number | null = null;
   private fileSearchEnabled: boolean = false;
   private callbacks: FileSearchCallbacks;
 
@@ -63,6 +64,31 @@ export class FileSearchCacheManager {
    */
   public clearMaxSuggestionsCache(): void {
     this.maxSuggestionsCache.clear();
+    this.fileSearchMaxSuggestionsCache = null;
+  }
+
+  /**
+   * Get maxSuggestions for file search (cached)
+   * This is for @ mentions and symbol search, separate from mdSearch settings
+   */
+  public async getFileSearchMaxSuggestions(): Promise<number> {
+    // Check cache first
+    if (this.fileSearchMaxSuggestionsCache !== null) {
+      return this.fileSearchMaxSuggestionsCache;
+    }
+
+    try {
+      const electronAPI = (window as any).electronAPI;
+      if (electronAPI?.fileSearch?.getMaxSuggestions) {
+        const maxSuggestions = await electronAPI.fileSearch.getMaxSuggestions();
+        this.fileSearchMaxSuggestionsCache = maxSuggestions;
+        return maxSuggestions;
+      }
+    } catch (error) {
+      console.error('[FileSearchManager] Failed to get fileSearch maxSuggestions:', error);
+    }
+
+    return FileSearchCacheManager.DEFAULT_MAX_SUGGESTIONS;
   }
 
   /**

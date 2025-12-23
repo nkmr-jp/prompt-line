@@ -42,12 +42,13 @@ class SystemHandler {
     ipcMain.handle('get-app-info', this.handleGetAppInfo.bind(this));
     ipcMain.handle('get-config', this.handleGetConfig.bind(this));
     ipcMain.handle('open-settings', this.handleOpenSettings.bind(this));
+    ipcMain.handle('get-file-search-max-suggestions', this.handleGetFileSearchMaxSuggestions.bind(this));
 
     logger.info('System IPC handlers set up successfully');
   }
 
   removeHandlers(ipcMain: typeof import('electron').ipcMain): void {
-    const handlers = ['get-app-info', 'get-config', 'open-settings'];
+    const handlers = ['get-app-info', 'get-config', 'open-settings', 'get-file-search-max-suggestions'];
 
     handlers.forEach(handler => {
       ipcMain.removeAllListeners(handler);
@@ -136,6 +137,23 @@ class SystemHandler {
     } catch (error) {
       logger.error('Failed to open settings file:', error);
       return { success: false, error: (error as Error).message };
+    }
+  }
+
+  /**
+   * Handler: get-file-search-max-suggestions
+   * Returns the maximum number of suggestions for file search
+   * Default: 50
+   */
+  private handleGetFileSearchMaxSuggestions(_event: IpcMainInvokeEvent): number {
+    try {
+      const fileSearchSettings = this.settingsManager.getFileSearchSettings();
+      const maxSuggestions = fileSearchSettings?.maxSuggestions ?? 50;
+      logger.debug('FileSearch maxSuggestions requested', { maxSuggestions });
+      return maxSuggestions;
+    } catch (error) {
+      logger.error('Failed to get fileSearch maxSuggestions:', error);
+      return 50; // Default fallback
     }
   }
 }

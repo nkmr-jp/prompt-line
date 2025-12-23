@@ -255,6 +255,13 @@ const electronAPI = {
     }
   },
 
+  // FileSearch settings (for @ mentions and symbol search)
+  fileSearch: {
+    getMaxSuggestions: async (): Promise<number> => {
+      return ipcRenderer.invoke('get-file-search-max-suggestions');
+    }
+  },
+
   // File operations
   file: {
     openInEditor: async (filePath: string): Promise<{ success: boolean; error?: string }> => {

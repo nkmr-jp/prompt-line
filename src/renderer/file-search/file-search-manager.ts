@@ -463,8 +463,8 @@ export class FileSearchManager {
       ? await this.fuzzyMatcher.searchAgents(searchQuery, () => this.cacheManager.getMaxSuggestions('mention'))
       : [];
 
-    // Get maxSuggestions setting for merged list
-    const maxSuggestions = await this.cacheManager.getMaxSuggestions('mention');
+    // Get maxSuggestions setting for merged list (uses fileSearch setting, not mdSearch)
+    const maxSuggestions = await this.cacheManager.getFileSearchMaxSuggestions();
 
     // Merge and sort suggestions
     this.mergedSuggestions = this.fuzzyMatcher.mergeSuggestions(
@@ -948,8 +948,8 @@ export class FileSearchManager {
       });
     }
 
-    // Limit results using settings
-    const maxSuggestions = await this.cacheManager.getMaxSuggestions('mention');
+    // Limit results using fileSearch settings (not mdSearch)
+    const maxSuggestions = await this.cacheManager.getFileSearchMaxSuggestions();
     filtered = filtered.slice(0, maxSuggestions);
 
     // Convert to SuggestionItem
