@@ -379,7 +379,7 @@ The window supports multiple positioning modes with dynamic configuration:
 - **ripgrep-based**: Uses `rg` (ripgrep) for fast symbol searching
 - **Native Swift tool**: `symbol-searcher` binary in `native/symbol-searcher/`
 - **Symbol caching**: Results cached per directory and language for faster subsequent searches
-- **Supported languages (19)**:
+- **Supported languages (20)**:
   | Language | Key | Example | Symbol Types |
   |----------|-----|---------|--------------|
   | Go | `go` | `@go:Handler` | function, method, struct, interface, type, constant, variable |
@@ -401,6 +401,7 @@ The window supports multiple positioning modes with dynamic configuration:
   | C# | `cs` | `@cs:Handle` | class, interface, struct, enum, method, namespace |
   | Scala | `scala` | `@scala:process` | function, class, trait, object, type, constant, variable |
   | Terraform | `tf`, `terraform` | `@tf:instance`, `@terraform:vpc` | resource, data, variable, output, module, provider |
+  | Markdown | `md`, `markdown` | `@md:Installation`, `@markdown:Usage` | heading, link |
 - **Requirements**: ripgrep (`rg`) must be installed (`brew install ripgrep`)
 - **File search must be enabled**: Code search is part of the @ mention system
 

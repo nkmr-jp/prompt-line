@@ -851,8 +851,10 @@ export class FileSearchManager {
     const lowerFilename = filename.toLowerCase();
 
     // Special case: Makefile (no extension)
+    // Note: supportedLanguages map is keyed by extension, not key
+    // Makefile has extension: "mk", key: "make"
     if (lowerFilename === 'makefile' || lowerFilename === 'gnumakefile') {
-      return this.supportedLanguages.get('make') || this.supportedLanguages.get('mk') || null;
+      return this.supportedLanguages.get('mk') || null;
     }
 
     const ext = filename.substring(filename.lastIndexOf('.') + 1).toLowerCase();
