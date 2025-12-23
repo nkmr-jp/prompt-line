@@ -15,7 +15,14 @@ export type SymbolType =
   | 'enum'
   | 'property'
   | 'module'
-  | 'namespace';
+  | 'namespace'
+  | 'heading'
+  | 'link'
+  // Terraform-specific types
+  | 'resource'
+  | 'data'
+  | 'output'
+  | 'provider';
 
 // Symbol result from search
 export interface SymbolResult {
@@ -97,7 +104,14 @@ export const SYMBOL_ICONS: Record<SymbolType, string> = {
   enum: '𝒆',
   property: '𝒑',
   module: '𝓂',
-  namespace: '𝓃'
+  namespace: '𝓃',
+  heading: '#',
+  link: '🔗',
+  // Terraform-specific icons
+  resource: '📦',
+  data: '📊',
+  output: '📤',
+  provider: '☁️'
 };
 
 // Get display name for symbol type
@@ -115,6 +129,13 @@ export function getSymbolTypeDisplay(type: SymbolType): string {
     case 'property': return 'prop';
     case 'module': return 'mod';
     case 'namespace': return 'ns';
+    case 'heading': return 'heading';
+    case 'link': return 'link';
+    // Terraform-specific types
+    case 'resource': return 'resource';
+    case 'data': return 'data';
+    case 'output': return 'output';
+    case 'provider': return 'provider';
     default: return type;
   }
 }
@@ -139,5 +160,15 @@ export const SYMBOL_TYPE_FROM_DISPLAY: Record<string, SymbolType> = {
   'mod': 'module',
   'module': 'module',
   'ns': 'namespace',
-  'namespace': 'namespace'
+  'namespace': 'namespace',
+  'heading': 'heading',
+  'link': 'link',
+  // Terraform-specific types
+  'resource': 'resource',
+  'res': 'resource',
+  'data': 'data',
+  'output': 'output',
+  'out': 'output',
+  'provider': 'provider',
+  'prov': 'provider'
 };
