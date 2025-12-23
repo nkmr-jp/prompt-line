@@ -477,27 +477,50 @@ export class FileSearchHighlighter {
     if (!textInput) return null;
     const text = textInput.value;
 
+    console.debug('[FileSearchHighlighter] findAtPathAtCursor called:', formatLog({
+      cursorPos,
+      textLength: text.length,
+      text: text.substring(0, 50),
+      atPathsCount: this.atPaths.length,
+      atPaths: this.atPaths.map(p => ({ start: p.start, end: p.end, path: p.path }))
+    }));
+
     for (const path of this.atPaths) {
+      const charAtEnd = text[path.end];
+      console.debug('[FileSearchHighlighter] checking path:', formatLog({
+        pathStart: path.start,
+        pathEnd: path.end,
+        pathPath: path.path,
+        cursorPos,
+        charAtEnd: charAtEnd ?? 'undefined',
+        cursorEqualsEnd: cursorPos === path.end,
+        cursorEqualsEndPlus1: cursorPos === path.end + 1,
+        charAtEndIsSpace: charAtEnd === ' '
+      }));
+
       // Check if cursor is at path.end (right after the @path)
       if (cursorPos === path.end) {
         // Only treat as "at the end" if the character at path.end is:
         // - undefined (end of text), or
         // - a space (trailing space after @path)
         // If there's another character (like @), user is typing something new
-        const charAtEnd = text[path.end];
         if (charAtEnd === undefined || charAtEnd === ' ') {
+          console.debug('[FileSearchHighlighter] returning path (cursor at end, valid char)');
           return path;
         }
         // Don't return path if there's another character at path.end
+        console.debug('[FileSearchHighlighter] skipping path (cursor at end but char is not space/undefined)');
         continue;
       }
 
       // Also check path.end + 1 if the character at path.end is a space
       // This allows deletion when cursor is after the trailing space
-      if (cursorPos === path.end + 1 && text[path.end] === ' ') {
+      if (cursorPos === path.end + 1 && charAtEnd === ' ') {
+        console.debug('[FileSearchHighlighter] returning path (cursor at end+1, space at end)');
         return path;
       }
     }
+    console.debug('[FileSearchHighlighter] returning null (no matching path)');
     return null;
   }
 
@@ -515,19 +538,27 @@ export class FileSearchHighlighter {
     getTextContent: () => string,
     setCursorPosition: (pos: number) => void
   ): void {
+    console.debug('[FileSearchHighlighter] handleBackspaceForAtPath called');
+
     // Don't override Shift+Backspace (let it behave as normal backspace)
     if (e.shiftKey) {
+      console.debug('[FileSearchHighlighter] skipping - shift key pressed');
       return;
     }
 
     // Don't override when text is selected (let browser delete selection normally)
     const textInput = this.getTextInput();
     if (textInput && textInput.selectionStart !== textInput.selectionEnd) {
+      console.debug('[FileSearchHighlighter] skipping - text selected');
       return;
     }
 
     const cursorPos = getCursorPosition();
     const atPath = this.findAtPathAtCursor(cursorPos);
+    console.debug('[FileSearchHighlighter] findAtPathAtCursor result:', formatLog({
+      cursorPos,
+      foundPath: atPath ? { start: atPath.start, end: atPath.end, path: atPath.path } : null
+    }));
 
     if (atPath) {
       e.preventDefault();

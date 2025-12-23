@@ -700,7 +700,19 @@ export class FileSearchManager {
    * Handle keyboard navigation in suggestions
    */
   private handleKeyDown(e: KeyboardEvent): void {
-    if (!this.isVisible || this.mergedSuggestions.length === 0) return;
+    console.debug('[FileSearchManager] handleKeyDown:', formatLog({
+      key: e.key,
+      isVisible: this.isVisible,
+      mergedSuggestionsLength: this.mergedSuggestions.length,
+      currentQuery: this.currentQuery,
+      currentPath: this.currentPath,
+      isInSymbolMode: this.isInSymbolMode
+    }));
+
+    if (!this.isVisible || this.mergedSuggestions.length === 0) {
+      console.debug('[FileSearchManager] handleKeyDown returning early (not visible or no suggestions)');
+      return;
+    }
 
     // Ignore if we're showing "Building file index..." message
     if (this.cacheManager.isIndexBeingBuilt()) return;
@@ -724,20 +736,32 @@ export class FileSearchManager {
       e.preventDefault();
       this.hideSuggestions();
     } else if (e.key === 'Backspace') {
+      console.debug('[FileSearchManager] handleKeyDown Backspace:', formatLog({
+        shiftKey: e.shiftKey,
+        selectionStart: this.textInput?.selectionStart,
+        selectionEnd: this.textInput?.selectionEnd,
+        currentQuery: this.currentQuery,
+        currentPath: this.currentPath,
+        isInSymbolMode: this.isInSymbolMode
+      }));
+
       // Don't override Shift+Backspace or when text is selected
       if (e.shiftKey) return;
       if (this.textInput && this.textInput.selectionStart !== this.textInput.selectionEnd) return;
 
       // If in symbol mode with empty query, exit symbol mode
       if (this.isInSymbolMode && this.currentQuery === '') {
+        console.debug('[FileSearchManager] exiting symbol mode');
         e.preventDefault();
         this.exitSymbolMode();
       } else if (this.currentQuery === '' && this.currentPath) {
         // Navigate up directory when backspace on empty query with path
+        console.debug('[FileSearchManager] navigating up directory');
         e.preventDefault();
         this.navigateUpDirectory();
       } else {
         // Handle backspace to delete entire @path if cursor is at the end of one
+        console.debug('[FileSearchManager] calling handleBackspaceForAtPath');
         this.handleBackspaceForAtPath(e);
       }
     } else if (e.key === 'i' && e.ctrlKey) {
