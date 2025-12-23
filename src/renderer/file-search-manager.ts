@@ -15,6 +15,7 @@ import {
   getRelativePath,
   getDirectoryFromPath
 } from './file-search/path-utils';
+import { calculateMatchScore } from './file-search/fuzzy-matcher';
 
 // Pattern to detect code search queries (e.g., @ts:, @go:, @py:)
 const CODE_SEARCH_PATTERN = /^([a-z]+):(.*)$/;
@@ -2359,7 +2360,7 @@ export class FileSearchManager {
       const scored = files
         .map(file => ({
           file,
-          score: this.calculateMatchScore(file, queryLower)
+          score: calculateMatchScore(file, queryLower)
         }))
         .filter(item => item.score > 0)
         .sort((a, b) => b.score - a.score)
@@ -2426,7 +2427,7 @@ export class FileSearchManager {
       .filter(file => !file.isDirectory)
       .map(file => ({
         file,
-        score: this.calculateMatchScore(file, queryLower),
+        score: calculateMatchScore(file, queryLower),
         relativePath: getRelativePath(file.path, baseDir)
       }))
       .filter(item => item.score > 0);
@@ -2477,7 +2478,7 @@ export class FileSearchManager {
     // Score directories (use uniqueDirs to avoid duplicates from symlinks)
     const scoredDirs = uniqueDirs.map(dir => ({
       file: dir,
-      score: this.calculateMatchScore(dir, queryLower),
+      score: calculateMatchScore(dir, queryLower),
       relativePath: getRelativePath(dir.path, baseDir)
     }));
 
@@ -2487,63 +2488,6 @@ export class FileSearchManager {
       .slice(0, FileSearchManager.DEFAULT_MAX_SUGGESTIONS);
 
     return allScored.map(item => item.file);
-  }
-
-  /**
-   * Calculate match score for a file
-   * Higher score = better match
-   */
-  private calculateMatchScore(file: FileInfo, queryLower: string): number {
-    const nameLower = file.name.toLowerCase();
-    const pathLower = file.path.toLowerCase();
-
-    let score = 0;
-
-    // Exact name match
-    if (nameLower === queryLower) {
-      score += 1000;
-    }
-    // Name starts with query
-    else if (nameLower.startsWith(queryLower)) {
-      score += 500;
-    }
-    // Name contains query
-    else if (nameLower.includes(queryLower)) {
-      score += 200;
-    }
-    // Path contains query
-    else if (pathLower.includes(queryLower)) {
-      score += 50;
-    }
-    // Fuzzy match on name
-    else if (this.fuzzyMatch(nameLower, queryLower)) {
-      score += 10;
-    }
-
-    // Bonus for files (not directories)
-    if (!file.isDirectory) {
-      score += 5;
-    }
-
-    // Bonus for shorter paths
-    score += Math.max(0, 20 - pathLower.split('/').length);
-
-    return score;
-  }
-
-  /**
-   * Simple fuzzy matching
-   */
-  private fuzzyMatch(text: string, pattern: string): boolean {
-    let patternIdx = 0;
-
-    for (let i = 0; i < text.length && patternIdx < pattern.length; i++) {
-      if (text[i] === pattern[patternIdx]) {
-        patternIdx++;
-      }
-    }
-
-    return patternIdx === pattern.length;
   }
 
   /**
@@ -2597,7 +2541,7 @@ export class FileSearchManager {
 
     // Add files with scores
     for (const file of this.filteredFiles) {
-      const score = this.calculateMatchScore(file, queryLower);
+      const score = calculateMatchScore(file, queryLower);
       items.push({ type: 'file', file, score });
     }
 
