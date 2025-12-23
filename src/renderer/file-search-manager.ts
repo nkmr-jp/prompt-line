@@ -3755,11 +3755,32 @@ export class FileSearchManager {
 
   /**
    * Find @path at or just before the cursor position
+   * Only returns a path if the cursor is at the "end" of the @path,
+   * meaning there's no other character after it (undefined or space only).
    */
   private findAtPathAtCursor(cursorPos: number): AtPathRange | null {
-    // Check if cursor is at the end of any @path (including one character after for space)
+    if (!this.textInput) return null;
+    const text = this.textInput.value;
+
     for (const path of this.atPaths) {
-      if (cursorPos === path.end || cursorPos === path.end + 1) {
+      const charAtEnd = text[path.end];
+
+      // Check if cursor is at path.end (right after the @path)
+      if (cursorPos === path.end) {
+        // Only treat as "at the end" if the character at path.end is:
+        // - undefined (end of text), or
+        // - a space (trailing space after @path)
+        // If there's another character (like @), user is typing something new
+        if (charAtEnd === undefined || charAtEnd === ' ') {
+          return path;
+        }
+        // Don't return path if there's another character at path.end
+        continue;
+      }
+
+      // Also check path.end + 1 if the character at path.end is a space
+      // This allows deletion when cursor is after the trailing space
+      if (cursorPos === path.end + 1 && charAtEnd === ' ') {
         return path;
       }
     }
