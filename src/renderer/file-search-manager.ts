@@ -7,87 +7,11 @@ import type { FileInfo, DirectoryInfo, AgentItem } from '../types';
 import { getFileIconSvg, getMentionIconSvg, getSymbolIconSvg } from './assets/icons/file-icons';
 import type { SymbolResult, LanguageInfo } from './code-search/types';
 import { getSymbolTypeDisplay, SYMBOL_TYPE_FROM_DISPLAY } from './code-search/types';
+import type { DirectoryData, FileSearchCallbacks, AtPathRange, SuggestionItem } from './file-search/types';
+import { formatLog, insertSvgIntoElement } from './file-search/types';
 
 // Pattern to detect code search queries (e.g., @ts:, @go:, @py:)
 const CODE_SEARCH_PATTERN = /^([a-z]+):(.*)$/;
-
-/**
- * Format object for console output (Electron renderer -> main process)
- * Outputs in a format similar to the main process logger
- */
-function formatLog(obj: Record<string, unknown>): string {
-  const entries = Object.entries(obj)
-    .map(([key, value]) => `  ${key}: ${typeof value === 'string' ? `'${value}'` : value}`)
-    .join(',\n');
-  return '{\n' + entries + '\n}';
-}
-
-/**
- * Safely parse and insert SVG content using DOMParser
- * This avoids innerHTML for security while allowing SVG insertion
- */
-function insertSvgIntoElement(element: HTMLElement, svgString: string): void {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(svgString, 'image/svg+xml');
-  const svgElement = doc.documentElement;
-
-  // Check for parsing errors
-  const parserError = doc.querySelector('parsererror');
-  if (parserError) {
-    console.warn('[FileSearchManager] SVG parse error, using fallback');
-    element.textContent = '📄';
-    return;
-  }
-
-  // Clear existing content and append SVG
-  element.textContent = '';
-  element.appendChild(element.ownerDocument.importNode(svgElement, true));
-}
-
-// Directory data for file search (cached in renderer)
-interface DirectoryData {
-  directory: string;
-  files: FileInfo[];
-  timestamp: number;
-  partial?: boolean;          // Always false (single stage with fd)
-  searchMode?: 'recursive';   // Always 'recursive' (single stage with fd)
-  fromCache?: boolean;        // true if data was loaded from disk cache
-  cacheAge?: number;          // milliseconds since cache was updated
-  fromDraft?: boolean;        // true if this is from draft fallback (empty files)
-  hint?: string;              // hint message to display to user (e.g., "Install fd: brew install fd")
-  filesDisabled?: boolean;    // true if file search is disabled for this directory
-  filesDisabledReason?: string; // reason why file search is disabled
-}
-
-interface FileSearchCallbacks {
-  onFileSelected: (filePath: string) => void;
-  getTextContent: () => string;
-  setTextContent: (text: string) => void;
-  getCursorPosition: () => number;
-  setCursorPosition: (position: number) => void;
-  onBeforeOpenFile?: () => void; // Called before opening file in editor to suppress blur
-  updateHintText?: (text: string) => void; // Update hint text in footer
-  getDefaultHintText?: () => string; // Get default hint text (directory path)
-  setDraggable?: (enabled: boolean) => void; // Enable/disable window dragging during file open
-  replaceRangeWithUndo?: (start: number, end: number, newText: string) => void; // Replace text range with undo support
-  getIsComposing?: () => boolean; // Check if IME is active to avoid conflicts with Japanese input
-}
-
-// Represents a tracked @path in the text
-interface AtPathRange {
-  start: number;              // Position of @
-  end: number;                // Position after the last character of the path
-  path?: string | undefined;  // The path content (without @) for highlighting
-}
-
-// Unified suggestion item (file, agent, or symbol) with score for mixed sorting
-interface SuggestionItem {
-  type: 'file' | 'agent' | 'symbol';
-  file?: FileInfo;
-  agent?: AgentItem;
-  symbol?: SymbolResult;
-  score: number;
-}
 
 export class FileSearchManager {
   private suggestionsContainer: HTMLElement | null = null;
