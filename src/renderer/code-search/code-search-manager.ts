@@ -17,6 +17,9 @@ import { SYMBOL_ICONS, getSymbolTypeDisplay, SYMBOL_TYPE_FROM_DISPLAY } from './
 
 // Constants
 const CODE_SEARCH_PATTERN = /@([a-z]+):(\S*)$/;
+// Pattern to detect if we're in the middle of typing @lang:query (requires colon to be present)
+// This ensures we only block emoji conversion for code search, not file search (@path)
+const CODE_SEARCH_TYPING_PATTERN = /@[a-z]+:[^\s]*$/;
 const MAX_SUGGESTIONS = 20;
 const DEBOUNCE_DELAY = 150;
 
@@ -84,6 +87,7 @@ export class CodeSearchManager {
 
     this.textInput.addEventListener('input', () => this.handleInput());
     this.textInput.addEventListener('keydown', (e) => this.handleKeyDown(e));
+    this.textInput.addEventListener('beforeinput', (e) => this.handleBeforeInput(e));
     console.debug('[CodeSearchManager] setupEventListeners: event listeners attached');
 
     // Click outside to close
@@ -94,6 +98,35 @@ export class CodeSearchManager {
         this.hideSuggestions();
       }
     });
+  }
+
+  /**
+   * Handle beforeinput event to block emoji conversion during @lang: pattern typing
+   * macOS automatically converts :shortcode: patterns (like :link:) to emoji (🔗)
+   * This prevents that conversion when user is typing code search patterns like @md:link
+   */
+  private handleBeforeInput(e: InputEvent): void {
+    // Only block 'insertReplacementText' type which is used for text replacements like emoji conversion
+    if (e.inputType !== 'insertReplacementText') {
+      return;
+    }
+
+    if (!this.textInput) return;
+
+    const text = this.textInput.value;
+    const cursorPos = this.textInput.selectionStart ?? 0;
+    const textBeforeCursor = text.substring(0, cursorPos);
+
+    // Check if we're in the middle of typing @lang:query pattern
+    if (CODE_SEARCH_TYPING_PATTERN.test(textBeforeCursor)) {
+      // Block emoji conversion
+      e.preventDefault();
+      console.debug('[CodeSearchManager] Blocked emoji conversion during code search typing', {
+        inputType: e.inputType,
+        data: e.data,
+        textBeforeCursor
+      });
+    }
   }
 
   /**
