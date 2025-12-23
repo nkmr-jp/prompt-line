@@ -6,6 +6,7 @@
  * - Path manipulation utilities
  * - Fuzzy matching and scoring algorithms
  * - Text finding utilities for cursor position detection
+ * - DOM utilities for highlighting and caret position calculation
  */
 
 // Type definitions
@@ -50,3 +51,10 @@ export {
   findClickablePathAtPosition,
   resolveAtPathToAbsolute
 } from './text-finder';
+
+// DOM utilities
+export {
+  insertHighlightedText,
+  getCaretCoordinates,
+  createMirrorDiv
+} from './dom-utils';

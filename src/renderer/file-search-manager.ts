@@ -22,7 +22,10 @@ import {
   findSlashCommandAtPosition,
   findAbsolutePathAtPosition,
   findClickablePathAtPosition,
-  resolveAtPathToAbsolute
+  resolveAtPathToAbsolute,
+  insertHighlightedText,
+  getCaretCoordinates,
+  createMirrorDiv
 } from './file-search';
 
 // Pattern to detect code search queries (e.g., @ts:, @go:, @py:)
@@ -236,67 +239,6 @@ export class FileSearchManager {
     } catch (error) {
       console.error('[FileSearchManager] Failed to preload searchPrefixes cache:', error);
     }
-  }
-
-  /**
-   * Calculate the pixel position of a character in the textarea
-   * Uses a mirror div technique to measure text position
-   */
-  private getCaretCoordinates(position: number): { top: number; left: number } | null {
-    if (!this.textInput) return null;
-
-    // Create mirror div if it doesn't exist
-    if (!this.mirrorDiv) {
-      this.mirrorDiv = document.createElement('div');
-      this.mirrorDiv.style.cssText = `
-        position: absolute;
-        visibility: hidden;
-        white-space: pre-wrap;
-        word-wrap: break-word;
-        overflow: hidden;
-      `;
-      document.body.appendChild(this.mirrorDiv);
-    }
-
-    // Copy textarea styles to mirror div
-    const style = window.getComputedStyle(this.textInput);
-    const properties = [
-      'fontFamily', 'fontSize', 'fontWeight', 'fontStyle',
-      'letterSpacing', 'textTransform', 'wordSpacing',
-      'textIndent', 'whiteSpace', 'lineHeight',
-      'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
-      'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth',
-      'boxSizing', 'width'
-    ];
-
-    properties.forEach(prop => {
-      const value = style.getPropertyValue(prop.replace(/([A-Z])/g, '-$1').toLowerCase());
-      if (value) {
-        this.mirrorDiv!.style.setProperty(prop.replace(/([A-Z])/g, '-$1').toLowerCase(), value);
-      }
-    });
-
-    // Get text up to the position and add a span marker
-    const text = this.textInput.value.substring(0, position);
-    const textNode = document.createTextNode(text);
-    const marker = document.createElement('span');
-    marker.textContent = '@'; // Use @ as marker
-
-    this.mirrorDiv.innerHTML = '';
-    this.mirrorDiv.appendChild(textNode);
-    this.mirrorDiv.appendChild(marker);
-
-    // Get marker position relative to mirror div
-    const markerRect = marker.getBoundingClientRect();
-    const mirrorRect = this.mirrorDiv.getBoundingClientRect();
-
-    // Calculate position relative to textarea
-    const textareaRect = this.textInput.getBoundingClientRect();
-
-    return {
-      top: markerRect.top - mirrorRect.top + textareaRect.top - this.textInput.scrollTop,
-      left: markerRect.left - mirrorRect.left + textareaRect.left - this.textInput.scrollLeft
-    };
   }
 
   public initializeElements(): void {
@@ -1970,7 +1912,12 @@ export class FileSearchManager {
   private positionSuggestions(): void {
     if (!this.suggestionsContainer || !this.textInput || this.atStartPosition < 0) return;
 
-    const coords = this.getCaretCoordinates(this.atStartPosition);
+    // Create mirror div for caret position calculation if it doesn't exist
+    if (!this.mirrorDiv) {
+      this.mirrorDiv = createMirrorDiv();
+    }
+
+    const coords = getCaretCoordinates(this.textInput, this.mirrorDiv, this.atStartPosition);
     if (!coords) return;
 
     // Get main-content for relative positioning (allows spanning across sections)
@@ -2463,14 +2410,14 @@ export class FileSearchManager {
         if (file.isDirectory) {
           // For directories: show name with file count
           const fileCount = this.countFilesInDirectory(file.path);
-          this.insertHighlightedText(name, file.name, this.currentQuery);
+          insertHighlightedText(name, file.name, this.currentQuery);
           const countSpan = document.createElement('span');
           countSpan.className = 'file-count';
           countSpan.textContent = ` (${fileCount} files)`;
           name.appendChild(countSpan);
         } else {
           // For files: just show the name
-          this.insertHighlightedText(name, file.name, this.currentQuery);
+          insertHighlightedText(name, file.name, this.currentQuery);
         }
 
         item.appendChild(icon);
@@ -2500,7 +2447,7 @@ export class FileSearchManager {
         // Create name with highlighting
         const name = document.createElement('span');
         name.className = 'file-name agent-name';
-        this.insertHighlightedText(name, agent.name, this.currentQuery);
+        insertHighlightedText(name, agent.name, this.currentQuery);
 
         // Create description
         const desc = document.createElement('span');
@@ -2543,7 +2490,7 @@ export class FileSearchManager {
         // Create name with highlighting
         const name = document.createElement('span');
         name.className = 'file-name symbol-name';
-        this.insertHighlightedText(name, symbol.name, this.codeSearchQuery);
+        insertHighlightedText(name, symbol.name, this.codeSearchQuery);
 
         // Create type badge
         const typeBadge = document.createElement('span');
@@ -2681,40 +2628,6 @@ export class FileSearchManager {
 
     // Hide suggestions
     this.hideSuggestions();
-  }
-
-  /**
-   * Insert highlighted text into an element using safe DOM manipulation
-   * This avoids innerHTML for security while allowing highlighting
-   */
-  private insertHighlightedText(element: HTMLElement, text: string, query: string): void {
-    // Clear existing content
-    element.textContent = '';
-
-    if (!query) {
-      element.textContent = text;
-      return;
-    }
-
-    // Create regex for matching (case-insensitive)
-    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp(`(${escapedQuery})`, 'gi');
-
-    // Split text by matches
-    const parts = text.split(regex);
-
-    parts.forEach(part => {
-      if (part.toLowerCase() === query.toLowerCase()) {
-        // This part matches - wrap in highlight span
-        const highlight = document.createElement('span');
-        highlight.className = 'highlight';
-        highlight.textContent = part;
-        element.appendChild(highlight);
-      } else if (part) {
-        // Non-matching part - add as text node
-        element.appendChild(document.createTextNode(part));
-      }
-    });
   }
 
   /**
