@@ -15,7 +15,7 @@ import {
   getRelativePath,
   getDirectoryFromPath
 } from './file-search/path-utils';
-import { calculateMatchScore } from './file-search/fuzzy-matcher';
+import { calculateMatchScore, calculateAgentMatchScore } from './file-search/fuzzy-matcher';
 
 // Pattern to detect code search queries (e.g., @ts:, @go:, @py:)
 const CODE_SEARCH_PATTERN = /^([a-z]+):(.*)$/;
@@ -2547,7 +2547,7 @@ export class FileSearchManager {
 
     // Add agents with scores
     for (const agent of this.filteredAgents) {
-      const score = this.calculateAgentMatchScore(agent, queryLower);
+      const score = calculateAgentMatchScore(agent, queryLower);
       items.push({ type: 'agent', agent, score });
     }
 
@@ -2573,37 +2573,6 @@ export class FileSearchManager {
     // Limit to maxSuggestions (use provided value or fallback to DEFAULT_MAX_SUGGESTIONS)
     const limit = maxSuggestions ?? FileSearchManager.DEFAULT_MAX_SUGGESTIONS;
     return items.slice(0, limit);
-  }
-
-  /**
-   * Calculate match score for an agent
-   */
-  private calculateAgentMatchScore(agent: AgentItem, queryLower: string): number {
-    if (!queryLower) return 50; // Base score for no query
-
-    const nameLower = agent.name.toLowerCase();
-    const descLower = agent.description.toLowerCase();
-
-    let score = 0;
-
-    // Exact name match
-    if (nameLower === queryLower) {
-      score += 1000;
-    }
-    // Name starts with query
-    else if (nameLower.startsWith(queryLower)) {
-      score += 500;
-    }
-    // Name contains query
-    else if (nameLower.includes(queryLower)) {
-      score += 200;
-    }
-    // Description contains query
-    else if (descLower.includes(queryLower)) {
-      score += 50;
-    }
-
-    return score;
   }
 
   /**
