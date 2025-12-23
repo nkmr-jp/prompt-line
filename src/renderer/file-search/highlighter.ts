@@ -467,20 +467,33 @@ export class FileSearchHighlighter {
 
   /**
    * Find @path at or just before the cursor position
+   *
+   * Only returns an @path if the cursor is truly at the end of the path,
+   * meaning there's no other meaningful character (like @) right after it.
+   * This prevents accidentally deleting an @path when user types something new after it.
    */
   public findAtPathAtCursor(cursorPos: number): AtPathRange | null {
     const textInput = this.getTextInput();
     if (!textInput) return null;
     const text = textInput.value;
 
-    // Check if cursor is at the end of any @path (including one character after for space)
     for (const path of this.atPaths) {
+      // Check if cursor is at path.end (right after the @path)
       if (cursorPos === path.end) {
-        return path;
+        // Only treat as "at the end" if the character at path.end is:
+        // - undefined (end of text), or
+        // - a space (trailing space after @path)
+        // If there's another character (like @), user is typing something new
+        const charAtEnd = text[path.end];
+        if (charAtEnd === undefined || charAtEnd === ' ') {
+          return path;
+        }
+        // Don't return path if there's another character at path.end
+        continue;
       }
-      // Only treat cursor at path.end + 1 as being "at the path" if the character
-      // at path.end is a space (not another @ or other character)
-      // This prevents accidentally deleting the @path when user types @ right after it
+
+      // Also check path.end + 1 if the character at path.end is a space
+      // This allows deletion when cursor is after the trailing space
       if (cursorPos === path.end + 1 && text[path.end] === ' ') {
         return path;
       }
