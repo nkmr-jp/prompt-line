@@ -18,6 +18,11 @@ enum SymbolType: String, Codable {
     case namespace
     case heading
     case link
+    // Terraform-specific types
+    case resource
+    case dataSource = "data"
+    case output
+    case provider
 }
 
 // MARK: - Language Configuration

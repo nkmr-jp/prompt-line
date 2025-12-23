@@ -831,6 +831,12 @@ export class FileSearchManager {
 
     // Check if symbol search is available for this file
     const language = this.getLanguageForFile(file.name);
+    console.debug('[FileSearchManager] selectFileByInfo:', {
+      fileName: file.name,
+      rgAvailable: this.rgAvailable,
+      language: language,
+      supportedLanguagesKeys: Array.from(this.supportedLanguages.keys())
+    });
     if (this.rgAvailable && language) {
       // Navigate into file to show symbols
       this.navigateIntoFile(relativePath, file.path, language);
