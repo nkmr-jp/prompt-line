@@ -9,6 +9,12 @@ import type { SymbolResult, LanguageInfo } from './code-search/types';
 import { getSymbolTypeDisplay, SYMBOL_TYPE_FROM_DISPLAY } from './code-search/types';
 import type { DirectoryData, FileSearchCallbacks, AtPathRange, SuggestionItem } from './file-search/types';
 import { formatLog, insertSvgIntoElement } from './file-search/types';
+import {
+  normalizePath,
+  parsePathWithLineInfo,
+  getRelativePath,
+  getDirectoryFromPath
+} from './file-search/path-utils';
 
 // Pattern to detect code search queries (e.g., @ts:, @go:, @py:)
 const CODE_SEARCH_PATTERN = /^([a-z]+):(.*)$/;
@@ -1506,61 +1512,13 @@ export class FileSearchManager {
   }
 
   /**
-   * Normalize a path by resolving . and .. segments
-   * This is a browser-compatible implementation since Node's path module isn't available
-   */
-  private normalizePath(filePath: string): string {
-    const parts = filePath.split('/');
-    const result: string[] = [];
-
-    for (const part of parts) {
-      if (part === '..') {
-        // Go up one directory (remove last segment)
-        if (result.length > 0 && result[result.length - 1] !== '') {
-          result.pop();
-        }
-      } else if (part !== '.' && part !== '') {
-        // Skip current directory marker and empty parts (except for leading empty for absolute paths)
-        result.push(part);
-      } else if (part === '' && result.length === 0) {
-        // Preserve leading empty string for absolute paths (e.g., /Users/...)
-        result.push(part);
-      }
-    }
-
-    return result.join('/') || '/';
-  }
-
-  /**
-   * Parse a path that may contain line number and symbol name suffix
-   * Format: path:lineNumber#symbolName
-   * Returns: { path: string, lineNumber?: number, symbolName?: string }
-   */
-  private parsePathWithLineInfo(pathStr: string): { path: string; lineNumber?: number; symbolName?: string } {
-    // Match pattern: path:lineNumber#symbolName or path:lineNumber
-    const match = pathStr.match(/^(.+?):(\d+)(#(.+))?$/);
-    if (match && match[1] && match[2]) {
-      const result: { path: string; lineNumber?: number; symbolName?: string } = {
-        path: match[1],
-        lineNumber: parseInt(match[2], 10)
-      };
-      if (match[4]) {
-        result.symbolName = match[4];
-      }
-      return result;
-    }
-    // No line number suffix
-    return { path: pathStr };
-  }
-
-  /**
    * Resolve a relative file path to absolute path
    * Handles paths with line number and symbol suffix: path:lineNumber#symbolName
    * Preserves line number and symbol suffix in the returned path
    */
   private resolveAtPathToAbsolute(relativePath: string): string | null {
     // Parse the path to extract line number/symbol suffix
-    const parsed = this.parsePathWithLineInfo(relativePath);
+    const parsed = parsePathWithLineInfo(relativePath);
     const cleanPath = parsed.path;
 
     const baseDir = this.cachedDirectoryData?.directory;
@@ -1575,7 +1533,7 @@ export class FileSearchManager {
     } else {
       // Combine with base directory and normalize (handles ../ etc.)
       const combined = `${baseDir}/${cleanPath}`;
-      absolutePath = this.normalizePath(combined);
+      absolutePath = normalizePath(combined);
     }
 
     // Re-append line number and symbol suffix if they were present
@@ -2345,7 +2303,7 @@ export class FileSearchManager {
       const seenDirs = new Set<string>();
 
       for (const file of allFiles) {
-        const relativePath = this.getRelativePath(file.path, baseDir);
+        const relativePath = getRelativePath(file.path, baseDir);
 
         // Check if file is under currentPath
         if (!relativePath.startsWith(this.currentPath)) {
@@ -2416,7 +2374,7 @@ export class FileSearchManager {
       const seenDirs = new Set<string>();
 
       for (const file of allFiles) {
-        const relativePath = this.getRelativePath(file.path, baseDir);
+        const relativePath = getRelativePath(file.path, baseDir);
         const slashIndex = relativePath.indexOf('/');
 
         if (slashIndex === -1) {
@@ -2429,7 +2387,7 @@ export class FileSearchManager {
             seenDirs.add(dirName);
             // Check if we already have this directory in allFiles
             const existingDir = allFiles.find(f =>
-              f.isDirectory && this.getRelativePath(f.path, baseDir) === dirName
+              f.isDirectory && getRelativePath(f.path, baseDir) === dirName
             );
             if (existingDir) {
               files.push(existingDir);
@@ -2469,7 +2427,7 @@ export class FileSearchManager {
       .map(file => ({
         file,
         score: this.calculateMatchScore(file, queryLower),
-        relativePath: this.getRelativePath(file.path, baseDir)
+        relativePath: getRelativePath(file.path, baseDir)
       }))
       .filter(item => item.score > 0);
 
@@ -2478,7 +2436,7 @@ export class FileSearchManager {
     const seenDirNames = new Map<string, { path: string; depth: number }>();
 
     for (const file of allFiles) {
-      const relativePath = this.getRelativePath(file.path, baseDir);
+      const relativePath = getRelativePath(file.path, baseDir);
       const pathParts = relativePath.split('/').filter(p => p);
 
       // Check each directory in the path (except the last part which is the file name)
@@ -2520,7 +2478,7 @@ export class FileSearchManager {
     const scoredDirs = uniqueDirs.map(dir => ({
       file: dir,
       score: this.calculateMatchScore(dir, queryLower),
-      relativePath: this.getRelativePath(dir.path, baseDir)
+      relativePath: getRelativePath(dir.path, baseDir)
     }));
 
     // Combine and sort by score
@@ -2595,14 +2553,14 @@ export class FileSearchManager {
     if (!this.cachedDirectoryData?.files) return 0;
 
     const baseDir = this.cachedDirectoryData.directory;
-    const dirRelativePath = this.getRelativePath(dirPath, baseDir);
+    const dirRelativePath = getRelativePath(dirPath, baseDir);
     const dirPrefix = dirRelativePath.endsWith('/') ? dirRelativePath : dirRelativePath + '/';
 
     let count = 0;
     const seenChildren = new Set<string>();
 
     for (const file of this.cachedDirectoryData.files) {
-      const relativePath = this.getRelativePath(file.path, baseDir);
+      const relativePath = getRelativePath(file.path, baseDir);
 
       if (!relativePath.startsWith(dirPrefix)) continue;
 
@@ -2782,8 +2740,8 @@ export class FileSearchManager {
         item.appendChild(name);
 
         // Show the directory path next to the filename (for both files and directories)
-        const relativePath = this.getRelativePath(file.path, baseDir);
-        const dirPath = this.getDirectoryFromPath(relativePath);
+        const relativePath = getRelativePath(file.path, baseDir);
+        const dirPath = getDirectoryFromPath(relativePath);
         if (dirPath) {
           const pathEl = document.createElement('span');
           pathEl.className = 'file-path';
@@ -2989,15 +2947,6 @@ export class FileSearchManager {
   }
 
   /**
-   * Get directory path from a file path (excluding the filename)
-   */
-  private getDirectoryFromPath(relativePath: string): string {
-    const lastSlash = relativePath.lastIndexOf('/');
-    if (lastSlash === -1) return '';
-    return relativePath.substring(0, lastSlash + 1); // Include trailing slash
-  }
-
-  /**
    * Insert highlighted text into an element using safe DOM manipulation
    * This avoids innerHTML for security while allowing highlighting
    */
@@ -3029,21 +2978,6 @@ export class FileSearchManager {
         element.appendChild(document.createTextNode(part));
       }
     });
-  }
-
-  /**
-   * Get relative path from base directory
-   */
-  private getRelativePath(fullPath: string, baseDir: string): string {
-    // If baseDir is empty or root '/', return fullPath as-is (it's already absolute)
-    if (!baseDir || baseDir === '/') {
-      return fullPath;
-    }
-    if (fullPath.startsWith(baseDir)) {
-      const relative = fullPath.substring(baseDir.length);
-      return relative.startsWith('/') ? relative.substring(1) : relative;
-    }
-    return fullPath;
   }
 
   /**
@@ -3143,7 +3077,7 @@ export class FileSearchManager {
           if (suggestion?.type === 'file' && suggestion.file && !suggestion.file.isDirectory) {
             // Insert file path directly (don't navigate into symbols)
             const baseDir = this.cachedDirectoryData?.directory || '';
-            const relativePath = this.getRelativePath(suggestion.file.path, baseDir);
+            const relativePath = getRelativePath(suggestion.file.path, baseDir);
             this.insertFilePath(relativePath);
             this.hideSuggestions();
             this.callbacks.onFileSelected(relativePath);
@@ -3236,7 +3170,7 @@ export class FileSearchManager {
     if (!directory.isDirectory || !this.cachedDirectoryData) return;
 
     const baseDir = this.cachedDirectoryData.directory;
-    const relativePath = this.getRelativePath(directory.path, baseDir);
+    const relativePath = getRelativePath(directory.path, baseDir);
 
     // Update current path to the selected directory
     this.currentPath = relativePath.endsWith('/') ? relativePath : relativePath + '/';
@@ -3327,7 +3261,7 @@ export class FileSearchManager {
   private selectFileByInfo(file: FileInfo): void {
     // Get relative path from base directory
     const baseDir = this.cachedDirectoryData?.directory || '';
-    let relativePath = this.getRelativePath(file.path, baseDir);
+    let relativePath = getRelativePath(file.path, baseDir);
 
     // ディレクトリの場合は末尾に/を付ける
     if (file.isDirectory && !relativePath.endsWith('/')) {
@@ -3883,7 +3817,7 @@ export class FileSearchManager {
     const validPaths = new Set<string>();
 
     for (const file of this.cachedDirectoryData.files) {
-      const relativePath = this.getRelativePath(file.path, baseDir);
+      const relativePath = getRelativePath(file.path, baseDir);
       validPaths.add(relativePath);
       // For directories: add both with and without trailing slash
       if (file.isDirectory) {
@@ -3929,7 +3863,7 @@ export class FileSearchManager {
 
       // Parse the path to handle symbol paths with line number and symbol name
       // Format: path:lineNumber#symbolName or just path
-      const parsedPath = this.parsePathWithLineInfo(pathContent);
+      const parsedPath = parsePathWithLineInfo(pathContent);
       const cleanPath = parsedPath.path;
 
       // Check if this path should be highlighted:
@@ -4016,7 +3950,7 @@ export class FileSearchManager {
       const files = this.cachedDirectoryData!.files!;
       relativePaths = new Set<string>();
       for (const file of files) {
-        const relativePath = this.getRelativePath(file.path, baseDir!);
+        const relativePath = getRelativePath(file.path, baseDir!);
         relativePaths.add(relativePath);
         // For directories: add both with and without trailing slash
         // getRelativePath doesn't add trailing slash, but selectFileByInfo adds it for directories
@@ -4073,7 +4007,7 @@ export class FileSearchManager {
 
       // Parse the path to handle symbol paths with line number and symbol name
       // Format: path:lineNumber#symbolName or just path
-      const parsedPath = this.parsePathWithLineInfo(pathContent);
+      const parsedPath = parsePathWithLineInfo(pathContent);
       const cleanPath = parsedPath.path;
 
       // First, check against cached file list if available
