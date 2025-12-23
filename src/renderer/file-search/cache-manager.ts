@@ -14,7 +14,7 @@ export class FileSearchCacheManager {
   private fileSearchEnabled: boolean = false;
   private callbacks: FileSearchCallbacks;
 
-  static readonly DEFAULT_MAX_SUGGESTIONS = 20;
+  static readonly DEFAULT_MAX_SUGGESTIONS = 50;
 
   constructor(callbacks: FileSearchCallbacks) {
     this.callbacks = callbacks;

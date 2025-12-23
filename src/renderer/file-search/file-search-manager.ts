@@ -436,7 +436,7 @@ export class FileSearchManager {
     // If in symbol mode, show filtered symbols instead of files
     if (this.isInSymbolMode) {
       this.currentQuery = query;
-      this.showSymbolSuggestions(query);
+      await this.showSymbolSuggestions(query);
       return;
     }
 
@@ -912,7 +912,7 @@ export class FileSearchManager {
       }
 
       // Show symbols
-      this.showSymbolSuggestions('');
+      await this.showSymbolSuggestions('');
     } catch (error) {
       console.error('[FileSearchManager] Error searching symbols:', error);
       this.isInSymbolMode = false;
@@ -924,7 +924,7 @@ export class FileSearchManager {
   /**
    * Show symbol suggestions for the current file
    */
-  private showSymbolSuggestions(query: string): void {
+  private async showSymbolSuggestions(query: string): Promise<void> {
     if (!this.suggestionsContainer) return;
 
     // Filter symbols by query
@@ -948,8 +948,8 @@ export class FileSearchManager {
       });
     }
 
-    // Limit results (use default since getMaxSuggestions is async)
-    const maxSuggestions = 20;
+    // Limit results using settings
+    const maxSuggestions = await this.cacheManager.getMaxSuggestions('mention');
     filtered = filtered.slice(0, maxSuggestions);
 
     // Convert to SuggestionItem
