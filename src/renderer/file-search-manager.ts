@@ -7,15 +7,23 @@ import type { FileInfo, DirectoryInfo, AgentItem } from '../types';
 import { getFileIconSvg, getMentionIconSvg, getSymbolIconSvg } from './assets/icons/file-icons';
 import type { SymbolResult, LanguageInfo } from './code-search/types';
 import { getSymbolTypeDisplay, SYMBOL_TYPE_FROM_DISPLAY } from './code-search/types';
-import type { DirectoryData, FileSearchCallbacks, AtPathRange, SuggestionItem } from './file-search/types';
-import { formatLog, insertSvgIntoElement } from './file-search/types';
+import type { DirectoryData, FileSearchCallbacks, AtPathRange, SuggestionItem } from './file-search';
 import {
+  formatLog,
+  insertSvgIntoElement,
   normalizePath,
   parsePathWithLineInfo,
   getRelativePath,
-  getDirectoryFromPath
-} from './file-search/path-utils';
-import { calculateMatchScore, calculateAgentMatchScore } from './file-search/fuzzy-matcher';
+  getDirectoryFromPath,
+  calculateMatchScore,
+  calculateAgentMatchScore,
+  findAtPathAtPosition,
+  findUrlAtPosition,
+  findSlashCommandAtPosition,
+  findAbsolutePathAtPosition,
+  findClickablePathAtPosition,
+  resolveAtPathToAbsolute
+} from './file-search';
 
 // Pattern to detect code search queries (e.g., @ts:, @go:, @py:)
 const CODE_SEARCH_PATTERN = /^([a-z]+):(.*)$/;
@@ -752,7 +760,7 @@ export class FileSearchManager {
     }
 
     // Check for @path first
-    const atPath = this.findAtPathAtPosition(text, charPos);
+    const atPath = findAtPathAtPosition(text, charPos);
     if (atPath) {
       // Find the AtPathRange that contains this position
       const atPathRange = this.findAtPathRangeAtPosition(charPos);
@@ -764,7 +772,7 @@ export class FileSearchManager {
     }
 
     // Check for URL
-    const url = this.findUrlAtPosition(text, charPos);
+    const url = findUrlAtPosition(text, charPos);
     if (url) {
       // Create a temporary AtPathRange for the URL
       const tempRange: AtPathRange = { start: url.start, end: url.end };
@@ -777,7 +785,7 @@ export class FileSearchManager {
 
     // Check for slash command (like /commit, /help) - only if command type is enabled
     if (this.isCommandEnabledSync()) {
-      const slashCommand = this.findSlashCommandAtPosition(text, charPos);
+      const slashCommand = findSlashCommandAtPosition(text, charPos);
       if (slashCommand) {
         // Create a temporary AtPathRange for the slash command
         const tempRange: AtPathRange = { start: slashCommand.start, end: slashCommand.end };
@@ -790,7 +798,7 @@ export class FileSearchManager {
     }
 
     // Check for absolute path (starting with /)
-    const clickablePath = this.findClickablePathAtPosition(text, charPos);
+    const clickablePath = findClickablePathAtPosition(text, charPos);
     if (clickablePath) {
       // Create a temporary AtPathRange for the absolute path
       const tempRange: AtPathRange = { start: clickablePath.start, end: clickablePath.end };
@@ -960,7 +968,7 @@ export class FileSearchManager {
     const cursorPos = this.textInput.selectionStart;
 
     // First check if cursor is on an @path - still show hint but no extra highlight
-    const atPath = this.findAtPathAtPosition(text, cursorPos);
+    const atPath = findAtPathAtPosition(text, cursorPos);
     if (atPath) {
       // Show hint for @path too
       this.showFileOpenHint();
@@ -972,7 +980,7 @@ export class FileSearchManager {
     }
 
     // Check if cursor is on a URL
-    const url = this.findUrlAtPosition(text, cursorPos);
+    const url = findUrlAtPosition(text, cursorPos);
     if (url) {
       // Show hint for URL
       this.showUrlOpenHint();
@@ -989,7 +997,7 @@ export class FileSearchManager {
 
     // Check if cursor is on a slash command (only if command type is enabled)
     if (this.isCommandEnabledSync()) {
-      const slashCommand = this.findSlashCommandAtPosition(text, cursorPos);
+      const slashCommand = findSlashCommandAtPosition(text, cursorPos);
       if (slashCommand) {
         // Show hint for slash command
         this.showSlashCommandOpenHint();
@@ -1006,13 +1014,13 @@ export class FileSearchManager {
     }
 
     // Find absolute path at cursor position (paths starting with / or ~)
-    const absolutePath = this.findAbsolutePathAtPosition(text, cursorPos);
+    const absolutePath = findAbsolutePathAtPosition(text, cursorPos);
 
     if (absolutePath) {
       // Show hint for absolute path
       this.showFileOpenHint();
       // Get the range for the absolute path
-      const pathInfo = this.findClickablePathAtPosition(text, cursorPos);
+      const pathInfo = findClickablePathAtPosition(text, cursorPos);
       if (pathInfo && !pathInfo.path.startsWith('@')) {
         const newRange: AtPathRange = { start: pathInfo.start, end: pathInfo.end };
         // Only update if position changed
@@ -1199,7 +1207,7 @@ export class FileSearchManager {
     const cursorPos = this.textInput.selectionStart;
 
     // Check for URL first
-    const url = this.findUrlAtPosition(text, cursorPos);
+    const url = findUrlAtPosition(text, cursorPos);
     if (url) {
       e.preventDefault();
       e.stopPropagation();
@@ -1210,7 +1218,7 @@ export class FileSearchManager {
 
     // Check for slash command (like /commit, /help) - only if command type is enabled
     if (this.isCommandEnabledSync()) {
-      const slashCommand = this.findSlashCommandAtPosition(text, cursorPos);
+      const slashCommand = findSlashCommandAtPosition(text, cursorPos);
       if (slashCommand) {
         e.preventDefault();
         e.stopPropagation();
@@ -1229,7 +1237,7 @@ export class FileSearchManager {
     }
 
     // Find @path at cursor position
-    const atPath = this.findAtPathAtPosition(text, cursorPos);
+    const atPath = findAtPathAtPosition(text, cursorPos);
     if (atPath) {
       e.preventDefault();
       e.stopPropagation();
@@ -1237,7 +1245,7 @@ export class FileSearchManager {
       const looksLikeFilePath = atPath.includes('/') || atPath.includes('.');
 
       if (looksLikeFilePath) {
-        const filePath = this.resolveAtPathToAbsolute(atPath);
+        const filePath = resolveAtPathToAbsolute(atPath, this.cachedDirectoryData?.directory, parsePathWithLineInfo, normalizePath);
         if (filePath) {
           await this.openFileAndRestoreFocus(filePath);
           return;
@@ -1257,7 +1265,7 @@ export class FileSearchManager {
 
       // Fallback
       if (!looksLikeFilePath) {
-        const filePath = this.resolveAtPathToAbsolute(atPath);
+        const filePath = resolveAtPathToAbsolute(atPath, this.cachedDirectoryData?.directory, parsePathWithLineInfo, normalizePath);
         if (filePath) {
           await this.openFileAndRestoreFocus(filePath);
         }
@@ -1266,7 +1274,7 @@ export class FileSearchManager {
     }
 
     // Find absolute path at cursor position
-    const absolutePath = this.findAbsolutePathAtPosition(text, cursorPos);
+    const absolutePath = findAbsolutePathAtPosition(text, cursorPos);
     if (absolutePath) {
       e.preventDefault();
       e.stopPropagation();
@@ -1286,7 +1294,7 @@ export class FileSearchManager {
     const cursorPos = this.textInput.selectionStart;
 
     // Check for URL first
-    const url = this.findUrlAtPosition(text, cursorPos);
+    const url = findUrlAtPosition(text, cursorPos);
     if (url) {
       e.preventDefault();
       e.stopPropagation();
@@ -1297,7 +1305,7 @@ export class FileSearchManager {
 
     // Check for slash command (like /commit, /help) - only if command type is enabled
     if (this.isCommandEnabledSync()) {
-      const slashCommand = this.findSlashCommandAtPosition(text, cursorPos);
+      const slashCommand = findSlashCommandAtPosition(text, cursorPos);
       if (slashCommand) {
         e.preventDefault();
         e.stopPropagation();
@@ -1316,7 +1324,7 @@ export class FileSearchManager {
     }
 
     // Find @path at or near cursor position
-    const atPath = this.findAtPathAtPosition(text, cursorPos);
+    const atPath = findAtPathAtPosition(text, cursorPos);
     if (atPath) {
       e.preventDefault();
       e.stopPropagation();
@@ -1326,7 +1334,7 @@ export class FileSearchManager {
 
       if (looksLikeFilePath) {
         // Resolve as file path first
-        const filePath = this.resolveAtPathToAbsolute(atPath);
+        const filePath = resolveAtPathToAbsolute(atPath, this.cachedDirectoryData?.directory, parsePathWithLineInfo, normalizePath);
         if (filePath) {
           await this.openFileAndRestoreFocus(filePath);
           return;
@@ -1346,7 +1354,7 @@ export class FileSearchManager {
 
       // Fallback: try to open as file path if it wasn't already tried
       if (!looksLikeFilePath) {
-        const filePath = this.resolveAtPathToAbsolute(atPath);
+        const filePath = resolveAtPathToAbsolute(atPath, this.cachedDirectoryData?.directory, parsePathWithLineInfo, normalizePath);
         if (filePath) {
           await this.openFileAndRestoreFocus(filePath);
         }
@@ -1355,197 +1363,13 @@ export class FileSearchManager {
     }
 
     // Find absolute path at cursor position
-    const absolutePath = this.findAbsolutePathAtPosition(text, cursorPos);
+    const absolutePath = findAbsolutePathAtPosition(text, cursorPos);
     if (absolutePath) {
       e.preventDefault();
       e.stopPropagation();
 
       await this.openFileAndRestoreFocus(absolutePath);
     }
-  }
-
-  /**
-   * Find @path at the given cursor position
-   * Returns the path (without @) if found, null otherwise
-   */
-  private findAtPathAtPosition(text: string, cursorPos: number): string | null {
-    // Pattern to match @path (file paths after @)
-    const atPathPattern = /@([^\s@]+)/g;
-    let match;
-
-    while ((match = atPathPattern.exec(text)) !== null) {
-      const start = match.index;
-      const end = start + match[0].length;
-
-      // Check if cursor is within this @path
-      if (cursorPos >= start && cursorPos <= end) {
-        return match[1] ?? null; // Return path without @
-      }
-    }
-
-    return null;
-  }
-
-  /**
-   * Find URL at the given cursor position
-   * Returns { url, start, end } if found, null otherwise
-   * Supports both http:// and https:// URLs including query parameters
-   */
-  private findUrlAtPosition(text: string, cursorPos: number): { url: string; start: number; end: number } | null {
-    // Pattern to match URLs starting with http:// or https://
-    // Includes query parameters (?key=value) and fragments (#section)
-    const urlPattern = /https?:\/\/[^\s"'<>|*\n]+/gi;
-    let match;
-
-    while ((match = urlPattern.exec(text)) !== null) {
-      const start = match.index;
-      const end = start + match[0].length;
-
-      // Check if cursor is within this URL
-      if (cursorPos >= start && cursorPos <= end) {
-        return { url: match[0], start, end };
-      }
-    }
-
-    return null;
-  }
-
-  /**
-   * Find slash command at the given cursor position
-   * Returns { command, start, end } if found, null otherwise
-   * Slash commands are like /commit, /help (single word after /)
-   */
-  private findSlashCommandAtPosition(text: string, cursorPos: number): { command: string; start: number; end: number } | null {
-    // Pattern to match slash commands: /word (no slashes in the middle)
-    // This matches /commit, /help, etc. but not /path/to/file
-    const slashCommandPattern = /\/([a-zA-Z][a-zA-Z0-9_-]*)/g;
-    let match;
-
-    while ((match = slashCommandPattern.exec(text)) !== null) {
-      const start = match.index;
-      const end = start + match[0].length;
-      const commandName = match[1] ?? '';
-
-      // Check if cursor is within this slash command
-      if (cursorPos >= start && cursorPos <= end) {
-        // Make sure it's at the start of text or after whitespace (not part of a path)
-        const prevChar = start > 0 ? text[start - 1] : ' ';
-        if (prevChar === ' ' || prevChar === '\n' || prevChar === '\t' || start === 0) {
-          return { command: commandName, start, end };
-        }
-      }
-    }
-
-    return null;
-  }
-
-  /**
-   * Find absolute file path at the given cursor position
-   * Returns the path if found, null otherwise
-   * Supports both / and ~ (home directory) prefixed paths
-   */
-  private findAbsolutePathAtPosition(text: string, cursorPos: number): string | null {
-    // Pattern to match absolute paths starting with / or ~
-    // Matches paths like /Users/name/.prompt-line/images/file.png
-    // or ~/.prompt-line/images/file.png
-    const absolutePathPattern = /(?:\/|~\/)[^\s"'<>|*?\n]+/g;
-    let match;
-
-    while ((match = absolutePathPattern.exec(text)) !== null) {
-      const start = match.index;
-      const end = start + match[0].length;
-
-      // Check if path is at start of text or preceded by whitespace
-      // This prevents matching paths like "ghq/github.com/..." as absolute paths
-      const prevChar = start > 0 ? text[start - 1] : '';
-      if (prevChar !== '' && prevChar !== ' ' && prevChar !== '\t' && prevChar !== '\n') {
-        continue; // Skip - not a standalone absolute path
-      }
-
-      // Check if cursor is within this path
-      if (cursorPos >= start && cursorPos <= end) {
-        return match[0]; // Return the full path
-      }
-    }
-
-    return null;
-  }
-
-  /**
-   * Find any clickable file path at the given position
-   * Returns { path, start, end } if found
-   * Excludes slash commands (e.g., /commit) from absolute path detection
-   */
-  private findClickablePathAtPosition(text: string, cursorPos: number): { path: string; start: number; end: number } | null {
-    // First check @path
-    const atPathPattern = /@([^\s@]+)/g;
-    let match;
-
-    while ((match = atPathPattern.exec(text)) !== null) {
-      const start = match.index;
-      const end = start + match[0].length;
-
-      if (cursorPos >= start && cursorPos <= end) {
-        return { path: match[1] ?? '', start, end };
-      }
-    }
-
-    // Then check absolute paths (including ~ for home directory)
-    // Excludes single-level paths like /commit (slash commands)
-    const absolutePathPattern = /(?:\/(?:[^\s"'<>|*?\n/]+\/)+[^\s"'<>|*?\n]*|~\/[^\s"'<>|*?\n]+)/g;
-    while ((match = absolutePathPattern.exec(text)) !== null) {
-      const start = match.index;
-      const end = start + match[0].length;
-
-      // Check if path is at start of text or preceded by whitespace
-      // This prevents matching paths like "ghq/github.com/..." as absolute paths
-      const prevChar = start > 0 ? text[start - 1] : '';
-      if (prevChar !== '' && prevChar !== ' ' && prevChar !== '\t' && prevChar !== '\n') {
-        continue; // Skip - not a standalone absolute path
-      }
-
-      if (cursorPos >= start && cursorPos <= end) {
-        return { path: match[0], start, end };
-      }
-    }
-
-    return null;
-  }
-
-  /**
-   * Resolve a relative file path to absolute path
-   * Handles paths with line number and symbol suffix: path:lineNumber#symbolName
-   * Preserves line number and symbol suffix in the returned path
-   */
-  private resolveAtPathToAbsolute(relativePath: string): string | null {
-    // Parse the path to extract line number/symbol suffix
-    const parsed = parsePathWithLineInfo(relativePath);
-    const cleanPath = parsed.path;
-
-    const baseDir = this.cachedDirectoryData?.directory;
-    let absolutePath: string;
-
-    if (!baseDir) {
-      // If no base directory, try to use the path as-is
-      absolutePath = cleanPath;
-    } else if (cleanPath.startsWith('/')) {
-      // Already an absolute path
-      absolutePath = cleanPath;
-    } else {
-      // Combine with base directory and normalize (handles ../ etc.)
-      const combined = `${baseDir}/${cleanPath}`;
-      absolutePath = normalizePath(combined);
-    }
-
-    // Re-append line number and symbol suffix if they were present
-    if (parsed.lineNumber !== undefined) {
-      absolutePath = `${absolutePath}:${parsed.lineNumber}`;
-      if (parsed.symbolName) {
-        absolutePath = `${absolutePath}#${parsed.symbolName}`;
-      }
-    }
-
-    return absolutePath;
   }
 
   /**
