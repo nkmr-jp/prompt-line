@@ -280,6 +280,27 @@ let LANGUAGE_PATTERNS: [String: LanguageConfig] = [
             SymbolPattern(type: .constant, regex: "^\\s+([a-z][\\w-]*)\\s*=\\s*(?![=])", captureGroup: 1),
         ]
     ),
+    "md": LanguageConfig(
+        extensionName: "md",
+        displayName: "Markdown",
+        rgType: "markdown",
+        patterns: [
+            // ATX-style headings: # Heading, ## Heading, etc. (capture heading text)
+            SymbolPattern(type: .heading, regex: "^#{1,6}\\s+(.+?)(?:\\s+#+)?$", captureGroup: 1),
+            // Link reference definitions: [reference]: url
+            SymbolPattern(type: .link, regex: "^\\[([^\\]]+)\\]:\\s*\\S", captureGroup: 1),
+        ]
+    ),
+    // Alias: @markdown: for Markdown (same as @md:)
+    "markdown": LanguageConfig(
+        extensionName: "md",
+        displayName: "Markdown",
+        rgType: "markdown",
+        patterns: [
+            SymbolPattern(type: .heading, regex: "^#{1,6}\\s+(.+?)(?:\\s+#+)?$", captureGroup: 1),
+            SymbolPattern(type: .link, regex: "^\\[([^\\]]+)\\]:\\s*\\S", captureGroup: 1),
+        ]
+    ),
 ]
 
 /// Get all supported language keys
