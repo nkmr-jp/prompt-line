@@ -87,9 +87,6 @@ export class FileSearchManager {
   private codeSearchQuery: string = '';
   private codeSearchLanguage: string = ''; // Current language for code search
   private codeSearchCacheRefreshed: boolean = false; // Whether cache refresh has been triggered for this session
-  private rgAvailable: boolean = false;
-  private supportedLanguages: Map<string, LanguageInfo> = new Map();
-  private codeSearchInitPromise: Promise<void> | null = null;
 
   // Symbol mode properties (for navigating into file to show symbols)
   private isInSymbolMode: boolean = false;
@@ -230,45 +227,100 @@ export class FileSearchManager {
           this.callbacks.updateHintText?.(hint);
         }
       },
-      onCacheUpdated: (_data) => {
-        // Cache update notification - handled by updateCache method
+      onCacheUpdated: (data) => {
+        // Sync local copy for backward compatibility
+        this.cachedDirectoryData = data;
+        // Refresh suggestions if visible and not actively searching
+        if (this.isVisible && !this.currentQuery) {
+          this.refreshSuggestions();
+        }
       },
       updateHintText: (text: string) => this.callbacks.updateHintText?.(text)
     });
 
-    // Initialize code search (async, but store promise for later await)
-    // Note: This will be replaced by codeSearchManager once fully integrated
-    this.codeSearchInitPromise = this.initializeCodeSearch();
-  }
-
-  /**
-   * Initialize code search functionality
-   * Checks ripgrep availability and loads supported languages
-   */
-  private async initializeCodeSearch(): Promise<void> {
-    console.debug('[FileSearchManager] initializeCodeSearch: starting...');
-    try {
-      // Check if ripgrep is available
-      const rgCheck = await window.electronAPI.codeSearch.checkRg();
-      console.debug('[FileSearchManager] initializeCodeSearch: rgCheck result:', rgCheck);
-      this.rgAvailable = rgCheck.rgAvailable;
-
-      if (!this.rgAvailable) {
-        console.debug('[FileSearchManager] ripgrep not available, code search disabled');
-        return;
-      }
-
-      // Load supported languages
-      const langResponse = await window.electronAPI.codeSearch.getSupportedLanguages();
-      console.debug('[FileSearchManager] initializeCodeSearch: languages loaded:', langResponse.languages.length);
-      for (const lang of langResponse.languages) {
-        this.supportedLanguages.set(lang.key, lang);
-      }
-
-      console.debug('[FileSearchManager] Code search initialized with languages:', Array.from(this.supportedLanguages.keys()));
-    } catch (error) {
-      console.error('[FileSearchManager] Failed to initialize code search:', error);
+    // Initialize HighlightManager (requires textInput and highlightBackdrop)
+    if (this.textInput && this.highlightBackdrop) {
+      this.highlightManager = new HighlightManager(
+        this.textInput,
+        this.highlightBackdrop,
+        {
+          getTextContent: () => this.textInput?.value || '',
+          getCursorPosition: () => this.textInput?.selectionStart || 0,
+          updateHintText: (text: string) => this.callbacks.updateHintText?.(text),
+          getDefaultHintText: () => this.callbacks.getDefaultHintText?.() || '',
+          isFileSearchEnabled: () => this.fileSearchEnabled,
+          isCommandEnabledSync: () => this.isCommandEnabledSync(),
+          checkFileExists: async (path: string) => {
+            try {
+              return await window.electronAPI.file.checkExists(path);
+            } catch {
+              return false;
+            }
+          }
+        }
+      );
     }
+
+    // Initialize FileOpenerManager
+    this.fileOpenerManager = new FileOpenerManager({
+      onBeforeOpenFile: () => {
+        // Cleanup before opening file
+        this.hideSuggestions();
+      },
+      setDraggable: (enabled: boolean) => {
+        this.callbacks.setDraggable?.(enabled);
+      },
+      getTextContent: () => this.textInput?.value || '',
+      setTextContent: (text: string) => {
+        if (this.textInput) {
+          this.textInput.value = text;
+        }
+      },
+      getCursorPosition: () => this.textInput?.selectionStart || 0,
+      setCursorPosition: (position: number) => {
+        if (this.textInput) {
+          this.textInput.selectionStart = position;
+          this.textInput.selectionEnd = position;
+        }
+      },
+      getCurrentDirectory: () => this.cachedDirectoryData?.directory || null,
+      hideWindow: () => {
+        window.electronAPI.window.hide();
+      },
+      restoreDefaultHint: () => this.restoreDefaultHint()
+    });
+
+    // Initialize SuggestionListManager (requires textInput)
+    if (this.textInput) {
+      this.suggestionListManager = new SuggestionListManager(
+        this.textInput,
+        {
+          onItemSelected: (index: number) => this.selectItem(index),
+          onNavigateIntoDirectory: (file: FileInfo) => this.navigateIntoDirectory(file),
+          onEscape: () => this.hideSuggestions(),
+          onOpenFileInEditor: async (filePath: string) => {
+            await window.electronAPI.file.openInEditor(filePath);
+          },
+          getIsComposing: () => this.callbacks.getIsComposing?.() || false,
+          getCurrentPath: () => this.currentPath,
+          getBaseDir: () => this.cachedDirectoryData?.directory || '',
+          getCurrentQuery: () => this.currentQuery,
+          getCodeSearchQuery: () => this.codeSearchQuery,
+          countFilesInDirectory: (path: string) => this.countFilesInDirectory(path),
+          onMouseEnterInfo: (suggestion: SuggestionItem, target: HTMLElement) => {
+            // Only show frontmatter popup for agent items
+            if (suggestion.type === 'agent' && suggestion.agent) {
+              this.popupManager.showFrontmatterPopup(suggestion.agent, target);
+            }
+          },
+          onMouseLeaveInfo: () => {
+            this.popupManager.hideFrontmatterPopup();
+          }
+        }
+      );
+    }
+
+    // CodeSearchManager is initialized in constructor, no separate init needed
   }
 
   /**
@@ -276,57 +328,9 @@ export class FileSearchManager {
    * This enables instant file search when window opens
    */
   public handleCachedDirectoryData(data: DirectoryInfo | undefined): void {
-    if (!data || !data.directory) {
-      console.debug('[FileSearchManager] No cached directory data');
-      return;
-    }
-
-    // Check if this is from cache or just draft fallback
-    const fromCache = data.fromCache === true;
-    const fromDraft = data.fromDraft === true;
-
-    if (fromDraft && (!data.files || data.files.length === 0)) {
-      // Draft fallback with no files - just store directory for later
-      console.debug('[FileSearchManager] Draft directory fallback:', data.directory);
-      // Don't cache empty data, but remember the directory
-      this.cachedDirectoryData = {
-        directory: data.directory,
-        files: [],
-        timestamp: Date.now(),
-        partial: false,  // Always false (single stage with fd)
-        searchMode: 'recursive',  // Always recursive (fd is required)
-        fromDraft: true
-      };
-      return;
-    }
-
-    // Cache the data with appropriate flags
-    this.cachedDirectoryData = {
-      directory: data.directory,
-      files: data.files || [],
-      timestamp: Date.now(),
-      partial: false,  // Always false (single stage with fd)
-      searchMode: 'recursive',  // Always recursive (fd is required)
-      ...(fromCache ? { fromCache: true } : {}),
-      ...(data.cacheAge !== undefined ? { cacheAge: data.cacheAge } : {}),
-      ...(data.hint ? { hint: data.hint } : {}),
-      ...(data.filesDisabled ? { filesDisabled: data.filesDisabled, filesDisabledReason: data.filesDisabledReason } : {})
-    };
-
-    // Show hint message in footer if present (e.g., fd not installed)
-    if (data.hint && this.callbacks.updateHintText) {
-      this.callbacks.updateHintText(data.hint);
-      console.warn('[FileSearchManager] Hint:', data.hint);
-    }
-
-    console.debug('[FileSearchManager] handleCachedDirectoryData:', formatLog({
-      directory: data.directory,
-      fileCount: this.cachedDirectoryData.files.length,
-      fromCache: fromCache,
-      cacheAge: data.cacheAge,
-      searchMode: data.searchMode,
-      hint: data.hint
-    }));
+    // Delegate to DirectoryCacheManager
+    // The manager will notify via onCacheUpdated callback to sync local copy
+    this.directoryCacheManager?.handleCachedDirectoryData(data);
   }
 
   public setupEventListeners(): void {
@@ -817,22 +821,8 @@ export class FileSearchManager {
    * Returns true if directory data is not yet available or is from draft fallback with no files
    */
   private isIndexBeingBuilt(): boolean {
-    // No cached data at all - index is being built
-    if (!this.cachedDirectoryData) {
-      return true;
-    }
-
-    // File search is disabled for this directory (e.g., root directory) - not building
-    if (this.cachedDirectoryData.filesDisabled) {
-      return false;
-    }
-
-    // Draft fallback with no files - index is being built
-    if (this.cachedDirectoryData.fromDraft && this.cachedDirectoryData.files.length === 0) {
-      return true;
-    }
-
-    return false;
+    // Delegate to DirectoryCacheManager
+    return this.directoryCacheManager?.isIndexBeingBuilt() ?? true;
   }
 
   /**
@@ -1168,94 +1158,17 @@ export class FileSearchManager {
    * Handles both full updates (with files) and directory-only updates (for code search)
    */
   public updateCache(data: DirectoryInfo | DirectoryData): void {
-    if (!data.directory) {
-      console.debug('[FileSearchManager] updateCache: no directory in data');
-      return;
-    }
-
-    // Get hint and filesDisabled from DirectoryInfo if available
-    const hint = 'hint' in data ? (data as DirectoryInfo).hint : undefined;
-    const filesDisabled = 'filesDisabled' in data ? (data as DirectoryInfo).filesDisabled : undefined;
-    const filesDisabledReason = 'filesDisabledReason' in data ? (data as DirectoryInfo).filesDisabledReason : undefined;
-
-    // Check if this is an update to the same directory
-    const isSameDirectory = this.cachedDirectoryData?.directory === data.directory;
-
-    // Handle directory-only updates (no files - e.g., file listing failed)
-    // This is important for code search which only needs the directory
-    if (!data.files) {
-      // For directory-only updates, only update if directory changed
-      if (!isSameDirectory) {
-        console.debug('[FileSearchManager] updateCache: directory-only update (directory changed)', {
-          from: this.cachedDirectoryData?.directory,
-          to: data.directory
-        });
-        this.cachedDirectoryData = {
-          directory: data.directory,
-          files: [],  // Empty files - code search will work, file search won't
-          timestamp: Date.now(),
-          partial: false,
-          searchMode: 'recursive',
-          ...(hint ? { hint } : {}),
-          ...(filesDisabled && filesDisabledReason ? { filesDisabled, filesDisabledReason } : filesDisabled ? { filesDisabled } : {})
-        };
-
-        // Show hint message if present
-        if (hint && this.callbacks.updateHintText) {
-          this.callbacks.updateHintText(hint);
-          console.warn('[FileSearchManager] Hint:', hint);
-        }
-      } else {
-        console.debug('[FileSearchManager] updateCache: skipping directory-only update (same directory)');
-      }
-      return;
-    }
-
-    // Full update with files - only update if we have more complete data
-    const shouldUpdate = !this.cachedDirectoryData ||
-      !isSameDirectory ||
-      (data.searchMode === 'recursive') ||
-      (data.files.length > (this.cachedDirectoryData?.files.length || 0));
-
-    if (!shouldUpdate) {
-      console.debug('[FileSearchManager] updateCache: skipping update, existing data is sufficient');
-      return;
-    }
-
-    this.cachedDirectoryData = {
-      directory: data.directory,
-      files: data.files,
-      timestamp: Date.now(),
-      partial: false,  // Always false (single stage with fd)
-      searchMode: 'recursive',  // Always recursive (fd is required)
-      // Cache flags (fromCache, cacheAge) are intentionally omitted for fresh data
-      ...(hint ? { hint } : {}),
-      ...(filesDisabled && filesDisabledReason ? { filesDisabled, filesDisabledReason } : filesDisabled ? { filesDisabled } : {})
-    };
-
-    // Show hint message in footer if present (e.g., fd not installed)
-    if (hint && this.callbacks.updateHintText) {
-      this.callbacks.updateHintText(hint);
-      console.warn('[FileSearchManager] Hint:', hint);
-    }
-
-    console.debug('[FileSearchManager] updateCache:', formatLog({
-      directory: data.directory,
-      fileCount: data.files.length,
-      searchMode: 'recursive',
-      hint
-    }));
-
-    // If suggestions are currently visible and not actively searching, refresh them
-    if (this.isVisible && !this.currentQuery) {
-      this.refreshSuggestions();
-    }
+    // Delegate to DirectoryCacheManager
+    // The manager will notify via onCacheUpdated callback to sync local copy
+    // and trigger refreshSuggestions if needed
+    this.directoryCacheManager?.updateCache(data);
   }
 
   /**
    * Clear the cached directory data
    */
   public clearCache(): void {
+    this.directoryCacheManager?.clearCache();
     this.cachedDirectoryData = null;
     this.hideSuggestions();
   }
@@ -1351,12 +1264,16 @@ export class FileSearchManager {
         }
 
         console.debug('[FileSearchManager] checkForFileSearch: code pattern matched, language=', language, 'symbolTypeFilter=', symbolTypeFilter, 'symbolQuery=', symbolQuery);
-        console.debug('[FileSearchManager] checkForFileSearch: rgAvailable=', this.rgAvailable, 'supportedLanguages.size=', this.supportedLanguages.size, 'supportedLanguages.has(language)=', this.supportedLanguages.has(language));
+
+        const supportedLanguages = this.codeSearchManager?.getSupportedLanguages();
+        const rgAvailable = this.codeSearchManager?.isAvailableSync() ?? false;
+
+        console.debug('[FileSearchManager] checkForFileSearch: rgAvailable=', rgAvailable, 'supportedLanguages.size=', supportedLanguages?.size, 'supportedLanguages.has(language)=', supportedLanguages?.has(language));
 
         // If code search not yet initialized, wait for it
-        if (this.codeSearchInitPromise && this.supportedLanguages.size === 0) {
+        if (this.codeSearchManager && (!supportedLanguages || supportedLanguages.size === 0)) {
           console.debug('[FileSearchManager] checkForFileSearch: waiting for code search initialization...');
-          this.codeSearchInitPromise.then(() => {
+          this.codeSearchManager.isAvailable().then(() => {
             // Re-check after initialization (only if cursor position hasn't changed)
             if (this.textInput && this.textInput.value.includes(`@${query}`)) {
               this.checkForFileSearch();
@@ -1366,7 +1283,7 @@ export class FileSearchManager {
         }
 
         // Check if language is supported
-        if (this.rgAvailable && this.supportedLanguages.has(language)) {
+        if (rgAvailable && supportedLanguages?.has(language)) {
           console.debug('[FileSearchManager] checkForFileSearch: code search pattern detected:', language, symbolQuery);
           this.atStartPosition = startPos;
           this.currentQuery = query;
@@ -1386,9 +1303,9 @@ export class FileSearchManager {
           return;
         } else {
           // Unknown language or rg not available - show hint and hide suggestions
-          console.debug('[FileSearchManager] checkForFileSearch: code search not available, rgAvailable=', this.rgAvailable);
-          const langInfo = this.supportedLanguages.get(language);
-          if (!langInfo && this.rgAvailable) {
+          console.debug('[FileSearchManager] checkForFileSearch: code search not available, rgAvailable=', rgAvailable);
+          const langInfo = supportedLanguages?.get(language);
+          if (!langInfo && rgAvailable) {
             this.callbacks.updateHintText?.(`Unknown language: ${language}`);
           }
           this.hideSuggestions();
@@ -1536,7 +1453,7 @@ export class FileSearchManager {
         this.updateSelection();
 
         // Update hint with symbol count
-        const langInfo = this.supportedLanguages.get(language);
+        const langInfo = this.codeSearchManager?.getSupportedLanguages().get(language);
         this.callbacks.updateHintText?.(`${this.filteredSymbols.length} ${langInfo?.displayName || language} symbols`);
       } else {
         this.callbacks.updateHintText?.(`No symbols found for "${query}"`);
@@ -2716,7 +2633,7 @@ export class FileSearchManager {
 
     // Check if symbol search is available for this file type
     const language = this.getLanguageForFile(file.name);
-    if (this.rgAvailable && language) {
+    if (this.codeSearchManager?.isAvailableSync() && language) {
       // Navigate into file to show symbols
       this.navigateIntoFile(relativePath, file.path, language);
       return;
@@ -2734,16 +2651,8 @@ export class FileSearchManager {
    * Get language info for a file based on its extension or filename
    */
   private getLanguageForFile(filename: string): LanguageInfo | null {
-    const lowerFilename = filename.toLowerCase();
-
-    // Special case: Makefile (no extension)
-    // supportedLanguages map is keyed by key (make, mk), not extension
-    if (lowerFilename === 'makefile' || lowerFilename === 'gnumakefile') {
-      return this.supportedLanguages.get('make') || this.supportedLanguages.get('mk') || null;
-    }
-
-    const ext = filename.substring(filename.lastIndexOf('.') + 1).toLowerCase();
-    return this.supportedLanguages.get(ext) || null;
+    // Delegate to CodeSearchManager
+    return this.codeSearchManager?.getLanguageForFile(filename) || null;
   }
 
   /**
