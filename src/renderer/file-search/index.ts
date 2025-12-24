@@ -58,3 +58,23 @@ export {
   getCaretCoordinates,
   createMirrorDiv
 } from './dom-utils';
+
+// Manager classes
+export {
+  PopupManager,
+  SettingsCacheManager,
+  DirectoryCacheManager,
+  SuggestionListManager,
+  HighlightManager,
+  FileOpenerManager,
+  CodeSearchManager
+} from './managers';
+
+export type {
+  PopupManagerCallbacks,
+  DirectoryCacheCallbacks,
+  SuggestionListCallbacks,
+  HighlightManagerCallbacks,
+  DirectoryDataForHighlight,
+  FileOpenerCallbacks
+} from './managers';
