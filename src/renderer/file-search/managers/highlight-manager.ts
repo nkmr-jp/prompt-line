@@ -612,17 +612,29 @@ export class HighlightManager {
         const relativePath = getRelativePath(file.path, baseDir!);
         relativePaths.add(relativePath);
 
-        // Also add variants without extension for partial matches
-        const lastSlash = relativePath.lastIndexOf('/');
-        const fileName = lastSlash >= 0 ? relativePath.substring(lastSlash + 1) : relativePath;
-        const lastDot = fileName.lastIndexOf('.');
-        if (lastDot > 0) {
-          const pathWithoutExt = lastSlash >= 0
-            ? relativePath.substring(0, lastSlash + 1) + fileName.substring(0, lastDot)
-            : fileName.substring(0, lastDot);
-          relativePaths.add(pathWithoutExt);
+        // For directories: add both with and without trailing slash
+        if (file.isDirectory) {
+          if (!relativePath.endsWith('/')) {
+            relativePaths.add(relativePath + '/');
+          } else {
+            relativePaths.add(relativePath.slice(0, -1));
+          }
+        }
+
+        // Extract and add all parent directories from file paths
+        // This handles cases where directory entries are not in the file list
+        const pathParts = relativePath.split('/');
+        let parentPath = '';
+        for (let i = 0; i < pathParts.length - 1; i++) {
+          parentPath += (i > 0 ? '/' : '') + pathParts[i];
+          relativePaths.add(parentPath);
+          relativePaths.add(parentPath + '/');
         }
       }
+
+      console.debug('[HighlightManager] Built relative path set:', {
+        pathCount: relativePaths.size
+      });
     }
 
     // Find all @path patterns

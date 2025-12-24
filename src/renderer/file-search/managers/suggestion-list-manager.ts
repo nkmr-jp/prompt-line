@@ -601,8 +601,9 @@ export class SuggestionListManager {
     }
 
     // Calculate dynamic max-width and adjust left position
-    const minMenuWidth = 300;
-    const rightMargin = 16;
+    // minMenuWidth = 500 for readable descriptions
+    const minMenuWidth = 500;
+    const rightMargin = 8;
     let availableWidth = mainContentRect.width - left - rightMargin;
     let adjustedLeft = left;
 
