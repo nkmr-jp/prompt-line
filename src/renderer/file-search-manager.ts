@@ -1865,6 +1865,7 @@ export class FileSearchManager {
     // Use the full path including line number and symbol name (without trailing space)
     const pathForHighlight = `${symbol.relativePath}:${symbol.lineNumber}#${symbol.name}`;
     this.selectedPaths.add(pathForHighlight);
+    this.highlightManager?.addSelectedPath(pathForHighlight);
     console.debug('[FileSearchManager] Added symbol path to selectedPaths:', pathForHighlight);
 
     // Update highlight backdrop (this also calls rescanAtPaths internally)
@@ -2498,6 +2499,7 @@ export class FileSearchManager {
 
     // Add the path to the set of selected paths (for highlighting)
     this.selectedPaths.add(path);
+    this.highlightManager?.addSelectedPath(path);
     console.debug('[FileSearchManager] Added path to selectedPaths:', path, 'total:', this.selectedPaths.size);
 
     // Update highlight backdrop (this will find all occurrences in the text)
@@ -2628,6 +2630,7 @@ export class FileSearchManager {
       // If not, remove it from selectedPaths
       if (deletedPathContent && !this.atPaths.some(p => p.path === deletedPathContent)) {
         this.selectedPaths.delete(deletedPathContent);
+        this.highlightManager?.removeSelectedPath(deletedPathContent);
         console.debug('[FileSearchManager] Removed path from selectedPaths:', deletedPathContent);
       }
 
@@ -2702,6 +2705,7 @@ export class FileSearchManager {
   public clearAtPaths(): void {
     this.atPaths = [];
     this.selectedPaths.clear();
+    this.highlightManager?.clearAtPaths();
     this.updateHighlightBackdrop();
   }
 
@@ -2736,6 +2740,7 @@ export class FileSearchManager {
     // Clear existing paths and selected paths
     this.atPaths = [];
     this.selectedPaths.clear();
+    this.highlightManager?.clearAtPaths();
 
     // Need cached directory data to check if files exist (or need to check filesystem)
     const hasValidCachedData = this.cachedDirectoryData?.files &&
@@ -2843,6 +2848,7 @@ export class FileSearchManager {
         // Add to selectedPaths set (rescanAtPaths will find all occurrences)
         // Use the full pathContent (including line number and symbol name if present)
         this.selectedPaths.add(pathContent);
+        this.highlightManager?.addSelectedPath(pathContent);
         console.debug('[FileSearchManager] Found @path:', formatLog({
           pathContent,
           cleanPath,
