@@ -456,18 +456,8 @@ export class FileSearchManager {
    * Handle mouse move for Cmd+hover link style
    */
   private handleMouseMove(e: MouseEvent): void {
-    this.lastMouseX = e.clientX;
-    this.lastMouseY = e.clientY;
-
-    if (!e.metaKey) {
-      if (this.hoveredAtPath) {
-        this.clearFilePathHighlight();
-      }
-      return;
-    }
-
-    this.isCmdHoverActive = true;
-    this.checkAndHighlightAtPath(e.clientX, e.clientY);
+    // Delegate to HighlightManager
+    this.highlightManager?.onMouseMove(e);
   }
 
   /**
@@ -696,115 +686,8 @@ export class FileSearchManager {
    * Also updates hint text to show Ctrl+Enter shortcut when on a clickable path or URL
    */
   private updateCursorPositionHighlight(): void {
-    if (!this.textInput) return;
-
-    const text = this.textInput.value;
-    const cursorPos = this.textInput.selectionStart;
-
-    // First check if cursor is on an @path - still show hint but no extra highlight
-    const atPath = findAtPathAtPosition(text, cursorPos);
-    if (atPath) {
-      // Show hint for @path too
-      this.showFileOpenHint();
-      if (this.cursorPositionPath) {
-        this.cursorPositionPath = null;
-        this.renderHighlightBackdropWithCursor();
-      }
-      return;
-    }
-
-    // Check if cursor is on a URL
-    const url = findUrlAtPosition(text, cursorPos);
-    if (url) {
-      // Show hint for URL
-      this.showUrlOpenHint();
-      const newRange: AtPathRange = { start: url.start, end: url.end };
-      // Only update if position changed
-      if (!this.cursorPositionPath ||
-          this.cursorPositionPath.start !== newRange.start ||
-          this.cursorPositionPath.end !== newRange.end) {
-        this.cursorPositionPath = newRange;
-        this.renderHighlightBackdropWithCursor();
-      }
-      return;
-    }
-
-    // Check if cursor is on a slash command (only if command type is enabled)
-    if (this.isCommandEnabledSync()) {
-      const slashCommand = findSlashCommandAtPosition(text, cursorPos);
-      if (slashCommand) {
-        // Show hint for slash command
-        this.showSlashCommandOpenHint();
-        const newRange: AtPathRange = { start: slashCommand.start, end: slashCommand.end };
-        // Only update if position changed
-        if (!this.cursorPositionPath ||
-            this.cursorPositionPath.start !== newRange.start ||
-            this.cursorPositionPath.end !== newRange.end) {
-          this.cursorPositionPath = newRange;
-          this.renderHighlightBackdropWithCursor();
-        }
-        return;
-      }
-    }
-
-    // Find absolute path at cursor position (paths starting with / or ~)
-    const absolutePath = findAbsolutePathAtPosition(text, cursorPos);
-
-    if (absolutePath) {
-      // Show hint for absolute path
-      this.showFileOpenHint();
-      // Get the range for the absolute path
-      const pathInfo = findClickablePathAtPosition(text, cursorPos);
-      if (pathInfo && !pathInfo.path.startsWith('@')) {
-        const newRange: AtPathRange = { start: pathInfo.start, end: pathInfo.end };
-        // Only update if position changed
-        if (!this.cursorPositionPath ||
-            this.cursorPositionPath.start !== newRange.start ||
-            this.cursorPositionPath.end !== newRange.end) {
-          this.cursorPositionPath = newRange;
-          this.renderHighlightBackdropWithCursor();
-        }
-      }
-    } else {
-      // Restore default hint when not on a clickable path
-      this.restoreDefaultHint();
-      if (this.cursorPositionPath) {
-        // Clear cursor highlight
-        this.cursorPositionPath = null;
-        this.renderHighlightBackdropWithCursor();
-      }
-    }
-  }
-
-  /**
-   * Show hint for opening file with Ctrl+Enter
-   */
-  private showFileOpenHint(): void {
-    // Skip hint if file search is disabled
-    if (!this.fileSearchEnabled) {
-      return;
-    }
-    if (this.callbacks.updateHintText) {
-      this.callbacks.updateHintText('Ctrl + ↵ to open');
-    }
-  }
-
-  /**
-   * Show hint for opening URL with Ctrl+Enter
-   */
-  private showUrlOpenHint(): void {
-    if (this.callbacks.updateHintText) {
-      this.callbacks.updateHintText('Ctrl + ↵ to open URL in browser');
-    }
-  }
-
-  /**
-   * Show hint for opening slash command file with Ctrl+Enter
-   */
-  private showSlashCommandOpenHint(): void {
-    if (this.callbacks.updateHintText) {
-      this.callbacks.updateHintText('Ctrl + ↵ to open command file');
-    }
+    // Delegate to HighlightManager
+    this.highlightManager?.updateCursorPositionHighlight();
   }
 
   /**
@@ -3098,58 +2981,20 @@ export class FileSearchManager {
    * Sync the scroll position of the highlight backdrop with the textarea
    */
   private syncBackdropScroll(): void {
-    if (this.textInput && this.highlightBackdrop) {
-      this.highlightBackdrop.scrollTop = this.textInput.scrollTop;
-      this.highlightBackdrop.scrollLeft = this.textInput.scrollLeft;
-    }
+    // Delegate to HighlightManager
+    this.highlightManager?.syncBackdropScroll();
   }
 
   /**
    * Update the highlight backdrop to show @path highlights
    */
   public updateHighlightBackdrop(): void {
-    if (!this.highlightBackdrop || !this.textInput) return;
-
-    const text = this.textInput.value;
-
-    // Re-scan for @paths in the text (in case user edited)
-    this.rescanAtPaths(text);
-
-    if (this.atPaths.length === 0) {
-      // No @paths, just mirror the text
-      this.highlightBackdrop.textContent = text;
-      return;
+    // Delegate to HighlightManager
+    this.highlightManager?.updateHighlightBackdrop();
+    // Sync local atPaths from manager for backward compatibility
+    if (this.highlightManager) {
+      this.atPaths = this.highlightManager.getAtPaths();
     }
-
-    // Build highlighted content
-    const fragment = document.createDocumentFragment();
-    let lastEnd = 0;
-
-    for (const atPath of this.atPaths) {
-      // Add text before this @path
-      if (atPath.start > lastEnd) {
-        fragment.appendChild(document.createTextNode(text.substring(lastEnd, atPath.start)));
-      }
-
-      // Add highlighted @path
-      const span = document.createElement('span');
-      span.className = 'at-path-highlight';
-      span.textContent = text.substring(atPath.start, atPath.end);
-      fragment.appendChild(span);
-
-      lastEnd = atPath.end;
-    }
-
-    // Add remaining text
-    if (lastEnd < text.length) {
-      fragment.appendChild(document.createTextNode(text.substring(lastEnd)));
-    }
-
-    this.highlightBackdrop.innerHTML = '';
-    this.highlightBackdrop.appendChild(fragment);
-
-    // Sync scroll
-    this.syncBackdropScroll();
   }
 
   /**
