@@ -5,6 +5,9 @@
 import type { FileInfo, AgentItem } from '../../types';
 import type { SymbolResult } from '../code-search/types';
 
+// Re-export FileInfo for internal use in managers
+export type { FileInfo };
+
 // Directory data for file search (cached in renderer)
 export interface DirectoryData {
   directory: string;

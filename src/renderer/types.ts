@@ -65,6 +65,9 @@ export interface DirectoryInfo {
   maxFiles?: number;           // the maxFiles limit that was applied
   // User hint message
   hint?: string;               // hint message to display to user (e.g., "Install fd: brew install fd")
+  // File search disabled status
+  filesDisabled?: boolean;     // true if file search is disabled for this directory
+  filesDisabledReason?: string; // reason why file search is disabled
 }
 
 export interface WindowData {
