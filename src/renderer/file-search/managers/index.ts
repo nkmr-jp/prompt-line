@@ -30,3 +30,6 @@ export type { TextInputPathCallbacks } from './text-input-path-manager';
 
 export { SymbolModeUIManager } from './symbol-mode-ui-manager';
 export type { SymbolModeUICallbacks, SymbolModeState } from './symbol-mode-ui-manager';
+
+export { AtPathBehaviorManager } from './at-path-behavior-manager';
+export type { AtPathBehaviorCallbacks } from './at-path-behavior-manager';

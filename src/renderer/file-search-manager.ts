@@ -28,7 +28,8 @@ import {
   DirectoryCacheManager,
   FileFilterManager,
   TextInputPathManager,
-  SymbolModeUIManager
+  SymbolModeUIManager,
+  AtPathBehaviorManager
 } from './file-search/managers';
 
 // Pattern to detect code search queries (e.g., @ts:, @go:, @py:)
@@ -67,6 +68,7 @@ export class FileSearchManager {
   private fileFilterManager: FileFilterManager;
   private textInputPathManager: TextInputPathManager;
   private symbolModeUIManager: SymbolModeUIManager;
+  private atPathBehaviorManager: AtPathBehaviorManager;
 
   // Whether file search feature is enabled (from settings)
   private fileSearchEnabled: boolean = false;
@@ -158,6 +160,25 @@ export class FileSearchManager {
       onFileSelected: (path) => this.callbacks.onFileSelected(path),
       setCurrentQuery: (query) => { this.currentQuery = query; },
       getCurrentPath: () => this.currentPath
+    });
+
+    // Initialize AtPathBehaviorManager
+    this.atPathBehaviorManager = new AtPathBehaviorManager({
+      getTextContent: () => this.callbacks.getTextContent(),
+      setTextContent: (text: string) => this.callbacks.setTextContent(text),
+      getCursorPosition: () => this.callbacks.getCursorPosition(),
+      setCursorPosition: (pos: number) => this.callbacks.setCursorPosition(pos),
+      replaceRangeWithUndo: this.callbacks.replaceRangeWithUndo
+        ? (start: number, end: number, text: string) => this.callbacks.replaceRangeWithUndo!(start, end, text)
+        : undefined,
+      getAtPaths: () => this.atPaths,
+      getSelectedPaths: () => this.selectedPaths,
+      removeSelectedPath: (path: string) => {
+        this.selectedPaths.delete(path);
+        this.highlightManager?.removeSelectedPath(path);
+      },
+      updateHighlightBackdrop: () => this.updateHighlightBackdrop(),
+      getCachedDirectoryData: () => this.cachedDirectoryData
     });
   }
 
@@ -1578,104 +1599,11 @@ export class FileSearchManager {
   }
 
   /**
-   * Find @path at or just before the cursor position
-   * Only returns a path if the cursor is at the "end" of the @path,
-   * meaning there's no other character after it (undefined or space only).
-   */
-  private findAtPathAtCursor(cursorPos: number): AtPathRange | null {
-    if (!this.textInput) return null;
-    const text = this.textInput.value;
-
-    for (const path of this.atPaths) {
-      const charAtEnd = text[path.end];
-
-      // Check if cursor is at path.end (right after the @path)
-      if (cursorPos === path.end) {
-        // Only treat as "at the end" if the character at path.end is:
-        // - undefined (end of text), or
-        // - a space (trailing space after @path)
-        // If there's another character (like @), user is typing something new
-        if (charAtEnd === undefined || charAtEnd === ' ') {
-          return path;
-        }
-        // Don't return path if there's another character at path.end
-        continue;
-      }
-
-      // Also check path.end + 1 if the character at path.end is a space
-      // This allows deletion when cursor is after the trailing space
-      if (cursorPos === path.end + 1 && charAtEnd === ' ') {
-        return path;
-      }
-    }
-    return null;
-  }
-
-  /**
    * Handle backspace key to delete entire @path if cursor is at the end
-   * Uses replaceRangeWithUndo for native Undo/Redo support
+   * Delegates to AtPathBehaviorManager
    */
   private handleBackspaceForAtPath(e: KeyboardEvent): void {
-    const cursorPos = this.callbacks.getCursorPosition();
-    const atPath = this.findAtPathAtCursor(cursorPos);
-
-    if (atPath) {
-      e.preventDefault();
-
-      const text = this.callbacks.getTextContent();
-      const deletedPathContent = atPath.path;
-
-      // Save atPath properties before deletion - replaceRangeWithUndo triggers input event
-      // which calls updateHighlightBackdrop() and rescanAtPaths(), modifying this.atPaths
-      const savedStart = atPath.start;
-      const savedEnd = atPath.end;
-
-      // Delete the @path (and trailing space if present)
-      let deleteEnd = savedEnd;
-      if (text[deleteEnd] === ' ') {
-        deleteEnd++;
-      }
-
-      // Use replaceRangeWithUndo if available for native Undo support
-      // Note: execCommand('insertText', false, '') places cursor at the deletion point
-      // which is exactly where we want it (savedStart), so no need to call setCursorPosition
-      if (this.callbacks.replaceRangeWithUndo) {
-        this.callbacks.replaceRangeWithUndo(savedStart, deleteEnd, '');
-        // Explicitly restore cursor position after deletion
-        // The input event fired by execCommand may trigger code that affects cursor position
-        // (e.g., checkForFileSearch, updateHighlightBackdrop, updateCursorPositionHighlight)
-        // Restoring here ensures cursor stays at the correct deletion point
-        this.callbacks.setCursorPosition(savedStart);
-      } else {
-        // Fallback to direct text manipulation (no Undo support) - need to set cursor manually
-        const newText = text.substring(0, savedStart) + text.substring(deleteEnd);
-        this.callbacks.setTextContent(newText);
-        this.callbacks.setCursorPosition(savedStart);
-      }
-
-      // Update highlight backdrop (rescanAtPaths will recalculate all positions)
-      this.updateHighlightBackdrop();
-
-      // Restore cursor position again after updateHighlightBackdrop
-      // This ensures cursor stays at savedStart even if backdrop update affects it
-      this.callbacks.setCursorPosition(savedStart);
-
-      // After update, check if this path still exists in the text
-      // If not, remove it from selectedPaths
-      if (deletedPathContent && !this.atPaths.some(p => p.path === deletedPathContent)) {
-        this.selectedPaths.delete(deletedPathContent);
-        this.highlightManager?.removeSelectedPath(deletedPathContent);
-        console.debug('[FileSearchManager] Removed path from selectedPaths:', deletedPathContent);
-      }
-
-      console.debug('[FileSearchManager] deleted @path:', formatLog({
-        deletedStart: savedStart,
-        deletedEnd: deleteEnd,
-        deletedPath: deletedPathContent || 'unknown',
-        remainingPaths: this.atPaths.length,
-        selectedPathsCount: this.selectedPaths.size
-      }));
-    }
+    this.atPathBehaviorManager.handleBackspaceForAtPath(e);
   }
 
   /**
@@ -1702,35 +1630,7 @@ export class FileSearchManager {
    * Build a set of valid paths from cached directory data
    */
   private buildValidPathsSet(): Set<string> | null {
-    if (!this.cachedDirectoryData?.files || this.cachedDirectoryData.files.length === 0) {
-      return null;
-    }
-
-    const baseDir = this.cachedDirectoryData.directory;
-    const validPaths = new Set<string>();
-
-    for (const file of this.cachedDirectoryData.files) {
-      const relativePath = getRelativePath(file.path, baseDir);
-      validPaths.add(relativePath);
-      // For directories: add both with and without trailing slash
-      if (file.isDirectory) {
-        if (!relativePath.endsWith('/')) {
-          validPaths.add(relativePath + '/');
-        } else {
-          validPaths.add(relativePath.slice(0, -1));
-        }
-      }
-      // Also add parent directories
-      const pathParts = relativePath.split('/');
-      let parentPath = '';
-      for (let i = 0; i < pathParts.length - 1; i++) {
-        parentPath += (i > 0 ? '/' : '') + pathParts[i];
-        validPaths.add(parentPath);
-        validPaths.add(parentPath + '/');
-      }
-    }
-
-    return validPaths;
+    return this.atPathBehaviorManager.buildValidPathsSet();
   }
 
   /**
