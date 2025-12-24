@@ -4,7 +4,7 @@
  */
 
 import type { FileInfo, DirectoryInfo, AgentItem } from '../types';
-import { getFileIconSvg, getMentionIconSvg, getSymbolIconSvg } from './assets/icons/file-icons';
+import { getSymbolIconSvg } from './assets/icons/file-icons';
 import type { SymbolResult, LanguageInfo } from './code-search/types';
 import { getSymbolTypeDisplay, SYMBOL_TYPE_FROM_DISPLAY } from './code-search/types';
 import type { DirectoryData, FileSearchCallbacks, AtPathRange, SuggestionItem } from './file-search';
@@ -631,7 +631,8 @@ export class FileSearchManager {
     if (this.currentQuery) {
       this.filterFiles(this.currentQuery);
     }
-    this.renderSuggestions();
+    // Delegate rendering to SuggestionListManager (position remains unchanged)
+    this.suggestionListManager?.update(this.mergedSuggestions, false);
   }
 
   /**
@@ -874,9 +875,10 @@ export class FileSearchManager {
       this.isVisible = true;
 
       if (this.mergedSuggestions.length > 0) {
-        this.renderSuggestions(false);
-        this.positionSuggestions();
-        this.updateSelection();
+        // Delegate rendering and positioning to SuggestionListManager
+        this.suggestionListManager?.show(this.mergedSuggestions, this.atStartPosition, false);
+        // Update popup tooltip for selected item
+        this.popupManager.showTooltipForSelectedItem();
 
         // Update hint with symbol count
         const langInfo = this.codeSearchManager?.getSupportedLanguages().get(language);
@@ -975,9 +977,10 @@ export class FileSearchManager {
       isIndexBuilding,
       matchesPrefix
     }));
-    this.renderSuggestions(isIndexBuilding && !matchesPrefix);
-    this.positionSuggestions();
-    this.updateSelection();
+    // Delegate rendering and positioning to SuggestionListManager
+    this.suggestionListManager?.show(this.mergedSuggestions, this.atStartPosition, isIndexBuilding && !matchesPrefix);
+    // Update popup tooltip for selected item
+    this.popupManager.showTooltipForSelectedItem();
     console.debug('[FileSearchManager] showSuggestions: render complete, isVisible:', this.isVisible);
   }
 
@@ -1032,101 +1035,6 @@ export class FileSearchManager {
       }));
       this.currentPath = newPath;
     }
-  }
-
-  /**
-   * Position the suggestions container near the @ position
-   * Shows above the cursor if there's not enough space below
-   * Dynamically adjusts max-height based on available space
-   * Uses main-content as positioning reference to allow spanning across input and history sections
-   */
-  private positionSuggestions(): void {
-    if (!this.suggestionsContainer || !this.textInput || this.atStartPosition < 0) return;
-
-    // Create mirror div for caret position calculation if it doesn't exist
-    if (!this.mirrorDiv) {
-      this.mirrorDiv = createMirrorDiv();
-    }
-
-    const coords = getCaretCoordinates(this.textInput, this.mirrorDiv, this.atStartPosition);
-    if (!coords) return;
-
-    // Get main-content for relative positioning (allows spanning across sections)
-    const mainContent = this.textInput.closest('.main-content');
-    if (!mainContent) return;
-
-    const mainContentRect = mainContent.getBoundingClientRect();
-    const lineHeight = parseInt(window.getComputedStyle(this.textInput).lineHeight) || 20;
-
-    // Calculate position relative to main-content
-    const caretTop = coords.top - mainContentRect.top;
-    const left = Math.max(8, coords.left - mainContentRect.left);
-
-    // Calculate available space below and above the cursor
-    const spaceBelow = mainContentRect.height - (caretTop + lineHeight) - 8; // 8px margin
-    const spaceAbove = caretTop - 8; // 8px margin
-
-    let top: number = 0;
-    let showAbove = false;
-    let availableHeight: number;
-
-    // Decide whether to show above or below based on available space
-    if (spaceBelow >= spaceAbove) {
-      // Show below the cursor - use all available space below
-      top = caretTop + lineHeight + 4;
-      availableHeight = spaceBelow;
-    } else {
-      // Show above the cursor - use all available space above
-      showAbove = true;
-      availableHeight = spaceAbove;
-      // top will be calculated after setting max-height
-    }
-
-    // Set dynamic max-height based on available space (minimum 100px)
-    const dynamicMaxHeight = Math.max(100, availableHeight);
-    this.suggestionsContainer.style.maxHeight = `${dynamicMaxHeight}px`;
-
-    // If showing above, calculate top position based on actual/expected height
-    if (showAbove) {
-      const menuHeight = Math.min(this.suggestionsContainer.scrollHeight || dynamicMaxHeight, dynamicMaxHeight);
-      top = caretTop - menuHeight - 4;
-      if (top < 0) top = 0;
-    }
-
-    // Calculate dynamic max-width and adjust left position if needed
-    // This allows the menu to span into the history section if needed
-    const minMenuWidth = 500; // Minimum width for readable descriptions
-    const rightMargin = 8; // Margin from right edge
-    let availableWidth = mainContentRect.width - left - rightMargin;
-    let adjustedLeft = left;
-
-    // If not enough space on the right, shift the menu left to ensure minimum width
-    if (availableWidth < minMenuWidth) {
-      // Calculate how much to shift left
-      const shiftAmount = minMenuWidth - availableWidth;
-      adjustedLeft = Math.max(8, left - shiftAmount); // Don't go past left edge
-      availableWidth = mainContentRect.width - adjustedLeft - rightMargin;
-    }
-
-    const dynamicMaxWidth = Math.max(minMenuWidth, availableWidth);
-    this.suggestionsContainer.style.maxWidth = `${dynamicMaxWidth}px`;
-
-    this.suggestionsContainer.style.top = `${top}px`;
-    this.suggestionsContainer.style.left = `${adjustedLeft}px`;
-    this.suggestionsContainer.style.right = 'auto';
-    this.suggestionsContainer.style.bottom = 'auto';
-
-    console.debug('[FileSearchManager] positionSuggestions:', formatLog({
-      atPosition: this.atStartPosition,
-      top,
-      left: adjustedLeft,
-      originalLeft: left,
-      showAbove,
-      spaceBelow,
-      spaceAbove,
-      dynamicMaxHeight,
-      dynamicMaxWidth
-    }));
   }
 
   /**
@@ -1482,221 +1390,6 @@ export class FileSearchManager {
   }
 
   /**
-   * Render the suggestions in the dropdown
-   * @param isIndexBuilding - Whether the file index is currently being built
-   */
-  private renderSuggestions(isIndexBuilding: boolean = false): void {
-    if (!this.suggestionsContainer) return;
-
-    const totalItems = this.getTotalItemCount();
-
-    if (totalItems === 0) {
-      // Clear existing content safely
-      while (this.suggestionsContainer.firstChild) {
-        this.suggestionsContainer.removeChild(this.suggestionsContainer.firstChild);
-      }
-
-      // Create empty state element using safe DOM methods
-      const emptyDiv = document.createElement('div');
-      emptyDiv.className = isIndexBuilding ? 'file-suggestion-empty indexing' : 'file-suggestion-empty';
-      emptyDiv.textContent = isIndexBuilding ? 'Building file index...' : 'No matching items found';
-      this.suggestionsContainer.appendChild(emptyDiv);
-
-      this.suggestionsContainer.style.display = 'block';
-      // Reset scroll position to top
-      this.suggestionsContainer.scrollTop = 0;
-      return;
-    }
-
-    // Reset scroll position to top when search text changes
-    this.suggestionsContainer.scrollTop = 0;
-
-    const fragment = document.createDocumentFragment();
-    const baseDir = this.cachedDirectoryData?.directory || '';
-
-    // Add path header if we're in a subdirectory
-    if (this.currentPath) {
-      const header = document.createElement('div');
-      header.className = 'file-suggestion-header';
-      header.textContent = this.currentPath;
-      fragment.appendChild(header);
-    }
-
-    // Render merged suggestions (files and agents mixed by score)
-    this.mergedSuggestions.forEach((suggestion, itemIndex) => {
-      const item = document.createElement('div');
-
-      if (suggestion.type === 'file' && suggestion.file) {
-        const file = suggestion.file;
-        item.className = 'file-suggestion-item';
-        item.setAttribute('role', 'option');
-        item.setAttribute('data-index', itemIndex.toString());
-        item.setAttribute('data-type', 'file');
-
-        // Create icon using SVG
-        const icon = document.createElement('span');
-        icon.className = 'file-icon';
-        insertSvgIntoElement(icon, getFileIconSvg(file.name, file.isDirectory));
-
-        // Create name with highlighting
-        const name = document.createElement('span');
-        name.className = 'file-name';
-
-        if (file.isDirectory) {
-          // For directories: show name with file count
-          const fileCount = this.countFilesInDirectory(file.path);
-          insertHighlightedText(name, file.name, this.currentQuery);
-          const countSpan = document.createElement('span');
-          countSpan.className = 'file-count';
-          countSpan.textContent = ` (${fileCount} files)`;
-          name.appendChild(countSpan);
-        } else {
-          // For files: just show the name
-          insertHighlightedText(name, file.name, this.currentQuery);
-        }
-
-        item.appendChild(icon);
-        item.appendChild(name);
-
-        // Show the directory path next to the filename (for both files and directories)
-        const relativePath = getRelativePath(file.path, baseDir);
-        const dirPath = getDirectoryFromPath(relativePath);
-        if (dirPath) {
-          const pathEl = document.createElement('span');
-          pathEl.className = 'file-path';
-          pathEl.textContent = dirPath;
-          item.appendChild(pathEl);
-        }
-      } else if (suggestion.type === 'agent' && suggestion.agent) {
-        const agent = suggestion.agent;
-        item.className = 'file-suggestion-item agent-suggestion-item';
-        item.setAttribute('role', 'option');
-        item.setAttribute('data-index', itemIndex.toString());
-        item.setAttribute('data-type', 'agent');
-
-        // Create icon using SVG
-        const icon = document.createElement('span');
-        icon.className = 'file-icon mention-icon';
-        insertSvgIntoElement(icon, getMentionIconSvg());
-
-        // Create name with highlighting
-        const name = document.createElement('span');
-        name.className = 'file-name agent-name';
-        insertHighlightedText(name, agent.name, this.currentQuery);
-
-        // Create description
-        const desc = document.createElement('span');
-        desc.className = 'file-path agent-description';
-        desc.textContent = agent.description;
-
-        item.appendChild(icon);
-        item.appendChild(name);
-        item.appendChild(desc);
-
-        // Add info icon for frontmatter popup (only if frontmatter exists)
-        if (agent.frontmatter) {
-          const infoIcon = document.createElement('span');
-          infoIcon.className = 'frontmatter-info-icon';
-          infoIcon.textContent = 'ⓘ';
-
-          // Show popup on info icon hover (pass infoIcon as target for positioning)
-          infoIcon.addEventListener('mouseenter', () => {
-            this.popupManager.showFrontmatterPopup(agent, infoIcon);
-          });
-
-          infoIcon.addEventListener('mouseleave', () => {
-            this.popupManager.schedulePopupHide();
-          });
-
-          item.appendChild(infoIcon);
-        }
-      } else if (suggestion.type === 'symbol' && suggestion.symbol) {
-        const symbol = suggestion.symbol;
-        item.className = 'file-suggestion-item symbol-suggestion-item';
-        item.setAttribute('role', 'option');
-        item.setAttribute('data-index', itemIndex.toString());
-        item.setAttribute('data-type', 'symbol');
-
-        // Create icon for symbol type
-        const icon = document.createElement('span');
-        icon.className = 'file-icon symbol-icon';
-        insertSvgIntoElement(icon, getSymbolIconSvg(symbol.type));
-
-        // Create name with highlighting
-        const name = document.createElement('span');
-        name.className = 'file-name symbol-name';
-        insertHighlightedText(name, symbol.name, this.codeSearchQuery);
-
-        // Create type badge
-        const typeBadge = document.createElement('span');
-        typeBadge.className = 'symbol-type-badge';
-        typeBadge.textContent = getSymbolTypeDisplay(symbol.type);
-
-        // Create file path with line number
-        const pathEl = document.createElement('span');
-        pathEl.className = 'file-path symbol-path';
-        pathEl.textContent = `${symbol.relativePath}:${symbol.lineNumber}`;
-
-        item.appendChild(icon);
-        item.appendChild(name);
-        item.appendChild(typeBadge);
-        item.appendChild(pathEl);
-      }
-
-      // Click handler
-      const currentIndex = itemIndex;
-      item.addEventListener('click', async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-
-        // Cmd+クリック（macOS）でエディタで開く
-        if (e.metaKey) {
-          const clickedSuggestion = this.mergedSuggestions[currentIndex];
-          if (clickedSuggestion) {
-            let filePath: string | undefined;
-            // TODO: Support opening file at specific line number for symbols
-
-            if (clickedSuggestion.type === 'file') {
-              filePath = clickedSuggestion.file?.path;
-            } else if (clickedSuggestion.type === 'agent') {
-              filePath = clickedSuggestion.agent?.filePath;
-            } else if (clickedSuggestion.type === 'symbol') {
-              filePath = clickedSuggestion.symbol?.filePath;
-            }
-
-            if (filePath) {
-              await this.openFileAndRestoreFocus(filePath);
-              this.hideSuggestions();
-              return;
-            }
-          }
-        }
-
-        // 通常クリックは既存の動作（テキスト挿入）
-        this.selectItem(currentIndex);
-      });
-
-      // Mouse move handler - only highlight when mouse actually moves
-      item.addEventListener('mousemove', () => {
-        const allItems = this.suggestionsContainer?.querySelectorAll('.file-suggestion-item');
-        allItems?.forEach(el => el.classList.remove('hovered'));
-        item.classList.add('hovered');
-      });
-
-      // Remove hover when mouse leaves the item
-      item.addEventListener('mouseleave', () => {
-        item.classList.remove('hovered');
-      });
-
-      fragment.appendChild(item);
-    });
-
-    this.suggestionsContainer.innerHTML = '';
-    this.suggestionsContainer.appendChild(fragment);
-    this.suggestionsContainer.style.display = 'block';
-  }
-
-  /**
    * Select an item from merged suggestions by index
    */
   private selectItem(index: number): void {
@@ -1976,8 +1669,10 @@ export class FileSearchManager {
     this.filteredFiles = this.filterFiles('');
     this.filteredAgents = []; // No agents when navigating into subdirectory
     this.mergedSuggestions = this.mergeSuggestions(''); // Update merged suggestions
-    this.renderSuggestions();
-    this.updateSelection();
+    // Delegate rendering to SuggestionListManager (position remains unchanged)
+    this.suggestionListManager?.update(this.mergedSuggestions, false, this.selectedIndex);
+    // Update popup tooltip for selected item
+    this.popupManager.showTooltipForSelectedItem();
   }
 
   /**
@@ -2246,8 +1941,8 @@ export class FileSearchManager {
       this.callbacks.updateHintText?.(`${this.mergedSuggestions.length} symbols in ${this.currentFilePath}`);
     }
 
-    // Position and show
-    this.positionSuggestions();
+    // Position and show (delegate positioning to SuggestionListManager)
+    this.suggestionListManager?.position(this.atStartPosition);
     this.suggestionsContainer.style.display = 'block';
     this.isVisible = true;
   }
