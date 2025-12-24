@@ -14,6 +14,20 @@ module.exports = [
   {
     ignores: ['eslint.config.js', 'dist/**/*']
   },
+  // Global rules for all source files
+  {
+    files: ['src/**/*.ts', 'tests/**/*.{js,ts}'],
+    rules: {
+      'max-lines': [
+        'warn',
+        {
+          max: 300,
+          skipBlankLines: true,
+          skipComments: true
+        }
+      ]
+    }
+  },
   // Node.js scripts configuration
   {
     files: ['scripts/**/*.js', 'test-functionality.js'],
