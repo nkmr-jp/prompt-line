@@ -123,27 +123,11 @@ export class FileSearchManager {
   }
 
   /**
-   * Clear maxSuggestions cache (call when settings might have changed)
-   * Delegates to SettingsCacheManager
-   */
-  public clearMaxSuggestionsCache(): void {
-    this.settingsCacheManager.clearMaxSuggestionsCache();
-  }
-
-  /**
    * Get maxSuggestions for file search (cached)
    * Delegates to SettingsCacheManager
    */
   private async getFileSearchMaxSuggestions(): Promise<number> {
     return this.settingsCacheManager.getFileSearchMaxSuggestions();
-  }
-
-  /**
-   * Clear searchPrefixes cache (call when settings might have changed)
-   * Delegates to SettingsCacheManager
-   */
-  public clearSearchPrefixesCache(): void {
-    this.settingsCacheManager.clearSearchPrefixesCache();
   }
 
   /**
@@ -688,15 +672,6 @@ export class FileSearchManager {
   }
 
   /**
-   * Cache directory data from window-shown event (Stage 1 quick data)
-   * @deprecated Use handleCachedDirectoryData instead for better cache support
-   */
-  public cacheDirectoryData(data: DirectoryInfo | DirectoryData): void {
-    // Forward to new method for consistency
-    this.handleCachedDirectoryData(data);
-  }
-
-  /**
    * Update cache with new data from directory-data-updated event (Stage 2 recursive data)
    * Handles both full updates (with files) and directory-only updates (for code search)
    */
@@ -728,27 +703,6 @@ export class FileSearchManager {
       this.filterFiles(this.currentQuery);
     }
     this.renderSuggestions();
-  }
-
-  /**
-   * Get cache status for display (e.g., in footer hint)
-   */
-  public getCacheStatus(): { fromCache: boolean; cacheAge?: number | undefined; directory?: string | undefined } | null {
-    if (!this.cachedDirectoryData) return null;
-
-    const status: { fromCache: boolean; cacheAge?: number | undefined; directory?: string | undefined } = {
-      fromCache: this.cachedDirectoryData.fromCache || false
-    };
-
-    if (this.cachedDirectoryData.cacheAge !== undefined) {
-      status.cacheAge = this.cachedDirectoryData.cacheAge;
-    }
-
-    if (this.cachedDirectoryData.directory !== undefined) {
-      status.directory = this.cachedDirectoryData.directory;
-    }
-
-    return status;
   }
 
   /**
@@ -2150,15 +2104,6 @@ export class FileSearchManager {
   }
 
   /**
-   * Select a file by index (kept for backwards compatibility)
-   */
-  public selectFile(index: number): void {
-    const file = this.filteredFiles[index];
-    if (!file) return;
-    this.selectFileByInfo(file);
-  }
-
-  /**
    * Select a file by FileInfo object and insert its path
    */
   private selectFileByInfo(file: FileInfo): void {
@@ -2875,33 +2820,6 @@ export class FileSearchManager {
    */
   public isActive(): boolean {
     return this.isVisible;
-  }
-
-  /**
-   * Check if we have cached directory data
-   */
-  public hasCachedData(): boolean {
-    return this.cachedDirectoryData !== null;
-  }
-
-  /**
-   * Get the cached directory path
-   */
-  public getCachedDirectory(): string | null {
-    return this.cachedDirectoryData?.directory || null;
-  }
-
-  /**
-   * Get debug status of all managers (for testing/debugging)
-   */
-  public getManagerStatus(): Record<string, boolean> {
-    return {
-      highlightManager: this.highlightManager !== null,
-      suggestionListManager: this.suggestionListManager !== null,
-      codeSearchManager: this.codeSearchManager !== null,
-      fileOpenerManager: this.fileOpenerManager !== null,
-      directoryCacheManager: this.directoryCacheManager !== null
-    };
   }
 
   /**
