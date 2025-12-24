@@ -27,6 +27,7 @@ import {
   getCaretCoordinates,
   createMirrorDiv
 } from './file-search';
+import { PopupManager } from './file-search/managers';
 
 // Pattern to detect code search queries (e.g., @ts:, @go:, @py:)
 const CODE_SEARCH_PATTERN = /^([a-z]+):(.*)$/;
@@ -49,11 +50,8 @@ export class FileSearchManager {
   private atPaths: AtPathRange[] = []; // Tracked @paths in the text (computed from selectedPaths)
   private selectedPaths: Set<string> = new Set(); // Set of path strings that should be highlighted
 
-  // Frontmatter popup elements
-  private frontmatterPopup: HTMLDivElement | null = null;
-  private popupHideTimeout: ReturnType<typeof setTimeout> | null = null;
-  private static readonly POPUP_HIDE_DELAY = 100; // ms delay before hiding popup
-  private autoShowTooltip: boolean = false; // Auto-show tooltip for selected item
+  // PopupManager for frontmatter popup
+  private popupManager: PopupManager;
 
   // Cmd+hover state for file path link
   private isCmdHoverActive: boolean = false;
@@ -90,6 +88,12 @@ export class FileSearchManager {
 
   constructor(callbacks: FileSearchCallbacks) {
     this.callbacks = callbacks;
+
+    // Initialize PopupManager with callbacks
+    this.popupManager = new PopupManager({
+      getSelectedSuggestion: () => this.mergedSuggestions[this.selectedIndex] || null,
+      getSuggestionsContainer: () => this.suggestionsContainer
+    });
   }
 
   /**
@@ -267,8 +271,8 @@ export class FileSearchManager {
       console.debug('[FileSearchManager] initializeElements: suggestionsContainer already exists');
     }
 
-    // Create frontmatter popup element
-    this.createFrontmatterPopup();
+    // Initialize popup manager
+    this.popupManager.initialize();
 
     // Initialize code search (async, but store promise for later await)
     this.codeSearchInitPromise = this.initializeCodeSearch();
@@ -360,185 +364,6 @@ export class FileSearchManager {
       searchMode: data.searchMode,
       hint: data.hint
     }));
-  }
-
-  /**
-   * Create the frontmatter popup element for agent hover display
-   */
-  private createFrontmatterPopup(): void {
-    if (this.frontmatterPopup) return;
-
-    this.frontmatterPopup = document.createElement('div');
-    this.frontmatterPopup.id = 'frontmatterPopup';
-    this.frontmatterPopup.className = 'frontmatter-popup';
-    this.frontmatterPopup.style.display = 'none';
-
-    // Prevent popup from closing when hovering over it
-    this.frontmatterPopup.addEventListener('mouseenter', () => {
-      this.cancelPopupHide();
-    });
-
-    this.frontmatterPopup.addEventListener('mouseleave', () => {
-      this.schedulePopupHide();
-    });
-
-    // Handle wheel events on popup element only (scroll popup content)
-    this.frontmatterPopup.addEventListener('wheel', (e) => {
-      // Only prevent default when popup can scroll
-      const popup = this.frontmatterPopup;
-      if (popup) {
-        const canScrollDown = popup.scrollTop < popup.scrollHeight - popup.clientHeight;
-        const canScrollUp = popup.scrollTop > 0;
-        const scrollingDown = e.deltaY > 0;
-        const scrollingUp = e.deltaY < 0;
-
-        // Only prevent default if we're actually scrolling the popup content
-        if ((scrollingDown && canScrollDown) || (scrollingUp && canScrollUp)) {
-          e.preventDefault();
-          e.stopPropagation();
-          popup.scrollTop += e.deltaY;
-        }
-      }
-    }, { passive: false });
-
-    // Append to main-content
-    const mainContent = document.querySelector('.main-content');
-    if (mainContent) {
-      mainContent.appendChild(this.frontmatterPopup);
-      console.debug('[FileSearchManager] createFrontmatterPopup: popup created');
-    }
-  }
-
-  /**
-   * Show frontmatter popup for an agent
-   * Position: to the left of the info icon (same as slash command popup)
-   */
-  private showFrontmatterPopup(agent: AgentItem, targetElement: HTMLElement): void {
-    if (!this.frontmatterPopup || !agent.frontmatter || !this.suggestionsContainer) return;
-
-    // Cancel any pending hide
-    this.cancelPopupHide();
-
-    // Clear previous content using safe DOM method
-    while (this.frontmatterPopup.firstChild) {
-      this.frontmatterPopup.removeChild(this.frontmatterPopup.firstChild);
-    }
-
-    // Create content container (using textContent for XSS safety)
-    const contentDiv = document.createElement('div');
-    contentDiv.className = 'frontmatter-content';
-    contentDiv.textContent = agent.frontmatter;
-    this.frontmatterPopup.appendChild(contentDiv);
-
-    // Add hint message at the bottom
-    const hintDiv = document.createElement('div');
-    hintDiv.className = 'frontmatter-hint';
-    hintDiv.textContent = this.autoShowTooltip ? 'Ctrl+i: hide tooltip' : 'Ctrl+i: auto-show tooltip';
-    this.frontmatterPopup.appendChild(hintDiv);
-
-    // Get the info icon and container rectangles for positioning
-    const iconRect = targetElement.getBoundingClientRect();
-    const containerRect = this.suggestionsContainer.getBoundingClientRect();
-
-    // Position popup to the left of the info icon (same as slash command popup)
-    const popupWidth = containerRect.width - 40;
-    const horizontalGap = 8;
-    const right = window.innerWidth - iconRect.left + horizontalGap;
-
-    // Gap between popup and icon
-    const verticalGap = 4;
-
-    // Calculate available space below and above the icon
-    const spaceBelow = window.innerHeight - iconRect.bottom - 10;
-    const spaceAbove = iconRect.top - 10;
-    const minPopupHeight = 80;
-
-    // Decide whether to show popup above or below the icon
-    const showAbove = spaceBelow < minPopupHeight && spaceAbove > spaceBelow;
-
-    let top: number;
-    let maxHeight: number;
-
-    if (showAbove) {
-      // Position above the icon (bottom of popup aligns with top of icon)
-      maxHeight = Math.max(minPopupHeight, Math.min(150, spaceAbove - verticalGap));
-      top = iconRect.top - maxHeight - verticalGap;
-    } else {
-      // Position below the icon (top of popup aligns with bottom of icon)
-      top = iconRect.bottom + verticalGap;
-      maxHeight = Math.max(minPopupHeight, Math.min(150, spaceBelow - verticalGap));
-    }
-
-    this.frontmatterPopup.style.right = `${right}px`;
-    this.frontmatterPopup.style.left = 'auto';
-    this.frontmatterPopup.style.top = `${top}px`;
-    this.frontmatterPopup.style.width = `${popupWidth}px`;
-    this.frontmatterPopup.style.maxHeight = `${maxHeight}px`;
-
-    this.frontmatterPopup.style.display = 'block';
-  }
-
-  /**
-   * Hide frontmatter popup
-   */
-  private hideFrontmatterPopup(): void {
-    if (this.frontmatterPopup) {
-      this.frontmatterPopup.style.display = 'none';
-    }
-  }
-
-  /**
-   * Schedule popup hide with delay
-   */
-  private schedulePopupHide(): void {
-    this.cancelPopupHide();
-    this.popupHideTimeout = setTimeout(() => {
-      this.hideFrontmatterPopup();
-    }, FileSearchManager.POPUP_HIDE_DELAY);
-  }
-
-  /**
-   * Cancel scheduled popup hide
-   */
-  private cancelPopupHide(): void {
-    if (this.popupHideTimeout) {
-      clearTimeout(this.popupHideTimeout);
-      this.popupHideTimeout = null;
-    }
-  }
-
-  /**
-   * Toggle auto-show tooltip feature
-   */
-  private toggleAutoShowTooltip(): void {
-    this.autoShowTooltip = !this.autoShowTooltip;
-    if (this.autoShowTooltip) {
-      // Show tooltip for currently selected item
-      this.showTooltipForSelectedItem();
-    } else {
-      // Hide tooltip
-      this.hideFrontmatterPopup();
-    }
-  }
-
-  /**
-   * Show tooltip for the currently selected item (agent only)
-   */
-  private showTooltipForSelectedItem(): void {
-    if (!this.autoShowTooltip || !this.suggestionsContainer) return;
-
-    const suggestion = this.mergedSuggestions[this.selectedIndex];
-    if (!suggestion || suggestion.type !== 'agent' || !suggestion.agent?.frontmatter) {
-      this.hideFrontmatterPopup();
-      return;
-    }
-
-    // Find the info icon element for the selected item
-    const selectedItem = this.suggestionsContainer.querySelector('.file-suggestion-item.selected');
-    const infoIcon = selectedItem?.querySelector('.frontmatter-info-icon') as HTMLElement;
-    if (infoIcon) {
-      this.showFrontmatterPopup(suggestion.agent, infoIcon);
-    }
   }
 
   public setupEventListeners(): void {
@@ -2032,8 +1857,8 @@ export class FileSearchManager {
     this.restoreDefaultHint();
 
     // Hide frontmatter popup
-    this.hideFrontmatterPopup();
-    this.cancelPopupHide();
+    this.popupManager.hideFrontmatterPopup();
+    this.popupManager.cancelPopupHide();
   }
 
   /**
@@ -2466,11 +2291,11 @@ export class FileSearchManager {
 
           // Show popup on info icon hover (pass infoIcon as target for positioning)
           infoIcon.addEventListener('mouseenter', () => {
-            this.showFrontmatterPopup(agent, infoIcon);
+            this.popupManager.showFrontmatterPopup(agent, infoIcon);
           });
 
           infoIcon.addEventListener('mouseleave', () => {
-            this.schedulePopupHide();
+            this.popupManager.schedulePopupHide();
           });
 
           item.appendChild(infoIcon);
@@ -2641,7 +2466,7 @@ export class FileSearchManager {
     if (e.ctrlKey && e.key === 'i') {
       e.preventDefault();
       e.stopPropagation();
-      this.toggleAutoShowTooltip();
+      this.popupManager.toggleAutoShowTooltip();
       return;
     }
 
@@ -2810,7 +2635,7 @@ export class FileSearchManager {
     });
 
     // Update tooltip if auto-show is enabled
-    this.showTooltipForSelectedItem();
+    this.popupManager.showTooltipForSelectedItem();
   }
 
   /**
