@@ -286,7 +286,9 @@ let LANGUAGE_PATTERNS: [String: LanguageConfig] = [
         rgType: "markdown",
         patterns: [
             // ATX-style headings: # Heading, ## Heading, etc. (capture heading text)
-            SymbolPattern(type: .heading, regex: "^#{1,6}\\s+(.+?)(?:\\s+#+)?$", captureGroup: 1),
+            // Requires heading to start with a letter to exclude shell comments/dividers in code blocks
+            // This filters out: # =====, # -----, etc.
+            SymbolPattern(type: .heading, regex: "^#{1,6}\\s+([A-Za-z].+?)(?:\\s+#+)?$", captureGroup: 1),
         ]
     ),
     // Alias: @markdown: for Markdown (same as @md:)
@@ -295,7 +297,10 @@ let LANGUAGE_PATTERNS: [String: LanguageConfig] = [
         displayName: "Markdown",
         rgType: "markdown",
         patterns: [
-            SymbolPattern(type: .heading, regex: "^#{1,6}\\s+(.+?)(?:\\s+#+)?$", captureGroup: 1),
+            // ATX-style headings: # Heading, ## Heading, etc. (capture heading text)
+            // Requires heading to start with a letter to exclude shell comments/dividers in code blocks
+            // This filters out: # =====, # -----, etc.
+            SymbolPattern(type: .heading, regex: "^#{1,6}\\s+([A-Za-z].+?)(?:\\s+#+)?$", captureGroup: 1),
         ]
     ),
 ]
