@@ -36,3 +36,6 @@ export type { AtPathBehaviorCallbacks } from './at-path-behavior-manager';
 
 export { ItemSelectionManager } from './item-selection-manager';
 export type { ItemSelectionCallbacks } from './item-selection-manager';
+
+export { NavigationManager } from './navigation-manager';
+export type { NavigationCallbacks } from './navigation-manager';
