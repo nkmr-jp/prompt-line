@@ -210,6 +210,8 @@ export interface UserSettings {
     // 'name': insert only the file name (e.g., "config.ts")
     // 'path': insert the relative path (e.g., "src/config.ts")
     inputFormat?: InputFormatType;
+    // Maximum number of suggestions to show (default: 50)
+    maxSuggestions?: number;
   };
   fileOpener?: {
     // Extension-specific application settings (e.g., { "ts": "WebStorm", "md": "Typora" })
@@ -316,6 +318,8 @@ export interface FileSearchSettings {
   // 'name': insert only the file name (e.g., "config.ts")
   // 'path': insert the relative path (e.g., "src/config.ts")
   inputFormat?: InputFormatType;
+  // Maximum number of suggestions to show (default: 50)
+  maxSuggestions?: number;
 }
 
 // Directory data for file search (cached in renderer)

@@ -13,10 +13,16 @@ import type {
   RgCheckResponse,
   LanguagesResponse
 } from './types';
-import { SYMBOL_ICONS, getSymbolTypeDisplay, SYMBOL_TYPE_FROM_DISPLAY } from './types';
+import { getSymbolTypeDisplay, SYMBOL_TYPE_FROM_DISPLAY } from './types';
+import { getSymbolIconSvg } from '../assets/icons/file-icons';
 
 // Constants
 const CODE_SEARCH_PATTERN = /@([a-z]+):(\S*)$/;
+// Pattern to detect if we're in the middle of typing @lang:query (requires colon to be present)
+// This ensures we only block emoji conversion for code search, not file search (@path)
+const CODE_SEARCH_TYPING_PATTERN = /@[a-z]+:[^\s]*$/;
+// Pattern to detect emoji in @lang:query pattern (for rollback after conversion)
+const EMOJI_IN_CODE_SEARCH_PATTERN = /@[a-z]+:[\p{Emoji_Presentation}\p{Extended_Pictographic}]/u;
 const MAX_SUGGESTIONS = 20;
 const DEBOUNCE_DELAY = 150;
 
@@ -37,6 +43,8 @@ export class CodeSearchManager {
   private rgAvailable = false;
   private supportedLanguages: Map<string, LanguageInfo> = new Map();
   private isEnabled = false;
+  // State for emoji conversion rollback
+  private textBeforeEmojiConversion: { text: string; cursorPos: number } | null = null;
 
   constructor(callbacks: CodeSearchCallbacks) {
     this.callbacks = callbacks;
@@ -84,6 +92,7 @@ export class CodeSearchManager {
 
     this.textInput.addEventListener('input', () => this.handleInput());
     this.textInput.addEventListener('keydown', (e) => this.handleKeyDown(e));
+    this.textInput.addEventListener('beforeinput', (e) => this.handleBeforeInput(e));
     console.debug('[CodeSearchManager] setupEventListeners: event listeners attached');
 
     // Click outside to close
@@ -94,6 +103,36 @@ export class CodeSearchManager {
         this.hideSuggestions();
       }
     });
+  }
+
+  /**
+   * Handle beforeinput event to block emoji conversion during @lang: pattern typing
+   * macOS automatically converts :shortcode: patterns (like :link:) to emoji (🔗)
+   * This prevents that conversion when user is typing code search patterns like @md:link
+   */
+  private handleBeforeInput(e: InputEvent): void {
+    if (!this.textInput) return;
+
+    const text = this.textInput.value;
+    const cursorPos = this.textInput.selectionStart ?? 0;
+    const textBeforeCursor = text.substring(0, cursorPos);
+
+    // Check if we're in the middle of typing @lang:query pattern
+    if (CODE_SEARCH_TYPING_PATTERN.test(textBeforeCursor)) {
+      // Save state before any input that might be emoji conversion
+      // This allows rollback in handleInput if conversion happens
+      this.textBeforeEmojiConversion = { text, cursorPos };
+
+      // Try to block 'insertReplacementText' type (emoji conversion)
+      if (e.inputType === 'insertReplacementText') {
+        e.preventDefault();
+        console.debug('[CodeSearchManager] Blocked emoji conversion during code search typing', {
+          inputType: e.inputType,
+          data: e.data,
+          textBeforeCursor
+        });
+      }
+    }
   }
 
   /**
@@ -137,6 +176,25 @@ export class CodeSearchManager {
       hasTextInput: !!this.textInput,
       isComposing: this.callbacks.getIsComposing()
     });
+
+    // Check for emoji conversion and rollback if needed
+    if (this.textBeforeEmojiConversion && this.textInput) {
+      const currentText = this.textInput.value;
+      // Check if emoji was inserted in the @lang: pattern
+      if (EMOJI_IN_CODE_SEARCH_PATTERN.test(currentText)) {
+        // Rollback to the text before emoji conversion
+        const { text: previousText, cursorPos: previousCursorPos } = this.textBeforeEmojiConversion;
+        this.textInput.value = previousText;
+        this.textInput.setSelectionRange(previousCursorPos, previousCursorPos);
+        console.debug('[CodeSearchManager] Rolled back emoji conversion', {
+          currentText,
+          previousText
+        });
+        this.textBeforeEmojiConversion = null;
+        return; // Don't process further since we rolled back
+      }
+      this.textBeforeEmojiConversion = null;
+    }
 
     if (!this.isEnabled || !this.textInput || this.callbacks.getIsComposing()) {
       console.debug('[CodeSearchManager] handleInput: early return');
@@ -361,10 +419,10 @@ export class CodeSearchManager {
       item.classList.add('selected');
     }
 
-    // Icon
+    // Icon (SVG)
     const icon = document.createElement('span');
     icon.className = 'code-suggestion-icon';
-    icon.textContent = SYMBOL_ICONS[symbol.type] || '?';
+    icon.innerHTML = getSymbolIconSvg(symbol.type);
     item.appendChild(icon);
 
     // Name and type

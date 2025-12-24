@@ -379,7 +379,7 @@ The window supports multiple positioning modes with dynamic configuration:
 - **ripgrep-based**: Uses `rg` (ripgrep) for fast symbol searching
 - **Native Swift tool**: `symbol-searcher` binary in `native/symbol-searcher/`
 - **Symbol caching**: Results cached per directory and language for faster subsequent searches
-- **Supported languages (18)**:
+- **Supported languages (20)**:
   | Language | Key | Example | Symbol Types |
   |----------|-----|---------|--------------|
   | Go | `go` | `@go:Handler` | function, method, struct, interface, type, constant, variable |
@@ -400,6 +400,8 @@ The window supports multiple positioning modes with dynamic configuration:
   | PHP | `php` | `@php:render` | function, class, interface, trait, constant, enum |
   | C# | `cs` | `@cs:Handle` | class, interface, struct, enum, method, namespace |
   | Scala | `scala` | `@scala:process` | function, class, trait, object, type, constant, variable |
+  | Terraform | `tf`, `terraform` | `@tf:instance`, `@terraform:vpc` | resource, data, variable, output, module, provider |
+  | Markdown | `md`, `markdown` | `@md:Installation`, `@markdown:Usage` | heading |
 - **Requirements**: ripgrep (`rg`) must be installed (`brew install ripgrep`)
 - **File search must be enabled**: Code search is part of the @ mention system
 
@@ -514,67 +516,4 @@ ls -la dist/mac*/Prompt\ Line.app
 
 # Check native tools
 ls -la dist/mac*/Prompt\ Line.app/Contents/Resources/app.asar.unpacked/dist/native-tools/
-```
-
-## Investigation and Troubleshooting
-
-### Investigation Task Guidelines
-When conducting investigations (CI failures, bugs, security issues, design considerations, implementation planning, etc.), follow these guidelines:
-
-1. **Documentation**: Always document investigation results in `.claude/artifact/` directory
-2. **File Format**: Use markdown format for all investigation reports
-3. **File Naming**: Use descriptive names like:
-   - `YYYYMMDD-ci-failure-investigation.md`
-   - `YYYYMMDD-bug-report-issue-123.md`
-   - `YYYYMMDD-design-plan-feature-name.md`
-   - `YYYYMMDD-implementation-plan.md`
-4. **Content Structure**: Include:
-   - Summary of the issue/task
-   - Investigation/analysis steps taken
-   - Root cause analysis (for bugs/issues) or design considerations (for planning)
-   - Resolution recommendations or implementation plan
-   - Next steps and follow-up actions
-
-**Example Report Structures:**
-
-*For Investigations:*
-```markdown
-# [Issue Type] Investigation
-
-**Date:** YYYY-MM-DD
-**Issue:** Brief description
-**Status:** In Progress/Resolved/Blocked
-
-## Summary
-Brief overview of the issue and findings
-
-## Investigation Details
-Detailed steps taken and findings
-
-## Root Cause Analysis
-Technical analysis of the underlying cause
-
-## Resolution Recommendations
-Proposed solutions and next steps
-```
-
-*For Design/Implementation Planning:*
-```markdown
-# [Feature/Component] Design/Implementation Plan
-
-**Date:** YYYY-MM-DD
-**Scope:** Brief description of what's being planned
-**Status:** Planning/In Progress/Ready for Implementation
-
-## Summary
-Overview of the feature/component and objectives
-
-## Analysis & Design Considerations
-Requirements analysis, constraints, and design decisions
-
-## Implementation Plan
-Detailed implementation steps and approach
-
-## Next Steps
-Action items and implementation timeline
 ```

@@ -7,87 +7,30 @@ import type { FileInfo, DirectoryInfo, AgentItem } from '../types';
 import { getFileIconSvg, getMentionIconSvg, getSymbolIconSvg } from './assets/icons/file-icons';
 import type { SymbolResult, LanguageInfo } from './code-search/types';
 import { getSymbolTypeDisplay, SYMBOL_TYPE_FROM_DISPLAY } from './code-search/types';
+import type { DirectoryData, FileSearchCallbacks, AtPathRange, SuggestionItem } from './file-search';
+import {
+  formatLog,
+  insertSvgIntoElement,
+  normalizePath,
+  parsePathWithLineInfo,
+  getRelativePath,
+  getDirectoryFromPath,
+  calculateMatchScore,
+  calculateAgentMatchScore,
+  findAtPathAtPosition,
+  findUrlAtPosition,
+  findSlashCommandAtPosition,
+  findAbsolutePathAtPosition,
+  findClickablePathAtPosition,
+  resolveAtPathToAbsolute,
+  insertHighlightedText,
+  getCaretCoordinates,
+  createMirrorDiv
+} from './file-search';
+import { PopupManager, SettingsCacheManager } from './file-search/managers';
 
 // Pattern to detect code search queries (e.g., @ts:, @go:, @py:)
 const CODE_SEARCH_PATTERN = /^([a-z]+):(.*)$/;
-
-/**
- * Format object for console output (Electron renderer -> main process)
- * Outputs in a format similar to the main process logger
- */
-function formatLog(obj: Record<string, unknown>): string {
-  const entries = Object.entries(obj)
-    .map(([key, value]) => `  ${key}: ${typeof value === 'string' ? `'${value}'` : value}`)
-    .join(',\n');
-  return '{\n' + entries + '\n}';
-}
-
-/**
- * Safely parse and insert SVG content using DOMParser
- * This avoids innerHTML for security while allowing SVG insertion
- */
-function insertSvgIntoElement(element: HTMLElement, svgString: string): void {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(svgString, 'image/svg+xml');
-  const svgElement = doc.documentElement;
-
-  // Check for parsing errors
-  const parserError = doc.querySelector('parsererror');
-  if (parserError) {
-    console.warn('[FileSearchManager] SVG parse error, using fallback');
-    element.textContent = '📄';
-    return;
-  }
-
-  // Clear existing content and append SVG
-  element.textContent = '';
-  element.appendChild(element.ownerDocument.importNode(svgElement, true));
-}
-
-// Directory data for file search (cached in renderer)
-interface DirectoryData {
-  directory: string;
-  files: FileInfo[];
-  timestamp: number;
-  partial?: boolean;          // Always false (single stage with fd)
-  searchMode?: 'recursive';   // Always 'recursive' (single stage with fd)
-  fromCache?: boolean;        // true if data was loaded from disk cache
-  cacheAge?: number;          // milliseconds since cache was updated
-  fromDraft?: boolean;        // true if this is from draft fallback (empty files)
-  hint?: string;              // hint message to display to user (e.g., "Install fd: brew install fd")
-  filesDisabled?: boolean;    // true if file search is disabled for this directory
-  filesDisabledReason?: string; // reason why file search is disabled
-}
-
-interface FileSearchCallbacks {
-  onFileSelected: (filePath: string) => void;
-  getTextContent: () => string;
-  setTextContent: (text: string) => void;
-  getCursorPosition: () => number;
-  setCursorPosition: (position: number) => void;
-  onBeforeOpenFile?: () => void; // Called before opening file in editor to suppress blur
-  updateHintText?: (text: string) => void; // Update hint text in footer
-  getDefaultHintText?: () => string; // Get default hint text (directory path)
-  setDraggable?: (enabled: boolean) => void; // Enable/disable window dragging during file open
-  replaceRangeWithUndo?: (start: number, end: number, newText: string) => void; // Replace text range with undo support
-  getIsComposing?: () => boolean; // Check if IME is active to avoid conflicts with Japanese input
-}
-
-// Represents a tracked @path in the text
-interface AtPathRange {
-  start: number;              // Position of @
-  end: number;                // Position after the last character of the path
-  path?: string | undefined;  // The path content (without @) for highlighting
-}
-
-// Unified suggestion item (file, agent, or symbol) with score for mixed sorting
-interface SuggestionItem {
-  type: 'file' | 'agent' | 'symbol';
-  file?: FileInfo;
-  agent?: AgentItem;
-  symbol?: SymbolResult;
-  score: number;
-}
 
 export class FileSearchManager {
   private suggestionsContainer: HTMLElement | null = null;
@@ -107,11 +50,11 @@ export class FileSearchManager {
   private atPaths: AtPathRange[] = []; // Tracked @paths in the text (computed from selectedPaths)
   private selectedPaths: Set<string> = new Set(); // Set of path strings that should be highlighted
 
-  // Frontmatter popup elements
-  private frontmatterPopup: HTMLDivElement | null = null;
-  private popupHideTimeout: ReturnType<typeof setTimeout> | null = null;
-  private static readonly POPUP_HIDE_DELAY = 100; // ms delay before hiding popup
-  private autoShowTooltip: boolean = false; // Auto-show tooltip for selected item
+  // PopupManager for frontmatter popup
+  private popupManager: PopupManager;
+
+  // SettingsCacheManager for settings caching
+  private settingsCacheManager: SettingsCacheManager;
 
   // Cmd+hover state for file path link
   private isCmdHoverActive: boolean = false;
@@ -120,14 +63,6 @@ export class FileSearchManager {
   // Cursor position state for file path link
   private cursorPositionPath: AtPathRange | null = null;
 
-  // Constants
-  private static readonly DEFAULT_MAX_SUGGESTIONS = 20;
-
-  // Cached maxSuggestions per type
-  private maxSuggestionsCache: Map<string, number> = new Map();
-
-  // Cached searchPrefixes per type
-  private searchPrefixesCache: Map<string, string[]> = new Map();
 
   // Whether file search feature is enabled (from settings)
   private fileSearchEnabled: boolean = false;
@@ -148,6 +83,15 @@ export class FileSearchManager {
 
   constructor(callbacks: FileSearchCallbacks) {
     this.callbacks = callbacks;
+
+    // Initialize PopupManager with callbacks
+    this.popupManager = new PopupManager({
+      getSelectedSuggestion: () => this.mergedSuggestions[this.selectedIndex] || null,
+      getSuggestionsContainer: () => this.suggestionsContainer
+    });
+
+    // Initialize SettingsCacheManager
+    this.settingsCacheManager = new SettingsCacheManager();
   }
 
   /**
@@ -167,169 +111,66 @@ export class FileSearchManager {
 
   /**
    * Get maxSuggestions for a given type (cached)
+   * Delegates to SettingsCacheManager
    */
   private async getMaxSuggestions(type: 'command' | 'mention'): Promise<number> {
-    // Check cache first
-    if (this.maxSuggestionsCache.has(type)) {
-      return this.maxSuggestionsCache.get(type)!;
-    }
-
-    try {
-      const electronAPI = (window as any).electronAPI;
-      if (electronAPI?.mdSearch?.getMaxSuggestions) {
-        const maxSuggestions = await electronAPI.mdSearch.getMaxSuggestions(type);
-        this.maxSuggestionsCache.set(type, maxSuggestions);
-        return maxSuggestions;
-      }
-    } catch (error) {
-      console.error('[FileSearchManager] Failed to get maxSuggestions:', error);
-    }
-
-    return FileSearchManager.DEFAULT_MAX_SUGGESTIONS;
+    return this.settingsCacheManager.getMaxSuggestions(type);
   }
 
   /**
    * Clear maxSuggestions cache (call when settings might have changed)
+   * Delegates to SettingsCacheManager
    */
   public clearMaxSuggestionsCache(): void {
-    this.maxSuggestionsCache.clear();
+    this.settingsCacheManager.clearMaxSuggestionsCache();
   }
 
   /**
-   * Get searchPrefixes for a given type (cached)
+   * Get maxSuggestions for file search (cached)
+   * Delegates to SettingsCacheManager
    */
-  private async getSearchPrefixes(type: 'command' | 'mention'): Promise<string[]> {
-    // Check cache first
-    if (this.searchPrefixesCache.has(type)) {
-      return this.searchPrefixesCache.get(type)!;
-    }
-
-    try {
-      const electronAPI = (window as any).electronAPI;
-      if (electronAPI?.mdSearch?.getSearchPrefixes) {
-        const prefixes = await electronAPI.mdSearch.getSearchPrefixes(type);
-        this.searchPrefixesCache.set(type, prefixes);
-        return prefixes;
-      }
-    } catch (error) {
-      console.error('[FileSearchManager] Failed to get searchPrefixes:', error);
-    }
-
-    return [];
+  private async getFileSearchMaxSuggestions(): Promise<number> {
+    return this.settingsCacheManager.getFileSearchMaxSuggestions();
   }
 
   /**
    * Clear searchPrefixes cache (call when settings might have changed)
+   * Delegates to SettingsCacheManager
    */
   public clearSearchPrefixesCache(): void {
-    this.searchPrefixesCache.clear();
+    this.settingsCacheManager.clearSearchPrefixesCache();
   }
 
   /**
    * Check if query matches any searchPrefix for the given type
+   * Delegates to SettingsCacheManager
    */
   private async matchesSearchPrefix(query: string, type: 'command' | 'mention'): Promise<boolean> {
-    const prefixes = await this.getSearchPrefixes(type);
-    return prefixes.some(prefix => query.startsWith(prefix));
+    return this.settingsCacheManager.matchesSearchPrefix(query, type);
   }
 
   /**
    * Synchronously check if command type is enabled (from cache)
-   * Returns false if cache is not populated yet
+   * Delegates to SettingsCacheManager
    */
   private isCommandEnabledSync(): boolean {
-    const prefixes = this.searchPrefixesCache.get('command');
-    return prefixes !== undefined && prefixes.length > 0;
+    return this.settingsCacheManager.isCommandEnabledSync();
   }
 
   /**
    * Synchronously check if query matches any searchPrefix for the given type (from cache)
-   * Returns false if cache is not populated yet
+   * Delegates to SettingsCacheManager
    */
   private matchesSearchPrefixSync(query: string, type: 'command' | 'mention'): boolean {
-    const prefixes = this.searchPrefixesCache.get(type);
-    if (!prefixes) {
-      return false;
-    }
-    return prefixes.some(prefix => query.startsWith(prefix));
+    return this.settingsCacheManager.matchesSearchPrefixSync(query, type);
   }
 
   /**
    * Preload searchPrefixes cache for command and mention types
-   * Call this early (e.g., on window-shown) to populate cache for sync checks
+   * Delegates to SettingsCacheManager
    */
   public async preloadSearchPrefixesCache(): Promise<void> {
-    try {
-      // Load both command and mention prefixes in parallel
-      await Promise.all([
-        this.getSearchPrefixes('command'),
-        this.getSearchPrefixes('mention')
-      ]);
-      console.debug('[FileSearchManager] SearchPrefixes cache preloaded');
-    } catch (error) {
-      console.error('[FileSearchManager] Failed to preload searchPrefixes cache:', error);
-    }
-  }
-
-  /**
-   * Calculate the pixel position of a character in the textarea
-   * Uses a mirror div technique to measure text position
-   */
-  private getCaretCoordinates(position: number): { top: number; left: number } | null {
-    if (!this.textInput) return null;
-
-    // Create mirror div if it doesn't exist
-    if (!this.mirrorDiv) {
-      this.mirrorDiv = document.createElement('div');
-      this.mirrorDiv.style.cssText = `
-        position: absolute;
-        visibility: hidden;
-        white-space: pre-wrap;
-        word-wrap: break-word;
-        overflow: hidden;
-      `;
-      document.body.appendChild(this.mirrorDiv);
-    }
-
-    // Copy textarea styles to mirror div
-    const style = window.getComputedStyle(this.textInput);
-    const properties = [
-      'fontFamily', 'fontSize', 'fontWeight', 'fontStyle',
-      'letterSpacing', 'textTransform', 'wordSpacing',
-      'textIndent', 'whiteSpace', 'lineHeight',
-      'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
-      'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth',
-      'boxSizing', 'width'
-    ];
-
-    properties.forEach(prop => {
-      const value = style.getPropertyValue(prop.replace(/([A-Z])/g, '-$1').toLowerCase());
-      if (value) {
-        this.mirrorDiv!.style.setProperty(prop.replace(/([A-Z])/g, '-$1').toLowerCase(), value);
-      }
-    });
-
-    // Get text up to the position and add a span marker
-    const text = this.textInput.value.substring(0, position);
-    const textNode = document.createTextNode(text);
-    const marker = document.createElement('span');
-    marker.textContent = '@'; // Use @ as marker
-
-    this.mirrorDiv.innerHTML = '';
-    this.mirrorDiv.appendChild(textNode);
-    this.mirrorDiv.appendChild(marker);
-
-    // Get marker position relative to mirror div
-    const markerRect = marker.getBoundingClientRect();
-    const mirrorRect = this.mirrorDiv.getBoundingClientRect();
-
-    // Calculate position relative to textarea
-    const textareaRect = this.textInput.getBoundingClientRect();
-
-    return {
-      top: markerRect.top - mirrorRect.top + textareaRect.top - this.textInput.scrollTop,
-      left: markerRect.left - mirrorRect.left + textareaRect.left - this.textInput.scrollLeft
-    };
+    return this.settingsCacheManager.preloadSearchPrefixesCache();
   }
 
   public initializeElements(): void {
@@ -358,8 +199,8 @@ export class FileSearchManager {
       console.debug('[FileSearchManager] initializeElements: suggestionsContainer already exists');
     }
 
-    // Create frontmatter popup element
-    this.createFrontmatterPopup();
+    // Initialize popup manager
+    this.popupManager.initialize();
 
     // Initialize code search (async, but store promise for later await)
     this.codeSearchInitPromise = this.initializeCodeSearch();
@@ -451,185 +292,6 @@ export class FileSearchManager {
       searchMode: data.searchMode,
       hint: data.hint
     }));
-  }
-
-  /**
-   * Create the frontmatter popup element for agent hover display
-   */
-  private createFrontmatterPopup(): void {
-    if (this.frontmatterPopup) return;
-
-    this.frontmatterPopup = document.createElement('div');
-    this.frontmatterPopup.id = 'frontmatterPopup';
-    this.frontmatterPopup.className = 'frontmatter-popup';
-    this.frontmatterPopup.style.display = 'none';
-
-    // Prevent popup from closing when hovering over it
-    this.frontmatterPopup.addEventListener('mouseenter', () => {
-      this.cancelPopupHide();
-    });
-
-    this.frontmatterPopup.addEventListener('mouseleave', () => {
-      this.schedulePopupHide();
-    });
-
-    // Handle wheel events on popup element only (scroll popup content)
-    this.frontmatterPopup.addEventListener('wheel', (e) => {
-      // Only prevent default when popup can scroll
-      const popup = this.frontmatterPopup;
-      if (popup) {
-        const canScrollDown = popup.scrollTop < popup.scrollHeight - popup.clientHeight;
-        const canScrollUp = popup.scrollTop > 0;
-        const scrollingDown = e.deltaY > 0;
-        const scrollingUp = e.deltaY < 0;
-
-        // Only prevent default if we're actually scrolling the popup content
-        if ((scrollingDown && canScrollDown) || (scrollingUp && canScrollUp)) {
-          e.preventDefault();
-          e.stopPropagation();
-          popup.scrollTop += e.deltaY;
-        }
-      }
-    }, { passive: false });
-
-    // Append to main-content
-    const mainContent = document.querySelector('.main-content');
-    if (mainContent) {
-      mainContent.appendChild(this.frontmatterPopup);
-      console.debug('[FileSearchManager] createFrontmatterPopup: popup created');
-    }
-  }
-
-  /**
-   * Show frontmatter popup for an agent
-   * Position: to the left of the info icon (same as slash command popup)
-   */
-  private showFrontmatterPopup(agent: AgentItem, targetElement: HTMLElement): void {
-    if (!this.frontmatterPopup || !agent.frontmatter || !this.suggestionsContainer) return;
-
-    // Cancel any pending hide
-    this.cancelPopupHide();
-
-    // Clear previous content using safe DOM method
-    while (this.frontmatterPopup.firstChild) {
-      this.frontmatterPopup.removeChild(this.frontmatterPopup.firstChild);
-    }
-
-    // Create content container (using textContent for XSS safety)
-    const contentDiv = document.createElement('div');
-    contentDiv.className = 'frontmatter-content';
-    contentDiv.textContent = agent.frontmatter;
-    this.frontmatterPopup.appendChild(contentDiv);
-
-    // Add hint message at the bottom
-    const hintDiv = document.createElement('div');
-    hintDiv.className = 'frontmatter-hint';
-    hintDiv.textContent = this.autoShowTooltip ? 'Ctrl+i: hide tooltip' : 'Ctrl+i: auto-show tooltip';
-    this.frontmatterPopup.appendChild(hintDiv);
-
-    // Get the info icon and container rectangles for positioning
-    const iconRect = targetElement.getBoundingClientRect();
-    const containerRect = this.suggestionsContainer.getBoundingClientRect();
-
-    // Position popup to the left of the info icon (same as slash command popup)
-    const popupWidth = containerRect.width - 40;
-    const horizontalGap = 8;
-    const right = window.innerWidth - iconRect.left + horizontalGap;
-
-    // Gap between popup and icon
-    const verticalGap = 4;
-
-    // Calculate available space below and above the icon
-    const spaceBelow = window.innerHeight - iconRect.bottom - 10;
-    const spaceAbove = iconRect.top - 10;
-    const minPopupHeight = 80;
-
-    // Decide whether to show popup above or below the icon
-    const showAbove = spaceBelow < minPopupHeight && spaceAbove > spaceBelow;
-
-    let top: number;
-    let maxHeight: number;
-
-    if (showAbove) {
-      // Position above the icon (bottom of popup aligns with top of icon)
-      maxHeight = Math.max(minPopupHeight, Math.min(150, spaceAbove - verticalGap));
-      top = iconRect.top - maxHeight - verticalGap;
-    } else {
-      // Position below the icon (top of popup aligns with bottom of icon)
-      top = iconRect.bottom + verticalGap;
-      maxHeight = Math.max(minPopupHeight, Math.min(150, spaceBelow - verticalGap));
-    }
-
-    this.frontmatterPopup.style.right = `${right}px`;
-    this.frontmatterPopup.style.left = 'auto';
-    this.frontmatterPopup.style.top = `${top}px`;
-    this.frontmatterPopup.style.width = `${popupWidth}px`;
-    this.frontmatterPopup.style.maxHeight = `${maxHeight}px`;
-
-    this.frontmatterPopup.style.display = 'block';
-  }
-
-  /**
-   * Hide frontmatter popup
-   */
-  private hideFrontmatterPopup(): void {
-    if (this.frontmatterPopup) {
-      this.frontmatterPopup.style.display = 'none';
-    }
-  }
-
-  /**
-   * Schedule popup hide with delay
-   */
-  private schedulePopupHide(): void {
-    this.cancelPopupHide();
-    this.popupHideTimeout = setTimeout(() => {
-      this.hideFrontmatterPopup();
-    }, FileSearchManager.POPUP_HIDE_DELAY);
-  }
-
-  /**
-   * Cancel scheduled popup hide
-   */
-  private cancelPopupHide(): void {
-    if (this.popupHideTimeout) {
-      clearTimeout(this.popupHideTimeout);
-      this.popupHideTimeout = null;
-    }
-  }
-
-  /**
-   * Toggle auto-show tooltip feature
-   */
-  private toggleAutoShowTooltip(): void {
-    this.autoShowTooltip = !this.autoShowTooltip;
-    if (this.autoShowTooltip) {
-      // Show tooltip for currently selected item
-      this.showTooltipForSelectedItem();
-    } else {
-      // Hide tooltip
-      this.hideFrontmatterPopup();
-    }
-  }
-
-  /**
-   * Show tooltip for the currently selected item (agent only)
-   */
-  private showTooltipForSelectedItem(): void {
-    if (!this.autoShowTooltip || !this.suggestionsContainer) return;
-
-    const suggestion = this.mergedSuggestions[this.selectedIndex];
-    if (!suggestion || suggestion.type !== 'agent' || !suggestion.agent?.frontmatter) {
-      this.hideFrontmatterPopup();
-      return;
-    }
-
-    // Find the info icon element for the selected item
-    const selectedItem = this.suggestionsContainer.querySelector('.file-suggestion-item.selected');
-    const infoIcon = selectedItem?.querySelector('.frontmatter-info-icon') as HTMLElement;
-    if (infoIcon) {
-      this.showFrontmatterPopup(suggestion.agent, infoIcon);
-    }
   }
 
   public setupEventListeners(): void {
@@ -793,7 +455,7 @@ export class FileSearchManager {
     }
 
     // Check for @path first
-    const atPath = this.findAtPathAtPosition(text, charPos);
+    const atPath = findAtPathAtPosition(text, charPos);
     if (atPath) {
       // Find the AtPathRange that contains this position
       const atPathRange = this.findAtPathRangeAtPosition(charPos);
@@ -805,7 +467,7 @@ export class FileSearchManager {
     }
 
     // Check for URL
-    const url = this.findUrlAtPosition(text, charPos);
+    const url = findUrlAtPosition(text, charPos);
     if (url) {
       // Create a temporary AtPathRange for the URL
       const tempRange: AtPathRange = { start: url.start, end: url.end };
@@ -818,7 +480,7 @@ export class FileSearchManager {
 
     // Check for slash command (like /commit, /help) - only if command type is enabled
     if (this.isCommandEnabledSync()) {
-      const slashCommand = this.findSlashCommandAtPosition(text, charPos);
+      const slashCommand = findSlashCommandAtPosition(text, charPos);
       if (slashCommand) {
         // Create a temporary AtPathRange for the slash command
         const tempRange: AtPathRange = { start: slashCommand.start, end: slashCommand.end };
@@ -831,7 +493,7 @@ export class FileSearchManager {
     }
 
     // Check for absolute path (starting with /)
-    const clickablePath = this.findClickablePathAtPosition(text, charPos);
+    const clickablePath = findClickablePathAtPosition(text, charPos);
     if (clickablePath) {
       // Create a temporary AtPathRange for the absolute path
       const tempRange: AtPathRange = { start: clickablePath.start, end: clickablePath.end };
@@ -1001,7 +663,7 @@ export class FileSearchManager {
     const cursorPos = this.textInput.selectionStart;
 
     // First check if cursor is on an @path - still show hint but no extra highlight
-    const atPath = this.findAtPathAtPosition(text, cursorPos);
+    const atPath = findAtPathAtPosition(text, cursorPos);
     if (atPath) {
       // Show hint for @path too
       this.showFileOpenHint();
@@ -1013,7 +675,7 @@ export class FileSearchManager {
     }
 
     // Check if cursor is on a URL
-    const url = this.findUrlAtPosition(text, cursorPos);
+    const url = findUrlAtPosition(text, cursorPos);
     if (url) {
       // Show hint for URL
       this.showUrlOpenHint();
@@ -1030,7 +692,7 @@ export class FileSearchManager {
 
     // Check if cursor is on a slash command (only if command type is enabled)
     if (this.isCommandEnabledSync()) {
-      const slashCommand = this.findSlashCommandAtPosition(text, cursorPos);
+      const slashCommand = findSlashCommandAtPosition(text, cursorPos);
       if (slashCommand) {
         // Show hint for slash command
         this.showSlashCommandOpenHint();
@@ -1047,13 +709,13 @@ export class FileSearchManager {
     }
 
     // Find absolute path at cursor position (paths starting with / or ~)
-    const absolutePath = this.findAbsolutePathAtPosition(text, cursorPos);
+    const absolutePath = findAbsolutePathAtPosition(text, cursorPos);
 
     if (absolutePath) {
       // Show hint for absolute path
       this.showFileOpenHint();
       // Get the range for the absolute path
-      const pathInfo = this.findClickablePathAtPosition(text, cursorPos);
+      const pathInfo = findClickablePathAtPosition(text, cursorPos);
       if (pathInfo && !pathInfo.path.startsWith('@')) {
         const newRange: AtPathRange = { start: pathInfo.start, end: pathInfo.end };
         // Only update if position changed
@@ -1240,7 +902,7 @@ export class FileSearchManager {
     const cursorPos = this.textInput.selectionStart;
 
     // Check for URL first
-    const url = this.findUrlAtPosition(text, cursorPos);
+    const url = findUrlAtPosition(text, cursorPos);
     if (url) {
       e.preventDefault();
       e.stopPropagation();
@@ -1251,7 +913,7 @@ export class FileSearchManager {
 
     // Check for slash command (like /commit, /help) - only if command type is enabled
     if (this.isCommandEnabledSync()) {
-      const slashCommand = this.findSlashCommandAtPosition(text, cursorPos);
+      const slashCommand = findSlashCommandAtPosition(text, cursorPos);
       if (slashCommand) {
         e.preventDefault();
         e.stopPropagation();
@@ -1270,7 +932,7 @@ export class FileSearchManager {
     }
 
     // Find @path at cursor position
-    const atPath = this.findAtPathAtPosition(text, cursorPos);
+    const atPath = findAtPathAtPosition(text, cursorPos);
     if (atPath) {
       e.preventDefault();
       e.stopPropagation();
@@ -1278,7 +940,7 @@ export class FileSearchManager {
       const looksLikeFilePath = atPath.includes('/') || atPath.includes('.');
 
       if (looksLikeFilePath) {
-        const filePath = this.resolveAtPathToAbsolute(atPath);
+        const filePath = resolveAtPathToAbsolute(atPath, this.cachedDirectoryData?.directory, parsePathWithLineInfo, normalizePath);
         if (filePath) {
           await this.openFileAndRestoreFocus(filePath);
           return;
@@ -1298,7 +960,7 @@ export class FileSearchManager {
 
       // Fallback
       if (!looksLikeFilePath) {
-        const filePath = this.resolveAtPathToAbsolute(atPath);
+        const filePath = resolveAtPathToAbsolute(atPath, this.cachedDirectoryData?.directory, parsePathWithLineInfo, normalizePath);
         if (filePath) {
           await this.openFileAndRestoreFocus(filePath);
         }
@@ -1307,7 +969,7 @@ export class FileSearchManager {
     }
 
     // Find absolute path at cursor position
-    const absolutePath = this.findAbsolutePathAtPosition(text, cursorPos);
+    const absolutePath = findAbsolutePathAtPosition(text, cursorPos);
     if (absolutePath) {
       e.preventDefault();
       e.stopPropagation();
@@ -1327,7 +989,7 @@ export class FileSearchManager {
     const cursorPos = this.textInput.selectionStart;
 
     // Check for URL first
-    const url = this.findUrlAtPosition(text, cursorPos);
+    const url = findUrlAtPosition(text, cursorPos);
     if (url) {
       e.preventDefault();
       e.stopPropagation();
@@ -1338,7 +1000,7 @@ export class FileSearchManager {
 
     // Check for slash command (like /commit, /help) - only if command type is enabled
     if (this.isCommandEnabledSync()) {
-      const slashCommand = this.findSlashCommandAtPosition(text, cursorPos);
+      const slashCommand = findSlashCommandAtPosition(text, cursorPos);
       if (slashCommand) {
         e.preventDefault();
         e.stopPropagation();
@@ -1357,7 +1019,7 @@ export class FileSearchManager {
     }
 
     // Find @path at or near cursor position
-    const atPath = this.findAtPathAtPosition(text, cursorPos);
+    const atPath = findAtPathAtPosition(text, cursorPos);
     if (atPath) {
       e.preventDefault();
       e.stopPropagation();
@@ -1367,7 +1029,7 @@ export class FileSearchManager {
 
       if (looksLikeFilePath) {
         // Resolve as file path first
-        const filePath = this.resolveAtPathToAbsolute(atPath);
+        const filePath = resolveAtPathToAbsolute(atPath, this.cachedDirectoryData?.directory, parsePathWithLineInfo, normalizePath);
         if (filePath) {
           await this.openFileAndRestoreFocus(filePath);
           return;
@@ -1387,7 +1049,7 @@ export class FileSearchManager {
 
       // Fallback: try to open as file path if it wasn't already tried
       if (!looksLikeFilePath) {
-        const filePath = this.resolveAtPathToAbsolute(atPath);
+        const filePath = resolveAtPathToAbsolute(atPath, this.cachedDirectoryData?.directory, parsePathWithLineInfo, normalizePath);
         if (filePath) {
           await this.openFileAndRestoreFocus(filePath);
         }
@@ -1396,245 +1058,13 @@ export class FileSearchManager {
     }
 
     // Find absolute path at cursor position
-    const absolutePath = this.findAbsolutePathAtPosition(text, cursorPos);
+    const absolutePath = findAbsolutePathAtPosition(text, cursorPos);
     if (absolutePath) {
       e.preventDefault();
       e.stopPropagation();
 
       await this.openFileAndRestoreFocus(absolutePath);
     }
-  }
-
-  /**
-   * Find @path at the given cursor position
-   * Returns the path (without @) if found, null otherwise
-   */
-  private findAtPathAtPosition(text: string, cursorPos: number): string | null {
-    // Pattern to match @path (file paths after @)
-    const atPathPattern = /@([^\s@]+)/g;
-    let match;
-
-    while ((match = atPathPattern.exec(text)) !== null) {
-      const start = match.index;
-      const end = start + match[0].length;
-
-      // Check if cursor is within this @path
-      if (cursorPos >= start && cursorPos <= end) {
-        return match[1] ?? null; // Return path without @
-      }
-    }
-
-    return null;
-  }
-
-  /**
-   * Find URL at the given cursor position
-   * Returns { url, start, end } if found, null otherwise
-   * Supports both http:// and https:// URLs including query parameters
-   */
-  private findUrlAtPosition(text: string, cursorPos: number): { url: string; start: number; end: number } | null {
-    // Pattern to match URLs starting with http:// or https://
-    // Includes query parameters (?key=value) and fragments (#section)
-    const urlPattern = /https?:\/\/[^\s"'<>|*\n]+/gi;
-    let match;
-
-    while ((match = urlPattern.exec(text)) !== null) {
-      const start = match.index;
-      const end = start + match[0].length;
-
-      // Check if cursor is within this URL
-      if (cursorPos >= start && cursorPos <= end) {
-        return { url: match[0], start, end };
-      }
-    }
-
-    return null;
-  }
-
-  /**
-   * Find slash command at the given cursor position
-   * Returns { command, start, end } if found, null otherwise
-   * Slash commands are like /commit, /help (single word after /)
-   */
-  private findSlashCommandAtPosition(text: string, cursorPos: number): { command: string; start: number; end: number } | null {
-    // Pattern to match slash commands: /word (no slashes in the middle)
-    // This matches /commit, /help, etc. but not /path/to/file
-    const slashCommandPattern = /\/([a-zA-Z][a-zA-Z0-9_-]*)/g;
-    let match;
-
-    while ((match = slashCommandPattern.exec(text)) !== null) {
-      const start = match.index;
-      const end = start + match[0].length;
-      const commandName = match[1] ?? '';
-
-      // Check if cursor is within this slash command
-      if (cursorPos >= start && cursorPos <= end) {
-        // Make sure it's at the start of text or after whitespace (not part of a path)
-        const prevChar = start > 0 ? text[start - 1] : ' ';
-        if (prevChar === ' ' || prevChar === '\n' || prevChar === '\t' || start === 0) {
-          return { command: commandName, start, end };
-        }
-      }
-    }
-
-    return null;
-  }
-
-  /**
-   * Find absolute file path at the given cursor position
-   * Returns the path if found, null otherwise
-   * Supports both / and ~ (home directory) prefixed paths
-   */
-  private findAbsolutePathAtPosition(text: string, cursorPos: number): string | null {
-    // Pattern to match absolute paths starting with / or ~
-    // Matches paths like /Users/name/.prompt-line/images/file.png
-    // or ~/.prompt-line/images/file.png
-    const absolutePathPattern = /(?:\/|~\/)[^\s"'<>|*?\n]+/g;
-    let match;
-
-    while ((match = absolutePathPattern.exec(text)) !== null) {
-      const start = match.index;
-      const end = start + match[0].length;
-
-      // Check if path is at start of text or preceded by whitespace
-      // This prevents matching paths like "ghq/github.com/..." as absolute paths
-      const prevChar = start > 0 ? text[start - 1] : '';
-      if (prevChar !== '' && prevChar !== ' ' && prevChar !== '\t' && prevChar !== '\n') {
-        continue; // Skip - not a standalone absolute path
-      }
-
-      // Check if cursor is within this path
-      if (cursorPos >= start && cursorPos <= end) {
-        return match[0]; // Return the full path
-      }
-    }
-
-    return null;
-  }
-
-  /**
-   * Find any clickable file path at the given position
-   * Returns { path, start, end } if found
-   * Excludes slash commands (e.g., /commit) from absolute path detection
-   */
-  private findClickablePathAtPosition(text: string, cursorPos: number): { path: string; start: number; end: number } | null {
-    // First check @path
-    const atPathPattern = /@([^\s@]+)/g;
-    let match;
-
-    while ((match = atPathPattern.exec(text)) !== null) {
-      const start = match.index;
-      const end = start + match[0].length;
-
-      if (cursorPos >= start && cursorPos <= end) {
-        return { path: match[1] ?? '', start, end };
-      }
-    }
-
-    // Then check absolute paths (including ~ for home directory)
-    // Excludes single-level paths like /commit (slash commands)
-    const absolutePathPattern = /(?:\/(?:[^\s"'<>|*?\n/]+\/)+[^\s"'<>|*?\n]*|~\/[^\s"'<>|*?\n]+)/g;
-    while ((match = absolutePathPattern.exec(text)) !== null) {
-      const start = match.index;
-      const end = start + match[0].length;
-
-      // Check if path is at start of text or preceded by whitespace
-      // This prevents matching paths like "ghq/github.com/..." as absolute paths
-      const prevChar = start > 0 ? text[start - 1] : '';
-      if (prevChar !== '' && prevChar !== ' ' && prevChar !== '\t' && prevChar !== '\n') {
-        continue; // Skip - not a standalone absolute path
-      }
-
-      if (cursorPos >= start && cursorPos <= end) {
-        return { path: match[0], start, end };
-      }
-    }
-
-    return null;
-  }
-
-  /**
-   * Normalize a path by resolving . and .. segments
-   * This is a browser-compatible implementation since Node's path module isn't available
-   */
-  private normalizePath(filePath: string): string {
-    const parts = filePath.split('/');
-    const result: string[] = [];
-
-    for (const part of parts) {
-      if (part === '..') {
-        // Go up one directory (remove last segment)
-        if (result.length > 0 && result[result.length - 1] !== '') {
-          result.pop();
-        }
-      } else if (part !== '.' && part !== '') {
-        // Skip current directory marker and empty parts (except for leading empty for absolute paths)
-        result.push(part);
-      } else if (part === '' && result.length === 0) {
-        // Preserve leading empty string for absolute paths (e.g., /Users/...)
-        result.push(part);
-      }
-    }
-
-    return result.join('/') || '/';
-  }
-
-  /**
-   * Parse a path that may contain line number and symbol name suffix
-   * Format: path:lineNumber#symbolName
-   * Returns: { path: string, lineNumber?: number, symbolName?: string }
-   */
-  private parsePathWithLineInfo(pathStr: string): { path: string; lineNumber?: number; symbolName?: string } {
-    // Match pattern: path:lineNumber#symbolName or path:lineNumber
-    const match = pathStr.match(/^(.+?):(\d+)(#(.+))?$/);
-    if (match && match[1] && match[2]) {
-      const result: { path: string; lineNumber?: number; symbolName?: string } = {
-        path: match[1],
-        lineNumber: parseInt(match[2], 10)
-      };
-      if (match[4]) {
-        result.symbolName = match[4];
-      }
-      return result;
-    }
-    // No line number suffix
-    return { path: pathStr };
-  }
-
-  /**
-   * Resolve a relative file path to absolute path
-   * Handles paths with line number and symbol suffix: path:lineNumber#symbolName
-   * Preserves line number and symbol suffix in the returned path
-   */
-  private resolveAtPathToAbsolute(relativePath: string): string | null {
-    // Parse the path to extract line number/symbol suffix
-    const parsed = this.parsePathWithLineInfo(relativePath);
-    const cleanPath = parsed.path;
-
-    const baseDir = this.cachedDirectoryData?.directory;
-    let absolutePath: string;
-
-    if (!baseDir) {
-      // If no base directory, try to use the path as-is
-      absolutePath = cleanPath;
-    } else if (cleanPath.startsWith('/')) {
-      // Already an absolute path
-      absolutePath = cleanPath;
-    } else {
-      // Combine with base directory and normalize (handles ../ etc.)
-      const combined = `${baseDir}/${cleanPath}`;
-      absolutePath = this.normalizePath(combined);
-    }
-
-    // Re-append line number and symbol suffix if they were present
-    if (parsed.lineNumber !== undefined) {
-      absolutePath = `${absolutePath}:${parsed.lineNumber}`;
-      if (parsed.symbolName) {
-        absolutePath = `${absolutePath}#${parsed.symbolName}`;
-      }
-    }
-
-    return absolutePath;
   }
 
   /**
@@ -2103,7 +1533,7 @@ export class FileSearchManager {
     // If in symbol mode, show filtered symbols instead of files
     if (this.isInSymbolMode) {
       this.currentQuery = query;
-      this.showSymbolSuggestions(query);
+      await this.showSymbolSuggestions(query);
       return;
     }
 
@@ -2235,7 +1665,12 @@ export class FileSearchManager {
   private positionSuggestions(): void {
     if (!this.suggestionsContainer || !this.textInput || this.atStartPosition < 0) return;
 
-    const coords = this.getCaretCoordinates(this.atStartPosition);
+    // Create mirror div for caret position calculation if it doesn't exist
+    if (!this.mirrorDiv) {
+      this.mirrorDiv = createMirrorDiv();
+    }
+
+    const coords = getCaretCoordinates(this.textInput, this.mirrorDiv, this.atStartPosition);
     if (!coords) return;
 
     // Get main-content for relative positioning (allows spanning across sections)
@@ -2350,8 +1785,8 @@ export class FileSearchManager {
     this.restoreDefaultHint();
 
     // Hide frontmatter popup
-    this.hideFrontmatterPopup();
-    this.cancelPopupHide();
+    this.popupManager.hideFrontmatterPopup();
+    this.popupManager.cancelPopupHide();
   }
 
   /**
@@ -2393,7 +1828,7 @@ export class FileSearchManager {
       const seenDirs = new Set<string>();
 
       for (const file of allFiles) {
-        const relativePath = this.getRelativePath(file.path, baseDir);
+        const relativePath = getRelativePath(file.path, baseDir);
 
         // Check if file is under currentPath
         if (!relativePath.startsWith(this.currentPath)) {
@@ -2440,7 +1875,7 @@ export class FileSearchManager {
           // Then sort by name
           return a.name.localeCompare(b.name);
         });
-        return sorted.slice(0, FileSearchManager.DEFAULT_MAX_SUGGESTIONS);
+        return sorted.slice(0, this.settingsCacheManager.getDefaultMaxSuggestions());
       }
 
       const queryLower = query.toLowerCase();
@@ -2449,11 +1884,11 @@ export class FileSearchManager {
       const scored = files
         .map(file => ({
           file,
-          score: this.calculateMatchScore(file, queryLower)
+          score: calculateMatchScore(file, queryLower)
         }))
         .filter(item => item.score > 0)
         .sort((a, b) => b.score - a.score)
-        .slice(0, FileSearchManager.DEFAULT_MAX_SUGGESTIONS);
+        .slice(0, this.settingsCacheManager.getDefaultMaxSuggestions());
 
       return scored.map(item => item.file);
     }
@@ -2464,7 +1899,7 @@ export class FileSearchManager {
       const seenDirs = new Set<string>();
 
       for (const file of allFiles) {
-        const relativePath = this.getRelativePath(file.path, baseDir);
+        const relativePath = getRelativePath(file.path, baseDir);
         const slashIndex = relativePath.indexOf('/');
 
         if (slashIndex === -1) {
@@ -2477,7 +1912,7 @@ export class FileSearchManager {
             seenDirs.add(dirName);
             // Check if we already have this directory in allFiles
             const existingDir = allFiles.find(f =>
-              f.isDirectory && this.getRelativePath(f.path, baseDir) === dirName
+              f.isDirectory && getRelativePath(f.path, baseDir) === dirName
             );
             if (existingDir) {
               files.push(existingDir);
@@ -2502,7 +1937,7 @@ export class FileSearchManager {
         // Then sort by name
         return a.name.localeCompare(b.name);
       });
-      return sorted.slice(0, FileSearchManager.DEFAULT_MAX_SUGGESTIONS);
+      return sorted.slice(0, this.settingsCacheManager.getDefaultMaxSuggestions());
     }
 
     // With query at root level - search ALL files recursively and show matching ones
@@ -2516,8 +1951,8 @@ export class FileSearchManager {
       .filter(file => !file.isDirectory)
       .map(file => ({
         file,
-        score: this.calculateMatchScore(file, queryLower),
-        relativePath: this.getRelativePath(file.path, baseDir)
+        score: calculateMatchScore(file, queryLower),
+        relativePath: getRelativePath(file.path, baseDir)
       }))
       .filter(item => item.score > 0);
 
@@ -2526,7 +1961,7 @@ export class FileSearchManager {
     const seenDirNames = new Map<string, { path: string; depth: number }>();
 
     for (const file of allFiles) {
-      const relativePath = this.getRelativePath(file.path, baseDir);
+      const relativePath = getRelativePath(file.path, baseDir);
       const pathParts = relativePath.split('/').filter(p => p);
 
       // Check each directory in the path (except the last part which is the file name)
@@ -2567,73 +2002,16 @@ export class FileSearchManager {
     // Score directories (use uniqueDirs to avoid duplicates from symlinks)
     const scoredDirs = uniqueDirs.map(dir => ({
       file: dir,
-      score: this.calculateMatchScore(dir, queryLower),
-      relativePath: this.getRelativePath(dir.path, baseDir)
+      score: calculateMatchScore(dir, queryLower),
+      relativePath: getRelativePath(dir.path, baseDir)
     }));
 
     // Combine and sort by score
     const allScored = [...scoredFiles, ...scoredDirs]
       .sort((a, b) => b.score - a.score)
-      .slice(0, FileSearchManager.DEFAULT_MAX_SUGGESTIONS);
+      .slice(0, this.settingsCacheManager.getDefaultMaxSuggestions());
 
     return allScored.map(item => item.file);
-  }
-
-  /**
-   * Calculate match score for a file
-   * Higher score = better match
-   */
-  private calculateMatchScore(file: FileInfo, queryLower: string): number {
-    const nameLower = file.name.toLowerCase();
-    const pathLower = file.path.toLowerCase();
-
-    let score = 0;
-
-    // Exact name match
-    if (nameLower === queryLower) {
-      score += 1000;
-    }
-    // Name starts with query
-    else if (nameLower.startsWith(queryLower)) {
-      score += 500;
-    }
-    // Name contains query
-    else if (nameLower.includes(queryLower)) {
-      score += 200;
-    }
-    // Path contains query
-    else if (pathLower.includes(queryLower)) {
-      score += 50;
-    }
-    // Fuzzy match on name
-    else if (this.fuzzyMatch(nameLower, queryLower)) {
-      score += 10;
-    }
-
-    // Bonus for files (not directories)
-    if (!file.isDirectory) {
-      score += 5;
-    }
-
-    // Bonus for shorter paths
-    score += Math.max(0, 20 - pathLower.split('/').length);
-
-    return score;
-  }
-
-  /**
-   * Simple fuzzy matching
-   */
-  private fuzzyMatch(text: string, pattern: string): boolean {
-    let patternIdx = 0;
-
-    for (let i = 0; i < text.length && patternIdx < pattern.length; i++) {
-      if (text[i] === pattern[patternIdx]) {
-        patternIdx++;
-      }
-    }
-
-    return patternIdx === pattern.length;
   }
 
   /**
@@ -2643,14 +2021,14 @@ export class FileSearchManager {
     if (!this.cachedDirectoryData?.files) return 0;
 
     const baseDir = this.cachedDirectoryData.directory;
-    const dirRelativePath = this.getRelativePath(dirPath, baseDir);
+    const dirRelativePath = getRelativePath(dirPath, baseDir);
     const dirPrefix = dirRelativePath.endsWith('/') ? dirRelativePath : dirRelativePath + '/';
 
     let count = 0;
     const seenChildren = new Set<string>();
 
     for (const file of this.cachedDirectoryData.files) {
-      const relativePath = this.getRelativePath(file.path, baseDir);
+      const relativePath = getRelativePath(file.path, baseDir);
 
       if (!relativePath.startsWith(dirPrefix)) continue;
 
@@ -2687,13 +2065,13 @@ export class FileSearchManager {
 
     // Add files with scores
     for (const file of this.filteredFiles) {
-      const score = this.calculateMatchScore(file, queryLower);
+      const score = calculateMatchScore(file, queryLower);
       items.push({ type: 'file', file, score });
     }
 
     // Add agents with scores
     for (const agent of this.filteredAgents) {
-      const score = this.calculateAgentMatchScore(agent, queryLower);
+      const score = calculateAgentMatchScore(agent, queryLower);
       items.push({ type: 'agent', agent, score });
     }
 
@@ -2717,39 +2095,8 @@ export class FileSearchManager {
     }
 
     // Limit to maxSuggestions (use provided value or fallback to DEFAULT_MAX_SUGGESTIONS)
-    const limit = maxSuggestions ?? FileSearchManager.DEFAULT_MAX_SUGGESTIONS;
+    const limit = maxSuggestions ?? this.settingsCacheManager.getDefaultMaxSuggestions();
     return items.slice(0, limit);
-  }
-
-  /**
-   * Calculate match score for an agent
-   */
-  private calculateAgentMatchScore(agent: AgentItem, queryLower: string): number {
-    if (!queryLower) return 50; // Base score for no query
-
-    const nameLower = agent.name.toLowerCase();
-    const descLower = agent.description.toLowerCase();
-
-    let score = 0;
-
-    // Exact name match
-    if (nameLower === queryLower) {
-      score += 1000;
-    }
-    // Name starts with query
-    else if (nameLower.startsWith(queryLower)) {
-      score += 500;
-    }
-    // Name contains query
-    else if (nameLower.includes(queryLower)) {
-      score += 200;
-    }
-    // Description contains query
-    else if (descLower.includes(queryLower)) {
-      score += 50;
-    }
-
-    return score;
   }
 
   /**
@@ -2816,22 +2163,22 @@ export class FileSearchManager {
         if (file.isDirectory) {
           // For directories: show name with file count
           const fileCount = this.countFilesInDirectory(file.path);
-          this.insertHighlightedText(name, file.name, this.currentQuery);
+          insertHighlightedText(name, file.name, this.currentQuery);
           const countSpan = document.createElement('span');
           countSpan.className = 'file-count';
           countSpan.textContent = ` (${fileCount} files)`;
           name.appendChild(countSpan);
         } else {
           // For files: just show the name
-          this.insertHighlightedText(name, file.name, this.currentQuery);
+          insertHighlightedText(name, file.name, this.currentQuery);
         }
 
         item.appendChild(icon);
         item.appendChild(name);
 
         // Show the directory path next to the filename (for both files and directories)
-        const relativePath = this.getRelativePath(file.path, baseDir);
-        const dirPath = this.getDirectoryFromPath(relativePath);
+        const relativePath = getRelativePath(file.path, baseDir);
+        const dirPath = getDirectoryFromPath(relativePath);
         if (dirPath) {
           const pathEl = document.createElement('span');
           pathEl.className = 'file-path';
@@ -2853,7 +2200,7 @@ export class FileSearchManager {
         // Create name with highlighting
         const name = document.createElement('span');
         name.className = 'file-name agent-name';
-        this.insertHighlightedText(name, agent.name, this.currentQuery);
+        insertHighlightedText(name, agent.name, this.currentQuery);
 
         // Create description
         const desc = document.createElement('span');
@@ -2872,11 +2219,11 @@ export class FileSearchManager {
 
           // Show popup on info icon hover (pass infoIcon as target for positioning)
           infoIcon.addEventListener('mouseenter', () => {
-            this.showFrontmatterPopup(agent, infoIcon);
+            this.popupManager.showFrontmatterPopup(agent, infoIcon);
           });
 
           infoIcon.addEventListener('mouseleave', () => {
-            this.schedulePopupHide();
+            this.popupManager.schedulePopupHide();
           });
 
           item.appendChild(infoIcon);
@@ -2896,7 +2243,7 @@ export class FileSearchManager {
         // Create name with highlighting
         const name = document.createElement('span');
         name.className = 'file-name symbol-name';
-        this.insertHighlightedText(name, symbol.name, this.codeSearchQuery);
+        insertHighlightedText(name, symbol.name, this.codeSearchQuery);
 
         // Create type badge
         const typeBadge = document.createElement('span');
@@ -3037,64 +2384,6 @@ export class FileSearchManager {
   }
 
   /**
-   * Get directory path from a file path (excluding the filename)
-   */
-  private getDirectoryFromPath(relativePath: string): string {
-    const lastSlash = relativePath.lastIndexOf('/');
-    if (lastSlash === -1) return '';
-    return relativePath.substring(0, lastSlash + 1); // Include trailing slash
-  }
-
-  /**
-   * Insert highlighted text into an element using safe DOM manipulation
-   * This avoids innerHTML for security while allowing highlighting
-   */
-  private insertHighlightedText(element: HTMLElement, text: string, query: string): void {
-    // Clear existing content
-    element.textContent = '';
-
-    if (!query) {
-      element.textContent = text;
-      return;
-    }
-
-    // Create regex for matching (case-insensitive)
-    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp(`(${escapedQuery})`, 'gi');
-
-    // Split text by matches
-    const parts = text.split(regex);
-
-    parts.forEach(part => {
-      if (part.toLowerCase() === query.toLowerCase()) {
-        // This part matches - wrap in highlight span
-        const highlight = document.createElement('span');
-        highlight.className = 'highlight';
-        highlight.textContent = part;
-        element.appendChild(highlight);
-      } else if (part) {
-        // Non-matching part - add as text node
-        element.appendChild(document.createTextNode(part));
-      }
-    });
-  }
-
-  /**
-   * Get relative path from base directory
-   */
-  private getRelativePath(fullPath: string, baseDir: string): string {
-    // If baseDir is empty or root '/', return fullPath as-is (it's already absolute)
-    if (!baseDir || baseDir === '/') {
-      return fullPath;
-    }
-    if (fullPath.startsWith(baseDir)) {
-      const relative = fullPath.substring(baseDir.length);
-      return relative.startsWith('/') ? relative.substring(1) : relative;
-    }
-    return fullPath;
-  }
-
-  /**
    * Handle keyboard navigation
    * Supports: ArrowDown/Ctrl+n/Ctrl+j (next), ArrowUp/Ctrl+p/Ctrl+k (previous), Enter/Tab (select), Escape (close), Ctrl+i (toggle tooltip)
    */
@@ -3105,7 +2394,7 @@ export class FileSearchManager {
     if (e.ctrlKey && e.key === 'i') {
       e.preventDefault();
       e.stopPropagation();
-      this.toggleAutoShowTooltip();
+      this.popupManager.toggleAutoShowTooltip();
       return;
     }
 
@@ -3191,7 +2480,7 @@ export class FileSearchManager {
           if (suggestion?.type === 'file' && suggestion.file && !suggestion.file.isDirectory) {
             // Insert file path directly (don't navigate into symbols)
             const baseDir = this.cachedDirectoryData?.directory || '';
-            const relativePath = this.getRelativePath(suggestion.file.path, baseDir);
+            const relativePath = getRelativePath(suggestion.file.path, baseDir);
             this.insertFilePath(relativePath);
             this.hideSuggestions();
             this.callbacks.onFileSelected(relativePath);
@@ -3274,7 +2563,7 @@ export class FileSearchManager {
     });
 
     // Update tooltip if auto-show is enabled
-    this.showTooltipForSelectedItem();
+    this.popupManager.showTooltipForSelectedItem();
   }
 
   /**
@@ -3284,7 +2573,7 @@ export class FileSearchManager {
     if (!directory.isDirectory || !this.cachedDirectoryData) return;
 
     const baseDir = this.cachedDirectoryData.directory;
-    const relativePath = this.getRelativePath(directory.path, baseDir);
+    const relativePath = getRelativePath(directory.path, baseDir);
 
     // Update current path to the selected directory
     this.currentPath = relativePath.endsWith('/') ? relativePath : relativePath + '/';
@@ -3375,7 +2664,7 @@ export class FileSearchManager {
   private selectFileByInfo(file: FileInfo): void {
     // Get relative path from base directory
     const baseDir = this.cachedDirectoryData?.directory || '';
-    let relativePath = this.getRelativePath(file.path, baseDir);
+    let relativePath = getRelativePath(file.path, baseDir);
 
     // ディレクトリの場合は末尾に/を付ける
     if (file.isDirectory && !relativePath.endsWith('/')) {
@@ -3407,9 +2696,17 @@ export class FileSearchManager {
   }
 
   /**
-   * Get language info for a file based on its extension
+   * Get language info for a file based on its extension or filename
    */
   private getLanguageForFile(filename: string): LanguageInfo | null {
+    const lowerFilename = filename.toLowerCase();
+
+    // Special case: Makefile (no extension)
+    // supportedLanguages map is keyed by key (make, mk), not extension
+    if (lowerFilename === 'makefile' || lowerFilename === 'gnumakefile') {
+      return this.supportedLanguages.get('make') || this.supportedLanguages.get('mk') || null;
+    }
+
     const ext = filename.substring(filename.lastIndexOf('.') + 1).toLowerCase();
     return this.supportedLanguages.get(ext) || null;
   }
@@ -3501,7 +2798,7 @@ export class FileSearchManager {
 
       // Show symbols with selectedIndex = -1 (like directory navigation)
       this.selectedIndex = -1;
-      this.showSymbolSuggestions('');
+      await this.showSymbolSuggestions('');
     } catch (error) {
       console.error('[FileSearchManager] Error searching symbols:', error);
       this.isInSymbolMode = false;
@@ -3513,7 +2810,7 @@ export class FileSearchManager {
    * Show symbol suggestions for the current file
    * Uses same pattern as directory navigation: header + items, selectedIndex = -1 for unselected
    */
-  private showSymbolSuggestions(query: string): void {
+  private async showSymbolSuggestions(query: string): Promise<void> {
     if (!this.suggestionsContainer) return;
 
     // Filter symbols by query
@@ -3537,8 +2834,8 @@ export class FileSearchManager {
       });
     }
 
-    // Limit results
-    const maxSuggestions = 20;
+    // Limit results using fileSearch settings (not mdSearch)
+    const maxSuggestions = await this.getFileSearchMaxSuggestions();
     filtered = filtered.slice(0, maxSuggestions);
 
     // Convert to SuggestionItem
@@ -3755,11 +3052,32 @@ export class FileSearchManager {
 
   /**
    * Find @path at or just before the cursor position
+   * Only returns a path if the cursor is at the "end" of the @path,
+   * meaning there's no other character after it (undefined or space only).
    */
   private findAtPathAtCursor(cursorPos: number): AtPathRange | null {
-    // Check if cursor is at the end of any @path (including one character after for space)
+    if (!this.textInput) return null;
+    const text = this.textInput.value;
+
     for (const path of this.atPaths) {
-      if (cursorPos === path.end || cursorPos === path.end + 1) {
+      const charAtEnd = text[path.end];
+
+      // Check if cursor is at path.end (right after the @path)
+      if (cursorPos === path.end) {
+        // Only treat as "at the end" if the character at path.end is:
+        // - undefined (end of text), or
+        // - a space (trailing space after @path)
+        // If there's another character (like @), user is typing something new
+        if (charAtEnd === undefined || charAtEnd === ' ') {
+          return path;
+        }
+        // Don't return path if there's another character at path.end
+        continue;
+      }
+
+      // Also check path.end + 1 if the character at path.end is a space
+      // This allows deletion when cursor is after the trailing space
+      if (cursorPos === path.end + 1 && charAtEnd === ' ') {
         return path;
       }
     }
@@ -3902,7 +3220,7 @@ export class FileSearchManager {
     const validPaths = new Set<string>();
 
     for (const file of this.cachedDirectoryData.files) {
-      const relativePath = this.getRelativePath(file.path, baseDir);
+      const relativePath = getRelativePath(file.path, baseDir);
       validPaths.add(relativePath);
       // For directories: add both with and without trailing slash
       if (file.isDirectory) {
@@ -3948,7 +3266,7 @@ export class FileSearchManager {
 
       // Parse the path to handle symbol paths with line number and symbol name
       // Format: path:lineNumber#symbolName or just path
-      const parsedPath = this.parsePathWithLineInfo(pathContent);
+      const parsedPath = parsePathWithLineInfo(pathContent);
       const cleanPath = parsedPath.path;
 
       // Check if this path should be highlighted:
@@ -4035,7 +3353,7 @@ export class FileSearchManager {
       const files = this.cachedDirectoryData!.files!;
       relativePaths = new Set<string>();
       for (const file of files) {
-        const relativePath = this.getRelativePath(file.path, baseDir!);
+        const relativePath = getRelativePath(file.path, baseDir!);
         relativePaths.add(relativePath);
         // For directories: add both with and without trailing slash
         // getRelativePath doesn't add trailing slash, but selectFileByInfo adds it for directories
@@ -4092,7 +3410,7 @@ export class FileSearchManager {
 
       // Parse the path to handle symbol paths with line number and symbol name
       // Format: path:lineNumber#symbolName or just path
-      const parsedPath = this.parsePathWithLineInfo(pathContent);
+      const parsedPath = parsePathWithLineInfo(pathContent);
       const cleanPath = parsedPath.path;
 
       // First, check against cached file list if available
