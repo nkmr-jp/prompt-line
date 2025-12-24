@@ -21,7 +21,6 @@ import {
   findUrlAtPosition,
   findSlashCommandAtPosition,
   findAbsolutePathAtPosition,
-  findClickablePathAtPosition,
   resolveAtPathToAbsolute,
   insertHighlightedText,
   getCaretCoordinates,
@@ -71,12 +70,6 @@ export class FileSearchManager {
   private fileOpenerManager: FileOpenerManager | null = null;
   private directoryCacheManager: DirectoryCacheManager | null = null;
 
-  // Cmd+hover state for file path link
-  private isCmdHoverActive: boolean = false;
-  private hoveredAtPath: AtPathRange | null = null;
-
-  // Cursor position state for file path link
-  private cursorPositionPath: AtPathRange | null = null;
 
 
   // Whether file search feature is enabled (from settings)
@@ -424,35 +417,31 @@ export class FileSearchManager {
 
     // Clear link style when mouse leaves textarea
     this.textInput.addEventListener('mouseleave', () => {
-      this.clearFilePathHighlight();
+      // Delegate to HighlightManager
+      this.highlightManager?.clearFilePathHighlight();
     });
 
     // Handle Cmd key press/release for link style
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Meta' && !this.isCmdHoverActive) {
-        this.isCmdHoverActive = true;
-        // Re-check current mouse position for @path
-        this.updateHoverStateAtLastPosition();
+      if (e.key === 'Meta') {
+        // Delegate to HighlightManager
+        this.highlightManager?.onCmdKeyDown();
       }
     });
 
     document.addEventListener('keyup', (e) => {
-      if (e.key === 'Meta' && this.isCmdHoverActive) {
-        this.isCmdHoverActive = false;
-        this.clearFilePathHighlight();
+      if (e.key === 'Meta') {
+        // Delegate to HighlightManager
+        this.highlightManager?.onCmdKeyUp();
       }
     });
 
     // Clear on window blur (Cmd key release detection may fail)
     window.addEventListener('blur', () => {
-      this.isCmdHoverActive = false;
-      this.clearFilePathHighlight();
+      // Delegate to HighlightManager
+      this.highlightManager?.onCmdKeyUp();
     });
   }
-
-  // Track last mouse position for Cmd key press detection
-  private lastMouseX: number = 0;
-  private lastMouseY: number = 0;
 
   /**
    * Handle mouse move for Cmd+hover link style
@@ -460,226 +449,6 @@ export class FileSearchManager {
   private handleMouseMove(e: MouseEvent): void {
     // Delegate to HighlightManager
     this.highlightManager?.onMouseMove(e);
-  }
-
-  /**
-   * Update hover state when Cmd key is pressed
-   */
-  private updateHoverStateAtLastPosition(): void {
-    if (this.lastMouseX && this.lastMouseY) {
-      this.checkAndHighlightAtPath(this.lastMouseX, this.lastMouseY);
-    }
-  }
-
-  /**
-   * Check if mouse is over an @path, absolute path, or URL and highlight it
-   */
-  private checkAndHighlightAtPath(clientX: number, clientY: number): void {
-    if (!this.textInput) return;
-
-    const text = this.textInput.value;
-    const charPos = this.getCharPositionFromCoordinates(clientX, clientY);
-
-    if (charPos === null) {
-      this.clearFilePathHighlight();
-      return;
-    }
-
-    // Check for @path first
-    const atPath = findAtPathAtPosition(text, charPos);
-    if (atPath) {
-      // Find the AtPathRange that contains this position
-      const atPathRange = this.findAtPathRangeAtPosition(charPos);
-      if (atPathRange && atPathRange !== this.hoveredAtPath) {
-        this.hoveredAtPath = atPathRange;
-        this.renderFilePathHighlight();
-      }
-      return;
-    }
-
-    // Check for URL
-    const url = findUrlAtPosition(text, charPos);
-    if (url) {
-      // Create a temporary AtPathRange for the URL
-      const tempRange: AtPathRange = { start: url.start, end: url.end };
-      if (!this.hoveredAtPath || this.hoveredAtPath.start !== tempRange.start || this.hoveredAtPath.end !== tempRange.end) {
-        this.hoveredAtPath = tempRange;
-        this.renderFilePathHighlight();
-      }
-      return;
-    }
-
-    // Check for slash command (like /commit, /help) - only if command type is enabled
-    if (this.isCommandEnabledSync()) {
-      const slashCommand = findSlashCommandAtPosition(text, charPos);
-      if (slashCommand) {
-        // Create a temporary AtPathRange for the slash command
-        const tempRange: AtPathRange = { start: slashCommand.start, end: slashCommand.end };
-        if (!this.hoveredAtPath || this.hoveredAtPath.start !== tempRange.start || this.hoveredAtPath.end !== tempRange.end) {
-          this.hoveredAtPath = tempRange;
-          this.renderFilePathHighlight();
-        }
-        return;
-      }
-    }
-
-    // Check for absolute path (starting with /)
-    const clickablePath = findClickablePathAtPosition(text, charPos);
-    if (clickablePath) {
-      // Create a temporary AtPathRange for the absolute path
-      const tempRange: AtPathRange = { start: clickablePath.start, end: clickablePath.end };
-      if (!this.hoveredAtPath || this.hoveredAtPath.start !== tempRange.start || this.hoveredAtPath.end !== tempRange.end) {
-        this.hoveredAtPath = tempRange;
-        this.renderFilePathHighlight();
-      }
-      return;
-    }
-
-    this.clearFilePathHighlight();
-  }
-
-  /**
-   * Find AtPathRange at the given position
-   */
-  private findAtPathRangeAtPosition(charPos: number): AtPathRange | null {
-    for (const atPath of this.atPaths) {
-      if (charPos >= atPath.start && charPos < atPath.end) {
-        return atPath;
-      }
-    }
-    return null;
-  }
-
-  /**
-   * Get character position from mouse coordinates using mirror div
-   */
-  private getCharPositionFromCoordinates(clientX: number, clientY: number): number | null {
-    if (!this.textInput) return null;
-
-    const textareaRect = this.textInput.getBoundingClientRect();
-    const relativeX = clientX - textareaRect.left + this.textInput.scrollLeft;
-    const relativeY = clientY - textareaRect.top + this.textInput.scrollTop;
-
-    // Simple approximation based on line height and character width
-    const style = window.getComputedStyle(this.textInput);
-    const lineHeight = parseFloat(style.lineHeight) || 20;
-    const fontSize = parseFloat(style.fontSize) || 15;
-    const charWidth = fontSize * 0.55; // Approximate character width
-
-    const paddingTop = parseFloat(style.paddingTop) || 0;
-    const paddingLeft = parseFloat(style.paddingLeft) || 0;
-
-    const text = this.textInput.value;
-    const lines = text.split('\n');
-
-    // Calculate which line
-    const lineIndex = Math.floor((relativeY - paddingTop) / lineHeight);
-    if (lineIndex < 0 || lineIndex >= lines.length) return null;
-
-    // Calculate position within line
-    let charIndex = Math.floor((relativeX - paddingLeft) / charWidth);
-    charIndex = Math.max(0, Math.min(charIndex, lines[lineIndex]?.length || 0));
-
-    // Calculate absolute position
-    let absolutePos = 0;
-    for (let i = 0; i < lineIndex; i++) {
-      absolutePos += (lines[i]?.length || 0) + 1; // +1 for newline
-    }
-    absolutePos += charIndex;
-
-    return Math.min(absolutePos, text.length);
-  }
-
-  /**
-   * Render file path highlight (link style) while preserving @path highlights
-   */
-  private renderFilePathHighlight(): void {
-    if (!this.highlightBackdrop || !this.textInput || !this.hoveredAtPath) return;
-
-    const text = this.textInput.value;
-
-    // Re-scan for @paths
-    this.rescanAtPaths(text);
-
-    // Check if hoveredAtPath is an @path or an absolute path
-    const isHoveredAtPathInAtPaths = this.atPaths.some(
-      ap => ap.start === this.hoveredAtPath?.start && ap.end === this.hoveredAtPath?.end
-    );
-
-    // Merge @paths and hoveredAtPath (if it's an absolute path not in atPaths)
-    const allHighlightRanges: Array<AtPathRange & { isAtPath: boolean; isHovered: boolean }> = [];
-
-    // Add @paths
-    for (const atPath of this.atPaths) {
-      const isHovered = this.hoveredAtPath !== null &&
-        atPath.start === this.hoveredAtPath.start &&
-        atPath.end === this.hoveredAtPath.end;
-      allHighlightRanges.push({ ...atPath, isAtPath: true, isHovered });
-    }
-
-    // Add absolute path if not already in @paths
-    if (!isHoveredAtPathInAtPaths && this.hoveredAtPath) {
-      allHighlightRanges.push({
-        start: this.hoveredAtPath.start,
-        end: this.hoveredAtPath.end,
-        isAtPath: false,
-        isHovered: true
-      });
-    }
-
-    // Sort by start position
-    allHighlightRanges.sort((a, b) => a.start - b.start);
-
-    // Build highlighted content with link style on hovered path
-    const fragment = document.createDocumentFragment();
-    let lastEnd = 0;
-
-    for (const range of allHighlightRanges) {
-      // Add text before this range
-      if (range.start > lastEnd) {
-        fragment.appendChild(document.createTextNode(text.substring(lastEnd, range.start)));
-      }
-
-      // Add highlighted span
-      const span = document.createElement('span');
-
-      if (range.isAtPath) {
-        span.className = 'at-path-highlight';
-      }
-
-      // Add link style if this is the hovered path
-      if (range.isHovered) {
-        span.classList.add('file-path-link');
-      }
-
-      span.textContent = text.substring(range.start, range.end);
-      fragment.appendChild(span);
-
-      lastEnd = range.end;
-    }
-
-    // Add remaining text
-    if (lastEnd < text.length) {
-      fragment.appendChild(document.createTextNode(text.substring(lastEnd)));
-    }
-
-    // Clear existing content using DOM methods (avoid innerHTML for security)
-    while (this.highlightBackdrop.firstChild) {
-      this.highlightBackdrop.removeChild(this.highlightBackdrop.firstChild);
-    }
-    this.highlightBackdrop.appendChild(fragment);
-
-    // Sync scroll
-    this.syncBackdropScroll();
-  }
-
-  /**
-   * Clear file path highlight (link style) while preserving @path highlights
-   */
-  private clearFilePathHighlight(): void {
-    this.hoveredAtPath = null;
-    // Re-render without link style (just @path highlights, with cursor highlight)
-    this.renderHighlightBackdropWithCursor();
   }
 
   /**
@@ -721,85 +490,6 @@ export class FileSearchManager {
     if (this.callbacks.updateHintText) {
       this.callbacks.updateHintText('Building file index...');
     }
-  }
-
-  /**
-   * Render highlight backdrop with cursor position highlight
-   * @paths get their own highlight, absolute paths get cursor highlight
-   */
-  private renderHighlightBackdropWithCursor(): void {
-    if (!this.highlightBackdrop || !this.textInput) return;
-
-    const text = this.textInput.value;
-
-    // Re-scan for @paths
-    this.rescanAtPaths(text);
-
-    // If there's an active Cmd+hover, use the full link style rendering
-    if (this.hoveredAtPath) {
-      this.renderFilePathHighlight();
-      return;
-    }
-
-    // Collect all highlight ranges: @paths and cursor position (for absolute paths only)
-    const allHighlightRanges: Array<AtPathRange & { isAtPath: boolean; isCursorHighlight: boolean }> = [];
-
-    // Add @paths (no cursor highlight for @paths - they have their own style)
-    for (const atPath of this.atPaths) {
-      allHighlightRanges.push({ ...atPath, isAtPath: true, isCursorHighlight: false });
-    }
-
-    // Add cursor position path for absolute paths (not @paths)
-    if (this.cursorPositionPath) {
-      allHighlightRanges.push({
-        start: this.cursorPositionPath.start,
-        end: this.cursorPositionPath.end,
-        isAtPath: false,
-        isCursorHighlight: true
-      });
-    }
-
-    // Sort by start position
-    allHighlightRanges.sort((a, b) => a.start - b.start);
-
-    // Build highlighted content
-    const fragment = document.createDocumentFragment();
-    let lastEnd = 0;
-
-    for (const range of allHighlightRanges) {
-      // Add text before this range
-      if (range.start > lastEnd) {
-        fragment.appendChild(document.createTextNode(text.substring(lastEnd, range.start)));
-      }
-
-      // Add highlighted span
-      const span = document.createElement('span');
-
-      if (range.isAtPath) {
-        span.className = 'at-path-highlight';
-      } else if (range.isCursorHighlight) {
-        span.className = 'file-path-cursor-highlight';
-      }
-
-      span.textContent = text.substring(range.start, range.end);
-      fragment.appendChild(span);
-
-      lastEnd = range.end;
-    }
-
-    // Add remaining text
-    if (lastEnd < text.length) {
-      fragment.appendChild(document.createTextNode(text.substring(lastEnd)));
-    }
-
-    // Clear existing content using DOM methods (avoid innerHTML for security)
-    while (this.highlightBackdrop.firstChild) {
-      this.highlightBackdrop.removeChild(this.highlightBackdrop.firstChild);
-    }
-    this.highlightBackdrop.appendChild(fragment);
-
-    // Sync scroll
-    this.syncBackdropScroll();
   }
 
   /**
@@ -3004,57 +2694,6 @@ export class FileSearchManager {
     }
 
     return validPaths;
-  }
-
-  /**
-   * Re-scan text for @paths.
-   * Finds ALL @path patterns in text and validates them against:
-   * 1. The selectedPaths set (paths explicitly selected by user)
-   * 2. The cached file list (for Undo support - restores highlights for valid paths)
-   */
-  private rescanAtPaths(text: string): void {
-    const foundPaths: AtPathRange[] = [];
-    const validPaths = this.buildValidPathsSet();
-
-    // Find all @path patterns in text
-    const atPathPattern = /@([^\s@]+)/g;
-    let match;
-
-    while ((match = atPathPattern.exec(text)) !== null) {
-      const pathContent = match[1];
-      if (!pathContent) continue;
-
-      const start = match.index;
-      const end = match.index + match[0].length;
-
-      // Parse the path to handle symbol paths with line number and symbol name
-      // Format: path:lineNumber#symbolName or just path
-      const parsedPath = parsePathWithLineInfo(pathContent);
-      const cleanPath = parsedPath.path;
-
-      // Check if this path should be highlighted:
-      // 1. It's in selectedPaths (explicitly selected by user), OR
-      // 2. The clean path (without line number/symbol) exists in the valid paths from cached file list (for Undo support)
-      const isSelected = this.selectedPaths.has(pathContent);
-      const isValidPath = validPaths?.has(cleanPath) ?? false;
-
-      if (isSelected || isValidPath) {
-        foundPaths.push({
-          start,
-          end,
-          path: pathContent
-        });
-
-        // If it's a valid path that was restored via Undo, add it to selectedPaths
-        if (isValidPath && !isSelected) {
-          this.selectedPaths.add(pathContent);
-        }
-      }
-    }
-
-    // Sort by start position
-    foundPaths.sort((a, b) => a.start - b.start);
-    this.atPaths = foundPaths;
   }
 
   /**
