@@ -259,6 +259,8 @@ export class FileSearchManager {
           }
         }
       );
+      // Set up valid paths builder for @path validation
+      this.highlightManager.setValidPathsBuilder(() => this.buildValidPathsSet());
     }
 
     // Initialize FileOpenerManager
@@ -981,30 +983,8 @@ export class FileSearchManager {
    * @param url - URL to open
    */
   private async openUrlInBrowser(url: string): Promise<void> {
-    try {
-      this.callbacks.onBeforeOpenFile?.();
-      // Enable draggable state while URL is opening
-      this.callbacks.setDraggable?.(true);
-      const result = await window.electronAPI.shell.openExternal(url);
-      if (!result.success) {
-        console.error('Failed to open URL in browser:', result.error);
-        // Disable draggable state on error
-        this.callbacks.setDraggable?.(false);
-      } else {
-        console.log('URL opened successfully in browser:', url);
-        // Restore focus to PromptLine window after a short delay
-        // Keep draggable state enabled so user can move window while browser is open
-        setTimeout(() => {
-          window.electronAPI.window.focus().catch((err: Error) =>
-            console.error('Failed to restore focus:', err)
-          );
-        }, 100);
-      }
-    } catch (err) {
-      console.error('Failed to open URL in browser:', err);
-      // Disable draggable state on error
-      this.callbacks.setDraggable?.(false);
-    }
+    // Delegate to FileOpenerManager
+    await this.fileOpenerManager?.openUrl(url);
   }
 
   /**
@@ -1013,18 +993,8 @@ export class FileSearchManager {
    * @param filePath - Path to the file to open
    */
   private async openFileAndRestoreFocus(filePath: string): Promise<void> {
-    try {
-      this.callbacks.onBeforeOpenFile?.();
-      // Enable draggable state while file is opening
-      this.callbacks.setDraggable?.(true);
-      await window.electronAPI.file.openInEditor(filePath);
-      // Note: Do not restore focus to PromptLine window
-      // The opened file's application should stay in foreground
-    } catch (err) {
-      console.error('Failed to open file in editor:', err);
-      // Disable draggable state on error
-      this.callbacks.setDraggable?.(false);
-    }
+    // Delegate to FileOpenerManager
+    await this.fileOpenerManager?.openFile(filePath);
   }
 
   /**
@@ -1592,6 +1562,10 @@ export class FileSearchManager {
   public hideSuggestions(): void {
     if (!this.suggestionsContainer) return;
 
+    // Delegate UI hiding to SuggestionListManager
+    this.suggestionListManager?.hide();
+
+    // Also handle local state (for backward compatibility during refactoring)
     this.isVisible = false;
     this.suggestionsContainer.style.display = 'none';
     // Clear container safely
