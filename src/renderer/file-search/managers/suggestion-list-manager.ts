@@ -251,6 +251,37 @@ export class SuggestionListManager {
   }
 
   /**
+   * Update suggestions without changing position
+   * Used for refreshing content while keeping dropdown in place
+   */
+  public update(suggestions: SuggestionItem[], isIndexBuilding: boolean = false, newSelectedIndex?: number): void {
+    if (!this.suggestionsContainer) return;
+
+    this.mergedSuggestions = suggestions;
+    if (newSelectedIndex !== undefined) {
+      this.selectedIndex = newSelectedIndex;
+    }
+    this.renderSuggestions(isIndexBuilding);
+    this.updateSelection();
+  }
+
+  /**
+   * Position the suggestions container at the given @ position
+   * Public method for external positioning control
+   */
+  public position(atPosition: number): void {
+    this.atPosition = atPosition;
+    this.positionSuggestions();
+  }
+
+  /**
+   * Get the suggestions container element
+   */
+  public getContainer(): HTMLElement | null {
+    return this.suggestionsContainer;
+  }
+
+  /**
    * Get total count of suggestion items
    */
   private getTotalItemCount(): number {
