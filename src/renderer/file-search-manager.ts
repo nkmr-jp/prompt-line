@@ -27,7 +27,7 @@ import {
   getCaretCoordinates,
   createMirrorDiv
 } from './file-search';
-import { PopupManager } from './file-search/managers';
+import { PopupManager, SettingsCacheManager } from './file-search/managers';
 
 // Pattern to detect code search queries (e.g., @ts:, @go:, @py:)
 const CODE_SEARCH_PATTERN = /^([a-z]+):(.*)$/;
@@ -53,6 +53,9 @@ export class FileSearchManager {
   // PopupManager for frontmatter popup
   private popupManager: PopupManager;
 
+  // SettingsCacheManager for settings caching
+  private settingsCacheManager: SettingsCacheManager;
+
   // Cmd+hover state for file path link
   private isCmdHoverActive: boolean = false;
   private hoveredAtPath: AtPathRange | null = null;
@@ -60,14 +63,6 @@ export class FileSearchManager {
   // Cursor position state for file path link
   private cursorPositionPath: AtPathRange | null = null;
 
-  // Constants
-  private static readonly DEFAULT_MAX_SUGGESTIONS = 20;
-
-  // Cached maxSuggestions per type
-  private maxSuggestionsCache: Map<string, number> = new Map();
-
-  // Cached searchPrefixes per type
-  private searchPrefixesCache: Map<string, string[]> = new Map();
 
   // Whether file search feature is enabled (from settings)
   private fileSearchEnabled: boolean = false;
@@ -94,6 +89,9 @@ export class FileSearchManager {
       getSelectedSuggestion: () => this.mergedSuggestions[this.selectedIndex] || null,
       getSuggestionsContainer: () => this.suggestionsContainer
     });
+
+    // Initialize SettingsCacheManager
+    this.settingsCacheManager = new SettingsCacheManager();
   }
 
   /**
@@ -113,136 +111,66 @@ export class FileSearchManager {
 
   /**
    * Get maxSuggestions for a given type (cached)
+   * Delegates to SettingsCacheManager
    */
   private async getMaxSuggestions(type: 'command' | 'mention'): Promise<number> {
-    // Check cache first
-    if (this.maxSuggestionsCache.has(type)) {
-      return this.maxSuggestionsCache.get(type)!;
-    }
-
-    try {
-      const electronAPI = (window as any).electronAPI;
-      if (electronAPI?.mdSearch?.getMaxSuggestions) {
-        const maxSuggestions = await electronAPI.mdSearch.getMaxSuggestions(type);
-        this.maxSuggestionsCache.set(type, maxSuggestions);
-        return maxSuggestions;
-      }
-    } catch (error) {
-      console.error('[FileSearchManager] Failed to get maxSuggestions:', error);
-    }
-
-    return FileSearchManager.DEFAULT_MAX_SUGGESTIONS;
+    return this.settingsCacheManager.getMaxSuggestions(type);
   }
 
   /**
    * Clear maxSuggestions cache (call when settings might have changed)
+   * Delegates to SettingsCacheManager
    */
   public clearMaxSuggestionsCache(): void {
-    this.maxSuggestionsCache.clear();
-    this.fileSearchMaxSuggestionsCache = null;
+    this.settingsCacheManager.clearMaxSuggestionsCache();
   }
-
-  // Cached fileSearch maxSuggestions
-  private fileSearchMaxSuggestionsCache: number | null = null;
 
   /**
    * Get maxSuggestions for file search (cached)
-   * This is for @ mentions file/symbol search, separate from mdSearch settings
+   * Delegates to SettingsCacheManager
    */
   private async getFileSearchMaxSuggestions(): Promise<number> {
-    // Check cache first
-    if (this.fileSearchMaxSuggestionsCache !== null) {
-      return this.fileSearchMaxSuggestionsCache;
-    }
-
-    try {
-      const electronAPI = (window as any).electronAPI;
-      if (electronAPI?.fileSearch?.getMaxSuggestions) {
-        const maxSuggestions = await electronAPI.fileSearch.getMaxSuggestions();
-        this.fileSearchMaxSuggestionsCache = maxSuggestions;
-        return maxSuggestions;
-      }
-    } catch (error) {
-      console.error('[FileSearchManager] Failed to get fileSearch maxSuggestions:', error);
-    }
-
-    return FileSearchManager.DEFAULT_MAX_SUGGESTIONS;
-  }
-
-  /**
-   * Get searchPrefixes for a given type (cached)
-   */
-  private async getSearchPrefixes(type: 'command' | 'mention'): Promise<string[]> {
-    // Check cache first
-    if (this.searchPrefixesCache.has(type)) {
-      return this.searchPrefixesCache.get(type)!;
-    }
-
-    try {
-      const electronAPI = (window as any).electronAPI;
-      if (electronAPI?.mdSearch?.getSearchPrefixes) {
-        const prefixes = await electronAPI.mdSearch.getSearchPrefixes(type);
-        this.searchPrefixesCache.set(type, prefixes);
-        return prefixes;
-      }
-    } catch (error) {
-      console.error('[FileSearchManager] Failed to get searchPrefixes:', error);
-    }
-
-    return [];
+    return this.settingsCacheManager.getFileSearchMaxSuggestions();
   }
 
   /**
    * Clear searchPrefixes cache (call when settings might have changed)
+   * Delegates to SettingsCacheManager
    */
   public clearSearchPrefixesCache(): void {
-    this.searchPrefixesCache.clear();
+    this.settingsCacheManager.clearSearchPrefixesCache();
   }
 
   /**
    * Check if query matches any searchPrefix for the given type
+   * Delegates to SettingsCacheManager
    */
   private async matchesSearchPrefix(query: string, type: 'command' | 'mention'): Promise<boolean> {
-    const prefixes = await this.getSearchPrefixes(type);
-    return prefixes.some(prefix => query.startsWith(prefix));
+    return this.settingsCacheManager.matchesSearchPrefix(query, type);
   }
 
   /**
    * Synchronously check if command type is enabled (from cache)
-   * Returns false if cache is not populated yet
+   * Delegates to SettingsCacheManager
    */
   private isCommandEnabledSync(): boolean {
-    const prefixes = this.searchPrefixesCache.get('command');
-    return prefixes !== undefined && prefixes.length > 0;
+    return this.settingsCacheManager.isCommandEnabledSync();
   }
 
   /**
    * Synchronously check if query matches any searchPrefix for the given type (from cache)
-   * Returns false if cache is not populated yet
+   * Delegates to SettingsCacheManager
    */
   private matchesSearchPrefixSync(query: string, type: 'command' | 'mention'): boolean {
-    const prefixes = this.searchPrefixesCache.get(type);
-    if (!prefixes) {
-      return false;
-    }
-    return prefixes.some(prefix => query.startsWith(prefix));
+    return this.settingsCacheManager.matchesSearchPrefixSync(query, type);
   }
 
   /**
    * Preload searchPrefixes cache for command and mention types
-   * Call this early (e.g., on window-shown) to populate cache for sync checks
+   * Delegates to SettingsCacheManager
    */
   public async preloadSearchPrefixesCache(): Promise<void> {
-    try {
-      // Load both command and mention prefixes in parallel
-      await Promise.all([
-        this.getSearchPrefixes('command'),
-        this.getSearchPrefixes('mention')
-      ]);
-      console.debug('[FileSearchManager] SearchPrefixes cache preloaded');
-    } catch (error) {
-      console.error('[FileSearchManager] Failed to preload searchPrefixes cache:', error);
-    }
+    return this.settingsCacheManager.preloadSearchPrefixesCache();
   }
 
   public initializeElements(): void {
@@ -1947,7 +1875,7 @@ export class FileSearchManager {
           // Then sort by name
           return a.name.localeCompare(b.name);
         });
-        return sorted.slice(0, FileSearchManager.DEFAULT_MAX_SUGGESTIONS);
+        return sorted.slice(0, this.settingsCacheManager.getDefaultMaxSuggestions());
       }
 
       const queryLower = query.toLowerCase();
@@ -1960,7 +1888,7 @@ export class FileSearchManager {
         }))
         .filter(item => item.score > 0)
         .sort((a, b) => b.score - a.score)
-        .slice(0, FileSearchManager.DEFAULT_MAX_SUGGESTIONS);
+        .slice(0, this.settingsCacheManager.getDefaultMaxSuggestions());
 
       return scored.map(item => item.file);
     }
@@ -2009,7 +1937,7 @@ export class FileSearchManager {
         // Then sort by name
         return a.name.localeCompare(b.name);
       });
-      return sorted.slice(0, FileSearchManager.DEFAULT_MAX_SUGGESTIONS);
+      return sorted.slice(0, this.settingsCacheManager.getDefaultMaxSuggestions());
     }
 
     // With query at root level - search ALL files recursively and show matching ones
@@ -2081,7 +2009,7 @@ export class FileSearchManager {
     // Combine and sort by score
     const allScored = [...scoredFiles, ...scoredDirs]
       .sort((a, b) => b.score - a.score)
-      .slice(0, FileSearchManager.DEFAULT_MAX_SUGGESTIONS);
+      .slice(0, this.settingsCacheManager.getDefaultMaxSuggestions());
 
     return allScored.map(item => item.file);
   }
@@ -2167,7 +2095,7 @@ export class FileSearchManager {
     }
 
     // Limit to maxSuggestions (use provided value or fallback to DEFAULT_MAX_SUGGESTIONS)
-    const limit = maxSuggestions ?? FileSearchManager.DEFAULT_MAX_SUGGESTIONS;
+    const limit = maxSuggestions ?? this.settingsCacheManager.getDefaultMaxSuggestions();
     return items.slice(0, limit);
   }
 
