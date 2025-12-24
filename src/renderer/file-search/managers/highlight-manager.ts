@@ -95,7 +95,7 @@ export class HighlightManager {
 
       // Add highlighted @path
       const span = document.createElement('span');
-      span.className = 'highlight-at-path';
+      span.className = 'at-path-highlight';
       span.textContent = text.substring(atPath.start, atPath.end);
       fragment.appendChild(span);
 
@@ -166,9 +166,9 @@ export class HighlightManager {
       // Add highlighted range
       const span = document.createElement('span');
       if (range.isAtPath) {
-        span.className = 'highlight-at-path';
+        span.className = 'at-path-highlight';
       } else if (range.isCursorHighlight) {
-        span.className = 'highlight-cursor-path';
+        span.className = 'file-path-cursor-highlight';
       }
       span.textContent = text.substring(range.start, range.end);
       fragment.appendChild(span);
@@ -240,10 +240,10 @@ export class HighlightManager {
       const span = document.createElement('span');
       if (range.isHovered) {
         // Apply link style
-        span.className = range.isAtPath ? 'highlight-at-path highlight-link' : 'highlight-link';
+        span.className = range.isAtPath ? 'at-path-highlight file-path-link' : 'file-path-link';
       } else {
         // Just @path highlight
-        span.className = 'highlight-at-path';
+        span.className = 'at-path-highlight';
       }
       span.textContent = text.substring(range.start, range.end);
       fragment.appendChild(span);
