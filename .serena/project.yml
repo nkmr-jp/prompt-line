@@ -80,5 +80,5 @@ excluded_tools: []
 # (contrary to the memories, which are loaded on demand).
 initial_prompt: ""
 
-project_name: "prompt-line-wt-art-20251224_224358"
+project_name: "prompt-line"
 included_optional_tools: []
