@@ -15,4 +15,4 @@ export type {
   LanguagesResponse,
   CodeSearchConfig
 } from './types';
-export { SYMBOL_ICONS, getSymbolTypeDisplay } from './types';
+export { getSymbolTypeDisplay } from './types';

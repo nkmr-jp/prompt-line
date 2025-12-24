@@ -91,29 +91,6 @@ export interface CodeSearchCallbacks {
   getIsComposing: () => boolean;
 }
 
-// Symbol icon mapping for display (text fallback, SVG icons in file-icons.ts)
-export const SYMBOL_ICONS: Record<SymbolType, string> = {
-  function: '𝑓',
-  method: '𝑚',
-  class: '𝒞',
-  struct: '𝒮',
-  interface: '𝒾',
-  type: '𝒯',
-  constant: '𝒄',
-  variable: '𝒗',
-  enum: '𝒆',
-  property: '𝒑',
-  module: '𝓂',
-  namespace: '𝓃',
-  heading: '#',
-  link: '🔗',
-  // Terraform-specific icons
-  resource: '📦',
-  data: '📊',
-  output: '📤',
-  provider: '☁️'
-};
-
 // Get display name for symbol type
 export function getSymbolTypeDisplay(type: SymbolType): string {
   switch (type) {

@@ -13,7 +13,8 @@ import type {
   RgCheckResponse,
   LanguagesResponse
 } from './types';
-import { SYMBOL_ICONS, getSymbolTypeDisplay, SYMBOL_TYPE_FROM_DISPLAY } from './types';
+import { getSymbolTypeDisplay, SYMBOL_TYPE_FROM_DISPLAY } from './types';
+import { getSymbolIconSvg } from '../assets/icons/file-icons';
 
 // Constants
 const CODE_SEARCH_PATTERN = /@([a-z]+):(\S*)$/;
@@ -418,10 +419,10 @@ export class CodeSearchManager {
       item.classList.add('selected');
     }
 
-    // Icon
+    // Icon (SVG)
     const icon = document.createElement('span');
     icon.className = 'code-suggestion-icon';
-    icon.textContent = SYMBOL_ICONS[symbol.type] || '?';
+    icon.innerHTML = getSymbolIconSvg(symbol.type);
     item.appendChild(icon);
 
     // Name and type
