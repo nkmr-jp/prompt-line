@@ -480,85 +480,10 @@ export class FileSearchManager {
    * Handle Ctrl+Enter to open file or URL at cursor position
    */
   private async handleCtrlEnterOpenFile(e: KeyboardEvent): Promise<void> {
-    if (!this.textInput) return;
-
-    const text = this.textInput.value;
-    const cursorPos = this.textInput.selectionStart;
-
-    // Check for URL first
-    const url = findUrlAtPosition(text, cursorPos);
-    if (url) {
+    const handled = await this.findAndOpenItemAtCursor();
+    if (handled) {
       e.preventDefault();
       e.stopPropagation();
-
-      await this.openUrlInBrowser(url.url);
-      return;
-    }
-
-    // Check for slash command (like /commit, /help) - only if command type is enabled
-    if (this.isCommandEnabledSync()) {
-      const slashCommand = findSlashCommandAtPosition(text, cursorPos);
-      if (slashCommand) {
-        e.preventDefault();
-        e.stopPropagation();
-
-        try {
-          const commandFilePath = await window.electronAPI.slashCommands.getFilePath(slashCommand.command);
-          if (commandFilePath) {
-            await this.openFileAndRestoreFocus(commandFilePath);
-            return;
-          }
-        } catch (err) {
-          console.error('Failed to resolve slash command file path:', err);
-        }
-        return;
-      }
-    }
-
-    // Find @path at cursor position
-    const atPath = findAtPathAtPosition(text, cursorPos);
-    if (atPath) {
-      e.preventDefault();
-      e.stopPropagation();
-
-      const looksLikeFilePath = atPath.includes('/') || atPath.includes('.');
-
-      if (looksLikeFilePath) {
-        const filePath = resolveAtPathToAbsolute(atPath, this.cachedDirectoryData?.directory, parsePathWithLineInfo, normalizePath);
-        if (filePath) {
-          await this.openFileAndRestoreFocus(filePath);
-          return;
-        }
-      }
-
-      // Try as agent name
-      try {
-        const agentFilePath = await window.electronAPI.agents.getFilePath(atPath);
-        if (agentFilePath) {
-          await this.openFileAndRestoreFocus(agentFilePath);
-          return;
-        }
-      } catch (err) {
-        console.error('Failed to resolve agent file path:', err);
-      }
-
-      // Fallback
-      if (!looksLikeFilePath) {
-        const filePath = resolveAtPathToAbsolute(atPath, this.cachedDirectoryData?.directory, parsePathWithLineInfo, normalizePath);
-        if (filePath) {
-          await this.openFileAndRestoreFocus(filePath);
-        }
-      }
-      return;
-    }
-
-    // Find absolute path at cursor position
-    const absolutePath = findAbsolutePathAtPosition(text, cursorPos);
-    if (absolutePath) {
-      e.preventDefault();
-      e.stopPropagation();
-
-      await this.openFileAndRestoreFocus(absolutePath);
     }
   }
 
@@ -567,7 +492,20 @@ export class FileSearchManager {
    * Supports: URLs, file paths, agent names, and absolute paths (including ~)
    */
   private async handleCmdClickOnAtPath(e: MouseEvent): Promise<void> {
-    if (!this.textInput) return;
+    const handled = await this.findAndOpenItemAtCursor();
+    if (handled) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }
+
+  /**
+   * Find and open URL, slash command, @path, or absolute path at cursor position
+   * Common logic for both Ctrl+Enter and Cmd+click handlers
+   * @returns true if something was found and opened, false otherwise
+   */
+  private async findAndOpenItemAtCursor(): Promise<boolean> {
+    if (!this.textInput) return false;
 
     const text = this.textInput.value;
     const cursorPos = this.textInput.selectionStart;
@@ -575,48 +513,38 @@ export class FileSearchManager {
     // Check for URL first
     const url = findUrlAtPosition(text, cursorPos);
     if (url) {
-      e.preventDefault();
-      e.stopPropagation();
-
       await this.openUrlInBrowser(url.url);
-      return;
+      return true;
     }
 
     // Check for slash command (like /commit, /help) - only if command type is enabled
     if (this.isCommandEnabledSync()) {
       const slashCommand = findSlashCommandAtPosition(text, cursorPos);
       if (slashCommand) {
-        e.preventDefault();
-        e.stopPropagation();
-
         try {
           const commandFilePath = await window.electronAPI.slashCommands.getFilePath(slashCommand.command);
           if (commandFilePath) {
             await this.openFileAndRestoreFocus(commandFilePath);
-            return;
+            return true;
           }
         } catch (err) {
           console.error('Failed to resolve slash command file path:', err);
         }
-        return;
+        return true; // Return true even on error to prevent event propagation
       }
     }
 
-    // Find @path at or near cursor position
+    // Find @path at cursor position
     const atPath = findAtPathAtPosition(text, cursorPos);
     if (atPath) {
-      e.preventDefault();
-      e.stopPropagation();
-
-      // Check if it looks like a file path (contains / or . in the original input)
       const looksLikeFilePath = atPath.includes('/') || atPath.includes('.');
 
+      // Try to resolve as file path first if it looks like one
       if (looksLikeFilePath) {
-        // Resolve as file path first
         const filePath = resolveAtPathToAbsolute(atPath, this.cachedDirectoryData?.directory, parsePathWithLineInfo, normalizePath);
         if (filePath) {
           await this.openFileAndRestoreFocus(filePath);
-          return;
+          return true;
         }
       }
 
@@ -625,7 +553,7 @@ export class FileSearchManager {
         const agentFilePath = await window.electronAPI.agents.getFilePath(atPath);
         if (agentFilePath) {
           await this.openFileAndRestoreFocus(agentFilePath);
-          return;
+          return true;
         }
       } catch (err) {
         console.error('Failed to resolve agent file path:', err);
@@ -636,19 +564,20 @@ export class FileSearchManager {
         const filePath = resolveAtPathToAbsolute(atPath, this.cachedDirectoryData?.directory, parsePathWithLineInfo, normalizePath);
         if (filePath) {
           await this.openFileAndRestoreFocus(filePath);
+          return true;
         }
       }
-      return;
+      return true; // Return true even if nothing opened to prevent event propagation
     }
 
     // Find absolute path at cursor position
     const absolutePath = findAbsolutePathAtPosition(text, cursorPos);
     if (absolutePath) {
-      e.preventDefault();
-      e.stopPropagation();
-
       await this.openFileAndRestoreFocus(absolutePath);
+      return true;
     }
+
+    return false;
   }
 
   /**
