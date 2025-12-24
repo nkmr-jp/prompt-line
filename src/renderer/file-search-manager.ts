@@ -4,18 +4,14 @@
  */
 
 import type { FileInfo, DirectoryInfo, AgentItem } from '../types';
-import { getSymbolIconSvg } from './assets/icons/file-icons';
 import type { SymbolResult, LanguageInfo } from './code-search/types';
-import { getSymbolTypeDisplay, SYMBOL_TYPE_FROM_DISPLAY } from './code-search/types';
+import { SYMBOL_TYPE_FROM_DISPLAY } from './code-search/types';
 import type { DirectoryData, FileSearchCallbacks, AtPathRange, SuggestionItem } from './file-search';
 import {
   formatLog,
-  insertSvgIntoElement,
   normalizePath,
   parsePathWithLineInfo,
   getRelativePath,
-  calculateMatchScore,
-  calculateAgentMatchScore,
   findAtPathAtPosition,
   findUrlAtPosition,
   findSlashCommandAtPosition,
@@ -29,7 +25,10 @@ import {
   SuggestionListManager,
   CodeSearchManager,
   FileOpenerManager,
-  DirectoryCacheManager
+  DirectoryCacheManager,
+  FileFilterManager,
+  TextInputPathManager,
+  SymbolModeUIManager
 } from './file-search/managers';
 
 // Pattern to detect code search queries (e.g., @ts:, @go:, @py:)
@@ -65,8 +64,9 @@ export class FileSearchManager {
   private codeSearchManager: CodeSearchManager | null = null;
   private fileOpenerManager: FileOpenerManager | null = null;
   private directoryCacheManager: DirectoryCacheManager | null = null;
-
-
+  private fileFilterManager: FileFilterManager;
+  private textInputPathManager: TextInputPathManager;
+  private symbolModeUIManager: SymbolModeUIManager;
 
   // Whether file search feature is enabled (from settings)
   private fileSearchEnabled: boolean = false;
@@ -77,10 +77,25 @@ export class FileSearchManager {
   private codeSearchLanguage: string = ''; // Current language for code search
   private codeSearchCacheRefreshed: boolean = false; // Whether cache refresh has been triggered for this session
 
-  // Symbol mode properties (for navigating into file to show symbols)
-  private isInSymbolMode: boolean = false;
-  private currentFilePath: string = ''; // Path of the file being viewed for symbols
-  private currentFileSymbols: SymbolResult[] = []; // Symbols in the current file
+  // Symbol mode properties (delegated to SymbolModeUIManager, kept for compatibility)
+  private get isInSymbolMode(): boolean {
+    return this.symbolModeUIManager.isInSymbolMode();
+  }
+  private set isInSymbolMode(value: boolean) {
+    this.symbolModeUIManager.setState({ isInSymbolMode: value });
+  }
+  private get currentFilePath(): string {
+    return this.symbolModeUIManager.getState().currentFilePath;
+  }
+  private set currentFilePath(value: string) {
+    this.symbolModeUIManager.setState({ currentFilePath: value });
+  }
+  private get currentFileSymbols(): SymbolResult[] {
+    return this.symbolModeUIManager.getState().currentFileSymbols;
+  }
+  private set currentFileSymbols(value: SymbolResult[]) {
+    this.symbolModeUIManager.setState({ currentFileSymbols: value });
+  }
 
   constructor(callbacks: FileSearchCallbacks) {
     this.callbacks = callbacks;
@@ -93,6 +108,57 @@ export class FileSearchManager {
 
     // Initialize SettingsCacheManager
     this.settingsCacheManager = new SettingsCacheManager();
+
+    // Initialize FileFilterManager
+    this.fileFilterManager = new FileFilterManager({
+      getDefaultMaxSuggestions: () => this.settingsCacheManager.getDefaultMaxSuggestions()
+    });
+
+    // Initialize TextInputPathManager
+    this.textInputPathManager = new TextInputPathManager({
+      getTextContent: () => this.callbacks.getTextContent(),
+      setTextContent: (text: string) => this.callbacks.setTextContent(text),
+      getCursorPosition: () => this.callbacks.getCursorPosition(),
+      setCursorPosition: (pos: number) => this.callbacks.setCursorPosition(pos),
+      replaceRangeWithUndo: this.callbacks.replaceRangeWithUndo
+        ? (start: number, end: number, text: string) => this.callbacks.replaceRangeWithUndo!(start, end, text)
+        : undefined,
+      addSelectedPath: (path: string) => {
+        this.selectedPaths.add(path);
+        this.highlightManager?.addSelectedPath(path);
+        console.debug('[FileSearchManager] Added path to selectedPaths:', path, 'total:', this.selectedPaths.size);
+      },
+      updateHighlightBackdrop: () => this.updateHighlightBackdrop()
+    });
+
+    // Initialize SymbolModeUIManager
+    this.symbolModeUIManager = new SymbolModeUIManager({
+      getSuggestionsContainer: () => this.suggestionsContainer,
+      getCurrentFileSymbols: () => this.symbolModeUIManager.getState().currentFileSymbols,
+      setMergedSuggestions: (suggestions) => { this.mergedSuggestions = suggestions; },
+      getMergedSuggestions: () => this.mergedSuggestions,
+      getSelectedIndex: () => this.selectedIndex,
+      setSelectedIndex: (index) => { this.selectedIndex = index; },
+      setIsVisible: (visible) => { this.isVisible = visible; },
+      getCurrentFilePath: () => this.symbolModeUIManager.getState().currentFilePath,
+      getAtStartPosition: () => this.atStartPosition,
+      updateSelection: () => this.updateSelection(),
+      selectSymbol: (symbol) => this.selectSymbol(symbol),
+      positionPopup: (atStartPos) => this.suggestionListManager?.position(atStartPos),
+      updateHintText: this.callbacks.updateHintText
+        ? (text: string) => this.callbacks.updateHintText!(text)
+        : undefined,
+      getDefaultHintText: this.callbacks.getDefaultHintText
+        ? () => this.callbacks.getDefaultHintText!()
+        : undefined,
+      getFileSearchMaxSuggestions: () => this.getFileSearchMaxSuggestions(),
+      showSuggestions: (query) => this.showSuggestions(query),
+      insertFilePath: (path) => this.insertFilePath(path),
+      hideSuggestions: () => this.hideSuggestions(),
+      onFileSelected: (path) => this.callbacks.onFileSelected(path),
+      setCurrentQuery: (query) => { this.currentQuery = query; },
+      getCurrentPath: () => this.currentPath
+    });
   }
 
   /**
@@ -944,32 +1010,12 @@ export class FileSearchManager {
 
   /**
    * Adjust currentPath to match the query
-   * If query is shorter than currentPath, navigate up to the matching level
+   * Delegates to FileFilterManager
    */
   private adjustCurrentPathToQuery(query: string): void {
-    if (!this.currentPath) return;
-
-    // If query starts with currentPath, we're searching within the current directory
-    if (query.startsWith(this.currentPath)) {
-      return;
-    }
-
-    // Query doesn't match currentPath, need to navigate up
-    // Find the longest common prefix that ends with /
-    let newPath = '';
-    const parts = this.currentPath.split('/').filter(p => p);
-
-    for (let i = 0; i < parts.length; i++) {
-      const testPath = parts.slice(0, i + 1).join('/') + '/';
-      if (query.startsWith(testPath)) {
-        newPath = testPath;
-      } else {
-        break;
-      }
-    }
-
+    const newPath = this.fileFilterManager.adjustCurrentPathToQuery(this.currentPath, query);
     if (newPath !== this.currentPath) {
-      console.debug('[FileSearchManager] adjustCurrentPathToQuery: navigating up', formatLog({
+      console.debug('[FileSearchManager] adjustCurrentPathToQuery: navigating', formatLog({
         from: this.currentPath,
         to: newPath,
         query
@@ -1023,260 +1069,26 @@ export class FileSearchManager {
   /**
    * Remove the @query text from the textarea without inserting a file path
    * Used when opening a file with Ctrl+Enter
+   * Delegates to TextInputPathManager
    */
   private removeAtQueryText(): void {
-    if (this.atStartPosition === -1) return;
-
-    const currentText = this.callbacks.getTextContent();
-    const cursorPos = this.callbacks.getCursorPosition();
-
-    // Calculate the end position of the @query (current cursor position)
-    const endPosition = cursorPos;
-
-    // Remove the @query text
-    const before = currentText.slice(0, this.atStartPosition);
-    const after = currentText.slice(endPosition);
-    const newText = before + after;
-
-    this.callbacks.setTextContent(newText);
-    this.callbacks.setCursorPosition(this.atStartPosition);
+    this.textInputPathManager.removeAtQueryText(this.atStartPosition);
   }
 
   /**
    * Filter files based on query (fuzzy matching) and currentPath
-   * When there's a query at root level, search recursively across all files
+   * Delegates to FileFilterManager
    */
   public filterFiles(query: string): FileInfo[] {
-    if (!this.cachedDirectoryData?.files) return [];
-
-    const baseDir = this.cachedDirectoryData.directory;
-    const allFiles = this.cachedDirectoryData.files;
-    let files: FileInfo[] = [];
-
-    // If we're in a subdirectory, filter to show only direct children
-    // Also create virtual directory entries for intermediate directories
-    if (this.currentPath) {
-      const seenDirs = new Set<string>();
-
-      for (const file of allFiles) {
-        const relativePath = getRelativePath(file.path, baseDir);
-
-        // Check if file is under currentPath
-        if (!relativePath.startsWith(this.currentPath)) {
-          continue;
-        }
-
-        // Get the remaining path after currentPath
-        const remainingPath = relativePath.substring(this.currentPath.length);
-        if (!remainingPath) continue;
-
-        const slashIndex = remainingPath.indexOf('/');
-
-        if (slashIndex === -1) {
-          // Direct file child
-          files.push(file);
-        } else if (slashIndex === remainingPath.length - 1) {
-          // Direct directory child (already has trailing slash)
-          if (!seenDirs.has(remainingPath)) {
-            seenDirs.add(remainingPath);
-            files.push(file);
-          }
-        } else {
-          // Intermediate directory - create virtual entry
-          const dirName = remainingPath.substring(0, slashIndex);
-          if (!seenDirs.has(dirName)) {
-            seenDirs.add(dirName);
-            // Create virtual directory entry
-            const virtualDir: FileInfo = {
-              name: dirName,
-              path: baseDir + '/' + this.currentPath + dirName,
-              isDirectory: true
-            };
-            files.push(virtualDir);
-          }
-        }
-      }
-
-      if (!query) {
-        // Return first N files if no query, with directories first
-        const sorted = [...files].sort((a, b) => {
-          // Directories come first
-          if (a.isDirectory && !b.isDirectory) return -1;
-          if (!a.isDirectory && b.isDirectory) return 1;
-          // Then sort by name
-          return a.name.localeCompare(b.name);
-        });
-        return sorted.slice(0, this.settingsCacheManager.getDefaultMaxSuggestions());
-      }
-
-      const queryLower = query.toLowerCase();
-
-      // Score and filter files
-      const scored = files
-        .map(file => ({
-          file,
-          score: calculateMatchScore(file, queryLower)
-        }))
-        .filter(item => item.score > 0)
-        .sort((a, b) => b.score - a.score)
-        .slice(0, this.settingsCacheManager.getDefaultMaxSuggestions());
-
-      return scored.map(item => item.file);
-    }
-
-    // At root level
-    if (!query) {
-      // No query - show top-level files and directories only
-      const seenDirs = new Set<string>();
-
-      for (const file of allFiles) {
-        const relativePath = getRelativePath(file.path, baseDir);
-        const slashIndex = relativePath.indexOf('/');
-
-        if (slashIndex === -1) {
-          // Top-level file
-          files.push(file);
-        } else {
-          // Has subdirectory - create virtual directory for top-level
-          const dirName = relativePath.substring(0, slashIndex);
-          if (!seenDirs.has(dirName)) {
-            seenDirs.add(dirName);
-            // Check if we already have this directory in allFiles
-            const existingDir = allFiles.find(f =>
-              f.isDirectory && getRelativePath(f.path, baseDir) === dirName
-            );
-            if (existingDir) {
-              files.push(existingDir);
-            } else {
-              // Create virtual directory entry
-              const virtualDir: FileInfo = {
-                name: dirName,
-                path: baseDir + '/' + dirName,
-                isDirectory: true
-              };
-              files.push(virtualDir);
-            }
-          }
-        }
-      }
-
-      // Return first N files if no query, with directories first
-      const sorted = [...files].sort((a, b) => {
-        // Directories come first
-        if (a.isDirectory && !b.isDirectory) return -1;
-        if (!a.isDirectory && b.isDirectory) return 1;
-        // Then sort by name
-        return a.name.localeCompare(b.name);
-      });
-      return sorted.slice(0, this.settingsCacheManager.getDefaultMaxSuggestions());
-    }
-
-    // With query at root level - search ALL files recursively and show matching ones
-    // Also include matching directories
-    const queryLower = query.toLowerCase();
-    const seenDirs = new Set<string>();
-    const matchingDirs: FileInfo[] = [];
-
-    // First, find all matching files (from anywhere in the tree)
-    const scoredFiles = allFiles
-      .filter(file => !file.isDirectory)
-      .map(file => ({
-        file,
-        score: calculateMatchScore(file, queryLower),
-        relativePath: getRelativePath(file.path, baseDir)
-      }))
-      .filter(item => item.score > 0);
-
-    // Also find matching directories (by path containing the query)
-    // Track seen directory names to avoid duplicates from symlinks
-    const seenDirNames = new Map<string, { path: string; depth: number }>();
-
-    for (const file of allFiles) {
-      const relativePath = getRelativePath(file.path, baseDir);
-      const pathParts = relativePath.split('/').filter(p => p);
-
-      // Check each directory in the path (except the last part which is the file name)
-      for (let i = 0; i < pathParts.length - 1; i++) {
-        const dirPath = pathParts.slice(0, i + 1).join('/');
-        const dirName = pathParts[i] || '';
-
-        if (!dirName || seenDirs.has(dirPath)) continue;
-
-        // Check if directory name or path matches query
-        if (dirName.toLowerCase().includes(queryLower) || dirPath.toLowerCase().includes(queryLower)) {
-          seenDirs.add(dirPath);
-
-          // Check if we already have a directory with the same name
-          // Prefer the one with shorter path (likely the original, not symlink-resolved)
-          const depth = pathParts.length;
-          const existing = seenDirNames.get(dirName);
-          if (existing && existing.depth <= depth) {
-            continue; // Skip this one, we already have a shorter path
-          }
-
-          seenDirNames.set(dirName, { path: dirPath, depth });
-          const virtualDir: FileInfo = {
-            name: dirName,
-            path: baseDir + '/' + dirPath,
-            isDirectory: true
-          };
-          matchingDirs.push(virtualDir);
-        }
-      }
-    }
-
-    // Remove duplicate directories by name (keep shortest path)
-    const uniqueDirs = Array.from(seenDirNames.entries()).map(([name, info]) => {
-      return matchingDirs.find(d => d.name === name && d.path === baseDir + '/' + info.path);
-    }).filter((d): d is FileInfo => d !== undefined);
-
-    // Score directories (use uniqueDirs to avoid duplicates from symlinks)
-    const scoredDirs = uniqueDirs.map(dir => ({
-      file: dir,
-      score: calculateMatchScore(dir, queryLower),
-      relativePath: getRelativePath(dir.path, baseDir)
-    }));
-
-    // Combine and sort by score
-    const allScored = [...scoredFiles, ...scoredDirs]
-      .sort((a, b) => b.score - a.score)
-      .slice(0, this.settingsCacheManager.getDefaultMaxSuggestions());
-
-    return allScored.map(item => item.file);
+    return this.fileFilterManager.filterFiles(this.cachedDirectoryData, this.currentPath, query);
   }
 
   /**
    * Count files in a directory (direct children only)
+   * Delegates to FileFilterManager
    */
   private countFilesInDirectory(dirPath: string): number {
-    if (!this.cachedDirectoryData?.files) return 0;
-
-    const baseDir = this.cachedDirectoryData.directory;
-    const dirRelativePath = getRelativePath(dirPath, baseDir);
-    const dirPrefix = dirRelativePath.endsWith('/') ? dirRelativePath : dirRelativePath + '/';
-
-    let count = 0;
-    const seenChildren = new Set<string>();
-
-    for (const file of this.cachedDirectoryData.files) {
-      const relativePath = getRelativePath(file.path, baseDir);
-
-      if (!relativePath.startsWith(dirPrefix)) continue;
-
-      const remainingPath = relativePath.substring(dirPrefix.length);
-      if (!remainingPath) continue;
-
-      // Get the direct child name
-      const slashIndex = remainingPath.indexOf('/');
-      const childName = slashIndex === -1 ? remainingPath : remainingPath.substring(0, slashIndex);
-
-      if (!seenChildren.has(childName)) {
-        seenChildren.add(childName);
-        count++;
-      }
-    }
-
-    return count;
+    return this.fileFilterManager.countFilesInDirectory(this.cachedDirectoryData, dirPath);
   }
 
   /**
@@ -1288,46 +1100,15 @@ export class FileSearchManager {
 
   /**
    * Merge files and agents into a single sorted list based on match score
-   * When query is empty, prioritize directories first
+   * Delegates to FileFilterManager
    */
   private mergeSuggestions(query: string, maxSuggestions?: number): SuggestionItem[] {
-    const items: SuggestionItem[] = [];
-    const queryLower = query.toLowerCase();
-
-    // Add files with scores
-    for (const file of this.filteredFiles) {
-      const score = calculateMatchScore(file, queryLower);
-      items.push({ type: 'file', file, score });
-    }
-
-    // Add agents with scores
-    for (const agent of this.filteredAgents) {
-      const score = calculateAgentMatchScore(agent, queryLower);
-      items.push({ type: 'agent', agent, score });
-    }
-
-    // Sort: when no query, directories first then by name; otherwise by score
-    if (!query) {
-      items.sort((a, b) => {
-        // Directories first
-        const aIsDir = a.type === 'file' && a.file?.isDirectory;
-        const bIsDir = b.type === 'file' && b.file?.isDirectory;
-        if (aIsDir && !bIsDir) return -1;
-        if (!aIsDir && bIsDir) return 1;
-
-        // Then by name alphabetically
-        const aName = a.type === 'file' ? a.file?.name || '' : a.agent?.name || '';
-        const bName = b.type === 'file' ? b.file?.name || '' : b.agent?.name || '';
-        return aName.localeCompare(bName);
-      });
-    } else {
-      // Sort by score descending
-      items.sort((a, b) => b.score - a.score);
-    }
-
-    // Limit to maxSuggestions (use provided value or fallback to DEFAULT_MAX_SUGGESTIONS)
-    const limit = maxSuggestions ?? this.settingsCacheManager.getDefaultMaxSuggestions();
-    return items.slice(0, limit);
+    return this.fileFilterManager.mergeSuggestions(
+      this.filteredFiles,
+      this.filteredAgents,
+      query,
+      maxSuggestions
+    );
   }
 
   /**
@@ -1634,38 +1415,18 @@ export class FileSearchManager {
 
   /**
    * Expand current file path (for Enter/Tab when no symbol is selected in symbol mode)
-   * シンボルモードで未選択状態の時、ファイルパス自体を挿入する
+   * Delegates to SymbolModeUIManager
    */
   private expandCurrentFile(): void {
-    if (!this.currentFilePath) return;
-
-    // ファイルパスを挿入（末尾にスペースを追加）
-    this.insertFilePath(this.currentFilePath);
-    this.hideSuggestions();
-
-    // Callback for external handling
-    this.callbacks.onFileSelected(this.currentFilePath);
+    this.symbolModeUIManager.expandCurrentFile();
   }
 
   /**
    * Update text input with the current path (keeps @ and updates the path after it)
+   * Delegates to TextInputPathManager
    */
   private updateTextInputWithPath(path: string): void {
-    if (this.atStartPosition < 0) return;
-
-    const text = this.callbacks.getTextContent();
-    const cursorPos = this.callbacks.getCursorPosition();
-
-    // Replace text after @ with the new path
-    const before = text.substring(0, this.atStartPosition + 1); // Keep @
-    const after = text.substring(cursorPos);
-    const newText = before + path + after;
-
-    this.callbacks.setTextContent(newText);
-
-    // Position cursor at end of path (after @path)
-    const newCursorPos = this.atStartPosition + 1 + path.length;
-    this.callbacks.setCursorPosition(newCursorPos);
+    this.textInputPathManager.updateTextInputWithPath(path, this.atStartPosition);
   }
 
   /**
@@ -1763,150 +1524,18 @@ export class FileSearchManager {
 
   /**
    * Show symbol suggestions for the current file
-   * Uses same pattern as directory navigation: header + items, selectedIndex = -1 for unselected
+   * Delegates to SymbolModeUIManager
    */
   private async showSymbolSuggestions(query: string): Promise<void> {
-    if (!this.suggestionsContainer) return;
-
-    // Filter symbols by query
-    let filtered = this.currentFileSymbols;
-    if (query) {
-      const lowerQuery = query.toLowerCase();
-      filtered = this.currentFileSymbols.filter(s =>
-        s.name.toLowerCase().includes(lowerQuery) ||
-        s.lineContent.toLowerCase().includes(lowerQuery)
-      );
-
-      // Sort by relevance
-      filtered.sort((a, b) => {
-        const aName = a.name.toLowerCase();
-        const bName = b.name.toLowerCase();
-        const aStarts = aName.startsWith(lowerQuery);
-        const bStarts = bName.startsWith(lowerQuery);
-        if (aStarts && !bStarts) return -1;
-        if (!aStarts && bStarts) return 1;
-        return aName.localeCompare(bName);
-      });
-    }
-
-    // Limit results using fileSearch settings (not mdSearch)
-    const maxSuggestions = await this.getFileSearchMaxSuggestions();
-    filtered = filtered.slice(0, maxSuggestions);
-
-    // Convert to SuggestionItem
-    this.mergedSuggestions = filtered.map((symbol, index) => ({
-      type: 'symbol' as const,
-      symbol,
-      score: 1000 - index
-    }));
-
-    // Set selectedIndex = -1 (unselected state, like directory navigation)
-    // Tab/Enter will insert file path when nothing is selected
-    this.selectedIndex = -1;
-
-    // Clear and render
-    this.suggestionsContainer.innerHTML = '';
-    const fragment = document.createDocumentFragment();
-
-    // Add file path header (like directory header in renderSuggestions)
-    if (this.currentFilePath) {
-      const header = document.createElement('div');
-      header.className = 'file-suggestion-header';
-      header.textContent = this.currentFilePath;
-      fragment.appendChild(header);
-    }
-
-    if (this.mergedSuggestions.length === 0) {
-      this.callbacks.updateHintText?.(`No symbols matching "${query}" in ${this.currentFilePath}`);
-    }
-
-    // Render symbol items
-    this.mergedSuggestions.forEach((suggestion, index) => {
-      if (suggestion.symbol) {
-        const item = this.renderSymbolItem(suggestion.symbol, index);
-        fragment.appendChild(item);
-      }
-    });
-
-    this.suggestionsContainer.appendChild(fragment);
-
-    // Update hint
-    if (this.mergedSuggestions.length > 0) {
-      this.callbacks.updateHintText?.(`${this.mergedSuggestions.length} symbols in ${this.currentFilePath}`);
-    }
-
-    // Position and show (delegate positioning to SuggestionListManager)
-    this.suggestionListManager?.position(this.atStartPosition);
-    this.suggestionsContainer.style.display = 'block';
-    this.isVisible = true;
-  }
-
-  /**
-   * Render a symbol item for the suggestions list
-   */
-  private renderSymbolItem(symbol: SymbolResult, index: number): HTMLElement {
-    const item = document.createElement('div');
-    item.className = 'file-suggestion-item symbol-item';
-    item.dataset.index = String(index);
-
-    if (index === this.selectedIndex) {
-      item.classList.add('selected');
-    }
-
-    // Symbol type icon
-    const iconSpan = document.createElement('span');
-    iconSpan.className = 'file-icon symbol-icon';
-    const iconSvg = getSymbolIconSvg(symbol.type);
-    insertSvgIntoElement(iconSpan, iconSvg);
-    item.appendChild(iconSpan);
-
-    // Symbol name
-    const nameSpan = document.createElement('span');
-    nameSpan.className = 'file-name';
-    nameSpan.textContent = symbol.name;
-    item.appendChild(nameSpan);
-
-    // Symbol type badge
-    const typeBadge = document.createElement('span');
-    typeBadge.className = 'file-suggestion-type';
-    typeBadge.textContent = getSymbolTypeDisplay(symbol.type);
-    item.appendChild(typeBadge);
-
-    // Line number
-    const lineSpan = document.createElement('span');
-    lineSpan.className = 'file-path';
-    lineSpan.textContent = `:${symbol.lineNumber}`;
-    item.appendChild(lineSpan);
-
-    // Mouse events
-    item.addEventListener('mousemove', () => {
-      this.selectedIndex = index;
-      this.updateSelection();
-    });
-
-    item.addEventListener('click', () => {
-      this.selectSymbol(symbol);
-    });
-
-    return item;
+    await this.symbolModeUIManager.showSymbolSuggestions(query);
   }
 
   /**
    * Exit symbol mode and return to file list
+   * Delegates to SymbolModeUIManager
    */
   private exitSymbolMode(): void {
-    this.isInSymbolMode = false;
-    this.currentFilePath = '';
-    this.currentFileSymbols = [];
-    this.currentQuery = '';
-
-    // Restore default hint text
-    if (this.callbacks.getDefaultHintText) {
-      this.callbacks.updateHintText?.(this.callbacks.getDefaultHintText());
-    }
-
-    // Re-show file suggestions
-    this.showSuggestions(this.currentPath || '');
+    this.symbolModeUIManager.exitSymbolMode();
   }
 
   /**
@@ -1933,77 +1562,19 @@ export class FileSearchManager {
 
   /**
    * Insert file path, keeping the @ and replacing only the query part
-   * Uses replaceRangeWithUndo for native Undo/Redo support
+   * Delegates to TextInputPathManager
    */
   public insertFilePath(path: string): void {
-    if (this.atStartPosition < 0) return;
-
-    const cursorPos = this.callbacks.getCursorPosition();
-
-    // The insertion text includes path + space for better UX
-    const insertionText = path + ' ';
-
-    // Replace the query part (after @) with the new path + space
-    // atStartPosition points to @, so we keep @ and replace from atStartPosition + 1 to cursorPos
-    const replaceStart = this.atStartPosition + 1;
-    const replaceEnd = cursorPos;
-
-    // Use replaceRangeWithUndo if available for native Undo support
-    if (this.callbacks.replaceRangeWithUndo) {
-      this.callbacks.replaceRangeWithUndo(replaceStart, replaceEnd, insertionText);
-    } else {
-      // Fallback to direct text manipulation (no Undo support)
-      const text = this.callbacks.getTextContent();
-      const before = text.substring(0, replaceStart);
-      const after = text.substring(replaceEnd);
-      const newText = before + insertionText + after;
-      this.callbacks.setTextContent(newText);
-    }
-
-    // Add the path to the set of selected paths (for highlighting)
-    this.selectedPaths.add(path);
-    this.highlightManager?.addSelectedPath(path);
-    console.debug('[FileSearchManager] Added path to selectedPaths:', path, 'total:', this.selectedPaths.size);
-
-    // Update highlight backdrop (this will find all occurrences in the text)
-    this.updateHighlightBackdrop();
-
-    // Reset state
-    this.atStartPosition = -1;
+    this.atStartPosition = this.textInputPathManager.insertFilePath(path, this.atStartPosition);
   }
 
   /**
    * Insert file path without the @ symbol
    * Replaces both @ and query with just the path
-   * Uses replaceRangeWithUndo for native Undo/Redo support
+   * Delegates to TextInputPathManager
    */
   private insertFilePathWithoutAt(path: string): void {
-    if (this.atStartPosition < 0) return;
-
-    const cursorPos = this.callbacks.getCursorPosition();
-
-    // The insertion text includes path + space for better UX
-    const insertionText = path + ' ';
-
-    // Replace from @ (atStartPosition) to cursorPos - this removes the @ as well
-    const replaceStart = this.atStartPosition;
-    const replaceEnd = cursorPos;
-
-    // Use replaceRangeWithUndo if available for native Undo support
-    if (this.callbacks.replaceRangeWithUndo) {
-      this.callbacks.replaceRangeWithUndo(replaceStart, replaceEnd, insertionText);
-    } else {
-      // Fallback to direct text manipulation (no Undo support)
-      const text = this.callbacks.getTextContent();
-      const before = text.substring(0, replaceStart);
-      const after = text.substring(replaceEnd);
-      const newText = before + insertionText + after;
-      this.callbacks.setTextContent(newText);
-    }
-
-    // Note: Don't add to selectedPaths for path format since there's no @ to highlight
-    // Reset state
-    this.atStartPosition = -1;
+    this.atStartPosition = this.textInputPathManager.insertFilePathWithoutAt(path, this.atStartPosition);
   }
 
   /**

@@ -21,3 +21,12 @@ export type { FileOpenerCallbacks } from './file-opener-manager';
 
 export { CodeSearchManager } from './code-search-manager';
 export type { CodeSearchManagerCallbacks } from './code-search-manager';
+
+export { FileFilterManager } from './file-filter-manager';
+export type { FileFilterCallbacks } from './file-filter-manager';
+
+export { TextInputPathManager } from './text-input-path-manager';
+export type { TextInputPathCallbacks } from './text-input-path-manager';
+
+export { SymbolModeUIManager } from './symbol-mode-ui-manager';
+export type { SymbolModeUICallbacks, SymbolModeState } from './symbol-mode-ui-manager';
