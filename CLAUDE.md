@@ -401,7 +401,7 @@ The window supports multiple positioning modes with dynamic configuration:
   | C# | `cs` | `@cs:Handle` | class, interface, struct, enum, method, namespace |
   | Scala | `scala` | `@scala:process` | function, class, trait, object, type, constant, variable |
   | Terraform | `tf`, `terraform` | `@tf:instance`, `@terraform:vpc` | resource, data, variable, output, module, provider |
-  | Markdown | `md`, `markdown` | `@md:Installation`, `@markdown:Usage` | heading, link |
+  | Markdown | `md`, `markdown` | `@md:Installation`, `@markdown:Usage` | heading |
 - **Requirements**: ripgrep (`rg`) must be installed (`brew install ripgrep`)
 - **File search must be enabled**: Code search is part of the @ mention system
 

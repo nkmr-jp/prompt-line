@@ -17,7 +17,6 @@ enum SymbolType: String, Codable {
     case module
     case namespace
     case heading
-    case link
     // Terraform-specific types
     case resource
     case dataSource = "data"

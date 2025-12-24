@@ -17,7 +17,6 @@ export type SymbolType =
   | 'module'
   | 'namespace'
   | 'heading'
-  | 'link'
   // Terraform-specific types
   | 'resource'
   | 'data'
@@ -107,7 +106,6 @@ export function getSymbolTypeDisplay(type: SymbolType): string {
     case 'module': return 'mod';
     case 'namespace': return 'ns';
     case 'heading': return 'heading';
-    case 'link': return 'link';
     // Terraform-specific types
     case 'resource': return 'resource';
     case 'data': return 'data';
@@ -139,7 +137,6 @@ export const SYMBOL_TYPE_FROM_DISPLAY: Record<string, SymbolType> = {
   'ns': 'namespace',
   'namespace': 'namespace',
   'heading': 'heading',
-  'link': 'link',
   // Terraform-specific types
   'resource': 'resource',
   'res': 'resource',
