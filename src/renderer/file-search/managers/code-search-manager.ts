@@ -6,10 +6,18 @@
 import type {
   SymbolResult,
   LanguageInfo,
-  SymbolSearchResponse,
-  CodeSearchCallbacks
+  SymbolSearchResponse
 } from '../../code-search/types';
 import { SYMBOL_TYPE_FROM_DISPLAY } from '../../code-search/types';
+
+/**
+ * Callbacks interface for CodeSearchManager
+ * Only includes callbacks actually used by this manager
+ */
+export interface CodeSearchManagerCallbacks {
+  updateHintText?: (text: string) => void;
+  getDefaultHintText?: () => string;
+}
 
 export class CodeSearchManager {
   // Ripgrep availability state
@@ -34,9 +42,9 @@ export class CodeSearchManager {
   private currentFileSymbols: SymbolResult[] = [];
 
   // Callbacks for external interaction
-  private callbacks: CodeSearchCallbacks;
+  private callbacks: CodeSearchManagerCallbacks;
 
-  constructor(callbacks: CodeSearchCallbacks) {
+  constructor(callbacks: CodeSearchManagerCallbacks) {
     this.callbacks = callbacks;
     // Start initialization immediately
     this.codeSearchInitPromise = this.initializeCodeSearch();

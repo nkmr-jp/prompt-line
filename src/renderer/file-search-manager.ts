@@ -27,7 +27,15 @@ import {
   getCaretCoordinates,
   createMirrorDiv
 } from './file-search';
-import { PopupManager, SettingsCacheManager } from './file-search/managers';
+import {
+  PopupManager,
+  SettingsCacheManager,
+  HighlightManager,
+  SuggestionListManager,
+  CodeSearchManager,
+  FileOpenerManager,
+  DirectoryCacheManager
+} from './file-search/managers';
 
 // Pattern to detect code search queries (e.g., @ts:, @go:, @py:)
 const CODE_SEARCH_PATTERN = /^([a-z]+):(.*)$/;
@@ -55,6 +63,13 @@ export class FileSearchManager {
 
   // SettingsCacheManager for settings caching
   private settingsCacheManager: SettingsCacheManager;
+
+  // New modular managers (initialized in initializeElements after DOM is ready)
+  private highlightManager: HighlightManager | null = null;
+  private suggestionListManager: SuggestionListManager | null = null;
+  private codeSearchManager: CodeSearchManager | null = null;
+  private fileOpenerManager: FileOpenerManager | null = null;
+  private directoryCacheManager: DirectoryCacheManager | null = null;
 
   // Cmd+hover state for file path link
   private isCmdHoverActive: boolean = false;
@@ -202,7 +217,27 @@ export class FileSearchManager {
     // Initialize popup manager
     this.popupManager.initialize();
 
+    // Initialize CodeSearchManager (replaces inline code search initialization)
+    this.codeSearchManager = new CodeSearchManager({
+      updateHintText: (text: string) => this.callbacks.updateHintText?.(text),
+      getDefaultHintText: () => this.callbacks.getDefaultHintText?.() || ''
+    });
+
+    // Initialize DirectoryCacheManager
+    this.directoryCacheManager = new DirectoryCacheManager({
+      onIndexingStatusChange: (isBuilding: boolean, hint?: string) => {
+        if (isBuilding && hint) {
+          this.callbacks.updateHintText?.(hint);
+        }
+      },
+      onCacheUpdated: (_data) => {
+        // Cache update notification - handled by updateCache method
+      },
+      updateHintText: (text: string) => this.callbacks.updateHintText?.(text)
+    });
+
     // Initialize code search (async, but store promise for later await)
+    // Note: This will be replaced by codeSearchManager once fully integrated
     this.codeSearchInitPromise = this.initializeCodeSearch();
   }
 
@@ -3484,6 +3519,19 @@ export class FileSearchManager {
   }
 
   /**
+   * Get debug status of all managers (for testing/debugging)
+   */
+  public getManagerStatus(): Record<string, boolean> {
+    return {
+      highlightManager: this.highlightManager !== null,
+      suggestionListManager: this.suggestionListManager !== null,
+      codeSearchManager: this.codeSearchManager !== null,
+      fileOpenerManager: this.fileOpenerManager !== null,
+      directoryCacheManager: this.directoryCacheManager !== null
+    };
+  }
+
+  /**
    * Cleanup resources
    */
   public destroy(): void {
@@ -3495,5 +3543,12 @@ export class FileSearchManager {
       this.mirrorDiv.parentNode.removeChild(this.mirrorDiv);
       this.mirrorDiv = null;
     }
+
+    // Clean up modular managers
+    this.highlightManager = null;
+    this.suggestionListManager = null;
+    this.codeSearchManager = null;
+    this.fileOpenerManager = null;
+    this.directoryCacheManager = null;
   }
 }

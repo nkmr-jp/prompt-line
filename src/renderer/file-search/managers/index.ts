@@ -20,3 +20,4 @@ export { FileOpenerManager } from './file-opener-manager';
 export type { FileOpenerCallbacks } from './file-opener-manager';
 
 export { CodeSearchManager } from './code-search-manager';
+export type { CodeSearchManagerCallbacks } from './code-search-manager';
