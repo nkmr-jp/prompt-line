@@ -29,7 +29,8 @@ import {
   FileFilterManager,
   TextInputPathManager,
   SymbolModeUIManager,
-  AtPathBehaviorManager
+  AtPathBehaviorManager,
+  ItemSelectionManager
 } from './file-search/managers';
 
 // Pattern to detect code search queries (e.g., @ts:, @go:, @py:)
@@ -69,6 +70,7 @@ export class FileSearchManager {
   private textInputPathManager: TextInputPathManager;
   private symbolModeUIManager: SymbolModeUIManager;
   private atPathBehaviorManager: AtPathBehaviorManager;
+  private itemSelectionManager: ItemSelectionManager;
 
   // Whether file search feature is enabled (from settings)
   private fileSearchEnabled: boolean = false;
@@ -179,6 +181,34 @@ export class FileSearchManager {
       },
       updateHighlightBackdrop: () => this.updateHighlightBackdrop(),
       getCachedDirectoryData: () => this.cachedDirectoryData
+    });
+
+    // Initialize ItemSelectionManager
+    this.itemSelectionManager = new ItemSelectionManager({
+      getCachedDirectoryData: () => this.cachedDirectoryData,
+      getTextInput: () => this.textInput,
+      getAtStartPosition: () => this.atStartPosition,
+      insertFilePath: (path: string) => this.insertFilePath(path),
+      insertFilePathWithoutAt: (path: string) => this.insertFilePathWithoutAt(path),
+      hideSuggestions: () => this.hideSuggestions(),
+      onFileSelected: (path: string) => this.callbacks.onFileSelected(path),
+      navigateIntoFile: (relativePath: string, absolutePath: string, language: LanguageInfo) =>
+        this.navigateIntoFile(relativePath, absolutePath, language),
+      getLanguageForFile: (fileName: string) => this.getLanguageForFile(fileName),
+      isCodeSearchAvailable: () => this.codeSearchManager?.isAvailableSync() || false,
+      replaceRangeWithUndo: this.callbacks.replaceRangeWithUndo
+        ? (start: number, end: number, text: string) => this.callbacks.replaceRangeWithUndo!(start, end, text)
+        : undefined,
+      addSelectedPath: (path: string) => {
+        this.selectedPaths.add(path);
+        this.highlightManager?.addSelectedPath(path);
+      },
+      updateHighlightBackdrop: () => this.updateHighlightBackdrop(),
+      resetCodeSearchState: () => {
+        this.codeSearchQuery = '';
+        this.codeSearchLanguage = '';
+        this.codeSearchCacheRefreshed = false;
+      }
     });
   }
 
@@ -1134,72 +1164,21 @@ export class FileSearchManager {
 
   /**
    * Select an item from merged suggestions by index
+   * Delegates to ItemSelectionManager
    */
   private selectItem(index: number): void {
     const suggestion = this.mergedSuggestions[index];
-    if (!suggestion) return;
-
-    if (suggestion.type === 'file' && suggestion.file) {
-      this.selectFileByInfo(suggestion.file);
-    } else if (suggestion.type === 'agent' && suggestion.agent) {
-      this.selectAgentByInfo(suggestion.agent);
-    } else if (suggestion.type === 'symbol' && suggestion.symbol) {
-      this.selectSymbol(suggestion.symbol);
+    if (suggestion) {
+      this.itemSelectionManager.selectItem(suggestion);
     }
   }
 
   /**
-   * Select a symbol and insert its path:lineNumber#symbolName (with @ prefix for highlighting)
+   * Select a symbol and insert its path:lineNumber#symbolName
+   * Delegates to ItemSelectionManager
    */
   private selectSymbol(symbol: SymbolResult): void {
-    if (!this.textInput || this.atStartPosition < 0) return;
-
-    // Format: relativePath:lineNumber#symbolName (keep @ prefix)
-    // The @ is already at atStartPosition, so we insert path after it
-    const pathWithLineAndSymbol = `${symbol.relativePath}:${symbol.lineNumber}#${symbol.name} `;
-
-    // Get current cursor position (end of the @query)
-    const cursorPos = this.textInput.selectionStart;
-
-    // Save atStartPosition before replacement - replaceRangeWithUndo triggers input event
-    // which calls checkForFileSearch() and may set atStartPosition to -1 via hideSuggestions()
-    const savedAtStartPosition = this.atStartPosition;
-
-    // Replace the lang:query part (after @) with the path:line#symbol
-    // atStartPosition is the @ position, so we replace from atStartPosition + 1 to keep @
-    if (this.callbacks.replaceRangeWithUndo) {
-      // execCommand('insertText') sets cursor at end of inserted text automatically
-      // Do NOT set cursor position after this - input event handler may have modified atStartPosition
-      this.callbacks.replaceRangeWithUndo(savedAtStartPosition + 1, cursorPos, pathWithLineAndSymbol);
-    } else {
-      // Fallback without undo support - need to set cursor position manually
-      const text = this.textInput.value;
-      const newText = text.substring(0, savedAtStartPosition + 1) + pathWithLineAndSymbol + text.substring(cursorPos);
-      this.textInput.value = newText;
-      const newCursorPos = savedAtStartPosition + 1 + pathWithLineAndSymbol.length;
-      this.textInput.setSelectionRange(newCursorPos, newCursorPos);
-    }
-
-    // Add to selectedPaths for highlighting and click-to-open
-    // Use the full path including line number and symbol name (without trailing space)
-    const pathForHighlight = `${symbol.relativePath}:${symbol.lineNumber}#${symbol.name}`;
-    this.selectedPaths.add(pathForHighlight);
-    this.highlightManager?.addSelectedPath(pathForHighlight);
-    console.debug('[FileSearchManager] Added symbol path to selectedPaths:', pathForHighlight);
-
-    // Update highlight backdrop (this also calls rescanAtPaths internally)
-    this.updateHighlightBackdrop();
-
-    // Notify callback
-    this.callbacks.onFileSelected(pathForHighlight);
-
-    // Reset code search state
-    this.codeSearchQuery = '';
-    this.codeSearchLanguage = '';
-    this.codeSearchCacheRefreshed = false;
-
-    // Hide suggestions
-    this.hideSuggestions();
+    this.itemSelectionManager.selectSymbol(symbol);
   }
 
   /**
@@ -1451,43 +1430,6 @@ export class FileSearchManager {
   }
 
   /**
-   * Select a file by FileInfo object and insert its path
-   */
-  private selectFileByInfo(file: FileInfo): void {
-    // Get relative path from base directory
-    const baseDir = this.cachedDirectoryData?.directory || '';
-    let relativePath = getRelativePath(file.path, baseDir);
-
-    // ディレクトリの場合は末尾に/を付ける
-    if (file.isDirectory && !relativePath.endsWith('/')) {
-      relativePath += '/';
-    }
-
-    // If it's a directory, just insert the path (directory navigation handled elsewhere)
-    if (file.isDirectory) {
-      this.insertFilePath(relativePath);
-      this.hideSuggestions();
-      this.callbacks.onFileSelected(relativePath);
-      return;
-    }
-
-    // Check if symbol search is available for this file type
-    const language = this.getLanguageForFile(file.name);
-    if (this.codeSearchManager?.isAvailableSync() && language) {
-      // Navigate into file to show symbols
-      this.navigateIntoFile(relativePath, file.path, language);
-      return;
-    }
-
-    // Fallback: insert the file path
-    this.insertFilePath(relativePath);
-    this.hideSuggestions();
-
-    // Callback for external handling
-    this.callbacks.onFileSelected(relativePath);
-  }
-
-  /**
    * Get language info for a file based on its extension or filename
    */
   private getLanguageForFile(filename: string): LanguageInfo | null {
@@ -1557,28 +1499,6 @@ export class FileSearchManager {
    */
   private exitSymbolMode(): void {
     this.symbolModeUIManager.exitSymbolMode();
-  }
-
-  /**
-   * Select an agent by AgentItem object and insert its name
-   */
-  private selectAgentByInfo(agent: AgentItem): void {
-    // Determine what to insert based on agent's inputFormat setting
-    // Default to 'name' for agents (backward compatible behavior)
-    const inputFormat = agent.inputFormat ?? 'name';
-
-    if (inputFormat === 'path') {
-      // For 'path' format, replace @ and query with just the file path (no @)
-      this.insertFilePathWithoutAt(agent.filePath);
-    } else {
-      // For 'name' format, keep @ and insert just the name
-      this.insertFilePath(agent.name);
-    }
-    this.hideSuggestions();
-
-    // Callback for external handling
-    const insertText = inputFormat === 'path' ? agent.filePath : agent.name;
-    this.callbacks.onFileSelected(inputFormat === 'name' ? `@${insertText}` : insertText);
   }
 
   /**

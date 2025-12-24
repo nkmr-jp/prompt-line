@@ -33,3 +33,6 @@ export type { SymbolModeUICallbacks, SymbolModeState } from './symbol-mode-ui-ma
 
 export { AtPathBehaviorManager } from './at-path-behavior-manager';
 export type { AtPathBehaviorCallbacks } from './at-path-behavior-manager';
+
+export { ItemSelectionManager } from './item-selection-manager';
+export type { ItemSelectionCallbacks } from './item-selection-manager';
