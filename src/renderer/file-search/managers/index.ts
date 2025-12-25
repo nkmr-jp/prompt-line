@@ -51,6 +51,3 @@ export type { QueryExtractionResult, CodeSearchQueryResult, QueryExtractionCallb
 
 export { SuggestionStateManager } from './suggestion-state-manager';
 export type { SuggestionStateCallbacks } from './suggestion-state-manager';
-
-export { AgentSearchManager } from './agent-search-manager';
-export type { AgentSearchCallbacks } from './agent-search-manager';

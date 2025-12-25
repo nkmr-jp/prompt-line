@@ -33,8 +33,7 @@ import {
   KeyboardNavigationManager,
   EventListenerManager,
   QueryExtractionManager,
-  SuggestionStateManager,
-  AgentSearchManager
+  SuggestionStateManager
 } from './file-search/managers';
 
 export class FileSearchManager {
@@ -77,7 +76,6 @@ export class FileSearchManager {
   private eventListenerManager: EventListenerManager;
   private queryExtractionManager: QueryExtractionManager;
   private suggestionStateManager: SuggestionStateManager;
-  private agentSearchManager: AgentSearchManager;
 
   // Whether file search feature is enabled (from settings)
   private fileSearchEnabled: boolean = false;
@@ -291,11 +289,6 @@ export class FileSearchManager {
     this.queryExtractionManager = new QueryExtractionManager({
       getTextContent: () => this.callbacks.getTextContent(),
       getCursorPosition: () => this.callbacks.getCursorPosition()
-    });
-
-    // Initialize AgentSearchManager
-    this.agentSearchManager = new AgentSearchManager({
-      getMaxSuggestions: (type: 'command' | 'mention') => this.getMaxSuggestions(type)
     });
 
     // Initialize SuggestionStateManager
@@ -944,10 +937,19 @@ export class FileSearchManager {
 
   /**
    * Search agents via IPC
-   * Delegates to AgentSearchManager
    */
   private async searchAgents(query: string): Promise<AgentItem[]> {
-    return this.agentSearchManager.searchAgents(query);
+    try {
+      const electronAPI = (window as unknown as { electronAPI?: { agents?: { get?: (query: string) => Promise<AgentItem[]> } } }).electronAPI;
+      if (electronAPI?.agents?.get) {
+        const agents = await electronAPI.agents.get(query);
+        const maxSuggestions = await this.getMaxSuggestions('mention');
+        return agents.slice(0, maxSuggestions);
+      }
+    } catch (error) {
+      console.error('[FileSearchManager] Failed to search agents:', error);
+    }
+    return [];
   }
 
   /**
