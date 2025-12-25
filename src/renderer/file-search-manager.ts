@@ -11,7 +11,6 @@ import {
   formatLog,
   normalizePath,
   parsePathWithLineInfo,
-  getRelativePath,
   findAtPathAtPosition,
   findUrlAtPosition,
   findSlashCommandAtPosition,
@@ -31,7 +30,8 @@ import {
   SymbolModeUIManager,
   AtPathBehaviorManager,
   ItemSelectionManager,
-  NavigationManager
+  NavigationManager,
+  KeyboardNavigationManager
 } from './file-search/managers';
 
 // Pattern to detect code search queries (e.g., @ts:, @go:, @py:)
@@ -73,6 +73,7 @@ export class FileSearchManager {
   private atPathBehaviorManager: AtPathBehaviorManager;
   private itemSelectionManager: ItemSelectionManager;
   private navigationManager: NavigationManager;
+  private keyboardNavigationManager: KeyboardNavigationManager;
 
   // Whether file search feature is enabled (from settings)
   private fileSearchEnabled: boolean = false;
@@ -236,6 +237,31 @@ export class FileSearchManager {
       setIsInSymbolMode: (value: boolean) => { this.isInSymbolMode = value; },
       setCurrentFilePath: (path: string) => { this.currentFilePath = path; },
       setCurrentFileSymbols: (symbols: SymbolResult[]) => { this.currentFileSymbols = symbols; }
+    });
+
+    // Initialize KeyboardNavigationManager
+    this.keyboardNavigationManager = new KeyboardNavigationManager({
+      getIsVisible: () => this.isVisible,
+      getSelectedIndex: () => this.selectedIndex,
+      getTotalItemCount: () => this.getTotalItemCount(),
+      getMergedSuggestions: () => this.mergedSuggestions,
+      getCachedDirectoryData: () => this.cachedDirectoryData,
+      getIsInSymbolMode: () => this.isInSymbolMode,
+      getCurrentQuery: () => this.currentQuery,
+      getIsComposing: this.callbacks.getIsComposing,
+      setSelectedIndex: (index: number) => { this.selectedIndex = index; },
+      updateSelection: () => this.updateSelection(),
+      selectItem: (index: number) => this.selectItem(index),
+      hideSuggestions: () => this.hideSuggestions(),
+      expandCurrentDirectory: () => this.expandCurrentDirectory(),
+      expandCurrentFile: () => this.expandCurrentFile(),
+      navigateIntoDirectory: (file: FileInfo) => this.navigateIntoDirectory(file),
+      exitSymbolMode: () => this.exitSymbolMode(),
+      removeAtQueryText: () => this.removeAtQueryText(),
+      openFileAndRestoreFocus: (filePath: string) => this.openFileAndRestoreFocus(filePath),
+      insertFilePath: (path: string) => this.insertFilePath(path),
+      onFileSelected: (path: string) => this.callbacks.onFileSelected(path),
+      toggleAutoShowTooltip: () => this.popupManager.toggleAutoShowTooltip()
     });
   }
 
@@ -1213,160 +1239,7 @@ export class FileSearchManager {
    * Supports: ArrowDown/Ctrl+n/Ctrl+j (next), ArrowUp/Ctrl+p/Ctrl+k (previous), Enter/Tab (select), Escape (close), Ctrl+i (toggle tooltip)
    */
   public handleKeyDown(e: KeyboardEvent): void {
-    if (!this.isVisible) return;
-
-    // Ctrl+i: Toggle auto-show tooltip
-    if (e.ctrlKey && e.key === 'i') {
-      e.preventDefault();
-      e.stopPropagation();
-      this.popupManager.toggleAutoShowTooltip();
-      return;
-    }
-
-    const totalItems = this.getTotalItemCount();
-
-    // Ctrl+n or Ctrl+j: Move down (same as ArrowDown)
-    if (e.ctrlKey && (e.key === 'n' || e.key === 'j')) {
-      e.preventDefault();
-      e.stopPropagation();
-      this.selectedIndex = Math.min(this.selectedIndex + 1, totalItems - 1);
-      this.updateSelection();
-      return;
-    }
-
-    // Ctrl+p or Ctrl+k: Move up (same as ArrowUp)
-    if (e.ctrlKey && (e.key === 'p' || e.key === 'k')) {
-      e.preventDefault();
-      e.stopPropagation();
-      this.selectedIndex = Math.max(this.selectedIndex - 1, 0);
-      this.updateSelection();
-      return;
-    }
-
-    switch (e.key) {
-      case 'ArrowDown':
-        e.preventDefault();
-        e.stopPropagation();
-        this.selectedIndex = Math.min(this.selectedIndex + 1, totalItems - 1);
-        this.updateSelection();
-        break;
-
-      case 'ArrowUp':
-        e.preventDefault();
-        e.stopPropagation();
-        this.selectedIndex = Math.max(this.selectedIndex - 1, 0);
-        this.updateSelection();
-        break;
-
-      case 'Enter':
-        // Skip Enter key if IME is active to let IME handle it (for Japanese input confirmation)
-        if (e.isComposing || this.callbacks.getIsComposing?.()) {
-          return;
-        }
-
-        // Enter: Select the currently highlighted item (agent or file)
-        // Ctrl+Enter: Open the file in editor
-        if (totalItems > 0 || this.isInSymbolMode) {
-          e.preventDefault();
-          e.stopPropagation();
-
-          // 未選択状態（selectedIndex = -1）の場合
-          if (this.selectedIndex < 0) {
-            // シンボルモードの場合はファイルパス自体を挿入
-            if (this.isInSymbolMode) {
-              this.expandCurrentFile();
-              return;
-            }
-            // ディレクトリモードの場合はディレクトリパスを展開
-            this.expandCurrentDirectory();
-            return;
-          }
-
-          if (e.ctrlKey) {
-            // Ctrl+Enterでエディタで開く（@検索テキストは削除、パス挿入なし）
-            const suggestion = this.mergedSuggestions[this.selectedIndex];
-            if (suggestion) {
-              const filePath = suggestion.type === 'file'
-                ? suggestion.file?.path
-                : suggestion.agent?.filePath;
-              if (filePath) {
-                // Remove @query text without inserting file path
-                this.removeAtQueryText();
-                this.openFileAndRestoreFocus(filePath)
-                  .then(() => this.hideSuggestions());
-                return;
-              }
-            }
-          }
-
-          // For files (not directories), Enter inserts path directly (like directories)
-          // Tab navigates into file to show symbols
-          const suggestion = this.mergedSuggestions[this.selectedIndex];
-          if (suggestion?.type === 'file' && suggestion.file && !suggestion.file.isDirectory) {
-            // Insert file path directly (don't navigate into symbols)
-            const baseDir = this.cachedDirectoryData?.directory || '';
-            const relativePath = getRelativePath(suggestion.file.path, baseDir);
-            this.insertFilePath(relativePath);
-            this.hideSuggestions();
-            this.callbacks.onFileSelected(relativePath);
-            return;
-          }
-
-          this.selectItem(this.selectedIndex);
-        }
-        break;
-
-      case 'Tab':
-        // Skip Tab key if IME is active to let IME handle it
-        if (e.isComposing || this.callbacks.getIsComposing?.()) {
-          return;
-        }
-
-        // Tab: Navigate into directory (for files), or select item (for agents/files)
-        if (totalItems > 0 || this.isInSymbolMode) {
-          e.preventDefault();
-          e.stopPropagation();
-
-          // 未選択状態（selectedIndex = -1）の場合
-          if (this.selectedIndex < 0) {
-            // シンボルモードの場合はファイルパス自体を挿入
-            if (this.isInSymbolMode) {
-              this.expandCurrentFile();
-              return;
-            }
-            // ディレクトリモードの場合はディレクトリパスを展開
-            this.expandCurrentDirectory();
-            return;
-          }
-
-          // Check if current selection is a directory (for navigation)
-          const suggestion = this.mergedSuggestions[this.selectedIndex];
-          if (suggestion?.type === 'file' && suggestion.file?.isDirectory) {
-            // Navigate into directory
-            this.navigateIntoDirectory(suggestion.file);
-            return;
-          }
-
-          // Otherwise select the item (file or agent)
-          this.selectItem(this.selectedIndex);
-        }
-        break;
-
-      case 'Escape':
-        e.preventDefault();
-        e.stopPropagation();
-        this.hideSuggestions();
-        break;
-
-      case 'Backspace':
-        // In symbol mode with empty query, exit symbol mode
-        if (this.isInSymbolMode && this.currentQuery === '') {
-          e.preventDefault();
-          e.stopPropagation();
-          this.exitSymbolMode();
-        }
-        break;
-    }
+    this.keyboardNavigationManager.handleKeyDown(e);
   }
 
   /**

@@ -39,3 +39,6 @@ export type { ItemSelectionCallbacks } from './item-selection-manager';
 
 export { NavigationManager } from './navigation-manager';
 export type { NavigationCallbacks } from './navigation-manager';
+
+export { KeyboardNavigationManager } from './keyboard-navigation-manager';
+export type { KeyboardNavigationCallbacks } from './keyboard-navigation-manager';
