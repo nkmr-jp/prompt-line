@@ -40,6 +40,7 @@ export interface SuggestionStateCallbacks {
   searchAgents: (query: string) => Promise<AgentItem[]>;
   isIndexBeingBuilt: () => boolean;
   showIndexingHint: () => void;
+  showSuggestionList: (suggestions: SuggestionItem[], atPosition: number, showPath: boolean) => void;
   updateSuggestionList: (suggestions: SuggestionItem[], showPath: boolean, selectedIndex: number) => void;
   showTooltipForSelectedItem: () => void;
   matchesSearchPrefix: (query: string, type: 'command' | 'mention') => Promise<boolean>;
@@ -129,7 +130,8 @@ export class SuggestionStateManager {
     });
 
     // Delegate rendering and positioning to SuggestionListManager
-    this.callbacks.updateSuggestionList(merged, isIndexBuilding && !matchesPrefix, this.callbacks.getSelectedIndex());
+    // Use show() for initial display (includes positioning) instead of update()
+    this.callbacks.showSuggestionList(merged, this.callbacks.getAtStartPosition(), isIndexBuilding && !matchesPrefix);
 
     // Update popup tooltip for selected item
     this.callbacks.showTooltipForSelectedItem();

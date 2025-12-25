@@ -321,6 +321,8 @@ export class FileSearchManager {
       searchAgents: (query: string) => this.searchAgents(query),
       isIndexBeingBuilt: () => this.isIndexBeingBuilt(),
       showIndexingHint: () => this.showIndexingHint(),
+      showSuggestionList: (suggestions: SuggestionItem[], atPosition: number, showPath: boolean) =>
+        this.suggestionListManager?.show(suggestions, atPosition, showPath),
       updateSuggestionList: (suggestions: SuggestionItem[], showPath: boolean, selectedIndex: number) =>
         this.suggestionListManager?.update(suggestions, showPath, selectedIndex),
       showTooltipForSelectedItem: () => this.popupManager.showTooltipForSelectedItem(),
