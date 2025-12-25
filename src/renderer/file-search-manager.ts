@@ -5,7 +5,6 @@
 
 import type { FileInfo, DirectoryInfo, AgentItem } from '../types';
 import type { SymbolResult, LanguageInfo } from './code-search/types';
-import { SYMBOL_TYPE_FROM_DISPLAY } from './code-search/types';
 import type { DirectoryData, FileSearchCallbacks, AtPathRange, SuggestionItem } from './file-search';
 import {
   formatLog,
@@ -31,11 +30,12 @@ import {
   AtPathBehaviorManager,
   ItemSelectionManager,
   NavigationManager,
-  KeyboardNavigationManager
+  KeyboardNavigationManager,
+  EventListenerManager,
+  QueryExtractionManager,
+  SuggestionStateManager,
+  AgentSearchManager
 } from './file-search/managers';
-
-// Pattern to detect code search queries (e.g., @ts:, @go:, @py:)
-const CODE_SEARCH_PATTERN = /^([a-z]+):(.*)$/;
 
 export class FileSearchManager {
   private suggestionsContainer: HTMLElement | null = null;
@@ -74,6 +74,10 @@ export class FileSearchManager {
   private itemSelectionManager: ItemSelectionManager;
   private navigationManager: NavigationManager;
   private keyboardNavigationManager: KeyboardNavigationManager;
+  private eventListenerManager: EventListenerManager;
+  private queryExtractionManager: QueryExtractionManager;
+  private suggestionStateManager: SuggestionStateManager;
+  private agentSearchManager: AgentSearchManager;
 
   // Whether file search feature is enabled (from settings)
   private fileSearchEnabled: boolean = false;
@@ -262,6 +266,67 @@ export class FileSearchManager {
       insertFilePath: (path: string) => this.insertFilePath(path),
       onFileSelected: (path: string) => this.callbacks.onFileSelected(path),
       toggleAutoShowTooltip: () => this.popupManager.toggleAutoShowTooltip()
+    });
+
+    // Initialize EventListenerManager
+    this.eventListenerManager = new EventListenerManager({
+      checkForFileSearch: () => this.checkForFileSearch(),
+      updateHighlightBackdrop: () => this.updateHighlightBackdrop(),
+      updateCursorPositionHighlight: () => this.updateCursorPositionHighlight(),
+      handleKeyDown: (e: KeyboardEvent) => this.handleKeyDown(e),
+      handleBackspaceForAtPath: (e: KeyboardEvent) => this.handleBackspaceForAtPath(e),
+      handleCtrlEnterOpenFile: (e: KeyboardEvent) => this.handleCtrlEnterOpenFile(e),
+      handleCmdClickOnAtPath: (e: MouseEvent) => this.handleCmdClickOnAtPath(e),
+      handleMouseMove: (e: MouseEvent) => this.handleMouseMove(e),
+      isVisible: () => this.isVisible,
+      hideSuggestions: () => this.hideSuggestions(),
+      syncBackdropScroll: () => this.syncBackdropScroll(),
+      clearFilePathHighlight: () => this.highlightManager?.clearFilePathHighlight() ?? undefined,
+      onCmdKeyDown: () => this.highlightManager?.onCmdKeyDown() ?? undefined,
+      onCmdKeyUp: () => this.highlightManager?.onCmdKeyUp() ?? undefined,
+      onMouseMove: (e: MouseEvent) => this.highlightManager?.onMouseMove(e) ?? undefined
+    });
+
+    // Initialize QueryExtractionManager
+    this.queryExtractionManager = new QueryExtractionManager({
+      getTextContent: () => this.callbacks.getTextContent(),
+      getCursorPosition: () => this.callbacks.getCursorPosition()
+    });
+
+    // Initialize AgentSearchManager
+    this.agentSearchManager = new AgentSearchManager({
+      getMaxSuggestions: (type: 'command' | 'mention') => this.getMaxSuggestions(type)
+    });
+
+    // Initialize SuggestionStateManager
+    this.suggestionStateManager = new SuggestionStateManager({
+      getCachedDirectoryData: () => this.cachedDirectoryData,
+      getAtStartPosition: () => this.atStartPosition,
+      getCurrentPath: () => this.currentPath,
+      getCurrentQuery: () => this.currentQuery,
+      getFilteredFiles: () => this.filteredFiles,
+      getFilteredAgents: () => this.filteredAgents,
+      getMergedSuggestions: () => this.mergedSuggestions,
+      getSelectedIndex: () => this.selectedIndex,
+      setCurrentPath: (path: string) => { this.currentPath = path; },
+      setCurrentQuery: (query: string) => { this.currentQuery = query; },
+      setFilteredFiles: (files: unknown[]) => { this.filteredFiles = files as FileInfo[]; },
+      setFilteredAgents: (agents: AgentItem[]) => { this.filteredAgents = agents; },
+      setMergedSuggestions: (suggestions: SuggestionItem[]) => { this.mergedSuggestions = suggestions; },
+      setSelectedIndex: (index: number) => { this.selectedIndex = index; },
+      setIsVisible: (visible: boolean) => { this.isVisible = visible; },
+      adjustCurrentPathToQuery: (query: string) => this.adjustCurrentPathToQuery(query),
+      filterFiles: (query: string) => this.filterFiles(query),
+      mergeSuggestions: (query: string, maxSuggestions?: number) => this.mergeSuggestions(query, maxSuggestions),
+      searchAgents: (query: string) => this.searchAgents(query),
+      isIndexBeingBuilt: () => this.isIndexBeingBuilt(),
+      showIndexingHint: () => this.showIndexingHint(),
+      updateSuggestionList: (suggestions: SuggestionItem[], showPath: boolean, selectedIndex: number) =>
+        this.suggestionListManager?.update(suggestions, showPath, selectedIndex),
+      showTooltipForSelectedItem: () => this.popupManager.showTooltipForSelectedItem(),
+      matchesSearchPrefix: (query: string, type: 'command' | 'mention') => this.matchesSearchPrefix(query, type),
+      getMaxSuggestions: (type: 'command' | 'mention') => this.getMaxSuggestions(type),
+      restoreDefaultHint: () => this.restoreDefaultHint()
     });
   }
 
@@ -484,113 +549,9 @@ export class FileSearchManager {
       return;
     }
 
-    console.debug('[FileSearchManager] setupEventListeners: setting up event listeners');
-
-    // Listen for input changes to detect @ mentions and update highlights
-    this.textInput.addEventListener('input', () => {
-      console.debug('[FileSearchManager] input event fired');
-      this.checkForFileSearch();
-      this.updateHighlightBackdrop();
-      // Update cursor position highlight after input
-      this.updateCursorPositionHighlight();
-    });
-
-    // Listen for keydown for navigation and backspace handling
-    this.textInput.addEventListener('keydown', (e) => {
-      if (this.isVisible) {
-        this.handleKeyDown(e);
-      } else if (e.key === 'Backspace') {
-        // Don't override Shift+Backspace or when text is selected
-        if (e.shiftKey) return;
-        if (this.textInput && this.textInput.selectionStart !== this.textInput.selectionEnd) return;
-        // Handle backspace to delete entire @path if cursor is at the end of one
-        this.handleBackspaceForAtPath(e);
-      } else if (e.key === 'Enter' && e.ctrlKey) {
-        // Ctrl+Enter: open file at cursor position
-        this.handleCtrlEnterOpenFile(e);
-      }
-    });
-
-    // Listen for cursor position changes (click, arrow keys)
-    this.textInput.addEventListener('click', () => {
-      this.updateCursorPositionHighlight();
-    });
-
-    this.textInput.addEventListener('keyup', (e) => {
-      // Update on arrow keys that move cursor
-      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) {
-        this.updateCursorPositionHighlight();
-      }
-    });
-
-    // Also listen for selectionchange on document (handles all cursor movements)
-    document.addEventListener('selectionchange', () => {
-      if (document.activeElement === this.textInput) {
-        this.updateCursorPositionHighlight();
-      }
-    });
-
-    // Sync scroll position between textarea and backdrop
-    this.textInput.addEventListener('scroll', () => {
-      this.syncBackdropScroll();
-    });
-
-    // Hide suggestions on blur (with small delay to allow click selection)
-    this.textInput.addEventListener('blur', () => {
-      setTimeout(() => {
-        if (!this.suggestionsContainer?.contains(document.activeElement)) {
-          this.hideSuggestions();
-        }
-      }, 150);
-    });
-
-    // Handle click outside
-    document.addEventListener('click', (e) => {
-      if (this.isVisible &&
-          !this.suggestionsContainer?.contains(e.target as Node) &&
-          !this.textInput?.contains(e.target as Node)) {
-        this.hideSuggestions();
-      }
-    });
-
-    // Handle Cmd+click on @path in textarea to open in editor
-    this.textInput.addEventListener('click', (e) => {
-      if (e.metaKey) {
-        this.handleCmdClickOnAtPath(e);
-      }
-    });
-
-    // Handle Cmd+hover for link style on @paths
-    this.textInput.addEventListener('mousemove', (e) => {
-      this.handleMouseMove(e);
-    });
-
-    // Clear link style when mouse leaves textarea
-    this.textInput.addEventListener('mouseleave', () => {
-      // Delegate to HighlightManager
-      this.highlightManager?.clearFilePathHighlight();
-    });
-
-    // Handle Cmd key press/release for link style
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Meta') {
-        // Delegate to HighlightManager
-        this.highlightManager?.onCmdKeyDown();
-      }
-    });
-
-    document.addEventListener('keyup', (e) => {
-      if (e.key === 'Meta') {
-        // Delegate to HighlightManager
-        this.highlightManager?.onCmdKeyUp();
-      }
-    });
-
-    // Clear on window blur (Cmd key release detection may fail)
-    window.addEventListener('blur', () => {
-      // Delegate to HighlightManager
-      this.highlightManager?.onCmdKeyUp();
-    });
+    // Initialize EventListenerManager with DOM elements and delegate setup
+    this.eventListenerManager.initialize(this.textInput, this.suggestionsContainer);
+    this.eventListenerManager.setupEventListeners();
   }
 
   /**
@@ -831,30 +792,10 @@ export class FileSearchManager {
       // Check if query matches code search pattern (e.g., "ts:", "go:", "py:")
       // BUT skip if query matches a searchPrefix (e.g., "agent:", "skill:")
       const matchesSearchPrefix = this.matchesSearchPrefixSync(query, 'mention');
-      const codeSearchMatch = query.match(CODE_SEARCH_PATTERN);
-      console.debug('[FileSearchManager] checkForFileSearch: query=', query, 'codeSearchMatch=', codeSearchMatch, 'matchesSearchPrefix=', matchesSearchPrefix);
-      if (codeSearchMatch && codeSearchMatch[1] && !matchesSearchPrefix) {
-        const language = codeSearchMatch[1];
-        // Parse query: "func:Create" → symbolTypeFilter="func", symbolQuery="Create"
-        // Parse query: "func:" → symbolTypeFilter="func", symbolQuery=""
-        // Parse query: "Handle" → symbolTypeFilter=null, symbolQuery="Handle"
-        const rawQuery = codeSearchMatch[2] ?? '';
-        const colonIndex = rawQuery.indexOf(':');
-        let symbolTypeFilter: string | null = null;
-        let symbolQuery: string;
-
-        if (colonIndex >= 0) {
-          const potentialType = rawQuery.substring(0, colonIndex).toLowerCase();
-          if (SYMBOL_TYPE_FROM_DISPLAY[potentialType]) {
-            symbolTypeFilter = potentialType;
-            symbolQuery = rawQuery.substring(colonIndex + 1);
-          } else {
-            // Not a valid symbol type, treat entire string as query
-            symbolQuery = rawQuery;
-          }
-        } else {
-          symbolQuery = rawQuery;
-        }
+      const parsedCodeSearch = this.queryExtractionManager.parseCodeSearchQuery(query);
+      console.debug('[FileSearchManager] checkForFileSearch: query=', query, 'parsedCodeSearch=', parsedCodeSearch, 'matchesSearchPrefix=', matchesSearchPrefix);
+      if (parsedCodeSearch && !matchesSearchPrefix) {
+        const { language, symbolQuery, symbolTypeFilter } = parsedCodeSearch;
 
         console.debug('[FileSearchManager] checkForFileSearch: code pattern matched, language=', language, 'symbolTypeFilter=', symbolTypeFilter, 'symbolQuery=', symbolQuery);
 
@@ -919,44 +860,10 @@ export class FileSearchManager {
   /**
    * Extract the @ query at the current cursor position
    * Returns null if no valid @ pattern is found
+   * Delegates to QueryExtractionManager
    */
   public extractQueryAtCursor(): { query: string; startPos: number } | null {
-    if (!this.textInput) return null;
-
-    const text = this.textInput.value;
-    const cursorPos = this.textInput.selectionStart;
-
-    // Find the @ before cursor
-    let atPos = -1;
-    for (let i = cursorPos - 1; i >= 0; i--) {
-      const char = text[i];
-
-      // Stop at whitespace or newline
-      if (char === ' ' || char === '\n' || char === '\t') {
-        break;
-      }
-
-      // Found @
-      if (char === '@') {
-        atPos = i;
-        break;
-      }
-    }
-
-    if (atPos === -1) return null;
-
-    // Check that @ is at start of line or after whitespace
-    if (atPos > 0) {
-      const prevChar = text[atPos - 1];
-      if (prevChar !== ' ' && prevChar !== '\n' && prevChar !== '\t') {
-        return null; // @ is part of something else (like email)
-      }
-    }
-
-    // Extract query (text after @ up to cursor)
-    const query = text.substring(atPos + 1, cursorPos);
-
-    return { query, startPos: atPos };
+    return this.queryExtractionManager.extractQueryAtCursor();
   }
 
   /**
@@ -1006,6 +913,7 @@ export class FileSearchManager {
 
   /**
    * Show file suggestions based on the query
+   * Delegates to SuggestionStateManager for state management
    */
   public async showSuggestions(query: string): Promise<void> {
     console.debug('[FileSearchManager] showSuggestions called', formatLog({
@@ -1028,88 +936,16 @@ export class FileSearchManager {
       return;
     }
 
-    // Check if query matches any searchPrefix for mention type
-    // If so, skip file search and only show agents
-    const matchesPrefix = await this.matchesSearchPrefix(query, 'mention');
-
-    // Adjust currentPath based on query
-    // If query doesn't start with currentPath, navigate up to the matching level
-    // Skip path navigation when searchPrefix is matched (agents don't use paths)
-    if (!matchesPrefix) {
-      this.adjustCurrentPathToQuery(query);
-    } else {
-      this.currentPath = '';
-    }
-
-    // Extract search term (part after currentPath)
-    const searchTerm = this.currentPath ? query.substring(this.currentPath.length) : query;
-
-    this.currentQuery = searchTerm;
-
-    // Fetch agents matching the query (only at root level without path navigation)
-    if (!this.currentPath) {
-      this.filteredAgents = await this.searchAgents(searchTerm);
-    } else {
-      this.filteredAgents = [];
-    }
-
-    // Check if index is being built
-    const isIndexBuilding = this.isIndexBeingBuilt();
-
-    // Filter files if directory data is available
-    // Skip file search when searchPrefix is matched (show only agents)
-    if (matchesPrefix) {
-      this.filteredFiles = [];
-    } else if (this.cachedDirectoryData) {
-      this.filteredFiles = this.filterFiles(searchTerm);
-    } else {
-      this.filteredFiles = [];
-    }
-
-    // Get maxSuggestions setting for merged list
-    const maxSuggestions = await this.getMaxSuggestions('mention');
-
-    // Merge files and agents into a single sorted list
-    this.mergedSuggestions = this.mergeSuggestions(searchTerm, maxSuggestions);
-
-    this.selectedIndex = 0;
-    this.isVisible = true;
-
-    // Show indexing hint if index is being built (not relevant when prefix matched)
-    if (isIndexBuilding && !matchesPrefix) {
-      this.showIndexingHint();
-    }
-
-    console.debug('[FileSearchManager] showSuggestions: filtered', formatLog({
-      agents: this.filteredAgents.length,
-      files: this.filteredFiles.length,
-      merged: this.mergedSuggestions.length,
-      searchTerm,
-      isIndexBuilding,
-      matchesPrefix
-    }));
-    // Delegate rendering and positioning to SuggestionListManager
-    this.suggestionListManager?.show(this.mergedSuggestions, this.atStartPosition, isIndexBuilding && !matchesPrefix);
-    // Update popup tooltip for selected item
-    this.popupManager.showTooltipForSelectedItem();
-    console.debug('[FileSearchManager] showSuggestions: render complete, isVisible:', this.isVisible);
+    // Delegate to SuggestionStateManager
+    await this.suggestionStateManager.showSuggestions(query);
   }
 
   /**
    * Search agents via IPC
+   * Delegates to AgentSearchManager
    */
   private async searchAgents(query: string): Promise<AgentItem[]> {
-    try {
-      const electronAPI = (window as any).electronAPI;
-      if (electronAPI?.agents?.get) {
-        const agents = await electronAPI.agents.get(query);
-        const maxSuggestions = await this.getMaxSuggestions('mention');
-        return agents.slice(0, maxSuggestions);
-      }
-    } catch (error) {
-      console.error('[FileSearchManager] Failed to search agents:', error);
-    }
-    return [];
+    return this.agentSearchManager.searchAgents(query);
   }
 
   /**
@@ -1137,6 +973,9 @@ export class FileSearchManager {
     // Delegate UI hiding to SuggestionListManager
     this.suggestionListManager?.hide();
 
+    // Delegate state clearing to SuggestionStateManager
+    this.suggestionStateManager.hideSuggestions();
+
     // Also handle local state (for backward compatibility during refactoring)
     this.isVisible = false;
     this.suggestionsContainer.style.display = 'none';
@@ -1161,9 +1000,6 @@ export class FileSearchManager {
     this.isInSymbolMode = false;
     this.currentFilePath = '';
     this.currentFileSymbols = [];
-
-    // Restore default hint text
-    this.restoreDefaultHint();
 
     // Hide frontmatter popup
     this.popupManager.hideFrontmatterPopup();
