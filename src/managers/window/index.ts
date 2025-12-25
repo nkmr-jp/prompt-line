@@ -31,3 +31,4 @@ export type {
 export { default as WindowPositionCalculator } from './position-calculator';
 export { default as NativeToolExecutor } from './native-tool-executor';
 export { default as DirectoryDetector } from './directory-detector';
+export { getActiveTextFieldBounds } from './text-field-bounds-detector';

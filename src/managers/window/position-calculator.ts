@@ -1,8 +1,7 @@
 import { screen } from 'electron';
-import { logger, getActiveWindowBounds, TEXT_FIELD_DETECTOR_PATH } from '../../utils/utils';
-import config from '../../config/app-config';
-import type { StartupPosition, WindowBounds } from '../../types';
-import { execFile } from 'child_process';
+import { logger, getActiveWindowBounds } from '../../utils/utils';
+import type { StartupPosition } from '../../types';
+import { getActiveTextFieldBounds } from './text-field-bounds-detector';
 
 /**
  * Window position calculator with multiple positioning strategies
@@ -143,7 +142,7 @@ class WindowPositionCalculator {
     windowHeight: number
   ): Promise<{ x: number; y: number }> {
     try {
-      const textFieldBounds = await this.getActiveTextFieldBounds();
+      const textFieldBounds = await getActiveTextFieldBounds();
       if (textFieldBounds) {
         // If text field is narrower than window, align to left edge of text field
         // Otherwise, center the window horizontally within the text field
@@ -169,76 +168,6 @@ class WindowPositionCalculator {
       logger.warn('Error getting active text field bounds, falling back to active-window-center:', error);
       return this.calculateActiveWindowCenterPosition(windowWidth, windowHeight);
     }
-  }
-
-  /**
-   * Get bounds of currently focused text field using native text-field-detector tool
-   * @returns Text field bounds or null if no text field is focused
-   */
-  private async getActiveTextFieldBounds(): Promise<WindowBounds | null> {
-    if (!config.platform.isMac) {
-      logger.debug('Text field detection only supported on macOS');
-      return null;
-    }
-
-    const options = {
-      timeout: 3000,
-      killSignal: 'SIGTERM' as const
-    };
-
-    return new Promise((resolve) => {
-      execFile(TEXT_FIELD_DETECTOR_PATH, ['text-field-bounds'], options, (error: Error | null, stdout?: string) => {
-        if (error) {
-          logger.debug('Error getting text field bounds via native tool:', error);
-          resolve(null);
-          return;
-        }
-
-        try {
-          const result = JSON.parse(stdout?.trim() || '{}');
-
-          if (result.error) {
-            logger.debug('Text field detector error:', result.error);
-            resolve(null);
-            return;
-          }
-
-          if (result.success && typeof result.x === 'number' && typeof result.y === 'number' &&
-              typeof result.width === 'number' && typeof result.height === 'number') {
-
-            let bounds = {
-              x: result.x,
-              y: result.y,
-              width: result.width,
-              height: result.height
-            };
-
-            // Use parent container bounds if available for better positioning with scrollable content
-            if (result.parent && result.parent.isVisibleContainer &&
-                typeof result.parent.x === 'number' && typeof result.parent.y === 'number' &&
-                typeof result.parent.width === 'number' && typeof result.parent.height === 'number') {
-              logger.debug('Using parent container bounds for scrollable text field');
-              bounds = {
-                x: result.parent.x,
-                y: result.parent.y,
-                width: result.parent.width,
-                height: result.parent.height
-              };
-            }
-
-            logger.debug('Text field bounds found:', bounds);
-            resolve(bounds);
-            return;
-          }
-
-          logger.debug('Invalid text field bounds data received');
-          resolve(null);
-        } catch (parseError) {
-          logger.debug('Error parsing text field detector output:', parseError);
-          resolve(null);
-        }
-      });
-    });
   }
 
   /**
