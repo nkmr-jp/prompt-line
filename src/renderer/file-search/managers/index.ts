@@ -51,3 +51,9 @@ export type { QueryExtractionResult, CodeSearchQueryResult, QueryExtractionCallb
 
 export { SuggestionStateManager } from './suggestion-state-manager';
 export type { SuggestionStateCallbacks } from './suggestion-state-manager';
+
+export { ManagerInitializer } from './manager-initializer';
+export type { InitializedManagers, ManagerState, ManagerDependencies } from './manager-initializer';
+
+export { ItemFinderManager } from './item-finder-manager';
+export type { ItemFinderCallbacks } from './item-finder-manager';

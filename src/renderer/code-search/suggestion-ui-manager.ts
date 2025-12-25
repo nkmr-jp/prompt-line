@@ -136,36 +136,88 @@ export class SuggestionUIManager {
    * Create a suggestion item element
    */
   private createSuggestionItem(symbol: SymbolResult, index: number): HTMLDivElement {
+    const item = this.createBaseItemElement(index);
+    this.appendSymbolContent(item, symbol);
+    this.attachItemEventHandlers(item, index);
+    return item;
+  }
+
+  /**
+   * Create base item element with selection state
+   */
+  private createBaseItemElement(index: number): HTMLDivElement {
     const item = document.createElement('div');
     item.className = 'code-suggestion-item';
     if (index === this.selectedIndex) {
       item.classList.add('selected');
     }
+    return item;
+  }
 
+  /**
+   * Append symbol content (icon, name, type, path) to item
+   */
+  private appendSymbolContent(item: HTMLDivElement, symbol: SymbolResult): void {
     // Icon (SVG)
-    const icon = document.createElement('span');
-    icon.className = 'code-suggestion-icon';
-    icon.innerHTML = getSymbolIconSvg(symbol.type);
+    const icon = this.createIconElement(symbol.type);
     item.appendChild(icon);
 
     // Name and type
-    const nameSpan = document.createElement('span');
-    nameSpan.className = 'code-suggestion-name';
-    nameSpan.textContent = symbol.name;
+    const nameSpan = this.createNameElement(symbol.name);
     item.appendChild(nameSpan);
 
-    const typeSpan = document.createElement('span');
-    typeSpan.className = 'code-suggestion-type';
-    typeSpan.textContent = getSymbolTypeDisplay(symbol.type);
+    const typeSpan = this.createTypeElement(symbol.type);
     item.appendChild(typeSpan);
 
     // File path
+    const pathSpan = this.createPathElement(symbol.relativePath, symbol.lineNumber);
+    item.appendChild(pathSpan);
+  }
+
+  /**
+   * Create icon element
+   */
+  private createIconElement(symbolType: string): HTMLSpanElement {
+    const icon = document.createElement('span');
+    icon.className = 'code-suggestion-icon';
+    icon.innerHTML = getSymbolIconSvg(symbolType);
+    return icon;
+  }
+
+  /**
+   * Create name element
+   */
+  private createNameElement(name: string): HTMLSpanElement {
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'code-suggestion-name';
+    nameSpan.textContent = name;
+    return nameSpan;
+  }
+
+  /**
+   * Create type element
+   */
+  private createTypeElement(symbolType: string): HTMLSpanElement {
+    const typeSpan = document.createElement('span');
+    typeSpan.className = 'code-suggestion-type';
+    typeSpan.textContent = getSymbolTypeDisplay(symbolType as import('./types').SymbolType);
+    return typeSpan;
+  }
+
+  /**
+   * Create path element
+   */
+  private createPathElement(relativePath: string, lineNumber: number): HTMLSpanElement {
     const pathSpan = document.createElement('span');
     pathSpan.className = 'code-suggestion-path';
-    pathSpan.textContent = `${symbol.relativePath}:${symbol.lineNumber}`;
-    item.appendChild(pathSpan);
+    pathSpan.textContent = `${relativePath}:${lineNumber}`;
+    return pathSpan;
+  }
 
-    // Event handlers
+  /**
+   * Attach event handlers to item
+   */
+  private attachItemEventHandlers(item: HTMLDivElement, index: number): void {
     item.addEventListener('mouseenter', () => {
       this.selectedIndex = index;
       this.updateSelection();
@@ -174,8 +226,6 @@ export class SuggestionUIManager {
     item.addEventListener('click', () => {
       this.selectSymbol(index);
     });
-
-    return item;
   }
 
   /**

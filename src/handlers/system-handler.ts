@@ -83,46 +83,51 @@ class SystemHandler {
   ): Promise<ConfigData | Record<string, unknown> | {}> {
     try {
       if (section) {
-        // セクション名の型検証を強化
-        if (typeof section !== 'string') {
-          logger.warn('Invalid config section type', { type: typeof section });
-          return {};
-        }
-
-        // Validate section name against whitelist
-        if (!VALID_CONFIG_SECTIONS.includes(section)) {
-          logger.warn('Invalid config section requested', { section });
-          return {};
-        }
-
-        try {
-          const configData = config.get(section as keyof typeof config);
-          logger.debug('Config section requested', { section });
-          return configData || {};
-        } catch (sectionError) {
-          logger.error('Failed to get config section:', { section, error: sectionError });
-          return {};
-        }
-      } else {
-        try {
-          const safeConfig: ConfigData = {
-            shortcuts: config.shortcuts as unknown as Record<string, string>,
-            history: config.history as unknown as Record<string, unknown>,
-            draft: config.draft as unknown as Record<string, unknown>,
-            timing: config.timing as unknown as Record<string, unknown>,
-            app: config.app as unknown as Record<string, unknown>,
-            platform: config.platform as unknown as Record<string, unknown>
-          };
-
-          logger.debug('Full config requested');
-          return safeConfig;
-        } catch (configError) {
-          logger.error('Failed to build full config:', configError);
-          return {};
-        }
+        return this.getConfigSection(section);
       }
+      return this.getFullConfig();
     } catch (error) {
       logger.error('Failed to get config:', error);
+      return {};
+    }
+  }
+
+  private getConfigSection(section: string): Record<string, unknown> | {} {
+    if (typeof section !== 'string') {
+      logger.warn('Invalid config section type', { type: typeof section });
+      return {};
+    }
+
+    if (!VALID_CONFIG_SECTIONS.includes(section)) {
+      logger.warn('Invalid config section requested', { section });
+      return {};
+    }
+
+    try {
+      const configData = config.get(section as keyof typeof config);
+      logger.debug('Config section requested', { section });
+      return configData || {};
+    } catch (sectionError) {
+      logger.error('Failed to get config section:', { section, error: sectionError });
+      return {};
+    }
+  }
+
+  private getFullConfig(): ConfigData | {} {
+    try {
+      const safeConfig: ConfigData = {
+        shortcuts: config.shortcuts as unknown as Record<string, string>,
+        history: config.history as unknown as Record<string, unknown>,
+        draft: config.draft as unknown as Record<string, unknown>,
+        timing: config.timing as unknown as Record<string, unknown>,
+        app: config.app as unknown as Record<string, unknown>,
+        platform: config.platform as unknown as Record<string, unknown>
+      };
+
+      logger.debug('Full config requested');
+      return safeConfig;
+    } catch (configError) {
+      logger.error('Failed to build full config:', configError);
       return {};
     }
   }

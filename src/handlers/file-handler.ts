@@ -123,50 +123,73 @@ class FileHandler {
     try {
       logger.info('Opening file in editor:', { filePath });
 
-      // Validate input
-      if (!filePath || typeof filePath !== 'string') {
-        return { success: false, error: 'Invalid file path provided' };
+      const validationResult = this.validateFilePath(filePath);
+      if (!validationResult.valid) {
+        return { success: false, error: validationResult.error };
       }
 
-      // Parse line number and symbol from path
       const parsedPath = this.parsePathWithLineInfo(filePath);
-      const cleanPath = parsedPath.path;
+      const normalizedPath = this.expandPath(parsedPath.path);
 
-      logger.debug('Parsed file path:', {
-        original: filePath,
-        cleanPath,
-        lineNumber: parsedPath.lineNumber,
-        symbolName: parsedPath.symbolName
-      });
+      this.logFilePathProcessing(filePath, parsedPath, normalizedPath);
 
-      // Expand and resolve path (without line number suffix)
-      const normalizedPath = this.expandPath(cleanPath);
-
-      logger.debug('Resolved file path:', {
-        original: filePath,
-        cleanPath,
-        baseDir: this.directoryManager.getDirectory(),
-        resolved: normalizedPath,
-        lineNumber: parsedPath.lineNumber
-      });
-
-      // File existence check (TOCTOU mitigation)
-      try {
-        await fs.access(normalizedPath);
-      } catch {
-        logger.warn('File does not exist:', { normalizedPath });
+      const existsResult = await this.checkFileExists(normalizedPath);
+      if (!existsResult.exists) {
         return { success: false, error: 'File does not exist' };
       }
 
-      // Open file using FileOpenerManager with line number option
-      const options = parsedPath.lineNumber !== undefined
-        ? { lineNumber: parsedPath.lineNumber }
-        : undefined;
+      const options = this.buildOpenOptions(parsedPath);
       return await this.fileOpenerManager.openFile(normalizedPath, options);
     } catch (error) {
       logger.error('Failed to open file in editor:', error);
       return { success: false, error: (error as Error).message };
     }
+  }
+
+  private validateFilePath(filePath: string): { valid: boolean; error: string } | { valid: true } {
+    if (!filePath || typeof filePath !== 'string') {
+      return { valid: false, error: 'Invalid file path provided' };
+    }
+    return { valid: true };
+  }
+
+  private logFilePathProcessing(
+    original: string,
+    parsed: { path: string; lineNumber?: number; symbolName?: string },
+    resolved: string
+  ): void {
+    logger.debug('Parsed file path:', {
+      original,
+      cleanPath: parsed.path,
+      lineNumber: parsed.lineNumber,
+      symbolName: parsed.symbolName
+    });
+
+    logger.debug('Resolved file path:', {
+      original,
+      cleanPath: parsed.path,
+      baseDir: this.directoryManager.getDirectory(),
+      resolved,
+      lineNumber: parsed.lineNumber
+    });
+  }
+
+  private async checkFileExists(filePath: string): Promise<{ exists: boolean }> {
+    try {
+      await fs.access(filePath);
+      return { exists: true };
+    } catch {
+      logger.warn('File does not exist:', { normalizedPath: filePath });
+      return { exists: false };
+    }
+  }
+
+  private buildOpenOptions(
+    parsed: { lineNumber?: number }
+  ): { lineNumber: number } | undefined {
+    return parsed.lineNumber !== undefined
+      ? { lineNumber: parsed.lineNumber }
+      : undefined;
   }
 
   /**
@@ -206,29 +229,11 @@ class FileHandler {
     try {
       logger.info('Opening external URL:', { url });
 
-      // Validate input
-      if (!url || typeof url !== 'string') {
-        return { success: false, error: 'Invalid URL provided' };
+      const validationResult = this.validateAndParseUrl(url);
+      if (!validationResult.valid) {
+        return { success: false, error: validationResult.error ?? 'Invalid URL' };
       }
 
-      // Validate URL format using URL parser
-      let parsedUrl: URL;
-      try {
-        parsedUrl = new URL(url);
-      } catch {
-        return { success: false, error: 'Invalid URL format' };
-      }
-
-      // Whitelist protocols
-      if (!ALLOWED_URL_PROTOCOLS.includes(parsedUrl.protocol)) {
-        logger.warn('Attempted to open URL with disallowed protocol:', {
-          url,
-          protocol: parsedUrl.protocol
-        });
-        return { success: false, error: 'Only http:// and https:// URLs are allowed' };
-      }
-
-      // Open URL with system default browser
       await shell.openExternal(url);
 
       logger.info('URL opened successfully in browser:', { url });
@@ -237,6 +242,51 @@ class FileHandler {
       logger.error('Failed to open external URL:', error);
       return { success: false, error: (error as Error).message };
     }
+  }
+
+  private validateAndParseUrl(url: string): { valid: boolean; error?: string } {
+    const inputValidation = this.validateUrlInput(url);
+    if (inputValidation) {
+      return { valid: false, error: inputValidation.error ?? 'Invalid input' };
+    }
+
+    const parsedUrl = this.parseUrl(url);
+    if (!parsedUrl) {
+      return { valid: false, error: 'Invalid URL format' };
+    }
+
+    const protocolValidation = this.validateUrlProtocol(parsedUrl, url);
+    if (protocolValidation) {
+      return { valid: false, error: protocolValidation.error ?? 'Invalid protocol' };
+    }
+
+    return { valid: true };
+  }
+
+  private validateUrlInput(url: string): IPCResult | null {
+    if (!url || typeof url !== 'string') {
+      return { success: false, error: 'Invalid URL provided' };
+    }
+    return null;
+  }
+
+  private parseUrl(url: string): URL | null {
+    try {
+      return new URL(url);
+    } catch {
+      return null;
+    }
+  }
+
+  private validateUrlProtocol(parsedUrl: URL, url: string): IPCResult | null {
+    if (!ALLOWED_URL_PROTOCOLS.includes(parsedUrl.protocol)) {
+      logger.warn('Attempted to open URL with disallowed protocol:', {
+        url,
+        protocol: parsedUrl.protocol
+      });
+      return { success: false, error: 'Only http:// and https:// URLs are allowed' };
+    }
+    return null;
   }
 }
 

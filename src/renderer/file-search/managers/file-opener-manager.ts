@@ -115,49 +115,10 @@ export class FileOpenerManager {
     const text = this.callbacks.getTextContent();
     const cursorPos = this.callbacks.getCursorPosition();
 
-    // Check for URL first
-    const url = findUrlAtPosition(text, cursorPos);
-    if (url) {
-      e.preventDefault();
-      e.stopPropagation();
-      await this.openUrl(url.url);
-      return;
-    }
-
-    // Check for slash command (like /commit, /help)
-    const slashCommand = findSlashCommandAtPosition(text, cursorPos);
-    if (slashCommand) {
-      e.preventDefault();
-      e.stopPropagation();
-
-      try {
-        const commandFilePath = await window.electronAPI.slashCommands.getFilePath(slashCommand.command);
-        if (commandFilePath) {
-          await this.openFile(commandFilePath);
-          return;
-        }
-      } catch (err) {
-        console.error('Failed to resolve slash command file path:', err);
-      }
-      return;
-    }
-
-    // Find @path at cursor position
-    const atPath = findAtPathAtPosition(text, cursorPos);
-    if (atPath) {
-      e.preventDefault();
-      e.stopPropagation();
-      await this.handleAtPath(atPath);
-      return;
-    }
-
-    // Find absolute path at cursor position
-    const absolutePath = findAbsolutePathAtPosition(text, cursorPos);
-    if (absolutePath) {
-      e.preventDefault();
-      e.stopPropagation();
-      await this.openFile(absolutePath);
-    }
+    if (await this.tryOpenUrl(e, text, cursorPos)) return;
+    if (await this.tryOpenSlashCommand(e, text, cursorPos)) return;
+    if (await this.tryOpenAtPath(e, text, cursorPos)) return;
+    await this.tryOpenAbsolutePath(e, text, cursorPos);
   }
 
   /**
@@ -169,49 +130,10 @@ export class FileOpenerManager {
     const text = this.callbacks.getTextContent();
     const cursorPos = this.callbacks.getCursorPosition();
 
-    // Check for URL first
-    const url = findUrlAtPosition(text, cursorPos);
-    if (url) {
-      e.preventDefault();
-      e.stopPropagation();
-      await this.openUrl(url.url);
-      return;
-    }
-
-    // Check for slash command (like /commit, /help)
-    const slashCommand = findSlashCommandAtPosition(text, cursorPos);
-    if (slashCommand) {
-      e.preventDefault();
-      e.stopPropagation();
-
-      try {
-        const commandFilePath = await window.electronAPI.slashCommands.getFilePath(slashCommand.command);
-        if (commandFilePath) {
-          await this.openFile(commandFilePath);
-          return;
-        }
-      } catch (err) {
-        console.error('Failed to resolve slash command file path:', err);
-      }
-      return;
-    }
-
-    // Find @path at or near cursor position
-    const atPath = findAtPathAtPosition(text, cursorPos);
-    if (atPath) {
-      e.preventDefault();
-      e.stopPropagation();
-      await this.handleAtPath(atPath);
-      return;
-    }
-
-    // Find absolute path at cursor position
-    const absolutePath = findAbsolutePathAtPosition(text, cursorPos);
-    if (absolutePath) {
-      e.preventDefault();
-      e.stopPropagation();
-      await this.openFile(absolutePath);
-    }
+    if (await this.tryOpenUrl(e, text, cursorPos)) return;
+    if (await this.tryOpenSlashCommand(e, text, cursorPos)) return;
+    if (await this.tryOpenAtPath(e, text, cursorPos)) return;
+    await this.tryOpenAbsolutePath(e, text, cursorPos);
   }
 
   /**
@@ -219,36 +141,41 @@ export class FileOpenerManager {
    * Priority: file path (if looks like path) → agent name → fallback to file path
    */
   private async handleAtPath(atPath: string): Promise<void> {
-    // Check if it looks like a file path (contains / or . in the original input)
     const looksLikeFilePath = atPath.includes('/') || atPath.includes('.');
 
-    if (looksLikeFilePath) {
-      // Resolve as file path first
-      const filePath = this.resolveRelativePath(atPath);
-      if (filePath) {
-        await this.openFile(filePath);
-        return;
-      }
-    }
+    if (looksLikeFilePath && await this.tryOpenAsFilePath(atPath)) return;
+    if (await this.tryOpenAsAgent(atPath)) return;
+    if (!looksLikeFilePath) await this.tryOpenAsFilePath(atPath);
+  }
 
-    // Try to resolve as agent name (for names like @backend-architect)
+  /**
+   * Try to open atPath as a file path
+   * @returns true if successful
+   */
+  private async tryOpenAsFilePath(atPath: string): Promise<boolean> {
+    const filePath = this.resolveRelativePath(atPath);
+    if (filePath) {
+      await this.openFile(filePath);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Try to open atPath as an agent name
+   * @returns true if successful
+   */
+  private async tryOpenAsAgent(atPath: string): Promise<boolean> {
     try {
       const agentFilePath = await window.electronAPI.agents.getFilePath(atPath);
       if (agentFilePath) {
         await this.openFile(agentFilePath);
-        return;
+        return true;
       }
     } catch (err) {
       console.error('Failed to resolve agent file path:', err);
     }
-
-    // Fallback: try to open as file path if it wasn't already tried
-    if (!looksLikeFilePath) {
-      const filePath = this.resolveRelativePath(atPath);
-      if (filePath) {
-        await this.openFile(filePath);
-      }
-    }
+    return false;
   }
 
   /**
@@ -262,6 +189,73 @@ export class FileOpenerManager {
       parsePathWithLineInfo,
       normalizePath
     );
+  }
+
+  /**
+   * Try to open URL at cursor position
+   * @returns true if URL was found and opened
+   */
+  private async tryOpenUrl(e: Event, text: string, cursorPos: number): Promise<boolean> {
+    const url = findUrlAtPosition(text, cursorPos);
+    if (url) {
+      e.preventDefault();
+      e.stopPropagation();
+      await this.openUrl(url.url);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Try to open slash command file at cursor position
+   * @returns true if slash command was found
+   */
+  private async tryOpenSlashCommand(e: Event, text: string, cursorPos: number): Promise<boolean> {
+    const slashCommand = findSlashCommandAtPosition(text, cursorPos);
+    if (!slashCommand) return false;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    try {
+      const commandFilePath = await window.electronAPI.slashCommands.getFilePath(slashCommand.command);
+      if (commandFilePath) {
+        await this.openFile(commandFilePath);
+      }
+    } catch (err) {
+      console.error('Failed to resolve slash command file path:', err);
+    }
+    return true;
+  }
+
+  /**
+   * Try to open @path at cursor position
+   * @returns true if @path was found
+   */
+  private async tryOpenAtPath(e: Event, text: string, cursorPos: number): Promise<boolean> {
+    const atPath = findAtPathAtPosition(text, cursorPos);
+    if (atPath) {
+      e.preventDefault();
+      e.stopPropagation();
+      await this.handleAtPath(atPath);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Try to open absolute path at cursor position
+   * @returns true if absolute path was found and opened
+   */
+  private async tryOpenAbsolutePath(e: Event, text: string, cursorPos: number): Promise<boolean> {
+    const absolutePath = findAbsolutePathAtPosition(text, cursorPos);
+    if (absolutePath) {
+      e.preventDefault();
+      e.stopPropagation();
+      await this.openFile(absolutePath);
+      return true;
+    }
+    return false;
   }
 
   /**

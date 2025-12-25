@@ -1,22 +1,28 @@
-import { promises as fs } from 'fs';
-import { createReadStream } from 'fs';
-import { createInterface } from 'readline';
 import config from '../config/app-config';
-import { 
-  logger, 
-  generateId, 
-  debounce,
-  safeJsonParse
-} from '../utils/utils';
-import type { 
-  HistoryItem, 
-  HistoryStats, 
+import { logger, generateId, debounce } from '../utils/utils';
+import type {
+  HistoryItem,
+  HistoryStats,
   ExportData,
   DebounceFunction,
   IHistoryManager,
   HistoryConfig
 } from '../types';
-import {LIMITS} from "../constants";
+import { LIMITS } from "../constants";
+import {
+  readLastNLines,
+  countHistoryItems,
+  parseHistoryLines,
+  streamHistoryItems,
+  validateHistoryItem,
+  handleDuplicateInCache,
+  addItemToCache as addItemToCacheHelper,
+  appendItemsToFile,
+  ensureHistoryFileExists,
+  calculateHistoryStats,
+  removeItemFromCache,
+  searchHistoryItems
+} from './optimized-history-helpers';
 
 
 class OptimizedHistoryManager implements IHistoryManager {
@@ -36,7 +42,7 @@ class OptimizedHistoryManager implements IHistoryManager {
 
   async initialize(): Promise<void> {
     try {
-      await this.ensureHistoryFile();
+      await ensureHistoryFileExists(this.historyFile);
       await this.loadRecentHistory();
       logger.info(`Optimized history manager initialized with ${this.recentCache.length} cached items (total count will be calculated when needed)`);
       
@@ -52,28 +58,15 @@ class OptimizedHistoryManager implements IHistoryManager {
     }
   }
 
-  private async ensureHistoryFile(): Promise<void> {
-    try {
-      await fs.access(this.historyFile);
-    } catch {
-      // Set restrictive file permissions (owner read/write only)
-      await fs.writeFile(this.historyFile, '', { mode: 0o600 });
-      logger.debug('Created new history file');
-    }
-  }
 
   private async loadRecentHistory(): Promise<void> {
     try {
-      const lines = await this.readLastNLines(this.cacheSize);
-      this.recentCache = [];
+      const lines = await readLastNLines(this.historyFile, this.cacheSize);
+      this.recentCache = parseHistoryLines(lines, validateHistoryItem);
       this.duplicateCheckSet.clear();
 
-      for (const line of lines) {
-        const item = safeJsonParse<HistoryItem>(line);
-        if (item && this.validateHistoryItem(item)) {
-          this.recentCache.unshift(item);
-          this.duplicateCheckSet.add(item.text);
-        }
+      for (const item of this.recentCache) {
+        this.duplicateCheckSet.add(item.text);
       }
 
       logger.debug(`Loaded ${this.recentCache.length} recent history items into cache`);
@@ -83,83 +76,20 @@ class OptimizedHistoryManager implements IHistoryManager {
     }
   }
 
-  private async readLastNLines(lineCount = 100): Promise<string[]> {
-    const fd = await fs.open(this.historyFile, 'r');
-    const stats = await fd.stat();
-    const fileSize = stats.size;
-    
-    if (fileSize === 0) {
-      await fd.close();
-      return [];
-    }
-    
-    let position = fileSize;
-    const lines: string[] = [];
-    let remainder = '';
-    const chunkSize = 8192; // 8KB chunks
-    
-    try {
-      while (lines.length < lineCount && position > 0) {
-        const readSize = Math.min(chunkSize, position);
-        position -= readSize;
-        
-        const buffer = Buffer.alloc(readSize);
-        await fd.read(buffer, 0, readSize, position);
-        
-        const chunk = buffer.toString('utf8');
-        const text = chunk + remainder;
-        const textLines = text.split('\n');
-        
-        // 最初の行は不完全な可能性があるので次回に回す
-        remainder = position > 0 ? textLines.shift() || '' : '';
-        
-        // 末尾から有効な行を収集
-        for (let i = textLines.length - 1; i >= 0 && lines.length < lineCount; i--) {
-          const line = textLines[i]?.trim();
-          if (line) {
-            lines.unshift(line);
-          }
-        }
-      }
-      
-      return lines.slice(-lineCount); // 念のため再度制限
-        
-    } finally {
-      await fd.close();
-    }
-  }
-
   private async countTotalItems(): Promise<void> {
     if (this.totalItemCountCached) {
-      return; // 既にカウント済み
+      return;
     }
-    
-    return new Promise((resolve) => {
-      let count = 0;
-      const stream = createReadStream(this.historyFile);
-      const rl = createInterface({
-        input: stream,
-        crlfDelay: Infinity
-      });
 
-      rl.on('line', (line) => {
-        if (line.trim()) count++;
-      });
-
-      rl.on('close', () => {
-        this.totalItemCount = count;
-        this.totalItemCountCached = true;
-        logger.debug(`Total item count calculated: ${count}`);
-        resolve();
-      });
-
-      rl.on('error', (error: Error) => {
-        logger.error('Error counting history items:', error);
-        this.totalItemCount = this.recentCache.length;
-        this.totalItemCountCached = true;
-        resolve();
-      });
-    });
+    try {
+      this.totalItemCount = await countHistoryItems(this.historyFile);
+      this.totalItemCountCached = true;
+      logger.debug(`Total item count calculated: ${this.totalItemCount}`);
+    } catch (error) {
+      logger.error('Error counting history items:', error);
+      this.totalItemCount = this.recentCache.length;
+      this.totalItemCountCached = true;
+    }
   }
 
   private async countTotalItemsAsync(): Promise<void> {
@@ -181,23 +111,16 @@ class OptimizedHistoryManager implements IHistoryManager {
         return null;
       }
 
-      if (this.duplicateCheckSet.has(trimmedText)) {
-        // Move existing item to latest position
-        this.recentCache = this.recentCache.filter(item => item.text !== trimmedText);
-        const existingItem = this.recentCache.find(item => item.text === trimmedText);
-        if (existingItem) {
-          existingItem.timestamp = Date.now();
-          if (appName) {
-            existingItem.appName = appName;
-          }
-          if (directory) {
-            existingItem.directory = directory;
-          }
-          this.recentCache.unshift(existingItem);
-          return existingItem;
-        }
+      // Check for duplicates
+      const duplicateResult = handleDuplicateInCache(
+        trimmedText, this.recentCache, this.duplicateCheckSet, appName, directory
+      );
+      this.recentCache = duplicateResult.updatedCache;
+      if (duplicateResult.existingItem) {
+        return duplicateResult.existingItem;
       }
 
+      // Create new history item
       const historyItem: HistoryItem = {
         text: trimmedText,
         timestamp: Date.now(),
@@ -207,27 +130,23 @@ class OptimizedHistoryManager implements IHistoryManager {
       };
 
       // Add to cache
-      this.recentCache.unshift(historyItem);
-      this.duplicateCheckSet.add(trimmedText);
+      const cacheResult = addItemToCacheHelper(
+        historyItem, this.recentCache, this.duplicateCheckSet, this.cacheSize
+      );
+      this.recentCache = cacheResult.updatedCache;
+      this.duplicateCheckSet = cacheResult.updatedSet;
 
-      if (this.recentCache.length > this.cacheSize) {
-        const removed = this.recentCache.pop();
-        if (removed) {
-          this.duplicateCheckSet.delete(removed.text);
-        }
-      }
-
-      // Add to append queue
+      // Queue for persistence
       this.appendQueue.push(historyItem);
       this.debouncedAppend();
-
       if (this.totalItemCountCached) {
         this.totalItemCount++;
       }
 
+      // Log addition
       logger.debug('Added item to history:', {
         id: historyItem.id,
-        length: trimmedText.length,
+        length: historyItem.text.length,
         appName: appName || 'unknown',
         directory: directory || 'unknown',
         cacheSize: this.recentCache.length,
@@ -248,15 +167,10 @@ class OptimizedHistoryManager implements IHistoryManager {
     this.appendQueue = [];
 
     try {
-      const lines = itemsToAppend
-        .map(item => JSON.stringify(item))
-        .join('\n') + '\n';
-      
-      await fs.appendFile(this.historyFile, lines);
+      await appendItemsToFile(this.historyFile, itemsToAppend);
       logger.debug(`Appended ${itemsToAppend.length} items to history file`);
     } catch (error) {
       logger.error('Failed to append to history file:', error);
-      // 失敗したアイテムをキューに戻す
       this.appendQueue.unshift(...itemsToAppend);
       throw error;
     }
@@ -292,62 +206,37 @@ class OptimizedHistoryManager implements IHistoryManager {
    */
   async getHistoryForSearch(limit: number): Promise<HistoryItem[]> {
     try {
-      // If requested limit is within cache, return from cache (faster)
       if (limit <= this.recentCache.length) {
         return [...this.recentCache.slice(0, limit)];
       }
 
-      // Read from file for larger limits
-      const lines = await this.readLastNLines(limit);
-      const items: HistoryItem[] = [];
-
-      for (const line of lines) {
-        const item = safeJsonParse<HistoryItem>(line);
-        if (item && this.validateHistoryItem(item)) {
-          items.unshift(item); // Newest first
-        }
-      }
+      const lines = await readLastNLines(this.historyFile, limit);
+      const items = parseHistoryLines(lines, validateHistoryItem);
 
       logger.debug(`getHistoryForSearch: loaded ${items.length} items for search (limit: ${limit})`);
       return items;
     } catch (error) {
       logger.error('Error in getHistoryForSearch:', error);
-      // Fallback to cache
       return [...this.recentCache];
     }
   }
 
   searchHistory(query: string, limit = 10): HistoryItem[] {
-    if (!query || !query.trim()) {
-      return [];
-    }
-
-    const searchTerm = query.toLowerCase().trim();
-    const results = this.recentCache.filter(item => 
-      item.text.toLowerCase().includes(searchTerm)
-    );
-
-    return results.slice(0, limit);
+    return searchHistoryItems(this.recentCache, query, limit);
   }
 
 
   async removeHistoryItem(id: string): Promise<boolean> {
     try {
-      // キャッシュから削除
-      const initialLength = this.recentCache.length;
-      const removedItem = this.recentCache.find(item => item.id === id);
-      this.recentCache = this.recentCache.filter(item => item.id !== id);
-      
-      if (this.recentCache.length < initialLength && removedItem) {
-        // duplicateCheckSetからも削除
-        this.duplicateCheckSet.delete(removedItem.text);
-        
-        // ファイルは永続保護するため、メモリキャッシュのみ削除
-        // totalItemCountはファイルがそのままなので変更しない
+      const result = removeItemFromCache(id, this.recentCache, this.duplicateCheckSet);
+      this.recentCache = result.updatedCache;
+      this.duplicateCheckSet = result.updatedSet;
+
+      if (result.removed) {
         logger.debug('Removed history item from cache (file preserved):', id);
         return true;
       }
-      
+
       logger.debug('History item not found for removal:', id);
       return false;
     } catch (error) {
@@ -387,43 +276,15 @@ class OptimizedHistoryManager implements IHistoryManager {
   }
 
   getHistoryStats(): HistoryStats {
-    // 必要に応じて遅延カウントを実行（非同期）
     if (!this.totalItemCountCached) {
       this.countTotalItemsAsync().catch((error: Error) => {
         logger.warn('Lazy total count failed:', error);
       });
     }
-    
-    const totalItems = this.totalItemCountCached ? this.totalItemCount : this.recentCache.length;
-    const cachedItems = this.recentCache;
-    const totalCharacters = cachedItems.reduce((sum, item) => sum + item.text.length, 0);
-    const oldestTimestamp = cachedItems.length > 0 ? 
-      Math.min(...cachedItems.map(item => item.timestamp)) : null;
-    const newestTimestamp = cachedItems.length > 0 ? 
-      Math.max(...cachedItems.map(item => item.timestamp)) : null;
 
-    return {
-      totalItems,
-      totalCharacters,
-      averageLength: cachedItems.length > 0 ? Math.round(totalCharacters / cachedItems.length) : 0,
-      oldestTimestamp,
-      newestTimestamp,
-    };
+    return calculateHistoryStats(this.recentCache, this.totalItemCount, this.totalItemCountCached);
   }
 
-  private validateHistoryItem(item: unknown): item is HistoryItem {
-    return (
-      typeof item === 'object' &&
-      item !== null &&
-      'text' in item &&
-      'timestamp' in item &&
-      'id' in item &&
-      typeof (item as HistoryItem).text === 'string' &&
-      typeof (item as HistoryItem).timestamp === 'number' &&
-      typeof (item as HistoryItem).id === 'string' &&
-      (item as HistoryItem).text.length > 0
-    );
-  }
 
   // 既存のHistoryManagerとの互換性のためのメソッド
   updateConfig(_newConfig: Partial<HistoryConfig>): void {
@@ -434,21 +295,7 @@ class OptimizedHistoryManager implements IHistoryManager {
 
   // Export/Import機能（ストリーミング対応）
   async exportHistory(): Promise<ExportData> {
-    const allItems: HistoryItem[] = [];
-    
-    const stream = createReadStream(this.historyFile);
-    const rl = createInterface({
-      input: stream,
-      crlfDelay: Infinity
-    });
-
-    for await (const line of rl) {
-      const item = safeJsonParse<HistoryItem>(line);
-      if (item && this.validateHistoryItem(item)) {
-        allItems.push(item);
-      }
-    }
-
+    const allItems = await streamHistoryItems(this.historyFile, validateHistoryItem);
     allItems.sort((a, b) => b.timestamp - a.timestamp);
 
     return {
@@ -469,18 +316,12 @@ class OptimizedHistoryManager implements IHistoryManager {
         await this.clearHistory();
       }
 
-      // バッチで追記
-      const lines = exportData.history
-        .filter(item => this.validateHistoryItem(item))
-        .map(item => JSON.stringify(item))
-        .join('\n') + '\n';
-      
-      await fs.appendFile(this.historyFile, lines);
-      
-      // キャッシュをリロード
+      const validItems = exportData.history.filter(item => validateHistoryItem(item));
+      await appendItemsToFile(this.historyFile, validItems);
+
       await this.loadRecentHistory();
       await this.countTotalItems();
-      
+
       logger.info(`History imported: ${exportData.history.length} items, merge: ${merge}`);
     } catch (error) {
       logger.error('Failed to import history:', error);

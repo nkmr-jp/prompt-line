@@ -62,64 +62,78 @@ export class DirectoryCacheManager {
       return;
     }
 
-    // Check if this is from cache or just draft fallback
     const fromCache = data.fromCache === true;
     const fromDraft = data.fromDraft === true;
 
     if (fromDraft && (!data.files || data.files.length === 0)) {
-      // Draft fallback with no files - just store directory for later
-      console.debug('[DirectoryCacheManager] Draft directory fallback:', data.directory);
-      // Don't cache empty data, but remember the directory
-      this.cachedDirectoryData = {
-        directory: data.directory,
-        files: [],
-        timestamp: Date.now(),
-        partial: false,  // Always false (single stage with fd)
-        searchMode: 'recursive',  // Always recursive (fd is required)
-        fromDraft: true
-      };
-
-      // Notify indexing status change (building)
-      if (this.callbacks.onIndexingStatusChange) {
-        this.callbacks.onIndexingStatusChange(true, data.hint);
-      }
+      this.handleDraftFallback(data);
       return;
     }
 
-    // Cache the data with appropriate flags
+    this.cacheDirectoryData(data, fromCache);
+    this.notifyCallbacks(data, fromCache);
+  }
+
+  /**
+   * Handle draft fallback with no files
+   */
+  private handleDraftFallback(data: DirectoryInfo): void {
+    console.debug('[DirectoryCacheManager] Draft directory fallback:', data.directory);
+
+    // data.directory is guaranteed to be defined by the caller check
     this.cachedDirectoryData = {
-      directory: data.directory,
+      directory: data.directory!,
+      files: [],
+      timestamp: Date.now(),
+      partial: false,
+      searchMode: 'recursive',
+      fromDraft: true
+    };
+
+    this.callbacks.onIndexingStatusChange?.(true, data.hint);
+  }
+
+  /**
+   * Cache directory data with appropriate flags
+   */
+  private cacheDirectoryData(data: DirectoryInfo, fromCache: boolean): void {
+    // data.directory is guaranteed to be defined by the caller check
+    this.cachedDirectoryData = {
+      directory: data.directory!,
       files: data.files || [],
       timestamp: Date.now(),
-      partial: false,  // Always false (single stage with fd)
-      searchMode: 'recursive',  // Always recursive (fd is required)
+      partial: false,
+      searchMode: 'recursive',
       ...(fromCache ? { fromCache: true } : {}),
       ...(data.cacheAge !== undefined ? { cacheAge: data.cacheAge } : {}),
       ...(data.hint ? { hint: data.hint } : {}),
-      ...(data.filesDisabled ? { filesDisabled: data.filesDisabled, filesDisabledReason: data.filesDisabledReason } : {})
+      ...(data.filesDisabled ? {
+        filesDisabled: data.filesDisabled,
+        filesDisabledReason: data.filesDisabledReason
+      } : {})
     };
+  }
 
-    // Show hint message in footer if present (e.g., fd not installed)
+  /**
+   * Notify callbacks about cache update and indexing status
+   */
+  private notifyCallbacks(data: DirectoryInfo, fromCache: boolean): void {
     if (data.hint && this.callbacks.updateHintText) {
       this.callbacks.updateHintText(data.hint);
       console.warn('[DirectoryCacheManager] Hint:', data.hint);
     }
 
-    // Notify indexing status change (ready or still building)
     const isBuilding = this.isIndexBeingBuilt();
-    if (this.callbacks.onIndexingStatusChange) {
-      this.callbacks.onIndexingStatusChange(isBuilding, data.hint);
-    }
+    this.callbacks.onIndexingStatusChange?.(isBuilding, data.hint);
 
-    // Notify cache update
-    if (this.callbacks.onCacheUpdated) {
-      this.callbacks.onCacheUpdated(this.cachedDirectoryData);
+    if (this.cachedDirectoryData) {
+      this.callbacks.onCacheUpdated?.(this.cachedDirectoryData);
     }
 
     console.debug('[DirectoryCacheManager] handleCachedDirectoryData:', formatLog({
       directory: data.directory,
-      fileCount: this.cachedDirectoryData.files.length,
-      fromCache: fromCache,
+      fileCount: this.cachedDirectoryData?.files.length || 0,
+      fromCache,
       cacheAge: data.cacheAge,
       searchMode: data.searchMode,
       hint: data.hint
@@ -136,93 +150,150 @@ export class DirectoryCacheManager {
       return;
     }
 
-    // Get hint and filesDisabled from DirectoryInfo if available
+    const metadata = this.extractMetadata(data);
+    const isSameDirectory = this.cachedDirectoryData?.directory === data.directory;
+
+    if (!data.files) {
+      this.handleDirectoryOnlyUpdate(data.directory, isSameDirectory, metadata);
+      return;
+    }
+
+    this.handleFullUpdate(data, isSameDirectory, metadata);
+  }
+
+  /**
+   * Extract metadata from directory data
+   */
+  private extractMetadata(data: DirectoryInfo | DirectoryData): {
+    hint?: string;
+    filesDisabled?: boolean;
+    filesDisabledReason?: string;
+  } {
     const hint = 'hint' in data ? (data as DirectoryInfo).hint : undefined;
     const filesDisabled = 'filesDisabled' in data ? (data as DirectoryInfo).filesDisabled : undefined;
     const filesDisabledReason = 'filesDisabledReason' in data ? (data as DirectoryInfo).filesDisabledReason : undefined;
 
-    // Check if this is an update to the same directory
-    const isSameDirectory = this.cachedDirectoryData?.directory === data.directory;
+    // Build result object with only defined properties to satisfy exactOptionalPropertyTypes
+    const result: { hint?: string; filesDisabled?: boolean; filesDisabledReason?: string } = {};
+    if (hint !== undefined) {
+      result.hint = hint;
+    }
+    if (filesDisabled !== undefined) {
+      result.filesDisabled = filesDisabled;
+    }
+    if (filesDisabledReason !== undefined) {
+      result.filesDisabledReason = filesDisabledReason;
+    }
 
-    // Handle directory-only updates (no files - e.g., file listing failed)
-    // This is important for code search which only needs the directory
-    if (!data.files) {
-      // For directory-only updates, only update if directory changed
-      if (!isSameDirectory) {
-        console.debug('[DirectoryCacheManager] updateCache: directory-only update (directory changed)', {
-          from: this.cachedDirectoryData?.directory,
-          to: data.directory
-        });
-        this.cachedDirectoryData = {
-          directory: data.directory,
-          files: [],  // Empty files - code search will work, file search won't
-          timestamp: Date.now(),
-          partial: false,
-          searchMode: 'recursive',
-          ...(hint ? { hint } : {}),
-          ...(filesDisabled && filesDisabledReason ? { filesDisabled, filesDisabledReason } : filesDisabled ? { filesDisabled } : {})
-        };
+    return result;
+  }
 
-        // Show hint message if present
-        if (hint && this.callbacks.updateHintText) {
-          this.callbacks.updateHintText(hint);
-          console.warn('[DirectoryCacheManager] Hint:', hint);
-        }
-
-        // Notify cache update
-        if (this.callbacks.onCacheUpdated) {
-          this.callbacks.onCacheUpdated(this.cachedDirectoryData);
-        }
-      } else {
-        console.debug('[DirectoryCacheManager] updateCache: skipping directory-only update (same directory)');
-      }
+  /**
+   * Handle directory-only update (no files)
+   */
+  private handleDirectoryOnlyUpdate(
+    directory: string,
+    isSameDirectory: boolean,
+    metadata: { hint?: string; filesDisabled?: boolean; filesDisabledReason?: string }
+  ): void {
+    if (isSameDirectory) {
+      console.debug('[DirectoryCacheManager] updateCache: skipping directory-only update (same directory)');
       return;
     }
 
-    // Full update with files - only update if we have more complete data
-    const shouldUpdate = !this.cachedDirectoryData ||
-      !isSameDirectory ||
-      (data.searchMode === 'recursive') ||
-      (data.files.length > (this.cachedDirectoryData?.files.length || 0));
+    console.debug('[DirectoryCacheManager] updateCache: directory-only update (directory changed)', {
+      from: this.cachedDirectoryData?.directory,
+      to: directory
+    });
 
-    if (!shouldUpdate) {
+    this.cachedDirectoryData = {
+      directory,
+      files: [],
+      timestamp: Date.now(),
+      partial: false,
+      searchMode: 'recursive',
+      ...this.buildMetadataObject(metadata)
+    };
+
+    this.showHintIfPresent(metadata.hint);
+    this.callbacks.onCacheUpdated?.(this.cachedDirectoryData);
+  }
+
+  /**
+   * Handle full update with files
+   */
+  private handleFullUpdate(
+    data: DirectoryInfo | DirectoryData,
+    isSameDirectory: boolean,
+    metadata: { hint?: string; filesDisabled?: boolean; filesDisabledReason?: string }
+  ): void {
+    if (!this.shouldUpdateCache(data, isSameDirectory)) {
       console.debug('[DirectoryCacheManager] updateCache: skipping update, existing data is sufficient');
       return;
     }
 
+    // data.directory is guaranteed to be defined by the caller check in updateCache
     this.cachedDirectoryData = {
-      directory: data.directory,
-      files: data.files,
+      directory: data.directory!,
+      files: data.files!,
       timestamp: Date.now(),
-      partial: false,  // Always false (single stage with fd)
-      searchMode: 'recursive',  // Always recursive (fd is required)
-      // Cache flags (fromCache, cacheAge) are intentionally omitted for fresh data
-      ...(hint ? { hint } : {}),
-      ...(filesDisabled && filesDisabledReason ? { filesDisabled, filesDisabledReason } : filesDisabled ? { filesDisabled } : {})
+      partial: false,
+      searchMode: 'recursive',
+      ...this.buildMetadataObject(metadata)
     };
 
-    // Show hint message in footer if present (e.g., fd not installed)
-    if (hint && this.callbacks.updateHintText) {
-      this.callbacks.updateHintText(hint);
-      console.warn('[DirectoryCacheManager] Hint:', hint);
-    }
-
-    // Notify indexing status change (ready)
-    if (this.callbacks.onIndexingStatusChange) {
-      this.callbacks.onIndexingStatusChange(false, hint);
-    }
-
-    // Notify cache update
-    if (this.callbacks.onCacheUpdated) {
-      this.callbacks.onCacheUpdated(this.cachedDirectoryData);
+    this.showHintIfPresent(metadata.hint);
+    this.callbacks.onIndexingStatusChange?.(false, metadata.hint);
+    if (this.cachedDirectoryData) {
+      this.callbacks.onCacheUpdated?.(this.cachedDirectoryData);
     }
 
     console.debug('[DirectoryCacheManager] updateCache:', formatLog({
       directory: data.directory,
-      fileCount: data.files.length,
+      fileCount: data.files!.length,
       searchMode: 'recursive',
-      hint
+      hint: metadata.hint
     }));
+  }
+
+  /**
+   * Determine if cache should be updated
+   */
+  private shouldUpdateCache(
+    data: DirectoryInfo | DirectoryData,
+    isSameDirectory: boolean
+  ): boolean {
+    return !this.cachedDirectoryData ||
+      !isSameDirectory ||
+      data.searchMode === 'recursive' ||
+      (data.files!.length > (this.cachedDirectoryData?.files.length || 0));
+  }
+
+  /**
+   * Build metadata object for cache data
+   */
+  private buildMetadataObject(metadata: {
+    hint?: string;
+    filesDisabled?: boolean;
+    filesDisabledReason?: string;
+  }): Record<string, unknown> {
+    return {
+      ...(metadata.hint ? { hint: metadata.hint } : {}),
+      ...(metadata.filesDisabled && metadata.filesDisabledReason ? {
+        filesDisabled: metadata.filesDisabled,
+        filesDisabledReason: metadata.filesDisabledReason
+      } : metadata.filesDisabled ? { filesDisabled: metadata.filesDisabled } : {})
+    };
+  }
+
+  /**
+   * Show hint message if present
+   */
+  private showHintIfPresent(hint?: string): void {
+    if (hint && this.callbacks.updateHintText) {
+      this.callbacks.updateHintText(hint);
+      console.warn('[DirectoryCacheManager] Hint:', hint);
+    }
   }
 
   /**

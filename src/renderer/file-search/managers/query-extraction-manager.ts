@@ -45,37 +45,45 @@ export class QueryExtractionManager {
     const text = this.callbacks.getTextContent();
     const cursorPos = this.callbacks.getCursorPosition();
 
-    // Find the @ before cursor
-    let atPos = -1;
-    for (let i = cursorPos - 1; i >= 0; i--) {
-      const char = text[i];
-
-      // Stop at whitespace or newline
-      if (char === ' ' || char === '\n' || char === '\t') {
-        break;
-      }
-
-      // Found @
-      if (char === '@') {
-        atPos = i;
-        break;
-      }
-    }
-
+    const atPos = this.findAtPosition(text, cursorPos);
     if (atPos === -1) return null;
 
-    // Check that @ is at start of line or after whitespace
-    if (atPos > 0) {
-      const prevChar = text[atPos - 1];
-      if (prevChar !== ' ' && prevChar !== '\n' && prevChar !== '\t') {
-        return null; // @ is part of something else (like email)
-      }
-    }
+    if (!this.isValidAtPosition(text, atPos)) return null;
 
-    // Extract query (text after @ up to cursor)
     const query = text.substring(atPos + 1, cursorPos);
-
     return { query, startPos: atPos };
+  }
+
+  /**
+   * Find @ position before cursor
+   */
+  private findAtPosition(text: string, cursorPos: number): number {
+    for (let i = cursorPos - 1; i >= 0; i--) {
+      const char = text[i];
+      if (char === undefined) break;
+
+      if (this.isStopChar(char)) break;
+      if (char === '@') return i;
+    }
+    return -1;
+  }
+
+  /**
+   * Check if character is a stop character (whitespace or newline)
+   */
+  private isStopChar(char: string): boolean {
+    return char === ' ' || char === '\n' || char === '\t';
+  }
+
+  /**
+   * Check if @ position is valid (at start of line or after whitespace)
+   */
+  private isValidAtPosition(text: string, atPos: number): boolean {
+    if (atPos === 0) return true;
+
+    const prevChar = text[atPos - 1];
+    if (prevChar === undefined) return false;
+    return this.isStopChar(prevChar);
   }
 
   /**
@@ -84,36 +92,34 @@ export class QueryExtractionManager {
    */
   public parseCodeSearchQuery(query: string): CodeSearchQueryResult | null {
     const match = query.match(CODE_SEARCH_PATTERN);
-    if (!match || !match[1]) {
-      return null;
-    }
+    if (!match || !match[1]) return null;
 
     const language = match[1];
     const rawQuery = match[2] ?? '';
+    const { symbolQuery, symbolTypeFilter } = this.parseSymbolTypeFilter(rawQuery);
 
-    // Parse symbol type filter (e.g., "func:Create" → type="func", query="Create")
+    return { language, symbolQuery, symbolTypeFilter };
+  }
+
+  /**
+   * Parse symbol type filter from query
+   * E.g., "func:Create" → type="func", query="Create"
+   */
+  private parseSymbolTypeFilter(rawQuery: string): { symbolQuery: string; symbolTypeFilter: string | null } {
     const colonIndex = rawQuery.indexOf(':');
-    let symbolTypeFilter: string | null = null;
-    let symbolQuery: string;
-
-    if (colonIndex >= 0) {
-      const potentialType = rawQuery.substring(0, colonIndex).toLowerCase();
-      if (SYMBOL_TYPE_FROM_DISPLAY[potentialType]) {
-        symbolTypeFilter = potentialType;
-        symbolQuery = rawQuery.substring(colonIndex + 1);
-      } else {
-        // Not a valid symbol type, treat entire string as query
-        symbolQuery = rawQuery;
-      }
-    } else {
-      symbolQuery = rawQuery;
+    if (colonIndex < 0) {
+      return { symbolQuery: rawQuery, symbolTypeFilter: null };
     }
 
-    return {
-      language,
-      symbolQuery,
-      symbolTypeFilter
-    };
+    const potentialType = rawQuery.substring(0, colonIndex).toLowerCase();
+    if (SYMBOL_TYPE_FROM_DISPLAY[potentialType]) {
+      return {
+        symbolTypeFilter: potentialType,
+        symbolQuery: rawQuery.substring(colonIndex + 1)
+      };
+    }
+
+    return { symbolQuery: rawQuery, symbolTypeFilter: null };
   }
 
   /**

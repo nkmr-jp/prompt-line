@@ -92,10 +92,18 @@ export class PathScannerManager {
    * 2. The cached file list (for Undo support - restores highlights for valid paths)
    */
   public rescanAtPaths(text: string, validPaths?: Set<string> | null): void {
-    const foundPaths: AtPathRange[] = [];
     const validPathsSet = validPaths !== undefined ? validPaths : this.validPathsBuilder();
+    const foundPaths = this.findAndValidateAtPaths(text, validPathsSet);
 
-    // Find all @path patterns in text
+    foundPaths.sort((a, b) => a.start - b.start);
+    this.atPaths = foundPaths;
+  }
+
+  /**
+   * Find and validate all @path patterns in text
+   */
+  private findAndValidateAtPaths(text: string, validPathsSet: Set<string> | null): AtPathRange[] {
+    const foundPaths: AtPathRange[] = [];
     const atPathPattern = /@([^\s@]+)/g;
     let match;
 
@@ -103,30 +111,41 @@ export class PathScannerManager {
       const pathContent = match[1];
       if (!pathContent) continue;
 
-      const start = match.index;
-      const end = start + 1 + pathContent.length; // +1 for @
-
-      // Check if this path is in selectedPaths (user explicitly selected it)
-      const isSelected = this.selectedPaths.has(pathContent);
-
-      // Check if path is valid according to cached file list (for Undo support)
-      let isValidCachedPath = false;
-      if (validPathsSet) {
-        // Extract the clean path (without line number and symbol name)
-        const parsedPath = parsePathWithLineInfo(pathContent);
-        const cleanPath = parsedPath.path;
-        isValidCachedPath = validPathsSet.has(cleanPath);
-      }
-
-      // Add to foundPaths if it's selected OR valid according to cached list
-      if (isSelected || isValidCachedPath) {
-        foundPaths.push({ start, end, path: pathContent });
+      const atPath = this.createAtPathIfValid(match, pathContent, validPathsSet);
+      if (atPath) {
+        foundPaths.push(atPath);
       }
     }
 
-    // Sort by start position and update
-    foundPaths.sort((a, b) => a.start - b.start);
-    this.atPaths = foundPaths;
+    return foundPaths;
+  }
+
+  /**
+   * Create AtPathRange if path is valid
+   */
+  private createAtPathIfValid(
+    match: RegExpExecArray,
+    pathContent: string,
+    validPathsSet: Set<string> | null
+  ): AtPathRange | null {
+    const start = match.index;
+    const end = start + 1 + pathContent.length;
+
+    const isSelected = this.selectedPaths.has(pathContent);
+    const isValidCached = this.isValidCachedPath(pathContent, validPathsSet);
+
+    return (isSelected || isValidCached) ? { start, end, path: pathContent } : null;
+  }
+
+  /**
+   * Check if path is valid according to cached file list
+   */
+  private isValidCachedPath(pathContent: string, validPathsSet: Set<string> | null): boolean {
+    if (!validPathsSet) return false;
+
+    const parsedPath = parsePathWithLineInfo(pathContent);
+    const cleanPath = parsedPath.path;
+    return validPathsSet.has(cleanPath);
   }
 
   /**
@@ -138,39 +157,53 @@ export class PathScannerManager {
    *                          Use this when restoring from draft with empty file list (fromDraft).
    * @param directoryData - Directory data for validation (optional)
    */
-  public async restoreAtPathsFromText(checkFilesystem: boolean = false, directoryData?: DirectoryDataForScanner | null): Promise<void> {
+  public async restoreAtPathsFromText(
+    checkFilesystem: boolean = false,
+    directoryData?: DirectoryDataForScanner | null
+  ): Promise<void> {
     const text = this.callbacks.getTextContent();
-    console.debug('[PathScannerManager] Restoring @paths from text:', {
-      textLength: text.length,
-      checkFilesystem,
-      hasDirectoryData: !!directoryData
-    });
+    this.logRestoreStart(text, checkFilesystem, directoryData);
+    this.clearState();
 
-    // Clear existing state
-    this.atPaths = [];
-    this.selectedPaths.clear();
+    const context = this.prepareRestoreContext(checkFilesystem, directoryData);
+    if (!context) return;
 
-    // Need cached directory data to check if files exist (or need to check filesystem)
-    const hasValidCachedData = directoryData?.files &&
-                                directoryData.files.length > 0 &&
-                                directoryData?.directory;
-    const baseDir = directoryData?.directory;
+    await this.processAtPathsInText(text, context);
+    this.logRestoreComplete(text, checkFilesystem);
+  }
+
+  /**
+   * Prepare context for path restoration
+   */
+  private prepareRestoreContext(
+    checkFilesystem: boolean,
+    directoryData?: DirectoryDataForScanner | null
+  ): { relativePaths: Set<string> | null; checkFilesystem: boolean } | null {
+    const hasValidCachedData = this.hasValidDirectoryData(directoryData);
 
     if (!checkFilesystem && !hasValidCachedData) {
       console.debug('[PathScannerManager] restoreAtPathsFromText: no cached data and not checking filesystem, skipping highlight');
-      return;
+      return null;
     }
 
-    // Build a set of relative paths for quick lookup (only if we have valid cached data)
-    let relativePaths: Set<string> | null = null;
-    if (hasValidCachedData && directoryData) {
-      relativePaths = this.buildRelativePathsSet(directoryData.files, baseDir!);
-      console.debug('[PathScannerManager] Built relative path set:', {
-        pathCount: relativePaths.size
-      });
+    const relativePaths = hasValidCachedData && directoryData
+      ? this.buildRelativePathsSet(directoryData.files, directoryData.directory!)
+      : null;
+
+    if (relativePaths) {
+      console.debug('[PathScannerManager] Built relative path set:', { pathCount: relativePaths.size });
     }
 
-    // Find all @path patterns
+    return { relativePaths, checkFilesystem };
+  }
+
+  /**
+   * Process all @path patterns in text
+   */
+  private async processAtPathsInText(
+    text: string,
+    context: { relativePaths: Set<string> | null; checkFilesystem: boolean }
+  ): Promise<void> {
     const atPathPattern = /@([^\s@]+)/g;
     let match;
 
@@ -178,64 +211,119 @@ export class PathScannerManager {
       const pathContent = match[1];
       if (!pathContent) continue;
 
-      const start = match.index;
-      const end = start + 1 + pathContent.length;
+      await this.processAtPath(pathContent, match.index, context);
+    }
+  }
 
-      // Parse path to extract clean path (without line number and symbol name)
-      const parsedPath = parsePathWithLineInfo(pathContent);
-      const cleanPath = parsedPath.path;
+  /**
+   * Process a single @path pattern
+   */
+  private async processAtPath(
+    pathContent: string,
+    startIndex: number,
+    context: { relativePaths: Set<string> | null; checkFilesystem: boolean }
+  ): Promise<void> {
+    const parsedPath = parsePathWithLineInfo(pathContent);
+    const cleanPath = parsedPath.path;
+    const end = startIndex + 1 + pathContent.length;
 
-      // Check if file exists (either in cache or filesystem)
-      let shouldHighlight = false;
+    const shouldHighlight = await this.shouldHighlightPath(
+      cleanPath,
+      context.relativePaths,
+      context.checkFilesystem
+    );
 
-      if (relativePaths && relativePaths.has(cleanPath)) {
-        // Path exists in cached file list
-        shouldHighlight = true;
-        console.debug('[PathScannerManager] Found @path in cache:', {
-          pathContent,
-          cleanPath,
-          start,
-          end,
-          isSymbolPath: !!parsedPath.lineNumber
-        });
-      } else if (checkFilesystem && this.callbacks.checkFileExists) {
-        // Check filesystem if cache lookup failed and checkFilesystem is true
-        try {
-          const exists = await this.callbacks.checkFileExists(cleanPath);
-          shouldHighlight = exists;
-          console.debug('[PathScannerManager] Checked filesystem for @path:', {
-            pathContent,
-            cleanPath,
-            exists,
-            isSymbolPath: !!parsedPath.lineNumber
-          });
-        } catch (err) {
-          console.error('[PathScannerManager] Error checking file existence:', err);
-          shouldHighlight = false;
-        }
-      }
+    if (shouldHighlight) {
+      this.selectedPaths.add(pathContent);
+      this.logFoundPath(pathContent, cleanPath, startIndex, end, context.checkFilesystem, parsedPath);
+    } else {
+      console.debug('[PathScannerManager] Skipping non-existent @path:', pathContent);
+    }
+  }
 
-      if (shouldHighlight) {
-        // Add to selectedPaths set (rescanAtPaths will find all occurrences)
-        // Use the full pathContent (including line number and symbol name if present)
-        this.selectedPaths.add(pathContent);
-        console.debug('[PathScannerManager] Found @path:', {
-          pathContent,
-          cleanPath,
-          start,
-          end,
-          checkFilesystem,
-          isSymbolPath: !!parsedPath.lineNumber
-        });
-      } else {
-        console.debug('[PathScannerManager] Skipping non-existent @path:', pathContent);
+  /**
+   * Check if path should be highlighted
+   */
+  private async shouldHighlightPath(
+    cleanPath: string,
+    relativePaths: Set<string> | null,
+    checkFilesystem: boolean
+  ): Promise<boolean> {
+    if (relativePaths?.has(cleanPath)) {
+      return true;
+    }
+
+    if (checkFilesystem && this.callbacks.checkFileExists) {
+      try {
+        return await this.callbacks.checkFileExists(cleanPath);
+      } catch (err) {
+        console.error('[PathScannerManager] Error checking file existence:', err);
+        return false;
       }
     }
 
+    return false;
+  }
+
+  /**
+   * Check if directory data is valid
+   */
+  private hasValidDirectoryData(directoryData?: DirectoryDataForScanner | null): boolean {
+    return !!(directoryData?.files && directoryData.files.length > 0 && directoryData?.directory);
+  }
+
+  /**
+   * Clear state for path restoration
+   */
+  private clearState(): void {
+    this.atPaths = [];
+    this.selectedPaths.clear();
+  }
+
+  /**
+   * Log restore start
+   */
+  private logRestoreStart(
+    text: string,
+    checkFilesystem: boolean,
+    directoryData?: DirectoryDataForScanner | null
+  ): void {
+    console.debug('[PathScannerManager] Restoring @paths from text:', {
+      textLength: text.length,
+      checkFilesystem,
+      hasDirectoryData: !!directoryData
+    });
+  }
+
+  /**
+   * Log restore complete
+   */
+  private logRestoreComplete(text: string, checkFilesystem: boolean): void {
     console.debug('[PathScannerManager] Restored @paths from text:', {
       selectedPathsCount: this.selectedPaths.size,
       textLength: text.length,
       checkFilesystem
+    });
+  }
+
+  /**
+   * Log found path
+   */
+  private logFoundPath(
+    pathContent: string,
+    cleanPath: string,
+    start: number,
+    end: number,
+    checkFilesystem: boolean,
+    parsedPath: { path: string; lineNumber?: number }
+  ): void {
+    console.debug('[PathScannerManager] Found @path:', {
+      pathContent,
+      cleanPath,
+      start,
+      end,
+      checkFilesystem,
+      isSymbolPath: !!parsedPath.lineNumber
     });
   }
 

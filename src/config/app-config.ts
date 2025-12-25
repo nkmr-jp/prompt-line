@@ -32,6 +32,16 @@ class AppConfigClass {
   }
 
   private init(): void {
+    this.initWindowConfig();
+    this.initShortcuts();
+    this.initPaths();
+    this.initPerformanceConfig();
+    this.initAppMetadata();
+    this.initPlatformConfig();
+    this.initLoggingConfig();
+  }
+
+  private initWindowConfig(): void {
     this.window = {
       width: 600,
       height: 300,
@@ -47,7 +57,7 @@ class AppConfigClass {
         contextIsolation: true,
         webSecurity: true,
         preload: path.join(__dirname, '..', 'preload', 'preload.js'),
-        
+
         // Maintain existing settings
         spellcheck: false,
         disableDialogs: true,
@@ -57,13 +67,15 @@ class AppConfigClass {
         offscreen: false,
         enablePreferredSizeMode: false,
         disableHtmlFullscreenWindowResize: true,
-        
+
         // Additional security settings
         allowRunningInsecureContent: false,
         sandbox: true,  // Enabled for enhanced security (accessibility features work via main process)
       }
     };
+  }
 
+  private initShortcuts(): void {
     this.shortcuts = {
       main: 'Cmd+Shift+Space',
       paste: 'Cmd+Enter',
@@ -72,7 +84,9 @@ class AppConfigClass {
       historyPrev: 'Ctrl+k',
       search: 'Cmd+f'
     };
+  }
 
+  private initPaths(): void {
     const userDataDir = path.join(os.homedir(), '.prompt-line');
     this.paths = {
       userDataDir,
@@ -98,7 +112,9 @@ class AppConfigClass {
         return path.join(userDataDir, 'cache', 'projects');
       }
     };
+  }
 
+  private initPerformanceConfig(): void {
     this.history = {
       saveInterval: 1000
     };
@@ -111,19 +127,25 @@ class AppConfigClass {
       windowHideDelay: 10,
       appFocusDelay: 50
     };
+  }
 
+  private initAppMetadata(): void {
     this.app = {
       name: 'Prompt Line',
       version: packageJson.version,
       description: 'プロンプトラインアプリ - カーソル位置にテキストを素早く貼り付け'
     };
+  }
 
+  private initPlatformConfig(): void {
     this.platform = {
       isMac: process.platform === 'darwin',
       isWindows: process.platform === 'win32',
       isLinux: process.platform === 'linux'
     };
+  }
 
+  private initLoggingConfig(): void {
     // Determine log level based on LOG_LEVEL environment variable
     let logLevel: LogLevel = 'info'; // Default to info
     if (process.env.LOG_LEVEL === 'debug') {

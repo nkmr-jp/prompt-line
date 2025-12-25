@@ -12,6 +12,63 @@ export function formatShortcut(shortcut: string): string {
     .replace(/\+/g, '+');
 }
 
+/**
+ * Splits shortcut into modifier and key parts
+ */
+function splitShortcut(formattedShortcut: string): { modifiers: string; key: string } {
+  const parts = formattedShortcut.split('+');
+  return {
+    modifiers: parts.slice(0, -1).join('+'),
+    key: parts[parts.length - 1] || ''
+  };
+}
+
+/**
+ * Updates header shortcuts display
+ */
+function updateHeaderShortcuts(
+  headerShortcutsEl: HTMLElement,
+  pasteShortcut: string,
+  closeShortcut: string
+): void {
+  const pasteKey = formatShortcut(pasteShortcut);
+  const closeKey = formatShortcut(closeShortcut);
+  const { modifiers, key } = splitShortcut(pasteKey);
+
+  headerShortcutsEl.innerHTML = `
+    <kbd>${modifiers}</kbd>+<kbd>${key}</kbd> Paste
+    <kbd>${closeKey}</kbd> Close
+  `;
+}
+
+/**
+ * Updates history navigation shortcuts display
+ */
+function updateHistoryShortcuts(
+  historyShortcutsEl: HTMLElement,
+  historyNext: string,
+  historyPrev: string
+): void {
+  const formattedNext = formatShortcut(historyNext);
+  const formattedPrev = formatShortcut(historyPrev);
+
+  const { modifiers: nextModifier, key: nextKey } = splitShortcut(formattedNext);
+  const { key: prevKey } = splitShortcut(formattedPrev);
+
+  historyShortcutsEl.innerHTML = `<kbd class="history-kbd">${nextModifier}</kbd>+<kbd class="history-kbd">${nextKey}</kbd>/<kbd class="history-kbd">${prevKey}</kbd>`;
+}
+
+/**
+ * Updates search button tooltip
+ */
+function updateSearchTooltip(searchShortcut: string): void {
+  const searchButtonEl = document.getElementById('searchButton');
+  if (searchButtonEl) {
+    const searchKey = formatShortcut(searchShortcut);
+    searchButtonEl.title = `Search history (${searchKey})`;
+  }
+}
+
 export function updateShortcutsDisplay(
   headerShortcutsEl: HTMLElement | null,
   historyShortcutsEl: HTMLElement | null,
@@ -25,43 +82,18 @@ export function updateShortcutsDisplay(
 ): void {
   // Update header shortcuts
   if (headerShortcutsEl) {
-    const pasteKey = formatShortcut(shortcuts.paste);
-    const closeKey = formatShortcut(shortcuts.close);
-    
-    const parts = pasteKey.split('+');
-    const modifiers = parts.slice(0, -1).join('+');
-    const key = parts[parts.length - 1];
-    
-    headerShortcutsEl.innerHTML = `
-      <kbd>${modifiers}</kbd>+<kbd>${key}</kbd> Paste
-      <kbd>${closeKey}</kbd> Close
-    `;
+    updateHeaderShortcuts(headerShortcutsEl, shortcuts.paste, shortcuts.close);
   }
 
   // Update history navigation shortcuts
   if (historyShortcutsEl) {
     const historyNext = shortcuts.historyNext || 'Ctrl+j';
     const historyPrev = shortcuts.historyPrev || 'Ctrl+k';
-    
-    // Format the shortcuts properly
-    const formattedNext = formatShortcut(historyNext);
-    const formattedPrev = formatShortcut(historyPrev);
-    
-    // Extract modifier and key parts for both shortcuts
-    const nextParts = formattedNext.split('+');
-    const prevParts = formattedPrev.split('+');
-    
-    const nextModifier = nextParts.slice(0, -1).join('+');
-    const nextKey = nextParts[nextParts.length - 1];
-    const prevKey = prevParts[prevParts.length - 1];
-    
-    historyShortcutsEl.innerHTML = `<kbd class="history-kbd">${nextModifier}</kbd>+<kbd class="history-kbd">${nextKey}</kbd>/<kbd class="history-kbd">${prevKey}</kbd>`;
+    updateHistoryShortcuts(historyShortcutsEl, historyNext, historyPrev);
   }
 
   // Update search button tooltip
-  const searchButtonEl = document.getElementById('searchButton');
-  if (searchButtonEl && shortcuts.search) {
-    const searchKey = formatShortcut(shortcuts.search);
-    searchButtonEl.title = `Search history (${searchKey})`;
+  if (shortcuts.search) {
+    updateSearchTooltip(shortcuts.search);
   }
 }

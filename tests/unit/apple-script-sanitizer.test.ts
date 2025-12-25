@@ -1,56 +1,57 @@
-import { 
-  sanitizeAppleScript, 
-  validateAppleScriptSecurity 
+import {
+  sanitizeAppleScript,
+  validateAppleScriptSecurity
 } from '../../src/utils/apple-script-sanitizer';
+
+// Test data helpers
+const TEST_CASES = {
+  singleQuote: { input: "tell application 'Finder'", expected: "tell application '\\''Finder'\\''" },
+  injection: { input: "'; rm -rf /; echo '", expected: "'\\''; rm -rf /; echo '\\''"},
+  doubleQuote: { input: 'tell application "Terminal"', expected: 'tell application \\"Terminal\\"' },
+  backslash: { input: 'path\\to\\file', expected: 'path\\\\to\\\\file' },
+  carriageReturn: { input: 'line1\rline2', expected: 'line1\\rline2' },
+  nullChar: { input: 'text\x00null', expected: 'textnull' },
+  controlChars: { input: 'text\x01\x08\x0B\x0C\x0E\x1F\x7Fcontrol', expected: 'textcontrol' }
+};
+
+function testSanitization(input: string, expected: string): void {
+  expect(sanitizeAppleScript(input)).toBe(expected);
+}
 
 describe('AppleScript Sanitizer', () => {
   describe('sanitizeAppleScript', () => {
     test('should escape single quotes properly for shell single-quoted context', () => {
-      const input = "tell application 'Finder'";
-      const expected = "tell application '\\''Finder'\\''";
-      expect(sanitizeAppleScript(input)).toBe(expected);
+      testSanitization(TEST_CASES.singleQuote.input, TEST_CASES.singleQuote.expected);
     });
 
     test('should prevent command injection', () => {
-      const input = "'; rm -rf /; echo '";
-      const expected = "'\\''; rm -rf /; echo '\\''";
-      expect(sanitizeAppleScript(input)).toBe(expected);
+      testSanitization(TEST_CASES.injection.input, TEST_CASES.injection.expected);
     });
 
     test('should handle newlines and special characters', () => {
       const input = "line1\nline2\tline3$var`cmd`";
       const expected = "line1\\nline2\\tline3\\$var\\`cmd\\`";
-      expect(sanitizeAppleScript(input)).toBe(expected);
+      testSanitization(input, expected);
     });
 
     test('should escape double quotes', () => {
-      const input = 'tell application "Terminal"';
-      const expected = 'tell application \\"Terminal\\"';
-      expect(sanitizeAppleScript(input)).toBe(expected);
+      testSanitization(TEST_CASES.doubleQuote.input, TEST_CASES.doubleQuote.expected);
     });
 
     test('should escape backslashes', () => {
-      const input = 'path\\to\\file';
-      const expected = 'path\\\\to\\\\file';
-      expect(sanitizeAppleScript(input)).toBe(expected);
+      testSanitization(TEST_CASES.backslash.input, TEST_CASES.backslash.expected);
     });
 
     test('should handle carriage returns', () => {
-      const input = 'line1\rline2';
-      const expected = 'line1\\rline2';
-      expect(sanitizeAppleScript(input)).toBe(expected);
+      testSanitization(TEST_CASES.carriageReturn.input, TEST_CASES.carriageReturn.expected);
     });
 
     test('should remove NULL characters', () => {
-      const input = 'text\x00null';
-      const expected = 'textnull';
-      expect(sanitizeAppleScript(input)).toBe(expected);
+      testSanitization(TEST_CASES.nullChar.input, TEST_CASES.nullChar.expected);
     });
 
     test('should remove control characters', () => {
-      const input = 'text\x01\x08\x0B\x0C\x0E\x1F\x7Fcontrol';
-      const expected = 'textcontrol';
-      expect(sanitizeAppleScript(input)).toBe(expected);
+      testSanitization(TEST_CASES.controlChars.input, TEST_CASES.controlChars.expected);
     });
 
     test('should reject non-string input', () => {
@@ -75,19 +76,11 @@ describe('AppleScript Sanitizer', () => {
     });
 
     test('should properly escape single quotes in shell context', () => {
-      // Test that the escaped string would be safe when used in osascript -e 'ESCAPED_STRING'
-      const input = "It's a test";
-      const result = sanitizeAppleScript(input);
-      expect(result).toBe("It'\\''s a test");
-      
-      // The shell command would be: osascript -e 'It'\''s a test'
-      // Which shell interprets as: osascript -e It's a test (three concatenated parts)
+      testSanitization("It's a test", "It'\\''s a test");
     });
 
     test('should handle multiple consecutive single quotes', () => {
-      const input = "'''";
-      const result = sanitizeAppleScript(input);
-      expect(result).toBe("'\\'''\\'''\\''");
+      testSanitization("'''", "'\\'''\\'''\\''");
     });
 
     test('should handle mixed quotes and special characters', () => {
@@ -98,66 +91,46 @@ describe('AppleScript Sanitizer', () => {
   });
 
   describe('validateAppleScriptSecurity', () => {
+    function expectWarning(script: string, warning: string): void {
+      expect(validateAppleScriptSecurity(script)).toContain(warning);
+    }
+
     test('should detect shell script execution', () => {
-      const script = 'do shell script "rm -rf /"';
-      const warnings = validateAppleScriptSecurity(script);
-      expect(warnings).toContain('shell script execution detected');
+      expectWarning('do shell script "rm -rf /"', 'shell script execution detected');
     });
 
     test('should detect keystroke injection', () => {
-      const script = 'tell application "System Events" to keystroke "malicious"';
-      const warnings = validateAppleScriptSecurity(script);
-      expect(warnings).toContain('keystroke injection detected');
+      expectWarning('tell application "System Events" to keystroke "malicious"', 'keystroke injection detected');
     });
 
     test('should detect application termination', () => {
-      const script = 'tell application "Terminal" to quit';
-      const warnings = validateAppleScriptSecurity(script);
-      expect(warnings).toContain('application termination detected');
+      expectWarning('tell application "Terminal" to quit', 'application termination detected');
     });
 
     test('should detect file deletion commands', () => {
-      const script1 = 'delete file "important.txt"';
-      const script2 = 'remove folder "documents"';
-      const script3 = 'move to trash';
-      
-      expect(validateAppleScriptSecurity(script1)).toContain('file deletion commands detected');
-      expect(validateAppleScriptSecurity(script2)).toContain('file deletion commands detected');
-      expect(validateAppleScriptSecurity(script3)).toContain('file deletion commands detected');
+      expectWarning('delete file "important.txt"', 'file deletion commands detected');
+      expectWarning('remove folder "documents"', 'file deletion commands detected');
+      expectWarning('move to trash', 'file deletion commands detected');
     });
 
     test('should detect sensitive data access', () => {
-      const script1 = 'get password from keychain';
-      const script2 = 'access credential store';
-      
-      expect(validateAppleScriptSecurity(script1)).toContain('sensitive data access detected');
-      expect(validateAppleScriptSecurity(script2)).toContain('sensitive data access detected');
+      expectWarning('get password from keychain', 'sensitive data access detected');
+      expectWarning('access credential store', 'sensitive data access detected');
     });
 
     test('should return empty array for safe scripts', () => {
-      const safeScript = `
-        tell application "System Events"
-          try
-            set frontApp to first application process whose frontmost is true
-            return name of frontApp
-          end try
-        end tell
-      `.trim();
-      
-      const warnings = validateAppleScriptSecurity(safeScript);
-      expect(warnings).toEqual([]);
+      const safeScript = 'tell application "System Events"\n  try\n    set frontApp to first application process whose frontmost is true\n    return name of frontApp\n  end try\nend tell';
+      expect(validateAppleScriptSecurity(safeScript)).toEqual([]);
     });
 
     test('should be case insensitive', () => {
-      const script = 'DO SHELL SCRIPT "echo test"';
-      const warnings = validateAppleScriptSecurity(script);
-      expect(warnings).toContain('shell script execution detected');
+      expectWarning('DO SHELL SCRIPT "echo test"', 'shell script execution detected');
     });
 
     test('should detect multiple issues', () => {
       const script = 'do shell script "rm -rf /"; tell application "Terminal" to quit; delete file "test"';
       const warnings = validateAppleScriptSecurity(script);
-      
+
       expect(warnings).toContain('shell script execution detected');
       expect(warnings).toContain('application termination detected');
       expect(warnings).toContain('file deletion commands detected');

@@ -98,66 +98,93 @@ export class PopupManager {
     const suggestionsContainer = this.callbacks.getSuggestionsContainer();
     if (!this.frontmatterPopup || !agent.frontmatter || !suggestionsContainer) return;
 
-    // Cancel any pending hide
     this.cancelPopupHide();
+    this.clearPopupContent();
+    this.createPopupContent(agent.frontmatter);
+    this.positionPopup(targetElement, suggestionsContainer);
+    this.frontmatterPopup.style.display = 'block';
+  }
 
-    // Clear previous content using safe DOM method
+  /**
+   * Clear popup content using safe DOM method
+   */
+  private clearPopupContent(): void {
+    if (!this.frontmatterPopup) return;
     while (this.frontmatterPopup.firstChild) {
       this.frontmatterPopup.removeChild(this.frontmatterPopup.firstChild);
     }
+  }
 
-    // Create content container (using textContent for XSS safety)
+  /**
+   * Create popup content with frontmatter and hint
+   */
+  private createPopupContent(frontmatter: string): void {
+    if (!this.frontmatterPopup) return;
+
     const contentDiv = document.createElement('div');
     contentDiv.className = 'frontmatter-content';
-    contentDiv.textContent = agent.frontmatter;
+    contentDiv.textContent = frontmatter;
     this.frontmatterPopup.appendChild(contentDiv);
 
-    // Add hint message at the bottom
     const hintDiv = document.createElement('div');
     hintDiv.className = 'frontmatter-hint';
     hintDiv.textContent = this.autoShowTooltip ? 'Ctrl+i: hide tooltip' : 'Ctrl+i: auto-show tooltip';
     this.frontmatterPopup.appendChild(hintDiv);
+  }
 
-    // Get the info icon and container rectangles for positioning
+  /**
+   * Position popup relative to target element
+   */
+  private positionPopup(targetElement: HTMLElement, suggestionsContainer: HTMLElement): void {
+    if (!this.frontmatterPopup) return;
+
     const iconRect = targetElement.getBoundingClientRect();
     const containerRect = suggestionsContainer.getBoundingClientRect();
-
-    // Position popup to the left of the info icon
-    const popupWidth = containerRect.width - 40;
-    const horizontalGap = 8;
-    const right = window.innerWidth - iconRect.left + horizontalGap;
-
-    // Gap between popup and icon
-    const verticalGap = 4;
-
-    // Calculate available space below and above the icon
-    const spaceBelow = window.innerHeight - iconRect.bottom - 10;
-    const spaceAbove = iconRect.top - 10;
-    const minPopupHeight = 80;
-
-    // Decide whether to show popup above or below the icon
-    const showAbove = spaceBelow < minPopupHeight && spaceAbove > spaceBelow;
-
-    let top: number;
-    let maxHeight: number;
-
-    if (showAbove) {
-      // Position above the icon (bottom of popup aligns with top of icon)
-      maxHeight = Math.max(minPopupHeight, Math.min(150, spaceAbove - verticalGap));
-      top = iconRect.top - maxHeight - verticalGap;
-    } else {
-      // Position below the icon (top of popup aligns with bottom of icon)
-      top = iconRect.bottom + verticalGap;
-      maxHeight = Math.max(minPopupHeight, Math.min(150, spaceBelow - verticalGap));
-    }
+    const { right, top, maxHeight } = this.calculatePopupPosition(iconRect, containerRect);
 
     this.frontmatterPopup.style.right = `${right}px`;
     this.frontmatterPopup.style.left = 'auto';
     this.frontmatterPopup.style.top = `${top}px`;
-    this.frontmatterPopup.style.width = `${popupWidth}px`;
+    this.frontmatterPopup.style.width = `${containerRect.width - 40}px`;
     this.frontmatterPopup.style.maxHeight = `${maxHeight}px`;
+  }
 
-    this.frontmatterPopup.style.display = 'block';
+  /**
+   * Calculate popup position (right, top, maxHeight)
+   */
+  private calculatePopupPosition(
+    iconRect: DOMRect,
+    _containerRect: DOMRect
+  ): { right: number; top: number; maxHeight: number } {
+    const horizontalGap = 8;
+    const verticalGap = 4;
+    const minPopupHeight = 80;
+
+    const right = window.innerWidth - iconRect.left + horizontalGap;
+    const { showAbove, spaceBelow, spaceAbove } = this.calculateVerticalSpace(iconRect, minPopupHeight);
+
+    if (showAbove) {
+      const maxHeight = Math.max(minPopupHeight, Math.min(150, spaceAbove - verticalGap));
+      const top = iconRect.top - maxHeight - verticalGap;
+      return { right, top, maxHeight };
+    } else {
+      const top = iconRect.bottom + verticalGap;
+      const maxHeight = Math.max(minPopupHeight, Math.min(150, spaceBelow - verticalGap));
+      return { right, top, maxHeight };
+    }
+  }
+
+  /**
+   * Calculate vertical space and determine if popup should show above
+   */
+  private calculateVerticalSpace(
+    iconRect: DOMRect,
+    minPopupHeight: number
+  ): { showAbove: boolean; spaceBelow: number; spaceAbove: number } {
+    const spaceBelow = window.innerHeight - iconRect.bottom - 10;
+    const spaceAbove = iconRect.top - 10;
+    const showAbove = spaceBelow < minPopupHeight && spaceAbove > spaceBelow;
+    return { showAbove, spaceBelow, spaceAbove };
   }
 
   /**

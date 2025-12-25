@@ -1,7 +1,5 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { createReadStream, createWriteStream } from 'fs';
-import { createInterface } from 'readline';
 import config from '../config/app-config';
 import { logger } from '../utils/utils';
 import type {
@@ -9,9 +7,27 @@ import type {
   FileCacheMetadata,
   CachedDirectoryData,
   GlobalCacheMetadata,
-  FileCacheStats,
-  CachedFileEntry
+  FileCacheStats
 } from '../types';
+import {
+  encodeDirectoryPath,
+  fileInfoToCacheEntry,
+  cacheEntryToFileInfo,
+  readJsonlFile,
+  writeJsonlFile,
+  buildStatsResult,
+  buildEmptyStatsResult,
+  getCacheFilePaths,
+  cacheFilesExist,
+  readCacheMetadata,
+  createDefaultGlobalMetadata,
+  updateMetadataWithDirectory as updateMetadataHelper,
+  saveGlobalMetadata,
+  initializeStats,
+  processEntryStats,
+  shouldRemoveCacheEntry,
+  createCacheMetadata
+} from './file-cache-helpers';
 
 class FileCacheManager {
   private cacheDir: string;
@@ -40,19 +56,10 @@ class FileCacheManager {
   }
 
   /**
-   * Encode directory path for cache directory name
-   * Claude projects style: / -> -
-   * Example: /Users/nkmr/ghq -> -Users-nkmr-ghq
-   */
-  encodeDirectoryPath(directory: string): string {
-    return directory.replace(/\//g, '-');
-  }
-
-  /**
    * Get cache directory path for a specific directory
    */
   getCachePath(directory: string): string {
-    const encoded = this.encodeDirectoryPath(directory);
+    const encoded = encodeDirectoryPath(directory);
     return path.join(this.cacheDir, encoded);
   }
 
@@ -63,37 +70,28 @@ class FileCacheManager {
   async loadCache(directory: string): Promise<CachedDirectoryData | null> {
     try {
       const cachePath = this.getCachePath(directory);
-      const metadataPath = path.join(cachePath, 'metadata.json');
-      const filesPath = path.join(cachePath, 'files.jsonl');
+      const paths = getCacheFilePaths(cachePath);
 
-      // Check if both metadata and files exist
-      try {
-        await fs.access(metadataPath);
-        await fs.access(filesPath);
-      } catch {
+      if (!await cacheFilesExist(paths)) {
         logger.debug('Cache not found for directory:', directory);
         return null;
       }
 
-      // Read metadata
-      const metadataContent = await fs.readFile(metadataPath, 'utf8');
-      const metadata = JSON.parse(metadataContent) as FileCacheMetadata;
-
-      // Read files from JSONL
-      const entries = await this.readJsonlFile(filesPath);
-      const files = entries.map(entry => this.cacheEntryToFileInfo(entry));
+      const metadata = await readCacheMetadata(paths.metadataPath);
+      const files = await this.readCacheFiles(paths.filesPath);
 
       logger.debug(`Loaded cache for directory: ${directory} (${files.length} files)`);
 
-      return {
-        directory,
-        files,
-        metadata
-      };
+      return { directory, files, metadata };
     } catch (error) {
       logger.error('Failed to load cache:', error);
       return null;
     }
+  }
+
+  private async readCacheFiles(filesPath: string): Promise<FileInfo[]> {
+    const entries = await readJsonlFile(filesPath);
+    return entries.map(entry => cacheEntryToFileInfo(entry));
   }
 
   /**
@@ -113,38 +111,25 @@ class FileCacheManager {
       const metadataPath = path.join(cachePath, 'metadata.json');
       const filesPath = path.join(cachePath, 'files.jsonl');
 
-      // Create cache directory with restrictive permissions (owner read/write/execute only)
       await fs.mkdir(cachePath, { recursive: true, mode: 0o700 });
 
-      // Prepare metadata
-      const now = new Date().toISOString();
-      const metadata: FileCacheMetadata = {
-        version: FileCacheManager.CACHE_VERSION,
+      const metadata = createCacheMetadata(
         directory,
-        createdAt: now,
-        updatedAt: now,
-        fileCount: files.length,
-        ttlSeconds: FileCacheManager.DEFAULT_TTL_SECONDS,
-        searchMode: 'recursive',  // Always recursive (fd is required)
-        ...(options?.gitignoreRespected !== undefined && {
-          gitignoreRespected: options.gitignoreRespected
-        })
-      };
+        files.length,
+        FileCacheManager.CACHE_VERSION,
+        FileCacheManager.DEFAULT_TTL_SECONDS,
+        options
+      );
 
-      // Write metadata with restrictive file permissions (owner read/write only)
       await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), { mode: 0o600 });
 
-      // Convert files to cache entries and write JSONL
-      const entries = files.map(file => this.fileInfoToCacheEntry(file));
-      await this.writeJsonlFile(filesPath, entries);
-
-      // Update global metadata
+      const entries = files.map(file => fileInfoToCacheEntry(file));
+      await writeJsonlFile(filesPath, entries);
       await this.setLastUsedDirectory(directory);
 
       logger.debug(`Saved cache for directory: ${directory} (${files.length} files)`);
     } catch (error) {
       logger.error('Failed to save cache:', error);
-      // Don't throw - cache save failure shouldn't break file search
     }
   }
 
@@ -221,55 +206,25 @@ class FileCacheManager {
    */
   async setLastUsedDirectory(directory: string): Promise<void> {
     try {
-      let metadata: GlobalCacheMetadata;
-
-      try {
-        const content = await fs.readFile(this.globalMetadataPath, 'utf8');
-        metadata = JSON.parse(content) as GlobalCacheMetadata;
-      } catch {
-        // Create new metadata if not exists
-        metadata = {
-          version: FileCacheManager.CACHE_VERSION,
-          lastUsedDirectory: null,
-          lastUsedAt: null,
-          recentDirectories: []
-        };
-      }
-
+      const metadata = await this.loadOrCreateGlobalMetadata();
       const now = new Date().toISOString();
 
-      // Update last used
-      metadata.lastUsedDirectory = directory;
-      metadata.lastUsedAt = now;
-
-      // Update recent directories list
-      // Remove if already exists
-      metadata.recentDirectories = metadata.recentDirectories.filter(
-        item => item.directory !== directory
-      );
-
-      // Add to front
-      metadata.recentDirectories.unshift({
-        directory,
-        lastUsedAt: now
-      });
-
-      // Limit to MAX_RECENT_DIRECTORIES
-      metadata.recentDirectories = metadata.recentDirectories.slice(
-        0,
-        FileCacheManager.MAX_RECENT_DIRECTORIES
-      );
-
-      // Write back
-      await fs.writeFile(
-        this.globalMetadataPath,
-        JSON.stringify(metadata, null, 2)
-      );
+      updateMetadataHelper(metadata, directory, now, FileCacheManager.MAX_RECENT_DIRECTORIES);
+      await saveGlobalMetadata(this.globalMetadataPath, metadata);
 
       logger.debug(`Updated global metadata with directory: ${directory}`);
     } catch (error) {
       logger.error('Failed to update global metadata:', error);
       // Don't throw - metadata update failure shouldn't break operations
+    }
+  }
+
+  private async loadOrCreateGlobalMetadata(): Promise<GlobalCacheMetadata> {
+    try {
+      const content = await fs.readFile(this.globalMetadataPath, 'utf8');
+      return JSON.parse(content) as GlobalCacheMetadata;
+    } catch {
+      return createDefaultGlobalMetadata(FileCacheManager.CACHE_VERSION);
     }
   }
 
@@ -322,63 +277,17 @@ class FileCacheManager {
   async getCacheStats(): Promise<FileCacheStats> {
     try {
       const entries = await fs.readdir(this.cacheDir, { withFileTypes: true });
-
-      let totalCaches = 0;
-      let totalFiles = 0;
-      let oldestCache: string | null = null;
-      let newestCache: string | null = null;
-      let totalSizeBytes = 0;
-      let oldestTimestamp = Number.MAX_SAFE_INTEGER;
-      let newestTimestamp = 0;
+      const stats = initializeStats();
 
       for (const entry of entries) {
         if (!entry.isDirectory()) continue;
-
-        const metadataPath = path.join(this.cacheDir, entry.name, 'metadata.json');
-
-        try {
-          const content = await fs.readFile(metadataPath, 'utf8');
-          const metadata = JSON.parse(content) as FileCacheMetadata;
-
-          totalCaches++;
-          totalFiles += metadata.fileCount;
-
-          const timestamp = new Date(metadata.updatedAt).getTime();
-          if (timestamp < oldestTimestamp) {
-            oldestTimestamp = timestamp;
-            oldestCache = metadata.directory;
-          }
-          if (timestamp > newestTimestamp) {
-            newestTimestamp = timestamp;
-            newestCache = metadata.directory;
-          }
-
-          // Calculate directory size
-          const filesPath = path.join(this.cacheDir, entry.name, 'files.jsonl');
-          const stats = await fs.stat(filesPath);
-          totalSizeBytes += stats.size;
-        } catch {
-          // Skip invalid cache entries
-          continue;
-        }
+        await processEntryStats(this.cacheDir, entry, stats);
       }
 
-      return {
-        totalCaches,
-        totalFiles,
-        oldestCache,
-        newestCache,
-        totalSizeBytes
-      };
+      return buildStatsResult(stats);
     } catch (error) {
       logger.error('Failed to get cache stats:', error);
-      return {
-        totalCaches: 0,
-        totalFiles: 0,
-        oldestCache: null,
-        newestCache: null,
-        totalSizeBytes: 0
-      };
+      return buildEmptyStatsResult();
     }
   }
 
@@ -396,24 +305,12 @@ class FileCacheManager {
       for (const entry of entries) {
         if (!entry.isDirectory()) continue;
 
-        const metadataPath = path.join(this.cacheDir, entry.name, 'metadata.json');
-
-        try {
-          const content = await fs.readFile(metadataPath, 'utf8');
-          const metadata = JSON.parse(content) as FileCacheMetadata;
-
-          const timestamp = new Date(metadata.updatedAt).getTime();
-          const age = now - timestamp;
-
-          if (age > maxAgeMs) {
-            const cachePath = path.join(this.cacheDir, entry.name);
-            await fs.rm(cachePath, { recursive: true, force: true });
-            removedCount++;
-            logger.debug(`Removed old cache: ${metadata.directory}`);
-          }
-        } catch {
-          // Skip invalid cache entries
-          continue;
+        const result = await shouldRemoveCacheEntry(this.cacheDir, entry.name, maxAgeMs, now);
+        if (result.shouldRemove) {
+          const cachePath = path.join(this.cacheDir, entry.name);
+          await fs.rm(cachePath, { recursive: true, force: true });
+          logger.debug(`Removed old cache: ${result.directory}`);
+          removedCount++;
         }
       }
 
@@ -422,104 +319,6 @@ class FileCacheManager {
       logger.error('Failed to cleanup old caches:', error);
       throw error;
     }
-  }
-
-  /**
-   * Convert FileInfo to CachedFileEntry for storage
-   * Uses compact format to reduce file size
-   */
-  private fileInfoToCacheEntry(file: FileInfo): CachedFileEntry {
-    const entry: CachedFileEntry = {
-      path: file.path,
-      name: file.name,
-      type: file.isDirectory ? 'directory' : 'file'
-    };
-
-    if (file.size !== undefined) {
-      entry.size = file.size;
-    }
-
-    if (file.modifiedAt) {
-      entry.mtime = new Date(file.modifiedAt).getTime();
-    }
-
-    return entry;
-  }
-
-  /**
-   * Convert CachedFileEntry to FileInfo for use
-   */
-  private cacheEntryToFileInfo(entry: CachedFileEntry): FileInfo {
-    const fileInfo: FileInfo = {
-      path: entry.path,
-      name: entry.name,
-      isDirectory: entry.type === 'directory'
-    };
-
-    if (entry.size !== undefined) {
-      fileInfo.size = entry.size;
-    }
-
-    if (entry.mtime !== undefined) {
-      fileInfo.modifiedAt = new Date(entry.mtime).toISOString();
-    }
-
-    return fileInfo;
-  }
-
-  /**
-   * Read JSONL file as stream for memory efficiency
-   */
-  private async readJsonlFile(filePath: string): Promise<CachedFileEntry[]> {
-    return new Promise((resolve, reject) => {
-      const entries: CachedFileEntry[] = [];
-      const fileStream = createReadStream(filePath);
-      const rl = createInterface({
-        input: fileStream,
-        crlfDelay: Infinity
-      });
-
-      rl.on('line', (line) => {
-        try {
-          if (line.trim()) {
-            const entry = JSON.parse(line) as CachedFileEntry;
-            entries.push(entry);
-          }
-        } catch {
-          logger.warn('Invalid JSONL line in cache file:', line);
-        }
-      });
-
-      rl.on('close', () => {
-        resolve(entries);
-      });
-
-      rl.on('error', (error) => {
-        reject(error);
-      });
-    });
-  }
-
-  /**
-   * Write JSONL file as stream for memory efficiency
-   */
-  private async writeJsonlFile(
-    filePath: string,
-    entries: CachedFileEntry[]
-  ): Promise<void> {
-    return new Promise((resolve, reject) => {
-      // Set restrictive file permissions (owner read/write only)
-      const writeStream = createWriteStream(filePath, { mode: 0o600 });
-
-      writeStream.on('error', reject);
-      writeStream.on('finish', resolve);
-
-      for (const entry of entries) {
-        writeStream.write(JSON.stringify(entry) + '\n');
-      }
-
-      writeStream.end();
-    });
   }
 }
 

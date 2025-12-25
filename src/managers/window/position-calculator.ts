@@ -1,8 +1,13 @@
 import { screen } from 'electron';
-import { logger, getActiveWindowBounds, TEXT_FIELD_DETECTOR_PATH } from '../../utils/utils';
-import config from '../../config/app-config';
-import type { StartupPosition, WindowBounds } from '../../types';
-import { execFile } from 'child_process';
+import { logger } from '../../utils/utils';
+import type { StartupPosition } from '../../types';
+import {
+  CenterPositionStrategy,
+  ActiveWindowCenterPositionStrategy,
+  CursorPositionStrategy,
+  ActiveTextFieldPositionStrategy,
+  type PositionStrategy
+} from './position-strategies';
 
 /**
  * Window position calculator with multiple positioning strategies
@@ -24,222 +29,37 @@ class WindowPositionCalculator {
     const methodStartTime = performance.now();
     logger.debug(`🕐 Calculating position for: ${position}`);
 
-    let result: { x: number; y: number };
+    const strategy = this.getStrategy(position);
+    const strategyStartTime = performance.now();
+    const result = await strategy.calculate(windowWidth, windowHeight);
 
-    switch (position) {
-      case 'center': {
-        const centerStartTime = performance.now();
-        result = this.calculateCenterPosition(windowWidth, windowHeight);
-        logger.debug(`⏱️  Center calculation: ${(performance.now() - centerStartTime).toFixed(2)}ms`);
-        break;
-      }
-
-      case 'active-window-center': {
-        const awcStartTime = performance.now();
-        result = await this.calculateActiveWindowCenterPosition(windowWidth, windowHeight);
-        logger.debug(`⏱️  Active window center calculation: ${(performance.now() - awcStartTime).toFixed(2)}ms`);
-        break;
-      }
-
-      case 'active-text-field': {
-        const atfStartTime = performance.now();
-        result = await this.calculateActiveTextFieldPosition(windowWidth, windowHeight);
-        logger.debug(`⏱️  Active text field calculation: ${(performance.now() - atfStartTime).toFixed(2)}ms`);
-        break;
-      }
-
-      case 'cursor': {
-        const cursorStartTime = performance.now();
-        result = this.calculateCursorPosition(windowWidth, windowHeight);
-        logger.debug(`⏱️  Cursor calculation: ${(performance.now() - cursorStartTime).toFixed(2)}ms`);
-        break;
-      }
-
-      default: {
-        logger.warn('Invalid position value, falling back to active-window-center', { position });
-        const fallbackStartTime = performance.now();
-        result = await this.calculateActiveWindowCenterPosition(windowWidth, windowHeight);
-        logger.debug(`⏱️  Fallback calculation: ${(performance.now() - fallbackStartTime).toFixed(2)}ms`);
-        break;
-      }
-    }
-
+    logger.debug(`⏱️  ${position} calculation: ${(performance.now() - strategyStartTime).toFixed(2)}ms`);
     logger.debug(`🏁 Total position calculation (${position}): ${(performance.now() - methodStartTime).toFixed(2)}ms`);
+
     return result;
   }
 
   /**
-   * Calculate center position on primary display with slight upward offset
-   * @param windowWidth - Width of the window
-   * @param windowHeight - Height of the window
-   * @returns Window position coordinates centered on primary display
+   * Get positioning strategy based on mode
    */
-  calculateCenterPosition(windowWidth: number, windowHeight: number): { x: number; y: number } {
-    const display = screen.getPrimaryDisplay();
-    const bounds = display.bounds;
-    return {
-      x: bounds.x + (bounds.width - windowWidth) / 2,
-      y: bounds.y + (bounds.height - windowHeight) / 2 - 100
-    };
-  }
+  private getStrategy(position: StartupPosition): PositionStrategy {
+    const constrainFn = this.constrainToScreenBounds.bind(this);
 
-  /**
-   * Calculate position centered within the currently active window
-   * Falls back to center position if active window bounds cannot be determined
-   * @param windowWidth - Width of the window
-   * @param windowHeight - Height of the window
-   * @returns Window position coordinates centered in active window
-   */
-  async calculateActiveWindowCenterPosition(
-    windowWidth: number,
-    windowHeight: number
-  ): Promise<{ x: number; y: number }> {
-    try {
-      const activeWindowBounds = await getActiveWindowBounds();
-      if (activeWindowBounds) {
-        const x = activeWindowBounds.x + (activeWindowBounds.width - windowWidth) / 2;
-        const y = activeWindowBounds.y + (activeWindowBounds.height - windowHeight) / 2;
-
-        const point = {
-          x: activeWindowBounds.x + activeWindowBounds.width / 2,
-          y: activeWindowBounds.y + activeWindowBounds.height / 2
-        };
-
-        return this.constrainToScreenBounds({ x, y }, windowWidth, windowHeight, point);
-      } else {
-        logger.warn('Could not get active window bounds, falling back to center position');
-        return this.calculateCenterPosition(windowWidth, windowHeight);
-      }
-    } catch (error) {
-      logger.warn('Error getting active window bounds, falling back to center position:', error);
-      return this.calculateCenterPosition(windowWidth, windowHeight);
+    switch (position) {
+      case 'center':
+        return new CenterPositionStrategy();
+      case 'active-window-center':
+        return new ActiveWindowCenterPositionStrategy(constrainFn);
+      case 'active-text-field':
+        return new ActiveTextFieldPositionStrategy(constrainFn);
+      case 'cursor':
+        return new CursorPositionStrategy(constrainFn);
+      default:
+        logger.warn('Invalid position value, falling back to active-window-center', { position });
+        return new ActiveWindowCenterPositionStrategy(constrainFn);
     }
   }
 
-  /**
-   * Calculate position at cursor location
-   * Window is centered on the cursor with screen boundary constraints
-   * @param windowWidth - Width of the window
-   * @param windowHeight - Height of the window
-   * @returns Window position coordinates centered on cursor
-   */
-  calculateCursorPosition(windowWidth: number, windowHeight: number): { x: number; y: number } {
-    const point = screen.getCursorScreenPoint();
-    const x = point.x - (windowWidth / 2);
-    const y = point.y - (windowHeight / 2);
-
-    return this.constrainToScreenBounds({ x, y }, windowWidth, windowHeight, point);
-  }
-
-  /**
-   * Calculate position near the currently focused text field
-   * Falls back to active-window-center if text field cannot be detected
-   * @param windowWidth - Width of the window
-   * @param windowHeight - Height of the window
-   * @returns Window position coordinates near active text field
-   */
-  async calculateActiveTextFieldPosition(
-    windowWidth: number,
-    windowHeight: number
-  ): Promise<{ x: number; y: number }> {
-    try {
-      const textFieldBounds = await this.getActiveTextFieldBounds();
-      if (textFieldBounds) {
-        // If text field is narrower than window, align to left edge of text field
-        // Otherwise, center the window horizontally within the text field
-        let x: number;
-        if (textFieldBounds.width < windowWidth) {
-          x = textFieldBounds.x;
-        } else {
-          x = textFieldBounds.x + (textFieldBounds.width - windowWidth) / 2;
-        }
-
-        // Always center vertically
-        const y = textFieldBounds.y + (textFieldBounds.height - windowHeight) / 2;
-
-        return this.constrainToScreenBounds({ x, y }, windowWidth, windowHeight, {
-          x: textFieldBounds.x + textFieldBounds.width / 2,
-          y: textFieldBounds.y + textFieldBounds.height / 2
-        });
-      } else {
-        logger.warn('Could not get active text field bounds, falling back to active-window-center');
-        return this.calculateActiveWindowCenterPosition(windowWidth, windowHeight);
-      }
-    } catch (error) {
-      logger.warn('Error getting active text field bounds, falling back to active-window-center:', error);
-      return this.calculateActiveWindowCenterPosition(windowWidth, windowHeight);
-    }
-  }
-
-  /**
-   * Get bounds of currently focused text field using native text-field-detector tool
-   * @returns Text field bounds or null if no text field is focused
-   */
-  private async getActiveTextFieldBounds(): Promise<WindowBounds | null> {
-    if (!config.platform.isMac) {
-      logger.debug('Text field detection only supported on macOS');
-      return null;
-    }
-
-    const options = {
-      timeout: 3000,
-      killSignal: 'SIGTERM' as const
-    };
-
-    return new Promise((resolve) => {
-      execFile(TEXT_FIELD_DETECTOR_PATH, ['text-field-bounds'], options, (error: Error | null, stdout?: string) => {
-        if (error) {
-          logger.debug('Error getting text field bounds via native tool:', error);
-          resolve(null);
-          return;
-        }
-
-        try {
-          const result = JSON.parse(stdout?.trim() || '{}');
-
-          if (result.error) {
-            logger.debug('Text field detector error:', result.error);
-            resolve(null);
-            return;
-          }
-
-          if (result.success && typeof result.x === 'number' && typeof result.y === 'number' &&
-              typeof result.width === 'number' && typeof result.height === 'number') {
-
-            let bounds = {
-              x: result.x,
-              y: result.y,
-              width: result.width,
-              height: result.height
-            };
-
-            // Use parent container bounds if available for better positioning with scrollable content
-            if (result.parent && result.parent.isVisibleContainer &&
-                typeof result.parent.x === 'number' && typeof result.parent.y === 'number' &&
-                typeof result.parent.width === 'number' && typeof result.parent.height === 'number') {
-              logger.debug('Using parent container bounds for scrollable text field');
-              bounds = {
-                x: result.parent.x,
-                y: result.parent.y,
-                width: result.parent.width,
-                height: result.parent.height
-              };
-            }
-
-            logger.debug('Text field bounds found:', bounds);
-            resolve(bounds);
-            return;
-          }
-
-          logger.debug('Invalid text field bounds data received');
-          resolve(null);
-        } catch (parseError) {
-          logger.debug('Error parsing text field detector output:', parseError);
-          resolve(null);
-        }
-      });
-    });
-  }
 
   /**
    * Constrain window position to screen bounds for multi-monitor setups

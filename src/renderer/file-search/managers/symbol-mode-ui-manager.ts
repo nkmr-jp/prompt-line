@@ -117,48 +117,101 @@ export class SymbolModeUIManager {
     const suggestionsContainer = this.callbacks.getSuggestionsContainer();
     if (!suggestionsContainer) return;
 
-    // Filter symbols by query
-    let filtered = this.state.currentFileSymbols;
-    if (query) {
-      const lowerQuery = query.toLowerCase();
-      filtered = this.state.currentFileSymbols.filter(s =>
-        s.name.toLowerCase().includes(lowerQuery) ||
-        s.lineContent.toLowerCase().includes(lowerQuery)
-      );
+    const filtered = await this.filterAndLimitSymbols(query);
+    const mergedSuggestions = this.convertToSuggestionItems(filtered);
 
-      // Sort by relevance
-      filtered.sort((a, b) => {
-        const aName = a.name.toLowerCase();
-        const bName = b.name.toLowerCase();
-        const aStarts = aName.startsWith(lowerQuery);
-        const bStarts = bName.startsWith(lowerQuery);
-        if (aStarts && !bStarts) return -1;
-        if (!aStarts && bStarts) return 1;
-        return aName.localeCompare(bName);
-      });
+    this.callbacks.setMergedSuggestions(mergedSuggestions);
+    this.callbacks.setSelectedIndex(-1);
+
+    this.renderSymbolList(suggestionsContainer, mergedSuggestions, query);
+    this.showSuggestionPopup();
+  }
+
+  /**
+   * Filter and limit symbols based on query
+   * @param query - Search query
+   * @returns Filtered and limited symbols
+   */
+  private async filterAndLimitSymbols(query: string): Promise<SymbolResult[]> {
+    let filtered = this.state.currentFileSymbols;
+
+    if (query) {
+      filtered = this.filterSymbolsByQuery(query);
     }
 
-    // Limit results using fileSearch settings (not mdSearch)
     const maxSuggestions = await this.callbacks.getFileSearchMaxSuggestions();
-    filtered = filtered.slice(0, maxSuggestions);
+    return filtered.slice(0, maxSuggestions);
+  }
 
-    // Convert to SuggestionItem
-    const mergedSuggestions: SuggestionItem[] = filtered.map((symbol, index) => ({
+  /**
+   * Filter symbols by query
+   * @param query - Search query
+   * @returns Filtered symbols sorted by relevance
+   */
+  private filterSymbolsByQuery(query: string): SymbolResult[] {
+    const lowerQuery = query.toLowerCase();
+    const filtered = this.state.currentFileSymbols.filter(s =>
+      s.name.toLowerCase().includes(lowerQuery) ||
+      s.lineContent.toLowerCase().includes(lowerQuery)
+    );
+
+    filtered.sort((a, b) => {
+      const aName = a.name.toLowerCase();
+      const bName = b.name.toLowerCase();
+      const aStarts = aName.startsWith(lowerQuery);
+      const bStarts = bName.startsWith(lowerQuery);
+      if (aStarts && !bStarts) return -1;
+      if (!aStarts && bStarts) return 1;
+      return aName.localeCompare(bName);
+    });
+
+    return filtered;
+  }
+
+  /**
+   * Convert symbols to suggestion items
+   * @param symbols - Filtered symbols
+   * @returns Array of suggestion items
+   */
+  private convertToSuggestionItems(symbols: SymbolResult[]): SuggestionItem[] {
+    return symbols.map((symbol, index) => ({
       type: 'symbol' as const,
       symbol,
       score: 1000 - index
     }));
-    this.callbacks.setMergedSuggestions(mergedSuggestions);
+  }
 
-    // Set selectedIndex = -1 (unselected state, like directory navigation)
-    // Tab/Enter will insert file path when nothing is selected
-    this.callbacks.setSelectedIndex(-1);
-
-    // Clear and render
-    suggestionsContainer.innerHTML = '';
+  /**
+   * Render symbol list in container
+   * @param container - Container element
+   * @param suggestions - Suggestions to render
+   * @param query - Search query for hint text
+   */
+  private renderSymbolList(
+    container: HTMLElement,
+    suggestions: SuggestionItem[],
+    query: string
+  ): void {
+    container.innerHTML = '';
     const fragment = document.createDocumentFragment();
 
-    // Add file path header (like directory header in renderSuggestions)
+    this.addFilePathHeader(fragment);
+
+    if (suggestions.length === 0) {
+      this.updateNoResultsHint(query);
+    } else {
+      this.renderSymbolItems(fragment, suggestions);
+      this.updateResultsHint(suggestions.length);
+    }
+
+    container.appendChild(fragment);
+  }
+
+  /**
+   * Add file path header to fragment
+   * @param fragment - Document fragment
+   */
+  private addFilePathHeader(fragment: DocumentFragment): void {
     const currentFilePath = this.state.currentFilePath;
     if (currentFilePath) {
       const header = document.createElement('div');
@@ -166,29 +219,51 @@ export class SymbolModeUIManager {
       header.textContent = currentFilePath;
       fragment.appendChild(header);
     }
+  }
 
-    if (mergedSuggestions.length === 0) {
-      this.callbacks.updateHintText?.(`No symbols matching "${query}" in ${currentFilePath}`);
-    }
-
-    // Render symbol items
-    mergedSuggestions.forEach((suggestion, index) => {
+  /**
+   * Render symbol items into fragment
+   * @param fragment - Document fragment
+   * @param suggestions - Suggestions to render
+   */
+  private renderSymbolItems(fragment: DocumentFragment, suggestions: SuggestionItem[]): void {
+    suggestions.forEach((suggestion, index) => {
       if (suggestion.symbol) {
         const item = this.renderSymbolItem(suggestion.symbol, index);
         fragment.appendChild(item);
       }
     });
+  }
 
-    suggestionsContainer.appendChild(fragment);
+  /**
+   * Update hint text for no results
+   * @param query - Search query
+   */
+  private updateNoResultsHint(query: string): void {
+    this.callbacks.updateHintText?.(
+      `No symbols matching "${query}" in ${this.state.currentFilePath}`
+    );
+  }
 
-    // Update hint
-    if (mergedSuggestions.length > 0) {
-      this.callbacks.updateHintText?.(`${mergedSuggestions.length} symbols in ${currentFilePath}`);
-    }
+  /**
+   * Update hint text for results
+   * @param count - Number of results
+   */
+  private updateResultsHint(count: number): void {
+    this.callbacks.updateHintText?.(
+      `${count} symbols in ${this.state.currentFilePath}`
+    );
+  }
 
-    // Position and show (delegate positioning to SuggestionListManager)
+  /**
+   * Show suggestion popup
+   */
+  private showSuggestionPopup(): void {
+    const container = this.callbacks.getSuggestionsContainer();
+    if (!container) return;
+
     this.callbacks.positionPopup(this.callbacks.getAtStartPosition());
-    suggestionsContainer.style.display = 'block';
+    container.style.display = 'block';
     this.callbacks.setIsVisible(true);
   }
 
@@ -199,6 +274,18 @@ export class SymbolModeUIManager {
    * @returns The rendered HTMLElement
    */
   public renderSymbolItem(symbol: SymbolResult, index: number): HTMLElement {
+    const item = this.createSymbolItemElement(index);
+    this.appendSymbolContent(item, symbol);
+    this.attachSymbolItemEvents(item, symbol, index);
+    return item;
+  }
+
+  /**
+   * Create symbol item element with base properties
+   * @param index - Index in the list
+   * @returns Base symbol item element
+   */
+  private createSymbolItemElement(index: number): HTMLElement {
     const item = document.createElement('div');
     item.className = 'file-suggestion-item symbol-item';
     item.dataset.index = String(index);
@@ -207,32 +294,77 @@ export class SymbolModeUIManager {
       item.classList.add('selected');
     }
 
-    // Symbol type icon
+    return item;
+  }
+
+  /**
+   * Append symbol content elements to item
+   * @param item - Item element
+   * @param symbol - Symbol data
+   */
+  private appendSymbolContent(item: HTMLElement, symbol: SymbolResult): void {
+    item.appendChild(this.createSymbolIcon(symbol));
+    item.appendChild(this.createSymbolName(symbol));
+    item.appendChild(this.createSymbolTypeBadge(symbol));
+    item.appendChild(this.createSymbolLineNumber(symbol));
+  }
+
+  /**
+   * Create symbol icon element
+   * @param symbol - Symbol data
+   * @returns Icon span element
+   */
+  private createSymbolIcon(symbol: SymbolResult): HTMLElement {
     const iconSpan = document.createElement('span');
     iconSpan.className = 'file-icon symbol-icon';
     const iconSvg = getSymbolIconSvg(symbol.type);
     insertSvgIntoElement(iconSpan, iconSvg);
-    item.appendChild(iconSpan);
+    return iconSpan;
+  }
 
-    // Symbol name
+  /**
+   * Create symbol name element
+   * @param symbol - Symbol data
+   * @returns Name span element
+   */
+  private createSymbolName(symbol: SymbolResult): HTMLElement {
     const nameSpan = document.createElement('span');
     nameSpan.className = 'file-name';
     nameSpan.textContent = symbol.name;
-    item.appendChild(nameSpan);
+    return nameSpan;
+  }
 
-    // Symbol type badge
+  /**
+   * Create symbol type badge element
+   * @param symbol - Symbol data
+   * @returns Type badge element
+   */
+  private createSymbolTypeBadge(symbol: SymbolResult): HTMLElement {
     const typeBadge = document.createElement('span');
     typeBadge.className = 'file-suggestion-type';
     typeBadge.textContent = getSymbolTypeDisplay(symbol.type);
-    item.appendChild(typeBadge);
+    return typeBadge;
+  }
 
-    // Line number
+  /**
+   * Create symbol line number element
+   * @param symbol - Symbol data
+   * @returns Line number span element
+   */
+  private createSymbolLineNumber(symbol: SymbolResult): HTMLElement {
     const lineSpan = document.createElement('span');
     lineSpan.className = 'file-path';
     lineSpan.textContent = `:${symbol.lineNumber}`;
-    item.appendChild(lineSpan);
+    return lineSpan;
+  }
 
-    // Mouse events
+  /**
+   * Attach mouse events to symbol item
+   * @param item - Item element
+   * @param symbol - Symbol data
+   * @param index - Index in the list
+   */
+  private attachSymbolItemEvents(item: HTMLElement, symbol: SymbolResult, index: number): void {
     item.addEventListener('mousemove', () => {
       this.callbacks.setSelectedIndex(index);
       this.callbacks.updateSelection();
@@ -241,8 +373,6 @@ export class SymbolModeUIManager {
     item.addEventListener('click', () => {
       this.callbacks.selectSymbol(symbol);
     });
-
-    return item;
   }
 
   /**

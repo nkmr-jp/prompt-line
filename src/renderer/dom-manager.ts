@@ -217,81 +217,151 @@ export class DomManager {
     const start = this.textarea.selectionStart;
     const end = this.textarea.selectionEnd;
 
-    // Get the lines that are affected by the selection
+    const lineBounds = this.findLineBounds(value, start, end);
+    const lines = this.extractLinesToProcess(value, lineBounds);
+    const processResult = this.processOutdentLines(lines, lineBounds.lineStart, start, end);
+
+    this.applyOutdentChanges(value, lineBounds, processResult);
+  }
+
+  /**
+   * Find line boundaries for the current selection
+   */
+  private findLineBounds(
+    value: string,
+    start: number,
+    end: number
+  ): { lineStart: number; lineEnd: number } {
     const beforeSelection = value.substring(0, start);
     const afterSelection = value.substring(end);
 
-    // Find line start positions
-    const lineStartBeforeSelection = beforeSelection.lastIndexOf('\n') + 1;
+    const lineStart = beforeSelection.lastIndexOf('\n') + 1;
     const lineEndAfterSelection = afterSelection.indexOf('\n');
     const lineEnd = lineEndAfterSelection === -1 ? value.length : end + lineEndAfterSelection;
 
-    // Extract the lines to process
-    const linesToProcess = value.substring(lineStartBeforeSelection, lineEnd);
-    const lines = linesToProcess.split('\n');
+    return { lineStart, lineEnd };
+  }
 
-    // Process each line to remove leading indentation and track removal per line
+  /**
+   * Extract lines to process from the text
+   */
+  private extractLinesToProcess(
+    value: string,
+    bounds: { lineStart: number; lineEnd: number }
+  ): string[] {
+    const linesToProcess = value.substring(bounds.lineStart, bounds.lineEnd);
+    return linesToProcess.split('\n');
+  }
+
+  /**
+   * Process lines to remove indentation and track character removal
+   */
+  private processOutdentLines(
+    lines: string[],
+    lineStartPosition: number,
+    originalStart: number,
+    originalEnd: number
+  ): {
+    processedLines: string[];
+    charsRemovedBeforeStart: number;
+    charsRemovedBeforeEnd: number;
+  } {
     let totalCharsRemovedBeforeStart = 0;
     let totalCharsRemovedBeforeEnd = 0;
-    let currentPos = lineStartBeforeSelection;
+    let currentPos = lineStartPosition;
 
     const processedLines = lines.map((line) => {
-      let charsRemoved = 0;
-      let processedLine = line;
+      const { processedLine, charsRemoved } = this.removeLineIndentation(line);
 
-      // Try to remove a tab first
-      if (line.startsWith('\t')) {
-        processedLine = line.substring(1);
-        charsRemoved = 1;
-      } else {
-        // Otherwise, remove up to 4 leading spaces
-        const spaces = line.match(/^ {1,4}/);
-        if (spaces) {
-          processedLine = line.substring(spaces[0].length);
-          charsRemoved = spaces[0].length;
-        }
-      }
+      totalCharsRemovedBeforeStart += this.calculateCharsRemovedBeforePosition(
+        currentPos,
+        line.length,
+        originalStart,
+        charsRemoved
+      );
 
-      // Track how many chars were removed before the original start position
-      if (currentPos + line.length <= start) {
-        // This entire line is before the start position
-        totalCharsRemovedBeforeStart += charsRemoved;
-      } else if (currentPos < start && start >= currentPos + charsRemoved) {
-        // Start position is on this line, after the removed characters
-        totalCharsRemovedBeforeStart += charsRemoved;
-      } else if (currentPos < start && start < currentPos + charsRemoved) {
-        // Start position is within the removed characters - adjust to line start
-        totalCharsRemovedBeforeStart += start - currentPos;
-      }
+      totalCharsRemovedBeforeEnd += this.calculateCharsRemovedBeforePosition(
+        currentPos,
+        line.length,
+        originalEnd,
+        charsRemoved
+      );
 
-      // Track how many chars were removed before the original end position
-      if (currentPos + line.length <= end) {
-        // This entire line is before the end position
-        totalCharsRemovedBeforeEnd += charsRemoved;
-      } else if (currentPos < end && end >= currentPos + charsRemoved) {
-        // End position is on this line, after the removed characters
-        totalCharsRemovedBeforeEnd += charsRemoved;
-      } else if (currentPos < end && end < currentPos + charsRemoved) {
-        // End position is within the removed characters - adjust to line start
-        totalCharsRemovedBeforeEnd += end - currentPos;
-      }
-
-      // Move position forward (line length + newline)
       currentPos += line.length + 1;
 
       return processedLine;
     });
 
-    // Build the new textarea value
-    const newContent = processedLines.join('\n');
-    const newValue = value.substring(0, lineStartBeforeSelection) + newContent + value.substring(lineEnd);
+    return {
+      processedLines,
+      charsRemovedBeforeStart: totalCharsRemovedBeforeStart,
+      charsRemovedBeforeEnd: totalCharsRemovedBeforeEnd
+    };
+  }
 
-    // Update textarea
+  /**
+   * Remove indentation from a single line
+   */
+  private removeLineIndentation(line: string): { processedLine: string; charsRemoved: number } {
+    if (line.startsWith('\t')) {
+      return { processedLine: line.substring(1), charsRemoved: 1 };
+    }
+
+    const spaces = line.match(/^ {1,4}/);
+    if (spaces) {
+      return { processedLine: line.substring(spaces[0].length), charsRemoved: spaces[0].length };
+    }
+
+    return { processedLine: line, charsRemoved: 0 };
+  }
+
+  /**
+   * Calculate how many characters were removed before a given position
+   */
+  private calculateCharsRemovedBeforePosition(
+    currentPos: number,
+    lineLength: number,
+    targetPos: number,
+    charsRemoved: number
+  ): number {
+    if (currentPos + lineLength <= targetPos) {
+      return charsRemoved;
+    }
+    if (currentPos < targetPos && targetPos >= currentPos + charsRemoved) {
+      return charsRemoved;
+    }
+    if (currentPos < targetPos && targetPos < currentPos + charsRemoved) {
+      return targetPos - currentPos;
+    }
+    return 0;
+  }
+
+  /**
+   * Apply outdent changes to textarea
+   */
+  private applyOutdentChanges(
+    value: string,
+    bounds: { lineStart: number; lineEnd: number },
+    processResult: {
+      processedLines: string[];
+      charsRemovedBeforeStart: number;
+      charsRemovedBeforeEnd: number;
+    }
+  ): void {
+    if (!this.textarea) {
+      return;
+    }
+
+    const newContent = processResult.processedLines.join('\n');
+    const newValue =
+      value.substring(0, bounds.lineStart) + newContent + value.substring(bounds.lineEnd);
+
     this.textarea.value = newValue;
 
-    // Adjust selection to maintain relative position
-    const newStart = start - totalCharsRemovedBeforeStart;
-    const newEnd = end - totalCharsRemovedBeforeEnd;
+    const start = this.textarea.selectionStart;
+    const end = this.textarea.selectionEnd;
+    const newStart = start - processResult.charsRemovedBeforeStart;
+    const newEnd = end - processResult.charsRemovedBeforeEnd;
 
     this.textarea.setSelectionRange(newStart, newEnd);
     this.updateCharCount();

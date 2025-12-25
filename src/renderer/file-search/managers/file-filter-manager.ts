@@ -138,31 +138,40 @@ export class FileFilterManager {
     if (!cachedData?.files) return 0;
 
     const baseDir = cachedData.directory;
-    const dirRelativePath = getRelativePath(dirPath, baseDir);
-    const dirPrefix = dirRelativePath.endsWith('/') ? dirRelativePath : dirRelativePath + '/';
-
-    let count = 0;
+    const dirPrefix = this.getDirPrefix(dirPath, baseDir);
     const seenChildren = new Set<string>();
 
     for (const file of cachedData.files) {
-      const relativePath = getRelativePath(file.path, baseDir);
-
-      if (!relativePath.startsWith(dirPrefix)) continue;
-
-      const remainingPath = relativePath.substring(dirPrefix.length);
-      if (!remainingPath) continue;
-
-      // Get the direct child name
-      const slashIndex = remainingPath.indexOf('/');
-      const childName = slashIndex === -1 ? remainingPath : remainingPath.substring(0, slashIndex);
-
-      if (!seenChildren.has(childName)) {
+      const childName = this.extractDirectChildName(file.path, baseDir, dirPrefix);
+      if (childName && !seenChildren.has(childName)) {
         seenChildren.add(childName);
-        count++;
       }
     }
 
-    return count;
+    return seenChildren.size;
+  }
+
+  /**
+   * Get directory prefix with trailing slash
+   */
+  private getDirPrefix(dirPath: string, baseDir: string): string {
+    const dirRelativePath = getRelativePath(dirPath, baseDir);
+    return dirRelativePath.endsWith('/') ? dirRelativePath : dirRelativePath + '/';
+  }
+
+  /**
+   * Extract direct child name from file path
+   * @returns Child name or null if not a direct child
+   */
+  private extractDirectChildName(filePath: string, baseDir: string, dirPrefix: string): string | null {
+    const relativePath = getRelativePath(filePath, baseDir);
+    if (!relativePath.startsWith(dirPrefix)) return null;
+
+    const remainingPath = relativePath.substring(dirPrefix.length);
+    if (!remainingPath) return null;
+
+    const slashIndex = remainingPath.indexOf('/');
+    return slashIndex === -1 ? remainingPath : remainingPath.substring(0, slashIndex);
   }
 
   /**

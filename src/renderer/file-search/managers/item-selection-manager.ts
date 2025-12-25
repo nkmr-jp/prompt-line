@@ -79,37 +79,61 @@ export class ItemSelectionManager {
    * @param file - File info to select
    */
   public selectFileByInfo(file: FileInfo): void {
-    // Get relative path from base directory
     const cachedData = this.callbacks.getCachedDirectoryData();
     const baseDir = cachedData?.directory || '';
-    let relativePath = getRelativePath(file.path, baseDir);
+    const relativePath = this.getRelativePathWithTrailingSlash(file, baseDir);
 
-    // Add trailing slash for directories
+    if (file.isDirectory) {
+      this.handleDirectorySelection(relativePath);
+      return;
+    }
+
+    if (this.tryNavigateIntoFileForSymbols(file, relativePath)) {
+      return;
+    }
+
+    this.handleFileSelection(relativePath);
+  }
+
+  /**
+   * Get relative path with trailing slash for directories
+   */
+  private getRelativePathWithTrailingSlash(file: FileInfo, baseDir: string): string {
+    let relativePath = getRelativePath(file.path, baseDir);
     if (file.isDirectory && !relativePath.endsWith('/')) {
       relativePath += '/';
     }
+    return relativePath;
+  }
 
-    // If it's a directory, just insert the path
-    if (file.isDirectory) {
-      this.callbacks.insertFilePath(relativePath);
-      this.callbacks.hideSuggestions();
-      this.callbacks.onFileSelected(relativePath);
-      return;
-    }
-
-    // Check if symbol search is available for this file type
-    const language = this.callbacks.getLanguageForFile(file.name);
-    if (this.callbacks.isCodeSearchAvailable() && language) {
-      // Navigate into file to show symbols
-      this.callbacks.navigateIntoFile(relativePath, file.path, language);
-      return;
-    }
-
-    // Fallback: insert the file path
+  /**
+   * Handle directory selection
+   */
+  private handleDirectorySelection(relativePath: string): void {
     this.callbacks.insertFilePath(relativePath);
     this.callbacks.hideSuggestions();
+    this.callbacks.onFileSelected(relativePath);
+  }
 
-    // Callback for external handling
+  /**
+   * Try to navigate into file for symbol search
+   * @returns true if navigation started
+   */
+  private tryNavigateIntoFileForSymbols(file: FileInfo, relativePath: string): boolean {
+    const language = this.callbacks.getLanguageForFile(file.name);
+    if (this.callbacks.isCodeSearchAvailable() && language) {
+      this.callbacks.navigateIntoFile(relativePath, file.path, language);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Handle regular file selection
+   */
+  private handleFileSelection(relativePath: string): void {
+    this.callbacks.insertFilePath(relativePath);
+    this.callbacks.hideSuggestions();
     this.callbacks.onFileSelected(relativePath);
   }
 
@@ -145,48 +169,56 @@ export class ItemSelectionManager {
     const atStartPosition = this.callbacks.getAtStartPosition();
     if (!textInput || atStartPosition < 0) return;
 
-    // Format: relativePath:lineNumber#symbolName (keep @ prefix)
-    // The @ is already at atStartPosition, so we insert path after it
     const pathWithLineAndSymbol = `${symbol.relativePath}:${symbol.lineNumber}#${symbol.name} `;
+    const pathForHighlight = `${symbol.relativePath}:${symbol.lineNumber}#${symbol.name}`;
 
-    // Get current cursor position (end of the @query)
+    this.replaceTextWithSymbolPath(textInput, atStartPosition, pathWithLineAndSymbol);
+    this.updateSymbolPathState(pathForHighlight);
+  }
+
+  /**
+   * Replace text with symbol path
+   */
+  private replaceTextWithSymbolPath(
+    textInput: HTMLTextAreaElement,
+    atStartPosition: number,
+    pathWithLineAndSymbol: string
+  ): void {
     const cursorPos = textInput.selectionStart;
-
-    // Save atStartPosition before replacement - replaceRangeWithUndo triggers input event
-    // which calls checkForFileSearch() and may set atStartPosition to -1 via hideSuggestions()
     const savedAtStartPosition = atStartPosition;
 
-    // Replace the lang:query part (after @) with the path:line#symbol
-    // atStartPosition is the @ position, so we replace from atStartPosition + 1 to keep @
     if (this.callbacks.replaceRangeWithUndo) {
-      // execCommand('insertText') sets cursor at end of inserted text automatically
-      // Do NOT set cursor position after this - input event handler may have modified atStartPosition
       this.callbacks.replaceRangeWithUndo(savedAtStartPosition + 1, cursorPos, pathWithLineAndSymbol);
     } else {
-      // Fallback without undo support - need to set cursor position manually
-      const text = textInput.value;
-      const newText = text.substring(0, savedAtStartPosition + 1) + pathWithLineAndSymbol + text.substring(cursorPos);
-      textInput.value = newText;
-      const newCursorPos = savedAtStartPosition + 1 + pathWithLineAndSymbol.length;
-      textInput.setSelectionRange(newCursorPos, newCursorPos);
+      this.fallbackReplaceText(textInput, savedAtStartPosition, cursorPos, pathWithLineAndSymbol);
     }
+  }
 
-    // Add to selectedPaths for highlighting and click-to-open
-    // Use the full path including line number and symbol name (without trailing space)
-    const pathForHighlight = `${symbol.relativePath}:${symbol.lineNumber}#${symbol.name}`;
+  /**
+   * Fallback text replacement without undo support
+   */
+  private fallbackReplaceText(
+    textInput: HTMLTextAreaElement,
+    atStartPosition: number,
+    cursorPos: number,
+    pathWithLineAndSymbol: string
+  ): void {
+    const text = textInput.value;
+    const newText = text.substring(0, atStartPosition + 1) + pathWithLineAndSymbol + text.substring(cursorPos);
+    textInput.value = newText;
+    const newCursorPos = atStartPosition + 1 + pathWithLineAndSymbol.length;
+    textInput.setSelectionRange(newCursorPos, newCursorPos);
+  }
+
+  /**
+   * Update state after symbol selection
+   */
+  private updateSymbolPathState(pathForHighlight: string): void {
     this.callbacks.addSelectedPath(pathForHighlight);
     console.debug('[ItemSelectionManager] Added symbol path to selectedPaths:', pathForHighlight);
-
-    // Update highlight backdrop (this also calls rescanAtPaths internally)
     this.callbacks.updateHighlightBackdrop();
-
-    // Notify callback
     this.callbacks.onFileSelected(pathForHighlight);
-
-    // Reset code search state
     this.callbacks.resetCodeSearchState();
-
-    // Hide suggestions
     this.callbacks.hideSuggestions();
   }
 }
