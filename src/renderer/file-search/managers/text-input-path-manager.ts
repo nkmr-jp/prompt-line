@@ -40,6 +40,24 @@ export class TextInputPathManager {
   }
 
   /**
+   * Replace text range with insertion text, using replaceRangeWithUndo if available
+   * @param replaceStart - Start position of text to replace
+   * @param replaceEnd - End position of text to replace
+   * @param insertionText - Text to insert
+   */
+  private replaceTextRange(replaceStart: number, replaceEnd: number, insertionText: string): void {
+    if (this.callbacks.replaceRangeWithUndo) {
+      this.callbacks.replaceRangeWithUndo(replaceStart, replaceEnd, insertionText);
+    } else {
+      // Fallback to direct text manipulation (no Undo support)
+      const text = this.callbacks.getTextContent();
+      const before = text.substring(0, replaceStart);
+      const after = text.substring(replaceEnd);
+      this.callbacks.setTextContent(before + insertionText + after);
+    }
+  }
+
+  /**
    * Insert file path, keeping the @ and replacing only the query part
    * Uses replaceRangeWithUndo for native Undo/Redo support
    * @param path - The path to insert
@@ -49,27 +67,9 @@ export class TextInputPathManager {
   public insertFilePath(path: string, atStartPosition: number): number {
     if (atStartPosition < 0) return atStartPosition;
 
-    const cursorPos = this.callbacks.getCursorPosition();
-
-    // The insertion text includes path + space for better UX
-    const insertionText = path + ' ';
-
-    // Replace the query part (after @) with the new path + space
-    // atStartPosition points to @, so we keep @ and replace from atStartPosition + 1 to cursorPos
-    const replaceStart = atStartPosition + 1;
-    const replaceEnd = cursorPos;
-
-    // Use replaceRangeWithUndo if available for native Undo support
-    if (this.callbacks.replaceRangeWithUndo) {
-      this.callbacks.replaceRangeWithUndo(replaceStart, replaceEnd, insertionText);
-    } else {
-      // Fallback to direct text manipulation (no Undo support)
-      const text = this.callbacks.getTextContent();
-      const before = text.substring(0, replaceStart);
-      const after = text.substring(replaceEnd);
-      const newText = before + insertionText + after;
-      this.callbacks.setTextContent(newText);
-    }
+    // Replace the query part (after @) with path + space
+    // atStartPosition points to @, so we keep @ and replace from atStartPosition + 1
+    this.replaceTextRange(atStartPosition + 1, this.callbacks.getCursorPosition(), path + ' ');
 
     // Add the path to the set of selected paths (for highlighting)
     this.callbacks.addSelectedPath?.(path);
@@ -77,7 +77,6 @@ export class TextInputPathManager {
     // Update highlight backdrop (this will find all occurrences in the text)
     this.callbacks.updateHighlightBackdrop?.();
 
-    // Return -1 to indicate atStartPosition should be reset
     return -1;
   }
 
@@ -92,29 +91,10 @@ export class TextInputPathManager {
   public insertFilePathWithoutAt(path: string, atStartPosition: number): number {
     if (atStartPosition < 0) return atStartPosition;
 
-    const cursorPos = this.callbacks.getCursorPosition();
-
-    // The insertion text includes path + space for better UX
-    const insertionText = path + ' ';
-
     // Replace from @ (atStartPosition) to cursorPos - this removes the @ as well
-    const replaceStart = atStartPosition;
-    const replaceEnd = cursorPos;
-
-    // Use replaceRangeWithUndo if available for native Undo support
-    if (this.callbacks.replaceRangeWithUndo) {
-      this.callbacks.replaceRangeWithUndo(replaceStart, replaceEnd, insertionText);
-    } else {
-      // Fallback to direct text manipulation (no Undo support)
-      const text = this.callbacks.getTextContent();
-      const before = text.substring(0, replaceStart);
-      const after = text.substring(replaceEnd);
-      const newText = before + insertionText + after;
-      this.callbacks.setTextContent(newText);
-    }
+    this.replaceTextRange(atStartPosition, this.callbacks.getCursorPosition(), path + ' ');
 
     // Note: Don't add to selectedPaths for path format since there's no @ to highlight
-    // Return -1 to indicate atStartPosition should be reset
     return -1;
   }
 

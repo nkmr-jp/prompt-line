@@ -61,19 +61,13 @@ export class KeyboardNavigationManager {
 
     // Ctrl+n or Ctrl+j: Move down (same as ArrowDown)
     if (e.ctrlKey && (e.key === 'n' || e.key === 'j')) {
-      e.preventDefault();
-      e.stopPropagation();
-      this.callbacks.setSelectedIndex(Math.min(this.callbacks.getSelectedIndex() + 1, totalItems - 1));
-      this.callbacks.updateSelection();
+      this.moveSelection(e, 1, totalItems);
       return;
     }
 
     // Ctrl+p or Ctrl+k: Move up (same as ArrowUp)
     if (e.ctrlKey && (e.key === 'p' || e.key === 'k')) {
-      e.preventDefault();
-      e.stopPropagation();
-      this.callbacks.setSelectedIndex(Math.max(this.callbacks.getSelectedIndex() - 1, 0));
-      this.callbacks.updateSelection();
+      this.moveSelection(e, -1, totalItems);
       return;
     }
 
@@ -105,16 +99,24 @@ export class KeyboardNavigationManager {
   }
 
   private handleArrowDown(e: KeyboardEvent, totalItems: number): void {
-    e.preventDefault();
-    e.stopPropagation();
-    this.callbacks.setSelectedIndex(Math.min(this.callbacks.getSelectedIndex() + 1, totalItems - 1));
-    this.callbacks.updateSelection();
+    this.moveSelection(e, 1, totalItems);
   }
 
   private handleArrowUp(e: KeyboardEvent): void {
+    this.moveSelection(e, -1, this.callbacks.getTotalItemCount());
+  }
+
+  /**
+   * Move selection by delta amount, clamping to valid range
+   */
+  private moveSelection(e: KeyboardEvent, delta: number, totalItems: number): void {
     e.preventDefault();
     e.stopPropagation();
-    this.callbacks.setSelectedIndex(Math.max(this.callbacks.getSelectedIndex() - 1, 0));
+    const currentIndex = this.callbacks.getSelectedIndex();
+    const newIndex = delta > 0
+      ? Math.min(currentIndex + delta, totalItems - 1)
+      : Math.max(currentIndex + delta, 0);
+    this.callbacks.setSelectedIndex(newIndex);
     this.callbacks.updateSelection();
   }
 
@@ -132,17 +134,8 @@ export class KeyboardNavigationManager {
 
       const selectedIndex = this.callbacks.getSelectedIndex();
 
-      // 未選択状態（selectedIndex = -1）の場合
-      if (selectedIndex < 0) {
-        // シンボルモードの場合はファイルパス自体を挿入
-        if (this.callbacks.getIsInSymbolMode()) {
-          this.callbacks.expandCurrentFile();
-          return;
-        }
-        // ディレクトリモードの場合はディレクトリパスを展開
-        this.callbacks.expandCurrentDirectory();
-        return;
-      }
+      // 未選択状態（selectedIndex < 0）の場合
+      if (this.handleUnselectedState(selectedIndex)) return;
 
       if (e.ctrlKey) {
         // Ctrl+Enterでエディタで開く（@検索テキストは削除、パス挿入なし）
@@ -191,17 +184,8 @@ export class KeyboardNavigationManager {
 
       const selectedIndex = this.callbacks.getSelectedIndex();
 
-      // 未選択状態（selectedIndex = -1）の場合
-      if (selectedIndex < 0) {
-        // シンボルモードの場合はファイルパス自体を挿入
-        if (this.callbacks.getIsInSymbolMode()) {
-          this.callbacks.expandCurrentFile();
-          return;
-        }
-        // ディレクトリモードの場合はディレクトリパスを展開
-        this.callbacks.expandCurrentDirectory();
-        return;
-      }
+      // 未選択状態（selectedIndex < 0）の場合
+      if (this.handleUnselectedState(selectedIndex)) return;
 
       // Check if current selection is a directory (for navigation)
       const suggestion = this.callbacks.getMergedSuggestions()[selectedIndex];
@@ -214,6 +198,24 @@ export class KeyboardNavigationManager {
       // Otherwise select the item (file or agent)
       this.callbacks.selectItem(selectedIndex);
     }
+  }
+
+  /**
+   * Handle unselected state (selectedIndex < 0)
+   * @returns true if handled (caller should return), false otherwise
+   */
+  private handleUnselectedState(selectedIndex: number): boolean {
+    if (selectedIndex < 0) {
+      // シンボルモードの場合はファイルパス自体を挿入
+      if (this.callbacks.getIsInSymbolMode()) {
+        this.callbacks.expandCurrentFile();
+        return true;
+      }
+      // ディレクトリモードの場合はディレクトリパスを展開
+      this.callbacks.expandCurrentDirectory();
+      return true;
+    }
+    return false;
   }
 
   private handleEscape(e: KeyboardEvent): void {
