@@ -18,6 +18,7 @@ module.exports = [
   {
     files: ['src/**/*.ts', 'tests/**/*.{js,ts}'],
     rules: {
+      // File length limit
       'max-lines': [
         'warn',
         {
@@ -25,7 +26,20 @@ module.exports = [
           skipBlankLines: true,
           skipComments: true
         }
-      ]
+      ],
+      // nestif equivalent: max nesting depth
+      'max-depth': ['warn', 4],
+      // funlen equivalent: max function length
+      'max-lines-per-function': [
+        'warn',
+        {
+          max: 50,
+          skipBlankLines: true,
+          skipComments: true
+        }
+      ],
+      // funlen equivalent: max statements per function
+      'max-statements': ['warn', 15]
     }
   },
   // Node.js scripts configuration
