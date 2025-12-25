@@ -4,6 +4,7 @@
  */
 
 import type { InputFormatType } from '../types';
+import { FrontmatterPopupManager } from './frontmatter-popup-manager';
 
 interface SlashCommandItem {
   name: string;
@@ -15,7 +16,6 @@ interface SlashCommandItem {
 }
 
 export class SlashCommandManager {
-  private static readonly POPUP_HIDE_DELAY = 100; // ms delay before hiding popup
   private static readonly DEFAULT_MAX_SUGGESTIONS = 20; // Default max suggestions
 
   private suggestionsContainer: HTMLElement | null = null;
@@ -31,11 +31,8 @@ export class SlashCommandManager {
   private onBeforeOpenFile: (() => void) | undefined;
   private setDraggable: ((enabled: boolean) => void) | undefined;
 
-  // Frontmatter popup
-  private frontmatterPopup: HTMLElement | null = null;
-  private popupHideTimeout: ReturnType<typeof setTimeout> | null = null;
-  private isPopupVisible: boolean = false;
-  private autoShowTooltip: boolean = false; // Auto-show tooltip for selected item
+  // Frontmatter popup manager
+  private frontmatterPopupManager: FrontmatterPopupManager;
 
   // Cached maxSuggestions
   private maxSuggestionsCache: number | null = null;
@@ -50,6 +47,11 @@ export class SlashCommandManager {
     this.onCommandInsert = callbacks.onCommandInsert || (() => {});
     this.onBeforeOpenFile = callbacks.onBeforeOpenFile;
     this.setDraggable = callbacks.setDraggable;
+    this.frontmatterPopupManager = new FrontmatterPopupManager({
+      getSuggestionsContainer: () => this.suggestionsContainer,
+      getFilteredCommands: () => this.filteredCommands,
+      getSelectedIndex: () => this.selectedIndex
+    });
   }
 
   public initializeElements(): void {
@@ -57,44 +59,7 @@ export class SlashCommandManager {
     this.textarea = document.getElementById('textInput') as HTMLTextAreaElement;
 
     // Create frontmatter popup element
-    this.createFrontmatterPopup();
-  }
-
-  /**
-   * Create the frontmatter popup element for slash command hover display
-   */
-  private createFrontmatterPopup(): void {
-    if (this.frontmatterPopup) return;
-
-    this.frontmatterPopup = document.createElement('div');
-    this.frontmatterPopup.id = 'slashCommandFrontmatterPopup';
-    this.frontmatterPopup.className = 'frontmatter-popup';
-    this.frontmatterPopup.style.display = 'none';
-
-    // Prevent popup from closing when hovering over it
-    this.frontmatterPopup.addEventListener('mouseenter', () => {
-      this.cancelPopupHide();
-    });
-
-    this.frontmatterPopup.addEventListener('mouseleave', () => {
-      this.schedulePopupHide();
-    });
-
-    // Capture wheel events on document when popup is visible
-    document.addEventListener('wheel', (e) => {
-      if (this.isPopupVisible && this.frontmatterPopup) {
-        // Prevent default scrolling behavior
-        e.preventDefault();
-        // Scroll the popup instead
-        this.frontmatterPopup.scrollTop += e.deltaY;
-      }
-    }, { passive: false });
-
-    // Append to main-content
-    const mainContent = document.querySelector('.main-content');
-    if (mainContent) {
-      mainContent.appendChild(this.frontmatterPopup);
-    }
+    this.frontmatterPopupManager.createPopup();
   }
 
   public setupEventListeners(): void {
@@ -325,11 +290,11 @@ export class SlashCommandManager {
 
         // Show popup on info icon hover
         infoIcon.addEventListener('mouseenter', () => {
-          this.showFrontmatterPopup(cmd, infoIcon);
+          this.frontmatterPopupManager.show(cmd, infoIcon);
         });
 
         infoIcon.addEventListener('mouseleave', () => {
-          this.schedulePopupHide();
+          this.frontmatterPopupManager.scheduleHide();
         });
 
         item.appendChild(infoIcon);
@@ -375,140 +340,7 @@ export class SlashCommandManager {
       this.suggestionsContainer.classList.remove('hover-enabled');
     }
     // Also hide frontmatter popup
-    this.hideFrontmatterPopup();
-  }
-
-  /**
-   * Show frontmatter popup for a slash command
-   */
-  private showFrontmatterPopup(command: SlashCommandItem, targetElement: HTMLElement): void {
-    if (!this.frontmatterPopup || !command.frontmatter || !this.suggestionsContainer) return;
-
-    // Cancel any pending hide
-    this.cancelPopupHide();
-
-    // Clear previous content using safe DOM method
-    while (this.frontmatterPopup.firstChild) {
-      this.frontmatterPopup.removeChild(this.frontmatterPopup.firstChild);
-    }
-
-    // Create content container (using textContent for XSS safety)
-    const contentDiv = document.createElement('div');
-    contentDiv.className = 'frontmatter-content';
-    contentDiv.textContent = command.frontmatter;
-    this.frontmatterPopup.appendChild(contentDiv);
-
-    // Add hint message at the bottom
-    const hintDiv = document.createElement('div');
-    hintDiv.className = 'frontmatter-hint';
-    hintDiv.textContent = this.autoShowTooltip ? 'Ctrl+i: hide tooltip' : 'Ctrl+i: auto-show tooltip';
-    this.frontmatterPopup.appendChild(hintDiv);
-
-    // Get the info icon and container rectangles for positioning
-    const iconRect = targetElement.getBoundingClientRect();
-    const containerRect = this.suggestionsContainer.getBoundingClientRect();
-
-    // Position popup to the left of the info icon
-    const popupWidth = containerRect.width - 40;
-    const horizontalGap = 8;
-    const right = window.innerWidth - iconRect.left + horizontalGap;
-
-    // Gap between popup and icon
-    const verticalGap = 4;
-
-    // Calculate available space below and above the icon
-    const spaceBelow = window.innerHeight - iconRect.bottom - 10;
-    const spaceAbove = iconRect.top - 10;
-    const minPopupHeight = 80;
-
-    // Decide whether to show popup above or below the icon
-    const showAbove = spaceBelow < minPopupHeight && spaceAbove > spaceBelow;
-
-    let top: number;
-    let maxHeight: number;
-
-    if (showAbove) {
-      // Position above the icon (bottom of popup aligns with top of icon)
-      maxHeight = Math.max(minPopupHeight, Math.min(150, spaceAbove - verticalGap));
-      top = iconRect.top - maxHeight - verticalGap;
-    } else {
-      // Position below the icon (top of popup aligns with bottom of icon)
-      top = iconRect.bottom + verticalGap;
-      maxHeight = Math.max(minPopupHeight, Math.min(150, spaceBelow - verticalGap));
-    }
-
-    this.frontmatterPopup.style.right = `${right}px`;
-    this.frontmatterPopup.style.left = 'auto';
-    this.frontmatterPopup.style.top = `${top}px`;
-    this.frontmatterPopup.style.width = `${popupWidth}px`;
-    this.frontmatterPopup.style.maxHeight = `${maxHeight}px`;
-
-    this.frontmatterPopup.style.display = 'block';
-    this.isPopupVisible = true;
-  }
-
-  /**
-   * Hide frontmatter popup
-   */
-  private hideFrontmatterPopup(): void {
-    if (this.frontmatterPopup) {
-      this.frontmatterPopup.style.display = 'none';
-    }
-    this.isPopupVisible = false;
-  }
-
-  /**
-   * Schedule popup hide with delay
-   */
-  private schedulePopupHide(): void {
-    this.cancelPopupHide();
-    this.popupHideTimeout = setTimeout(() => {
-      this.hideFrontmatterPopup();
-    }, SlashCommandManager.POPUP_HIDE_DELAY);
-  }
-
-  /**
-   * Cancel scheduled popup hide
-   */
-  private cancelPopupHide(): void {
-    if (this.popupHideTimeout) {
-      clearTimeout(this.popupHideTimeout);
-      this.popupHideTimeout = null;
-    }
-  }
-
-  /**
-   * Toggle auto-show tooltip feature
-   */
-  private toggleAutoShowTooltip(): void {
-    this.autoShowTooltip = !this.autoShowTooltip;
-    if (this.autoShowTooltip) {
-      // Show tooltip for currently selected item
-      this.showTooltipForSelectedItem();
-    } else {
-      // Hide tooltip
-      this.hideFrontmatterPopup();
-    }
-  }
-
-  /**
-   * Show tooltip for the currently selected item
-   */
-  private showTooltipForSelectedItem(): void {
-    if (!this.autoShowTooltip || !this.suggestionsContainer) return;
-
-    const selectedCommand = this.filteredCommands[this.selectedIndex];
-    if (!selectedCommand?.frontmatter) {
-      this.hideFrontmatterPopup();
-      return;
-    }
-
-    // Find the info icon element for the selected item
-    const selectedItem = this.suggestionsContainer.querySelector('.slash-suggestion-item.selected');
-    const infoIcon = selectedItem?.querySelector('.frontmatter-info-icon') as HTMLElement;
-    if (infoIcon) {
-      this.showFrontmatterPopup(selectedCommand, infoIcon);
-    }
+    this.frontmatterPopupManager.hide();
   }
 
   /**
@@ -520,7 +352,7 @@ export class SlashCommandManager {
     if (e.ctrlKey && e.key === 'i') {
       e.preventDefault();
       e.stopPropagation();
-      this.toggleAutoShowTooltip();
+      this.frontmatterPopupManager.toggleAutoShow();
       return;
     }
 
@@ -601,7 +433,7 @@ export class SlashCommandManager {
     });
 
     // Update tooltip if auto-show is enabled
-    this.showTooltipForSelectedItem();
+    this.frontmatterPopupManager.showForSelectedItem();
   }
 
   /**
