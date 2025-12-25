@@ -18,6 +18,7 @@ import { LifecycleManager } from './lifecycle-manager';
 import { SimpleSnapshotManager } from './snapshot-manager';
 import { FileSearchManager } from './file-search-manager';
 import { DirectoryDataHandler } from './directory-data-handler';
+import { rendererLogger } from './utils/logger';
 
 // Secure electronAPI access via preload script
 const electronAPI = (window as any).electronAPI;
@@ -112,7 +113,7 @@ export class PromptLineRenderer {
       this.setupEventListeners();
       // Note: setupIPCListeners() is now called in constructor to prevent race condition
     } catch (error) {
-      console.error('Failed to initialize renderer:', error);
+      rendererLogger.error('Failed to initialize renderer:', error);
     }
   }
 
@@ -315,7 +316,7 @@ export class PromptLineRenderer {
             }
             // If no image, the default text paste behavior is preserved
           } catch (error) {
-            console.error('Error handling image paste:', error);
+            rendererLogger.error('Error handling image paste:', error);
           }
         }, 0);
         return;
@@ -327,7 +328,7 @@ export class PromptLineRenderer {
         return;
       }
     } catch (error) {
-      console.error('Error handling keydown:', error);
+      rendererLogger.error('Error handling keydown:', error);
     }
   }
 
@@ -335,10 +336,10 @@ export class PromptLineRenderer {
   private async handleTextPasteCallback(text: string): Promise<void> {
     const result = await electronAPI.pasteText(text) as PasteResult;
     if (!result.success) {
-      console.error('Paste error:', result.error);
+      rendererLogger.error('Paste error:', result.error);
       this.domManager.showError('Paste failed: ' + result.error);
     } else if (result.warning) {
-      console.warn('Paste warning:', result.warning);
+      rendererLogger.warn('Paste warning:', result.warning);
     } else {
       // Clear snapshot after successful paste
       this.snapshotManager.clearSnapshot();
@@ -372,7 +373,7 @@ export class PromptLineRenderer {
       await this.draftManager.saveDraftImmediate();
       await electronAPI.window.hide();
     } catch (error) {
-      console.error('Error handling window hide:', error);
+      rendererLogger.error('Error handling window hide:', error);
     }
   }
 

@@ -4,6 +4,7 @@
  */
 
 import { matchesShortcutString } from './utils/shortcut-parser';
+import { rendererLogger } from './utils/logger';
 import type { UserSettings } from './types';
 
 // Secure electronAPI access via preload script
@@ -248,9 +249,9 @@ export class ShortcutHandler {
 
     try {
       await electronAPI.invoke('open-settings');
-      console.log('Settings file opened');
+      rendererLogger.info('Settings file opened');
     } catch (error) {
-      console.error('Failed to open settings:', error);
+      rendererLogger.error('Failed to open settings:', error);
     }
   }
 

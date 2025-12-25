@@ -455,7 +455,6 @@ app.whenReady().then(async () => {
     await promptLineApp.initialize();
   } catch (error) {
     logger.error('Application failed to start:', error);
-    console.error('❌ Application failed to start:', error);
     app.quit();
   }
 });
