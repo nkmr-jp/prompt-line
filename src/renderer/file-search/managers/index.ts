@@ -51,3 +51,8 @@ export type { QueryExtractionResult, CodeSearchQueryResult, QueryExtractionCallb
 
 export { SuggestionStateManager } from './suggestion-state-manager';
 export type { SuggestionStateCallbacks } from './suggestion-state-manager';
+
+export { FileSearchState } from './file-search-state';
+
+export { ManagerFactory } from './manager-factory';
+export type { ManagerContext, CreatedManagers } from './manager-factory';

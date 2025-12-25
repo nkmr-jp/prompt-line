@@ -17,7 +17,6 @@ if (process.platform === 'darwin') {
 
 import config from './config/app-config';
 import WindowManager from './managers/window-manager';
-import HistoryManager from './managers/history-manager';
 import OptimizedHistoryManager from './managers/optimized-history-manager';
 import DraftManager from './managers/draft-manager';
 import DirectoryManager from './managers/directory-manager';
@@ -30,7 +29,7 @@ import type { WindowData } from './types';
 
 class PromptLineApp {
   private windowManager: WindowManager | null = null;
-  private historyManager: HistoryManager | OptimizedHistoryManager | null = null;
+  private historyManager: OptimizedHistoryManager | null = null;
   private draftManager: DraftManager | null = null;
   private directoryManager: DirectoryManager | null = null;
   private settingsManager: SettingsManager | null = null;
