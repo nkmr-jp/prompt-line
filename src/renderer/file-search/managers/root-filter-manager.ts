@@ -63,46 +63,33 @@ export class RootFilterManager {
       const slashIndex = relativePath.indexOf('/');
 
       if (slashIndex === -1) {
+        // Top-level file
         files.push(file);
       } else {
-        this.addTopLevelDirectory(relativePath, slashIndex, allFiles, baseDir, seenDirs, files);
+        // Has subdirectory - create virtual directory for top-level
+        const dirName = relativePath.substring(0, slashIndex);
+        if (!seenDirs.has(dirName)) {
+          seenDirs.add(dirName);
+          // Check if we already have this directory in allFiles
+          const existingDir = allFiles.find(f =>
+            f.isDirectory && getRelativePath(f.path, baseDir) === dirName
+          );
+          if (existingDir) {
+            files.push(existingDir);
+          } else {
+            // Create virtual directory entry
+            const virtualDir: FileInfo = {
+              name: dirName,
+              path: baseDir + '/' + dirName,
+              isDirectory: true
+            };
+            files.push(virtualDir);
+          }
+        }
       }
     }
 
     return this.callbacks.sortByDirectoryFirst(files).slice(0, maxSuggestions);
-  }
-
-  /**
-   * Add top-level directory (existing or virtual)
-   */
-  private addTopLevelDirectory(
-    relativePath: string,
-    slashIndex: number,
-    allFiles: FileInfo[],
-    baseDir: string,
-    seenDirs: Set<string>,
-    files: FileInfo[]
-  ): void {
-    const dirName = relativePath.substring(0, slashIndex);
-    if (seenDirs.has(dirName)) return;
-
-    seenDirs.add(dirName);
-    const existingDir = this.findExistingDirectory(allFiles, baseDir, dirName);
-
-    if (existingDir) {
-      files.push(existingDir);
-    } else {
-      files.push(this.createVirtualDirectory(baseDir, dirName));
-    }
-  }
-
-  /**
-   * Find existing directory in file list
-   */
-  private findExistingDirectory(allFiles: FileInfo[], baseDir: string, dirName: string): FileInfo | undefined {
-    return allFiles.find(f =>
-      f.isDirectory && getRelativePath(f.path, baseDir) === dirName
-    );
   }
 
   /**
@@ -115,25 +102,12 @@ export class RootFilterManager {
     maxSuggestions: number
   ): FileInfo[] {
     const queryLower = query.toLowerCase();
-    const scoredFiles = this.findMatchingFiles(allFiles, baseDir, queryLower);
-    const scoredDirs = this.findMatchingDirectories(allFiles, baseDir, queryLower);
+    const seenDirs = new Set<string>();
+    const seenDirNames = new Map<string, { path: string; depth: number }>();
+    const matchingDirs: FileInfo[] = [];
 
-    const allScored = [...scoredFiles, ...scoredDirs]
-      .sort((a, b) => b.score - a.score)
-      .slice(0, maxSuggestions);
-
-    return allScored.map(item => item.file);
-  }
-
-  /**
-   * Find all matching files
-   */
-  private findMatchingFiles(
-    allFiles: FileInfo[],
-    baseDir: string,
-    queryLower: string
-  ): Array<{ file: FileInfo; score: number; relativePath: string }> {
-    return allFiles
+    // Find all matching files (from anywhere in the tree)
+    const scoredFiles = allFiles
       .filter(file => !file.isDirectory)
       .map(file => ({
         file,
@@ -141,136 +115,58 @@ export class RootFilterManager {
         relativePath: getRelativePath(file.path, baseDir)
       }))
       .filter(item => item.score > 0);
-  }
 
-  /**
-   * Find all matching directories
-   */
-  private findMatchingDirectories(
-    allFiles: FileInfo[],
-    baseDir: string,
-    queryLower: string
-  ): Array<{ file: FileInfo; score: number; relativePath: string }> {
-    const { uniqueDirs } = this.collectMatchingDirectories(allFiles, baseDir, queryLower);
+    // Find matching directories (by path containing the query)
+    for (const file of allFiles) {
+      const relativePath = getRelativePath(file.path, baseDir);
+      const pathParts = relativePath.split('/').filter(p => p);
 
-    return uniqueDirs.map(dir => ({
+      // Check each directory in the path (except the last part which is the file name)
+      for (let i = 0; i < pathParts.length - 1; i++) {
+        const dirPath = pathParts.slice(0, i + 1).join('/');
+        const dirName = pathParts[i] || '';
+
+        if (!dirName || seenDirs.has(dirPath)) continue;
+
+        // Check if directory name or path matches query
+        if (dirName.toLowerCase().includes(queryLower) || dirPath.toLowerCase().includes(queryLower)) {
+          seenDirs.add(dirPath);
+
+          // Prefer shorter paths (likely the original, not symlink-resolved)
+          const depth = pathParts.length;
+          const existing = seenDirNames.get(dirName);
+          if (existing && existing.depth <= depth) {
+            continue;
+          }
+
+          seenDirNames.set(dirName, { path: dirPath, depth });
+          const virtualDir: FileInfo = {
+            name: dirName,
+            path: baseDir + '/' + dirPath,
+            isDirectory: true
+          };
+          matchingDirs.push(virtualDir);
+        }
+      }
+    }
+
+    // Remove duplicate directories by name (keep shortest path)
+    const uniqueDirs = Array.from(seenDirNames.entries()).map(([name, info]) => {
+      return matchingDirs.find(d => d.name === name && d.path === baseDir + '/' + info.path);
+    }).filter((d): d is FileInfo => d !== undefined);
+
+    // Score directories
+    const scoredDirs = uniqueDirs.map(dir => ({
       file: dir,
       score: calculateMatchScore(dir, queryLower),
       relativePath: getRelativePath(dir.path, baseDir)
     }));
-  }
 
-  /**
-   * Collect matching directories from all file paths
-   */
-  private collectMatchingDirectories(
-    allFiles: FileInfo[],
-    baseDir: string,
-    queryLower: string
-  ): { uniqueDirs: FileInfo[] } {
-    const seenDirs = new Set<string>();
-    const seenDirNames = new Map<string, { path: string; depth: number }>();
-    const matchingDirs: FileInfo[] = [];
+    // Combine and sort by score
+    const allScored = [...scoredFiles, ...scoredDirs]
+      .sort((a, b) => b.score - a.score)
+      .slice(0, maxSuggestions);
 
-    for (const file of allFiles) {
-      this.processFilePathForDirectories(file, baseDir, queryLower, seenDirs, seenDirNames, matchingDirs);
-    }
-
-    const uniqueDirs = this.deduplicateDirectories(seenDirNames, matchingDirs, baseDir);
-    return { uniqueDirs };
-  }
-
-  /**
-   * Process file path to extract matching directories
-   */
-  private processFilePathForDirectories(
-    file: FileInfo,
-    baseDir: string,
-    queryLower: string,
-    seenDirs: Set<string>,
-    seenDirNames: Map<string, { path: string; depth: number }>,
-    matchingDirs: FileInfo[]
-  ): void {
-    const relativePath = getRelativePath(file.path, baseDir);
-    const pathParts = relativePath.split('/').filter(p => p);
-
-    for (let i = 0; i < pathParts.length - 1; i++) {
-      this.checkDirectoryMatch(pathParts, i, baseDir, queryLower, seenDirs, seenDirNames, matchingDirs);
-    }
-  }
-
-  /**
-   * Check if directory matches query and add if valid
-   */
-  private checkDirectoryMatch(
-    pathParts: string[],
-    index: number,
-    baseDir: string,
-    queryLower: string,
-    seenDirs: Set<string>,
-    seenDirNames: Map<string, { path: string; depth: number }>,
-    matchingDirs: FileInfo[]
-  ): void {
-    const dirPath = pathParts.slice(0, index + 1).join('/');
-    const dirName = pathParts[index] || '';
-
-    if (!dirName || seenDirs.has(dirPath)) return;
-
-    if (this.directoryMatchesQuery(dirName, dirPath, queryLower)) {
-      this.addMatchingDirectory(dirName, dirPath, pathParts.length, baseDir, seenDirs, seenDirNames, matchingDirs);
-    }
-  }
-
-  /**
-   * Check if directory name or path matches query
-   */
-  private directoryMatchesQuery(dirName: string, dirPath: string, queryLower: string): boolean {
-    return dirName.toLowerCase().includes(queryLower) || dirPath.toLowerCase().includes(queryLower);
-  }
-
-  /**
-   * Add matching directory (prefer shorter paths)
-   */
-  private addMatchingDirectory(
-    dirName: string,
-    dirPath: string,
-    depth: number,
-    baseDir: string,
-    seenDirs: Set<string>,
-    seenDirNames: Map<string, { path: string; depth: number }>,
-    matchingDirs: FileInfo[]
-  ): void {
-    seenDirs.add(dirPath);
-
-    const existing = seenDirNames.get(dirName);
-    if (existing && existing.depth <= depth) return;
-
-    seenDirNames.set(dirName, { path: dirPath, depth });
-    matchingDirs.push(this.createVirtualDirectory(baseDir, dirPath));
-  }
-
-  /**
-   * Remove duplicate directories by name (keep shortest path)
-   */
-  private deduplicateDirectories(
-    seenDirNames: Map<string, { path: string; depth: number }>,
-    matchingDirs: FileInfo[],
-    baseDir: string
-  ): FileInfo[] {
-    return Array.from(seenDirNames.entries())
-      .map(([name, info]) => matchingDirs.find(d => d.name === name && d.path === baseDir + '/' + info.path))
-      .filter((d): d is FileInfo => d !== undefined);
-  }
-
-  /**
-   * Create virtual directory entry
-   */
-  private createVirtualDirectory(baseDir: string, dirPath: string): FileInfo {
-    const dirName = dirPath.includes('/') ? dirPath.split('/').pop()! : dirPath;
-    return {
-      name: dirName,
-      path: baseDir + '/' + dirPath,
-      isDirectory: true
-    };
+    return allScored.map(item => item.file);
   }
 }

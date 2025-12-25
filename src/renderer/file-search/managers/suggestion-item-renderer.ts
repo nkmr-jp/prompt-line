@@ -121,61 +121,36 @@ export class SuggestionItemRenderer {
   private renderFileItem(item: HTMLElement, file: FileInfo): void {
     item.setAttribute('data-type', 'file');
 
-    const icon = this.createFileIcon(file);
-    const name = this.createFileName(file);
+    // Icon
+    const icon = document.createElement('span');
+    icon.className = 'file-icon';
+    insertSvgIntoElement(icon, getFileIconSvg(file.name, file.isDirectory));
+
+    // Name with highlighting
+    const name = document.createElement('span');
+    name.className = 'file-name';
+
+    const currentQuery = this.callbacks.getCurrentQuery?.() || '';
+    if (file.isDirectory) {
+      insertHighlightedText(name, file.name, currentQuery);
+
+      // File count for directories
+      const fileCount = this.callbacks.countFilesInDirectory?.(file.path) || 0;
+      const countSpan = document.createElement('span');
+      countSpan.className = 'file-count';
+      countSpan.textContent = ` (${fileCount} files)`;
+      name.appendChild(countSpan);
+    } else {
+      insertHighlightedText(name, file.name, currentQuery);
+    }
 
     item.appendChild(icon);
     item.appendChild(name);
 
-    this.appendDirectoryPath(item, file);
-  }
-
-  /**
-   * Create file icon element
-   */
-  private createFileIcon(file: FileInfo): HTMLElement {
-    const icon = document.createElement('span');
-    icon.className = 'file-icon';
-    insertSvgIntoElement(icon, getFileIconSvg(file.name, file.isDirectory));
-    return icon;
-  }
-
-  /**
-   * Create file name element with highlighting
-   */
-  private createFileName(file: FileInfo): HTMLElement {
-    const name = document.createElement('span');
-    name.className = 'file-name';
-    const currentQuery = this.callbacks.getCurrentQuery?.() || '';
-
-    insertHighlightedText(name, file.name, currentQuery);
-
-    if (file.isDirectory) {
-      this.appendFileCount(name, file.path);
-    }
-
-    return name;
-  }
-
-  /**
-   * Append file count to directory name
-   */
-  private appendFileCount(nameElement: HTMLElement, path: string): void {
-    const fileCount = this.callbacks.countFilesInDirectory?.(path) || 0;
-    const countSpan = document.createElement('span');
-    countSpan.className = 'file-count';
-    countSpan.textContent = ` (${fileCount} files)`;
-    nameElement.appendChild(countSpan);
-  }
-
-  /**
-   * Append directory path if present
-   */
-  private appendDirectoryPath(item: HTMLElement, file: FileInfo): void {
+    // Directory path
     const baseDir = this.callbacks.getBaseDir?.() || '';
     const relativePath = getRelativePath(file.path, baseDir);
     const dirPath = getDirectoryFromPath(relativePath);
-
     if (dirPath) {
       const pathEl = document.createElement('span');
       pathEl.className = 'file-path';
@@ -191,67 +166,42 @@ export class SuggestionItemRenderer {
     item.className += ' agent-suggestion-item';
     item.setAttribute('data-type', 'agent');
 
-    const icon = this.createAgentIcon();
-    const name = this.createAgentName(agent);
-    const desc = this.createAgentDescription(agent);
+    // Icon
+    const icon = document.createElement('span');
+    icon.className = 'file-icon mention-icon';
+    insertSvgIntoElement(icon, getMentionIconSvg());
+
+    // Name with highlighting
+    const name = document.createElement('span');
+    name.className = 'file-name agent-name';
+    const currentQuery = this.callbacks.getCurrentQuery?.() || '';
+    insertHighlightedText(name, agent.name, currentQuery);
+
+    // Description
+    const desc = document.createElement('span');
+    desc.className = 'file-path agent-description';
+    desc.textContent = agent.description;
 
     item.appendChild(icon);
     item.appendChild(name);
     item.appendChild(desc);
 
-    this.appendInfoIcon(item, agent, suggestion);
-  }
+    // Add info icon for frontmatter popup (only if frontmatter exists)
+    if (agent.frontmatter && this.callbacks.onMouseEnterInfo) {
+      const infoIcon = document.createElement('span');
+      infoIcon.className = 'frontmatter-info-icon';
+      infoIcon.textContent = 'ⓘ';
 
-  /**
-   * Create agent icon element
-   */
-  private createAgentIcon(): HTMLElement {
-    const icon = document.createElement('span');
-    icon.className = 'file-icon mention-icon';
-    insertSvgIntoElement(icon, getMentionIconSvg());
-    return icon;
-  }
+      infoIcon.addEventListener('mouseenter', () => {
+        this.callbacks.onMouseEnterInfo?.(suggestion, infoIcon);
+      });
 
-  /**
-   * Create agent name element with highlighting
-   */
-  private createAgentName(agent: AgentItem): HTMLElement {
-    const name = document.createElement('span');
-    name.className = 'file-name agent-name';
-    const currentQuery = this.callbacks.getCurrentQuery?.() || '';
-    insertHighlightedText(name, agent.name, currentQuery);
-    return name;
-  }
+      infoIcon.addEventListener('mouseleave', () => {
+        this.callbacks.onMouseLeaveInfo?.();
+      });
 
-  /**
-   * Create agent description element
-   */
-  private createAgentDescription(agent: AgentItem): HTMLElement {
-    const desc = document.createElement('span');
-    desc.className = 'file-path agent-description';
-    desc.textContent = agent.description;
-    return desc;
-  }
-
-  /**
-   * Append info icon if frontmatter exists
-   */
-  private appendInfoIcon(item: HTMLElement, agent: AgentItem, suggestion: SuggestionItem): void {
-    if (!agent.frontmatter || !this.callbacks.onMouseEnterInfo) return;
-
-    const infoIcon = document.createElement('span');
-    infoIcon.className = 'frontmatter-info-icon';
-    infoIcon.textContent = 'ⓘ';
-
-    infoIcon.addEventListener('mouseenter', () => {
-      this.callbacks.onMouseEnterInfo?.(suggestion, infoIcon);
-    });
-
-    infoIcon.addEventListener('mouseleave', () => {
-      this.callbacks.onMouseLeaveInfo?.();
-    });
-
-    item.appendChild(infoIcon);
+      item.appendChild(infoIcon);
+    }
   }
 
   /**
@@ -261,55 +211,30 @@ export class SuggestionItemRenderer {
     item.className += ' symbol-suggestion-item';
     item.setAttribute('data-type', 'symbol');
 
-    const icon = this.createSymbolIcon(symbol);
-    const name = this.createSymbolName(symbol);
-    const typeBadge = this.createSymbolTypeBadge(symbol);
-    const pathEl = this.createSymbolPath(symbol);
+    // Icon
+    const icon = document.createElement('span');
+    icon.className = 'file-icon symbol-icon';
+    insertSvgIntoElement(icon, getSymbolIconSvg(symbol.type));
+
+    // Name with highlighting
+    const name = document.createElement('span');
+    name.className = 'file-name symbol-name';
+    const codeSearchQuery = this.callbacks.getCodeSearchQuery?.() || '';
+    insertHighlightedText(name, symbol.name, codeSearchQuery);
+
+    // Type badge
+    const typeBadge = document.createElement('span');
+    typeBadge.className = 'symbol-type-badge';
+    typeBadge.textContent = getSymbolTypeDisplay(symbol.type);
+
+    // File path with line number
+    const pathEl = document.createElement('span');
+    pathEl.className = 'file-path symbol-path';
+    pathEl.textContent = `${symbol.relativePath}:${symbol.lineNumber}`;
 
     item.appendChild(icon);
     item.appendChild(name);
     item.appendChild(typeBadge);
     item.appendChild(pathEl);
-  }
-
-  /**
-   * Create symbol icon element
-   */
-  private createSymbolIcon(symbol: SymbolResult): HTMLElement {
-    const icon = document.createElement('span');
-    icon.className = 'file-icon symbol-icon';
-    insertSvgIntoElement(icon, getSymbolIconSvg(symbol.type));
-    return icon;
-  }
-
-  /**
-   * Create symbol name element with highlighting
-   */
-  private createSymbolName(symbol: SymbolResult): HTMLElement {
-    const name = document.createElement('span');
-    name.className = 'file-name symbol-name';
-    const codeSearchQuery = this.callbacks.getCodeSearchQuery?.() || '';
-    insertHighlightedText(name, symbol.name, codeSearchQuery);
-    return name;
-  }
-
-  /**
-   * Create symbol type badge element
-   */
-  private createSymbolTypeBadge(symbol: SymbolResult): HTMLElement {
-    const typeBadge = document.createElement('span');
-    typeBadge.className = 'symbol-type-badge';
-    typeBadge.textContent = getSymbolTypeDisplay(symbol.type);
-    return typeBadge;
-  }
-
-  /**
-   * Create symbol path element
-   */
-  private createSymbolPath(symbol: SymbolResult): HTMLElement {
-    const pathEl = document.createElement('span');
-    pathEl.className = 'file-path symbol-path';
-    pathEl.textContent = `${symbol.relativePath}:${symbol.lineNumber}`;
-    return pathEl;
   }
 }

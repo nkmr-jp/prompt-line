@@ -1,15 +1,15 @@
 import { promises as fs } from 'fs';
+import path from 'path';
 import config from '../config/app-config';
-import {
-  logger,
-  safeJsonParse,
-  safeJsonStringify,
-  debounce
+import { 
+  logger, 
+  safeJsonParse, 
+  safeJsonStringify, 
+  debounce 
 } from '../utils/utils';
-import type {
+import type { 
   DebounceFunction
 } from '../types';
-import { DraftBackupHelper } from './draft-backup-helper';
 
 interface DraftMetadata {
   length: number;
@@ -20,6 +20,12 @@ interface DraftMetadata {
   directory?: string;
 }
 
+interface DraftBackup {
+  text: string;
+  timestamp: number;
+  originalFile: string;
+  backupDate: string;
+}
 
 interface DraftStatsExtended {
   hasContent: boolean;
@@ -38,15 +44,13 @@ class DraftManager {
   private lastSavedContent: string | null = null;
   private debouncedSave: DebounceFunction<[string]>;
   private quickSave: DebounceFunction<[string]>;
-  private backupHelper: DraftBackupHelper;
 
   constructor() {
     this.draftFile = config.paths.draftFile;
     this.saveDelay = config.draft.saveDelay;
-
+    
     this.debouncedSave = debounce(this._saveDraft.bind(this), this.saveDelay * 2);
     this.quickSave = debounce(this._saveDraft.bind(this), this.saveDelay);
-    this.backupHelper = new DraftBackupHelper(this.draftFile);
   }
 
   async initialize(): Promise<void> {
@@ -62,37 +66,30 @@ class DraftManager {
   async loadDraft(): Promise<string> {
     try {
       const data = await fs.readFile(this.draftFile, 'utf8');
-      return this.parseDraftData(data);
+
+      if (!data || data.trim().length === 0) {
+        logger.debug('Draft file is empty');
+        return '';
+      }
+
+      const parsed = safeJsonParse<{ text?: string }>(data, {});
+
+      if (parsed && typeof parsed.text === 'string') {
+        logger.debug('Draft loaded:', { length: parsed.text.length });
+        return parsed.text;
+      } else {
+        logger.debug('No valid draft found');
+        return '';
+      }
     } catch (error) {
-      return this.handleLoadDraftError(error);
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        logger.debug('Draft file not found');
+        return '';
+      } else {
+        logger.error('Error loading draft:', error);
+        throw error;
+      }
     }
-  }
-
-  private parseDraftData(data: string): string {
-    if (!data || data.trim().length === 0) {
-      logger.debug('Draft file is empty');
-      return '';
-    }
-
-    const parsed = safeJsonParse<{ text?: string }>(data, {});
-
-    if (parsed && typeof parsed.text === 'string') {
-      logger.debug('Draft loaded:', { length: parsed.text.length });
-      return parsed.text;
-    }
-
-    logger.debug('No valid draft found');
-    return '';
-  }
-
-  private handleLoadDraftError(error: unknown): string {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      logger.debug('Draft file not found');
-      return '';
-    }
-
-    logger.error('Error loading draft:', error);
-    throw error;
   }
 
   async saveDraft(text: string): Promise<void> {
@@ -105,8 +102,21 @@ class DraftManager {
         return;
       }
 
-      this.validateDraftSize(text);
-      this.scheduleSave(text);
+      // サイズ制限を追加（1MB）
+      const MAX_DRAFT_SIZE = 1024 * 1024; // 1MB
+      if (Buffer.byteLength(text, 'utf8') > MAX_DRAFT_SIZE) {
+        logger.warn('Draft too large, rejecting', {
+          size: Buffer.byteLength(text, 'utf8'),
+          limit: MAX_DRAFT_SIZE
+        });
+        throw new Error('Draft size exceeds 1MB limit');
+      }
+
+      if (text.length > 200) {
+        this.debouncedSave(text);
+      } else {
+        this.quickSave(text);
+      }
 
       logger.debug('Draft save scheduled (optimized):', { length: text.length });
     } catch (error) {
@@ -115,33 +125,31 @@ class DraftManager {
     }
   }
 
-  private validateDraftSize(text: string): void {
-    const MAX_DRAFT_SIZE = 1024 * 1024; // 1MB
-    const size = Buffer.byteLength(text, 'utf8');
-
-    if (size > MAX_DRAFT_SIZE) {
-      logger.warn('Draft too large, rejecting', { size, limit: MAX_DRAFT_SIZE });
-      throw new Error('Draft size exceeds 1MB limit');
-    }
-  }
-
-  private scheduleSave(text: string): void {
-    if (text.length > 200) {
-      this.debouncedSave(text);
-    } else {
-      this.quickSave(text);
-    }
-  }
-
   private async _saveDraft(text: string): Promise<void> {
-    if (this.shouldSkipSave(text)) {
+    if (this.lastSavedContent === text) {
+      logger.debug('Draft save skipped - no changes');
+      return;
+    }
+
+    if (this.pendingSave) {
       return;
     }
 
     this.pendingSave = true;
     try {
-      await this.writeDraftToFile(text);
-      this.updateSaveState(text);
+      const draft = {
+        text: text,
+        timestamp: Date.now(),
+        version: '1.0'
+      };
+
+      const data = safeJsonStringify(draft);
+      // Set restrictive file permissions (owner read/write only)
+      await fs.writeFile(this.draftFile, data, { mode: 0o600 });
+
+      this.lastSavedContent = text;
+      this.hasUnsavedChanges = false;
+
       logger.debug('Draft saved to file (optimized):', { length: text.length });
     } catch (error) {
       logger.error('Failed to save draft to file:', error);
@@ -149,36 +157,6 @@ class DraftManager {
     } finally {
       this.pendingSave = false;
     }
-  }
-
-  private shouldSkipSave(text: string): boolean {
-    if (this.lastSavedContent === text) {
-      logger.debug('Draft save skipped - no changes');
-      return true;
-    }
-
-    if (this.pendingSave) {
-      return true;
-    }
-
-    return false;
-  }
-
-  private async writeDraftToFile(text: string): Promise<void> {
-    const draft = {
-      text: text,
-      timestamp: Date.now(),
-      version: '1.0'
-    };
-
-    const data = safeJsonStringify(draft);
-    // Set restrictive file permissions (owner read/write only)
-    await fs.writeFile(this.draftFile, data, { mode: 0o600 });
-  }
-
-  private updateSaveState(text: string): void {
-    this.lastSavedContent = text;
-    this.hasUnsavedChanges = false;
   }
 
   async saveDraftImmediately(text: string): Promise<void> {
@@ -190,7 +168,15 @@ class DraftManager {
         return;
       }
 
-      this.validateDraftSize(text);
+      // サイズ制限を追加（1MB）
+      const MAX_DRAFT_SIZE = 1024 * 1024; // 1MB
+      if (Buffer.byteLength(text, 'utf8') > MAX_DRAFT_SIZE) {
+        logger.warn('Draft too large, rejecting', {
+          size: Buffer.byteLength(text, 'utf8'),
+          limit: MAX_DRAFT_SIZE
+        });
+        throw new Error('Draft size exceeds 1MB limit');
+      }
 
       await this._saveDraft(text);
       logger.debug('Draft saved immediately (optimized):', { length: text.length });
@@ -296,19 +282,87 @@ class DraftManager {
   }
 
   async backupDraft(): Promise<string> {
-    if (!this.hasDraft()) {
-      throw new Error('No draft to backup');
+    try {
+      if (!this.hasDraft()) {
+        throw new Error('No draft to backup');
+      }
+      
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const backupFile = `${this.draftFile}.backup.${timestamp}`;
+      
+      const draft: DraftBackup = {
+        text: this.currentDraft!,
+        timestamp: Date.now(),
+        originalFile: this.draftFile,
+        backupDate: new Date().toISOString()
+      };
+      
+      const data = safeJsonStringify(draft);
+      // Set restrictive file permissions (owner read/write only)
+      await fs.writeFile(backupFile, data, { mode: 0o600 });
+
+      logger.info('Draft backed up to:', backupFile);
+      return backupFile;
+    } catch (error) {
+      logger.error('Failed to backup draft:', error);
+      throw error;
     }
-    return this.backupHelper.createBackup(this.currentDraft!);
   }
 
   async restoreDraft(backupFile: string): Promise<void> {
-    const text = await this.backupHelper.restoreBackup(backupFile);
-    await this.saveDraftImmediately(text);
+    try {
+      // Validate backup file path to prevent path traversal attacks
+      const normalizedPath = path.normalize(backupFile);
+      const userDataDir = path.dirname(this.draftFile);
+      
+      if (!normalizedPath.startsWith(path.normalize(userDataDir))) {
+        throw new Error('Invalid backup file path');
+      }
+      
+      const data = await fs.readFile(normalizedPath, 'utf8');
+      const parsed = safeJsonParse<DraftBackup>(data, {} as DraftBackup);
+      
+      if (!parsed || !parsed.text) {
+        throw new Error('Invalid backup file format');
+      }
+      
+      await this.saveDraftImmediately(parsed.text);
+      logger.info('Draft restored from backup:', backupFile);
+    } catch (error) {
+      logger.error('Failed to restore draft from backup:', error);
+      throw error;
+    }
   }
 
   async cleanupBackups(maxAge = 7 * 24 * 60 * 60 * 1000): Promise<number> {
-    return this.backupHelper.cleanupOldBackups(maxAge);
+    try {
+      const dir = path.dirname(this.draftFile);
+      const files = await fs.readdir(dir);
+      
+      const backupFiles = files.filter(file => 
+        file.startsWith(path.basename(this.draftFile) + '.backup.')
+      );
+      
+      let cleanedCount = 0;
+      const now = Date.now();
+      
+      for (const file of backupFiles) {
+        const filePath = path.join(dir, file);
+        const stats = await fs.stat(filePath);
+        
+        if (now - stats.mtime.getTime() > maxAge) {
+          await fs.unlink(filePath);
+          cleanedCount++;
+          logger.debug('Cleaned up old backup:', file);
+        }
+      }
+      
+      logger.info(`Cleaned up ${cleanedCount} old draft backups`);
+      return cleanedCount;
+    } catch (error) {
+      logger.error('Failed to cleanup draft backups:', error);
+      throw error;
+    }
   }
 
   async destroy(): Promise<void> {

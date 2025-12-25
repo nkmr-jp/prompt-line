@@ -81,47 +81,34 @@ export class NavigationManager {
     const cachedData = this.callbacks.getCachedDirectoryData();
     if (!directory.isDirectory || !cachedData) return;
 
-    const newPath = this.calculateNewPath(directory, cachedData.directory);
-    this.updateNavigationState(newPath);
-    this.updateUIForDirectory(newPath);
-  }
-
-  /**
-   * Calculate new path for directory navigation
-   */
-  private calculateNewPath(directory: FileInfo, baseDir: string): string {
+    const baseDir = cachedData.directory;
     const relativePath = getRelativePath(directory.path, baseDir);
-    return relativePath.endsWith('/') ? relativePath : relativePath + '/';
-  }
 
-  /**
-   * Update state for directory navigation
-   */
-  private updateNavigationState(newPath: string): void {
+    // Update current path to the selected directory
+    const newPath = relativePath.endsWith('/') ? relativePath : relativePath + '/';
     this.callbacks.setCurrentPath(newPath);
-    this.callbacks.setCurrentQuery('');
-    this.callbacks.setSelectedIndex(-1);
 
     console.debug('[NavigationManager] navigateIntoDirectory:', formatLog({
-      directory: newPath.split('/').filter(p => p).pop() || '',
+      directory: directory.name,
       currentPath: newPath
     }));
-  }
 
-  /**
-   * Update UI for directory navigation
-   */
-  private updateUIForDirectory(newPath: string): void {
+    // Update the text input to show the current path after @
     this.callbacks.updateTextInputWithPath(newPath);
 
+    // Clear the query and show files in the new directory
+    // selectedIndex = -1 for unselected state (Tab/Enter can expand directory itself)
+    this.callbacks.setCurrentQuery('');
+    this.callbacks.setSelectedIndex(-1);
     const filteredFiles = this.callbacks.filterFiles('');
     this.callbacks.setFilteredFiles(filteredFiles);
-    this.callbacks.setFilteredAgents([]);
-
+    this.callbacks.setFilteredAgents([]); // No agents when navigating into subdirectory
     const mergedSuggestions = this.callbacks.mergeSuggestions('');
     this.callbacks.setMergedSuggestions(mergedSuggestions);
 
+    // Delegate rendering to SuggestionListManager (position remains unchanged)
     this.callbacks.updateSuggestionList(mergedSuggestions, false, -1);
+    // Update popup tooltip for selected item
     this.callbacks.showTooltipForSelectedItem();
   }
 
@@ -136,14 +123,7 @@ export class NavigationManager {
     const codeSearchManager = this.callbacks.getCodeSearchManager();
     if (!cachedData || !codeSearchManager) return;
 
-    this.updateFileNavigationState(relativePath, language);
-    await this.loadSymbolsForFile(codeSearchManager, cachedData.directory, relativePath, absolutePath, language);
-  }
-
-  /**
-   * Update state for file navigation
-   */
-  private updateFileNavigationState(relativePath: string, language: LanguageInfo): void {
+    // Update local state for UI
     this.callbacks.setIsInSymbolMode(true);
     this.callbacks.setCurrentFilePath(relativePath);
     this.callbacks.setCurrentQuery('');
@@ -154,40 +134,34 @@ export class NavigationManager {
       language: language.key
     }));
 
+    // Update text input to show the file path
     this.callbacks.updateTextInputWithPath(relativePath);
-  }
 
-  /**
-   * Load symbols for the file
-   */
-  private async loadSymbolsForFile(
-    codeSearchManager: NonNullable<ReturnType<NavigationCallbacks['getCodeSearchManager']>>,
-    baseDir: string,
-    relativePath: string,
-    absolutePath: string,
-    language: LanguageInfo
-  ): Promise<void> {
-    await codeSearchManager.navigateIntoFile(baseDir, relativePath, absolutePath, language);
+    // Delegate symbol loading to CodeSearchManager
+    await codeSearchManager.navigateIntoFile(
+      cachedData.directory,
+      relativePath,
+      absolutePath,
+      language
+    );
 
+    // Check if CodeSearchManager successfully loaded symbols
     if (!codeSearchManager.isInSymbolModeActive()) {
-      this.handleNoSymbolsFound(relativePath);
+      // No symbols found - insert file path directly
+      this.callbacks.setIsInSymbolMode(false);
+      this.callbacks.insertFilePath(relativePath);
+      this.callbacks.hideSuggestions();
+      this.callbacks.onFileSelected(relativePath);
       return;
     }
 
+    // Get symbols from CodeSearchManager
     const symbols = codeSearchManager.getCurrentFileSymbols();
     this.callbacks.setCurrentFileSymbols(symbols);
+
+    // Show symbols with selectedIndex = -1 (like directory navigation)
     this.callbacks.setSelectedIndex(-1);
     await this.callbacks.showSymbolSuggestions('');
-  }
-
-  /**
-   * Handle case when no symbols are found
-   */
-  private handleNoSymbolsFound(relativePath: string): void {
-    this.callbacks.setIsInSymbolMode(false);
-    this.callbacks.insertFilePath(relativePath);
-    this.callbacks.hideSuggestions();
-    this.callbacks.onFileSelected(relativePath);
   }
 
   /**

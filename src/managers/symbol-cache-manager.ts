@@ -73,57 +73,35 @@ export class SymbolCacheManager {
    */
   async isCacheValid(directory: string): Promise<boolean> {
     try {
-      const metadata = await this.readMetadata(directory);
-      return this.validateMetadata(metadata, directory);
+      const metadataPath = this.getMetadataPath(directory);
+      const content = await fs.readFile(metadataPath, 'utf8');
+      const metadata: SymbolCacheMetadata = JSON.parse(content);
+
+      // Check version
+      if (metadata.version !== CACHE_VERSION) {
+        logger.debug('Symbol cache version mismatch', { expected: CACHE_VERSION, actual: metadata.version });
+        return false;
+      }
+
+      // Check directory match
+      if (metadata.directory !== directory) {
+        logger.debug('Symbol cache directory mismatch');
+        return false;
+      }
+
+      // Check TTL
+      const updatedAt = new Date(metadata.updatedAt);
+      const now = new Date();
+      const ageSeconds = (now.getTime() - updatedAt.getTime()) / 1000;
+      if (ageSeconds > metadata.ttlSeconds) {
+        logger.debug('Symbol cache expired', { ageSeconds, ttlSeconds: metadata.ttlSeconds });
+        return false;
+      }
+
+      return true;
     } catch {
       return false;
     }
-  }
-
-  private async readMetadata(directory: string): Promise<SymbolCacheMetadata> {
-    const metadataPath = this.getMetadataPath(directory);
-    const content = await fs.readFile(metadataPath, 'utf8');
-    return JSON.parse(content);
-  }
-
-  private validateMetadata(metadata: SymbolCacheMetadata, directory: string): boolean {
-    if (!this.isVersionValid(metadata)) {
-      return false;
-    }
-
-    if (!this.isDirectoryValid(metadata, directory)) {
-      return false;
-    }
-
-    return this.isTtlValid(metadata);
-  }
-
-  private isVersionValid(metadata: SymbolCacheMetadata): boolean {
-    if (metadata.version !== CACHE_VERSION) {
-      logger.debug('Symbol cache version mismatch', { expected: CACHE_VERSION, actual: metadata.version });
-      return false;
-    }
-    return true;
-  }
-
-  private isDirectoryValid(metadata: SymbolCacheMetadata, directory: string): boolean {
-    if (metadata.directory !== directory) {
-      logger.debug('Symbol cache directory mismatch');
-      return false;
-    }
-    return true;
-  }
-
-  private isTtlValid(metadata: SymbolCacheMetadata): boolean {
-    const updatedAt = new Date(metadata.updatedAt);
-    const now = new Date();
-    const ageSeconds = (now.getTime() - updatedAt.getTime()) / 1000;
-
-    if (ageSeconds > metadata.ttlSeconds) {
-      logger.debug('Symbol cache expired', { ageSeconds, ttlSeconds: metadata.ttlSeconds });
-      return false;
-    }
-    return true;
   }
 
   /**
@@ -235,67 +213,54 @@ export class SymbolCacheManager {
       const projectCacheDir = this.getProjectCacheDir(directory);
       await ensureDir(projectCacheDir);
 
-      const metadata = await this.prepareMetadata(directory, language, symbols.length, searchMode);
-      await this.persistMetadata(directory, metadata);
-      await this.persistSymbols(directory, language, symbols);
+      // Load existing metadata or create new
+      let metadata = await this.loadMetadata(directory);
+      const now = new Date().toISOString();
 
-      this.logSaveSuccess(directory, language, symbols.length, metadata.totalSymbolCount);
+      if (!metadata) {
+        metadata = {
+          version: CACHE_VERSION,
+          directory,
+          createdAt: now,
+          updatedAt: now,
+          languages: {},
+          totalSymbolCount: 0,
+          ttlSeconds: DEFAULT_TTL_SECONDS
+        };
+      }
+
+      // Update language metadata
+      metadata.languages[language] = {
+        symbolCount: symbols.length,
+        searchMode
+      };
+      metadata.updatedAt = now;
+
+      // Calculate total count from all languages
+      let totalCount = 0;
+      for (const langMeta of Object.values(metadata.languages)) {
+        totalCount += langMeta.symbolCount;
+      }
+      metadata.totalSymbolCount = totalCount;
+
+      // Save metadata
+      const metadataPath = this.getMetadataPath(directory);
+      await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), 'utf8');
+
+      // Save symbols to language-specific file
+      const symbolsPath = this.getSymbolsPath(directory, language);
+      const symbolsContent = symbols.map(s => JSON.stringify(s)).join('\n');
+      await fs.writeFile(symbolsPath, symbolsContent, 'utf8');
+
+      logger.debug('Saved symbols to cache', {
+        directory,
+        language,
+        symbolCount: symbols.length,
+        totalSymbolCount: totalCount
+      });
     } catch (error) {
       logger.error('Error saving symbol cache:', error);
     }
-  }
-
-  private async prepareMetadata(
-    directory: string,
-    language: string,
-    symbolCount: number,
-    searchMode: 'quick' | 'full'
-  ): Promise<SymbolCacheMetadata> {
-    const metadata = await this.loadMetadata(directory) || this.createNewMetadata(directory);
-    const now = new Date().toISOString();
-
-    metadata.languages[language] = { symbolCount, searchMode };
-    metadata.updatedAt = now;
-    metadata.totalSymbolCount = this.calculateTotalCount(metadata);
-
-    return metadata;
-  }
-
-  private createNewMetadata(directory: string): SymbolCacheMetadata {
-    const now = new Date().toISOString();
-    return {
-      version: CACHE_VERSION,
-      directory,
-      createdAt: now,
-      updatedAt: now,
-      languages: {},
-      totalSymbolCount: 0,
-      ttlSeconds: DEFAULT_TTL_SECONDS
-    };
-  }
-
-  private calculateTotalCount(metadata: SymbolCacheMetadata): number {
-    return Object.values(metadata.languages).reduce((total, langMeta) => total + langMeta.symbolCount, 0);
-  }
-
-  private async persistMetadata(directory: string, metadata: SymbolCacheMetadata): Promise<void> {
-    const metadataPath = this.getMetadataPath(directory);
-    await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), 'utf8');
-  }
-
-  private async persistSymbols(directory: string, language: string, symbols: SymbolResult[]): Promise<void> {
-    const symbolsPath = this.getSymbolsPath(directory, language);
-    const symbolsContent = symbols.map(s => JSON.stringify(s)).join('\n');
-    await fs.writeFile(symbolsPath, symbolsContent, 'utf8');
-  }
-
-  private logSaveSuccess(directory: string, language: string, symbolCount: number, totalSymbolCount: number): void {
-    logger.debug('Saved symbols to cache', {
-      directory,
-      language,
-      symbolCount,
-      totalSymbolCount
-    });
   }
 
   /**
@@ -316,53 +281,38 @@ export class SymbolCacheManager {
    */
   async clearAllCaches(): Promise<void> {
     try {
+      // List all project cache directories
       const entries = await fs.readdir(this.cacheDir, { withFileTypes: true });
 
       for (const entry of entries) {
-        if (!entry.isDirectory()) {
-          continue;
-        }
+        if (entry.isDirectory()) {
+          const projectDir = path.join(this.cacheDir, entry.name);
+          const symbolMetadataPath = path.join(projectDir, SYMBOL_METADATA_FILE);
 
-        await this.clearProjectCache(entry.name);
+          // Only clear if it has symbol cache
+          try {
+            await fs.access(symbolMetadataPath);
+
+            // Remove metadata file
+            await fs.rm(symbolMetadataPath);
+
+            // Remove all language-specific symbol files
+            const files = await fs.readdir(projectDir);
+            for (const file of files) {
+              if (file.startsWith(SYMBOLS_FILE_PREFIX) && file.endsWith('.jsonl')) {
+                await fs.rm(path.join(projectDir, file), { force: true });
+              }
+            }
+
+            logger.debug('Cleared symbol cache for', { dir: entry.name });
+          } catch {
+            // No symbol cache in this directory
+          }
+        }
       }
     } catch (error) {
       logger.warn('Error clearing all symbol caches:', error);
     }
-  }
-
-  private async clearProjectCache(projectName: string): Promise<void> {
-    try {
-      const projectDir = path.join(this.cacheDir, projectName);
-      const symbolMetadataPath = path.join(projectDir, SYMBOL_METADATA_FILE);
-
-      await fs.access(symbolMetadataPath);
-      await this.removeMetadataFile(symbolMetadataPath);
-      await this.removeSymbolFiles(projectDir);
-
-      logger.debug('Cleared symbol cache for', { dir: projectName });
-    } catch {
-      // No symbol cache in this directory
-    }
-  }
-
-  private async removeMetadataFile(metadataPath: string): Promise<void> {
-    await fs.rm(metadataPath);
-  }
-
-  private async removeSymbolFiles(projectDir: string): Promise<void> {
-    const files = await fs.readdir(projectDir);
-
-    for (const file of files) {
-      if (!this.isSymbolFile(file)) {
-        continue;
-      }
-
-      await fs.rm(path.join(projectDir, file), { force: true });
-    }
-  }
-
-  private isSymbolFile(filename: string): boolean {
-    return filename.startsWith(SYMBOLS_FILE_PREFIX) && filename.endsWith('.jsonl');
   }
 
   /**

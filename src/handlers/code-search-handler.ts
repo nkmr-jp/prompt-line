@@ -8,6 +8,7 @@ import { logger } from '../utils/utils';
 import {
   checkRgAvailable,
   getSupportedLanguages,
+  searchSymbols,
   DEFAULT_MAX_SYMBOLS,
   DEFAULT_SEARCH_TIMEOUT
 } from '../managers/symbol-search';
@@ -18,15 +19,6 @@ import type {
   RgCheckResponse,
   LanguagesResponse
 } from '../managers/symbol-search/types';
-import {
-  validateSearchInputs,
-  validateDirectory,
-  validateCacheAvailability,
-  loadAndFormatCachedSymbols,
-  performFreshSearch,
-  tryGetCachedSymbols,
-  refreshCacheInBackground
-} from './code-search-helpers';
 
 /**
  * Code Search Handler class
@@ -118,40 +110,94 @@ class CodeSearchHandler {
   ): Promise<SymbolSearchResponse> {
     logger.debug('Handling search-symbols request', { directory, language, options });
 
+    // Get settings-based defaults
     const settingsOptions = this.getSymbolSearchOptions();
     const effectiveMaxSymbols = options?.maxSymbols ?? settingsOptions.maxSymbols;
 
-    const validationResult = validateSearchInputs(directory, language, effectiveMaxSymbols);
-    if (!validationResult.valid) {
-      return validationResult.errorResponse!;
+    // Validate inputs
+    if (!directory || typeof directory !== 'string') {
+      return {
+        success: false,
+        symbols: [],
+        symbolCount: 0,
+        searchMode: 'full',
+        partial: false,
+        maxSymbols: effectiveMaxSymbols,
+        error: 'Invalid directory'
+      };
     }
 
+    if (!language || typeof language !== 'string') {
+      return {
+        success: false,
+        symbols: [],
+        symbolCount: 0,
+        searchMode: 'full',
+        partial: false,
+        maxSymbols: effectiveMaxSymbols,
+        error: 'Invalid language'
+      };
+    }
+
+    // Check cache first if requested
     if (options?.useCache !== false) {
-      const cachedResult = await tryGetCachedSymbols(
-        directory,
-        language,
-        effectiveMaxSymbols,
-        settingsOptions.timeout,
-        options?.refreshCache,
-        this.refreshCacheInBackgroundBound.bind(this)
-      );
-      if (cachedResult) {
-        return cachedResult;
+      const hasLanguage = await symbolCacheManager.hasLanguageCache(directory, language);
+
+      if (hasLanguage) {
+        const cachedSymbols = await symbolCacheManager.loadSymbols(directory, language);
+        if (cachedSymbols.length > 0) {
+          // Apply maxSymbols limit to cached results
+          const limitedSymbols = cachedSymbols.slice(0, effectiveMaxSymbols);
+          const wasLimited = cachedSymbols.length > effectiveMaxSymbols;
+
+          logger.debug('Returning cached symbols (stale-while-revalidate)', {
+            cachedCount: cachedSymbols.length,
+            returnedCount: limitedSymbols.length,
+            maxSymbols: effectiveMaxSymbols,
+            wasLimited
+          });
+
+          // Background refresh: only update cache when refreshCache is explicitly true
+          // This prevents unnecessary refreshes during file navigation (e.g., @go vs @go:)
+          if (options?.refreshCache === true) {
+            this.refreshCacheInBackground(directory, language, {
+              maxSymbols: effectiveMaxSymbols,
+              timeout: settingsOptions.timeout
+            });
+          }
+
+          return {
+            success: true,
+            directory,
+            language,
+            symbols: limitedSymbols,
+            symbolCount: limitedSymbols.length,
+            searchMode: 'cached',
+            partial: wasLimited,
+            maxSymbols: effectiveMaxSymbols
+          };
+        }
       }
     }
 
-    return await performFreshSearch(directory, language, effectiveMaxSymbols, settingsOptions.timeout);
-  }
+    // Perform fresh search (no cache available)
+    const searchOptions = {
+      maxSymbols: effectiveMaxSymbols,
+      timeout: settingsOptions.timeout
+    };
+    const result = await searchSymbols(directory, language, searchOptions);
 
-  /**
-   * Bound version of refreshCacheInBackground for use as callback
-   */
-  private refreshCacheInBackgroundBound(
-    directory: string,
-    language: string,
-    options: { maxSymbols: number; timeout: number }
-  ): void {
-    refreshCacheInBackground(directory, language, options, this.pendingRefreshes);
+    // Cache successful results
+    if (result.success && result.symbols.length > 0) {
+      await symbolCacheManager.saveSymbols(
+        directory,
+        language,
+        result.symbols,
+        'full'
+      );
+    }
+
+    return result;
   }
 
   /**
@@ -166,17 +212,59 @@ class CodeSearchHandler {
 
     const settingsOptions = this.getSymbolSearchOptions();
 
-    const directoryValidation = validateDirectory(directory, settingsOptions.maxSymbols);
-    if (directoryValidation) {
-      return directoryValidation;
+    if (!directory || typeof directory !== 'string') {
+      return {
+        success: false,
+        symbols: [],
+        symbolCount: 0,
+        searchMode: 'cached',
+        partial: false,
+        maxSymbols: settingsOptions.maxSymbols,
+        error: 'Invalid directory'
+      };
     }
 
-    const cacheValidation = await validateCacheAvailability(directory, settingsOptions.maxSymbols);
-    if (cacheValidation) {
-      return cacheValidation;
+    const isCacheValid = await symbolCacheManager.isCacheValid(directory);
+    if (!isCacheValid) {
+      return {
+        success: false,
+        symbols: [],
+        symbolCount: 0,
+        searchMode: 'cached',
+        partial: false,
+        maxSymbols: settingsOptions.maxSymbols,
+        error: 'No valid cache found'
+      };
     }
 
-    return await loadAndFormatCachedSymbols(directory, language, settingsOptions.maxSymbols);
+    const allSymbols = await symbolCacheManager.loadSymbols(directory, language);
+
+    // Apply maxSymbols limit to cached results
+    const limitedSymbols = allSymbols.slice(0, settingsOptions.maxSymbols);
+    const wasLimited = allSymbols.length > settingsOptions.maxSymbols;
+
+    logger.debug('Returning cached symbols', {
+      cachedCount: allSymbols.length,
+      returnedCount: limitedSymbols.length,
+      maxSymbols: settingsOptions.maxSymbols,
+      wasLimited
+    });
+
+    const response: SymbolSearchResponse = {
+      success: true,
+      directory,
+      symbols: limitedSymbols,
+      symbolCount: limitedSymbols.length,
+      searchMode: 'cached',
+      partial: wasLimited,
+      maxSymbols: settingsOptions.maxSymbols
+    };
+
+    if (language) {
+      response.language = language;
+    }
+
+    return response;
   }
 
   /**
@@ -199,6 +287,56 @@ class CodeSearchHandler {
       logger.error('Error clearing symbol cache:', error);
       return { success: false };
     }
+  }
+
+  /**
+   * Refresh cache in background (stale-while-revalidate pattern)
+   * This runs asynchronously without blocking the main response
+   * Uses deduplication to avoid multiple concurrent refreshes for the same directory/language
+   */
+  private refreshCacheInBackground(
+    directory: string,
+    language: string,
+    options?: { maxSymbols?: number; timeout?: number }
+  ): void {
+    // Create a unique key for this refresh operation
+    const refreshKey = `${directory}:${language}`;
+
+    // Skip if a refresh is already in progress for this combination
+    if (this.pendingRefreshes.get(refreshKey)) {
+      logger.debug('Background cache refresh skipped (already in progress)', { directory, language });
+      return;
+    }
+
+    // Mark as pending
+    this.pendingRefreshes.set(refreshKey, true);
+
+    // Run in background without awaiting
+    (async () => {
+      try {
+        logger.debug('Background cache refresh started', { directory, language });
+        const result = await searchSymbols(directory, language, options);
+
+        if (result.success && result.symbols.length > 0) {
+          await symbolCacheManager.saveSymbols(
+            directory,
+            language,
+            result.symbols,
+            'full'
+          );
+          logger.debug('Background cache refresh completed', {
+            directory,
+            language,
+            symbolCount: result.symbols.length
+          });
+        }
+      } catch (error) {
+        logger.warn('Background cache refresh failed', { directory, language, error });
+      } finally {
+        // Clear pending status
+        this.pendingRefreshes.delete(refreshKey);
+      }
+    })();
   }
 }
 

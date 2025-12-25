@@ -63,126 +63,82 @@ export class HistoryUIManager {
       const historyList = this.getHistoryList();
       if (!historyList) return;
 
+      const dataToRender = historyData;
       const searchManager = this.getSearchManager();
       const isSearchMode = searchManager?.isInSearchMode() || false;
 
-      if (!historyData || historyData.length === 0) {
-        this.renderEmptyState(historyList, isSearchMode);
+      if (!dataToRender || dataToRender.length === 0) {
+        const emptyMessage = isSearchMode ? 'No matching items found' : 'No history items';
+        historyList.innerHTML = `<div class="history-empty">${emptyMessage}</div>`;
         return;
       }
 
-      this.renderHistoryItems(historyList, historyData);
-      this.renderCountIndicator(historyList, historyData, totalMatches);
+      // Items are already limited by filter engine, render all provided items
+      const fragment = document.createDocumentFragment();
+
+      dataToRender.forEach((item) => {
+        const historyItem = this.createHistoryElement(item);
+        fragment.appendChild(historyItem);
+      });
+
+      historyList.innerHTML = '';
+      historyList.appendChild(fragment);
+
+      // Show item count indicator
+      // Use totalMatches for search mode (total matches before display limit)
+      // Use dataToRender.length for non-search mode (total items)
+      const totalCount = totalMatches !== undefined ? totalMatches : dataToRender.length;
+      const countIndicator = document.createElement('div');
+      countIndicator.className = 'history-more';
+      if (totalCount > dataToRender.length) {
+        countIndicator.textContent = `+${totalCount - dataToRender.length} more items`;
+      } else {
+        countIndicator.textContent = `${totalCount} items`;
+      }
+      historyList.appendChild(countIndicator);
+
     } catch (error) {
-      this.renderError(error);
-    }
-  }
-
-  /**
-   * Render empty state message
-   */
-  private renderEmptyState(historyList: HTMLElement, isSearchMode: boolean): void {
-    const emptyMessage = isSearchMode ? 'No matching items found' : 'No history items';
-    historyList.innerHTML = `<div class="history-empty">${emptyMessage}</div>`;
-  }
-
-  /**
-   * Render history items to the list
-   */
-  private renderHistoryItems(historyList: HTMLElement, historyData: HistoryItem[]): void {
-    const fragment = document.createDocumentFragment();
-
-    historyData.forEach((item) => {
-      const historyItem = this.createHistoryElement(item);
-      fragment.appendChild(historyItem);
-    });
-
-    historyList.innerHTML = '';
-    historyList.appendChild(fragment);
-  }
-
-  /**
-   * Render count indicator at the bottom
-   */
-  private renderCountIndicator(
-    historyList: HTMLElement,
-    historyData: HistoryItem[],
-    totalMatches?: number
-  ): void {
-    const totalCount = totalMatches !== undefined ? totalMatches : historyData.length;
-    const countIndicator = document.createElement('div');
-    countIndicator.className = 'history-more';
-
-    if (totalCount > historyData.length) {
-      countIndicator.textContent = `+${totalCount - historyData.length} more items`;
-    } else {
-      countIndicator.textContent = `${totalCount} items`;
-    }
-
-    historyList.appendChild(countIndicator);
-  }
-
-  /**
-   * Render error state
-   */
-  private renderError(error: unknown): void {
-    console.error('Error rendering history:', error);
-    const historyList = this.getHistoryList();
-    if (historyList) {
-      historyList.innerHTML = '<div class="history-empty">Error loading history</div>';
+      console.error('Error rendering history:', error);
+      const historyList = this.getHistoryList();
+      if (historyList) {
+        historyList.innerHTML = '<div class="history-empty">Error loading history</div>';
+      }
     }
   }
 
   private createHistoryElement(item: HistoryItem): HTMLElement {
-    const historyItem = this.createHistoryItemContainer(item);
-    const textDiv = this.createHistoryTextElement(item);
-    const timeDiv = this.createHistoryTimeElement(item);
-
-    historyItem.appendChild(textDiv);
-    historyItem.appendChild(timeDiv);
-
-    this.addHistoryItemClickHandler(historyItem, item);
-
-    return historyItem;
-  }
-
-  private createHistoryItemContainer(item: HistoryItem): HTMLElement {
     const historyItem = document.createElement('div');
     historyItem.className = 'history-item';
     historyItem.dataset.text = item.text;
     historyItem.dataset.id = item.id;
-    return historyItem;
-  }
 
-  private createHistoryTextElement(item: HistoryItem): HTMLElement {
     const textDiv = document.createElement('div');
     textDiv.className = 'history-text';
-
+    
+    // Apply search highlighting if in search mode
     const displayText = item.text.replace(/\n/g, ' ');
     const searchManager = this.getSearchManager();
     const isSearchMode = searchManager?.isInSearchMode() || false;
     const searchTerm = searchManager?.getSearchTerm() || '';
-
+    
     if (isSearchMode && searchTerm) {
       textDiv.innerHTML = searchManager?.highlightSearchTerms(displayText, searchTerm) || displayText;
     } else {
       textDiv.textContent = displayText;
     }
 
-    return textDiv;
-  }
-
-  private createHistoryTimeElement(item: HistoryItem): HTMLElement {
     const timeDiv = document.createElement('div');
     timeDiv.className = 'history-time';
     timeDiv.textContent = formatTime(item.timestamp);
-    return timeDiv;
-  }
 
-  private addHistoryItemClickHandler(historyItem: HTMLElement, item: HistoryItem): void {
+    historyItem.appendChild(textDiv);
+    historyItem.appendChild(timeDiv);
+
     historyItem.addEventListener('click', () => {
       this.selectHistoryItemFromClick(item.text);
     });
+
+    return historyItem;
   }
 
   private selectHistoryItem(text: string): void {
@@ -206,48 +162,36 @@ export class HistoryUIManager {
 
     if (!dataToNavigate || dataToNavigate.length === 0) return;
 
+    // Enable keyboard navigation mode and disable hover effects
     this.enableKeyboardNavigation();
-    this.updateHistoryIndex(direction, dataToNavigate);
-    this.displaySelectedHistoryItem(dataToNavigate);
-  }
+    const visibleItemsCount = dataToNavigate.length;
 
-  private updateHistoryIndex(direction: 'next' | 'prev', dataToNavigate: HistoryItem[]): void {
     if (direction === 'next') {
-      this.navigateToNext(dataToNavigate);
+      if (this.historyIndex === -1) {
+        // From initial state, go to first item
+        this.historyIndex = 0;
+      } else if (this.historyIndex < visibleItemsCount - 1) {
+        this.historyIndex = this.historyIndex + 1;
+      } else if (this.historyIndex === visibleItemsCount - 1 && this.loadMoreCallback) {
+        // At last item, try to load more
+        this.loadMoreCallback();
+        return;
+      }
     } else {
-      this.navigateToPrevious(dataToNavigate);
+      if (this.historyIndex === -1) {
+        // From initial state, go to last item
+        this.historyIndex = visibleItemsCount - 1;
+      } else if (this.historyIndex > 0) {
+        this.historyIndex = this.historyIndex - 1;
+      }
     }
-  }
 
-  private navigateToNext(dataToNavigate: HistoryItem[]): void {
-    const visibleItemsCount = dataToNavigate.length;
-
-    if (this.historyIndex === -1) {
-      this.historyIndex = 0;
-    } else if (this.historyIndex < visibleItemsCount - 1) {
-      this.historyIndex = this.historyIndex + 1;
-    } else if (this.historyIndex === visibleItemsCount - 1 && this.loadMoreCallback) {
-      this.loadMoreCallback();
-    }
-  }
-
-  private navigateToPrevious(dataToNavigate: HistoryItem[]): void {
-    const visibleItemsCount = dataToNavigate.length;
-
-    if (this.historyIndex === -1) {
-      this.historyIndex = visibleItemsCount - 1;
-    } else if (this.historyIndex > 0) {
-      this.historyIndex = this.historyIndex - 1;
-    }
-  }
-
-  private displaySelectedHistoryItem(dataToNavigate: HistoryItem[]): void {
     const selectedItem = dataToNavigate[this.historyIndex];
-    if (!selectedItem) return;
-
-    this.selectHistoryItem(selectedItem.text);
-    this.flashHistoryItem();
-    this.scrollToSelectedItem();
+    if (selectedItem) {
+      this.selectHistoryItem(selectedItem.text);
+      this.flashHistoryItem();
+      this.scrollToSelectedItem();
+    }
   }
 
   private flashHistoryItem(): void {

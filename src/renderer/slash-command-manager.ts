@@ -3,22 +3,17 @@
  * Manages slash command suggestions and selection
  */
 
+import type { InputFormatType } from '../types';
 import { FrontmatterPopupManager } from './frontmatter-popup-manager';
-import {
-  type SlashCommandItem,
-  type KeyboardNavigationHandlers,
-  filterAndSortCommands,
-  getCommandText,
-  createSuggestionItemElement,
-  addCommandName,
-  addCommandDescription,
-  createFrontmatterIcon,
-  handleKeyboardNavigation,
-  updateVisualSelection,
-  parseSlashCommand,
-  renderSuggestionsToContainer,
-  createSelectedCommandDisplay
-} from './slash-command-helpers';
+
+interface SlashCommandItem {
+  name: string;
+  description: string;
+  argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
+  filePath: string;
+  frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
+  inputFormat?: InputFormatType;  // 入力フォーマット（'name' | 'path'）
+}
 
 export class SlashCommandManager {
   private static readonly DEFAULT_MAX_SUGGESTIONS = 20; // Default max suggestions
@@ -70,34 +65,45 @@ export class SlashCommandManager {
   public setupEventListeners(): void {
     if (!this.textarea) return;
 
-    this.textarea.addEventListener('input', () => this.checkForSlashCommand());
-    this.textarea.addEventListener('keydown', (e) => this.handleTextareaKeydown(e));
-    this.textarea.addEventListener('blur', () => setTimeout(() => this.hideSuggestions(), 200));
+    // Monitor input for slash command detection
+    this.textarea.addEventListener('input', () => {
+      this.checkForSlashCommand();
+    });
 
+    // Handle keyboard navigation
+    this.textarea.addEventListener('keydown', (e) => {
+      if (this.isActive) {
+        this.handleKeyDown(e);
+      } else if (this.isEditingMode && e.ctrlKey && e.key === 'Enter') {
+        // Allow Ctrl+Enter to open file even in editing mode
+        e.preventDefault();
+        e.stopPropagation();
+        this.openCommandFile(this.selectedIndex);
+      }
+    });
+
+    // Hide suggestions on blur (with delay to allow click)
+    this.textarea.addEventListener('blur', () => {
+      setTimeout(() => {
+        this.hideSuggestions();
+      }, 200);
+    });
+
+    // Setup click and mousemove handling on suggestions container
     if (this.suggestionsContainer) {
-      this.suggestionsContainer.addEventListener('click', (e) => this.handleSuggestionClick(e));
-      this.suggestionsContainer.addEventListener('mousemove', () =>
-        this.suggestionsContainer?.classList.add('hover-enabled')
-      );
-    }
-  }
+      this.suggestionsContainer.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        const suggestionItem = target.closest('.slash-suggestion-item') as HTMLElement;
+        if (suggestionItem) {
+          const index = parseInt(suggestionItem.dataset.index || '0', 10);
+          this.selectCommand(index);
+        }
+      });
 
-  private handleTextareaKeydown(e: KeyboardEvent): void {
-    if (this.isActive) {
-      this.handleKeyDown(e);
-    } else if (this.isEditingMode && e.ctrlKey && e.key === 'Enter') {
-      e.preventDefault();
-      e.stopPropagation();
-      this.openCommandFile(this.selectedIndex);
-    }
-  }
-
-  private handleSuggestionClick(e: Event): void {
-    const target = e.target as HTMLElement;
-    const suggestionItem = target.closest('.slash-suggestion-item') as HTMLElement;
-    if (suggestionItem) {
-      const index = parseInt(suggestionItem.dataset.index || '0', 10);
-      this.selectCommand(index);
+      // Enable hover styles only when mouse explicitly moves
+      this.suggestionsContainer.addEventListener('mousemove', () => {
+        this.suggestionsContainer?.classList.add('hover-enabled');
+      });
     }
   }
 
@@ -152,40 +158,82 @@ export class SlashCommandManager {
   private checkForSlashCommand(): void {
     if (!this.textarea) return;
 
-    const parsed = parseSlashCommand(this.textarea.value);
+    const text = this.textarea.value;
 
-    if (!parsed.hasSlash) {
-      this.hideSuggestions();
-      return;
-    }
+    // Only show suggestions if text starts with /
+    if (text.startsWith('/')) {
+      const parts = text.slice(1).split(/\s/);
+      const query = parts[0] || ''; // Get first word after /
 
-    // If in editing mode, check if command name still matches
-    if (this.isEditingMode) {
-      if (parsed.query !== this.editingCommandName) {
-        this.isEditingMode = false;
-        this.editingCommandName = '';
-      } else {
+      // If in editing mode (Tab selected), check if command name still matches
+      if (this.isEditingMode) {
+        // Exit editing mode if user modified the command name
+        if (query !== this.editingCommandName) {
+          this.isEditingMode = false;
+          this.editingCommandName = '';
+          // Continue to show suggestions based on new query
+        } else {
+          // Command name still matches, keep showing selected command
+          return;
+        }
+      }
+
+      // Hide suggestions if there's a space after the command (user is typing arguments)
+      if (parts.length > 1 || text.includes(' ')) {
+        this.hideSuggestions();
         return;
       }
-    }
 
-    // Hide suggestions if user is typing arguments
-    if (parsed.hasArguments) {
+      this.showSuggestions(query);
+    } else {
       this.hideSuggestions();
-      return;
     }
-
-    this.showSuggestions(parsed.query);
   }
 
   /**
    * Show suggestions based on query
    */
   private async showSuggestions(query: string): Promise<void> {
-    await this.ensureCommandsLoaded();
+    // Load commands if not loaded
+    if (this.commands.length === 0) {
+      await this.loadCommands();
+    }
 
+    // Get maxSuggestions setting
     const maxSuggestions = await this.getMaxSuggestions();
-    this.filteredCommands = filterAndSortCommands(this.commands, query, maxSuggestions);
+
+    // Filter and sort commands - prioritize: prefix match > contains match > description match
+    const lowerQuery = query.toLowerCase();
+    this.filteredCommands = this.commands
+      .filter(cmd =>
+        cmd.name.toLowerCase().includes(lowerQuery) ||
+        cmd.description.toLowerCase().includes(lowerQuery)
+      )
+      .sort((a, b) => {
+        const aName = a.name.toLowerCase();
+        const bName = b.name.toLowerCase();
+        const aNamePrefix = aName.startsWith(lowerQuery);
+        const bNamePrefix = bName.startsWith(lowerQuery);
+        const aNameContains = aName.includes(lowerQuery);
+        const bNameContains = bName.includes(lowerQuery);
+
+        // 1. Prioritize prefix matches in name
+        if (aNamePrefix && !bNamePrefix) return -1;
+        if (!aNamePrefix && bNamePrefix) return 1;
+
+        // 2. If both are prefix matches, sort by name alphabetically
+        if (aNamePrefix && bNamePrefix) {
+          return a.name.localeCompare(b.name);
+        }
+
+        // 3. Prioritize contains matches in name over description-only matches
+        if (aNameContains && !bNameContains) return -1;
+        if (!aNameContains && bNameContains) return 1;
+
+        // 4. Sort by name alphabetically
+        return a.name.localeCompare(b.name);
+      })
+      .slice(0, maxSuggestions);
 
     if (this.filteredCommands.length === 0) {
       this.hideSuggestions();
@@ -198,54 +246,84 @@ export class SlashCommandManager {
   }
 
   /**
-   * Ensure commands are loaded
-   */
-  private async ensureCommandsLoaded(): Promise<void> {
-    if (this.commands.length === 0) {
-      await this.loadCommands();
-    }
-  }
-
-  /**
    * Render suggestions to the UI
    */
   private renderSuggestions(query: string): void {
     if (!this.suggestionsContainer) return;
 
-    renderSuggestionsToContainer(
-      this.suggestionsContainer,
-      this.filteredCommands,
-      this.selectedIndex,
-      query,
-      (cmd, index, q) => this.createSuggestionItem(cmd, index, q)
-    );
+    this.suggestionsContainer.innerHTML = '';
+    this.suggestionsContainer.style.display = 'block';
+    // Reset hover-enabled class when re-rendering (will be re-added on mousemove)
+    this.suggestionsContainer.classList.remove('hover-enabled');
+    // Reset scroll position to top when search text changes
+    this.suggestionsContainer.scrollTop = 0;
+
+    const fragment = document.createDocumentFragment();
+
+    this.filteredCommands.forEach((cmd, index) => {
+      const item = document.createElement('div');
+      item.className = 'slash-suggestion-item';
+      if (index === this.selectedIndex) {
+        item.classList.add('selected');
+      }
+      item.dataset.index = index.toString();
+
+      // Create name element with highlighting
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'slash-command-name';
+      nameSpan.innerHTML = '/' + this.highlightMatch(cmd.name, query);
+      item.appendChild(nameSpan);
+
+      // Create description element with highlighting
+      if (cmd.description) {
+        const descSpan = document.createElement('span');
+        descSpan.className = 'slash-command-description';
+        descSpan.innerHTML = this.highlightMatch(cmd.description, query);
+        item.appendChild(descSpan);
+      }
+
+      // Add info icon for frontmatter popup (only if frontmatter exists)
+      if (cmd.frontmatter) {
+        const infoIcon = document.createElement('span');
+        infoIcon.className = 'frontmatter-info-icon';
+        infoIcon.textContent = 'ⓘ';
+
+        // Show popup on info icon hover
+        infoIcon.addEventListener('mouseenter', () => {
+          this.frontmatterPopupManager.show(cmd, infoIcon);
+        });
+
+        infoIcon.addEventListener('mouseleave', () => {
+          this.frontmatterPopupManager.scheduleHide();
+        });
+
+        item.appendChild(infoIcon);
+      }
+
+      fragment.appendChild(item);
+    });
+
+    this.suggestionsContainer.appendChild(fragment);
   }
 
   /**
-   * Create a single suggestion item element
+   * Highlight matching text in suggestions
    */
-  private createSuggestionItem(cmd: SlashCommandItem, index: number, query: string): HTMLElement {
-    const item = createSuggestionItemElement(index, index === this.selectedIndex);
-    addCommandName(item, cmd, query);
-    addCommandDescription(item, cmd, query);
-    this.addFrontmatterIconWithHandlers(item, cmd);
-    return item;
+  private highlightMatch(text: string, query: string): string {
+    if (!query) return this.escapeHtml(text);
+
+    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(${escapedQuery})`, 'gi');
+    return this.escapeHtml(text).replace(regex, '<span class="slash-highlight">$1</span>');
   }
 
-  private addFrontmatterIconWithHandlers(item: HTMLElement, cmd: SlashCommandItem): void {
-    if (!cmd.frontmatter) return;
-
-    const infoIcon = createFrontmatterIcon();
-
-    infoIcon.addEventListener('mouseenter', () => {
-      this.frontmatterPopupManager.show(cmd, infoIcon);
-    });
-
-    infoIcon.addEventListener('mouseleave', () => {
-      this.frontmatterPopupManager.scheduleHide();
-    });
-
-    item.appendChild(infoIcon);
+  /**
+   * Escape HTML to prevent XSS
+   */
+  private escapeHtml(text: string): string {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
 
   /**
@@ -270,32 +348,71 @@ export class SlashCommandManager {
    * Supports: ArrowDown/Ctrl+n/Ctrl+j (next), ArrowUp/Ctrl+p/Ctrl+k (previous), Enter/Tab (select), Escape (close), Ctrl+i (toggle tooltip)
    */
   private handleKeyDown(e: KeyboardEvent): void {
-    const handlers: KeyboardNavigationHandlers = {
-      onMoveDown: () => this.moveSelectionDown(),
-      onMoveUp: () => this.moveSelectionUp(),
-      onSelect: (ctrlPressed) => {
-        if (ctrlPressed) {
+    // Ctrl+i: Toggle auto-show tooltip
+    if (e.ctrlKey && e.key === 'i') {
+      e.preventDefault();
+      e.stopPropagation();
+      this.frontmatterPopupManager.toggleAutoShow();
+      return;
+    }
+
+    // Ctrl+n or Ctrl+j: Move down (same as ArrowDown)
+    if (e.ctrlKey && (e.key === 'n' || e.key === 'j')) {
+      e.preventDefault();
+      e.stopPropagation();
+      this.selectedIndex = Math.min(this.selectedIndex + 1, this.filteredCommands.length - 1);
+      this.updateSelection();
+      return;
+    }
+
+    // Ctrl+p or Ctrl+k: Move up (same as ArrowUp)
+    if (e.ctrlKey && (e.key === 'p' || e.key === 'k')) {
+      e.preventDefault();
+      e.stopPropagation();
+      this.selectedIndex = Math.max(this.selectedIndex - 1, 0);
+      this.updateSelection();
+      return;
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        e.stopPropagation();
+        this.selectedIndex = Math.min(this.selectedIndex + 1, this.filteredCommands.length - 1);
+        this.updateSelection();
+        break;
+
+      case 'ArrowUp':
+        e.preventDefault();
+        e.stopPropagation();
+        this.selectedIndex = Math.max(this.selectedIndex - 1, 0);
+        this.updateSelection();
+        break;
+
+      case 'Enter':
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.ctrlKey) {
+          // Ctrl+Enter: Open file in editor without inserting command
           this.openCommandFile(this.selectedIndex);
         } else {
+          // Enter: Paste immediately
           this.selectCommand(this.selectedIndex, true);
         }
-      },
-      onSelectForEditing: () => this.selectCommand(this.selectedIndex, false),
-      onClose: () => this.hideSuggestions(),
-      onToggleTooltip: () => this.frontmatterPopupManager.toggleAutoShow()
-    };
+        break;
 
-    handleKeyboardNavigation(e, handlers);
-  }
+      case 'Tab':
+        e.preventDefault();
+        e.stopPropagation();
+        this.selectCommand(this.selectedIndex, false); // Insert for editing
+        break;
 
-  private moveSelectionDown(): void {
-    this.selectedIndex = Math.min(this.selectedIndex + 1, this.filteredCommands.length - 1);
-    this.updateSelection();
-  }
-
-  private moveSelectionUp(): void {
-    this.selectedIndex = Math.max(this.selectedIndex - 1, 0);
-    this.updateSelection();
+      case 'Escape':
+        e.preventDefault();
+        e.stopPropagation();
+        this.hideSuggestions();
+        break;
+    }
   }
 
   /**
@@ -304,11 +421,19 @@ export class SlashCommandManager {
   private updateSelection(): void {
     if (!this.suggestionsContainer) return;
 
-    updateVisualSelection(
-      this.suggestionsContainer,
-      this.selectedIndex,
-      () => this.frontmatterPopupManager.showForSelectedItem()
-    );
+    const items = this.suggestionsContainer.querySelectorAll('.slash-suggestion-item');
+    items.forEach((item, index) => {
+      if (index === this.selectedIndex) {
+        item.classList.add('selected');
+        // Scroll into view if needed
+        (item as HTMLElement).scrollIntoView({ block: 'nearest' });
+      } else {
+        item.classList.remove('selected');
+      }
+    });
+
+    // Update tooltip if auto-show is enabled
+    this.frontmatterPopupManager.showForSelectedItem();
   }
 
   /**
@@ -322,25 +447,33 @@ export class SlashCommandManager {
     const command = this.filteredCommands[index];
     if (!command) return;
 
-    const commandText = getCommandText(command);
+    // Determine what to insert based on inputFormat setting
+    // Default to 'name' for commands (backward compatible behavior)
+    const inputFormat = command.inputFormat ?? 'name';
+    const commandText = inputFormat === 'path' ? command.filePath : `/${command.name}`;
 
     if (shouldPaste) {
+      // Enter: Paste immediately and hide suggestions
       this.hideSuggestions();
-      this.setTextareaValue(commandText);
+
+      if (this.textarea) {
+        this.textarea.value = commandText;
+        this.textarea.setSelectionRange(commandText.length, commandText.length);
+        this.textarea.focus();
+      }
       this.onCommandSelect(commandText);
     } else {
+      // Tab: Insert with trailing space for editing arguments
+      // Show only the selected command in suggestions
       this.showSelectedCommandOnly(command);
-      const commandWithSpace = commandText + ' ';
-      this.setTextareaValue(commandWithSpace);
-      this.onCommandInsert(commandWithSpace);
-    }
-  }
 
-  private setTextareaValue(text: string): void {
-    if (this.textarea) {
-      this.textarea.value = text;
-      this.textarea.setSelectionRange(text.length, text.length);
-      this.textarea.focus();
+      const commandWithSpace = commandText + ' ';
+      if (this.textarea) {
+        this.textarea.value = commandWithSpace;
+        this.textarea.setSelectionRange(commandWithSpace.length, commandWithSpace.length);
+        this.textarea.focus();
+      }
+      this.onCommandInsert(commandWithSpace);
     }
   }
 
@@ -350,14 +483,30 @@ export class SlashCommandManager {
   private showSelectedCommandOnly(command: SlashCommandItem): void {
     if (!this.suggestionsContainer) return;
 
-    createSelectedCommandDisplay(this.suggestionsContainer, command);
+    this.suggestionsContainer.innerHTML = '';
+    this.suggestionsContainer.style.display = 'block';
+    this.suggestionsContainer.classList.remove('hover-enabled');
+
+    const item = document.createElement('div');
+    item.className = 'slash-suggestion-item selected';
+    item.dataset.index = '0';
+
+    // Use argumentHint if available, otherwise use description
+    const hintText = command.argumentHint || command.description;
+
+    item.innerHTML = `
+      <span class="slash-command-name">/${this.escapeHtml(command.name)}</span>
+      ${hintText ? `<span class="slash-command-description">${this.escapeHtml(hintText)}</span>` : ''}
+    `;
+
+    this.suggestionsContainer.appendChild(item);
 
     // Keep active state but update filtered commands to just this one
     this.filteredCommands = [command];
     this.selectedIndex = 0;
-    this.isActive = false;
-    this.isEditingMode = true;
-    this.editingCommandName = command.name;
+    this.isActive = false; // Disable keyboard navigation since we're in editing mode
+    this.isEditingMode = true; // Keep showing the selected command while editing arguments
+    this.editingCommandName = command.name; // Track the command name for validation
   }
 
   /**

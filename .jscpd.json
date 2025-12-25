@@ -1,4 +1,5 @@
 {
+  "threshold": 10,
   "reporters": ["console"],
   "ignore": [
     "node_modules/**",

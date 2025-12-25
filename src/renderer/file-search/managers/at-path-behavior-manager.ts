@@ -99,49 +99,44 @@ export class AtPathBehaviorManager {
     e.preventDefault();
 
     const deletedPathContent = atPath.path;
+
+    // Save atPath properties before deletion - replaceRangeWithUndo triggers input event
+    // which calls updateHighlightBackdrop() and rescanAtPaths(), modifying atPaths
     const savedStart = atPath.start;
     const savedEnd = atPath.end;
 
-    // Calculate delete end position (including trailing space)
-    const deleteEnd = this.calculateDeleteEnd(text, savedEnd);
+    // Delete the @path (and trailing space if present)
+    let deleteEnd = savedEnd;
+    if (text[deleteEnd] === ' ') {
+      deleteEnd++;
+    }
 
-    // Perform deletion with undo support
-    this.performDeletion(savedStart, deleteEnd, text);
-
-    // Update UI and clean up
-    this.updateAfterDeletion(savedStart, deletedPathContent);
-
-    return true;
-  }
-
-  /**
-   * Calculate the end position for deletion (including trailing space)
-   */
-  private calculateDeleteEnd(text: string, savedEnd: number): number {
-    return text[savedEnd] === ' ' ? savedEnd + 1 : savedEnd;
-  }
-
-  /**
-   * Perform the deletion with undo support if available
-   */
-  private performDeletion(savedStart: number, deleteEnd: number, text: string): void {
+    // Use replaceRangeWithUndo if available for native Undo support
+    // Note: execCommand('insertText', false, '') places cursor at the deletion point
+    // which is exactly where we want it (savedStart), so no need to call setCursorPosition
     if (this.callbacks.replaceRangeWithUndo) {
       this.callbacks.replaceRangeWithUndo(savedStart, deleteEnd, '');
+      // Explicitly restore cursor position after deletion
+      // The input event fired by execCommand may trigger code that affects cursor position
+      // (e.g., checkForFileSearch, updateHighlightBackdrop, updateCursorPositionHighlight)
+      // Restoring here ensures cursor stays at the correct deletion point
       this.callbacks.setCursorPosition(savedStart);
     } else {
+      // Fallback to direct text manipulation (no Undo support) - need to set cursor manually
       const newText = text.substring(0, savedStart) + text.substring(deleteEnd);
       this.callbacks.setTextContent(newText);
       this.callbacks.setCursorPosition(savedStart);
     }
-  }
 
-  /**
-   * Update UI and clean up after deletion
-   */
-  private updateAfterDeletion(savedStart: number, deletedPathContent: string | undefined): void {
+    // Update highlight backdrop (rescanAtPaths will recalculate all positions)
     this.callbacks.updateHighlightBackdrop();
+
+    // Restore cursor position again after updateHighlightBackdrop
+    // This ensures cursor stays at savedStart even if backdrop update affects it
     this.callbacks.setCursorPosition(savedStart);
 
+    // After update, check if this path still exists in the text
+    // If not, remove it from selectedPaths
     const atPaths = this.callbacks.getAtPaths();
     if (deletedPathContent && !atPaths.some(p => p.path === deletedPathContent)) {
       this.callbacks.removeSelectedPath(deletedPathContent);
@@ -150,11 +145,13 @@ export class AtPathBehaviorManager {
 
     console.debug('[AtPathBehaviorManager] deleted @path:', formatLog({
       deletedStart: savedStart,
-      deletedEnd: this.calculateDeleteEnd(this.callbacks.getTextContent(), savedStart),
+      deletedEnd: deleteEnd,
       deletedPath: deletedPathContent || 'unknown',
       remainingPaths: atPaths.length,
       selectedPathsCount: this.callbacks.getSelectedPaths().size
     }));
+
+    return true;
   }
 
   /**
@@ -172,37 +169,25 @@ export class AtPathBehaviorManager {
 
     for (const file of cachedData.files) {
       const relativePath = getRelativePath(file.path, baseDir);
-      this.addFilePathVariants(validPaths, relativePath, file.isDirectory);
-      this.addParentDirectories(validPaths, relativePath);
+      validPaths.add(relativePath);
+      // For directories: add both with and without trailing slash
+      if (file.isDirectory) {
+        if (!relativePath.endsWith('/')) {
+          validPaths.add(relativePath + '/');
+        } else {
+          validPaths.add(relativePath.slice(0, -1));
+        }
+      }
+      // Also add parent directories
+      const pathParts = relativePath.split('/');
+      let parentPath = '';
+      for (let i = 0; i < pathParts.length - 1; i++) {
+        parentPath += (i > 0 ? '/' : '') + pathParts[i];
+        validPaths.add(parentPath);
+        validPaths.add(parentPath + '/');
+      }
     }
 
     return validPaths;
-  }
-
-  /**
-   * Add file path variants (with/without trailing slash for directories)
-   */
-  private addFilePathVariants(validPaths: Set<string>, relativePath: string, isDirectory: boolean): void {
-    validPaths.add(relativePath);
-    if (isDirectory) {
-      if (!relativePath.endsWith('/')) {
-        validPaths.add(relativePath + '/');
-      } else {
-        validPaths.add(relativePath.slice(0, -1));
-      }
-    }
-  }
-
-  /**
-   * Add all parent directories from a path
-   */
-  private addParentDirectories(validPaths: Set<string>, relativePath: string): void {
-    const pathParts = relativePath.split('/');
-    let parentPath = '';
-    for (let i = 0; i < pathParts.length - 1; i++) {
-      parentPath += (i > 0 ? '/' : '') + pathParts[i];
-      validPaths.add(parentPath);
-      validPaths.add(parentPath + '/');
-    }
   }
 }

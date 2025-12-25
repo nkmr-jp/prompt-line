@@ -134,19 +134,6 @@ export function findAbsolutePathAtPosition(text: string, cursorPos: number): str
  */
 export function findClickablePathAtPosition(text: string, cursorPos: number): PathMatch | null {
   // First check @path
-  const atPathMatch = findAtPathMatch(text, cursorPos);
-  if (atPathMatch) {
-    return atPathMatch;
-  }
-
-  // Then check absolute paths
-  return findAbsolutePathMatch(text, cursorPos);
-}
-
-/**
- * Find @path match at cursor position
- */
-function findAtPathMatch(text: string, cursorPos: number): PathMatch | null {
   const atPathPattern = /@([^\s@]+)/g;
   let match;
 
@@ -159,22 +146,17 @@ function findAtPathMatch(text: string, cursorPos: number): PathMatch | null {
     }
   }
 
-  return null;
-}
-
-/**
- * Find absolute path match at cursor position
- * Excludes single-level paths like /commit (slash commands)
- */
-function findAbsolutePathMatch(text: string, cursorPos: number): PathMatch | null {
+  // Then check absolute paths (including ~ for home directory)
+  // Excludes single-level paths like /commit (slash commands)
   const absolutePathPattern = /(?:\/(?:[^\s"'<>|*?\n/]+\/)+[^\s"'<>|*?\n]*|~\/[^\s"'<>|*?\n]+)/g;
-  let match;
-
   while ((match = absolutePathPattern.exec(text)) !== null) {
     const start = match.index;
     const end = start + match[0].length;
 
-    if (!isStandalonePath(text, start)) {
+    // Check if path is at start of text or preceded by whitespace
+    // This prevents matching paths like "ghq/github.com/..." as absolute paths
+    const prevChar = start > 0 ? text[start - 1] : '';
+    if (prevChar !== '' && prevChar !== ' ' && prevChar !== '\t' && prevChar !== '\n') {
       continue; // Skip - not a standalone absolute path
     }
 
@@ -184,16 +166,6 @@ function findAbsolutePathMatch(text: string, cursorPos: number): PathMatch | nul
   }
 
   return null;
-}
-
-/**
- * Check if path is at start of text or preceded by whitespace
- */
-function isStandalonePath(text: string, start: number): boolean {
-  if (start === 0) return true;
-
-  const prevChar = text[start - 1] ?? '';
-  return prevChar === ' ' || prevChar === '\t' || prevChar === '\n';
 }
 
 /**

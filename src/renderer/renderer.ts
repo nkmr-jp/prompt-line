@@ -4,6 +4,7 @@ import type {
   WindowData,
   Config,
   PasteResult,
+  ImageResult,
   UserSettings,
   DirectoryInfo
 } from './types';
@@ -17,31 +18,16 @@ import { LifecycleManager } from './lifecycle-manager';
 import { SimpleSnapshotManager } from './snapshot-manager';
 import { FileSearchManager } from './file-search-manager';
 import { DirectoryDataHandler } from './directory-data-handler';
-import {
-  getElectronAPI,
-  DEFAULT_DISPLAY_LIMIT,
-  handleImagePaste,
-  setupTextareaInputListener,
-  setupContextMenuPrevention,
-  setupKeypressListener,
-  setupMouseListeners,
-  calculateFilteredHistory,
-  shouldClearHistorySelection,
-  handleNonSearchLoadMore,
-  createEventHandlerConfig,
-  createSearchManagerConfig,
-  createSlashCommandConfig,
-  createFileSearchConfig,
-  handleUndoWithSnapshot,
-  handleWindowHide,
-  handleTabKey,
-  handleShiftTabKey,
-  clearTextAndDraft as clearTextAndDraftHelper,
-  updateHistoryAndSettingsData
-} from './renderer-helpers';
 
 // Secure electronAPI access via preload script
-const electronAPI = getElectronAPI();
+const electronAPI = (window as any).electronAPI;
+
+if (!electronAPI) {
+  throw new Error('Electron API not available. Preload script may not be loaded correctly.');
+}
+
+// Default display limit for history items
+const DEFAULT_DISPLAY_LIMIT = 50;
 
 // Export the renderer class for testing
 export class PromptLineRenderer {
@@ -131,7 +117,7 @@ export class PromptLineRenderer {
   }
 
   private setupEventHandler(): void {
-    this.eventHandler = new EventHandler(createEventHandlerConfig({
+    this.eventHandler = new EventHandler({
       onTextPaste: this.handleTextPasteCallback.bind(this),
       onWindowHide: this.handleWindowHideCallback.bind(this),
       onTabKeyInsert: this.handleTabKeyCallback.bind(this),
@@ -139,7 +125,7 @@ export class PromptLineRenderer {
       onHistoryNavigation: this.navigateHistory.bind(this),
       onSearchToggle: this.handleSearchToggle.bind(this),
       onUndo: this.handleUndo.bind(this)
-    }));
+    });
 
     this.eventHandler.setTextarea(this.domManager.textarea);
     this.eventHandler.setDomManager(this.domManager);
@@ -147,46 +133,63 @@ export class PromptLineRenderer {
   }
 
   private setupSearchManager(): void {
-    this.searchManager = new HistorySearchManager(
-      createSearchManagerConfig(this.handleSearchStateChange.bind(this))
-    );
+    this.searchManager = new HistorySearchManager({
+      onSearchStateChange: this.handleSearchStateChange.bind(this)
+    });
 
     this.searchManager.initializeElements();
     this.searchManager.setupEventListeners();
+
+    // Setup scroll listener for infinite scroll
     this.historyUIManager.setupScrollListener();
 
+    // Set SearchManager reference in EventHandler
     if (this.eventHandler) {
       this.eventHandler.setSearchManager(this.searchManager);
     }
   }
 
   private setupSlashCommandManager(): void {
-    this.slashCommandManager = new SlashCommandManager(createSlashCommandConfig({
-      onCommandSelect: (command: string) => this.handleTextPasteCallback(command),
-      onCommandInsert: (_command: string) => {
-        // Command already inserted by SlashCommandManager
+    this.slashCommandManager = new SlashCommandManager({
+      onCommandSelect: async (command: string) => {
+        console.debug('Slash command selected (Enter):', command);
+        // Paste the selected command immediately
+        if (command) {
+          await this.handleTextPasteCallback(command);
+        }
+      },
+      onCommandInsert: (command: string) => {
+        console.debug('Slash command inserted (Tab):', command);
+        // Just insert into textarea for editing, don't paste
+        // The command is already inserted by SlashCommandManager
       },
       onBeforeOpenFile: () => {
+        // Suppress blur event to prevent window from closing when opening file
         this.eventHandler?.setSuppressBlurHide(true);
       },
       setDraggable: (enabled: boolean) => {
+        // Enable/disable draggable state on header during file open
         this.domManager.setDraggable(enabled);
       }
-    }));
+    });
 
     this.slashCommandManager.initializeElements();
     this.slashCommandManager.setupEventListeners();
 
+    // Set SlashCommandManager reference in EventHandler
     if (this.eventHandler) {
       this.eventHandler.setSlashCommandManager(this.slashCommandManager);
     }
 
+    // Pre-load commands
     this.slashCommandManager.loadCommands();
   }
 
   private setupFileSearchManager(): void {
-    this.fileSearchManager = new FileSearchManager(createFileSearchConfig({
-      onFileSelected: (_filePath: string) => {
+    this.fileSearchManager = new FileSearchManager({
+      onFileSelected: (filePath: string) => {
+        console.debug('[FileSearchManager] File selected:', filePath);
+        // File path is already inserted by FileSearchManager
         this.draftManager.saveDraftDebounced();
       },
       getTextContent: () => this.domManager.getCurrentText(),
@@ -194,6 +197,7 @@ export class PromptLineRenderer {
       getCursorPosition: () => this.domManager.getCursorPosition(),
       setCursorPosition: (position: number) => this.domManager.setCursorPosition(position),
       onBeforeOpenFile: () => {
+        // Suppress blur event to prevent window from closing when opening file
         this.eventHandler?.setSuppressBlurHide(true);
       },
       updateHintText: (text: string) => {
@@ -201,17 +205,20 @@ export class PromptLineRenderer {
       },
       getDefaultHintText: () => this.defaultHintText,
       setDraggable: (enabled: boolean) => {
+        // Enable/disable draggable state on header during file open
         this.domManager.setDraggable(enabled);
       },
       replaceRangeWithUndo: (start: number, end: number, newText: string) => {
+        // Replace text range with native Undo/Redo support
         this.domManager.replaceRangeWithUndo(start, end, newText);
       },
       getIsComposing: () => this.eventHandler?.getIsComposing() ?? false
-    }));
+    });
 
     this.fileSearchManager.initializeElements();
     this.fileSearchManager.setupEventListeners();
 
+    // Set FileSearchManager reference in EventHandler
     if (this.eventHandler) {
       this.eventHandler.setFileSearchManager(this.fileSearchManager);
     }
@@ -220,33 +227,50 @@ export class PromptLineRenderer {
   private setupEventListeners(): void {
     if (!this.domManager.textarea) return;
 
-    setupTextareaInputListener(
-      this.domManager.textarea,
-      () => this.domManager.updateCharCount(),
-      () => this.draftManager.saveDraftDebounced(),
-      () => this.historyUIManager.clearHistorySelection(),
-      this.snapshotManager
-    );
+    this.domManager.textarea.addEventListener('input', () => {
+      this.domManager.updateCharCount();
+      this.draftManager.saveDraftDebounced();
+      this.historyUIManager.clearHistorySelection();
+
+      // 編集開始時にスナップショットをクリア
+      if (this.snapshotManager.hasSnapshot()) {
+        this.snapshotManager.clearSnapshot();
+        console.debug('Snapshot cleared on text edit');
+      }
+    });
 
     this.domManager.textarea.addEventListener('keydown', (e) => {
       this.handleKeyDown(e);
     });
 
-    setupContextMenuPrevention();
-    setupKeypressListener(this.domManager.textarea);
-    setupMouseListeners(() => this.historyUIManager.clearHistorySelection());
+    document.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+    });
 
-    // Search navigation in search input
-    this.setupSearchInputNavigation();
-  }
+    this.domManager.textarea.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && !e.metaKey && !e.ctrlKey) {
+        e.stopPropagation();
+      }
+    });
 
-  private setupSearchInputNavigation(): void {
+    // Add mouse event listeners to disable keyboard navigation mode on mouse interaction
+    document.addEventListener('mousemove', () => {
+      this.historyUIManager.clearHistorySelection();
+    });
+
+    document.addEventListener('mousedown', () => {
+      this.historyUIManager.clearHistorySelection();
+    });
+
+    // Search navigation in search input (allow history navigation shortcuts even when search input is focused)
     if (this.domManager.searchInput) {
       this.domManager.searchInput.addEventListener('keydown', (e) => {
+        // Use eventHandler's user settings if available
         if (this.eventHandler && this.userSettings?.shortcuts) {
           const handled = this.eventHandler.handleHistoryNavigationShortcuts(e, (direction) => {
             this.navigateHistory(e, direction);
           });
+          // Prevent event propagation to avoid duplicate handling by document listener
           if (handled) {
             e.stopPropagation();
             e.stopImmediatePropagation();
@@ -274,23 +298,30 @@ export class PromptLineRenderer {
       if (!this.domManager.textarea) return;
 
       if (e.key === 'v' && (e.metaKey || e.ctrlKey)) {
+        // Store current text content before paste operation
         const textBeforePaste = this.domManager.getCurrentText();
         const cursorPosition = this.domManager.textarea.selectionStart;
-
+        
+        // Let default paste happen first, then check if we need to handle image
         setTimeout(async () => {
-          await handleImagePaste(
-            textBeforePaste,
-            cursorPosition,
-            (text) => this.domManager.setText(text),
-            (pos) => this.domManager.setCursorPosition(pos),
-            (text) => this.domManager.insertTextAtCursor(text),
-            () => this.draftManager.saveDraftDebounced()
-          );
+          try {
+            const result = await electronAPI.invoke('paste-image') as ImageResult;
+            if (result.success && result.path) {
+              // Image paste successful - remove any text that was pasted and insert image path
+              this.domManager.setText(textBeforePaste);
+              this.domManager.setCursorPosition(cursorPosition);
+              this.domManager.insertTextAtCursor(result.path);
+              this.draftManager.saveDraftDebounced();
+            }
+            // If no image, the default text paste behavior is preserved
+          } catch (error) {
+            console.error('Error handling image paste:', error);
+          }
         }, 0);
         return;
       }
 
-      // Skip shortcuts if IME is active
+      // Skip shortcuts if IME is active to avoid conflicts with Japanese input
       const isComposing = this.eventHandler?.getIsComposing() || e.isComposing;
       if (isComposing) {
         return;
@@ -321,41 +352,57 @@ export class PromptLineRenderer {
    * @returns true if snapshot was restored, false otherwise
    */
   private handleUndo(): boolean {
-    return handleUndoWithSnapshot(
-      this.snapshotManager,
-      (text) => this.domManager.setText(text),
-      (pos) => this.domManager.setCursorPosition(pos),
-      () => this.domManager.focusTextarea()
-    );
+    if (this.snapshotManager.hasSnapshot()) {
+      const snapshot = this.snapshotManager.restore();
+      if (snapshot) {
+        this.domManager.setText(snapshot.text);
+        this.domManager.setCursorPosition(snapshot.cursorPosition);
+        this.domManager.focusTextarea();
+        console.debug('Snapshot restored successfully');
+        return true;
+      }
+    }
+    // Let browser handle default undo
+    console.debug('No snapshot, using browser default undo');
+    return false;
   }
 
   private async handleWindowHideCallback(): Promise<void> {
-    await handleWindowHide(() => this.draftManager.saveDraftImmediate());
+    try {
+      await this.draftManager.saveDraftImmediate();
+      await electronAPI.window.hide();
+    } catch (error) {
+      console.error('Error handling window hide:', error);
+    }
   }
 
   private handleTabKeyCallback(e: KeyboardEvent): void {
-    handleTabKey(
-      e,
-      (text) => this.domManager.insertTextAtCursor(text),
-      () => this.draftManager.saveDraftDebounced()
-    );
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+
+    this.domManager.insertTextAtCursor('\t');
+    this.draftManager.saveDraftDebounced();
   }
 
   private handleShiftTabKeyCallback(e: KeyboardEvent): void {
-    handleShiftTabKey(
-      e,
-      () => this.domManager.outdentAtCursor(),
-      () => this.draftManager.saveDraftDebounced()
-    );
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+
+    this.domManager.outdentAtCursor();
+    this.draftManager.saveDraftDebounced();
   }
 
+
   private async clearTextAndDraft(): Promise<void> {
-    await clearTextAndDraftHelper(
-      () => this.domManager.clearText(),
-      () => this.draftManager.clearDraft(),
-      this.fileSearchManager
-    );
+    this.domManager.clearText();
+    await this.draftManager.clearDraft();
+    // Clear tracked @paths when text is cleared
+    this.fileSearchManager?.clearAtPaths();
   }
+
+
 
   private async handleWindowShown(data: WindowData): Promise<void> {
     await this.directoryDataHandler.handleWindowShown(data);
@@ -365,31 +412,45 @@ export class PromptLineRenderer {
     await this.directoryDataHandler.handleDirectoryDataUpdated(data);
   }
 
-  private updateHistoryAndSettings(data: WindowData): void {
-    const result = updateHistoryAndSettingsData(
-      data,
-      this.searchManager,
-      this.eventHandler
-    );
 
-    this.historyData = result.historyData;
+  private updateHistoryAndSettings(data: WindowData): void {
+    this.historyData = data.history || [];
+    // Reset display limit and limit initial display
     this.nonSearchDisplayLimit = DEFAULT_DISPLAY_LIMIT;
-    this.filteredHistoryData = result.filteredHistoryData;
-    this.totalMatchCount = result.totalMatchCount;
-    if (result.userSettings) {
-      this.userSettings = result.userSettings;
+    this.filteredHistoryData = this.historyData.slice(0, this.nonSearchDisplayLimit);
+    this.totalMatchCount = this.historyData.length;
+    this.searchManager?.updateHistoryData(this.historyData);
+
+    // Update user settings if provided
+    if (data.settings) {
+      this.userSettings = data.settings;
+      // Pass settings to event handler
+      if (this.eventHandler) {
+        this.eventHandler.setUserSettings(data.settings);
+      }
     }
 
     this.renderHistory();
   }
 
+
+
+
+
   private renderHistory(): void {
     this.historyUIManager.renderHistory(this.filteredHistoryData, this.totalMatchCount);
   }
 
+
+
+
   private navigateHistory(e: KeyboardEvent, direction: 'next' | 'prev'): void {
     this.historyUIManager.navigateHistory(e, direction, this.filteredHistoryData);
   }
+
+
+
+
 
   // Public API methods
   public getCurrentText(): string {
@@ -414,31 +475,28 @@ export class PromptLineRenderer {
   }
 
   private handleSearchStateChange(isSearchMode: boolean, filteredData: HistoryItem[], totalMatches?: number): void {
-    const shouldClear = shouldClearHistorySelection(isSearchMode, filteredData, this.filteredHistoryData);
-
-    const result = calculateFilteredHistory(
-      isSearchMode,
-      filteredData,
-      this.historyData,
-      this.nonSearchDisplayLimit
-    );
+    // Only clear history selection when entering search mode or when items are filtered down (not when loading more)
+    const isLoadingMore = filteredData.length > this.filteredHistoryData.length;
+    const shouldClearSelection = !isSearchMode || (filteredData.length !== this.filteredHistoryData.length && !isLoadingMore);
 
     if (isSearchMode) {
+      // In search mode: use filtered data from search manager
       this.filteredHistoryData = filteredData;
       this.totalMatchCount = totalMatches;
     } else {
+      // Not in search mode: apply non-search display limit
       this.nonSearchDisplayLimit = DEFAULT_DISPLAY_LIMIT;
-      this.filteredHistoryData = result.filtered;
-      this.totalMatchCount = result.total;
+      this.filteredHistoryData = this.historyData.slice(0, this.nonSearchDisplayLimit);
+      this.totalMatchCount = this.historyData.length;
     }
-
     this.renderHistory();
 
-    if (shouldClear) {
+    if (shouldClearSelection) {
       this.historyUIManager.clearHistorySelection();
     }
 
     if (!isSearchMode) {
+      // Return focus to main textarea when exiting search
       this.searchManager?.focusMainTextarea();
     }
   }
@@ -447,16 +505,14 @@ export class PromptLineRenderer {
     if (this.searchManager?.isInSearchMode()) {
       this.searchManager.loadMore();
     } else {
-      const result = handleNonSearchLoadMore(
-        this.nonSearchDisplayLimit,
-        this.historyData,
-        this.filteredHistoryData
-      );
-      if (result) {
-        this.nonSearchDisplayLimit = result.newLimit;
-        this.filteredHistoryData = result.newFiltered;
-        this.renderHistory();
+      // Non-search mode: load more items from historyData
+      if (this.filteredHistoryData.length >= this.historyData.length) {
+        // Already showing all items
+        return;
       }
+      this.nonSearchDisplayLimit += DEFAULT_DISPLAY_LIMIT;
+      this.filteredHistoryData = this.historyData.slice(0, this.nonSearchDisplayLimit);
+      this.renderHistory();
     }
   }
 

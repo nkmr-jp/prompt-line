@@ -187,6 +187,7 @@ export class CodeSearchManager {
     if (!this.currentDirectory) return;
 
     try {
+      // Don't pass maxSymbols - let the handler use settings value
       const response = await this.invokeSearchSymbols(
         this.currentDirectory,
         currentQuery.language,
@@ -194,46 +195,29 @@ export class CodeSearchManager {
       );
 
       if (!response.success) {
-        this.handleSearchFailure(response.error);
+        console.warn('[CodeSearchManager] Search failed:', response.error);
+        this.callbacks.updateHintText(response.error || 'Search failed');
+        this.suggestionUI.hide();
         return;
       }
 
+      // Filter and sort symbols
       const filtered = this.symbolFilter.filterSymbols(
         response.symbols,
         currentQuery.query,
         symbolTypeFilter
       );
 
-      this.displaySearchResults(filtered, currentQuery, symbolTypeFilter);
+      if (filtered.length > 0) {
+        const langInfo = this.supportedLanguages.get(currentQuery.language);
+        this.suggestionUI.show(filtered, currentQuery, langInfo);
+      } else {
+        const filterDesc = symbolTypeFilter ? ` (${symbolTypeFilter})` : '';
+        this.callbacks.updateHintText(`No symbols found for "${currentQuery.query}"${filterDesc}`);
+        this.suggestionUI.hide();
+      }
     } catch (error) {
       console.error('[CodeSearchManager] Search error:', error);
-      this.suggestionUI.hide();
-    }
-  }
-
-  /**
-   * Handle search failure
-   */
-  private handleSearchFailure(error: string | undefined): void {
-    console.warn('[CodeSearchManager] Search failed:', error);
-    this.callbacks.updateHintText(error || 'Search failed');
-    this.suggestionUI.hide();
-  }
-
-  /**
-   * Display search results or no-results message
-   */
-  private displaySearchResults(
-    filtered: SymbolResult[],
-    currentQuery: ParsedCodeQuery,
-    symbolTypeFilter: string | null
-  ): void {
-    if (filtered.length > 0) {
-      const langInfo = this.supportedLanguages.get(currentQuery.language);
-      this.suggestionUI.show(filtered, currentQuery, langInfo);
-    } else {
-      const filterDesc = symbolTypeFilter ? ` (${symbolTypeFilter})` : '';
-      this.callbacks.updateHintText(`No symbols found for "${currentQuery.query}"${filterDesc}`);
       this.suggestionUI.hide();
     }
   }

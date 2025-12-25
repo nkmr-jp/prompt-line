@@ -71,75 +71,46 @@ export class ShortcutHandler {
    * Returns true if shortcut was handled, false otherwise
    */
   public async handleKeyDown(e: KeyboardEvent): Promise<boolean> {
-    if (this.shouldSkipEvent(e)) {
+    // Skip if event originated from search input to avoid duplicate handling
+    const target = e.target as HTMLElement;
+    if (target && target.id === 'searchInput') {
       return false;
     }
 
-    return await this.processShortcut(e);
-  }
-
-  /**
-   * Check if event should be skipped
-   */
-  private shouldSkipEvent(e: KeyboardEvent): boolean {
-    const target = e.target as HTMLElement;
-    return target !== null && target.id === 'searchInput';
-  }
-
-  /**
-   * Process keyboard shortcut
-   */
-  private async processShortcut(e: KeyboardEvent): Promise<boolean> {
-    const target = e.target as HTMLElement;
-
-    if (this.handleMetaKeyShortcuts(e, target)) {
-      return true;
-    }
-
-    if (this.handleSpecialKeyShortcuts(e, target)) {
-      return true;
-    }
-
-    return await this.handleNavigationShortcuts(e);
-  }
-
-  private handleMetaKeyShortcuts(e: KeyboardEvent, _target: HTMLElement): boolean {
+    // Handle Cmd+Z for Undo
     if (e.key === 'z' && e.metaKey && !e.shiftKey) {
       return this.handleUndoShortcut(e);
     }
 
+    // Handle Cmd+Enter for paste action
     if (e.key === 'Enter' && e.metaKey) {
-      void this.handlePasteShortcut(e);
+      await this.handlePasteShortcut(e);
       return true;
     }
 
-    if (e.key === ',' && e.metaKey) {
-      void this.handleSettingsShortcut(e);
-      return true;
-    }
-
-    return false;
-  }
-
-  private handleSpecialKeyShortcuts(e: KeyboardEvent, target: HTMLElement): boolean {
+    // Handle Escape for hide window
     if (e.key === 'Escape') {
-      void this.handleEscapeKey(e);
-      return true;
+      return await this.handleEscapeKey(e);
     }
 
+    // Handle Tab for tab insertion
     if (e.key === 'Tab') {
       return this.handleTabKey(e, target);
     }
 
-    return false;
-  }
-
-  private async handleNavigationShortcuts(e: KeyboardEvent): Promise<boolean> {
+    // Handle history navigation shortcuts
     if (await this.handleHistoryNavigationShortcuts(e)) {
       return true;
     }
 
+    // Handle search shortcut
     if (this.handleSearchShortcut(e)) {
+      return true;
+    }
+
+    // Handle Cmd+, for opening settings
+    if (e.key === ',' && e.metaKey) {
+      await this.handleSettingsShortcut(e);
       return true;
     }
 
@@ -287,49 +258,42 @@ export class ShortcutHandler {
    * Handle history navigation shortcuts for use by other components
    */
   public handleHistoryNavigationShortcutsForComponent(e: KeyboardEvent, onNavigate: (direction: 'next' | 'prev') => void): boolean {
-    if (!this.canHandleHistoryNavigation()) {
-      return false;
-    }
-
-    return this.processHistoryNavigationShortcut(e, onNavigate);
-  }
-
-  private canHandleHistoryNavigation(): boolean {
     if (!this.userSettings?.shortcuts) {
       return false;
     }
 
+    // Skip if slash command menu is active (let slash command manager handle Ctrl+j/k)
     if (this.slashCommandManager?.isActiveMode()) {
       return false;
     }
 
+    // Skip if file search is active (let file search manager handle Ctrl+j/k)
     if (this.fileSearchManager?.isActive()) {
       return false;
     }
 
-    return true;
-  }
-
-  private processHistoryNavigationShortcut(e: KeyboardEvent, onNavigate: (direction: 'next' | 'prev') => void): boolean {
-    const shortcuts = this.userSettings!.shortcuts!;
-
-    if (matchesShortcutString(e, shortcuts.historyNext)) {
-      return this.executeNavigation(e, onNavigate, 'next');
+    // Check for historyNext shortcut
+    if (matchesShortcutString(e, this.userSettings.shortcuts.historyNext)) {
+      // Skip shortcut if IME is active to avoid conflicts with Japanese input
+      if (this.isComposing || e.isComposing) {
+        return false;
+      }
+      e.preventDefault();
+      onNavigate('next');
+      return true;
     }
 
-    if (matchesShortcutString(e, shortcuts.historyPrev)) {
-      return this.executeNavigation(e, onNavigate, 'prev');
+    // Check for historyPrev shortcut
+    if (matchesShortcutString(e, this.userSettings.shortcuts.historyPrev)) {
+      // Skip shortcut if IME is active to avoid conflicts with Japanese input
+      if (this.isComposing || e.isComposing) {
+        return false;
+      }
+      e.preventDefault();
+      onNavigate('prev');
+      return true;
     }
 
     return false;
-  }
-
-  private executeNavigation(e: KeyboardEvent, onNavigate: (direction: 'next' | 'prev') => void, direction: 'next' | 'prev'): boolean {
-    if (this.isComposing || e.isComposing) {
-      return false;
-    }
-    e.preventDefault();
-    onNavigate(direction);
-    return true;
   }
 }

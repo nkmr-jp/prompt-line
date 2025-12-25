@@ -17,50 +17,34 @@ const SENSITIVE_PATTERNS = [
 const SENSITIVE_KEYS = ['password', 'token', 'secret', 'apikey', 'api_key', 'authorization', 'bearer', 'auth'];
 
 /**
- * Masks sensitive patterns in a string
- */
-function maskStringData(data: string): string {
-  let masked = data;
-  for (const { pattern, replacement } of SENSITIVE_PATTERNS) {
-    masked = masked.replace(pattern, replacement);
-  }
-  return masked;
-}
-
-/**
- * Checks if a key name indicates sensitive data
- */
-function isSensitiveKey(key: string): boolean {
-  const lowerKey = key.toLowerCase();
-  return SENSITIVE_KEYS.some(k => lowerKey.includes(k));
-}
-
-/**
- * Masks sensitive data in objects
- */
-function maskObjectData(data: Record<string, unknown>): Record<string, unknown> {
-  const masked: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(data)) {
-    masked[key] = isSensitiveKey(key) ? '[MASKED]' : maskSensitiveData(value);
-  }
-  return masked;
-}
-
-/**
  * Masks sensitive data in strings and objects before logging
  * @param data - Data to mask (string, object, or primitive)
  * @returns Masked data with sensitive information replaced
  */
 export function maskSensitiveData(data: unknown): unknown {
   if (typeof data === 'string') {
-    return maskStringData(data);
+    let masked = data;
+    for (const { pattern, replacement } of SENSITIVE_PATTERNS) {
+      masked = masked.replace(pattern, replacement);
+    }
+    return masked;
   }
 
   if (typeof data === 'object' && data !== null) {
     if (Array.isArray(data)) {
       return data.map(item => maskSensitiveData(item));
     }
-    return maskObjectData(data as Record<string, unknown>);
+
+    const masked: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(data)) {
+      const lowerKey = key.toLowerCase();
+      if (SENSITIVE_KEYS.some(k => lowerKey.includes(k))) {
+        masked[key] = '[MASKED]';
+      } else {
+        masked[key] = maskSensitiveData(value);
+      }
+    }
+    return masked;
   }
 
   return data;

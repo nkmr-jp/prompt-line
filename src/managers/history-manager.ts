@@ -42,42 +42,31 @@ class HistoryManager implements IHistoryManager {
   private async loadHistory(): Promise<void> {
     try {
       const data = await fs.readFile(this.historyFile, 'utf8');
-      this.parseHistoryData(data);
+      const lines = data.trim().split('\n').filter(line => line.trim());
+      
+      this.historyData = [];
+      for (const line of lines) {
+        try {
+          const item = JSON.parse(line) as HistoryItem;
+          if (item && item.text && item.timestamp && item.id) {
+            this.historyData.push(item);
+          }
+        } catch {
+          logger.warn('Invalid JSONL line in history file:', line);
+        }
+      }
+      
+      this.historyData.sort((a, b) => b.timestamp - a.timestamp);
+      
       logger.debug(`Loaded ${this.historyData.length} history items from JSONL`);
     } catch (error) {
-      this.handleLoadHistoryError(error);
-    }
-  }
-
-  private parseHistoryData(data: string): void {
-    const lines = data.trim().split('\n').filter(line => line.trim());
-
-    this.historyData = [];
-    for (const line of lines) {
-      this.parseHistoryLine(line);
-    }
-
-    this.historyData.sort((a, b) => b.timestamp - a.timestamp);
-  }
-
-  private parseHistoryLine(line: string): void {
-    try {
-      const item = JSON.parse(line) as HistoryItem;
-      if (item && item.text && item.timestamp && item.id) {
-        this.historyData.push(item);
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        this.historyData = [];
+        logger.debug('History file not found, starting with empty history');
+      } else {
+        logger.error('Error loading history:', error);
+        throw error;
       }
-    } catch {
-      logger.warn('Invalid JSONL line in history file:', line);
-    }
-  }
-
-  private handleLoadHistoryError(error: unknown): void {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      this.historyData = [];
-      logger.debug('History file not found, starting with empty history');
-    } else {
-      logger.error('Error loading history:', error);
-      throw error;
     }
   }
 
@@ -125,61 +114,43 @@ class HistoryManager implements IHistoryManager {
         return null;
       }
 
-      if (!this.validateHistoryItemSize(trimmedText)) {
+      // サイズ制限を追加（1MB）
+      const MAX_HISTORY_ITEM_SIZE = 1024 * 1024; // 1MB
+      if (Buffer.byteLength(trimmedText, 'utf8') > MAX_HISTORY_ITEM_SIZE) {
+        logger.warn('History item too large, rejecting', {
+          size: Buffer.byteLength(trimmedText, 'utf8'),
+          limit: MAX_HISTORY_ITEM_SIZE
+        });
         return null;
       }
 
-      const historyItem = this.createHistoryItem(trimmedText, appName, directory);
-      this.addItemToData(historyItem);
+      this.historyData = this.historyData.filter(item => item.text !== trimmedText);
+
+      const historyItem: HistoryItem = {
+        text: trimmedText,
+        timestamp: Date.now(),
+        id: generateId(),
+        ...(appName && { appName }),
+        ...(directory && { directory })
+      };
+
+      this.historyData.unshift(historyItem);
+
       this.criticalSave();
 
-      this.logHistoryAddition(historyItem, appName, directory);
+      logger.debug('Added item to history (batch save queued):', {
+        id: historyItem.id,
+        length: trimmedText.length,
+        appName: appName || 'unknown',
+        directory: directory || 'unknown',
+        totalItems: this.historyData.length
+      });
 
       return historyItem;
     } catch (error) {
       logger.error('Failed to add item to history:', error);
       throw error;
     }
-  }
-
-  private validateHistoryItemSize(text: string): boolean {
-    const MAX_HISTORY_ITEM_SIZE = 1024 * 1024; // 1MB
-    const size = Buffer.byteLength(text, 'utf8');
-
-    if (size > MAX_HISTORY_ITEM_SIZE) {
-      logger.warn('History item too large, rejecting', {
-        size,
-        limit: MAX_HISTORY_ITEM_SIZE
-      });
-      return false;
-    }
-
-    return true;
-  }
-
-  private createHistoryItem(text: string, appName?: string, directory?: string): HistoryItem {
-    return {
-      text,
-      timestamp: Date.now(),
-      id: generateId(),
-      ...(appName && { appName }),
-      ...(directory && { directory })
-    };
-  }
-
-  private addItemToData(historyItem: HistoryItem): void {
-    this.historyData = this.historyData.filter(item => item.text !== historyItem.text);
-    this.historyData.unshift(historyItem);
-  }
-
-  private logHistoryAddition(historyItem: HistoryItem, appName?: string, directory?: string): void {
-    logger.debug('Added item to history (batch save queued):', {
-      id: historyItem.id,
-      length: historyItem.text.length,
-      appName: appName || 'unknown',
-      directory: directory || 'unknown',
-      totalItems: this.historyData.length
-    });
   }
 
   getHistory(limit?: number): HistoryItem[] {

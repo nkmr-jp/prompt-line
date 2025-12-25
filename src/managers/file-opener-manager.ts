@@ -97,48 +97,36 @@ export class FileOpenerManager {
    */
   private openWithApp(filePath: string, appName: string, options?: OpenFileOptions): Promise<OpenFileResult> {
     return new Promise((resolve) => {
-      if (!this.isValidAppName(appName)) {
+      // アプリ名の検証
+      if (!appName || typeof appName !== 'string') {
+        logger.warn('Invalid app name provided', { appName });
         this.openWithDefault(filePath).then(resolve);
         return;
       }
 
-      const editorConfig = EDITOR_CONFIGS[appName];
-      if (options?.lineNumber && editorConfig) {
-        this.handleLineNumberOpen(filePath, appName, editorConfig, options, resolve);
+      // パストラバーサルパターンの検出
+      if (appName.includes('..') || appName.includes('/')) {
+        logger.warn('Potentially malicious app name detected', { appName });
+        this.openWithDefault(filePath).then(resolve);
         return;
       }
 
+      // Check if we have a line number and the editor supports it
+      const editorConfig = EDITOR_CONFIGS[appName];
+      if (options?.lineNumber && editorConfig) {
+        this.openWithLineNumber(filePath, appName, editorConfig, options)
+          .then(resolve)
+          .catch(() => {
+            // Fallback to regular open if line number open fails
+            logger.warn('Line number open failed, falling back to regular open', { appName, filePath });
+            this.openWithAppSimple(filePath, appName).then(resolve);
+          });
+        return;
+      }
+
+      // No line number or unsupported editor - use simple open
       this.openWithAppSimple(filePath, appName).then(resolve);
     });
-  }
-
-  private isValidAppName(appName: string): boolean {
-    if (!appName || typeof appName !== 'string') {
-      logger.warn('Invalid app name provided', { appName });
-      return false;
-    }
-
-    if (appName.includes('..') || appName.includes('/')) {
-      logger.warn('Potentially malicious app name detected', { appName });
-      return false;
-    }
-
-    return true;
-  }
-
-  private handleLineNumberOpen(
-    filePath: string,
-    appName: string,
-    config: EditorConfig,
-    options: OpenFileOptions,
-    resolve: (value: OpenFileResult) => void
-  ): void {
-    this.openWithLineNumber(filePath, appName, config, options)
-      .then(resolve)
-      .catch(() => {
-        logger.warn('Line number open failed, falling back to regular open', { appName, filePath });
-        this.openWithAppSimple(filePath, appName).then(resolve);
-      });
   }
 
   /**
@@ -190,110 +178,90 @@ export class FileOpenerManager {
         config
       });
 
+      // macOS 'open -na <app> --args --line <line> file' method (for JetBrains IDEs)
       if (config.useOpenArgs) {
-        this.openWithJetBrainsArgs(filePath, appName, lineNumber).then(resolve).catch(reject);
+        // JetBrains IDEs use: --line <line> [--column <column>] file
+        const args = ['-na', appName, '--args', '--line', String(lineNumber), filePath];
+        logger.debug('Opening with open -na --args (JetBrains style)', { appName, args });
+        execFile('open', args, (error) => {
+          if (error) {
+            logger.warn('open -na --args failed', { error: error.message, appName, args });
+            reject(error);
+            return;
+          }
+          logger.info('File opened successfully with open -na --args', {
+            filePath,
+            lineNumber,
+            app: appName
+          });
+          resolve({ success: true });
+        });
         return;
       }
 
+      // JetBrains URL scheme
       if (config.urlScheme) {
-        this.openWithUrlScheme(filePath, appName, config.urlScheme, lineNumber).then(resolve).catch(reject);
+        // Use URL scheme: jetbrains://<ide>/navigate/reference?path=<file>&line=<line>
+        const url = `${config.urlScheme}://open?file=${encodeURIComponent(filePath)}&line=${lineNumber}`;
+        logger.debug('Opening with JetBrains URL scheme', { url });
+        execFile('open', [url], (error) => {
+          if (error) {
+            logger.warn('JetBrains URL scheme failed', { error: error.message, url });
+            reject(error);
+            return;
+          }
+          logger.info('File opened successfully with JetBrains URL scheme', {
+            filePath,
+            lineNumber,
+            app: appName
+          });
+          resolve({ success: true });
+        });
         return;
       }
 
+      // CLI-based editors
       if (config.cli) {
-        this.openWithCli(filePath, config.cli, config.lineFormat, lineNumber, columnNumber).then(resolve).catch(reject);
+        let args: string[];
+
+        switch (config.lineFormat) {
+          case 'goto':
+            // VSCode style: --goto file:line:column
+            args = ['--goto', `${filePath}:${lineNumber}:${columnNumber}`];
+            break;
+          case 'line':
+            // TextMate style: -l <line> <file>
+            args = ['-l', String(lineNumber), filePath];
+            break;
+          case 'colon':
+            // Sublime/Atom style: file:line:column
+            args = [`${filePath}:${lineNumber}:${columnNumber}`];
+            break;
+          default:
+            args = [filePath];
+        }
+
+        logger.debug('Opening with CLI', { cli: config.cli, args });
+
+        execFile(config.cli, args, (error) => {
+          if (error) {
+            logger.warn('CLI open failed', { error: error.message, cli: config.cli, args });
+            reject(error);
+            return;
+          }
+          logger.info('File opened successfully with CLI', {
+            filePath,
+            lineNumber,
+            cli: config.cli
+          });
+          resolve({ success: true });
+        });
         return;
       }
 
+      // No special handling available
       reject(new Error('No line number handling available for this editor'));
     });
-  }
-
-  private openWithJetBrainsArgs(filePath: string, appName: string, lineNumber: number): Promise<OpenFileResult> {
-    return new Promise((resolve, reject) => {
-      const args = ['-na', appName, '--args', '--line', String(lineNumber), filePath];
-      logger.debug('Opening with open -na --args (JetBrains style)', { appName, args });
-
-      execFile('open', args, (error) => {
-        if (error) {
-          logger.warn('open -na --args failed', { error: error.message, appName, args });
-          reject(error);
-          return;
-        }
-        logger.info('File opened successfully with open -na --args', {
-          filePath,
-          lineNumber,
-          app: appName
-        });
-        resolve({ success: true });
-      });
-    });
-  }
-
-  private openWithUrlScheme(filePath: string, appName: string, urlScheme: string, lineNumber: number): Promise<OpenFileResult> {
-    return new Promise((resolve, reject) => {
-      const url = `${urlScheme}://open?file=${encodeURIComponent(filePath)}&line=${lineNumber}`;
-      logger.debug('Opening with JetBrains URL scheme', { url });
-
-      execFile('open', [url], (error) => {
-        if (error) {
-          logger.warn('JetBrains URL scheme failed', { error: error.message, url });
-          reject(error);
-          return;
-        }
-        logger.info('File opened successfully with JetBrains URL scheme', {
-          filePath,
-          lineNumber,
-          app: appName
-        });
-        resolve({ success: true });
-      });
-    });
-  }
-
-  private openWithCli(
-    filePath: string,
-    cli: string,
-    lineFormat: EditorConfig['lineFormat'],
-    lineNumber: number,
-    columnNumber: number
-  ): Promise<OpenFileResult> {
-    return new Promise((resolve, reject) => {
-      const args = this.buildCliArgs(filePath, lineFormat, lineNumber, columnNumber);
-      logger.debug('Opening with CLI', { cli, args });
-
-      execFile(cli, args, (error) => {
-        if (error) {
-          logger.warn('CLI open failed', { error: error.message, cli, args });
-          reject(error);
-          return;
-        }
-        logger.info('File opened successfully with CLI', {
-          filePath,
-          lineNumber,
-          cli
-        });
-        resolve({ success: true });
-      });
-    });
-  }
-
-  private buildCliArgs(
-    filePath: string,
-    lineFormat: EditorConfig['lineFormat'],
-    lineNumber: number,
-    columnNumber: number
-  ): string[] {
-    switch (lineFormat) {
-      case 'goto':
-        return ['--goto', `${filePath}:${lineNumber}:${columnNumber}`];
-      case 'line':
-        return ['-l', String(lineNumber), filePath];
-      case 'colon':
-        return [`${filePath}:${lineNumber}:${columnNumber}`];
-      default:
-        return [filePath];
-    }
   }
 
   /**

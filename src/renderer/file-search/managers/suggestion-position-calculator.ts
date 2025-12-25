@@ -36,145 +36,71 @@ export class SuggestionPositionCalculator {
 
     if (!suggestionsContainer || !textInput || atPosition < 0) return;
 
-    const coordinates = this.getCaretCoordinates(textInput, atPosition);
-    if (!coordinates) return;
-
-    const mainContentRect = this.getMainContentRect();
-    if (!mainContentRect) return;
-
-    this.applyPositioning(suggestionsContainer, coordinates, mainContentRect);
-  }
-
-  /**
-   * Get caret coordinates
-   */
-  private getCaretCoordinates(
-    textInput: HTMLTextAreaElement,
-    atPosition: number
-  ): { top: number; left: number } | null {
     if (!this.mirrorDiv) {
       this.mirrorDiv = createMirrorDiv();
     }
 
-    return getCaretCoordinates(textInput, this.mirrorDiv, atPosition);
-  }
+    // Get caret position
+    const coordinates = getCaretCoordinates(textInput, this.mirrorDiv, atPosition);
+    if (!coordinates) return;
 
-  /**
-   * Get main content rectangle
-   */
-  private getMainContentRect(): DOMRect | null {
-    const mainContent = document.querySelector('.main-content');
-    return mainContent ? mainContent.getBoundingClientRect() : null;
-  }
-
-  /**
-   * Apply positioning to container
-   */
-  private applyPositioning(
-    container: HTMLElement,
-    coordinates: { top: number; left: number },
-    mainContentRect: DOMRect
-  ): void {
     const { top: caretTop, left: caretLeft } = coordinates;
+
+    // Get main-content bounds for positioning
+    const mainContent = document.querySelector('.main-content');
+    if (!mainContent) return;
+
+    const mainContentRect = mainContent.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
 
-    const { showAbove, availableHeight } = this.calculateVerticalPosition(
-      caretTop,
-      mainContentRect.top,
-      viewportHeight
-    );
-
-    const { top, maxHeight } = this.calculateTopAndHeight(
-      caretTop,
-      showAbove,
-      availableHeight,
-      container
-    );
-
-    const { left, maxWidth } = this.calculateLeftAndWidth(
-      caretLeft,
-      mainContentRect.width
-    );
-
-    this.applyStyles(container, top, left, maxHeight, maxWidth);
-  }
-
-  /**
-   * Calculate vertical position (above or below)
-   */
-  private calculateVerticalPosition(
-    caretTop: number,
-    mainContentTop: number,
-    viewportHeight: number
-  ): { showAbove: boolean; availableHeight: number } {
-    const spaceBelow = viewportHeight - caretTop - 20;
-    const spaceAbove = caretTop - mainContentTop;
+    // Calculate available space
+    const spaceBelow = viewportHeight - caretTop - 20; // 20px for line height
+    const spaceAbove = caretTop - mainContentRect.top;
     const showAbove = spaceBelow < 200 && spaceAbove > spaceBelow;
+
+    // Calculate position
+    let top: number;
+    let left = caretLeft;
     const availableHeight = showAbove ? spaceAbove - 8 : spaceBelow - 8;
 
-    return { showAbove, availableHeight };
-  }
-
-  /**
-   * Calculate top position and max height
-   */
-  private calculateTopAndHeight(
-    caretTop: number,
-    showAbove: boolean,
-    availableHeight: number,
-    container: HTMLElement
-  ): { top: number; maxHeight: number } {
-    const maxHeight = Math.max(100, availableHeight);
-
     if (!showAbove) {
-      return { top: caretTop + 20, maxHeight };
+      top = caretTop + 20; // Below cursor
+    } else {
+      // Will be calculated after setting max-height
+      top = 0;
     }
 
-    const menuHeight = Math.min(container.scrollHeight || maxHeight, maxHeight);
-    const top = Math.max(0, caretTop - menuHeight - 4);
+    // Set dynamic max-height based on available space
+    const dynamicMaxHeight = Math.max(100, availableHeight);
+    suggestionsContainer.style.maxHeight = `${dynamicMaxHeight}px`;
 
-    return { top, maxHeight };
-  }
+    // If showing above, calculate top position
+    if (showAbove) {
+      const menuHeight = Math.min(suggestionsContainer.scrollHeight || dynamicMaxHeight, dynamicMaxHeight);
+      top = caretTop - menuHeight - 4;
+      if (top < 0) top = 0;
+    }
 
-  /**
-   * Calculate left position and max width
-   */
-  private calculateLeftAndWidth(
-    caretLeft: number,
-    mainContentWidth: number
-  ): { left: number; maxWidth: number } {
+    // Calculate dynamic max-width and adjust left position
+    // minMenuWidth = 500 for readable descriptions
     const minMenuWidth = 500;
     const rightMargin = 8;
-    let availableWidth = mainContentWidth - caretLeft - rightMargin;
-    let adjustedLeft = caretLeft;
+    let availableWidth = mainContentRect.width - left - rightMargin;
+    let adjustedLeft = left;
 
     if (availableWidth < minMenuWidth) {
       const shiftAmount = minMenuWidth - availableWidth;
-      adjustedLeft = Math.max(8, caretLeft - shiftAmount);
-      availableWidth = mainContentWidth - adjustedLeft - rightMargin;
+      adjustedLeft = Math.max(8, left - shiftAmount);
+      availableWidth = mainContentRect.width - adjustedLeft - rightMargin;
     }
 
-    const maxWidth = Math.max(minMenuWidth, availableWidth);
+    const dynamicMaxWidth = Math.max(minMenuWidth, availableWidth);
+    suggestionsContainer.style.maxWidth = `${dynamicMaxWidth}px`;
 
-    return { left: adjustedLeft, maxWidth };
-  }
-
-  /**
-   * Apply calculated styles to container
-   */
-  private applyStyles(
-    container: HTMLElement,
-    top: number,
-    left: number,
-    maxHeight: number,
-    maxWidth: number
-  ): void {
-    container.style.maxHeight = `${maxHeight}px`;
-    container.style.maxWidth = `${maxWidth}px`;
-    container.style.top = `${top}px`;
-    container.style.left = `${left}px`;
-    container.style.right = 'auto';
-    container.style.bottom = 'auto';
+    suggestionsContainer.style.top = `${top}px`;
+    suggestionsContainer.style.left = `${adjustedLeft}px`;
+    suggestionsContainer.style.right = 'auto';
+    suggestionsContainer.style.bottom = 'auto';
   }
 
   /**

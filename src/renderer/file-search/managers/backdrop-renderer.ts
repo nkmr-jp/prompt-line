@@ -70,33 +70,25 @@ export class BackdropRenderer {
   public renderHighlightBackdropWithCursor(): void {
     if (!this.highlightBackdrop || !this.textInput) return;
 
+    const text = this.callbacks.getTextContent();
+    const atPaths = this.callbacks.getAtPaths();
     const hoveredPath = this.callbacks.getHoveredPath();
+
+    // If there's an active Cmd+hover, use the full link style rendering
     if (hoveredPath) {
       this.renderFilePathHighlight();
       return;
     }
 
-    const text = this.callbacks.getTextContent();
-    const allHighlightRanges = this.collectCursorHighlightRanges();
-
-    const fragment = this.buildCursorHighlightFragment(text, allHighlightRanges);
-    this.replaceBackdropContent(fragment);
-    this.syncBackdropScroll();
-  }
-
-  /**
-   * Collect all highlight ranges for cursor mode
-   */
-  private collectCursorHighlightRanges(): Array<AtPathRange & { isAtPath: boolean; isCursorHighlight: boolean }> {
-    const atPaths = this.callbacks.getAtPaths();
+    // Collect all highlight ranges: @paths and cursor position (for absolute paths only)
     const allHighlightRanges: Array<AtPathRange & { isAtPath: boolean; isCursorHighlight: boolean }> = [];
 
-    // Add @paths
+    // Add @paths (no cursor highlight for @paths - they have their own style)
     for (const atPath of atPaths) {
       allHighlightRanges.push({ ...atPath, isAtPath: true, isCursorHighlight: false });
     }
 
-    // Add cursor position path if not already an @path
+    // Add cursor position path if it's not already an @path
     const cursorPositionPath = this.callbacks.getCursorPositionPath();
     if (cursorPositionPath) {
       const isAlreadyAtPath = atPaths.some(
@@ -107,25 +99,20 @@ export class BackdropRenderer {
       }
     }
 
+    // Sort by start position
     allHighlightRanges.sort((a, b) => a.start - b.start);
-    return allHighlightRanges;
-  }
 
-  /**
-   * Build fragment for cursor highlight mode
-   */
-  private buildCursorHighlightFragment(
-    text: string,
-    ranges: Array<AtPathRange & { isAtPath: boolean; isCursorHighlight: boolean }>
-  ): DocumentFragment {
+    // Build highlighted content
     const fragment = document.createDocumentFragment();
     let lastEnd = 0;
 
-    for (const range of ranges) {
+    for (const range of allHighlightRanges) {
+      // Add text before this range
       if (range.start > lastEnd) {
         fragment.appendChild(document.createTextNode(text.substring(lastEnd, range.start)));
       }
 
+      // Add highlighted range
       const span = document.createElement('span');
       if (range.isAtPath) {
         span.className = 'at-path-highlight';
@@ -138,11 +125,19 @@ export class BackdropRenderer {
       lastEnd = range.end;
     }
 
+    // Add remaining text
     if (lastEnd < text.length) {
       fragment.appendChild(document.createTextNode(text.substring(lastEnd)));
     }
 
-    return fragment;
+    // Clear existing content using DOM methods (avoid innerHTML for security)
+    while (this.highlightBackdrop.firstChild) {
+      this.highlightBackdrop.removeChild(this.highlightBackdrop.firstChild);
+    }
+    this.highlightBackdrop.appendChild(fragment);
+
+    // Sync scroll
+    this.syncBackdropScroll();
   }
 
   /**
@@ -152,27 +147,17 @@ export class BackdropRenderer {
     if (!this.highlightBackdrop || !this.textInput) return;
 
     const text = this.callbacks.getTextContent();
+    const atPaths = this.callbacks.getAtPaths();
     const hoveredPath = this.callbacks.getHoveredPath();
 
     if (!hoveredPath) return;
 
-    const allHighlightRanges = this.collectLinkHighlightRanges(hoveredPath);
-    const fragment = this.buildLinkHighlightFragment(text, allHighlightRanges);
-    this.replaceBackdropContent(fragment);
-    this.syncBackdropScroll();
-  }
-
-  /**
-   * Collect all highlight ranges for link mode
-   */
-  private collectLinkHighlightRanges(
-    hoveredPath: AtPathRange
-  ): Array<AtPathRange & { isAtPath: boolean; isHovered: boolean }> {
-    const atPaths = this.callbacks.getAtPaths();
+    // Check if hoveredPath is an @path or an absolute path
     const isHoveredAtPathInAtPaths = atPaths.some(
       ap => ap.start === hoveredPath.start && ap.end === hoveredPath.end
     );
 
+    // Merge @paths and hoveredPath (if it's an absolute path not in atPaths)
     const allHighlightRanges: Array<AtPathRange & { isAtPath: boolean; isHovered: boolean }> = [];
 
     // Add @paths
@@ -183,34 +168,31 @@ export class BackdropRenderer {
       allHighlightRanges.push({ ...atPath, isAtPath: true, isHovered: !!isHovered });
     }
 
-    // Add hovered path if not an @path
+    // Add hovered path if it's not an @path
     if (!isHoveredAtPathInAtPaths) {
       allHighlightRanges.push({ ...hoveredPath, isAtPath: false, isHovered: true });
     }
 
+    // Sort by start position
     allHighlightRanges.sort((a, b) => a.start - b.start);
-    return allHighlightRanges;
-  }
 
-  /**
-   * Build fragment for link highlight mode
-   */
-  private buildLinkHighlightFragment(
-    text: string,
-    ranges: Array<AtPathRange & { isAtPath: boolean; isHovered: boolean }>
-  ): DocumentFragment {
+    // Build highlighted content with link style
     const fragment = document.createDocumentFragment();
     let lastEnd = 0;
 
-    for (const range of ranges) {
+    for (const range of allHighlightRanges) {
+      // Add text before this range
       if (range.start > lastEnd) {
         fragment.appendChild(document.createTextNode(text.substring(lastEnd, range.start)));
       }
 
+      // Add highlighted range
       const span = document.createElement('span');
       if (range.isHovered) {
+        // Apply link style
         span.className = range.isAtPath ? 'at-path-highlight file-path-link' : 'file-path-link';
       } else {
+        // Just @path highlight
         span.className = 'at-path-highlight';
       }
       span.textContent = text.substring(range.start, range.end);
@@ -219,21 +201,19 @@ export class BackdropRenderer {
       lastEnd = range.end;
     }
 
+    // Add remaining text
     if (lastEnd < text.length) {
       fragment.appendChild(document.createTextNode(text.substring(lastEnd)));
     }
 
-    return fragment;
-  }
-
-  /**
-   * Replace backdrop content safely
-   */
-  private replaceBackdropContent(fragment: DocumentFragment): void {
+    // Clear existing content using DOM methods (avoid innerHTML for security)
     while (this.highlightBackdrop.firstChild) {
       this.highlightBackdrop.removeChild(this.highlightBackdrop.firstChild);
     }
     this.highlightBackdrop.appendChild(fragment);
+
+    // Sync scroll
+    this.syncBackdropScroll();
   }
 
   /**

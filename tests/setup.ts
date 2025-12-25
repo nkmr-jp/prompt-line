@@ -82,31 +82,21 @@ jest.mock('electron', () => ({
     }
 }));
 
-// Helper functions for child_process mocks
-function mockExecCallback(
-    _command: string,
-    callback: (error: Error | null, stdout?: string) => void
-): void {
-    callback(null, 'mocked output');
-}
-
-function mockExecFileCallback(
-    _file: string,
-    _args: string[],
-    _options: unknown,
-    callback: (error: Error | null, stdout?: string, stderr?: string) => void
-): void {
-    if (typeof _options === 'function') {
-        (_options as (error: Error | null, stdout?: string, stderr?: string) => void)(null, 'mocked output', '');
-    } else if (callback) {
-        callback(null, 'mocked output', '');
-    }
-}
-
 // Mock child_process for platform-specific operations
 jest.mock('child_process', () => ({
-    exec: jest.fn(mockExecCallback),
-    execFile: jest.fn(mockExecFileCallback)
+    exec: jest.fn((_command: string, callback: (error: Error | null, stdout?: string) => void) => {
+        // Mock successful execution
+        callback(null, 'mocked output');
+    }),
+    execFile: jest.fn((_file: string, _args: string[], _options: unknown, callback: (error: Error | null, stdout?: string, stderr?: string) => void) => {
+        // Mock successful execution
+        if (typeof _options === 'function') {
+            // Handle case where options is omitted and callback is in options position
+            (_options as (error: Error | null, stdout?: string, stderr?: string) => void)(null, 'mocked output', '');
+        } else if (callback) {
+            callback(null, 'mocked output', '');
+        }
+    })
 }));
 
 // Mock fs/promises for file operations

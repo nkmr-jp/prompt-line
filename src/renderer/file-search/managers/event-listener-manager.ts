@@ -70,95 +70,57 @@ export class EventListenerManager {
 
     console.debug('[EventListenerManager] setupEventListeners: setting up event listeners');
 
-    this.setupInputListeners();
-    this.setupKeyboardListeners();
-    this.setupCursorListeners();
-    this.setupScrollListeners();
-    this.setupBlurListeners();
-    this.setupClickListeners();
-    this.setupMouseListeners();
-    this.setupCmdKeyListeners();
-  }
-
-  /**
-   * Setup input event listeners for file search and highlight updates
-   */
-  private setupInputListeners(): void {
-    this.textInput?.addEventListener('input', () => {
+    // Listen for input changes to detect @ mentions and update highlights
+    this.textInput.addEventListener('input', () => {
       console.debug('[EventListenerManager] input event fired');
       this.callbacks.checkForFileSearch();
       this.callbacks.updateHighlightBackdrop();
+      // Update cursor position highlight after input
       this.callbacks.updateCursorPositionHighlight();
     });
-  }
 
-  /**
-   * Setup keyboard event listeners for navigation and shortcuts
-   */
-  private setupKeyboardListeners(): void {
-    this.textInput?.addEventListener('keydown', (e) => {
+    // Listen for keydown for navigation and backspace handling
+    this.textInput.addEventListener('keydown', (e) => {
       if (this.callbacks.isVisible()) {
         this.callbacks.handleKeyDown(e);
-      } else if (this.isBackspaceForAtPath(e)) {
+      } else if (e.key === 'Backspace') {
+        // Don't override Shift+Backspace or when text is selected
+        if (e.shiftKey) return;
+        if (this.textInput && this.textInput.selectionStart !== this.textInput.selectionEnd) return;
+        // Handle backspace to delete entire @path if cursor is at the end of one
         this.callbacks.handleBackspaceForAtPath(e);
       } else if (e.key === 'Enter' && e.ctrlKey) {
+        // Ctrl+Enter: open file at cursor position
         this.callbacks.handleCtrlEnterOpenFile(e);
       }
     });
 
-    this.textInput?.addEventListener('keyup', (e) => {
-      if (this.isCursorMovementKey(e.key)) {
-        this.callbacks.updateCursorPositionHighlight();
-      }
-    });
-  }
-
-  /**
-   * Check if event is backspace for @path deletion
-   */
-  private isBackspaceForAtPath(e: KeyboardEvent): boolean {
-    if (e.key !== 'Backspace') return false;
-    if (e.shiftKey) return false;
-    if (this.textInput && this.textInput.selectionStart !== this.textInput.selectionEnd) return false;
-    return true;
-  }
-
-  /**
-   * Check if key is a cursor movement key
-   */
-  private isCursorMovementKey(key: string): boolean {
-    return ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(key);
-  }
-
-  /**
-   * Setup cursor position tracking listeners
-   */
-  private setupCursorListeners(): void {
-    this.textInput?.addEventListener('click', () => {
+    // Listen for cursor position changes (click, arrow keys)
+    this.textInput.addEventListener('click', () => {
       this.callbacks.updateCursorPositionHighlight();
     });
 
+    this.textInput.addEventListener('keyup', (e) => {
+      // Update on arrow keys that move cursor
+      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) {
+        this.callbacks.updateCursorPositionHighlight();
+      }
+    });
+
+    // Also listen for selectionchange on document (handles all cursor movements)
     document.addEventListener('selectionchange', () => {
       if (document.activeElement === this.textInput) {
         this.callbacks.updateCursorPositionHighlight();
       }
     });
-  }
 
-  /**
-   * Setup scroll synchronization listeners
-   */
-  private setupScrollListeners(): void {
-    this.textInput?.addEventListener('scroll', () => {
+    // Sync scroll position between textarea and backdrop
+    this.textInput.addEventListener('scroll', () => {
       this.callbacks.syncBackdropScroll();
     });
-  }
 
-  /**
-   * Setup blur and click-outside listeners
-   */
-  private setupBlurListeners(): void {
-    this.textInput?.addEventListener('blur', () => {
+    // Hide suggestions on blur (with small delay to allow click selection)
+    this.textInput.addEventListener('blur', () => {
       setTimeout(() => {
         if (!this.suggestionsContainer?.contains(document.activeElement)) {
           this.callbacks.hideSuggestions();
@@ -166,6 +128,7 @@ export class EventListenerManager {
       }, 150);
     });
 
+    // Handle click outside
     document.addEventListener('click', (e) => {
       if (this.callbacks.isVisible() &&
           !this.suggestionsContainer?.contains(e.target as Node) &&
@@ -173,49 +136,43 @@ export class EventListenerManager {
         this.callbacks.hideSuggestions();
       }
     });
-  }
 
-  /**
-   * Setup click event listeners for @path interaction
-   */
-  private setupClickListeners(): void {
-    this.textInput?.addEventListener('click', (e) => {
+    // Handle Cmd+click on @path in textarea to open in editor
+    this.textInput.addEventListener('click', (e) => {
       if (e.metaKey) {
         this.callbacks.handleCmdClickOnAtPath(e);
       }
     });
-  }
 
-  /**
-   * Setup mouse event listeners for @path hover effects
-   */
-  private setupMouseListeners(): void {
-    this.textInput?.addEventListener('mousemove', (e) => {
+    // Handle Cmd+hover for link style on @paths
+    this.textInput.addEventListener('mousemove', (e) => {
       this.callbacks.handleMouseMove(e);
     });
 
-    this.textInput?.addEventListener('mouseleave', () => {
+    // Clear link style when mouse leaves textarea
+    this.textInput.addEventListener('mouseleave', () => {
+      // Delegate to HighlightManager
       this.callbacks.clearFilePathHighlight();
     });
-  }
 
-  /**
-   * Setup Cmd key listeners for link style effects
-   */
-  private setupCmdKeyListeners(): void {
+    // Handle Cmd key press/release for link style
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Meta') {
+        // Delegate to HighlightManager
         this.callbacks.onCmdKeyDown();
       }
     });
 
     document.addEventListener('keyup', (e) => {
       if (e.key === 'Meta') {
+        // Delegate to HighlightManager
         this.callbacks.onCmdKeyUp();
       }
     });
 
+    // Clear on window blur (Cmd key release detection may fail)
     window.addEventListener('blur', () => {
+      // Delegate to HighlightManager
       this.callbacks.onCmdKeyUp();
     });
   }

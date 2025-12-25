@@ -11,7 +11,7 @@
  */
 
 import type { SuggestionItem, DirectoryData } from '../types';
-import type { AgentItem, FileInfo } from '../../../types';
+import type { AgentItem } from '../../../types';
 
 export interface SuggestionStateCallbacks {
   // State getters
@@ -19,7 +19,7 @@ export interface SuggestionStateCallbacks {
   getAtStartPosition: () => number;
   getCurrentPath: () => string;
   getCurrentQuery: () => string;
-  getFilteredFiles: () => FileInfo[];
+  getFilteredFiles: () => unknown[];
   getFilteredAgents: () => AgentItem[];
   getMergedSuggestions: () => SuggestionItem[];
   getSelectedIndex: () => number;
@@ -27,7 +27,7 @@ export interface SuggestionStateCallbacks {
   // State setters
   setCurrentPath: (path: string) => void;
   setCurrentQuery: (query: string) => void;
-  setFilteredFiles: (files: FileInfo[]) => void;
+  setFilteredFiles: (files: unknown[]) => void;
   setFilteredAgents: (agents: AgentItem[]) => void;
   setMergedSuggestions: (suggestions: SuggestionItem[]) => void;
   setSelectedIndex: (index: number) => void;
@@ -35,7 +35,7 @@ export interface SuggestionStateCallbacks {
 
   // Operations
   adjustCurrentPathToQuery: (query: string) => void;
-  filterFiles: (query: string) => FileInfo[];
+  filterFiles: (query: string) => unknown[];
   mergeSuggestions: (query: string, maxSuggestions?: number) => SuggestionItem[];
   searchAgents: (query: string) => Promise<AgentItem[]>;
   isIndexBeingBuilt: () => boolean;
@@ -59,82 +59,43 @@ export class SuggestionStateManager {
    * Show file suggestions based on the query
    */
   public async showSuggestions(query: string): Promise<void> {
-    this.logShowSuggestionsStart(query);
-
-    const matchesPrefix = await this.callbacks.matchesSearchPrefix(query, 'mention');
-    this.updateCurrentPath(query, matchesPrefix);
-
-    const searchTerm = this.extractSearchTerm(query);
-    this.callbacks.setCurrentQuery(searchTerm);
-
-    await this.fetchAndFilterData(searchTerm, matchesPrefix);
-
-    const merged = await this.mergeAndPrepareSuggestions(searchTerm);
-    const isIndexBuilding = this.callbacks.isIndexBeingBuilt();
-
-    this.updateVisibilityAndHints(isIndexBuilding, matchesPrefix);
-    this.logShowSuggestionsFiltered(searchTerm, merged, isIndexBuilding, matchesPrefix);
-
-    this.renderSuggestions(merged, isIndexBuilding && !matchesPrefix);
-
-    this.logShowSuggestionsComplete();
-  }
-
-  /**
-   * Log start of showSuggestions
-   */
-  private logShowSuggestionsStart(query: string): void {
     console.debug('[SuggestionStateManager] showSuggestions called', {
       query,
       currentPath: this.callbacks.getCurrentPath(),
       hasCachedData: !!this.callbacks.getCachedDirectoryData()
     });
-  }
 
-  /**
-   * Update current path based on query and prefix match
-   */
-  private updateCurrentPath(query: string, matchesPrefix: boolean): void {
+    // Check if query matches any searchPrefix for mention type
+    // If so, skip file search and only show agents
+    const matchesPrefix = await this.callbacks.matchesSearchPrefix(query, 'mention');
+
+    // Adjust currentPath based on query
+    // Skip path navigation when searchPrefix is matched (agents don't use paths)
     if (!matchesPrefix) {
       this.callbacks.adjustCurrentPathToQuery(query);
     } else {
       this.callbacks.setCurrentPath('');
     }
-  }
 
-  /**
-   * Extract search term from query
-   */
-  private extractSearchTerm(query: string): string {
+    // Extract search term (part after currentPath)
     const currentPath = this.callbacks.getCurrentPath();
-    return currentPath ? query.substring(currentPath.length) : query;
-  }
+    const searchTerm = currentPath ? query.substring(currentPath.length) : query;
 
-  /**
-   * Fetch agents and filter files
-   */
-  private async fetchAndFilterData(searchTerm: string, matchesPrefix: boolean): Promise<void> {
-    await this.fetchAgents(searchTerm);
-    this.filterFiles(searchTerm, matchesPrefix);
-  }
+    this.callbacks.setCurrentQuery(searchTerm);
 
-  /**
-   * Fetch agents if at root level
-   */
-  private async fetchAgents(searchTerm: string): Promise<void> {
-    const currentPath = this.callbacks.getCurrentPath();
+    // Fetch agents matching the query (only at root level without path navigation)
     if (!currentPath) {
       const agents = await this.callbacks.searchAgents(searchTerm);
       this.callbacks.setFilteredAgents(agents);
     } else {
       this.callbacks.setFilteredAgents([]);
     }
-  }
 
-  /**
-   * Filter files based on search term
-   */
-  private filterFiles(searchTerm: string, matchesPrefix: boolean): void {
+    // Check if index is being built
+    const isIndexBuilding = this.callbacks.isIndexBeingBuilt();
+
+    // Filter files if directory data is available
+    // Skip file search when searchPrefix is matched (show only agents)
     if (matchesPrefix) {
       this.callbacks.setFilteredFiles([]);
     } else if (this.callbacks.getCachedDirectoryData()) {
@@ -143,39 +104,22 @@ export class SuggestionStateManager {
     } else {
       this.callbacks.setFilteredFiles([]);
     }
-  }
 
-  /**
-   * Merge suggestions and prepare for display
-   */
-  private async mergeAndPrepareSuggestions(searchTerm: string): Promise<SuggestionItem[]> {
+    // Get maxSuggestions setting for merged list
     const maxSuggestions = await this.callbacks.getMaxSuggestions('mention');
+
+    // Merge files and agents into a single sorted list
     const merged = this.callbacks.mergeSuggestions(searchTerm, maxSuggestions);
     this.callbacks.setMergedSuggestions(merged);
-    return merged;
-  }
 
-  /**
-   * Update visibility and hints
-   */
-  private updateVisibilityAndHints(isIndexBuilding: boolean, matchesPrefix: boolean): void {
     this.callbacks.setSelectedIndex(0);
     this.callbacks.setIsVisible(true);
 
+    // Show indexing hint if index is being built (not relevant when prefix matched)
     if (isIndexBuilding && !matchesPrefix) {
       this.callbacks.showIndexingHint();
     }
-  }
 
-  /**
-   * Log filtered results
-   */
-  private logShowSuggestionsFiltered(
-    searchTerm: string,
-    merged: SuggestionItem[],
-    isIndexBuilding: boolean,
-    matchesPrefix: boolean
-  ): void {
     console.debug('[SuggestionStateManager] showSuggestions: filtered', {
       agents: this.callbacks.getFilteredAgents().length,
       files: this.callbacks.getFilteredFiles().length,
@@ -184,20 +128,14 @@ export class SuggestionStateManager {
       isIndexBuilding,
       matchesPrefix
     });
-  }
 
-  /**
-   * Render suggestions and update tooltip
-   */
-  private renderSuggestions(merged: SuggestionItem[], showPath: boolean): void {
-    this.callbacks.showSuggestionList(merged, this.callbacks.getAtStartPosition(), showPath);
+    // Delegate rendering and positioning to SuggestionListManager
+    // Use show() for initial display (includes positioning) instead of update()
+    this.callbacks.showSuggestionList(merged, this.callbacks.getAtStartPosition(), isIndexBuilding && !matchesPrefix);
+
+    // Update popup tooltip for selected item
     this.callbacks.showTooltipForSelectedItem();
-  }
 
-  /**
-   * Log completion of showSuggestions
-   */
-  private logShowSuggestionsComplete(): void {
     console.debug('[SuggestionStateManager] showSuggestions: render complete, isVisible:', true);
   }
 

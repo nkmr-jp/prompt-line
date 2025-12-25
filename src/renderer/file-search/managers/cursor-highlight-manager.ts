@@ -54,117 +54,78 @@ export class CursorHighlightManager {
     const text = this.callbacks.getTextContent();
     const cursorPos = this.callbacks.getCursorPosition();
 
-    if (this.tryHandleAtPath(text, cursorPos)) return;
-    if (this.tryHandleUrl(text, cursorPos)) return;
-    if (this.tryHandleSlashCommand(text, cursorPos)) return;
-    this.handleAbsolutePathOrNone(text, cursorPos);
-  }
-
-  /**
-   * Try to handle @path at cursor position
-   */
-  private tryHandleAtPath(text: string, cursorPos: number): boolean {
+    // First check if cursor is on an @path - still show hint but no extra highlight
     const atPath = findAtPathAtPosition(text, cursorPos);
-    if (!atPath) return false;
+    if (atPath) {
+      // Show hint for @path too
+      this.showFileOpenHint();
+      if (this.cursorPositionPath) {
+        this.cursorPositionPath = null;
+        this.callbacks.renderHighlightBackdrop();
+      }
+      return;
+    }
 
-    this.handleAtPathHighlight();
-    return true;
-  }
-
-  /**
-   * Try to handle URL at cursor position
-   */
-  private tryHandleUrl(text: string, cursorPos: number): boolean {
+    // Check if cursor is on a URL
     const url = findUrlAtPosition(text, cursorPos);
-    if (!url) return false;
+    if (url) {
+      // Show hint for URL
+      this.showUrlOpenHint();
+      const newRange: AtPathRange = { start: url.start, end: url.end };
+      // Only update if position changed
+      if (!this.cursorPositionPath ||
+          this.cursorPositionPath.start !== newRange.start ||
+          this.cursorPositionPath.end !== newRange.end) {
+        this.cursorPositionPath = newRange;
+        this.callbacks.renderHighlightBackdrop();
+      }
+      return;
+    }
 
-    this.handleUrlHighlight(url);
-    return true;
-  }
+    // Check if cursor is on a slash command (only if command type is enabled)
+    if (this.callbacks.isCommandEnabledSync?.()) {
+      const slashCommand = findSlashCommandAtPosition(text, cursorPos);
+      if (slashCommand) {
+        // Show hint for slash command
+        this.showSlashCommandOpenHint();
+        const newRange: AtPathRange = { start: slashCommand.start, end: slashCommand.end };
+        // Only update if position changed
+        if (!this.cursorPositionPath ||
+            this.cursorPositionPath.start !== newRange.start ||
+            this.cursorPositionPath.end !== newRange.end) {
+          this.cursorPositionPath = newRange;
+          this.callbacks.renderHighlightBackdrop();
+        }
+        return;
+      }
+    }
 
-  /**
-   * Try to handle slash command at cursor position
-   */
-  private tryHandleSlashCommand(text: string, cursorPos: number): boolean {
-    if (!this.callbacks.isCommandEnabledSync?.()) return false;
-
-    const slashCommand = findSlashCommandAtPosition(text, cursorPos);
-    if (!slashCommand) return false;
-
-    this.handleSlashCommandHighlight(slashCommand);
-    return true;
-  }
-
-  /**
-   * Handle absolute path or no path at cursor position
-   */
-  private handleAbsolutePathOrNone(text: string, cursorPos: number): void {
+    // Find absolute path at cursor position (paths starting with / or ~)
     const absolutePath = findAbsolutePathAtPosition(text, cursorPos);
+
     if (absolutePath) {
-      this.handleAbsolutePathHighlight(text, cursorPos);
+      // Show hint for absolute path
+      this.showFileOpenHint();
+      // Get the range for the absolute path
+      const pathInfo = findClickablePathAtPosition(text, cursorPos);
+      if (pathInfo && !pathInfo.path.startsWith('@')) {
+        const newRange: AtPathRange = { start: pathInfo.start, end: pathInfo.end };
+        // Only update if position changed
+        if (!this.cursorPositionPath ||
+            this.cursorPositionPath.start !== newRange.start ||
+            this.cursorPositionPath.end !== newRange.end) {
+          this.cursorPositionPath = newRange;
+          this.callbacks.renderHighlightBackdrop();
+        }
+      }
     } else {
-      this.handleNoPathHighlight();
-    }
-  }
-
-  /**
-   * Handle @path highlight (show hint but no extra highlight)
-   */
-  private handleAtPathHighlight(): void {
-    this.showFileOpenHint();
-    if (this.cursorPositionPath) {
-      this.cursorPositionPath = null;
-      this.callbacks.renderHighlightBackdrop();
-    }
-  }
-
-  /**
-   * Handle URL highlight
-   */
-  private handleUrlHighlight(url: { start: number; end: number }): void {
-    this.showUrlOpenHint();
-    this.updateHighlightRange({ start: url.start, end: url.end });
-  }
-
-  /**
-   * Handle slash command highlight
-   */
-  private handleSlashCommandHighlight(slashCommand: { start: number; end: number }): void {
-    this.showSlashCommandOpenHint();
-    this.updateHighlightRange({ start: slashCommand.start, end: slashCommand.end });
-  }
-
-  /**
-   * Handle absolute path highlight
-   */
-  private handleAbsolutePathHighlight(text: string, cursorPos: number): void {
-    this.showFileOpenHint();
-    const pathInfo = findClickablePathAtPosition(text, cursorPos);
-    if (pathInfo && !pathInfo.path.startsWith('@')) {
-      this.updateHighlightRange({ start: pathInfo.start, end: pathInfo.end });
-    }
-  }
-
-  /**
-   * Handle case when no path is at cursor position
-   */
-  private handleNoPathHighlight(): void {
-    this.restoreDefaultHint();
-    if (this.cursorPositionPath) {
-      this.cursorPositionPath = null;
-      this.callbacks.renderHighlightBackdrop();
-    }
-  }
-
-  /**
-   * Update highlight range if position changed
-   */
-  private updateHighlightRange(newRange: AtPathRange): void {
-    if (!this.cursorPositionPath ||
-        this.cursorPositionPath.start !== newRange.start ||
-        this.cursorPositionPath.end !== newRange.end) {
-      this.cursorPositionPath = newRange;
-      this.callbacks.renderHighlightBackdrop();
+      // Restore default hint when not on a clickable path
+      this.restoreDefaultHint();
+      if (this.cursorPositionPath) {
+        // Clear cursor highlight
+        this.cursorPositionPath = null;
+        this.callbacks.renderHighlightBackdrop();
+      }
     }
   }
 

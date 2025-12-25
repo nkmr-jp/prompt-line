@@ -56,44 +56,36 @@ export class PathDetectionManager {
   public findClickableRangeAtPosition(charPos: number): AtPathRange | null {
     const text = this.callbacks.getTextContent();
 
-    return this.checkAtPath(text, charPos) ||
-           this.checkUrl(text, charPos) ||
-           this.checkSlashCommand(text, charPos) ||
-           this.checkAbsolutePath(text, charPos);
-  }
-
-  /**
-   * Check for @path at position
-   */
-  private checkAtPath(text: string, charPos: number): AtPathRange | null {
+    // Check for @path first
     const atPath = findAtPathAtPosition(text, charPos);
-    if (!atPath) return null;
-    return this.findAtPathRangeAtPosition(charPos);
-  }
+    if (atPath) {
+      const atPathRange = this.findAtPathRangeAtPosition(charPos);
+      if (atPathRange) {
+        return atPathRange;
+      }
+    }
 
-  /**
-   * Check for URL at position
-   */
-  private checkUrl(text: string, charPos: number): AtPathRange | null {
+    // Check for URL
     const url = findUrlAtPosition(text, charPos);
-    return url ? { start: url.start, end: url.end } : null;
-  }
+    if (url) {
+      return { start: url.start, end: url.end };
+    }
 
-  /**
-   * Check for slash command at position (if enabled)
-   */
-  private checkSlashCommand(text: string, charPos: number): AtPathRange | null {
-    if (!this.callbacks.isCommandEnabledSync?.()) return null;
-    const slashCommand = findSlashCommandAtPosition(text, charPos);
-    return slashCommand ? { start: slashCommand.start, end: slashCommand.end } : null;
-  }
+    // Check for slash command (if enabled)
+    if (this.callbacks.isCommandEnabledSync?.()) {
+      const slashCommand = findSlashCommandAtPosition(text, charPos);
+      if (slashCommand) {
+        return { start: slashCommand.start, end: slashCommand.end };
+      }
+    }
 
-  /**
-   * Check for absolute path at position
-   */
-  private checkAbsolutePath(text: string, charPos: number): AtPathRange | null {
+    // Check for absolute path
     const clickablePath = findClickablePathAtPosition(text, charPos);
-    return clickablePath ? { start: clickablePath.start, end: clickablePath.end } : null;
+    if (clickablePath) {
+      return { start: clickablePath.start, end: clickablePath.end };
+    }
+
+    return null;
   }
 
   /**
@@ -102,63 +94,28 @@ export class PathDetectionManager {
   public getCharPositionFromCoordinates(clientX: number, clientY: number): number | null {
     if (!this.textInput) return null;
 
-    const { relativeX, relativeY } = this.calculateRelativePosition(clientX, clientY);
-    const { lineHeight, charWidth } = this.getTextMetrics();
-    const text = this.textInput.value;
-    const lines = text.split('\n');
-
-    const lineIndex = this.calculateLineIndex(relativeY, lineHeight, lines.length);
-    const charIndex = this.calculateCharIndex(relativeX, charWidth);
-    const absolutePos = this.calculateAbsolutePosition(lines, lineIndex, charIndex);
-
-    return Math.min(absolutePos, text.length);
-  }
-
-  /**
-   * Calculate relative position within textarea
-   */
-  private calculateRelativePosition(clientX: number, clientY: number): { relativeX: number; relativeY: number } {
     const textareaRect = this.textInput.getBoundingClientRect();
-    return {
-      relativeX: clientX - textareaRect.left + this.textInput.scrollLeft,
-      relativeY: clientY - textareaRect.top + this.textInput.scrollTop
-    };
-  }
+    const relativeX = clientX - textareaRect.left + this.textInput.scrollLeft;
+    const relativeY = clientY - textareaRect.top + this.textInput.scrollTop;
 
-  /**
-   * Get text metrics (line height and character width)
-   */
-  private getTextMetrics(): { lineHeight: number; charWidth: number } {
+    // Simple approximation based on line height and character width
     const style = window.getComputedStyle(this.textInput);
     const lineHeight = parseFloat(style.lineHeight) || 20;
     const fontSize = parseFloat(style.fontSize) || 15;
     const charWidth = fontSize * 0.6; // Approximate for monospace fonts
-    return { lineHeight, charWidth };
-  }
 
-  /**
-   * Calculate line index from relative Y position
-   */
-  private calculateLineIndex(relativeY: number, lineHeight: number, lineCount: number): number {
-    return Math.max(0, Math.min(Math.floor(relativeY / lineHeight), lineCount - 1));
-  }
+    const text = this.textInput.value;
+    const lines = text.split('\n');
+    const lineIndex = Math.max(0, Math.min(Math.floor(relativeY / lineHeight), lines.length - 1));
+    const charIndex = Math.max(0, Math.floor(relativeX / charWidth));
 
-  /**
-   * Calculate character index from relative X position
-   */
-  private calculateCharIndex(relativeX: number, charWidth: number): number {
-    return Math.max(0, Math.floor(relativeX / charWidth));
-  }
-
-  /**
-   * Calculate absolute position from line and character indices
-   */
-  private calculateAbsolutePosition(lines: string[], lineIndex: number, charIndex: number): number {
+    // Calculate absolute position from line and char indices
     let absolutePos = 0;
     for (let i = 0; i < lineIndex; i++) {
       absolutePos += (lines[i]?.length || 0) + 1; // +1 for newline
     }
     absolutePos += charIndex;
-    return absolutePos;
+
+    return Math.min(absolutePos, text.length);
   }
 }

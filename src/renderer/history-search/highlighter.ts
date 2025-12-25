@@ -67,49 +67,29 @@ export class HistorySearchHighlighter {
     }
 
     const positionSet = new Set(positions);
-    const segments = this.buildHighlightSegments(text, positionSet);
-    return this.joinHighlightSegments(segments);
-  }
-
-  /**
-   * Build highlight segments from text and position set
-   */
-  private buildHighlightSegments(text: string, positionSet: Set<number>): string[] {
-    const segments: string[] = [];
+    let result = '';
     let inHighlight = false;
 
     for (let i = 0; i < text.length; i++) {
       const isMatch = positionSet.has(i);
       const char = this.escapeHtml(text[i] || '');
 
-      this.handleSegmentTransition(isMatch, inHighlight, segments);
-      inHighlight = isMatch;
-      segments.push(char);
+      if (isMatch && !inHighlight) {
+        result += `<span class="${this.highlightClass}">`;
+        inHighlight = true;
+      } else if (!isMatch && inHighlight) {
+        result += '</span>';
+        inHighlight = false;
+      }
+
+      result += char;
     }
 
     if (inHighlight) {
-      segments.push('</span>');
+      result += '</span>';
     }
 
-    return segments;
-  }
-
-  /**
-   * Handle transition between highlighted and non-highlighted segments
-   */
-  private handleSegmentTransition(isMatch: boolean, inHighlight: boolean, segments: string[]): void {
-    if (isMatch && !inHighlight) {
-      segments.push(`<span class="${this.highlightClass}">`);
-    } else if (!isMatch && inHighlight) {
-      segments.push('</span>');
-    }
-  }
-
-  /**
-   * Join highlight segments into final HTML string
-   */
-  private joinHighlightSegments(segments: string[]): string {
-    return segments.join('');
+    return result;
   }
 
   /**

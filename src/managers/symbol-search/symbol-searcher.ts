@@ -11,16 +11,6 @@ import type {
   LanguagesResponse,
   SymbolSearchOptions
 } from './types';
-import {
-  createPlatformErrorResponse,
-  createValidationErrorResponse,
-  createExecutionErrorResponse,
-  validateDirectory,
-  validateLanguage,
-  buildSearchArgs,
-  logExecutionError,
-  parseSearchResponse
-} from './search-helpers';
 
 // Default search options (exported for use by handlers)
 export const DEFAULT_MAX_SYMBOLS = 20000;
@@ -105,53 +95,108 @@ export async function searchSymbols(
   language: string,
   options: SymbolSearchOptions = {}
 ): Promise<SymbolSearchResponse> {
-  // Check platform support
-  if (process.platform !== 'darwin') {
-    return createPlatformErrorResponse(options);
-  }
-
-  // Validate inputs
-  if (!validateDirectory(directory)) {
-    return createValidationErrorResponse(options, 'Invalid directory');
-  }
-
-  if (!validateLanguage(language)) {
-    return createValidationErrorResponse(options, 'Invalid language');
-  }
-
-  // Prepare search parameters
-  const maxSymbols = options.maxSymbols || DEFAULT_MAX_SYMBOLS;
-  const timeout = options.timeout || DEFAULT_SEARCH_TIMEOUT;
-  const args = buildSearchArgs(directory, language, maxSymbols);
-
-  logger.debug('Searching symbols:', { directory, language, maxSymbols });
-
-  // Execute search
-  return executeSymbolSearch(args, timeout, maxSymbols);
-}
-
-/**
- * Execute symbol search with native tool
- */
-function executeSymbolSearch(
-  args: string[],
-  timeout: number,
-  maxSymbols: number
-): Promise<SymbolSearchResponse> {
   return new Promise((resolve) => {
+    if (process.platform !== 'darwin') {
+      resolve({
+        success: false,
+        symbols: [],
+        symbolCount: 0,
+        searchMode: 'full',
+        partial: false,
+        maxSymbols: options.maxSymbols || DEFAULT_MAX_SYMBOLS,
+        error: 'Symbol search only supported on macOS'
+      });
+      return;
+    }
+
+    // Validate inputs
+    if (!directory || typeof directory !== 'string') {
+      resolve({
+        success: false,
+        symbols: [],
+        symbolCount: 0,
+        searchMode: 'full',
+        partial: false,
+        maxSymbols: options.maxSymbols || DEFAULT_MAX_SYMBOLS,
+        error: 'Invalid directory'
+      });
+      return;
+    }
+
+    if (!language || typeof language !== 'string') {
+      resolve({
+        success: false,
+        symbols: [],
+        symbolCount: 0,
+        searchMode: 'full',
+        partial: false,
+        maxSymbols: options.maxSymbols || DEFAULT_MAX_SYMBOLS,
+        error: 'Invalid language'
+      });
+      return;
+    }
+
+    const maxSymbols = options.maxSymbols || DEFAULT_MAX_SYMBOLS;
+    const timeout = options.timeout || DEFAULT_SEARCH_TIMEOUT;
+    const args = [
+      'search',
+      directory,
+      '--language', language,
+      '--max-symbols', String(maxSymbols)
+    ];
+
     const execOptions = {
       timeout,
       killSignal: 'SIGTERM' as const
     };
 
+    logger.debug('Searching symbols:', { directory, language, maxSymbols });
+
     execFile(SYMBOL_SEARCHER_PATH, args, execOptions, (error, stdout, stderr) => {
       if (error) {
-        logExecutionError(error, stderr);
-        resolve(createExecutionErrorResponse(maxSymbols, error));
+        logger.warn('Error searching symbols:', {
+          message: error.message,
+          code: (error as any).code,
+          signal: (error as any).signal,
+          killed: (error as any).killed,
+          stderr: stderr?.toString()?.substring(0, 500)
+        });
+        resolve({
+          success: false,
+          symbols: [],
+          symbolCount: 0,
+          searchMode: 'full',
+          partial: false,
+          maxSymbols,
+          error: error.message
+        });
         return;
       }
 
-      resolve(parseSearchResponse(stdout, maxSymbols));
+      try {
+        const result = JSON.parse(stdout.trim()) as SymbolSearchResponse;
+        if (result.success) {
+          logger.debug('Symbol search completed:', {
+            directory: result.directory,
+            language: result.language,
+            symbolCount: result.symbolCount
+          });
+        } else {
+          logger.debug('Symbol search returned error:', result.error);
+        }
+        resolve(result);
+      } catch (parseError) {
+        logger.warn('Error parsing symbol search result:', parseError);
+        resolve({
+          success: false,
+          symbols: [],
+          symbolCount: 0,
+          searchMode: 'full',
+          partial: false,
+          maxSymbols,
+          error: 'Failed to parse symbol search result'
+        });
+      }
     });
   });
 }

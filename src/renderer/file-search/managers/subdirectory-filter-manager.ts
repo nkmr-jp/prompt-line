@@ -39,110 +39,60 @@ export class SubdirectoryFilterManager {
     query: string,
     maxSuggestions: number
   ): FileInfo[] {
-    const files = this.collectFilesInSubdirectory(allFiles, baseDir, currentPath);
-
-    if (!query) {
-      return this.callbacks.sortByDirectoryFirst(files).slice(0, maxSuggestions);
-    }
-
-    return this.scoreAndFilterFiles(files, query, maxSuggestions);
-  }
-
-  /**
-   * Collect files under the current path
-   */
-  private collectFilesInSubdirectory(
-    allFiles: FileInfo[],
-    baseDir: string,
-    currentPath: string
-  ): FileInfo[] {
     const seenDirs = new Set<string>();
     const files: FileInfo[] = [];
 
     for (const file of allFiles) {
       const relativePath = getRelativePath(file.path, baseDir);
-      if (!relativePath.startsWith(currentPath)) continue;
 
+      // Check if file is under currentPath
+      if (!relativePath.startsWith(currentPath)) {
+        continue;
+      }
+
+      // Get the remaining path after currentPath
       const remainingPath = relativePath.substring(currentPath.length);
       if (!remainingPath) continue;
 
-      this.processFileOrDirectory(file, remainingPath, baseDir, currentPath, seenDirs, files);
+      const slashIndex = remainingPath.indexOf('/');
+
+      if (slashIndex === -1) {
+        // Direct file child
+        files.push(file);
+      } else if (slashIndex === remainingPath.length - 1) {
+        // Direct directory child (already has trailing slash)
+        if (!seenDirs.has(remainingPath)) {
+          seenDirs.add(remainingPath);
+          files.push(file);
+        }
+      } else {
+        // Intermediate directory - create virtual entry
+        const dirName = remainingPath.substring(0, slashIndex);
+        if (!seenDirs.has(dirName)) {
+          seenDirs.add(dirName);
+          // Create virtual directory entry
+          const virtualDir: FileInfo = {
+            name: dirName,
+            path: baseDir + '/' + currentPath + dirName,
+            isDirectory: true
+          };
+          files.push(virtualDir);
+        }
+      }
     }
 
-    return files;
-  }
-
-  /**
-   * Process a file or directory entry
-   */
-  private processFileOrDirectory(
-    file: FileInfo,
-    remainingPath: string,
-    baseDir: string,
-    currentPath: string,
-    seenDirs: Set<string>,
-    files: FileInfo[]
-  ): void {
-    const slashIndex = remainingPath.indexOf('/');
-
-    if (slashIndex === -1) {
-      files.push(file);
-    } else if (slashIndex === remainingPath.length - 1) {
-      this.addDirectChildDirectory(remainingPath, file, seenDirs, files);
-    } else {
-      this.addIntermediateDirectory(remainingPath, slashIndex, baseDir, currentPath, seenDirs, files);
+    if (!query) {
+      // Return first N files if no query, with directories first
+      return this.callbacks.sortByDirectoryFirst(files).slice(0, maxSuggestions);
     }
-  }
 
-  /**
-   * Add direct directory child
-   */
-  private addDirectChildDirectory(
-    remainingPath: string,
-    file: FileInfo,
-    seenDirs: Set<string>,
-    files: FileInfo[]
-  ): void {
-    if (!seenDirs.has(remainingPath)) {
-      seenDirs.add(remainingPath);
-      files.push(file);
-    }
-  }
-
-  /**
-   * Add intermediate directory (virtual entry)
-   */
-  private addIntermediateDirectory(
-    remainingPath: string,
-    slashIndex: number,
-    baseDir: string,
-    currentPath: string,
-    seenDirs: Set<string>,
-    files: FileInfo[]
-  ): void {
-    const dirName = remainingPath.substring(0, slashIndex);
-    if (seenDirs.has(dirName)) return;
-
-    seenDirs.add(dirName);
-    const virtualDir: FileInfo = {
-      name: dirName,
-      path: `${baseDir}/${currentPath}${dirName}`,
-      isDirectory: true
-    };
-    files.push(virtualDir);
-  }
-
-  /**
-   * Score and filter files by query
-   */
-  private scoreAndFilterFiles(
-    files: FileInfo[],
-    query: string,
-    maxSuggestions: number
-  ): FileInfo[] {
+    // Score and filter files
     const queryLower = query.toLowerCase();
     const scored = files
-      .map(file => ({ file, score: calculateMatchScore(file, queryLower) }))
+      .map(file => ({
+        file,
+        score: calculateMatchScore(file, queryLower)
+      }))
       .filter(item => item.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, maxSuggestions);
