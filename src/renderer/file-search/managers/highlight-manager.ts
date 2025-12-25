@@ -18,8 +18,6 @@ import { PathDetectionManager } from './path-detection-manager';
 import type { PathDetectionCallbacks } from './path-detection-manager';
 import { CursorHighlightManager } from './cursor-highlight-manager';
 import type { CursorHighlightCallbacks } from './cursor-highlight-manager';
-import { HoverStateManager } from './hover-state-manager';
-import type { HoverStateCallbacks } from './hover-state-manager';
 import { PathScannerManager } from './path-scanner-manager';
 import type { PathScannerCallbacks } from './path-scanner-manager';
 
@@ -47,7 +45,6 @@ export class HighlightManager {
   private backdropRenderer!: BackdropRenderer;
   private pathDetection!: PathDetectionManager;
   private cursorHighlight!: CursorHighlightManager;
-  private hoverState!: HoverStateManager;
   private pathScanner!: PathScannerManager;
 
   constructor(
@@ -66,22 +63,22 @@ export class HighlightManager {
    * Initialize specialized managers with delegation callbacks
    */
   private initializeManagers(): void {
-    // BackdropRenderer callbacks
-    const backdropCallbacks: BackdropRendererCallbacks = {
-      getAtPaths: () => this.pathScanner.getAtPaths(),
-      getCursorPositionPath: () => this.cursorHighlight.getCursorPositionPath(),
-      getHoveredPath: () => this.hoverState.getHoveredPath(),
+    // PathScannerManager callbacks (initialized first, used by others)
+    const pathScannerCallbacks: PathScannerCallbacks = {
       getTextContent: () => this.callbacks.getTextContent(),
+      ...(this.callbacks.checkFileExists && { checkFileExists: this.callbacks.checkFileExists }),
     };
+    this.pathScanner = new PathScannerManager(pathScannerCallbacks);
 
-    // PathDetectionManager callbacks
+    // PathDetectionManager callbacks (initialized second, used by cursorHighlight)
     const pathDetectionCallbacks: PathDetectionCallbacks = {
       getTextContent: () => this.callbacks.getTextContent(),
       getAtPaths: () => this.pathScanner.getAtPaths(),
       ...(this.callbacks.isCommandEnabledSync && { isCommandEnabledSync: this.callbacks.isCommandEnabledSync }),
     };
+    this.pathDetection = new PathDetectionManager(this.textInput, pathDetectionCallbacks);
 
-    // CursorHighlightManager callbacks
+    // CursorHighlightManager callbacks (includes hover state callbacks)
     const cursorHighlightCallbacks: CursorHighlightCallbacks = {
       getTextContent: () => this.callbacks.getTextContent(),
       getCursorPosition: () => this.callbacks.getCursorPosition(),
@@ -90,28 +87,22 @@ export class HighlightManager {
       ...(this.callbacks.isFileSearchEnabled && { isFileSearchEnabled: this.callbacks.isFileSearchEnabled }),
       ...(this.callbacks.isCommandEnabledSync && { isCommandEnabledSync: this.callbacks.isCommandEnabledSync }),
       renderHighlightBackdrop: () => this.renderHighlightBackdropWithCursor(),
-    };
-
-    // HoverStateManager callbacks
-    const hoverStateCallbacks: HoverStateCallbacks = {
+      // Hover state callbacks (consolidated from HoverStateManager)
       findClickableRangeAtPosition: (charPos: number) => this.pathDetection.findClickableRangeAtPosition(charPos),
       getCharPositionFromCoordinates: (x: number, y: number) => this.pathDetection.getCharPositionFromCoordinates(x, y),
       renderFilePathHighlight: () => this.renderFilePathHighlight(),
-      clearFilePathHighlight: () => this.clearFilePathHighlight(),
+      clearFilePathHighlight: () => this.clearFilePathHighlightInternal(),
     };
-
-    // PathScannerManager callbacks
-    const pathScannerCallbacks: PathScannerCallbacks = {
-      getTextContent: () => this.callbacks.getTextContent(),
-      ...(this.callbacks.checkFileExists && { checkFileExists: this.callbacks.checkFileExists }),
-    };
-
-    // Initialize managers
-    this.backdropRenderer = new BackdropRenderer(this.textInput, this.highlightBackdrop, backdropCallbacks);
-    this.pathDetection = new PathDetectionManager(this.textInput, pathDetectionCallbacks);
     this.cursorHighlight = new CursorHighlightManager(cursorHighlightCallbacks);
-    this.hoverState = new HoverStateManager(hoverStateCallbacks);
-    this.pathScanner = new PathScannerManager(pathScannerCallbacks);
+
+    // BackdropRenderer callbacks (uses cursorHighlight for hover path)
+    const backdropCallbacks: BackdropRendererCallbacks = {
+      getAtPaths: () => this.pathScanner.getAtPaths(),
+      getCursorPositionPath: () => this.cursorHighlight.getCursorPositionPath(),
+      getHoveredPath: () => this.cursorHighlight.getHoveredPath(),
+      getTextContent: () => this.callbacks.getTextContent(),
+    };
+    this.backdropRenderer = new BackdropRenderer(this.textInput, this.highlightBackdrop, backdropCallbacks);
   }
 
   /**
@@ -161,7 +152,16 @@ export class HighlightManager {
    * Clear file path highlight (link style) while preserving @path highlights
    */
   public clearFilePathHighlight(): void {
-    this.hoverState.clearHover();
+    this.cursorHighlight.clearHover();
+  }
+
+  /**
+   * Internal method to clear file path highlight (used by cursorHighlight callback)
+   * This renders the backdrop without the hover highlight
+   */
+  private clearFilePathHighlightInternal(): void {
+    // Re-render backdrop without hover highlight (hover state is already cleared)
+    this.updateHighlightBackdrop();
   }
 
   /**
@@ -203,21 +203,21 @@ export class HighlightManager {
    * Handle mouse move for Cmd+hover link style
    */
   public onMouseMove(e: MouseEvent): void {
-    this.hoverState.onMouseMove(e);
+    this.cursorHighlight.onMouseMove(e);
   }
 
   /**
    * Handle Cmd key down
    */
   public onCmdKeyDown(): void {
-    this.hoverState.onCmdKeyDown();
+    this.cursorHighlight.onCmdKeyDown();
   }
 
   /**
    * Handle Cmd key up
    */
   public onCmdKeyUp(): void {
-    this.hoverState.onCmdKeyUp();
+    this.cursorHighlight.onCmdKeyUp();
   }
 
   /**

@@ -1,10 +1,15 @@
 /**
- * CursorHighlightManager - Manages cursor position highlighting
+ * CursorHighlightManager - Manages cursor position and hover state highlighting
+ *
+ * Consolidated from CursorHighlightManager and HoverStateManager.
  *
  * Responsibilities:
  * - Track cursor position in textarea
  * - Highlight absolute paths and URLs at cursor position
  * - Update hint text based on cursor position
+ * - Track Cmd key state for hover interactions
+ * - Track mouse position for hover detection
+ * - Manage hovered path state for Cmd+click
  * - Coordinate with BackdropRenderer for visual updates
  */
 
@@ -25,14 +30,25 @@ export interface CursorHighlightCallbacks {
   isFileSearchEnabled?: () => boolean;
   isCommandEnabledSync?: () => boolean;
   renderHighlightBackdrop: () => void;
+  // Hover state callbacks (consolidated from HoverStateManager)
+  findClickableRangeAtPosition?: (charPos: number) => AtPathRange | null;
+  getCharPositionFromCoordinates?: (clientX: number, clientY: number) => number | null;
+  renderFilePathHighlight?: () => void;
+  clearFilePathHighlight?: () => void;
 }
 
 /**
- * Manages cursor position highlighting for clickable paths
+ * Manages cursor position highlighting and Cmd+hover state for clickable paths
  */
 export class CursorHighlightManager {
   private callbacks: CursorHighlightCallbacks;
   private cursorPositionPath: AtPathRange | null = null;
+
+  // Cmd+hover state (consolidated from HoverStateManager)
+  private isCmdHoverActive: boolean = false;
+  private hoveredAtPath: AtPathRange | null = null;
+  private lastMouseX: number = 0;
+  private lastMouseY: number = 0;
 
   constructor(callbacks: CursorHighlightCallbacks) {
     this.callbacks = callbacks;
@@ -174,6 +190,104 @@ export class CursorHighlightManager {
     if (this.callbacks.updateHintText && this.callbacks.getDefaultHintText) {
       const defaultHint = this.callbacks.getDefaultHintText();
       this.callbacks.updateHintText(defaultHint);
+    }
+  }
+
+  // ============================================
+  // Hover State Management (from HoverStateManager)
+  // ============================================
+
+  /**
+   * Get the currently hovered path
+   */
+  public getHoveredPath(): AtPathRange | null {
+    return this.hoveredAtPath;
+  }
+
+  /**
+   * Handle mouse move for Cmd+hover link style
+   */
+  public onMouseMove(e: MouseEvent): void {
+    this.lastMouseX = e.clientX;
+    this.lastMouseY = e.clientY;
+
+    if (!e.metaKey) {
+      if (this.hoveredAtPath) {
+        this.clearHover();
+      }
+      return;
+    }
+
+    this.isCmdHoverActive = true;
+    this.checkAndHighlightAtPath(e.clientX, e.clientY);
+  }
+
+  /**
+   * Handle Cmd key down
+   */
+  public onCmdKeyDown(): void {
+    if (!this.isCmdHoverActive) {
+      this.isCmdHoverActive = true;
+      // Re-check current mouse position for @path
+      this.updateHoverStateAtLastPosition();
+    }
+  }
+
+  /**
+   * Handle Cmd key up
+   */
+  public onCmdKeyUp(): void {
+    if (this.isCmdHoverActive) {
+      this.isCmdHoverActive = false;
+      this.clearHover();
+    }
+  }
+
+  /**
+   * Clear hover state
+   */
+  public clearHover(): void {
+    this.hoveredAtPath = null;
+    this.callbacks.clearFilePathHighlight?.();
+  }
+
+  /**
+   * Check if mouse is over a clickable path and highlight it
+   */
+  private checkAndHighlightAtPath(clientX: number, clientY: number): void {
+    if (!this.callbacks.getCharPositionFromCoordinates || !this.callbacks.findClickableRangeAtPosition) {
+      return;
+    }
+
+    const charPos = this.callbacks.getCharPositionFromCoordinates(clientX, clientY);
+
+    if (charPos === null) {
+      this.clearHover();
+      return;
+    }
+
+    // Find any clickable range at this position
+    const clickableRange = this.callbacks.findClickableRangeAtPosition(charPos);
+
+    if (clickableRange) {
+      // Update hover state if changed
+      if (!this.hoveredAtPath ||
+          this.hoveredAtPath.start !== clickableRange.start ||
+          this.hoveredAtPath.end !== clickableRange.end) {
+        this.hoveredAtPath = clickableRange;
+        this.callbacks.renderFilePathHighlight?.();
+      }
+    } else {
+      this.clearHover();
+    }
+  }
+
+  /**
+   * Update hover state when Cmd key is pressed
+   */
+  private updateHoverStateAtLastPosition(): void {
+    if (this.lastMouseX && this.lastMouseY) {
+      this.checkAndHighlightAtPath(this.lastMouseX, this.lastMouseY);
     }
   }
 }

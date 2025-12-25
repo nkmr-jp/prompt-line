@@ -1,21 +1,24 @@
 /**
  * SuggestionListManager - Manages suggestion dropdown display and interaction
  *
+ * Consolidated from SuggestionListManager and SuggestionPositionCalculator.
+ *
  * Responsibilities:
  * - Orchestrates suggestion dropdown components
  * - Manages suggestion list state and visibility
  * - Coordinates rendering, positioning, and event handling
- * - Delegates specialized tasks to focused managers
+ * - Calculates optimal position for suggestion dropdown
+ * - Handles boundary constraints (viewport edges)
+ * - Manages dynamic sizing based on available space
  */
 
 import type { SuggestionItem } from '../types';
 import type { FileInfo } from '../../../types';
 import { SuggestionItemRenderer } from './suggestion-item-renderer';
 import type { SuggestionItemRendererCallbacks } from './suggestion-item-renderer';
-import { SuggestionPositionCalculator } from './suggestion-position-calculator';
-import type { SuggestionPositionCallbacks } from './suggestion-position-calculator';
 import { SuggestionEventHandler } from './suggestion-event-handler';
 import type { SuggestionEventCallbacks } from './suggestion-event-handler';
+import { getCaretCoordinates, createMirrorDiv } from '../dom-utils';
 
 export interface SuggestionListCallbacks {
   onItemSelected: (index: number) => void;
@@ -44,9 +47,11 @@ export class SuggestionListManager {
   private selectedIndex: number = 0;
   private mergedSuggestions: SuggestionItem[] = [];
 
+  // For position calculation (consolidated from SuggestionPositionCalculator)
+  private mirrorDiv: HTMLDivElement | null = null;
+
   // Specialized managers (initialized in initializeManagers)
   private renderer!: SuggestionItemRenderer;
-  private positionCalculator!: SuggestionPositionCalculator;
   private eventHandler!: SuggestionEventHandler;
 
   constructor(
@@ -56,6 +61,7 @@ export class SuggestionListManager {
     this.textInput = textInput;
     this.callbacks = callbacks;
 
+    this.mirrorDiv = createMirrorDiv();
     this.initializeContainer();
     this.initializeManagers();
   }
@@ -73,12 +79,6 @@ export class SuggestionListManager {
       ...(this.callbacks.countFilesInDirectory && { countFilesInDirectory: this.callbacks.countFilesInDirectory }),
       ...(this.callbacks.onMouseEnterInfo && { onMouseEnterInfo: this.callbacks.onMouseEnterInfo }),
       ...(this.callbacks.onMouseLeaveInfo && { onMouseLeaveInfo: this.callbacks.onMouseLeaveInfo }),
-    };
-
-    // Position calculator callbacks
-    const positionCallbacks: SuggestionPositionCallbacks = {
-      getContainer: () => this.suggestionsContainer,
-      getTextInput: () => this.textInput,
     };
 
     // Event handler callbacks
@@ -110,7 +110,6 @@ export class SuggestionListManager {
     };
 
     this.renderer = new SuggestionItemRenderer(rendererCallbacks);
-    this.positionCalculator = new SuggestionPositionCalculator(positionCallbacks);
     this.eventHandler = new SuggestionEventHandler(eventCallbacks);
   }
 
@@ -149,7 +148,7 @@ export class SuggestionListManager {
     this.isVisible = true;
 
     this.renderSuggestions(isIndexBuilding);
-    this.positionCalculator.position(atPosition);
+    this.positionAtCursor(atPosition);
     this.updateSelection();
   }
 
@@ -220,7 +219,81 @@ export class SuggestionListManager {
    * Public method for external positioning control
    */
   public position(atPosition: number): void {
-    this.positionCalculator.position(atPosition);
+    this.positionAtCursor(atPosition);
+  }
+
+  /**
+   * Position the suggestions container near the @ position
+   * (Consolidated from SuggestionPositionCalculator)
+   */
+  private positionAtCursor(atPosition: number): void {
+    if (!this.suggestionsContainer || atPosition < 0) return;
+
+    if (!this.mirrorDiv) {
+      this.mirrorDiv = createMirrorDiv();
+    }
+
+    // Get caret position
+    const coordinates = getCaretCoordinates(this.textInput, this.mirrorDiv, atPosition);
+    if (!coordinates) return;
+
+    const { top: caretTop, left: caretLeft } = coordinates;
+
+    // Get main-content bounds for positioning
+    const mainContent = document.querySelector('.main-content');
+    if (!mainContent) return;
+
+    const mainContentRect = mainContent.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+
+    // Calculate available space
+    const spaceBelow = viewportHeight - caretTop - 20; // 20px for line height
+    const spaceAbove = caretTop - mainContentRect.top;
+    const showAbove = spaceBelow < 200 && spaceAbove > spaceBelow;
+
+    // Calculate position
+    let top: number;
+    let left = caretLeft;
+    const availableHeight = showAbove ? spaceAbove - 8 : spaceBelow - 8;
+
+    if (!showAbove) {
+      top = caretTop + 20; // Below cursor
+    } else {
+      // Will be calculated after setting max-height
+      top = 0;
+    }
+
+    // Set dynamic max-height based on available space
+    const dynamicMaxHeight = Math.max(100, availableHeight);
+    this.suggestionsContainer.style.maxHeight = `${dynamicMaxHeight}px`;
+
+    // If showing above, calculate top position
+    if (showAbove) {
+      const menuHeight = Math.min(this.suggestionsContainer.scrollHeight || dynamicMaxHeight, dynamicMaxHeight);
+      top = caretTop - menuHeight - 4;
+      if (top < 0) top = 0;
+    }
+
+    // Calculate dynamic max-width and adjust left position
+    // minMenuWidth = 500 for readable descriptions
+    const minMenuWidth = 500;
+    const rightMargin = 8;
+    let availableWidth = mainContentRect.width - left - rightMargin;
+    let adjustedLeft = left;
+
+    if (availableWidth < minMenuWidth) {
+      const shiftAmount = minMenuWidth - availableWidth;
+      adjustedLeft = Math.max(8, left - shiftAmount);
+      availableWidth = mainContentRect.width - adjustedLeft - rightMargin;
+    }
+
+    const dynamicMaxWidth = Math.max(minMenuWidth, availableWidth);
+    this.suggestionsContainer.style.maxWidth = `${dynamicMaxWidth}px`;
+
+    this.suggestionsContainer.style.top = `${top}px`;
+    this.suggestionsContainer.style.left = `${adjustedLeft}px`;
+    this.suggestionsContainer.style.right = 'auto';
+    this.suggestionsContainer.style.bottom = 'auto';
   }
 
   /**
@@ -293,6 +366,10 @@ export class SuggestionListManager {
    */
   public destroy(): void {
     this.hide();
-    this.positionCalculator.destroy();
+    // Clean up mirrorDiv (consolidated from SuggestionPositionCalculator)
+    if (this.mirrorDiv && this.mirrorDiv.parentNode) {
+      this.mirrorDiv.parentNode.removeChild(this.mirrorDiv);
+      this.mirrorDiv = null;
+    }
   }
 }

@@ -1,23 +1,21 @@
 /**
  * FileFilterManager - Handles file filtering, scoring, and suggestion merging
  *
- * Extracted from FileSearchManager to improve modularity and reduce file size.
+ * Consolidated from FileSearchManager, SubdirectoryFilterManager, and RootFilterManager.
+ * This manager now handles all file filtering logic in one place.
+ *
  * Responsibilities:
  * - Filter files based on query (fuzzy matching)
+ * - Filter files in subdirectories
+ * - Filter files at root level with recursive search
  * - Count files in directories
  * - Adjust current path based on query navigation
  * - Merge and sort file/agent suggestions
- *
- * Delegates to:
- * - SubdirectoryFilterManager: Subdirectory filtering logic
- * - RootFilterManager: Root-level filtering and search
  */
 
 import type { FileInfo, AgentItem } from '../../../types';
 import type { DirectoryData, SuggestionItem } from '../types';
 import { getRelativePath, calculateMatchScore, calculateAgentMatchScore } from '../index';
-import { SubdirectoryFilterManager } from './subdirectory-filter-manager';
-import { RootFilterManager } from './root-filter-manager';
 
 /**
  * Callbacks for FileFilterManager
@@ -32,20 +30,9 @@ export interface FileFilterCallbacks {
  */
 export class FileFilterManager {
   private callbacks: FileFilterCallbacks;
-  private subdirectoryFilterManager: SubdirectoryFilterManager;
-  private rootFilterManager: RootFilterManager;
 
   constructor(callbacks: FileFilterCallbacks) {
     this.callbacks = callbacks;
-    
-    // Initialize delegated managers with required callbacks
-    this.subdirectoryFilterManager = new SubdirectoryFilterManager({
-      sortByDirectoryFirst: this.sortByDirectoryFirst.bind(this)
-    });
-    
-    this.rootFilterManager = new RootFilterManager({
-      sortByDirectoryFirst: this.sortByDirectoryFirst.bind(this)
-    });
   }
 
   /**
@@ -101,22 +88,231 @@ export class FileFilterManager {
 
     // If we're in a subdirectory, filter to show only direct children
     if (currentPath) {
-      return this.subdirectoryFilterManager.filterFilesInSubdirectory(
-        allFiles,
-        baseDir,
-        currentPath,
-        query,
-        maxSuggestions
-      );
+      return this.filterFilesInSubdirectory(allFiles, baseDir, currentPath, query, maxSuggestions);
     }
 
     // At root level
-    return this.rootFilterManager.filterFilesAtRoot(allFiles, baseDir, query, maxSuggestions);
+    return this.filterFilesAtRoot(allFiles, baseDir, query, maxSuggestions);
+  }
+
+  /**
+   * Filter files when browsing a subdirectory
+   * (Inlined from SubdirectoryFilterManager)
+   */
+  private filterFilesInSubdirectory(
+    allFiles: FileInfo[],
+    baseDir: string,
+    currentPath: string,
+    query: string,
+    maxSuggestions: number
+  ): FileInfo[] {
+    const seenDirs = new Set<string>();
+    const files: FileInfo[] = [];
+
+    for (const file of allFiles) {
+      const relativePath = getRelativePath(file.path, baseDir);
+
+      // Check if file is under currentPath
+      if (!relativePath.startsWith(currentPath)) {
+        continue;
+      }
+
+      // Get the remaining path after currentPath
+      const remainingPath = relativePath.substring(currentPath.length);
+      if (!remainingPath) continue;
+
+      const slashIndex = remainingPath.indexOf('/');
+
+      if (slashIndex === -1) {
+        // Direct file child
+        files.push(file);
+      } else if (slashIndex === remainingPath.length - 1) {
+        // Direct directory child (already has trailing slash)
+        if (!seenDirs.has(remainingPath)) {
+          seenDirs.add(remainingPath);
+          files.push(file);
+        }
+      } else {
+        // Intermediate directory - create virtual entry
+        const dirName = remainingPath.substring(0, slashIndex);
+        if (!seenDirs.has(dirName)) {
+          seenDirs.add(dirName);
+          // Create virtual directory entry
+          const virtualDir: FileInfo = {
+            name: dirName,
+            path: baseDir + '/' + currentPath + dirName,
+            isDirectory: true
+          };
+          files.push(virtualDir);
+        }
+      }
+    }
+
+    if (!query) {
+      // Return first N files if no query, with directories first
+      return this.sortByDirectoryFirst(files).slice(0, maxSuggestions);
+    }
+
+    // Score and filter files
+    const queryLower = query.toLowerCase();
+    const scored = files
+      .map(file => ({
+        file,
+        score: calculateMatchScore(file, queryLower)
+      }))
+      .filter(item => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, maxSuggestions);
+
+    return scored.map(item => item.file);
+  }
+
+  /**
+   * Filter files at root level
+   * (Inlined from RootFilterManager)
+   */
+  private filterFilesAtRoot(
+    allFiles: FileInfo[],
+    baseDir: string,
+    query: string,
+    maxSuggestions: number
+  ): FileInfo[] {
+    if (!query) {
+      // No query - show top-level files and directories only
+      return this.getTopLevelFiles(allFiles, baseDir, maxSuggestions);
+    }
+
+    // With query at root level - search ALL files recursively
+    return this.searchAllFiles(allFiles, baseDir, query, maxSuggestions);
+  }
+
+  /**
+   * Get top-level files and directories (no query)
+   * (Inlined from RootFilterManager)
+   */
+  private getTopLevelFiles(
+    allFiles: FileInfo[],
+    baseDir: string,
+    maxSuggestions: number
+  ): FileInfo[] {
+    const seenDirs = new Set<string>();
+    const files: FileInfo[] = [];
+
+    for (const file of allFiles) {
+      const relativePath = getRelativePath(file.path, baseDir);
+      const slashIndex = relativePath.indexOf('/');
+
+      if (slashIndex === -1) {
+        // Top-level file
+        files.push(file);
+      } else {
+        // Has subdirectory - create virtual directory for top-level
+        const dirName = relativePath.substring(0, slashIndex);
+        if (!seenDirs.has(dirName)) {
+          seenDirs.add(dirName);
+          // Check if we already have this directory in allFiles
+          const existingDir = allFiles.find(f =>
+            f.isDirectory && getRelativePath(f.path, baseDir) === dirName
+          );
+          if (existingDir) {
+            files.push(existingDir);
+          } else {
+            // Create virtual directory entry
+            const virtualDir: FileInfo = {
+              name: dirName,
+              path: baseDir + '/' + dirName,
+              isDirectory: true
+            };
+            files.push(virtualDir);
+          }
+        }
+      }
+    }
+
+    return this.sortByDirectoryFirst(files).slice(0, maxSuggestions);
+  }
+
+  /**
+   * Search all files recursively with query
+   * (Inlined from RootFilterManager)
+   */
+  private searchAllFiles(
+    allFiles: FileInfo[],
+    baseDir: string,
+    query: string,
+    maxSuggestions: number
+  ): FileInfo[] {
+    const queryLower = query.toLowerCase();
+    const seenDirs = new Set<string>();
+    const seenDirNames = new Map<string, { path: string; depth: number }>();
+    const matchingDirs: FileInfo[] = [];
+
+    // Find all matching files (from anywhere in the tree)
+    const scoredFiles = allFiles
+      .filter(file => !file.isDirectory)
+      .map(file => ({
+        file,
+        score: calculateMatchScore(file, queryLower),
+        relativePath: getRelativePath(file.path, baseDir)
+      }))
+      .filter(item => item.score > 0);
+
+    // Find matching directories (by path containing the query)
+    for (const file of allFiles) {
+      const relativePath = getRelativePath(file.path, baseDir);
+      const pathParts = relativePath.split('/').filter(p => p);
+
+      // Check each directory in the path (except the last part which is the file name)
+      for (let i = 0; i < pathParts.length - 1; i++) {
+        const dirPath = pathParts.slice(0, i + 1).join('/');
+        const dirName = pathParts[i] || '';
+
+        if (!dirName || seenDirs.has(dirPath)) continue;
+
+        // Check if directory name or path matches query
+        if (dirName.toLowerCase().includes(queryLower) || dirPath.toLowerCase().includes(queryLower)) {
+          seenDirs.add(dirPath);
+
+          // Prefer shorter paths (likely the original, not symlink-resolved)
+          const depth = pathParts.length;
+          const existing = seenDirNames.get(dirName);
+          if (existing && existing.depth <= depth) {
+            continue;
+          }
+
+          seenDirNames.set(dirName, { path: dirPath, depth });
+          const virtualDir: FileInfo = {
+            name: dirName,
+            path: baseDir + '/' + dirPath,
+            isDirectory: true
+          };
+          matchingDirs.push(virtualDir);
+        }
+      }
+    }
+
+    // Remove duplicate directories by name (keep shortest path)
+    const uniqueDirs = Array.from(seenDirNames.entries()).map(([name, info]) => {
+      return matchingDirs.find(d => d.name === name && d.path === baseDir + '/' + info.path);
+    }).filter((d): d is FileInfo => d !== undefined);
+
+    // Score directories
+    const scoredDirs = uniqueDirs.map(dir => ({
+      file: dir,
+      score: calculateMatchScore(dir, queryLower),
+      relativePath: getRelativePath(dir.path, baseDir)
+    }));
+
+    // Combine and sort by score
+    const allScored = [...scoredFiles, ...scoredDirs]
+      .sort((a, b) => b.score - a.score)
+      .slice(0, maxSuggestions);
+
+    return allScored.map(item => item.file);
   }
 
   /**
    * Sort files with directories first, then by name
-   * Used as callback for delegated managers
    */
   private sortByDirectoryFirst(files: FileInfo[]): FileInfo[] {
     return [...files].sort((a, b) => {
