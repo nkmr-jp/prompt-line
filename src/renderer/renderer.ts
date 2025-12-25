@@ -6,8 +6,7 @@ import type {
   PasteResult,
   ImageResult,
   UserSettings,
-  DirectoryInfo,
-  AppInfo
+  DirectoryInfo
 } from './types';
 import { EventHandler } from './event-handler';
 import { HistorySearchManager } from './history-search';
@@ -18,19 +17,10 @@ import { HistoryUIManager } from './history-ui-manager';
 import { LifecycleManager } from './lifecycle-manager';
 import { SimpleSnapshotManager } from './snapshot-manager';
 import { FileSearchManager } from './file-search-manager';
+import { DirectoryDataHandler } from './directory-data-handler';
 
 // Secure electronAPI access via preload script
 const electronAPI = (window as any).electronAPI;
-
-/**
- * Format object for console output (Electron renderer -> main process)
- */
-function formatLog(obj: Record<string, unknown>): string {
-  const entries = Object.entries(obj)
-    .map(([key, value]) => `  ${key}: ${typeof value === 'string' ? `'${value}'` : value}`)
-    .join(',\n');
-  return '{\n' + entries + '\n}';
-}
 
 if (!electronAPI) {
   throw new Error('Electron API not available. Preload script may not be loaded correctly.');
@@ -51,6 +41,7 @@ export class PromptLineRenderer {
   private searchManager: HistorySearchManager | null = null;
   private slashCommandManager: SlashCommandManager | null = null;
   private fileSearchManager: FileSearchManager | null = null;
+  private directoryDataHandler: DirectoryDataHandler;
   private domManager: DomManager;
   private draftManager: DraftManager;
   private historyUIManager: HistoryUIManager;
@@ -89,6 +80,17 @@ export class PromptLineRenderer {
       (position: number) => this.domManager.setCursorPosition(position),
       () => this.domManager.selectAll()
     );
+    this.directoryDataHandler = new DirectoryDataHandler({
+      updateHintText: (text: string) => this.domManager.updateHintText(text),
+      setDraggable: (enabled: boolean) => this.domManager.setDraggable(enabled),
+      getFileSearchManager: () => this.fileSearchManager,
+      handleLifecycleWindowShown: (data) => this.lifecycleManager.handleWindowShown(data),
+      exitSearchMode: () => this.searchManager?.exitSearchMode(),
+      resetHistoryScrollPosition: () => this.resetHistoryScrollPosition(),
+      updateHistoryAndSettings: (data) => this.updateHistoryAndSettings(data),
+      getDefaultHintText: () => this.defaultHintText,
+      setDefaultHintText: (text: string) => { this.defaultHintText = text; }
+    });
     // CRITICAL: Register IPC listeners BEFORE any async operations
     // to prevent race condition when window-shown event is sent
     this.setupIPCListeners();
@@ -403,256 +405,13 @@ export class PromptLineRenderer {
 
 
   private async handleWindowShown(data: WindowData): Promise<void> {
-    try {
-      console.debug('[Renderer] handleWindowShown called', formatLog({
-        hasDirectoryData: !!data.directoryData,
-        directoryDataDirectory: data.directoryData?.directory,
-        directoryDataFileCount: data.directoryData?.files?.length,
-        directoryDataFromDraft: data.directoryData?.fromDraft,
-        hasFileSearchManager: !!this.fileSearchManager,
-        fileSearchEnabled: data.fileSearchEnabled
-      }));
-
-      this.lifecycleManager.handleWindowShown(data);
-      this.updateHistoryAndSettings(data);
-
-      // Update file search enabled state in FileSearchManager
-      this.fileSearchManager?.setFileSearchEnabled(data.fileSearchEnabled ?? false);
-
-      // Preload searchPrefixes cache for command/mention (enables sync checks for slash command hints)
-      this.fileSearchManager?.preloadSearchPrefixesCache();
-
-      // Reset search mode and scroll position when window is shown
-      this.searchManager?.exitSearchMode();
-      this.resetHistoryScrollPosition();
-
-      // Reset draggable state when window is shown (new session)
-      this.domManager.setDraggable(false);
-
-      // Cache directory data for file search (from cache, Stage 1, or draft fallback)
-      // Only process directory data and show hints when fileSearch is enabled
-      if (data.fileSearchEnabled && data.directoryData) {
-        console.debug('[Renderer] caching directory data for file search', {
-          fromDraft: data.directoryData.fromDraft,
-          fromCache: data.directoryData.fromCache,
-          cacheAge: data.directoryData.cacheAge
-        });
-        this.fileSearchManager?.handleCachedDirectoryData(data.directoryData);
-        // Note: Code search now uses FileSearchManager's cached directory data
-
-        // Update hint text with formatted directory path
-        // But prioritize hint message (e.g., fd not installed) over directory path
-        if (data.directoryData.hint) {
-          // Show hint message (e.g., "Install fd for file search: brew install fd")
-          this.defaultHintText = data.directoryData.hint;
-          this.domManager.updateHintText(data.directoryData.hint);
-        } else if (data.directoryData.directory) {
-          const formattedPath = this.formatDirectoryPath(data.directoryData.directory);
-          // If file limit reached, show limit message instead of path
-          if (data.directoryData.fileLimitReached) {
-            const limitMessage = `Over ${data.directoryData.maxFiles || 5000} files (adjust settings.yml)`;
-            this.defaultHintText = limitMessage;
-            this.domManager.updateHintText(limitMessage);
-          } else {
-            this.defaultHintText = formattedPath; // Save as default hint
-            this.domManager.updateHintText(formattedPath);
-          }
-
-          // Only save directory to draft if it's NOT already from draft
-          // (to avoid redundant IPC call when directory is from draft fallback)
-          if (!data.directoryData.fromDraft) {
-            await electronAPI.invoke('set-draft-directory', data.directoryData.directory);
-          }
-        }
-      } else if (data.fileSearchEnabled) {
-        console.debug('[Renderer] no directory data in window-shown event');
-        // Show loading message only for apps that support directory detection
-        // Otherwise, keep the default hint text
-        if (this.isDirectoryDetectionCapable(data.sourceApp)) {
-          this.domManager.updateHintText('Detecting directory...');
-        }
-        // If not directory-capable, leave the default hint text unchanged
-      } else {
-        console.debug('[Renderer] fileSearch is disabled, skipping directory hint display');
-      }
-
-      // Restore @paths highlighting for restored draft text (after small delay to ensure text is set)
-      // When directory is from draft fallback, @paths should be restored with filesystem check
-      // (file list is empty, so check actual filesystem for file existence)
-      const checkFilesystem = data.directoryData?.fromDraft || false;
-      setTimeout(() => {
-        this.fileSearchManager?.restoreAtPathsFromText(checkFilesystem);
-      }, 50);
-    } catch (error) {
-      console.error('Error handling window shown:', error);
-    }
+    await this.directoryDataHandler.handleWindowShown(data);
   }
 
   private async handleDirectoryDataUpdated(data: DirectoryInfo): Promise<void> {
-    try {
-      console.debug('[Renderer] handleDirectoryDataUpdated called', {
-        directory: data.directory,
-        fileCount: data.files?.length,
-        directoryChanged: data.directoryChanged,
-        previousDirectory: data.previousDirectory
-      });
-
-      // If directory changed from draft directory, clear @path highlights first
-      // This prevents stale highlights from wrong directory
-      if (data.directoryChanged) {
-        console.debug('[Renderer] Directory changed from draft, clearing @path highlights', {
-          from: data.previousDirectory,
-          to: data.directory
-        });
-        this.fileSearchManager?.clearAtPaths();
-      }
-
-      // Handle timeout case - show hint about large directories (no directory path displayed)
-      if (data.detectionTimedOut) {
-        console.debug('[Renderer] Directory detection timed out', {
-          directory: data.directory
-        });
-        const timeoutMessage = 'Large directory (adjust settings.yml)';
-        this.defaultHintText = timeoutMessage;
-        this.domManager.updateHintText(timeoutMessage);
-        return;
-      }
-
-      // Update cache with directory data (handles both Stage 1 and Stage 2)
-      this.fileSearchManager?.updateCache(data);
-      // Note: Code search now uses FileSearchManager's cached directory data
-
-      // Update hint text with formatted directory path
-      // But prioritize hint message (e.g., fd not installed) over directory path
-      if (data.hint) {
-        // Show hint message (e.g., "Install fd for file search: brew install fd")
-        this.defaultHintText = data.hint;
-        this.domManager.updateHintText(data.hint);
-      } else if (data.directory) {
-        const formattedPath = this.formatDirectoryPath(data.directory);
-        // If file limit reached, show limit message instead of path
-        if (data.fileLimitReached) {
-          const limitMessage = `Over ${data.maxFiles || 5000} files (adjust settings.yml)`;
-          this.defaultHintText = limitMessage;
-          this.domManager.updateHintText(limitMessage);
-        } else {
-          this.defaultHintText = formattedPath; // Save as default hint
-          this.domManager.updateHintText(formattedPath);
-        }
-
-        // Save directory to draft for history recording
-        await electronAPI.invoke('set-draft-directory', data.directory);
-
-        // Try to restore @paths now that we have directory data
-        // This handles the case where directory detection completes after initial window shown
-        // Only restore if directory didn't change (otherwise @paths are from wrong directory)
-        if (!data.directoryChanged) {
-          this.fileSearchManager?.restoreAtPathsFromText();
-        }
-      }
-    } catch (error) {
-      console.error('Error handling directory data update:', error);
-    }
+    await this.directoryDataHandler.handleDirectoryDataUpdated(data);
   }
 
-
-  /**
-   * Check if the source app supports directory detection
-   * Terminal emulators and IDEs typically support detecting the current working directory
-   */
-  private isDirectoryDetectionCapable(sourceApp: AppInfo | string | null | undefined): boolean {
-    if (!sourceApp) return false;
-
-    // Extract app name
-    const appName = typeof sourceApp === 'string' ? sourceApp : sourceApp.name;
-    if (!appName) return false;
-
-    // List of apps that support directory detection (terminals and IDEs)
-    const directoryCapableApps = [
-      // Terminal emulators
-      'terminal',
-      'iterm',
-      'iterm2',
-      'hyper',
-      'alacritty',
-      'kitty',
-      'warp',
-      'tabby',
-      'wezterm',
-      // IDEs and editors
-      'visual studio code',
-      'code',
-      'vscode',
-      'goland',
-      'intellij',
-      'webstorm',
-      'phpstorm',
-      'pycharm',
-      'rubymine',
-      'rider',
-      'clion',
-      'datagrip',
-      'android studio',
-      'xcode',
-      'sublime text',
-      'atom',
-      'vim',
-      'neovim',
-      'emacs',
-      'cursor',
-      'zed'
-    ];
-
-    const lowerAppName = appName.toLowerCase();
-    return directoryCapableApps.some(app => lowerAppName.includes(app));
-  }
-
-  /**
-   * Format directory path for display in hint text
-   * - Replace user home directory with ~
-   * - Remove trailing slash
-   * - Truncate from left if too long, always showing basename
-   */
-  private formatDirectoryPath(dirPath: string): string {
-    // Remove trailing slash
-    let path = dirPath.replace(/\/+$/, '');
-
-    // Replace user home directory with ~ (macOS: /Users/xxx, Linux: /home/xxx)
-    const homePattern = /^\/(?:Users|home)\/[^/]+/;
-    path = path.replace(homePattern, '~');
-
-    const maxLength = 35; // Max characters that can fit in the hint area
-
-    if (path.length <= maxLength) {
-      return path;
-    }
-
-    // Truncate from left, keeping the basename visible
-    const parts = path.split('/');
-    const basename = parts.pop() || path;
-
-    // If basename alone is too long, just show basename (will be truncated by CSS)
-    if (basename.length >= maxLength - 3) {
-      return basename;
-    }
-
-    // Build path from right, adding as many parent directories as fit
-    let result = basename;
-    for (let i = parts.length - 1; i >= 0; i--) {
-      const candidate = parts[i] + '/' + result;
-      if (candidate.length + 3 > maxLength) { // +3 for "..."
-        break;
-      }
-      result = candidate;
-    }
-
-    // Add ellipsis if we truncated
-    if (result !== path) {
-      result = '...' + result;
-    }
-
-    return result;
-  }
 
   private updateHistoryAndSettings(data: WindowData): void {
     this.historyData = data.history || [];
