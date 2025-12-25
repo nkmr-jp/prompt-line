@@ -33,26 +33,55 @@ import {
   KeyboardNavigationManager,
   EventListenerManager,
   QueryExtractionManager,
-  SuggestionStateManager
+  SuggestionStateManager,
+  FileSearchState
 } from './file-search/managers';
 
 export class FileSearchManager {
-  private suggestionsContainer: HTMLElement | null = null;
-  private textInput: HTMLTextAreaElement | null = null;
-  private highlightBackdrop: HTMLDivElement | null = null;
-  private cachedDirectoryData: DirectoryData | null = null;
-  private selectedIndex: number = 0;
-  private filteredFiles: FileInfo[] = [];
-  private filteredAgents: AgentItem[] = []; // Agents matching the query
-  private mergedSuggestions: SuggestionItem[] = []; // Merged and sorted suggestions
-  private isVisible: boolean = false;
-  private currentQuery: string = '';
-  private atStartPosition: number = -1;
+  // Centralized state container
+  private readonly state = new FileSearchState();
   private callbacks: FileSearchCallbacks;
-  private currentPath: string = ''; // Current directory path being browsed (relative from root)
-  private mirrorDiv: HTMLDivElement | null = null; // Hidden div for caret position calculation
-  private atPaths: AtPathRange[] = []; // Tracked @paths in the text (computed from selectedPaths)
-  private selectedPaths: Set<string> = new Set(); // Set of path strings that should be highlighted
+
+  // State property accessors (delegate to FileSearchState)
+  private get suggestionsContainer(): HTMLElement | null { return this.state.suggestionsContainer; }
+  private set suggestionsContainer(v: HTMLElement | null) { this.state.suggestionsContainer = v; }
+  private get textInput(): HTMLTextAreaElement | null { return this.state.textInput; }
+  private set textInput(v: HTMLTextAreaElement | null) { this.state.textInput = v; }
+  private get highlightBackdrop(): HTMLDivElement | null { return this.state.highlightBackdrop; }
+  private set highlightBackdrop(v: HTMLDivElement | null) { this.state.highlightBackdrop = v; }
+  private get mirrorDiv(): HTMLDivElement | null { return this.state.mirrorDiv; }
+  private set mirrorDiv(v: HTMLDivElement | null) { this.state.mirrorDiv = v; }
+  private get cachedDirectoryData(): DirectoryData | null { return this.state.cachedDirectoryData; }
+  private set cachedDirectoryData(v: DirectoryData | null) { this.state.cachedDirectoryData = v; }
+  private get selectedIndex(): number { return this.state.selectedIndex; }
+  private set selectedIndex(v: number) { this.state.selectedIndex = v; }
+  private get currentPath(): string { return this.state.currentPath; }
+  private set currentPath(v: string) { this.state.currentPath = v; }
+  private get currentQuery(): string { return this.state.currentQuery; }
+  private set currentQuery(v: string) { this.state.currentQuery = v; }
+  private get atStartPosition(): number { return this.state.atStartPosition; }
+  private set atStartPosition(v: number) { this.state.atStartPosition = v; }
+  private get isVisible(): boolean { return this.state.isVisible; }
+  private set isVisible(v: boolean) { this.state.isVisible = v; }
+  private get fileSearchEnabled(): boolean { return this.state.fileSearchEnabled; }
+  private set fileSearchEnabled(v: boolean) { this.state.fileSearchEnabled = v; }
+  private get filteredFiles(): FileInfo[] { return this.state.filteredFiles; }
+  private set filteredFiles(v: FileInfo[]) { this.state.filteredFiles = v; }
+  private get filteredAgents(): AgentItem[] { return this.state.filteredAgents; }
+  private set filteredAgents(v: AgentItem[]) { this.state.filteredAgents = v; }
+  private get filteredSymbols(): SymbolResult[] { return this.state.filteredSymbols; }
+  private set filteredSymbols(v: SymbolResult[]) { this.state.filteredSymbols = v; }
+  private get mergedSuggestions(): SuggestionItem[] { return this.state.mergedSuggestions; }
+  private set mergedSuggestions(v: SuggestionItem[]) { this.state.mergedSuggestions = v; }
+  private get atPaths(): AtPathRange[] { return this.state.atPaths; }
+  private set atPaths(v: AtPathRange[]) { this.state.atPaths = v; }
+  private get selectedPaths(): Set<string> { return this.state.selectedPaths; }
+  private get codeSearchQuery(): string { return this.state.codeSearchQuery; }
+  private set codeSearchQuery(v: string) { this.state.codeSearchQuery = v; }
+  private get codeSearchLanguage(): string { return this.state.codeSearchLanguage; }
+  private set codeSearchLanguage(v: string) { this.state.codeSearchLanguage = v; }
+  private get codeSearchCacheRefreshed(): boolean { return this.state.codeSearchCacheRefreshed; }
+  private set codeSearchCacheRefreshed(v: boolean) { this.state.codeSearchCacheRefreshed = v; }
 
   // PopupManager for frontmatter popup
   private popupManager: PopupManager;
@@ -76,15 +105,6 @@ export class FileSearchManager {
   private eventListenerManager: EventListenerManager;
   private queryExtractionManager: QueryExtractionManager;
   private suggestionStateManager: SuggestionStateManager;
-
-  // Whether file search feature is enabled (from settings)
-  private fileSearchEnabled: boolean = false;
-
-  // Code/Symbol search properties
-  private filteredSymbols: SymbolResult[] = [];
-  private codeSearchQuery: string = '';
-  private codeSearchLanguage: string = ''; // Current language for code search
-  private codeSearchCacheRefreshed: boolean = false; // Whether cache refresh has been triggered for this session
 
   // Symbol mode properties (delegated to SymbolModeUIManager, kept for compatibility)
   private get isInSymbolMode(): boolean {
@@ -1252,7 +1272,11 @@ export class FileSearchManager {
       await this.highlightManager.restoreAtPathsFromText(checkFilesystem, this.cachedDirectoryData);
       // Sync local state with HighlightManager
       this.atPaths = this.highlightManager.getAtPaths();
-      this.selectedPaths = this.highlightManager.getSelectedPaths();
+      // Clear and copy selectedPaths from HighlightManager
+      this.state.clearSelectedPaths();
+      for (const path of this.highlightManager.getSelectedPaths()) {
+        this.state.addSelectedPath(path);
+      }
     }
   }
 
