@@ -39,3 +39,20 @@ export type { ItemSelectionCallbacks } from './item-selection-manager';
 
 export { NavigationManager } from './navigation-manager';
 export type { NavigationCallbacks } from './navigation-manager';
+
+export { KeyboardNavigationManager } from './keyboard-navigation-manager';
+export type { KeyboardNavigationCallbacks } from './keyboard-navigation-manager';
+
+export { EventListenerManager } from './event-listener-manager';
+export type { EventListenerCallbacks } from './event-listener-manager';
+
+export { QueryExtractionManager } from './query-extraction-manager';
+export type { QueryExtractionResult, CodeSearchQueryResult, QueryExtractionCallbacks } from './query-extraction-manager';
+
+export { SuggestionStateManager } from './suggestion-state-manager';
+export type { SuggestionStateCallbacks } from './suggestion-state-manager';
+
+export { FileSearchState } from './file-search-state';
+
+export { ManagerFactory } from './manager-factory';
+export type { ManagerContext, CreatedManagers } from './manager-factory';

@@ -9,6 +9,7 @@
  */
 
 import type { AgentItem } from '../../../types';
+import { calculatePopupPosition, applyPopupPosition } from '../../utils/popup-position-calculator';
 
 /**
  * Callbacks for PopupManager to communicate with parent
@@ -118,44 +119,14 @@ export class PopupManager {
     hintDiv.textContent = this.autoShowTooltip ? 'Ctrl+i: hide tooltip' : 'Ctrl+i: auto-show tooltip';
     this.frontmatterPopup.appendChild(hintDiv);
 
-    // Get the info icon and container rectangles for positioning
-    const iconRect = targetElement.getBoundingClientRect();
-    const containerRect = suggestionsContainer.getBoundingClientRect();
+    // Calculate popup position using shared utility
+    const position = calculatePopupPosition({
+      targetRect: targetElement.getBoundingClientRect(),
+      containerRect: suggestionsContainer.getBoundingClientRect()
+    });
 
-    // Position popup to the left of the info icon
-    const popupWidth = containerRect.width - 40;
-    const horizontalGap = 8;
-    const right = window.innerWidth - iconRect.left + horizontalGap;
-
-    // Gap between popup and icon
-    const verticalGap = 4;
-
-    // Calculate available space below and above the icon
-    const spaceBelow = window.innerHeight - iconRect.bottom - 10;
-    const spaceAbove = iconRect.top - 10;
-    const minPopupHeight = 80;
-
-    // Decide whether to show popup above or below the icon
-    const showAbove = spaceBelow < minPopupHeight && spaceAbove > spaceBelow;
-
-    let top: number;
-    let maxHeight: number;
-
-    if (showAbove) {
-      // Position above the icon (bottom of popup aligns with top of icon)
-      maxHeight = Math.max(minPopupHeight, Math.min(150, spaceAbove - verticalGap));
-      top = iconRect.top - maxHeight - verticalGap;
-    } else {
-      // Position below the icon (top of popup aligns with bottom of icon)
-      top = iconRect.bottom + verticalGap;
-      maxHeight = Math.max(minPopupHeight, Math.min(150, spaceBelow - verticalGap));
-    }
-
-    this.frontmatterPopup.style.right = `${right}px`;
-    this.frontmatterPopup.style.left = 'auto';
-    this.frontmatterPopup.style.top = `${top}px`;
-    this.frontmatterPopup.style.width = `${popupWidth}px`;
-    this.frontmatterPopup.style.maxHeight = `${maxHeight}px`;
+    // Apply position to popup
+    applyPopupPosition(this.frontmatterPopup, position);
 
     this.frontmatterPopup.style.display = 'block';
   }

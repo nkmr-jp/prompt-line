@@ -14,6 +14,12 @@ import type {
   HistoryConfig
 } from '../types';
 
+/**
+ * @deprecated Use OptimizedHistoryManager instead.
+ * This class is maintained for backwards compatibility and testing purposes only.
+ * OptimizedHistoryManager provides better performance with LRU caching and streaming operations.
+ * @see OptimizedHistoryManager
+ */
 class HistoryManager implements IHistoryManager {
   private historyData: HistoryItem[] = [];
   private historyFile: string;

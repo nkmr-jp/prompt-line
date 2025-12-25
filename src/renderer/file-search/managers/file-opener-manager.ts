@@ -112,51 +112,10 @@ export class FileOpenerManager {
    * Priority order: URL → Slash Command → @path → Absolute Path
    */
   async handleCtrlEnter(e: KeyboardEvent): Promise<void> {
-    const text = this.callbacks.getTextContent();
-    const cursorPos = this.callbacks.getCursorPosition();
-
-    // Check for URL first
-    const url = findUrlAtPosition(text, cursorPos);
-    if (url) {
+    const handled = await this.tryOpenItemAtCursor();
+    if (handled) {
       e.preventDefault();
       e.stopPropagation();
-      await this.openUrl(url.url);
-      return;
-    }
-
-    // Check for slash command (like /commit, /help)
-    const slashCommand = findSlashCommandAtPosition(text, cursorPos);
-    if (slashCommand) {
-      e.preventDefault();
-      e.stopPropagation();
-
-      try {
-        const commandFilePath = await window.electronAPI.slashCommands.getFilePath(slashCommand.command);
-        if (commandFilePath) {
-          await this.openFile(commandFilePath);
-          return;
-        }
-      } catch (err) {
-        console.error('Failed to resolve slash command file path:', err);
-      }
-      return;
-    }
-
-    // Find @path at cursor position
-    const atPath = findAtPathAtPosition(text, cursorPos);
-    if (atPath) {
-      e.preventDefault();
-      e.stopPropagation();
-      await this.handleAtPath(atPath);
-      return;
-    }
-
-    // Find absolute path at cursor position
-    const absolutePath = findAbsolutePathAtPosition(text, cursorPos);
-    if (absolutePath) {
-      e.preventDefault();
-      e.stopPropagation();
-      await this.openFile(absolutePath);
     }
   }
 
@@ -166,52 +125,59 @@ export class FileOpenerManager {
    * Priority order: URL → Slash Command → @path → Absolute Path
    */
   async handleCmdClick(e: MouseEvent): Promise<void> {
+    const handled = await this.tryOpenItemAtCursor();
+    if (handled) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }
+
+  /**
+   * Try to open URL, slash command, @path, or absolute path at cursor position
+   * Priority order: URL → Slash Command → @path → Absolute Path
+   * @returns true if something was opened, false otherwise
+   */
+  private async tryOpenItemAtCursor(): Promise<boolean> {
     const text = this.callbacks.getTextContent();
     const cursorPos = this.callbacks.getCursorPosition();
 
     // Check for URL first
     const url = findUrlAtPosition(text, cursorPos);
     if (url) {
-      e.preventDefault();
-      e.stopPropagation();
       await this.openUrl(url.url);
-      return;
+      return true;
     }
 
     // Check for slash command (like /commit, /help)
     const slashCommand = findSlashCommandAtPosition(text, cursorPos);
     if (slashCommand) {
-      e.preventDefault();
-      e.stopPropagation();
-
       try {
         const commandFilePath = await window.electronAPI.slashCommands.getFilePath(slashCommand.command);
         if (commandFilePath) {
           await this.openFile(commandFilePath);
-          return;
+          return true;
         }
       } catch (err) {
         console.error('Failed to resolve slash command file path:', err);
       }
-      return;
+      return true; // Still consumed the event even if failed
     }
 
-    // Find @path at or near cursor position
+    // Find @path at cursor position
     const atPath = findAtPathAtPosition(text, cursorPos);
     if (atPath) {
-      e.preventDefault();
-      e.stopPropagation();
       await this.handleAtPath(atPath);
-      return;
+      return true;
     }
 
     // Find absolute path at cursor position
     const absolutePath = findAbsolutePathAtPosition(text, cursorPos);
     if (absolutePath) {
-      e.preventDefault();
-      e.stopPropagation();
       await this.openFile(absolutePath);
+      return true;
     }
+
+    return false;
   }
 
   /**

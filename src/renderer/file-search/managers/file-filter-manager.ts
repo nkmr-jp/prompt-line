@@ -1,9 +1,13 @@
 /**
  * FileFilterManager - Handles file filtering, scoring, and suggestion merging
  *
- * Extracted from FileSearchManager to improve modularity and reduce file size.
+ * Consolidated from FileSearchManager, SubdirectoryFilterManager, and RootFilterManager.
+ * This manager now handles all file filtering logic in one place.
+ *
  * Responsibilities:
  * - Filter files based on query (fuzzy matching)
+ * - Filter files in subdirectories
+ * - Filter files at root level with recursive search
  * - Count files in directories
  * - Adjust current path based on query navigation
  * - Merge and sort file/agent suggestions
@@ -93,6 +97,7 @@ export class FileFilterManager {
 
   /**
    * Filter files when browsing a subdirectory
+   * (Inlined from SubdirectoryFilterManager)
    */
   private filterFilesInSubdirectory(
     allFiles: FileInfo[],
@@ -164,6 +169,7 @@ export class FileFilterManager {
 
   /**
    * Filter files at root level
+   * (Inlined from RootFilterManager)
    */
   private filterFilesAtRoot(
     allFiles: FileInfo[],
@@ -182,6 +188,7 @@ export class FileFilterManager {
 
   /**
    * Get top-level files and directories (no query)
+   * (Inlined from RootFilterManager)
    */
   private getTopLevelFiles(
     allFiles: FileInfo[],
@@ -227,6 +234,7 @@ export class FileFilterManager {
 
   /**
    * Search all files recursively with query
+   * (Inlined from RootFilterManager)
    */
   private searchAllFiles(
     allFiles: FileInfo[],
