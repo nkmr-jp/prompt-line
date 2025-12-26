@@ -497,15 +497,22 @@ export class HighlightManager {
     const text = this.callbacks.getTextContent();
     const atPaths = this.pathManager.getAtPaths();
 
+    // Convert tabs to spaces for consistent rendering
+    const convertedText = this.convertTabsToSpaces(text);
+
     if (atPaths.length === 0) {
-      this.highlightBackdrop.textContent = text;
+      this.highlightBackdrop.textContent = convertedText;
+      this.syncBackdropScroll();
       return;
     }
 
-    const fragment = this.buildHighlightFragment(text, atPaths.map(ap => ({
+    const ranges = atPaths.map(ap => ({
       ...ap,
       className: 'at-path-highlight'
-    })));
+    }));
+    const adjustedRanges = this.adjustRangesForTabConversion(text, ranges);
+
+    const fragment = this.buildHighlightFragment(convertedText, adjustedRanges);
 
     this.highlightBackdrop.innerHTML = '';
     this.highlightBackdrop.appendChild(fragment);
@@ -574,7 +581,11 @@ export class HighlightManager {
   private updateBackdropWithRanges(text: string, ranges: Array<AtPathRange & { className: string }>): void {
     ranges.sort((a, b) => a.start - b.start);
 
-    const fragment = this.buildHighlightFragment(text, ranges);
+    // Convert tabs to spaces for consistent rendering
+    const convertedText = this.convertTabsToSpaces(text);
+    const adjustedRanges = this.adjustRangesForTabConversion(text, ranges);
+
+    const fragment = this.buildHighlightFragment(convertedText, adjustedRanges);
 
     while (this.highlightBackdrop.firstChild) {
       this.highlightBackdrop.removeChild(this.highlightBackdrop.firstChild);
@@ -608,5 +619,92 @@ export class HighlightManager {
     }
 
     return fragment;
+  }
+
+  /**
+   * Convert tabs to spaces for consistent rendering between textarea and backdrop
+   * Tab stops are at every TAB_SIZE characters from the start of each line
+   */
+  private convertTabsToSpaces(text: string): string {
+    const TAB_SIZE = 4;
+    const lines = text.split('\n');
+    const convertedLines = lines.map(line => {
+      let result = '';
+      let column = 0;
+
+      for (const char of line) {
+        if (char === '\t') {
+          // Calculate spaces needed to reach next tab stop
+          const spacesToNextTabStop = TAB_SIZE - (column % TAB_SIZE);
+          result += ' '.repeat(spacesToNextTabStop);
+          column += spacesToNextTabStop;
+        } else {
+          result += char;
+          column++;
+        }
+      }
+
+      return result;
+    });
+
+    return convertedLines.join('\n');
+  }
+
+  /**
+   * Adjust range positions after tab-to-space conversion
+   */
+  private adjustRangesForTabConversion(
+    originalText: string,
+    ranges: Array<AtPathRange & { className: string }>
+  ): Array<AtPathRange & { className: string }> {
+    const TAB_SIZE = 4;
+    const adjustedRanges: Array<AtPathRange & { className: string }> = [];
+
+    for (const range of ranges) {
+      let newStart = 0;
+      let newEnd = 0;
+      let column = 0;
+
+      // Calculate new start position
+      for (let i = 0; i < range.start; i++) {
+        const char = originalText[i];
+        if (char === '\n') {
+          newStart++;
+          column = 0;
+        } else if (char === '\t') {
+          const spacesToNextTabStop = TAB_SIZE - (column % TAB_SIZE);
+          newStart += spacesToNextTabStop;
+          column += spacesToNextTabStop;
+        } else {
+          newStart++;
+          column++;
+        }
+      }
+
+      // Calculate new end position (continue from start)
+      newEnd = newStart;
+      for (let i = range.start; i < range.end; i++) {
+        const char = originalText[i];
+        if (char === '\n') {
+          newEnd++;
+          column = 0;
+        } else if (char === '\t') {
+          const spacesToNextTabStop = TAB_SIZE - (column % TAB_SIZE);
+          newEnd += spacesToNextTabStop;
+          column += spacesToNextTabStop;
+        } else {
+          newEnd++;
+          column++;
+        }
+      }
+
+      adjustedRanges.push({
+        ...range,
+        start: newStart,
+        end: newEnd
+      });
+    }
+
+    return adjustedRanges;
   }
 }
