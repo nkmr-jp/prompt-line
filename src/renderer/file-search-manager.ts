@@ -20,20 +20,18 @@ import {
   PopupManager,
   SettingsCacheManager,
   HighlightManager,
-  SuggestionListManager,
   CodeSearchManager,
   FileOpenerManager,
   DirectoryCacheManager,
   FileFilterManager,
-  TextInputPathManager,
+  PathManager,
   SymbolModeUIManager,
-  AtPathBehaviorManager,
   ItemSelectionManager,
   NavigationManager,
   KeyboardNavigationManager,
   EventListenerManager,
   QueryExtractionManager,
-  SuggestionStateManager,
+  SuggestionUIManager,
   FileSearchState
 } from './file-search/managers';
 
@@ -91,20 +89,18 @@ export class FileSearchManager {
 
   // New modular managers (initialized in initializeElements after DOM is ready)
   private highlightManager: HighlightManager | null = null;
-  private suggestionListManager: SuggestionListManager | null = null;
+  private suggestionUIManager: SuggestionUIManager | null = null;
   private codeSearchManager: CodeSearchManager | null = null;
   private fileOpenerManager: FileOpenerManager | null = null;
   private directoryCacheManager: DirectoryCacheManager | null = null;
   private fileFilterManager: FileFilterManager;
-  private textInputPathManager: TextInputPathManager;
+  private pathManager: PathManager;
   private symbolModeUIManager: SymbolModeUIManager;
-  private atPathBehaviorManager: AtPathBehaviorManager;
   private itemSelectionManager: ItemSelectionManager;
   private navigationManager: NavigationManager;
   private keyboardNavigationManager: KeyboardNavigationManager;
   private eventListenerManager: EventListenerManager;
   private queryExtractionManager: QueryExtractionManager;
-  private suggestionStateManager: SuggestionStateManager;
 
   // Symbol mode properties (delegated to SymbolModeUIManager, kept for compatibility)
   private get isInSymbolMode(): boolean {
@@ -143,8 +139,8 @@ export class FileSearchManager {
       getDefaultMaxSuggestions: () => this.settingsCacheManager.getDefaultMaxSuggestions()
     });
 
-    // Initialize TextInputPathManager
-    this.textInputPathManager = new TextInputPathManager({
+    // Initialize PathManager (unified path management)
+    this.pathManager = new PathManager({
       getTextContent: () => this.callbacks.getTextContent(),
       setTextContent: (text: string) => this.callbacks.setTextContent(text),
       getCursorPosition: () => this.callbacks.getCursorPosition(),
@@ -152,12 +148,15 @@ export class FileSearchManager {
       replaceRangeWithUndo: this.callbacks.replaceRangeWithUndo
         ? (start: number, end: number, text: string) => this.callbacks.replaceRangeWithUndo!(start, end, text)
         : undefined,
-      addSelectedPath: (path: string) => {
-        this.selectedPaths.add(path);
-        this.highlightManager?.addSelectedPath(path);
-        console.debug('[FileSearchManager] Added path to selectedPaths:', path, 'total:', this.selectedPaths.size);
-      },
-      updateHighlightBackdrop: () => this.updateHighlightBackdrop()
+      updateHighlightBackdrop: () => this.updateHighlightBackdrop(),
+      getCachedDirectoryData: () => this.cachedDirectoryData,
+      isCommandEnabledSync: () => this.isCommandEnabledSync(),
+      checkFileExists: async (path: string) => {
+        const baseDir = this.cachedDirectoryData?.directory;
+        if (!baseDir) return false;
+        const absolutePath = resolveAtPathToAbsolute(path, baseDir);
+        return await this.callbacks.checkFileExists(absolutePath);
+      }
     });
 
     // Initialize SymbolModeUIManager
@@ -173,7 +172,7 @@ export class FileSearchManager {
       getAtStartPosition: () => this.atStartPosition,
       updateSelection: () => this.updateSelection(),
       selectSymbol: (symbol) => this.selectSymbol(symbol),
-      positionPopup: (atStartPos) => this.suggestionListManager?.position(atStartPos),
+      positionPopup: (atStartPos) => this.suggestionUIManager?.position(atStartPos),
       updateHintText: this.callbacks.updateHintText
         ? (text: string) => this.callbacks.updateHintText!(text)
         : undefined,
@@ -187,25 +186,6 @@ export class FileSearchManager {
       onFileSelected: (path) => this.callbacks.onFileSelected(path),
       setCurrentQuery: (query) => { this.currentQuery = query; },
       getCurrentPath: () => this.currentPath
-    });
-
-    // Initialize AtPathBehaviorManager
-    this.atPathBehaviorManager = new AtPathBehaviorManager({
-      getTextContent: () => this.callbacks.getTextContent(),
-      setTextContent: (text: string) => this.callbacks.setTextContent(text),
-      getCursorPosition: () => this.callbacks.getCursorPosition(),
-      setCursorPosition: (pos: number) => this.callbacks.setCursorPosition(pos),
-      replaceRangeWithUndo: this.callbacks.replaceRangeWithUndo
-        ? (start: number, end: number, text: string) => this.callbacks.replaceRangeWithUndo!(start, end, text)
-        : undefined,
-      getAtPaths: () => this.atPaths,
-      getSelectedPaths: () => this.selectedPaths,
-      removeSelectedPath: (path: string) => {
-        this.selectedPaths.delete(path);
-        this.highlightManager?.removeSelectedPath(path);
-      },
-      updateHighlightBackdrop: () => this.updateHighlightBackdrop(),
-      getCachedDirectoryData: () => this.cachedDirectoryData
     });
 
     // Initialize ItemSelectionManager
@@ -244,7 +224,7 @@ export class FileSearchManager {
       filterFiles: (query: string) => this.filterFiles(query),
       mergeSuggestions: (query: string) => this.mergeSuggestions(query),
       updateSuggestionList: (suggestions: SuggestionItem[], showPath: boolean, selectedIndex: number) =>
-        this.suggestionListManager?.update(suggestions, showPath, selectedIndex),
+        this.suggestionUIManager?.update(suggestions, showPath, selectedIndex),
       showTooltipForSelectedItem: () => this.popupManager.showTooltipForSelectedItem(),
       insertFilePath: (path: string) => this.insertFilePath(path),
       hideSuggestions: () => this.hideSuggestions(),
@@ -311,38 +291,6 @@ export class FileSearchManager {
       getCursorPosition: () => this.callbacks.getCursorPosition()
     });
 
-    // Initialize SuggestionStateManager
-    this.suggestionStateManager = new SuggestionStateManager({
-      getCachedDirectoryData: () => this.cachedDirectoryData,
-      getAtStartPosition: () => this.atStartPosition,
-      getCurrentPath: () => this.currentPath,
-      getCurrentQuery: () => this.currentQuery,
-      getFilteredFiles: () => this.filteredFiles,
-      getFilteredAgents: () => this.filteredAgents,
-      getMergedSuggestions: () => this.mergedSuggestions,
-      getSelectedIndex: () => this.selectedIndex,
-      setCurrentPath: (path: string) => { this.currentPath = path; },
-      setCurrentQuery: (query: string) => { this.currentQuery = query; },
-      setFilteredFiles: (files: unknown[]) => { this.filteredFiles = files as FileInfo[]; },
-      setFilteredAgents: (agents: AgentItem[]) => { this.filteredAgents = agents; },
-      setMergedSuggestions: (suggestions: SuggestionItem[]) => { this.mergedSuggestions = suggestions; },
-      setSelectedIndex: (index: number) => { this.selectedIndex = index; },
-      setIsVisible: (visible: boolean) => { this.isVisible = visible; },
-      adjustCurrentPathToQuery: (query: string) => this.adjustCurrentPathToQuery(query),
-      filterFiles: (query: string) => this.filterFiles(query),
-      mergeSuggestions: (query: string, maxSuggestions?: number) => this.mergeSuggestions(query, maxSuggestions),
-      searchAgents: (query: string) => this.searchAgents(query),
-      isIndexBeingBuilt: () => this.isIndexBeingBuilt(),
-      showIndexingHint: () => this.showIndexingHint(),
-      showSuggestionList: (suggestions: SuggestionItem[], atPosition: number, showPath: boolean) =>
-        this.suggestionListManager?.show(suggestions, atPosition, showPath),
-      updateSuggestionList: (suggestions: SuggestionItem[], showPath: boolean, selectedIndex: number) =>
-        this.suggestionListManager?.update(suggestions, showPath, selectedIndex),
-      showTooltipForSelectedItem: () => this.popupManager.showTooltipForSelectedItem(),
-      matchesSearchPrefix: (query: string, type: 'command' | 'mention') => this.matchesSearchPrefix(query, type),
-      getMaxSuggestions: (type: 'command' | 'mention') => this.getMaxSuggestions(type),
-      restoreDefaultHint: () => this.restoreDefaultHint()
-    });
   }
 
   /**
@@ -461,7 +409,7 @@ export class FileSearchManager {
       updateHintText: (text: string) => this.callbacks.updateHintText?.(text)
     });
 
-    // Initialize HighlightManager (requires textInput and highlightBackdrop)
+    // Initialize HighlightManager (requires textInput, highlightBackdrop, and pathManager)
     if (this.textInput && this.highlightBackdrop) {
       this.highlightManager = new HighlightManager(
         this.textInput,
@@ -480,7 +428,8 @@ export class FileSearchManager {
               return false;
             }
           }
-        }
+        },
+        this.pathManager  // Pass PathManager for unified path management
       );
       // Set up valid paths builder for @path validation
       this.highlightManager.setValidPathsBuilder(() => this.buildValidPathsSet());
@@ -515,32 +464,56 @@ export class FileSearchManager {
       restoreDefaultHint: () => this.restoreDefaultHint()
     });
 
-    // Initialize SuggestionListManager (requires textInput)
+    // Initialize SuggestionUIManager (consolidated from SuggestionListManager and SuggestionStateManager)
     if (this.textInput) {
-      this.suggestionListManager = new SuggestionListManager(
+      this.suggestionUIManager = new SuggestionUIManager(
         this.textInput,
         {
+          // Selection and navigation
           onItemSelected: (index: number) => this.selectItem(index),
           onNavigateIntoDirectory: (file: FileInfo) => this.navigateIntoDirectory(file),
           onEscape: () => this.hideSuggestions(),
           onOpenFileInEditor: async (filePath: string) => {
             await window.electronAPI.file.openInEditor(filePath);
           },
+          // Input state
           getIsComposing: () => this.callbacks.getIsComposing?.() || false,
+          // Display context
           getCurrentPath: () => this.currentPath,
           getBaseDir: () => this.cachedDirectoryData?.directory || '',
           getCurrentQuery: () => this.currentQuery,
           getCodeSearchQuery: () => this.codeSearchQuery,
           countFilesInDirectory: (path: string) => this.countFilesInDirectory(path),
+          // Popup interactions
           onMouseEnterInfo: (suggestion: SuggestionItem, target: HTMLElement) => {
-            // Only show frontmatter popup for agent items
             if (suggestion.type === 'agent' && suggestion.agent) {
               this.popupManager.showFrontmatterPopup(suggestion.agent, target);
             }
           },
           onMouseLeaveInfo: () => {
             this.popupManager.hideFrontmatterPopup();
-          }
+          },
+          // State management (from SuggestionStateManager)
+          getCachedDirectoryData: () => this.cachedDirectoryData,
+          getAtStartPosition: () => this.atStartPosition,
+          adjustCurrentPathToQuery: (query: string) => this.adjustCurrentPathToQuery(query),
+          filterFiles: (query: string) => this.filterFiles(query),
+          mergeSuggestions: (query: string, maxSuggestions?: number) => this.mergeSuggestions(query, maxSuggestions),
+          searchAgents: (query: string) => this.searchAgents(query),
+          isIndexBeingBuilt: () => this.isIndexBeingBuilt(),
+          showIndexingHint: () => this.showIndexingHint(),
+          restoreDefaultHint: () => this.restoreDefaultHint(),
+          matchesSearchPrefix: (query: string, type: 'command' | 'mention') => this.matchesSearchPrefix(query, type),
+          getMaxSuggestions: (type: 'command' | 'mention') => this.getMaxSuggestions(type),
+          showTooltipForSelectedItem: () => this.popupManager.showTooltipForSelectedItem(),
+          // State setters
+          setCurrentPath: (path: string) => { this.currentPath = path; },
+          setCurrentQuery: (query: string) => { this.currentQuery = query; },
+          setFilteredFiles: (files: FileInfo[]) => { this.filteredFiles = files; },
+          setFilteredAgents: (agents: AgentItem[]) => { this.filteredAgents = agents; },
+          setMergedSuggestions: (suggestions: SuggestionItem[]) => { this.mergedSuggestions = suggestions; },
+          setSelectedIndex: (index: number) => { this.selectedIndex = index; },
+          setIsVisible: (visible: boolean) => { this.isVisible = visible; }
         }
       );
     }
@@ -774,7 +747,7 @@ export class FileSearchManager {
       this.filterFiles(this.currentQuery);
     }
     // Delegate rendering to SuggestionListManager (position remains unchanged)
-    this.suggestionListManager?.update(this.mergedSuggestions, false);
+    this.suggestionUIManager?.update(this.mergedSuggestions, false);
   }
 
   /**
@@ -916,7 +889,7 @@ export class FileSearchManager {
     this.isVisible = true;
 
     if (this.mergedSuggestions.length > 0) {
-      this.suggestionListManager?.show(this.mergedSuggestions, this.atStartPosition, false);
+      this.suggestionUIManager?.show(this.mergedSuggestions, this.atStartPosition, false);
       this.popupManager.showTooltipForSelectedItem();
       const langInfo = this.codeSearchManager.getSupportedLanguages().get(language);
       this.callbacks.updateHintText?.(`${this.filteredSymbols.length} ${langInfo?.displayName || language} symbols`);
@@ -928,7 +901,7 @@ export class FileSearchManager {
 
   /**
    * Show file suggestions based on the query
-   * Delegates to SuggestionStateManager for state management
+   * Delegates to SuggestionUIManager for state management
    */
   public async showSuggestions(query: string): Promise<void> {
     console.debug('[FileSearchManager] showSuggestions called', formatLog({
@@ -952,7 +925,7 @@ export class FileSearchManager {
     }
 
     // Delegate to SuggestionStateManager
-    await this.suggestionStateManager.showSuggestions(query);
+    await this.suggestionUIManager?.showSuggestions(query);
   }
 
   /**
@@ -995,10 +968,10 @@ export class FileSearchManager {
     if (!this.suggestionsContainer) return;
 
     // Delegate UI hiding to SuggestionListManager
-    this.suggestionListManager?.hide();
+    this.suggestionUIManager?.hide();
 
     // Delegate state clearing to SuggestionStateManager
-    this.suggestionStateManager.hideSuggestions();
+    this.suggestionUIManager?.hideSuggestions();
 
     // Also handle local state (for backward compatibility during refactoring)
     this.isVisible = false;
@@ -1033,10 +1006,10 @@ export class FileSearchManager {
   /**
    * Remove the @query text from the textarea without inserting a file path
    * Used when opening a file with Ctrl+Enter
-   * Delegates to TextInputPathManager
+   * Delegates to PathManager
    */
   private removeAtQueryText(): void {
-    this.textInputPathManager.removeAtQueryText(this.atStartPosition);
+    this.pathManager.removeAtQueryText(this.atStartPosition);
   }
 
   /**
@@ -1150,10 +1123,10 @@ export class FileSearchManager {
 
   /**
    * Update text input with the current path (keeps @ and updates the path after it)
-   * Delegates to TextInputPathManager
+   * Delegates to PathManager
    */
   private updateTextInputWithPath(path: string): void {
-    this.textInputPathManager.updateTextInputWithPath(path, this.atStartPosition);
+    this.pathManager.updateTextInputWithPath(path, this.atStartPosition);
   }
 
   /**
@@ -1190,27 +1163,27 @@ export class FileSearchManager {
 
   /**
    * Insert file path, keeping the @ and replacing only the query part
-   * Delegates to TextInputPathManager
+   * Delegates to PathManager
    */
   public insertFilePath(path: string): void {
-    this.atStartPosition = this.textInputPathManager.insertFilePath(path, this.atStartPosition);
+    this.atStartPosition = this.pathManager.insertFilePath(path, this.atStartPosition);
   }
 
   /**
    * Insert file path without the @ symbol
    * Replaces both @ and query with just the path
-   * Delegates to TextInputPathManager
+   * Delegates to PathManager
    */
   private insertFilePathWithoutAt(path: string): void {
-    this.atStartPosition = this.textInputPathManager.insertFilePathWithoutAt(path, this.atStartPosition);
+    this.atStartPosition = this.pathManager.insertFilePathWithoutAt(path, this.atStartPosition);
   }
 
   /**
    * Handle backspace key to delete entire @path if cursor is at the end
-   * Delegates to AtPathBehaviorManager
+   * Delegates to PathManager
    */
   private handleBackspaceForAtPath(e: KeyboardEvent): void {
-    this.atPathBehaviorManager.handleBackspaceForAtPath(e);
+    this.pathManager.handleBackspaceForAtPath(e);
   }
 
   /**
@@ -1237,7 +1210,7 @@ export class FileSearchManager {
    * Build a set of valid paths from cached directory data
    */
   private buildValidPathsSet(): Set<string> | null {
-    return this.atPathBehaviorManager.buildValidPathsSet();
+    return this.pathManager.buildValidPathsSet();
   }
 
   /**
@@ -1302,7 +1275,7 @@ export class FileSearchManager {
 
     // Clean up modular managers
     this.highlightManager = null;
-    this.suggestionListManager = null;
+    this.suggestionUIManager = null;
     this.codeSearchManager = null;
     this.fileOpenerManager = null;
     this.directoryCacheManager = null;

@@ -12,16 +12,16 @@ import type { FileSearchCallbacks, SuggestionItem } from '../types';
 import { PopupManager } from './popup-manager';
 import { SettingsCacheManager } from './settings-cache-manager';
 import { FileFilterManager } from './file-filter-manager';
-import { TextInputPathManager } from './text-input-path-manager';
+import { PathManager } from './path-manager';
 import { SymbolModeUIManager } from './symbol-mode-ui-manager';
-import { AtPathBehaviorManager } from './at-path-behavior-manager';
 import { ItemSelectionManager } from './item-selection-manager';
 import { NavigationManager } from './navigation-manager';
 import { KeyboardNavigationManager } from './keyboard-navigation-manager';
 import { EventListenerManager } from './event-listener-manager';
 import { QueryExtractionManager } from './query-extraction-manager';
-import { SuggestionStateManager } from './suggestion-state-manager';
+import { SuggestionUIManager } from './suggestion-ui-manager';
 import { FileSearchState } from './file-search-state';
+import { resolveAtPathToAbsolute } from '../index';
 
 /**
  * Context for manager creation - provides access to shared state and methods
@@ -31,7 +31,7 @@ export interface ManagerContext {
   callbacks: FileSearchCallbacks;
   // Methods that sub-managers need to call back to
   getHighlightManager: () => { addSelectedPath: (p: string) => void; removeSelectedPath: (p: string) => void; clearFilePathHighlight: () => void; onCmdKeyDown: () => void; onCmdKeyUp: () => void; onMouseMove: (e: MouseEvent) => void } | null;
-  getSuggestionListManager: () => { show: (s: SuggestionItem[], p: number, b: boolean) => void; update: (s: SuggestionItem[], b: boolean, i: number) => void; position: (p: number) => void } | null;
+  getSuggestionUIManager: () => { show: (s: SuggestionItem[], p: number, b: boolean) => void; update: (s: SuggestionItem[], b: boolean, i: number) => void; position: (p: number) => void } | null;
   getCodeSearchManager: () => {
     navigateIntoFile: (baseDir: string, relativePath: string, absolutePath: string, language: LanguageInfo) => Promise<void>;
     isInSymbolModeActive: () => boolean;
@@ -89,15 +89,14 @@ export interface CreatedManagers {
   popupManager: PopupManager;
   settingsCacheManager: SettingsCacheManager;
   fileFilterManager: FileFilterManager;
-  textInputPathManager: TextInputPathManager;
+  pathManager: PathManager;
   symbolModeUIManager: SymbolModeUIManager;
-  atPathBehaviorManager: AtPathBehaviorManager;
   itemSelectionManager: ItemSelectionManager;
   navigationManager: NavigationManager;
   keyboardNavigationManager: KeyboardNavigationManager;
   eventListenerManager: EventListenerManager;
   queryExtractionManager: QueryExtractionManager;
-  suggestionStateManager: SuggestionStateManager;
+  suggestionUIManager: SuggestionUIManager;
 }
 
 /**
@@ -123,10 +122,10 @@ export class ManagerFactory {
   }
 
   /**
-   * Create input managers (TextInputPathManager, AtPathBehaviorManager)
+   * Create PathManager (unified path management)
    */
-  static createInputManagers(ctx: ManagerContext): Pick<CreatedManagers, 'textInputPathManager' | 'atPathBehaviorManager'> {
-    const textInputPathManager = new TextInputPathManager({
+  static createPathManager(ctx: ManagerContext): Pick<CreatedManagers, 'pathManager'> {
+    const pathManager = new PathManager({
       getTextContent: () => ctx.callbacks.getTextContent(),
       setTextContent: (text: string) => ctx.callbacks.setTextContent(text),
       getCursorPosition: () => ctx.callbacks.getCursorPosition(),
@@ -134,32 +133,22 @@ export class ManagerFactory {
       replaceRangeWithUndo: ctx.callbacks.replaceRangeWithUndo
         ? (start: number, end: number, text: string) => ctx.callbacks.replaceRangeWithUndo!(start, end, text)
         : undefined,
-      addSelectedPath: (path: string) => {
-        ctx.state.addSelectedPath(path);
-        ctx.getHighlightManager()?.addSelectedPath(path);
-      },
-      updateHighlightBackdrop: () => ctx.updateHighlightBackdrop()
-    });
-
-    const atPathBehaviorManager = new AtPathBehaviorManager({
-      getTextContent: () => ctx.callbacks.getTextContent(),
-      setTextContent: (text: string) => ctx.callbacks.setTextContent(text),
-      getCursorPosition: () => ctx.callbacks.getCursorPosition(),
-      setCursorPosition: (pos: number) => ctx.callbacks.setCursorPosition(pos),
-      replaceRangeWithUndo: ctx.callbacks.replaceRangeWithUndo
-        ? (start: number, end: number, text: string) => ctx.callbacks.replaceRangeWithUndo!(start, end, text)
-        : undefined,
-      getAtPaths: () => ctx.state.atPaths,
-      getSelectedPaths: () => ctx.state.selectedPaths,
-      removeSelectedPath: (path: string) => {
-        ctx.state.removeSelectedPath(path);
-        ctx.getHighlightManager()?.removeSelectedPath(path);
-      },
       updateHighlightBackdrop: () => ctx.updateHighlightBackdrop(),
-      getCachedDirectoryData: () => ctx.state.cachedDirectoryData
+      getCachedDirectoryData: () => ctx.state.cachedDirectoryData,
+      isCommandEnabledSync: () => true, // Default to enabled
+      checkFileExists: async (path: string) => {
+        const baseDir = ctx.state.cachedDirectoryData?.directory;
+        if (!baseDir) return false;
+        const absolutePath = resolveAtPathToAbsolute(path, baseDir);
+        try {
+          return await window.electronAPI?.file?.checkExists(absolutePath) || false;
+        } catch {
+          return false;
+        }
+      }
     });
 
-    return { textInputPathManager, atPathBehaviorManager };
+    return { pathManager };
   }
 
   /**
@@ -196,7 +185,7 @@ export class ManagerFactory {
       filterFiles: (query: string) => ctx.filterFiles(query),
       mergeSuggestions: (query: string) => ctx.mergeSuggestions(query),
       updateSuggestionList: (suggestions: SuggestionItem[], showPath: boolean, selectedIndex: number) =>
-        ctx.getSuggestionListManager()?.update(suggestions, showPath, selectedIndex),
+        ctx.getSuggestionUIManager()?.update(suggestions, showPath, selectedIndex),
       showTooltipForSelectedItem: () => ctx.getPopupManager().showTooltipForSelectedItem(),
       insertFilePath: (path: string) => ctx.insertFilePath(path),
       hideSuggestions: () => ctx.hideSuggestions(),
@@ -235,7 +224,7 @@ export class ManagerFactory {
       getAtStartPosition: () => ctx.state.atStartPosition,
       updateSelection: () => ctx.updateSelection(),
       selectSymbol: (symbol) => ctx.selectSymbol(symbol),
-      positionPopup: (atStartPos) => ctx.getSuggestionListManager()?.position(atStartPos),
+      positionPopup: (atStartPos) => ctx.getSuggestionUIManager()?.position(atStartPos),
       updateHintText: ctx.callbacks.updateHintText
         ? (text: string) => ctx.callbacks.updateHintText!(text)
         : undefined,
@@ -303,46 +292,17 @@ export class ManagerFactory {
 
   /**
    * Create query managers
+   * Note: SuggestionUIManager is created separately in FileSearchManager as it requires textInput
    */
-  static createQueryManagers(ctx: ManagerContext): Pick<CreatedManagers, 'queryExtractionManager' | 'suggestionStateManager'> {
+  static createQueryManagers(ctx: ManagerContext): Pick<CreatedManagers, 'queryExtractionManager' | 'suggestionUIManager'> {
     const queryExtractionManager = new QueryExtractionManager({
       getTextContent: () => ctx.callbacks.getTextContent(),
       getCursorPosition: () => ctx.callbacks.getCursorPosition()
     });
 
-    const suggestionStateManager = new SuggestionStateManager({
-      getCachedDirectoryData: () => ctx.state.cachedDirectoryData,
-      getAtStartPosition: () => ctx.state.atStartPosition,
-      getCurrentPath: () => ctx.state.currentPath,
-      getCurrentQuery: () => ctx.state.currentQuery,
-      getFilteredFiles: () => ctx.state.filteredFiles,
-      getFilteredAgents: () => ctx.state.filteredAgents,
-      getMergedSuggestions: () => ctx.state.mergedSuggestions,
-      getSelectedIndex: () => ctx.state.selectedIndex,
-      setCurrentPath: (path: string) => { ctx.state.currentPath = path; },
-      setCurrentQuery: (query: string) => { ctx.state.currentQuery = query; },
-      setFilteredFiles: (files: unknown[]) => { ctx.state.filteredFiles = files as FileInfo[]; },
-      setFilteredAgents: (agents: AgentItem[]) => { ctx.state.filteredAgents = agents; },
-      setMergedSuggestions: (suggestions: SuggestionItem[]) => { ctx.state.mergedSuggestions = suggestions; },
-      setSelectedIndex: (index: number) => { ctx.state.selectedIndex = index; },
-      setIsVisible: (visible: boolean) => { ctx.state.isVisible = visible; },
-      adjustCurrentPathToQuery: (query: string) => ctx.adjustCurrentPathToQuery(query),
-      filterFiles: (query: string) => ctx.filterFiles(query),
-      mergeSuggestions: (query: string, maxSuggestions?: number) => ctx.mergeSuggestions(query, maxSuggestions),
-      searchAgents: (query: string) => ctx.searchAgents(query),
-      isIndexBeingBuilt: () => ctx.isIndexBeingBuilt(),
-      showIndexingHint: () => ctx.showIndexingHint(),
-      showSuggestionList: (suggestions: SuggestionItem[], atPosition: number, showPath: boolean) =>
-        ctx.getSuggestionListManager()?.show(suggestions, atPosition, showPath),
-      updateSuggestionList: (suggestions: SuggestionItem[], showPath: boolean, selectedIndex: number) =>
-        ctx.getSuggestionListManager()?.update(suggestions, showPath, selectedIndex),
-      showTooltipForSelectedItem: () => ctx.getPopupManager().showTooltipForSelectedItem(),
-      matchesSearchPrefix: (query: string, type: 'command' | 'mention') => ctx.matchesSearchPrefix(query, type),
-      getMaxSuggestions: (type: 'command' | 'mention') => ctx.getMaxSuggestions(type),
-      restoreDefaultHint: () => ctx.restoreDefaultHint()
-    });
-
-    return { queryExtractionManager, suggestionStateManager };
+    // SuggestionUIManager is created in FileSearchManager.initializeElements() as it requires textInput
+    // Return null here as a placeholder - actual instance is created later
+    return { queryExtractionManager, suggestionUIManager: null as unknown as SuggestionUIManager };
   }
 }
 

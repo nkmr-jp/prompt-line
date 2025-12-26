@@ -14,12 +14,9 @@ import type { AtPathRange } from '../types';
 import type { FileInfo } from '../../../types';
 import { BackdropRenderer } from './backdrop-renderer';
 import type { BackdropRendererCallbacks } from './backdrop-renderer';
-import { PathDetectionManager } from './path-detection-manager';
-import type { PathDetectionCallbacks } from './path-detection-manager';
 import { CursorHighlightManager } from './cursor-highlight-manager';
 import type { CursorHighlightCallbacks } from './cursor-highlight-manager';
-import { PathScannerManager } from './path-scanner-manager';
-import type { PathScannerCallbacks } from './path-scanner-manager';
+import { PathManager } from './path-manager';
 
 export interface HighlightManagerCallbacks {
   getTextContent: () => string;
@@ -43,42 +40,35 @@ export class HighlightManager {
 
   // Specialized managers (initialized in initializeManagers)
   private backdropRenderer!: BackdropRenderer;
-  private pathDetection!: PathDetectionManager;
   private cursorHighlight!: CursorHighlightManager;
-  private pathScanner!: PathScannerManager;
+
+  // PathManager is injected from parent (FileSearchManager)
+  private pathManager: PathManager;
 
   constructor(
     textInput: HTMLTextAreaElement,
     highlightBackdrop: HTMLDivElement,
-    callbacks: HighlightManagerCallbacks
+    callbacks: HighlightManagerCallbacks,
+    pathManager: PathManager
   ) {
     this.textInput = textInput;
     this.highlightBackdrop = highlightBackdrop;
     this.callbacks = callbacks;
+    this.pathManager = pathManager;
+
+    // Set textInput for coordinate calculations
+    this.pathManager.setTextInput(textInput);
 
     this.initializeManagers();
   }
 
   /**
    * Initialize specialized managers with delegation callbacks
+   * Note: PathManager is injected via constructor and used directly
    */
   private initializeManagers(): void {
-    // PathScannerManager callbacks (initialized first, used by others)
-    const pathScannerCallbacks: PathScannerCallbacks = {
-      getTextContent: () => this.callbacks.getTextContent(),
-      ...(this.callbacks.checkFileExists && { checkFileExists: this.callbacks.checkFileExists }),
-    };
-    this.pathScanner = new PathScannerManager(pathScannerCallbacks);
-
-    // PathDetectionManager callbacks (initialized second, used by cursorHighlight)
-    const pathDetectionCallbacks: PathDetectionCallbacks = {
-      getTextContent: () => this.callbacks.getTextContent(),
-      getAtPaths: () => this.pathScanner.getAtPaths(),
-      ...(this.callbacks.isCommandEnabledSync && { isCommandEnabledSync: this.callbacks.isCommandEnabledSync }),
-    };
-    this.pathDetection = new PathDetectionManager(this.textInput, pathDetectionCallbacks);
-
     // CursorHighlightManager callbacks (includes hover state callbacks)
+    // Uses pathManager for path detection operations
     const cursorHighlightCallbacks: CursorHighlightCallbacks = {
       getTextContent: () => this.callbacks.getTextContent(),
       getCursorPosition: () => this.callbacks.getCursorPosition(),
@@ -87,17 +77,17 @@ export class HighlightManager {
       ...(this.callbacks.isFileSearchEnabled && { isFileSearchEnabled: this.callbacks.isFileSearchEnabled }),
       ...(this.callbacks.isCommandEnabledSync && { isCommandEnabledSync: this.callbacks.isCommandEnabledSync }),
       renderHighlightBackdrop: () => this.renderHighlightBackdropWithCursor(),
-      // Hover state callbacks (consolidated from HoverStateManager)
-      findClickableRangeAtPosition: (charPos: number) => this.pathDetection.findClickableRangeAtPosition(charPos),
-      getCharPositionFromCoordinates: (x: number, y: number) => this.pathDetection.getCharPositionFromCoordinates(x, y),
+      // Hover state callbacks (using pathManager)
+      findClickableRangeAtPosition: (charPos: number) => this.pathManager.findClickableRangeAtPosition(charPos),
+      getCharPositionFromCoordinates: (x: number, y: number) => this.pathManager.getCharPositionFromCoordinates(x, y),
       renderFilePathHighlight: () => this.renderFilePathHighlight(),
       clearFilePathHighlight: () => this.clearFilePathHighlightInternal(),
     };
     this.cursorHighlight = new CursorHighlightManager(cursorHighlightCallbacks);
 
-    // BackdropRenderer callbacks (uses cursorHighlight for hover path)
+    // BackdropRenderer callbacks (uses pathManager for atPaths)
     const backdropCallbacks: BackdropRendererCallbacks = {
-      getAtPaths: () => this.pathScanner.getAtPaths(),
+      getAtPaths: () => this.pathManager.getAtPaths(),
       getCursorPositionPath: () => this.cursorHighlight.getCursorPositionPath(),
       getHoveredPath: () => this.cursorHighlight.getHoveredPath(),
       getTextContent: () => this.callbacks.getTextContent(),
@@ -114,7 +104,7 @@ export class HighlightManager {
     const text = this.textInput.value;
 
     // Re-scan for @paths in the text (in case user edited)
-    this.pathScanner.rescanAtPaths(text);
+    this.pathManager.rescanAtPaths(text);
 
     this.backdropRenderer.updateHighlightBackdrop();
   }
@@ -129,7 +119,7 @@ export class HighlightManager {
     const text = this.textInput.value;
 
     // Re-scan for @paths
-    this.pathScanner.rescanAtPaths(text);
+    this.pathManager.rescanAtPaths(text);
 
     this.backdropRenderer.renderHighlightBackdropWithCursor();
   }
@@ -143,7 +133,7 @@ export class HighlightManager {
     const text = this.textInput.value;
 
     // Re-scan for @paths
-    this.pathScanner.rescanAtPaths(text);
+    this.pathManager.rescanAtPaths(text);
 
     this.backdropRenderer.renderFilePathHighlight();
   }
@@ -182,7 +172,7 @@ export class HighlightManager {
    * 2. The cached file list (for Undo support - restores highlights for valid paths)
    */
   public rescanAtPaths(text: string, validPaths?: Set<string> | null): void {
-    this.pathScanner.rescanAtPaths(text, validPaths);
+    this.pathManager.rescanAtPaths(text, validPaths);
   }
 
   /**
@@ -196,7 +186,7 @@ export class HighlightManager {
    * Get character position from mouse coordinates using mirror div
    */
   public getCharPositionFromCoordinates(clientX: number, clientY: number): number | null {
-    return this.pathDetection.getCharPositionFromCoordinates(clientX, clientY);
+    return this.pathManager.getCharPositionFromCoordinates(clientX, clientY);
   }
 
   /**
@@ -224,7 +214,7 @@ export class HighlightManager {
    * Clear all tracked @paths (called when text is cleared)
    */
   public clearAtPaths(): void {
-    this.pathScanner.clearAtPaths();
+    this.pathManager.clearAtPaths();
     this.updateHighlightBackdrop();
   }
 
@@ -238,7 +228,7 @@ export class HighlightManager {
    * @param directoryData - Directory data for validation (optional)
    */
   public async restoreAtPathsFromText(checkFilesystem: boolean = false, directoryData?: DirectoryDataForHighlight | null): Promise<void> {
-    await this.pathScanner.restoreAtPathsFromText(checkFilesystem, directoryData);
+    await this.pathManager.restoreAtPathsFromText(checkFilesystem, directoryData);
     this.updateHighlightBackdrop();
   }
 
@@ -246,34 +236,34 @@ export class HighlightManager {
    * Add a path to the selectedPaths set
    */
   public addSelectedPath(path: string): void {
-    this.pathScanner.addSelectedPath(path);
+    this.pathManager.addSelectedPath(path);
   }
 
   /**
    * Remove a path from the selectedPaths set
    */
   public removeSelectedPath(path: string): void {
-    this.pathScanner.removeSelectedPath(path);
+    this.pathManager.removeSelectedPath(path);
   }
 
   /**
    * Get all tracked @paths
    */
   public getAtPaths(): AtPathRange[] {
-    return this.pathScanner.getAtPaths();
+    return this.pathManager.getAtPaths();
   }
 
   /**
    * Get the selected paths set
    */
   public getSelectedPaths(): Set<string> {
-    return this.pathScanner.getSelectedPaths();
+    return this.pathManager.getSelectedPaths();
   }
 
   /**
    * Set the valid paths set for validation (used by rescanAtPaths)
    */
   public setValidPathsBuilder(builder: () => Set<string> | null): void {
-    this.pathScanner.setValidPathsBuilder(builder);
+    this.pathManager.setValidPathsBuilder(builder);
   }
 }
