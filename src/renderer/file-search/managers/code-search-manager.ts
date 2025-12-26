@@ -269,6 +269,9 @@ export class CodeSearchManager {
       console.debug('[CodeSearchManager] searchSymbolsWithUI: no directory available');
       // Show user feedback that directory is required
       this.callbacks.updateHintText?.('No directory detected for symbol search');
+      // IMPORTANT: Hide any existing suggestions (e.g., from previous file search)
+      // Without this, old file suggestions would remain visible when code search fails
+      this.callbacks.hideSuggestions?.();
       return;
     }
 

@@ -751,6 +751,9 @@ export class FileSearchManager implements IInitializable {
     if (!supportedLanguages || supportedLanguages.size === 0) {
       console.debug('[FileSearchManager] handleCodeSearch: waiting for code search initialization...');
       this.callbacks.updateHintText?.('Loading language support...');
+      // IMPORTANT: Hide any existing suggestions (e.g., from previous file search)
+      // to prevent stale file suggestions from showing during initialization wait
+      this.hideSuggestions();
       this.codeSearchManager.isAvailable().then(() => {
         console.debug('[FileSearchManager] handleCodeSearch: initialization complete, retrying...');
         if (this.state.textInput && this.state.textInput.value.includes(`@${query}`)) {
