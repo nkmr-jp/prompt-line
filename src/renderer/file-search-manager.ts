@@ -265,6 +265,39 @@ export class FileSearchManager implements IInitializable {
     return this.state.fileSearchEnabled;
   }
 
+
+  // ============================================
+  // Directory Cache Shortcut Methods
+  // ============================================
+
+  /**
+   * Get cached directory data (shortcut for directoryCacheManager?.getCachedData() ?? null)
+   */
+  private getCachedData(): DirectoryData | null {
+    return this.directoryCacheManager?.getCachedData() ?? null;
+  }
+
+  /**
+   * Get current directory path (shortcut for directoryCacheManager?.getDirectory() ?? null)
+   */
+  private getDirectory(): string | null {
+    return this.directoryCacheManager?.getDirectory() ?? null;
+  }
+
+  /**
+   * Check if cache has data
+   */
+  private hasCache(): boolean {
+    return this.directoryCacheManager?.hasCache() ?? false;
+  }
+
+  /**
+   * Get cached files
+   */
+  private getCachedFiles(): FileInfo[] {
+    return this.directoryCacheManager?.getFiles() ?? [];
+  }
+
   /**
    * Get maxSuggestions for a given type (cached)
    * Delegates to SettingsCacheManager
@@ -646,12 +679,12 @@ export class FileSearchManager implements IInitializable {
 
     console.debug('[FileSearchManager] checkForFileSearch called', formatLog({
       hasTextInput: !!this.state.textInput,
-      hasCachedData: this.directoryCacheManager?.hasCache() ?? false,
-      cachedDirectory: this.directoryCacheManager?.getDirectory(),
-      cachedFileCount: this.directoryCacheManager?.getFiles().length ?? 0
+      hasCachedData: this.hasCache(),
+      cachedDirectory: this.getDirectory(),
+      cachedFileCount: this.getCachedFiles().length
     }));
 
-    if (!this.state.textInput || !this.directoryCacheManager?.hasCache()) {
+    if (!this.state.textInput || !this.hasCache()) {
       console.debug('[FileSearchManager] checkForFileSearch: early return - missing textInput or cachedDirectoryData');
       return false;
     }
@@ -770,7 +803,7 @@ export class FileSearchManager implements IInitializable {
       query,
       currentPath: this.state.currentPath,
       hasSuggestionsContainer: !!this.state.suggestionsContainer,
-      hasCachedData: this.directoryCacheManager?.hasCache() ?? false,
+      hasCachedData: this.hasCache(),
       isInSymbolMode: this.isInSymbolMode
     }));
 
@@ -829,40 +862,70 @@ export class FileSearchManager implements IInitializable {
   public hideSuggestions(): void {
     if (!this.state.suggestionsContainer) return;
 
-    // Delegate UI hiding to SuggestionListManager
+    // Delegate UI hiding to managers
     this.suggestionUIManager?.hide();
-
-    // Delegate state clearing to SuggestionStateManager
     this.suggestionUIManager?.hideSuggestions();
 
-    // Also handle local state (for backward compatibility during refactoring)
+    // Hide UI container
+    this.hideUIContainer();
+
+    // Reset all state
+    this.resetFilterState();
+    this.resetSearchState();
+    this.resetSymbolModeState();
+
+    // Hide frontmatter popup
+    this.popupManager.hideFrontmatterPopup();
+    this.popupManager.cancelPopupHide();
+  }
+
+
+  /**
+   * Hide the UI container element
+   */
+  private hideUIContainer(): void {
+    if (!this.state.suggestionsContainer) return;
+
     this.state.isVisible = false;
     this.state.suggestionsContainer.style.display = 'none';
+
     // Clear container safely
     while (this.state.suggestionsContainer.firstChild) {
       this.state.suggestionsContainer.removeChild(this.state.suggestionsContainer.firstChild);
     }
+  }
+
+  /**
+   * Reset filter-related state
+   */
+  private resetFilterState(): void {
     this.state.filteredFiles = [];
     this.state.filteredAgents = [];
     this.state.filteredSymbols = [];
     this.state.mergedSuggestions = [];
+  }
+
+  /**
+   * Reset search-related state (query, position, path, code search)
+   */
+  private resetSearchState(): void {
     this.state.currentQuery = '';
     this.state.atStartPosition = -1;
-    this.state.currentPath = ''; // Reset directory navigation state
+    this.state.currentPath = '';
 
     // Reset code search state
     this.state.codeSearchQuery = '';
     this.state.codeSearchLanguage = '';
     this.state.codeSearchCacheRefreshed = false;
+  }
 
-    // Reset symbol mode state
+  /**
+   * Reset symbol mode state
+   */
+  private resetSymbolModeState(): void {
     this.isInSymbolMode = false;
     this.currentFilePath = '';
     this.currentFileSymbols = [];
-
-    // Hide frontmatter popup
-    this.popupManager.hideFrontmatterPopup();
-    this.popupManager.cancelPopupHide();
   }
 
   /**
@@ -879,7 +942,7 @@ export class FileSearchManager implements IInitializable {
    * Delegates to FileFilterManager
    */
   public filterFiles(query: string): FileInfo[] {
-    return this.fileFilterManager.filterFiles(this.directoryCacheManager?.getCachedData() ?? null, this.state.currentPath, query);
+    return this.fileFilterManager.filterFiles(this.getCachedData(), this.state.currentPath, query);
   }
 
   /**
@@ -887,7 +950,7 @@ export class FileSearchManager implements IInitializable {
    * Delegates to FileFilterManager
    */
   private countFilesInDirectory(dirPath: string): number {
-    return this.fileFilterManager.countFilesInDirectory(this.directoryCacheManager?.getCachedData() ?? null, dirPath);
+    return this.fileFilterManager.countFilesInDirectory(this.getCachedData(), dirPath);
   }
 
   /**
@@ -1098,14 +1161,14 @@ export class FileSearchManager implements IInitializable {
     console.debug('[FileSearchManager] restoreAtPathsFromText called:', formatLog({
       hasTextInput: !!this.state.textInput,
       hasHighlightManager: !!this.highlightManager,
-      hasCachedData: this.directoryCacheManager?.hasCache() ?? false,
-      cachedFileCount: this.directoryCacheManager?.getFiles().length ?? 0,
+      hasCachedData: this.hasCache(),
+      cachedFileCount: this.getCachedFiles().length,
       checkFilesystem
     }));
 
     // Delegate to HighlightManager
     if (this.highlightManager) {
-      await this.highlightManager.restoreAtPathsFromText(checkFilesystem, this.directoryCacheManager?.getCachedData() ?? null);
+      await this.highlightManager.restoreAtPathsFromText(checkFilesystem, this.getCachedData());
       // Sync local state with HighlightManager
       this.state.atPaths = this.highlightManager.getAtPaths();
       // Clear and copy selectedPaths from HighlightManager
