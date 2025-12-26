@@ -131,8 +131,8 @@
     word-spacing: 0;
 
     /* Text wrapping control - must match textarea exactly */
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
+    white-space: break-spaces;
+    overflow-wrap: break-word;
     word-break: normal;
 
     /* Tab size - must match textarea */
@@ -221,8 +221,8 @@
     word-spacing: 0;
 
     /* Text wrapping control - must match backdrop */
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
+    white-space: break-spaces;
+    overflow-wrap: break-word;
     word-break: normal;
 
     /* Tab size - must match backdrop */
