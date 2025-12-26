@@ -113,27 +113,57 @@
     border: 1px solid transparent;
     border-radius: var(--radius-md);
     padding: var(--spacing-md);
-    font-size: 15px;
-    line-height: 1.5;
-    font-family: inherit;
     pointer-events: none;
-    overflow: hidden;
+    overflow: auto;
 
-    /* Text wrapping control - must match textarea */
+    /* Hide scrollbar but allow scrolling for proper scroll sync */
+    scrollbar-width: none;  /* Firefox */
+    -ms-overflow-style: none;  /* IE/Edge */
+
+    /* Font metrics - must match textarea exactly */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 15px;
+    font-weight: 400;
+    font-style: normal;
+    font-variant: normal;
+    line-height: 1.5;
+    letter-spacing: 0;
+    word-spacing: 0;
+
+    /* Text wrapping control - must match textarea exactly */
     white-space: break-spaces;
     overflow-wrap: break-word;
     word-break: normal;
+
+    /* Tab size - must match textarea */
+    tab-size: 4;
+    -moz-tab-size: 4;
+
+    /* Box model - must match textarea */
+    box-sizing: border-box;
+
+    /* Text rendering optimization */
+    text-rendering: geometricPrecision;
+    -webkit-font-smoothing: antialiased;
 
     /* Make text invisible, only show highlights */
     color: transparent;
 }
 
+/* Hide scrollbar for WebKit browsers (Chrome, Safari, Electron) */
+.highlight-backdrop::-webkit-scrollbar {
+    display: none;
+}
+
 .highlight-backdrop .at-path-highlight {
     background: rgba(59, 130, 246, 0.4);
-    border-radius: var(--radius-md);
+    border-radius: 2px;
     color: transparent;
-    padding: 1px 2px;
-    margin: -1px -2px;
+
+    /* Remove padding/margin to prevent position shift */
+    /* Use box-decoration-break for multi-line highlights */
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
 }
 
 /* File path link style for Cmd+hover or cursor position */
@@ -158,10 +188,12 @@
 .highlight-backdrop .file-path-cursor-highlight {
     /* Background highlight when cursor is on a linkable file path */
     background: rgba(59, 130, 246, 0.4);
-    border-radius: var(--radius-sm);
+    border-radius: 2px;
     color: transparent;
-    padding: 1px 2px;
-    margin: -1px -2px;
+
+    /* Remove padding/margin to prevent position shift */
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
 }
 
 #textInput {
@@ -171,20 +203,38 @@
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: var(--radius-md);
     padding: var(--spacing-md);
-    font-size: 15px;
-    line-height: 1.5;
     color: var(--text-primary);
     outline: none;
     resize: none;
     transition: border-color var(--animation-normal) ease, box-shadow var(--animation-normal) ease;
-    font-family: inherit;
     position: relative;
     z-index: 1;
 
-    /* Text wrapping control - prevent horizontal overflow from spaces/tabs */
-    white-space: break-spaces;        /* Preserve line breaks, collapse whitespace, wrap as needed */
-    overflow-wrap: break-word;    /* Break long words to prevent overflow */
-    word-break: normal;           /* Break at word boundaries when possible */
+    /* Font metrics - must match backdrop exactly */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 15px;
+    font-weight: 400;
+    font-style: normal;
+    font-variant: normal;
+    line-height: 1.5;
+    letter-spacing: 0;
+    word-spacing: 0;
+
+    /* Text wrapping control - must match backdrop */
+    white-space: break-spaces;
+    overflow-wrap: break-word;
+    word-break: normal;
+
+    /* Tab size - must match backdrop */
+    tab-size: 4;
+    -moz-tab-size: 4;
+
+    /* Box model - must match backdrop */
+    box-sizing: border-box;
+
+    /* Text rendering optimization */
+    text-rendering: geometricPrecision;
+    -webkit-font-smoothing: antialiased;
 }
 
 #textInput:focus {
