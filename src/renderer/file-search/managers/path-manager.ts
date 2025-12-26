@@ -40,8 +40,8 @@ export interface PathManagerCallbacks {
   getCursorPosition?: () => number;
   setCursorPosition?: (position: number) => void;
 
-  // Undo support
-  replaceRangeWithUndo?: (start: number, end: number, text: string) => void;
+  // Undo support (optional, supports undefined for exactOptionalPropertyTypes)
+  replaceRangeWithUndo?: ((start: number, end: number, text: string) => void) | undefined;
 
   // Highlight management
   updateHighlightBackdrop?: () => void;

@@ -64,7 +64,7 @@ export {
   PopupManager,
   SettingsCacheManager,
   DirectoryCacheManager,
-  SuggestionListManager,
+  SuggestionUIManager,
   HighlightManager,
   FileOpenerManager,
   CodeSearchManager
@@ -73,7 +73,7 @@ export {
 export type {
   PopupManagerCallbacks,
   DirectoryCacheCallbacks,
-  SuggestionListCallbacks,
+  SuggestionUICallbacks,
   HighlightManagerCallbacks,
   DirectoryDataForHighlight,
   FileOpenerCallbacks

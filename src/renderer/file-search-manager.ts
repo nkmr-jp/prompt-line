@@ -143,17 +143,20 @@ export class FileSearchManager {
       setTextContent: (text: string) => this.callbacks.setTextContent(text),
       getCursorPosition: () => this.callbacks.getCursorPosition(),
       setCursorPosition: (pos: number) => this.callbacks.setCursorPosition(pos),
-      replaceRangeWithUndo: this.callbacks.replaceRangeWithUndo
-        ? (start: number, end: number, text: string) => this.callbacks.replaceRangeWithUndo!(start, end, text)
-        : undefined,
+      replaceRangeWithUndo: this.callbacks.replaceRangeWithUndo,
       updateHighlightBackdrop: () => this.updateHighlightBackdrop(),
       getCachedDirectoryData: () => this.cachedDirectoryData,
       isCommandEnabledSync: () => this.isCommandEnabledSync(),
       checkFileExists: async (path: string) => {
         const baseDir = this.cachedDirectoryData?.directory;
         if (!baseDir) return false;
-        const absolutePath = resolveAtPathToAbsolute(path, baseDir);
-        return await this.callbacks.checkFileExists(absolutePath);
+        const absolutePath = resolveAtPathToAbsolute(path, baseDir, parsePathWithLineInfo, normalizePath);
+        if (!absolutePath) return false;
+        try {
+          return await window.electronAPI?.file?.checkExists(absolutePath) || false;
+        } catch {
+          return false;
+        }
       }
     });
 
@@ -1102,8 +1105,8 @@ export class FileSearchManager {
    * Expand current directory path (for Enter/Tab when no item is selected)
    * Delegates to NavigationManager
    */
-  private expandCurrentDirectory(): void {
-    this.navigationManager.expandCurrentDirectory(this.currentPath);
+  public expandCurrentDirectory(): void {
+    this.navigationManager.expandCurrentDirectory();
   }
 
   /**
