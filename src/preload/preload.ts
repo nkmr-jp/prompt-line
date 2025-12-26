@@ -1,10 +1,26 @@
 /**
  * Preload Script for Secure Electron IPC Bridge
- * 
+ *
  * Provides secure API bridge using contextBridge for enhanced security
  */
 
 import { contextBridge, ipcRenderer } from 'electron';
+import type {
+  SanitizedValue,
+  SanitizedRecord,
+  IPCResult,
+  PasteResult,
+  AppInfoResponse,
+  ConfigResponse,
+  RgCheckResult,
+  SupportedLanguage,
+  SymbolSearchOptions,
+  SymbolSearchResult,
+  CachedSymbolsResult,
+  IPCEventCallback,
+  ElectronAPI,
+} from '../types/ipc';
+import type { HistoryItem, SlashCommandItem, AgentItem } from '../types';
 
 // Security: Only expose allowed IPC channels
 const ALLOWED_CHANNELS = [
@@ -64,62 +80,68 @@ function validateChannel(channel: string): boolean {
   return true;
 }
 
+// Constants for input sanitization
+const MAX_RECURSION_DEPTH = 10;
+const MAX_STRING_LENGTH = 1000000; // 1MB limit
+const DANGEROUS_KEYS = ['__proto__', 'constructor', 'prototype'];
+
+// Sanitize string input
+function sanitizeString(input: string): string {
+  if (input.length > MAX_STRING_LENGTH) {
+    throw new Error('Input too long');
+  }
+  return input.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+}
+
+// Check for dangerous object properties (prototype pollution prevention)
+function checkDangerousProperties(obj: object): void {
+  for (const key of DANGEROUS_KEYS) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      throw new Error('Potentially dangerous object properties detected');
+    }
+  }
+}
+
+// Sanitize object input recursively
+function sanitizeObject(input: object, depth: number): SanitizedRecord {
+  checkDangerousProperties(input);
+
+  const sanitized: SanitizedRecord = {};
+  for (const key of Object.keys(input)) {
+    if (DANGEROUS_KEYS.includes(key)) {
+      throw new Error('Potentially dangerous object key detected');
+    }
+    sanitized[key] = sanitizeInput((input as Record<string, unknown>)[key], depth + 1);
+  }
+  return sanitized;
+}
+
 // Input sanitization helper with recursive support
-function sanitizeInput(input: any, depth = 0): any {
-  // 再帰深度制限（無限ループ防止）
-  const MAX_DEPTH = 10;
-  if (depth > MAX_DEPTH) {
+function sanitizeInput(input: unknown, depth = 0): SanitizedValue {
+  if (depth > MAX_RECURSION_DEPTH) {
     throw new Error('Input nesting too deep');
   }
 
-  if (typeof input === 'string') {
-    // Prevent excessive length
-    if (input.length > 1000000) { // 1MB limit
-      throw new Error('Input too long');
-    }
+  if (typeof input === 'string') return sanitizeString(input);
+  if (typeof input === 'number' || typeof input === 'boolean') return input;
+  if (input === null || input === undefined) return input;
+  if (Array.isArray(input)) return input.map((item) => sanitizeInput(item, depth + 1));
+  if (typeof input === 'object') return sanitizeObject(input, depth);
 
-    // Basic sanitization
-    return input.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
-  }
-
-  if (Array.isArray(input)) {
-    return input.map(item => sanitizeInput(item, depth + 1));
-  }
-
-  if (typeof input === 'object' && input !== null) {
-    // Prevent prototype pollution
-    if (Object.prototype.hasOwnProperty.call(input, '__proto__') ||
-        Object.prototype.hasOwnProperty.call(input, 'constructor') ||
-        Object.prototype.hasOwnProperty.call(input, 'prototype')) {
-      throw new Error('Potentially dangerous object properties detected');
-    }
-
-    // 再帰的にサニタイズ
-    const sanitized: Record<string, any> = {};
-    for (const key of Object.keys(input)) {
-      // キー名もチェック
-      if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
-        throw new Error('Potentially dangerous object key detected');
-      }
-      sanitized[key] = sanitizeInput(input[key], depth + 1);
-    }
-    return sanitized;
-  }
-
-  return input;
+  return null;
 }
 
 // Secure API exposure
-const electronAPI = {
+const electronAPI: ElectronAPI = {
   // IPC communication (with channel restrictions)
-  invoke: async (channel: string, ...args: any[]): Promise<any> => {
+  invoke: async (channel: string, ...args: SanitizedValue[]): Promise<SanitizedValue> => {
     if (!validateChannel(channel)) {
       throw new Error(`Unauthorized IPC channel: ${channel}`);
     }
-    
+
     // Sanitize input arguments
-    const sanitizedArgs = args.map(arg => sanitizeInput(arg));
-    
+    const sanitizedArgs = args.map((arg) => sanitizeInput(arg));
+
     try {
       return await ipcRenderer.invoke(channel, ...sanitizedArgs);
     } catch (error) {
@@ -129,14 +151,14 @@ const electronAPI = {
   },
 
   // Event listeners (with restrictions)
-  on: (channel: string, func: (...args: any[]) => void): void => {
+  on: (channel: string, func: IPCEventCallback): void => {
     if (!validateChannel(channel)) {
       throw new Error(`Unauthorized IPC channel: ${channel}`);
     }
-    
+
     ipcRenderer.on(channel, (_event, ...args) => {
       try {
-        func(...args);
+        func(...(args as SanitizedValue[]));
       } catch (error) {
         console.error(`IPC event handler error on channel ${channel}:`, error);
       }
@@ -169,30 +191,30 @@ const electronAPI = {
 
   // Configuration management
   config: {
-    get: async (section: string): Promise<any> => {
+    get: async (section: string): Promise<ConfigResponse> => {
       if (section === '') {
         // Get all configuration
         return ipcRenderer.invoke('get-config');
       }
       return ipcRenderer.invoke('get-config', section);
-    }
+    },
   },
 
   // Application information
   app: {
-    getInfo: async (): Promise<any> => {
+    getInfo: async (): Promise<AppInfoResponse> => {
       return ipcRenderer.invoke('get-app-info');
-    }
+    },
   },
 
   // Text pasting (main feature)
-  pasteText: async (text: string): Promise<any> => {
+  pasteText: async (text: string): Promise<PasteResult> => {
     return ipcRenderer.invoke('paste-text', text);
   },
 
   // History management
   history: {
-    get: async (): Promise<any[]> => {
+    get: async (): Promise<HistoryItem[]> => {
       return ipcRenderer.invoke('get-history');
     },
     clear: async (): Promise<void> => {
@@ -201,9 +223,9 @@ const electronAPI = {
     remove: async (id: string): Promise<void> => {
       return ipcRenderer.invoke('remove-history-item', id);
     },
-    search: async (query: string): Promise<any[]> => {
+    search: async (query: string): Promise<HistoryItem[]> => {
       return ipcRenderer.invoke('search-history', query);
-    }
+    },
   },
 
   // Draft management
@@ -227,22 +249,22 @@ const electronAPI = {
 
   // Slash commands
   slashCommands: {
-    get: async (query?: string): Promise<any[]> => {
+    get: async (query?: string): Promise<SlashCommandItem[]> => {
       return ipcRenderer.invoke('get-slash-commands', query);
     },
     getFilePath: async (commandName: string): Promise<string | null> => {
       return ipcRenderer.invoke('get-slash-command-file-path', commandName);
-    }
+    },
   },
 
   // Agents
   agents: {
-    get: async (query?: string): Promise<any[]> => {
+    get: async (query?: string): Promise<AgentItem[]> => {
       return ipcRenderer.invoke('get-agents', query);
     },
     getFilePath: async (agentName: string): Promise<string | null> => {
       return ipcRenderer.invoke('get-agent-file-path', agentName);
-    }
+    },
   },
 
   // MdSearch settings
@@ -281,88 +303,33 @@ const electronAPI = {
 
   // Code search (symbol search with ripgrep)
   codeSearch: {
-    checkRg: async (): Promise<{ rgAvailable: boolean; rgPath: string | null }> => {
+    checkRg: async (): Promise<RgCheckResult> => {
       return ipcRenderer.invoke('check-rg');
     },
-    getSupportedLanguages: async (): Promise<{ languages: Array<{ key: string; displayName: string; extension: string }> }> => {
+    getSupportedLanguages: async (): Promise<{ languages: SupportedLanguage[] }> => {
       return ipcRenderer.invoke('get-supported-languages');
     },
     searchSymbols: async (
       directory: string,
       language: string,
-      options?: { maxSymbols?: number; useCache?: boolean; refreshCache?: boolean }
-    ): Promise<any> => {
+      options?: SymbolSearchOptions
+    ): Promise<SymbolSearchResult> => {
       return ipcRenderer.invoke('search-symbols', directory, language, options);
     },
-    getCachedSymbols: async (directory: string, language?: string): Promise<any> => {
+    getCachedSymbols: async (directory: string, language?: string): Promise<CachedSymbolsResult> => {
       return ipcRenderer.invoke('get-cached-symbols', directory, language);
     },
-    clearCache: async (directory?: string): Promise<{ success: boolean }> => {
+    clearCache: async (directory?: string): Promise<IPCResult> => {
       return ipcRenderer.invoke('clear-symbol-cache', directory);
-    }
-  }
+    },
+  },
 };
 
 // Safely expose API via contextBridge
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);
 
-// TypeScript type definitions export (compile-time only)
-export interface ElectronAPI {
-  invoke: (channel: string, ...args: any[]) => Promise<any>;
-  on: (channel: string, func: (...args: any[]) => void) => void;
-  removeAllListeners: (channel: string) => void;
-  window: {
-    hide: () => Promise<void>;
-    show: () => Promise<void>;
-    focus: () => Promise<void>;
-  };
-  config: {
-    get: (section: string) => Promise<any>;
-  };
-  app: {
-    getInfo: () => Promise<any>;
-  };
-  pasteText: (text: string) => Promise<void>;
-  history: {
-    get: () => Promise<any[]>;
-    clear: () => Promise<void>;
-    remove: (id: string) => Promise<void>;
-    search: (query: string) => Promise<any[]>;
-  };
-  draft: {
-    save: (text: string) => Promise<void>;
-    get: () => Promise<string | null>;
-    clear: () => Promise<void>;
-    setDirectory: (directory: string | null) => Promise<void>;
-    getDirectory: () => Promise<string | null>;
-  };
-  slashCommands: {
-    get: (query?: string) => Promise<any[]>;
-    getFilePath: (commandName: string) => Promise<string | null>;
-  };
-  agents: {
-    get: (query?: string) => Promise<any[]>;
-    getFilePath: (agentName: string) => Promise<string | null>;
-  };
-  file: {
-    openInEditor: (filePath: string) => Promise<{ success: boolean; error?: string }>;
-    checkExists: (filePath: string) => Promise<boolean>;
-  };
-  shell: {
-    openExternal: (url: string) => Promise<{ success: boolean; error?: string }>;
-  };
-  codeSearch: {
-    checkRg: () => Promise<{ rgAvailable: boolean; rgPath: string | null }>;
-    getSupportedLanguages: () => Promise<{ languages: Array<{ key: string; displayName: string; extension: string }> }>;
-    searchSymbols: (
-      directory: string,
-      language: string,
-      options?: { maxSymbols?: number; useCache?: boolean; refreshCache?: boolean }
-    ) => Promise<any>;
-    getCachedSymbols: (directory: string, language?: string) => Promise<any>;
-    clearCache: (directory?: string) => Promise<{ success: boolean }>;
-  };
-}
+// Re-export ElectronAPI type for external usage
+export type { ElectronAPI } from '../types/ipc';
 
 // Global type definitions
 declare global {

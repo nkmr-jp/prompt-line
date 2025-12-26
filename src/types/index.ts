@@ -51,6 +51,25 @@ export type {
   AgentItem,
 } from './window';
 
+// IPC communication types
+export type {
+  SanitizedValue,
+  SanitizedRecord,
+  IPCResult,
+  PasteResult,
+  AppInfoResponse,
+  ConfigSection,
+  ConfigResponse,
+  RgCheckResult,
+  SupportedLanguage,
+  SymbolInfo,
+  SymbolSearchOptions,
+  SymbolSearchResult,
+  CachedSymbolsResult,
+  IPCEventCallback,
+  ElectronAPI,
+} from './ipc';
+
 // Utility types
 export interface DebounceFunction<T extends unknown[]> {
   (...args: T): void;
