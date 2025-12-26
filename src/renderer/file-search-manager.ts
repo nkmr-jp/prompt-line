@@ -777,6 +777,10 @@ export class FileSearchManager implements IInitializable {
         console.debug('[FileSearchManager] handleCodeSearch: triggering cache refresh for language:', language);
       }
 
+      // IMPORTANT: Hide any existing file suggestions BEFORE starting async code search.
+      // Without this, old file suggestions from typing @ts (before the :) would remain
+      // visible while the async symbol search is running.
+      this.hideSuggestions();
       this.searchSymbols(language, symbolQuery, symbolTypeFilter, shouldRefresh);
       return true;
     }
