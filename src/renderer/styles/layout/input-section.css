@@ -114,7 +114,11 @@
     border-radius: var(--radius-md);
     padding: var(--spacing-md);
     pointer-events: none;
-    overflow: hidden;
+    overflow: auto;
+
+    /* Hide scrollbar but allow scrolling for proper scroll sync */
+    scrollbar-width: none;  /* Firefox */
+    -ms-overflow-style: none;  /* IE/Edge */
 
     /* Font metrics - must match textarea exactly */
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -144,6 +148,11 @@
 
     /* Make text invisible, only show highlights */
     color: transparent;
+}
+
+/* Hide scrollbar for WebKit browsers (Chrome, Safari, Electron) */
+.highlight-backdrop::-webkit-scrollbar {
+    display: none;
 }
 
 .highlight-backdrop .at-path-highlight {
