@@ -131,6 +131,10 @@
     overflow-wrap: break-word;
     word-break: break-word;
 
+    /* Tab size - must match textarea */
+    tab-size: 4;
+    -moz-tab-size: 4;
+
     /* Box model - must match textarea */
     box-sizing: border-box;
 
@@ -211,6 +215,10 @@
     white-space: pre-wrap;
     overflow-wrap: break-word;
     word-break: break-word;
+
+    /* Tab size - must match backdrop */
+    tab-size: 4;
+    -moz-tab-size: 4;
 
     /* Box model - must match backdrop */
     box-sizing: border-box;
