@@ -780,7 +780,9 @@ export class FileSearchManager implements IInitializable {
       // IMPORTANT: Hide any existing file suggestions BEFORE starting async code search.
       // Without this, old file suggestions from typing @ts (before the :) would remain
       // visible while the async symbol search is running.
-      this.hideSuggestions();
+      // Note: We only hide the UI container, not reset the state, because we need
+      // atStartPosition for positioning the symbol suggestions when they arrive.
+      this.hideUIContainer();
       this.searchSymbols(language, symbolQuery, symbolTypeFilter, shouldRefresh);
       return true;
     }
