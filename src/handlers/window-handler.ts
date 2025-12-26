@@ -1,6 +1,6 @@
 import { ipcMain, IpcMainInvokeEvent } from 'electron';
 import { logger, sleep } from '../utils/utils';
-import type WindowManager from '../managers/window-manager';
+import type WindowManager from '../managers/window';
 import type { WindowData } from '../types';
 import config from '../config/app-config';
 

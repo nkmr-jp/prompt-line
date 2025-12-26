@@ -11,7 +11,7 @@ import {
   checkAccessibilityPermission,
   SecureErrors
 } from '../utils/utils';
-import type WindowManager from '../managers/window-manager';
+import type WindowManager from '../managers/window';
 import type DraftManager from '../managers/draft-manager';
 import type DirectoryManager from '../managers/directory-manager';
 import type { AppInfo, IHistoryManager } from '../types';

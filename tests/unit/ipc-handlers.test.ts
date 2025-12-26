@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals';
 import IPCHandlers from '../../src/handlers/ipc-handlers';
 import { ipcMain, clipboard } from 'electron';
-import type WindowManager from '../../src/managers/window-manager';
+import type WindowManager from '../../src/managers/window';
 import type HistoryManager from '../../src/managers/history-manager';
 import type DraftManager from '../../src/managers/draft-manager';
 

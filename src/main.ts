@@ -16,8 +16,8 @@ if (process.platform === 'darwin') {
 }
 
 import config from './config/app-config';
-import WindowManager from './managers/window-manager';
-import OptimizedHistoryManager from './managers/optimized-history-manager';
+import WindowManager from './managers/window';
+import HistoryManager from './managers/history-manager';
 import DraftManager from './managers/draft-manager';
 import DirectoryManager from './managers/directory-manager';
 import SettingsManager from './managers/settings-manager';
@@ -29,7 +29,7 @@ import type { WindowData } from './types';
 
 class PromptLineApp {
   private windowManager: WindowManager | null = null;
-  private historyManager: OptimizedHistoryManager | null = null;
+  private historyManager: HistoryManager | null = null;
   private draftManager: DraftManager | null = null;
   private directoryManager: DirectoryManager | null = null;
   private settingsManager: SettingsManager | null = null;
@@ -57,9 +57,9 @@ class PromptLineApp {
 
       const userSettings = this.settingsManager.getSettings();
       
-      // デフォルトで無制限履歴機能（OptimizedHistoryManager）を使用
-      logger.info('Using OptimizedHistoryManager (unlimited history by default)');
-      this.historyManager = new OptimizedHistoryManager();
+      // 無制限履歴機能を使用（LRUキャッシュ付き最適化版）
+      logger.info('Using HistoryManager (unlimited history with LRU caching)');
+      this.historyManager = new HistoryManager();
       
       await this.historyManager.initialize();
       

@@ -5,7 +5,7 @@
 
 import type { FileInfo, DirectoryInfo, AgentItem } from '../types';
 import type { SymbolResult, LanguageInfo } from './code-search/types';
-import type { DirectoryData, FileSearchCallbacks, AtPathRange, SuggestionItem } from './file-search';
+import type { DirectoryData, FileSearchCallbacks, SuggestionItem } from './file-search';
 import {
   formatLog,
   normalizePath,
@@ -39,46 +39,6 @@ export class FileSearchManager {
   private readonly state = new FileSearchState();
   private callbacks: FileSearchCallbacks;
 
-  // State property accessors (delegate to FileSearchState)
-  private get suggestionsContainer(): HTMLElement | null { return this.state.suggestionsContainer; }
-  private set suggestionsContainer(v: HTMLElement | null) { this.state.suggestionsContainer = v; }
-  private get textInput(): HTMLTextAreaElement | null { return this.state.textInput; }
-  private set textInput(v: HTMLTextAreaElement | null) { this.state.textInput = v; }
-  private get highlightBackdrop(): HTMLDivElement | null { return this.state.highlightBackdrop; }
-  private set highlightBackdrop(v: HTMLDivElement | null) { this.state.highlightBackdrop = v; }
-  private get mirrorDiv(): HTMLDivElement | null { return this.state.mirrorDiv; }
-  private set mirrorDiv(v: HTMLDivElement | null) { this.state.mirrorDiv = v; }
-  private get cachedDirectoryData(): DirectoryData | null { return this.state.cachedDirectoryData; }
-  private set cachedDirectoryData(v: DirectoryData | null) { this.state.cachedDirectoryData = v; }
-  private get selectedIndex(): number { return this.state.selectedIndex; }
-  private set selectedIndex(v: number) { this.state.selectedIndex = v; }
-  private get currentPath(): string { return this.state.currentPath; }
-  private set currentPath(v: string) { this.state.currentPath = v; }
-  private get currentQuery(): string { return this.state.currentQuery; }
-  private set currentQuery(v: string) { this.state.currentQuery = v; }
-  private get atStartPosition(): number { return this.state.atStartPosition; }
-  private set atStartPosition(v: number) { this.state.atStartPosition = v; }
-  private get isVisible(): boolean { return this.state.isVisible; }
-  private set isVisible(v: boolean) { this.state.isVisible = v; }
-  private get fileSearchEnabled(): boolean { return this.state.fileSearchEnabled; }
-  private set fileSearchEnabled(v: boolean) { this.state.fileSearchEnabled = v; }
-  private get filteredFiles(): FileInfo[] { return this.state.filteredFiles; }
-  private set filteredFiles(v: FileInfo[]) { this.state.filteredFiles = v; }
-  private get filteredAgents(): AgentItem[] { return this.state.filteredAgents; }
-  private set filteredAgents(v: AgentItem[]) { this.state.filteredAgents = v; }
-  private get filteredSymbols(): SymbolResult[] { return this.state.filteredSymbols; }
-  private set filteredSymbols(v: SymbolResult[]) { this.state.filteredSymbols = v; }
-  private get mergedSuggestions(): SuggestionItem[] { return this.state.mergedSuggestions; }
-  private set mergedSuggestions(v: SuggestionItem[]) { this.state.mergedSuggestions = v; }
-  private get atPaths(): AtPathRange[] { return this.state.atPaths; }
-  private set atPaths(v: AtPathRange[]) { this.state.atPaths = v; }
-  private get selectedPaths(): Set<string> { return this.state.selectedPaths; }
-  private get codeSearchQuery(): string { return this.state.codeSearchQuery; }
-  private set codeSearchQuery(v: string) { this.state.codeSearchQuery = v; }
-  private get codeSearchLanguage(): string { return this.state.codeSearchLanguage; }
-  private set codeSearchLanguage(v: string) { this.state.codeSearchLanguage = v; }
-  private get codeSearchCacheRefreshed(): boolean { return this.state.codeSearchCacheRefreshed; }
-  private set codeSearchCacheRefreshed(v: boolean) { this.state.codeSearchCacheRefreshed = v; }
 
   // PopupManager for frontmatter popup
   private popupManager: PopupManager;
@@ -125,8 +85,8 @@ export class FileSearchManager {
 
     // Initialize PopupManager with callbacks
     this.popupManager = new PopupManager({
-      getSelectedSuggestion: () => this.mergedSuggestions[this.selectedIndex] || null,
-      getSuggestionsContainer: () => this.suggestionsContainer
+      getSelectedSuggestion: () => this.state.mergedSuggestions[this.state.selectedIndex] || null,
+      getSuggestionsContainer: () => this.state.suggestionsContainer
     });
 
     // Initialize SettingsCacheManager
@@ -145,10 +105,10 @@ export class FileSearchManager {
       setCursorPosition: (pos: number) => this.callbacks.setCursorPosition(pos),
       replaceRangeWithUndo: this.callbacks.replaceRangeWithUndo,
       updateHighlightBackdrop: () => this.updateHighlightBackdrop(),
-      getCachedDirectoryData: () => this.cachedDirectoryData,
+      getCachedDirectoryData: () => this.state.cachedDirectoryData,
       isCommandEnabledSync: () => this.isCommandEnabledSync(),
       checkFileExists: async (path: string) => {
-        const baseDir = this.cachedDirectoryData?.directory;
+        const baseDir = this.state.cachedDirectoryData?.directory;
         if (!baseDir) return false;
         const absolutePath = resolveAtPathToAbsolute(path, baseDir, parsePathWithLineInfo, normalizePath);
         if (!absolutePath) return false;
@@ -162,15 +122,15 @@ export class FileSearchManager {
 
     // Initialize SymbolModeUIManager
     this.symbolModeUIManager = new SymbolModeUIManager({
-      getSuggestionsContainer: () => this.suggestionsContainer,
+      getSuggestionsContainer: () => this.state.suggestionsContainer,
       getCurrentFileSymbols: () => this.symbolModeUIManager.getState().currentFileSymbols,
-      setMergedSuggestions: (suggestions) => { this.mergedSuggestions = suggestions; },
-      getMergedSuggestions: () => this.mergedSuggestions,
-      getSelectedIndex: () => this.selectedIndex,
-      setSelectedIndex: (index) => { this.selectedIndex = index; },
-      setIsVisible: (visible) => { this.isVisible = visible; },
+      setMergedSuggestions: (suggestions) => { this.state.mergedSuggestions = suggestions; },
+      getMergedSuggestions: () => this.state.mergedSuggestions,
+      getSelectedIndex: () => this.state.selectedIndex,
+      setSelectedIndex: (index) => { this.state.selectedIndex = index; },
+      setIsVisible: (visible) => { this.state.isVisible = visible; },
       getCurrentFilePath: () => this.symbolModeUIManager.getState().currentFilePath,
-      getAtStartPosition: () => this.atStartPosition,
+      getAtStartPosition: () => this.state.atStartPosition,
       updateSelection: () => this.updateSelection(),
       selectSymbol: (symbol) => this.selectSymbol(symbol),
       positionPopup: (atStartPos) => this.suggestionUIManager?.position(atStartPos),
@@ -185,15 +145,15 @@ export class FileSearchManager {
       insertFilePath: (path) => this.insertFilePath(path),
       hideSuggestions: () => this.hideSuggestions(),
       onFileSelected: (path) => this.callbacks.onFileSelected(path),
-      setCurrentQuery: (query) => { this.currentQuery = query; },
-      getCurrentPath: () => this.currentPath
+      setCurrentQuery: (query) => { this.state.currentQuery = query; },
+      getCurrentPath: () => this.state.currentPath
     });
 
     // Initialize ItemSelectionManager
     this.itemSelectionManager = new ItemSelectionManager({
-      getCachedDirectoryData: () => this.cachedDirectoryData,
-      getTextInput: () => this.textInput,
-      getAtStartPosition: () => this.atStartPosition,
+      getCachedDirectoryData: () => this.state.cachedDirectoryData,
+      getTextInput: () => this.state.textInput,
+      getAtStartPosition: () => this.state.atStartPosition,
       insertFilePath: (path: string) => this.insertFilePath(path),
       insertFilePathWithoutAt: (path: string) => this.insertFilePathWithoutAt(path),
       hideSuggestions: () => this.hideSuggestions(),
@@ -206,37 +166,37 @@ export class FileSearchManager {
         ? (start: number, end: number, text: string) => this.callbacks.replaceRangeWithUndo!(start, end, text)
         : undefined,
       addSelectedPath: (path: string) => {
-        this.selectedPaths.add(path);
+        this.state.selectedPaths.add(path);
         this.highlightManager?.addSelectedPath(path);
       },
       updateHighlightBackdrop: () => this.updateHighlightBackdrop(),
       resetCodeSearchState: () => {
-        this.codeSearchQuery = '';
-        this.codeSearchLanguage = '';
-        this.codeSearchCacheRefreshed = false;
+        this.state.codeSearchQuery = '';
+        this.state.codeSearchLanguage = '';
+        this.state.codeSearchCacheRefreshed = false;
       }
     });
 
     // Initialize NavigationManager (consolidated keyboard + directory/file navigation)
     this.navigationManager = new NavigationManager({
       // State getters
-      getIsVisible: () => this.isVisible,
-      getSelectedIndex: () => this.selectedIndex,
+      getIsVisible: () => this.state.isVisible,
+      getSelectedIndex: () => this.state.selectedIndex,
       getTotalItemCount: () => this.getTotalItemCount(),
-      getMergedSuggestions: () => this.mergedSuggestions,
-      getCachedDirectoryData: () => this.cachedDirectoryData,
+      getMergedSuggestions: () => this.state.mergedSuggestions,
+      getCachedDirectoryData: () => this.state.cachedDirectoryData,
       getIsInSymbolMode: () => this.isInSymbolMode,
-      getCurrentQuery: () => this.currentQuery,
+      getCurrentQuery: () => this.state.currentQuery,
       getIsComposing: this.callbacks.getIsComposing,
-      getCurrentPath: () => this.currentPath,
+      getCurrentPath: () => this.state.currentPath,
       getCodeSearchManager: () => this.codeSearchManager,
       // State setters
-      setSelectedIndex: (index: number) => { this.selectedIndex = index; },
-      setCurrentPath: (path: string) => { this.currentPath = path; },
-      setCurrentQuery: (query: string) => { this.currentQuery = query; },
-      setFilteredFiles: (files: FileInfo[]) => { this.filteredFiles = files; },
-      setFilteredAgents: (agents: never[]) => { this.filteredAgents = agents; },
-      setMergedSuggestions: (suggestions: SuggestionItem[]) => { this.mergedSuggestions = suggestions; },
+      setSelectedIndex: (index: number) => { this.state.selectedIndex = index; },
+      setCurrentPath: (path: string) => { this.state.currentPath = path; },
+      setCurrentQuery: (query: string) => { this.state.currentQuery = query; },
+      setFilteredFiles: (files: FileInfo[]) => { this.state.filteredFiles = files; },
+      setFilteredAgents: (agents: never[]) => { this.state.filteredAgents = agents; },
+      setMergedSuggestions: (suggestions: SuggestionItem[]) => { this.state.mergedSuggestions = suggestions; },
       setIsInSymbolMode: (value: boolean) => { this.isInSymbolMode = value; },
       setCurrentFilePath: (path: string) => { this.currentFilePath = path; },
       setCurrentFileSymbols: (symbols: SymbolResult[]) => { this.currentFileSymbols = symbols; },
@@ -271,7 +231,7 @@ export class FileSearchManager {
       handleCtrlEnterOpenFile: (e: KeyboardEvent) => this.handleCtrlEnterOpenFile(e),
       handleCmdClickOnAtPath: (e: MouseEvent) => this.handleCmdClickOnAtPath(e),
       handleMouseMove: (e: MouseEvent) => this.handleMouseMove(e),
-      isVisible: () => this.isVisible,
+      isVisible: () => this.state.isVisible,
       hideSuggestions: () => this.hideSuggestions(),
       syncBackdropScroll: () => this.syncBackdropScroll(),
       clearFilePathHighlight: () => this.highlightManager?.clearFilePathHighlight() ?? undefined,
@@ -292,7 +252,7 @@ export class FileSearchManager {
    * Set whether file search is enabled
    */
   public setFileSearchEnabled(enabled: boolean): void {
-    this.fileSearchEnabled = enabled;
+    this.state.fileSearchEnabled = enabled;
     console.debug('[FileSearchManager] File search enabled:', enabled);
   }
 
@@ -300,7 +260,7 @@ export class FileSearchManager {
    * Check if file search is enabled
    */
   public isFileSearchEnabled(): boolean {
-    return this.fileSearchEnabled;
+    return this.state.fileSearchEnabled;
   }
 
   /**
@@ -352,23 +312,23 @@ export class FileSearchManager {
   }
 
   public initializeElements(): void {
-    this.textInput = document.getElementById('textInput') as HTMLTextAreaElement;
-    this.highlightBackdrop = document.getElementById('highlightBackdrop') as HTMLDivElement;
-    console.debug('[FileSearchManager] initializeElements: textInput found:', !!this.textInput, 'highlightBackdrop found:', !!this.highlightBackdrop);
+    this.state.textInput = document.getElementById('textInput') as HTMLTextAreaElement;
+    this.state.highlightBackdrop = document.getElementById('highlightBackdrop') as HTMLDivElement;
+    console.debug('[FileSearchManager] initializeElements: textInput found:', !!this.state.textInput, 'highlightBackdrop found:', !!this.state.highlightBackdrop);
 
     // Create suggestions container if it doesn't exist
-    this.suggestionsContainer = document.getElementById('fileSuggestions');
-    if (!this.suggestionsContainer) {
-      this.suggestionsContainer = document.createElement('div');
-      this.suggestionsContainer.id = 'fileSuggestions';
-      this.suggestionsContainer.className = 'file-suggestions';
-      this.suggestionsContainer.setAttribute('role', 'listbox');
-      this.suggestionsContainer.setAttribute('aria-label', 'File suggestions');
+    this.state.suggestionsContainer = document.getElementById('fileSuggestions');
+    if (!this.state.suggestionsContainer) {
+      this.state.suggestionsContainer = document.createElement('div');
+      this.state.suggestionsContainer.id = 'fileSuggestions';
+      this.state.suggestionsContainer.className = 'file-suggestions';
+      this.state.suggestionsContainer.setAttribute('role', 'listbox');
+      this.state.suggestionsContainer.setAttribute('aria-label', 'File suggestions');
 
       // Insert into main-content (allows suggestions to span across input-section and history-section)
       const mainContent = document.querySelector('.main-content');
       if (mainContent) {
-        mainContent.appendChild(this.suggestionsContainer);
+        mainContent.appendChild(this.state.suggestionsContainer);
         console.debug('[FileSearchManager] initializeElements: suggestionsContainer created and appended to main-content');
       } else {
         console.warn('[FileSearchManager] initializeElements: .main-content not found!');
@@ -395,9 +355,9 @@ export class FileSearchManager {
       },
       onCacheUpdated: (data) => {
         // Sync local copy for backward compatibility
-        this.cachedDirectoryData = data;
+        this.state.cachedDirectoryData = data;
         // Refresh suggestions if visible and not actively searching
-        if (this.isVisible && !this.currentQuery) {
+        if (this.state.isVisible && !this.state.currentQuery) {
           this.refreshSuggestions();
         }
       },
@@ -405,16 +365,16 @@ export class FileSearchManager {
     });
 
     // Initialize HighlightManager (requires textInput, highlightBackdrop, and pathManager)
-    if (this.textInput && this.highlightBackdrop) {
+    if (this.state.textInput && this.state.highlightBackdrop) {
       this.highlightManager = new HighlightManager(
-        this.textInput,
-        this.highlightBackdrop,
+        this.state.textInput,
+        this.state.highlightBackdrop,
         {
-          getTextContent: () => this.textInput?.value || '',
-          getCursorPosition: () => this.textInput?.selectionStart || 0,
+          getTextContent: () => this.state.textInput?.value || '',
+          getCursorPosition: () => this.state.textInput?.selectionStart || 0,
           updateHintText: (text: string) => this.callbacks.updateHintText?.(text),
           getDefaultHintText: () => this.callbacks.getDefaultHintText?.() || '',
-          isFileSearchEnabled: () => this.fileSearchEnabled,
+          isFileSearchEnabled: () => this.state.fileSearchEnabled,
           isCommandEnabledSync: () => this.isCommandEnabledSync(),
           checkFileExists: async (path: string) => {
             try {
@@ -439,20 +399,20 @@ export class FileSearchManager {
       setDraggable: (enabled: boolean) => {
         this.callbacks.setDraggable?.(enabled);
       },
-      getTextContent: () => this.textInput?.value || '',
+      getTextContent: () => this.state.textInput?.value || '',
       setTextContent: (text: string) => {
-        if (this.textInput) {
-          this.textInput.value = text;
+        if (this.state.textInput) {
+          this.state.textInput.value = text;
         }
       },
-      getCursorPosition: () => this.textInput?.selectionStart || 0,
+      getCursorPosition: () => this.state.textInput?.selectionStart || 0,
       setCursorPosition: (position: number) => {
-        if (this.textInput) {
-          this.textInput.selectionStart = position;
-          this.textInput.selectionEnd = position;
+        if (this.state.textInput) {
+          this.state.textInput.selectionStart = position;
+          this.state.textInput.selectionEnd = position;
         }
       },
-      getCurrentDirectory: () => this.cachedDirectoryData?.directory || null,
+      getCurrentDirectory: () => this.state.cachedDirectoryData?.directory || null,
       hideWindow: () => {
         window.electronAPI.window.hide();
       },
@@ -460,9 +420,9 @@ export class FileSearchManager {
     });
 
     // Initialize SuggestionUIManager (consolidated from SuggestionListManager and SuggestionStateManager)
-    if (this.textInput) {
+    if (this.state.textInput) {
       this.suggestionUIManager = new SuggestionUIManager(
-        this.textInput,
+        this.state.textInput,
         {
           // Selection and navigation
           onItemSelected: (index: number) => this.selectItem(index),
@@ -474,10 +434,10 @@ export class FileSearchManager {
           // Input state
           getIsComposing: () => this.callbacks.getIsComposing?.() || false,
           // Display context
-          getCurrentPath: () => this.currentPath,
-          getBaseDir: () => this.cachedDirectoryData?.directory || '',
-          getCurrentQuery: () => this.currentQuery,
-          getCodeSearchQuery: () => this.codeSearchQuery,
+          getCurrentPath: () => this.state.currentPath,
+          getBaseDir: () => this.state.cachedDirectoryData?.directory || '',
+          getCurrentQuery: () => this.state.currentQuery,
+          getCodeSearchQuery: () => this.state.codeSearchQuery,
           countFilesInDirectory: (path: string) => this.countFilesInDirectory(path),
           // Popup interactions
           onMouseEnterInfo: (suggestion: SuggestionItem, target: HTMLElement) => {
@@ -489,8 +449,8 @@ export class FileSearchManager {
             this.popupManager.hideFrontmatterPopup();
           },
           // State management (from SuggestionStateManager)
-          getCachedDirectoryData: () => this.cachedDirectoryData,
-          getAtStartPosition: () => this.atStartPosition,
+          getCachedDirectoryData: () => this.state.cachedDirectoryData,
+          getAtStartPosition: () => this.state.atStartPosition,
           adjustCurrentPathToQuery: (query: string) => this.adjustCurrentPathToQuery(query),
           filterFiles: (query: string) => this.filterFiles(query),
           mergeSuggestions: (query: string, maxSuggestions?: number) => this.mergeSuggestions(query, maxSuggestions),
@@ -502,13 +462,13 @@ export class FileSearchManager {
           getMaxSuggestions: (type: 'command' | 'mention') => this.getMaxSuggestions(type),
           showTooltipForSelectedItem: () => this.popupManager.showTooltipForSelectedItem(),
           // State setters
-          setCurrentPath: (path: string) => { this.currentPath = path; },
-          setCurrentQuery: (query: string) => { this.currentQuery = query; },
-          setFilteredFiles: (files: FileInfo[]) => { this.filteredFiles = files; },
-          setFilteredAgents: (agents: AgentItem[]) => { this.filteredAgents = agents; },
-          setMergedSuggestions: (suggestions: SuggestionItem[]) => { this.mergedSuggestions = suggestions; },
-          setSelectedIndex: (index: number) => { this.selectedIndex = index; },
-          setIsVisible: (visible: boolean) => { this.isVisible = visible; }
+          setCurrentPath: (path: string) => { this.state.currentPath = path; },
+          setCurrentQuery: (query: string) => { this.state.currentQuery = query; },
+          setFilteredFiles: (files: FileInfo[]) => { this.state.filteredFiles = files; },
+          setFilteredAgents: (agents: AgentItem[]) => { this.state.filteredAgents = agents; },
+          setMergedSuggestions: (suggestions: SuggestionItem[]) => { this.state.mergedSuggestions = suggestions; },
+          setSelectedIndex: (index: number) => { this.state.selectedIndex = index; },
+          setIsVisible: (visible: boolean) => { this.state.isVisible = visible; }
         }
       );
     }
@@ -527,13 +487,13 @@ export class FileSearchManager {
   }
 
   public setupEventListeners(): void {
-    if (!this.textInput) {
+    if (!this.state.textInput) {
       console.warn('[FileSearchManager] setupEventListeners: textInput is null, skipping');
       return;
     }
 
     // Initialize EventListenerManager with DOM elements and delegate setup
-    this.eventListenerManager.initialize(this.textInput, this.suggestionsContainer);
+    this.eventListenerManager.initialize(this.state.textInput, this.state.suggestionsContainer);
     this.eventListenerManager.setupEventListeners();
   }
 
@@ -578,7 +538,7 @@ export class FileSearchManager {
    */
   private showIndexingHint(): void {
     // Don't show "Building Index" if there's a more important hint (e.g., fd not installed)
-    if (this.cachedDirectoryData?.hint) {
+    if (this.state.cachedDirectoryData?.hint) {
       return;
     }
     if (this.callbacks.updateHintText) {
@@ -615,10 +575,10 @@ export class FileSearchManager {
    * @returns true if something was found and opened, false otherwise
    */
   private async findAndOpenItemAtCursor(): Promise<boolean> {
-    if (!this.textInput) return false;
+    if (!this.state.textInput) return false;
 
-    const text = this.textInput.value;
-    const cursorPos = this.textInput.selectionStart;
+    const text = this.state.textInput.value;
+    const cursorPos = this.state.textInput.selectionStart;
 
     // Check for URL first
     const url = findUrlAtPosition(text, cursorPos);
@@ -651,7 +611,7 @@ export class FileSearchManager {
 
       // Try to resolve as file path first if it looks like one
       if (looksLikeFilePath) {
-        const filePath = resolveAtPathToAbsolute(atPath, this.cachedDirectoryData?.directory, parsePathWithLineInfo, normalizePath);
+        const filePath = resolveAtPathToAbsolute(atPath, this.state.cachedDirectoryData?.directory, parsePathWithLineInfo, normalizePath);
         if (filePath) {
           await this.openFileAndRestoreFocus(filePath);
           return true;
@@ -671,7 +631,7 @@ export class FileSearchManager {
 
       // Fallback: try to open as file path if it wasn't already tried
       if (!looksLikeFilePath) {
-        const filePath = resolveAtPathToAbsolute(atPath, this.cachedDirectoryData?.directory, parsePathWithLineInfo, normalizePath);
+        const filePath = resolveAtPathToAbsolute(atPath, this.state.cachedDirectoryData?.directory, parsePathWithLineInfo, normalizePath);
         if (filePath) {
           await this.openFileAndRestoreFocus(filePath);
           return true;
@@ -726,7 +686,7 @@ export class FileSearchManager {
    */
   public clearCache(): void {
     this.directoryCacheManager?.clearCache();
-    this.cachedDirectoryData = null;
+    this.state.cachedDirectoryData = null;
     this.hideSuggestions();
   }
 
@@ -735,14 +695,14 @@ export class FileSearchManager {
    * Called when cache is updated in background
    */
   private refreshSuggestions(): void {
-    if (!this.isVisible) return;
+    if (!this.state.isVisible) return;
 
     // Re-filter with current query
-    if (this.currentQuery) {
-      this.filterFiles(this.currentQuery);
+    if (this.state.currentQuery) {
+      this.filterFiles(this.state.currentQuery);
     }
     // Delegate rendering to SuggestionListManager (position remains unchanged)
-    this.suggestionUIManager?.update(this.mergedSuggestions, false);
+    this.suggestionUIManager?.update(this.state.mergedSuggestions, false);
   }
 
   /**
@@ -750,18 +710,18 @@ export class FileSearchManager {
    */
   public checkForFileSearch(): void {
     // Skip if file search is disabled
-    if (!this.fileSearchEnabled) {
+    if (!this.state.fileSearchEnabled) {
       return;
     }
 
     console.debug('[FileSearchManager] checkForFileSearch called', formatLog({
-      hasTextInput: !!this.textInput,
-      hasCachedData: !!this.cachedDirectoryData,
-      cachedDirectory: this.cachedDirectoryData?.directory,
-      cachedFileCount: this.cachedDirectoryData?.files?.length
+      hasTextInput: !!this.state.textInput,
+      hasCachedData: !!this.state.cachedDirectoryData,
+      cachedDirectory: this.state.cachedDirectoryData?.directory,
+      cachedFileCount: this.state.cachedDirectoryData?.files?.length
     }));
 
-    if (!this.textInput || !this.cachedDirectoryData) {
+    if (!this.state.textInput || !this.state.cachedDirectoryData) {
       console.debug('[FileSearchManager] checkForFileSearch: early return - missing textInput or cachedDirectoryData');
       return;
     }
@@ -792,7 +752,7 @@ export class FileSearchManager {
           console.debug('[FileSearchManager] checkForFileSearch: waiting for code search initialization...');
           this.codeSearchManager.isAvailable().then(() => {
             // Re-check after initialization (only if cursor position hasn't changed)
-            if (this.textInput && this.textInput.value.includes(`@${query}`)) {
+            if (this.state.textInput && this.state.textInput.value.includes(`@${query}`)) {
               this.checkForFileSearch();
             }
           });
@@ -802,17 +762,17 @@ export class FileSearchManager {
         // Check if language is supported
         if (rgAvailable && supportedLanguages?.has(language)) {
           console.debug('[FileSearchManager] checkForFileSearch: code search pattern detected:', language, symbolQuery);
-          this.atStartPosition = startPos;
-          this.currentQuery = query;
-          this.codeSearchQuery = symbolQuery;
+          this.state.atStartPosition = startPos;
+          this.state.currentQuery = query;
+          this.state.codeSearchQuery = symbolQuery;
 
           // Determine if we need to refresh cache:
           // - First time entering code search mode for this language
           // - Language has changed
-          const shouldRefresh = !this.codeSearchCacheRefreshed || this.codeSearchLanguage !== language;
-          this.codeSearchLanguage = language;
+          const shouldRefresh = !this.state.codeSearchCacheRefreshed || this.state.codeSearchLanguage !== language;
+          this.state.codeSearchLanguage = language;
           if (shouldRefresh) {
-            this.codeSearchCacheRefreshed = true;
+            this.state.codeSearchCacheRefreshed = true;
             console.debug('[FileSearchManager] checkForFileSearch: triggering cache refresh for language:', language);
           }
 
@@ -831,8 +791,8 @@ export class FileSearchManager {
       }
 
       // Normal file search
-      this.atStartPosition = startPos;
-      this.currentQuery = query;
+      this.state.atStartPosition = startPos;
+      this.state.currentQuery = query;
       console.debug('[FileSearchManager] showing suggestions for query:', query);
       this.showSuggestions(query);
     } else {
@@ -854,14 +814,14 @@ export class FileSearchManager {
    * Delegates filtering logic to CodeSearchManager
    */
   private async searchSymbols(language: string, query: string, symbolTypeFilter: string | null = null, refreshCache: boolean = false): Promise<void> {
-    if (!this.cachedDirectoryData?.directory || !this.codeSearchManager) {
+    if (!this.state.cachedDirectoryData?.directory || !this.codeSearchManager) {
       console.debug('[FileSearchManager] searchSymbols: no directory or manager');
       return;
     }
 
     // Delegate filtering/sorting to CodeSearchManager
     const filtered = await this.codeSearchManager.searchSymbols(
-      this.cachedDirectoryData.directory,
+      this.state.cachedDirectoryData.directory,
       language,
       query,
       { symbolTypeFilter, refreshCache }
@@ -869,25 +829,25 @@ export class FileSearchManager {
 
     // Limit results and update state
     const maxSuggestions = 20;
-    this.filteredSymbols = filtered.slice(0, maxSuggestions);
-    this.filteredFiles = [];
-    this.filteredAgents = [];
+    this.state.filteredSymbols = filtered.slice(0, maxSuggestions);
+    this.state.filteredFiles = [];
+    this.state.filteredAgents = [];
 
     // Convert to SuggestionItems
-    this.mergedSuggestions = this.filteredSymbols.map((symbol, index) => ({
+    this.state.mergedSuggestions = this.state.filteredSymbols.map((symbol, index) => ({
       type: 'symbol' as const,
       symbol,
       score: 1000 - index
     }));
 
-    this.selectedIndex = 0;
-    this.isVisible = true;
+    this.state.selectedIndex = 0;
+    this.state.isVisible = true;
 
-    if (this.mergedSuggestions.length > 0) {
-      this.suggestionUIManager?.show(this.mergedSuggestions, this.atStartPosition, false);
+    if (this.state.mergedSuggestions.length > 0) {
+      this.suggestionUIManager?.show(this.state.mergedSuggestions, this.state.atStartPosition, false);
       this.popupManager.showTooltipForSelectedItem();
       const langInfo = this.codeSearchManager.getSupportedLanguages().get(language);
-      this.callbacks.updateHintText?.(`${this.filteredSymbols.length} ${langInfo?.displayName || language} symbols`);
+      this.callbacks.updateHintText?.(`${this.state.filteredSymbols.length} ${langInfo?.displayName || language} symbols`);
     } else {
       this.callbacks.updateHintText?.(`No symbols found for "${query}"`);
       this.hideSuggestions();
@@ -901,20 +861,20 @@ export class FileSearchManager {
   public async showSuggestions(query: string): Promise<void> {
     console.debug('[FileSearchManager] showSuggestions called', formatLog({
       query,
-      currentPath: this.currentPath,
-      hasSuggestionsContainer: !!this.suggestionsContainer,
-      hasCachedData: !!this.cachedDirectoryData,
+      currentPath: this.state.currentPath,
+      hasSuggestionsContainer: !!this.state.suggestionsContainer,
+      hasCachedData: !!this.state.cachedDirectoryData,
       isInSymbolMode: this.isInSymbolMode
     }));
 
-    if (!this.suggestionsContainer) {
+    if (!this.state.suggestionsContainer) {
       console.debug('[FileSearchManager] showSuggestions: early return - missing container');
       return;
     }
 
     // If in symbol mode, show filtered symbols instead of files
     if (this.isInSymbolMode) {
-      this.currentQuery = query;
+      this.state.currentQuery = query;
       await this.showSymbolSuggestions(query);
       return;
     }
@@ -945,14 +905,14 @@ export class FileSearchManager {
    * Delegates to FileFilterManager
    */
   private adjustCurrentPathToQuery(query: string): void {
-    const newPath = this.fileFilterManager.adjustCurrentPathToQuery(this.currentPath, query);
-    if (newPath !== this.currentPath) {
+    const newPath = this.fileFilterManager.adjustCurrentPathToQuery(this.state.currentPath, query);
+    if (newPath !== this.state.currentPath) {
       console.debug('[FileSearchManager] adjustCurrentPathToQuery: navigating', formatLog({
-        from: this.currentPath,
+        from: this.state.currentPath,
         to: newPath,
         query
       }));
-      this.currentPath = newPath;
+      this.state.currentPath = newPath;
     }
   }
 
@@ -960,7 +920,7 @@ export class FileSearchManager {
    * Hide the suggestions dropdown
    */
   public hideSuggestions(): void {
-    if (!this.suggestionsContainer) return;
+    if (!this.state.suggestionsContainer) return;
 
     // Delegate UI hiding to SuggestionListManager
     this.suggestionUIManager?.hide();
@@ -969,24 +929,24 @@ export class FileSearchManager {
     this.suggestionUIManager?.hideSuggestions();
 
     // Also handle local state (for backward compatibility during refactoring)
-    this.isVisible = false;
-    this.suggestionsContainer.style.display = 'none';
+    this.state.isVisible = false;
+    this.state.suggestionsContainer.style.display = 'none';
     // Clear container safely
-    while (this.suggestionsContainer.firstChild) {
-      this.suggestionsContainer.removeChild(this.suggestionsContainer.firstChild);
+    while (this.state.suggestionsContainer.firstChild) {
+      this.state.suggestionsContainer.removeChild(this.state.suggestionsContainer.firstChild);
     }
-    this.filteredFiles = [];
-    this.filteredAgents = [];
-    this.filteredSymbols = [];
-    this.mergedSuggestions = [];
-    this.currentQuery = '';
-    this.atStartPosition = -1;
-    this.currentPath = ''; // Reset directory navigation state
+    this.state.filteredFiles = [];
+    this.state.filteredAgents = [];
+    this.state.filteredSymbols = [];
+    this.state.mergedSuggestions = [];
+    this.state.currentQuery = '';
+    this.state.atStartPosition = -1;
+    this.state.currentPath = ''; // Reset directory navigation state
 
     // Reset code search state
-    this.codeSearchQuery = '';
-    this.codeSearchLanguage = '';
-    this.codeSearchCacheRefreshed = false;
+    this.state.codeSearchQuery = '';
+    this.state.codeSearchLanguage = '';
+    this.state.codeSearchCacheRefreshed = false;
 
     // Reset symbol mode state
     this.isInSymbolMode = false;
@@ -1004,7 +964,7 @@ export class FileSearchManager {
    * Delegates to PathManager
    */
   private removeAtQueryText(): void {
-    this.pathManager.removeAtQueryText(this.atStartPosition);
+    this.pathManager.removeAtQueryText(this.state.atStartPosition);
   }
 
   /**
@@ -1012,7 +972,7 @@ export class FileSearchManager {
    * Delegates to FileFilterManager
    */
   public filterFiles(query: string): FileInfo[] {
-    return this.fileFilterManager.filterFiles(this.cachedDirectoryData, this.currentPath, query);
+    return this.fileFilterManager.filterFiles(this.state.cachedDirectoryData, this.state.currentPath, query);
   }
 
   /**
@@ -1020,14 +980,14 @@ export class FileSearchManager {
    * Delegates to FileFilterManager
    */
   private countFilesInDirectory(dirPath: string): number {
-    return this.fileFilterManager.countFilesInDirectory(this.cachedDirectoryData, dirPath);
+    return this.fileFilterManager.countFilesInDirectory(this.state.cachedDirectoryData, dirPath);
   }
 
   /**
    * Get total count of merged suggestion items
    */
   private getTotalItemCount(): number {
-    return this.mergedSuggestions.length;
+    return this.state.mergedSuggestions.length;
   }
 
   /**
@@ -1036,8 +996,8 @@ export class FileSearchManager {
    */
   private mergeSuggestions(query: string, maxSuggestions?: number): SuggestionItem[] {
     return this.fileFilterManager.mergeSuggestions(
-      this.filteredFiles,
-      this.filteredAgents,
+      this.state.filteredFiles,
+      this.state.filteredAgents,
       query,
       maxSuggestions
     );
@@ -1048,7 +1008,7 @@ export class FileSearchManager {
    * Delegates to ItemSelectionManager
    */
   private selectItem(index: number): void {
-    const suggestion = this.mergedSuggestions[index];
+    const suggestion = this.state.mergedSuggestions[index];
     if (suggestion) {
       this.itemSelectionManager.selectItem(suggestion);
     }
@@ -1075,11 +1035,11 @@ export class FileSearchManager {
    * Update visual selection state
    */
   private updateSelection(): void {
-    if (!this.suggestionsContainer) return;
+    if (!this.state.suggestionsContainer) return;
 
-    const items = this.suggestionsContainer.querySelectorAll('.file-suggestion-item');
+    const items = this.state.suggestionsContainer.querySelectorAll('.file-suggestion-item');
     items.forEach((item, index) => {
-      if (index === this.selectedIndex) {
+      if (index === this.state.selectedIndex) {
         item.classList.add('selected');
         item.setAttribute('aria-selected', 'true');
         item.scrollIntoView({ block: 'nearest' });
@@ -1122,7 +1082,7 @@ export class FileSearchManager {
    * Delegates to PathManager
    */
   private updateTextInputWithPath(path: string): void {
-    this.pathManager.updateTextInputWithPath(path, this.atStartPosition);
+    this.pathManager.updateTextInputWithPath(path, this.state.atStartPosition);
   }
 
   /**
@@ -1162,7 +1122,7 @@ export class FileSearchManager {
    * Delegates to PathManager
    */
   public insertFilePath(path: string): void {
-    this.atStartPosition = this.pathManager.insertFilePath(path, this.atStartPosition);
+    this.state.atStartPosition = this.pathManager.insertFilePath(path, this.state.atStartPosition);
   }
 
   /**
@@ -1171,7 +1131,7 @@ export class FileSearchManager {
    * Delegates to PathManager
    */
   private insertFilePathWithoutAt(path: string): void {
-    this.atStartPosition = this.pathManager.insertFilePathWithoutAt(path, this.atStartPosition);
+    this.state.atStartPosition = this.pathManager.insertFilePathWithoutAt(path, this.state.atStartPosition);
   }
 
   /**
@@ -1198,7 +1158,7 @@ export class FileSearchManager {
     this.highlightManager?.updateHighlightBackdrop();
     // Sync local atPaths from manager for backward compatibility
     if (this.highlightManager) {
-      this.atPaths = this.highlightManager.getAtPaths();
+      this.state.atPaths = this.highlightManager.getAtPaths();
     }
   }
 
@@ -1213,8 +1173,8 @@ export class FileSearchManager {
    * Clear all tracked @paths (called when text is cleared)
    */
   public clearAtPaths(): void {
-    this.atPaths = [];
-    this.selectedPaths.clear();
+    this.state.atPaths = [];
+    this.state.selectedPaths.clear();
     this.highlightManager?.clearAtPaths();
     this.updateHighlightBackdrop();
   }
@@ -1229,18 +1189,18 @@ export class FileSearchManager {
    */
   public async restoreAtPathsFromText(checkFilesystem = false): Promise<void> {
     console.debug('[FileSearchManager] restoreAtPathsFromText called:', formatLog({
-      hasTextInput: !!this.textInput,
+      hasTextInput: !!this.state.textInput,
       hasHighlightManager: !!this.highlightManager,
-      hasCachedData: !!this.cachedDirectoryData,
-      cachedFileCount: this.cachedDirectoryData?.files?.length || 0,
+      hasCachedData: !!this.state.cachedDirectoryData,
+      cachedFileCount: this.state.cachedDirectoryData?.files?.length || 0,
       checkFilesystem
     }));
 
     // Delegate to HighlightManager
     if (this.highlightManager) {
-      await this.highlightManager.restoreAtPathsFromText(checkFilesystem, this.cachedDirectoryData);
+      await this.highlightManager.restoreAtPathsFromText(checkFilesystem, this.state.cachedDirectoryData);
       // Sync local state with HighlightManager
-      this.atPaths = this.highlightManager.getAtPaths();
+      this.state.atPaths = this.highlightManager.getAtPaths();
       // Clear and copy selectedPaths from HighlightManager
       this.state.clearSelectedPaths();
       for (const path of this.highlightManager.getSelectedPaths()) {
@@ -1253,7 +1213,7 @@ export class FileSearchManager {
    * Check if suggestions are currently visible
    */
   public isActive(): boolean {
-    return this.isVisible;
+    return this.state.isVisible;
   }
 
   /**
@@ -1261,12 +1221,12 @@ export class FileSearchManager {
    */
   public destroy(): void {
     this.hideSuggestions();
-    this.cachedDirectoryData = null;
+    this.state.cachedDirectoryData = null;
 
     // Clean up mirror div
-    if (this.mirrorDiv && this.mirrorDiv.parentNode) {
-      this.mirrorDiv.parentNode.removeChild(this.mirrorDiv);
-      this.mirrorDiv = null;
+    if (this.state.mirrorDiv && this.state.mirrorDiv.parentNode) {
+      this.state.mirrorDiv.parentNode.removeChild(this.state.mirrorDiv);
+      this.state.mirrorDiv = null;
     }
 
     // Clean up modular managers
