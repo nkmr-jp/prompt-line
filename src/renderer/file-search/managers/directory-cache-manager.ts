@@ -295,4 +295,11 @@ export class DirectoryCacheManager {
   public getCachedData(): DirectoryData | null {
     return this.cachedDirectoryData;
   }
+
+  /**
+   * Get hint message from cached data
+   */
+  public getHint(): string | undefined {
+    return this.cachedDirectoryData?.hint;
+  }
 }

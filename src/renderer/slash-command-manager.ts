@@ -4,7 +4,11 @@
  */
 
 import type { InputFormatType } from '../types';
+import type { IInitializable } from './interfaces/initializable';
 import { FrontmatterPopupManager } from './frontmatter-popup-manager';
+import { highlightMatch } from './utils/highlight-utils';
+import { escapeHtml } from './utils/html-utils';
+import { handleError } from './utils/error-handler';
 
 interface SlashCommandItem {
   name: string;
@@ -15,7 +19,7 @@ interface SlashCommandItem {
   inputFormat?: InputFormatType;  // 入力フォーマット（'name' | 'path'）
 }
 
-export class SlashCommandManager {
+export class SlashCommandManager implements IInitializable {
   private static readonly DEFAULT_MAX_SUGGESTIONS = 20; // Default max suggestions
 
   private suggestionsContainer: HTMLElement | null = null;
@@ -52,6 +56,16 @@ export class SlashCommandManager {
       getFilteredCommands: () => this.filteredCommands,
       getSelectedIndex: () => this.selectedIndex
     });
+  }
+
+  /**
+   * マネージャーを初期化する（IInitializable実装）
+   * - DOM要素の取得
+   * - イベントリスナーの設定
+   */
+  public initialize(): void {
+    this.initializeElements();
+    this.setupEventListeners();
   }
 
   public initializeElements(): void {
@@ -139,7 +153,7 @@ export class SlashCommandManager {
         return maxSuggestions;
       }
     } catch (error) {
-      console.error('[SlashCommandManager] Failed to get maxSuggestions:', error);
+      handleError('SlashCommandManager.getMaxSuggestions', error);
     }
 
     return SlashCommandManager.DEFAULT_MAX_SUGGESTIONS;
@@ -271,14 +285,14 @@ export class SlashCommandManager {
       // Create name element with highlighting
       const nameSpan = document.createElement('span');
       nameSpan.className = 'slash-command-name';
-      nameSpan.innerHTML = '/' + this.highlightMatch(cmd.name, query);
+      nameSpan.innerHTML = '/' + highlightMatch(cmd.name, query, 'slash-highlight');
       item.appendChild(nameSpan);
 
       // Create description element with highlighting
       if (cmd.description) {
         const descSpan = document.createElement('span');
         descSpan.className = 'slash-command-description';
-        descSpan.innerHTML = this.highlightMatch(cmd.description, query);
+        descSpan.innerHTML = highlightMatch(cmd.description, query, 'slash-highlight');
         item.appendChild(descSpan);
       }
 
@@ -306,25 +320,6 @@ export class SlashCommandManager {
     this.suggestionsContainer.appendChild(fragment);
   }
 
-  /**
-   * Highlight matching text in suggestions
-   */
-  private highlightMatch(text: string, query: string): string {
-    if (!query) return this.escapeHtml(text);
-
-    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp(`(${escapedQuery})`, 'gi');
-    return this.escapeHtml(text).replace(regex, '<span class="slash-highlight">$1</span>');
-  }
-
-  /**
-   * Escape HTML to prevent XSS
-   */
-  private escapeHtml(text: string): string {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
 
   /**
    * Hide suggestions
@@ -495,8 +490,8 @@ export class SlashCommandManager {
     const hintText = command.argumentHint || command.description;
 
     item.innerHTML = `
-      <span class="slash-command-name">/${this.escapeHtml(command.name)}</span>
-      ${hintText ? `<span class="slash-command-description">${this.escapeHtml(hintText)}</span>` : ''}
+      <span class="slash-command-name">/${escapeHtml(command.name)}</span>
+      ${hintText ? `<span class="slash-command-description">${escapeHtml(hintText)}</span>` : ''}
     `;
 
     this.suggestionsContainer.appendChild(item);

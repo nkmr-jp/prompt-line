@@ -12,7 +12,7 @@ import { EventHandler } from './event-handler';
 import { HistorySearchManager } from './history-search';
 import { SlashCommandManager } from './slash-command-manager';
 import { DomManager } from './dom-manager';
-import { DraftManager } from './draft-manager';
+import { DraftManagerClient } from './draft-manager-client';
 import { HistoryUIManager } from './history-ui-manager';
 import { LifecycleManager } from './lifecycle-manager';
 import { SimpleSnapshotManager } from './snapshot-manager';
@@ -44,7 +44,7 @@ export class PromptLineRenderer {
   private fileSearchManager: FileSearchManager | null = null;
   private directoryDataHandler: DirectoryDataHandler;
   private domManager: DomManager;
-  private draftManager: DraftManager;
+  private draftManager: DraftManagerClient;
   private historyUIManager: HistoryUIManager;
   private lifecycleManager: LifecycleManager;
   private snapshotManager: SimpleSnapshotManager;
@@ -52,7 +52,7 @@ export class PromptLineRenderer {
 
   constructor() {
     this.domManager = new DomManager();
-    this.draftManager = new DraftManager(electronAPI, () => this.domManager.getCurrentText());
+    this.draftManager = new DraftManagerClient(electronAPI, () => this.domManager.getCurrentText());
     this.snapshotManager = new SimpleSnapshotManager();
     this.historyUIManager = new HistoryUIManager(
       () => this.domManager.historyList,

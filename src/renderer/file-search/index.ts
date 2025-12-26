@@ -66,7 +66,7 @@ export {
   DirectoryCacheManager,
   SuggestionUIManager,
   HighlightManager,
-  FileOpenerManager,
+  FileOpenerEventHandler,
   CodeSearchManager
 } from './managers';
 

@@ -8,6 +8,8 @@
  * - Sync access to cached values for performance-critical paths
  */
 
+import { handleError } from '../../utils/error-handler';
+
 /**
  * ElectronAPI interface for mdSearch and fileSearch operations
  */
@@ -59,7 +61,7 @@ export class SettingsCacheManager {
         return maxSuggestions;
       }
     } catch (error) {
-      console.error('[SettingsCacheManager] Failed to get maxSuggestions:', error);
+      handleError('SettingsCacheManager.getMaxSuggestions', error);
     }
 
     return SettingsCacheManager.DEFAULT_MAX_SUGGESTIONS;
@@ -91,7 +93,7 @@ export class SettingsCacheManager {
         return maxSuggestions;
       }
     } catch (error) {
-      console.error('[SettingsCacheManager] Failed to get fileSearch maxSuggestions:', error);
+      handleError('SettingsCacheManager.getFileSearchMaxSuggestions', error);
     }
 
     return SettingsCacheManager.DEFAULT_MAX_SUGGESTIONS;
@@ -114,7 +116,7 @@ export class SettingsCacheManager {
         return prefixes;
       }
     } catch (error) {
-      console.error('[SettingsCacheManager] Failed to get searchPrefixes:', error);
+      handleError('SettingsCacheManager.getSearchPrefixes', error);
     }
 
     return [];
@@ -177,7 +179,7 @@ export class SettingsCacheManager {
       ]);
       console.debug('[SettingsCacheManager] SearchPrefixes cache preloaded');
     } catch (error) {
-      console.error('[SettingsCacheManager] Failed to preload searchPrefixes cache:', error);
+      handleError('SettingsCacheManager.preloadSearchPrefixesCache', error);
     }
   }
 

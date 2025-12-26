@@ -9,6 +9,7 @@ import type {
   SymbolSearchResponse
 } from '../../code-search/types';
 import { SYMBOL_TYPE_FROM_DISPLAY } from '../../code-search/types';
+import { handleError } from '../../utils/error-handler';
 
 /**
  * Callbacks interface for CodeSearchManager
@@ -76,7 +77,7 @@ export class CodeSearchManager {
 
       console.debug('[CodeSearchManager] Code search initialized with languages:', Array.from(this.supportedLanguages.keys()));
     } catch (error) {
-      console.error('[CodeSearchManager] Failed to initialize code search:', error);
+      handleError('CodeSearchManager.initializeCodeSearch', error);
     }
   }
 
@@ -187,7 +188,7 @@ export class CodeSearchManager {
 
       return filtered;
     } catch (error) {
-      console.error('[CodeSearchManager] Error searching symbols:', error);
+      handleError('CodeSearchManager.searchSymbols', error);
       return [];
     }
   }
@@ -272,7 +273,7 @@ export class CodeSearchManager {
       // Successfully loaded symbols - callback can now retrieve them via getCurrentFileSymbols()
       console.debug('[CodeSearchManager] Symbol navigation complete, symbols ready for display');
     } catch (error) {
-      console.error('[CodeSearchManager] Error searching symbols:', error);
+      handleError('CodeSearchManager.handleSymbolNavigation', error);
       this.isInSymbolMode = false;
     }
   }

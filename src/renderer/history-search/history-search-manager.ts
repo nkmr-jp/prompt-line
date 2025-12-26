@@ -6,11 +6,12 @@
 
 import type { HistoryItem } from '../types';
 import type { HistorySearchConfig, HistorySearchCallbacks } from './types';
+import type { IInitializable } from '../interfaces/initializable';
 import { DEFAULT_CONFIG } from './types';
 import { HistorySearchFilterEngine } from './filter-engine';
 import { HistorySearchHighlighter } from './highlighter';
 
-export class HistorySearchManager {
+export class HistorySearchManager implements IInitializable {
   // Sub-modules
   private filterEngine: HistorySearchFilterEngine;
   private highlighter: HistorySearchHighlighter;
@@ -36,6 +37,16 @@ export class HistorySearchManager {
     this.callbacks = callbacks;
     this.filterEngine = new HistorySearchFilterEngine(config);
     this.highlighter = new HistorySearchHighlighter();
+  }
+
+  /**
+   * マネージャーを初期化する（IInitializable実装）
+   * - DOM要素の取得
+   * - イベントリスナーの設定
+   */
+  public initialize(): void {
+    this.initializeElements();
+    this.setupEventListeners();
   }
 
   /**
@@ -308,5 +319,14 @@ export class HistorySearchManager {
    */
   public cleanup(): void {
     this.filterEngine.cleanup();
+  }
+
+  /**
+   * マネージャーを破棄する（IInitializable実装）
+   * - イベントリスナーの解除
+   * - リソースの解放
+   */
+  public destroy(): void {
+    this.cleanup();
   }
 }

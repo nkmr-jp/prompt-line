@@ -98,8 +98,8 @@ jest.mock('../../src/renderer/dom-manager', () => ({
     }))
 }));
 
-jest.mock('../../src/renderer/draft-manager', () => ({
-    DraftManager: jest.fn().mockImplementation(() => ({
+jest.mock('../../src/renderer/draft-manager-client', () => ({
+    DraftManagerClient: jest.fn().mockImplementation(() => ({
         setConfig: jest.fn(),
         saveDraftDebounced: jest.fn(),
         saveDraftImmediate: jest.fn(),
