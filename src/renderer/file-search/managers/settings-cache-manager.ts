@@ -9,6 +9,7 @@
  */
 
 import { handleError } from '../../utils/error-handler';
+import { SUGGESTIONS } from '../../../constants';
 
 /**
  * ElectronAPI interface for mdSearch and fileSearch operations
@@ -31,7 +32,7 @@ export class SettingsCacheManager {
   private searchPrefixesCache: Map<string, string[]> = new Map();
   private fileSearchMaxSuggestionsCache: number | null = null;
 
-  private static readonly DEFAULT_MAX_SUGGESTIONS = 20;
+  private static readonly DEFAULT_MAX_SUGGESTIONS = SUGGESTIONS.DEFAULT_MAX;
 
   constructor() {
     // No initialization needed

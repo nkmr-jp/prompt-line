@@ -4,6 +4,7 @@
  */
 
 import { calculatePopupPosition, applyPopupPosition } from './utils/popup-position-calculator';
+import { UI_TIMING } from '../constants';
 
 interface SlashCommandItemLike {
   name: string;
@@ -23,7 +24,7 @@ export interface FrontmatterPopupCallbacks {
  * Manages frontmatter popup display for slash command items
  */
 export class FrontmatterPopupManager {
-  private static readonly POPUP_HIDE_DELAY = 100; // ms delay before hiding popup
+  private static readonly POPUP_HIDE_DELAY = UI_TIMING.POPUP_HIDE_DELAY; // ms delay before hiding popup
 
   private frontmatterPopup: HTMLElement | null = null;
   private popupHideTimeout: ReturnType<typeof setTimeout> | null = null;

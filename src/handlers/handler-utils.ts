@@ -4,6 +4,7 @@ import { logger, SecureErrors } from '../utils/utils';
 import MdSearchLoader from '../managers/md-search-loader';
 import type { UserSettings } from '../types';
 import type { IpcMainInvokeEvent } from 'electron';
+import { VALIDATION } from '../constants';
 
 /**
  * Standard IPC result type for success/failure responses
@@ -160,8 +161,6 @@ export function normalizeAndValidatePath(filePath: string, baseDir?: string): st
  * @returns true if valid, false otherwise
  */
 export function validateHistoryId(id: string): boolean {
-  const MAX_ID_LENGTH = 32; // Matches generateId() output format
-
   if (!id || typeof id !== 'string') {
     return false;
   }
@@ -170,7 +169,7 @@ export function validateHistoryId(id: string): boolean {
     return false;
   }
 
-  if (id.length > MAX_ID_LENGTH) {
+  if (id.length > VALIDATION.MAX_ID_LENGTH) {
     return false;
   }
 

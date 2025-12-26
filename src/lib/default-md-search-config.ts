@@ -1,11 +1,12 @@
 import type { MdSearchEntry } from '../types';
+import { SUGGESTIONS } from '../constants';
 
 /**
  * mdSearch設定が未定義の場合のデフォルト設定を返す
  * 既存の commands.directories と agents.directories 設定と互換性のある動作を提供
  */
-/** デフォルトの検索候補最大表示数 */
-export const DEFAULT_MAX_SUGGESTIONS = 20;
+/** デフォルトの検索候補最大表示数 - 互換性のため再エクスポート */
+export const DEFAULT_MAX_SUGGESTIONS = SUGGESTIONS.DEFAULT_MAX;
 
 /** デフォルトのソート順 */
 export const DEFAULT_SORT_ORDER: 'asc' | 'desc' = 'asc';

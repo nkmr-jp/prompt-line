@@ -4,19 +4,10 @@
  */
 
 import type { DirectoryInfo, AppInfo, WindowData } from './types';
+import { formatLog } from './utils/debug-logger';
 
 // Secure electronAPI access via preload script
 const electronAPI = (window as any).electronAPI;
-
-/**
- * Format object for console output (Electron renderer -> main process)
- */
-function formatLog(obj: Record<string, unknown>): string {
-  const entries = Object.entries(obj)
-    .map(([key, value]) => `  ${key}: ${typeof value === 'string' ? `'${value}'` : value}`)
-    .join(',\n');
-  return '{\n' + entries + '\n}';
-}
 
 /**
  * Callbacks for DirectoryDataHandler to interact with parent components

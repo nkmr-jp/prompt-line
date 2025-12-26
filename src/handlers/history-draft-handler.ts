@@ -4,14 +4,8 @@ import { logger, SecureErrors } from '../utils/utils';
 import type DraftManager from '../managers/draft-manager';
 import type DirectoryManager from '../managers/directory-manager';
 import type { HistoryItem, IHistoryManager } from '../types';
-
-interface IPCResult {
-  success: boolean;
-  error?: string;
-}
-
-// Constants
-const MAX_ID_LENGTH = 32; // Must match utils.generateId() output
+import { VALIDATION } from '../constants';
+import type { IPCResult } from './handler-utils';
 
 /**
  * HistoryDraftHandler manages all IPC communication related to history and draft operations.
@@ -106,7 +100,7 @@ class HistoryDraftHandler {
     try {
       // Validate ID format (must match generateId() output: lowercase alphanumeric)
       // NOTE: This regex is coupled with utils.generateId() - update both if ID format changes
-      if (!id || typeof id !== 'string' || !id.match(/^[a-z0-9]+$/) || id.length > MAX_ID_LENGTH) {
+      if (!id || typeof id !== 'string' || !id.match(/^[a-z0-9]+$/) || id.length > VALIDATION.MAX_ID_LENGTH) {
         logger.warn('Invalid history item ID format', { id });
         return { success: false, error: SecureErrors.INVALID_FORMAT };
       }

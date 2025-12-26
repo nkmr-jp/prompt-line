@@ -612,9 +612,36 @@ export class FileSearchManager implements IInitializable {
    * Check if file search should be triggered based on cursor position
    */
   public checkForFileSearch(): void {
-    // Skip if file search is disabled
-    if (!this.state.fileSearchEnabled) {
+    if (!this.shouldProcessFileSearch()) {
       return;
+    }
+
+    const result = this.extractQueryAtCursor();
+    console.debug('[FileSearchManager] extractQueryAtCursor result:', result ? formatLog(result as Record<string, unknown>) : 'null');
+
+    if (!result) {
+      this.hideSuggestions();
+      return;
+    }
+
+    const { query, startPos } = result;
+
+    // Try code search first
+    if (this.tryCodeSearch(query, startPos)) {
+      return;
+    }
+
+    // Normal file search
+    this.handleFileSearch(query, startPos);
+  }
+
+  /**
+   * Check if file search should be processed
+   * @returns true if file search should proceed
+   */
+  private shouldProcessFileSearch(): boolean {
+    if (!this.state.fileSearchEnabled) {
+      return false;
     }
 
     console.debug('[FileSearchManager] checkForFileSearch called', formatLog({
@@ -626,81 +653,95 @@ export class FileSearchManager implements IInitializable {
 
     if (!this.state.textInput || !this.directoryCacheManager?.hasCache()) {
       console.debug('[FileSearchManager] checkForFileSearch: early return - missing textInput or cachedDirectoryData');
-      return;
+      return false;
     }
 
-    const result = this.extractQueryAtCursor();
-    console.debug('[FileSearchManager] extractQueryAtCursor result:', result ? formatLog(result as Record<string, unknown>) : 'null');
+    return true;
+  }
 
-    if (result) {
-      const { query, startPos } = result;
+  /**
+   * Try to handle query as code search
+   * @returns true if handled as code search (whether successful or not)
+   */
+  private tryCodeSearch(query: string, startPos: number): boolean {
+    const matchesSearchPrefix = this.matchesSearchPrefixSync(query, 'mention');
+    const parsedCodeSearch = this.queryExtractionManager.parseCodeSearchQuery(query);
 
-      // Check if query matches code search pattern (e.g., "ts:", "go:", "py:")
-      // BUT skip if query matches a searchPrefix (e.g., "agent:", "skill:")
-      const matchesSearchPrefix = this.matchesSearchPrefixSync(query, 'mention');
-      const parsedCodeSearch = this.queryExtractionManager.parseCodeSearchQuery(query);
-      console.debug('[FileSearchManager] checkForFileSearch: query=', query, 'parsedCodeSearch=', parsedCodeSearch, 'matchesSearchPrefix=', matchesSearchPrefix);
-      if (parsedCodeSearch && !matchesSearchPrefix) {
-        const { language, symbolQuery, symbolTypeFilter } = parsedCodeSearch;
+    console.debug('[FileSearchManager] tryCodeSearch: query=', query, 'parsedCodeSearch=', parsedCodeSearch, 'matchesSearchPrefix=', matchesSearchPrefix);
 
-        console.debug('[FileSearchManager] checkForFileSearch: code pattern matched, language=', language, 'symbolTypeFilter=', symbolTypeFilter, 'symbolQuery=', symbolQuery);
+    if (!parsedCodeSearch || matchesSearchPrefix) {
+      return false;
+    }
 
-        const supportedLanguages = this.codeSearchManager?.getSupportedLanguages();
-        const rgAvailable = this.codeSearchManager?.isAvailableSync() ?? false;
+    const { language, symbolQuery, symbolTypeFilter } = parsedCodeSearch;
+    return this.handleCodeSearch(language, symbolQuery, symbolTypeFilter, query, startPos);
+  }
 
-        console.debug('[FileSearchManager] checkForFileSearch: rgAvailable=', rgAvailable, 'supportedLanguages.size=', supportedLanguages?.size, 'supportedLanguages.has(language)=', supportedLanguages?.has(language));
+  /**
+   * Handle code search pattern
+   * @returns true if handled (whether successful or not)
+   */
+  private handleCodeSearch(
+    language: string,
+    symbolQuery: string,
+    symbolTypeFilter: string | null,
+    query: string,
+    startPos: number
+  ): boolean {
+    console.debug('[FileSearchManager] handleCodeSearch: language=', language, 'symbolTypeFilter=', symbolTypeFilter, 'symbolQuery=', symbolQuery);
 
-        // If code search not yet initialized, wait for it
-        if (this.codeSearchManager && (!supportedLanguages || supportedLanguages.size === 0)) {
-          console.debug('[FileSearchManager] checkForFileSearch: waiting for code search initialization...');
-          this.codeSearchManager.isAvailable().then(() => {
-            // Re-check after initialization (only if cursor position hasn't changed)
-            if (this.state.textInput && this.state.textInput.value.includes(`@${query}`)) {
-              this.checkForFileSearch();
-            }
-          });
-          return;
+    const supportedLanguages = this.codeSearchManager?.getSupportedLanguages();
+    const rgAvailable = this.codeSearchManager?.isAvailableSync() ?? false;
+
+    console.debug('[FileSearchManager] handleCodeSearch: rgAvailable=', rgAvailable, 'supportedLanguages.size=', supportedLanguages?.size);
+
+    // Wait for code search initialization if needed
+    if (this.codeSearchManager && (!supportedLanguages || supportedLanguages.size === 0)) {
+      console.debug('[FileSearchManager] handleCodeSearch: waiting for code search initialization...');
+      this.codeSearchManager.isAvailable().then(() => {
+        if (this.state.textInput && this.state.textInput.value.includes(`@${query}`)) {
+          this.checkForFileSearch();
         }
+      });
+      return true;
+    }
 
-        // Check if language is supported
-        if (rgAvailable && supportedLanguages?.has(language)) {
-          console.debug('[FileSearchManager] checkForFileSearch: code search pattern detected:', language, symbolQuery);
-          this.state.atStartPosition = startPos;
-          this.state.currentQuery = query;
-          this.state.codeSearchQuery = symbolQuery;
-
-          // Determine if we need to refresh cache:
-          // - First time entering code search mode for this language
-          // - Language has changed
-          const shouldRefresh = !this.state.codeSearchCacheRefreshed || this.state.codeSearchLanguage !== language;
-          this.state.codeSearchLanguage = language;
-          if (shouldRefresh) {
-            this.state.codeSearchCacheRefreshed = true;
-            console.debug('[FileSearchManager] checkForFileSearch: triggering cache refresh for language:', language);
-          }
-
-          this.searchSymbols(language, symbolQuery, symbolTypeFilter, shouldRefresh);
-          return;
-        } else {
-          // Unknown language or rg not available - show hint and hide suggestions
-          console.debug('[FileSearchManager] checkForFileSearch: code search not available, rgAvailable=', rgAvailable);
-          const langInfo = supportedLanguages?.get(language);
-          if (!langInfo && rgAvailable) {
-            this.callbacks.updateHintText?.(`Unknown language: ${language}`);
-          }
-          this.hideSuggestions();
-          return;
-        }
-      }
-
-      // Normal file search
+    // Execute code search if language is supported
+    if (rgAvailable && supportedLanguages?.has(language)) {
+      console.debug('[FileSearchManager] handleCodeSearch: executing code search');
       this.state.atStartPosition = startPos;
       this.state.currentQuery = query;
-      console.debug('[FileSearchManager] showing suggestions for query:', query);
-      this.showSuggestions(query);
-    } else {
-      this.hideSuggestions();
+      this.state.codeSearchQuery = symbolQuery;
+
+      const shouldRefresh = !this.state.codeSearchCacheRefreshed || this.state.codeSearchLanguage !== language;
+      this.state.codeSearchLanguage = language;
+      if (shouldRefresh) {
+        this.state.codeSearchCacheRefreshed = true;
+        console.debug('[FileSearchManager] handleCodeSearch: triggering cache refresh for language:', language);
+      }
+
+      this.searchSymbols(language, symbolQuery, symbolTypeFilter, shouldRefresh);
+      return true;
     }
+
+    // Unknown language or rg not available
+    console.debug('[FileSearchManager] handleCodeSearch: code search not available, rgAvailable=', rgAvailable);
+    const langInfo = supportedLanguages?.get(language);
+    if (!langInfo && rgAvailable) {
+      this.callbacks.updateHintText?.(`Unknown language: ${language}`);
+    }
+    this.hideSuggestions();
+    return true;
+  }
+
+  /**
+   * Handle normal file search
+   */
+  private handleFileSearch(query: string, startPos: number): void {
+    this.state.atStartPosition = startPos;
+    this.state.currentQuery = query;
+    console.debug('[FileSearchManager] handleFileSearch: showing suggestions for query:', query);
+    this.showSuggestions(query);
   }
 
   /**

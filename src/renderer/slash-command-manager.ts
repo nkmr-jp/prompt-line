@@ -9,6 +9,7 @@ import { FrontmatterPopupManager } from './frontmatter-popup-manager';
 import { highlightMatch } from './utils/highlight-utils';
 import { escapeHtml } from './utils/html-utils';
 import { handleError } from './utils/error-handler';
+import { SUGGESTIONS } from '../constants';
 
 interface SlashCommandItem {
   name: string;
@@ -20,7 +21,6 @@ interface SlashCommandItem {
 }
 
 export class SlashCommandManager implements IInitializable {
-  private static readonly DEFAULT_MAX_SUGGESTIONS = 20; // Default max suggestions
 
   private suggestionsContainer: HTMLElement | null = null;
   private textarea: HTMLTextAreaElement | null = null;
@@ -156,7 +156,7 @@ export class SlashCommandManager implements IInitializable {
       handleError('SlashCommandManager.getMaxSuggestions', error);
     }
 
-    return SlashCommandManager.DEFAULT_MAX_SUGGESTIONS;
+    return SUGGESTIONS.DEFAULT_MAX;
   }
 
   /**
