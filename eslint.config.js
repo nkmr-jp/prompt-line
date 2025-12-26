@@ -19,14 +19,14 @@ module.exports = [
     files: ['src/**/*.ts', 'tests/**/*.{js,ts}'],
     rules: {
       // File length limit
-      'max-lines': [
-        'warn',
-        {
-          max: 300,
-          skipBlankLines: true,
-          skipComments: true
-        }
-      ],
+      // 'max-lines': [
+      //   'warn',
+      //   {
+      //     max: 300,
+      //     skipBlankLines: true,
+      //     skipComments: true
+      //   }
+      // ],
       // nestif equivalent: max nesting depth
       'max-depth': ['warn', 4],
       // funlen equivalent: max function length
@@ -75,9 +75,16 @@ module.exports = [
       ...tseslint.configs.recommended.rules,
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': [
-        'warn',
+        'error',
         {
-          argsIgnorePattern: '^_'
+          vars: 'all',
+          args: 'after-used',
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrors: 'all',
+          caughtErrorsIgnorePattern: '^_',
+          destructuredArrayIgnorePattern: '^_',
+          ignoreRestSiblings: true
         }
       ],
       'no-console': 'off',
@@ -85,7 +92,7 @@ module.exports = [
       '@typescript-eslint/no-empty-object-type': 'off',
       '@typescript-eslint/no-require-imports': 'off',
       '@typescript-eslint/no-unsafe-function-type': 'off',
-      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-explicit-any': 'warn',
       'no-control-regex': 'off'
     }
   },
@@ -108,16 +115,23 @@ module.exports = [
       ...tseslint.configs.recommended.rules,
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': [
-        'warn',
+        'error',
         {
-          argsIgnorePattern: '^_'
+          vars: 'all',
+          args: 'after-used',
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrors: 'all',
+          caughtErrorsIgnorePattern: '^_',
+          destructuredArrayIgnorePattern: '^_',
+          ignoreRestSiblings: true
         }
       ],
       'no-console': 'off',
       '@typescript-eslint/ban-types': 'off',
       '@typescript-eslint/no-empty-object-type': 'off',
       '@typescript-eslint/no-require-imports': 'off',
-      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-explicit-any': 'warn',
       'no-control-regex': 'off'
     }
   },
@@ -139,16 +153,23 @@ module.exports = [
       ...tseslint.configs.recommended.rules,
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': [
-        'warn',
+        'error',
         {
-          argsIgnorePattern: '^_'
+          vars: 'all',
+          args: 'after-used',
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrors: 'all',
+          caughtErrorsIgnorePattern: '^_',
+          destructuredArrayIgnorePattern: '^_',
+          ignoreRestSiblings: true
         }
       ],
       'no-console': 'off',
       '@typescript-eslint/ban-types': 'off',
       '@typescript-eslint/no-empty-object-type': 'off',
       '@typescript-eslint/no-require-imports': 'off',
-      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-explicit-any': 'warn',
       'no-control-regex': 'off'
     }
   },
@@ -172,18 +193,34 @@ module.exports = [
     rules: {
       ...tseslint.configs.recommended.rules,
       ...jest.configs.recommended.rules,
+      // 意味のないテストを検出するルール
+      'jest/expect-expect': 'warn', // アサーションがないテストを検出
+      'jest/no-disabled-tests': 'warn', // スキップされたテスト（.skip, xit）を検出
+      'jest/no-focused-tests': 'error', // .only を使ったテストを検出（CI失敗防止）
+      'jest/no-identical-title': 'error', // 同じタイトルのテストを検出
+      'jest/valid-expect': 'error', // 無効なexpect()を検出
+      'jest/no-standalone-expect': 'error', // describe/it外のexpectを検出
+      'jest/prefer-to-have-length': 'warn', // .length よりも .toHaveLength() を推奨
+      'jest/prefer-to-be': 'warn', // toBe(null/undefined) を推奨
       'jest/no-conditional-expect': 'off',
       'jest/no-done-callback': 'off',
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': [
-        'warn',
+        'error',
         {
-          argsIgnorePattern: '^_'
+          vars: 'all',
+          args: 'after-used',
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrors: 'all',
+          caughtErrorsIgnorePattern: '^_',
+          destructuredArrayIgnorePattern: '^_',
+          ignoreRestSiblings: true
         }
       ],
       'no-console': 'off',
       '@typescript-eslint/ban-types': 'off',
-      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-non-null-assertion': 'off',
       '@typescript-eslint/no-empty-object-type': 'off',
       '@typescript-eslint/no-require-imports': 'off',

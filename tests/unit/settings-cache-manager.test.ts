@@ -276,9 +276,7 @@ describe('SettingsCacheManager', () => {
 
   describe('preloadSearchPrefixesCache', () => {
     test('should preload both command and mention prefixes', async () => {
-      let callCount = 0;
       mockElectronAPI.mdSearch.getSearchPrefixes = jest.fn((type: string) => {
-        callCount++;
         if (type === 'command') {
           return Promise.resolve(['/cmd1']);
         } else {

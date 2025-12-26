@@ -1,7 +1,12 @@
 /**
  * HighlightManager - Manages @path highlighting and Cmd+click interactions
  *
- * This manager orchestrates specialized managers for:
+ * Consolidated from:
+ * - HighlightManager: Main orchestration
+ * - CursorHighlightManager: Cursor position and hover state highlighting
+ * - BackdropRenderer: Highlight backdrop rendering
+ *
+ * Responsibilities:
  * - @path highlighting in textarea using backdrop layer
  * - Cmd+hover link style for @paths, URLs, slash commands, and absolute paths
  * - Ctrl+Enter hint text when cursor is on a clickable path
@@ -12,10 +17,13 @@
 
 import type { AtPathRange } from '../types';
 import type { FileInfo } from '../../../types';
-import { BackdropRenderer } from './backdrop-renderer';
-import type { BackdropRendererCallbacks } from './backdrop-renderer';
-import { CursorHighlightManager } from './cursor-highlight-manager';
-import type { CursorHighlightCallbacks } from './cursor-highlight-manager';
+import {
+  findAtPathAtPosition,
+  findUrlAtPosition,
+  findSlashCommandAtPosition,
+  findAbsolutePathAtPosition,
+  findClickablePathAtPosition
+} from '../text-finder';
 import { PathManager } from './path-manager';
 
 export interface HighlightManagerCallbacks {
@@ -38,12 +46,17 @@ export class HighlightManager {
   private highlightBackdrop: HTMLDivElement;
   private callbacks: HighlightManagerCallbacks;
 
-  // Specialized managers (initialized in initializeManagers)
-  private backdropRenderer!: BackdropRenderer;
-  private cursorHighlight!: CursorHighlightManager;
-
   // PathManager is injected from parent (FileSearchManager)
   private pathManager: PathManager;
+
+  // Cursor highlight state (from CursorHighlightManager)
+  private cursorPositionPath: AtPathRange | null = null;
+
+  // Cmd+hover state (from CursorHighlightManager)
+  private isCmdHoverActive: boolean = false;
+  private hoveredAtPath: AtPathRange | null = null;
+  private lastMouseX: number = 0;
+  private lastMouseY: number = 0;
 
   constructor(
     textInput: HTMLTextAreaElement,
@@ -58,42 +71,11 @@ export class HighlightManager {
 
     // Set textInput for coordinate calculations
     this.pathManager.setTextInput(textInput);
-
-    this.initializeManagers();
   }
 
-  /**
-   * Initialize specialized managers with delegation callbacks
-   * Note: PathManager is injected via constructor and used directly
-   */
-  private initializeManagers(): void {
-    // CursorHighlightManager callbacks (includes hover state callbacks)
-    // Uses pathManager for path detection operations
-    const cursorHighlightCallbacks: CursorHighlightCallbacks = {
-      getTextContent: () => this.callbacks.getTextContent(),
-      getCursorPosition: () => this.callbacks.getCursorPosition(),
-      ...(this.callbacks.updateHintText && { updateHintText: this.callbacks.updateHintText }),
-      ...(this.callbacks.getDefaultHintText && { getDefaultHintText: this.callbacks.getDefaultHintText }),
-      ...(this.callbacks.isFileSearchEnabled && { isFileSearchEnabled: this.callbacks.isFileSearchEnabled }),
-      ...(this.callbacks.isCommandEnabledSync && { isCommandEnabledSync: this.callbacks.isCommandEnabledSync }),
-      renderHighlightBackdrop: () => this.renderHighlightBackdropWithCursor(),
-      // Hover state callbacks (using pathManager)
-      findClickableRangeAtPosition: (charPos: number) => this.pathManager.findClickableRangeAtPosition(charPos),
-      getCharPositionFromCoordinates: (x: number, y: number) => this.pathManager.getCharPositionFromCoordinates(x, y),
-      renderFilePathHighlight: () => this.renderFilePathHighlight(),
-      clearFilePathHighlight: () => this.clearFilePathHighlightInternal(),
-    };
-    this.cursorHighlight = new CursorHighlightManager(cursorHighlightCallbacks);
-
-    // BackdropRenderer callbacks (uses pathManager for atPaths)
-    const backdropCallbacks: BackdropRendererCallbacks = {
-      getAtPaths: () => this.pathManager.getAtPaths(),
-      getCursorPositionPath: () => this.cursorHighlight.getCursorPositionPath(),
-      getHoveredPath: () => this.cursorHighlight.getHoveredPath(),
-      getTextContent: () => this.callbacks.getTextContent(),
-    };
-    this.backdropRenderer = new BackdropRenderer(this.textInput, this.highlightBackdrop, backdropCallbacks);
-  }
+  // ============================================================
+  // Public API - Highlight Updates
+  // ============================================================
 
   /**
    * Update the highlight backdrop to show @path highlights
@@ -106,7 +88,7 @@ export class HighlightManager {
     // Re-scan for @paths in the text (in case user edited)
     this.pathManager.rescanAtPaths(text);
 
-    this.backdropRenderer.updateHighlightBackdrop();
+    this.renderBackdrop();
   }
 
   /**
@@ -121,7 +103,7 @@ export class HighlightManager {
     // Re-scan for @paths
     this.pathManager.rescanAtPaths(text);
 
-    this.backdropRenderer.renderHighlightBackdropWithCursor();
+    this.renderBackdropWithCursor();
   }
 
   /**
@@ -135,83 +117,162 @@ export class HighlightManager {
     // Re-scan for @paths
     this.pathManager.rescanAtPaths(text);
 
-    this.backdropRenderer.renderFilePathHighlight();
+    this.renderBackdropWithHover();
   }
 
   /**
    * Clear file path highlight (link style) while preserving @path highlights
    */
   public clearFilePathHighlight(): void {
-    this.cursorHighlight.clearHover();
-  }
-
-  /**
-   * Internal method to clear file path highlight (used by cursorHighlight callback)
-   * This renders the backdrop without the hover highlight
-   */
-  private clearFilePathHighlightInternal(): void {
-    // Re-render backdrop without hover highlight (hover state is already cleared)
-    this.updateHighlightBackdrop();
+    this.clearHover();
   }
 
   /**
    * Update cursor position highlight (called when cursor moves)
-   * Only highlights absolute file paths and URLs, not @paths (which already have their own highlight)
-   * Also updates hint text to show Ctrl+Enter shortcut when on a clickable path or URL
    */
   public updateCursorPositionHighlight(): void {
     if (!this.textInput) return;
 
-    this.cursorHighlight.updateCursorPositionHighlight();
-  }
+    const text = this.callbacks.getTextContent();
+    const cursorPos = this.callbacks.getCursorPosition();
 
-  /**
-   * Re-scan text for @paths.
-   * Finds ALL @path patterns in text and validates them against:
-   * 1. The selectedPaths set (paths explicitly selected by user)
-   * 2. The cached file list (for Undo support - restores highlights for valid paths)
-   */
-  public rescanAtPaths(text: string, validPaths?: Set<string> | null): void {
-    this.pathManager.rescanAtPaths(text, validPaths);
+    // First check if cursor is on an @path - still show hint but no extra highlight
+    const atPath = findAtPathAtPosition(text, cursorPos);
+    if (atPath) {
+      this.showFileOpenHint();
+      if (this.cursorPositionPath) {
+        this.cursorPositionPath = null;
+        this.renderHighlightBackdropWithCursor();
+      }
+      return;
+    }
+
+    // Check if cursor is on a URL
+    const url = findUrlAtPosition(text, cursorPos);
+    if (url) {
+      this.showUrlOpenHint();
+      const newRange: AtPathRange = { start: url.start, end: url.end };
+      if (!this.cursorPositionPath ||
+          this.cursorPositionPath.start !== newRange.start ||
+          this.cursorPositionPath.end !== newRange.end) {
+        this.cursorPositionPath = newRange;
+        this.renderHighlightBackdropWithCursor();
+      }
+      return;
+    }
+
+    // Check if cursor is on a slash command (only if command type is enabled)
+    if (this.callbacks.isCommandEnabledSync?.()) {
+      const slashCommand = findSlashCommandAtPosition(text, cursorPos);
+      if (slashCommand) {
+        this.showSlashCommandOpenHint();
+        const newRange: AtPathRange = { start: slashCommand.start, end: slashCommand.end };
+        if (!this.cursorPositionPath ||
+            this.cursorPositionPath.start !== newRange.start ||
+            this.cursorPositionPath.end !== newRange.end) {
+          this.cursorPositionPath = newRange;
+          this.renderHighlightBackdropWithCursor();
+        }
+        return;
+      }
+    }
+
+    // Find absolute path at cursor position
+    const absolutePath = findAbsolutePathAtPosition(text, cursorPos);
+
+    if (absolutePath) {
+      this.showFileOpenHint();
+      const pathInfo = findClickablePathAtPosition(text, cursorPos);
+      if (pathInfo && !pathInfo.path.startsWith('@')) {
+        const newRange: AtPathRange = { start: pathInfo.start, end: pathInfo.end };
+        if (!this.cursorPositionPath ||
+            this.cursorPositionPath.start !== newRange.start ||
+            this.cursorPositionPath.end !== newRange.end) {
+          this.cursorPositionPath = newRange;
+          this.renderHighlightBackdropWithCursor();
+        }
+      }
+    } else {
+      this.restoreDefaultHint();
+      if (this.cursorPositionPath) {
+        this.cursorPositionPath = null;
+        this.renderHighlightBackdropWithCursor();
+      }
+    }
   }
 
   /**
    * Sync the scroll position of the highlight backdrop with the textarea
    */
   public syncBackdropScroll(): void {
-    this.backdropRenderer.syncBackdropScroll();
+    if (this.textInput && this.highlightBackdrop) {
+      this.highlightBackdrop.scrollTop = this.textInput.scrollTop;
+      this.highlightBackdrop.scrollLeft = this.textInput.scrollLeft;
+    }
   }
 
-  /**
-   * Get character position from mouse coordinates using mirror div
-   */
-  public getCharPositionFromCoordinates(clientX: number, clientY: number): number | null {
-    return this.pathManager.getCharPositionFromCoordinates(clientX, clientY);
-  }
+  // ============================================================
+  // Mouse/Keyboard Event Handlers (from CursorHighlightManager)
+  // ============================================================
 
   /**
    * Handle mouse move for Cmd+hover link style
    */
   public onMouseMove(e: MouseEvent): void {
-    this.cursorHighlight.onMouseMove(e);
+    this.lastMouseX = e.clientX;
+    this.lastMouseY = e.clientY;
+
+    if (!e.metaKey) {
+      if (this.hoveredAtPath) {
+        this.clearHover();
+      }
+      return;
+    }
+
+    this.isCmdHoverActive = true;
+    this.checkAndHighlightAtPath(e.clientX, e.clientY);
   }
 
   /**
    * Handle Cmd key down
    */
   public onCmdKeyDown(): void {
-    this.cursorHighlight.onCmdKeyDown();
+    if (!this.isCmdHoverActive) {
+      this.isCmdHoverActive = true;
+      this.updateHoverStateAtLastPosition();
+    }
   }
 
   /**
    * Handle Cmd key up
    */
   public onCmdKeyUp(): void {
-    this.cursorHighlight.onCmdKeyUp();
+    if (this.isCmdHoverActive) {
+      this.isCmdHoverActive = false;
+      this.clearHover();
+    }
   }
 
   /**
-   * Clear all tracked @paths (called when text is cleared)
+   * Get character position from mouse coordinates
+   */
+  public getCharPositionFromCoordinates(clientX: number, clientY: number): number | null {
+    return this.pathManager.getCharPositionFromCoordinates(clientX, clientY);
+  }
+
+  // ============================================================
+  // @path Management (delegated to PathManager)
+  // ============================================================
+
+  /**
+   * Re-scan text for @paths
+   */
+  public rescanAtPaths(text: string, validPaths?: Set<string> | null): void {
+    this.pathManager.rescanAtPaths(text, validPaths);
+  }
+
+  /**
+   * Clear all tracked @paths
    */
   public clearAtPaths(): void {
     this.pathManager.clearAtPaths();
@@ -219,51 +280,222 @@ export class HighlightManager {
   }
 
   /**
-   * Restore @paths from text (called when draft is restored or directory data is updated)
-   * This auto-detects @paths in the text and adds them to tracking
-   * Only highlights @paths that actually exist (checked against cached file list or filesystem)
-   *
-   * @param checkFilesystem - If true, checks filesystem for file existence when cached file list is empty.
-   *                          Use this when restoring from draft with empty file list (fromDraft).
-   * @param directoryData - Directory data for validation (optional)
+   * Restore @paths from text
    */
   public async restoreAtPathsFromText(checkFilesystem: boolean = false, directoryData?: DirectoryDataForHighlight | null): Promise<void> {
     await this.pathManager.restoreAtPathsFromText(checkFilesystem, directoryData);
     this.updateHighlightBackdrop();
   }
 
-  /**
-   * Add a path to the selectedPaths set
-   */
   public addSelectedPath(path: string): void {
     this.pathManager.addSelectedPath(path);
   }
 
-  /**
-   * Remove a path from the selectedPaths set
-   */
   public removeSelectedPath(path: string): void {
     this.pathManager.removeSelectedPath(path);
   }
 
-  /**
-   * Get all tracked @paths
-   */
   public getAtPaths(): AtPathRange[] {
     return this.pathManager.getAtPaths();
   }
 
-  /**
-   * Get the selected paths set
-   */
   public getSelectedPaths(): Set<string> {
     return this.pathManager.getSelectedPaths();
   }
 
-  /**
-   * Set the valid paths set for validation (used by rescanAtPaths)
-   */
   public setValidPathsBuilder(builder: () => Set<string> | null): void {
     this.pathManager.setValidPathsBuilder(builder);
+  }
+
+  // ============================================================
+  // Private - Hint Text
+  // ============================================================
+
+  private showFileOpenHint(): void {
+    if (this.callbacks.isFileSearchEnabled && !this.callbacks.isFileSearchEnabled()) {
+      return;
+    }
+    if (this.callbacks.updateHintText) {
+      this.callbacks.updateHintText('Press Ctrl+Enter to open file in editor');
+    }
+  }
+
+  private showUrlOpenHint(): void {
+    if (this.callbacks.updateHintText) {
+      this.callbacks.updateHintText('Press Ctrl+Enter to open URL in browser');
+    }
+  }
+
+  private showSlashCommandOpenHint(): void {
+    if (this.callbacks.updateHintText) {
+      this.callbacks.updateHintText('Press Ctrl+Enter to open command file');
+    }
+  }
+
+  private restoreDefaultHint(): void {
+    if (this.callbacks.updateHintText && this.callbacks.getDefaultHintText) {
+      const defaultHint = this.callbacks.getDefaultHintText();
+      this.callbacks.updateHintText(defaultHint);
+    }
+  }
+
+  // ============================================================
+  // Private - Hover State
+  // ============================================================
+
+  private clearHover(): void {
+    this.hoveredAtPath = null;
+    this.updateHighlightBackdrop();
+  }
+
+  private checkAndHighlightAtPath(clientX: number, clientY: number): void {
+    const charPos = this.pathManager.getCharPositionFromCoordinates(clientX, clientY);
+
+    if (charPos === null) {
+      this.clearHover();
+      return;
+    }
+
+    const clickableRange = this.pathManager.findClickableRangeAtPosition(charPos);
+
+    if (clickableRange) {
+      if (!this.hoveredAtPath ||
+          this.hoveredAtPath.start !== clickableRange.start ||
+          this.hoveredAtPath.end !== clickableRange.end) {
+        this.hoveredAtPath = clickableRange;
+        this.renderFilePathHighlight();
+      }
+    } else {
+      this.clearHover();
+    }
+  }
+
+  private updateHoverStateAtLastPosition(): void {
+    if (this.lastMouseX && this.lastMouseY) {
+      this.checkAndHighlightAtPath(this.lastMouseX, this.lastMouseY);
+    }
+  }
+
+  // ============================================================
+  // Private - Backdrop Rendering (from BackdropRenderer)
+  // ============================================================
+
+  private renderBackdrop(): void {
+    if (!this.highlightBackdrop || !this.textInput) return;
+
+    const text = this.callbacks.getTextContent();
+    const atPaths = this.pathManager.getAtPaths();
+
+    if (atPaths.length === 0) {
+      this.highlightBackdrop.textContent = text;
+      return;
+    }
+
+    const fragment = this.buildHighlightFragment(text, atPaths.map(ap => ({
+      ...ap,
+      className: 'at-path-highlight'
+    })));
+
+    this.highlightBackdrop.innerHTML = '';
+    this.highlightBackdrop.appendChild(fragment);
+
+    this.syncBackdropScroll();
+  }
+
+  private renderBackdropWithCursor(): void {
+    if (!this.highlightBackdrop || !this.textInput) return;
+
+    // If there's an active Cmd+hover, use the full link style rendering
+    if (this.hoveredAtPath) {
+      this.renderBackdropWithHover();
+      return;
+    }
+
+    const text = this.callbacks.getTextContent();
+    const atPaths = this.pathManager.getAtPaths();
+    const ranges: Array<AtPathRange & { className: string }> = [];
+
+    // Add @paths
+    for (const atPath of atPaths) {
+      ranges.push({ ...atPath, className: 'at-path-highlight' });
+    }
+
+    // Add cursor position path if it's not already an @path
+    if (this.cursorPositionPath) {
+      const isAlreadyAtPath = atPaths.some(
+        ap => ap.start === this.cursorPositionPath!.start && ap.end === this.cursorPositionPath!.end
+      );
+      if (!isAlreadyAtPath) {
+        ranges.push({ ...this.cursorPositionPath, className: 'file-path-cursor-highlight' });
+      }
+    }
+
+    this.updateBackdropWithRanges(text, ranges);
+  }
+
+  private renderBackdropWithHover(): void {
+    if (!this.highlightBackdrop || !this.textInput) return;
+    if (!this.hoveredAtPath) return;
+
+    const text = this.callbacks.getTextContent();
+    const atPaths = this.pathManager.getAtPaths();
+    const ranges: Array<AtPathRange & { className: string }> = [];
+
+    const isHoveredAtPath = atPaths.some(
+      ap => ap.start === this.hoveredAtPath!.start && ap.end === this.hoveredAtPath!.end
+    );
+
+    // Add @paths with appropriate styling
+    for (const atPath of atPaths) {
+      const isHovered = atPath.start === this.hoveredAtPath.start && atPath.end === this.hoveredAtPath.end;
+      const className = isHovered ? 'at-path-highlight file-path-link' : 'at-path-highlight';
+      ranges.push({ ...atPath, className });
+    }
+
+    // Add hovered path if it's not an @path
+    if (!isHoveredAtPath) {
+      ranges.push({ ...this.hoveredAtPath, className: 'file-path-link' });
+    }
+
+    this.updateBackdropWithRanges(text, ranges);
+  }
+
+  private updateBackdropWithRanges(text: string, ranges: Array<AtPathRange & { className: string }>): void {
+    ranges.sort((a, b) => a.start - b.start);
+
+    const fragment = this.buildHighlightFragment(text, ranges);
+
+    while (this.highlightBackdrop.firstChild) {
+      this.highlightBackdrop.removeChild(this.highlightBackdrop.firstChild);
+    }
+    this.highlightBackdrop.appendChild(fragment);
+    this.syncBackdropScroll();
+  }
+
+  private buildHighlightFragment(
+    text: string,
+    ranges: Array<AtPathRange & { className: string }>
+  ): DocumentFragment {
+    const fragment = document.createDocumentFragment();
+    let lastEnd = 0;
+
+    for (const range of ranges) {
+      if (range.start > lastEnd) {
+        fragment.appendChild(document.createTextNode(text.substring(lastEnd, range.start)));
+      }
+
+      const span = document.createElement('span');
+      span.className = range.className;
+      span.textContent = text.substring(range.start, range.end);
+      fragment.appendChild(span);
+
+      lastEnd = range.end;
+    }
+
+    if (lastEnd < text.length) {
+      fragment.appendChild(document.createTextNode(text.substring(lastEnd)));
+    }
+
+    return fragment;
   }
 }

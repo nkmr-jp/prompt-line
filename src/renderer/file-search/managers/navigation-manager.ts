@@ -1,15 +1,23 @@
 /**
- * NavigationManager - Handles directory/file navigation and keyboard navigation
+ * NavigationManager - Handles navigation, selection, and keyboard events
  *
- * Consolidated from NavigationManager and KeyboardNavigationManager to reduce manager count.
+ * Consolidated from:
+ * - NavigationManager: Keyboard navigation and directory/file navigation
+ * - ItemSelectionManager: Item selection logic (file, agent, symbol)
+ *
  * Responsibilities:
  * - Handle keyboard events for file search navigation
  * - Navigate into directories and update path
  * - Navigate into files to show symbols
  * - Expand current directory path
+ * - Route selection to appropriate handler (file, agent, symbol)
+ * - Handle file selection with symbol navigation
+ * - Handle agent selection with input format support
+ * - Handle symbol selection with path and line number
  */
 
 import type { FileInfo, DirectoryData, SuggestionItem } from '../types';
+import type { AgentItem } from '../../../types';
 import type { SymbolResult, LanguageInfo } from '../../code-search/types';
 import { getRelativePath, formatLog } from '../index';
 
@@ -46,9 +54,9 @@ export interface NavigationCallbacks {
 
   // Actions
   updateSelection: () => void;
-  selectItem: (index: number) => void;
   hideSuggestions: () => void;
   insertFilePath: (path: string) => void;
+  insertFilePathWithoutAt: (path: string) => void;
   onFileSelected: (path: string) => void;
   exitSymbolMode: () => void;
   removeAtQueryText: () => void;
@@ -63,10 +71,20 @@ export interface NavigationCallbacks {
   updateSuggestionList: (suggestions: SuggestionItem[], showPath: boolean, selectedIndex: number) => void;
   showTooltipForSelectedItem: () => void;
   showSymbolSuggestions: (query: string) => Promise<void>;
+
+  // Item selection helpers
+  getTextInput: () => HTMLTextAreaElement | null;
+  getAtStartPosition: () => number;
+  getLanguageForFile: (fileName: string) => LanguageInfo | null;
+  isCodeSearchAvailable: () => boolean;
+  replaceRangeWithUndo?: ((start: number, end: number, text: string) => void) | undefined;
+  addSelectedPath: (path: string) => void;
+  updateHighlightBackdrop: () => void;
+  resetCodeSearchState: () => void;
 }
 
 /**
- * NavigationManager handles keyboard navigation and directory/file navigation
+ * NavigationManager handles keyboard navigation, directory/file navigation, and item selection
  */
 export class NavigationManager {
   private callbacks: NavigationCallbacks;
@@ -203,7 +221,7 @@ export class NavigationManager {
         return;
       }
 
-      this.callbacks.selectItem(selectedIndex);
+      this.selectItem(selectedIndex);
     }
   }
 
@@ -232,7 +250,7 @@ export class NavigationManager {
       }
 
       // Otherwise select the item (file or agent)
-      this.callbacks.selectItem(selectedIndex);
+      this.selectItem(selectedIndex);
     }
   }
 
@@ -378,5 +396,153 @@ export class NavigationManager {
 
     // Callback for external handling
     this.callbacks.onFileSelected(pathWithSlash);
+  }
+
+  // ========================================
+  // Item Selection Methods (from ItemSelectionManager)
+  // ========================================
+
+  /**
+   * Select an item by index from merged suggestions
+   * @param index - Index in merged suggestions
+   */
+  public selectItem(index: number): void {
+    const suggestions = this.callbacks.getMergedSuggestions();
+    const suggestion = suggestions[index];
+    if (!suggestion) return;
+
+    this.selectSuggestionItem(suggestion);
+  }
+
+  /**
+   * Select an item from merged suggestions
+   * @param suggestion - The suggestion item to select
+   */
+  public selectSuggestionItem(suggestion: SuggestionItem): void {
+    if (!suggestion) return;
+
+    if (suggestion.type === 'file' && suggestion.file) {
+      this.selectFileByInfo(suggestion.file);
+    } else if (suggestion.type === 'agent' && suggestion.agent) {
+      this.selectAgentByInfo(suggestion.agent);
+    } else if (suggestion.type === 'symbol' && suggestion.symbol) {
+      this.selectSymbol(suggestion.symbol);
+    }
+  }
+
+  /**
+   * Select a file by its info
+   * @param file - File info to select
+   */
+  public selectFileByInfo(file: FileInfo): void {
+    // Get relative path from base directory
+    const cachedData = this.callbacks.getCachedDirectoryData();
+    const baseDir = cachedData?.directory || '';
+    let relativePath = getRelativePath(file.path, baseDir);
+
+    // Add trailing slash for directories
+    if (file.isDirectory && !relativePath.endsWith('/')) {
+      relativePath += '/';
+    }
+
+    // If it's a directory, just insert the path
+    if (file.isDirectory) {
+      this.callbacks.insertFilePath(relativePath);
+      this.callbacks.hideSuggestions();
+      this.callbacks.onFileSelected(relativePath);
+      return;
+    }
+
+    // Check if symbol search is available for this file type
+    const language = this.callbacks.getLanguageForFile(file.name);
+    if (this.callbacks.isCodeSearchAvailable() && language) {
+      // Navigate into file to show symbols
+      this.navigateIntoFile(relativePath, file.path, language);
+      return;
+    }
+
+    // Fallback: insert the file path
+    this.callbacks.insertFilePath(relativePath);
+    this.callbacks.hideSuggestions();
+
+    // Callback for external handling
+    this.callbacks.onFileSelected(relativePath);
+  }
+
+  /**
+   * Select an agent by its info
+   * @param agent - Agent item to select
+   */
+  public selectAgentByInfo(agent: AgentItem): void {
+    // Determine what to insert based on agent's inputFormat setting
+    // Default to 'name' for agents (backward compatible behavior)
+    const inputFormat = agent.inputFormat ?? 'name';
+
+    if (inputFormat === 'path') {
+      // For 'path' format, replace @ and query with just the file path (no @)
+      this.callbacks.insertFilePathWithoutAt(agent.filePath);
+    } else {
+      // For 'name' format, keep @ and insert just the name
+      this.callbacks.insertFilePath(agent.name);
+    }
+    this.callbacks.hideSuggestions();
+
+    // Callback for external handling
+    const insertText = inputFormat === 'path' ? agent.filePath : agent.name;
+    this.callbacks.onFileSelected(inputFormat === 'name' ? `@${insertText}` : insertText);
+  }
+
+  /**
+   * Select a symbol and insert its path with line number
+   * @param symbol - Symbol result to select
+   */
+  public selectSymbol(symbol: SymbolResult): void {
+    const textInput = this.callbacks.getTextInput();
+    const atStartPosition = this.callbacks.getAtStartPosition();
+    if (!textInput || atStartPosition < 0) return;
+
+    // Format: relativePath:lineNumber#symbolName (keep @ prefix)
+    // The @ is already at atStartPosition, so we insert path after it
+    const pathWithLineAndSymbol = `${symbol.relativePath}:${symbol.lineNumber}#${symbol.name} `;
+
+    // Get current cursor position (end of the @query)
+    const cursorPos = textInput.selectionStart;
+
+    // Save atStartPosition before replacement - replaceRangeWithUndo triggers input event
+    // which calls checkForFileSearch() and may set atStartPosition to -1 via hideSuggestions()
+    const savedAtStartPosition = atStartPosition;
+
+    // Replace the lang:query part (after @) with the path:line#symbol
+    // atStartPosition is the @ position, so we replace from atStartPosition + 1 to keep @
+    if (this.callbacks.replaceRangeWithUndo) {
+      // execCommand('insertText') sets cursor at end of inserted text automatically
+      // Do NOT set cursor position after this - input event handler may have modified atStartPosition
+      this.callbacks.replaceRangeWithUndo(savedAtStartPosition + 1, cursorPos, pathWithLineAndSymbol);
+    } else {
+      // Fallback without undo support - need to set cursor position manually
+      const text = textInput.value;
+      const newText = text.substring(0, savedAtStartPosition + 1) + pathWithLineAndSymbol + text.substring(cursorPos);
+      textInput.value = newText;
+      const newCursorPos = savedAtStartPosition + 1 + pathWithLineAndSymbol.length;
+      textInput.setSelectionRange(newCursorPos, newCursorPos);
+    }
+
+    // Add to selectedPaths for highlighting and click-to-open
+    // Use the full path including line number and symbol name (without trailing space)
+    const pathForHighlight = `${symbol.relativePath}:${symbol.lineNumber}#${symbol.name}`;
+    this.callbacks.addSelectedPath(pathForHighlight);
+    console.debug('[NavigationManager] Added symbol path to selectedPaths:', pathForHighlight);
+
+    // Update highlight backdrop (this also calls rescanAtPaths internally)
+    this.callbacks.updateHighlightBackdrop();
+
+    // Notify callback
+    this.callbacks.onFileSelected(pathForHighlight);
+
+    // Reset code search state
+    this.callbacks.resetCodeSearchState();
+
+    // Hide suggestions
+    this.callbacks.hideSuggestions();
   }
 }
