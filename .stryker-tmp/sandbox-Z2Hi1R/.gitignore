@@ -1,0 +1,63 @@
+# Dependencies
+node_modules/
+# package-lock.json should be tracked for exact dependency versions
+# package-lock.json
+
+# Build outputs
+dist/
+dist-renderer/
+src/**/*.js
+src/**/*.map
+
+# build/ - We need build directory for entitlements
+*.dmg
+*.zip
+*.blockmap
+
+# Native binaries (built from native/ source)
+src/native-tools/
+
+# Local configuration
+.claude/
+.junie/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# User data (for development)
+~/.prompt-line/
+
+# Benchmark test data and reports
+benchmarks/data/*.jsonl
+benchmarks/reports/*.json
+benchmarks/reports/*.txt

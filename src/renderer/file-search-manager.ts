@@ -23,14 +23,11 @@ import {
   DirectoryCacheManager,
   FileFilterManager,
   PathManager,
-  SymbolModeUIManager,
-  ItemSelectionManager,
   NavigationManager,
   EventListenerManager,
   QueryExtractionManager,
   SuggestionUIManager,
-  FileSearchState,
-  SymbolSearchHandler
+  FileSearchState
 } from './file-search/managers';
 
 export class FileSearchManager implements IInitializable {
@@ -53,31 +50,28 @@ export class FileSearchManager implements IInitializable {
   private directoryCacheManager: DirectoryCacheManager | null = null;
   private fileFilterManager: FileFilterManager;
   private pathManager: PathManager;
-  private symbolModeUIManager: SymbolModeUIManager;
-  private itemSelectionManager: ItemSelectionManager;
   private navigationManager: NavigationManager;
   private eventListenerManager: EventListenerManager;
   private queryExtractionManager: QueryExtractionManager;
-  private symbolSearchHandler: SymbolSearchHandler | null = null;
 
-  // Symbol mode properties (delegated to SymbolModeUIManager, kept for compatibility)
+  // Symbol mode properties (delegated to CodeSearchManager)
   private get isInSymbolMode(): boolean {
-    return this.symbolModeUIManager.isInSymbolMode();
+    return this.codeSearchManager?.isInSymbolModeActive() || false;
   }
   private set isInSymbolMode(value: boolean) {
-    this.symbolModeUIManager.setState({ isInSymbolMode: value });
+    this.codeSearchManager?.setInSymbolMode(value);
   }
   private get currentFilePath(): string {
-    return this.symbolModeUIManager.getState().currentFilePath;
+    return this.codeSearchManager?.getCurrentFilePath() || '';
   }
   private set currentFilePath(value: string) {
-    this.symbolModeUIManager.setState({ currentFilePath: value });
+    this.codeSearchManager?.setCurrentFilePath(value);
   }
   private get currentFileSymbols(): SymbolResult[] {
-    return this.symbolModeUIManager.getState().currentFileSymbols;
+    return this.codeSearchManager?.getCurrentFileSymbols() || [];
   }
   private set currentFileSymbols(value: SymbolResult[]) {
-    this.symbolModeUIManager.setState({ currentFileSymbols: value });
+    this.codeSearchManager?.setCurrentFileSymbols(value);
   }
 
   constructor(callbacks: FileSearchCallbacks) {
@@ -120,64 +114,7 @@ export class FileSearchManager implements IInitializable {
       }
     });
 
-    // Initialize SymbolModeUIManager
-    this.symbolModeUIManager = new SymbolModeUIManager({
-      getSuggestionsContainer: () => this.state.suggestionsContainer,
-      getCurrentFileSymbols: () => this.symbolModeUIManager.getState().currentFileSymbols,
-      setMergedSuggestions: (suggestions) => { this.state.mergedSuggestions = suggestions; },
-      getMergedSuggestions: () => this.state.mergedSuggestions,
-      getSelectedIndex: () => this.state.selectedIndex,
-      setSelectedIndex: (index) => { this.state.selectedIndex = index; },
-      setIsVisible: (visible) => { this.state.isVisible = visible; },
-      getCurrentFilePath: () => this.symbolModeUIManager.getState().currentFilePath,
-      getAtStartPosition: () => this.state.atStartPosition,
-      updateSelection: () => this.updateSelection(),
-      selectSymbol: (symbol) => this.selectSymbol(symbol),
-      positionPopup: (atStartPos) => this.suggestionUIManager?.position(atStartPos),
-      updateHintText: this.callbacks.updateHintText
-        ? (text: string) => this.callbacks.updateHintText!(text)
-        : undefined,
-      getDefaultHintText: this.callbacks.getDefaultHintText
-        ? () => this.callbacks.getDefaultHintText!()
-        : undefined,
-      getFileSearchMaxSuggestions: () => this.getFileSearchMaxSuggestions(),
-      showSuggestions: (query) => this.showSuggestions(query),
-      insertFilePath: (path) => this.insertFilePath(path),
-      hideSuggestions: () => this.hideSuggestions(),
-      onFileSelected: (path) => this.callbacks.onFileSelected(path),
-      setCurrentQuery: (query) => { this.state.currentQuery = query; },
-      getCurrentPath: () => this.state.currentPath
-    });
-
-    // Initialize ItemSelectionManager
-    this.itemSelectionManager = new ItemSelectionManager({
-      getCachedDirectoryData: () => this.directoryCacheManager?.getCachedData() ?? null,
-      getTextInput: () => this.state.textInput,
-      getAtStartPosition: () => this.state.atStartPosition,
-      insertFilePath: (path: string) => this.insertFilePath(path),
-      insertFilePathWithoutAt: (path: string) => this.insertFilePathWithoutAt(path),
-      hideSuggestions: () => this.hideSuggestions(),
-      onFileSelected: (path: string) => this.callbacks.onFileSelected(path),
-      navigateIntoFile: (relativePath: string, absolutePath: string, language: LanguageInfo) =>
-        this.navigateIntoFile(relativePath, absolutePath, language),
-      getLanguageForFile: (fileName: string) => this.getLanguageForFile(fileName),
-      isCodeSearchAvailable: () => this.codeSearchManager?.isAvailableSync() || false,
-      replaceRangeWithUndo: this.callbacks.replaceRangeWithUndo
-        ? (start: number, end: number, text: string) => this.callbacks.replaceRangeWithUndo!(start, end, text)
-        : undefined,
-      addSelectedPath: (path: string) => {
-        this.state.selectedPaths.add(path);
-        this.highlightManager?.addSelectedPath(path);
-      },
-      updateHighlightBackdrop: () => this.updateHighlightBackdrop(),
-      resetCodeSearchState: () => {
-        this.state.codeSearchQuery = '';
-        this.state.codeSearchLanguage = '';
-        this.state.codeSearchCacheRefreshed = false;
-      }
-    });
-
-    // Initialize NavigationManager (consolidated keyboard + directory/file navigation)
+    // Initialize NavigationManager (consolidated keyboard + directory/file navigation + item selection)
     this.navigationManager = new NavigationManager({
       // State getters
       getIsVisible: () => this.state.isVisible,
@@ -202,9 +139,9 @@ export class FileSearchManager implements IInitializable {
       setCurrentFileSymbols: (symbols: SymbolResult[]) => { this.currentFileSymbols = symbols; },
       // Actions
       updateSelection: () => this.updateSelection(),
-      selectItem: (index: number) => this.selectItem(index),
       hideSuggestions: () => this.hideSuggestions(),
       insertFilePath: (path: string) => this.insertFilePath(path),
+      insertFilePathWithoutAt: (path: string) => this.insertFilePathWithoutAt(path),
       onFileSelected: (path: string) => this.callbacks.onFileSelected(path),
       exitSymbolMode: () => this.exitSymbolMode(),
       removeAtQueryText: () => this.removeAtQueryText(),
@@ -220,7 +157,25 @@ export class FileSearchManager implements IInitializable {
       updateSuggestionList: (suggestions: SuggestionItem[], showPath: boolean, selectedIndex: number) =>
         this.suggestionUIManager?.update(suggestions, showPath, selectedIndex),
       showTooltipForSelectedItem: () => this.popupManager.showTooltipForSelectedItem(),
-      showSymbolSuggestions: (query: string) => this.showSymbolSuggestions(query)
+      showSymbolSuggestions: (query: string) => this.showSymbolSuggestions(query),
+      // Item selection helpers
+      getTextInput: () => this.state.textInput,
+      getAtStartPosition: () => this.state.atStartPosition,
+      getLanguageForFile: (fileName: string) => this.getLanguageForFile(fileName),
+      isCodeSearchAvailable: () => this.codeSearchManager?.isAvailableSync() || false,
+      replaceRangeWithUndo: this.callbacks.replaceRangeWithUndo
+        ? (start: number, end: number, text: string) => this.callbacks.replaceRangeWithUndo!(start, end, text)
+        : undefined,
+      addSelectedPath: (path: string) => {
+        this.state.selectedPaths.add(path);
+        this.highlightManager?.addSelectedPath(path);
+      },
+      updateHighlightBackdrop: () => this.updateHighlightBackdrop(),
+      resetCodeSearchState: () => {
+        this.state.codeSearchQuery = '';
+        this.state.codeSearchLanguage = '';
+        this.state.codeSearchCacheRefreshed = false;
+      }
     });
 
     // Initialize EventListenerManager
@@ -310,7 +265,7 @@ export class FileSearchManager implements IInitializable {
    * Get maxSuggestions for file search (cached)
    * Delegates to SettingsCacheManager
    */
-  private async getFileSearchMaxSuggestions(): Promise<number> {
+  private async _getFileSearchMaxSuggestions(): Promise<number> {
     return this.settingsCacheManager.getFileSearchMaxSuggestions();
   }
 
@@ -386,9 +341,37 @@ export class FileSearchManager implements IInitializable {
     this.popupManager.initialize();
 
     // Initialize CodeSearchManager (replaces inline code search initialization)
+    // Note: Some callbacks reference other managers that are initialized later,
+    // so we use arrow functions to defer the access.
     this.codeSearchManager = new CodeSearchManager({
       updateHintText: (text: string) => this.callbacks.updateHintText?.(text),
-      getDefaultHintText: () => this.callbacks.getDefaultHintText?.() || ''
+      getDefaultHintText: () => this.callbacks.getDefaultHintText?.() || '',
+      getCachedDirectoryData: () => this.directoryCacheManager?.getCachedData() ?? null,
+      getAtStartPosition: () => this.state.atStartPosition,
+      hideSuggestions: () => this.hideSuggestions(),
+      // State setters
+      setFilteredSymbols: (symbols: SymbolResult[]) => { this.state.filteredSymbols = symbols; },
+      setFilteredFiles: (files: never[]) => { this.state.filteredFiles = files; },
+      setFilteredAgents: (agents: never[]) => { this.state.filteredAgents = agents; },
+      setMergedSuggestions: (suggestions: SuggestionItem[]) => { this.state.mergedSuggestions = suggestions; },
+      getMergedSuggestions: () => this.state.mergedSuggestions,
+      setSelectedIndex: (index: number) => { this.state.selectedIndex = index; },
+      getSelectedIndex: () => this.state.selectedIndex,
+      setIsVisible: (visible: boolean) => { this.state.isVisible = visible; },
+      // UI dependencies
+      getSuggestionsContainer: () => this.state.suggestionsContainer,
+      getCurrentFileSymbols: () => this.currentFileSymbols,
+      getCurrentFilePath: () => this.currentFilePath,
+      updateSelection: () => this.updateSelection(),
+      selectSymbol: (symbol: SymbolResult) => this._selectSymbol(symbol),
+      positionPopup: (atStartPos: number) => this.suggestionUIManager?.position(atStartPos),
+      getFileSearchMaxSuggestions: () => this._getFileSearchMaxSuggestions(),
+      showSuggestions: (query: string) => this.showSuggestions(query),
+      insertFilePath: (path: string) => this.insertFilePath(path),
+      onFileSelected: (path: string) => this.callbacks.onFileSelected(path),
+      setCurrentQuery: (query: string) => { this.state.currentQuery = query; },
+      getCurrentPath: () => this.state.currentPath,
+      showTooltipForSelectedItem: () => this.popupManager.showTooltipForSelectedItem()
     });
 
     // Initialize DirectoryCacheManager
@@ -517,24 +500,7 @@ export class FileSearchManager implements IInitializable {
       );
     }
 
-    // Initialize SymbolSearchHandler (depends on codeSearchManager, suggestionUIManager, popupManager)
-    this.symbolSearchHandler = new SymbolSearchHandler({
-      codeSearchManager: this.codeSearchManager,
-      suggestionUIManager: this.suggestionUIManager,
-      popupManager: this.popupManager,
-      getCachedDirectoryData: () => this.directoryCacheManager?.getCachedData() ?? null,
-      getAtStartPosition: () => this.state.atStartPosition,
-      updateHintText: (text: string) => this.callbacks.updateHintText?.(text),
-      hideSuggestions: () => this.hideSuggestions(),
-      setFilteredSymbols: (symbols) => { this.state.filteredSymbols = symbols; },
-      setFilteredFiles: (files) => { this.state.filteredFiles = files; },
-      setFilteredAgents: (agents) => { this.state.filteredAgents = agents; },
-      setMergedSuggestions: (suggestions) => { this.state.mergedSuggestions = suggestions; },
-      setSelectedIndex: (index) => { this.state.selectedIndex = index; },
-      setIsVisible: (visible) => { this.state.isVisible = visible; }
-    });
-
-    // CodeSearchManager is initialized in constructor, no separate init needed
+    // CodeSearchManager is initialized in initializeElements, no separate init needed
   }
 
   /**
@@ -788,10 +754,10 @@ export class FileSearchManager implements IInitializable {
 
   /**
    * Search for symbols using ripgrep
-   * Delegates to SymbolSearchHandler
+   * Delegates to CodeSearchManager
    */
   private async searchSymbols(language: string, query: string, symbolTypeFilter: string | null = null, refreshCache: boolean = false): Promise<void> {
-    await this.symbolSearchHandler?.searchSymbols(language, query, symbolTypeFilter, refreshCache);
+    await this.codeSearchManager?.searchSymbolsWithUI(language, query, symbolTypeFilter, refreshCache);
   }
 
   /**
@@ -975,21 +941,18 @@ export class FileSearchManager implements IInitializable {
 
   /**
    * Select an item from merged suggestions by index
-   * Delegates to ItemSelectionManager
+   * Delegates to NavigationManager
    */
   private selectItem(index: number): void {
-    const suggestion = this.state.mergedSuggestions[index];
-    if (suggestion) {
-      this.itemSelectionManager.selectItem(suggestion);
-    }
+    this.navigationManager.selectItem(index);
   }
 
   /**
    * Select a symbol and insert its path:lineNumber#symbolName
-   * Delegates to ItemSelectionManager
+   * Delegates to NavigationManager
    */
-  private selectSymbol(symbol: SymbolResult): void {
-    this.itemSelectionManager.selectSymbol(symbol);
+  private _selectSymbol(symbol: SymbolResult): void {
+    this.navigationManager.selectSymbol(symbol);
   }
 
   /**
@@ -1041,10 +1004,10 @@ export class FileSearchManager implements IInitializable {
 
   /**
    * Expand current file path (for Enter/Tab when no symbol is selected in symbol mode)
-   * Delegates to SymbolModeUIManager
+   * Delegates to CodeSearchManager
    */
   private expandCurrentFile(): void {
-    this.symbolModeUIManager?.expandCurrentFile();
+    this.codeSearchManager?.expandCurrentFile();
   }
 
   /**
@@ -1064,27 +1027,19 @@ export class FileSearchManager implements IInitializable {
   }
 
   /**
-   * Navigate into a file to show its symbols (similar to navigateIntoDirectory)
-   * Delegates to NavigationManager
-   */
-  private async navigateIntoFile(relativePath: string, absolutePath: string, language: LanguageInfo): Promise<void> {
-    await this.navigationManager.navigateIntoFile(relativePath, absolutePath, language);
-  }
-
-  /**
    * Show symbol suggestions for the current file
-   * Delegates to SymbolModeUIManager
+   * Delegates to CodeSearchManager
    */
   private async showSymbolSuggestions(query: string): Promise<void> {
-    await this.symbolModeUIManager.showSymbolSuggestions(query);
+    await this.codeSearchManager?.showSymbolSuggestions(query);
   }
 
   /**
    * Exit symbol mode and return to file list
-   * Delegates to SymbolModeUIManager
+   * Delegates to CodeSearchManager
    */
   private exitSymbolMode(): void {
-    this.symbolModeUIManager.exitSymbolMode();
+    this.codeSearchManager?.exitSymbolMode();
   }
 
   /**
@@ -1205,6 +1160,5 @@ export class FileSearchManager implements IInitializable {
     this.codeSearchManager = null;
     this.fileOpenerManager = null;
     this.directoryCacheManager = null;
-    this.symbolSearchHandler = null;
   }
 }

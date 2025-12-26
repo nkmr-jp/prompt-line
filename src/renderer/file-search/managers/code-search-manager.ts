@@ -424,6 +424,27 @@ export class CodeSearchManager {
   }
 
   /**
+   * Set symbol mode active state
+   */
+  public setInSymbolMode(value: boolean): void {
+    this.isInSymbolMode = value;
+  }
+
+  /**
+   * Set current file path in symbol mode
+   */
+  public setCurrentFilePath(value: string): void {
+    this.currentFilePath = value;
+  }
+
+  /**
+   * Set symbols for the current file in symbol mode
+   */
+  public setCurrentFileSymbols(symbols: SymbolResult[]): void {
+    this.currentFileSymbols = symbols;
+  }
+
+  /**
    * Reset cache refresh flag (call when entering code search mode)
    */
   public resetCacheRefreshed(): void {

@@ -25,21 +25,6 @@ export type { FileFilterCallbacks } from './file-filter-manager';
 export { PathManager } from './path-manager';
 export type { PathManagerCallbacks, DirectoryDataForScanner } from './path-manager';
 
-export { PathValidator } from './path-validator';
-export type { PathValidatorCallbacks, DirectoryDataForValidator } from './path-validator';
-
-export { PathResolver } from './path-resolver';
-export type { PathResolverCallbacks } from './path-resolver';
-
-export { PathTextEditor } from './path-text-editor';
-export type { PathTextEditorCallbacks } from './path-text-editor';
-
-export { SymbolModeUIManager } from './symbol-mode-ui-manager';
-export type { SymbolModeUICallbacks, SymbolModeState } from './symbol-mode-ui-manager';
-
-export { ItemSelectionManager } from './item-selection-manager';
-export type { ItemSelectionCallbacks } from './item-selection-manager';
-
 export { NavigationManager } from './navigation-manager';
 export type { NavigationCallbacks } from './navigation-manager';
 
@@ -53,6 +38,3 @@ export { SuggestionUIManager } from './suggestion-ui-manager';
 export type { SuggestionUICallbacks } from './suggestion-ui-manager';
 
 export { FileSearchState } from './file-search-state';
-
-export { SymbolSearchHandler } from './symbol-search-handler';
-export type { SymbolSearchDependencies } from './symbol-search-handler';
