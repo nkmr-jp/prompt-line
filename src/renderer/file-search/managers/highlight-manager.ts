@@ -234,6 +234,9 @@ export class HighlightManager {
    */
   public syncBackdropScroll(): void {
     if (this.textInput && this.highlightBackdrop) {
+      // Ensure backdrop has same scrollable height as textarea
+      this.ensureScrollHeightMatch();
+
       // Immediate scroll sync (no RAF here for responsiveness)
       this.highlightBackdrop.scrollTop = this.textInput.scrollTop;
       this.highlightBackdrop.scrollLeft = this.textInput.scrollLeft;
@@ -246,6 +249,37 @@ export class HighlightManager {
           `translate(${-scrollLeftDiff}px, ${-scrollTopDiff}px)`;
       } else {
         this.highlightBackdrop.style.transform = '';
+      }
+    }
+  }
+
+  /**
+   * Ensure backdrop scroll height matches textarea scroll height
+   * This prevents misalignment when scrolling to the bottom
+   */
+  private ensureScrollHeightMatch(): void {
+    if (!this.textInput || !this.highlightBackdrop) return;
+
+    const textareaScrollHeight = this.textInput.scrollHeight;
+    const backdropScrollHeight = this.highlightBackdrop.scrollHeight;
+
+    // If textarea has more scrollable content, add spacer to backdrop
+    if (textareaScrollHeight > backdropScrollHeight) {
+      const diff = textareaScrollHeight - backdropScrollHeight;
+      // Find or create spacer element
+      let spacer = this.highlightBackdrop.querySelector('.scroll-height-spacer') as HTMLDivElement;
+      if (!spacer) {
+        spacer = document.createElement('div');
+        spacer.className = 'scroll-height-spacer';
+        spacer.style.pointerEvents = 'none';
+        this.highlightBackdrop.appendChild(spacer);
+      }
+      spacer.style.height = `${diff}px`;
+    } else {
+      // Remove spacer if not needed
+      const spacer = this.highlightBackdrop.querySelector('.scroll-height-spacer');
+      if (spacer) {
+        spacer.remove();
       }
     }
   }
