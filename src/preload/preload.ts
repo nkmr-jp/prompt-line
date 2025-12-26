@@ -57,7 +57,10 @@ const ALLOWED_CHANNELS = [
   'get-supported-languages',
   'search-symbols',
   'get-cached-symbols',
-  'clear-symbol-cache'
+  'clear-symbol-cache',
+  // At-path cache channels (for highlighting symbols with spaces)
+  'register-at-path',
+  'get-registered-at-paths'
 ];
 
 // IPC channel validation with additional security checks
@@ -321,6 +324,16 @@ const electronAPI: ElectronAPI = {
     },
     clearCache: async (directory?: string): Promise<IPCResult> => {
       return ipcRenderer.invoke('clear-symbol-cache', directory);
+    },
+  },
+
+  // At-path cache (for highlighting symbols with spaces)
+  atPathCache: {
+    register: async (directory: string, atPath: string): Promise<IPCResult> => {
+      return ipcRenderer.invoke('register-at-path', directory, atPath);
+    },
+    getPaths: async (directory: string): Promise<string[]> => {
+      return ipcRenderer.invoke('get-registered-at-paths', directory);
     },
   },
 };

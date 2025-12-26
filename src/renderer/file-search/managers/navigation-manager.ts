@@ -533,6 +533,13 @@ export class NavigationManager {
     this.callbacks.addSelectedPath(pathForHighlight);
     console.debug('[NavigationManager] Added symbol path to selectedPaths:', pathForHighlight);
 
+    // Register at-path in cache for persistent highlighting (supports symbols with spaces)
+    const directoryData = this.callbacks.getCachedDirectoryData();
+    if (directoryData?.directory && window.electronAPI?.atPathCache) {
+      window.electronAPI.atPathCache.register(directoryData.directory, pathForHighlight)
+        .catch((error) => console.warn('[NavigationManager] Failed to register at-path:', error));
+    }
+
     // Update highlight backdrop (this also calls rescanAtPaths internally)
     this.callbacks.updateHighlightBackdrop();
 

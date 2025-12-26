@@ -81,6 +81,28 @@ export class PathManager {
   private selectedPaths: Set<string> = new Set();
   private validPathsBuilder: (() => Set<string> | null) = () => null;
 
+  // Registered at-paths with spaces (loaded from persistent cache)
+  // These paths are matched before the default regex to support symbol names with spaces
+  private registeredAtPaths: Set<string> = new Set();
+
+  /**
+   * Set registered at-paths from persistent cache
+   * These paths may contain spaces and are matched before the default regex
+   */
+  public setRegisteredAtPaths(paths: string[]): void {
+    this.registeredAtPaths = new Set(paths);
+    console.debug('[PathManager] Set registered at-paths:', {
+      count: this.registeredAtPaths.size
+    });
+  }
+
+  /**
+   * Get registered at-paths
+   */
+  public getRegisteredAtPaths(): Set<string> {
+    return new Set(this.registeredAtPaths);
+  }
+
   constructor(callbacks: PathManagerCallbacks, textInput?: HTMLTextAreaElement) {
     this.callbacks = callbacks;
     this.textInput = textInput || null;
@@ -145,8 +167,9 @@ export class PathManager {
   /**
    * Re-scan text for @paths.
    * Finds ALL @path patterns in text and validates them against:
-   * 1. The selectedPaths set (paths explicitly selected by user)
-   * 2. The cached file list (for Undo support - restores highlights for valid paths)
+   * 1. The registeredAtPaths set (paths with spaces from persistent cache)
+   * 2. The selectedPaths set (paths explicitly selected by user)
+   * 3. The cached file list (for Undo support - restores highlights for valid paths)
    *
    * Phase 3 improvement: Valid paths are automatically added to selectedPaths
    * for persistence, ensuring highlights survive cache invalidation.
@@ -155,7 +178,49 @@ export class PathManager {
     const foundPaths: AtPathRange[] = [];
     const validPathsSet = validPaths !== undefined ? validPaths : this.validPathsBuilder();
 
-    // Find all @path patterns in text
+    // Track consumed character ranges to avoid overlapping matches
+    const consumedRanges: Array<{ start: number; end: number }> = [];
+
+    // Helper to check if a position is already consumed
+    const isConsumed = (start: number, end: number): boolean => {
+      return consumedRanges.some(range =>
+        (start >= range.start && start < range.end) ||
+        (end > range.start && end <= range.end) ||
+        (start <= range.start && end >= range.end)
+      );
+    };
+
+    // Phase 1: Match registered at-paths (which may contain spaces)
+    // Sort by length descending to prefer longer matches
+    const sortedRegisteredPaths = [...this.registeredAtPaths].sort((a, b) => b.length - a.length);
+
+    for (const registeredPath of sortedRegisteredPaths) {
+      const searchPattern = '@' + registeredPath;
+      let searchIndex = 0;
+
+      while (searchIndex < text.length) {
+        const foundIndex = text.indexOf(searchPattern, searchIndex);
+        if (foundIndex === -1) break;
+
+        const start = foundIndex;
+        const end = foundIndex + searchPattern.length;
+
+        // Only add if not already consumed
+        if (!isConsumed(start, end)) {
+          foundPaths.push({ start, end, path: registeredPath });
+          consumedRanges.push({ start, end });
+
+          // Add to selectedPaths for persistence
+          if (!this.selectedPaths.has(registeredPath)) {
+            this.selectedPaths.add(registeredPath);
+          }
+        }
+
+        searchIndex = foundIndex + 1;
+      }
+    }
+
+    // Phase 2: Find remaining @path patterns using default regex
     const atPathPattern = /@([^\s@]+)/g;
     let match;
 
@@ -165,6 +230,9 @@ export class PathManager {
 
       const start = match.index;
       const end = start + 1 + pathContent.length; // +1 for @
+
+      // Skip if this range is already consumed by a registered path
+      if (isConsumed(start, end)) continue;
 
       // Check if this path is in selectedPaths (user explicitly selected it)
       const isSelected = this.selectedPaths.has(pathContent);

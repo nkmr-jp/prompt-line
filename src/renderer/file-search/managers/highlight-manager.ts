@@ -380,6 +380,21 @@ export class HighlightManager {
     this.pathManager.setValidPathsBuilder(builder);
   }
 
+  /**
+   * Set registered at-paths from persistent cache
+   * These paths may contain spaces and are matched before the default regex
+   */
+  public setRegisteredAtPaths(paths: string[]): void {
+    this.pathManager.setRegisteredAtPaths(paths);
+  }
+
+  /**
+   * Get registered at-paths
+   */
+  public getRegisteredAtPaths(): Set<string> {
+    return this.pathManager.getRegisteredAtPaths();
+  }
+
   // ============================================================
   // Debug Mode (Phase 4)
   // ============================================================
