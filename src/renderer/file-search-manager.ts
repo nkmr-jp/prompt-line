@@ -377,7 +377,8 @@ export class FileSearchManager implements IInitializable {
       onFileSelected: (path: string) => this.callbacks.onFileSelected(path),
       setCurrentQuery: (query: string) => { this.state.currentQuery = query; },
       getCurrentPath: () => this.state.currentPath,
-      showTooltipForSelectedItem: () => this.popupManager.showTooltipForSelectedItem()
+      showTooltipForSelectedItem: () => this.popupManager.showTooltipForSelectedItem(),
+      renderSuggestions: (suggestions: SuggestionItem[]) => this.suggestionUIManager?.update(suggestions, false)
     });
 
     // Initialize DirectoryCacheManager

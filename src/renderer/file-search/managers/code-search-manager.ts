@@ -60,6 +60,7 @@ export interface CodeSearchManagerCallbacks {
   setCurrentQuery?: (query: string) => void;
   getCurrentPath?: () => string;
   showTooltipForSelectedItem?: () => void;
+  renderSuggestions?: (suggestions: SuggestionItem[]) => void;
 }
 
 export class CodeSearchManager {
@@ -301,6 +302,9 @@ export class CodeSearchManager {
     this.callbacks.setIsVisible?.(true);
 
     if (mergedSuggestions.length > 0) {
+      // Render suggestions into the DOM
+      this.callbacks.renderSuggestions?.(mergedSuggestions);
+
       // Show suggestions via UI callbacks
       const atStartPosition = this.callbacks.getAtStartPosition?.() ?? -1;
       this.callbacks.positionPopup?.(atStartPosition);
