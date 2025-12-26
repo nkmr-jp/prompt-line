@@ -105,6 +105,15 @@ export class EventListenerManager {
       if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) {
         this.callbacks.updateCursorPositionHighlight();
       }
+      // Force highlight redraw after Tab key to fix position alignment
+      // Tab character rendering can differ between textarea and backdrop
+      if (e.key === 'Tab') {
+        // Use requestAnimationFrame to ensure the DOM has updated
+        requestAnimationFrame(() => {
+          this.callbacks.updateHighlightBackdrop();
+          this.callbacks.syncBackdropScroll();
+        });
+      }
     });
 
     // Also listen for selectionchange on document (handles all cursor movements)
