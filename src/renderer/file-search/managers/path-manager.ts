@@ -190,12 +190,16 @@ export class PathManager {
       );
     };
 
-    // Phase 1: Match registered at-paths (which may contain spaces)
+    // Phase 1: Match paths that may contain spaces (from both registeredAtPaths and selectedPaths)
+    // Combine both sets to handle:
+    // - registeredAtPaths: paths loaded from persistent cache on window show
+    // - selectedPaths: paths just selected in this session (not yet in persistent cache)
     // Sort by length descending to prefer longer matches
-    const sortedRegisteredPaths = [...this.registeredAtPaths].sort((a, b) => b.length - a.length);
+    const pathsWithSpaces = new Set([...this.registeredAtPaths, ...this.selectedPaths]);
+    const sortedPathsWithSpaces = [...pathsWithSpaces].sort((a, b) => b.length - a.length);
 
-    for (const registeredPath of sortedRegisteredPaths) {
-      const searchPattern = '@' + registeredPath;
+    for (const pathWithSpace of sortedPathsWithSpaces) {
+      const searchPattern = '@' + pathWithSpace;
       let searchIndex = 0;
 
       while (searchIndex < text.length) {
@@ -207,13 +211,8 @@ export class PathManager {
 
         // Only add if not already consumed
         if (!isConsumed(start, end)) {
-          foundPaths.push({ start, end, path: registeredPath });
+          foundPaths.push({ start, end, path: pathWithSpace });
           consumedRanges.push({ start, end });
-
-          // Add to selectedPaths for persistence
-          if (!this.selectedPaths.has(registeredPath)) {
-            this.selectedPaths.add(registeredPath);
-          }
         }
 
         searchIndex = foundIndex + 1;
