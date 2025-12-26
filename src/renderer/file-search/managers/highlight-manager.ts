@@ -498,8 +498,7 @@ export class HighlightManager {
     const atPaths = this.pathManager.getAtPaths();
 
     if (atPaths.length === 0) {
-      // Convert tabs to spaces for consistent rendering even without highlights
-      this.highlightBackdrop.textContent = this.convertTabsToSpaces(text);
+      this.highlightBackdrop.textContent = text;
       return;
     }
 
@@ -584,17 +583,6 @@ export class HighlightManager {
     this.syncBackdropScroll();
   }
 
-  /**
-   * Convert tabs to spaces for consistent rendering between textarea and backdrop.
-   * Textarea and div elements can render tabs differently even with the same tab-size CSS property.
-   * This ensures the backdrop text aligns perfectly with the textarea text.
-   */
-  private convertTabsToSpaces(text: string): string {
-    // Match CSS tab-size: 4 setting in input-section.css
-    const TAB_SIZE = 4;
-    return text.replace(/\t/g, ' '.repeat(TAB_SIZE));
-  }
-
   private buildHighlightFragment(
     text: string,
     ranges: Array<AtPathRange & { className: string }>
@@ -604,24 +592,19 @@ export class HighlightManager {
 
     for (const range of ranges) {
       if (range.start > lastEnd) {
-        const plainText = text.substring(lastEnd, range.start);
-        // Convert tabs to spaces for consistent rendering
-        fragment.appendChild(document.createTextNode(this.convertTabsToSpaces(plainText)));
+        fragment.appendChild(document.createTextNode(text.substring(lastEnd, range.start)));
       }
 
       const span = document.createElement('span');
       span.className = range.className;
-      // Convert tabs to spaces in highlighted text as well
-      span.textContent = this.convertTabsToSpaces(text.substring(range.start, range.end));
+      span.textContent = text.substring(range.start, range.end);
       fragment.appendChild(span);
 
       lastEnd = range.end;
     }
 
     if (lastEnd < text.length) {
-      const trailingText = text.substring(lastEnd);
-      // Convert tabs to spaces for consistent rendering
-      fragment.appendChild(document.createTextNode(this.convertTabsToSpaces(trailingText)));
+      fragment.appendChild(document.createTextNode(text.substring(lastEnd)));
     }
 
     return fragment;
