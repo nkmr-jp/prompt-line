@@ -58,6 +58,12 @@ export class HighlightManager {
   private lastMouseX: number = 0;
   private lastMouseY: number = 0;
 
+  // RAF-based update optimization (Phase 2)
+  private pendingUpdate: number | null = null;
+
+  // Debug mode for development (Phase 4)
+  private debugMode: boolean = false;
+
   constructor(
     textInput: HTMLTextAreaElement,
     highlightBackdrop: HTMLDivElement,
@@ -79,9 +85,30 @@ export class HighlightManager {
 
   /**
    * Update the highlight backdrop to show @path highlights
+   * Uses requestAnimationFrame to batch updates and prevent jitter
    */
   public updateHighlightBackdrop(): void {
     if (!this.highlightBackdrop || !this.textInput) return;
+
+    // Cancel pending update to prevent stale renders
+    if (this.pendingUpdate !== null) {
+      cancelAnimationFrame(this.pendingUpdate);
+    }
+
+    this.pendingUpdate = requestAnimationFrame(() => {
+      this.pendingUpdate = null;
+      this.renderBackdropSync();
+    });
+  }
+
+  /**
+   * Synchronous backdrop render (called within RAF)
+   */
+  private renderBackdropSync(): void {
+    if (!this.highlightBackdrop || !this.textInput) return;
+
+    // Sync scroll position first to ensure alignment
+    this.syncBackdropScroll();
 
     const text = this.textInput.value;
 
@@ -203,11 +230,23 @@ export class HighlightManager {
 
   /**
    * Sync the scroll position of the highlight backdrop with the textarea
+   * Includes sub-pixel adjustment for precise alignment
    */
   public syncBackdropScroll(): void {
     if (this.textInput && this.highlightBackdrop) {
+      // Immediate scroll sync (no RAF here for responsiveness)
       this.highlightBackdrop.scrollTop = this.textInput.scrollTop;
       this.highlightBackdrop.scrollLeft = this.textInput.scrollLeft;
+
+      // Sub-pixel adjustment using CSS transform for precise alignment
+      const scrollTopDiff = this.textInput.scrollTop % 1;
+      const scrollLeftDiff = this.textInput.scrollLeft % 1;
+      if (scrollTopDiff !== 0 || scrollLeftDiff !== 0) {
+        this.highlightBackdrop.style.transform =
+          `translate(${-scrollLeftDiff}px, ${-scrollTopDiff}px)`;
+      } else {
+        this.highlightBackdrop.style.transform = '';
+      }
     }
   }
 
@@ -305,6 +344,44 @@ export class HighlightManager {
 
   public setValidPathsBuilder(builder: () => Set<string> | null): void {
     this.pathManager.setValidPathsBuilder(builder);
+  }
+
+  // ============================================================
+  // Debug Mode (Phase 4)
+  // ============================================================
+
+  /**
+   * Enable debug mode for development
+   * Makes backdrop text visible with red color and semi-transparent
+   * to help identify alignment issues
+   */
+  public enableDebugMode(): void {
+    this.debugMode = true;
+    if (this.highlightBackdrop) {
+      this.highlightBackdrop.style.color = 'red';
+      this.highlightBackdrop.style.opacity = '0.5';
+    }
+    console.debug('[HighlightManager] Debug mode enabled');
+  }
+
+  /**
+   * Disable debug mode
+   * Restores normal backdrop appearance
+   */
+  public disableDebugMode(): void {
+    this.debugMode = false;
+    if (this.highlightBackdrop) {
+      this.highlightBackdrop.style.color = 'transparent';
+      this.highlightBackdrop.style.opacity = '';
+    }
+    console.debug('[HighlightManager] Debug mode disabled');
+  }
+
+  /**
+   * Check if debug mode is enabled
+   */
+  public isDebugModeEnabled(): boolean {
+    return this.debugMode;
   }
 
   // ============================================================

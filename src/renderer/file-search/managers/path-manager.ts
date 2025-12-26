@@ -147,6 +147,9 @@ export class PathManager {
    * Finds ALL @path patterns in text and validates them against:
    * 1. The selectedPaths set (paths explicitly selected by user)
    * 2. The cached file list (for Undo support - restores highlights for valid paths)
+   *
+   * Phase 3 improvement: Valid paths are automatically added to selectedPaths
+   * for persistence, ensuring highlights survive cache invalidation.
    */
   public rescanAtPaths(text: string, validPaths?: Set<string> | null): void {
     const foundPaths: AtPathRange[] = [];
@@ -178,6 +181,12 @@ export class PathManager {
       // Add to foundPaths if it's selected OR valid according to cached list
       if (isSelected || isValidCachedPath) {
         foundPaths.push({ start, end, path: pathContent });
+
+        // Phase 3: Persist valid paths to selectedPaths for robustness
+        // This ensures highlights survive cache invalidation
+        if (isValidCachedPath && !isSelected) {
+          this.selectedPaths.add(pathContent);
+        }
       }
     }
 
@@ -204,6 +213,9 @@ export class PathManager {
    * This auto-detects @paths in the text and adds them to tracking
    * Only highlights @paths that actually exist (checked against cached file list or filesystem)
    *
+   * Phase 3 improvement: When cache is unavailable and filesystem check is disabled,
+   * existing selectedPaths are preserved to maintain highlight stability.
+   *
    * @param checkFilesystem - If true, checks filesystem for file existence when cached file list is empty.
    *                          Use this when restoring from draft with empty file list (fromDraft).
    * @param directoryData - Directory data for validation (optional)
@@ -215,7 +227,8 @@ export class PathManager {
     console.debug('[PathManager] Restoring @paths from text:', {
       textLength: text.length,
       checkFilesystem,
-      hasDirectoryData: !!directoryData
+      hasDirectoryData: !!directoryData,
+      existingSelectedPaths: this.selectedPaths.size
     });
 
     // Need cached directory data to check if files exist (or need to check filesystem)
@@ -225,7 +238,17 @@ export class PathManager {
     const baseDir = directoryData?.directory;
 
     if (!checkFilesystem && !hasValidCachedData) {
-      console.debug('[PathManager] No cached data and not checking filesystem, skipping validation');
+      // Phase 3: When no cache and not checking filesystem, preserve existing selectedPaths
+      // This prevents highlights from disappearing when cache is temporarily unavailable
+      if (this.selectedPaths.size > 0) {
+        console.debug('[PathManager] No cached data, preserving existing selectedPaths:', {
+          selectedPathsCount: this.selectedPaths.size
+        });
+        // Re-scan with existing selectedPaths (don't reset them)
+        this.rescanAtPaths(text, null);
+        return;
+      }
+      console.debug('[PathManager] No cached data and no existing selectedPaths, skipping validation');
       this.restoreValidatedPaths(validatedPaths);
       return;
     }
