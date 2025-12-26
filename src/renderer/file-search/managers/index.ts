@@ -34,9 +34,6 @@ export type { ItemSelectionCallbacks } from './item-selection-manager';
 export { NavigationManager } from './navigation-manager';
 export type { NavigationCallbacks } from './navigation-manager';
 
-export { KeyboardNavigationManager } from './keyboard-navigation-manager';
-export type { KeyboardNavigationCallbacks } from './keyboard-navigation-manager';
-
 export { EventListenerManager } from './event-listener-manager';
 export type { EventListenerCallbacks } from './event-listener-manager';
 
@@ -47,6 +44,3 @@ export { SuggestionUIManager } from './suggestion-ui-manager';
 export type { SuggestionUICallbacks } from './suggestion-ui-manager';
 
 export { FileSearchState } from './file-search-state';
-
-export { ManagerFactory } from './manager-factory';
-export type { ManagerContext, CreatedManagers } from './manager-factory';

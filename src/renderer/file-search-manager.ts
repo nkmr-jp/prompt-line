@@ -28,7 +28,6 @@ import {
   SymbolModeUIManager,
   ItemSelectionManager,
   NavigationManager,
-  KeyboardNavigationManager,
   EventListenerManager,
   QueryExtractionManager,
   SuggestionUIManager,
@@ -98,7 +97,6 @@ export class FileSearchManager {
   private symbolModeUIManager: SymbolModeUIManager;
   private itemSelectionManager: ItemSelectionManager;
   private navigationManager: NavigationManager;
-  private keyboardNavigationManager: KeyboardNavigationManager;
   private eventListenerManager: EventListenerManager;
   private queryExtractionManager: QueryExtractionManager;
 
@@ -216,33 +214,9 @@ export class FileSearchManager {
       }
     });
 
-    // Initialize NavigationManager
+    // Initialize NavigationManager (consolidated keyboard + directory/file navigation)
     this.navigationManager = new NavigationManager({
-      getCachedDirectoryData: () => this.cachedDirectoryData,
-      getCodeSearchManager: () => this.codeSearchManager,
-      updateTextInputWithPath: (path: string) => this.updateTextInputWithPath(path),
-      filterFiles: (query: string) => this.filterFiles(query),
-      mergeSuggestions: (query: string) => this.mergeSuggestions(query),
-      updateSuggestionList: (suggestions: SuggestionItem[], showPath: boolean, selectedIndex: number) =>
-        this.suggestionUIManager?.update(suggestions, showPath, selectedIndex),
-      showTooltipForSelectedItem: () => this.popupManager.showTooltipForSelectedItem(),
-      insertFilePath: (path: string) => this.insertFilePath(path),
-      hideSuggestions: () => this.hideSuggestions(),
-      onFileSelected: (path: string) => this.callbacks.onFileSelected(path),
-      showSymbolSuggestions: (query: string) => this.showSymbolSuggestions(query),
-      setCurrentPath: (path: string) => { this.currentPath = path; },
-      setCurrentQuery: (query: string) => { this.currentQuery = query; },
-      setSelectedIndex: (index: number) => { this.selectedIndex = index; },
-      setFilteredFiles: (files: FileInfo[]) => { this.filteredFiles = files; },
-      setFilteredAgents: (agents: never[]) => { this.filteredAgents = agents; },
-      setMergedSuggestions: (suggestions: SuggestionItem[]) => { this.mergedSuggestions = suggestions; },
-      setIsInSymbolMode: (value: boolean) => { this.isInSymbolMode = value; },
-      setCurrentFilePath: (path: string) => { this.currentFilePath = path; },
-      setCurrentFileSymbols: (symbols: SymbolResult[]) => { this.currentFileSymbols = symbols; }
-    });
-
-    // Initialize KeyboardNavigationManager
-    this.keyboardNavigationManager = new KeyboardNavigationManager({
+      // State getters
       getIsVisible: () => this.isVisible,
       getSelectedIndex: () => this.selectedIndex,
       getTotalItemCount: () => this.getTotalItemCount(),
@@ -251,19 +225,37 @@ export class FileSearchManager {
       getIsInSymbolMode: () => this.isInSymbolMode,
       getCurrentQuery: () => this.currentQuery,
       getIsComposing: this.callbacks.getIsComposing,
+      getCurrentPath: () => this.currentPath,
+      getCodeSearchManager: () => this.codeSearchManager,
+      // State setters
       setSelectedIndex: (index: number) => { this.selectedIndex = index; },
+      setCurrentPath: (path: string) => { this.currentPath = path; },
+      setCurrentQuery: (query: string) => { this.currentQuery = query; },
+      setFilteredFiles: (files: FileInfo[]) => { this.filteredFiles = files; },
+      setFilteredAgents: (agents: never[]) => { this.filteredAgents = agents; },
+      setMergedSuggestions: (suggestions: SuggestionItem[]) => { this.mergedSuggestions = suggestions; },
+      setIsInSymbolMode: (value: boolean) => { this.isInSymbolMode = value; },
+      setCurrentFilePath: (path: string) => { this.currentFilePath = path; },
+      setCurrentFileSymbols: (symbols: SymbolResult[]) => { this.currentFileSymbols = symbols; },
+      // Actions
       updateSelection: () => this.updateSelection(),
       selectItem: (index: number) => this.selectItem(index),
       hideSuggestions: () => this.hideSuggestions(),
-      expandCurrentDirectory: () => this.expandCurrentDirectory(),
-      expandCurrentFile: () => this.expandCurrentFile(),
-      navigateIntoDirectory: (file: FileInfo) => this.navigateIntoDirectory(file),
+      insertFilePath: (path: string) => this.insertFilePath(path),
+      onFileSelected: (path: string) => this.callbacks.onFileSelected(path),
       exitSymbolMode: () => this.exitSymbolMode(),
       removeAtQueryText: () => this.removeAtQueryText(),
       openFileAndRestoreFocus: (filePath: string) => this.openFileAndRestoreFocus(filePath),
-      insertFilePath: (path: string) => this.insertFilePath(path),
-      onFileSelected: (path: string) => this.callbacks.onFileSelected(path),
-      toggleAutoShowTooltip: () => this.popupManager.toggleAutoShowTooltip()
+      toggleAutoShowTooltip: () => this.popupManager.toggleAutoShowTooltip(),
+      expandCurrentFile: () => this.expandCurrentFile(),
+      // Directory/File navigation helpers
+      updateTextInputWithPath: (path: string) => this.updateTextInputWithPath(path),
+      filterFiles: (query: string) => this.filterFiles(query),
+      mergeSuggestions: (query: string) => this.mergeSuggestions(query),
+      updateSuggestionList: (suggestions: SuggestionItem[], showPath: boolean, selectedIndex: number) =>
+        this.suggestionUIManager?.update(suggestions, showPath, selectedIndex),
+      showTooltipForSelectedItem: () => this.popupManager.showTooltipForSelectedItem(),
+      showSymbolSuggestions: (query: string) => this.showSymbolSuggestions(query)
     });
 
     // Initialize EventListenerManager
@@ -1070,9 +1062,10 @@ export class FileSearchManager {
   /**
    * Handle keyboard navigation
    * Supports: ArrowDown/Ctrl+n/Ctrl+j (next), ArrowUp/Ctrl+p/Ctrl+k (previous), Enter/Tab (select), Escape (close), Ctrl+i (toggle tooltip)
+   * Delegates to NavigationManager
    */
   public handleKeyDown(e: KeyboardEvent): void {
-    this.keyboardNavigationManager.handleKeyDown(e);
+    this.navigationManager.handleKeyDown(e);
   }
 
   /**
