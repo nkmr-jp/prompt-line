@@ -209,8 +209,14 @@ export class FileSearchManager implements IInitializable {
    * Set whether file search is enabled
    */
   public setFileSearchEnabled(enabled: boolean): void {
+    const previousValue = this.state.fileSearchEnabled;
     this.state.fileSearchEnabled = enabled;
-    console.debug('[FileSearchManager] File search enabled:', enabled);
+    console.debug('[FileSearchManager] setFileSearchEnabled:', {
+      enabled,
+      previousValue,
+      hasCodeSearchManager: !!this.codeSearchManager,
+      hasDirectoryCacheManager: !!this.directoryCacheManager
+    });
   }
 
   /**
@@ -508,9 +514,25 @@ export class FileSearchManager implements IInitializable {
    * This enables instant file search when window opens
    */
   public handleCachedDirectoryData(data: DirectoryInfo | undefined): void {
+    console.debug('[FileSearchManager] handleCachedDirectoryData:', {
+      hasData: !!data,
+      directory: data?.directory,
+      fileCount: data?.files?.length,
+      fromDraft: data?.fromDraft,
+      fromCache: data?.fromCache,
+      hasDirectoryCacheManager: !!this.directoryCacheManager
+    });
     // Delegate to DirectoryCacheManager
     // The manager will notify via onCacheUpdated callback to sync local copy
     this.directoryCacheManager?.handleCachedDirectoryData(data);
+
+    // Log cached data after update
+    setTimeout(() => {
+      console.debug('[FileSearchManager] after handleCachedDirectoryData:', {
+        hasCachedData: this.hasCache(),
+        cachedDirectory: this.getDirectory()
+      });
+    }, 100);
   }
 
   public setupEventListeners(): void {
@@ -639,19 +661,29 @@ export class FileSearchManager implements IInitializable {
    * @returns true if file search should proceed
    */
   private shouldProcessFileSearch(): boolean {
+    console.debug('[FileSearchManager] shouldProcessFileSearch:', {
+      fileSearchEnabled: this.state.fileSearchEnabled,
+      hasTextInput: !!this.state.textInput,
+      hasCachedData: this.hasCache(),
+      hasDirectoryCacheManager: !!this.directoryCacheManager,
+      cachedDirectory: this.getDirectory(),
+      cachedFileCount: this.getCachedFiles().length
+    });
+
     if (!this.state.fileSearchEnabled) {
+      console.debug('[FileSearchManager] shouldProcessFileSearch: fileSearchEnabled is false');
       return false;
     }
 
-    console.debug('[FileSearchManager] checkForFileSearch called', formatLog({
-      hasTextInput: !!this.state.textInput,
-      hasCachedData: this.hasCache(),
-      cachedDirectory: this.getDirectory(),
-      cachedFileCount: this.getCachedFiles().length
-    }));
+    if (!this.state.textInput) {
+      console.debug('[FileSearchManager] shouldProcessFileSearch: textInput is null');
+      return false;
+    }
 
-    if (!this.state.textInput || !this.hasCache()) {
-      console.debug('[FileSearchManager] checkForFileSearch: early return - missing textInput or cachedDirectoryData');
+    // For code search, we only need the directory (not the file list)
+    // hasCache() returns true if directoryCacheManager has ANY cached data
+    if (!this.hasCache()) {
+      console.debug('[FileSearchManager] shouldProcessFileSearch: no cached data');
       return false;
     }
 
@@ -687,17 +719,40 @@ export class FileSearchManager implements IInitializable {
     query: string,
     startPos: number
   ): boolean {
-    console.debug('[FileSearchManager] handleCodeSearch: language=', language, 'symbolTypeFilter=', symbolTypeFilter, 'symbolQuery=', symbolQuery);
+    console.debug('[FileSearchManager] handleCodeSearch:', {
+      language,
+      symbolQuery,
+      symbolTypeFilter,
+      query,
+      startPos,
+      hasCodeSearchManager: !!this.codeSearchManager,
+      hasDirectoryCacheManager: !!this.directoryCacheManager,
+      hasCachedData: this.hasCache(),
+      cachedDirectory: this.getDirectory()
+    });
 
-    const supportedLanguages = this.codeSearchManager?.getSupportedLanguages();
-    const rgAvailable = this.codeSearchManager?.isAvailableSync() ?? false;
+    if (!this.codeSearchManager) {
+      console.error('[FileSearchManager] handleCodeSearch: codeSearchManager is null!');
+      this.callbacks.updateHintText?.('Code search not available');
+      return true;
+    }
 
-    console.debug('[FileSearchManager] handleCodeSearch: rgAvailable=', rgAvailable, 'supportedLanguages.size=', supportedLanguages?.size);
+    const supportedLanguages = this.codeSearchManager.getSupportedLanguages();
+    const rgAvailable = this.codeSearchManager.isAvailableSync();
+
+    console.debug('[FileSearchManager] handleCodeSearch:', {
+      rgAvailable,
+      supportedLanguagesSize: supportedLanguages?.size,
+      languageSupported: supportedLanguages?.has(language),
+      allLanguages: Array.from(supportedLanguages?.keys() || []).join(',')
+    });
 
     // Wait for code search initialization if needed
-    if (this.codeSearchManager && (!supportedLanguages || supportedLanguages.size === 0)) {
+    if (!supportedLanguages || supportedLanguages.size === 0) {
       console.debug('[FileSearchManager] handleCodeSearch: waiting for code search initialization...');
+      this.callbacks.updateHintText?.('Loading language support...');
       this.codeSearchManager.isAvailable().then(() => {
+        console.debug('[FileSearchManager] handleCodeSearch: initialization complete, retrying...');
         if (this.state.textInput && this.state.textInput.value.includes(`@${query}`)) {
           this.checkForFileSearch();
         }
@@ -706,8 +761,8 @@ export class FileSearchManager implements IInitializable {
     }
 
     // Execute code search if language is supported
-    if (rgAvailable && supportedLanguages?.has(language)) {
-      console.debug('[FileSearchManager] handleCodeSearch: executing code search');
+    if (rgAvailable && supportedLanguages.has(language)) {
+      console.debug('[FileSearchManager] handleCodeSearch: executing code search for', language);
       this.state.atStartPosition = startPos;
       this.state.currentQuery = query;
       this.state.codeSearchQuery = symbolQuery;
@@ -724,9 +779,14 @@ export class FileSearchManager implements IInitializable {
     }
 
     // Unknown language or rg not available
-    console.debug('[FileSearchManager] handleCodeSearch: code search not available, rgAvailable=', rgAvailable);
-    const langInfo = supportedLanguages?.get(language);
-    if (!langInfo && rgAvailable) {
+    console.debug('[FileSearchManager] handleCodeSearch: code search not available', {
+      rgAvailable,
+      languageSupported: supportedLanguages.has(language)
+    });
+
+    if (!rgAvailable) {
+      this.callbacks.updateHintText?.('ripgrep (rg) not found. Install: brew install ripgrep');
+    } else if (!supportedLanguages.has(language)) {
       this.callbacks.updateHintText?.(`Unknown language: ${language}`);
     }
     this.hideSuggestions();

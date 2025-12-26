@@ -249,9 +249,26 @@ export class CodeSearchManager {
     symbolTypeFilter: string | null = null,
     refreshCache: boolean = false
   ): Promise<void> {
+    console.debug('[CodeSearchManager] searchSymbolsWithUI called:', {
+      language,
+      query,
+      symbolTypeFilter,
+      refreshCache,
+      rgAvailable: this.rgAvailable,
+      languagesLoaded: this.supportedLanguages.size
+    });
+
     const cachedData = this.callbacks.getCachedDirectoryData?.();
+    console.debug('[CodeSearchManager] searchSymbolsWithUI: cachedData:', {
+      hasData: !!cachedData,
+      directory: cachedData?.directory,
+      fileCount: cachedData?.files?.length
+    });
+
     if (!cachedData?.directory) {
-      console.debug('[CodeSearchManager] searchSymbolsWithUI: no directory');
+      console.debug('[CodeSearchManager] searchSymbolsWithUI: no directory available');
+      // Show user feedback that directory is required
+      this.callbacks.updateHintText?.('No directory detected for symbol search');
       return;
     }
 

@@ -292,6 +292,10 @@ describe('PromptLineRenderer (Refactored)', () => {
                 sourceApp: 'TestApp'
             };
 
+            // Set initCompleted to true to allow immediate processing
+            // (otherwise the data is queued for later processing)
+            (renderer as any).initCompleted = true;
+
             (renderer as any).handleWindowShown(windowData);
 
             expect((renderer as any).lifecycleManager.handleWindowShown).toHaveBeenCalledWith(windowData);
