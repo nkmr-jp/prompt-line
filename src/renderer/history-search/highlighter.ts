@@ -4,16 +4,7 @@
  * Extracted from SearchManager for improved modularity
  */
 
-/**
- * HTML entity map for XSS prevention
- */
-const HTML_ENTITY_MAP: Record<string, string> = {
-  '&': '&amp;',
-  '<': '&lt;',
-  '>': '&gt;',
-  '"': '&quot;',
-  "'": '&#039;'
-};
+import { escapeHtmlFast as escapeHtml } from '../utils/html-utils';
 
 export class HistorySearchHighlighter {
   /** CSS class for highlighted text */
@@ -23,12 +14,7 @@ export class HistorySearchHighlighter {
     this.highlightClass = highlightClass;
   }
 
-  /**
-   * Escape HTML special characters to prevent XSS
-   */
-  public escapeHtml(text: string): string {
-    return text.replace(/[&<>"']/g, (char) => HTML_ENTITY_MAP[char] || char);
-  }
+
 
   /**
    * Highlight search terms in text with XSS protection
@@ -37,12 +23,12 @@ export class HistorySearchHighlighter {
   public highlightSearchTerms(text: string, searchTerm: string): string {
     // Return escaped text if no search term
     if (!searchTerm) {
-      return this.escapeHtml(text);
+      return escapeHtml(text);
     }
 
     // Escape both text and search term for safety
-    const escapedText = this.escapeHtml(text);
-    const escapedSearchTerm = this.escapeHtml(searchTerm);
+    const escapedText = escapeHtml(text);
+    const escapedSearchTerm = escapeHtml(searchTerm);
 
     // Escape regex special characters in search term
     const escapedPattern = escapedSearchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -63,7 +49,7 @@ export class HistorySearchHighlighter {
    */
   public highlightFuzzyMatch(text: string, positions: number[]): string {
     if (positions.length === 0) {
-      return this.escapeHtml(text);
+      return escapeHtml(text);
     }
 
     const positionSet = new Set(positions);
@@ -72,7 +58,7 @@ export class HistorySearchHighlighter {
 
     for (let i = 0; i < text.length; i++) {
       const isMatch = positionSet.has(i);
-      const char = this.escapeHtml(text[i] || '');
+      const char = escapeHtml(text[i] || '');
 
       if (isMatch && !inHighlight) {
         result += `<span class="${this.highlightClass}">`;

@@ -12,7 +12,7 @@ import { EventHandler } from './event-handler';
 import { HistorySearchManager } from './history-search';
 import { SlashCommandManager } from './slash-command-manager';
 import { DomManager } from './dom-manager';
-import { DraftManager } from './draft-manager';
+import { DraftManagerClient } from './draft-manager-client';
 import { HistoryUIManager } from './history-ui-manager';
 import { LifecycleManager } from './lifecycle-manager';
 import { SimpleSnapshotManager } from './snapshot-manager';
@@ -44,15 +44,18 @@ export class PromptLineRenderer {
   private fileSearchManager: FileSearchManager | null = null;
   private directoryDataHandler: DirectoryDataHandler;
   private domManager: DomManager;
-  private draftManager: DraftManager;
+  private draftManager: DraftManagerClient;
   private historyUIManager: HistoryUIManager;
   private lifecycleManager: LifecycleManager;
   private snapshotManager: SimpleSnapshotManager;
   private defaultHintText: string = 'Multi-line text and Image supported'; // Default hint text
+  // Queue for pending window-shown data to handle race condition with init()
+  private pendingWindowData: WindowData | null = null;
+  private initCompleted: boolean = false;
 
   constructor() {
     this.domManager = new DomManager();
-    this.draftManager = new DraftManager(electronAPI, () => this.domManager.getCurrentText());
+    this.draftManager = new DraftManagerClient(electronAPI, () => this.domManager.getCurrentText());
     this.snapshotManager = new SimpleSnapshotManager();
     this.historyUIManager = new HistoryUIManager(
       () => this.domManager.historyList,
@@ -112,6 +115,17 @@ export class PromptLineRenderer {
       // await this.setupCodeSearchManager();
       this.setupEventListeners();
       // Note: setupIPCListeners() is now called in constructor to prevent race condition
+
+      // Mark initialization as complete
+      this.initCompleted = true;
+      console.debug('[PromptLineRenderer] Initialization completed');
+
+      // Process any pending window-shown data that arrived before init completed
+      if (this.pendingWindowData) {
+        console.debug('[PromptLineRenderer] Processing pending window-shown data');
+        await this.directoryDataHandler.handleWindowShown(this.pendingWindowData);
+        this.pendingWindowData = null;
+      }
     } catch (error) {
       rendererLogger.error('Failed to initialize renderer:', error);
     }
@@ -406,6 +420,13 @@ export class PromptLineRenderer {
 
 
   private async handleWindowShown(data: WindowData): Promise<void> {
+    // If init hasn't completed yet, queue the data for later processing
+    // This prevents race condition where window-shown arrives before fileSearchManager is initialized
+    if (!this.initCompleted) {
+      console.debug('[PromptLineRenderer] Queueing window-shown data (init not complete)');
+      this.pendingWindowData = data;
+      return;
+    }
     await this.directoryDataHandler.handleWindowShown(data);
   }
 

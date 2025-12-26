@@ -21,6 +21,7 @@
     "lint": "eslint 'src/**/*.{js,ts}' 'tests/**/*.{js,ts}'",
     "lint:fix": "eslint 'src/**/*.{js,ts}' 'tests/**/*.{js,ts}' --fix",
     "lint:dupl": "jscpd ./src",
+    "test:mutation": "stryker run",
     "pre-push": "npm run lint && npm run typecheck && npm test",
     "prepare": "husky",
     "reset-accessibility": "tccutil reset Accessibility com.electron.prompt-line && echo '✅ Accessibility permissions for Prompt Line have been reset'"
@@ -42,6 +43,9 @@
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
     "@semantic-release/github": "^11.0.3",
+    "@stryker-mutator/core": "^9.4.0",
+    "@stryker-mutator/jest-runner": "^9.4.0",
+    "@stryker-mutator/typescript-checker": "^9.4.0",
     "@types/jest": "^29.5.14",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "20.17.57",

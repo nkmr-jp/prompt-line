@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals';
-import WindowManager from '../../src/managers/window-manager';
+import WindowManager from '../../src/managers/window';
 import { BrowserWindow, screen } from 'electron';
 type ExecCallback = (error: Error | null, stdout: string, stderr: string) => void;
 

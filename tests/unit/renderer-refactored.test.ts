@@ -98,8 +98,8 @@ jest.mock('../../src/renderer/dom-manager', () => ({
     }))
 }));
 
-jest.mock('../../src/renderer/draft-manager', () => ({
-    DraftManager: jest.fn().mockImplementation(() => ({
+jest.mock('../../src/renderer/draft-manager-client', () => ({
+    DraftManagerClient: jest.fn().mockImplementation(() => ({
         setConfig: jest.fn(),
         saveDraftDebounced: jest.fn(),
         saveDraftImmediate: jest.fn(),
@@ -291,6 +291,10 @@ describe('PromptLineRenderer (Refactored)', () => {
                 history: [],
                 sourceApp: 'TestApp'
             };
+
+            // Set initCompleted to true to allow immediate processing
+            // (otherwise the data is queued for later processing)
+            (renderer as any).initCompleted = true;
 
             (renderer as any).handleWindowShown(windowData);
 

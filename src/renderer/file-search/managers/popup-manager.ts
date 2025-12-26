@@ -10,6 +10,7 @@
 
 import type { AgentItem } from '../../../types';
 import { calculatePopupPosition, applyPopupPosition } from '../../utils/popup-position-calculator';
+import { UI_TIMING } from '../../../constants';
 
 /**
  * Callbacks for PopupManager to communicate with parent
@@ -30,7 +31,7 @@ export class PopupManager {
   private autoShowTooltip: boolean = false;
   private callbacks: PopupManagerCallbacks;
 
-  private static readonly POPUP_HIDE_DELAY = 100; // ms delay before hiding popup
+  private static readonly POPUP_HIDE_DELAY = UI_TIMING.POPUP_HIDE_DELAY; // ms delay before hiding popup
 
   constructor(callbacks: PopupManagerCallbacks) {
     this.callbacks = callbacks;

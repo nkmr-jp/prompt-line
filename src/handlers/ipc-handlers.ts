@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron';
 import { logger } from '../utils/utils';
-import type WindowManager from '../managers/window-manager';
+import type WindowManager from '../managers/window';
 import type DraftManager from '../managers/draft-manager';
 import type DirectoryManager from '../managers/directory-manager';
 import type SettingsManager from '../managers/settings-manager';

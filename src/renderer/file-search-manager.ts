@@ -5,83 +5,36 @@
 
 import type { FileInfo, DirectoryInfo, AgentItem } from '../types';
 import type { SymbolResult, LanguageInfo } from './code-search/types';
-import type { DirectoryData, FileSearchCallbacks, AtPathRange, SuggestionItem } from './file-search';
+import type { DirectoryData, FileSearchCallbacks, SuggestionItem } from './file-search';
+import type { IInitializable } from './interfaces/initializable';
+import { handleError } from './utils/error-handler';
 import {
   formatLog,
   normalizePath,
   parsePathWithLineInfo,
-  findAtPathAtPosition,
-  findUrlAtPosition,
-  findSlashCommandAtPosition,
-  findAbsolutePathAtPosition,
   resolveAtPathToAbsolute
 } from './file-search';
 import {
   PopupManager,
   SettingsCacheManager,
   HighlightManager,
-  SuggestionListManager,
   CodeSearchManager,
-  FileOpenerManager,
+  FileOpenerEventHandler,
   DirectoryCacheManager,
   FileFilterManager,
-  TextInputPathManager,
-  SymbolModeUIManager,
-  AtPathBehaviorManager,
-  ItemSelectionManager,
+  PathManager,
   NavigationManager,
-  KeyboardNavigationManager,
   EventListenerManager,
   QueryExtractionManager,
-  SuggestionStateManager,
+  SuggestionUIManager,
   FileSearchState
 } from './file-search/managers';
 
-export class FileSearchManager {
+export class FileSearchManager implements IInitializable {
   // Centralized state container
   private readonly state = new FileSearchState();
   private callbacks: FileSearchCallbacks;
 
-  // State property accessors (delegate to FileSearchState)
-  private get suggestionsContainer(): HTMLElement | null { return this.state.suggestionsContainer; }
-  private set suggestionsContainer(v: HTMLElement | null) { this.state.suggestionsContainer = v; }
-  private get textInput(): HTMLTextAreaElement | null { return this.state.textInput; }
-  private set textInput(v: HTMLTextAreaElement | null) { this.state.textInput = v; }
-  private get highlightBackdrop(): HTMLDivElement | null { return this.state.highlightBackdrop; }
-  private set highlightBackdrop(v: HTMLDivElement | null) { this.state.highlightBackdrop = v; }
-  private get mirrorDiv(): HTMLDivElement | null { return this.state.mirrorDiv; }
-  private set mirrorDiv(v: HTMLDivElement | null) { this.state.mirrorDiv = v; }
-  private get cachedDirectoryData(): DirectoryData | null { return this.state.cachedDirectoryData; }
-  private set cachedDirectoryData(v: DirectoryData | null) { this.state.cachedDirectoryData = v; }
-  private get selectedIndex(): number { return this.state.selectedIndex; }
-  private set selectedIndex(v: number) { this.state.selectedIndex = v; }
-  private get currentPath(): string { return this.state.currentPath; }
-  private set currentPath(v: string) { this.state.currentPath = v; }
-  private get currentQuery(): string { return this.state.currentQuery; }
-  private set currentQuery(v: string) { this.state.currentQuery = v; }
-  private get atStartPosition(): number { return this.state.atStartPosition; }
-  private set atStartPosition(v: number) { this.state.atStartPosition = v; }
-  private get isVisible(): boolean { return this.state.isVisible; }
-  private set isVisible(v: boolean) { this.state.isVisible = v; }
-  private get fileSearchEnabled(): boolean { return this.state.fileSearchEnabled; }
-  private set fileSearchEnabled(v: boolean) { this.state.fileSearchEnabled = v; }
-  private get filteredFiles(): FileInfo[] { return this.state.filteredFiles; }
-  private set filteredFiles(v: FileInfo[]) { this.state.filteredFiles = v; }
-  private get filteredAgents(): AgentItem[] { return this.state.filteredAgents; }
-  private set filteredAgents(v: AgentItem[]) { this.state.filteredAgents = v; }
-  private get filteredSymbols(): SymbolResult[] { return this.state.filteredSymbols; }
-  private set filteredSymbols(v: SymbolResult[]) { this.state.filteredSymbols = v; }
-  private get mergedSuggestions(): SuggestionItem[] { return this.state.mergedSuggestions; }
-  private set mergedSuggestions(v: SuggestionItem[]) { this.state.mergedSuggestions = v; }
-  private get atPaths(): AtPathRange[] { return this.state.atPaths; }
-  private set atPaths(v: AtPathRange[]) { this.state.atPaths = v; }
-  private get selectedPaths(): Set<string> { return this.state.selectedPaths; }
-  private get codeSearchQuery(): string { return this.state.codeSearchQuery; }
-  private set codeSearchQuery(v: string) { this.state.codeSearchQuery = v; }
-  private get codeSearchLanguage(): string { return this.state.codeSearchLanguage; }
-  private set codeSearchLanguage(v: string) { this.state.codeSearchLanguage = v; }
-  private get codeSearchCacheRefreshed(): boolean { return this.state.codeSearchCacheRefreshed; }
-  private set codeSearchCacheRefreshed(v: boolean) { this.state.codeSearchCacheRefreshed = v; }
 
   // PopupManager for frontmatter popup
   private popupManager: PopupManager;
@@ -91,39 +44,34 @@ export class FileSearchManager {
 
   // New modular managers (initialized in initializeElements after DOM is ready)
   private highlightManager: HighlightManager | null = null;
-  private suggestionListManager: SuggestionListManager | null = null;
+  private suggestionUIManager: SuggestionUIManager | null = null;
   private codeSearchManager: CodeSearchManager | null = null;
-  private fileOpenerManager: FileOpenerManager | null = null;
+  private fileOpenerManager: FileOpenerEventHandler | null = null;
   private directoryCacheManager: DirectoryCacheManager | null = null;
   private fileFilterManager: FileFilterManager;
-  private textInputPathManager: TextInputPathManager;
-  private symbolModeUIManager: SymbolModeUIManager;
-  private atPathBehaviorManager: AtPathBehaviorManager;
-  private itemSelectionManager: ItemSelectionManager;
+  private pathManager: PathManager;
   private navigationManager: NavigationManager;
-  private keyboardNavigationManager: KeyboardNavigationManager;
   private eventListenerManager: EventListenerManager;
   private queryExtractionManager: QueryExtractionManager;
-  private suggestionStateManager: SuggestionStateManager;
 
-  // Symbol mode properties (delegated to SymbolModeUIManager, kept for compatibility)
+  // Symbol mode properties (delegated to CodeSearchManager)
   private get isInSymbolMode(): boolean {
-    return this.symbolModeUIManager.isInSymbolMode();
+    return this.codeSearchManager?.isInSymbolModeActive() || false;
   }
   private set isInSymbolMode(value: boolean) {
-    this.symbolModeUIManager.setState({ isInSymbolMode: value });
+    this.codeSearchManager?.setInSymbolMode(value);
   }
   private get currentFilePath(): string {
-    return this.symbolModeUIManager.getState().currentFilePath;
+    return this.codeSearchManager?.getCurrentFilePath() || '';
   }
   private set currentFilePath(value: string) {
-    this.symbolModeUIManager.setState({ currentFilePath: value });
+    this.codeSearchManager?.setCurrentFilePath(value);
   }
   private get currentFileSymbols(): SymbolResult[] {
-    return this.symbolModeUIManager.getState().currentFileSymbols;
+    return this.codeSearchManager?.getCurrentFileSymbols() || [];
   }
   private set currentFileSymbols(value: SymbolResult[]) {
-    this.symbolModeUIManager.setState({ currentFileSymbols: value });
+    this.codeSearchManager?.setCurrentFileSymbols(value);
   }
 
   constructor(callbacks: FileSearchCallbacks) {
@@ -131,8 +79,8 @@ export class FileSearchManager {
 
     // Initialize PopupManager with callbacks
     this.popupManager = new PopupManager({
-      getSelectedSuggestion: () => this.mergedSuggestions[this.selectedIndex] || null,
-      getSuggestionsContainer: () => this.suggestionsContainer
+      getSelectedSuggestion: () => this.state.mergedSuggestions[this.state.selectedIndex] || null,
+      getSuggestionsContainer: () => this.state.suggestionsContainer
     });
 
     // Initialize SettingsCacheManager
@@ -143,147 +91,91 @@ export class FileSearchManager {
       getDefaultMaxSuggestions: () => this.settingsCacheManager.getDefaultMaxSuggestions()
     });
 
-    // Initialize TextInputPathManager
-    this.textInputPathManager = new TextInputPathManager({
+    // Initialize PathManager (unified path management)
+    this.pathManager = new PathManager({
       getTextContent: () => this.callbacks.getTextContent(),
       setTextContent: (text: string) => this.callbacks.setTextContent(text),
       getCursorPosition: () => this.callbacks.getCursorPosition(),
       setCursorPosition: (pos: number) => this.callbacks.setCursorPosition(pos),
-      replaceRangeWithUndo: this.callbacks.replaceRangeWithUndo
-        ? (start: number, end: number, text: string) => this.callbacks.replaceRangeWithUndo!(start, end, text)
-        : undefined,
-      addSelectedPath: (path: string) => {
-        this.selectedPaths.add(path);
-        this.highlightManager?.addSelectedPath(path);
-        console.debug('[FileSearchManager] Added path to selectedPaths:', path, 'total:', this.selectedPaths.size);
-      },
-      updateHighlightBackdrop: () => this.updateHighlightBackdrop()
-    });
-
-    // Initialize SymbolModeUIManager
-    this.symbolModeUIManager = new SymbolModeUIManager({
-      getSuggestionsContainer: () => this.suggestionsContainer,
-      getCurrentFileSymbols: () => this.symbolModeUIManager.getState().currentFileSymbols,
-      setMergedSuggestions: (suggestions) => { this.mergedSuggestions = suggestions; },
-      getMergedSuggestions: () => this.mergedSuggestions,
-      getSelectedIndex: () => this.selectedIndex,
-      setSelectedIndex: (index) => { this.selectedIndex = index; },
-      setIsVisible: (visible) => { this.isVisible = visible; },
-      getCurrentFilePath: () => this.symbolModeUIManager.getState().currentFilePath,
-      getAtStartPosition: () => this.atStartPosition,
-      updateSelection: () => this.updateSelection(),
-      selectSymbol: (symbol) => this.selectSymbol(symbol),
-      positionPopup: (atStartPos) => this.suggestionListManager?.position(atStartPos),
-      updateHintText: this.callbacks.updateHintText
-        ? (text: string) => this.callbacks.updateHintText!(text)
-        : undefined,
-      getDefaultHintText: this.callbacks.getDefaultHintText
-        ? () => this.callbacks.getDefaultHintText!()
-        : undefined,
-      getFileSearchMaxSuggestions: () => this.getFileSearchMaxSuggestions(),
-      showSuggestions: (query) => this.showSuggestions(query),
-      insertFilePath: (path) => this.insertFilePath(path),
-      hideSuggestions: () => this.hideSuggestions(),
-      onFileSelected: (path) => this.callbacks.onFileSelected(path),
-      setCurrentQuery: (query) => { this.currentQuery = query; },
-      getCurrentPath: () => this.currentPath
-    });
-
-    // Initialize AtPathBehaviorManager
-    this.atPathBehaviorManager = new AtPathBehaviorManager({
-      getTextContent: () => this.callbacks.getTextContent(),
-      setTextContent: (text: string) => this.callbacks.setTextContent(text),
-      getCursorPosition: () => this.callbacks.getCursorPosition(),
-      setCursorPosition: (pos: number) => this.callbacks.setCursorPosition(pos),
-      replaceRangeWithUndo: this.callbacks.replaceRangeWithUndo
-        ? (start: number, end: number, text: string) => this.callbacks.replaceRangeWithUndo!(start, end, text)
-        : undefined,
-      getAtPaths: () => this.atPaths,
-      getSelectedPaths: () => this.selectedPaths,
-      removeSelectedPath: (path: string) => {
-        this.selectedPaths.delete(path);
-        this.highlightManager?.removeSelectedPath(path);
-      },
+      replaceRangeWithUndo: this.callbacks.replaceRangeWithUndo,
       updateHighlightBackdrop: () => this.updateHighlightBackdrop(),
-      getCachedDirectoryData: () => this.cachedDirectoryData
+      getCachedDirectoryData: () => this.directoryCacheManager?.getCachedData() ?? null,
+      isCommandEnabledSync: () => this.isCommandEnabledSync(),
+      checkFileExists: async (path: string) => {
+        const baseDir = this.directoryCacheManager?.getDirectory();
+        if (!baseDir) return false;
+        const absolutePath = resolveAtPathToAbsolute(path, baseDir, parsePathWithLineInfo, normalizePath);
+        if (!absolutePath) return false;
+        try {
+          return await window.electronAPI?.file?.checkExists(absolutePath) || false;
+        } catch {
+          return false;
+        }
+      }
     });
 
-    // Initialize ItemSelectionManager
-    this.itemSelectionManager = new ItemSelectionManager({
-      getCachedDirectoryData: () => this.cachedDirectoryData,
-      getTextInput: () => this.textInput,
-      getAtStartPosition: () => this.atStartPosition,
+    // Initialize NavigationManager (consolidated keyboard + directory/file navigation + item selection)
+    this.navigationManager = new NavigationManager({
+      // State getters
+      getIsVisible: () => this.state.isVisible,
+      getSelectedIndex: () => this.state.selectedIndex,
+      getTotalItemCount: () => this.getTotalItemCount(),
+      getMergedSuggestions: () => this.state.mergedSuggestions,
+      getCachedDirectoryData: () => this.directoryCacheManager?.getCachedData() ?? null,
+      getIsInSymbolMode: () => this.isInSymbolMode,
+      getCurrentQuery: () => this.state.currentQuery,
+      getIsComposing: this.callbacks.getIsComposing,
+      getCurrentPath: () => this.state.currentPath,
+      getCodeSearchManager: () => this.codeSearchManager,
+      // State setters
+      setSelectedIndex: (index: number) => { this.state.selectedIndex = index; },
+      setCurrentPath: (path: string) => { this.state.currentPath = path; },
+      setCurrentQuery: (query: string) => { this.state.currentQuery = query; },
+      setFilteredFiles: (files: FileInfo[]) => { this.state.filteredFiles = files; },
+      setFilteredAgents: (agents: never[]) => { this.state.filteredAgents = agents; },
+      setMergedSuggestions: (suggestions: SuggestionItem[]) => { this.state.mergedSuggestions = suggestions; },
+      setIsInSymbolMode: (value: boolean) => { this.isInSymbolMode = value; },
+      setCurrentFilePath: (path: string) => { this.currentFilePath = path; },
+      setCurrentFileSymbols: (symbols: SymbolResult[]) => { this.currentFileSymbols = symbols; },
+      // Actions
+      updateSelection: () => this.updateSelection(),
+      hideSuggestions: () => this.hideSuggestions(),
       insertFilePath: (path: string) => this.insertFilePath(path),
       insertFilePathWithoutAt: (path: string) => this.insertFilePathWithoutAt(path),
-      hideSuggestions: () => this.hideSuggestions(),
       onFileSelected: (path: string) => this.callbacks.onFileSelected(path),
-      navigateIntoFile: (relativePath: string, absolutePath: string, language: LanguageInfo) =>
-        this.navigateIntoFile(relativePath, absolutePath, language),
+      exitSymbolMode: () => this.exitSymbolMode(),
+      removeAtQueryText: () => this.removeAtQueryText(),
+      openFileAndRestoreFocus: async (filePath: string) => {
+        await this.fileOpenerManager?.openFile(filePath);
+      },
+      toggleAutoShowTooltip: () => this.popupManager.toggleAutoShowTooltip(),
+      expandCurrentFile: () => this.expandCurrentFile(),
+      // Directory/File navigation helpers
+      updateTextInputWithPath: (path: string) => this.updateTextInputWithPath(path),
+      filterFiles: (query: string) => this.filterFiles(query),
+      mergeSuggestions: (query: string) => this.mergeSuggestions(query),
+      updateSuggestionList: (suggestions: SuggestionItem[], showPath: boolean, selectedIndex: number) =>
+        this.suggestionUIManager?.update(suggestions, showPath, selectedIndex),
+      showTooltipForSelectedItem: () => this.popupManager.showTooltipForSelectedItem(),
+      showSymbolSuggestions: (query: string) => this.showSymbolSuggestions(query),
+      // Item selection helpers
+      getTextInput: () => this.state.textInput,
+      getAtStartPosition: () => this.state.atStartPosition,
       getLanguageForFile: (fileName: string) => this.getLanguageForFile(fileName),
       isCodeSearchAvailable: () => this.codeSearchManager?.isAvailableSync() || false,
       replaceRangeWithUndo: this.callbacks.replaceRangeWithUndo
         ? (start: number, end: number, text: string) => this.callbacks.replaceRangeWithUndo!(start, end, text)
         : undefined,
       addSelectedPath: (path: string) => {
-        this.selectedPaths.add(path);
+        this.state.selectedPaths.add(path);
         this.highlightManager?.addSelectedPath(path);
       },
       updateHighlightBackdrop: () => this.updateHighlightBackdrop(),
       resetCodeSearchState: () => {
-        this.codeSearchQuery = '';
-        this.codeSearchLanguage = '';
-        this.codeSearchCacheRefreshed = false;
+        this.state.codeSearchQuery = '';
+        this.state.codeSearchLanguage = '';
+        this.state.codeSearchCacheRefreshed = false;
       }
-    });
-
-    // Initialize NavigationManager
-    this.navigationManager = new NavigationManager({
-      getCachedDirectoryData: () => this.cachedDirectoryData,
-      getCodeSearchManager: () => this.codeSearchManager,
-      updateTextInputWithPath: (path: string) => this.updateTextInputWithPath(path),
-      filterFiles: (query: string) => this.filterFiles(query),
-      mergeSuggestions: (query: string) => this.mergeSuggestions(query),
-      updateSuggestionList: (suggestions: SuggestionItem[], showPath: boolean, selectedIndex: number) =>
-        this.suggestionListManager?.update(suggestions, showPath, selectedIndex),
-      showTooltipForSelectedItem: () => this.popupManager.showTooltipForSelectedItem(),
-      insertFilePath: (path: string) => this.insertFilePath(path),
-      hideSuggestions: () => this.hideSuggestions(),
-      onFileSelected: (path: string) => this.callbacks.onFileSelected(path),
-      showSymbolSuggestions: (query: string) => this.showSymbolSuggestions(query),
-      setCurrentPath: (path: string) => { this.currentPath = path; },
-      setCurrentQuery: (query: string) => { this.currentQuery = query; },
-      setSelectedIndex: (index: number) => { this.selectedIndex = index; },
-      setFilteredFiles: (files: FileInfo[]) => { this.filteredFiles = files; },
-      setFilteredAgents: (agents: never[]) => { this.filteredAgents = agents; },
-      setMergedSuggestions: (suggestions: SuggestionItem[]) => { this.mergedSuggestions = suggestions; },
-      setIsInSymbolMode: (value: boolean) => { this.isInSymbolMode = value; },
-      setCurrentFilePath: (path: string) => { this.currentFilePath = path; },
-      setCurrentFileSymbols: (symbols: SymbolResult[]) => { this.currentFileSymbols = symbols; }
-    });
-
-    // Initialize KeyboardNavigationManager
-    this.keyboardNavigationManager = new KeyboardNavigationManager({
-      getIsVisible: () => this.isVisible,
-      getSelectedIndex: () => this.selectedIndex,
-      getTotalItemCount: () => this.getTotalItemCount(),
-      getMergedSuggestions: () => this.mergedSuggestions,
-      getCachedDirectoryData: () => this.cachedDirectoryData,
-      getIsInSymbolMode: () => this.isInSymbolMode,
-      getCurrentQuery: () => this.currentQuery,
-      getIsComposing: this.callbacks.getIsComposing,
-      setSelectedIndex: (index: number) => { this.selectedIndex = index; },
-      updateSelection: () => this.updateSelection(),
-      selectItem: (index: number) => this.selectItem(index),
-      hideSuggestions: () => this.hideSuggestions(),
-      expandCurrentDirectory: () => this.expandCurrentDirectory(),
-      expandCurrentFile: () => this.expandCurrentFile(),
-      navigateIntoDirectory: (file: FileInfo) => this.navigateIntoDirectory(file),
-      exitSymbolMode: () => this.exitSymbolMode(),
-      removeAtQueryText: () => this.removeAtQueryText(),
-      openFileAndRestoreFocus: (filePath: string) => this.openFileAndRestoreFocus(filePath),
-      insertFilePath: (path: string) => this.insertFilePath(path),
-      onFileSelected: (path: string) => this.callbacks.onFileSelected(path),
-      toggleAutoShowTooltip: () => this.popupManager.toggleAutoShowTooltip()
     });
 
     // Initialize EventListenerManager
@@ -293,10 +185,10 @@ export class FileSearchManager {
       updateCursorPositionHighlight: () => this.updateCursorPositionHighlight(),
       handleKeyDown: (e: KeyboardEvent) => this.handleKeyDown(e),
       handleBackspaceForAtPath: (e: KeyboardEvent) => this.handleBackspaceForAtPath(e),
-      handleCtrlEnterOpenFile: (e: KeyboardEvent) => this.handleCtrlEnterOpenFile(e),
-      handleCmdClickOnAtPath: (e: MouseEvent) => this.handleCmdClickOnAtPath(e),
+      handleCtrlEnterOpenFile: (e: KeyboardEvent) => this.fileOpenerManager?.handleCtrlEnter(e),
+      handleCmdClickOnAtPath: (e: MouseEvent) => this.fileOpenerManager?.handleCmdClick(e),
       handleMouseMove: (e: MouseEvent) => this.handleMouseMove(e),
-      isVisible: () => this.isVisible,
+      isVisible: () => this.state.isVisible,
       hideSuggestions: () => this.hideSuggestions(),
       syncBackdropScroll: () => this.syncBackdropScroll(),
       clearFilePathHighlight: () => this.highlightManager?.clearFilePathHighlight() ?? undefined,
@@ -311,53 +203,60 @@ export class FileSearchManager {
       getCursorPosition: () => this.callbacks.getCursorPosition()
     });
 
-    // Initialize SuggestionStateManager
-    this.suggestionStateManager = new SuggestionStateManager({
-      getCachedDirectoryData: () => this.cachedDirectoryData,
-      getAtStartPosition: () => this.atStartPosition,
-      getCurrentPath: () => this.currentPath,
-      getCurrentQuery: () => this.currentQuery,
-      getFilteredFiles: () => this.filteredFiles,
-      getFilteredAgents: () => this.filteredAgents,
-      getMergedSuggestions: () => this.mergedSuggestions,
-      getSelectedIndex: () => this.selectedIndex,
-      setCurrentPath: (path: string) => { this.currentPath = path; },
-      setCurrentQuery: (query: string) => { this.currentQuery = query; },
-      setFilteredFiles: (files: unknown[]) => { this.filteredFiles = files as FileInfo[]; },
-      setFilteredAgents: (agents: AgentItem[]) => { this.filteredAgents = agents; },
-      setMergedSuggestions: (suggestions: SuggestionItem[]) => { this.mergedSuggestions = suggestions; },
-      setSelectedIndex: (index: number) => { this.selectedIndex = index; },
-      setIsVisible: (visible: boolean) => { this.isVisible = visible; },
-      adjustCurrentPathToQuery: (query: string) => this.adjustCurrentPathToQuery(query),
-      filterFiles: (query: string) => this.filterFiles(query),
-      mergeSuggestions: (query: string, maxSuggestions?: number) => this.mergeSuggestions(query, maxSuggestions),
-      searchAgents: (query: string) => this.searchAgents(query),
-      isIndexBeingBuilt: () => this.isIndexBeingBuilt(),
-      showIndexingHint: () => this.showIndexingHint(),
-      showSuggestionList: (suggestions: SuggestionItem[], atPosition: number, showPath: boolean) =>
-        this.suggestionListManager?.show(suggestions, atPosition, showPath),
-      updateSuggestionList: (suggestions: SuggestionItem[], showPath: boolean, selectedIndex: number) =>
-        this.suggestionListManager?.update(suggestions, showPath, selectedIndex),
-      showTooltipForSelectedItem: () => this.popupManager.showTooltipForSelectedItem(),
-      matchesSearchPrefix: (query: string, type: 'command' | 'mention') => this.matchesSearchPrefix(query, type),
-      getMaxSuggestions: (type: 'command' | 'mention') => this.getMaxSuggestions(type),
-      restoreDefaultHint: () => this.restoreDefaultHint()
-    });
   }
 
   /**
    * Set whether file search is enabled
    */
   public setFileSearchEnabled(enabled: boolean): void {
-    this.fileSearchEnabled = enabled;
-    console.debug('[FileSearchManager] File search enabled:', enabled);
+    const previousValue = this.state.fileSearchEnabled;
+    this.state.fileSearchEnabled = enabled;
+    console.debug('[FileSearchManager] setFileSearchEnabled:', {
+      enabled,
+      previousValue,
+      hasCodeSearchManager: !!this.codeSearchManager,
+      hasDirectoryCacheManager: !!this.directoryCacheManager
+    });
   }
 
   /**
    * Check if file search is enabled
    */
   public isFileSearchEnabled(): boolean {
-    return this.fileSearchEnabled;
+    return this.state.fileSearchEnabled;
+  }
+
+
+  // ============================================
+  // Directory Cache Shortcut Methods
+  // ============================================
+
+  /**
+   * Get cached directory data (shortcut for directoryCacheManager?.getCachedData() ?? null)
+   */
+  private getCachedData(): DirectoryData | null {
+    return this.directoryCacheManager?.getCachedData() ?? null;
+  }
+
+  /**
+   * Get current directory path (shortcut for directoryCacheManager?.getDirectory() ?? null)
+   */
+  private getDirectory(): string | null {
+    return this.directoryCacheManager?.getDirectory() ?? null;
+  }
+
+  /**
+   * Check if cache has data
+   */
+  private hasCache(): boolean {
+    return this.directoryCacheManager?.hasCache() ?? false;
+  }
+
+  /**
+   * Get cached files
+   */
+  private getCachedFiles(): FileInfo[] {
+    return this.directoryCacheManager?.getFiles() ?? [];
   }
 
   /**
@@ -372,7 +271,7 @@ export class FileSearchManager {
    * Get maxSuggestions for file search (cached)
    * Delegates to SettingsCacheManager
    */
-  private async getFileSearchMaxSuggestions(): Promise<number> {
+  private async _getFileSearchMaxSuggestions(): Promise<number> {
     return this.settingsCacheManager.getFileSearchMaxSuggestions();
   }
 
@@ -408,24 +307,34 @@ export class FileSearchManager {
     return this.settingsCacheManager.preloadSearchPrefixesCache();
   }
 
+  /**
+   * マネージャーを初期化する（IInitializable実装）
+   * - DOM要素の取得
+   * - イベントリスナーの設定
+   */
+  public initialize(): void {
+    this.initializeElements();
+    this.setupEventListeners();
+  }
+
   public initializeElements(): void {
-    this.textInput = document.getElementById('textInput') as HTMLTextAreaElement;
-    this.highlightBackdrop = document.getElementById('highlightBackdrop') as HTMLDivElement;
-    console.debug('[FileSearchManager] initializeElements: textInput found:', !!this.textInput, 'highlightBackdrop found:', !!this.highlightBackdrop);
+    this.state.textInput = document.getElementById('textInput') as HTMLTextAreaElement;
+    this.state.highlightBackdrop = document.getElementById('highlightBackdrop') as HTMLDivElement;
+    console.debug('[FileSearchManager] initializeElements: textInput found:', !!this.state.textInput, 'highlightBackdrop found:', !!this.state.highlightBackdrop);
 
     // Create suggestions container if it doesn't exist
-    this.suggestionsContainer = document.getElementById('fileSuggestions');
-    if (!this.suggestionsContainer) {
-      this.suggestionsContainer = document.createElement('div');
-      this.suggestionsContainer.id = 'fileSuggestions';
-      this.suggestionsContainer.className = 'file-suggestions';
-      this.suggestionsContainer.setAttribute('role', 'listbox');
-      this.suggestionsContainer.setAttribute('aria-label', 'File suggestions');
+    this.state.suggestionsContainer = document.getElementById('fileSuggestions');
+    if (!this.state.suggestionsContainer) {
+      this.state.suggestionsContainer = document.createElement('div');
+      this.state.suggestionsContainer.id = 'fileSuggestions';
+      this.state.suggestionsContainer.className = 'file-suggestions';
+      this.state.suggestionsContainer.setAttribute('role', 'listbox');
+      this.state.suggestionsContainer.setAttribute('aria-label', 'File suggestions');
 
       // Insert into main-content (allows suggestions to span across input-section and history-section)
       const mainContent = document.querySelector('.main-content');
       if (mainContent) {
-        mainContent.appendChild(this.suggestionsContainer);
+        mainContent.appendChild(this.state.suggestionsContainer);
         console.debug('[FileSearchManager] initializeElements: suggestionsContainer created and appended to main-content');
       } else {
         console.warn('[FileSearchManager] initializeElements: .main-content not found!');
@@ -438,9 +347,38 @@ export class FileSearchManager {
     this.popupManager.initialize();
 
     // Initialize CodeSearchManager (replaces inline code search initialization)
+    // Note: Some callbacks reference other managers that are initialized later,
+    // so we use arrow functions to defer the access.
     this.codeSearchManager = new CodeSearchManager({
       updateHintText: (text: string) => this.callbacks.updateHintText?.(text),
-      getDefaultHintText: () => this.callbacks.getDefaultHintText?.() || ''
+      getDefaultHintText: () => this.callbacks.getDefaultHintText?.() || '',
+      getCachedDirectoryData: () => this.directoryCacheManager?.getCachedData() ?? null,
+      getAtStartPosition: () => this.state.atStartPosition,
+      hideSuggestions: () => this.hideSuggestions(),
+      // State setters
+      setFilteredSymbols: (symbols: SymbolResult[]) => { this.state.filteredSymbols = symbols; },
+      setFilteredFiles: (files: never[]) => { this.state.filteredFiles = files; },
+      setFilteredAgents: (agents: never[]) => { this.state.filteredAgents = agents; },
+      setMergedSuggestions: (suggestions: SuggestionItem[]) => { this.state.mergedSuggestions = suggestions; },
+      getMergedSuggestions: () => this.state.mergedSuggestions,
+      setSelectedIndex: (index: number) => { this.state.selectedIndex = index; },
+      getSelectedIndex: () => this.state.selectedIndex,
+      setIsVisible: (visible: boolean) => { this.state.isVisible = visible; },
+      // UI dependencies
+      getSuggestionsContainer: () => this.state.suggestionsContainer,
+      getCurrentFileSymbols: () => this.currentFileSymbols,
+      getCurrentFilePath: () => this.currentFilePath,
+      updateSelection: () => this.updateSelection(),
+      selectSymbol: (symbol: SymbolResult) => this._selectSymbol(symbol),
+      positionPopup: (atStartPos: number) => this.suggestionUIManager?.position(atStartPos),
+      getFileSearchMaxSuggestions: () => this._getFileSearchMaxSuggestions(),
+      showSuggestions: (query: string) => this.showSuggestions(query),
+      insertFilePath: (path: string) => this.insertFilePath(path),
+      onFileSelected: (path: string) => this.callbacks.onFileSelected(path),
+      setCurrentQuery: (query: string) => { this.state.currentQuery = query; },
+      getCurrentPath: () => this.state.currentPath,
+      showTooltipForSelectedItem: () => this.popupManager.showTooltipForSelectedItem(),
+      renderSuggestions: (suggestions: SuggestionItem[]) => this.suggestionUIManager?.update(suggestions, false)
     });
 
     // Initialize DirectoryCacheManager
@@ -450,28 +388,26 @@ export class FileSearchManager {
           this.callbacks.updateHintText?.(hint);
         }
       },
-      onCacheUpdated: (data) => {
-        // Sync local copy for backward compatibility
-        this.cachedDirectoryData = data;
+      onCacheUpdated: () => {
         // Refresh suggestions if visible and not actively searching
-        if (this.isVisible && !this.currentQuery) {
+        if (this.state.isVisible && !this.state.currentQuery) {
           this.refreshSuggestions();
         }
       },
       updateHintText: (text: string) => this.callbacks.updateHintText?.(text)
     });
 
-    // Initialize HighlightManager (requires textInput and highlightBackdrop)
-    if (this.textInput && this.highlightBackdrop) {
+    // Initialize HighlightManager (requires textInput, highlightBackdrop, and pathManager)
+    if (this.state.textInput && this.state.highlightBackdrop) {
       this.highlightManager = new HighlightManager(
-        this.textInput,
-        this.highlightBackdrop,
+        this.state.textInput,
+        this.state.highlightBackdrop,
         {
-          getTextContent: () => this.textInput?.value || '',
-          getCursorPosition: () => this.textInput?.selectionStart || 0,
+          getTextContent: () => this.state.textInput?.value || '',
+          getCursorPosition: () => this.state.textInput?.selectionStart || 0,
           updateHintText: (text: string) => this.callbacks.updateHintText?.(text),
           getDefaultHintText: () => this.callbacks.getDefaultHintText?.() || '',
-          isFileSearchEnabled: () => this.fileSearchEnabled,
+          isFileSearchEnabled: () => this.state.fileSearchEnabled,
           isCommandEnabledSync: () => this.isCommandEnabledSync(),
           checkFileExists: async (path: string) => {
             try {
@@ -480,14 +416,15 @@ export class FileSearchManager {
               return false;
             }
           }
-        }
+        },
+        this.pathManager  // Pass PathManager for unified path management
       );
       // Set up valid paths builder for @path validation
       this.highlightManager.setValidPathsBuilder(() => this.buildValidPathsSet());
     }
 
-    // Initialize FileOpenerManager
-    this.fileOpenerManager = new FileOpenerManager({
+    // Initialize FileOpenerEventHandler
+    this.fileOpenerManager = new FileOpenerEventHandler({
       onBeforeOpenFile: () => {
         // Cleanup before opening file
         this.hideSuggestions();
@@ -495,57 +432,82 @@ export class FileSearchManager {
       setDraggable: (enabled: boolean) => {
         this.callbacks.setDraggable?.(enabled);
       },
-      getTextContent: () => this.textInput?.value || '',
+      getTextContent: () => this.state.textInput?.value || '',
       setTextContent: (text: string) => {
-        if (this.textInput) {
-          this.textInput.value = text;
+        if (this.state.textInput) {
+          this.state.textInput.value = text;
         }
       },
-      getCursorPosition: () => this.textInput?.selectionStart || 0,
+      getCursorPosition: () => this.state.textInput?.selectionStart || 0,
       setCursorPosition: (position: number) => {
-        if (this.textInput) {
-          this.textInput.selectionStart = position;
-          this.textInput.selectionEnd = position;
+        if (this.state.textInput) {
+          this.state.textInput.selectionStart = position;
+          this.state.textInput.selectionEnd = position;
         }
       },
-      getCurrentDirectory: () => this.cachedDirectoryData?.directory || null,
+      getCurrentDirectory: () => this.directoryCacheManager?.getDirectory() ?? null,
+      isCommandEnabledSync: () => this.isCommandEnabledSync(),
       hideWindow: () => {
         window.electronAPI.window.hide();
       },
       restoreDefaultHint: () => this.restoreDefaultHint()
     });
 
-    // Initialize SuggestionListManager (requires textInput)
-    if (this.textInput) {
-      this.suggestionListManager = new SuggestionListManager(
-        this.textInput,
+    // Initialize SuggestionUIManager (consolidated from SuggestionListManager and SuggestionStateManager)
+    if (this.state.textInput) {
+      this.suggestionUIManager = new SuggestionUIManager(
+        this.state.textInput,
         {
+          // Selection and navigation
           onItemSelected: (index: number) => this.selectItem(index),
           onNavigateIntoDirectory: (file: FileInfo) => this.navigateIntoDirectory(file),
           onEscape: () => this.hideSuggestions(),
           onOpenFileInEditor: async (filePath: string) => {
             await window.electronAPI.file.openInEditor(filePath);
           },
+          // Input state
           getIsComposing: () => this.callbacks.getIsComposing?.() || false,
-          getCurrentPath: () => this.currentPath,
-          getBaseDir: () => this.cachedDirectoryData?.directory || '',
-          getCurrentQuery: () => this.currentQuery,
-          getCodeSearchQuery: () => this.codeSearchQuery,
+          // Display context
+          getCurrentPath: () => this.state.currentPath,
+          getBaseDir: () => this.directoryCacheManager?.getDirectory() ?? '',
+          getCurrentQuery: () => this.state.currentQuery,
+          getCodeSearchQuery: () => this.state.codeSearchQuery,
           countFilesInDirectory: (path: string) => this.countFilesInDirectory(path),
+          // Popup interactions
           onMouseEnterInfo: (suggestion: SuggestionItem, target: HTMLElement) => {
-            // Only show frontmatter popup for agent items
             if (suggestion.type === 'agent' && suggestion.agent) {
               this.popupManager.showFrontmatterPopup(suggestion.agent, target);
             }
           },
           onMouseLeaveInfo: () => {
             this.popupManager.hideFrontmatterPopup();
-          }
+          },
+          // State management (from SuggestionStateManager)
+          getCachedDirectoryData: () => this.directoryCacheManager?.getCachedData() ?? null,
+          getAtStartPosition: () => this.state.atStartPosition,
+          adjustCurrentPathToQuery: (query: string) => this.adjustCurrentPathToQuery(query),
+          filterFiles: (query: string) => this.filterFiles(query),
+          mergeSuggestions: (query: string, maxSuggestions?: number) => this.mergeSuggestions(query, maxSuggestions),
+          searchAgents: (query: string) => this.searchAgents(query),
+          isIndexBeingBuilt: () => this.isIndexBeingBuilt(),
+          showIndexingHint: () => this.showIndexingHint(),
+          restoreDefaultHint: () => this.restoreDefaultHint(),
+          matchesSearchPrefix: (query: string, type: 'command' | 'mention') => this.matchesSearchPrefix(query, type),
+          getMaxSuggestions: (type: 'command' | 'mention') => this.getMaxSuggestions(type),
+          showTooltipForSelectedItem: () => this.popupManager.showTooltipForSelectedItem(),
+          // State setters
+          setCurrentPath: (path: string) => { this.state.currentPath = path; },
+          setCurrentQuery: (query: string) => { this.state.currentQuery = query; },
+          setFilteredFiles: (files: FileInfo[]) => { this.state.filteredFiles = files; },
+          setFilteredAgents: (agents: AgentItem[]) => { this.state.filteredAgents = agents; },
+          setMergedSuggestions: (suggestions: SuggestionItem[]) => { this.state.mergedSuggestions = suggestions; },
+          setSelectedIndex: (index: number) => { this.state.selectedIndex = index; },
+          setIsVisible: (visible: boolean) => { this.state.isVisible = visible; }
         }
       );
     }
 
-    // CodeSearchManager is initialized in constructor, no separate init needed
+    // CodeSearchManager is initialized in initializeElements, no separate init needed
   }
 
   /**
@@ -553,19 +515,35 @@ export class FileSearchManager {
    * This enables instant file search when window opens
    */
   public handleCachedDirectoryData(data: DirectoryInfo | undefined): void {
+    console.debug('[FileSearchManager] handleCachedDirectoryData:', {
+      hasData: !!data,
+      directory: data?.directory,
+      fileCount: data?.files?.length,
+      fromDraft: data?.fromDraft,
+      fromCache: data?.fromCache,
+      hasDirectoryCacheManager: !!this.directoryCacheManager
+    });
     // Delegate to DirectoryCacheManager
     // The manager will notify via onCacheUpdated callback to sync local copy
     this.directoryCacheManager?.handleCachedDirectoryData(data);
+
+    // Log cached data after update
+    setTimeout(() => {
+      console.debug('[FileSearchManager] after handleCachedDirectoryData:', {
+        hasCachedData: this.hasCache(),
+        cachedDirectory: this.getDirectory()
+      });
+    }, 100);
   }
 
   public setupEventListeners(): void {
-    if (!this.textInput) {
+    if (!this.state.textInput) {
       console.warn('[FileSearchManager] setupEventListeners: textInput is null, skipping');
       return;
     }
 
     // Initialize EventListenerManager with DOM elements and delegate setup
-    this.eventListenerManager.initialize(this.textInput, this.suggestionsContainer);
+    this.eventListenerManager.initialize(this.state.textInput, this.state.suggestionsContainer);
     this.eventListenerManager.setupEventListeners();
   }
 
@@ -610,136 +588,12 @@ export class FileSearchManager {
    */
   private showIndexingHint(): void {
     // Don't show "Building Index" if there's a more important hint (e.g., fd not installed)
-    if (this.cachedDirectoryData?.hint) {
+    if (this.directoryCacheManager?.getHint()) {
       return;
     }
     if (this.callbacks.updateHintText) {
       this.callbacks.updateHintText('Building file index...');
     }
-  }
-
-  /**
-   * Handle Ctrl+Enter to open file or URL at cursor position
-   */
-  private async handleCtrlEnterOpenFile(e: KeyboardEvent): Promise<void> {
-    const handled = await this.findAndOpenItemAtCursor();
-    if (handled) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  }
-
-  /**
-   * Handle Cmd+click on @path, absolute path, or URL in textarea
-   * Supports: URLs, file paths, agent names, and absolute paths (including ~)
-   */
-  private async handleCmdClickOnAtPath(e: MouseEvent): Promise<void> {
-    const handled = await this.findAndOpenItemAtCursor();
-    if (handled) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  }
-
-  /**
-   * Find and open URL, slash command, @path, or absolute path at cursor position
-   * Common logic for both Ctrl+Enter and Cmd+click handlers
-   * @returns true if something was found and opened, false otherwise
-   */
-  private async findAndOpenItemAtCursor(): Promise<boolean> {
-    if (!this.textInput) return false;
-
-    const text = this.textInput.value;
-    const cursorPos = this.textInput.selectionStart;
-
-    // Check for URL first
-    const url = findUrlAtPosition(text, cursorPos);
-    if (url) {
-      await this.openUrlInBrowser(url.url);
-      return true;
-    }
-
-    // Check for slash command (like /commit, /help) - only if command type is enabled
-    if (this.isCommandEnabledSync()) {
-      const slashCommand = findSlashCommandAtPosition(text, cursorPos);
-      if (slashCommand) {
-        try {
-          const commandFilePath = await window.electronAPI.slashCommands.getFilePath(slashCommand.command);
-          if (commandFilePath) {
-            await this.openFileAndRestoreFocus(commandFilePath);
-            return true;
-          }
-        } catch (err) {
-          console.error('Failed to resolve slash command file path:', err);
-        }
-        return true; // Return true even on error to prevent event propagation
-      }
-    }
-
-    // Find @path at cursor position
-    const atPath = findAtPathAtPosition(text, cursorPos);
-    if (atPath) {
-      const looksLikeFilePath = atPath.includes('/') || atPath.includes('.');
-
-      // Try to resolve as file path first if it looks like one
-      if (looksLikeFilePath) {
-        const filePath = resolveAtPathToAbsolute(atPath, this.cachedDirectoryData?.directory, parsePathWithLineInfo, normalizePath);
-        if (filePath) {
-          await this.openFileAndRestoreFocus(filePath);
-          return true;
-        }
-      }
-
-      // Try to resolve as agent name (for names like @backend-architect)
-      try {
-        const agentFilePath = await window.electronAPI.agents.getFilePath(atPath);
-        if (agentFilePath) {
-          await this.openFileAndRestoreFocus(agentFilePath);
-          return true;
-        }
-      } catch (err) {
-        console.error('Failed to resolve agent file path:', err);
-      }
-
-      // Fallback: try to open as file path if it wasn't already tried
-      if (!looksLikeFilePath) {
-        const filePath = resolveAtPathToAbsolute(atPath, this.cachedDirectoryData?.directory, parsePathWithLineInfo, normalizePath);
-        if (filePath) {
-          await this.openFileAndRestoreFocus(filePath);
-          return true;
-        }
-      }
-      return true; // Return true even if nothing opened to prevent event propagation
-    }
-
-    // Find absolute path at cursor position
-    const absolutePath = findAbsolutePathAtPosition(text, cursorPos);
-    if (absolutePath) {
-      await this.openFileAndRestoreFocus(absolutePath);
-      return true;
-    }
-
-    return false;
-  }
-
-  /**
-   * Open URL in external browser and restore focus to PromptLine window
-   * Enables window dragging during URL open operation (same behavior as file open)
-   * @param url - URL to open
-   */
-  private async openUrlInBrowser(url: string): Promise<void> {
-    // Delegate to FileOpenerManager
-    await this.fileOpenerManager?.openUrl(url);
-  }
-
-  /**
-   * Open file in editor
-   * The opened file's application will be brought to foreground
-   * @param filePath - Path to the file to open
-   */
-  private async openFileAndRestoreFocus(filePath: string): Promise<void> {
-    // Delegate to FileOpenerManager
-    await this.fileOpenerManager?.openFile(filePath);
   }
 
   /**
@@ -758,7 +612,6 @@ export class FileSearchManager {
    */
   public clearCache(): void {
     this.directoryCacheManager?.clearCache();
-    this.cachedDirectoryData = null;
     this.hideSuggestions();
   }
 
@@ -767,109 +620,197 @@ export class FileSearchManager {
    * Called when cache is updated in background
    */
   private refreshSuggestions(): void {
-    if (!this.isVisible) return;
+    if (!this.state.isVisible) return;
 
     // Re-filter with current query
-    if (this.currentQuery) {
-      this.filterFiles(this.currentQuery);
+    if (this.state.currentQuery) {
+      this.filterFiles(this.state.currentQuery);
     }
     // Delegate rendering to SuggestionListManager (position remains unchanged)
-    this.suggestionListManager?.update(this.mergedSuggestions, false);
+    this.suggestionUIManager?.update(this.state.mergedSuggestions, false);
   }
 
   /**
    * Check if file search should be triggered based on cursor position
    */
   public checkForFileSearch(): void {
-    // Skip if file search is disabled
-    if (!this.fileSearchEnabled) {
-      return;
-    }
-
-    console.debug('[FileSearchManager] checkForFileSearch called', formatLog({
-      hasTextInput: !!this.textInput,
-      hasCachedData: !!this.cachedDirectoryData,
-      cachedDirectory: this.cachedDirectoryData?.directory,
-      cachedFileCount: this.cachedDirectoryData?.files?.length
-    }));
-
-    if (!this.textInput || !this.cachedDirectoryData) {
-      console.debug('[FileSearchManager] checkForFileSearch: early return - missing textInput or cachedDirectoryData');
+    if (!this.shouldProcessFileSearch()) {
       return;
     }
 
     const result = this.extractQueryAtCursor();
     console.debug('[FileSearchManager] extractQueryAtCursor result:', result ? formatLog(result as Record<string, unknown>) : 'null');
 
-    if (result) {
-      const { query, startPos } = result;
+    if (!result) {
+      this.hideSuggestions();
+      return;
+    }
 
-      // Check if query matches code search pattern (e.g., "ts:", "go:", "py:")
-      // BUT skip if query matches a searchPrefix (e.g., "agent:", "skill:")
-      const matchesSearchPrefix = this.matchesSearchPrefixSync(query, 'mention');
-      const parsedCodeSearch = this.queryExtractionManager.parseCodeSearchQuery(query);
-      console.debug('[FileSearchManager] checkForFileSearch: query=', query, 'parsedCodeSearch=', parsedCodeSearch, 'matchesSearchPrefix=', matchesSearchPrefix);
-      if (parsedCodeSearch && !matchesSearchPrefix) {
-        const { language, symbolQuery, symbolTypeFilter } = parsedCodeSearch;
+    const { query, startPos } = result;
 
-        console.debug('[FileSearchManager] checkForFileSearch: code pattern matched, language=', language, 'symbolTypeFilter=', symbolTypeFilter, 'symbolQuery=', symbolQuery);
+    // Try code search first
+    if (this.tryCodeSearch(query, startPos)) {
+      return;
+    }
 
-        const supportedLanguages = this.codeSearchManager?.getSupportedLanguages();
-        const rgAvailable = this.codeSearchManager?.isAvailableSync() ?? false;
+    // Normal file search
+    this.handleFileSearch(query, startPos);
+  }
 
-        console.debug('[FileSearchManager] checkForFileSearch: rgAvailable=', rgAvailable, 'supportedLanguages.size=', supportedLanguages?.size, 'supportedLanguages.has(language)=', supportedLanguages?.has(language));
+  /**
+   * Check if file search should be processed
+   * @returns true if file search should proceed
+   */
+  private shouldProcessFileSearch(): boolean {
+    console.debug('[FileSearchManager] shouldProcessFileSearch:', {
+      fileSearchEnabled: this.state.fileSearchEnabled,
+      hasTextInput: !!this.state.textInput,
+      hasCachedData: this.hasCache(),
+      hasDirectoryCacheManager: !!this.directoryCacheManager,
+      cachedDirectory: this.getDirectory(),
+      cachedFileCount: this.getCachedFiles().length
+    });
 
-        // If code search not yet initialized, wait for it
-        if (this.codeSearchManager && (!supportedLanguages || supportedLanguages.size === 0)) {
-          console.debug('[FileSearchManager] checkForFileSearch: waiting for code search initialization...');
-          this.codeSearchManager.isAvailable().then(() => {
-            // Re-check after initialization (only if cursor position hasn't changed)
-            if (this.textInput && this.textInput.value.includes(`@${query}`)) {
-              this.checkForFileSearch();
-            }
-          });
-          return;
+    if (!this.state.fileSearchEnabled) {
+      console.debug('[FileSearchManager] shouldProcessFileSearch: fileSearchEnabled is false');
+      return false;
+    }
+
+    if (!this.state.textInput) {
+      console.debug('[FileSearchManager] shouldProcessFileSearch: textInput is null');
+      return false;
+    }
+
+    // For code search, we only need the directory (not the file list)
+    // hasCache() returns true if directoryCacheManager has ANY cached data
+    if (!this.hasCache()) {
+      console.debug('[FileSearchManager] shouldProcessFileSearch: no cached data');
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Try to handle query as code search
+   * @returns true if handled as code search (whether successful or not)
+   */
+  private tryCodeSearch(query: string, startPos: number): boolean {
+    const matchesSearchPrefix = this.matchesSearchPrefixSync(query, 'mention');
+    const parsedCodeSearch = this.queryExtractionManager.parseCodeSearchQuery(query);
+
+    console.debug('[FileSearchManager] tryCodeSearch: query=', query, 'parsedCodeSearch=', parsedCodeSearch, 'matchesSearchPrefix=', matchesSearchPrefix);
+
+    if (!parsedCodeSearch || matchesSearchPrefix) {
+      return false;
+    }
+
+    const { language, symbolQuery, symbolTypeFilter } = parsedCodeSearch;
+    return this.handleCodeSearch(language, symbolQuery, symbolTypeFilter, query, startPos);
+  }
+
+  /**
+   * Handle code search pattern
+   * @returns true if handled (whether successful or not)
+   */
+  private handleCodeSearch(
+    language: string,
+    symbolQuery: string,
+    symbolTypeFilter: string | null,
+    query: string,
+    startPos: number
+  ): boolean {
+    console.debug('[FileSearchManager] handleCodeSearch:', {
+      language,
+      symbolQuery,
+      symbolTypeFilter,
+      query,
+      startPos,
+      hasCodeSearchManager: !!this.codeSearchManager,
+      hasDirectoryCacheManager: !!this.directoryCacheManager,
+      hasCachedData: this.hasCache(),
+      cachedDirectory: this.getDirectory()
+    });
+
+    if (!this.codeSearchManager) {
+      console.error('[FileSearchManager] handleCodeSearch: codeSearchManager is null!');
+      this.callbacks.updateHintText?.('Code search not available');
+      return true;
+    }
+
+    const supportedLanguages = this.codeSearchManager.getSupportedLanguages();
+    const rgAvailable = this.codeSearchManager.isAvailableSync();
+
+    console.debug('[FileSearchManager] handleCodeSearch:', {
+      rgAvailable,
+      supportedLanguagesSize: supportedLanguages?.size,
+      languageSupported: supportedLanguages?.has(language),
+      allLanguages: Array.from(supportedLanguages?.keys() || []).join(',')
+    });
+
+    // Wait for code search initialization if needed
+    if (!supportedLanguages || supportedLanguages.size === 0) {
+      console.debug('[FileSearchManager] handleCodeSearch: waiting for code search initialization...');
+      this.callbacks.updateHintText?.('Loading language support...');
+      // IMPORTANT: Hide any existing suggestions (e.g., from previous file search)
+      // to prevent stale file suggestions from showing during initialization wait
+      this.hideSuggestions();
+      this.codeSearchManager.isAvailable().then(() => {
+        console.debug('[FileSearchManager] handleCodeSearch: initialization complete, retrying...');
+        if (this.state.textInput && this.state.textInput.value.includes(`@${query}`)) {
+          this.checkForFileSearch();
         }
+      });
+      return true;
+    }
 
-        // Check if language is supported
-        if (rgAvailable && supportedLanguages?.has(language)) {
-          console.debug('[FileSearchManager] checkForFileSearch: code search pattern detected:', language, symbolQuery);
-          this.atStartPosition = startPos;
-          this.currentQuery = query;
-          this.codeSearchQuery = symbolQuery;
+    // Execute code search if language is supported
+    if (rgAvailable && supportedLanguages.has(language)) {
+      console.debug('[FileSearchManager] handleCodeSearch: executing code search for', language);
+      this.state.atStartPosition = startPos;
+      this.state.currentQuery = query;
+      this.state.codeSearchQuery = symbolQuery;
 
-          // Determine if we need to refresh cache:
-          // - First time entering code search mode for this language
-          // - Language has changed
-          const shouldRefresh = !this.codeSearchCacheRefreshed || this.codeSearchLanguage !== language;
-          this.codeSearchLanguage = language;
-          if (shouldRefresh) {
-            this.codeSearchCacheRefreshed = true;
-            console.debug('[FileSearchManager] checkForFileSearch: triggering cache refresh for language:', language);
-          }
-
-          this.searchSymbols(language, symbolQuery, symbolTypeFilter, shouldRefresh);
-          return;
-        } else {
-          // Unknown language or rg not available - show hint and hide suggestions
-          console.debug('[FileSearchManager] checkForFileSearch: code search not available, rgAvailable=', rgAvailable);
-          const langInfo = supportedLanguages?.get(language);
-          if (!langInfo && rgAvailable) {
-            this.callbacks.updateHintText?.(`Unknown language: ${language}`);
-          }
-          this.hideSuggestions();
-          return;
-        }
+      const shouldRefresh = !this.state.codeSearchCacheRefreshed || this.state.codeSearchLanguage !== language;
+      this.state.codeSearchLanguage = language;
+      if (shouldRefresh) {
+        this.state.codeSearchCacheRefreshed = true;
+        console.debug('[FileSearchManager] handleCodeSearch: triggering cache refresh for language:', language);
       }
 
-      // Normal file search
-      this.atStartPosition = startPos;
-      this.currentQuery = query;
-      console.debug('[FileSearchManager] showing suggestions for query:', query);
-      this.showSuggestions(query);
-    } else {
-      this.hideSuggestions();
+      // IMPORTANT: Hide any existing file suggestions BEFORE starting async code search.
+      // Without this, old file suggestions from typing @ts (before the :) would remain
+      // visible while the async symbol search is running.
+      // Note: We only hide the UI container, not reset the state, because we need
+      // atStartPosition for positioning the symbol suggestions when they arrive.
+      this.hideUIContainer();
+      this.searchSymbols(language, symbolQuery, symbolTypeFilter, shouldRefresh);
+      return true;
     }
+
+    // Unknown language or rg not available
+    console.debug('[FileSearchManager] handleCodeSearch: code search not available', {
+      rgAvailable,
+      languageSupported: supportedLanguages.has(language)
+    });
+
+    if (!rgAvailable) {
+      this.callbacks.updateHintText?.('ripgrep (rg) not found. Install: brew install ripgrep');
+    } else if (!supportedLanguages.has(language)) {
+      this.callbacks.updateHintText?.(`Unknown language: ${language}`);
+    }
+    this.hideSuggestions();
+    return true;
+  }
+
+  /**
+   * Handle normal file search
+   */
+  private handleFileSearch(query: string, startPos: number): void {
+    this.state.atStartPosition = startPos;
+    this.state.currentQuery = query;
+    console.debug('[FileSearchManager] handleFileSearch: showing suggestions for query:', query);
+    this.showSuggestions(query);
   }
 
   /**
@@ -883,76 +824,39 @@ export class FileSearchManager {
 
   /**
    * Search for symbols using ripgrep
-   * Delegates filtering logic to CodeSearchManager
+   * Delegates to CodeSearchManager
    */
   private async searchSymbols(language: string, query: string, symbolTypeFilter: string | null = null, refreshCache: boolean = false): Promise<void> {
-    if (!this.cachedDirectoryData?.directory || !this.codeSearchManager) {
-      console.debug('[FileSearchManager] searchSymbols: no directory or manager');
-      return;
-    }
-
-    // Delegate filtering/sorting to CodeSearchManager
-    const filtered = await this.codeSearchManager.searchSymbols(
-      this.cachedDirectoryData.directory,
-      language,
-      query,
-      { symbolTypeFilter, refreshCache }
-    );
-
-    // Limit results and update state
-    const maxSuggestions = 20;
-    this.filteredSymbols = filtered.slice(0, maxSuggestions);
-    this.filteredFiles = [];
-    this.filteredAgents = [];
-
-    // Convert to SuggestionItems
-    this.mergedSuggestions = this.filteredSymbols.map((symbol, index) => ({
-      type: 'symbol' as const,
-      symbol,
-      score: 1000 - index
-    }));
-
-    this.selectedIndex = 0;
-    this.isVisible = true;
-
-    if (this.mergedSuggestions.length > 0) {
-      this.suggestionListManager?.show(this.mergedSuggestions, this.atStartPosition, false);
-      this.popupManager.showTooltipForSelectedItem();
-      const langInfo = this.codeSearchManager.getSupportedLanguages().get(language);
-      this.callbacks.updateHintText?.(`${this.filteredSymbols.length} ${langInfo?.displayName || language} symbols`);
-    } else {
-      this.callbacks.updateHintText?.(`No symbols found for "${query}"`);
-      this.hideSuggestions();
-    }
+    await this.codeSearchManager?.searchSymbolsWithUI(language, query, symbolTypeFilter, refreshCache);
   }
 
   /**
    * Show file suggestions based on the query
-   * Delegates to SuggestionStateManager for state management
+   * Delegates to SuggestionUIManager for state management
    */
   public async showSuggestions(query: string): Promise<void> {
     console.debug('[FileSearchManager] showSuggestions called', formatLog({
       query,
-      currentPath: this.currentPath,
-      hasSuggestionsContainer: !!this.suggestionsContainer,
-      hasCachedData: !!this.cachedDirectoryData,
+      currentPath: this.state.currentPath,
+      hasSuggestionsContainer: !!this.state.suggestionsContainer,
+      hasCachedData: this.hasCache(),
       isInSymbolMode: this.isInSymbolMode
     }));
 
-    if (!this.suggestionsContainer) {
+    if (!this.state.suggestionsContainer) {
       console.debug('[FileSearchManager] showSuggestions: early return - missing container');
       return;
     }
 
     // If in symbol mode, show filtered symbols instead of files
     if (this.isInSymbolMode) {
-      this.currentQuery = query;
+      this.state.currentQuery = query;
       await this.showSymbolSuggestions(query);
       return;
     }
 
     // Delegate to SuggestionStateManager
-    await this.suggestionStateManager.showSuggestions(query);
+    await this.suggestionUIManager?.showSuggestions(query);
   }
 
   /**
@@ -967,7 +871,7 @@ export class FileSearchManager {
         return agents.slice(0, maxSuggestions);
       }
     } catch (error) {
-      console.error('[FileSearchManager] Failed to search agents:', error);
+      handleError('FileSearchManager.searchAgents', error);
     }
     return [];
   }
@@ -977,14 +881,14 @@ export class FileSearchManager {
    * Delegates to FileFilterManager
    */
   private adjustCurrentPathToQuery(query: string): void {
-    const newPath = this.fileFilterManager.adjustCurrentPathToQuery(this.currentPath, query);
-    if (newPath !== this.currentPath) {
+    const newPath = this.fileFilterManager.adjustCurrentPathToQuery(this.state.currentPath, query);
+    if (newPath !== this.state.currentPath) {
       console.debug('[FileSearchManager] adjustCurrentPathToQuery: navigating', formatLog({
-        from: this.currentPath,
+        from: this.state.currentPath,
         to: newPath,
         query
       }));
-      this.currentPath = newPath;
+      this.state.currentPath = newPath;
     }
   }
 
@@ -992,51 +896,81 @@ export class FileSearchManager {
    * Hide the suggestions dropdown
    */
   public hideSuggestions(): void {
-    if (!this.suggestionsContainer) return;
+    if (!this.state.suggestionsContainer) return;
 
-    // Delegate UI hiding to SuggestionListManager
-    this.suggestionListManager?.hide();
+    // Delegate UI hiding to managers
+    this.suggestionUIManager?.hide();
+    this.suggestionUIManager?.hideSuggestions();
 
-    // Delegate state clearing to SuggestionStateManager
-    this.suggestionStateManager.hideSuggestions();
+    // Hide UI container
+    this.hideUIContainer();
 
-    // Also handle local state (for backward compatibility during refactoring)
-    this.isVisible = false;
-    this.suggestionsContainer.style.display = 'none';
-    // Clear container safely
-    while (this.suggestionsContainer.firstChild) {
-      this.suggestionsContainer.removeChild(this.suggestionsContainer.firstChild);
-    }
-    this.filteredFiles = [];
-    this.filteredAgents = [];
-    this.filteredSymbols = [];
-    this.mergedSuggestions = [];
-    this.currentQuery = '';
-    this.atStartPosition = -1;
-    this.currentPath = ''; // Reset directory navigation state
-
-    // Reset code search state
-    this.codeSearchQuery = '';
-    this.codeSearchLanguage = '';
-    this.codeSearchCacheRefreshed = false;
-
-    // Reset symbol mode state
-    this.isInSymbolMode = false;
-    this.currentFilePath = '';
-    this.currentFileSymbols = [];
+    // Reset all state
+    this.resetFilterState();
+    this.resetSearchState();
+    this.resetSymbolModeState();
 
     // Hide frontmatter popup
     this.popupManager.hideFrontmatterPopup();
     this.popupManager.cancelPopupHide();
   }
 
+
+  /**
+   * Hide the UI container element
+   */
+  private hideUIContainer(): void {
+    if (!this.state.suggestionsContainer) return;
+
+    this.state.isVisible = false;
+    this.state.suggestionsContainer.style.display = 'none';
+
+    // Clear container safely
+    while (this.state.suggestionsContainer.firstChild) {
+      this.state.suggestionsContainer.removeChild(this.state.suggestionsContainer.firstChild);
+    }
+  }
+
+  /**
+   * Reset filter-related state
+   */
+  private resetFilterState(): void {
+    this.state.filteredFiles = [];
+    this.state.filteredAgents = [];
+    this.state.filteredSymbols = [];
+    this.state.mergedSuggestions = [];
+  }
+
+  /**
+   * Reset search-related state (query, position, path, code search)
+   */
+  private resetSearchState(): void {
+    this.state.currentQuery = '';
+    this.state.atStartPosition = -1;
+    this.state.currentPath = '';
+
+    // Reset code search state
+    this.state.codeSearchQuery = '';
+    this.state.codeSearchLanguage = '';
+    this.state.codeSearchCacheRefreshed = false;
+  }
+
+  /**
+   * Reset symbol mode state
+   */
+  private resetSymbolModeState(): void {
+    this.isInSymbolMode = false;
+    this.currentFilePath = '';
+    this.currentFileSymbols = [];
+  }
+
   /**
    * Remove the @query text from the textarea without inserting a file path
    * Used when opening a file with Ctrl+Enter
-   * Delegates to TextInputPathManager
+   * Delegates to PathManager
    */
   private removeAtQueryText(): void {
-    this.textInputPathManager.removeAtQueryText(this.atStartPosition);
+    this.pathManager.removeAtQueryText(this.state.atStartPosition);
   }
 
   /**
@@ -1044,7 +978,7 @@ export class FileSearchManager {
    * Delegates to FileFilterManager
    */
   public filterFiles(query: string): FileInfo[] {
-    return this.fileFilterManager.filterFiles(this.cachedDirectoryData, this.currentPath, query);
+    return this.fileFilterManager.filterFiles(this.getCachedData(), this.state.currentPath, query);
   }
 
   /**
@@ -1052,14 +986,14 @@ export class FileSearchManager {
    * Delegates to FileFilterManager
    */
   private countFilesInDirectory(dirPath: string): number {
-    return this.fileFilterManager.countFilesInDirectory(this.cachedDirectoryData, dirPath);
+    return this.fileFilterManager.countFilesInDirectory(this.getCachedData(), dirPath);
   }
 
   /**
    * Get total count of merged suggestion items
    */
   private getTotalItemCount(): number {
-    return this.mergedSuggestions.length;
+    return this.state.mergedSuggestions.length;
   }
 
   /**
@@ -1068,8 +1002,8 @@ export class FileSearchManager {
    */
   private mergeSuggestions(query: string, maxSuggestions?: number): SuggestionItem[] {
     return this.fileFilterManager.mergeSuggestions(
-      this.filteredFiles,
-      this.filteredAgents,
+      this.state.filteredFiles,
+      this.state.filteredAgents,
       query,
       maxSuggestions
     );
@@ -1077,40 +1011,38 @@ export class FileSearchManager {
 
   /**
    * Select an item from merged suggestions by index
-   * Delegates to ItemSelectionManager
+   * Delegates to NavigationManager
    */
   private selectItem(index: number): void {
-    const suggestion = this.mergedSuggestions[index];
-    if (suggestion) {
-      this.itemSelectionManager.selectItem(suggestion);
-    }
+    this.navigationManager.selectItem(index);
   }
 
   /**
    * Select a symbol and insert its path:lineNumber#symbolName
-   * Delegates to ItemSelectionManager
+   * Delegates to NavigationManager
    */
-  private selectSymbol(symbol: SymbolResult): void {
-    this.itemSelectionManager.selectSymbol(symbol);
+  private _selectSymbol(symbol: SymbolResult): void {
+    this.navigationManager.selectSymbol(symbol);
   }
 
   /**
    * Handle keyboard navigation
    * Supports: ArrowDown/Ctrl+n/Ctrl+j (next), ArrowUp/Ctrl+p/Ctrl+k (previous), Enter/Tab (select), Escape (close), Ctrl+i (toggle tooltip)
+   * Delegates to NavigationManager
    */
   public handleKeyDown(e: KeyboardEvent): void {
-    this.keyboardNavigationManager.handleKeyDown(e);
+    this.navigationManager.handleKeyDown(e);
   }
 
   /**
    * Update visual selection state
    */
   private updateSelection(): void {
-    if (!this.suggestionsContainer) return;
+    if (!this.state.suggestionsContainer) return;
 
-    const items = this.suggestionsContainer.querySelectorAll('.file-suggestion-item');
+    const items = this.state.suggestionsContainer.querySelectorAll('.file-suggestion-item');
     items.forEach((item, index) => {
-      if (index === this.selectedIndex) {
+      if (index === this.state.selectedIndex) {
         item.classList.add('selected');
         item.setAttribute('aria-selected', 'true');
         item.scrollIntoView({ block: 'nearest' });
@@ -1136,24 +1068,24 @@ export class FileSearchManager {
    * Expand current directory path (for Enter/Tab when no item is selected)
    * Delegates to NavigationManager
    */
-  private expandCurrentDirectory(): void {
-    this.navigationManager.expandCurrentDirectory(this.currentPath);
+  public expandCurrentDirectory(): void {
+    this.navigationManager.expandCurrentDirectory();
   }
 
   /**
    * Expand current file path (for Enter/Tab when no symbol is selected in symbol mode)
-   * Delegates to SymbolModeUIManager
+   * Delegates to CodeSearchManager
    */
   private expandCurrentFile(): void {
-    this.symbolModeUIManager.expandCurrentFile();
+    this.codeSearchManager?.expandCurrentFile();
   }
 
   /**
    * Update text input with the current path (keeps @ and updates the path after it)
-   * Delegates to TextInputPathManager
+   * Delegates to PathManager
    */
   private updateTextInputWithPath(path: string): void {
-    this.textInputPathManager.updateTextInputWithPath(path, this.atStartPosition);
+    this.pathManager.updateTextInputWithPath(path, this.state.atStartPosition);
   }
 
   /**
@@ -1165,52 +1097,44 @@ export class FileSearchManager {
   }
 
   /**
-   * Navigate into a file to show its symbols (similar to navigateIntoDirectory)
-   * Delegates to NavigationManager
-   */
-  private async navigateIntoFile(relativePath: string, absolutePath: string, language: LanguageInfo): Promise<void> {
-    await this.navigationManager.navigateIntoFile(relativePath, absolutePath, language);
-  }
-
-  /**
    * Show symbol suggestions for the current file
-   * Delegates to SymbolModeUIManager
+   * Delegates to CodeSearchManager
    */
   private async showSymbolSuggestions(query: string): Promise<void> {
-    await this.symbolModeUIManager.showSymbolSuggestions(query);
+    await this.codeSearchManager?.showSymbolSuggestions(query);
   }
 
   /**
    * Exit symbol mode and return to file list
-   * Delegates to SymbolModeUIManager
+   * Delegates to CodeSearchManager
    */
   private exitSymbolMode(): void {
-    this.symbolModeUIManager.exitSymbolMode();
+    this.codeSearchManager?.exitSymbolMode();
   }
 
   /**
    * Insert file path, keeping the @ and replacing only the query part
-   * Delegates to TextInputPathManager
+   * Delegates to PathManager
    */
   public insertFilePath(path: string): void {
-    this.atStartPosition = this.textInputPathManager.insertFilePath(path, this.atStartPosition);
+    this.state.atStartPosition = this.pathManager.insertFilePath(path, this.state.atStartPosition);
   }
 
   /**
    * Insert file path without the @ symbol
    * Replaces both @ and query with just the path
-   * Delegates to TextInputPathManager
+   * Delegates to PathManager
    */
   private insertFilePathWithoutAt(path: string): void {
-    this.atStartPosition = this.textInputPathManager.insertFilePathWithoutAt(path, this.atStartPosition);
+    this.state.atStartPosition = this.pathManager.insertFilePathWithoutAt(path, this.state.atStartPosition);
   }
 
   /**
    * Handle backspace key to delete entire @path if cursor is at the end
-   * Delegates to AtPathBehaviorManager
+   * Delegates to PathManager
    */
   private handleBackspaceForAtPath(e: KeyboardEvent): void {
-    this.atPathBehaviorManager.handleBackspaceForAtPath(e);
+    this.pathManager.handleBackspaceForAtPath(e);
   }
 
   /**
@@ -1229,7 +1153,7 @@ export class FileSearchManager {
     this.highlightManager?.updateHighlightBackdrop();
     // Sync local atPaths from manager for backward compatibility
     if (this.highlightManager) {
-      this.atPaths = this.highlightManager.getAtPaths();
+      this.state.atPaths = this.highlightManager.getAtPaths();
     }
   }
 
@@ -1237,15 +1161,15 @@ export class FileSearchManager {
    * Build a set of valid paths from cached directory data
    */
   private buildValidPathsSet(): Set<string> | null {
-    return this.atPathBehaviorManager.buildValidPathsSet();
+    return this.pathManager.buildValidPathsSet();
   }
 
   /**
    * Clear all tracked @paths (called when text is cleared)
    */
   public clearAtPaths(): void {
-    this.atPaths = [];
-    this.selectedPaths.clear();
+    this.state.atPaths = [];
+    this.state.selectedPaths.clear();
     this.highlightManager?.clearAtPaths();
     this.updateHighlightBackdrop();
   }
@@ -1260,18 +1184,18 @@ export class FileSearchManager {
    */
   public async restoreAtPathsFromText(checkFilesystem = false): Promise<void> {
     console.debug('[FileSearchManager] restoreAtPathsFromText called:', formatLog({
-      hasTextInput: !!this.textInput,
+      hasTextInput: !!this.state.textInput,
       hasHighlightManager: !!this.highlightManager,
-      hasCachedData: !!this.cachedDirectoryData,
-      cachedFileCount: this.cachedDirectoryData?.files?.length || 0,
+      hasCachedData: this.hasCache(),
+      cachedFileCount: this.getCachedFiles().length,
       checkFilesystem
     }));
 
     // Delegate to HighlightManager
     if (this.highlightManager) {
-      await this.highlightManager.restoreAtPathsFromText(checkFilesystem, this.cachedDirectoryData);
+      await this.highlightManager.restoreAtPathsFromText(checkFilesystem, this.getCachedData());
       // Sync local state with HighlightManager
-      this.atPaths = this.highlightManager.getAtPaths();
+      this.state.atPaths = this.highlightManager.getAtPaths();
       // Clear and copy selectedPaths from HighlightManager
       this.state.clearSelectedPaths();
       for (const path of this.highlightManager.getSelectedPaths()) {
@@ -1284,7 +1208,7 @@ export class FileSearchManager {
    * Check if suggestions are currently visible
    */
   public isActive(): boolean {
-    return this.isVisible;
+    return this.state.isVisible;
   }
 
   /**
@@ -1292,17 +1216,17 @@ export class FileSearchManager {
    */
   public destroy(): void {
     this.hideSuggestions();
-    this.cachedDirectoryData = null;
+    this.directoryCacheManager?.clearCache();
 
     // Clean up mirror div
-    if (this.mirrorDiv && this.mirrorDiv.parentNode) {
-      this.mirrorDiv.parentNode.removeChild(this.mirrorDiv);
-      this.mirrorDiv = null;
+    if (this.state.mirrorDiv && this.state.mirrorDiv.parentNode) {
+      this.state.mirrorDiv.parentNode.removeChild(this.state.mirrorDiv);
+      this.state.mirrorDiv = null;
     }
 
     // Clean up modular managers
     this.highlightManager = null;
-    this.suggestionListManager = null;
+    this.suggestionUIManager = null;
     this.codeSearchManager = null;
     this.fileOpenerManager = null;
     this.directoryCacheManager = null;

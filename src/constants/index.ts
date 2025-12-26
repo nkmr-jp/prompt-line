@@ -29,6 +29,33 @@ export const LIMITS = {
   MAX_CACHE_ITEMS: 200,
 } as const;
 
+// UI timing constants
+export const UI_TIMING = {
+  POPUP_HIDE_DELAY: 100,
+} as const;
+
+// Suggestion constants
+export const SUGGESTIONS = {
+  DEFAULT_MAX: 20,
+} as const;
+
+// Validation constants
+export const VALIDATION = {
+  MAX_ID_LENGTH: 32,
+} as const;
+
+// Fuzzy match scoring constants
+export const FUZZY_MATCH_SCORES = {
+  EXACT: 1000,
+  STARTS_WITH: 500,
+  CONTAINS: 200,
+  PATH_CONTAINS: 50,
+  BASE_FUZZY: 10,
+  FILE_BONUS: 5,
+  MAX_PATH_BONUS: 20,
+  AGENT_BASE: 50,
+} as const;
+
 // Time calculation constants
 export const TIME_CALCULATIONS = {
   MILLISECONDS_PER_MINUTE: 60000,
@@ -44,5 +71,9 @@ export const CONSTANTS = {
   TIMEOUTS,
   DELAYS,
   LIMITS,
+  UI_TIMING,
+  SUGGESTIONS,
+  VALIDATION,
+  FUZZY_MATCH_SCORES,
   TIME_CALCULATIONS,
 } as const;

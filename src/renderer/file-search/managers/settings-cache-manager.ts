@@ -8,6 +8,9 @@
  * - Sync access to cached values for performance-critical paths
  */
 
+import { handleError } from '../../utils/error-handler';
+import { SUGGESTIONS } from '../../../constants';
+
 /**
  * ElectronAPI interface for mdSearch and fileSearch operations
  */
@@ -29,7 +32,7 @@ export class SettingsCacheManager {
   private searchPrefixesCache: Map<string, string[]> = new Map();
   private fileSearchMaxSuggestionsCache: number | null = null;
 
-  private static readonly DEFAULT_MAX_SUGGESTIONS = 20;
+  private static readonly DEFAULT_MAX_SUGGESTIONS = SUGGESTIONS.DEFAULT_MAX;
 
   constructor() {
     // No initialization needed
@@ -59,7 +62,7 @@ export class SettingsCacheManager {
         return maxSuggestions;
       }
     } catch (error) {
-      console.error('[SettingsCacheManager] Failed to get maxSuggestions:', error);
+      handleError('SettingsCacheManager.getMaxSuggestions', error);
     }
 
     return SettingsCacheManager.DEFAULT_MAX_SUGGESTIONS;
@@ -91,7 +94,7 @@ export class SettingsCacheManager {
         return maxSuggestions;
       }
     } catch (error) {
-      console.error('[SettingsCacheManager] Failed to get fileSearch maxSuggestions:', error);
+      handleError('SettingsCacheManager.getFileSearchMaxSuggestions', error);
     }
 
     return SettingsCacheManager.DEFAULT_MAX_SUGGESTIONS;
@@ -114,7 +117,7 @@ export class SettingsCacheManager {
         return prefixes;
       }
     } catch (error) {
-      console.error('[SettingsCacheManager] Failed to get searchPrefixes:', error);
+      handleError('SettingsCacheManager.getSearchPrefixes', error);
     }
 
     return [];
@@ -177,7 +180,7 @@ export class SettingsCacheManager {
       ]);
       console.debug('[SettingsCacheManager] SearchPrefixes cache preloaded');
     } catch (error) {
-      console.error('[SettingsCacheManager] Failed to preload searchPrefixes cache:', error);
+      handleError('SettingsCacheManager.preloadSearchPrefixesCache', error);
     }
   }
 

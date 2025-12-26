@@ -1,395 +1,439 @@
-import { describe, test, expect, beforeEach, jest } from '@jest/globals';
-import HistoryManager from '../../src/managers/history-manager';
 import { promises as fs } from 'fs';
+import { createReadStream } from 'fs';
+import { createInterface } from 'readline';
+import HistoryManager from '../../src/managers/history-manager';
 
-// Mock fs promises module
+// モックの設定
 jest.mock('fs', () => ({
-    promises: {
+  promises: {
     readFile: jest.fn(),
     writeFile: jest.fn(),
-    unlink: jest.fn(),
-    readdir: jest.fn(),
+    appendFile: jest.fn(),
+    access: jest.fn(),
     stat: jest.fn(),
-    appendFile: jest.fn()
-    }
+    open: jest.fn(),
+    rename: jest.fn(),
+    unlink: jest.fn()
+  },
+  createReadStream: jest.fn(),
+  createWriteStream: jest.fn()
 }));
 
-// Mock the utils module
-jest.mock('../../src/utils/utils', () => ({
-    logger: {
-        info: jest.fn(),
-        debug: jest.fn(),
-        warn: jest.fn(),
-        error: jest.fn()
-    },
-    safeJsonParse: jest.fn((data: string, fallback: any) => {
-        try {
-            return JSON.parse(data);
-        } catch {
-            return fallback;
-        }
-    }),
-    safeJsonStringify: jest.fn((data: any) => JSON.stringify(data, null, 2)),
-    generateId: jest.fn(() => 'test-id-' + Date.now()),
-    debounce: jest.fn((fn: Function) => fn)
+jest.mock('readline', () => ({
+  createInterface: jest.fn()
 }));
 
-// Mock the config module
 jest.mock('../../src/config/app-config', () => ({
-    paths: {
-        historyFile: '/test/history.jsonl'
-    }
+  paths: {
+    historyFile: '/test/history.jsonl'
+  }
 }));
 
-const mockedFs = jest.mocked(fs);
+jest.mock('../../src/utils/utils', () => ({
+  logger: {
+    info: jest.fn(),
+    debug: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn()
+  },
+  generateId: jest.fn(() => `id-${Date.now()}`),
+  debounce: jest.fn((fn) => {
+    const debounced = (...args: any[]) => fn(...args);
+    debounced.cancel = jest.fn();
+    return debounced;
+  }),
+  safeJsonParse: jest.fn((text) => {
+    try {
+      return JSON.parse(text);
+    } catch {
+      return null;
+    }
+  })
+}));
 
 describe('HistoryManager', () => {
-    let historyManager: HistoryManager;
+  let manager: HistoryManager;
+  const mockFs = fs as jest.Mocked<typeof fs>;
+  const mockCreateReadStream = createReadStream as jest.MockedFunction<typeof createReadStream>;
+  const mockCreateInterface = createInterface as jest.MockedFunction<typeof createInterface>;
 
-    beforeEach(() => {
-        historyManager = new HistoryManager();
-        jest.clearAllMocks();
+  beforeEach(() => {
+    jest.clearAllMocks();
+    manager = new HistoryManager();
+  });
+
+  describe('initialize', () => {
+    it('should initialize with empty file', async () => {
+      mockFs.access.mockRejectedValue(new Error('File not found'));
+      mockFs.writeFile.mockResolvedValue();
+      mockFs.stat.mockResolvedValue({ size: 0 } as any);
+      
+      const mockStream: any = {
+        on: jest.fn((event: string, callback: Function) => {
+          if (event === 'close') callback();
+          return mockStream;
+        })
+      };
+      
+      mockCreateReadStream.mockReturnValue(mockStream as any);
+      mockCreateInterface.mockReturnValue({
+        on: jest.fn((event, callback) => {
+          if (event === 'close') callback();
+        })
+      } as any);
+
+      await manager.initialize();
+
+      expect(mockFs.writeFile).toHaveBeenCalledWith('/test/history.jsonl', '', { mode: 0o600 });
     });
 
-    describe('initialization', () => {
-        test('should initialize with empty history when file does not exist', async () => {
-            mockedFs.readFile.mockRejectedValue({ code: 'ENOENT' } as any);
+    it('should load recent history on initialize', async () => {
+      mockFs.access.mockResolvedValue();
+      mockFs.stat.mockResolvedValue({ size: 1000 } as any);
+      
+      const mockFd = {
+        read: jest.fn().mockImplementation((_buffer: Buffer) => {
+          const testData = '{"text":"item1","timestamp":1000,"id":"id1"}\n{"text":"item2","timestamp":2000,"id":"id2"}\n';
+          if (_buffer) _buffer.write(testData, 0);
+          return Promise.resolve({ bytesRead: testData.length });
+        }),
+        stat: jest.fn().mockResolvedValue({ size: 1000 }),
+        close: jest.fn().mockResolvedValue(undefined)
+      };
+      
+      mockFs.open.mockResolvedValue(mockFd as any);
+      
+      const mockStream = { on: jest.fn() };
+      mockCreateReadStream.mockReturnValue(mockStream as any);
+      
+      const mockRl: any = {
+        on: jest.fn((event: string, callback: Function) => {
+          if (event === 'line') {
+            callback('{"text":"item2","timestamp":2000,"id":"id2"}');
+            callback('{"text":"item1","timestamp":1000,"id":"id1"}');
+          }
+          if (event === 'close') callback();
+          return mockRl;
+        })
+      };
+      
+      mockCreateInterface.mockReturnValue(mockRl as any);
 
-            await historyManager.initialize();
+      await manager.initialize();
 
-            expect(historyManager.getHistory()).toEqual([]);
-        });
+      const history = manager.getHistory();
+      expect(history).toHaveLength(2);
+      expect(history[0]?.text).toBe('item2'); // 新しい順
+      expect(history[1]?.text).toBe('item1');
+    });
+  });
 
-        test('should load existing history from file', async () => {
-            const mockHistory = [
-                { text: 'test1', timestamp: 1000, id: 'id1' },
-                { text: 'test2', timestamp: 2000, id: 'id2' }
-            ];
-            const jsonlData = mockHistory.map(item => JSON.stringify(item)).join('\n') + '\n';
-            mockedFs.readFile.mockResolvedValue(jsonlData as any);
-
-            await historyManager.initialize();
-
-            const expectedHistory = [...mockHistory].sort((a, b) => b.timestamp - a.timestamp);
-            expect(historyManager.getHistory()).toEqual(expectedHistory);
-        });
-
-        test('should load all items without trimming (unlimited)', async () => {
-            const mockHistory = Array.from({ length: 60 }, (_, i) => ({
-                text: `test${i}`,
-                timestamp: i * 1000,
-                id: `id${i}`
-            }));
-            const jsonlData = mockHistory.map(item => JSON.stringify(item)).join('\n') + '\n';
-            mockedFs.readFile.mockResolvedValue(jsonlData as any);
-            mockedFs.writeFile.mockResolvedValue();
-
-            await historyManager.initialize();
-
-            const loadedHistory = historyManager.getHistory();
-            expect(loadedHistory).toHaveLength(59); // Items loaded (one may be filtered)
-            expect(loadedHistory[0]).toEqual(mockHistory[59]); // Newest item first
-        });
-
-        test('should handle corrupted history file gracefully', async () => {
-            mockedFs.readFile.mockResolvedValue('invalid json\n{broken' as any);
-
-            await historyManager.initialize();
-
-            expect(historyManager.getHistory()).toEqual([]);
-        });
+  describe('addToHistory', () => {
+    beforeEach(async () => {
+      mockFs.access.mockResolvedValue();
+      mockFs.stat.mockResolvedValue({ size: 0 } as any);
+      mockFs.appendFile.mockResolvedValue();
+      
+      const mockFd = {
+        read: jest.fn().mockImplementation((_buffer: Buffer) => {
+          return Promise.resolve({ bytesRead: 0 });
+        }),
+        stat: jest.fn().mockResolvedValue({ size: 0 }),
+        close: jest.fn().mockResolvedValue(undefined)
+      };
+      
+      mockFs.open.mockResolvedValue(mockFd as any);
+      
+      const mockStream = { on: jest.fn() };
+      mockCreateReadStream.mockReturnValue(mockStream as any);
+      
+      const mockRl: any = {
+        on: jest.fn((event: string, callback: Function) => {
+          if (event === 'close') callback();
+          return mockRl;
+        })
+      };
+      
+      mockCreateInterface.mockReturnValue(mockRl as any);
+      
+      await manager.initialize();
     });
 
-    describe('addToHistory', () => {
-        beforeEach(async () => {
-            await historyManager.initialize();
-            mockedFs.writeFile.mockResolvedValue();
-        });
+    it('should add new item to history', async () => {
+      const item = await manager.addToHistory('Test text');
 
-        test('should add new item to history', async () => {
-            const result = await historyManager.addToHistory('test text');
+      expect(item).toBeTruthy();
+      expect(item?.text).toBe('Test text');
+      expect(item?.id).toMatch(/^id-/);
+      
+      const history = manager.getHistory();
+      expect(history).toHaveLength(1);
+      expect(history[0]?.text).toBe('Test text');
+    });
 
-            expect(result).toBeDefined();
-            expect(result!.text).toBe('test text');
-            expect(result!.id).toBeDefined();
-            expect(result!.timestamp).toBeGreaterThan(0);
+    it('should append to file', async () => {
+      await manager.addToHistory('Test text');
+      
+      // debounceされているので、flushを呼ぶ
+      await manager.flushPendingSaves();
 
-            const history = historyManager.getHistory();
-            expect(history).toHaveLength(1);
-            expect(history[0]).toEqual(result);
-        });
+      expect(mockFs.appendFile).toHaveBeenCalledWith(
+        '/test/history.jsonl',
+        expect.stringContaining('"text":"Test text"')
+      );
+    });
 
-        test('should not add empty text', async () => {
-            const result = await historyManager.addToHistory('   ');
+    it('should handle duplicates by updating timestamp', async () => {
+      await manager.addToHistory('Duplicate text');
+      const originalTimestamp = manager.getHistory()[0]?.timestamp;
+      
+      // 少し待機してタイムスタンプが変わるようにする
+      await new Promise(resolve => setTimeout(resolve, 10));
+      
+      await manager.addToHistory('Duplicate text');
+      const history = manager.getHistory();
+      
+      expect(history).toHaveLength(1);
+      expect(history[0]?.text).toBe('Duplicate text');
+      expect(history[0]?.timestamp).toBeGreaterThan(originalTimestamp!);
+    });
 
-            expect(result).toBeNull();
-            expect(historyManager.getHistory()).toHaveLength(0);
-        });
+    it('should reject empty text', async () => {
+      const result = await manager.addToHistory('   ');
+      expect(result).toBeNull();
+    });
+  });
 
-        test('should move existing item to top', async () => {
-            await historyManager.addToHistory('first');
-            await historyManager.addToHistory('second');
-            await historyManager.addToHistory('first'); // Add same text again
+  describe('searchHistory', () => {
+    beforeEach(async () => {
+      mockFs.access.mockResolvedValue();
+      mockFs.stat.mockResolvedValue({ size: 1000 } as any);
+      
+      const mockFd = {
+        read: jest.fn().mockImplementation((_buffer) => {
+          const testData = '{"text":"Hello world","timestamp":1000,"id":"id1"}\n{"text":"Hello JavaScript","timestamp":2000,"id":"id2"}\n{"text":"Goodbye world","timestamp":3000,"id":"id3"}\n';
+          if (_buffer) _buffer.write(testData, 0);
+          return Promise.resolve({ bytesRead: testData.length });
+        }),
+        stat: jest.fn().mockResolvedValue({ size: 1000 }),
+        close: jest.fn().mockResolvedValue(undefined)
+      };
+      
+      mockFs.open.mockResolvedValue(mockFd as any);
+      
+      const mockStream = { on: jest.fn() };
+      mockCreateReadStream.mockReturnValue(mockStream as any);
+      
+      const mockRl: any = {
+        on: jest.fn((event: string, callback: Function) => {
+          if (event === 'line') {
+            callback('{"text":"Hello world","timestamp":1000,"id":"id1"}');
+            callback('{"text":"Hello JavaScript","timestamp":2000,"id":"id2"}');
+            callback('{"text":"Goodbye world","timestamp":3000,"id":"id3"}');
+          }
+          if (event === 'close') callback();
+          return mockRl;
+        })
+      };
+      
+      mockCreateInterface.mockReturnValue(mockRl as any);
+      
+      await manager.initialize();
+    });
 
-            const history = historyManager.getHistory();
-            expect(history).toHaveLength(2);
-            expect(history[0]?.text).toBe('first');
-            expect(history[1]?.text).toBe('second');
-        });
+    it('should search in cache first', () => {
+      const results = manager.searchHistory('Hello');
+      
+      expect(results).toHaveLength(2);
+      expect(results[0]?.text).toBe('Hello JavaScript');
+      expect(results[1]?.text).toBe('Hello world');
+    });
 
-        test('should store all items (unlimited)', async () => {
-            // Add many items
-            for (let i = 0; i < 55; i++) {
-                await historyManager.addToHistory(`item ${i}`);
+    it('should return empty array for empty query', () => {
+      const results = manager.searchHistory('');
+      expect(results).toEqual([]);
+    });
+
+    it('should limit results', () => {
+      const results = manager.searchHistory('world', 1);
+      
+      expect(results).toHaveLength(1);
+      expect(results[0]?.text).toBe('Goodbye world');
+    });
+
+    it('should search case-insensitively', () => {
+      const results = manager.searchHistory('HELLO');
+      
+      expect(results).toHaveLength(2);
+    });
+  });
+
+  describe('removeHistoryItem', () => {
+    beforeEach(async () => {
+      mockFs.access.mockResolvedValue();
+      mockFs.stat.mockResolvedValue({ size: 100 } as any);
+      
+      const mockFd = {
+        read: jest.fn().mockImplementation((_buffer) => {
+          const testData = '{"text":"Item to remove","timestamp":1000,"id":"remove-me"}\n';
+          if (_buffer) _buffer.write(testData, 0);
+          return Promise.resolve({ bytesRead: testData.length });
+        }),
+        stat: jest.fn().mockResolvedValue({ size: 100 }),
+        close: jest.fn().mockResolvedValue(undefined)
+      };
+      
+      mockFs.open.mockResolvedValue(mockFd as any);
+      
+      const mockRl: any = {
+        on: jest.fn((event: string, callback: Function) => {
+          if (event === 'line') {
+            callback('{"text":"Item to remove","timestamp":1000,"id":"remove-me"}');
+          }
+          if (event === 'close') callback();
+          return mockRl;
+        })
+      };
+      
+      mockCreateInterface.mockReturnValue(mockRl as any);
+      
+      await manager.initialize();
+    });
+
+    it('should remove item from cache', async () => {
+      expect(manager.getHistory()).toHaveLength(1);
+      
+      const removed = await manager.removeHistoryItem('remove-me');
+      
+      expect(removed).toBe(true);
+      expect(manager.getHistory()).toHaveLength(0);
+    });
+
+    it('should return false for non-existent item', async () => {
+      const removed = await manager.removeHistoryItem('non-existent');
+      expect(removed).toBe(false);
+    });
+  });
+
+  describe('clearHistory', () => {
+    it('should clear all history', async () => {
+      mockFs.access.mockResolvedValue();
+      mockFs.stat.mockResolvedValue({ size: 0 } as any);
+      mockFs.writeFile.mockResolvedValue();
+      
+      const mockRl: any = {
+        on: jest.fn((event: string, callback: Function) => {
+          if (event === 'close') callback();
+          return mockRl;
+        })
+      };
+      
+      mockCreateInterface.mockReturnValue(mockRl as any);
+      
+      await manager.initialize();
+      await manager.addToHistory('Test item');
+      
+      await manager.clearHistory();
+      
+      expect(manager.getHistory()).toHaveLength(0);
+      // ファイルは永続保護されるため、writeFileは呼ばれない
+      expect(mockFs.writeFile).not.toHaveBeenCalledWith('/test/history.jsonl', '');
+    });
+  });
+
+  describe('getHistoryStats', () => {
+    beforeEach(async () => {
+      mockFs.access.mockResolvedValue();
+      mockFs.stat.mockResolvedValue({ size: 200 } as any);
+      
+      const mockFd = {
+        read: jest.fn().mockImplementation((_buffer) => {
+          const testData = '{"text":"Short","timestamp":1000,"id":"id1"}\n{"text":"Longer text here","timestamp":2000,"id":"id2"}\n';
+          if (_buffer) _buffer.write(testData, 0);
+          return Promise.resolve({ bytesRead: testData.length });
+        }),
+        stat: jest.fn().mockResolvedValue({ size: 200 }),
+        close: jest.fn().mockResolvedValue(undefined)
+      };
+      
+      mockFs.open.mockResolvedValue(mockFd as any);
+      
+      const mockStream = { on: jest.fn() };
+      mockCreateReadStream.mockReturnValue(mockStream as any);
+      
+      const mockRl: any = {
+        on: jest.fn((event: string, callback: Function) => {
+          if (event === 'line') {
+            callback('{"text":"Short","timestamp":1000,"id":"id1"}');
+            callback('{"text":"Longer text here","timestamp":2000,"id":"id2"}');
+          }
+          if (event === 'close') callback();
+          return mockRl;
+        })
+      };
+      
+      mockCreateInterface.mockReturnValue(mockRl as any);
+      
+      await manager.initialize();
+    });
+
+    it('should return correct stats', () => {
+      const stats = manager.getHistoryStats();
+      
+      // totalItemCountがキャッシュされていない場合はキャッシュサイズを返す
+      expect(stats.totalItems).toBe(2); // キャッシュにある2つ
+      expect(stats.totalCharacters).toBe(21); // "Short" + "Longer text here"
+      expect(stats.averageLength).toBe(11); // 21 / 2 = 10.5 → 11
+      expect(stats.oldestTimestamp).toBe(1000);
+      expect(stats.newestTimestamp).toBe(2000);
+    });
+  });
+
+  describe('performance', () => {
+    it('should handle large history files efficiently', async () => {
+      mockFs.access.mockResolvedValue();
+      mockFs.stat.mockResolvedValue({ size: 1000000 } as any); // 1MB
+      
+      // 最後の100行だけ読み込むことをシミュレート
+      const mockFd = {
+        read: jest.fn().mockImplementation((_buffer: Buffer) => {
+          // 最後の部分だけ読み込む
+          const lastLines = Array(100).fill(0).map((_, i) => 
+            `{"text":"Item ${i}","timestamp":${1000 + i},"id":"id${i}"}`
+          ).join('\n') + '\n';
+          
+          _buffer.write(lastLines, 0);
+          return Promise.resolve({ bytesRead: lastLines.length });
+        }),
+        close: jest.fn().mockResolvedValue(undefined)
+      };
+      
+      mockFs.open.mockResolvedValue(mockFd as any);
+      
+      const mockRl: any = {
+        on: jest.fn((event: string, callback: Function) => {
+          if (event === 'line') {
+            // 全体のカウントのみ
+            for (let i = 0; i < 10000; i++) {
+              // カウントのみ
             }
-
-            const history = historyManager.getHistory();
-            expect(history).toHaveLength(55); // All items should be stored
-            expect(history[0]?.text).toBe('item 54'); // Most recent
-            expect(history[54]?.text).toBe('item 0'); // Oldest
-        });
-
-        test('should save to file after adding', async () => {
-            await historyManager.addToHistory('test');
-
-            expect(mockedFs.writeFile).toHaveBeenCalled();
-        });
+          }
+          if (event === 'close') callback();
+          return mockRl;
+        })
+      };
+      
+      mockCreateInterface.mockReturnValue(mockRl as any);
+      
+      const startTime = Date.now();
+      await manager.initialize();
+      const endTime = Date.now();
+      
+      // 初期化は高速であるべき（1秒以内）
+      expect(endTime - startTime).toBeLessThan(1000);
+      
+      // キャッシュには最新の100件のみ
+      expect(manager.getHistory().length).toBeLessThanOrEqual(100);
     });
-
-    describe('getHistory', () => {
-        test('should return copy of history array', async () => {
-            await historyManager.initialize();
-            await historyManager.addToHistory('test');
-
-            const history1 = historyManager.getHistory();
-            const history2 = historyManager.getHistory();
-
-            expect(history1).toEqual(history2);
-            expect(history1).not.toBe(history2); // Different objects
-        });
-    });
-
-    describe('getHistoryItem', () => {
-        beforeEach(async () => {
-            await historyManager.initialize();
-            await historyManager.addToHistory('test item');
-        });
-
-        test('should return item by ID', () => {
-            const history = historyManager.getHistory();
-            const item = historyManager.getHistoryItem(history[0]!.id);
-
-            expect(item).toEqual(history[0]);
-        });
-
-        test('should return null for non-existent ID', () => {
-            const item = historyManager.getHistoryItem('non-existent');
-
-            expect(item).toBeNull();
-        });
-    });
-
-    describe('getRecentHistory', () => {
-        beforeEach(async () => {
-            await historyManager.initialize();
-            for (let i = 0; i < 20; i++) {
-                await historyManager.addToHistory(`item ${i}`);
-            }
-        });
-
-        test('should return recent items up to limit', () => {
-            const recent = historyManager.getRecentHistory(5);
-
-            expect(recent).toHaveLength(5);
-            expect(recent[0]?.text).toBe('item 19'); // Most recent
-            expect(recent[4]?.text).toBe('item 15');
-        });
-
-        test('should return all items if limit exceeds history length', () => {
-            // Clear and add fewer items
-            (historyManager as any).historyData = [];
-            historyManager.addToHistory('item 1');
-            historyManager.addToHistory('item 2');
-
-            const recent = historyManager.getRecentHistory(10);
-            expect(recent).toHaveLength(2);
-        });
-    });
-
-    describe('searchHistory', () => {
-        beforeEach(async () => {
-            await historyManager.initialize();
-            await historyManager.addToHistory('Hello world');
-            await historyManager.addToHistory('Test message');
-            await historyManager.addToHistory('Another hello');
-            await historyManager.addToHistory('Different text');
-        });
-
-        test('should find matching items', () => {
-            const results = historyManager.searchHistory('hello');
-
-            expect(results).toHaveLength(2);
-            expect(results[0]?.text).toBe('Another hello');
-            expect(results[1]?.text).toBe('Hello world');
-        });
-
-        test('should return empty array for no matches', () => {
-            const results = historyManager.searchHistory('xyz');
-
-            expect(results).toHaveLength(0);
-        });
-
-        test('should return empty array for empty query', () => {
-            const results = historyManager.searchHistory('');
-
-            expect(results).toHaveLength(0);
-        });
-
-        test('should respect limit', async () => {
-            await historyManager.addToHistory('hello 1');
-            await historyManager.addToHistory('hello 2');
-            await historyManager.addToHistory('hello 3');
-
-            const results = historyManager.searchHistory('hello', 2);
-
-            expect(results).toHaveLength(2);
-        });
-    });
-
-    describe('removeHistoryItem', () => {
-        let itemId: string;
-
-        beforeEach(async () => {
-            await historyManager.initialize();
-            const item = await historyManager.addToHistory('test item');
-            itemId = item!.id;
-            mockedFs.writeFile.mockClear(); // Clear previous calls
-        });
-
-        test('should remove existing item', async () => {
-            const result = await historyManager.removeHistoryItem(itemId);
-
-            expect(result).toBe(true);
-            expect(historyManager.getHistory()).toHaveLength(0);
-            expect(mockedFs.writeFile).toHaveBeenCalled();
-        });
-
-        test('should return false for non-existent item', async () => {
-            const result = await historyManager.removeHistoryItem('non-existent');
-
-            expect(result).toBe(false);
-            expect(historyManager.getHistory()).toHaveLength(1);
-            expect(mockedFs.writeFile).not.toHaveBeenCalled();
-        });
-    });
-
-    describe('clearHistory', () => {
-        beforeEach(async () => {
-            await historyManager.initialize();
-            await historyManager.addToHistory('item 1');
-            await historyManager.addToHistory('item 2');
-            mockedFs.writeFile.mockClear();
-        });
-
-        test('should clear all history', async () => {
-            await historyManager.clearHistory();
-
-            expect(historyManager.getHistory()).toHaveLength(0);
-            expect(mockedFs.writeFile).toHaveBeenCalled();
-        });
-    });
-
-    describe('getHistoryStats', () => {
-        beforeEach(async () => {
-            await historyManager.initialize();
-        });
-
-        test('should return correct stats for empty history', () => {
-            const stats = historyManager.getHistoryStats();
-
-            expect(stats).toEqual({
-                totalItems: 0,
-                totalCharacters: 0,
-                averageLength: 0,
-                oldestTimestamp: null,
-                newestTimestamp: null
-            });
-        });
-
-        test('should return correct stats for populated history', async () => {
-            await historyManager.addToHistory('abc'); // 3 chars
-            await historyManager.addToHistory('defgh'); // 5 chars
-
-            const stats = historyManager.getHistoryStats();
-
-            expect(stats.totalItems).toBe(2);
-            expect(stats.totalCharacters).toBe(8);
-            expect(stats.averageLength).toBe(4);
-            expect(stats.oldestTimestamp!).toBeLessThanOrEqual(stats.newestTimestamp!);
-        });
-    });
-
-    describe('exportHistory', () => {
-        beforeEach(async () => {
-            await historyManager.initialize();
-            await historyManager.addToHistory('export test');
-        });
-
-        test('should export history in correct format', () => {
-            const exported = historyManager.exportHistory();
-
-            expect(exported).toHaveProperty('version', '1.0');
-            expect(exported).toHaveProperty('exportDate');
-            expect(exported).toHaveProperty('history');
-            expect(exported).toHaveProperty('stats');
-            expect(exported.history).toHaveLength(1);
-            expect(exported.history[0]?.text).toBe('export test');
-        });
-    });
-
-    describe('importHistory', () => {
-        beforeEach(async () => {
-            await historyManager.initialize();
-            mockedFs.writeFile.mockResolvedValue();
-        });
-
-        test('should import history without merging', async () => {
-            const importData = {
-                version: '1.0',
-                history: [
-                    { text: 'imported 1', timestamp: 1000, id: 'imp1' },
-                    { text: 'imported 2', timestamp: 2000, id: 'imp2' }
-                ]
-            };
-
-            await historyManager.importHistory(importData as any, false);
-
-            const history = historyManager.getHistory();
-            expect(history).toHaveLength(2);
-            expect(history[0]?.text).toBe('imported 2'); // Sorted by timestamp
-            expect(history[1]?.text).toBe('imported 1');
-        });
-
-        test('should import history with merging', async () => {
-            await historyManager.addToHistory('existing');
-
-            const importData = {
-                version: '1.0',
-                history: [
-                    { text: 'imported', timestamp: 1000, id: 'imp1' }
-                ]
-            };
-
-            await historyManager.importHistory(importData as any, true);
-
-            const history = historyManager.getHistory();
-            expect(history).toHaveLength(2);
-        });
-
-        test('should reject invalid import data', async () => {
-            const invalidData = { version: '1.0' } as any; // Missing history
-
-            await expect(historyManager.importHistory(invalidData)).rejects.toThrow('Invalid export data format');
-        });
-    });
+  });
 });

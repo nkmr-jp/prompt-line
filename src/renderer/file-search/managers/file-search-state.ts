@@ -9,7 +9,7 @@
 
 import type { FileInfo, AgentItem } from '../../../types';
 import type { SymbolResult } from '../../code-search/types';
-import type { DirectoryData, AtPathRange, SuggestionItem } from '../types';
+import type { AtPathRange, SuggestionItem } from '../types';
 
 /**
  * Centralized state container for file search functionality
@@ -21,8 +21,8 @@ export class FileSearchState {
   highlightBackdrop: HTMLDivElement | null = null;
   mirrorDiv: HTMLDivElement | null = null;
 
-  // Directory data
-  cachedDirectoryData: DirectoryData | null = null;
+  // Directory data is now managed by DirectoryCacheManager
+  // cachedDirectoryData removed - use directoryCacheManager.getCachedData() instead
 
   // Selection and navigation
   selectedIndex: number = 0;

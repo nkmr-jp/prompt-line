@@ -1,9 +1,12 @@
 import { promises as fs } from 'fs';
+import { createReadStream } from 'fs';
+import { createInterface } from 'readline';
 import config from '../config/app-config';
 import { 
   logger, 
   generateId, 
-  debounce 
+  debounce,
+  safeJsonParse
 } from '../utils/utils';
 import type { 
   HistoryItem, 
@@ -13,103 +16,189 @@ import type {
   IHistoryManager,
   HistoryConfig
 } from '../types';
+import {LIMITS} from "../constants";
+
 
 /**
- * @deprecated Use OptimizedHistoryManager instead.
- * This class is maintained for backwards compatibility and testing purposes only.
- * OptimizedHistoryManager provides better performance with LRU caching and streaming operations.
- * @see OptimizedHistoryManager
+ * HistoryManager - Optimized history management with LRU caching
+ * Provides unlimited history storage with streaming operations for large datasets.
  */
 class HistoryManager implements IHistoryManager {
-  private historyData: HistoryItem[] = [];
+  private recentCache: HistoryItem[] = [];
+  private cacheSize = LIMITS.MAX_CACHE_ITEMS;
   private historyFile: string;
-  private hasUnsavedChanges = false;
-  private debouncedSave: DebounceFunction<[]>;
-  private criticalSave: DebounceFunction<[]>;
-  private saveQueue: Promise<void> = Promise.resolve();
+  private totalItemCount = 0;
+  private totalItemCountCached = false;
+  private appendQueue: HistoryItem[] = [];
+  private debouncedAppend: DebounceFunction<[]>;
+  private duplicateCheckSet = new Set<string>();
 
   constructor() {
     this.historyFile = config.paths.historyFile;
-
-    this.debouncedSave = debounce(this.queueSave.bind(this), 2000);
-    this.criticalSave = debounce(this.queueSave.bind(this), 500);
+    this.debouncedAppend = debounce(this.flushAppendQueue.bind(this), 100);
   }
 
   async initialize(): Promise<void> {
     try {
-      await this.loadHistory();
-      logger.info(`History manager initialized with ${this.historyData.length} items`);
+      await this.ensureHistoryFile();
+      await this.loadRecentHistory();
+      logger.info(`History manager initialized with ${this.recentCache.length} cached items (total count will be calculated when needed)`);
+      
+      // Background count calculation to avoid blocking startup
+      this.countTotalItemsAsync().catch((error: Error) => {
+        logger.warn('Background total count failed:', error);
+      });
     } catch (error) {
       logger.error('Failed to initialize history manager:', error);
-      this.historyData = [];
+      this.recentCache = [];
+      this.totalItemCount = 0;
+      this.totalItemCountCached = false;
     }
   }
 
-  private async loadHistory(): Promise<void> {
+  private async ensureHistoryFile(): Promise<void> {
     try {
-      const data = await fs.readFile(this.historyFile, 'utf8');
-      const lines = data.trim().split('\n').filter(line => line.trim());
-      
-      this.historyData = [];
+      await fs.access(this.historyFile);
+    } catch {
+      // Set restrictive file permissions (owner read/write only)
+      await fs.writeFile(this.historyFile, '', { mode: 0o600 });
+      logger.debug('Created new history file');
+    }
+  }
+
+  private async loadRecentHistory(): Promise<void> {
+    try {
+      const lines = await this.readLastNLines(this.cacheSize);
+      this.recentCache = [];
+      this.duplicateCheckSet.clear();
+
       for (const line of lines) {
-        try {
-          const item = JSON.parse(line) as HistoryItem;
-          if (item && item.text && item.timestamp && item.id) {
-            this.historyData.push(item);
-          }
-        } catch {
-          logger.warn('Invalid JSONL line in history file:', line);
+        const item = safeJsonParse<HistoryItem>(line);
+        if (item && this.validateHistoryItem(item)) {
+          this.recentCache.unshift(item);
+          this.duplicateCheckSet.add(item.text);
         }
       }
-      
-      this.historyData.sort((a, b) => b.timestamp - a.timestamp);
-      
-      logger.debug(`Loaded ${this.historyData.length} history items from JSONL`);
+
+      logger.debug(`Loaded ${this.recentCache.length} recent history items into cache`);
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        this.historyData = [];
-        logger.debug('History file not found, starting with empty history');
-      } else {
-        logger.error('Error loading history:', error);
-        throw error;
+      logger.error('Error loading recent history:', error);
+      this.recentCache = [];
+    }
+  }
+
+  private async readLastNLines(lineCount = 100): Promise<string[]> {
+    const fd = await fs.open(this.historyFile, 'r');
+    const stats = await fd.stat();
+    const fileSize = stats.size;
+
+    if (fileSize === 0) {
+      await fd.close();
+      return [];
+    }
+
+    try {
+      return await this.readLinesFromEnd(fd, fileSize, lineCount);
+    } finally {
+      await fd.close();
+    }
+  }
+
+  /**
+   * Read lines from end of file
+   */
+  private async readLinesFromEnd(
+    fd: import('fs/promises').FileHandle,
+    fileSize: number,
+    lineCount: number
+  ): Promise<string[]> {
+    const CHUNK_SIZE = 8192;
+    let position = fileSize;
+    const lines: string[] = [];
+    let remainder = '';
+
+    while (lines.length < lineCount && position > 0) {
+      const readSize = Math.min(CHUNK_SIZE, position);
+      position -= readSize;
+
+      const buffer = Buffer.alloc(readSize);
+      await fd.read(buffer, 0, readSize, position);
+
+      const chunk = buffer.toString('utf8');
+      const { newRemainder, collectedLines } = this.processChunk(chunk, remainder, position, lineCount - lines.length);
+      remainder = newRemainder;
+      lines.unshift(...collectedLines);
+    }
+
+    return lines.slice(-lineCount);
+  }
+
+  /**
+   * Process chunk and extract lines
+   */
+  private processChunk(
+    chunk: string,
+    remainder: string,
+    position: number,
+    maxLines: number
+  ): { newRemainder: string; collectedLines: string[] } {
+    const text = chunk + remainder;
+    const textLines = text.split('\n');
+    const newRemainder = position > 0 ? textLines.shift() || '' : '';
+
+    const collectedLines: string[] = [];
+    for (let i = textLines.length - 1; i >= 0 && collectedLines.length < maxLines; i--) {
+      const line = textLines[i]?.trim();
+      if (line) {
+        collectedLines.unshift(line);
       }
     }
+
+    return { newRemainder, collectedLines };
   }
 
-  async saveHistory(immediate = false): Promise<void> {
-    if (immediate) {
-      return this.queueSave();
-    } else {
-      this.hasUnsavedChanges = true;
-      this.debouncedSave();
+  private async countTotalItems(): Promise<void> {
+    if (this.totalItemCountCached) {
+      return; // 既にカウント済み
     }
-  }
-
-  private async queueSave(): Promise<void> {
-    // Add new save operation to queue
-    this.saveQueue = this.saveQueue
-      .then(() => this.performSave())
-      .catch((error) => {
-        logger.error('Queued save failed:', error);
+    
+    return new Promise((resolve) => {
+      let count = 0;
+      const stream = createReadStream(this.historyFile);
+      const rl = createInterface({
+        input: stream,
+        crlfDelay: Infinity
       });
-    return this.saveQueue;
+
+      rl.on('line', (line) => {
+        if (line.trim()) count++;
+      });
+
+      rl.on('close', () => {
+        this.totalItemCount = count;
+        this.totalItemCountCached = true;
+        logger.debug(`Total item count calculated: ${count}`);
+        resolve();
+      });
+
+      rl.on('error', (error: Error) => {
+        logger.error('Error counting history items:', error);
+        this.totalItemCount = this.recentCache.length;
+        this.totalItemCountCached = true;
+        resolve();
+      });
+    });
   }
 
-  private async performSave(): Promise<void> {
-    try {
-      const sortedData = [...this.historyData].sort((a, b) => a.timestamp - b.timestamp);
-      const jsonlData = sortedData
-        .map(item => JSON.stringify(item))
-        .join('\n');
-
-      // Set restrictive file permissions (owner read/write only)
-      await fs.writeFile(this.historyFile, jsonlData + '\n', { mode: 0o600 });
-      this.hasUnsavedChanges = false;
-      logger.debug(`Batch saved ${this.historyData.length} history items to JSONL`);
-    } catch (error) {
-      logger.error('Failed to save history:', error);
-      throw error;
-    }
+  private async countTotalItemsAsync(): Promise<void> {
+    // Async background count execution
+    setTimeout(async () => {
+      try {
+        await this.countTotalItems();
+      } catch (error) {
+        logger.warn('Background total items count failed:', error);
+      }
+    }, 100);
   }
 
   async addToHistory(text: string, appName?: string, directory?: string): Promise<HistoryItem | null> {
@@ -120,36 +209,21 @@ class HistoryManager implements IHistoryManager {
         return null;
       }
 
-      // サイズ制限を追加（1MB）
-      const MAX_HISTORY_ITEM_SIZE = 1024 * 1024; // 1MB
-      if (Buffer.byteLength(trimmedText, 'utf8') > MAX_HISTORY_ITEM_SIZE) {
-        logger.warn('History item too large, rejecting', {
-          size: Buffer.byteLength(trimmedText, 'utf8'),
-          limit: MAX_HISTORY_ITEM_SIZE
-        });
-        return null;
+      const duplicateResult = this.handleDuplicateUpdate(trimmedText, appName, directory);
+      if (duplicateResult) {
+        return duplicateResult;
       }
 
-      this.historyData = this.historyData.filter(item => item.text !== trimmedText);
+      const historyItem = this.createHistoryItem(trimmedText, appName, directory);
+      this.addItemToCache(historyItem);
 
-      const historyItem: HistoryItem = {
-        text: trimmedText,
-        timestamp: Date.now(),
-        id: generateId(),
-        ...(appName && { appName }),
-        ...(directory && { directory })
-      };
-
-      this.historyData.unshift(historyItem);
-
-      this.criticalSave();
-
-      logger.debug('Added item to history (batch save queued):', {
+      logger.debug('Added item to history:', {
         id: historyItem.id,
         length: trimmedText.length,
         appName: appName || 'unknown',
         directory: directory || 'unknown',
-        totalItems: this.historyData.length
+        cacheSize: this.recentCache.length,
+        totalItems: this.totalItemCountCached ? this.totalItemCount : 'not calculated'
       });
 
       return historyItem;
@@ -159,28 +233,139 @@ class HistoryManager implements IHistoryManager {
     }
   }
 
-  getHistory(limit?: number): HistoryItem[] {
-    if (limit === undefined) {
-      return [...this.historyData];
+  /**
+   * Handle duplicate item update - returns existing item if found
+   */
+  private handleDuplicateUpdate(
+    trimmedText: string,
+    appName?: string,
+    directory?: string
+  ): HistoryItem | null {
+    if (!this.duplicateCheckSet.has(trimmedText)) {
+      return null;
     }
-    return this.historyData.slice(0, Math.min(limit, this.historyData.length));
+
+    this.recentCache = this.recentCache.filter(item => item.text !== trimmedText);
+    const existingItem = this.recentCache.find(item => item.text === trimmedText);
+    if (existingItem) {
+      existingItem.timestamp = Date.now();
+      if (appName) existingItem.appName = appName;
+      if (directory) existingItem.directory = directory;
+      this.recentCache.unshift(existingItem);
+      return existingItem;
+    }
+    return null;
+  }
+
+  /**
+   * Create a new history item
+   */
+  private createHistoryItem(text: string, appName?: string, directory?: string): HistoryItem {
+    return {
+      text,
+      timestamp: Date.now(),
+      id: generateId(),
+      ...(appName && { appName }),
+      ...(directory && { directory })
+    };
+  }
+
+  /**
+   * Add item to cache and append queue
+   */
+  private addItemToCache(historyItem: HistoryItem): void {
+    this.recentCache.unshift(historyItem);
+    this.duplicateCheckSet.add(historyItem.text);
+
+    if (this.recentCache.length > this.cacheSize) {
+      const removed = this.recentCache.pop();
+      if (removed) {
+        this.duplicateCheckSet.delete(removed.text);
+      }
+    }
+
+    this.appendQueue.push(historyItem);
+    this.debouncedAppend();
+
+    if (this.totalItemCountCached) {
+      this.totalItemCount++;
+    }
+  }
+
+  private async flushAppendQueue(): Promise<void> {
+    if (this.appendQueue.length === 0) return;
+
+    const itemsToAppend = [...this.appendQueue];
+    this.appendQueue = [];
+
+    try {
+      const lines = itemsToAppend
+        .map(item => JSON.stringify(item))
+        .join('\n') + '\n';
+      
+      await fs.appendFile(this.historyFile, lines);
+      logger.debug(`Appended ${itemsToAppend.length} items to history file`);
+    } catch (error) {
+      logger.error('Failed to append to history file:', error);
+      // 失敗したアイテムをキューに戻す
+      this.appendQueue.unshift(...itemsToAppend);
+      throw error;
+    }
+  }
+
+  getHistory(limit?: number): HistoryItem[] {
+    // キャッシュから返す（起動速度優先）
+    if (!limit) {
+      return [...this.recentCache];
+    }
+    
+    const requestedLimit = Math.min(limit, this.cacheSize);
+    return this.recentCache.slice(0, requestedLimit);
   }
 
   getHistoryItem(id: string): HistoryItem | null {
-    return this.historyData.find(item => item.id === id) || null;
+    // まずキャッシュから探す
+    const cachedItem = this.recentCache.find(item => item.id === id);
+    if (cachedItem) return cachedItem;
+
+    // キャッシュになければnull（フルスキャンは避ける）
+    return null;
   }
 
   getRecentHistory(limit = 10): HistoryItem[] {
-    return this.historyData.slice(0, Math.min(limit, this.historyData.length));
+    return this.recentCache.slice(0, Math.min(limit, this.recentCache.length));
   }
 
   /**
    * Get history items for search purposes
-   * For HistoryManager (non-optimized), this is the same as getHistory with limit
+   * Reads directly from file to support larger limits than cache
    * @param limit Maximum number of items to return (e.g., 5000 for search)
    */
   async getHistoryForSearch(limit: number): Promise<HistoryItem[]> {
-    return this.historyData.slice(0, Math.min(limit, this.historyData.length));
+    try {
+      // If requested limit is within cache, return from cache (faster)
+      if (limit <= this.recentCache.length) {
+        return [...this.recentCache.slice(0, limit)];
+      }
+
+      // Read from file for larger limits
+      const lines = await this.readLastNLines(limit);
+      const items: HistoryItem[] = [];
+
+      for (const line of lines) {
+        const item = safeJsonParse<HistoryItem>(line);
+        if (item && this.validateHistoryItem(item)) {
+          items.unshift(item); // Newest first
+        }
+      }
+
+      logger.debug(`getHistoryForSearch: loaded ${items.length} items for search (limit: ${limit})`);
+      return items;
+    } catch (error) {
+      logger.error('Error in getHistoryForSearch:', error);
+      // Fallback to cache
+      return [...this.recentCache];
+    }
   }
 
   searchHistory(query: string, limit = 10): HistoryItem[] {
@@ -189,21 +374,28 @@ class HistoryManager implements IHistoryManager {
     }
 
     const searchTerm = query.toLowerCase().trim();
-    const matches = this.historyData.filter(item => 
+    const results = this.recentCache.filter(item => 
       item.text.toLowerCase().includes(searchTerm)
     );
 
-    return matches.slice(0, limit);
+    return results.slice(0, limit);
   }
+
 
   async removeHistoryItem(id: string): Promise<boolean> {
     try {
-      const initialLength = this.historyData.length;
-      this.historyData = this.historyData.filter(item => item.id !== id);
+      // キャッシュから削除
+      const initialLength = this.recentCache.length;
+      const removedItem = this.recentCache.find(item => item.id === id);
+      this.recentCache = this.recentCache.filter(item => item.id !== id);
       
-      if (this.historyData.length < initialLength) {
-        this.criticalSave();
-        logger.debug('Removed history item (batch save queued):', id);
+      if (this.recentCache.length < initialLength && removedItem) {
+        // duplicateCheckSetからも削除
+        this.duplicateCheckSet.delete(removedItem.text);
+        
+        // ファイルは永続保護するため、メモリキャッシュのみ削除
+        // totalItemCountはファイルがそのままなので変更しない
+        logger.debug('Removed history item from cache (file preserved):', id);
         return true;
       }
       
@@ -215,23 +407,25 @@ class HistoryManager implements IHistoryManager {
     }
   }
 
+
   async clearHistory(): Promise<void> {
     try {
-      this.historyData = [];
-      await this.saveHistory(true);
-      logger.info('History cleared');
+      await this.flushAppendQueue();
+      this.recentCache = [];
+      this.duplicateCheckSet.clear();
+      this.appendQueue = [];
+      
+      // ファイルは永続保護するため、メモリキャッシュのみクリア
+      // totalItemCountはファイルがそのままなので変更しない
+      logger.info('History cache cleared (file preserved)');
     } catch (error) {
-      logger.error('Failed to clear history:', error);
+      logger.error('Failed to clear history cache:', error);
       throw error;
     }
   }
 
   async flushPendingSaves(): Promise<void> {
-    if (this.hasUnsavedChanges) {
-      await this.queueSave();
-      // Wait for all queued saves to complete
-      await this.saveQueue;
-    }
+    await this.flushAppendQueue();
   }
 
   async destroy(): Promise<void> {
@@ -244,31 +438,74 @@ class HistoryManager implements IHistoryManager {
   }
 
   getHistoryStats(): HistoryStats {
-    const totalItems = this.historyData.length;
-    const totalCharacters = this.historyData.reduce((sum, item) => sum + item.text.length, 0);
-    const oldestTimestamp = totalItems > 0 ? Math.min(...this.historyData.map(item => item.timestamp)) : null;
-    const newestTimestamp = totalItems > 0 ? Math.max(...this.historyData.map(item => item.timestamp)) : null;
+    // 必要に応じて遅延カウントを実行（非同期）
+    if (!this.totalItemCountCached) {
+      this.countTotalItemsAsync().catch((error: Error) => {
+        logger.warn('Lazy total count failed:', error);
+      });
+    }
+    
+    const totalItems = this.totalItemCountCached ? this.totalItemCount : this.recentCache.length;
+    const cachedItems = this.recentCache;
+    const totalCharacters = cachedItems.reduce((sum, item) => sum + item.text.length, 0);
+    const oldestTimestamp = cachedItems.length > 0 ? 
+      Math.min(...cachedItems.map(item => item.timestamp)) : null;
+    const newestTimestamp = cachedItems.length > 0 ? 
+      Math.max(...cachedItems.map(item => item.timestamp)) : null;
 
     return {
       totalItems,
       totalCharacters,
-      averageLength: totalItems > 0 ? Math.round(totalCharacters / totalItems) : 0,
+      averageLength: cachedItems.length > 0 ? Math.round(totalCharacters / cachedItems.length) : 0,
       oldestTimestamp,
       newestTimestamp,
     };
   }
 
-  updateConfig(newConfig: Partial<HistoryConfig>): void {
-    // Legacy method - no configuration to update for unlimited history
-    logger.info('Config update called on HistoryManager:', newConfig);
+  private validateHistoryItem(item: unknown): item is HistoryItem {
+    return (
+      typeof item === 'object' &&
+      item !== null &&
+      'text' in item &&
+      'timestamp' in item &&
+      'id' in item &&
+      typeof (item as HistoryItem).text === 'string' &&
+      typeof (item as HistoryItem).timestamp === 'number' &&
+      typeof (item as HistoryItem).id === 'string' &&
+      (item as HistoryItem).text.length > 0
+    );
+  }
+
+  // 既存のHistoryManagerとの互換性のためのメソッド
+  updateConfig(_newConfig: Partial<HistoryConfig>): void {
+    // 無制限なので特に何もしない
+    logger.info('Config update called on HistoryManager (no-op)');
   }
 
 
-  exportHistory(): ExportData {
+  // Export/Import機能（ストリーミング対応）
+  async exportHistory(): Promise<ExportData> {
+    const allItems: HistoryItem[] = [];
+    
+    const stream = createReadStream(this.historyFile);
+    const rl = createInterface({
+      input: stream,
+      crlfDelay: Infinity
+    });
+
+    for await (const line of rl) {
+      const item = safeJsonParse<HistoryItem>(line);
+      if (item && this.validateHistoryItem(item)) {
+        allItems.push(item);
+      }
+    }
+
+    allItems.sort((a, b) => b.timestamp - a.timestamp);
+
     return {
       version: '1.0',
       exportDate: new Date().toISOString(),
-      history: this.historyData,
+      history: allItems,
       stats: this.getHistoryStats()
     };
   }
@@ -279,18 +516,22 @@ class HistoryManager implements IHistoryManager {
         throw new Error('Invalid export data format');
       }
 
-      if (merge) {
-        const existingTexts = new Set(this.historyData.map(item => item.text));
-        const newItems = exportData.history.filter(item => !existingTexts.has(item.text));
-        
-        this.historyData = [...this.historyData, ...newItems];
-      } else {
-        this.historyData = [...exportData.history];
+      if (!merge) {
+        await this.clearHistory();
       }
 
-      this.historyData.sort((a, b) => b.timestamp - a.timestamp);
-
-      await this.saveHistory();
+      // バッチで追記
+      const lines = exportData.history
+        .filter(item => this.validateHistoryItem(item))
+        .map(item => JSON.stringify(item))
+        .join('\n') + '\n';
+      
+      await fs.appendFile(this.historyFile, lines);
+      
+      // キャッシュをリロード
+      await this.loadRecentHistory();
+      await this.countTotalItems();
+      
       logger.info(`History imported: ${exportData.history.length} items, merge: ${merge}`);
     } catch (error) {
       logger.error('Failed to import history:', error);

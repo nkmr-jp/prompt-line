@@ -5,6 +5,9 @@
 import type { FileInfo, AgentItem } from '../../types';
 import type { SymbolResult } from '../code-search/types';
 
+// Re-export formatLog from debug-logger for backwards compatibility
+export { formatLog } from '../utils/debug-logger';
+
 // Re-export FileInfo for internal use in managers
 export type { FileInfo };
 
@@ -60,16 +63,6 @@ export interface ParsedPathInfo {
   symbolName?: string;
 }
 
-/**
- * Format object for console output (Electron renderer -> main process)
- * Outputs in a format similar to the main process logger
- */
-export function formatLog(obj: Record<string, unknown>): string {
-  const entries = Object.entries(obj)
-    .map(([key, value]) => `  ${key}: ${typeof value === 'string' ? `'${value}'` : value}`)
-    .join(',\n');
-  return '{\n' + entries + '\n}';
-}
 
 /**
  * Safely parse and insert SVG content using DOMParser

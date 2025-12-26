@@ -42,6 +42,10 @@ Thumbs.db
 coverage/
 .nyc_output/
 
+# Mutation testing
+.stryker-tmp/
+reports/mutation/
+
 # Environment files
 .env
 .env.local

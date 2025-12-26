@@ -10,14 +10,11 @@ export { SettingsCacheManager } from './settings-cache-manager';
 export { DirectoryCacheManager } from './directory-cache-manager';
 export type { DirectoryCacheCallbacks } from './directory-cache-manager';
 
-export { SuggestionListManager } from './suggestion-list-manager';
-export type { SuggestionListCallbacks } from './suggestion-list-manager';
-
 export { HighlightManager } from './highlight-manager';
 export type { HighlightManagerCallbacks, DirectoryDataForHighlight } from './highlight-manager';
 
-export { FileOpenerManager } from './file-opener-manager';
-export type { FileOpenerCallbacks } from './file-opener-manager';
+export { FileOpenerEventHandler } from './file-opener-event-handler';
+export type { FileOpenerCallbacks } from './file-opener-event-handler';
 
 export { CodeSearchManager } from './code-search-manager';
 export type { CodeSearchManagerCallbacks } from './code-search-manager';
@@ -25,23 +22,11 @@ export type { CodeSearchManagerCallbacks } from './code-search-manager';
 export { FileFilterManager } from './file-filter-manager';
 export type { FileFilterCallbacks } from './file-filter-manager';
 
-export { TextInputPathManager } from './text-input-path-manager';
-export type { TextInputPathCallbacks } from './text-input-path-manager';
-
-export { SymbolModeUIManager } from './symbol-mode-ui-manager';
-export type { SymbolModeUICallbacks, SymbolModeState } from './symbol-mode-ui-manager';
-
-export { AtPathBehaviorManager } from './at-path-behavior-manager';
-export type { AtPathBehaviorCallbacks } from './at-path-behavior-manager';
-
-export { ItemSelectionManager } from './item-selection-manager';
-export type { ItemSelectionCallbacks } from './item-selection-manager';
+export { PathManager } from './path-manager';
+export type { PathManagerCallbacks, DirectoryDataForScanner } from './path-manager';
 
 export { NavigationManager } from './navigation-manager';
 export type { NavigationCallbacks } from './navigation-manager';
-
-export { KeyboardNavigationManager } from './keyboard-navigation-manager';
-export type { KeyboardNavigationCallbacks } from './keyboard-navigation-manager';
 
 export { EventListenerManager } from './event-listener-manager';
 export type { EventListenerCallbacks } from './event-listener-manager';
@@ -49,10 +34,7 @@ export type { EventListenerCallbacks } from './event-listener-manager';
 export { QueryExtractionManager } from './query-extraction-manager';
 export type { QueryExtractionResult, CodeSearchQueryResult, QueryExtractionCallbacks } from './query-extraction-manager';
 
-export { SuggestionStateManager } from './suggestion-state-manager';
-export type { SuggestionStateCallbacks } from './suggestion-state-manager';
+export { SuggestionUIManager } from './suggestion-ui-manager';
+export type { SuggestionUICallbacks } from './suggestion-ui-manager';
 
 export { FileSearchState } from './file-search-state';
-
-export { ManagerFactory } from './manager-factory';
-export type { ManagerContext, CreatedManagers } from './manager-factory';

@@ -9,6 +9,8 @@
  * - Removing @query text after file selection
  */
 
+import { handleError } from '../../utils/error-handler';
+
 import {
   findUrlAtPosition,
   findSlashCommandAtPosition,
@@ -40,15 +42,18 @@ export interface FileOpenerCallbacks {
   // Current directory for resolving relative paths
   getCurrentDirectory: () => string | null;
 
+  // Check if command type is enabled (for slash commands)
+  isCommandEnabledSync?: () => boolean;
+
   // Window operations
   hideWindow?: () => void;
   restoreDefaultHint?: () => void;
 }
 
 /**
- * FileOpenerManager handles opening files and URLs with proper focus management
+ * FileOpenerEventHandler handles opening files and URLs with proper focus management
  */
-export class FileOpenerManager {
+export class FileOpenerEventHandler {
   private callbacks: FileOpenerCallbacks;
 
   constructor(callbacks: FileOpenerCallbacks) {
@@ -69,7 +74,7 @@ export class FileOpenerManager {
       // Note: Do not restore focus to PromptLine window
       // The opened file's application should stay in foreground
     } catch (err) {
-      console.error('Failed to open file in editor:', err);
+      handleError('FileOpenerEventHandler.openFileInEditor', err);
       // Disable draggable state on error
       this.callbacks.setDraggable?.(false);
     }
@@ -87,7 +92,7 @@ export class FileOpenerManager {
       this.callbacks.setDraggable?.(true);
       const result = await window.electronAPI.shell.openExternal(url);
       if (!result.success) {
-        console.error('Failed to open URL in browser:', result.error);
+        handleError('FileOpenerEventHandler.openUrl', new Error(result.error));
         // Disable draggable state on error
         this.callbacks.setDraggable?.(false);
       } else {
@@ -96,12 +101,12 @@ export class FileOpenerManager {
         // Keep draggable state enabled so user can move window while browser is open
         setTimeout(() => {
           window.electronAPI.window.focus().catch((err: Error) =>
-            console.error('Failed to restore focus:', err)
+            handleError('FileOpenerEventHandler.openUrl.restoreFocus', err)
           );
         }, 100);
       }
     } catch (err) {
-      console.error('Failed to open URL in browser:', err);
+      handleError('FileOpenerEventHandler.openUrl', err);
       // Disable draggable state on error
       this.callbacks.setDraggable?.(false);
     }
@@ -148,19 +153,21 @@ export class FileOpenerManager {
       return true;
     }
 
-    // Check for slash command (like /commit, /help)
-    const slashCommand = findSlashCommandAtPosition(text, cursorPos);
-    if (slashCommand) {
-      try {
-        const commandFilePath = await window.electronAPI.slashCommands.getFilePath(slashCommand.command);
-        if (commandFilePath) {
-          await this.openFile(commandFilePath);
-          return true;
+    // Check for slash command (like /commit, /help) - only if command type is enabled
+    if (this.callbacks.isCommandEnabledSync?.()) {
+      const slashCommand = findSlashCommandAtPosition(text, cursorPos);
+      if (slashCommand) {
+        try {
+          const commandFilePath = await window.electronAPI.slashCommands.getFilePath(slashCommand.command);
+          if (commandFilePath) {
+            await this.openFile(commandFilePath);
+            return true;
+          }
+        } catch (err) {
+          handleError('FileOpenerEventHandler.handleCtrlEnter.slashCommand', err);
         }
-      } catch (err) {
-        console.error('Failed to resolve slash command file path:', err);
+        return true; // Still consumed the event even if failed
       }
-      return true; // Still consumed the event even if failed
     }
 
     // Find @path at cursor position
@@ -205,7 +212,7 @@ export class FileOpenerManager {
         return;
       }
     } catch (err) {
-      console.error('Failed to resolve agent file path:', err);
+      handleError('FileOpenerEventHandler.handleAtPath.agent', err);
     }
 
     // Fallback: try to open as file path if it wasn't already tried
