@@ -98,13 +98,38 @@ export interface SupportedLanguage {
 }
 
 /**
- * Symbol information from code search
+ * Symbol types from native tool
  */
-export interface SymbolInfo {
+export type SymbolType =
+  | 'function'
+  | 'method'
+  | 'class'
+  | 'struct'
+  | 'interface'
+  | 'type'
+  | 'constant'
+  | 'variable'
+  | 'enum'
+  | 'property'
+  | 'module'
+  | 'namespace'
+  | 'heading'
+  | 'resource'
+  | 'data'
+  | 'output'
+  | 'provider';
+
+/**
+ * Symbol result from search
+ */
+export interface SymbolResult {
   name: string;
-  type: string;
-  line: number;
-  file: string;
+  type: SymbolType;
+  filePath: string;
+  relativePath: string;
+  lineNumber: number;
+  lineContent: string;
+  language: string;
 }
 
 /**
@@ -121,10 +146,14 @@ export interface SymbolSearchOptions {
  */
 export interface SymbolSearchResult {
   success: boolean;
-  symbols?: SymbolInfo[];
+  directory?: string;
+  language?: string;
+  symbols: SymbolResult[];
+  symbolCount: number;
+  searchMode: 'full' | 'cached';
+  partial: boolean;
+  maxSymbols: number;
   error?: string;
-  fromCache?: boolean;
-  cacheTimestamp?: number;
 }
 
 /**
@@ -132,7 +161,7 @@ export interface SymbolSearchResult {
  */
 export interface CachedSymbolsResult {
   success: boolean;
-  symbols?: SymbolInfo[];
+  symbols?: SymbolResult[];
   cacheTimestamp?: number;
   error?: string;
 }

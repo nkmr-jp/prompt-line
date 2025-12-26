@@ -91,46 +91,70 @@ class HistoryManager implements IHistoryManager {
     const fd = await fs.open(this.historyFile, 'r');
     const stats = await fd.stat();
     const fileSize = stats.size;
-    
+
     if (fileSize === 0) {
       await fd.close();
       return [];
     }
-    
-    let position = fileSize;
-    const lines: string[] = [];
-    let remainder = '';
-    const chunkSize = 8192; // 8KB chunks
-    
+
     try {
-      while (lines.length < lineCount && position > 0) {
-        const readSize = Math.min(chunkSize, position);
-        position -= readSize;
-        
-        const buffer = Buffer.alloc(readSize);
-        await fd.read(buffer, 0, readSize, position);
-        
-        const chunk = buffer.toString('utf8');
-        const text = chunk + remainder;
-        const textLines = text.split('\n');
-        
-        // 最初の行は不完全な可能性があるので次回に回す
-        remainder = position > 0 ? textLines.shift() || '' : '';
-        
-        // 末尾から有効な行を収集
-        for (let i = textLines.length - 1; i >= 0 && lines.length < lineCount; i--) {
-          const line = textLines[i]?.trim();
-          if (line) {
-            lines.unshift(line);
-          }
-        }
-      }
-      
-      return lines.slice(-lineCount); // 念のため再度制限
-        
+      return await this.readLinesFromEnd(fd, fileSize, lineCount);
     } finally {
       await fd.close();
     }
+  }
+
+  /**
+   * Read lines from end of file
+   */
+  private async readLinesFromEnd(
+    fd: import('fs/promises').FileHandle,
+    fileSize: number,
+    lineCount: number
+  ): Promise<string[]> {
+    const CHUNK_SIZE = 8192;
+    let position = fileSize;
+    const lines: string[] = [];
+    let remainder = '';
+
+    while (lines.length < lineCount && position > 0) {
+      const readSize = Math.min(CHUNK_SIZE, position);
+      position -= readSize;
+
+      const buffer = Buffer.alloc(readSize);
+      await fd.read(buffer, 0, readSize, position);
+
+      const chunk = buffer.toString('utf8');
+      const { newRemainder, collectedLines } = this.processChunk(chunk, remainder, position, lineCount - lines.length);
+      remainder = newRemainder;
+      lines.unshift(...collectedLines);
+    }
+
+    return lines.slice(-lineCount);
+  }
+
+  /**
+   * Process chunk and extract lines
+   */
+  private processChunk(
+    chunk: string,
+    remainder: string,
+    position: number,
+    maxLines: number
+  ): { newRemainder: string; collectedLines: string[] } {
+    const text = chunk + remainder;
+    const textLines = text.split('\n');
+    const newRemainder = position > 0 ? textLines.shift() || '' : '';
+
+    const collectedLines: string[] = [];
+    for (let i = textLines.length - 1; i >= 0 && collectedLines.length < maxLines; i--) {
+      const line = textLines[i]?.trim();
+      if (line) {
+        collectedLines.unshift(line);
+      }
+    }
+
+    return { newRemainder, collectedLines };
   }
 
   private async countTotalItems(): Promise<void> {
@@ -185,49 +209,13 @@ class HistoryManager implements IHistoryManager {
         return null;
       }
 
-      if (this.duplicateCheckSet.has(trimmedText)) {
-        // Move existing item to latest position
-        this.recentCache = this.recentCache.filter(item => item.text !== trimmedText);
-        const existingItem = this.recentCache.find(item => item.text === trimmedText);
-        if (existingItem) {
-          existingItem.timestamp = Date.now();
-          if (appName) {
-            existingItem.appName = appName;
-          }
-          if (directory) {
-            existingItem.directory = directory;
-          }
-          this.recentCache.unshift(existingItem);
-          return existingItem;
-        }
+      const duplicateResult = this.handleDuplicateUpdate(trimmedText, appName, directory);
+      if (duplicateResult) {
+        return duplicateResult;
       }
 
-      const historyItem: HistoryItem = {
-        text: trimmedText,
-        timestamp: Date.now(),
-        id: generateId(),
-        ...(appName && { appName }),
-        ...(directory && { directory })
-      };
-
-      // Add to cache
-      this.recentCache.unshift(historyItem);
-      this.duplicateCheckSet.add(trimmedText);
-
-      if (this.recentCache.length > this.cacheSize) {
-        const removed = this.recentCache.pop();
-        if (removed) {
-          this.duplicateCheckSet.delete(removed.text);
-        }
-      }
-
-      // Add to append queue
-      this.appendQueue.push(historyItem);
-      this.debouncedAppend();
-
-      if (this.totalItemCountCached) {
-        this.totalItemCount++;
-      }
+      const historyItem = this.createHistoryItem(trimmedText, appName, directory);
+      this.addItemToCache(historyItem);
 
       logger.debug('Added item to history:', {
         id: historyItem.id,
@@ -242,6 +230,65 @@ class HistoryManager implements IHistoryManager {
     } catch (error) {
       logger.error('Failed to add item to history:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Handle duplicate item update - returns existing item if found
+   */
+  private handleDuplicateUpdate(
+    trimmedText: string,
+    appName?: string,
+    directory?: string
+  ): HistoryItem | null {
+    if (!this.duplicateCheckSet.has(trimmedText)) {
+      return null;
+    }
+
+    this.recentCache = this.recentCache.filter(item => item.text !== trimmedText);
+    const existingItem = this.recentCache.find(item => item.text === trimmedText);
+    if (existingItem) {
+      existingItem.timestamp = Date.now();
+      if (appName) existingItem.appName = appName;
+      if (directory) existingItem.directory = directory;
+      this.recentCache.unshift(existingItem);
+      return existingItem;
+    }
+    return null;
+  }
+
+  /**
+   * Create a new history item
+   */
+  private createHistoryItem(text: string, appName?: string, directory?: string): HistoryItem {
+    return {
+      text,
+      timestamp: Date.now(),
+      id: generateId(),
+      ...(appName && { appName }),
+      ...(directory && { directory })
+    };
+  }
+
+  /**
+   * Add item to cache and append queue
+   */
+  private addItemToCache(historyItem: HistoryItem): void {
+    this.recentCache.unshift(historyItem);
+    this.duplicateCheckSet.add(historyItem.text);
+
+    if (this.recentCache.length > this.cacheSize) {
+      const removed = this.recentCache.pop();
+      if (removed) {
+        this.duplicateCheckSet.delete(removed.text);
+      }
+    }
+
+    this.appendQueue.push(historyItem);
+    this.debouncedAppend();
+
+    if (this.totalItemCountCached) {
+      this.totalItemCount++;
     }
   }
 

@@ -277,38 +277,42 @@ export class SymbolCacheManager {
   }
 
   /**
+   * Clear symbol cache for a single project directory
+   */
+  private async clearProjectSymbolCache(projectDir: string, dirName: string): Promise<void> {
+    const symbolMetadataPath = path.join(projectDir, SYMBOL_METADATA_FILE);
+
+    try {
+      await fs.access(symbolMetadataPath);
+    } catch {
+      return; // No symbol cache in this directory
+    }
+
+    // Remove metadata file
+    await fs.rm(symbolMetadataPath);
+
+    // Remove all language-specific symbol files
+    const files = await fs.readdir(projectDir);
+    const symbolFiles = files.filter((f) => f.startsWith(SYMBOLS_FILE_PREFIX) && f.endsWith('.jsonl'));
+
+    for (const file of symbolFiles) {
+      await fs.rm(path.join(projectDir, file), { force: true });
+    }
+
+    logger.debug('Cleared symbol cache for', { dir: dirName });
+  }
+
+  /**
    * Clear all symbol caches
    */
   async clearAllCaches(): Promise<void> {
     try {
-      // List all project cache directories
       const entries = await fs.readdir(this.cacheDir, { withFileTypes: true });
+      const directories = entries.filter((e) => e.isDirectory());
 
-      for (const entry of entries) {
-        if (entry.isDirectory()) {
-          const projectDir = path.join(this.cacheDir, entry.name);
-          const symbolMetadataPath = path.join(projectDir, SYMBOL_METADATA_FILE);
-
-          // Only clear if it has symbol cache
-          try {
-            await fs.access(symbolMetadataPath);
-
-            // Remove metadata file
-            await fs.rm(symbolMetadataPath);
-
-            // Remove all language-specific symbol files
-            const files = await fs.readdir(projectDir);
-            for (const file of files) {
-              if (file.startsWith(SYMBOLS_FILE_PREFIX) && file.endsWith('.jsonl')) {
-                await fs.rm(path.join(projectDir, file), { force: true });
-              }
-            }
-
-            logger.debug('Cleared symbol cache for', { dir: entry.name });
-          } catch {
-            // No symbol cache in this directory
-          }
-        }
+      for (const entry of directories) {
+        const projectDir = path.join(this.cacheDir, entry.name);
+        await this.clearProjectSymbolCache(projectDir, entry.name);
       }
     } catch (error) {
       logger.warn('Error clearing all symbol caches:', error);

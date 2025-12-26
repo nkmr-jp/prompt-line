@@ -55,98 +55,116 @@ class PasteHandler {
     logger.info('Paste handlers removed');
   }
 
+  /**
+   * Validate paste text input
+   */
+  private validatePasteInput(text: string): PasteResult | null {
+    if (typeof text !== 'string') {
+      logger.warn('Invalid input type for paste text', { type: typeof text });
+      return { success: false, error: SecureErrors.INVALID_INPUT };
+    }
+
+    if (!text.trim()) {
+      logger.debug('Empty text provided for paste');
+      return { success: false, error: SecureErrors.INVALID_INPUT };
+    }
+
+    const byteLength = Buffer.byteLength(text, 'utf8');
+    if (byteLength > MAX_PASTE_TEXT_LENGTH_BYTES) {
+      logger.warn('Text size exceeds limit', { size: byteLength, limit: MAX_PASTE_TEXT_LENGTH_BYTES });
+      return { success: false, error: SecureErrors.SIZE_LIMIT_EXCEEDED };
+    }
+
+    return null; // Validation passed
+  }
+
+  /**
+   * Extract app name from AppInfo or string
+   */
+  private extractAppName(previousApp: AppInfo | string | null): string | undefined {
+    if (!previousApp) return undefined;
+    if (typeof previousApp === 'string') return previousApp;
+    return previousApp.name || undefined;
+  }
+
+  /**
+   * Execute paste operation with proper app handling
+   */
+  private async executePasteOperation(previousApp: AppInfo | string | null): Promise<PasteResult> {
+    if (previousApp && config.platform.isMac) {
+      await activateAndPasteWithNativeTool(previousApp);
+      logger.info('Activate and paste operation completed successfully');
+      return { success: true };
+    }
+
+    if (config.platform.isMac) {
+      const focusSuccess = await this.windowManager.focusPreviousApp();
+
+      if (focusSuccess) {
+        await sleep(config.timing.appFocusDelay);
+        await pasteWithNativeTool();
+        logger.info('Paste operation completed successfully');
+        return { success: true };
+      }
+
+      await pasteWithNativeTool();
+      logger.warn('Paste attempted without focus confirmation');
+      return { success: true, warning: 'Could not focus previous application' };
+    }
+
+    logger.warn('Auto-paste not supported on this platform');
+    return { success: true, warning: 'Auto-paste not supported on this platform' };
+  }
+
+  /**
+   * Handle paste error with accessibility check
+   */
+  private async handlePasteError(error: Error): Promise<PasteResult> {
+    logger.error('Paste operation failed:', { message: error.message, stack: error.stack });
+
+    if (!config.platform.isMac) {
+      return { success: false, error: SecureErrors.OPERATION_FAILED };
+    }
+
+    try {
+      const { hasPermission, bundleId } = await checkAccessibilityPermission();
+      if (!hasPermission) {
+        logger.warn('Paste failed - accessibility permission not granted', { bundleId });
+        this.showAccessibilityWarning(bundleId);
+        return { success: false, error: SecureErrors.PERMISSION_DENIED };
+      }
+    } catch (accessibilityError) {
+      const accErr = accessibilityError as Error;
+      logger.error('Failed to check accessibility permission:', { message: accErr.message });
+    }
+
+    return { success: false, error: SecureErrors.OPERATION_FAILED };
+  }
+
   private async handlePasteText(_event: IpcMainInvokeEvent, text: string): Promise<PasteResult> {
     try {
       logger.info('Paste text requested', { length: text.length });
 
-      // Validate input
-      if (typeof text !== 'string') {
-        logger.warn('Invalid input type for paste text', { type: typeof text });
-        return { success: false, error: SecureErrors.INVALID_INPUT };
-      }
+      const validationError = this.validatePasteInput(text);
+      if (validationError) return validationError;
 
-      if (!text.trim()) {
-        logger.debug('Empty text provided for paste');
-        return { success: false, error: SecureErrors.INVALID_INPUT };
-      }
-
-      // Add reasonable length limit (1MB) to prevent DoS attacks
-      // Use Buffer.byteLength for accurate byte-based limit instead of character count
-      if (Buffer.byteLength(text, 'utf8') > MAX_PASTE_TEXT_LENGTH_BYTES) {
-        logger.warn('Text size exceeds limit', { size: Buffer.byteLength(text, 'utf8'), limit: MAX_PASTE_TEXT_LENGTH_BYTES });
-        return { success: false, error: SecureErrors.SIZE_LIMIT_EXCEEDED };
-      }
-
-      // Get previous app info before hiding window
       const previousApp = await this.getPreviousAppAsync();
-
-      // Extract app name for history
-      let appName: string | undefined;
-      if (previousApp) {
-        if (typeof previousApp === 'string') {
-          appName = previousApp;
-        } else if (previousApp.name) {
-          appName = previousApp.name;
-        }
-      }
-
-      // Get directory from directory manager
+      const appName = this.extractAppName(previousApp);
       const directory = this.directoryManager.getDirectory() || undefined;
 
       await Promise.all([
         this.historyManager.addToHistory(text, appName, directory),
         this.draftManager.clearDraft(),
-        this.setClipboardAsync(text)
+        this.setClipboardAsync(text),
       ]);
 
-      const hideWindowPromise = this.windowManager.hideInputWindow();
-      await hideWindowPromise;
-
+      await this.windowManager.hideInputWindow();
       await sleep(Math.max(config.timing.windowHideDelay, 5));
 
       try {
-        if (previousApp && config.platform.isMac) {
-          await activateAndPasteWithNativeTool(previousApp);
-          logger.info('Activate and paste operation completed successfully');
-          return { success: true };
-        } else if (config.platform.isMac) {
-          const focusSuccess = await this.windowManager.focusPreviousApp();
-
-          if (focusSuccess) {
-            await sleep(config.timing.appFocusDelay);
-            await pasteWithNativeTool();
-            logger.info('Paste operation completed successfully');
-            return { success: true };
-          } else {
-            await pasteWithNativeTool();
-            logger.warn('Paste attempted without focus confirmation');
-            return { success: true, warning: 'Could not focus previous application' };
-          }
-        } else {
-          logger.warn('Auto-paste not supported on this platform');
-          return { success: true, warning: 'Auto-paste not supported on this platform' };
-        }
+        return await this.executePasteOperation(previousApp);
       } catch (pasteError) {
-        const err = pasteError as Error;
-        logger.error('Paste operation failed:', { message: err.message, stack: err.stack });
-
-        // Check accessibility permission after paste failure on macOS
-        if (config.platform.isMac) {
-          try {
-            const { hasPermission, bundleId } = await checkAccessibilityPermission();
-
-            if (!hasPermission) {
-              logger.warn('Paste failed - accessibility permission not granted', { bundleId });
-              this.showAccessibilityWarning(bundleId);
-              return { success: false, error: SecureErrors.PERMISSION_DENIED };
-            }
-          } catch (accessibilityError) {
-            const accErr = accessibilityError as Error;
-            logger.error('Failed to check accessibility permission after paste failure:', { message: accErr.message });
-          }
-        }
-
-        return { success: false, error: SecureErrors.OPERATION_FAILED };
+        return await this.handlePasteError(pasteError as Error);
       }
     } catch (error) {
       const err = error as Error;
@@ -155,77 +173,82 @@ class PasteHandler {
     }
   }
 
+  /**
+   * Generate timestamped filename for image
+   */
+  private generateImageFilename(): string {
+    const now = new Date();
+    const parts = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0'),
+      '_',
+      String(now.getHours()).padStart(2, '0'),
+      String(now.getMinutes()).padStart(2, '0'),
+      String(now.getSeconds()).padStart(2, '0'),
+    ];
+    return `${parts.join('')}.png`;
+  }
+
+  /**
+   * Validate and normalize image file path
+   */
+  private validateImagePath(
+    imagesDir: string,
+    filename: string
+  ): { valid: boolean; normalizedPath?: string; error?: string } {
+    const SAFE_FILENAME_REGEX = /^[0-9_]+\.png$/;
+    if (!SAFE_FILENAME_REGEX.test(filename)) {
+      logger.error('Invalid filename generated', { filename });
+      return { valid: false, error: 'Invalid filename' };
+    }
+
+    const filepath = path.join(imagesDir, filename);
+    const normalizedPath = path.normalize(filepath);
+
+    if (!normalizedPath.startsWith(path.normalize(imagesDir))) {
+      logger.error('Attempted path traversal detected', { filepath, normalizedPath, source: 'handlePasteImage' });
+      return { valid: false, error: 'Invalid file path' };
+    }
+
+    const expectedDir = path.normalize(imagesDir);
+    const actualDir = path.dirname(normalizedPath);
+    if (actualDir !== expectedDir) {
+      logger.error('Unexpected directory in path', { expected: expectedDir, actual: actualDir });
+      return { valid: false, error: 'Invalid file path' };
+    }
+
+    return { valid: true, normalizedPath };
+  }
+
   private async handlePasteImage(_event: IpcMainInvokeEvent): Promise<{ success: boolean; error?: string; path?: string }> {
     try {
       logger.info('Paste image requested');
 
       const image = clipboard.readImage();
-
       if (image.isEmpty()) {
         return { success: false, error: 'No image in clipboard' };
       }
 
       const imagesDir = config.paths.imagesDir;
       try {
-        // Set restrictive directory permissions (owner read/write/execute only)
         await fs.mkdir(imagesDir, { recursive: true, mode: 0o700 });
       } catch (error) {
         logger.error('Failed to create images directory:', error);
       }
 
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      const hours = String(now.getHours()).padStart(2, '0');
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      const seconds = String(now.getSeconds()).padStart(2, '0');
-
-      const filename = `${year}${month}${day}_${hours}${minutes}${seconds}.png`;
-
-      // Validate filename (ensure no dangerous characters)
-      const SAFE_FILENAME_REGEX = /^[0-9_]+\.png$/;
-      if (!SAFE_FILENAME_REGEX.test(filename)) {
-        logger.error('Invalid filename generated', { filename });
-        return { success: false, error: 'Invalid filename' };
-      }
-
-      const filepath = path.join(imagesDir, filename);
-
-      // Normalize and validate path to prevent path traversal
-      const normalizedPath = path.normalize(filepath);
-      if (!normalizedPath.startsWith(path.normalize(imagesDir))) {
-        logger.error('Attempted path traversal detected - potential security threat', {
-          filepath,
-          normalizedPath,
-          timestamp: Date.now(),
-          source: 'handlePasteImage'
-        });
-        return { success: false, error: 'Invalid file path' };
-      }
-
-      // Additional validation: ensure actual directory matches expected directory
-      const expectedDir = path.normalize(imagesDir);
-      const actualDir = path.dirname(normalizedPath);
-      if (actualDir !== expectedDir) {
-        logger.error('Unexpected directory in path', {
-          expected: expectedDir,
-          actual: actualDir
-        });
-        return { success: false, error: 'Invalid file path' };
+      const filename = this.generateImageFilename();
+      const pathValidation = this.validateImagePath(imagesDir, filename);
+      if (!pathValidation.valid || !pathValidation.normalizedPath) {
+        return { success: false, error: pathValidation.error || 'Invalid file path' };
       }
 
       const buffer = image.toPNG();
-      // Set restrictive file permissions (owner read/write only)
-      await fs.writeFile(normalizedPath, buffer, { mode: 0o600 });
-
-      // Clear clipboard text to prevent markdown syntax from being pasted
-      // when copying images from markdown editors like Bear
+      await fs.writeFile(pathValidation.normalizedPath, buffer, { mode: 0o600 });
       clipboard.writeText('');
 
-      logger.info('Image saved successfully', { filepath: normalizedPath });
-
-      return { success: true, path: filepath };
+      logger.info('Image saved successfully', { filepath: pathValidation.normalizedPath });
+      return { success: true, path: pathValidation.normalizedPath };
     } catch (error) {
       logger.error('Failed to handle paste image:', error);
       return { success: false, error: (error as Error).message };
