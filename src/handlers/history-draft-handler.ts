@@ -6,6 +6,7 @@ import type DirectoryManager from '../managers/directory-manager';
 import type { HistoryItem, IHistoryManager } from '../types';
 import { VALIDATION } from '../constants';
 import type { IPCResult } from './handler-utils';
+import { atPathCacheManager } from '../managers/at-path-cache-manager';
 
 /**
  * HistoryDraftHandler manages all IPC communication related to history and draft operations.
@@ -45,6 +46,10 @@ class HistoryDraftHandler {
     ipcMain.handle('set-draft-directory', this.handleSetDraftDirectory.bind(this));
     ipcMain.handle('get-draft-directory', this.handleGetDraftDirectory.bind(this));
 
+    // At-path cache handlers (for highlighting symbols with spaces)
+    ipcMain.handle('register-at-path', this.handleRegisterAtPath.bind(this));
+    ipcMain.handle('get-registered-at-paths', this.handleGetRegisteredAtPaths.bind(this));
+
     logger.info('History and Draft IPC handlers set up successfully');
   }
 
@@ -61,7 +66,9 @@ class HistoryDraftHandler {
       'clear-draft',
       'get-draft',
       'set-draft-directory',
-      'get-draft-directory'
+      'get-draft-directory',
+      'register-at-path',
+      'get-registered-at-paths'
     ];
 
     handlers.forEach(handler => {
@@ -202,6 +209,48 @@ class HistoryDraftHandler {
     } catch (error) {
       logger.error('Failed to get directory:', error);
       return null;
+    }
+  }
+
+  // At-path cache handlers
+
+  private async handleRegisterAtPath(
+    _event: IpcMainInvokeEvent,
+    directory: string,
+    atPath: string
+  ): Promise<IPCResult> {
+    try {
+      if (!directory || typeof directory !== 'string') {
+        return { success: false, error: 'Invalid directory' };
+      }
+      if (!atPath || typeof atPath !== 'string') {
+        return { success: false, error: 'Invalid path' };
+      }
+
+      await atPathCacheManager.addPath(directory, atPath);
+      logger.debug('At-path registered', { directory, atPath });
+      return { success: true };
+    } catch (error) {
+      logger.error('Failed to register at-path:', error);
+      return { success: false, error: SecureErrors.OPERATION_FAILED };
+    }
+  }
+
+  private async handleGetRegisteredAtPaths(
+    _event: IpcMainInvokeEvent,
+    directory: string
+  ): Promise<string[]> {
+    try {
+      if (!directory || typeof directory !== 'string') {
+        return [];
+      }
+
+      const paths = await atPathCacheManager.loadPaths(directory);
+      logger.debug('At-paths requested', { directory, count: paths.length });
+      return paths;
+    } catch (error) {
+      logger.error('Failed to get registered at-paths:', error);
+      return [];
     }
   }
 }

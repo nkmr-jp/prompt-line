@@ -244,4 +244,8 @@ export interface ElectronAPI {
     getCachedSymbols: (directory: string, language?: string) => Promise<CachedSymbolsResult>;
     clearCache: (directory?: string) => Promise<IPCResult>;
   };
+  atPathCache: {
+    register: (directory: string, atPath: string) => Promise<IPCResult>;
+    getPaths: (directory: string) => Promise<string[]>;
+  };
 }

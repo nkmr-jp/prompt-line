@@ -623,10 +623,10 @@ describe('IPCHandlers', () => {
 
             ipcHandlers.removeAllHandlers();
 
-            // Should be called for each handler (count: 27 handlers)
-            // paste-handler: 2, window-handler: 3, history-draft-handler: 9
+            // Should be called for each handler (count: 29 handlers)
+            // paste-handler: 2, window-handler: 3, history-draft-handler: 11 (added 2 at-path cache handlers)
             // system-handler: 4, file-handler: 3, mdsearch-handler: 6
-            expect(ipcMain.removeAllListeners).toHaveBeenCalledTimes(27);
+            expect(ipcMain.removeAllListeners).toHaveBeenCalledTimes(29);
             expect(logger.info).toHaveBeenCalledWith('All IPC handlers removed via coordinator');
         });
     });

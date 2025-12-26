@@ -527,6 +527,11 @@ export class FileSearchManager implements IInitializable {
     // The manager will notify via onCacheUpdated callback to sync local copy
     this.directoryCacheManager?.handleCachedDirectoryData(data);
 
+    // Load registered at-paths for this directory (supports symbols with spaces)
+    if (data?.directory) {
+      this.loadRegisteredAtPaths(data.directory);
+    }
+
     // Log cached data after update
     setTimeout(() => {
       console.debug('[FileSearchManager] after handleCachedDirectoryData:', {
@@ -534,6 +539,30 @@ export class FileSearchManager implements IInitializable {
         cachedDirectory: this.getDirectory()
       });
     }, 100);
+  }
+
+  /**
+   * Load registered at-paths from persistent cache
+   * These paths may contain spaces (e.g., symbol names with spaces)
+   */
+  private async loadRegisteredAtPaths(directory: string): Promise<void> {
+    try {
+      if (!window.electronAPI?.atPathCache?.getPaths) {
+        console.debug('[FileSearchManager] atPathCache API not available');
+        return;
+      }
+
+      const paths = await window.electronAPI.atPathCache.getPaths(directory);
+      if (paths && paths.length > 0) {
+        this.highlightManager?.setRegisteredAtPaths(paths);
+        console.debug('[FileSearchManager] Loaded registered at-paths:', {
+          directory,
+          count: paths.length
+        });
+      }
+    } catch (error) {
+      console.warn('[FileSearchManager] Failed to load registered at-paths:', error);
+    }
   }
 
   public setupEventListeners(): void {
