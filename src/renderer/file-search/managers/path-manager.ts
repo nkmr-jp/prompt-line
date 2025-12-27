@@ -498,6 +498,11 @@ export class PathManager {
    * @returns The AtPathRange at cursor or null
    */
   public findAtPathAtCursor(cursorPos: number, text: string): AtPathRange | null {
+    // Helper to check if a character is a valid terminator after @path
+    const isTerminator = (char: string | undefined): boolean => {
+      return char === undefined || char === ' ' || char === '\n' || char === '\r';
+    };
+
     for (const path of this.atPaths) {
       const charAtEnd = text[path.end];
 
@@ -505,18 +510,19 @@ export class PathManager {
       if (cursorPos === path.end) {
         // Only treat as "at the end" if the character at path.end is:
         // - undefined (end of text), or
-        // - a space (trailing space after @path)
+        // - a space (trailing space after @path), or
+        // - a newline character
         // If there's another character (like @), user is typing something new
-        if (charAtEnd === undefined || charAtEnd === ' ') {
+        if (isTerminator(charAtEnd)) {
           return path;
         }
         // Don't return path if there's another character at path.end
         continue;
       }
 
-      // Also check path.end + 1 if the character at path.end is a space
-      // This allows deletion when cursor is after the trailing space
-      if (cursorPos === path.end + 1 && charAtEnd === ' ') {
+      // Also check path.end + 1 if the character at path.end is a space or newline
+      // This allows deletion when cursor is after the trailing space/newline
+      if (cursorPos === path.end + 1 && isTerminator(charAtEnd)) {
         return path;
       }
     }
