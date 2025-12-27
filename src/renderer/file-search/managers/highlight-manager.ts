@@ -232,76 +232,39 @@ export class HighlightManager {
 
   /**
    * Sync the scroll position of the highlight backdrop with the textarea
-   * Includes sub-pixel adjustment for precise alignment
+   * Uses CSS transform for GPU-accelerated, lag-free sync
    */
   public syncBackdropScroll(): void {
     if (this.textInput && this.highlightBackdrop) {
-      const textareaScrollTop = this.textInput.scrollTop;
-      const textareaScrollLeft = this.textInput.scrollLeft;
-      const textareaScrollHeight = this.textInput.scrollHeight;
-      const textareaClientHeight = this.textInput.clientHeight;
+      const scrollTop = this.textInput.scrollTop;
+      const scrollLeft = this.textInput.scrollLeft;
 
-      // Check if textarea is scrolled to bottom
-      const isAtBottom = textareaScrollTop + textareaClientHeight >= textareaScrollHeight - 1;
-
-      // Ensure backdrop has same scrollable height as textarea
-      this.ensureScrollHeightMatch();
-
-      // Force reflow to apply spacer height before setting scrollTop
-      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-      this.highlightBackdrop.scrollHeight;
-
-      // Immediate scroll sync
-      if (isAtBottom) {
-        // If at bottom, scroll backdrop to its bottom too
-        this.highlightBackdrop.scrollTop =
-          this.highlightBackdrop.scrollHeight - this.highlightBackdrop.clientHeight;
-      } else {
-        this.highlightBackdrop.scrollTop = textareaScrollTop;
-      }
-      this.highlightBackdrop.scrollLeft = textareaScrollLeft;
-
-      // Sub-pixel adjustment using CSS transform for precise alignment
-      const scrollTopDiff = textareaScrollTop % 1;
-      const scrollLeftDiff = textareaScrollLeft % 1;
-      if (scrollTopDiff !== 0 || scrollLeftDiff !== 0) {
-        this.highlightBackdrop.style.transform =
-          `translate(${-scrollLeftDiff}px, ${-scrollTopDiff}px)`;
-      } else {
-        this.highlightBackdrop.style.transform = '';
+      // Find the content wrapper and apply transform to it
+      const contentWrapper = this.highlightBackdrop.querySelector('.highlight-backdrop-content') as HTMLElement;
+      if (contentWrapper) {
+        // Use CSS transform for instant, GPU-accelerated position sync
+        contentWrapper.style.transform = `translate(${-scrollLeft}px, ${-scrollTop}px)`;
       }
     }
   }
 
   /**
-   * Ensure backdrop scroll height matches textarea scroll height
-   * This prevents misalignment when scrolling to the bottom
+   * Set the backdrop content with a wrapper for transform-based scroll sync
    */
-  private ensureScrollHeightMatch(): void {
-    if (!this.textInput || !this.highlightBackdrop) return;
+  private setBackdropContent(content: Node | string): void {
+    if (!this.highlightBackdrop) return;
 
-    const textareaScrollHeight = this.textInput.scrollHeight;
-    const backdropScrollHeight = this.highlightBackdrop.scrollHeight;
+    const contentWrapper = document.createElement('div');
+    contentWrapper.className = 'highlight-backdrop-content';
 
-    // If textarea has more scrollable content, add spacer to backdrop
-    if (textareaScrollHeight > backdropScrollHeight) {
-      const diff = textareaScrollHeight - backdropScrollHeight;
-      // Find or create spacer element
-      let spacer = this.highlightBackdrop.querySelector('.scroll-height-spacer') as HTMLDivElement;
-      if (!spacer) {
-        spacer = document.createElement('div');
-        spacer.className = 'scroll-height-spacer';
-        spacer.style.pointerEvents = 'none';
-        this.highlightBackdrop.appendChild(spacer);
-      }
-      spacer.style.height = `${diff}px`;
+    if (typeof content === 'string') {
+      contentWrapper.textContent = content;
     } else {
-      // Remove spacer if not needed
-      const spacer = this.highlightBackdrop.querySelector('.scroll-height-spacer');
-      if (spacer) {
-        spacer.remove();
-      }
+      contentWrapper.appendChild(content);
     }
+
+    this.highlightBackdrop.innerHTML = '';
+    this.highlightBackdrop.appendChild(contentWrapper);
   }
 
   // ============================================================
@@ -567,15 +530,13 @@ export class HighlightManager {
     }
 
     if (ranges.length === 0) {
-      this.highlightBackdrop.textContent = text;
+      this.setBackdropContent(text);
+      this.syncBackdropScroll();
       return;
     }
 
     const fragment = this.buildHighlightFragment(text, ranges);
-
-    this.highlightBackdrop.innerHTML = '';
-    this.highlightBackdrop.appendChild(fragment);
-
+    this.setBackdropContent(fragment);
     this.syncBackdropScroll();
   }
 
@@ -708,11 +669,7 @@ export class HighlightManager {
     }
 
     const fragment = this.buildHighlightFragment(text, filteredRanges);
-
-    while (this.highlightBackdrop.firstChild) {
-      this.highlightBackdrop.removeChild(this.highlightBackdrop.firstChild);
-    }
-    this.highlightBackdrop.appendChild(fragment);
+    this.setBackdropContent(fragment);
     this.syncBackdropScroll();
   }
 

@@ -116,11 +116,8 @@
     /* Add extra right padding to match textarea scrollbar width (8px) */
     padding-right: calc(var(--spacing-md) + 8px);
     pointer-events: none;
-    overflow: auto;
-
-    /* Hide scrollbar but allow scrolling for proper scroll sync */
-    scrollbar-width: none;  /* Firefox */
-    -ms-overflow-style: none;  /* IE/Edge */
+    /* Use hidden overflow - we'll use transform for scroll sync */
+    overflow: hidden;
 
     /* Font metrics - must match textarea exactly */
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -152,9 +149,9 @@
     color: transparent;
 }
 
-/* Hide scrollbar for WebKit browsers (Chrome, Safari, Electron) */
-.highlight-backdrop::-webkit-scrollbar {
-    display: none;
+/* Inner content wrapper for transform-based scroll sync */
+.highlight-backdrop-content {
+    will-change: transform;
 }
 
 .highlight-backdrop .at-path-highlight {

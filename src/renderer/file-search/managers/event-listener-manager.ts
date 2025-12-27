@@ -123,7 +123,7 @@ export class EventListenerManager {
       }
     });
 
-    // Sync scroll position between textarea and backdrop (passive for better performance)
+    // Sync scroll position between textarea and backdrop immediately
     this.textInput.addEventListener('scroll', () => {
       this.callbacks.syncBackdropScroll();
     }, { passive: true });
