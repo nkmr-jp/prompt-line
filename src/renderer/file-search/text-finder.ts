@@ -201,7 +201,8 @@ export function findAllAbsolutePaths(text: string): PathMatch[] {
   // - Relative paths: ./path, ../path (ASCII path characters only)
   // - Absolute paths: multi-level /path/to/file, ~/path (first segment must start with ASCII alphanumeric)
   // Excludes single-level paths like /commit (slash commands)
-  const absolutePathPattern = /(?:\.{1,2}\/[a-zA-Z0-9_./-]+|\/(?:[a-zA-Z0-9_.][^\s"'<>|*?\n/]*\/)+[^\s"'<>|*?\n]*|~\/[a-zA-Z0-9_][^\s"'<>|*?\n]+)/g;
+  // Path must end with alphanumeric, dot, underscore, or closing paren/bracket
+  const absolutePathPattern = /(?:\.{1,2}\/[a-zA-Z0-9_./-]+|\/(?:[a-zA-Z0-9_.][^\s"'<>|*?\n/]*\/)+[^\s"'<>|*?\n]*[a-zA-Z0-9_.)}\]:]|~\/[a-zA-Z0-9_][^\s"'<>|*?\n]*[a-zA-Z0-9_.)}\]:])/g;
   let match;
 
   while ((match = absolutePathPattern.exec(text)) !== null) {
