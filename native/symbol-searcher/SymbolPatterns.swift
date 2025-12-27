@@ -13,7 +13,20 @@ let LANGUAGE_PATTERNS: [String: LanguageConfig] = [
             SymbolPattern(type: .method, regex: "^func\\s*\\([^)]+\\)\\s+(\\w+)\\s*\\(", captureGroup: 1),
             SymbolPattern(type: .structDecl, regex: "^type\\s+(\\w+)\\s+struct", captureGroup: 1),
             SymbolPattern(type: .interface, regex: "^type\\s+(\\w+)\\s+interface", captureGroup: 1),
-            SymbolPattern(type: .typeAlias, regex: "^type\\s+(\\w+)\\s+(?!struct|interface)\\w+", captureGroup: 1),
+            // Type aliases: slice type (e.g., type Names []string)
+            SymbolPattern(type: .typeAlias, regex: "^type\\s+(\\w+)\\s+\\[", captureGroup: 1),
+            // Type aliases: map type (e.g., type Cache map[string]int)
+            SymbolPattern(type: .typeAlias, regex: "^type\\s+(\\w+)\\s+map\\[", captureGroup: 1),
+            // Type aliases: pointer type (e.g., type Handler *http.Handler)
+            SymbolPattern(type: .typeAlias, regex: "^type\\s+(\\w+)\\s+\\*", captureGroup: 1),
+            // Type aliases: function type (e.g., type HandlerFunc func(...))
+            SymbolPattern(type: .typeAlias, regex: "^type\\s+(\\w+)\\s+func\\(", captureGroup: 1),
+            // Type aliases: channel type (e.g., type Signal chan struct{}, type Events <-chan Event)
+            SymbolPattern(type: .typeAlias, regex: "^type\\s+(\\w+)\\s+<?-?chan\\b", captureGroup: 1),
+            // Type aliases: built-in types (string, int, bool, byte, rune, error, etc.)
+            SymbolPattern(type: .typeAlias, regex: "^type\\s+(\\w+)\\s+(string|bool|byte|rune|error|any|comparable|u?int(8|16|32|64)?|float(32|64)|complex(64|128)|uintptr)\\b", captureGroup: 1),
+            // Type aliases: package types (e.g., type Handler http.Handler, type Time time.Time)
+            SymbolPattern(type: .typeAlias, regex: "^type\\s+(\\w+)\\s+[a-z]\\w*\\.", captureGroup: 1),
             SymbolPattern(type: .constant, regex: "^const\\s+(\\w+)\\s*=", captureGroup: 1),
             // Constants inside const ( ... ) block with type: `Name Type = value`
             SymbolPattern(type: .constant, regex: "^\\s+(\\w+)\\s+\\w+\\s*=\\s*[\"']", captureGroup: 1),
