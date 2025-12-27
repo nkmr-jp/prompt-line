@@ -164,12 +164,18 @@ export class DomManager {
     // Use execCommand to replace selected text - this enables native Undo
     const success = document.execCommand('insertText', false, newText);
 
+    // Calculate expected cursor position after operation
+    const expectedCursorPos = start + newText.length;
+
     if (!success) {
       // Fallback to manual replacement if execCommand fails
       const value = this.textarea.value;
       this.textarea.value = value.substring(0, start) + newText + value.substring(end);
-      this.textarea.setSelectionRange(start + newText.length, start + newText.length);
     }
+
+    // Always explicitly set cursor position after execCommand
+    // This is necessary because execCommand with empty string may not position cursor correctly
+    this.textarea.setSelectionRange(expectedCursorPos, expectedCursorPos);
 
     this.updateCharCount();
   }
