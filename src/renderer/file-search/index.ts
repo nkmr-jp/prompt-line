@@ -49,6 +49,8 @@ export {
   findSlashCommandAtPosition,
   findAbsolutePathAtPosition,
   findClickablePathAtPosition,
+  findAllUrls,
+  findAllAbsolutePaths,
   resolveAtPathToAbsolute
 } from './text-finder';
 

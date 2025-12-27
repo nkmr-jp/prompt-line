@@ -60,7 +60,10 @@ const ALLOWED_CHANNELS = [
   'clear-symbol-cache',
   // At-path cache channels (for highlighting symbols with spaces)
   'register-at-path',
-  'get-registered-at-paths'
+  'get-registered-at-paths',
+  // Global at-path cache channels (for mdSearch agents and other project-independent items)
+  'register-global-at-path',
+  'get-global-at-paths'
 ];
 
 // IPC channel validation with additional security checks
@@ -334,6 +337,13 @@ const electronAPI: ElectronAPI = {
     },
     getPaths: async (directory: string): Promise<string[]> => {
       return ipcRenderer.invoke('get-registered-at-paths', directory);
+    },
+    // Global at-path cache (for mdSearch agents and other project-independent items)
+    registerGlobal: async (atPath: string): Promise<IPCResult> => {
+      return ipcRenderer.invoke('register-global-at-path', atPath);
+    },
+    getGlobalPaths: async (): Promise<string[]> => {
+      return ipcRenderer.invoke('get-global-at-paths');
     },
   },
 };

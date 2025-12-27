@@ -44,8 +44,49 @@ export class EventListenerManager {
   private suggestionsContainer: HTMLElement | null = null;
   private callbacks: EventListenerCallbacks;
 
+  // Bound event handlers for add/remove listener
+  private boundInputHandler: (() => void) | null = null;
+  private boundSelectionChangeHandler: (() => void) | null = null;
+
+  // Flag to track if listeners are suspended
+  private listenersAreSuspended: boolean = false;
+
   constructor(callbacks: EventListenerCallbacks) {
     this.callbacks = callbacks;
+  }
+
+  /**
+   * Suspend input and selectionchange listeners temporarily
+   * Used during @path deletion to prevent cursor interference
+   */
+  public suspendInputListeners(): void {
+    if (this.listenersAreSuspended) return;
+    this.listenersAreSuspended = true;
+
+    if (this.textInput && this.boundInputHandler) {
+      this.textInput.removeEventListener('input', this.boundInputHandler);
+    }
+    if (this.boundSelectionChangeHandler) {
+      document.removeEventListener('selectionchange', this.boundSelectionChangeHandler);
+    }
+    console.debug('[EventListenerManager] Input listeners suspended');
+  }
+
+  /**
+   * Resume input and selectionchange listeners
+   * Call this after @path deletion is complete
+   */
+  public resumeInputListeners(): void {
+    if (!this.listenersAreSuspended) return;
+    this.listenersAreSuspended = false;
+
+    if (this.textInput && this.boundInputHandler) {
+      this.textInput.addEventListener('input', this.boundInputHandler);
+    }
+    if (this.boundSelectionChangeHandler) {
+      document.addEventListener('selectionchange', this.boundSelectionChangeHandler);
+    }
+    console.debug('[EventListenerManager] Input listeners resumed');
   }
 
   /**
@@ -70,14 +111,17 @@ export class EventListenerManager {
 
     console.debug('[EventListenerManager] setupEventListeners: setting up event listeners');
 
-    // Listen for input changes to detect @ mentions and update highlights
-    this.textInput.addEventListener('input', () => {
+    // Create bound input handler for add/remove listener support
+    this.boundInputHandler = () => {
       console.debug('[EventListenerManager] input event fired');
       this.callbacks.checkForFileSearch();
       this.callbacks.updateHighlightBackdrop();
       // Update cursor position highlight after input
       this.callbacks.updateCursorPositionHighlight();
-    });
+    };
+
+    // Listen for input changes to detect @ mentions and update highlights
+    this.textInput.addEventListener('input', this.boundInputHandler);
 
     // Listen for keydown for navigation and backspace handling
     this.textInput.addEventListener('keydown', (e) => {
@@ -116,17 +160,20 @@ export class EventListenerManager {
       }
     });
 
-    // Also listen for selectionchange on document (handles all cursor movements)
-    document.addEventListener('selectionchange', () => {
+    // Create bound selectionchange handler for add/remove listener support
+    this.boundSelectionChangeHandler = () => {
       if (document.activeElement === this.textInput) {
         this.callbacks.updateCursorPositionHighlight();
       }
-    });
+    };
 
-    // Sync scroll position between textarea and backdrop
+    // Also listen for selectionchange on document (handles all cursor movements)
+    document.addEventListener('selectionchange', this.boundSelectionChangeHandler);
+
+    // Sync scroll position between textarea and backdrop immediately
     this.textInput.addEventListener('scroll', () => {
       this.callbacks.syncBackdropScroll();
-    });
+    }, { passive: true });
 
     // Hide suggestions on blur (with small delay to allow click selection)
     this.textInput.addEventListener('blur', () => {

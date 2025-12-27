@@ -227,7 +227,8 @@ export class PromptLineRenderer {
         // Replace text range with native Undo/Redo support
         this.domManager.replaceRangeWithUndo(start, end, newText);
       },
-      getIsComposing: () => this.eventHandler?.getIsComposing() ?? false
+      getIsComposing: () => this.eventHandler?.getIsComposing() ?? false,
+      showError: (message: string) => this.domManager.showError(message)
     });
 
     this.fileSearchManager.initializeElements();

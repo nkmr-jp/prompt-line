@@ -113,12 +113,11 @@
     border: 1px solid transparent;
     border-radius: var(--radius-md);
     padding: var(--spacing-md);
+    /* Add extra right padding to match textarea scrollbar width (8px) */
+    padding-right: calc(var(--spacing-md) + 8px);
     pointer-events: none;
-    overflow: auto;
-
-    /* Hide scrollbar but allow scrolling for proper scroll sync */
-    scrollbar-width: none;  /* Firefox */
-    -ms-overflow-style: none;  /* IE/Edge */
+    /* Use hidden overflow - we'll use transform for scroll sync */
+    overflow: hidden;
 
     /* Font metrics - must match textarea exactly */
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -150,17 +149,20 @@
     color: transparent;
 }
 
-/* Hide scrollbar for WebKit browsers (Chrome, Safari, Electron) */
-.highlight-backdrop::-webkit-scrollbar {
-    display: none;
+/* Inner content wrapper for transform-based scroll sync */
+.highlight-backdrop-content {
+    will-change: transform;
 }
 
 .highlight-backdrop .at-path-highlight {
     background: rgba(59, 130, 246, 0.4);
-    border-radius: 2px;
+    border-radius: 8px;
     color: transparent;
 
-    /* Remove padding/margin to prevent position shift */
+    /* Expand highlight area by 1px in all directions */
+    padding: 1px;
+    margin: -1px;
+
     /* Use box-decoration-break for multi-line highlights */
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;
@@ -169,31 +171,34 @@
 /* File path link style for Cmd+hover or cursor position */
 .highlight-backdrop .file-path-link {
     /* Override the transparent color to make link visible */
-    color: #60a5fa !important;
+    color: var(--text-primary) !important;
     text-decoration: underline;
-    text-decoration-color: #60a5fa;
+    text-decoration-color: rgba(255, 255, 255, 0.4);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
     cursor: pointer;
 }
 
 /* @path with link style (Cmd+hover or cursor over @path) */
 .highlight-backdrop .at-path-highlight.file-path-link {
     /* Override the transparent color to make link visible */
-    color: #60a5fa !important;
+    color: var(--text-primary) !important;
     text-decoration: underline;
-    text-decoration-color: #60a5fa;
-    background: rgba(96, 165, 250, 0.3);
+    text-decoration-color: rgba(255, 255, 255, 0.4);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+    /* Underline only, no background highlight */
 }
 
-/* Cursor-position highlight for absolute file paths (background highlight) */
+/* Cursor-position underline for absolute file paths */
 .highlight-backdrop .file-path-cursor-highlight {
-    /* Background highlight when cursor is on a linkable file path */
-    background: rgba(59, 130, 246, 0.4);
-    border-radius: 2px;
+    /* Solid underline for linkable file paths */
     color: transparent;
-
-    /* Remove padding/margin to prevent position shift */
-    box-decoration-break: clone;
-    -webkit-box-decoration-break: clone;
+    text-decoration: underline;
+    text-decoration-color: rgba(255, 255, 255, 0.3);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+    cursor: pointer;
 }
 
 #textInput {
@@ -235,6 +240,9 @@
     /* Text rendering optimization */
     text-rendering: geometricPrecision;
     -webkit-font-smoothing: antialiased;
+
+    /* Always reserve scrollbar space to prevent layout shift */
+    overflow-y: scroll;
 }
 
 #textInput:focus {
@@ -258,17 +266,16 @@
 }
 
 #textInput::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: var(--radius-sm);
+    background: transparent;
 }
 
 #textInput::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.1);
     border-radius: var(--radius-sm);
 }
 
 #textInput::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.2);
 }
 
 /* Disable IME suggestions */

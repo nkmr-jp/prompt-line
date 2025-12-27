@@ -197,6 +197,12 @@ export class FileSearchManager implements IInitializable {
       onMouseMove: (e: MouseEvent) => this.highlightManager?.onMouseMove(e) ?? undefined
     });
 
+    // Connect PathManager to EventListenerManager for listener suspension during @path deletion
+    this.pathManager.setEventListenerCallbacks(
+      () => this.eventListenerManager.suspendInputListeners(),
+      () => this.eventListenerManager.resumeInputListeners()
+    );
+
     // Initialize QueryExtractionManager
     this.queryExtractionManager = new QueryExtractionManager({
       getTextContent: () => this.callbacks.getTextContent(),
@@ -450,7 +456,8 @@ export class FileSearchManager implements IInitializable {
       hideWindow: () => {
         window.electronAPI.window.hide();
       },
-      restoreDefaultHint: () => this.restoreDefaultHint()
+      restoreDefaultHint: () => this.restoreDefaultHint(),
+      showError: (message: string) => this.callbacks.showError?.(message)
     });
 
     // Initialize SuggestionUIManager (consolidated from SuggestionListManager and SuggestionStateManager)
@@ -527,10 +534,9 @@ export class FileSearchManager implements IInitializable {
     // The manager will notify via onCacheUpdated callback to sync local copy
     this.directoryCacheManager?.handleCachedDirectoryData(data);
 
-    // Load registered at-paths for this directory (supports symbols with spaces)
-    if (data?.directory) {
-      this.loadRegisteredAtPaths(data.directory);
-    }
+    // Load registered at-paths (supports symbols with spaces and mdSearch agents)
+    // Always load global paths; load project paths only if directory is available
+    this.loadRegisteredAtPaths(data?.directory ?? null);
 
     // Log cached data after update
     setTimeout(() => {
@@ -544,20 +550,36 @@ export class FileSearchManager implements IInitializable {
   /**
    * Load registered at-paths from persistent cache
    * These paths may contain spaces (e.g., symbol names with spaces)
+   * Loads both project-specific paths and global paths (for mdSearch agents)
+   * @param directory - Project directory (null if not available)
    */
-  private async loadRegisteredAtPaths(directory: string): Promise<void> {
+  private async loadRegisteredAtPaths(directory: string | null): Promise<void> {
     try {
-      if (!window.electronAPI?.atPathCache?.getPaths) {
+      if (!window.electronAPI?.atPathCache) {
         console.debug('[FileSearchManager] atPathCache API not available');
         return;
       }
 
-      const paths = await window.electronAPI.atPathCache.getPaths(directory);
-      if (paths && paths.length > 0) {
-        this.highlightManager?.setRegisteredAtPaths(paths);
+      // Load project-specific paths (only if directory is available)
+      const projectPaths = (directory && window.electronAPI.atPathCache.getPaths)
+        ? await window.electronAPI.atPathCache.getPaths(directory)
+        : [];
+
+      // Load global paths (for mdSearch agents and other project-independent items)
+      const globalPaths = window.electronAPI.atPathCache.getGlobalPaths
+        ? await window.electronAPI.atPathCache.getGlobalPaths()
+        : [];
+
+      // Merge both path sets (deduplicated)
+      const allPaths = [...new Set([...projectPaths, ...globalPaths])];
+
+      if (allPaths.length > 0) {
+        this.highlightManager?.setRegisteredAtPaths(allPaths);
         console.debug('[FileSearchManager] Loaded registered at-paths:', {
           directory,
-          count: paths.length
+          projectCount: projectPaths.length,
+          globalCount: globalPaths.length,
+          totalCount: allPaths.length
         });
       }
     } catch (error) {

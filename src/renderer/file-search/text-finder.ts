@@ -96,15 +96,15 @@ export function findSlashCommandAtPosition(text: string, cursorPos: number): Com
 }
 
 /**
- * Find absolute file path at the given cursor position
+ * Find file path at the given cursor position
  * Returns the path if found, null otherwise
- * Supports both / and ~ (home directory) prefixed paths
+ * Supports absolute paths (/, ~/), and relative paths (./, ../)
  */
 export function findAbsolutePathAtPosition(text: string, cursorPos: number): string | null {
-  // Pattern to match absolute paths starting with / or ~
-  // Matches paths like /Users/name/.prompt-line/images/file.png
-  // or ~/.prompt-line/images/file.png
-  const absolutePathPattern = /(?:\/|~\/)[^\s"'<>|*?\n]+/g;
+  // Pattern to match file paths:
+  // - Relative paths: ./path, ../path (ASCII path characters only)
+  // - Absolute paths: /path, ~/path (first segment must start with ASCII alphanumeric)
+  const absolutePathPattern = /(?:\.{1,2}\/[a-zA-Z0-9_./-]+|\/[a-zA-Z0-9_][^\s"'<>|*?\n]*|~\/[a-zA-Z0-9_][^\s"'<>|*?\n]*)/g;
   let match;
 
   while ((match = absolutePathPattern.exec(text)) !== null) {
@@ -130,7 +130,8 @@ export function findAbsolutePathAtPosition(text: string, cursorPos: number): str
 /**
  * Find any clickable file path at the given position
  * Returns { path, start, end } if found
- * Excludes slash commands (e.g., /commit) from absolute path detection
+ * Supports @path, relative paths (./, ../), and absolute paths (/, ~/)
+ * Excludes slash commands (e.g., /commit)
  */
 export function findClickablePathAtPosition(text: string, cursorPos: number): PathMatch | null {
   // First check @path
@@ -146,9 +147,11 @@ export function findClickablePathAtPosition(text: string, cursorPos: number): Pa
     }
   }
 
-  // Then check absolute paths (including ~ for home directory)
+  // Then check file paths (relative and absolute)
+  // - Relative paths: ./path, ../path (ASCII path characters only)
+  // - Absolute paths: multi-level /path/to/file, ~/path (first segment must start with ASCII alphanumeric)
   // Excludes single-level paths like /commit (slash commands)
-  const absolutePathPattern = /(?:\/(?:[^\s"'<>|*?\n/]+\/)+[^\s"'<>|*?\n]*|~\/[^\s"'<>|*?\n]+)/g;
+  const absolutePathPattern = /(?:\.{1,2}\/[a-zA-Z0-9_./-]+|\/(?:[a-zA-Z0-9_.][^\s"'<>|*?\n/]*\/)+[^\s"'<>|*?\n]*|~\/[a-zA-Z0-9_][^\s"'<>|*?\n]+)/g;
   while ((match = absolutePathPattern.exec(text)) !== null) {
     const start = match.index;
     const end = start + match[0].length;
@@ -166,6 +169,60 @@ export function findClickablePathAtPosition(text: string, cursorPos: number): Pa
   }
 
   return null;
+}
+
+/**
+ * Find all URLs in the text
+ * Returns array of { url, start, end }
+ */
+export function findAllUrls(text: string): UrlMatch[] {
+  const results: UrlMatch[] = [];
+  const urlPattern = /https?:\/\/[^\s"'<>|*\n]+/gi;
+  let match;
+
+  while ((match = urlPattern.exec(text)) !== null) {
+    results.push({
+      url: match[0],
+      start: match.index,
+      end: match.index + match[0].length
+    });
+  }
+
+  return results;
+}
+
+/**
+ * Find all file paths in the text
+ * Returns array of { path, start, end }
+ * Includes relative paths (./, ../) and excludes slash commands (e.g., /commit)
+ */
+export function findAllAbsolutePaths(text: string): PathMatch[] {
+  const results: PathMatch[] = [];
+  // - Relative paths: ./path, ../path (ASCII path characters only)
+  // - Absolute paths: multi-level /path/to/file, ~/path (first segment must start with ASCII alphanumeric)
+  // Excludes single-level paths like /commit (slash commands)
+  // Path must end with alphanumeric, dot, underscore, or closing paren/bracket
+  const absolutePathPattern = /(?:\.{1,2}\/[a-zA-Z0-9_./-]+|\/(?:[a-zA-Z0-9_.][^\s"'<>|*?\n/]*\/)+[^\s"'<>|*?\n]*[a-zA-Z0-9_.)}\]:]|~\/[a-zA-Z0-9_][^\s"'<>|*?\n]*[a-zA-Z0-9_.)}\]:])/g;
+  let match;
+
+  while ((match = absolutePathPattern.exec(text)) !== null) {
+    const start = match.index;
+    const end = start + match[0].length;
+
+    // Check if path is at start of text or preceded by whitespace
+    const prevChar = start > 0 ? text[start - 1] : '';
+    if (prevChar !== '' && prevChar !== ' ' && prevChar !== '\t' && prevChar !== '\n') {
+      continue; // Skip - not a standalone absolute path
+    }
+
+    results.push({
+      path: match[0],
+      start,
+      end
+    });
+  }
+
+  return results;
 }
 
 /**

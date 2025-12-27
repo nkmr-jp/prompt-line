@@ -38,6 +38,7 @@ export interface FileSearchCallbacks {
   setDraggable?: (enabled: boolean) => void; // Enable/disable window dragging during file open
   replaceRangeWithUndo?: (start: number, end: number, newText: string) => void; // Replace text range with undo support
   getIsComposing?: () => boolean; // Check if IME is active to avoid conflicts with Japanese input
+  showError?: (message: string) => void; // Show error message to user
 }
 
 // Represents a tracked @path in the text

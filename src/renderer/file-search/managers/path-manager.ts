@@ -55,6 +55,10 @@ export interface PathManagerCallbacks {
 
   // Feature flags
   isCommandEnabledSync?: (() => boolean) | undefined;
+
+  // Event listener control (for @path deletion)
+  suspendInputListeners?: (() => void) | undefined;
+  resumeInputListeners?: (() => void) | undefined;
 }
 
 /**
@@ -106,6 +110,18 @@ export class PathManager {
   constructor(callbacks: PathManagerCallbacks, textInput?: HTMLTextAreaElement) {
     this.callbacks = callbacks;
     this.textInput = textInput || null;
+  }
+
+  /**
+   * Set event listener control callbacks
+   * Called after EventListenerManager is initialized
+   */
+  public setEventListenerCallbacks(
+    suspendInputListeners: () => void,
+    resumeInputListeners: () => void
+  ): void {
+    this.callbacks.suspendInputListeners = suspendInputListeners;
+    this.callbacks.resumeInputListeners = resumeInputListeners;
   }
 
   /**
@@ -486,26 +502,48 @@ export class PathManager {
    * @returns The AtPathRange at cursor or null
    */
   public findAtPathAtCursor(cursorPos: number, text: string): AtPathRange | null {
+    // Helper to check if a character is a valid terminator after @path
+    const isTerminator = (char: string | undefined): boolean => {
+      return char === undefined || char === ' ' || char === '\n' || char === '\r';
+    };
+
+    // Helper to check if all characters in a range are terminators
+    const allTerminators = (startPos: number, endPos: number): boolean => {
+      for (let i = startPos; i < endPos; i++) {
+        if (!isTerminator(text[i])) {
+          return false;
+        }
+      }
+      return true;
+    };
+
+    console.log('[PathManager] findAtPathAtCursor: cursorPos=' + cursorPos + ' atPathsCount=' + this.atPaths.length);
+
     for (const path of this.atPaths) {
       const charAtEnd = text[path.end];
+      const charAtEndDisplay = charAtEnd === '\n' ? '\\n' : charAtEnd === '\r' ? '\\r' : charAtEnd === undefined ? 'undefined' : '"' + charAtEnd + '"';
 
-      // Check if cursor is at path.end (right after the @path)
-      if (cursorPos === path.end) {
-        // Only treat as "at the end" if the character at path.end is:
-        // - undefined (end of text), or
-        // - a space (trailing space after @path)
-        // If there's another character (like @), user is typing something new
-        if (charAtEnd === undefined || charAtEnd === ' ') {
+      // Check if cursor is at or after path.end, with only terminators in between
+      // This handles cases like: @path (cursor), @path  (cursor), @path\n(cursor), etc.
+      if (cursorPos >= path.end && cursorPos <= path.end + 3) {
+        // Limit to 3 characters after path.end to avoid matching too far
+        const charsInBetween = text.substring(path.end, cursorPos);
+        const allAreTerminators = allTerminators(path.end, cursorPos);
+
+        console.log('[PathManager] Checking path: path=' + path.path +
+          ' start=' + path.start + ' end=' + path.end +
+          ' cursorPos=' + cursorPos +
+          ' charAtEnd=' + charAtEndDisplay + ' (code:' + (charAtEnd?.charCodeAt(0) ?? 'N/A') + ')' +
+          ' charsInBetween="' + charsInBetween.replace(/\n/g, '\\n').replace(/\r/g, '\\r') + '"' +
+          ' allAreTerminators=' + allAreTerminators);
+
+        if (allAreTerminators) {
           return path;
         }
-        // Don't return path if there's another character at path.end
-        continue;
-      }
-
-      // Also check path.end + 1 if the character at path.end is a space
-      // This allows deletion when cursor is after the trailing space
-      if (cursorPos === path.end + 1 && charAtEnd === ' ') {
-        return path;
+      } else {
+        console.log('[PathManager] Checking path: path=' + path.path +
+          ' start=' + path.start + ' end=' + path.end +
+          ' cursorPos=' + cursorPos + ' - cursor not near path end');
       }
     }
     return null;
@@ -624,6 +662,10 @@ export class PathManager {
   /**
    * Handle backspace key for @path deletion
    * Deletes the entire @path when cursor is at the end
+   *
+   * Uses event listener suspension instead of flags to prevent cursor interference.
+   * This eliminates timing-dependent bugs from the previous multi-stage delay approach.
+   *
    * @param e - Keyboard event
    * @returns true if @path was deleted, false otherwise
    */
@@ -632,56 +674,91 @@ export class PathManager {
 
     const cursorPos = this.callbacks.getCursorPosition();
     const text = this.callbacks.getTextContent();
+
+    console.debug('[PathManager] handleBackspaceForAtPath called:', {
+      cursorPos,
+      textLength: text.length,
+      atPathsCount: this.atPaths.length
+    });
+
     const atPath = this.findAtPathAtCursor(cursorPos, text);
 
     if (!atPath) {
+      console.debug('[PathManager] No @path found at cursor position', cursorPos);
       return false;
     }
 
     e.preventDefault();
 
+    // Save state before deletion
+    const savedScrollTop = this.textInput?.scrollTop ?? 0;
+    const savedScrollLeft = this.textInput?.scrollLeft ?? 0;
     const deletedPathContent = atPath.path;
-
-    // Save atPath properties before deletion - replaceRangeWithUndo triggers input event
-    // which calls updateHighlightBackdrop() and rescanAtPaths(), modifying atPaths
     const savedStart = atPath.start;
     const savedEnd = atPath.end;
 
-    // Delete the @path (and trailing space if present)
+    console.debug('[PathManager] Deleting @path:', {
+      path: atPath.path,
+      start: savedStart,
+      end: savedEnd,
+      savedScrollTop
+    });
+
+    // CRITICAL: Suspend input/selectionchange listeners to prevent cursor interference
+    // This replaces the fragile flag-based approach with direct listener control
+    this.callbacks.suspendInputListeners?.();
+
+    // Calculate delete range (include trailing space if present)
     let deleteEnd = savedEnd;
     if (text[deleteEnd] === ' ') {
       deleteEnd++;
     }
 
-    // Use replaceRangeWithUndo if available for native Undo support
-    // Note: execCommand('insertText', false, '') places cursor at the deletion point
-    // which is exactly where we want it (savedStart), so no need to call setCursorPosition
+    // Perform deletion
     if (this.callbacks.replaceRangeWithUndo) {
       this.callbacks.replaceRangeWithUndo(savedStart, deleteEnd, '');
-      // Explicitly restore cursor position after deletion
-      // The input event fired by execCommand may trigger code that affects cursor position
-      // (e.g., checkForFileSearch, updateHighlightBackdrop, updateCursorPositionHighlight)
-      // Restoring here ensures cursor stays at the correct deletion point
-      this.callbacks.setCursorPosition(savedStart);
     } else if (this.callbacks.setTextContent) {
-      // Fallback to direct text manipulation (no Undo support) - need to set cursor manually
       const newText = text.substring(0, savedStart) + text.substring(deleteEnd);
       this.callbacks.setTextContent(newText);
-      this.callbacks.setCursorPosition(savedStart);
     }
 
-    // Update highlight backdrop (rescanAtPaths will recalculate all positions)
-    this.callbacks.updateHighlightBackdrop?.();
-
-    // Restore cursor position again after updateHighlightBackdrop
-    // This ensures cursor stays at savedStart even if backdrop update affects it
+    // Set cursor position immediately
     this.callbacks.setCursorPosition(savedStart);
 
-    // After update, check if this path still exists in the text
-    // If not, remove it from selectedPaths
+    // Restore scroll position
+    if (this.textInput) {
+      this.textInput.scrollTop = savedScrollTop;
+      this.textInput.scrollLeft = savedScrollLeft;
+    }
+
+    // Update highlight backdrop (rescanAtPaths will recalculate positions)
+    this.callbacks.updateHighlightBackdrop?.();
+
+    // Ensure cursor and scroll are still correct after highlight update
+    this.callbacks.setCursorPosition(savedStart);
+    if (this.textInput) {
+      this.textInput.scrollTop = savedScrollTop;
+      this.textInput.scrollLeft = savedScrollLeft;
+    }
+
+    // Resume listeners after next animation frame (when all updates are complete)
+    requestAnimationFrame(() => {
+      // Final cursor/scroll restoration
+      this.callbacks.setCursorPosition?.(savedStart);
+      if (this.textInput) {
+        this.textInput.scrollTop = savedScrollTop;
+        this.textInput.scrollLeft = savedScrollLeft;
+      }
+
+      // Resume listeners now that deletion is complete
+      this.callbacks.resumeInputListeners?.();
+
+      console.debug('[PathManager] @path deletion complete, listeners resumed');
+    });
+
+    // Remove deleted path from selectedPaths if no longer in text
     if (deletedPathContent && !this.atPaths.some(p => p.path === deletedPathContent)) {
       this.removeSelectedPath(deletedPathContent);
-      console.debug('[PathManager] Removed path from selectedPaths after deletion:', deletedPathContent);
     }
 
     console.debug('[PathManager] deleted @path:', formatLog({

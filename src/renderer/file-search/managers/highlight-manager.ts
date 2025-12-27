@@ -22,7 +22,9 @@ import {
   findUrlAtPosition,
   findSlashCommandAtPosition,
   findAbsolutePathAtPosition,
-  findClickablePathAtPosition
+  findClickablePathAtPosition,
+  findAllUrls,
+  findAllAbsolutePaths
 } from '../text-finder';
 import { PathManager } from './path-manager';
 
@@ -230,58 +232,39 @@ export class HighlightManager {
 
   /**
    * Sync the scroll position of the highlight backdrop with the textarea
-   * Includes sub-pixel adjustment for precise alignment
+   * Uses CSS transform for GPU-accelerated, lag-free sync
    */
   public syncBackdropScroll(): void {
     if (this.textInput && this.highlightBackdrop) {
-      // Ensure backdrop has same scrollable height as textarea
-      this.ensureScrollHeightMatch();
+      const scrollTop = this.textInput.scrollTop;
+      const scrollLeft = this.textInput.scrollLeft;
 
-      // Immediate scroll sync (no RAF here for responsiveness)
-      this.highlightBackdrop.scrollTop = this.textInput.scrollTop;
-      this.highlightBackdrop.scrollLeft = this.textInput.scrollLeft;
-
-      // Sub-pixel adjustment using CSS transform for precise alignment
-      const scrollTopDiff = this.textInput.scrollTop % 1;
-      const scrollLeftDiff = this.textInput.scrollLeft % 1;
-      if (scrollTopDiff !== 0 || scrollLeftDiff !== 0) {
-        this.highlightBackdrop.style.transform =
-          `translate(${-scrollLeftDiff}px, ${-scrollTopDiff}px)`;
-      } else {
-        this.highlightBackdrop.style.transform = '';
+      // Find the content wrapper and apply transform to it
+      const contentWrapper = this.highlightBackdrop.querySelector('.highlight-backdrop-content') as HTMLElement;
+      if (contentWrapper) {
+        // Use CSS transform for instant, GPU-accelerated position sync
+        contentWrapper.style.transform = `translate(${-scrollLeft}px, ${-scrollTop}px)`;
       }
     }
   }
 
   /**
-   * Ensure backdrop scroll height matches textarea scroll height
-   * This prevents misalignment when scrolling to the bottom
+   * Set the backdrop content with a wrapper for transform-based scroll sync
    */
-  private ensureScrollHeightMatch(): void {
-    if (!this.textInput || !this.highlightBackdrop) return;
+  private setBackdropContent(content: Node | string): void {
+    if (!this.highlightBackdrop) return;
 
-    const textareaScrollHeight = this.textInput.scrollHeight;
-    const backdropScrollHeight = this.highlightBackdrop.scrollHeight;
+    const contentWrapper = document.createElement('div');
+    contentWrapper.className = 'highlight-backdrop-content';
 
-    // If textarea has more scrollable content, add spacer to backdrop
-    if (textareaScrollHeight > backdropScrollHeight) {
-      const diff = textareaScrollHeight - backdropScrollHeight;
-      // Find or create spacer element
-      let spacer = this.highlightBackdrop.querySelector('.scroll-height-spacer') as HTMLDivElement;
-      if (!spacer) {
-        spacer = document.createElement('div');
-        spacer.className = 'scroll-height-spacer';
-        spacer.style.pointerEvents = 'none';
-        this.highlightBackdrop.appendChild(spacer);
-      }
-      spacer.style.height = `${diff}px`;
+    if (typeof content === 'string') {
+      contentWrapper.textContent = content;
     } else {
-      // Remove spacer if not needed
-      const spacer = this.highlightBackdrop.querySelector('.scroll-height-spacer');
-      if (spacer) {
-        spacer.remove();
-      }
+      contentWrapper.appendChild(content);
     }
+
+    this.highlightBackdrop.innerHTML = '';
+    this.highlightBackdrop.appendChild(contentWrapper);
   }
 
   // ============================================================
@@ -511,20 +494,49 @@ export class HighlightManager {
 
     const text = this.callbacks.getTextContent();
     const atPaths = this.pathManager.getAtPaths();
+    const ranges: Array<AtPathRange & { className: string }> = [];
 
-    if (atPaths.length === 0) {
-      this.highlightBackdrop.textContent = text;
+    // Add @paths
+    for (const atPath of atPaths) {
+      ranges.push({ ...atPath, className: 'at-path-highlight' });
+    }
+
+    // Add all URLs with underline (always visible)
+    const urls = findAllUrls(text);
+    for (const url of urls) {
+      const overlapsWithAtPath = atPaths.some(
+        ap => (url.start >= ap.start && url.start < ap.end) ||
+              (url.end > ap.start && url.end <= ap.end)
+      );
+      if (!overlapsWithAtPath) {
+        ranges.push({ start: url.start, end: url.end, className: 'file-path-cursor-highlight' });
+      }
+    }
+
+    // Add all absolute paths with underline (always visible)
+    const absolutePaths = findAllAbsolutePaths(text);
+    for (const pathInfo of absolutePaths) {
+      const overlapsWithAtPath = atPaths.some(
+        ap => (pathInfo.start >= ap.start && pathInfo.start < ap.end) ||
+              (pathInfo.end > ap.start && pathInfo.end <= ap.end)
+      );
+      const overlapsWithUrl = urls.some(
+        u => (pathInfo.start >= u.start && pathInfo.start < u.end) ||
+             (pathInfo.end > u.start && pathInfo.end <= u.end)
+      );
+      if (!overlapsWithAtPath && !overlapsWithUrl) {
+        ranges.push({ start: pathInfo.start, end: pathInfo.end, className: 'file-path-cursor-highlight' });
+      }
+    }
+
+    if (ranges.length === 0) {
+      this.setBackdropContent(text);
+      this.syncBackdropScroll();
       return;
     }
 
-    const fragment = this.buildHighlightFragment(text, atPaths.map(ap => ({
-      ...ap,
-      className: 'at-path-highlight'
-    })));
-
-    this.highlightBackdrop.innerHTML = '';
-    this.highlightBackdrop.appendChild(fragment);
-
+    const fragment = this.buildHighlightFragment(text, ranges);
+    this.setBackdropContent(fragment);
     this.syncBackdropScroll();
   }
 
@@ -546,13 +558,33 @@ export class HighlightManager {
       ranges.push({ ...atPath, className: 'at-path-highlight' });
     }
 
-    // Add cursor position path if it's not already an @path
-    if (this.cursorPositionPath) {
-      const isAlreadyAtPath = atPaths.some(
-        ap => ap.start === this.cursorPositionPath!.start && ap.end === this.cursorPositionPath!.end
+    // Add all URLs with underline (always visible)
+    const urls = findAllUrls(text);
+    for (const url of urls) {
+      // Check if this URL overlaps with any @path
+      const overlapsWithAtPath = atPaths.some(
+        ap => (url.start >= ap.start && url.start < ap.end) ||
+              (url.end > ap.start && url.end <= ap.end)
       );
-      if (!isAlreadyAtPath) {
-        ranges.push({ ...this.cursorPositionPath, className: 'file-path-cursor-highlight' });
+      if (!overlapsWithAtPath) {
+        ranges.push({ start: url.start, end: url.end, className: 'file-path-cursor-highlight' });
+      }
+    }
+
+    // Add all absolute paths with underline (always visible)
+    const absolutePaths = findAllAbsolutePaths(text);
+    for (const pathInfo of absolutePaths) {
+      // Check if this path overlaps with any @path or URL
+      const overlapsWithAtPath = atPaths.some(
+        ap => (pathInfo.start >= ap.start && pathInfo.start < ap.end) ||
+              (pathInfo.end > ap.start && pathInfo.end <= ap.end)
+      );
+      const overlapsWithUrl = urls.some(
+        u => (pathInfo.start >= u.start && pathInfo.start < u.end) ||
+             (pathInfo.end > u.start && pathInfo.end <= u.end)
+      );
+      if (!overlapsWithAtPath && !overlapsWithUrl) {
+        ranges.push({ start: pathInfo.start, end: pathInfo.end, className: 'file-path-cursor-highlight' });
       }
     }
 
@@ -578,23 +610,66 @@ export class HighlightManager {
       ranges.push({ ...atPath, className });
     }
 
-    // Add hovered path if it's not an @path
+    // Add all URLs with underline (always visible)
+    const urls = findAllUrls(text);
+    for (const url of urls) {
+      const overlapsWithAtPath = atPaths.some(
+        ap => (url.start >= ap.start && url.start < ap.end) ||
+              (url.end > ap.start && url.end <= ap.end)
+      );
+      if (!overlapsWithAtPath) {
+        const isHovered = url.start === this.hoveredAtPath.start && url.end === this.hoveredAtPath.end;
+        const className = isHovered ? 'file-path-link' : 'file-path-cursor-highlight';
+        ranges.push({ start: url.start, end: url.end, className });
+      }
+    }
+
+    // Add all absolute paths with underline (always visible)
+    const absolutePaths = findAllAbsolutePaths(text);
+    for (const pathInfo of absolutePaths) {
+      const overlapsWithAtPath = atPaths.some(
+        ap => (pathInfo.start >= ap.start && pathInfo.start < ap.end) ||
+              (pathInfo.end > ap.start && pathInfo.end <= ap.end)
+      );
+      const overlapsWithUrl = urls.some(
+        u => (pathInfo.start >= u.start && pathInfo.start < u.end) ||
+             (pathInfo.end > u.start && pathInfo.end <= u.end)
+      );
+      if (!overlapsWithAtPath && !overlapsWithUrl) {
+        const isHovered = pathInfo.start === this.hoveredAtPath.start && pathInfo.end === this.hoveredAtPath.end;
+        const className = isHovered ? 'file-path-link' : 'file-path-cursor-highlight';
+        ranges.push({ start: pathInfo.start, end: pathInfo.end, className });
+      }
+    }
+
+    // Add hovered path if it's not already added (for other linkable types like slash commands)
     if (!isHoveredAtPath) {
-      ranges.push({ ...this.hoveredAtPath, className: 'file-path-link' });
+      const isHoveredUrl = urls.some(u => u.start === this.hoveredAtPath!.start && u.end === this.hoveredAtPath!.end);
+      const isHoveredPath = absolutePaths.some(p => p.start === this.hoveredAtPath!.start && p.end === this.hoveredAtPath!.end);
+      if (!isHoveredUrl && !isHoveredPath) {
+        ranges.push({ ...this.hoveredAtPath, className: 'file-path-link' });
+      }
     }
 
     this.updateBackdropWithRanges(text, ranges);
   }
 
   private updateBackdropWithRanges(text: string, ranges: Array<AtPathRange & { className: string }>): void {
+    // Sort by start position
     ranges.sort((a, b) => a.start - b.start);
 
-    const fragment = this.buildHighlightFragment(text, ranges);
-
-    while (this.highlightBackdrop.firstChild) {
-      this.highlightBackdrop.removeChild(this.highlightBackdrop.firstChild);
+    // Remove overlapping ranges (keep the first one)
+    const filteredRanges: Array<AtPathRange & { className: string }> = [];
+    let lastEnd = -1;
+    for (const range of ranges) {
+      if (range.start >= lastEnd) {
+        filteredRanges.push(range);
+        lastEnd = range.end;
+      }
     }
-    this.highlightBackdrop.appendChild(fragment);
+
+    const fragment = this.buildHighlightFragment(text, filteredRanges);
+    this.setBackdropContent(fragment);
     this.syncBackdropScroll();
   }
 

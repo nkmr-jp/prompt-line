@@ -48,6 +48,9 @@ export interface FileOpenerCallbacks {
   // Window operations
   hideWindow?: () => void;
   restoreDefaultHint?: () => void;
+
+  // Error notification
+  showError?: (message: string) => void;
 }
 
 /**
@@ -70,7 +73,14 @@ export class FileOpenerEventHandler {
       this.callbacks.onBeforeOpenFile?.();
       // Enable draggable state while file is opening
       this.callbacks.setDraggable?.(true);
-      await window.electronAPI.file.openInEditor(filePath);
+      const result = await window.electronAPI.file.openInEditor(filePath);
+      
+      // Check for errors in the result
+      if (!result.success && result.error) {
+        this.callbacks.showError?.(result.error);
+        this.callbacks.setDraggable?.(false);
+        return;
+      }
       // Note: Do not restore focus to PromptLine window
       // The opened file's application should stay in foreground
     } catch (err) {

@@ -484,6 +484,13 @@ export class NavigationManager {
     } else {
       // For 'name' format, keep @ and insert just the name
       this.callbacks.insertFilePath(agent.name);
+
+      // Register agent name in global cache for persistent highlighting
+      // Agents are project-independent (mdSearch items)
+      if (window.electronAPI?.atPathCache?.registerGlobal) {
+        window.electronAPI.atPathCache.registerGlobal(agent.name)
+          .catch((error) => console.warn('[NavigationManager] Failed to register global at-path:', error));
+      }
     }
     this.callbacks.hideSuggestions();
 
