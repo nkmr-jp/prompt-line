@@ -96,15 +96,15 @@ export function findSlashCommandAtPosition(text: string, cursorPos: number): Com
 }
 
 /**
- * Find absolute file path at the given cursor position
+ * Find file path at the given cursor position
  * Returns the path if found, null otherwise
- * Supports both / and ~ (home directory) prefixed paths
+ * Supports absolute paths (/, ~/), and relative paths (./, ../)
  */
 export function findAbsolutePathAtPosition(text: string, cursorPos: number): string | null {
-  // Pattern to match absolute paths starting with / or ~
-  // Matches paths like /Users/name/.prompt-line/images/file.png
-  // or ~/.prompt-line/images/file.png
-  const absolutePathPattern = /(?:\/|~\/)[^\s"'<>|*?\n]+/g;
+  // Pattern to match file paths:
+  // - Relative paths: ./path, ../path, ../../path
+  // - Absolute paths: /path, ~/path
+  const absolutePathPattern = /(?:\.{1,2}\/|\/|~\/)[^\s"'<>|*?\n]+/g;
   let match;
 
   while ((match = absolutePathPattern.exec(text)) !== null) {
@@ -146,9 +146,10 @@ export function findClickablePathAtPosition(text: string, cursorPos: number): Pa
     }
   }
 
-  // Then check absolute paths (including ~ for home directory)
+  // Then check file paths (relative and absolute)
+  // Includes: ./path, ../path, ~/path, and multi-level absolute paths
   // Excludes single-level paths like /commit (slash commands)
-  const absolutePathPattern = /(?:\/(?:[^\s"'<>|*?\n/]+\/)+[^\s"'<>|*?\n]*|~\/[^\s"'<>|*?\n]+)/g;
+  const absolutePathPattern = /(?:\.{1,2}\/[^\s"'<>|*?\n]+|\/(?:[^\s"'<>|*?\n/]+\/)+[^\s"'<>|*?\n]*|~\/[^\s"'<>|*?\n]+)/g;
   while ((match = absolutePathPattern.exec(text)) !== null) {
     const start = match.index;
     const end = start + match[0].length;
@@ -189,14 +190,15 @@ export function findAllUrls(text: string): UrlMatch[] {
 }
 
 /**
- * Find all absolute file paths in the text
+ * Find all file paths in the text
  * Returns array of { path, start, end }
- * Excludes slash commands (e.g., /commit)
+ * Includes relative paths (./, ../) and excludes slash commands (e.g., /commit)
  */
 export function findAllAbsolutePaths(text: string): PathMatch[] {
   const results: PathMatch[] = [];
-  // Matches paths like /path/to/file or ~/path/to/file (requires at least one /)
-  const absolutePathPattern = /(?:\/(?:[^\s"'<>|*?\n/]+\/)+[^\s"'<>|*?\n]*|~\/[^\s"'<>|*?\n]+)/g;
+  // Matches paths like ./path, ../path, /path/to/file, ~/path/to/file
+  // Excludes single-level paths like /commit (slash commands)
+  const absolutePathPattern = /(?:\.{1,2}\/[^\s"'<>|*?\n]+|\/(?:[^\s"'<>|*?\n/]+\/)+[^\s"'<>|*?\n]*|~\/[^\s"'<>|*?\n]+)/g;
   let match;
 
   while ((match = absolutePathPattern.exec(text)) !== null) {
