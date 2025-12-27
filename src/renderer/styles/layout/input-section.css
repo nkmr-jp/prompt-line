@@ -107,14 +107,13 @@
     position: absolute;
     top: 0;
     left: 0;
-    right: 0;
+    /* Shift right edge to match textarea scrollbar space (8px) */
+    right: 8px;
     bottom: 0;
     background: rgba(255, 255, 255, 0.08);
     border: 1px solid transparent;
     border-radius: var(--radius-md);
     padding: var(--spacing-md);
-    /* Add extra right padding to match textarea scrollbar width (8px) */
-    padding-right: calc(var(--spacing-md) + 8px);
     pointer-events: none;
     overflow: auto;
 
@@ -241,9 +240,8 @@
     text-rendering: geometricPrecision;
     -webkit-font-smoothing: antialiased;
 
-    /* Reserve scrollbar space but only show when scrollable */
-    overflow-y: auto;
-    scrollbar-gutter: stable;
+    /* Always reserve scrollbar space to prevent layout shift */
+    overflow-y: scroll;
 }
 
 #textInput:focus {

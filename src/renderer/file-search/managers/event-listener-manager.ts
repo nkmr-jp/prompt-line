@@ -123,10 +123,10 @@ export class EventListenerManager {
       }
     });
 
-    // Sync scroll position between textarea and backdrop
+    // Sync scroll position between textarea and backdrop (passive for better performance)
     this.textInput.addEventListener('scroll', () => {
       this.callbacks.syncBackdropScroll();
-    });
+    }, { passive: true });
 
     // Hide suggestions on blur (with small delay to allow click selection)
     this.textInput.addEventListener('blur', () => {
