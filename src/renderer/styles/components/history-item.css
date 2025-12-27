@@ -1,9 +1,6 @@
 /* History Item Styles */
 .history-item {
     padding: var(--spacing-md) var(--spacing-lg);
-    /* Extend highlight under scrollbar area */
-    margin-right: -8px;
-    padding-right: calc(var(--spacing-lg) + 8px);
     cursor: pointer;
     transition: background-color var(--animation-normal) ease;
     font-size: var(--font-size-md);

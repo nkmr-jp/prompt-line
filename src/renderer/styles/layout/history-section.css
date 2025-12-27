@@ -11,7 +11,7 @@
     background: var(--bg-primary);
     border-radius: 0;
     box-shadow: none;
-    overflow: hidden;
+    overflow: visible;
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -64,6 +64,9 @@
     flex: 1;
     overflow-y: scroll;
     padding: var(--spacing-sm) 0;
+    /* Push scrollbar outside content area so item highlights extend full width */
+    margin-right: -8px;
+    padding-right: 8px;
 }
 
 /* Scrollbar styles - only visible on hover */
