@@ -206,18 +206,8 @@ export class PathManager {
         const foundIndex = text.indexOf(searchPattern, searchIndex);
         if (foundIndex === -1) break;
 
-        let start = foundIndex;
-        let end = foundIndex + searchPattern.length;
-
-        // Expand range to include surrounding spaces for visual highlight
-        // Include preceding space if exists
-        if (start > 0 && text[start - 1] === ' ') {
-          start--;
-        }
-        // Include trailing space if exists
-        if (end < text.length && text[end] === ' ') {
-          end++;
-        }
+        const start = foundIndex;
+        const end = foundIndex + searchPattern.length;
 
         // Only add if not already consumed
         if (!isConsumed(start, end)) {
@@ -237,8 +227,8 @@ export class PathManager {
       const pathContent = match[1];
       if (!pathContent) continue;
 
-      let start = match.index;
-      let end = start + 1 + pathContent.length; // +1 for @
+      const start = match.index;
+      const end = start + 1 + pathContent.length; // +1 for @
 
       // Skip if this range is already consumed by a registered path
       if (isConsumed(start, end)) continue;
@@ -257,16 +247,6 @@ export class PathManager {
 
       // Add to foundPaths if it's selected OR valid according to cached list
       if (isSelected || isValidCachedPath) {
-        // Expand range to include surrounding spaces for visual highlight
-        // Include preceding space if exists
-        if (start > 0 && text[start - 1] === ' ') {
-          start--;
-        }
-        // Include trailing space if exists
-        if (end < text.length && text[end] === ' ') {
-          end++;
-        }
-
         foundPaths.push({ start, end, path: pathContent });
 
         // Phase 3: Persist valid paths to selectedPaths for robustness
@@ -561,17 +541,9 @@ export class PathManager {
     if (atStartPosition < 0) return atStartPosition;
     if (!this.callbacks.getCursorPosition) return atStartPosition;
 
-    // Check if we need to add a space before @
-    const text = this.callbacks.getTextContent();
-    const needsSpaceBefore = atStartPosition > 0 &&
-      text[atStartPosition - 1] !== ' ' &&
-      text[atStartPosition - 1] !== '\n' &&
-      text[atStartPosition - 1] !== '\t';
-
-    // Build replacement: [space]@path[space]
-    // Replace from atStartPosition (including @) since we're rebuilding the whole @path token
-    const replacement = (needsSpaceBefore ? ' ' : '') + '@' + path + ' ';
-    this.replaceTextRange(atStartPosition, this.callbacks.getCursorPosition(), replacement);
+    // Replace the query part (after @) with path + space
+    // atStartPosition points to @, so we keep @ and replace from atStartPosition + 1
+    this.replaceTextRange(atStartPosition + 1, this.callbacks.getCursorPosition(), path + ' ');
 
     // Add the path to the set of selected paths (for highlighting)
     this.addSelectedPath(path);
