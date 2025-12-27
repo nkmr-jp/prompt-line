@@ -5,16 +5,13 @@
     flex-direction: column;
     min-width: 0;
     border-left: 1px solid var(--border-primary);
-    /* Space for overlay scrollbar */
-    padding-right: 8px;
 }
 
 .history-container {
     background: var(--bg-primary);
     border-radius: 0;
     box-shadow: none;
-    overflow-x: clip;
-    overflow-y: visible;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -65,10 +62,8 @@
 
 .history-list {
     flex: 1;
-    overflow-y: scroll;
+    overflow-y: overlay;
     padding: var(--spacing-sm) 0;
-    /* Overlay scrollbar on content */
-    margin-right: -8px;
 }
 
 /* Scrollbar styles - overlay on content, visible only when scrolling */
