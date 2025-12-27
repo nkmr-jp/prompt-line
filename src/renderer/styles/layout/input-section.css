@@ -113,8 +113,8 @@
     border: 1px solid transparent;
     border-radius: var(--radius-md);
     padding: var(--spacing-md);
-    /* Add extra right padding to match textarea scrollbar width (4px) */
-    padding-right: calc(var(--spacing-md) + 4px);
+    /* Add extra right padding to match textarea scrollbar width (8px) */
+    padding-right: calc(var(--spacing-md) + 8px);
     pointer-events: none;
     overflow: auto;
 
@@ -263,7 +263,7 @@
 
 /* Scrollbar styles */
 #textInput::-webkit-scrollbar {
-    width: 4px;
+    width: 8px;
 }
 
 #textInput::-webkit-scrollbar-track {
@@ -272,7 +272,7 @@
 
 #textInput::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.1);
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
 }
 
 #textInput::-webkit-scrollbar-thumb:hover {
