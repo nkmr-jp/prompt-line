@@ -169,27 +169,27 @@
 /* File path link style for Cmd+hover or cursor position */
 .highlight-backdrop .file-path-link {
     /* Override the transparent color to make link visible */
-    color: #60a5fa !important;
+    color: var(--text-primary) !important;
     text-decoration: underline;
-    text-decoration-color: #60a5fa;
+    text-decoration-color: var(--text-primary);
     cursor: pointer;
 }
 
 /* @path with link style (Cmd+hover or cursor over @path) */
 .highlight-backdrop .at-path-highlight.file-path-link {
     /* Override the transparent color to make link visible */
-    color: #60a5fa !important;
+    color: var(--text-primary) !important;
     text-decoration: underline;
-    text-decoration-color: #60a5fa;
+    text-decoration-color: var(--text-primary);
     /* Underline only, no background highlight */
 }
 
 /* Cursor-position underline for absolute file paths */
 .highlight-backdrop .file-path-cursor-highlight {
     /* Underline only when cursor is on a linkable file path */
-    color: #60a5fa !important;
+    color: var(--text-primary) !important;
     text-decoration: underline;
-    text-decoration-color: #60a5fa;
+    text-decoration-color: var(--text-primary);
     cursor: pointer;
     /* No background highlight */
 }
