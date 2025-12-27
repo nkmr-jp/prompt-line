@@ -238,6 +238,9 @@
     /* Text rendering optimization */
     text-rendering: geometricPrecision;
     -webkit-font-smoothing: antialiased;
+
+    /* Always reserve scrollbar space to prevent layout shift */
+    overflow-y: scroll;
 }
 
 #textInput:focus {
