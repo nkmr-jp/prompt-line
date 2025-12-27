@@ -169,6 +169,57 @@ export function findClickablePathAtPosition(text: string, cursorPos: number): Pa
 }
 
 /**
+ * Find all URLs in the text
+ * Returns array of { url, start, end }
+ */
+export function findAllUrls(text: string): UrlMatch[] {
+  const results: UrlMatch[] = [];
+  const urlPattern = /https?:\/\/[^\s"'<>|*\n]+/gi;
+  let match;
+
+  while ((match = urlPattern.exec(text)) !== null) {
+    results.push({
+      url: match[0],
+      start: match.index,
+      end: match.index + match[0].length
+    });
+  }
+
+  return results;
+}
+
+/**
+ * Find all absolute file paths in the text
+ * Returns array of { path, start, end }
+ * Excludes slash commands (e.g., /commit)
+ */
+export function findAllAbsolutePaths(text: string): PathMatch[] {
+  const results: PathMatch[] = [];
+  // Matches paths like /path/to/file or ~/path/to/file (requires at least one /)
+  const absolutePathPattern = /(?:\/(?:[^\s"'<>|*?\n/]+\/)+[^\s"'<>|*?\n]*|~\/[^\s"'<>|*?\n]+)/g;
+  let match;
+
+  while ((match = absolutePathPattern.exec(text)) !== null) {
+    const start = match.index;
+    const end = start + match[0].length;
+
+    // Check if path is at start of text or preceded by whitespace
+    const prevChar = start > 0 ? text[start - 1] : '';
+    if (prevChar !== '' && prevChar !== ' ' && prevChar !== '\t' && prevChar !== '\n') {
+      continue; // Skip - not a standalone absolute path
+    }
+
+    results.push({
+      path: match[0],
+      start,
+      end
+    });
+  }
+
+  return results;
+}
+
+/**
  * Resolve a relative file path to absolute path
  * Handles paths with line number and symbol suffix: path:lineNumber#symbolName
  * Preserves line number and symbol suffix in the returned path

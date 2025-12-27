@@ -22,7 +22,9 @@ import {
   findUrlAtPosition,
   findSlashCommandAtPosition,
   findAbsolutePathAtPosition,
-  findClickablePathAtPosition
+  findClickablePathAtPosition,
+  findAllUrls,
+  findAllAbsolutePaths
 } from '../text-finder';
 import { PathManager } from './path-manager';
 
@@ -511,16 +513,47 @@ export class HighlightManager {
 
     const text = this.callbacks.getTextContent();
     const atPaths = this.pathManager.getAtPaths();
+    const ranges: Array<AtPathRange & { className: string }> = [];
 
-    if (atPaths.length === 0) {
+    // Add @paths
+    for (const atPath of atPaths) {
+      ranges.push({ ...atPath, className: 'at-path-highlight' });
+    }
+
+    // Add all URLs with underline (always visible)
+    const urls = findAllUrls(text);
+    for (const url of urls) {
+      const overlapsWithAtPath = atPaths.some(
+        ap => (url.start >= ap.start && url.start < ap.end) ||
+              (url.end > ap.start && url.end <= ap.end)
+      );
+      if (!overlapsWithAtPath) {
+        ranges.push({ start: url.start, end: url.end, className: 'file-path-cursor-highlight' });
+      }
+    }
+
+    // Add all absolute paths with underline (always visible)
+    const absolutePaths = findAllAbsolutePaths(text);
+    for (const pathInfo of absolutePaths) {
+      const overlapsWithAtPath = atPaths.some(
+        ap => (pathInfo.start >= ap.start && pathInfo.start < ap.end) ||
+              (pathInfo.end > ap.start && pathInfo.end <= ap.end)
+      );
+      const overlapsWithUrl = urls.some(
+        u => (pathInfo.start >= u.start && pathInfo.start < u.end) ||
+             (pathInfo.end > u.start && pathInfo.end <= u.end)
+      );
+      if (!overlapsWithAtPath && !overlapsWithUrl) {
+        ranges.push({ start: pathInfo.start, end: pathInfo.end, className: 'file-path-cursor-highlight' });
+      }
+    }
+
+    if (ranges.length === 0) {
       this.highlightBackdrop.textContent = text;
       return;
     }
 
-    const fragment = this.buildHighlightFragment(text, atPaths.map(ap => ({
-      ...ap,
-      className: 'at-path-highlight'
-    })));
+    const fragment = this.buildHighlightFragment(text, ranges);
 
     this.highlightBackdrop.innerHTML = '';
     this.highlightBackdrop.appendChild(fragment);
@@ -546,13 +579,33 @@ export class HighlightManager {
       ranges.push({ ...atPath, className: 'at-path-highlight' });
     }
 
-    // Add cursor position path if it's not already an @path
-    if (this.cursorPositionPath) {
-      const isAlreadyAtPath = atPaths.some(
-        ap => ap.start === this.cursorPositionPath!.start && ap.end === this.cursorPositionPath!.end
+    // Add all URLs with underline (always visible)
+    const urls = findAllUrls(text);
+    for (const url of urls) {
+      // Check if this URL overlaps with any @path
+      const overlapsWithAtPath = atPaths.some(
+        ap => (url.start >= ap.start && url.start < ap.end) ||
+              (url.end > ap.start && url.end <= ap.end)
       );
-      if (!isAlreadyAtPath) {
-        ranges.push({ ...this.cursorPositionPath, className: 'file-path-cursor-highlight' });
+      if (!overlapsWithAtPath) {
+        ranges.push({ start: url.start, end: url.end, className: 'file-path-cursor-highlight' });
+      }
+    }
+
+    // Add all absolute paths with underline (always visible)
+    const absolutePaths = findAllAbsolutePaths(text);
+    for (const pathInfo of absolutePaths) {
+      // Check if this path overlaps with any @path or URL
+      const overlapsWithAtPath = atPaths.some(
+        ap => (pathInfo.start >= ap.start && pathInfo.start < ap.end) ||
+              (pathInfo.end > ap.start && pathInfo.end <= ap.end)
+      );
+      const overlapsWithUrl = urls.some(
+        u => (pathInfo.start >= u.start && pathInfo.start < u.end) ||
+             (pathInfo.end > u.start && pathInfo.end <= u.end)
+      );
+      if (!overlapsWithAtPath && !overlapsWithUrl) {
+        ranges.push({ start: pathInfo.start, end: pathInfo.end, className: 'file-path-cursor-highlight' });
       }
     }
 
@@ -578,9 +631,45 @@ export class HighlightManager {
       ranges.push({ ...atPath, className });
     }
 
-    // Add hovered path if it's not an @path
+    // Add all URLs with underline (always visible)
+    const urls = findAllUrls(text);
+    for (const url of urls) {
+      const overlapsWithAtPath = atPaths.some(
+        ap => (url.start >= ap.start && url.start < ap.end) ||
+              (url.end > ap.start && url.end <= ap.end)
+      );
+      if (!overlapsWithAtPath) {
+        const isHovered = url.start === this.hoveredAtPath.start && url.end === this.hoveredAtPath.end;
+        const className = isHovered ? 'file-path-link' : 'file-path-cursor-highlight';
+        ranges.push({ start: url.start, end: url.end, className });
+      }
+    }
+
+    // Add all absolute paths with underline (always visible)
+    const absolutePaths = findAllAbsolutePaths(text);
+    for (const pathInfo of absolutePaths) {
+      const overlapsWithAtPath = atPaths.some(
+        ap => (pathInfo.start >= ap.start && pathInfo.start < ap.end) ||
+              (pathInfo.end > ap.start && pathInfo.end <= ap.end)
+      );
+      const overlapsWithUrl = urls.some(
+        u => (pathInfo.start >= u.start && pathInfo.start < u.end) ||
+             (pathInfo.end > u.start && pathInfo.end <= u.end)
+      );
+      if (!overlapsWithAtPath && !overlapsWithUrl) {
+        const isHovered = pathInfo.start === this.hoveredAtPath.start && pathInfo.end === this.hoveredAtPath.end;
+        const className = isHovered ? 'file-path-link' : 'file-path-cursor-highlight';
+        ranges.push({ start: pathInfo.start, end: pathInfo.end, className });
+      }
+    }
+
+    // Add hovered path if it's not already added (for other linkable types like slash commands)
     if (!isHoveredAtPath) {
-      ranges.push({ ...this.hoveredAtPath, className: 'file-path-link' });
+      const isHoveredUrl = urls.some(u => u.start === this.hoveredAtPath!.start && u.end === this.hoveredAtPath!.end);
+      const isHoveredPath = absolutePaths.some(p => p.start === this.hoveredAtPath!.start && p.end === this.hoveredAtPath!.end);
+      if (!isHoveredUrl && !isHoveredPath) {
+        ranges.push({ ...this.hoveredAtPath, className: 'file-path-link' });
+      }
     }
 
     this.updateBackdropWithRanges(text, ranges);
