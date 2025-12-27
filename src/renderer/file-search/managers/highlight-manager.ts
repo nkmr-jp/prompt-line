@@ -236,16 +236,34 @@ export class HighlightManager {
    */
   public syncBackdropScroll(): void {
     if (this.textInput && this.highlightBackdrop) {
+      const textareaScrollTop = this.textInput.scrollTop;
+      const textareaScrollLeft = this.textInput.scrollLeft;
+      const textareaScrollHeight = this.textInput.scrollHeight;
+      const textareaClientHeight = this.textInput.clientHeight;
+
+      // Check if textarea is scrolled to bottom
+      const isAtBottom = textareaScrollTop + textareaClientHeight >= textareaScrollHeight - 1;
+
       // Ensure backdrop has same scrollable height as textarea
       this.ensureScrollHeightMatch();
 
-      // Immediate scroll sync (no RAF here for responsiveness)
-      this.highlightBackdrop.scrollTop = this.textInput.scrollTop;
-      this.highlightBackdrop.scrollLeft = this.textInput.scrollLeft;
+      // Force reflow to apply spacer height before setting scrollTop
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+      this.highlightBackdrop.scrollHeight;
+
+      // Immediate scroll sync
+      if (isAtBottom) {
+        // If at bottom, scroll backdrop to its bottom too
+        this.highlightBackdrop.scrollTop =
+          this.highlightBackdrop.scrollHeight - this.highlightBackdrop.clientHeight;
+      } else {
+        this.highlightBackdrop.scrollTop = textareaScrollTop;
+      }
+      this.highlightBackdrop.scrollLeft = textareaScrollLeft;
 
       // Sub-pixel adjustment using CSS transform for precise alignment
-      const scrollTopDiff = this.textInput.scrollTop % 1;
-      const scrollLeftDiff = this.textInput.scrollLeft % 1;
+      const scrollTopDiff = textareaScrollTop % 1;
+      const scrollLeftDiff = textareaScrollLeft % 1;
       if (scrollTopDiff !== 0 || scrollLeftDiff !== 0) {
         this.highlightBackdrop.style.transform =
           `translate(${-scrollLeftDiff}px, ${-scrollTopDiff}px)`;
