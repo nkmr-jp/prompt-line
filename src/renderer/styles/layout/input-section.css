@@ -159,6 +159,10 @@
     border-radius: 6px;
     color: transparent;
 
+    /* Expand highlight area by 1px in all directions */
+    padding: 1px;
+    margin: -1px;
+
     /* Use box-decoration-break for multi-line highlights */
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;
