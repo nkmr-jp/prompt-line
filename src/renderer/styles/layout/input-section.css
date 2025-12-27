@@ -156,10 +156,13 @@
 
 .highlight-backdrop .at-path-highlight {
     background: rgba(59, 130, 246, 0.4);
-    border-radius: 2px;
+    border-radius: 4px;
     color: transparent;
 
-    /* Remove padding/margin to prevent position shift */
+    /* Add slight padding for better visual appearance */
+    padding: 1px 3px;
+    margin: -1px -3px;
+
     /* Use box-decoration-break for multi-line highlights */
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;
