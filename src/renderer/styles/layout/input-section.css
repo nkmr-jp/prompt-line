@@ -113,6 +113,8 @@
     border: 1px solid transparent;
     border-radius: var(--radius-md);
     padding: var(--spacing-md);
+    /* Add extra right padding to match textarea scrollbar width (8px) */
+    padding-right: calc(var(--spacing-md) + 8px);
     pointer-events: none;
     overflow: auto;
 
