@@ -503,21 +503,18 @@ export class PathManager {
       return char === undefined || char === ' ' || char === '\n' || char === '\r';
     };
 
-    console.log('[PathManager] findAtPathAtCursor:', { cursorPos, atPathsCount: this.atPaths.length });
+    console.log('[PathManager] findAtPathAtCursor: cursorPos=' + cursorPos + ' atPathsCount=' + this.atPaths.length);
 
     for (const path of this.atPaths) {
       const charAtEnd = text[path.end];
-      console.log('[PathManager] Checking path:', {
-        path: path.path,
-        start: path.start,
-        end: path.end,
-        cursorPos,
-        charAtEnd: charAtEnd === '\n' ? '\\n' : charAtEnd === '\r' ? '\\r' : charAtEnd,
-        charAtEndCode: charAtEnd?.charCodeAt(0),
-        isTerminator: isTerminator(charAtEnd),
-        cursorAtEnd: cursorPos === path.end,
-        cursorAtEndPlusOne: cursorPos === path.end + 1
-      });
+      const charAtEndDisplay = charAtEnd === '\n' ? '\\n' : charAtEnd === '\r' ? '\\r' : charAtEnd === undefined ? 'undefined' : '"' + charAtEnd + '"';
+      console.log('[PathManager] Checking path: path=' + path.path +
+        ' start=' + path.start + ' end=' + path.end +
+        ' cursorPos=' + cursorPos +
+        ' charAtEnd=' + charAtEndDisplay + ' (code:' + (charAtEnd?.charCodeAt(0) ?? 'N/A') + ')' +
+        ' isTerminator=' + isTerminator(charAtEnd) +
+        ' cursorAtEnd=' + (cursorPos === path.end) +
+        ' cursorAtEndPlusOne=' + (cursorPos === path.end + 1));
 
       // Check if cursor is at path.end (right after the @path)
       if (cursorPos === path.end) {
@@ -665,12 +662,10 @@ export class PathManager {
     const text = this.callbacks.getTextContent();
 
     // DEBUG: Log state for diagnosis
-    console.log('[PathManager] handleBackspaceForAtPath called:', {
-      cursorPos,
-      textLength: text.length,
-      atPathsCount: this.atPaths.length,
-      atPaths: this.atPaths.map(p => ({ start: p.start, end: p.end, path: p.path }))
-    });
+    console.log('[PathManager] handleBackspaceForAtPath called: cursorPos=' + cursorPos +
+      ' textLength=' + text.length +
+      ' atPathsCount=' + this.atPaths.length +
+      ' atPaths=' + JSON.stringify(this.atPaths.map(p => ({ start: p.start, end: p.end, path: p.path }))));
 
     const atPath = this.findAtPathAtCursor(cursorPos, text);
 
@@ -685,11 +680,8 @@ export class PathManager {
     // This must be done before replaceRangeWithUndo which may trigger scroll changes
     const savedScrollTop = this.textInput?.scrollTop ?? 0;
     const savedScrollLeft = this.textInput?.scrollLeft ?? 0;
-    console.log('[PathManager] FOUND @path! savedScrollTop:', savedScrollTop, 'atPath:', {
-      path: atPath.path,
-      start: atPath.start,
-      end: atPath.end
-    });
+    console.log('[PathManager] FOUND @path! savedScrollTop=' + savedScrollTop +
+      ' path=' + atPath.path + ' start=' + atPath.start + ' end=' + atPath.end);
 
     // Set flag to indicate deletion is in progress
     // This allows event handlers to skip cursor position updates
@@ -712,7 +704,7 @@ export class PathManager {
     // Note: execCommand('insertText', false, '') places cursor at the deletion point
     // which is exactly where we want it (savedStart), so no need to call setCursorPosition
     if (this.callbacks.replaceRangeWithUndo) {
-      console.log('[PathManager] Calling replaceRangeWithUndo:', { savedStart, deleteEnd, expectedCursor: savedStart });
+      console.log('[PathManager] Calling replaceRangeWithUndo: savedStart=' + savedStart + ' deleteEnd=' + deleteEnd + ' expectedCursor=' + savedStart);
       this.callbacks.replaceRangeWithUndo(savedStart, deleteEnd, '');
       console.log('[PathManager] After replaceRangeWithUndo, cursor at:', this.callbacks.getCursorPosition?.(), 'scroll:', this.textInput?.scrollTop);
     } else if (this.callbacks.setTextContent) {
