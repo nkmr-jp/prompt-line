@@ -130,6 +130,11 @@ export class EventListenerManager {
     // Also listen for selectionchange on document (handles all cursor movements)
     document.addEventListener('selectionchange', () => {
       if (document.activeElement === this.textInput) {
+        // Skip during @path deletion to prevent interference
+        if (this.callbacks.isDeletingAtPath?.()) {
+          console.debug('[EventListenerManager] selectionchange: Skipping - @path deletion in progress');
+          return;
+        }
         this.callbacks.updateCursorPositionHighlight();
       }
     });

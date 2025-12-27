@@ -728,6 +728,22 @@ export class PathManager {
         console.debug('[PathManager] RAF callback, cursor after set:', this.callbacks.getCursorPosition?.(), 'scroll:', this.textInput?.scrollTop);
         // Reset flag after all cursor position updates are complete
         this._isDeletingAtPath = false;
+
+        // Additional delayed check to see if something changes cursor after flag reset
+        setTimeout(() => {
+          console.debug('[PathManager] POST-FLAG-RESET check, cursor:', this.callbacks.getCursorPosition?.(), 'scroll:', this.textInput?.scrollTop);
+          // If cursor is not at savedStart, something changed it after we finished
+          const currentCursor = this.callbacks.getCursorPosition?.();
+          if (currentCursor !== savedStart) {
+            console.warn('[PathManager] CURSOR CHANGED AFTER FLAG RESET! Expected:', savedStart, 'Got:', currentCursor);
+            // Force cursor position one more time
+            this.callbacks.setCursorPosition?.(savedStart);
+            if (this.textInput) {
+              this.textInput.scrollTop = savedScrollTop;
+              this.textInput.scrollLeft = savedScrollLeft;
+            }
+          }
+        }, 50);
       });
     }, 0);
 
