@@ -102,9 +102,9 @@ export function findSlashCommandAtPosition(text: string, cursorPos: number): Com
  */
 export function findAbsolutePathAtPosition(text: string, cursorPos: number): string | null {
   // Pattern to match file paths:
-  // - Relative paths: ./path, ../path, ../../path
-  // - Absolute paths: /path, ~/path
-  const absolutePathPattern = /(?:\.{1,2}\/|\/|~\/)[^\s"'<>|*?\n]+/g;
+  // - Relative paths: ./path, ../path (ASCII path characters only)
+  // - Absolute paths: /path, ~/path (first segment must start with ASCII alphanumeric)
+  const absolutePathPattern = /(?:\.{1,2}\/[a-zA-Z0-9_./-]+|\/[a-zA-Z0-9_][^\s"'<>|*?\n]*|~\/[a-zA-Z0-9_][^\s"'<>|*?\n]*)/g;
   let match;
 
   while ((match = absolutePathPattern.exec(text)) !== null) {
@@ -148,9 +148,10 @@ export function findClickablePathAtPosition(text: string, cursorPos: number): Pa
   }
 
   // Then check file paths (relative and absolute)
-  // Includes: ./path, ../path, ~/path, and multi-level absolute paths
+  // - Relative paths: ./path, ../path (ASCII path characters only)
+  // - Absolute paths: multi-level /path/to/file, ~/path (first segment must start with ASCII alphanumeric)
   // Excludes single-level paths like /commit (slash commands)
-  const absolutePathPattern = /(?:\.{1,2}\/[^\s"'<>|*?\n]+|\/(?:[^\s"'<>|*?\n/]+\/)+[^\s"'<>|*?\n]*|~\/[^\s"'<>|*?\n]+)/g;
+  const absolutePathPattern = /(?:\.{1,2}\/[a-zA-Z0-9_./-]+|\/(?:[a-zA-Z0-9_.][^\s"'<>|*?\n/]*\/)+[^\s"'<>|*?\n]*|~\/[a-zA-Z0-9_][^\s"'<>|*?\n]+)/g;
   while ((match = absolutePathPattern.exec(text)) !== null) {
     const start = match.index;
     const end = start + match[0].length;
@@ -197,9 +198,10 @@ export function findAllUrls(text: string): UrlMatch[] {
  */
 export function findAllAbsolutePaths(text: string): PathMatch[] {
   const results: PathMatch[] = [];
-  // Matches paths like ./path, ../path, /path/to/file, ~/path/to/file
+  // - Relative paths: ./path, ../path (ASCII path characters only)
+  // - Absolute paths: multi-level /path/to/file, ~/path (first segment must start with ASCII alphanumeric)
   // Excludes single-level paths like /commit (slash commands)
-  const absolutePathPattern = /(?:\.{1,2}\/[^\s"'<>|*?\n]+|\/(?:[^\s"'<>|*?\n/]+\/)+[^\s"'<>|*?\n]*|~\/[^\s"'<>|*?\n]+)/g;
+  const absolutePathPattern = /(?:\.{1,2}\/[a-zA-Z0-9_./-]+|\/(?:[a-zA-Z0-9_.][^\s"'<>|*?\n/]*\/)+[^\s"'<>|*?\n]*|~\/[a-zA-Z0-9_][^\s"'<>|*?\n]+)/g;
   let match;
 
   while ((match = absolutePathPattern.exec(text)) !== null) {
