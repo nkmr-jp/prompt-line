@@ -85,6 +85,10 @@ export class PathManager {
   // These paths are matched before the default regex to support symbol names with spaces
   private registeredAtPaths: Set<string> = new Set();
 
+  // Flag to indicate @path deletion is in progress
+  // Used to skip cursor position updates in input event handlers
+  private _isDeletingAtPath: boolean = false;
+
   /**
    * Set registered at-paths from persistent cache
    * These paths may contain spaces and are matched before the default regex
@@ -101,6 +105,14 @@ export class PathManager {
    */
   public getRegisteredAtPaths(): Set<string> {
     return new Set(this.registeredAtPaths);
+  }
+
+  /**
+   * Check if @path deletion is in progress
+   * Used by event handlers to skip cursor position updates during deletion
+   */
+  public isDeletingAtPath(): boolean {
+    return this._isDeletingAtPath;
   }
 
   constructor(callbacks: PathManagerCallbacks, textInput?: HTMLTextAreaElement) {
@@ -640,6 +652,10 @@ export class PathManager {
 
     e.preventDefault();
 
+    // Set flag to indicate deletion is in progress
+    // This allows event handlers to skip cursor position updates
+    this._isDeletingAtPath = true;
+
     const deletedPathContent = atPath.path;
 
     // Save atPath properties before deletion - replaceRangeWithUndo triggers input event
@@ -667,13 +683,17 @@ export class PathManager {
     // Update highlight backdrop (rescanAtPaths will recalculate all positions)
     this.callbacks.updateHighlightBackdrop?.();
 
-    // Use requestAnimationFrame to ensure cursor position is set after all event handlers
-    // (input event triggers checkForFileSearch, updateHighlightBackdrop, updateCursorPositionHighlight)
-    // and DOM updates are complete. This prevents cursor position from being overwritten
-    // by other handlers that may run synchronously or in subsequent frames.
-    requestAnimationFrame(() => {
+    // Use setTimeout to ensure cursor position is set after all synchronous event handlers
+    // and microtasks complete. Then use requestAnimationFrame to ensure it's set after
+    // any RAF-scheduled updates (like updateHighlightBackdrop).
+    setTimeout(() => {
       this.callbacks.setCursorPosition?.(savedStart);
-    });
+      requestAnimationFrame(() => {
+        this.callbacks.setCursorPosition?.(savedStart);
+        // Reset flag after all cursor position updates are complete
+        this._isDeletingAtPath = false;
+      });
+    }, 0);
 
     // After update, check if this path still exists in the text
     // If not, remove it from selectedPaths

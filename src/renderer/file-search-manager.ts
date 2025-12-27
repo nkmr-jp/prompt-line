@@ -450,7 +450,8 @@ export class FileSearchManager implements IInitializable {
       hideWindow: () => {
         window.electronAPI.window.hide();
       },
-      restoreDefaultHint: () => this.restoreDefaultHint()
+      restoreDefaultHint: () => this.restoreDefaultHint(),
+      showError: (message: string) => this.callbacks.showError?.(message)
     });
 
     // Initialize SuggestionUIManager (consolidated from SuggestionListManager and SuggestionStateManager)
