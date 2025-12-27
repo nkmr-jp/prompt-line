@@ -191,9 +191,9 @@
 /* Cursor-position underline for absolute file paths */
 .highlight-backdrop .file-path-cursor-highlight {
     /* Underline only when cursor is on a linkable file path */
-    color: var(--text-primary) !important;
+    color: rgba(147, 197, 253, 0.8) !important; /* Light blue */
     text-decoration: underline;
-    text-decoration-color: rgba(255, 255, 255, 0.4);
+    text-decoration-color: rgba(147, 197, 253, 0.4);
     text-decoration-thickness: 1px;
     text-underline-offset: 2px;
     cursor: pointer;
