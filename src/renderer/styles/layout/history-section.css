@@ -66,7 +66,7 @@
     padding: var(--spacing-sm) 0;
 }
 
-/* Scrollbar styles */
+/* Scrollbar styles - only visible on hover */
 .history-list::-webkit-scrollbar {
     width: 8px;
 }
@@ -76,11 +76,16 @@
 }
 
 .history-list::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: transparent;
     border-radius: var(--radius-sm);
+    transition: background 0.2s ease;
 }
 
-.history-list::-webkit-scrollbar-thumb:hover {
+.history-list:hover::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.history-list:hover::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.2);
 }
 
