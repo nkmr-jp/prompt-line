@@ -266,7 +266,8 @@
 }
 
 #textInput::-webkit-scrollbar-track {
-    background: transparent;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 2px;
 }
 
 #textInput::-webkit-scrollbar-thumb {
