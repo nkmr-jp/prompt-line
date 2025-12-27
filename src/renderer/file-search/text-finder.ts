@@ -130,7 +130,8 @@ export function findAbsolutePathAtPosition(text: string, cursorPos: number): str
 /**
  * Find any clickable file path at the given position
  * Returns { path, start, end } if found
- * Excludes slash commands (e.g., /commit) from absolute path detection
+ * Supports @path, relative paths (./, ../), and absolute paths (/, ~/)
+ * Excludes slash commands (e.g., /commit)
  */
 export function findClickablePathAtPosition(text: string, cursorPos: number): PathMatch | null {
   // First check @path
