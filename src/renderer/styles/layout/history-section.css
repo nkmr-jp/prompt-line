@@ -60,30 +60,44 @@
     padding: 1px 4px;
 }
 
-.history-list {
+.history-list-wrapper {
     flex: 1;
-    overflow-y: overlay;
+    position: relative;
+    overflow: hidden;
+}
+
+.history-list {
+    height: 100%;
+    overflow-y: scroll;
     padding: var(--spacing-sm) 0;
 }
 
-/* Scrollbar styles - overlay on content, visible only when scrolling */
+/* Hide native scrollbar */
 .history-list::-webkit-scrollbar {
-    width: 8px;
+    width: 0;
+    display: none;
 }
 
-.history-list::-webkit-scrollbar-track {
-    background: transparent;
+/* Custom scrollbar indicator */
+.custom-scrollbar {
+    position: absolute;
+    right: 2px;
+    top: 0;
+    width: 6px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 10;
 }
 
-.history-list::-webkit-scrollbar-thumb {
-    background: transparent;
-    border-radius: var(--radius-sm);
-    transition: background 0.3s ease;
+.custom-scrollbar.visible {
+    opacity: 1;
 }
 
-/* Show scrollbar when scrolling (class added by JS) */
-.history-list.is-scrolling::-webkit-scrollbar-thumb {
+.custom-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    min-height: 30px;
 }
 
 .history-empty {

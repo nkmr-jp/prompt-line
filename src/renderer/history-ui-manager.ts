@@ -44,14 +44,40 @@ export class HistoryUIManager {
   }
 
   /**
-   * Show scrollbar while scrolling, hide after scrolling stops
+   * Show custom scrollbar while scrolling, hide after scrolling stops
    */
   private showScrollbar(): void {
     const historyList = this.getHistoryList();
     if (!historyList) return;
 
-    // Add is-scrolling class to show scrollbar
-    historyList.classList.add('is-scrolling');
+    const scrollbar = document.getElementById('customScrollbar');
+    const thumb = document.getElementById('customScrollbarThumb');
+    if (!scrollbar || !thumb) return;
+
+    // Calculate scrollbar thumb size and position
+    const scrollHeight = historyList.scrollHeight;
+    const clientHeight = historyList.clientHeight;
+    const scrollTop = historyList.scrollTop;
+
+    // Only show scrollbar if content is scrollable
+    if (scrollHeight <= clientHeight) {
+      scrollbar.classList.remove('visible');
+      return;
+    }
+
+    // Calculate thumb height (proportional to visible area)
+    const thumbHeight = Math.max(30, (clientHeight / scrollHeight) * clientHeight);
+
+    // Calculate thumb position
+    const maxScrollTop = scrollHeight - clientHeight;
+    const thumbTop = (scrollTop / maxScrollTop) * (clientHeight - thumbHeight);
+
+    // Update thumb style
+    thumb.style.height = `${thumbHeight}px`;
+    thumb.style.transform = `translateY(${thumbTop}px)`;
+
+    // Show scrollbar
+    scrollbar.classList.add('visible');
 
     // Clear existing timeout
     if (this.scrollingTimeout) {
@@ -60,7 +86,7 @@ export class HistoryUIManager {
 
     // Hide scrollbar after scrolling stops (500ms delay)
     this.scrollingTimeout = setTimeout(() => {
-      historyList.classList.remove('is-scrolling');
+      scrollbar.classList.remove('visible');
     }, 500);
   }
 
