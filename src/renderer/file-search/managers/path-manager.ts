@@ -503,37 +503,43 @@ export class PathManager {
       return char === undefined || char === ' ' || char === '\n' || char === '\r';
     };
 
+    // Helper to check if all characters in a range are terminators
+    const allTerminators = (startPos: number, endPos: number): boolean => {
+      for (let i = startPos; i < endPos; i++) {
+        if (!isTerminator(text[i])) {
+          return false;
+        }
+      }
+      return true;
+    };
+
     console.log('[PathManager] findAtPathAtCursor: cursorPos=' + cursorPos + ' atPathsCount=' + this.atPaths.length);
 
     for (const path of this.atPaths) {
       const charAtEnd = text[path.end];
       const charAtEndDisplay = charAtEnd === '\n' ? '\\n' : charAtEnd === '\r' ? '\\r' : charAtEnd === undefined ? 'undefined' : '"' + charAtEnd + '"';
-      console.log('[PathManager] Checking path: path=' + path.path +
-        ' start=' + path.start + ' end=' + path.end +
-        ' cursorPos=' + cursorPos +
-        ' charAtEnd=' + charAtEndDisplay + ' (code:' + (charAtEnd?.charCodeAt(0) ?? 'N/A') + ')' +
-        ' isTerminator=' + isTerminator(charAtEnd) +
-        ' cursorAtEnd=' + (cursorPos === path.end) +
-        ' cursorAtEndPlusOne=' + (cursorPos === path.end + 1));
 
-      // Check if cursor is at path.end (right after the @path)
-      if (cursorPos === path.end) {
-        // Only treat as "at the end" if the character at path.end is:
-        // - undefined (end of text), or
-        // - a space (trailing space after @path), or
-        // - a newline character
-        // If there's another character (like @), user is typing something new
-        if (isTerminator(charAtEnd)) {
+      // Check if cursor is at or after path.end, with only terminators in between
+      // This handles cases like: @path (cursor), @path  (cursor), @path\n(cursor), etc.
+      if (cursorPos >= path.end && cursorPos <= path.end + 3) {
+        // Limit to 3 characters after path.end to avoid matching too far
+        const charsInBetween = text.substring(path.end, cursorPos);
+        const allAreTerminators = allTerminators(path.end, cursorPos);
+
+        console.log('[PathManager] Checking path: path=' + path.path +
+          ' start=' + path.start + ' end=' + path.end +
+          ' cursorPos=' + cursorPos +
+          ' charAtEnd=' + charAtEndDisplay + ' (code:' + (charAtEnd?.charCodeAt(0) ?? 'N/A') + ')' +
+          ' charsInBetween="' + charsInBetween.replace(/\n/g, '\\n').replace(/\r/g, '\\r') + '"' +
+          ' allAreTerminators=' + allAreTerminators);
+
+        if (allAreTerminators) {
           return path;
         }
-        // Don't return path if there's another character at path.end
-        continue;
-      }
-
-      // Also check path.end + 1 if the character at path.end is a space or newline
-      // This allows deletion when cursor is after the trailing space/newline
-      if (cursorPos === path.end + 1 && isTerminator(charAtEnd)) {
-        return path;
+      } else {
+        console.log('[PathManager] Checking path: path=' + path.path +
+          ' start=' + path.start + ' end=' + path.end +
+          ' cursorPos=' + cursorPos + ' - cursor not near path end');
       }
     }
     return null;
