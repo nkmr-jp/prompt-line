@@ -62,7 +62,7 @@
 
 .history-list {
     flex: 1;
-    overflow-y: overlay;
+    overflow-y: scroll;
     padding: var(--spacing-sm) 0;
 }
 
