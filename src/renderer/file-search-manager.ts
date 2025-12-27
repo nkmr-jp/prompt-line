@@ -183,7 +183,6 @@ export class FileSearchManager implements IInitializable {
       checkForFileSearch: () => this.checkForFileSearch(),
       updateHighlightBackdrop: () => this.updateHighlightBackdrop(),
       updateCursorPositionHighlight: () => this.updateCursorPositionHighlight(),
-      isDeletingAtPath: () => this.pathManager.isDeletingAtPath(),
       handleKeyDown: (e: KeyboardEvent) => this.handleKeyDown(e),
       handleBackspaceForAtPath: (e: KeyboardEvent) => this.handleBackspaceForAtPath(e),
       handleCtrlEnterOpenFile: (e: KeyboardEvent) => this.fileOpenerManager?.handleCtrlEnter(e),
@@ -197,6 +196,12 @@ export class FileSearchManager implements IInitializable {
       onCmdKeyUp: () => this.highlightManager?.onCmdKeyUp() ?? undefined,
       onMouseMove: (e: MouseEvent) => this.highlightManager?.onMouseMove(e) ?? undefined
     });
+
+    // Connect PathManager to EventListenerManager for listener suspension during @path deletion
+    this.pathManager.setEventListenerCallbacks(
+      () => this.eventListenerManager.suspendInputListeners(),
+      () => this.eventListenerManager.resumeInputListeners()
+    );
 
     // Initialize QueryExtractionManager
     this.queryExtractionManager = new QueryExtractionManager({

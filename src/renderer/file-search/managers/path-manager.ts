@@ -55,6 +55,10 @@ export interface PathManagerCallbacks {
 
   // Feature flags
   isCommandEnabledSync?: (() => boolean) | undefined;
+
+  // Event listener control (for @path deletion)
+  suspendInputListeners?: (() => void) | undefined;
+  resumeInputListeners?: (() => void) | undefined;
 }
 
 /**
@@ -85,10 +89,6 @@ export class PathManager {
   // These paths are matched before the default regex to support symbol names with spaces
   private registeredAtPaths: Set<string> = new Set();
 
-  // Flag to indicate @path deletion is in progress
-  // Used to skip cursor position updates in input event handlers
-  private _isDeletingAtPath: boolean = false;
-
   /**
    * Set registered at-paths from persistent cache
    * These paths may contain spaces and are matched before the default regex
@@ -107,17 +107,21 @@ export class PathManager {
     return new Set(this.registeredAtPaths);
   }
 
-  /**
-   * Check if @path deletion is in progress
-   * Used by event handlers to skip cursor position updates during deletion
-   */
-  public isDeletingAtPath(): boolean {
-    return this._isDeletingAtPath;
-  }
-
   constructor(callbacks: PathManagerCallbacks, textInput?: HTMLTextAreaElement) {
     this.callbacks = callbacks;
     this.textInput = textInput || null;
+  }
+
+  /**
+   * Set event listener control callbacks
+   * Called after EventListenerManager is initialized
+   */
+  public setEventListenerCallbacks(
+    suspendInputListeners: () => void,
+    resumeInputListeners: () => void
+  ): void {
+    this.callbacks.suspendInputListeners = suspendInputListeners;
+    this.callbacks.resumeInputListeners = resumeInputListeners;
   }
 
   /**
@@ -658,6 +662,10 @@ export class PathManager {
   /**
    * Handle backspace key for @path deletion
    * Deletes the entire @path when cursor is at the end
+   *
+   * Uses event listener suspension instead of flags to prevent cursor interference.
+   * This eliminates timing-dependent bugs from the previous multi-stage delay approach.
+   *
    * @param e - Keyboard event
    * @returns true if @path was deleted, false otherwise
    */
@@ -667,69 +675,55 @@ export class PathManager {
     const cursorPos = this.callbacks.getCursorPosition();
     const text = this.callbacks.getTextContent();
 
-    // DEBUG: Log state for diagnosis
-    console.log('[PathManager] handleBackspaceForAtPath called: cursorPos=' + cursorPos +
-      ' textLength=' + text.length +
-      ' atPathsCount=' + this.atPaths.length +
-      ' atPaths=' + JSON.stringify(this.atPaths.map(p => ({ start: p.start, end: p.end, path: p.path }))));
+    console.debug('[PathManager] handleBackspaceForAtPath called:', {
+      cursorPos,
+      textLength: text.length,
+      atPathsCount: this.atPaths.length
+    });
 
     const atPath = this.findAtPathAtCursor(cursorPos, text);
 
     if (!atPath) {
-      console.log('[PathManager] No @path found at cursor position', cursorPos);
+      console.debug('[PathManager] No @path found at cursor position', cursorPos);
       return false;
     }
 
     e.preventDefault();
 
-    // CRITICAL: Save scroll position FIRST, before any other operations
-    // This must be done before replaceRangeWithUndo which may trigger scroll changes
+    // Save state before deletion
     const savedScrollTop = this.textInput?.scrollTop ?? 0;
     const savedScrollLeft = this.textInput?.scrollLeft ?? 0;
-    console.log('[PathManager] FOUND @path! savedScrollTop=' + savedScrollTop +
-      ' path=' + atPath.path + ' start=' + atPath.start + ' end=' + atPath.end);
-
-    // Set flag to indicate deletion is in progress
-    // This allows event handlers to skip cursor position updates
-    this._isDeletingAtPath = true;
-
     const deletedPathContent = atPath.path;
-
-    // Save atPath properties before deletion - replaceRangeWithUndo triggers input event
-    // which calls updateHighlightBackdrop() and rescanAtPaths(), modifying atPaths
     const savedStart = atPath.start;
     const savedEnd = atPath.end;
 
-    // Delete the @path (and trailing space if present)
+    console.debug('[PathManager] Deleting @path:', {
+      path: atPath.path,
+      start: savedStart,
+      end: savedEnd,
+      savedScrollTop
+    });
+
+    // CRITICAL: Suspend input/selectionchange listeners to prevent cursor interference
+    // This replaces the fragile flag-based approach with direct listener control
+    this.callbacks.suspendInputListeners?.();
+
+    // Calculate delete range (include trailing space if present)
     let deleteEnd = savedEnd;
     if (text[deleteEnd] === ' ') {
       deleteEnd++;
     }
 
-    // Use replaceRangeWithUndo if available for native Undo support
-    // Note: execCommand('insertText', false, '') places cursor at the deletion point
-    // which is exactly where we want it (savedStart), so no need to call setCursorPosition
+    // Perform deletion
     if (this.callbacks.replaceRangeWithUndo) {
-      console.log('[PathManager] Calling replaceRangeWithUndo: savedStart=' + savedStart + ' deleteEnd=' + deleteEnd + ' expectedCursor=' + savedStart);
       this.callbacks.replaceRangeWithUndo(savedStart, deleteEnd, '');
-      console.log('[PathManager] After replaceRangeWithUndo, cursor at:', this.callbacks.getCursorPosition?.(), 'scroll:', this.textInput?.scrollTop);
     } else if (this.callbacks.setTextContent) {
-      // Fallback to direct text manipulation (no Undo support)
       const newText = text.substring(0, savedStart) + text.substring(deleteEnd);
       this.callbacks.setTextContent(newText);
-      // Set cursor position immediately after direct text manipulation
-      this.callbacks.setCursorPosition?.(savedStart);
     }
 
-    console.debug('[PathManager] Before updateHighlightBackdrop, cursor at:', this.callbacks.getCursorPosition?.(), 'scroll:', this.textInput?.scrollTop);
-
-    // Update highlight backdrop (rescanAtPaths will recalculate all positions)
-    this.callbacks.updateHighlightBackdrop?.();
-
-    console.debug('[PathManager] After updateHighlightBackdrop, cursor at:', this.callbacks.getCursorPosition?.());
-
-    // Immediately set cursor position after all synchronous operations
-    this.callbacks.setCursorPosition?.(savedStart);
+    // Set cursor position immediately
+    this.callbacks.setCursorPosition(savedStart);
 
     // Restore scroll position
     if (this.textInput) {
@@ -737,71 +731,34 @@ export class PathManager {
       this.textInput.scrollLeft = savedScrollLeft;
     }
 
-    console.debug('[PathManager] After immediate setCursorPosition, cursor at:', this.callbacks.getCursorPosition?.(), 'scroll:', this.textInput?.scrollTop);
+    // Update highlight backdrop (rescanAtPaths will recalculate positions)
+    this.callbacks.updateHighlightBackdrop?.();
 
-    // Use setTimeout to ensure cursor position is set after all synchronous event handlers
-    // and microtasks complete. Then use requestAnimationFrame to ensure it's set after
-    // any RAF-scheduled updates (like updateHighlightBackdrop).
-    setTimeout(() => {
-      console.debug('[PathManager] setTimeout callback, cursor before set:', this.callbacks.getCursorPosition?.(), 'scroll:', this.textInput?.scrollTop);
+    // Ensure cursor and scroll are still correct after highlight update
+    this.callbacks.setCursorPosition(savedStart);
+    if (this.textInput) {
+      this.textInput.scrollTop = savedScrollTop;
+      this.textInput.scrollLeft = savedScrollLeft;
+    }
+
+    // Resume listeners after next animation frame (when all updates are complete)
+    requestAnimationFrame(() => {
+      // Final cursor/scroll restoration
       this.callbacks.setCursorPosition?.(savedStart);
-      // Restore scroll position again
       if (this.textInput) {
         this.textInput.scrollTop = savedScrollTop;
         this.textInput.scrollLeft = savedScrollLeft;
       }
-      console.debug('[PathManager] setTimeout callback, cursor after set:', this.callbacks.getCursorPosition?.(), 'scroll:', this.textInput?.scrollTop);
-      requestAnimationFrame(() => {
-        console.debug('[PathManager] RAF callback, cursor before set:', this.callbacks.getCursorPosition?.(), 'scroll:', this.textInput?.scrollTop);
-        this.callbacks.setCursorPosition?.(savedStart);
-        // Final scroll position restoration
-        if (this.textInput) {
-          this.textInput.scrollTop = savedScrollTop;
-          this.textInput.scrollLeft = savedScrollLeft;
-        }
-        console.debug('[PathManager] RAF callback, cursor after set:', this.callbacks.getCursorPosition?.(), 'scroll:', this.textInput?.scrollTop);
-        // Reset flag after all cursor position updates are complete
-        this._isDeletingAtPath = false;
 
-        // Additional delayed check to see if something changes cursor after flag reset
-        setTimeout(() => {
-          console.debug('[PathManager] POST-FLAG-RESET check (50ms), cursor:', this.callbacks.getCursorPosition?.(), 'scroll:', this.textInput?.scrollTop, 'expected scroll:', savedScrollTop);
-          // If cursor is not at savedStart, something changed it after we finished
-          const currentCursor = this.callbacks.getCursorPosition?.();
-          if (currentCursor !== savedStart) {
-            console.warn('[PathManager] CURSOR CHANGED AFTER FLAG RESET! Expected:', savedStart, 'Got:', currentCursor);
-            this.callbacks.setCursorPosition?.(savedStart);
-          }
-          // Always restore scroll position
-          if (this.textInput && this.textInput.scrollTop !== savedScrollTop) {
-            console.warn('[PathManager] SCROLL CHANGED! Restoring from', this.textInput.scrollTop, 'to', savedScrollTop);
-            this.textInput.scrollTop = savedScrollTop;
-            this.textInput.scrollLeft = savedScrollLeft;
-          }
-        }, 50);
+      // Resume listeners now that deletion is complete
+      this.callbacks.resumeInputListeners?.();
 
-        // Extra safety: Final restoration at 200ms to catch any late-running callbacks
-        setTimeout(() => {
-          console.debug('[PathManager] FINAL check (200ms), cursor:', this.callbacks.getCursorPosition?.(), 'scroll:', this.textInput?.scrollTop, 'expected scroll:', savedScrollTop);
-          const currentCursor = this.callbacks.getCursorPosition?.();
-          if (currentCursor !== savedStart) {
-            console.warn('[PathManager] CURSOR STILL WRONG AT 200ms! Expected:', savedStart, 'Got:', currentCursor);
-            this.callbacks.setCursorPosition?.(savedStart);
-          }
-          if (this.textInput && this.textInput.scrollTop !== savedScrollTop) {
-            console.warn('[PathManager] SCROLL STILL WRONG AT 200ms! Restoring from', this.textInput.scrollTop, 'to', savedScrollTop);
-            this.textInput.scrollTop = savedScrollTop;
-            this.textInput.scrollLeft = savedScrollLeft;
-          }
-        }, 200);
-      });
-    }, 0);
+      console.debug('[PathManager] @path deletion complete, listeners resumed');
+    });
 
-    // After update, check if this path still exists in the text
-    // If not, remove it from selectedPaths
+    // Remove deleted path from selectedPaths if no longer in text
     if (deletedPathContent && !this.atPaths.some(p => p.path === deletedPathContent)) {
       this.removeSelectedPath(deletedPathContent);
-      console.debug('[PathManager] Removed path from selectedPaths after deletion:', deletedPathContent);
     }
 
     console.debug('[PathManager] deleted @path:', formatLog({
