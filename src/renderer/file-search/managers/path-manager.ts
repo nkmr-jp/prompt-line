@@ -685,7 +685,11 @@ export class PathManager {
     // This must be done before replaceRangeWithUndo which may trigger scroll changes
     const savedScrollTop = this.textInput?.scrollTop ?? 0;
     const savedScrollLeft = this.textInput?.scrollLeft ?? 0;
-    console.debug('[PathManager] INITIAL scroll save:', { savedScrollTop, savedScrollLeft });
+    console.log('[PathManager] FOUND @path! savedScrollTop:', savedScrollTop, 'atPath:', {
+      path: atPath.path,
+      start: atPath.start,
+      end: atPath.end
+    });
 
     // Set flag to indicate deletion is in progress
     // This allows event handlers to skip cursor position updates
@@ -708,8 +712,9 @@ export class PathManager {
     // Note: execCommand('insertText', false, '') places cursor at the deletion point
     // which is exactly where we want it (savedStart), so no need to call setCursorPosition
     if (this.callbacks.replaceRangeWithUndo) {
+      console.log('[PathManager] Calling replaceRangeWithUndo:', { savedStart, deleteEnd, expectedCursor: savedStart });
       this.callbacks.replaceRangeWithUndo(savedStart, deleteEnd, '');
-      console.debug('[PathManager] After replaceRangeWithUndo, cursor at:', this.callbacks.getCursorPosition?.(), 'scroll:', this.textInput?.scrollTop);
+      console.log('[PathManager] After replaceRangeWithUndo, cursor at:', this.callbacks.getCursorPosition?.(), 'scroll:', this.textInput?.scrollTop);
     } else if (this.callbacks.setTextContent) {
       // Fallback to direct text manipulation (no Undo support)
       const newText = text.substring(0, savedStart) + text.substring(deleteEnd);
