@@ -16,6 +16,9 @@ export interface EventListenerCallbacks {
   updateHighlightBackdrop: () => void;
   updateCursorPositionHighlight: () => void;
 
+  // State checkers for input handlers
+  isDeletingAtPath?: () => boolean;
+
   // Keyboard handlers
   handleKeyDown: (e: KeyboardEvent) => void;
   handleBackspaceForAtPath: (e: KeyboardEvent) => void;
@@ -73,6 +76,14 @@ export class EventListenerManager {
     // Listen for input changes to detect @ mentions and update highlights
     this.textInput.addEventListener('input', () => {
       console.debug('[EventListenerManager] input event fired');
+
+      // Skip processing during @path deletion to prevent cursor position interference
+      // The deletion handler (handleBackspaceForAtPath) manages cursor position separately
+      if (this.callbacks.isDeletingAtPath?.()) {
+        console.debug('[EventListenerManager] Skipping input processing - @path deletion in progress');
+        return;
+      }
+
       this.callbacks.checkForFileSearch();
       this.callbacks.updateHighlightBackdrop();
       // Update cursor position highlight after input

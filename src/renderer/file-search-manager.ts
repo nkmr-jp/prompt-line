@@ -183,6 +183,7 @@ export class FileSearchManager implements IInitializable {
       checkForFileSearch: () => this.checkForFileSearch(),
       updateHighlightBackdrop: () => this.updateHighlightBackdrop(),
       updateCursorPositionHighlight: () => this.updateCursorPositionHighlight(),
+      isDeletingAtPath: () => this.pathManager.isDeletingAtPath(),
       handleKeyDown: (e: KeyboardEvent) => this.handleKeyDown(e),
       handleBackspaceForAtPath: (e: KeyboardEvent) => this.handleBackspaceForAtPath(e),
       handleCtrlEnterOpenFile: (e: KeyboardEvent) => this.fileOpenerManager?.handleCtrlEnter(e),
