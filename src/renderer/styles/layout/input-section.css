@@ -171,7 +171,9 @@
     /* Override the transparent color to make link visible */
     color: var(--text-primary) !important;
     text-decoration: underline;
-    text-decoration-color: var(--text-primary);
+    text-decoration-color: rgba(255, 255, 255, 0.4);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
     cursor: pointer;
 }
 
@@ -180,7 +182,9 @@
     /* Override the transparent color to make link visible */
     color: var(--text-primary) !important;
     text-decoration: underline;
-    text-decoration-color: var(--text-primary);
+    text-decoration-color: rgba(255, 255, 255, 0.4);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
     /* Underline only, no background highlight */
 }
 
@@ -189,7 +193,9 @@
     /* Underline only when cursor is on a linkable file path */
     color: var(--text-primary) !important;
     text-decoration: underline;
-    text-decoration-color: var(--text-primary);
+    text-decoration-color: rgba(255, 255, 255, 0.4);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
     cursor: pointer;
     /* No background highlight */
 }
