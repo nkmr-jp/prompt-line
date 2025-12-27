@@ -66,6 +66,24 @@
     padding: var(--spacing-sm) 0;
 }
 
+/* Scrollbar styles */
+.history-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.history-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.history-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-sm);
+}
+
+.history-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
 .history-empty {
     padding: var(--spacing-xl) var(--spacing-lg);
     text-align: center;
