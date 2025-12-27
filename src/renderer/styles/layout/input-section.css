@@ -241,8 +241,9 @@
     text-rendering: geometricPrecision;
     -webkit-font-smoothing: antialiased;
 
-    /* Always reserve scrollbar space to prevent layout shift */
-    overflow-y: scroll;
+    /* Reserve scrollbar space but only show when scrollable */
+    overflow-y: auto;
+    scrollbar-gutter: stable;
 }
 
 #textInput:focus {
