@@ -11,19 +11,15 @@
 
 .history-item:hover {
     background: rgba(255, 255, 255, 0.08);
-    /* Extend highlight under scrollbar area */
-    box-shadow: 8px 0 0 rgba(255, 255, 255, 0.08);
 }
 
 /* Disable hover effect during keyboard navigation */
 .history-list.keyboard-navigation .history-item:hover {
     background: transparent;
-    box-shadow: none;
 }
 
 .history-item.flash {
     background: rgba(255, 255, 255, 0.08);
-    box-shadow: 8px 0 0 rgba(255, 255, 255, 0.08);
     animation: flashOut 0.6s ease-out;
 }
 
@@ -34,8 +30,6 @@
 .history-item.selected {
     background: var(--bg-tertiary);
     border-left: 3px solid var(--accent-blue);
-    /* Extend highlight under scrollbar area */
-    box-shadow: 8px 0 0 var(--bg-tertiary);
 }
 
 .history-item.selected:hover {

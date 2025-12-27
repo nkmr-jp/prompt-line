@@ -66,27 +66,10 @@
     padding: var(--spacing-sm) 0;
 }
 
-/* Scrollbar styles - zero width, overlay on hover */
+/* Hide scrollbar completely - scroll with mouse wheel/trackpad */
 .history-list::-webkit-scrollbar {
     width: 0;
-    background: transparent;
-}
-
-.history-list:hover::-webkit-scrollbar {
-    width: 8px;
-}
-
-.history-list::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.history-list::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: var(--radius-sm);
-}
-
-.history-list::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.3);
+    display: none;
 }
 
 .history-empty {
