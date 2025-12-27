@@ -11,7 +11,7 @@
     background: var(--bg-primary);
     border-radius: 0;
     box-shadow: none;
-    overflow: visible;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -62,15 +62,17 @@
 
 .history-list {
     flex: 1;
-    overflow-y: scroll;
+    overflow-y: auto;
     padding: var(--spacing-sm) 0;
-    /* Push scrollbar outside content area so item highlights extend full width */
-    margin-right: -8px;
-    padding-right: 8px;
 }
 
-/* Scrollbar styles - only visible on hover */
+/* Scrollbar styles - zero width, overlay on hover */
 .history-list::-webkit-scrollbar {
+    width: 0;
+    background: transparent;
+}
+
+.history-list:hover::-webkit-scrollbar {
     width: 8px;
 }
 
@@ -79,17 +81,12 @@
 }
 
 .history-list::-webkit-scrollbar-thumb {
-    background: transparent;
-    border-radius: var(--radius-sm);
-    transition: background 0.2s ease;
-}
-
-.history-list:hover::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
-}
-
-.history-list:hover::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-sm);
+}
+
+.history-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
 }
 
 .history-empty {
