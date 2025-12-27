@@ -153,8 +153,12 @@ export class DomManager {
       return;
     }
 
+    // Save scroll position before operation
+    const savedScrollTop = this.textarea.scrollTop;
+    const savedScrollLeft = this.textarea.scrollLeft;
+
     console.debug('[DomManager] replaceRangeWithUndo called:', { start, end, newTextLength: newText.length });
-    console.debug('[DomManager] Cursor before operation:', this.textarea.selectionStart);
+    console.debug('[DomManager] Cursor before operation:', this.textarea.selectionStart, 'scroll:', savedScrollTop);
 
     // Focus textarea to ensure execCommand works (only if not already focused)
     if (document.activeElement !== this.textarea) {
@@ -168,7 +172,7 @@ export class DomManager {
 
     // Use execCommand to replace selected text - this enables native Undo
     const success = document.execCommand('insertText', false, newText);
-    console.debug('[DomManager] execCommand result:', success, 'cursor after:', this.textarea.selectionStart);
+    console.debug('[DomManager] execCommand result:', success, 'cursor after:', this.textarea.selectionStart, 'scroll:', this.textarea.scrollTop);
 
     // Calculate expected cursor position after operation
     const expectedCursorPos = start + newText.length;
@@ -183,7 +187,12 @@ export class DomManager {
     // Always explicitly set cursor position after execCommand
     // This is necessary because execCommand with empty string may not position cursor correctly
     this.textarea.setSelectionRange(expectedCursorPos, expectedCursorPos);
-    console.debug('[DomManager] Final cursor position set to:', expectedCursorPos, 'actual:', this.textarea.selectionStart);
+
+    // Restore scroll position - execCommand may have changed it
+    this.textarea.scrollTop = savedScrollTop;
+    this.textarea.scrollLeft = savedScrollLeft;
+
+    console.debug('[DomManager] Final cursor position set to:', expectedCursorPos, 'actual:', this.textarea.selectionStart, 'scroll restored to:', savedScrollTop);
 
     this.updateCharCount();
   }

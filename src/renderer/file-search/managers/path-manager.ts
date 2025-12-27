@@ -683,7 +683,11 @@ export class PathManager {
       this.callbacks.setCursorPosition?.(savedStart);
     }
 
-    console.debug('[PathManager] Before updateHighlightBackdrop, cursor at:', this.callbacks.getCursorPosition?.());
+    // Save scroll position before any operations that might change it
+    const savedScrollTop = this.textInput?.scrollTop ?? 0;
+    const savedScrollLeft = this.textInput?.scrollLeft ?? 0;
+
+    console.debug('[PathManager] Before updateHighlightBackdrop, cursor at:', this.callbacks.getCursorPosition?.(), 'scroll:', savedScrollTop);
 
     // Update highlight backdrop (rescanAtPaths will recalculate all positions)
     this.callbacks.updateHighlightBackdrop?.();
@@ -692,19 +696,36 @@ export class PathManager {
 
     // Immediately set cursor position after all synchronous operations
     this.callbacks.setCursorPosition?.(savedStart);
-    console.debug('[PathManager] After immediate setCursorPosition, cursor at:', this.callbacks.getCursorPosition?.());
+
+    // Restore scroll position
+    if (this.textInput) {
+      this.textInput.scrollTop = savedScrollTop;
+      this.textInput.scrollLeft = savedScrollLeft;
+    }
+
+    console.debug('[PathManager] After immediate setCursorPosition, cursor at:', this.callbacks.getCursorPosition?.(), 'scroll:', this.textInput?.scrollTop);
 
     // Use setTimeout to ensure cursor position is set after all synchronous event handlers
     // and microtasks complete. Then use requestAnimationFrame to ensure it's set after
     // any RAF-scheduled updates (like updateHighlightBackdrop).
     setTimeout(() => {
-      console.debug('[PathManager] setTimeout callback, cursor before set:', this.callbacks.getCursorPosition?.());
+      console.debug('[PathManager] setTimeout callback, cursor before set:', this.callbacks.getCursorPosition?.(), 'scroll:', this.textInput?.scrollTop);
       this.callbacks.setCursorPosition?.(savedStart);
-      console.debug('[PathManager] setTimeout callback, cursor after set:', this.callbacks.getCursorPosition?.());
+      // Restore scroll position again
+      if (this.textInput) {
+        this.textInput.scrollTop = savedScrollTop;
+        this.textInput.scrollLeft = savedScrollLeft;
+      }
+      console.debug('[PathManager] setTimeout callback, cursor after set:', this.callbacks.getCursorPosition?.(), 'scroll:', this.textInput?.scrollTop);
       requestAnimationFrame(() => {
-        console.debug('[PathManager] RAF callback, cursor before set:', this.callbacks.getCursorPosition?.());
+        console.debug('[PathManager] RAF callback, cursor before set:', this.callbacks.getCursorPosition?.(), 'scroll:', this.textInput?.scrollTop);
         this.callbacks.setCursorPosition?.(savedStart);
-        console.debug('[PathManager] RAF callback, cursor after set:', this.callbacks.getCursorPosition?.());
+        // Final scroll position restoration
+        if (this.textInput) {
+          this.textInput.scrollTop = savedScrollTop;
+          this.textInput.scrollLeft = savedScrollLeft;
+        }
+        console.debug('[PathManager] RAF callback, cursor after set:', this.callbacks.getCursorPosition?.(), 'scroll:', this.textInput?.scrollTop);
         // Reset flag after all cursor position updates are complete
         this._isDeletingAtPath = false;
       });
