@@ -676,9 +676,20 @@ export class HighlightManager {
   }
 
   private updateBackdropWithRanges(text: string, ranges: Array<AtPathRange & { className: string }>): void {
+    // Sort by start position
     ranges.sort((a, b) => a.start - b.start);
 
-    const fragment = this.buildHighlightFragment(text, ranges);
+    // Remove overlapping ranges (keep the first one)
+    const filteredRanges: Array<AtPathRange & { className: string }> = [];
+    let lastEnd = -1;
+    for (const range of ranges) {
+      if (range.start >= lastEnd) {
+        filteredRanges.push(range);
+        lastEnd = range.end;
+      }
+    }
+
+    const fragment = this.buildHighlightFragment(text, filteredRanges);
 
     while (this.highlightBackdrop.firstChild) {
       this.highlightBackdrop.removeChild(this.highlightBackdrop.firstChild);
