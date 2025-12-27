@@ -193,7 +193,7 @@
     /* Solid underline for linkable file paths */
     color: transparent;
     text-decoration: underline;
-    text-decoration-color: rgba(255, 255, 255, 0.2);
+    text-decoration-color: rgba(255, 255, 255, 0.3);
     text-decoration-thickness: 1px;
     text-underline-offset: 2px;
     cursor: pointer;
