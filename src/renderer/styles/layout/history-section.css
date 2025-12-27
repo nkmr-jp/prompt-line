@@ -62,14 +62,30 @@
 
 .history-list {
     flex: 1;
-    overflow-y: auto;
+    overflow-y: scroll;
     padding: var(--spacing-sm) 0;
+    /* Overlay scrollbar on content */
+    margin-right: -8px;
 }
 
-/* Hide scrollbar completely - scroll with mouse wheel/trackpad */
+/* Scrollbar styles - overlay on content, visible only when scrolling */
 .history-list::-webkit-scrollbar {
-    width: 0;
-    display: none;
+    width: 8px;
+}
+
+.history-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.history-list::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: var(--radius-sm);
+    transition: background 0.3s ease;
+}
+
+/* Show scrollbar when scrolling (class added by JS) */
+.history-list.is-scrolling::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
 }
 
 .history-empty {
