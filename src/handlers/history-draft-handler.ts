@@ -50,6 +50,10 @@ class HistoryDraftHandler {
     ipcMain.handle('register-at-path', this.handleRegisterAtPath.bind(this));
     ipcMain.handle('get-registered-at-paths', this.handleGetRegisteredAtPaths.bind(this));
 
+    // Global at-path cache handlers (for mdSearch agents and other project-independent items)
+    ipcMain.handle('register-global-at-path', this.handleRegisterGlobalAtPath.bind(this));
+    ipcMain.handle('get-global-at-paths', this.handleGetGlobalAtPaths.bind(this));
+
     logger.info('History and Draft IPC handlers set up successfully');
   }
 
@@ -68,7 +72,9 @@ class HistoryDraftHandler {
       'set-draft-directory',
       'get-draft-directory',
       'register-at-path',
-      'get-registered-at-paths'
+      'get-registered-at-paths',
+      'register-global-at-path',
+      'get-global-at-paths'
     ];
 
     handlers.forEach(handler => {
@@ -250,6 +256,39 @@ class HistoryDraftHandler {
       return paths;
     } catch (error) {
       logger.error('Failed to get registered at-paths:', error);
+      return [];
+    }
+  }
+
+  // Global at-path cache handlers (for mdSearch agents and other project-independent items)
+
+  private async handleRegisterGlobalAtPath(
+    _event: IpcMainInvokeEvent,
+    atPath: string
+  ): Promise<IPCResult> {
+    try {
+      if (!atPath || typeof atPath !== 'string') {
+        return { success: false, error: 'Invalid path' };
+      }
+
+      await atPathCacheManager.addGlobalPath(atPath);
+      logger.debug('Global at-path registered', { atPath });
+      return { success: true };
+    } catch (error) {
+      logger.error('Failed to register global at-path:', error);
+      return { success: false, error: SecureErrors.OPERATION_FAILED };
+    }
+  }
+
+  private async handleGetGlobalAtPaths(
+    _event: IpcMainInvokeEvent
+  ): Promise<string[]> {
+    try {
+      const paths = await atPathCacheManager.loadGlobalPaths();
+      logger.debug('Global at-paths requested', { count: paths.length });
+      return paths;
+    } catch (error) {
+      logger.error('Failed to get global at-paths:', error);
       return [];
     }
   }

@@ -4,6 +4,7 @@ import { ensureDir } from '../utils/file-utils';
 import { logger } from '../utils/logger';
 
 const CACHE_FILE_NAME = 'registered-at-paths.jsonl';
+const GLOBAL_CACHE_FILE_NAME = 'global-at-paths.jsonl';
 const MAX_ENTRIES = 100;
 
 interface AtPathEntry {
@@ -133,6 +134,98 @@ export class AtPathCacheManager {
       logger.debug('Cleared at-path cache', { directory });
     } catch (error) {
       logger.warn('Error clearing at-path cache:', error);
+    }
+  }
+
+  // ============================================================================
+  // Global Cache Methods (for mdSearch agents and other project-independent items)
+  // ============================================================================
+
+  /**
+   * Get global cache file path
+   */
+  private getGlobalCacheFilePath(): string {
+    return path.join(this.cacheDir, GLOBAL_CACHE_FILE_NAME);
+  }
+
+  /**
+   * Load global registered paths (project-independent)
+   */
+  async loadGlobalPaths(): Promise<string[]> {
+    try {
+      const entries = await this.loadGlobalEntries();
+      return entries.map(e => e.path);
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Add a path to global cache (with 100 entry limit)
+   */
+  async addGlobalPath(atPath: string): Promise<void> {
+    try {
+      await ensureDir(this.cacheDir);
+
+      // Load existing entries
+      const entries = await this.loadGlobalEntries();
+
+      // Remove duplicates
+      const filtered = entries.filter(e => e.path !== atPath);
+
+      // Add new entry
+      filtered.push({ path: atPath, timestamp: Date.now() });
+
+      // Remove old entries if exceeding limit
+      while (filtered.length > MAX_ENTRIES) {
+        filtered.shift();
+      }
+
+      // Save
+      const content = filtered.map(e => JSON.stringify(e)).join('\n');
+      await fs.writeFile(this.getGlobalCacheFilePath(), content, 'utf8');
+
+      logger.debug('Added global at-path', { atPath, count: filtered.length });
+    } catch (error) {
+      logger.error('Error adding global at-path:', error);
+    }
+  }
+
+  /**
+   * Load global entries (internal)
+   */
+  private async loadGlobalEntries(): Promise<AtPathEntry[]> {
+    try {
+      const filePath = this.getGlobalCacheFilePath();
+      const content = await fs.readFile(filePath, 'utf8');
+      const lines = content.trim().split('\n').filter(line => line.length > 0);
+
+      const entries: AtPathEntry[] = [];
+      for (const line of lines) {
+        try {
+          const entry: AtPathEntry = JSON.parse(line);
+          entries.push(entry);
+        } catch {
+          // Skip invalid lines
+        }
+      }
+
+      return entries;
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Clear global cache
+   */
+  async clearGlobalCache(): Promise<void> {
+    try {
+      const filePath = this.getGlobalCacheFilePath();
+      await fs.rm(filePath, { force: true });
+      logger.debug('Cleared global at-path cache');
+    } catch (error) {
+      logger.warn('Error clearing global at-path cache:', error);
     }
   }
 }
