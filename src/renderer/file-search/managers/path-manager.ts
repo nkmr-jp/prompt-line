@@ -652,6 +652,12 @@ export class PathManager {
 
     e.preventDefault();
 
+    // CRITICAL: Save scroll position FIRST, before any other operations
+    // This must be done before replaceRangeWithUndo which may trigger scroll changes
+    const savedScrollTop = this.textInput?.scrollTop ?? 0;
+    const savedScrollLeft = this.textInput?.scrollLeft ?? 0;
+    console.debug('[PathManager] INITIAL scroll save:', { savedScrollTop, savedScrollLeft });
+
     // Set flag to indicate deletion is in progress
     // This allows event handlers to skip cursor position updates
     this._isDeletingAtPath = true;
@@ -674,7 +680,7 @@ export class PathManager {
     // which is exactly where we want it (savedStart), so no need to call setCursorPosition
     if (this.callbacks.replaceRangeWithUndo) {
       this.callbacks.replaceRangeWithUndo(savedStart, deleteEnd, '');
-      console.debug('[PathManager] After replaceRangeWithUndo, cursor at:', this.callbacks.getCursorPosition?.());
+      console.debug('[PathManager] After replaceRangeWithUndo, cursor at:', this.callbacks.getCursorPosition?.(), 'scroll:', this.textInput?.scrollTop);
     } else if (this.callbacks.setTextContent) {
       // Fallback to direct text manipulation (no Undo support)
       const newText = text.substring(0, savedStart) + text.substring(deleteEnd);
@@ -683,11 +689,7 @@ export class PathManager {
       this.callbacks.setCursorPosition?.(savedStart);
     }
 
-    // Save scroll position before any operations that might change it
-    const savedScrollTop = this.textInput?.scrollTop ?? 0;
-    const savedScrollLeft = this.textInput?.scrollLeft ?? 0;
-
-    console.debug('[PathManager] Before updateHighlightBackdrop, cursor at:', this.callbacks.getCursorPosition?.(), 'scroll:', savedScrollTop);
+    console.debug('[PathManager] Before updateHighlightBackdrop, cursor at:', this.callbacks.getCursorPosition?.(), 'scroll:', this.textInput?.scrollTop);
 
     // Update highlight backdrop (rescanAtPaths will recalculate all positions)
     this.callbacks.updateHighlightBackdrop?.();
@@ -731,19 +733,35 @@ export class PathManager {
 
         // Additional delayed check to see if something changes cursor after flag reset
         setTimeout(() => {
-          console.debug('[PathManager] POST-FLAG-RESET check, cursor:', this.callbacks.getCursorPosition?.(), 'scroll:', this.textInput?.scrollTop);
+          console.debug('[PathManager] POST-FLAG-RESET check (50ms), cursor:', this.callbacks.getCursorPosition?.(), 'scroll:', this.textInput?.scrollTop, 'expected scroll:', savedScrollTop);
           // If cursor is not at savedStart, something changed it after we finished
           const currentCursor = this.callbacks.getCursorPosition?.();
           if (currentCursor !== savedStart) {
             console.warn('[PathManager] CURSOR CHANGED AFTER FLAG RESET! Expected:', savedStart, 'Got:', currentCursor);
-            // Force cursor position one more time
             this.callbacks.setCursorPosition?.(savedStart);
-            if (this.textInput) {
-              this.textInput.scrollTop = savedScrollTop;
-              this.textInput.scrollLeft = savedScrollLeft;
-            }
+          }
+          // Always restore scroll position
+          if (this.textInput && this.textInput.scrollTop !== savedScrollTop) {
+            console.warn('[PathManager] SCROLL CHANGED! Restoring from', this.textInput.scrollTop, 'to', savedScrollTop);
+            this.textInput.scrollTop = savedScrollTop;
+            this.textInput.scrollLeft = savedScrollLeft;
           }
         }, 50);
+
+        // Extra safety: Final restoration at 200ms to catch any late-running callbacks
+        setTimeout(() => {
+          console.debug('[PathManager] FINAL check (200ms), cursor:', this.callbacks.getCursorPosition?.(), 'scroll:', this.textInput?.scrollTop, 'expected scroll:', savedScrollTop);
+          const currentCursor = this.callbacks.getCursorPosition?.();
+          if (currentCursor !== savedStart) {
+            console.warn('[PathManager] CURSOR STILL WRONG AT 200ms! Expected:', savedStart, 'Got:', currentCursor);
+            this.callbacks.setCursorPosition?.(savedStart);
+          }
+          if (this.textInput && this.textInput.scrollTop !== savedScrollTop) {
+            console.warn('[PathManager] SCROLL STILL WRONG AT 200ms! Restoring from', this.textInput.scrollTop, 'to', savedScrollTop);
+            this.textInput.scrollTop = savedScrollTop;
+            this.textInput.scrollLeft = savedScrollLeft;
+          }
+        }, 200);
       });
     }, 0);
 
