@@ -674,22 +674,37 @@ export class PathManager {
     // which is exactly where we want it (savedStart), so no need to call setCursorPosition
     if (this.callbacks.replaceRangeWithUndo) {
       this.callbacks.replaceRangeWithUndo(savedStart, deleteEnd, '');
+      console.debug('[PathManager] After replaceRangeWithUndo, cursor at:', this.callbacks.getCursorPosition?.());
     } else if (this.callbacks.setTextContent) {
       // Fallback to direct text manipulation (no Undo support)
       const newText = text.substring(0, savedStart) + text.substring(deleteEnd);
       this.callbacks.setTextContent(newText);
+      // Set cursor position immediately after direct text manipulation
+      this.callbacks.setCursorPosition?.(savedStart);
     }
+
+    console.debug('[PathManager] Before updateHighlightBackdrop, cursor at:', this.callbacks.getCursorPosition?.());
 
     // Update highlight backdrop (rescanAtPaths will recalculate all positions)
     this.callbacks.updateHighlightBackdrop?.();
+
+    console.debug('[PathManager] After updateHighlightBackdrop, cursor at:', this.callbacks.getCursorPosition?.());
+
+    // Immediately set cursor position after all synchronous operations
+    this.callbacks.setCursorPosition?.(savedStart);
+    console.debug('[PathManager] After immediate setCursorPosition, cursor at:', this.callbacks.getCursorPosition?.());
 
     // Use setTimeout to ensure cursor position is set after all synchronous event handlers
     // and microtasks complete. Then use requestAnimationFrame to ensure it's set after
     // any RAF-scheduled updates (like updateHighlightBackdrop).
     setTimeout(() => {
+      console.debug('[PathManager] setTimeout callback, cursor before set:', this.callbacks.getCursorPosition?.());
       this.callbacks.setCursorPosition?.(savedStart);
+      console.debug('[PathManager] setTimeout callback, cursor after set:', this.callbacks.getCursorPosition?.());
       requestAnimationFrame(() => {
+        console.debug('[PathManager] RAF callback, cursor before set:', this.callbacks.getCursorPosition?.());
         this.callbacks.setCursorPosition?.(savedStart);
+        console.debug('[PathManager] RAF callback, cursor after set:', this.callbacks.getCursorPosition?.());
         // Reset flag after all cursor position updates are complete
         this._isDeletingAtPath = false;
       });
