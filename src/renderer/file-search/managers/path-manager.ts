@@ -503,8 +503,21 @@ export class PathManager {
       return char === undefined || char === ' ' || char === '\n' || char === '\r';
     };
 
+    console.log('[PathManager] findAtPathAtCursor:', { cursorPos, atPathsCount: this.atPaths.length });
+
     for (const path of this.atPaths) {
       const charAtEnd = text[path.end];
+      console.log('[PathManager] Checking path:', {
+        path: path.path,
+        start: path.start,
+        end: path.end,
+        cursorPos,
+        charAtEnd: charAtEnd === '\n' ? '\\n' : charAtEnd === '\r' ? '\\r' : charAtEnd,
+        charAtEndCode: charAtEnd?.charCodeAt(0),
+        isTerminator: isTerminator(charAtEnd),
+        cursorAtEnd: cursorPos === path.end,
+        cursorAtEndPlusOne: cursorPos === path.end + 1
+      });
 
       // Check if cursor is at path.end (right after the @path)
       if (cursorPos === path.end) {
@@ -650,9 +663,19 @@ export class PathManager {
 
     const cursorPos = this.callbacks.getCursorPosition();
     const text = this.callbacks.getTextContent();
+
+    // DEBUG: Log state for diagnosis
+    console.log('[PathManager] handleBackspaceForAtPath called:', {
+      cursorPos,
+      textLength: text.length,
+      atPathsCount: this.atPaths.length,
+      atPaths: this.atPaths.map(p => ({ start: p.start, end: p.end, path: p.path }))
+    });
+
     const atPath = this.findAtPathAtCursor(cursorPos, text);
 
     if (!atPath) {
+      console.log('[PathManager] No @path found at cursor position', cursorPos);
       return false;
     }
 
