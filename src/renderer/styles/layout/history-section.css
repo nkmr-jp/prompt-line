@@ -5,13 +5,16 @@
     flex-direction: column;
     min-width: 0;
     border-left: 1px solid var(--border-primary);
+    /* Space for overlay scrollbar */
+    padding-right: 8px;
 }
 
 .history-container {
     background: var(--bg-primary);
     border-radius: 0;
     box-shadow: none;
-    overflow: hidden;
+    overflow-x: clip;
+    overflow-y: visible;
     display: flex;
     flex-direction: column;
     height: 100%;
