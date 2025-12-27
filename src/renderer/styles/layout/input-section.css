@@ -156,7 +156,7 @@
 
 .highlight-backdrop .at-path-highlight {
     background: rgba(59, 130, 246, 0.4);
-    border-radius: 6px;
+    border-radius: 8px;
     color: transparent;
 
     /* Expand highlight area by 1px in all directions */
