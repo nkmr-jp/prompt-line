@@ -658,24 +658,22 @@ export class PathManager {
     // which is exactly where we want it (savedStart), so no need to call setCursorPosition
     if (this.callbacks.replaceRangeWithUndo) {
       this.callbacks.replaceRangeWithUndo(savedStart, deleteEnd, '');
-      // Explicitly restore cursor position after deletion
-      // The input event fired by execCommand may trigger code that affects cursor position
-      // (e.g., checkForFileSearch, updateHighlightBackdrop, updateCursorPositionHighlight)
-      // Restoring here ensures cursor stays at the correct deletion point
-      this.callbacks.setCursorPosition(savedStart);
     } else if (this.callbacks.setTextContent) {
-      // Fallback to direct text manipulation (no Undo support) - need to set cursor manually
+      // Fallback to direct text manipulation (no Undo support)
       const newText = text.substring(0, savedStart) + text.substring(deleteEnd);
       this.callbacks.setTextContent(newText);
-      this.callbacks.setCursorPosition(savedStart);
     }
 
     // Update highlight backdrop (rescanAtPaths will recalculate all positions)
     this.callbacks.updateHighlightBackdrop?.();
 
-    // Restore cursor position again after updateHighlightBackdrop
-    // This ensures cursor stays at savedStart even if backdrop update affects it
-    this.callbacks.setCursorPosition(savedStart);
+    // Use requestAnimationFrame to ensure cursor position is set after all event handlers
+    // (input event triggers checkForFileSearch, updateHighlightBackdrop, updateCursorPositionHighlight)
+    // and DOM updates are complete. This prevents cursor position from being overwritten
+    // by other handlers that may run synchronously or in subsequent frames.
+    requestAnimationFrame(() => {
+      this.callbacks.setCursorPosition?.(savedStart);
+    });
 
     // After update, check if this path still exists in the text
     // If not, remove it from selectedPaths
