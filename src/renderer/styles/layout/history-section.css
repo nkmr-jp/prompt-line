@@ -95,7 +95,7 @@
 }
 
 .custom-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.1);
     border-radius: 3px;
     min-height: 30px;
 }
