@@ -13,6 +13,18 @@ The handlers module provides:
 
 ## Files
 
+### Handler Files Overview
+The handlers module consists of 9 specialized files:
+- **ipc-handlers.ts**: Coordinator that delegates to specialized handlers
+- **paste-handler.ts**: Text and image paste operations
+- **history-draft-handler.ts**: History CRUD and draft management with @path caching
+- **window-handler.ts**: Window visibility and focus control
+- **system-handler.ts**: App info, config, and settings retrieval
+- **mdsearch-handler.ts**: Slash commands and agent selection
+- **file-handler.ts**: File operations and external URL handling
+- **code-search-handler.ts**: Symbol search with ripgrep integration
+- **handler-utils.ts**: Shared validation and utility functions
+
 ### ipc-handlers.ts
 Core IPCHandlers class that manages all Inter-Process Communication with the following key features:
 
@@ -21,18 +33,52 @@ Core IPCHandlers class that manages all Inter-Process Communication with the fol
 - **Type Safety**: Comprehensive TypeScript interfaces for all operations and responses
 - **Handler Registration**: Automatic setup of all IPC channels via `ipcMain.handle()`
 - **Clean Shutdown**: `removeAllHandlers()` method for proper cleanup
+- **Delegation Pattern**: Coordinates specialized handlers (paste, history-draft, window, system, mdsearch, file, code-search)
 
 #### Key Dependencies
 ```typescript
 import { ipcMain, clipboard, dialog } from 'electron';
 import { exec } from 'child_process';
 import { promises as fs } from 'fs';
-import { 
-  pasteWithNativeTool, 
-  activateAndPasteWithNativeTool, 
-  checkAccessibilityPermission 
+import {
+  pasteWithNativeTool,
+  activateAndPasteWithNativeTool,
+  checkAccessibilityPermission
 } from '../utils/utils';
 ```
+
+### code-search-handler.ts
+Handles symbol search via native ripgrep integration:
+
+#### Architecture
+- **Stale-while-Revalidate**: Returns cached data while refreshing in background
+- **Background Deduplication**: Prevents duplicate concurrent refresh operations
+- **Settings Integration**: Reads search configuration from SettingsManager
+- **Cache Management**: Uses SymbolCacheManager for persistent symbol storage
+
+#### Key Implementation
+```typescript
+// Search symbols with caching strategy
+async function handleSearchSymbols(directory: string, language: string, options: SearchOptions) {
+  // 1. Check if valid cache exists
+  // 2. If cached: return cached + trigger background refresh
+  // 3. If not cached: perform full search + save to cache
+}
+```
+
+### handler-utils.ts
+Shared utilities for all handlers:
+
+#### Exported Functions
+- `withIPCErrorHandling`: HOF for standardized error handling wrapper
+- `withIPCDataHandler`: HOF for data handlers with default values
+- `expandPath`: Path expansion with `~` and relative path support
+- `normalizeAndValidatePath`: Path normalization with traversal attack prevention
+- `validateHistoryId`: History ID format validation (lowercase alphanumeric)
+- `updateMdSearchConfig`: MdSearch configuration update utility
+
+#### Types
+- `IPCResult`: Standard response interface with success/error/warning fields
 
 ## IPC Channel Implementation
 
@@ -105,13 +151,20 @@ import {
 
 ### Code Search (code-search-handler.ts)
 - **`check-rg`**: Checks ripgrep availability for symbol search
-- **`get-supported-languages`**: Returns list of 13 supported programming languages
+- **`get-supported-languages`**: Returns list of 20+ supported programming languages
 - **`search-symbols`**: Searches for symbols in a directory for a specific language
   - Parameters: directory, language, options (maxSymbols, useCache)
   - Uses native `symbol-searcher` tool with ripgrep
-  - Caches results via `symbolCacheManager`
-- **`get-cached-symbols`**: Retrieves cached symbols for a directory
-- **`clear-symbol-cache`**: Clears symbol cache (specific directory or all)
+  - Stale-while-revalidate caching pattern with background refresh
+  - Background refresh deduplication to prevent duplicate searches
+- **`get-cached-symbols`**: Retrieves cached symbols for a directory and optional language
+- **`clear-symbol-cache`**: Clears symbol cache (specific directory, language, or all)
+
+### At-Path Registration (history-draft-handler.ts)
+- **`register-at-path`**: Registers a file path pattern for highlighting (project-level)
+- **`get-registered-at-paths`**: Retrieves registered @path patterns for a directory
+- **`register-global-at-path`**: Registers a global @path pattern (for mdSearch agents)
+- **`get-global-at-paths`**: Retrieves global @path patterns
 
 ## Implementation Details
 
@@ -160,6 +213,9 @@ interface IPCResult {
 - **IHistoryManager**: Complete history operations and search functionality
 - **DraftManager**: Draft persistence with debouncing and immediate save options
 - **SettingsManager**: User preferences management with YAML persistence
+- **SymbolCacheManager**: Symbol search result caching with language separation
+- **AtPathCacheManager**: @path pattern caching for file highlighting
+- **MdSearchLoader**: Markdown file search for slash commands and agents
 
 ### Utility Integration
 - **utils/utils**: Native tool functions, accessibility checks, logging utilities

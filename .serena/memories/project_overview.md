@@ -16,7 +16,7 @@ Electronの2プロセスモデル:
 - **Main Process** (`src/main.ts`): アプリライフサイクル、ウィンドウ管理、システム操作
 - **Renderer Process** (`src/renderer/`): UI、ユーザー操作
 - **Preload Script** (`src/preload/preload.ts`): セキュアなIPC通信
-- **IPC Handlers** (`src/handlers/`): 8つの専門ハンドラー
+- **IPC Handlers** (`src/handlers/`): 9つの専門ハンドラー (code-search含む)
 
 ### 主要ディレクトリ
 ```
@@ -42,9 +42,13 @@ src/
 - `window-detector`: アクティブウィンドウ検出
 - `text-field-detector`: フォーカステキストフィールド検出
 - `keyboard-simulator`: Cmd+Vシミュレーション
-- `directory-detector`: カレントディレクトリ検出
-- `symbol-searcher`: コードシンボル検索
-- `file-searcher`: ファイル検索
+- `directory-detector`: カレントディレクトリ検出 (libproc使用、10-50x高速)
+- `symbol-searcher`: コードシンボル検索 (ripgrep使用、20+言語対応)
+- `file-searcher`: ファイル検索 (fd使用、.gitignore対応)
+
+### 新規追加マネージャー
+- `symbol-cache-manager`: シンボルキャッシュ管理 (言語別JSONL)
+- `at-path-cache-manager`: @pathパターンキャッシュ
 
 ## 主な機能
 - ペースト履歴管理 (無制限、JSONL形式)
