@@ -1,18 +1,15 @@
 /**
- * Code Search Module
- * Provides symbol search functionality triggered by @<ext>:<query> pattern
+ * Code Search Types Module
+ * Provides type definitions for symbol search functionality
  */
 
-export { CodeSearchManager } from './code-search-manager';
 export type {
   SymbolType,
   SymbolResult,
   LanguageInfo,
   ParsedCodeQuery,
-  CodeSearchCallbacks,
   SymbolSearchResponse,
   RgCheckResponse,
-  LanguagesResponse,
-  CodeSearchConfig
+  LanguagesResponse
 } from './types';
-export { SYMBOL_ICONS, getSymbolTypeDisplay } from './types';
+export { getSymbolTypeDisplay, SYMBOL_TYPE_FROM_DISPLAY } from './types';

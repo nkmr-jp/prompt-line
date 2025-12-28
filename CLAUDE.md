@@ -177,6 +177,9 @@ Core functionality is organized into specialized managers:
 - **MdSearchLoader**: Markdown file search and loading functionality
 - **DirectoryManager**: Directory operations and management
 - **FileOpenerManager**: File opening with custom editor support
+- **SymbolCacheManager**: Language-separated symbol search caching with TTL
+- **AtPathCacheManager**: @path pattern caching for file highlighting
+- **symbol-search/**: Native symbol search integration with ripgrep (20+ languages)
 
 **Renderer Process Managers:**
 - **DomManager**: DOM element management and manipulation
@@ -194,6 +197,8 @@ Core functionality is organized into specialized managers:
   - Fuzzy matching with score-based ranking (disabled by default)
 - **HistoryUIManager**: History display and interaction management
 - **SnapshotManager**: Undo/redo functionality with text and cursor state tracking
+- **HistorySearchManager** (`src/renderer/history-search/`): Score-based history search with fuzzy matching
+- **CodeSearchManager** (`src/renderer/code-search/`): Symbol search types and utilities for 20+ languages
 
 ### Data Flow
 ```
@@ -210,9 +215,9 @@ IPC invoke request
     ↓
 IPCHandlers (coordinator)
     ↓
-Specialized Handler (paste, history-draft, window, system, mdsearch, file)
+Specialized Handler (paste, history-draft, window, system, mdsearch, file, code-search)
     ↓
-Manager (WindowManager, HistoryManager, etc.)
+Manager (WindowManager, HistoryManager, SymbolCacheManager, etc.)
     ↓
 System/Data
     ↓
@@ -247,11 +252,18 @@ IPC response → Renderer Process
 - `check-file-exists`, `open-file-in-editor`: File operations
 - `open-external-url`: URL handling with protocol validation
 
+**Code Search Handler (code-search-handler.ts):**
+- `check-rg`: Check ripgrep availability
+- `get-supported-languages`: List of 20+ supported programming languages
+- `search-symbols`: Symbol search with caching strategy
+- `get-cached-symbols`: Retrieve cached symbols
+- `clear-symbol-cache`: Clear symbol cache
+
 **Events (Renderer → Main):**
 - `window-shown`: Window display with data context
 - `directory-data-updated`: Directory change notifications
 
-Total: 26+ IPC channels across 6 specialized handlers
+Total: 30+ IPC channels across 7 specialized handlers
 
 ## Platform-Specific Implementation
 
@@ -260,14 +272,16 @@ The app uses compiled Swift native tools to simulate Cmd+V in the previously act
 - Accessibility permissions (prompted on first use)
 - Proper window management to restore focus
 
-**Native Swift Tools Integration:**
+**Native Swift Tools Integration (6 tools):**
 - **Window Detector**: Compiled Swift binary for reliable window bounds and app detection
 - **Keyboard Simulator**: Native Cmd+V simulation and app activation with bundle ID support
 - **Text Field Detector**: Focused text field detection for precise positioning using Accessibility APIs
 - **Directory Detector**: Fast CWD (current working directory) detection using libproc for 10-50x faster performance
+- **File Searcher**: Fast file listing using `fd` command with .gitignore support
+- **Symbol Searcher**: Code symbol search using `ripgrep` supporting 20+ programming languages
 - **JSON Communication**: Structured data exchange prevents parsing vulnerabilities
 - **Error Recovery**: Graceful fallback from text field → window center → cursor → center positioning
-- **Timeout Protection**: 3-second timeout prevents hanging on unresponsive operations
+- **Timeout Protection**: 3-5 second timeouts prevent hanging on unresponsive operations
 - **Security**: Compiled binaries eliminate script injection vulnerabilities
 
 ### Data Storage
@@ -279,6 +293,10 @@ All data is stored in `~/.prompt-line/`:
 - `app.log`: Application logs with debug information
 - `images/`: Directory for image storage
 - `cache/`: Directory for file caching and metadata
+  - `<encoded-path>/symbol-metadata.json`: Symbol cache metadata with TTL
+  - `<encoded-path>/symbols-{lang}.jsonl`: Language-specific symbol cache
+  - `<encoded-path>/registered-at-paths.jsonl`: Project @path patterns
+  - `global-at-paths.jsonl`: Global @path patterns for mdSearch agents
 
 ### Build Output
 The built application is stored in `dist/`:
@@ -379,7 +397,7 @@ The window supports multiple positioning modes with dynamic configuration:
 - **ripgrep-based**: Uses `rg` (ripgrep) for fast symbol searching
 - **Native Swift tool**: `symbol-searcher` binary in `native/symbol-searcher/`
 - **Symbol caching**: Results cached per directory and language for faster subsequent searches
-- **Supported languages (18)**:
+- **Supported languages (20)**:
   | Language | Key | Example | Symbol Types |
   |----------|-----|---------|--------------|
   | Go | `go` | `@go:Handler` | function, method, struct, interface, type, constant, variable |
@@ -400,6 +418,8 @@ The window supports multiple positioning modes with dynamic configuration:
   | PHP | `php` | `@php:render` | function, class, interface, trait, constant, enum |
   | C# | `cs` | `@cs:Handle` | class, interface, struct, enum, method, namespace |
   | Scala | `scala` | `@scala:process` | function, class, trait, object, type, constant, variable |
+  | Terraform | `tf`, `terraform` | `@tf:instance`, `@terraform:vpc` | resource, data, variable, output, module, provider |
+  | Markdown | `md`, `markdown` | `@md:Installation`, `@markdown:Usage` | heading |
 - **Requirements**: ripgrep (`rg`) must be installed (`brew install ripgrep`)
 - **File search must be enabled**: Code search is part of the @ mention system
 
@@ -514,67 +534,4 @@ ls -la dist/mac*/Prompt\ Line.app
 
 # Check native tools
 ls -la dist/mac*/Prompt\ Line.app/Contents/Resources/app.asar.unpacked/dist/native-tools/
-```
-
-## Investigation and Troubleshooting
-
-### Investigation Task Guidelines
-When conducting investigations (CI failures, bugs, security issues, design considerations, implementation planning, etc.), follow these guidelines:
-
-1. **Documentation**: Always document investigation results in `.claude/artifact/` directory
-2. **File Format**: Use markdown format for all investigation reports
-3. **File Naming**: Use descriptive names like:
-   - `YYYYMMDD-ci-failure-investigation.md`
-   - `YYYYMMDD-bug-report-issue-123.md`
-   - `YYYYMMDD-design-plan-feature-name.md`
-   - `YYYYMMDD-implementation-plan.md`
-4. **Content Structure**: Include:
-   - Summary of the issue/task
-   - Investigation/analysis steps taken
-   - Root cause analysis (for bugs/issues) or design considerations (for planning)
-   - Resolution recommendations or implementation plan
-   - Next steps and follow-up actions
-
-**Example Report Structures:**
-
-*For Investigations:*
-```markdown
-# [Issue Type] Investigation
-
-**Date:** YYYY-MM-DD
-**Issue:** Brief description
-**Status:** In Progress/Resolved/Blocked
-
-## Summary
-Brief overview of the issue and findings
-
-## Investigation Details
-Detailed steps taken and findings
-
-## Root Cause Analysis
-Technical analysis of the underlying cause
-
-## Resolution Recommendations
-Proposed solutions and next steps
-```
-
-*For Design/Implementation Planning:*
-```markdown
-# [Feature/Component] Design/Implementation Plan
-
-**Date:** YYYY-MM-DD
-**Scope:** Brief description of what's being planned
-**Status:** Planning/In Progress/Ready for Implementation
-
-## Summary
-Overview of the feature/component and objectives
-
-## Analysis & Design Considerations
-Requirements analysis, constraints, and design decisions
-
-## Implementation Plan
-Detailed implementation steps and approach
-
-## Next Steps
-Action items and implementation timeline
 ```

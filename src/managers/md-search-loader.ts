@@ -185,133 +185,169 @@ class MdSearchLoader {
    * 全設定エントリからアイテムをロード
    */
   private async loadAll(): Promise<MdSearchItem[]> {
-    // キャッシュチェック
     const cacheKey = 'all';
     const cached = this.cache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < this.cacheTTL) {
       return cached.items;
     }
 
+    const allItems = await this.loadAllEntries();
+    allItems.sort((a, b) => a.name.localeCompare(b.name));
+
+    this.cache.set(cacheKey, { items: allItems, timestamp: Date.now() });
+    this.logLoadedItems(allItems);
+
+    return allItems;
+  }
+
+  /**
+   * Load all entries with deduplication
+   */
+  private async loadAllEntries(): Promise<MdSearchItem[]> {
     const allItems: MdSearchItem[] = [];
     const seenNames = new Map<MdSearchType, Set<string>>();
 
     for (const entry of this.config) {
       try {
         const items = await this.loadEntry(entry);
-
-        // タイプごとの重複チェック用Setを取得または作成
-        if (!seenNames.has(entry.type)) {
-          seenNames.set(entry.type, new Set());
-        }
-        const typeSeenNames = seenNames.get(entry.type)!;
-
-        for (const item of items) {
-          // 同じタイプ内での重複を防ぐ
-          if (!typeSeenNames.has(item.name)) {
-            typeSeenNames.add(item.name);
-            allItems.push(item);
-          } else {
-            logger.debug('Skipping duplicate item', {
-              name: item.name,
-              type: item.type,
-              sourceId: item.sourceId
-            });
-          }
-        }
+        this.addItemsWithDeduplication(items, entry.type, seenNames, allItems);
       } catch (error) {
         logger.error('Failed to load entry', { entry, error });
       }
     }
 
-    // 名前でソート
-    allItems.sort((a, b) => a.name.localeCompare(b.name));
+    return allItems;
+  }
 
-    // キャッシュを更新
-    this.cache.set(cacheKey, { items: allItems, timestamp: Date.now() });
+  /**
+   * Add items with deduplication check
+   */
+  private addItemsWithDeduplication(
+    items: MdSearchItem[],
+    type: MdSearchType,
+    seenNames: Map<MdSearchType, Set<string>>,
+    allItems: MdSearchItem[]
+  ): void {
+    if (!seenNames.has(type)) {
+      seenNames.set(type, new Set());
+    }
+    const typeSeenNames = seenNames.get(type)!;
 
+    for (const item of items) {
+      if (!typeSeenNames.has(item.name)) {
+        typeSeenNames.add(item.name);
+        allItems.push(item);
+      } else {
+        logger.debug('Skipping duplicate item', { name: item.name, type: item.type, sourceId: item.sourceId });
+      }
+    }
+  }
+
+  /**
+   * Log loaded items statistics
+   */
+  private logLoadedItems(allItems: MdSearchItem[]): void {
     logger.info('MdSearch items loaded', {
       total: allItems.length,
       commands: allItems.filter(i => i.type === 'command').length,
       mentions: allItems.filter(i => i.type === 'mention').length
     });
-
-    return allItems;
   }
 
   /**
    * 単一エントリをロード
    */
   private async loadEntry(entry: MdSearchEntry): Promise<MdSearchItem[]> {
-    // パスを展開（~をホームディレクトリに置換）
     const expandedPath = entry.path.replace(/^~/, os.homedir());
 
-    // ディレクトリの存在確認
+    const isValid = await this.validateDirectory(expandedPath);
+    if (!isValid) {
+      return [];
+    }
+
+    const files = await this.findFiles(expandedPath, entry.pattern);
+    const sourceId = `${entry.path}:${entry.pattern}`;
+    const items = await this.parseFilesToItems(files, entry, sourceId);
+
+    logger.debug('MdSearch entry loaded', { sourceId, count: items.length });
+    return items;
+  }
+
+  /**
+   * Validate directory exists
+   */
+  private async validateDirectory(path: string): Promise<boolean> {
     try {
-      const stats = await fs.stat(expandedPath);
+      const stats = await fs.stat(path);
       if (!stats.isDirectory()) {
-        logger.warn('MdSearch path is not a directory', { path: expandedPath });
-        return [];
+        logger.warn('MdSearch path is not a directory', { path });
+        return false;
       }
+      return true;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        logger.debug('MdSearch directory does not exist', { path: expandedPath });
-        return [];
+        logger.debug('MdSearch directory does not exist', { path });
+        return false;
       }
       throw error;
     }
+  }
 
-    // パターンでファイルを検索
-    const files = await this.findFiles(expandedPath, entry.pattern);
-
+  /**
+   * Parse files to MdSearchItems
+   */
+  private async parseFilesToItems(
+    files: string[],
+    entry: MdSearchEntry,
+    sourceId: string
+  ): Promise<MdSearchItem[]> {
     const items: MdSearchItem[] = [];
-    const sourceId = `${entry.path}:${entry.pattern}`;
 
     for (const filePath of files) {
-      try {
-        const content = await fs.readFile(filePath, 'utf8');
-        const frontmatter = parseFrontmatter(content);
-        const rawFrontmatter = extractRawFrontmatter(content);
-        const basename = getBasename(filePath);
-
-        const context = { basename, frontmatter };
-
-        const item: MdSearchItem = {
-          name: resolveTemplate(entry.name, context),
-          description: resolveTemplate(entry.description, context),
-          type: entry.type,
-          filePath,
-          sourceId,
-        };
-
-        // オプションフィールドを追加
-        if (rawFrontmatter) {
-          item.frontmatter = rawFrontmatter;
-        }
-
-        if (entry.argumentHint) {
-          const resolvedHint = resolveTemplate(entry.argumentHint, context);
-          if (resolvedHint) {
-            item.argumentHint = resolvedHint;
-          }
-        }
-
-        // inputFormatを追加（設定されている場合のみ）
-        if (entry.inputFormat) {
-          item.inputFormat = entry.inputFormat;
-        }
-
+      const item = await this.parseFileToItem(filePath, entry, sourceId);
+      if (item) {
         items.push(item);
-      } catch (error) {
-        logger.warn('Failed to parse file', { filePath, error });
       }
     }
 
-    logger.debug('MdSearch entry loaded', {
-      sourceId,
-      count: items.length
-    });
-
     return items;
+  }
+
+  /**
+   * Parse single file to MdSearchItem
+   */
+  private async parseFileToItem(
+    filePath: string,
+    entry: MdSearchEntry,
+    sourceId: string
+  ): Promise<MdSearchItem | null> {
+    try {
+      const content = await fs.readFile(filePath, 'utf8');
+      const frontmatter = parseFrontmatter(content);
+      const rawFrontmatter = extractRawFrontmatter(content);
+      const basename = getBasename(filePath);
+      const context = { basename, frontmatter };
+
+      const item: MdSearchItem = {
+        name: resolveTemplate(entry.name, context),
+        description: resolveTemplate(entry.description, context),
+        type: entry.type,
+        filePath,
+        sourceId,
+      };
+
+      if (rawFrontmatter) item.frontmatter = rawFrontmatter;
+      if (entry.argumentHint) {
+        const resolvedHint = resolveTemplate(entry.argumentHint, context);
+        if (resolvedHint) item.argumentHint = resolvedHint;
+      }
+      if (entry.inputFormat) item.inputFormat = entry.inputFormat;
+
+      return item;
+    } catch (error) {
+      logger.warn('Failed to parse file', { filePath, error });
+      return null;
+    }
   }
 
   /**
@@ -376,8 +412,6 @@ class MdSearchLoader {
     relativePath: string
   ): Promise<string[]> {
     const files: string[] = [];
-
-    // パターンを解析
     const parsed = this.parsePattern(pattern);
 
     try {
@@ -388,32 +422,41 @@ class MdSearchLoader {
         const entryRelativePath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
 
         if (entry.isDirectory()) {
-          if (parsed.isRecursive) {
-            // 再帰検索
-            if (parsed.intermediatePattern) {
-              // 中間パターンがある場合（例: **/commands/*.md, **/plugins/*/commands/*.md）
-              // パスの末尾が中間パターンにマッチするか確認
-              if (this.matchesIntermediatePathSuffix(entryRelativePath, parsed.intermediatePattern)) {
-                // 中間パスにマッチした場合、その中でファイルを検索
-                const subFiles = await this.findFilesInDir(fullPath, parsed.filePattern);
-                files.push(...subFiles);
-              }
-            }
-            // 常に再帰的にサブディレクトリも検索
-            const subFiles = await this.findFilesWithPattern(fullPath, pattern, entryRelativePath);
-            files.push(...subFiles);
-          }
-        } else if (entry.isFile()) {
-          // ファイルがパターンに一致するか確認
-          if (this.matchesFilePattern(entry.name, entryRelativePath, parsed)) {
-            files.push(fullPath);
-          }
+          const dirFiles = await this.processDirectoryEntry(fullPath, entryRelativePath, pattern, parsed);
+          files.push(...dirFiles);
+        } else if (entry.isFile() && this.matchesFilePattern(entry.name, entryRelativePath, parsed)) {
+          files.push(fullPath);
         }
       }
     } catch (error) {
-      // ディレクトリ読み取りエラーは無視（権限エラー等）
       logger.debug('Failed to read directory', { directory, error });
     }
+
+    return files;
+  }
+
+  /**
+   * Process a directory entry during pattern search
+   */
+  private async processDirectoryEntry(
+    fullPath: string,
+    entryRelativePath: string,
+    pattern: string,
+    parsed: ReturnType<typeof this.parsePattern>
+  ): Promise<string[]> {
+    if (!parsed.isRecursive) return [];
+
+    const files: string[] = [];
+
+    // Check intermediate pattern match
+    if (parsed.intermediatePattern && this.matchesIntermediatePathSuffix(entryRelativePath, parsed.intermediatePattern)) {
+      const subFiles = await this.findFilesInDir(fullPath, parsed.filePattern);
+      files.push(...subFiles);
+    }
+
+    // Always recurse into subdirectories
+    const subFiles = await this.findFilesWithPattern(fullPath, pattern, entryRelativePath);
+    files.push(...subFiles);
 
     return files;
   }

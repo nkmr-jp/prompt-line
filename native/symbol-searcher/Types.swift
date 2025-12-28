@@ -16,6 +16,12 @@ enum SymbolType: String, Codable {
     case property
     case module
     case namespace
+    case heading
+    // Terraform-specific types
+    case resource
+    case dataSource = "data"
+    case output
+    case provider
 }
 
 // MARK: - Language Configuration
@@ -72,4 +78,11 @@ struct LanguageInfo: Codable {
     let key: String
     let extensionName: String  // Renamed to match LanguageConfig
     let displayName: String
+
+    // Map extensionName to "extension" in JSON output to match TypeScript interface
+    enum CodingKeys: String, CodingKey {
+        case key
+        case extensionName = "extension"
+        case displayName
+    }
 }

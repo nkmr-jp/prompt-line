@@ -15,7 +15,13 @@ export type SymbolType =
   | 'enum'
   | 'property'
   | 'module'
-  | 'namespace';
+  | 'namespace'
+  | 'heading'
+  // Terraform-specific types
+  | 'resource'
+  | 'data'
+  | 'output'
+  | 'provider';
 
 // Symbol result from search
 export interface SymbolResult {
@@ -84,22 +90,6 @@ export interface CodeSearchCallbacks {
   getIsComposing: () => boolean;
 }
 
-// Symbol icon mapping for display (text fallback, SVG icons in file-icons.ts)
-export const SYMBOL_ICONS: Record<SymbolType, string> = {
-  function: '𝑓',
-  method: '𝑚',
-  class: '𝒞',
-  struct: '𝒮',
-  interface: '𝒾',
-  type: '𝒯',
-  constant: '𝒄',
-  variable: '𝒗',
-  enum: '𝒆',
-  property: '𝒑',
-  module: '𝓂',
-  namespace: '𝓃'
-};
-
 // Get display name for symbol type
 export function getSymbolTypeDisplay(type: SymbolType): string {
   switch (type) {
@@ -115,6 +105,12 @@ export function getSymbolTypeDisplay(type: SymbolType): string {
     case 'property': return 'prop';
     case 'module': return 'mod';
     case 'namespace': return 'ns';
+    case 'heading': return 'heading';
+    // Terraform-specific types
+    case 'resource': return 'resource';
+    case 'data': return 'data';
+    case 'output': return 'output';
+    case 'provider': return 'provider';
     default: return type;
   }
 }
@@ -139,5 +135,14 @@ export const SYMBOL_TYPE_FROM_DISPLAY: Record<string, SymbolType> = {
   'mod': 'module',
   'module': 'module',
   'ns': 'namespace',
-  'namespace': 'namespace'
+  'namespace': 'namespace',
+  'heading': 'heading',
+  // Terraform-specific types
+  'resource': 'resource',
+  'res': 'resource',
+  'data': 'data',
+  'output': 'output',
+  'out': 'output',
+  'provider': 'provider',
+  'prov': 'provider'
 };

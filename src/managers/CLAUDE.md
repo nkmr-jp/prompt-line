@@ -4,7 +4,9 @@ This module contains specialized managers that handle core application functiona
 
 ## Files Overview
 
-The managers module consists of ten main components:
+The managers module consists of twelve main components plus a symbol-search sub-module:
+
+### Core Managers
 - **window-manager.ts**: Advanced window lifecycle management with native app integration
 - **history-manager.ts**: Traditional unlimited history management with JSONL format
 - **optimized-history-manager.ts**: Performance-optimized history management with caching
@@ -15,6 +17,11 @@ The managers module consists of ten main components:
 - **md-search-loader.ts**: Markdown file search and loading functionality for slash commands and agents
 - **file-opener-manager.ts**: File opening with custom editor support
 - **directory-manager.ts**: Directory operations and CWD management
+- **symbol-cache-manager.ts**: Language-separated symbol search caching with JSONL storage
+- **at-path-cache-manager.ts**: @path pattern caching for file highlighting
+
+### Sub-Modules
+- **symbol-search/**: Native symbol search integration with ripgrep (types.ts, symbol-searcher.ts, index.ts)
 
 ## Implementation Details
 
@@ -363,6 +370,138 @@ class DirectoryManager {
 }
 ```
 
+### symbol-search/ (Sub-Module)
+Native symbol search integration with ripgrep for code navigation:
+
+**Module Structure:**
+- `symbol-search/types.ts`: Type definitions for symbols and search responses
+- `symbol-search/symbol-searcher.ts`: Native tool executor for symbol-searcher binary
+- `symbol-search/index.ts`: Public API exports
+
+**Core Functionality:**
+```typescript
+// Exported functions
+function checkRgAvailable(): Promise<boolean>
+function getSupportedLanguages(): Promise<LanguageInfo[]>
+function searchSymbols(directory: string, language: string, options?: SearchOptions): Promise<SymbolSearchResponse>
+
+// Constants
+const DEFAULT_MAX_SYMBOLS = 20000
+const DEFAULT_SEARCH_TIMEOUT = 5000  // 5 seconds
+```
+
+**Key Types:**
+```typescript
+interface SymbolResult {
+  name: string;
+  type: SymbolType;  // 'function' | 'class' | 'interface' | ...
+  filePath: string;
+  lineNumber: number;
+  lineContent: string;
+}
+
+interface SymbolSearchResponse {
+  success: boolean;
+  symbols: SymbolResult[];
+  count: number;
+  directory: string;
+  language: string;
+  searchMode: 'full' | 'cached';
+  error?: string;
+}
+```
+
+**Features:**
+- Uses native `symbol-searcher` Swift binary with ripgrep
+- Supports 20+ programming languages (Go, TypeScript, Python, Rust, etc.)
+- JSON communication protocol for safe data exchange
+- Timeout protection (5 seconds) to prevent hanging
+- macOS-only with platform check
+
+### symbol-cache-manager.ts
+Manages disk-based caching for symbol search results with language-separated storage:
+
+**Core Functionality:**
+```typescript
+class SymbolCacheManager {
+  isCacheValid(directory: string): Promise<boolean>
+  hasLanguageCache(directory: string, language: string): Promise<boolean>
+  loadSymbols(directory: string, language?: string): Promise<SymbolResult[]>
+  saveSymbols(directory: string, language: string, symbols: SymbolResult[], searchMode: string): Promise<void>
+  clearCache(directory?: string): Promise<void>
+  clearLanguageCache(directory: string, language: string): Promise<void>
+  clearAllCaches(): Promise<void>
+  loadMetadata(directory: string): Promise<SymbolCacheMetadata | null>
+}
+```
+
+**Storage Architecture:**
+- **Cache Location**: `~/.prompt-line/cache/<encoded-path>/`
+- **Metadata File**: `symbol-metadata.json` - Version, TTL, language statistics
+- **Symbol Files**: `symbols-{language}.jsonl` - Language-specific symbol storage
+
+**Cache Metadata:**
+```typescript
+interface SymbolCacheMetadata {
+  version: string;        // "2.0"
+  directory: string;
+  createdAt: number;
+  updatedAt: number;
+  ttl: number;            // 1 hour default
+  languages: {
+    [lang: string]: {
+      count: number;
+      updatedAt: number;
+      searchMode: string;
+    }
+  }
+}
+```
+
+**Features:**
+- Language-separated JSONL files for efficient per-language access
+- Cache version 2.0 with TTL support (1 hour default)
+- Dynamic total symbol count calculation
+- Line-by-line parsing for large symbol sets
+- Efficient directory encoding for path-based cache keys
+
+### at-path-cache-manager.ts
+Caches registered @path patterns for file highlighting and symbol references:
+
+**Core Functionality:**
+```typescript
+class AtPathCacheManager {
+  // Project-level cache
+  loadPaths(directory: string): Promise<AtPathEntry[]>
+  addPath(directory: string, atPath: string): Promise<void>
+  clearCache(directory: string): Promise<void>
+
+  // Global cache (for mdSearch agents, etc.)
+  loadGlobalPaths(): Promise<AtPathEntry[]>
+  addGlobalPath(atPath: string): Promise<void>
+  clearGlobalCache(): Promise<void>
+}
+```
+
+**Dual Storage System:**
+- **Project-level**: `~/.prompt-line/cache/<encoded-path>/registered-at-paths.jsonl`
+- **Global**: `~/.prompt-line/cache/global-at-paths.jsonl`
+
+**Entry Structure:**
+```typescript
+interface AtPathEntry {
+  path: string;      // The @path pattern (e.g., "@src/utils.ts")
+  timestamp: number; // Unix timestamp for age tracking
+}
+```
+
+**Features:**
+- 100-entry limit per cache with FIFO removal of oldest entries
+- Duplicate prevention with filter-and-re-add strategy
+- Lazy cache directory initialization
+- Project-level and global separation for different content types
+- JSONL format with one entry per line for streaming
+
 ## Manager Pattern Implementation
 
 ### Common Patterns
@@ -391,10 +530,11 @@ All managers follow consistent architectural patterns:
 ### Dependencies
 - **Core Config**: `src/config/app-config` - Centralized configuration paths and settings
 - **Utilities**: `src/utils/utils` - Logger, safe JSON operations, ID generation, native tools integration
-- **Native Tools**: Swift binaries for macOS system integration (`window-detector`, `keyboard-simulator`, `text-field-detector`)
+- **Native Tools**: Swift binaries for macOS system integration (`window-detector`, `keyboard-simulator`, `text-field-detector`, `directory-detector`, `symbol-searcher`, `file-searcher`)
 - **Electron APIs**: BrowserWindow, screen, ipcMain for system integration
 - **Node.js APIs**: fs.promises for async file operations, path for cross-platform paths, child_process for native tool execution
 - **External Libraries**: js-yaml for YAML parsing, readline for streaming file operations
+- **External Commands**: ripgrep (`rg`) for symbol search, fd for file search
 
 ### Data Flow
 ```

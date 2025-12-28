@@ -168,6 +168,7 @@ class SettingsManager {
 #  includeHidden: true                # Include hidden files (starting with .)
 #  maxFiles: 5000                     # Maximum files to return
 #  maxDepth: null                     # Directory depth limit (null = unlimited)
+#  maxSuggestions: 50                 # Maximum suggestions to show (default: 50)
 #  followSymlinks: false              # Follow symbolic links
 #  fdPath: null                       # Custom path to fd command (null = auto-detect)
 #  #excludePatterns:                  # Additional exclude patterns
@@ -198,6 +199,7 @@ class SettingsManager {
   includeHidden: ${settings.fileSearch.includeHidden ?? true}          # Include hidden files (starting with .)
   maxFiles: ${settings.fileSearch.maxFiles ?? 5000}                    # Maximum files to return
   maxDepth: ${settings.fileSearch.maxDepth ?? 'null'}                  # Directory depth limit (null = unlimited)
+  maxSuggestions: ${settings.fileSearch.maxSuggestions ?? 50}          # Maximum suggestions to show (default: 50)
   followSymlinks: ${settings.fileSearch.followSymlinks ?? false}       # Follow symbolic links
   ${fdPathSection}
   ${excludePatternsSection}

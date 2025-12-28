@@ -4,14 +4,9 @@ import { logger, SecureErrors } from '../utils/utils';
 import type DraftManager from '../managers/draft-manager';
 import type DirectoryManager from '../managers/directory-manager';
 import type { HistoryItem, IHistoryManager } from '../types';
-
-interface IPCResult {
-  success: boolean;
-  error?: string;
-}
-
-// Constants
-const MAX_ID_LENGTH = 32; // Must match utils.generateId() output
+import { VALIDATION } from '../constants';
+import type { IPCResult } from './handler-utils';
+import { atPathCacheManager } from '../managers/at-path-cache-manager';
 
 /**
  * HistoryDraftHandler manages all IPC communication related to history and draft operations.
@@ -51,6 +46,14 @@ class HistoryDraftHandler {
     ipcMain.handle('set-draft-directory', this.handleSetDraftDirectory.bind(this));
     ipcMain.handle('get-draft-directory', this.handleGetDraftDirectory.bind(this));
 
+    // At-path cache handlers (for highlighting symbols with spaces)
+    ipcMain.handle('register-at-path', this.handleRegisterAtPath.bind(this));
+    ipcMain.handle('get-registered-at-paths', this.handleGetRegisteredAtPaths.bind(this));
+
+    // Global at-path cache handlers (for mdSearch agents and other project-independent items)
+    ipcMain.handle('register-global-at-path', this.handleRegisterGlobalAtPath.bind(this));
+    ipcMain.handle('get-global-at-paths', this.handleGetGlobalAtPaths.bind(this));
+
     logger.info('History and Draft IPC handlers set up successfully');
   }
 
@@ -67,7 +70,11 @@ class HistoryDraftHandler {
       'clear-draft',
       'get-draft',
       'set-draft-directory',
-      'get-draft-directory'
+      'get-draft-directory',
+      'register-at-path',
+      'get-registered-at-paths',
+      'register-global-at-path',
+      'get-global-at-paths'
     ];
 
     handlers.forEach(handler => {
@@ -106,7 +113,7 @@ class HistoryDraftHandler {
     try {
       // Validate ID format (must match generateId() output: lowercase alphanumeric)
       // NOTE: This regex is coupled with utils.generateId() - update both if ID format changes
-      if (!id || typeof id !== 'string' || !id.match(/^[a-z0-9]+$/) || id.length > MAX_ID_LENGTH) {
+      if (!id || typeof id !== 'string' || !id.match(/^[a-z0-9]+$/) || id.length > VALIDATION.MAX_ID_LENGTH) {
         logger.warn('Invalid history item ID format', { id });
         return { success: false, error: SecureErrors.INVALID_FORMAT };
       }
@@ -208,6 +215,81 @@ class HistoryDraftHandler {
     } catch (error) {
       logger.error('Failed to get directory:', error);
       return null;
+    }
+  }
+
+  // At-path cache handlers
+
+  private async handleRegisterAtPath(
+    _event: IpcMainInvokeEvent,
+    directory: string,
+    atPath: string
+  ): Promise<IPCResult> {
+    try {
+      if (!directory || typeof directory !== 'string') {
+        return { success: false, error: 'Invalid directory' };
+      }
+      if (!atPath || typeof atPath !== 'string') {
+        return { success: false, error: 'Invalid path' };
+      }
+
+      await atPathCacheManager.addPath(directory, atPath);
+      logger.debug('At-path registered', { directory, atPath });
+      return { success: true };
+    } catch (error) {
+      logger.error('Failed to register at-path:', error);
+      return { success: false, error: SecureErrors.OPERATION_FAILED };
+    }
+  }
+
+  private async handleGetRegisteredAtPaths(
+    _event: IpcMainInvokeEvent,
+    directory: string
+  ): Promise<string[]> {
+    try {
+      if (!directory || typeof directory !== 'string') {
+        return [];
+      }
+
+      const paths = await atPathCacheManager.loadPaths(directory);
+      logger.debug('At-paths requested', { directory, count: paths.length });
+      return paths;
+    } catch (error) {
+      logger.error('Failed to get registered at-paths:', error);
+      return [];
+    }
+  }
+
+  // Global at-path cache handlers (for mdSearch agents and other project-independent items)
+
+  private async handleRegisterGlobalAtPath(
+    _event: IpcMainInvokeEvent,
+    atPath: string
+  ): Promise<IPCResult> {
+    try {
+      if (!atPath || typeof atPath !== 'string') {
+        return { success: false, error: 'Invalid path' };
+      }
+
+      await atPathCacheManager.addGlobalPath(atPath);
+      logger.debug('Global at-path registered', { atPath });
+      return { success: true };
+    } catch (error) {
+      logger.error('Failed to register global at-path:', error);
+      return { success: false, error: SecureErrors.OPERATION_FAILED };
+    }
+  }
+
+  private async handleGetGlobalAtPaths(
+    _event: IpcMainInvokeEvent
+  ): Promise<string[]> {
+    try {
+      const paths = await atPathCacheManager.loadGlobalPaths();
+      logger.debug('Global at-paths requested', { count: paths.length });
+      return paths;
+    } catch (error) {
+      logger.error('Failed to get global at-paths:', error);
+      return [];
     }
   }
 }

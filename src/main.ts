@@ -1,4 +1,4 @@
-import { app, globalShortcut, Tray, Menu, nativeImage, shell } from 'electron';
+import { app, globalShortcut, Tray, Menu, nativeImage, shell, NativeImage } from 'electron';
 import fs from 'fs';
 import path from 'path';
 
@@ -16,9 +16,8 @@ if (process.platform === 'darwin') {
 }
 
 import config from './config/app-config';
-import WindowManager from './managers/window-manager';
+import WindowManager from './managers/window';
 import HistoryManager from './managers/history-manager';
-import OptimizedHistoryManager from './managers/optimized-history-manager';
 import DraftManager from './managers/draft-manager';
 import DirectoryManager from './managers/directory-manager';
 import SettingsManager from './managers/settings-manager';
@@ -30,7 +29,7 @@ import type { WindowData } from './types';
 
 class PromptLineApp {
   private windowManager: WindowManager | null = null;
-  private historyManager: HistoryManager | OptimizedHistoryManager | null = null;
+  private historyManager: HistoryManager | null = null;
   private draftManager: DraftManager | null = null;
   private directoryManager: DirectoryManager | null = null;
   private settingsManager: SettingsManager | null = null;
@@ -42,78 +41,100 @@ class PromptLineApp {
     try {
       logger.info('Initializing Prompt Line...');
 
-      await ensureDir(config.paths.userDataDir);
-      await ensureDir(config.paths.imagesDir);
-      logger.info('Data directories ensured at:', config.paths.userDataDir);
-
-      this.windowManager = new WindowManager();
-      this.draftManager = new DraftManager();
-      this.directoryManager = new DirectoryManager();
-      this.settingsManager = new SettingsManager();
-
-      await this.windowManager.initialize();
-      await this.draftManager.initialize();
-      await this.directoryManager.initialize();
-      await this.settingsManager.init();
-
-      const userSettings = this.settingsManager.getSettings();
-      
-      // デフォルトで無制限履歴機能（OptimizedHistoryManager）を使用
-      logger.info('Using OptimizedHistoryManager (unlimited history by default)');
-      this.historyManager = new OptimizedHistoryManager();
-      
-      await this.historyManager.initialize();
-      
-      this.windowManager.updateWindowSettings(userSettings.window);
-      // Only update file search settings if the feature is enabled
-      const fileSearchSettings = this.settingsManager.getFileSearchSettings();
-      if (fileSearchSettings) {
-        this.windowManager.updateFileSearchSettings(fileSearchSettings);
-      }
-      this.windowManager.setDirectoryManager(this.directoryManager);
-
-      this.ipcHandlers = new IPCHandlers(
-        this.windowManager,
-        this.historyManager,
-        this.draftManager,
-        this.directoryManager,
-        this.settingsManager
-      );
-
-      // Register code search handlers
-      codeSearchHandler.setSettingsManager(this.settingsManager);
-      codeSearchHandler.register();
-
-      // Note: Window is now pre-created during WindowManager initialization
-      this.registerShortcuts();
-      this.createTray();
-      this.setupAppEventListeners();
-
-      if (config.platform.isMac && app.dock) {
-        app.dock.hide();
-      }
+      await this.initializeDirectories();
+      await this.initializeManagers();
+      this.setupUI();
 
       this.isInitialized = true;
-
-      const historyStats = this.historyManager.getHistoryStats();
-      const settings = this.settingsManager.getSettings();
-      
-      logger.info('Prompt Line initialized successfully', {
-        historyItems: historyStats.totalItems,
-        hasDraft: this.draftManager.hasDraft(),
-        platform: process.platform
-      });
-
-      console.log('\n=== Prompt Line ===');
-      console.log(`Shortcut: ${settings.shortcuts.main}`);
-      console.log('Usage: Enter text and press Cmd+Enter to paste');
-      console.log(`History: ${historyStats.totalItems} items loaded`);
-      console.log('Exit: Ctrl+C\n');
+      this.logStartupInfo();
 
     } catch (error) {
       logger.error('Failed to initialize application:', error);
       throw error;
     }
+  }
+
+  /**
+   * Initialize data directories
+   */
+  private async initializeDirectories(): Promise<void> {
+    await ensureDir(config.paths.userDataDir);
+    await ensureDir(config.paths.imagesDir);
+    logger.info('Data directories ensured at:', config.paths.userDataDir);
+  }
+
+  /**
+   * Initialize all managers and handlers
+   */
+  private async initializeManagers(): Promise<void> {
+    this.windowManager = new WindowManager();
+    this.draftManager = new DraftManager();
+    this.directoryManager = new DirectoryManager();
+    this.settingsManager = new SettingsManager();
+
+    await this.windowManager.initialize();
+    await this.draftManager.initialize();
+    await this.directoryManager.initialize();
+    await this.settingsManager.init();
+
+    const userSettings = this.settingsManager.getSettings();
+
+    logger.info('Using HistoryManager (unlimited history with LRU caching)');
+    this.historyManager = new HistoryManager();
+    await this.historyManager.initialize();
+
+    this.windowManager.updateWindowSettings(userSettings.window);
+    const fileSearchSettings = this.settingsManager.getFileSearchSettings();
+    if (fileSearchSettings) {
+      this.windowManager.updateFileSearchSettings(fileSearchSettings);
+    }
+    this.windowManager.setDirectoryManager(this.directoryManager);
+
+    this.ipcHandlers = new IPCHandlers(
+      this.windowManager,
+      this.historyManager,
+      this.draftManager,
+      this.directoryManager,
+      this.settingsManager
+    );
+
+    codeSearchHandler.setSettingsManager(this.settingsManager);
+    codeSearchHandler.register();
+  }
+
+  /**
+   * Setup UI components (shortcuts, tray, event listeners)
+   */
+  private setupUI(): void {
+    this.registerShortcuts();
+    this.createTray();
+    this.setupAppEventListeners();
+
+    if (config.platform.isMac && app.dock) {
+      app.dock.hide();
+    }
+  }
+
+  /**
+   * Log startup information to console
+   */
+  private logStartupInfo(): void {
+    if (!this.historyManager || !this.draftManager || !this.settingsManager) return;
+
+    const historyStats = this.historyManager.getHistoryStats();
+    const settings = this.settingsManager.getSettings();
+
+    logger.info('Prompt Line initialized successfully', {
+      historyItems: historyStats.totalItems,
+      hasDraft: this.draftManager.hasDraft(),
+      platform: process.platform
+    });
+
+    console.log('\n=== Prompt Line ===');
+    console.log(`Shortcut: ${settings.shortcuts.main}`);
+    console.log('Usage: Enter text and press Cmd+Enter to paste');
+    console.log(`History: ${historyStats.totalItems} items loaded`);
+    console.log('Exit: Ctrl+C\n');
   }
 
   /**
@@ -200,90 +221,16 @@ class PromptLineApp {
 
   private createTray(): void {
     try {
-      // Create icon from multiple resolutions for better display quality
-      const iconPath22 = path.join(__dirname, '..', 'assets', 'icon-tray-22.png');
-      const iconPath44 = path.join(__dirname, '..', 'assets', 'icon-tray-44.png');
-      const iconPath88 = path.join(__dirname, '..', 'assets', 'icon-tray-88.png');
-      
-      // Create empty image and add representations
-      const icon = nativeImage.createEmpty();
-      
-      // Check if files exist and add representations
-      if (fs.existsSync(iconPath22)) {
-        icon.addRepresentation({
-          scaleFactor: 1.0,
-          width: 22,
-          height: 22,
-          buffer: fs.readFileSync(iconPath22)
-        });
-      }
-      
-      if (fs.existsSync(iconPath44)) {
-        icon.addRepresentation({
-          scaleFactor: 2.0,
-          width: 44,
-          height: 44,
-          buffer: fs.readFileSync(iconPath44)
-        });
-      }
-      
-      if (fs.existsSync(iconPath88)) {
-        icon.addRepresentation({
-          scaleFactor: 4.0,
-          width: 88,
-          height: 88,
-          buffer: fs.readFileSync(iconPath88)
-        });
-      }
-      
-      icon.setTemplateImage(true); // Make it a template image for proper macOS menu bar appearance
+      const icon = this.createTrayIcon();
       this.tray = new Tray(icon);
-      
-      const contextMenu = Menu.buildFromTemplate([
-        {
-          label: 'Show Prompt Line',
-          click: async () => {
-            await this.showInputWindow();
-          }
-        },
-        {
-          label: 'Hide Window',
-          click: async () => {
-            await this.hideInputWindow();
-          }
-        },
-        { type: 'separator' },
-        {
-          label: 'Settings',
-          click: async () => {
-            await this.openSettingsFile();
-          }
-        },
-        { type: 'separator' },
-        {
-          label: `Version ${config.app.version}`,
-          enabled: false
-        },
-        {
-          label: 'Release Notes',
-          click: () => {
-            shell.openExternal('https://github.com/nkmr-jp/prompt-line/blob/main/CHANGELOG.md');
-          }
-        },
-        { type: 'separator' },
-        {
-          label: 'Quit Prompt Line',
-          click: () => {
-            this.quitApp();
-          }
-        }
-      ]);
 
+      const contextMenu = this.createTrayContextMenu();
       this.tray.setContextMenu(contextMenu);
+
       const settings = this.settingsManager?.getSettings();
       const shortcut = settings?.shortcuts.main || config.shortcuts.main;
       this.tray.setToolTip('Prompt Line - Press ' + shortcut + ' to open');
-      
+
       this.tray.on('double-click', async () => {
         await this.showInputWindow();
       });
@@ -293,6 +240,80 @@ class PromptLineApp {
       logger.error('Failed to create system tray:', error);
       throw error;
     }
+  }
+
+  /**
+   * Create tray icon with multiple resolutions
+   */
+  private createTrayIcon(): NativeImage {
+    const iconPath22 = path.join(__dirname, '..', 'assets', 'icon-tray-22.png');
+    const iconPath44 = path.join(__dirname, '..', 'assets', 'icon-tray-44.png');
+    const iconPath88 = path.join(__dirname, '..', 'assets', 'icon-tray-88.png');
+
+    const icon = nativeImage.createEmpty();
+
+    this.addIconRepresentation(icon, iconPath22, 1.0, 22);
+    this.addIconRepresentation(icon, iconPath44, 2.0, 44);
+    this.addIconRepresentation(icon, iconPath88, 4.0, 88);
+
+    icon.setTemplateImage(true);
+    return icon;
+  }
+
+  /**
+   * Add icon representation if file exists
+   */
+  private addIconRepresentation(
+    icon: NativeImage,
+    iconPath: string,
+    scaleFactor: number,
+    size: number
+  ): void {
+    if (fs.existsSync(iconPath)) {
+      icon.addRepresentation({
+        scaleFactor,
+        width: size,
+        height: size,
+        buffer: fs.readFileSync(iconPath)
+      });
+    }
+  }
+
+  /**
+   * Create tray context menu
+   */
+  private createTrayContextMenu(): Menu {
+    return Menu.buildFromTemplate([
+      {
+        label: 'Show Prompt Line',
+        click: async () => { await this.showInputWindow(); }
+      },
+      {
+        label: 'Hide Window',
+        click: async () => { await this.hideInputWindow(); }
+      },
+      { type: 'separator' },
+      {
+        label: 'Settings',
+        click: async () => { await this.openSettingsFile(); }
+      },
+      { type: 'separator' },
+      {
+        label: `Version ${config.app.version}`,
+        enabled: false
+      },
+      {
+        label: 'Release Notes',
+        click: () => {
+          shell.openExternal('https://github.com/nkmr-jp/prompt-line/blob/main/CHANGELOG.md');
+        }
+      },
+      { type: 'separator' },
+      {
+        label: 'Quit Prompt Line',
+        click: () => { this.quitApp(); }
+      }
+    ]);
   }
 
   private quitApp(): void {
@@ -456,7 +477,6 @@ app.whenReady().then(async () => {
     await promptLineApp.initialize();
   } catch (error) {
     logger.error('Application failed to start:', error);
-    console.error('❌ Application failed to start:', error);
     app.quit();
   }
 });

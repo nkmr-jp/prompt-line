@@ -13,7 +13,20 @@ let LANGUAGE_PATTERNS: [String: LanguageConfig] = [
             SymbolPattern(type: .method, regex: "^func\\s*\\([^)]+\\)\\s+(\\w+)\\s*\\(", captureGroup: 1),
             SymbolPattern(type: .structDecl, regex: "^type\\s+(\\w+)\\s+struct", captureGroup: 1),
             SymbolPattern(type: .interface, regex: "^type\\s+(\\w+)\\s+interface", captureGroup: 1),
-            SymbolPattern(type: .typeAlias, regex: "^type\\s+(\\w+)\\s+(?!struct|interface)\\w+", captureGroup: 1),
+            // Type aliases: slice type (e.g., type Names []string)
+            SymbolPattern(type: .typeAlias, regex: "^type\\s+(\\w+)\\s+\\[", captureGroup: 1),
+            // Type aliases: map type (e.g., type Cache map[string]int)
+            SymbolPattern(type: .typeAlias, regex: "^type\\s+(\\w+)\\s+map\\[", captureGroup: 1),
+            // Type aliases: pointer type (e.g., type Handler *http.Handler)
+            SymbolPattern(type: .typeAlias, regex: "^type\\s+(\\w+)\\s+\\*", captureGroup: 1),
+            // Type aliases: function type (e.g., type HandlerFunc func(...))
+            SymbolPattern(type: .typeAlias, regex: "^type\\s+(\\w+)\\s+func\\(", captureGroup: 1),
+            // Type aliases: channel type (e.g., type Signal chan struct{}, type Events <-chan Event)
+            SymbolPattern(type: .typeAlias, regex: "^type\\s+(\\w+)\\s+<?-?chan\\b", captureGroup: 1),
+            // Type aliases: built-in types (string, int, bool, byte, rune, error, etc.)
+            SymbolPattern(type: .typeAlias, regex: "^type\\s+(\\w+)\\s+(string|bool|byte|rune|error|any|comparable|u?int(8|16|32|64)?|float(32|64)|complex(64|128)|uintptr)\\b", captureGroup: 1),
+            // Type aliases: package types (e.g., type Handler http.Handler, type Time time.Time)
+            SymbolPattern(type: .typeAlias, regex: "^type\\s+(\\w+)\\s+[a-z]\\w*\\.", captureGroup: 1),
             SymbolPattern(type: .constant, regex: "^const\\s+(\\w+)\\s*=", captureGroup: 1),
             // Constants inside const ( ... ) block with type: `Name Type = value`
             SymbolPattern(type: .constant, regex: "^\\s+(\\w+)\\s+\\w+\\s*=\\s*[\"']", captureGroup: 1),
@@ -242,6 +255,60 @@ let LANGUAGE_PATTERNS: [String: LanguageConfig] = [
             SymbolPattern(type: .typeAlias, regex: "^\\s*type\\s+(\\w+)", captureGroup: 1),
             SymbolPattern(type: .constant, regex: "^\\s*(?:private\\s+|protected\\s+)?val\\s+(\\w+)\\s*[=:]", captureGroup: 1),
             SymbolPattern(type: .variable, regex: "^\\s*(?:private\\s+|protected\\s+)?var\\s+(\\w+)\\s*[=:]", captureGroup: 1),
+        ]
+    ),
+    "tf": LanguageConfig(
+        extensionName: "tf",
+        displayName: "Terraform",
+        rgType: "tf",
+        patterns: [
+            // resource "aws_instance" "example" { → captures "example"
+            SymbolPattern(type: .resource, regex: "^resource\\s+\"[^\"]+\"\\s+\"([\\w-]+)\"", captureGroup: 1),
+            // data "aws_ami" "example" { → captures "example"
+            SymbolPattern(type: .dataSource, regex: "^data\\s+\"[^\"]+\"\\s+\"([\\w-]+)\"", captureGroup: 1),
+            // variable "instance_type" { → captures "instance_type"
+            SymbolPattern(type: .variable, regex: "^variable\\s+\"([\\w-]+)\"", captureGroup: 1),
+            // output "instance_ip" { → captures "instance_ip"
+            SymbolPattern(type: .output, regex: "^output\\s+\"([\\w-]+)\"", captureGroup: 1),
+            // module "vpc" { → captures "vpc"
+            SymbolPattern(type: .module, regex: "^module\\s+\"([\\w-]+)\"", captureGroup: 1),
+            // provider "aws" { → captures "aws"
+            SymbolPattern(type: .provider, regex: "^provider\\s+\"([\\w-]+)\"", captureGroup: 1),
+            // locals { with named values inside: local_name = value
+            SymbolPattern(type: .constant, regex: "^\\s+([a-z][\\w-]*)\\s*=\\s*(?![=])", captureGroup: 1),
+        ]
+    ),
+    // Alias: @terraform: for Terraform (same as @tf:)
+    "terraform": LanguageConfig(
+        extensionName: "tf",
+        displayName: "Terraform",
+        rgType: "tf",
+        patterns: [
+            SymbolPattern(type: .resource, regex: "^resource\\s+\"[^\"]+\"\\s+\"([\\w-]+)\"", captureGroup: 1),
+            SymbolPattern(type: .dataSource, regex: "^data\\s+\"[^\"]+\"\\s+\"([\\w-]+)\"", captureGroup: 1),
+            SymbolPattern(type: .variable, regex: "^variable\\s+\"([\\w-]+)\"", captureGroup: 1),
+            SymbolPattern(type: .output, regex: "^output\\s+\"([\\w-]+)\"", captureGroup: 1),
+            SymbolPattern(type: .module, regex: "^module\\s+\"([\\w-]+)\"", captureGroup: 1),
+            SymbolPattern(type: .provider, regex: "^provider\\s+\"([\\w-]+)\"", captureGroup: 1),
+            SymbolPattern(type: .constant, regex: "^\\s+([a-z][\\w-]*)\\s*=\\s*(?![=])", captureGroup: 1),
+        ]
+    ),
+    "md": LanguageConfig(
+        extensionName: "md",
+        displayName: "Markdown",
+        rgType: "markdown",
+        patterns: [
+            // ATX-style headings: # Heading, ## Heading, etc. (capture heading text)
+            SymbolPattern(type: .heading, regex: "^#{1,6}\\s+(.+?)(?:\\s+#+)?$", captureGroup: 1),
+        ]
+    ),
+    // Alias: @markdown: for Markdown (same as @md:)
+    "markdown": LanguageConfig(
+        extensionName: "md",
+        displayName: "Markdown",
+        rgType: "markdown",
+        patterns: [
+            SymbolPattern(type: .heading, regex: "^#{1,6}\\s+(.+?)(?:\\s+#+)?$", captureGroup: 1),
         ]
     ),
 ]

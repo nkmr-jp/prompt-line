@@ -171,6 +171,118 @@ User experience features:
 - Auto-scrolling to selected item during keyboard navigation
 - XSS prevention in file name display
 
+### CodeSearchManager (code-search/)
+Code/symbol search functionality with `@language:query` syntax for 20+ programming languages:
+
+**Module Structure:**
+- `code-search/types.ts`: Type definitions and symbol utilities
+- `code-search/index.ts`: Public API exports
+
+**Features:**
+- **Syntax**: Type `@<language>:<query>` to search for symbols (e.g., `@ts:Config`, `@go:Handler`)
+- **Symbol Types**: function, method, class, struct, interface, type, enum, constant, variable, module, trait, resource, heading, etc.
+- **Score-based Filtering**: Symbols ranked by name match quality
+- **Keyboard Navigation**: Arrow keys to navigate, Enter/Tab to select, Escape to close
+
+**Key Types:**
+```typescript
+interface SymbolResult {
+  name: string;
+  type: SymbolType;
+  filePath: string;
+  lineNumber: number;
+  lineContent: string;
+}
+
+interface SymbolSearchResponse {
+  success: boolean;
+  symbols: SymbolResult[];
+  count: number;
+  directory: string;
+  language: string;
+  searchMode: 'full' | 'cached';
+}
+```
+
+**Supported Languages (20+):**
+| Language | Key | Example |
+|----------|-----|---------|
+| Go | `go` | `@go:Handler` |
+| TypeScript | `ts` | `@ts:Config` |
+| JavaScript | `js` | `@js:init` |
+| Python | `py` | `@py:parse` |
+| Rust | `rs` | `@rs:handle` |
+| Java | `java` | `@java:Service` |
+| Swift | `swift` | `@swift:detect` |
+| Makefile | `make`, `mk` | `@make:install` |
+| Terraform | `tf` | `@tf:instance` |
+| Markdown | `md` | `@md:Installation` |
+
+**Helper Functions:**
+- `getSymbolTypeDisplay(type)`: Returns localized display label for symbol type
+- `SYMBOL_TYPE_FROM_DISPLAY`: Reverse mapping from display label to SymbolType
+
+**Requirements:**
+- ripgrep (`rg`) must be installed (`brew install ripgrep`)
+- File search must be enabled in settings
+
+### HistorySearchManager (history-search/)
+Advanced history search functionality with score-based filtering and fuzzy matching:
+
+**Module Structure:**
+- `history-search/types.ts`: Configuration and type definitions
+- `history-search/filter-engine.ts`: Score-based filtering with fuzzy match support
+- `history-search/highlighter.ts`: Search term highlighting with XSS prevention
+- `history-search/history-search-manager.ts`: Orchestration layer
+- `history-search/index.ts`: Public API exports
+
+**Features:**
+- **Score-based Ranking**: Exact match (1000) > starts-with (500) > contains (200) > fuzzy (10)
+- **Recency Bonus**: 0-50 points based on age (7-day window)
+- **Fuzzy Matching**: Intelligent substring matching for partial queries
+- **Debounced Search**: 150ms delay prevents excessive filtering
+- **Configurable Limits**: maxSearchItems (5000), maxDisplayResults (50)
+
+**Key Types:**
+```typescript
+interface HistorySearchConfig {
+  debounceDelay: number;      // 150ms default
+  fuzzyMatch: boolean;        // Enable fuzzy matching
+  maxSearchItems: number;     // 5000 - items to search through
+  maxDisplayResults: number;  // 50 - items to display
+  caseSensitive: boolean;     // false by default
+}
+
+interface SearchResult {
+  item: HistoryItem;
+  score: number;
+  matchPositions?: number[];  // For fuzzy match highlighting
+}
+```
+
+**Score Constants:**
+```typescript
+const MATCH_SCORES = {
+  EXACT_MATCH: 1000,
+  STARTS_WITH: 500,
+  CONTAINS: 200,
+  FUZZY_MATCH: 10,
+  MAX_RECENCY_BONUS: 50
+};
+```
+
+**Key Classes:**
+- `HistorySearchFilterEngine`: Core search and scoring logic
+- `HistorySearchHighlighter`: Safe HTML highlighting with XSS protection
+- `HistorySearchManager`: Coordinates search UI, events, and state
+
+**Key Methods:**
+- `performSearch(query)`: Triggers debounced search
+- `enterSearchMode()` / `exitSearchMode()`: Mode transitions
+- `loadMore()` / `canLoadMore()`: Infinite scroll support
+- `highlightSearchTerms(text, query)`: Safe term highlighting
+- `highlightFuzzyMatch(text, positions)`: Position-based highlighting
+
 ### UIManager
 Theme and notification management (currently optimized for performance):
 - **Theme System**: CSS custom property-based theming with type-safe theme definitions

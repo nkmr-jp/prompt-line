@@ -1,7 +1,7 @@
 import { DELAYS } from '../constants';
 import type { Config } from './types';
 
-export class DraftManager {
+export class DraftManagerClient {
   private draftSaveTimeout: NodeJS.Timeout | null = null;
   private config: Config = {};
 

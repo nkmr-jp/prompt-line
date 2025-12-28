@@ -113,55 +113,92 @@
     border: 1px solid transparent;
     border-radius: var(--radius-md);
     padding: var(--spacing-md);
-    font-size: 15px;
-    line-height: 1.5;
-    font-family: inherit;
+    /* Add extra right padding to match textarea scrollbar width (8px) */
+    padding-right: calc(var(--spacing-md) + 8px);
     pointer-events: none;
+    /* Use hidden overflow - we'll use transform for scroll sync */
     overflow: hidden;
 
-    /* Text wrapping control - must match textarea */
+    /* Font metrics - must match textarea exactly */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 15px;
+    font-weight: 400;
+    font-style: normal;
+    font-variant: normal;
+    line-height: 1.5;
+    letter-spacing: 0;
+    word-spacing: 0;
+
+    /* Text wrapping control - must match textarea exactly */
     white-space: break-spaces;
     overflow-wrap: break-word;
     word-break: normal;
+
+    /* Tab size - must match textarea */
+    tab-size: 4;
+    -moz-tab-size: 4;
+
+    /* Box model - must match textarea */
+    box-sizing: border-box;
+
+    /* Text rendering optimization */
+    text-rendering: geometricPrecision;
+    -webkit-font-smoothing: antialiased;
 
     /* Make text invisible, only show highlights */
     color: transparent;
 }
 
+/* Inner content wrapper for transform-based scroll sync */
+.highlight-backdrop-content {
+    will-change: transform;
+}
+
 .highlight-backdrop .at-path-highlight {
     background: rgba(59, 130, 246, 0.4);
-    border-radius: var(--radius-md);
+    border-radius: 8px;
     color: transparent;
-    padding: 1px 2px;
-    margin: -1px -2px;
+
+    /* Expand highlight area by 1px in all directions */
+    padding: 1px;
+    margin: -1px;
+
+    /* Use box-decoration-break for multi-line highlights */
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
 }
 
 /* File path link style for Cmd+hover or cursor position */
 .highlight-backdrop .file-path-link {
     /* Override the transparent color to make link visible */
-    color: #60a5fa !important;
+    color: var(--text-primary) !important;
     text-decoration: underline;
-    text-decoration-color: #60a5fa;
+    text-decoration-color: rgba(255, 255, 255, 0.4);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
     cursor: pointer;
 }
 
 /* @path with link style (Cmd+hover or cursor over @path) */
 .highlight-backdrop .at-path-highlight.file-path-link {
     /* Override the transparent color to make link visible */
-    color: #60a5fa !important;
+    color: var(--text-primary) !important;
     text-decoration: underline;
-    text-decoration-color: #60a5fa;
-    background: rgba(96, 165, 250, 0.3);
+    text-decoration-color: rgba(255, 255, 255, 0.4);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+    /* Underline only, no background highlight */
 }
 
-/* Cursor-position highlight for absolute file paths (background highlight) */
+/* Cursor-position underline for absolute file paths */
 .highlight-backdrop .file-path-cursor-highlight {
-    /* Background highlight when cursor is on a linkable file path */
-    background: rgba(59, 130, 246, 0.4);
-    border-radius: var(--radius-sm);
+    /* Solid underline for linkable file paths */
     color: transparent;
-    padding: 1px 2px;
-    margin: -1px -2px;
+    text-decoration: underline;
+    text-decoration-color: rgba(255, 255, 255, 0.3);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+    cursor: pointer;
 }
 
 #textInput {
@@ -171,20 +208,41 @@
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: var(--radius-md);
     padding: var(--spacing-md);
-    font-size: 15px;
-    line-height: 1.5;
     color: var(--text-primary);
     outline: none;
     resize: none;
     transition: border-color var(--animation-normal) ease, box-shadow var(--animation-normal) ease;
-    font-family: inherit;
     position: relative;
     z-index: 1;
 
-    /* Text wrapping control - prevent horizontal overflow from spaces/tabs */
-    white-space: break-spaces;        /* Preserve line breaks, collapse whitespace, wrap as needed */
-    overflow-wrap: break-word;    /* Break long words to prevent overflow */
-    word-break: normal;           /* Break at word boundaries when possible */
+    /* Font metrics - must match backdrop exactly */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 15px;
+    font-weight: 400;
+    font-style: normal;
+    font-variant: normal;
+    line-height: 1.5;
+    letter-spacing: 0;
+    word-spacing: 0;
+
+    /* Text wrapping control - must match backdrop */
+    white-space: break-spaces;
+    overflow-wrap: break-word;
+    word-break: normal;
+
+    /* Tab size - must match backdrop */
+    tab-size: 4;
+    -moz-tab-size: 4;
+
+    /* Box model - must match backdrop */
+    box-sizing: border-box;
+
+    /* Text rendering optimization */
+    text-rendering: geometricPrecision;
+    -webkit-font-smoothing: antialiased;
+
+    /* Always reserve scrollbar space to prevent layout shift */
+    overflow-y: scroll;
 }
 
 #textInput:focus {
@@ -208,17 +266,16 @@
 }
 
 #textInput::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: var(--radius-sm);
+    background: transparent;
 }
 
 #textInput::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.1);
     border-radius: var(--radius-sm);
 }
 
 #textInput::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.2);
 }
 
 /* Disable IME suggestions */

@@ -1,9 +1,9 @@
 import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import { DraftManager } from '../../src/renderer/draft-manager';
+import { DraftManagerClient } from '../../src/renderer/draft-manager-client';
 import type { IpcRenderer, Config } from '../../src/renderer/types';
 
 describe('DraftManager', () => {
-  let draftManager: DraftManager;
+  let draftManager: DraftManagerClient;
   let mockIpcRenderer: jest.Mocked<IpcRenderer>;
   let mockGetText: jest.MockedFunction<() => string>;
 
@@ -26,7 +26,7 @@ describe('DraftManager', () => {
     };
 
     mockGetText = jest.fn();
-    draftManager = new DraftManager(mockElectronAPI, mockGetText);
+    draftManager = new DraftManagerClient(mockElectronAPI, mockGetText);
     
     // Clear only the call history, not the mock implementations
     mockIpcRenderer.invoke.mockClear();

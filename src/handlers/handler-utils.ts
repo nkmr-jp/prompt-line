@@ -1,8 +1,100 @@
 import path from 'path';
 import os from 'os';
-import { logger } from '../utils/utils';
+import { logger, SecureErrors } from '../utils/utils';
 import MdSearchLoader from '../managers/md-search-loader';
 import type { UserSettings } from '../types';
+import type { IpcMainInvokeEvent } from 'electron';
+import { VALIDATION } from '../constants';
+
+/**
+ * Standard IPC result type for success/failure responses
+ */
+export interface IPCResult {
+  success: boolean;
+  error?: string;
+}
+
+/**
+ * Higher-order function for wrapping IPC handlers with standardized error handling.
+ * Reduces boilerplate try-catch blocks across handlers.
+ *
+ * @param handler - The async handler function to wrap
+ * @param errorMessage - The error message prefix for logging
+ * @param useSecureError - Whether to use SecureErrors.OPERATION_FAILED instead of actual error message
+ * @returns Wrapped handler with error handling
+ *
+ * @example
+ * // Before:
+ * private async handleSomething(_event: IpcMainInvokeEvent): Promise<IPCResult> {
+ *   try {
+ *     await this.doSomething();
+ *     return { success: true };
+ *   } catch (error) {
+ *     logger.error('Failed to do something:', error);
+ *     return { success: false, error: (error as Error).message };
+ *   }
+ * }
+ *
+ * // After:
+ * private handleSomething = withIPCErrorHandling(
+ *   async (_event: IpcMainInvokeEvent) => {
+ *     await this.doSomething();
+ *     return { success: true };
+ *   },
+ *   'Failed to do something'
+ * );
+ */
+export function withIPCErrorHandling<T extends unknown[]>(
+  handler: (event: IpcMainInvokeEvent, ...args: T) => Promise<IPCResult>,
+  errorMessage: string,
+  useSecureError = false
+): (event: IpcMainInvokeEvent, ...args: T) => Promise<IPCResult> {
+  return async (event: IpcMainInvokeEvent, ...args: T): Promise<IPCResult> => {
+    try {
+      return await handler(event, ...args);
+    } catch (error) {
+      const err = error as Error;
+      logger.error(`${errorMessage}:`, { message: err.message, stack: err.stack });
+      return {
+        success: false,
+        error: useSecureError ? SecureErrors.OPERATION_FAILED : err.message
+      };
+    }
+  };
+}
+
+/**
+ * Higher-order function for wrapping IPC handlers that return data (not IPCResult).
+ * Returns a default value on error.
+ *
+ * @param handler - The async handler function to wrap
+ * @param errorMessage - The error message prefix for logging
+ * @param defaultValue - The default value to return on error
+ * @returns Wrapped handler with error handling
+ *
+ * @example
+ * private handleGetHistory = withIPCDataHandler(
+ *   async (_event: IpcMainInvokeEvent) => {
+ *     return await this.historyManager.getHistory();
+ *   },
+ *   'Failed to get history',
+ *   []
+ * );
+ */
+export function withIPCDataHandler<T, R extends unknown[]>(
+  handler: (event: IpcMainInvokeEvent, ...args: R) => Promise<T>,
+  errorMessage: string,
+  defaultValue: T
+): (event: IpcMainInvokeEvent, ...args: R) => Promise<T> {
+  return async (event: IpcMainInvokeEvent, ...args: R): Promise<T> => {
+    try {
+      return await handler(event, ...args);
+    } catch (error) {
+      logger.error(`${errorMessage}:`, error);
+      return defaultValue;
+    }
+  };
+}
 
 /**
  * Expands ~ to home directory and resolves relative paths.
@@ -69,8 +161,6 @@ export function normalizeAndValidatePath(filePath: string, baseDir?: string): st
  * @returns true if valid, false otherwise
  */
 export function validateHistoryId(id: string): boolean {
-  const MAX_ID_LENGTH = 32; // Matches generateId() output format
-
   if (!id || typeof id !== 'string') {
     return false;
   }
@@ -79,7 +169,7 @@ export function validateHistoryId(id: string): boolean {
     return false;
   }
 
-  if (id.length > MAX_ID_LENGTH) {
+  if (id.length > VALIDATION.MAX_ID_LENGTH) {
     return false;
   }
 

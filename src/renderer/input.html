@@ -79,6 +79,10 @@
                             spellcheck="false"
                             autocomplete="off"
                             autocapitalize="off"
+                            autocorrect="off"
+                            data-gramm="false"
+                            data-gramm_editor="false"
+                            data-enable-grammarly="false"
                             role="textbox"
                             aria-label="Text input"
                             aria-autocomplete="none"
@@ -113,8 +117,13 @@
                         </svg>
                     </button>
                 </div>
-                <div class="history-list" id="historyList">
-                    <div class="history-empty">No history items</div>
+                <div class="history-list-wrapper">
+                    <div class="history-list" id="historyList">
+                        <div class="history-empty">No history items</div>
+                    </div>
+                    <div class="custom-scrollbar" id="customScrollbar">
+                        <div class="custom-scrollbar-thumb" id="customScrollbarThumb"></div>
+                    </div>
                 </div>
             </div>
         </div>

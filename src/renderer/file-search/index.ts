@@ -1,44 +1,82 @@
 /**
- * File Search Module
+ * File Search module - utilities for @ mention file search functionality
  *
- * Handles @ file mention functionality with incremental search.
- * This module is split into multiple submodules for maintainability:
- *
- * - types.ts: Type definitions and utilities
- * - cache-manager.ts: Directory data caching
- * - fuzzy-matcher.ts: File filtering and fuzzy matching
- * - path-utils.ts: Path detection and coordinate calculation
- * - highlighter.ts: @path highlighting in text
- * - file-search-manager.ts: Main orchestration
+ * This module provides:
+ * - Type definitions for file search data structures
+ * - Path manipulation utilities
+ * - Fuzzy matching and scoring algorithms
+ * - Text finding utilities for cursor position detection
+ * - DOM utilities for highlighting and caret position calculation
  */
 
-// Main export
-export { FileSearchManager } from './file-search-manager';
-
-// Type exports for external use
+// Type definitions
 export type {
   DirectoryData,
   FileSearchCallbacks,
   AtPathRange,
-  SuggestionItem
+  SuggestionItem,
+  ParsedPathInfo
 } from './types';
 
-// Utility exports (for testing or direct use)
 export { formatLog, insertSvgIntoElement } from './types';
 
-// Submodule exports (for advanced usage)
-export { FileSearchCacheManager } from './cache-manager';
-export { FileSearchFuzzyMatcher } from './fuzzy-matcher';
-export { FileSearchHighlighter } from './highlighter';
+// Path utilities
 export {
-  CaretPositionCalculator,
+  normalizePath,
+  parsePathWithLineInfo,
+  getRelativePath,
+  getDirectoryFromPath
+} from './path-utils';
+
+// Fuzzy matching and scoring
+export {
+  fuzzyMatch,
+  calculateMatchScore,
+  calculateAgentMatchScore
+} from './fuzzy-matcher';
+
+// Text finding utilities
+export type {
+  TextMatch,
+  UrlMatch,
+  CommandMatch,
+  PathMatch
+} from './text-finder';
+
+export {
   findAtPathAtPosition,
   findUrlAtPosition,
   findSlashCommandAtPosition,
   findAbsolutePathAtPosition,
   findClickablePathAtPosition,
-  normalizePath,
-  resolveAtPathToAbsolute,
-  openUrlInBrowser,
-  openFileAndRestoreFocus
-} from './path-utils';
+  findAllUrls,
+  findAllAbsolutePaths,
+  resolveAtPathToAbsolute
+} from './text-finder';
+
+// DOM utilities
+export {
+  insertHighlightedText,
+  getCaretCoordinates,
+  createMirrorDiv
+} from './dom-utils';
+
+// Manager classes
+export {
+  PopupManager,
+  SettingsCacheManager,
+  DirectoryCacheManager,
+  SuggestionUIManager,
+  HighlightManager,
+  FileOpenerEventHandler,
+  CodeSearchManager
+} from './managers';
+
+export type {
+  PopupManagerCallbacks,
+  DirectoryCacheCallbacks,
+  SuggestionUICallbacks,
+  HighlightManagerCallbacks,
+  DirectoryDataForHighlight,
+  FileOpenerCallbacks
+} from './managers';

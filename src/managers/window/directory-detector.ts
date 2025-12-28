@@ -1,22 +1,24 @@
-import { execFile } from 'child_process';
 import type { BrowserWindow } from 'electron';
-import config from '../../config/app-config';
-import { logger, DIRECTORY_DETECTOR_PATH, FILE_SEARCHER_PATH } from '../../utils/utils';
+import { logger } from '../../utils/utils';
 import FileCacheManager from '../file-cache-manager';
 import type DirectoryManager from '../directory-manager';
-import type { AppInfo, DirectoryInfo, FileSearchSettings, FileInfo } from '../../types';
+import type { AppInfo, DirectoryInfo, FileSearchSettings } from '../../types';
+import type { IDirectoryDetectionStrategy } from './strategies';
+import { NativeDetectorStrategy } from './strategies';
+import { DirectoryDetectorUtils } from './directory-detector-utils';
+import { DirectoryCacheHelper } from './directory-cache-helper';
 
 /**
- * DirectoryDetector handles directory detection and file search logic
+ * DirectoryDetector orchestrates directory detection and file caching
  *
- * Core responsibilities:
- * - Execute native directory-detector tool with fd integration
- * - Check fd command availability on system
+ * Responsibilities:
+ * - Delegate directory detection to strategy (Strategy Pattern)
  * - Manage file caching for detected directories
  * - Handle file search disabled directories (root, system directories)
  * - Orchestrate background directory detection with window updates
  *
  * Integration:
+ * - Uses IDirectoryDetectionStrategy for platform-specific detection
  * - Uses FileCacheManager for caching file lists
  * - Requires DirectoryManager reference for fallback behavior
  * - Sends updates to renderer via BrowserWindow.webContents
@@ -25,13 +27,16 @@ class DirectoryDetector {
   private fileSearchSettings: FileSearchSettings | null = null;
   private directoryManager: DirectoryManager | null = null;
   private savedDirectory: string | null = null;
-  private fileCacheManager: FileCacheManager | null = null;
   private fdCommandAvailable: boolean = true;
   private fdCommandChecked: boolean = false;
   private previousApp: AppInfo | string | null = null;
+  private strategy: IDirectoryDetectionStrategy;
+  private cacheHelper: DirectoryCacheHelper;
 
   constructor(fileCacheManager: FileCacheManager | null) {
-    this.fileCacheManager = fileCacheManager;
+    this.cacheHelper = new DirectoryCacheHelper(fileCacheManager);
+    // Initialize with native detector strategy
+    this.strategy = new NativeDetectorStrategy();
   }
 
   /**
@@ -93,38 +98,9 @@ class DirectoryDetector {
     }
     this.fdCommandChecked = true;
 
-    const fs = require('fs');
-
-    // Check custom fdPath from settings first
-    const customFdPath = this.fileSearchSettings?.fdPath;
-    if (customFdPath) {
-      if (fs.existsSync(customFdPath)) {
-        this.fdCommandAvailable = true;
-        logger.debug(`fd command found at custom path: ${customFdPath}`);
-        return;
-      } else {
-        logger.warn(`Custom fdPath "${customFdPath}" does not exist, falling back to auto-detect`);
-      }
-    }
-
-    // Check common fd installation paths directly
-    // This avoids PATH issues when Electron is launched outside of shell
-    const fdPaths = [
-      '/opt/homebrew/bin/fd',  // Apple Silicon Homebrew
-      '/usr/local/bin/fd',     // Intel Homebrew
-      '/usr/bin/fd'            // System
-    ];
-
-    for (const fdPath of fdPaths) {
-      if (fs.existsSync(fdPath)) {
-        this.fdCommandAvailable = true;
-        logger.debug(`fd command found at: ${fdPath}`);
-        return;
-      }
-    }
-
-    this.fdCommandAvailable = false;
-    logger.warn('fd command is not available. File search will not work. Install with: brew install fd');
+    this.fdCommandAvailable = DirectoryDetectorUtils.checkFdCommandAvailability(
+      this.fileSearchSettings?.fdPath ?? undefined
+    );
   }
 
   /**
@@ -140,33 +116,7 @@ class DirectoryDetector {
    * This is a pre-check before calling directory-detector; the Swift tool also checks ownership
    */
   isFileSearchDisabledDirectory(directory: string): boolean {
-    // Root directory
-    if (directory === '/') return true;
-
-    // Well-known root-owned system directories
-    const rootOwnedDirs = [
-      '/Library',
-      '/System',
-      '/Applications',
-      '/bin',
-      '/sbin',
-      '/usr',
-      '/var',
-      '/etc',
-      '/private',
-      '/tmp',
-      '/cores',
-      '/opt'
-    ];
-
-    // Check if directory starts with any root-owned directory
-    for (const rootDir of rootOwnedDirs) {
-      if (directory === rootDir || directory.startsWith(rootDir + '/')) {
-        return true;
-      }
-    }
-
-    return false;
+    return DirectoryDetectorUtils.isFileSearchDisabledDirectory(directory);
   }
 
   /**
@@ -174,261 +124,31 @@ class DirectoryDetector {
    * Priority: savedDirectory cache > lastUsedDirectory cache
    */
   async loadCachedFilesForWindow(): Promise<DirectoryInfo | null> {
-    if (!this.fileCacheManager) return null;
-
-    try {
-      // Priority 1: Try to load cache for savedDirectory (from DirectoryManager)
-      if (this.savedDirectory) {
-        // Check if this directory has file search disabled
-        if (this.isFileSearchDisabledDirectory(this.savedDirectory)) {
-          return {
-            success: true,
-            directory: this.savedDirectory,
-            files: [],
-            fileCount: 0,
-            partial: false,
-            fromCache: true,
-            searchMode: 'recursive',
-            filesDisabled: true,
-            filesDisabledReason: 'File search is disabled for root directory'
-          };
-        }
-
-        const cached = await this.fileCacheManager.loadCache(this.savedDirectory);
-        if (cached && this.fileCacheManager.isCacheValid(cached.metadata)) {
-          const result: DirectoryInfo = {
-            success: true,
-            directory: cached.directory,
-            files: cached.files,
-            fileCount: cached.files.length,
-            partial: false,
-            fromCache: true,
-            cacheAge: Date.now() - new Date(cached.metadata.updatedAt).getTime(),
-            searchMode: 'recursive'
-          };
-          return result;
-        }
-      }
-
-      // Priority 2: Try to load cache for lastUsedDirectory
-      const lastUsedDir = await this.fileCacheManager.getLastUsedDirectory();
-      if (lastUsedDir && lastUsedDir !== this.savedDirectory) {
-        // Check if this directory has file search disabled
-        if (this.isFileSearchDisabledDirectory(lastUsedDir)) {
-          return {
-            success: true,
-            directory: lastUsedDir,
-            files: [],
-            fileCount: 0,
-            partial: false,
-            fromCache: true,
-            searchMode: 'recursive',
-            filesDisabled: true,
-            filesDisabledReason: 'File search is disabled for root directory'
-          };
-        }
-
-        const cached = await this.fileCacheManager.loadCache(lastUsedDir);
-        if (cached && this.fileCacheManager.isCacheValid(cached.metadata)) {
-          const result: DirectoryInfo = {
-            success: true,
-            directory: cached.directory,
-            files: cached.files,
-            fileCount: cached.files.length,
-            partial: false,
-            fromCache: true,
-            cacheAge: Date.now() - new Date(cached.metadata.updatedAt).getTime(),
-            searchMode: 'recursive'
-          };
-          return result;
-        }
-      }
-
-      return null;
-    } catch (error) {
-      logger.error('Failed to load cached files:', error);
-      return null;
-    }
+    return this.cacheHelper.loadCachedFilesForWindow(this.savedDirectory);
   }
 
   /**
-   * Execute directory-detector native tool with fd (single stage)
-   * fd is required - always uses recursive search mode
+   * Set detection strategy (for testing or platform-specific implementations)
+   */
+  setStrategy(strategy: IDirectoryDetectionStrategy): void {
+    this.strategy = strategy;
+    logger.debug(`Detection strategy changed to: ${strategy.getName()}`);
+  }
+
+  /**
+   * Execute directory detection using the current strategy
    * @param timeout Timeout in milliseconds
    * @returns DirectoryInfo or null on error
    */
   async executeDirectoryDetector(
     timeout: number
   ): Promise<DirectoryInfo | null> {
-    if (!config.platform.isMac) {
-      logger.debug('Directory detection only supported on macOS');
+    if (!this.strategy.isAvailable()) {
+      logger.debug(`Strategy ${this.strategy.getName()} is not available on this platform`);
       return null;
     }
 
-    const startTime = performance.now();
-
-    // Step 1: Detect directory using directory-detector
-    const detectArgs: string[] = ['detect'];
-
-    // Add bundleId if available for accurate directory detection
-    if (this.previousApp && typeof this.previousApp === 'object' && this.previousApp.bundleId) {
-      detectArgs.push('--bundleId', this.previousApp.bundleId);
-    }
-
-    logger.debug('Directory detector command:', {
-      executable: DIRECTORY_DETECTOR_PATH,
-      args: detectArgs
-    });
-
-    const detectOptions = {
-      timeout: Math.min(timeout, 3000), // Use shorter timeout for detection
-      killSignal: 'SIGTERM' as const
-    };
-
-    return new Promise((resolve) => {
-      execFile(DIRECTORY_DETECTOR_PATH, detectArgs, detectOptions, async (detectError: Error | null, detectStdout?: string) => {
-        const detectElapsed = performance.now() - startTime;
-
-        if (detectError) {
-          logger.warn(`Directory detection failed after ${detectElapsed.toFixed(2)}ms:`, detectError);
-          resolve(null);
-          return;
-        }
-
-        try {
-          const detectResult = JSON.parse(detectStdout?.trim() || '{}') as DirectoryInfo;
-
-          if (detectResult.error) {
-            logger.debug('Directory detection returned error:', detectResult.error);
-            resolve(detectResult); // Return result with error for logging
-            return;
-          }
-
-          if (!detectResult.directory) {
-            logger.debug('No directory detected');
-            resolve(null);
-            return;
-          }
-
-          logger.debug(`⏱️  Directory detection completed in ${detectElapsed.toFixed(2)}ms`, {
-            directory: detectResult.directory,
-            appName: detectResult.appName,
-            bundleId: detectResult.bundleId
-          });
-
-          // Step 2: List files using file-searcher
-          const listArgs: string[] = ['list', detectResult.directory];
-
-          // Apply file search settings if available
-          if (this.fileSearchSettings) {
-            if (!this.fileSearchSettings.respectGitignore) {
-              listArgs.push('--no-gitignore');
-            }
-            if (this.fileSearchSettings.excludePatterns && this.fileSearchSettings.excludePatterns.length > 0) {
-              for (const pattern of this.fileSearchSettings.excludePatterns) {
-                listArgs.push('--exclude', pattern);
-              }
-            }
-            if (this.fileSearchSettings.includePatterns && this.fileSearchSettings.includePatterns.length > 0) {
-              for (const pattern of this.fileSearchSettings.includePatterns) {
-                listArgs.push('--include', pattern);
-              }
-            }
-            if (this.fileSearchSettings.maxFiles) {
-              listArgs.push('--max-files', String(this.fileSearchSettings.maxFiles));
-            }
-            if (this.fileSearchSettings.includeHidden) {
-              listArgs.push('--include-hidden');
-            }
-            if (this.fileSearchSettings.maxDepth !== null && this.fileSearchSettings.maxDepth !== undefined) {
-              listArgs.push('--max-depth', String(this.fileSearchSettings.maxDepth));
-            }
-            if (this.fileSearchSettings.followSymlinks) {
-              listArgs.push('--follow-symlinks');
-            }
-          }
-
-          logger.debug('File searcher command:', {
-            executable: FILE_SEARCHER_PATH,
-            args: listArgs
-          });
-
-          // Calculate remaining timeout with minimum threshold
-          // Use Math.round to ensure integer value (required by execFile)
-          const remainingTimeout = Math.round(Math.max(timeout - detectElapsed, 1000));
-
-          const listOptions = {
-            timeout: remainingTimeout,
-            killSignal: 'SIGTERM' as const,
-            // Increase maxBuffer for large file lists (default is 1MB)
-            // 50,000 files × ~200 bytes/file = ~10MB, so use 50MB for safety
-            maxBuffer: 50 * 1024 * 1024
-          };
-
-          logger.debug('Executing file searcher with timeout:', { remainingTimeout });
-
-          try {
-            execFile(FILE_SEARCHER_PATH, listArgs, listOptions, (listError: Error | null, listStdout?: string) => {
-            const totalElapsed = performance.now() - startTime;
-
-            // Merge results
-            const result: DirectoryInfo = {
-              ...detectResult
-            };
-
-            if (listError) {
-              logger.warn(`File listing failed after ${totalElapsed.toFixed(2)}ms:`, listError);
-              result.filesError = listError.message;
-            } else {
-              try {
-                const listResult = JSON.parse(listStdout?.trim() || '{}');
-
-                if (listResult.files) {
-                  result.files = listResult.files;
-                  result.fileCount = listResult.fileCount;
-                }
-                if (listResult.searchMode) {
-                  result.searchMode = listResult.searchMode;
-                }
-                if (listResult.fileLimitReached) {
-                  result.fileLimitReached = listResult.fileLimitReached;
-                }
-                if (listResult.maxFiles) {
-                  result.maxFiles = listResult.maxFiles;
-                }
-                if (listResult.filesError) {
-                  result.filesError = listResult.filesError;
-                  // Add hint message if fd command is not available
-                  if (listResult.filesError.includes('fd required')) {
-                    result.hint = 'Install fd for file search: brew install fd';
-                    logger.warn('fd command not found. File search will not work. Install with: brew install fd');
-                  }
-                }
-              } catch (parseError) {
-                logger.warn('Error parsing file list result:', parseError);
-                result.filesError = 'Failed to parse file list';
-              }
-            }
-
-            logger.debug(`⏱️  Directory detection + file listing completed in ${totalElapsed.toFixed(2)}ms`, {
-              directory: result.directory,
-              fileCount: result.fileCount,
-              searchMode: result.searchMode
-            });
-
-            resolve(result);
-            });
-          } catch (execError) {
-            logger.warn('Error executing file searcher:', execError);
-            // Return detect result without files on file searcher error
-            resolve(detectResult);
-          }
-        } catch (parseError) {
-          logger.warn('Error parsing directory detection result:', parseError);
-          resolve(null);
-        }
-      });
-    });
+    return this.strategy.detect(timeout, this.previousApp, this.fileSearchSettings);
   }
 
   /**
@@ -460,46 +180,13 @@ class DirectoryDetector {
         const detectedDirectory = result.directory;
         const directoryChanged = this.savedDirectory !== null && detectedDirectory !== this.savedDirectory;
 
-        // Check if file list has changed compared to cache
-        let hasChanges = true;
-
-        // Skip cache operations for directories with file search disabled (e.g., root directory)
-        const isFileSearchDisabled = this.isFileSearchDisabledDirectory(detectedDirectory) || result.filesDisabled;
-
-        if (this.fileCacheManager && result.files && !isFileSearchDisabled) {
-          const existingCache = await this.fileCacheManager.loadCache(detectedDirectory);
-          if (existingCache) {
-            hasChanges = this.hasFileListChanges(existingCache.files, result.files);
-          }
-
-          // Update lastUsedDirectory
-          await this.fileCacheManager.setLastUsedDirectory(detectedDirectory);
-
-          if (hasChanges) {
-            // Save updated cache
-            await this.fileCacheManager.saveCache(
-              detectedDirectory,
-              result.files,
-              { searchMode: 'recursive' }
-            );
-            logger.debug(`Cache updated for ${detectedDirectory}, ${result.files.length} files`);
-          } else {
-            // Just update timestamp
-            await this.fileCacheManager.updateCacheTimestamp(detectedDirectory);
-            logger.debug(`Cache timestamp updated for ${detectedDirectory}, no file changes`);
-          }
-        } else if (isFileSearchDisabled) {
-          // Clear any existing cache for this directory
-          if (this.fileCacheManager) {
-            try {
-              await this.fileCacheManager.clearCache(detectedDirectory);
-              logger.debug(`Cleared cache for ${detectedDirectory} (file search disabled)`);
-            } catch {
-              // Cache may not exist, ignore errors
-            }
-          }
-          logger.debug(`Skipping cache for ${detectedDirectory} (file search disabled)`);
-        }
+        // Handle cache operations
+        const isFileSearchDisabled = this.isFileSearchDisabledDirectory(detectedDirectory) || (result.filesDisabled ?? false);
+        const hasChanges = await this.cacheHelper.handleBackgroundCacheUpdate(
+          detectedDirectory,
+          result.files,
+          isFileSearchDisabled
+        );
 
         // Update directory manager with detected directory (detection succeeded)
         if (this.directoryManager) {
@@ -572,28 +259,6 @@ class DirectoryDetector {
     }
   }
 
-  /**
-   * Check if file list has changed (for cache update decision)
-   */
-  private hasFileListChanges(
-    oldFiles: FileInfo[] | undefined,
-    newFiles: FileInfo[]
-  ): boolean {
-    if (!oldFiles) return true;
-    if (oldFiles.length !== newFiles.length) return true;
-
-    // Create path sets for comparison (order-independent)
-    const oldPaths = new Set(oldFiles.map(f => f.path));
-    const newPaths = new Set(newFiles.map(f => f.path));
-
-    if (oldPaths.size !== newPaths.size) return true;
-
-    for (const path of newPaths) {
-      if (!oldPaths.has(path)) return true;
-    }
-
-    return false;
-  }
 }
 
 export default DirectoryDetector;

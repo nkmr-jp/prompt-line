@@ -31,3 +31,12 @@ export type {
 export { default as WindowPositionCalculator } from './position-calculator';
 export { default as NativeToolExecutor } from './native-tool-executor';
 export { default as DirectoryDetector } from './directory-detector';
+export { getActiveTextFieldBounds } from './text-field-bounds-detector';
+
+// Strategy Pattern exports
+export type { IDirectoryDetectionStrategy } from './strategies';
+export { NativeDetectorStrategy } from './strategies';
+
+// Utility exports
+export { DirectoryDetectorUtils } from './directory-detector-utils';
+export { DirectoryCacheHelper } from './directory-cache-helper';

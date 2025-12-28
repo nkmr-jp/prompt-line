@@ -22,16 +22,17 @@ SWIFTC = swiftc
 SWIFT_FLAGS = -O
 FRAMEWORKS = -framework Cocoa -framework ApplicationServices
 OUTPUT_DIR = ../src/native-tools
-SOURCES = window-detector.swift keyboard-simulator.swift text-field-detector.swift directory-detector.swift
-TARGETS = $(OUTPUT_DIR)/window-detector $(OUTPUT_DIR)/keyboard-simulator $(OUTPUT_DIR)/text-field-detector $(OUTPUT_DIR)/directory-detector
+SOURCES = window-detector.swift keyboard-simulator.swift text-field-detector.swift directory-detector file-searcher symbol-searcher
+TARGETS = $(OUTPUT_DIR)/window-detector $(OUTPUT_DIR)/keyboard-simulator $(OUTPUT_DIR)/text-field-detector $(OUTPUT_DIR)/directory-detector $(OUTPUT_DIR)/file-searcher $(OUTPUT_DIR)/symbol-searcher
 ```
 
 **Build Process:**
 - **Compiler**: Uses `swiftc` with optimization flags (`-O`)
 - **Frameworks**: Links against Cocoa and ApplicationServices
 - **Output**: Creates binaries in `src/native-tools/` directory
-- **Targets**: `window-detector`, `keyboard-simulator`, `text-field-detector`, and `directory-detector` executables
+- **Targets**: `window-detector`, `keyboard-simulator`, `text-field-detector`, `directory-detector`, `file-searcher`, and `symbol-searcher` executables
 - **Bridging Header**: `directory-detector` uses `libproc-bridge.h` for fast CWD detection via libproc
+- **Multi-file Tools**: `directory-detector`, `file-searcher`, and `symbol-searcher` are directory-based with multiple Swift files
 
 **Build Commands:**
 ```bash
@@ -276,6 +277,166 @@ directory-detector check-fd                      # Check if fd is available
 }
 ```
 
+### file-searcher/ (Multi-file tool)
+Native tool for fast file search using the `fd` command:
+
+**Directory Structure:**
+- `file-searcher/main.swift` - Entry point and CLI handling
+- `file-searcher/Types.swift` - Type definitions for file search
+- `file-searcher/FileSearcher.swift` - Core file search logic
+
+**Core Functionality:**
+```swift
+class FileSearcher {
+    static func listFiles(from directory: String, options: SearchOptions) -> FileListResult
+    static func checkFdAvailable() -> Bool
+}
+```
+
+**Features:**
+- Uses `fd` command for fast recursive file searching (https://github.com/sharkdp/fd)
+- Respects `.gitignore` patterns with optional override
+- Supports exclude/include patterns for filtering
+- Handles symlink directories with path preservation
+- Default excludes: node_modules, .git, dist, build, etc.
+- Configurable max files, depth, and hidden file inclusion
+
+**Command-Line Interface:**
+```bash
+file-searcher list <path> [options]    # List files in directory
+file-searcher check-fd                 # Check if fd is available
+
+# Options:
+#   --no-gitignore         Don't respect .gitignore
+#   --exclude <pattern>    Add exclude pattern
+#   --include <pattern>    Include pattern for .gitignored files
+#   --max-files <n>        Maximum files (default: 5000)
+#   --include-hidden       Include hidden files
+#   --max-depth <n>        Maximum directory depth
+#   --follow-symlinks      Follow symbolic links
+```
+
+**JSON Response Format:**
+```json
+// List Response
+{
+  "success": true,
+  "files": [
+    {"name": "index.ts", "path": "/Users/user/project/index.ts", "isDirectory": false}
+  ],
+  "fileCount": 150,
+  "partial": false
+}
+
+// Check fd Response
+{
+  "available": true,
+  "version": "8.7.0"
+}
+
+// Error Response
+{
+  "error": "fd command not found",
+  "suggestion": "Install fd: brew install fd"
+}
+```
+
+### symbol-searcher/ (Multi-file tool)
+Native tool for code symbol search across 20+ programming languages using ripgrep:
+
+**Directory Structure:**
+- `symbol-searcher/main.swift` - Entry point and CLI handling
+- `symbol-searcher/Types.swift` - Type definitions for symbols and languages
+- `symbol-searcher/SymbolPatterns.swift` - Language-specific regex patterns for symbol detection
+- `symbol-searcher/RipgrepExecutor.swift` - ripgrep command execution and result parsing
+
+**Core Functionality:**
+```swift
+class SymbolSearcher {
+    static func searchSymbols(in directory: String, language: String, options: SearchOptions) -> SymbolSearchResult
+    static func checkRgAvailable() -> Bool
+    static func getSupportedLanguages() -> [LanguageInfo]
+}
+```
+
+**Supported Languages (20+):**
+| Language | Key | Symbol Types |
+|----------|-----|--------------|
+| Go | `go` | function, method, struct, interface, type, constant, variable |
+| TypeScript | `ts` | function, class, interface, type, enum, constant, namespace |
+| TypeScript React | `tsx` | function, class, interface, type, enum, constant |
+| JavaScript | `js` | function, class, constant, variable |
+| JavaScript React | `jsx` | function, class, constant, variable |
+| Python | `py` | function, class, constant |
+| Rust | `rs` | function, struct, enum, trait, type, constant, variable, module |
+| Java | `java` | class, interface, enum, method |
+| Kotlin | `kt` | function, class, interface, enum, typealias, constant |
+| Swift | `swift` | function, class, struct, protocol, enum, typealias |
+| Ruby | `rb` | function, class, module, constant |
+| C++ | `cpp` | class, struct, enum, namespace, typedef |
+| C | `c` | struct, enum, typedef |
+| Shell | `sh` | function, variable |
+| Makefile | `make`, `mk` | function (targets), variable |
+| PHP | `php` | function, class, interface, trait, constant, enum |
+| C# | `cs` | class, interface, struct, enum, method, namespace |
+| Scala | `scala` | function, class, trait, object, type, constant, variable |
+| Terraform | `tf`, `terraform` | resource, data, variable, output, module, provider |
+| Markdown | `md`, `markdown` | heading |
+
+**Command-Line Interface:**
+```bash
+symbol-searcher check-rg                           # Check if ripgrep is available
+symbol-searcher list-languages                     # List all supported languages
+symbol-searcher search <directory> --language <lang> [options]  # Search symbols
+
+# Options:
+#   --max-symbols <n>      Maximum symbols to return (default: 20000)
+#   --include-hidden       Include hidden files in search
+```
+
+**JSON Response Format:**
+```json
+// Search Response
+{
+  "success": true,
+  "symbols": [
+    {
+      "name": "handleRequest",
+      "type": "function",
+      "filePath": "/Users/user/project/src/handler.go",
+      "lineNumber": 42,
+      "lineContent": "func handleRequest(w http.ResponseWriter, r *http.Request) {"
+    }
+  ],
+  "count": 150,
+  "language": "go",
+  "searchMode": "full"
+}
+
+// Languages Response
+{
+  "languages": [
+    {"key": "go", "name": "Go", "extensions": [".go"]},
+    {"key": "ts", "name": "TypeScript", "extensions": [".ts"]}
+  ]
+}
+
+// Check rg Response
+{
+  "available": true,
+  "version": "14.0.0"
+}
+
+// Error Response
+{
+  "error": "ripgrep (rg) command not found",
+  "suggestion": "Install ripgrep: brew install ripgrep"
+}
+```
+
+**Dependencies:**
+- Requires `ripgrep` (`rg`) command: `brew install ripgrep`
+
 ## Architecture Integration
 
 ### Build Process Integration
@@ -437,6 +598,16 @@ npm run compile  # Builds TypeScript + native tools + copies to dist/
 
 # Check fd availability
 ../src/native-tools/directory-detector check-fd
+
+# Test file-searcher
+../src/native-tools/file-searcher list /path/to/project
+../src/native-tools/file-searcher check-fd
+
+# Test symbol-searcher
+../src/native-tools/symbol-searcher check-rg
+../src/native-tools/symbol-searcher list-languages
+../src/native-tools/symbol-searcher search /path/to/project --language go
+../src/native-tools/symbol-searcher search /path/to/project --language ts --max-symbols 1000
 ```
 
 ### Debugging
@@ -473,6 +644,8 @@ npm run compile  # Builds TypeScript + native tools + copies to dist/
 6. **Text Field Detection**: `detectTextFieldPosition()` in `window-manager.ts` for `active-text-field` positioning
 7. **Directory Detection**: `detectDirectory()` in `window-manager.ts` for terminal/IDE CWD detection
 8. **File Search**: `getFileListWithDirectory()` in `window-manager.ts` for @ mention file search
+9. **Symbol Search**: `searchSymbols()` in `symbol-searcher.ts` for `@language:query` code search
+10. **File Listing**: `listFiles()` in `file-searcher.ts` for fast file discovery
 
 ### Timeout Configuration
 ```typescript
@@ -482,7 +655,8 @@ const TIMEOUTS = {
   NATIVE_PASTE_TIMEOUT: 3000,       // pasteWithNativeTool()
   ACTIVATE_PASTE_TIMEOUT: 3000,     // activateAndPasteWithNativeTool()
   TEXT_FIELD_DETECTION: 3000,       // detectTextFieldPosition()
-  DIRECTORY_DETECTION: 5000         // detectDirectory(), fd process timeout
+  DIRECTORY_DETECTION: 5000,        // detectDirectory(), fd process timeout
+  SYMBOL_SEARCH_TIMEOUT: 5000       // searchSymbols(), ripgrep process timeout
 };
 ```
 

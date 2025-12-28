@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals';
 import IPCHandlers from '../../src/handlers/ipc-handlers';
 import { ipcMain, clipboard } from 'electron';
-import type WindowManager from '../../src/managers/window-manager';
+import type WindowManager from '../../src/managers/window';
 import type HistoryManager from '../../src/managers/history-manager';
 import type DraftManager from '../../src/managers/draft-manager';
 
@@ -623,10 +623,10 @@ describe('IPCHandlers', () => {
 
             ipcHandlers.removeAllHandlers();
 
-            // Should be called for each handler (count: 26 handlers)
-            // paste-handler: 2, window-handler: 3, history-draft-handler: 9
-            // system-handler: 3, file-handler: 3, mdsearch-handler: 6
-            expect(ipcMain.removeAllListeners).toHaveBeenCalledTimes(26);
+            // Should be called for each handler (count: 31 handlers)
+            // paste-handler: 2, window-handler: 3, history-draft-handler: 13 (includes 2 at-path cache handlers)
+            // system-handler: 4, file-handler: 3, mdsearch-handler: 6
+            expect(ipcMain.removeAllListeners).toHaveBeenCalledTimes(31);
             expect(logger.info).toHaveBeenCalledWith('All IPC handlers removed via coordinator');
         });
     });

@@ -1,45 +1,15 @@
 /**
- * Type definitions and utility functions for file search functionality
+ * Type definitions and utilities for File Search module
  */
 
 import type { FileInfo, AgentItem } from '../../types';
-import type { SymbolResult, SymbolType } from '../code-search/types';
+import type { SymbolResult } from '../code-search/types';
 
-// Re-export for convenience
-export type { SymbolResult, SymbolType };
+// Re-export formatLog from debug-logger for backwards compatibility
+export { formatLog } from '../utils/debug-logger';
 
-/**
- * Format object for console output (Electron renderer -> main process)
- * Outputs in a format similar to the main process logger
- */
-export function formatLog(obj: Record<string, unknown>): string {
-  const entries = Object.entries(obj)
-    .map(([key, value]) => `  ${key}: ${typeof value === 'string' ? `'${value}'` : value}`)
-    .join(',\n');
-  return '{\n' + entries + '\n}';
-}
-
-/**
- * Safely parse and insert SVG content using DOMParser
- * This avoids innerHTML for security while allowing SVG insertion
- */
-export function insertSvgIntoElement(element: HTMLElement, svgString: string): void {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(svgString, 'image/svg+xml');
-  const svgElement = doc.documentElement;
-
-  // Check for parsing errors
-  const parserError = doc.querySelector('parsererror');
-  if (parserError) {
-    console.warn('[FileSearchManager] SVG parse error, using fallback');
-    element.textContent = '📄';
-    return;
-  }
-
-  // Clear existing content and append SVG
-  element.textContent = '';
-  element.appendChild(element.ownerDocument.importNode(svgElement, true));
-}
+// Re-export FileInfo for internal use in managers
+export type { FileInfo };
 
 // Directory data for file search (cached in renderer)
 export interface DirectoryData {
@@ -68,6 +38,7 @@ export interface FileSearchCallbacks {
   setDraggable?: (enabled: boolean) => void; // Enable/disable window dragging during file open
   replaceRangeWithUndo?: (start: number, end: number, newText: string) => void; // Replace text range with undo support
   getIsComposing?: () => boolean; // Check if IME is active to avoid conflicts with Japanese input
+  showError?: (message: string) => void; // Show error message to user
 }
 
 // Represents a tracked @path in the text
@@ -84,4 +55,34 @@ export interface SuggestionItem {
   agent?: AgentItem;
   symbol?: SymbolResult;
   score: number;
+}
+
+// Parsed path with optional line and symbol info
+export interface ParsedPathInfo {
+  path: string;
+  lineNumber?: number;
+  symbolName?: string;
+}
+
+
+/**
+ * Safely parse and insert SVG content using DOMParser
+ * This avoids innerHTML for security while allowing SVG insertion
+ */
+export function insertSvgIntoElement(element: HTMLElement, svgString: string): void {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(svgString, 'image/svg+xml');
+  const svgElement = doc.documentElement;
+
+  // Check for parsing errors
+  const parserError = doc.querySelector('parsererror');
+  if (parserError) {
+    console.warn('[FileSearchManager] SVG parse error, using fallback');
+    element.textContent = '📄';
+    return;
+  }
+
+  // Clear existing content and append SVG
+  element.textContent = '';
+  element.appendChild(element.ownerDocument.importNode(svgElement, true));
 }
