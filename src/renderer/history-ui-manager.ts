@@ -5,6 +5,7 @@ import type { HistoryItem } from './types';
 export class HistoryUIManager {
   private historyIndex: number = -1;
   private keyboardNavigationTimeout: NodeJS.Timeout | null = null;
+  private scrollingTimeout: NodeJS.Timeout | null = null;
   private getCurrentText: () => string;
   private getCursorPosition: () => number;
   private saveSnapshotCallback: (text: string, cursorPosition: number) => void;
@@ -28,7 +29,7 @@ export class HistoryUIManager {
   }
 
   /**
-   * Setup scroll event listener for infinite scroll
+   * Setup scroll event listener for infinite scroll and scrollbar visibility
    */
   public setupScrollListener(): void {
     const historyList = this.getHistoryList();
@@ -36,9 +37,57 @@ export class HistoryUIManager {
 
     this.scrollHandler = () => {
       this.checkScrollPosition();
+      this.showScrollbar();
     };
 
     historyList.addEventListener('scroll', this.scrollHandler);
+  }
+
+  /**
+   * Show custom scrollbar while scrolling, hide after scrolling stops
+   */
+  private showScrollbar(): void {
+    const historyList = this.getHistoryList();
+    if (!historyList) return;
+
+    const scrollbar = document.getElementById('customScrollbar');
+    const thumb = document.getElementById('customScrollbarThumb');
+    if (!scrollbar || !thumb) return;
+
+    // Calculate scrollbar thumb size and position
+    const scrollHeight = historyList.scrollHeight;
+    const clientHeight = historyList.clientHeight;
+    const scrollTop = historyList.scrollTop;
+
+    // Only show scrollbar if content is scrollable
+    if (scrollHeight <= clientHeight) {
+      scrollbar.classList.remove('visible');
+      return;
+    }
+
+    // Calculate thumb height (proportional to visible area)
+    const thumbHeight = Math.max(30, (clientHeight / scrollHeight) * clientHeight);
+
+    // Calculate thumb position
+    const maxScrollTop = scrollHeight - clientHeight;
+    const thumbTop = (scrollTop / maxScrollTop) * (clientHeight - thumbHeight);
+
+    // Update thumb style
+    thumb.style.height = `${thumbHeight}px`;
+    thumb.style.transform = `translateY(${thumbTop}px)`;
+
+    // Show scrollbar
+    scrollbar.classList.add('visible');
+
+    // Clear existing timeout
+    if (this.scrollingTimeout) {
+      clearTimeout(this.scrollingTimeout);
+    }
+
+    // Hide scrollbar after scrolling stops (500ms delay)
+    this.scrollingTimeout = setTimeout(() => {
+      scrollbar.classList.remove('visible');
+    }, 500);
   }
 
   /**
@@ -288,6 +337,11 @@ export class HistoryUIManager {
     if (this.keyboardNavigationTimeout) {
       clearTimeout(this.keyboardNavigationTimeout);
       this.keyboardNavigationTimeout = null;
+    }
+
+    if (this.scrollingTimeout) {
+      clearTimeout(this.scrollingTimeout);
+      this.scrollingTimeout = null;
     }
 
     // Remove scroll event listener
