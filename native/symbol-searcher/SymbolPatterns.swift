@@ -29,10 +29,16 @@ let LANGUAGE_PATTERNS: [String: LanguageConfig] = [
             SymbolPattern(type: .typeAlias, regex: "^type\\s+(\\w+)\\s+[a-z]\\w*\\.", captureGroup: 1),
             SymbolPattern(type: .constant, regex: "^const\\s+(\\w+)\\s*=", captureGroup: 1),
             // Constants inside const ( ... ) block with type: `Name Type = value`
-            SymbolPattern(type: .constant, regex: "^\\s+(\\w+)\\s+\\w+\\s*=\\s*[\"']", captureGroup: 1),
-            // Constants inside const ( ... ) block without type: `Name = value`
-            SymbolPattern(type: .constant, regex: "^\\s+(\\w+)\\s*=\\s*(?:iota|\\d)", captureGroup: 1),
+            SymbolPattern(type: .constant, regex: "^(?:\\t|    )(\\w+)\\s+\\w+\\s*=", captureGroup: 1),
+            // Constants inside const ( ... ) block without type: `Name = value` (not ==)
+            SymbolPattern(type: .constant, regex: "^(?:\\t|    )(\\w+)\\s*=\\s*[^=]", captureGroup: 1),
+            // Constants inside const ( ... ) block: iota continuation (name only, e.g., `StatusOK`)
+            SymbolPattern(type: .constant, regex: "^(?:\\t|    )([A-Z]\\w*)\\s*$", captureGroup: 1),
             SymbolPattern(type: .variable, regex: "^var\\s+(\\w+)\\s+", captureGroup: 1),
+            // Variables inside var ( ... ) block with exported type (e.g., TmpDir string, client *bigquery.Client)
+            SymbolPattern(type: .variable, regex: "^(?:\\t|    )(\\w+)\\s+\\*?(?:\\[\\])?(?:map\\[.+\\])?(?:chan\\s+)?(?:\\w+\\.)?[A-Z]\\w*\\s*$", captureGroup: 1),
+            // Variables inside var ( ... ) block with basic type (e.g., name string, count int)
+            SymbolPattern(type: .variable, regex: "^(?:\\t|    )(\\w+)\\s+(string|bool|byte|rune|error|any|int\\d*|uint\\d*|float\\d*|complex\\d*|uintptr)\\s*$", captureGroup: 1),
         ]
     ),
     "ts": LanguageConfig(
