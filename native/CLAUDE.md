@@ -361,6 +361,7 @@ class SymbolSearcher {
 ```
 
 **Supported Languages (20+):**
+
 | Language | Key | Symbol Types |
 |----------|-----|--------------|
 | Go | `go` | function, method, struct, interface, type, constant, variable |
