@@ -30,8 +30,8 @@ let LANGUAGE_PATTERNS: [String: LanguageConfig] = [
             SymbolPattern(type: .constant, regex: "^const\\s+(\\w+)\\s*=", captureGroup: 1),
             // Constants inside const ( ... ) block with type: `Name Type = value`
             SymbolPattern(type: .constant, regex: "^(?:\\t|    )(\\w+)\\s+\\w+\\s*=", captureGroup: 1),
-            // Constants inside const ( ... ) block without type: `Name = value` (not ==)
-            SymbolPattern(type: .constant, regex: "^(?:\\t|    )(\\w+)\\s*=\\s*[^=]", captureGroup: 1),
+            // Constants inside const ( ... ) block without type: `Name = literal` (only iota, numbers, strings, true/false/nil, must end line)
+            SymbolPattern(type: .constant, regex: "^(?:\\t|    )(\\w+)\\s*=\\s*(?:iota|-?\\d[\\d_.]*|\"[^\"]*\"|`[^`]*`|'[^']*'|true|false|nil)\\s*(?://.*)?$", captureGroup: 1),
             // Constants inside const ( ... ) block: iota continuation (name only, e.g., `StatusOK`)
             SymbolPattern(type: .constant, regex: "^(?:\\t|    )([A-Z]\\w*)\\s*$", captureGroup: 1),
             SymbolPattern(type: .variable, regex: "^var\\s+(\\w+)\\s+", captureGroup: 1),
