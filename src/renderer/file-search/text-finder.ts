@@ -103,8 +103,8 @@ export function findSlashCommandAtPosition(text: string, cursorPos: number): Com
 export function findAbsolutePathAtPosition(text: string, cursorPos: number): string | null {
   // Pattern to match file paths:
   // - Relative paths: ./path, ../path (ASCII path characters only)
-  // - Absolute paths: /path, ~/path (first segment must start with ASCII alphanumeric)
-  const absolutePathPattern = /(?:\.{1,2}\/[a-zA-Z0-9_./-]+|\/[a-zA-Z0-9_][^\s"'<>|*?\n]*|~\/[a-zA-Z0-9_][^\s"'<>|*?\n]*)/g;
+  // - Absolute paths: /path, ~/path (first segment can start with dot for hidden dirs)
+  const absolutePathPattern = /(?:\.{1,2}\/[a-zA-Z0-9_./-]+|\/[a-zA-Z0-9_.][^\s"'<>|*?\n]*|~\/[a-zA-Z0-9_.][^\s"'<>|*?\n]*)/g;
   let match;
 
   while ((match = absolutePathPattern.exec(text)) !== null) {
