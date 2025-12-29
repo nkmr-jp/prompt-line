@@ -20,7 +20,7 @@ import type {
   LanguageInfo,
   SymbolSearchResponse
 } from '../../code-search/types';
-import { SYMBOL_TYPE_FROM_DISPLAY, getSymbolTypeDisplay } from '../../code-search/types';
+import { getSymbolTypeDisplay } from '../../code-search/types';
 import type { DirectoryData, SuggestionItem } from '../types';
 import { getSymbolIconSvg } from '../../assets/icons/file-icons';
 import { insertSvgIntoElement } from '../index';
@@ -171,11 +171,12 @@ export class CodeSearchManager {
 
   /**
    * Search for symbols in a directory for a specific language
+   * Filtering is performed on Main process for better performance with large symbol sets
    * @param directory - Directory to search
    * @param language - Language key (e.g., 'go', 'ts')
    * @param query - Search query for filtering symbols
    * @param options - Search options
-   * @returns Filtered symbol results
+   * @returns Filtered symbol results (already filtered by Main process)
    */
   public async searchSymbols(
     directory: string,
@@ -184,17 +185,24 @@ export class CodeSearchManager {
     options?: {
       symbolTypeFilter?: string | null;
       refreshCache?: boolean;
+      maxResults?: number;
     }
   ): Promise<SymbolResult[]> {
-    const { symbolTypeFilter = null, refreshCache = false } = options || {};
+    const { symbolTypeFilter = null, refreshCache = false, maxResults = 50 } = options || {};
 
     try {
-      // Code search (@go:) - only refresh cache when explicitly requested (first entry to code search mode)
-      // Don't pass maxSymbols - let the handler use settings value
+      // Code search (@go:) - pass query to Main process for filtering
+      // This avoids transferring all symbols over IPC and filtering in Renderer
       const response: SymbolSearchResponse = await window.electronAPI.codeSearch.searchSymbols(
         directory,
         language,
-        { useCache: true, refreshCache }
+        {
+          useCache: true,
+          refreshCache,
+          query,
+          symbolTypeFilter,
+          maxResults
+        }
       );
 
       if (!response.success) {
@@ -203,37 +211,8 @@ export class CodeSearchManager {
         return [];
       }
 
-      let filtered: SymbolResult[] = response.symbols;
-
-      // Filter by symbol type first (e.g., @go:func: → only functions)
-      if (symbolTypeFilter) {
-        const targetType = SYMBOL_TYPE_FROM_DISPLAY[symbolTypeFilter];
-        if (targetType) {
-          filtered = filtered.filter((s: SymbolResult) => s.type === targetType);
-        }
-      }
-
-      // Filter symbols by query (search in both name and lineContent)
-      if (query) {
-        const lowerQuery = query.toLowerCase();
-        filtered = filtered.filter((s: SymbolResult) =>
-          s.name.toLowerCase().includes(lowerQuery) ||
-          s.lineContent.toLowerCase().includes(lowerQuery)
-        );
-
-        // Sort by relevance (symbols starting with query first, then alphabetical)
-        filtered.sort((a: SymbolResult, b: SymbolResult) => {
-          const aName = a.name.toLowerCase();
-          const bName = b.name.toLowerCase();
-          const aStarts = aName.startsWith(lowerQuery);
-          const bStarts = bName.startsWith(lowerQuery);
-          if (aStarts && !bStarts) return -1;
-          if (!aStarts && bStarts) return 1;
-          return aName.localeCompare(bName);
-        });
-      }
-
-      return filtered;
+      // Symbols are already filtered and sorted by Main process
+      return response.symbols;
     } catch (error) {
       handleError('CodeSearchManager.searchSymbols', error);
       return [];

@@ -28,13 +28,67 @@ const SYMBOL_METADATA_FILE = 'symbol-metadata.json';
 const SYMBOLS_FILE_PREFIX = 'symbols-'; // symbols-{language}.jsonl
 
 /**
+ * In-memory cache entry with timestamp
+ */
+interface MemoryCacheEntry {
+  symbols: SymbolResult[];
+  loadedAt: number;
+}
+
+/**
  * Symbol Cache Manager for disk-based caching
+ * Includes in-memory cache to avoid repeated disk reads for large symbol sets
  */
 export class SymbolCacheManager {
   private cacheDir: string;
 
+  /** In-memory cache: Map<"directory:language", MemoryCacheEntry> */
+  private memoryCache: Map<string, MemoryCacheEntry> = new Map();
+
+  /** Memory cache TTL (5 minutes) - refresh from disk after this time */
+  private readonly MEMORY_CACHE_TTL_MS = 5 * 60 * 1000;
+
   constructor() {
     this.cacheDir = config.paths.projectsCacheDir;
+  }
+
+  /**
+   * Get memory cache key for directory and language
+   */
+  private getMemoryCacheKey(directory: string, language: string): string {
+    return `${directory}:${language}`;
+  }
+
+  /**
+   * Check if memory cache is valid
+   */
+  private isMemoryCacheValid(entry: MemoryCacheEntry | undefined): boolean {
+    if (!entry) return false;
+    const age = Date.now() - entry.loadedAt;
+    return age < this.MEMORY_CACHE_TTL_MS;
+  }
+
+  /**
+   * Clear memory cache for a directory (all languages)
+   */
+  private clearMemoryCacheForDirectory(directory: string): void {
+    const keysToDelete: string[] = [];
+    for (const key of this.memoryCache.keys()) {
+      if (key.startsWith(`${directory}:`)) {
+        keysToDelete.push(key);
+      }
+    }
+    for (const key of keysToDelete) {
+      this.memoryCache.delete(key);
+    }
+  }
+
+  /**
+   * Clear entire memory cache
+   */
+  public clearMemoryCache(): void {
+    this.memoryCache.clear();
+    logger.debug('Cleared all memory cache');
   }
 
   /**
@@ -156,8 +210,23 @@ export class SymbolCacheManager {
 
   /**
    * Load symbols for a specific language from its dedicated file
+   * Uses in-memory cache to avoid repeated disk reads
    */
   private async loadSymbolsForLanguage(directory: string, language: string): Promise<SymbolResult[]> {
+    const cacheKey = this.getMemoryCacheKey(directory, language);
+
+    // Check memory cache first
+    const memoryCacheEntry = this.memoryCache.get(cacheKey);
+    if (this.isMemoryCacheValid(memoryCacheEntry)) {
+      logger.debug('Returning symbols from memory cache', {
+        directory,
+        language,
+        count: memoryCacheEntry!.symbols.length
+      });
+      return memoryCacheEntry!.symbols;
+    }
+
+    // Load from disk
     try {
       const symbolsPath = this.getSymbolsPath(directory, language);
       const content = await fs.readFile(symbolsPath, 'utf8');
@@ -173,7 +242,13 @@ export class SymbolCacheManager {
         }
       }
 
-      logger.debug('Loaded symbols from cache', {
+      // Store in memory cache
+      this.memoryCache.set(cacheKey, {
+        symbols,
+        loadedAt: Date.now()
+      });
+
+      logger.debug('Loaded symbols from disk cache', {
         directory,
         language,
         count: symbols.length
@@ -252,6 +327,13 @@ export class SymbolCacheManager {
       const symbolsContent = symbols.map(s => JSON.stringify(s)).join('\n');
       await fs.writeFile(symbolsPath, symbolsContent, 'utf8');
 
+      // Update memory cache
+      const cacheKey = this.getMemoryCacheKey(directory, language);
+      this.memoryCache.set(cacheKey, {
+        symbols,
+        loadedAt: Date.now()
+      });
+
       logger.debug('Saved symbols to cache', {
         directory,
         language,
@@ -268,6 +350,9 @@ export class SymbolCacheManager {
    */
   async clearCache(directory: string): Promise<void> {
     try {
+      // Clear memory cache first
+      this.clearMemoryCacheForDirectory(directory);
+
       const projectCacheDir = this.getProjectCacheDir(directory);
       await fs.rm(projectCacheDir, { recursive: true, force: true });
       logger.debug('Cleared symbol cache for directory', { directory });
@@ -307,6 +392,9 @@ export class SymbolCacheManager {
    */
   async clearAllCaches(): Promise<void> {
     try {
+      // Clear all memory cache first
+      this.clearMemoryCache();
+
       const entries = await fs.readdir(this.cacheDir, { withFileTypes: true });
       const directories = entries.filter((e) => e.isDirectory());
 
@@ -324,6 +412,10 @@ export class SymbolCacheManager {
    */
   async clearLanguageCache(directory: string, language: string): Promise<void> {
     try {
+      // Clear memory cache for this language
+      const cacheKey = this.getMemoryCacheKey(directory, language);
+      this.memoryCache.delete(cacheKey);
+
       // Remove language-specific file
       const symbolsPath = this.getSymbolsPath(directory, language);
       await fs.rm(symbolsPath, { force: true });
