@@ -37,8 +37,16 @@ let LANGUAGE_PATTERNS: [String: LanguageConfig] = [
             // Constants inside const ( ... ) block without type, starting with string literal: `Name = "..."` (no function calls)
             SymbolPattern(type: .constant, regex: "^(?:\\t|[ ]{1,8})(\\w+)\\s*=\\s*[\"'`][^(]*$", captureGroup: 1),
             SymbolPattern(type: .variable, regex: "^var\\s+(\\w+)\\s+", captureGroup: 1),
-            // Variables inside var ( ... ) block: `Name Type` (type starts with letter/pointer/slice)
-            SymbolPattern(type: .variable, regex: "^(?:\\t|[ ]{1,8})(\\w+)\\s+[a-zA-Z*\\[]", captureGroup: 1),
+            // Variables inside var ( ... ) block with basic types: `Name string/int/bool/etc`
+            SymbolPattern(type: .variable, regex: "^(?:\\t|[ ]{1,8})([A-Z]\\w*|[a-z]\\w+)\\s+(?:string|int|bool|byte|rune|error|any)\\b", captureGroup: 1),
+            // Variables inside var ( ... ) block with sized types: `Name int64/uint32/float64/etc`
+            SymbolPattern(type: .variable, regex: "^(?:\\t|[ ]{1,8})([A-Z]\\w*|[a-z]\\w+)\\s+(?:u?int(?:8|16|32|64)?|float(?:32|64)|complex(?:64|128)|uintptr)\\b", captureGroup: 1),
+            // Variables inside var ( ... ) block with package types: `Name pkg.Type`
+            SymbolPattern(type: .variable, regex: "^(?:\\t|[ ]{1,8})([A-Z]\\w*|[a-z]\\w+)\\s+[a-z]\\w*\\.[A-Z]", captureGroup: 1),
+            // Variables inside var ( ... ) block with pointer/slice/map/chan types: `Name *Type/[]Type/map[K]V/chan T`
+            SymbolPattern(type: .variable, regex: "^(?:\\t|[ ]{1,8})([A-Z]\\w*|[a-z]\\w+)\\s+(?:\\*|\\[|map\\[|<?-?chan\\s)", captureGroup: 1),
+            // Variables inside var ( ... ) block with exported types: `Name ExportedType`
+            SymbolPattern(type: .variable, regex: "^(?:\\t|[ ]{1,8})([A-Z]\\w*|[a-z]\\w+)\\s+[A-Z]\\w*\\b", captureGroup: 1),
         ]
     ),
     "ts": LanguageConfig(
