@@ -9,7 +9,13 @@ let LANGUAGE_PATTERNS: [String: LanguageConfig] = [
         displayName: "Go",
         rgType: "go",
         patterns: [
+            // Generic function: func Name[T any](...) or func Name[T any, R comparable](...)
+            SymbolPattern(type: .function, regex: "^func\\s+(\\w+)\\s*\\[[^\\]]+\\]\\s*\\(", captureGroup: 1),
+            // Regular function: func Name(...)
             SymbolPattern(type: .function, regex: "^func\\s+(\\w+)\\s*\\(", captureGroup: 1),
+            // Generic method: func (r *Receiver) Name[T any](...)
+            SymbolPattern(type: .method, regex: "^func\\s*\\([^)]+\\)\\s+(\\w+)\\s*\\[[^\\]]+\\]\\s*\\(", captureGroup: 1),
+            // Regular method: func (r *Receiver) Name(...)
             SymbolPattern(type: .method, regex: "^func\\s*\\([^)]+\\)\\s+(\\w+)\\s*\\(", captureGroup: 1),
             SymbolPattern(type: .structDecl, regex: "^type\\s+(\\w+)\\s+struct", captureGroup: 1),
             SymbolPattern(type: .interface, regex: "^type\\s+(\\w+)\\s+interface", captureGroup: 1),
