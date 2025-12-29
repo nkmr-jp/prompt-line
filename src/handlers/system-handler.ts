@@ -1,3 +1,4 @@
+import path from 'path';
 import { IpcMainInvokeEvent, shell } from 'electron';
 import config from '../config/app-config';
 import { logger } from '../utils/utils';
@@ -42,13 +43,14 @@ class SystemHandler {
     ipcMain.handle('get-app-info', this.handleGetAppInfo.bind(this));
     ipcMain.handle('get-config', this.handleGetConfig.bind(this));
     ipcMain.handle('open-settings', this.handleOpenSettings.bind(this));
+    ipcMain.handle('open-settings-directory', this.handleOpenSettingsDirectory.bind(this));
     ipcMain.handle('get-file-search-max-suggestions', this.handleGetFileSearchMaxSuggestions.bind(this));
 
     logger.info('System IPC handlers set up successfully');
   }
 
   removeHandlers(ipcMain: typeof import('electron').ipcMain): void {
-    const handlers = ['get-app-info', 'get-config', 'open-settings', 'get-file-search-max-suggestions'];
+    const handlers = ['get-app-info', 'get-config', 'open-settings', 'open-settings-directory', 'get-file-search-max-suggestions'];
 
     handlers.forEach(handler => {
       ipcMain.removeAllListeners(handler);
@@ -136,6 +138,20 @@ class SystemHandler {
       return { success: true };
     } catch (error) {
       logger.error('Failed to open settings file:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
+  private async handleOpenSettingsDirectory(_event: IpcMainInvokeEvent): Promise<IPCResult> {
+    try {
+      const settingsFilePath = this.settingsManager.getSettingsFilePath();
+      const settingsDir = path.dirname(settingsFilePath);
+      logger.info('Opening settings directory:', settingsDir);
+
+      await shell.openPath(settingsDir);
+      return { success: true };
+    } catch (error) {
+      logger.error('Failed to open settings directory:', error);
       return { success: false, error: (error as Error).message };
     }
   }

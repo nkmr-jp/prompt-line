@@ -139,6 +139,12 @@ export interface SymbolSearchOptions {
   maxSymbols?: number;
   useCache?: boolean;
   refreshCache?: boolean;
+  /** Query string for filtering symbols (Main process filtering for performance) */
+  query?: string;
+  /** Symbol type filter (e.g., 'func', 'class', 'interface') */
+  symbolTypeFilter?: string | null;
+  /** Maximum results to return (default: 50) */
+  maxResults?: number;
 }
 
 /**

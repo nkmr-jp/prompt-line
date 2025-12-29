@@ -15,6 +15,7 @@ import type {
 // Default search options (exported for use by handlers)
 export const DEFAULT_MAX_SYMBOLS = 20000;
 export const DEFAULT_SEARCH_TIMEOUT = 5000; // 5 seconds for symbol search
+export const DEFAULT_MAX_BUFFER = 100 * 1024 * 1024; // 100MB buffer for large codebases
 
 /**
  * Check if ripgrep (rg) is available
@@ -28,7 +29,8 @@ export async function checkRgAvailable(): Promise<RgCheckResponse> {
 
     const options = {
       timeout: DEFAULT_SEARCH_TIMEOUT,
-      killSignal: 'SIGTERM' as const
+      killSignal: 'SIGTERM' as const,
+      maxBuffer: DEFAULT_MAX_BUFFER
     };
 
     execFile(SYMBOL_SEARCHER_PATH, ['check-rg'], options, (error, stdout) => {
@@ -62,7 +64,8 @@ export async function getSupportedLanguages(): Promise<LanguagesResponse> {
 
     const options = {
       timeout: DEFAULT_SEARCH_TIMEOUT,
-      killSignal: 'SIGTERM' as const
+      killSignal: 'SIGTERM' as const,
+      maxBuffer: DEFAULT_MAX_BUFFER
     };
 
     execFile(SYMBOL_SEARCHER_PATH, ['list-languages'], options, (error, stdout) => {
@@ -147,7 +150,8 @@ export async function searchSymbols(
 
     const execOptions = {
       timeout,
-      killSignal: 'SIGTERM' as const
+      killSignal: 'SIGTERM' as const,
+      maxBuffer: DEFAULT_MAX_BUFFER
     };
 
     logger.debug('Searching symbols:', { directory, language, maxSymbols });

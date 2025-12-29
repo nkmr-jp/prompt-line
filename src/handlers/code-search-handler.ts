@@ -100,19 +100,86 @@ class CodeSearchHandler {
   }
 
   /**
+   * Filter symbols by query (name or lineContent match)
+   * Performs case-insensitive matching with relevance sorting
+   */
+  private filterSymbolsByQuery(
+    symbols: import('../managers/symbol-search/types').SymbolResult[],
+    query: string,
+    symbolTypeFilter?: string | null,
+    maxResults: number = 50
+  ): import('../managers/symbol-search/types').SymbolResult[] {
+    let filtered = symbols;
+
+    // Filter by symbol type first (e.g., @go:func: → only functions)
+    if (symbolTypeFilter) {
+      // Map display names to internal types
+      const typeMap: Record<string, string> = {
+        'func': 'function',
+        'method': 'method',
+        'class': 'class',
+        'struct': 'struct',
+        'interface': 'interface',
+        'type': 'type',
+        'const': 'constant',
+        'var': 'variable',
+        'enum': 'enum',
+        'trait': 'trait',
+        'module': 'module',
+        'namespace': 'namespace'
+      };
+      const targetType = typeMap[symbolTypeFilter.toLowerCase()];
+      if (targetType) {
+        filtered = filtered.filter(s => s.type === targetType);
+      }
+    }
+
+    // Filter by query
+    if (query) {
+      const lowerQuery = query.toLowerCase();
+      filtered = filtered.filter(s =>
+        s.name.toLowerCase().includes(lowerQuery) ||
+        s.lineContent.toLowerCase().includes(lowerQuery)
+      );
+
+      // Sort by relevance (symbols starting with query first, then alphabetical)
+      filtered.sort((a, b) => {
+        const aName = a.name.toLowerCase();
+        const bName = b.name.toLowerCase();
+        const aStarts = aName.startsWith(lowerQuery);
+        const bStarts = bName.startsWith(lowerQuery);
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
+        return aName.localeCompare(bName);
+      });
+    }
+
+    // Return limited results
+    return filtered.slice(0, maxResults);
+  }
+
+  /**
    * Handle search-symbols request
    */
   private async handleSearchSymbols(
     _event: IpcMainInvokeEvent,
     directory: string,
     language: string,
-    options?: { maxSymbols?: number; useCache?: boolean; refreshCache?: boolean }
+    options?: {
+      maxSymbols?: number;
+      useCache?: boolean;
+      refreshCache?: boolean;
+      query?: string;
+      symbolTypeFilter?: string | null;
+      maxResults?: number;
+    }
   ): Promise<SymbolSearchResponse> {
     logger.debug('Handling search-symbols request', { directory, language, options });
 
     // Get settings-based defaults
     const settingsOptions = this.getSymbolSearchOptions();
     const effectiveMaxSymbols = options?.maxSymbols ?? settingsOptions.maxSymbols;
+    const maxResults = options?.maxResults ?? 50;
 
     // Validate inputs
     if (!directory || typeof directory !== 'string') {
@@ -146,14 +213,26 @@ class CodeSearchHandler {
       if (hasLanguage) {
         const cachedSymbols = await symbolCacheManager.loadSymbols(directory, language);
         if (cachedSymbols.length > 0) {
-          // Apply maxSymbols limit to cached results
-          const limitedSymbols = cachedSymbols.slice(0, effectiveMaxSymbols);
-          const wasLimited = cachedSymbols.length > effectiveMaxSymbols;
+          // Apply query filtering if provided (Main process filtering for performance)
+          const filteredSymbols = options?.query !== undefined
+            ? this.filterSymbolsByQuery(
+                cachedSymbols,
+                options.query,
+                options.symbolTypeFilter,
+                maxResults
+              )
+            : cachedSymbols.slice(0, effectiveMaxSymbols);
+
+          const wasLimited = options?.query !== undefined
+            ? false // Query filtering already limits results
+            : cachedSymbols.length > effectiveMaxSymbols;
 
           logger.debug('Returning cached symbols (stale-while-revalidate)', {
             cachedCount: cachedSymbols.length,
-            returnedCount: limitedSymbols.length,
+            returnedCount: filteredSymbols.length,
+            query: options?.query,
             maxSymbols: effectiveMaxSymbols,
+            maxResults,
             wasLimited
           });
 
@@ -170,8 +249,8 @@ class CodeSearchHandler {
             success: true,
             directory,
             language,
-            symbols: limitedSymbols,
-            symbolCount: limitedSymbols.length,
+            symbols: filteredSymbols,
+            symbolCount: filteredSymbols.length,
             searchMode: 'cached',
             partial: wasLimited,
             maxSymbols: effectiveMaxSymbols

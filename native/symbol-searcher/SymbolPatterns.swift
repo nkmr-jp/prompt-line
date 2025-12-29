@@ -9,7 +9,13 @@ let LANGUAGE_PATTERNS: [String: LanguageConfig] = [
         displayName: "Go",
         rgType: "go",
         patterns: [
+            // Generic function: func Name[T any](...) or func Name[T any, R comparable](...)
+            SymbolPattern(type: .function, regex: "^func\\s+(\\w+)\\s*\\[[^\\]]+\\]\\s*\\(", captureGroup: 1),
+            // Regular function: func Name(...)
             SymbolPattern(type: .function, regex: "^func\\s+(\\w+)\\s*\\(", captureGroup: 1),
+            // Generic method: func (r *Receiver) Name[T any](...)
+            SymbolPattern(type: .method, regex: "^func\\s*\\([^)]+\\)\\s+(\\w+)\\s*\\[[^\\]]+\\]\\s*\\(", captureGroup: 1),
+            // Regular method: func (r *Receiver) Name(...)
             SymbolPattern(type: .method, regex: "^func\\s*\\([^)]+\\)\\s+(\\w+)\\s*\\(", captureGroup: 1),
             SymbolPattern(type: .structDecl, regex: "^type\\s+(\\w+)\\s+struct", captureGroup: 1),
             SymbolPattern(type: .interface, regex: "^type\\s+(\\w+)\\s+interface", captureGroup: 1),
@@ -29,10 +35,19 @@ let LANGUAGE_PATTERNS: [String: LanguageConfig] = [
             SymbolPattern(type: .typeAlias, regex: "^type\\s+(\\w+)\\s+[a-z]\\w*\\.", captureGroup: 1),
             SymbolPattern(type: .constant, regex: "^const\\s+(\\w+)\\s*=", captureGroup: 1),
             // Constants inside const ( ... ) block with type: `Name Type = value`
-            SymbolPattern(type: .constant, regex: "^\\s+(\\w+)\\s+\\w+\\s*=\\s*[\"']", captureGroup: 1),
-            // Constants inside const ( ... ) block without type: `Name = value`
-            SymbolPattern(type: .constant, regex: "^\\s+(\\w+)\\s*=\\s*(?:iota|\\d)", captureGroup: 1),
+            // Use negative lookbehind (?<![!:<>=]) to exclude :=, !=, ==, <=, >= (comparison/assignment operators)
+            SymbolPattern(type: .constant, regex: "^(?:\\t|    )(\\w+)\\s+\\w+\\s*(?<![!:<>=])=", captureGroup: 1),
+            // Constants inside const ( ... ) block without type: `Name = literal` (only iota, numbers, strings, true/false/nil, must end line)
+            SymbolPattern(type: .constant, regex: "^(?:\\t|    )(\\w+)\\s*=\\s*(?:iota|-?\\d[\\d_.]*|\"[^\"]*\"|`[^`]*`|'[^']*'|true|false|nil)\\s*(?://.*)?$", captureGroup: 1),
+            // Constants inside const ( ... ) block: iota continuation (name only, e.g., `StatusOK`)
+            SymbolPattern(type: .constant, regex: "^(?:\\t|    )([A-Z]\\w*)\\s*$", captureGroup: 1),
             SymbolPattern(type: .variable, regex: "^var\\s+(\\w+)\\s+", captureGroup: 1),
+            // Variables inside var ( ... ) block with exported type (e.g., TmpDir string, client *bigquery.Client)
+            // Use negative lookahead to exclude Go keywords
+            SymbolPattern(type: .variable, regex: "^(?:\\t|    )(?!(?:if|for|switch|select|case|default|return|break|continue|goto|fallthrough|defer|go|var|const|type|func)\\s)(\\w+)\\s+\\*?(?:\\[\\])?(?:map\\[.+\\])?(?:chan\\s+)?(?:\\w+\\.)?[A-Z]\\w*\\s*$", captureGroup: 1),
+            // Variables inside var ( ... ) block with basic type (e.g., name string, count int)
+            // Use negative lookahead to exclude Go keywords
+            SymbolPattern(type: .variable, regex: "^(?:\\t|    )(?!(?:if|for|switch|select|case|default|return|break|continue|goto|fallthrough|defer|go|var|const|type|func)\\s)(\\w+)\\s+(string|bool|byte|rune|error|any|int\\d*|uint\\d*|float\\d*|complex\\d*|uintptr)\\s*$", captureGroup: 1),
         ]
     ),
     "ts": LanguageConfig(
@@ -311,6 +326,31 @@ let LANGUAGE_PATTERNS: [String: LanguageConfig] = [
             SymbolPattern(type: .heading, regex: "^#{1,6}\\s+(.+?)(?:\\s+#+)?$", captureGroup: 1),
         ]
     ),
+]
+
+// MARK: - Go Block Search Configuration
+
+/// Block search configurations for Go language
+/// Used for detecting symbols inside var ( ... ) and const ( ... ) blocks
+let GO_BLOCK_CONFIGS: [BlockSearchConfig] = [
+    // var ( ... ) block - detects variables with type annotation
+    // Pattern: matches from "var (" to line-start ")" (handles interface{} correctly)
+    // Use negative lookahead to exclude Go keywords (if, for, switch, var, const, type, func, etc.)
+    BlockSearchConfig(
+        symbolType: .variable,
+        blockPattern: "var \\([\\s\\S]*?^\\)",
+        symbolNameRegex: "^\\s+(?!(?:if|for|switch|select|case|default|return|break|continue|goto|fallthrough|defer|go|var|const|type|func)\\s)([a-zA-Z_]\\w*)\\s+\\S",
+        indentFilter: .singleLevel
+    ),
+    // const ( ... ) block - detects constants with = or type annotation
+    // Use negative lookahead to exclude Go keywords (if, for, switch, var, const, type, func, etc.)
+    // Use negative lookbehind (?<![!:<>=]) to exclude :=, !=, ==, <=, >= (comparison/assignment operators)
+    BlockSearchConfig(
+        symbolType: .constant,
+        blockPattern: "const \\([\\s\\S]*?^\\)",
+        symbolNameRegex: "^\\s+(?!(?:if|for|switch|select|case|default|return|break|continue|goto|fallthrough|defer|go|var|const|type|func)\\s)([a-zA-Z_]\\w*)\\s*((?<![!:<>=])=|\\s+\\w+\\s*(?<![!:<>=])=)",
+        indentFilter: .singleLevel
+    )
 ]
 
 /// Get all supported language keys

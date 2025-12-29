@@ -109,8 +109,14 @@ export class ShortcutHandler {
       return true;
     }
 
-    // Handle Cmd+, for opening settings
-    if (e.key === ',' && e.metaKey) {
+    // Handle Shift+Cmd+, for opening settings directory
+    if (e.key === ',' && e.metaKey && e.shiftKey) {
+      await this.handleSettingsDirectoryShortcut(e);
+      return true;
+    }
+
+    // Handle Cmd+, for opening settings file
+    if (e.key === ',' && e.metaKey && !e.shiftKey) {
       await this.handleSettingsShortcut(e);
       return true;
     }
@@ -252,6 +258,17 @@ export class ShortcutHandler {
       rendererLogger.info('Settings file opened');
     } catch (error) {
       rendererLogger.error('Failed to open settings:', error);
+    }
+  }
+
+  private async handleSettingsDirectoryShortcut(e: KeyboardEvent): Promise<void> {
+    e.preventDefault();
+
+    try {
+      await electronAPI.invoke('open-settings-directory');
+      rendererLogger.info('Settings directory opened');
+    } catch (error) {
+      rendererLogger.error('Failed to open settings directory:', error);
     }
   }
 
