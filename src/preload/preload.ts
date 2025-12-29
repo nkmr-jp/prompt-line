@@ -45,6 +45,7 @@ const ALLOWED_CHANNELS = [
   'get-slash-command-file-path',
   'directory-data-updated',
   'open-settings',
+  'open-settings-directory',
   'get-agents',
   'get-agent-file-path',
   'get-md-search-max-suggestions',
