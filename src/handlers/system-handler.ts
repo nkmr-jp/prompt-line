@@ -1,3 +1,4 @@
+import path from 'path';
 import { IpcMainInvokeEvent, shell } from 'electron';
 import config from '../config/app-config';
 import { logger } from '../utils/utils';
@@ -130,12 +131,13 @@ class SystemHandler {
   private async handleOpenSettings(_event: IpcMainInvokeEvent): Promise<IPCResult> {
     try {
       const settingsFilePath = this.settingsManager.getSettingsFilePath();
-      logger.info('Opening settings file:', settingsFilePath);
+      const settingsDir = path.dirname(settingsFilePath);
+      logger.info('Opening settings directory:', settingsDir);
 
-      await shell.openPath(settingsFilePath);
+      await shell.openPath(settingsDir);
       return { success: true };
     } catch (error) {
-      logger.error('Failed to open settings file:', error);
+      logger.error('Failed to open settings directory:', error);
       return { success: false, error: (error as Error).message };
     }
   }
