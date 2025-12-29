@@ -37,6 +37,8 @@ let LANGUAGE_PATTERNS: [String: LanguageConfig] = [
             // Constants inside const ( ... ) block without type, starting with string literal: `Name = "..."` (1 tab or 1-4 spaces, no function calls)
             SymbolPattern(type: .constant, regex: "^(?:\\t| {1,4})(\\w+)\\s*=\\s*[\"'`][^(]*$", captureGroup: 1),
             SymbolPattern(type: .variable, regex: "^var\\s+(\\w+)\\s+", captureGroup: 1),
+            // Variables inside var ( ... ) block: `Name Type` (1 tab or 1-4 spaces, type starts with letter)
+            SymbolPattern(type: .variable, regex: "^(?:\\t| {1,4})(\\w+)\\s+[a-zA-Z*\\[]", captureGroup: 1),
         ]
     ),
     "ts": LanguageConfig(
