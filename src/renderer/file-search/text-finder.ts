@@ -199,10 +199,10 @@ export function findAllUrls(text: string): UrlMatch[] {
 export function findAllAbsolutePaths(text: string): PathMatch[] {
   const results: PathMatch[] = [];
   // - Relative paths: ./path, ../path (ASCII path characters only)
-  // - Absolute paths: multi-level /path/to/file, ~/path (first segment must start with ASCII alphanumeric)
+  // - Absolute paths: multi-level /path/to/file, ~/path (first segment can start with dot for hidden dirs)
   // Excludes single-level paths like /commit (slash commands)
   // Path must end with alphanumeric, dot, underscore, or closing paren/bracket
-  const absolutePathPattern = /(?:\.{1,2}\/[a-zA-Z0-9_./-]+|\/(?:[a-zA-Z0-9_.][^\s"'<>|*?\n/]*\/)+[^\s"'<>|*?\n]*[a-zA-Z0-9_.)}\]:]|~\/[a-zA-Z0-9_][^\s"'<>|*?\n]*[a-zA-Z0-9_.)}\]:])/g;
+  const absolutePathPattern = /(?:\.{1,2}\/[a-zA-Z0-9_./-]+|\/(?:[a-zA-Z0-9_.][^\s"'<>|*?\n/]*\/)+[^\s"'<>|*?\n]*[a-zA-Z0-9_.)}\]:]|~\/[a-zA-Z0-9_.][^\s"'<>|*?\n]*[a-zA-Z0-9_.)}\]:])/g;
   let match;
 
   while ((match = absolutePathPattern.exec(text)) !== null) {
@@ -247,6 +247,9 @@ export function resolveAtPathToAbsolute(
     absolutePath = cleanPath;
   } else if (cleanPath.startsWith('/')) {
     // Already an absolute path
+    absolutePath = cleanPath;
+  } else if (cleanPath.startsWith('~')) {
+    // Home directory path - pass through as-is (will be expanded by main process)
     absolutePath = cleanPath;
   } else {
     // Combine with base directory and normalize (handles ../ etc.)
