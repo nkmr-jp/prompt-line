@@ -35,7 +35,8 @@ let LANGUAGE_PATTERNS: [String: LanguageConfig] = [
             SymbolPattern(type: .typeAlias, regex: "^type\\s+(\\w+)\\s+[a-z]\\w*\\.", captureGroup: 1),
             SymbolPattern(type: .constant, regex: "^const\\s+(\\w+)\\s*=", captureGroup: 1),
             // Constants inside const ( ... ) block with type: `Name Type = value`
-            SymbolPattern(type: .constant, regex: "^(?:\\t|    )(\\w+)\\s+\\w+\\s*=", captureGroup: 1),
+            // Use negative lookbehind (?<!:) to exclude := (short variable declaration)
+            SymbolPattern(type: .constant, regex: "^(?:\\t|    )(\\w+)\\s+\\w+\\s*(?<!:)=", captureGroup: 1),
             // Constants inside const ( ... ) block without type: `Name = literal` (only iota, numbers, strings, true/false/nil, must end line)
             SymbolPattern(type: .constant, regex: "^(?:\\t|    )(\\w+)\\s*=\\s*(?:iota|-?\\d[\\d_.]*|\"[^\"]*\"|`[^`]*`|'[^']*'|true|false|nil)\\s*(?://.*)?$", captureGroup: 1),
             // Constants inside const ( ... ) block: iota continuation (name only, e.g., `StatusOK`)
@@ -339,10 +340,11 @@ let GO_BLOCK_CONFIGS: [BlockSearchConfig] = [
         indentFilter: .singleLevel
     ),
     // const ( ... ) block - detects constants with = or type annotation
+    // Use negative lookbehind (?<!:) to exclude := (short variable declaration)
     BlockSearchConfig(
         symbolType: .constant,
         blockPattern: "const \\([\\s\\S]*?^\\)",
-        symbolNameRegex: "^\\s+([a-zA-Z_]\\w*)\\s*(=|\\s+\\w+\\s*=)",
+        symbolNameRegex: "^\\s+([a-zA-Z_]\\w*)\\s*((?<!:)=|\\s+\\w+\\s*(?<!:)=)",
         indentFilter: .singleLevel
     )
 ]
