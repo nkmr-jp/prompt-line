@@ -319,6 +319,28 @@ let LANGUAGE_PATTERNS: [String: LanguageConfig] = [
     ),
 ]
 
+// MARK: - Go Block Search Configuration
+
+/// Block search configurations for Go language
+/// Used for detecting symbols inside var ( ... ) and const ( ... ) blocks
+let GO_BLOCK_CONFIGS: [BlockSearchConfig] = [
+    // var ( ... ) block - detects variables with type annotation
+    // Pattern: matches from "var (" to line-start ")" (handles interface{} correctly)
+    BlockSearchConfig(
+        symbolType: .variable,
+        blockPattern: "var \\([\\s\\S]*?^\\)",
+        symbolNameRegex: "^\\s+([a-zA-Z_]\\w*)\\s+\\S",
+        indentFilter: .singleLevel
+    ),
+    // const ( ... ) block - detects constants with = or type annotation
+    BlockSearchConfig(
+        symbolType: .constant,
+        blockPattern: "const \\([\\s\\S]*?^\\)",
+        symbolNameRegex: "^\\s+([a-zA-Z_]\\w*)\\s*(=|\\s+\\w+\\s*=)",
+        indentFilter: .singleLevel
+    )
+]
+
 /// Get all supported language keys
 func getSupportedLanguages() -> [LanguageInfo] {
     return LANGUAGE_PATTERNS.map { key, config in

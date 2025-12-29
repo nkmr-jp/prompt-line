@@ -41,6 +41,23 @@ struct SymbolPattern {
     let captureGroup: Int
 }
 
+// MARK: - Block Search Configuration
+
+/// Indentation filter to exclude function-local blocks
+enum IndentFilter {
+    case singleLevel    // タブ1個 or スペース2-4個（トップレベル）
+    case any            // フィルタなし
+}
+
+/// Configuration for block-based symbol detection (secure version)
+/// Used for detecting symbols within var/const blocks in Go
+struct BlockSearchConfig {
+    let symbolType: SymbolType
+    let blockPattern: String          // rg multiline pattern (no shell escape needed)
+    let symbolNameRegex: String       // Regex to extract symbol name from line
+    let indentFilter: IndentFilter    // Filter for indentation level
+}
+
 // MARK: - Search Results
 
 /// A single symbol search result

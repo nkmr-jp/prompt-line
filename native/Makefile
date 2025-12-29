@@ -31,6 +31,7 @@ SYMBOL_SEARCHER_SOURCES = \
 	symbol-searcher/Types.swift \
 	symbol-searcher/SymbolPatterns.swift \
 	symbol-searcher/RipgrepExecutor.swift \
+	symbol-searcher/CacheManager.swift \
 	symbol-searcher/main.swift
 
 TARGETS = $(OUTPUT_DIR)/window-detector $(OUTPUT_DIR)/keyboard-simulator $(OUTPUT_DIR)/text-field-detector $(OUTPUT_DIR)/directory-detector $(OUTPUT_DIR)/file-searcher $(OUTPUT_DIR)/symbol-searcher
