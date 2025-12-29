@@ -258,11 +258,13 @@ export function findAllUrls(text: string): UrlMatch[] {
  */
 export function findAllAbsolutePaths(text: string): PathMatch[] {
   const results: PathMatch[] = [];
-  // - Relative paths: ./path, ../path (ASCII path characters only)
-  // - Absolute paths: multi-level /path/to/file, ~/path (first segment can start with dot for hidden dirs)
+  // Uses common path pattern constants for consistency
   // Excludes single-level paths like /commit (slash commands)
-  // Path must end with alphanumeric, dot, underscore, or closing paren/bracket
-  const absolutePathPattern = /(?:\.{1,2}\/[a-zA-Z0-9_./-]+|\/(?:[a-zA-Z0-9_.][^\s"'<>|*?\n/]*\/)+[^\s"'<>|*?\n]*[a-zA-Z0-9_.)}\]:]|~\/[a-zA-Z0-9_.][^\s"'<>|*?\n]*[a-zA-Z0-9_.)}\]:])/g;
+  // Path must end with valid ending characters (alphanumeric, dot, underscore, closing brackets)
+  const absolutePathPattern = new RegExp(
+    `(?:${RELATIVE_PATH_PATTERN}|${MULTI_LEVEL_ABSOLUTE_PATH_PATTERN}${PATH_END_CHAR}|${TILDE_PATH_PATTERN}${PATH_END_CHAR})`,
+    'g'
+  );
   let match;
 
   while ((match = absolutePathPattern.exec(text)) !== null) {
