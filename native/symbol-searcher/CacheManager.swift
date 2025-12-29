@@ -7,8 +7,8 @@ class CacheManager {
 
     // MARK: - Constants
 
-    /// Cache directory name (hidden, stored in project root)
-    private static let CACHE_DIR_NAME = ".symbol-cache"
+    /// Base cache directory under ~/.prompt-line/
+    private static let CACHE_BASE_DIR = ".prompt-line/cache/projects"
 
     /// Cache metadata filename
     private static let METADATA_FILE = "metadata.json"
@@ -52,9 +52,19 @@ class CacheManager {
 
     // MARK: - Path Utilities
 
+    /// Encode directory path to be filesystem-safe
+    /// Converts "/Users/nkmr/project" to "-Users-nkmr-project"
+    private static func encodeDirectoryPath(_ directory: String) -> String {
+        return directory.replacingOccurrences(of: "/", with: "-")
+    }
+
     /// Get cache directory path for a project directory
+    /// Cache is stored in ~/.prompt-line/cache/projects/<encoded-path>/
     static func getCacheDir(for directory: String) -> String {
-        return (directory as NSString).appendingPathComponent(CACHE_DIR_NAME)
+        let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
+        let encodedPath = encodeDirectoryPath(directory)
+        let basePath = (homeDir as NSString).appendingPathComponent(CACHE_BASE_DIR)
+        return (basePath as NSString).appendingPathComponent(encodedPath)
     }
 
     /// Get metadata file path
