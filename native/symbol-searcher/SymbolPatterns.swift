@@ -28,14 +28,14 @@ let LANGUAGE_PATTERNS: [String: LanguageConfig] = [
             // Type aliases: package types (e.g., type Handler http.Handler, type Time time.Time)
             SymbolPattern(type: .typeAlias, regex: "^type\\s+(\\w+)\\s+[a-z]\\w*\\.", captureGroup: 1),
             SymbolPattern(type: .constant, regex: "^const\\s+(\\w+)\\s*=", captureGroup: 1),
-            // Constants inside const ( ... ) block with type and string literal: `Name Type = "value"` (single tab indent)
-            SymbolPattern(type: .constant, regex: "^\\t(\\w+)\\s+\\w+\\s*=\\s*[\"']", captureGroup: 1),
-            // Constants inside const ( ... ) block with type and numeric value: `Name Type = 123` (single tab indent)
-            SymbolPattern(type: .constant, regex: "^\\t(\\w+)\\s+\\w+\\s*=\\s*\\d", captureGroup: 1),
-            // Constants inside const ( ... ) block without type: `Name = iota` or `Name = 123` (single tab indent)
-            SymbolPattern(type: .constant, regex: "^\\t(\\w+)\\s*=\\s*(?:iota|\\d)", captureGroup: 1),
-            // Constants inside const ( ... ) block without type, starting with string literal: `Name = "..."` (single tab, no function calls)
-            SymbolPattern(type: .constant, regex: "^\\t(\\w+)\\s*=\\s*[\"'`][^(]*$", captureGroup: 1),
+            // Constants inside const ( ... ) block with type and string literal: `Name Type = "value"` (1 tab or 1-4 spaces)
+            SymbolPattern(type: .constant, regex: "^(?:\\t| {1,4})(\\w+)\\s+\\w+\\s*=\\s*[\"']", captureGroup: 1),
+            // Constants inside const ( ... ) block with type and numeric value: `Name Type = 123` (1 tab or 1-4 spaces)
+            SymbolPattern(type: .constant, regex: "^(?:\\t| {1,4})(\\w+)\\s+\\w+\\s*=\\s*\\d", captureGroup: 1),
+            // Constants inside const ( ... ) block without type: `Name = iota` or `Name = 123` (1 tab or 1-4 spaces)
+            SymbolPattern(type: .constant, regex: "^(?:\\t| {1,4})(\\w+)\\s*=\\s*(?:iota|\\d)", captureGroup: 1),
+            // Constants inside const ( ... ) block without type, starting with string literal: `Name = "..."` (1 tab or 1-4 spaces, no function calls)
+            SymbolPattern(type: .constant, regex: "^(?:\\t| {1,4})(\\w+)\\s*=\\s*[\"'`][^(]*$", captureGroup: 1),
             SymbolPattern(type: .variable, regex: "^var\\s+(\\w+)\\s+", captureGroup: 1),
         ]
     ),
