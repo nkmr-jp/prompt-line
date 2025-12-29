@@ -349,6 +349,7 @@ Native tool for code symbol search across 20+ programming languages using ripgre
 - `symbol-searcher/Types.swift` - Type definitions for symbols and languages
 - `symbol-searcher/SymbolPatterns.swift` - Language-specific regex patterns for symbol detection
 - `symbol-searcher/RipgrepExecutor.swift` - ripgrep command execution and result parsing
+- `symbol-searcher/CacheManager.swift` - Symbol cache management for fast searches
 
 **Core Functionality:**
 ```swift
@@ -385,14 +386,33 @@ class SymbolSearcher {
 
 **Command-Line Interface:**
 ```bash
+# Basic Commands
 symbol-searcher check-rg                           # Check if ripgrep is available
 symbol-searcher list-languages                     # List all supported languages
 symbol-searcher search <directory> --language <lang> [options]  # Search symbols
 
-# Options:
+# Cache Commands
+symbol-searcher build-cache <directory> --language <lang> [options]  # Build symbol cache
+symbol-searcher cache-info <directory> [--language <lang>]           # Show cache information
+symbol-searcher clear-cache <directory> (--language <lang> | --all)  # Clear cache
+
+# Search Options:
+#   --language, -l <lang>  Language to search (e.g., go, ts, py, rs)
 #   --max-symbols <n>      Maximum symbols to return (default: 20000)
-#   --include-hidden       Include hidden files in search
+#   --no-cache             Skip cache and perform full search
+
+# Cache Options:
+#   --language, -l <lang>  Language for cache operation
+#   --ttl <seconds>        Cache TTL in seconds (default: 86400 = 24 hours)
+#   --all                  Clear all language caches for a directory
 ```
+
+**Cache Storage:**
+- Cache is stored in `~/.prompt-line/cache/projects/<encoded-path>/`
+- Path encoding: `/Users/nkmr/project` → `-Users-nkmr-project`
+- Files per language:
+  - `<lang>-metadata.json` - Cache metadata (TTL, symbol count, timestamps)
+  - `symbols-<lang>.jsonl` - Symbol data in JSONL format
 
 **JSON Response Format:**
 ```json
@@ -436,6 +456,63 @@ symbol-searcher search <directory> --language <lang> [options]  # Search symbols
 
 **Dependencies:**
 - Requires `ripgrep` (`rg`) command: `brew install ripgrep`
+
+**Manual Cache Building (CLI Indexing):**
+
+For large codebases, you can pre-build the symbol cache to speed up subsequent searches:
+
+```bash
+# Build cache for a specific language
+symbol-searcher build-cache /path/to/project -l go
+symbol-searcher build-cache /path/to/project -l ts
+
+# Build cache with custom TTL (1 hour = 3600 seconds)
+symbol-searcher build-cache /path/to/project -l go --ttl 3600
+
+# Build cache with limited symbols
+symbol-searcher build-cache /path/to/project -l go --max-symbols 10000
+
+# Check cache status
+symbol-searcher cache-info /path/to/project
+symbol-searcher cache-info /path/to/project -l go
+
+# Clear cache when needed
+symbol-searcher clear-cache /path/to/project -l go   # Clear specific language
+symbol-searcher clear-cache /path/to/project --all   # Clear all languages
+```
+
+**Benchmark Testing:**
+
+To measure symbol search performance on large codebases:
+
+```bash
+# Benchmark Setup
+cd native
+make install   # Build the tool
+
+# 1. Baseline measurement (no cache)
+time symbol-searcher search /path/to/large-project -l go --no-cache
+
+# 2. Build cache and measure time
+time symbol-searcher build-cache /path/to/large-project -l go
+
+# 3. Measure cached search performance
+time symbol-searcher search /path/to/large-project -l go
+```
+
+**Benchmark Results (Kubernetes - 16,549 Go files):**
+
+| Operation | Time | Notes |
+|-----------|------|-------|
+| Full search (no cache) | ~28-32 sec | With var/const block detection |
+| Cache build | ~11-22 sec | First-time indexing |
+| Cached search | **0.08 sec** | 126x improvement |
+
+**Performance Tuning Tips:**
+1. **Pre-build cache** for large repositories during development setup
+2. **Use `--max-symbols`** to limit results for faster searches
+3. **Adjust TTL** based on code change frequency (`--ttl 3600` for active development)
+4. **Clear cache** after major refactoring to ensure accurate results
 
 ## Architecture Integration
 
@@ -608,6 +685,14 @@ npm run compile  # Builds TypeScript + native tools + copies to dist/
 ../src/native-tools/symbol-searcher list-languages
 ../src/native-tools/symbol-searcher search /path/to/project --language go
 ../src/native-tools/symbol-searcher search /path/to/project --language ts --max-symbols 1000
+../src/native-tools/symbol-searcher search /path/to/project -l go --no-cache
+
+# Test symbol-searcher cache commands
+../src/native-tools/symbol-searcher build-cache /path/to/project -l go
+../src/native-tools/symbol-searcher cache-info /path/to/project
+../src/native-tools/symbol-searcher cache-info /path/to/project -l go
+../src/native-tools/symbol-searcher clear-cache /path/to/project -l go
+../src/native-tools/symbol-searcher clear-cache /path/to/project --all
 ```
 
 ### Debugging
