@@ -35,17 +35,19 @@ let LANGUAGE_PATTERNS: [String: LanguageConfig] = [
             SymbolPattern(type: .typeAlias, regex: "^type\\s+(\\w+)\\s+[a-z]\\w*\\.", captureGroup: 1),
             SymbolPattern(type: .constant, regex: "^const\\s+(\\w+)\\s*=", captureGroup: 1),
             // Constants inside const ( ... ) block with type: `Name Type = value`
-            // Use negative lookbehind (?<!:) to exclude := (short variable declaration)
-            SymbolPattern(type: .constant, regex: "^(?:\\t|    )(\\w+)\\s+\\w+\\s*(?<!:)=", captureGroup: 1),
+            // Use negative lookbehind (?<![!:<>=]) to exclude :=, !=, ==, <=, >= (comparison/assignment operators)
+            SymbolPattern(type: .constant, regex: "^(?:\\t|    )(\\w+)\\s+\\w+\\s*(?<![!:<>=])=", captureGroup: 1),
             // Constants inside const ( ... ) block without type: `Name = literal` (only iota, numbers, strings, true/false/nil, must end line)
             SymbolPattern(type: .constant, regex: "^(?:\\t|    )(\\w+)\\s*=\\s*(?:iota|-?\\d[\\d_.]*|\"[^\"]*\"|`[^`]*`|'[^']*'|true|false|nil)\\s*(?://.*)?$", captureGroup: 1),
             // Constants inside const ( ... ) block: iota continuation (name only, e.g., `StatusOK`)
             SymbolPattern(type: .constant, regex: "^(?:\\t|    )([A-Z]\\w*)\\s*$", captureGroup: 1),
             SymbolPattern(type: .variable, regex: "^var\\s+(\\w+)\\s+", captureGroup: 1),
             // Variables inside var ( ... ) block with exported type (e.g., TmpDir string, client *bigquery.Client)
-            SymbolPattern(type: .variable, regex: "^(?:\\t|    )(\\w+)\\s+\\*?(?:\\[\\])?(?:map\\[.+\\])?(?:chan\\s+)?(?:\\w+\\.)?[A-Z]\\w*\\s*$", captureGroup: 1),
+            // Use negative lookahead to exclude Go keywords
+            SymbolPattern(type: .variable, regex: "^(?:\\t|    )(?!(?:if|for|switch|select|case|default|return|break|continue|goto|fallthrough|defer|go|var|const|type|func)\\s)(\\w+)\\s+\\*?(?:\\[\\])?(?:map\\[.+\\])?(?:chan\\s+)?(?:\\w+\\.)?[A-Z]\\w*\\s*$", captureGroup: 1),
             // Variables inside var ( ... ) block with basic type (e.g., name string, count int)
-            SymbolPattern(type: .variable, regex: "^(?:\\t|    )(\\w+)\\s+(string|bool|byte|rune|error|any|int\\d*|uint\\d*|float\\d*|complex\\d*|uintptr)\\s*$", captureGroup: 1),
+            // Use negative lookahead to exclude Go keywords
+            SymbolPattern(type: .variable, regex: "^(?:\\t|    )(?!(?:if|for|switch|select|case|default|return|break|continue|goto|fallthrough|defer|go|var|const|type|func)\\s)(\\w+)\\s+(string|bool|byte|rune|error|any|int\\d*|uint\\d*|float\\d*|complex\\d*|uintptr)\\s*$", captureGroup: 1),
         ]
     ),
     "ts": LanguageConfig(
@@ -333,18 +335,20 @@ let LANGUAGE_PATTERNS: [String: LanguageConfig] = [
 let GO_BLOCK_CONFIGS: [BlockSearchConfig] = [
     // var ( ... ) block - detects variables with type annotation
     // Pattern: matches from "var (" to line-start ")" (handles interface{} correctly)
+    // Use negative lookahead to exclude Go keywords (if, for, switch, var, const, type, func, etc.)
     BlockSearchConfig(
         symbolType: .variable,
         blockPattern: "var \\([\\s\\S]*?^\\)",
-        symbolNameRegex: "^\\s+([a-zA-Z_]\\w*)\\s+\\S",
+        symbolNameRegex: "^\\s+(?!(?:if|for|switch|select|case|default|return|break|continue|goto|fallthrough|defer|go|var|const|type|func)\\s)([a-zA-Z_]\\w*)\\s+\\S",
         indentFilter: .singleLevel
     ),
     // const ( ... ) block - detects constants with = or type annotation
-    // Use negative lookbehind (?<!:) to exclude := (short variable declaration)
+    // Use negative lookahead to exclude Go keywords (if, for, switch, var, const, type, func, etc.)
+    // Use negative lookbehind (?<![!:<>=]) to exclude :=, !=, ==, <=, >= (comparison/assignment operators)
     BlockSearchConfig(
         symbolType: .constant,
         blockPattern: "const \\([\\s\\S]*?^\\)",
-        symbolNameRegex: "^\\s+([a-zA-Z_]\\w*)\\s*((?<!:)=|\\s+\\w+\\s*(?<!:)=)",
+        symbolNameRegex: "^\\s+(?!(?:if|for|switch|select|case|default|return|break|continue|goto|fallthrough|defer|go|var|const|type|func)\\s)([a-zA-Z_]\\w*)\\s*((?<![!:<>=])=|\\s+\\w+\\s*(?<![!:<>=])=)",
         indentFilter: .singleLevel
     )
 ]
