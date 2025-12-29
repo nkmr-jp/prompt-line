@@ -149,9 +149,9 @@ export function findClickablePathAtPosition(text: string, cursorPos: number): Pa
 
   // Then check file paths (relative and absolute)
   // - Relative paths: ./path, ../path (ASCII path characters only)
-  // - Absolute paths: multi-level /path/to/file, ~/path (first segment must start with ASCII alphanumeric)
+  // - Absolute paths: multi-level /path/to/file, ~/path (first segment can start with dot for hidden dirs)
   // Excludes single-level paths like /commit (slash commands)
-  const absolutePathPattern = /(?:\.{1,2}\/[a-zA-Z0-9_./-]+|\/(?:[a-zA-Z0-9_.][^\s"'<>|*?\n/]*\/)+[^\s"'<>|*?\n]*|~\/[a-zA-Z0-9_][^\s"'<>|*?\n]+)/g;
+  const absolutePathPattern = /(?:\.{1,2}\/[a-zA-Z0-9_./-]+|\/(?:[a-zA-Z0-9_.][^\s"'<>|*?\n/]*\/)+[^\s"'<>|*?\n]*|~\/[a-zA-Z0-9_.][^\s"'<>|*?\n]+)/g;
   while ((match = absolutePathPattern.exec(text)) !== null) {
     const start = match.index;
     const end = start + match[0].length;
