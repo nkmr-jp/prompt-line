@@ -92,7 +92,6 @@ class PasteHandler {
   private async executePasteOperation(previousApp: AppInfo | string | null): Promise<PasteResult> {
     if (previousApp && config.platform.isMac) {
       await activateAndPasteWithNativeTool(previousApp);
-      logger.info('Activate and paste operation completed successfully');
       return { success: true };
     }
 
@@ -102,7 +101,6 @@ class PasteHandler {
       if (focusSuccess) {
         await sleep(config.timing.appFocusDelay);
         await pasteWithNativeTool();
-        logger.info('Paste operation completed successfully');
         return { success: true };
       }
 

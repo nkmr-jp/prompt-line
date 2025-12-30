@@ -121,8 +121,6 @@ class FileHandler {
     filePath: string
   ): Promise<IPCResult> {
     try {
-      logger.info('Opening file in editor:', { filePath });
-
       // Validate input
       if (!filePath || typeof filePath !== 'string') {
         return { success: false, error: 'Invalid file path provided' };
@@ -216,7 +214,6 @@ class FileHandler {
       // Open URL with system default browser
       await shell.openExternal(url);
 
-      logger.info('URL opened successfully in browser:', { url });
       return { success: true };
     } catch (error) {
       logger.error('Failed to open external URL:', error);
