@@ -58,7 +58,7 @@ export interface FileSearchInitializerCallbacks {
   hideSuggestions: () => void;
   insertFilePath: (path: string) => void;
   insertFilePathWithoutAt: (path: string) => void;
-  exitSymbolMode: () => void;
+  exitSymbolMode: () => void | undefined;
   removeAtQueryText: () => void;
   expandCurrentFile: () => void;
   updateTextInputWithPath: (path: string) => void;

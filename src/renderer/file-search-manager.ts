@@ -135,7 +135,7 @@ export class FileSearchManager implements IInitializable {
       insertFilePath: (path: string) => this.insertFilePath(path),
       insertFilePathWithoutAt: (path: string) => this.insertFilePathWithoutAt(path),
       onFileSelected: (path: string) => this.callbacks.onFileSelected(path),
-      exitSymbolMode: () => this.exitSymbolMode(),
+      exitSymbolMode: () => this.codeSearchManager?.exitSymbolMode(),
       removeAtQueryText: () => this.removeAtQueryText(),
       openFileAndRestoreFocus: async (filePath: string) => {
         await this.fileOpenerManager?.openFile(filePath);
@@ -149,7 +149,7 @@ export class FileSearchManager implements IInitializable {
       updateSuggestionList: (suggestions: SuggestionItem[], showPath: boolean, selectedIndex: number) =>
         this.suggestionUIManager?.update(suggestions, showPath, selectedIndex),
       showTooltipForSelectedItem: () => this.popupManager.showTooltipForSelectedItem(),
-      showSymbolSuggestions: (query: string) => this.showSymbolSuggestions(query),
+      showSymbolSuggestions: async (query: string) => await this.codeSearchManager?.showSymbolSuggestions(query),
       // Item selection helpers
       getTextInput: () => this.state.textInput,
       getAtStartPosition: () => this.state.atStartPosition,
@@ -337,7 +337,7 @@ export class FileSearchManager implements IInitializable {
         hideSuggestions: () => this.hideSuggestions(),
         insertFilePath: (path: string) => this.insertFilePath(path),
         insertFilePathWithoutAt: (path: string) => this.insertFilePathWithoutAt(path),
-        exitSymbolMode: () => this.exitSymbolMode(),
+        exitSymbolMode: () => this.codeSearchManager?.exitSymbolMode(),
         removeAtQueryText: () => this.removeAtQueryText(),
         expandCurrentFile: () => this.expandCurrentFile(),
         updateTextInputWithPath: (path: string) => this.updateTextInputWithPath(path),
@@ -625,7 +625,7 @@ export class FileSearchManager implements IInitializable {
 
     // Execute code search if language is supported
     if (rgAvailable && supportedLanguages.has(language)) {
-      this.executeCodeSearch(language, symbolQuery, symbolTypeFilter, startPos);
+      void this.executeCodeSearch(language, symbolQuery, symbolTypeFilter, startPos);
       return true;
     }
 
@@ -650,12 +650,12 @@ export class FileSearchManager implements IInitializable {
   /**
    * Execute code search with symbol query
    */
-  private executeCodeSearch(
+  private async executeCodeSearch(
     language: string,
     symbolQuery: string,
     symbolTypeFilter: string | null,
     startPos: number
-  ): void {
+  ): Promise<void> {
     this.state.atStartPosition = startPos;
     this.state.codeSearchQuery = symbolQuery;
 
@@ -664,7 +664,7 @@ export class FileSearchManager implements IInitializable {
     this.state.codeSearchCacheRefreshed = shouldRefresh || this.state.codeSearchCacheRefreshed;
 
     this.hideUIContainer();
-    this.searchSymbols(language, symbolQuery, symbolTypeFilter, shouldRefresh);
+    await this.codeSearchManager?.searchSymbolsWithUI(language, symbolQuery, symbolTypeFilter, shouldRefresh);
   }
 
   /**
@@ -697,16 +697,8 @@ export class FileSearchManager implements IInitializable {
   }
 
   /**
-   * Search for symbols using ripgrep
-   * Delegates to CodeSearchManager
-   */
-  private async searchSymbols(language: string, query: string, symbolTypeFilter: string | null = null, refreshCache: boolean = false): Promise<void> {
-    await this.codeSearchManager?.searchSymbolsWithUI(language, query, symbolTypeFilter, refreshCache);
-  }
-
-  /**
    * Show file suggestions based on the query
-   * Delegates to SuggestionUIManager for state management
+   * Delegates to CodeSearchManager for symbol mode, SuggestionUIManager for file mode
    */
   public async showSuggestions(query: string): Promise<void> {
     console.debug('[FileSearchManager] showSuggestions called', formatLog({
@@ -722,15 +714,11 @@ export class FileSearchManager implements IInitializable {
       return;
     }
 
-    // If in symbol mode, show filtered symbols instead of files
-    if (this.isInSymbolMode) {
-      this.state.currentQuery = query;
-      await this.showSymbolSuggestions(query);
-      return;
-    }
-
-    // Delegate to SuggestionStateManager
-    await this.suggestionUIManager?.showSuggestions(query);
+    // Delegate to CodeSearchManager for symbol mode handling
+    await this.codeSearchManager?.handleShowSuggestions(query, async () => {
+      // Fallback to file suggestions if not in symbol mode
+      await this.suggestionUIManager?.showSuggestions(query);
+    });
   }
 
   /**
@@ -828,11 +816,10 @@ export class FileSearchManager implements IInitializable {
 
   /**
    * Reset symbol mode state
+   * Delegates to CodeSearchManager
    */
   private resetSymbolModeState(): void {
-    this.isInSymbolMode = false;
-    this.currentFilePath = '';
-    this.currentFileSymbols = [];
+    this.codeSearchManager?.resetSymbolModeState();
   }
 
   /**
@@ -969,21 +956,6 @@ export class FileSearchManager implements IInitializable {
     return this.codeSearchManager?.getLanguageForFile(filename) || null;
   }
 
-  /**
-   * Show symbol suggestions for the current file
-   * Delegates to CodeSearchManager
-   */
-  private async showSymbolSuggestions(query: string): Promise<void> {
-    await this.codeSearchManager?.showSymbolSuggestions(query);
-  }
-
-  /**
-   * Exit symbol mode and return to file list
-   * Delegates to CodeSearchManager
-   */
-  private exitSymbolMode(): void {
-    this.codeSearchManager?.exitSymbolMode();
-  }
 
   /**
    * Insert file path, keeping the @ and replacing only the query part

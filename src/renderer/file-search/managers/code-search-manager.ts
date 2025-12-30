@@ -492,6 +492,31 @@ export class CodeSearchManager {
   }
 
   /**
+   * Handle show suggestions - checks if in symbol mode and delegates appropriately
+   * @param query - The query string
+   * @param fallbackHandler - Function to call if not in symbol mode
+   * @returns true if handled by symbol mode, false otherwise
+   */
+  public async handleShowSuggestions(query: string, fallbackHandler: () => Promise<void>): Promise<boolean> {
+    if (this.isInSymbolMode) {
+      this.callbacks.setCurrentQuery?.(query);
+      await this.showSymbolSuggestions(query);
+      return true;
+    }
+    await fallbackHandler();
+    return false;
+  }
+
+  /**
+   * Reset symbol mode state
+   */
+  public resetSymbolModeState(): void {
+    this.isInSymbolMode = false;
+    this.currentFilePath = '';
+    this.currentFileSymbols = [];
+  }
+
+  /**
    * Clear code search state
    */
   public clearCodeSearchState(): void {
