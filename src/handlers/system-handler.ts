@@ -45,8 +45,6 @@ class SystemHandler {
     ipcMain.handle('open-settings', this.handleOpenSettings.bind(this));
     ipcMain.handle('open-settings-directory', this.handleOpenSettingsDirectory.bind(this));
     ipcMain.handle('get-file-search-max-suggestions', this.handleGetFileSearchMaxSuggestions.bind(this));
-
-    logger.info('System IPC handlers set up successfully');
   }
 
   removeHandlers(ipcMain: typeof import('electron').ipcMain): void {

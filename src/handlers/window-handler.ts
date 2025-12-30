@@ -27,7 +27,6 @@ class WindowHandler {
     ipcMainInstance.handle('hide-window', this.handleHideWindow.bind(this));
     ipcMainInstance.handle('show-window', this.handleShowWindow.bind(this));
     ipcMainInstance.handle('focus-window', this.handleFocusWindow.bind(this));
-    logger.info('Window IPC handlers registered');
   }
 
   /**

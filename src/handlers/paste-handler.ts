@@ -46,7 +46,6 @@ class PasteHandler {
   setupHandlers(ipcMainInstance: typeof ipcMain): void {
     ipcMainInstance.handle('paste-text', this.handlePasteText.bind(this));
     ipcMainInstance.handle('paste-image', this.handlePasteImage.bind(this));
-    logger.info('Paste handlers set up successfully');
   }
 
   removeHandlers(ipcMainInstance: typeof ipcMain): void {

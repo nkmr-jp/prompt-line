@@ -55,7 +55,6 @@ class DraftManager {
   async initialize(): Promise<void> {
     try {
       this.currentDraft = await this.loadDraft();
-      logger.info('Draft manager initialized');
     } catch (error) {
       logger.error('Failed to initialize draft manager:', error);
       this.currentDraft = null;

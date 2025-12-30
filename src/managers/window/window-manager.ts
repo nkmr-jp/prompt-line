@@ -66,8 +66,6 @@ class WindowManager {
 
       // Pre-create window for faster first-time startup
       this.createInputWindow();
-
-      logger.info('WindowManager initialized successfully');
     } catch (error) {
       logger.error('Failed to initialize WindowManager:', error);
       throw error;

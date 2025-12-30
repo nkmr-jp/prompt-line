@@ -88,8 +88,6 @@ class IPCHandlers {
     this.systemHandler.setupHandlers(ipcMain);
     this.mdSearchHandler.setupHandlers(ipcMain);
     this.fileHandler.setupHandlers(ipcMain);
-
-    logger.info('All IPC handlers set up successfully via coordinator');
   }
 
   /**

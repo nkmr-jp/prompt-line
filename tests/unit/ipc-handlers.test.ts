@@ -166,7 +166,6 @@ describe('IPCHandlers', () => {
             expect(ipcMain.handle).toHaveBeenCalledWith('clear-history', expect.any(Function));
             expect(ipcMain.handle).toHaveBeenCalledWith('save-draft', expect.any(Function));
             expect(ipcMain.handle).toHaveBeenCalledWith('hide-window', expect.any(Function));
-            expect(logger.info).toHaveBeenCalledWith('All IPC handlers set up successfully via coordinator');
         });
     });
 

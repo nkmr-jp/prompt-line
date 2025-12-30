@@ -35,8 +35,6 @@ class FileHandler {
     ipcMainInstance.handle('open-file-in-editor', this.handleOpenFileInEditor.bind(this));
     ipcMainInstance.handle('check-file-exists', this.handleCheckFileExists.bind(this));
     ipcMainInstance.handle('open-external-url', this.handleOpenExternalUrl.bind(this));
-
-    logger.info('File operation IPC handlers set up successfully');
   }
 
   /**

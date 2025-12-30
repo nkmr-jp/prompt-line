@@ -42,7 +42,6 @@ class DirectoryManager {
 
       // Then load the directory
       await this.loadDirectory();
-      logger.info('Directory manager initialized', { directory: this.currentDirectory });
     } catch (error) {
       logger.error('Failed to initialize directory manager:', error);
       this.currentDirectory = null;

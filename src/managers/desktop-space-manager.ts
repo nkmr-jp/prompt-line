@@ -72,7 +72,6 @@ class DesktopSpaceManager {
       }
 
       this.isInitialized = true;
-      logger.info('DesktopSpaceManager initialized successfully');
     } catch (error) {
       logger.error('Failed to initialize DesktopSpaceManager:', error);
       throw error;

@@ -39,8 +39,6 @@ class PromptLineApp {
 
   async initialize(): Promise<void> {
     try {
-      logger.info('Initializing Prompt Line...');
-
       await this.initializeDirectories();
       await this.initializeManagers();
       this.setupUI();
@@ -60,7 +58,6 @@ class PromptLineApp {
   private async initializeDirectories(): Promise<void> {
     await ensureDir(config.paths.userDataDir);
     await ensureDir(config.paths.imagesDir);
-    logger.info('Data directories ensured at:', config.paths.userDataDir);
   }
 
   /**
@@ -79,7 +76,6 @@ class PromptLineApp {
 
     const userSettings = this.settingsManager.getSettings();
 
-    logger.info('Using HistoryManager (unlimited history with LRU caching)');
     this.historyManager = new HistoryManager();
     await this.historyManager.initialize();
 
@@ -191,9 +187,7 @@ class PromptLineApp {
         await this.showInputWindow();
       });
 
-      if (mainRegistered) {
-        logger.info('Global shortcut registered:', mainShortcut);
-      } else {
+      if (!mainRegistered) {
         logger.error('Failed to register global shortcut:', mainShortcut);
         throw new Error(`Failed to register shortcut: ${mainShortcut}`);
       }
@@ -234,8 +228,6 @@ class PromptLineApp {
       this.tray.on('double-click', async () => {
         await this.showInputWindow();
       });
-
-      logger.info('System tray created successfully');
     } catch (error) {
       logger.error('Failed to create system tray:', error);
       throw error;

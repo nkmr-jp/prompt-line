@@ -42,7 +42,6 @@ class HistoryManager implements IHistoryManager {
     try {
       await this.ensureHistoryFile();
       await this.loadRecentHistory();
-      logger.info(`History manager initialized with ${this.recentCache.length} cached items (total count will be calculated when needed)`);
       
       // Background count calculation to avoid blocking startup
       this.countTotalItemsAsync().catch((error: Error) => {

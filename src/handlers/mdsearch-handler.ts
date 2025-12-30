@@ -27,8 +27,6 @@ class MdSearchHandler {
     ipcMain.handle('get-agent-file-path', this.handleGetAgentFilePath.bind(this));
     ipcMain.handle('get-md-search-max-suggestions', this.handleGetMdSearchMaxSuggestions.bind(this));
     ipcMain.handle('get-md-search-prefixes', this.handleGetMdSearchPrefixes.bind(this));
-
-    logger.info('MdSearch IPC handlers set up successfully');
   }
 
   /**
