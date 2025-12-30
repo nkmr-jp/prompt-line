@@ -26,7 +26,6 @@ class AppConfigClass {
   public app!: AppConfig;
   public platform!: PlatformConfig;
   public logging!: LoggingConfig;
-  public terminalBundleIds!: string[];
 
   constructor() {
     this.init();
@@ -125,18 +124,6 @@ class AppConfigClass {
       isLinux: process.platform === 'linux'
     };
 
-    // Terminal applications that may not properly expose text fields via accessibility APIs
-    // For these apps, cursor position is used as fallback when text field detection fails
-    this.terminalBundleIds = [
-      'com.apple.Terminal',      // Terminal.app
-      'com.googlecode.iterm2',   // iTerm2
-      'com.mitchellh.ghostty',   // Ghostty
-      'io.alacritty',            // Alacritty
-      'net.kovidgoyal.kitty',    // Kitty
-      'dev.warp.Warp-Stable',    // Warp
-      'co.zeit.hyper'            // Hyper
-    ];
-
     // Determine log level based on LOG_LEVEL environment variable
     let logLevel: LogLevel = 'info'; // Default to info
     if (process.env.LOG_LEVEL === 'debug') {
@@ -171,16 +158,6 @@ class AppConfigClass {
     // In production, HTML file is copied to dist/renderer directory
     // __dirname is dist/config
     return path.join(__dirname, '..', 'renderer', 'input.html');
-  }
-
-  /**
-   * Check if the given bundle ID is a terminal application
-   * Terminal apps may not properly expose text fields via accessibility APIs,
-   * so cursor position should be used as fallback for window positioning
-   */
-  isTerminalApp(bundleId: string | undefined): boolean {
-    if (!bundleId) return false;
-    return this.terminalBundleIds.includes(bundleId);
   }
 }
 

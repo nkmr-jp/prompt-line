@@ -9,7 +9,7 @@
 import { execFile } from 'child_process';
 import { logger, TEXT_FIELD_DETECTOR_PATH } from '../../utils/utils';
 import config from '../../config/app-config';
-import type { TextFieldBounds, TextFieldDetectionResult } from './types';
+import type { TextFieldBounds } from './types';
 
 /**
  * Detects the bounds of the currently focused text field on macOS.
@@ -18,21 +18,9 @@ import type { TextFieldBounds, TextFieldDetectionResult } from './types';
  * @returns Promise resolving to text field bounds, or null if not found/not macOS
  */
 export async function getActiveTextFieldBounds(): Promise<TextFieldBounds | null> {
-  const result = await detectTextFieldWithAppInfo();
-  return result.bounds;
-}
-
-/**
- * Detects the focused text field bounds along with app info.
- * Returns bundleId even when text field detection fails, enabling
- * app-specific fallback strategies.
- *
- * @returns Promise resolving to detection result with bounds and app info
- */
-export async function detectTextFieldWithAppInfo(): Promise<TextFieldDetectionResult> {
   if (!config.platform.isMac) {
     logger.debug('Text field detection only supported on macOS');
-    return { bounds: null };
+    return null;
   }
 
   const options = {
@@ -44,20 +32,16 @@ export async function detectTextFieldWithAppInfo(): Promise<TextFieldDetectionRe
     execFile(TEXT_FIELD_DETECTOR_PATH, ['text-field-bounds'], options, (error: Error | null, stdout?: string) => {
       if (error) {
         logger.debug('Error getting text field bounds via native tool:', error);
-        resolve({ bounds: null });
+        resolve(null);
         return;
       }
 
       try {
         const result = JSON.parse(stdout?.trim() || '{}');
 
-        // Extract app info (available in both success and error responses)
-        const bundleId = typeof result.bundleId === 'string' ? result.bundleId : undefined;
-        const appName = typeof result.appName === 'string' ? result.appName : undefined;
-
         if (result.error) {
-          logger.debug('Text field detector error: ' + result.error, { bundleId, appName });
-          resolve({ bounds: null, bundleId, appName });
+          logger.debug('Text field detector error:', result.error);
+          resolve(null);
           return;
         }
 
@@ -84,16 +68,16 @@ export async function detectTextFieldWithAppInfo(): Promise<TextFieldDetectionRe
             };
           }
 
-          logger.debug('Text field bounds found', { ...bounds, bundleId, appName });
-          resolve({ bounds, bundleId, appName });
+          logger.debug('Text field bounds found:', bounds);
+          resolve(bounds);
           return;
         }
 
-        logger.debug('Invalid text field bounds data received', { bundleId, appName });
-        resolve({ bounds: null, bundleId, appName });
+        logger.debug('Invalid text field bounds data received');
+        resolve(null);
       } catch (parseError) {
         logger.debug('Error parsing text field detector output:', parseError);
-        resolve({ bounds: null });
+        resolve(null);
       }
     });
   });

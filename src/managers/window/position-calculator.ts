@@ -1,8 +1,7 @@
 import { screen } from 'electron';
 import { logger, getActiveWindowBounds } from '../../utils/utils';
 import type { StartupPosition } from '../../types';
-import { detectTextFieldWithAppInfo } from './text-field-bounds-detector';
-import config from '../../config/app-config';
+import { getActiveTextFieldBounds } from './text-field-bounds-detector';
 
 /**
  * Window position calculator with multiple positioning strategies
@@ -133,7 +132,7 @@ class WindowPositionCalculator {
 
   /**
    * Calculate position near the currently focused text field
-   * Falls back to cursor position for terminal apps, or active-window-center for other apps
+   * Falls back to active-window-center if text field cannot be detected
    * @param windowWidth - Width of the window
    * @param windowHeight - Height of the window
    * @returns Window position coordinates near active text field
@@ -143,7 +142,7 @@ class WindowPositionCalculator {
     windowHeight: number
   ): Promise<{ x: number; y: number }> {
     try {
-      const { bounds: textFieldBounds, bundleId, appName } = await detectTextFieldWithAppInfo();
+      const textFieldBounds = await getActiveTextFieldBounds();
       if (textFieldBounds) {
         // If text field is narrower than window, align to left edge of text field
         // Otherwise, center the window horizontally within the text field
@@ -162,16 +161,8 @@ class WindowPositionCalculator {
           y: textFieldBounds.y + textFieldBounds.height / 2
         });
       } else {
-        // Text field not found - determine fallback strategy based on app type
-        if (config.isTerminalApp(bundleId)) {
-          // For terminal apps (like Ghostty), use cursor position as fallback
-          // This provides better UX since users' cursor is typically near where they're typing
-          logger.debug('Terminal app detected, using cursor position as fallback', { bundleId, appName });
-          return this.calculateCursorPosition(windowWidth, windowHeight);
-        } else {
-          logger.warn('Could not get active text field bounds, falling back to active-window-center', { bundleId, appName });
-          return this.calculateActiveWindowCenterPosition(windowWidth, windowHeight);
-        }
+        logger.warn('Could not get active text field bounds, falling back to active-window-center');
+        return this.calculateActiveWindowCenterPosition(windowWidth, windowHeight);
       }
     } catch (error) {
       logger.warn('Error getting active text field bounds, falling back to active-window-center:', error);

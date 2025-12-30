@@ -19,7 +19,6 @@ export type {
   PositioningMode,
   WindowPosition,
   TextFieldBounds,
-  TextFieldDetectionResult,
   WindowSettings,
   AppInfo,
   DirectoryInfo,
@@ -32,7 +31,7 @@ export type {
 export { default as WindowPositionCalculator } from './position-calculator';
 export { default as NativeToolExecutor } from './native-tool-executor';
 export { default as DirectoryDetector } from './directory-detector';
-export { getActiveTextFieldBounds, detectTextFieldWithAppInfo } from './text-field-bounds-detector';
+export { getActiveTextFieldBounds } from './text-field-bounds-detector';
 
 // Strategy Pattern exports
 export type { IDirectoryDetectionStrategy } from './strategies';
