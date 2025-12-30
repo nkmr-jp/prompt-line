@@ -13,12 +13,8 @@ interface AccessibilityStatus {
 }
 
 export function getCurrentApp(): Promise<AppInfo | null> {
-  const startTime = performance.now();
-  logger.debug('Starting getCurrentApp()');
-
   return new Promise((resolve) => {
     if (process.platform !== 'darwin') {
-      logger.debug(`Platform check (non-darwin): ${(performance.now() - startTime).toFixed(2)}ms`);
       resolve(null);
       return;
     }
@@ -28,25 +24,16 @@ export function getCurrentApp(): Promise<AppInfo | null> {
       killSignal: 'SIGTERM' as const
     };
 
-    const execStartTime = performance.now();
     execFile(WINDOW_DETECTOR_PATH, ['current-app'], options, (error, stdout) => {
-      const execDuration = performance.now() - execStartTime;
-
       if (error) {
         logger.warn('Error getting current app (non-blocking):', error.message);
-        logger.debug(`getCurrentApp exec (error): ${execDuration.toFixed(2)}ms`);
-        logger.debug(`Total getCurrentApp time (error): ${(performance.now() - startTime).toFixed(2)}ms`);
         resolve(null);
       } else {
         try {
-          const parseStartTime = performance.now();
           const result = JSON.parse(stdout.trim());
-          logger.debug(`JSON parsing: ${(performance.now() - parseStartTime).toFixed(2)}ms`);
 
           if (result.error) {
             logger.warn('Native tool returned error:', result.error);
-            logger.debug(`getCurrentApp exec (tool error): ${execDuration.toFixed(2)}ms`);
-            logger.debug(`Total getCurrentApp time (tool error): ${(performance.now() - startTime).toFixed(2)}ms`);
             resolve(null);
             return;
           }
@@ -56,14 +43,9 @@ export function getCurrentApp(): Promise<AppInfo | null> {
             bundleId: result.bundleId === null ? null : result.bundleId
           };
 
-          logger.debug(`getCurrentApp exec (success): ${execDuration.toFixed(2)}ms`);
-          logger.debug(`Total getCurrentApp time: ${(performance.now() - startTime).toFixed(2)}ms`);
-          logger.debug('Current app detected:', appInfo);
           resolve(appInfo);
         } catch (parseError) {
           logger.warn('Error parsing app info:', parseError);
-          logger.debug(`getCurrentApp exec (parse error): ${execDuration.toFixed(2)}ms`);
-          logger.debug(`Total getCurrentApp time (parse error): ${(performance.now() - startTime).toFixed(2)}ms`);
           resolve(null);
         }
       }
@@ -109,7 +91,6 @@ export function getActiveWindowBounds(): Promise<WindowBounds | null> {
             return;
           }
 
-          logger.debug('Active window bounds detected:', windowBounds);
           resolve(windowBounds);
         } catch (parseError) {
           logger.warn('Error parsing window bounds:', parseError);
@@ -170,12 +151,6 @@ export function checkAccessibilityPermission(): Promise<AccessibilityStatus> {
         .then((stdout) => {
           const result = stdout.trim();
           const hasPermission = result === 'true';
-
-          logger.debug('Accessibility permission check result', {
-            hasPermission,
-            bundleId: actualBundleId,
-            rawResult: result
-          });
 
           resolve({ hasPermission, bundleId: actualBundleId });
         })

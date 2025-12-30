@@ -43,7 +43,6 @@ class SettingsManager {
   async init(): Promise<void> {
     try {
       await this.loadSettings();
-      logger.debug('Settings manager initialized successfully');
     } catch (error) {
       logger.error('Failed to initialize settings manager:', error);
       throw error;
@@ -64,9 +63,6 @@ class SettingsManager {
         
         if (parsed && typeof parsed === 'object') {
           this.currentSettings = this.mergeWithDefaults(parsed);
-          logger.debug('Settings loaded from YAML file', { 
-            file: this.settingsFile
-          });
         } else {
           logger.warn('Invalid settings file format, using defaults');
           await this.saveSettings();
@@ -128,7 +124,6 @@ class SettingsManager {
       
       // Set restrictive file permissions (owner read/write only)
       await fs.writeFile(this.settingsFile, settingsWithComments, { encoding: 'utf8', mode: 0o600 });
-      logger.debug('Settings saved to YAML file', { file: this.settingsFile });
     } catch (error) {
       logger.error('Failed to save settings:', error);
       throw error;

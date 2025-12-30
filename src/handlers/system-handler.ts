@@ -71,7 +71,6 @@ class SystemHandler {
         isDevelopment: config.isDevelopment()
       };
 
-      logger.debug('App info requested');
       return appInfo;
     } catch (error) {
       logger.error('Failed to get app info:', error);
@@ -99,7 +98,6 @@ class SystemHandler {
 
         try {
           const configData = config.get(section as keyof typeof config);
-          logger.debug('Config section requested', { section });
           return configData || {};
         } catch (sectionError) {
           logger.error('Failed to get config section:', { section, error: sectionError });
@@ -116,7 +114,6 @@ class SystemHandler {
             platform: config.platform as unknown as Record<string, unknown>
           };
 
-          logger.debug('Full config requested');
           return safeConfig;
         } catch (configError) {
           logger.error('Failed to build full config:', configError);
@@ -164,9 +161,7 @@ class SystemHandler {
   private handleGetFileSearchMaxSuggestions(_event: IpcMainInvokeEvent): number {
     try {
       const fileSearchSettings = this.settingsManager.getFileSearchSettings();
-      const maxSuggestions = fileSearchSettings?.maxSuggestions ?? 50;
-      logger.debug('FileSearch maxSuggestions requested', { maxSuggestions });
-      return maxSuggestions;
+      return fileSearchSettings?.maxSuggestions ?? 50;
     } catch (error) {
       logger.error('Failed to get fileSearch maxSuggestions:', error);
       return 50; // Default fallback

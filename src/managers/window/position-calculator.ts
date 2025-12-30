@@ -20,51 +20,23 @@ class WindowPositionCalculator {
     windowWidth: number,
     windowHeight: number
   ): Promise<{ x: number; y: number }> {
-    const methodStartTime = performance.now();
-    logger.debug(`🕐 Calculating position for: ${position}`);
-
-    let result: { x: number; y: number };
-
     switch (position) {
-      case 'center': {
-        const centerStartTime = performance.now();
-        result = this.calculateCenterPosition(windowWidth, windowHeight);
-        logger.debug(`⏱️  Center calculation: ${(performance.now() - centerStartTime).toFixed(2)}ms`);
-        break;
-      }
+      case 'center':
+        return this.calculateCenterPosition(windowWidth, windowHeight);
 
-      case 'active-window-center': {
-        const awcStartTime = performance.now();
-        result = await this.calculateActiveWindowCenterPosition(windowWidth, windowHeight);
-        logger.debug(`⏱️  Active window center calculation: ${(performance.now() - awcStartTime).toFixed(2)}ms`);
-        break;
-      }
+      case 'active-window-center':
+        return this.calculateActiveWindowCenterPosition(windowWidth, windowHeight);
 
-      case 'active-text-field': {
-        const atfStartTime = performance.now();
-        result = await this.calculateActiveTextFieldPosition(windowWidth, windowHeight);
-        logger.debug(`⏱️  Active text field calculation: ${(performance.now() - atfStartTime).toFixed(2)}ms`);
-        break;
-      }
+      case 'active-text-field':
+        return this.calculateActiveTextFieldPosition(windowWidth, windowHeight);
 
-      case 'cursor': {
-        const cursorStartTime = performance.now();
-        result = this.calculateCursorPosition(windowWidth, windowHeight);
-        logger.debug(`⏱️  Cursor calculation: ${(performance.now() - cursorStartTime).toFixed(2)}ms`);
-        break;
-      }
+      case 'cursor':
+        return this.calculateCursorPosition(windowWidth, windowHeight);
 
-      default: {
+      default:
         logger.warn('Invalid position value, falling back to active-window-center', { position });
-        const fallbackStartTime = performance.now();
-        result = await this.calculateActiveWindowCenterPosition(windowWidth, windowHeight);
-        logger.debug(`⏱️  Fallback calculation: ${(performance.now() - fallbackStartTime).toFixed(2)}ms`);
-        break;
-      }
+        return this.calculateActiveWindowCenterPosition(windowWidth, windowHeight);
     }
-
-    logger.debug(`🏁 Total position calculation (${position}): ${(performance.now() - methodStartTime).toFixed(2)}ms`);
-    return result;
   }
 
   /**

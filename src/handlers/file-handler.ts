@@ -132,23 +132,8 @@ class FileHandler {
       const parsedPath = this.parsePathWithLineInfo(filePath);
       const cleanPath = parsedPath.path;
 
-      logger.debug('Parsed file path:', {
-        original: filePath,
-        cleanPath,
-        lineNumber: parsedPath.lineNumber,
-        symbolName: parsedPath.symbolName
-      });
-
       // Expand and resolve path (without line number suffix)
       const normalizedPath = this.expandPath(cleanPath);
-
-      logger.debug('Resolved file path:', {
-        original: filePath,
-        cleanPath,
-        baseDir: this.directoryManager.getDirectory(),
-        resolved: normalizedPath,
-        lineNumber: parsedPath.lineNumber
-      });
 
       // File existence check (TOCTOU mitigation)
       try {

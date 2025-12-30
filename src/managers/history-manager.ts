@@ -62,7 +62,6 @@ class HistoryManager implements IHistoryManager {
     } catch {
       // Set restrictive file permissions (owner read/write only)
       await fs.writeFile(this.historyFile, '', { mode: 0o600 });
-      logger.debug('Created new history file');
     }
   }
 
@@ -79,8 +78,6 @@ class HistoryManager implements IHistoryManager {
           this.duplicateCheckSet.add(item.text);
         }
       }
-
-      logger.debug(`Loaded ${this.recentCache.length} recent history items into cache`);
     } catch (error) {
       logger.error('Error loading recent history:', error);
       this.recentCache = [];
@@ -177,7 +174,6 @@ class HistoryManager implements IHistoryManager {
       rl.on('close', () => {
         this.totalItemCount = count;
         this.totalItemCountCached = true;
-        logger.debug(`Total item count calculated: ${count}`);
         resolve();
       });
 
@@ -205,7 +201,6 @@ class HistoryManager implements IHistoryManager {
     try {
       const trimmedText = text.trim();
       if (!trimmedText) {
-        logger.debug('Attempted to add empty text to history');
         return null;
       }
 
@@ -216,15 +211,6 @@ class HistoryManager implements IHistoryManager {
 
       const historyItem = this.createHistoryItem(trimmedText, appName, directory);
       this.addItemToCache(historyItem);
-
-      logger.debug('Added item to history:', {
-        id: historyItem.id,
-        length: trimmedText.length,
-        appName: appName || 'unknown',
-        directory: directory || 'unknown',
-        cacheSize: this.recentCache.length,
-        totalItems: this.totalItemCountCached ? this.totalItemCount : 'not calculated'
-      });
 
       return historyItem;
     } catch (error) {
@@ -302,9 +288,8 @@ class HistoryManager implements IHistoryManager {
       const lines = itemsToAppend
         .map(item => JSON.stringify(item))
         .join('\n') + '\n';
-      
+
       await fs.appendFile(this.historyFile, lines);
-      logger.debug(`Appended ${itemsToAppend.length} items to history file`);
     } catch (error) {
       logger.error('Failed to append to history file:', error);
       // 失敗したアイテムをキューに戻す
@@ -359,7 +344,6 @@ class HistoryManager implements IHistoryManager {
         }
       }
 
-      logger.debug(`getHistoryForSearch: loaded ${items.length} items for search (limit: ${limit})`);
       return items;
     } catch (error) {
       logger.error('Error in getHistoryForSearch:', error);
@@ -392,14 +376,12 @@ class HistoryManager implements IHistoryManager {
       if (this.recentCache.length < initialLength && removedItem) {
         // duplicateCheckSetからも削除
         this.duplicateCheckSet.delete(removedItem.text);
-        
+
         // ファイルは永続保護するため、メモリキャッシュのみ削除
         // totalItemCountはファイルがそのままなので変更しない
-        logger.debug('Removed history item from cache (file preserved):', id);
         return true;
       }
-      
-      logger.debug('History item not found for removal:', id);
+
       return false;
     } catch (error) {
       logger.error('Failed to remove history item:', error);
@@ -431,7 +413,6 @@ class HistoryManager implements IHistoryManager {
   async destroy(): Promise<void> {
     try {
       await this.flushPendingSaves();
-      logger.debug('History manager cleanup completed');
     } catch (error) {
       logger.error('Error during history manager cleanup:', error);
     }

@@ -65,7 +65,6 @@ class PasteHandler {
     }
 
     if (!text.trim()) {
-      logger.debug('Empty text provided for paste');
       return { success: false, error: SecureErrors.INVALID_INPUT };
     }
 

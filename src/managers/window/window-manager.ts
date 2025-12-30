@@ -66,7 +66,6 @@ class WindowManager {
 
       // Pre-create window for faster first-time startup
       this.createInputWindow();
-      logger.debug('Pre-created input window for faster startup');
 
       logger.info('WindowManager initialized successfully');
     } catch (error) {
@@ -94,7 +93,6 @@ class WindowManager {
         e.preventDefault();
       });
 
-      logger.debug('Input window created successfully');
       return this.inputWindow;
     } catch (error) {
       logger.error('Failed to create input window:', error);
@@ -107,29 +105,22 @@ class WindowManager {
    * Coordinates all sub-managers for window display
    */
   async showInputWindow(data: WindowData = {}): Promise<void> {
-    const startTime = performance.now();
-    logger.debug('🕐 Starting showInputWindow()');
-
     try {
       // Update settings from data
-      const settingsStartTime = performance.now();
       if (data.settings?.window) {
         this.updateWindowSettings(data.settings.window);
       }
       if (data.settings?.fileSearch) {
         this.directoryDetector.updateFileSearchSettings(data.settings.fileSearch as FileSearchSettings);
       }
-      logger.debug(`⏱️  Window settings update: ${(performance.now() - settingsStartTime).toFixed(2)}ms`);
 
       // Get current app and space information in parallel
-      const appSpaceStartTime = performance.now();
       const [currentAppResult, currentSpaceResult] = await Promise.allSettled([
         getCurrentApp(),
         this.desktopSpaceManager && this.desktopSpaceManager.isReady()
           ? this.desktopSpaceManager.getCurrentSpaceInfo(null)
           : Promise.resolve(null)
       ]);
-      logger.debug(`⏱️  App + Space detection (parallel): ${(performance.now() - appSpaceStartTime).toFixed(2)}ms`);
 
       // Process current app result
       let previousApp: AppInfo | string | null = null;
@@ -142,7 +133,6 @@ class WindowManager {
       }
 
       // Process space information and determine if window recreation is needed
-      const spaceProcessStartTime = performance.now();
       let currentSpaceInfo = null;
       let needsWindowRecreation = false;
 
@@ -152,27 +142,15 @@ class WindowManager {
         // Update space info with actual app information
         if (previousApp && this.desktopSpaceManager) {
           try {
-            const spaceUpdateStartTime = performance.now();
             currentSpaceInfo = await this.desktopSpaceManager.getCurrentSpaceInfo(previousApp);
-            logger.debug(`⏱️  Space info update with app: ${(performance.now() - spaceUpdateStartTime).toFixed(2)}ms`);
-          } catch (error) {
-            logger.debug('Failed to update space info with app:', error);
+          } catch {
+            // Failed to update space info with app - continue with existing info
           }
         }
-
-        logger.debug('Current space info:', {
-          signature: currentSpaceInfo.signature,
-          appCount: currentSpaceInfo.appCount,
-          method: currentSpaceInfo.method
-        });
 
         // Check if desktop space has changed
         if (this.lastSpaceSignature !== currentSpaceInfo.signature) {
           needsWindowRecreation = true;
-          logger.debug('Desktop space changed, window recreation needed', {
-            lastSignature: this.lastSpaceSignature,
-            currentSignature: currentSpaceInfo.signature
-          });
         }
 
         this.lastSpaceSignature = currentSpaceInfo.signature;
@@ -183,29 +161,16 @@ class WindowManager {
           logger.warn('Failed to get current space info:', currentSpaceResult.reason);
         }
       }
-      logger.debug(`⏱️  Space processing: ${(performance.now() - spaceProcessStartTime).toFixed(2)}ms`);
 
       // Handle window creation/reuse based on space changes
-      const windowMgmtStartTime = performance.now();
-
       if (needsWindowRecreation && this.inputWindow && !this.inputWindow.isDestroyed()) {
-        const destroyStartTime = performance.now();
         this.inputWindow.destroy();
         this.inputWindow = null;
-        logger.debug(`⏱️  Window destruction: ${(performance.now() - destroyStartTime).toFixed(2)}ms`);
-        logger.debug('Destroyed existing window due to desktop space change');
       }
 
       if (!this.inputWindow || this.inputWindow.isDestroyed()) {
-        const createStartTime = performance.now();
         this.createInputWindow();
-        logger.debug(`⏱️  Window creation: ${(performance.now() - createStartTime).toFixed(2)}ms`);
-
-        const positionStartTime = performance.now();
         await this.positionWindow();
-        logger.debug(`⏱️  Window positioning: ${(performance.now() - positionStartTime).toFixed(2)}ms`);
-
-        logger.debug('New window created on current desktop space');
       } else {
         // Reuse existing window but reposition if needed
         const currentPosition = this.customWindowSettings.position || 'active-window-center';
@@ -213,24 +178,15 @@ class WindowManager {
             currentPosition === 'active-text-field' ||
             currentPosition === 'cursor' ||
             (data.settings?.window?.position && data.settings.window.position !== currentPosition)) {
-          logger.debug('Repositioning existing window for position:', currentPosition);
-          const repositionStartTime = performance.now();
           await this.positionWindow();
-          logger.debug(`⏱️  Window repositioning: ${(performance.now() - repositionStartTime).toFixed(2)}ms`);
         }
-        logger.debug('Reusing existing window on same desktop space');
       }
-
-      logger.debug(`⏱️  Window management total: ${(performance.now() - windowMgmtStartTime).toFixed(2)}ms`);
 
       // Prepare window data with directory information
       const windowData = await this.prepareWindowData(data, previousApp, currentSpaceInfo);
 
       // Display window with prepared data
       await this.displayWindow(windowData);
-
-      logger.debug(`🏁 Total showInputWindow time: ${(performance.now() - startTime).toFixed(2)}ms`);
-      logger.debug('Input window shown', { sourceApp: previousApp });
 
       // Background directory detection (non-blocking) - runs AFTER window is shown
       if (this.isFileSearchEnabled()) {
@@ -242,7 +198,6 @@ class WindowManager {
       }
     } catch (error) {
       logger.error('Failed to show input window:', error);
-      logger.error(`❌ Failed after ${(performance.now() - startTime).toFixed(2)}ms`);
       throw error;
     }
   }
@@ -276,11 +231,6 @@ class WindowManager {
       const cachedData = await this.directoryDetector.loadCachedFilesForWindow();
       if (cachedData) {
         windowData.directoryData = cachedData;
-        logger.debug('Loaded cached directory data', {
-          directory: cachedData.directory,
-          fileCount: cachedData.fileCount,
-          fromCache: cachedData.fromCache
-        });
       } else if (savedDirectory) {
         // Fallback to draft directory with empty files if no cache
         const isRootDirectory = this.directoryDetector.isFileSearchDisabledDirectory(savedDirectory);
@@ -305,7 +255,6 @@ class WindowManager {
           windowData.directoryData = { success: false };
         }
         windowData.directoryData.hint = 'Install fd for file search: brew install fd';
-        logger.debug('Added fd not available hint to directoryData');
       }
     }
 
@@ -317,35 +266,23 @@ class WindowManager {
    * @private
    */
   private async displayWindow(windowData: WindowData): Promise<void> {
-    const displayStartTime = performance.now();
-
     if (this.inputWindow!.isVisible()) {
       // Window is already visible, just update data and focus
-      const updateStartTime = performance.now();
       this.inputWindow!.webContents.send('window-shown', windowData);
       this.inputWindow!.focus();
-      logger.debug(`⏱️  Window data update + focus: ${(performance.now() - updateStartTime).toFixed(2)}ms`);
-      logger.debug('Updated existing visible window');
     } else if (this.inputWindow!.webContents.isLoading()) {
       // Window is loading, wait for completion
-      logger.debug('⏱️  Window waiting for load completion...');
       this.inputWindow!.webContents.once('did-finish-load', () => {
-        const loadCompleteStartTime = performance.now();
         this.inputWindow!.webContents.send('window-shown', windowData);
         this.inputWindow!.show();
         this.inputWindow!.focus();
-        logger.debug(`⏱️  Window load completion handling: ${(performance.now() - loadCompleteStartTime).toFixed(2)}ms`);
       });
     } else {
       // Window is ready, show it
-      const showStartTime = performance.now();
       this.inputWindow!.webContents.send('window-shown', windowData);
       this.inputWindow!.show();
       this.inputWindow!.focus();
-      logger.debug(`⏱️  Window show + focus: ${(performance.now() - showStartTime).toFixed(2)}ms`);
     }
-
-    logger.debug(`⏱️  Display handling: ${(performance.now() - displayStartTime).toFixed(2)}ms`);
   }
 
   /**
@@ -355,7 +292,6 @@ class WindowManager {
     try {
       if (this.inputWindow && this.inputWindow.isVisible()) {
         this.inputWindow.hide();
-        logger.debug('Input window hidden');
       }
     } catch (error) {
       logger.error('Failed to hide input window:', error);
@@ -370,7 +306,6 @@ class WindowManager {
     try {
       if (this.inputWindow) {
         this.inputWindow.focus();
-        logger.debug('Input window focused');
       }
     } catch (error) {
       logger.error('Failed to focus input window:', error);
@@ -383,31 +318,17 @@ class WindowManager {
    * @private
    */
   private async positionWindow(): Promise<void> {
-    const positionStartTime = performance.now();
-    logger.debug('🕐 Starting positionWindow()');
-
     try {
       if (!this.inputWindow) return;
 
-      const configStartTime = performance.now();
       const windowWidth = this.customWindowSettings.width || config.window.width;
       const windowHeight = this.customWindowSettings.height || config.window.height;
       const position = this.customWindowSettings.position || 'active-window-center';
-      logger.debug(`⏱️  Position config: ${(performance.now() - configStartTime).toFixed(2)}ms`);
 
-      const calcStartTime = performance.now();
       const { x, y } = await this.positionCalculator.calculateWindowPosition(position, windowWidth, windowHeight);
-      logger.debug(`⏱️  Position calculation: ${(performance.now() - calcStartTime).toFixed(2)}ms`);
-
-      const setStartTime = performance.now();
       this.inputWindow.setPosition(Math.round(x), Math.round(y));
-      logger.debug(`⏱️  Position setting: ${(performance.now() - setStartTime).toFixed(2)}ms`);
-
-      logger.debug(`🏁 Total positionWindow time: ${(performance.now() - positionStartTime).toFixed(2)}ms`);
-      logger.debug('Window positioned', { x: Math.round(x), y: Math.round(y), position });
     } catch (error) {
       logger.error('Failed to position window:', error);
-      logger.error(`❌ Position failed after ${(performance.now() - positionStartTime).toFixed(2)}ms`);
     }
   }
 
@@ -449,13 +370,11 @@ class WindowManager {
       if (this.inputWindow) {
         this.inputWindow.destroy();
         this.inputWindow = null;
-        logger.debug('Input window destroyed');
       }
 
       if (this.desktopSpaceManager) {
         this.desktopSpaceManager.destroy();
         this.desktopSpaceManager = null;
-        logger.debug('Desktop space manager destroyed');
       }
     } catch (error) {
       logger.error('Failed to destroy window manager:', error);
@@ -485,8 +404,6 @@ class WindowManager {
     if (onClosed) {
       this.inputWindow.on('closed', onClosed);
     }
-
-    logger.debug('Window event listeners set up');
   }
 
   /**
@@ -494,7 +411,6 @@ class WindowManager {
    */
   updateWindowSettings(settings: { position?: StartupPosition; width?: number; height?: number }): void {
     this.customWindowSettings = { ...this.customWindowSettings, ...settings };
-    logger.debug('Window settings updated', settings);
   }
 
   /**
@@ -529,7 +445,6 @@ class WindowManager {
     // Update saved directory from DirectoryManager
     const savedDirectory = directoryManager.getDirectory();
     this.directoryDetector.updateSavedDirectory(savedDirectory);
-    logger.debug('DirectoryManager reference set in WindowManager');
   }
 }
 

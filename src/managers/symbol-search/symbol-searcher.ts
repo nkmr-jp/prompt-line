@@ -43,7 +43,6 @@ export async function checkRgAvailable(): Promise<RgCheckResponse> {
 
       try {
         const result = JSON.parse(stdout.trim()) as RgCheckResponse;
-        logger.debug('rg availability check:', result);
         resolve(result);
       } catch (parseError) {
         logger.warn('Error parsing rg check result:', parseError);
@@ -78,7 +77,6 @@ export async function getSupportedLanguages(): Promise<LanguagesResponse> {
 
       try {
         const result = JSON.parse(stdout.trim()) as LanguagesResponse;
-        logger.debug('Supported languages:', result);
         resolve(result);
       } catch (parseError) {
         logger.warn('Error parsing languages result:', parseError);
@@ -155,8 +153,6 @@ export async function searchSymbols(
       maxBuffer: DEFAULT_MAX_BUFFER
     };
 
-    logger.debug('Searching symbols:', { directory, language, maxSymbols });
-
     execFile(SYMBOL_SEARCHER_PATH, args, execOptions, (error, stdout, stderr) => {
       if (error) {
         logger.warn('Error searching symbols:', {
@@ -180,15 +176,6 @@ export async function searchSymbols(
 
       try {
         const result = JSON.parse(stdout.trim()) as SymbolSearchResponse;
-        if (result.success) {
-          logger.debug('Symbol search completed:', {
-            directory: result.directory,
-            language: result.language,
-            symbolCount: result.symbolCount
-          });
-        } else {
-          logger.debug('Symbol search returned error:', result.error);
-        }
         resolve(result);
       } catch (parseError) {
         logger.warn('Error parsing symbol search result:', parseError);

@@ -33,7 +33,6 @@ class MdSearchLoader {
     if (JSON.stringify(this.config) !== JSON.stringify(newConfig)) {
       this.config = newConfig;
       this.invalidateCache();
-      logger.debug('MdSearchLoader config updated', { entryCount: this.config.length });
     }
   }
 
@@ -42,7 +41,6 @@ class MdSearchLoader {
    */
   invalidateCache(): void {
     this.cache.clear();
-    logger.debug('MdSearchLoader cache invalidated');
   }
 
   /**
@@ -238,8 +236,6 @@ class MdSearchLoader {
       if (!typeSeenNames.has(item.name)) {
         typeSeenNames.add(item.name);
         allItems.push(item);
-      } else {
-        logger.debug('Skipping duplicate item', { name: item.name, type: item.type, sourceId: item.sourceId });
       }
     }
   }
@@ -269,8 +265,6 @@ class MdSearchLoader {
     const files = await this.findFiles(expandedPath, entry.pattern);
     const sourceId = `${entry.path}:${entry.pattern}`;
     const items = await this.parseFilesToItems(files, entry, sourceId);
-
-    logger.debug('MdSearch entry loaded', { sourceId, count: items.length });
     return items;
   }
 
@@ -287,7 +281,6 @@ class MdSearchLoader {
       return true;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        logger.debug('MdSearch directory does not exist', { path });
         return false;
       }
       throw error;
@@ -429,8 +422,8 @@ class MdSearchLoader {
           files.push(fullPath);
         }
       }
-    } catch (error) {
-      logger.debug('Failed to read directory', { directory, error });
+    } catch {
+      // Silently ignore directory read errors
     }
 
     return files;
@@ -476,8 +469,8 @@ class MdSearchLoader {
           files.push(path.join(directory, entry.name));
         }
       }
-    } catch (error) {
-      logger.debug('Failed to read directory', { directory, error });
+    } catch {
+      // Silently ignore directory read errors
     }
 
     return files;
