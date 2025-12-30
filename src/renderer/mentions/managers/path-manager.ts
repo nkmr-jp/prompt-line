@@ -524,20 +524,27 @@ export class PathManager {
       const charAtEndDisplay = charAtEnd === '\n' ? '\\n' : charAtEnd === '\r' ? '\\r' : charAtEnd === undefined ? 'undefined' : '"' + charAtEnd + '"';
 
       // Check if cursor is at or after path.end, with only terminators in between
-      // This handles cases like: @path (cursor), @path  (cursor), @path\n(cursor), etc.
+      // This handles cases like: @path (cursor), @path  (cursor), etc.
+      // IMPORTANT: Do NOT match if there are newlines between path.end and cursor
+      // This prevents accidental deletion when cursor is on a new line after @path
       if (cursorPos >= path.end && cursorPos <= path.end + 3) {
         // Limit to 3 characters after path.end to avoid matching too far
         const charsInBetween = text.substring(path.end, cursorPos);
         const allAreTerminators = allTerminators(path.end, cursorPos);
+
+        // Check if there are any newlines between path.end and cursor
+        const hasNewline = charsInBetween.includes('\n') || charsInBetween.includes('\r');
 
         console.log('[PathManager] Checking path: path=' + path.path +
           ' start=' + path.start + ' end=' + path.end +
           ' cursorPos=' + cursorPos +
           ' charAtEnd=' + charAtEndDisplay + ' (code:' + (charAtEnd?.charCodeAt(0) ?? 'N/A') + ')' +
           ' charsInBetween="' + charsInBetween.replace(/\n/g, '\\n').replace(/\r/g, '\\r') + '"' +
-          ' allAreTerminators=' + allAreTerminators);
+          ' allAreTerminators=' + allAreTerminators +
+          ' hasNewline=' + hasNewline);
 
-        if (allAreTerminators) {
+        // Only match if all are terminators AND no newlines
+        if (allAreTerminators && !hasNewline) {
           return path;
         }
       } else {
