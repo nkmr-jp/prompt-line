@@ -9,7 +9,7 @@
     <meta http-equiv="Content-Security-Policy" content="
         default-src 'self';
         script-src 'self';
-        style-src 'self' 'unsafe-inline';
+        style-src 'self';
         img-src 'self' data: blob:;
         font-src 'self';
         connect-src 'none';
@@ -30,7 +30,7 @@
     <div class="container">
         <div class="main-content">
             <!-- Slash command suggestions (positioned relative to main-content) -->
-            <div class="slash-command-suggestions" id="slashCommandSuggestions" role="listbox" aria-label="Slash command suggestions" style="display: block;">
+            <div class="slash-command-suggestions" id="slashCommandSuggestions" role="listbox" aria-label="Slash command suggestions">
                 <!-- DUMMY ITEMS FOR LAYOUT TESTING - REMOVE LATER -->
 <!--                <div class="slash-suggestion-item selected" data-index="0">-->
 <!--                    <span class="slash-command-name">/commit</span>-->
