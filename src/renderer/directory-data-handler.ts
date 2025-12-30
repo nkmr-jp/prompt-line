@@ -173,8 +173,8 @@ export class DirectoryDataHandler {
         console.debug('[DirectoryDataHandler] Directory detection timed out', {
           directory: data.directory
         });
-        const timeoutMessage = 'Large directory (adjust settings.yml)';
-        this.callbacks.setDefaultHintText(timeoutMessage);
+        const timeoutMessage = 'Open terminal in editor for directory detection';
+        // this.callbacks.setDefaultHintText(timeoutMessage);
         this.callbacks.updateHintText(timeoutMessage);
         return;
       }
