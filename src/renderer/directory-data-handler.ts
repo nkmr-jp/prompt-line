@@ -8,14 +8,17 @@ import { formatLog } from './utils/debug-logger';
 import { electronAPI } from './services/electron-api';
 
 /**
- * Callbacks for DirectoryDataHandler to interact with parent components
+ * DomManager callbacks for UI updates
  */
-export interface DirectoryDataHandlerCallbacks {
-  // DomManager methods
+export interface DomManagerCallbacks {
   updateHintText: (text: string) => void;
   setDraggable: (enabled: boolean) => void;
-  
-  // FileSearchManager methods
+}
+
+/**
+ * FileSearchManager callbacks for file search functionality
+ */
+export interface FileSearchManagerCallbacks {
   getFileSearchManager: () => {
     setFileSearchEnabled: (enabled: boolean) => void;
     preloadSearchPrefixesCache: () => void;
@@ -24,23 +27,56 @@ export interface DirectoryDataHandlerCallbacks {
     clearAtPaths: () => void;
     restoreAtPathsFromText: (checkFilesystem?: boolean) => void;
   } | null;
-  
-  // LifecycleManager method
+}
+
+/**
+ * LifecycleManager callbacks for lifecycle events
+ */
+export interface LifecycleManagerCallbacks {
   handleLifecycleWindowShown: (data: WindowData) => void;
-  
-  // SearchManager method
+}
+
+/**
+ * SearchManager callbacks for search mode management
+ */
+export interface SearchManagerCallbacks {
   exitSearchMode: () => void;
-  
-  // HistoryUIManager method
+}
+
+/**
+ * HistoryUIManager callbacks for history UI updates
+ */
+export interface HistoryUIManagerCallbacks {
   resetHistoryScrollPosition: () => void;
-  
-  // Update history and settings
+}
+
+/**
+ * Window data callbacks for history and settings updates
+ */
+export interface WindowDataCallbacks {
   updateHistoryAndSettings: (data: WindowData) => void;
-  
-  // Get/set default hint text
+}
+
+/**
+ * Hint text state management callbacks
+ */
+export interface HintTextStateCallbacks {
   getDefaultHintText: () => string;
   setDefaultHintText: (text: string) => void;
 }
+
+/**
+ * Unified callbacks interface for DirectoryDataHandler
+ * Composed of specialized callback interfaces by responsibility
+ */
+export interface DirectoryDataHandlerCallbacks extends
+  DomManagerCallbacks,
+  FileSearchManagerCallbacks,
+  LifecycleManagerCallbacks,
+  SearchManagerCallbacks,
+  HistoryUIManagerCallbacks,
+  WindowDataCallbacks,
+  HintTextStateCallbacks {}
 
 /**
  * Handles directory data updates and window-shown events for file search functionality
