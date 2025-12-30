@@ -1,4 +1,6 @@
-export class DomManager {
+import type { IInitializable } from './interfaces/initializable';
+
+export class DomManager implements IInitializable {
   public textarea: HTMLTextAreaElement | null = null;
   public appNameEl: HTMLElement | null = null;
   public charCountEl: HTMLElement | null = null;
@@ -8,6 +10,13 @@ export class DomManager {
   public searchInput: HTMLInputElement | null = null;
   public hintTextEl: HTMLElement | null = null;
   public headerEl: HTMLElement | null = null;
+
+  /**
+   * Initialize DOM elements (IInitializable implementation)
+   */
+  public initialize(): void {
+    this.initializeElements();
+  }
 
   public initializeElements(): void {
     this.textarea = document.getElementById('textInput') as HTMLTextAreaElement;

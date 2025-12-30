@@ -21,7 +21,16 @@ export const getElectronAPI = (): ElectronAPI => {
 };
 
 /**
- * Singleton instance of Electron API for convenience
- * Initialized at module load time
+ * Lazy-initialized singleton instance of Electron API for convenience
+ * Uses Proxy to avoid initialization errors in test environments
+ * The Proxy always fetches from window.electronAPI to support test mocking
  */
-export const electronAPI: ElectronAPI = getElectronAPI();
+export const electronAPI: ElectronAPI = new Proxy({} as ElectronAPI, {
+  get(_target, prop) {
+    const api = (window as any).electronAPI;
+    if (!api) {
+      throw new Error('Electron API not available. Preload script may not be loaded correctly.');
+    }
+    return api[prop];
+  }
+});
