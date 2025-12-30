@@ -131,6 +131,33 @@ class DirectoryDetector {
             ]
         }
 
+        // Check for Ghostty terminal (native Swift terminal with process-based detection)
+        if isGhostty(bundleId) {
+            let (directory, shellPid) = getGhosttyDirectory(appPid: appPid)
+
+            if let cwd = directory {
+                var result: [String: Any] = [
+                    "success": true,
+                    "directory": cwd,
+                    "appName": appName,
+                    "bundleId": bundleId,
+                    "method": "ghostty-process"
+                ]
+
+                if let pid = shellPid {
+                    result["pid"] = pid
+                }
+
+                return result
+            }
+
+            return [
+                "error": "Failed to detect directory from Ghostty",
+                "appName": appName,
+                "bundleId": bundleId
+            ]
+        }
+
         // Standard terminal applications (Terminal.app, iTerm2)
         var tty: String?
 

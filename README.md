@@ -153,7 +153,7 @@ You can launch a file searched for with a file path or @ and check its contents.
 You can search for files by typing @.<br>
 ※ [fd](https://github.com/sharkdp/fd) command installation is required. (`brew install fd`)<br>
 ※ You need to configure `fileSearch` in `~/.prompt-line/settings.yml`. See "⚙️ Settings" section.<br>
-※ Supported applications: Terminal.app, iTerm2, JetBrains IDEs (IntelliJ, WebStorm, etc.), VSCode, Cursor, Windsurf
+※ Supported applications: Terminal.app, iTerm2, Ghostty, JetBrains IDEs (IntelliJ, WebStorm, etc.), VSCode, Cursor, Windsurf, Antigravity, Kiro
 
 ![doc10.png](assets/doc10.png)
 

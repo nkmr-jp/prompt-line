@@ -310,7 +310,14 @@ extension DirectoryDetector {
     /// Fallback method for Electron IDE terminal directory detection
     /// Uses pgrep for fast shell discovery and single ps call for parent map building
     /// This handles cases where pty-host is not found (e.g., some VSCode configurations)
+    /// Also supports tmux-based terminals (e.g., Antigravity)
     static func getElectronIDETerminalDirectoryFallback(appPid: pid_t) -> (directory: String?, shellPid: pid_t?) {
+        // First, try tmux detection (for IDEs like Antigravity that use tmux)
+        let tmuxResult = getTmuxTerminalDirectory(appPid: appPid)
+        if tmuxResult.directory != nil {
+            return tmuxResult
+        }
+
         // Step 1: Get all shell processes using pgrep (very fast)
         let pgrepProcess = Process()
         pgrepProcess.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
@@ -368,6 +375,102 @@ extension DirectoryDetector {
             // Fallback: return first shell even if in home directory
             if let firstPid = ideShells.first, let cwd = getCwdFromPid(firstPid) {
                 return (cwd, firstPid)
+            }
+
+            return (nil, nil)
+        } catch {
+            return (nil, nil)
+        }
+    }
+
+    /// Detect terminal directory for tmux-based IDEs (e.g., Antigravity)
+    /// tmux uses a client-server model where:
+    /// - tmux client is spawned by the IDE
+    /// - tmux server is a separate process that manages sessions
+    /// - shell processes are children of the tmux server, not the IDE
+    static func getTmuxTerminalDirectory(appPid: pid_t) -> (directory: String?, shellPid: pid_t?) {
+        // Step 1: Check if there's a tmux client under the IDE
+        let parentMap = buildParentMapFast()
+        if parentMap.isEmpty {
+            return (nil, nil)
+        }
+
+        // Find tmux processes that are descendants of the IDE
+        let tmuxProcess = Process()
+        tmuxProcess.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+        tmuxProcess.arguments = ["-f", "tmux"]
+
+        let tmuxPipe = Pipe()
+        tmuxProcess.standardOutput = tmuxPipe
+        tmuxProcess.standardError = FileHandle.nullDevice
+
+        do {
+            try tmuxProcess.run()
+            tmuxProcess.waitUntilExit()
+
+            let tmuxData = tmuxPipe.fileHandleForReading.readDataToEndOfFile()
+            guard let tmuxOutput = String(data: tmuxData, encoding: .utf8) else {
+                return (nil, nil)
+            }
+
+            let tmuxPids = tmuxOutput.split(separator: "\n").compactMap { Int32(String($0)) }
+            if tmuxPids.isEmpty {
+                return (nil, nil)
+            }
+
+            // Find tmux client that is a descendant of the IDE
+            var tmuxClientPid: pid_t? = nil
+            for pid in tmuxPids {
+                if isDescendantOf(pid, ancestorPid: appPid, parentMap: parentMap, maxDepth: 10) {
+                    tmuxClientPid = pid
+                    break
+                }
+            }
+
+            guard tmuxClientPid != nil else {
+                return (nil, nil)
+            }
+
+            // Step 2: Find the tmux server (sibling or parent of client)
+            // tmux server is usually a separate process that spawned from the same parent or is running independently
+            // We can identify it by finding tmux processes that have shell children
+            for tmuxPid in tmuxPids {
+                // Check if this tmux process has shell children (this would be the server)
+                let shellProcess = Process()
+                shellProcess.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+                shellProcess.arguments = ["-P", String(tmuxPid), "-f", "zsh|bash|fish|sh"]
+
+                let shellPipe = Pipe()
+                shellProcess.standardOutput = shellPipe
+                shellProcess.standardError = FileHandle.nullDevice
+
+                try shellProcess.run()
+                shellProcess.waitUntilExit()
+
+                let shellData = shellPipe.fileHandleForReading.readDataToEndOfFile()
+                guard let shellOutput = String(data: shellData, encoding: .utf8),
+                      !shellOutput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                    continue
+                }
+
+                // Found tmux server with shell children
+                let shellPids = shellOutput.split(separator: "\n")
+                    .compactMap { Int32(String($0)) }
+                    .sorted(by: >) // Newest first
+
+                let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
+
+                // Check each shell, prefer non-home directories
+                for shellPid in shellPids.prefix(5) {
+                    if let cwd = getCwdFromPid(shellPid), cwd != homeDir {
+                        return (cwd, shellPid)
+                    }
+                }
+
+                // Fallback: return first shell even if in home directory
+                if let firstPid = shellPids.first, let cwd = getCwdFromPid(firstPid) {
+                    return (cwd, firstPid)
+                }
             }
 
             return (nil, nil)
