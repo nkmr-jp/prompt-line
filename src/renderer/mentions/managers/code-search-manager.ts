@@ -20,8 +20,8 @@ import type {
   SymbolResult,
   LanguageInfo,
   SymbolSearchResponse
-} from '../../code-search/types';
-import { getSymbolTypeDisplay } from '../../code-search/types';
+} from '../code-search/types';
+import { getSymbolTypeDisplay } from '../code-search/types';
 import type { DirectoryData, SuggestionItem } from '../types';
 import { getSymbolIconSvg } from '../../assets/icons/file-icons';
 import { insertSvgIntoElement } from '../index';

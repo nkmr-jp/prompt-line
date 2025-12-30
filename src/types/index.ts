@@ -19,7 +19,6 @@ export type {
   FileInfo,
   DirectoryInfo,
   FileSearchSettings,
-  DirectoryData,
   FileCacheMetadata,
   CachedDirectoryData,
   CachedFileEntry,
@@ -27,6 +26,11 @@ export type {
   FileCacheStats,
   InputFormatType,
 } from './file-search';
+
+// Mention-related types from renderer
+export type {
+  DirectoryData,
+} from '../renderer/mentions';
 
 // Window and application domain types
 export type {

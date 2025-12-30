@@ -19,7 +19,7 @@
 import type { FileInfo, DirectoryData, SuggestionItem } from '../types';
 import type { AgentItem } from '../../../types';
 import { electronAPI } from '../../services/electron-api';
-import type { SymbolResult, LanguageInfo } from '../../code-search/types';
+import type { SymbolResult, LanguageInfo } from '../code-search/types';
 import { getRelativePath, formatLog } from '../index';
 
 /**

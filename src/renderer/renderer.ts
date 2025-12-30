@@ -16,7 +16,7 @@ import { DraftManagerClient } from './draft-manager-client';
 import { HistoryUIManager } from './history-ui-manager';
 import { LifecycleManager } from './lifecycle-manager';
 import { SimpleSnapshotManager } from './snapshot-manager';
-import { FileSearchManager } from './file-search-manager';
+import { FileSearchManager } from './mention-manager';
 import { DirectoryDataHandler } from './directory-data-handler';
 import { rendererLogger } from './utils/logger';
 import { electronAPI } from './services/electron-api';

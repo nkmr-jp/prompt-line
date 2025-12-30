@@ -1,11 +1,12 @@
 /**
- * File Search Manager for renderer process
- * Manages @ file mention functionality with incremental search
+ * Mention Manager for renderer process
+ * Manages @ mention functionality with incremental search
+ * Supports: files, code symbols, agents, and agent skills
  */
 
 import type { FileInfo, DirectoryInfo, AgentItem } from '../types';
-import type { SymbolResult, LanguageInfo } from './code-search/types';
-import type { DirectoryData, FileSearchCallbacks, SuggestionItem } from './file-search';
+import type { SymbolResult, LanguageInfo } from './mentions/code-search/types';
+import type { DirectoryData, FileSearchCallbacks, SuggestionItem } from './mentions';
 import type { IInitializable } from './interfaces/initializable';
 import { handleError } from './utils/error-handler';
 import { electronAPI } from './services/electron-api';
@@ -14,7 +15,7 @@ import {
   normalizePath,
   parsePathWithLineInfo,
   resolveAtPathToAbsolute
-} from './file-search';
+} from './mentions';
 import {
   PopupManager,
   SettingsCacheManager,
@@ -30,7 +31,7 @@ import {
   SuggestionUIManager,
   FileSearchState,
   FileSearchInitializer
-} from './file-search/managers';
+} from './mentions/managers';
 
 export class FileSearchManager implements IInitializable {
   // Centralized state container
@@ -569,7 +570,7 @@ export class FileSearchManager implements IInitializable {
 
   /**
    * Check if file search should be processed
-   * @returns true if file search should proceed
+   * Preturns true if file search should proceed
    */
   private shouldProcessFileSearch(): boolean {
     const hasCache = this.directoryCacheManager?.hasCache() ?? false;

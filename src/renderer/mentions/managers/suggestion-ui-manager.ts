@@ -17,8 +17,8 @@
 import type { SuggestionItem, DirectoryData } from '../types';
 import { insertSvgIntoElement } from '../types';
 import type { FileInfo, AgentItem } from '../../../types';
-import type { SymbolResult } from '../../code-search/types';
-import { getSymbolTypeDisplay } from '../../code-search/types';
+import type { SymbolResult } from '../code-search/types';
+import { getSymbolTypeDisplay } from '../code-search/types';
 import { getCaretCoordinates, createMirrorDiv, insertHighlightedText } from '../dom-utils';
 import { getRelativePath, getDirectoryFromPath } from '../path-utils';
 import { getFileIconSvg, getMentionIconSvg, getSymbolIconSvg } from '../../assets/icons/file-icons';

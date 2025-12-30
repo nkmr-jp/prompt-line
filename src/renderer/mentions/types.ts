@@ -3,7 +3,7 @@
  */
 
 import type { FileInfo, AgentItem } from '../../types';
-import type { SymbolResult } from '../code-search/types';
+import type { SymbolResult } from './code-search/types';
 
 // Re-export formatLog from debug-logger for backwards compatibility
 export { formatLog } from '../utils/debug-logger';

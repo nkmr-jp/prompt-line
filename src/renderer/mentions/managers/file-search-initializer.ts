@@ -5,8 +5,8 @@
  */
 
 import type { FileInfo, AgentItem } from '../../../types';
-import type { SymbolResult } from '../../code-search/types';
-import type { FileSearchCallbacks, SuggestionItem } from '../../file-search';
+import type { SymbolResult } from '../code-search/types';
+import type { FileSearchCallbacks, SuggestionItem } from '..';
 import { electronAPI } from '../../services/electron-api';
 import {
   PopupManager,

@@ -9,7 +9,7 @@
  * - Validating query patterns
  */
 
-import { SYMBOL_TYPE_FROM_DISPLAY } from '../../code-search/types';
+import { SYMBOL_TYPE_FROM_DISPLAY } from '../code-search/types';
 
 // Pattern to detect code search queries (e.g., @ts:, @go:, @py:)
 const CODE_SEARCH_PATTERN = /^([a-z]+):(.*)$/;

@@ -8,7 +8,7 @@
  */
 
 import type { FileInfo, AgentItem } from '../../../types';
-import type { SymbolResult } from '../../code-search/types';
+import type { SymbolResult } from '../code-search/types';
 import type { AtPathRange, SuggestionItem } from '../types';
 
 /**
