@@ -28,7 +28,8 @@ import {
   EventListenerManager,
   QueryExtractionManager,
   SuggestionUIManager,
-  FileSearchState
+  FileSearchState,
+  FileSearchInitializer
 } from './file-search/managers';
 
 export class FileSearchManager implements IInitializable {
@@ -313,207 +314,66 @@ export class FileSearchManager implements IInitializable {
   }
 
   public initializeElements(): void {
-    this.initializeDOMElements();
-    this.popupManager.initialize();
-    this.initializeCodeSearchManager();
-    this.initializeDirectoryCacheManager();
-    this.initializeHighlightManager();
-    this.initializeFileOpenerManager();
-    this.initializeSuggestionUIManager();
-  }
-
-  /**
-   * Initialize DOM elements
-   */
-  private initializeDOMElements(): void {
-    this.state.textInput = document.getElementById('textInput') as HTMLTextAreaElement;
-    this.state.highlightBackdrop = document.getElementById('highlightBackdrop') as HTMLDivElement;
-    console.debug('[FileSearchManager] initializeElements: textInput found:', !!this.state.textInput, 'highlightBackdrop found:', !!this.state.highlightBackdrop);
-
-    this.initializeSuggestionsContainer();
-  }
-
-  /**
-   * Initialize suggestions container
-   */
-  private initializeSuggestionsContainer(): void {
-    this.state.suggestionsContainer = document.getElementById('fileSuggestions');
-    if (!this.state.suggestionsContainer) {
-      this.state.suggestionsContainer = document.createElement('div');
-      this.state.suggestionsContainer.id = 'fileSuggestions';
-      this.state.suggestionsContainer.className = 'file-suggestions';
-      this.state.suggestionsContainer.setAttribute('role', 'listbox');
-      this.state.suggestionsContainer.setAttribute('aria-label', 'File suggestions');
-
-      const mainContent = document.querySelector('.main-content');
-      if (mainContent) {
-        mainContent.appendChild(this.state.suggestionsContainer);
-        console.debug('[FileSearchManager] suggestionsContainer created and appended');
-      } else {
-        console.warn('[FileSearchManager] .main-content not found!');
-      }
-    }
-  }
-
-  /**
-   * Initialize CodeSearchManager
-   */
-  private initializeCodeSearchManager(): void {
-    this.codeSearchManager = new CodeSearchManager({
-      updateHintText: (text: string) => this.callbacks.updateHintText?.(text),
-      getDefaultHintText: () => this.callbacks.getDefaultHintText?.() || '',
-      getCachedDirectoryData: () => this.directoryCacheManager?.getCachedData() ?? null,
-      getAtStartPosition: () => this.state.atStartPosition,
-      hideSuggestions: () => this.hideSuggestions(),
-      setFilteredSymbols: (symbols: SymbolResult[]) => { this.state.filteredSymbols = symbols; },
-      setFilteredFiles: (files: FileInfo[]) => { this.state.filteredFiles = files; },
-      setFilteredAgents: (agents: AgentItem[]) => { this.state.filteredAgents = agents; },
-      setMergedSuggestions: (suggestions: SuggestionItem[]) => { this.state.mergedSuggestions = suggestions; },
-      getMergedSuggestions: () => this.state.mergedSuggestions,
-      setSelectedIndex: (index: number) => { this.state.selectedIndex = index; },
-      getSelectedIndex: () => this.state.selectedIndex,
-      setIsVisible: (visible: boolean) => { this.state.isVisible = visible; },
-      getSuggestionsContainer: () => this.state.suggestionsContainer,
-      getCurrentFileSymbols: () => this.currentFileSymbols,
-      getCurrentFilePath: () => this.currentFilePath,
-      updateSelection: () => this.updateSelection(),
-      selectSymbol: (symbol: SymbolResult) => this._selectSymbol(symbol),
-      positionPopup: (atStartPos: number) => this.suggestionUIManager?.position(atStartPos),
-      getFileSearchMaxSuggestions: () => this._getFileSearchMaxSuggestions(),
-      showSuggestions: (query: string) => this.showSuggestions(query),
-      insertFilePath: (path: string) => this.insertFilePath(path),
-      onFileSelected: (path: string) => this.callbacks.onFileSelected(path),
-      setCurrentQuery: (query: string) => { this.state.currentQuery = query; },
-      getCurrentPath: () => this.state.currentPath,
-      showTooltipForSelectedItem: () => this.popupManager.showTooltipForSelectedItem(),
-      renderSuggestions: (suggestions: SuggestionItem[]) => this.suggestionUIManager?.update(suggestions, false)
-    });
-  }
-
-  /**
-   * Initialize DirectoryCacheManager
-   */
-  private initializeDirectoryCacheManager(): void {
-    this.directoryCacheManager = new DirectoryCacheManager({
-      onIndexingStatusChange: (isBuilding: boolean, hint?: string) => {
-        if (isBuilding && hint) {
-          this.callbacks.updateHintText?.(hint);
-        }
-      },
-      onCacheUpdated: () => {
-        if (this.state.isVisible && !this.state.currentQuery) {
-          this.refreshSuggestions();
-        }
-      },
-      updateHintText: (text: string) => this.callbacks.updateHintText?.(text)
-    });
-  }
-
-  /**
-   * Initialize HighlightManager
-   */
-  private initializeHighlightManager(): void {
-    if (!this.state.textInput || !this.state.highlightBackdrop) return;
-
-    this.highlightManager = new HighlightManager(
-      this.state.textInput,
-      this.state.highlightBackdrop,
+    const initializer = new FileSearchInitializer(
       {
-        getTextContent: () => this.state.textInput?.value || '',
-        getCursorPosition: () => this.state.textInput?.selectionStart || 0,
-        updateHintText: (text: string) => this.callbacks.updateHintText?.(text),
-        getDefaultHintText: () => this.callbacks.getDefaultHintText?.() || '',
-        isFileSearchEnabled: () => this.state.fileSearchEnabled,
+        state: this.state,
+        callbacks: this.callbacks,
+        popupManager: this.popupManager,
+        settingsCacheManager: this.settingsCacheManager,
+        fileFilterManager: this.fileFilterManager,
+        pathManager: this.pathManager,
+        navigationManager: this.navigationManager,
+        eventListenerManager: this.eventListenerManager,
+        queryExtractionManager: this.queryExtractionManager
+      },
+      {
         isCommandEnabledSync: () => this.isCommandEnabledSync(),
-        checkFileExists: async (path: string) => {
-          try {
-            return await electronAPI.file.checkExists(path);
-          } catch {
-            return false;
-          }
-        }
-      },
-      this.pathManager
-    );
-    this.highlightManager.setValidPathsBuilder(() => this.buildValidPathsSet());
-  }
-
-  /**
-   * Initialize FileOpenerEventHandler
-   */
-  private initializeFileOpenerManager(): void {
-    this.fileOpenerManager = new FileOpenerEventHandler({
-      onBeforeOpenFile: () => this.hideSuggestions(),
-      setDraggable: (enabled: boolean) => this.callbacks.setDraggable?.(enabled),
-      getTextContent: () => this.state.textInput?.value || '',
-      setTextContent: (text: string) => {
-        if (this.state.textInput) {
-          this.state.textInput.value = text;
-        }
-      },
-      getCursorPosition: () => this.state.textInput?.selectionStart || 0,
-      setCursorPosition: (position: number) => {
-        if (this.state.textInput) {
-          this.state.textInput.selectionStart = position;
-          this.state.textInput.selectionEnd = position;
-        }
-      },
-      getCurrentDirectory: () => this.directoryCacheManager?.getDirectory() ?? null,
-      isCommandEnabledSync: () => this.isCommandEnabledSync(),
-      hideWindow: () => electronAPI.window.hide(),
-      restoreDefaultHint: () => this.restoreDefaultHint(),
-      showError: (message: string) => this.callbacks.showError?.(message)
-    });
-  }
-
-  /**
-   * Initialize SuggestionUIManager
-   */
-  private initializeSuggestionUIManager(): void {
-    if (!this.state.textInput) return;
-
-    this.suggestionUIManager = new SuggestionUIManager(
-      this.state.textInput,
-      {
-        onItemSelected: (index: number) => this.selectItem(index),
-        onNavigateIntoDirectory: (file: FileInfo) => this.navigateIntoDirectory(file),
-        onEscape: () => this.hideSuggestions(),
-        onOpenFileInEditor: async (filePath: string) => {
-          await electronAPI.file.openInEditor(filePath);
-        },
-        getIsComposing: () => this.callbacks.getIsComposing?.() || false,
-        getCurrentPath: () => this.state.currentPath,
-        getBaseDir: () => this.directoryCacheManager?.getDirectory() ?? '',
-        getCurrentQuery: () => this.state.currentQuery,
-        getCodeSearchQuery: () => this.state.codeSearchQuery,
-        countFilesInDirectory: (path: string) => this.countFilesInDirectory(path),
-        onMouseEnterInfo: (suggestion: SuggestionItem, target: HTMLElement) => {
-          if (suggestion.type === 'agent' && suggestion.agent) {
-            this.popupManager.showFrontmatterPopup(suggestion.agent, target);
-          }
-        },
-        onMouseLeaveInfo: () => this.popupManager.hideFrontmatterPopup(),
-        getCachedDirectoryData: () => this.directoryCacheManager?.getCachedData() ?? null,
-        getAtStartPosition: () => this.state.atStartPosition,
-        adjustCurrentPathToQuery: (query: string) => this.adjustCurrentPathToQuery(query),
+        checkFileExistsAbsolute: (path: string) => this.checkFileExistsAbsolute(path),
+        buildValidPathsSet: () => this.buildValidPathsSet(),
+        getTotalItemCount: () => this.getTotalItemCount(),
+        _getFileSearchMaxSuggestions: () => this._getFileSearchMaxSuggestions(),
+        updateHighlightBackdrop: () => this.updateHighlightBackdrop(),
+        updateSelection: () => this.updateSelection(),
+        hideSuggestions: () => this.hideSuggestions(),
+        insertFilePath: (path: string) => this.insertFilePath(path),
+        insertFilePathWithoutAt: (path: string) => this.insertFilePathWithoutAt(path),
+        exitSymbolMode: () => this.exitSymbolMode(),
+        removeAtQueryText: () => this.removeAtQueryText(),
+        expandCurrentFile: () => this.expandCurrentFile(),
+        updateTextInputWithPath: (path: string) => this.updateTextInputWithPath(path),
         filterFiles: (query: string) => this.filterFiles(query),
         mergeSuggestions: (query: string, maxSuggestions?: number) => this.mergeSuggestions(query, maxSuggestions),
+        showSuggestions: (query: string) => this.showSuggestions(query),
+        _selectSymbol: (symbol: SymbolResult) => this._selectSymbol(symbol),
+        refreshSuggestions: () => this.refreshSuggestions(),
+        restoreDefaultHint: () => this.restoreDefaultHint(),
+        selectItem: (index: number) => this.selectItem(index),
+        navigateIntoDirectory: (file: FileInfo) => this.navigateIntoDirectory(file),
+        countFilesInDirectory: (path: string) => this.countFilesInDirectory(path),
+        adjustCurrentPathToQuery: (query: string) => this.adjustCurrentPathToQuery(query),
         searchAgents: (query: string) => this.searchAgents(query),
         isIndexBeingBuilt: () => this.isIndexBeingBuilt(),
         showIndexingHint: () => this.showIndexingHint(),
-        restoreDefaultHint: () => this.restoreDefaultHint(),
         matchesSearchPrefix: (query: string, type: 'command' | 'mention') => this.matchesSearchPrefix(query, type),
         getMaxSuggestions: (type: 'command' | 'mention') => this.getMaxSuggestions(type),
-        showTooltipForSelectedItem: () => this.popupManager.showTooltipForSelectedItem(),
-        setCurrentPath: (path: string) => { this.state.currentPath = path; },
-        setCurrentQuery: (query: string) => { this.state.currentQuery = query; },
-        setFilteredFiles: (files: FileInfo[]) => { this.state.filteredFiles = files; },
-        setFilteredAgents: (agents: AgentItem[]) => { this.state.filteredAgents = agents; },
-        setMergedSuggestions: (suggestions: SuggestionItem[]) => { this.state.mergedSuggestions = suggestions; },
-        setSelectedIndex: (index: number) => { this.state.selectedIndex = index; },
-        setIsVisible: (visible: boolean) => { this.state.isVisible = visible; }
+        getIsInSymbolMode: () => this.isInSymbolMode,
+        setIsInSymbolMode: (value: boolean) => { this.isInSymbolMode = value; },
+        getCurrentFilePath: () => this.currentFilePath,
+        setCurrentFilePath: (path: string) => { this.currentFilePath = path; },
+        getCurrentFileSymbols: () => this.currentFileSymbols,
+        setCurrentFileSymbols: (symbols: SymbolResult[]) => { this.currentFileSymbols = symbols; }
       }
     );
+
+    const managers = initializer.initializeAll();
+    this.highlightManager = managers.highlightManager;
+    this.suggestionUIManager = managers.suggestionUIManager;
+    this.codeSearchManager = managers.codeSearchManager;
+    this.fileOpenerManager = managers.fileOpenerManager;
+    this.directoryCacheManager = managers.directoryCacheManager;
+
+    // Wire up cross-manager dependencies
+    initializer.wireDependencies(managers);
   }
 
   /**

@@ -40,3 +40,10 @@ export { SuggestionUIManager } from './suggestion-ui-manager';
 export type { SuggestionUICallbacks } from './suggestion-ui-manager';
 
 export { FileSearchState } from './file-search-state';
+
+export { FileSearchInitializer } from './file-search-initializer';
+export type {
+  FileSearchManagerDependencies,
+  InitializedManagers,
+  FileSearchInitializerCallbacks
+} from './file-search-initializer';
