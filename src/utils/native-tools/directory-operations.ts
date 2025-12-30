@@ -1,5 +1,5 @@
 import { execFile } from 'child_process';
-import type { DirectoryInfo } from '../../types';
+import type { DirectoryInfo, FileSearchSettings } from '../../types';
 import { TIMEOUTS } from '../../constants';
 import { logger } from '../logger';
 import { DIRECTORY_DETECTOR_PATH, FILE_SEARCHER_PATH } from './paths';
@@ -12,6 +12,8 @@ export interface DirectoryDetectionOptions {
   pid?: number;
   /** Source app bundle ID */
   bundleId?: string;
+  /** File search settings for file listing */
+  fileSearchSettings?: FileSearchSettings;
 }
 
 /**
@@ -59,11 +61,47 @@ export function detectCurrentDirectory(options?: DirectoryDetectionOptions): Pro
 }
 
 /**
+ * Build file-searcher arguments from file search settings
+ */
+function buildFileSearcherArgs(settings: FileSearchSettings): string[] {
+  const args: string[] = [];
+
+  if (!settings.respectGitignore) {
+    args.push('--no-gitignore');
+  }
+  if (settings.excludePatterns && settings.excludePatterns.length > 0) {
+    for (const pattern of settings.excludePatterns) {
+      args.push('--exclude', pattern);
+    }
+  }
+  if (settings.includePatterns && settings.includePatterns.length > 0) {
+    for (const pattern of settings.includePatterns) {
+      args.push('--include', pattern);
+    }
+  }
+  if (settings.maxFiles) {
+    args.push('--max-files', String(settings.maxFiles));
+  }
+  if (settings.includeHidden) {
+    args.push('--include-hidden');
+  }
+  if (settings.maxDepth !== null && settings.maxDepth !== undefined) {
+    args.push('--max-depth', String(settings.maxDepth));
+  }
+  if (settings.followSymlinks) {
+    args.push('--follow-symlinks');
+  }
+
+  return args;
+}
+
+/**
  * List files in a specified directory using file-searcher native tool
  * @param directoryPath - Path to the directory to list
+ * @param fileSearchSettings - Optional file search settings
  * @returns Promise<DirectoryInfo> - Object with file list or error
  */
-export function listDirectory(directoryPath: string): Promise<DirectoryInfo> {
+export function listDirectory(directoryPath: string, fileSearchSettings?: FileSearchSettings): Promise<DirectoryInfo> {
   return new Promise((resolve) => {
     if (process.platform !== 'darwin') {
       resolve({ error: 'Directory listing only supported on macOS' });
@@ -93,8 +131,17 @@ export function listDirectory(directoryPath: string): Promise<DirectoryInfo> {
       killSignal: 'SIGTERM' as const
     };
 
+    // Build arguments with optional file search settings
+    const args = ['list', sanitizedPath];
+    if (fileSearchSettings) {
+      args.push(...buildFileSearcherArgs(fileSearchSettings));
+      logger.debug('listDirectory: file-searcher args with settings:', args.join(' '));
+    } else {
+      logger.debug('listDirectory: file-searcher args (no settings):', args.join(' '));
+    }
+
     // Use file-searcher native tool for file listing
-    execFile(FILE_SEARCHER_PATH, ['list', sanitizedPath], options, (error, stdout) => {
+    execFile(FILE_SEARCHER_PATH, args, options, (error, stdout) => {
       if (error) {
         logger.warn('Error listing directory (non-blocking):', error.message);
         resolve({ error: error.message });
@@ -114,12 +161,23 @@ export function listDirectory(directoryPath: string): Promise<DirectoryInfo> {
 /**
  * Detect current directory from active terminal and list files
  * Uses separated tools: directory-detector for CWD, file-searcher for file listing
- * @param options - Optional PID and bundleId to override frontmost app detection
+ * @param options - Optional PID, bundleId, and fileSearchSettings
  * @returns Promise<DirectoryInfo> - Object with directory info and file list
  */
 export async function detectCurrentDirectoryWithFiles(options?: DirectoryDetectionOptions): Promise<DirectoryInfo> {
   if (process.platform !== 'darwin') {
     return { error: 'Directory detection only supported on macOS' };
+  }
+
+  // Debug: Log the options being passed
+  if (options?.fileSearchSettings) {
+    logger.debug('detectCurrentDirectoryWithFiles called with fileSearchSettings:', {
+      maxFiles: options.fileSearchSettings.maxFiles,
+      respectGitignore: options.fileSearchSettings.respectGitignore,
+      includeHidden: options.fileSearchSettings.includeHidden
+    });
+  } else {
+    logger.debug('detectCurrentDirectoryWithFiles called without fileSearchSettings');
   }
 
   // Step 1: Detect current directory using directory-detector
@@ -128,8 +186,8 @@ export async function detectCurrentDirectoryWithFiles(options?: DirectoryDetecti
     return dirResult;
   }
 
-  // Step 2: List files using file-searcher
-  const fileResult = await listDirectory(dirResult.directory);
+  // Step 2: List files using file-searcher with optional settings
+  const fileResult = await listDirectory(dirResult.directory, options?.fileSearchSettings);
   if (fileResult.error) {
     // Return directory info without files if file listing fails
     logger.warn('File listing failed, returning directory only:', fileResult.error);

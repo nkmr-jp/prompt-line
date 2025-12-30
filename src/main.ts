@@ -141,7 +141,11 @@ class PromptLineApp {
       logger.debug('Testing directory detection feature...');
       const startTime = performance.now();
 
-      const result = await detectCurrentDirectoryWithFiles();
+      // Get file search settings from settings manager (if available)
+      const fileSearchSettings = this.settingsManager?.getFileSearchSettings();
+      // Only pass options if we have file search settings
+      const options = fileSearchSettings ? { fileSearchSettings } : undefined;
+      const result = await detectCurrentDirectoryWithFiles(options);
       const duration = performance.now() - startTime;
 
       if (result.error) {
