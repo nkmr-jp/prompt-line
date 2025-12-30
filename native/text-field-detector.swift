@@ -3,71 +3,51 @@ import ApplicationServices
 import Foundation
 
 class TextFieldDetector {
-    /// Build app info dictionary for including in responses
-    private static func buildAppInfo(from app: NSRunningApplication) -> [String: Any] {
-        var info: [String: Any] = [
-            "appName": app.localizedName ?? "Unknown",
-            "appPid": app.processIdentifier
-        ]
-        if let bundleId = app.bundleIdentifier {
-            info["bundleId"] = bundleId
-        }
-        return info
-    }
-
-    /// Build error response with app info
-    private static func errorWithAppInfo(_ error: String, app: NSRunningApplication, extra: [String: Any] = [:]) -> [String: Any] {
-        var result: [String: Any] = ["error": error]
-        result.merge(buildAppInfo(from: app)) { (_, new) in new }
-        result.merge(extra) { (_, new) in new }
-        return result
-    }
-
     static func getActiveTextFieldBounds() -> [String: Any] {
         // Check if we have accessibility permissions
         if !AXIsProcessTrusted() {
             return ["error": "no_accessibility_permission"]
         }
-
+        
         guard let frontApp = NSWorkspace.shared.frontmostApplication else {
             return ["error": "no_active_application"]
         }
-
+        
         let pid = frontApp.processIdentifier
         let app = AXUIElementCreateApplication(pid)
-
+        
         // Get focused element
         var focusedElement: CFTypeRef?
         let focusResult = AXUIElementCopyAttributeValue(app, kAXFocusedUIElementAttribute as CFString, &focusedElement)
-
+        
         if focusResult != AXError.success {
-            return errorWithAppInfo("no_focused_element", app: frontApp)
+            return ["error": "no_focused_element"]
         }
-
+        
         guard let element = focusedElement else {
-            return errorWithAppInfo("focused_element_null", app: frontApp)
+            return ["error": "focused_element_null"]
         }
 
         // Note: AXUIElement is a toll-free bridged CoreFoundation type
         // The guard let above ensures element is not nil, so force unwrap is safe
         let axElement = element as! AXUIElement
-
+        
         // Get element role
         var role: CFTypeRef?
         let roleResult = AXUIElementCopyAttributeValue(axElement, kAXRoleAttribute as CFString, &role)
-
+        
         if roleResult != AXError.success {
-            return errorWithAppInfo("cannot_get_role", app: frontApp)
+            return ["error": "cannot_get_role"]
         }
-
+        
         guard let elementRole = role as? String else {
-            return errorWithAppInfo("invalid_role", app: frontApp)
+            return ["error": "invalid_role"]
         }
-
+        
         // Check if element is a text field
         let textFieldRoles = ["AXTextField", "AXTextArea", "AXSecureTextField", "AXComboBox"]
         if !textFieldRoles.contains(elementRole) {
-            return errorWithAppInfo("not_text_field", app: frontApp, extra: ["role": elementRole])
+            return ["error": "not_text_field", "role": elementRole]
         }
         
         // Get element position
@@ -75,23 +55,23 @@ class TextFieldDetector {
         let positionResult = AXUIElementCopyAttributeValue(axElement, kAXPositionAttribute as CFString, &position)
         
         if positionResult != AXError.success {
-            return errorWithAppInfo("cannot_get_position", app: frontApp)
+            return ["error": "cannot_get_position"]
         }
-
+        
         // Get element size
         var size: CFTypeRef?
         let sizeResult = AXUIElementCopyAttributeValue(axElement, kAXSizeAttribute as CFString, &size)
-
+        
         if sizeResult != AXError.success {
-            return errorWithAppInfo("cannot_get_size", app: frontApp)
+            return ["error": "cannot_get_size"]
         }
-
+        
         // Extract position values
         // Note: AXValue is a toll-free bridged CoreFoundation type
         // The guard let above for position ensures it is not nil, so force unwrap is safe
         var point = CGPoint.zero
         if !AXValueGetValue(position as! AXValue, .cgPoint, &point) {
-            return errorWithAppInfo("invalid_position_data", app: frontApp)
+            return ["error": "invalid_position_data"]
         }
 
         // Extract size values
@@ -99,7 +79,7 @@ class TextFieldDetector {
         // The guard let above for size ensures it is not nil, so force unwrap is safe
         var cgSize = CGSize.zero
         if !AXValueGetValue(size as! AXValue, .cgSize, &cgSize) {
-            return errorWithAppInfo("invalid_size_data", app: frontApp)
+            return ["error": "invalid_size_data"]
         }
         
         // Get additional text field information
