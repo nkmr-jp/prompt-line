@@ -3,6 +3,7 @@ import config from '../../../config/app-config';
 import { logger, DIRECTORY_DETECTOR_PATH, FILE_SEARCHER_PATH } from '../../../utils/utils';
 import type { DirectoryInfo, FileSearchSettings, AppInfo } from '../../../types';
 import type { IDirectoryDetectionStrategy } from './types';
+import { TIMEOUTS } from '../../../constants';
 
 /**
  * Native tool-based directory detection strategy
@@ -38,7 +39,7 @@ export class NativeDetectorStrategy implements IDirectoryDetectionStrategy {
     });
 
     const detectOptions = {
-      timeout: Math.min(timeout, 3000), // Use shorter timeout for detection
+      timeout: Math.min(timeout, TIMEOUTS.NATIVE_TOOL_EXECUTION), // Use shorter timeout for detection
       killSignal: 'SIGTERM' as const
     };
 
@@ -87,7 +88,7 @@ export class NativeDetectorStrategy implements IDirectoryDetectionStrategy {
           });
 
           // Calculate remaining timeout with minimum threshold
-          const remainingTimeout = Math.round(Math.max(timeout - detectElapsed, 1000));
+          const remainingTimeout = Math.round(Math.max(timeout - detectElapsed, TIMEOUTS.SHORT_OPERATION));
 
           const listOptions = {
             timeout: remainingTimeout,

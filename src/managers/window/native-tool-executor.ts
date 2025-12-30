@@ -2,6 +2,7 @@ import { execFile } from 'child_process';
 import { logger, KEYBOARD_SIMULATOR_PATH } from '../../utils/utils';
 import config from '../../config/app-config';
 import type { AppInfo } from '../../types';
+import { TIMEOUTS } from '../../constants';
 
 /**
  * NativeToolExecutor handles execution of native macOS tools for window management
@@ -38,7 +39,7 @@ class NativeToolExecutor {
       }
 
       const options = {
-        timeout: 3000,
+        timeout: TIMEOUTS.NATIVE_TOOL_EXECUTION,
         killSignal: 'SIGTERM' as const
       };
 

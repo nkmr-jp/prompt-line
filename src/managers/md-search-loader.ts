@@ -5,6 +5,7 @@ import { logger } from '../utils/utils';
 import type { MdSearchEntry, MdSearchItem, MdSearchType } from '../types';
 import { resolveTemplate, getBasename, parseFrontmatter, extractRawFrontmatter } from '../lib/template-resolver';
 import { getDefaultMdSearchConfig, DEFAULT_MAX_SUGGESTIONS, DEFAULT_SORT_ORDER } from '../lib/default-md-search-config';
+import { CACHE_TTL } from '../constants';
 
 /**
  * MdSearchLoader - 設定ベースの統合Markdownファイルローダー
@@ -14,7 +15,7 @@ import { getDefaultMdSearchConfig, DEFAULT_MAX_SUGGESTIONS, DEFAULT_SORT_ORDER }
 class MdSearchLoader {
   private config: MdSearchEntry[];
   private cache: Map<string, { items: MdSearchItem[]; timestamp: number }> = new Map();
-  private cacheTTL: number = 5000; // 5 seconds
+  private cacheTTL: number = CACHE_TTL.MD_SEARCH;
 
   constructor(config?: MdSearchEntry[]) {
     // Use default config if config is undefined or empty array

@@ -1,15 +1,16 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import config from '../config/app-config';
-import { 
-  logger, 
-  safeJsonParse, 
-  safeJsonStringify, 
-  debounce 
+import {
+  logger,
+  safeJsonParse,
+  safeJsonStringify,
+  debounce
 } from '../utils/utils';
-import type { 
+import type {
   DebounceFunction
 } from '../types';
+import { DEBOUNCE, LIMITS } from '../constants';
 
 interface DraftMetadata {
   length: number;
@@ -37,7 +38,6 @@ interface DraftStatsExtended {
 
 class DraftManager {
   private draftFile: string;
-  private saveDelay: number;
   private currentDraft: string | null = null;
   private pendingSave = false;
   private hasUnsavedChanges = false;
@@ -47,10 +47,9 @@ class DraftManager {
 
   constructor() {
     this.draftFile = config.paths.draftFile;
-    this.saveDelay = config.draft.saveDelay;
-    
-    this.debouncedSave = debounce(this._saveDraft.bind(this), this.saveDelay * 2);
-    this.quickSave = debounce(this._saveDraft.bind(this), this.saveDelay);
+
+    this.debouncedSave = debounce(this._saveDraft.bind(this), DEBOUNCE.LONG_TEXT);
+    this.quickSave = debounce(this._saveDraft.bind(this), DEBOUNCE.SHORT_TEXT);
   }
 
   async initialize(): Promise<void> {
@@ -112,7 +111,7 @@ class DraftManager {
         throw new Error('Draft size exceeds 1MB limit');
       }
 
-      if (text.length > 200) {
+      if (text.length > DEBOUNCE.TEXT_LENGTH_THRESHOLD) {
         this.debouncedSave(text);
       } else {
         this.quickSave(text);
@@ -334,7 +333,7 @@ class DraftManager {
     }
   }
 
-  async cleanupBackups(maxAge = 7 * 24 * 60 * 60 * 1000): Promise<number> {
+  async cleanupBackups(maxAge = LIMITS.MAX_BACKUP_AGE): Promise<number> {
     try {
       const dir = path.dirname(this.draftFile);
       const files = await fs.readdir(dir);
