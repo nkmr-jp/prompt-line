@@ -71,6 +71,17 @@ export type {
   ElectronAPI,
 } from './ipc';
 
+// Handler types
+export type {
+  HandlerStats,
+} from './handlers';
+
+// Manager types
+export type {
+  CacheStatus,
+  CacheMetadata,
+} from './managers';
+
 // Utility types
 export interface DebounceFunction<T extends unknown[]> {
   (...args: T): void;

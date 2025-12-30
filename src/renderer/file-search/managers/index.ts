@@ -2,6 +2,8 @@
  * File Search Managers - Specialized manager classes for file search functionality
  */
 
+export { BaseCacheManager } from './base-cache-manager';
+
 export { PopupManager } from './popup-manager';
 export type { PopupManagerCallbacks } from './popup-manager';
 

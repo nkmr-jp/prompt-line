@@ -4,7 +4,7 @@ import type WindowManager from '../managers/window';
 import type DraftManager from '../managers/draft-manager';
 import type DirectoryManager from '../managers/directory-manager';
 import type SettingsManager from '../managers/settings-manager';
-import type { IHistoryManager } from '../types';
+import type { IHistoryManager, HandlerStats } from '../types';
 import MdSearchLoader from '../managers/md-search-loader';
 import FileOpenerManager from '../managers/file-opener-manager';
 
@@ -15,12 +15,6 @@ import WindowHandler from './window-handler';
 import SystemHandler from './system-handler';
 import MdSearchHandler from './mdsearch-handler';
 import FileHandler from './file-handler';
-
-interface HandlerStats {
-  totalHandlers: number;
-  registeredHandlers: string[];
-  timestamp: number;
-}
 
 /**
  * IPCHandlers Coordinator
