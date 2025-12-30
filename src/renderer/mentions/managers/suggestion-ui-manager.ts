@@ -180,12 +180,6 @@ export class SuggestionUIManager {
       return;
     }
 
-    console.debug('[SuggestionUIManager] showSuggestions called', {
-      query,
-      currentPath: this.callbacks.getCurrentPath?.(),
-      hasCachedData: !!this.callbacks.getCachedDirectoryData()
-    });
-
     // Check if query matches any searchPrefix for mention type
     const matchesPrefix = await this.callbacks.matchesSearchPrefix?.(query, 'mention') ?? false;
 

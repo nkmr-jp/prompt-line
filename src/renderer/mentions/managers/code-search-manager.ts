@@ -100,26 +100,20 @@ export class CodeSearchManager {
    * Checks ripgrep availability and loads supported languages
    */
   private async initializeCodeSearch(): Promise<void> {
-    console.debug('[CodeSearchManager] initializeCodeSearch: starting...');
     try {
       // Check if ripgrep is available
       const rgCheck = await electronAPI.codeSearch.checkRg();
-      console.debug('[CodeSearchManager] initializeCodeSearch: rgCheck result:', rgCheck);
       this.rgAvailable = rgCheck.rgAvailable;
 
       if (!this.rgAvailable) {
-        console.debug('[CodeSearchManager] ripgrep not available, code search disabled');
         return;
       }
 
       // Load supported languages
       const langResponse = await electronAPI.codeSearch.getSupportedLanguages();
-      console.debug('[CodeSearchManager] initializeCodeSearch: languages loaded:', langResponse.languages.length);
       for (const lang of langResponse.languages) {
         this.supportedLanguages.set(lang.key, lang);
       }
-
-      console.debug('[CodeSearchManager] Code search initialized with languages:', Array.from(this.supportedLanguages.keys()));
     } catch (error) {
       handleError('CodeSearchManager.initializeCodeSearch', error);
     }
@@ -230,24 +224,9 @@ export class CodeSearchManager {
     symbolTypeFilter: string | null = null,
     refreshCache: boolean = false
   ): Promise<void> {
-    console.debug('[CodeSearchManager] searchSymbolsWithUI called:', {
-      language,
-      query,
-      symbolTypeFilter,
-      refreshCache,
-      rgAvailable: this.rgAvailable,
-      languagesLoaded: this.supportedLanguages.size
-    });
-
     const cachedData = this.callbacks.getCachedDirectoryData?.();
-    console.debug('[CodeSearchManager] searchSymbolsWithUI: cachedData:', {
-      hasData: !!cachedData,
-      directory: cachedData?.directory,
-      fileCount: cachedData?.files?.length
-    });
 
     if (!cachedData?.directory) {
-      console.debug('[CodeSearchManager] searchSymbolsWithUI: no directory available');
       // Show user feedback that directory is required
       this.callbacks.updateHintText?.('No directory detected for symbol search');
       // IMPORTANT: Hide any existing suggestions (e.g., from previous file search)
@@ -319,11 +298,6 @@ export class CodeSearchManager {
     this.isInSymbolMode = true;
     this.currentFilePath = relativePath;
 
-    console.debug('[CodeSearchManager] navigateIntoFile:', {
-      file: relativePath,
-      language: language.key
-    });
-
     // Show loading state
     this.callbacks.updateHintText?.(`Loading symbols from ${relativePath}...`);
 
@@ -348,13 +322,9 @@ export class CodeSearchManager {
         (s: SymbolResult) => s.relativePath === relativePath
       );
 
-      console.debug('[CodeSearchManager] Found symbols in file:',
-        this.currentFileSymbols.length, 'out of', response.symbolCount);
-
       // If no symbols found in cached results, retry without cache
       // (cache might be stale)
       if (this.currentFileSymbols.length === 0 && response.symbolCount > 0) {
-        console.debug('[CodeSearchManager] No symbols for file in cache, retrying without cache');
         this.callbacks.updateHintText?.(`Refreshing symbols for ${relativePath}...`);
 
         // Don't pass maxSymbols - let the handler use settings value
@@ -368,8 +338,6 @@ export class CodeSearchManager {
           this.currentFileSymbols = response.symbols.filter(
             (s: SymbolResult) => s.relativePath === relativePath
           );
-          console.debug('[CodeSearchManager] After refresh, found symbols:',
-            this.currentFileSymbols.length, 'out of', response.symbolCount);
         }
       }
 
@@ -379,9 +347,6 @@ export class CodeSearchManager {
         this.isInSymbolMode = false;
         return;
       }
-
-      // Successfully loaded symbols - callback can now retrieve them via getCurrentFileSymbols()
-      console.debug('[CodeSearchManager] Symbol navigation complete, symbols ready for display');
     } catch (error) {
       handleError('CodeSearchManager.handleSymbolNavigation', error);
       this.isInSymbolMode = false;

@@ -196,8 +196,7 @@ export class PromptLineRenderer {
 
   private setupMentionManager(): void {
     this.fileSearchManager = new MentionManager({
-      onFileSelected: (filePath: string) => {
-        console.debug('[MentionManager] File selected:', filePath);
+      onFileSelected: (_filePath: string) => {
         // File path is already inserted by MentionManager
         this.draftManager.saveDraftDebounced();
       },

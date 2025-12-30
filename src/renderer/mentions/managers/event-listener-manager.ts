@@ -109,11 +109,8 @@ export class EventListenerManager {
       return;
     }
 
-    console.debug('[EventListenerManager] setupEventListeners: setting up event listeners');
-
     // Create bound input handler for add/remove listener support
     this.boundInputHandler = () => {
-      console.debug('[EventListenerManager] input event fired');
       this.callbacks.checkForFileSearch();
       this.callbacks.updateHighlightBackdrop();
       // Update cursor position highlight after input

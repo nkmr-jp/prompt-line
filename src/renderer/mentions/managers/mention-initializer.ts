@@ -130,7 +130,6 @@ export class MentionInitializer {
   private initializeDOMElements(): void {
     this.deps.state.textInput = document.getElementById('textInput') as HTMLTextAreaElement;
     this.deps.state.highlightBackdrop = document.getElementById('highlightBackdrop') as HTMLDivElement;
-    console.debug('[MentionInitializer] initializeElements: textInput found:', !!this.deps.state.textInput, 'highlightBackdrop found:', !!this.deps.state.highlightBackdrop);
 
     this.initializeSuggestionsContainer();
   }
@@ -150,7 +149,6 @@ export class MentionInitializer {
       const mainContent = document.querySelector('.main-content');
       if (mainContent) {
         mainContent.appendChild(this.deps.state.suggestionsContainer);
-        console.debug('[MentionInitializer] suggestionsContainer created and appended');
       } else {
         console.warn('[MentionInitializer] .main-content not found!');
       }
