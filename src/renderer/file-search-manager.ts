@@ -8,6 +8,7 @@ import type { SymbolResult, LanguageInfo } from './code-search/types';
 import type { DirectoryData, FileSearchCallbacks, SuggestionItem } from './file-search';
 import type { IInitializable } from './interfaces/initializable';
 import { handleError } from './utils/error-handler';
+import { electronAPI } from './services/electron-api';
 import {
   formatLog,
   normalizePath,
@@ -247,7 +248,7 @@ export class FileSearchManager implements IInitializable {
     if (!absolutePath) return false;
 
     try {
-      return await window.electronAPI?.file?.checkExists(absolutePath) || false;
+      return await electronAPI?.file?.checkExists(absolutePath) || false;
     } catch {
       return false;
     }
@@ -426,7 +427,7 @@ export class FileSearchManager implements IInitializable {
         isCommandEnabledSync: () => this.isCommandEnabledSync(),
         checkFileExists: async (path: string) => {
           try {
-            return await window.electronAPI.file.checkExists(path);
+            return await electronAPI.file.checkExists(path);
           } catch {
             return false;
           }
@@ -459,7 +460,7 @@ export class FileSearchManager implements IInitializable {
       },
       getCurrentDirectory: () => this.directoryCacheManager?.getDirectory() ?? null,
       isCommandEnabledSync: () => this.isCommandEnabledSync(),
-      hideWindow: () => window.electronAPI.window.hide(),
+      hideWindow: () => electronAPI.window.hide(),
       restoreDefaultHint: () => this.restoreDefaultHint(),
       showError: (message: string) => this.callbacks.showError?.(message)
     });
@@ -478,7 +479,7 @@ export class FileSearchManager implements IInitializable {
         onNavigateIntoDirectory: (file: FileInfo) => this.navigateIntoDirectory(file),
         onEscape: () => this.hideSuggestions(),
         onOpenFileInEditor: async (filePath: string) => {
-          await window.electronAPI.file.openInEditor(filePath);
+          await electronAPI.file.openInEditor(filePath);
         },
         getIsComposing: () => this.callbacks.getIsComposing?.() || false,
         getCurrentPath: () => this.state.currentPath,
@@ -553,19 +554,19 @@ export class FileSearchManager implements IInitializable {
    */
   private async loadRegisteredAtPaths(directory: string | null): Promise<void> {
     try {
-      if (!window.electronAPI?.atPathCache) {
+      if (!electronAPI?.atPathCache) {
         console.debug('[FileSearchManager] atPathCache API not available');
         return;
       }
 
       // Load project-specific paths (only if directory is available)
-      const projectPaths = (directory && window.electronAPI.atPathCache.getPaths)
-        ? await window.electronAPI.atPathCache.getPaths(directory)
+      const projectPaths = (directory && electronAPI.atPathCache.getPaths)
+        ? await electronAPI.atPathCache.getPaths(directory)
         : [];
 
       // Load global paths (for mdSearch agents and other project-independent items)
-      const globalPaths = window.electronAPI.atPathCache.getGlobalPaths
-        ? await window.electronAPI.atPathCache.getGlobalPaths()
+      const globalPaths = electronAPI.atPathCache.getGlobalPaths
+        ? await electronAPI.atPathCache.getGlobalPaths()
         : [];
 
       // Merge both path sets (deduplicated)
@@ -877,8 +878,8 @@ export class FileSearchManager implements IInitializable {
    */
   private async searchAgents(query: string): Promise<AgentItem[]> {
     try {
-      if (window.electronAPI?.agents?.get) {
-        const agents = await window.electronAPI.agents.get(query);
+      if (electronAPI?.agents?.get) {
+        const agents = await electronAPI.agents.get(query);
         const maxSuggestions = await this.getMaxSuggestions('mention');
         return agents.slice(0, maxSuggestions);
       }

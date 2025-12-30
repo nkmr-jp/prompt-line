@@ -6,9 +6,7 @@
 import { matchesShortcutString } from './utils/shortcut-parser';
 import { rendererLogger } from './utils/logger';
 import type { UserSettings } from './types';
-
-// Secure electronAPI access via preload script
-const electronAPI = (window as any).electronAPI;
+import { electronAPI } from './services/electron-api';
 
 export class ShortcutHandler {
   private textarea: HTMLTextAreaElement | null = null;

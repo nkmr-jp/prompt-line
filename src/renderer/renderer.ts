@@ -19,13 +19,7 @@ import { SimpleSnapshotManager } from './snapshot-manager';
 import { FileSearchManager } from './file-search-manager';
 import { DirectoryDataHandler } from './directory-data-handler';
 import { rendererLogger } from './utils/logger';
-
-// Secure electronAPI access via preload script
-const electronAPI = (window as any).electronAPI;
-
-if (!electronAPI) {
-  throw new Error('Electron API not available. Preload script may not be loaded correctly.');
-}
+import { electronAPI } from './services/electron-api';
 
 // Default display limit for history items
 const DEFAULT_DISPLAY_LIMIT = 50;
@@ -321,7 +315,7 @@ export class PromptLineRenderer {
         // Let default paste happen first, then check if we need to handle image
         setTimeout(async () => {
           try {
-            const result = await electronAPI.invoke('paste-image') as ImageResult;
+            const result = (await electronAPI.invoke('paste-image')) as unknown as ImageResult;
             if (result.success && result.path) {
               // Image paste successful - remove any text that was pasted and insert image path
               this.domManager.setText(textBeforePaste);

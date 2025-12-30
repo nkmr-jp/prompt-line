@@ -10,6 +10,7 @@ import { highlightMatch } from './utils/highlight-utils';
 import { escapeHtml } from './utils/html-utils';
 import { handleError } from './utils/error-handler';
 import { SUGGESTIONS } from '../constants';
+import { electronAPI } from './services/electron-api';
 
 interface SlashCommandItem {
   name: string;
@@ -126,7 +127,6 @@ export class SlashCommandManager implements IInitializable {
    */
   public async loadCommands(): Promise<void> {
     try {
-      const electronAPI = (window as any).electronAPI;
       if (electronAPI?.slashCommands?.get) {
         this.commands = await electronAPI.slashCommands.get();
       }
@@ -146,7 +146,6 @@ export class SlashCommandManager implements IInitializable {
     }
 
     try {
-      const electronAPI = (window as any).electronAPI;
       if (electronAPI?.mdSearch?.getMaxSuggestions) {
         const maxSuggestions = await electronAPI.mdSearch.getMaxSuggestions('command');
         this.maxSuggestionsCache = maxSuggestions;
@@ -528,7 +527,6 @@ export class SlashCommandManager implements IInitializable {
       this.setDraggable?.(true);
 
       // Open the file in editor
-      const electronAPI = (window as any).electronAPI;
       if (electronAPI?.file?.openInEditor) {
         await electronAPI.file.openInEditor(command.filePath);
       }

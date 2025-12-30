@@ -11,19 +11,7 @@
 import { BaseCacheManager } from './base-cache-manager';
 import { handleError } from '../../utils/error-handler';
 import { SUGGESTIONS } from '../../../constants';
-
-/**
- * ElectronAPI interface for mdSearch and fileSearch operations
- */
-interface ElectronAPI {
-  mdSearch?: {
-    getMaxSuggestions: (type: 'command' | 'mention') => Promise<number>;
-    getSearchPrefixes: (type: 'command' | 'mention') => Promise<string[]>;
-  };
-  fileSearch?: {
-    getMaxSuggestions: () => Promise<number>;
-  };
-}
+import { electronAPI } from '../../services/electron-api';
 
 /**
  * SettingsCacheManager class for caching settings data
@@ -45,7 +33,6 @@ export class SettingsCacheManager extends BaseCacheManager<string, number> {
   protected async fetchValue(key: string): Promise<number> {
     try {
       const type = key as 'command' | 'mention';
-      const electronAPI = this.getElectronAPI();
       if (electronAPI?.mdSearch?.getMaxSuggestions) {
         return await electronAPI.mdSearch.getMaxSuggestions(type);
       }
@@ -53,13 +40,6 @@ export class SettingsCacheManager extends BaseCacheManager<string, number> {
       handleError('SettingsCacheManager.fetchValue', error);
     }
     return SettingsCacheManager.DEFAULT_MAX_SUGGESTIONS;
-  }
-
-  /**
-   * Get electronAPI from window object
-   */
-  private getElectronAPI(): ElectronAPI | null {
-    return (window as unknown as { electronAPI?: ElectronAPI }).electronAPI || null;
   }
 
   /**
@@ -89,7 +69,6 @@ export class SettingsCacheManager extends BaseCacheManager<string, number> {
     }
 
     try {
-      const electronAPI = this.getElectronAPI();
       if (electronAPI?.fileSearch?.getMaxSuggestions) {
         const maxSuggestions = await electronAPI.fileSearch.getMaxSuggestions();
         this.fileSearchMaxSuggestionsCache = maxSuggestions;
@@ -112,7 +91,6 @@ export class SettingsCacheManager extends BaseCacheManager<string, number> {
     }
 
     try {
-      const electronAPI = this.getElectronAPI();
       if (electronAPI?.mdSearch?.getSearchPrefixes) {
         const prefixes = await electronAPI.mdSearch.getSearchPrefixes(type);
         this.searchPrefixesCache.set(type, prefixes);

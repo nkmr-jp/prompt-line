@@ -5,9 +5,7 @@
 
 import type { DirectoryInfo, AppInfo, WindowData } from './types';
 import { formatLog } from './utils/debug-logger';
-
-// Secure electronAPI access via preload script
-const electronAPI = (window as any).electronAPI;
+import { electronAPI } from './services/electron-api';
 
 /**
  * Callbacks for DirectoryDataHandler to interact with parent components

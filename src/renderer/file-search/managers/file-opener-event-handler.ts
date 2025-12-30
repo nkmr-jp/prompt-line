@@ -10,6 +10,7 @@
  */
 
 import { handleError } from '../../utils/error-handler';
+import { electronAPI } from '../../services/electron-api';
 
 import {
   findUrlAtPosition,
@@ -73,7 +74,7 @@ export class FileOpenerEventHandler {
       this.callbacks.onBeforeOpenFile?.();
       // Enable draggable state while file is opening
       this.callbacks.setDraggable?.(true);
-      const result = await window.electronAPI.file.openInEditor(filePath);
+      const result = await electronAPI.file.openInEditor(filePath);
       
       // Check for errors in the result
       if (!result.success && result.error) {
@@ -100,7 +101,7 @@ export class FileOpenerEventHandler {
       this.callbacks.onBeforeOpenFile?.();
       // Enable draggable state while URL is opening
       this.callbacks.setDraggable?.(true);
-      const result = await window.electronAPI.shell.openExternal(url);
+      const result = await electronAPI.shell.openExternal(url);
       if (!result.success) {
         handleError('FileOpenerEventHandler.openUrl', new Error(result.error));
         // Disable draggable state on error
@@ -110,7 +111,7 @@ export class FileOpenerEventHandler {
         // Restore focus to PromptLine window after a short delay
         // Keep draggable state enabled so user can move window while browser is open
         setTimeout(() => {
-          window.electronAPI.window.focus().catch((err: Error) =>
+          electronAPI.window.focus().catch((err: Error) =>
             handleError('FileOpenerEventHandler.openUrl.restoreFocus', err)
           );
         }, 100);
@@ -168,7 +169,7 @@ export class FileOpenerEventHandler {
       const slashCommand = findSlashCommandAtPosition(text, cursorPos);
       if (slashCommand) {
         try {
-          const commandFilePath = await window.electronAPI.slashCommands.getFilePath(slashCommand.command);
+          const commandFilePath = await electronAPI.slashCommands.getFilePath(slashCommand.command);
           if (commandFilePath) {
             await this.openFile(commandFilePath);
             return true;
@@ -216,7 +217,7 @@ export class FileOpenerEventHandler {
 
     // Try to resolve as agent name (for names like @backend-architect)
     try {
-      const agentFilePath = await window.electronAPI.agents.getFilePath(atPath);
+      const agentFilePath = await electronAPI.agents.getFilePath(atPath);
       if (agentFilePath) {
         await this.openFile(agentFilePath);
         return;
