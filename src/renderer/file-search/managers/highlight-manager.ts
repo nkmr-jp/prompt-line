@@ -535,9 +535,7 @@ export class HighlightManager {
       return;
     }
 
-    const fragment = this.buildHighlightFragment(text, ranges);
-    this.setBackdropContent(fragment);
-    this.syncBackdropScroll();
+    this.updateBackdropWithRanges(text, ranges);
   }
 
   private renderBackdropWithCursor(): void {
@@ -655,17 +653,27 @@ export class HighlightManager {
   }
 
   private updateBackdropWithRanges(text: string, ranges: Array<AtPathRange & { className: string }>): void {
-    // Sort by start position
-    ranges.sort((a, b) => a.start - b.start);
+    // Sort by start position, then by priority (at-path > link > cursor-highlight)
+    ranges.sort((a, b) => {
+      if (a.start !== b.start) return a.start - b.start;
+      // Priority: at-path-highlight > file-path-link > file-path-cursor-highlight
+      const priorityA = a.className.includes('at-path-highlight') ? 0 :
+                        a.className.includes('file-path-link') ? 1 : 2;
+      const priorityB = b.className.includes('at-path-highlight') ? 0 :
+                        b.className.includes('file-path-link') ? 1 : 2;
+      return priorityA - priorityB;
+    });
 
-    // Remove overlapping ranges (keep the first one)
+    // Remove overlapping ranges (keep the higher priority one)
     const filteredRanges: Array<AtPathRange & { className: string }> = [];
     let lastEnd = -1;
     for (const range of ranges) {
+      // Skip ranges that overlap with previous ranges
       if (range.start >= lastEnd) {
         filteredRanges.push(range);
         lastEnd = range.end;
       }
+      // Note: Any range with start < lastEnd is skipped (overlapping)
     }
 
     const fragment = this.buildHighlightFragment(text, filteredRanges);
