@@ -715,44 +715,46 @@ export class PathManager {
     }
 
     // Perform deletion
+    // Note: replaceRangeWithUndo will set cursor position to (start + newText.length)
+    // For deletion (newText = ''), cursor will be at savedStart
     if (this.callbacks.replaceRangeWithUndo) {
       this.callbacks.replaceRangeWithUndo(savedStart, deleteEnd, '');
     } else if (this.callbacks.setTextContent) {
       const newText = text.substring(0, savedStart) + text.substring(deleteEnd);
       this.callbacks.setTextContent(newText);
+      // Set cursor position after manual text replacement
+      this.callbacks.setCursorPosition?.(savedStart);
     }
 
-    // Set cursor position immediately
-    this.callbacks.setCursorPosition(savedStart);
-
-    // Restore scroll position
+    // Restore scroll position immediately after deletion
+    // Note: replaceRangeWithUndo already handles scroll restoration, but we force it here
     if (this.textInput) {
       this.textInput.scrollTop = savedScrollTop;
       this.textInput.scrollLeft = savedScrollLeft;
     }
 
-    // Update highlight backdrop (rescanAtPaths will recalculate positions)
+    // Verify cursor position is correct
+    const actualCursorPos = this.callbacks.getCursorPosition?.() ?? -1;
+    console.debug('[PathManager] After deletion:', {
+      expectedCursorPos: savedStart,
+      actualCursorPos,
+      scrollTop: this.textInput?.scrollTop ?? 0,
+      cursorCorrect: actualCursorPos === savedStart
+    });
+
+    // Get updated text after deletion for rescan
+    const updatedText = this.callbacks.getTextContent();
+
+    // Rescan @paths with updated text (synchronously to ensure correct state)
+    this.rescanAtPaths(updatedText);
+
+    // Update highlight backdrop (uses RAF internally, but won't affect cursor)
     this.callbacks.updateHighlightBackdrop?.();
 
-    // Ensure cursor and scroll are still correct after highlight update
-    this.callbacks.setCursorPosition(savedStart);
-    if (this.textInput) {
-      this.textInput.scrollTop = savedScrollTop;
-      this.textInput.scrollLeft = savedScrollLeft;
-    }
-
-    // Resume listeners after next animation frame (when all updates are complete)
+    // Resume listeners after a short delay to ensure all updates are complete
+    // Use RAF to allow highlight update to complete first
     requestAnimationFrame(() => {
-      // Final cursor/scroll restoration
-      this.callbacks.setCursorPosition?.(savedStart);
-      if (this.textInput) {
-        this.textInput.scrollTop = savedScrollTop;
-        this.textInput.scrollLeft = savedScrollLeft;
-      }
-
-      // Resume listeners now that deletion is complete
       this.callbacks.resumeInputListeners?.();
-
       console.debug('[PathManager] @path deletion complete, listeners resumed');
     });
 

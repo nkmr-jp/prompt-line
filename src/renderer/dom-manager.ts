@@ -203,6 +203,17 @@ export class DomManager implements IInitializable {
 
     console.debug('[DomManager] Final cursor position set to:', expectedCursorPos, 'actual:', this.textarea.selectionStart, 'scroll restored to:', savedScrollTop);
 
+    // Double-check cursor position is correct
+    // In some edge cases, the cursor may jump to an unexpected position
+    if (this.textarea.selectionStart !== expectedCursorPos) {
+      console.warn('[DomManager] Cursor position mismatch detected, correcting:', {
+        expected: expectedCursorPos,
+        actual: this.textarea.selectionStart
+      });
+      // Force cursor position one more time
+      this.textarea.setSelectionRange(expectedCursorPos, expectedCursorPos);
+    }
+
     this.updateCharCount();
   }
 
