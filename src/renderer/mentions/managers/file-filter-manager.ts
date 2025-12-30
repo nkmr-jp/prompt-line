@@ -1,7 +1,7 @@
 /**
  * FileFilterManager - Handles file filtering, scoring, and suggestion merging
  *
- * Consolidated from FileSearchManager, SubdirectoryFilterManager, and RootFilterManager.
+ * Consolidated from MentionManager, SubdirectoryFilterManager, and RootFilterManager.
  * This manager now handles all file filtering logic in one place.
  *
  * Responsibilities:

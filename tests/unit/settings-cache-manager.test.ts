@@ -3,7 +3,7 @@
  */
 
 import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import { SettingsCacheManager } from '../../src/renderer/file-search/managers';
+import { SettingsCacheManager } from '../../src/renderer/mentions/managers';
 
 describe('SettingsCacheManager', () => {
   let settingsCacheManager: SettingsCacheManager;

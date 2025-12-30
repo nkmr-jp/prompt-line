@@ -20,6 +20,7 @@ import type {
   SymbolResult,
   SymbolCacheMetadata
 } from './symbol-search/types';
+import { CACHE_TTL } from '../constants';
 
 // Cache configuration
 const CACHE_VERSION = '2.0'; // Version bump for new file structure
@@ -46,7 +47,7 @@ export class SymbolCacheManager {
   private memoryCache: Map<string, MemoryCacheEntry> = new Map();
 
   /** Memory cache TTL (5 minutes) - refresh from disk after this time */
-  private readonly MEMORY_CACHE_TTL_MS = 5 * 60 * 1000;
+  private readonly MEMORY_CACHE_TTL_MS = CACHE_TTL.SYMBOL_MEMORY;
 
   constructor() {
     this.cacheDir = config.paths.projectsCacheDir;

@@ -5,20 +5,21 @@
 
 import type { DirectoryInfo, AppInfo, WindowData } from './types';
 import { formatLog } from './utils/debug-logger';
-
-// Secure electronAPI access via preload script
-const electronAPI = (window as any).electronAPI;
+import { electronAPI } from './services/electron-api';
 
 /**
- * Callbacks for DirectoryDataHandler to interact with parent components
+ * DomManager callbacks for UI updates
  */
-export interface DirectoryDataHandlerCallbacks {
-  // DomManager methods
+export interface DomManagerCallbacks {
   updateHintText: (text: string) => void;
   setDraggable: (enabled: boolean) => void;
-  
-  // FileSearchManager methods
-  getFileSearchManager: () => {
+}
+
+/**
+ * MentionManager callbacks for file search functionality
+ */
+export interface MentionManagerCallbacks {
+  getMentionManager: () => {
     setFileSearchEnabled: (enabled: boolean) => void;
     preloadSearchPrefixesCache: () => void;
     handleCachedDirectoryData: (data: DirectoryInfo) => void;
@@ -26,23 +27,56 @@ export interface DirectoryDataHandlerCallbacks {
     clearAtPaths: () => void;
     restoreAtPathsFromText: (checkFilesystem?: boolean) => void;
   } | null;
-  
-  // LifecycleManager method
+}
+
+/**
+ * LifecycleManager callbacks for lifecycle events
+ */
+export interface LifecycleManagerCallbacks {
   handleLifecycleWindowShown: (data: WindowData) => void;
-  
-  // SearchManager method
+}
+
+/**
+ * SearchManager callbacks for search mode management
+ */
+export interface SearchManagerCallbacks {
   exitSearchMode: () => void;
-  
-  // HistoryUIManager method
+}
+
+/**
+ * HistoryUIManager callbacks for history UI updates
+ */
+export interface HistoryUIManagerCallbacks {
   resetHistoryScrollPosition: () => void;
-  
-  // Update history and settings
+}
+
+/**
+ * Window data callbacks for history and settings updates
+ */
+export interface WindowDataCallbacks {
   updateHistoryAndSettings: (data: WindowData) => void;
-  
-  // Get/set default hint text
+}
+
+/**
+ * Hint text state management callbacks
+ */
+export interface HintTextStateCallbacks {
   getDefaultHintText: () => string;
   setDefaultHintText: (text: string) => void;
 }
+
+/**
+ * Unified callbacks interface for DirectoryDataHandler
+ * Composed of specialized callback interfaces by responsibility
+ */
+export interface DirectoryDataHandlerCallbacks extends
+  DomManagerCallbacks,
+  MentionManagerCallbacks,
+  LifecycleManagerCallbacks,
+  SearchManagerCallbacks,
+  HistoryUIManagerCallbacks,
+  WindowDataCallbacks,
+  HintTextStateCallbacks {}
 
 /**
  * Handles directory data updates and window-shown events for file search functionality
@@ -64,16 +98,16 @@ export class DirectoryDataHandler {
         directoryDataDirectory: data.directoryData?.directory,
         directoryDataFileCount: data.directoryData?.files?.length,
         directoryDataFromDraft: data.directoryData?.fromDraft,
-        hasFileSearchManager: !!this.callbacks.getFileSearchManager(),
+        hasMentionManager: !!this.callbacks.getMentionManager(),
         fileSearchEnabled: data.fileSearchEnabled
       }));
 
       this.callbacks.handleLifecycleWindowShown(data);
       this.callbacks.updateHistoryAndSettings(data);
 
-      const fileSearchManager = this.callbacks.getFileSearchManager();
+      const fileSearchManager = this.callbacks.getMentionManager();
 
-      // Update file search enabled state in FileSearchManager
+      // Update file search enabled state in MentionManager
       fileSearchManager?.setFileSearchEnabled(data.fileSearchEnabled ?? false);
 
       // Preload searchPrefixes cache for command/mention (enables sync checks for slash command hints)
@@ -156,7 +190,7 @@ export class DirectoryDataHandler {
         previousDirectory: data.previousDirectory
       });
 
-      const fileSearchManager = this.callbacks.getFileSearchManager();
+      const fileSearchManager = this.callbacks.getMentionManager();
 
       // If directory changed from draft directory, clear @path highlights first
       // This prevents stale highlights from wrong directory

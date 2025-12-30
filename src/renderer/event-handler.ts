@@ -6,6 +6,7 @@
 import { ShortcutHandler } from './shortcut-handler';
 import { WindowBlurHandler } from './window-blur-handler';
 import type { UserSettings } from './types';
+import type { IInitializable } from './interfaces/initializable';
 
 export interface PasteResult {
   success: boolean;
@@ -19,7 +20,7 @@ export interface ImageResult {
   error?: string;
 }
 
-export class EventHandler {
+export class EventHandler implements IInitializable {
   private textarea: HTMLTextAreaElement | null = null;
   private isComposing = false;
   private slashCommandManager: { isActiveMode(): boolean } | null = null;
@@ -60,9 +61,9 @@ export class EventHandler {
     this.shortcutHandler.setSlashCommandManager(slashCommandManager);
   }
 
-  public setFileSearchManager(fileSearchManager: { isActive(): boolean }): void {
+  public setMentionManager(fileSearchManager: { isActive(): boolean }): void {
     this.fileSearchManager = fileSearchManager;
-    this.shortcutHandler.setFileSearchManager(fileSearchManager);
+    this.shortcutHandler.setMentionManager(fileSearchManager);
   }
 
   public setDomManager(domManager: { isDraggable(): boolean }): void {
@@ -71,6 +72,13 @@ export class EventHandler {
 
   public setUserSettings(settings: UserSettings): void {
     this.shortcutHandler.setUserSettings(settings);
+  }
+
+  /**
+   * Initialize event listeners (IInitializable implementation)
+   */
+  public initialize(): void {
+    this.setupEventListeners();
   }
 
   public setupEventListeners(): void {

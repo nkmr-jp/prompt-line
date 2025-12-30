@@ -14,7 +14,7 @@ export interface ErrorHandlerOptions {
 
 /**
  * Handle errors with unified logging format and optional notification
- * @param context - Error context (e.g., "FileSearchManager.loadDirectory")
+ * @param context - Error context (e.g., "MentionManager.loadDirectory")
  * @param error - Error object or unknown value
  * @param options - Error handling options
  */

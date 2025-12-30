@@ -15,12 +15,13 @@
  * - Handle symbol mode state
  */
 
+import { electronAPI } from '../../services/electron-api';
 import type {
   SymbolResult,
   LanguageInfo,
   SymbolSearchResponse
-} from '../../code-search/types';
-import { getSymbolTypeDisplay } from '../../code-search/types';
+} from '../code-search/types';
+import { getSymbolTypeDisplay } from '../code-search/types';
 import type { DirectoryData, SuggestionItem } from '../types';
 import { getSymbolIconSvg } from '../../assets/icons/file-icons';
 import { insertSvgIntoElement } from '../index';
@@ -102,7 +103,7 @@ export class CodeSearchManager {
     console.debug('[CodeSearchManager] initializeCodeSearch: starting...');
     try {
       // Check if ripgrep is available
-      const rgCheck = await window.electronAPI.codeSearch.checkRg();
+      const rgCheck = await electronAPI.codeSearch.checkRg();
       console.debug('[CodeSearchManager] initializeCodeSearch: rgCheck result:', rgCheck);
       this.rgAvailable = rgCheck.rgAvailable;
 
@@ -112,7 +113,7 @@ export class CodeSearchManager {
       }
 
       // Load supported languages
-      const langResponse = await window.electronAPI.codeSearch.getSupportedLanguages();
+      const langResponse = await electronAPI.codeSearch.getSupportedLanguages();
       console.debug('[CodeSearchManager] initializeCodeSearch: languages loaded:', langResponse.languages.length);
       for (const lang of langResponse.languages) {
         this.supportedLanguages.set(lang.key, lang);
@@ -193,7 +194,7 @@ export class CodeSearchManager {
     try {
       // Code search (@go:) - pass query to Main process for filtering
       // This avoids transferring all symbols over IPC and filtering in Renderer
-      const response: SymbolSearchResponse = await window.electronAPI.codeSearch.searchSymbols(
+      const response: SymbolSearchResponse = await electronAPI.codeSearch.searchSymbols(
         directory,
         language,
         {
@@ -329,7 +330,7 @@ export class CodeSearchManager {
     try {
       // Search for symbols in the directory for this language
       // Don't pass maxSymbols - let the handler use settings value
-      let response = await window.electronAPI.codeSearch.searchSymbols(
+      let response = await electronAPI.codeSearch.searchSymbols(
         directory,
         language.key,
         { useCache: true }
@@ -357,7 +358,7 @@ export class CodeSearchManager {
         this.callbacks.updateHintText?.(`Refreshing symbols for ${relativePath}...`);
 
         // Don't pass maxSymbols - let the handler use settings value
-        response = await window.electronAPI.codeSearch.searchSymbols(
+        response = await electronAPI.codeSearch.searchSymbols(
           directory,
           language.key,
           { useCache: false }
@@ -488,6 +489,31 @@ export class CodeSearchManager {
    */
   public getCodeSearchQuery(): string {
     return this.codeSearchQuery;
+  }
+
+  /**
+   * Handle show suggestions - checks if in symbol mode and delegates appropriately
+   * @param query - The query string
+   * @param fallbackHandler - Function to call if not in symbol mode
+   * @returns true if handled by symbol mode, false otherwise
+   */
+  public async handleShowSuggestions(query: string, fallbackHandler: () => Promise<void>): Promise<boolean> {
+    if (this.isInSymbolMode) {
+      this.callbacks.setCurrentQuery?.(query);
+      await this.showSymbolSuggestions(query);
+      return true;
+    }
+    await fallbackHandler();
+    return false;
+  }
+
+  /**
+   * Reset symbol mode state
+   */
+  public resetSymbolModeState(): void {
+    this.isInSymbolMode = false;
+    this.currentFilePath = '';
+    this.currentFileSymbols = [];
   }
 
   /**

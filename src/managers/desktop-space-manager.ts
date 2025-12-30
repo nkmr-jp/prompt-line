@@ -5,6 +5,7 @@ import { execFile } from 'child_process';
 import { logger } from '../utils/utils';
 import config from '../config/app-config';
 import type { AppInfo } from '../types';
+import { TIMEOUTS } from '../constants';
 
 interface WindowBasicInfo {
   windowID: number;
@@ -283,7 +284,7 @@ class DesktopSpaceManager {
    */
   private execOsascript(script: string): Promise<{ stdout: string; stderr: string }> {
     return new Promise((resolve, reject) => {
-      execFile('osascript', ['-e', script], { timeout: 5000 }, (error: Error | null, stdout: string, stderr: string) => {
+      execFile('osascript', ['-e', script], { timeout: TIMEOUTS.DESKTOP_SPACE_DETECTION }, (error: Error | null, stdout: string, stderr: string) => {
         if (error) {
           reject(error);
         } else {

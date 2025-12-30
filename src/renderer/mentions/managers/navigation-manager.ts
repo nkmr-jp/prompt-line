@@ -18,7 +18,8 @@
 
 import type { FileInfo, DirectoryData, SuggestionItem } from '../types';
 import type { AgentItem } from '../../../types';
-import type { SymbolResult, LanguageInfo } from '../../code-search/types';
+import { electronAPI } from '../../services/electron-api';
+import type { SymbolResult, LanguageInfo } from '../code-search/types';
 import { getRelativePath, formatLog } from '../index';
 
 /**
@@ -487,8 +488,8 @@ export class NavigationManager {
 
       // Register agent name in global cache for persistent highlighting
       // Agents are project-independent (mdSearch items)
-      if (window.electronAPI?.atPathCache?.registerGlobal) {
-        window.electronAPI.atPathCache.registerGlobal(agent.name)
+      if (electronAPI?.atPathCache?.registerGlobal) {
+        electronAPI.atPathCache.registerGlobal(agent.name)
           .catch((error) => console.warn('[NavigationManager] Failed to register global at-path:', error));
       }
     }
@@ -542,8 +543,8 @@ export class NavigationManager {
 
     // Register at-path in cache for persistent highlighting (supports symbols with spaces)
     const directoryData = this.callbacks.getCachedDirectoryData();
-    if (directoryData?.directory && window.electronAPI?.atPathCache) {
-      window.electronAPI.atPathCache.register(directoryData.directory, pathForHighlight)
+    if (directoryData?.directory && electronAPI?.atPathCache) {
+      electronAPI.atPathCache.register(directoryData.directory, pathForHighlight)
         .catch((error) => console.warn('[NavigationManager] Failed to register at-path:', error));
     }
 

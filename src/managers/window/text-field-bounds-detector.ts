@@ -10,6 +10,7 @@ import { execFile } from 'child_process';
 import { logger, TEXT_FIELD_DETECTOR_PATH } from '../../utils/utils';
 import config from '../../config/app-config';
 import type { TextFieldBounds } from './types';
+import { TIMEOUTS } from '../../constants';
 
 /**
  * Detects the bounds of the currently focused text field on macOS.
@@ -24,7 +25,7 @@ export async function getActiveTextFieldBounds(): Promise<TextFieldBounds | null
   }
 
   const options = {
-    timeout: 3000,
+    timeout: TIMEOUTS.TEXT_FIELD_DETECTION,
     killSignal: 'SIGTERM' as const
   };
 

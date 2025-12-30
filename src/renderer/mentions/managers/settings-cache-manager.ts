@@ -8,71 +8,53 @@
  * - Sync access to cached values for performance-critical paths
  */
 
+import { BaseCacheManager } from './base-cache-manager';
 import { handleError } from '../../utils/error-handler';
 import { SUGGESTIONS } from '../../../constants';
-
-/**
- * ElectronAPI interface for mdSearch and fileSearch operations
- */
-interface ElectronAPI {
-  mdSearch?: {
-    getMaxSuggestions: (type: 'command' | 'mention') => Promise<number>;
-    getSearchPrefixes: (type: 'command' | 'mention') => Promise<string[]>;
-  };
-  fileSearch?: {
-    getMaxSuggestions: () => Promise<number>;
-  };
-}
+import { electronAPI } from '../../services/electron-api';
 
 /**
  * SettingsCacheManager class for caching settings data
+ * Extends BaseCacheManager for maxSuggestions caching
  */
-export class SettingsCacheManager {
-  private maxSuggestionsCache: Map<string, number> = new Map();
+export class SettingsCacheManager extends BaseCacheManager<string, number> {
   private searchPrefixesCache: Map<string, string[]> = new Map();
   private fileSearchMaxSuggestionsCache: number | null = null;
 
   private static readonly DEFAULT_MAX_SUGGESTIONS = SUGGESTIONS.DEFAULT_MAX;
 
   constructor() {
-    // No initialization needed
+    super();
   }
 
   /**
-   * Get electronAPI from window object
+   * Implement abstract fetchValue for maxSuggestions
    */
-  private getElectronAPI(): ElectronAPI | null {
-    return (window as unknown as { electronAPI?: ElectronAPI }).electronAPI || null;
+  protected async fetchValue(key: string): Promise<number> {
+    try {
+      const type = key as 'command' | 'mention';
+      if (electronAPI?.mdSearch?.getMaxSuggestions) {
+        return await electronAPI.mdSearch.getMaxSuggestions(type);
+      }
+    } catch (error) {
+      handleError('SettingsCacheManager.fetchValue', error);
+    }
+    return SettingsCacheManager.DEFAULT_MAX_SUGGESTIONS;
   }
 
   /**
    * Get maxSuggestions for a given type (cached)
+   * Uses base class caching mechanism
    */
   public async getMaxSuggestions(type: 'command' | 'mention'): Promise<number> {
-    // Check cache first
-    if (this.maxSuggestionsCache.has(type)) {
-      return this.maxSuggestionsCache.get(type)!;
-    }
-
-    try {
-      const electronAPI = this.getElectronAPI();
-      if (electronAPI?.mdSearch?.getMaxSuggestions) {
-        const maxSuggestions = await electronAPI.mdSearch.getMaxSuggestions(type);
-        this.maxSuggestionsCache.set(type, maxSuggestions);
-        return maxSuggestions;
-      }
-    } catch (error) {
-      handleError('SettingsCacheManager.getMaxSuggestions', error);
-    }
-
-    return SettingsCacheManager.DEFAULT_MAX_SUGGESTIONS;
+    return this.getOrFetch(type);
   }
 
   /**
    * Clear maxSuggestions cache (call when settings might have changed)
    */
   public clearMaxSuggestionsCache(): void {
-    this.maxSuggestionsCache.clear();
+    this.clearCache(); // Use base class method
     this.fileSearchMaxSuggestionsCache = null;
   }
 
@@ -87,7 +69,6 @@ export class SettingsCacheManager {
     }
 
     try {
-      const electronAPI = this.getElectronAPI();
       if (electronAPI?.fileSearch?.getMaxSuggestions) {
         const maxSuggestions = await electronAPI.fileSearch.getMaxSuggestions();
         this.fileSearchMaxSuggestionsCache = maxSuggestions;
@@ -110,7 +91,6 @@ export class SettingsCacheManager {
     }
 
     try {
-      const electronAPI = this.getElectronAPI();
       if (electronAPI?.mdSearch?.getSearchPrefixes) {
         const prefixes = await electronAPI.mdSearch.getSearchPrefixes(type);
         this.searchPrefixesCache.set(type, prefixes);
@@ -134,8 +114,9 @@ export class SettingsCacheManager {
    * Clear all caches
    */
   public clearAllCaches(): void {
-    this.clearMaxSuggestionsCache();
+    this.clearCache(); // Clear maxSuggestions cache (base class)
     this.clearSearchPrefixesCache();
+    this.fileSearchMaxSuggestionsCache = null;
   }
 
   /**

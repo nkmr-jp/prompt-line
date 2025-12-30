@@ -7,6 +7,7 @@ import type { IDirectoryDetectionStrategy } from './strategies';
 import { NativeDetectorStrategy } from './strategies';
 import { DirectoryDetectorUtils } from './directory-detector-utils';
 import { DirectoryCacheHelper } from './directory-cache-helper';
+import { TIMEOUTS } from '../../constants';
 
 /**
  * DirectoryDetector orchestrates directory detection and file caching
@@ -152,6 +153,131 @@ class DirectoryDetector {
   }
 
   /**
+   * Check if directory changed from saved directory
+   */
+  private isDirectoryChanged(detectedDirectory: string): boolean {
+    return this.savedDirectory !== null && detectedDirectory !== this.savedDirectory;
+  }
+
+  /**
+   * Determine if renderer notification is needed
+   */
+  private shouldNotifyRenderer(hasChanges: boolean, directoryChanged: boolean, hint?: string): boolean {
+    return hasChanges || directoryChanged || Boolean(hint);
+  }
+
+  /**
+   * Create success notification with directory change information
+   */
+  private createSuccessNotification(
+    result: DirectoryInfo,
+    directoryChanged: boolean
+  ): DirectoryInfo {
+    const notification: DirectoryInfo = {
+      ...result,
+      directoryChanged
+    };
+
+    // Only add previousDirectory if directory actually changed
+    if (directoryChanged && this.savedDirectory !== null && result.directory !== this.savedDirectory) {
+      notification.previousDirectory = this.savedDirectory;
+    }
+
+    return notification;
+  }
+
+  /**
+   * Create timeout/error notification
+   */
+  private createTimeoutNotification(): DirectoryInfo {
+    const notification: DirectoryInfo = {
+      success: false,
+      detectionTimedOut: true
+    };
+
+    if (this.savedDirectory) {
+      notification.directory = this.savedDirectory;
+    }
+
+    return notification;
+  }
+
+  /**
+   * Notify renderer of directory data update
+   */
+  private notifyRenderer(inputWindow: BrowserWindow, data: DirectoryInfo): void {
+    if (!inputWindow.isDestroyed()) {
+      inputWindow.webContents.send('directory-data-updated', data);
+    }
+  }
+
+  /**
+   * Update directory manager with detected directory
+   */
+  private updateDirectoryManager(detectedDirectory: string): void {
+    if (this.directoryManager) {
+      this.directoryManager.setDirectory(detectedDirectory);
+      this.savedDirectory = detectedDirectory;
+    }
+  }
+
+  /**
+   * Handle successful detection result
+   */
+  private async handleSuccessfulDetection(
+    result: DirectoryInfo,
+    inputWindow: BrowserWindow,
+    startTime: number
+  ): Promise<void> {
+    const detectedDirectory = result.directory!;
+    const directoryChanged = this.isDirectoryChanged(detectedDirectory);
+
+    // Handle cache operations
+    const isFileSearchDisabled = this.isFileSearchDisabledDirectory(detectedDirectory) || (result.filesDisabled ?? false);
+    const hasChanges = await this.cacheHelper.handleBackgroundCacheUpdate(
+      detectedDirectory,
+      result.files,
+      isFileSearchDisabled
+    );
+
+    // Update directory manager with detected directory (detection succeeded)
+    this.updateDirectoryManager(detectedDirectory);
+
+    // Notify renderer if there are changes, directory changed, or hint exists
+    if (this.shouldNotifyRenderer(hasChanges, directoryChanged, result.hint)) {
+      const notification = this.createSuccessNotification(result, directoryChanged);
+      this.notifyRenderer(inputWindow, notification);
+
+      logger.debug(`✅ Directory detection completed in ${(performance.now() - startTime).toFixed(2)}ms`, {
+        directory: detectedDirectory,
+        fileCount: result.fileCount,
+        directoryChanged,
+        hasChanges,
+        hint: result.hint
+      });
+    } else {
+      logger.debug('✅ Directory detection completed, no changes detected, skipping renderer notification', {
+        directory: detectedDirectory,
+        fileCount: result.fileCount
+      });
+    }
+  }
+
+  /**
+   * Handle failed detection (timeout or error)
+   */
+  private handleFailedDetection(inputWindow: BrowserWindow | null): void {
+    logger.debug('Background directory detection: no result or window not available, keeping draft directory', {
+      savedDirectory: this.savedDirectory
+    });
+
+    if (inputWindow && !inputWindow.isDestroyed()) {
+      const notification = this.createTimeoutNotification();
+      this.notifyRenderer(inputWindow, notification);
+    }
+  }
+
+  /**
    * Execute directory detection in background (single stage with fd)
    * This ensures window shows immediately without waiting for directory detection
    *
@@ -166,96 +292,27 @@ class DirectoryDetector {
    * - If no changes, just update cache timestamp (no renderer notification)
    */
   async executeBackgroundDirectoryDetection(inputWindow: BrowserWindow | null): Promise<void> {
+    const startTime = performance.now();
+
     try {
-      const startTime = performance.now();
       logger.debug('🔄 Starting background directory detection...', {
         savedDirectory: this.savedDirectory
       });
 
-      // Single stage directory detection with fd (5 second timeout)
-      const result = await this.executeDirectoryDetector(5000);
+      // Single stage directory detection with fd
+      const result = await this.executeDirectoryDetector(TIMEOUTS.BACKGROUND_DETECTION);
 
-      if (result && result.directory && inputWindow && !inputWindow.isDestroyed()) {
-        // Detection succeeded - check if directory changed from draft
-        const detectedDirectory = result.directory;
-        const directoryChanged = this.savedDirectory !== null && detectedDirectory !== this.savedDirectory;
-
-        // Handle cache operations
-        const isFileSearchDisabled = this.isFileSearchDisabledDirectory(detectedDirectory) || (result.filesDisabled ?? false);
-        const hasChanges = await this.cacheHelper.handleBackgroundCacheUpdate(
-          detectedDirectory,
-          result.files,
-          isFileSearchDisabled
-        );
-
-        // Update directory manager with detected directory (detection succeeded)
-        if (this.directoryManager) {
-          this.directoryManager.setDirectory(detectedDirectory);
-          this.savedDirectory = detectedDirectory; // Update local reference
-        }
-
-        // Notify renderer if there are changes, directory changed, or hint exists
-        // hint needs to be sent even without file changes (e.g., fd not installed)
-        if (hasChanges || directoryChanged || result.hint) {
-          // Add directoryChanged flag to result
-          const resultWithFlags: DirectoryInfo = {
-            ...result,
-            directoryChanged
-          };
-          // Only add previousDirectory if directory actually changed
-          if (directoryChanged && this.savedDirectory !== null && this.savedDirectory !== detectedDirectory) {
-            resultWithFlags.previousDirectory = this.savedDirectory;
-          }
-
-          inputWindow.webContents.send('directory-data-updated', resultWithFlags);
-          logger.debug(`✅ Directory detection completed in ${(performance.now() - startTime).toFixed(2)}ms`, {
-            directory: detectedDirectory,
-            fileCount: result.fileCount,
-            directoryChanged,
-            hasChanges,
-            hint: result.hint
-          });
-        } else {
-          logger.debug(`✅ Directory detection completed, no changes detected, skipping renderer notification`, {
-            directory: detectedDirectory,
-            fileCount: result.fileCount
-          });
-        }
+      // Handle detection result
+      if (result?.directory && inputWindow && !inputWindow.isDestroyed()) {
+        await this.handleSuccessfulDetection(result, inputWindow, startTime);
       } else {
-        // Detection failed (likely timeout) - keep using draft directory (fallback)
-        // Notify renderer about timeout so it can show hint
-        logger.debug('Background directory detection: no result or window not available, keeping draft directory', {
-          savedDirectory: this.savedDirectory
-        });
-
-        // Send timeout notification to renderer if window is available
-        if (inputWindow && !inputWindow.isDestroyed()) {
-          const timeoutInfo: DirectoryInfo = {
-            success: false,
-            detectionTimedOut: true
-          };
-          if (this.savedDirectory) {
-            timeoutInfo.directory = this.savedDirectory;
-          }
-          inputWindow.webContents.send('directory-data-updated', timeoutInfo);
-        }
+        this.handleFailedDetection(inputWindow);
       }
 
       logger.debug(`🏁 Total background directory detection time: ${(performance.now() - startTime).toFixed(2)}ms`);
     } catch (error) {
       logger.warn('Background directory detection failed:', error);
-      // Detection failed - keep using draft directory (fallback)
-      // Notify renderer about failure
-      if (inputWindow && !inputWindow.isDestroyed()) {
-        const errorInfo: DirectoryInfo = {
-          success: false,
-          detectionTimedOut: true
-        };
-        if (this.savedDirectory) {
-          errorInfo.directory = this.savedDirectory;
-        }
-        inputWindow.webContents.send('directory-data-updated', errorInfo);
-      }
+      this.handleFailedDetection(inputWindow);
     }
   }
 

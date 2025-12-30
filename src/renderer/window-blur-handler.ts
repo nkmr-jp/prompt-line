@@ -4,9 +4,7 @@
  */
 
 import { TIMEOUTS } from '../constants';
-
-// Secure electronAPI access via preload script
-const electronAPI = (window as any).electronAPI;
+import { electronAPI } from './services/electron-api';
 
 export class WindowBlurHandler {
   private domManager: { isDraggable(): boolean } | null = null;
