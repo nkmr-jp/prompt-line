@@ -42,6 +42,16 @@ export interface TextFieldBounds {
 }
 
 /**
+ * Result from text field detection including app info
+ * Used to determine fallback positioning strategy
+ */
+export interface TextFieldDetectionResult {
+  bounds: TextFieldBounds | null;
+  bundleId?: string;
+  appName?: string;
+}
+
+/**
  * Window customization settings
  */
 export interface WindowSettings {

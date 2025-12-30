@@ -122,7 +122,24 @@ class DirectoryDetector {
                 }
             }
 
-            // IDE detected but no directory found
+            // IDE detected but no directory found via process tree
+            // Try tmux fallback as last resort
+            let (tmuxDir, tmuxPid, tmuxMethod) = getMultiplexerDirectory()
+            if let dir = tmuxDir {
+                var result: [String: Any] = [
+                    "success": true,
+                    "directory": dir,
+                    "appName": appName,
+                    "bundleId": bundleId,
+                    "idePid": appPid,
+                    "method": tmuxMethod ?? "tmux"
+                ]
+                if let pid = tmuxPid {
+                    result["pid"] = pid
+                }
+                return result
+            }
+
             return [
                 "error": "No project directory found in IDE",
                 "appName": appName,
@@ -148,6 +165,22 @@ class DirectoryDetector {
                     result["pid"] = pid
                 }
 
+                return result
+            }
+
+            // Try tmux fallback as last resort
+            let (tmuxDir, tmuxPid, tmuxMethod) = getMultiplexerDirectory()
+            if let dir = tmuxDir {
+                var result: [String: Any] = [
+                    "success": true,
+                    "directory": dir,
+                    "appName": appName,
+                    "bundleId": bundleId,
+                    "method": tmuxMethod ?? "tmux"
+                ]
+                if let pid = tmuxPid {
+                    result["pid"] = pid
+                }
                 return result
             }
 
@@ -177,6 +210,21 @@ class DirectoryDetector {
         }
 
         guard let ttyPath = tty else {
+            // Try tmux fallback
+            let (tmuxDir, tmuxPid, tmuxMethod) = getMultiplexerDirectory()
+            if let dir = tmuxDir {
+                var result: [String: Any] = [
+                    "success": true,
+                    "directory": dir,
+                    "appName": appName,
+                    "bundleId": bundleId,
+                    "method": tmuxMethod ?? "tmux"
+                ]
+                if let pid = tmuxPid {
+                    result["pid"] = pid
+                }
+                return result
+            }
             return [
                 "error": "Failed to get tty",
                 "appName": appName,
@@ -185,6 +233,21 @@ class DirectoryDetector {
         }
 
         guard let pid = getShellPidFromTty(ttyPath) else {
+            // Try tmux fallback
+            let (tmuxDir, tmuxPid, tmuxMethod) = getMultiplexerDirectory()
+            if let dir = tmuxDir {
+                var result: [String: Any] = [
+                    "success": true,
+                    "directory": dir,
+                    "appName": appName,
+                    "bundleId": bundleId,
+                    "method": tmuxMethod ?? "tmux"
+                ]
+                if let shellPid = tmuxPid {
+                    result["pid"] = shellPid
+                }
+                return result
+            }
             return [
                 "error": "Failed to get shell PID",
                 "tty": ttyPath,
@@ -194,6 +257,21 @@ class DirectoryDetector {
         }
 
         guard let cwd = getCwdFromPid(pid) else {
+            // Try tmux fallback
+            let (tmuxDir, tmuxPid, tmuxMethod) = getMultiplexerDirectory()
+            if let dir = tmuxDir {
+                var result: [String: Any] = [
+                    "success": true,
+                    "directory": dir,
+                    "appName": appName,
+                    "bundleId": bundleId,
+                    "method": tmuxMethod ?? "tmux"
+                ]
+                if let shellPid = tmuxPid {
+                    result["pid"] = shellPid
+                }
+                return result
+            }
             return [
                 "error": "Failed to get current directory",
                 "tty": ttyPath,

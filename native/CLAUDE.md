@@ -182,8 +182,17 @@ text-field-detector detect   # Detect focused text field position
 }
 ```
 
-### directory-detector.swift
-Native tool for terminal/IDE directory detection and file search:
+### directory-detector/ (Multi-file tool)
+Native tool for terminal/IDE directory detection with tmux support:
+
+**Directory Structure:**
+- `directory-detector/main.swift` - Entry point and CLI handling
+- `directory-detector/DirectoryDetector.swift` - Main detection logic and application routing
+- `directory-detector/CWDDetector.swift` - CWD detection using libproc (fast) and lsof (fallback)
+- `directory-detector/TerminalDetector.swift` - Terminal.app, iTerm2, Ghostty detection
+- `directory-detector/IDEDetector.swift` - JetBrains, VSCode, Cursor, Windsurf, Antigravity, Kiro detection
+- `directory-detector/ProcessTree.swift` - Process tree traversal utilities
+- `directory-detector/MultiplexerDetector.swift` - **tmux detection using tmux API**
 
 **Core Functionality:**
 ```swift
@@ -191,6 +200,7 @@ class DirectoryDetector {
     static func detectCurrentDirectory() -> [String: Any]
     static func getFileList(from directory: String) -> FileListResult?
     static func getCwdFromPid(_ pid: pid_t) -> String?
+    static func getMultiplexerDirectory() -> (directory: String?, shellPid: pid_t?, method: String?)  // tmux support
 }
 ```
 
@@ -202,8 +212,15 @@ class DirectoryDetector {
 - **VSCode** (`com.microsoft.VSCode`, `com.microsoft.VSCodeInsiders`, `com.vscodium.VSCodium`) - Uses pty-host process tree traversal
 - **Cursor** (`com.todesktop.230313mzl4w4u92`) - Uses Electron pty-host detection
 - **Windsurf** (`com.exafunction.windsurf`) - Uses Electron pty-host detection
-- **Antigravity** (`com.google.antigravity`) - Google IDE, uses tmux-based terminal detection
+- **Antigravity** (`com.google.antigravity`) - Google IDE, uses Electron pty-host detection
 - **Kiro** (`dev.kiro.desktop`) - AWS IDE, uses Electron pty-host detection
+
+**tmux Support (MultiplexerDetector.swift):**
+- **Fallback Detection**: When process tree detection fails (e.g., when using tmux), falls back to tmux API
+- **tmux API**: Uses `tmux list-panes -a -F "#{pane_pid}|#{pane_current_path}|#{pane_active}|#{pane_tty}"`
+- **Priority**: Active pane first, then non-home directories
+- **Works with any terminal/IDE**: tmux sessions are detected regardless of which app started them
+- **Detection Method**: Returns `"method": "tmux-api"` when using tmux fallback
 
 **CWD Detection:**
 - Uses libproc `proc_pidinfo()` for 10-50x faster CWD detection compared to `lsof`
@@ -260,6 +277,16 @@ directory-detector check-fd                      # Check if fd is available
   "idePid": 12345,
   "pid": 12346,
   "method": "electron-pty"
+}
+
+// Detect Response (tmux fallback)
+{
+  "success": true,
+  "directory": "/Users/user/project",
+  "appName": "iTerm2",
+  "bundleId": "com.googlecode.iterm2",
+  "pid": 12345,
+  "method": "tmux-api"
 }
 
 // Detect with Files Response
