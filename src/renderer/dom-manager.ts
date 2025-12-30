@@ -175,26 +175,49 @@ export class DomManager implements IInitializable {
       console.debug('[DomManager] Focused textarea, cursor now:', this.textarea.selectionStart);
     }
 
-    // Select the range to replace
-    this.textarea.setSelectionRange(start, end);
-    console.debug('[DomManager] After setSelectionRange(start, end), cursor:', this.textarea.selectionStart);
-
-    // Use execCommand to replace selected text - this enables native Undo
-    const success = document.execCommand('insertText', false, newText);
-    console.debug('[DomManager] execCommand result:', success, 'cursor after:', this.textarea.selectionStart, 'scroll:', this.textarea.scrollTop);
-
     // Calculate expected cursor position after operation
     const expectedCursorPos = start + newText.length;
 
-    if (!success) {
-      // Fallback to manual replacement if execCommand fails
-      const value = this.textarea.value;
-      this.textarea.value = value.substring(0, start) + newText + value.substring(end);
-      console.debug('[DomManager] Fallback used, cursor after value set:', this.textarea.selectionStart);
+    // CRITICAL FIX: execCommand('insertText', false, '') with empty string causes cursor to jump to position 0
+    // When deleting (newText === ''), use 'delete' command instead of 'insertText' with empty string
+    if (newText === '') {
+      console.debug('[DomManager] Using delete command for empty string (avoids cursor jump to 0 bug)');
+
+      // Select the range to delete
+      this.textarea.setSelectionRange(start, end);
+      console.debug('[DomManager] After setSelectionRange(start, end), cursor:', this.textarea.selectionStart);
+
+      // Delete selected text using document.execCommand('delete')
+      // This is more reliable than insertText with empty string
+      const success = document.execCommand('delete', false);
+      console.debug('[DomManager] execCommand(delete) result:', success, 'cursor after:', this.textarea.selectionStart, 'scroll:', this.textarea.scrollTop);
+
+      if (!success) {
+        // Fallback to manual deletion if execCommand fails
+        const value = this.textarea.value;
+        this.textarea.value = value.substring(0, start) + value.substring(end);
+        console.debug('[DomManager] Fallback used, cursor after value set:', this.textarea.selectionStart);
+      }
+    } else {
+      // For insertions/replacements, use insertText as before
+      // Select the range to replace
+      this.textarea.setSelectionRange(start, end);
+      console.debug('[DomManager] After setSelectionRange(start, end), cursor:', this.textarea.selectionStart);
+
+      // Use execCommand to replace selected text - this enables native Undo
+      const success = document.execCommand('insertText', false, newText);
+      console.debug('[DomManager] execCommand result:', success, 'cursor after:', this.textarea.selectionStart, 'scroll:', this.textarea.scrollTop);
+
+      if (!success) {
+        // Fallback to manual replacement if execCommand fails
+        const value = this.textarea.value;
+        this.textarea.value = value.substring(0, start) + newText + value.substring(end);
+        console.debug('[DomManager] Fallback used, cursor after value set:', this.textarea.selectionStart);
+      }
     }
 
     // Always explicitly set cursor position after execCommand
-    // This is necessary because execCommand with empty string may not position cursor correctly
+    // This is necessary because execCommand may not position cursor correctly
     this.textarea.setSelectionRange(expectedCursorPos, expectedCursorPos);
 
     // Restore scroll position - execCommand may have changed it

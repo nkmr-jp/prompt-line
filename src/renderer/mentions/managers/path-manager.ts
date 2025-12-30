@@ -735,12 +735,9 @@ export class PathManager {
 
     // Verify cursor position is correct
     const actualCursorPos = this.callbacks.getCursorPosition?.() ?? -1;
-    console.debug('[PathManager] After deletion:', {
-      expectedCursorPos: savedStart,
-      actualCursorPos,
-      scrollTop: this.textInput?.scrollTop ?? 0,
-      cursorCorrect: actualCursorPos === savedStart
-    });
+    console.debug('[PathManager] After deletion: expectedCursorPos=' + savedStart +
+      ' actualCursorPos=' + actualCursorPos +
+      ' cursorCorrect=' + (actualCursorPos === savedStart));
 
     // Get updated text after deletion for rescan
     const updatedText = this.callbacks.getTextContent();
