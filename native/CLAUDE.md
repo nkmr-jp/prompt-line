@@ -153,34 +153,90 @@ keyboard-simulator activate-and-paste-bundle "com.apple.Terminal"  # Combined op
 Native tool for detecting focused text fields using macOS Accessibility APIs:
 
 **Core Functionality:**
+```swift
+class TextFieldDetector {
+    static func getActiveTextFieldBounds() -> [String: Any]
+    static func getFocusedContainerBounds(from element: AXUIElement, ...) -> [String: Any]?
+    static func getElementBounds(from element: AXUIElement) -> CGRect?
+    static func checkAccessibilityPermission() -> [String: Any]
+    static func getFocusedElementInfo() -> [String: Any]
+}
+```
+
+**Features:**
 - Detects the currently focused text field in any application
 - Returns position and size of the focused element
 - Used for `active-text-field` window positioning mode
-- Falls back gracefully when no text field is focused
+- **Container Detection for Terminal Apps**: When text field is not found (e.g., Ghostty), traverses parent hierarchy to find suitable container bounds
+- Supports multiple detection methods: `text_field`, `focused_element`, `parent_container`
+
+**Detection Strategy:**
+1. First, check if focused element is a standard text field (`AXTextField`, `AXTextArea`, `AXSecureTextField`, `AXComboBox`)
+2. If not a text field, try to get bounds from the focused element itself (if it has reasonable size > 50x50)
+3. If that fails, traverse parent hierarchy looking for containers (`AXScrollArea`, `AXGroup`, `AXSplitGroup`, `AXLayoutArea`)
+4. Stop at window level (`AXWindow`) to prevent using entire window bounds
 
 **Command-Line Interface:**
 ```bash
-text-field-detector detect   # Detect focused text field position
+text-field-detector text-field-bounds  # Detect focused text field/container position
+text-field-detector check-permission   # Check accessibility permission status
+text-field-detector focused-element    # Get information about focused element
 ```
 
 **JSON Response Format:**
 ```json
-// Success Response
+// Standard Text Field Response
 {
   "success": true,
   "x": 100,
   "y": 200,
   "width": 300,
   "height": 24,
-  "appName": "Terminal",
-  "bundleId": "com.apple.Terminal"
+  "role": "AXTextArea",
+  "appName": "iTerm2",
+  "bundleId": "com.googlecode.iterm2"
+}
+
+// Container Detection Response (for Ghostty, etc.)
+{
+  "success": true,
+  "x": 100,
+  "y": 200,
+  "width": 500,
+  "height": 400,
+  "role": "AXGroup",
+  "originalRole": "AXUnknown",
+  "appName": "Ghostty",
+  "bundleId": "com.mitchellh.ghostty",
+  "detectionMethod": "parent_container",
+  "traversalDepth": 2
+}
+
+// Focused Element Response (when element has bounds)
+{
+  "success": true,
+  "x": 100,
+  "y": 200,
+  "width": 500,
+  "height": 400,
+  "role": "AXGroup",
+  "appName": "Ghostty",
+  "bundleId": "com.mitchellh.ghostty",
+  "detectionMethod": "focused_element"
 }
 
 // Error Response
 {
-  "error": "No focused text field found"
+  "error": "not_text_field",
+  "role": "AXUnknown"
 }
 ```
+
+**Supported Terminal Detection:**
+- **iTerm2**: Exposes `AXTextArea` for terminal input (standard detection)
+- **Terminal.app**: Exposes `AXTextArea` for terminal input (standard detection)
+- **Ghostty**: Uses container detection via parent hierarchy traversal
+- **Other terminals**: Falls back to container detection when text field not exposed
 
 ### directory-detector.swift
 Native tool for terminal/IDE directory detection and file search:

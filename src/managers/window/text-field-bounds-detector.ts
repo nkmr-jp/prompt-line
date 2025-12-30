@@ -55,7 +55,17 @@ export async function getActiveTextFieldBounds(): Promise<TextFieldBounds | null
             height: result.height
           };
 
+          // Log detection method for debugging (e.g., 'focused_element', 'parent_container')
+          const detectionMethod = result.detectionMethod || 'text_field';
+          logger.debug(`Text field detection method: ${detectionMethod}`, {
+            role: result.role,
+            originalRole: result.originalRole,
+            appName: result.appName,
+            bundleId: result.bundleId
+          });
+
           // Use parent container bounds if available for better positioning with scrollable content
+          // This is for standard text fields (AXTextArea) with scrollable parents
           if (result.parent && result.parent.isVisibleContainer &&
               typeof result.parent.x === 'number' && typeof result.parent.y === 'number' &&
               typeof result.parent.width === 'number' && typeof result.parent.height === 'number') {
