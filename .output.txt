@@ -1,0 +1,200 @@
+      [SettingsCacheManager.getSearchPrefixes] API error Error: API error
+          at Object.<anonymous> (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/tests/unit/settings-cache-manager.test.ts:147:81)
+          at /Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-mock/build/index.js:305:39
+          at Object.<anonymous> (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-mock/build/index.js:312:13)
+          at Object.mockConstructor [as getSearchPrefixes] (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-mock/build/index.js:102:19)
+          at SettingsCacheManager.getSearchPrefixes (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/src/renderer/file-search/managers/settings-cache-manager.ts:115:53)
+          at Object.<anonymous> (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/tests/unit/settings-cache-manager.test.ts:149:49)
+          at Promise.then.completed (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-circus/build/utils.js:298:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-circus/build/utils.js:231:10)
+          at _callCircusTest (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-circus/build/run.js:316:40)
+          at processTicksAndRejections (node:internal/process/task_queues:105:5)
+          at _runTest (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-circus/build/run.js:252:3)
+          at _runTestsForDescribeBlock (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-circus/build/run.js:126:9)
+          at _runTestsForDescribeBlock (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-circus/build/run.js:121:9)
+          at _runTestsForDescribeBlock (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-circus/build/run.js:121:9)
+          at run (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-circus/build/run.js:71:3)
+          at runAndTransformResultsToJestFormat (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)
+          at jestAdapter (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:79:19)
+          at runTestInternal (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-runner/build/runTest.js:367:16)
+          at runTest (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-runner/build/runTest.js:444:34)
+          at Object.worker (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-runner/build/testWorker.js:106:12)
+      32 |   // Log to console unless silent
+      33 |   if (!silent) {
+    > 34 |     console.error(fullMessage, error);
+         |             ^
+      35 |   }
+      36 |
+      37 |   // Show notification if requested
+      at handleError (src/renderer/utils/error-handler.ts:34:13)
+      at SettingsCacheManager.getSearchPrefixes (src/renderer/file-search/managers/settings-cache-manager.ts:120:18)
+      at Object.<anonymous> (tests/unit/settings-cache-manager.test.ts:149:22)
+    console.debug
+      [SettingsCacheManager] SearchPrefixes cache preloaded
+      at SettingsCacheManager.preloadSearchPrefixesCache (src/renderer/file-search/managers/settings-cache-manager.ts:181:15)
+    console.error
+      [SettingsCacheManager.getSearchPrefixes] API error Error: API error
+          at Object.<anonymous> (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/tests/unit/settings-cache-manager.test.ts:300:81)
+          at /Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-mock/build/index.js:305:39
+          at Object.<anonymous> (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-mock/build/index.js:312:13)
+          at Object.mockConstructor [as getSearchPrefixes] (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-mock/build/index.js:102:19)
+          at SettingsCacheManager.getSearchPrefixes (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/src/renderer/file-search/managers/settings-cache-manager.ts:115:53)
+          at SettingsCacheManager.preloadSearchPrefixesCache (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/src/renderer/file-search/managers/settings-cache-manager.ts:178:14)
+          at Object.<anonymous> (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/tests/unit/settings-cache-manager.test.ts:302:41)
+          at Promise.then.completed (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-circus/build/utils.js:298:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-circus/build/utils.js:231:10)
+          at _callCircusTest (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-circus/build/run.js:316:40)
+          at processTicksAndRejections (node:internal/process/task_queues:105:5)
+          at _runTest (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-circus/build/run.js:252:3)
+          at _runTestsForDescribeBlock (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-circus/build/run.js:126:9)
+          at _runTestsForDescribeBlock (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-circus/build/run.js:121:9)
+          at _runTestsForDescribeBlock (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-circus/build/run.js:121:9)
+          at run (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-circus/build/run.js:71:3)
+          at runAndTransformResultsToJestFormat (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)
+          at jestAdapter (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:79:19)
+          at runTestInternal (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-runner/build/runTest.js:367:16)
+          at runTest (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-runner/build/runTest.js:444:34)
+          at Object.worker (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-runner/build/testWorker.js:106:12)
+      32 |   // Log to console unless silent
+      33 |   if (!silent) {
+    > 34 |     console.error(fullMessage, error);
+         |             ^
+      35 |   }
+      36 |
+      37 |   // Show notification if requested
+      at handleError (src/renderer/utils/error-handler.ts:34:13)
+      at SettingsCacheManager.getSearchPrefixes (src/renderer/file-search/managers/settings-cache-manager.ts:120:18)
+          at async Promise.all (index 0)
+      at SettingsCacheManager.preloadSearchPrefixesCache (src/renderer/file-search/managers/settings-cache-manager.ts:177:7)
+      at Object.<anonymous> (tests/unit/settings-cache-manager.test.ts:302:7)
+    console.error
+      [SettingsCacheManager.getSearchPrefixes] API error Error: API error
+          at Object.<anonymous> (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/tests/unit/settings-cache-manager.test.ts:300:81)
+          at /Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-mock/build/index.js:305:39
+          at Object.<anonymous> (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-mock/build/index.js:312:13)
+          at Object.mockConstructor [as getSearchPrefixes] (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-mock/build/index.js:102:19)
+          at SettingsCacheManager.getSearchPrefixes (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/src/renderer/file-search/managers/settings-cache-manager.ts:115:53)
+          at SettingsCacheManager.preloadSearchPrefixesCache (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/src/renderer/file-search/managers/settings-cache-manager.ts:179:14)
+          at Object.<anonymous> (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/tests/unit/settings-cache-manager.test.ts:302:41)
+          at Promise.then.completed (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-circus/build/utils.js:298:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-circus/build/utils.js:231:10)
+          at _callCircusTest (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-circus/build/run.js:316:40)
+          at processTicksAndRejections (node:internal/process/task_queues:105:5)
+          at _runTest (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-circus/build/run.js:252:3)
+          at _runTestsForDescribeBlock (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-circus/build/run.js:126:9)
+          at _runTestsForDescribeBlock (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-circus/build/run.js:121:9)
+          at _runTestsForDescribeBlock (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-circus/build/run.js:121:9)
+          at run (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-circus/build/run.js:71:3)
+          at runAndTransformResultsToJestFormat (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)
+          at jestAdapter (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:79:19)
+          at runTestInternal (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-runner/build/runTest.js:367:16)
+          at runTest (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-runner/build/runTest.js:444:34)
+          at Object.worker (/Users/nkmr/ghq/github.com/nkmr-jp/prompt-line-wt-art-20251230_202120/node_modules/jest-runner/build/testWorker.js:106:12)
+      32 |   // Log to console unless silent
+      33 |   if (!silent) {
+    > 34 |     console.error(fullMessage, error);
+         |             ^
+      35 |   }
+      36 |
+      37 |   // Show notification if requested
+      at handleError (src/renderer/utils/error-handler.ts:34:13)
+      at SettingsCacheManager.getSearchPrefixes (src/renderer/file-search/managers/settings-cache-manager.ts:120:18)
+          at async Promise.all (index 1)
+      at SettingsCacheManager.preloadSearchPrefixesCache (src/renderer/file-search/managers/settings-cache-manager.ts:177:7)
+      at Object.<anonymous> (tests/unit/settings-cache-manager.test.ts:302:7)
+    console.debug
+      [SettingsCacheManager] SearchPrefixes cache preloaded
+      at SettingsCacheManager.preloadSearchPrefixesCache (src/renderer/file-search/managers/settings-cache-manager.ts:181:15)
+ PASS  tests/unit/popup-manager.test.ts
+  ● Console
+    console.debug
+      [PopupManager] Popup element created
+      at PopupManager.createFrontmatterPopup (src/renderer/file-search/managers/popup-manager.ts:91:15)
+    console.debug
+      [PopupManager] Popup element created
+      at PopupManager.createFrontmatterPopup (src/renderer/file-search/managers/popup-manager.ts:91:15)
+    console.debug
+      [PopupManager] Popup element created
+      at PopupManager.createFrontmatterPopup (src/renderer/file-search/managers/popup-manager.ts:91:15)
+    console.debug
+      [PopupManager] Popup element created
+      at PopupManager.createFrontmatterPopup (src/renderer/file-search/managers/popup-manager.ts:91:15)
+    console.debug
+      [PopupManager] Popup element created
+      at PopupManager.createFrontmatterPopup (src/renderer/file-search/managers/popup-manager.ts:91:15)
+    console.debug
+      [PopupManager] Popup element created
+      at PopupManager.createFrontmatterPopup (src/renderer/file-search/managers/popup-manager.ts:91:15)
+    console.debug
+      [PopupManager] Popup element created
+      at PopupManager.createFrontmatterPopup (src/renderer/file-search/managers/popup-manager.ts:91:15)
+    console.debug
+      [PopupManager] Popup element created
+      at PopupManager.createFrontmatterPopup (src/renderer/file-search/managers/popup-manager.ts:91:15)
+    console.debug
+      [PopupManager] Popup element created
+      at PopupManager.createFrontmatterPopup (src/renderer/file-search/managers/popup-manager.ts:91:15)
+    console.debug
+      [PopupManager] Popup element created
+      at PopupManager.createFrontmatterPopup (src/renderer/file-search/managers/popup-manager.ts:91:15)
+    console.debug
+      [PopupManager] Popup element created
+      at PopupManager.createFrontmatterPopup (src/renderer/file-search/managers/popup-manager.ts:91:15)
+    console.debug
+      [PopupManager] Popup element created
+      at PopupManager.createFrontmatterPopup (src/renderer/file-search/managers/popup-manager.ts:91:15)
+    console.debug
+      [PopupManager] Popup element created
+      at PopupManager.createFrontmatterPopup (src/renderer/file-search/managers/popup-manager.ts:91:15)
+    console.debug
+      [PopupManager] Popup element created
+      at PopupManager.createFrontmatterPopup (src/renderer/file-search/managers/popup-manager.ts:91:15)
+    console.debug
+      [PopupManager] Popup element created
+      at PopupManager.createFrontmatterPopup (src/renderer/file-search/managers/popup-manager.ts:91:15)
+    console.debug
+      [PopupManager] Popup element created
+      at PopupManager.createFrontmatterPopup (src/renderer/file-search/managers/popup-manager.ts:91:15)
+    console.debug
+      [PopupManager] Popup element created
+      at PopupManager.createFrontmatterPopup (src/renderer/file-search/managers/popup-manager.ts:91:15)
+    console.debug
+      [PopupManager] Popup element created
+      at PopupManager.createFrontmatterPopup (src/renderer/file-search/managers/popup-manager.ts:91:15)
+    console.debug
+      [PopupManager] Popup element created
+      at PopupManager.createFrontmatterPopup (src/renderer/file-search/managers/popup-manager.ts:91:15)
+ PASS  tests/unit/draft-manager-new.test.ts
+A worker process has failed to exit gracefully and has been force exited. This is likely caused by tests leaking due to improper teardown. Try running with --detectOpenHandles to find leaks. Active timers can also cause this, ensure that .unref() was called on them.
+Summary of all failing tests
+ FAIL  tests/unit/renderer-refactored.test.ts
+  ● PromptLineRenderer (Refactored) › initialization › should initialize with manager pattern
+  ● PromptLineRenderer (Refactored) › initialization › should set up event handlers and search manager
+  ● PromptLineRenderer (Refactored) › initialization › should call domManager initializeElements
+  ● PromptLineRenderer (Refactored) › initialization › should configure draft manager with config
+  ● PromptLineRenderer (Refactored) › public API delegation › should delegate getCurrentText to domManager
+  ● PromptLineRenderer (Refactored) › public API delegation › should delegate setText to domManager
+  ● PromptLineRenderer (Refactored) › public API delegation › should delegate clearText to domManager
+  ● PromptLineRenderer (Refactored) › public API delegation › should delegate focus to domManager
+  ● PromptLineRenderer (Refactored) › event handling delegation › should call historyUIManager for history navigation
+  ● PromptLineRenderer (Refactored) › event handling delegation › should call historyUIManager for rendering
+  ● PromptLineRenderer (Refactored) › window lifecycle › should delegate window shown to lifecycleManager
+  ● PromptLineRenderer (Refactored) › window lifecycle › should delegate window hide to draftManager
+  ● PromptLineRenderer (Refactored) › image paste handling › should handle image paste with domManager
+  ● PromptLineRenderer (Refactored) › image paste handling › should not prevent default when no image
+  ● PromptLineRenderer (Refactored) › text paste callback › should clear text and draft on successful paste
+  ● PromptLineRenderer (Refactored) › text paste callback › should show error on paste failure
+  ● PromptLineRenderer (Refactored) › search state handling › should update filtered data and render history
+  ● PromptLineRenderer (Refactored) › search state handling › should focus main textarea when exiting search
+  ● PromptLineRenderer (Refactored) › cleanup › should call cleanup on all managers
+  ● PromptLineRenderer (Refactored) › tab key handling › should insert tab and save draft
+Test Suites: 1 failed, 21 passed, 22 total
+Tests:       20 failed, 460 passed, 480 total
+Snapshots:   0 total
+Time:        6.149 s
+Ran all test suites.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+✔ Safe-chain: Command completed, no malicious packages found.
