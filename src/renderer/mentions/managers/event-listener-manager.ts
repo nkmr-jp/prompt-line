@@ -69,7 +69,6 @@ export class EventListenerManager {
     if (this.boundSelectionChangeHandler) {
       document.removeEventListener('selectionchange', this.boundSelectionChangeHandler);
     }
-    console.debug('[EventListenerManager] Input listeners suspended');
   }
 
   /**
@@ -86,7 +85,6 @@ export class EventListenerManager {
     if (this.boundSelectionChangeHandler) {
       document.addEventListener('selectionchange', this.boundSelectionChangeHandler);
     }
-    console.debug('[EventListenerManager] Input listeners resumed');
   }
 
   /**
