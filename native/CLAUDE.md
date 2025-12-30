@@ -202,7 +202,7 @@ class DirectoryDetector {
 - **VSCode** (`com.microsoft.VSCode`, `com.microsoft.VSCodeInsiders`, `com.vscodium.VSCodium`) - Uses pty-host process tree traversal
 - **Cursor** (`com.todesktop.230313mzl4w4u92`) - Uses Electron pty-host detection
 - **Windsurf** (`com.exafunction.windsurf`) - Uses Electron pty-host detection
-- **Antigravity** (`com.google.antigravity`) - Google IDE, uses Electron pty-host detection
+- **Antigravity** (`com.google.antigravity`) - Google IDE, uses tmux-based terminal detection
 - **Kiro** (`dev.kiro.desktop`) - AWS IDE, uses Electron pty-host detection
 
 **CWD Detection:**
