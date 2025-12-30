@@ -6,7 +6,7 @@
 
 import type { FileInfo, DirectoryInfo, AgentItem } from '../types';
 import type { SymbolResult, LanguageInfo } from './mentions/code-search/types';
-import type { DirectoryData, FileSearchCallbacks, SuggestionItem } from './mentions';
+import type { DirectoryData, MentionCallbacks, SuggestionItem } from './mentions';
 import type { IInitializable } from './interfaces/initializable';
 import { handleError } from './utils/error-handler';
 import { electronAPI } from './services/electron-api';
@@ -29,14 +29,14 @@ import {
   EventListenerManager,
   QueryExtractionManager,
   SuggestionUIManager,
-  FileSearchState,
-  FileSearchInitializer
+  MentionState,
+  MentionInitializer
 } from './mentions/managers';
 
-export class FileSearchManager implements IInitializable {
+export class MentionManager implements IInitializable {
   // Centralized state container
-  private readonly state = new FileSearchState();
-  private callbacks: FileSearchCallbacks;
+  private readonly state = new MentionState();
+  private callbacks: MentionCallbacks;
 
 
   // PopupManager for frontmatter popup
@@ -77,7 +77,7 @@ export class FileSearchManager implements IInitializable {
     this.codeSearchManager?.setCurrentFileSymbols(value);
   }
 
-  constructor(callbacks: FileSearchCallbacks) {
+  constructor(callbacks: MentionCallbacks) {
     this.callbacks = callbacks;
 
     // Initialize PopupManager with callbacks
@@ -210,7 +210,7 @@ export class FileSearchManager implements IInitializable {
   public setFileSearchEnabled(enabled: boolean): void {
     const previousValue = this.state.fileSearchEnabled;
     this.state.fileSearchEnabled = enabled;
-    console.debug('[FileSearchManager] setFileSearchEnabled:', {
+    console.debug('[MentionManager] setFileSearchEnabled:', {
       enabled,
       previousValue,
       hasCodeSearchManager: !!this.codeSearchManager,
@@ -315,7 +315,7 @@ export class FileSearchManager implements IInitializable {
   }
 
   public initializeElements(): void {
-    const initializer = new FileSearchInitializer(
+    const initializer = new MentionInitializer(
       {
         state: this.state,
         callbacks: this.callbacks,
@@ -382,7 +382,7 @@ export class FileSearchManager implements IInitializable {
    * This enables instant file search when window opens
    */
   public handleCachedDirectoryData(data: DirectoryInfo | undefined): void {
-    console.debug('[FileSearchManager] handleCachedDirectoryData:', {
+    console.debug('[MentionManager] handleCachedDirectoryData:', {
       hasData: !!data,
       directory: data?.directory,
       fileCount: data?.files?.length,
@@ -400,7 +400,7 @@ export class FileSearchManager implements IInitializable {
 
     // Log cached data after update
     setTimeout(() => {
-      console.debug('[FileSearchManager] after handleCachedDirectoryData:', {
+      console.debug('[MentionManager] after handleCachedDirectoryData:', {
         hasCachedData: this.directoryCacheManager?.hasCache() ?? false,
         cachedDirectory: this.directoryCacheManager?.getDirectory() ?? null
       });
@@ -416,7 +416,7 @@ export class FileSearchManager implements IInitializable {
   private async loadRegisteredAtPaths(directory: string | null): Promise<void> {
     try {
       if (!electronAPI?.atPathCache) {
-        console.debug('[FileSearchManager] atPathCache API not available');
+        console.debug('[MentionManager] atPathCache API not available');
         return;
       }
 
@@ -435,7 +435,7 @@ export class FileSearchManager implements IInitializable {
 
       if (allPaths.length > 0) {
         this.highlightManager?.setRegisteredAtPaths(allPaths);
-        console.debug('[FileSearchManager] Loaded registered at-paths:', {
+        console.debug('[MentionManager] Loaded registered at-paths:', {
           directory,
           projectCount: projectPaths.length,
           globalCount: globalPaths.length,
@@ -443,13 +443,13 @@ export class FileSearchManager implements IInitializable {
         });
       }
     } catch (error) {
-      console.warn('[FileSearchManager] Failed to load registered at-paths:', error);
+      console.warn('[MentionManager] Failed to load registered at-paths:', error);
     }
   }
 
   public setupEventListeners(): void {
     if (!this.state.textInput) {
-      console.warn('[FileSearchManager] setupEventListeners: textInput is null, skipping');
+      console.warn('[MentionManager] setupEventListeners: textInput is null, skipping');
       return;
     }
 
@@ -550,7 +550,7 @@ export class FileSearchManager implements IInitializable {
     }
 
     const result = this.extractQueryAtCursor();
-    console.debug('[FileSearchManager] extractQueryAtCursor result:', result ? formatLog(result as Record<string, unknown>) : 'null');
+    console.debug('[MentionManager] extractQueryAtCursor result:', result ? formatLog(result as Record<string, unknown>) : 'null');
 
     if (!result) {
       this.hideSuggestions();
@@ -575,7 +575,7 @@ export class FileSearchManager implements IInitializable {
   private shouldProcessFileSearch(): boolean {
     const hasCache = this.directoryCacheManager?.hasCache() ?? false;
 
-    console.debug('[FileSearchManager] shouldProcessFileSearch:', {
+    console.debug('[MentionManager] shouldProcessFileSearch:', {
       fileSearchEnabled: this.state.fileSearchEnabled,
       hasTextInput: !!this.state.textInput,
       hasCache
@@ -596,7 +596,7 @@ export class FileSearchManager implements IInitializable {
     }
 
     const { language, symbolQuery, symbolTypeFilter } = parsedCodeSearch;
-    console.debug('[FileSearchManager] Code search detected:', { language, symbolQuery, symbolTypeFilter });
+    console.debug('[MentionManager] Code search detected:', { language, symbolQuery, symbolTypeFilter });
     return this.handleCodeSearch(language, symbolQuery, symbolTypeFilter, startPos);
   }
 
@@ -702,7 +702,7 @@ export class FileSearchManager implements IInitializable {
    * Delegates to CodeSearchManager for symbol mode, SuggestionUIManager for file mode
    */
   public async showSuggestions(query: string): Promise<void> {
-    console.debug('[FileSearchManager] showSuggestions called', formatLog({
+    console.debug('[MentionManager] showSuggestions called', formatLog({
       query,
       currentPath: this.state.currentPath,
       hasSuggestionsContainer: !!this.state.suggestionsContainer,
@@ -711,7 +711,7 @@ export class FileSearchManager implements IInitializable {
     }));
 
     if (!this.state.suggestionsContainer) {
-      console.debug('[FileSearchManager] showSuggestions: early return - missing container');
+      console.debug('[MentionManager] showSuggestions: early return - missing container');
       return;
     }
 
@@ -733,7 +733,7 @@ export class FileSearchManager implements IInitializable {
         return agents.slice(0, maxSuggestions);
       }
     } catch (error) {
-      handleError('FileSearchManager.searchAgents', error);
+      handleError('MentionManager.searchAgents', error);
     }
     return [];
   }
@@ -745,7 +745,7 @@ export class FileSearchManager implements IInitializable {
   private adjustCurrentPathToQuery(query: string): void {
     const newPath = this.fileFilterManager.adjustCurrentPathToQuery(this.state.currentPath, query);
     if (newPath !== this.state.currentPath) {
-      console.debug('[FileSearchManager] adjustCurrentPathToQuery: navigating', formatLog({
+      console.debug('[MentionManager] adjustCurrentPathToQuery: navigating', formatLog({
         from: this.state.currentPath,
         to: newPath,
         query
@@ -1030,7 +1030,7 @@ export class FileSearchManager implements IInitializable {
    */
   public async restoreAtPathsFromText(checkFilesystem = false): Promise<void> {
     const cachedData = this.directoryCacheManager?.getCachedData() ?? null;
-    console.debug('[FileSearchManager] restoreAtPathsFromText called:', formatLog({
+    console.debug('[MentionManager] restoreAtPathsFromText called:', formatLog({
       hasTextInput: !!this.state.textInput,
       hasHighlightManager: !!this.highlightManager,
       hasCachedData: !!cachedData,

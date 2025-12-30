@@ -53,7 +53,7 @@ export class ShortcutHandler {
     this.slashCommandManager = slashCommandManager;
   }
 
-  public setFileSearchManager(fileSearchManager: { isActive(): boolean }): void {
+  public setMentionManager(fileSearchManager: { isActive(): boolean }): void {
     this.fileSearchManager = fileSearchManager;
   }
 

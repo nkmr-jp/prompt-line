@@ -48,7 +48,7 @@ export class HighlightManager {
   private highlightBackdrop: HTMLDivElement;
   private callbacks: HighlightManagerCallbacks;
 
-  // PathManager is injected from parent (FileSearchManager)
+  // PathManager is injected from parent (MentionManager)
   private pathManager: PathManager;
 
   // Cursor highlight state (from CursorHighlightManager)

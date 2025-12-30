@@ -1,12 +1,12 @@
 /**
- * FileSearchInitializer
- * Responsible for initializing all managers and DOM elements for FileSearchManager
- * Extracts initialization logic to reduce FileSearchManager complexity
+ * MentionInitializer
+ * Responsible for initializing all managers and DOM elements for MentionManager
+ * Extracts initialization logic to reduce MentionManager complexity
  */
 
 import type { FileInfo, AgentItem } from '../../../types';
 import type { SymbolResult } from '../code-search/types';
-import type { FileSearchCallbacks, SuggestionItem } from '..';
+import type { MentionCallbacks, SuggestionItem } from '..';
 import { electronAPI } from '../../services/electron-api';
 import {
   PopupManager,
@@ -21,12 +21,12 @@ import {
   EventListenerManager,
   QueryExtractionManager,
   SuggestionUIManager,
-  FileSearchState
+  MentionState
 } from './index';
 
-export interface FileSearchManagerDependencies {
-  state: FileSearchState;
-  callbacks: FileSearchCallbacks;
+export interface MentionManagerDependencies {
+  state: MentionState;
+  callbacks: MentionCallbacks;
   popupManager: PopupManager;
   settingsCacheManager: SettingsCacheManager;
   fileFilterManager: FileFilterManager;
@@ -44,7 +44,7 @@ export interface InitializedManagers {
   directoryCacheManager: DirectoryCacheManager;
 }
 
-export interface FileSearchInitializerCallbacks {
+export interface MentionInitializerCallbacks {
   // State accessors
   isCommandEnabledSync: () => boolean;
   checkFileExistsAbsolute: (path: string) => Promise<boolean>;
@@ -88,15 +88,15 @@ export interface FileSearchInitializerCallbacks {
 }
 
 /**
- * FileSearchInitializer handles initialization of all FileSearchManager components
+ * MentionInitializer handles initialization of all MentionManager components
  */
-export class FileSearchInitializer {
-  private deps: FileSearchManagerDependencies;
-  private callbacks: FileSearchInitializerCallbacks;
+export class MentionInitializer {
+  private deps: MentionManagerDependencies;
+  private callbacks: MentionInitializerCallbacks;
 
   constructor(
-    deps: FileSearchManagerDependencies,
-    callbacks: FileSearchInitializerCallbacks
+    deps: MentionManagerDependencies,
+    callbacks: MentionInitializerCallbacks
   ) {
     this.deps = deps;
     this.callbacks = callbacks;
@@ -130,7 +130,7 @@ export class FileSearchInitializer {
   private initializeDOMElements(): void {
     this.deps.state.textInput = document.getElementById('textInput') as HTMLTextAreaElement;
     this.deps.state.highlightBackdrop = document.getElementById('highlightBackdrop') as HTMLDivElement;
-    console.debug('[FileSearchInitializer] initializeElements: textInput found:', !!this.deps.state.textInput, 'highlightBackdrop found:', !!this.deps.state.highlightBackdrop);
+    console.debug('[MentionInitializer] initializeElements: textInput found:', !!this.deps.state.textInput, 'highlightBackdrop found:', !!this.deps.state.highlightBackdrop);
 
     this.initializeSuggestionsContainer();
   }
@@ -150,9 +150,9 @@ export class FileSearchInitializer {
       const mainContent = document.querySelector('.main-content');
       if (mainContent) {
         mainContent.appendChild(this.deps.state.suggestionsContainer);
-        console.debug('[FileSearchInitializer] suggestionsContainer created and appended');
+        console.debug('[MentionInitializer] suggestionsContainer created and appended');
       } else {
-        console.warn('[FileSearchInitializer] .main-content not found!');
+        console.warn('[MentionInitializer] .main-content not found!');
       }
     }
   }

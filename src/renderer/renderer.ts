@@ -16,7 +16,7 @@ import { DraftManagerClient } from './draft-manager-client';
 import { HistoryUIManager } from './history-ui-manager';
 import { LifecycleManager } from './lifecycle-manager';
 import { SimpleSnapshotManager } from './snapshot-manager';
-import { FileSearchManager } from './mention-manager';
+import { MentionManager } from './mention-manager';
 import { DirectoryDataHandler } from './directory-data-handler';
 import { rendererLogger } from './utils/logger';
 import { electronAPI } from './services/electron-api';
@@ -35,7 +35,7 @@ export class PromptLineRenderer {
   private eventHandler: EventHandler | null = null;
   private searchManager: HistorySearchManager | null = null;
   private slashCommandManager: SlashCommandManager | null = null;
-  private fileSearchManager: FileSearchManager | null = null;
+  private fileSearchManager: MentionManager | null = null;
   private directoryDataHandler: DirectoryDataHandler;
   private domManager: DomManager;
   private draftManager: DraftManagerClient;
@@ -81,7 +81,7 @@ export class PromptLineRenderer {
     this.directoryDataHandler = new DirectoryDataHandler({
       updateHintText: (text: string) => this.domManager.updateHintText(text),
       setDraggable: (enabled: boolean) => this.domManager.setDraggable(enabled),
-      getFileSearchManager: () => this.fileSearchManager,
+      getMentionManager: () => this.fileSearchManager,
       handleLifecycleWindowShown: (data) => this.lifecycleManager.handleWindowShown(data),
       exitSearchMode: () => this.searchManager?.exitSearchMode(),
       resetHistoryScrollPosition: () => this.resetHistoryScrollPosition(),
@@ -104,8 +104,8 @@ export class PromptLineRenderer {
       this.setupEventHandler();
       this.setupSearchManager();
       this.setupSlashCommandManager();
-      this.setupFileSearchManager();
-      // Code search is now integrated into FileSearchManager
+      this.setupMentionManager();
+      // Code search is now integrated into MentionManager
       // await this.setupCodeSearchManager();
       this.setupEventListeners();
       // Note: setupIPCListeners() is now called in constructor to prevent race condition
@@ -194,11 +194,11 @@ export class PromptLineRenderer {
     this.slashCommandManager.loadCommands();
   }
 
-  private setupFileSearchManager(): void {
-    this.fileSearchManager = new FileSearchManager({
+  private setupMentionManager(): void {
+    this.fileSearchManager = new MentionManager({
       onFileSelected: (filePath: string) => {
-        console.debug('[FileSearchManager] File selected:', filePath);
-        // File path is already inserted by FileSearchManager
+        console.debug('[MentionManager] File selected:', filePath);
+        // File path is already inserted by MentionManager
         this.draftManager.saveDraftDebounced();
       },
       getTextContent: () => this.domManager.getCurrentText(),
@@ -228,9 +228,9 @@ export class PromptLineRenderer {
     this.fileSearchManager.initializeElements();
     this.fileSearchManager.setupEventListeners();
 
-    // Set FileSearchManager reference in EventHandler
+    // Set MentionManager reference in EventHandler
     if (this.eventHandler) {
-      this.eventHandler.setFileSearchManager(this.fileSearchManager);
+      this.eventHandler.setMentionManager(this.fileSearchManager);
     }
   }
 

@@ -17,13 +17,13 @@ export function formatLog(obj: Record<string, unknown>): string {
 /**
  * Create a debug logger for a specific module
  *
- * @param moduleName - The name of the module (e.g., 'FileSearchManager', 'PopupManager')
+ * @param moduleName - The name of the module (e.g., 'MentionManager', 'PopupManager')
  * @returns A debug function that prefixes all messages with the module name
  *
  * @example
- * const debug = createDebugLogger('FileSearchManager');
- * debug('initialized'); // Output: [FileSearchManager] initialized
- * debug('search result', { count: 5 }); // Output: [FileSearchManager] search result { count: 5 }
+ * const debug = createDebugLogger('MentionManager');
+ * debug('initialized'); // Output: [MentionManager] initialized
+ * debug('search result', { count: 5 }); // Output: [MentionManager] search result { count: 5 }
  */
 export function createDebugLogger(moduleName: string): (...args: unknown[]) => void {
   const prefix = `[${moduleName}]`;

@@ -26,7 +26,7 @@ export interface DirectoryData {
   filesDisabledReason?: string; // reason why file search is disabled
 }
 
-export interface FileSearchCallbacks {
+export interface MentionCallbacks {
   onFileSelected: (filePath: string) => void;
   getTextContent: () => string;
   setTextContent: (text: string) => void;
@@ -77,7 +77,7 @@ export function insertSvgIntoElement(element: HTMLElement, svgString: string): v
   // Check for parsing errors
   const parserError = doc.querySelector('parsererror');
   if (parserError) {
-    console.warn('[FileSearchManager] SVG parse error, using fallback');
+    console.warn('[MentionManager] SVG parse error, using fallback');
     element.textContent = '📄';
     return;
   }

@@ -13,7 +13,7 @@
 // Type definitions
 export type {
   DirectoryData,
-  FileSearchCallbacks,
+  MentionCallbacks,
   AtPathRange,
   SuggestionItem,
   ParsedPathInfo

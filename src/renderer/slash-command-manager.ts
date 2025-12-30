@@ -512,7 +512,7 @@ export class SlashCommandManager implements IInitializable {
 
   /**
    * Open the command file in editor without inserting command text
-   * Similar to FileSearchManager behavior - window stays open and becomes draggable
+   * Similar to MentionManager behavior - window stays open and becomes draggable
    */
   private async openCommandFile(index: number): Promise<void> {
     if (index < 0 || index >= this.filteredCommands.length) return;

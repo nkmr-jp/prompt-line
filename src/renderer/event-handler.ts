@@ -61,9 +61,9 @@ export class EventHandler implements IInitializable {
     this.shortcutHandler.setSlashCommandManager(slashCommandManager);
   }
 
-  public setFileSearchManager(fileSearchManager: { isActive(): boolean }): void {
+  public setMentionManager(fileSearchManager: { isActive(): boolean }): void {
     this.fileSearchManager = fileSearchManager;
-    this.shortcutHandler.setFileSearchManager(fileSearchManager);
+    this.shortcutHandler.setMentionManager(fileSearchManager);
   }
 
   public setDomManager(domManager: { isDraggable(): boolean }): void {

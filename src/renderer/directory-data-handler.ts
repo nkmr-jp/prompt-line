@@ -16,10 +16,10 @@ export interface DomManagerCallbacks {
 }
 
 /**
- * FileSearchManager callbacks for file search functionality
+ * MentionManager callbacks for file search functionality
  */
-export interface FileSearchManagerCallbacks {
-  getFileSearchManager: () => {
+export interface MentionManagerCallbacks {
+  getMentionManager: () => {
     setFileSearchEnabled: (enabled: boolean) => void;
     preloadSearchPrefixesCache: () => void;
     handleCachedDirectoryData: (data: DirectoryInfo) => void;
@@ -71,7 +71,7 @@ export interface HintTextStateCallbacks {
  */
 export interface DirectoryDataHandlerCallbacks extends
   DomManagerCallbacks,
-  FileSearchManagerCallbacks,
+  MentionManagerCallbacks,
   LifecycleManagerCallbacks,
   SearchManagerCallbacks,
   HistoryUIManagerCallbacks,
@@ -98,16 +98,16 @@ export class DirectoryDataHandler {
         directoryDataDirectory: data.directoryData?.directory,
         directoryDataFileCount: data.directoryData?.files?.length,
         directoryDataFromDraft: data.directoryData?.fromDraft,
-        hasFileSearchManager: !!this.callbacks.getFileSearchManager(),
+        hasMentionManager: !!this.callbacks.getMentionManager(),
         fileSearchEnabled: data.fileSearchEnabled
       }));
 
       this.callbacks.handleLifecycleWindowShown(data);
       this.callbacks.updateHistoryAndSettings(data);
 
-      const fileSearchManager = this.callbacks.getFileSearchManager();
+      const fileSearchManager = this.callbacks.getMentionManager();
 
-      // Update file search enabled state in FileSearchManager
+      // Update file search enabled state in MentionManager
       fileSearchManager?.setFileSearchEnabled(data.fileSearchEnabled ?? false);
 
       // Preload searchPrefixes cache for command/mention (enables sync checks for slash command hints)
@@ -190,7 +190,7 @@ export class DirectoryDataHandler {
         previousDirectory: data.previousDirectory
       });
 
-      const fileSearchManager = this.callbacks.getFileSearchManager();
+      const fileSearchManager = this.callbacks.getMentionManager();
 
       // If directory changed from draft directory, clear @path highlights first
       // This prevents stale highlights from wrong directory
