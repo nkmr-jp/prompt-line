@@ -14,7 +14,6 @@
 
 import type { DirectoryData, FileInfo } from '../types';
 import type { DirectoryInfo } from '../../types';
-import { formatLog } from '../types';
 
 /**
  * Callbacks for directory cache events
@@ -58,7 +57,6 @@ export class DirectoryCacheManager {
    */
   public handleCachedDirectoryData(data: DirectoryInfo | undefined): void {
     if (!data || !data.directory) {
-      console.debug('[DirectoryCacheManager] No cached directory data');
       return;
     }
 
@@ -68,7 +66,6 @@ export class DirectoryCacheManager {
 
     if (fromDraft && (!data.files || data.files.length === 0)) {
       // Draft fallback with no files - just store directory for later
-      console.debug('[DirectoryCacheManager] Draft directory fallback:', data.directory);
       // Don't cache empty data, but remember the directory
       this.cachedDirectoryData = {
         directory: data.directory,
@@ -115,15 +112,6 @@ export class DirectoryCacheManager {
     if (this.callbacks.onCacheUpdated) {
       this.callbacks.onCacheUpdated(this.cachedDirectoryData);
     }
-
-    console.debug('[DirectoryCacheManager] handleCachedDirectoryData:', formatLog({
-      directory: data.directory,
-      fileCount: this.cachedDirectoryData.files.length,
-      fromCache: fromCache,
-      cacheAge: data.cacheAge,
-      searchMode: data.searchMode,
-      hint: data.hint
-    }));
   }
 
   /**
@@ -132,7 +120,6 @@ export class DirectoryCacheManager {
    */
   public updateCache(data: DirectoryInfo | DirectoryData): void {
     if (!data.directory) {
-      console.debug('[DirectoryCacheManager] updateCache: no directory in data');
       return;
     }
 
@@ -149,10 +136,6 @@ export class DirectoryCacheManager {
     if (!data.files) {
       // For directory-only updates, only update if directory changed
       if (!isSameDirectory) {
-        console.debug('[DirectoryCacheManager] updateCache: directory-only update (directory changed)', {
-          from: this.cachedDirectoryData?.directory,
-          to: data.directory
-        });
         this.cachedDirectoryData = {
           directory: data.directory,
           files: [],  // Empty files - code search will work, file search won't
@@ -173,8 +156,6 @@ export class DirectoryCacheManager {
         if (this.callbacks.onCacheUpdated) {
           this.callbacks.onCacheUpdated(this.cachedDirectoryData);
         }
-      } else {
-        console.debug('[DirectoryCacheManager] updateCache: skipping directory-only update (same directory)');
       }
       return;
     }
@@ -186,7 +167,6 @@ export class DirectoryCacheManager {
       (data.files.length > (this.cachedDirectoryData?.files.length || 0));
 
     if (!shouldUpdate) {
-      console.debug('[DirectoryCacheManager] updateCache: skipping update, existing data is sufficient');
       return;
     }
 
@@ -216,13 +196,6 @@ export class DirectoryCacheManager {
     if (this.callbacks.onCacheUpdated) {
       this.callbacks.onCacheUpdated(this.cachedDirectoryData);
     }
-
-    console.debug('[DirectoryCacheManager] updateCache:', formatLog({
-      directory: data.directory,
-      fileCount: data.files.length,
-      searchMode: 'recursive',
-      hint
-    }));
   }
 
   /**

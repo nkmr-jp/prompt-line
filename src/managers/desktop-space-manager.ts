@@ -72,7 +72,6 @@ class DesktopSpaceManager {
       }
 
       this.isInitialized = true;
-      logger.info('DesktopSpaceManager initialized successfully');
     } catch (error) {
       logger.error('Failed to initialize DesktopSpaceManager:', error);
       throw error;
@@ -92,8 +91,7 @@ class DesktopSpaceManager {
 
       const { stdout } = await this.execOsascript(script);
       return stdout.trim() === 'true';
-    } catch (error) {
-      logger.debug('Error checking accessibility permission:', error);
+    } catch {
       return false;
     }
   }
@@ -168,12 +166,6 @@ class DesktopSpaceManager {
       const spaceInfo = await this.getCurrentSpaceInfo();
       const hasChanged = this.currentSpaceSignature !== spaceInfo.signature;
       
-      if (hasChanged) {
-        logger.debug('Space change detected', { 
-          old: this.currentSpaceSignature, 
-          new: spaceInfo.signature 
-        });
-      }
       
       return hasChanged;
     } catch (error) {
@@ -321,7 +313,6 @@ class DesktopSpaceManager {
   destroy(): void {
     this.stopMonitoring();
     this.isInitialized = false;
-    logger.debug('DesktopSpaceManager destroyed');
   }
 }
 

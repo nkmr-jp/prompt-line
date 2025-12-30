@@ -42,7 +42,6 @@ class DirectoryManager {
 
       // Then load the directory
       await this.loadDirectory();
-      logger.info('Directory manager initialized', { directory: this.currentDirectory });
     } catch (error) {
       logger.error('Failed to initialize directory manager:', error);
       this.currentDirectory = null;
@@ -75,10 +74,8 @@ class DirectoryManager {
           await this.saveDirectory(parsed.directory);
           logger.info('Migrated directory from draft.json:', { directory: parsed.directory });
         }
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-          logger.debug('No draft.json to migrate from or error reading:', error);
-        }
+      } catch {
+        // No draft.json to migrate from - this is expected for new users
       }
     } catch (error) {
       logger.error('Failed to migrate directory from draft:', error);
@@ -93,7 +90,6 @@ class DirectoryManager {
       const data = await fs.readFile(this.directoryFile, 'utf8');
 
       if (!data || data.trim().length === 0) {
-        logger.debug('Directory file is empty');
         return;
       }
 
@@ -103,15 +99,9 @@ class DirectoryManager {
         this.currentDirectory = parsed.directory;
         this.currentMethod = parsed.method || null;
         this.lastSaveTimestamp = parsed.timestamp || 0;
-        logger.debug('Directory loaded:', {
-          directory: this.currentDirectory,
-          method: this.currentMethod
-        });
       }
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        logger.debug('Directory file not found');
-      } else {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
         logger.error('Error loading directory:', error);
         throw error;
       }
@@ -139,11 +129,6 @@ class DirectoryManager {
       const jsonData = safeJsonStringify(data);
       // Set restrictive file permissions (owner read/write only)
       await fs.writeFile(this.directoryFile, jsonData, { mode: 0o600 });
-
-      logger.debug('Directory saved:', {
-        directory: this.currentDirectory,
-        method: this.currentMethod
-      });
     } catch (error) {
       logger.error('Failed to save directory:', error);
       throw error;
@@ -158,7 +143,6 @@ class DirectoryManager {
     if (method) {
       this.currentMethod = method;
     }
-    logger.debug('Directory set (in-memory):', { directory, method });
   }
 
   /**
@@ -199,11 +183,8 @@ class DirectoryManager {
       this.lastSaveTimestamp = 0;
 
       await fs.unlink(this.directoryFile);
-      logger.debug('Directory cleared and file removed');
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        logger.debug('Directory file already does not exist');
-      } else {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
         logger.error('Failed to clear directory:', error);
         throw error;
       }
@@ -217,7 +198,6 @@ class DirectoryManager {
     this.currentDirectory = null;
     this.currentMethod = null;
     this.lastSaveTimestamp = 0;
-    logger.debug('Directory manager destroyed');
   }
 }
 

@@ -11,7 +11,6 @@ import type { IInitializable } from './interfaces/initializable';
 import { handleError } from './utils/error-handler';
 import { electronAPI } from './services/electron-api';
 import {
-  formatLog,
   normalizePath,
   parsePathWithLineInfo,
   resolveAtPathToAbsolute
@@ -208,14 +207,7 @@ export class MentionManager implements IInitializable {
    * Set whether file search is enabled
    */
   public setFileSearchEnabled(enabled: boolean): void {
-    const previousValue = this.state.fileSearchEnabled;
     this.state.fileSearchEnabled = enabled;
-    console.debug('[MentionManager] setFileSearchEnabled:', {
-      enabled,
-      previousValue,
-      hasCodeSearchManager: !!this.codeSearchManager,
-      hasDirectoryCacheManager: !!this.directoryCacheManager
-    });
   }
 
   /**
@@ -382,14 +374,6 @@ export class MentionManager implements IInitializable {
    * This enables instant file search when window opens
    */
   public handleCachedDirectoryData(data: DirectoryInfo | undefined): void {
-    console.debug('[MentionManager] handleCachedDirectoryData:', {
-      hasData: !!data,
-      directory: data?.directory,
-      fileCount: data?.files?.length,
-      fromDraft: data?.fromDraft,
-      fromCache: data?.fromCache,
-      hasDirectoryCacheManager: !!this.directoryCacheManager
-    });
     // Delegate to DirectoryCacheManager
     // The manager will notify via onCacheUpdated callback to sync local copy
     this.directoryCacheManager?.handleCachedDirectoryData(data);
@@ -397,14 +381,6 @@ export class MentionManager implements IInitializable {
     // Load registered at-paths (supports symbols with spaces and mdSearch agents)
     // Always load global paths; load project paths only if directory is available
     this.loadRegisteredAtPaths(data?.directory ?? null);
-
-    // Log cached data after update
-    setTimeout(() => {
-      console.debug('[MentionManager] after handleCachedDirectoryData:', {
-        hasCachedData: this.directoryCacheManager?.hasCache() ?? false,
-        cachedDirectory: this.directoryCacheManager?.getDirectory() ?? null
-      });
-    }, 100);
   }
 
   /**
@@ -416,7 +392,6 @@ export class MentionManager implements IInitializable {
   private async loadRegisteredAtPaths(directory: string | null): Promise<void> {
     try {
       if (!electronAPI?.atPathCache) {
-        console.debug('[MentionManager] atPathCache API not available');
         return;
       }
 
@@ -435,12 +410,6 @@ export class MentionManager implements IInitializable {
 
       if (allPaths.length > 0) {
         this.highlightManager?.setRegisteredAtPaths(allPaths);
-        console.debug('[MentionManager] Loaded registered at-paths:', {
-          directory,
-          projectCount: projectPaths.length,
-          globalCount: globalPaths.length,
-          totalCount: allPaths.length
-        });
       }
     } catch (error) {
       console.warn('[MentionManager] Failed to load registered at-paths:', error);
@@ -550,7 +519,6 @@ export class MentionManager implements IInitializable {
     }
 
     const result = this.extractQueryAtCursor();
-    console.debug('[MentionManager] extractQueryAtCursor result:', result ? formatLog(result as Record<string, unknown>) : 'null');
 
     if (!result) {
       this.hideSuggestions();
@@ -574,13 +542,6 @@ export class MentionManager implements IInitializable {
    */
   private shouldProcessFileSearch(): boolean {
     const hasCache = this.directoryCacheManager?.hasCache() ?? false;
-
-    console.debug('[MentionManager] shouldProcessFileSearch:', {
-      fileSearchEnabled: this.state.fileSearchEnabled,
-      hasTextInput: !!this.state.textInput,
-      hasCache
-    });
-
     return this.state.fileSearchEnabled && !!this.state.textInput && hasCache;
   }
 
@@ -596,7 +557,6 @@ export class MentionManager implements IInitializable {
     }
 
     const { language, symbolQuery, symbolTypeFilter } = parsedCodeSearch;
-    console.debug('[MentionManager] Code search detected:', { language, symbolQuery, symbolTypeFilter });
     return this.handleCodeSearch(language, symbolQuery, symbolTypeFilter, startPos);
   }
 
@@ -702,16 +662,7 @@ export class MentionManager implements IInitializable {
    * Delegates to CodeSearchManager for symbol mode, SuggestionUIManager for file mode
    */
   public async showSuggestions(query: string): Promise<void> {
-    console.debug('[MentionManager] showSuggestions called', formatLog({
-      query,
-      currentPath: this.state.currentPath,
-      hasSuggestionsContainer: !!this.state.suggestionsContainer,
-      hasCachedData: this.directoryCacheManager?.hasCache() ?? false,
-      isInSymbolMode: this.isInSymbolMode
-    }));
-
     if (!this.state.suggestionsContainer) {
-      console.debug('[MentionManager] showSuggestions: early return - missing container');
       return;
     }
 
@@ -745,11 +696,6 @@ export class MentionManager implements IInitializable {
   private adjustCurrentPathToQuery(query: string): void {
     const newPath = this.fileFilterManager.adjustCurrentPathToQuery(this.state.currentPath, query);
     if (newPath !== this.state.currentPath) {
-      console.debug('[MentionManager] adjustCurrentPathToQuery: navigating', formatLog({
-        from: this.state.currentPath,
-        to: newPath,
-        query
-      }));
       this.state.currentPath = newPath;
     }
   }
@@ -1030,13 +976,6 @@ export class MentionManager implements IInitializable {
    */
   public async restoreAtPathsFromText(checkFilesystem = false): Promise<void> {
     const cachedData = this.directoryCacheManager?.getCachedData() ?? null;
-    console.debug('[MentionManager] restoreAtPathsFromText called:', formatLog({
-      hasTextInput: !!this.state.textInput,
-      hasHighlightManager: !!this.highlightManager,
-      hasCachedData: !!cachedData,
-      cachedFileCount: cachedData?.files?.length ?? 0,
-      checkFilesystem
-    }));
 
     // Delegate to HighlightManager
     if (this.highlightManager) {

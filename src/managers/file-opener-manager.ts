@@ -76,14 +76,6 @@ export class FileOpenerManager {
     const app = settings.fileOpener?.extensions?.[ext]
                 || settings.fileOpener?.defaultEditor;
 
-    logger.debug('FileOpenerManager: openFile called', {
-      filePath,
-      ext,
-      lineNumber: options?.lineNumber,
-      fileOpenerSettings: settings.fileOpener,
-      selectedApp: app || 'system default'
-    });
-
     if (app) {
       return this.openWithApp(filePath, app, options);
     }
@@ -170,19 +162,10 @@ export class FileOpenerManager {
       const lineNumber = options.lineNumber || 1;
       const columnNumber = options.columnNumber || 1;
 
-      logger.debug('Opening file with line number', {
-        filePath,
-        appName,
-        lineNumber,
-        columnNumber,
-        config
-      });
-
       // macOS 'open -na <app> --args --line <line> file' method (for JetBrains IDEs)
       if (config.useOpenArgs) {
         // JetBrains IDEs use: --line <line> [--column <column>] file
         const args = ['-na', appName, '--args', '--line', String(lineNumber), filePath];
-        logger.debug('Opening with open -na --args (JetBrains style)', { appName, args });
         execFile('open', args, (error) => {
           if (error) {
             logger.warn('open -na --args failed', { error: error.message, appName, args });
@@ -203,7 +186,6 @@ export class FileOpenerManager {
       if (config.urlScheme) {
         // Use URL scheme: jetbrains://<ide>/navigate/reference?path=<file>&line=<line>
         const url = `${config.urlScheme}://open?file=${encodeURIComponent(filePath)}&line=${lineNumber}`;
-        logger.debug('Opening with JetBrains URL scheme', { url });
         execFile('open', [url], (error) => {
           if (error) {
             logger.warn('JetBrains URL scheme failed', { error: error.message, url });
@@ -240,8 +222,6 @@ export class FileOpenerManager {
           default:
             args = [filePath];
         }
-
-        logger.debug('Opening with CLI', { cli: config.cli, args });
 
         execFile(config.cli, args, (error) => {
           if (error) {

@@ -73,7 +73,6 @@ export class DirectoryDetectorUtils {
     // Check custom fdPath from settings first
     if (customFdPath) {
       if (fs.existsSync(customFdPath)) {
-        logger.debug(`fd command found at custom path: ${customFdPath}`);
         return true;
       } else {
         logger.warn(`Custom fdPath "${customFdPath}" does not exist, falling back to auto-detect`);
@@ -90,7 +89,6 @@ export class DirectoryDetectorUtils {
 
     for (const fdPath of fdPaths) {
       if (fs.existsSync(fdPath)) {
-        logger.debug(`fd command found at: ${fdPath}`);
         return true;
       }
     }

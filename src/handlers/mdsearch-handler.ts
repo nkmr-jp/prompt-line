@@ -27,8 +27,6 @@ class MdSearchHandler {
     ipcMain.handle('get-agent-file-path', this.handleGetAgentFilePath.bind(this));
     ipcMain.handle('get-md-search-max-suggestions', this.handleGetMdSearchMaxSuggestions.bind(this));
     ipcMain.handle('get-md-search-prefixes', this.handleGetMdSearchPrefixes.bind(this));
-
-    logger.info('MdSearch IPC handlers set up successfully');
   }
 
   /**
@@ -97,7 +95,6 @@ class MdSearchHandler {
         return cmd;
       });
 
-      logger.debug('Slash commands requested', { query, count: commands.length });
       return commands;
     } catch (error) {
       logger.error('Failed to get slash commands:', error);
@@ -125,11 +122,9 @@ class MdSearchHandler {
       const command = items.find(c => c.name === commandName);
 
       if (command) {
-        logger.debug('Slash command file path resolved', { commandName, filePath: command.filePath });
         return command.filePath;
       }
 
-      logger.debug('Slash command not found', { commandName });
       return null;
     } catch (error) {
       logger.error('Failed to get slash command file path:', error);
@@ -169,7 +164,6 @@ class MdSearchHandler {
         return agent;
       });
 
-      logger.debug('Agents requested', { query, count: agents.length });
       return agents;
     } catch (error) {
       logger.error('Failed to get agents:', error);
@@ -197,11 +191,9 @@ class MdSearchHandler {
       const agent = items.find(a => a.name === agentName);
 
       if (agent) {
-        logger.debug('Agent file path resolved', { agentName, filePath: agent.filePath });
         return agent.filePath;
       }
 
-      logger.debug('Agent not found', { agentName });
       return null;
     } catch (error) {
       logger.error('Failed to get agent file path:', error);
@@ -221,9 +213,7 @@ class MdSearchHandler {
       // Refresh config from settings in case they changed
       this.updateConfig();
 
-      const maxSuggestions = this.mdSearchLoader.getMaxSuggestions(type);
-      logger.debug('MdSearch maxSuggestions requested', { type, maxSuggestions });
-      return maxSuggestions;
+      return this.mdSearchLoader.getMaxSuggestions(type);
     } catch (error) {
       logger.error('Failed to get MdSearch maxSuggestions:', error);
       return 20; // Default fallback
@@ -242,9 +232,7 @@ class MdSearchHandler {
       // Refresh config from settings in case they changed
       this.updateConfig();
 
-      const prefixes = this.mdSearchLoader.getSearchPrefixes(type);
-      logger.debug('MdSearch searchPrefixes requested', { type, prefixes });
-      return prefixes;
+      return this.mdSearchLoader.getSearchPrefixes(type);
     } catch (error) {
       logger.error('Failed to get MdSearch searchPrefixes:', error);
       return []; // Default fallback

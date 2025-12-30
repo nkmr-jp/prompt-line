@@ -20,7 +20,7 @@ import type { FileInfo, DirectoryData, SuggestionItem } from '../types';
 import type { AgentItem } from '../../../types';
 import { electronAPI } from '../../services/electron-api';
 import type { SymbolResult, LanguageInfo } from '../code-search/types';
-import { getRelativePath, formatLog } from '../index';
+import { getRelativePath } from '../index';
 
 /**
  * Callbacks for NavigationManager
@@ -307,11 +307,6 @@ export class NavigationManager {
     const newPath = relativePath.endsWith('/') ? relativePath : relativePath + '/';
     this.callbacks.setCurrentPath(newPath);
 
-    console.debug('[NavigationManager] navigateIntoDirectory:', formatLog({
-      directory: directory.name,
-      currentPath: newPath
-    }));
-
     // Update the text input to show the current path after @
     this.callbacks.updateTextInputWithPath(newPath);
 
@@ -347,11 +342,6 @@ export class NavigationManager {
     this.callbacks.setCurrentFilePath(relativePath);
     this.callbacks.setCurrentQuery('');
     this.callbacks.setCurrentPath(relativePath);
-
-    console.debug('[NavigationManager] navigateIntoFile:', formatLog({
-      file: relativePath,
-      language: language.key
-    }));
 
     // Update text input to show the file path
     this.callbacks.updateTextInputWithPath(relativePath);
@@ -539,7 +529,6 @@ export class NavigationManager {
     // Use the full path including line number and symbol name (without trailing space)
     const pathForHighlight = `${symbol.relativePath}:${symbol.lineNumber}#${symbol.name}`;
     this.callbacks.addSelectedPath(pathForHighlight);
-    console.debug('[NavigationManager] Added symbol path to selectedPaths:', pathForHighlight);
 
     // Register at-path in cache for persistent highlighting (supports symbols with spaces)
     const directoryData = this.callbacks.getCachedDirectoryData();

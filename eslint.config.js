@@ -9,6 +9,48 @@ const jest = require('eslint-plugin-jest');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const globals = require('globals');
 
+// Custom rule to detect CSP-violating patterns
+const noInlineStylesRule = {
+  meta: {
+    type: 'problem',
+    docs: {
+      description: 'Disallow inline styles that violate CSP',
+      category: 'Security'
+    },
+    messages: {
+      noCssText: 'Avoid using style.cssText as it may violate CSP. Use individual style properties instead.',
+      noSetAttribute: 'Avoid using setAttribute with "style" as it may violate CSP. Use element.style.* instead.'
+    }
+  },
+  create(context) {
+    return {
+      // Detect: element.style.cssText = '...'
+      AssignmentExpression(node) {
+        if (
+          node.left.type === 'MemberExpression' &&
+          node.left.property.name === 'cssText' &&
+          node.left.object.type === 'MemberExpression' &&
+          node.left.object.property.name === 'style'
+        ) {
+          context.report({ node, messageId: 'noCssText' });
+        }
+      },
+      // Detect: element.setAttribute('style', '...')
+      CallExpression(node) {
+        if (
+          node.callee.type === 'MemberExpression' &&
+          node.callee.property.name === 'setAttribute' &&
+          node.arguments.length >= 1 &&
+          node.arguments[0].type === 'Literal' &&
+          node.arguments[0].value === 'style'
+        ) {
+          context.report({ node, messageId: 'noSetAttribute' });
+        }
+      }
+    };
+  }
+};
+
 module.exports = [
   js.configs.recommended,
   {
@@ -109,10 +151,13 @@ module.exports = [
       }
     },
     plugins: {
-      '@typescript-eslint': tseslint
+      '@typescript-eslint': tseslint,
+      'csp-rules': { rules: { 'no-inline-styles': noInlineStylesRule } }
     },
     rules: {
       ...tseslint.configs.recommended.rules,
+      // CSP: Prevent inline styles that violate Content Security Policy
+      'csp-rules/no-inline-styles': 'error',
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': [
         'error',

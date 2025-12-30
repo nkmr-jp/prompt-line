@@ -107,7 +107,6 @@ export class FileOpenerEventHandler {
         // Disable draggable state on error
         this.callbacks.setDraggable?.(false);
       } else {
-        console.log('URL opened successfully in browser:', url);
         // Restore focus to PromptLine window after a short delay
         // Keep draggable state enabled so user can move window while browser is open
         setTimeout(() => {

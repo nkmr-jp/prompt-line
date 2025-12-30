@@ -159,7 +159,6 @@ export class SettingsCacheManager extends BaseCacheManager<string, number> {
         this.getSearchPrefixes('command'),
         this.getSearchPrefixes('mention')
       ]);
-      console.debug('[SettingsCacheManager] SearchPrefixes cache preloaded');
     } catch (error) {
       handleError('SettingsCacheManager.preloadSearchPrefixesCache', error);
     }

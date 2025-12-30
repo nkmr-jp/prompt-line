@@ -35,7 +35,6 @@ class CodeSearchHandler {
    */
   setSettingsManager(settingsManager: SettingsManager): void {
     this.settingsManager = settingsManager;
-    logger.debug('CodeSearchHandler: SettingsManager configured');
   }
 
   /**
@@ -43,16 +42,10 @@ class CodeSearchHandler {
    */
   private getSymbolSearchOptions(): { maxSymbols: number; timeout: number } {
     const symbolSearchSettings = this.settingsManager?.getSymbolSearchSettings();
-    const result = {
+    return {
       maxSymbols: symbolSearchSettings?.maxSymbols ?? DEFAULT_MAX_SYMBOLS,
       timeout: symbolSearchSettings?.timeout ?? DEFAULT_SEARCH_TIMEOUT
     };
-    logger.debug('getSymbolSearchOptions:', {
-      hasSettingsManager: !!this.settingsManager,
-      symbolSearchSettings,
-      effectiveOptions: result
-    });
-    return result;
   }
 
   /**
@@ -80,14 +73,12 @@ class CodeSearchHandler {
     ipcMain.handle('clear-symbol-cache', this.handleClearSymbolCache.bind(this));
 
     this.initialized = true;
-    logger.debug('CodeSearchHandler registered');
   }
 
   /**
    * Handle check-rg request
    */
   private async handleCheckRg(): Promise<RgCheckResponse> {
-    logger.debug('Handling check-rg request');
     return checkRgAvailable();
   }
 
@@ -95,7 +86,6 @@ class CodeSearchHandler {
    * Handle get-supported-languages request
    */
   private async handleGetSupportedLanguages(): Promise<LanguagesResponse> {
-    logger.debug('Handling get-supported-languages request');
     return getSupportedLanguages();
   }
 
@@ -174,8 +164,6 @@ class CodeSearchHandler {
       maxResults?: number;
     }
   ): Promise<SymbolSearchResponse> {
-    logger.debug('Handling search-symbols request', { directory, language, options });
-
     // Get settings-based defaults
     const settingsOptions = this.getSymbolSearchOptions();
     const effectiveMaxSymbols = options?.maxSymbols ?? settingsOptions.maxSymbols;
@@ -226,15 +214,6 @@ class CodeSearchHandler {
           const wasLimited = options?.query !== undefined
             ? false // Query filtering already limits results
             : cachedSymbols.length > effectiveMaxSymbols;
-
-          logger.debug('Returning cached symbols (stale-while-revalidate)', {
-            cachedCount: cachedSymbols.length,
-            returnedCount: filteredSymbols.length,
-            query: options?.query,
-            maxSymbols: effectiveMaxSymbols,
-            maxResults,
-            wasLimited
-          });
 
           // Background refresh: only update cache when refreshCache is explicitly true
           // This prevents unnecessary refreshes during file navigation (e.g., @go vs @go:)
@@ -287,8 +266,6 @@ class CodeSearchHandler {
     directory: string,
     language?: string
   ): Promise<SymbolSearchResponse> {
-    logger.debug('Handling get-cached-symbols request', { directory, language });
-
     const settingsOptions = this.getSymbolSearchOptions();
 
     if (!directory || typeof directory !== 'string') {
@@ -322,13 +299,6 @@ class CodeSearchHandler {
     const limitedSymbols = allSymbols.slice(0, settingsOptions.maxSymbols);
     const wasLimited = allSymbols.length > settingsOptions.maxSymbols;
 
-    logger.debug('Returning cached symbols', {
-      cachedCount: allSymbols.length,
-      returnedCount: limitedSymbols.length,
-      maxSymbols: settingsOptions.maxSymbols,
-      wasLimited
-    });
-
     const response: SymbolSearchResponse = {
       success: true,
       directory,
@@ -353,8 +323,6 @@ class CodeSearchHandler {
     _event: IpcMainInvokeEvent,
     directory?: string
   ): Promise<{ success: boolean }> {
-    logger.debug('Handling clear-symbol-cache request', { directory });
-
     try {
       if (directory) {
         await symbolCacheManager.clearCache(directory);
@@ -383,7 +351,6 @@ class CodeSearchHandler {
 
     // Skip if a refresh is already in progress for this combination
     if (this.pendingRefreshes.get(refreshKey)) {
-      logger.debug('Background cache refresh skipped (already in progress)', { directory, language });
       return;
     }
 
@@ -393,7 +360,6 @@ class CodeSearchHandler {
     // Run in background without awaiting
     (async () => {
       try {
-        logger.debug('Background cache refresh started', { directory, language });
         const result = await searchSymbols(directory, language, options);
 
         if (result.success && result.symbols.length > 0) {
@@ -403,11 +369,6 @@ class CodeSearchHandler {
             result.symbols,
             'full'
           );
-          logger.debug('Background cache refresh completed', {
-            directory,
-            language,
-            symbolCount: result.symbols.length
-          });
         }
       } catch (error) {
         logger.warn('Background cache refresh failed', { directory, language, error });

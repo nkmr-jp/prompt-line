@@ -48,11 +48,6 @@ export function detectCurrentDirectory(options?: DirectoryDetectionOptions): Pro
       } else {
         try {
           const result = JSON.parse(stdout.trim()) as DirectoryInfo;
-          if (result.error) {
-            logger.debug('Directory detection returned error:', result.error);
-          } else {
-            logger.debug('Current directory detected:', result.directory);
-          }
           resolve(result);
         } catch (parseError) {
           logger.warn('Error parsing directory detection result:', parseError);
@@ -106,14 +101,6 @@ export function listDirectory(directoryPath: string): Promise<DirectoryInfo> {
       } else {
         try {
           const result = JSON.parse(stdout.trim()) as DirectoryInfo;
-          if (result.error) {
-            logger.debug('Directory listing returned error:', result.error);
-          } else {
-            logger.debug('Directory listed:', {
-              directory: result.directory,
-              fileCount: result.fileCount
-            });
-          }
           resolve(result);
         } catch (parseError) {
           logger.warn('Error parsing directory listing result:', parseError);

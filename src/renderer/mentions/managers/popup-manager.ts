@@ -88,7 +88,6 @@ export class PopupManager {
     const mainContent = document.querySelector('.main-content');
     if (mainContent) {
       mainContent.appendChild(this.frontmatterPopup);
-      console.debug('[PopupManager] Popup element created');
     }
   }
 

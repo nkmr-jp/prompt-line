@@ -55,7 +55,6 @@ class DraftManager {
   async initialize(): Promise<void> {
     try {
       this.currentDraft = await this.loadDraft();
-      logger.info('Draft manager initialized');
     } catch (error) {
       logger.error('Failed to initialize draft manager:', error);
       this.currentDraft = null;
@@ -67,22 +66,18 @@ class DraftManager {
       const data = await fs.readFile(this.draftFile, 'utf8');
 
       if (!data || data.trim().length === 0) {
-        logger.debug('Draft file is empty');
         return '';
       }
 
       const parsed = safeJsonParse<{ text?: string }>(data, {});
 
       if (parsed && typeof parsed.text === 'string') {
-        logger.debug('Draft loaded:', { length: parsed.text.length });
         return parsed.text;
       } else {
-        logger.debug('No valid draft found');
         return '';
       }
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        logger.debug('Draft file not found');
         return '';
       } else {
         logger.error('Error loading draft:', error);
@@ -116,8 +111,6 @@ class DraftManager {
       } else {
         this.quickSave(text);
       }
-
-      logger.debug('Draft save scheduled (optimized):', { length: text.length });
     } catch (error) {
       logger.error('Failed to schedule draft save:', error);
       throw error;
@@ -126,7 +119,6 @@ class DraftManager {
 
   private async _saveDraft(text: string): Promise<void> {
     if (this.lastSavedContent === text) {
-      logger.debug('Draft save skipped - no changes');
       return;
     }
 
@@ -148,8 +140,6 @@ class DraftManager {
 
       this.lastSavedContent = text;
       this.hasUnsavedChanges = false;
-
-      logger.debug('Draft saved to file (optimized):', { length: text.length });
     } catch (error) {
       logger.error('Failed to save draft to file:', error);
       throw error;
@@ -178,7 +168,6 @@ class DraftManager {
       }
 
       await this._saveDraft(text);
-      logger.debug('Draft saved immediately (optimized):', { length: text.length });
     } catch (error) {
       logger.error('Failed to save draft immediately:', error);
       throw error;
@@ -200,10 +189,9 @@ class DraftManager {
       }
 
       await fs.unlink(this.draftFile);
-      logger.debug('Draft cleared and file removed');
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        logger.debug('Draft file already does not exist');
+        // Draft file already does not exist - ignore
       } else {
         logger.error('Failed to clear draft:', error);
         throw error;
@@ -352,7 +340,6 @@ class DraftManager {
         if (now - stats.mtime.getTime() > maxAge) {
           await fs.unlink(filePath);
           cleanedCount++;
-          logger.debug('Cleaned up old backup:', file);
         }
       }
       
@@ -378,8 +365,6 @@ class DraftManager {
       this.currentDraft = null;
       this.hasUnsavedChanges = false;
       this.lastSavedContent = null;
-      
-      logger.debug('Draft manager destroyed (optimized cleanup completed)');
     } catch (error) {
       logger.error('Error during draft manager cleanup:', error);
     }

@@ -27,7 +27,6 @@ class WindowHandler {
     ipcMainInstance.handle('hide-window', this.handleHideWindow.bind(this));
     ipcMainInstance.handle('show-window', this.handleShowWindow.bind(this));
     ipcMainInstance.handle('focus-window', this.handleFocusWindow.bind(this));
-    logger.info('Window IPC handlers registered');
   }
 
   /**
@@ -42,8 +41,6 @@ class WindowHandler {
 
   private async handleHideWindow(_event: IpcMainInvokeEvent, restoreFocus: boolean = true): Promise<IPCResult> {
     try {
-      logger.debug('Window hide requested, restoreFocus:', restoreFocus);
-
       await this.windowManager.hideInputWindow();
 
       // Focus the previous app when hiding the window (only if restoreFocus is true)
@@ -57,8 +54,6 @@ class WindowHandler {
 
           if (!focusSuccess) {
             logger.warn('Failed to focus previous app via native tools - no fallback available for security reasons');
-          } else {
-            logger.debug('Successfully focused previous app');
           }
         } catch (focusError) {
           // Log but don't fail the operation if focus fails
@@ -79,7 +74,6 @@ class WindowHandler {
   ): Promise<IPCResult> {
     try {
       await this.windowManager.showInputWindow(data);
-      logger.debug('Window show requested');
       return { success: true };
     } catch (error) {
       logger.error('Failed to show window:', error);
@@ -90,7 +84,6 @@ class WindowHandler {
   private async handleFocusWindow(_event: IpcMainInvokeEvent): Promise<IPCResult> {
     try {
       this.windowManager.focusWindow();
-      logger.debug('Window focus requested');
       return { success: true };
     } catch (error) {
       logger.error('Failed to focus window:', error);

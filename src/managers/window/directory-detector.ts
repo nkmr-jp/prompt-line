@@ -45,7 +45,6 @@ class DirectoryDetector {
    */
   setDirectoryManager(directoryManager: DirectoryManager): void {
     this.directoryManager = directoryManager;
-    logger.debug('DirectoryManager reference set in DirectoryDetector');
   }
 
   /**
@@ -53,10 +52,6 @@ class DirectoryDetector {
    */
   updateFileSearchSettings(settings: FileSearchSettings | null | undefined): void {
     this.fileSearchSettings = settings ?? null;
-    logger.debug('File search settings updated in DirectoryDetector', {
-      enabled: settings !== null && settings !== undefined,
-      settings
-    });
   }
 
   /**
@@ -64,7 +59,6 @@ class DirectoryDetector {
    */
   updateSavedDirectory(directory: string | null): void {
     this.savedDirectory = directory;
-    logger.debug('Saved directory updated in DirectoryDetector:', { savedDirectory: directory });
   }
 
   /**
@@ -133,7 +127,6 @@ class DirectoryDetector {
    */
   setStrategy(strategy: IDirectoryDetectionStrategy): void {
     this.strategy = strategy;
-    logger.debug(`Detection strategy changed to: ${strategy.getName()}`);
   }
 
   /**
@@ -145,7 +138,6 @@ class DirectoryDetector {
     timeout: number
   ): Promise<DirectoryInfo | null> {
     if (!this.strategy.isAvailable()) {
-      logger.debug(`Strategy ${this.strategy.getName()} is not available on this platform`);
       return null;
     }
 
@@ -227,7 +219,7 @@ class DirectoryDetector {
   private async handleSuccessfulDetection(
     result: DirectoryInfo,
     inputWindow: BrowserWindow,
-    startTime: number
+    _startTime: number
   ): Promise<void> {
     const detectedDirectory = result.directory!;
     const directoryChanged = this.isDirectoryChanged(detectedDirectory);
@@ -247,19 +239,6 @@ class DirectoryDetector {
     if (this.shouldNotifyRenderer(hasChanges, directoryChanged, result.hint)) {
       const notification = this.createSuccessNotification(result, directoryChanged);
       this.notifyRenderer(inputWindow, notification);
-
-      logger.debug(`✅ Directory detection completed in ${(performance.now() - startTime).toFixed(2)}ms`, {
-        directory: detectedDirectory,
-        fileCount: result.fileCount,
-        directoryChanged,
-        hasChanges,
-        hint: result.hint
-      });
-    } else {
-      logger.debug('✅ Directory detection completed, no changes detected, skipping renderer notification', {
-        directory: detectedDirectory,
-        fileCount: result.fileCount
-      });
     }
   }
 
@@ -267,10 +246,6 @@ class DirectoryDetector {
    * Handle failed detection (timeout or error)
    */
   private handleFailedDetection(inputWindow: BrowserWindow | null): void {
-    logger.debug('Background directory detection: no result or window not available, keeping draft directory', {
-      savedDirectory: this.savedDirectory
-    });
-
     if (inputWindow && !inputWindow.isDestroyed()) {
       const notification = this.createTimeoutNotification();
       this.notifyRenderer(inputWindow, notification);
@@ -295,10 +270,6 @@ class DirectoryDetector {
     const startTime = performance.now();
 
     try {
-      logger.debug('🔄 Starting background directory detection...', {
-        savedDirectory: this.savedDirectory
-      });
-
       // Single stage directory detection with fd
       const result = await this.executeDirectoryDetector(TIMEOUTS.BACKGROUND_DETECTION);
 
@@ -308,8 +279,6 @@ class DirectoryDetector {
       } else {
         this.handleFailedDetection(inputWindow);
       }
-
-      logger.debug(`🏁 Total background directory detection time: ${(performance.now() - startTime).toFixed(2)}ms`);
     } catch (error) {
       logger.warn('Background directory detection failed:', error);
       this.handleFailedDetection(inputWindow);
