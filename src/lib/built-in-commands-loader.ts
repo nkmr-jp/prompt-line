@@ -18,6 +18,7 @@ interface CommandDefinition {
  * YAML file structure for built-in commands
  */
 interface BuiltInCommandsYaml {
+  name?: string;  // Display name for the tool (e.g., "Claude Code")
   commands: CommandDefinition[];
 }
 
@@ -103,9 +104,12 @@ class BuiltInCommandsLoader {
         return [];
       }
 
+      // Use YAML name field if present, otherwise fallback to filename-based toolName
+      const displayName = parsed.name || toolName;
+
       return parsed.commands
         .filter(cmd => cmd.name && cmd.description)
-        .map(cmd => this.toSlashCommandItem(cmd, filePath, toolName));
+        .map(cmd => this.toSlashCommandItem(cmd, filePath, toolName, displayName));
     } catch (error) {
       logger.warn(`Failed to parse YAML file: ${filePath}`, error);
       return [];
@@ -114,12 +118,21 @@ class BuiltInCommandsLoader {
 
   /**
    * Convert CommandDefinition to SlashCommandItem
+   * @param cmd - Command definition from YAML
+   * @param filePath - Path to the YAML file
+   * @param toolName - Tool identifier from filename (for filtering)
+   * @param displayName - Human-readable name from YAML (for display)
    */
-  private toSlashCommandItem(cmd: CommandDefinition, filePath: string, toolName: string): SlashCommandItem {
+  private toSlashCommandItem(
+    cmd: CommandDefinition,
+    filePath: string,
+    toolName: string,
+    displayName: string
+  ): SlashCommandItem {
     // Build frontmatter string for popup display
     const frontmatterLines = [
       `description: ${cmd.description}`,
-      `source: ${toolName}`,
+      `source: ${displayName}`,
     ];
     if (cmd['argument-hint']) {
       frontmatterLines.push(`argument-hint: ${cmd['argument-hint']}`);
@@ -131,7 +144,7 @@ class BuiltInCommandsLoader {
       filePath: filePath,
       frontmatter: frontmatterLines.join('\n'),
       inputFormat: 'name',
-      source: toolName
+      source: toolName  // Keep toolName for filtering (e.g., 'claude-code')
     };
 
     // Only add argumentHint if it exists
