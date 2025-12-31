@@ -96,7 +96,7 @@ commands:
     argument-hint: "<name>"
 
   - name: resume
-    description: Resume a conversation by ID or name, or open the session picker
+    description: "Resume a conversation by ID or name, or open the session picker"
     argument-hint: "[session]"
 
   - name: review
@@ -106,19 +106,19 @@ commands:
     description: Rewind the conversation and/or code
 
   - name: sandbox
-    description: Enable sandboxed bash tool with filesystem and network isolation for safer, more autonomous execution
+    description: "Enable sandboxed bash tool with filesystem and network isolation for safer, more autonomous execution"
 
   - name: security-review
     description: Complete a security review of pending changes on the current branch
 
   - name: stats
-    description: Visualize daily usage, session history, streaks, and model preferences
+    description: "Visualize daily usage, session history, streaks, and model preferences"
 
   - name: status
-    description: Open the Settings interface (Status tab) showing version, model, account, and connectivity
+    description: "Open the Settings interface (Status tab) showing version, model, account, and connectivity"
 
   - name: statusline
-    description: Set up Claude Code's status line UI
+    description: "Set up Claude Code's status line UI"
 
   - name: terminal-setup
     description: Install Shift+Enter key binding for newlines (iTerm2 and VSCode only)
@@ -127,7 +127,7 @@ commands:
     description: List current TODO items
 
   - name: usage
-    description: For subscription plans only: show plan usage limits and rate limit status
+    description: "For subscription plans only: show plan usage limits and rate limit status"
 
   - name: vim
     description: Enter vim mode for alternating insert and command modes
