@@ -8,8 +8,6 @@ import type { IInitializable } from './interfaces/initializable';
 import { FrontmatterPopupManager } from './frontmatter-popup-manager';
 import { highlightMatch } from './utils/highlight-utils';
 import { escapeHtml } from './utils/html-utils';
-import { handleError } from './utils/error-handler';
-import { SUGGESTIONS } from '../constants';
 import { electronAPI } from './services/electron-api';
 
 interface SlashCommandItem {
@@ -40,9 +38,6 @@ export class SlashCommandManager implements IInitializable {
 
   // Frontmatter popup manager
   private frontmatterPopupManager: FrontmatterPopupManager;
-
-  // Cached maxSuggestions
-  private maxSuggestionsCache: number | null = null;
 
   constructor(callbacks: {
     onCommandSelect: (command: string) => void;
@@ -139,35 +134,6 @@ export class SlashCommandManager implements IInitializable {
   }
 
   /**
-   * Get maxSuggestions for commands (cached)
-   */
-  private async getMaxSuggestions(): Promise<number> {
-    // Return cached value if available
-    if (this.maxSuggestionsCache !== null) {
-      return this.maxSuggestionsCache;
-    }
-
-    try {
-      if (electronAPI?.mdSearch?.getMaxSuggestions) {
-        const maxSuggestions = await electronAPI.mdSearch.getMaxSuggestions('command');
-        this.maxSuggestionsCache = maxSuggestions;
-        return maxSuggestions;
-      }
-    } catch (error) {
-      handleError('SlashCommandManager.getMaxSuggestions', error);
-    }
-
-    return SUGGESTIONS.DEFAULT_MAX;
-  }
-
-  /**
-   * Clear maxSuggestions cache (call when settings might have changed)
-   */
-  public clearMaxSuggestionsCache(): void {
-    this.maxSuggestionsCache = null;
-  }
-
-  /**
    * Check if user is typing a slash command at the beginning of input
    */
   private checkForSlashCommand(): void {
@@ -214,9 +180,6 @@ export class SlashCommandManager implements IInitializable {
       await this.loadCommands();
     }
 
-    // Get maxSuggestions setting
-    const maxSuggestions = await this.getMaxSuggestions();
-
     // Filter and sort commands - prioritize: prefix match > contains match > description match
     const lowerQuery = query.toLowerCase();
     this.filteredCommands = this.commands
@@ -247,8 +210,7 @@ export class SlashCommandManager implements IInitializable {
 
         // 4. Sort by name alphabetically
         return a.name.localeCompare(b.name);
-      })
-      .slice(0, maxSuggestions);
+      });
 
     if (this.filteredCommands.length === 0) {
       this.hideSuggestions();
