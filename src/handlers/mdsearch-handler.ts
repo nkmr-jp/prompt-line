@@ -91,6 +91,8 @@ class MdSearchHandler {
           name: item.name,
           description: item.description,
           filePath: item.filePath,
+          source: 'user',      // Mark as user-defined command
+          displayName: 'user', // Display "user" badge
         };
         if (item.argumentHint) {
           cmd.argumentHint = item.argumentHint;
