@@ -178,11 +178,11 @@ export interface UserSettings {
   };
   // mdSearch configuration (unified command and mention loading)
   mdSearch?: MdSearchEntry[];
-  // Built-in commands configuration (Claude Code, Cursor, etc.)
+  // Built-in commands configuration (Claude, Codex, Gemini, etc.)
   builtInCommands?: {
     // Enable built-in commands loading (default: false)
     enabled?: boolean;
-    // List of tools to enable (e.g., ['claude-code'])
+    // List of tools to enable (e.g., ['claude', 'codex', 'gemini'])
     // If not specified, all available tools are enabled when enabled=true
     tools?: string[];
   };
