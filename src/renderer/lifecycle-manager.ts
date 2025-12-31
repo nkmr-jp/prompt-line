@@ -63,13 +63,19 @@ export class LifecycleManager {
   private initializeTextArea(draftInfo: DraftInfo, hasDraft: boolean): void {
     this.setTextCallback(draftInfo.text);
 
+    // Restore scroll position immediately after setting text (before rendering)
+    // to prevent visual flickering
+    if (hasDraft && draftInfo.scrollTop > 0) {
+      this.setScrollTopCallback(draftInfo.scrollTop);
+    }
+
     setTimeout(() => {
       this.focusTextareaCallback();
       if (!hasDraft) {
         this.selectAllCallback();
       } else {
         this.setCursorPositionCallback(draftInfo.text.length);
-        // Restore scroll position after text and cursor are set
+        // Re-apply scroll position after cursor is set (cursor setting may affect scroll)
         if (draftInfo.scrollTop > 0) {
           this.setScrollTopCallback(draftInfo.scrollTop);
         }
