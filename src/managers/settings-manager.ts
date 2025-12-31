@@ -108,7 +108,6 @@ class SettingsManager {
         if (entry.argumentHint) cmd.argumentHint = entry.argumentHint;
         if (entry.maxSuggestions) cmd.maxSuggestions = entry.maxSuggestions;
         if (entry.sortOrder) cmd.sortOrder = entry.sortOrder;
-        if (entry.inputFormat) cmd.inputFormat = entry.inputFormat;
         userDefined.push(cmd);
       } else if (entry.type === 'mention') {
         // Convert to MentionEntry (without type field)
@@ -253,7 +252,7 @@ class SettingsManager {
       description: "${entry.description || ''}"
       path: ${entry.path}
       pattern: "${entry.pattern}"${entry.argumentHint ? `\n      argumentHint: "${entry.argumentHint}"` : ''}
-      maxSuggestions: ${entry.maxSuggestions ?? 20}${entry.inputFormat ? `\n      inputFormat: ${entry.inputFormat}` : ''}`).join('\n');
+      maxSuggestions: ${entry.maxSuggestions ?? 20}`).join('\n');
     };
 
     // Helper to format userDefined mention entries (for mentions.userDefined)
@@ -312,8 +311,7 @@ class SettingsManager {
 #      path: ~/.claude/commands
 #      pattern: "*.md"
 #      argumentHint: "{frontmatter@argument-hint}"
-#      maxSuggestions: 20
-#      inputFormat: name               # 'name' for name only, 'path' for file path`;
+#      maxSuggestions: 20`;
       }
 
       // Build the section with actual values
@@ -707,7 +705,6 @@ ${mentionsSection}
         if (cmd.argumentHint !== undefined) entry.argumentHint = cmd.argumentHint;
         if (cmd.maxSuggestions !== undefined) entry.maxSuggestions = cmd.maxSuggestions;
         if (cmd.sortOrder !== undefined) entry.sortOrder = cmd.sortOrder;
-        if (cmd.inputFormat !== undefined) entry.inputFormat = cmd.inputFormat;
         entries.push(entry);
       }
     }

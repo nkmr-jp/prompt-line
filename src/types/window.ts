@@ -256,8 +256,6 @@ export interface SlashCommandEntry {
   maxSuggestions?: number;
   /** オプション: 名前ソート順（デフォルト: 'asc'） */
   sortOrder?: 'asc' | 'desc';
-  /** オプション: 入力フォーマット（デフォルト: 'name'） */
-  inputFormat?: InputFormatType;
 }
 
 /**
