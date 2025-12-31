@@ -176,23 +176,90 @@ export interface UserSettings {
     // Custom paths to ripgrep command (null = auto-detect from common paths)
     rgPaths?: string[] | null;
   };
-  // mdSearch configuration (unified command and mention loading)
+  // Slash command settings (built-in and user-defined)
+  slashCommands?: SlashCommandsSettings;
+  // Mention settings (@ mentions from markdown files)
+  mentions?: MentionEntry[];
+
+  // Legacy: mdSearch configuration (for backward compatibility)
+  // Use slashCommands and mentions instead
   mdSearch?: MdSearchEntry[];
-  // Built-in commands configuration (Claude, Codex, Gemini, etc.)
+  // Legacy: Built-in commands configuration (for backward compatibility)
+  // Use slashCommands.builtIn instead
   builtInCommands?: {
-    // Enable built-in commands loading (default: false)
     enabled?: boolean;
-    // List of tools to enable (e.g., ['claude', 'codex', 'gemini'])
-    // If not specified, all available tools are enabled when enabled=true
     tools?: string[];
   };
 }
 
 // ============================================================================
-// MdSearch Related Types
+// Slash Command Settings Types
 // ============================================================================
 
 import type { InputFormatType } from './file-search';
+
+/**
+ * Slash command settings combining built-in and user-defined commands
+ */
+export interface SlashCommandsSettings {
+  /** Built-in commands configuration (Claude, Codex, Gemini, etc.) */
+  builtIn?: {
+    /** Enable built-in commands loading (default: false) */
+    enabled?: boolean;
+    /** List of tools to enable (e.g., ['claude', 'codex', 'gemini']) */
+    tools?: string[];
+  };
+  /** User-defined slash commands from markdown files */
+  userDefined?: SlashCommandEntry[];
+}
+
+/**
+ * User-defined slash command entry
+ */
+export interface SlashCommandEntry {
+  /** 名前テンプレート（例: "{basename}", "{frontmatter@name}"） */
+  name: string;
+  /** 説明テンプレート（例: "{frontmatter@description}"） */
+  description: string;
+  /** 検索ディレクトリパス */
+  path: string;
+  /** ファイルパターン（glob形式、例: "*.md"） */
+  pattern: string;
+  /** オプション: argumentHintテンプレート */
+  argumentHint?: string;
+  /** オプション: 検索候補の最大表示数（デフォルト: 20） */
+  maxSuggestions?: number;
+  /** オプション: 名前ソート順（デフォルト: 'asc'） */
+  sortOrder?: 'asc' | 'desc';
+  /** オプション: 入力フォーマット（デフォルト: 'name'） */
+  inputFormat?: InputFormatType;
+}
+
+/**
+ * Mention entry (@ mentions from markdown files)
+ */
+export interface MentionEntry {
+  /** 名前テンプレート（例: "{basename}", "agent-{frontmatter@name}"） */
+  name: string;
+  /** 説明テンプレート（例: "{frontmatter@description}"） */
+  description: string;
+  /** 検索ディレクトリパス */
+  path: string;
+  /** ファイルパターン（glob形式、例: "*.md"） */
+  pattern: string;
+  /** オプション: 検索候補の最大表示数（デフォルト: 20） */
+  maxSuggestions?: number;
+  /** オプション: 検索プレフィックス（例: "agent:"） */
+  searchPrefix?: string;
+  /** オプション: 名前ソート順（デフォルト: 'asc'） */
+  sortOrder?: 'asc' | 'desc';
+  /** オプション: 入力フォーマット（デフォルト: 'name'） */
+  inputFormat?: InputFormatType;
+}
+
+// ============================================================================
+// MdSearch Related Types (Legacy - for backward compatibility)
+// ============================================================================
 
 /**
  * mdSearch エントリの種類

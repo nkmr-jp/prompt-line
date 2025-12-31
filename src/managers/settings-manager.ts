@@ -3,7 +3,13 @@ import path from 'path';
 import os from 'os';
 import * as yaml from 'js-yaml';
 import { logger } from '../utils/utils';
-import type { UserSettings, FileSearchSettings } from '../types';
+import type {
+  UserSettings,
+  FileSearchSettings,
+  SlashCommandEntry,
+  MentionEntry,
+  MdSearchEntry
+} from '../types';
 
 class SettingsManager {
   private settingsFile: string;
@@ -27,14 +33,16 @@ class SettingsManager {
         width: 600,
         height: 300
       },
-      // commands is optional - not set by default
       // fileSearch is optional - when undefined, file search feature is disabled
       // fileOpener is optional - when undefined, uses system default
       fileOpener: {
         extensions: {},
         defaultEditor: null
       },
-      mdSearch: []
+      // New settings structure
+      // slashCommands is optional - contains builtIn and userDefined
+      // mentions is optional - @ mention sources
+      mentions: []
     };
 
     this.currentSettings = { ...this.defaultSettings };
@@ -82,6 +90,47 @@ class SettingsManager {
     }
   }
 
+  /**
+   * Convert legacy mdSearch entries to new format
+   * Separates command entries (/) and mention entries (@)
+   */
+  private convertLegacyMdSearch(mdSearch: MdSearchEntry[]): { userDefined: SlashCommandEntry[]; mentions: MentionEntry[] } {
+    const userDefined: SlashCommandEntry[] = [];
+    const mentions: MentionEntry[] = [];
+
+    for (const entry of mdSearch) {
+      if (entry.type === 'command') {
+        // Convert to SlashCommandEntry (without type field)
+        const cmd: SlashCommandEntry = {
+          name: entry.name,
+          description: entry.description,
+          path: entry.path,
+          pattern: entry.pattern,
+        };
+        if (entry.argumentHint) cmd.argumentHint = entry.argumentHint;
+        if (entry.maxSuggestions) cmd.maxSuggestions = entry.maxSuggestions;
+        if (entry.sortOrder) cmd.sortOrder = entry.sortOrder;
+        if (entry.inputFormat) cmd.inputFormat = entry.inputFormat;
+        userDefined.push(cmd);
+      } else if (entry.type === 'mention') {
+        // Convert to MentionEntry (without type field)
+        const mention: MentionEntry = {
+          name: entry.name,
+          description: entry.description,
+          path: entry.path,
+          pattern: entry.pattern,
+        };
+        if (entry.maxSuggestions) mention.maxSuggestions = entry.maxSuggestions;
+        if (entry.searchPrefix) mention.searchPrefix = entry.searchPrefix;
+        if (entry.sortOrder) mention.sortOrder = entry.sortOrder;
+        if (entry.inputFormat) mention.inputFormat = entry.inputFormat;
+        mentions.push(mention);
+      }
+    }
+
+    return { userDefined, mentions };
+  }
+
   private mergeWithDefaults(userSettings: Partial<UserSettings>): UserSettings {
     const result: UserSettings = {
       shortcuts: {
@@ -101,8 +150,8 @@ class SettingsManager {
           ...userSettings.fileOpener?.extensions
         }
       },
-      // Use user's mdSearch if provided, otherwise use default (empty array)
-      mdSearch: userSettings.mdSearch ?? this.defaultSettings.mdSearch ?? []
+      // Initialize mentions with empty array
+      mentions: []
     };
 
     // Only set fileSearch if it exists in user settings (feature is disabled when undefined)
@@ -115,8 +164,43 @@ class SettingsManager {
       result.symbolSearch = userSettings.symbolSearch;
     }
 
-    // Set builtInCommands if it exists in user settings
+    // Handle new settings structure (slashCommands, mentions)
+    if (userSettings.slashCommands) {
+      result.slashCommands = userSettings.slashCommands;
+    }
+    if (userSettings.mentions && userSettings.mentions.length > 0) {
+      result.mentions = userSettings.mentions;
+    }
+
+    // Handle legacy settings (mdSearch, builtInCommands) for backward compatibility
+    // Only convert if new settings are not provided
+    if (userSettings.mdSearch && userSettings.mdSearch.length > 0) {
+      const converted = this.convertLegacyMdSearch(userSettings.mdSearch);
+
+      // If slashCommands not set, use converted userDefined
+      if (!result.slashCommands && converted.userDefined.length > 0) {
+        result.slashCommands = {
+          userDefined: converted.userDefined
+        };
+      }
+      // If mentions not set, use converted mentions
+      if ((!result.mentions || result.mentions.length === 0) && converted.mentions.length > 0) {
+        result.mentions = converted.mentions;
+      }
+
+      // Keep legacy mdSearch for backward compatibility with existing code
+      result.mdSearch = userSettings.mdSearch;
+    }
+
+    // Handle legacy builtInCommands
     if (userSettings.builtInCommands) {
+      // Merge into slashCommands.builtIn
+      if (!result.slashCommands) {
+        result.slashCommands = {};
+      }
+      result.slashCommands.builtIn = userSettings.builtInCommands;
+
+      // Keep legacy builtInCommands for backward compatibility
       result.builtInCommands = userSettings.builtInCommands;
     }
 
@@ -148,14 +232,23 @@ class SettingsManager {
       return Object.entries(ext).map(([key, val]) => `\n    ${key}: "${val}"`).join('');
     };
 
-    // Helper to format mdSearch array
-    const formatMdSearch = (mdSearch: UserSettings['mdSearch']): string => {
-      if (!mdSearch || mdSearch.length === 0) return '';
-      return '\n' + mdSearch.map(entry => `  - name: "${entry.name}"
-    type: ${entry.type}
+    // Helper to format user-defined slash command entries
+    const formatUserDefinedCommands = (commands: SlashCommandEntry[] | undefined): string => {
+      if (!commands || commands.length === 0) return '';
+      return '\n' + commands.map(entry => `    - name: "${entry.name}"
+      description: "${entry.description || ''}"
+      path: ${entry.path}
+      pattern: "${entry.pattern}"${entry.argumentHint ? `\n      argumentHint: "${entry.argumentHint}"` : ''}
+      maxSuggestions: ${entry.maxSuggestions ?? 20}${entry.inputFormat ? `\n      inputFormat: ${entry.inputFormat}` : ''}`).join('\n');
+    };
+
+    // Helper to format mention entries
+    const formatMentions = (mentions: MentionEntry[] | undefined): string => {
+      if (!mentions || mentions.length === 0) return '';
+      return '\n' + mentions.map(entry => `  - name: "${entry.name}"
     description: "${entry.description || ''}"
     path: ${entry.path}
-    pattern: "${entry.pattern}"${entry.argumentHint ? `\n    argumentHint: "${entry.argumentHint}"` : ''}
+    pattern: "${entry.pattern}"
     maxSuggestions: ${entry.maxSuggestions ?? 20}${entry.searchPrefix ? `\n    searchPrefix: "${entry.searchPrefix}"` : ''}${entry.inputFormat ? `\n    inputFormat: ${entry.inputFormat}` : ''}`).join('\n');
     };
 
@@ -243,43 +336,98 @@ class SettingsManager {
   #  md: "Typora"
   #  pdf: "Preview"`;
 
-    // Build mdSearch section
-    const mdSearchSection = settings.mdSearch && settings.mdSearch.length > 0
-      ? `mdSearch:${formatMdSearch(settings.mdSearch)}`
-      : `#mdSearch:                         # Slash commands & mentions (uncomment to enable)
-#  # Pattern examples:
-#  #   "*.md"                  - Root directory only
-#  #   "**/*.md"               - All subdirectories (recursive)
-#  #   "**/commands/*.md"      - Any "commands" subdirectory
-#  #   "**/*/SKILL.md"         - SKILL.md in any subdirectory
-#  #   "**/{cmd,agent}/*.md"   - Brace expansion (cmd or agent dirs)
-#  #   "test-*.md"             - Wildcard prefix
+    // Build slashCommands section
+    const buildSlashCommandsSection = (): string => {
+      const hasBuiltIn = settings.slashCommands?.builtIn;
+      const hasUserDefined = settings.slashCommands?.userDefined && settings.slashCommands.userDefined.length > 0;
+
+      if (!hasBuiltIn && !hasUserDefined) {
+        // No slash commands configured - output commented template
+        return `#slashCommands:
+#  # Built-in commands (Claude, Codex, Gemini, etc.)
+#  builtIn:
+#    enabled: true                     # Enable built-in slash commands
+#    tools:                            # List of tools to enable
+#      - claude
+#      - codex
+#      - gemini
 #
-#  - name: "{basename}"
-#    type: command                     # 'command' for / or 'mention' for @
-#    description: "{frontmatter@description}"
-#    path: ~/.claude/commands
-#    pattern: "*.md"
-#    argumentHint: "{frontmatter@argument-hint}"  # Optional hint after selection
-#    maxSuggestions: 20                # Max number of suggestions (default: 20)
-#    inputFormat: name                 # 'name' for name only, 'path' for file path (default: name)
-#
+#  # User-defined slash commands from markdown files
+#  userDefined:
+#    - name: "{basename}"
+#      description: "{frontmatter@description}"
+#      path: ~/.claude/commands
+#      pattern: "*.md"
+#      argumentHint: "{frontmatter@argument-hint}"
+#      maxSuggestions: 20
+#      inputFormat: name               # 'name' for name only, 'path' for file path`;
+      }
+
+      // Build the section with actual values
+      let section = 'slashCommands:\n';
+
+      // Built-in section
+      if (hasBuiltIn) {
+        const tools = settings.slashCommands!.builtIn!.tools;
+        const toolsSection = tools && tools.length > 0
+          ? `tools:${tools.map(t => `\n      - ${t}`).join('')}`
+          : `#tools:                            # List of tools to enable (all available when omitted)
+    #  - claude
+    #  - codex
+    #  - gemini`;
+
+        section += `  builtIn:
+    enabled: ${settings.slashCommands!.builtIn!.enabled ?? false}
+    ${toolsSection}`;
+      } else {
+        section += `  #builtIn:
+  #  enabled: true
+  #  tools:
+  #    - claude`;
+      }
+
+      // User-defined section
+      if (hasUserDefined) {
+        section += `\n  userDefined:${formatUserDefinedCommands(settings.slashCommands!.userDefined)}`;
+      } else {
+        section += `
+  #userDefined:
+  #  - name: "{basename}"
+  #    description: "{frontmatter@description}"
+  #    path: ~/.claude/commands
+  #    pattern: "*.md"`;
+      }
+
+      return section;
+    };
+
+    const slashCommandsSection = buildSlashCommandsSection();
+
+    // Build mentions section
+    const buildMentionsSection = (): string => {
+      if (!settings.mentions || settings.mentions.length === 0) {
+        // No mentions configured - output commented template
+        return `#mentions:
 #  - name: "agent-{basename}"
-#    type: mention
 #    description: "{frontmatter@description}"
 #    path: ~/.claude/agents
 #    pattern: "*.md"
 #    maxSuggestions: 20
-#    searchPrefix: "agent:"            # Require @agent: prefix for this entry (optional)
-#    inputFormat: path                 # 'name' for name only, 'path' for file path
+#    searchPrefix: "agent:"            # Require @agent: prefix for this entry
+#    inputFormat: path
 #
 #  - name: "{frontmatter@name}"
-#    type: mention
 #    description: "{frontmatter@description}"
 #    path: ~/.claude/plugins
-#    pattern: "**/*/SKILL.md"          # Match SKILL.md in any plugin subdirectory
+#    pattern: "**/*/SKILL.md"
 #    maxSuggestions: 20
-#    searchPrefix: "skill:"            # Require @skill: prefix for this entry`;
+#    searchPrefix: "skill:"`;
+      }
+
+      return `mentions:${formatMentions(settings.mentions)}`;
+    };
+
+    const mentionsSection = buildMentionsSection();
 
     return `# Prompt Line Settings Configuration
 # This file is automatically generated but can be manually edited
@@ -343,12 +491,20 @@ ${fileSearchSection}
 ${symbolSearchSection}
 
 # ============================================================================
-# MARKDOWN SEARCH SETTINGS (Slash Commands & Mentions)
+# SLASH COMMAND SETTINGS
 # ============================================================================
-# Configure sources for slash commands (/) and mentions (@)
+# Configure slash commands (/) for quick actions
 # Template variables: {basename}, {frontmatter@fieldName}
 
-${mdSearchSection}
+${slashCommandsSection}
+
+# ============================================================================
+# MENTION SETTINGS (@ mentions)
+# ============================================================================
+# Configure mention sources for @ syntax (e.g., @agent:, @skill:)
+# Template variables: {basename}, {frontmatter@fieldName}
+
+${mentionsSection}
 `;
   }
 
@@ -444,6 +600,76 @@ ${mdSearchSection}
         ...fileSearch
       }
     });
+  }
+
+  getSlashCommandsSettings(): UserSettings['slashCommands'] {
+    return this.currentSettings.slashCommands;
+  }
+
+  getMentionsSettings(): UserSettings['mentions'] {
+    return this.currentSettings.mentions;
+  }
+
+  /**
+   * Get built-in commands settings
+   * Returns from slashCommands.builtIn (new) or builtInCommands (legacy)
+   */
+  getBuiltInCommandsSettings(): { enabled?: boolean; tools?: string[] } | undefined {
+    return this.currentSettings.slashCommands?.builtIn || this.currentSettings.builtInCommands;
+  }
+
+  /**
+   * Convert current settings to MdSearchEntry format for backward compatibility
+   * This is used by MdSearchLoader
+   */
+  getMdSearchEntries(): UserSettings['mdSearch'] {
+    // If legacy mdSearch exists, use it
+    if (this.currentSettings.mdSearch && this.currentSettings.mdSearch.length > 0) {
+      return this.currentSettings.mdSearch;
+    }
+
+    // Convert new format to legacy MdSearchEntry format
+    const entries: MdSearchEntry[] = [];
+
+    // Convert userDefined slash commands
+    if (this.currentSettings.slashCommands?.userDefined) {
+      for (const cmd of this.currentSettings.slashCommands.userDefined) {
+        const entry: MdSearchEntry = {
+          type: 'command',
+          name: cmd.name,
+          description: cmd.description,
+          path: cmd.path,
+          pattern: cmd.pattern,
+        };
+        // Only add optional properties if defined
+        if (cmd.argumentHint !== undefined) entry.argumentHint = cmd.argumentHint;
+        if (cmd.maxSuggestions !== undefined) entry.maxSuggestions = cmd.maxSuggestions;
+        if (cmd.sortOrder !== undefined) entry.sortOrder = cmd.sortOrder;
+        if (cmd.inputFormat !== undefined) entry.inputFormat = cmd.inputFormat;
+        entries.push(entry);
+      }
+    }
+
+    // Convert mentions
+    if (this.currentSettings.mentions) {
+      for (const mention of this.currentSettings.mentions) {
+        const entry: MdSearchEntry = {
+          type: 'mention',
+          name: mention.name,
+          description: mention.description,
+          path: mention.path,
+          pattern: mention.pattern,
+        };
+        // Only add optional properties if defined
+        if (mention.maxSuggestions !== undefined) entry.maxSuggestions = mention.maxSuggestions;
+        if (mention.searchPrefix !== undefined) entry.searchPrefix = mention.searchPrefix;
+        if (mention.sortOrder !== undefined) entry.sortOrder = mention.sortOrder;
+        if (mention.inputFormat !== undefined) entry.inputFormat = mention.inputFormat;
+        entries.push(entry);
+      }
+    }
+
+    return entries;
   }
 
   getSettingsFilePath(): string {

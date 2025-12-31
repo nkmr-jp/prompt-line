@@ -52,11 +52,12 @@ class MdSearchHandler {
 
   /**
    * Update MdSearchLoader configuration with latest settings
+   * Uses getMdSearchEntries to support both new and legacy settings format
    */
   private updateConfig(): void {
-    const settings = this.settingsManager.getSettings();
-    if (settings.mdSearch) {
-      this.mdSearchLoader.updateConfig(settings.mdSearch);
+    const mdSearchEntries = this.settingsManager.getMdSearchEntries();
+    if (mdSearchEntries && mdSearchEntries.length > 0) {
+      this.mdSearchLoader.updateConfig(mdSearchEntries);
     }
   }
 
@@ -73,9 +74,8 @@ class MdSearchHandler {
       // Refresh config from settings in case they changed
       this.updateConfig();
 
-      // Get built-in commands settings
-      const settings = this.settingsManager.getSettings();
-      const builtInSettings = settings.builtInCommands;
+      // Get built-in commands settings (supports both new and legacy format)
+      const builtInSettings = this.settingsManager.getBuiltInCommandsSettings();
 
       // Get built-in commands from YAML files (respects enabled/tools settings)
       const builtInCommands = builtInCommandsLoader.searchCommands(query, builtInSettings);

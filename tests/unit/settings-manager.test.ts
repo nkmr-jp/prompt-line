@@ -132,7 +132,7 @@ window:
           extensions: {},
           defaultEditor: null
         },
-        mdSearch: []
+        mentions: []
       });
     });
 
