@@ -209,7 +209,7 @@ export function findClickablePathAtPosition(text: string, cursorPos: number): Pa
   // Uses common path pattern constants for consistency
   // Excludes single-level paths like /commit (slash commands)
   const absolutePathPattern = new RegExp(
-    `(?:${RELATIVE_PATH_PATTERN}|${MULTI_LEVEL_ABSOLUTE_PATH_PATTERN}|${TILDE_PATH_PATTERN}+)`,
+    `(?:${RELATIVE_PATH_PATTERN}|${MULTI_LEVEL_ABSOLUTE_PATH_PATTERN}|${TILDE_PATH_PATTERN})`,
     'g'
   );
   while ((match = absolutePathPattern.exec(text)) !== null) {
