@@ -73,8 +73,12 @@ class MdSearchHandler {
       // Refresh config from settings in case they changed
       this.updateConfig();
 
-      // Get built-in commands from YAML files
-      const builtInCommands = builtInCommandsLoader.searchCommands(query);
+      // Get built-in commands settings
+      const settings = this.settingsManager.getSettings();
+      const builtInSettings = settings.builtInCommands;
+
+      // Get built-in commands from YAML files (respects enabled/tools settings)
+      const builtInCommands = builtInCommandsLoader.searchCommands(query, builtInSettings);
 
       // Get user commands from MdSearchLoader (MD files)
       const items = query

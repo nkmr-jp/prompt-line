@@ -22,6 +22,14 @@ interface BuiltInCommandsYaml {
 }
 
 /**
+ * Built-in commands settings
+ */
+interface BuiltInCommandsSettings {
+  enabled?: boolean;
+  tools?: string[];
+}
+
+/**
  * Loads and searches built-in slash commands from YAML files
  * Separate from MdSearchLoader - handles YAML format directly
  */
@@ -32,6 +40,14 @@ class BuiltInCommandsLoader {
 
   constructor() {
     this.targetDir = config.paths.builtInCommandsDir;
+  }
+
+  /**
+   * Extract tool name from YAML filename
+   * e.g., "claude-code.yaml" -> "claude-code"
+   */
+  private getToolName(filename: string): string {
+    return path.basename(filename, path.extname(filename));
   }
 
   /**
@@ -56,7 +72,8 @@ class BuiltInCommandsLoader {
 
       for (const file of yamlFiles) {
         const filePath = path.join(this.targetDir, file);
-        const commands = this.parseYamlFile(filePath);
+        const toolName = this.getToolName(file);
+        const commands = this.parseYamlFile(filePath, toolName);
         this.commands.push(...commands);
       }
 
@@ -76,7 +93,7 @@ class BuiltInCommandsLoader {
   /**
    * Parse a YAML file and return SlashCommandItem array
    */
-  private parseYamlFile(filePath: string): SlashCommandItem[] {
+  private parseYamlFile(filePath: string, toolName: string): SlashCommandItem[] {
     try {
       const content = fs.readFileSync(filePath, 'utf-8');
       const parsed = yaml.load(content) as BuiltInCommandsYaml;
@@ -88,7 +105,7 @@ class BuiltInCommandsLoader {
 
       return parsed.commands
         .filter(cmd => cmd.name && cmd.description)
-        .map(cmd => this.toSlashCommandItem(cmd, filePath));
+        .map(cmd => this.toSlashCommandItem(cmd, filePath, toolName));
     } catch (error) {
       logger.warn(`Failed to parse YAML file: ${filePath}`, error);
       return [];
@@ -98,10 +115,11 @@ class BuiltInCommandsLoader {
   /**
    * Convert CommandDefinition to SlashCommandItem
    */
-  private toSlashCommandItem(cmd: CommandDefinition, filePath: string): SlashCommandItem {
+  private toSlashCommandItem(cmd: CommandDefinition, filePath: string, toolName: string): SlashCommandItem {
     // Build frontmatter string for popup display
     const frontmatterLines = [
       `description: ${cmd.description}`,
+      `source: ${toolName}`,
     ];
     if (cmd['argument-hint']) {
       frontmatterLines.push(`argument-hint: ${cmd['argument-hint']}`);
@@ -112,7 +130,8 @@ class BuiltInCommandsLoader {
       description: cmd.description,
       filePath: filePath,
       frontmatter: frontmatterLines.join('\n'),
-      inputFormat: 'name'
+      inputFormat: 'name',
+      source: toolName
     };
 
     // Only add argumentHint if it exists
@@ -124,20 +143,48 @@ class BuiltInCommandsLoader {
   }
 
   /**
-   * Search commands with optional query filter
+   * Search commands with optional query filter and settings
    * Returns commands whose name starts with the query (case-insensitive)
+   * @param query - Search query (optional)
+   * @param settings - Built-in commands settings (optional)
    */
-  searchCommands(query?: string): SlashCommandItem[] {
-    const commands = this.loadCommands();
-
-    if (!query || query.trim() === '') {
-      return commands;
+  searchCommands(query?: string, settings?: BuiltInCommandsSettings): SlashCommandItem[] {
+    // Check if built-in commands are enabled
+    if (settings && !settings.enabled) {
+      return [];
     }
 
-    const lowerQuery = query.toLowerCase();
-    return commands.filter(cmd =>
-      cmd.name.toLowerCase().startsWith(lowerQuery)
-    );
+    let commands = this.loadCommands();
+
+    // Filter by enabled tools if specified
+    if (settings?.tools && settings.tools.length > 0) {
+      const enabledTools = new Set(settings.tools);
+      commands = commands.filter(cmd => cmd.source && enabledTools.has(cmd.source));
+    }
+
+    // Filter by query if specified
+    if (query && query.trim() !== '') {
+      const lowerQuery = query.toLowerCase();
+      commands = commands.filter(cmd =>
+        cmd.name.toLowerCase().startsWith(lowerQuery)
+      );
+    }
+
+    return commands;
+  }
+
+  /**
+   * Get list of available tools (from loaded YAML files)
+   */
+  getAvailableTools(): string[] {
+    const commands = this.loadCommands();
+    const tools = new Set<string>();
+    for (const cmd of commands) {
+      if (cmd.source) {
+        tools.add(cmd.source);
+      }
+    }
+    return Array.from(tools);
   }
 
   /**

@@ -178,6 +178,14 @@ export interface UserSettings {
   };
   // mdSearch configuration (unified command and mention loading)
   mdSearch?: MdSearchEntry[];
+  // Built-in commands configuration (Claude Code, Cursor, etc.)
+  builtInCommands?: {
+    // Enable built-in commands loading (default: false)
+    enabled?: boolean;
+    // List of tools to enable (e.g., ['claude-code'])
+    // If not specified, all available tools are enabled when enabled=true
+    tools?: string[];
+  };
 }
 
 // ============================================================================
@@ -248,6 +256,7 @@ export interface SlashCommandItem {
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
   inputFormat?: InputFormatType;  // 入力フォーマット（'name' | 'path'）
+  source?: string;  // Source tool name (e.g., 'claude-code', 'cursor') for built-in commands
 }
 
 export interface AgentItem {
