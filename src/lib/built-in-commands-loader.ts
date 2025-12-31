@@ -46,7 +46,7 @@ class BuiltInCommandsLoader {
 
   /**
    * Extract tool name from YAML filename
-   * e.g., "claude-code.yaml" -> "claude-code"
+   * e.g., "claude.yml" -> "claude"
    */
   private getToolName(filename: string): string {
     return path.basename(filename, path.extname(filename));
