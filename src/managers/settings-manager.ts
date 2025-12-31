@@ -115,6 +115,11 @@ class SettingsManager {
       result.symbolSearch = userSettings.symbolSearch;
     }
 
+    // Set builtInCommands if it exists in user settings
+    if (userSettings.builtInCommands) {
+      result.builtInCommands = userSettings.builtInCommands;
+    }
+
     return result;
   }
 
