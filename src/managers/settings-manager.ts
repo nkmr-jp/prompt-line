@@ -6,6 +6,8 @@ import { logger } from '../utils/utils';
 import type {
   UserSettings,
   FileSearchSettings,
+  FileSearchUserSettings,
+  SymbolSearchUserSettings,
   SlashCommandEntry,
   MentionEntry,
   MdSearchEntry
@@ -18,7 +20,7 @@ class SettingsManager {
 
   constructor() {
     this.settingsFile = path.join(os.homedir(), '.prompt-line', 'settings.yml');
-    
+
     this.defaultSettings = {
       shortcuts: {
         main: 'Cmd+Shift+Space',
@@ -33,16 +35,12 @@ class SettingsManager {
         width: 600,
         height: 300
       },
-      // fileSearch is optional - when undefined, file search feature is disabled
-      // fileOpener is optional - when undefined, uses system default
       fileOpener: {
         extensions: {},
         defaultEditor: null
-      },
-      // New settings structure
+      }
       // slashCommands is optional - contains builtIn and userDefined
-      // mentions is optional - @ mention sources
-      mentions: []
+      // mentions is optional - contains fileSearch, symbolSearch, userDefined
     };
 
     this.currentSettings = { ...this.defaultSettings };
@@ -149,31 +147,42 @@ class SettingsManager {
           ...this.defaultSettings.fileOpener?.extensions,
           ...userSettings.fileOpener?.extensions
         }
-      },
-      // Initialize mentions with empty array
-      mentions: []
+      }
     };
 
-    // Only set fileSearch if it exists in user settings (feature is disabled when undefined)
-    if (userSettings.fileSearch) {
-      result.fileSearch = userSettings.fileSearch;
+    // Handle new mentions structure (fileSearch, symbolSearch, userDefined)
+    if (userSettings.mentions) {
+      result.mentions = {
+        ...userSettings.mentions
+      };
     }
 
-    // Set symbolSearch if it exists in user settings
-    if (userSettings.symbolSearch) {
-      result.symbolSearch = userSettings.symbolSearch;
-    }
-
-    // Handle new settings structure (slashCommands, mentions)
+    // Handle slashCommands
     if (userSettings.slashCommands) {
       result.slashCommands = userSettings.slashCommands;
     }
-    if (userSettings.mentions && userSettings.mentions.length > 0) {
-      result.mentions = userSettings.mentions;
+
+    // Handle legacy fileSearch -> mentions.fileSearch
+    if (userSettings.fileSearch) {
+      if (!result.mentions) {
+        result.mentions = {};
+      }
+      result.mentions.fileSearch = userSettings.fileSearch;
+      // Keep legacy for backward compatibility
+      result.fileSearch = userSettings.fileSearch;
+    }
+
+    // Handle legacy symbolSearch -> mentions.symbolSearch
+    if (userSettings.symbolSearch) {
+      if (!result.mentions) {
+        result.mentions = {};
+      }
+      result.mentions.symbolSearch = userSettings.symbolSearch;
+      // Keep legacy for backward compatibility
+      result.symbolSearch = userSettings.symbolSearch;
     }
 
     // Handle legacy settings (mdSearch, builtInCommands) for backward compatibility
-    // Only convert if new settings are not provided
     if (userSettings.mdSearch && userSettings.mdSearch.length > 0) {
       const converted = this.convertLegacyMdSearch(userSettings.mdSearch);
 
@@ -183,12 +192,17 @@ class SettingsManager {
           userDefined: converted.userDefined
         };
       }
-      // If mentions not set, use converted mentions
-      if ((!result.mentions || result.mentions.length === 0) && converted.mentions.length > 0) {
-        result.mentions = converted.mentions;
+      // If mentions.userDefined not set, use converted mentions
+      if (converted.mentions.length > 0) {
+        if (!result.mentions) {
+          result.mentions = {};
+        }
+        if (!result.mentions.userDefined || result.mentions.userDefined.length === 0) {
+          result.mentions.userDefined = converted.mentions;
+        }
       }
 
-      // Keep legacy mdSearch for backward compatibility with existing code
+      // Keep legacy mdSearch for backward compatibility
       result.mdSearch = userSettings.mdSearch;
     }
 
@@ -221,7 +235,7 @@ class SettingsManager {
 
   private addCommentsToSettings(settings: UserSettings): string {
     // Helper to format arrays for YAML output (list format)
-    const formatArrayAsList = (arr: unknown[] | undefined, indent: string = '    '): string => {
+    const formatArrayAsList = (arr: unknown[] | undefined, indent: string = '      '): string => {
       if (!arr || arr.length === 0) return '';
       return arr.map(item => `\n${indent}- "${item}"`).join('');
     };
@@ -242,91 +256,30 @@ class SettingsManager {
       maxSuggestions: ${entry.maxSuggestions ?? 20}${entry.inputFormat ? `\n      inputFormat: ${entry.inputFormat}` : ''}`).join('\n');
     };
 
-    // Helper to format mention entries
-    const formatMentions = (mentions: MentionEntry[] | undefined): string => {
+    // Helper to format userDefined mention entries (for mentions.userDefined)
+    const formatUserDefinedMentions = (mentions: MentionEntry[] | undefined): string => {
       if (!mentions || mentions.length === 0) return '';
-      return '\n' + mentions.map(entry => `  - name: "${entry.name}"
-    description: "${entry.description || ''}"
-    path: ${entry.path}
-    pattern: "${entry.pattern}"
-    maxSuggestions: ${entry.maxSuggestions ?? 20}${entry.searchPrefix ? `\n    searchPrefix: "${entry.searchPrefix}"` : ''}${entry.inputFormat ? `\n    inputFormat: ${entry.inputFormat}` : ''}`).join('\n');
+      return '\n' + mentions.map(entry => `    - name: "${entry.name}"
+      description: "${entry.description || ''}"
+      path: ${entry.path}
+      pattern: "${entry.pattern}"
+      maxSuggestions: ${entry.maxSuggestions ?? 20}${entry.searchPrefix ? `\n      searchPrefix: "${entry.searchPrefix}"` : ''}${entry.inputFormat ? `\n      inputFormat: ${entry.inputFormat}` : ''}`).join('\n');
     };
 
-    // Build fileSearch section - if fileSearch is defined, output values; otherwise comment out entire section
-    const buildFileSearchSection = (): string => {
-      if (!settings.fileSearch) {
-        // Feature is disabled - output commented template
-        return `#fileSearch:                        # File search for @ mentions (uncomment to enable)
-#  respectGitignore: true             # Respect .gitignore files
-#  includeHidden: true                # Include hidden files (starting with .)
-#  maxFiles: 5000                     # Maximum files to return
-#  maxDepth: null                     # Directory depth limit (null = unlimited)
-#  maxSuggestions: 50                 # Maximum suggestions to show (default: 50)
-#  followSymlinks: false              # Follow symbolic links
-#  fdPath: null                       # Custom path to fd command (null = auto-detect)
-#  #excludePatterns:                  # Additional exclude patterns
-#  #  - "*.log"
-#  #  - "*.tmp"
-#  #includePatterns:                  # Force include patterns (override .gitignore)
-#  #  - "dist/**/*.js"`;
-      }
-
-      // Feature is enabled - output actual values
-      const excludePatternsSection = settings.fileSearch.excludePatterns && settings.fileSearch.excludePatterns.length > 0
-        ? `excludePatterns:${formatArrayAsList(settings.fileSearch.excludePatterns)}  # Additional exclude patterns`
-        : `#excludePatterns:                  # Additional exclude patterns (uncomment to enable)
-  #  - "*.log"
-  #  - "*.tmp"`;
-
-      const includePatternsSection = settings.fileSearch.includePatterns && settings.fileSearch.includePatterns.length > 0
-        ? `includePatterns:${formatArrayAsList(settings.fileSearch.includePatterns)}  # Force include patterns (override .gitignore)`
-        : `#includePatterns:                  # Force include patterns (uncomment to enable)
-  #  - "dist/**/*.js"`;
-
-      const fdPathSection = settings.fileSearch.fdPath
-        ? `fdPath: "${settings.fileSearch.fdPath}"                       # Custom path to fd command`
-        : `#fdPath: null                       # Custom path to fd command (null = auto-detect)`;
-
-      return `fileSearch:
-  respectGitignore: ${settings.fileSearch.respectGitignore ?? true}    # Respect .gitignore files
-  includeHidden: ${settings.fileSearch.includeHidden ?? true}          # Include hidden files (starting with .)
-  maxFiles: ${settings.fileSearch.maxFiles ?? 5000}                    # Maximum files to return
-  maxDepth: ${settings.fileSearch.maxDepth ?? 'null'}                  # Directory depth limit (null = unlimited)
-  maxSuggestions: ${settings.fileSearch.maxSuggestions ?? 50}          # Maximum suggestions to show (default: 50)
-  followSymlinks: ${settings.fileSearch.followSymlinks ?? false}       # Follow symbolic links
-  ${fdPathSection}
-  ${excludePatternsSection}
-  ${includePatternsSection}`;
+    // Get fileSearch settings from mentions.fileSearch or legacy fileSearch
+    const getFileSearchSettings = (): FileSearchUserSettings | undefined => {
+      return settings.mentions?.fileSearch || settings.fileSearch;
     };
 
-    const fileSearchSection = buildFileSearchSection();
-
-    // Build symbolSearch section
-    const buildSymbolSearchSection = (): string => {
-      if (!settings.symbolSearch) {
-        // Feature uses defaults - output commented template with default values
-        return `symbolSearch:
-  maxSymbols: 20000                   # Maximum symbols to return (default: 20000)
-  timeout: 5000                       # Search timeout in milliseconds (default: 5000)
-  #rgPaths:                           # Custom paths to rg command (uncomment to override auto-detection)
-  #  - /opt/homebrew/bin/rg
-  #  - /usr/local/bin/rg`;
-      }
-
-      // Feature has custom settings - output actual values
-      const rgPathsSection = settings.symbolSearch.rgPaths && settings.symbolSearch.rgPaths.length > 0
-        ? `rgPaths:${settings.symbolSearch.rgPaths.map(p => `\n    - ${p}`).join('')}`
-        : `#rgPaths:                           # Custom paths to rg command (uncomment to override auto-detection)
-  #  - /opt/homebrew/bin/rg
-  #  - /usr/local/bin/rg`;
-
-      return `symbolSearch:
-  maxSymbols: ${settings.symbolSearch.maxSymbols ?? 20000}                   # Maximum symbols to return (default: 20000)
-  timeout: ${settings.symbolSearch.timeout ?? 5000}                       # Search timeout in milliseconds (default: 5000)
-  ${rgPathsSection}`;
+    // Get symbolSearch settings from mentions.symbolSearch or legacy symbolSearch
+    const getSymbolSearchSettings = (): SymbolSearchUserSettings | undefined => {
+      return settings.mentions?.symbolSearch || settings.symbolSearch;
     };
 
-    const symbolSearchSection = buildSymbolSearchSection();
+    // Get userDefined mentions from mentions.userDefined
+    const getUserDefinedMentions = (): MentionEntry[] | undefined => {
+      return settings.mentions?.userDefined;
+    };
 
     // Build extensions section
     const extensionsSection = settings.fileOpener?.extensions && Object.keys(settings.fileOpener.extensions).length > 0
@@ -403,28 +356,129 @@ class SettingsManager {
 
     const slashCommandsSection = buildSlashCommandsSection();
 
-    // Build mentions section
+    // Build unified mentions section (fileSearch, symbolSearch, userDefined)
     const buildMentionsSection = (): string => {
-      if (!settings.mentions || settings.mentions.length === 0) {
+      const fileSearch = getFileSearchSettings();
+      const symbolSearch = getSymbolSearchSettings();
+      const userDefined = getUserDefinedMentions();
+
+      const hasAnyMentionSettings = fileSearch || symbolSearch || (userDefined && userDefined.length > 0);
+
+      if (!hasAnyMentionSettings) {
         // No mentions configured - output commented template
         return `#mentions:
-#  - name: "agent-{basename}"
-#    description: "{frontmatter@description}"
-#    path: ~/.claude/agents
-#    pattern: "*.md"
-#    maxSuggestions: 20
-#    searchPrefix: "agent:"            # Require @agent: prefix for this entry
-#    inputFormat: path
+#  # File search settings (@path/to/file completion)
+#  # Note: fd command required (brew install fd)
+#  fileSearch:
+#    respectGitignore: true           # Respect .gitignore files
+#    includeHidden: true              # Include hidden files
+#    maxFiles: 5000                   # Maximum files to return
+#    maxDepth: null                   # Directory depth (null = unlimited)
+#    maxSuggestions: 50               # Suggestions to show
+#    followSymlinks: false            # Follow symbolic links
+#    #fdPath: null                    # Custom path to fd
 #
-#  - name: "{frontmatter@name}"
-#    description: "{frontmatter@description}"
-#    path: ~/.claude/plugins
-#    pattern: "**/*/SKILL.md"
-#    maxSuggestions: 20
-#    searchPrefix: "skill:"`;
+#  # Symbol search settings (@ts:Config, @go:Handler)
+#  # Note: ripgrep required (brew install ripgrep)
+#  symbolSearch:
+#    maxSymbols: 20000                # Maximum symbols to return
+#    timeout: 5000                    # Search timeout in ms
+#    #rgPaths:                        # Custom paths to rg
+#    #  - /opt/homebrew/bin/rg
+#
+#  # User-defined mentions from markdown files
+#  userDefined:
+#    - name: "agent-{basename}"
+#      description: "{frontmatter@description}"
+#      path: ~/.claude/agents
+#      pattern: "*.md"
+#      searchPrefix: "agent:"`;
       }
 
-      return `mentions:${formatMentions(settings.mentions)}`;
+      let section = 'mentions:\n';
+
+      // File search subsection
+      if (fileSearch) {
+        const excludePatternsSection = fileSearch.excludePatterns && fileSearch.excludePatterns.length > 0
+          ? `excludePatterns:${formatArrayAsList(fileSearch.excludePatterns)}`
+          : `#excludePatterns:                # Additional exclude patterns
+      #  - "*.log"`;
+
+        const includePatternsSection = fileSearch.includePatterns && fileSearch.includePatterns.length > 0
+          ? `includePatterns:${formatArrayAsList(fileSearch.includePatterns)}`
+          : `#includePatterns:                # Force include patterns
+      #  - "dist/**/*.js"`;
+
+        const fdPathSection = fileSearch.fdPath
+          ? `fdPath: "${fileSearch.fdPath}"`
+          : `#fdPath: null                    # Custom path to fd`;
+
+        section += `  # File search settings (@path/to/file completion)
+  fileSearch:
+    respectGitignore: ${fileSearch.respectGitignore ?? true}
+    includeHidden: ${fileSearch.includeHidden ?? true}
+    maxFiles: ${fileSearch.maxFiles ?? 5000}
+    maxDepth: ${fileSearch.maxDepth ?? 'null'}
+    maxSuggestions: ${fileSearch.maxSuggestions ?? 50}
+    followSymlinks: ${fileSearch.followSymlinks ?? false}
+    ${fdPathSection}
+    ${excludePatternsSection}
+    ${includePatternsSection}
+`;
+      } else {
+        section += `  # File search settings (@path/to/file completion)
+  # Note: Uncomment fileSearch section to enable file search
+  #fileSearch:
+  #  respectGitignore: true
+  #  includeHidden: true
+  #  maxFiles: 5000
+  #  maxDepth: null
+  #  maxSuggestions: 50
+`;
+      }
+
+      // Symbol search subsection
+      if (symbolSearch) {
+        const rgPathsSection = symbolSearch.rgPaths && symbolSearch.rgPaths.length > 0
+          ? `rgPaths:${symbolSearch.rgPaths.map(p => `\n      - ${p}`).join('')}`
+          : `#rgPaths:                        # Custom paths to rg
+    #  - /opt/homebrew/bin/rg`;
+
+        section += `
+  # Symbol search settings (@ts:Config, @go:Handler)
+  symbolSearch:
+    maxSymbols: ${symbolSearch.maxSymbols ?? 20000}
+    timeout: ${symbolSearch.timeout ?? 5000}
+    ${rgPathsSection}
+`;
+      } else {
+        section += `
+  # Symbol search settings (@ts:Config, @go:Handler)
+  symbolSearch:
+    maxSymbols: 20000
+    timeout: 5000
+    #rgPaths:
+    #  - /opt/homebrew/bin/rg
+`;
+      }
+
+      // User-defined mentions subsection
+      if (userDefined && userDefined.length > 0) {
+        section += `
+  # User-defined mentions from markdown files
+  userDefined:${formatUserDefinedMentions(userDefined)}`;
+      } else {
+        section += `
+  # User-defined mentions from markdown files
+  #userDefined:
+  #  - name: "agent-{basename}"
+  #    description: "{frontmatter@description}"
+  #    path: ~/.claude/agents
+  #    pattern: "*.md"
+  #    searchPrefix: "agent:"`;
+      }
+
+      return section;
     };
 
     const mentionsSection = buildMentionsSection();
@@ -474,23 +528,6 @@ fileOpener:
   ${extensionsSection}
 
 # ============================================================================
-# FILE SEARCH SETTINGS (@ mentions)
-# ============================================================================
-# Note: fd command is required for file search (install: brew install fd)
-# When this section is commented out, file search feature is disabled
-
-${fileSearchSection}
-
-# ============================================================================
-# SYMBOL SEARCH SETTINGS (Code Search)
-# ============================================================================
-# Configure symbol search behavior for @<language>:<query> syntax
-# Note: ripgrep (rg) command is required (install: brew install ripgrep)
-# Note: File search must be enabled for symbol search to work
-
-${symbolSearchSection}
-
-# ============================================================================
 # SLASH COMMAND SETTINGS
 # ============================================================================
 # Configure slash commands (/) for quick actions
@@ -501,8 +538,8 @@ ${slashCommandsSection}
 # ============================================================================
 # MENTION SETTINGS (@ mentions)
 # ============================================================================
-# Configure mention sources for @ syntax (e.g., @agent:, @skill:)
-# Template variables: {basename}, {frontmatter@fieldName}
+# Configure @ mention sources: fileSearch, symbolSearch, userDefined
+# Template variables for userDefined: {basename}, {frontmatter@fieldName}
 
 ${mentionsSection}
 `;
@@ -569,7 +606,6 @@ ${mentionsSection}
     return {
       shortcuts: { ...this.defaultSettings.shortcuts },
       window: { ...this.defaultSettings.window },
-      fileSearch: { ...this.defaultSettings.fileSearch },
       fileOpener: {
         extensions: { ...this.defaultSettings.fileOpener?.extensions },
         defaultEditor: this.defaultSettings.fileOpener?.defaultEditor ?? null
@@ -577,27 +613,45 @@ ${mentionsSection}
     };
   }
 
+  /**
+   * Get file search settings
+   * Returns from mentions.fileSearch (new) or fileSearch (legacy)
+   */
   getFileSearchSettings(): FileSearchSettings | undefined {
-    // Return undefined if fileSearch is not configured (feature disabled)
-    if (!this.currentSettings.fileSearch) {
+    // Check new structure first
+    const fileSearch = this.currentSettings.mentions?.fileSearch || this.currentSettings.fileSearch;
+    if (!fileSearch) {
       return undefined;
     }
-    return this.currentSettings.fileSearch as FileSearchSettings;
+    return fileSearch as FileSearchSettings;
   }
 
+  /**
+   * Check if file search is enabled
+   * Checks both mentions.fileSearch (new) and fileSearch (legacy)
+   */
   isFileSearchEnabled(): boolean {
-    return this.currentSettings.fileSearch !== undefined;
+    return !!(this.currentSettings.mentions?.fileSearch || this.currentSettings.fileSearch);
   }
 
-  getSymbolSearchSettings(): UserSettings['symbolSearch'] {
-    return this.currentSettings.symbolSearch;
+  /**
+   * Get symbol search settings
+   * Returns from mentions.symbolSearch (new) or symbolSearch (legacy)
+   */
+  getSymbolSearchSettings(): SymbolSearchUserSettings | undefined {
+    return this.currentSettings.mentions?.symbolSearch || this.currentSettings.symbolSearch;
   }
 
   async updateFileSearchSettings(fileSearch: Partial<NonNullable<UserSettings['fileSearch']>>): Promise<void> {
+    // Update in new structure (mentions.fileSearch)
+    const currentMentions = this.currentSettings.mentions || {};
     await this.updateSettings({
-      fileSearch: {
-        ...this.currentSettings.fileSearch,
-        ...fileSearch
+      mentions: {
+        ...currentMentions,
+        fileSearch: {
+          ...currentMentions.fileSearch,
+          ...fileSearch
+        }
       }
     });
   }
@@ -608,6 +662,14 @@ ${mentionsSection}
 
   getMentionsSettings(): UserSettings['mentions'] {
     return this.currentSettings.mentions;
+  }
+
+  /**
+   * Get user-defined mentions for @ syntax
+   * Returns from mentions.userDefined (new structure)
+   */
+  getUserDefinedMentions(): MentionEntry[] | undefined {
+    return this.currentSettings.mentions?.userDefined;
   }
 
   /**
@@ -650,9 +712,10 @@ ${mentionsSection}
       }
     }
 
-    // Convert mentions
-    if (this.currentSettings.mentions) {
-      for (const mention of this.currentSettings.mentions) {
+    // Convert userDefined mentions (from mentions.userDefined)
+    const userDefined = this.currentSettings.mentions?.userDefined;
+    if (userDefined) {
+      for (const mention of userDefined) {
         const entry: MdSearchEntry = {
           type: 'mention',
           name: mention.name,

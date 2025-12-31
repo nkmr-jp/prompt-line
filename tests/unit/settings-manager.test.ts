@@ -113,7 +113,7 @@ window:
     it('should return default settings', () => {
       const settings = settingsManager.getSettings();
 
-      // fileSearch is undefined by default (feature disabled)
+      // mentions is not set by default (@ mention features are optional)
       expect(settings).toEqual({
         shortcuts: {
           main: 'Cmd+Shift+Space',
@@ -131,8 +131,7 @@ window:
         fileOpener: {
           extensions: {},
           defaultEditor: null
-        },
-        mentions: []
+        }
       });
     });
 
@@ -213,7 +212,7 @@ window:
     it('should return default settings copy', () => {
       const defaults = settingsManager.getDefaultSettings();
 
-      // fileSearch is undefined in getDefaultSettings (spread of undefined)
+      // mentions and fileSearch are not included in getDefaultSettings (they are optional)
       expect(defaults).toEqual({
         shortcuts: {
           main: 'Cmd+Shift+Space',
@@ -228,7 +227,6 @@ window:
           width: 600,
           height: 300
         },
-        fileSearch: {},  // spread of undefined results in empty object
         fileOpener: {
           extensions: {},
           defaultEditor: null

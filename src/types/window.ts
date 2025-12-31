@@ -137,55 +137,24 @@ export interface UserSettings {
   agents?: {
     directories: string[];
   };
-  fileSearch?: {
-    // Respect .gitignore files (fd only, default: true)
-    respectGitignore?: boolean;
-    // Additional exclude patterns (applied on top of .gitignore)
-    excludePatterns?: string[];
-    // Include patterns (force include even if in .gitignore)
-    includePatterns?: string[];
-    // Maximum number of files to return (default: 5000)
-    maxFiles?: number;
-    // Include hidden files (starting with .)
-    includeHidden?: boolean;
-    // Maximum directory depth (null = unlimited)
-    maxDepth?: number | null;
-    // Follow symbolic links (default: false)
-    followSymlinks?: boolean;
-    // Custom path to fd command (null = auto-detect from common paths)
-    fdPath?: string | null;
-    // Input format for file path expansion (default: 'path')
-    // 'name': insert only the file name (e.g., "config.ts")
-    // 'path': insert the relative path (e.g., "src/config.ts")
-    inputFormat?: InputFormatType;
-    // Maximum number of suggestions to show (default: 50)
-    maxSuggestions?: number;
-  };
   fileOpener?: {
     // Extension-specific application settings (e.g., { "ts": "WebStorm", "md": "Typora" })
     extensions?: Record<string, string>;
     // Default editor when no extension-specific setting exists
     defaultEditor?: string | null;
   };
-  // Symbol search configuration (code search with @<language>:<query> syntax)
-  symbolSearch?: {
-    // Maximum number of symbols to return (default: 20000)
-    maxSymbols?: number;
-    // Search timeout in milliseconds (default: 5000)
-    timeout?: number;
-    // Custom paths to ripgrep command (null = auto-detect from common paths)
-    rgPaths?: string[] | null;
-  };
   // Slash command settings (built-in and user-defined)
   slashCommands?: SlashCommandsSettings;
-  // Mention settings (@ mentions from markdown files)
-  mentions?: MentionEntry[];
+  // Mention settings (@ mentions: fileSearch, symbolSearch, userDefined)
+  mentions?: MentionsSettings;
 
+  // Legacy: fileSearch configuration (use mentions.fileSearch instead)
+  fileSearch?: FileSearchUserSettings;
+  // Legacy: symbolSearch configuration (use mentions.symbolSearch instead)
+  symbolSearch?: SymbolSearchUserSettings;
   // Legacy: mdSearch configuration (for backward compatibility)
-  // Use slashCommands and mentions instead
   mdSearch?: MdSearchEntry[];
-  // Legacy: Built-in commands configuration (for backward compatibility)
-  // Use slashCommands.builtIn instead
+  // Legacy: Built-in commands configuration (use slashCommands.builtIn instead)
   builtInCommands?: {
     enabled?: boolean;
     tools?: string[];
@@ -193,10 +162,66 @@ export interface UserSettings {
 }
 
 // ============================================================================
-// Slash Command Settings Types
+// Mention Settings Types (@ mentions)
 // ============================================================================
 
 import type { InputFormatType } from './file-search';
+
+/**
+ * File search user settings (@path/to/file completion)
+ * All fields are optional - defaults are applied by the application
+ */
+export interface FileSearchUserSettings {
+  /** Respect .gitignore files (fd only, default: true) */
+  respectGitignore?: boolean;
+  /** Additional exclude patterns (applied on top of .gitignore) */
+  excludePatterns?: string[];
+  /** Include patterns (force include even if in .gitignore) */
+  includePatterns?: string[];
+  /** Maximum number of files to return (default: 5000) */
+  maxFiles?: number;
+  /** Include hidden files (starting with .) */
+  includeHidden?: boolean;
+  /** Maximum directory depth (null = unlimited) */
+  maxDepth?: number | null;
+  /** Follow symbolic links (default: false) */
+  followSymlinks?: boolean;
+  /** Custom path to fd command (null = auto-detect from common paths) */
+  fdPath?: string | null;
+  /** Input format: 'name' (file name only) or 'path' (relative path, default) */
+  inputFormat?: InputFormatType;
+  /** Maximum number of suggestions to show (default: 50) */
+  maxSuggestions?: number;
+}
+
+/**
+ * Symbol search user settings (@language:query syntax)
+ * All fields are optional - defaults are applied by the application
+ */
+export interface SymbolSearchUserSettings {
+  /** Maximum number of symbols to return (default: 20000) */
+  maxSymbols?: number;
+  /** Search timeout in milliseconds (default: 5000) */
+  timeout?: number;
+  /** Custom paths to ripgrep command (null = auto-detect from common paths) */
+  rgPaths?: string[] | null;
+}
+
+/**
+ * Mention settings combining fileSearch, symbolSearch, and userDefined mentions
+ */
+export interface MentionsSettings {
+  /** File search settings (@path/to/file) */
+  fileSearch?: FileSearchUserSettings;
+  /** Symbol search settings (@ts:Config, @go:Handler) */
+  symbolSearch?: SymbolSearchUserSettings;
+  /** User-defined mentions from markdown files */
+  userDefined?: MentionEntry[];
+}
+
+// ============================================================================
+// Slash Command Settings Types
+// ============================================================================
 
 /**
  * Slash command settings combining built-in and user-defined commands
