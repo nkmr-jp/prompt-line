@@ -21,6 +21,7 @@ import HistoryManager from './managers/history-manager';
 import DraftManager from './managers/draft-manager';
 import DirectoryManager from './managers/directory-manager';
 import SettingsManager from './managers/settings-manager';
+import BuiltInCommandsManager from './managers/built-in-commands-manager';
 import IPCHandlers from './handlers/ipc-handlers';
 import { codeSearchHandler } from './handlers/code-search-handler';
 import { logger, ensureDir, detectCurrentDirectoryWithFiles } from './utils/utils';
@@ -33,6 +34,7 @@ class PromptLineApp {
   private draftManager: DraftManager | null = null;
   private directoryManager: DirectoryManager | null = null;
   private settingsManager: SettingsManager | null = null;
+  private builtInCommandsManager: BuiltInCommandsManager | null = null;
   private ipcHandlers: IPCHandlers | null = null;
   private tray: Tray | null = null;
   private isInitialized = false;
@@ -58,6 +60,10 @@ class PromptLineApp {
   private async initializeDirectories(): Promise<void> {
     await ensureDir(config.paths.userDataDir);
     await ensureDir(config.paths.imagesDir);
+
+    // Initialize built-in commands (copy to user data directory)
+    this.builtInCommandsManager = new BuiltInCommandsManager();
+    await this.builtInCommandsManager.initialize();
   }
 
   /**
