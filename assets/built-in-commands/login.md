@@ -1,3 +1,0 @@
----
-description: Switch Anthropic accounts
----

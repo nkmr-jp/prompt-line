@@ -1,3 +1,0 @@
----
-description: Exit the REPL
----

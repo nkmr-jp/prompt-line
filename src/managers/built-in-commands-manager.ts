@@ -1,43 +1,51 @@
 import fs from 'fs';
 import path from 'path';
+import yaml from 'js-yaml';
 import config from '../config/app-config';
 import { logger, ensureDir } from '../utils/utils';
 
 /**
- * Manages built-in slash commands for Claude Code
- * Copies bundled command files to user data directory on startup
+ * Command definition in YAML file
+ */
+interface CommandDefinition {
+  name: string;
+  description: string;
+  'argument-hint'?: string;
+}
+
+/**
+ * YAML file structure for built-in commands
+ */
+interface BuiltInCommandsYaml {
+  commands: CommandDefinition[];
+}
+
+/**
+ * Manages built-in slash commands for CLI tools (Claude Code, etc.)
+ * Reads YAML definition files and generates md files for autocomplete
  */
 class BuiltInCommandsManager {
   private sourceDir: string;
   private targetDir: string;
 
   constructor() {
-    // Source: bundled assets in app resources
-    // In development: assets/built-in-commands
-    // In production: app.asar.unpacked/assets/built-in-commands or similar
     this.sourceDir = this.getSourceDirectory();
     this.targetDir = config.paths.builtInCommandsDir;
   }
 
   /**
-   * Get the source directory for built-in commands
+   * Get the source directory for built-in command YAML files
    * Handles both development and production environments
    */
   private getSourceDirectory(): string {
-    // Default development path
     const defaultPath = path.join(__dirname, '..', '..', 'assets', 'built-in-commands');
 
-    // Try multiple possible locations
     const possiblePaths: string[] = [
-      // Development: relative to dist/managers
       defaultPath,
-      // Production: in app.asar.unpacked
       path.join(__dirname, '..', '..', 'app.asar.unpacked', 'assets', 'built-in-commands'),
-      // Another alternative
       path.join(__dirname, '..', 'assets', 'built-in-commands'),
     ];
 
-    // Add resourcesPath if available
     if (process.resourcesPath) {
       possiblePaths.push(
         path.join(process.resourcesPath, 'app.asar.unpacked', 'assets', 'built-in-commands')
@@ -51,65 +59,106 @@ class BuiltInCommandsManager {
       }
     }
 
-    // Default to development path
     logger.warn('Built-in commands source directory not found, using default path');
     return defaultPath;
   }
 
   /**
    * Initialize built-in commands
-   * Copies command files to user data directory if needed
+   * Reads YAML files and generates md files in user data directory
    */
   async initialize(): Promise<void> {
     try {
-      // Ensure target directory exists
       await ensureDir(this.targetDir);
 
-      // Check if source directory exists
       if (!fs.existsSync(this.sourceDir)) {
         logger.warn('Built-in commands source directory does not exist:', this.sourceDir);
         return;
       }
 
-      // Copy command files
-      await this.copyCommandFiles();
+      // Process all YAML files in source directory
+      const files = fs.readdirSync(this.sourceDir);
+      const yamlFiles = files.filter(f => f.endsWith('.yaml') || f.endsWith('.yml'));
+
+      let totalCommands = 0;
+      for (const file of yamlFiles) {
+        const count = await this.processYamlFile(file);
+        totalCommands += count;
+      }
 
       logger.info('Built-in commands initialized', {
         sourceDir: this.sourceDir,
-        targetDir: this.targetDir
+        targetDir: this.targetDir,
+        yamlFiles: yamlFiles.length,
+        totalCommands
       });
     } catch (error) {
       logger.error('Failed to initialize built-in commands:', error);
-      // Don't throw - this is not a critical failure
     }
   }
 
   /**
-   * Copy command files from source to target directory
-   * Overwrites existing files to ensure latest versions
+   * Process a single YAML file and generate md files
    */
-  private async copyCommandFiles(): Promise<void> {
-    const files = fs.readdirSync(this.sourceDir);
-    const mdFiles = files.filter(f => f.endsWith('.md'));
+  private async processYamlFile(filename: string): Promise<number> {
+    const sourcePath = path.join(this.sourceDir, filename);
 
-    let copiedCount = 0;
-    for (const file of mdFiles) {
-      const sourcePath = path.join(this.sourceDir, file);
-      const targetPath = path.join(this.targetDir, file);
+    try {
+      const content = fs.readFileSync(sourcePath, 'utf-8');
+      const parsed = yaml.load(content) as BuiltInCommandsYaml;
 
-      try {
-        // Read source file
-        const content = fs.readFileSync(sourcePath, 'utf-8');
-
-        // Write to target (overwrite if exists)
-        fs.writeFileSync(targetPath, content, 'utf-8');
-        copiedCount++;
-      } catch (error) {
-        logger.warn(`Failed to copy built-in command file: ${file}`, error);
+      if (!parsed?.commands || !Array.isArray(parsed.commands)) {
+        logger.warn(`Invalid YAML structure in ${filename}`);
+        return 0;
       }
+
+      let generatedCount = 0;
+      for (const cmd of parsed.commands) {
+        if (this.generateMdFile(cmd)) {
+          generatedCount++;
+        }
+      }
+
+      logger.debug(`Processed ${filename}: ${generatedCount} commands`);
+      return generatedCount;
+    } catch (error) {
+      logger.warn(`Failed to process YAML file: ${filename}`, error);
+      return 0;
+    }
+  }
+
+  /**
+   * Generate a single md file from command definition
+   */
+  private generateMdFile(cmd: CommandDefinition): boolean {
+    if (!cmd.name || !cmd.description) {
+      logger.warn('Invalid command definition:', cmd);
+      return false;
     }
 
-    logger.debug(`Copied ${copiedCount} built-in command files`);
+    const targetPath = path.join(this.targetDir, `${cmd.name}.md`);
+
+    // Build frontmatter
+    const frontmatterLines = [
+      '---',
+      `description: ${cmd.description}`,
+    ];
+
+    if (cmd['argument-hint']) {
+      frontmatterLines.push(`argument-hint: ${cmd['argument-hint']}`);
+    }
+
+    frontmatterLines.push('---', '');
+
+    const content = frontmatterLines.join('\n');
+
+    try {
+      fs.writeFileSync(targetPath, content, 'utf-8');
+      return true;
+    } catch (error) {
+      logger.warn(`Failed to generate md file: ${cmd.name}.md`, error);
+      return false;
+    }
   }
 
   /**
