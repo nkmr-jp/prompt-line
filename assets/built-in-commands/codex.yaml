@@ -1,7 +1,7 @@
 # OpenAI Codex CLI built-in slash commands
-# Reference: https://developers.openai.com/codex/cli/slash-commands/
 
 name: codex
+reference: https://developers.openai.com/codex/cli/slash-commands/
 
 commands:
   - name: approvals

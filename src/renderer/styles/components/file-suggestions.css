@@ -268,6 +268,29 @@
   word-break: break-word;
 }
 
+.frontmatter-line {
+  margin-bottom: 2px;
+}
+
+.frontmatter-key {
+  color: var(--text-secondary, #888);
+}
+
+.frontmatter-value {
+  color: var(--text-primary, #fff);
+}
+
+.frontmatter-link {
+  color: #58a6ff;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.frontmatter-link:hover {
+  text-decoration: underline;
+  color: #79b8ff;
+}
+
 /* Frontmatter Hint */
 .frontmatter-hint {
   margin-top: 8px;

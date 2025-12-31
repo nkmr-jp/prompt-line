@@ -1,7 +1,7 @@
 # Google Gemini CLI built-in slash commands
-# Reference: https://google-gemini.github.io/gemini-cli/docs/cli/commands.html
 
 name: gemini
+reference: https://google-gemini.github.io/gemini-cli/docs/cli/commands.html
 
 commands:
   - name: about

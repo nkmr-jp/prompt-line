@@ -1,7 +1,7 @@
 # Claude Code built-in slash commands
-# Reference: https://code.claude.com/docs/en/slash-commands#built-in-slash-commands
 
 name: claude
+reference: https://code.claude.com/docs/en/slash-commands#built-in-slash-commands
 
 commands:
   - name: add-dir
