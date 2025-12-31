@@ -180,12 +180,13 @@ export class SlashCommandManager implements IInitializable {
       await this.loadCommands();
     }
 
-    // Filter and sort commands - prioritize: prefix match > contains match > description match
+    // Filter and sort commands - prioritize: prefix match > contains match > description match > source match
     const lowerQuery = query.toLowerCase();
     this.filteredCommands = this.commands
       .filter(cmd =>
         cmd.name.toLowerCase().includes(lowerQuery) ||
-        cmd.description.toLowerCase().includes(lowerQuery)
+        cmd.description.toLowerCase().includes(lowerQuery) ||
+        (cmd.displayName && cmd.displayName.toLowerCase().includes(lowerQuery))
       )
       .sort((a, b) => {
         const aName = a.name.toLowerCase();
