@@ -73,7 +73,7 @@ export interface DirectoryInfo {
 export interface WindowData {
   sourceApp?: AppInfo | string | null;
   history?: HistoryItem[];
-  draft?: string | { text: string } | null;
+  draft?: string | { text: string; scrollTop?: number } | null;
   settings?: UserSettings;
   directoryData?: DirectoryInfo;
   fileSearchEnabled?: boolean;

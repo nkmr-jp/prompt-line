@@ -389,10 +389,10 @@ describe('IPCHandlers', () => {
             const handler = getHandler('save-draft');
             expect(handler).not.toBeNull();
 
-            const result = await handler!(null, 'test draft', false);
+            const result = await handler!(null, 'test draft', 0, false);
 
             expect(result.success).toBe(true);
-            expect(mockDraftManager.saveDraft).toHaveBeenCalledWith('test draft');
+            expect(mockDraftManager.saveDraft).toHaveBeenCalledWith('test draft', 0);
             expect(mockDraftManager.saveDraftImmediately).not.toHaveBeenCalled();
         });
 
@@ -400,10 +400,10 @@ describe('IPCHandlers', () => {
             const handler = getHandler('save-draft');
             expect(handler).not.toBeNull();
 
-            const result = await handler!(null, 'test draft', true);
+            const result = await handler!(null, 'test draft', 100, true);
 
             expect(result.success).toBe(true);
-            expect(mockDraftManager.saveDraftImmediately).toHaveBeenCalledWith('test draft');
+            expect(mockDraftManager.saveDraftImmediately).toHaveBeenCalledWith('test draft', 100);
             expect(mockDraftManager.saveDraft).not.toHaveBeenCalled();
         });
 

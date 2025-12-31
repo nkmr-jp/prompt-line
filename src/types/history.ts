@@ -14,6 +14,7 @@ export interface DraftData {
   text: string;
   timestamp: number;
   saved: boolean;
+  scrollTop?: number;
 }
 
 export interface HistoryStats {

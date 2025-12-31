@@ -142,13 +142,14 @@ class HistoryDraftHandler {
   private async handleSaveDraft(
     _event: IpcMainInvokeEvent,
     text: string,
+    scrollTop = 0,
     immediate = false
   ): Promise<IPCResult> {
     try {
       if (immediate) {
-        await this.draftManager.saveDraftImmediately(text);
+        await this.draftManager.saveDraftImmediately(text, scrollTop);
       } else {
-        await this.draftManager.saveDraft(text);
+        await this.draftManager.saveDraft(text, scrollTop);
       }
 
       return { success: true };

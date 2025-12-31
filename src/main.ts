@@ -372,7 +372,7 @@ class PromptLineApp {
         return;
       }
 
-      const draft = this.draftManager.getCurrentDraft();
+      const draftData = this.draftManager.getDraftWithScrollTop();
       const settings = this.settingsManager.getSettings();
       // Use getHistoryForSearch for larger search scope (5000 items instead of 200)
       const history = await this.historyManager.getHistoryForSearch(LIMITS.MAX_SEARCH_ITEMS);
@@ -384,7 +384,12 @@ class PromptLineApp {
 
       const windowData: WindowData = {
         history,
-        draft: draft || null,
+        draft: draftData.text ? {
+          text: draftData.text,
+          scrollTop: draftData.scrollTop,
+          timestamp: Date.now(),
+          saved: true
+        } : null,
         settings
       };
 

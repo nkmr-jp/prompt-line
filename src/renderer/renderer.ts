@@ -49,7 +49,11 @@ export class PromptLineRenderer {
 
   constructor() {
     this.domManager = new DomManager();
-    this.draftManager = new DraftManagerClient(electronAPI, () => this.domManager.getCurrentText());
+    this.draftManager = new DraftManagerClient(
+      electronAPI,
+      () => this.domManager.getCurrentText(),
+      () => this.domManager.getScrollTop()
+    );
     this.snapshotManager = new SimpleSnapshotManager();
     this.historyUIManager = new HistoryUIManager(
       () => this.domManager.historyList,
@@ -76,7 +80,8 @@ export class PromptLineRenderer {
       (text: string) => this.domManager.setText(text),
       () => this.domManager.focusTextarea(),
       (position: number) => this.domManager.setCursorPosition(position),
-      () => this.domManager.selectAll()
+      () => this.domManager.selectAll(),
+      (scrollTop: number) => this.domManager.setScrollTop(scrollTop)
     );
     this.directoryDataHandler = new DirectoryDataHandler({
       updateHintText: (text: string) => this.domManager.updateHintText(text),

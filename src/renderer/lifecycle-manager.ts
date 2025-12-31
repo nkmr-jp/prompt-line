@@ -2,6 +2,11 @@ import { TIMEOUTS } from '../constants';
 import { updateShortcutsDisplay } from './utils/shortcut-formatter';
 import type { WindowData, AppInfo, UserSettings } from './types';
 
+interface DraftInfo {
+  text: string;
+  scrollTop: number;
+}
+
 export class LifecycleManager {
   private userSettings: UserSettings | null = null;
 
@@ -14,18 +19,19 @@ export class LifecycleManager {
     private setTextCallback: (text: string) => void,
     private focusTextareaCallback: () => void,
     private setCursorPositionCallback: (position: number) => void,
-    private selectAllCallback: () => void
+    private selectAllCallback: () => void,
+    private setScrollTopCallback: (scrollTop: number) => void
   ) {}
 
   public handleWindowShown(data: WindowData): void {
     try {
-      const draftValue = this.extractDraftValue(data.draft);
-      this.initializeTextArea(draftValue, !!data.draft);
+      const draftInfo = this.extractDraftInfo(data.draft);
+      this.initializeTextArea(draftInfo, !!data.draft);
       this.updateUserSettings(data.settings);
-      
+
       const appName = this.getAppDisplayName(data.sourceApp);
       this.updateAppNameCallback(appName);
-      
+
       // Draft is loaded instantly, no notification needed
     } catch (error) {
       console.error('Error handling window shown:', error);
@@ -44,19 +50,29 @@ export class LifecycleManager {
     }
   }
 
-  private extractDraftValue(draft: string | { text: string } | null | undefined): string {
-    return typeof draft === 'string' ? draft : (draft?.text || '');
+  private extractDraftInfo(draft: string | { text: string; scrollTop?: number } | null | undefined): DraftInfo {
+    if (typeof draft === 'string') {
+      return { text: draft, scrollTop: 0 };
+    }
+    return {
+      text: draft?.text || '',
+      scrollTop: typeof draft?.scrollTop === 'number' ? draft.scrollTop : 0
+    };
   }
 
-  private initializeTextArea(draftValue: string, hasDraft: boolean): void {
-    this.setTextCallback(draftValue);
+  private initializeTextArea(draftInfo: DraftInfo, hasDraft: boolean): void {
+    this.setTextCallback(draftInfo.text);
 
     setTimeout(() => {
       this.focusTextareaCallback();
       if (!hasDraft) {
         this.selectAllCallback();
       } else {
-        this.setCursorPositionCallback(draftValue.length);
+        this.setCursorPositionCallback(draftInfo.text.length);
+        // Restore scroll position after text and cursor are set
+        if (draftInfo.scrollTop > 0) {
+          this.setScrollTopCallback(draftInfo.scrollTop);
+        }
       }
     }, TIMEOUTS.TEXTAREA_FOCUS_DELAY);
   }
