@@ -19,6 +19,8 @@ interface SlashCommandItem {
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
   inputFormat?: InputFormatType;  // 入力フォーマット（'name' | 'path'）
+  source?: string;  // Source tool identifier (e.g., 'claude-code') for filtering
+  displayName?: string;  // Human-readable source name for display (e.g., 'Claude Code')
 }
 
 export class SlashCommandManager implements IInitializable {
@@ -286,6 +288,14 @@ export class SlashCommandManager implements IInitializable {
       nameSpan.className = 'slash-command-name';
       nameSpan.innerHTML = '/' + highlightMatch(cmd.name, query, 'slash-highlight');
       item.appendChild(nameSpan);
+
+      // Create source badge for built-in commands (if displayName exists)
+      if (cmd.displayName) {
+        const sourceBadge = document.createElement('span');
+        sourceBadge.className = 'slash-command-source';
+        sourceBadge.textContent = cmd.displayName;
+        item.appendChild(sourceBadge);
+      }
 
       // Create description element with highlighting
       if (cmd.description) {

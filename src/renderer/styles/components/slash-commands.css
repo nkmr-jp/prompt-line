@@ -60,6 +60,17 @@
   text-overflow: ellipsis;
 }
 
+.slash-command-source {
+  flex-shrink: 0;
+  font-size: 9px;
+  color: var(--text-secondary, #888);
+  background: rgba(100, 100, 100, 0.3);
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin-right: 8px;
+  white-space: nowrap;
+}
+
 .slash-highlight {
   background: rgba(255, 200, 0, 0.3);
   color: var(--text-primary, #fff);

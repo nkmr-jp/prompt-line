@@ -2,7 +2,7 @@
 # These commands provide autocomplete suggestions for Claude Code CLI
 # Reference: https://code.claude.com/docs/en/slash-commands
 
-name: Claude Code
+name: claude
 
 commands:
   # Core Commands

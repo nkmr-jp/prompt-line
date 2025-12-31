@@ -144,7 +144,8 @@ class BuiltInCommandsLoader {
       filePath: filePath,
       frontmatter: frontmatterLines.join('\n'),
       inputFormat: 'name',
-      source: toolName  // Keep toolName for filtering (e.g., 'claude-code')
+      source: toolName,  // Keep toolName for filtering (e.g., 'claude-code')
+      displayName: displayName  // Human-readable name for display (e.g., 'Claude Code')
     };
 
     // Only add argumentHint if it exists

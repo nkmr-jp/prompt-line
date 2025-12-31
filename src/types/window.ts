@@ -256,7 +256,8 @@ export interface SlashCommandItem {
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
   inputFormat?: InputFormatType;  // 入力フォーマット（'name' | 'path'）
-  source?: string;  // Source tool name (e.g., 'claude-code', 'cursor') for built-in commands
+  source?: string;  // Source tool identifier (e.g., 'claude-code') for filtering
+  displayName?: string;  // Human-readable source name for display (e.g., 'Claude Code')
 }
 
 export interface AgentItem {
