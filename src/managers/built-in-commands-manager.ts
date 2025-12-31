@@ -1,28 +1,11 @@
 import fs from 'fs';
 import path from 'path';
-import yaml from 'js-yaml';
 import config from '../config/app-config';
 import { logger, ensureDir } from '../utils/utils';
 
 /**
- * Command definition in YAML file
- */
-interface CommandDefinition {
-  name: string;
-  description: string;
-  'argument-hint'?: string;
-}
-
-/**
- * YAML file structure for built-in commands
- */
-interface BuiltInCommandsYaml {
-  commands: CommandDefinition[];
-}
-
-/**
  * Manages built-in slash commands for CLI tools (Claude Code, etc.)
- * Reads YAML definition files and generates md files for autocomplete
+ * Copies YAML definition files to user data directory for BuiltInCommandsLoader
  */
 class BuiltInCommandsManager {
   private sourceDir: string;
@@ -65,7 +48,7 @@ class BuiltInCommandsManager {
 
   /**
    * Initialize built-in commands
-   * Reads YAML files and generates md files in user data directory
+   * Copies YAML files to user data directory
    */
   async initialize(): Promise<void> {
     try {
@@ -76,21 +59,21 @@ class BuiltInCommandsManager {
         return;
       }
 
-      // Process all YAML files in source directory
+      // Copy all YAML files to target directory
       const files = fs.readdirSync(this.sourceDir);
       const yamlFiles = files.filter(f => f.endsWith('.yaml') || f.endsWith('.yml'));
 
-      let totalCommands = 0;
+      let copiedCount = 0;
       for (const file of yamlFiles) {
-        const count = await this.processYamlFile(file);
-        totalCommands += count;
+        if (this.copyYamlFile(file)) {
+          copiedCount++;
+        }
       }
 
       logger.info('Built-in commands initialized', {
         sourceDir: this.sourceDir,
         targetDir: this.targetDir,
-        yamlFiles: yamlFiles.length,
-        totalCommands
+        copiedFiles: copiedCount
       });
     } catch (error) {
       logger.error('Failed to initialize built-in commands:', error);
@@ -98,65 +81,18 @@ class BuiltInCommandsManager {
   }
 
   /**
-   * Process a single YAML file and generate md files
+   * Copy a YAML file from source to target directory
    */
-  private async processYamlFile(filename: string): Promise<number> {
+  private copyYamlFile(filename: string): boolean {
     const sourcePath = path.join(this.sourceDir, filename);
+    const targetPath = path.join(this.targetDir, filename);
 
     try {
-      const content = fs.readFileSync(sourcePath, 'utf-8');
-      const parsed = yaml.load(content) as BuiltInCommandsYaml;
-
-      if (!parsed?.commands || !Array.isArray(parsed.commands)) {
-        logger.warn(`Invalid YAML structure in ${filename}`);
-        return 0;
-      }
-
-      let generatedCount = 0;
-      for (const cmd of parsed.commands) {
-        if (this.generateMdFile(cmd)) {
-          generatedCount++;
-        }
-      }
-
-      logger.debug(`Processed ${filename}: ${generatedCount} commands`);
-      return generatedCount;
-    } catch (error) {
-      logger.warn(`Failed to process YAML file: ${filename}`, error);
-      return 0;
-    }
-  }
-
-  /**
-   * Generate a single md file from command definition
-   */
-  private generateMdFile(cmd: CommandDefinition): boolean {
-    if (!cmd.name || !cmd.description) {
-      logger.warn('Invalid command definition:', cmd);
-      return false;
-    }
-
-    const targetPath = path.join(this.targetDir, `${cmd.name}.md`);
-
-    // Build frontmatter
-    const frontmatterLines = [
-      '---',
-      `description: ${cmd.description}`,
-    ];
-
-    if (cmd['argument-hint']) {
-      frontmatterLines.push(`argument-hint: ${cmd['argument-hint']}`);
-    }
-
-    frontmatterLines.push('---', '');
-
-    const content = frontmatterLines.join('\n');
-
-    try {
-      fs.writeFileSync(targetPath, content, 'utf-8');
+      fs.copyFileSync(sourcePath, targetPath);
+      logger.debug(`Copied built-in commands file: ${filename}`);
       return true;
     } catch (error) {
-      logger.warn(`Failed to generate md file: ${cmd.name}.md`, error);
+      logger.warn(`Failed to copy YAML file: ${filename}`, error);
       return false;
     }
   }

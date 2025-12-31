@@ -96,6 +96,9 @@ jest.mock('../../src/config/app-config', () => ({
         version: '1.0.0',
         description: 'Test app'
     },
+    paths: {
+        builtInCommandsDir: '/test/.prompt-line/built-in-commands'
+    },
     shortcuts: { main: 'Cmd+Shift+Space' },
     history: { maxItems: 50 },
     draft: { saveDelay: 500 },

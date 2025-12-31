@@ -3,6 +3,7 @@ import { logger } from '../utils/utils';
 import type MdSearchLoader from '../managers/md-search-loader';
 import type SettingsManager from '../managers/settings-manager';
 import type { SlashCommandItem, AgentItem } from '../types';
+import builtInCommandsLoader from '../lib/built-in-commands-loader';
 
 /**
  * MdSearchHandler manages all IPC handlers related to MD search functionality.
@@ -62,6 +63,7 @@ class MdSearchHandler {
   /**
    * Handler: get-slash-commands
    * Retrieves slash commands with optional query filtering
+   * Merges built-in commands (from YAML) with user commands (from MD files)
    */
   private async handleGetSlashCommands(
     _event: IpcMainInvokeEvent,
@@ -71,13 +73,16 @@ class MdSearchHandler {
       // Refresh config from settings in case they changed
       this.updateConfig();
 
-      // Get commands from MdSearchLoader
+      // Get built-in commands from YAML files
+      const builtInCommands = builtInCommandsLoader.searchCommands(query);
+
+      // Get user commands from MdSearchLoader (MD files)
       const items = query
         ? await this.mdSearchLoader.searchItems('command', query)
         : await this.mdSearchLoader.getItems('command');
 
       // Convert MdSearchItem to SlashCommandItem for backward compatibility
-      const commands: SlashCommandItem[] = items.map(item => {
+      const userCommands: SlashCommandItem[] = items.map(item => {
         const cmd: SlashCommandItem = {
           name: item.name,
           description: item.description,
@@ -95,7 +100,21 @@ class MdSearchHandler {
         return cmd;
       });
 
-      return commands;
+      // Merge: built-in commands first, then user commands
+      // User commands with same name will override built-in commands
+      const commandMap = new Map<string, SlashCommandItem>();
+
+      // Add built-in commands first
+      for (const cmd of builtInCommands) {
+        commandMap.set(cmd.name, cmd);
+      }
+
+      // Add user commands (override built-in if same name)
+      for (const cmd of userCommands) {
+        commandMap.set(cmd.name, cmd);
+      }
+
+      return Array.from(commandMap.values());
     } catch (error) {
       logger.error('Failed to get slash commands:', error);
       return [];

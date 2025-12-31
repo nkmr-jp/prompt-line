@@ -13,17 +13,10 @@ export const DEFAULT_SORT_ORDER: 'asc' | 'desc' = 'asc';
 
 export function getDefaultMdSearchConfig(): MdSearchEntry[] {
   return [
-    // Claude Code built-in slash commands (from Prompt Line)
-    {
-      name: '{basename}',
-      type: 'command',
-      description: '{frontmatter@description}',
-      path: '~/.prompt-line/built-in-commands',
-      pattern: '*.md',
-      argumentHint: '{frontmatter@argument-hint}',
-      maxSuggestions: DEFAULT_MAX_SUGGESTIONS,
-      sortOrder: DEFAULT_SORT_ORDER,
-    },
+    // NOTE: Built-in commands (Claude Code, etc.) are loaded from YAML files
+    // via BuiltInCommandsLoader, not via mdSearch. This keeps them separate
+    // and allows YAML-based management.
+
     // User's custom slash commands
     {
       name: '{basename}',
