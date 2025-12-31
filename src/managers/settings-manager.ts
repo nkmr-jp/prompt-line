@@ -39,8 +39,8 @@ class SettingsManager {
         extensions: {},
         defaultEditor: null
       }
-      // slashCommands is optional - contains builtIn and userDefined
-      // mentions is optional - contains fileSearch, symbolSearch, userDefined
+      // slashCommands is optional - contains builtIn and custom
+      // mentions is optional - contains fileSearch, symbolSearch, mdSearch
     };
 
     this.currentSettings = { ...this.defaultSettings };
@@ -92,9 +92,9 @@ class SettingsManager {
    * Convert legacy mdSearch entries to new format
    * Separates command entries (/) and mention entries (@)
    */
-  private convertLegacyMdSearch(mdSearch: MdSearchEntry[]): { userDefined: SlashCommandEntry[]; mentions: MentionEntry[] } {
-    const userDefined: SlashCommandEntry[] = [];
-    const mentions: MentionEntry[] = [];
+  private convertLegacyMdSearch(mdSearch: MdSearchEntry[]): { custom: SlashCommandEntry[]; mdSearchMentions: MentionEntry[] } {
+    const custom: SlashCommandEntry[] = [];
+    const mdSearchMentions: MentionEntry[] = [];
 
     for (const entry of mdSearch) {
       if (entry.type === 'command') {
@@ -108,7 +108,7 @@ class SettingsManager {
         if (entry.argumentHint) cmd.argumentHint = entry.argumentHint;
         if (entry.maxSuggestions) cmd.maxSuggestions = entry.maxSuggestions;
         if (entry.sortOrder) cmd.sortOrder = entry.sortOrder;
-        userDefined.push(cmd);
+        custom.push(cmd);
       } else if (entry.type === 'mention') {
         // Convert to MentionEntry (without type field)
         const mention: MentionEntry = {
@@ -121,11 +121,11 @@ class SettingsManager {
         if (entry.searchPrefix) mention.searchPrefix = entry.searchPrefix;
         if (entry.sortOrder) mention.sortOrder = entry.sortOrder;
         if (entry.inputFormat) mention.inputFormat = entry.inputFormat;
-        mentions.push(mention);
+        mdSearchMentions.push(mention);
       }
     }
 
-    return { userDefined, mentions };
+    return { custom, mdSearchMentions };
   }
 
   private mergeWithDefaults(userSettings: Partial<UserSettings>): UserSettings {
@@ -149,7 +149,7 @@ class SettingsManager {
       }
     };
 
-    // Handle new mentions structure (fileSearch, symbolSearch, userDefined)
+    // Handle new mentions structure (fileSearch, symbolSearch, mdSearch)
     if (userSettings.mentions) {
       result.mentions = {
         ...userSettings.mentions
@@ -185,19 +185,19 @@ class SettingsManager {
     if (userSettings.mdSearch && userSettings.mdSearch.length > 0) {
       const converted = this.convertLegacyMdSearch(userSettings.mdSearch);
 
-      // If slashCommands not set, use converted userDefined
-      if (!result.slashCommands && converted.userDefined.length > 0) {
+      // If slashCommands not set, use converted custom
+      if (!result.slashCommands && converted.custom.length > 0) {
         result.slashCommands = {
-          userDefined: converted.userDefined
+          custom: converted.custom
         };
       }
-      // If mentions.userDefined not set, use converted mentions
-      if (converted.mentions.length > 0) {
+      // If mentions.mdSearch not set, use converted mdSearchMentions
+      if (converted.mdSearchMentions.length > 0) {
         if (!result.mentions) {
           result.mentions = {};
         }
-        if (!result.mentions.userDefined || result.mentions.userDefined.length === 0) {
-          result.mentions.userDefined = converted.mentions;
+        if (!result.mentions.mdSearch || result.mentions.mdSearch.length === 0) {
+          result.mentions.mdSearch = converted.mdSearchMentions;
         }
       }
 
@@ -245,8 +245,8 @@ class SettingsManager {
       return Object.entries(ext).map(([key, val]) => `\n    ${key}: "${val}"`).join('');
     };
 
-    // Helper to format user-defined slash command entries
-    const formatUserDefinedCommands = (commands: SlashCommandEntry[] | undefined): string => {
+    // Helper to format custom slash command entries
+    const formatCustomCommands = (commands: SlashCommandEntry[] | undefined): string => {
       if (!commands || commands.length === 0) return '';
       return '\n' + commands.map(entry => `    - name: "${entry.name}"
       description: "${entry.description || ''}"
@@ -255,8 +255,8 @@ class SettingsManager {
       maxSuggestions: ${entry.maxSuggestions ?? 20}`).join('\n');
     };
 
-    // Helper to format userDefined mention entries (for mentions.userDefined)
-    const formatUserDefinedMentions = (mentions: MentionEntry[] | undefined): string => {
+    // Helper to format mdSearch mention entries (for mentions.mdSearch)
+    const formatMdSearchMentions = (mentions: MentionEntry[] | undefined): string => {
       if (!mentions || mentions.length === 0) return '';
       return '\n' + mentions.map(entry => `    - name: "${entry.name}"
       description: "${entry.description || ''}"
@@ -275,9 +275,9 @@ class SettingsManager {
       return settings.mentions?.symbolSearch || settings.symbolSearch;
     };
 
-    // Get userDefined mentions from mentions.userDefined
-    const getUserDefinedMentions = (): MentionEntry[] | undefined => {
-      return settings.mentions?.userDefined;
+    // Get mdSearch mentions from mentions.mdSearch
+    const getMdSearchMentions = (): MentionEntry[] | undefined => {
+      return settings.mentions?.mdSearch;
     };
 
     // Build extensions section
@@ -291,9 +291,9 @@ class SettingsManager {
     // Build slashCommands section
     const buildSlashCommandsSection = (): string => {
       const hasBuiltIn = settings.slashCommands?.builtIn;
-      const hasUserDefined = settings.slashCommands?.userDefined && settings.slashCommands.userDefined.length > 0;
+      const hasCustom = settings.slashCommands?.custom && settings.slashCommands.custom.length > 0;
 
-      if (!hasBuiltIn && !hasUserDefined) {
+      if (!hasBuiltIn && !hasCustom) {
         // No slash commands configured - output commented template
         return `#slashCommands:
 #  # Built-in commands (Claude, Codex, Gemini, etc.)
@@ -304,8 +304,8 @@ class SettingsManager {
 #      - codex
 #      - gemini
 #
-#  # User-defined slash commands from markdown files
-#  userDefined:
+#  # Custom slash commands from markdown files
+#  custom:
 #    - name: "{basename}"
 #      description: "{frontmatter@description}"
 #      path: ~/.claude/commands
@@ -337,12 +337,12 @@ class SettingsManager {
   #    - claude`;
       }
 
-      // User-defined section
-      if (hasUserDefined) {
-        section += `\n  userDefined:${formatUserDefinedCommands(settings.slashCommands!.userDefined)}`;
+      // Custom section
+      if (hasCustom) {
+        section += `\n  custom:${formatCustomCommands(settings.slashCommands!.custom)}`;
       } else {
         section += `
-  #userDefined:
+  #custom:
   #  - name: "{basename}"
   #    description: "{frontmatter@description}"
   #    path: ~/.claude/commands
@@ -354,13 +354,13 @@ class SettingsManager {
 
     const slashCommandsSection = buildSlashCommandsSection();
 
-    // Build unified mentions section (fileSearch, symbolSearch, userDefined)
+    // Build unified mentions section (fileSearch, symbolSearch, mdSearch)
     const buildMentionsSection = (): string => {
       const fileSearch = getFileSearchSettings();
       const symbolSearch = getSymbolSearchSettings();
-      const userDefined = getUserDefinedMentions();
+      const mdSearchEntries = getMdSearchMentions();
 
-      const hasAnyMentionSettings = fileSearch || symbolSearch || (userDefined && userDefined.length > 0);
+      const hasAnyMentionSettings = fileSearch || symbolSearch || (mdSearchEntries && mdSearchEntries.length > 0);
 
       if (!hasAnyMentionSettings) {
         // No mentions configured - output commented template
@@ -384,8 +384,8 @@ class SettingsManager {
 #    #rgPaths:                        # Custom paths to rg
 #    #  - /opt/homebrew/bin/rg
 #
-#  # User-defined mentions from markdown files
-#  userDefined:
+#  # Markdown-based mentions from markdown files
+#  mdSearch:
 #    - name: "agent-{basename}"
 #      description: "{frontmatter@description}"
 #      path: ~/.claude/agents
@@ -460,15 +460,15 @@ class SettingsManager {
 `;
       }
 
-      // User-defined mentions subsection
-      if (userDefined && userDefined.length > 0) {
+      // Markdown-based mentions subsection
+      if (mdSearchEntries && mdSearchEntries.length > 0) {
         section += `
-  # User-defined mentions from markdown files
-  userDefined:${formatUserDefinedMentions(userDefined)}`;
+  # Markdown-based mentions from markdown files
+  mdSearch:${formatMdSearchMentions(mdSearchEntries)}`;
       } else {
         section += `
-  # User-defined mentions from markdown files
-  #userDefined:
+  # Markdown-based mentions from markdown files
+  #mdSearch:
   #  - name: "agent-{basename}"
   #    description: "{frontmatter@description}"
   #    path: ~/.claude/agents
@@ -536,8 +536,8 @@ ${slashCommandsSection}
 # ============================================================================
 # MENTION SETTINGS (@ mentions)
 # ============================================================================
-# Configure @ mention sources: fileSearch, symbolSearch, userDefined
-# Template variables for userDefined: {basename}, {frontmatter@fieldName}
+# Configure @ mention sources: fileSearch, symbolSearch, mdSearch
+# Template variables for mdSearch: {basename}, {frontmatter@fieldName}
 
 ${mentionsSection}
 `;
@@ -663,11 +663,11 @@ ${mentionsSection}
   }
 
   /**
-   * Get user-defined mentions for @ syntax
-   * Returns from mentions.userDefined (new structure)
+   * Get mdSearch mentions for @ syntax
+   * Returns from mentions.mdSearch (new structure)
    */
-  getUserDefinedMentions(): MentionEntry[] | undefined {
-    return this.currentSettings.mentions?.userDefined;
+  getMdSearchMentions(): MentionEntry[] | undefined {
+    return this.currentSettings.mentions?.mdSearch;
   }
 
   /**
@@ -691,9 +691,9 @@ ${mentionsSection}
     // Convert new format to legacy MdSearchEntry format
     const entries: MdSearchEntry[] = [];
 
-    // Convert userDefined slash commands
-    if (this.currentSettings.slashCommands?.userDefined) {
-      for (const cmd of this.currentSettings.slashCommands.userDefined) {
+    // Convert custom slash commands
+    if (this.currentSettings.slashCommands?.custom) {
+      for (const cmd of this.currentSettings.slashCommands.custom) {
         const entry: MdSearchEntry = {
           type: 'command',
           name: cmd.name,
@@ -709,10 +709,10 @@ ${mentionsSection}
       }
     }
 
-    // Convert userDefined mentions (from mentions.userDefined)
-    const userDefined = this.currentSettings.mentions?.userDefined;
-    if (userDefined) {
-      for (const mention of userDefined) {
+    // Convert mdSearch mentions (from mentions.mdSearch)
+    const mdSearchMentions = this.currentSettings.mentions?.mdSearch;
+    if (mdSearchMentions) {
+      for (const mention of mdSearchMentions) {
         const entry: MdSearchEntry = {
           type: 'mention',
           name: mention.name,

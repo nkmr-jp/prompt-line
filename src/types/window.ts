@@ -215,8 +215,8 @@ export interface MentionsSettings {
   fileSearch?: FileSearchUserSettings;
   /** Symbol search settings (@ts:Config, @go:Handler) */
   symbolSearch?: SymbolSearchUserSettings;
-  /** User-defined mentions from markdown files */
-  userDefined?: MentionEntry[];
+  /** Markdown-based mentions from markdown files */
+  mdSearch?: MentionEntry[];
 }
 
 // ============================================================================
@@ -234,8 +234,8 @@ export interface SlashCommandsSettings {
     /** List of tools to enable (e.g., ['claude', 'codex', 'gemini']) */
     tools?: string[];
   };
-  /** User-defined slash commands from markdown files */
-  userDefined?: SlashCommandEntry[];
+  /** Custom slash commands from markdown files */
+  custom?: SlashCommandEntry[];
 }
 
 /**
