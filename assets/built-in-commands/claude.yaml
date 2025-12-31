@@ -1,106 +1,133 @@
 # Claude Code built-in slash commands
-# These commands provide autocomplete suggestions for Claude Code CLI
 # Reference: https://code.claude.com/docs/en/slash-commands#built-in-slash-commands
 
 name: claude
 
 commands:
-  # Directory & Project Management
   - name: add-dir
     description: Add additional working directories
-  - name: init
-    description: Initialize project with CLAUDE.md guide
 
-  # Session Management
-  - name: clear
-    description: Clear conversation history
-  - name: compact
-    description: Compact conversation with optional focus instructions
-    argument-hint: "[instructions]"
-  - name: context
-    description: Visualize current context usage
-  - name: export
-    description: Export the current conversation to a file or clipboard
-    argument-hint: "[filename]"
-  - name: resume
-    description: Resume a conversation by ID or name
-    argument-hint: "[session]"
-  - name: rewind
-    description: Rewind the conversation and/or code
-
-  # AI Model & Agents
-  - name: model
-    description: Select or change the AI model
   - name: agents
     description: Manage custom AI subagents for specialized tasks
 
-  # Configuration & Settings
-  - name: config
-    description: Open the Settings interface
-  - name: permissions
-    description: View or update permissions
-  - name: hooks
-    description: Manage hook configurations for tool events
-  - name: memory
-    description: Edit CLAUDE.md memory files
-  - name: output-style
-    description: Set the output style
-    argument-hint: "[style]"
-
-  # Account Management
-  - name: login
-    description: Switch Anthropic accounts
-  - name: logout
-    description: Sign out from your Anthropic account
-  - name: status
-    description: Show version, model, account, and connectivity
-
-  # Usage & Cost
-  - name: cost
-    description: Show token usage statistics
-  - name: usage
-    description: Show plan usage limits and rate limit status
-
-  # Development Tools
-  - name: review
-    description: Request code review
-  - name: security-review
-    description: Complete a security review of pending changes
-  - name: todos
-    description: List current TODO items
-
-  # Integration & Automation
-  - name: ide
-    description: Manage IDE integrations and show status
-  - name: mcp
-    description: Manage MCP server connections and OAuth authentication
-  - name: plugin
-    description: Manage Claude Code plugins
-  - name: install-github-app
-    description: Set up Claude GitHub Actions for a repository
-  - name: pr-comments
-    description: View pull request comments
-
-  # Terminal & Environment
-  - name: terminal-setup
-    description: Install Shift+Enter key binding for newlines
-  - name: vim
-    description: Enter vim mode for insert and command modes
-  - name: sandbox
-    description: Enable sandboxed bash tool with isolation
   - name: bashes
     description: List and manage background tasks
 
-  # Diagnostics & System
-  - name: doctor
-    description: Check the health of your Claude Code installation
   - name: bug
     description: Report bugs (sends conversation to Anthropic)
+
+  - name: clear
+    description: Clear conversation history
+
+  - name: compact
+    description: Compact conversation with optional focus instructions
+    argument-hint: "[instructions]"
+
+  - name: config
+    description: Open the Settings interface (Config tab)
+
+  - name: context
+    description: Visualize current context usage as a colored grid
+
+  - name: cost
+    description: Show token usage statistics
+
+  - name: doctor
+    description: Checks the health of your Claude Code installation
+
+  - name: exit
+    description: Exit the REPL
+
+  - name: export
+    description: Export the current conversation to a file or clipboard
+    argument-hint: "[filename]"
+
+  - name: help
+    description: Get usage help
+
+  - name: hooks
+    description: Manage hook configurations for tool events
+
+  - name: ide
+    description: Manage IDE integrations and show status
+
+  - name: init
+    description: Initialize project with CLAUDE.md guide
+
+  - name: install-github-app
+    description: Set up Claude GitHub Actions for a repository
+
+  - name: login
+    description: Switch Anthropic accounts
+
+  - name: logout
+    description: Sign out from your Anthropic account
+
+  - name: mcp
+    description: Manage MCP server connections and OAuth authentication
+
+  - name: memory
+    description: Edit CLAUDE.md memory files
+
+  - name: model
+    description: Select or change the AI model
+
+  - name: output-style
+    description: Set the output style directly or from a selection menu
+    argument-hint: "[style]"
+
+  - name: permissions
+    description: View or update permissions
+
+  - name: plugin
+    description: Manage Claude Code plugins
+
+  - name: pr-comments
+    description: View pull request comments
+
+  - name: privacy-settings
+    description: View and update your privacy settings
+
   - name: release-notes
     description: View release notes
 
-  # Session Control
-  - name: help
-    description: Get usage help
-  - name: exit
-    description: Exit the REPL
+  - name: rename
+    description: Rename the current session for easier identification
+    argument-hint: "<name>"
+
+  - name: resume
+    description: Resume a conversation by ID or name, or open the session picker
+    argument-hint: "[session]"
+
+  - name: review
+    description: Request code review
+
+  - name: rewind
+    description: Rewind the conversation and/or code
+
+  - name: sandbox
+    description: Enable sandboxed bash tool with filesystem and network isolation for safer, more autonomous execution
+
+  - name: security-review
+    description: Complete a security review of pending changes on the current branch
+
+  - name: stats
+    description: Visualize daily usage, session history, streaks, and model preferences
+
+  - name: status
+    description: Open the Settings interface (Status tab) showing version, model, account, and connectivity
+
+  - name: statusline
+    description: Set up Claude Code's status line UI
+
+  - name: terminal-setup
+    description: Install Shift+Enter key binding for newlines (iTerm2 and VSCode only)
+
+  - name: todos
+    description: List current TODO items
+
+  - name: usage
+    description: For subscription plans only: show plan usage limits and rate limit status
+
+  - name: vim
+    description: Enter vim mode for alternating insert and command modes
