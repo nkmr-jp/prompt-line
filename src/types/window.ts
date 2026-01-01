@@ -156,7 +156,6 @@ export interface UserSettings {
   mdSearch?: MdSearchEntry[];
   // Legacy: Built-in commands configuration (use slashCommands.builtIn instead)
   builtInCommands?: {
-    enabled?: boolean;
     tools?: string[];
   };
 }
@@ -229,8 +228,6 @@ export interface MentionsSettings {
 export interface SlashCommandsSettings {
   /** Built-in commands configuration (Claude, Codex, Gemini, etc.) */
   builtIn?: {
-    /** Enable built-in commands loading (default: false) */
-    enabled?: boolean;
     /** List of tools to enable (e.g., ['claude', 'codex', 'gemini']) */
     tools?: string[];
   };

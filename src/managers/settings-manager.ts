@@ -298,7 +298,6 @@ class SettingsManager {
         return `#slashCommands:
 #  # Built-in commands (Claude, Codex, Gemini, etc.)
 #  builtIn:
-#    enabled: true                     # Enable built-in slash commands
 #    tools:                            # List of tools to enable
 #      - claude
 #      - codex
@@ -328,11 +327,9 @@ class SettingsManager {
     #  - gemini`;
 
         section += `  builtIn:
-    enabled: ${settings.slashCommands!.builtIn!.enabled ?? false}
     ${toolsSection}`;
       } else {
         section += `  #builtIn:
-  #  enabled: true
   #  tools:
   #    - claude`;
       }
@@ -727,7 +724,7 @@ ${mentionsSection}
    * Get built-in commands settings
    * Returns from slashCommands.builtIn (new) or builtInCommands (legacy)
    */
-  getBuiltInCommandsSettings(): { enabled?: boolean; tools?: string[] } | undefined {
+  getBuiltInCommandsSettings(): { tools?: string[] } | undefined {
     return this.currentSettings.slashCommands?.builtIn || this.currentSettings.builtInCommands;
   }
 

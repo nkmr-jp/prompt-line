@@ -25,9 +25,9 @@ interface BuiltInCommandsYaml {
 
 /**
  * Built-in commands settings
+ * If this object exists (builtIn section is uncommented), commands are enabled
  */
 interface BuiltInCommandsSettings {
-  enabled?: boolean;
   tools?: string[];
 }
 
@@ -167,11 +167,11 @@ class BuiltInCommandsLoader {
    * Search commands with optional query filter and settings
    * Returns commands whose name starts with the query (case-insensitive)
    * @param query - Search query (optional)
-   * @param settings - Built-in commands settings (optional)
+   * @param settings - Built-in commands settings (if undefined, commands are disabled)
    */
   searchCommands(query?: string, settings?: BuiltInCommandsSettings): SlashCommandItem[] {
-    // Check if built-in commands are enabled
-    if (settings && !settings.enabled) {
+    // If settings is undefined (builtIn section is commented out), commands are disabled
+    if (!settings) {
       return [];
     }
 
