@@ -152,7 +152,7 @@ npm run reset-accessibility
 @を入力するとファイルを検索できます。<br>
 ※ [fd](https://github.com/sharkdp/fd)コマンドのインストールが必要です。( `brew install fd` )<br>
 ※ `~/.prompt-line/settings.yml` で `fileSearch`の項目を設定する必要があります。 「⚙️ 設定」の項目参照<br>
-※ 対応アプリ: Terminal.app, iTerm2, JetBrains IDE（IntelliJ, WebStormなど）, VSCode, Cursor, Windsurf
+※ 対応アプリ: Terminal.app, iTerm2, Ghostty, JetBrains IDE（IntelliJ, WebStormなど）, VSCode, Cursor, Windsurf, Antigravity, Kiro
 
 ![doc10.png](assets/doc10.png)
 
@@ -243,22 +243,22 @@ fileOpener:
 # Configure slash commands: built-in AI tool commands and custom markdown commands
 
 slashCommands:
-  # Built-in commands for AI coding assistants (comment out to disable)
+  # Built-in commands for AI coding assistants
   builtIn:
-    #tools:                           # List of tools to enable (all available when omitted)
-    #  - claude                       # Claude Code commands
+    tools:                           # List of tools to enable
+      - claude                       # Claude Code commands
     #  - codex                        # OpenAI Codex commands
     #  - gemini                       # Google Gemini commands
 
   # Custom slash commands from markdown files
-  #custom:
-  #  - name: "{basename}"
-  #    description: "{frontmatter@description}"
-  #    path: ~/.claude/commands
-  #    pattern: "*.md"
-  #    argumentHint: "{frontmatter@argument-hint}"  # Optional hint after selection
-  #    maxSuggestions: 20              # Max number of suggestions (default: 20)
-  #    sortOrder: asc                  # Sort order: 'asc' (A→Z) or 'desc' (Z→A)
+  custom:
+    - name: "{basename}"
+      description: "{frontmatter@description}"
+      path: ~/.claude/commands
+      pattern: "*.md"
+      argumentHint: "{frontmatter@argument-hint}"  # Optional hint after selection
+      maxSuggestions: 20              # Max number of suggestions (default: 20)
+      sortOrder: asc                  # Sort order: 'asc' (A→Z) or 'desc' (Z→A)
 
 # ============================================================================
 # MENTIONS SETTINGS (@ mentions)
@@ -269,14 +269,18 @@ slashCommands:
 
 mentions:
   # File search settings (@path/to/file completion)
-  #fileSearch:
-  #  respectGitignore: true           # Respect .gitignore files
-  #  includeHidden: true              # Include hidden files (starting with .)
-  #  maxFiles: 5000                   # Maximum files to return
-  #  maxDepth: null                   # Directory depth limit (null = unlimited)
-  #  maxSuggestions: 50               # Maximum suggestions to show
-  #  followSymlinks: false            # Follow symbolic links
-  #  #fdPath: null                    # Custom path to fd command
+  # ※ Supported applications:
+  #   Terminal.app, iTerm2, Ghostty,
+  #   JetBrains IDEs (IntelliJ, WebStorm, etc.), VSCode, Cursor, Windsurf,
+  #   Antigravity, Kiro
+  fileSearch:
+    respectGitignore: true           # Respect .gitignore files
+    includeHidden: true              # Include hidden files (starting with .)
+    maxFiles: 5000                   # Maximum files to return
+    maxDepth: null                   # Directory depth limit (null = unlimited)
+    maxSuggestions: 50               # Maximum suggestions to show
+    followSymlinks: false            # Follow symbolic links
+    #fdPath: null                    # Custom path to fd command
 
   # Symbol search settings (@ts:Config, @go:Handler)
   symbolSearch:
@@ -293,15 +297,21 @@ mentions:
   #   "**/commands/*.md"      - Any "commands" subdirectory
   #   "**/*/SKILL.md"         - SKILL.md in any subdirectory
   #   "**/{cmd,agent}/*.md"   - Brace expansion (cmd or agent dirs)
-  #mdSearch:
-  #  - name: "agent-{basename}"
-  #    description: "{frontmatter@description}"
-  #    path: ~/.claude/agents
-  #    pattern: "*.md"
-  #    searchPrefix: agent             # Search with @agent:
-  #    maxSuggestions: 20
-  #    sortOrder: asc                  # Sort order: 'asc' (A→Z) or 'desc' (Z→A)
-  #
+  mdSearch:
+    - name: "agent-{basename}"
+      description: "{frontmatter@description}"
+      path: ~/.claude/agents
+      pattern: "*.md"
+      searchPrefix: agent             # Search with @agent:
+      maxSuggestions: 20
+      sortOrder: asc                  # Sort order: 'asc' (A→Z) or 'desc' (Z→A)
+
+    - name: "{frontmatter@name}"
+      description: "{frontmatter@description}"
+      path: ~/.claude/plugins
+      pattern: "**/*/SKILL.md"
+      searchPrefix: skill            # Search with @skill:
+
   #  - name: "{frontmatter@name}"
   #    description: "{frontmatter@description}"
   #    path: ~/.claude/plugins
