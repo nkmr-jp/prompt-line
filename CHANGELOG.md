@@ -1,3 +1,19 @@
+## [0.14.2](https://github.com/nkmr-jp/prompt-line/compare/v0.14.1...v0.14.2) (2026-01-01)
+
+### Bug Fixes
+
+* **slash-command-manager:** refactor DOM construction to match list view order ([e04773b](https://github.com/nkmr-jp/prompt-line/commit/e04773b2da88b58b94c1e353355f1769b0c7a024))
+
+### Code Refactoring
+
+* **settings:** streamline settings structure and expand slash commands & mentions features ([32070b3](https://github.com/nkmr-jp/prompt-line/commit/32070b389354842997276057f0fd984fa6f9bd5a))
+
+### Maintenance
+
+* **deps:** bump qs in the npm_and_yarn group across 1 directory ([4797b7c](https://github.com/nkmr-jp/prompt-line/commit/4797b7c623494ec64324deb2ae3dad35bd62b053))
+* **package-lock:** remove and re-add "peer" fields for dependencies ([33d213a](https://github.com/nkmr-jp/prompt-line/commit/33d213a9529e79dd9a590237ab27b13d99cce98b))
+* **release:** 0.14.0 [skip ci] ([dd1f052](https://github.com/nkmr-jp/prompt-line/commit/dd1f052621fe69cff9de690439c1ec8b0bff9444))
+
 ## [0.14.1](https://github.com/nkmr-jp/prompt-line/compare/v0.14.0...v0.14.1) (2026-01-01)
 
 ### Maintenance
