@@ -408,7 +408,16 @@ class SettingsManager {
 #      description: "{frontmatter@description}"
 #      path: ~/.claude/skills
 #      pattern: "**/*/SKILL.md"
-#      searchPrefix: "skill:"`;
+#      searchPrefix: "skill:"
+#
+#    - name: "{basename}"
+#      description: "{frontmatter@title}"
+#      path: /path/to/knowledge-base
+#      pattern: "**/*/*.md"
+#      maxSuggestions: 100
+#      searchPrefix: "kb:"
+#      sortOrder: desc
+#      inputFormat: path`;
       }
 
       let section = 'mentions:\n';
@@ -508,7 +517,16 @@ class SettingsManager {
   #    description: "{frontmatter@description}"
   #    path: ~/.claude/skills
   #    pattern: "**/*/SKILL.md"
-  #    searchPrefix: "skill:"`;
+  #    searchPrefix: "skill:"
+  #
+  #  - name: "{basename}"
+  #    description: "{frontmatter@title}"
+  #    path: /path/to/knowledge-base
+  #    pattern: "**/*/*.md"
+  #    maxSuggestions: 100
+  #    searchPrefix: "kb:"
+  #    sortOrder: desc
+  #    inputFormat: path`;
       }
 
       return section;
