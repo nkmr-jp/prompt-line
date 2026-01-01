@@ -7,7 +7,6 @@ import type { InputFormatType } from '../types';
 import type { IInitializable } from './interfaces/initializable';
 import { FrontmatterPopupManager } from './frontmatter-popup-manager';
 import { highlightMatch } from './utils/highlight-utils';
-import { escapeHtml } from './utils/html-utils';
 import { electronAPI } from './services/electron-api';
 
 interface SlashCommandItem {
@@ -462,18 +461,27 @@ export class SlashCommandManager implements IInitializable {
     // Use argumentHint if available, otherwise use description
     const hintText = command.argumentHint || command.description;
 
-    item.innerHTML = `
-      <span class="slash-command-name">/${escapeHtml(command.name)}</span>
-      ${hintText ? `<span class="slash-command-description">${escapeHtml(hintText)}</span>` : ''}
-    `;
+    // Create name element
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'slash-command-name';
+    nameSpan.textContent = `/${command.name}`;
+    item.appendChild(nameSpan);
 
-    // Add source badge if displayName is available
+    // Add source badge if displayName is available (same order as list view)
     if (command.displayName) {
       const sourceBadge = document.createElement('span');
       sourceBadge.className = 'slash-command-source';
       sourceBadge.dataset.source = command.source || command.displayName;
       sourceBadge.textContent = command.displayName;
       item.appendChild(sourceBadge);
+    }
+
+    // Create description element
+    if (hintText) {
+      const descSpan = document.createElement('span');
+      descSpan.className = 'slash-command-description';
+      descSpan.textContent = hintText;
+      item.appendChild(descSpan);
     }
 
     this.suggestionsContainer.appendChild(item);
