@@ -16,16 +16,10 @@ import { DraftManagerClient } from './draft-manager-client';
 import { HistoryUIManager } from './history-ui-manager';
 import { LifecycleManager } from './lifecycle-manager';
 import { SimpleSnapshotManager } from './snapshot-manager';
-import { FileSearchManager } from './file-search-manager';
+import { MentionManager } from './mention-manager';
 import { DirectoryDataHandler } from './directory-data-handler';
 import { rendererLogger } from './utils/logger';
-
-// Secure electronAPI access via preload script
-const electronAPI = (window as any).electronAPI;
-
-if (!electronAPI) {
-  throw new Error('Electron API not available. Preload script may not be loaded correctly.');
-}
+import { electronAPI } from './services/electron-api';
 
 // Default display limit for history items
 const DEFAULT_DISPLAY_LIMIT = 50;
@@ -41,7 +35,7 @@ export class PromptLineRenderer {
   private eventHandler: EventHandler | null = null;
   private searchManager: HistorySearchManager | null = null;
   private slashCommandManager: SlashCommandManager | null = null;
-  private fileSearchManager: FileSearchManager | null = null;
+  private fileSearchManager: MentionManager | null = null;
   private directoryDataHandler: DirectoryDataHandler;
   private domManager: DomManager;
   private draftManager: DraftManagerClient;
@@ -55,7 +49,11 @@ export class PromptLineRenderer {
 
   constructor() {
     this.domManager = new DomManager();
-    this.draftManager = new DraftManagerClient(electronAPI, () => this.domManager.getCurrentText());
+    this.draftManager = new DraftManagerClient(
+      electronAPI,
+      () => this.domManager.getCurrentText(),
+      () => this.domManager.getScrollTop()
+    );
     this.snapshotManager = new SimpleSnapshotManager();
     this.historyUIManager = new HistoryUIManager(
       () => this.domManager.historyList,
@@ -82,12 +80,13 @@ export class PromptLineRenderer {
       (text: string) => this.domManager.setText(text),
       () => this.domManager.focusTextarea(),
       (position: number) => this.domManager.setCursorPosition(position),
-      () => this.domManager.selectAll()
+      () => this.domManager.selectAll(),
+      (scrollTop: number) => this.domManager.setScrollTop(scrollTop)
     );
     this.directoryDataHandler = new DirectoryDataHandler({
       updateHintText: (text: string) => this.domManager.updateHintText(text),
       setDraggable: (enabled: boolean) => this.domManager.setDraggable(enabled),
-      getFileSearchManager: () => this.fileSearchManager,
+      getMentionManager: () => this.fileSearchManager,
       handleLifecycleWindowShown: (data) => this.lifecycleManager.handleWindowShown(data),
       exitSearchMode: () => this.searchManager?.exitSearchMode(),
       resetHistoryScrollPosition: () => this.resetHistoryScrollPosition(),
@@ -110,8 +109,8 @@ export class PromptLineRenderer {
       this.setupEventHandler();
       this.setupSearchManager();
       this.setupSlashCommandManager();
-      this.setupFileSearchManager();
-      // Code search is now integrated into FileSearchManager
+      this.setupMentionManager();
+      // Code search is now integrated into MentionManager
       // await this.setupCodeSearchManager();
       this.setupEventListeners();
       // Note: setupIPCListeners() is now called in constructor to prevent race condition
@@ -200,11 +199,10 @@ export class PromptLineRenderer {
     this.slashCommandManager.loadCommands();
   }
 
-  private setupFileSearchManager(): void {
-    this.fileSearchManager = new FileSearchManager({
-      onFileSelected: (filePath: string) => {
-        console.debug('[FileSearchManager] File selected:', filePath);
-        // File path is already inserted by FileSearchManager
+  private setupMentionManager(): void {
+    this.fileSearchManager = new MentionManager({
+      onFileSelected: (_filePath: string) => {
+        // File path is already inserted by MentionManager
         this.draftManager.saveDraftDebounced();
       },
       getTextContent: () => this.domManager.getCurrentText(),
@@ -234,9 +232,9 @@ export class PromptLineRenderer {
     this.fileSearchManager.initializeElements();
     this.fileSearchManager.setupEventListeners();
 
-    // Set FileSearchManager reference in EventHandler
+    // Set MentionManager reference in EventHandler
     if (this.eventHandler) {
-      this.eventHandler.setFileSearchManager(this.fileSearchManager);
+      this.eventHandler.setMentionManager(this.fileSearchManager);
     }
   }
 
@@ -321,7 +319,7 @@ export class PromptLineRenderer {
         // Let default paste happen first, then check if we need to handle image
         setTimeout(async () => {
           try {
-            const result = await electronAPI.invoke('paste-image') as ImageResult;
+            const result = (await electronAPI.invoke('paste-image')) as unknown as ImageResult;
             if (result.success && result.path) {
               // Image paste successful - remove any text that was pasted and insert image path
               this.domManager.setText(textBeforePaste);

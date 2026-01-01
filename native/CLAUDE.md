@@ -153,34 +153,90 @@ keyboard-simulator activate-and-paste-bundle "com.apple.Terminal"  # Combined op
 Native tool for detecting focused text fields using macOS Accessibility APIs:
 
 **Core Functionality:**
+```swift
+class TextFieldDetector {
+    static func getActiveTextFieldBounds() -> [String: Any]
+    static func getFocusedContainerBounds(from element: AXUIElement, ...) -> [String: Any]?
+    static func getElementBounds(from element: AXUIElement) -> CGRect?
+    static func checkAccessibilityPermission() -> [String: Any]
+    static func getFocusedElementInfo() -> [String: Any]
+}
+```
+
+**Features:**
 - Detects the currently focused text field in any application
 - Returns position and size of the focused element
 - Used for `active-text-field` window positioning mode
-- Falls back gracefully when no text field is focused
+- **Container Detection for Terminal Apps**: When text field is not found (e.g., Ghostty), traverses parent hierarchy to find suitable container bounds
+- Supports multiple detection methods: `text_field`, `focused_element`, `parent_container`
+
+**Detection Strategy:**
+1. First, check if focused element is a standard text field (`AXTextField`, `AXTextArea`, `AXSecureTextField`, `AXComboBox`)
+2. If not a text field, try to get bounds from the focused element itself (if it has reasonable size > 50x50)
+3. If that fails, traverse parent hierarchy looking for containers (`AXScrollArea`, `AXGroup`, `AXSplitGroup`, `AXLayoutArea`)
+4. Stop at window level (`AXWindow`) to prevent using entire window bounds
 
 **Command-Line Interface:**
 ```bash
-text-field-detector detect   # Detect focused text field position
+text-field-detector text-field-bounds  # Detect focused text field/container position
+text-field-detector check-permission   # Check accessibility permission status
+text-field-detector focused-element    # Get information about focused element
 ```
 
 **JSON Response Format:**
 ```json
-// Success Response
+// Standard Text Field Response
 {
   "success": true,
   "x": 100,
   "y": 200,
   "width": 300,
   "height": 24,
-  "appName": "Terminal",
-  "bundleId": "com.apple.Terminal"
+  "role": "AXTextArea",
+  "appName": "iTerm2",
+  "bundleId": "com.googlecode.iterm2"
+}
+
+// Container Detection Response (for Ghostty, etc.)
+{
+  "success": true,
+  "x": 100,
+  "y": 200,
+  "width": 500,
+  "height": 400,
+  "role": "AXGroup",
+  "originalRole": "AXUnknown",
+  "appName": "Ghostty",
+  "bundleId": "com.mitchellh.ghostty",
+  "detectionMethod": "parent_container",
+  "traversalDepth": 2
+}
+
+// Focused Element Response (when element has bounds)
+{
+  "success": true,
+  "x": 100,
+  "y": 200,
+  "width": 500,
+  "height": 400,
+  "role": "AXGroup",
+  "appName": "Ghostty",
+  "bundleId": "com.mitchellh.ghostty",
+  "detectionMethod": "focused_element"
 }
 
 // Error Response
 {
-  "error": "No focused text field found"
+  "error": "not_text_field",
+  "role": "AXUnknown"
 }
 ```
+
+**Supported Terminal Detection:**
+- **iTerm2**: Exposes `AXTextArea` for terminal input (standard detection)
+- **Terminal.app**: Exposes `AXTextArea` for terminal input (standard detection)
+- **Ghostty**: Uses container detection via parent hierarchy traversal
+- **Other terminals**: Falls back to container detection when text field not exposed
 
 ### directory-detector.swift
 Native tool for terminal/IDE directory detection and file search:
@@ -197,10 +253,13 @@ class DirectoryDetector {
 **Supported Applications:**
 - **Terminal.app** (`com.apple.Terminal`) - Uses AppleScript to get TTY, then libproc for CWD
 - **iTerm2** (`com.googlecode.iterm2`) - Uses AppleScript to get TTY, then libproc for CWD
+- **Ghostty** (`com.mitchellh.ghostty`) - Uses process tree traversal to find shell CWD
 - **JetBrains IDEs** (`com.jetbrains.*`) - IntelliJ IDEA, WebStorm, PyCharm, etc. Uses window title parsing and shell process detection
 - **VSCode** (`com.microsoft.VSCode`, `com.microsoft.VSCodeInsiders`, `com.vscodium.VSCodium`) - Uses pty-host process tree traversal
 - **Cursor** (`com.todesktop.230313mzl4w4u92`) - Uses Electron pty-host detection
 - **Windsurf** (`com.exafunction.windsurf`) - Uses Electron pty-host detection
+- **Antigravity** (`com.google.antigravity`) - Google IDE, uses tmux-based terminal detection
+- **Kiro** (`dev.kiro.desktop`) - AWS IDE, uses Electron pty-host detection
 
 **CWD Detection:**
 - Uses libproc `proc_pidinfo()` for 10-50x faster CWD detection compared to `lsof`
@@ -349,6 +408,7 @@ Native tool for code symbol search across 20+ programming languages using ripgre
 - `symbol-searcher/Types.swift` - Type definitions for symbols and languages
 - `symbol-searcher/SymbolPatterns.swift` - Language-specific regex patterns for symbol detection
 - `symbol-searcher/RipgrepExecutor.swift` - ripgrep command execution and result parsing
+- `symbol-searcher/CacheManager.swift` - Symbol cache management for fast searches
 
 **Core Functionality:**
 ```swift
@@ -360,6 +420,7 @@ class SymbolSearcher {
 ```
 
 **Supported Languages (20+):**
+
 | Language | Key | Symbol Types |
 |----------|-----|--------------|
 | Go | `go` | function, method, struct, interface, type, constant, variable |
@@ -385,14 +446,33 @@ class SymbolSearcher {
 
 **Command-Line Interface:**
 ```bash
+# Basic Commands
 symbol-searcher check-rg                           # Check if ripgrep is available
 symbol-searcher list-languages                     # List all supported languages
 symbol-searcher search <directory> --language <lang> [options]  # Search symbols
 
-# Options:
+# Cache Commands
+symbol-searcher build-cache <directory> --language <lang> [options]  # Build symbol cache
+symbol-searcher cache-info <directory> [--language <lang>]           # Show cache information
+symbol-searcher clear-cache <directory> (--language <lang> | --all)  # Clear cache
+
+# Search Options:
+#   --language, -l <lang>  Language to search (e.g., go, ts, py, rs)
 #   --max-symbols <n>      Maximum symbols to return (default: 20000)
-#   --include-hidden       Include hidden files in search
+#   --no-cache             Skip cache and perform full search
+
+# Cache Options:
+#   --language, -l <lang>  Language for cache operation
+#   --ttl <seconds>        Cache TTL in seconds (default: 86400 = 24 hours)
+#   --all                  Clear all language caches for a directory
 ```
+
+**Cache Storage:**
+- Cache is stored in `~/.prompt-line/cache/projects/<encoded-path>/`
+- Path encoding: `/Users/nkmr/project` → `-Users-nkmr-project`
+- Files per language:
+  - `<lang>-metadata.json` - Cache metadata (TTL, symbol count, timestamps)
+  - `symbols-<lang>.jsonl` - Symbol data in JSONL format
 
 **JSON Response Format:**
 ```json
@@ -436,6 +516,63 @@ symbol-searcher search <directory> --language <lang> [options]  # Search symbols
 
 **Dependencies:**
 - Requires `ripgrep` (`rg`) command: `brew install ripgrep`
+
+**Manual Cache Building (CLI Indexing):**
+
+For large codebases, you can pre-build the symbol cache to speed up subsequent searches:
+
+```bash
+# Build cache for a specific language
+symbol-searcher build-cache /path/to/project -l go
+symbol-searcher build-cache /path/to/project -l ts
+
+# Build cache with custom TTL (1 hour = 3600 seconds)
+symbol-searcher build-cache /path/to/project -l go --ttl 3600
+
+# Build cache with limited symbols
+symbol-searcher build-cache /path/to/project -l go --max-symbols 10000
+
+# Check cache status
+symbol-searcher cache-info /path/to/project
+symbol-searcher cache-info /path/to/project -l go
+
+# Clear cache when needed
+symbol-searcher clear-cache /path/to/project -l go   # Clear specific language
+symbol-searcher clear-cache /path/to/project --all   # Clear all languages
+```
+
+**Benchmark Testing:**
+
+To measure symbol search performance on large codebases:
+
+```bash
+# Benchmark Setup
+cd native
+make install   # Build the tool
+
+# 1. Baseline measurement (no cache)
+time symbol-searcher search /path/to/large-project -l go --no-cache
+
+# 2. Build cache and measure time
+time symbol-searcher build-cache /path/to/large-project -l go
+
+# 3. Measure cached search performance
+time symbol-searcher search /path/to/large-project -l go
+```
+
+**Benchmark Results (Kubernetes - 16,549 Go files):**
+
+| Operation | Time | Notes |
+|-----------|------|-------|
+| Full search (no cache) | ~28-32 sec | With var/const block detection |
+| Cache build | ~11-22 sec | First-time indexing |
+| Cached search | **0.08 sec** | 126x improvement |
+
+**Performance Tuning Tips:**
+1. **Pre-build cache** for large repositories during development setup
+2. **Use `--max-symbols`** to limit results for faster searches
+3. **Adjust TTL** based on code change frequency (`--ttl 3600` for active development)
+4. **Clear cache** after major refactoring to ensure accurate results
 
 ## Architecture Integration
 
@@ -608,6 +745,14 @@ npm run compile  # Builds TypeScript + native tools + copies to dist/
 ../src/native-tools/symbol-searcher list-languages
 ../src/native-tools/symbol-searcher search /path/to/project --language go
 ../src/native-tools/symbol-searcher search /path/to/project --language ts --max-symbols 1000
+../src/native-tools/symbol-searcher search /path/to/project -l go --no-cache
+
+# Test symbol-searcher cache commands
+../src/native-tools/symbol-searcher build-cache /path/to/project -l go
+../src/native-tools/symbol-searcher cache-info /path/to/project
+../src/native-tools/symbol-searcher cache-info /path/to/project -l go
+../src/native-tools/symbol-searcher clear-cache /path/to/project -l go
+../src/native-tools/symbol-searcher clear-cache /path/to/project --all
 ```
 
 ### Debugging

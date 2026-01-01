@@ -32,7 +32,6 @@ class FileCacheManager {
     try {
       // Set restrictive directory permissions (owner read/write/execute only)
       await fs.mkdir(this.cacheDir, { recursive: true, mode: 0o700 });
-      logger.debug('File cache manager initialized');
     } catch (error) {
       logger.error('Failed to initialize file cache manager:', error);
       throw error;
@@ -71,7 +70,6 @@ class FileCacheManager {
         await fs.access(metadataPath);
         await fs.access(filesPath);
       } catch {
-        logger.debug('Cache not found for directory:', directory);
         return null;
       }
 
@@ -82,8 +80,6 @@ class FileCacheManager {
       // Read files from JSONL
       const entries = await this.readJsonlFile(filesPath);
       const files = entries.map(entry => this.cacheEntryToFileInfo(entry));
-
-      logger.debug(`Loaded cache for directory: ${directory} (${files.length} files)`);
 
       return {
         directory,
@@ -140,8 +136,6 @@ class FileCacheManager {
 
       // Update global metadata
       await this.setLastUsedDirectory(directory);
-
-      logger.debug(`Saved cache for directory: ${directory} (${files.length} files)`);
     } catch (error) {
       logger.error('Failed to save cache:', error);
       // Don't throw - cache save failure shouldn't break file search
@@ -157,7 +151,6 @@ class FileCacheManager {
   isCacheValid(metadata: FileCacheMetadata, ttlSeconds?: number): boolean {
     // Invalidate cache if fileCount is 0 (indicates failed indexing)
     if (metadata.fileCount === 0) {
-      logger.debug('Cache invalid: fileCount is 0 (will re-index)');
       return false;
     }
 
@@ -165,11 +158,8 @@ class FileCacheManager {
     const updatedAt = new Date(metadata.updatedAt).getTime();
     const now = Date.now();
     const ageMs = now - updatedAt;
-    const isValid = ageMs < ttl * 1000;
 
-    logger.debug(`Cache validity check: age=${ageMs}ms, ttl=${ttl}s, valid=${isValid}, fileCount=${metadata.fileCount}`);
-
-    return isValid;
+    return ageMs < ttl * 1000;
   }
 
   /**
@@ -190,8 +180,6 @@ class FileCacheManager {
 
       // Write back with restrictive file permissions (owner read/write only)
       await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), { mode: 0o600 });
-
-      logger.debug(`Updated cache timestamp for directory: ${directory}`);
     } catch (error) {
       logger.error('Failed to update cache timestamp:', error);
       // Don't throw - timestamp update failure shouldn't break operations
@@ -208,7 +196,6 @@ class FileCacheManager {
       return metadata.lastUsedDirectory;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        logger.debug('Global metadata not found');
         return null;
       }
       logger.error('Failed to read global metadata:', error);
@@ -265,8 +252,6 @@ class FileCacheManager {
         this.globalMetadataPath,
         JSON.stringify(metadata, null, 2)
       );
-
-      logger.debug(`Updated global metadata with directory: ${directory}`);
     } catch (error) {
       logger.error('Failed to update global metadata:', error);
       // Don't throw - metadata update failure shouldn't break operations
@@ -409,7 +394,6 @@ class FileCacheManager {
             const cachePath = path.join(this.cacheDir, entry.name);
             await fs.rm(cachePath, { recursive: true, force: true });
             removedCount++;
-            logger.debug(`Removed old cache: ${metadata.directory}`);
           }
         } catch {
           // Skip invalid cache entries

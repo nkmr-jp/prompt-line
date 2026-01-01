@@ -96,6 +96,9 @@ jest.mock('../../src/config/app-config', () => ({
         version: '1.0.0',
         description: 'Test app'
     },
+    paths: {
+        builtInCommandsDir: '/test/.prompt-line/built-in-commands'
+    },
     shortcuts: { main: 'Cmd+Shift+Space' },
     history: { maxItems: 50 },
     draft: { saveDelay: 500 },
@@ -166,7 +169,6 @@ describe('IPCHandlers', () => {
             expect(ipcMain.handle).toHaveBeenCalledWith('clear-history', expect.any(Function));
             expect(ipcMain.handle).toHaveBeenCalledWith('save-draft', expect.any(Function));
             expect(ipcMain.handle).toHaveBeenCalledWith('hide-window', expect.any(Function));
-            expect(logger.info).toHaveBeenCalledWith('All IPC handlers set up successfully via coordinator');
         });
     });
 
@@ -390,10 +392,10 @@ describe('IPCHandlers', () => {
             const handler = getHandler('save-draft');
             expect(handler).not.toBeNull();
 
-            const result = await handler!(null, 'test draft', false);
+            const result = await handler!(null, 'test draft', 0, false);
 
             expect(result.success).toBe(true);
-            expect(mockDraftManager.saveDraft).toHaveBeenCalledWith('test draft');
+            expect(mockDraftManager.saveDraft).toHaveBeenCalledWith('test draft', 0);
             expect(mockDraftManager.saveDraftImmediately).not.toHaveBeenCalled();
         });
 
@@ -401,10 +403,10 @@ describe('IPCHandlers', () => {
             const handler = getHandler('save-draft');
             expect(handler).not.toBeNull();
 
-            const result = await handler!(null, 'test draft', true);
+            const result = await handler!(null, 'test draft', 100, true);
 
             expect(result.success).toBe(true);
-            expect(mockDraftManager.saveDraftImmediately).toHaveBeenCalledWith('test draft');
+            expect(mockDraftManager.saveDraftImmediately).toHaveBeenCalledWith('test draft', 100);
             expect(mockDraftManager.saveDraft).not.toHaveBeenCalled();
         });
 
@@ -623,10 +625,10 @@ describe('IPCHandlers', () => {
 
             ipcHandlers.removeAllHandlers();
 
-            // Should be called for each handler (count: 31 handlers)
+            // Should be called for each handler (count: 32 handlers)
             // paste-handler: 2, window-handler: 3, history-draft-handler: 13 (includes 2 at-path cache handlers)
-            // system-handler: 4, file-handler: 3, mdsearch-handler: 6
-            expect(ipcMain.removeAllListeners).toHaveBeenCalledTimes(31);
+            // system-handler: 5, file-handler: 3, mdsearch-handler: 6
+            expect(ipcMain.removeAllListeners).toHaveBeenCalledTimes(32);
             expect(logger.info).toHaveBeenCalledWith('All IPC handlers removed via coordinator');
         });
     });

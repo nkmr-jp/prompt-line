@@ -19,7 +19,6 @@ export type {
   FileInfo,
   DirectoryInfo,
   FileSearchSettings,
-  DirectoryData,
   FileCacheMetadata,
   CachedDirectoryData,
   CachedFileEntry,
@@ -27,6 +26,11 @@ export type {
   FileCacheStats,
   InputFormatType,
 } from './file-search';
+
+// Mention-related types from renderer
+export type {
+  DirectoryData,
+} from '../renderer/mentions';
 
 // Window and application domain types
 export type {
@@ -44,6 +48,15 @@ export type {
   LoggingConfig,
   LogLevel,
   UserSettings,
+  // Mention settings types (@ mentions)
+  FileSearchUserSettings,
+  SymbolSearchUserSettings,
+  MentionsSettings,
+  MentionEntry,
+  // Slash command settings types
+  SlashCommandsSettings,
+  SlashCommandEntry,
+  // Legacy types (for backward compatibility)
   MdSearchType,
   MdSearchEntry,
   MdSearchItem,
@@ -70,6 +83,17 @@ export type {
   IPCEventCallback,
   ElectronAPI,
 } from './ipc';
+
+// Handler types
+export type {
+  HandlerStats,
+} from './handlers';
+
+// Manager types
+export type {
+  CacheStatus,
+  CacheMetadata,
+} from './managers';
 
 // Utility types
 export interface DebounceFunction<T extends unknown[]> {

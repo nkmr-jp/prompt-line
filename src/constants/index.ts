@@ -14,7 +14,14 @@ export const TIMEOUTS = {
   ACCESSIBILITY_CHECK_TIMEOUT: 3000,
   WINDOW_BOUNDS_TIMEOUT: 3000,
   ACTIVATE_PASTE_TIMEOUT: 3000,
-  MINIMUM_WINDOW_HIDE_DELAY: 5
+  MINIMUM_WINDOW_HIDE_DELAY: 5,
+  // Background detection and native tools
+  BACKGROUND_DETECTION: 5000,
+  NATIVE_TOOL_EXECUTION: 3000,
+  TEXT_FIELD_DETECTION: 3000,
+  SYMBOL_SEARCH: 5000,
+  SHORT_OPERATION: 1000,
+  DESKTOP_SPACE_DETECTION: 5000
 } as const;
 
 // Delay constants for various operations
@@ -22,11 +29,28 @@ export const DELAYS = {
   DEFAULT_DRAFT_SAVE: 500
 } as const;
 
+// Debounce timing constants for text input (in milliseconds)
+export const DEBOUNCE = {
+  SHORT_TEXT: 500,
+  LONG_TEXT: 1000,
+  TEXT_LENGTH_THRESHOLD: 200
+} as const;
+
 // Size and limit constants
 export const LIMITS = {
   MAX_VISIBLE_ITEMS: 50,
   MAX_SEARCH_ITEMS: 5000,
   MAX_CACHE_ITEMS: 200,
+  MAX_FILES: 5000,
+  MAX_BACKUP_AGE: 7 * 24 * 60 * 60 * 1000,
+  MAX_ERROR_LOG_LENGTH: 500
+} as const;
+
+// Cache TTL (Time To Live) constants (in milliseconds)
+export const CACHE_TTL = {
+  MD_SEARCH: 5000,
+  SYMBOL_MEMORY: 5 * 60 * 1000,
+  DESKTOP_SPACE: 2000
 } as const;
 
 // UI timing constants
@@ -70,7 +94,9 @@ export const TIME_CALCULATIONS = {
 export const CONSTANTS = {
   TIMEOUTS,
   DELAYS,
+  DEBOUNCE,
   LIMITS,
+  CACHE_TTL,
   UI_TIMING,
   SUGGESTIONS,
   VALIDATION,

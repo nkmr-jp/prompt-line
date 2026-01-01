@@ -13,6 +13,11 @@ export const DEFAULT_SORT_ORDER: 'asc' | 'desc' = 'asc';
 
 export function getDefaultMdSearchConfig(): MdSearchEntry[] {
   return [
+    // NOTE: Built-in commands (Claude Code, etc.) are loaded from YAML files
+    // via BuiltInCommandsLoader, not via mdSearch. This keeps them separate
+    // and allows YAML-based management.
+
+    // User's custom slash commands
     {
       name: '{basename}',
       type: 'command',
@@ -23,6 +28,7 @@ export function getDefaultMdSearchConfig(): MdSearchEntry[] {
       maxSuggestions: DEFAULT_MAX_SUGGESTIONS,
       sortOrder: DEFAULT_SORT_ORDER,
     },
+    // User's custom agents
     {
       name: 'agent-{basename}',
       type: 'mention',
@@ -31,7 +37,7 @@ export function getDefaultMdSearchConfig(): MdSearchEntry[] {
       pattern: '*.md',
       maxSuggestions: DEFAULT_MAX_SUGGESTIONS,
       sortOrder: DEFAULT_SORT_ORDER,
-      // searchPrefix: 'agent:', // Uncomment to require @agent: prefix for agent search
+      // searchPrefix: 'agent', // Uncomment to require @agent: prefix for agent search
     },
   ];
 }

@@ -35,8 +35,6 @@ class FileHandler {
     ipcMainInstance.handle('open-file-in-editor', this.handleOpenFileInEditor.bind(this));
     ipcMainInstance.handle('check-file-exists', this.handleCheckFileExists.bind(this));
     ipcMainInstance.handle('open-external-url', this.handleOpenExternalUrl.bind(this));
-
-    logger.info('File operation IPC handlers set up successfully');
   }
 
   /**
@@ -121,8 +119,6 @@ class FileHandler {
     filePath: string
   ): Promise<IPCResult> {
     try {
-      logger.info('Opening file in editor:', { filePath });
-
       // Validate input
       if (!filePath || typeof filePath !== 'string') {
         return { success: false, error: 'Invalid file path provided' };
@@ -132,23 +128,8 @@ class FileHandler {
       const parsedPath = this.parsePathWithLineInfo(filePath);
       const cleanPath = parsedPath.path;
 
-      logger.debug('Parsed file path:', {
-        original: filePath,
-        cleanPath,
-        lineNumber: parsedPath.lineNumber,
-        symbolName: parsedPath.symbolName
-      });
-
       // Expand and resolve path (without line number suffix)
       const normalizedPath = this.expandPath(cleanPath);
-
-      logger.debug('Resolved file path:', {
-        original: filePath,
-        cleanPath,
-        baseDir: this.directoryManager.getDirectory(),
-        resolved: normalizedPath,
-        lineNumber: parsedPath.lineNumber
-      });
 
       // File existence check (TOCTOU mitigation)
       try {
@@ -231,7 +212,6 @@ class FileHandler {
       // Open URL with system default browser
       await shell.openExternal(url);
 
-      logger.info('URL opened successfully in browser:', { url });
       return { success: true };
     } catch (error) {
       logger.error('Failed to open external URL:', error);

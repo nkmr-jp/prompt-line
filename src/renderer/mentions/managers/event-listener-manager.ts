@@ -69,7 +69,6 @@ export class EventListenerManager {
     if (this.boundSelectionChangeHandler) {
       document.removeEventListener('selectionchange', this.boundSelectionChangeHandler);
     }
-    console.debug('[EventListenerManager] Input listeners suspended');
   }
 
   /**
@@ -86,7 +85,6 @@ export class EventListenerManager {
     if (this.boundSelectionChangeHandler) {
       document.addEventListener('selectionchange', this.boundSelectionChangeHandler);
     }
-    console.debug('[EventListenerManager] Input listeners resumed');
   }
 
   /**
@@ -109,11 +107,8 @@ export class EventListenerManager {
       return;
     }
 
-    console.debug('[EventListenerManager] setupEventListeners: setting up event listeners');
-
     // Create bound input handler for add/remove listener support
     this.boundInputHandler = () => {
-      console.debug('[EventListenerManager] input event fired');
       this.callbacks.checkForFileSearch();
       this.callbacks.updateHighlightBackdrop();
       // Update cursor position highlight after input

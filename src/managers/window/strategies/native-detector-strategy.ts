@@ -3,6 +3,7 @@ import config from '../../../config/app-config';
 import { logger, DIRECTORY_DETECTOR_PATH, FILE_SEARCHER_PATH } from '../../../utils/utils';
 import type { DirectoryInfo, FileSearchSettings, AppInfo } from '../../../types';
 import type { IDirectoryDetectionStrategy } from './types';
+import { TIMEOUTS } from '../../../constants';
 
 /**
  * Native tool-based directory detection strategy
@@ -32,13 +33,8 @@ export class NativeDetectorStrategy implements IDirectoryDetectionStrategy {
       detectArgs.push('--bundleId', previousApp.bundleId);
     }
 
-    logger.debug('Directory detector command:', {
-      executable: DIRECTORY_DETECTOR_PATH,
-      args: detectArgs
-    });
-
     const detectOptions = {
-      timeout: Math.min(timeout, 3000), // Use shorter timeout for detection
+      timeout: Math.min(timeout, TIMEOUTS.NATIVE_TOOL_EXECUTION), // Use shorter timeout for detection
       killSignal: 'SIGTERM' as const
     };
 
@@ -56,38 +52,33 @@ export class NativeDetectorStrategy implements IDirectoryDetectionStrategy {
           const detectResult = JSON.parse(detectStdout?.trim() || '{}') as DirectoryInfo;
 
           if (detectResult.error) {
-            logger.debug('Directory detection returned error:', detectResult.error);
             resolve(detectResult); // Return result with error for logging
             return;
           }
 
           if (!detectResult.directory) {
-            logger.debug('No directory detected');
             resolve(null);
             return;
           }
-
-          logger.debug(`⏱️  Directory detection completed in ${detectElapsed.toFixed(2)}ms`, {
-            directory: detectResult.directory,
-            appName: detectResult.appName,
-            bundleId: detectResult.bundleId
-          });
 
           // Step 2: List files using file-searcher
           const listArgs: string[] = ['list', detectResult.directory];
 
           // Apply file search settings if available
           if (fileSearchSettings) {
+            logger.debug('Applying file search settings:', {
+              maxFiles: fileSearchSettings.maxFiles,
+              respectGitignore: fileSearchSettings.respectGitignore,
+              includeHidden: fileSearchSettings.includeHidden
+            });
             this.applyFileSearchSettings(listArgs, fileSearchSettings);
+            logger.debug('File searcher args:', listArgs.join(' '));
+          } else {
+            logger.debug('No file search settings provided, using defaults');
           }
 
-          logger.debug('File searcher command:', {
-            executable: FILE_SEARCHER_PATH,
-            args: listArgs
-          });
-
           // Calculate remaining timeout with minimum threshold
-          const remainingTimeout = Math.round(Math.max(timeout - detectElapsed, 1000));
+          const remainingTimeout = Math.round(Math.max(timeout - detectElapsed, TIMEOUTS.SHORT_OPERATION));
 
           const listOptions = {
             timeout: remainingTimeout,
@@ -95,29 +86,19 @@ export class NativeDetectorStrategy implements IDirectoryDetectionStrategy {
             maxBuffer: 50 * 1024 * 1024 // 50MB for large file lists
           };
 
-          logger.debug('Executing file searcher with timeout:', { remainingTimeout });
-
           try {
             execFile(FILE_SEARCHER_PATH, listArgs, listOptions, (listError: Error | null, listStdout?: string) => {
-              const totalElapsed = performance.now() - startTime;
-
               // Merge results
               const result: DirectoryInfo = {
                 ...detectResult
               };
 
               if (listError) {
-                logger.warn(`File listing failed after ${totalElapsed.toFixed(2)}ms:`, listError);
+                logger.warn(`File listing failed:`, listError);
                 result.filesError = listError.message;
               } else {
                 this.parseFileListResult(listStdout, result);
               }
-
-              logger.debug(`⏱️  Directory detection + file listing completed in ${totalElapsed.toFixed(2)}ms`, {
-                directory: result.directory,
-                fileCount: result.fileCount,
-                searchMode: result.searchMode
-              });
 
               resolve(result);
             });

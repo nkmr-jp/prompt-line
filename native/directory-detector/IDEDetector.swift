@@ -30,10 +30,20 @@ extension DirectoryDetector {
         return bundleId == "com.exafunction.windsurf"
     }
 
-    /// Check if bundle ID is an Electron-based IDE (VSCode, Cursor, Windsurf)
+    /// Check if bundle ID is Antigravity (Google IDE)
+    static func isAntigravity(_ bundleId: String) -> Bool {
+        return bundleId == "com.google.antigravity"
+    }
+
+    /// Check if bundle ID is Kiro (AWS IDE)
+    static func isKiro(_ bundleId: String) -> Bool {
+        return bundleId == "dev.kiro.desktop"
+    }
+
+    /// Check if bundle ID is an Electron-based IDE (VSCode, Cursor, Windsurf, Antigravity, Kiro)
     /// These IDEs have a different process hierarchy than JetBrains IDEs
     static func isElectronIDE(_ bundleId: String) -> Bool {
-        return isVSCode(bundleId) || isCursor(bundleId) || isWindsurf(bundleId)
+        return isVSCode(bundleId) || isCursor(bundleId) || isWindsurf(bundleId) || isAntigravity(bundleId) || isKiro(bundleId)
     }
 
     /// Check if the app is an IDE with integrated terminal

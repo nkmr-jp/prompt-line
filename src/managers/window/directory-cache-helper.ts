@@ -93,10 +93,8 @@ export class DirectoryCacheHelper {
         files,
         { searchMode: 'recursive' }
       );
-      logger.debug(`Cache updated for ${directory}, ${files.length} files`);
     } else {
       await this.fileCacheManager.updateCacheTimestamp(directory);
-      logger.debug(`Cache timestamp updated for ${directory}, no file changes`);
     }
 
     return hasChanges;
@@ -110,7 +108,6 @@ export class DirectoryCacheHelper {
 
     try {
       await this.fileCacheManager.clearCache(directory);
-      logger.debug(`Cleared cache for ${directory}`);
     } catch {
       // Cache may not exist, ignore errors
     }
@@ -138,7 +135,6 @@ export class DirectoryCacheHelper {
     // Skip cache operations for directories with file search disabled
     if (isFileSearchDisabled) {
       await this.clearCache(detectedDirectory);
-      logger.debug(`Skipping cache for ${detectedDirectory} (file search disabled)`);
       return false;
     }
 

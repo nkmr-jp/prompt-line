@@ -92,8 +92,6 @@ export class AtPathCacheManager {
       // Save
       const content = filtered.map(e => JSON.stringify(e)).join('\n');
       await fs.writeFile(this.getCacheFilePath(directory), content, 'utf8');
-
-      logger.debug('Added registered at-path', { directory, atPath, count: filtered.length });
     } catch (error) {
       logger.error('Error adding at-path:', error);
     }
@@ -131,7 +129,6 @@ export class AtPathCacheManager {
     try {
       const filePath = this.getCacheFilePath(directory);
       await fs.rm(filePath, { force: true });
-      logger.debug('Cleared at-path cache', { directory });
     } catch (error) {
       logger.warn('Error clearing at-path cache:', error);
     }
@@ -184,8 +181,6 @@ export class AtPathCacheManager {
       // Save
       const content = filtered.map(e => JSON.stringify(e)).join('\n');
       await fs.writeFile(this.getGlobalCacheFilePath(), content, 'utf8');
-
-      logger.debug('Added global at-path', { atPath, count: filtered.length });
     } catch (error) {
       logger.error('Error adding global at-path:', error);
     }
@@ -223,7 +218,6 @@ export class AtPathCacheManager {
     try {
       const filePath = this.getGlobalCacheFilePath();
       await fs.rm(filePath, { force: true });
-      logger.debug('Cleared global at-path cache');
     } catch (error) {
       logger.warn('Error clearing global at-path cache:', error);
     }

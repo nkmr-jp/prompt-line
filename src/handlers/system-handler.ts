@@ -1,3 +1,4 @@
+import path from 'path';
 import { IpcMainInvokeEvent, shell } from 'electron';
 import config from '../config/app-config';
 import { logger } from '../utils/utils';
@@ -42,13 +43,12 @@ class SystemHandler {
     ipcMain.handle('get-app-info', this.handleGetAppInfo.bind(this));
     ipcMain.handle('get-config', this.handleGetConfig.bind(this));
     ipcMain.handle('open-settings', this.handleOpenSettings.bind(this));
+    ipcMain.handle('open-settings-directory', this.handleOpenSettingsDirectory.bind(this));
     ipcMain.handle('get-file-search-max-suggestions', this.handleGetFileSearchMaxSuggestions.bind(this));
-
-    logger.info('System IPC handlers set up successfully');
   }
 
   removeHandlers(ipcMain: typeof import('electron').ipcMain): void {
-    const handlers = ['get-app-info', 'get-config', 'open-settings', 'get-file-search-max-suggestions'];
+    const handlers = ['get-app-info', 'get-config', 'open-settings', 'open-settings-directory', 'get-file-search-max-suggestions'];
 
     handlers.forEach(handler => {
       ipcMain.removeAllListeners(handler);
@@ -69,7 +69,6 @@ class SystemHandler {
         isDevelopment: config.isDevelopment()
       };
 
-      logger.debug('App info requested');
       return appInfo;
     } catch (error) {
       logger.error('Failed to get app info:', error);
@@ -97,7 +96,6 @@ class SystemHandler {
 
         try {
           const configData = config.get(section as keyof typeof config);
-          logger.debug('Config section requested', { section });
           return configData || {};
         } catch (sectionError) {
           logger.error('Failed to get config section:', { section, error: sectionError });
@@ -114,7 +112,6 @@ class SystemHandler {
             platform: config.platform as unknown as Record<string, unknown>
           };
 
-          logger.debug('Full config requested');
           return safeConfig;
         } catch (configError) {
           logger.error('Failed to build full config:', configError);
@@ -140,6 +137,20 @@ class SystemHandler {
     }
   }
 
+  private async handleOpenSettingsDirectory(_event: IpcMainInvokeEvent): Promise<IPCResult> {
+    try {
+      const settingsFilePath = this.settingsManager.getSettingsFilePath();
+      const settingsDir = path.dirname(settingsFilePath);
+      logger.info('Opening settings directory:', settingsDir);
+
+      await shell.openPath(settingsDir);
+      return { success: true };
+    } catch (error) {
+      logger.error('Failed to open settings directory:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
   /**
    * Handler: get-file-search-max-suggestions
    * Returns the maximum number of suggestions for file search
@@ -148,9 +159,7 @@ class SystemHandler {
   private handleGetFileSearchMaxSuggestions(_event: IpcMainInvokeEvent): number {
     try {
       const fileSearchSettings = this.settingsManager.getFileSearchSettings();
-      const maxSuggestions = fileSearchSettings?.maxSuggestions ?? 50;
-      logger.debug('FileSearch maxSuggestions requested', { maxSuggestions });
-      return maxSuggestions;
+      return fileSearchSettings?.maxSuggestions ?? 50;
     } catch (error) {
       logger.error('Failed to get fileSearch maxSuggestions:', error);
       return 50; // Default fallback

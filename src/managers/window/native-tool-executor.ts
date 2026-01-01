@@ -2,6 +2,7 @@ import { execFile } from 'child_process';
 import { logger, KEYBOARD_SIMULATOR_PATH } from '../../utils/utils';
 import config from '../../config/app-config';
 import type { AppInfo } from '../../types';
+import { TIMEOUTS } from '../../constants';
 
 /**
  * NativeToolExecutor handles execution of native macOS tools for window management
@@ -20,7 +21,6 @@ class NativeToolExecutor {
   async focusPreviousApp(): Promise<boolean> {
     try {
       if (!this.previousApp || !config.platform.isMac) {
-        logger.debug('No previous app to focus or not on macOS');
         return false;
       }
 
@@ -38,17 +38,15 @@ class NativeToolExecutor {
       }
 
       const options = {
-        timeout: 3000,
+        timeout: TIMEOUTS.NATIVE_TOOL_EXECUTION,
         killSignal: 'SIGTERM' as const
       };
 
       let args: string[];
       if (bundleId) {
         args = ['activate-bundle', bundleId];
-        logger.debug('Using bundle ID for app activation:', { appName, bundleId });
       } else {
         args = ['activate-name', appName];
-        logger.debug('Using app name for activation:', { appName });
       }
 
       return new Promise((resolve) => {
@@ -60,7 +58,6 @@ class NativeToolExecutor {
             try {
               const result = JSON.parse(stdout?.trim() || '{}');
               if (result.success) {
-                logger.debug('Successfully focused previous app:', { appName, bundleId });
                 resolve(true);
               } else {
                 logger.warn('Native tool failed to focus app:', result);
@@ -85,7 +82,6 @@ class NativeToolExecutor {
    */
   setPreviousApp(app: AppInfo | string | null): void {
     this.previousApp = app;
-    logger.debug('Previous app stored:', app);
   }
 
   /**

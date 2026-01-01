@@ -22,6 +22,25 @@ npm run reset-accessibility  # Reset accessibility permissions for Prompt Line
   - Cannot be overridden by environment variables in packaged builds
   - Provides cleaner logs for end users
 
+### Viewing Logs
+Application logs are stored in `~/.prompt-line/app.log`.
+
+```bash
+# View recent logs (last 50 lines)
+tail -50 ~/.prompt-line/app.log
+
+# Monitor logs in real-time
+tail -f ~/.prompt-line/app.log
+
+# Search for errors
+grep -i error ~/.prompt-line/app.log | tail -20
+
+# Search for specific patterns
+grep "Paste text" ~/.prompt-line/app.log | tail -10
+```
+
+**Note:** When running `npm start` in JetBrains IDE, the console output shows Electron startup messages. For detailed application logs (DEBUG/INFO level), always check the log file directly.
+
 ### Testing
 ```bash
 npm test                    # Run all tests
@@ -387,10 +406,13 @@ The window supports multiple positioning modes with dynamic configuration:
 - **Supported applications** (directory-detector):
   - Terminal.app (`com.apple.Terminal`)
   - iTerm2 (`com.googlecode.iterm2`)
+  - Ghostty (`com.mitchellh.ghostty`)
   - JetBrains IDEs (`com.jetbrains.*` - IntelliJ IDEA, WebStorm, PyCharm, etc.)
   - VSCode (`com.microsoft.VSCode`, VSCode Insiders, VSCodium)
   - Cursor (`com.todesktop.230313mzl4w4u92`)
   - Windsurf (`com.exafunction.windsurf`)
+  - Antigravity (`com.google.antigravity`) - tmux-based terminal
+  - Kiro (`dev.kiro.desktop`)
 
 ### Code Search / Symbol Search
 - **Syntax**: Type `@<language>:<query>` to search for symbols (e.g., `@ts:Config`, `@go:Handler`)

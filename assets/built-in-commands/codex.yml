@@ -1,0 +1,43 @@
+# OpenAI Codex CLI built-in slash commands
+
+name: codex
+reference: https://developers.openai.com/codex/cli/slash-commands/
+
+commands:
+  - name: approvals
+    description: Set what Codex can do without asking first
+  - name: compact
+    description: Summarize the visible conversation to free tokens
+  - name: diff
+    description: Show the Git diff, including files Git isn't tracking yet
+  - name: exit
+    description: Exit the CLI
+  - name: experimental
+    description: Open the experimental menu to enable features from beta program
+  - name: feedback
+    description: Send logs to the Codex maintainers
+  - name: init
+    description: Generate an AGENTS.md scaffold in the current directory
+  - name: logout
+    description: Sign out of Codex
+  - name: mcp
+    description: List configured Model Context Protocol (MCP) tools
+  - name: mention
+    description: Attach a file to the conversation
+    argument-hint: "<path>"
+  - name: model
+    description: Choose the active model and reasoning effort
+  - name: new
+    description: Start a new conversation inside the same CLI session
+  - name: quit
+    description: Exit the CLI immediately
+  - name: resume
+    description: Resume an old chat
+  - name: review
+    description: Ask Codex to review your working tree
+  - name: skills
+    description: Browse and insert skills (experimental)
+  - name: status
+    description: Display session configuration and token usage
+  - name: undo
+    description: Revert Codex's most recent turn

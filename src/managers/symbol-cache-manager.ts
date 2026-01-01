@@ -20,6 +20,7 @@ import type {
   SymbolResult,
   SymbolCacheMetadata
 } from './symbol-search/types';
+import { CACHE_TTL } from '../constants';
 
 // Cache configuration
 const CACHE_VERSION = '2.0'; // Version bump for new file structure
@@ -28,13 +29,66 @@ const SYMBOL_METADATA_FILE = 'symbol-metadata.json';
 const SYMBOLS_FILE_PREFIX = 'symbols-'; // symbols-{language}.jsonl
 
 /**
+ * In-memory cache entry with timestamp
+ */
+interface MemoryCacheEntry {
+  symbols: SymbolResult[];
+  loadedAt: number;
+}
+
+/**
  * Symbol Cache Manager for disk-based caching
+ * Includes in-memory cache to avoid repeated disk reads for large symbol sets
  */
 export class SymbolCacheManager {
   private cacheDir: string;
 
+  /** In-memory cache: Map<"directory:language", MemoryCacheEntry> */
+  private memoryCache: Map<string, MemoryCacheEntry> = new Map();
+
+  /** Memory cache TTL (5 minutes) - refresh from disk after this time */
+  private readonly MEMORY_CACHE_TTL_MS = CACHE_TTL.SYMBOL_MEMORY;
+
   constructor() {
     this.cacheDir = config.paths.projectsCacheDir;
+  }
+
+  /**
+   * Get memory cache key for directory and language
+   */
+  private getMemoryCacheKey(directory: string, language: string): string {
+    return `${directory}:${language}`;
+  }
+
+  /**
+   * Check if memory cache is valid
+   */
+  private isMemoryCacheValid(entry: MemoryCacheEntry | undefined): boolean {
+    if (!entry) return false;
+    const age = Date.now() - entry.loadedAt;
+    return age < this.MEMORY_CACHE_TTL_MS;
+  }
+
+  /**
+   * Clear memory cache for a directory (all languages)
+   */
+  private clearMemoryCacheForDirectory(directory: string): void {
+    const keysToDelete: string[] = [];
+    for (const key of this.memoryCache.keys()) {
+      if (key.startsWith(`${directory}:`)) {
+        keysToDelete.push(key);
+      }
+    }
+    for (const key of keysToDelete) {
+      this.memoryCache.delete(key);
+    }
+  }
+
+  /**
+   * Clear entire memory cache
+   */
+  public clearMemoryCache(): void {
+    this.memoryCache.clear();
   }
 
   /**
@@ -79,13 +133,11 @@ export class SymbolCacheManager {
 
       // Check version
       if (metadata.version !== CACHE_VERSION) {
-        logger.debug('Symbol cache version mismatch', { expected: CACHE_VERSION, actual: metadata.version });
         return false;
       }
 
       // Check directory match
       if (metadata.directory !== directory) {
-        logger.debug('Symbol cache directory mismatch');
         return false;
       }
 
@@ -94,7 +146,6 @@ export class SymbolCacheManager {
       const now = new Date();
       const ageSeconds = (now.getTime() - updatedAt.getTime()) / 1000;
       if (ageSeconds > metadata.ttlSeconds) {
-        logger.debug('Symbol cache expired', { ageSeconds, ttlSeconds: metadata.ttlSeconds });
         return false;
       }
 
@@ -142,22 +193,26 @@ export class SymbolCacheManager {
         allSymbols.push(...langSymbols);
       }
 
-      logger.debug('Loaded symbols from cache (all languages)', {
-        directory,
-        count: allSymbols.length
-      });
-
       return allSymbols;
-    } catch (error) {
-      logger.debug('Error loading symbol cache:', error);
+    } catch {
       return [];
     }
   }
 
   /**
    * Load symbols for a specific language from its dedicated file
+   * Uses in-memory cache to avoid repeated disk reads
    */
   private async loadSymbolsForLanguage(directory: string, language: string): Promise<SymbolResult[]> {
+    const cacheKey = this.getMemoryCacheKey(directory, language);
+
+    // Check memory cache first
+    const memoryCacheEntry = this.memoryCache.get(cacheKey);
+    if (this.isMemoryCacheValid(memoryCacheEntry)) {
+      return memoryCacheEntry!.symbols;
+    }
+
+    // Load from disk
     try {
       const symbolsPath = this.getSymbolsPath(directory, language);
       const content = await fs.readFile(symbolsPath, 'utf8');
@@ -173,15 +228,14 @@ export class SymbolCacheManager {
         }
       }
 
-      logger.debug('Loaded symbols from cache', {
-        directory,
-        language,
-        count: symbols.length
+      // Store in memory cache
+      this.memoryCache.set(cacheKey, {
+        symbols,
+        loadedAt: Date.now()
       });
 
       return symbols;
-    } catch (error) {
-      logger.debug('Error loading symbol cache for language:', { language, error });
+    } catch {
       return [];
     }
   }
@@ -252,11 +306,11 @@ export class SymbolCacheManager {
       const symbolsContent = symbols.map(s => JSON.stringify(s)).join('\n');
       await fs.writeFile(symbolsPath, symbolsContent, 'utf8');
 
-      logger.debug('Saved symbols to cache', {
-        directory,
-        language,
-        symbolCount: symbols.length,
-        totalSymbolCount: totalCount
+      // Update memory cache
+      const cacheKey = this.getMemoryCacheKey(directory, language);
+      this.memoryCache.set(cacheKey, {
+        symbols,
+        loadedAt: Date.now()
       });
     } catch (error) {
       logger.error('Error saving symbol cache:', error);
@@ -268,9 +322,11 @@ export class SymbolCacheManager {
    */
   async clearCache(directory: string): Promise<void> {
     try {
+      // Clear memory cache first
+      this.clearMemoryCacheForDirectory(directory);
+
       const projectCacheDir = this.getProjectCacheDir(directory);
       await fs.rm(projectCacheDir, { recursive: true, force: true });
-      logger.debug('Cleared symbol cache for directory', { directory });
     } catch (error) {
       logger.warn('Error clearing symbol cache:', error);
     }
@@ -279,7 +335,7 @@ export class SymbolCacheManager {
   /**
    * Clear symbol cache for a single project directory
    */
-  private async clearProjectSymbolCache(projectDir: string, dirName: string): Promise<void> {
+  private async clearProjectSymbolCache(projectDir: string, _dirName: string): Promise<void> {
     const symbolMetadataPath = path.join(projectDir, SYMBOL_METADATA_FILE);
 
     try {
@@ -298,8 +354,6 @@ export class SymbolCacheManager {
     for (const file of symbolFiles) {
       await fs.rm(path.join(projectDir, file), { force: true });
     }
-
-    logger.debug('Cleared symbol cache for', { dir: dirName });
   }
 
   /**
@@ -307,6 +361,9 @@ export class SymbolCacheManager {
    */
   async clearAllCaches(): Promise<void> {
     try {
+      // Clear all memory cache first
+      this.clearMemoryCache();
+
       const entries = await fs.readdir(this.cacheDir, { withFileTypes: true });
       const directories = entries.filter((e) => e.isDirectory());
 
@@ -324,6 +381,10 @@ export class SymbolCacheManager {
    */
   async clearLanguageCache(directory: string, language: string): Promise<void> {
     try {
+      // Clear memory cache for this language
+      const cacheKey = this.getMemoryCacheKey(directory, language);
+      this.memoryCache.delete(cacheKey);
+
       // Remove language-specific file
       const symbolsPath = this.getSymbolsPath(directory, language);
       await fs.rm(symbolsPath, { force: true });
@@ -345,8 +406,6 @@ export class SymbolCacheManager {
         const metadataPath = this.getMetadataPath(directory);
         await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), 'utf8');
       }
-
-      logger.debug('Cleared symbol cache for language', { directory, language });
     } catch (error) {
       logger.warn('Error clearing language cache:', error);
     }

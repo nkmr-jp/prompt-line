@@ -5,6 +5,7 @@ import { logger } from '../utils/utils';
 import type { MdSearchEntry, MdSearchItem, MdSearchType } from '../types';
 import { resolveTemplate, getBasename, parseFrontmatter, extractRawFrontmatter } from '../lib/template-resolver';
 import { getDefaultMdSearchConfig, DEFAULT_MAX_SUGGESTIONS, DEFAULT_SORT_ORDER } from '../lib/default-md-search-config';
+import { CACHE_TTL } from '../constants';
 
 /**
  * MdSearchLoader - 設定ベースの統合Markdownファイルローダー
@@ -14,7 +15,7 @@ import { getDefaultMdSearchConfig, DEFAULT_MAX_SUGGESTIONS, DEFAULT_SORT_ORDER }
 class MdSearchLoader {
   private config: MdSearchEntry[];
   private cache: Map<string, { items: MdSearchItem[]; timestamp: number }> = new Map();
-  private cacheTTL: number = 5000; // 5 seconds
+  private cacheTTL: number = CACHE_TTL.MD_SEARCH;
 
   constructor(config?: MdSearchEntry[]) {
     // Use default config if config is undefined or empty array
@@ -32,7 +33,6 @@ class MdSearchLoader {
     if (JSON.stringify(this.config) !== JSON.stringify(newConfig)) {
       this.config = newConfig;
       this.invalidateCache();
-      logger.debug('MdSearchLoader config updated', { entryCount: this.config.length });
     }
   }
 
@@ -41,7 +41,6 @@ class MdSearchLoader {
    */
   invalidateCache(): void {
     this.cache.clear();
-    logger.debug('MdSearchLoader cache invalidated');
   }
 
   /**
@@ -71,8 +70,9 @@ class MdSearchLoader {
         // searchPrefixが未設定の場合は常に検索対象
         return true;
       }
-      // queryがsearchPrefixで始まるかチェック
-      return query.startsWith(entry.searchPrefix);
+      // queryがsearchPrefix:で始まるかチェック（: は自動で追加）
+      const prefixWithColon = entry.searchPrefix + ':';
+      return query.startsWith(prefixWithColon);
     });
 
     // クエリに基づいてソート順を決定
@@ -82,11 +82,11 @@ class MdSearchLoader {
       return this.sortItems(items, sortOrder);
     }
 
-    // 各アイテムの実際の検索クエリを計算（searchPrefixを除去）
+    // 各アイテムの実際の検索クエリを計算（searchPrefix:を除去）
     const filteredItems = items.filter(item => {
       const entry = this.findEntryForItem(item);
-      const prefix = entry?.searchPrefix || '';
-      const actualQuery = query.startsWith(prefix) ? query.slice(prefix.length) : query;
+      const prefixWithColon = entry?.searchPrefix ? entry.searchPrefix + ':' : '';
+      const actualQuery = query.startsWith(prefixWithColon) ? query.slice(prefixWithColon.length) : query;
 
       // プレフィックスのみの場合は全て表示
       if (!actualQuery) {
@@ -124,11 +124,11 @@ class MdSearchLoader {
   }
 
   /**
-   * 指定タイプのsearchPrefixリストを取得
+   * 指定タイプのsearchPrefixリストを取得（: 付き）
    */
   getSearchPrefixes(type: MdSearchType): string[] {
     const entries = this.config.filter(entry => entry.type === type && entry.searchPrefix);
-    return entries.map(entry => entry.searchPrefix!);
+    return entries.map(entry => entry.searchPrefix! + ':');
   }
 
   /**
@@ -152,9 +152,9 @@ class MdSearchLoader {
       return DEFAULT_SORT_ORDER;
     }
 
-    // クエリがsearchPrefixで始まるエントリを探す
+    // クエリがsearchPrefix:で始まるエントリを探す（: は自動で追加）
     const matchingEntry = entries.find(entry =>
-      entry.searchPrefix && query.startsWith(entry.searchPrefix)
+      entry.searchPrefix && query.startsWith(entry.searchPrefix + ':')
     );
 
     if (matchingEntry) {
@@ -237,8 +237,6 @@ class MdSearchLoader {
       if (!typeSeenNames.has(item.name)) {
         typeSeenNames.add(item.name);
         allItems.push(item);
-      } else {
-        logger.debug('Skipping duplicate item', { name: item.name, type: item.type, sourceId: item.sourceId });
       }
     }
   }
@@ -268,8 +266,6 @@ class MdSearchLoader {
     const files = await this.findFiles(expandedPath, entry.pattern);
     const sourceId = `${entry.path}:${entry.pattern}`;
     const items = await this.parseFilesToItems(files, entry, sourceId);
-
-    logger.debug('MdSearch entry loaded', { sourceId, count: items.length });
     return items;
   }
 
@@ -286,7 +282,6 @@ class MdSearchLoader {
       return true;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        logger.debug('MdSearch directory does not exist', { path });
         return false;
       }
       throw error;
@@ -428,8 +423,8 @@ class MdSearchLoader {
           files.push(fullPath);
         }
       }
-    } catch (error) {
-      logger.debug('Failed to read directory', { directory, error });
+    } catch {
+      // Silently ignore directory read errors
     }
 
     return files;
@@ -475,8 +470,8 @@ class MdSearchLoader {
           files.push(path.join(directory, entry.name));
         }
       }
-    } catch (error) {
-      logger.debug('Failed to read directory', { directory, error });
+    } catch {
+      // Silently ignore directory read errors
     }
 
     return files;

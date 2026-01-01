@@ -23,7 +23,7 @@ import {
   findSlashCommandAtPosition,
   findClickablePathAtPosition
 } from '../text-finder';
-import { getRelativePath, parsePathWithLineInfo, formatLog } from '../index';
+import { getRelativePath, parsePathWithLineInfo } from '../index';
 
 // ============================================================================
 // Callback Interfaces
@@ -95,9 +95,6 @@ export class PathManager {
    */
   public setRegisteredAtPaths(paths: string[]): void {
     this.registeredAtPaths = new Set(paths);
-    console.debug('[PathManager] Set registered at-paths:', {
-      count: this.registeredAtPaths.size
-    });
   }
 
   /**
@@ -154,7 +151,6 @@ export class PathManager {
    */
   public addSelectedPath(path: string): void {
     this.selectedPaths.add(path);
-    console.debug('[PathManager] Added path to selectedPaths:', path, 'total:', this.selectedPaths.size);
   }
 
   /**
@@ -162,7 +158,6 @@ export class PathManager {
    */
   public removeSelectedPath(path: string): void {
     this.selectedPaths.delete(path);
-    console.debug('[PathManager] Removed path from selectedPaths:', path);
   }
 
   /**
@@ -285,10 +280,6 @@ export class PathManager {
   public restoreValidatedPaths(validatedPaths: Set<string>): void {
     this.atPaths = [];
     this.selectedPaths = validatedPaths;
-
-    console.debug('[PathManager] Restored validated paths:', {
-      selectedPathsCount: this.selectedPaths.size
-    });
   }
 
   /**
@@ -307,13 +298,6 @@ export class PathManager {
     const text = this.callbacks.getTextContent();
     const validatedPaths = new Set<string>();
 
-    console.debug('[PathManager] Restoring @paths from text:', {
-      textLength: text.length,
-      checkFilesystem,
-      hasDirectoryData: !!directoryData,
-      existingSelectedPaths: this.selectedPaths.size
-    });
-
     // Need cached directory data to check if files exist (or need to check filesystem)
     const hasValidCachedData = directoryData?.files &&
                                 directoryData.files.length > 0 &&
@@ -324,14 +308,10 @@ export class PathManager {
       // Phase 3: When no cache and not checking filesystem, preserve existing selectedPaths
       // This prevents highlights from disappearing when cache is temporarily unavailable
       if (this.selectedPaths.size > 0) {
-        console.debug('[PathManager] No cached data, preserving existing selectedPaths:', {
-          selectedPathsCount: this.selectedPaths.size
-        });
         // Re-scan with existing selectedPaths (don't reset them)
         this.rescanAtPaths(text, null);
         return;
       }
-      console.debug('[PathManager] No cached data and no existing selectedPaths, skipping validation');
       this.restoreValidatedPaths(validatedPaths);
       return;
     }
@@ -340,9 +320,6 @@ export class PathManager {
     let relativePaths: Set<string> | null = null;
     if (hasValidCachedData && directoryData) {
       relativePaths = this.buildRelativePathsSet(directoryData.files, baseDir!);
-      console.debug('[PathManager] Built relative path set:', {
-        pathCount: relativePaths.size
-      });
     }
 
     // Find all @path patterns
@@ -363,22 +340,11 @@ export class PathManager {
       if (relativePaths && relativePaths.has(cleanPath)) {
         // Path exists in cached file list
         shouldInclude = true;
-        console.debug('[PathManager] Found @path in cache:', {
-          pathContent,
-          cleanPath,
-          isSymbolPath: !!parsedPath.lineNumber
-        });
       } else if (checkFilesystem && this.callbacks.checkFileExists) {
         // Check filesystem if cache lookup failed and checkFilesystem is true
         try {
           const exists = await this.callbacks.checkFileExists(cleanPath);
           shouldInclude = exists;
-          console.debug('[PathManager] Checked filesystem for @path:', {
-            pathContent,
-            cleanPath,
-            exists,
-            isSymbolPath: !!parsedPath.lineNumber
-          });
         } catch (err) {
           console.error('[PathManager] Error checking file existence:', err);
           shouldInclude = false;
@@ -388,22 +354,8 @@ export class PathManager {
       if (shouldInclude) {
         // Use the full pathContent (including line number and symbol name if present)
         validatedPaths.add(pathContent);
-        console.debug('[PathManager] Found valid @path:', {
-          pathContent,
-          cleanPath,
-          checkFilesystem,
-          isSymbolPath: !!parsedPath.lineNumber
-        });
-      } else {
-        console.debug('[PathManager] Skipping non-existent @path:', pathContent);
       }
     }
-
-    console.debug('[PathManager] Validated @paths from text:', {
-      validatedPathsCount: validatedPaths.size,
-      textLength: text.length,
-      checkFilesystem
-    });
 
     // Update with validated paths
     this.restoreValidatedPaths(validatedPaths);
@@ -517,33 +469,23 @@ export class PathManager {
       return true;
     };
 
-    console.log('[PathManager] findAtPathAtCursor: cursorPos=' + cursorPos + ' atPathsCount=' + this.atPaths.length);
-
     for (const path of this.atPaths) {
-      const charAtEnd = text[path.end];
-      const charAtEndDisplay = charAtEnd === '\n' ? '\\n' : charAtEnd === '\r' ? '\\r' : charAtEnd === undefined ? 'undefined' : '"' + charAtEnd + '"';
-
       // Check if cursor is at or after path.end, with only terminators in between
-      // This handles cases like: @path (cursor), @path  (cursor), @path\n(cursor), etc.
+      // This handles cases like: @path (cursor), @path  (cursor), etc.
+      // IMPORTANT: Do NOT match if there are newlines between path.end and cursor
+      // This prevents accidental deletion when cursor is on a new line after @path
       if (cursorPos >= path.end && cursorPos <= path.end + 3) {
         // Limit to 3 characters after path.end to avoid matching too far
         const charsInBetween = text.substring(path.end, cursorPos);
         const allAreTerminators = allTerminators(path.end, cursorPos);
 
-        console.log('[PathManager] Checking path: path=' + path.path +
-          ' start=' + path.start + ' end=' + path.end +
-          ' cursorPos=' + cursorPos +
-          ' charAtEnd=' + charAtEndDisplay + ' (code:' + (charAtEnd?.charCodeAt(0) ?? 'N/A') + ')' +
-          ' charsInBetween="' + charsInBetween.replace(/\n/g, '\\n').replace(/\r/g, '\\r') + '"' +
-          ' allAreTerminators=' + allAreTerminators);
+        // Check if there are any newlines between path.end and cursor
+        const hasNewline = charsInBetween.includes('\n') || charsInBetween.includes('\r');
 
-        if (allAreTerminators) {
+        // Only match if all are terminators AND no newlines
+        if (allAreTerminators && !hasNewline) {
           return path;
         }
-      } else {
-        console.log('[PathManager] Checking path: path=' + path.path +
-          ' start=' + path.start + ' end=' + path.end +
-          ' cursorPos=' + cursorPos + ' - cursor not near path end');
       }
     }
     return null;
@@ -675,16 +617,9 @@ export class PathManager {
     const cursorPos = this.callbacks.getCursorPosition();
     const text = this.callbacks.getTextContent();
 
-    console.debug('[PathManager] handleBackspaceForAtPath called:', {
-      cursorPos,
-      textLength: text.length,
-      atPathsCount: this.atPaths.length
-    });
-
     const atPath = this.findAtPathAtCursor(cursorPos, text);
 
     if (!atPath) {
-      console.debug('[PathManager] No @path found at cursor position', cursorPos);
       return false;
     }
 
@@ -697,13 +632,6 @@ export class PathManager {
     const savedStart = atPath.start;
     const savedEnd = atPath.end;
 
-    console.debug('[PathManager] Deleting @path:', {
-      path: atPath.path,
-      start: savedStart,
-      end: savedEnd,
-      savedScrollTop
-    });
-
     // CRITICAL: Suspend input/selectionchange listeners to prevent cursor interference
     // This replaces the fragile flag-based approach with direct listener control
     this.callbacks.suspendInputListeners?.();
@@ -715,59 +643,43 @@ export class PathManager {
     }
 
     // Perform deletion
+    // Note: replaceRangeWithUndo will set cursor position to (start + newText.length)
+    // For deletion (newText = ''), cursor will be at savedStart
     if (this.callbacks.replaceRangeWithUndo) {
       this.callbacks.replaceRangeWithUndo(savedStart, deleteEnd, '');
     } else if (this.callbacks.setTextContent) {
       const newText = text.substring(0, savedStart) + text.substring(deleteEnd);
       this.callbacks.setTextContent(newText);
+      // Set cursor position after manual text replacement
+      this.callbacks.setCursorPosition?.(savedStart);
     }
 
-    // Set cursor position immediately
-    this.callbacks.setCursorPosition(savedStart);
-
-    // Restore scroll position
+    // Restore scroll position immediately after deletion
+    // Note: replaceRangeWithUndo already handles scroll restoration, but we force it here
     if (this.textInput) {
       this.textInput.scrollTop = savedScrollTop;
       this.textInput.scrollLeft = savedScrollLeft;
     }
 
-    // Update highlight backdrop (rescanAtPaths will recalculate positions)
+    // Get updated text after deletion for rescan
+    const updatedText = this.callbacks.getTextContent();
+
+    // Rescan @paths with updated text (synchronously to ensure correct state)
+    this.rescanAtPaths(updatedText);
+
+    // Update highlight backdrop (uses RAF internally, but won't affect cursor)
     this.callbacks.updateHighlightBackdrop?.();
 
-    // Ensure cursor and scroll are still correct after highlight update
-    this.callbacks.setCursorPosition(savedStart);
-    if (this.textInput) {
-      this.textInput.scrollTop = savedScrollTop;
-      this.textInput.scrollLeft = savedScrollLeft;
-    }
-
-    // Resume listeners after next animation frame (when all updates are complete)
+    // Resume listeners after a short delay to ensure all updates are complete
+    // Use RAF to allow highlight update to complete first
     requestAnimationFrame(() => {
-      // Final cursor/scroll restoration
-      this.callbacks.setCursorPosition?.(savedStart);
-      if (this.textInput) {
-        this.textInput.scrollTop = savedScrollTop;
-        this.textInput.scrollLeft = savedScrollLeft;
-      }
-
-      // Resume listeners now that deletion is complete
       this.callbacks.resumeInputListeners?.();
-
-      console.debug('[PathManager] @path deletion complete, listeners resumed');
     });
 
     // Remove deleted path from selectedPaths if no longer in text
     if (deletedPathContent && !this.atPaths.some(p => p.path === deletedPathContent)) {
       this.removeSelectedPath(deletedPathContent);
     }
-
-    console.debug('[PathManager] deleted @path:', formatLog({
-      deletedStart: savedStart,
-      deletedEnd: deleteEnd,
-      deletedPath: deletedPathContent || 'unknown',
-      remainingPaths: this.atPaths.length,
-      selectedPathsCount: this.selectedPaths.size
-    }));
 
     return true;
   }

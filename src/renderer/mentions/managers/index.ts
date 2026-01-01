@@ -2,6 +2,8 @@
  * File Search Managers - Specialized manager classes for file search functionality
  */
 
+export { BaseCacheManager } from './base-cache-manager';
+
 export { PopupManager } from './popup-manager';
 export type { PopupManagerCallbacks } from './popup-manager';
 
@@ -37,4 +39,11 @@ export type { QueryExtractionResult, CodeSearchQueryResult, QueryExtractionCallb
 export { SuggestionUIManager } from './suggestion-ui-manager';
 export type { SuggestionUICallbacks } from './suggestion-ui-manager';
 
-export { FileSearchState } from './file-search-state';
+export { MentionState } from './mention-state';
+
+export { MentionInitializer } from './mention-initializer';
+export type {
+  MentionManagerDependencies,
+  InitializedManagers,
+  MentionInitializerCallbacks
+} from './mention-initializer';

@@ -1,18 +1,19 @@
 /**
- * File Search module - utilities for @ mention file search functionality
+ * Mentions module - utilities for @ mention functionality (files, code symbols, agents)
  *
  * This module provides:
- * - Type definitions for file search data structures
+ * - Type definitions for mention data structures (files, symbols, agents)
  * - Path manipulation utilities
  * - Fuzzy matching and scoring algorithms
  * - Text finding utilities for cursor position detection
  * - DOM utilities for highlighting and caret position calculation
+ * - Code symbol search functionality
  */
 
 // Type definitions
 export type {
   DirectoryData,
-  FileSearchCallbacks,
+  MentionCallbacks,
   AtPathRange,
   SuggestionItem,
   ParsedPathInfo

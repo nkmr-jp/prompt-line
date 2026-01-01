@@ -126,10 +126,10 @@ describe('error-handler', () => {
 
     it('should format context correctly', () => {
       const error = new Error('Network timeout');
-      handleError('FileSearchManager.loadDirectory', error);
+      handleError('MentionManager.loadDirectory', error);
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        '[FileSearchManager.loadDirectory] Network timeout',
+        '[MentionManager.loadDirectory] Network timeout',
         error
       );
     });

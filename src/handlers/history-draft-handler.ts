@@ -53,8 +53,6 @@ class HistoryDraftHandler {
     // Global at-path cache handlers (for mdSearch agents and other project-independent items)
     ipcMain.handle('register-global-at-path', this.handleRegisterGlobalAtPath.bind(this));
     ipcMain.handle('get-global-at-paths', this.handleGetGlobalAtPaths.bind(this));
-
-    logger.info('History and Draft IPC handlers set up successfully');
   }
 
   /**
@@ -88,9 +86,7 @@ class HistoryDraftHandler {
 
   private async handleGetHistory(_event: IpcMainInvokeEvent): Promise<HistoryItem[]> {
     try {
-      const history = await this.historyManager.getHistory();
-      logger.debug('History requested', { count: history.length });
-      return history;
+      return await this.historyManager.getHistory();
     } catch (error) {
       logger.error('Failed to get history:', error);
       return [];
@@ -134,9 +130,7 @@ class HistoryDraftHandler {
     limit = 10
   ): Promise<HistoryItem[]> {
     try {
-      const results = await this.historyManager.searchHistory(query, limit);
-      logger.debug('History search requested', { query, results: results.length });
-      return results;
+      return await this.historyManager.searchHistory(query, limit);
     } catch (error) {
       logger.error('Failed to search history:', error);
       return [];
@@ -148,16 +142,16 @@ class HistoryDraftHandler {
   private async handleSaveDraft(
     _event: IpcMainInvokeEvent,
     text: string,
+    scrollTop = 0,
     immediate = false
   ): Promise<IPCResult> {
     try {
       if (immediate) {
-        await this.draftManager.saveDraftImmediately(text);
+        await this.draftManager.saveDraftImmediately(text, scrollTop);
       } else {
-        await this.draftManager.saveDraft(text);
+        await this.draftManager.saveDraft(text, scrollTop);
       }
 
-      logger.debug('Draft save requested', { length: text.length, immediate });
       return { success: true };
     } catch (error) {
       const err = error as Error;
@@ -180,9 +174,7 @@ class HistoryDraftHandler {
 
   private async handleGetDraft(_event: IpcMainInvokeEvent): Promise<string> {
     try {
-      const draft = this.draftManager.getCurrentDraft();
-      logger.debug('Draft requested', { length: draft.length });
-      return draft;
+      return this.draftManager.getCurrentDraft();
     } catch (error) {
       logger.error('Failed to get draft:', error);
       return '';
@@ -199,7 +191,6 @@ class HistoryDraftHandler {
       } else {
         this.directoryManager.setDirectory(null);
       }
-      logger.debug('Directory set via IPC', { directory });
       return { success: true };
     } catch (error) {
       logger.error('Failed to set directory:', error);
@@ -209,9 +200,7 @@ class HistoryDraftHandler {
 
   private async handleGetDraftDirectory(_event: IpcMainInvokeEvent): Promise<string | null> {
     try {
-      const directory = this.directoryManager.getDirectory();
-      logger.debug('Directory requested', { directory });
-      return directory;
+      return this.directoryManager.getDirectory();
     } catch (error) {
       logger.error('Failed to get directory:', error);
       return null;
@@ -234,7 +223,6 @@ class HistoryDraftHandler {
       }
 
       await atPathCacheManager.addPath(directory, atPath);
-      logger.debug('At-path registered', { directory, atPath });
       return { success: true };
     } catch (error) {
       logger.error('Failed to register at-path:', error);
@@ -251,9 +239,7 @@ class HistoryDraftHandler {
         return [];
       }
 
-      const paths = await atPathCacheManager.loadPaths(directory);
-      logger.debug('At-paths requested', { directory, count: paths.length });
-      return paths;
+      return await atPathCacheManager.loadPaths(directory);
     } catch (error) {
       logger.error('Failed to get registered at-paths:', error);
       return [];
@@ -272,7 +258,6 @@ class HistoryDraftHandler {
       }
 
       await atPathCacheManager.addGlobalPath(atPath);
-      logger.debug('Global at-path registered', { atPath });
       return { success: true };
     } catch (error) {
       logger.error('Failed to register global at-path:', error);
@@ -284,9 +269,7 @@ class HistoryDraftHandler {
     _event: IpcMainInvokeEvent
   ): Promise<string[]> {
     try {
-      const paths = await atPathCacheManager.loadGlobalPaths();
-      logger.debug('Global at-paths requested', { count: paths.length });
-      return paths;
+      return await atPathCacheManager.loadGlobalPaths();
     } catch (error) {
       logger.error('Failed to get global at-paths:', error);
       return [];

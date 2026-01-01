@@ -11,10 +11,12 @@ import type {
   LanguagesResponse,
   SymbolSearchOptions
 } from './types';
+import { TIMEOUTS, LIMITS } from '../../constants';
 
 // Default search options (exported for use by handlers)
 export const DEFAULT_MAX_SYMBOLS = 20000;
-export const DEFAULT_SEARCH_TIMEOUT = 5000; // 5 seconds for symbol search
+export const DEFAULT_SEARCH_TIMEOUT = TIMEOUTS.SYMBOL_SEARCH;
+export const DEFAULT_MAX_BUFFER = 100 * 1024 * 1024; // 100MB buffer for large codebases
 
 /**
  * Check if ripgrep (rg) is available
@@ -28,7 +30,8 @@ export async function checkRgAvailable(): Promise<RgCheckResponse> {
 
     const options = {
       timeout: DEFAULT_SEARCH_TIMEOUT,
-      killSignal: 'SIGTERM' as const
+      killSignal: 'SIGTERM' as const,
+      maxBuffer: DEFAULT_MAX_BUFFER
     };
 
     execFile(SYMBOL_SEARCHER_PATH, ['check-rg'], options, (error, stdout) => {
@@ -40,7 +43,6 @@ export async function checkRgAvailable(): Promise<RgCheckResponse> {
 
       try {
         const result = JSON.parse(stdout.trim()) as RgCheckResponse;
-        logger.debug('rg availability check:', result);
         resolve(result);
       } catch (parseError) {
         logger.warn('Error parsing rg check result:', parseError);
@@ -62,7 +64,8 @@ export async function getSupportedLanguages(): Promise<LanguagesResponse> {
 
     const options = {
       timeout: DEFAULT_SEARCH_TIMEOUT,
-      killSignal: 'SIGTERM' as const
+      killSignal: 'SIGTERM' as const,
+      maxBuffer: DEFAULT_MAX_BUFFER
     };
 
     execFile(SYMBOL_SEARCHER_PATH, ['list-languages'], options, (error, stdout) => {
@@ -74,7 +77,6 @@ export async function getSupportedLanguages(): Promise<LanguagesResponse> {
 
       try {
         const result = JSON.parse(stdout.trim()) as LanguagesResponse;
-        logger.debug('Supported languages:', result);
         resolve(result);
       } catch (parseError) {
         logger.warn('Error parsing languages result:', parseError);
@@ -147,10 +149,9 @@ export async function searchSymbols(
 
     const execOptions = {
       timeout,
-      killSignal: 'SIGTERM' as const
+      killSignal: 'SIGTERM' as const,
+      maxBuffer: DEFAULT_MAX_BUFFER
     };
-
-    logger.debug('Searching symbols:', { directory, language, maxSymbols });
 
     execFile(SYMBOL_SEARCHER_PATH, args, execOptions, (error, stdout, stderr) => {
       if (error) {
@@ -159,7 +160,7 @@ export async function searchSymbols(
           code: (error as any).code,
           signal: (error as any).signal,
           killed: (error as any).killed,
-          stderr: stderr?.toString()?.substring(0, 500)
+          stderr: stderr?.toString()?.substring(0, LIMITS.MAX_ERROR_LOG_LENGTH)
         });
         resolve({
           success: false,
@@ -175,15 +176,6 @@ export async function searchSymbols(
 
       try {
         const result = JSON.parse(stdout.trim()) as SymbolSearchResponse;
-        if (result.success) {
-          logger.debug('Symbol search completed:', {
-            directory: result.directory,
-            language: result.language,
-            symbolCount: result.symbolCount
-          });
-        } else {
-          logger.debug('Symbol search returned error:', result.error);
-        }
         resolve(result);
       } catch (parseError) {
         logger.warn('Error parsing symbol search result:', parseError);

@@ -7,9 +7,10 @@
  */
 
 import { execFile } from 'child_process';
-import { logger, TEXT_FIELD_DETECTOR_PATH } from '../../utils/utils';
+import { TEXT_FIELD_DETECTOR_PATH } from '../../utils/utils';
 import config from '../../config/app-config';
 import type { TextFieldBounds } from './types';
+import { TIMEOUTS } from '../../constants';
 
 /**
  * Detects the bounds of the currently focused text field on macOS.
@@ -19,19 +20,17 @@ import type { TextFieldBounds } from './types';
  */
 export async function getActiveTextFieldBounds(): Promise<TextFieldBounds | null> {
   if (!config.platform.isMac) {
-    logger.debug('Text field detection only supported on macOS');
     return null;
   }
 
   const options = {
-    timeout: 3000,
+    timeout: TIMEOUTS.TEXT_FIELD_DETECTION,
     killSignal: 'SIGTERM' as const
   };
 
   return new Promise((resolve) => {
     execFile(TEXT_FIELD_DETECTOR_PATH, ['text-field-bounds'], options, (error: Error | null, stdout?: string) => {
       if (error) {
-        logger.debug('Error getting text field bounds via native tool:', error);
         resolve(null);
         return;
       }
@@ -40,7 +39,6 @@ export async function getActiveTextFieldBounds(): Promise<TextFieldBounds | null
         const result = JSON.parse(stdout?.trim() || '{}');
 
         if (result.error) {
-          logger.debug('Text field detector error:', result.error);
           resolve(null);
           return;
         }
@@ -59,7 +57,6 @@ export async function getActiveTextFieldBounds(): Promise<TextFieldBounds | null
           if (result.parent && result.parent.isVisibleContainer &&
               typeof result.parent.x === 'number' && typeof result.parent.y === 'number' &&
               typeof result.parent.width === 'number' && typeof result.parent.height === 'number') {
-            logger.debug('Using parent container bounds for scrollable text field');
             bounds = {
               x: result.parent.x,
               y: result.parent.y,
@@ -68,15 +65,12 @@ export async function getActiveTextFieldBounds(): Promise<TextFieldBounds | null
             };
           }
 
-          logger.debug('Text field bounds found:', bounds);
           resolve(bounds);
           return;
         }
 
-        logger.debug('Invalid text field bounds data received');
         resolve(null);
-      } catch (parseError) {
-        logger.debug('Error parsing text field detector output:', parseError);
+      } catch {
         resolve(null);
       }
     });

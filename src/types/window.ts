@@ -94,6 +94,7 @@ export interface PathsConfig {
   directoryFile: string;
   cacheDir: string;             // Cache root directory
   projectsCacheDir: string;     // Projects cache directory
+  builtInCommandsDir: string;   // Built-in slash commands directory
 }
 
 export interface TimingConfig {
@@ -136,54 +137,149 @@ export interface UserSettings {
   agents?: {
     directories: string[];
   };
-  fileSearch?: {
-    // Respect .gitignore files (fd only, default: true)
-    respectGitignore?: boolean;
-    // Additional exclude patterns (applied on top of .gitignore)
-    excludePatterns?: string[];
-    // Include patterns (force include even if in .gitignore)
-    includePatterns?: string[];
-    // Maximum number of files to return (default: 5000)
-    maxFiles?: number;
-    // Include hidden files (starting with .)
-    includeHidden?: boolean;
-    // Maximum directory depth (null = unlimited)
-    maxDepth?: number | null;
-    // Follow symbolic links (default: false)
-    followSymlinks?: boolean;
-    // Custom path to fd command (null = auto-detect from common paths)
-    fdPath?: string | null;
-    // Input format for file path expansion (default: 'path')
-    // 'name': insert only the file name (e.g., "config.ts")
-    // 'path': insert the relative path (e.g., "src/config.ts")
-    inputFormat?: InputFormatType;
-    // Maximum number of suggestions to show (default: 50)
-    maxSuggestions?: number;
-  };
   fileOpener?: {
     // Extension-specific application settings (e.g., { "ts": "WebStorm", "md": "Typora" })
     extensions?: Record<string, string>;
     // Default editor when no extension-specific setting exists
     defaultEditor?: string | null;
   };
-  // Symbol search configuration (code search with @<language>:<query> syntax)
-  symbolSearch?: {
-    // Maximum number of symbols to return (default: 20000)
-    maxSymbols?: number;
-    // Search timeout in milliseconds (default: 5000)
-    timeout?: number;
-    // Custom paths to ripgrep command (null = auto-detect from common paths)
-    rgPaths?: string[] | null;
-  };
-  // mdSearch configuration (unified command and mention loading)
+  // Slash command settings (built-in and user-defined)
+  slashCommands?: SlashCommandsSettings;
+  // Mention settings (@ mentions: fileSearch, symbolSearch, userDefined)
+  mentions?: MentionsSettings;
+
+  // Legacy: fileSearch configuration (use mentions.fileSearch instead)
+  fileSearch?: FileSearchUserSettings;
+  // Legacy: symbolSearch configuration (use mentions.symbolSearch instead)
+  symbolSearch?: SymbolSearchUserSettings;
+  // Legacy: mdSearch configuration (for backward compatibility)
   mdSearch?: MdSearchEntry[];
+  // Legacy: Built-in commands configuration (use slashCommands.builtIn instead)
+  builtInCommands?: {
+    tools?: string[];
+  };
 }
 
 // ============================================================================
-// MdSearch Related Types
+// Mention Settings Types (@ mentions)
 // ============================================================================
 
 import type { InputFormatType } from './file-search';
+
+/**
+ * File search user settings (@path/to/file completion)
+ * All fields are optional - defaults are applied by the application
+ */
+export interface FileSearchUserSettings {
+  /** Respect .gitignore files (fd only, default: true) */
+  respectGitignore?: boolean;
+  /** Additional exclude patterns (applied on top of .gitignore) */
+  excludePatterns?: string[];
+  /** Include patterns (force include even if in .gitignore) */
+  includePatterns?: string[];
+  /** Maximum number of files to return (default: 5000) */
+  maxFiles?: number;
+  /** Include hidden files (starting with .) */
+  includeHidden?: boolean;
+  /** Maximum directory depth (null = unlimited) */
+  maxDepth?: number | null;
+  /** Follow symbolic links (default: false) */
+  followSymlinks?: boolean;
+  /** Custom path to fd command (null = auto-detect from common paths) */
+  fdPath?: string | null;
+  /** Input format: 'name' (file name only) or 'path' (relative path, default) */
+  inputFormat?: InputFormatType;
+  /** Maximum number of suggestions to show (default: 50) */
+  maxSuggestions?: number;
+}
+
+/**
+ * Symbol search user settings (@language:query syntax)
+ * All fields are optional - defaults are applied by the application
+ */
+export interface SymbolSearchUserSettings {
+  /** Maximum number of symbols to return (default: 20000) */
+  maxSymbols?: number;
+  /** Search timeout in milliseconds (default: 5000) */
+  timeout?: number;
+  /** Custom path to ripgrep command (null = auto-detect from common paths) */
+  rgPath?: string | null;
+}
+
+/**
+ * Mention settings combining fileSearch, symbolSearch, and userDefined mentions
+ */
+export interface MentionsSettings {
+  /** File search settings (@path/to/file) */
+  fileSearch?: FileSearchUserSettings;
+  /** Symbol search settings (@ts:Config, @go:Handler) */
+  symbolSearch?: SymbolSearchUserSettings;
+  /** Markdown-based mentions from markdown files */
+  mdSearch?: MentionEntry[];
+}
+
+// ============================================================================
+// Slash Command Settings Types
+// ============================================================================
+
+/**
+ * Slash command settings combining built-in and user-defined commands
+ */
+export interface SlashCommandsSettings {
+  /** Built-in commands configuration (Claude, Codex, Gemini, etc.) */
+  builtIn?: {
+    /** List of tools to enable (e.g., ['claude', 'codex', 'gemini']) */
+    tools?: string[];
+  };
+  /** Custom slash commands from markdown files */
+  custom?: SlashCommandEntry[];
+}
+
+/**
+ * User-defined slash command entry
+ */
+export interface SlashCommandEntry {
+  /** 名前テンプレート（例: "{basename}", "{frontmatter@name}"） */
+  name: string;
+  /** 説明テンプレート（例: "{frontmatter@description}"） */
+  description: string;
+  /** 検索ディレクトリパス */
+  path: string;
+  /** ファイルパターン（glob形式、例: "*.md"） */
+  pattern: string;
+  /** オプション: argumentHintテンプレート */
+  argumentHint?: string;
+  /** オプション: 検索候補の最大表示数（デフォルト: 20） */
+  maxSuggestions?: number;
+  /** オプション: 名前ソート順（デフォルト: 'asc'） */
+  sortOrder?: 'asc' | 'desc';
+}
+
+/**
+ * Mention entry (@ mentions from markdown files)
+ */
+export interface MentionEntry {
+  /** 名前テンプレート（例: "{basename}", "agent-{frontmatter@name}"） */
+  name: string;
+  /** 説明テンプレート（例: "{frontmatter@description}"） */
+  description: string;
+  /** 検索ディレクトリパス */
+  path: string;
+  /** ファイルパターン（glob形式、例: "*.md"） */
+  pattern: string;
+  /** オプション: 検索候補の最大表示数（デフォルト: 20） */
+  maxSuggestions?: number;
+  /** オプション: 検索プレフィックス（例: "agent"）- 自動で : が追加されます（@agent: で検索） */
+  searchPrefix?: string;
+  /** オプション: 名前ソート順（デフォルト: 'asc'） */
+  sortOrder?: 'asc' | 'desc';
+  /** オプション: 入力フォーマット（デフォルト: 'name'） */
+  inputFormat?: InputFormatType;
+}
+
+// ============================================================================
+// MdSearch Related Types (Legacy - for backward compatibility)
+// ============================================================================
 
 /**
  * mdSearch エントリの種類
@@ -210,7 +306,7 @@ export interface MdSearchEntry {
   argumentHint?: string;
   /** オプション: 検索候補の最大表示数（デフォルト: 20） */
   maxSuggestions?: number;
-  /** オプション: 検索プレフィックス（例: "agent:"）- このプレフィックスで始まるクエリのみ検索対象 */
+  /** オプション: 検索プレフィックス（例: "agent"）- 自動で : が追加されます（@agent: で検索） */
   searchPrefix?: string;
   /** オプション: 名前ソート順（デフォルト: 'asc'） - 'asc': 昇順, 'desc': 降順 */
   sortOrder?: 'asc' | 'desc';
@@ -247,6 +343,8 @@ export interface SlashCommandItem {
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
   inputFormat?: InputFormatType;  // 入力フォーマット（'name' | 'path'）
+  source?: string;  // Source tool identifier (e.g., 'claude-code') for filtering
+  displayName?: string;  // Human-readable source name for display (e.g., 'Claude Code')
 }
 
 export interface AgentItem {

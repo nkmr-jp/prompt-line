@@ -46,7 +46,6 @@ class PasteHandler {
   setupHandlers(ipcMainInstance: typeof ipcMain): void {
     ipcMainInstance.handle('paste-text', this.handlePasteText.bind(this));
     ipcMainInstance.handle('paste-image', this.handlePasteImage.bind(this));
-    logger.info('Paste handlers set up successfully');
   }
 
   removeHandlers(ipcMainInstance: typeof ipcMain): void {
@@ -65,7 +64,6 @@ class PasteHandler {
     }
 
     if (!text.trim()) {
-      logger.debug('Empty text provided for paste');
       return { success: false, error: SecureErrors.INVALID_INPUT };
     }
 
@@ -93,7 +91,6 @@ class PasteHandler {
   private async executePasteOperation(previousApp: AppInfo | string | null): Promise<PasteResult> {
     if (previousApp && config.platform.isMac) {
       await activateAndPasteWithNativeTool(previousApp);
-      logger.info('Activate and paste operation completed successfully');
       return { success: true };
     }
 
@@ -103,7 +100,6 @@ class PasteHandler {
       if (focusSuccess) {
         await sleep(config.timing.appFocusDelay);
         await pasteWithNativeTool();
-        logger.info('Paste operation completed successfully');
         return { success: true };
       }
 

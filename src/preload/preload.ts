@@ -45,6 +45,7 @@ const ALLOWED_CHANNELS = [
   'get-slash-command-file-path',
   'directory-data-updated',
   'open-settings',
+  'open-settings-directory',
   'get-agents',
   'get-agent-file-path',
   'get-md-search-max-suggestions',
@@ -236,8 +237,8 @@ const electronAPI: ElectronAPI = {
 
   // Draft management
   draft: {
-    save: async (text: string): Promise<void> => {
-      return ipcRenderer.invoke('save-draft', text);
+    save: async (text: string, scrollTop = 0): Promise<void> => {
+      return ipcRenderer.invoke('save-draft', text, scrollTop);
     },
     get: async (): Promise<string | null> => {
       return ipcRenderer.invoke('get-draft');

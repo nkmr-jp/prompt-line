@@ -3,7 +3,7 @@ import type { AppInfo } from '../../types';
 import { TIMEOUTS } from '../../constants';
 import { logger } from '../logger';
 import { sanitizeCommandArgument, isCommandArgumentSafe } from '../security';
-import { KEYBOARD_SIMULATOR_PATH, NATIVE_TOOLS_DIR } from './paths';
+import { KEYBOARD_SIMULATOR_PATH } from './paths';
 
 export function pasteWithNativeTool(): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -18,11 +18,6 @@ export function pasteWithNativeTool(): Promise<void> {
     };
 
     const args = ['paste'];
-    logger.debug('Executing native paste command', {
-      executable: KEYBOARD_SIMULATOR_PATH,
-      args,
-      nativeToolsDir: NATIVE_TOOLS_DIR
-    });
 
     execFile(KEYBOARD_SIMULATOR_PATH, args, options, (error, stdout, stderr) => {
       if (error) {
@@ -44,7 +39,6 @@ export function pasteWithNativeTool(): Promise<void> {
         try {
           const result = JSON.parse(stdout.trim());
           if (result.success) {
-            logger.debug('Native paste successful');
             resolve();
           } else {
             logger.error('Native paste failed:', result);
@@ -120,19 +114,9 @@ export function activateAndPasteWithNativeTool(appInfo: AppInfo | string): Promi
     let args: string[];
     if (bundleId && bundleId.length > 0) {
       args = ['activate-and-paste-bundle', bundleId];
-      logger.debug('Using sanitized bundle ID for app activation and paste:', { appName, bundleId });
     } else {
       args = ['activate-and-paste-name', appName];
-      logger.debug('Using sanitized app name for app activation and paste:', { appName });
     }
-
-    logger.debug('Executing native activate and paste command', {
-      executable: KEYBOARD_SIMULATOR_PATH,
-      args,
-      nativeToolsDir: NATIVE_TOOLS_DIR,
-      appName,
-      bundleId
-    });
 
     execFile(KEYBOARD_SIMULATOR_PATH, args, options, (error, stdout, stderr) => {
       if (error) {
@@ -156,7 +140,6 @@ export function activateAndPasteWithNativeTool(appInfo: AppInfo | string): Promi
         try {
           const result = JSON.parse(stdout.trim());
           if (result.success) {
-            logger.debug('Native activate and paste successful', { appName, bundleId });
             resolve();
           } else {
             logger.error('Native activate and paste failed:', result);

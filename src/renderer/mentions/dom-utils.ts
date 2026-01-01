@@ -100,13 +100,11 @@ export function getCaretCoordinates(
  */
 export function createMirrorDiv(): HTMLDivElement {
   const mirrorDiv = document.createElement('div');
-  mirrorDiv.style.cssText = `
-    position: absolute;
-    visibility: hidden;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    overflow: hidden;
-  `;
+  mirrorDiv.style.position = 'absolute';
+  mirrorDiv.style.visibility = 'hidden';
+  mirrorDiv.style.whiteSpace = 'pre-wrap';
+  mirrorDiv.style.wordWrap = 'break-word';
+  mirrorDiv.style.overflow = 'hidden';
   document.body.appendChild(mirrorDiv);
   return mirrorDiv;
 }

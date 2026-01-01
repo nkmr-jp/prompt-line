@@ -15,12 +15,13 @@
  * - Handle symbol mode state
  */
 
+import { electronAPI } from '../../services/electron-api';
 import type {
   SymbolResult,
   LanguageInfo,
   SymbolSearchResponse
-} from '../../code-search/types';
-import { SYMBOL_TYPE_FROM_DISPLAY, getSymbolTypeDisplay } from '../../code-search/types';
+} from '../code-search/types';
+import { getSymbolTypeDisplay } from '../code-search/types';
 import type { DirectoryData, SuggestionItem } from '../types';
 import { getSymbolIconSvg } from '../../assets/icons/file-icons';
 import { insertSvgIntoElement } from '../index';
@@ -99,26 +100,20 @@ export class CodeSearchManager {
    * Checks ripgrep availability and loads supported languages
    */
   private async initializeCodeSearch(): Promise<void> {
-    console.debug('[CodeSearchManager] initializeCodeSearch: starting...');
     try {
       // Check if ripgrep is available
-      const rgCheck = await window.electronAPI.codeSearch.checkRg();
-      console.debug('[CodeSearchManager] initializeCodeSearch: rgCheck result:', rgCheck);
+      const rgCheck = await electronAPI.codeSearch.checkRg();
       this.rgAvailable = rgCheck.rgAvailable;
 
       if (!this.rgAvailable) {
-        console.debug('[CodeSearchManager] ripgrep not available, code search disabled');
         return;
       }
 
       // Load supported languages
-      const langResponse = await window.electronAPI.codeSearch.getSupportedLanguages();
-      console.debug('[CodeSearchManager] initializeCodeSearch: languages loaded:', langResponse.languages.length);
+      const langResponse = await electronAPI.codeSearch.getSupportedLanguages();
       for (const lang of langResponse.languages) {
         this.supportedLanguages.set(lang.key, lang);
       }
-
-      console.debug('[CodeSearchManager] Code search initialized with languages:', Array.from(this.supportedLanguages.keys()));
     } catch (error) {
       handleError('CodeSearchManager.initializeCodeSearch', error);
     }
@@ -171,11 +166,12 @@ export class CodeSearchManager {
 
   /**
    * Search for symbols in a directory for a specific language
+   * Filtering is performed on Main process for better performance with large symbol sets
    * @param directory - Directory to search
    * @param language - Language key (e.g., 'go', 'ts')
    * @param query - Search query for filtering symbols
    * @param options - Search options
-   * @returns Filtered symbol results
+   * @returns Filtered symbol results (already filtered by Main process)
    */
   public async searchSymbols(
     directory: string,
@@ -184,17 +180,24 @@ export class CodeSearchManager {
     options?: {
       symbolTypeFilter?: string | null;
       refreshCache?: boolean;
+      maxResults?: number;
     }
   ): Promise<SymbolResult[]> {
-    const { symbolTypeFilter = null, refreshCache = false } = options || {};
+    const { symbolTypeFilter = null, refreshCache = false, maxResults = 50 } = options || {};
 
     try {
-      // Code search (@go:) - only refresh cache when explicitly requested (first entry to code search mode)
-      // Don't pass maxSymbols - let the handler use settings value
-      const response: SymbolSearchResponse = await window.electronAPI.codeSearch.searchSymbols(
+      // Code search (@go:) - pass query to Main process for filtering
+      // This avoids transferring all symbols over IPC and filtering in Renderer
+      const response: SymbolSearchResponse = await electronAPI.codeSearch.searchSymbols(
         directory,
         language,
-        { useCache: true, refreshCache }
+        {
+          useCache: true,
+          refreshCache,
+          query,
+          symbolTypeFilter,
+          maxResults
+        }
       );
 
       if (!response.success) {
@@ -203,37 +206,8 @@ export class CodeSearchManager {
         return [];
       }
 
-      let filtered: SymbolResult[] = response.symbols;
-
-      // Filter by symbol type first (e.g., @go:func: → only functions)
-      if (symbolTypeFilter) {
-        const targetType = SYMBOL_TYPE_FROM_DISPLAY[symbolTypeFilter];
-        if (targetType) {
-          filtered = filtered.filter((s: SymbolResult) => s.type === targetType);
-        }
-      }
-
-      // Filter symbols by query (search in both name and lineContent)
-      if (query) {
-        const lowerQuery = query.toLowerCase();
-        filtered = filtered.filter((s: SymbolResult) =>
-          s.name.toLowerCase().includes(lowerQuery) ||
-          s.lineContent.toLowerCase().includes(lowerQuery)
-        );
-
-        // Sort by relevance (symbols starting with query first, then alphabetical)
-        filtered.sort((a: SymbolResult, b: SymbolResult) => {
-          const aName = a.name.toLowerCase();
-          const bName = b.name.toLowerCase();
-          const aStarts = aName.startsWith(lowerQuery);
-          const bStarts = bName.startsWith(lowerQuery);
-          if (aStarts && !bStarts) return -1;
-          if (!aStarts && bStarts) return 1;
-          return aName.localeCompare(bName);
-        });
-      }
-
-      return filtered;
+      // Symbols are already filtered and sorted by Main process
+      return response.symbols;
     } catch (error) {
       handleError('CodeSearchManager.searchSymbols', error);
       return [];
@@ -250,24 +224,9 @@ export class CodeSearchManager {
     symbolTypeFilter: string | null = null,
     refreshCache: boolean = false
   ): Promise<void> {
-    console.debug('[CodeSearchManager] searchSymbolsWithUI called:', {
-      language,
-      query,
-      symbolTypeFilter,
-      refreshCache,
-      rgAvailable: this.rgAvailable,
-      languagesLoaded: this.supportedLanguages.size
-    });
-
     const cachedData = this.callbacks.getCachedDirectoryData?.();
-    console.debug('[CodeSearchManager] searchSymbolsWithUI: cachedData:', {
-      hasData: !!cachedData,
-      directory: cachedData?.directory,
-      fileCount: cachedData?.files?.length
-    });
 
     if (!cachedData?.directory) {
-      console.debug('[CodeSearchManager] searchSymbolsWithUI: no directory available');
       // Show user feedback that directory is required
       this.callbacks.updateHintText?.('No directory detected for symbol search');
       // IMPORTANT: Hide any existing suggestions (e.g., from previous file search)
@@ -339,18 +298,13 @@ export class CodeSearchManager {
     this.isInSymbolMode = true;
     this.currentFilePath = relativePath;
 
-    console.debug('[CodeSearchManager] navigateIntoFile:', {
-      file: relativePath,
-      language: language.key
-    });
-
     // Show loading state
     this.callbacks.updateHintText?.(`Loading symbols from ${relativePath}...`);
 
     try {
       // Search for symbols in the directory for this language
       // Don't pass maxSymbols - let the handler use settings value
-      let response = await window.electronAPI.codeSearch.searchSymbols(
+      let response = await electronAPI.codeSearch.searchSymbols(
         directory,
         language.key,
         { useCache: true }
@@ -368,17 +322,13 @@ export class CodeSearchManager {
         (s: SymbolResult) => s.relativePath === relativePath
       );
 
-      console.debug('[CodeSearchManager] Found symbols in file:',
-        this.currentFileSymbols.length, 'out of', response.symbolCount);
-
       // If no symbols found in cached results, retry without cache
       // (cache might be stale)
       if (this.currentFileSymbols.length === 0 && response.symbolCount > 0) {
-        console.debug('[CodeSearchManager] No symbols for file in cache, retrying without cache');
         this.callbacks.updateHintText?.(`Refreshing symbols for ${relativePath}...`);
 
         // Don't pass maxSymbols - let the handler use settings value
-        response = await window.electronAPI.codeSearch.searchSymbols(
+        response = await electronAPI.codeSearch.searchSymbols(
           directory,
           language.key,
           { useCache: false }
@@ -388,8 +338,6 @@ export class CodeSearchManager {
           this.currentFileSymbols = response.symbols.filter(
             (s: SymbolResult) => s.relativePath === relativePath
           );
-          console.debug('[CodeSearchManager] After refresh, found symbols:',
-            this.currentFileSymbols.length, 'out of', response.symbolCount);
         }
       }
 
@@ -399,9 +347,6 @@ export class CodeSearchManager {
         this.isInSymbolMode = false;
         return;
       }
-
-      // Successfully loaded symbols - callback can now retrieve them via getCurrentFileSymbols()
-      console.debug('[CodeSearchManager] Symbol navigation complete, symbols ready for display');
     } catch (error) {
       handleError('CodeSearchManager.handleSymbolNavigation', error);
       this.isInSymbolMode = false;
@@ -509,6 +454,31 @@ export class CodeSearchManager {
    */
   public getCodeSearchQuery(): string {
     return this.codeSearchQuery;
+  }
+
+  /**
+   * Handle show suggestions - checks if in symbol mode and delegates appropriately
+   * @param query - The query string
+   * @param fallbackHandler - Function to call if not in symbol mode
+   * @returns true if handled by symbol mode, false otherwise
+   */
+  public async handleShowSuggestions(query: string, fallbackHandler: () => Promise<void>): Promise<boolean> {
+    if (this.isInSymbolMode) {
+      this.callbacks.setCurrentQuery?.(query);
+      await this.showSymbolSuggestions(query);
+      return true;
+    }
+    await fallbackHandler();
+    return false;
+  }
+
+  /**
+   * Reset symbol mode state
+   */
+  public resetSymbolModeState(): void {
+    this.isInSymbolMode = false;
+    this.currentFilePath = '';
+    this.currentFileSymbols = [];
   }
 
   /**

@@ -153,7 +153,7 @@ You can launch a file searched for with a file path or @ and check its contents.
 You can search for files by typing @.<br>
 ※ [fd](https://github.com/sharkdp/fd) command installation is required. (`brew install fd`)<br>
 ※ You need to configure `fileSearch` in `~/.prompt-line/settings.yml`. See "⚙️ Settings" section.<br>
-※ Supported applications: Terminal.app, iTerm2, JetBrains IDEs (IntelliJ, WebStorm, etc.), VSCode, Cursor, Windsurf
+※ Supported applications: Terminal.app, iTerm2, Ghostty, JetBrains IDEs (IntelliJ, WebStorm, etc.), VSCode, Cursor, Windsurf, Antigravity, Kiro
 
 ![doc10.png](assets/doc10.png)
 
@@ -174,13 +174,14 @@ This feature integrates with File Search, so you need to enable File Search firs
 
 ![doc13.png](assets/doc13.png)
 
-#### Markdown Search
-You can search for slash commands by typing /.<br>
-※ You need to configure `mdSearch` in `~/.prompt-line/settings.yml`. See "⚙️ Settings" section.
+#### Slash Commands
+You can search for slash commands by typing `/`.<br>
+Built-in commands for AI coding assistants (Claude Code, OpenAI Codex, Google Gemini) are available.<br>
+Custom commands can be added via `~/.prompt-line/settings.yml`. See "⚙️ Settings" section.
 
 ![doc11.png](assets/doc11.png)
 
-You can also configure to search for sub-agents and skills by typing @.
+You can also configure to search for sub-agents and skills by typing `@`.
 
 ![doc12.png](assets/doc12.png)
 
@@ -238,79 +239,85 @@ fileOpener:
   #  pdf: "Preview"
 
 # ============================================================================
-# FILE SEARCH SETTINGS (@ mentions)
+# SLASH COMMANDS SETTINGS (/ commands)
 # ============================================================================
-# Note: fd command is required for file search (install: brew install fd)
-# When this section is commented out, file search feature is disabled
+# Configure slash commands: built-in AI tool commands and custom markdown commands
 
-#fileSearch:                        # File search for @ mentions (uncomment to enable)
-#  respectGitignore: true             # Respect .gitignore files
-#  includeHidden: true                # Include hidden files (starting with .)
-#  maxFiles: 5000                     # Maximum files to return
-#  maxDepth: null                     # Directory depth limit (null = unlimited)
-#  followSymlinks: false              # Follow symbolic links
-#  fdPath: null                       # Custom path to fd command (null = auto-detect)
-#  #excludePatterns:                  # Additional exclude patterns
-#  #  - "*.log"
-#  #  - "*.tmp"
-#  #includePatterns:                  # Force include patterns (override .gitignore)
-#  #  - "dist/**/*.js"
+slashCommands:
+  # Built-in commands for AI coding assistants (comment out to disable)
+  builtIn:
+    #tools:                           # List of tools to enable (all available when omitted)
+    #  - claude                       # Claude Code commands
+    #  - codex                        # OpenAI Codex commands
+    #  - gemini                       # Google Gemini commands
 
-# ============================================================================
-# SYMBOL SEARCH SETTINGS (Code Search)
-# ============================================================================
-# Configure symbol search behavior for @<language>:<query> syntax
-# Note: ripgrep (rg) command is required (install: brew install ripgrep)
-# Note: File search must be enabled for symbol search to work
-
-symbolSearch:
-  maxSymbols: 20000                   # Maximum symbols to return (default: 20000)
-  timeout: 5000                       # Search timeout in milliseconds (default: 5000)
-  #rgPaths:                           # Custom paths to rg command (uncomment to override auto-detection)
-  #  - /opt/homebrew/bin/rg
-  #  - /usr/local/bin/rg
+  # Custom slash commands from markdown files
+  #custom:
+  #  - name: "{basename}"
+  #    description: "{frontmatter@description}"
+  #    path: ~/.claude/commands
+  #    pattern: "*.md"
+  #    argumentHint: "{frontmatter@argument-hint}"  # Optional hint after selection
+  #    maxSuggestions: 20              # Max number of suggestions (default: 20)
+  #    sortOrder: asc                  # Sort order: 'asc' (A→Z) or 'desc' (Z→A)
 
 # ============================================================================
-# MARKDOWN SEARCH SETTINGS (Slash Commands & Mentions)
+# MENTIONS SETTINGS (@ mentions)
 # ============================================================================
-# Configure sources for slash commands (/) and mentions (@)
-# Template variables: {basename}, {frontmatter@fieldName}
+# Configure @ mentions: file search, symbol search, and markdown-based mentions
+# Note: fd command required for file search (brew install fd)
+# Note: ripgrep required for symbol search (brew install ripgrep)
 
-#mdSearch:                         # Slash commands & mentions (uncomment to enable)
-#  # Pattern examples:
-#  #   "*.md"                  - Root directory only
-#  #   "**/*.md"               - All subdirectories (recursive)
-#  #   "**/commands/*.md"      - Any "commands" subdirectory
-#  #   "**/*/SKILL.md"         - SKILL.md in any subdirectory
-#  #   "**/{cmd,agent}/*.md"   - Brace expansion (cmd or agent dirs)
-#  #   "test-*.md"             - Wildcard prefix
-#
-#  - name: "{basename}"
-#    type: command                     # 'command' for / or 'mention' for @
-#    description: "{frontmatter@description}"
-#    path: ~/.claude/commands
-#    pattern: "*.md"
-#    argumentHint: "{frontmatter@argument-hint}"  # Optional hint after selection
-#    maxSuggestions: 20                # Max number of suggestions (default: 20)
-#    sortOrder: asc                    # Sort order: 'asc' (A→Z) or 'desc' (Z→A)
-#
-#  - name: "agent-{basename}"
-#    type: mention
-#    description: "{frontmatter@description}"
-#    path: ~/.claude/agents
-#    pattern: "*.md"
-#    maxSuggestions: 20
-#    sortOrder: asc                    # Sort order: 'asc' (A→Z) or 'desc' (Z→A)
-#    searchPrefix: "agent:"            # Require @agent: prefix for this entry (optional)
-#
-#  - name: "{frontmatter@name}"
-#    type: mention
-#    description: "{frontmatter@description}"
-#    path: ~/.claude/plugins
-#    pattern: "**/*/SKILL.md"          # Match SKILL.md in any plugin subdirectory
-#    maxSuggestions: 20
-#    sortOrder: asc                    # Sort order: 'asc' (A→Z) or 'desc' (Z→A)
-#    searchPrefix: "skill:"            # Require @skill: prefix for this entry
+mentions:
+  # File search settings (@path/to/file completion)
+  #fileSearch:
+  #  respectGitignore: true           # Respect .gitignore files
+  #  includeHidden: true              # Include hidden files (starting with .)
+  #  maxFiles: 5000                   # Maximum files to return
+  #  maxDepth: null                   # Directory depth limit (null = unlimited)
+  #  maxSuggestions: 50               # Maximum suggestions to show
+  #  followSymlinks: false            # Follow symbolic links
+  #  #fdPath: null                    # Custom path to fd command
+
+  # Symbol search settings (@ts:Config, @go:Handler)
+  symbolSearch:
+    maxSymbols: 20000                 # Maximum symbols to return (default: 20000)
+    timeout: 5000                     # Search timeout in milliseconds (default: 5000)
+    #rgPath: null                     # Custom path to rg command
+
+  # Markdown-based mentions from markdown files
+  # Template variables: {basename}, {frontmatter@fieldName}
+  # searchPrefix: Search with @<prefix>: (e.g., searchPrefix: "agent" → @agent:)
+  # Pattern examples:
+  #   "*.md"                  - Root directory only
+  #   "**/*.md"               - All subdirectories (recursive)
+  #   "**/commands/*.md"      - Any "commands" subdirectory
+  #   "**/*/SKILL.md"         - SKILL.md in any subdirectory
+  #   "**/{cmd,agent}/*.md"   - Brace expansion (cmd or agent dirs)
+  #mdSearch:
+  #  - name: "agent-{basename}"
+  #    description: "{frontmatter@description}"
+  #    path: ~/.claude/agents
+  #    pattern: "*.md"
+  #    searchPrefix: agent             # Search with @agent:
+  #    maxSuggestions: 20
+  #    sortOrder: asc                  # Sort order: 'asc' (A→Z) or 'desc' (Z→A)
+  #
+  #  - name: "{frontmatter@name}"
+  #    description: "{frontmatter@description}"
+  #    path: ~/.claude/plugins
+  #    pattern: "**/*/SKILL.md"
+  #    searchPrefix: skill             # Search with @skill:
+  #    maxSuggestions: 20
+  #
+  #  - name: "{basename}"
+  #    description: "{frontmatter@title}"
+  #    path: /path/to/knowledge-base
+  #    pattern: "**/*/*.md"
+  #    searchPrefix: kb                # Search with @kb:
+  #    maxSuggestions: 100
+  #    sortOrder: desc
+  #    inputFormat: path               # Insert file path instead of name
 ```
 
 ## Prompt History

@@ -3,7 +3,7 @@
  */
 
 import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import { PopupManager, PopupManagerCallbacks } from '../../src/renderer/file-search/managers';
+import { PopupManager, PopupManagerCallbacks } from '../../src/renderer/mentions/managers';
 
 describe('PopupManager', () => {
   let popupManager: PopupManager;

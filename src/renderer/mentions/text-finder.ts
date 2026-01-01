@@ -3,6 +3,50 @@
  * Pure functions for finding patterns in text at cursor positions
  */
 
+// =============================================================================
+// Common Path Pattern Constants
+// =============================================================================
+
+/**
+ * First character allowed after path prefix (/, ~/, ./, ../)
+ * Includes dot (.) to support hidden directories like ~/.claude
+ */
+const PATH_FIRST_CHAR = '[a-zA-Z0-9_.]';
+
+/**
+ * Characters not allowed in path segments (whitespace and special chars)
+ */
+const PATH_INVALID_CHARS = '[^\\s"\'<>|*?\\n]';
+
+/**
+ * Valid ending characters for paths (alphanumeric, dot, underscore, closing brackets)
+ */
+const PATH_END_CHAR = '[a-zA-Z0-9_.)\\}\\]:]';
+
+/**
+ * Relative path pattern: ./path or ../path
+ */
+const RELATIVE_PATH_PATTERN = '\\.{1,2}\\/[a-zA-Z0-9_./-]+';
+
+/**
+ * Tilde path pattern: ~/path (supports hidden dirs like ~/.claude)
+ */
+const TILDE_PATH_PATTERN = `~\\/${PATH_FIRST_CHAR}${PATH_INVALID_CHARS}*`;
+
+/**
+ * Multi-level absolute path pattern: /path/to/file (requires at least one /)
+ */
+const MULTI_LEVEL_ABSOLUTE_PATH_PATTERN = `\\/(?:${PATH_FIRST_CHAR}${PATH_INVALID_CHARS.replace('\\n', '\\n/')}*\\/)+${PATH_INVALID_CHARS}*`;
+
+/**
+ * Single-level absolute path pattern: /path
+ */
+const SINGLE_LEVEL_ABSOLUTE_PATH_PATTERN = `\\/${PATH_FIRST_CHAR}${PATH_INVALID_CHARS}*`;
+
+// =============================================================================
+// Interfaces
+// =============================================================================
+
 export interface TextMatch {
   start: number;
   end: number;
@@ -101,10 +145,17 @@ export function findSlashCommandAtPosition(text: string, cursorPos: number): Com
  * Supports absolute paths (/, ~/), and relative paths (./, ../)
  */
 export function findAbsolutePathAtPosition(text: string, cursorPos: number): string | null {
-  // Pattern to match file paths:
-  // - Relative paths: ./path, ../path (ASCII path characters only)
-  // - Absolute paths: /path, ~/path (first segment must start with ASCII alphanumeric)
-  const absolutePathPattern = /(?:\.{1,2}\/[a-zA-Z0-9_./-]+|\/[a-zA-Z0-9_][^\s"'<>|*?\n]*|~\/[a-zA-Z0-9_][^\s"'<>|*?\n]*)/g;
+  // Uses common path pattern constants for consistency
+  // Includes single-level absolute paths (/path) for this function
+  const absolutePathPattern = new RegExp(
+    `(?:${RELATIVE_PATH_PATTERN}|${SINGLE_LEVEL_ABSOLUTE_PATH_PATTERN}|${TILDE_PATH_PATTERN})`,
+    'g'
+  );
+
+  // Pattern to identify slash commands (single segment starting with /, no additional slashes or dots)
+  // Slash commands look like /commit, /help - single word after / without extensions
+  const slashCommandPattern = /^\/[a-zA-Z][a-zA-Z0-9_-]*$/;
+
   let match;
 
   while ((match = absolutePathPattern.exec(text)) !== null) {
@@ -116,6 +167,13 @@ export function findAbsolutePathAtPosition(text: string, cursorPos: number): str
     const prevChar = start > 0 ? text[start - 1] : '';
     if (prevChar !== '' && prevChar !== ' ' && prevChar !== '\t' && prevChar !== '\n') {
       continue; // Skip - not a standalone absolute path
+    }
+
+    // Skip if this matches the slash command pattern
+    // Slash commands are single segments like /commit, /help (no additional slashes or dots)
+    // This prevents conflict with the slash command feature
+    if (slashCommandPattern.test(match[0])) {
+      continue;
     }
 
     // Check if cursor is within this path
@@ -148,10 +206,12 @@ export function findClickablePathAtPosition(text: string, cursorPos: number): Pa
   }
 
   // Then check file paths (relative and absolute)
-  // - Relative paths: ./path, ../path (ASCII path characters only)
-  // - Absolute paths: multi-level /path/to/file, ~/path (first segment must start with ASCII alphanumeric)
+  // Uses common path pattern constants for consistency
   // Excludes single-level paths like /commit (slash commands)
-  const absolutePathPattern = /(?:\.{1,2}\/[a-zA-Z0-9_./-]+|\/(?:[a-zA-Z0-9_.][^\s"'<>|*?\n/]*\/)+[^\s"'<>|*?\n]*|~\/[a-zA-Z0-9_][^\s"'<>|*?\n]+)/g;
+  const absolutePathPattern = new RegExp(
+    `(?:${RELATIVE_PATH_PATTERN}|${MULTI_LEVEL_ABSOLUTE_PATH_PATTERN}|${TILDE_PATH_PATTERN})`,
+    'g'
+  );
   while ((match = absolutePathPattern.exec(text)) !== null) {
     const start = match.index;
     const end = start + match[0].length;
@@ -198,11 +258,13 @@ export function findAllUrls(text: string): UrlMatch[] {
  */
 export function findAllAbsolutePaths(text: string): PathMatch[] {
   const results: PathMatch[] = [];
-  // - Relative paths: ./path, ../path (ASCII path characters only)
-  // - Absolute paths: multi-level /path/to/file, ~/path (first segment must start with ASCII alphanumeric)
+  // Uses common path pattern constants for consistency
   // Excludes single-level paths like /commit (slash commands)
-  // Path must end with alphanumeric, dot, underscore, or closing paren/bracket
-  const absolutePathPattern = /(?:\.{1,2}\/[a-zA-Z0-9_./-]+|\/(?:[a-zA-Z0-9_.][^\s"'<>|*?\n/]*\/)+[^\s"'<>|*?\n]*[a-zA-Z0-9_.)}\]:]|~\/[a-zA-Z0-9_][^\s"'<>|*?\n]*[a-zA-Z0-9_.)}\]:])/g;
+  // Path must end with valid ending characters (alphanumeric, dot, underscore, closing brackets)
+  const absolutePathPattern = new RegExp(
+    `(?:${RELATIVE_PATH_PATTERN}|${MULTI_LEVEL_ABSOLUTE_PATH_PATTERN}${PATH_END_CHAR}|${TILDE_PATH_PATTERN}${PATH_END_CHAR})`,
+    'g'
+  );
   let match;
 
   while ((match = absolutePathPattern.exec(text)) !== null) {
@@ -247,6 +309,9 @@ export function resolveAtPathToAbsolute(
     absolutePath = cleanPath;
   } else if (cleanPath.startsWith('/')) {
     // Already an absolute path
+    absolutePath = cleanPath;
+  } else if (cleanPath.startsWith('~')) {
+    // Home directory path - pass through as-is (will be expanded by main process)
     absolutePath = cleanPath;
   } else {
     // Combine with base directory and normalize (handles ../ etc.)

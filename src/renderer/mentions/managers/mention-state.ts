@@ -1,20 +1,20 @@
 /**
- * FileSearchState - Shared state management for FileSearchManager
+ * MentionState - Shared state management for MentionManager
  *
- * Extracts state properties from FileSearchManager to:
- * 1. Reduce FileSearchManager's line count
+ * Extracts state properties from MentionManager to:
+ * 1. Reduce MentionManager's line count
  * 2. Allow sub-managers to directly access/modify state
  * 3. Simplify callback patterns
  */
 
 import type { FileInfo, AgentItem } from '../../../types';
-import type { SymbolResult } from '../../code-search/types';
+import type { SymbolResult } from '../code-search/types';
 import type { AtPathRange, SuggestionItem } from '../types';
 
 /**
  * Centralized state container for file search functionality
  */
-export class FileSearchState {
+export class MentionState {
   // Core state
   suggestionsContainer: HTMLElement | null = null;
   textInput: HTMLTextAreaElement | null = null;
@@ -101,4 +101,4 @@ export class FileSearchState {
   }
 }
 
-export default FileSearchState;
+export default MentionState;

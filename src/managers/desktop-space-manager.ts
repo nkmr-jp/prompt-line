@@ -5,6 +5,7 @@ import { execFile } from 'child_process';
 import { logger } from '../utils/utils';
 import config from '../config/app-config';
 import type { AppInfo } from '../types';
+import { TIMEOUTS } from '../constants';
 
 interface WindowBasicInfo {
   windowID: number;
@@ -71,7 +72,6 @@ class DesktopSpaceManager {
       }
 
       this.isInitialized = true;
-      logger.info('DesktopSpaceManager initialized successfully');
     } catch (error) {
       logger.error('Failed to initialize DesktopSpaceManager:', error);
       throw error;
@@ -91,8 +91,7 @@ class DesktopSpaceManager {
 
       const { stdout } = await this.execOsascript(script);
       return stdout.trim() === 'true';
-    } catch (error) {
-      logger.debug('Error checking accessibility permission:', error);
+    } catch {
       return false;
     }
   }
@@ -167,12 +166,6 @@ class DesktopSpaceManager {
       const spaceInfo = await this.getCurrentSpaceInfo();
       const hasChanged = this.currentSpaceSignature !== spaceInfo.signature;
       
-      if (hasChanged) {
-        logger.debug('Space change detected', { 
-          old: this.currentSpaceSignature, 
-          new: spaceInfo.signature 
-        });
-      }
       
       return hasChanged;
     } catch (error) {
@@ -283,7 +276,7 @@ class DesktopSpaceManager {
    */
   private execOsascript(script: string): Promise<{ stdout: string; stderr: string }> {
     return new Promise((resolve, reject) => {
-      execFile('osascript', ['-e', script], { timeout: 5000 }, (error: Error | null, stdout: string, stderr: string) => {
+      execFile('osascript', ['-e', script], { timeout: TIMEOUTS.DESKTOP_SPACE_DETECTION }, (error: Error | null, stdout: string, stderr: string) => {
         if (error) {
           reject(error);
         } else {
@@ -320,7 +313,6 @@ class DesktopSpaceManager {
   destroy(): void {
     this.stopMonitoring();
     this.isInitialized = false;
-    logger.debug('DesktopSpaceManager destroyed');
   }
 }
 
