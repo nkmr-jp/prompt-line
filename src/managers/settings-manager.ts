@@ -305,13 +305,6 @@ class SettingsManager {
 #      - gemini
 #
 #  # Custom slash commands from markdown files
-#  # Pattern examples:
-#  #   "*.md"                  - Root directory only
-#  #   "**/*.md"               - All subdirectories (recursive)
-#  #   "**/commands/*.md"      - Any "commands" subdirectory
-#  #   "**/*/SKILL.md"         - SKILL.md in any subdirectory
-#  #   "**/{cmd,agent}/*.md"   - Brace expansion (cmd or agent dirs)
-#  #   "test-*.md"             - Wildcard prefix
 #  custom:
 #    - name: "{basename}"
 #      description: "{frontmatter@description}"
@@ -349,13 +342,6 @@ class SettingsManager {
         section += `\n  custom:${formatCustomCommands(settings.slashCommands!.custom)}`;
       } else {
         section += `
-  # Pattern examples:
-  #   "*.md"                  - Root directory only
-  #   "**/*.md"               - All subdirectories (recursive)
-  #   "**/commands/*.md"      - Any "commands" subdirectory
-  #   "**/*/SKILL.md"         - SKILL.md in any subdirectory
-  #   "**/{cmd,agent}/*.md"   - Brace expansion (cmd or agent dirs)
-  #   "test-*.md"             - Wildcard prefix
   #custom:
   #  - name: "{basename}"
   #    description: "{frontmatter@description}"
@@ -398,6 +384,13 @@ class SettingsManager {
 #    #rgPath: null                    # Custom path to rg
 #
 #  # Markdown-based mentions from markdown files
+#  # Pattern examples:
+#  #   "*.md"                  - Root directory only
+#  #   "**/*.md"               - All subdirectories (recursive)
+#  #   "**/commands/*.md"      - Any "commands" subdirectory
+#  #   "**/*/SKILL.md"         - SKILL.md in any subdirectory
+#  #   "**/{cmd,agent}/*.md"   - Brace expansion (cmd or agent dirs)
+#  #   "test-*.md"             - Wildcard prefix
 #  mdSearch:
 #    - name: "agent-{basename}"
 #      description: "{frontmatter@description}"
@@ -491,6 +484,13 @@ class SettingsManager {
       } else {
         section += `
   # Markdown-based mentions from markdown files
+  # Pattern examples:
+  #   "*.md"                  - Root directory only
+  #   "**/*.md"               - All subdirectories (recursive)
+  #   "**/commands/*.md"      - Any "commands" subdirectory
+  #   "**/*/SKILL.md"         - SKILL.md in any subdirectory
+  #   "**/{cmd,agent}/*.md"   - Brace expansion (cmd or agent dirs)
+  #   "test-*.md"             - Wildcard prefix
   #mdSearch:
   #  - name: "agent-{basename}"
   #    description: "{frontmatter@description}"
