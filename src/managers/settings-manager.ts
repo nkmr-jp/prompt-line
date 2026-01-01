@@ -389,7 +389,19 @@ class SettingsManager {
 #      description: "{frontmatter@description}"
 #      path: ~/.claude/agents
 #      pattern: "*.md"
-#      searchPrefix: "agent:"`;
+#      searchPrefix: "agent:"
+#
+#    - name: "{frontmatter@name}"
+#      description: "{frontmatter@description}"
+#      path: ~/.claude/plugins
+#      pattern: "**/*/SKILL.md"
+#      searchPrefix: "skill:"
+#
+#    - name: "{frontmatter@name}"
+#      description: "{frontmatter@description}"
+#      path: ~/.claude/skills
+#      pattern: "**/*/SKILL.md"
+#      searchPrefix: "skill:"`;
       }
 
       let section = 'mentions:\n';
@@ -470,7 +482,19 @@ class SettingsManager {
   #    description: "{frontmatter@description}"
   #    path: ~/.claude/agents
   #    pattern: "*.md"
-  #    searchPrefix: "agent:"`;
+  #    searchPrefix: "agent:"
+  #
+  #  - name: "{frontmatter@name}"
+  #    description: "{frontmatter@description}"
+  #    path: ~/.claude/plugins
+  #    pattern: "**/*/SKILL.md"
+  #    searchPrefix: "skill:"
+  #
+  #  - name: "{frontmatter@name}"
+  #    description: "{frontmatter@description}"
+  #    path: ~/.claude/skills
+  #    pattern: "**/*/SKILL.md"
+  #    searchPrefix: "skill:"`;
       }
 
       return section;
