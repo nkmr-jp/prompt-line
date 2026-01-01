@@ -140,16 +140,28 @@ If you already have an older version installed and want to update to the latest 
 - **Draft Autosave** - Automatically saves your work
 - **Image Support** - Paste clipboard images with `Cmd+V`
 - **File Opener** - Open files from file path text (`Ctrl+Enter` or `Cmd+Click`)
-- **File Search** - Search files by typing `@` (requires fd command and settings configuration)
-- **Symbol Search** - Search code symbols by typing `@<lang>:<query>` (e.g., `@ts:Config`) (requires ripgrep)
-- **Markdown Search** - Search slash commands by typing `/` or sub-agents by typing `@` (requires settings configuration)
+- **Slash Commands** - Search slash commands by typing `/`
+- **@Mentions**
+  - **File Search** - Search files by typing `@` (requires fd command and settings configuration)
+  - **Symbol Search** - Search code symbols by typing `@<lang>:<query>` (e.g., `@ts:Config`) (requires ripgrep)
+  - **Markdown Search** - sub-agents and agent skills by typing `@` (requires settings configuration)
 
 #### File Opener
 You can launch a file searched for with a file path or @ and check its contents. (`Ctrl+Enter` or `Cmd+Click`)
 
 ![doc9.png](assets/doc9.png)
 
-#### File Search
+
+#### Slash Commands
+You can search for slash commands by typing `/`.<br>
+Built-in commands for AI coding assistants (Claude Code, OpenAI Codex, Google Gemini) are available.<br>
+Custom commands can be added via `~/.prompt-line/settings.yml`. See "⚙️ Settings" section.
+
+![doc11.png](assets/doc11.png)
+
+#### @Mentions
+
+##### File Search
 You can search for files by typing @.<br>
 ※ [fd](https://github.com/sharkdp/fd) command installation is required. (`brew install fd`)<br>
 ※ You need to configure `fileSearch` in `~/.prompt-line/settings.yml`. See "⚙️ Settings" section.<br>
@@ -157,7 +169,7 @@ You can search for files by typing @.<br>
 
 ![doc10.png](assets/doc10.png)
 
-#### Symbol Search
+##### Symbol Search
 You can search for code symbols (functions, classes, types, etc.) by typing `@<language>:<query>`.<br>
 This feature integrates with File Search, so you need to enable File Search first.
 
@@ -174,14 +186,8 @@ This feature integrates with File Search, so you need to enable File Search firs
 
 ![doc13.png](assets/doc13.png)
 
-#### Slash Commands
-You can search for slash commands by typing `/`.<br>
-Built-in commands for AI coding assistants (Claude Code, OpenAI Codex, Google Gemini) are available.<br>
-Custom commands can be added via `~/.prompt-line/settings.yml`. See "⚙️ Settings" section.
-
-![doc11.png](assets/doc11.png)
-
-You can also configure to search for sub-agents and skills by typing `@`.
+##### Markdown Search
+You can search for sub-agents and agent skills by typing `@`, also use it for your own knowledge searches.
 
 ![doc12.png](assets/doc12.png)
 
@@ -244,22 +250,22 @@ fileOpener:
 # Configure slash commands: built-in AI tool commands and custom markdown commands
 
 slashCommands:
-  # Built-in commands for AI coding assistants (comment out to disable)
+  # Built-in commands for AI coding assistants
   builtIn:
-    #tools:                           # List of tools to enable (all available when omitted)
-    #  - claude                       # Claude Code commands
+    tools:                           # List of tools to enable
+      - claude                       # Claude Code commands
     #  - codex                        # OpenAI Codex commands
     #  - gemini                       # Google Gemini commands
 
   # Custom slash commands from markdown files
-  #custom:
-  #  - name: "{basename}"
-  #    description: "{frontmatter@description}"
-  #    path: ~/.claude/commands
-  #    pattern: "*.md"
-  #    argumentHint: "{frontmatter@argument-hint}"  # Optional hint after selection
-  #    maxSuggestions: 20              # Max number of suggestions (default: 20)
-  #    sortOrder: asc                  # Sort order: 'asc' (A→Z) or 'desc' (Z→A)
+  custom:
+    - name: "{basename}"
+      description: "{frontmatter@description}"
+      path: ~/.claude/commands
+      pattern: "*.md"
+      argumentHint: "{frontmatter@argument-hint}"  # Optional hint after selection
+      maxSuggestions: 20              # Max number of suggestions (default: 20)
+      sortOrder: asc                  # Sort order: 'asc' (A→Z) or 'desc' (Z→A)
 
 # ============================================================================
 # MENTIONS SETTINGS (@ mentions)
@@ -270,14 +276,18 @@ slashCommands:
 
 mentions:
   # File search settings (@path/to/file completion)
-  #fileSearch:
-  #  respectGitignore: true           # Respect .gitignore files
-  #  includeHidden: true              # Include hidden files (starting with .)
-  #  maxFiles: 5000                   # Maximum files to return
-  #  maxDepth: null                   # Directory depth limit (null = unlimited)
-  #  maxSuggestions: 50               # Maximum suggestions to show
-  #  followSymlinks: false            # Follow symbolic links
-  #  #fdPath: null                    # Custom path to fd command
+  # ※ Supported applications: 
+  #   Terminal.app, iTerm2, Ghostty, 
+  #   JetBrains IDEs (IntelliJ, WebStorm, etc.), VSCode, Cursor, Windsurf, 
+  #   Antigravity, Kiro
+  fileSearch:
+    respectGitignore: true           # Respect .gitignore files
+    includeHidden: true              # Include hidden files (starting with .)
+    maxFiles: 5000                   # Maximum files to return
+    maxDepth: null                   # Directory depth limit (null = unlimited)
+    maxSuggestions: 50               # Maximum suggestions to show
+    followSymlinks: false            # Follow symbolic links
+    #fdPath: null                    # Custom path to fd command
 
   # Symbol search settings (@ts:Config, @go:Handler)
   symbolSearch:
@@ -294,15 +304,21 @@ mentions:
   #   "**/commands/*.md"      - Any "commands" subdirectory
   #   "**/*/SKILL.md"         - SKILL.md in any subdirectory
   #   "**/{cmd,agent}/*.md"   - Brace expansion (cmd or agent dirs)
-  #mdSearch:
-  #  - name: "agent-{basename}"
-  #    description: "{frontmatter@description}"
-  #    path: ~/.claude/agents
-  #    pattern: "*.md"
-  #    searchPrefix: agent             # Search with @agent:
-  #    maxSuggestions: 20
-  #    sortOrder: asc                  # Sort order: 'asc' (A→Z) or 'desc' (Z→A)
-  #
+  mdSearch:
+    - name: "agent-{basename}"
+      description: "{frontmatter@description}"
+      path: ~/.claude/agents
+      pattern: "*.md"
+      searchPrefix: agent             # Search with @agent:
+      maxSuggestions: 20
+      sortOrder: asc                  # Sort order: 'asc' (A→Z) or 'desc' (Z→A)
+
+    - name: "{frontmatter@name}"
+      description: "{frontmatter@description}"
+      path: ~/.claude/plugins
+      pattern: "**/*/SKILL.md"
+      searchPrefix: skill            # Search with @skill:
+  
   #  - name: "{frontmatter@name}"
   #    description: "{frontmatter@description}"
   #    path: ~/.claude/plugins
