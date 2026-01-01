@@ -388,31 +388,32 @@ class SettingsManager {
 #  #   "**/*/SKILL.md"         - SKILL.md in any subdirectory
 #  #   "**/{cmd,agent}/*.md"   - Brace expansion (cmd or agent dirs)
 #  #   "test-*.md"             - Wildcard prefix
+#  # searchPrefix: Search with @<prefix>: (e.g., searchPrefix: "agent" → @agent:)
 #  mdSearch:
 #    - name: "agent-{basename}"
 #      description: "{frontmatter@description}"
 #      path: ~/.claude/agents
 #      pattern: "*.md"
-#      searchPrefix: "agent:"
+#      searchPrefix: agent            # Search with @agent:
 #
 #    - name: "{frontmatter@name}"
 #      description: "{frontmatter@description}"
 #      path: ~/.claude/plugins
 #      pattern: "**/*/SKILL.md"
-#      searchPrefix: "skill:"
+#      searchPrefix: skill            # Search with @skill:
 #
 #    - name: "{frontmatter@name}"
 #      description: "{frontmatter@description}"
 #      path: ~/.claude/skills
 #      pattern: "**/*/SKILL.md"
-#      searchPrefix: "skill:"
+#      searchPrefix: skill            # Search with @skill:
 #
 #    - name: "{basename}"
 #      description: "{frontmatter@title}"
 #      path: /path/to/knowledge-base
 #      pattern: "**/*/*.md"
 #      maxSuggestions: 100
-#      searchPrefix: "kb:"
+#      searchPrefix: kb               # Search with @kb:
 #      sortOrder: desc
 #      inputFormat: path`;
       }
@@ -497,31 +498,32 @@ class SettingsManager {
   #   "**/*/SKILL.md"         - SKILL.md in any subdirectory
   #   "**/{cmd,agent}/*.md"   - Brace expansion (cmd or agent dirs)
   #   "test-*.md"             - Wildcard prefix
+  # searchPrefix: Search with @<prefix>: (e.g., searchPrefix: "agent" → @agent:)
   #mdSearch:
   #  - name: "agent-{basename}"
   #    description: "{frontmatter@description}"
   #    path: ~/.claude/agents
   #    pattern: "*.md"
-  #    searchPrefix: "agent:"
+  #    searchPrefix: agent            # Search with @agent:
   #
   #  - name: "{frontmatter@name}"
   #    description: "{frontmatter@description}"
   #    path: ~/.claude/plugins
   #    pattern: "**/*/SKILL.md"
-  #    searchPrefix: "skill:"
+  #    searchPrefix: skill            # Search with @skill:
   #
   #  - name: "{frontmatter@name}"
   #    description: "{frontmatter@description}"
   #    path: ~/.claude/skills
   #    pattern: "**/*/SKILL.md"
-  #    searchPrefix: "skill:"
+  #    searchPrefix: skill            # Search with @skill:
   #
   #  - name: "{basename}"
   #    description: "{frontmatter@title}"
   #    path: /path/to/knowledge-base
   #    pattern: "**/*/*.md"
   #    maxSuggestions: 100
-  #    searchPrefix: "kb:"
+  #    searchPrefix: kb               # Search with @kb:
   #    sortOrder: desc
   #    inputFormat: path`;
       }

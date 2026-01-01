@@ -70,8 +70,9 @@ class MdSearchLoader {
         // searchPrefixが未設定の場合は常に検索対象
         return true;
       }
-      // queryがsearchPrefixで始まるかチェック
-      return query.startsWith(entry.searchPrefix);
+      // queryがsearchPrefix:で始まるかチェック（: は自動で追加）
+      const prefixWithColon = entry.searchPrefix + ':';
+      return query.startsWith(prefixWithColon);
     });
 
     // クエリに基づいてソート順を決定
@@ -81,11 +82,11 @@ class MdSearchLoader {
       return this.sortItems(items, sortOrder);
     }
 
-    // 各アイテムの実際の検索クエリを計算（searchPrefixを除去）
+    // 各アイテムの実際の検索クエリを計算（searchPrefix:を除去）
     const filteredItems = items.filter(item => {
       const entry = this.findEntryForItem(item);
-      const prefix = entry?.searchPrefix || '';
-      const actualQuery = query.startsWith(prefix) ? query.slice(prefix.length) : query;
+      const prefixWithColon = entry?.searchPrefix ? entry.searchPrefix + ':' : '';
+      const actualQuery = query.startsWith(prefixWithColon) ? query.slice(prefixWithColon.length) : query;
 
       // プレフィックスのみの場合は全て表示
       if (!actualQuery) {
@@ -123,11 +124,11 @@ class MdSearchLoader {
   }
 
   /**
-   * 指定タイプのsearchPrefixリストを取得
+   * 指定タイプのsearchPrefixリストを取得（: 付き）
    */
   getSearchPrefixes(type: MdSearchType): string[] {
     const entries = this.config.filter(entry => entry.type === type && entry.searchPrefix);
-    return entries.map(entry => entry.searchPrefix!);
+    return entries.map(entry => entry.searchPrefix! + ':');
   }
 
   /**
@@ -151,9 +152,9 @@ class MdSearchLoader {
       return DEFAULT_SORT_ORDER;
     }
 
-    // クエリがsearchPrefixで始まるエントリを探す
+    // クエリがsearchPrefix:で始まるエントリを探す（: は自動で追加）
     const matchingEntry = entries.find(entry =>
-      entry.searchPrefix && query.startsWith(entry.searchPrefix)
+      entry.searchPrefix && query.startsWith(entry.searchPrefix + ':')
     );
 
     if (matchingEntry) {

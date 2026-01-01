@@ -269,7 +269,7 @@ export interface MentionEntry {
   pattern: string;
   /** オプション: 検索候補の最大表示数（デフォルト: 20） */
   maxSuggestions?: number;
-  /** オプション: 検索プレフィックス（例: "agent:"） */
+  /** オプション: 検索プレフィックス（例: "agent"）- 自動で : が追加されます（@agent: で検索） */
   searchPrefix?: string;
   /** オプション: 名前ソート順（デフォルト: 'asc'） */
   sortOrder?: 'asc' | 'desc';
@@ -306,7 +306,7 @@ export interface MdSearchEntry {
   argumentHint?: string;
   /** オプション: 検索候補の最大表示数（デフォルト: 20） */
   maxSuggestions?: number;
-  /** オプション: 検索プレフィックス（例: "agent:"）- このプレフィックスで始まるクエリのみ検索対象 */
+  /** オプション: 検索プレフィックス（例: "agent"）- 自動で : が追加されます（@agent: で検索） */
   searchPrefix?: string;
   /** オプション: 名前ソート順（デフォルト: 'asc'） - 'asc': 昇順, 'desc': 降順 */
   sortOrder?: 'asc' | 'desc';

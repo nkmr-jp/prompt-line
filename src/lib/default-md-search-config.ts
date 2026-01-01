@@ -37,7 +37,7 @@ export function getDefaultMdSearchConfig(): MdSearchEntry[] {
       pattern: '*.md',
       maxSuggestions: DEFAULT_MAX_SUGGESTIONS,
       sortOrder: DEFAULT_SORT_ORDER,
-      // searchPrefix: 'agent:', // Uncomment to require @agent: prefix for agent search
+      // searchPrefix: 'agent', // Uncomment to require @agent: prefix for agent search
     },
   ];
 }
