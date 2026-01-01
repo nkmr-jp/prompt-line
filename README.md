@@ -315,10 +315,10 @@ mentions:
 
     - name: "{frontmatter@name}"
       description: "{frontmatter@description}"
-      path: ~/.claude/plugins
+      path: ~/.claude/skills
       pattern: "**/*/SKILL.md"
       searchPrefix: skill            # Search with @skill:
-  
+
   #  - name: "{frontmatter@name}"
   #    description: "{frontmatter@description}"
   #    path: ~/.claude/plugins
