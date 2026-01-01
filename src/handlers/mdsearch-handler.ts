@@ -91,8 +91,8 @@ class MdSearchHandler {
           name: item.name,
           description: item.description,
           filePath: item.filePath,
-          source: 'user',      // Mark as user-defined command
-          displayName: 'user', // Display "user" badge
+          source: 'custom',      // Mark as custom slash command
+          displayName: 'custom', // Display "custom" badge
         };
         if (item.argumentHint) {
           cmd.argumentHint = item.argumentHint;

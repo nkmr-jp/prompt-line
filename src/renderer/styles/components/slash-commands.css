@@ -71,6 +71,27 @@
   white-space: nowrap;
 }
 
+/* Source-specific badge colors */
+.slash-command-source[data-source="claude"] {
+  color: #e8c58f;
+  background: rgba(232, 197, 143, 0.2);
+}
+
+.slash-command-source[data-source="codex"] {
+  color: #7fdbca;
+  background: rgba(127, 219, 202, 0.2);
+}
+
+.slash-command-source[data-source="gemini"] {
+  color: #82aaff;
+  background: rgba(130, 170, 255, 0.2);
+}
+
+.slash-command-source[data-source="custom"] {
+  color: #c792ea;
+  background: rgba(199, 146, 234, 0.2);
+}
+
 .slash-highlight {
   background: rgba(255, 200, 0, 0.3);
   color: var(--text-primary, #fff);

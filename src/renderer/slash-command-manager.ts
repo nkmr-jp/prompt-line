@@ -256,6 +256,7 @@ export class SlashCommandManager implements IInitializable {
       if (cmd.displayName) {
         const sourceBadge = document.createElement('span');
         sourceBadge.className = 'slash-command-source';
+        sourceBadge.dataset.source = cmd.source || cmd.displayName;
         sourceBadge.textContent = cmd.displayName;
         item.appendChild(sourceBadge);
       }
