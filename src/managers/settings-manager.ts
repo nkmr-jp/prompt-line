@@ -381,8 +381,7 @@ class SettingsManager {
 #  symbolSearch:
 #    maxSymbols: 20000                # Maximum symbols to return
 #    timeout: 5000                    # Search timeout in ms
-#    #rgPaths:                        # Custom paths to rg
-#    #  - /opt/homebrew/bin/rg
+#    #rgPath: null                    # Custom path to rg
 #
 #  # Markdown-based mentions from markdown files
 #  mdSearch:
@@ -437,17 +436,16 @@ class SettingsManager {
 
       // Symbol search subsection
       if (symbolSearch) {
-        const rgPathsSection = symbolSearch.rgPaths && symbolSearch.rgPaths.length > 0
-          ? `rgPaths:${symbolSearch.rgPaths.map(p => `\n      - ${p}`).join('')}`
-          : `#rgPaths:                        # Custom paths to rg
-    #  - /opt/homebrew/bin/rg`;
+        const rgPathSection = symbolSearch.rgPath
+          ? `rgPath: "${symbolSearch.rgPath}"`
+          : `#rgPath: null                    # Custom path to rg`;
 
         section += `
   # Symbol search settings (@ts:Config, @go:Handler)
   symbolSearch:
     maxSymbols: ${symbolSearch.maxSymbols ?? 20000}
     timeout: ${symbolSearch.timeout ?? 5000}
-    ${rgPathsSection}
+    ${rgPathSection}
 `;
       } else {
         section += `
@@ -455,8 +453,7 @@ class SettingsManager {
   symbolSearch:
     maxSymbols: 20000
     timeout: 5000
-    #rgPaths:
-    #  - /opt/homebrew/bin/rg
+    #rgPath: null
 `;
       }
 

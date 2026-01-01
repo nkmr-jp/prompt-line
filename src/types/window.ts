@@ -203,8 +203,8 @@ export interface SymbolSearchUserSettings {
   maxSymbols?: number;
   /** Search timeout in milliseconds (default: 5000) */
   timeout?: number;
-  /** Custom paths to ripgrep command (null = auto-detect from common paths) */
-  rgPaths?: string[] | null;
+  /** Custom path to ripgrep command (null = auto-detect from common paths) */
+  rgPath?: string | null;
 }
 
 /**
