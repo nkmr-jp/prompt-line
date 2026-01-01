@@ -21,6 +21,7 @@ import HistoryManager from './managers/history-manager';
 import DraftManager from './managers/draft-manager';
 import DirectoryManager from './managers/directory-manager';
 import SettingsManager from './managers/settings-manager';
+import BuiltInCommandsManager from './managers/built-in-commands-manager';
 import IPCHandlers from './handlers/ipc-handlers';
 import { codeSearchHandler } from './handlers/code-search-handler';
 import { logger, ensureDir, detectCurrentDirectoryWithFiles } from './utils/utils';
@@ -33,6 +34,7 @@ class PromptLineApp {
   private draftManager: DraftManager | null = null;
   private directoryManager: DirectoryManager | null = null;
   private settingsManager: SettingsManager | null = null;
+  private builtInCommandsManager: BuiltInCommandsManager | null = null;
   private ipcHandlers: IPCHandlers | null = null;
   private tray: Tray | null = null;
   private isInitialized = false;
@@ -58,6 +60,10 @@ class PromptLineApp {
   private async initializeDirectories(): Promise<void> {
     await ensureDir(config.paths.userDataDir);
     await ensureDir(config.paths.imagesDir);
+
+    // Initialize built-in commands (copy to user data directory)
+    this.builtInCommandsManager = new BuiltInCommandsManager();
+    await this.builtInCommandsManager.initialize();
   }
 
   /**
@@ -141,7 +147,11 @@ class PromptLineApp {
       logger.debug('Testing directory detection feature...');
       const startTime = performance.now();
 
-      const result = await detectCurrentDirectoryWithFiles();
+      // Get file search settings from settings manager (if available)
+      const fileSearchSettings = this.settingsManager?.getFileSearchSettings();
+      // Only pass options if we have file search settings
+      const options = fileSearchSettings ? { fileSearchSettings } : undefined;
+      const result = await detectCurrentDirectoryWithFiles(options);
       const duration = performance.now() - startTime;
 
       if (result.error) {
@@ -362,7 +372,7 @@ class PromptLineApp {
         return;
       }
 
-      const draft = this.draftManager.getCurrentDraft();
+      const draftData = this.draftManager.getDraftWithScrollTop();
       const settings = this.settingsManager.getSettings();
       // Use getHistoryForSearch for larger search scope (5000 items instead of 200)
       const history = await this.historyManager.getHistoryForSearch(LIMITS.MAX_SEARCH_ITEMS);
@@ -374,7 +384,12 @@ class PromptLineApp {
 
       const windowData: WindowData = {
         history,
-        draft: draft || null,
+        draft: draftData.text ? {
+          text: draftData.text,
+          scrollTop: draftData.scrollTop,
+          timestamp: Date.now(),
+          saved: true
+        } : null,
         settings
       };
 

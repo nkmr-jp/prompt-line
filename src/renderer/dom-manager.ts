@@ -256,6 +256,28 @@ export class DomManager implements IInitializable {
   }
 
   /**
+   * Get the current scroll position of the textarea
+   * @returns The scroll position (scrollTop)
+   */
+  public getScrollTop(): number {
+    if (!this.textarea) {
+      return 0;
+    }
+    return this.textarea.scrollTop;
+  }
+
+  /**
+   * Set the scroll position of the textarea
+   * @param scrollTop The scroll position to set
+   */
+  public setScrollTop(scrollTop: number): void {
+    if (!this.textarea) {
+      return;
+    }
+    this.textarea.scrollTop = scrollTop;
+  }
+
+  /**
    * Remove indentation (tab or spaces) from the beginning of lines at cursor or selection
    * - Single line: Remove tab or up to 4 spaces from the beginning of the current line
    * - Multiple lines: Remove tab or up to 4 spaces from all selected lines

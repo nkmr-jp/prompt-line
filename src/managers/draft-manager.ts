@@ -39,11 +39,13 @@ interface DraftStatsExtended {
 class DraftManager {
   private draftFile: string;
   private currentDraft: string | null = null;
+  private currentScrollTop = 0;
   private pendingSave = false;
   private hasUnsavedChanges = false;
   private lastSavedContent: string | null = null;
-  private debouncedSave: DebounceFunction<[string]>;
-  private quickSave: DebounceFunction<[string]>;
+  private lastSavedScrollTop = 0;
+  private debouncedSave: DebounceFunction<[string, number]>;
+  private quickSave: DebounceFunction<[string, number]>;
 
   constructor() {
     this.draftFile = config.paths.draftFile;
@@ -54,31 +56,42 @@ class DraftManager {
 
   async initialize(): Promise<void> {
     try {
-      this.currentDraft = await this.loadDraft();
+      const draftData = await this.loadDraftData();
+      this.currentDraft = draftData.text;
+      this.currentScrollTop = draftData.scrollTop;
     } catch (error) {
       logger.error('Failed to initialize draft manager:', error);
       this.currentDraft = null;
+      this.currentScrollTop = 0;
     }
   }
 
   async loadDraft(): Promise<string> {
+    const draftData = await this.loadDraftData();
+    return draftData.text;
+  }
+
+  async loadDraftData(): Promise<{ text: string; scrollTop: number }> {
     try {
       const data = await fs.readFile(this.draftFile, 'utf8');
 
       if (!data || data.trim().length === 0) {
-        return '';
+        return { text: '', scrollTop: 0 };
       }
 
-      const parsed = safeJsonParse<{ text?: string }>(data, {});
+      const parsed = safeJsonParse<{ text?: string; scrollTop?: number }>(data, {});
 
       if (parsed && typeof parsed.text === 'string') {
-        return parsed.text;
+        return {
+          text: parsed.text,
+          scrollTop: typeof parsed.scrollTop === 'number' ? parsed.scrollTop : 0
+        };
       } else {
-        return '';
+        return { text: '', scrollTop: 0 };
       }
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        return '';
+        return { text: '', scrollTop: 0 };
       } else {
         logger.error('Error loading draft:', error);
         throw error;
@@ -86,9 +99,10 @@ class DraftManager {
     }
   }
 
-  async saveDraft(text: string): Promise<void> {
+  async saveDraft(text: string, scrollTop = 0): Promise<void> {
     try {
       this.currentDraft = text;
+      this.currentScrollTop = scrollTop;
       this.hasUnsavedChanges = true;
 
       if (!text || !text.trim()) {
@@ -107,9 +121,9 @@ class DraftManager {
       }
 
       if (text.length > DEBOUNCE.TEXT_LENGTH_THRESHOLD) {
-        this.debouncedSave(text);
+        this.debouncedSave(text, scrollTop);
       } else {
-        this.quickSave(text);
+        this.quickSave(text, scrollTop);
       }
     } catch (error) {
       logger.error('Failed to schedule draft save:', error);
@@ -117,8 +131,8 @@ class DraftManager {
     }
   }
 
-  private async _saveDraft(text: string): Promise<void> {
-    if (this.lastSavedContent === text) {
+  private async _saveDraft(text: string, scrollTop = 0): Promise<void> {
+    if (this.lastSavedContent === text && this.lastSavedScrollTop === scrollTop) {
       return;
     }
 
@@ -130,6 +144,7 @@ class DraftManager {
     try {
       const draft = {
         text: text,
+        scrollTop: scrollTop,
         timestamp: Date.now(),
         version: '1.0'
       };
@@ -139,6 +154,7 @@ class DraftManager {
       await fs.writeFile(this.draftFile, data, { mode: 0o600 });
 
       this.lastSavedContent = text;
+      this.lastSavedScrollTop = scrollTop;
       this.hasUnsavedChanges = false;
     } catch (error) {
       logger.error('Failed to save draft to file:', error);
@@ -148,9 +164,10 @@ class DraftManager {
     }
   }
 
-  async saveDraftImmediately(text: string): Promise<void> {
+  async saveDraftImmediately(text: string, scrollTop = 0): Promise<void> {
     try {
       this.currentDraft = text;
+      this.currentScrollTop = scrollTop;
 
       if (!text || !text.trim()) {
         await this.clearDraft();
@@ -167,7 +184,7 @@ class DraftManager {
         throw new Error('Draft size exceeds 1MB limit');
       }
 
-      await this._saveDraft(text);
+      await this._saveDraft(text, scrollTop);
     } catch (error) {
       logger.error('Failed to save draft immediately:', error);
       throw error;
@@ -176,13 +193,14 @@ class DraftManager {
 
   async flushPendingSaves(): Promise<void> {
     if (this.hasUnsavedChanges && this.currentDraft !== this.lastSavedContent && this.currentDraft) {
-      await this._saveDraft(this.currentDraft);
+      await this._saveDraft(this.currentDraft, this.currentScrollTop);
     }
   }
 
   async clearDraft(): Promise<void> {
     try {
       this.currentDraft = null;
+      this.currentScrollTop = 0;
 
       if (this.debouncedSave.cancel) {
         this.debouncedSave.cancel();
@@ -201,6 +219,17 @@ class DraftManager {
 
   getCurrentDraft(): string {
     return this.currentDraft || '';
+  }
+
+  getCurrentScrollTop(): number {
+    return this.currentScrollTop;
+  }
+
+  getDraftWithScrollTop(): { text: string; scrollTop: number } {
+    return {
+      text: this.currentDraft || '',
+      scrollTop: this.currentScrollTop
+    };
   }
 
   hasDraft(): boolean {
@@ -354,17 +383,19 @@ class DraftManager {
   async destroy(): Promise<void> {
     try {
       await this.flushPendingSaves();
-      
+
       if (this.debouncedSave.cancel) {
         this.debouncedSave.cancel();
       }
       if (this.quickSave.cancel) {
         this.quickSave.cancel();
       }
-      
+
       this.currentDraft = null;
+      this.currentScrollTop = 0;
       this.hasUnsavedChanges = false;
       this.lastSavedContent = null;
+      this.lastSavedScrollTop = 0;
     } catch (error) {
       logger.error('Error during draft manager cleanup:', error);
     }

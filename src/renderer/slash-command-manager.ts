@@ -8,8 +8,6 @@ import type { IInitializable } from './interfaces/initializable';
 import { FrontmatterPopupManager } from './frontmatter-popup-manager';
 import { highlightMatch } from './utils/highlight-utils';
 import { escapeHtml } from './utils/html-utils';
-import { handleError } from './utils/error-handler';
-import { SUGGESTIONS } from '../constants';
 import { electronAPI } from './services/electron-api';
 
 interface SlashCommandItem {
@@ -19,6 +17,8 @@ interface SlashCommandItem {
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
   inputFormat?: InputFormatType;  // 入力フォーマット（'name' | 'path'）
+  source?: string;  // Source tool identifier (e.g., 'claude-code') for filtering
+  displayName?: string;  // Human-readable source name for display (e.g., 'Claude Code')
 }
 
 export class SlashCommandManager implements IInitializable {
@@ -38,9 +38,6 @@ export class SlashCommandManager implements IInitializable {
 
   // Frontmatter popup manager
   private frontmatterPopupManager: FrontmatterPopupManager;
-
-  // Cached maxSuggestions
-  private maxSuggestionsCache: number | null = null;
 
   constructor(callbacks: {
     onCommandSelect: (command: string) => void;
@@ -137,35 +134,6 @@ export class SlashCommandManager implements IInitializable {
   }
 
   /**
-   * Get maxSuggestions for commands (cached)
-   */
-  private async getMaxSuggestions(): Promise<number> {
-    // Return cached value if available
-    if (this.maxSuggestionsCache !== null) {
-      return this.maxSuggestionsCache;
-    }
-
-    try {
-      if (electronAPI?.mdSearch?.getMaxSuggestions) {
-        const maxSuggestions = await electronAPI.mdSearch.getMaxSuggestions('command');
-        this.maxSuggestionsCache = maxSuggestions;
-        return maxSuggestions;
-      }
-    } catch (error) {
-      handleError('SlashCommandManager.getMaxSuggestions', error);
-    }
-
-    return SUGGESTIONS.DEFAULT_MAX;
-  }
-
-  /**
-   * Clear maxSuggestions cache (call when settings might have changed)
-   */
-  public clearMaxSuggestionsCache(): void {
-    this.maxSuggestionsCache = null;
-  }
-
-  /**
    * Check if user is typing a slash command at the beginning of input
    */
   private checkForSlashCommand(): void {
@@ -212,15 +180,13 @@ export class SlashCommandManager implements IInitializable {
       await this.loadCommands();
     }
 
-    // Get maxSuggestions setting
-    const maxSuggestions = await this.getMaxSuggestions();
-
-    // Filter and sort commands - prioritize: prefix match > contains match > description match
+    // Filter and sort commands - prioritize: prefix match > contains match > description match > source match
     const lowerQuery = query.toLowerCase();
     this.filteredCommands = this.commands
       .filter(cmd =>
         cmd.name.toLowerCase().includes(lowerQuery) ||
-        cmd.description.toLowerCase().includes(lowerQuery)
+        cmd.description.toLowerCase().includes(lowerQuery) ||
+        (cmd.displayName && cmd.displayName.toLowerCase().includes(lowerQuery))
       )
       .sort((a, b) => {
         const aName = a.name.toLowerCase();
@@ -245,8 +211,7 @@ export class SlashCommandManager implements IInitializable {
 
         // 4. Sort by name alphabetically
         return a.name.localeCompare(b.name);
-      })
-      .slice(0, maxSuggestions);
+      });
 
     if (this.filteredCommands.length === 0) {
       this.hideSuggestions();
@@ -286,6 +251,15 @@ export class SlashCommandManager implements IInitializable {
       nameSpan.className = 'slash-command-name';
       nameSpan.innerHTML = '/' + highlightMatch(cmd.name, query, 'slash-highlight');
       item.appendChild(nameSpan);
+
+      // Create source badge for built-in commands (if displayName exists)
+      if (cmd.displayName) {
+        const sourceBadge = document.createElement('span');
+        sourceBadge.className = 'slash-command-source';
+        sourceBadge.dataset.source = cmd.source || cmd.displayName;
+        sourceBadge.textContent = cmd.displayName;
+        item.appendChild(sourceBadge);
+      }
 
       // Create description element with highlighting
       if (cmd.description) {
@@ -492,6 +466,15 @@ export class SlashCommandManager implements IInitializable {
       <span class="slash-command-name">/${escapeHtml(command.name)}</span>
       ${hintText ? `<span class="slash-command-description">${escapeHtml(hintText)}</span>` : ''}
     `;
+
+    // Add source badge if displayName is available
+    if (command.displayName) {
+      const sourceBadge = document.createElement('span');
+      sourceBadge.className = 'slash-command-source';
+      sourceBadge.dataset.source = command.source || command.displayName;
+      sourceBadge.textContent = command.displayName;
+      item.appendChild(sourceBadge);
+    }
 
     this.suggestionsContainer.appendChild(item);
 

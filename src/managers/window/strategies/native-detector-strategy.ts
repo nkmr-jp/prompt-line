@@ -66,7 +66,15 @@ export class NativeDetectorStrategy implements IDirectoryDetectionStrategy {
 
           // Apply file search settings if available
           if (fileSearchSettings) {
+            logger.debug('Applying file search settings:', {
+              maxFiles: fileSearchSettings.maxFiles,
+              respectGitignore: fileSearchSettings.respectGitignore,
+              includeHidden: fileSearchSettings.includeHidden
+            });
             this.applyFileSearchSettings(listArgs, fileSearchSettings);
+            logger.debug('File searcher args:', listArgs.join(' '));
+          } else {
+            logger.debug('No file search settings provided, using defaults');
           }
 
           // Calculate remaining timeout with minimum threshold

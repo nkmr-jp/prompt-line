@@ -173,13 +173,14 @@ npm run reset-accessibility
 
 ![doc13.png](assets/doc13.png)
 
-#### マークダウン検索
-/を入力してスラッシュコマンドを検索できるように設定できます。<br>
-※ `~/.prompt-line/settings.yml` で `mdSearch`の項目を設定する必要があります。 「⚙️ 設定」の項目参照
+#### スラッシュコマンド
+`/`を入力するとスラッシュコマンドを検索できます。<br>
+AIコーディングアシスタント（Claude Code、OpenAI Codex、Google Gemini）用のビルトインコマンドが利用可能です。<br>
+カスタムコマンドは `~/.prompt-line/settings.yml` で追加できます。「⚙️ 設定」の項目参照
 
 ![doc11.png](assets/doc11.png)
 
-サブエージェントやSKILLを@で検索できるようにも設定できます。
+`@`を入力するとサブエージェントやスキルを検索することもできます。
 
 ![doc12.png](assets/doc12.png)
 
@@ -237,79 +238,85 @@ fileOpener:
   #  pdf: "Preview"
 
 # ============================================================================
-# FILE SEARCH SETTINGS (@ mentions)
+# SLASH COMMANDS SETTINGS (/ commands)
 # ============================================================================
-# Note: fd command is required for file search (install: brew install fd)
-# When this section is commented out, file search feature is disabled
+# Configure slash commands: built-in AI tool commands and custom markdown commands
 
-#fileSearch:                        # File search for @ mentions (uncomment to enable)
-#  respectGitignore: true             # Respect .gitignore files
-#  includeHidden: true                # Include hidden files (starting with .)
-#  maxFiles: 5000                     # Maximum files to return
-#  maxDepth: null                     # Directory depth limit (null = unlimited)
-#  followSymlinks: false              # Follow symbolic links
-#  fdPath: null                       # Custom path to fd command (null = auto-detect)
-#  #excludePatterns:                  # Additional exclude patterns
-#  #  - "*.log"
-#  #  - "*.tmp"
-#  #includePatterns:                  # Force include patterns (override .gitignore)
-#  #  - "dist/**/*.js"
+slashCommands:
+  # Built-in commands for AI coding assistants (comment out to disable)
+  builtIn:
+    #tools:                           # List of tools to enable (all available when omitted)
+    #  - claude                       # Claude Code commands
+    #  - codex                        # OpenAI Codex commands
+    #  - gemini                       # Google Gemini commands
 
-# ============================================================================
-# SYMBOL SEARCH SETTINGS (Code Search)
-# ============================================================================
-# Configure symbol search behavior for @<language>:<query> syntax
-# Note: ripgrep (rg) command is required (install: brew install ripgrep)
-# Note: File search must be enabled for symbol search to work
-
-symbolSearch:
-  maxSymbols: 20000                   # Maximum symbols to return (default: 20000)
-  timeout: 5000                       # Search timeout in milliseconds (default: 5000)
-  #rgPaths:                           # Custom paths to rg command (uncomment to override auto-detection)
-  #  - /opt/homebrew/bin/rg
-  #  - /usr/local/bin/rg
+  # Custom slash commands from markdown files
+  #custom:
+  #  - name: "{basename}"
+  #    description: "{frontmatter@description}"
+  #    path: ~/.claude/commands
+  #    pattern: "*.md"
+  #    argumentHint: "{frontmatter@argument-hint}"  # Optional hint after selection
+  #    maxSuggestions: 20              # Max number of suggestions (default: 20)
+  #    sortOrder: asc                  # Sort order: 'asc' (A→Z) or 'desc' (Z→A)
 
 # ============================================================================
-# MARKDOWN SEARCH SETTINGS (Slash Commands & Mentions)
+# MENTIONS SETTINGS (@ mentions)
 # ============================================================================
-# Configure sources for slash commands (/) and mentions (@)
-# Template variables: {basename}, {frontmatter@fieldName}
+# Configure @ mentions: file search, symbol search, and markdown-based mentions
+# Note: fd command required for file search (brew install fd)
+# Note: ripgrep required for symbol search (brew install ripgrep)
 
-#mdSearch:                         # Slash commands & mentions (uncomment to enable)
-#  # Pattern examples:
-#  #   "*.md"                  - Root directory only
-#  #   "**/*.md"               - All subdirectories (recursive)
-#  #   "**/commands/*.md"      - Any "commands" subdirectory
-#  #   "**/*/SKILL.md"         - SKILL.md in any subdirectory
-#  #   "**/{cmd,agent}/*.md"   - Brace expansion (cmd or agent dirs)
-#  #   "test-*.md"             - Wildcard prefix
-#
-#  - name: "{basename}"
-#    type: command                     # 'command' for / or 'mention' for @
-#    description: "{frontmatter@description}"
-#    path: ~/.claude/commands
-#    pattern: "*.md"
-#    argumentHint: "{frontmatter@argument-hint}"  # Optional hint after selection
-#    maxSuggestions: 20                # Max number of suggestions (default: 20)
-#    sortOrder: asc                    # Sort order: 'asc' (A→Z) or 'desc' (Z→A)
-#
-#  - name: "agent-{basename}"
-#    type: mention
-#    description: "{frontmatter@description}"
-#    path: ~/.claude/agents
-#    pattern: "*.md"
-#    maxSuggestions: 20
-#    sortOrder: asc                    # Sort order: 'asc' (A→Z) or 'desc' (Z→A)
-#    searchPrefix: "agent:"            # Require @agent: prefix for this entry (optional)
-#
-#  - name: "{frontmatter@name}"
-#    type: mention
-#    description: "{frontmatter@description}"
-#    path: ~/.claude/plugins
-#    pattern: "**/*/SKILL.md"          # Match SKILL.md in any plugin subdirectory
-#    maxSuggestions: 20
-#    sortOrder: asc                    # Sort order: 'asc' (A→Z) or 'desc' (Z→A)
-#    searchPrefix: "skill:"            # Require @skill: prefix for this entry
+mentions:
+  # File search settings (@path/to/file completion)
+  #fileSearch:
+  #  respectGitignore: true           # Respect .gitignore files
+  #  includeHidden: true              # Include hidden files (starting with .)
+  #  maxFiles: 5000                   # Maximum files to return
+  #  maxDepth: null                   # Directory depth limit (null = unlimited)
+  #  maxSuggestions: 50               # Maximum suggestions to show
+  #  followSymlinks: false            # Follow symbolic links
+  #  #fdPath: null                    # Custom path to fd command
+
+  # Symbol search settings (@ts:Config, @go:Handler)
+  symbolSearch:
+    maxSymbols: 20000                 # Maximum symbols to return (default: 20000)
+    timeout: 5000                     # Search timeout in milliseconds (default: 5000)
+    #rgPath: null                     # Custom path to rg command
+
+  # Markdown-based mentions from markdown files
+  # Template variables: {basename}, {frontmatter@fieldName}
+  # searchPrefix: Search with @<prefix>: (e.g., searchPrefix: "agent" → @agent:)
+  # Pattern examples:
+  #   "*.md"                  - Root directory only
+  #   "**/*.md"               - All subdirectories (recursive)
+  #   "**/commands/*.md"      - Any "commands" subdirectory
+  #   "**/*/SKILL.md"         - SKILL.md in any subdirectory
+  #   "**/{cmd,agent}/*.md"   - Brace expansion (cmd or agent dirs)
+  #mdSearch:
+  #  - name: "agent-{basename}"
+  #    description: "{frontmatter@description}"
+  #    path: ~/.claude/agents
+  #    pattern: "*.md"
+  #    searchPrefix: agent             # Search with @agent:
+  #    maxSuggestions: 20
+  #    sortOrder: asc                  # Sort order: 'asc' (A→Z) or 'desc' (Z→A)
+  #
+  #  - name: "{frontmatter@name}"
+  #    description: "{frontmatter@description}"
+  #    path: ~/.claude/plugins
+  #    pattern: "**/*/SKILL.md"
+  #    searchPrefix: skill             # Search with @skill:
+  #    maxSuggestions: 20
+  #
+  #  - name: "{basename}"
+  #    description: "{frontmatter@title}"
+  #    path: /path/to/knowledge-base
+  #    pattern: "**/*/*.md"
+  #    searchPrefix: kb                # Search with @kb:
+  #    maxSuggestions: 100
+  #    sortOrder: desc
+  #    inputFormat: path               # Insert file path instead of name
 ```
 
 ## プロンプト履歴

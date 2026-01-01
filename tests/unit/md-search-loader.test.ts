@@ -858,7 +858,7 @@ Content`;
           description: '{frontmatter@description}',
           path: '/path/to/agents',
           pattern: '*.md',
-          searchPrefix: 'agent:',
+          searchPrefix: 'agent',
         },
       ]);
 
@@ -938,7 +938,7 @@ Content`;
           description: '{frontmatter@description}',
           path: '/path/to/agents',
           pattern: '*.md',
-          searchPrefix: 'agent:',
+          searchPrefix: 'agent',
         },
         {
           name: 'tool-{basename}',
@@ -946,7 +946,7 @@ Content`;
           description: '{frontmatter@description}',
           path: '/path/to/tools',
           pattern: '*.md',
-          searchPrefix: 'tool:',
+          searchPrefix: 'tool',
         },
       ]);
 
@@ -1017,7 +1017,7 @@ Content`;
           description: '{frontmatter@description}',
           path: '/path/to/agents',
           pattern: '*.md',
-          searchPrefix: 'agent:',
+          searchPrefix: 'agent',
         },
       ]);
 
@@ -1033,7 +1033,7 @@ Content`;
           description: '{frontmatter@description}',
           path: '/path/to/agents',
           pattern: '*.md',
-          searchPrefix: 'agent:',
+          searchPrefix: 'agent',
         },
         {
           name: 'tool-{basename}',
@@ -1041,7 +1041,7 @@ Content`;
           description: '{frontmatter@description}',
           path: '/path/to/tools',
           pattern: '*.md',
-          searchPrefix: 'tool:',
+          searchPrefix: 'tool',
         },
       ]);
 
@@ -1057,7 +1057,7 @@ Content`;
           description: '{frontmatter@description}',
           path: '/path/to/commands',
           pattern: '*.md',
-          searchPrefix: 'cmd:',
+          searchPrefix: 'cmd',
         },
         {
           name: 'agent-{basename}',
@@ -1065,7 +1065,7 @@ Content`;
           description: '{frontmatter@description}',
           path: '/path/to/agents',
           pattern: '*.md',
-          searchPrefix: 'agent:',
+          searchPrefix: 'agent',
         },
       ]);
 

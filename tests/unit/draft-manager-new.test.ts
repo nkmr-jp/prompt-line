@@ -6,6 +6,7 @@ describe('DraftManager', () => {
   let draftManager: DraftManagerClient;
   let mockIpcRenderer: jest.Mocked<IpcRenderer>;
   let mockGetText: jest.MockedFunction<() => string>;
+  let mockGetScrollTop: jest.MockedFunction<() => number>;
 
   beforeEach(() => {
     mockIpcRenderer = {
@@ -26,11 +27,13 @@ describe('DraftManager', () => {
     };
 
     mockGetText = jest.fn();
-    draftManager = new DraftManagerClient(mockElectronAPI, mockGetText);
-    
+    mockGetScrollTop = jest.fn().mockReturnValue(0) as jest.MockedFunction<() => number>;
+    draftManager = new DraftManagerClient(mockElectronAPI, mockGetText, mockGetScrollTop);
+
     // Clear only the call history, not the mock implementations
     mockIpcRenderer.invoke.mockClear();
     mockGetText.mockClear();
+    mockGetScrollTop.mockClear();
   });
 
   afterEach(() => {
@@ -60,7 +63,7 @@ describe('DraftManager', () => {
       draftManager.saveDraftDebounced();
 
       setTimeout(() => {
-        expect(mockIpcRenderer.invoke).toHaveBeenCalledWith('save-draft', 'test text');
+        expect(mockIpcRenderer.invoke).toHaveBeenCalledWith('save-draft', 'test text', 0);
         done();
       }, 550); // Default delay is 500ms
     });
@@ -73,7 +76,7 @@ describe('DraftManager', () => {
       draftManager.saveDraftDebounced();
 
       setTimeout(() => {
-        expect(mockIpcRenderer.invoke).toHaveBeenCalledWith('save-draft', 'test text');
+        expect(mockIpcRenderer.invoke).toHaveBeenCalledWith('save-draft', 'test text', 0);
         done();
       }, 150);
     });
@@ -89,7 +92,7 @@ describe('DraftManager', () => {
 
       setTimeout(() => {
         expect(mockIpcRenderer.invoke).toHaveBeenCalledTimes(1);
-        expect(mockIpcRenderer.invoke).toHaveBeenCalledWith('save-draft', 'second text');
+        expect(mockIpcRenderer.invoke).toHaveBeenCalledWith('save-draft', 'second text', 0);
         done();
       }, 150);
     });
@@ -101,13 +104,13 @@ describe('DraftManager', () => {
 
       await draftManager.saveDraftImmediate();
 
-      expect(mockIpcRenderer.invoke).toHaveBeenCalledWith('save-draft', 'test text');
+      expect(mockIpcRenderer.invoke).toHaveBeenCalledWith('save-draft', 'test text', 0);
     });
 
     test('should save provided text immediately', async () => {
       await draftManager.saveDraftImmediate('provided text');
 
-      expect(mockIpcRenderer.invoke).toHaveBeenCalledWith('save-draft', 'provided text');
+      expect(mockIpcRenderer.invoke).toHaveBeenCalledWith('save-draft', 'provided text', 0);
       expect(mockGetText).not.toHaveBeenCalled();
     });
 

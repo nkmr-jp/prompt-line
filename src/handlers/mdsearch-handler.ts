@@ -3,6 +3,7 @@ import { logger } from '../utils/utils';
 import type MdSearchLoader from '../managers/md-search-loader';
 import type SettingsManager from '../managers/settings-manager';
 import type { SlashCommandItem, AgentItem } from '../types';
+import builtInCommandsLoader from '../lib/built-in-commands-loader';
 
 /**
  * MdSearchHandler manages all IPC handlers related to MD search functionality.
@@ -51,17 +52,19 @@ class MdSearchHandler {
 
   /**
    * Update MdSearchLoader configuration with latest settings
+   * Uses getMdSearchEntries to support both new and legacy settings format
    */
   private updateConfig(): void {
-    const settings = this.settingsManager.getSettings();
-    if (settings.mdSearch) {
-      this.mdSearchLoader.updateConfig(settings.mdSearch);
+    const mdSearchEntries = this.settingsManager.getMdSearchEntries();
+    if (mdSearchEntries && mdSearchEntries.length > 0) {
+      this.mdSearchLoader.updateConfig(mdSearchEntries);
     }
   }
 
   /**
    * Handler: get-slash-commands
    * Retrieves slash commands with optional query filtering
+   * Merges built-in commands (from YAML) with user commands (from MD files)
    */
   private async handleGetSlashCommands(
     _event: IpcMainInvokeEvent,
@@ -71,17 +74,25 @@ class MdSearchHandler {
       // Refresh config from settings in case they changed
       this.updateConfig();
 
-      // Get commands from MdSearchLoader
+      // Get built-in commands settings (supports both new and legacy format)
+      const builtInSettings = this.settingsManager.getBuiltInCommandsSettings();
+
+      // Get built-in commands from YAML files (respects enabled/tools settings)
+      const builtInCommands = builtInCommandsLoader.searchCommands(query, builtInSettings);
+
+      // Get user commands from MdSearchLoader (MD files)
       const items = query
         ? await this.mdSearchLoader.searchItems('command', query)
         : await this.mdSearchLoader.getItems('command');
 
       // Convert MdSearchItem to SlashCommandItem for backward compatibility
-      const commands: SlashCommandItem[] = items.map(item => {
+      const userCommands: SlashCommandItem[] = items.map(item => {
         const cmd: SlashCommandItem = {
           name: item.name,
           description: item.description,
           filePath: item.filePath,
+          source: 'custom',      // Mark as custom slash command
+          displayName: 'custom', // Display "custom" badge
         };
         if (item.argumentHint) {
           cmd.argumentHint = item.argumentHint;
@@ -95,7 +106,28 @@ class MdSearchHandler {
         return cmd;
       });
 
-      return commands;
+      // Merge: built-in commands first, then custom commands
+      // Commands with same name but different sources are kept (use name+source as key)
+      const commandMap = new Map<string, SlashCommandItem>();
+
+      // Add built-in commands first
+      for (const cmd of builtInCommands) {
+        const key = `${cmd.name}:${cmd.source || ''}`;
+        commandMap.set(key, cmd);
+      }
+
+      // Add custom commands (same name with different source is kept)
+      for (const cmd of userCommands) {
+        const key = `${cmd.name}:${cmd.source || ''}`;
+        commandMap.set(key, cmd);
+      }
+
+      // Sort by name, then by source
+      return Array.from(commandMap.values()).sort((a, b) => {
+        const nameCompare = a.name.localeCompare(b.name);
+        if (nameCompare !== 0) return nameCompare;
+        return (a.source || '').localeCompare(b.source || '');
+      });
     } catch (error) {
       logger.error('Failed to get slash commands:', error);
       return [];

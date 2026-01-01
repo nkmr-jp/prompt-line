@@ -48,6 +48,15 @@ export type {
   LoggingConfig,
   LogLevel,
   UserSettings,
+  // Mention settings types (@ mentions)
+  FileSearchUserSettings,
+  SymbolSearchUserSettings,
+  MentionsSettings,
+  MentionEntry,
+  // Slash command settings types
+  SlashCommandsSettings,
+  SlashCommandEntry,
+  // Legacy types (for backward compatibility)
   MdSearchType,
   MdSearchEntry,
   MdSearchItem,
