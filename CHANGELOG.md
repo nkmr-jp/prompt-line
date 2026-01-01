@@ -1,3 +1,9 @@
+## [0.14.1](https://github.com/nkmr-jp/prompt-line/compare/v0.14.0...v0.14.1) (2026-01-01)
+
+### Maintenance
+
+* **deps:** bump qs in the npm_and_yarn group across 1 directory ([68dbd0c](https://github.com/nkmr-jp/prompt-line/commit/68dbd0c823e0f61fdc659fe5d92ffea08827910e))
+
 ## [0.14.0](https://github.com/nkmr-jp/prompt-line/compare/v0.13.0...v0.14.0) (2026-01-01)
 
 ### Features
