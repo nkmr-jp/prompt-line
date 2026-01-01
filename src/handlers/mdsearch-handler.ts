@@ -106,21 +106,28 @@ class MdSearchHandler {
         return cmd;
       });
 
-      // Merge: built-in commands first, then user commands
-      // User commands with same name will override built-in commands
+      // Merge: built-in commands first, then custom commands
+      // Commands with same name but different sources are kept (use name+source as key)
       const commandMap = new Map<string, SlashCommandItem>();
 
       // Add built-in commands first
       for (const cmd of builtInCommands) {
-        commandMap.set(cmd.name, cmd);
+        const key = `${cmd.name}:${cmd.source || ''}`;
+        commandMap.set(key, cmd);
       }
 
-      // Add user commands (override built-in if same name)
+      // Add custom commands (same name with different source is kept)
       for (const cmd of userCommands) {
-        commandMap.set(cmd.name, cmd);
+        const key = `${cmd.name}:${cmd.source || ''}`;
+        commandMap.set(key, cmd);
       }
 
-      return Array.from(commandMap.values());
+      // Sort by name, then by source
+      return Array.from(commandMap.values()).sort((a, b) => {
+        const nameCompare = a.name.localeCompare(b.name);
+        if (nameCompare !== 0) return nameCompare;
+        return (a.source || '').localeCompare(b.source || '');
+      });
     } catch (error) {
       logger.error('Failed to get slash commands:', error);
       return [];
