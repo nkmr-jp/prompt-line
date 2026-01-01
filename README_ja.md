@@ -148,6 +148,16 @@ npm run reset-accessibility
 
 ![doc9.png](assets/doc9.png)
 
+
+#### スラッシュコマンド
+`/`を入力するとスラッシュコマンドを検索できます。<br>
+AIコーディングアシスタント（Claude Code、OpenAI Codex、Google Gemini）用のビルトインコマンドが利用可能です。<br>
+カスタムコマンドは `~/.prompt-line/settings.yml` で追加できます。「⚙️ 設定」の項目参照
+
+![doc11.png](assets/doc11.png)
+
+#### @Mentions
+
 #### ファイル検索
 @を入力するとファイルを検索できます。<br>
 ※ [fd](https://github.com/sharkdp/fd)コマンドのインストールが必要です。( `brew install fd` )<br>
@@ -173,14 +183,8 @@ npm run reset-accessibility
 
 ![doc13.png](assets/doc13.png)
 
-#### スラッシュコマンド
-`/`を入力するとスラッシュコマンドを検索できます。<br>
-AIコーディングアシスタント（Claude Code、OpenAI Codex、Google Gemini）用のビルトインコマンドが利用可能です。<br>
-カスタムコマンドは `~/.prompt-line/settings.yml` で追加できます。「⚙️ 設定」の項目参照
-
-![doc11.png](assets/doc11.png)
-
-`@`を入力するとサブエージェントやスキルを検索することもできます。
+#### マークダウン検索
+`@<検索プレフィックス>:<クエリ>` を入力するとサブエージェントやエージェントのスキルを検索できます。自分のナレッジ検索にも使用できます。
 
 ![doc12.png](assets/doc12.png)
 

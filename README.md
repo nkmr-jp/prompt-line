@@ -187,7 +187,7 @@ This feature integrates with File Search, so you need to enable File Search firs
 ![doc13.png](assets/doc13.png)
 
 ##### Markdown Search
-You can search for sub-agents and agent skills by typing `@`, also use it for your own knowledge searches.
+You can search for sub-agents and agent skills by typing `@<searchPrefix>:<query>`, also use it for your own knowledge searches.
 
 ![doc12.png](assets/doc12.png)
 
