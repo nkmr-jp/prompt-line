@@ -467,6 +467,15 @@ export class SlashCommandManager implements IInitializable {
       ${hintText ? `<span class="slash-command-description">${escapeHtml(hintText)}</span>` : ''}
     `;
 
+    // Add source badge if displayName is available
+    if (command.displayName) {
+      const sourceBadge = document.createElement('span');
+      sourceBadge.className = 'slash-command-source';
+      sourceBadge.dataset.source = command.source || command.displayName;
+      sourceBadge.textContent = command.displayName;
+      item.appendChild(sourceBadge);
+    }
+
     this.suggestionsContainer.appendChild(item);
 
     // Keep active state but update filtered commands to just this one
