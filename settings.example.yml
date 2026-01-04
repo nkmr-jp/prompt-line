@@ -40,7 +40,7 @@ fileOpener:
   # Example values: "Visual Studio Code", "Sublime Text", "WebStorm"
   defaultEditor: null
   # Extension-specific applications (overrides defaultEditor)
-  extensions:                       # Extension-specific apps (uncomment to enable)
+  extensions:
     go: "Goland"
   #  md: "Typora"
   #  pdf: "Preview"
