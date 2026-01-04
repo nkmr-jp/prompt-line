@@ -226,11 +226,8 @@ export interface MentionsSettings {
  * Slash command settings combining built-in and user-defined commands
  */
 export interface SlashCommandsSettings {
-  /** Built-in commands configuration (Claude, Codex, Gemini, etc.) */
-  builtIn?: {
-    /** List of tools to enable (e.g., ['claude', 'codex', 'gemini']) */
-    tools?: string[];
-  };
+  /** Built-in commands: list of tools to enable (e.g., ['claude', 'codex', 'gemini']) */
+  builtIn?: string[];
   /** Custom slash commands from markdown files */
   custom?: SlashCommandEntry[];
 }

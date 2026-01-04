@@ -40,10 +40,11 @@ fileOpener:
   # Example values: "Visual Studio Code", "Sublime Text", "WebStorm"
   defaultEditor: null
   # Extension-specific applications (overrides defaultEditor)
-  extensions:                       # Extension-specific apps (uncomment to enable)
-    go: "Goland"
-  #  md: "Typora"
-  #  pdf: "Preview"
+  extensions:
+    png: "Preview"
+    pdf: "Preview"
+    # go: "Goland"
+    # md: "Typora"
 
 # ============================================================================
 # SLASH COMMAND SETTINGS
@@ -53,11 +54,10 @@ fileOpener:
 
 slashCommands:
   # Built-in commands (Claude, Codex, Gemini, etc.)
-  builtIn:
-    tools:                            # List of tools to enable
-      - claude
-#      - codex
-#      - gemini
+  builtIn:                            # List of tools to enable
+    - claude
+    # - codex
+    # - gemini
 
   # Custom slash commands from markdown files
   custom:
@@ -77,6 +77,14 @@ slashCommands:
 mentions:
   # File search settings (@path/to/file completion)
   # Note: fd command required (brew install fd)
+  #
+  # Pattern format (glob syntax):
+  #   - "*.log"           : Match all .log files
+  #   - "build/**"        : Match all files in build directory
+  #   - "*.{js,ts}"       : Match .js and .ts files
+  #   - ".git"            : Match .git directory
+  #   - "node_modules"    : Match node_modules directory
+  #
   fileSearch:
     respectGitignore: true           # Respect .gitignore files
     includeHidden: true              # Include hidden files
@@ -85,6 +93,12 @@ mentions:
     maxSuggestions: 50               # Suggestions to show
     followSymlinks: false            # Follow symbolic links
     #fdPath: null                    # Custom path to fd
+    # Include patterns: Force include files even if in .gitignore (default: [])
+    # Example: includePatterns: ["*.log", "dist/**"]
+    includePatterns: []
+    # Exclude patterns: Additional patterns to exclude (default: [])
+    # Example: excludePatterns: ["node_modules", "*.min.js", "coverage/**"]
+    excludePatterns: []
 
   # Symbol search settings (@ts:Config, @go:Handler)
   # Note: ripgrep required (brew install ripgrep)
@@ -115,17 +129,17 @@ mentions:
       pattern: "**/*/SKILL.md"
       searchPrefix: skill            # Search with @skill:
 
-#    - name: "{frontmatter@name}"
-#      description: "{frontmatter@description}"
-#      path: ~/.claude/plugins
-#      pattern: "**/*/SKILL.md"
-#      searchPrefix: skill            # Search with @skill:
-#
-#    - name: "{basename}"
-#      description: "{frontmatter@title}"
-#      path: /path/to/knowledge-base
-#      pattern: "**/*/*.md"
-#      searchPrefix: kb                # Search with @kb:
-#      maxSuggestions: 100
-#      sortOrder: desc
-#      inputFormat: path               # Insert file path instead of name
+    # - name: "{frontmatter@name}"
+    #   description: "{frontmatter@description}"
+    #   path: ~/.claude/plugins
+    #   pattern: "**/*/SKILL.md"
+    #   searchPrefix: skill            # Search with @skill:
+
+    # - name: "{basename}"
+    #   description: "{frontmatter@title}"
+    #   path: /path/to/knowledge-base
+    #   pattern: "**/*/*.md"
+    #   searchPrefix: kb            # Search with @kb:
+    #   maxSuggestions: 100
+    #   sortOrder: desc
+    #   inputFormat: path               # Insert file path instead of name
