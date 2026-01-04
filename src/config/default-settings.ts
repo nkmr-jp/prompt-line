@@ -3,6 +3,7 @@
  *
  * This is the single source of truth for default settings.
  * Used by:
+ * - app-config.ts (application configuration)
  * - settings-manager.ts (runtime defaults)
  * - generate-settings-example.ts (settings.example.yml generation)
  *

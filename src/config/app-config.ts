@@ -16,6 +16,9 @@ import type {
 // Import package.json to get the version dynamically
 import packageJson from '../../package.json';
 
+// Import shared default settings (single source of truth)
+import { defaultSettings } from './default-settings';
+
 class AppConfigClass {
   public window!: WindowConfig;
   public shortcuts!: ShortcutsConfig;
@@ -33,8 +36,8 @@ class AppConfigClass {
 
   private init(): void {
     this.window = {
-      width: 600,
-      height: 300,
+      width: defaultSettings.window.width,
+      height: defaultSettings.window.height,
       frame: false,
       transparent: false,
       backgroundColor: '#141414',
@@ -64,14 +67,8 @@ class AppConfigClass {
       }
     };
 
-    this.shortcuts = {
-      main: 'Cmd+Shift+Space',
-      paste: 'Cmd+Enter',
-      close: 'Escape',
-      historyNext: 'Ctrl+j',
-      historyPrev: 'Ctrl+k',
-      search: 'Cmd+f'
-    };
+    // Use shared default settings for shortcuts
+    this.shortcuts = { ...defaultSettings.shortcuts };
 
     const userDataDir = path.join(os.homedir(), '.prompt-line');
     this.paths = {
