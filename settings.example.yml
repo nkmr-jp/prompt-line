@@ -41,9 +41,10 @@ fileOpener:
   defaultEditor: null
   # Extension-specific applications (overrides defaultEditor)
   extensions:
-    go: "Goland"
+    png: "Preview"
+    pdf: "Preview"
+  #  go: "Goland"
   #  md: "Typora"
-  #  pdf: "Preview"
 
 # ============================================================================
 # SLASH COMMAND SETTINGS

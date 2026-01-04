@@ -130,7 +130,8 @@ window:
         },
         fileOpener: {
           extensions: {
-            go: 'Goland'
+            png: 'Preview',
+            pdf: 'Preview'
           },
           defaultEditor: null
         },
@@ -276,7 +277,8 @@ window:
         },
         fileOpener: {
           extensions: {
-            go: 'Goland'
+            png: 'Preview',
+            pdf: 'Preview'
           },
           defaultEditor: null
         },

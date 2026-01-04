@@ -42,7 +42,8 @@ export const defaultSettings: UserSettings = {
   },
   fileOpener: {
     extensions: {
-      go: 'Goland'
+      png: 'Preview',
+      pdf: 'Preview'
     },
     defaultEditor: null
   },
@@ -105,8 +106,8 @@ export const commentedExamples = {
   },
   fileOpener: {
     extensions: {
-      md: 'Typora',
-      pdf: 'Preview'
+      go: 'Goland',
+      md: 'Typora'
     }
   },
   mentions: {
