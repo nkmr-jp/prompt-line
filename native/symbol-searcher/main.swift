@@ -32,6 +32,30 @@ func main() {
     }
 }
 
+// MARK: - Helper Functions
+
+/// Check if a directory is inside a git repository
+/// Walks up the directory tree to find a .git directory
+func isGitRepository(_ directory: String) -> Bool {
+    let fileManager = FileManager.default
+    var currentPath = directory
+
+    // Walk up the directory tree
+    while currentPath != "/" && !currentPath.isEmpty {
+        let gitPath = (currentPath as NSString).appendingPathComponent(".git")
+
+        // Check if .git exists (either as directory or file for worktrees)
+        if fileManager.fileExists(atPath: gitPath) {
+            return true
+        }
+
+        // Move to parent directory
+        currentPath = (currentPath as NSString).deletingLastPathComponent
+    }
+
+    return false
+}
+
 // MARK: - Commands
 
 /// Check if rg is available
@@ -109,6 +133,17 @@ func search(args: [String]) {
         let response: [String: Any] = [
             "success": false,
             "error": "Unsupported language: \(lang)"
+        ]
+        printJsonDict(response)
+        return
+    }
+
+    // Require git repository for symbol search
+    guard isGitRepository(dir) else {
+        let response: [String: Any] = [
+            "success": false,
+            "error": "Symbol search is only available in git repositories",
+            "directory": dir
         ]
         printJsonDict(response)
         return
@@ -208,6 +243,17 @@ func buildCache(args: [String]) {
         let response: [String: Any] = [
             "success": false,
             "error": "Unsupported language: \(lang)"
+        ]
+        printJsonDict(response)
+        return
+    }
+
+    // Require git repository for symbol search
+    guard isGitRepository(dir) else {
+        let response: [String: Any] = [
+            "success": false,
+            "error": "Symbol search is only available in git repositories",
+            "directory": dir
         ]
         printJsonDict(response)
         return
