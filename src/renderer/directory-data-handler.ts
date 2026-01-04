@@ -21,6 +21,7 @@ export interface DomManagerCallbacks {
 export interface MentionManagerCallbacks {
   getMentionManager: () => {
     setFileSearchEnabled: (enabled: boolean) => void;
+    setSymbolSearchEnabled: (enabled: boolean) => void;
     preloadSearchPrefixesCache: () => void;
     handleCachedDirectoryData: (data: DirectoryInfo) => void;
     updateCache: (data: DirectoryInfo) => void;
@@ -110,6 +111,9 @@ export class DirectoryDataHandler {
       // Update file search enabled state in MentionManager
       fileSearchManager?.setFileSearchEnabled(data.fileSearchEnabled ?? false);
 
+      // Update symbol search enabled state in MentionManager (disabled when rg is not available)
+      fileSearchManager?.setSymbolSearchEnabled(data.symbolSearchEnabled ?? true);
+
       // Preload searchPrefixes cache for command/mention (enables sync checks for slash command hints)
       fileSearchManager?.preloadSearchPrefixesCache();
 
@@ -120,9 +124,14 @@ export class DirectoryDataHandler {
       // Reset draggable state when window is shown (new session)
       this.callbacks.setDraggable(false);
 
+      // Show hint message if fd command is not available (even when fileSearch is disabled)
+      if (!data.fileSearchEnabled && data.directoryData?.hint) {
+        console.debug('[DirectoryDataHandler] fileSearch disabled, showing hint:', data.directoryData.hint);
+        this.callbacks.setDefaultHintText(data.directoryData.hint);
+        this.callbacks.updateHintText(data.directoryData.hint);
       // Cache directory data for file search (from cache, Stage 1, or draft fallback)
-      // Only process directory data and show hints when fileSearch is enabled
-      if (data.fileSearchEnabled && data.directoryData) {
+      // Only process directory data and show directory path when fileSearch is enabled
+      } else if (data.fileSearchEnabled && data.directoryData) {
         console.debug('[DirectoryDataHandler] caching directory data for file search', {
           fromDraft: data.directoryData.fromDraft,
           fromCache: data.directoryData.fromCache,

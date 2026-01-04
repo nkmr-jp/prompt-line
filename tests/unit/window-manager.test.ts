@@ -179,6 +179,7 @@ describe('WindowManager', () => {
                 sourceApp: 'TestApp',
                 currentSpaceInfo: null,
                 fileSearchEnabled: false,
+                symbolSearchEnabled: true,
                 history: [],
                 draft: 'test draft'
             });
