@@ -15,6 +15,7 @@ import type {
 import WindowPositionCalculator from './position-calculator';
 import NativeToolExecutor from './native-tool-executor';
 import DirectoryDetector from './directory-detector';
+import { checkRgAvailable } from '../symbol-search';
 
 /**
  * WindowManager coordinates window lifecycle and positioning
@@ -218,6 +219,7 @@ class WindowManager {
       sourceApp: previousApp,
       currentSpaceInfo,
       fileSearchEnabled: this.isFileSearchEnabled(),
+      symbolSearchEnabled: true, // Default to true, will be set to false if rg is not available
       ...data
     };
 
@@ -255,6 +257,19 @@ class WindowManager {
           windowData.directoryData = { success: false };
         }
         windowData.directoryData.hint = 'Install fd for file search: brew install fd';
+      } else {
+        // Check rg command availability (only if fd is available)
+        const rgCheck = await checkRgAvailable();
+        if (!rgCheck.rgAvailable) {
+          windowData.symbolSearchEnabled = false;
+          if (!windowData.directoryData) {
+            windowData.directoryData = { success: true };
+          }
+          // Only set rg hint if fd hint is not already set
+          if (!windowData.directoryData.hint) {
+            windowData.directoryData.hint = 'Install ripgrep for symbol search: brew install ripgrep';
+          }
+        }
       }
     }
 
