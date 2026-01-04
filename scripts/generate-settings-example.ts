@@ -11,7 +11,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 // Import shared settings (single source of truth)
-import { exampleSettings, commentedExamples } from '../src/config/default-settings';
+import { defaultSettings, commentedExamples } from '../src/config/default-settings';
 
 // Import types
 import type {
@@ -273,7 +273,7 @@ ${buildMentionsSection()}
 
 // Generate and write settings.example.yml
 const outputPath = path.join(__dirname, '..', 'settings.example.yml');
-const content = generateSettingsExample(exampleSettings);
+const content = generateSettingsExample(defaultSettings);
 
 fs.writeFileSync(outputPath, content, 'utf8');
 console.log(`Generated: ${outputPath}`);

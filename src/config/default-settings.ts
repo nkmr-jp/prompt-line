@@ -1,11 +1,15 @@
 /**
  * Default settings for Prompt Line
  *
- * This is the single source of truth for default settings.
+ * This is the SINGLE SOURCE OF TRUTH for all default settings.
  *
- * Two exports:
- * - defaultSettings: Runtime defaults (used by app-config.ts, settings-manager.ts)
- * - exampleSettings: Example file defaults (used by generate-settings-example.ts)
+ * Used by:
+ * - app-config.ts (application configuration)
+ * - settings-manager.ts (runtime defaults)
+ * - generate-settings-example.ts (settings.example.yml generation)
+ *
+ * IMPORTANT: defaultSettings = runtime defaults = settings.example.yml active values
+ * This ensures no discrepancy between what users see and what they get.
  *
  * When modifying defaults:
  * 1. Update this file
@@ -16,8 +20,11 @@
 import type { UserSettings } from '../types';
 
 /**
- * Default settings - used at runtime
- * These are the actual defaults when user has no settings.yml
+ * Default settings - the single source of truth
+ *
+ * These are:
+ * - The actual runtime defaults when user has no settings.yml
+ * - The active (non-commented) values in settings.example.yml
  */
 export const defaultSettings: UserSettings = {
   shortcuts: {
@@ -34,40 +41,10 @@ export const defaultSettings: UserSettings = {
     height: 300
   },
   fileOpener: {
-    extensions: {},
-    defaultEditor: null
-  },
-  mentions: {
-    fileSearch: {
-      respectGitignore: true,
-      includeHidden: true,
-      maxFiles: 5000,
-      maxDepth: null,
-      maxSuggestions: 50,
-      followSymlinks: false,
-      includePatterns: [],
-      excludePatterns: []
-    },
-    symbolSearch: {
-      maxSymbols: 20000,
-      timeout: 5000
-    }
-  }
-};
-
-/**
- * Example settings - used for generating settings.example.yml
- * Extends defaultSettings with sample configurations
- */
-export const exampleSettings: UserSettings = {
-  ...defaultSettings,
-  fileOpener: {
-    ...defaultSettings.fileOpener,
     extensions: {
       go: 'Goland'
-      // md: 'Typora',
-      // pdf: 'Preview'
-    }
+    },
+    defaultEditor: null
   },
   slashCommands: {
     builtIn: ['claude'],
@@ -83,7 +60,20 @@ export const exampleSettings: UserSettings = {
     ]
   },
   mentions: {
-    ...defaultSettings.mentions,
+    fileSearch: {
+      respectGitignore: true,
+      includeHidden: true,
+      maxFiles: 5000,
+      maxDepth: null,
+      maxSuggestions: 50,
+      followSymlinks: false,
+      includePatterns: [],
+      excludePatterns: []
+    },
+    symbolSearch: {
+      maxSymbols: 20000,
+      timeout: 5000
+    },
     mdSearch: [
       {
         name: 'agent-{basename}',
@@ -104,8 +94,10 @@ export const exampleSettings: UserSettings = {
 };
 
 /**
- * Commented-out example entries for settings.example.yml
- * These are shown as comments in the generated file
+ * Additional example entries shown as comments in settings.example.yml
+ *
+ * These are NOT runtime defaults - they are just examples to help users
+ * understand available options.
  */
 export const commentedExamples = {
   slashCommands: {

@@ -142,14 +142,16 @@ class SettingsManager {
         ...userSettings.mentions?.symbolSearch
       }
     };
-    // mdSearch is an array, just use user settings if provided
-    if (userSettings.mentions?.mdSearch) {
-      result.mentions.mdSearch = userSettings.mentions.mdSearch;
+    // mdSearch: use user settings if provided, otherwise use defaults
+    const mdSearch = userSettings.mentions?.mdSearch ?? this.defaultSettings.mentions?.mdSearch;
+    if (mdSearch) {
+      result.mentions.mdSearch = mdSearch;
     }
 
-    // Handle slashCommands
-    if (userSettings.slashCommands) {
-      result.slashCommands = userSettings.slashCommands;
+    // Handle slashCommands: use user settings if provided, otherwise use defaults
+    const slashCommands = userSettings.slashCommands ?? this.defaultSettings.slashCommands;
+    if (slashCommands) {
+      result.slashCommands = slashCommands;
     }
 
     // Handle legacy fileSearch -> mentions.fileSearch (with deep merge)
@@ -638,7 +640,7 @@ ${mentionsSection}
 
 
   getDefaultSettings(): UserSettings {
-    return {
+    const result: UserSettings = {
       shortcuts: { ...this.defaultSettings.shortcuts },
       window: { ...this.defaultSettings.window },
       fileOpener: {
@@ -650,6 +652,25 @@ ${mentionsSection}
         symbolSearch: { ...this.defaultSettings.mentions?.symbolSearch }
       }
     };
+
+    // Add slashCommands if defined in defaults
+    if (this.defaultSettings.slashCommands) {
+      const slashCommands: typeof result.slashCommands = {};
+      if (this.defaultSettings.slashCommands.builtIn) {
+        slashCommands.builtIn = [...this.defaultSettings.slashCommands.builtIn];
+      }
+      if (this.defaultSettings.slashCommands.custom) {
+        slashCommands.custom = [...this.defaultSettings.slashCommands.custom];
+      }
+      result.slashCommands = slashCommands;
+    }
+
+    // Add mdSearch if defined in defaults
+    if (this.defaultSettings.mentions?.mdSearch && result.mentions) {
+      result.mentions.mdSearch = [...this.defaultSettings.mentions.mdSearch];
+    }
+
+    return result;
   }
 
   /**

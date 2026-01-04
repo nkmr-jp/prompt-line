@@ -113,7 +113,7 @@ window:
     it('should return default settings', () => {
       const settings = settingsManager.getSettings();
 
-      // includes mentions.fileSearch and mentions.symbolSearch with default values
+      // includes all default values: shortcuts, window, fileOpener, slashCommands, mentions
       expect(settings).toEqual({
         shortcuts: {
           main: 'Cmd+Shift+Space',
@@ -129,8 +129,23 @@ window:
           height: 300
         },
         fileOpener: {
-          extensions: {},
+          extensions: {
+            go: 'Goland'
+          },
           defaultEditor: null
+        },
+        slashCommands: {
+          builtIn: ['claude'],
+          custom: [
+            {
+              name: '{basename}',
+              description: '{frontmatter@description}',
+              path: '~/.claude/commands',
+              pattern: '*.md',
+              argumentHint: '{frontmatter@argument-hint}',
+              maxSuggestions: 20
+            }
+          ]
         },
         mentions: {
           fileSearch: {
@@ -146,7 +161,23 @@ window:
           symbolSearch: {
             maxSymbols: 20000,
             timeout: 5000
-          }
+          },
+          mdSearch: [
+            {
+              name: 'agent-{basename}',
+              description: '{frontmatter@description}',
+              path: '~/.claude/agents',
+              pattern: '*.md',
+              searchPrefix: 'agent'
+            },
+            {
+              name: '{frontmatter@name}',
+              description: '{frontmatter@description}',
+              path: '~/.claude/skills',
+              pattern: '**/*/SKILL.md',
+              searchPrefix: 'skill'
+            }
+          ]
         }
       });
     });
@@ -228,7 +259,7 @@ window:
     it('should return default settings copy', () => {
       const defaults = settingsManager.getDefaultSettings();
 
-      // includes mentions.fileSearch and mentions.symbolSearch with default values
+      // includes all default values: shortcuts, window, fileOpener, slashCommands, mentions
       expect(defaults).toEqual({
         shortcuts: {
           main: 'Cmd+Shift+Space',
@@ -244,8 +275,23 @@ window:
           height: 300
         },
         fileOpener: {
-          extensions: {},
+          extensions: {
+            go: 'Goland'
+          },
           defaultEditor: null
+        },
+        slashCommands: {
+          builtIn: ['claude'],
+          custom: [
+            {
+              name: '{basename}',
+              description: '{frontmatter@description}',
+              path: '~/.claude/commands',
+              pattern: '*.md',
+              argumentHint: '{frontmatter@argument-hint}',
+              maxSuggestions: 20
+            }
+          ]
         },
         mentions: {
           fileSearch: {
@@ -261,7 +307,23 @@ window:
           symbolSearch: {
             maxSymbols: 20000,
             timeout: 5000
-          }
+          },
+          mdSearch: [
+            {
+              name: 'agent-{basename}',
+              description: '{frontmatter@description}',
+              path: '~/.claude/agents',
+              pattern: '*.md',
+              searchPrefix: 'agent'
+            },
+            {
+              name: '{frontmatter@name}',
+              description: '{frontmatter@description}',
+              path: '~/.claude/skills',
+              pattern: '**/*/SKILL.md',
+              searchPrefix: 'skill'
+            }
+          ]
         }
       });
 
