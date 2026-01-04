@@ -38,9 +38,25 @@ class SettingsManager {
       fileOpener: {
         extensions: {},
         defaultEditor: null
+      },
+      // mentions contains fileSearch, symbolSearch, mdSearch
+      mentions: {
+        fileSearch: {
+          respectGitignore: true,
+          includeHidden: true,
+          maxFiles: 5000,
+          maxDepth: null,
+          maxSuggestions: 50,
+          followSymlinks: false,
+          includePatterns: [],
+          excludePatterns: []
+        },
+        symbolSearch: {
+          maxSymbols: 20000,
+          timeout: 5000
+        }
       }
       // slashCommands is optional - contains builtIn and custom
-      // mentions is optional - contains fileSearch, symbolSearch, mdSearch
     };
 
     this.currentSettings = { ...this.defaultSettings };
@@ -149,11 +165,20 @@ class SettingsManager {
       }
     };
 
-    // Handle new mentions structure (fileSearch, symbolSearch, mdSearch)
-    if (userSettings.mentions) {
-      result.mentions = {
-        ...userSettings.mentions
-      };
+    // Handle mentions structure with deep merge (fileSearch, symbolSearch, mdSearch)
+    result.mentions = {
+      fileSearch: {
+        ...this.defaultSettings.mentions?.fileSearch,
+        ...userSettings.mentions?.fileSearch
+      },
+      symbolSearch: {
+        ...this.defaultSettings.mentions?.symbolSearch,
+        ...userSettings.mentions?.symbolSearch
+      }
+    };
+    // mdSearch is an array, just use user settings if provided
+    if (userSettings.mentions?.mdSearch) {
+      result.mentions.mdSearch = userSettings.mentions.mdSearch;
     }
 
     // Handle slashCommands
@@ -161,22 +186,26 @@ class SettingsManager {
       result.slashCommands = userSettings.slashCommands;
     }
 
-    // Handle legacy fileSearch -> mentions.fileSearch
+    // Handle legacy fileSearch -> mentions.fileSearch (with deep merge)
     if (userSettings.fileSearch) {
-      if (!result.mentions) {
-        result.mentions = {};
-      }
-      result.mentions.fileSearch = userSettings.fileSearch;
+      result.mentions = result.mentions || {};
+      result.mentions.fileSearch = {
+        ...this.defaultSettings.mentions?.fileSearch,
+        ...result.mentions.fileSearch,
+        ...userSettings.fileSearch
+      };
       // Keep legacy for backward compatibility
       result.fileSearch = userSettings.fileSearch;
     }
 
-    // Handle legacy symbolSearch -> mentions.symbolSearch
+    // Handle legacy symbolSearch -> mentions.symbolSearch (with deep merge)
     if (userSettings.symbolSearch) {
-      if (!result.mentions) {
-        result.mentions = {};
-      }
-      result.mentions.symbolSearch = userSettings.symbolSearch;
+      result.mentions = result.mentions || {};
+      result.mentions.symbolSearch = {
+        ...this.defaultSettings.mentions?.symbolSearch,
+        ...result.mentions.symbolSearch,
+        ...userSettings.symbolSearch
+      };
       // Keep legacy for backward compatibility
       result.symbolSearch = userSettings.symbolSearch;
     }
@@ -649,6 +678,10 @@ ${mentionsSection}
       fileOpener: {
         extensions: { ...this.defaultSettings.fileOpener?.extensions },
         defaultEditor: this.defaultSettings.fileOpener?.defaultEditor ?? null
+      },
+      mentions: {
+        fileSearch: { ...this.defaultSettings.mentions?.fileSearch },
+        symbolSearch: { ...this.defaultSettings.mentions?.symbolSearch }
       }
     };
   }

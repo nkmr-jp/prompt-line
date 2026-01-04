@@ -113,7 +113,7 @@ window:
     it('should return default settings', () => {
       const settings = settingsManager.getSettings();
 
-      // mentions is not set by default (@ mention features are optional)
+      // includes mentions.fileSearch and mentions.symbolSearch with default values
       expect(settings).toEqual({
         shortcuts: {
           main: 'Cmd+Shift+Space',
@@ -131,6 +131,22 @@ window:
         fileOpener: {
           extensions: {},
           defaultEditor: null
+        },
+        mentions: {
+          fileSearch: {
+            respectGitignore: true,
+            includeHidden: true,
+            maxFiles: 5000,
+            maxDepth: null,
+            maxSuggestions: 50,
+            followSymlinks: false,
+            includePatterns: [],
+            excludePatterns: []
+          },
+          symbolSearch: {
+            maxSymbols: 20000,
+            timeout: 5000
+          }
         }
       });
     });
@@ -212,7 +228,7 @@ window:
     it('should return default settings copy', () => {
       const defaults = settingsManager.getDefaultSettings();
 
-      // mentions and fileSearch are not included in getDefaultSettings (they are optional)
+      // includes mentions.fileSearch and mentions.symbolSearch with default values
       expect(defaults).toEqual({
         shortcuts: {
           main: 'Cmd+Shift+Space',
@@ -230,6 +246,22 @@ window:
         fileOpener: {
           extensions: {},
           defaultEditor: null
+        },
+        mentions: {
+          fileSearch: {
+            respectGitignore: true,
+            includeHidden: true,
+            maxFiles: 5000,
+            maxDepth: null,
+            maxSuggestions: 50,
+            followSymlinks: false,
+            includePatterns: [],
+            excludePatterns: []
+          },
+          symbolSearch: {
+            maxSymbols: 20000,
+            timeout: 5000
+          }
         }
       });
 
