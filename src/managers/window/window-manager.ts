@@ -187,7 +187,8 @@ class WindowManager {
       await this.displayWindow(windowData);
 
       // Background directory detection (non-blocking) - runs AFTER window is shown
-      if (this.isFileSearchEnabled()) {
+      // Skip if fd command is not available (file search is disabled)
+      if (this.isFileSearchEnabled() && this.directoryDetector.isFdCommandAvailable()) {
         setImmediate(() => {
           this.directoryDetector.executeBackgroundDirectoryDetection(this.inputWindow).catch(error => {
             logger.warn('Background directory detection error:', error);
