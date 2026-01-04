@@ -18,7 +18,30 @@ import { generateSettingsYaml } from '../src/config/settings-yaml-generator';
 
 // Generate and write settings.example.yml
 const outputPath = path.join(__dirname, '..', 'settings.example.yml');
-const content = generateSettingsYaml(defaultSettings, { includeCommentedExamples: true });
+const outputDir = path.dirname(outputPath);
 
-fs.writeFileSync(outputPath, content, 'utf8');
-console.log(`Generated: ${outputPath}`);
+try {
+  // Validate that output directory exists
+  if (!fs.existsSync(outputDir)) {
+    throw new Error(`Output directory does not exist: ${outputDir}`);
+  }
+
+  // Generate YAML content
+  const content = generateSettingsYaml(defaultSettings, { includeCommentedExamples: true });
+
+  // Write to file
+  fs.writeFileSync(outputPath, content, 'utf8');
+
+  // Success indicator
+  console.log(`✅ Generated: ${outputPath}`);
+} catch (error) {
+  // Detailed error message
+  console.error(`❌ Failed to generate settings example file:`);
+  console.error(`   Output path: ${outputPath}`);
+  if (error instanceof Error) {
+    console.error(`   Error: ${error.message}`);
+  } else {
+    console.error(`   Error: ${String(error)}`);
+  }
+  process.exit(1);
+}

@@ -37,8 +37,32 @@ function formatValue(value: unknown): string {
   if (typeof value === 'string') return value;
   if (typeof value === 'number') return String(value);
   if (typeof value === 'boolean') return String(value);
-  if (Array.isArray(value) && value.length === 0) return '[]';
-  return String(value);
+  if (Array.isArray(value)) {
+    if (value.length === 0) return '[]';
+
+    // Handle non-empty arrays - should be simple string arrays in this context
+    // Validate that all elements are strings
+    const hasNonStringElements = value.some(item => typeof item !== 'string');
+    if (hasNonStringElements) {
+      console.warn('[settings-yaml-generator] Unexpected non-string array elements detected:', value);
+      // Return safe fallback for unexpected complex values
+      return '[]';
+    }
+
+    // Format as YAML array with proper indentation
+    // This is used in context like:
+    //     includePatterns: ${formatValue(fs.includePatterns)}
+    // Where base indentation is 4 spaces, so we need 6 spaces for list items (4 + 2)
+    // Example output:
+    //     includePatterns:
+    //       - "*.log"
+    //       - "dist/**"
+    return '\n' + value.map(item => `      - "${item}"`).join('\n');
+  }
+
+  // Unexpected value type - log warning and return safe fallback
+  console.warn('[settings-yaml-generator] Unexpected value type in formatValue:', typeof value, value);
+  return 'null';
 }
 
 /**

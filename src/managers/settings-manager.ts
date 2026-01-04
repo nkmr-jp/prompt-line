@@ -53,12 +53,22 @@ class SettingsManager {
           this.currentSettings = this.mergeWithDefaults(parsed);
         } else {
           logger.warn('Invalid settings file format, using defaults');
-          await this.saveSettings();
+          try {
+            await this.saveSettings();
+          } catch (saveError) {
+            logger.error('Failed to save default settings after invalid format:', saveError);
+            // Continue with defaults in memory
+          }
         }
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
           logger.info('Settings file not found, creating with defaults');
-          await this.saveSettings();
+          try {
+            await this.saveSettings();
+          } catch (saveError) {
+            logger.error('Failed to create default settings file:', saveError);
+            // Continue with defaults in memory
+          }
         } else {
           logger.error('Failed to read settings file:', error);
           throw error;
@@ -236,6 +246,7 @@ class SettingsManager {
   }
 
   async updateSettings(newSettings: Partial<UserSettings>): Promise<void> {
+    const previousSettings = this.currentSettings;
     try {
       this.currentSettings = this.mergeWithDefaults({
         ...this.currentSettings,
@@ -245,6 +256,8 @@ class SettingsManager {
       await this.saveSettings();
       logger.info('Settings updated successfully');
     } catch (error) {
+      // Rollback to previous state if save fails
+      this.currentSettings = previousSettings;
       logger.error('Failed to update settings:', error);
       throw error;
     }
