@@ -877,6 +877,74 @@ describe('settings-yaml-generator', () => {
       });
     });
 
+    describe('formatValue edge cases', () => {
+      test('should handle non-string array elements safely', () => {
+        // Create malformed settings with non-string array elements
+        const malformedSettings: UserSettings = {
+          shortcuts: defaultSettings.shortcuts,
+          window: defaultSettings.window,
+          mentions: {
+            fileSearch: {
+              respectGitignore: true,
+              includeHidden: true,
+              maxFiles: 5000,
+              maxDepth: null,
+              maxSuggestions: 50,
+              followSymlinks: false,
+              // Array with non-string elements (numbers)
+              includePatterns: [123, 456] as any,
+              // Array with non-string elements (objects)
+              excludePatterns: [{ key: 'value' }, { key2: 'value2' }] as any
+            },
+            symbolSearch: {
+              maxSymbols: 20000,
+              timeout: 5000
+            }
+          }
+        };
+
+        // Should not throw and should return safe fallback
+        const result = generateSettingsYaml(malformedSettings);
+
+        // Should output '[]' for safety when non-string elements are detected
+        expect(result).toContain('includePatterns: []');
+        expect(result).toContain('excludePatterns: []');
+      });
+
+      test('should handle unexpected value types safely', () => {
+        // Create malformed settings with unexpected value types
+        const malformedSettings: UserSettings = {
+          shortcuts: defaultSettings.shortcuts,
+          window: defaultSettings.window,
+          mentions: {
+            fileSearch: {
+              respectGitignore: true,
+              includeHidden: true,
+              maxFiles: 5000,
+              maxDepth: null,
+              maxSuggestions: 50,
+              // Function as value (unexpected type)
+              followSymlinks: (() => true) as any,
+              includePatterns: [],
+              excludePatterns: []
+            },
+            symbolSearch: {
+              maxSymbols: 20000,
+              // Symbol as value (unexpected type)
+              timeout: Symbol('timeout') as any
+            }
+          }
+        };
+
+        // Should not throw and should return safe fallback
+        const result = generateSettingsYaml(malformedSettings);
+
+        // Should output 'null' for safety when unexpected types are detected
+        expect(result).toContain('followSymlinks: null');
+        expect(result).toContain('timeout: null');
+      });
+    });
+
     describe('edge cases', () => {
       test('should handle very long extension lists', () => {
         const extensions: Record<string, string> = {};

@@ -124,19 +124,19 @@ class SettingsManager {
     const result: UserSettings = {
       shortcuts: {
         ...this.defaultSettings.shortcuts,
-        ...userSettings.shortcuts
+        ...(userSettings.shortcuts || {})
       },
       window: {
         ...this.defaultSettings.window,
-        ...userSettings.window
+        ...(userSettings.window || {})
       },
       fileOpener: {
         ...this.defaultSettings.fileOpener,
-        ...userSettings.fileOpener,
+        ...(userSettings.fileOpener || {}),
         // Deep merge for extensions object
         extensions: {
           ...this.defaultSettings.fileOpener?.extensions,
-          ...userSettings.fileOpener?.extensions
+          ...(userSettings.fileOpener?.extensions || {})
         }
       }
     };
@@ -145,11 +145,11 @@ class SettingsManager {
     result.mentions = {
       fileSearch: {
         ...this.defaultSettings.mentions?.fileSearch,
-        ...userSettings.mentions?.fileSearch
+        ...(userSettings.mentions?.fileSearch || {})
       },
       symbolSearch: {
         ...this.defaultSettings.mentions?.symbolSearch,
-        ...userSettings.mentions?.symbolSearch
+        ...(userSettings.mentions?.symbolSearch || {})
       }
     };
     // mdSearch: use user settings if provided, otherwise use defaults
@@ -169,8 +169,8 @@ class SettingsManager {
       result.mentions = result.mentions || {};
       result.mentions.fileSearch = {
         ...this.defaultSettings.mentions?.fileSearch,
-        ...result.mentions.fileSearch,
-        ...userSettings.fileSearch
+        ...(result.mentions.fileSearch || {}),
+        ...(userSettings.fileSearch || {})
       };
       // Keep legacy for backward compatibility
       result.fileSearch = userSettings.fileSearch;
@@ -181,8 +181,8 @@ class SettingsManager {
       result.mentions = result.mentions || {};
       result.mentions.symbolSearch = {
         ...this.defaultSettings.mentions?.symbolSearch,
-        ...result.mentions.symbolSearch,
-        ...userSettings.symbolSearch
+        ...(result.mentions.symbolSearch || {}),
+        ...(userSettings.symbolSearch || {})
       };
       // Keep legacy for backward compatibility
       result.symbolSearch = userSettings.symbolSearch;
@@ -302,37 +302,7 @@ class SettingsManager {
 
 
   getDefaultSettings(): UserSettings {
-    const result: UserSettings = {
-      shortcuts: { ...this.defaultSettings.shortcuts },
-      window: { ...this.defaultSettings.window },
-      fileOpener: {
-        extensions: { ...this.defaultSettings.fileOpener?.extensions },
-        defaultEditor: this.defaultSettings.fileOpener?.defaultEditor ?? null
-      },
-      mentions: {
-        fileSearch: { ...this.defaultSettings.mentions?.fileSearch },
-        symbolSearch: { ...this.defaultSettings.mentions?.symbolSearch }
-      }
-    };
-
-    // Add slashCommands if defined in defaults
-    if (this.defaultSettings.slashCommands) {
-      const slashCommands: typeof result.slashCommands = {};
-      if (this.defaultSettings.slashCommands.builtIn) {
-        slashCommands.builtIn = [...this.defaultSettings.slashCommands.builtIn];
-      }
-      if (this.defaultSettings.slashCommands.custom) {
-        slashCommands.custom = [...this.defaultSettings.slashCommands.custom];
-      }
-      result.slashCommands = slashCommands;
-    }
-
-    // Add mdSearch if defined in defaults
-    if (this.defaultSettings.mentions?.mdSearch && result.mentions) {
-      result.mentions.mdSearch = [...this.defaultSettings.mentions.mdSearch];
-    }
-
-    return result;
+    return structuredClone(this.defaultSettings);
   }
 
   /**
@@ -371,8 +341,8 @@ class SettingsManager {
       mentions: {
         ...currentMentions,
         fileSearch: {
-          ...currentMentions.fileSearch,
-          ...fileSearch
+          ...(currentMentions.fileSearch || {}),
+          ...(fileSearch || {})
         }
       }
     });

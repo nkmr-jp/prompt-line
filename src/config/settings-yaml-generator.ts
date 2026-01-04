@@ -17,6 +17,7 @@ import type {
   SymbolSearchUserSettings
 } from '../types';
 import { commentedExamples } from './default-settings';
+import { logger } from '../utils/utils';
 
 /**
  * Options for YAML generation
@@ -44,7 +45,7 @@ function formatValue(value: unknown): string {
     // Validate that all elements are strings
     const hasNonStringElements = value.some(item => typeof item !== 'string');
     if (hasNonStringElements) {
-      console.warn('[settings-yaml-generator] Unexpected non-string array elements detected:', value);
+      logger.warn('[settings-yaml-generator] Unexpected non-string array elements detected', { value });
       // Return safe fallback for unexpected complex values
       return '[]';
     }
@@ -61,7 +62,7 @@ function formatValue(value: unknown): string {
   }
 
   // Unexpected value type - log warning and return safe fallback
-  console.warn('[settings-yaml-generator] Unexpected value type in formatValue:', typeof value, value);
+  logger.warn('[settings-yaml-generator] Unexpected value type in formatValue', { type: typeof value, value });
   return 'null';
 }
 
