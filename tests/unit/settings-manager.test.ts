@@ -113,7 +113,7 @@ window:
     it('should return default settings', () => {
       const settings = settingsManager.getSettings();
 
-      // mentions is not set by default (@ mention features are optional)
+      // includes all default values: shortcuts, window, fileOpener, slashCommands, mentions
       expect(settings).toEqual({
         shortcuts: {
           main: 'Cmd+Shift+Space',
@@ -129,8 +129,56 @@ window:
           height: 300
         },
         fileOpener: {
-          extensions: {},
+          extensions: {
+            png: 'Preview',
+            pdf: 'Preview'
+          },
           defaultEditor: null
+        },
+        slashCommands: {
+          builtIn: ['claude'],
+          custom: [
+            {
+              name: '{basename}',
+              description: '{frontmatter@description}',
+              path: '~/.claude/commands',
+              pattern: '*.md',
+              argumentHint: '{frontmatter@argument-hint}',
+              maxSuggestions: 20
+            }
+          ]
+        },
+        mentions: {
+          fileSearch: {
+            respectGitignore: true,
+            includeHidden: true,
+            maxFiles: 5000,
+            maxDepth: null,
+            maxSuggestions: 50,
+            followSymlinks: false,
+            includePatterns: [],
+            excludePatterns: []
+          },
+          symbolSearch: {
+            maxSymbols: 200000,
+            timeout: 60000
+          },
+          mdSearch: [
+            {
+              name: 'agent-{basename}',
+              description: '{frontmatter@description}',
+              path: '~/.claude/agents',
+              pattern: '*.md',
+              searchPrefix: 'agent'
+            },
+            {
+              name: '{frontmatter@name}',
+              description: '{frontmatter@description}',
+              path: '~/.claude/skills',
+              pattern: '**/*/SKILL.md',
+              searchPrefix: 'skill'
+            }
+          ]
         }
       });
     });
@@ -212,7 +260,7 @@ window:
     it('should return default settings copy', () => {
       const defaults = settingsManager.getDefaultSettings();
 
-      // mentions and fileSearch are not included in getDefaultSettings (they are optional)
+      // includes all default values: shortcuts, window, fileOpener, slashCommands, mentions
       expect(defaults).toEqual({
         shortcuts: {
           main: 'Cmd+Shift+Space',
@@ -228,8 +276,56 @@ window:
           height: 300
         },
         fileOpener: {
-          extensions: {},
+          extensions: {
+            png: 'Preview',
+            pdf: 'Preview'
+          },
           defaultEditor: null
+        },
+        slashCommands: {
+          builtIn: ['claude'],
+          custom: [
+            {
+              name: '{basename}',
+              description: '{frontmatter@description}',
+              path: '~/.claude/commands',
+              pattern: '*.md',
+              argumentHint: '{frontmatter@argument-hint}',
+              maxSuggestions: 20
+            }
+          ]
+        },
+        mentions: {
+          fileSearch: {
+            respectGitignore: true,
+            includeHidden: true,
+            maxFiles: 5000,
+            maxDepth: null,
+            maxSuggestions: 50,
+            followSymlinks: false,
+            includePatterns: [],
+            excludePatterns: []
+          },
+          symbolSearch: {
+            maxSymbols: 200000,
+            timeout: 60000
+          },
+          mdSearch: [
+            {
+              name: 'agent-{basename}',
+              description: '{frontmatter@description}',
+              path: '~/.claude/agents',
+              pattern: '*.md',
+              searchPrefix: 'agent'
+            },
+            {
+              name: '{frontmatter@name}',
+              description: '{frontmatter@description}',
+              path: '~/.claude/skills',
+              pattern: '**/*/SKILL.md',
+              searchPrefix: 'skill'
+            }
+          ]
         }
       });
 
@@ -247,18 +343,218 @@ window:
   });
 
   describe('error handling', () => {
-    it('should handle file write errors', async () => {
+    it('should handle file write errors during update', async () => {
       mockedFs.readFile.mockRejectedValue({ code: 'ENOENT' });
       mockedFs.mkdir.mockResolvedValue(undefined);
+      mockedFs.writeFile.mockResolvedValue(); // First initialization succeeds
+
+      await settingsManager.init();
+
+      // Now make write fail for update
       mockedFs.writeFile.mockRejectedValue(new Error('Write failed'));
 
-      await expect(settingsManager.init()).rejects.toThrow('Write failed');
+      await expect(settingsManager.updateSettings({
+        window: { position: 'center', width: 800, height: 400 }
+      })).rejects.toThrow('Write failed');
     });
 
     it('should handle directory creation errors', async () => {
       mockedFs.mkdir.mockRejectedValue(new Error('Permission denied'));
 
       await expect(settingsManager.init()).rejects.toThrow('Permission denied');
+    });
+  });
+
+  describe('deep merge functionality', () => {
+    beforeEach(async () => {
+      mockedFs.readFile.mockRejectedValue({ code: 'ENOENT' });
+      mockedFs.mkdir.mockResolvedValue(undefined);
+      mockedFs.writeFile.mockResolvedValue();
+      await settingsManager.init();
+    });
+
+    it('should deep merge mentions.fileSearch with defaults', async () => {
+      // User only specifies maxFiles, should get all other defaults
+      const userSettings: Partial<UserSettings> = {
+        mentions: {
+          fileSearch: {
+            maxFiles: 1000
+          }
+        }
+      };
+
+      await settingsManager.updateSettings(userSettings);
+      const settings = settingsManager.getSettings();
+
+      // Check that maxFiles was updated
+      expect(settings.mentions?.fileSearch?.maxFiles).toBe(1000);
+
+      // Check that all other defaults are preserved
+      expect(settings.mentions?.fileSearch?.respectGitignore).toBe(true);
+      expect(settings.mentions?.fileSearch?.includeHidden).toBe(true);
+      expect(settings.mentions?.fileSearch?.maxDepth).toBeNull();
+      expect(settings.mentions?.fileSearch?.maxSuggestions).toBe(50);
+      expect(settings.mentions?.fileSearch?.followSymlinks).toBe(false);
+      expect(settings.mentions?.fileSearch?.includePatterns).toEqual([]);
+      expect(settings.mentions?.fileSearch?.excludePatterns).toEqual([]);
+    });
+
+    it('should deep merge mentions.symbolSearch with defaults', async () => {
+      // User only specifies timeout, should get maxSymbols from defaults
+      const userSettings: Partial<UserSettings> = {
+        mentions: {
+          symbolSearch: {
+            timeout: 3000
+          }
+        }
+      };
+
+      await settingsManager.updateSettings(userSettings);
+      const settings = settingsManager.getSettings();
+
+      // Check that timeout was updated
+      expect(settings.mentions?.symbolSearch?.timeout).toBe(3000);
+
+      // Check that maxSymbols defaults are preserved
+      expect(settings.mentions?.symbolSearch?.maxSymbols).toBe(200000);
+    });
+
+    it('should migrate legacy fileSearch to mentions.fileSearch with deep merge', async () => {
+      // User has old fileSearch format, should migrate and merge with defaults
+      const userSettings: Partial<UserSettings> = {
+        fileSearch: {
+          maxFiles: 1000,
+          respectGitignore: false
+        }
+      };
+
+      await settingsManager.updateSettings(userSettings);
+      const settings = settingsManager.getSettings();
+
+      // Check that legacy fileSearch was migrated to mentions.fileSearch
+      expect(settings.mentions?.fileSearch?.maxFiles).toBe(1000);
+      expect(settings.mentions?.fileSearch?.respectGitignore).toBe(false);
+
+      // Check that other defaults are preserved
+      expect(settings.mentions?.fileSearch?.includeHidden).toBe(true);
+      expect(settings.mentions?.fileSearch?.maxSuggestions).toBe(50);
+      expect(settings.mentions?.fileSearch?.followSymlinks).toBe(false);
+
+      // Check that legacy fileSearch is kept for backward compatibility
+      expect(settings.fileSearch).toEqual({
+        maxFiles: 1000,
+        respectGitignore: false
+      });
+    });
+
+    it('should migrate builtInCommands.tools to slashCommands.builtIn', async () => {
+      // User has builtInCommands: { tools: ['claude'] }
+      // Should convert to slashCommands.builtIn: ['claude']
+      const userSettings: Partial<UserSettings> = {
+        builtInCommands: {
+          tools: ['claude', 'custom-tool']
+        }
+      };
+
+      await settingsManager.updateSettings(userSettings);
+      const settings = settingsManager.getSettings();
+
+      // Check that builtInCommands.tools was migrated to slashCommands.builtIn
+      expect(settings.slashCommands?.builtIn).toEqual(['claude', 'custom-tool']);
+
+      // Check that legacy builtInCommands is kept for backward compatibility
+      expect(settings.builtInCommands).toEqual({
+        tools: ['claude', 'custom-tool']
+      });
+    });
+
+    it('should deep merge multiple fileSearch properties', async () => {
+      // User specifies multiple properties
+      const userSettings: Partial<UserSettings> = {
+        mentions: {
+          fileSearch: {
+            maxFiles: 2000,
+            respectGitignore: false,
+            includeHidden: false,
+            maxSuggestions: 100
+          }
+        }
+      };
+
+      await settingsManager.updateSettings(userSettings);
+      const settings = settingsManager.getSettings();
+
+      // Check that all user-specified properties were updated
+      expect(settings.mentions?.fileSearch?.maxFiles).toBe(2000);
+      expect(settings.mentions?.fileSearch?.respectGitignore).toBe(false);
+      expect(settings.mentions?.fileSearch?.includeHidden).toBe(false);
+      expect(settings.mentions?.fileSearch?.maxSuggestions).toBe(100);
+
+      // Check that non-specified defaults are preserved
+      expect(settings.mentions?.fileSearch?.maxDepth).toBeNull();
+      expect(settings.mentions?.fileSearch?.followSymlinks).toBe(false);
+      expect(settings.mentions?.fileSearch?.includePatterns).toEqual([]);
+      expect(settings.mentions?.fileSearch?.excludePatterns).toEqual([]);
+    });
+
+    it('should handle partial symbolSearch updates while preserving other mentions settings', async () => {
+      // First set fileSearch settings
+      await settingsManager.updateSettings({
+        mentions: {
+          fileSearch: {
+            maxFiles: 1000
+          }
+        }
+      });
+
+      // Get current settings to preserve fileSearch
+      const currentSettings = settingsManager.getSettings();
+      const currentFileSearch = currentSettings.mentions?.fileSearch;
+
+      // Then update symbolSearch while preserving fileSearch
+      if (currentFileSearch) {
+        await settingsManager.updateSettings({
+          mentions: {
+            fileSearch: currentFileSearch,
+            symbolSearch: {
+              timeout: 8000
+            }
+          }
+        });
+      }
+
+      const settings = settingsManager.getSettings();
+
+      // Check that symbolSearch was updated
+      expect(settings.mentions?.symbolSearch?.timeout).toBe(8000);
+      expect(settings.mentions?.symbolSearch?.maxSymbols).toBe(200000);
+
+      // Check that fileSearch was preserved
+      expect(settings.mentions?.fileSearch?.maxFiles).toBe(1000);
+      expect(settings.mentions?.fileSearch?.respectGitignore).toBe(true);
+    });
+
+    it('should deep merge legacy symbolSearch to mentions.symbolSearch', async () => {
+      // User has old symbolSearch format
+      const userSettings: Partial<UserSettings> = {
+        symbolSearch: {
+          maxSymbols: 10000
+        }
+      };
+
+      await settingsManager.updateSettings(userSettings);
+      const settings = settingsManager.getSettings();
+
+      // Check that legacy symbolSearch was migrated to mentions.symbolSearch
+      expect(settings.mentions?.symbolSearch?.maxSymbols).toBe(10000);
+
+      // Check that timeout defaults are preserved
+      expect(settings.mentions?.symbolSearch?.timeout).toBe(60000);
+
+      // Check that legacy symbolSearch is kept for backward compatibility
+      expect(settings.symbolSearch).toEqual({
+        maxSymbols: 10000
+      });
     });
   });
 

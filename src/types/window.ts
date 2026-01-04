@@ -32,6 +32,7 @@ export interface WindowData {
   settings?: UserSettings;
   directoryData?: DirectoryInfo;
   fileSearchEnabled?: boolean;
+  symbolSearchEnabled?: boolean;
 }
 
 export interface WindowBounds {
@@ -198,9 +199,9 @@ export interface FileSearchUserSettings {
  * All fields are optional - defaults are applied by the application
  */
 export interface SymbolSearchUserSettings {
-  /** Maximum number of symbols to return (default: 20000) */
+  /** Maximum number of symbols to return (default: 200000) */
   maxSymbols?: number;
-  /** Search timeout in milliseconds (default: 5000) */
+  /** Search timeout in milliseconds (default: 60000) */
   timeout?: number;
   /** Custom path to ripgrep command (null = auto-detect from common paths) */
   rgPath?: string | null;
@@ -226,11 +227,8 @@ export interface MentionsSettings {
  * Slash command settings combining built-in and user-defined commands
  */
 export interface SlashCommandsSettings {
-  /** Built-in commands configuration (Claude, Codex, Gemini, etc.) */
-  builtIn?: {
-    /** List of tools to enable (e.g., ['claude', 'codex', 'gemini']) */
-    tools?: string[];
-  };
+  /** Built-in commands: list of tools to enable (e.g., ['claude', 'codex', 'gemini']) */
+  builtIn?: string[];
   /** Custom slash commands from markdown files */
   custom?: SlashCommandEntry[];
 }

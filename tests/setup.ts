@@ -5,6 +5,13 @@
 import { jest } from '@jest/globals';
 import type { BrowserWindow } from 'electron';
 
+// Polyfill for structuredClone (not available in Jest environment by default)
+if (typeof global.structuredClone === 'undefined') {
+  global.structuredClone = <T>(obj: T): T => {
+    return JSON.parse(JSON.stringify(obj));
+  };
+}
+
 // Define types for test utilities
 interface MockHistoryItem {
     text: string;

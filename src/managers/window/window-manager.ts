@@ -15,6 +15,7 @@ import type {
 import WindowPositionCalculator from './position-calculator';
 import NativeToolExecutor from './native-tool-executor';
 import DirectoryDetector from './directory-detector';
+import { checkRgAvailable } from '../symbol-search';
 
 /**
  * WindowManager coordinates window lifecycle and positioning
@@ -187,7 +188,8 @@ class WindowManager {
       await this.displayWindow(windowData);
 
       // Background directory detection (non-blocking) - runs AFTER window is shown
-      if (this.isFileSearchEnabled()) {
+      // Skip if fd command is not available (file search is disabled)
+      if (this.isFileSearchEnabled() && this.directoryDetector.isFdCommandAvailable()) {
         setImmediate(() => {
           this.directoryDetector.executeBackgroundDirectoryDetection(this.inputWindow).catch(error => {
             logger.warn('Background directory detection error:', error);
@@ -217,6 +219,7 @@ class WindowManager {
       sourceApp: previousApp,
       currentSpaceInfo,
       fileSearchEnabled: this.isFileSearchEnabled(),
+      symbolSearchEnabled: true, // Default to true, will be set to false if rg is not available
       ...data
     };
 
@@ -247,12 +250,26 @@ class WindowManager {
         };
       }
 
-      // Add hint message if fd command is not available
+      // Disable file search and show hint if fd command is not available
       if (!this.directoryDetector.isFdCommandAvailable()) {
+        windowData.fileSearchEnabled = false;
         if (!windowData.directoryData) {
           windowData.directoryData = { success: false };
         }
         windowData.directoryData.hint = 'Install fd for file search: brew install fd';
+      } else {
+        // Check rg command availability (only if fd is available)
+        const rgCheck = await checkRgAvailable();
+        if (!rgCheck.rgAvailable) {
+          windowData.symbolSearchEnabled = false;
+          if (!windowData.directoryData) {
+            windowData.directoryData = { success: true };
+          }
+          // Only set rg hint if fd hint is not already set
+          if (!windowData.directoryData.hint) {
+            windowData.directoryData.hint = 'Install ripgrep for symbol search: brew install ripgrep';
+          }
+        }
       }
     }
 

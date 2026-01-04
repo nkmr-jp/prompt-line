@@ -33,6 +33,7 @@ export class MentionState {
   // Visibility
   isVisible: boolean = false;
   fileSearchEnabled: boolean = false;
+  symbolSearchEnabled: boolean = true;  // Default true, disabled when rg is not available
 
   // Filtered results
   filteredFiles: FileInfo[] = [];

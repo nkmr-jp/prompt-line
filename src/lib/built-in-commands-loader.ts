@@ -24,12 +24,12 @@ interface BuiltInCommandsYaml {
 }
 
 /**
- * Built-in commands settings
- * If this object exists (builtIn section is uncommented), commands are enabled
+ * Built-in commands settings (list of tool names to enable)
+ * If this is defined and has values, only those tools are enabled.
+ * If undefined, all built-in commands are disabled.
+ * If empty array, all built-in commands are enabled.
  */
-interface BuiltInCommandsSettings {
-  tools?: string[];
-}
+type BuiltInCommandsSettings = string[];
 
 /**
  * Loads and searches built-in slash commands from YAML files
@@ -178,8 +178,8 @@ class BuiltInCommandsLoader {
     let commands = this.loadCommands();
 
     // Filter by enabled tools if specified
-    if (settings?.tools && settings.tools.length > 0) {
-      const enabledTools = new Set(settings.tools);
+    if (settings && settings.length > 0) {
+      const enabledTools = new Set(settings);
       commands = commands.filter(cmd => cmd.source && enabledTools.has(cmd.source));
     }
 

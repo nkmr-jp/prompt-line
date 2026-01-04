@@ -25,9 +25,8 @@ export class SimpleSnapshotManager {
         textLength: text.length,
         cursorPosition
       });
-    } else {
-      console.debug('Snapshot already exists, skipping save');
     }
+    // Skip logging when snapshot already exists to avoid log spam during history navigation
   }
 
   /**

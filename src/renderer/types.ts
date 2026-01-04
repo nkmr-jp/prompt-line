@@ -77,6 +77,7 @@ export interface WindowData {
   settings?: UserSettings;
   directoryData?: DirectoryInfo;
   fileSearchEnabled?: boolean;
+  symbolSearchEnabled?: boolean;
 }
 
 export interface Config {
