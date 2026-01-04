@@ -138,7 +138,8 @@ mentions:
 #      description: "{frontmatter@title}"
 #      path: /path/to/knowledge-base
 #      pattern: "**/*/*.md"
-#      searchPrefix: kb                # Search with @kb:
+#      searchPrefix: kb            # Search with @kb:
 #      maxSuggestions: 100
 #      sortOrder: desc
 #      inputFormat: path               # Insert file path instead of name
+#

@@ -2,10 +2,10 @@
  * Default settings for Prompt Line
  *
  * This is the single source of truth for default settings.
- * Used by:
- * - app-config.ts (application configuration)
- * - settings-manager.ts (runtime defaults)
- * - generate-settings-example.ts (settings.example.yml generation)
+ *
+ * Two exports:
+ * - defaultSettings: Runtime defaults (used by app-config.ts, settings-manager.ts)
+ * - exampleSettings: Example file defaults (used by generate-settings-example.ts)
  *
  * When modifying defaults:
  * 1. Update this file
@@ -16,7 +16,8 @@
 import type { UserSettings } from '../types';
 
 /**
- * Default settings - the single source of truth
+ * Default settings - used at runtime
+ * These are the actual defaults when user has no settings.yml
  */
 export const defaultSettings: UserSettings = {
   shortcuts: {
@@ -36,7 +37,6 @@ export const defaultSettings: UserSettings = {
     extensions: {},
     defaultEditor: null
   },
-  // mentions contains fileSearch, symbolSearch, mdSearch
   mentions: {
     fileSearch: {
       respectGitignore: true,
@@ -53,5 +53,89 @@ export const defaultSettings: UserSettings = {
       timeout: 5000
     }
   }
-  // slashCommands is optional - contains builtIn and custom
+};
+
+/**
+ * Example settings - used for generating settings.example.yml
+ * Extends defaultSettings with sample configurations
+ */
+export const exampleSettings: UserSettings = {
+  ...defaultSettings,
+  fileOpener: {
+    ...defaultSettings.fileOpener,
+    extensions: {
+      go: 'Goland'
+      // md: 'Typora',
+      // pdf: 'Preview'
+    }
+  },
+  slashCommands: {
+    builtIn: ['claude'],
+    custom: [
+      {
+        name: '{basename}',
+        description: '{frontmatter@description}',
+        path: '~/.claude/commands',
+        pattern: '*.md',
+        argumentHint: '{frontmatter@argument-hint}',
+        maxSuggestions: 20
+      }
+    ]
+  },
+  mentions: {
+    ...defaultSettings.mentions,
+    mdSearch: [
+      {
+        name: 'agent-{basename}',
+        description: '{frontmatter@description}',
+        path: '~/.claude/agents',
+        pattern: '*.md',
+        searchPrefix: 'agent'
+      },
+      {
+        name: '{frontmatter@name}',
+        description: '{frontmatter@description}',
+        path: '~/.claude/skills',
+        pattern: '**/*/SKILL.md',
+        searchPrefix: 'skill'
+      }
+    ]
+  }
+};
+
+/**
+ * Commented-out example entries for settings.example.yml
+ * These are shown as comments in the generated file
+ */
+export const commentedExamples = {
+  slashCommands: {
+    builtIn: ['codex', 'gemini']
+  },
+  fileOpener: {
+    extensions: {
+      md: 'Typora',
+      pdf: 'Preview'
+    }
+  },
+  mentions: {
+    mdSearch: [
+      {
+        name: '{frontmatter@name}',
+        description: '{frontmatter@description}',
+        path: '~/.claude/plugins',
+        pattern: '**/*/SKILL.md',
+        searchPrefix: 'skill'
+      },
+      {
+        name: '{basename}',
+        description: '{frontmatter@title}',
+        path: '/path/to/knowledge-base',
+        pattern: '**/*/*.md',
+        searchPrefix: 'kb',
+        maxSuggestions: 100,
+        sortOrder: 'desc',
+        inputFormat: 'path'
+      }
+    ]
+  }
 };

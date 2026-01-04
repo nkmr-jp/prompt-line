@@ -1,7 +1,7 @@
 /**
- * Script to generate settings.example.yml from defaultSettings
+ * Script to generate settings.example.yml from shared settings
  *
- * This ensures settings.example.yml stays in sync with the default values
+ * This ensures settings.example.yml stays in sync with the values
  * defined in config/default-settings.ts (single source of truth)
  *
  * Usage: npx ts-node scripts/generate-settings-example.ts
@@ -10,74 +10,140 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-// Import shared default settings (single source of truth)
-import { defaultSettings } from '../src/config/default-settings';
+// Import shared settings (single source of truth)
+import { exampleSettings, commentedExamples } from '../src/config/default-settings';
 
 // Import types
 import type {
   UserSettings,
-  FileSearchUserSettings,
-  SymbolSearchUserSettings
+  MentionEntry,
+  SlashCommandEntry
 } from '../src/types';
 
 /**
- * Generate settings.example.yml content with comments
- * This is a simplified version for generating the example file
+ * Format a value for YAML output
+ */
+function formatValue(value: unknown): string {
+  if (value === null) return 'null';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return String(value);
+  if (typeof value === 'boolean') return String(value);
+  if (Array.isArray(value) && value.length === 0) return '[]';
+  return String(value);
+}
+
+/**
+ * Format an MdSearch entry as YAML
+ */
+function formatMdSearchEntry(entry: MentionEntry, indent: string, commented = false): string {
+  const prefix = commented ? '#' : '';
+  const lines = [
+    `${prefix}${indent}- name: "${entry.name}"`,
+    `${prefix}${indent}  description: "${entry.description}"`,
+    `${prefix}${indent}  path: ${entry.path}`,
+    `${prefix}${indent}  pattern: "${entry.pattern}"`
+  ];
+
+  if (entry.searchPrefix) {
+    lines.push(`${prefix}${indent}  searchPrefix: ${entry.searchPrefix}            # Search with @${entry.searchPrefix}:`);
+  }
+  if (entry.maxSuggestions !== undefined) {
+    lines.push(`${prefix}${indent}  maxSuggestions: ${entry.maxSuggestions}`);
+  }
+  if (entry.sortOrder !== undefined) {
+    lines.push(`${prefix}${indent}  sortOrder: ${entry.sortOrder}`);
+  }
+  if (entry.inputFormat !== undefined) {
+    lines.push(`${prefix}${indent}  inputFormat: ${entry.inputFormat}               # Insert file path instead of name`);
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Format a custom slash command entry as YAML
+ */
+function formatSlashCommandEntry(entry: SlashCommandEntry, indent: string): string {
+  const lines = [
+    `${indent}- name: "${entry.name}"`,
+    `${indent}  description: "${entry.description}"`,
+    `${indent}  path: ${entry.path}`,
+    `${indent}  pattern: "${entry.pattern}"`
+  ];
+
+  if (entry.argumentHint) {
+    lines.push(`${indent}  argumentHint: "${entry.argumentHint}"`);
+  }
+  if (entry.maxSuggestions !== undefined) {
+    lines.push(`${indent}  maxSuggestions: ${entry.maxSuggestions}`);
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Generate settings.example.yml content from settings objects
  */
 function generateSettingsExample(settings: UserSettings): string {
-  // Get fileSearch settings from mentions.fileSearch or legacy fileSearch
-  const getFileSearchSettings = (): FileSearchUserSettings | undefined => {
-    return settings.mentions?.fileSearch || settings.fileSearch;
+  const s = settings;
+  const fileSearch = s.mentions?.fileSearch;
+  const symbolSearch = s.mentions?.symbolSearch;
+
+  // Build extensions section
+  const buildExtensionsSection = (): string => {
+    const extensions = s.fileOpener?.extensions || {};
+    const commented = commentedExamples.fileOpener?.extensions || {};
+
+    let section = 'extensions:                       # Extension-specific apps (uncomment to enable)\n';
+
+    // Active extensions
+    for (const [ext, app] of Object.entries(extensions)) {
+      section += `    ${ext}: "${app}"\n`;
+    }
+
+    // Commented extensions
+    for (const [ext, app] of Object.entries(commented)) {
+      section += `  #  ${ext}: "${app}"\n`;
+    }
+
+    return section.trimEnd();
   };
 
-  // Get symbolSearch settings from mentions.symbolSearch or legacy symbolSearch
-  const getSymbolSearchSettings = (): SymbolSearchUserSettings | undefined => {
-    return settings.mentions?.symbolSearch || settings.symbolSearch;
-  };
-
-  // Build extensions section (example format)
-  const extensionsSection = `extensions:                       # Extension-specific apps (uncomment to enable)
-    go: "Goland"
-  #  md: "Typora"
-  #  pdf: "Preview"`;
-
-  // Build slashCommands section - always show with example
+  // Build slashCommands section
   const buildSlashCommandsSection = (): string => {
-    // Always show with example structure for settings.example.yml
     let section = 'slashCommands:\n';
 
-    // Built-in section with example
-    section += `  # Built-in commands (Claude, Codex, Gemini, etc.)
-  builtIn:                            # List of tools to enable
-    - claude
-#    - codex
-#    - gemini`;
+    // Built-in section
+    section += '  # Built-in commands (Claude, Codex, Gemini, etc.)\n';
+    section += '  builtIn:                            # List of tools to enable\n';
 
-    // Custom section with example
-    section += `
+    const builtIn = s.slashCommands?.builtIn || [];
+    for (const cmd of builtIn) {
+      section += `    - ${cmd}\n`;
+    }
 
-  # Custom slash commands from markdown files
-  custom:
-    - name: "{basename}"
-      description: "{frontmatter@description}"
-      path: ~/.claude/commands
-      pattern: "*.md"
-      argumentHint: "{frontmatter@argument-hint}"
-      maxSuggestions: 20`;
+    const commentedBuiltIn = commentedExamples.slashCommands?.builtIn || [];
+    for (const cmd of commentedBuiltIn) {
+      section += `#    - ${cmd}\n`;
+    }
 
-    return section;
+    // Custom section
+    section += '\n  # Custom slash commands from markdown files\n';
+    section += '  custom:\n';
+
+    const custom = s.slashCommands?.custom || [];
+    for (const entry of custom) {
+      section += formatSlashCommandEntry(entry, '    ') + '\n';
+    }
+
+    return section.trimEnd();
   };
 
-  const slashCommandsSection = buildSlashCommandsSection();
-
-  // Build unified mentions section (fileSearch, symbolSearch, mdSearch)
+  // Build mentions section
   const buildMentionsSection = (): string => {
-    const fileSearch = getFileSearchSettings();
-    const symbolSearch = getSymbolSearchSettings();
-
     let section = 'mentions:\n';
 
-    // File search subsection with pattern format documentation
+    // File search subsection
     section += `  # File search settings (@path/to/file completion)
   # Note: fd command required (brew install fd)
   #
@@ -89,19 +155,19 @@ function generateSettingsExample(settings: UserSettings): string {
   #   - "node_modules"    : Match node_modules directory
   #
   fileSearch:
-    respectGitignore: ${fileSearch?.respectGitignore ?? true}           # Respect .gitignore files
-    includeHidden: ${fileSearch?.includeHidden ?? true}              # Include hidden files
-    maxFiles: ${fileSearch?.maxFiles ?? 5000}                   # Maximum files to return
-    maxDepth: ${fileSearch?.maxDepth ?? 'null'}                   # Directory depth (null = unlimited)
-    maxSuggestions: ${fileSearch?.maxSuggestions ?? 50}               # Suggestions to show
-    followSymlinks: ${fileSearch?.followSymlinks ?? false}            # Follow symbolic links
+    respectGitignore: ${formatValue(fileSearch?.respectGitignore)}           # Respect .gitignore files
+    includeHidden: ${formatValue(fileSearch?.includeHidden)}              # Include hidden files
+    maxFiles: ${formatValue(fileSearch?.maxFiles)}                   # Maximum files to return
+    maxDepth: ${formatValue(fileSearch?.maxDepth)}                   # Directory depth (null = unlimited)
+    maxSuggestions: ${formatValue(fileSearch?.maxSuggestions)}               # Suggestions to show
+    followSymlinks: ${formatValue(fileSearch?.followSymlinks)}            # Follow symbolic links
     #fdPath: null                    # Custom path to fd
     # Include patterns: Force include files even if in .gitignore (default: [])
     # Example: includePatterns: ["*.log", "dist/**"]
-    includePatterns: []
+    includePatterns: ${formatValue(fileSearch?.includePatterns)}
     # Exclude patterns: Additional patterns to exclude (default: [])
     # Example: excludePatterns: ["node_modules", "*.min.js", "coverage/**"]
-    excludePatterns: []
+    excludePatterns: ${formatValue(fileSearch?.excludePatterns)}
 `;
 
     // Symbol search subsection
@@ -109,12 +175,12 @@ function generateSettingsExample(settings: UserSettings): string {
   # Symbol search settings (@ts:Config, @go:Handler)
   # Note: ripgrep required (brew install ripgrep)
   symbolSearch:
-    maxSymbols: ${symbolSearch?.maxSymbols ?? 20000}                # Maximum symbols to return
-    timeout: ${symbolSearch?.timeout ?? 5000}                    # Search timeout in ms
+    maxSymbols: ${formatValue(symbolSearch?.maxSymbols)}                # Maximum symbols to return
+    timeout: ${formatValue(symbolSearch?.timeout)}                    # Search timeout in ms
     #rgPath: null                    # Custom path to rg
 `;
 
-    // Markdown-based mentions subsection with examples
+    // Markdown search subsection
     section += `
   # Markdown-based mentions from markdown files
   # Pattern examples:
@@ -126,38 +192,22 @@ function generateSettingsExample(settings: UserSettings): string {
   #   "test-*.md"             - Wildcard prefix
   # searchPrefix: Search with @<prefix>: (e.g., searchPrefix: "agent" → @agent:)
   mdSearch:
-    - name: "agent-{basename}"
-      description: "{frontmatter@description}"
-      path: ~/.claude/agents
-      pattern: "*.md"
-      searchPrefix: agent            # Search with @agent:
-
-    - name: "{frontmatter@name}"
-      description: "{frontmatter@description}"
-      path: ~/.claude/skills
-      pattern: "**/*/SKILL.md"
-      searchPrefix: skill            # Search with @skill:
-
-#    - name: "{frontmatter@name}"
-#      description: "{frontmatter@description}"
-#      path: ~/.claude/plugins
-#      pattern: "**/*/SKILL.md"
-#      searchPrefix: skill            # Search with @skill:
-#
-#    - name: "{basename}"
-#      description: "{frontmatter@title}"
-#      path: /path/to/knowledge-base
-#      pattern: "**/*/*.md"
-#      searchPrefix: kb                # Search with @kb:
-#      maxSuggestions: 100
-#      sortOrder: desc
-#      inputFormat: path               # Insert file path instead of name
 `;
 
-    return section;
-  };
+    // Active mdSearch entries
+    const mdSearch = s.mentions?.mdSearch || [];
+    for (const entry of mdSearch) {
+      section += formatMdSearchEntry(entry, '    ') + '\n\n';
+    }
 
-  const mentionsSection = buildMentionsSection();
+    // Commented mdSearch entries
+    const commentedMdSearch = commentedExamples.mentions?.mdSearch || [];
+    for (const entry of commentedMdSearch) {
+      section += formatMdSearchEntry(entry as MentionEntry, '    ', true) + '\n#\n';
+    }
+
+    return section.trimEnd();
+  };
 
   return `# Prompt Line Settings Configuration
 # This file is automatically generated but can be manually edited
@@ -169,12 +219,12 @@ function generateSettingsExample(settings: UserSettings): string {
 # Available modifiers: Cmd, Ctrl, Alt, Shift
 
 shortcuts:
-  main: ${settings.shortcuts.main}           # Show/hide the input window (global)
-  paste: ${settings.shortcuts.paste}         # Paste text and close window
-  close: ${settings.shortcuts.close}              # Close window without pasting
-  historyNext: ${settings.shortcuts.historyNext}          # Navigate to next history item
-  historyPrev: ${settings.shortcuts.historyPrev}          # Navigate to previous history item
-  search: ${settings.shortcuts.search}            # Enable search mode in history
+  main: ${s.shortcuts.main}           # Show/hide the input window (global)
+  paste: ${s.shortcuts.paste}         # Paste text and close window
+  close: ${s.shortcuts.close}              # Close window without pasting
+  historyNext: ${s.shortcuts.historyNext}          # Navigate to next history item
+  historyPrev: ${s.shortcuts.historyPrev}          # Navigate to previous history item
+  search: ${s.shortcuts.search}            # Enable search mode in history
 
 # ============================================================================
 # WINDOW SETTINGS
@@ -186,9 +236,9 @@ shortcuts:
 #   - center: Center on primary display
 
 window:
-  position: ${settings.window.position}
-  width: ${settings.window.width}                      # Recommended: 400-800 pixels
-  height: ${settings.window.height}                     # Recommended: 200-400 pixels
+  position: ${s.window.position}
+  width: ${s.window.width}                      # Recommended: 400-800 pixels
+  height: ${s.window.height}                     # Recommended: 200-400 pixels
 
 # ============================================================================
 # FILE OPENER SETTINGS
@@ -199,9 +249,9 @@ window:
 fileOpener:
   # Default editor for all files (null = use system default application)
   # Example values: "Visual Studio Code", "Sublime Text", "WebStorm"
-  defaultEditor: ${settings.fileOpener?.defaultEditor === null || settings.fileOpener?.defaultEditor === undefined ? 'null' : `"${settings.fileOpener.defaultEditor}"`}
+  defaultEditor: ${s.fileOpener?.defaultEditor === null || s.fileOpener?.defaultEditor === undefined ? 'null' : `"${s.fileOpener.defaultEditor}"`}
   # Extension-specific applications (overrides defaultEditor)
-  ${extensionsSection}
+  ${buildExtensionsSection()}
 
 # ============================================================================
 # SLASH COMMAND SETTINGS
@@ -209,7 +259,7 @@ fileOpener:
 # Configure slash commands (/) for quick actions
 # Template variables: {basename}, {frontmatter@fieldName}
 
-${slashCommandsSection}
+${buildSlashCommandsSection()}
 
 # ============================================================================
 # MENTION SETTINGS (@ mentions)
@@ -217,12 +267,13 @@ ${slashCommandsSection}
 # Configure @ mention sources: fileSearch, symbolSearch, mdSearch
 # Template variables for mdSearch: {basename}, {frontmatter@fieldName}
 
-${mentionsSection}`;
+${buildMentionsSection()}
+`;
 }
 
 // Generate and write settings.example.yml
 const outputPath = path.join(__dirname, '..', 'settings.example.yml');
-const content = generateSettingsExample(defaultSettings);
+const content = generateSettingsExample(exampleSettings);
 
 fs.writeFileSync(outputPath, content, 'utf8');
 console.log(`Generated: ${outputPath}`);
