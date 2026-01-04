@@ -251,11 +251,10 @@ fileOpener:
 
 slashCommands:
   # Built-in commands for AI coding assistants
-  builtIn:
-    tools:                           # List of tools to enable
-      - claude                       # Claude Code commands
-    #  - codex                        # OpenAI Codex commands
-    #  - gemini                       # Google Gemini commands
+  builtIn:                           # List of tools to enable
+    - claude                         # Claude Code commands
+  #  - codex                          # OpenAI Codex commands
+  #  - gemini                         # Google Gemini commands
 
   # Custom slash commands from markdown files
   custom:

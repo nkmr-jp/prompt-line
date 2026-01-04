@@ -206,12 +206,12 @@ class SettingsManager {
     }
 
     // Handle legacy builtInCommands
-    if (userSettings.builtInCommands) {
-      // Merge into slashCommands.builtIn
+    if (userSettings.builtInCommands?.tools) {
+      // Merge into slashCommands.builtIn (convert tools array to direct builtIn array)
       if (!result.slashCommands) {
         result.slashCommands = {};
       }
-      result.slashCommands.builtIn = userSettings.builtInCommands;
+      result.slashCommands.builtIn = userSettings.builtInCommands.tools;
 
       // Keep legacy builtInCommands for backward compatibility
       result.builtInCommands = userSettings.builtInCommands;
@@ -290,18 +290,17 @@ class SettingsManager {
 
     // Build slashCommands section
     const buildSlashCommandsSection = (): string => {
-      const hasBuiltIn = settings.slashCommands?.builtIn;
+      const hasBuiltIn = settings.slashCommands?.builtIn && settings.slashCommands.builtIn.length > 0;
       const hasCustom = settings.slashCommands?.custom && settings.slashCommands.custom.length > 0;
 
       if (!hasBuiltIn && !hasCustom) {
         // No slash commands configured - output commented template
         return `#slashCommands:
 #  # Built-in commands (Claude, Codex, Gemini, etc.)
-#  builtIn:
-#    tools:                            # List of tools to enable
-#      - claude
-#      - codex
-#      - gemini
+#  builtIn:                            # List of tools to enable
+#    - claude
+#    - codex
+#    - gemini
 #
 #  # Custom slash commands from markdown files
 #  custom:
@@ -318,20 +317,11 @@ class SettingsManager {
 
       // Built-in section
       if (hasBuiltIn) {
-        const tools = settings.slashCommands!.builtIn!.tools;
-        const toolsSection = tools && tools.length > 0
-          ? `tools:${tools.map(t => `\n      - ${t}`).join('')}`
-          : `#tools:                            # List of tools to enable (all available when omitted)
-    #  - claude
-    #  - codex
-    #  - gemini`;
-
-        section += `  builtIn:
-    ${toolsSection}`;
+        const tools = settings.slashCommands!.builtIn!;
+        section += `  builtIn:${tools.map(t => `\n    - ${t}`).join('')}`;
       } else {
-        section += `  #builtIn:
-  #  tools:
-  #    - claude`;
+        section += `  #builtIn:                            # List of tools to enable
+  #  - claude`;
       }
 
       // Custom section
@@ -724,10 +714,10 @@ ${mentionsSection}
 
   /**
    * Get built-in commands settings
-   * Returns from slashCommands.builtIn (new) or builtInCommands (legacy)
+   * Returns from slashCommands.builtIn (new) or builtInCommands.tools (legacy)
    */
-  getBuiltInCommandsSettings(): { tools?: string[] } | undefined {
-    return this.currentSettings.slashCommands?.builtIn || this.currentSettings.builtInCommands;
+  getBuiltInCommandsSettings(): string[] | undefined {
+    return this.currentSettings.slashCommands?.builtIn || this.currentSettings.builtInCommands?.tools;
   }
 
   /**

@@ -53,11 +53,10 @@ fileOpener:
 
 slashCommands:
   # Built-in commands (Claude, Codex, Gemini, etc.)
-  builtIn:
-    tools:                            # List of tools to enable
-      - claude
-#      - codex
-#      - gemini
+  builtIn:                            # List of tools to enable
+    - claude
+#    - codex
+#    - gemini
 
   # Custom slash commands from markdown files
   custom:
