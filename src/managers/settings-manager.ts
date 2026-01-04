@@ -220,7 +220,8 @@ class SettingsManager {
   async saveSettings(): Promise<void> {
     try {
       // Use shared YAML generator (single source of truth)
-      const settingsYaml = generateSettingsYaml(this.currentSettings);
+      // Include commented examples for better UX (shows available options)
+      const settingsYaml = generateSettingsYaml(this.currentSettings, { includeCommentedExamples: true });
 
       // Set restrictive file permissions (owner read/write only)
       await fs.writeFile(this.settingsFile, settingsYaml, { encoding: 'utf8', mode: 0o600 });
