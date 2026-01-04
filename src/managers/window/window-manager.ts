@@ -247,8 +247,9 @@ class WindowManager {
         };
       }
 
-      // Add hint message if fd command is not available
+      // Disable file search and show hint if fd command is not available
       if (!this.directoryDetector.isFdCommandAvailable()) {
+        windowData.fileSearchEnabled = false;
         if (!windowData.directoryData) {
           windowData.directoryData = { success: false };
         }
