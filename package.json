@@ -24,7 +24,8 @@
     "test:mutation": "stryker run",
     "pre-push": "npm run lint && npm run typecheck && npm test",
     "prepare": "husky",
-    "reset-accessibility": "tccutil reset Accessibility com.electron.prompt-line && echo '✅ Accessibility permissions for Prompt Line have been reset'"
+    "reset-accessibility": "tccutil reset Accessibility com.electron.prompt-line && echo '✅ Accessibility permissions for Prompt Line have been reset'",
+    "generate:settings-example": "npx ts-node scripts/generate-settings-example.ts"
   },
   "keywords": [
     "paste",
@@ -65,6 +66,7 @@
     "jscpd": "^4.0.5",
     "semantic-release": "^25.0.2",
     "ts-jest": "^29.4.0",
+    "ts-node": "^10.9.2",
     "typescript": "~5.5.0",
     "vite": "^6.4.1"
   },
