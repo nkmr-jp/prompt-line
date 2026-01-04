@@ -160,8 +160,8 @@ window:
             excludePatterns: []
           },
           symbolSearch: {
-            maxSymbols: 20000,
-            timeout: 5000
+            maxSymbols: 200000,
+            timeout: 60000
           },
           mdSearch: [
             {
@@ -307,8 +307,8 @@ window:
             excludePatterns: []
           },
           symbolSearch: {
-            maxSymbols: 20000,
-            timeout: 5000
+            maxSymbols: 200000,
+            timeout: 60000
           },
           mdSearch: [
             {
@@ -416,7 +416,7 @@ window:
       expect(settings.mentions?.symbolSearch?.timeout).toBe(3000);
 
       // Check that maxSymbols defaults are preserved
-      expect(settings.mentions?.symbolSearch?.maxSymbols).toBe(20000);
+      expect(settings.mentions?.symbolSearch?.maxSymbols).toBe(200000);
     });
 
     it('should migrate legacy fileSearch to mentions.fileSearch with deep merge', async () => {
@@ -527,7 +527,7 @@ window:
 
       // Check that symbolSearch was updated
       expect(settings.mentions?.symbolSearch?.timeout).toBe(8000);
-      expect(settings.mentions?.symbolSearch?.maxSymbols).toBe(20000);
+      expect(settings.mentions?.symbolSearch?.maxSymbols).toBe(200000);
 
       // Check that fileSearch was preserved
       expect(settings.mentions?.fileSearch?.maxFiles).toBe(1000);
@@ -549,7 +549,7 @@ window:
       expect(settings.mentions?.symbolSearch?.maxSymbols).toBe(10000);
 
       // Check that timeout defaults are preserved
-      expect(settings.mentions?.symbolSearch?.timeout).toBe(5000);
+      expect(settings.mentions?.symbolSearch?.timeout).toBe(60000);
 
       // Check that legacy symbolSearch is kept for backward compatibility
       expect(settings.symbolSearch).toEqual({

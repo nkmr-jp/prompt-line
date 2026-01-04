@@ -72,8 +72,8 @@ export const defaultSettings: UserSettings = {
       excludePatterns: []
     },
     symbolSearch: {
-      maxSymbols: 20000,
-      timeout: 5000
+      maxSymbols: 200000,
+      timeout: 60000
     },
     mdSearch: [
       {

@@ -252,8 +252,8 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
 #  # Symbol search settings (@ts:Config, @go:Handler)
 #  # Note: ripgrep required (brew install ripgrep)
 #  symbolSearch:
-#    maxSymbols: 20000                # Maximum symbols to return
-#    timeout: 5000                    # Search timeout in ms
+#    maxSymbols: 200000               # Maximum symbols to return
+#    timeout: 60000                   # Search timeout in ms
 #    #rgPath: null                    # Custom path to rg
 #
 #  # Markdown-based mentions from markdown files
@@ -338,8 +338,8 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
     section += `
   # Symbol search settings (@ts:Config, @go:Handler)
   symbolSearch:
-    maxSymbols: 20000
-    timeout: 5000
+    maxSymbols: 200000
+    timeout: 60000
     #rgPath: null
 `;
   }

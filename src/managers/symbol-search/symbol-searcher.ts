@@ -14,7 +14,7 @@ import type {
 import { TIMEOUTS, LIMITS } from '../../constants';
 
 // Default search options (exported for use by handlers)
-export const DEFAULT_MAX_SYMBOLS = 20000;
+export const DEFAULT_MAX_SYMBOLS = 200000;
 export const DEFAULT_SEARCH_TIMEOUT = TIMEOUTS.SYMBOL_SEARCH;
 export const DEFAULT_MAX_BUFFER = 100 * 1024 * 1024; // 100MB buffer for large codebases
 

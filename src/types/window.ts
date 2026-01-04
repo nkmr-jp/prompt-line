@@ -199,9 +199,9 @@ export interface FileSearchUserSettings {
  * All fields are optional - defaults are applied by the application
  */
 export interface SymbolSearchUserSettings {
-  /** Maximum number of symbols to return (default: 20000) */
+  /** Maximum number of symbols to return (default: 200000) */
   maxSymbols?: number;
-  /** Search timeout in milliseconds (default: 5000) */
+  /** Search timeout in milliseconds (default: 60000) */
   timeout?: number;
   /** Custom path to ripgrep command (null = auto-detect from common paths) */
   rgPath?: string | null;
