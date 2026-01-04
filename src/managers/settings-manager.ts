@@ -3,6 +3,7 @@ import path from 'path';
 import os from 'os';
 import * as yaml from 'js-yaml';
 import { logger } from '../utils/utils';
+import { defaultSettings as sharedDefaultSettings } from '../config/default-settings';
 import type {
   UserSettings,
   FileSearchSettings,
@@ -21,43 +22,8 @@ class SettingsManager {
   constructor() {
     this.settingsFile = path.join(os.homedir(), '.prompt-line', 'settings.yml');
 
-    this.defaultSettings = {
-      shortcuts: {
-        main: 'Cmd+Shift+Space',
-        paste: 'Cmd+Enter',
-        close: 'Escape',
-        historyNext: 'Ctrl+j',
-        historyPrev: 'Ctrl+k',
-        search: 'Cmd+f'
-      },
-      window: {
-        position: 'active-text-field',
-        width: 600,
-        height: 300
-      },
-      fileOpener: {
-        extensions: {},
-        defaultEditor: null
-      },
-      // mentions contains fileSearch, symbolSearch, mdSearch
-      mentions: {
-        fileSearch: {
-          respectGitignore: true,
-          includeHidden: true,
-          maxFiles: 5000,
-          maxDepth: null,
-          maxSuggestions: 50,
-          followSymlinks: false,
-          includePatterns: [],
-          excludePatterns: []
-        },
-        symbolSearch: {
-          maxSymbols: 20000,
-          timeout: 5000
-        }
-      }
-      // slashCommands is optional - contains builtIn and custom
-    };
+    // Use shared default settings from config/default-settings.ts
+    this.defaultSettings = sharedDefaultSettings;
 
     this.currentSettings = { ...this.defaultSettings };
   }

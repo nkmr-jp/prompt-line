@@ -2,7 +2,7 @@
  * Script to generate settings.example.yml from defaultSettings
  *
  * This ensures settings.example.yml stays in sync with the default values
- * defined in settings-manager.ts
+ * defined in config/default-settings.ts (single source of truth)
  *
  * Usage: npx ts-node scripts/generate-settings-example.ts
  */
@@ -10,49 +10,15 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
+// Import shared default settings (single source of truth)
+import { defaultSettings } from '../src/config/default-settings';
+
 // Import types
 import type {
   UserSettings,
   FileSearchUserSettings,
   SymbolSearchUserSettings
 } from '../src/types';
-
-// Default settings - must match settings-manager.ts defaultSettings
-const defaultSettings: UserSettings = {
-  shortcuts: {
-    main: 'Cmd+Shift+Space',
-    paste: 'Cmd+Enter',
-    close: 'Escape',
-    historyNext: 'Ctrl+j',
-    historyPrev: 'Ctrl+k',
-    search: 'Cmd+f'
-  },
-  window: {
-    position: 'active-text-field',
-    width: 600,
-    height: 300
-  },
-  fileOpener: {
-    extensions: {},
-    defaultEditor: null
-  },
-  mentions: {
-    fileSearch: {
-      respectGitignore: true,
-      includeHidden: true,
-      maxFiles: 5000,
-      maxDepth: null,
-      maxSuggestions: 50,
-      followSymlinks: false,
-      includePatterns: [],
-      excludePatterns: []
-    },
-    symbolSearch: {
-      maxSymbols: 20000,
-      timeout: 5000
-    }
-  }
-};
 
 /**
  * Generate settings.example.yml content with comments
