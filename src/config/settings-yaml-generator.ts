@@ -131,7 +131,7 @@ function buildExtensionsSection(settings: UserSettings, options: YamlGeneratorOp
   if (options.includeCommentedExamples) {
     const commented = commentedExamples.fileOpener?.extensions || {};
     for (const [ext, app] of Object.entries(commented)) {
-      section += `\n  #  ${ext}: "${app}"`;
+      section += `\n    # ${ext}: "${app}"`;
     }
   }
 
@@ -182,7 +182,7 @@ function buildSlashCommandsSection(settings: UserSettings, options: YamlGenerato
   if (options.includeCommentedExamples) {
     const commentedBuiltIn = commentedExamples.slashCommands?.builtIn || [];
     for (const cmd of commentedBuiltIn) {
-      section += `#    - ${cmd}\n`;
+      section += `    # - ${cmd}\n`;
     }
   }
 

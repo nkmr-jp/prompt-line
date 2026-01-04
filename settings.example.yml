@@ -43,8 +43,8 @@ fileOpener:
   extensions:
     png: "Preview"
     pdf: "Preview"
-  #  go: "Goland"
-  #  md: "Typora"
+    # go: "Goland"
+    # md: "Typora"
 
 # ============================================================================
 # SLASH COMMAND SETTINGS
@@ -56,8 +56,8 @@ slashCommands:
   # Built-in commands (Claude, Codex, Gemini, etc.)
   builtIn:                            # List of tools to enable
     - claude
-#    - codex
-#    - gemini
+    # - codex
+    # - gemini
 
   # Custom slash commands from markdown files
   custom:
