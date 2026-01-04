@@ -217,6 +217,20 @@ export class MentionManager implements IInitializable {
     return this.state.fileSearchEnabled;
   }
 
+  /**
+   * Set whether symbol search is enabled
+   */
+  public setSymbolSearchEnabled(enabled: boolean): void {
+    this.state.symbolSearchEnabled = enabled;
+  }
+
+  /**
+   * Check if symbol search is enabled
+   */
+  public isSymbolSearchEnabled(): boolean {
+    return this.state.symbolSearchEnabled;
+  }
+
 
   // ============================================
   // State Update Helpers
@@ -550,6 +564,11 @@ export class MentionManager implements IInitializable {
    * @returns true if handled as code search (whether successful or not)
    */
   private tryCodeSearch(query: string, startPos: number): boolean {
+    // Skip code search if symbol search is disabled (rg not available)
+    if (!this.state.symbolSearchEnabled) {
+      return false;
+    }
+
     const parsedCodeSearch = this.queryExtractionManager.parseCodeSearchQuery(query);
 
     if (!parsedCodeSearch || this.matchesSearchPrefixSync(query, 'mention')) {

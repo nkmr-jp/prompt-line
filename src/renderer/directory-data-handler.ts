@@ -21,6 +21,7 @@ export interface DomManagerCallbacks {
 export interface MentionManagerCallbacks {
   getMentionManager: () => {
     setFileSearchEnabled: (enabled: boolean) => void;
+    setSymbolSearchEnabled: (enabled: boolean) => void;
     preloadSearchPrefixesCache: () => void;
     handleCachedDirectoryData: (data: DirectoryInfo) => void;
     updateCache: (data: DirectoryInfo) => void;
@@ -109,6 +110,9 @@ export class DirectoryDataHandler {
 
       // Update file search enabled state in MentionManager
       fileSearchManager?.setFileSearchEnabled(data.fileSearchEnabled ?? false);
+
+      // Update symbol search enabled state in MentionManager (disabled when rg is not available)
+      fileSearchManager?.setSymbolSearchEnabled(data.symbolSearchEnabled ?? true);
 
       // Preload searchPrefixes cache for command/mention (enables sync checks for slash command hints)
       fileSearchManager?.preloadSearchPrefixesCache();
