@@ -74,25 +74,38 @@ function formatSlashCommandEntry(entry: SlashCommandEntry, indent: string): stri
  * Format an MdSearch entry as YAML
  */
 function formatMdSearchEntry(entry: MentionEntry, indent: string, commented = false): string {
-  const prefix = commented ? '#' : '';
+  // When commented, use "    # " prefix to match the mdSearch indentation level
+  // Active:    "    - name:" (4 spaces + -)
+  // Commented: "    # - name:" (4 spaces + # + space + -)
+  let firstLinePrefix: string;
+  let contentLinePrefix: string;
+
+  if (commented) {
+    firstLinePrefix = '    # ';
+    contentLinePrefix = '    #   ';
+  } else {
+    firstLinePrefix = indent;
+    contentLinePrefix = `${indent}  `;
+  }
+
   const lines = [
-    `${prefix}${indent}- name: "${entry.name}"`,
-    `${prefix}${indent}  description: "${entry.description}"`,
-    `${prefix}${indent}  path: ${entry.path}`,
-    `${prefix}${indent}  pattern: "${entry.pattern}"`
+    `${firstLinePrefix}- name: "${entry.name}"`,
+    `${contentLinePrefix}description: "${entry.description}"`,
+    `${contentLinePrefix}path: ${entry.path}`,
+    `${contentLinePrefix}pattern: "${entry.pattern}"`
   ];
 
   if (entry.searchPrefix) {
-    lines.push(`${prefix}${indent}  searchPrefix: ${entry.searchPrefix}            # Search with @${entry.searchPrefix}:`);
+    lines.push(`${contentLinePrefix}searchPrefix: ${entry.searchPrefix}            # Search with @${entry.searchPrefix}:`);
   }
   if (entry.maxSuggestions !== undefined) {
-    lines.push(`${prefix}${indent}  maxSuggestions: ${entry.maxSuggestions}`);
+    lines.push(`${contentLinePrefix}maxSuggestions: ${entry.maxSuggestions}`);
   }
   if (entry.sortOrder !== undefined) {
-    lines.push(`${prefix}${indent}  sortOrder: ${entry.sortOrder}`);
+    lines.push(`${contentLinePrefix}sortOrder: ${entry.sortOrder}`);
   }
   if (entry.inputFormat !== undefined) {
-    lines.push(`${prefix}${indent}  inputFormat: ${entry.inputFormat}               # Insert file path instead of name`);
+    lines.push(`${contentLinePrefix}inputFormat: ${entry.inputFormat}               # Insert file path instead of name`);
   }
 
   return lines.join('\n');
@@ -330,7 +343,7 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
   if (options.includeCommentedExamples) {
     const commentedMdSearch = commentedExamples.mentions?.mdSearch || [];
     for (const entry of commentedMdSearch) {
-      section += formatMdSearchEntry(entry as MentionEntry, '    ', true) + '\n#\n';
+      section += formatMdSearchEntry(entry as MentionEntry, '    ', true) + '\n\n';
     }
   }
 

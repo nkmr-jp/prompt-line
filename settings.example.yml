@@ -129,18 +129,17 @@ mentions:
       pattern: "**/*/SKILL.md"
       searchPrefix: skill            # Search with @skill:
 
-#    - name: "{frontmatter@name}"
-#      description: "{frontmatter@description}"
-#      path: ~/.claude/plugins
-#      pattern: "**/*/SKILL.md"
-#      searchPrefix: skill            # Search with @skill:
-#
-#    - name: "{basename}"
-#      description: "{frontmatter@title}"
-#      path: /path/to/knowledge-base
-#      pattern: "**/*/*.md"
-#      searchPrefix: kb            # Search with @kb:
-#      maxSuggestions: 100
-#      sortOrder: desc
-#      inputFormat: path               # Insert file path instead of name
-#
+    # - name: "{frontmatter@name}"
+    #   description: "{frontmatter@description}"
+    #   path: ~/.claude/plugins
+    #   pattern: "**/*/SKILL.md"
+    #   searchPrefix: skill            # Search with @skill:
+
+    # - name: "{basename}"
+    #   description: "{frontmatter@title}"
+    #   path: /path/to/knowledge-base
+    #   pattern: "**/*/*.md"
+    #   searchPrefix: kb            # Search with @kb:
+    #   maxSuggestions: 100
+    #   sortOrder: desc
+    #   inputFormat: path               # Insert file path instead of name
