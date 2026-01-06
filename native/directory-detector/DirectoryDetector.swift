@@ -49,6 +49,17 @@ class DirectoryDetector {
             guard let frontApp = NSWorkspace.shared.frontmostApplication else {
                 return ["error": "No active application found"]
             }
+
+            // Skip if the frontmost app is Prompt Line itself (development or production)
+            let promptLineBundleIds = ["com.github.Electron", "com.nkmr.prompt-line"]
+            if let frontBundleId = frontApp.bundleIdentifier, promptLineBundleIds.contains(frontBundleId) {
+                return [
+                    "error": "Prompt Line is the frontmost application - cannot detect previous app",
+                    "appName": frontApp.localizedName ?? "Unknown",
+                    "bundleId": frontBundleId
+                ]
+            }
+
             appName = frontApp.localizedName ?? "Unknown"
             bundleId = frontApp.bundleIdentifier ?? ""
             appPid = frontApp.processIdentifier

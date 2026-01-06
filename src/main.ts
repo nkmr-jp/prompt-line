@@ -399,8 +399,11 @@ class PromptLineApp {
         hasDraft: !!windowData.draft
       });
 
-      // Debug: Test directory detection when editor is shown
-      this.testDirectoryDetection();
+      // Note: Directory detection is handled by WindowManager.showInputWindow()
+      // The testDirectoryDetection() debug function is disabled because it runs
+      // after the window is shown, which causes it to detect Prompt Line itself
+      // instead of the previous application.
+      // this.testDirectoryDetection();
     } catch (error) {
       logger.error('Failed to show input window:', error);
     }
