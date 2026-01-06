@@ -56,6 +56,27 @@ const EDITOR_CONFIGS: Record<string, EditorConfig> = {
   'Zed': { cli: 'zed', lineFormat: 'colon' },
 };
 
+/**
+ * Case-insensitive lookup for editor config
+ * Returns both the config and the canonical name from EDITOR_CONFIGS
+ */
+function findEditorConfig(appName: string): { config: EditorConfig; canonicalName: string } | null {
+  // Try exact match first
+  if (EDITOR_CONFIGS[appName]) {
+    return { config: EDITOR_CONFIGS[appName], canonicalName: appName };
+  }
+
+  // Case-insensitive lookup
+  const lowerAppName = appName.toLowerCase();
+  for (const [key, config] of Object.entries(EDITOR_CONFIGS)) {
+    if (key.toLowerCase() === lowerAppName) {
+      return { config, canonicalName: key };
+    }
+  }
+
+  return null;
+}
+
 export class FileOpenerManager {
   private settingsManager: SettingsManager;
 
@@ -104,9 +125,10 @@ export class FileOpenerManager {
       }
 
       // Check if we have a line number and the editor supports it
-      const editorConfig = EDITOR_CONFIGS[appName];
-      if (options?.lineNumber && editorConfig) {
-        this.openWithLineNumber(filePath, appName, editorConfig, options)
+      // Use case-insensitive lookup for editor config
+      const editorMatch = findEditorConfig(appName);
+      if (options?.lineNumber && editorMatch) {
+        this.openWithLineNumber(filePath, appName, editorMatch.config, options)
           .then(resolve)
           .catch(() => {
             // Fallback to regular open if line number open fails

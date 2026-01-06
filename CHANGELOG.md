@@ -1,3 +1,40 @@
+## [0.15.0](https://github.com/nkmr-jp/prompt-line/compare/v0.14.2...v0.15.0) (2026-01-04)
+
+### Features
+
+* **settings:** add default mentions configuration with fileSearch and symbolSearch ([c233696](https://github.com/nkmr-jp/prompt-line/commit/c2336960ca5c8b09e5c3d40a1d3555e10b145bf0))
+* **symbol-search:** add ripgrep availability check and symbol search enablement ([e838b5f](https://github.com/nkmr-jp/prompt-line/commit/e838b5f07619233590bd8c196cf3c429ff3317f0))
+* **symbol-search:** add symbol search enable/disable state management ([80f6b1d](https://github.com/nkmr-jp/prompt-line/commit/80f6b1dec06c763daa34558d9f36309434d64369))
+* **symbol-searcher:** require git repository for symbol search operations ([3842722](https://github.com/nkmr-jp/prompt-line/commit/3842722f05c12bd82472c77d20828e1140a0d69b))
+
+### Bug Fixes
+
+* **config:** correct mdSearch entry indentation and separator formatting ([0f1ff97](https://github.com/nkmr-jp/prompt-line/commit/0f1ff97e3f20403bec4f8f20f45b446a48891edc))
+* **config:** normalize comment indentation in YAML examples ([e5204c3](https://github.com/nkmr-jp/prompt-line/commit/e5204c3dd9abbbf09d4e070987f4679ad9dc8939))
+* **file-search:** disable file search when fd command is unavailable ([0ae36f5](https://github.com/nkmr-jp/prompt-line/commit/0ae36f55be777168d1328edd0039547db3d5d9fe))
+* **settings:** improve error handling and array serialization ([a4b809d](https://github.com/nkmr-jp/prompt-line/commit/a4b809d59d0337c7d40ced68be88d15a09490811))
+* **settings:** include commented examples when saving settings ([5df9b60](https://github.com/nkmr-jp/prompt-line/commit/5df9b60c052dd6ffd6e88769959a6a6fc157ed2e))
+* **snapshot-manager:** remove debug log spam during history navigation ([6b48dbf](https://github.com/nkmr-jp/prompt-line/commit/6b48dbf6cef7e40369877782f2f9306337af91a9))
+* **window:** skip background directory detection when fd command unavailable ([2f2be13](https://github.com/nkmr-jp/prompt-line/commit/2f2be13518b46421d9f0dd5a39eaf65028556846))
+
+### Code Refactoring
+
+* **config:** consolidate default settings to single source of truth ([485b281](https://github.com/nkmr-jp/prompt-line/commit/485b281a80a779c775434dfc3aa628ba4b482d62))
+* **config:** unify default settings as single source of truth ([af4176c](https://github.com/nkmr-jp/prompt-line/commit/af4176c1276dd723bc1b7044a6b1e53949d37c66))
+* consolidate default settings into single source of truth ([b5ad6b3](https://github.com/nkmr-jp/prompt-line/commit/b5ad6b3117fdee3941304afd473dbcd3dd3ff94f))
+* **settings-manager:** improve null safety in settings merging and simplify defaults ([cfe9f59](https://github.com/nkmr-jp/prompt-line/commit/cfe9f5949d50537bf77cfbe6767ff07673977ce7))
+* **settings:** consolidate example settings generation from source ([bd5cd75](https://github.com/nkmr-jp/prompt-line/commit/bd5cd75bfa111205ef4c0997ff7daa0f6a3ced86))
+* **settings:** consolidate YAML generation into single source of truth ([8587603](https://github.com/nkmr-jp/prompt-line/commit/85876038fd0a377340f434057f1b3c96e8ac61cf))
+* **slash-commands:** simplify builtIn configuration structure ([a32c689](https://github.com/nkmr-jp/prompt-line/commit/a32c6890fcb35a50b5f1d987d0db72dde745ecb3))
+
+### Performance Improvements
+
+* **symbol-search:** increase default maxSymbols and timeout limits ([fa57dd3](https://github.com/nkmr-jp/prompt-line/commit/fa57dd3f5bc8ffa599a4a65af02e53d1b1460cae))
+
+### Maintenance
+
+* **config:** update default file opener extensions ([725d4d7](https://github.com/nkmr-jp/prompt-line/commit/725d4d78416729d9bd7f268c766456761888e29e))
+
 ## [0.14.2](https://github.com/nkmr-jp/prompt-line/compare/v0.14.1...v0.14.2) (2026-01-01)
 
 ### Bug Fixes
