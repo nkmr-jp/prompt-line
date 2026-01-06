@@ -413,6 +413,7 @@ The window supports multiple positioning modes with dynamic configuration:
   - VSCode (`com.microsoft.VSCode`, VSCode Insiders, VSCodium)
   - Cursor (`com.todesktop.230313mzl4w4u92`)
   - Windsurf (`com.exafunction.windsurf`)
+  - Zed (`dev.zed.Zed`)
   - Antigravity (`com.google.antigravity`) - tmux-based terminal
   - Kiro (`dev.kiro.desktop`)
 
