@@ -367,8 +367,15 @@ export class PromptLineRenderer {
    */
   private async handleSaveDraftToHistory(): Promise<void> {
     const text = this.domManager.getCurrentText();
-    if (!text.trim()) {
+    const trimmedText = text.trim();
+    if (!trimmedText) {
       rendererLogger.info('No text to save to history');
+      return;
+    }
+
+    // Skip if same as latest history item
+    if (this.historyData.length > 0 && this.historyData[0]?.text === trimmedText) {
+      rendererLogger.info('Text is same as latest history, skipping');
       return;
     }
 
