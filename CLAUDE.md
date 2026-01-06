@@ -407,6 +407,8 @@ The window supports multiple positioning modes with dynamic configuration:
   - Terminal.app (`com.apple.Terminal`)
   - iTerm2 (`com.googlecode.iterm2`)
   - Ghostty (`com.mitchellh.ghostty`)
+  - Warp (`dev.warp.Warp-Stable`)
+  - WezTerm (`com.github.wez.wezterm`)
   - JetBrains IDEs (`com.jetbrains.*` - IntelliJ IDEA, WebStorm, PyCharm, etc.)
   - VSCode (`com.microsoft.VSCode`, VSCode Insiders, VSCodium)
   - Cursor (`com.todesktop.230313mzl4w4u92`)
