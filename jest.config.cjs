@@ -1,6 +1,7 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
+  injectGlobals: true,
   testEnvironmentOptions: {
     'localstorage-file': process.env.HOME + '/.jest-localstorage'
   },
