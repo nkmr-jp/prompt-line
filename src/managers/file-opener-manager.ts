@@ -33,6 +33,8 @@ const EDITOR_CONFIGS: Record<string, EditorConfig> = {
   'VSCodium': { cli: 'codium', lineFormat: 'goto' },
   'Cursor': { cli: 'cursor', lineFormat: 'goto' },
   'Windsurf': { cli: 'windsurf', lineFormat: 'goto' },
+  'Antigravity': { cli: 'antigravity', lineFormat: 'goto' },
+  'Kiro': { cli: 'kiro', lineFormat: 'goto' },
   // JetBrains IDEs (use 'open -na <app> --args file:line' for reliable line number support)
   'IntelliJ IDEA': { useOpenArgs: true },
   'IntelliJ IDEA Ultimate': { useOpenArgs: true },

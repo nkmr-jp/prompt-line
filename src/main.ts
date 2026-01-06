@@ -140,17 +140,24 @@ class PromptLineApp {
   }
 
   /**
-   * Test directory detection feature on startup (for debugging)
+   * Test directory detection feature (for debugging)
+   * @param bundleId Optional bundle ID of the previous app to detect from
    */
-  private async testDirectoryDetection(): Promise<void> {
+  private async testDirectoryDetection(bundleId?: string): Promise<void> {
     try {
       logger.debug('Testing directory detection feature...');
       const startTime = performance.now();
 
       // Get file search settings from settings manager (if available)
       const fileSearchSettings = this.settingsManager?.getFileSearchSettings();
-      // Only pass options if we have file search settings
-      const options = fileSearchSettings ? { fileSearchSettings } : undefined;
+      // Build options conditionally to avoid passing undefined values
+      const options: Parameters<typeof detectCurrentDirectoryWithFiles>[0] = {};
+      if (fileSearchSettings) {
+        options.fileSearchSettings = fileSearchSettings;
+      }
+      if (bundleId) {
+        options.bundleId = bundleId;
+      }
       const result = await detectCurrentDirectoryWithFiles(options);
       const duration = performance.now() - startTime;
 
@@ -399,8 +406,10 @@ class PromptLineApp {
         hasDraft: !!windowData.draft
       });
 
-      // Debug: Test directory detection when editor is shown
-      this.testDirectoryDetection();
+      // Debug: Test directory detection with the previously detected app's bundleId
+      const previousApp = this.windowManager.getPreviousApp();
+      const bundleId = previousApp && typeof previousApp === 'object' && previousApp.bundleId ? previousApp.bundleId : undefined;
+      this.testDirectoryDetection(bundleId);
     } catch (error) {
       logger.error('Failed to show input window:', error);
     }
