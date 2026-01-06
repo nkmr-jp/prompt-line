@@ -2,7 +2,7 @@
  * Jest test setup file
  */
 
-import { jest } from '@jest/globals';
+import { jest, afterEach } from '@jest/globals';
 import type { BrowserWindow } from 'electron';
 
 // Polyfill for structuredClone (not available in Jest environment by default)
