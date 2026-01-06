@@ -24,7 +24,7 @@ import SettingsManager from './managers/settings-manager';
 import BuiltInCommandsManager from './managers/built-in-commands-manager';
 import IPCHandlers from './handlers/ipc-handlers';
 import { codeSearchHandler } from './handlers/code-search-handler';
-import { logger, ensureDir } from './utils/utils';
+import { logger, ensureDir, detectCurrentDirectoryWithFiles } from './utils/utils';
 import { LIMITS } from './constants';
 import type { WindowData } from './types';
 
@@ -137,6 +137,62 @@ class PromptLineApp {
     console.log('Usage: Enter text and press Cmd+Enter to paste');
     console.log(`History: ${historyStats.totalItems} items loaded`);
     console.log('Exit: Ctrl+C\n');
+  }
+
+  /**
+   * Test directory detection feature (for debugging)
+   * @param bundleId Optional bundle ID of the previous app to detect from
+   */
+  private async testDirectoryDetection(bundleId?: string): Promise<void> {
+    try {
+      logger.debug('Testing directory detection feature...');
+      const startTime = performance.now();
+
+      // Get file search settings from settings manager (if available)
+      const fileSearchSettings = this.settingsManager?.getFileSearchSettings();
+      // Build options conditionally to avoid passing undefined values
+      const options: Parameters<typeof detectCurrentDirectoryWithFiles>[0] = {};
+      if (fileSearchSettings) {
+        options.fileSearchSettings = fileSearchSettings;
+      }
+      if (bundleId) {
+        options.bundleId = bundleId;
+      }
+      const result = await detectCurrentDirectoryWithFiles(options);
+      const duration = performance.now() - startTime;
+
+      if (result.error) {
+        logger.debug('Directory detection result (error):', {
+          error: result.error,
+          appName: result.appName,
+          bundleId: result.bundleId,
+          duration: `${duration.toFixed(2)}ms`
+        });
+      } else {
+        logger.debug('Directory detection result (success):', {
+          directory: result.directory,
+          fileCount: result.fileCount,
+          method: result.method,
+          tty: result.tty,
+          pid: result.pid,
+          idePid: result.idePid,
+          appName: result.appName,
+          bundleId: result.bundleId,
+          duration: `${duration.toFixed(2)}ms`
+        });
+
+        // Log first 5 files as sample
+        if (result.files && result.files.length > 0) {
+          const sampleFiles = result.files.slice(0, 5).map(f => ({
+            name: f.name,
+            isDirectory: f.isDirectory
+          }));
+          logger.debug('Sample files:', sampleFiles);
+        }
+      }
+    } catch (error) {
+      logger.warn('Directory detection test failed:', error);
+    }
   }
 
   private registerShortcuts(): void {
@@ -350,6 +406,10 @@ class PromptLineApp {
         hasDraft: !!windowData.draft
       });
 
+      // Debug: Test directory detection with the previously detected app's bundleId
+      const previousApp = this.windowManager.getPreviousApp();
+      const bundleId = previousApp && typeof previousApp === 'object' && previousApp.bundleId ? previousApp.bundleId : undefined;
+      this.testDirectoryDetection(bundleId);
     } catch (error) {
       logger.error('Failed to show input window:', error);
     }
