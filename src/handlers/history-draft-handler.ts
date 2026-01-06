@@ -53,6 +53,9 @@ class HistoryDraftHandler {
     // Global at-path cache handlers (for mdSearch agents and other project-independent items)
     ipcMain.handle('register-global-at-path', this.handleRegisterGlobalAtPath.bind(this));
     ipcMain.handle('get-global-at-paths', this.handleGetGlobalAtPaths.bind(this));
+
+    // Draft to history handler
+    ipcMain.handle('save-draft-to-history', this.handleSaveDraftToHistory.bind(this));
   }
 
   /**
@@ -72,7 +75,8 @@ class HistoryDraftHandler {
       'register-at-path',
       'get-registered-at-paths',
       'register-global-at-path',
-      'get-global-at-paths'
+      'get-global-at-paths',
+      'save-draft-to-history'
     ];
 
     handlers.forEach(handler => {
@@ -273,6 +277,37 @@ class HistoryDraftHandler {
     } catch (error) {
       logger.error('Failed to get global at-paths:', error);
       return [];
+    }
+  }
+
+  // Draft to history handler
+
+  private async handleSaveDraftToHistory(
+    _event: IpcMainInvokeEvent,
+    text: string
+  ): Promise<{ success: boolean; item?: HistoryItem; error?: string }> {
+    try {
+      if (!text || typeof text !== 'string') {
+        return { success: false, error: 'Invalid text' };
+      }
+
+      const trimmedText = text.trim();
+      if (!trimmedText) {
+        return { success: false, error: 'Empty text' };
+      }
+
+      // Add to history
+      const item = await this.historyManager.addToHistory(trimmedText);
+      if (!item) {
+        return { success: false, error: 'Failed to add to history' };
+      }
+
+      logger.info('Draft saved to history via Cmd+S', { id: item.id });
+      return { success: true, item };
+    } catch (error) {
+      const err = error as Error;
+      logger.error('Failed to save draft to history:', { message: err.message, stack: err.stack });
+      return { success: false, error: SecureErrors.OPERATION_FAILED };
     }
   }
 }

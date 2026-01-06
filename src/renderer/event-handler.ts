@@ -38,6 +38,7 @@ export class EventHandler implements IInitializable {
     onHistoryNavigation: (e: KeyboardEvent, direction: 'next' | 'prev') => void;
     onSearchToggle: () => void;
     onUndo: () => boolean;
+    onSaveDraftToHistory: () => Promise<void>;
   }) {
     this.onTabKeyInsert = callbacks.onTabKeyInsert;
     this.onShiftTabKeyPress = callbacks.onShiftTabKeyPress;

@@ -22,6 +22,7 @@ export class ShortcutHandler {
   private onHistoryNavigation: (e: KeyboardEvent, direction: 'next' | 'prev') => void;
   private onSearchToggle: () => void;
   private onUndo: () => boolean;
+  private onSaveDraftToHistory: () => Promise<void>;
 
   constructor(callbacks: {
     onTextPaste: (text: string) => Promise<void>;
@@ -31,6 +32,7 @@ export class ShortcutHandler {
     onHistoryNavigation: (e: KeyboardEvent, direction: 'next' | 'prev') => void;
     onSearchToggle: () => void;
     onUndo: () => boolean;
+    onSaveDraftToHistory: () => Promise<void>;
   }) {
     this.onTextPaste = callbacks.onTextPaste;
     this.onWindowHide = callbacks.onWindowHide;
@@ -39,6 +41,7 @@ export class ShortcutHandler {
     this.onHistoryNavigation = callbacks.onHistoryNavigation;
     this.onSearchToggle = callbacks.onSearchToggle;
     this.onUndo = callbacks.onUndo;
+    this.onSaveDraftToHistory = callbacks.onSaveDraftToHistory;
   }
 
   public setTextarea(textarea: HTMLTextAreaElement | null): void {
@@ -84,6 +87,12 @@ export class ShortcutHandler {
     // Handle Cmd+Enter for paste action
     if (e.key === 'Enter' && e.metaKey) {
       await this.handlePasteShortcut(e);
+      return true;
+    }
+
+    // Handle Cmd+S for save draft to history
+    if (e.key === 's' && e.metaKey && !e.shiftKey) {
+      await this.handleSaveDraftToHistoryShortcut(e);
       return true;
     }
 
@@ -145,6 +154,11 @@ export class ShortcutHandler {
         await this.onTextPaste(text);
       }
     }
+  }
+
+  private async handleSaveDraftToHistoryShortcut(e: KeyboardEvent): Promise<void> {
+    e.preventDefault();
+    await this.onSaveDraftToHistory();
   }
 
   private async handleEscapeKey(e: KeyboardEvent): Promise<boolean> {

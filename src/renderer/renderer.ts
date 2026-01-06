@@ -138,7 +138,8 @@ export class PromptLineRenderer {
       onShiftTabKeyPress: this.handleShiftTabKeyCallback.bind(this),
       onHistoryNavigation: this.navigateHistory.bind(this),
       onSearchToggle: this.handleSearchToggle.bind(this),
-      onUndo: this.handleUndo.bind(this)
+      onUndo: this.handleUndo.bind(this),
+      onSaveDraftToHistory: this.handleSaveDraftToHistory.bind(this)
     });
 
     this.eventHandler.setTextarea(this.domManager.textarea);
@@ -358,6 +359,33 @@ export class PromptLineRenderer {
       this.snapshotManager.clearSnapshot();
       await this.clearTextAndDraft();
       this.historyUIManager.clearHistorySelection();
+    }
+  }
+
+  /**
+   * Handle Cmd+S to save current draft to history
+   */
+  private async handleSaveDraftToHistory(): Promise<void> {
+    const text = this.domManager.getCurrentText();
+    if (!text.trim()) {
+      rendererLogger.info('No text to save to history');
+      return;
+    }
+
+    try {
+      const result = await electronAPI.invoke('save-draft-to-history', text) as unknown as { success: boolean; item?: HistoryItem; error?: string };
+      if (result.success && result.item) {
+        // Add item to local history data and re-render UI
+        this.historyData.unshift(result.item);
+        this.filteredHistoryData = this.historyData.slice(0, this.nonSearchDisplayLimit);
+        this.totalMatchCount = this.historyData.length;
+        this.renderHistory();
+        rendererLogger.info('Draft saved to history via Cmd+S');
+      } else {
+        rendererLogger.error('Failed to save draft to history:', result.error);
+      }
+    } catch (error) {
+      rendererLogger.error('Error saving draft to history:', error);
     }
   }
 
