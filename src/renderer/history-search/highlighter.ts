@@ -17,7 +17,16 @@ export class HistorySearchHighlighter {
 
 
   /**
+   * Split query into keywords (space-separated)
+   * Filters out empty strings
+   */
+  private splitKeywords(query: string): string[] {
+    return query.split(/\s+/).filter(k => k.length > 0);
+  }
+
+  /**
    * Highlight search terms in text with XSS protection
+   * Supports multiple keywords (space-separated)
    * Returns HTML string with highlighted matches
    */
   public highlightSearchTerms(text: string, searchTerm: string): string {
@@ -26,21 +35,29 @@ export class HistorySearchHighlighter {
       return escapeHtml(text);
     }
 
-    // Escape both text and search term for safety
-    const escapedText = escapeHtml(text);
-    const escapedSearchTerm = escapeHtml(searchTerm);
+    const keywords = this.splitKeywords(searchTerm);
+    if (keywords.length === 0) {
+      return escapeHtml(text);
+    }
 
-    // Escape regex special characters in search term
-    const escapedPattern = escapedSearchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Escape text for safety
+    let result = escapeHtml(text);
 
-    // Create case-insensitive regex for matching
-    const regex = new RegExp(`(${escapedPattern})`, 'gi');
+    // Highlight each keyword
+    for (const keyword of keywords) {
+      const escapedKeyword = escapeHtml(keyword);
+      // Escape regex special characters in keyword
+      const escapedPattern = escapedKeyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // Create case-insensitive regex for matching
+      const regex = new RegExp(`(${escapedPattern})`, 'gi');
+      // Replace matches with highlighted spans
+      result = result.replace(
+        regex,
+        `<span class="${this.highlightClass}">$1</span>`
+      );
+    }
 
-    // Replace matches with highlighted spans
-    return escapedText.replace(
-      regex,
-      `<span class="${this.highlightClass}">$1</span>`
-    );
+    return result;
   }
 
   /**
