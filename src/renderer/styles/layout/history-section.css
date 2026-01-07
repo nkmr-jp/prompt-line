@@ -84,10 +84,10 @@
     right: 2px;
     top: 0;
     bottom: 0;
-    width: 6px;
+    width: 10px;
     pointer-events: auto;
     opacity: 0;
-    transition: opacity 0.3s ease, width 0.15s ease;
+    transition: opacity 0.3s ease;
     z-index: 10;
 }
 
@@ -107,13 +107,8 @@
     opacity: 1;
 }
 
-.custom-scrollbar:hover {
-    width: 10px;
-}
-
 .custom-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.2);
-    border-radius: 3px;
     min-height: 10px;
 }
 
