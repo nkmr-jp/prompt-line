@@ -44,6 +44,28 @@ export class HistoryUIManager {
   }
 
   /**
+   * Calculate thumb height using logarithmic scale for better UX with large content
+   */
+  private calculateThumbHeight(clientHeight: number, scrollHeight: number): number {
+    // Linear calculation
+    const linearHeight = (clientHeight / scrollHeight) * clientHeight;
+
+    // For small content, use linear calculation
+    if (linearHeight >= 30) {
+      return linearHeight;
+    }
+
+    // For large content, use logarithmic scale
+    // This ensures the thumb size changes noticeably even with lots of content
+    const ratio = clientHeight / scrollHeight;
+    const logScale = Math.max(0.1, 1 - Math.log10(1 / ratio) / 3);
+    const logHeight = clientHeight * logScale;
+
+    // Return logarithmic height with minimum of 20px
+    return Math.max(20, logHeight);
+  }
+
+  /**
    * Show custom scrollbar while scrolling, hide after scrolling stops
    */
   private showScrollbar(): void {
@@ -65,8 +87,8 @@ export class HistoryUIManager {
       return;
     }
 
-    // Calculate thumb height (proportional to visible area)
-    const thumbHeight = Math.max(30, (clientHeight / scrollHeight) * clientHeight);
+    // Calculate thumb height using logarithmic scale
+    const thumbHeight = this.calculateThumbHeight(clientHeight, scrollHeight);
 
     // Calculate thumb position
     const maxScrollTop = scrollHeight - clientHeight;
@@ -104,13 +126,11 @@ export class HistoryUIManager {
     const scrollHeight = historyList.scrollHeight;
     const clientHeight = historyList.clientHeight;
 
-    console.debug('[updateScrollbarAfterRender] scrollHeight:', scrollHeight, 'clientHeight:', clientHeight);
-
     // Only update if content is scrollable
     if (scrollHeight <= clientHeight) return;
 
-    // Calculate and update thumb height (proportional to visible area)
-    const thumbHeight = Math.max(30, (clientHeight / scrollHeight) * clientHeight);
+    // Calculate and update thumb height using logarithmic scale
+    const thumbHeight = this.calculateThumbHeight(clientHeight, scrollHeight);
     thumb.style.height = `${thumbHeight}px`;
 
     // Also update thumb position based on current scroll
@@ -119,7 +139,7 @@ export class HistoryUIManager {
     const thumbTop = (scrollTop / maxScrollTop) * (clientHeight - thumbHeight);
     thumb.style.transform = `translateY(${thumbTop}px)`;
 
-    console.debug('[updateScrollbarAfterRender] thumbHeight:', thumbHeight, 'thumbTop:', thumbTop);
+    console.debug('[updateScrollbarAfterRender] scrollHeight:', scrollHeight, 'clientHeight:', clientHeight, 'thumbHeight:', thumbHeight);
   }
 
   /**

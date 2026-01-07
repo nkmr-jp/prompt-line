@@ -123,6 +123,7 @@ class WindowManager {
 
       // Process current app result
       let previousApp: AppInfo | string | null = null;
+      let isPromptLineFocused = false;
       if (currentAppResult.status === 'fulfilled') {
         const currentApp = currentAppResult.value;
 
@@ -134,6 +135,7 @@ class WindowManager {
           this.directoryDetector.updatePreviousApp(previousApp);
         } else {
           // Keep the existing previousApp when Prompt Line is focused
+          isPromptLineFocused = true;
           previousApp = this.nativeToolExecutor.getPreviousApp();
           logger.debug('Prompt Line is focused, keeping existing previousApp:', previousApp);
         }
@@ -182,12 +184,16 @@ class WindowManager {
         await this.positionWindow();
       } else {
         // Reuse existing window but reposition if needed
-        const currentPosition = this.customWindowSettings.position || 'active-window-center';
-        if (currentPosition === 'active-window-center' ||
-            currentPosition === 'active-text-field' ||
-            currentPosition === 'cursor' ||
-            (data.settings?.window?.position && data.settings.window.position !== currentPosition)) {
-          await this.positionWindow();
+        // Skip repositioning when Prompt Line itself is focused (double-trigger scenario)
+        // This prevents the window from drifting when detecting Prompt Line's own text field
+        if (!isPromptLineFocused) {
+          const currentPosition = this.customWindowSettings.position || 'active-window-center';
+          if (currentPosition === 'active-window-center' ||
+              currentPosition === 'active-text-field' ||
+              currentPosition === 'cursor' ||
+              (data.settings?.window?.position && data.settings.window.position !== currentPosition)) {
+            await this.positionWindow();
+          }
         }
       }
 
