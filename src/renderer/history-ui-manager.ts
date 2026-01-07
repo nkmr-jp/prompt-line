@@ -91,6 +91,34 @@ export class HistoryUIManager {
   }
 
   /**
+   * Update scrollbar thumb size after content changes (e.g., infinite scroll load)
+   * Unlike showScrollbar, this only updates the size without showing/hiding
+   */
+  private updateScrollbarAfterRender(): void {
+    const historyList = this.getHistoryList();
+    if (!historyList) return;
+
+    const thumb = document.getElementById('customScrollbarThumb');
+    if (!thumb) return;
+
+    const scrollHeight = historyList.scrollHeight;
+    const clientHeight = historyList.clientHeight;
+
+    // Only update if content is scrollable
+    if (scrollHeight <= clientHeight) return;
+
+    // Calculate and update thumb height (proportional to visible area)
+    const thumbHeight = Math.max(30, (clientHeight / scrollHeight) * clientHeight);
+    thumb.style.height = `${thumbHeight}px`;
+
+    // Also update thumb position based on current scroll
+    const scrollTop = historyList.scrollTop;
+    const maxScrollTop = scrollHeight - clientHeight;
+    const thumbTop = (scrollTop / maxScrollTop) * (clientHeight - thumbHeight);
+    thumb.style.transform = `translateY(${thumbTop}px)`;
+  }
+
+  /**
    * Check if scrolled to bottom and trigger load more
    */
   private checkScrollPosition(): void {
@@ -145,6 +173,12 @@ export class HistoryUIManager {
         countIndicator.textContent = `${totalCount} items`;
       }
       historyList.appendChild(countIndicator);
+
+      // Update scrollbar after content is rendered
+      // Use requestAnimationFrame to ensure DOM layout is complete
+      requestAnimationFrame(() => {
+        this.updateScrollbarAfterRender();
+      });
 
     } catch (error) {
       console.error('Error rendering history:', error);
