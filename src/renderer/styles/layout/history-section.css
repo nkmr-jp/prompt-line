@@ -87,7 +87,7 @@
     width: 6px;
     pointer-events: auto;
     opacity: 0;
-    transition: opacity 0.3s ease;
+    transition: opacity 0.3s ease, width 0.15s ease;
     z-index: 10;
 }
 
@@ -105,6 +105,10 @@
 .custom-scrollbar.visible,
 .custom-scrollbar:hover {
     opacity: 1;
+}
+
+.custom-scrollbar:hover {
+    width: 10px;
 }
 
 .custom-scrollbar-thumb {
