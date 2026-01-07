@@ -83,6 +83,7 @@
     position: absolute;
     right: 2px;
     top: 0;
+    bottom: 0;
     width: 6px;
     pointer-events: none;
     opacity: 0;

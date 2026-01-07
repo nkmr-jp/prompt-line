@@ -104,6 +104,8 @@ export class HistoryUIManager {
     const scrollHeight = historyList.scrollHeight;
     const clientHeight = historyList.clientHeight;
 
+    console.debug('[updateScrollbarAfterRender] scrollHeight:', scrollHeight, 'clientHeight:', clientHeight);
+
     // Only update if content is scrollable
     if (scrollHeight <= clientHeight) return;
 
@@ -116,6 +118,8 @@ export class HistoryUIManager {
     const maxScrollTop = scrollHeight - clientHeight;
     const thumbTop = (scrollTop / maxScrollTop) * (clientHeight - thumbHeight);
     thumb.style.transform = `translateY(${thumbTop}px)`;
+
+    console.debug('[updateScrollbarAfterRender] thumbHeight:', thumbHeight, 'thumbTop:', thumbTop);
   }
 
   /**
