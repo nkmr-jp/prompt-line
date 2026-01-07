@@ -23,6 +23,8 @@ import { electronAPI } from './services/electron-api';
 
 // Default display limit for history items
 const DEFAULT_DISPLAY_LIMIT = 50;
+// Number of items to load on each loadMore call
+const LOAD_MORE_INCREMENT = 25;
 
 // Export the renderer class for testing
 export class PromptLineRenderer {
@@ -566,7 +568,7 @@ export class PromptLineRenderer {
         // Already showing all items
         return;
       }
-      this.nonSearchDisplayLimit += DEFAULT_DISPLAY_LIMIT;
+      this.nonSearchDisplayLimit += LOAD_MORE_INCREMENT;
       this.filteredHistoryData = this.historyData.slice(0, this.nonSearchDisplayLimit);
       this.renderHistory();
     }
