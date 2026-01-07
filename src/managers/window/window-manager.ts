@@ -359,16 +359,22 @@ class WindowManager {
 
   /**
    * Check if the given app is Prompt Line itself
+   * Handles both production (com.electron.prompt-line) and development (com.github.Electron) bundle IDs
    * @private
    */
   private isPromptLineApp(app: AppInfo | string | null): boolean {
     if (!app) return false;
 
     if (typeof app === 'string') {
-      return app === 'Prompt Line';
+      return app === 'Prompt Line' || app === 'Electron';
     }
 
-    return app.name === 'Prompt Line' || app.bundleId === 'com.electron.prompt-line';
+    // Production build uses com.electron.prompt-line
+    // Development build (npm start) uses com.github.Electron
+    return app.name === 'Prompt Line' ||
+           app.name === 'Electron' ||
+           app.bundleId === 'com.electron.prompt-line' ||
+           app.bundleId === 'com.github.Electron';
   }
 
   /**
