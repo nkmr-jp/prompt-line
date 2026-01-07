@@ -37,6 +37,7 @@ class WindowManager {
   private customWindowSettings: { position?: StartupPosition; width?: number; height?: number } = {};
   private desktopSpaceManager: DesktopSpaceManager | null = null;
   private lastSpaceSignature: string | null = null;
+  private lastWindowPosition: { x: number; y: number } | null = null;
 
   // Composed sub-managers
   private positionCalculator: WindowPositionCalculator;
@@ -175,13 +176,22 @@ class WindowManager {
 
       // Handle window creation/reuse based on space changes
       if (needsWindowRecreation && this.inputWindow && !this.inputWindow.isDestroyed()) {
+        // Save window position before destroying for potential reuse
+        const bounds = this.inputWindow.getBounds();
+        this.lastWindowPosition = { x: bounds.x, y: bounds.y };
         this.inputWindow.destroy();
         this.inputWindow = null;
       }
 
       if (!this.inputWindow || this.inputWindow.isDestroyed()) {
         this.createInputWindow();
-        await this.positionWindow();
+        // When Prompt Line is focused and we have a saved position, restore it
+        // This prevents the window from jumping to center on consecutive triggers
+        if (isPromptLineFocused && this.lastWindowPosition) {
+          this.inputWindow!.setPosition(this.lastWindowPosition.x, this.lastWindowPosition.y);
+        } else {
+          await this.positionWindow();
+        }
       } else {
         // Reuse existing window but reposition if needed
         // Skip repositioning when Prompt Line itself is focused (double-trigger scenario)
