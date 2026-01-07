@@ -11,6 +11,8 @@ export class HistoryUIManager {
   private saveSnapshotCallback: (text: string, cursorPosition: number) => void;
   private loadMoreCallback: (() => void) | null = null;
   private scrollHandler: (() => void) | null = null;
+  private wheelHandler: ((e: WheelEvent) => void) | null = null;
+  private mouseEnterHandler: (() => void) | null = null;
 
   constructor(
     private getHistoryList: () => HTMLElement | null,
@@ -41,6 +43,23 @@ export class HistoryUIManager {
     };
 
     historyList.addEventListener('scroll', this.scrollHandler);
+
+    // Setup scrollbar hover interactions
+    const scrollbar = document.getElementById('customScrollbar');
+    if (scrollbar) {
+      // Forward wheel events from scrollbar to history list
+      this.wheelHandler = (e: WheelEvent) => {
+        e.preventDefault();
+        historyList.scrollTop += e.deltaY;
+      };
+      scrollbar.addEventListener('wheel', this.wheelHandler, { passive: false });
+
+      // Update scrollbar on mouse enter (for initial display)
+      this.mouseEnterHandler = () => {
+        this.showScrollbar();
+      };
+      scrollbar.addEventListener('mouseenter', this.mouseEnterHandler);
+    }
   }
 
   /**
@@ -409,6 +428,19 @@ export class HistoryUIManager {
         historyList.removeEventListener('scroll', this.scrollHandler);
       }
       this.scrollHandler = null;
+    }
+
+    // Remove scrollbar event listeners
+    const scrollbar = document.getElementById('customScrollbar');
+    if (scrollbar) {
+      if (this.wheelHandler) {
+        scrollbar.removeEventListener('wheel', this.wheelHandler);
+        this.wheelHandler = null;
+      }
+      if (this.mouseEnterHandler) {
+        scrollbar.removeEventListener('mouseenter', this.mouseEnterHandler);
+        this.mouseEnterHandler = null;
+      }
     }
   }
 }
