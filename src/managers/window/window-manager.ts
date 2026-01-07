@@ -124,9 +124,19 @@ class WindowManager {
       // Process current app result
       let previousApp: AppInfo | string | null = null;
       if (currentAppResult.status === 'fulfilled') {
-        previousApp = currentAppResult.value;
-        this.nativeToolExecutor.setPreviousApp(previousApp);
-        this.directoryDetector.updatePreviousApp(previousApp);
+        const currentApp = currentAppResult.value;
+
+        // Skip if the current app is Prompt Line itself
+        // This prevents the issue where double-triggering the shortcut makes Prompt Line the paste target
+        if (!this.isPromptLineApp(currentApp)) {
+          previousApp = currentApp;
+          this.nativeToolExecutor.setPreviousApp(previousApp);
+          this.directoryDetector.updatePreviousApp(previousApp);
+        } else {
+          // Keep the existing previousApp when Prompt Line is focused
+          previousApp = this.nativeToolExecutor.getPreviousApp();
+          logger.debug('Prompt Line is focused, keeping existing previousApp:', previousApp);
+        }
       } else {
         logger.error('Failed to get current app:', currentAppResult.reason);
       }
@@ -345,6 +355,20 @@ class WindowManager {
     } catch (error) {
       logger.error('Failed to position window:', error);
     }
+  }
+
+  /**
+   * Check if the given app is Prompt Line itself
+   * @private
+   */
+  private isPromptLineApp(app: AppInfo | string | null): boolean {
+    if (!app) return false;
+
+    if (typeof app === 'string') {
+      return app === 'Prompt Line';
+    }
+
+    return app.name === 'Prompt Line' || app.bundleId === 'com.electron.prompt-line';
   }
 
   /**
