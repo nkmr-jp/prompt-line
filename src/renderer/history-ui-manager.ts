@@ -185,7 +185,7 @@ export class HistoryUIManager {
     // Only update if content is scrollable
     if (scrollHeight <= clientHeight) return;
 
-    // Calculate and update thumb height using logarithmic scale
+    // Calculate and update thumb height
     const thumbHeight = this.calculateThumbHeight(clientHeight, scrollHeight);
     thumb.style.height = `${thumbHeight}px`;
 
@@ -194,8 +194,6 @@ export class HistoryUIManager {
     const maxScrollTop = scrollHeight - clientHeight;
     const thumbTop = (scrollTop / maxScrollTop) * (clientHeight - thumbHeight);
     thumb.style.transform = `translateY(${thumbTop}px)`;
-
-    console.debug('[updateScrollbarAfterRender] scrollHeight:', scrollHeight, 'clientHeight:', clientHeight, 'thumbHeight:', thumbHeight);
   }
 
   /**
