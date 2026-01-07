@@ -13,6 +13,12 @@ export class HistoryUIManager {
   private scrollHandler: (() => void) | null = null;
   private wheelHandler: ((e: WheelEvent) => void) | null = null;
   private mouseEnterHandler: (() => void) | null = null;
+  private thumbMouseDownHandler: ((e: MouseEvent) => void) | null = null;
+  private documentMouseMoveHandler: ((e: MouseEvent) => void) | null = null;
+  private documentMouseUpHandler: (() => void) | null = null;
+  private isDragging: boolean = false;
+  private dragStartY: number = 0;
+  private dragStartScrollTop: number = 0;
 
   constructor(
     private getHistoryList: () => HTMLElement | null,
@@ -46,6 +52,7 @@ export class HistoryUIManager {
 
     // Setup scrollbar hover interactions
     const scrollbar = document.getElementById('customScrollbar');
+    const thumb = document.getElementById('customScrollbarThumb');
     if (scrollbar) {
       // Forward wheel events from scrollbar to history list
       this.wheelHandler = (e: WheelEvent) => {
@@ -59,6 +66,48 @@ export class HistoryUIManager {
         this.showScrollbar();
       };
       scrollbar.addEventListener('mouseenter', this.mouseEnterHandler);
+
+      // Setup drag functionality on thumb
+      if (thumb) {
+        this.thumbMouseDownHandler = (e: MouseEvent) => {
+          e.preventDefault();
+          this.isDragging = true;
+          this.dragStartY = e.clientY;
+          this.dragStartScrollTop = historyList.scrollTop;
+          scrollbar.classList.add('visible');
+          document.body.style.userSelect = 'none';
+        };
+        thumb.addEventListener('mousedown', this.thumbMouseDownHandler);
+
+        this.documentMouseMoveHandler = (e: MouseEvent) => {
+          if (!this.isDragging) return;
+
+          const scrollHeight = historyList.scrollHeight;
+          const clientHeight = historyList.clientHeight;
+          const maxScrollTop = scrollHeight - clientHeight;
+
+          // Calculate scroll ratio based on mouse movement
+          const deltaY = e.clientY - this.dragStartY;
+          const thumbHeight = this.calculateThumbHeight(clientHeight, scrollHeight);
+          const trackHeight = clientHeight - thumbHeight;
+          const scrollRatio = deltaY / trackHeight;
+
+          // Update scroll position
+          const newScrollTop = this.dragStartScrollTop + (scrollRatio * maxScrollTop);
+          historyList.scrollTop = Math.max(0, Math.min(maxScrollTop, newScrollTop));
+        };
+        document.addEventListener('mousemove', this.documentMouseMoveHandler);
+
+        this.documentMouseUpHandler = () => {
+          if (this.isDragging) {
+            this.isDragging = false;
+            document.body.style.userSelect = '';
+            // Hide scrollbar after drag ends (with delay)
+            this.showScrollbar();
+          }
+        };
+        document.addEventListener('mouseup', this.documentMouseUpHandler);
+      }
     }
   }
 
@@ -432,6 +481,7 @@ export class HistoryUIManager {
 
     // Remove scrollbar event listeners
     const scrollbar = document.getElementById('customScrollbar');
+    const thumb = document.getElementById('customScrollbarThumb');
     if (scrollbar) {
       if (this.wheelHandler) {
         scrollbar.removeEventListener('wheel', this.wheelHandler);
@@ -442,5 +492,18 @@ export class HistoryUIManager {
         this.mouseEnterHandler = null;
       }
     }
+    if (thumb && this.thumbMouseDownHandler) {
+      thumb.removeEventListener('mousedown', this.thumbMouseDownHandler);
+      this.thumbMouseDownHandler = null;
+    }
+    if (this.documentMouseMoveHandler) {
+      document.removeEventListener('mousemove', this.documentMouseMoveHandler);
+      this.documentMouseMoveHandler = null;
+    }
+    if (this.documentMouseUpHandler) {
+      document.removeEventListener('mouseup', this.documentMouseUpHandler);
+      this.documentMouseUpHandler = null;
+    }
+    this.isDragging = false;
   }
 }

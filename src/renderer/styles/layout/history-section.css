@@ -111,6 +111,12 @@
     background: rgba(255, 255, 255, 0.2);
     border-radius: 3px;
     min-height: 30px;
+    cursor: grab;
+}
+
+.custom-scrollbar-thumb:active {
+    cursor: grabbing;
+    background: rgba(255, 255, 255, 0.35);
 }
 
 .history-empty {
