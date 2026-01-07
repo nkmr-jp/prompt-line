@@ -116,8 +116,8 @@ export class HistoryUIManager {
    */
   private calculateThumbHeight(clientHeight: number, scrollHeight: number): number {
     // Linear calculation based on content ratio (standard scrollbar behavior)
-    // Multiply by 2 for larger thumb size
-    const thumbHeight = (clientHeight / scrollHeight) * clientHeight * 2;
+    // Multiply by 3 for larger thumb size
+    const thumbHeight = (clientHeight / scrollHeight) * clientHeight * 3;
     return Math.max(20, thumbHeight);
   }
 
