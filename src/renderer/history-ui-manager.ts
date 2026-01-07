@@ -115,22 +115,8 @@ export class HistoryUIManager {
    * Calculate thumb height using logarithmic scale for better UX with large content
    */
   private calculateThumbHeight(clientHeight: number, scrollHeight: number): number {
-    // Linear calculation
-    const linearHeight = (clientHeight / scrollHeight) * clientHeight;
-
-    // For small content, use linear calculation
-    if (linearHeight >= 30) {
-      return linearHeight;
-    }
-
-    // For large content, use logarithmic scale
-    // This ensures the thumb size changes noticeably even with lots of content
-    const ratio = clientHeight / scrollHeight;
-    const logScale = Math.max(0.1, 1 - Math.log10(1 / ratio) / 3);
-    const logHeight = clientHeight * logScale;
-
-    // Return logarithmic height with minimum of 20px
-    return Math.max(20, logHeight);
+    // Linear calculation based on content ratio (standard scrollbar behavior)
+    return (clientHeight / scrollHeight) * clientHeight;
   }
 
   /**
