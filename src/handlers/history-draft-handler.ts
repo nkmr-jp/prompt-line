@@ -3,7 +3,8 @@ import { IpcMainInvokeEvent } from 'electron';
 import { logger, SecureErrors } from '../utils/utils';
 import type DraftManager from '../managers/draft-manager';
 import type DirectoryManager from '../managers/directory-manager';
-import type { HistoryItem, IHistoryManager } from '../types';
+import type WindowManager from '../managers/window';
+import type { AppInfo, HistoryItem, IHistoryManager } from '../types';
 import { VALIDATION } from '../constants';
 import type { IPCResult } from './handler-utils';
 import { atPathCacheManager } from '../managers/at-path-cache-manager';
@@ -18,15 +19,18 @@ class HistoryDraftHandler {
   private historyManager: IHistoryManager;
   private draftManager: DraftManager;
   private directoryManager: DirectoryManager;
+  private windowManager: WindowManager;
 
   constructor(
     historyManager: IHistoryManager,
     draftManager: DraftManager,
-    directoryManager: DirectoryManager
+    directoryManager: DirectoryManager,
+    windowManager: WindowManager
   ) {
     this.historyManager = historyManager;
     this.draftManager = draftManager;
     this.directoryManager = directoryManager;
+    this.windowManager = windowManager;
   }
 
   /**
@@ -53,6 +57,9 @@ class HistoryDraftHandler {
     // Global at-path cache handlers (for mdSearch agents and other project-independent items)
     ipcMain.handle('register-global-at-path', this.handleRegisterGlobalAtPath.bind(this));
     ipcMain.handle('get-global-at-paths', this.handleGetGlobalAtPaths.bind(this));
+
+    // Draft to history handler
+    ipcMain.handle('save-draft-to-history', this.handleSaveDraftToHistory.bind(this));
   }
 
   /**
@@ -72,7 +79,8 @@ class HistoryDraftHandler {
       'register-at-path',
       'get-registered-at-paths',
       'register-global-at-path',
-      'get-global-at-paths'
+      'get-global-at-paths',
+      'save-draft-to-history'
     ];
 
     handlers.forEach(handler => {
@@ -273,6 +281,51 @@ class HistoryDraftHandler {
     } catch (error) {
       logger.error('Failed to get global at-paths:', error);
       return [];
+    }
+  }
+
+  // Draft to history handler
+
+  /**
+   * Extract app name from AppInfo or string
+   */
+  private extractAppName(previousApp: AppInfo | string | null): string | undefined {
+    if (!previousApp) return undefined;
+    if (typeof previousApp === 'string') return previousApp;
+    return previousApp.name || undefined;
+  }
+
+  private async handleSaveDraftToHistory(
+    _event: IpcMainInvokeEvent,
+    text: string
+  ): Promise<{ success: boolean; item?: HistoryItem; error?: string }> {
+    try {
+      if (!text || typeof text !== 'string') {
+        return { success: false, error: 'Invalid text' };
+      }
+
+      const trimmedText = text.trim();
+      if (!trimmedText) {
+        return { success: false, error: 'Empty text' };
+      }
+
+      // Get appName and directory (same as paste operation)
+      const previousApp = this.windowManager.getPreviousApp();
+      const appName = this.extractAppName(previousApp);
+      const directory = this.directoryManager.getDirectory() || undefined;
+
+      // Add to history with appName and directory
+      const item = await this.historyManager.addToHistory(trimmedText, appName, directory);
+      if (!item) {
+        return { success: false, error: 'Failed to add to history' };
+      }
+
+      logger.info('Draft saved to history via Cmd+S', { id: item.id, appName, directory });
+      return { success: true, item };
+    } catch (error) {
+      const err = error as Error;
+      logger.error('Failed to save draft to history:', { message: err.message, stack: err.stack });
+      return { success: false, error: SecureErrors.OPERATION_FAILED };
     }
   }
 }

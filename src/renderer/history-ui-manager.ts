@@ -11,6 +11,14 @@ export class HistoryUIManager {
   private saveSnapshotCallback: (text: string, cursorPosition: number) => void;
   private loadMoreCallback: (() => void) | null = null;
   private scrollHandler: (() => void) | null = null;
+  private wheelHandler: ((e: WheelEvent) => void) | null = null;
+  private mouseEnterHandler: (() => void) | null = null;
+  private thumbMouseDownHandler: ((e: MouseEvent) => void) | null = null;
+  private documentMouseMoveHandler: ((e: MouseEvent) => void) | null = null;
+  private documentMouseUpHandler: (() => void) | null = null;
+  private isDragging: boolean = false;
+  private dragStartY: number = 0;
+  private dragStartScrollTop: number = 0;
 
   constructor(
     private getHistoryList: () => HTMLElement | null,
@@ -41,6 +49,76 @@ export class HistoryUIManager {
     };
 
     historyList.addEventListener('scroll', this.scrollHandler);
+
+    // Setup scrollbar hover interactions
+    const scrollbar = document.getElementById('customScrollbar');
+    const thumb = document.getElementById('customScrollbarThumb');
+    if (scrollbar) {
+      // Forward wheel events from scrollbar to history list
+      this.wheelHandler = (e: WheelEvent) => {
+        e.preventDefault();
+        historyList.scrollTop += e.deltaY;
+      };
+      scrollbar.addEventListener('wheel', this.wheelHandler, { passive: false });
+
+      // Update scrollbar on mouse enter (for initial display)
+      this.mouseEnterHandler = () => {
+        this.showScrollbar();
+      };
+      scrollbar.addEventListener('mouseenter', this.mouseEnterHandler);
+
+      // Setup drag functionality on thumb
+      if (thumb) {
+        this.thumbMouseDownHandler = (e: MouseEvent) => {
+          e.preventDefault();
+          this.isDragging = true;
+          this.dragStartY = e.clientY;
+          this.dragStartScrollTop = historyList.scrollTop;
+          scrollbar.classList.add('visible');
+          document.body.style.userSelect = 'none';
+        };
+        thumb.addEventListener('mousedown', this.thumbMouseDownHandler);
+
+        this.documentMouseMoveHandler = (e: MouseEvent) => {
+          if (!this.isDragging) return;
+
+          const scrollHeight = historyList.scrollHeight;
+          const clientHeight = historyList.clientHeight;
+          const maxScrollTop = scrollHeight - clientHeight;
+
+          // Calculate scroll ratio based on mouse movement
+          const deltaY = e.clientY - this.dragStartY;
+          const thumbHeight = this.calculateThumbHeight(clientHeight, scrollHeight);
+          const trackHeight = clientHeight - thumbHeight;
+          const scrollRatio = deltaY / trackHeight;
+
+          // Update scroll position
+          const newScrollTop = this.dragStartScrollTop + (scrollRatio * maxScrollTop);
+          historyList.scrollTop = Math.max(0, Math.min(maxScrollTop, newScrollTop));
+        };
+        document.addEventListener('mousemove', this.documentMouseMoveHandler);
+
+        this.documentMouseUpHandler = () => {
+          if (this.isDragging) {
+            this.isDragging = false;
+            document.body.style.userSelect = '';
+            // Hide scrollbar after drag ends (with delay)
+            this.showScrollbar();
+          }
+        };
+        document.addEventListener('mouseup', this.documentMouseUpHandler);
+      }
+    }
+  }
+
+  /**
+   * Calculate thumb height using logarithmic scale for better UX with large content
+   */
+  private calculateThumbHeight(clientHeight: number, scrollHeight: number): number {
+    // Linear calculation based on content ratio (standard scrollbar behavior)
+    // Multiply by 3 for larger thumb size
+    const thumbHeight = (clientHeight / scrollHeight) * clientHeight * 3;
+    return Math.max(20, thumbHeight);
   }
 
   /**
@@ -65,8 +143,8 @@ export class HistoryUIManager {
       return;
     }
 
-    // Calculate thumb height (proportional to visible area)
-    const thumbHeight = Math.max(30, (clientHeight / scrollHeight) * clientHeight);
+    // Calculate thumb height using logarithmic scale
+    const thumbHeight = this.calculateThumbHeight(clientHeight, scrollHeight);
 
     // Calculate thumb position
     const maxScrollTop = scrollHeight - clientHeight;
@@ -88,6 +166,34 @@ export class HistoryUIManager {
     this.scrollingTimeout = setTimeout(() => {
       scrollbar.classList.remove('visible');
     }, 500);
+  }
+
+  /**
+   * Update scrollbar thumb size after content changes (e.g., infinite scroll load)
+   * Unlike showScrollbar, this only updates the size without showing/hiding
+   */
+  private updateScrollbarAfterRender(): void {
+    const historyList = this.getHistoryList();
+    if (!historyList) return;
+
+    const thumb = document.getElementById('customScrollbarThumb');
+    if (!thumb) return;
+
+    const scrollHeight = historyList.scrollHeight;
+    const clientHeight = historyList.clientHeight;
+
+    // Only update if content is scrollable
+    if (scrollHeight <= clientHeight) return;
+
+    // Calculate and update thumb height
+    const thumbHeight = this.calculateThumbHeight(clientHeight, scrollHeight);
+    thumb.style.height = `${thumbHeight}px`;
+
+    // Also update thumb position based on current scroll
+    const scrollTop = historyList.scrollTop;
+    const maxScrollTop = scrollHeight - clientHeight;
+    const thumbTop = (scrollTop / maxScrollTop) * (clientHeight - thumbHeight);
+    thumb.style.transform = `translateY(${thumbTop}px)`;
   }
 
   /**
@@ -145,6 +251,12 @@ export class HistoryUIManager {
         countIndicator.textContent = `${totalCount} items`;
       }
       historyList.appendChild(countIndicator);
+
+      // Update scrollbar after content is rendered
+      // Use requestAnimationFrame to ensure DOM layout is complete
+      requestAnimationFrame(() => {
+        this.updateScrollbarAfterRender();
+      });
 
     } catch (error) {
       console.error('Error rendering history:', error);
@@ -352,5 +464,32 @@ export class HistoryUIManager {
       }
       this.scrollHandler = null;
     }
+
+    // Remove scrollbar event listeners
+    const scrollbar = document.getElementById('customScrollbar');
+    const thumb = document.getElementById('customScrollbarThumb');
+    if (scrollbar) {
+      if (this.wheelHandler) {
+        scrollbar.removeEventListener('wheel', this.wheelHandler);
+        this.wheelHandler = null;
+      }
+      if (this.mouseEnterHandler) {
+        scrollbar.removeEventListener('mouseenter', this.mouseEnterHandler);
+        this.mouseEnterHandler = null;
+      }
+    }
+    if (thumb && this.thumbMouseDownHandler) {
+      thumb.removeEventListener('mousedown', this.thumbMouseDownHandler);
+      this.thumbMouseDownHandler = null;
+    }
+    if (this.documentMouseMoveHandler) {
+      document.removeEventListener('mousemove', this.documentMouseMoveHandler);
+      this.documentMouseMoveHandler = null;
+    }
+    if (this.documentMouseUpHandler) {
+      document.removeEventListener('mouseup', this.documentMouseUpHandler);
+      this.documentMouseUpHandler = null;
+    }
+    this.isDragging = false;
   }
 }

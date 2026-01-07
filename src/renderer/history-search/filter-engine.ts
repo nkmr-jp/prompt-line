@@ -69,48 +69,84 @@ export class HistorySearchFilterEngine {
   }
 
   /**
+   * Split query into keywords (space-separated)
+   * Filters out empty strings
+   */
+  private splitKeywords(query: string): string[] {
+    return query.split(/\s+/).filter(k => k.length > 0);
+  }
+
+  /**
+   * Score a single keyword against text
+   * Returns 0 if no match
+   */
+  private scoreKeyword(
+    textNormalized: string,
+    keyword: string
+  ): { score: number; positions: number[] } {
+    const matchPositions: number[] = [];
+    let score = 0;
+
+    // Exact match (highest priority)
+    if (textNormalized === keyword) {
+      score = MATCH_SCORES.EXACT_MATCH;
+    }
+    // Starts with keyword
+    else if (textNormalized.startsWith(keyword)) {
+      score = MATCH_SCORES.STARTS_WITH;
+    }
+    // Contains keyword
+    else if (textNormalized.includes(keyword)) {
+      score = MATCH_SCORES.CONTAINS;
+      const matchIndex = textNormalized.indexOf(keyword);
+      for (let i = 0; i < keyword.length; i++) {
+        matchPositions.push(matchIndex + i);
+      }
+    }
+    // Fuzzy match (if enabled)
+    else if (this.config.enableFuzzyMatch) {
+      const fuzzyResult = this.fuzzyMatch(textNormalized, keyword);
+      if (fuzzyResult.matched) {
+        score = MATCH_SCORES.FUZZY_MATCH;
+        matchPositions.push(...fuzzyResult.positions);
+      }
+    }
+
+    return { score, positions: matchPositions };
+  }
+
+  /**
    * Score a single history item against the query
+   * Supports multiple keywords (space-separated, AND logic)
    */
   private scoreItem(item: HistoryItem, queryNormalized: string): SearchResult {
     const textNormalized = this.config.caseSensitive
       ? item.text
       : item.text.toLowerCase();
 
-    let score = 0;
-    const matchPositions: number[] = [];
+    const keywords = this.splitKeywords(queryNormalized);
+    if (keywords.length === 0) {
+      return { item, score: 0, matchPositions: [] };
+    }
 
-    // Exact match (highest priority)
-    if (textNormalized === queryNormalized) {
-      score += MATCH_SCORES.EXACT_MATCH;
-    }
-    // Starts with query
-    else if (textNormalized.startsWith(queryNormalized)) {
-      score += MATCH_SCORES.STARTS_WITH;
-    }
-    // Contains query
-    else if (textNormalized.includes(queryNormalized)) {
-      score += MATCH_SCORES.CONTAINS;
-      // Record match position for potential future use
-      const matchIndex = textNormalized.indexOf(queryNormalized);
-      for (let i = 0; i < queryNormalized.length; i++) {
-        matchPositions.push(matchIndex + i);
+    let totalScore = 0;
+    const allPositions: number[] = [];
+
+    // All keywords must match (AND logic)
+    for (const keyword of keywords) {
+      const result = this.scoreKeyword(textNormalized, keyword);
+      if (result.score === 0) {
+        // Keyword not found, no match
+        return { item, score: 0, matchPositions: [] };
       }
-    }
-    // Fuzzy match (if enabled)
-    else if (this.config.enableFuzzyMatch) {
-      const fuzzyResult = this.fuzzyMatch(textNormalized, queryNormalized);
-      if (fuzzyResult.matched) {
-        score += MATCH_SCORES.FUZZY_MATCH;
-        matchPositions.push(...fuzzyResult.positions);
-      }
+      totalScore += result.score;
+      allPositions.push(...result.positions);
     }
 
     // Add recency bonus (newer items get higher scores)
-    if (score > 0) {
-      score += this.calculateRecencyBonus(item.timestamp);
-    }
+    totalScore += this.calculateRecencyBonus(item.timestamp);
 
-    return { item, score, matchPositions };
+    return { item, score: totalScore, matchPositions: allPositions };
   }
 
   /**

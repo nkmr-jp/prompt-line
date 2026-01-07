@@ -64,7 +64,9 @@ const ALLOWED_CHANNELS = [
   'get-registered-at-paths',
   // Global at-path cache channels (for mdSearch agents and other project-independent items)
   'register-global-at-path',
-  'get-global-at-paths'
+  'get-global-at-paths',
+  // Draft to history channel
+  'save-draft-to-history'
 ];
 
 // IPC channel validation with additional security checks

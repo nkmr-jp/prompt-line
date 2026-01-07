@@ -114,6 +114,7 @@ jest.mock('../../src/renderer/history-ui-manager', () => ({
         renderHistory: jest.fn(),
         navigateHistory: jest.fn(),
         clearHistorySelection: jest.fn(),
+        setupScrollListener: jest.fn(),
         cleanup: jest.fn()
     }))
 }));

@@ -37,6 +37,7 @@ class WindowManager {
   private customWindowSettings: { position?: StartupPosition; width?: number; height?: number } = {};
   private desktopSpaceManager: DesktopSpaceManager | null = null;
   private lastSpaceSignature: string | null = null;
+  private lastWindowPosition: { x: number; y: number } | null = null;
 
   // Composed sub-managers
   private positionCalculator: WindowPositionCalculator;
@@ -123,10 +124,22 @@ class WindowManager {
 
       // Process current app result
       let previousApp: AppInfo | string | null = null;
+      let isPromptLineFocused = false;
       if (currentAppResult.status === 'fulfilled') {
-        previousApp = currentAppResult.value;
-        this.nativeToolExecutor.setPreviousApp(previousApp);
-        this.directoryDetector.updatePreviousApp(previousApp);
+        const currentApp = currentAppResult.value;
+
+        // Skip if the current app is Prompt Line itself
+        // This prevents the issue where double-triggering the shortcut makes Prompt Line the paste target
+        if (!this.isPromptLineApp(currentApp)) {
+          previousApp = currentApp;
+          this.nativeToolExecutor.setPreviousApp(previousApp);
+          this.directoryDetector.updatePreviousApp(previousApp);
+        } else {
+          // Keep the existing previousApp when Prompt Line is focused
+          isPromptLineFocused = true;
+          previousApp = this.nativeToolExecutor.getPreviousApp();
+          logger.debug('Prompt Line is focused, keeping existing previousApp:', previousApp);
+        }
       } else {
         logger.error('Failed to get current app:', currentAppResult.reason);
       }
@@ -163,21 +176,34 @@ class WindowManager {
 
       // Handle window creation/reuse based on space changes
       if (needsWindowRecreation && this.inputWindow && !this.inputWindow.isDestroyed()) {
+        // Save window position before destroying for potential reuse
+        const bounds = this.inputWindow.getBounds();
+        this.lastWindowPosition = { x: bounds.x, y: bounds.y };
         this.inputWindow.destroy();
         this.inputWindow = null;
       }
 
       if (!this.inputWindow || this.inputWindow.isDestroyed()) {
         this.createInputWindow();
-        await this.positionWindow();
+        // When Prompt Line is focused and we have a saved position, restore it
+        // This prevents the window from jumping to center on consecutive triggers
+        if (isPromptLineFocused && this.lastWindowPosition) {
+          this.inputWindow!.setPosition(this.lastWindowPosition.x, this.lastWindowPosition.y);
+        } else {
+          await this.positionWindow();
+        }
       } else {
         // Reuse existing window but reposition if needed
-        const currentPosition = this.customWindowSettings.position || 'active-window-center';
-        if (currentPosition === 'active-window-center' ||
-            currentPosition === 'active-text-field' ||
-            currentPosition === 'cursor' ||
-            (data.settings?.window?.position && data.settings.window.position !== currentPosition)) {
-          await this.positionWindow();
+        // Skip repositioning when Prompt Line itself is focused (double-trigger scenario)
+        // This prevents the window from drifting when detecting Prompt Line's own text field
+        if (!isPromptLineFocused) {
+          const currentPosition = this.customWindowSettings.position || 'active-window-center';
+          if (currentPosition === 'active-window-center' ||
+              currentPosition === 'active-text-field' ||
+              currentPosition === 'cursor' ||
+              (data.settings?.window?.position && data.settings.window.position !== currentPosition)) {
+            await this.positionWindow();
+          }
         }
       }
 
@@ -345,6 +371,26 @@ class WindowManager {
     } catch (error) {
       logger.error('Failed to position window:', error);
     }
+  }
+
+  /**
+   * Check if the given app is Prompt Line itself
+   * Handles both production (com.electron.prompt-line) and development (com.github.Electron) bundle IDs
+   * @private
+   */
+  private isPromptLineApp(app: AppInfo | string | null): boolean {
+    if (!app) return false;
+
+    if (typeof app === 'string') {
+      return app === 'Prompt Line' || app === 'Electron';
+    }
+
+    // Production build uses com.electron.prompt-line
+    // Development build (npm start) uses com.github.Electron
+    return app.name === 'Prompt Line' ||
+           app.name === 'Electron' ||
+           app.bundleId === 'com.electron.prompt-line' ||
+           app.bundleId === 'com.github.Electron';
   }
 
   /**

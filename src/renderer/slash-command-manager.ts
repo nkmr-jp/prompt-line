@@ -450,6 +450,9 @@ export class SlashCommandManager implements IInitializable {
   private showSelectedCommandOnly(command: SlashCommandItem): void {
     if (!this.suggestionsContainer) return;
 
+    // Hide frontmatter popup when showing selected command only
+    this.frontmatterPopupManager.hide();
+
     this.suggestionsContainer.innerHTML = '';
     this.suggestionsContainer.style.display = 'block';
     this.suggestionsContainer.classList.remove('hover-enabled');

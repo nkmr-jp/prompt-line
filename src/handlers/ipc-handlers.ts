@@ -67,7 +67,8 @@ class IPCHandlers {
     this.historyDraftHandler = new HistoryDraftHandler(
       historyManager,
       draftManager,
-      directoryManager
+      directoryManager,
+      windowManager
     );
     this.windowHandler = new WindowHandler(windowManager);
     this.systemHandler = new SystemHandler(settingsManager);
