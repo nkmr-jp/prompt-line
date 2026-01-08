@@ -9,6 +9,7 @@ import { FrontmatterPopupManager } from './frontmatter-popup-manager';
 import { highlightMatch } from './utils/highlight-utils';
 import { electronAPI } from './services/electron-api';
 import { extractTriggerQueryAtCursor } from './utils/trigger-query-extractor';
+import { getCaretCoordinates, createMirrorDiv } from './mentions/dom-utils';
 
 interface SlashCommandItem {
   name: string;
@@ -25,6 +26,7 @@ export class SlashCommandManager implements IInitializable {
 
   private suggestionsContainer: HTMLElement | null = null;
   private textarea: HTMLTextAreaElement | null = null;
+  private mirrorDiv: HTMLDivElement | null = null;
   private commands: SlashCommandItem[] = [];
   private filteredCommands: SlashCommandItem[] = [];
   private selectedIndex: number = 0;
@@ -70,6 +72,9 @@ export class SlashCommandManager implements IInitializable {
   public initializeElements(): void {
     this.suggestionsContainer = document.getElementById('slashCommandSuggestions');
     this.textarea = document.getElementById('textInput') as HTMLTextAreaElement;
+
+    // Create mirror div for caret position calculation
+    this.mirrorDiv = createMirrorDiv();
 
     // Create frontmatter popup element
     this.frontmatterPopupManager.createPopup();
@@ -226,6 +231,7 @@ export class SlashCommandManager implements IInitializable {
     this.isActive = true;
     this.selectedIndex = 0;
     this.renderSuggestions(query);
+    this.positionAtCursor(this.currentTriggerStartPos);
   }
 
   /**
@@ -298,6 +304,87 @@ export class SlashCommandManager implements IInitializable {
     this.suggestionsContainer.appendChild(fragment);
   }
 
+  /**
+   * Position suggestions container at cursor position (like MentionManager)
+   * Only positions dynamically when trigger is NOT at text start (position > 0)
+   * @param triggerPosition - Position of the trigger character (/)
+   */
+  private positionAtCursor(triggerPosition: number): void {
+    if (!this.suggestionsContainer || !this.textarea) return;
+
+    // When trigger is at text start (position 0), use default CSS positioning
+    if (triggerPosition === 0) {
+      this.suggestionsContainer.style.top = '16px';
+      this.suggestionsContainer.style.left = '16px';
+      this.suggestionsContainer.style.maxHeight = '90%';
+      this.suggestionsContainer.style.maxWidth = '95%';
+      return;
+    }
+
+    // For non-start positions, calculate cursor-based positioning
+    if (!this.mirrorDiv) return;
+
+    const coordinates = getCaretCoordinates(this.textarea, this.mirrorDiv, triggerPosition);
+    if (!coordinates) return;
+
+    const { top: caretTop, left: caretLeft } = coordinates;
+
+    // Get main content bounds for relative positioning
+    const mainContent = document.querySelector('.main-content') as HTMLElement;
+    if (!mainContent) return;
+
+    const mainContentRect = mainContent.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+
+    // Calculate available space
+    const spaceBelow = viewportHeight - caretTop - 20;
+    const spaceAbove = caretTop - mainContentRect.top;
+
+    // Decide whether to show above or below cursor
+    const showAbove = spaceBelow < 200 && spaceAbove > spaceBelow;
+
+    // Calculate menu height based on content
+    const menuHeight = Math.min(
+      this.suggestionsContainer.scrollHeight,
+      Math.max(spaceAbove, spaceBelow) - 20
+    );
+
+    // Calculate vertical position
+    let top: number;
+    if (!showAbove) {
+      // Show below cursor
+      top = caretTop + 20;
+    } else {
+      // Show above cursor
+      top = caretTop - menuHeight - 4;
+    }
+
+    // Calculate horizontal position with boundary constraints
+    const minMenuWidth = 400;
+    const rightMargin = 8;
+    let left = caretLeft;
+
+    // Ensure menu doesn't overflow right edge
+    const availableWidth = viewportWidth - left - rightMargin;
+    if (availableWidth < minMenuWidth) {
+      left = Math.max(8, left - (minMenuWidth - availableWidth));
+    }
+
+    // Dynamic max height based on available space
+    const dynamicMaxHeight = showAbove
+      ? Math.max(200, spaceAbove - 20)
+      : Math.max(200, spaceBelow - 20);
+
+    // Dynamic max width
+    const dynamicMaxWidth = Math.max(minMenuWidth, viewportWidth - left - rightMargin);
+
+    // Apply positioning
+    this.suggestionsContainer.style.top = `${top}px`;
+    this.suggestionsContainer.style.left = `${left}px`;
+    this.suggestionsContainer.style.maxHeight = `${dynamicMaxHeight}px`;
+    this.suggestionsContainer.style.maxWidth = `${dynamicMaxWidth}px`;
+  }
 
   /**
    * Hide suggestions

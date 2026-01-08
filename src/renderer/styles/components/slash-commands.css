@@ -3,14 +3,12 @@
 .slash-command-suggestions {
   display: none;
   position: absolute;
-  top: 16px;
-  left: 16px;
-  max-height: 90%;
-  max-width: 95%;
+  /* top/left are dynamically set by JS based on cursor position */
+  max-height: 40vh;
+  width: max-content;
   overflow-y: auto;
   overflow-x: hidden;
   background: #222;
-  /*border: 1px solid #444;*/
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   z-index: 100;
@@ -22,9 +20,9 @@
   flex-direction: row;
   flex-wrap: nowrap;
   align-items: center;
-  padding: 8px 12px;
+  padding: 4px 10px;
+  gap: 6px;
   cursor: pointer;
-  /*border-bottom: 1px solid var(--border-color, #333);*/
   transition: background-color 0.1s ease;
   min-width: 0;
 }
