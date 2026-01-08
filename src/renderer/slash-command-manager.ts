@@ -505,13 +505,16 @@ export class SlashCommandManager implements IInitializable {
     const commandText = inputFormat === 'path' ? command.filePath : `/${command.name}`;
 
     if (shouldPaste) {
-      // Enter: Paste immediately and hide suggestions
+      // Enter: Paste immediately (only when at text start) or just insert
       this.hideSuggestions();
       // Replace only the /query portion
       const start = this.currentTriggerStartPos;
       const end = this.textarea.selectionStart;
       this.replaceRangeWithUndo(start, end, commandText);
-      this.onCommandSelect(commandText);
+      // Only trigger paste when / is at the start of text
+      if (this.currentTriggerStartPos === 0) {
+        this.onCommandSelect(commandText);
+      }
     } else {
       // Tab: Insert with trailing space for editing arguments
       // Show only the selected command in suggestions
