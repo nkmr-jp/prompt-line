@@ -84,9 +84,14 @@ export class SlashCommandManager implements IInitializable {
   public setupEventListeners(): void {
     if (!this.textarea) return;
 
-    // Monitor input for slash command detection
+    // Monitor input for slash command detection and argumentHint display
     this.textarea.addEventListener('input', () => {
       this.checkForSlashCommand();
+      // After checking for slash command, also check if we need to show argumentHint
+      // This handles the case when user deletes characters and cursor returns to argument position
+      if (!this.isActive) {
+        this.checkForArgumentHintAtCursor();
+      }
     });
 
     // Handle keyboard navigation
