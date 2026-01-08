@@ -61,7 +61,7 @@ export function getCaretCoordinates(
     'textIndent', 'whiteSpace', 'lineHeight',
     'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
     'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth',
-    'boxSizing', 'width'
+    'boxSizing', 'width', 'tabSize'
   ];
 
   properties.forEach(prop => {
