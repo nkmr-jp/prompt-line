@@ -322,7 +322,10 @@ export class SlashCommandManager implements IInitializable {
 
     const mainContentRect = mainContent.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
-    const viewportWidth = window.innerWidth;
+
+    // Convert viewport coordinates to main-content relative coordinates
+    const relativeCaretTop = caretTop - mainContentRect.top;
+    const relativeCaretLeft = caretLeft - mainContentRect.left;
 
     // Calculate available space
     const spaceBelow = viewportHeight - caretTop - 20;
@@ -331,46 +334,48 @@ export class SlashCommandManager implements IInitializable {
     // Decide whether to show above or below cursor
     const showAbove = spaceBelow < 200 && spaceAbove > spaceBelow;
 
-    // Calculate menu height based on content
-    const menuHeight = Math.min(
-      this.suggestionsContainer.scrollHeight,
-      Math.max(spaceAbove, spaceBelow) - 20
-    );
-
-    // Calculate vertical position
+    // Calculate vertical position (relative to main-content)
     let top: number;
     if (!showAbove) {
       // Show below cursor
-      top = caretTop + 20;
+      top = relativeCaretTop + 20;
     } else {
       // Show above cursor
-      top = caretTop - menuHeight - 4;
+      const menuHeight = Math.min(
+        this.suggestionsContainer.scrollHeight,
+        Math.max(spaceAbove, spaceBelow) - 20
+      );
+      top = relativeCaretTop - menuHeight - 4;
+      if (top < 0) top = 0;
     }
 
-    // Calculate horizontal position with boundary constraints
-    const minMenuWidth = 400;
+    // Calculate horizontal position with boundary constraints (relative to main-content)
+    const minMenuWidth = 500;
     const rightMargin = 8;
-    let left = caretLeft;
+    let left = relativeCaretLeft;
 
     // Ensure menu doesn't overflow right edge
-    const availableWidth = viewportWidth - left - rightMargin;
+    const availableWidth = mainContentRect.width - left - rightMargin;
     if (availableWidth < minMenuWidth) {
-      left = Math.max(8, left - (minMenuWidth - availableWidth));
+      const shiftAmount = minMenuWidth - availableWidth;
+      left = Math.max(8, left - shiftAmount);
     }
 
     // Dynamic max height based on available space
     const dynamicMaxHeight = showAbove
-      ? Math.max(200, spaceAbove - 20)
-      : Math.max(200, spaceBelow - 20);
+      ? Math.max(100, spaceAbove - 8)
+      : Math.max(100, spaceBelow - 8);
 
     // Dynamic max width
-    const dynamicMaxWidth = Math.max(minMenuWidth, viewportWidth - left - rightMargin);
+    const dynamicMaxWidth = Math.max(minMenuWidth, mainContentRect.width - left - rightMargin);
 
-    // Apply positioning
+    // Apply positioning (relative to main-content)
     this.suggestionsContainer.style.top = `${top}px`;
     this.suggestionsContainer.style.left = `${left}px`;
     this.suggestionsContainer.style.maxHeight = `${dynamicMaxHeight}px`;
     this.suggestionsContainer.style.maxWidth = `${dynamicMaxWidth}px`;
+    this.suggestionsContainer.style.right = 'auto';
+    this.suggestionsContainer.style.bottom = 'auto';
   }
 
   /**
