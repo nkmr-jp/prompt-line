@@ -871,7 +871,8 @@ export class MentionManager implements IInitializable {
       if (index === this.state.selectedIndex) {
         item.classList.add('selected');
         item.setAttribute('aria-selected', 'true');
-        item.scrollIntoView({ block: 'nearest' });
+        // Use 'instant' to ensure scroll completes before popup positioning
+        item.scrollIntoView({ block: 'nearest', behavior: 'instant' });
       } else {
         item.classList.remove('selected');
         item.setAttribute('aria-selected', 'false');
@@ -879,7 +880,10 @@ export class MentionManager implements IInitializable {
     });
 
     // Update tooltip if auto-show is enabled
-    this.popupManager.showTooltipForSelectedItem();
+    // Use requestAnimationFrame to ensure scroll position is settled before calculating popup position
+    requestAnimationFrame(() => {
+      this.popupManager.showTooltipForSelectedItem();
+    });
   }
 
   /**

@@ -497,8 +497,8 @@ export class SlashCommandManager implements IInitializable {
     items.forEach((item, index) => {
       if (index === this.selectedIndex) {
         item.classList.add('selected');
-        // Scroll into view if needed
-        (item as HTMLElement).scrollIntoView({ block: 'nearest' });
+        // Scroll into view if needed (use 'instant' to ensure scroll completes before popup positioning)
+        (item as HTMLElement).scrollIntoView({ block: 'nearest', behavior: 'instant' });
       } else {
         item.classList.remove('selected');
       }
