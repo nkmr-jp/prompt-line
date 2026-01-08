@@ -524,14 +524,15 @@ export class SlashCommandManager implements IInitializable {
     const inputFormat = command.inputFormat ?? 'name';
     const commandText = inputFormat === 'path' ? command.filePath : `/${command.name}`;
 
+    // Show argumentHint if available, otherwise hide suggestions
+    if (command.argumentHint) {
+      this.showArgumentHintOnly(command);
+    } else {
+      this.hideSuggestions();
+    }
+
     if (shouldPaste && this.currentTriggerStartPos === 0) {
       // Enter at text start: Paste immediately
-      // If argumentHint exists, show it instead of hiding suggestions
-      if (command.argumentHint) {
-        this.showArgumentHintOnly(command);
-      } else {
-        this.hideSuggestions();
-      }
       // Replace only the /query portion
       const start = this.currentTriggerStartPos;
       const end = this.textarea.selectionStart;
@@ -539,9 +540,6 @@ export class SlashCommandManager implements IInitializable {
       this.onCommandSelect(commandText);
     } else {
       // Tab, or Enter at non-start position: Insert with trailing space for editing
-      // Show only the selected command in suggestions
-      this.showSelectedCommandOnly(command);
-
       const commandWithSpace = commandText + ' ';
       // Replace only the /query portion
       const start = this.currentTriggerStartPos;
@@ -568,60 +566,6 @@ export class SlashCommandManager implements IInitializable {
       this.textarea.value = value.substring(0, start) + newText + value.substring(end);
       this.textarea.setSelectionRange(start + newText.length, start + newText.length);
     }
-  }
-
-  /**
-   * Show only the selected command in suggestions (for Tab selection)
-   */
-  private showSelectedCommandOnly(command: SlashCommandItem): void {
-    if (!this.suggestionsContainer) return;
-
-    // Hide frontmatter popup when showing selected command only
-    this.frontmatterPopupManager.hide();
-
-    this.suggestionsContainer.innerHTML = '';
-    this.suggestionsContainer.style.display = 'block';
-    this.suggestionsContainer.classList.remove('hover-enabled');
-
-    const item = document.createElement('div');
-    item.className = 'slash-suggestion-item selected';
-    item.dataset.index = '0';
-
-    // Use argumentHint if available, otherwise use description
-    const hintText = command.argumentHint || command.description;
-
-    // Create name element
-    const nameSpan = document.createElement('span');
-    nameSpan.className = 'slash-command-name';
-    nameSpan.textContent = `/${command.name}`;
-    item.appendChild(nameSpan);
-
-    // Add source badge if displayName is available (same order as list view)
-    if (command.displayName) {
-      const sourceBadge = document.createElement('span');
-      sourceBadge.className = 'slash-command-source';
-      sourceBadge.dataset.source = command.source || command.displayName;
-      sourceBadge.textContent = command.displayName;
-      item.appendChild(sourceBadge);
-    }
-
-    // Create description element
-    if (hintText) {
-      const descSpan = document.createElement('span');
-      descSpan.className = 'slash-command-description';
-      descSpan.textContent = hintText;
-      item.appendChild(descSpan);
-    }
-
-    this.suggestionsContainer.appendChild(item);
-
-    // Keep active state but update filtered commands to just this one
-    this.filteredCommands = [command];
-    this.selectedIndex = 0;
-    this.isActive = false; // Disable keyboard navigation since we're in editing mode
-    this.isEditingMode = true; // Keep showing the selected command while editing arguments
-    this.editingCommandName = command.name; // Track the command name for validation
-    this.editingCommandStartPos = this.currentTriggerStartPos; // Track command position
   }
 
   /**
