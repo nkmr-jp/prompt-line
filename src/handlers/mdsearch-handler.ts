@@ -4,6 +4,8 @@ import type MdSearchLoader from '../managers/md-search-loader';
 import type SettingsManager from '../managers/settings-manager';
 import type { SlashCommandItem, AgentItem } from '../types';
 import builtInCommandsLoader from '../lib/built-in-commands-loader';
+import { slashCommandCacheManager } from '../managers/slash-command-cache-manager';
+import type { IPCResult } from './handler-utils';
 
 /**
  * MdSearchHandler manages all IPC handlers related to MD search functionality.
@@ -28,6 +30,9 @@ class MdSearchHandler {
     ipcMain.handle('get-agent-file-path', this.handleGetAgentFilePath.bind(this));
     ipcMain.handle('get-md-search-max-suggestions', this.handleGetMdSearchMaxSuggestions.bind(this));
     ipcMain.handle('get-md-search-prefixes', this.handleGetMdSearchPrefixes.bind(this));
+    // Slash command cache handlers
+    ipcMain.handle('register-global-slash-command', this.handleRegisterGlobalSlashCommand.bind(this));
+    ipcMain.handle('get-global-slash-commands', this.handleGetGlobalSlashCommands.bind(this));
   }
 
   /**
@@ -40,7 +45,9 @@ class MdSearchHandler {
       'get-agents',
       'get-agent-file-path',
       'get-md-search-max-suggestions',
-      'get-md-search-prefixes'
+      'get-md-search-prefixes',
+      'register-global-slash-command',
+      'get-global-slash-commands'
     ];
 
     handlers.forEach(handler => {
@@ -268,6 +275,44 @@ class MdSearchHandler {
     } catch (error) {
       logger.error('Failed to get MdSearch searchPrefixes:', error);
       return []; // Default fallback
+    }
+  }
+
+  // Slash command cache handlers
+
+  /**
+   * Handler: register-global-slash-command
+   * Registers a slash command to the global cache for quick access
+   */
+  private async handleRegisterGlobalSlashCommand(
+    _event: IpcMainInvokeEvent,
+    commandName: string
+  ): Promise<IPCResult> {
+    try {
+      if (!commandName || typeof commandName !== 'string') {
+        return { success: false, error: 'Invalid command name' };
+      }
+
+      await slashCommandCacheManager.addGlobalCommand(commandName);
+      return { success: true };
+    } catch (error) {
+      logger.error('Failed to register global slash command:', error);
+      return { success: false, error: 'Operation failed' };
+    }
+  }
+
+  /**
+   * Handler: get-global-slash-commands
+   * Retrieves recently used slash commands from global cache
+   */
+  private async handleGetGlobalSlashCommands(
+    _event: IpcMainInvokeEvent
+  ): Promise<string[]> {
+    try {
+      return await slashCommandCacheManager.loadGlobalCommands();
+    } catch (error) {
+      logger.error('Failed to get global slash commands:', error);
+      return [];
     }
   }
 }

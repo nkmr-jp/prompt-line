@@ -519,6 +519,9 @@ export class SlashCommandManager implements IInitializable {
     const command = this.filteredCommands[index];
     if (!command || !this.textarea) return;
 
+    // Register command to global cache for quick access
+    this.registerCommandToCache(command.name);
+
     // Determine what to insert based on inputFormat setting
     // Default to 'name' for commands (backward compatible behavior)
     const inputFormat = command.inputFormat ?? 'name';
@@ -546,6 +549,19 @@ export class SlashCommandManager implements IInitializable {
       const end = this.textarea.selectionStart;
       this.replaceRangeWithUndo(start, end, commandWithSpace);
       this.onCommandInsert(commandWithSpace);
+    }
+  }
+
+  /**
+   * Register a command to the global cache for quick access
+   */
+  private async registerCommandToCache(commandName: string): Promise<void> {
+    try {
+      if (electronAPI?.slashCommands?.registerGlobal) {
+        await electronAPI.slashCommands.registerGlobal(commandName);
+      }
+    } catch (error) {
+      console.error('Failed to register slash command to cache:', error);
     }
   }
 

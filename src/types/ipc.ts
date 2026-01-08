@@ -220,6 +220,9 @@ export interface ElectronAPI {
   slashCommands: {
     get: (query?: string) => Promise<SlashCommandItem[]>;
     getFilePath: (commandName: string) => Promise<string | null>;
+    // Global slash command cache
+    registerGlobal: (commandName: string) => Promise<IPCResult>;
+    getGlobalCommands: () => Promise<string[]>;
   };
   agents: {
     get: (query?: string) => Promise<AgentItem[]>;
