@@ -90,12 +90,21 @@
   background: rgba(199, 146, 234, 0.2);
 }
 
+/* Argument hint only mode - tighter spacing */
+.slash-suggestion-item.argument-hint-only {
+  gap: 4px;
+}
+
+.slash-suggestion-item.argument-hint-only .slash-command-name {
+  padding-right: 2px;
+}
+
 /* Argument hint badge (gray) */
 .slash-command-source.argument-hint-badge {
   color: #999;
   background: rgba(128, 128, 128, 0.3);
   padding: 2px 4px;
-  margin-right: 4px;
+  margin-right: 2px;
 }
 
 .slash-highlight {
