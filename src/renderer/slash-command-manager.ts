@@ -152,8 +152,7 @@ export class SlashCommandManager implements IInitializable {
       '/'
     );
 
-    // If in editing mode, keep showing the hint even if no trigger is found
-    // (user is typing arguments after the command)
+    // If in editing mode, check if user has started typing arguments
     if (!result) {
       if (this.isEditingMode) {
         // Check if the text still contains the command at the original position
@@ -164,7 +163,18 @@ export class SlashCommandManager implements IInitializable {
           this.editingCommandStartPos + expectedCommand.length
         );
         if (commandAtPos === expectedCommand) {
-          // Keep showing the hint
+          // Check if user has started typing arguments (after the trailing space)
+          const commandEndPos = this.editingCommandStartPos + expectedCommand.length;
+          const afterCommand = text.substring(commandEndPos);
+
+          // Hide hint if user has typed any argument (more than just the trailing space)
+          // afterCommand is " " when only space is present, "> 1" means user typed something
+          if (afterCommand.length > 1) {
+            this.hideSuggestions();
+            return;
+          }
+
+          // Keep showing hint (only space after command or nothing yet)
           return;
         }
       }
