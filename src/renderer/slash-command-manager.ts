@@ -33,6 +33,7 @@ export class SlashCommandManager implements IInitializable {
   private isActive: boolean = false;
   private isEditingMode: boolean = false; // True when Tab selected a command and user is editing arguments
   private editingCommandName: string = ''; // The command name being edited
+  private editingCommandStartPos: number = 0; // Position where the editing command starts
   private currentTriggerStartPos: number = 0; // Position of trigger character
   private onCommandSelect: (command: string) => void;
   private onCommandInsert: (command: string) => void;
@@ -157,7 +158,12 @@ export class SlashCommandManager implements IInitializable {
       if (this.isEditingMode) {
         // Check if the text still contains the command at the original position
         const text = this.textarea.value;
-        if (text.startsWith(`/${this.editingCommandName}`)) {
+        const expectedCommand = `/${this.editingCommandName}`;
+        const commandAtPos = text.substring(
+          this.editingCommandStartPos,
+          this.editingCommandStartPos + expectedCommand.length
+        );
+        if (commandAtPos === expectedCommand) {
           // Keep showing the hint
           return;
         }
@@ -174,6 +180,7 @@ export class SlashCommandManager implements IInitializable {
       if (query !== this.editingCommandName) {
         this.isEditingMode = false;
         this.editingCommandName = '';
+        this.editingCommandStartPos = 0;
         // Continue to show suggestions based on new query
       } else {
         // Command name still matches, keep showing selected command
@@ -397,6 +404,7 @@ export class SlashCommandManager implements IInitializable {
     this.isActive = false;
     this.isEditingMode = false;
     this.editingCommandName = '';
+    this.editingCommandStartPos = 0;
     this.selectedIndex = 0;
     if (this.suggestionsContainer) {
       this.suggestionsContainer.style.display = 'none';
@@ -613,6 +621,7 @@ export class SlashCommandManager implements IInitializable {
     this.isActive = false; // Disable keyboard navigation since we're in editing mode
     this.isEditingMode = true; // Keep showing the selected command while editing arguments
     this.editingCommandName = command.name; // Track the command name for validation
+    this.editingCommandStartPos = this.currentTriggerStartPos; // Track command position
   }
 
   /**
@@ -662,6 +671,7 @@ export class SlashCommandManager implements IInitializable {
     this.isActive = false;
     this.isEditingMode = true; // Use editing mode to keep showing the hint
     this.editingCommandName = command.name;
+    this.editingCommandStartPos = this.currentTriggerStartPos; // Track command position
 
     // Position at cursor for consistent display
     this.positionAtCursor(0);
