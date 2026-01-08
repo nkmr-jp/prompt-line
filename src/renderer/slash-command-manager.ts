@@ -151,7 +151,17 @@ export class SlashCommandManager implements IInitializable {
       '/'
     );
 
+    // If in editing mode, keep showing the hint even if no trigger is found
+    // (user is typing arguments after the command)
     if (!result) {
+      if (this.isEditingMode) {
+        // Check if the text still contains the command at the original position
+        const text = this.textarea.value;
+        if (text.startsWith(`/${this.editingCommandName}`)) {
+          // Keep showing the hint
+          return;
+        }
+      }
       this.hideSuggestions();
       return;
     }
@@ -508,7 +518,12 @@ export class SlashCommandManager implements IInitializable {
 
     if (shouldPaste && this.currentTriggerStartPos === 0) {
       // Enter at text start: Paste immediately
-      this.hideSuggestions();
+      // If argumentHint exists, show it instead of hiding suggestions
+      if (command.argumentHint) {
+        this.showArgumentHintOnly(command);
+      } else {
+        this.hideSuggestions();
+      }
       // Replace only the /query portion
       const start = this.currentTriggerStartPos;
       const end = this.textarea.selectionStart;
@@ -598,6 +613,58 @@ export class SlashCommandManager implements IInitializable {
     this.isActive = false; // Disable keyboard navigation since we're in editing mode
     this.isEditingMode = true; // Keep showing the selected command while editing arguments
     this.editingCommandName = command.name; // Track the command name for validation
+  }
+
+  /**
+   * Show only the argumentHint for a selected command.
+   * Used after command confirmation (Enter at text start) when argumentHint exists.
+   * This provides guidance for argument input without being in editing mode.
+   */
+  private showArgumentHintOnly(command: SlashCommandItem): void {
+    if (!this.suggestionsContainer || !command.argumentHint) return;
+
+    // Hide frontmatter popup
+    this.frontmatterPopupManager.hide();
+
+    this.suggestionsContainer.innerHTML = '';
+    this.suggestionsContainer.style.display = 'block';
+    this.suggestionsContainer.classList.remove('hover-enabled');
+
+    const item = document.createElement('div');
+    item.className = 'slash-suggestion-item argument-hint-only';
+
+    // Create name element
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'slash-command-name';
+    nameSpan.textContent = `/${command.name}`;
+    item.appendChild(nameSpan);
+
+    // Add source badge if displayName is available
+    if (command.displayName) {
+      const sourceBadge = document.createElement('span');
+      sourceBadge.className = 'slash-command-source';
+      sourceBadge.dataset.source = command.source || command.displayName;
+      sourceBadge.textContent = command.displayName;
+      item.appendChild(sourceBadge);
+    }
+
+    // Create argumentHint element
+    const hintSpan = document.createElement('span');
+    hintSpan.className = 'slash-command-description';
+    hintSpan.textContent = command.argumentHint;
+    item.appendChild(hintSpan);
+
+    this.suggestionsContainer.appendChild(item);
+
+    // Keep tracking state for proper cleanup, but not in editing mode
+    this.filteredCommands = [command];
+    this.selectedIndex = 0;
+    this.isActive = false;
+    this.isEditingMode = true; // Use editing mode to keep showing the hint
+    this.editingCommandName = command.name;
+
+    // Position at cursor for consistent display
+    this.positionAtCursor(0);
   }
 
   /**
