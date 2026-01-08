@@ -90,6 +90,12 @@
   background: rgba(199, 146, 234, 0.2);
 }
 
+/* Argument hint badge (gray) */
+.slash-command-source.argument-hint-badge {
+  color: #999;
+  background: rgba(128, 128, 128, 0.3);
+}
+
 .slash-highlight {
   background: rgba(255, 200, 0, 0.3);
   color: var(--text-primary, #fff);

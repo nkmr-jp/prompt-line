@@ -592,14 +592,11 @@ export class SlashCommandManager implements IInitializable {
     nameSpan.textContent = `/${command.name}`;
     item.appendChild(nameSpan);
 
-    // Add source badge if displayName is available
-    if (command.displayName) {
-      const sourceBadge = document.createElement('span');
-      sourceBadge.className = 'slash-command-source';
-      sourceBadge.dataset.source = command.source || command.displayName;
-      sourceBadge.textContent = command.displayName;
-      item.appendChild(sourceBadge);
-    }
+    // Add 'arg' badge with gray color
+    const argBadge = document.createElement('span');
+    argBadge.className = 'slash-command-source argument-hint-badge';
+    argBadge.textContent = 'arg';
+    item.appendChild(argBadge);
 
     // Create argumentHint element
     const hintSpan = document.createElement('span');
