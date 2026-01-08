@@ -101,6 +101,18 @@ export class SlashCommandManager implements IInitializable {
       }
     });
 
+    // Check for argumentHint when cursor position changes (arrow keys, home, end)
+    this.textarea.addEventListener('keyup', (e) => {
+      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) {
+        this.checkForArgumentHintAtCursor();
+      }
+    });
+
+    // Check for argumentHint when clicking in textarea
+    this.textarea.addEventListener('click', () => {
+      this.checkForArgumentHintAtCursor();
+    });
+
     // Hide suggestions on blur (with delay to allow click)
     this.textarea.addEventListener('blur', () => {
       setTimeout(() => {
@@ -206,6 +218,68 @@ export class SlashCommandManager implements IInitializable {
 
     this.currentTriggerStartPos = startPos;
     this.showSuggestions(query);
+  }
+
+  /**
+   * Check if cursor is at the argument input position of an existing slash command.
+   * If so, show the argumentHint for that command.
+   * Called when cursor position changes (click, arrow keys).
+   */
+  private async checkForArgumentHintAtCursor(): Promise<void> {
+    if (!this.textarea) return;
+
+    // Don't interfere if suggestions popup is already active
+    if (this.isActive) return;
+
+    // Load commands if not loaded
+    if (this.commands.length === 0) {
+      await this.loadCommands();
+    }
+
+    const text = this.textarea.value;
+    const cursorPos = this.textarea.selectionStart;
+
+    // Look backward from cursor to find a slash command pattern: /commandname followed by space
+    // The cursor should be exactly after the space (argument input position)
+    const textBeforeCursor = text.substring(0, cursorPos);
+
+    // Find the last slash command pattern: /commandname followed by space at the end
+    // Pattern: starts with / at line start or after whitespace, followed by command name and space
+    const match = textBeforeCursor.match(/(?:^|[\s])\/([a-zA-Z0-9_-]+) $/);
+
+    if (!match) {
+      // No command pattern found at cursor position, hide any existing hint
+      if (this.isEditingMode) {
+        this.hideSuggestions();
+      }
+      return;
+    }
+
+    const commandName = match[1];
+    const command = this.commands.find(cmd => cmd.name === commandName);
+
+    if (!command || !command.argumentHint) {
+      // Command not found or has no argumentHint
+      if (this.isEditingMode) {
+        this.hideSuggestions();
+      }
+      return;
+    }
+
+    // Calculate the command start position
+    // match[0] includes the leading whitespace or start, so we need to adjust
+    const matchStart = textBeforeCursor.length - match[0].length;
+    const commandStartPos = match[0].startsWith('/') ? matchStart : matchStart + 1; // +1 to skip leading whitespace
+
+    // Show argumentHint for this command
+    this.filteredCommands = [command];
+    this.selectedIndex = 0;
+    this.isEditingMode = true;
+    this.editingCommandName = command.name;
+    this.editingCommandStartPos = commandStartPos;
+    this.currentTriggerStartPos = commandStartPos;
+
+    this.showArgumentHintOnly(command);
   }
 
   /**
