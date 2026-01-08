@@ -184,14 +184,14 @@ export class SlashCommandManager implements IInitializable {
           const commandEndPos = this.editingCommandStartPos + expectedCommand.length;
           const afterCommand = text.substring(commandEndPos);
 
-          // Hide hint if user has typed any argument (more than just the trailing space)
-          // afterCommand is " " when only space is present, "> 1" means user typed something
-          if (afterCommand.length > 1) {
+          // Hide hint if user has typed any argument (any content other than just a trailing space)
+          // Only show hint when afterCommand is exactly " " (single space)
+          if (afterCommand !== ' ') {
             this.hideSuggestions();
             return;
           }
 
-          // Keep showing hint (only space after command or nothing yet)
+          // Keep showing hint (only single space after command)
           return;
         }
       }
