@@ -306,23 +306,10 @@ export class SlashCommandManager implements IInitializable {
 
   /**
    * Position suggestions container at cursor position (like MentionManager)
-   * Only positions dynamically when trigger is NOT at text start (position > 0)
    * @param triggerPosition - Position of the trigger character (/)
    */
   private positionAtCursor(triggerPosition: number): void {
-    if (!this.suggestionsContainer || !this.textarea) return;
-
-    // When trigger is at text start (position 0), use default CSS positioning
-    if (triggerPosition === 0) {
-      this.suggestionsContainer.style.top = '16px';
-      this.suggestionsContainer.style.left = '16px';
-      this.suggestionsContainer.style.maxHeight = '90%';
-      this.suggestionsContainer.style.maxWidth = '95%';
-      return;
-    }
-
-    // For non-start positions, calculate cursor-based positioning
-    if (!this.mirrorDiv) return;
+    if (!this.suggestionsContainer || !this.textarea || !this.mirrorDiv) return;
 
     const coordinates = getCaretCoordinates(this.textarea, this.mirrorDiv, triggerPosition);
     if (!coordinates) return;
