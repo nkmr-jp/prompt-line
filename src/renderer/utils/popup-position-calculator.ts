@@ -34,8 +34,10 @@ export interface PopupPositionOptions {
 export interface PopupPositionResult {
   /** CSS right position value */
   right: number;
-  /** CSS top position value */
+  /** CSS top position value (used when showAbove is false) */
   top: number;
+  /** CSS bottom position value (used when showAbove is true) */
+  bottom: number;
   /** Width of the popup */
   width: number;
   /** Maximum height of the popup */
@@ -76,20 +78,22 @@ export function calculatePopupPosition(options: PopupPositionOptions): PopupPosi
   // Decide whether to show popup above or below the target
   const showAbove = spaceBelow < minHeight && spaceAbove > spaceBelow;
 
-  let top: number;
+  let top: number = 0;
+  let bottom: number = 0;
   let maxHeight: number;
 
   if (showAbove) {
     // Position above the target (bottom of popup aligns with top of target)
+    // Use 'bottom' CSS property so popup's bottom edge is anchored regardless of content height
     maxHeight = Math.max(minHeight, Math.min(maxHeightLimit, spaceAbove - verticalGap));
-    top = targetRect.top - maxHeight - verticalGap;
+    bottom = window.innerHeight - targetRect.top + verticalGap;
   } else {
     // Position below the target (top of popup aligns with bottom of target)
     top = targetRect.bottom + verticalGap;
     maxHeight = Math.max(minHeight, Math.min(maxHeightLimit, spaceBelow - verticalGap));
   }
 
-  return { right, top, width, maxHeight, showAbove };
+  return { right, top, bottom, width, maxHeight, showAbove };
 }
 
 /**
@@ -101,7 +105,17 @@ export function calculatePopupPosition(options: PopupPositionOptions): PopupPosi
 export function applyPopupPosition(popup: HTMLElement, position: PopupPositionResult): void {
   popup.style.right = `${position.right}px`;
   popup.style.left = 'auto';
-  popup.style.top = `${position.top}px`;
   popup.style.width = `${position.width}px`;
   popup.style.maxHeight = `${position.maxHeight}px`;
+
+  if (position.showAbove) {
+    // When showing above, use 'bottom' to anchor popup's bottom edge
+    // This ensures correct positioning regardless of actual popup height
+    popup.style.top = 'auto';
+    popup.style.bottom = `${position.bottom}px`;
+  } else {
+    // When showing below, use 'top' to anchor popup's top edge
+    popup.style.bottom = 'auto';
+    popup.style.top = `${position.top}px`;
+  }
 }
