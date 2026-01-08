@@ -8,6 +8,7 @@ import type { IInitializable } from './interfaces/initializable';
 import { FrontmatterPopupManager } from './frontmatter-popup-manager';
 import { highlightMatch } from './utils/highlight-utils';
 import { electronAPI } from './services/electron-api';
+import { extractTriggerQueryAtCursor } from './utils/trigger-query-extractor';
 
 interface SlashCommandItem {
   name: string;
@@ -30,6 +31,7 @@ export class SlashCommandManager implements IInitializable {
   private isActive: boolean = false;
   private isEditingMode: boolean = false; // True when Tab selected a command and user is editing arguments
   private editingCommandName: string = ''; // The command name being edited
+  private currentTriggerStartPos: number = 0; // Position of trigger character
   private onCommandSelect: (command: string) => void;
   private onCommandInsert: (command: string) => void;
   private onBeforeOpenFile: (() => void) | undefined;
@@ -133,41 +135,45 @@ export class SlashCommandManager implements IInitializable {
   }
 
   /**
-   * Check if user is typing a slash command at the beginning of input
+   * Check if user is typing a slash command at cursor position
    */
   private checkForSlashCommand(): void {
     if (!this.textarea) return;
 
-    const text = this.textarea.value;
+    const result = extractTriggerQueryAtCursor(
+      this.textarea.value,
+      this.textarea.selectionStart,
+      '/'
+    );
 
-    // Only show suggestions if text starts with /
-    if (text.startsWith('/')) {
-      const parts = text.slice(1).split(/\s/);
-      const query = parts[0] || ''; // Get first word after /
+    if (!result) {
+      this.hideSuggestions();
+      return;
+    }
 
-      // If in editing mode (Tab selected), check if command name still matches
-      if (this.isEditingMode) {
-        // Exit editing mode if user modified the command name
-        if (query !== this.editingCommandName) {
-          this.isEditingMode = false;
-          this.editingCommandName = '';
-          // Continue to show suggestions based on new query
-        } else {
-          // Command name still matches, keep showing selected command
-          return;
-        }
-      }
+    const { query, startPos } = result;
 
-      // Hide suggestions if there's a space after the command (user is typing arguments)
-      if (parts.length > 1 || text.includes(' ')) {
-        this.hideSuggestions();
+    // If in editing mode (Tab selected), check if command name still matches
+    if (this.isEditingMode) {
+      // Exit editing mode if user modified the command name
+      if (query !== this.editingCommandName) {
+        this.isEditingMode = false;
+        this.editingCommandName = '';
+        // Continue to show suggestions based on new query
+      } else {
+        // Command name still matches, keep showing selected command
         return;
       }
-
-      this.showSuggestions(query);
-    } else {
-      this.hideSuggestions();
     }
+
+    // Hide suggestions if there's a space in the query (user is typing arguments)
+    if (query.includes(' ')) {
+      this.hideSuggestions();
+      return;
+    }
+
+    this.currentTriggerStartPos = startPos;
+    this.showSuggestions(query);
   }
 
   /**
@@ -412,7 +418,7 @@ export class SlashCommandManager implements IInitializable {
     if (index < 0 || index >= this.filteredCommands.length) return;
 
     const command = this.filteredCommands[index];
-    if (!command) return;
+    if (!command || !this.textarea) return;
 
     // Determine what to insert based on inputFormat setting
     // Default to 'name' for commands (backward compatible behavior)
@@ -422,12 +428,10 @@ export class SlashCommandManager implements IInitializable {
     if (shouldPaste) {
       // Enter: Paste immediately and hide suggestions
       this.hideSuggestions();
-
-      if (this.textarea) {
-        this.textarea.value = commandText;
-        this.textarea.setSelectionRange(commandText.length, commandText.length);
-        this.textarea.focus();
-      }
+      // Replace only the /query portion
+      const start = this.currentTriggerStartPos;
+      const end = this.textarea.selectionStart;
+      this.replaceRangeWithUndo(start, end, commandText);
       this.onCommandSelect(commandText);
     } else {
       // Tab: Insert with trailing space for editing arguments
@@ -435,12 +439,30 @@ export class SlashCommandManager implements IInitializable {
       this.showSelectedCommandOnly(command);
 
       const commandWithSpace = commandText + ' ';
-      if (this.textarea) {
-        this.textarea.value = commandWithSpace;
-        this.textarea.setSelectionRange(commandWithSpace.length, commandWithSpace.length);
-        this.textarea.focus();
-      }
+      // Replace only the /query portion
+      const start = this.currentTriggerStartPos;
+      const end = this.textarea.selectionStart;
+      this.replaceRangeWithUndo(start, end, commandWithSpace);
       this.onCommandInsert(commandWithSpace);
+    }
+  }
+
+  /**
+   * Replace text range with undo support
+   * Uses document.execCommand for native undo/redo support
+   */
+  private replaceRangeWithUndo(start: number, end: number, newText: string): void {
+    if (!this.textarea) return;
+
+    this.textarea.focus();
+    this.textarea.setSelectionRange(start, end);
+
+    const success = document.execCommand('insertText', false, newText);
+    if (!success) {
+      // Fallback if execCommand is not supported
+      const value = this.textarea.value;
+      this.textarea.value = value.substring(0, start) + newText + value.substring(end);
+      this.textarea.setSelectionRange(start + newText.length, start + newText.length);
     }
   }
 
