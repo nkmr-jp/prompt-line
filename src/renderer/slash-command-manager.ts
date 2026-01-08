@@ -113,6 +113,11 @@ export class SlashCommandManager implements IInitializable {
       this.checkForArgumentHintAtCursor();
     });
 
+    // Check for argumentHint when textarea receives focus
+    this.textarea.addEventListener('focus', () => {
+      this.checkForArgumentHintAtCursor();
+    });
+
     // Hide suggestions on blur (with delay to allow click)
     this.textarea.addEventListener('blur', () => {
       setTimeout(() => {
