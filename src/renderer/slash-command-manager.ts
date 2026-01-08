@@ -505,7 +505,10 @@ export class SlashCommandManager implements IInitializable {
     });
 
     // Update tooltip if auto-show is enabled
-    this.frontmatterPopupManager.showForSelectedItem();
+    // Use requestAnimationFrame to ensure scroll position is settled before calculating popup position
+    requestAnimationFrame(() => {
+      this.frontmatterPopupManager.showForSelectedItem();
+    });
   }
 
   /**
