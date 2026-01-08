@@ -334,6 +334,11 @@ export class SlashCommandManager implements IInitializable {
     // Decide whether to show above or below cursor
     const showAbove = spaceBelow < 200 && spaceAbove > spaceBelow;
 
+    // Dynamic max height based on available space (calculate first for accurate menu height)
+    const dynamicMaxHeight = showAbove
+      ? Math.max(100, spaceAbove - 8)
+      : Math.max(100, spaceBelow - 8);
+
     // Calculate vertical position (relative to main-content)
     let top: number;
     if (!showAbove) {
@@ -341,9 +346,11 @@ export class SlashCommandManager implements IInitializable {
       top = relativeCaretTop + 20;
     } else {
       // Show above cursor
+      // Set maxHeight first so scrollHeight reflects actual visible height
+      this.suggestionsContainer.style.maxHeight = `${dynamicMaxHeight}px`;
       const menuHeight = Math.min(
         this.suggestionsContainer.scrollHeight,
-        Math.max(spaceAbove, spaceBelow) - 20
+        dynamicMaxHeight
       );
       top = relativeCaretTop - menuHeight - 4;
       if (top < 0) top = 0;
@@ -360,11 +367,6 @@ export class SlashCommandManager implements IInitializable {
       const shiftAmount = minMenuWidth - availableWidth;
       left = Math.max(8, left - shiftAmount);
     }
-
-    // Dynamic max height based on available space
-    const dynamicMaxHeight = showAbove
-      ? Math.max(100, spaceAbove - 8)
-      : Math.max(100, spaceBelow - 8);
 
     // Dynamic max width
     const dynamicMaxWidth = Math.max(minMenuWidth, mainContentRect.width - left - rightMargin);
