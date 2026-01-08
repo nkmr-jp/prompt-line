@@ -722,8 +722,8 @@ export class SlashCommandManager implements IInitializable {
     this.editingCommandName = command.name;
     this.editingCommandStartPos = this.currentTriggerStartPos; // Track command position
 
-    // Position at cursor for consistent display
-    this.positionAtCursor(0);
+    // Position at command location for correct display
+    this.positionAtCursor(this.currentTriggerStartPos);
   }
 
   /**
