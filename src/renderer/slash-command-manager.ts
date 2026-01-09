@@ -134,11 +134,22 @@ export class SlashCommandManager implements IInitializable {
 
     // Setup click and mousemove handling on suggestions container
     if (this.suggestionsContainer) {
-      this.suggestionsContainer.addEventListener('click', (e) => {
+      this.suggestionsContainer.addEventListener('click', async (e) => {
         const target = e.target as HTMLElement;
         const suggestionItem = target.closest('.slash-suggestion-item') as HTMLElement;
         if (suggestionItem) {
           const index = parseInt(suggestionItem.dataset.index || '0', 10);
+          const command = this.filteredCommands[index];
+
+          // Copy argumentHint to clipboard if it exists
+          if (command?.argumentHint) {
+            try {
+              await navigator.clipboard.writeText(command.argumentHint);
+            } catch (error) {
+              console.error('Failed to copy argumentHint to clipboard:', error);
+            }
+          }
+
           this.selectCommand(index);
         }
       });
