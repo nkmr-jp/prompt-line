@@ -309,7 +309,8 @@ export class SlashCommandManager implements IInitializable {
       .filter(cmd =>
         cmd.name.toLowerCase().includes(lowerQuery) ||
         cmd.description.toLowerCase().includes(lowerQuery) ||
-        (cmd.displayName && cmd.displayName.toLowerCase().includes(lowerQuery))
+        (cmd.displayName && cmd.displayName.toLowerCase().includes(lowerQuery)) ||
+        (cmd.label && cmd.label.toLowerCase().includes(lowerQuery))
       )
       .sort((a, b) => {
         const aName = a.name.toLowerCase();
