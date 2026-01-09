@@ -108,11 +108,10 @@
 }
 
 .slash-highlight {
+  background: rgba(255, 200, 0, 0.3);
   color: var(--text-primary, #fff);
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-decoration-color: rgba(255, 200, 0, 0.8);
-  text-underline-offset: 2px;
+  border-radius: 2px;
+  padding: 0 1px;
 }
 
 /* Scrollbar styling */
