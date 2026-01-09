@@ -117,8 +117,8 @@ export function findUrlAtPosition(text: string, cursorPos: number): UrlMatch | n
  */
 export function findSlashCommandAtPosition(text: string, cursorPos: number): CommandMatch | null {
   // Pattern to match slash commands: /word (no slashes in the middle)
-  // This matches /commit, /help, etc. but not /path/to/file
-  const slashCommandPattern = /\/([a-zA-Z][a-zA-Z0-9_-]*)/g;
+  // This matches /commit, /help, /skill:creater, etc. but not /path/to/file
+  const slashCommandPattern = /\/([a-zA-Z][a-zA-Z0-9_:-]*)/g;
   let match;
 
   while ((match = slashCommandPattern.exec(text)) !== null) {
@@ -153,8 +153,8 @@ export function findAbsolutePathAtPosition(text: string, cursorPos: number): str
   );
 
   // Pattern to identify slash commands (single segment starting with /, no additional slashes or dots)
-  // Slash commands look like /commit, /help - single word after / without extensions
-  const slashCommandPattern = /^\/[a-zA-Z][a-zA-Z0-9_-]*$/;
+  // Slash commands look like /commit, /help, /skill:creater - single word after / without extensions
+  const slashCommandPattern = /^\/[a-zA-Z][a-zA-Z0-9_:-]*$/;
 
   let match;
 
@@ -295,7 +295,7 @@ export function findAllAbsolutePaths(text: string): PathMatch[] {
 export function findAllSlashCommands(text: string): CommandMatch[] {
   const results: CommandMatch[] = [];
   // Pattern to match slash commands: /word (no slashes in the middle)
-  const slashCommandPattern = /\/([a-zA-Z][a-zA-Z0-9_-]*)/g;
+  const slashCommandPattern = /\/([a-zA-Z][a-zA-Z0-9_:-]*)/g;
   let match;
 
   while ((match = slashCommandPattern.exec(text)) !== null) {
