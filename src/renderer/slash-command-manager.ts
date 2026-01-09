@@ -257,7 +257,8 @@ export class SlashCommandManager implements IInitializable {
 
     // Find the last slash command pattern: /commandname followed by space at the end
     // Pattern: starts with / at line start or after whitespace, followed by command name and space
-    const match = textBeforeCursor.match(/(?:^|[\s])\/([a-zA-Z0-9_-]+) $/);
+    // Command names can include colons (e.g., serena:plan, skill:creater)
+    const match = textBeforeCursor.match(/(?:^|[\s])\/([a-zA-Z0-9_:-]+) $/);
 
     if (!match) {
       // No command pattern found at cursor position, hide any existing hint
