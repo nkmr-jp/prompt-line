@@ -102,10 +102,23 @@ mentions:
 
   # Symbol search settings (@ts:Config, @go:Handler)
   # Note: ripgrep required (brew install ripgrep)
+  #
+  # Pattern format (glob syntax):
+  #   - "vendor/**"         : Match all files in vendor directory
+  #   - "*.generated.go"    : Match all .generated.go files
+  #   - "**/*_test.go"      : Match all test files
+  #   - "internal/**"       : Match all files in internal directory
+  #
   symbolSearch:
     maxSymbols: 200000                # Maximum symbols to return
     timeout: 60000                    # Search timeout in ms
     #rgPath: null                    # Custom path to rg
+    # Include patterns: Force include files even if excluded by default (default: [])
+    # Example: includePatterns: ["*.test.ts", "vendor/**"]
+    includePatterns: []
+    # Exclude patterns: Additional patterns to exclude (default: [])
+    # Example: excludePatterns: ["*.generated.go", "node_modules/**"]
+    excludePatterns: []
 
   # Markdown-based mentions from markdown files
   # Pattern examples:
