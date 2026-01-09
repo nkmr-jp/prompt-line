@@ -72,11 +72,15 @@ class RipgrepExecutor {
     ///   - directory: The directory to search in
     ///   - language: The language key (e.g., "go", "ts", "py")
     ///   - maxSymbols: Maximum number of symbols to return
+    ///   - excludePatterns: Glob patterns to exclude files
+    ///   - includePatterns: Glob patterns to include files
     /// - Returns: Array of symbol results, or nil if search failed
     static func searchSymbols(
         directory: String,
         language: String,
-        maxSymbols: Int = DEFAULT_MAX_SYMBOLS
+        maxSymbols: Int = DEFAULT_MAX_SYMBOLS,
+        excludePatterns: [String] = [],
+        includePatterns: [String] = []
     ) -> [SymbolResult]? {
         guard let rgPath = getRgPath() else {
             return nil
@@ -101,7 +105,9 @@ class RipgrepExecutor {
                     directory: directory,
                     pattern: pattern.regex,
                     rgType: config.rgType,
-                    maxCount: maxSymbols
+                    maxCount: maxSymbols,
+                    excludePatterns: excludePatterns,
+                    includePatterns: includePatterns
                 )
 
                 if let output = executeRg(rgPath: rgPath, args: args) {
@@ -157,17 +163,35 @@ class RipgrepExecutor {
         directory: String,
         pattern: String,
         rgType: String,
-        maxCount: Int
+        maxCount: Int,
+        excludePatterns: [String] = [],
+        includePatterns: [String] = []
     ) -> [String] {
-        return [
+        var args = [
             "--json",
             "--line-number",
             "--no-heading",
             "--type", rgType,
-            "--max-count", String(maxCount),
-            "-e", pattern,
-            directory
+            "--max-count", String(maxCount)
         ]
+
+        // Add exclude patterns using --glob with negation
+        for excludePattern in excludePatterns {
+            args.append("--glob")
+            args.append("!\(excludePattern)")
+        }
+
+        // Add include patterns using --glob
+        for includePattern in includePatterns {
+            args.append("--glob")
+            args.append(includePattern)
+        }
+
+        args.append("-e")
+        args.append(pattern)
+        args.append(directory)
+
+        return args
     }
 
     /// Execute rg command with timeout and async pipe reading

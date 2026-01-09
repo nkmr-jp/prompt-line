@@ -333,6 +333,12 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
     maxSymbols: ${formatValue(ss.maxSymbols)}                # Maximum symbols to return
     timeout: ${formatValue(ss.timeout)}                    # Search timeout in ms
     ${rgPathSection}
+    # Include patterns: Force include files even if excluded by default (default: [])
+    # Example: includePatterns: ["*.test.ts", "vendor/**"]
+    includePatterns: ${formatValue(ss.includePatterns ?? [])}
+    # Exclude patterns: Additional patterns to exclude (default: [])
+    # Example: excludePatterns: ["*.generated.go", "node_modules/**"]
+    excludePatterns: ${formatValue(ss.excludePatterns ?? [])}
 `;
   } else {
     section += `

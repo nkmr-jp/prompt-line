@@ -205,6 +205,10 @@ export interface SymbolSearchUserSettings {
   timeout?: number;
   /** Custom path to ripgrep command (null = auto-detect from common paths) */
   rgPath?: string | null;
+  /** Additional exclude patterns (glob patterns like "vendor/**", "*.generated.go") */
+  excludePatterns?: string[];
+  /** Include patterns (force include even if excluded by default) */
+  includePatterns?: string[];
 }
 
 /**

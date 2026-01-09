@@ -40,12 +40,31 @@ class CodeSearchHandler {
   /**
    * Get symbol search settings with defaults
    */
-  private getSymbolSearchOptions(): { maxSymbols: number; timeout: number } {
+  private getSymbolSearchOptions(): {
+    maxSymbols: number;
+    timeout: number;
+    includePatterns?: string[];
+    excludePatterns?: string[];
+  } {
     const symbolSearchSettings = this.settingsManager?.getSymbolSearchSettings();
-    return {
+    const result: {
+      maxSymbols: number;
+      timeout: number;
+      includePatterns?: string[];
+      excludePatterns?: string[];
+    } = {
       maxSymbols: symbolSearchSettings?.maxSymbols ?? DEFAULT_MAX_SYMBOLS,
       timeout: symbolSearchSettings?.timeout ?? DEFAULT_SEARCH_TIMEOUT
     };
+
+    if (symbolSearchSettings?.includePatterns) {
+      result.includePatterns = symbolSearchSettings.includePatterns;
+    }
+    if (symbolSearchSettings?.excludePatterns) {
+      result.excludePatterns = symbolSearchSettings.excludePatterns;
+    }
+
+    return result;
   }
 
   /**

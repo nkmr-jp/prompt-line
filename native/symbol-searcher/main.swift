@@ -93,6 +93,8 @@ func search(args: [String]) {
     var language: String?
     var maxSymbols = RipgrepExecutor.DEFAULT_MAX_SYMBOLS
     var noCache = false
+    var excludePatterns: [String] = []
+    var includePatterns: [String] = []
 
     var i = 0
     while i < args.count {
@@ -105,6 +107,12 @@ func search(args: [String]) {
             if i < args.count { maxSymbols = Int(args[i]) ?? maxSymbols }
         case "--no-cache":
             noCache = true
+        case "--exclude":
+            i += 1
+            if i < args.count { excludePatterns.append(args[i]) }
+        case "--include":
+            i += 1
+            if i < args.count { includePatterns.append(args[i]) }
         default:
             if directory == nil { directory = args[i] }
         }
@@ -171,7 +179,9 @@ func search(args: [String]) {
     if let symbols = RipgrepExecutor.searchSymbols(
         directory: dir,
         language: lang,
-        maxSymbols: maxSymbols
+        maxSymbols: maxSymbols,
+        excludePatterns: excludePatterns,
+        includePatterns: includePatterns
     ) {
         let response = SymbolSearchResponse(
             success: true,
@@ -442,6 +452,8 @@ func printUsage() {
       --language, -l <lang>    Language to search (e.g., go, ts, py, rs)
       --max-symbols <n>        Maximum number of symbols to return (default: 20000)
       --no-cache               Skip cache and perform full search
+      --exclude <pattern>      Exclude files matching glob pattern (can be repeated)
+      --include <pattern>      Include files matching glob pattern (can be repeated)
 
     Cache Options:
       --language, -l <lang>    Language for cache operation
