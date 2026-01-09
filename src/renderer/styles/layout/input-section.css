@@ -133,7 +133,8 @@
 
     /* Text wrapping control - must match textarea exactly */
     white-space: break-spaces;
-    overflow-wrap: break-word;
+    /* 'anywhere' allows breaking long paths/URLs that have no spaces */
+    overflow-wrap: anywhere;
     word-break: normal;
 
     /* Tab size - must match textarea */
@@ -229,7 +230,8 @@
 
     /* Text wrapping control - must match backdrop */
     white-space: break-spaces;
-    overflow-wrap: break-word;
+    /* 'anywhere' allows breaking long paths/URLs that have no spaces */
+    overflow-wrap: anywhere;
     word-break: normal;
 
     /* Tab size - must match backdrop */
