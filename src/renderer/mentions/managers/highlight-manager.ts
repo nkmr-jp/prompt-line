@@ -68,6 +68,9 @@ export class HighlightManager {
   // Debug mode for development (Phase 4)
   private debugMode: boolean = false;
 
+  // Cache for command file checks (to avoid repeated IPC calls)
+  private commandFileCache: Map<string, boolean> = new Map();
+
   constructor(
     textInput: HTMLTextAreaElement,
     highlightBackdrop: HTMLDivElement,
@@ -192,10 +195,13 @@ export class HighlightManager {
       return;
     }
 
-    // Check if cursor is on a slash command (always show hint, consistent with highlighting)
+    // Check if cursor is on a slash command
     const slashCommand = findSlashCommandAtPosition(text, cursorPos);
     if (slashCommand) {
-      this.showSlashCommandOpenHint();
+      // Extract command name (skip leading "/")
+      const commandName = text.substring(slashCommand.start + 1, slashCommand.end);
+      // Check if command has a file (async, but we use cache for instant response)
+      this.checkAndShowSlashCommandHint(commandName);
       const newRange: AtPathRange = { start: slashCommand.start, end: slashCommand.end };
       if (!this.cursorPositionPath ||
           this.cursorPositionPath.start !== newRange.start ||
@@ -439,6 +445,52 @@ export class HighlightManager {
     if (this.callbacks.updateHintText) {
       this.callbacks.updateHintText('Press Ctrl+Enter to open command file');
     }
+  }
+
+  /**
+   * Check if command has a file and show hint accordingly
+   * Uses cache to avoid repeated IPC calls for the same command
+   */
+  private checkAndShowSlashCommandHint(commandName: string): void {
+    // Check cache first
+    if (this.commandFileCache.has(commandName)) {
+      const hasFile = this.commandFileCache.get(commandName);
+      if (hasFile) {
+        this.showSlashCommandOpenHint();
+      } else {
+        this.restoreDefaultHint();
+      }
+      return;
+    }
+
+    // If not in cache, fetch from IPC and update cache
+    window.electronAPI.slashCommands.hasFile(commandName)
+      .then(hasFile => {
+        this.commandFileCache.set(commandName, hasFile);
+        // Update hint only if cursor is still on the same command
+        const text = this.callbacks.getTextContent();
+        const cursorPos = this.callbacks.getCursorPosition();
+        const currentSlashCommand = findSlashCommandAtPosition(text, cursorPos);
+        if (currentSlashCommand) {
+          const currentCommandName = text.substring(currentSlashCommand.start + 1, currentSlashCommand.end);
+          if (currentCommandName === commandName) {
+            if (hasFile) {
+              this.showSlashCommandOpenHint();
+            } else {
+              this.restoreDefaultHint();
+            }
+          }
+        }
+      })
+      .catch(error => {
+        console.error('Failed to check command file:', error);
+        // On error, assume no file (safe default)
+        this.commandFileCache.set(commandName, false);
+        this.restoreDefaultHint();
+      });
+
+    // Show default hint while loading (prevents flashing)
+    this.restoreDefaultHint();
   }
 
   private restoreDefaultHint(): void {
