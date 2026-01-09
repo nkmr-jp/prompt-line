@@ -167,21 +167,19 @@ export class FileOpenerEventHandler {
       return true;
     }
 
-    // Check for slash command (like /commit, /help) - only if command type is enabled
-    if (this.callbacks.isCommandEnabledSync?.()) {
-      const slashCommand = findSlashCommandAtPosition(text, cursorPos);
-      if (slashCommand) {
-        try {
-          const commandFilePath = await electronAPI.slashCommands.getFilePath(slashCommand.command);
-          if (commandFilePath) {
-            await this.openFile(commandFilePath);
-            return true;
-          }
-        } catch (err) {
-          handleError('FileOpenerEventHandler.handleCtrlEnter.slashCommand', err);
+    // Check for slash command (like /commit, /help)
+    const slashCommand = findSlashCommandAtPosition(text, cursorPos);
+    if (slashCommand) {
+      try {
+        const commandFilePath = await electronAPI.slashCommands.getFilePath(slashCommand.command);
+        if (commandFilePath) {
+          await this.openFile(commandFilePath);
+          return true;
         }
-        return true; // Still consumed the event even if failed
+      } catch (err) {
+        handleError('FileOpenerEventHandler.handleCtrlEnter.slashCommand', err);
       }
+      return true; // Still consumed the event even if failed
     }
 
     // Find @path at cursor position
