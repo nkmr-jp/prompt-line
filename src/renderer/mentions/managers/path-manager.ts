@@ -575,6 +575,9 @@ export class PathManager {
     // Position cursor at end of path (after @path)
     const newCursorPos = atStartPosition + 1 + path.length;
     this.callbacks.setCursorPosition(newCursorPos);
+
+    // Add the path to selected paths for highlighting
+    this.addSelectedPath(path);
   }
 
   /**
