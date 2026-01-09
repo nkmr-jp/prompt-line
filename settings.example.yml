@@ -67,6 +67,10 @@ slashCommands:
       pattern: "*.md"
       argumentHint: "{frontmatter@argument-hint}"
       maxSuggestions: 20
+    - name: "{frontmatter@name}"
+      description: "{frontmatter@description}"
+      path: ~/.claude/skills
+      pattern: "**/*/SKILL.md"
 
 # ============================================================================
 # MENTION SETTINGS (@ mentions)
@@ -102,13 +106,6 @@ mentions:
 
   # Symbol search settings (@ts:Config, @go:Handler)
   # Note: ripgrep required (brew install ripgrep)
-  #
-  # Pattern format (glob syntax):
-  #   - "vendor/**"         : Match all files in vendor directory
-  #   - "*.generated.go"    : Match all .generated.go files
-  #   - "**/*_test.go"      : Match all test files
-  #   - "internal/**"       : Match all files in internal directory
-  #
   symbolSearch:
     maxSymbols: 200000                # Maximum symbols to return
     timeout: 60000                    # Search timeout in ms
@@ -135,18 +132,6 @@ mentions:
       path: ~/.claude/agents
       pattern: "*.md"
       searchPrefix: agent            # Search with @agent:
-
-    - name: "{frontmatter@name}"
-      description: "{frontmatter@description}"
-      path: ~/.claude/skills
-      pattern: "**/*/SKILL.md"
-      searchPrefix: skill            # Search with @skill:
-
-    # - name: "{frontmatter@name}"
-    #   description: "{frontmatter@description}"
-    #   path: ~/.claude/plugins
-    #   pattern: "**/*/SKILL.md"
-    #   searchPrefix: skill            # Search with @skill:
 
     # - name: "{basename}"
     #   description: "{frontmatter@title}"
