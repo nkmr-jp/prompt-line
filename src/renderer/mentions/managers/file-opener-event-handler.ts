@@ -52,6 +52,9 @@ export interface FileOpenerCallbacks {
 
   // Error notification
   showError?: (message: string) => void;
+
+  // Slash command support (for multi-word command detection)
+  getKnownCommandNames?: () => string[];
 }
 
 /**
@@ -159,6 +162,7 @@ export class FileOpenerEventHandler {
   private async tryOpenItemAtCursor(): Promise<boolean> {
     const text = this.callbacks.getTextContent();
     const cursorPos = this.callbacks.getCursorPosition();
+    const knownCommandNames = this.callbacks.getKnownCommandNames?.();
 
     // Check for URL first
     const url = findUrlAtPosition(text, cursorPos);
@@ -167,9 +171,9 @@ export class FileOpenerEventHandler {
       return true;
     }
 
-    // Check for slash command (like /commit, /help)
+    // Check for slash command (like /commit, /help, /Linear API)
     // Only user-defined commands have file paths; built-in commands return null
-    const slashCommand = findSlashCommandAtPosition(text, cursorPos);
+    const slashCommand = findSlashCommandAtPosition(text, cursorPos, knownCommandNames);
     if (slashCommand) {
       try {
         const commandFilePath = await electronAPI.slashCommands.getFilePath(slashCommand.command);

@@ -114,25 +114,16 @@ export function findUrlAtPosition(text: string, cursorPos: number): UrlMatch | n
  * Find slash command at the given cursor position
  * Returns { command, start, end } if found, null otherwise
  * Slash commands are like /commit, /help (single word after /)
+ * When knownCommandNames is provided, also matches multi-word commands like /Linear API
  */
-export function findSlashCommandAtPosition(text: string, cursorPos: number): CommandMatch | null {
-  // Pattern to match slash commands: /word (no slashes in the middle)
-  // This matches /commit, /help, /skill:creater, etc. but not /path/to/file
-  const slashCommandPattern = /\/([a-zA-Z][a-zA-Z0-9_:-]*)/g;
-  let match;
+export function findSlashCommandAtPosition(text: string, cursorPos: number, knownCommandNames?: string[]): CommandMatch | null {
+  // Use findAllSlashCommands to get all commands (including multi-word ones if knownCommandNames provided)
+  const commands = findAllSlashCommands(text, knownCommandNames);
 
-  while ((match = slashCommandPattern.exec(text)) !== null) {
-    const start = match.index;
-    const end = start + match[0].length;
-    const commandName = match[1] ?? '';
-
+  for (const cmd of commands) {
     // Check if cursor is within this slash command
-    if (cursorPos >= start && cursorPos <= end) {
-      // Make sure it's at the start of text or after whitespace (not part of a path)
-      const prevChar = start > 0 ? text[start - 1] : ' ';
-      if (prevChar === ' ' || prevChar === '\n' || prevChar === '\t' || start === 0) {
-        return { command: commandName, start, end };
-      }
+    if (cursorPos >= cmd.start && cursorPos <= cmd.end) {
+      return cmd;
     }
   }
 

@@ -277,7 +277,8 @@ export class MentionInitializer {
       isCommandEnabledSync: () => this.callbacks.isCommandEnabledSync(),
       hideWindow: () => electronAPI.window.hide(),
       restoreDefaultHint: () => this.callbacks.restoreDefaultHint(),
-      showError: (message: string) => this.deps.callbacks.showError?.(message)
+      showError: (message: string) => this.deps.callbacks.showError?.(message),
+      getKnownCommandNames: () => this.callbacks.getKnownCommandNames?.() ?? []
     });
   }
 
