@@ -175,3 +175,29 @@
 .slash-command-suggestions::-webkit-scrollbar-thumb:hover {
   background: var(--scrollbar-thumb-hover, #666);
 }
+
+/* Copied feedback */
+.slash-suggestion-item.copied::after {
+  content: '✓ Copied!';
+  position: absolute;
+  right: 10px;
+  font-size: 11px;
+  color: #7fdbc8;
+  font-weight: 500;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.slash-suggestion-item {
+  position: relative;
+}

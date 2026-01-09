@@ -145,6 +145,11 @@ export class SlashCommandManager implements IInitializable {
           if (command?.argumentHint) {
             try {
               await navigator.clipboard.writeText(command.argumentHint);
+              // Show "Copied!" feedback
+              suggestionItem.classList.add('copied');
+              setTimeout(() => {
+                suggestionItem.classList.remove('copied');
+              }, 1000);
             } catch (error) {
               console.error('Failed to copy argumentHint to clipboard:', error);
             }
