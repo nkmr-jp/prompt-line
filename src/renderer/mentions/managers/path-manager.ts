@@ -400,12 +400,10 @@ export class PathManager {
       return { start: url.start, end: url.end };
     }
 
-    // Check for slash command (if enabled)
-    if (this.callbacks.isCommandEnabledSync?.()) {
-      const slashCommand = findSlashCommandAtPosition(text, charPos);
-      if (slashCommand) {
-        return { start: slashCommand.start, end: slashCommand.end };
-      }
+    // Check for slash command (always enabled)
+    const slashCommand = findSlashCommandAtPosition(text, charPos);
+    if (slashCommand) {
+      return { start: slashCommand.start, end: slashCommand.end };
     }
 
     // Check for absolute path
