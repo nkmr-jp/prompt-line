@@ -37,7 +37,8 @@ export interface NavigationCallbacks {
   getIsComposing: (() => boolean) | undefined;
   getCurrentPath: () => string;
   getCodeSearchManager: () => {
-    navigateIntoFile: (baseDir: string, relativePath: string, absolutePath: string, language: LanguageInfo) => Promise<void>;
+    tryLoadSymbols: (baseDir: string, relativePath: string, language: LanguageInfo) => Promise<SymbolResult[]>;
+    enterSymbolMode: (relativePath: string, symbols: SymbolResult[]) => void;
     isInSymbolModeActive: () => boolean;
     getCurrentFileSymbols: () => SymbolResult[];
   } | null;
@@ -329,47 +330,42 @@ export class NavigationManager {
   /**
    * Navigate into a file to show its symbols
    * @param relativePath - Relative path of the file
-   * @param absolutePath - Absolute path of the file
+   * @param absolutePath - Absolute path of the file (unused but kept for API compatibility)
    * @param language - Language info for symbol search
    */
-  public async navigateIntoFile(relativePath: string, absolutePath: string, language: LanguageInfo): Promise<void> {
+  public async navigateIntoFile(relativePath: string, _absolutePath: string, language: LanguageInfo): Promise<void> {
     const cachedData = this.callbacks.getCachedDirectoryData();
     const codeSearchManager = this.callbacks.getCodeSearchManager();
     if (!cachedData || !codeSearchManager) return;
 
-    // Update local state for UI
-    this.callbacks.setIsInSymbolMode(true);
-    this.callbacks.setCurrentFilePath(relativePath);
-    this.callbacks.setCurrentQuery('');
-    this.callbacks.setCurrentPath(relativePath);
+    // IMPORTANT: Do NOT change any UI state until we know symbols exist
+    // This prevents flickering for files without symbols (e.g., gitignored files)
 
-    // DON'T update text input yet - wait for symbol search results
-    // This prevents flickering when symbols are not found (gitignored files)
-
-    // Delegate symbol loading to CodeSearchManager
-    await codeSearchManager.navigateIntoFile(
+    // Try to load symbols without changing UI (quiet search)
+    const symbols = await codeSearchManager.tryLoadSymbols(
       cachedData.directory,
       relativePath,
-      absolutePath,
       language
     );
 
-    // Check if CodeSearchManager successfully loaded symbols
-    if (!codeSearchManager.isInSymbolModeActive()) {
-      // No symbols found - insert file path directly (single text update)
-      this.callbacks.setIsInSymbolMode(false);
+    // If no symbols found, behave exactly like Enter key (direct path insertion)
+    if (symbols.length === 0) {
       this.callbacks.insertFilePath(relativePath);
       this.callbacks.hideSuggestions();
       this.callbacks.onFileSelected(relativePath);
       return;
     }
 
-    // Symbols found - now update text input with path (single text update)
-    this.callbacks.updateTextInputWithPath(relativePath);
-
-    // Get symbols from CodeSearchManager
-    const symbols = codeSearchManager.getCurrentFileSymbols();
+    // Symbols found - now it's safe to update UI state
+    codeSearchManager.enterSymbolMode(relativePath, symbols);
+    this.callbacks.setIsInSymbolMode(true);
+    this.callbacks.setCurrentFilePath(relativePath);
+    this.callbacks.setCurrentQuery('');
+    this.callbacks.setCurrentPath(relativePath);
     this.callbacks.setCurrentFileSymbols(symbols);
+
+    // Update text input with path (single text update, only when symbols exist)
+    this.callbacks.updateTextInputWithPath(relativePath);
 
     // Show symbols with selectedIndex = -1 (like directory navigation)
     this.callbacks.setSelectedIndex(-1);
