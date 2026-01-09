@@ -375,21 +375,18 @@ export class SlashCommandManager implements IInitializable {
       nameSpan.innerHTML = '/' + highlightMatch(cmd.name, query, 'slash-highlight');
       item.appendChild(nameSpan);
 
-      // Create source badge for built-in commands (if displayName exists)
-      if (cmd.displayName) {
-        const sourceBadge = document.createElement('span');
-        sourceBadge.className = 'slash-command-source';
-        sourceBadge.dataset.source = cmd.source || cmd.displayName;
-        sourceBadge.textContent = cmd.displayName;
-        item.appendChild(sourceBadge);
-      }
-
-      // Create label badge (if label exists)
+      // Create badge (label takes priority over source/displayName)
       if (cmd.label) {
         const labelBadge = document.createElement('span');
         labelBadge.className = 'slash-command-label';
         labelBadge.textContent = cmd.label;
         item.appendChild(labelBadge);
+      } else if (cmd.displayName) {
+        const sourceBadge = document.createElement('span');
+        sourceBadge.className = 'slash-command-source';
+        sourceBadge.dataset.source = cmd.source || cmd.displayName;
+        sourceBadge.textContent = cmd.displayName;
+        item.appendChild(sourceBadge);
       }
 
       // Create description element with highlighting
