@@ -72,6 +72,25 @@ export class SlashCommandManager implements IInitializable {
     this.setupEventListeners();
   }
 
+  /**
+   * Show a toast notification for copied feedback
+   * Displays outside the menu to prevent it from disappearing with the menu
+   */
+  private showCopiedNotification(): void {
+    // Remove existing notification if any
+    const existing = document.querySelector('.copied-toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.className = 'copied-toast';
+    toast.textContent = '✓ Copied to clipboard';
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+      toast.remove();
+    }, 1500);
+  }
+
   public initializeElements(): void {
     this.suggestionsContainer = document.getElementById('slashCommandSuggestions');
     this.textarea = document.getElementById('textInput') as HTMLTextAreaElement;
@@ -144,16 +163,8 @@ export class SlashCommandManager implements IInitializable {
             if (argumentHint) {
               try {
                 await navigator.clipboard.writeText(argumentHint);
-                // Show "Copied!" feedback
-                const copiedIndicator = document.createElement('span');
-                copiedIndicator.className = 'copied-indicator';
-                copiedIndicator.textContent = '✓ Copied!';
-                suggestionItem.appendChild(copiedIndicator);
-
-                // Remove after 1 second
-                setTimeout(() => {
-                  copiedIndicator.remove();
-                }, 1000);
+                // Show toast notification
+                this.showCopiedNotification();
               } catch (error) {
                 console.error('Failed to copy argumentHint to clipboard:', error);
               }
@@ -169,16 +180,8 @@ export class SlashCommandManager implements IInitializable {
           if (command?.argumentHint) {
             try {
               await navigator.clipboard.writeText(command.argumentHint);
-              // Show "Copied!" feedback
-              const copiedIndicator = document.createElement('span');
-              copiedIndicator.className = 'copied-indicator';
-              copiedIndicator.textContent = '✓ Copied!';
-              suggestionItem.appendChild(copiedIndicator);
-
-              // Remove after 1 second
-              setTimeout(() => {
-                copiedIndicator.remove();
-              }, 1000);
+              // Show toast notification
+              this.showCopiedNotification();
             } catch (error) {
               console.error('Failed to copy argumentHint to clipboard:', error);
             }

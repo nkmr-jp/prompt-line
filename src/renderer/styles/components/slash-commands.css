@@ -176,22 +176,30 @@
   background: var(--scrollbar-thumb-hover, #666);
 }
 
-/* Copied feedback */
-.copied-indicator {
+/* Toast notification for clipboard copy feedback */
+.copied-toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(40, 40, 40, 0.95);
   color: #7fdbc8;
-  font-size: 11px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
   font-weight: 500;
-  margin-left: auto;
-  animation: fadeIn 0.2s ease-in-out;
+  z-index: 10000;
+  animation: fadeInUp 0.2s ease-out;
+  pointer-events: none;
 }
 
-@keyframes fadeIn {
+@keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(-2px);
+    transform: translateX(-50%) translateY(10px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateX(-50%) translateY(0);
   }
 }
