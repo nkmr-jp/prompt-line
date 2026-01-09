@@ -157,8 +157,10 @@ func search(args: [String]) {
         return
     }
 
-    // Try cache first (unless --no-cache is specified)
-    if !noCache, let cachedSymbols = CacheManager.readCache(directory: dir, language: lang) {
+    // Try cache first (unless --no-cache is specified or patterns are specified)
+    // When patterns are specified, we need to do a fresh search to apply filtering
+    let hasPatterns = !excludePatterns.isEmpty || !includePatterns.isEmpty
+    if !noCache && !hasPatterns, let cachedSymbols = CacheManager.readCache(directory: dir, language: lang) {
         let limitedSymbols = Array(cachedSymbols.prefix(maxSymbols))
         let response = SymbolSearchResponse(
             success: true,
