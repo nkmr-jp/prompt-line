@@ -230,16 +230,24 @@ class HistoryManager implements IHistoryManager {
       return null;
     }
 
-    this.recentCache = this.recentCache.filter(item => item.text !== trimmedText);
+    // Find existing item BEFORE removing it from cache
     const existingItem = this.recentCache.find(item => item.text === trimmedText);
-    if (existingItem) {
-      existingItem.timestamp = Date.now();
-      if (appName) existingItem.appName = appName;
-      if (directory) existingItem.directory = directory;
-      this.recentCache.unshift(existingItem);
-      return existingItem;
+    if (!existingItem) {
+      return null;
     }
-    return null;
+
+    // Remove existing item from cache
+    this.recentCache = this.recentCache.filter(item => item.id !== existingItem.id);
+
+    // Update item properties
+    existingItem.timestamp = Date.now();
+    if (appName) existingItem.appName = appName;
+    if (directory) existingItem.directory = directory;
+
+    // Add updated item to front of cache
+    this.recentCache.unshift(existingItem);
+
+    return existingItem;
   }
 
   /**

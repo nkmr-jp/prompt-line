@@ -73,7 +73,7 @@ class RipgrepExecutor {
     ///   - language: The language key (e.g., "go", "ts", "py")
     ///   - maxSymbols: Maximum number of symbols to return
     ///   - excludePatterns: Glob patterns to exclude files
-    ///   - includePatterns: Glob patterns to include files
+    ///   - includePatterns: Glob patterns to include files (in addition to normal search)
     /// - Returns: Array of symbol results, or nil if search failed
     static func searchSymbols(
         directory: String,
@@ -95,7 +95,7 @@ class RipgrepExecutor {
         var allResults: [SymbolResult] = []
         let resultsLock = NSLock()
 
-        // 1. Single-line pattern search (existing logic)
+        // 1. Single-line pattern search - Normal search (respects .gitignore, with excludePatterns)
         for pattern in config.patterns {
             group.enter()
             DispatchQueue.global(qos: .userInitiated).async {
@@ -107,7 +107,7 @@ class RipgrepExecutor {
                     rgType: config.rgType,
                     maxCount: maxSymbols,
                     excludePatterns: excludePatterns,
-                    includePatterns: includePatterns
+                    includePatterns: []  // No includePatterns for normal search
                 )
 
                 if let output = executeRg(rgPath: rgPath, args: args) {
@@ -124,7 +124,38 @@ class RipgrepExecutor {
             }
         }
 
-        // 2. Block-based search for Go (secure direct execution)
+        // 2. Single-line pattern search - Include patterns search (if specified)
+        if !includePatterns.isEmpty {
+            for pattern in config.patterns {
+                group.enter()
+                DispatchQueue.global(qos: .userInitiated).async {
+                    defer { group.leave() }
+
+                    let args = buildRgArgs(
+                        directory: directory,
+                        pattern: pattern.regex,
+                        rgType: config.rgType,
+                        maxCount: maxSymbols,
+                        excludePatterns: [],  // No excludePatterns for include search
+                        includePatterns: includePatterns  // Include patterns only
+                    )
+
+                    if let output = executeRg(rgPath: rgPath, args: args) {
+                        let results = parseRgJsonOutput(
+                            output: output,
+                            pattern: pattern,
+                            language: language,
+                            baseDirectory: directory
+                        )
+                        resultsLock.lock()
+                        allResults.append(contentsOf: results)
+                        resultsLock.unlock()
+                    }
+                }
+            }
+        }
+
+        // 3. Block-based search for Go (secure direct execution)
         if language == "go" {
             group.enter()
             DispatchQueue.global(qos: .userInitiated).async {
