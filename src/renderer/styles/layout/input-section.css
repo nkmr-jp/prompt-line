@@ -204,7 +204,7 @@
  * Current: Emerald Green (default)
  */
 .highlight-backdrop .slash-command-highlight {
-    background: rgba(52, 211, 153, 0.35);  /* Current: Emerald Green */
+    background: rgba(52, 211, 153, 0.25);  /* Current: Emerald Green */
     /* background: rgba(168, 85, 247, 0.35); */  /* Pattern 1: Purple */
     /* background: rgba(251, 146, 60, 0.35); */  /* Pattern 2: Orange */
     /* background: rgba(245, 158, 11, 0.35); */  /* Pattern 3: Amber */
