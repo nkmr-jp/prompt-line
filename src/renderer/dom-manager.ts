@@ -120,9 +120,6 @@ export class DomManager implements IInitializable {
     if (this.textarea) {
       this.textarea.value = text;
       this.updateCharCount();
-      // Dispatch input event to trigger highlight backdrop update
-      // (textarea.value assignment doesn't fire input event automatically)
-      this.textarea.dispatchEvent(new Event('input', { bubbles: true }));
     }
   }
 
