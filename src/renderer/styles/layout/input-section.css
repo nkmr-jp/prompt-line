@@ -204,22 +204,22 @@
  * Current: Emerald Green (default)
  */
 .highlight-backdrop .slash-command-highlight {
-    background: rgba(52, 211, 153, 0.25);  /* Current: Emerald Green */
+    /*background: rgba(52, 211, 153, 0.3);  !* Current: Emerald Green *!*/
     /* background: rgba(168, 85, 247, 0.35); */  /* Pattern 1: Purple */
     /* background: rgba(251, 146, 60, 0.35); */  /* Pattern 2: Orange */
     /* background: rgba(245, 158, 11, 0.35); */  /* Pattern 3: Amber */
     /* background: rgba(34, 211, 238, 0.35); */  /* Pattern 4: Cyan */
     /* background: rgba(236, 72, 153, 0.35); */  /* Pattern 5: Pink */
-    /* background: rgba(217, 70, 239, 0.35); */  /* Pattern 6: Magenta */
+     background: rgba(217, 70, 239, 0.3);
     /* background: rgba(234, 179, 8, 0.35); */   /* Pattern 7: Gold */
     /* background: rgba(250, 204, 21, 0.30); */  /* Pattern 8: Yellow */
     /* background: rgba(20, 184, 166, 0.35); */  /* Pattern 9: Teal */
-    border-radius: 8px;
+    border-radius: 0px;
     color: transparent;
 
     /* Expand highlight area by 1px in all directions */
-    padding: 1px;
-    margin: -1px;
+    padding: 0px;
+    margin: 0px;
 
     /* Use box-decoration-break for multi-line highlights */
     box-decoration-break: clone;
