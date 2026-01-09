@@ -73,21 +73,21 @@ export class SlashCommandManager implements IInitializable {
   }
 
   /**
-   * Show a toast notification for copied feedback
-   * Displays outside the menu to prevent it from disappearing with the menu
+   * Show a notification for copied feedback in the app name area
    */
   private showCopiedNotification(): void {
-    // Remove existing notification if any
-    const existing = document.querySelector('.copied-toast');
-    if (existing) existing.remove();
+    const appNameEl = document.getElementById('appName');
+    if (!appNameEl) return;
 
-    const toast = document.createElement('div');
-    toast.className = 'copied-toast';
-    toast.textContent = '✓ Copied to clipboard';
-    document.body.appendChild(toast);
+    const originalText = appNameEl.textContent;
+    appNameEl.textContent = '✓ Copied to clipboard';
+    appNameEl.classList.add('app-name-success');
 
     setTimeout(() => {
-      toast.remove();
+      if (appNameEl) {
+        appNameEl.textContent = originalText;
+        appNameEl.classList.remove('app-name-success');
+      }
     }, 1500);
   }
 

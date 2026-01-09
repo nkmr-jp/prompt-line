@@ -175,31 +175,3 @@
 .slash-command-suggestions::-webkit-scrollbar-thumb:hover {
   background: var(--scrollbar-thumb-hover, #666);
 }
-
-/* Toast notification for clipboard copy feedback */
-.copied-toast {
-  position: fixed;
-  bottom: 80px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(40, 40, 40, 0.95);
-  color: #7fdbc8;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  z-index: 10000;
-  animation: fadeInUp 0.2s ease-out;
-  pointer-events: none;
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-}
