@@ -70,20 +70,9 @@ class HistoryManager implements IHistoryManager {
       this.recentCache = [];
       this.duplicateCheckSet.clear();
 
-      // 一時的に全アイテムを読み込み
-      const allItems: HistoryItem[] = [];
       for (const line of lines) {
         const item = safeJsonParse<HistoryItem>(line);
         if (item && this.validateHistoryItem(item)) {
-          allItems.push(item);
-        }
-      }
-
-      // テキストベースで重複排除（最新のアイテムのみ保持）
-      const seenTexts = new Set<string>();
-      for (const item of allItems) {
-        if (!seenTexts.has(item.text)) {
-          seenTexts.add(item.text);
           this.recentCache.unshift(item);
           this.duplicateCheckSet.add(item.text);
         }
@@ -241,24 +230,16 @@ class HistoryManager implements IHistoryManager {
       return null;
     }
 
-    // Find existing item BEFORE removing it from cache
+    this.recentCache = this.recentCache.filter(item => item.text !== trimmedText);
     const existingItem = this.recentCache.find(item => item.text === trimmedText);
-    if (!existingItem) {
-      return null;
+    if (existingItem) {
+      existingItem.timestamp = Date.now();
+      if (appName) existingItem.appName = appName;
+      if (directory) existingItem.directory = directory;
+      this.recentCache.unshift(existingItem);
+      return existingItem;
     }
-
-    // Remove existing item from cache
-    this.recentCache = this.recentCache.filter(item => item.id !== existingItem.id);
-
-    // Update item properties
-    existingItem.timestamp = Date.now();
-    if (appName) existingItem.appName = appName;
-    if (directory) existingItem.directory = directory;
-
-    // Add updated item to front of cache
-    this.recentCache.unshift(existingItem);
-
-    return existingItem;
+    return null;
   }
 
   /**
@@ -353,21 +334,11 @@ class HistoryManager implements IHistoryManager {
 
       // Read from file for larger limits
       const lines = await this.readLastNLines(limit);
-      const allItems: HistoryItem[] = [];
+      const items: HistoryItem[] = [];
 
       for (const line of lines) {
         const item = safeJsonParse<HistoryItem>(line);
         if (item && this.validateHistoryItem(item)) {
-          allItems.push(item);
-        }
-      }
-
-      // テキストベースで重複排除（最新のアイテムのみ保持）
-      const seenTexts = new Set<string>();
-      const items: HistoryItem[] = [];
-      for (const item of allItems) {
-        if (!seenTexts.has(item.text)) {
-          seenTexts.add(item.text);
           items.unshift(item); // Newest first
         }
       }
