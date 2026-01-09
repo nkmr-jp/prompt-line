@@ -255,6 +255,8 @@ export interface SlashCommandEntry {
   maxSuggestions?: number;
   /** オプション: 名前ソート順（デフォルト: 'asc'） */
   sortOrder?: 'asc' | 'desc';
+  /** オプション: label（静的な値 "skill" または テンプレート "{frontmatter@label}"） */
+  label?: string;
 }
 
 /**

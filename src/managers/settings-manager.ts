@@ -399,6 +399,7 @@ class SettingsManager {
         if (cmd.argumentHint !== undefined) entry.argumentHint = cmd.argumentHint;
         if (cmd.maxSuggestions !== undefined) entry.maxSuggestions = cmd.maxSuggestions;
         if (cmd.sortOrder !== undefined) entry.sortOrder = cmd.sortOrder;
+        if (cmd.label !== undefined) entry.label = cmd.label;
         entries.push(entry);
       }
     }
