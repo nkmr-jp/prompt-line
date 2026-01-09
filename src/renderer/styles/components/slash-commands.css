@@ -102,6 +102,37 @@
   white-space: nowrap;
 }
 
+/* Label color variations */
+.slash-command-label[data-color="purple"] {
+  color: #c792ea;
+  background: rgba(199, 146, 234, 0.2);
+}
+
+.slash-command-label[data-color="blue"] {
+  color: #89DDFF;
+  background: rgba(137, 221, 255, 0.2);
+}
+
+.slash-command-label[data-color="green"] {
+  color: #7fdbc8;
+  background: rgba(127, 219, 200, 0.2);
+}
+
+.slash-command-label[data-color="orange"] {
+  color: #ffcb6b;
+  background: rgba(255, 203, 107, 0.2);
+}
+
+.slash-command-label[data-color="red"] {
+  color: #f07178;
+  background: rgba(240, 113, 120, 0.2);
+}
+
+.slash-command-label[data-color="gray"] {
+  color: #888888;
+  background: rgba(136, 136, 136, 0.2);
+}
+
 /* Argument hint only mode - tighter spacing */
 .slash-suggestion-item.argument-hint-only {
   gap: 4px;

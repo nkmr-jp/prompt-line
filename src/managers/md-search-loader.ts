@@ -336,6 +336,7 @@ class MdSearchLoader {
         const resolvedLabel = resolveTemplate(entry.label, context);
         if (resolvedLabel) item.label = resolvedLabel;
       }
+      if (entry.labelColor) item.labelColor = entry.labelColor;
       if (entry.argumentHint) {
         const resolvedHint = resolveTemplate(entry.argumentHint, context);
         if (resolvedHint) item.argumentHint = resolvedHint;

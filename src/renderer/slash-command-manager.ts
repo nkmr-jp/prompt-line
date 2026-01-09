@@ -15,6 +15,7 @@ interface SlashCommandItem {
   name: string;
   description: string;
   label?: string;  // Label text (e.g., from frontmatter)
+  labelColor?: 'purple' | 'blue' | 'green' | 'orange' | 'red' | 'gray';  // Label badge color
   argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
@@ -379,6 +380,9 @@ export class SlashCommandManager implements IInitializable {
       if (cmd.label) {
         const labelBadge = document.createElement('span');
         labelBadge.className = 'slash-command-label';
+        if (cmd.labelColor) {
+          labelBadge.dataset.color = cmd.labelColor;
+        }
         labelBadge.textContent = cmd.label;
         item.appendChild(labelBadge);
       } else if (cmd.displayName) {
