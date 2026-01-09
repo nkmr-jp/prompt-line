@@ -768,6 +768,16 @@ export class SlashCommandManager implements IInitializable {
   }
 
   /**
+   * Get command source by command name
+   * @param commandName - Command name without slash (e.g., "commit")
+   * @returns Source identifier (e.g., "claude", "codex", "gemini", "custom") or undefined if not found
+   */
+  public getCommandSource(commandName: string): string | undefined {
+    const command = this.commands.find(cmd => cmd.name === commandName);
+    return command?.source;
+  }
+
+  /**
    * Invalidate command cache to force reload
    */
   public invalidateCache(): void {
