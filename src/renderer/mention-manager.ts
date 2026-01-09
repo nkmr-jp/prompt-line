@@ -103,7 +103,8 @@ export class MentionManager implements IInitializable {
       updateHighlightBackdrop: () => this.updateHighlightBackdrop(),
       getCachedDirectoryData: () => this.directoryCacheManager?.getCachedData() ?? null,
       isCommandEnabledSync: () => this.isCommandEnabledSync(),
-      checkFileExists: (path: string) => this.checkFileExistsAbsolute(path)
+      checkFileExists: (path: string) => this.checkFileExistsAbsolute(path),
+      getKnownCommandNames: () => this.callbacks.getKnownCommandNames?.() ?? []
     });
 
     // Initialize NavigationManager (consolidated keyboard + directory/file navigation + item selection)

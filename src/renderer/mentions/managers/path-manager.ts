@@ -60,6 +60,9 @@ export interface PathManagerCallbacks {
   // Event listener control (for @path deletion)
   suspendInputListeners?: (() => void) | undefined;
   resumeInputListeners?: (() => void) | undefined;
+
+  // Slash command support (for multi-word command detection)
+  getKnownCommandNames?: (() => string[]) | undefined;
 }
 
 /**
@@ -700,8 +703,9 @@ export class PathManager {
 
     const cursorPos = this.callbacks.getCursorPosition();
     const text = this.callbacks.getTextContent();
+    const knownCommandNames = this.callbacks.getKnownCommandNames?.();
 
-    const slashCommand = findSlashCommandAtCursor(text, cursorPos);
+    const slashCommand = findSlashCommandAtCursor(text, cursorPos, knownCommandNames);
 
     if (!slashCommand) {
       return false;
