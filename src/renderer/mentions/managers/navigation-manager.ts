@@ -337,13 +337,16 @@ export class NavigationManager {
     const codeSearchManager = this.callbacks.getCodeSearchManager();
     if (!cachedData || !codeSearchManager) return;
 
-    // Update local state for UI (but don't update text input yet to prevent flicker)
+    // Update local state for UI
     this.callbacks.setIsInSymbolMode(true);
     this.callbacks.setCurrentFilePath(relativePath);
     this.callbacks.setCurrentQuery('');
     this.callbacks.setCurrentPath(relativePath);
 
-    // Delegate symbol loading to CodeSearchManager FIRST (before updating text input)
+    // Update text input to show the file path
+    this.callbacks.updateTextInputWithPath(relativePath);
+
+    // Delegate symbol loading to CodeSearchManager
     await codeSearchManager.navigateIntoFile(
       cachedData.directory,
       relativePath,
@@ -353,16 +356,13 @@ export class NavigationManager {
 
     // Check if CodeSearchManager successfully loaded symbols
     if (!codeSearchManager.isInSymbolModeActive()) {
-      // No symbols found - insert file path directly (single text update)
+      // No symbols found - insert file path directly
       this.callbacks.setIsInSymbolMode(false);
       this.callbacks.insertFilePath(relativePath);
       this.callbacks.hideSuggestions();
       this.callbacks.onFileSelected(relativePath);
       return;
     }
-
-    // Symbols found - now update text input (single text update)
-    this.callbacks.updateTextInputWithPath(relativePath);
 
     // Get symbols from CodeSearchManager
     const symbols = codeSearchManager.getCurrentFileSymbols();
