@@ -530,25 +530,23 @@ export class HighlightManager {
       }
     }
 
-    // Add all slash commands with text color change (always visible)
-    if (this.callbacks.isCommandEnabledSync?.()) {
-      const slashCommands = findAllSlashCommands(text);
-      for (const cmd of slashCommands) {
-        const overlapsWithAtPath = atPaths.some(
-          ap => (cmd.start >= ap.start && cmd.start < ap.end) ||
-                (cmd.end > ap.start && cmd.end <= ap.end)
-        );
-        const overlapsWithUrl = urls.some(
-          u => (cmd.start >= u.start && cmd.start < u.end) ||
-               (cmd.end > u.start && cmd.end <= u.end)
-        );
-        const overlapsWithPath = absolutePaths.some(
-          p => (cmd.start >= p.start && cmd.start < p.end) ||
-               (cmd.end > p.start && cmd.end <= p.end)
-        );
-        if (!overlapsWithAtPath && !overlapsWithUrl && !overlapsWithPath) {
-          ranges.push({ start: cmd.start, end: cmd.end, className: 'slash-command-highlight' });
-        }
+    // Always highlight slash commands (no dependency on searchPrefixes)
+    const slashCommands = findAllSlashCommands(text);
+    for (const cmd of slashCommands) {
+      const overlapsWithAtPath = atPaths.some(
+        ap => (cmd.start >= ap.start && cmd.start < ap.end) ||
+              (cmd.end > ap.start && cmd.end <= ap.end)
+      );
+      const overlapsWithUrl = urls.some(
+        u => (cmd.start >= u.start && cmd.start < u.end) ||
+             (cmd.end > u.start && cmd.end <= u.end)
+      );
+      const overlapsWithPath = absolutePaths.some(
+        p => (cmd.start >= p.start && cmd.start < p.end) ||
+             (cmd.end > p.start && cmd.end <= p.end)
+      );
+      if (!overlapsWithAtPath && !overlapsWithUrl && !overlapsWithPath) {
+        ranges.push({ start: cmd.start, end: cmd.end, className: 'slash-command-highlight' });
       }
     }
 
@@ -609,25 +607,23 @@ export class HighlightManager {
       }
     }
 
-    // Add all slash commands with text color change (always visible)
-    if (this.callbacks.isCommandEnabledSync?.()) {
-      const slashCommands = findAllSlashCommands(text);
-      for (const cmd of slashCommands) {
-        const overlapsWithAtPath = atPaths.some(
-          ap => (cmd.start >= ap.start && cmd.start < ap.end) ||
-                (cmd.end > ap.start && cmd.end <= ap.end)
-        );
-        const overlapsWithUrl = urls.some(
-          u => (cmd.start >= u.start && cmd.start < u.end) ||
-               (cmd.end > u.start && cmd.end <= u.end)
-        );
-        const overlapsWithPath = absolutePaths.some(
-          p => (cmd.start >= p.start && cmd.start < p.end) ||
-               (cmd.end > p.start && cmd.end <= p.end)
-        );
-        if (!overlapsWithAtPath && !overlapsWithUrl && !overlapsWithPath) {
-          ranges.push({ start: cmd.start, end: cmd.end, className: 'slash-command-highlight' });
-        }
+    // Always highlight slash commands (no dependency on searchPrefixes)
+    const slashCommands = findAllSlashCommands(text);
+    for (const cmd of slashCommands) {
+      const overlapsWithAtPath = atPaths.some(
+        ap => (cmd.start >= ap.start && cmd.start < ap.end) ||
+              (cmd.end > ap.start && cmd.end <= ap.end)
+      );
+      const overlapsWithUrl = urls.some(
+        u => (cmd.start >= u.start && cmd.start < u.end) ||
+             (cmd.end > u.start && cmd.end <= u.end)
+      );
+      const overlapsWithPath = absolutePaths.some(
+        p => (cmd.start >= p.start && cmd.start < p.end) ||
+             (cmd.end > p.start && cmd.end <= p.end)
+      );
+      if (!overlapsWithAtPath && !overlapsWithUrl && !overlapsWithPath) {
+        ranges.push({ start: cmd.start, end: cmd.end, className: 'slash-command-highlight' });
       }
     }
 
@@ -685,27 +681,25 @@ export class HighlightManager {
       }
     }
 
-    // Add all slash commands with text color change (always visible)
-    if (this.callbacks.isCommandEnabledSync?.()) {
-      const slashCommands = findAllSlashCommands(text);
-      for (const cmd of slashCommands) {
-        const overlapsWithAtPath = atPaths.some(
-          ap => (cmd.start >= ap.start && cmd.start < ap.end) ||
-                (cmd.end > ap.start && cmd.end <= ap.end)
-        );
-        const overlapsWithUrl = urls.some(
-          u => (cmd.start >= u.start && cmd.start < u.end) ||
-               (cmd.end > u.start && cmd.end <= u.end)
-        );
-        const overlapsWithPath = absolutePaths.some(
-          p => (cmd.start >= p.start && cmd.start < p.end) ||
-               (cmd.end > p.start && cmd.end <= p.end)
-        );
-        if (!overlapsWithAtPath && !overlapsWithUrl && !overlapsWithPath) {
-          const isHovered = cmd.start === this.hoveredAtPath.start && cmd.end === this.hoveredAtPath.end;
-          const className = isHovered ? 'slash-command-highlight file-path-link' : 'slash-command-highlight';
-          ranges.push({ start: cmd.start, end: cmd.end, className });
-        }
+    // Always highlight slash commands (no dependency on searchPrefixes)
+    const slashCommands = findAllSlashCommands(text);
+    for (const cmd of slashCommands) {
+      const overlapsWithAtPath = atPaths.some(
+        ap => (cmd.start >= ap.start && cmd.start < ap.end) ||
+              (cmd.end > ap.start && cmd.end <= ap.end)
+      );
+      const overlapsWithUrl = urls.some(
+        u => (cmd.start >= u.start && cmd.start < u.end) ||
+             (cmd.end > u.start && cmd.end <= u.end)
+      );
+      const overlapsWithPath = absolutePaths.some(
+        p => (cmd.start >= p.start && cmd.start < p.end) ||
+             (cmd.end > p.start && cmd.end <= p.end)
+      );
+      if (!overlapsWithAtPath && !overlapsWithUrl && !overlapsWithPath) {
+        const isHovered = cmd.start === this.hoveredAtPath.start && cmd.end === this.hoveredAtPath.end;
+        const className = isHovered ? 'slash-command-highlight file-path-link' : 'slash-command-highlight';
+        ranges.push({ start: cmd.start, end: cmd.end, className });
       }
     }
 
@@ -713,8 +707,7 @@ export class HighlightManager {
     if (!isHoveredAtPath) {
       const isHoveredUrl = urls.some(u => u.start === this.hoveredAtPath!.start && u.end === this.hoveredAtPath!.end);
       const isHoveredPath = absolutePaths.some(p => p.start === this.hoveredAtPath!.start && p.end === this.hoveredAtPath!.end);
-      const isHoveredSlashCommand = this.callbacks.isCommandEnabledSync?.() ?
-        findAllSlashCommands(text).some(c => c.start === this.hoveredAtPath!.start && c.end === this.hoveredAtPath!.end) : false;
+      const isHoveredSlashCommand = findAllSlashCommands(text).some(c => c.start === this.hoveredAtPath!.start && c.end === this.hoveredAtPath!.end);
       if (!isHoveredUrl && !isHoveredPath && !isHoveredSlashCommand) {
         ranges.push({ ...this.hoveredAtPath, className: 'file-path-link' });
       }
