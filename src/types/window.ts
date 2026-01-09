@@ -304,7 +304,7 @@ export interface MdSearchEntry {
   path: string;
   /** ファイルパターン（glob形式、例: "*.md", "SKILL.md"） */
   pattern: string;
-  /** オプション: labelテンプレート（例: "{frontmatter@label}"） */
+  /** オプション: label（静的な値 "skill" または テンプレート "{frontmatter@label}"） */
   label?: string;
   /** オプション: argumentHintテンプレート */
   argumentHint?: string;
