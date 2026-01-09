@@ -353,11 +353,21 @@ class HistoryManager implements IHistoryManager {
 
       // Read from file for larger limits
       const lines = await this.readLastNLines(limit);
-      const items: HistoryItem[] = [];
+      const allItems: HistoryItem[] = [];
 
       for (const line of lines) {
         const item = safeJsonParse<HistoryItem>(line);
         if (item && this.validateHistoryItem(item)) {
+          allItems.push(item);
+        }
+      }
+
+      // テキストベースで重複排除（最新のアイテムのみ保持）
+      const seenTexts = new Set<string>();
+      const items: HistoryItem[] = [];
+      for (const item of allItems) {
+        if (!seenTexts.has(item.text)) {
+          seenTexts.add(item.text);
           items.unshift(item); // Newest first
         }
       }
