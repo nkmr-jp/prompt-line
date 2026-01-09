@@ -769,12 +769,25 @@ export class SlashCommandManager implements IInitializable {
 
   /**
    * Get command source by command name
+   * Returns undefined if command is not found, has no source, or exists in multiple sources (duplicate)
    * @param commandName - Command name without slash (e.g., "commit")
-   * @returns Source identifier (e.g., "claude", "codex", "gemini", "custom") or undefined if not found
+   * @returns Source identifier (e.g., "claude", "codex", "gemini", "custom") or undefined
    */
   public getCommandSource(commandName: string): string | undefined {
-    const command = this.commands.find(cmd => cmd.name === commandName);
-    return command?.source;
+    const matchingCommands = this.commands.filter(cmd => cmd.name === commandName);
+
+    // No command found or command has no source
+    if (matchingCommands.length === 0) {
+      return undefined;
+    }
+
+    // Check if command exists in multiple different sources (duplicate)
+    const uniqueSources = new Set(matchingCommands.map(cmd => cmd.source).filter(Boolean));
+    if (uniqueSources.size > 1) {
+      return undefined; // Duplicate command in multiple sources - return undefined for gray highlight
+    }
+
+    return matchingCommands[0]?.source;
   }
 
   /**

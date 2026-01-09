@@ -171,9 +171,9 @@
     -webkit-box-decoration-break: clone;
 }
 
-/* Default slash command highlight (fallback when source is unknown) */
+/* Default slash command highlight (gray for unknown source or duplicate commands) */
 .highlight-backdrop .slash-command-highlight {
-    background: rgba(217, 70, 239, 0.3);  /* Magenta (default) */
+    background: rgba(128, 128, 128, 0.35);  /* Gray (default for unknown/duplicate) */
     border-radius: 8px;
     color: transparent;
 
