@@ -145,9 +145,14 @@ export class SlashCommandManager implements IInitializable {
               try {
                 await navigator.clipboard.writeText(argumentHint);
                 // Show "Copied!" feedback
-                suggestionItem.classList.add('copied');
+                const copiedIndicator = document.createElement('span');
+                copiedIndicator.className = 'copied-indicator';
+                copiedIndicator.textContent = '✓ Copied!';
+                suggestionItem.appendChild(copiedIndicator);
+
+                // Remove after 1 second
                 setTimeout(() => {
-                  suggestionItem.classList.remove('copied');
+                  copiedIndicator.remove();
                 }, 1000);
               } catch (error) {
                 console.error('Failed to copy argumentHint to clipboard:', error);
@@ -165,9 +170,14 @@ export class SlashCommandManager implements IInitializable {
             try {
               await navigator.clipboard.writeText(command.argumentHint);
               // Show "Copied!" feedback
-              suggestionItem.classList.add('copied');
+              const copiedIndicator = document.createElement('span');
+              copiedIndicator.className = 'copied-indicator';
+              copiedIndicator.textContent = '✓ Copied!';
+              suggestionItem.appendChild(copiedIndicator);
+
+              // Remove after 1 second
               setTimeout(() => {
-                suggestionItem.classList.remove('copied');
+                copiedIndicator.remove();
               }, 1000);
             } catch (error) {
               console.error('Failed to copy argumentHint to clipboard:', error);

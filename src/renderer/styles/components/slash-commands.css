@@ -177,13 +177,11 @@
 }
 
 /* Copied feedback */
-.slash-suggestion-item.copied::after {
-  content: '✓ Copied!';
-  position: absolute;
-  right: 10px;
-  font-size: 11px;
+.copied-indicator {
   color: #7fdbc8;
+  font-size: 11px;
   font-weight: 500;
+  margin-left: auto;
   animation: fadeIn 0.2s ease-in-out;
 }
 
@@ -196,8 +194,4 @@
     opacity: 1;
     transform: translateY(0);
   }
-}
-
-.slash-suggestion-item {
-  position: relative;
 }
