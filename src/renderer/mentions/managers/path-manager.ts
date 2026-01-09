@@ -688,6 +688,70 @@ export class PathManager {
     return true;
   }
 
+  /**
+   * Handle backspace key for slash command deletion
+   * Deletes the entire slash command when cursor is at the end
+   *
+   * Uses event listener suspension to prevent cursor interference.
+   *
+   * @param e - Keyboard event
+   * @returns true if slash command was deleted, false otherwise
+   */
+  public handleBackspaceForSlashCommand(e: KeyboardEvent): boolean {
+    if (!this.callbacks.getCursorPosition || !this.callbacks.setCursorPosition) return false;
+
+    const cursorPos = this.callbacks.getCursorPosition();
+    const text = this.callbacks.getTextContent();
+
+    const slashCommand = findSlashCommandAtCursor(text, cursorPos);
+
+    if (!slashCommand) {
+      return false;
+    }
+
+    e.preventDefault();
+
+    // Save state before deletion
+    const savedScrollTop = this.textInput?.scrollTop ?? 0;
+    const savedScrollLeft = this.textInput?.scrollLeft ?? 0;
+    const savedStart = slashCommand.start;
+    const savedEnd = slashCommand.end;
+
+    // CRITICAL: Suspend input/selectionchange listeners to prevent cursor interference
+    this.callbacks.suspendInputListeners?.();
+
+    // Calculate delete range (include trailing space if present)
+    let deleteEnd = savedEnd;
+    if (text[deleteEnd] === ' ') {
+      deleteEnd++;
+    }
+
+    // Perform deletion
+    if (this.callbacks.replaceRangeWithUndo) {
+      this.callbacks.replaceRangeWithUndo(savedStart, deleteEnd, '');
+    } else if (this.callbacks.setTextContent) {
+      const newText = text.substring(0, savedStart) + text.substring(deleteEnd);
+      this.callbacks.setTextContent(newText);
+      this.callbacks.setCursorPosition?.(savedStart);
+    }
+
+    // Restore scroll position immediately after deletion
+    if (this.textInput) {
+      this.textInput.scrollTop = savedScrollTop;
+      this.textInput.scrollLeft = savedScrollLeft;
+    }
+
+    // Update highlight backdrop (slash commands are found dynamically, no rescan needed)
+    this.callbacks.updateHighlightBackdrop?.();
+
+    // Resume listeners after a short delay to ensure all updates are complete
+    requestAnimationFrame(() => {
+      this.callbacks.resumeInputListeners?.();
+    });
+
+    return true;
+  }
+
   // ==========================================================================
   // Validation
   // ==========================================================================

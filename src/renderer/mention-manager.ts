@@ -177,6 +177,7 @@ export class MentionManager implements IInitializable {
       updateCursorPositionHighlight: () => this.updateCursorPositionHighlight(),
       handleKeyDown: (e: KeyboardEvent) => this.handleKeyDown(e),
       handleBackspaceForAtPath: (e: KeyboardEvent) => this.handleBackspaceForAtPath(e),
+      handleBackspaceForSlashCommand: (e: KeyboardEvent) => this.handleBackspaceForSlashCommand(e),
       handleCtrlEnterOpenFile: (e: KeyboardEvent) => this.fileOpenerManager?.handleCtrlEnter(e),
       handleCmdClickOnAtPath: (e: MouseEvent) => this.fileOpenerManager?.handleCmdClick(e),
       handleMouseMove: (e: MouseEvent) => this.handleMouseMove(e),
@@ -953,8 +954,16 @@ export class MentionManager implements IInitializable {
    * Handle backspace key to delete entire @path if cursor is at the end
    * Delegates to PathManager
    */
-  private handleBackspaceForAtPath(e: KeyboardEvent): void {
-    this.pathManager.handleBackspaceForAtPath(e);
+  private handleBackspaceForAtPath(e: KeyboardEvent): boolean {
+    return this.pathManager.handleBackspaceForAtPath(e);
+  }
+
+  /**
+   * Handle backspace key to delete entire slash command if cursor is at the end
+   * Delegates to PathManager
+   */
+  private handleBackspaceForSlashCommand(e: KeyboardEvent): boolean {
+    return this.pathManager.handleBackspaceForSlashCommand(e);
   }
 
   /**
