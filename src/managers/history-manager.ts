@@ -70,9 +70,20 @@ class HistoryManager implements IHistoryManager {
       this.recentCache = [];
       this.duplicateCheckSet.clear();
 
+      // 一時的に全アイテムを読み込み
+      const allItems: HistoryItem[] = [];
       for (const line of lines) {
         const item = safeJsonParse<HistoryItem>(line);
         if (item && this.validateHistoryItem(item)) {
+          allItems.push(item);
+        }
+      }
+
+      // テキストベースで重複排除（最新のアイテムのみ保持）
+      const seenTexts = new Set<string>();
+      for (const item of allItems) {
+        if (!seenTexts.has(item.text)) {
+          seenTexts.add(item.text);
           this.recentCache.unshift(item);
           this.duplicateCheckSet.add(item.text);
         }
