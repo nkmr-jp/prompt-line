@@ -250,49 +250,54 @@ export class SlashCommandManager implements IInitializable {
 
     const text = this.textarea.value;
     const cursorPos = this.textarea.selectionStart;
-
-    // Look backward from cursor to find a slash command pattern: /commandname followed by space
-    // The cursor should be exactly after the space (argument input position)
     const textBeforeCursor = text.substring(0, cursorPos);
 
-    // Find the last slash command pattern: /commandname followed by space at the end
-    // Pattern: starts with / at line start or after whitespace, followed by command name and space
-    // Command names can include colons (e.g., serena:plan, skill:creater)
-    const match = textBeforeCursor.match(/(?:^|[\s])\/([a-zA-Z0-9_:-]+) $/);
-
-    if (!match) {
-      // No command pattern found at cursor position, hide any existing hint
+    // Cursor must be right after a space (argument input position)
+    if (!textBeforeCursor.endsWith(' ')) {
       if (this.isEditingMode) {
         this.hideSuggestions();
       }
       return;
     }
 
-    const commandName = match[1];
-    const command = this.commands.find(cmd => cmd.name === commandName);
+    // Use known command names to find matching command
+    // Sort by name length descending to match longer commands first (e.g., "Linear API" before "Linear")
+    const sortedCommands = [...this.commands].sort((a, b) => b.name.length - a.name.length);
 
-    if (!command || !command.argumentHint) {
-      // Command not found or has no argumentHint
+    let matchedCommand: SlashCommandItem | null = null;
+    let commandStartPos = -1;
+
+    for (const cmd of sortedCommands) {
+      const pattern = '/' + cmd.name + ' ';
+      if (textBeforeCursor.endsWith(pattern)) {
+        // Verify it's at start of text or preceded by whitespace
+        const patternStartPos = textBeforeCursor.length - pattern.length;
+        const prevChar = patternStartPos > 0 ? textBeforeCursor[patternStartPos - 1] : '';
+        if (prevChar === '' || prevChar === ' ' || prevChar === '\n' || prevChar === '\t') {
+          matchedCommand = cmd;
+          commandStartPos = patternStartPos;
+          break;
+        }
+      }
+    }
+
+    if (!matchedCommand || !matchedCommand.argumentHint) {
+      // No command found or command has no argumentHint
       if (this.isEditingMode) {
         this.hideSuggestions();
       }
       return;
     }
-
-    // Calculate the command start position
-    // match[0] includes the leading whitespace or start, so we need to adjust
-    const matchStart = textBeforeCursor.length - match[0].length;
-    const commandStartPos = match[0].startsWith('/') ? matchStart : matchStart + 1; // +1 to skip leading whitespace
 
     // Show argumentHint for this command
-    this.filteredCommands = [command];
+    this.filteredCommands = [matchedCommand];
     this.selectedIndex = 0;
     this.isEditingMode = true;
-    this.editingCommandName = command.name;
+    this.editingCommandName = matchedCommand.name;
     this.editingCommandStartPos = commandStartPos;
     this.currentTriggerStartPos = commandStartPos;
 
-    this.showArgumentHintOnly(command);
+    this.showArgumentHintOnly(matchedCommand);
   }
 
   /**
