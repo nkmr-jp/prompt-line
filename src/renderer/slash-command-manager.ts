@@ -819,6 +819,14 @@ export class SlashCommandManager implements IInitializable {
   }
 
   /**
+   * Get all known command names for multi-word command detection in highlighting
+   * @returns Array of command names (without slash prefix)
+   */
+  public getKnownCommandNames(): string[] {
+    return this.commands.map(cmd => cmd.name);
+  }
+
+  /**
    * Invalidate command cache to force reload
    */
   public invalidateCache(): void {

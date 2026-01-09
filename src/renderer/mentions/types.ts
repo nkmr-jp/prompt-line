@@ -41,6 +41,7 @@ export interface MentionCallbacks {
   showError?: (message: string) => void; // Show error message to user
   getCommandSource?: (commandName: string) => string | undefined; // Get source for slash command (e.g., "claude", "custom")
   getCommandLabelColor?: (commandName: string) => string | undefined; // Get labelColor for slash command
+  getKnownCommandNames?: () => string[]; // Get list of all known slash command names (for multi-word command detection)
 }
 
 // Represents a tracked @path in the text

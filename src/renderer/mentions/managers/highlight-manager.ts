@@ -39,6 +39,7 @@ export interface HighlightManagerCallbacks {
   checkFileExists?: (path: string) => Promise<boolean>;
   getCommandSource?: (commandName: string) => string | undefined;
   getCommandLabelColor?: (commandName: string) => string | undefined;
+  getKnownCommandNames?: () => string[];
 }
 
 export interface DirectoryDataForHighlight {
@@ -620,7 +621,8 @@ export class HighlightManager {
     }
 
     // Always highlight slash commands (no dependency on searchPrefixes)
-    const slashCommands = findAllSlashCommands(text);
+    const knownCommandNames = this.callbacks.getKnownCommandNames?.();
+    const slashCommands = findAllSlashCommands(text, knownCommandNames);
     for (const cmd of slashCommands) {
       const overlapsWithAtPath = atPaths.some(
         ap => (cmd.start >= ap.start && cmd.start < ap.end) ||
@@ -698,7 +700,8 @@ export class HighlightManager {
     }
 
     // Always highlight slash commands (no dependency on searchPrefixes)
-    const slashCommands = findAllSlashCommands(text);
+    const knownCommandNames2 = this.callbacks.getKnownCommandNames?.();
+    const slashCommands = findAllSlashCommands(text, knownCommandNames2);
     for (const cmd of slashCommands) {
       const overlapsWithAtPath = atPaths.some(
         ap => (cmd.start >= ap.start && cmd.start < ap.end) ||
@@ -773,7 +776,8 @@ export class HighlightManager {
     }
 
     // Always highlight slash commands (no dependency on searchPrefixes)
-    const slashCommands = findAllSlashCommands(text);
+    const knownCommandNames3 = this.callbacks.getKnownCommandNames?.();
+    const slashCommands = findAllSlashCommands(text, knownCommandNames3);
     for (const cmd of slashCommands) {
       const overlapsWithAtPath = atPaths.some(
         ap => (cmd.start >= ap.start && cmd.start < ap.end) ||
@@ -784,7 +788,7 @@ export class HighlightManager {
              (cmd.end > u.start && cmd.end <= u.end)
       );
       const overlapsWithPath = absolutePaths.some(
-        p => (cmd.start >= p.start && cmd.start < p.end) ||
+        p => (cmd.start >= p.start && p.start < p.end) ||
              (cmd.end > p.start && cmd.end <= p.end)
       );
       if (!overlapsWithAtPath && !overlapsWithUrl && !overlapsWithPath) {
@@ -799,7 +803,7 @@ export class HighlightManager {
     if (!isHoveredAtPath) {
       const isHoveredUrl = urls.some(u => u.start === this.hoveredAtPath!.start && u.end === this.hoveredAtPath!.end);
       const isHoveredPath = absolutePaths.some(p => p.start === this.hoveredAtPath!.start && p.end === this.hoveredAtPath!.end);
-      const isHoveredSlashCommand = findAllSlashCommands(text).some(c => c.start === this.hoveredAtPath!.start && c.end === this.hoveredAtPath!.end);
+      const isHoveredSlashCommand = findAllSlashCommands(text, knownCommandNames3).some(c => c.start === this.hoveredAtPath!.start && c.end === this.hoveredAtPath!.end);
       if (!isHoveredUrl && !isHoveredPath && !isHoveredSlashCommand) {
         ranges.push({ ...this.hoveredAtPath, className: 'file-path-link' });
       }
