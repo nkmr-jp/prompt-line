@@ -90,12 +90,12 @@
   background: rgba(199, 146, 234, 0.2);
 }
 
-/* Label badge */
+/* Label badge (same color as custom) */
 .slash-command-label {
   flex-shrink: 0;
   font-size: 9px;
-  color: var(--text-secondary, #888);
-  background: rgba(100, 100, 100, 0.3);
+  color: #c792ea;
+  background: rgba(199, 146, 234, 0.2);
   padding: 2px 4px;
   border-radius: 3px;
   margin-right: 2px;
