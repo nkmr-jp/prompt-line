@@ -288,6 +288,36 @@ export function findAllAbsolutePaths(text: string): PathMatch[] {
 }
 
 /**
+ * Find all slash commands in the text
+ * Returns array of { command, start, end }
+ * Slash commands are like /commit, /help (single word after /)
+ */
+export function findAllSlashCommands(text: string): CommandMatch[] {
+  const results: CommandMatch[] = [];
+  // Pattern to match slash commands: /word (no slashes in the middle)
+  const slashCommandPattern = /\/([a-zA-Z][a-zA-Z0-9_-]*)/g;
+  let match;
+
+  while ((match = slashCommandPattern.exec(text)) !== null) {
+    const start = match.index;
+    const end = start + match[0].length;
+    const commandName = match[1] ?? '';
+
+    // Make sure it's at the start of text or after whitespace (not part of a path)
+    const prevChar = start > 0 ? text[start - 1] : ' ';
+    if (prevChar === ' ' || prevChar === '\n' || prevChar === '\t' || start === 0) {
+      results.push({
+        command: commandName,
+        start,
+        end
+      });
+    }
+  }
+
+  return results;
+}
+
+/**
  * Resolve a relative file path to absolute path
  * Handles paths with line number and symbol suffix: path:lineNumber#symbolName
  * Preserves line number and symbol suffix in the returned path

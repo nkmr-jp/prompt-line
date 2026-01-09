@@ -171,6 +171,21 @@
     -webkit-box-decoration-break: clone;
 }
 
+/* Slash command highlight - text color change only, no background */
+.highlight-backdrop .slash-command-highlight {
+    color: var(--accent-primary, #82aaff);
+    background: transparent;
+}
+
+/* Slash command with link style (Cmd+hover or cursor over slash command) */
+.highlight-backdrop .slash-command-highlight.file-path-link {
+    text-decoration: underline;
+    text-decoration-color: rgba(255, 255, 255, 0.4);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+    cursor: pointer;
+}
+
 /* File path link style for Cmd+hover or cursor position */
 .highlight-backdrop .file-path-link {
     /* Override the transparent color to make link visible */
