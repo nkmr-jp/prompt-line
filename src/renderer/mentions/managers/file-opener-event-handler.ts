@@ -140,6 +140,10 @@ export class FileOpenerEventHandler {
    * Priority order: URL → Slash Command → @path → Absolute Path
    */
   async handleCmdClick(e: MouseEvent): Promise<void> {
+    // Wait for the browser to update cursor position after click
+    // Using requestAnimationFrame ensures cursor position is updated
+    await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
+
     const handled = await this.tryOpenItemAtCursor();
     if (handled) {
       e.preventDefault();

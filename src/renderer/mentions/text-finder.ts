@@ -359,3 +359,30 @@ export function resolveAtPathToAbsolute(
 
   return absolutePath;
 }
+
+/**
+ * Find slash command at cursor position for backspace deletion
+ * Returns command if cursor is at end of command (within 3 chars, only spaces between)
+ */
+export function findSlashCommandAtCursor(
+  text: string,
+  cursorPos: number
+): CommandMatch | null {
+  const commands = findAllSlashCommands(text);
+
+  for (const cmd of commands) {
+    // Check if cursor is at end of command (within 3 chars, only terminators between)
+    if (cursorPos >= cmd.end && cursorPos <= cmd.end + 3) {
+      // Check no newline between command end and cursor
+      const betweenText = text.substring(cmd.end, cursorPos);
+      if (betweenText.includes('\n')) continue;
+
+      // Check all chars between are terminators (space/newline)
+      const terminators = [' ', '\n', '\t'];
+      if ([...betweenText].every(ch => terminators.includes(ch))) {
+        return cmd;
+      }
+    }
+  }
+  return null;
+}

@@ -21,6 +21,7 @@ import {
   findAtPathAtPosition,
   findUrlAtPosition,
   findSlashCommandAtPosition,
+  findSlashCommandAtCursor,
   findClickablePathAtPosition
 } from '../text-finder';
 import { getRelativePath, parsePathWithLineInfo } from '../index';
