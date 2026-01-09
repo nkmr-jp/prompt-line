@@ -552,9 +552,14 @@ export class MentionManager implements IInitializable {
 
   /**
    * Check if file search should be processed
-   * Preturns true if file search should proceed
+   * Returns true if file search should proceed
    */
   private shouldProcessFileSearch(): boolean {
+    // Skip if already in symbol mode (navigating into file for symbol search)
+    // This prevents input event from interrupting symbol search
+    if (this.isInSymbolMode) {
+      return false;
+    }
     const hasCache = this.directoryCacheManager?.hasCache() ?? false;
     return this.state.fileSearchEnabled && !!this.state.textInput && hasCache;
   }
