@@ -39,6 +39,7 @@ export interface MentionCallbacks {
   replaceRangeWithUndo?: (start: number, end: number, newText: string) => void; // Replace text range with undo support
   getIsComposing?: () => boolean; // Check if IME is active to avoid conflicts with Japanese input
   showError?: (message: string) => void; // Show error message to user
+  getCommandSource?: (commandName: string) => string | undefined; // Get source for slash command (e.g., "claude", "custom")
 }
 
 // Represents a tracked @path in the text

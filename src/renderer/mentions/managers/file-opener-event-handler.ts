@@ -168,6 +168,7 @@ export class FileOpenerEventHandler {
     }
 
     // Check for slash command (like /commit, /help)
+    // Only user-defined commands have file paths; built-in commands return null
     const slashCommand = findSlashCommandAtPosition(text, cursorPos);
     if (slashCommand) {
       try {
@@ -176,10 +177,10 @@ export class FileOpenerEventHandler {
           await this.openFile(commandFilePath);
           return true;
         }
+        // Built-in commands (no file path) - don't consume event, allow fallthrough
       } catch (err) {
         handleError('FileOpenerEventHandler.handleCtrlEnter.slashCommand', err);
       }
-      return true; // Still consumed the event even if failed
     }
 
     // Find @path at cursor position

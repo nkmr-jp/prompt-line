@@ -37,6 +37,7 @@ export interface HighlightManagerCallbacks {
   isFileSearchEnabled?: () => boolean;
   isCommandEnabledSync?: () => boolean;
   checkFileExists?: (path: string) => Promise<boolean>;
+  getCommandSource?: (commandName: string) => string | undefined;
 }
 
 export interface DirectoryDataForHighlight {
@@ -448,6 +449,35 @@ export class HighlightManager {
   }
 
   // ============================================================
+  // Private - Helper Methods
+  // ============================================================
+
+  /**
+   * Get class name for slash command highlight based on its source
+   * @param text - Full text content
+   * @param start - Start position of slash command
+   * @param end - End position of slash command
+   * @returns Class name string with source-specific class if available
+   */
+  private getSlashCommandClassName(text: string, start: number, end: number): string {
+    const baseClassName = 'slash-command-highlight';
+
+    // Extract command name from text (skip leading "/")
+    const commandName = text.substring(start + 1, end);
+
+    // Get command source if callback is available
+    if (this.callbacks.getCommandSource) {
+      const source = this.callbacks.getCommandSource(commandName);
+      if (source) {
+        return `${baseClassName} slash-command-source-${source}`;
+      }
+    }
+
+    // Return base class name only if no source found
+    return baseClassName;
+  }
+
+  // ============================================================
   // Private - Hover State
   // ============================================================
 
@@ -544,7 +574,8 @@ export class HighlightManager {
              (cmd.end > p.start && cmd.end <= p.end)
       );
       if (!overlapsWithAtPath && !overlapsWithUrl && !overlapsWithPath) {
-        ranges.push({ start: cmd.start, end: cmd.end, className: 'slash-command-highlight' });
+        const className = this.getSlashCommandClassName(text, cmd.start, cmd.end);
+        ranges.push({ start: cmd.start, end: cmd.end, className });
       }
     }
 
@@ -621,7 +652,8 @@ export class HighlightManager {
              (cmd.end > p.start && cmd.end <= p.end)
       );
       if (!overlapsWithAtPath && !overlapsWithUrl && !overlapsWithPath) {
-        ranges.push({ start: cmd.start, end: cmd.end, className: 'slash-command-highlight' });
+        const className = this.getSlashCommandClassName(text, cmd.start, cmd.end);
+        ranges.push({ start: cmd.start, end: cmd.end, className });
       }
     }
 
@@ -696,7 +728,8 @@ export class HighlightManager {
       );
       if (!overlapsWithAtPath && !overlapsWithUrl && !overlapsWithPath) {
         const isHovered = cmd.start === this.hoveredAtPath.start && cmd.end === this.hoveredAtPath.end;
-        const className = isHovered ? 'slash-command-highlight file-path-link' : 'slash-command-highlight';
+        const baseClassName = this.getSlashCommandClassName(text, cmd.start, cmd.end);
+        const className = isHovered ? `${baseClassName} file-path-link` : baseClassName;
         ranges.push({ start: cmd.start, end: cmd.end, className });
       }
     }

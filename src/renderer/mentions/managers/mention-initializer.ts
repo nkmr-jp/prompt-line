@@ -51,6 +51,7 @@ export interface MentionInitializerCallbacks {
   buildValidPathsSet: () => Set<string> | null;
   getTotalItemCount: () => number;
   _getFileSearchMaxSuggestions: () => Promise<number>;
+  getCommandSource?: (commandName: string) => string | undefined;
 
   // Actions
   updateHighlightBackdrop: () => void;
@@ -233,7 +234,10 @@ export class MentionInitializer {
           } catch {
             return false;
           }
-        }
+        },
+        ...(this.callbacks.getCommandSource && {
+          getCommandSource: (commandName: string) => this.callbacks.getCommandSource?.(commandName)
+        })
       },
       this.deps.pathManager
     );

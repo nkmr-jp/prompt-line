@@ -43,6 +43,7 @@ const ALLOWED_CHANNELS = [
   'window-shown',
   'get-slash-commands',
   'get-slash-command-file-path',
+  'has-command-file',
   'directory-data-updated',
   'open-settings',
   'open-settings-directory',
@@ -266,6 +267,9 @@ const electronAPI: ElectronAPI = {
     },
     getFilePath: async (commandName: string): Promise<string | null> => {
       return ipcRenderer.invoke('get-slash-command-file-path', commandName);
+    },
+    hasFile: async (commandName: string): Promise<boolean> => {
+      return ipcRenderer.invoke('has-command-file', commandName);
     },
     // Global slash command cache
     registerGlobal: async (commandName: string): Promise<IPCResult> => {

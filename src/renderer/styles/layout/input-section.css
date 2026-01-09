@@ -171,49 +171,9 @@
     -webkit-box-decoration-break: clone;
 }
 
-/* Slash command highlight - Color Pattern Options
- * Uncomment one of the following to try different colors:
- *
- * Pattern 1: Purple (modern, complements blue @path)
- * background: rgba(168, 85, 247, 0.35);
- *
- * Pattern 2: Orange (warm, action-oriented)
- * background: rgba(251, 146, 60, 0.35);
- *
- * Pattern 3: Amber (warm, slightly muted)
- * background: rgba(245, 158, 11, 0.35);
- *
- * Pattern 4: Cyan (cool, terminal-like)
- * background: rgba(34, 211, 238, 0.35);
- *
- * Pattern 5: Pink (high visibility, distinct)
- * background: rgba(236, 72, 153, 0.35);
- *
- * Pattern 6: Magenta (vivid accent)
- * background: rgba(217, 70, 239, 0.35);
- *
- * Pattern 7: Gold (attention-grabbing)
- * background: rgba(234, 179, 8, 0.35);
- *
- * Pattern 8: Yellow (bright, warning-like)
- * background: rgba(250, 204, 21, 0.30);
- *
- * Pattern 9: Teal (calm, professional)
- * background: rgba(20, 184, 166, 0.35);
- *
- * Current: Emerald Green (default)
- */
+/* Default slash command highlight (fallback when source is unknown) */
 .highlight-backdrop .slash-command-highlight {
-    /*background: rgba(52, 211, 153, 0.3);  !* Current: Emerald Green *!*/
-    /* background: rgba(168, 85, 247, 0.35); */  /* Pattern 1: Purple */
-    /* background: rgba(251, 146, 60, 0.35); */  /* Pattern 2: Orange */
-    /* background: rgba(245, 158, 11, 0.35); */  /* Pattern 3: Amber */
-    /* background: rgba(34, 211, 238, 0.35); */  /* Pattern 4: Cyan */
-    /* background: rgba(236, 72, 153, 0.35); */  /* Pattern 5: Pink */
-    background: rgba(217, 70, 239, 0.3);  /* Pattern 6: Magenta */
-    /* background: rgba(234, 179, 8, 0.35); */   /* Pattern 7: Gold */
-    /* background: rgba(250, 204, 21, 0.30); */  /* Pattern 8: Yellow */
-    /* background: rgba(20, 184, 166, 0.35); */  /* Pattern 9: Teal */
+    background: rgba(217, 70, 239, 0.3);  /* Magenta (default) */
     border-radius: 8px;
     color: transparent;
 
@@ -224,6 +184,23 @@
     /* Use box-decoration-break for multi-line highlights */
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;
+}
+
+/* Source-specific slash command highlight colors */
+.highlight-backdrop .slash-command-highlight.slash-command-source-claude {
+    background: rgba(232, 197, 143, 0.35);
+}
+
+.highlight-backdrop .slash-command-highlight.slash-command-source-codex {
+    background: rgba(127, 219, 202, 0.35);
+}
+
+.highlight-backdrop .slash-command-highlight.slash-command-source-gemini {
+    background: rgba(130, 170, 255, 0.35);
+}
+
+.highlight-backdrop .slash-command-highlight.slash-command-source-custom {
+    background: rgba(199, 146, 234, 0.35);
 }
 
 /* Slash command with link style (Cmd+hover or cursor over slash command) */

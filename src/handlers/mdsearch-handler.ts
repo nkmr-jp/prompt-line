@@ -26,6 +26,7 @@ class MdSearchHandler {
   setupHandlers(ipcMain: typeof import('electron').ipcMain): void {
     ipcMain.handle('get-slash-commands', this.handleGetSlashCommands.bind(this));
     ipcMain.handle('get-slash-command-file-path', this.handleGetSlashCommandFilePath.bind(this));
+    ipcMain.handle('has-command-file', this.handleHasCommandFile.bind(this));
     ipcMain.handle('get-agents', this.handleGetAgents.bind(this));
     ipcMain.handle('get-agent-file-path', this.handleGetAgentFilePath.bind(this));
     ipcMain.handle('get-md-search-max-suggestions', this.handleGetMdSearchMaxSuggestions.bind(this));
@@ -42,6 +43,7 @@ class MdSearchHandler {
     const handlers = [
       'get-slash-commands',
       'get-slash-command-file-path',
+      'has-command-file',
       'get-agents',
       'get-agent-file-path',
       'get-md-search-max-suggestions',
@@ -168,6 +170,44 @@ class MdSearchHandler {
     } catch (error) {
       logger.error('Failed to get slash command file path:', error);
       return null;
+    }
+  }
+
+  /**
+   * Handler: has-command-file
+   * Checks if a command has an individual file (user-defined commands only)
+   * Built-in commands share a YAML file, so they don't have individual files
+   */
+  private async handleHasCommandFile(
+    _event: IpcMainInvokeEvent,
+    commandName: string
+  ): Promise<boolean> {
+    try {
+      if (!commandName || typeof commandName !== 'string') {
+        return false;
+      }
+
+      // Refresh config from settings in case they changed
+      this.updateConfig();
+
+      // Check if this is a built-in command
+      const builtInSettings = this.settingsManager.getBuiltInCommandsSettings();
+      if (builtInSettings) {
+        const builtInCommands = builtInCommandsLoader.searchCommands(undefined, builtInSettings);
+        const isBuiltIn = builtInCommands.some(cmd => cmd.name === commandName);
+        if (isBuiltIn) {
+          return false; // Built-in commands don't have individual files
+        }
+      }
+
+      // Check if this is a user-defined command (custom)
+      const items = await this.mdSearchLoader.getItems('command');
+      const command = items.find(c => c.name === commandName);
+
+      return !!command; // Has file if found in mdSearchLoader
+    } catch (error) {
+      logger.error('Failed to check command file:', error);
+      return false;
     }
   }
 

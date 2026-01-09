@@ -229,7 +229,8 @@ export class PromptLineRenderer {
         this.domManager.replaceRangeWithUndo(start, end, newText);
       },
       getIsComposing: () => this.eventHandler?.getIsComposing() ?? false,
-      showError: (message: string) => this.domManager.showError(message)
+      showError: (message: string) => this.domManager.showError(message),
+      getCommandSource: (commandName: string) => this.slashCommandManager?.getCommandSource(commandName)
     });
 
     this.fileSearchManager.initializeElements();

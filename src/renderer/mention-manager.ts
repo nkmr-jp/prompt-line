@@ -340,6 +340,9 @@ export class MentionManager implements IInitializable {
         buildValidPathsSet: () => this.buildValidPathsSet(),
         getTotalItemCount: () => this.getTotalItemCount(),
         _getFileSearchMaxSuggestions: () => this._getFileSearchMaxSuggestions(),
+        ...(this.callbacks.getCommandSource && {
+          getCommandSource: (commandName: string) => this.callbacks.getCommandSource?.(commandName)
+        }),
         updateHighlightBackdrop: () => this.updateHighlightBackdrop(),
         updateSelection: () => this.updateSelection(),
         hideSuggestions: () => this.hideSuggestions(),
