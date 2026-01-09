@@ -171,10 +171,19 @@
     -webkit-box-decoration-break: clone;
 }
 
-/* Slash command highlight - text color change only, no background */
+/* Slash command highlight - light green background */
 .highlight-backdrop .slash-command-highlight {
-    color: var(--accent-primary, #82aaff);
-    background: transparent;
+    background: rgba(52, 211, 153, 0.35);
+    border-radius: 8px;
+    color: transparent;
+
+    /* Expand highlight area by 1px in all directions */
+    padding: 1px;
+    margin: -1px;
+
+    /* Use box-decoration-break for multi-line highlights */
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
 }
 
 /* Slash command with link style (Cmd+hover or cursor over slash command) */
