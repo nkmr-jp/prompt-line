@@ -40,6 +40,7 @@ export interface MentionCallbacks {
   getIsComposing?: () => boolean; // Check if IME is active to avoid conflicts with Japanese input
   showError?: (message: string) => void; // Show error message to user
   getCommandSource?: (commandName: string) => string | undefined; // Get source for slash command (e.g., "claude", "custom")
+  getCommandLabelColor?: (commandName: string) => string | undefined; // Get labelColor for slash command
 }
 
 // Represents a tracked @path in the text

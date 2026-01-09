@@ -801,6 +801,23 @@ export class SlashCommandManager implements IInitializable {
   }
 
   /**
+   * Get label color for a slash command by name
+   * @param commandName - Command name without slash (e.g., "commit")
+   * @returns Label color (e.g., "purple", "blue") or undefined
+   */
+  public getCommandLabelColor(commandName: string): string | undefined {
+    const matchingCommands = this.commands.filter(cmd => cmd.name === commandName);
+
+    // No command found or command has no labelColor
+    if (matchingCommands.length === 0) {
+      return undefined;
+    }
+
+    // Return first matching command's labelColor
+    return matchingCommands[0]?.labelColor;
+  }
+
+  /**
    * Invalidate command cache to force reload
    */
   public invalidateCache(): void {

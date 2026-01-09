@@ -230,7 +230,8 @@ export class PromptLineRenderer {
       },
       getIsComposing: () => this.eventHandler?.getIsComposing() ?? false,
       showError: (message: string) => this.domManager.showError(message),
-      getCommandSource: (commandName: string) => this.slashCommandManager?.getCommandSource(commandName)
+      getCommandSource: (commandName: string) => this.slashCommandManager?.getCommandSource(commandName),
+      getCommandLabelColor: (commandName: string) => this.slashCommandManager?.getCommandLabelColor(commandName)
     });
 
     this.fileSearchManager.initializeElements();

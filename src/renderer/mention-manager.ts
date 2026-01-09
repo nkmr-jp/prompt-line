@@ -343,6 +343,9 @@ export class MentionManager implements IInitializable {
         ...(this.callbacks.getCommandSource && {
           getCommandSource: (commandName: string) => this.callbacks.getCommandSource?.(commandName)
         }),
+        ...(this.callbacks.getCommandLabelColor && {
+          getCommandLabelColor: (commandName: string) => this.callbacks.getCommandLabelColor?.(commandName)
+        }),
         updateHighlightBackdrop: () => this.updateHighlightBackdrop(),
         updateSelection: () => this.updateSelection(),
         hideSuggestions: () => this.hideSuggestions(),

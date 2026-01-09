@@ -203,6 +203,31 @@
     background: rgba(199, 146, 234, 0.25);
 }
 
+/* Label color based highlights (takes priority over source) */
+.highlight-backdrop .slash-command-highlight.slash-command-label-color-purple {
+    background: rgba(199, 146, 234, 0.25);
+}
+
+.highlight-backdrop .slash-command-highlight.slash-command-label-color-blue {
+    background: rgba(137, 221, 255, 0.25);
+}
+
+.highlight-backdrop .slash-command-highlight.slash-command-label-color-green {
+    background: rgba(127, 219, 200, 0.25);
+}
+
+.highlight-backdrop .slash-command-highlight.slash-command-label-color-orange {
+    background: rgba(255, 203, 107, 0.25);
+}
+
+.highlight-backdrop .slash-command-highlight.slash-command-label-color-red {
+    background: rgba(240, 113, 120, 0.25);
+}
+
+.highlight-backdrop .slash-command-highlight.slash-command-label-color-gray {
+    background: rgba(136, 136, 136, 0.25);
+}
+
 /* Slash command with link style (Cmd+hover or cursor over slash command) */
 .highlight-backdrop .slash-command-highlight.file-path-link {
     text-decoration: underline;

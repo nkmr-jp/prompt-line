@@ -52,6 +52,7 @@ export interface MentionInitializerCallbacks {
   getTotalItemCount: () => number;
   _getFileSearchMaxSuggestions: () => Promise<number>;
   getCommandSource?: (commandName: string) => string | undefined;
+  getCommandLabelColor?: (commandName: string) => string | undefined;
 
   // Actions
   updateHighlightBackdrop: () => void;
@@ -237,6 +238,9 @@ export class MentionInitializer {
         },
         ...(this.callbacks.getCommandSource && {
           getCommandSource: (commandName: string) => this.callbacks.getCommandSource?.(commandName)
+        }),
+        ...(this.callbacks.getCommandLabelColor && {
+          getCommandLabelColor: (commandName: string) => this.callbacks.getCommandLabelColor?.(commandName)
         })
       },
       this.deps.pathManager
