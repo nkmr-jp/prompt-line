@@ -71,6 +71,10 @@ slashCommands:
       description: "{frontmatter@description}"
       path: ~/.claude/skills
       pattern: "**/*/SKILL.md"
+    # - name: "{frontmatter@name}"
+    #   description: "{frontmatter@description}"
+    #   path: ~/.claude/plugins
+    #   pattern: "**/*/SKILL.md"
 
 # ============================================================================
 # MENTION SETTINGS (@ mentions)
