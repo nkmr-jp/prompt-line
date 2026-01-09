@@ -134,8 +134,7 @@
     /* Text wrapping control - must match textarea exactly */
     white-space: break-spaces;
     overflow-wrap: break-word;
-    /* break-all allows wrapping at any character to prevent horizontal overflow flicker */
-    word-break: break-all;
+    word-break: normal;
 
     /* Tab size - must match textarea */
     tab-size: 4;
@@ -231,8 +230,7 @@
     /* Text wrapping control - must match backdrop */
     white-space: break-spaces;
     overflow-wrap: break-word;
-    /* break-all allows wrapping at any character to prevent horizontal overflow flicker */
-    word-break: break-all;
+    word-break: normal;
 
     /* Tab size - must match backdrop */
     tab-size: 4;
