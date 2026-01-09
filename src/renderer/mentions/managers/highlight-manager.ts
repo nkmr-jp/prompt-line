@@ -191,20 +191,18 @@ export class HighlightManager {
       return;
     }
 
-    // Check if cursor is on a slash command (only if command type is enabled)
-    if (this.callbacks.isCommandEnabledSync?.()) {
-      const slashCommand = findSlashCommandAtPosition(text, cursorPos);
-      if (slashCommand) {
-        this.showSlashCommandOpenHint();
-        const newRange: AtPathRange = { start: slashCommand.start, end: slashCommand.end };
-        if (!this.cursorPositionPath ||
-            this.cursorPositionPath.start !== newRange.start ||
-            this.cursorPositionPath.end !== newRange.end) {
-          this.cursorPositionPath = newRange;
-          this.renderHighlightBackdropWithCursor();
-        }
-        return;
+    // Check if cursor is on a slash command (always show hint, consistent with highlighting)
+    const slashCommand = findSlashCommandAtPosition(text, cursorPos);
+    if (slashCommand) {
+      this.showSlashCommandOpenHint();
+      const newRange: AtPathRange = { start: slashCommand.start, end: slashCommand.end };
+      if (!this.cursorPositionPath ||
+          this.cursorPositionPath.start !== newRange.start ||
+          this.cursorPositionPath.end !== newRange.end) {
+        this.cursorPositionPath = newRange;
+        this.renderHighlightBackdropWithCursor();
       }
+      return;
     }
 
     // Find absolute path at cursor position
