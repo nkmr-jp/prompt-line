@@ -138,6 +138,25 @@ export class SlashCommandManager implements IInitializable {
         const target = e.target as HTMLElement;
         const suggestionItem = target.closest('.slash-suggestion-item') as HTMLElement;
         if (suggestionItem) {
+          // Check if this is an argument-hint-only item
+          if (suggestionItem.classList.contains('argument-hint-only')) {
+            const argumentHint = suggestionItem.dataset.argumentHint;
+            if (argumentHint) {
+              try {
+                await navigator.clipboard.writeText(argumentHint);
+                // Show "Copied!" feedback
+                suggestionItem.classList.add('copied');
+                setTimeout(() => {
+                  suggestionItem.classList.remove('copied');
+                }, 1000);
+              } catch (error) {
+                console.error('Failed to copy argumentHint to clipboard:', error);
+              }
+            }
+            return; // Do NOT paste for argument-hint-only
+          }
+
+          // Normal suggestion handling
           const index = parseInt(suggestionItem.dataset.index || '0', 10);
           const command = this.filteredCommands[index];
 
@@ -731,6 +750,7 @@ export class SlashCommandManager implements IInitializable {
 
     const item = document.createElement('div');
     item.className = 'slash-suggestion-item argument-hint-only';
+    item.dataset.argumentHint = command.argumentHint;
 
     // Create name element
     const nameSpan = document.createElement('span');
