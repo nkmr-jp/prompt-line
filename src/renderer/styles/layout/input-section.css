@@ -100,6 +100,8 @@
     position: relative;
     display: flex;
     width: 100%;
+    /* Prevent layout thrashing when inserting long text */
+    contain: content;
 }
 
 /* Highlight backdrop - mirrors textarea content with highlights */
@@ -132,7 +134,8 @@
     /* Text wrapping control - must match textarea exactly */
     white-space: break-spaces;
     overflow-wrap: break-word;
-    word-break: normal;
+    /* break-all allows wrapping at any character to prevent horizontal overflow flicker */
+    word-break: break-all;
 
     /* Tab size - must match textarea */
     tab-size: 4;
@@ -228,7 +231,8 @@
     /* Text wrapping control - must match backdrop */
     white-space: break-spaces;
     overflow-wrap: break-word;
-    word-break: normal;
+    /* break-all allows wrapping at any character to prevent horizontal overflow flicker */
+    word-break: break-all;
 
     /* Tab size - must match backdrop */
     tab-size: 4;
@@ -243,6 +247,8 @@
 
     /* Always reserve scrollbar space to prevent layout shift */
     overflow-y: scroll;
+    /* Hide horizontal overflow to prevent flicker when inserting long file paths */
+    overflow-x: hidden;
 }
 
 #textInput:focus {
