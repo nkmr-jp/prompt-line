@@ -175,6 +175,14 @@ class RipgrepExecutor {
             "--max-count", String(maxCount)
         ]
 
+        // When includePatterns are specified, we need to search hidden files
+        // and ignore .gitignore rules to allow including otherwise-excluded files
+        // (e.g., .claude/ directory which is both hidden and gitignored)
+        if !includePatterns.isEmpty {
+            args.append("--hidden")
+            args.append("--no-ignore")
+        }
+
         // Add exclude patterns using --glob with negation
         for excludePattern in excludePatterns {
             args.append("--glob")
