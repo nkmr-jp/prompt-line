@@ -159,7 +159,7 @@
 
 .highlight-backdrop .at-path-highlight {
     background: rgba(59, 130, 246, 0.4);
-    border-radius: 8px;
+    border-radius: 4px;
     color: transparent;
 
     /* Expand highlight area by 1px in all directions */
@@ -174,7 +174,7 @@
 /* Default slash command highlight (gray for unknown source or duplicate commands) */
 .highlight-backdrop .slash-command-highlight {
     background: rgba(128, 128, 128, 0.25);
-    border-radius: 8px;
+    border-radius: 4px;
     color: transparent;
 
     /* Expand highlight area by 1px in all directions */
