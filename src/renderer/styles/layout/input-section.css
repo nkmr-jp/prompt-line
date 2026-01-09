@@ -174,10 +174,7 @@
 /* Default slash command highlight (gray for unknown source or duplicate commands) */
 .highlight-backdrop .slash-command-highlight {
     color: transparent;
-    text-decoration: underline;
-    text-decoration-thickness: 2px;
-    text-decoration-color: rgba(128, 128, 128, 0.7);  /* Gray (default for unknown/duplicate) */
-    text-underline-offset: 2px;
+    box-shadow: inset 0 -2px 0 rgba(128, 128, 128, 0.7);
 
     /* Use box-decoration-break for multi-line highlights */
     box-decoration-break: clone;
@@ -186,27 +183,24 @@
 
 /* Source-specific slash command highlight colors */
 .highlight-backdrop .slash-command-highlight.slash-command-source-claude {
-    text-decoration-color: rgba(232, 197, 143, 0.8);
+    box-shadow: inset 0 -2px 0 rgba(232, 197, 143, 0.8);
 }
 
 .highlight-backdrop .slash-command-highlight.slash-command-source-codex {
-    text-decoration-color: rgba(127, 219, 202, 0.8);
+    box-shadow: inset 0 -2px 0 rgba(127, 219, 202, 0.8);
 }
 
 .highlight-backdrop .slash-command-highlight.slash-command-source-gemini {
-    text-decoration-color: rgba(130, 170, 255, 0.8);
+    box-shadow: inset 0 -2px 0 rgba(130, 170, 255, 0.8);
 }
 
 .highlight-backdrop .slash-command-highlight.slash-command-source-custom {
-    text-decoration-color: rgba(199, 146, 234, 0.8);
+    box-shadow: inset 0 -2px 0 rgba(199, 146, 234, 0.8);
 }
 
 /* Slash command with link style (Cmd+hover or cursor over slash command) */
 .highlight-backdrop .slash-command-highlight.file-path-link {
-    text-decoration: underline;
-    text-decoration-color: rgba(255, 255, 255, 0.4);
-    text-decoration-thickness: 1px;
-    text-underline-offset: 2px;
+    box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.4);
     cursor: pointer;
 }
 
