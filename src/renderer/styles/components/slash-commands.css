@@ -90,6 +90,18 @@
   background: rgba(199, 146, 234, 0.2);
 }
 
+/* Label badge */
+.slash-command-label {
+  flex-shrink: 0;
+  font-size: 9px;
+  color: var(--text-secondary, #888);
+  background: rgba(100, 100, 100, 0.3);
+  padding: 2px 4px;
+  border-radius: 3px;
+  margin-right: 2px;
+  white-space: nowrap;
+}
+
 /* Argument hint only mode - tighter spacing */
 .slash-suggestion-item.argument-hint-only {
   gap: 4px;

@@ -332,6 +332,10 @@ class MdSearchLoader {
       };
 
       if (rawFrontmatter) item.frontmatter = rawFrontmatter;
+      if (entry.label) {
+        const resolvedLabel = resolveTemplate(entry.label, context);
+        if (resolvedLabel) item.label = resolvedLabel;
+      }
       if (entry.argumentHint) {
         const resolvedHint = resolveTemplate(entry.argumentHint, context);
         if (resolvedHint) item.argumentHint = resolvedHint;

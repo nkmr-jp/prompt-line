@@ -103,6 +103,9 @@ class MdSearchHandler {
           source: 'custom',      // Mark as custom slash command
           displayName: 'custom', // Display "custom" badge
         };
+        if (item.label) {
+          cmd.label = item.label;
+        }
         if (item.argumentHint) {
           cmd.argumentHint = item.argumentHint;
         }

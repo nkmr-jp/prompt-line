@@ -14,6 +14,7 @@ import { getCaretCoordinates, createMirrorDiv } from './mentions/dom-utils';
 interface SlashCommandItem {
   name: string;
   description: string;
+  label?: string;  // Label text (e.g., from frontmatter)
   argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
@@ -381,6 +382,14 @@ export class SlashCommandManager implements IInitializable {
         sourceBadge.dataset.source = cmd.source || cmd.displayName;
         sourceBadge.textContent = cmd.displayName;
         item.appendChild(sourceBadge);
+      }
+
+      // Create label badge (if label exists)
+      if (cmd.label) {
+        const labelBadge = document.createElement('span');
+        labelBadge.className = 'slash-command-label';
+        labelBadge.textContent = cmd.label;
+        item.appendChild(labelBadge);
       }
 
       // Create description element with highlighting

@@ -304,6 +304,8 @@ export interface MdSearchEntry {
   path: string;
   /** ファイルパターン（glob形式、例: "*.md", "SKILL.md"） */
   pattern: string;
+  /** オプション: labelテンプレート（例: "{frontmatter@label}"） */
+  label?: string;
   /** オプション: argumentHintテンプレート */
   argumentHint?: string;
   /** オプション: 検索候補の最大表示数（デフォルト: 20） */
@@ -330,6 +332,8 @@ export interface MdSearchItem {
   filePath: string;
   /** 元のfrontmatter文字列 */
   frontmatter?: string;
+  /** label（オプション） */
+  label?: string;
   /** argumentHint（commandタイプのみ） */
   argumentHint?: string;
   /** 検索ソースの識別子（path + pattern） */
@@ -341,6 +345,7 @@ export interface MdSearchItem {
 export interface SlashCommandItem {
   name: string;
   description: string;
+  label?: string;  // Label text (e.g., from frontmatter)
   argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
