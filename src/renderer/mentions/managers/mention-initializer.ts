@@ -51,6 +51,9 @@ export interface MentionInitializerCallbacks {
   buildValidPathsSet: () => Set<string> | null;
   getTotalItemCount: () => number;
   _getFileSearchMaxSuggestions: () => Promise<number>;
+  getCommandSource?: (commandName: string) => string | undefined;
+  getCommandColor?: (commandName: string) => string | undefined;
+  getKnownCommandNames?: () => string[];
 
   // Actions
   updateHighlightBackdrop: () => void;
@@ -185,7 +188,7 @@ export class MentionInitializer {
       onFileSelected: (path: string) => this.deps.callbacks.onFileSelected(path),
       setCurrentQuery: (query: string) => { this.deps.state.currentQuery = query; },
       getCurrentPath: () => this.deps.state.currentPath,
-      showTooltipForSelectedItem: () => this.deps.popupManager.showTooltipForSelectedItem(),
+      showTooltipForSelectedItem: async () => await this.deps.popupManager.showTooltipForSelectedItem(),
       renderSuggestions: (_suggestions: SuggestionItem[]) => null // Will be set after suggestionUIManager is initialized
     });
   }
@@ -233,7 +236,16 @@ export class MentionInitializer {
           } catch {
             return false;
           }
-        }
+        },
+        ...(this.callbacks.getCommandSource && {
+          getCommandSource: (commandName: string) => this.callbacks.getCommandSource?.(commandName)
+        }),
+        ...(this.callbacks.getCommandColor && {
+          getCommandColor: (commandName: string) => this.callbacks.getCommandColor?.(commandName)
+        }),
+        ...(this.callbacks.getKnownCommandNames && {
+          getKnownCommandNames: () => this.callbacks.getKnownCommandNames?.() ?? []
+        })
       },
       this.deps.pathManager
     );
@@ -265,7 +277,8 @@ export class MentionInitializer {
       isCommandEnabledSync: () => this.callbacks.isCommandEnabledSync(),
       hideWindow: () => electronAPI.window.hide(),
       restoreDefaultHint: () => this.callbacks.restoreDefaultHint(),
-      showError: (message: string) => this.deps.callbacks.showError?.(message)
+      showError: (message: string) => this.deps.callbacks.showError?.(message),
+      getKnownCommandNames: () => this.callbacks.getKnownCommandNames?.() ?? []
     });
   }
 
@@ -292,12 +305,12 @@ export class MentionInitializer {
         getCurrentQuery: () => this.deps.state.currentQuery,
         getCodeSearchQuery: () => this.deps.state.codeSearchQuery,
         countFilesInDirectory: (path: string) => this.callbacks.countFilesInDirectory(path),
-        onMouseEnterInfo: (suggestion: SuggestionItem, target: HTMLElement) => {
+        onMouseEnterInfo: async (suggestion: SuggestionItem, target: HTMLElement) => {
           if (suggestion.type === 'agent' && suggestion.agent) {
-            this.deps.popupManager.showFrontmatterPopup(suggestion.agent, target);
+            await this.deps.popupManager.showFrontmatterPopup(suggestion.agent, target);
           }
         },
-        onMouseLeaveInfo: () => this.deps.popupManager.hideFrontmatterPopup(),
+        onMouseLeaveInfo: () => this.deps.popupManager.schedulePopupHide(),
         getCachedDirectoryData: () => null, // Will be set after directoryCacheManager is initialized
         getAtStartPosition: () => this.deps.state.atStartPosition,
         adjustCurrentPathToQuery: (query: string) => this.callbacks.adjustCurrentPathToQuery(query),
@@ -309,7 +322,7 @@ export class MentionInitializer {
         restoreDefaultHint: () => this.callbacks.restoreDefaultHint(),
         matchesSearchPrefix: async (query: string, type: 'command' | 'mention') => this.callbacks.matchesSearchPrefix(query, type),
         getMaxSuggestions: async (type: 'command' | 'mention') => this.callbacks.getMaxSuggestions(type),
-        showTooltipForSelectedItem: () => this.deps.popupManager.showTooltipForSelectedItem(),
+        showTooltipForSelectedItem: async () => await this.deps.popupManager.showTooltipForSelectedItem(),
         setCurrentPath: (path: string) => { this.deps.state.currentPath = path; },
         setCurrentQuery: (query: string) => { this.deps.state.currentQuery = query; },
         setFilteredFiles: (files: FileInfo[]) => { this.deps.state.filteredFiles = files; },

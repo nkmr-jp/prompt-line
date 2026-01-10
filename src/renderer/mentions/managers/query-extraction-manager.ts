@@ -10,6 +10,7 @@
  */
 
 import { SYMBOL_TYPE_FROM_DISPLAY } from '../code-search/types';
+import { extractTriggerQueryAtCursor } from '../../utils/trigger-query-extractor';
 
 // Pattern to detect code search queries (e.g., @ts:, @go:, @py:)
 const CODE_SEARCH_PATTERN = /^([a-z]+):(.*)$/;
@@ -42,40 +43,12 @@ export class QueryExtractionManager {
    * Returns null if no valid @ pattern is found
    */
   public extractQueryAtCursor(): QueryExtractionResult | null {
-    const text = this.callbacks.getTextContent();
-    const cursorPos = this.callbacks.getCursorPosition();
-
-    // Find the @ before cursor
-    let atPos = -1;
-    for (let i = cursorPos - 1; i >= 0; i--) {
-      const char = text[i];
-
-      // Stop at whitespace or newline
-      if (char === ' ' || char === '\n' || char === '\t') {
-        break;
-      }
-
-      // Found @
-      if (char === '@') {
-        atPos = i;
-        break;
-      }
-    }
-
-    if (atPos === -1) return null;
-
-    // Check that @ is at start of line or after whitespace
-    if (atPos > 0) {
-      const prevChar = text[atPos - 1];
-      if (prevChar !== ' ' && prevChar !== '\n' && prevChar !== '\t') {
-        return null; // @ is part of something else (like email)
-      }
-    }
-
-    // Extract query (text after @ up to cursor)
-    const query = text.substring(atPos + 1, cursorPos);
-
-    return { query, startPos: atPos };
+    const result = extractTriggerQueryAtCursor(
+      this.callbacks.getTextContent(),
+      this.callbacks.getCursorPosition(),
+      '@'
+    );
+    return result ? { query: result.query, startPos: result.startPos } : null;
   }
 
   /**

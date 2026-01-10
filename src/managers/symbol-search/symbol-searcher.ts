@@ -147,6 +147,20 @@ export async function searchSymbols(
       '--max-symbols', String(maxSymbols)
     ];
 
+    // Add exclude patterns
+    if (options.excludePatterns && options.excludePatterns.length > 0) {
+      for (const pattern of options.excludePatterns) {
+        args.push('--exclude', pattern);
+      }
+    }
+
+    // Add include patterns
+    if (options.includePatterns && options.includePatterns.length > 0) {
+      for (const pattern of options.includePatterns) {
+        args.push('--include', pattern);
+      }
+    }
+
     const execOptions = {
       timeout,
       killSignal: 'SIGTERM' as const,

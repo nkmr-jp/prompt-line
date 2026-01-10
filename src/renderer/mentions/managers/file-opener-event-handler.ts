@@ -52,6 +52,9 @@ export interface FileOpenerCallbacks {
 
   // Error notification
   showError?: (message: string) => void;
+
+  // Slash command support (for multi-word command detection)
+  getKnownCommandNames?: () => string[];
 }
 
 /**
@@ -140,6 +143,10 @@ export class FileOpenerEventHandler {
    * Priority order: URL → Slash Command → @path → Absolute Path
    */
   async handleCmdClick(e: MouseEvent): Promise<void> {
+    // Wait for the browser to update cursor position after click
+    // Using requestAnimationFrame ensures cursor position is updated
+    await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
+
     const handled = await this.tryOpenItemAtCursor();
     if (handled) {
       e.preventDefault();
@@ -155,6 +162,7 @@ export class FileOpenerEventHandler {
   private async tryOpenItemAtCursor(): Promise<boolean> {
     const text = this.callbacks.getTextContent();
     const cursorPos = this.callbacks.getCursorPosition();
+    const knownCommandNames = this.callbacks.getKnownCommandNames?.();
 
     // Check for URL first
     const url = findUrlAtPosition(text, cursorPos);
@@ -163,20 +171,19 @@ export class FileOpenerEventHandler {
       return true;
     }
 
-    // Check for slash command (like /commit, /help) - only if command type is enabled
-    if (this.callbacks.isCommandEnabledSync?.()) {
-      const slashCommand = findSlashCommandAtPosition(text, cursorPos);
-      if (slashCommand) {
-        try {
-          const commandFilePath = await electronAPI.slashCommands.getFilePath(slashCommand.command);
-          if (commandFilePath) {
-            await this.openFile(commandFilePath);
-            return true;
-          }
-        } catch (err) {
-          handleError('FileOpenerEventHandler.handleCtrlEnter.slashCommand', err);
+    // Check for slash command (like /commit, /help, /Linear API)
+    // Only user-defined commands have file paths; built-in commands return null
+    const slashCommand = findSlashCommandAtPosition(text, cursorPos, knownCommandNames);
+    if (slashCommand) {
+      try {
+        const commandFilePath = await electronAPI.slashCommands.getFilePath(slashCommand.command);
+        if (commandFilePath) {
+          await this.openFile(commandFilePath);
+          return true;
         }
-        return true; // Still consumed the event even if failed
+        // Built-in commands (no file path) - don't consume event, allow fallthrough
+      } catch (err) {
+        handleError('FileOpenerEventHandler.handleCtrlEnter.slashCommand', err);
       }
     }
 

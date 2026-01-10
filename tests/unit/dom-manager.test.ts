@@ -19,7 +19,8 @@ describe('DomManager', () => {
         mock.selectionEnd = end;
       }),
       focus: jest.fn(),
-      select: jest.fn()
+      select: jest.fn(),
+      dispatchEvent: jest.fn()
     };
     return mock;
   };

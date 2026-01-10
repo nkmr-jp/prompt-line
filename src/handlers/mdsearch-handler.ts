@@ -4,6 +4,8 @@ import type MdSearchLoader from '../managers/md-search-loader';
 import type SettingsManager from '../managers/settings-manager';
 import type { SlashCommandItem, AgentItem } from '../types';
 import builtInCommandsLoader from '../lib/built-in-commands-loader';
+import { slashCommandCacheManager } from '../managers/slash-command-cache-manager';
+import type { IPCResult } from './handler-utils';
 
 /**
  * MdSearchHandler manages all IPC handlers related to MD search functionality.
@@ -16,6 +18,12 @@ class MdSearchHandler {
   constructor(mdSearchLoader: MdSearchLoader, settingsManager: SettingsManager) {
     this.mdSearchLoader = mdSearchLoader;
     this.settingsManager = settingsManager;
+
+    // Subscribe to settings changes for hot reload
+    settingsManager.on('settings-changed', () => {
+      this.updateConfig();
+      logger.debug('MdSearch config updated via hot reload');
+    });
   }
 
   /**
@@ -24,10 +32,14 @@ class MdSearchHandler {
   setupHandlers(ipcMain: typeof import('electron').ipcMain): void {
     ipcMain.handle('get-slash-commands', this.handleGetSlashCommands.bind(this));
     ipcMain.handle('get-slash-command-file-path', this.handleGetSlashCommandFilePath.bind(this));
+    ipcMain.handle('has-command-file', this.handleHasCommandFile.bind(this));
     ipcMain.handle('get-agents', this.handleGetAgents.bind(this));
     ipcMain.handle('get-agent-file-path', this.handleGetAgentFilePath.bind(this));
     ipcMain.handle('get-md-search-max-suggestions', this.handleGetMdSearchMaxSuggestions.bind(this));
     ipcMain.handle('get-md-search-prefixes', this.handleGetMdSearchPrefixes.bind(this));
+    // Slash command cache handlers
+    ipcMain.handle('register-global-slash-command', this.handleRegisterGlobalSlashCommand.bind(this));
+    ipcMain.handle('get-global-slash-commands', this.handleGetGlobalSlashCommands.bind(this));
   }
 
   /**
@@ -37,10 +49,13 @@ class MdSearchHandler {
     const handlers = [
       'get-slash-commands',
       'get-slash-command-file-path',
+      'has-command-file',
       'get-agents',
       'get-agent-file-path',
       'get-md-search-max-suggestions',
-      'get-md-search-prefixes'
+      'get-md-search-prefixes',
+      'register-global-slash-command',
+      'get-global-slash-commands'
     ];
 
     handlers.forEach(handler => {
@@ -94,6 +109,12 @@ class MdSearchHandler {
           source: 'custom',      // Mark as custom slash command
           displayName: 'custom', // Display "custom" badge
         };
+        if (item.label) {
+          cmd.label = item.label;
+        }
+        if (item.color) {
+          cmd.color = item.color;
+        }
         if (item.argumentHint) {
           cmd.argumentHint = item.argumentHint;
         }
@@ -161,6 +182,44 @@ class MdSearchHandler {
     } catch (error) {
       logger.error('Failed to get slash command file path:', error);
       return null;
+    }
+  }
+
+  /**
+   * Handler: has-command-file
+   * Checks if a command has an individual file (user-defined commands only)
+   * Built-in commands share a YAML file, so they don't have individual files
+   */
+  private async handleHasCommandFile(
+    _event: IpcMainInvokeEvent,
+    commandName: string
+  ): Promise<boolean> {
+    try {
+      if (!commandName || typeof commandName !== 'string') {
+        return false;
+      }
+
+      // Refresh config from settings in case they changed
+      this.updateConfig();
+
+      // Check if this is a built-in command
+      const builtInSettings = this.settingsManager.getBuiltInCommandsSettings();
+      if (builtInSettings) {
+        const builtInCommands = builtInCommandsLoader.searchCommands(undefined, builtInSettings);
+        const isBuiltIn = builtInCommands.some(cmd => cmd.name === commandName);
+        if (isBuiltIn) {
+          return false; // Built-in commands don't have individual files
+        }
+      }
+
+      // Check if this is a user-defined command (custom)
+      const items = await this.mdSearchLoader.getItems('command');
+      const command = items.find(c => c.name === commandName);
+
+      return !!command; // Has file if found in mdSearchLoader
+    } catch (error) {
+      logger.error('Failed to check command file:', error);
+      return false;
     }
   }
 
@@ -268,6 +327,44 @@ class MdSearchHandler {
     } catch (error) {
       logger.error('Failed to get MdSearch searchPrefixes:', error);
       return []; // Default fallback
+    }
+  }
+
+  // Slash command cache handlers
+
+  /**
+   * Handler: register-global-slash-command
+   * Registers a slash command to the global cache for quick access
+   */
+  private async handleRegisterGlobalSlashCommand(
+    _event: IpcMainInvokeEvent,
+    commandName: string
+  ): Promise<IPCResult> {
+    try {
+      if (!commandName || typeof commandName !== 'string') {
+        return { success: false, error: 'Invalid command name' };
+      }
+
+      await slashCommandCacheManager.addGlobalCommand(commandName);
+      return { success: true };
+    } catch (error) {
+      logger.error('Failed to register global slash command:', error);
+      return { success: false, error: 'Operation failed' };
+    }
+  }
+
+  /**
+   * Handler: get-global-slash-commands
+   * Retrieves recently used slash commands from global cache
+   */
+  private async handleGetGlobalSlashCommands(
+    _event: IpcMainInvokeEvent
+  ): Promise<string[]> {
+    try {
+      return await slashCommandCacheManager.loadGlobalCommands();
+    } catch (error) {
+      logger.error('Failed to get global slash commands:', error);
+      return [];
     }
   }
 }

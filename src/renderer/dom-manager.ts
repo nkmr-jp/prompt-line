@@ -103,6 +103,9 @@ export class DomManager implements IInitializable {
     this.textarea.value = value.substring(0, start) + text + value.substring(end);
     this.textarea.selectionStart = this.textarea.selectionEnd = start + text.length;
 
+    // Dispatch input event to trigger listeners (e.g., slash command detection)
+    this.textarea.dispatchEvent(new Event('input', { bubbles: true }));
+
     this.updateCharCount();
   }
 

@@ -83,21 +83,38 @@
     position: absolute;
     right: 2px;
     top: 0;
+    bottom: 0;
     width: 6px;
-    pointer-events: none;
+    pointer-events: auto;
     opacity: 0;
     transition: opacity 0.3s ease;
     z-index: 10;
 }
 
-.custom-scrollbar.visible {
+/* Expand hover area with pseudo-element */
+.custom-scrollbar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    width: 16px;
+    transform: translateX(5px);
+}
+
+.custom-scrollbar.visible,
+.custom-scrollbar:hover {
     opacity: 1;
 }
 
 .custom-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.2);
-    border-radius: 3px;
-    min-height: 30px;
+    border-radius: 5px;
+    min-height: 20px;
+}
+
+.custom-scrollbar-thumb:active {
+    background: rgba(255, 255, 255, 0.35);
 }
 
 .history-empty {

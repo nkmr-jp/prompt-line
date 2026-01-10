@@ -307,6 +307,8 @@ class MdSearchLoader {
 - Search prefix filtering (e.g., "agent:" prefix)
 - Configurable max suggestions per search type
 - Configurable sort order per entry ('asc' for A→Z, 'desc' for Z→A)
+- Entry-level enable/disable filtering: Each entry can define its own enable/disable patterns
+- Global-level enable/disable filtering: Settings-based filtering applied after entry-level filtering
 
 **File Format Support:**
 - YAML frontmatter for metadata extraction

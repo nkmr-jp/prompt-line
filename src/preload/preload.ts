@@ -43,6 +43,7 @@ const ALLOWED_CHANNELS = [
   'window-shown',
   'get-slash-commands',
   'get-slash-command-file-path',
+  'has-command-file',
   'directory-data-updated',
   'open-settings',
   'open-settings-directory',
@@ -64,7 +65,14 @@ const ALLOWED_CHANNELS = [
   'get-registered-at-paths',
   // Global at-path cache channels (for mdSearch agents and other project-independent items)
   'register-global-at-path',
-  'get-global-at-paths'
+  'get-global-at-paths',
+  // Draft to history channel
+  'save-draft-to-history',
+  // Slash command cache channels
+  'register-global-slash-command',
+  'get-global-slash-commands',
+  // Settings update notification channel
+  'settings-updated'
 ];
 
 // IPC channel validation with additional security checks
@@ -262,6 +270,16 @@ const electronAPI: ElectronAPI = {
     getFilePath: async (commandName: string): Promise<string | null> => {
       return ipcRenderer.invoke('get-slash-command-file-path', commandName);
     },
+    hasFile: async (commandName: string): Promise<boolean> => {
+      return ipcRenderer.invoke('has-command-file', commandName);
+    },
+    // Global slash command cache
+    registerGlobal: async (commandName: string): Promise<IPCResult> => {
+      return ipcRenderer.invoke('register-global-slash-command', commandName);
+    },
+    getGlobalCommands: async (): Promise<string[]> => {
+      return ipcRenderer.invoke('get-global-slash-commands');
+    },
   },
 
   // Agents
@@ -351,6 +369,12 @@ const electronAPI: ElectronAPI = {
 
 // Safely expose API via contextBridge
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);
+
+// Listen for settings updates from main process and dispatch custom event
+ipcRenderer.on('settings-updated', (_event, settings) => {
+  // eslint-disable-next-line no-undef
+  window.dispatchEvent(new CustomEvent('settings-updated', { detail: settings }));
+});
 
 // Re-export ElectronAPI type for external usage
 export type { ElectronAPI } from '../types/ipc';

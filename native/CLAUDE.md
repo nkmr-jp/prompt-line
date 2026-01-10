@@ -254,10 +254,13 @@ class DirectoryDetector {
 - **Terminal.app** (`com.apple.Terminal`) - Uses AppleScript to get TTY, then libproc for CWD
 - **iTerm2** (`com.googlecode.iterm2`) - Uses AppleScript to get TTY, then libproc for CWD
 - **Ghostty** (`com.mitchellh.ghostty`) - Uses process tree traversal to find shell CWD
+- **Warp** (`dev.warp.Warp-Stable`) - Uses process tree traversal to find shell CWD
+- **WezTerm** (`com.github.wez.wezterm`) - Uses process tree traversal to find shell CWD
 - **JetBrains IDEs** (`com.jetbrains.*`) - IntelliJ IDEA, WebStorm, PyCharm, etc. Uses window title parsing and shell process detection
 - **VSCode** (`com.microsoft.VSCode`, `com.microsoft.VSCodeInsiders`, `com.vscodium.VSCodium`) - Uses pty-host process tree traversal
 - **Cursor** (`com.todesktop.230313mzl4w4u92`) - Uses Electron pty-host detection
 - **Windsurf** (`com.exafunction.windsurf`) - Uses Electron pty-host detection
+- **Zed** (`dev.zed.Zed`) - Uses process tree traversal to find shell CWD
 - **Antigravity** (`com.google.antigravity`) - Google IDE, uses tmux-based terminal detection
 - **Kiro** (`dev.kiro.desktop`) - AWS IDE, uses Electron pty-host detection
 

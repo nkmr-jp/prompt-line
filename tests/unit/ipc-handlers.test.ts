@@ -5,6 +5,14 @@ import type WindowManager from '../../src/managers/window';
 import type HistoryManager from '../../src/managers/history-manager';
 import type DraftManager from '../../src/managers/draft-manager';
 
+// Unmock path module (needed for prefix-resolver)
+jest.unmock('path');
+
+// Mock glob module
+jest.mock('glob', () => ({
+  glob: jest.fn()
+}));
+
 // Mock dependencies
 const mockWindowManager: jest.Mocked<WindowManager> = {
     hideInputWindow: jest.fn(),
@@ -144,7 +152,12 @@ describe('IPCHandlers', () => {
                 window: { position: 'cursor', width: 600, height: 300 }
             })),
             updateSettings: jest.fn(),
-            resetSettings: jest.fn()
+            resetSettings: jest.fn(),
+            // EventEmitter methods for hot reload
+            on: jest.fn(),
+            off: jest.fn(),
+            emit: jest.fn(),
+            removeAllListeners: jest.fn()
         };
 
         mockDirectoryManager = {
@@ -625,10 +638,10 @@ describe('IPCHandlers', () => {
 
             ipcHandlers.removeAllHandlers();
 
-            // Should be called for each handler (count: 32 handlers)
-            // paste-handler: 2, window-handler: 3, history-draft-handler: 13 (includes 2 at-path cache handlers)
-            // system-handler: 5, file-handler: 3, mdsearch-handler: 6
-            expect(ipcMain.removeAllListeners).toHaveBeenCalledTimes(32);
+            // Should be called for each handler (count: 36 handlers)
+            // paste-handler: 2, window-handler: 3, history-draft-handler: 14 (includes 2 at-path cache handlers + save-draft-to-history)
+            // system-handler: 5, file-handler: 3, mdsearch-handler: 8 (includes 2 slash command cache handlers), code-search-handler: 1
+            expect(ipcMain.removeAllListeners).toHaveBeenCalledTimes(36);
             expect(logger.info).toHaveBeenCalledWith('All IPC handlers removed via coordinator');
         });
     });

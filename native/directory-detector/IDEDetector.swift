@@ -40,10 +40,16 @@ extension DirectoryDetector {
         return bundleId == "dev.kiro.desktop"
     }
 
-    /// Check if bundle ID is an Electron-based IDE (VSCode, Cursor, Windsurf, Antigravity, Kiro)
+    /// Check if bundle ID is Zed
+    static func isZed(_ bundleId: String) -> Bool {
+        return bundleId == "dev.zed.Zed"
+    }
+
+    /// Check if bundle ID is an Electron-based IDE or similar (VSCode, Cursor, Windsurf, Antigravity, Kiro, Zed)
     /// These IDEs have a different process hierarchy than JetBrains IDEs
+    /// Note: Zed is not Electron-based but uses similar process tree detection
     static func isElectronIDE(_ bundleId: String) -> Bool {
-        return isVSCode(bundleId) || isCursor(bundleId) || isWindsurf(bundleId) || isAntigravity(bundleId) || isKiro(bundleId)
+        return isVSCode(bundleId) || isCursor(bundleId) || isWindsurf(bundleId) || isAntigravity(bundleId) || isKiro(bundleId) || isZed(bundleId)
     }
 
     /// Check if the app is an IDE with integrated terminal

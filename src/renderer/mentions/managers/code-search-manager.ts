@@ -283,24 +283,19 @@ export class CodeSearchManager {
   }
 
   /**
-   * Navigate into a file to show its symbols (similar to directory navigation in file search)
+   * Try to load symbols for a file without changing UI state.
+   * This is a "quiet" search that only returns symbols without side effects.
+   * Use this to check if symbols exist before committing to symbol mode.
+   * @param directory - Base directory for symbol search
    * @param relativePath - Relative path of the file
-   * @param absolutePath - Absolute path of the file
    * @param language - Language info for the file
+   * @returns Array of symbols found in the file, or empty array if none
    */
-  public async navigateIntoFile(
+  public async tryLoadSymbols(
     directory: string,
     relativePath: string,
-    _absolutePath: string,
     language: LanguageInfo
-  ): Promise<void> {
-    // Update state to symbol mode
-    this.isInSymbolMode = true;
-    this.currentFilePath = relativePath;
-
-    // Show loading state
-    this.callbacks.updateHintText?.(`Loading symbols from ${relativePath}...`);
-
+  ): Promise<SymbolResult[]> {
     try {
       // Search for symbols in the directory for this language
       // Don't pass maxSymbols - let the handler use settings value
@@ -312,21 +307,17 @@ export class CodeSearchManager {
 
       if (!response.success) {
         console.warn('[CodeSearchManager] Symbol search failed:', response.error);
-        // Fallback: stay on current state with file path shown
-        this.isInSymbolMode = false;
-        return;
+        return [];
       }
 
       // Filter symbols to only those in the selected file
-      this.currentFileSymbols = response.symbols.filter(
+      let symbols = response.symbols.filter(
         (s: SymbolResult) => s.relativePath === relativePath
       );
 
       // If no symbols found in cached results, retry without cache
       // (cache might be stale)
-      if (this.currentFileSymbols.length === 0 && response.symbolCount > 0) {
-        this.callbacks.updateHintText?.(`Refreshing symbols for ${relativePath}...`);
-
+      if (symbols.length === 0 && response.symbolCount > 0) {
         // Don't pass maxSymbols - let the handler use settings value
         response = await electronAPI.codeSearch.searchSymbols(
           directory,
@@ -335,22 +326,55 @@ export class CodeSearchManager {
         );
 
         if (response.success) {
-          this.currentFileSymbols = response.symbols.filter(
+          symbols = response.symbols.filter(
             (s: SymbolResult) => s.relativePath === relativePath
           );
         }
       }
 
-      if (this.currentFileSymbols.length === 0) {
-        // No symbols found - notify callback
-        this.callbacks.updateHintText?.(`No symbols found in ${relativePath}`);
-        this.isInSymbolMode = false;
-        return;
-      }
+      return symbols;
     } catch (error) {
-      handleError('CodeSearchManager.handleSymbolNavigation', error);
-      this.isInSymbolMode = false;
+      handleError('CodeSearchManager.tryLoadSymbols', error);
+      return [];
     }
+  }
+
+  /**
+   * Enter symbol mode with pre-loaded symbols.
+   * Call this after tryLoadSymbols returns symbols.
+   * @param relativePath - Relative path of the file
+   * @param symbols - Pre-loaded symbols from tryLoadSymbols
+   */
+  public enterSymbolMode(relativePath: string, symbols: SymbolResult[]): void {
+    this.isInSymbolMode = true;
+    this.currentFilePath = relativePath;
+    this.currentFileSymbols = symbols;
+  }
+
+  /**
+   * Navigate into a file to show its symbols (similar to directory navigation in file search)
+   * @param relativePath - Relative path of the file
+   * @param absolutePath - Absolute path of the file
+   * @param language - Language info for the file
+   * @deprecated Use tryLoadSymbols + enterSymbolMode for flicker-free navigation
+   */
+  public async navigateIntoFile(
+    directory: string,
+    relativePath: string,
+    _absolutePath: string,
+    language: LanguageInfo
+  ): Promise<void> {
+    // Load symbols without UI changes
+    const symbols = await this.tryLoadSymbols(directory, relativePath, language);
+
+    if (symbols.length === 0) {
+      // No symbols found - stay in current state
+      this.isInSymbolMode = false;
+      return;
+    }
+
+    // Symbols found - enter symbol mode
+    this.enterSymbolMode(relativePath, symbols);
   }
 
   /**

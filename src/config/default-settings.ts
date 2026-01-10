@@ -54,7 +54,40 @@ export const defaultSettings: UserSettings = {
         name: '{basename}',
         description: '{frontmatter@description}',
         path: '~/.claude/commands',
+        label: 'command',
+        color: 'teal',
         pattern: '*.md',
+        argumentHint: '{frontmatter@argument-hint}',
+        maxSuggestions: 20
+      },
+      {
+        name: '{frontmatter@name}',
+        description: '{frontmatter@description}',
+        path: '~/.claude/skills',
+        label: 'skill',
+        color: 'teal',
+        pattern: '**/*/SKILL.md',
+        maxSuggestions: 20
+      },
+      {
+        name: '{prefix}:{basename}',
+        description: '{frontmatter@description}',
+        path: '~/.claude/plugins/cache',
+        pattern: '**/commands/*.md',
+        prefixPattern: '**/.claude-plugin/*.json@name',
+        label: 'command',
+        color: 'red',
+        argumentHint: '{frontmatter@argument-hint}',
+        maxSuggestions: 20
+      },
+      {
+        name: '{prefix}:{frontmatter@name}',
+        description: '{frontmatter@description}',
+        path: '~/.claude/plugins/cache',
+        pattern: '**/*/SKILL.md',
+        prefixPattern: '**/.claude-plugin/*.json@name',
+        label: 'skill',
+        color: 'red',
         argumentHint: '{frontmatter@argument-hint}',
         maxSuggestions: 20
       }
@@ -73,7 +106,9 @@ export const defaultSettings: UserSettings = {
     },
     symbolSearch: {
       maxSymbols: 200000,
-      timeout: 60000
+      timeout: 60000,
+      includePatterns: [],
+      excludePatterns: []
     },
     mdSearch: [
       {
@@ -84,11 +119,21 @@ export const defaultSettings: UserSettings = {
         searchPrefix: 'agent'
       },
       {
-        name: '{frontmatter@name}',
+        name: 'agent-{prefix}:{basename}',
         description: '{frontmatter@description}',
-        path: '~/.claude/skills',
-        pattern: '**/*/SKILL.md',
-        searchPrefix: 'skill'
+        path: '~/.claude/plugins/cache',
+        pattern: '**/agents/*.md',
+        prefixPattern: '**/.claude-plugin/*.json@name',
+        searchPrefix: 'agent'
+      },
+      {
+        name: '{basename}',
+        description: '{frontmatter@title}',
+        path: '~/.claude/plans',
+        pattern: '*.md',
+        searchPrefix: 'plan',
+        maxSuggestions: 100,
+        inputFormat: 'path'
       }
     ]
   }
@@ -102,7 +147,14 @@ export const defaultSettings: UserSettings = {
  */
 export const commentedExamples = {
   slashCommands: {
-    builtIn: ['codex', 'gemini']
+    builtIn: ['codex', 'gemini'],
+    custom: [] as Array<{
+      name: string;
+      description: string;
+      path: string;
+      pattern: string;
+      argumentHint?: string;
+    }>
   },
   fileOpener: {
     extensions: {
@@ -112,13 +164,6 @@ export const commentedExamples = {
   },
   mentions: {
     mdSearch: [
-      {
-        name: '{frontmatter@name}',
-        description: '{frontmatter@description}',
-        path: '~/.claude/plugins',
-        pattern: '**/*/SKILL.md',
-        searchPrefix: 'skill'
-      },
       {
         name: '{basename}',
         description: '{frontmatter@title}',

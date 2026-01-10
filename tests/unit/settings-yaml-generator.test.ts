@@ -222,7 +222,7 @@ describe('settings-yaml-generator', () => {
 
         // Should not include commented mdSearch examples
         expect(result).not.toContain('# - name: "{frontmatter@name}"');
-        expect(result).not.toContain('~/.claude/plugins');
+        // Note: ~/.claude/plugins/cache is now an active value in default settings
       });
 
       test('should include commented examples when includeCommentedExamples=true', () => {
@@ -235,13 +235,9 @@ describe('settings-yaml-generator', () => {
         expect(result).toContain('# go: "Goland"');
         expect(result).toContain('# md: "Typora"');
 
-        // Should include commented slash command examples
+        // Should include commented slash command examples (builtIn only, custom has no commented examples)
         expect(result).toContain('# - codex');
         expect(result).toContain('# - gemini');
-
-        // Should include commented mdSearch examples
-        expect(result).toContain('# - name: "{frontmatter@name}"');
-        expect(result).toContain('#   path: ~/.claude/plugins');
       });
 
       test('should add commented examples after active values', () => {

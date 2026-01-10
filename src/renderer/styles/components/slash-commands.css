@@ -3,14 +3,12 @@
 .slash-command-suggestions {
   display: none;
   position: absolute;
-  top: 16px;
-  left: 16px;
-  max-height: 90%;
-  max-width: 95%;
+  /* top/left are dynamically set by JS based on cursor position */
+  max-height: 40vh;
+  width: max-content;
   overflow-y: auto;
   overflow-x: hidden;
   background: #222;
-  /*border: 1px solid #444;*/
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   z-index: 100;
@@ -22,9 +20,9 @@
   flex-direction: row;
   flex-wrap: nowrap;
   align-items: center;
-  padding: 8px 12px;
+  padding: 4px 10px;
+  gap: 4px;
   cursor: pointer;
-  /*border-bottom: 1px solid var(--border-color, #333);*/
   transition: background-color 0.1s ease;
   min-width: 0;
 }
@@ -43,7 +41,7 @@
 }
 
 .slash-command-name {
-  padding-right: 8px;
+  padding-right: 2px;
   font-size: 13px;
   font-weight: 500;
   white-space: nowrap;
@@ -65,9 +63,9 @@
   font-size: 9px;
   color: var(--text-secondary, #888);
   background: rgba(100, 100, 100, 0.3);
-  padding: 2px 6px;
+  padding: 2px 4px;
   border-radius: 3px;
-  margin-right: 8px;
+  margin-right: 2px;
   white-space: nowrap;
 }
 
@@ -90,6 +88,98 @@
 .slash-command-source[data-source="custom"] {
   color: #c792ea;
   background: rgba(199, 146, 234, 0.2);
+}
+
+/* Label badge (same color as custom) */
+.slash-command-label {
+  flex-shrink: 0;
+  font-size: 9px;
+  color: #c792ea;
+  background: rgba(199, 146, 234, 0.2);
+  padding: 2px 4px;
+  border-radius: 3px;
+  margin-right: 2px;
+  white-space: nowrap;
+}
+
+/* Label color variations */
+.slash-command-label[data-color="grey"] {
+  color: #888888;
+  background: rgba(136, 136, 136, 0.2);
+}
+
+.slash-command-label[data-color="darkGrey"] {
+  color: #6b7280;
+  background: rgba(107, 114, 128, 0.2);
+}
+
+.slash-command-label[data-color="purple"] {
+  color: #c792ea;
+  background: rgba(199, 146, 234, 0.2);
+}
+
+.slash-command-label[data-color="teal"] {
+  color: #89DDFF;
+  background: rgba(137, 221, 255, 0.2);
+}
+
+.slash-command-label[data-color="green"] {
+  color: #7fdbc8;
+  background: rgba(127, 219, 200, 0.2);
+}
+
+.slash-command-label[data-color="yellow"] {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.2);
+}
+
+.slash-command-label[data-color="orange"] {
+  color: #ffcb6b;
+  background: rgba(255, 203, 107, 0.2);
+}
+
+.slash-command-label[data-color="pink"] {
+  color: #f472b6;
+  background: rgba(244, 114, 182, 0.2);
+}
+
+.slash-command-label[data-color="red"] {
+  color: #f07178;
+  background: rgba(240, 113, 120, 0.2);
+}
+
+/* Argument hint only mode - tighter spacing */
+.slash-suggestion-item.argument-hint-only {
+  gap: 4px;
+}
+
+.slash-suggestion-item.argument-hint-only .slash-command-name {
+  padding-right: 2px;
+}
+
+/* Argument hint badge (gray) */
+.slash-command-source.argument-hint-badge {
+  color: #999;
+  background: rgba(128, 128, 128, 0.3);
+  padding: 2px 4px;
+  margin-right: 2px;
+}
+
+/* Copy icon for argument hint */
+.argument-hint-copy-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  color: #666;
+  cursor: pointer;
+  margin-left: 6px;
+  opacity: 0.7;
+  transition: opacity 0.2s ease, color 0.2s ease;
+}
+
+.argument-hint-copy-icon:hover {
+  color: #999;
+  opacity: 1;
 }
 
 .slash-highlight {

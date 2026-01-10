@@ -2,11 +2,13 @@
  * TemplateResolver - テンプレート変数を解決するユーティリティ
  *
  * サポートする変数:
+ * - {prefix}: プレフィックス文字列
  * - {basename}: ファイル名（拡張子なし）
  * - {frontmatter@fieldName}: frontmatterの任意フィールド
  */
 
 export interface TemplateContext {
+  prefix?: string;
   basename: string;
   frontmatter: Record<string, string>;
 }
@@ -22,6 +24,11 @@ export interface TemplateContext {
  */
 export function resolveTemplate(template: string, context: TemplateContext): string {
   let result = template;
+
+  // Replace {prefix}
+  if (context.prefix !== undefined) {
+    result = result.replace(/\{prefix\}/g, context.prefix);
+  }
 
   // Replace {basename}
   result = result.replace(/\{basename\}/g, context.basename);

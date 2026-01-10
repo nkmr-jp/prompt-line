@@ -23,6 +23,8 @@ import { electronAPI } from './services/electron-api';
 
 // Default display limit for history items
 const DEFAULT_DISPLAY_LIMIT = 50;
+// Number of items to load on each loadMore call
+const LOAD_MORE_INCREMENT = 25;
 
 // Export the renderer class for testing
 export class PromptLineRenderer {
@@ -138,7 +140,8 @@ export class PromptLineRenderer {
       onShiftTabKeyPress: this.handleShiftTabKeyCallback.bind(this),
       onHistoryNavigation: this.navigateHistory.bind(this),
       onSearchToggle: this.handleSearchToggle.bind(this),
-      onUndo: this.handleUndo.bind(this)
+      onUndo: this.handleUndo.bind(this),
+      onSaveDraftToHistory: this.handleSaveDraftToHistory.bind(this)
     });
 
     this.eventHandler.setTextarea(this.domManager.textarea);
@@ -226,7 +229,10 @@ export class PromptLineRenderer {
         this.domManager.replaceRangeWithUndo(start, end, newText);
       },
       getIsComposing: () => this.eventHandler?.getIsComposing() ?? false,
-      showError: (message: string) => this.domManager.showError(message)
+      showError: (message: string) => this.domManager.showError(message),
+      getCommandSource: (commandName: string) => this.slashCommandManager?.getCommandSource(commandName),
+      getCommandColor: (commandName: string) => this.slashCommandManager?.getCommandColor(commandName),
+      getKnownCommandNames: () => this.slashCommandManager?.getKnownCommandNames() ?? []
     });
 
     this.fileSearchManager.initializeElements();
@@ -358,6 +364,40 @@ export class PromptLineRenderer {
       this.snapshotManager.clearSnapshot();
       await this.clearTextAndDraft();
       this.historyUIManager.clearHistorySelection();
+    }
+  }
+
+  /**
+   * Handle Cmd+S to save current draft to history
+   */
+  private async handleSaveDraftToHistory(): Promise<void> {
+    const text = this.domManager.getCurrentText();
+    const trimmedText = text.trim();
+    if (!trimmedText) {
+      rendererLogger.info('No text to save to history');
+      return;
+    }
+
+    // Skip if same as latest history item
+    if (this.historyData.length > 0 && this.historyData[0]?.text === trimmedText) {
+      rendererLogger.info('Text is same as latest history, skipping');
+      return;
+    }
+
+    try {
+      const result = await electronAPI.invoke('save-draft-to-history', text) as unknown as { success: boolean; item?: HistoryItem; error?: string };
+      if (result.success && result.item) {
+        // Add item to local history data and re-render UI
+        this.historyData.unshift(result.item);
+        this.filteredHistoryData = this.historyData.slice(0, this.nonSearchDisplayLimit);
+        this.totalMatchCount = this.historyData.length;
+        this.renderHistory();
+        rendererLogger.info('Draft saved to history via Cmd+S');
+      } else {
+        rendererLogger.error('Failed to save draft to history:', result.error);
+      }
+    } catch (error) {
+      rendererLogger.error('Error saving draft to history:', error);
     }
   }
 
@@ -531,7 +571,7 @@ export class PromptLineRenderer {
         // Already showing all items
         return;
       }
-      this.nonSearchDisplayLimit += DEFAULT_DISPLAY_LIMIT;
+      this.nonSearchDisplayLimit += LOAD_MORE_INCREMENT;
       this.filteredHistoryData = this.historyData.slice(0, this.nonSearchDisplayLimit);
       this.renderHistory();
     }

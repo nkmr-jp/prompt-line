@@ -162,7 +162,7 @@ AIコーディングアシスタント（Claude Code、OpenAI Codex、Google Gem
 @を入力するとファイルを検索できます。<br>
 ※ [fd](https://github.com/sharkdp/fd)コマンドのインストールが必要です。( `brew install fd` )<br>
 ※ `~/.prompt-line/settings.yml` で `fileSearch`の項目を設定する必要があります。 「⚙️ 設定」の項目参照<br>
-※ 対応アプリ: Terminal.app, iTerm2, Ghostty, JetBrains IDE（IntelliJ, WebStormなど）, VSCode, Cursor, Windsurf, Antigravity, Kiro
+※ 対応アプリ: Terminal.app, iTerm2, Ghostty, Warp, WezTerm, JetBrains IDE（IntelliJ, WebStormなど）, VSCode, Cursor, Windsurf, Zed, Antigravity, Kiro
 
 ![doc10.png](assets/doc10.png)
 
@@ -203,10 +203,10 @@ AIコーディングアシスタント（Claude Code、OpenAI Codex、Google Gem
 | `shortcuts` | キーボードショートカット（メイン、ペースト、クローズ、履歴ナビゲーション、検索） |
 | `window` | ウィンドウサイズと配置モード |
 | `fileOpener` | デフォルトエディタと拡張子別アプリケーション |
-| `slashCommands` | 組み込みAIツールコマンドとカスタムマークダウンコマンド |
+| `slashCommands` | 組み込みAIツールコマンド、カスタムスラッシュコマンド、スキル検索 |
 | `mentions.fileSearch` | ファイル検索設定（@path/to/file補完） |
 | `mentions.symbolSearch` | シンボル検索設定（@ts:Config、@go:Handler） |
-| `mentions.mdSearch` | マークダウンファイルからのメンション |
+| `mentions.mdSearch` | searchPrefixによるマークダウン検索（agent, rules, docs等）、frontmatterテンプレート変数対応 |
 
 ## プロンプト履歴
 

@@ -7,8 +7,8 @@ import Foundation
 /// Main class for directory detection from terminals and IDEs
 /// Methods are organized across multiple files using extensions:
 /// - CWDDetector.swift: CWD detection (libproc + lsof)
-/// - TerminalDetector.swift: Terminal.app, iTerm2
-/// - IDEDetector.swift: JetBrains, VSCode, Cursor, Windsurf
+/// - TerminalDetector.swift: Terminal.app, iTerm2, Ghostty, Warp, WezTerm
+/// - IDEDetector.swift: JetBrains, VSCode, Cursor, Windsurf, Zed, Antigravity, Kiro
 /// - ProcessTree.swift: Process tree traversal
 /// Note: FileSearch functionality has been moved to separate file-searcher tool
 class DirectoryDetector {
@@ -49,6 +49,17 @@ class DirectoryDetector {
             guard let frontApp = NSWorkspace.shared.frontmostApplication else {
                 return ["error": "No active application found"]
             }
+
+            // Skip if the frontmost app is Prompt Line itself (development or production)
+            let promptLineBundleIds = ["com.github.Electron", "com.nkmr.prompt-line"]
+            if let frontBundleId = frontApp.bundleIdentifier, promptLineBundleIds.contains(frontBundleId) {
+                return [
+                    "error": "Prompt Line is the frontmost application - cannot detect previous app",
+                    "appName": frontApp.localizedName ?? "Unknown",
+                    "bundleId": frontBundleId
+                ]
+            }
+
             appName = frontApp.localizedName ?? "Unknown"
             bundleId = frontApp.bundleIdentifier ?? ""
             appPid = frontApp.processIdentifier
@@ -131,9 +142,21 @@ class DirectoryDetector {
             ]
         }
 
-        // Check for Ghostty terminal (native Swift terminal with process-based detection)
-        if isGhostty(bundleId) {
-            let (directory, shellPid) = getGhosttyDirectory(appPid: appPid)
+        // Check for native terminals (Ghostty, Warp, WezTerm) with process-based detection
+        if isNativeTerminal(bundleId) {
+            let (directory, shellPid) = getNativeTerminalDirectory(appPid: appPid)
+
+            // Determine the method name based on the terminal
+            let methodName: String
+            if isGhostty(bundleId) {
+                methodName = "ghostty-process"
+            } else if isWarp(bundleId) {
+                methodName = "warp-process"
+            } else if isWezTerm(bundleId) {
+                methodName = "wezterm-process"
+            } else {
+                methodName = "native-terminal-process"
+            }
 
             if let cwd = directory {
                 var result: [String: Any] = [
@@ -141,7 +164,7 @@ class DirectoryDetector {
                     "directory": cwd,
                     "appName": appName,
                     "bundleId": bundleId,
-                    "method": "ghostty-process"
+                    "method": methodName
                 ]
 
                 if let pid = shellPid {
@@ -152,7 +175,7 @@ class DirectoryDetector {
             }
 
             return [
-                "error": "Failed to detect directory from Ghostty",
+                "error": "Failed to detect directory from \(appName)",
                 "appName": appName,
                 "bundleId": bundleId
             ]

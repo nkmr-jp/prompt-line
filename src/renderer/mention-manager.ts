@@ -82,7 +82,18 @@ export class MentionManager implements IInitializable {
     // Initialize PopupManager with callbacks
     this.popupManager = new PopupManager({
       getSelectedSuggestion: () => this.state.mergedSuggestions[this.state.selectedIndex] || null,
-      getSuggestionsContainer: () => this.state.suggestionsContainer
+      getSuggestionsContainer: () => this.state.suggestionsContainer,
+      onBeforeOpenFile: () => callbacks.onBeforeOpenFile?.(),
+      setDraggable: (value: boolean) => callbacks.setDraggable?.(value),
+      onSelectAgent: (agent: AgentItem) => {
+        // Find the agent in merged suggestions and select it
+        const agentIndex = this.state.mergedSuggestions.findIndex(
+          s => s.type === 'agent' && s.agent?.name === agent.name
+        );
+        if (agentIndex >= 0) {
+          this.selectItem(agentIndex);
+        }
+      }
     });
 
     // Initialize SettingsCacheManager
@@ -103,7 +114,8 @@ export class MentionManager implements IInitializable {
       updateHighlightBackdrop: () => this.updateHighlightBackdrop(),
       getCachedDirectoryData: () => this.directoryCacheManager?.getCachedData() ?? null,
       isCommandEnabledSync: () => this.isCommandEnabledSync(),
-      checkFileExists: (path: string) => this.checkFileExistsAbsolute(path)
+      checkFileExists: (path: string) => this.checkFileExistsAbsolute(path),
+      getKnownCommandNames: () => this.callbacks.getKnownCommandNames?.() ?? []
     });
 
     // Initialize NavigationManager (consolidated keyboard + directory/file navigation + item selection)
@@ -177,6 +189,7 @@ export class MentionManager implements IInitializable {
       updateCursorPositionHighlight: () => this.updateCursorPositionHighlight(),
       handleKeyDown: (e: KeyboardEvent) => this.handleKeyDown(e),
       handleBackspaceForAtPath: (e: KeyboardEvent) => this.handleBackspaceForAtPath(e),
+      handleBackspaceForSlashCommand: (e: KeyboardEvent) => this.handleBackspaceForSlashCommand(e),
       handleCtrlEnterOpenFile: (e: KeyboardEvent) => this.fileOpenerManager?.handleCtrlEnter(e),
       handleCmdClickOnAtPath: (e: MouseEvent) => this.fileOpenerManager?.handleCmdClick(e),
       handleMouseMove: (e: MouseEvent) => this.handleMouseMove(e),
@@ -339,6 +352,15 @@ export class MentionManager implements IInitializable {
         buildValidPathsSet: () => this.buildValidPathsSet(),
         getTotalItemCount: () => this.getTotalItemCount(),
         _getFileSearchMaxSuggestions: () => this._getFileSearchMaxSuggestions(),
+        ...(this.callbacks.getCommandSource && {
+          getCommandSource: (commandName: string) => this.callbacks.getCommandSource?.(commandName)
+        }),
+        ...(this.callbacks.getCommandColor && {
+          getCommandColor: (commandName: string) => this.callbacks.getCommandColor?.(commandName)
+        }),
+        ...(this.callbacks.getKnownCommandNames && {
+          getKnownCommandNames: () => this.callbacks.getKnownCommandNames?.() ?? []
+        }),
         updateHighlightBackdrop: () => this.updateHighlightBackdrop(),
         updateSelection: () => this.updateSelection(),
         hideSuggestions: () => this.hideSuggestions(),
@@ -552,9 +574,14 @@ export class MentionManager implements IInitializable {
 
   /**
    * Check if file search should be processed
-   * Preturns true if file search should proceed
+   * Returns true if file search should proceed
    */
   private shouldProcessFileSearch(): boolean {
+    // Skip if already in symbol mode (navigating into file for symbol search)
+    // This prevents input event from interrupting symbol search
+    if (this.isInSymbolMode) {
+      return false;
+    }
     const hasCache = this.directoryCacheManager?.hasCache() ?? false;
     return this.state.fileSearchEnabled && !!this.state.textInput && hasCache;
   }
@@ -871,7 +898,8 @@ export class MentionManager implements IInitializable {
       if (index === this.state.selectedIndex) {
         item.classList.add('selected');
         item.setAttribute('aria-selected', 'true');
-        item.scrollIntoView({ block: 'nearest' });
+        // Use 'instant' to ensure scroll completes before popup positioning
+        item.scrollIntoView({ block: 'nearest', behavior: 'instant' });
       } else {
         item.classList.remove('selected');
         item.setAttribute('aria-selected', 'false');
@@ -879,7 +907,10 @@ export class MentionManager implements IInitializable {
     });
 
     // Update tooltip if auto-show is enabled
-    this.popupManager.showTooltipForSelectedItem();
+    // Use requestAnimationFrame to ensure scroll position is settled before calculating popup position
+    requestAnimationFrame(() => {
+      this.popupManager.showTooltipForSelectedItem();
+    });
   }
 
   /**
@@ -944,8 +975,16 @@ export class MentionManager implements IInitializable {
    * Handle backspace key to delete entire @path if cursor is at the end
    * Delegates to PathManager
    */
-  private handleBackspaceForAtPath(e: KeyboardEvent): void {
-    this.pathManager.handleBackspaceForAtPath(e);
+  private handleBackspaceForAtPath(e: KeyboardEvent): boolean {
+    return this.pathManager.handleBackspaceForAtPath(e);
+  }
+
+  /**
+   * Handle backspace key to delete entire slash command if cursor is at the end
+   * Delegates to PathManager
+   */
+  private handleBackspaceForSlashCommand(e: KeyboardEvent): boolean {
+    return this.pathManager.handleBackspaceForSlashCommand(e);
   }
 
   /**

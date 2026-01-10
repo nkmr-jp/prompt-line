@@ -18,7 +18,8 @@ export interface EventListenerCallbacks {
 
   // Keyboard handlers
   handleKeyDown: (e: KeyboardEvent) => void;
-  handleBackspaceForAtPath: (e: KeyboardEvent) => void;
+  handleBackspaceForAtPath: (e: KeyboardEvent) => boolean;
+  handleBackspaceForSlashCommand?: (e: KeyboardEvent) => boolean;
   handleCtrlEnterOpenFile: (e: KeyboardEvent) => void;
 
   // Mouse handlers
@@ -126,8 +127,12 @@ export class EventListenerManager {
         // Don't override Shift+Backspace or when text is selected
         if (e.shiftKey) return;
         if (this.textInput && this.textInput.selectionStart !== this.textInput.selectionEnd) return;
-        // Handle backspace to delete entire @path if cursor is at the end of one
-        this.callbacks.handleBackspaceForAtPath(e);
+
+        // Try @path deletion first
+        if (this.callbacks.handleBackspaceForAtPath(e)) return;
+
+        // Then try slash command deletion
+        if (this.callbacks.handleBackspaceForSlashCommand?.(e)) return;
       } else if (e.key === 'Enter' && e.ctrlKey) {
         // Ctrl+Enter: open file at cursor position
         this.callbacks.handleCtrlEnterOpenFile(e);

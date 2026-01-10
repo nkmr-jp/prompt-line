@@ -1,4 +1,4 @@
-import { app, globalShortcut, Tray, Menu, nativeImage, shell, NativeImage } from 'electron';
+import { app, globalShortcut, Tray, Menu, nativeImage, shell, NativeImage, BrowserWindow } from 'electron';
 import fs from 'fs';
 import path from 'path';
 
@@ -26,7 +26,7 @@ import IPCHandlers from './handlers/ipc-handlers';
 import { codeSearchHandler } from './handlers/code-search-handler';
 import { logger, ensureDir, detectCurrentDirectoryWithFiles } from './utils/utils';
 import { LIMITS } from './constants';
-import type { WindowData } from './types';
+import type { WindowData, UserSettings } from './types';
 
 class PromptLineApp {
   private windowManager: WindowManager | null = null;
@@ -102,6 +102,26 @@ class PromptLineApp {
 
     codeSearchHandler.setSettingsManager(this.settingsManager);
     codeSearchHandler.register();
+
+    // Register settings change listener for hot reload
+    this.settingsManager.on('settings-changed', (newSettings: UserSettings) => {
+      if (this.windowManager && this.settingsManager) {
+        this.windowManager.updateWindowSettings(newSettings.window);
+        const fileSearchSettings = this.settingsManager.getFileSearchSettings();
+        if (fileSearchSettings) {
+          this.windowManager.updateFileSearchSettings(fileSearchSettings);
+        }
+      }
+
+      // Notify renderer process about settings change
+      BrowserWindow.getAllWindows().forEach(win => {
+        if (!win.isDestroyed()) {
+          win.webContents.send('settings-updated', newSettings);
+        }
+      });
+
+      logger.info('Settings updated via hot reload');
+    });
   }
 
   /**
@@ -140,17 +160,24 @@ class PromptLineApp {
   }
 
   /**
-   * Test directory detection feature on startup (for debugging)
+   * Test directory detection feature (for debugging)
+   * @param bundleId Optional bundle ID of the previous app to detect from
    */
-  private async testDirectoryDetection(): Promise<void> {
+  private async testDirectoryDetection(bundleId?: string): Promise<void> {
     try {
       logger.debug('Testing directory detection feature...');
       const startTime = performance.now();
 
       // Get file search settings from settings manager (if available)
       const fileSearchSettings = this.settingsManager?.getFileSearchSettings();
-      // Only pass options if we have file search settings
-      const options = fileSearchSettings ? { fileSearchSettings } : undefined;
+      // Build options conditionally to avoid passing undefined values
+      const options: Parameters<typeof detectCurrentDirectoryWithFiles>[0] = {};
+      if (fileSearchSettings) {
+        options.fileSearchSettings = fileSearchSettings;
+      }
+      if (bundleId) {
+        options.bundleId = bundleId;
+      }
       const result = await detectCurrentDirectoryWithFiles(options);
       const duration = performance.now() - startTime;
 
@@ -399,8 +426,10 @@ class PromptLineApp {
         hasDraft: !!windowData.draft
       });
 
-      // Debug: Test directory detection when editor is shown
-      this.testDirectoryDetection();
+      // Debug: Test directory detection with the previously detected app's bundleId
+      const previousApp = this.windowManager.getPreviousApp();
+      const bundleId = previousApp && typeof previousApp === 'object' && previousApp.bundleId ? previousApp.bundleId : undefined;
+      this.testDirectoryDetection(bundleId);
     } catch (error) {
       logger.error('Failed to show input window:', error);
     }
@@ -449,6 +478,10 @@ class PromptLineApp {
         cleanupPromises.push(
           Promise.resolve(this.windowManager.destroy())
         );
+      }
+
+      if (this.settingsManager) {
+        cleanupPromises.push(this.settingsManager.destroy());
       }
 
       await Promise.allSettled(cleanupPromises);
