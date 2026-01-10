@@ -1,17 +1,25 @@
 /**
  * Match a pattern against a command name.
- * If the pattern ends with '*', it performs a prefix match.
- * Otherwise, it performs an exact match.
+ * - If the pattern ends with '*', it performs a prefix match.
+ * - If the pattern starts with '*', it performs a suffix match.
+ * - Otherwise, it performs an exact match.
  *
- * @param pattern - The pattern to match (e.g., "commit", "sa:*")
- * @param commandName - The command name to test (e.g., "commit", "sa:test")
+ * @param pattern - The pattern to match (e.g., "commit", "sa:*", "*:frontend-design")
+ * @param commandName - The command name to test (e.g., "commit", "sa:test", "example-skills:frontend-design")
  * @returns true if the pattern matches the command name
  */
 export function matchCommandName(pattern: string, commandName: string): boolean {
+  // 前方一致: パターンが `*` で終わる場合
   if (pattern.endsWith('*')) {
     const prefix = pattern.slice(0, -1);
     return commandName.startsWith(prefix);
   }
+  // 後方一致: パターンが `*` で始まる場合
+  if (pattern.startsWith('*')) {
+    const suffix = pattern.slice(1);
+    return commandName.endsWith(suffix);
+  }
+  // 完全一致
   return pattern === commandName;
 }
 

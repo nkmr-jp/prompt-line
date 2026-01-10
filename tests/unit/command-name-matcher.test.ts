@@ -82,6 +82,39 @@ describe('command-name-matcher', () => {
       });
     });
 
+    describe('suffix match', () => {
+      test('should return true when command name ends with pattern suffix', () => {
+        expect(matchCommandName('*:frontend-design', 'example-skills:frontend-design')).toBe(true);
+        expect(matchCommandName('*:web-artifacts-builder', 'example-skills:web-artifacts-builder')).toBe(true);
+        expect(matchCommandName('*:pdf', 'example-skills:pdf')).toBe(true);
+      });
+
+      test('should return false when command name does not end with pattern suffix', () => {
+        expect(matchCommandName('*:frontend-design', 'example-skills:other')).toBe(false);
+        expect(matchCommandName('*:frontend-design', 'commit')).toBe(false);
+      });
+
+      test('should handle suffix-only pattern (just the name after colon)', () => {
+        expect(matchCommandName('*design', 'frontend-design')).toBe(true);
+        expect(matchCommandName('*design', 'web-design')).toBe(true);
+        expect(matchCommandName('*design', 'design-tool')).toBe(false);
+      });
+
+      test('should handle case-sensitive suffix matching', () => {
+        expect(matchCommandName('*:PDF', 'example-skills:pdf')).toBe(false);
+        expect(matchCommandName('*:pdf', 'example-skills:PDF')).toBe(false);
+      });
+
+      test('should return true when command name equals suffix (without wildcard)', () => {
+        expect(matchCommandName('*:pdf', ':pdf')).toBe(true);
+      });
+
+      test('should handle special characters in suffix', () => {
+        expect(matchCommandName('*-builder', 'web-artifacts-builder')).toBe(true);
+        expect(matchCommandName('*:skill-creator', 'example-skills:skill-creator')).toBe(true);
+      });
+    });
+
     describe('edge cases', () => {
       test('should handle pattern with only wildcard', () => {
         expect(matchCommandName('*', 'anything')).toBe(true);
@@ -152,6 +185,13 @@ describe('command-name-matcher', () => {
         expect(isCommandEnabled('sa:test', ['commit', 'sa:*'])).toBe(true);
         expect(isCommandEnabled('other', ['commit', 'sa:*'])).toBe(false);
       });
+
+      test('should support suffix wildcard patterns in enable list', () => {
+        expect(isCommandEnabled('example-skills:frontend-design', ['*:frontend-design'])).toBe(true);
+        expect(isCommandEnabled('example-skills:web-artifacts-builder', ['*:web-artifacts-builder'])).toBe(true);
+        expect(isCommandEnabled('other:frontend-design', ['*:frontend-design'])).toBe(true);
+        expect(isCommandEnabled('example-skills:other', ['*:frontend-design'])).toBe(false);
+      });
     });
 
     describe('disable list only', () => {
@@ -185,6 +225,12 @@ describe('command-name-matcher', () => {
         expect(isCommandEnabled('commit', undefined, ['commit', 'sa:*'])).toBe(false);
         expect(isCommandEnabled('sa:test', undefined, ['commit', 'sa:*'])).toBe(false);
         expect(isCommandEnabled('other', undefined, ['commit', 'sa:*'])).toBe(true);
+      });
+
+      test('should support suffix wildcard patterns in disable list', () => {
+        expect(isCommandEnabled('example-skills:frontend-design', undefined, ['*:frontend-design'])).toBe(false);
+        expect(isCommandEnabled('other:frontend-design', undefined, ['*:frontend-design'])).toBe(false);
+        expect(isCommandEnabled('example-skills:other', undefined, ['*:frontend-design'])).toBe(true);
       });
     });
 
