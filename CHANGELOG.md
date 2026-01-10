@@ -1,3 +1,9 @@
+## [0.16.1](https://github.com/nkmr-jp/prompt-line/compare/v0.16.0...v0.16.1) (2026-01-10)
+
+### Maintenance
+
+* **deps:** upgrade glob to v13.0.0 and consolidate dependencies ([d5c7c6d](https://github.com/nkmr-jp/prompt-line/commit/d5c7c6dc1c94d2e4d14d8050d8eceb2336745cc4))
+
 ## [0.16.0](https://github.com/nkmr-jp/prompt-line/compare/v0.15.0...v0.16.0) (2026-01-10)
 
 ### Features
