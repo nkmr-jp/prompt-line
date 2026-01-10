@@ -310,7 +310,7 @@ export class MentionInitializer {
             await this.deps.popupManager.showFrontmatterPopup(suggestion.agent, target);
           }
         },
-        onMouseLeaveInfo: () => this.deps.popupManager.hideFrontmatterPopup(),
+        onMouseLeaveInfo: () => this.deps.popupManager.schedulePopupHide(),
         getCachedDirectoryData: () => null, // Will be set after directoryCacheManager is initialized
         getAtStartPosition: () => this.deps.state.atStartPosition,
         adjustCurrentPathToQuery: (query: string) => this.callbacks.adjustCurrentPathToQuery(query),
