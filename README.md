@@ -165,7 +165,7 @@ Custom commands can be added via `~/.prompt-line/settings.yml`. See "⚙️ Sett
 You can search for files by typing @.<br>
 ※ [fd](https://github.com/sharkdp/fd) command installation is required. (`brew install fd`)<br>
 ※ You need to configure `fileSearch` in `~/.prompt-line/settings.yml`. See "⚙️ Settings" section.<br>
-※ Supported applications: Terminal.app, iTerm2, Ghostty, JetBrains IDEs (IntelliJ, WebStorm, etc.), VSCode, Cursor, Windsurf, Antigravity, Kiro
+※ Supported applications: Terminal.app, iTerm2, Ghostty, Warp, WezTerm, JetBrains IDEs (IntelliJ, WebStorm, etc.), VSCode, Cursor, Windsurf, Zed, Antigravity, Kiro
 
 ![doc10.png](assets/doc10.png)
 
@@ -206,10 +206,10 @@ For the full configuration example with all available options and comments, see:
 | `shortcuts` | Keyboard shortcuts (main, paste, close, history navigation, search) |
 | `window` | Window size and positioning mode |
 | `fileOpener` | Default editor and extension-specific applications |
-| `slashCommands` | Built-in AI tool commands and custom markdown commands |
+| `slashCommands` | Built-in AI tool commands, custom slash commands, and skill search |
 | `mentions.fileSearch` | File search settings (@path/to/file completion) |
 | `mentions.symbolSearch` | Symbol search settings (@ts:Config, @go:Handler) |
-| `mentions.mdSearch` | Markdown-based mentions from markdown files |
+| `mentions.mdSearch` | Markdown-based mentions with searchPrefix support (agent, rules, docs, etc.) and frontmatter template variables |
 
 ## Prompt History
 
