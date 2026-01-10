@@ -18,6 +18,9 @@ export interface FrontmatterPopupCallbacks {
   getSuggestionsContainer: () => HTMLElement | null;
   getFilteredCommands: () => SlashCommandItemLike[];
   getSelectedIndex: () => number;
+  onBeforeOpenFile?: () => void;
+  setDraggable?: (value: boolean) => void;
+  onSelectCommand?: (command: SlashCommandItemLike) => void;
 }
 
 /**
@@ -31,6 +34,11 @@ export class FrontmatterPopupManager {
   private isPopupVisible: boolean = false;
   private autoShowTooltip: boolean = false;
   private callbacks: FrontmatterPopupCallbacks;
+
+  // Row hover tracking for tooltip persistence
+  private currentRowElement: Element | null = null;
+  private boundRowMouseEnter: (() => void) | null = null;
+  private boundRowMouseLeave: (() => void) | null = null;
 
   constructor(callbacks: FrontmatterPopupCallbacks) {
     this.callbacks = callbacks;
@@ -70,6 +78,87 @@ export class FrontmatterPopupManager {
     const mainContent = document.querySelector('.main-content');
     if (mainContent) {
       mainContent.appendChild(this.frontmatterPopup);
+    }
+  }
+
+  /**
+   * Add file path as frontmatter line to content container
+   */
+  private async addFilePathLine(contentDiv: HTMLElement, command: SlashCommandItemLike): Promise<void> {
+    try {
+      // Determine if this is a slash command or agent, then get file path
+      let filePath: string | null | undefined;
+      try {
+        // Try slash command API first
+        filePath = await window.electronAPI?.slashCommands?.getFilePath?.(command.name);
+      } catch (_err) {
+        // Silently ignore error - will try agent API next
+      }
+
+      // If no slash command file path, try agent API
+      if (!filePath) {
+        try {
+          filePath = await window.electronAPI?.agents?.getFilePath?.(command.name);
+        } catch (_err) {
+          // Silently ignore error
+        }
+      }
+
+      if (!filePath) return;
+
+      // Replace home directory with ~ for display
+      const displayPath = filePath.replace(/^\/Users\/[^/]+/, '~');
+
+      // Create frontmatter line for file path
+      const lineDiv = document.createElement('div');
+      lineDiv.className = 'frontmatter-line';
+
+      // Add key
+      const keySpan = document.createElement('span');
+      keySpan.className = 'frontmatter-key';
+      keySpan.textContent = 'file: ';
+      lineDiv.appendChild(keySpan);
+
+      // Create clickable link
+      const link = document.createElement('a');
+      link.className = 'frontmatter-link';
+      link.textContent = displayPath;
+      link.title = filePath; // Show full path on hover
+      link.href = '#';
+
+      // Handle click to open in editor
+      link.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        try {
+          // First, insert the command into textarea
+          if (this.callbacks.onSelectCommand) {
+            this.callbacks.onSelectCommand(command);
+          }
+
+          // Then, open the file in editor
+          this.callbacks.onBeforeOpenFile?.();
+          this.callbacks.setDraggable?.(true);
+          const result = await window.electronAPI?.file?.openInEditor?.(filePath);
+
+          if (!result?.success && result?.error) {
+            console.error('Failed to open file:', result.error);
+            this.callbacks.setDraggable?.(false);
+          }
+          // Note: Do not restore focus to PromptLine window
+          // The opened file's application should stay in foreground
+        } catch (err) {
+          console.error('Failed to open file in editor:', err);
+          this.callbacks.setDraggable?.(false);
+        }
+      });
+
+      lineDiv.appendChild(link);
+      contentDiv.appendChild(lineDiv);
+    } catch (error) {
+      // Silently fail - file link is optional
+      console.error('Failed to add file path line:', error);
     }
   }
 
@@ -131,7 +220,7 @@ export class FrontmatterPopupManager {
   /**
    * Show the frontmatter popup for a command
    */
-  public show(command: SlashCommandItemLike, targetElement: HTMLElement): void {
+  public async show(command: SlashCommandItemLike, targetElement: HTMLElement): Promise<void> {
     const suggestionsContainer = this.callbacks.getSuggestionsContainer();
     if (!this.frontmatterPopup || !command.frontmatter || !suggestionsContainer) return;
 
@@ -147,6 +236,10 @@ export class FrontmatterPopupManager {
     const contentDiv = document.createElement('div');
     contentDiv.className = 'frontmatter-content';
     this.renderFrontmatter(contentDiv, command.frontmatter);
+
+    // Add file path line as last frontmatter item (before hint)
+    await this.addFilePathLine(contentDiv, command);
+
     this.frontmatterPopup.appendChild(contentDiv);
 
     // Add hint message at the bottom
@@ -166,6 +259,9 @@ export class FrontmatterPopupManager {
 
     this.frontmatterPopup.style.display = 'block';
     this.isPopupVisible = true;
+
+    // Set up row listeners for tooltip persistence
+    this.setupRowListeners(targetElement);
   }
 
   /**
@@ -176,6 +272,8 @@ export class FrontmatterPopupManager {
       this.frontmatterPopup.style.display = 'none';
     }
     this.isPopupVisible = false;
+    // Clean up row listeners when popup is hidden
+    this.cleanupRowListeners();
   }
 
   /**
@@ -199,9 +297,43 @@ export class FrontmatterPopupManager {
   }
 
   /**
+   * Clean up row event listeners
+   */
+  private cleanupRowListeners(): void {
+    if (this.currentRowElement && this.boundRowMouseEnter && this.boundRowMouseLeave) {
+      this.currentRowElement.removeEventListener('mouseenter', this.boundRowMouseEnter);
+      this.currentRowElement.removeEventListener('mouseleave', this.boundRowMouseLeave);
+    }
+    this.currentRowElement = null;
+    this.boundRowMouseEnter = null;
+    this.boundRowMouseLeave = null;
+  }
+
+  /**
+   * Set up row event listeners for tooltip persistence
+   */
+  private setupRowListeners(targetElement: HTMLElement): void {
+    // Clean up previous row listeners
+    this.cleanupRowListeners();
+
+    // Find the parent row element
+    const rowElement = targetElement.closest('.slash-suggestion-item');
+    if (!rowElement) return;
+
+    // Create bound handlers
+    this.boundRowMouseEnter = () => this.cancelHide();
+    this.boundRowMouseLeave = () => this.scheduleHide();
+
+    // Add listeners to the row
+    rowElement.addEventListener('mouseenter', this.boundRowMouseEnter);
+    rowElement.addEventListener('mouseleave', this.boundRowMouseLeave);
+    this.currentRowElement = rowElement;
+  }
+
+  /**
    * Show tooltip for the currently selected item (if auto-show is enabled)
    */
-  public showForSelectedItem(): void {
+  public async showForSelectedItem(): Promise<void> {
     const suggestionsContainer = this.callbacks.getSuggestionsContainer();
     if (!this.autoShowTooltip || !suggestionsContainer) return;
 
@@ -217,17 +349,17 @@ export class FrontmatterPopupManager {
     const selectedItem = suggestionsContainer.querySelector('.slash-suggestion-item.selected');
     const infoIcon = selectedItem?.querySelector('.frontmatter-info-icon') as HTMLElement;
     if (infoIcon) {
-      this.show(selectedCommand, infoIcon);
+      await this.show(selectedCommand, infoIcon);
     }
   }
 
   /**
    * Toggle auto-show tooltip mode
    */
-  public toggleAutoShow(): void {
+  public async toggleAutoShow(): Promise<void> {
     this.autoShowTooltip = !this.autoShowTooltip;
     if (this.autoShowTooltip) {
-      this.showForSelectedItem();
+      await this.showForSelectedItem();
     } else {
       this.hide();
     }

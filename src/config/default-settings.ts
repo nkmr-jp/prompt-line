@@ -54,18 +54,9 @@ export const defaultSettings: UserSettings = {
         name: '{basename}',
         description: '{frontmatter@description}',
         path: '~/.claude/commands',
+        label: 'command',
+        color: 'teal',
         pattern: '*.md',
-        argumentHint: '{frontmatter@argument-hint}',
-        maxSuggestions: 20
-      },
-      {
-        name: '{prefix}:{basename}',
-        description: '{frontmatter@description}',
-        path: '~/.claude/plugins/cache',
-        pattern: '**/commands/*.md',
-        prefixPattern: '**/.claude-plugin/plugin.json@name',
-        label: 'plugin',
-        color: 'red',
         argumentHint: '{frontmatter@argument-hint}',
         maxSuggestions: 20
       },
@@ -74,8 +65,31 @@ export const defaultSettings: UserSettings = {
         description: '{frontmatter@description}',
         path: '~/.claude/skills',
         label: 'skill',
-        color: 'blue',
-        pattern: '**/*/SKILL.md'
+        color: 'teal',
+        pattern: '**/*/SKILL.md',
+        maxSuggestions: 20
+      },
+      {
+        name: '{prefix}:{basename}',
+        description: '{frontmatter@description}',
+        path: '~/.claude/plugins/cache',
+        pattern: '**/commands/*.md',
+        prefixPattern: '**/.claude-plugin/*.json@name',
+        label: 'command',
+        color: 'red',
+        argumentHint: '{frontmatter@argument-hint}',
+        maxSuggestions: 20
+      },
+      {
+        name: '{prefix}:{frontmatter@name}',
+        description: '{frontmatter@description}',
+        path: '~/.claude/plugins/cache',
+        pattern: '**/*/SKILL.md',
+        prefixPattern: '**/.claude-plugin/*.json@name',
+        label: 'skill',
+        color: 'red',
+        argumentHint: '{frontmatter@argument-hint}',
+        maxSuggestions: 20
       }
     ]
   },
@@ -103,6 +117,23 @@ export const defaultSettings: UserSettings = {
         path: '~/.claude/agents',
         pattern: '*.md',
         searchPrefix: 'agent'
+      },
+      {
+        name: 'agent-{prefix}:{basename}',
+        description: '{frontmatter@description}',
+        path: '~/.claude/plugins/cache',
+        pattern: '**/agents/*.md',
+        prefixPattern: '**/.claude-plugin/*.json@name',
+        searchPrefix: 'agent'
+      },
+      {
+        name: '{basename}',
+        description: '{frontmatter@title}',
+        path: '~/.claude/plans',
+        pattern: '*.md',
+        searchPrefix: 'plan',
+        maxSuggestions: 100,
+        inputFormat: 'path'
       }
     ]
   }

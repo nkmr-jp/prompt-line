@@ -20,6 +20,12 @@ export interface PopupManagerCallbacks {
   getSelectedSuggestion: () => { type: string; agent?: AgentItem } | null;
   /** Get the suggestions container element */
   getSuggestionsContainer: () => HTMLElement | null;
+  /** Called before opening a file in the editor */
+  onBeforeOpenFile?: () => void;
+  /** Set whether the window is draggable */
+  setDraggable?: (value: boolean) => void;
+  /** Called when agent is selected for insertion */
+  onSelectAgent?: (agent: AgentItem) => void;
 }
 
 /**
@@ -30,6 +36,11 @@ export class PopupManager {
   private popupHideTimeout: ReturnType<typeof setTimeout> | null = null;
   private autoShowTooltip: boolean = false;
   private callbacks: PopupManagerCallbacks;
+
+  // Row hover tracking for tooltip persistence
+  private currentRowElement: Element | null = null;
+  private boundRowMouseEnter: (() => void) | null = null;
+  private boundRowMouseLeave: (() => void) | null = null;
 
   private static readonly POPUP_HIDE_DELAY = UI_TIMING.POPUP_HIDE_DELAY; // ms delay before hiding popup
 
@@ -92,10 +103,75 @@ export class PopupManager {
   }
 
   /**
+   * Add file path line to the frontmatter content
+   */
+  private async addFilePathLine(contentDiv: HTMLElement, agentName: string): Promise<void> {
+    try {
+      const filePath = await window.electronAPI?.agents?.getFilePath?.(agentName);
+      if (!filePath) return;
+
+      // Replace home directory with ~ for display
+      const displayPath = filePath.replace(/^\/Users\/[^/]+/, '~');
+
+      // Create frontmatter line for file path
+      const lineDiv = document.createElement('div');
+      lineDiv.className = 'frontmatter-line';
+
+      // Add key
+      const keySpan = document.createElement('span');
+      keySpan.className = 'frontmatter-key';
+      keySpan.textContent = 'file: ';
+      lineDiv.appendChild(keySpan);
+
+      // Create clickable link
+      const link = document.createElement('a');
+      link.className = 'frontmatter-link';
+      link.textContent = displayPath;
+      link.title = filePath; // Show full path on hover
+      link.href = '#';
+
+      // Handle click to open in editor
+      link.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        try {
+          // First, get the agent and insert it into textarea
+          const suggestion = this.callbacks.getSelectedSuggestion?.();
+          if (suggestion?.type === 'agent' && suggestion.agent && this.callbacks.onSelectAgent) {
+            this.callbacks.onSelectAgent(suggestion.agent);
+          }
+
+          // Then, open the file in editor
+          this.callbacks.onBeforeOpenFile?.();
+          this.callbacks.setDraggable?.(true);
+          const result = await window.electronAPI?.file?.openInEditor?.(filePath);
+
+          if (!result?.success && result?.error) {
+            console.error('Failed to open file:', result.error);
+            this.callbacks.setDraggable?.(false);
+          }
+          // Note: Do not restore focus to PromptLine window
+          // The opened file's application should stay in foreground
+        } catch (err) {
+          console.error('Failed to open file in editor:', err);
+          this.callbacks.setDraggable?.(false);
+        }
+      });
+
+      lineDiv.appendChild(link);
+      contentDiv.appendChild(lineDiv);
+    } catch (error) {
+      // Silently fail - file link is optional
+      console.error('Failed to add file path line:', error);
+    }
+  }
+
+  /**
    * Show frontmatter popup for an agent
    * Position: to the left of the info icon
    */
-  public showFrontmatterPopup(agent: AgentItem, targetElement: HTMLElement): void {
+  public async showFrontmatterPopup(agent: AgentItem, targetElement: HTMLElement): Promise<void> {
     const suggestionsContainer = this.callbacks.getSuggestionsContainer();
     if (!this.frontmatterPopup || !agent.frontmatter || !suggestionsContainer) return;
 
@@ -111,6 +187,10 @@ export class PopupManager {
     const contentDiv = document.createElement('div');
     contentDiv.className = 'frontmatter-content';
     contentDiv.textContent = agent.frontmatter;
+
+    // Add file path line after frontmatter content
+    await this.addFilePathLine(contentDiv, agent.name);
+
     this.frontmatterPopup.appendChild(contentDiv);
 
     // Add hint message at the bottom
@@ -129,6 +209,9 @@ export class PopupManager {
     applyPopupPosition(this.frontmatterPopup, position);
 
     this.frontmatterPopup.style.display = 'block';
+
+    // Set up row listeners for tooltip persistence
+    this.setupRowListeners(targetElement);
   }
 
   /**
@@ -138,6 +221,8 @@ export class PopupManager {
     if (this.frontmatterPopup) {
       this.frontmatterPopup.style.display = 'none';
     }
+    // Clean up row listeners when popup is hidden
+    this.cleanupRowListeners();
   }
 
   /**
@@ -161,6 +246,40 @@ export class PopupManager {
   }
 
   /**
+   * Clean up row event listeners
+   */
+  private cleanupRowListeners(): void {
+    if (this.currentRowElement && this.boundRowMouseEnter && this.boundRowMouseLeave) {
+      this.currentRowElement.removeEventListener('mouseenter', this.boundRowMouseEnter);
+      this.currentRowElement.removeEventListener('mouseleave', this.boundRowMouseLeave);
+    }
+    this.currentRowElement = null;
+    this.boundRowMouseEnter = null;
+    this.boundRowMouseLeave = null;
+  }
+
+  /**
+   * Set up row event listeners for tooltip persistence
+   */
+  private setupRowListeners(targetElement: HTMLElement): void {
+    // Clean up previous row listeners
+    this.cleanupRowListeners();
+
+    // Find the parent row element
+    const rowElement = targetElement.closest('.suggestion-item, .file-suggestion-item');
+    if (!rowElement) return;
+
+    // Create bound handlers
+    this.boundRowMouseEnter = () => this.cancelPopupHide();
+    this.boundRowMouseLeave = () => this.schedulePopupHide();
+
+    // Add listeners to the row
+    rowElement.addEventListener('mouseenter', this.boundRowMouseEnter);
+    rowElement.addEventListener('mouseleave', this.boundRowMouseLeave);
+    this.currentRowElement = rowElement;
+  }
+
+  /**
    * Toggle auto-show tooltip feature
    */
   public toggleAutoShowTooltip(): void {
@@ -177,7 +296,7 @@ export class PopupManager {
   /**
    * Show tooltip for the currently selected item (agent only)
    */
-  public showTooltipForSelectedItem(): void {
+  public async showTooltipForSelectedItem(): Promise<void> {
     const suggestionsContainer = this.callbacks.getSuggestionsContainer();
     if (!this.autoShowTooltip || !suggestionsContainer) return;
 
@@ -191,7 +310,7 @@ export class PopupManager {
     const selectedItem = suggestionsContainer.querySelector('.file-suggestion-item.selected');
     const infoIcon = selectedItem?.querySelector('.frontmatter-info-icon') as HTMLElement;
     if (infoIcon) {
-      this.showFrontmatterPopup(suggestion.agent, infoIcon);
+      await this.showFrontmatterPopup(suggestion.agent, infoIcon);
     }
   }
 
@@ -207,6 +326,7 @@ export class PopupManager {
    */
   public destroy(): void {
     this.cancelPopupHide();
+    this.cleanupRowListeners();
     if (this.frontmatterPopup && this.frontmatterPopup.parentNode) {
       this.frontmatterPopup.parentNode.removeChild(this.frontmatterPopup);
       this.frontmatterPopup = null;

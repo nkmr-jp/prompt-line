@@ -82,7 +82,18 @@ export class MentionManager implements IInitializable {
     // Initialize PopupManager with callbacks
     this.popupManager = new PopupManager({
       getSelectedSuggestion: () => this.state.mergedSuggestions[this.state.selectedIndex] || null,
-      getSuggestionsContainer: () => this.state.suggestionsContainer
+      getSuggestionsContainer: () => this.state.suggestionsContainer,
+      onBeforeOpenFile: () => callbacks.onBeforeOpenFile?.(),
+      setDraggable: (value: boolean) => callbacks.setDraggable?.(value),
+      onSelectAgent: (agent: AgentItem) => {
+        // Find the agent in merged suggestions and select it
+        const agentIndex = this.state.mergedSuggestions.findIndex(
+          s => s.type === 'agent' && s.agent?.name === agent.name
+        );
+        if (agentIndex >= 0) {
+          this.selectItem(agentIndex);
+        }
+      }
     });
 
     // Initialize SettingsCacheManager

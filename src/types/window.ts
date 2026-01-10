@@ -221,6 +221,18 @@ export interface MentionsSettings {
   symbolSearch?: SymbolSearchUserSettings;
   /** Markdown-based mentions from markdown files */
   mdSearch?: MentionEntry[];
+  /**
+   * 有効にするメンション名のリスト（ホワイトリスト）
+   * - 完全一致: "agent-claude"
+   * - 前方一致: "agent-*"
+   */
+  enable?: string[];
+  /**
+   * 無効にするメンション名のリスト（ブラックリスト）
+   * - 完全一致: "agent-legacy"
+   * - 前方一致: "old-*"
+   */
+  disable?: string[];
 }
 
 // ============================================================================
@@ -235,6 +247,18 @@ export interface SlashCommandsSettings {
   builtIn?: string[];
   /** Custom slash commands from markdown files */
   custom?: SlashCommandEntry[];
+  /**
+   * 有効にするコマンド名のリスト（ホワイトリスト）
+   * - 完全一致: "commit"
+   * - 前方一致: "ralph-loop:*"
+   */
+  enable?: string[];
+  /**
+   * 無効にするコマンド名のリスト（ブラックリスト）
+   * - 完全一致: "debug"
+   * - 前方一致: "debug-*"
+   */
+  disable?: string[];
 }
 
 /**
@@ -257,10 +281,22 @@ export interface SlashCommandEntry {
   sortOrder?: 'asc' | 'desc';
   /** オプション: label（静的な値 "skill" または テンプレート "{frontmatter@label}"） */
   label?: string;
-  /** オプション: ラベルとハイライトの色（purple, blue, green, orange, red, gray） */
-  color?: 'purple' | 'blue' | 'green' | 'orange' | 'red' | 'gray';
+  /** オプション: ラベルとハイライトの色（grey, darkGrey, purple, teal, green, yellow, orange, pink, red） */
+  color?: 'grey' | 'darkGrey' | 'purple' | 'teal' | 'green' | 'yellow' | 'orange' | 'pink' | 'red';
   /** オプション: プレフィックスパターン - 特定JSONファイルからプレフィックスを動的に読み込むためのパターン */
   prefixPattern?: string;
+  /**
+   * このエントリで有効にするコマンド名のリスト（ホワイトリスト）
+   * - 完全一致: "commit"
+   * - 前方一致: "ralph-loop:*"
+   */
+  enable?: string[];
+  /**
+   * このエントリで無効にするコマンド名のリスト（ブラックリスト）
+   * - 完全一致: "debug"
+   * - 前方一致: "debug-*"
+   */
+  disable?: string[];
 }
 
 /**
@@ -283,6 +319,20 @@ export interface MentionEntry {
   sortOrder?: 'asc' | 'desc';
   /** オプション: 入力フォーマット（デフォルト: 'name'） */
   inputFormat?: InputFormatType;
+  /** オプション: プレフィックスパターン - 特定JSONファイルからプレフィックスを動的に読み込むためのパターン */
+  prefixPattern?: string;
+  /**
+   * オプション: 有効にするメンション名のリスト（このエントリのみに適用）
+   * - 完全一致: "agent-claude"
+   * - 前方一致: "agent-*"
+   */
+  enable?: string[];
+  /**
+   * オプション: 無効にするメンション名のリスト（このエントリのみに適用）
+   * - 完全一致: "agent-legacy"
+   * - 前方一致: "old-*"
+   */
+  disable?: string[];
 }
 
 // ============================================================================
@@ -312,8 +362,8 @@ export interface MdSearchEntry {
   pattern: string;
   /** オプション: label（静的な値 "skill" または テンプレート "{frontmatter@label}"） */
   label?: string;
-  /** オプション: ラベルとハイライトの色（purple, blue, green, orange, red, gray） */
-  color?: 'purple' | 'blue' | 'green' | 'orange' | 'red' | 'gray';
+  /** オプション: ラベルとハイライトの色（grey, darkGrey, purple, teal, green, yellow, orange, pink, red） */
+  color?: 'grey' | 'darkGrey' | 'purple' | 'teal' | 'green' | 'yellow' | 'orange' | 'pink' | 'red';
   /** オプション: argumentHintテンプレート */
   argumentHint?: string;
   /** オプション: 検索候補の最大表示数（デフォルト: 20） */
@@ -326,6 +376,18 @@ export interface MdSearchEntry {
   inputFormat?: InputFormatType;
   /** オプション: プレフィックスパターン - 特定JSONファイルからプレフィックスを動的に読み込むためのパターン */
   prefixPattern?: string;
+  /**
+   * オプション: 有効にするアイテム名のリスト（このエントリのみに適用）
+   * - 完全一致: "commit"
+   * - 前方一致: "ralph-loop:*"
+   */
+  enable?: string[];
+  /**
+   * オプション: 無効にするアイテム名のリスト（このエントリのみに適用）
+   * - 完全一致: "debug"
+   * - 前方一致: "debug-*"
+   */
+  disable?: string[];
 }
 
 /**
@@ -345,7 +407,7 @@ export interface MdSearchItem {
   /** label（オプション） */
   label?: string;
   /** ラベルとハイライトの色（オプション） */
-  color?: 'purple' | 'blue' | 'green' | 'orange' | 'red' | 'gray';
+  color?: 'grey' | 'darkGrey' | 'purple' | 'teal' | 'green' | 'yellow' | 'orange' | 'pink' | 'red';
   /** argumentHint（commandタイプのみ） */
   argumentHint?: string;
   /** 検索ソースの識別子（path + pattern） */
@@ -358,7 +420,7 @@ export interface SlashCommandItem {
   name: string;
   description: string;
   label?: string;  // Label text (e.g., from frontmatter)
-  color?: 'purple' | 'blue' | 'green' | 'orange' | 'red' | 'gray';  // Color for label and highlight
+  color?: 'grey' | 'darkGrey' | 'purple' | 'teal' | 'green' | 'yellow' | 'orange' | 'pink' | 'red';  // Color for label and highlight
   argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）

@@ -70,7 +70,9 @@ const ALLOWED_CHANNELS = [
   'save-draft-to-history',
   // Slash command cache channels
   'register-global-slash-command',
-  'get-global-slash-commands'
+  'get-global-slash-commands',
+  // Settings update notification channel
+  'settings-updated'
 ];
 
 // IPC channel validation with additional security checks
@@ -367,6 +369,12 @@ const electronAPI: ElectronAPI = {
 
 // Safely expose API via contextBridge
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);
+
+// Listen for settings updates from main process and dispatch custom event
+ipcRenderer.on('settings-updated', (_event, settings) => {
+  // eslint-disable-next-line no-undef
+  window.dispatchEvent(new CustomEvent('settings-updated', { detail: settings }));
+});
 
 // Re-export ElectronAPI type for external usage
 export type { ElectronAPI } from '../types/ipc';

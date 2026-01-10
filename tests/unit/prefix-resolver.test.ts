@@ -580,6 +580,47 @@ describe('prefix-resolver', () => {
       // Should use the first match
       expect(result).toBe('first-prefix');
     });
+
+    test('should select the closest match when multiple plugin.json files exist', async () => {
+      // Create nested directory structure
+      // testDir/
+      //   .claude-plugin/plugin.json (name: 'root-plugin')
+      //   plugins/
+      //     ralph-loop/
+      //       .claude-plugin/plugin.json (name: 'ralph-loop')
+      //       commands/help.md
+
+      // Root level plugin
+      const rootPluginDir = path.join(testDir, '.claude-plugin');
+      fs.mkdirSync(rootPluginDir, { recursive: true });
+      const rootPluginFile = path.join(rootPluginDir, 'plugin.json');
+      fs.writeFileSync(rootPluginFile, JSON.stringify({ name: 'root-plugin' }));
+
+      // Nested plugin
+      const ralphLoopDir = path.join(testDir, 'plugins', 'ralph-loop');
+      const ralphPluginDir = path.join(ralphLoopDir, '.claude-plugin');
+      fs.mkdirSync(ralphPluginDir, { recursive: true });
+      const ralphPluginFile = path.join(ralphPluginDir, 'plugin.json');
+      fs.writeFileSync(ralphPluginFile, JSON.stringify({ name: 'ralph-loop' }));
+
+      // Command file in nested structure
+      const commandsDir = path.join(ralphLoopDir, 'commands');
+      fs.mkdirSync(commandsDir, { recursive: true });
+      const commandFilePath = path.join(commandsDir, 'help.md');
+      fs.writeFileSync(commandFilePath, '# Help Command');
+
+      // Mock glob to return both plugin files (closer one first for glob order)
+      mockedGlob.mockResolvedValue([ralphPluginFile, rootPluginFile]);
+
+      const result = await resolvePrefix(
+        commandFilePath,
+        '**/.claude-plugin/plugin.json@name',
+        testDir
+      );
+
+      // Should select the closest match (ralph-loop) to the command file
+      expect(result).toBe('ralph-loop');
+    });
   });
 
   describe('clearPrefixCache', () => {

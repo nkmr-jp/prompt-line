@@ -103,12 +103,22 @@
 }
 
 /* Label color variations */
+.slash-command-label[data-color="grey"] {
+  color: #888888;
+  background: rgba(136, 136, 136, 0.2);
+}
+
+.slash-command-label[data-color="darkGrey"] {
+  color: #6b7280;
+  background: rgba(107, 114, 128, 0.2);
+}
+
 .slash-command-label[data-color="purple"] {
   color: #c792ea;
   background: rgba(199, 146, 234, 0.2);
 }
 
-.slash-command-label[data-color="blue"] {
+.slash-command-label[data-color="teal"] {
   color: #89DDFF;
   background: rgba(137, 221, 255, 0.2);
 }
@@ -118,19 +128,24 @@
   background: rgba(127, 219, 200, 0.2);
 }
 
+.slash-command-label[data-color="yellow"] {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.2);
+}
+
 .slash-command-label[data-color="orange"] {
   color: #ffcb6b;
   background: rgba(255, 203, 107, 0.2);
 }
 
+.slash-command-label[data-color="pink"] {
+  color: #f472b6;
+  background: rgba(244, 114, 182, 0.2);
+}
+
 .slash-command-label[data-color="red"] {
   color: #f07178;
   background: rgba(240, 113, 120, 0.2);
-}
-
-.slash-command-label[data-color="gray"] {
-  color: #888888;
-  background: rgba(136, 136, 136, 0.2);
 }
 
 /* Argument hint only mode - tighter spacing */
@@ -148,6 +163,23 @@
   background: rgba(128, 128, 128, 0.3);
   padding: 2px 4px;
   margin-right: 2px;
+}
+
+/* Copy icon for argument hint */
+.argument-hint-copy-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  color: #666;
+  cursor: pointer;
+  margin-left: 6px;
+  opacity: 0.7;
+  transition: opacity 0.2s ease, color 0.2s ease;
+}
+
+.argument-hint-copy-icon:hover {
+  color: #999;
+  opacity: 1;
 }
 
 .slash-highlight {

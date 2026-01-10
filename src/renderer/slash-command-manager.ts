@@ -15,7 +15,7 @@ interface SlashCommandItem {
   name: string;
   description: string;
   label?: string;  // Label text (e.g., from frontmatter)
-  color?: 'purple' | 'blue' | 'green' | 'orange' | 'red' | 'gray';  // Color for label and highlight
+  color?: 'grey' | 'darkGrey' | 'purple' | 'teal' | 'green' | 'yellow' | 'orange' | 'pink' | 'red';  // Color for label and highlight
   argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
@@ -58,7 +58,17 @@ export class SlashCommandManager implements IInitializable {
     this.frontmatterPopupManager = new FrontmatterPopupManager({
       getSuggestionsContainer: () => this.suggestionsContainer,
       getFilteredCommands: () => this.filteredCommands,
-      getSelectedIndex: () => this.selectedIndex
+      getSelectedIndex: () => this.selectedIndex,
+      ...(callbacks.onBeforeOpenFile ? { onBeforeOpenFile: callbacks.onBeforeOpenFile } : {}),
+      ...(callbacks.setDraggable ? { setDraggable: callbacks.setDraggable } : {}),
+      onSelectCommand: (command) => {
+        // Find the command in filteredCommands to get the full command object
+        const fullCommand = this.filteredCommands.find(cmd => cmd.name === command.name);
+        if (fullCommand) {
+          // Use Tab behavior (shouldPaste=false) to insert command with space for editing
+          this.selectCommand(this.filteredCommands.indexOf(fullCommand), false);
+        }
+      }
     });
   }
 
@@ -792,6 +802,17 @@ export class SlashCommandManager implements IInitializable {
     hintSpan.className = 'slash-command-description';
     hintSpan.textContent = command.argumentHint;
     item.appendChild(hintSpan);
+
+    // Add copy icon
+    const copyIcon = document.createElement('span');
+    copyIcon.className = 'argument-hint-copy-icon';
+    copyIcon.innerHTML = `
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+      </svg>
+    `;
+    item.appendChild(copyIcon);
 
     this.suggestionsContainer.appendChild(item);
 

@@ -105,7 +105,7 @@ describe('PopupManager', () => {
       (mockCallbacks.getSuggestionsContainer as jest.Mock).mockReturnValue(suggestionsContainer);
     });
 
-    test('should show popup with agent frontmatter content', () => {
+    test('should show popup with agent frontmatter content', async () => {
       popupManager.initialize();
 
       const agent = {
@@ -115,7 +115,7 @@ describe('PopupManager', () => {
         frontmatter: 'This is the agent description'
       };
 
-      popupManager.showFrontmatterPopup(agent, targetElement);
+      await popupManager.showFrontmatterPopup(agent, targetElement);
 
       const popup = document.getElementById('frontmatterPopup');
       expect(popup?.style.display).toBe('block');
@@ -124,7 +124,7 @@ describe('PopupManager', () => {
       expect(content?.textContent).toBe('This is the agent description');
     });
 
-    test('should show hint message in popup', () => {
+    test('should show hint message in popup', async () => {
       popupManager.initialize();
 
       const agent = {
@@ -134,7 +134,7 @@ describe('PopupManager', () => {
         frontmatter: 'Agent description'
       };
 
-      popupManager.showFrontmatterPopup(agent, targetElement);
+      await popupManager.showFrontmatterPopup(agent, targetElement);
 
       const popup = document.getElementById('frontmatterPopup');
       const hint = popup?.querySelector('.frontmatter-hint');
@@ -341,7 +341,7 @@ describe('PopupManager', () => {
       (mockCallbacks.getSuggestionsContainer as jest.Mock).mockReturnValue(suggestionsContainer);
     });
 
-    test('should show tooltip when auto-show is enabled and agent is selected', () => {
+    test('should show tooltip when auto-show is enabled and agent is selected', async () => {
       popupManager.initialize();
 
       // Enable auto-show
@@ -358,7 +358,7 @@ describe('PopupManager', () => {
         }
       });
 
-      popupManager.showTooltipForSelectedItem();
+      await popupManager.showTooltipForSelectedItem();
 
       const popup = document.getElementById('frontmatterPopup');
       expect(popup?.style.display).toBe('block');

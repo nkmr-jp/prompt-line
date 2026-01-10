@@ -1084,4 +1084,407 @@ Content`;
       expect(mentionPrefixes).toEqual(['agent:']);
     });
   });
+
+  describe('entry-level enable/disable filtering', () => {
+    test('should filter slash commands using entry-level enable list', async () => {
+      loader = new MdSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          path: '/path/to/commands',
+          pattern: '*.md',
+          enable: ['test-*', 'commit'],
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([
+        createDirent('test-command.md', true),
+        createDirent('commit.md', true),
+        createDirent('debug.md', true),
+      ] as any);
+      mockedFs.readFile.mockImplementation(((filePath: any) => {
+        const pathStr = String(filePath);
+        if (pathStr.includes('test-command')) {
+          return Promise.resolve('---\ndescription: Test command\n---\n');
+        }
+        if (pathStr.includes('commit')) {
+          return Promise.resolve('---\ndescription: Commit command\n---\n');
+        }
+        return Promise.resolve('---\ndescription: Debug command\n---\n');
+      }) as any);
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(2);
+      expect(items.map(i => i.name).sort()).toEqual(['commit', 'test-command']);
+    });
+
+    test('should filter slash commands using entry-level disable list', async () => {
+      loader = new MdSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          path: '/path/to/commands',
+          pattern: '*.md',
+          disable: ['debug', 'old-*'],
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([
+        createDirent('commit.md', true),
+        createDirent('debug.md', true),
+        createDirent('old-command.md', true),
+      ] as any);
+      mockedFs.readFile.mockImplementation(((filePath: any) => {
+        const pathStr = String(filePath);
+        if (pathStr.includes('commit')) {
+          return Promise.resolve('---\ndescription: Commit command\n---\n');
+        }
+        if (pathStr.includes('debug')) {
+          return Promise.resolve('---\ndescription: Debug command\n---\n');
+        }
+        return Promise.resolve('---\ndescription: Old command\n---\n');
+      }) as any);
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(1);
+      expect(items[0]?.name).toBe('commit');
+    });
+
+    test('should apply both entry-level and global-level filtering', async () => {
+      loader = new MdSearchLoader(
+        [
+          {
+            name: '{basename}',
+            type: 'command',
+            description: '{frontmatter@description}',
+            path: '/path/to/commands',
+            pattern: '*.md',
+            enable: ['test-*', 'commit', 'debug'],
+          },
+        ],
+        {
+          shortcuts: {
+            main: 'Cmd+Shift+Space',
+            paste: 'Cmd+Enter',
+            close: 'Escape',
+            historyNext: 'Ctrl+j',
+            historyPrev: 'Ctrl+k',
+            search: 'Ctrl+f',
+          },
+          window: {
+            position: 'cursor',
+            width: 600,
+            height: 300,
+          },
+          slashCommands: {
+            enable: ['commit', 'test-*'],
+          },
+        }
+      );
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([
+        createDirent('test-command.md', true),
+        createDirent('commit.md', true),
+        createDirent('debug.md', true),
+      ] as any);
+      mockedFs.readFile.mockImplementation(((filePath: any) => {
+        const pathStr = String(filePath);
+        if (pathStr.includes('test-command')) {
+          return Promise.resolve('---\ndescription: Test command\n---\n');
+        }
+        if (pathStr.includes('commit')) {
+          return Promise.resolve('---\ndescription: Commit command\n---\n');
+        }
+        return Promise.resolve('---\ndescription: Debug command\n---\n');
+      }) as any);
+
+      const items = await loader.getItems('command');
+
+      // Entry-level allows: test-*, commit, debug
+      // Global-level allows: commit, test-*
+      // Result: test-*, commit (intersection)
+      expect(items).toHaveLength(2);
+      expect(items.map(i => i.name).sort()).toEqual(['commit', 'test-command']);
+    });
+
+    test('should work with mention type', async () => {
+      loader = new MdSearchLoader([
+        {
+          name: 'agent-{basename}',
+          type: 'mention',
+          description: '{frontmatter@description}',
+          path: '/path/to/agents',
+          pattern: '*.md',
+          enable: ['agent-claude', 'agent-gemini'],
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([
+        createDirent('claude.md', true),
+        createDirent('gemini.md', true),
+        createDirent('legacy.md', true),
+      ] as any);
+      mockedFs.readFile.mockImplementation(((filePath: any) => {
+        const pathStr = String(filePath);
+        if (pathStr.includes('claude')) {
+          return Promise.resolve('---\ndescription: Claude agent\n---\n');
+        }
+        if (pathStr.includes('gemini')) {
+          return Promise.resolve('---\ndescription: Gemini agent\n---\n');
+        }
+        return Promise.resolve('---\ndescription: Legacy agent\n---\n');
+      }) as any);
+
+      const items = await loader.getItems('mention');
+
+      expect(items).toHaveLength(2);
+      expect(items.map(i => i.name).sort()).toEqual(['agent-claude', 'agent-gemini']);
+    });
+  });
+
+  describe('global-level enable/disable filtering for mentions', () => {
+    test('should filter mentions using global enable list', async () => {
+      loader = new MdSearchLoader(
+        [
+          {
+            name: 'agent-{basename}',
+            type: 'mention',
+            description: '{frontmatter@description}',
+            path: '/path/to/agents',
+            pattern: '*.md',
+          },
+        ],
+        {
+          shortcuts: {
+            main: 'Cmd+Shift+Space',
+            paste: 'Cmd+Enter',
+            close: 'Escape',
+            historyNext: 'Ctrl+j',
+            historyPrev: 'Ctrl+k',
+            search: 'Cmd+f',
+          },
+          window: {
+            position: 'cursor',
+            width: 600,
+            height: 300,
+          },
+          mentions: {
+            enable: ['agent-claude', 'agent-gemini*'],
+          },
+        }
+      );
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([
+        createDirent('claude.md', true),
+        createDirent('gemini.md', true),
+        createDirent('gemini-pro.md', true),
+        createDirent('legacy.md', true),
+      ] as any);
+      mockedFs.readFile.mockImplementation(((filePath: any) => {
+        const pathStr = String(filePath);
+        if (pathStr.includes('claude')) {
+          return Promise.resolve('---\ndescription: Claude agent\n---\n');
+        }
+        if (pathStr.includes('gemini.md')) {
+          return Promise.resolve('---\ndescription: Gemini agent\n---\n');
+        }
+        if (pathStr.includes('gemini-pro')) {
+          return Promise.resolve('---\ndescription: Gemini Pro agent\n---\n');
+        }
+        return Promise.resolve('---\ndescription: Legacy agent\n---\n');
+      }) as any);
+
+      const items = await loader.getItems('mention');
+
+      expect(items).toHaveLength(3);
+      expect(items.map(i => i.name).sort()).toEqual(['agent-claude', 'agent-gemini', 'agent-gemini-pro']);
+    });
+
+    test('should filter mentions using global disable list', async () => {
+      loader = new MdSearchLoader(
+        [
+          {
+            name: 'agent-{basename}',
+            type: 'mention',
+            description: '{frontmatter@description}',
+            path: '/path/to/agents',
+            pattern: '*.md',
+          },
+        ],
+        {
+          shortcuts: {
+            main: 'Cmd+Shift+Space',
+            paste: 'Cmd+Enter',
+            close: 'Escape',
+            historyNext: 'Ctrl+j',
+            historyPrev: 'Ctrl+k',
+            search: 'Cmd+f',
+          },
+          window: {
+            position: 'cursor',
+            width: 600,
+            height: 300,
+          },
+          mentions: {
+            disable: ['agent-legacy', 'agent-old-*'],
+          },
+        }
+      );
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([
+        createDirent('claude.md', true),
+        createDirent('gemini.md', true),
+        createDirent('legacy.md', true),
+        createDirent('old-bot.md', true),
+      ] as any);
+      mockedFs.readFile.mockImplementation(((filePath: any) => {
+        const pathStr = String(filePath);
+        if (pathStr.includes('claude')) {
+          return Promise.resolve('---\ndescription: Claude agent\n---\n');
+        }
+        if (pathStr.includes('gemini')) {
+          return Promise.resolve('---\ndescription: Gemini agent\n---\n');
+        }
+        if (pathStr.includes('legacy')) {
+          return Promise.resolve('---\ndescription: Legacy agent\n---\n');
+        }
+        return Promise.resolve('---\ndescription: Old bot\n---\n');
+      }) as any);
+
+      const items = await loader.getItems('mention');
+
+      expect(items).toHaveLength(2);
+      expect(items.map(i => i.name).sort()).toEqual(['agent-claude', 'agent-gemini']);
+    });
+
+    test('should apply both global enable and disable filters for mentions', async () => {
+      loader = new MdSearchLoader(
+        [
+          {
+            name: 'agent-{basename}',
+            type: 'mention',
+            description: '{frontmatter@description}',
+            path: '/path/to/agents',
+            pattern: '*.md',
+          },
+        ],
+        {
+          shortcuts: {
+            main: 'Cmd+Shift+Space',
+            paste: 'Cmd+Enter',
+            close: 'Escape',
+            historyNext: 'Ctrl+j',
+            historyPrev: 'Ctrl+k',
+            search: 'Cmd+f',
+          },
+          window: {
+            position: 'cursor',
+            width: 600,
+            height: 300,
+          },
+          mentions: {
+            enable: ['agent-*'],
+            disable: ['agent-legacy'],
+          },
+        }
+      );
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([
+        createDirent('claude.md', true),
+        createDirent('gemini.md', true),
+        createDirent('legacy.md', true),
+      ] as any);
+      mockedFs.readFile.mockImplementation(((filePath: any) => {
+        const pathStr = String(filePath);
+        if (pathStr.includes('claude')) {
+          return Promise.resolve('---\ndescription: Claude agent\n---\n');
+        }
+        if (pathStr.includes('gemini')) {
+          return Promise.resolve('---\ndescription: Gemini agent\n---\n');
+        }
+        return Promise.resolve('---\ndescription: Legacy agent\n---\n');
+      }) as any);
+
+      const items = await loader.getItems('mention');
+
+      // Global enable allows: agent-*
+      // Global disable excludes: agent-legacy
+      // Result: agent-claude, agent-gemini (legacy is excluded)
+      expect(items).toHaveLength(2);
+      expect(items.map(i => i.name).sort()).toEqual(['agent-claude', 'agent-gemini']);
+    });
+
+    test('should apply both entry-level and global-level filtering for mentions', async () => {
+      loader = new MdSearchLoader(
+        [
+          {
+            name: 'agent-{basename}',
+            type: 'mention',
+            description: '{frontmatter@description}',
+            path: '/path/to/agents',
+            pattern: '*.md',
+            enable: ['agent-claude', 'agent-gemini', 'agent-openai'],
+          },
+        ],
+        {
+          shortcuts: {
+            main: 'Cmd+Shift+Space',
+            paste: 'Cmd+Enter',
+            close: 'Escape',
+            historyNext: 'Ctrl+j',
+            historyPrev: 'Ctrl+k',
+            search: 'Cmd+f',
+          },
+          window: {
+            position: 'cursor',
+            width: 600,
+            height: 300,
+          },
+          mentions: {
+            enable: ['agent-claude', 'agent-gemini*'],
+          },
+        }
+      );
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([
+        createDirent('claude.md', true),
+        createDirent('gemini.md', true),
+        createDirent('openai.md', true),
+        createDirent('legacy.md', true),
+      ] as any);
+      mockedFs.readFile.mockImplementation(((filePath: any) => {
+        const pathStr = String(filePath);
+        if (pathStr.includes('claude')) {
+          return Promise.resolve('---\ndescription: Claude agent\n---\n');
+        }
+        if (pathStr.includes('gemini')) {
+          return Promise.resolve('---\ndescription: Gemini agent\n---\n');
+        }
+        if (pathStr.includes('openai')) {
+          return Promise.resolve('---\ndescription: OpenAI agent\n---\n');
+        }
+        return Promise.resolve('---\ndescription: Legacy agent\n---\n');
+      }) as any);
+
+      const items = await loader.getItems('mention');
+
+      // Entry-level allows: agent-claude, agent-gemini, agent-openai
+      // Global-level allows: agent-claude, agent-gemini*
+      // Result: agent-claude, agent-gemini (intersection)
+      expect(items).toHaveLength(2);
+      expect(items.map(i => i.name).sort()).toEqual(['agent-claude', 'agent-gemini']);
+    });
+  });
 });

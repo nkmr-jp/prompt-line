@@ -2,6 +2,8 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
 import * as yaml from 'js-yaml';
+import { EventEmitter } from 'events';
+import chokidar, { type FSWatcher } from 'chokidar';
 import { logger } from '../utils/utils';
 import { defaultSettings as sharedDefaultSettings } from '../config/default-settings';
 import { generateSettingsYaml } from '../config/settings-yaml-generator';
@@ -14,12 +16,16 @@ import type {
   MdSearchEntry
 } from '../types';
 
-class SettingsManager {
+class SettingsManager extends EventEmitter {
   private settingsFile: string;
   private currentSettings: UserSettings;
   private defaultSettings: UserSettings;
+  private watcher: FSWatcher | null = null;
+  private reloadDebounceTimer: NodeJS.Timeout | null = null;
+  private readonly RELOAD_DEBOUNCE_MS = 300;
 
   constructor() {
+    super();
     this.settingsFile = path.join(os.homedir(), '.prompt-line', 'settings.yml');
 
     // Use shared default settings from config/default-settings.ts
@@ -31,10 +37,56 @@ class SettingsManager {
   async init(): Promise<void> {
     try {
       await this.loadSettings();
+      this.startWatching();
     } catch (error) {
       logger.error('Failed to initialize settings manager:', error);
       throw error;
     }
+  }
+
+  private startWatching(): void {
+    if (this.watcher) {
+      logger.debug('Settings file watcher already initialized');
+      return;
+    }
+
+    this.watcher = chokidar.watch(this.settingsFile, {
+      persistent: true,
+      ignoreInitial: true,
+      awaitWriteFinish: {
+        stabilityThreshold: 100,
+        pollInterval: 50
+      }
+    });
+
+    this.watcher.on('change', () => {
+      logger.debug('Settings file changed, scheduling reload');
+      this.handleFileChange();
+    });
+
+    this.watcher.on('error', (error: unknown) => {
+      logger.error('Settings file watcher error:', error);
+    });
+
+    logger.info('Settings file watcher started');
+  }
+
+  private async handleFileChange(): Promise<void> {
+    if (this.reloadDebounceTimer) {
+      clearTimeout(this.reloadDebounceTimer);
+    }
+
+    this.reloadDebounceTimer = setTimeout(async () => {
+      const previousSettings = { ...this.currentSettings };
+      try {
+        await this.loadSettings();
+        this.emit('settings-changed', this.currentSettings, previousSettings);
+        logger.info('Settings reloaded from file change');
+      } catch (error) {
+        logger.error('Failed to reload settings after file change:', error);
+        // Keep existing settings on error
+      }
+    }, this.RELOAD_DEBOUNCE_MS);
   }
 
   private async loadSettings(): Promise<void> {
@@ -403,6 +455,8 @@ class SettingsManager {
         if (cmd.label !== undefined) entry.label = cmd.label;
         if (cmd.color !== undefined) entry.color = cmd.color;
         if (cmd.prefixPattern !== undefined) entry.prefixPattern = cmd.prefixPattern;
+        if (cmd.enable !== undefined) entry.enable = cmd.enable;
+        if (cmd.disable !== undefined) entry.disable = cmd.disable;
         entries.push(entry);
       }
     }
@@ -423,6 +477,9 @@ class SettingsManager {
         if (mention.searchPrefix !== undefined) entry.searchPrefix = mention.searchPrefix;
         if (mention.sortOrder !== undefined) entry.sortOrder = mention.sortOrder;
         if (mention.inputFormat !== undefined) entry.inputFormat = mention.inputFormat;
+        if (mention.prefixPattern !== undefined) entry.prefixPattern = mention.prefixPattern;
+        if (mention.enable !== undefined) entry.enable = mention.enable;
+        if (mention.disable !== undefined) entry.disable = mention.disable;
         entries.push(entry);
       }
     }
@@ -432,6 +489,21 @@ class SettingsManager {
 
   getSettingsFilePath(): string {
     return this.settingsFile;
+  }
+
+  async destroy(): Promise<void> {
+    if (this.watcher) {
+      await this.watcher.close();
+      this.watcher = null;
+      logger.info('Settings file watcher closed');
+    }
+
+    if (this.reloadDebounceTimer) {
+      clearTimeout(this.reloadDebounceTimer);
+      this.reloadDebounceTimer = null;
+    }
+
+    this.removeAllListeners();
   }
 }
 
