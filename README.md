@@ -7,42 +7,96 @@ English |
 
 ## Overview
 
-Prompt Line is a macOS app developed to improve the prompt input experience in the terminal for CLI-based AI coding agents such as [Claude Code](https://github.com/anthropics/claude-code), [Gemini CLI](https://github.com/google-gemini/gemini-cli), [OpenAI Codex CLI](https://github.com/openai/codex), and [Aider](https://github.com/paul-gauthier/aider).
-It addresses UX challenges related to multi-byte character input (e.g., Japanese) by providing a dedicated floating input interface. 
+**Search Any Context, Write Better Prompts**
 
-This greatly reduces stress when entering text in the following cases in particular. 
+Prompt Line is a macOS app designed for AI coding agents like [Claude Code](https://github.com/anthropics/claude-code), [Gemini CLI](https://github.com/google-gemini/gemini-cli), [OpenAI Codex CLI](https://github.com/openai/codex), and [Aider](https://github.com/paul-gauthier/aider). It helps you find and insert context quickly so you can focus on writing effective prompts.
 
-1. **Prompt input for CLI-based AI coding agents in the terminal** 
-2. **Chat apps where pressing Enter sends the message at an unintended time** 
-3. **Text editor with slow input response (e.g., large Confluence documents)**
+### Key Capabilities
+
+**🔍 Context Search at Your Fingertips**
+- **@File Search** - Find and insert file paths instantly
+- **@Symbol Search** - Search code symbols (functions, classes, types) across 20+ languages
+- **@Markdown Search** - Search agents, skills, and knowledge base entries
+- **Slash Commands** - Quick access to AI tool commands
+- **History Search** - Reuse and refine past prompts
+
+**✍️ Focused Prompt Writing**
+- Dedicated floating input interface that stays out of your way
+- Quick launch (`Cmd+Shift+Space`) and paste (`Cmd+Enter`)
+- Perfect for voice input editing and multi-byte character input
+- Auto-save drafts so you never lose your work
 
 
 ## Features
 
-### Quick Launch, Quick Paste
-Quick launch with shortcut (`Cmd+Shift+Space`).<br>
-Type text and quick paste (`Cmd+Enter`).
-![doc1.gif](assets/doc1.gif)
+### 🔍 Context Search Features
 
-### Perfect for Editing Voice-Inputted Text
-The operation is the same as a typical text editor. <br>
-Of course, you can also use it in combination with a voice input app. <br>
-Pressing Enter will not automatically send the text, so you don't have to worry about line breaks. <br>
-It is also ideal for editing text entered by voice. <br>
-(This video uses [superwhisper](https://superwhisper.com/).)
-![doc2.gif](assets/doc2.gif)
+#### @File Search - Find Files Instantly
+Search and insert file paths by typing `@`.<br>
+Works with Terminal.app, iTerm2, Ghostty, Warp, WezTerm, JetBrains IDEs, VSCode, Cursor, Windsurf, Zed, and more.<br>
+※ Requires [fd](https://github.com/sharkdp/fd) command (`brew install fd`) and settings configuration.
 
-### Search and Reuse Prompt History
-Prompt history is saved and can be reused from the right menu. <br>
-Search is also available. (`Cmd+f`)
+![doc10.png](assets/doc10.png)
+
+#### @Symbol Search - Navigate Code Semantically
+Search code symbols (functions, classes, types, etc.) by typing `@<language>:<query>`.<br>
+Supports 20+ languages including TypeScript, Go, Python, Rust, Java, and more.<br>
+※ Requires [ripgrep](https://github.com/BurntSushi/ripgrep) (`brew install ripgrep`) and File Search enabled.
+
+**Examples:**
+- `@ts:Config` - Search TypeScript symbols containing "Config"
+- `@go:Handler` - Search Go symbols containing "Handler"
+- `@py:parse` - Search Python symbols containing "parse"
+
+![doc13.png](assets/doc13.png)
+
+#### @Markdown Search - Access Your Knowledge Base
+Search agents, skills, and documentation by typing `@<searchPrefix>:<query>`.<br>
+Customize search prefixes in settings to build your own knowledge base.
+
+![doc12.png](assets/doc12.png)
+
+#### Slash Commands - Quick Command Access
+Search slash commands by typing `/`.<br>
+Built-in commands for Claude Code, OpenAI Codex, and Google Gemini.<br>
+Custom commands can be added via `~/.prompt-line/settings.yml`.
+
+![doc11.png](assets/doc11.png)
+
+#### History Search - Reuse Past Prompts
+All prompts are saved and searchable (`Cmd+f`).<br>
+Click any entry to reuse it instantly.
+
 ![doc3.gif](assets/doc3.gif)
 
-### Launch Anywhere
-Can be launched anywhere there's a text input field. <br>
-Also convenient when you want to reuse the same prompt in other apps.
-![doc4.gif](assets/doc4.gif)
+### ✍️ Focused Writing Experience
 
-Of course, it also works with apps other than Terminal.
+#### Quick Launch, Quick Paste
+Launch anywhere with `Cmd+Shift+Space`.<br>
+Type and paste with `Cmd+Enter`.<br>
+Works across all applications, not just terminals.
+
+![doc1.gif](assets/doc1.gif)
+
+#### Perfect for Voice Input
+Same operation as a typical text editor.<br>
+Enter key creates new lines instead of sending text.<br>
+Ideal for editing voice-inputted text.<br>
+(This video uses [superwhisper](https://superwhisper.com/).)
+
+![doc2.gif](assets/doc2.gif)
+
+#### File Opener
+Open files directly from file paths or @mentions.<br>
+Use `Ctrl+Enter` or `Cmd+Click` to view file contents.
+
+![doc9.png](assets/doc9.png)
+
+#### Launch Anywhere
+Can be launched wherever there's a text input field.<br>
+Convenient for reusing prompts across different applications.
+
+![doc4.gif](assets/doc4.gif)
 ![doc5.gif](assets/doc5.gif)
 
 ## 📦 Installation
@@ -130,66 +184,22 @@ If you already have an older version installed and want to update to the latest 
 ### Basic Workflow
 1. Move to where you want to input
 2. Press `Cmd+Shift+Space` to open Prompt Line
-3. Type your text
-4. Press `Cmd+Enter` to paste text
-5. Continue working
+3. Use context search features (@files, @symbols, /commands, history)
+4. Type your prompt
+5. Press `Cmd+Enter` to paste
+6. Continue working
 
-### Features
+### Quick Reference
 
-- **History Panel** - Click previous entries to reuse. Search is also available. (`Cmd+f`)
+- **History Panel** - `Cmd+f` to search, click to reuse
 - **Draft Autosave** - Automatically saves your work
 - **Image Support** - Paste clipboard images with `Cmd+V`
-- **File Opener** - Open files from file path text (`Ctrl+Enter` or `Cmd+Click`)
-- **Slash Commands** - Search slash commands by typing `/`
-- **@Mentions**
-  - **File Search** - Search files by typing `@` (requires fd command and settings configuration)
-  - **Symbol Search** - Search code symbols by typing `@<lang>:<query>` (e.g., `@ts:Config`) (requires ripgrep)
-  - **Markdown Search** - sub-agents and agent skills by typing `@` (requires settings configuration)
-
-#### File Opener
-You can launch a file searched for with a file path or @ and check its contents. (`Ctrl+Enter` or `Cmd+Click`)
-
-![doc9.png](assets/doc9.png)
-
-
-#### Slash Commands
-You can search for slash commands by typing `/`.<br>
-Built-in commands for AI coding assistants (Claude Code, OpenAI Codex, Google Gemini) are available.<br>
-Custom commands can be added via `~/.prompt-line/settings.yml`. See "⚙️ Settings" section.
-
-![doc11.png](assets/doc11.png)
-
-#### @Mentions
-
-##### File Search
-You can search for files by typing @.<br>
-※ [fd](https://github.com/sharkdp/fd) command installation is required. (`brew install fd`)<br>
-※ You need to configure `fileSearch` in `~/.prompt-line/settings.yml`. See "⚙️ Settings" section.<br>
-※ Supported applications: Terminal.app, iTerm2, Ghostty, Warp, WezTerm, JetBrains IDEs (IntelliJ, WebStorm, etc.), VSCode, Cursor, Windsurf, Zed, Antigravity, Kiro
-
-![doc10.png](assets/doc10.png)
-
-##### Symbol Search
-You can search for code symbols (functions, classes, types, etc.) by typing `@<language>:<query>`.<br>
-This feature integrates with File Search, so you need to enable File Search first.
-
-**Requirements:**
-- [ripgrep](https://github.com/BurntSushi/ripgrep) (rg) command installation is required (`brew install ripgrep`)
-- File Search must be configured in settings
-
-**Syntax:** `@<language>:<query>`
-
-**Examples:**
-- `@ts:Config` - Search TypeScript symbols containing "Config"
-- `@go:Handler` - Search Go symbols containing "Handler"
-- `@py:parse` - Search Python symbols containing "parse"
-
-![doc13.png](assets/doc13.png)
-
-##### Markdown Search
-You can search for sub-agents and agent skills by typing `@<searchPrefix>:<query>`, also use it for your own knowledge searches.
-
-![doc12.png](assets/doc12.png)
+- **File Opener** - `Ctrl+Enter` or `Cmd+Click` to open files
+- **Context Search**
+  - `@` - File search
+  - `@<lang>:` - Symbol search (e.g., `@ts:Config`)
+  - `@<prefix>:` - Markdown search (e.g., `@agent:claude`)
+  - `/` - Slash commands
 
 
 ## ⚙️ Settings
