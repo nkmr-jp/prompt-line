@@ -431,6 +431,17 @@ export function findSlashCommandAtCursor(
       // Check all chars between are terminators (space/newline)
       const terminators = [' ', '\n', '\t'];
       if ([...betweenText].every(ch => terminators.includes(ch))) {
+        // Only delete entire command if it's a known command name
+        // If not known, allow normal backspace (character-by-character deletion)
+        if (knownCommandNames && knownCommandNames.length > 0) {
+          // Check if this command name matches any known command (case-insensitive)
+          const isKnownCommand = knownCommandNames.some(
+            name => name.toLowerCase() === cmd.command.toLowerCase()
+          );
+          if (!isKnownCommand) {
+            continue; // Not a known command, skip it
+          }
+        }
         return cmd;
       }
     }
