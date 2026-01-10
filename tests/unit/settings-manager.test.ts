@@ -44,7 +44,22 @@ window:
   width: ${(data as any).window.width}
   height: ${(data as any).window.height}`;
     return yaml;
-  })
+  }),
+  JSON_SCHEMA: {}  // Mock the JSON_SCHEMA constant
+}));
+
+// Mock chokidar file watcher
+jest.mock('chokidar', () => ({
+  watch: jest.fn(() => ({
+    on: jest.fn(function(this: any, event: string, callback: Function) {
+      // Store callbacks for manual triggering in tests
+      if (!this.callbacks) this.callbacks = {};
+      this.callbacks[event] = callback;
+      return this;
+    }),
+    close: jest.fn(() => Promise.resolve()),
+    callbacks: {}
+  }))
 }));
 
 const mockedFs = fs as jest.Mocked<typeof fs>;

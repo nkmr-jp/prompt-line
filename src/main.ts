@@ -1,4 +1,4 @@
-import { app, globalShortcut, Tray, Menu, nativeImage, shell, NativeImage } from 'electron';
+import { app, globalShortcut, Tray, Menu, nativeImage, shell, NativeImage, BrowserWindow } from 'electron';
 import fs from 'fs';
 import path from 'path';
 
@@ -26,7 +26,7 @@ import IPCHandlers from './handlers/ipc-handlers';
 import { codeSearchHandler } from './handlers/code-search-handler';
 import { logger, ensureDir, detectCurrentDirectoryWithFiles } from './utils/utils';
 import { LIMITS } from './constants';
-import type { WindowData } from './types';
+import type { WindowData, UserSettings } from './types';
 
 class PromptLineApp {
   private windowManager: WindowManager | null = null;
@@ -102,6 +102,26 @@ class PromptLineApp {
 
     codeSearchHandler.setSettingsManager(this.settingsManager);
     codeSearchHandler.register();
+
+    // Register settings change listener for hot reload
+    this.settingsManager.on('settings-changed', (newSettings: UserSettings) => {
+      if (this.windowManager && this.settingsManager) {
+        this.windowManager.updateWindowSettings(newSettings.window);
+        const fileSearchSettings = this.settingsManager.getFileSearchSettings();
+        if (fileSearchSettings) {
+          this.windowManager.updateFileSearchSettings(fileSearchSettings);
+        }
+      }
+
+      // Notify renderer process about settings change
+      BrowserWindow.getAllWindows().forEach(win => {
+        if (!win.isDestroyed()) {
+          win.webContents.send('settings-updated', newSettings);
+        }
+      });
+
+      logger.info('Settings updated via hot reload');
+    });
   }
 
   /**
@@ -458,6 +478,10 @@ class PromptLineApp {
         cleanupPromises.push(
           Promise.resolve(this.windowManager.destroy())
         );
+      }
+
+      if (this.settingsManager) {
+        cleanupPromises.push(this.settingsManager.destroy());
       }
 
       await Promise.allSettled(cleanupPromises);

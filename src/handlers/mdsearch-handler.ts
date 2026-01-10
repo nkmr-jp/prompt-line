@@ -18,6 +18,12 @@ class MdSearchHandler {
   constructor(mdSearchLoader: MdSearchLoader, settingsManager: SettingsManager) {
     this.mdSearchLoader = mdSearchLoader;
     this.settingsManager = settingsManager;
+
+    // Subscribe to settings changes for hot reload
+    settingsManager.on('settings-changed', () => {
+      this.updateConfig();
+      logger.debug('MdSearch config updated via hot reload');
+    });
   }
 
   /**
