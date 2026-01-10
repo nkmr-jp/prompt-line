@@ -231,7 +231,7 @@ export class PromptLineRenderer {
       getIsComposing: () => this.eventHandler?.getIsComposing() ?? false,
       showError: (message: string) => this.domManager.showError(message),
       getCommandSource: (commandName: string) => this.slashCommandManager?.getCommandSource(commandName),
-      getCommandLabelColor: (commandName: string) => this.slashCommandManager?.getCommandLabelColor(commandName),
+      getCommandColor: (commandName: string) => this.slashCommandManager?.getCommandColor(commandName),
       getKnownCommandNames: () => this.slashCommandManager?.getKnownCommandNames() ?? []
     });
 

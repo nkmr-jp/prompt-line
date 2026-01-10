@@ -203,28 +203,28 @@
     background: rgba(199, 146, 234, 0.25);
 }
 
-/* Label color based highlights (takes priority over source) */
-.highlight-backdrop .slash-command-highlight.slash-command-label-color-purple {
+/* Color based highlights (takes priority over source) */
+.highlight-backdrop .slash-command-highlight.slash-command-color-purple {
     background: rgba(199, 146, 234, 0.25);
 }
 
-.highlight-backdrop .slash-command-highlight.slash-command-label-color-blue {
+.highlight-backdrop .slash-command-highlight.slash-command-color-blue {
     background: rgba(137, 221, 255, 0.25);
 }
 
-.highlight-backdrop .slash-command-highlight.slash-command-label-color-green {
+.highlight-backdrop .slash-command-highlight.slash-command-color-green {
     background: rgba(127, 219, 200, 0.25);
 }
 
-.highlight-backdrop .slash-command-highlight.slash-command-label-color-orange {
+.highlight-backdrop .slash-command-highlight.slash-command-color-orange {
     background: rgba(255, 203, 107, 0.25);
 }
 
-.highlight-backdrop .slash-command-highlight.slash-command-label-color-red {
+.highlight-backdrop .slash-command-highlight.slash-command-color-red {
     background: rgba(240, 113, 120, 0.25);
 }
 
-.highlight-backdrop .slash-command-highlight.slash-command-label-color-gray {
+.highlight-backdrop .slash-command-highlight.slash-command-color-gray {
     background: rgba(136, 136, 136, 0.25);
 }
 

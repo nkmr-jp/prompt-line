@@ -106,8 +106,8 @@ class MdSearchHandler {
         if (item.label) {
           cmd.label = item.label;
         }
-        if (item.labelColor) {
-          cmd.labelColor = item.labelColor;
+        if (item.color) {
+          cmd.color = item.color;
         }
         if (item.argumentHint) {
           cmd.argumentHint = item.argumentHint;

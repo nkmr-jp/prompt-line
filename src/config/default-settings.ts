@@ -65,7 +65,7 @@ export const defaultSettings: UserSettings = {
         pattern: '**/commands/*.md',
         prefixPattern: '**/.claude-plugin/plugin.json@name',
         label: 'plugin',
-        labelColor: 'red',
+        color: 'red',
         argumentHint: '{frontmatter@argument-hint}',
         maxSuggestions: 20
       },
@@ -74,7 +74,7 @@ export const defaultSettings: UserSettings = {
         description: '{frontmatter@description}',
         path: '~/.claude/skills',
         label: 'skill',
-        labelColor: 'blue',
+        color: 'blue',
         pattern: '**/*/SKILL.md'
       }
     ]

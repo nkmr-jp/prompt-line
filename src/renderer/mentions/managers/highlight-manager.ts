@@ -38,7 +38,7 @@ export interface HighlightManagerCallbacks {
   isCommandEnabledSync?: () => boolean;
   checkFileExists?: (path: string) => Promise<boolean>;
   getCommandSource?: (commandName: string) => string | undefined;
-  getCommandLabelColor?: (commandName: string) => string | undefined;
+  getCommandColor?: (commandName: string) => string | undefined;
   getKnownCommandNames?: () => string[];
 }
 
@@ -519,15 +519,15 @@ export class HighlightManager {
     // Extract command name from text (skip leading "/")
     const commandName = text.substring(start + 1, end);
 
-    // Check labelColor first (takes priority over source)
-    if (this.callbacks.getCommandLabelColor) {
-      const labelColor = this.callbacks.getCommandLabelColor(commandName);
-      if (labelColor) {
-        return `${baseClassName} slash-command-label-color-${labelColor}`;
+    // Check color first (takes priority over source)
+    if (this.callbacks.getCommandColor) {
+      const color = this.callbacks.getCommandColor(commandName);
+      if (color) {
+        return `${baseClassName} slash-command-color-${color}`;
       }
     }
 
-    // Fall back to source if no labelColor
+    // Fall back to source if no color
     if (this.callbacks.getCommandSource) {
       const source = this.callbacks.getCommandSource(commandName);
       if (source) {

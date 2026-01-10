@@ -15,7 +15,7 @@ interface SlashCommandItem {
   name: string;
   description: string;
   label?: string;  // Label text (e.g., from frontmatter)
-  labelColor?: 'purple' | 'blue' | 'green' | 'orange' | 'red' | 'gray';  // Label badge color
+  color?: 'purple' | 'blue' | 'green' | 'orange' | 'red' | 'gray';  // Color for label and highlight
   argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
@@ -431,8 +431,8 @@ export class SlashCommandManager implements IInitializable {
       if (cmd.label) {
         const labelBadge = document.createElement('span');
         labelBadge.className = 'slash-command-label';
-        if (cmd.labelColor) {
-          labelBadge.dataset.color = cmd.labelColor;
+        if (cmd.color) {
+          labelBadge.dataset.color = cmd.color;
         }
         labelBadge.textContent = cmd.label;
         item.appendChild(labelBadge);
@@ -867,20 +867,20 @@ export class SlashCommandManager implements IInitializable {
   }
 
   /**
-   * Get label color for a slash command by name
+   * Get color for a slash command by name
    * @param commandName - Command name without slash (e.g., "commit")
-   * @returns Label color (e.g., "purple", "blue") or undefined
+   * @returns Color (e.g., "purple", "blue") or undefined
    */
-  public getCommandLabelColor(commandName: string): string | undefined {
+  public getCommandColor(commandName: string): string | undefined {
     const matchingCommands = this.commands.filter(cmd => cmd.name === commandName);
 
-    // No command found or command has no labelColor
+    // No command found or command has no color
     if (matchingCommands.length === 0) {
       return undefined;
     }
 
-    // Return first matching command's labelColor
-    return matchingCommands[0]?.labelColor;
+    // Return first matching command's color
+    return matchingCommands[0]?.color;
   }
 
   /**
