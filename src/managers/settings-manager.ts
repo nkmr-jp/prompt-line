@@ -403,6 +403,8 @@ class SettingsManager {
         if (cmd.label !== undefined) entry.label = cmd.label;
         if (cmd.color !== undefined) entry.color = cmd.color;
         if (cmd.prefixPattern !== undefined) entry.prefixPattern = cmd.prefixPattern;
+        if (cmd.enable !== undefined) entry.enable = cmd.enable;
+        if (cmd.disable !== undefined) entry.disable = cmd.disable;
         entries.push(entry);
       }
     }
@@ -423,6 +425,8 @@ class SettingsManager {
         if (mention.searchPrefix !== undefined) entry.searchPrefix = mention.searchPrefix;
         if (mention.sortOrder !== undefined) entry.sortOrder = mention.sortOrder;
         if (mention.inputFormat !== undefined) entry.inputFormat = mention.inputFormat;
+        if (mention.enable !== undefined) entry.enable = mention.enable;
+        if (mention.disable !== undefined) entry.disable = mention.disable;
         entries.push(entry);
       }
     }

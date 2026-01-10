@@ -586,4 +586,61 @@ window:
     });
   });
 
+  describe('getMdSearchEntries', () => {
+    it('should convert slashCommands.custom with enable/disable filters', async () => {
+      const userSettings: Partial<UserSettings> = {
+        slashCommands: {
+          custom: [
+            {
+              name: '{prefix}:{basename}',
+              description: '{frontmatter@description}',
+              path: '~/.claude/plugins',
+              pattern: '**/commands/*.md',
+              prefixPattern: '**/.claude-plugin/plugin.json@name',
+              enable: ['ralph-loop:help*'],
+              disable: ['ralph-loop:cancel']
+            }
+          ]
+        }
+      };
+
+      await settingsManager.updateSettings(userSettings);
+      const entries = settingsManager.getMdSearchEntries();
+
+      // Find the entry with enable/disable filters
+      const filteredEntry = entries?.find(e => e.enable !== undefined || e.disable !== undefined);
+      expect(filteredEntry).toBeDefined();
+      expect(filteredEntry?.type).toBe('command');
+      expect(filteredEntry?.enable).toEqual(['ralph-loop:help*']);
+      expect(filteredEntry?.disable).toEqual(['ralph-loop:cancel']);
+    });
+
+    it('should convert mentions.mdSearch with enable/disable filters', async () => {
+      const userSettings: Partial<UserSettings> = {
+        mentions: {
+          mdSearch: [
+            {
+              name: 'agent-{basename}',
+              description: '{frontmatter@description}',
+              path: '~/.claude/agents',
+              pattern: '*.md',
+              searchPrefix: 'agent',
+              enable: ['agent-*'],
+              disable: ['agent-legacy']
+            }
+          ]
+        }
+      };
+
+      await settingsManager.updateSettings(userSettings);
+      const entries = settingsManager.getMdSearchEntries();
+
+      // Find the mention entry with enable/disable filters
+      const filteredEntry = entries?.find(e => e.type === 'mention' && (e.enable !== undefined || e.disable !== undefined));
+      expect(filteredEntry).toBeDefined();
+      expect(filteredEntry?.enable).toEqual(['agent-*']);
+      expect(filteredEntry?.disable).toEqual(['agent-legacy']);
+    });
+  });
+
 });
