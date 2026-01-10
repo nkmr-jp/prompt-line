@@ -273,6 +273,18 @@ export interface SlashCommandEntry {
   color?: 'purple' | 'blue' | 'green' | 'orange' | 'red' | 'gray';
   /** オプション: プレフィックスパターン - 特定JSONファイルからプレフィックスを動的に読み込むためのパターン */
   prefixPattern?: string;
+  /**
+   * このエントリで有効にするコマンド名のリスト（ホワイトリスト）
+   * - 完全一致: "commit"
+   * - 前方一致: "ralph-loop:*"
+   */
+  enable?: string[];
+  /**
+   * このエントリで無効にするコマンド名のリスト（ブラックリスト）
+   * - 完全一致: "debug"
+   * - 前方一致: "debug-*"
+   */
+  disable?: string[];
 }
 
 /**
@@ -295,6 +307,18 @@ export interface MentionEntry {
   sortOrder?: 'asc' | 'desc';
   /** オプション: 入力フォーマット（デフォルト: 'name'） */
   inputFormat?: InputFormatType;
+  /**
+   * オプション: 有効にするメンション名のリスト（このエントリのみに適用）
+   * - 完全一致: "agent-claude"
+   * - 前方一致: "agent-*"
+   */
+  enable?: string[];
+  /**
+   * オプション: 無効にするメンション名のリスト（このエントリのみに適用）
+   * - 完全一致: "agent-legacy"
+   * - 前方一致: "old-*"
+   */
+  disable?: string[];
 }
 
 // ============================================================================
@@ -338,6 +362,18 @@ export interface MdSearchEntry {
   inputFormat?: InputFormatType;
   /** オプション: プレフィックスパターン - 特定JSONファイルからプレフィックスを動的に読み込むためのパターン */
   prefixPattern?: string;
+  /**
+   * オプション: 有効にするアイテム名のリスト（このエントリのみに適用）
+   * - 完全一致: "commit"
+   * - 前方一致: "ralph-loop:*"
+   */
+  enable?: string[];
+  /**
+   * オプション: 無効にするアイテム名のリスト（このエントリのみに適用）
+   * - 完全一致: "debug"
+   * - 前方一致: "debug-*"
+   */
+  disable?: string[];
 }
 
 /**

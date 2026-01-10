@@ -51,6 +51,7 @@ fileOpener:
 # ============================================================================
 # Configure slash commands (/) for quick actions
 # Template variables: {basename}, {frontmatter@fieldName}
+# Available colors: purple, blue, green, orange, red, gray
 
 slashCommands:
   # Built-in commands (Claude, Codex, Gemini, etc.)
@@ -81,6 +82,13 @@ slashCommands:
       pattern: "*.md"
       argumentHint: "{frontmatter@argument-hint}"
       maxSuggestions: 20
+      # Entry-level enable/disable (optional)
+      # enable:
+      #   - "test-*"           # Enable commands starting with test-
+      #   - "commit"           # Enable specific command
+      # disable:
+      #   - "debug"            # Disable specific command
+      #   - "old-*"            # Disable commands starting with old-
 
     - name: "{prefix}:{basename}"
       description: "{frontmatter@description}"
@@ -159,6 +167,13 @@ mentions:
       path: ~/.claude/agents
       pattern: "*.md"
       searchPrefix: agent            # Search with @agent:
+      # Entry-level enable/disable (optional)
+      # enable:
+      #   - "agent-claude"     # Enable specific agent
+      #   - "agent-*"          # Enable all agents starting with agent-
+      # disable:
+      #   - "agent-legacy"     # Disable specific agent
+      #   - "old-*"            # Disable all agents starting with old-
 
     # - name: "{basename}"
     #   description: "{frontmatter@title}"

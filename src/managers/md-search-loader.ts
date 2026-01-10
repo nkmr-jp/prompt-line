@@ -329,6 +329,13 @@ class MdSearchLoader {
       }
     }
 
+    // Apply entry-level enable/disable filtering
+    if (entry.enable || entry.disable) {
+      return items.filter(item =>
+        isCommandEnabled(item.name, entry.enable, entry.disable)
+      );
+    }
+
     return items;
   }
 

@@ -1084,4 +1084,169 @@ Content`;
       expect(mentionPrefixes).toEqual(['agent:']);
     });
   });
+
+  describe('entry-level enable/disable filtering', () => {
+    test('should filter items using entry-level enable list', async () => {
+      loader = new MdSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          path: '/path/to/commands',
+          pattern: '*.md',
+          enable: ['test-*', 'commit'],
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([
+        createDirent('test-command.md', true),
+        createDirent('commit.md', true),
+        createDirent('debug.md', true),
+      ] as any);
+      mockedFs.readFile.mockImplementation(((filePath: any) => {
+        const pathStr = String(filePath);
+        if (pathStr.includes('test-command')) {
+          return Promise.resolve('---\ndescription: Test command\n---\n');
+        }
+        if (pathStr.includes('commit')) {
+          return Promise.resolve('---\ndescription: Commit command\n---\n');
+        }
+        return Promise.resolve('---\ndescription: Debug command\n---\n');
+      }) as any);
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(2);
+      expect(items.map(i => i.name).sort()).toEqual(['commit', 'test-command']);
+    });
+
+    test('should filter items using entry-level disable list', async () => {
+      loader = new MdSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          path: '/path/to/commands',
+          pattern: '*.md',
+          disable: ['debug', 'old-*'],
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([
+        createDirent('commit.md', true),
+        createDirent('debug.md', true),
+        createDirent('old-command.md', true),
+      ] as any);
+      mockedFs.readFile.mockImplementation(((filePath: any) => {
+        const pathStr = String(filePath);
+        if (pathStr.includes('commit')) {
+          return Promise.resolve('---\ndescription: Commit command\n---\n');
+        }
+        if (pathStr.includes('debug')) {
+          return Promise.resolve('---\ndescription: Debug command\n---\n');
+        }
+        return Promise.resolve('---\ndescription: Old command\n---\n');
+      }) as any);
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(1);
+      expect(items[0]?.name).toBe('commit');
+    });
+
+    test('should apply both entry-level and global-level filtering', async () => {
+      loader = new MdSearchLoader(
+        [
+          {
+            name: '{basename}',
+            type: 'command',
+            description: '{frontmatter@description}',
+            path: '/path/to/commands',
+            pattern: '*.md',
+            enable: ['test-*', 'commit', 'debug'],
+          },
+        ],
+        {
+          shortcuts: {
+            main: 'Cmd+Shift+Space',
+            paste: 'Cmd+Enter',
+            close: 'Escape',
+            historyNext: 'Ctrl+j',
+            historyPrev: 'Ctrl+k',
+            search: 'Ctrl+f',
+          },
+          window: {
+            position: 'cursor',
+            width: 600,
+            height: 300,
+          },
+          slashCommands: {
+            enable: ['commit', 'test-*'],
+          },
+        }
+      );
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([
+        createDirent('test-command.md', true),
+        createDirent('commit.md', true),
+        createDirent('debug.md', true),
+      ] as any);
+      mockedFs.readFile.mockImplementation(((filePath: any) => {
+        const pathStr = String(filePath);
+        if (pathStr.includes('test-command')) {
+          return Promise.resolve('---\ndescription: Test command\n---\n');
+        }
+        if (pathStr.includes('commit')) {
+          return Promise.resolve('---\ndescription: Commit command\n---\n');
+        }
+        return Promise.resolve('---\ndescription: Debug command\n---\n');
+      }) as any);
+
+      const items = await loader.getItems('command');
+
+      // Entry-level allows: test-*, commit, debug
+      // Global-level allows: commit, test-*
+      // Result: test-*, commit (intersection)
+      expect(items).toHaveLength(2);
+      expect(items.map(i => i.name).sort()).toEqual(['commit', 'test-command']);
+    });
+
+    test('should work with mention type', async () => {
+      loader = new MdSearchLoader([
+        {
+          name: 'agent-{basename}',
+          type: 'mention',
+          description: '{frontmatter@description}',
+          path: '/path/to/agents',
+          pattern: '*.md',
+          enable: ['agent-claude', 'agent-gemini'],
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([
+        createDirent('claude.md', true),
+        createDirent('gemini.md', true),
+        createDirent('legacy.md', true),
+      ] as any);
+      mockedFs.readFile.mockImplementation(((filePath: any) => {
+        const pathStr = String(filePath);
+        if (pathStr.includes('claude')) {
+          return Promise.resolve('---\ndescription: Claude agent\n---\n');
+        }
+        if (pathStr.includes('gemini')) {
+          return Promise.resolve('---\ndescription: Gemini agent\n---\n');
+        }
+        return Promise.resolve('---\ndescription: Legacy agent\n---\n');
+      }) as any);
+
+      const items = await loader.getItems('mention');
+
+      expect(items).toHaveLength(2);
+      expect(items.map(i => i.name).sort()).toEqual(['agent-claude', 'agent-gemini']);
+    });
+  });
 });
