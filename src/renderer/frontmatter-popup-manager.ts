@@ -76,11 +76,9 @@ export class FrontmatterPopupManager {
   }
 
   /**
-   * Add file path link to popup footer
+   * Add file path as frontmatter line to content container
    */
-  private async addFilePathLink(command: SlashCommandItemLike): Promise<void> {
-    if (!this.frontmatterPopup) return;
-
+  private async addFilePathLine(contentDiv: HTMLElement, command: SlashCommandItemLike): Promise<void> {
     try {
       // Determine if this is a slash command or agent, then get file path
       let filePath: string | null | undefined;
@@ -105,9 +103,15 @@ export class FrontmatterPopupManager {
       // Replace home directory with ~ for display
       const displayPath = filePath.replace(/^\/Users\/[^/]+/, '~');
 
-      // Create file link container
-      const fileLinkDiv = document.createElement('div');
-      fileLinkDiv.className = 'frontmatter-file-link';
+      // Create frontmatter line for file path
+      const lineDiv = document.createElement('div');
+      lineDiv.className = 'frontmatter-line';
+
+      // Add key
+      const keySpan = document.createElement('span');
+      keySpan.className = 'frontmatter-key';
+      keySpan.textContent = 'file: ';
+      lineDiv.appendChild(keySpan);
 
       // Create clickable link
       const link = document.createElement('a');
@@ -138,11 +142,11 @@ export class FrontmatterPopupManager {
         }
       });
 
-      fileLinkDiv.appendChild(link);
-      this.frontmatterPopup.appendChild(fileLinkDiv);
+      lineDiv.appendChild(link);
+      contentDiv.appendChild(lineDiv);
     } catch (error) {
       // Silently fail - file link is optional
-      console.error('Failed to add file path link:', error);
+      console.error('Failed to add file path line:', error);
     }
   }
 
@@ -220,10 +224,11 @@ export class FrontmatterPopupManager {
     const contentDiv = document.createElement('div');
     contentDiv.className = 'frontmatter-content';
     this.renderFrontmatter(contentDiv, command.frontmatter);
-    this.frontmatterPopup.appendChild(contentDiv);
 
-    // Add file path link (before hint)
-    await this.addFilePathLink(command);
+    // Add file path line as last frontmatter item (before hint)
+    await this.addFilePathLine(contentDiv, command);
+
+    this.frontmatterPopup.appendChild(contentDiv);
 
     // Add hint message at the bottom
     const hintDiv = document.createElement('div');
