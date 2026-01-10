@@ -18,7 +18,7 @@ export interface PopupPositionOptions {
   minHeight?: number;
   /** Maximum height of the popup (default: 150) */
   maxHeight?: number;
-  /** Horizontal gap between popup and target (default: 2) */
+  /** Horizontal gap between popup and target (default: 0) */
   horizontalGap?: number;
   /** Vertical gap between popup and target (default: 4) */
   verticalGap?: number;
@@ -59,7 +59,7 @@ export function calculatePopupPosition(options: PopupPositionOptions): PopupPosi
     containerRect,
     minHeight = 80,
     maxHeight: maxHeightLimit = 150,
-    horizontalGap = 2,
+    horizontalGap = 0,
     verticalGap = 4,
     widthOffset = 40,
     screenMargin = 10
