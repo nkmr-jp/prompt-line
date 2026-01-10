@@ -628,8 +628,6 @@ export class PathManager {
       return false;
     }
 
-    e.preventDefault();
-
     // Save state before deletion
     const savedScrollTop = this.textInput?.scrollTop ?? 0;
     const savedScrollLeft = this.textInput?.scrollLeft ?? 0;
@@ -637,15 +635,23 @@ export class PathManager {
     const savedStart = atPath.start;
     const savedEnd = atPath.end;
 
+    // Calculate delete range (include trailing space if present)
+    let deleteEnd = savedEnd;
+    // Count all trailing spaces
+    while (deleteEnd < text.length && text[deleteEnd] === ' ') {
+      deleteEnd++;
+    }
+    // If there are multiple spaces, let normal backspace behavior handle it
+    if (deleteEnd > savedEnd + 1) {
+      return false;
+    }
+
+    // Prevent default backspace behavior only when we will handle deletion
+    e.preventDefault();
+
     // CRITICAL: Suspend input/selectionchange listeners to prevent cursor interference
     // This replaces the fragile flag-based approach with direct listener control
     this.callbacks.suspendInputListeners?.();
-
-    // Calculate delete range (include trailing space if present)
-    let deleteEnd = savedEnd;
-    if (text[deleteEnd] === ' ') {
-      deleteEnd++;
-    }
 
     // Perform deletion
     // Note: replaceRangeWithUndo will set cursor position to (start + newText.length)
