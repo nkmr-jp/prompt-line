@@ -269,8 +269,8 @@ export interface SlashCommandEntry {
   sortOrder?: 'asc' | 'desc';
   /** オプション: label（静的な値 "skill" または テンプレート "{frontmatter@label}"） */
   label?: string;
-  /** オプション: ラベルとハイライトの色（purple, blue, green, orange, red, gray） */
-  color?: 'purple' | 'blue' | 'green' | 'orange' | 'red' | 'gray';
+  /** オプション: ラベルとハイライトの色（grey, darkGrey, purple, teal, green, yellow, orange, pink, red） */
+  color?: 'grey' | 'darkGrey' | 'purple' | 'teal' | 'green' | 'yellow' | 'orange' | 'pink' | 'red';
   /** オプション: プレフィックスパターン - 特定JSONファイルからプレフィックスを動的に読み込むためのパターン */
   prefixPattern?: string;
   /**
@@ -348,8 +348,8 @@ export interface MdSearchEntry {
   pattern: string;
   /** オプション: label（静的な値 "skill" または テンプレート "{frontmatter@label}"） */
   label?: string;
-  /** オプション: ラベルとハイライトの色（purple, blue, green, orange, red, gray） */
-  color?: 'purple' | 'blue' | 'green' | 'orange' | 'red' | 'gray';
+  /** オプション: ラベルとハイライトの色（grey, darkGrey, purple, teal, green, yellow, orange, pink, red） */
+  color?: 'grey' | 'darkGrey' | 'purple' | 'teal' | 'green' | 'yellow' | 'orange' | 'pink' | 'red';
   /** オプション: argumentHintテンプレート */
   argumentHint?: string;
   /** オプション: 検索候補の最大表示数（デフォルト: 20） */
@@ -393,7 +393,7 @@ export interface MdSearchItem {
   /** label（オプション） */
   label?: string;
   /** ラベルとハイライトの色（オプション） */
-  color?: 'purple' | 'blue' | 'green' | 'orange' | 'red' | 'gray';
+  color?: 'grey' | 'darkGrey' | 'purple' | 'teal' | 'green' | 'yellow' | 'orange' | 'pink' | 'red';
   /** argumentHint（commandタイプのみ） */
   argumentHint?: string;
   /** 検索ソースの識別子（path + pattern） */
@@ -406,7 +406,7 @@ export interface SlashCommandItem {
   name: string;
   description: string;
   label?: string;  // Label text (e.g., from frontmatter)
-  color?: 'purple' | 'blue' | 'green' | 'orange' | 'red' | 'gray';  // Color for label and highlight
+  color?: 'grey' | 'darkGrey' | 'purple' | 'teal' | 'green' | 'yellow' | 'orange' | 'pink' | 'red';  // Color for label and highlight
   argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）

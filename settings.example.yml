@@ -51,7 +51,7 @@ fileOpener:
 # ============================================================================
 # Configure slash commands (/) for quick actions
 # Template variables: {basename}, {frontmatter@fieldName}
-# Available colors: purple, blue, green, orange, red, gray
+# Available colors: grey, darkGrey, purple, teal, green, yellow, orange, pink, red
 
 slashCommands:
   # Built-in commands (Claude, Codex, Gemini, etc.)
@@ -104,7 +104,7 @@ slashCommands:
       description: "{frontmatter@description}"
       path: ~/.claude/skills
       label: skill
-      color: blue
+      color: teal
       pattern: "**/*/SKILL.md"
 
 # ============================================================================

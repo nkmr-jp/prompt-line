@@ -74,7 +74,7 @@ export const defaultSettings: UserSettings = {
         description: '{frontmatter@description}',
         path: '~/.claude/skills',
         label: 'skill',
-        color: 'blue',
+        color: 'teal',
         pattern: '**/*/SKILL.md'
       }
     ]
