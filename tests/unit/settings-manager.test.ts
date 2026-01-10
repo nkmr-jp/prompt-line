@@ -147,11 +147,23 @@ window:
               maxSuggestions: 20
             },
             {
+              name: '{prefix}:{basename}',
+              description: '{frontmatter@description}',
+              path: '~/.claude/plugins/cache',
+              pattern: '**/commands/*.md',
+              prefixPattern: '**/.claude-plugin/plugin.json@name',
+              label: 'plugin',
+              color: 'red',
+              argumentHint: '{frontmatter@argument-hint}',
+              maxSuggestions: 20
+            },
+            {
               name: '{frontmatter@name}',
               description: '{frontmatter@description}',
               path: '~/.claude/skills',
-              pattern: '**/*/SKILL.md',
-              argumentHint: ''
+              label: 'skill',
+              color: 'blue',
+              pattern: '**/*/SKILL.md'
             }
           ]
         },
@@ -296,11 +308,23 @@ window:
               maxSuggestions: 20
             },
             {
+              name: '{prefix}:{basename}',
+              description: '{frontmatter@description}',
+              path: '~/.claude/plugins/cache',
+              pattern: '**/commands/*.md',
+              prefixPattern: '**/.claude-plugin/plugin.json@name',
+              label: 'plugin',
+              color: 'red',
+              argumentHint: '{frontmatter@argument-hint}',
+              maxSuggestions: 20
+            },
+            {
               name: '{frontmatter@name}',
               description: '{frontmatter@description}',
               path: '~/.claude/skills',
-              pattern: '**/*/SKILL.md',
-              argumentHint: ''
+              label: 'skill',
+              color: 'blue',
+              pattern: '**/*/SKILL.md'
             }
           ]
         },
