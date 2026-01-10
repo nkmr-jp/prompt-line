@@ -58,7 +58,9 @@ export class SlashCommandManager implements IInitializable {
     this.frontmatterPopupManager = new FrontmatterPopupManager({
       getSuggestionsContainer: () => this.suggestionsContainer,
       getFilteredCommands: () => this.filteredCommands,
-      getSelectedIndex: () => this.selectedIndex
+      getSelectedIndex: () => this.selectedIndex,
+      ...(callbacks.onBeforeOpenFile ? { onBeforeOpenFile: callbacks.onBeforeOpenFile } : {}),
+      ...(callbacks.setDraggable ? { setDraggable: callbacks.setDraggable } : {})
     });
   }
 

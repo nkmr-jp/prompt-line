@@ -18,6 +18,8 @@ export interface FrontmatterPopupCallbacks {
   getSuggestionsContainer: () => HTMLElement | null;
   getFilteredCommands: () => SlashCommandItemLike[];
   getSelectedIndex: () => number;
+  onBeforeOpenFile?: () => void;
+  setDraggable?: (value: boolean) => void;
 }
 
 /**
@@ -76,16 +78,32 @@ export class FrontmatterPopupManager {
   /**
    * Add file path link to popup footer
    */
-  private async addFilePathLink(commandName: string): Promise<void> {
+  private async addFilePathLink(command: SlashCommandItemLike): Promise<void> {
     if (!this.frontmatterPopup) return;
 
     try {
-      // Get file path from IPC
-      const filePath = await window.electronAPI?.slashCommands?.getFilePath?.(commandName);
+      // Determine if this is a slash command or agent, then get file path
+      let filePath: string | null | undefined;
+      try {
+        // Try slash command API first
+        filePath = await window.electronAPI?.slashCommands?.getFilePath?.(command.name);
+      } catch (err) {
+        // Silently ignore error - will try agent API next
+      }
+
+      // If no slash command file path, try agent API
+      if (!filePath) {
+        try {
+          filePath = await window.electronAPI?.agents?.getFilePath?.(command.name);
+        } catch (err) {
+          // Silently ignore error
+        }
+      }
+
       if (!filePath) return;
 
-      // Extract filename from path
-      const fileName = filePath.split('/').pop() || filePath;
+      // Replace home directory with ~ for display
+      const displayPath = filePath.replace(/^\/Users\/[^/]+/, '~');
 
       // Create file link container
       const fileLinkDiv = document.createElement('div');
@@ -94,7 +112,7 @@ export class FrontmatterPopupManager {
       // Create clickable link
       const link = document.createElement('a');
       link.className = 'frontmatter-link';
-      link.textContent = `📄 ${fileName}`;
+      link.textContent = displayPath;
       link.title = filePath; // Show full path on hover
       link.href = '#';
 
@@ -102,7 +120,22 @@ export class FrontmatterPopupManager {
       link.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
-        await window.electronAPI?.file?.openInEditor?.(filePath);
+
+        try {
+          this.callbacks.onBeforeOpenFile?.();
+          this.callbacks.setDraggable?.(true);
+          const result = await window.electronAPI?.file?.openInEditor?.(filePath);
+
+          if (!result?.success && result?.error) {
+            console.error('Failed to open file:', result.error);
+            this.callbacks.setDraggable?.(false);
+          }
+          // Note: Do not restore focus to PromptLine window
+          // The opened file's application should stay in foreground
+        } catch (err) {
+          console.error('Failed to open file in editor:', err);
+          this.callbacks.setDraggable?.(false);
+        }
       });
 
       fileLinkDiv.appendChild(link);
@@ -190,7 +223,7 @@ export class FrontmatterPopupManager {
     this.frontmatterPopup.appendChild(contentDiv);
 
     // Add file path link (before hint)
-    await this.addFilePathLink(command.name);
+    await this.addFilePathLink(command);
 
     // Add hint message at the bottom
     const hintDiv = document.createElement('div');
