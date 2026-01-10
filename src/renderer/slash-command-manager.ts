@@ -218,9 +218,29 @@ export class SlashCommandManager implements IInitializable {
   private checkForSlashCommand(): void {
     if (!this.textarea) return;
 
+    const text = this.textarea.value;
+    const cursorPos = this.textarea.selectionStart;
+
+    // カーソル直前の文字を確認（スペースまたはタブで確定されたかチェック）
+    const charBeforeCursor = cursorPos > 0 ? text[cursorPos - 1] : '';
+    const isConfirmedBySpace = charBeforeCursor === ' ' || charBeforeCursor === '\t';
+
+    // スペース/タブで確定されていない場合は候補を表示しない
+    if (!isConfirmedBySpace) {
+      // 編集モード中の場合は checkForArgumentHintAtCursor で処理されるため
+      // ここでは何もせず、既存のサジェストを非表示にする
+      if (!this.isEditingMode) {
+        this.hideSuggestions();
+      }
+      return;
+    }
+
+    // スペース直前までのテキストを確認
+    const textBeforeSpace = text.substring(0, cursorPos - 1);
+
     const result = extractTriggerQueryAtCursor(
-      this.textarea.value,
-      this.textarea.selectionStart,
+      textBeforeSpace,
+      textBeforeSpace.length,
       '/'
     );
 
@@ -228,7 +248,6 @@ export class SlashCommandManager implements IInitializable {
     if (!result) {
       if (this.isEditingMode) {
         // Check if the text still contains the command at the original position
-        const text = this.textarea.value;
         const expectedCommand = `/${this.editingCommandName}`;
         const commandAtPos = text.substring(
           this.editingCommandStartPos,
@@ -268,12 +287,6 @@ export class SlashCommandManager implements IInitializable {
         // Command name still matches, keep showing selected command
         return;
       }
-    }
-
-    // Hide suggestions if there's a space in the query (user is typing arguments)
-    if (query.includes(' ')) {
-      this.hideSuggestions();
-      return;
     }
 
     this.currentTriggerStartPos = startPos;

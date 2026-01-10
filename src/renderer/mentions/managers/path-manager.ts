@@ -724,8 +724,14 @@ export class PathManager {
 
     // Calculate delete range (include trailing space if present)
     let deleteEnd = savedEnd;
-    if (text[deleteEnd] === ' ') {
+    // Count all trailing spaces
+    while (deleteEnd < text.length && text[deleteEnd] === ' ') {
       deleteEnd++;
+    }
+    // If there are multiple spaces, let normal backspace behavior handle it
+    if (deleteEnd > savedEnd + 1) {
+      this.callbacks.resumeInputListeners?.();
+      return false;
     }
 
     // Perform deletion
