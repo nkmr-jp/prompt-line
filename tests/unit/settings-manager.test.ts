@@ -145,6 +145,25 @@ window:
               pattern: '*.md',
               argumentHint: '{frontmatter@argument-hint}',
               maxSuggestions: 20
+            },
+            {
+              name: '{prefix}:{basename}',
+              description: '{frontmatter@description}',
+              path: '~/.claude/plugins/cache',
+              pattern: '**/commands/*.md',
+              prefixPattern: '**/.claude-plugin/plugin.json@name',
+              label: 'plugin',
+              color: 'red',
+              argumentHint: '{frontmatter@argument-hint}',
+              maxSuggestions: 20
+            },
+            {
+              name: '{frontmatter@name}',
+              description: '{frontmatter@description}',
+              path: '~/.claude/skills',
+              label: 'skill',
+              color: 'blue',
+              pattern: '**/*/SKILL.md'
             }
           ]
         },
@@ -161,7 +180,9 @@ window:
           },
           symbolSearch: {
             maxSymbols: 200000,
-            timeout: 60000
+            timeout: 60000,
+            includePatterns: [],
+            excludePatterns: []
           },
           mdSearch: [
             {
@@ -170,13 +191,6 @@ window:
               path: '~/.claude/agents',
               pattern: '*.md',
               searchPrefix: 'agent'
-            },
-            {
-              name: '{frontmatter@name}',
-              description: '{frontmatter@description}',
-              path: '~/.claude/skills',
-              pattern: '**/*/SKILL.md',
-              searchPrefix: 'skill'
             }
           ]
         }
@@ -292,6 +306,25 @@ window:
               pattern: '*.md',
               argumentHint: '{frontmatter@argument-hint}',
               maxSuggestions: 20
+            },
+            {
+              name: '{prefix}:{basename}',
+              description: '{frontmatter@description}',
+              path: '~/.claude/plugins/cache',
+              pattern: '**/commands/*.md',
+              prefixPattern: '**/.claude-plugin/plugin.json@name',
+              label: 'plugin',
+              color: 'red',
+              argumentHint: '{frontmatter@argument-hint}',
+              maxSuggestions: 20
+            },
+            {
+              name: '{frontmatter@name}',
+              description: '{frontmatter@description}',
+              path: '~/.claude/skills',
+              label: 'skill',
+              color: 'blue',
+              pattern: '**/*/SKILL.md'
             }
           ]
         },
@@ -308,7 +341,9 @@ window:
           },
           symbolSearch: {
             maxSymbols: 200000,
-            timeout: 60000
+            timeout: 60000,
+            includePatterns: [],
+            excludePatterns: []
           },
           mdSearch: [
             {
@@ -317,13 +352,6 @@ window:
               path: '~/.claude/agents',
               pattern: '*.md',
               searchPrefix: 'agent'
-            },
-            {
-              name: '{frontmatter@name}',
-              description: '{frontmatter@description}',
-              path: '~/.claude/skills',
-              pattern: '**/*/SKILL.md',
-              searchPrefix: 'skill'
             }
           ]
         }

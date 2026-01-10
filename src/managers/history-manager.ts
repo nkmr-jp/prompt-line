@@ -220,24 +220,21 @@ class HistoryManager implements IHistoryManager {
 
   /**
    * Handle duplicate item update - returns existing item if found
+   * Only checks the most recent item (recentCache[0]) to avoid unnecessary updates
    */
   private handleDuplicateUpdate(
     trimmedText: string,
     appName?: string,
     directory?: string
   ): HistoryItem | null {
-    if (!this.duplicateCheckSet.has(trimmedText)) {
-      return null;
-    }
-
-    this.recentCache = this.recentCache.filter(item => item.text !== trimmedText);
-    const existingItem = this.recentCache.find(item => item.text === trimmedText);
-    if (existingItem) {
-      existingItem.timestamp = Date.now();
-      if (appName) existingItem.appName = appName;
-      if (directory) existingItem.directory = directory;
-      this.recentCache.unshift(existingItem);
-      return existingItem;
+    // Only check the most recent item
+    const latestItem = this.recentCache[0];
+    if (latestItem && latestItem.text === trimmedText) {
+      // Update timestamp only (no file append)
+      latestItem.timestamp = Date.now();
+      if (appName) latestItem.appName = appName;
+      if (directory) latestItem.directory = directory;
+      return latestItem;
     }
     return null;
   }

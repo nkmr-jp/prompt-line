@@ -77,19 +77,33 @@ function formatExtensionsAsList(ext: Record<string, string> | undefined): string
 /**
  * Format a custom slash command entry as YAML
  */
-function formatSlashCommandEntry(entry: SlashCommandEntry, indent: string): string {
+function formatSlashCommandEntry(entry: SlashCommandEntry, indent: string, commented = false): string {
+  // When commented, use "    # " prefix to match the custom indentation level
+  // Active:    "    - name:" (4 spaces + -)
+  // Commented: "    # - name:" (4 spaces + # + space + -)
+  let firstLinePrefix: string;
+  let contentLinePrefix: string;
+
+  if (commented) {
+    firstLinePrefix = '    # ';
+    contentLinePrefix = '    #   ';
+  } else {
+    firstLinePrefix = indent;
+    contentLinePrefix = `${indent}  `;
+  }
+
   const lines = [
-    `${indent}- name: "${entry.name}"`,
-    `${indent}  description: "${entry.description || ''}"`,
-    `${indent}  path: ${entry.path}`,
-    `${indent}  pattern: "${entry.pattern}"`
+    `${firstLinePrefix}- name: "${entry.name}"`,
+    `${contentLinePrefix}description: "${entry.description || ''}"`,
+    `${contentLinePrefix}path: ${entry.path}`,
+    `${contentLinePrefix}pattern: "${entry.pattern}"`
   ];
 
   if (entry.argumentHint) {
-    lines.push(`${indent}  argumentHint: "${entry.argumentHint}"`);
+    lines.push(`${contentLinePrefix}argumentHint: "${entry.argumentHint}"`);
   }
   if (entry.maxSuggestions !== undefined) {
-    lines.push(`${indent}  maxSuggestions: ${entry.maxSuggestions}`);
+    lines.push(`${contentLinePrefix}maxSuggestions: ${entry.maxSuggestions}`);
   }
 
   return lines.join('\n');
@@ -222,6 +236,14 @@ function buildSlashCommandsSection(settings: UserSettings, options: YamlGenerato
     }
   }
 
+  // Add commented examples for custom if requested
+  if (options.includeCommentedExamples) {
+    const commentedCustom = commentedExamples.slashCommands?.custom || [];
+    for (const entry of commentedCustom) {
+      section += formatSlashCommandEntry(entry, '    ', true) + '\n';
+    }
+  }
+
   return section.trimEnd();
 }
 
@@ -333,6 +355,12 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
     maxSymbols: ${formatValue(ss.maxSymbols)}                # Maximum symbols to return
     timeout: ${formatValue(ss.timeout)}                    # Search timeout in ms
     ${rgPathSection}
+    # Include patterns: Force include files even if excluded by default (default: [])
+    # Example: includePatterns: ["*.test.ts", "vendor/**"]
+    includePatterns: ${formatValue(ss.includePatterns ?? [])}
+    # Exclude patterns: Additional patterns to exclude (default: [])
+    # Example: excludePatterns: ["*.generated.go", "node_modules/**"]
+    excludePatterns: ${formatValue(ss.excludePatterns ?? [])}
 `;
   } else {
     section += `

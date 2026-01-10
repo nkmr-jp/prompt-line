@@ -72,11 +72,15 @@ class RipgrepExecutor {
     ///   - directory: The directory to search in
     ///   - language: The language key (e.g., "go", "ts", "py")
     ///   - maxSymbols: Maximum number of symbols to return
+    ///   - excludePatterns: Glob patterns to exclude files
+    ///   - includePatterns: Glob patterns to include files (in addition to normal search)
     /// - Returns: Array of symbol results, or nil if search failed
     static func searchSymbols(
         directory: String,
         language: String,
-        maxSymbols: Int = DEFAULT_MAX_SYMBOLS
+        maxSymbols: Int = DEFAULT_MAX_SYMBOLS,
+        excludePatterns: [String] = [],
+        includePatterns: [String] = []
     ) -> [SymbolResult]? {
         guard let rgPath = getRgPath() else {
             return nil
@@ -91,7 +95,7 @@ class RipgrepExecutor {
         var allResults: [SymbolResult] = []
         let resultsLock = NSLock()
 
-        // 1. Single-line pattern search (existing logic)
+        // 1. Single-line pattern search - Normal search (respects .gitignore, with excludePatterns)
         for pattern in config.patterns {
             group.enter()
             DispatchQueue.global(qos: .userInitiated).async {
@@ -101,7 +105,9 @@ class RipgrepExecutor {
                     directory: directory,
                     pattern: pattern.regex,
                     rgType: config.rgType,
-                    maxCount: maxSymbols
+                    maxCount: maxSymbols,
+                    excludePatterns: excludePatterns,
+                    includePatterns: []  // No includePatterns for normal search
                 )
 
                 if let output = executeRg(rgPath: rgPath, args: args) {
@@ -118,7 +124,38 @@ class RipgrepExecutor {
             }
         }
 
-        // 2. Block-based search for Go (secure direct execution)
+        // 2. Single-line pattern search - Include patterns search (if specified)
+        if !includePatterns.isEmpty {
+            for pattern in config.patterns {
+                group.enter()
+                DispatchQueue.global(qos: .userInitiated).async {
+                    defer { group.leave() }
+
+                    let args = buildRgArgs(
+                        directory: directory,
+                        pattern: pattern.regex,
+                        rgType: config.rgType,
+                        maxCount: maxSymbols,
+                        excludePatterns: [],  // No excludePatterns for include search
+                        includePatterns: includePatterns  // Include patterns only
+                    )
+
+                    if let output = executeRg(rgPath: rgPath, args: args) {
+                        let results = parseRgJsonOutput(
+                            output: output,
+                            pattern: pattern,
+                            language: language,
+                            baseDirectory: directory
+                        )
+                        resultsLock.lock()
+                        allResults.append(contentsOf: results)
+                        resultsLock.unlock()
+                    }
+                }
+            }
+        }
+
+        // 3. Block-based search for Go (secure direct execution)
         if language == "go" {
             group.enter()
             DispatchQueue.global(qos: .userInitiated).async {
@@ -157,17 +194,43 @@ class RipgrepExecutor {
         directory: String,
         pattern: String,
         rgType: String,
-        maxCount: Int
+        maxCount: Int,
+        excludePatterns: [String] = [],
+        includePatterns: [String] = []
     ) -> [String] {
-        return [
+        var args = [
             "--json",
             "--line-number",
             "--no-heading",
             "--type", rgType,
-            "--max-count", String(maxCount),
-            "-e", pattern,
-            directory
+            "--max-count", String(maxCount)
         ]
+
+        // When includePatterns are specified, we need to search hidden files
+        // and ignore .gitignore rules to allow including otherwise-excluded files
+        // (e.g., .claude/ directory which is both hidden and gitignored)
+        if !includePatterns.isEmpty {
+            args.append("--hidden")
+            args.append("--no-ignore")
+        }
+
+        // Add exclude patterns using --glob with negation
+        for excludePattern in excludePatterns {
+            args.append("--glob")
+            args.append("!\(excludePattern)")
+        }
+
+        // Add include patterns using --glob
+        for includePattern in includePatterns {
+            args.append("--glob")
+            args.append(includePattern)
+        }
+
+        args.append("-e")
+        args.append(pattern)
+        args.append(directory)
+
+        return args
     }
 
     /// Execute rg command with timeout and async pipe reading

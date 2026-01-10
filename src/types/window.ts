@@ -205,6 +205,10 @@ export interface SymbolSearchUserSettings {
   timeout?: number;
   /** Custom path to ripgrep command (null = auto-detect from common paths) */
   rgPath?: string | null;
+  /** Additional exclude patterns (glob patterns like "vendor/**", "*.generated.go") */
+  excludePatterns?: string[];
+  /** Include patterns (force include even if excluded by default) */
+  includePatterns?: string[];
 }
 
 /**
@@ -251,6 +255,12 @@ export interface SlashCommandEntry {
   maxSuggestions?: number;
   /** オプション: 名前ソート順（デフォルト: 'asc'） */
   sortOrder?: 'asc' | 'desc';
+  /** オプション: label（静的な値 "skill" または テンプレート "{frontmatter@label}"） */
+  label?: string;
+  /** オプション: ラベルとハイライトの色（purple, blue, green, orange, red, gray） */
+  color?: 'purple' | 'blue' | 'green' | 'orange' | 'red' | 'gray';
+  /** オプション: プレフィックスパターン - 特定JSONファイルからプレフィックスを動的に読み込むためのパターン */
+  prefixPattern?: string;
 }
 
 /**
@@ -300,6 +310,10 @@ export interface MdSearchEntry {
   path: string;
   /** ファイルパターン（glob形式、例: "*.md", "SKILL.md"） */
   pattern: string;
+  /** オプション: label（静的な値 "skill" または テンプレート "{frontmatter@label}"） */
+  label?: string;
+  /** オプション: ラベルとハイライトの色（purple, blue, green, orange, red, gray） */
+  color?: 'purple' | 'blue' | 'green' | 'orange' | 'red' | 'gray';
   /** オプション: argumentHintテンプレート */
   argumentHint?: string;
   /** オプション: 検索候補の最大表示数（デフォルト: 20） */
@@ -310,6 +324,8 @@ export interface MdSearchEntry {
   sortOrder?: 'asc' | 'desc';
   /** オプション: 入力フォーマット（デフォルト: 'name'） - 'name': 名前のみ, 'path': ファイルパス */
   inputFormat?: InputFormatType;
+  /** オプション: プレフィックスパターン - 特定JSONファイルからプレフィックスを動的に読み込むためのパターン */
+  prefixPattern?: string;
 }
 
 /**
@@ -326,6 +342,10 @@ export interface MdSearchItem {
   filePath: string;
   /** 元のfrontmatter文字列 */
   frontmatter?: string;
+  /** label（オプション） */
+  label?: string;
+  /** ラベルとハイライトの色（オプション） */
+  color?: 'purple' | 'blue' | 'green' | 'orange' | 'red' | 'gray';
   /** argumentHint（commandタイプのみ） */
   argumentHint?: string;
   /** 検索ソースの識別子（path + pattern） */
@@ -337,6 +357,8 @@ export interface MdSearchItem {
 export interface SlashCommandItem {
   name: string;
   description: string;
+  label?: string;  // Label text (e.g., from frontmatter)
+  color?: 'purple' | 'blue' | 'green' | 'orange' | 'red' | 'gray';  // Color for label and highlight
   argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）

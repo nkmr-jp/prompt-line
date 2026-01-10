@@ -100,6 +100,8 @@
     position: relative;
     display: flex;
     width: 100%;
+    /* Prevent layout thrashing when inserting long text */
+    contain: content;
 }
 
 /* Highlight backdrop - mirrors textarea content with highlights */
@@ -131,7 +133,8 @@
 
     /* Text wrapping control - must match textarea exactly */
     white-space: break-spaces;
-    overflow-wrap: break-word;
+    /* 'anywhere' allows breaking long paths/URLs that have no spaces */
+    overflow-wrap: anywhere;
     word-break: normal;
 
     /* Tab size - must match textarea */
@@ -156,7 +159,7 @@
 
 .highlight-backdrop .at-path-highlight {
     background: rgba(59, 130, 246, 0.4);
-    border-radius: 8px;
+    border-radius: 4px;
     color: transparent;
 
     /* Expand highlight area by 1px in all directions */
@@ -166,6 +169,72 @@
     /* Use box-decoration-break for multi-line highlights */
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;
+}
+
+/* Default slash command highlight (gray for unknown source or duplicate commands) */
+.highlight-backdrop .slash-command-highlight {
+    background: rgba(128, 128, 128, 0.25);
+    border-radius: 4px;
+    color: transparent;
+
+    /* Expand highlight area by 1px in all directions */
+    padding: 1px;
+    margin: -1px;
+
+    /* Use box-decoration-break for multi-line highlights */
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+}
+
+/* Source-specific slash command highlight colors */
+.highlight-backdrop .slash-command-highlight.slash-command-source-claude {
+    background: rgba(232, 197, 143, 0.25);
+}
+
+.highlight-backdrop .slash-command-highlight.slash-command-source-codex {
+    background: rgba(127, 219, 202, 0.25);
+}
+
+.highlight-backdrop .slash-command-highlight.slash-command-source-gemini {
+    background: rgba(130, 170, 255, 0.25);
+}
+
+.highlight-backdrop .slash-command-highlight.slash-command-source-custom {
+    background: rgba(199, 146, 234, 0.25);
+}
+
+/* Color based highlights (takes priority over source) */
+.highlight-backdrop .slash-command-highlight.slash-command-color-purple {
+    background: rgba(199, 146, 234, 0.25);
+}
+
+.highlight-backdrop .slash-command-highlight.slash-command-color-blue {
+    background: rgba(137, 221, 255, 0.25);
+}
+
+.highlight-backdrop .slash-command-highlight.slash-command-color-green {
+    background: rgba(127, 219, 200, 0.25);
+}
+
+.highlight-backdrop .slash-command-highlight.slash-command-color-orange {
+    background: rgba(255, 203, 107, 0.25);
+}
+
+.highlight-backdrop .slash-command-highlight.slash-command-color-red {
+    background: rgba(240, 113, 120, 0.25);
+}
+
+.highlight-backdrop .slash-command-highlight.slash-command-color-gray {
+    background: rgba(136, 136, 136, 0.25);
+}
+
+/* Slash command with link style (Cmd+hover or cursor over slash command) */
+.highlight-backdrop .slash-command-highlight.file-path-link {
+    text-decoration: underline;
+    text-decoration-color: rgba(255, 255, 255, 0.4);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+    cursor: pointer;
 }
 
 /* File path link style for Cmd+hover or cursor position */
@@ -227,7 +296,8 @@
 
     /* Text wrapping control - must match backdrop */
     white-space: break-spaces;
-    overflow-wrap: break-word;
+    /* 'anywhere' allows breaking long paths/URLs that have no spaces */
+    overflow-wrap: anywhere;
     word-break: normal;
 
     /* Tab size - must match backdrop */
@@ -243,6 +313,8 @@
 
     /* Always reserve scrollbar space to prevent layout shift */
     overflow-y: scroll;
+    /* Hide horizontal overflow to prevent flicker when inserting long file paths */
+    overflow-x: hidden;
 }
 
 #textInput:focus {

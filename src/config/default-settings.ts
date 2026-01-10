@@ -57,6 +57,25 @@ export const defaultSettings: UserSettings = {
         pattern: '*.md',
         argumentHint: '{frontmatter@argument-hint}',
         maxSuggestions: 20
+      },
+      {
+        name: '{prefix}:{basename}',
+        description: '{frontmatter@description}',
+        path: '~/.claude/plugins/cache',
+        pattern: '**/commands/*.md',
+        prefixPattern: '**/.claude-plugin/plugin.json@name',
+        label: 'plugin',
+        color: 'red',
+        argumentHint: '{frontmatter@argument-hint}',
+        maxSuggestions: 20
+      },
+      {
+        name: '{frontmatter@name}',
+        description: '{frontmatter@description}',
+        path: '~/.claude/skills',
+        label: 'skill',
+        color: 'blue',
+        pattern: '**/*/SKILL.md'
       }
     ]
   },
@@ -73,7 +92,9 @@ export const defaultSettings: UserSettings = {
     },
     symbolSearch: {
       maxSymbols: 200000,
-      timeout: 60000
+      timeout: 60000,
+      includePatterns: [],
+      excludePatterns: []
     },
     mdSearch: [
       {
@@ -82,13 +103,6 @@ export const defaultSettings: UserSettings = {
         path: '~/.claude/agents',
         pattern: '*.md',
         searchPrefix: 'agent'
-      },
-      {
-        name: '{frontmatter@name}',
-        description: '{frontmatter@description}',
-        path: '~/.claude/skills',
-        pattern: '**/*/SKILL.md',
-        searchPrefix: 'skill'
       }
     ]
   }
@@ -102,7 +116,14 @@ export const defaultSettings: UserSettings = {
  */
 export const commentedExamples = {
   slashCommands: {
-    builtIn: ['codex', 'gemini']
+    builtIn: ['codex', 'gemini'],
+    custom: [] as Array<{
+      name: string;
+      description: string;
+      path: string;
+      pattern: string;
+      argumentHint?: string;
+    }>
   },
   fileOpener: {
     extensions: {
@@ -112,13 +133,6 @@ export const commentedExamples = {
   },
   mentions: {
     mdSearch: [
-      {
-        name: '{frontmatter@name}',
-        description: '{frontmatter@description}',
-        path: '~/.claude/plugins',
-        pattern: '**/*/SKILL.md',
-        searchPrefix: 'skill'
-      },
       {
         name: '{basename}',
         description: '{frontmatter@title}',

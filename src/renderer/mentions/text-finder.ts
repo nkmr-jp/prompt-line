@@ -114,25 +114,16 @@ export function findUrlAtPosition(text: string, cursorPos: number): UrlMatch | n
  * Find slash command at the given cursor position
  * Returns { command, start, end } if found, null otherwise
  * Slash commands are like /commit, /help (single word after /)
+ * When knownCommandNames is provided, also matches multi-word commands like /Linear API
  */
-export function findSlashCommandAtPosition(text: string, cursorPos: number): CommandMatch | null {
-  // Pattern to match slash commands: /word (no slashes in the middle)
-  // This matches /commit, /help, etc. but not /path/to/file
-  const slashCommandPattern = /\/([a-zA-Z][a-zA-Z0-9_-]*)/g;
-  let match;
+export function findSlashCommandAtPosition(text: string, cursorPos: number, knownCommandNames?: string[]): CommandMatch | null {
+  // Use findAllSlashCommands to get all commands (including multi-word ones if knownCommandNames provided)
+  const commands = findAllSlashCommands(text, knownCommandNames);
 
-  while ((match = slashCommandPattern.exec(text)) !== null) {
-    const start = match.index;
-    const end = start + match[0].length;
-    const commandName = match[1] ?? '';
-
+  for (const cmd of commands) {
     // Check if cursor is within this slash command
-    if (cursorPos >= start && cursorPos <= end) {
-      // Make sure it's at the start of text or after whitespace (not part of a path)
-      const prevChar = start > 0 ? text[start - 1] : ' ';
-      if (prevChar === ' ' || prevChar === '\n' || prevChar === '\t' || start === 0) {
-        return { command: commandName, start, end };
-      }
+    if (cursorPos >= cmd.start && cursorPos <= cmd.end) {
+      return cmd;
     }
   }
 
@@ -153,8 +144,8 @@ export function findAbsolutePathAtPosition(text: string, cursorPos: number): str
   );
 
   // Pattern to identify slash commands (single segment starting with /, no additional slashes or dots)
-  // Slash commands look like /commit, /help - single word after / without extensions
-  const slashCommandPattern = /^\/[a-zA-Z][a-zA-Z0-9_-]*$/;
+  // Slash commands look like /commit, /help, /skill:creater - single word after / without extensions
+  const slashCommandPattern = /^\/[a-zA-Z][a-zA-Z0-9_:-]*$/;
 
   let match;
 
@@ -288,6 +279,95 @@ export function findAllAbsolutePaths(text: string): PathMatch[] {
 }
 
 /**
+ * Find all slash commands in the text
+ * Returns array of { command, start, end }
+ * Slash commands are like /commit, /help (single word after /)
+ * When knownCommandNames is provided, also matches multi-word commands like /Linear API
+ */
+export function findAllSlashCommands(text: string, knownCommandNames?: string[]): CommandMatch[] {
+  const results: CommandMatch[] = [];
+  // Track matched ranges to avoid duplicates
+  const matchedRanges = new Set<string>();
+
+  // First, find multi-word commands if known command names are provided
+  // (Process these first so they take precedence over simple matches)
+  if (knownCommandNames && knownCommandNames.length > 0) {
+    // Sort by length descending to match longer commands first
+    const sortedNames = [...knownCommandNames]
+      .filter(name => name.includes(' '))  // Only process multi-word commands
+      .sort((a, b) => b.length - a.length);
+
+    for (const cmdName of sortedNames) {
+      const searchPattern = '/' + cmdName;
+      let searchStart = 0;
+
+      while (true) {
+        const idx = text.indexOf(searchPattern, searchStart);
+        if (idx === -1) break;
+
+        const start = idx;
+        const end = idx + searchPattern.length;
+        const rangeKey = `${start}-${end}`;
+
+        // Check if at word boundary
+        const prevChar = start > 0 ? text[start - 1] : ' ';
+        const nextChar = end < text.length ? text[end] : ' ';
+        const isValidStart = prevChar === ' ' || prevChar === '\n' || prevChar === '\t' || start === 0;
+        const isValidEnd = nextChar === ' ' || nextChar === '\n' || nextChar === '\t' || end === text.length;
+
+        if (isValidStart && isValidEnd && !matchedRanges.has(rangeKey)) {
+          matchedRanges.add(rangeKey);
+          results.push({
+            command: cmdName,
+            start,
+            end
+          });
+        }
+
+        searchStart = idx + 1;
+      }
+    }
+  }
+
+  // Then, find simple slash commands using regex
+  const slashCommandPattern = /\/([a-zA-Z][a-zA-Z0-9_:-]*)/g;
+  let match;
+
+  while ((match = slashCommandPattern.exec(text)) !== null) {
+    const start = match.index;
+    const end = start + match[0].length;
+    const commandName = match[1] ?? '';
+    const rangeKey = `${start}-${end}`;
+
+    // Skip if this range overlaps with already matched multi-word command
+    const overlapsExisting = [...matchedRanges].some(range => {
+      const parts = range.split('-').map(Number);
+      const existingStart = parts[0] ?? 0;
+      const existingEnd = parts[1] ?? 0;
+      return start >= existingStart && start < existingEnd;
+    });
+
+    if (overlapsExisting) continue;
+
+    // Make sure it's at the start of text or after whitespace (not part of a path)
+    const prevChar = start > 0 ? text[start - 1] : ' ';
+    if (prevChar === ' ' || prevChar === '\n' || prevChar === '\t' || start === 0) {
+      matchedRanges.add(rangeKey);
+      results.push({
+        command: commandName,
+        start,
+        end
+      });
+    }
+  }
+
+  // Sort by start position
+  results.sort((a, b) => a.start - b.start);
+
+  return results;
+}
+
+/**
  * Resolve a relative file path to absolute path
  * Handles paths with line number and symbol suffix: path:lineNumber#symbolName
  * Preserves line number and symbol suffix in the returned path
@@ -328,4 +408,43 @@ export function resolveAtPathToAbsolute(
   }
 
   return absolutePath;
+}
+
+/**
+ * Find slash command at cursor position for backspace deletion
+ * Returns command if cursor is at end of command (within 3 chars, only spaces between)
+ */
+export function findSlashCommandAtCursor(
+  text: string,
+  cursorPos: number,
+  knownCommandNames?: string[]
+): CommandMatch | null {
+  const commands = findAllSlashCommands(text, knownCommandNames);
+
+  for (const cmd of commands) {
+    // Check if cursor is at end of command (within 3 chars, only terminators between)
+    if (cursorPos >= cmd.end && cursorPos <= cmd.end + 3) {
+      // Check no newline between command end and cursor
+      const betweenText = text.substring(cmd.end, cursorPos);
+      if (betweenText.includes('\n')) continue;
+
+      // Check all chars between are terminators (space/newline)
+      const terminators = [' ', '\n', '\t'];
+      if ([...betweenText].every(ch => terminators.includes(ch))) {
+        // Only delete entire command if it's a known command name
+        // If not known, allow normal backspace (character-by-character deletion)
+        if (knownCommandNames && knownCommandNames.length > 0) {
+          // Check if this command name matches any known command (case-insensitive)
+          const isKnownCommand = knownCommandNames.some(
+            name => name.toLowerCase() === cmd.command.toLowerCase()
+          );
+          if (!isKnownCommand) {
+            continue; // Not a known command, skip it
+          }
+        }
+        return cmd;
+      }
+    }
+  }
+  return null;
 }

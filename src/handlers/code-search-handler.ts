@@ -40,12 +40,31 @@ class CodeSearchHandler {
   /**
    * Get symbol search settings with defaults
    */
-  private getSymbolSearchOptions(): { maxSymbols: number; timeout: number } {
+  private getSymbolSearchOptions(): {
+    maxSymbols: number;
+    timeout: number;
+    includePatterns?: string[];
+    excludePatterns?: string[];
+  } {
     const symbolSearchSettings = this.settingsManager?.getSymbolSearchSettings();
-    return {
+    const result: {
+      maxSymbols: number;
+      timeout: number;
+      includePatterns?: string[];
+      excludePatterns?: string[];
+    } = {
       maxSymbols: symbolSearchSettings?.maxSymbols ?? DEFAULT_MAX_SYMBOLS,
       timeout: symbolSearchSettings?.timeout ?? DEFAULT_SEARCH_TIMEOUT
     };
+
+    if (symbolSearchSettings?.includePatterns) {
+      result.includePatterns = symbolSearchSettings.includePatterns;
+    }
+    if (symbolSearchSettings?.excludePatterns) {
+      result.excludePatterns = symbolSearchSettings.excludePatterns;
+    }
+
+    return result;
   }
 
   /**
@@ -218,10 +237,22 @@ class CodeSearchHandler {
           // Background refresh: only update cache when refreshCache is explicitly true
           // This prevents unnecessary refreshes during file navigation (e.g., @go vs @go:)
           if (options?.refreshCache === true) {
-            this.refreshCacheInBackground(directory, language, {
+            const refreshOptions: {
+              maxSymbols: number;
+              timeout: number;
+              includePatterns?: string[];
+              excludePatterns?: string[];
+            } = {
               maxSymbols: effectiveMaxSymbols,
               timeout: settingsOptions.timeout
-            });
+            };
+            if (settingsOptions.includePatterns) {
+              refreshOptions.includePatterns = settingsOptions.includePatterns;
+            }
+            if (settingsOptions.excludePatterns) {
+              refreshOptions.excludePatterns = settingsOptions.excludePatterns;
+            }
+            this.refreshCacheInBackground(directory, language, refreshOptions);
           }
 
           return {
@@ -239,10 +270,21 @@ class CodeSearchHandler {
     }
 
     // Perform fresh search (no cache available)
-    const searchOptions = {
+    const searchOptions: {
+      maxSymbols: number;
+      timeout: number;
+      includePatterns?: string[];
+      excludePatterns?: string[];
+    } = {
       maxSymbols: effectiveMaxSymbols,
       timeout: settingsOptions.timeout
     };
+    if (settingsOptions.includePatterns) {
+      searchOptions.includePatterns = settingsOptions.includePatterns;
+    }
+    if (settingsOptions.excludePatterns) {
+      searchOptions.excludePatterns = settingsOptions.excludePatterns;
+    }
     const result = await searchSymbols(directory, language, searchOptions);
 
     // Cache successful results
@@ -344,7 +386,12 @@ class CodeSearchHandler {
   private refreshCacheInBackground(
     directory: string,
     language: string,
-    options?: { maxSymbols?: number; timeout?: number }
+    options?: {
+      maxSymbols?: number;
+      timeout?: number;
+      includePatterns?: string[];
+      excludePatterns?: string[];
+    }
   ): void {
     // Create a unique key for this refresh operation
     const refreshKey = `${directory}:${language}`;

@@ -68,6 +68,23 @@ slashCommands:
       argumentHint: "{frontmatter@argument-hint}"
       maxSuggestions: 20
 
+    - name: "{prefix}:{basename}"
+      description: "{frontmatter@description}"
+      path: ~/.claude/plugins/cache
+      pattern: "**/commands/*.md"
+      prefixPattern: "**/.claude-plugin/plugin.json@name"
+      label: plugin
+      color: red
+      argumentHint: "{frontmatter@argument-hint}"
+      maxSuggestions: 20
+
+    - name: "{frontmatter@name}"
+      description: "{frontmatter@description}"
+      path: ~/.claude/skills
+      label: skill
+      color: blue
+      pattern: "**/*/SKILL.md"
+
 # ============================================================================
 # MENTION SETTINGS (@ mentions)
 # ============================================================================
@@ -106,6 +123,12 @@ mentions:
     maxSymbols: 200000                # Maximum symbols to return
     timeout: 60000                    # Search timeout in ms
     #rgPath: null                    # Custom path to rg
+    # Include patterns: Force include files even if excluded by default (default: [])
+    # Example: includePatterns: ["*.test.ts", "vendor/**"]
+    includePatterns: []
+    # Exclude patterns: Additional patterns to exclude (default: [])
+    # Example: excludePatterns: ["*.generated.go", "node_modules/**"]
+    excludePatterns: []
 
   # Markdown-based mentions from markdown files
   # Pattern examples:
@@ -122,18 +145,6 @@ mentions:
       path: ~/.claude/agents
       pattern: "*.md"
       searchPrefix: agent            # Search with @agent:
-
-    - name: "{frontmatter@name}"
-      description: "{frontmatter@description}"
-      path: ~/.claude/skills
-      pattern: "**/*/SKILL.md"
-      searchPrefix: skill            # Search with @skill:
-
-    # - name: "{frontmatter@name}"
-    #   description: "{frontmatter@description}"
-    #   path: ~/.claude/plugins
-    #   pattern: "**/*/SKILL.md"
-    #   searchPrefix: skill            # Search with @skill:
 
     # - name: "{basename}"
     #   description: "{frontmatter@title}"

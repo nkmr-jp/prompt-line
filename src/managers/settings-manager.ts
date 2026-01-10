@@ -100,6 +100,7 @@ class SettingsManager {
         if (entry.argumentHint) cmd.argumentHint = entry.argumentHint;
         if (entry.maxSuggestions) cmd.maxSuggestions = entry.maxSuggestions;
         if (entry.sortOrder) cmd.sortOrder = entry.sortOrder;
+        if (entry.prefixPattern) cmd.prefixPattern = entry.prefixPattern;
         custom.push(cmd);
       } else if (entry.type === 'mention') {
         // Convert to MentionEntry (without type field)
@@ -399,6 +400,9 @@ class SettingsManager {
         if (cmd.argumentHint !== undefined) entry.argumentHint = cmd.argumentHint;
         if (cmd.maxSuggestions !== undefined) entry.maxSuggestions = cmd.maxSuggestions;
         if (cmd.sortOrder !== undefined) entry.sortOrder = cmd.sortOrder;
+        if (cmd.label !== undefined) entry.label = cmd.label;
+        if (cmd.color !== undefined) entry.color = cmd.color;
+        if (cmd.prefixPattern !== undefined) entry.prefixPattern = cmd.prefixPattern;
         entries.push(entry);
       }
     }

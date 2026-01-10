@@ -43,6 +43,7 @@ const ALLOWED_CHANNELS = [
   'window-shown',
   'get-slash-commands',
   'get-slash-command-file-path',
+  'has-command-file',
   'directory-data-updated',
   'open-settings',
   'open-settings-directory',
@@ -66,7 +67,10 @@ const ALLOWED_CHANNELS = [
   'register-global-at-path',
   'get-global-at-paths',
   // Draft to history channel
-  'save-draft-to-history'
+  'save-draft-to-history',
+  // Slash command cache channels
+  'register-global-slash-command',
+  'get-global-slash-commands'
 ];
 
 // IPC channel validation with additional security checks
@@ -263,6 +267,16 @@ const electronAPI: ElectronAPI = {
     },
     getFilePath: async (commandName: string): Promise<string | null> => {
       return ipcRenderer.invoke('get-slash-command-file-path', commandName);
+    },
+    hasFile: async (commandName: string): Promise<boolean> => {
+      return ipcRenderer.invoke('has-command-file', commandName);
+    },
+    // Global slash command cache
+    registerGlobal: async (commandName: string): Promise<IPCResult> => {
+      return ipcRenderer.invoke('register-global-slash-command', commandName);
+    },
+    getGlobalCommands: async (): Promise<string[]> => {
+      return ipcRenderer.invoke('get-global-slash-commands');
     },
   },
 

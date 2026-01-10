@@ -72,3 +72,8 @@
 .app-name-error {
     color: #ff6b6b !important;
 }
+
+/* App name success state */
+.app-name-success {
+    color: #7fdbc8 !important;
+}

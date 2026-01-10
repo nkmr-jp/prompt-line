@@ -52,6 +52,9 @@ export interface LanguagesResponse {
 export interface SymbolSearchOptions {
   maxSymbols?: number;
   timeout?: number;
+  rgPath?: string | null;
+  excludePatterns?: string[];
+  includePatterns?: string[];
 }
 
 // Symbol cache metadata for a language

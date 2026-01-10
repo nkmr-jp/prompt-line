@@ -51,6 +51,9 @@ export interface MentionInitializerCallbacks {
   buildValidPathsSet: () => Set<string> | null;
   getTotalItemCount: () => number;
   _getFileSearchMaxSuggestions: () => Promise<number>;
+  getCommandSource?: (commandName: string) => string | undefined;
+  getCommandColor?: (commandName: string) => string | undefined;
+  getKnownCommandNames?: () => string[];
 
   // Actions
   updateHighlightBackdrop: () => void;
@@ -233,7 +236,16 @@ export class MentionInitializer {
           } catch {
             return false;
           }
-        }
+        },
+        ...(this.callbacks.getCommandSource && {
+          getCommandSource: (commandName: string) => this.callbacks.getCommandSource?.(commandName)
+        }),
+        ...(this.callbacks.getCommandColor && {
+          getCommandColor: (commandName: string) => this.callbacks.getCommandColor?.(commandName)
+        }),
+        ...(this.callbacks.getKnownCommandNames && {
+          getKnownCommandNames: () => this.callbacks.getKnownCommandNames?.() ?? []
+        })
       },
       this.deps.pathManager
     );
@@ -265,7 +277,8 @@ export class MentionInitializer {
       isCommandEnabledSync: () => this.callbacks.isCommandEnabledSync(),
       hideWindow: () => electronAPI.window.hide(),
       restoreDefaultHint: () => this.callbacks.restoreDefaultHint(),
-      showError: (message: string) => this.deps.callbacks.showError?.(message)
+      showError: (message: string) => this.deps.callbacks.showError?.(message),
+      getKnownCommandNames: () => this.callbacks.getKnownCommandNames?.() ?? []
     });
   }
 

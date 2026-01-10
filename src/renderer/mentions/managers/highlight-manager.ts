@@ -24,7 +24,8 @@ import {
   findAbsolutePathAtPosition,
   findClickablePathAtPosition,
   findAllUrls,
-  findAllAbsolutePaths
+  findAllAbsolutePaths,
+  findAllSlashCommands
 } from '../text-finder';
 import { PathManager } from './path-manager';
 
@@ -36,6 +37,9 @@ export interface HighlightManagerCallbacks {
   isFileSearchEnabled?: () => boolean;
   isCommandEnabledSync?: () => boolean;
   checkFileExists?: (path: string) => Promise<boolean>;
+  getCommandSource?: (commandName: string) => string | undefined;
+  getCommandColor?: (commandName: string) => string | undefined;
+  getKnownCommandNames?: () => string[];
 }
 
 export interface DirectoryDataForHighlight {
@@ -65,6 +69,9 @@ export class HighlightManager {
 
   // Debug mode for development (Phase 4)
   private debugMode: boolean = false;
+
+  // Cache for command file checks (to avoid repeated IPC calls)
+  private commandFileCache: Map<string, boolean> = new Map();
 
   constructor(
     textInput: HTMLTextAreaElement,
@@ -190,20 +197,21 @@ export class HighlightManager {
       return;
     }
 
-    // Check if cursor is on a slash command (only if command type is enabled)
-    if (this.callbacks.isCommandEnabledSync?.()) {
-      const slashCommand = findSlashCommandAtPosition(text, cursorPos);
-      if (slashCommand) {
-        this.showSlashCommandOpenHint();
-        const newRange: AtPathRange = { start: slashCommand.start, end: slashCommand.end };
-        if (!this.cursorPositionPath ||
-            this.cursorPositionPath.start !== newRange.start ||
-            this.cursorPositionPath.end !== newRange.end) {
-          this.cursorPositionPath = newRange;
-          this.renderHighlightBackdropWithCursor();
-        }
-        return;
+    // Check if cursor is on a slash command
+    const slashCommand = findSlashCommandAtPosition(text, cursorPos);
+    if (slashCommand) {
+      // Extract command name (skip leading "/")
+      const commandName = text.substring(slashCommand.start + 1, slashCommand.end);
+      // Check if command has a file (async, but we use cache for instant response)
+      this.checkAndShowSlashCommandHint(commandName);
+      const newRange: AtPathRange = { start: slashCommand.start, end: slashCommand.end };
+      if (!this.cursorPositionPath ||
+          this.cursorPositionPath.start !== newRange.start ||
+          this.cursorPositionPath.end !== newRange.end) {
+        this.cursorPositionPath = newRange;
+        this.renderHighlightBackdropWithCursor();
       }
+      return;
     }
 
     // Find absolute path at cursor position
@@ -441,11 +449,94 @@ export class HighlightManager {
     }
   }
 
+  /**
+   * Check if command has a file and show hint accordingly
+   * Uses cache to avoid repeated IPC calls for the same command
+   */
+  private checkAndShowSlashCommandHint(commandName: string): void {
+    // Check cache first
+    if (this.commandFileCache.has(commandName)) {
+      const hasFile = this.commandFileCache.get(commandName);
+      if (hasFile) {
+        this.showSlashCommandOpenHint();
+      } else {
+        this.restoreDefaultHint();
+      }
+      return;
+    }
+
+    // If not in cache, fetch from IPC and update cache
+    window.electronAPI.slashCommands.hasFile(commandName)
+      .then(hasFile => {
+        this.commandFileCache.set(commandName, hasFile);
+        // Update hint only if cursor is still on the same command
+        const text = this.callbacks.getTextContent();
+        const cursorPos = this.callbacks.getCursorPosition();
+        const currentSlashCommand = findSlashCommandAtPosition(text, cursorPos);
+        if (currentSlashCommand) {
+          const currentCommandName = text.substring(currentSlashCommand.start + 1, currentSlashCommand.end);
+          if (currentCommandName === commandName) {
+            if (hasFile) {
+              this.showSlashCommandOpenHint();
+            } else {
+              this.restoreDefaultHint();
+            }
+          }
+        }
+      })
+      .catch(error => {
+        console.error('Failed to check command file:', error);
+        // On error, assume no file (safe default)
+        this.commandFileCache.set(commandName, false);
+        this.restoreDefaultHint();
+      });
+
+    // Show default hint while loading (prevents flashing)
+    this.restoreDefaultHint();
+  }
+
   private restoreDefaultHint(): void {
     if (this.callbacks.updateHintText && this.callbacks.getDefaultHintText) {
       const defaultHint = this.callbacks.getDefaultHintText();
       this.callbacks.updateHintText(defaultHint);
     }
+  }
+
+  // ============================================================
+  // Private - Helper Methods
+  // ============================================================
+
+  /**
+   * Get class name for slash command highlight based on its source
+   * @param text - Full text content
+   * @param start - Start position of slash command
+   * @param end - End position of slash command
+   * @returns Class name string with source-specific class if available
+   */
+  private getSlashCommandClassName(text: string, start: number, end: number): string {
+    const baseClassName = 'slash-command-highlight';
+
+    // Extract command name from text (skip leading "/")
+    const commandName = text.substring(start + 1, end);
+
+    // Check color first (takes priority over source)
+    if (this.callbacks.getCommandColor) {
+      const color = this.callbacks.getCommandColor(commandName);
+      if (color) {
+        return `${baseClassName} slash-command-color-${color}`;
+      }
+    }
+
+    // Fall back to source if no color
+    if (this.callbacks.getCommandSource) {
+      const source = this.callbacks.getCommandSource(commandName);
+      if (source) {
+        return `${baseClassName} slash-command-source-${source}`;
+      }
+    }
+
+    // Return base class name only if no source found
+    return baseClassName;
   }
 
   // ============================================================
@@ -529,6 +620,28 @@ export class HighlightManager {
       }
     }
 
+    // Always highlight slash commands (no dependency on searchPrefixes)
+    const knownCommandNames = this.callbacks.getKnownCommandNames?.();
+    const slashCommands = findAllSlashCommands(text, knownCommandNames);
+    for (const cmd of slashCommands) {
+      const overlapsWithAtPath = atPaths.some(
+        ap => (cmd.start >= ap.start && cmd.start < ap.end) ||
+              (cmd.end > ap.start && cmd.end <= ap.end)
+      );
+      const overlapsWithUrl = urls.some(
+        u => (cmd.start >= u.start && cmd.start < u.end) ||
+             (cmd.end > u.start && cmd.end <= u.end)
+      );
+      const overlapsWithPath = absolutePaths.some(
+        p => (cmd.start >= p.start && cmd.start < p.end) ||
+             (cmd.end > p.start && cmd.end <= p.end)
+      );
+      if (!overlapsWithAtPath && !overlapsWithUrl && !overlapsWithPath) {
+        const className = this.getSlashCommandClassName(text, cmd.start, cmd.end);
+        ranges.push({ start: cmd.start, end: cmd.end, className });
+      }
+    }
+
     if (ranges.length === 0) {
       this.setBackdropContent(text);
       this.syncBackdropScroll();
@@ -586,6 +699,28 @@ export class HighlightManager {
       }
     }
 
+    // Always highlight slash commands (no dependency on searchPrefixes)
+    const knownCommandNames2 = this.callbacks.getKnownCommandNames?.();
+    const slashCommands = findAllSlashCommands(text, knownCommandNames2);
+    for (const cmd of slashCommands) {
+      const overlapsWithAtPath = atPaths.some(
+        ap => (cmd.start >= ap.start && cmd.start < ap.end) ||
+              (cmd.end > ap.start && cmd.end <= ap.end)
+      );
+      const overlapsWithUrl = urls.some(
+        u => (cmd.start >= u.start && cmd.start < u.end) ||
+             (cmd.end > u.start && cmd.end <= u.end)
+      );
+      const overlapsWithPath = absolutePaths.some(
+        p => (cmd.start >= p.start && cmd.start < p.end) ||
+             (cmd.end > p.start && cmd.end <= p.end)
+      );
+      if (!overlapsWithAtPath && !overlapsWithUrl && !overlapsWithPath) {
+        const className = this.getSlashCommandClassName(text, cmd.start, cmd.end);
+        ranges.push({ start: cmd.start, end: cmd.end, className });
+      }
+    }
+
     this.updateBackdropWithRanges(text, ranges);
   }
 
@@ -640,11 +775,36 @@ export class HighlightManager {
       }
     }
 
+    // Always highlight slash commands (no dependency on searchPrefixes)
+    const knownCommandNames3 = this.callbacks.getKnownCommandNames?.();
+    const slashCommands = findAllSlashCommands(text, knownCommandNames3);
+    for (const cmd of slashCommands) {
+      const overlapsWithAtPath = atPaths.some(
+        ap => (cmd.start >= ap.start && cmd.start < ap.end) ||
+              (cmd.end > ap.start && cmd.end <= ap.end)
+      );
+      const overlapsWithUrl = urls.some(
+        u => (cmd.start >= u.start && cmd.start < u.end) ||
+             (cmd.end > u.start && cmd.end <= u.end)
+      );
+      const overlapsWithPath = absolutePaths.some(
+        p => (cmd.start >= p.start && p.start < p.end) ||
+             (cmd.end > p.start && cmd.end <= p.end)
+      );
+      if (!overlapsWithAtPath && !overlapsWithUrl && !overlapsWithPath) {
+        const isHovered = cmd.start === this.hoveredAtPath.start && cmd.end === this.hoveredAtPath.end;
+        const baseClassName = this.getSlashCommandClassName(text, cmd.start, cmd.end);
+        const className = isHovered ? `${baseClassName} file-path-link` : baseClassName;
+        ranges.push({ start: cmd.start, end: cmd.end, className });
+      }
+    }
+
     // Add hovered path if it's not already added (for other linkable types like slash commands)
     if (!isHoveredAtPath) {
       const isHoveredUrl = urls.some(u => u.start === this.hoveredAtPath!.start && u.end === this.hoveredAtPath!.end);
       const isHoveredPath = absolutePaths.some(p => p.start === this.hoveredAtPath!.start && p.end === this.hoveredAtPath!.end);
-      if (!isHoveredUrl && !isHoveredPath) {
+      const isHoveredSlashCommand = findAllSlashCommands(text, knownCommandNames3).some(c => c.start === this.hoveredAtPath!.start && c.end === this.hoveredAtPath!.end);
+      if (!isHoveredUrl && !isHoveredPath && !isHoveredSlashCommand) {
         ranges.push({ ...this.hoveredAtPath, className: 'file-path-link' });
       }
     }
