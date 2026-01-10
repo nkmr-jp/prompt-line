@@ -145,6 +145,13 @@ window:
               pattern: '*.md',
               argumentHint: '{frontmatter@argument-hint}',
               maxSuggestions: 20
+            },
+            {
+              name: '{frontmatter@name}',
+              description: '{frontmatter@description}',
+              path: '~/.claude/skills',
+              pattern: '**/*/SKILL.md',
+              argumentHint: ''
             }
           ]
         },
@@ -172,13 +179,6 @@ window:
               path: '~/.claude/agents',
               pattern: '*.md',
               searchPrefix: 'agent'
-            },
-            {
-              name: '{frontmatter@name}',
-              description: '{frontmatter@description}',
-              path: '~/.claude/skills',
-              pattern: '**/*/SKILL.md',
-              searchPrefix: 'skill'
             }
           ]
         }
@@ -294,6 +294,13 @@ window:
               pattern: '*.md',
               argumentHint: '{frontmatter@argument-hint}',
               maxSuggestions: 20
+            },
+            {
+              name: '{frontmatter@name}',
+              description: '{frontmatter@description}',
+              path: '~/.claude/skills',
+              pattern: '**/*/SKILL.md',
+              argumentHint: ''
             }
           ]
         },
@@ -321,13 +328,6 @@ window:
               path: '~/.claude/agents',
               pattern: '*.md',
               searchPrefix: 'agent'
-            },
-            {
-              name: '{frontmatter@name}',
-              description: '{frontmatter@description}',
-              path: '~/.claude/skills',
-              pattern: '**/*/SKILL.md',
-              searchPrefix: 'skill'
             }
           ]
         }

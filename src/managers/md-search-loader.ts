@@ -6,6 +6,7 @@ import type { MdSearchEntry, MdSearchItem, MdSearchType } from '../types';
 import { resolveTemplate, getBasename, parseFrontmatter, extractRawFrontmatter } from '../lib/template-resolver';
 import { getDefaultMdSearchConfig, DEFAULT_MAX_SUGGESTIONS, DEFAULT_SORT_ORDER } from '../lib/default-md-search-config';
 import { CACHE_TTL } from '../constants';
+import { resolvePrefix } from '../lib/prefix-resolver';
 
 /**
  * MdSearchLoader - 設定ベースの統合Markdownファイルローダー
@@ -321,7 +322,14 @@ class MdSearchLoader {
       const frontmatter = parseFrontmatter(content);
       const rawFrontmatter = extractRawFrontmatter(content);
       const basename = getBasename(filePath);
-      const context = { basename, frontmatter };
+
+      // プレフィックス解決
+      let prefix = '';
+      if (entry.prefixPattern) {
+        prefix = await resolvePrefix(filePath, entry.prefixPattern, entry.path);
+      }
+
+      const context = { basename, frontmatter, prefix };
 
       const item: MdSearchItem = {
         name: resolveTemplate(entry.name, context),

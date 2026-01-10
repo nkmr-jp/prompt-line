@@ -259,6 +259,8 @@ export interface SlashCommandEntry {
   label?: string;
   /** オプション: labelの色（purple, blue, green, orange, red, gray） */
   labelColor?: 'purple' | 'blue' | 'green' | 'orange' | 'red' | 'gray';
+  /** オプション: プレフィックスパターン - 特定JSONファイルからプレフィックスを動的に読み込むためのパターン */
+  prefixPattern?: string;
 }
 
 /**
@@ -322,6 +324,8 @@ export interface MdSearchEntry {
   sortOrder?: 'asc' | 'desc';
   /** オプション: 入力フォーマット（デフォルト: 'name'） - 'name': 名前のみ, 'path': ファイルパス */
   inputFormat?: InputFormatType;
+  /** オプション: プレフィックスパターン - 特定JSONファイルからプレフィックスを動的に読み込むためのパターン */
+  prefixPattern?: string;
 }
 
 /**

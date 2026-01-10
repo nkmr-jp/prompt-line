@@ -3,6 +3,14 @@ import MdSearchLoader from '../../src/managers/md-search-loader';
 import { promises as fs } from 'fs';
 import type { MdSearchEntry } from '../../src/types';
 
+// Unmock path module (needed for prefix-resolver which is used by md-search-loader)
+jest.unmock('path');
+
+// Mock glob module
+jest.mock('glob', () => ({
+  glob: jest.fn()
+}));
+
 // Mock fs promises module
 jest.mock('fs', () => ({
   promises: {
