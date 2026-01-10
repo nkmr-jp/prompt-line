@@ -402,6 +402,7 @@ class SettingsManager {
         if (cmd.sortOrder !== undefined) entry.sortOrder = cmd.sortOrder;
         if (cmd.label !== undefined) entry.label = cmd.label;
         if (cmd.labelColor !== undefined) entry.labelColor = cmd.labelColor;
+        if (cmd.prefixPattern !== undefined) entry.prefixPattern = cmd.prefixPattern;
         entries.push(entry);
       }
     }
