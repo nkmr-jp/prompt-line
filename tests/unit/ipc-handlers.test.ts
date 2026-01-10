@@ -152,7 +152,12 @@ describe('IPCHandlers', () => {
                 window: { position: 'cursor', width: 600, height: 300 }
             })),
             updateSettings: jest.fn(),
-            resetSettings: jest.fn()
+            resetSettings: jest.fn(),
+            // EventEmitter methods for hot reload
+            on: jest.fn(),
+            off: jest.fn(),
+            emit: jest.fn(),
+            removeAllListeners: jest.fn()
         };
 
         mockDirectoryManager = {

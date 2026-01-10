@@ -372,6 +372,7 @@ contextBridge.exposeInMainWorld('electronAPI', electronAPI);
 
 // Listen for settings updates from main process and dispatch custom event
 ipcRenderer.on('settings-updated', (_event, settings) => {
+  // eslint-disable-next-line no-undef
   window.dispatchEvent(new CustomEvent('settings-updated', { detail: settings }));
 });
 

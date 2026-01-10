@@ -26,11 +26,22 @@ jest.mock('../../src/utils/utils', () => ({
 // Mock js-yaml
 jest.mock('js-yaml', () => ({
   load: jest.fn((data: string) => {
+    // Handle different YAML content for tests
     if (data.includes('main: Alt+Space')) {
       return {
         shortcuts: { main: 'Alt+Space', paste: 'Enter', close: 'Escape', search: 'Cmd+f' },
         window: { position: 'center', width: 800, height: 400 }
       };
+    }
+    if (data.includes('main: Ctrl+Space')) {
+      return {
+        shortcuts: { main: 'Ctrl+Space', paste: 'Enter', close: 'Escape' },
+        window: { position: 'cursor', width: 700, height: 350 }
+      };
+    }
+    if (data.includes('invalid: yaml:')) {
+      // Simulate invalid YAML that throws an error
+      throw new Error('Invalid YAML format');
     }
     return null;
   }),
@@ -741,6 +752,256 @@ window:
       const entryWithPrefix = entries?.find(e => e.type === 'mention' && e.prefixPattern !== undefined);
       expect(entryWithPrefix).toBeDefined();
       expect(entryWithPrefix?.prefixPattern).toBe('**/.claude-plugin/plugin.json@name');
+    });
+  });
+
+  describe('hot reload functionality', () => {
+    let chokidar: any;
+    let mockWatcher: any;
+
+    beforeEach(async () => {
+      // Enable fake timers for debouncing tests
+      jest.useFakeTimers();
+
+      // Get the mocked chokidar module
+      chokidar = require('chokidar');
+
+      // Initialize settings manager
+      mockedFs.readFile.mockRejectedValue({ code: 'ENOENT' });
+      mockedFs.mkdir.mockResolvedValue(undefined);
+      mockedFs.writeFile.mockResolvedValue();
+
+      await settingsManager.init();
+
+      // Get the mock watcher instance created during init
+      mockWatcher = chokidar.watch.mock.results[chokidar.watch.mock.results.length - 1]?.value;
+    });
+
+    afterEach(async () => {
+      // Clean up timers
+      jest.clearAllTimers();
+      jest.useRealTimers();
+    });
+
+    it('should call startWatching() during init()', async () => {
+      // Create a new instance to test init behavior
+      const newSettingsManager = new SettingsManager();
+
+      // Clear previous calls
+      chokidar.watch.mockClear();
+
+      // Initialize
+      mockedFs.readFile.mockRejectedValue({ code: 'ENOENT' });
+      mockedFs.mkdir.mockResolvedValue(undefined);
+      mockedFs.writeFile.mockResolvedValue();
+      await newSettingsManager.init();
+
+      // Verify that chokidar.watch was called
+      expect(chokidar.watch).toHaveBeenCalledWith(
+        settingsPath,
+        expect.objectContaining({
+          persistent: true,
+          ignoreInitial: true,
+          awaitWriteFinish: expect.objectContaining({
+            stabilityThreshold: 100,
+            pollInterval: 50
+          })
+        })
+      );
+
+      await newSettingsManager.destroy();
+    });
+
+    it('should emit settings-changed event when file changes', async () => {
+      // Set up spy for the event
+      const settingsChangedHandler = jest.fn();
+      settingsManager.on('settings-changed', settingsChangedHandler);
+
+      // Mock updated file content
+      const updatedYaml = `shortcuts:
+  main: Ctrl+Space
+  paste: Enter
+  close: Escape
+window:
+  position: cursor
+  width: 700
+  height: 350`;
+
+      mockedFs.readFile.mockResolvedValue(updatedYaml);
+
+      // Trigger file change event
+      if (mockWatcher?.callbacks?.change) {
+        mockWatcher.callbacks.change();
+      }
+
+      // Fast-forward timers to trigger debounced reload (300ms)
+      await jest.advanceTimersByTimeAsync(300);
+
+      // Verify event was emitted with new and previous settings
+      expect(settingsChangedHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          shortcuts: expect.objectContaining({
+            main: 'Ctrl+Space'
+          }),
+          window: expect.objectContaining({
+            position: 'cursor',
+            width: 700,
+            height: 350
+          })
+        }),
+        expect.objectContaining({
+          shortcuts: expect.objectContaining({
+            main: 'Cmd+Shift+Space'
+          })
+        })
+      );
+
+      settingsManager.off('settings-changed', settingsChangedHandler);
+    });
+
+    it('should properly debounce file changes', async () => {
+      const settingsChangedHandler = jest.fn();
+      settingsManager.on('settings-changed', settingsChangedHandler);
+
+      const updatedYaml = `shortcuts:
+  main: Ctrl+Space
+  paste: Enter
+  close: Escape
+window:
+  position: cursor
+  width: 700
+  height: 350`;
+
+      mockedFs.readFile.mockResolvedValue(updatedYaml);
+
+      // Trigger multiple file changes rapidly
+      if (mockWatcher?.callbacks?.change) {
+        mockWatcher.callbacks.change();
+        jest.advanceTimersByTime(100); // 100ms
+
+        mockWatcher.callbacks.change();
+        jest.advanceTimersByTime(100); // 200ms total
+
+        mockWatcher.callbacks.change();
+        // Final advance to trigger the debounced callback
+        await jest.advanceTimersByTimeAsync(300); // 300ms from last change
+      }
+
+      // Verify event was emitted only once (debounced)
+      expect(settingsChangedHandler).toHaveBeenCalledTimes(1);
+
+      settingsManager.off('settings-changed', settingsChangedHandler);
+    });
+
+    it('should maintain existing settings when reload fails due to invalid YAML', async () => {
+      // Get initial settings
+      const initialSettings = settingsManager.getSettings();
+
+      const settingsChangedHandler = jest.fn();
+      settingsManager.on('settings-changed', settingsChangedHandler);
+
+      // Mock invalid YAML that will cause parsing to fail
+      mockedFs.readFile.mockResolvedValue('invalid: yaml: content: [unclosed');
+
+      // Trigger file change
+      if (mockWatcher?.callbacks?.change) {
+        mockWatcher.callbacks.change();
+      }
+
+      // Fast-forward timers
+      await jest.advanceTimersByTimeAsync(300);
+
+      // Verify that event was NOT emitted (reload failed)
+      expect(settingsChangedHandler).not.toHaveBeenCalled();
+
+      // Verify settings remain unchanged
+      const currentSettings = settingsManager.getSettings();
+      expect(currentSettings).toEqual(initialSettings);
+
+      settingsManager.off('settings-changed', settingsChangedHandler);
+    });
+
+    it('should properly close watcher on destroy()', async () => {
+      const closeSpy = jest.fn(() => Promise.resolve());
+
+      if (mockWatcher) {
+        mockWatcher.close = closeSpy;
+      }
+
+      await settingsManager.destroy();
+
+      // Verify watcher was closed
+      expect(closeSpy).toHaveBeenCalled();
+    });
+
+    it('should clear debounce timer on destroy()', async () => {
+      const settingsChangedHandler = jest.fn();
+      settingsManager.on('settings-changed', settingsChangedHandler);
+
+      const updatedYaml = `shortcuts:
+  main: Ctrl+Space
+  paste: Enter
+  close: Escape
+window:
+  position: cursor
+  width: 700
+  height: 350`;
+
+      mockedFs.readFile.mockResolvedValue(updatedYaml);
+
+      // Trigger file change but don't wait for debounce
+      if (mockWatcher?.callbacks?.change) {
+        mockWatcher.callbacks.change();
+      }
+
+      // Destroy before debounce timer fires
+      jest.advanceTimersByTime(150); // Only 150ms, not the full 300ms
+      await settingsManager.destroy();
+
+      // Fast-forward remaining time
+      await jest.advanceTimersByTimeAsync(200);
+
+      // Verify event was NOT emitted (timer was cleared)
+      expect(settingsChangedHandler).not.toHaveBeenCalled();
+
+      settingsManager.off('settings-changed', settingsChangedHandler);
+    });
+
+    it('should handle watcher errors gracefully', async () => {
+      const errorHandler = jest.fn();
+
+      // Mock logger.error to verify error handling
+      const { logger } = require('../../src/utils/utils');
+      const originalError = logger.error;
+      logger.error = errorHandler;
+
+      // Trigger watcher error
+      const testError = new Error('Watcher error');
+      if (mockWatcher?.callbacks?.error) {
+        mockWatcher.callbacks.error(testError);
+      }
+
+      // Verify error was logged
+      expect(errorHandler).toHaveBeenCalledWith(
+        'Settings file watcher error:',
+        testError
+      );
+
+      // Restore original logger
+      logger.error = originalError;
+    });
+
+    it('should not start multiple watchers on repeated init calls', async () => {
+      // Clear previous watch calls
+      chokidar.watch.mockClear();
+
+      // Call init again (already initialized in beforeEach)
+      await settingsManager.init();
+
+      // Verify watch was not called again (already watching)
+      // The first call was in the beforeEach, so this should not add another
+      // Note: The implementation checks if watcher already exists
+      expect(chokidar.watch).not.toHaveBeenCalled();
     });
   });
 
