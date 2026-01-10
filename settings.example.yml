@@ -65,23 +65,26 @@ slashCommands:
     - name: "{basename}"
       description: "{frontmatter@description}"
       path: ~/.claude/commands
+      label: command
+      color: teal
       pattern: "*.md"
       argumentHint: "{frontmatter@argument-hint}"
       maxSuggestions: 20
-      # Entry-level enable/disable (optional)
-      # enable:
-      #   - "test-*"           # Enable commands starting with test-
-      #   - "commit"           # Enable specific command
-      # disable:
-      #   - "debug"            # Disable specific command
-      #   - "old-*"            # Disable commands starting with old-
+
+    - name: "{frontmatter@name}"
+      description: "{frontmatter@description}"
+      path: ~/.claude/skills
+      label: skill
+      color: teal
+      pattern: "**/*/SKILL.md"
+      maxSuggestions: 20
 
     - name: "{prefix}:{basename}"
       description: "{frontmatter@description}"
       path: ~/.claude/plugins/cache
       pattern: "**/commands/*.md"
-      prefixPattern: "**/.claude-plugin/plugin.json@name"
-      label: plugin
+      prefixPattern: "**/.claude-plugin/*.json@name"
+      label: command
       color: red
       argumentHint: "{frontmatter@argument-hint}"
       maxSuggestions: 20
@@ -92,18 +95,16 @@ slashCommands:
       #   - "example-skills:debug-*" # Disable debug commands
       #   - "old-*"                  # Disable commands starting with old-
 
-    - name: "{frontmatter@name}"
+    - name: "{prefix}:{frontmatter@name}"
       description: "{frontmatter@description}"
-      path: ~/.claude/skills
-      label: skill
-      color: teal
+      path: ~/.claude/plugins/cache
       pattern: "**/*/SKILL.md"
-      # enable:
-      #   - "commit"                 # Enable specific skill (exact match)
-      #   - "test-*"                 # Enable skills starting with test-
-      # disable:
-      #   - "debug-*"                # Disable skills starting with debug-
-      #   - "deprecated"             # Disable specific skill
+      prefixPattern: "**/.claude-plugin/*.json@name"
+      label: skill
+      color: red
+      argumentHint: "{frontmatter@argument-hint}"
+      maxSuggestions: 20
+
 
 # ============================================================================
 # MENTION SETTINGS (@ mentions)
@@ -171,6 +172,13 @@ mentions:
       path: ~/.claude/agents
       pattern: "*.md"
       searchPrefix: agent            # Search with @agent:
+
+    - name: "agent-{prefix}:{basename}"
+      description: "{frontmatter@description}"
+      path: ~/.claude/plugins/cache
+      pattern: "**/agents/*.md"
+      prefixPattern: "**/.claude-plugin/*.json@name"
+      searchPrefix: agent
       # Entry-level enable/disable (optional)
       # enable:
       #   - "agent-claude"     # Enable specific agent
@@ -178,6 +186,14 @@ mentions:
       # disable:
       #   - "agent-legacy"     # Disable specific agent
       #   - "old-*"            # Disable all agents starting with old-
+
+    - name: "{basename}"
+      description: "{frontmatter@title}"
+      path: ~/.claude/plans
+      pattern: "*.md"
+      searchPrefix: plan            # Search with @plan:
+      maxSuggestions: 100
+      inputFormat: path               # Insert file path instead of name
 
     # - name: "{basename}"
     #   description: "{frontmatter@title}"
