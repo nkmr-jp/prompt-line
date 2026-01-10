@@ -291,11 +291,19 @@
   color: #79b8ff;
 }
 
-/* Frontmatter Hint */
-.frontmatter-hint {
+/* Frontmatter File Link */
+.frontmatter-file-link {
   margin-top: 8px;
   padding-top: 6px;
   border-top: 1px solid #333;
+  font-size: 9px;
+  color: var(--text-secondary, #888);
+  text-align: left;
+}
+
+/* Frontmatter Hint */
+.frontmatter-hint {
+  margin-top: 6px;
   font-size: 9px;
   color: var(--text-tertiary, #666);
   text-align: right;

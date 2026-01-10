@@ -74,6 +74,46 @@ export class FrontmatterPopupManager {
   }
 
   /**
+   * Add file path link to popup footer
+   */
+  private async addFilePathLink(commandName: string): Promise<void> {
+    if (!this.frontmatterPopup) return;
+
+    try {
+      // Get file path from IPC
+      const filePath = await window.electronAPI?.slashCommands?.getFilePath?.(commandName);
+      if (!filePath) return;
+
+      // Extract filename from path
+      const fileName = filePath.split('/').pop() || filePath;
+
+      // Create file link container
+      const fileLinkDiv = document.createElement('div');
+      fileLinkDiv.className = 'frontmatter-file-link';
+
+      // Create clickable link
+      const link = document.createElement('a');
+      link.className = 'frontmatter-link';
+      link.textContent = `📄 ${fileName}`;
+      link.title = filePath; // Show full path on hover
+      link.href = '#';
+
+      // Handle click to open in editor
+      link.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        await window.electronAPI?.file?.openInEditor?.(filePath);
+      });
+
+      fileLinkDiv.appendChild(link);
+      this.frontmatterPopup.appendChild(fileLinkDiv);
+    } catch (error) {
+      // Silently fail - file link is optional
+      console.error('Failed to add file path link:', error);
+    }
+  }
+
+  /**
    * Render frontmatter content with clickable reference links
    */
   private renderFrontmatter(container: HTMLElement, frontmatter: string): void {
@@ -131,7 +171,7 @@ export class FrontmatterPopupManager {
   /**
    * Show the frontmatter popup for a command
    */
-  public show(command: SlashCommandItemLike, targetElement: HTMLElement): void {
+  public async show(command: SlashCommandItemLike, targetElement: HTMLElement): Promise<void> {
     const suggestionsContainer = this.callbacks.getSuggestionsContainer();
     if (!this.frontmatterPopup || !command.frontmatter || !suggestionsContainer) return;
 
@@ -148,6 +188,9 @@ export class FrontmatterPopupManager {
     contentDiv.className = 'frontmatter-content';
     this.renderFrontmatter(contentDiv, command.frontmatter);
     this.frontmatterPopup.appendChild(contentDiv);
+
+    // Add file path link (before hint)
+    await this.addFilePathLink(command.name);
 
     // Add hint message at the bottom
     const hintDiv = document.createElement('div');
@@ -201,7 +244,7 @@ export class FrontmatterPopupManager {
   /**
    * Show tooltip for the currently selected item (if auto-show is enabled)
    */
-  public showForSelectedItem(): void {
+  public async showForSelectedItem(): Promise<void> {
     const suggestionsContainer = this.callbacks.getSuggestionsContainer();
     if (!this.autoShowTooltip || !suggestionsContainer) return;
 
@@ -217,17 +260,17 @@ export class FrontmatterPopupManager {
     const selectedItem = suggestionsContainer.querySelector('.slash-suggestion-item.selected');
     const infoIcon = selectedItem?.querySelector('.frontmatter-info-icon') as HTMLElement;
     if (infoIcon) {
-      this.show(selectedCommand, infoIcon);
+      await this.show(selectedCommand, infoIcon);
     }
   }
 
   /**
    * Toggle auto-show tooltip mode
    */
-  public toggleAutoShow(): void {
+  public async toggleAutoShow(): Promise<void> {
     this.autoShowTooltip = !this.autoShowTooltip;
     if (this.autoShowTooltip) {
-      this.showForSelectedItem();
+      await this.showForSelectedItem();
     } else {
       this.hide();
     }
