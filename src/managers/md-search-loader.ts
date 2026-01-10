@@ -65,9 +65,16 @@ class MdSearchLoader {
     const allItems = await this.loadAll();
     let items = allItems.filter(item => item.type === type);
 
-    // command タイプのみ enable/disable フィルタを適用
+    // グローバル enable/disable フィルタを適用
     if (type === 'command' && this.settings?.slashCommands) {
       const { enable, disable } = this.settings.slashCommands;
+      items = items.filter(item =>
+        isCommandEnabled(item.name, enable, disable)
+      );
+    }
+
+    if (type === 'mention' && this.settings?.mentions) {
+      const { enable, disable } = this.settings.mentions;
       items = items.filter(item =>
         isCommandEnabled(item.name, enable, disable)
       );

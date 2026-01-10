@@ -159,6 +159,12 @@ mentions:
   #   "**/{cmd,agent}/*.md"   - Brace expansion (cmd or agent dirs)
   #   "test-*.md"             - Wildcard prefix
   # searchPrefix: Search with @<prefix>: (e.g., searchPrefix: "agent" → @agent:)
+  #
+  # Global enable/disable filters for all mdSearch mentions (optional)
+  # enable:
+  #   - "agent-*"              # Enable all agents starting with agent-
+  # disable:
+  #   - "agent-legacy"         # Disable specific agent
   mdSearch:
     - name: "agent-{basename}"
       description: "{frontmatter@description}"

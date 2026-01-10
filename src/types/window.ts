@@ -221,6 +221,18 @@ export interface MentionsSettings {
   symbolSearch?: SymbolSearchUserSettings;
   /** Markdown-based mentions from markdown files */
   mdSearch?: MentionEntry[];
+  /**
+   * 有効にするメンション名のリスト（ホワイトリスト）
+   * - 完全一致: "agent-claude"
+   * - 前方一致: "agent-*"
+   */
+  enable?: string[];
+  /**
+   * 無効にするメンション名のリスト（ブラックリスト）
+   * - 完全一致: "agent-legacy"
+   * - 前方一致: "old-*"
+   */
+  disable?: string[];
 }
 
 // ============================================================================
