@@ -1,46 +1,102 @@
 # 🧑‍💻 Prompt Line
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/nkmr-jp/prompt-line)
 
+<!-- Keep these links. Translations will automatically update with the README. -->
 [English](README.md) |
 日本語
 
 ## 概要
 
-Prompt Lineは、[Claude Code](https://github.com/anthropics/claude-code)、[Gemini CLI](https://github.com/google-gemini/gemini-cli)、[OpenAI Codex CLI](https://github.com/openai/codex)、[Aider](https://github.com/paul-gauthier/aider) などのCLI型AIコーディングエージェントのターミナルでのプロンプト入力体験を改善することを目的として開発したmacOSアプリです。
-日本語などのマルチバイト文字入力時のUXの課題を専用のフローティング入力インターフェースで解決します。 
+**あらゆるコンテキストを検索、より良いプロンプトを**
 
-特に以下のようなケースでのテキスト入力のストレスを大幅に軽減します。
+Prompt Lineは、[Claude Code](https://github.com/anthropics/claude-code)、[Gemini CLI](https://github.com/google-gemini/gemini-cli)、[OpenAI Codex CLI](https://github.com/openai/codex)、[Aider](https://github.com/paul-gauthier/aider) などのAIコーディングエージェント向けに設計されたmacOSアプリです。コンテキストを素早く検索・挿入できるので、効果的なプロンプト作成に集中できます。
 
-1. **ターミナルでのCLI型AIコーディングエージェントへのプロンプト入力**
-2. **Enterを押したら意図しないタイミングで送信されてしまうチャットアプリ**
-3. **入力の重たいテキストエディタ(例：巨大なコンフルエンスのドキュメントなど)**
+### 主な機能
+
+**🔍 コンテキスト検索機能**
+- **@ファイル検索** - ファイルパスを瞬時に検索・挿入
+- **@シンボル検索** - 20以上の言語でコードシンボル(関数、クラス、型)を検索
+- **@マークダウン検索** - エージェント、スキル、ナレッジベースを検索
+- **スラッシュコマンド** - AIツールコマンドに素早くアクセス
+- **履歴検索** - 過去のプロンプトを再利用・改良
+
+**✍️ 集中できるプロンプト作成環境**
+- 作業を邪魔しない専用のフローティング入力インターフェース
+- 素早い起動(`Cmd+Shift+Space`)と貼り付け(`Cmd+Enter`)
+- 音声入力の編集とマルチバイト文字入力に最適
+- ドラフト自動保存で作業内容を失わない
 
 
-## 特徴
-### サクッと起動、サクッと貼付け
-ショートカットでサクッと起動 (`Cmd+Shift+Space`)。<br>
-テキスト入力してサクッと貼付け(`Cmd+Enter`)。
-![doc1.gif](assets/doc1.gif)
+## 機能
 
-### 音声入力したテキストの編集にも最適
-操作性は一般的なテキストエディタと同じです。<br>
-もちろん音声入力アプリと組み合わせて使うこともできます。<br>
-Enterを押しても勝手に送信されないので、改行する場合も気をつける必要はありません。 <br>
-音声入力したテキストの編集にも最適です。<br>
-(この動画では[superwhisper](https://superwhisper.com/)を使っています。)
-![doc2.gif](assets/doc2.gif)
+### 🔍 コンテキスト検索機能
 
-### プロンプト履歴を検索して再利用可能
-プロンプト履歴は保存されており、右のメニューから再利用可能です。<br>
-検索もできます。(`Cmd+f`)
+#### @ファイル検索 - ファイルを瞬時に検索
+`@`を入力してファイルパスを検索・挿入。<br>
+Terminal.app、iTerm2、Ghostty、Warp、WezTerm、JetBrains IDE、VSCode、Cursor、Windsurf、Zedなどに対応。<br>
+※ [fd](https://github.com/sharkdp/fd)コマンド(`brew install fd`)のインストールと設定が必要です。
+
+![doc10.png](assets/doc10.png)
+
+#### @シンボル検索 - コードをセマンティックに検索
+`@<言語>:<クエリ>`を入力してコードシンボル(関数、クラス、型など)を検索。<br>
+TypeScript、Go、Python、Rust、Javaなど20以上の言語に対応。<br>
+※ [ripgrep](https://github.com/BurntSushi/ripgrep)(`brew install ripgrep`)のインストールとファイル検索の有効化が必要です。
+
+**例:**
+- `@ts:Config` - "Config"を含むTypeScriptシンボルを検索
+- `@go:Handler` - "Handler"を含むGoシンボルを検索
+- `@py:parse` - "parse"を含むPythonシンボルを検索
+
+![doc13.png](assets/doc13.png)
+
+#### @マークダウン検索 - ナレッジベースにアクセス
+`@<検索プレフィックス>:<クエリ>`を入力してエージェント、スキル、ドキュメントを検索。<br>
+設定で検索プレフィックスをカスタマイズして、独自のナレッジベースを構築できます。
+
+![doc12.png](assets/doc12.png)
+
+#### スラッシュコマンド - コマンドに素早くアクセス
+`/`を入力してスラッシュコマンドを検索。<br>
+Claude Code、OpenAI Codex、Google Gemini用のビルトインコマンドが利用可能。<br>
+カスタムコマンドは`~/.prompt-line/settings.yml`で追加できます。
+
+![doc11.png](assets/doc11.png)
+
+#### 履歴検索 - 過去のプロンプトを再利用
+すべてのプロンプトが保存され、検索可能(`Cmd+f`)。<br>
+エントリをクリックするだけで即座に再利用できます。
+
 ![doc3.gif](assets/doc3.gif)
 
-### どこでも起動
-テキスト入力フィールドであればどこでも起動できます。<br>
-同じプロンプトを他のアプリで再利用したい場合にも便利です。
-![doc1.gif](assets/doc4.gif)
+### ✍️ 集中できる作成環境
 
-もちろん、ターミナル以外でも使えます。
+#### 素早い起動、素早い貼り付け
+`Cmd+Shift+Space`でどこからでも起動。<br>
+入力して`Cmd+Enter`で貼り付け。<br>
+ターミナルだけでなく、すべてのアプリケーションで動作します。
+
+![doc1.gif](assets/doc1.gif)
+
+#### 音声入力に最適
+一般的なテキストエディタと同じ操作性。<br>
+Enterキーでテキストを送信せず改行できます。<br>
+音声入力したテキストの編集に最適。<br>
+(この動画では[superwhisper](https://superwhisper.com/)を使用しています。)
+
+![doc2.gif](assets/doc2.gif)
+
+#### ファイルオープン
+ファイルパスや@mentionから直接ファイルを開けます。<br>
+`Ctrl+Enter`または`Cmd+クリック`でファイル内容を確認。
+
+![doc9.png](assets/doc9.png)
+
+#### どこでも起動
+テキスト入力フィールドがあればどこでも起動可能。<br>
+異なるアプリケーション間でプロンプトを再利用するのに便利です。
+
+![doc4.gif](assets/doc4.gif)
 ![doc5.gif](assets/doc5.gif)
 
 
@@ -129,64 +185,22 @@ npm run reset-accessibility
 ### 基本的なワークフロー
 1. 入力したい場所に移動
 2. `Cmd+Shift+Space`を押してPrompt Lineを開く
-3. テキストを入力
-4. `Cmd+Enter`を押してテキストを貼り付け
-5. 作業を継続
+3. コンテキスト検索機能を使用(@ファイル、@シンボル、/コマンド、履歴)
+4. プロンプトを入力
+5. `Cmd+Enter`を押して貼り付け
+6. 作業を継続
 
-### 機能
+### クイックリファレンス
 
-- **履歴パネル** - 過去のエントリをクリックして再利用。検索も可能。(`Cmd+f`)
+- **履歴パネル** - `Cmd+f`で検索、クリックで再利用
 - **ドラフト自動保存** - 作業内容を自動的に保存
 - **画像サポート** - `Cmd+V`でクリップボード画像を貼り付け
-- **ファイルオープン** - ファイルパスのテキストからファイルを起動 (`Ctrl+Enter` or `Cmd+クリック`)
-- **ファイル検索** - `@`を入力してファイルを検索 (fdコマンドと設定が必要)
-- **シンボル検索** - `@<言語>:<クエリ>`と入力してコードシンボルを検索 (例: `@ts:Config`) (ripgrepが必要)
-- **マークダウン検索** - `/`を入力してスラッシュコマンドを検索、または`@`でサブエージェントを検索 (設定が必要)
-
-#### ファイルオープン
-ファイルパスや@で検索したファイルを起動して内容を確認できます。(`Ctrl+Enter` or `Cmd+クリック`)
-
-![doc9.png](assets/doc9.png)
-
-
-#### スラッシュコマンド
-`/`を入力するとスラッシュコマンドを検索できます。<br>
-AIコーディングアシスタント（Claude Code、OpenAI Codex、Google Gemini）用のビルトインコマンドが利用可能です。<br>
-カスタムコマンドは `~/.prompt-line/settings.yml` で追加できます。「⚙️ 設定」の項目参照
-
-![doc11.png](assets/doc11.png)
-
-#### @Mentions
-
-#### ファイル検索
-@を入力するとファイルを検索できます。<br>
-※ [fd](https://github.com/sharkdp/fd)コマンドのインストールが必要です。( `brew install fd` )<br>
-※ `~/.prompt-line/settings.yml` で `fileSearch`の項目を設定する必要があります。 「⚙️ 設定」の項目参照<br>
-※ 対応アプリ: Terminal.app, iTerm2, Ghostty, Warp, WezTerm, JetBrains IDE（IntelliJ, WebStormなど）, VSCode, Cursor, Windsurf, Zed, Antigravity, Kiro
-
-![doc10.png](assets/doc10.png)
-
-#### シンボル検索
-`@<言語>:<クエリ>`と入力することで、コードシンボル（関数、クラス、型など）を検索できます。<br>
-この機能はファイル検索と統合されているため、先にファイル検索を有効にする必要があります。
-
-**必要条件:**
-- [ripgrep](https://github.com/BurntSushi/ripgrep) (rg) コマンドのインストールが必要 (`brew install ripgrep`)
-- 設定でファイル検索を有効化
-
-**構文:** `@<言語>:<クエリ>`
-
-**例:**
-- `@ts:Config` - "Config"を含むTypeScriptシンボルを検索
-- `@go:Handler` - "Handler"を含むGoシンボルを検索
-- `@py:parse` - "parse"を含むPythonシンボルを検索
-
-![doc13.png](assets/doc13.png)
-
-#### マークダウン検索
-`@<検索プレフィックス>:<クエリ>` を入力するとサブエージェントやエージェントのスキルを検索できます。自分のナレッジ検索にも使用できます。
-
-![doc12.png](assets/doc12.png)
+- **ファイルオープン** - `Ctrl+Enter`または`Cmd+クリック`でファイルを開く
+- **コンテキスト検索**
+  - `@` - ファイル検索
+  - `@<言語>:` - シンボル検索(例: `@ts:Config`)
+  - `@<プレフィックス>:` - マークダウン検索(例: `@agent:claude`)
+  - `/` - スラッシュコマンド
 
 
 ## ⚙️ 設定
