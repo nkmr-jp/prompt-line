@@ -20,6 +20,10 @@ export interface PopupManagerCallbacks {
   getSelectedSuggestion: () => { type: string; agent?: AgentItem } | null;
   /** Get the suggestions container element */
   getSuggestionsContainer: () => HTMLElement | null;
+  /** Called before opening a file in the editor */
+  onBeforeOpenFile?: () => void;
+  /** Set whether the window is draggable */
+  setDraggable?: (value: boolean) => void;
 }
 
 /**
@@ -92,10 +96,68 @@ export class PopupManager {
   }
 
   /**
+   * Add file path line to the frontmatter content
+   */
+  private async addFilePathLine(contentDiv: HTMLElement, agentName: string): Promise<void> {
+    try {
+      const filePath = await window.electronAPI?.agents?.getFilePath?.(agentName);
+      if (!filePath) return;
+
+      // Replace home directory with ~ for display
+      const displayPath = filePath.replace(/^\/Users\/[^/]+/, '~');
+
+      // Create frontmatter line for file path
+      const lineDiv = document.createElement('div');
+      lineDiv.className = 'frontmatter-line';
+
+      // Add key
+      const keySpan = document.createElement('span');
+      keySpan.className = 'frontmatter-key';
+      keySpan.textContent = 'file: ';
+      lineDiv.appendChild(keySpan);
+
+      // Create clickable link
+      const link = document.createElement('a');
+      link.className = 'frontmatter-link';
+      link.textContent = displayPath;
+      link.title = filePath; // Show full path on hover
+      link.href = '#';
+
+      // Handle click to open in editor
+      link.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        try {
+          this.callbacks.onBeforeOpenFile?.();
+          this.callbacks.setDraggable?.(true);
+          const result = await window.electronAPI?.file?.openInEditor?.(filePath);
+
+          if (!result?.success && result?.error) {
+            console.error('Failed to open file:', result.error);
+            this.callbacks.setDraggable?.(false);
+          }
+          // Note: Do not restore focus to PromptLine window
+          // The opened file's application should stay in foreground
+        } catch (err) {
+          console.error('Failed to open file in editor:', err);
+          this.callbacks.setDraggable?.(false);
+        }
+      });
+
+      lineDiv.appendChild(link);
+      contentDiv.appendChild(lineDiv);
+    } catch (error) {
+      // Silently fail - file link is optional
+      console.error('Failed to add file path line:', error);
+    }
+  }
+
+  /**
    * Show frontmatter popup for an agent
    * Position: to the left of the info icon
    */
-  public showFrontmatterPopup(agent: AgentItem, targetElement: HTMLElement): void {
+  public async showFrontmatterPopup(agent: AgentItem, targetElement: HTMLElement): Promise<void> {
     const suggestionsContainer = this.callbacks.getSuggestionsContainer();
     if (!this.frontmatterPopup || !agent.frontmatter || !suggestionsContainer) return;
 
@@ -111,6 +173,10 @@ export class PopupManager {
     const contentDiv = document.createElement('div');
     contentDiv.className = 'frontmatter-content';
     contentDiv.textContent = agent.frontmatter;
+
+    // Add file path line after frontmatter content
+    await this.addFilePathLine(contentDiv, agent.name);
+
     this.frontmatterPopup.appendChild(contentDiv);
 
     // Add hint message at the bottom
@@ -177,7 +243,7 @@ export class PopupManager {
   /**
    * Show tooltip for the currently selected item (agent only)
    */
-  public showTooltipForSelectedItem(): void {
+  public async showTooltipForSelectedItem(): Promise<void> {
     const suggestionsContainer = this.callbacks.getSuggestionsContainer();
     if (!this.autoShowTooltip || !suggestionsContainer) return;
 
@@ -191,7 +257,7 @@ export class PopupManager {
     const selectedItem = suggestionsContainer.querySelector('.file-suggestion-item.selected');
     const infoIcon = selectedItem?.querySelector('.frontmatter-info-icon') as HTMLElement;
     if (infoIcon) {
-      this.showFrontmatterPopup(suggestion.agent, infoIcon);
+      await this.showFrontmatterPopup(suggestion.agent, infoIcon);
     }
   }
 

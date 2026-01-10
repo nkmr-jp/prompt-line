@@ -44,7 +44,7 @@ export interface SuggestionUICallbacks {
   countFilesInDirectory?: (path: string) => number;
 
   // Popup interactions
-  onMouseEnterInfo?: (suggestion: SuggestionItem, target: HTMLElement) => void;
+  onMouseEnterInfo?: (suggestion: SuggestionItem, target: HTMLElement) => void | Promise<void>;
   onMouseLeaveInfo?: () => void;
 
   // State management (for SuggestionStateManager functionality)

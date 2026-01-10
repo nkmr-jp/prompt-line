@@ -82,7 +82,9 @@ export class MentionManager implements IInitializable {
     // Initialize PopupManager with callbacks
     this.popupManager = new PopupManager({
       getSelectedSuggestion: () => this.state.mergedSuggestions[this.state.selectedIndex] || null,
-      getSuggestionsContainer: () => this.state.suggestionsContainer
+      getSuggestionsContainer: () => this.state.suggestionsContainer,
+      onBeforeOpenFile: () => callbacks.onBeforeOpenFile?.(),
+      setDraggable: (value: boolean) => callbacks.setDraggable?.(value)
     });
 
     // Initialize SettingsCacheManager
