@@ -2,11 +2,12 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
 import { logger } from '../utils/utils';
-import type { MdSearchEntry, MdSearchItem, MdSearchType } from '../types';
+import type { MdSearchEntry, MdSearchItem, MdSearchType, UserSettings } from '../types';
 import { resolveTemplate, getBasename, parseFrontmatter, extractRawFrontmatter } from '../lib/template-resolver';
 import { getDefaultMdSearchConfig, DEFAULT_MAX_SUGGESTIONS, DEFAULT_SORT_ORDER } from '../lib/default-md-search-config';
 import { CACHE_TTL } from '../constants';
 import { resolvePrefix } from '../lib/prefix-resolver';
+import { isCommandEnabled } from '../lib/command-name-matcher';
 
 /**
  * MdSearchLoader - 設定ベースの統合Markdownファイルローダー
@@ -17,10 +18,15 @@ class MdSearchLoader {
   private config: MdSearchEntry[];
   private cache: Map<string, { items: MdSearchItem[]; timestamp: number }> = new Map();
   private cacheTTL: number = CACHE_TTL.MD_SEARCH;
+  private settings: UserSettings | undefined;
 
-  constructor(config?: MdSearchEntry[]) {
+  constructor(
+    config?: MdSearchEntry[],
+    settings?: UserSettings
+  ) {
     // Use default config if config is undefined or empty array
     this.config = (config && config.length > 0) ? config : getDefaultMdSearchConfig();
+    this.settings = settings;
   }
 
   /**
@@ -38,6 +44,14 @@ class MdSearchLoader {
   }
 
   /**
+   * 設定を更新（設定変更時に呼び出す）
+   */
+  updateSettings(settings: UserSettings | undefined): void {
+    this.settings = settings;
+    this.invalidateCache();
+  }
+
+  /**
    * キャッシュを無効化
    */
   invalidateCache(): void {
@@ -49,7 +63,16 @@ class MdSearchLoader {
    */
   async getItems(type: MdSearchType): Promise<MdSearchItem[]> {
     const allItems = await this.loadAll();
-    const items = allItems.filter(item => item.type === type);
+    let items = allItems.filter(item => item.type === type);
+
+    // command タイプのみ enable/disable フィルタを適用
+    if (type === 'command' && this.settings?.slashCommands) {
+      const { enable, disable } = this.settings.slashCommands;
+      items = items.filter(item =>
+        isCommandEnabled(item.name, enable, disable)
+      );
+    }
+
     const sortOrder = this.getSortOrder(type);
     return this.sortItems(items, sortOrder);
   }

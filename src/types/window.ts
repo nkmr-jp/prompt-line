@@ -235,6 +235,18 @@ export interface SlashCommandsSettings {
   builtIn?: string[];
   /** Custom slash commands from markdown files */
   custom?: SlashCommandEntry[];
+  /**
+   * 有効にするコマンド名のリスト（ホワイトリスト）
+   * - 完全一致: "commit"
+   * - 前方一致: "ralph-loop:*"
+   */
+  enable?: string[];
+  /**
+   * 無効にするコマンド名のリスト（ブラックリスト）
+   * - 完全一致: "debug"
+   * - 前方一致: "debug-*"
+   */
+  disable?: string[];
 }
 
 /**

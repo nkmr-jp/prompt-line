@@ -47,13 +47,17 @@ class IPCHandlers {
     settingsManager: SettingsManager
   ) {
     // Initialize MdSearchLoader and FileOpenerManager
-    const mdSearchLoader = new MdSearchLoader();
+    const settings = settingsManager.getSettings();
+    const mdSearchLoader = new MdSearchLoader(
+      settings.mdSearch,
+      settings
+    );
     const fileOpenerManager = new FileOpenerManager(settingsManager);
 
     // Initialize MdSearchLoader with settings
-    const settings = settingsManager.getSettings();
     if (settings.mdSearch) {
       mdSearchLoader.updateConfig(settings.mdSearch);
+      mdSearchLoader.updateSettings(settings);
       logger.info('MdSearch config updated from settings');
     }
 

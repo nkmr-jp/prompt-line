@@ -59,6 +59,20 @@ slashCommands:
     # - codex
     # - gemini
 
+  # Enable/disable specific commands (optional)
+  # - enable: Whitelist specific commands (exact match or prefix match with *)
+  # - disable: Blacklist specific commands (exact match or prefix match with *)
+  # Note: If both are specified, 'enable' takes precedence
+  #
+  # enable:
+  #   - "ralph-loop:*"      # Enable all ralph-loop plugin commands
+  #   - "example-skills:*"  # Enable all example-skills plugin commands
+  #   - "commit"            # Enable specific command (exact match)
+  #
+  # disable:
+  #   - "debug-*"           # Disable all commands starting with debug-
+  #   - "test-*"            # Disable all commands starting with test-
+
   # Custom slash commands from markdown files
   custom:
     - name: "{basename}"
