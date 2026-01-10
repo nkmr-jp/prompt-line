@@ -60,7 +60,14 @@ export class SlashCommandManager implements IInitializable {
       getFilteredCommands: () => this.filteredCommands,
       getSelectedIndex: () => this.selectedIndex,
       ...(callbacks.onBeforeOpenFile ? { onBeforeOpenFile: callbacks.onBeforeOpenFile } : {}),
-      ...(callbacks.setDraggable ? { setDraggable: callbacks.setDraggable } : {})
+      ...(callbacks.setDraggable ? { setDraggable: callbacks.setDraggable } : {}),
+      onSelectCommand: (command) => {
+        // Find the command in filteredCommands to get the full command object
+        const fullCommand = this.filteredCommands.find(cmd => cmd.name === command.name);
+        if (fullCommand) {
+          this.selectCommand(this.filteredCommands.indexOf(fullCommand), true);
+        }
+      }
     });
   }
 

@@ -20,6 +20,7 @@ export interface FrontmatterPopupCallbacks {
   getSelectedIndex: () => number;
   onBeforeOpenFile?: () => void;
   setDraggable?: (value: boolean) => void;
+  onSelectCommand?: (command: SlashCommandItemLike) => void;
 }
 
 /**
@@ -85,7 +86,7 @@ export class FrontmatterPopupManager {
       try {
         // Try slash command API first
         filePath = await window.electronAPI?.slashCommands?.getFilePath?.(command.name);
-      } catch (err) {
+      } catch (_err) {
         // Silently ignore error - will try agent API next
       }
 
@@ -93,7 +94,7 @@ export class FrontmatterPopupManager {
       if (!filePath) {
         try {
           filePath = await window.electronAPI?.agents?.getFilePath?.(command.name);
-        } catch (err) {
+        } catch (_err) {
           // Silently ignore error
         }
       }
@@ -126,6 +127,12 @@ export class FrontmatterPopupManager {
         e.stopPropagation();
 
         try {
+          // First, insert the command into textarea
+          if (this.callbacks.onSelectCommand) {
+            this.callbacks.onSelectCommand(command);
+          }
+
+          // Then, open the file in editor
           this.callbacks.onBeforeOpenFile?.();
           this.callbacks.setDraggable?.(true);
           const result = await window.electronAPI?.file?.openInEditor?.(filePath);

@@ -24,6 +24,8 @@ export interface PopupManagerCallbacks {
   onBeforeOpenFile?: () => void;
   /** Set whether the window is draggable */
   setDraggable?: (value: boolean) => void;
+  /** Called when agent is selected for insertion */
+  onSelectAgent?: (agent: AgentItem) => void;
 }
 
 /**
@@ -129,6 +131,13 @@ export class PopupManager {
         e.stopPropagation();
 
         try {
+          // First, get the agent and insert it into textarea
+          const suggestion = this.callbacks.getSelectedSuggestion?.();
+          if (suggestion?.type === 'agent' && suggestion.agent && this.callbacks.onSelectAgent) {
+            this.callbacks.onSelectAgent(suggestion.agent);
+          }
+
+          // Then, open the file in editor
           this.callbacks.onBeforeOpenFile?.();
           this.callbacks.setDraggable?.(true);
           const result = await window.electronAPI?.file?.openInEditor?.(filePath);
