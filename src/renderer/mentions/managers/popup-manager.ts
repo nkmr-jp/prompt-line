@@ -37,6 +37,11 @@ export class PopupManager {
   private autoShowTooltip: boolean = false;
   private callbacks: PopupManagerCallbacks;
 
+  // Row hover tracking for tooltip persistence
+  private currentRowElement: Element | null = null;
+  private boundRowMouseEnter: (() => void) | null = null;
+  private boundRowMouseLeave: (() => void) | null = null;
+
   private static readonly POPUP_HIDE_DELAY = UI_TIMING.POPUP_HIDE_DELAY; // ms delay before hiding popup
 
   constructor(callbacks: PopupManagerCallbacks) {
@@ -204,6 +209,9 @@ export class PopupManager {
     applyPopupPosition(this.frontmatterPopup, position);
 
     this.frontmatterPopup.style.display = 'block';
+
+    // Set up row listeners for tooltip persistence
+    this.setupRowListeners(targetElement);
   }
 
   /**
@@ -213,6 +221,8 @@ export class PopupManager {
     if (this.frontmatterPopup) {
       this.frontmatterPopup.style.display = 'none';
     }
+    // Clean up row listeners when popup is hidden
+    this.cleanupRowListeners();
   }
 
   /**
@@ -233,6 +243,40 @@ export class PopupManager {
       clearTimeout(this.popupHideTimeout);
       this.popupHideTimeout = null;
     }
+  }
+
+  /**
+   * Clean up row event listeners
+   */
+  private cleanupRowListeners(): void {
+    if (this.currentRowElement && this.boundRowMouseEnter && this.boundRowMouseLeave) {
+      this.currentRowElement.removeEventListener('mouseenter', this.boundRowMouseEnter);
+      this.currentRowElement.removeEventListener('mouseleave', this.boundRowMouseLeave);
+    }
+    this.currentRowElement = null;
+    this.boundRowMouseEnter = null;
+    this.boundRowMouseLeave = null;
+  }
+
+  /**
+   * Set up row event listeners for tooltip persistence
+   */
+  private setupRowListeners(targetElement: HTMLElement): void {
+    // Clean up previous row listeners
+    this.cleanupRowListeners();
+
+    // Find the parent row element
+    const rowElement = targetElement.closest('.suggestion-item, .file-suggestion-item');
+    if (!rowElement) return;
+
+    // Create bound handlers
+    this.boundRowMouseEnter = () => this.cancelPopupHide();
+    this.boundRowMouseLeave = () => this.schedulePopupHide();
+
+    // Add listeners to the row
+    rowElement.addEventListener('mouseenter', this.boundRowMouseEnter);
+    rowElement.addEventListener('mouseleave', this.boundRowMouseLeave);
+    this.currentRowElement = rowElement;
   }
 
   /**
@@ -282,6 +326,7 @@ export class PopupManager {
    */
   public destroy(): void {
     this.cancelPopupHide();
+    this.cleanupRowListeners();
     if (this.frontmatterPopup && this.frontmatterPopup.parentNode) {
       this.frontmatterPopup.parentNode.removeChild(this.frontmatterPopup);
       this.frontmatterPopup = null;
