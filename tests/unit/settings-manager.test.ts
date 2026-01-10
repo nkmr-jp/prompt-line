@@ -641,6 +641,30 @@ window:
       expect(filteredEntry?.enable).toEqual(['agent-*']);
       expect(filteredEntry?.disable).toEqual(['agent-legacy']);
     });
+
+    it('should convert mentions.mdSearch with prefixPattern', async () => {
+      const userSettings: Partial<UserSettings> = {
+        mentions: {
+          mdSearch: [
+            {
+              name: 'agent-{prefix}:{basename}',
+              description: '{frontmatter@description}',
+              path: '~/.claude/plugins/cache',
+              pattern: '**/agents/*.md',
+              searchPrefix: 'agent',
+              prefixPattern: '**/.claude-plugin/plugin.json@name'
+            }
+          ]
+        }
+      };
+
+      await settingsManager.updateSettings(userSettings);
+      const entries = settingsManager.getMdSearchEntries();
+
+      const entryWithPrefix = entries?.find(e => e.type === 'mention' && e.prefixPattern !== undefined);
+      expect(entryWithPrefix).toBeDefined();
+      expect(entryWithPrefix?.prefixPattern).toBe('**/.claude-plugin/plugin.json@name');
+    });
   });
 
 });

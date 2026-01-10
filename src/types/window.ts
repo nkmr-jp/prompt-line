@@ -319,6 +319,8 @@ export interface MentionEntry {
   sortOrder?: 'asc' | 'desc';
   /** オプション: 入力フォーマット（デフォルト: 'name'） */
   inputFormat?: InputFormatType;
+  /** オプション: プレフィックスパターン - 特定JSONファイルからプレフィックスを動的に読み込むためのパターン */
+  prefixPattern?: string;
   /**
    * オプション: 有効にするメンション名のリスト（このエントリのみに適用）
    * - 完全一致: "agent-claude"

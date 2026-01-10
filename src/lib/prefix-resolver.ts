@@ -11,6 +11,34 @@ interface PrefixPatternParts {
 const prefixCache = new Map<string, string>();
 const CACHE_MAX_SIZE = 100;
 
+/**
+ * パスの共通部分の長さを取得する
+ */
+function getCommonPathLength(path1: string, path2: string): number {
+  const parts1 = path1.split(path.sep);
+  const parts2 = path2.split(path.sep);
+  let common = 0;
+  for (let i = 0; i < Math.min(parts1.length, parts2.length); i++) {
+    if (parts1[i] === parts2[i]) common++;
+    else break;
+  }
+  return common;
+}
+
+/**
+ * 複数マッチがある場合、targetPathに最も近いものを選ぶ
+ */
+function findClosestMatch(matches: string[], targetPath: string): string | undefined {
+  if (matches.length === 0) return undefined;
+  if (matches.length === 1) return matches[0];
+
+  return matches.reduce((closest, current) => {
+    const closestCommon = getCommonPathLength(closest, targetPath);
+    const currentCommon = getCommonPathLength(current, targetPath);
+    return currentCommon > closestCommon ? current : closest;
+  });
+}
+
 export function parsePrefixPattern(pattern: string): PrefixPatternParts | null {
   const atIndex = pattern.lastIndexOf('@');
   if (atIndex === -1) return null;
@@ -46,7 +74,7 @@ export async function resolvePrefix(
     });
 
     if (matches.length > 0) {
-      const jsonPath = matches[0];
+      const jsonPath = findClosestMatch(matches, commandFilePath);
       if (!jsonPath) continue;
       const prefix = extractFieldFromJson(jsonPath, parts.fieldPath);
 
