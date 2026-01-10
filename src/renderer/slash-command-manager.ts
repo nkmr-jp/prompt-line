@@ -65,7 +65,8 @@ export class SlashCommandManager implements IInitializable {
         // Find the command in filteredCommands to get the full command object
         const fullCommand = this.filteredCommands.find(cmd => cmd.name === command.name);
         if (fullCommand) {
-          this.selectCommand(this.filteredCommands.indexOf(fullCommand), true);
+          // Use Tab behavior (shouldPaste=false) to insert command with space for editing
+          this.selectCommand(this.filteredCommands.indexOf(fullCommand), false);
         }
       }
     });
