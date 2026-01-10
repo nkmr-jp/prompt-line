@@ -301,16 +301,24 @@
 
 /* Frontmatter Info Icon */
 .frontmatter-info-icon {
+  position: relative;  /* 疑似要素の基準点 */
   margin-left: auto;
   padding-left: 8px;
-  padding: 8px; /* 当たり判定を広げる */
-  margin: -8px; /* 見た目の位置を維持 */
-  margin-left: auto; /* margin-leftを再度指定して左側のマージンを維持 */
   font-size: 12px;
   color: var(--text-tertiary, #666);
   opacity: 0.6;
   transition: opacity 0.15s ease;
   flex-shrink: 0;
+}
+
+.frontmatter-info-icon::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  bottom: -10px;
+  left: -10px;
+  /* 透明な当たり判定エリア */
 }
 
 .frontmatter-info-icon:hover {
