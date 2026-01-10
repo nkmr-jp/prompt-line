@@ -59,11 +59,23 @@ export const defaultSettings: UserSettings = {
         maxSuggestions: 20
       },
       {
+        name: '{prefix}:{basename}',
+        description: '{frontmatter@description}',
+        path: '~/.claude/plugins/cache',
+        pattern: '**/commands/*.md',
+        prefixPattern: '**/.claude-plugin/plugin.json@name',
+        label: 'plugin',
+        labelColor: 'red',
+        argumentHint: '{frontmatter@argument-hint}',
+        maxSuggestions: 20
+      },
+      {
         name: '{frontmatter@name}',
         description: '{frontmatter@description}',
         path: '~/.claude/skills',
-        pattern: '**/*/SKILL.md',
-        argumentHint: ''
+        label: 'skill',
+        labelColor: 'blue',
+        pattern: '**/*/SKILL.md'
       }
     ]
   },
@@ -105,15 +117,13 @@ export const defaultSettings: UserSettings = {
 export const commentedExamples = {
   slashCommands: {
     builtIn: ['codex', 'gemini'],
-    custom: [
-      {
-        name: '{frontmatter@name}',
-        description: '{frontmatter@description}',
-        path: '~/.claude/plugins',
-        pattern: '**/*/SKILL.md',
-        argumentHint: ''
-      }
-    ]
+    custom: [] as Array<{
+      name: string;
+      description: string;
+      path: string;
+      pattern: string;
+      argumentHint?: string;
+    }>
   },
   fileOpener: {
     extensions: {

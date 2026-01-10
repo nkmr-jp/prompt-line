@@ -67,14 +67,23 @@ slashCommands:
       pattern: "*.md"
       argumentHint: "{frontmatter@argument-hint}"
       maxSuggestions: 20
+
+    - name: "{prefix}:{basename}"
+      description: "{frontmatter@description}"
+      path: ~/.claude/plugins/cache
+      pattern: "**/commands/*.md"
+      prefixPattern: "**/.claude-plugin/plugin.json@name"
+      label: plugin
+      labelColor: red
+      argumentHint: "{frontmatter@argument-hint}"
+      maxSuggestions: 20
+
     - name: "{frontmatter@name}"
       description: "{frontmatter@description}"
       path: ~/.claude/skills
+      label: skill
+      labelColor: blue
       pattern: "**/*/SKILL.md"
-    # - name: "{frontmatter@name}"
-    #   description: "{frontmatter@description}"
-    #   path: ~/.claude/plugins
-    #   pattern: "**/*/SKILL.md"
 
 # ============================================================================
 # MENTION SETTINGS (@ mentions)
