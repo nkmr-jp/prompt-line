@@ -301,7 +301,6 @@
 
 /* Frontmatter Info Icon */
 .frontmatter-info-icon {
-  position: relative;  /* 疑似要素の基準点 */
   margin-left: auto;
   padding-left: 8px;
   font-size: 12px;
@@ -309,16 +308,6 @@
   opacity: 0.6;
   transition: opacity 0.15s ease;
   flex-shrink: 0;
-}
-
-.frontmatter-info-icon::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: -10px;
-  /* 左側のみ透明な当たり判定エリア（ツールチップ方向） */
 }
 
 .frontmatter-info-icon:hover {
