@@ -258,16 +258,18 @@ export class SlashCommandManager implements IInitializable {
           const commandEndPos = this.editingCommandStartPos + expectedCommand.length;
           const afterCommand = text.substring(commandEndPos);
 
-          // Hide hint if user has typed any argument (any content other than just a trailing space)
-          // Only show hint when afterCommand is exactly " " (single space)
+          // Hide UI if user has typed any argument, but keep editing mode state
           if (afterCommand !== ' ') {
-            this.hideSuggestions();
+            this.hideUI();
             return;
           }
 
           // Keep showing hint (only single space after command)
           return;
         }
+        // コマンドが変更された場合のみ状態をリセット
+        this.hideSuggestions();
+        return;
       }
       this.hideSuggestions();
       return;
@@ -315,9 +317,8 @@ export class SlashCommandManager implements IInitializable {
 
     // Cursor must be right after a space (argument input position)
     if (!textBeforeCursor.endsWith(' ')) {
-      if (this.isEditingMode) {
-        this.hideSuggestions();
-      }
+      // 編集モード中で、UIが非表示の場合は何もしない（状態を保持）
+      // UIを非表示にするのは checkForSlashCommand() の責任
       return;
     }
 
@@ -344,9 +345,7 @@ export class SlashCommandManager implements IInitializable {
 
     if (!matchedCommand || !matchedCommand.argumentHint) {
       // No command found or command has no argumentHint
-      if (this.isEditingMode) {
-        this.hideSuggestions();
-      }
+      // 編集モード中でUIが非表示の場合、状態はリセットしない
       return;
     }
 
@@ -570,14 +569,10 @@ export class SlashCommandManager implements IInitializable {
   }
 
   /**
-   * Hide suggestions
+   * UIのみを非表示にする（状態は保持）
    */
-  public hideSuggestions(): void {
+  private hideUI(): void {
     this.isActive = false;
-    this.isEditingMode = false;
-    this.editingCommandName = '';
-    this.editingCommandStartPos = 0;
-    this.selectedIndex = 0;
     if (this.suggestionsContainer) {
       this.suggestionsContainer.style.display = 'none';
       this.suggestionsContainer.textContent = '';
@@ -585,6 +580,24 @@ export class SlashCommandManager implements IInitializable {
     }
     // Also hide frontmatter popup
     this.frontmatterPopupManager.hide();
+  }
+
+  /**
+   * 全状態をリセットする
+   */
+  private resetState(): void {
+    this.isEditingMode = false;
+    this.editingCommandName = '';
+    this.editingCommandStartPos = 0;
+    this.selectedIndex = 0;
+  }
+
+  /**
+   * Hide suggestions
+   */
+  public hideSuggestions(): void {
+    this.hideUI();
+    this.resetState();
   }
 
   /**
