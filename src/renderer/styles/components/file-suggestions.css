@@ -303,6 +303,9 @@
 .frontmatter-info-icon {
   margin-left: auto;
   padding-left: 8px;
+  padding: 8px; /* 当たり判定を広げる */
+  margin: -8px; /* 見た目の位置を維持 */
+  margin-left: auto; /* margin-leftを再度指定して左側のマージンを維持 */
   font-size: 12px;
   color: var(--text-tertiary, #666);
   opacity: 0.6;
