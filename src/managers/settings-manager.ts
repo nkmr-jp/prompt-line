@@ -100,6 +100,7 @@ class SettingsManager {
         if (entry.argumentHint) cmd.argumentHint = entry.argumentHint;
         if (entry.maxSuggestions) cmd.maxSuggestions = entry.maxSuggestions;
         if (entry.sortOrder) cmd.sortOrder = entry.sortOrder;
+        if (entry.prefixPattern) cmd.prefixPattern = entry.prefixPattern;
         custom.push(cmd);
       } else if (entry.type === 'mention') {
         // Convert to MentionEntry (without type field)

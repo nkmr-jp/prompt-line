@@ -323,10 +323,13 @@ class MdSearchLoader {
       const rawFrontmatter = extractRawFrontmatter(content);
       const basename = getBasename(filePath);
 
+      // Expand path for prefix resolution
+      const expandedPath = entry.path.replace(/^~/, os.homedir());
+
       // プレフィックス解決
       let prefix = '';
       if (entry.prefixPattern) {
-        prefix = await resolvePrefix(filePath, entry.prefixPattern, entry.path);
+        prefix = await resolvePrefix(filePath, entry.prefixPattern, expandedPath);
       }
 
       const context = { basename, frontmatter, prefix };
