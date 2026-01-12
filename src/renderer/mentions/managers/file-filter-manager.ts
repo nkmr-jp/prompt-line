@@ -30,6 +30,9 @@ export interface FileFilterCallbacks {
  */
 export class FileFilterManager {
   private callbacks: FileFilterCallbacks;
+  private lastQuery: string = '';
+  private lastResults: FileInfo[] = [];
+  private lastWasTruncated: boolean = false;
 
   constructor(callbacks: FileFilterCallbacks) {
     this.callbacks = callbacks;
@@ -86,8 +89,13 @@ export class FileFilterManager {
     const allFiles = cachedData.files;
     const maxSuggestions = this.callbacks.getDefaultMaxSuggestions();
 
-    // If we're in a subdirectory, filter to show only direct children
+    // Clear cache when switching between subdirectory and root level
+    // or when currentPath changes
     if (currentPath) {
+      // In subdirectory - clear cache (incremental search only works at root level)
+      this.lastQuery = '';
+      this.lastResults = [];
+      this.lastWasTruncated = false;
       return this.filterFilesInSubdirectory(allFiles, baseDir, currentPath, query, maxSuggestions);
     }
 
@@ -178,7 +186,10 @@ export class FileFilterManager {
     maxSuggestions: number
   ): FileInfo[] {
     if (!query) {
-      // No query - show top-level files and directories only
+      // No query - clear cache and show top-level files and directories only
+      this.lastQuery = '';
+      this.lastResults = [];
+      this.lastWasTruncated = false;
       return this.getTopLevelFiles(allFiles, baseDir, maxSuggestions);
     }
 
@@ -235,6 +246,9 @@ export class FileFilterManager {
   /**
    * Search all files recursively with query
    * (Inlined from RootFilterManager)
+   * Optimized with incremental search: when query extends previous query,
+   * search only in previous results instead of all files.
+   * Incremental search is disabled if previous results were truncated to prevent missing candidates.
    */
   private searchAllFiles(
     allFiles: FileInfo[],
@@ -242,13 +256,23 @@ export class FileFilterManager {
     query: string,
     maxSuggestions: number
   ): FileInfo[] {
+    // Check if we can use incremental search
+    // Query extends previous query AND we have previous results AND previous results were NOT truncated
+    const canUseIncrementalSearch = query.startsWith(this.lastQuery) &&
+                                    this.lastQuery.length > 0 &&
+                                    this.lastResults.length > 0 &&
+                                    !this.lastWasTruncated;
+
+    // Select source files: previous results or all files
+    const sourceFiles = canUseIncrementalSearch ? this.lastResults : allFiles;
+
     const queryLower = query.toLowerCase();
     const seenDirs = new Set<string>();
     const seenDirNames = new Map<string, { path: string; depth: number }>();
     const matchingDirs: FileInfo[] = [];
 
-    // Find all matching files (from anywhere in the tree)
-    const scoredFiles = allFiles
+    // Find all matching files (from source files)
+    const scoredFiles = sourceFiles
       .filter(file => !file.isDirectory)
       .map(file => ({
         file,
@@ -258,7 +282,7 @@ export class FileFilterManager {
       .filter(item => item.score > 0);
 
     // Find matching directories (by path containing the query)
-    for (const file of allFiles) {
+    for (const file of sourceFiles) {
       const relativePath = getRelativePath(file.path, baseDir);
       const pathParts = relativePath.split('/').filter(p => p);
 
@@ -305,10 +329,19 @@ export class FileFilterManager {
 
     // Combine and sort by score
     const allScored = [...scoredFiles, ...scoredDirs]
-      .sort((a, b) => b.score - a.score)
-      .slice(0, maxSuggestions);
+      .sort((a, b) => b.score - a.score);
 
-    return allScored.map(item => item.file);
+    // Store full results before truncation
+    const fullResults = allScored.map(item => item.file);
+    const wasTruncated = fullResults.length > maxSuggestions;
+
+    // Cache query and full results (before slice) for next incremental search
+    this.lastQuery = query;
+    this.lastResults = fullResults;
+    this.lastWasTruncated = wasTruncated;
+
+    // Return truncated results
+    return fullResults.slice(0, maxSuggestions);
   }
 
   /**

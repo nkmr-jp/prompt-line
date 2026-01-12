@@ -15,6 +15,7 @@ export interface SymbolResult {
   lineNumber: number;
   lineContent: string;
   language: string;
+  nameLower?: string; // Pre-computed lowercase name for efficient filtering
 }
 
 // Response from symbol search command
@@ -24,6 +25,7 @@ export interface SymbolSearchResponse {
   language?: string;
   symbols: SymbolResult[];
   symbolCount: number;
+  unfilteredCount?: number; // Number of symbols before relativePath filtering
   searchMode: 'full' | 'cached';
   partial: boolean;
   maxSymbols: number;

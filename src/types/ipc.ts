@@ -145,6 +145,8 @@ export interface SymbolSearchOptions {
   symbolTypeFilter?: string | null;
   /** Maximum results to return (default: 50) */
   maxResults?: number;
+  /** File path filter (e.g., 'src/main.ts') for single-file symbol retrieval */
+  relativePath?: string;
 }
 
 /**
@@ -156,6 +158,7 @@ export interface SymbolSearchResult {
   language?: string;
   symbols: SymbolResult[];
   symbolCount: number;
+  unfilteredCount?: number; // Number of symbols before relativePath filtering
   searchMode: 'full' | 'cached';
   partial: boolean;
   maxSymbols: number;
@@ -205,7 +208,7 @@ export interface ElectronAPI {
   };
   pasteText: (text: string) => Promise<PasteResult>;
   history: {
-    get: () => Promise<HistoryItem[]>;
+    get: (options?: { limit?: number; offset?: number }) => Promise<HistoryItem[]>;
     clear: () => Promise<void>;
     remove: (id: string) => Promise<void>;
     search: (query: string) => Promise<HistoryItem[]>;

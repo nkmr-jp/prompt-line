@@ -6,6 +6,30 @@ import Foundation
 class RipgrepExecutor {
     static let DEFAULT_MAX_SYMBOLS = 20000
     static let TIMEOUT_SECONDS: Double = 5.0
+    static let MAX_CONCURRENT_RG_PROCESSES = 4
+
+    // MARK: - Regex Cache
+
+    /// Cache for compiled regular expressions
+    private static var regexCache: [String: NSRegularExpression] = [:]
+    private static let regexCacheLock = NSLock()
+
+    /// Get or create cached NSRegularExpression
+    private static func getCachedRegex(pattern: String) -> NSRegularExpression? {
+        regexCacheLock.lock()
+        defer { regexCacheLock.unlock() }
+
+        if let cached = regexCache[pattern] {
+            return cached
+        }
+
+        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+            return nil
+        }
+
+        regexCache[pattern] = regex
+        return regex
+    }
 
     // MARK: - rg Path Detection
 
@@ -90,16 +114,20 @@ class RipgrepExecutor {
             return nil
         }
 
-        // Use parallel execution for all patterns
+        // Use parallel execution with concurrency control
         let group = DispatchGroup()
         var allResults: [SymbolResult] = []
         let resultsLock = NSLock()
+        let concurrencySemaphore = DispatchSemaphore(value: MAX_CONCURRENT_RG_PROCESSES)
 
         // 1. Single-line pattern search - Normal search (respects .gitignore, with excludePatterns)
         for pattern in config.patterns {
             group.enter()
-            DispatchQueue.global(qos: .userInitiated).async {
+            DispatchQueue.global(qos: .utility).async {
                 defer { group.leave() }
+
+                concurrencySemaphore.wait()
+                defer { concurrencySemaphore.signal() }
 
                 let args = buildRgArgs(
                     directory: directory,
@@ -128,8 +156,11 @@ class RipgrepExecutor {
         if !includePatterns.isEmpty {
             for pattern in config.patterns {
                 group.enter()
-                DispatchQueue.global(qos: .userInitiated).async {
+                DispatchQueue.global(qos: .utility).async {
                     defer { group.leave() }
+
+                    concurrencySemaphore.wait()
+                    defer { concurrencySemaphore.signal() }
 
                     let args = buildRgArgs(
                         directory: directory,
@@ -158,13 +189,18 @@ class RipgrepExecutor {
         // 3. Block-based search for Go (secure direct execution)
         if language == "go" {
             group.enter()
-            DispatchQueue.global(qos: .userInitiated).async {
+            DispatchQueue.global(qos: .utility).async {
                 defer { group.leave() }
+
+                concurrencySemaphore.wait()
+                defer { concurrencySemaphore.signal() }
+
                 if let blockResults = searchBlockSymbols(
                     directory: directory,
                     configs: GO_BLOCK_CONFIGS,
                     language: language,
-                    maxSymbols: maxSymbols
+                    maxSymbols: maxSymbols,
+                    semaphore: concurrencySemaphore
                 ) {
                     resultsLock.lock()
                     allResults.append(contentsOf: blockResults)
@@ -248,9 +284,22 @@ class RipgrepExecutor {
         var outputData = Data()
         let dataLock = NSLock()
         let semaphore = DispatchSemaphore(value: 0)
+        var isTimedOut = false
+        let timeoutLock = NSLock()
 
         // Set up async reading before starting process
         pipe.fileHandleForReading.readabilityHandler = { handle in
+            // Check timeout flag to stop reading early
+            timeoutLock.lock()
+            let timedOut = isTimedOut
+            timeoutLock.unlock()
+
+            if timedOut {
+                pipe.fileHandleForReading.readabilityHandler = nil
+                semaphore.signal()
+                return
+            }
+
             let chunk = handle.availableData
             if chunk.isEmpty {
                 // EOF reached
@@ -270,6 +319,9 @@ class RipgrepExecutor {
             let deadline = DispatchTime.now() + TIMEOUT_SECONDS
             DispatchQueue.global().asyncAfter(deadline: deadline) {
                 if process.isRunning {
+                    timeoutLock.lock()
+                    isTimedOut = true
+                    timeoutLock.unlock()
                     process.terminate()
                 }
             }
@@ -313,6 +365,11 @@ class RipgrepExecutor {
     ) -> [SymbolResult] {
         var results: [SymbolResult] = []
 
+        // Get regex once before loop to avoid repeated lock contention
+        guard let regex = getCachedRegex(pattern: pattern.regex) else {
+            return []
+        }
+
         // rg --json output is NDJSON (one JSON per line)
         for line in output.components(separatedBy: "\n") {
             guard !line.isEmpty,
@@ -333,7 +390,7 @@ class RipgrepExecutor {
             // Extract symbol name from regex capture group
             if let symbolName = extractSymbolName(
                 from: lineText,
-                pattern: pattern.regex,
+                regex: regex,
                 captureGroup: pattern.captureGroup
             ) {
                 // Calculate relative path
@@ -363,13 +420,9 @@ class RipgrepExecutor {
     /// Extract symbol name from line using regex capture group
     private static func extractSymbolName(
         from text: String,
-        pattern: String,
+        regex: NSRegularExpression,
         captureGroup: Int
     ) -> String? {
-        guard let regex = try? NSRegularExpression(pattern: pattern) else {
-            return nil
-        }
-
         let range = NSRange(text.startIndex..., in: text)
         guard let match = regex.firstMatch(in: text, range: range),
               match.numberOfRanges > captureGroup else {
@@ -421,12 +474,14 @@ class RipgrepExecutor {
     ///   - configs: Block search configurations
     ///   - language: The language key
     ///   - maxSymbols: Maximum number of symbols to return
+    ///   - semaphore: Optional shared semaphore for concurrency control
     /// - Returns: Array of symbol results, or nil if search failed
     static func searchBlockSymbols(
         directory: String,
         configs: [BlockSearchConfig],
         language: String,
-        maxSymbols: Int = DEFAULT_MAX_SYMBOLS
+        maxSymbols: Int = DEFAULT_MAX_SYMBOLS,
+        semaphore: DispatchSemaphore? = nil
     ) -> [SymbolResult]? {
         // Security validation
         guard isValidDirectory(directory) else {
@@ -440,11 +495,16 @@ class RipgrepExecutor {
         var allResults: [SymbolResult] = []
         let resultsLock = NSLock()
         let group = DispatchGroup()
+        // Use shared semaphore if provided, otherwise create a new one
+        let concurrencySemaphore = semaphore ?? DispatchSemaphore(value: MAX_CONCURRENT_RG_PROCESSES)
 
         for config in configs {
             group.enter()
-            DispatchQueue.global(qos: .userInitiated).async {
+            DispatchQueue.global(qos: .utility).async {
                 defer { group.leave() }
+
+                concurrencySemaphore.wait()
+                defer { concurrencySemaphore.signal() }
 
                 // Build rg arguments for multiline search (direct execution, no shell)
                 let args = [
@@ -500,8 +560,21 @@ class RipgrepExecutor {
         var outputData = Data()
         let dataLock = NSLock()
         let semaphore = DispatchSemaphore(value: 0)
+        var isTimedOut = false
+        let timeoutLock = NSLock()
 
         pipe.fileHandleForReading.readabilityHandler = { handle in
+            // Check timeout flag to stop reading early
+            timeoutLock.lock()
+            let timedOut = isTimedOut
+            timeoutLock.unlock()
+
+            if timedOut {
+                pipe.fileHandleForReading.readabilityHandler = nil
+                semaphore.signal()
+                return
+            }
+
             let chunk = handle.availableData
             if chunk.isEmpty {
                 pipe.fileHandleForReading.readabilityHandler = nil
@@ -520,6 +593,9 @@ class RipgrepExecutor {
             let deadline = DispatchTime.now() + TIMEOUT_SECONDS
             DispatchQueue.global().asyncAfter(deadline: deadline) {
                 if process.isRunning {
+                    timeoutLock.lock()
+                    isTimedOut = true
+                    timeoutLock.unlock()
                     process.terminate()
                 }
             }
@@ -560,7 +636,8 @@ class RipgrepExecutor {
     ) -> [SymbolResult] {
         var results: [SymbolResult] = []
 
-        guard let symbolRegex = try? NSRegularExpression(pattern: config.symbolNameRegex) else {
+        // Get regex once before loop to avoid repeated lock contention
+        guard let symbolRegex = getCachedRegex(pattern: config.symbolNameRegex) else {
             return []
         }
 
