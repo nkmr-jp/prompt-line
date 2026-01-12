@@ -49,6 +49,12 @@ export class SymbolCacheManager {
   /** Memory cache TTL (5 minutes) - refresh from disk after this time */
   private readonly MEMORY_CACHE_TTL_MS = CACHE_TTL.SYMBOL_MEMORY;
 
+  /** Maximum number of cache entries to keep in memory */
+  private readonly MAX_CACHE_ENTRIES = 50;
+
+  /** LRU order tracking: most recently used at the end */
+  private cacheOrder: string[] = [];
+
   constructor() {
     this.cacheDir = config.paths.projectsCacheDir;
   }
@@ -58,6 +64,30 @@ export class SymbolCacheManager {
    */
   private getMemoryCacheKey(directory: string, language: string): string {
     return `${directory}:${language}`;
+  }
+
+  /**
+   * Update LRU order for a cache key
+   * Moves the key to the end (most recently used position)
+   * Evicts oldest entries if MAX_CACHE_ENTRIES is exceeded
+   */
+  private updateCacheOrder(key: string): void {
+    // Remove key from current position if it exists
+    const index = this.cacheOrder.indexOf(key);
+    if (index > -1) {
+      this.cacheOrder.splice(index, 1);
+    }
+
+    // Add key to the end (most recently used)
+    this.cacheOrder.push(key);
+
+    // Evict oldest entries if we exceed the limit
+    while (this.cacheOrder.length > this.MAX_CACHE_ENTRIES) {
+      const oldestKey = this.cacheOrder.shift();
+      if (oldestKey) {
+        this.memoryCache.delete(oldestKey);
+      }
+    }
   }
 
   /**
@@ -81,6 +111,11 @@ export class SymbolCacheManager {
     }
     for (const key of keysToDelete) {
       this.memoryCache.delete(key);
+      // Remove from LRU order tracking
+      const index = this.cacheOrder.indexOf(key);
+      if (index > -1) {
+        this.cacheOrder.splice(index, 1);
+      }
     }
   }
 
@@ -89,6 +124,7 @@ export class SymbolCacheManager {
    */
   public clearMemoryCache(): void {
     this.memoryCache.clear();
+    this.cacheOrder = [];
   }
 
   /**
@@ -209,6 +245,8 @@ export class SymbolCacheManager {
     // Check memory cache first
     const memoryCacheEntry = this.memoryCache.get(cacheKey);
     if (this.isMemoryCacheValid(memoryCacheEntry)) {
+      // Update LRU order on cache hit
+      this.updateCacheOrder(cacheKey);
       return memoryCacheEntry!.symbols;
     }
 
@@ -233,6 +271,9 @@ export class SymbolCacheManager {
         symbols,
         loadedAt: Date.now()
       });
+
+      // Update LRU order on cache set
+      this.updateCacheOrder(cacheKey);
 
       return symbols;
     } catch {
@@ -312,6 +353,9 @@ export class SymbolCacheManager {
         symbols,
         loadedAt: Date.now()
       });
+
+      // Update LRU order on cache set
+      this.updateCacheOrder(cacheKey);
     } catch (error) {
       logger.error('Error saving symbol cache:', error);
     }
@@ -384,6 +428,12 @@ export class SymbolCacheManager {
       // Clear memory cache for this language
       const cacheKey = this.getMemoryCacheKey(directory, language);
       this.memoryCache.delete(cacheKey);
+
+      // Remove from LRU order tracking
+      const index = this.cacheOrder.indexOf(cacheKey);
+      if (index > -1) {
+        this.cacheOrder.splice(index, 1);
+      }
 
       // Remove language-specific file
       const symbolsPath = this.getSymbolsPath(directory, language);

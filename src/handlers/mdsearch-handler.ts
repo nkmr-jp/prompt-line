@@ -14,6 +14,8 @@ import type { IPCResult } from './handler-utils';
 class MdSearchHandler {
   private mdSearchLoader: MdSearchLoader;
   private settingsManager: SettingsManager;
+  private lastConfigUpdate: number = 0;
+  private readonly CONFIG_CACHE_TTL = 5000; // 5 seconds cache TTL
 
   constructor(mdSearchLoader: MdSearchLoader, settingsManager: SettingsManager) {
     this.mdSearchLoader = mdSearchLoader;
@@ -24,6 +26,9 @@ class MdSearchHandler {
       this.updateConfig();
       logger.debug('MdSearch config updated via hot reload');
     });
+
+    // Initial config load
+    this.updateConfig();
   }
 
   /**
@@ -74,6 +79,24 @@ class MdSearchHandler {
     if (mdSearchEntries && mdSearchEntries.length > 0) {
       this.mdSearchLoader.updateConfig(mdSearchEntries);
     }
+    this.lastConfigUpdate = Date.now();
+  }
+
+  /**
+   * Check if the configuration cache is still valid
+   */
+  private isConfigCacheValid(): boolean {
+    return Date.now() - this.lastConfigUpdate < this.CONFIG_CACHE_TTL;
+  }
+
+  /**
+   * Update configuration only if cache has expired
+   * This prevents redundant config updates during rapid successive calls
+   */
+  private updateConfigIfNeeded(): void {
+    if (!this.isConfigCacheValid()) {
+      this.updateConfig();
+    }
   }
 
   /**
@@ -86,8 +109,8 @@ class MdSearchHandler {
     query?: string
   ): Promise<SlashCommandItem[]> {
     try {
-      // Refresh config from settings in case they changed
-      this.updateConfig();
+      // Refresh config from settings if cache expired
+      this.updateConfigIfNeeded();
 
       // Get built-in commands settings (supports both new and legacy format)
       const builtInSettings = this.settingsManager.getBuiltInCommandsSettings();
@@ -168,8 +191,8 @@ class MdSearchHandler {
         return null;
       }
 
-      // Refresh config from settings in case they changed
-      this.updateConfig();
+      // Refresh config from settings if cache expired
+      this.updateConfigIfNeeded();
 
       const items = await this.mdSearchLoader.getItems('command');
       const command = items.find(c => c.name === commandName);
@@ -199,8 +222,8 @@ class MdSearchHandler {
         return false;
       }
 
-      // Refresh config from settings in case they changed
-      this.updateConfig();
+      // Refresh config from settings if cache expired
+      this.updateConfigIfNeeded();
 
       // Check if this is a built-in command
       const builtInSettings = this.settingsManager.getBuiltInCommandsSettings();
@@ -232,8 +255,8 @@ class MdSearchHandler {
     query?: string
   ): Promise<AgentItem[]> {
     try {
-      // Refresh config from settings in case they changed
-      this.updateConfig();
+      // Refresh config from settings if cache expired
+      this.updateConfigIfNeeded();
 
       // Get mentions (agents) from MdSearchLoader
       // Always use searchItems to apply searchPrefix filtering, even for empty query
@@ -275,8 +298,8 @@ class MdSearchHandler {
         return null;
       }
 
-      // Refresh config from settings in case they changed
-      this.updateConfig();
+      // Refresh config from settings if cache expired
+      this.updateConfigIfNeeded();
 
       const items = await this.mdSearchLoader.getItems('mention');
       const agent = items.find(a => a.name === agentName);
@@ -301,8 +324,8 @@ class MdSearchHandler {
     type: 'command' | 'mention'
   ): number {
     try {
-      // Refresh config from settings in case they changed
-      this.updateConfig();
+      // Refresh config from settings if cache expired
+      this.updateConfigIfNeeded();
 
       return this.mdSearchLoader.getMaxSuggestions(type);
     } catch (error) {
@@ -320,8 +343,8 @@ class MdSearchHandler {
     type: 'command' | 'mention'
   ): string[] {
     try {
-      // Refresh config from settings in case they changed
-      this.updateConfig();
+      // Refresh config from settings if cache expired
+      this.updateConfigIfNeeded();
 
       return this.mdSearchLoader.getSearchPrefixes(type);
     } catch (error) {

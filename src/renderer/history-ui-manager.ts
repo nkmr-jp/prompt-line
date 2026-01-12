@@ -132,7 +132,7 @@ export class HistoryUIManager {
     const thumb = document.getElementById('customScrollbarThumb');
     if (!scrollbar || !thumb) return;
 
-    // Calculate scrollbar thumb size and position
+    // Batch read operations first to avoid layout thrashing
     const scrollHeight = historyList.scrollHeight;
     const clientHeight = historyList.clientHeight;
     const scrollTop = historyList.scrollTop;
@@ -143,19 +143,17 @@ export class HistoryUIManager {
       return;
     }
 
-    // Calculate thumb height using logarithmic scale
+    // Calculate thumb dimensions (no DOM operations)
     const thumbHeight = this.calculateThumbHeight(clientHeight, scrollHeight);
-
-    // Calculate thumb position
     const maxScrollTop = scrollHeight - clientHeight;
     const thumbTop = (scrollTop / maxScrollTop) * (clientHeight - thumbHeight);
 
-    // Update thumb style
-    thumb.style.height = `${thumbHeight}px`;
-    thumb.style.transform = `translateY(${thumbTop}px)`;
-
-    // Show scrollbar
-    scrollbar.classList.add('visible');
+    // Batch write operations in requestAnimationFrame
+    requestAnimationFrame(() => {
+      thumb.style.height = `${thumbHeight}px`;
+      thumb.style.transform = `translateY(${thumbTop}px)`;
+      scrollbar.classList.add('visible');
+    });
 
     // Clear existing timeout
     if (this.scrollingTimeout) {
@@ -179,20 +177,21 @@ export class HistoryUIManager {
     const thumb = document.getElementById('customScrollbarThumb');
     if (!thumb) return;
 
+    // Batch read operations first to avoid layout thrashing
     const scrollHeight = historyList.scrollHeight;
     const clientHeight = historyList.clientHeight;
+    const scrollTop = historyList.scrollTop;
 
     // Only update if content is scrollable
     if (scrollHeight <= clientHeight) return;
 
-    // Calculate and update thumb height
+    // Calculate dimensions (no DOM operations)
     const thumbHeight = this.calculateThumbHeight(clientHeight, scrollHeight);
-    thumb.style.height = `${thumbHeight}px`;
-
-    // Also update thumb position based on current scroll
-    const scrollTop = historyList.scrollTop;
     const maxScrollTop = scrollHeight - clientHeight;
     const thumbTop = (scrollTop / maxScrollTop) * (clientHeight - thumbHeight);
+
+    // Batch write operations
+    thumb.style.height = `${thumbHeight}px`;
     thumb.style.transform = `translateY(${thumbTop}px)`;
   }
 
@@ -228,20 +227,16 @@ export class HistoryUIManager {
         return;
       }
 
-      // Items are already limited by filter engine, render all provided items
+      // Create fragment for batch DOM updates to avoid layout thrashing
       const fragment = document.createDocumentFragment();
 
+      // Create all history items
       dataToRender.forEach((item) => {
         const historyItem = this.createHistoryElement(item);
         fragment.appendChild(historyItem);
       });
 
-      historyList.innerHTML = '';
-      historyList.appendChild(fragment);
-
-      // Show item count indicator
-      // Use totalMatches for search mode (total matches before display limit)
-      // Use dataToRender.length for non-search mode (total items)
+      // Create count indicator
       const totalCount = totalMatches !== undefined ? totalMatches : dataToRender.length;
       const countIndicator = document.createElement('div');
       countIndicator.className = 'history-more';
@@ -250,7 +245,11 @@ export class HistoryUIManager {
       } else {
         countIndicator.textContent = `${totalCount} items`;
       }
-      historyList.appendChild(countIndicator);
+      fragment.appendChild(countIndicator);
+
+      // Single DOM update: clear and append fragment
+      historyList.innerHTML = '';
+      historyList.appendChild(fragment);
 
       // Update scrollbar after content is rendered
       // Use requestAnimationFrame to ensure DOM layout is complete
@@ -360,28 +359,28 @@ export class HistoryUIManager {
     if (!historyList || this.historyIndex < 0) return;
 
     const historyItems = historyList.querySelectorAll('.history-item');
-    
-    // Clear all existing flash effects
-    historyItems.forEach(item => {
-      item.classList.remove('flash');
-    });
-
     const selectedItem = historyItems[this.historyIndex] as HTMLElement;
-    
-    if (selectedItem) {
+
+    if (!selectedItem) return;
+
+    // Batch read and write operations in requestAnimationFrame to avoid layout thrashing
+    requestAnimationFrame(() => {
+      // Clear all existing flash effects (write operation)
+      historyItems.forEach(item => {
+        item.classList.remove('flash');
+      });
+
       // Force reflow to ensure the removal takes effect before adding
       void selectedItem.offsetHeight;
-      
-      // Use requestAnimationFrame to ensure proper timing
-      requestAnimationFrame(() => {
-        selectedItem.classList.add('flash');
-        
-        // Remove flash class after animation
-        setTimeout(() => {
-          selectedItem.classList.remove('flash');
-        }, TIMEOUTS.FLASH_ANIMATION_DURATION);
-      });
-    }
+
+      // Add flash class to selected item
+      selectedItem.classList.add('flash');
+
+      // Remove flash class after animation
+      setTimeout(() => {
+        selectedItem.classList.remove('flash');
+      }, TIMEOUTS.FLASH_ANIMATION_DURATION);
+    });
   }
 
   public clearHistorySelection(): void {
@@ -436,13 +435,16 @@ export class HistoryUIManager {
 
     const historyItems = historyList.querySelectorAll('.history-item');
     const selectedItem = historyItems[this.historyIndex] as HTMLElement;
-    
-    if (selectedItem) {
-      selectedItem.scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'nearest' 
+
+    if (!selectedItem) return;
+
+    // Use requestAnimationFrame to separate read/write operations
+    requestAnimationFrame(() => {
+      selectedItem.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest'
       });
-    }
+    });
   }
 
   public cleanup(): void {
