@@ -31,9 +31,13 @@ class CodeSearchHandler {
   private settingsManager: SettingsManager | null = null;
 
   // Incremental search cache
+  // NOTE: These are shared across all IPC requests. In a multi-window scenario,
+  // this could lead to state interference between windows. Currently, the app
+  // is single-window only, so this is acceptable. Future improvement: consider
+  // per-window or per-session cache to support multiple concurrent search contexts.
   private previousQuery = '';
   private previousResults: import('../managers/symbol-search/types').SymbolResult[] = [];
-  private previousCacheKey = ''; // "directory:language" to detect context change
+  private previousCacheKey = ''; // "directory:language:relativePath:symbolTypeFilter" to detect context change
 
   /**
    * Set settings manager for symbol search configuration
@@ -132,17 +136,25 @@ class CodeSearchHandler {
     query: string,
     symbolTypeFilter?: string | null,
     maxResults: number = 50,
-    cacheKey?: string
+    cacheKey?: string,
+    relativePath?: string
   ): import('../managers/symbol-search/types').SymbolResult[] {
-    // Minimum query length check - return empty for queries less than 2 chars
-    if (query.length < 2) {
+    // Minimum query length check
+    // Allow 1 char when symbolTypeFilter is set (e.g., @go:func:a) or for CJK users
+    // Otherwise require at least 2 chars to avoid too many results
+    if (!symbolTypeFilter && query.length < 2) {
       this.clearIncrementalCache();
       return [];
     }
 
+    // Build comprehensive cache key including filter context
+    const fullCacheKey = cacheKey
+      ? `${cacheKey}:${relativePath || ''}:${symbolTypeFilter || ''}`
+      : '';
+
     // Check if we can use incremental filtering
     const canUseIncremental =
-      cacheKey === this.previousCacheKey &&
+      fullCacheKey === this.previousCacheKey &&
       this.previousQuery.length > 0 &&
       query.startsWith(this.previousQuery) &&
       query.length > this.previousQuery.length;
@@ -156,7 +168,7 @@ class CodeSearchHandler {
       // Start fresh from all symbols
       sourceSymbols = symbols;
       // Clear cache on backspace or context change
-      if (cacheKey !== this.previousCacheKey || query.length < this.previousQuery.length) {
+      if (fullCacheKey !== this.previousCacheKey || query.length < this.previousQuery.length) {
         this.clearIncrementalCache();
       }
     }
@@ -209,10 +221,10 @@ class CodeSearchHandler {
     }
 
     // Update incremental cache (store full filtered results before limiting)
-    if (cacheKey) {
+    if (fullCacheKey) {
       this.previousQuery = query;
       this.previousResults = filtered;
-      this.previousCacheKey = cacheKey;
+      this.previousCacheKey = fullCacheKey;
     }
 
     // Return limited results
@@ -295,7 +307,8 @@ class CodeSearchHandler {
                 options.query,
                 options.symbolTypeFilter,
                 maxResults,
-                cacheKey
+                cacheKey,
+                options.relativePath
               )
             : cachedSymbols.slice(0, effectiveMaxSymbols);
 
@@ -425,17 +438,17 @@ class CodeSearchHandler {
       };
     }
 
-    const allSymbols = await symbolCacheManager.loadSymbols(directory, language);
+    // Load symbols with maxSymbols limit (streaming read with early termination)
+    const symbols = await symbolCacheManager.loadSymbols(directory, language, settingsOptions.maxSymbols);
 
-    // Apply maxSymbols limit to cached results
-    const limitedSymbols = allSymbols.slice(0, settingsOptions.maxSymbols);
-    const wasLimited = allSymbols.length > settingsOptions.maxSymbols;
+    // Check if we hit the limit (partial results)
+    const wasLimited = symbols.length >= settingsOptions.maxSymbols;
 
     const response: SymbolSearchResponse = {
       success: true,
       directory,
-      symbols: limitedSymbols,
-      symbolCount: limitedSymbols.length,
+      symbols,
+      symbolCount: symbols.length,
       searchMode: 'cached',
       partial: wasLimited,
       maxSymbols: settingsOptions.maxSymbols
@@ -461,6 +474,8 @@ class CodeSearchHandler {
       } else {
         await symbolCacheManager.clearAllCaches();
       }
+      // Clear incremental search cache to prevent using stale results
+      this.clearIncrementalCache();
       return { success: true };
     } catch (error) {
       logger.error('Error clearing symbol cache:', error);
@@ -506,6 +521,8 @@ class CodeSearchHandler {
             result.symbols,
             'full'
           );
+          // Clear incremental cache after background update to ensure fresh results
+          this.clearIncrementalCache();
         }
       } catch (error) {
         logger.warn('Background cache refresh failed', { directory, language, error });

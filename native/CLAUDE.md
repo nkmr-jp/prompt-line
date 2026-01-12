@@ -411,7 +411,7 @@ Native tool for code symbol search across 20+ programming languages using ripgre
 - `symbol-searcher/Types.swift` - Type definitions for symbols and languages
 - `symbol-searcher/SymbolPatterns.swift` - Language-specific regex patterns for symbol detection
 - `symbol-searcher/RipgrepExecutor.swift` - ripgrep command execution and result parsing
-- `symbol-searcher/CacheManager.swift` - Symbol cache management for fast searches
+- `symbol-searcher/CacheManager.swift` - Deprecated: Cache management now handled by JS-side SymbolCacheManager
 
 **Core Functionality:**
 ```swift
@@ -449,33 +449,35 @@ class SymbolSearcher {
 
 **Command-Line Interface:**
 ```bash
-# Basic Commands
+# Basic Commands (Swift-side)
 symbol-searcher check-rg                           # Check if ripgrep is available
 symbol-searcher list-languages                     # List all supported languages
-symbol-searcher search <directory> --language <lang> [options]  # Search symbols
-
-# Cache Commands
-symbol-searcher build-cache <directory> --language <lang> [options]  # Build symbol cache
-symbol-searcher cache-info <directory> [--language <lang>]           # Show cache information
-symbol-searcher clear-cache <directory> (--language <lang> | --all)  # Clear cache
+symbol-searcher search <directory> --language <lang> [options]  # Search symbols (always full search)
 
 # Search Options:
 #   --language, -l <lang>  Language to search (e.g., go, ts, py, rs)
 #   --max-symbols <n>      Maximum symbols to return (default: 20000)
-#   --no-cache             Skip cache and perform full search
+#   --exclude <pattern>    Exclude files matching glob pattern
+#   --include <pattern>    Include files matching glob pattern
 
-# Cache Options:
-#   --language, -l <lang>  Language for cache operation
-#   --ttl <seconds>        Cache TTL in seconds (default: 86400 = 24 hours)
-#   --all                  Clear all language caches for a directory
+# Note: Swift-side caching has been disabled to avoid double caching with JS-side SymbolCacheManager.
+#       The following commands are deprecated and will return an error:
+#         - build-cache (cache is built automatically by JS-side)
+#         - cache-info (use JS-side IPC handler 'get-cached-symbols')
+#         - clear-cache (use JS-side IPC handler 'clear-symbol-cache')
+#         - --no-cache option (no longer needed as Swift always performs full search)
 ```
 
-**Cache Storage:**
-- Cache is stored in `~/.prompt-line/cache/projects/<encoded-path>/`
+**Cache Storage (JS-side only):**
+- Cache is stored in `~/.prompt-line/cache/<encoded-path>/`
 - Path encoding: `/Users/nkmr/project` → `-Users-nkmr-project`
 - Files per language:
-  - `<lang>-metadata.json` - Cache metadata (TTL, symbol count, timestamps)
-  - `symbols-<lang>.jsonl` - Symbol data in JSONL format
+  - `symbol-metadata.json` - Cache metadata (version, TTL, language info, timestamps)
+  - `symbols-<lang>.jsonl` - Symbol data in JSONL format per language
+- Cache management is handled entirely by JS-side SymbolCacheManager with:
+  - In-memory LRU cache (50 entries, 5-minute TTL)
+  - Persistent JSONL storage with 1-hour TTL
+  - Automatic background refresh on stale cache hits
 
 **JSON Response Format:**
 ```json
@@ -520,62 +522,28 @@ symbol-searcher clear-cache <directory> (--language <lang> | --all)  # Clear cac
 **Dependencies:**
 - Requires `ripgrep` (`rg`) command: `brew install ripgrep`
 
-**Manual Cache Building (CLI Indexing):**
+**Performance Characteristics:**
 
-For large codebases, you can pre-build the symbol cache to speed up subsequent searches:
+Symbol search performance with JS-side caching:
 
-```bash
-# Build cache for a specific language
-symbol-searcher build-cache /path/to/project -l go
-symbol-searcher build-cache /path/to/project -l ts
+| Operation | Performance | Notes |
+|-----------|-------------|-------|
+| First search (no cache) | ~28-32 sec | Full ripgrep scan (e.g., Kubernetes: 16,549 Go files) |
+| Cached search (memory hit) | **<10ms** | LRU memory cache hit (50 entries, 5-min TTL) |
+| Cached search (disk hit) | **80-100ms** | JSONL disk cache read (streaming with early termination) |
+| Background refresh | Non-blocking | Stale-while-revalidate pattern updates cache in background |
 
-# Build cache with custom TTL (1 hour = 3600 seconds)
-symbol-searcher build-cache /path/to/project -l go --ttl 3600
-
-# Build cache with limited symbols
-symbol-searcher build-cache /path/to/project -l go --max-symbols 10000
-
-# Check cache status
-symbol-searcher cache-info /path/to/project
-symbol-searcher cache-info /path/to/project -l go
-
-# Clear cache when needed
-symbol-searcher clear-cache /path/to/project -l go   # Clear specific language
-symbol-searcher clear-cache /path/to/project --all   # Clear all languages
-```
-
-**Benchmark Testing:**
-
-To measure symbol search performance on large codebases:
-
-```bash
-# Benchmark Setup
-cd native
-make install   # Build the tool
-
-# 1. Baseline measurement (no cache)
-time symbol-searcher search /path/to/large-project -l go --no-cache
-
-# 2. Build cache and measure time
-time symbol-searcher build-cache /path/to/large-project -l go
-
-# 3. Measure cached search performance
-time symbol-searcher search /path/to/large-project -l go
-```
-
-**Benchmark Results (Kubernetes - 16,549 Go files):**
-
-| Operation | Time | Notes |
-|-----------|------|-------|
-| Full search (no cache) | ~28-32 sec | With var/const block detection |
-| Cache build | ~11-22 sec | First-time indexing |
-| Cached search | **0.08 sec** | 126x improvement |
+**Cache Behavior:**
+- **Automatic caching**: First search result is automatically cached by JS-side SymbolCacheManager
+- **Stale-while-revalidate**: Returns cached data immediately, refreshes in background if stale (>1 hour)
+- **Memory optimization**: LRU cache keeps 50 most recent projects in memory for instant access
+- **Disk efficiency**: JSONL streaming read with early termination when maxSymbols limit is reached
 
 **Performance Tuning Tips:**
-1. **Pre-build cache** for large repositories during development setup
-2. **Use `--max-symbols`** to limit results for faster searches
-3. **Adjust TTL** based on code change frequency (`--ttl 3600` for active development)
-4. **Clear cache** after major refactoring to ensure accurate results
+1. **Use `--max-symbols`** to limit results for faster searches (default: 20000)
+2. **Leverage cache**: First search may be slow, subsequent searches are instant (memory) or fast (disk)
+3. **Background refresh**: Cache updates automatically, no manual intervention needed
+4. **Clear cache**: Use JS-side IPC handler `clear-symbol-cache` after major refactoring if needed
 
 ## Architecture Integration
 

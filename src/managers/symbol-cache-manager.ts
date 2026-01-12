@@ -12,7 +12,8 @@
  *     ...
  */
 
-import { promises as fs } from 'fs';
+import { promises as fs, createReadStream } from 'fs';
+import { createInterface } from 'readline';
 import path from 'path';
 import config from '../config/app-config';
 import { logger, ensureDir } from '../utils/utils';
@@ -209,12 +210,15 @@ export class SymbolCacheManager {
    * Load cached symbols for a directory and language
    * If language is specified, loads from language-specific file
    * If language is not specified, loads from all language files
+   * @param directory - The project directory
+   * @param language - Optional language to filter by
+   * @param maxSymbols - Optional maximum number of symbols to load (for early termination)
    */
-  async loadSymbols(directory: string, language?: string): Promise<SymbolResult[]> {
+  async loadSymbols(directory: string, language?: string, maxSymbols?: number): Promise<SymbolResult[]> {
     try {
       if (language) {
         // Load from language-specific file
-        return await this.loadSymbolsForLanguage(directory, language);
+        return await this.loadSymbolsForLanguage(directory, language, maxSymbols);
       }
 
       // Load from all language files
@@ -225,7 +229,12 @@ export class SymbolCacheManager {
 
       const allSymbols: SymbolResult[] = [];
       for (const lang of Object.keys(metadata.languages)) {
-        const langSymbols = await this.loadSymbolsForLanguage(directory, lang);
+        // Calculate remaining symbols to load
+        const remaining = maxSymbols !== undefined ? maxSymbols - allSymbols.length : undefined;
+        if (remaining !== undefined && remaining <= 0) {
+          break; // Early termination if maxSymbols reached
+        }
+        const langSymbols = await this.loadSymbolsForLanguage(directory, lang, remaining);
         allSymbols.push(...langSymbols);
       }
 
@@ -238,8 +247,16 @@ export class SymbolCacheManager {
   /**
    * Load symbols for a specific language from its dedicated file
    * Uses in-memory cache to avoid repeated disk reads
+   * Supports streaming read with early termination when maxSymbols is specified
+   * @param directory - The project directory
+   * @param language - The language key
+   * @param maxSymbols - Optional maximum number of symbols to load
    */
-  private async loadSymbolsForLanguage(directory: string, language: string): Promise<SymbolResult[]> {
+  private async loadSymbolsForLanguage(
+    directory: string,
+    language: string,
+    maxSymbols?: number
+  ): Promise<SymbolResult[]> {
     const cacheKey = this.getMemoryCacheKey(directory, language);
 
     // Check memory cache first
@@ -247,17 +264,62 @@ export class SymbolCacheManager {
     if (this.isMemoryCacheValid(memoryCacheEntry)) {
       // Update LRU order on cache hit
       this.updateCacheOrder(cacheKey);
-      return memoryCacheEntry!.symbols;
+      const cachedSymbols = memoryCacheEntry!.symbols;
+      // Apply maxSymbols limit if specified
+      if (maxSymbols !== undefined && cachedSymbols.length > maxSymbols) {
+        return cachedSymbols.slice(0, maxSymbols);
+      }
+      return cachedSymbols;
     }
 
-    // Load from disk
+    // Load from disk using streaming read
     try {
       const symbolsPath = this.getSymbolsPath(directory, language);
-      const content = await fs.readFile(symbolsPath, 'utf8');
-      const lines = content.trim().split('\n').filter(line => line.length > 0);
+      const { symbols, terminated } = await this.streamLoadSymbols(symbolsPath, maxSymbols);
 
+      // Store in memory cache only if we loaded all symbols (EOF reached, not terminated early)
+      // terminated = true means early termination (partial load)
+      // terminated = false means EOF reached (full load)
+      if (!terminated) {
+        this.memoryCache.set(cacheKey, {
+          symbols,
+          loadedAt: Date.now()
+        });
+        // Update LRU order on cache set
+        this.updateCacheOrder(cacheKey);
+      }
+
+      return symbols;
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Stream load symbols from a JSONL file with optional early termination
+   * @param filePath - Path to the JSONL file
+   * @param maxSymbols - Optional maximum number of symbols to load
+   * @returns Object with symbols array and terminated flag
+   */
+  private streamLoadSymbols(
+    filePath: string,
+    maxSymbols?: number
+  ): Promise<{ symbols: SymbolResult[]; terminated: boolean }> {
+    return new Promise((resolve, reject) => {
       const symbols: SymbolResult[] = [];
-      for (const line of lines) {
+      const readStream = createReadStream(filePath, { encoding: 'utf8' });
+      const rl = createInterface({
+        input: readStream,
+        crlfDelay: Infinity
+      });
+
+      let terminated = false;
+      let settled = false;
+
+      rl.on('line', (line: string) => {
+        if (terminated) return;
+        if (line.length === 0) return;
+
         try {
           const symbol: SymbolResult = JSON.parse(line);
           // Pre-compute nameLower if not present (backward compatibility with cached data)
@@ -265,24 +327,41 @@ export class SymbolCacheManager {
             symbol.nameLower = symbol.name.toLowerCase();
           }
           symbols.push(symbol);
+
+          // Early termination if maxSymbols reached
+          if (maxSymbols !== undefined && symbols.length >= maxSymbols) {
+            terminated = true;
+            rl.close();
+            readStream.destroy();
+          }
         } catch (parseError) {
           logger.warn('Error parsing symbol line:', parseError);
         }
-      }
-
-      // Store in memory cache
-      this.memoryCache.set(cacheKey, {
-        symbols,
-        loadedAt: Date.now()
       });
 
-      // Update LRU order on cache set
-      this.updateCacheOrder(cacheKey);
+      rl.on('close', () => {
+        if (!settled) {
+          settled = true;
+          resolve({ symbols, terminated });
+        }
+      });
 
-      return symbols;
-    } catch {
-      return [];
-    }
+      rl.on('error', (error) => {
+        if (!settled) {
+          settled = true;
+          rl.close();
+          reject(error);
+        }
+      });
+
+      readStream.on('error', (error) => {
+        if (!settled) {
+          settled = true;
+          rl.close();
+          reject(error);
+        }
+      });
+    });
   }
 
   /**

@@ -92,7 +92,6 @@ func search(args: [String]) {
     var directory: String?
     var language: String?
     var maxSymbols = RipgrepExecutor.DEFAULT_MAX_SYMBOLS
-    var noCache = false
     var excludePatterns: [String] = []
     var includePatterns: [String] = []
 
@@ -106,7 +105,8 @@ func search(args: [String]) {
             i += 1
             if i < args.count { maxSymbols = Int(args[i]) ?? maxSymbols }
         case "--no-cache":
-            noCache = true
+            // Deprecated: Swift-side cache is disabled, option kept for backward compatibility
+            break
         case "--exclude":
             i += 1
             if i < args.count { excludePatterns.append(args[i]) }
@@ -157,27 +157,11 @@ func search(args: [String]) {
         return
     }
 
-    // Try cache first (unless --no-cache is specified or patterns are specified)
-    // When patterns are specified, we need to do a fresh search to apply filtering
-    let hasPatterns = !excludePatterns.isEmpty || !includePatterns.isEmpty
-    if !noCache && !hasPatterns, let cachedSymbols = CacheManager.readCache(directory: dir, language: lang) {
-        let limitedSymbols = Array(cachedSymbols.prefix(maxSymbols))
-        let response = SymbolSearchResponse(
-            success: true,
-            directory: dir,
-            language: lang,
-            symbols: limitedSymbols,
-            symbolCount: limitedSymbols.count,
-            searchMode: "cached",
-            partial: cachedSymbols.count > maxSymbols,
-            maxSymbols: maxSymbols,
-            error: nil
-        )
-        printJsonEncodable(response)
-        return
-    }
+    // Swift-side caching is disabled to avoid double caching with JS-side SymbolCacheManager
+    // JS-side manages persistent cache with memory cache for optimal performance
+    // Swift only performs search operations without cache read/write
 
-    // Full search
+    // Full search (always perform fresh search, no Swift-side cache)
     if let symbols = RipgrepExecutor.searchSymbols(
         directory: dir,
         language: lang,
@@ -209,11 +193,12 @@ func search(args: [String]) {
 // MARK: - Cache Commands
 
 /// Build cache for a directory/language
+/// NOTE: This command is deprecated. Cache management is handled by JS-side SymbolCacheManager.
+/// Swift-side caching has been disabled to avoid double caching and improve performance.
+/// This command is kept for backward compatibility but will not create Swift-side cache.
 func buildCache(args: [String]) {
     var directory: String?
     var language: String?
-    var maxSymbols = RipgrepExecutor.DEFAULT_MAX_SYMBOLS
-    var ttl = CacheManager.DEFAULT_TTL
 
     var i = 0
     while i < args.count {
@@ -221,12 +206,9 @@ func buildCache(args: [String]) {
         case "--language", "-l":
             i += 1
             if i < args.count { language = args[i] }
-        case "--max-symbols":
+        case "--max-symbols", "--ttl":
+            // Skip deprecated options
             i += 1
-            if i < args.count { maxSymbols = Int(args[i]) ?? maxSymbols }
-        case "--ttl":
-            i += 1
-            if i < args.count { ttl = TimeInterval(args[i]) ?? ttl }
         default:
             if directory == nil { directory = args[i] }
         }
@@ -242,77 +224,18 @@ func buildCache(args: [String]) {
         return
     }
 
-    guard RipgrepExecutor.isRgAvailable() else {
-        let response: [String: Any] = [
-            "success": false,
-            "error": "rg command not found. Install with: brew install ripgrep"
-        ]
-        printJsonDict(response)
-        return
-    }
-
-    guard LANGUAGE_PATTERNS[lang] != nil else {
-        let response: [String: Any] = [
-            "success": false,
-            "error": "Unsupported language: \(lang)"
-        ]
-        printJsonDict(response)
-        return
-    }
-
-    // Require git repository for symbol search
-    guard isGitRepository(dir) else {
-        let response: [String: Any] = [
-            "success": false,
-            "error": "Symbol search is only available in git repositories",
-            "directory": dir
-        ]
-        printJsonDict(response)
-        return
-    }
-
-    // Perform full search
-    guard let symbols = RipgrepExecutor.searchSymbols(
-        directory: dir,
-        language: lang,
-        maxSymbols: maxSymbols
-    ) else {
-        let response: [String: Any] = [
-            "success": false,
-            "error": "Search failed"
-        ]
-        printJsonDict(response)
-        return
-    }
-
-    // Write to cache
-    let success = CacheManager.writeCache(
-        directory: dir,
-        language: lang,
-        symbols: symbols,
-        ttl: ttl
-    )
-
-    if success {
-        let response: [String: Any] = [
-            "success": true,
-            "directory": dir,
-            "language": lang,
-            "symbolCount": symbols.count,
-            "cachePath": CacheManager.getCacheDir(for: dir),
-            "ttlSeconds": ttl
-        ]
-        printJsonDict(response)
-    } else {
-        let response: [String: Any] = [
-            "success": false,
-            "error": "Failed to write cache"
-        ]
-        printJsonDict(response)
-    }
+    let response: [String: Any] = [
+        "success": false,
+        "error": "Swift-side cache building is deprecated. Cache is managed by JS-side SymbolCacheManager.",
+        "directory": dir,
+        "language": lang
+    ]
+    printJsonDict(response)
 }
 
 /// Get cache info for a directory/language
+/// NOTE: This command is deprecated. Cache info is managed by JS-side SymbolCacheManager.
+/// Swift-side cache has been disabled.
 func cacheInfo(args: [String]) {
     var directory: String?
     var language: String?
@@ -338,28 +261,18 @@ func cacheInfo(args: [String]) {
         return
     }
 
-    if let lang = language {
-        // Get info for specific language
-        let info = CacheManager.getCacheInfo(directory: dir, language: lang)
-        printJsonEncodable(info)
-    } else {
-        // List all cached languages
-        let languages = CacheManager.listCachedLanguages(directory: dir)
-        var infos: [CacheManager.CacheInfo] = []
-        for lang in languages {
-            infos.append(CacheManager.getCacheInfo(directory: dir, language: lang))
-        }
-        let response: [String: Any] = [
-            "directory": dir,
-            "cachePath": CacheManager.getCacheDir(for: dir),
-            "languages": languages,
-            "count": languages.count
-        ]
-        printJsonDict(response)
-    }
+    let response: [String: Any] = [
+        "success": false,
+        "error": "Swift-side cache info is deprecated. Cache is managed by JS-side SymbolCacheManager.",
+        "directory": dir,
+        "language": language as Any
+    ]
+    printJsonDict(response)
 }
 
 /// Clear cache for a directory/language
+/// NOTE: This command is deprecated. Cache clearing is handled by JS-side SymbolCacheManager.
+/// Swift-side cache has been disabled.
 func clearCache(args: [String]) {
     var directory: String?
     var language: String?
@@ -388,25 +301,12 @@ func clearCache(args: [String]) {
         return
     }
 
-    let success: Bool
-    if all {
-        success = CacheManager.clearCache(directory: dir, language: nil)
-    } else if let lang = language {
-        success = CacheManager.clearCache(directory: dir, language: lang)
-    } else {
-        let response: [String: Any] = [
-            "success": false,
-            "error": "Specify --language <lang> or --all"
-        ]
-        printJsonDict(response)
-        return
-    }
-
     let response: [String: Any] = [
-        "success": success,
+        "success": false,
+        "error": "Swift-side cache clearing is deprecated. Cache is managed by JS-side SymbolCacheManager.",
         "directory": dir,
         "language": language as Any,
-        "cleared": all ? "all" : (language ?? "none")
+        "all": all
     ]
     printJsonDict(response)
 }
@@ -438,42 +338,31 @@ func printUsage() {
       symbol-searcher check-rg
       symbol-searcher list-languages
       symbol-searcher search <directory> --language <lang> [options]
-      symbol-searcher build-cache <directory> --language <lang> [options]
-      symbol-searcher cache-info <directory> [--language <lang>]
-      symbol-searcher clear-cache <directory> (--language <lang> | --all)
 
     Commands:
       check-rg        Check if ripgrep (rg) is available
       list-languages  List all supported programming languages
-      search          Search for symbols in a directory (uses cache if available)
-      build-cache     Build symbol cache for a directory/language
-      cache-info      Show cache information for a directory
-      clear-cache     Clear cache for a directory/language
+      search          Search for symbols in a directory (always performs full search)
 
     Search Options:
       --language, -l <lang>    Language to search (e.g., go, ts, py, rs)
       --max-symbols <n>        Maximum number of symbols to return (default: 20000)
-      --no-cache               Skip cache and perform full search
       --exclude <pattern>      Exclude files matching glob pattern (can be repeated)
       --include <pattern>      Include files matching glob pattern (can be repeated)
-
-    Cache Options:
-      --language, -l <lang>    Language for cache operation
-      --ttl <seconds>          Cache TTL in seconds (default: 86400 = 24 hours)
-      --all                    Clear all language caches for a directory
 
     Examples:
       symbol-searcher check-rg
       symbol-searcher list-languages
       symbol-searcher search /path/to/project --language ts
       symbol-searcher search /path/to/project -l go --max-symbols 500
-      symbol-searcher search /path/to/project -l go --no-cache
-      symbol-searcher build-cache /path/to/project -l go
-      symbol-searcher build-cache /path/to/project -l go --ttl 3600
-      symbol-searcher cache-info /path/to/project
-      symbol-searcher cache-info /path/to/project -l go
-      symbol-searcher clear-cache /path/to/project -l go
-      symbol-searcher clear-cache /path/to/project --all
+      symbol-searcher search /path/to/project -l go --exclude "*.test.go"
+
+    Note:
+      Swift-side caching has been disabled. Cache is now managed by JS-side SymbolCacheManager
+      for better performance and to avoid double caching. The following commands are deprecated:
+        - build-cache (cache is built automatically by JS-side)
+        - cache-info (use JS-side IPC handler 'get-cached-symbols')
+        - clear-cache (use JS-side IPC handler 'clear-symbol-cache')
 
     """, stderr)
 }
