@@ -83,6 +83,9 @@ export class SuggestionUIManager {
   private selectedIndex: number = 0;
   private mergedSuggestions: SuggestionItem[] = [];
   private mirrorDiv: HTMLDivElement | null = null;
+  private containerClickHandler: ((e: MouseEvent) => void) | null = null;
+  private containerMouseMoveHandler: ((e: MouseEvent) => void) | null = null;
+  private containerMouseLeaveHandler: ((e: MouseEvent) => void) | null = null;
 
   constructor(textInput: HTMLTextAreaElement, callbacks: SuggestionUICallbacks) {
     this.textInput = textInput;
@@ -110,6 +113,59 @@ export class SuggestionUIManager {
         mainContent.appendChild(this.suggestionsContainer);
       }
     }
+
+    // Set up event delegation on container
+    this.setupEventDelegation();
+  }
+
+  private setupEventDelegation(): void {
+    if (!this.suggestionsContainer) return;
+
+    // Click event delegation
+    this.containerClickHandler = async (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const item = target.closest('[data-suggestion-index]') as HTMLElement;
+      if (!item) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      const index = parseInt(item.getAttribute('data-suggestion-index') || '0', 10);
+
+      // Cmd+click: Open file in editor
+      if (e.metaKey && this.callbacks.onOpenFileInEditor) {
+        const filePath = this.getFilePathFromSuggestion(this.mergedSuggestions[index]);
+        if (filePath) {
+          await this.callbacks.onOpenFileInEditor(filePath);
+          this.hide();
+        }
+        return;
+      }
+
+      // Normal click: select item
+      this.callbacks.onItemSelected(index);
+    };
+
+    // MouseMove event delegation
+    this.containerMouseMoveHandler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const item = target.closest('[data-suggestion-index]') as HTMLElement;
+      if (!item) return;
+
+      const allItems = this.suggestionsContainer?.querySelectorAll('.file-suggestion-item');
+      allItems?.forEach(el => el.classList.remove('hovered'));
+      item.classList.add('hovered');
+    };
+
+    // MouseLeave event delegation - clear all hovered states when leaving container
+    this.containerMouseLeaveHandler = () => {
+      const hoveredItems = this.suggestionsContainer?.querySelectorAll('.hovered');
+      hoveredItems?.forEach(item => item.classList.remove('hovered'));
+    };
+
+    this.suggestionsContainer.addEventListener('click', this.containerClickHandler);
+    this.suggestionsContainer.addEventListener('mousemove', this.containerMouseMoveHandler);
+    this.suggestionsContainer.addEventListener('mouseleave', this.containerMouseLeaveHandler);
   }
 
   // ============================================================
@@ -406,14 +462,6 @@ export class SuggestionUIManager {
     this.suggestionsContainer.innerHTML = '';
     this.suggestionsContainer.appendChild(fragment);
     this.suggestionsContainer.style.display = 'block';
-
-    // Attach event listeners to rendered items
-    if (this.mergedSuggestions.length > 0) {
-      const items = this.suggestionsContainer.querySelectorAll('.file-suggestion-item');
-      items.forEach((item, index) => {
-        this.attachItemEventListeners(item as HTMLElement, index);
-      });
-    }
   }
 
   /**
@@ -443,6 +491,7 @@ export class SuggestionUIManager {
     item.className = 'file-suggestion-item';
     item.setAttribute('role', 'option');
     item.setAttribute('data-index', index.toString());
+    item.setAttribute('data-suggestion-index', index.toString());
 
     if (suggestion.type === 'file' && suggestion.file) {
       this.renderFileItem(item, suggestion.file);
@@ -566,39 +615,6 @@ export class SuggestionUIManager {
     item.appendChild(pathEl);
   }
 
-  // ============================================================
-  // Event Handling
-  // ============================================================
-
-  private attachItemEventListeners(item: HTMLElement, index: number): void {
-    item.addEventListener('click', async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-
-      // Cmd+click: Open file in editor
-      if (e.metaKey && this.callbacks.onOpenFileInEditor) {
-        const filePath = this.getFilePathFromSuggestion(this.mergedSuggestions[index]);
-        if (filePath) {
-          await this.callbacks.onOpenFileInEditor(filePath);
-          this.hide();
-        }
-        return;
-      }
-
-      // Normal click: select item
-      this.callbacks.onItemSelected(index);
-    });
-
-    item.addEventListener('mousemove', () => {
-      const allItems = this.suggestionsContainer?.querySelectorAll('.file-suggestion-item');
-      allItems?.forEach(el => el.classList.remove('hovered'));
-      item.classList.add('hovered');
-    });
-
-    item.addEventListener('mouseleave', () => {
-      item.classList.remove('hovered');
-    });
-  }
 
   // ============================================================
   // Positioning
@@ -734,6 +750,22 @@ export class SuggestionUIManager {
     if (this.mirrorDiv && this.mirrorDiv.parentNode) {
       this.mirrorDiv.parentNode.removeChild(this.mirrorDiv);
       this.mirrorDiv = null;
+    }
+
+    // Clean up event delegation
+    if (this.suggestionsContainer) {
+      if (this.containerClickHandler) {
+        this.suggestionsContainer.removeEventListener('click', this.containerClickHandler);
+        this.containerClickHandler = null;
+      }
+      if (this.containerMouseMoveHandler) {
+        this.suggestionsContainer.removeEventListener('mousemove', this.containerMouseMoveHandler);
+        this.containerMouseMoveHandler = null;
+      }
+      if (this.containerMouseLeaveHandler) {
+        this.suggestionsContainer.removeEventListener('mouseleave', this.containerMouseLeaveHandler);
+        this.containerMouseLeaveHandler = null;
+      }
     }
   }
 }

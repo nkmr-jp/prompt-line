@@ -1,10 +1,61 @@
 /**
  * Fuzzy matching utilities for File Search module
- * Pure functions for file matching and scoring
+ * Optimized with caching for repeated string operations
  */
 
 import type { FileInfo, AgentItem } from '../../types';
 import { FUZZY_MATCH_SCORES } from '../../constants';
+
+/**
+ * Cache for lowercase strings to avoid repeated toLowerCase() calls
+ */
+class LowercaseCache {
+  private cache: Map<string, string> = new Map();
+
+  /**
+   * Get lowercase version of string (cached)
+   */
+  get(str: string): string {
+    const cached = this.cache.get(str);
+    if (cached !== undefined) return cached;
+
+    const lower = str.toLowerCase();
+    this.cache.set(str, lower);
+    return lower;
+  }
+
+  /**
+   * Clear cache to free memory
+   */
+  clear(): void {
+    this.cache.clear();
+  }
+
+  /**
+   * Get cache size for monitoring
+   */
+  size(): number {
+    return this.cache.size;
+  }
+}
+
+// Global lowercase cache instance
+const lowercaseCache = new LowercaseCache();
+
+/**
+ * Clear the lowercase cache
+ * Call this when directory data changes or periodically to free memory
+ */
+export function clearLowercaseCache(): void {
+  lowercaseCache.clear();
+}
+
+/**
+ * Get cache statistics for debugging/monitoring
+ */
+export function getLowercaseCacheSize(): number {
+  return lowercaseCache.size();
+}
 
 /**
  * Simple fuzzy matching - checks if all pattern characters appear in text in order
@@ -35,8 +86,8 @@ export function fuzzyMatch(text: string, pattern: string): boolean {
  * - Bonus for shorter paths: up to FUZZY_MATCH_SCORES.MAX_PATH_BONUS (20)
  */
 export function calculateMatchScore(file: FileInfo, queryLower: string): number {
-  const nameLower = file.name.toLowerCase();
-  const pathLower = file.path.toLowerCase();
+  const nameLower = lowercaseCache.get(file.name);
+  const pathLower = lowercaseCache.get(file.path);
 
   let score = 0;
 
@@ -86,8 +137,8 @@ export function calculateMatchScore(file: FileInfo, queryLower: string): number 
 export function calculateAgentMatchScore(agent: AgentItem, queryLower: string): number {
   if (!queryLower) return FUZZY_MATCH_SCORES.AGENT_BASE; // Base score for no query
 
-  const nameLower = agent.name.toLowerCase();
-  const descLower = agent.description.toLowerCase();
+  const nameLower = lowercaseCache.get(agent.name);
+  const descLower = lowercaseCache.get(agent.description);
 
   let score = 0;
 

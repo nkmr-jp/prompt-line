@@ -14,6 +14,7 @@
 
 import type { DirectoryData, FileInfo } from '../types';
 import type { DirectoryInfo } from '../../types';
+import { clearLowercaseCache } from '../fuzzy-matcher';
 
 /**
  * Callbacks for directory cache events
@@ -58,6 +59,12 @@ export class DirectoryCacheManager {
   public handleCachedDirectoryData(data: DirectoryInfo | undefined): void {
     if (!data || !data.directory) {
       return;
+    }
+
+    // Clear lowercase cache when directory changes
+    const directoryChanged = this.cachedDirectoryData?.directory !== data.directory;
+    if (directoryChanged) {
+      clearLowercaseCache();
     }
 
     // Check if this is from cache or just draft fallback
@@ -121,6 +128,12 @@ export class DirectoryCacheManager {
   public updateCache(data: DirectoryInfo | DirectoryData): void {
     if (!data.directory) {
       return;
+    }
+
+    // Clear lowercase cache when directory changes
+    const directoryChanged = this.cachedDirectoryData?.directory !== data.directory;
+    if (directoryChanged) {
+      clearLowercaseCache();
     }
 
     // Get hint and filesDisabled from DirectoryInfo if available
@@ -203,6 +216,7 @@ export class DirectoryCacheManager {
    */
   public clearCache(): void {
     this.cachedDirectoryData = null;
+    clearLowercaseCache();
   }
 
   /**

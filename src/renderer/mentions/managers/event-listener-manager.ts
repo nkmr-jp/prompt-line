@@ -52,6 +52,11 @@ export class EventListenerManager {
   // Flag to track if listeners are suspended
   private listenersAreSuspended: boolean = false;
 
+  // rAF-based input processing optimization
+  private lastText: string = '';
+  private pendingInputUpdate: number | null = null;
+  private pendingSelectionUpdate: number | null = null;
+
   constructor(callbacks: EventListenerCallbacks) {
     this.callbacks = callbacks;
   }
@@ -63,6 +68,16 @@ export class EventListenerManager {
   public suspendInputListeners(): void {
     if (this.listenersAreSuspended) return;
     this.listenersAreSuspended = true;
+
+    // Cancel pending rAF callbacks to prevent them from firing
+    if (this.pendingInputUpdate) {
+      cancelAnimationFrame(this.pendingInputUpdate);
+      this.pendingInputUpdate = null;
+    }
+    if (this.pendingSelectionUpdate) {
+      cancelAnimationFrame(this.pendingSelectionUpdate);
+      this.pendingSelectionUpdate = null;
+    }
 
     if (this.textInput && this.boundInputHandler) {
       this.textInput.removeEventListener('input', this.boundInputHandler);
@@ -108,12 +123,30 @@ export class EventListenerManager {
       return;
     }
 
-    // Create bound input handler for add/remove listener support
+    // Create bound input handler with rAF optimization
+    // Skip processing if text hasn't changed to avoid redundant work
     this.boundInputHandler = () => {
-      this.callbacks.checkForFileSearch();
-      this.callbacks.updateHighlightBackdrop();
-      // Update cursor position highlight after input
-      this.callbacks.updateCursorPositionHighlight();
+      // Debounce with rAF - skip if already pending
+      if (this.pendingInputUpdate) return;
+
+      this.pendingInputUpdate = requestAnimationFrame(() => {
+        this.pendingInputUpdate = null;
+
+        // Guard: skip if listeners are suspended
+        if (this.listenersAreSuspended) return;
+
+        if (!this.textInput) return;
+        const currentText = this.textInput.value;
+
+        // Skip if text hasn't changed since last check
+        if (currentText === this.lastText) return;
+        this.lastText = currentText;
+
+        // Execute callbacks only when text has actually changed
+        this.callbacks.checkForFileSearch();
+        this.callbacks.updateHighlightBackdrop();
+        this.callbacks.updateCursorPositionHighlight();
+      });
     };
 
     // Listen for input changes to detect @ mentions and update highlights
@@ -160,11 +193,22 @@ export class EventListenerManager {
       }
     });
 
-    // Create bound selectionchange handler for add/remove listener support
+    // Create bound selectionchange handler with rAF optimization
+    // Only process if textarea is active to avoid unnecessary work
     this.boundSelectionChangeHandler = () => {
-      if (document.activeElement === this.textInput) {
+      if (document.activeElement !== this.textInput) return;
+
+      // Debounce with rAF - skip if already pending
+      if (this.pendingSelectionUpdate) return;
+
+      this.pendingSelectionUpdate = requestAnimationFrame(() => {
+        this.pendingSelectionUpdate = null;
+
+        // Guard: skip if listeners are suspended
+        if (this.listenersAreSuspended) return;
+
         this.callbacks.updateCursorPositionHighlight();
-      }
+      });
     };
 
     // Also listen for selectionchange on document (handles all cursor movements)

@@ -153,6 +153,8 @@ describe('IPCHandlers', () => {
             })),
             updateSettings: jest.fn(),
             resetSettings: jest.fn(),
+            getMdSearchEntries: jest.fn(() => []),
+            getBuiltInCommandsSettings: jest.fn(() => undefined),
             // EventEmitter methods for hot reload
             on: jest.fn(),
             off: jest.fn(),
