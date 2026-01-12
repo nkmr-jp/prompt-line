@@ -69,6 +69,16 @@ export class EventListenerManager {
     if (this.listenersAreSuspended) return;
     this.listenersAreSuspended = true;
 
+    // Cancel pending rAF callbacks to prevent them from firing
+    if (this.pendingInputUpdate) {
+      cancelAnimationFrame(this.pendingInputUpdate);
+      this.pendingInputUpdate = null;
+    }
+    if (this.pendingSelectionUpdate) {
+      cancelAnimationFrame(this.pendingSelectionUpdate);
+      this.pendingSelectionUpdate = null;
+    }
+
     if (this.textInput && this.boundInputHandler) {
       this.textInput.removeEventListener('input', this.boundInputHandler);
     }
@@ -121,6 +131,9 @@ export class EventListenerManager {
 
       this.pendingInputUpdate = requestAnimationFrame(() => {
         this.pendingInputUpdate = null;
+
+        // Guard: skip if listeners are suspended
+        if (this.listenersAreSuspended) return;
 
         if (!this.textInput) return;
         const currentText = this.textInput.value;
@@ -190,6 +203,10 @@ export class EventListenerManager {
 
       this.pendingSelectionUpdate = requestAnimationFrame(() => {
         this.pendingSelectionUpdate = null;
+
+        // Guard: skip if listeners are suspended
+        if (this.listenersAreSuspended) return;
+
         this.callbacks.updateCursorPositionHighlight();
       });
     };

@@ -529,6 +529,7 @@ export class MentionManager implements IInitializable {
    */
   public clearCache(): void {
     this.directoryCacheManager?.clearCache();
+    this.pathManager.invalidateValidPathsCache();
     this.hideSuggestions();
   }
 
