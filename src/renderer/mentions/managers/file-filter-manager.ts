@@ -32,6 +32,7 @@ export class FileFilterManager {
   private callbacks: FileFilterCallbacks;
   private lastQuery: string = '';
   private lastResults: FileInfo[] = [];
+  private lastWasTruncated: boolean = false;
 
   constructor(callbacks: FileFilterCallbacks) {
     this.callbacks = callbacks;
@@ -94,6 +95,7 @@ export class FileFilterManager {
       // In subdirectory - clear cache (incremental search only works at root level)
       this.lastQuery = '';
       this.lastResults = [];
+      this.lastWasTruncated = false;
       return this.filterFilesInSubdirectory(allFiles, baseDir, currentPath, query, maxSuggestions);
     }
 
@@ -187,6 +189,7 @@ export class FileFilterManager {
       // No query - clear cache and show top-level files and directories only
       this.lastQuery = '';
       this.lastResults = [];
+      this.lastWasTruncated = false;
       return this.getTopLevelFiles(allFiles, baseDir, maxSuggestions);
     }
 
@@ -244,7 +247,8 @@ export class FileFilterManager {
    * Search all files recursively with query
    * (Inlined from RootFilterManager)
    * Optimized with incremental search: when query extends previous query,
-   * search only in previous results instead of all files
+   * search only in previous results instead of all files.
+   * Incremental search is disabled if previous results were truncated to prevent missing candidates.
    */
   private searchAllFiles(
     allFiles: FileInfo[],
@@ -253,10 +257,11 @@ export class FileFilterManager {
     maxSuggestions: number
   ): FileInfo[] {
     // Check if we can use incremental search
-    // Query extends previous query AND we have previous results
+    // Query extends previous query AND we have previous results AND previous results were NOT truncated
     const canUseIncrementalSearch = query.startsWith(this.lastQuery) &&
                                     this.lastQuery.length > 0 &&
-                                    this.lastResults.length > 0;
+                                    this.lastResults.length > 0 &&
+                                    !this.lastWasTruncated;
 
     // Select source files: previous results or all files
     const sourceFiles = canUseIncrementalSearch ? this.lastResults : allFiles;
@@ -324,16 +329,19 @@ export class FileFilterManager {
 
     // Combine and sort by score
     const allScored = [...scoredFiles, ...scoredDirs]
-      .sort((a, b) => b.score - a.score)
-      .slice(0, maxSuggestions);
+      .sort((a, b) => b.score - a.score);
 
-    const results = allScored.map(item => item.file);
+    // Store full results before truncation
+    const fullResults = allScored.map(item => item.file);
+    const wasTruncated = fullResults.length > maxSuggestions;
 
-    // Cache query and results for next incremental search
+    // Cache query and full results (before slice) for next incremental search
     this.lastQuery = query;
-    this.lastResults = results;
+    this.lastResults = fullResults;
+    this.lastWasTruncated = wasTruncated;
 
-    return results;
+    // Return truncated results
+    return fullResults.slice(0, maxSuggestions);
   }
 
   /**

@@ -157,13 +157,10 @@ export class SuggestionUIManager {
       item.classList.add('hovered');
     };
 
-    // MouseLeave event delegation
-    this.containerMouseLeaveHandler = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      const item = target.closest('[data-suggestion-index]') as HTMLElement;
-      if (item) {
-        item.classList.remove('hovered');
-      }
+    // MouseLeave event delegation - clear all hovered states when leaving container
+    this.containerMouseLeaveHandler = () => {
+      const hoveredItems = this.suggestionsContainer?.querySelectorAll('.hovered');
+      hoveredItems?.forEach(item => item.classList.remove('hovered'));
     };
 
     this.suggestionsContainer.addEventListener('click', this.containerClickHandler);
