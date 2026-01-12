@@ -43,7 +43,7 @@ export interface ExportData {
 export interface IHistoryManager {
   initialize(): Promise<void>;
   addToHistory(text: string, appName?: string, directory?: string): Promise<HistoryItem | null>;
-  getHistory(limit?: number): Promise<HistoryItem[]> | HistoryItem[];
+  getHistory(limit?: number, offset?: number): Promise<HistoryItem[]> | HistoryItem[];
   getHistoryForSearch(limit: number): Promise<HistoryItem[]>;
   getHistoryItem(id: string): HistoryItem | null;
   getRecentHistory(limit?: number): HistoryItem[];

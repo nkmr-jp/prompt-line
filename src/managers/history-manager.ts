@@ -73,10 +73,13 @@ class HistoryManager implements IHistoryManager {
       for (const line of lines) {
         const item = safeJsonParse<HistoryItem>(line);
         if (item && this.validateHistoryItem(item)) {
-          this.recentCache.unshift(item);
+          this.recentCache.push(item);
           this.duplicateCheckSet.add(item.text);
         }
       }
+
+      // Reverse once at the end for O(n) instead of O(n²)
+      this.recentCache.reverse();
     } catch (error) {
       logger.error('Error loading recent history:', error);
       this.recentCache = [];
@@ -102,6 +105,7 @@ class HistoryManager implements IHistoryManager {
 
   /**
    * Read lines from end of file
+   * Returns lines in file order (oldest first)
    */
   private async readLinesFromEnd(
     fd: import('fs/promises').FileHandle,
@@ -123,14 +127,20 @@ class HistoryManager implements IHistoryManager {
       const chunk = buffer.toString('utf8');
       const { newRemainder, collectedLines } = this.processChunk(chunk, remainder, position, lineCount - lines.length);
       remainder = newRemainder;
-      lines.unshift(...collectedLines);
+
+      // collectedLines are already in reverse order (newest first in chunk)
+      // Push them directly to maintain proper ordering
+      lines.push(...collectedLines);
     }
 
+    // Reverse once at the end to get file order (oldest first) - O(n)
+    lines.reverse();
     return lines.slice(-lineCount);
   }
 
   /**
    * Process chunk and extract lines
+   * Returns lines in reverse order (newest first in chunk)
    */
   private processChunk(
     chunk: string,
@@ -143,10 +153,11 @@ class HistoryManager implements IHistoryManager {
     const newRemainder = position > 0 ? textLines.shift() || '' : '';
 
     const collectedLines: string[] = [];
+    // Iterate from end to beginning and collect with push - O(n)
     for (let i = textLines.length - 1; i >= 0 && collectedLines.length < maxLines; i--) {
       const line = textLines[i]?.trim();
       if (line) {
-        collectedLines.unshift(line);
+        collectedLines.push(line);
       }
     }
 
@@ -288,20 +299,23 @@ class HistoryManager implements IHistoryManager {
       await fs.appendFile(this.historyFile, lines);
     } catch (error) {
       logger.error('Failed to append to history file:', error);
-      // 失敗したアイテムをキューに戻す
-      this.appendQueue.unshift(...itemsToAppend);
+      // 失敗したアイテムをキューに戻す（先頭に追加）
+      this.appendQueue.push(...itemsToAppend);
+      this.appendQueue.reverse();
       throw error;
     }
   }
 
-  getHistory(limit?: number): HistoryItem[] {
+  getHistory(limit?: number, offset?: number): HistoryItem[] {
     // キャッシュから返す（起動速度優先）
+    const startIndex = offset ?? 0;
+
     if (!limit) {
-      return [...this.recentCache];
+      return [...this.recentCache.slice(startIndex)];
     }
     
-    const requestedLimit = Math.min(limit, this.cacheSize);
-    return this.recentCache.slice(0, requestedLimit);
+    const requestedLimit = Math.min(limit, this.cacheSize - startIndex);
+    return this.recentCache.slice(startIndex, startIndex + requestedLimit);
   }
 
   getHistoryItem(id: string): HistoryItem | null {
@@ -336,10 +350,12 @@ class HistoryManager implements IHistoryManager {
       for (const line of lines) {
         const item = safeJsonParse<HistoryItem>(line);
         if (item && this.validateHistoryItem(item)) {
-          items.unshift(item); // Newest first
+          items.push(item);
         }
       }
 
+      // Reverse once at the end for newest first - O(n) instead of O(n²)
+      items.reverse();
       return items;
     } catch (error) {
       logger.error('Error in getHistoryForSearch:', error);

@@ -92,9 +92,14 @@ class HistoryDraftHandler {
 
   // History handlers
 
-  private async handleGetHistory(_event: IpcMainInvokeEvent): Promise<HistoryItem[]> {
+  private async handleGetHistory(
+    _event: IpcMainInvokeEvent,
+    options?: { limit?: number; offset?: number }
+  ): Promise<HistoryItem[]> {
     try {
-      return await this.historyManager.getHistory();
+      const limit = options?.limit ?? 50;
+      const offset = options?.offset ?? 0;
+      return await this.historyManager.getHistory(limit, offset);
     } catch (error) {
       logger.error('Failed to get history:', error);
       return [];

@@ -33,7 +33,9 @@ export {
 export {
   fuzzyMatch,
   calculateMatchScore,
-  calculateAgentMatchScore
+  calculateAgentMatchScore,
+  clearLowercaseCache,
+  getLowercaseCacheSize
 } from './fuzzy-matcher';
 
 // Text finding utilities

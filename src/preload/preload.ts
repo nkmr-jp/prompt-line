@@ -229,8 +229,8 @@ const electronAPI: ElectronAPI = {
 
   // History management
   history: {
-    get: async (): Promise<HistoryItem[]> => {
-      return ipcRenderer.invoke('get-history');
+    get: async (options?: { limit?: number; offset?: number }): Promise<HistoryItem[]> => {
+      return ipcRenderer.invoke('get-history', options);
     },
     clear: async (): Promise<void> => {
       return ipcRenderer.invoke('clear-history');
