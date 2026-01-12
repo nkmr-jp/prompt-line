@@ -158,6 +158,7 @@ export interface SymbolSearchResult {
   language?: string;
   symbols: SymbolResult[];
   symbolCount: number;
+  unfilteredCount?: number; // Number of symbols before relativePath filtering
   searchMode: 'full' | 'cached';
   partial: boolean;
   maxSymbols: number;

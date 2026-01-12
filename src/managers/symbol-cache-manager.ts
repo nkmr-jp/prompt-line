@@ -260,6 +260,10 @@ export class SymbolCacheManager {
       for (const line of lines) {
         try {
           const symbol: SymbolResult = JSON.parse(line);
+          // Pre-compute nameLower if not present (backward compatibility with cached data)
+          if (!symbol.nameLower) {
+            symbol.nameLower = symbol.name.toLowerCase();
+          }
           symbols.push(symbol);
         } catch (parseError) {
           logger.warn('Error parsing symbol line:', parseError);

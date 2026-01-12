@@ -313,17 +313,26 @@ export class CodeSearchManager {
       // Symbols are already filtered by Main process
       let symbols = response.symbols;
 
-      // If no symbols found in cached results, retry without cache
-      // (cache might be stale)
-      if (symbols.length === 0 && response.symbolCount > 0) {
-        response = await electronAPI.codeSearch.searchSymbols(
-          directory,
-          language.key,
-          { useCache: false, relativePath }
-        );
+      // If no symbols found, retry without cache when:
+      // 1. Using cached results AND
+      // 2. Either symbolCount > 0 (old condition for backward compatibility) OR
+      //    unfilteredCount > 0 (new condition - symbols exist but filtered out by relativePath)
+      // This handles cases where:
+      // - Cache might be stale (symbolCount > 0)
+      // - relativePath filtering removed all symbols (unfilteredCount > 0)
+      if (symbols.length === 0 && response.searchMode === 'cached') {
+        const shouldRetry = response.symbolCount > 0 || (response.unfilteredCount !== undefined && response.unfilteredCount > 0);
 
-        if (response.success) {
-          symbols = response.symbols;
+        if (shouldRetry) {
+          response = await electronAPI.codeSearch.searchSymbols(
+            directory,
+            language.key,
+            { useCache: false, relativePath }
+          );
+
+          if (response.success) {
+            symbols = response.symbols;
+          }
         }
       }
 
