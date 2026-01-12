@@ -205,7 +205,7 @@ export interface ElectronAPI {
   };
   pasteText: (text: string) => Promise<PasteResult>;
   history: {
-    get: () => Promise<HistoryItem[]>;
+    get: (options?: { limit?: number; offset?: number }) => Promise<HistoryItem[]>;
     clear: () => Promise<void>;
     remove: (id: string) => Promise<void>;
     search: (query: string) => Promise<HistoryItem[]>;

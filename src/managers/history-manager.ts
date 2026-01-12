@@ -299,21 +299,27 @@ class HistoryManager implements IHistoryManager {
       await fs.appendFile(this.historyFile, lines);
     } catch (error) {
       logger.error('Failed to append to history file:', error);
-      // 失敗したアイテムをキューに戻す（先頭に追加）
-      this.appendQueue.push(...itemsToAppend);
-      this.appendQueue.reverse();
+      // 失敗したアイテムをキューに戻す（先頭に追加してFIFO順序を維持）
+      this.appendQueue.unshift(...itemsToAppend);
       throw error;
     }
   }
 
   getHistory(limit?: number, offset?: number): HistoryItem[] {
     // キャッシュから返す（起動速度優先）
-    const startIndex = offset ?? 0;
+    // 負のoffsetは0として扱う
+    const startIndex = Math.max(0, offset ?? 0);
 
-    if (!limit) {
+    // limitがundefinedの場合は全キャッシュを返す（後方互換性）
+    if (limit === undefined) {
       return [...this.recentCache.slice(startIndex)];
     }
-    
+
+    // limit=0や負のlimitは空配列を返す
+    if (limit <= 0) {
+      return [];
+    }
+
     const requestedLimit = Math.min(limit, this.cacheSize - startIndex);
     return this.recentCache.slice(startIndex, startIndex + requestedLimit);
   }

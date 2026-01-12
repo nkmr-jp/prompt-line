@@ -97,7 +97,8 @@ class HistoryDraftHandler {
     options?: { limit?: number; offset?: number }
   ): Promise<HistoryItem[]> {
     try {
-      const limit = options?.limit ?? 50;
+      // limitがundefinedの場合はそのまま渡す（後方互換性のため全キャッシュを返す）
+      const limit = options?.limit;
       const offset = options?.offset ?? 0;
       return await this.historyManager.getHistory(limit, offset);
     } catch (error) {
