@@ -145,6 +145,8 @@ export interface SymbolSearchOptions {
   symbolTypeFilter?: string | null;
   /** Maximum results to return (default: 50) */
   maxResults?: number;
+  /** File path filter (e.g., 'src/main.ts') for single-file symbol retrieval */
+  relativePath?: string;
 }
 
 /**
