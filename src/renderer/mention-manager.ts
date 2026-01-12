@@ -349,7 +349,7 @@ export class MentionManager implements IInitializable {
       {
         isCommandEnabledSync: () => this.isCommandEnabledSync(),
         checkFileExistsAbsolute: (path: string) => this.checkFileExistsAbsolute(path),
-        buildValidPathsSet: () => this.buildValidPathsSet(),
+        buildValidPathsSet: () => this.getValidPathsSet(),
         getTotalItemCount: () => this.getTotalItemCount(),
         _getFileSearchMaxSuggestions: () => this._getFileSearchMaxSuggestions(),
         ...(this.callbacks.getCommandSource && {
@@ -361,6 +361,7 @@ export class MentionManager implements IInitializable {
         ...(this.callbacks.getKnownCommandNames && {
           getKnownCommandNames: () => this.callbacks.getKnownCommandNames?.() ?? []
         }),
+        invalidateValidPathsCache: () => this.invalidateValidPathsCache(),
         updateHighlightBackdrop: () => this.updateHighlightBackdrop(),
         updateSelection: () => this.updateSelection(),
         hideSuggestions: () => this.hideSuggestions(),
@@ -1008,10 +1009,17 @@ export class MentionManager implements IInitializable {
   }
 
   /**
-   * Build a set of valid paths from cached directory data
+   * Get valid paths set (uses cached value if available)
    */
-  private buildValidPathsSet(): Set<string> | null {
-    return this.pathManager.buildValidPathsSet();
+  private getValidPathsSet(): Set<string> | null {
+    return this.pathManager.getValidPathsSet();
+  }
+
+  /**
+   * Invalidate valid paths cache (call when directory data changes)
+   */
+  private invalidateValidPathsCache(): void {
+    this.pathManager.invalidateValidPathsCache();
   }
 
   /**

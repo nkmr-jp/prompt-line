@@ -48,6 +48,8 @@ export class PromptLineRenderer {
   // Queue for pending window-shown data to handle race condition with init()
   private pendingWindowData: WindowData | null = null;
   private initCompleted: boolean = false;
+  // Throttle timeout for mousemove events
+  private mouseMoveThrottleTimeout: number | null = null;
 
   constructor() {
     this.domManager = new DomManager();
@@ -275,7 +277,12 @@ export class PromptLineRenderer {
 
     // Add mouse event listeners to disable keyboard navigation mode on mouse interaction
     document.addEventListener('mousemove', () => {
-      this.historyUIManager.clearHistorySelection();
+      if (this.mouseMoveThrottleTimeout) return;
+
+      this.mouseMoveThrottleTimeout = window.setTimeout(() => {
+        this.mouseMoveThrottleTimeout = null;
+        this.historyUIManager.clearHistorySelection();
+      }, 100);
     });
 
     document.addEventListener('mousedown', () => {
@@ -588,6 +595,11 @@ export class PromptLineRenderer {
     this.draftManager.cleanup();
     this.historyUIManager.cleanup();
     this.fileSearchManager?.destroy();
+    // Clear throttle timeout
+    if (this.mouseMoveThrottleTimeout) {
+      clearTimeout(this.mouseMoveThrottleTimeout);
+      this.mouseMoveThrottleTimeout = null;
+    }
   }
 }
 

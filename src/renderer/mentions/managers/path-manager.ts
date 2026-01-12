@@ -87,11 +87,13 @@ export class PathManager {
   // @path tracking state (from PathResolver)
   private atPaths: AtPathRange[] = [];
   private selectedPaths: Set<string> = new Set();
-  private validPathsBuilder: (() => Set<string> | null) = () => null;
 
   // Registered at-paths with spaces (loaded from persistent cache)
   // These paths are matched before the default regex to support symbol names with spaces
   private registeredAtPaths: Set<string> = new Set();
+
+  // Cached valid paths set (rebuilt only when directory data changes)
+  private cachedValidPaths: Set<string> | null = null;
 
   /**
    * Set registered at-paths from persistent cache
@@ -173,10 +175,22 @@ export class PathManager {
   }
 
   /**
-   * Set the valid paths builder for validation (used by rescanAtPaths)
+   * Invalidate cached valid paths (call when directory data changes)
    */
-  public setValidPathsBuilder(builder: () => Set<string> | null): void {
-    this.validPathsBuilder = builder;
+  public invalidateValidPathsCache(): void {
+    this.cachedValidPaths = null;
+  }
+
+  /**
+   * Get valid paths set (uses cached value if available)
+   * @returns Set of valid paths or null if no data
+   */
+  public getValidPathsSet(): Set<string> | null {
+    if (this.cachedValidPaths !== null) {
+      return this.cachedValidPaths;
+    }
+    this.cachedValidPaths = this.buildValidPathsSet();
+    return this.cachedValidPaths;
   }
 
   /**
@@ -191,7 +205,7 @@ export class PathManager {
    */
   public rescanAtPaths(text: string, validPaths?: Set<string> | null): void {
     const foundPaths: AtPathRange[] = [];
-    const validPathsSet = validPaths !== undefined ? validPaths : this.validPathsBuilder();
+    const validPathsSet = validPaths !== undefined ? validPaths : this.getValidPathsSet();
 
     // Track consumed character ranges to avoid overlapping matches
     const consumedRanges: Array<{ start: number; end: number }> = [];
@@ -808,7 +822,7 @@ export class PathManager {
    * Build a set of valid paths from cached directory data
    * @returns Set of valid paths or null if no data
    */
-  public buildValidPathsSet(): Set<string> | null {
+  private buildValidPathsSet(): Set<string> | null {
     const cachedData = this.callbacks.getCachedDirectoryData?.();
     if (!cachedData?.files || cachedData.files.length === 0) {
       return null;

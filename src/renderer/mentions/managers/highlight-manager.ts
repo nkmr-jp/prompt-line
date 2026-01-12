@@ -73,6 +73,12 @@ export class HighlightManager {
   // Cache for command file checks (to avoid repeated IPC calls)
   private commandFileCache: Map<string, boolean> = new Map();
 
+  // Cache for highlight detection results (Phase 5)
+  private cachedText: string = '';
+  private cachedUrls: Array<{ start: number; end: number }> = [];
+  private cachedAbsolutePaths: Array<{ start: number; end: number }> = [];
+  private cachedSlashCommands: Array<{ start: number; end: number }> = [];
+
   constructor(
     textInput: HTMLTextAreaElement,
     highlightBackdrop: HTMLDivElement,
@@ -367,10 +373,6 @@ export class HighlightManager {
     return this.pathManager.getSelectedPaths();
   }
 
-  public setValidPathsBuilder(builder: () => Set<string> | null): void {
-    this.pathManager.setValidPathsBuilder(builder);
-  }
-
   /**
    * Set registered at-paths from persistent cache
    * These paths may contain spaces and are matched before the default regex
@@ -422,6 +424,29 @@ export class HighlightManager {
    */
   public isDebugModeEnabled(): boolean {
     return this.debugMode;
+  }
+
+  // ============================================================
+  // Private - Highlight Detection Cache
+  // ============================================================
+
+  /**
+   * Update highlight detection cache if text has changed
+   * Caches URLs, absolute paths, and slash commands for performance
+   */
+  private updateHighlightCache(text: string): void {
+    if (text === this.cachedText) {
+      // Text hasn't changed, use cached results
+      return;
+    }
+
+    // Text has changed, re-detect all highlights
+    this.cachedText = text;
+    this.cachedUrls = findAllUrls(text);
+    this.cachedAbsolutePaths = findAllAbsolutePaths(text);
+
+    const knownCommandNames = this.callbacks.getKnownCommandNames?.();
+    this.cachedSlashCommands = findAllSlashCommands(text, knownCommandNames);
   }
 
   // ============================================================
@@ -584,6 +609,10 @@ export class HighlightManager {
     if (!this.highlightBackdrop || !this.textInput) return;
 
     const text = this.callbacks.getTextContent();
+
+    // Update cache if text has changed
+    this.updateHighlightCache(text);
+
     const atPaths = this.pathManager.getAtPaths();
     const ranges: Array<AtPathRange & { className: string }> = [];
 
@@ -592,9 +621,8 @@ export class HighlightManager {
       ranges.push({ ...atPath, className: 'at-path-highlight' });
     }
 
-    // Add all URLs with underline (always visible)
-    const urls = findAllUrls(text);
-    for (const url of urls) {
+    // Add all URLs with underline (always visible) - use cached results
+    for (const url of this.cachedUrls) {
       const overlapsWithAtPath = atPaths.some(
         ap => (url.start >= ap.start && url.start < ap.end) ||
               (url.end > ap.start && url.end <= ap.end)
@@ -604,14 +632,13 @@ export class HighlightManager {
       }
     }
 
-    // Add all absolute paths with underline (always visible)
-    const absolutePaths = findAllAbsolutePaths(text);
-    for (const pathInfo of absolutePaths) {
+    // Add all absolute paths with underline (always visible) - use cached results
+    for (const pathInfo of this.cachedAbsolutePaths) {
       const overlapsWithAtPath = atPaths.some(
         ap => (pathInfo.start >= ap.start && pathInfo.start < ap.end) ||
               (pathInfo.end > ap.start && pathInfo.end <= ap.end)
       );
-      const overlapsWithUrl = urls.some(
+      const overlapsWithUrl = this.cachedUrls.some(
         u => (pathInfo.start >= u.start && pathInfo.start < u.end) ||
              (pathInfo.end > u.start && pathInfo.end <= u.end)
       );
@@ -620,19 +647,17 @@ export class HighlightManager {
       }
     }
 
-    // Always highlight slash commands (no dependency on searchPrefixes)
-    const knownCommandNames = this.callbacks.getKnownCommandNames?.();
-    const slashCommands = findAllSlashCommands(text, knownCommandNames);
-    for (const cmd of slashCommands) {
+    // Always highlight slash commands (no dependency on searchPrefixes) - use cached results
+    for (const cmd of this.cachedSlashCommands) {
       const overlapsWithAtPath = atPaths.some(
         ap => (cmd.start >= ap.start && cmd.start < ap.end) ||
               (cmd.end > ap.start && cmd.end <= ap.end)
       );
-      const overlapsWithUrl = urls.some(
+      const overlapsWithUrl = this.cachedUrls.some(
         u => (cmd.start >= u.start && cmd.start < u.end) ||
              (cmd.end > u.start && cmd.end <= u.end)
       );
-      const overlapsWithPath = absolutePaths.some(
+      const overlapsWithPath = this.cachedAbsolutePaths.some(
         p => (cmd.start >= p.start && cmd.start < p.end) ||
              (cmd.end > p.start && cmd.end <= p.end)
       );
@@ -661,6 +686,10 @@ export class HighlightManager {
     }
 
     const text = this.callbacks.getTextContent();
+
+    // Update cache if text has changed
+    this.updateHighlightCache(text);
+
     const atPaths = this.pathManager.getAtPaths();
     const ranges: Array<AtPathRange & { className: string }> = [];
 
@@ -669,9 +698,8 @@ export class HighlightManager {
       ranges.push({ ...atPath, className: 'at-path-highlight' });
     }
 
-    // Add all URLs with underline (always visible)
-    const urls = findAllUrls(text);
-    for (const url of urls) {
+    // Add all URLs with underline (always visible) - use cached results
+    for (const url of this.cachedUrls) {
       // Check if this URL overlaps with any @path
       const overlapsWithAtPath = atPaths.some(
         ap => (url.start >= ap.start && url.start < ap.end) ||
@@ -682,15 +710,14 @@ export class HighlightManager {
       }
     }
 
-    // Add all absolute paths with underline (always visible)
-    const absolutePaths = findAllAbsolutePaths(text);
-    for (const pathInfo of absolutePaths) {
+    // Add all absolute paths with underline (always visible) - use cached results
+    for (const pathInfo of this.cachedAbsolutePaths) {
       // Check if this path overlaps with any @path or URL
       const overlapsWithAtPath = atPaths.some(
         ap => (pathInfo.start >= ap.start && pathInfo.start < ap.end) ||
               (pathInfo.end > ap.start && pathInfo.end <= ap.end)
       );
-      const overlapsWithUrl = urls.some(
+      const overlapsWithUrl = this.cachedUrls.some(
         u => (pathInfo.start >= u.start && pathInfo.start < u.end) ||
              (pathInfo.end > u.start && pathInfo.end <= u.end)
       );
@@ -699,19 +726,17 @@ export class HighlightManager {
       }
     }
 
-    // Always highlight slash commands (no dependency on searchPrefixes)
-    const knownCommandNames2 = this.callbacks.getKnownCommandNames?.();
-    const slashCommands = findAllSlashCommands(text, knownCommandNames2);
-    for (const cmd of slashCommands) {
+    // Always highlight slash commands (no dependency on searchPrefixes) - use cached results
+    for (const cmd of this.cachedSlashCommands) {
       const overlapsWithAtPath = atPaths.some(
         ap => (cmd.start >= ap.start && cmd.start < ap.end) ||
               (cmd.end > ap.start && cmd.end <= ap.end)
       );
-      const overlapsWithUrl = urls.some(
+      const overlapsWithUrl = this.cachedUrls.some(
         u => (cmd.start >= u.start && cmd.start < u.end) ||
              (cmd.end > u.start && cmd.end <= u.end)
       );
-      const overlapsWithPath = absolutePaths.some(
+      const overlapsWithPath = this.cachedAbsolutePaths.some(
         p => (cmd.start >= p.start && cmd.start < p.end) ||
              (cmd.end > p.start && cmd.end <= p.end)
       );
@@ -729,6 +754,10 @@ export class HighlightManager {
     if (!this.hoveredAtPath) return;
 
     const text = this.callbacks.getTextContent();
+
+    // Update cache if text has changed
+    this.updateHighlightCache(text);
+
     const atPaths = this.pathManager.getAtPaths();
     const ranges: Array<AtPathRange & { className: string }> = [];
 
@@ -743,9 +772,8 @@ export class HighlightManager {
       ranges.push({ ...atPath, className });
     }
 
-    // Add all URLs with underline (always visible)
-    const urls = findAllUrls(text);
-    for (const url of urls) {
+    // Add all URLs with underline (always visible) - use cached results
+    for (const url of this.cachedUrls) {
       const overlapsWithAtPath = atPaths.some(
         ap => (url.start >= ap.start && url.start < ap.end) ||
               (url.end > ap.start && url.end <= ap.end)
@@ -757,14 +785,13 @@ export class HighlightManager {
       }
     }
 
-    // Add all absolute paths with underline (always visible)
-    const absolutePaths = findAllAbsolutePaths(text);
-    for (const pathInfo of absolutePaths) {
+    // Add all absolute paths with underline (always visible) - use cached results
+    for (const pathInfo of this.cachedAbsolutePaths) {
       const overlapsWithAtPath = atPaths.some(
         ap => (pathInfo.start >= ap.start && pathInfo.start < ap.end) ||
               (pathInfo.end > ap.start && pathInfo.end <= ap.end)
       );
-      const overlapsWithUrl = urls.some(
+      const overlapsWithUrl = this.cachedUrls.some(
         u => (pathInfo.start >= u.start && pathInfo.start < u.end) ||
              (pathInfo.end > u.start && pathInfo.end <= u.end)
       );
@@ -775,19 +802,17 @@ export class HighlightManager {
       }
     }
 
-    // Always highlight slash commands (no dependency on searchPrefixes)
-    const knownCommandNames3 = this.callbacks.getKnownCommandNames?.();
-    const slashCommands = findAllSlashCommands(text, knownCommandNames3);
-    for (const cmd of slashCommands) {
+    // Always highlight slash commands (no dependency on searchPrefixes) - use cached results
+    for (const cmd of this.cachedSlashCommands) {
       const overlapsWithAtPath = atPaths.some(
         ap => (cmd.start >= ap.start && cmd.start < ap.end) ||
               (cmd.end > ap.start && cmd.end <= ap.end)
       );
-      const overlapsWithUrl = urls.some(
+      const overlapsWithUrl = this.cachedUrls.some(
         u => (cmd.start >= u.start && cmd.start < u.end) ||
              (cmd.end > u.start && cmd.end <= u.end)
       );
-      const overlapsWithPath = absolutePaths.some(
+      const overlapsWithPath = this.cachedAbsolutePaths.some(
         p => (cmd.start >= p.start && p.start < p.end) ||
              (cmd.end > p.start && cmd.end <= p.end)
       );
@@ -801,9 +826,9 @@ export class HighlightManager {
 
     // Add hovered path if it's not already added (for other linkable types like slash commands)
     if (!isHoveredAtPath) {
-      const isHoveredUrl = urls.some(u => u.start === this.hoveredAtPath!.start && u.end === this.hoveredAtPath!.end);
-      const isHoveredPath = absolutePaths.some(p => p.start === this.hoveredAtPath!.start && p.end === this.hoveredAtPath!.end);
-      const isHoveredSlashCommand = findAllSlashCommands(text, knownCommandNames3).some(c => c.start === this.hoveredAtPath!.start && c.end === this.hoveredAtPath!.end);
+      const isHoveredUrl = this.cachedUrls.some(u => u.start === this.hoveredAtPath!.start && u.end === this.hoveredAtPath!.end);
+      const isHoveredPath = this.cachedAbsolutePaths.some(p => p.start === this.hoveredAtPath!.start && p.end === this.hoveredAtPath!.end);
+      const isHoveredSlashCommand = this.cachedSlashCommands.some(c => c.start === this.hoveredAtPath!.start && c.end === this.hoveredAtPath!.end);
       if (!isHoveredUrl && !isHoveredPath && !isHoveredSlashCommand) {
         ranges.push({ ...this.hoveredAtPath, className: 'file-path-link' });
       }

@@ -30,6 +30,13 @@ export class EventHandler implements IInitializable {
   private shortcutHandler: ShortcutHandler;
   private windowBlurHandler: WindowBlurHandler;
 
+  // Bound event handlers to prevent memory leaks
+  private boundHandleDocumentKeyDown = this.handleDocumentKeyDown.bind(this);
+  private boundHandleWindowBlur = this.handleWindowBlur.bind(this);
+  private boundHandleCompositionStart = this.handleCompositionStart.bind(this);
+  private boundHandleCompositionEnd = this.handleCompositionEnd.bind(this);
+  private boundHandleTextareaKeyDown = this.handleTextareaKeyDown.bind(this);
+
   constructor(callbacks: {
     onTextPaste: (text: string) => Promise<void>;
     onWindowHide: () => Promise<void>;
@@ -89,57 +96,61 @@ export class EventHandler implements IInitializable {
   }
 
   private setupDocumentEvents(): void {
-    document.addEventListener('keydown', this.handleDocumentKeyDown.bind(this), true);
+    document.addEventListener('keydown', this.boundHandleDocumentKeyDown, true);
   }
 
   private setupWindowEvents(): void {
-    window.addEventListener('blur', this.handleWindowBlur.bind(this));
+    window.addEventListener('blur', this.boundHandleWindowBlur);
   }
 
   private setupCompositionEvents(): void {
     if (this.textarea) {
-      this.textarea.addEventListener('compositionstart', () => {
-        this.isComposing = true;
-      });
-
-      this.textarea.addEventListener('compositionend', () => {
-        this.isComposing = false;
-      });
-
+      this.textarea.addEventListener('compositionstart', this.boundHandleCompositionStart);
+      this.textarea.addEventListener('compositionend', this.boundHandleCompositionEnd);
       // Add keydown handler at textarea level to capture all keys including Tab
       // This ensures Tab key is captured before default browser handling
-      this.textarea.addEventListener('keydown', (e: KeyboardEvent) => {
-        if (e.key === 'Tab') {
-          // Skip if slash command menu is active (let slash command manager handle it)
-          if (this.slashCommandManager?.isActiveMode()) {
-            return;
-          }
+      this.textarea.addEventListener('keydown', this.boundHandleTextareaKeyDown);
+    }
+  }
 
-          // Skip if file search suggestions are active (let file search manager handle it)
-          if (this.fileSearchManager?.isActive()) {
-            return;
-          }
+  private handleCompositionStart(): void {
+    this.isComposing = true;
+  }
 
-          // Skip Tab key if IME is active to avoid conflicts with Japanese input
-          // Only check this.isComposing (managed by compositionstart/end events)
-          if (this.isComposing) {
-            return;
-          }
+  private handleCompositionEnd(): void {
+    this.isComposing = false;
+  }
 
-          // Prevent default Tab behavior (focus change)
-          e.preventDefault();
-          // Stop propagation to prevent duplicate handling by document listener
-          e.stopPropagation();
+  private handleTextareaKeyDown(e: KeyboardEvent): void {
+    if (e.key === 'Tab') {
+      // Skip if slash command menu is active (let slash command manager handle it)
+      if (this.slashCommandManager?.isActiveMode()) {
+        return;
+      }
 
-          if (e.shiftKey) {
-            // Shift+Tab: outdent (remove indentation)
-            this.onShiftTabKeyPress(e);
-          } else {
-            // Tab: insert tab character
-            this.onTabKeyInsert(e);
-          }
-        }
-      });
+      // Skip if file search suggestions are active (let file search manager handle it)
+      if (this.fileSearchManager?.isActive()) {
+        return;
+      }
+
+      // Skip Tab key if IME is active to avoid conflicts with Japanese input
+      // Only check this.isComposing (managed by compositionstart/end events)
+      if (this.isComposing) {
+        return;
+      }
+
+      // Prevent default Tab behavior (focus change)
+      e.preventDefault();
+      // Stop propagation to prevent duplicate handling by document listener
+      e.stopPropagation();
+
+      if (e.shiftKey) {
+        // Shift+Tab: outdent (remove indentation)
+        this.onShiftTabKeyPress(e);
+      } else {
+        // Tab: insert tab character
+        this.onTabKeyInsert(e);
+      }
     }
   }
 
@@ -186,7 +197,13 @@ export class EventHandler implements IInitializable {
   }
 
   public destroy(): void {
-    document.removeEventListener('keydown', this.handleDocumentKeyDown.bind(this), true);
-    window.removeEventListener('blur', this.handleWindowBlur.bind(this));
+    document.removeEventListener('keydown', this.boundHandleDocumentKeyDown, true);
+    window.removeEventListener('blur', this.boundHandleWindowBlur);
+
+    if (this.textarea) {
+      this.textarea.removeEventListener('compositionstart', this.boundHandleCompositionStart);
+      this.textarea.removeEventListener('compositionend', this.boundHandleCompositionEnd);
+      this.textarea.removeEventListener('keydown', this.boundHandleTextareaKeyDown);
+    }
   }
 }

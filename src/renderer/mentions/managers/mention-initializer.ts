@@ -56,6 +56,7 @@ export interface MentionInitializerCallbacks {
   getKnownCommandNames?: () => string[];
 
   // Actions
+  invalidateValidPathsCache?: () => void;
   updateHighlightBackdrop: () => void;
   updateSelection: () => void;
   hideSuggestions: () => void;
@@ -204,6 +205,8 @@ export class MentionInitializer {
         }
       },
       onCacheUpdated: () => {
+        // Invalidate cached valid paths when directory data changes
+        this.callbacks.invalidateValidPathsCache?.();
         if (this.deps.state.isVisible && !this.deps.state.currentQuery) {
           this.callbacks.refreshSuggestions();
         }
@@ -249,7 +252,6 @@ export class MentionInitializer {
       },
       this.deps.pathManager
     );
-    highlightManager.setValidPathsBuilder(() => this.callbacks.buildValidPathsSet() ?? new Set());
     return highlightManager;
   }
 
