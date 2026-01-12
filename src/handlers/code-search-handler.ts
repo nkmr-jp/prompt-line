@@ -181,6 +181,7 @@ class CodeSearchHandler {
       query?: string;
       symbolTypeFilter?: string | null;
       maxResults?: number;
+      relativePath?: string;
     }
   ): Promise<SymbolSearchResponse> {
     // Get settings-based defaults
@@ -218,8 +219,13 @@ class CodeSearchHandler {
       const hasLanguage = await symbolCacheManager.hasLanguageCache(directory, language);
 
       if (hasLanguage) {
-        const cachedSymbols = await symbolCacheManager.loadSymbols(directory, language);
+        let cachedSymbols = await symbolCacheManager.loadSymbols(directory, language);
         if (cachedSymbols.length > 0) {
+          // Apply relativePath filtering first if provided
+          if (options?.relativePath) {
+            cachedSymbols = cachedSymbols.filter(s => s.relativePath === options.relativePath);
+          }
+
           // Apply query filtering if provided (Main process filtering for performance)
           const filteredSymbols = options?.query !== undefined
             ? this.filterSymbolsByQuery(
@@ -295,6 +301,12 @@ class CodeSearchHandler {
         result.symbols,
         'full'
       );
+
+      // Apply relativePath filtering if provided
+      if (options?.relativePath) {
+        result.symbols = result.symbols.filter(s => s.relativePath === options.relativePath);
+        result.symbolCount = result.symbols.length;
+      }
     }
 
     return result;
