@@ -139,14 +139,8 @@ class CodeSearchHandler {
     cacheKey?: string,
     relativePath?: string
   ): import('../managers/symbol-search/types').SymbolResult[] {
-    // Minimum query length check
-    // Allow empty query (show all symbols for the language)
-    // Allow 1 char when symbolTypeFilter is set (e.g., @go:func:a) or for CJK users
-    // Otherwise require at least 2 chars to avoid too many results
-    if (!symbolTypeFilter && query.length > 0 && query.length < 2) {
-      this.clearIncrementalCache();
-      return [];
-    }
+    // No minimum query length - allow searching from 1 character
+    // Empty query shows all symbols for the language
 
     // Build comprehensive cache key including filter context
     const fullCacheKey = cacheKey
