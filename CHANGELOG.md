@@ -1,3 +1,30 @@
+## [0.17.0](https://github.com/nkmr-jp/prompt-line/compare/v0.16.1...v0.17.0) (2026-01-12)
+
+### Features
+
+* **code-search:** add relativePath filtering to symbol search ([885d7e1](https://github.com/nkmr-jp/prompt-line/commit/885d7e1c96c8b0f6386a6b0264d7f78ac462ad21))
+* **types:** add relativePath filter option to SymbolSearchOptions ([6e201e8](https://github.com/nkmr-jp/prompt-line/commit/6e201e862b798abb56e84a6c9a2fdc3000413cd8))
+
+### Bug Fixes
+
+* **code-search:** allow empty query to show all symbols for language ([ce1d081](https://github.com/nkmr-jp/prompt-line/commit/ce1d081c40d3ba7b85dad4672de83d4d6553ac92))
+* **code-search:** allow single character search queries ([bcd818f](https://github.com/nkmr-jp/prompt-line/commit/bcd818fb3abde8ccf32b627cd8874bf9436ac570))
+* **file-filter-manager, suggestion-ui-manager:** prevent missing candidates in incremental search and fix hover state handling ([e9e821f](https://github.com/nkmr-jp/prompt-line/commit/e9e821f5dbb02995d02d98f21586ddccda2117c5))
+* **history:** improve pagination robustness and maintain FIFO queue ordering ([2fd4e19](https://github.com/nkmr-jp/prompt-line/commit/2fd4e194076b6d6e65acb2033294c71b17069164))
+* **mention-manager, event-listener-manager:** prevent pending animations after suspension ([8fcec97](https://github.com/nkmr-jp/prompt-line/commit/8fcec97d795f1e434b39a6ddb3235d05c5b89f36))
+
+### Code Refactoring
+
+* **code-search:** move symbol filtering to Main process ([99108f3](https://github.com/nkmr-jp/prompt-line/commit/99108f3df57ce2ba7c050ef506a53b67371f079b))
+
+### Performance Improvements
+
+* **code-search:** implement incremental search filtering and symbol name caching ([a0478aa](https://github.com/nkmr-jp/prompt-line/commit/a0478aa2855889594d40ecd88ea269c3b987eb23))
+* **history:** add pagination support and optimize array operations ([a8ca5f1](https://github.com/nkmr-jp/prompt-line/commit/a8ca5f172a18c60bca78e52d846f349d24e59407))
+* optimize config and cache management with TTL and LRU eviction ([2211d6b](https://github.com/nkmr-jp/prompt-line/commit/2211d6b544cbed941a22f4fc4f0974e060eb0769))
+* optimize event handling and caching for improved input performance ([2f0d1f8](https://github.com/nkmr-jp/prompt-line/commit/2f0d1f8b64a3fa0854ef3a0202fa4e95ca0acc3b))
+* **symbol-search:** migrate caching to JS-side SymbolCacheManager and optimize ripgrep execution ([ef1819d](https://github.com/nkmr-jp/prompt-line/commit/ef1819d69ecf589212089e704fecc74acecc971c))
+
 ## [0.16.1](https://github.com/nkmr-jp/prompt-line/compare/v0.16.0...v0.16.1) (2026-01-10)
 
 ### Maintenance
