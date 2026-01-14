@@ -4,7 +4,10 @@
  */
 
 import { ipcMain, IpcMainInvokeEvent } from 'electron';
+import { promises as fs } from 'fs';
+import path from 'path';
 import { logger } from '../utils/utils';
+import { calculateFileMtimeBonus } from '../lib/usage-bonus-calculator';
 import {
   checkRgAvailable,
   getSupportedLanguages,
@@ -127,6 +130,43 @@ class CodeSearchHandler {
   }
 
   /**
+   * Enrich symbols with file mtime for bonus calculation
+   * Uses batched fs.stat for efficiency
+   */
+  private async enrichSymbolsWithMtime(
+    symbols: import('../managers/symbol-search/types').SymbolResult[],
+    directory: string
+  ): Promise<void> {
+    // Get unique file paths
+    const uniquePaths = new Set<string>();
+    for (const symbol of symbols) {
+      uniquePaths.add(symbol.filePath);
+    }
+
+    // Batch stat calls
+    const mtimeMap = new Map<string, number>();
+    const statPromises = Array.from(uniquePaths).map(async (filePath) => {
+      try {
+        const absolutePath = path.isAbsolute(filePath) ? filePath : path.join(directory, filePath);
+        const stats = await fs.stat(absolutePath);
+        mtimeMap.set(filePath, stats.mtimeMs);
+      } catch {
+        // File may have been deleted, skip
+      }
+    });
+
+    await Promise.all(statPromises);
+
+    // Enrich symbols with mtime
+    for (const symbol of symbols) {
+      const mtime = mtimeMap.get(symbol.filePath);
+      if (mtime !== undefined) {
+        symbol.mtimeMs = mtime;
+      }
+    }
+  }
+
+  /**
    * Filter symbols by query (name or lineContent match)
    * Performs case-insensitive matching with relevance sorting
    * Uses incremental filtering when query extends previous query
@@ -203,14 +243,32 @@ class CodeSearchHandler {
           s.lineContent.toLowerCase().includes(lowerQuery);
       });
 
-      // Sort by relevance (symbols starting with query first, then alphabetical)
+      // Sort by relevance (match score + mtime bonus)
+      // Match scores: exact=1000, starts=500, contains=200
       filtered.sort((a, b) => {
         const aName = a.nameLower ?? a.name.toLowerCase();
         const bName = b.nameLower ?? b.name.toLowerCase();
-        const aStarts = aName.startsWith(lowerQuery);
-        const bStarts = bName.startsWith(lowerQuery);
-        if (aStarts && !bStarts) return -1;
-        if (!aStarts && bStarts) return 1;
+
+        // Calculate match scores
+        let aMatchScore = 0;
+        let bMatchScore = 0;
+
+        if (aName === lowerQuery) aMatchScore = 1000;
+        else if (aName.startsWith(lowerQuery)) aMatchScore = 500;
+        else aMatchScore = 200;
+
+        if (bName === lowerQuery) bMatchScore = 1000;
+        else if (bName.startsWith(lowerQuery)) bMatchScore = 500;
+        else bMatchScore = 200;
+
+        // Add mtime bonus if available
+        const aMtimeBonus = a.mtimeMs ? calculateFileMtimeBonus(a.mtimeMs) : 0;
+        const bMtimeBonus = b.mtimeMs ? calculateFileMtimeBonus(b.mtimeMs) : 0;
+
+        const aTotal = aMatchScore + aMtimeBonus;
+        const bTotal = bMatchScore + bMtimeBonus;
+
+        if (aTotal !== bTotal) return bTotal - aTotal;
         return aName.localeCompare(bName);
       });
     }
@@ -291,6 +349,11 @@ class CodeSearchHandler {
                 ? normalizedPath.toLowerCase() === normalizedTargetPath.toLowerCase()
                 : normalizedPath === normalizedTargetPath;
             });
+          }
+
+          // Enrich symbols with mtime for bonus calculation (only if query provided for scoring)
+          if (options?.query) {
+            await this.enrichSymbolsWithMtime(cachedSymbols, directory);
           }
 
           // Apply query filtering if provided (Main process filtering for performance)

@@ -17,7 +17,7 @@ export const USAGE_BONUS = {
   USAGE_RECENCY_TTL_DAYS: 7,
 
   // File modification time related
-  MAX_FILE_MTIME: 500,
+  MAX_FILE_MTIME: 2500,
   FILE_MTIME_TTL_DAYS: 30,
 } as const;
 

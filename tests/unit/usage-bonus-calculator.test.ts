@@ -13,7 +13,7 @@ describe('usage-bonus-calculator', () => {
       expect(USAGE_BONUS.MAX_USAGE_RECENCY).toBe(500);
       expect(USAGE_BONUS.FREQUENCY_LOG_BASE).toBe(10);
       expect(USAGE_BONUS.USAGE_RECENCY_TTL_DAYS).toBe(7);
-      expect(USAGE_BONUS.MAX_FILE_MTIME).toBe(500);
+      expect(USAGE_BONUS.MAX_FILE_MTIME).toBe(2500);
       expect(USAGE_BONUS.FILE_MTIME_TTL_DAYS).toBe(30);
     });
   });
@@ -201,31 +201,31 @@ describe('usage-bonus-calculator', () => {
       jest.useRealTimers();
     });
 
-    test('should return 500 (max) for file modified within 24 hours', () => {
+    test('should return 2500 (max) for file modified within 24 hours', () => {
       const now = Date.now();
       const oneHourAgo = now - (1 * 60 * 60 * 1000); // 1 hour ago
 
       const bonus = calculateFileMtimeBonus(oneHourAgo);
-      expect(bonus).toBe(500);
+      expect(bonus).toBe(2500);
     });
 
-    test('should return 500 (max) for file modified just now', () => {
+    test('should return 2500 (max) for file modified just now', () => {
       const now = Date.now();
 
       const bonus = calculateFileMtimeBonus(now);
-      expect(bonus).toBe(500);
+      expect(bonus).toBe(2500);
     });
 
-    test('should return < 500 for file modified exactly 24 hours ago', () => {
+    test('should return < 2500 for file modified exactly 24 hours ago', () => {
       const now = Date.now();
       const oneDayAgo = now - (24 * 60 * 60 * 1000); // 24 hours ago
 
       const bonus = calculateFileMtimeBonus(oneDayAgo);
       // At exactly 24h, linear decay starts
-      expect(bonus).toBeLessThanOrEqual(500);
+      expect(bonus).toBeLessThanOrEqual(2500);
     });
 
-    test('should return ~258 (middle) for file modified 15 days ago', () => {
+    test('should return ~1293 (middle) for file modified 15 days ago', () => {
       const now = Date.now();
       const fifteenDaysAgo = now - (15 * 24 * 60 * 60 * 1000); // 15 days ago
 
@@ -234,8 +234,8 @@ describe('usage-bonus-calculator', () => {
       // ttl = 30 days = 30 * ONE_DAY_MS
       // ratio = 1 - ((15 * ONE_DAY_MS - ONE_DAY_MS) / (30 * ONE_DAY_MS - ONE_DAY_MS))
       // ratio = 1 - (14 / 29) ≈ 1 - 0.4827 ≈ 0.5172
-      // bonus = floor(0.5172 * 500) = floor(258.6) = 258
-      expect(bonus).toBe(258);
+      // bonus = floor(0.5172 * 2500) = floor(1293) = 1293
+      expect(bonus).toBe(1293);
     });
 
     test('should return 0 for file modified exactly 30 days ago', () => {
@@ -272,7 +272,7 @@ describe('usage-bonus-calculator', () => {
 
       const bonus = calculateFileMtimeBonus(futureTime);
       // age = negative, which is < ONE_DAY_MS, so full bonus
-      expect(bonus).toBe(500);
+      expect(bonus).toBe(2500);
     });
 
     test('should decrease monotonically over time', () => {
@@ -302,8 +302,8 @@ describe('usage-bonus-calculator', () => {
       const bonusJustOver1d = calculateFileMtimeBonus(justOverOneDayAgo);
       const bonusAlmost30d = calculateFileMtimeBonus(almostThirtyDaysAgo);
 
-      expect(bonusAlmost1d).toBe(500); // Still within 24h
-      expect(bonusJustOver1d).toBeLessThan(500); // Just entered decay period
+      expect(bonusAlmost1d).toBe(2500); // Still within 24h
+      expect(bonusJustOver1d).toBeLessThan(2500); // Just entered decay period
       expect(bonusAlmost30d).toBeGreaterThanOrEqual(0); // At boundary, may round to 0
     });
   });
@@ -329,7 +329,7 @@ describe('usage-bonus-calculator', () => {
 
       expect(frequencyBonus).toBeGreaterThan(0);
       expect(recencyBonus).toBe(500); // Within 24h
-      expect(mtimeBonus).toBe(500); // Within 24h
+      expect(mtimeBonus).toBe(2500); // Within 24h
 
       const totalBonus = frequencyBonus + recencyBonus + mtimeBonus;
       expect(totalBonus).toBeGreaterThan(1000);
