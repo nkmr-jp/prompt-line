@@ -58,8 +58,13 @@ class FileCacheManager {
   /**
    * Load cache for a directory (returns immediately if exists)
    * Returns null if cache doesn't exist or is invalid
+   * @param directory - Directory path to load cache for
+   * @param options.refreshMtimes - If true, refresh mtime for all files (for window show)
    */
-  async loadCache(directory: string): Promise<CachedDirectoryData | null> {
+  async loadCache(
+    directory: string,
+    options?: { refreshMtimes?: boolean }
+  ): Promise<CachedDirectoryData | null> {
     try {
       const cachePath = this.getCachePath(directory);
       const metadataPath = path.join(cachePath, 'metadata.json');
@@ -79,7 +84,16 @@ class FileCacheManager {
 
       // Read files from JSONL
       const entries = await this.readJsonlFile(filesPath);
-      const files = entries.map(entry => this.cacheEntryToFileInfo(entry));
+      let files = entries.map(entry => this.cacheEntryToFileInfo(entry));
+
+      // Refresh mtimes if requested (e.g., on window show for fresh scoring)
+      if (options?.refreshMtimes) {
+        files = await this.refreshFileMtimes(files);
+        // Save updated mtimes back to cache in background (non-blocking)
+        this.saveMtimesToCache(directory, files).catch(err => {
+          logger.warn('Failed to save refreshed mtimes:', err);
+        });
+      }
 
       return {
         directory,
@@ -90,6 +104,48 @@ class FileCacheManager {
       logger.error('Failed to load cache:', error);
       return null;
     }
+  }
+
+  /**
+   * Refresh mtime for files using batch fs.stat calls
+   * Used on window show for fresh mtime-based scoring
+   */
+  private async refreshFileMtimes(files: FileInfo[]): Promise<FileInfo[]> {
+    const BATCH_SIZE = 100;
+    const refreshedFiles: FileInfo[] = [];
+
+    for (let i = 0; i < files.length; i += BATCH_SIZE) {
+      const batch = files.slice(i, i + BATCH_SIZE);
+      const refreshedBatch = await Promise.all(
+        batch.map(async (file) => {
+          try {
+            const stats = await fs.stat(file.path);
+            return {
+              ...file,
+              modifiedAt: stats.mtime.toISOString(),
+              mtimeMs: stats.mtimeMs
+            };
+          } catch {
+            // File may have been deleted/moved, return as-is
+            return file;
+          }
+        })
+      );
+      refreshedFiles.push(...refreshedBatch);
+    }
+
+    return refreshedFiles;
+  }
+
+  /**
+   * Save updated mtimes back to cache (background operation)
+   */
+  private async saveMtimesToCache(directory: string, files: FileInfo[]): Promise<void> {
+    const cachePath = this.getCachePath(directory);
+    const filesPath = path.join(cachePath, 'files.jsonl');
+
+    const entries = files.map(file => this.fileInfoToCacheEntry(file));
+    await this.writeJsonlFile(filesPath, entries);
   }
 
   /**
