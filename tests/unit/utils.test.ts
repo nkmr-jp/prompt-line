@@ -514,7 +514,7 @@ describe('Utils', () => {
                 const longInput = 'a'.repeat(300);
                 const sanitized = sanitizeCommandArgument(longInput, 100);
                 
-                expect(sanitized.length).toBe(100);
+                expect(sanitized).toHaveLength(100);
             });
 
             test('should trim whitespace', () => {

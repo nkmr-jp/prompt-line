@@ -523,12 +523,12 @@ window:
                 }).not.toThrow();
 
                 const renderedItems = document.querySelectorAll('.history-item');
-                expect(renderedItems.length).toBe(Math.min(200, historyItems.length)); // Always limited to MAX_VISIBLE_ITEMS
+                expect(renderedItems).toHaveLength(Math.min(200, historyItems.length)); // Always limited to MAX_VISIBLE_ITEMS
             }
 
             // Verify final state is clean
             const finalItems = document.querySelectorAll('.history-item');
-            expect(finalItems.length).toBe(50); // Last iteration had 50 items
+            expect(finalItems).toHaveLength(50); // Last iteration had 50 items
         });
 
         test('should handle stress test with large data and rapid changes', () => {
@@ -565,7 +565,7 @@ window:
 
                 const renderedItems = document.querySelectorAll('.history-item');
                 const expectedCount = Math.min(200, largeHistory.length); // Always limited to MAX_VISIBLE_ITEMS
-                expect(renderedItems.length).toBe(expectedCount);
+                expect(renderedItems).toHaveLength(expectedCount);
             }
         });
     });

@@ -11,7 +11,7 @@ class FileUsageHistoryManager extends UsageHistoryManager {
 
   private static get filePath(): string {
     if (!FileUsageHistoryManager._filePath) {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
+       
       const config = require('../config/app-config').default;
       FileUsageHistoryManager._filePath = path.join(config.paths.projectsCacheDir, 'file-usage-history.jsonl');
     }

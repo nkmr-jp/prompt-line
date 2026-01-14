@@ -11,7 +11,7 @@ class SymbolUsageHistoryManager extends UsageHistoryManager {
 
   private static get filePath(): string {
     if (!SymbolUsageHistoryManager._filePath) {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
+       
       const config = require('../config/app-config').default;
       SymbolUsageHistoryManager._filePath = path.join(config.paths.projectsCacheDir, 'symbol-usage-history.jsonl');
     }

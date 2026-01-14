@@ -362,19 +362,6 @@ export class FileFilterManager {
   }
 
   /**
-   * Sort files with directories first, then by name
-   */
-  private sortByDirectoryFirst(files: FileInfo[]): FileInfo[] {
-    return [...files].sort((a, b) => {
-      // Directories come first
-      if (a.isDirectory && !b.isDirectory) return -1;
-      if (!a.isDirectory && b.isDirectory) return 1;
-      // Then sort by name
-      return a.name.localeCompare(b.name);
-    });
-  }
-
-  /**
    * Sort files with directories first, then by usage bonus + name
    */
   private sortByDirectoryFirstAndUsage(files: FileInfo[], usageBonuses?: Record<string, number>): FileInfo[] {

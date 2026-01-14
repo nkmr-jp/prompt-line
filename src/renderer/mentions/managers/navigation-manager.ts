@@ -219,6 +219,13 @@ export class NavigationManager {
         const relativePath = getRelativePath(suggestion.file.path, baseDir);
         this.callbacks.insertFilePath(relativePath);
         this.callbacks.hideSuggestions();
+
+        // Record file usage for bonus calculation
+        if (electronAPI?.usageHistory?.recordFileUsage) {
+          electronAPI.usageHistory.recordFileUsage(suggestion.file.path)
+            .catch((error) => console.warn('[NavigationManager] Failed to record file usage:', error));
+        }
+
         this.callbacks.onFileSelected(relativePath);
         return;
       }
@@ -454,6 +461,12 @@ export class NavigationManager {
     // Fallback: insert the file path
     this.callbacks.insertFilePath(relativePath);
     this.callbacks.hideSuggestions();
+
+    // Record file usage for bonus calculation
+    if (electronAPI?.usageHistory?.recordFileUsage) {
+      electronAPI.usageHistory.recordFileUsage(file.path)
+        .catch((error) => console.warn('[NavigationManager] Failed to record file usage:', error));
+    }
 
     // Callback for external handling
     this.callbacks.onFileSelected(relativePath);

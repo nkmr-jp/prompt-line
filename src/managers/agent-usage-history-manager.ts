@@ -11,7 +11,7 @@ class AgentUsageHistoryManager extends UsageHistoryManager {
 
   private static get filePath(): string {
     if (!AgentUsageHistoryManager._filePath) {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
+       
       const appConfig = require('../config/app-config').default;
       AgentUsageHistoryManager._filePath = path.join(appConfig.paths.projectsCacheDir, 'agent-usage-history.jsonl');
     }

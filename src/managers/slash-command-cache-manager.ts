@@ -26,7 +26,7 @@ export class SlashCommandCacheManager {
    */
   private get cacheDir(): string {
     if (this._cacheDir === null) {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
+       
       const config = require('../config/app-config').default;
       this._cacheDir = config.paths.projectsCacheDir as string;
     }

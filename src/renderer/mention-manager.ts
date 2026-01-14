@@ -157,8 +157,8 @@ export class MentionManager implements IInitializable {
       expandCurrentFile: () => this.expandCurrentFile(),
       // Directory/File navigation helpers
       updateTextInputWithPath: (path: string) => this.updateTextInputWithPath(path),
-      filterFiles: (query: string) => this.filterFiles(query),
-      mergeSuggestions: (query: string) => this.mergeSuggestions(query),
+      filterFiles: (query: string, usageBonuses?: Record<string, number>) => this.filterFiles(query, usageBonuses),
+      mergeSuggestions: (query: string, maxSuggestions?: number, usageBonuses?: Record<string, number>) => this.mergeSuggestions(query, maxSuggestions, usageBonuses),
       updateSuggestionList: (suggestions: SuggestionItem[], showPath: boolean, selectedIndex: number) =>
         this.suggestionUIManager?.update(suggestions, showPath, selectedIndex),
       showTooltipForSelectedItem: () => this.popupManager.showTooltipForSelectedItem(),
@@ -372,8 +372,9 @@ export class MentionManager implements IInitializable {
         removeAtQueryText: () => this.removeAtQueryText(),
         expandCurrentFile: () => this.expandCurrentFile(),
         updateTextInputWithPath: (path: string) => this.updateTextInputWithPath(path),
-        filterFiles: (query: string) => this.filterFiles(query),
-        mergeSuggestions: (query: string, maxSuggestions?: number) => this.mergeSuggestions(query, maxSuggestions),
+        filterFiles: (query: string, usageBonuses?: Record<string, number>) => this.filterFiles(query, usageBonuses),
+        mergeSuggestions: (query: string, maxSuggestions?: number, usageBonuses?: Record<string, number>) => this.mergeSuggestions(query, maxSuggestions, usageBonuses),
+        getFileUsageBonuses: async () => await this.getFileUsageBonuses(),
         showSuggestions: (query: string) => this.showSuggestions(query),
         _selectSymbol: (symbol: SymbolResult) => this._selectSymbol(symbol),
         refreshSuggestions: () => this.refreshSuggestions(),
