@@ -184,18 +184,14 @@ export class HistorySearchFilterEngine {
 
   /**
    * Calculate recency bonus based on timestamp
-   * More recent items get higher bonus (0-600 points)
-   * TTL is configurable via RECENCY_CONFIG.TTL_DAYS (default: 30 days)
+   * More recent items get higher bonus (0-2500 points)
+   * Linear decay from now to TTL_DAYS (no 24h plateau)
+   * TTL is configurable via RECENCY_CONFIG.TTL_DAYS (default: 7 days)
    */
   private calculateRecencyBonus(timestamp: number): number {
     const now = Date.now();
     const age = now - timestamp;
     const oneDay = 24 * 60 * 60 * 1000;
-
-    // Items within last 24 hours get full bonus
-    if (age < oneDay) {
-      return MATCH_SCORES.MAX_RECENCY_BONUS;
-    }
 
     // Calculate TTL from config
     const ttlMs = RECENCY_CONFIG.TTL_DAYS * oneDay;
@@ -206,7 +202,8 @@ export class HistorySearchFilterEngine {
     }
 
     // Linear decay from MAX_RECENCY_BONUS to 0 over TTL period
-    const ratio = 1 - (age - oneDay) / (ttlMs - oneDay);
+    // No 24h plateau - decay starts immediately
+    const ratio = 1 - age / ttlMs;
     return Math.floor(ratio * MATCH_SCORES.MAX_RECENCY_BONUS);
   }
 
