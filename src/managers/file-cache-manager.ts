@@ -59,11 +59,11 @@ class FileCacheManager {
    * Load cache for a directory (returns immediately if exists)
    * Returns null if cache doesn't exist or is invalid
    * @param directory - Directory path to load cache for
-   * @param options.refreshMtimes - If true, refresh mtime for all files (for window show)
+   * @param options.withRecentMtimes - If true, merge recent mtime data for scoring (for window show)
    */
   async loadCache(
     directory: string,
-    options?: { refreshMtimes?: boolean }
+    options?: { withRecentMtimes?: boolean }
   ): Promise<CachedDirectoryData | null> {
     try {
       const cachePath = this.getCachePath(directory);
@@ -86,13 +86,9 @@ class FileCacheManager {
       const entries = await this.readJsonlFile(filesPath);
       let files = entries.map(entry => this.cacheEntryToFileInfo(entry));
 
-      // Refresh mtimes if requested (e.g., on window show for fresh scoring)
-      if (options?.refreshMtimes) {
-        files = await this.refreshFileMtimes(files);
-        // Save updated mtimes back to cache in background (non-blocking)
-        this.saveMtimesToCache(directory, files).catch(err => {
-          logger.warn('Failed to save refreshed mtimes:', err);
-        });
+      // Merge recent mtime data if requested (for window show scoring)
+      if (options?.withRecentMtimes) {
+        files = await this.mergeRecentMtimes(directory, files);
       }
 
       return {
@@ -106,83 +102,133 @@ class FileCacheManager {
     }
   }
 
+  // ============================================================================
+  // Recent Mtime Management (top 100 recently modified files)
+  // ============================================================================
+
+  private static readonly MAX_RECENT_FILES = 100;
+  private static readonly RECENT_MTIMES_FILE = 'recent-mtimes.json';
+
   /**
-   * Refresh mtime for files using batch fs.stat calls
-   * Used on window show for fresh mtime-based scoring
+   * Merge recent mtime data into file list for scoring
+   * Only the top 100 recently modified files get mtime bonus
    */
-  private async refreshFileMtimes(files: FileInfo[]): Promise<FileInfo[]> {
-    const BATCH_SIZE = 100;
-    const refreshedFiles: FileInfo[] = [];
+  private async mergeRecentMtimes(directory: string, files: FileInfo[]): Promise<FileInfo[]> {
+    try {
+      // Load and refresh recent mtimes
+      const recentMtimes = await this.refreshRecentMtimes(directory);
+      if (!recentMtimes || recentMtimes.size === 0) {
+        return files;
+      }
 
-    for (let i = 0; i < files.length; i += BATCH_SIZE) {
-      const batch = files.slice(i, i + BATCH_SIZE);
-      const refreshedBatch = await Promise.all(
-        batch.map(async (file) => {
-          try {
-            const stats = await fs.stat(file.path);
-            return {
-              ...file,
-              modifiedAt: stats.mtime.toISOString(),
-              mtimeMs: stats.mtimeMs
-            };
-          } catch {
-            // File may have been deleted/moved, return as-is
-            return file;
-          }
-        })
-      );
-      refreshedFiles.push(...refreshedBatch);
+      // Merge mtime data into file list
+      return files.map(file => {
+        const mtimeMs = recentMtimes.get(file.path);
+        if (mtimeMs !== undefined) {
+          return { ...file, mtimeMs };
+        }
+        return file;
+      });
+    } catch (error) {
+      logger.warn('Failed to merge recent mtimes:', error);
+      return files;
     }
-
-    return refreshedFiles;
   }
 
   /**
-   * Save updated mtimes back to cache (background operation)
+   * Refresh mtime for recent files and save back to cache
+   * Returns Map<path, mtimeMs> for the top 100 recently modified files
    */
-  private async saveMtimesToCache(directory: string, files: FileInfo[]): Promise<void> {
+  async refreshRecentMtimes(directory: string): Promise<Map<string, number> | null> {
     const cachePath = this.getCachePath(directory);
-    const filesPath = path.join(cachePath, 'files.jsonl');
+    const recentMtimesPath = path.join(cachePath, FileCacheManager.RECENT_MTIMES_FILE);
 
-    const entries = files.map(file => this.fileInfoToCacheEntry(file));
-    await this.writeJsonlFile(filesPath, entries);
-  }
+    try {
+      // Load existing recent files list
+      let recentPaths: string[];
+      try {
+        const content = await fs.readFile(recentMtimesPath, 'utf8');
+        const data = JSON.parse(content) as { files: Array<{ path: string }> };
+        recentPaths = data.files.map(f => f.path);
+      } catch {
+        // No recent files cache yet, return null
+        return null;
+      }
 
-  /**
-   * Enrich files with mtime using batch fs.stat calls
-   * Only fetches mtime for files that don't already have modifiedAt
-   */
-  private async enrichFilesWithMtime(files: FileInfo[]): Promise<FileInfo[]> {
-    // Use concurrent fs.stat calls with a reasonable batch size for performance
-    const BATCH_SIZE = 100;
-    const enrichedFiles: FileInfo[] = [];
+      // Refresh mtime for these files (only 100 fs.stat calls)
+      const mtimeMap = new Map<string, number>();
+      const refreshedFiles: Array<{ path: string; mtimeMs: number }> = [];
 
-    for (let i = 0; i < files.length; i += BATCH_SIZE) {
-      const batch = files.slice(i, i + BATCH_SIZE);
-      const enrichedBatch = await Promise.all(
-        batch.map(async (file) => {
-          // Skip if already has mtime info
-          if (file.modifiedAt || file.mtimeMs) {
-            return file;
-          }
-
+      await Promise.all(
+        recentPaths.map(async (filePath) => {
           try {
-            const stats = await fs.stat(file.path);
-            return {
-              ...file,
-              modifiedAt: stats.mtime.toISOString(),
-              mtimeMs: stats.mtimeMs
-            };
+            const stats = await fs.stat(filePath);
+            mtimeMap.set(filePath, stats.mtimeMs);
+            refreshedFiles.push({ path: filePath, mtimeMs: stats.mtimeMs });
           } catch {
-            // File may have been deleted/moved, return as-is
-            return file;
+            // File may have been deleted, skip it
           }
         })
       );
-      enrichedFiles.push(...enrichedBatch);
-    }
 
-    return enrichedFiles;
+      // Re-sort by mtime and save back (in case files were deleted or order changed)
+      refreshedFiles.sort((a, b) => b.mtimeMs - a.mtimeMs);
+      await fs.writeFile(
+        recentMtimesPath,
+        JSON.stringify({ files: refreshedFiles.slice(0, FileCacheManager.MAX_RECENT_FILES) }, null, 2),
+        { mode: 0o600 }
+      );
+
+      return mtimeMap;
+    } catch (error) {
+      logger.warn('Failed to refresh recent mtimes:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Build recent mtimes cache by scanning all files for mtime
+   * Called when saving cache (background operation)
+   */
+  async buildRecentMtimes(directory: string, files: FileInfo[]): Promise<void> {
+    const cachePath = this.getCachePath(directory);
+    const recentMtimesPath = path.join(cachePath, FileCacheManager.RECENT_MTIMES_FILE);
+
+    try {
+      // Get mtime for all files (batch fs.stat)
+      const filesWithMtime: Array<{ path: string; mtimeMs: number }> = [];
+      const BATCH_SIZE = 200;
+
+      for (let i = 0; i < files.length; i += BATCH_SIZE) {
+        const batch = files.slice(i, i + BATCH_SIZE);
+        const results = await Promise.all(
+          batch.map(async (file) => {
+            try {
+              const stats = await fs.stat(file.path);
+              return { path: file.path, mtimeMs: stats.mtimeMs };
+            } catch {
+              return null;
+            }
+          })
+        );
+        filesWithMtime.push(...results.filter((r): r is { path: string; mtimeMs: number } => r !== null));
+      }
+
+      // Sort by mtime descending and take top 100
+      filesWithMtime.sort((a, b) => b.mtimeMs - a.mtimeMs);
+      const recentFiles = filesWithMtime.slice(0, FileCacheManager.MAX_RECENT_FILES);
+
+      // Save to cache
+      await fs.writeFile(
+        recentMtimesPath,
+        JSON.stringify({ files: recentFiles }, null, 2),
+        { mode: 0o600 }
+      );
+
+      logger.debug(`Built recent mtimes cache: ${recentFiles.length} files for ${directory}`);
+    } catch (error) {
+      logger.warn('Failed to build recent mtimes:', error);
+    }
   }
 
   /**
@@ -205,9 +251,6 @@ class FileCacheManager {
       // Create cache directory with restrictive permissions (owner read/write/execute only)
       await fs.mkdir(cachePath, { recursive: true, mode: 0o700 });
 
-      // Enrich files with mtime for scoring
-      const enrichedFiles = await this.enrichFilesWithMtime(files);
-
       // Prepare metadata
       const now = new Date().toISOString();
       const metadata: FileCacheMetadata = {
@@ -215,7 +258,7 @@ class FileCacheManager {
         directory,
         createdAt: now,
         updatedAt: now,
-        fileCount: enrichedFiles.length,
+        fileCount: files.length,
         ttlSeconds: FileCacheManager.DEFAULT_TTL_SECONDS,
         searchMode: 'recursive',  // Always recursive (fd is required)
         ...(options?.gitignoreRespected !== undefined && {
@@ -226,9 +269,15 @@ class FileCacheManager {
       // Write metadata with restrictive file permissions (owner read/write only)
       await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), { mode: 0o600 });
 
-      // Convert files to cache entries and write JSONL
-      const entries = enrichedFiles.map(file => this.fileInfoToCacheEntry(file));
+      // Convert files to cache entries and write JSONL (without mtime - saves space)
+      const entries = files.map(file => this.fileInfoToCacheEntry(file));
       await this.writeJsonlFile(filesPath, entries);
+
+      // Build recent mtimes cache in background (top 100 recently modified files)
+      // This runs in background to not block the main cache save
+      this.buildRecentMtimes(directory, files).catch(err => {
+        logger.warn('Failed to build recent mtimes in background:', err);
+      });
 
       // Update global metadata
       await this.setLastUsedDirectory(directory);
