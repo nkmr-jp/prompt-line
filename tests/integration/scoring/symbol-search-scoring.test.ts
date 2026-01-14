@@ -73,9 +73,9 @@ describe('Symbol Search Scoring', () => {
       const recentBonus = calculateFileMtimeBonus(veryRecentMtime);
       const oldBonus = calculateFileMtimeBonus(oldMtime);
 
-      // Recent file should get max bonus
-      expect(recentBonus).toBe(USAGE_BONUS.MAX_FILE_MTIME);
-      expect(recentBonus).toBe(MAX_SYMBOL_MTIME_BONUS);
+      // Recent file should get high bonus (close to max due to continuous decay)
+      expect(recentBonus).toBeGreaterThanOrEqual(USAGE_BONUS.MAX_FILE_MTIME - 10);
+      expect(recentBonus).toBeLessThanOrEqual(MAX_SYMBOL_MTIME_BONUS);
 
       // Old file should get 0 bonus
       expect(oldBonus).toBe(0);

@@ -65,8 +65,8 @@ export function calculateUsageRecencyBonus(lastUsed: number): number {
 }
 
 /**
- * Calculate file modification time bonus using linear decay.
- * Within 24h -> 50, after 30 days -> 0
+ * Calculate file modification time bonus using continuous linear decay.
+ * 0 hours -> 500, linearly decays to 0 over 30 days
  *
  * @param mtimeMs - File modification timestamp (ms)
  * @returns Bonus score (0 to MAX_FILE_MTIME)
@@ -75,19 +75,19 @@ export function calculateFileMtimeBonus(mtimeMs: number): number {
   const now = Date.now();
   const age = now - mtimeMs;
 
-  // Within 24 hours: full bonus
-  if (age < ONE_DAY_MS) {
+  // Future timestamps get max bonus
+  if (age <= 0) {
     return USAGE_BONUS.MAX_FILE_MTIME;
   }
 
   const ttlMs = USAGE_BONUS.FILE_MTIME_TTL_DAYS * ONE_DAY_MS;
 
   // After TTL: no bonus
-  if (age > ttlMs) {
+  if (age >= ttlMs) {
     return 0;
   }
 
-  // Linear decay between 24h and TTL
-  const ratio = 1 - (age - ONE_DAY_MS) / (ttlMs - ONE_DAY_MS);
+  // Continuous linear decay from 0 to TTL
+  const ratio = 1 - (age / ttlMs);
   return Math.floor(ratio * USAGE_BONUS.MAX_FILE_MTIME);
 }

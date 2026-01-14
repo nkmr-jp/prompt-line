@@ -201,12 +201,15 @@ describe('usage-bonus-calculator', () => {
       jest.useRealTimers();
     });
 
-    test('should return 500 (max) for file modified within 24 hours', () => {
+    test('should return high bonus for file modified within 24 hours', () => {
       const now = Date.now();
       const oneHourAgo = now - (1 * 60 * 60 * 1000); // 1 hour ago
 
       const bonus = calculateFileMtimeBonus(oneHourAgo);
-      expect(bonus).toBe(500);
+      // Continuous decay: age = 1h = 3600000ms, ttl = 30 days = 2592000000ms
+      // ratio = 1 - (3600000 / 2592000000) ≈ 1 - 0.001388 ≈ 0.998611
+      // bonus = floor(0.998611 * 500) = floor(499.305) = 499
+      expect(bonus).toBe(499);
     });
 
     test('should return 500 (max) for file modified just now', () => {
@@ -216,26 +219,26 @@ describe('usage-bonus-calculator', () => {
       expect(bonus).toBe(500);
     });
 
-    test('should return < 500 for file modified exactly 24 hours ago', () => {
+    test('should return decayed bonus for file modified exactly 24 hours ago', () => {
       const now = Date.now();
       const oneDayAgo = now - (24 * 60 * 60 * 1000); // 24 hours ago
 
       const bonus = calculateFileMtimeBonus(oneDayAgo);
-      // At exactly 24h, linear decay starts
-      expect(bonus).toBeLessThanOrEqual(500);
+      // Continuous decay: age = 1 day = 86400000ms, ttl = 30 days = 2592000000ms
+      // ratio = 1 - (86400000 / 2592000000) ≈ 1 - 0.03333 ≈ 0.96667
+      // bonus = floor(0.96667 * 500) = floor(483.335) = 483
+      expect(bonus).toBe(483);
     });
 
-    test('should return 258 (middle) for file modified 15 days ago', () => {
+    test('should return 250 (middle) for file modified 15 days ago', () => {
       const now = Date.now();
       const fifteenDaysAgo = now - (15 * 24 * 60 * 60 * 1000); // 15 days ago
 
       const bonus = calculateFileMtimeBonus(fifteenDaysAgo);
-      // age = 15 days = 15 * ONE_DAY_MS
-      // ttl = 30 days = 30 * ONE_DAY_MS
-      // ratio = 1 - ((15 * ONE_DAY_MS - ONE_DAY_MS) / (30 * ONE_DAY_MS - ONE_DAY_MS))
-      // ratio = 1 - (14 / 29) ≈ 1 - 0.4827 ≈ 0.5172
-      // bonus = floor(0.5172 * 500) = floor(258.6) = 258
-      expect(bonus).toBe(258);
+      // Continuous decay: age = 15 days, ttl = 30 days
+      // ratio = 1 - (15 / 30) = 1 - 0.5 = 0.5
+      // bonus = floor(0.5 * 500) = floor(250) = 250
+      expect(bonus).toBe(250);
     });
 
     test('should return 0 for file modified exactly 30 days ago', () => {
@@ -295,15 +298,16 @@ describe('usage-bonus-calculator', () => {
     test('should handle timestamps at boundary conditions', () => {
       const now = Date.now();
       const almostOneDayAgo = now - (24 * 60 * 60 * 1000 - 1); // 23:59:59.999 ago
-      const justOverOneDayAgo = now - (24 * 60 * 60 * 1000 + 1); // 24:00:00.001 ago
+      const oneDayAndOneHourAgo = now - (25 * 60 * 60 * 1000); // 25 hours ago
       const almostThirtyDaysAgo = now - (30 * 24 * 60 * 60 * 1000 - 1000); // 29 days, 23:59:59 ago
 
       const bonusAlmost1d = calculateFileMtimeBonus(almostOneDayAgo);
-      const bonusJustOver1d = calculateFileMtimeBonus(justOverOneDayAgo);
+      const bonus25h = calculateFileMtimeBonus(oneDayAndOneHourAgo);
       const bonusAlmost30d = calculateFileMtimeBonus(almostThirtyDaysAgo);
 
-      expect(bonusAlmost1d).toBe(500); // Still within 24h
-      expect(bonusJustOver1d).toBeLessThan(500); // Just entered decay period
+      // Continuous decay: almostOneDayAgo ≈ 483
+      expect(bonusAlmost1d).toBe(483);
+      expect(bonus25h).toBeLessThan(bonusAlmost1d); // Measurably less due to continuous decay
       expect(bonusAlmost30d).toBeGreaterThanOrEqual(0); // At boundary, may round to 0
     });
   });
@@ -329,7 +333,10 @@ describe('usage-bonus-calculator', () => {
 
       expect(frequencyBonus).toBeGreaterThan(0);
       expect(recencyBonus).toBe(300); // Within 24h
-      expect(mtimeBonus).toBe(500); // Within 24h
+      // Continuous decay: age = 2h = 7200000ms, ttl = 30 days = 2592000000ms
+      // ratio = 1 - (7200000 / 2592000000) ≈ 1 - 0.002777 ≈ 0.997222
+      // bonus = floor(0.997222 * 500) = floor(498.611) = 498
+      expect(mtimeBonus).toBe(498);
 
       const totalBonus = frequencyBonus + recencyBonus + mtimeBonus;
       expect(totalBonus).toBeGreaterThan(800);
