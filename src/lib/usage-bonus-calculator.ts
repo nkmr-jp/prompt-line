@@ -11,13 +11,13 @@ const ONE_DAY_MS = 24 * 60 * 60 * 1000;
  */
 export const USAGE_BONUS = {
   // Usage history related
-  MAX_FREQUENCY: 1000,
-  MAX_USAGE_RECENCY: 500,
+  MAX_FREQUENCY: 200,
+  MAX_USAGE_RECENCY: 300,
   FREQUENCY_LOG_BASE: 10,
   USAGE_RECENCY_TTL_DAYS: 7,
 
   // File modification time related
-  MAX_FILE_MTIME: 2500,
+  MAX_FILE_MTIME: 500,
   FILE_MTIME_TTL_DAYS: 30,
 } as const;
 
