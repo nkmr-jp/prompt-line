@@ -142,21 +142,21 @@ describe('fuzzy-matcher usage bonus integration', () => {
       const scoreWithMtime = calculateMatchScore(fileWithMtime, queryLower);
       const scoreWithoutMtime = calculateMatchScore(fileWithoutMtime, queryLower);
 
-      // calculateFileMtimeBonus returns MAX_FILE_MTIME (500) for recent files
+      // calculateFileMtimeBonus returns MAX_FILE_MTIME (1000) for recent files
       // but fuzzy-matcher caps it at MAX_MTIME_BONUS (200)
       const MAX_MTIME_BONUS = 200;
       expect(scoreWithMtime).toBe(scoreWithoutMtime + MAX_MTIME_BONUS);
     });
 
-    test('should add reduced mtime bonus for file modified 15 days ago', () => {
+    test('should add reduced mtime bonus for file modified 3 days ago', () => {
       const now = Date.now();
-      const fifteenDaysAgo = now - (15 * 24 * 60 * 60 * 1000); // 15 days ago
+      const threeDaysAgo = now - (3 * 24 * 60 * 60 * 1000); // 3 days ago
 
       const fileWithMtime: FileInfo = {
         name: 'old',
         path: 'src/old',
         isDirectory: false,
-        mtimeMs: fifteenDaysAgo
+        mtimeMs: threeDaysAgo
       };
 
       const fileWithoutMtime: FileInfo = {
@@ -170,22 +170,25 @@ describe('fuzzy-matcher usage bonus integration', () => {
       const scoreWithMtime = calculateMatchScore(fileWithMtime, queryLower);
       const scoreWithoutMtime = calculateMatchScore(fileWithoutMtime, queryLower);
 
-      // Should include reduced mtime bonus (~25)
+      // Should include reduced mtime bonus
+      // At 3 days: phase 2, ageAfterFirstDay = 2 days, remainingTtl = 6 days
+      // ratio = 1 - (2/6) = 0.667, bonus = floor(0.667 * 500) = 333
+      // But capped at MAX_MTIME_BONUS (200)
       const mtimeBonus = scoreWithMtime - scoreWithoutMtime;
       expect(mtimeBonus).toBeGreaterThan(0);
       expect(mtimeBonus).toBeLessThan(USAGE_BONUS.MAX_FILE_MTIME);
-      expect(mtimeBonus).toBeGreaterThanOrEqual(20); // Around 25
+      expect(mtimeBonus).toBeGreaterThanOrEqual(100); // Should be around 200 (capped)
     });
 
-    test('should add no mtime bonus for file modified 30+ days ago', () => {
+    test('should add no mtime bonus for file modified 7+ days ago', () => {
       const now = Date.now();
-      const sixtyDaysAgo = now - (60 * 24 * 60 * 60 * 1000); // 60 days ago
+      const tenDaysAgo = now - (10 * 24 * 60 * 60 * 1000); // 10 days ago
 
       const fileWithOldMtime: FileInfo = {
         name: 'ancient',
         path: 'src/ancient',
         isDirectory: false,
-        mtimeMs: sixtyDaysAgo
+        mtimeMs: tenDaysAgo
       };
 
       const fileWithoutMtime: FileInfo = {

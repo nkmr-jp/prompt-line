@@ -17,8 +17,8 @@ export const USAGE_BONUS = {
   USAGE_RECENCY_TTL_DAYS: 7,
 
   // File modification time related
-  MAX_FILE_MTIME: 500,
-  FILE_MTIME_TTL_DAYS: 30,
+  MAX_FILE_MTIME: 1000,
+  FILE_MTIME_TTL_DAYS: 7,
 } as const;
 
 /**
@@ -65,8 +65,9 @@ export function calculateUsageRecencyBonus(lastUsed: number): number {
 }
 
 /**
- * Calculate file modification time bonus using continuous linear decay.
- * 0 hours -> 500, linearly decays to 0 over 30 days
+ * Calculate file modification time bonus using two-phase linear decay.
+ * Phase 1 (0-24h): 1000 → 500 (half at 24h)
+ * Phase 2 (24h-7d): 500 → 0 (0 at 7 days)
  *
  * @param mtimeMs - File modification timestamp (ms)
  * @returns Bonus score (0 to MAX_FILE_MTIME)
@@ -82,12 +83,25 @@ export function calculateFileMtimeBonus(mtimeMs: number): number {
 
   const ttlMs = USAGE_BONUS.FILE_MTIME_TTL_DAYS * ONE_DAY_MS;
 
-  // After TTL: no bonus
+  // After TTL (7 days): no bonus
   if (age >= ttlMs) {
     return 0;
   }
 
-  // Continuous linear decay from 0 to TTL
-  const ratio = 1 - (age / ttlMs);
-  return Math.floor(ratio * USAGE_BONUS.MAX_FILE_MTIME);
+  // Two-phase decay:
+  // Phase 1: 0-24h: 1000 → 500 (half at 24h)
+  // Phase 2: 24h-7d: 500 → 0
+  const halfBonus = USAGE_BONUS.MAX_FILE_MTIME / 2;
+
+  if (age < ONE_DAY_MS) {
+    // Phase 1: linear from max to half over 24h
+    const ratio = 1 - (age / ONE_DAY_MS) * 0.5;
+    return Math.floor(ratio * USAGE_BONUS.MAX_FILE_MTIME);
+  } else {
+    // Phase 2: linear from half to 0 over remaining days
+    const remainingTtl = ttlMs - ONE_DAY_MS;
+    const ageAfterFirstDay = age - ONE_DAY_MS;
+    const ratio = 1 - (ageAfterFirstDay / remainingTtl);
+    return Math.floor(ratio * halfBonus);
+  }
 }

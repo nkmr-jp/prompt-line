@@ -66,16 +66,18 @@ describe('Symbol Search Scoring', () => {
 
   describe('Mtime bonus for symbols', () => {
     test('mtime bonus is capped at MAX_SYMBOL_MTIME_BONUS (500)', () => {
-      // Test that calculateFileMtimeBonus is capped at USAGE_BONUS.MAX_FILE_MTIME (500)
+      // Test that calculateFileMtimeBonus returns up to USAGE_BONUS.MAX_FILE_MTIME (1000)
+      // but is capped at MAX_SYMBOL_MTIME_BONUS (500) when used in symbol scoring
       const veryRecentMtime = Date.now() - 1000; // Just now
       const oldMtime = Date.now() - 60 * 24 * 60 * 60 * 1000; // 60 days ago
 
       const recentBonus = calculateFileMtimeBonus(veryRecentMtime);
       const oldBonus = calculateFileMtimeBonus(oldMtime);
 
-      // Recent file should get high bonus (close to max due to continuous decay)
+      // Recent file should get high bonus (close to max 1000)
       expect(recentBonus).toBeGreaterThanOrEqual(USAGE_BONUS.MAX_FILE_MTIME - 10);
-      expect(recentBonus).toBeLessThanOrEqual(MAX_SYMBOL_MTIME_BONUS);
+      // The raw bonus can exceed MAX_SYMBOL_MTIME_BONUS, it's capped when used
+      expect(recentBonus).toBeLessThanOrEqual(USAGE_BONUS.MAX_FILE_MTIME);
 
       // Old file should get 0 bonus
       expect(oldBonus).toBe(0);
