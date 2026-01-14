@@ -1,11 +1,14 @@
 /**
  * Fuzzy matching utilities for File Search module
  * Optimized with caching for repeated string operations
+ * Uses FzfScorer for improved fuzzy matching accuracy
  */
 
 import type { FileInfo, AgentItem } from '../../types';
 import { FUZZY_MATCH_SCORES } from '../../constants';
 import { calculateFileMtimeBonus } from '../../lib/usage-bonus-calculator';
+import { FzfScorer } from '../../lib/fzf-scorer';
+export { compareTiebreak } from '../../lib/tiebreaker';
 
 /**
  * Cache for lowercase strings to avoid repeated toLowerCase() calls
@@ -43,6 +46,13 @@ class LowercaseCache {
 // Global lowercase cache instance
 const lowercaseCache = new LowercaseCache();
 
+// Global FzfScorer instance for improved fuzzy matching
+const fzfScorer = new FzfScorer({
+  caseSensitive: false,
+  enableCamelCase: true,
+  enableBoundaryBonus: true,
+});
+
 /**
  * Clear the lowercase cache
  * Call this when directory data changes or periodically to free memory
@@ -60,17 +70,11 @@ export function getLowercaseCacheSize(): number {
 
 /**
  * Simple fuzzy matching - checks if all pattern characters appear in text in order
+ * Uses FzfScorer for improved matching accuracy
  */
 export function fuzzyMatch(text: string, pattern: string): boolean {
-  let patternIdx = 0;
-
-  for (let i = 0; i < text.length && patternIdx < pattern.length; i++) {
-    if (text[i] === pattern[patternIdx]) {
-      patternIdx++;
-    }
-  }
-
-  return patternIdx === pattern.length;
+  const result = fzfScorer.score(text, pattern);
+  return result.matched;
 }
 
 /**
@@ -115,9 +119,12 @@ export function calculateMatchScore(file: FileInfo, queryLower: string, usageBon
   else if (pathLower.includes(queryLower)) {
     score += FUZZY_MATCH_SCORES.PATH_CONTAINS;
   }
-  // Fuzzy match on name
-  else if (fuzzyMatch(nameLower, queryLower)) {
-    score += FUZZY_MATCH_SCORES.BASE_FUZZY;
+  // Fuzzy match on name using FzfScorer
+  else {
+    const fzfResult = fzfScorer.score(nameLower, queryLower);
+    if (fzfResult.matched) {
+      score += FUZZY_MATCH_SCORES.BASE_FUZZY;
+    }
   }
 
   // Bonus for files (not directories)
@@ -149,6 +156,7 @@ export function calculateMatchScore(file: FileInfo, queryLower: string, usageBon
  * - Name starts with query: FUZZY_MATCH_SCORES.STARTS_WITH (500)
  * - Name contains query: FUZZY_MATCH_SCORES.CONTAINS (200)
  * - Description contains query: FUZZY_MATCH_SCORES.PATH_CONTAINS (50)
+ * - Fuzzy match on name: FUZZY_MATCH_SCORES.BASE_FUZZY (10)
  */
 export function calculateAgentMatchScore(
   agent: AgentItem,
@@ -177,6 +185,13 @@ export function calculateAgentMatchScore(
   // Description contains query
   else if (descLower.includes(queryLower)) {
     score += FUZZY_MATCH_SCORES.PATH_CONTAINS;
+  }
+  // Fuzzy match on name using FzfScorer
+  else {
+    const fzfResult = fzfScorer.score(nameLower, queryLower);
+    if (fzfResult.matched) {
+      score += FUZZY_MATCH_SCORES.BASE_FUZZY;
+    }
   }
 
   // Add usage history bonus

@@ -7,6 +7,15 @@
 import type { HistoryItem } from '../types';
 import type { HistorySearchConfig, SearchResult, FilterResult } from './types';
 import { DEFAULT_CONFIG, MATCH_SCORES, RECENCY_CONFIG } from './types';
+import { FzfScorer } from '../../lib/fzf-scorer';
+import { compareTiebreak } from '../../lib/tiebreaker';
+
+// FzfScorer instance for advanced fuzzy matching
+const fzfScorer = new FzfScorer({
+  caseSensitive: false,
+  enableCamelCase: true,
+  enableBoundaryBonus: true,
+});
 
 export class HistorySearchFilterEngine {
   private config: HistorySearchConfig;
@@ -54,9 +63,17 @@ export class HistorySearchFilterEngine {
     // Score and filter items from the search scope
     // Sort by score descending, then by timestamp descending (newest first) for same score
     const allMatches = searchItems
-      .map(item => this.scoreItem(item, queryNormalized))
+      .map((item, index) => ({ ...this.scoreItem(item, queryNormalized), originalIndex: index }))
       .filter(result => result.score > 0)
-      .sort((a, b) => b.score - a.score || b.item.timestamp - a.item.timestamp);
+      .sort((a, b) => {
+        const scoreDiff = b.score - a.score;
+        if (scoreDiff !== 0) return scoreDiff;
+
+        // Tiebreak: use original index (maintains newest-first order)
+        return compareTiebreak(a, b, { criteria: ['index'] }, {
+          index: (item) => item.originalIndex ?? 0,
+        });
+      });
 
     const displayItems = allMatches
       .slice(0, this.config.maxDisplayResults)
@@ -77,7 +94,7 @@ export class HistorySearchFilterEngine {
   }
 
   /**
-   * Score a single keyword against text
+   * Score a single keyword against text using fzf scoring
    * Returns 0 if no match
    */
   private scoreKeyword(
@@ -87,30 +104,22 @@ export class HistorySearchFilterEngine {
     const matchPositions: number[] = [];
     let score = 0;
 
-    // Exact match (highest priority)
+    // Exact match is highest priority (maintain existing behavior)
     if (textNormalized === keyword) {
-      score = MATCH_SCORES.EXACT_MATCH;
+      return { score: MATCH_SCORES.EXACT_MATCH, positions: [] };
     }
-    // Starts with keyword
-    else if (textNormalized.startsWith(keyword)) {
-      score = MATCH_SCORES.STARTS_WITH;
+
+    // Use fzf scoring for fuzzy matching
+    const fzfResult = fzfScorer.score(textNormalized, keyword);
+    if (!fzfResult.matched) {
+      return { score: 0, positions: [] };
     }
-    // Contains keyword
-    else if (textNormalized.includes(keyword)) {
-      score = MATCH_SCORES.CONTAINS;
-      const matchIndex = textNormalized.indexOf(keyword);
-      for (let i = 0; i < keyword.length; i++) {
-        matchPositions.push(matchIndex + i);
-      }
-    }
-    // Fuzzy match (if enabled)
-    else if (this.config.enableFuzzyMatch) {
-      const fuzzyResult = this.fuzzyMatch(textNormalized, keyword);
-      if (fuzzyResult.matched) {
-        score = MATCH_SCORES.FUZZY_MATCH;
-        matchPositions.push(...fuzzyResult.positions);
-      }
-    }
+
+    // Normalize fzf score to existing scale
+    // fzf scores are typically ~50-200, scale to 10-500 range
+    // This maintains compatibility with existing MATCH_SCORES
+    score = Math.min(500, Math.max(10, fzfResult.score * 2));
+    matchPositions.push(...fzfResult.positions);
 
     return { score, positions: matchPositions };
   }
@@ -265,9 +274,17 @@ export class HistorySearchFilterEngine {
 
     // Sort by score descending, then by timestamp descending (newest first) for same score
     const allMatches = searchItems
-      .map(item => this.scoreItem(item, queryNormalized))
+      .map((item, index) => ({ ...this.scoreItem(item, queryNormalized), originalIndex: index }))
       .filter(result => result.score > 0)
-      .sort((a, b) => b.score - a.score || b.item.timestamp - a.item.timestamp);
+      .sort((a, b) => {
+        const scoreDiff = b.score - a.score;
+        if (scoreDiff !== 0) return scoreDiff;
+
+        // Tiebreak: use original index (maintains newest-first order)
+        return compareTiebreak(a, b, { criteria: ['index'] }, {
+          index: (item) => item.originalIndex ?? 0,
+        });
+      });
 
     return {
       items: allMatches.slice(0, displayLimit).map(result => result.item),

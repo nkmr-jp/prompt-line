@@ -10,6 +10,8 @@ import { highlightMatch } from './utils/highlight-utils';
 import { electronAPI } from './services/electron-api';
 import { extractTriggerQueryAtCursor } from './utils/trigger-query-extractor';
 import { getCaretCoordinates, createMirrorDiv } from './mentions/dom-utils';
+import { FzfScorer } from '../lib/fzf-scorer';
+import { compareTiebreak } from '../lib/tiebreaker';
 
 interface SlashCommandItem {
   name: string;
@@ -44,6 +46,13 @@ export class SlashCommandManager implements IInitializable {
 
   // Frontmatter popup manager
   private frontmatterPopupManager: FrontmatterPopupManager;
+
+  // FZF scorer for improved matching
+  private fzfScorer = new FzfScorer({
+    caseSensitive: false,
+    enableCamelCase: true,
+    enableBoundaryBonus: true,
+  });
 
   constructor(callbacks: {
     onCommandSelect: (command: string) => void;
@@ -358,14 +367,31 @@ export class SlashCommandManager implements IInitializable {
    * Calculate match score for a command name
    * Higher score = better match
    */
-  private getMatchScore(name: string, query: string): number {
-    const lowerName = name.toLowerCase();
+  private getMatchScore(name: string, query: string, description?: string): number {
     const lowerQuery = query.toLowerCase();
+    const lowerName = name.toLowerCase();
 
-    if (lowerName === lowerQuery) return 1000; // Exact match
-    if (lowerName.startsWith(lowerQuery)) return 500; // Prefix match
-    if (lowerName.includes(lowerQuery)) return 200; // Contains match
-    return 50; // Description-only match
+    // 完全一致は最優先（既存動作維持）
+    if (lowerName === lowerQuery) return 1000;
+
+    // fzfスコアリング（名前）
+    const nameResult = this.fzfScorer.score(name, lowerQuery);
+    if (nameResult.matched) {
+      // 名前マッチは2倍重要、最大900点（完全一致より下）
+      return Math.min(900, nameResult.score * 2);
+    }
+
+    // fzfスコアリング（説明）
+    if (description) {
+      const descResult = this.fzfScorer.score(description, lowerQuery);
+      if (descResult.matched) {
+        // 説明マッチは最大400点
+        return Math.min(400, descResult.score);
+      }
+    }
+
+    // マッチしない場合
+    return 0;
   }
 
   /**
@@ -406,8 +432,8 @@ export class SlashCommandManager implements IInitializable {
 
     // Sort by total score (match score + usage bonus)
     this.filteredCommands.sort((a, b) => {
-      const aMatchScore = this.getMatchScore(a.name, lowerQuery);
-      const bMatchScore = this.getMatchScore(b.name, lowerQuery);
+      const aMatchScore = this.getMatchScore(a.name, lowerQuery, a.description);
+      const bMatchScore = this.getMatchScore(b.name, lowerQuery, b.description);
 
       const aBonus = usageBonuses[a.name] ?? 0;
       const bBonus = usageBonuses[b.name] ?? 0;
@@ -415,11 +441,14 @@ export class SlashCommandManager implements IInitializable {
       const aTotal = aMatchScore + aBonus;
       const bTotal = bMatchScore + bBonus;
 
-      // Sort by total score descending, then by name alphabetically
-      if (aTotal !== bTotal) {
-        return bTotal - aTotal;
-      }
-      return a.name.localeCompare(b.name);
+      // Sort by total score descending
+      const scoreDiff = bTotal - aTotal;
+      if (scoreDiff !== 0) return scoreDiff;
+
+      // Tiebreak: prefer shorter names, then alphabetical
+      return compareTiebreak(a, b, { criteria: ['length'] }, {
+        length: (item) => item.name.length,
+      }) || a.name.localeCompare(b.name);
     });
 
     this.isActive = true;
