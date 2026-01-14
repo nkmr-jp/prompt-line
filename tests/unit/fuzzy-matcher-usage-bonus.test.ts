@@ -142,8 +142,10 @@ describe('fuzzy-matcher usage bonus integration', () => {
       const scoreWithMtime = calculateMatchScore(fileWithMtime, queryLower);
       const scoreWithoutMtime = calculateMatchScore(fileWithoutMtime, queryLower);
 
-      // Should add mtime bonus (50)
-      expect(scoreWithMtime).toBe(scoreWithoutMtime + USAGE_BONUS.MAX_FILE_MTIME);
+      // calculateFileMtimeBonus returns MAX_FILE_MTIME (500) for recent files
+      // but fuzzy-matcher caps it at MAX_MTIME_BONUS (200)
+      const MAX_MTIME_BONUS = 200;
+      expect(scoreWithMtime).toBe(scoreWithoutMtime + MAX_MTIME_BONUS);
     });
 
     test('should add reduced mtime bonus for file modified 15 days ago', () => {
@@ -242,8 +244,10 @@ describe('fuzzy-matcher usage bonus integration', () => {
       const scoreWithBothBonuses = calculateMatchScore(fileWithMtime, queryLower, usageBonus);
       const scoreWithoutBonuses = calculateMatchScore(fileWithoutMtime, queryLower, 0);
 
-      // Should add both usage bonus (100) and mtime bonus (50)
-      expect(scoreWithBothBonuses).toBe(scoreWithoutBonuses + usageBonus + USAGE_BONUS.MAX_FILE_MTIME);
+      // Should add both usage bonus (100) and capped mtime bonus (200, not 500)
+      // calculateFileMtimeBonus returns up to 500, but fuzzy-matcher caps it at MAX_MTIME_BONUS (200)
+      const MAX_MTIME_BONUS = 200;
+      expect(scoreWithBothBonuses).toBe(scoreWithoutBonuses + usageBonus + MAX_MTIME_BONUS);
     });
 
     test('should combine usageBonus with reduced mtimeMs bonus', () => {
@@ -263,9 +267,11 @@ describe('fuzzy-matcher usage bonus integration', () => {
       const scoreWithoutUsageBonus = calculateMatchScore(file, queryLower, 0);
 
       // Should add usage bonus (75) + some reduced mtime bonus
+      // The mtime bonus is capped at MAX_MTIME_BONUS (200), not USAGE_BONUS.MAX_FILE_MTIME (500)
+      const MAX_MTIME_BONUS = 200;
       const difference = scoreWithBonuses - scoreWithoutUsageBonus;
       expect(difference).toBeGreaterThanOrEqual(usageBonus);
-      expect(difference).toBeLessThan(usageBonus + USAGE_BONUS.MAX_FILE_MTIME);
+      expect(difference).toBeLessThan(usageBonus + MAX_MTIME_BONUS);
     });
   });
 
@@ -597,8 +603,10 @@ describe('fuzzy-matcher usage bonus integration', () => {
       const scoreWithFutureMtime = calculateMatchScore(fileWithFutureMtime, queryLower);
       const scoreWithoutMtime = calculateMatchScore(fileWithoutMtime, queryLower);
 
-      // Should give max mtime bonus for future times (negative age)
-      expect(scoreWithFutureMtime).toBe(scoreWithoutMtime + USAGE_BONUS.MAX_FILE_MTIME);
+      // calculateFileMtimeBonus returns MAX_FILE_MTIME (500) for future times
+      // but fuzzy-matcher caps it at MAX_MTIME_BONUS (200)
+      const MAX_MTIME_BONUS = 200;
+      expect(scoreWithFutureMtime).toBe(scoreWithoutMtime + MAX_MTIME_BONUS);
     });
   });
 });
