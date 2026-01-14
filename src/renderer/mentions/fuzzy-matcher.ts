@@ -10,6 +10,9 @@ import { calculateFileMtimeBonus } from '../../lib/usage-bonus-calculator';
 import { FzfScorer } from '../../lib/fzf-scorer';
 export { compareTiebreak } from '../../lib/tiebreaker';
 
+/** Maximum mtime bonus to prevent recency from dominating the score */
+const MAX_MTIME_BONUS = 200;
+
 /**
  * Cache for lowercase strings to avoid repeated toLowerCase() calls
  */
@@ -140,7 +143,7 @@ export function calculateMatchScore(file: FileInfo, queryLower: string, usageBon
 
   // Add file modification time bonus if mtimeMs is available
   if (file.mtimeMs !== undefined) {
-    score += calculateFileMtimeBonus(file.mtimeMs);
+    score += Math.min(calculateFileMtimeBonus(file.mtimeMs), MAX_MTIME_BONUS);
   }
 
   return score;
