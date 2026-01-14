@@ -184,9 +184,9 @@ export class HistorySearchFilterEngine {
 
   /**
    * Calculate recency bonus based on timestamp
-   * More recent items get higher bonus (0-1000 points)
+   * More recent items get higher bonus (0-3500 points)
    * Linear decay from now to TTL_DAYS (no 24h plateau)
-   * TTL is configurable via RECENCY_CONFIG.TTL_DAYS (default: 7 days)
+   * TTL is configurable via RECENCY_CONFIG.TTL_DAYS (default: 30 days)
    */
   private calculateRecencyBonus(timestamp: number): number {
     const now = Date.now();

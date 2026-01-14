@@ -91,8 +91,8 @@ export const MATCH_SCORES = {
   CONTAINS: 200,
   /** Fuzzy match bonus */
   FUZZY_MATCH: 10,
-  /** Maximum recency bonus (0-1000 based on timestamp) */
-  MAX_RECENCY_BONUS: 1000
+  /** Maximum recency bonus (0-3500 based on timestamp) */
+  MAX_RECENCY_BONUS: 3500
 } as const;
 
 /**
@@ -100,7 +100,7 @@ export const MATCH_SCORES = {
  */
 export const RECENCY_CONFIG = {
   /** Time-to-live in days for recency bonus (after this, bonus becomes 0) */
-  TTL_DAYS: 7
+  TTL_DAYS: 30
 } as const;
 
 // Re-export HistoryItem for convenience
