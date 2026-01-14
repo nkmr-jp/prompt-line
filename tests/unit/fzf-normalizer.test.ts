@@ -194,7 +194,7 @@ describe('fzf-normalizer', () => {
       const results = scores.map(score => normalizeFzfScore(score, maxScore));
 
       for (let i = 1; i < results.length; i++) {
-        expect(results[i]).toBeGreaterThan(results[i - 1]);
+        expect(results[i]).toBeGreaterThan(results[i - 1] as number);
       }
     });
 
