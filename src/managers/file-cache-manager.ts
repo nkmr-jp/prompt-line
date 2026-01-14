@@ -93,6 +93,43 @@ class FileCacheManager {
   }
 
   /**
+   * Enrich files with mtime using batch fs.stat calls
+   * Only fetches mtime for files that don't already have modifiedAt
+   */
+  private async enrichFilesWithMtime(files: FileInfo[]): Promise<FileInfo[]> {
+    // Use concurrent fs.stat calls with a reasonable batch size for performance
+    const BATCH_SIZE = 100;
+    const enrichedFiles: FileInfo[] = [];
+
+    for (let i = 0; i < files.length; i += BATCH_SIZE) {
+      const batch = files.slice(i, i + BATCH_SIZE);
+      const enrichedBatch = await Promise.all(
+        batch.map(async (file) => {
+          // Skip if already has mtime info
+          if (file.modifiedAt || file.mtimeMs) {
+            return file;
+          }
+
+          try {
+            const stats = await fs.stat(file.path);
+            return {
+              ...file,
+              modifiedAt: stats.mtime.toISOString(),
+              mtimeMs: stats.mtimeMs
+            };
+          } catch {
+            // File may have been deleted/moved, return as-is
+            return file;
+          }
+        })
+      );
+      enrichedFiles.push(...enrichedBatch);
+    }
+
+    return enrichedFiles;
+  }
+
+  /**
    * Save cache for a directory (background operation)
    * This should be called asynchronously after file search completes
    */
@@ -112,6 +149,9 @@ class FileCacheManager {
       // Create cache directory with restrictive permissions (owner read/write/execute only)
       await fs.mkdir(cachePath, { recursive: true, mode: 0o700 });
 
+      // Enrich files with mtime for scoring
+      const enrichedFiles = await this.enrichFilesWithMtime(files);
+
       // Prepare metadata
       const now = new Date().toISOString();
       const metadata: FileCacheMetadata = {
@@ -119,7 +159,7 @@ class FileCacheManager {
         directory,
         createdAt: now,
         updatedAt: now,
-        fileCount: files.length,
+        fileCount: enrichedFiles.length,
         ttlSeconds: FileCacheManager.DEFAULT_TTL_SECONDS,
         searchMode: 'recursive',  // Always recursive (fd is required)
         ...(options?.gitignoreRespected !== undefined && {
@@ -131,7 +171,7 @@ class FileCacheManager {
       await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), { mode: 0o600 });
 
       // Convert files to cache entries and write JSONL
-      const entries = files.map(file => this.fileInfoToCacheEntry(file));
+      const entries = enrichedFiles.map(file => this.fileInfoToCacheEntry(file));
       await this.writeJsonlFile(filesPath, entries);
 
       // Update global metadata
@@ -423,7 +463,10 @@ class FileCacheManager {
       entry.size = file.size;
     }
 
-    if (file.modifiedAt) {
+    // Prefer mtimeMs (number) over modifiedAt (string) to avoid parsing
+    if (file.mtimeMs !== undefined) {
+      entry.mtime = file.mtimeMs;
+    } else if (file.modifiedAt) {
       entry.mtime = new Date(file.modifiedAt).getTime();
     }
 
@@ -446,6 +489,7 @@ class FileCacheManager {
 
     if (entry.mtime !== undefined) {
       fileInfo.modifiedAt = new Date(entry.mtime).toISOString();
+      fileInfo.mtimeMs = entry.mtime;
     }
 
     return fileInfo;
