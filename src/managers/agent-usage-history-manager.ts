@@ -1,6 +1,5 @@
 import path from 'path';
 import { UsageHistoryManager } from './usage-history-manager';
-import appConfig from '../config/app-config';
 
 /**
  * Agent Usage History Manager
@@ -8,9 +7,18 @@ import appConfig from '../config/app-config';
  */
 class AgentUsageHistoryManager extends UsageHistoryManager {
   private static instance: AgentUsageHistoryManager | null = null;
+  private static _filePath: string | null = null;
 
-  private constructor() {
-    const filePath = path.join(appConfig.paths.projectsCacheDir, 'agent-usage-history.jsonl');
+  private static get filePath(): string {
+    if (!AgentUsageHistoryManager._filePath) {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const appConfig = require('../config/app-config').default;
+      AgentUsageHistoryManager._filePath = path.join(appConfig.paths.projectsCacheDir, 'agent-usage-history.jsonl');
+    }
+    return AgentUsageHistoryManager._filePath;
+  }
+
+  private constructor(filePath: string) {
     super(filePath, {
       maxEntries: 100,
       ttlDays: 30,
@@ -19,7 +27,7 @@ class AgentUsageHistoryManager extends UsageHistoryManager {
 
   static getInstance(): AgentUsageHistoryManager {
     if (!AgentUsageHistoryManager.instance) {
-      AgentUsageHistoryManager.instance = new AgentUsageHistoryManager();
+      AgentUsageHistoryManager.instance = new AgentUsageHistoryManager(AgentUsageHistoryManager.filePath);
     }
     return AgentUsageHistoryManager.instance;
   }
@@ -39,5 +47,13 @@ class AgentUsageHistoryManager extends UsageHistoryManager {
   }
 }
 
-export const agentUsageHistoryManager = AgentUsageHistoryManager.getInstance();
+// Lazy singleton - only instantiated when first accessed
+let _agentUsageHistoryManager: AgentUsageHistoryManager | null = null;
+export function getAgentUsageHistoryManager(): AgentUsageHistoryManager {
+  if (!_agentUsageHistoryManager) {
+    _agentUsageHistoryManager = AgentUsageHistoryManager.getInstance();
+  }
+  return _agentUsageHistoryManager;
+}
+
 export { AgentUsageHistoryManager };

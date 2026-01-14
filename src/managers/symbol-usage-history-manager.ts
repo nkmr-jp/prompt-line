@@ -1,6 +1,5 @@
 import path from 'path';
 import { UsageHistoryManager } from './usage-history-manager';
-import config from '../config/app-config';
 
 /**
  * Symbol Usage History Manager
@@ -8,9 +7,18 @@ import config from '../config/app-config';
  */
 class SymbolUsageHistoryManager extends UsageHistoryManager {
   private static instance: SymbolUsageHistoryManager | null = null;
+  private static _filePath: string | null = null;
 
-  private constructor() {
-    const filePath = path.join(config.paths.projectsCacheDir, 'symbol-usage-history.jsonl');
+  private static get filePath(): string {
+    if (!SymbolUsageHistoryManager._filePath) {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const config = require('../config/app-config').default;
+      SymbolUsageHistoryManager._filePath = path.join(config.paths.projectsCacheDir, 'symbol-usage-history.jsonl');
+    }
+    return SymbolUsageHistoryManager._filePath;
+  }
+
+  private constructor(filePath: string) {
     super(filePath, {
       maxEntries: 500,
       ttlDays: 30,
@@ -19,7 +27,7 @@ class SymbolUsageHistoryManager extends UsageHistoryManager {
 
   static getInstance(): SymbolUsageHistoryManager {
     if (!SymbolUsageHistoryManager.instance) {
-      SymbolUsageHistoryManager.instance = new SymbolUsageHistoryManager();
+      SymbolUsageHistoryManager.instance = new SymbolUsageHistoryManager(SymbolUsageHistoryManager.filePath);
     }
     return SymbolUsageHistoryManager.instance;
   }
@@ -49,5 +57,13 @@ class SymbolUsageHistoryManager extends UsageHistoryManager {
   }
 }
 
-export const symbolUsageHistoryManager = SymbolUsageHistoryManager.getInstance();
+// Lazy singleton - only instantiated when first accessed
+let _symbolUsageHistoryManager: SymbolUsageHistoryManager | null = null;
+export function getSymbolUsageHistoryManager(): SymbolUsageHistoryManager {
+  if (!_symbolUsageHistoryManager) {
+    _symbolUsageHistoryManager = SymbolUsageHistoryManager.getInstance();
+  }
+  return _symbolUsageHistoryManager;
+}
+
 export { SymbolUsageHistoryManager };

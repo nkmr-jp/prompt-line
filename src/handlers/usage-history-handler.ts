@@ -1,8 +1,8 @@
 import { IpcMainInvokeEvent } from 'electron';
 import { logger } from '../utils/utils';
-import { fileUsageHistoryManager } from '../managers/file-usage-history-manager';
-import { symbolUsageHistoryManager } from '../managers/symbol-usage-history-manager';
-import { agentUsageHistoryManager } from '../managers/agent-usage-history-manager';
+import { getFileUsageHistoryManager } from '../managers/file-usage-history-manager';
+import { getSymbolUsageHistoryManager } from '../managers/symbol-usage-history-manager';
+import { getAgentUsageHistoryManager } from '../managers/agent-usage-history-manager';
 
 /**
  * UsageHistoryHandler manages all IPC handlers for usage history tracking.
@@ -58,7 +58,7 @@ class UsageHistoryHandler {
     filePath: string
   ): Promise<{ success: boolean; error?: string }> {
     try {
-      await fileUsageHistoryManager.recordFileUsage(filePath);
+      await getFileUsageHistoryManager().recordFileUsage(filePath);
       return { success: true };
     } catch (error) {
       logger.error('Failed to record file usage', { error, filePath });
@@ -73,7 +73,7 @@ class UsageHistoryHandler {
     const bonuses: Record<string, number> = {};
 
     for (const filePath of filePaths) {
-      bonuses[filePath] = fileUsageHistoryManager.calculateFileBonus(filePath);
+      bonuses[filePath] = getFileUsageHistoryManager().calculateFileBonus(filePath);
     }
 
     return bonuses;
@@ -89,7 +89,7 @@ class UsageHistoryHandler {
     symbolName: string
   ): Promise<{ success: boolean; error?: string }> {
     try {
-      await symbolUsageHistoryManager.recordSymbolUsage(filePath, symbolName);
+      await getSymbolUsageHistoryManager().recordSymbolUsage(filePath, symbolName);
       return { success: true };
     } catch (error) {
       logger.error('Failed to record symbol usage', { error, filePath, symbolName });
@@ -102,10 +102,11 @@ class UsageHistoryHandler {
     symbols: Array<{ filePath: string; symbolName: string }>
   ): Promise<Record<string, number>> {
     const bonuses: Record<string, number> = {};
+    const manager = getSymbolUsageHistoryManager();
 
     for (const { filePath, symbolName } of symbols) {
-      const key = symbolUsageHistoryManager.createSymbolKey(filePath, symbolName);
-      bonuses[key] = symbolUsageHistoryManager.calculateSymbolBonus(filePath, symbolName);
+      const key = manager.createSymbolKey(filePath, symbolName);
+      bonuses[key] = manager.calculateSymbolBonus(filePath, symbolName);
     }
 
     return bonuses;
@@ -120,7 +121,7 @@ class UsageHistoryHandler {
     agentName: string
   ): Promise<{ success: boolean; error?: string }> {
     try {
-      await agentUsageHistoryManager.recordAgentUsage(agentName);
+      await getAgentUsageHistoryManager().recordAgentUsage(agentName);
       return { success: true };
     } catch (error) {
       logger.error('Failed to record agent usage', { error, agentName });
@@ -135,7 +136,7 @@ class UsageHistoryHandler {
     const bonuses: Record<string, number> = {};
 
     for (const agentName of agentNames) {
-      bonuses[agentName] = agentUsageHistoryManager.calculateAgentBonus(agentName);
+      bonuses[agentName] = getAgentUsageHistoryManager().calculateAgentBonus(agentName);
     }
 
     return bonuses;

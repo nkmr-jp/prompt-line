@@ -7,11 +7,18 @@ import { UsageHistoryManager } from './usage-history-manager';
  */
 class FileUsageHistoryManager extends UsageHistoryManager {
   private static instance: FileUsageHistoryManager | null = null;
+  private static _filePath: string | null = null;
 
-  private constructor() {
-    // Lazy initialization - get config when first used
-    const config = require('../config/app-config').default;
-    const filePath = path.join(config.paths.projectsCacheDir, 'file-usage-history.jsonl');
+  private static get filePath(): string {
+    if (!FileUsageHistoryManager._filePath) {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const config = require('../config/app-config').default;
+      FileUsageHistoryManager._filePath = path.join(config.paths.projectsCacheDir, 'file-usage-history.jsonl');
+    }
+    return FileUsageHistoryManager._filePath;
+  }
+
+  private constructor(filePath: string) {
     super(filePath, {
       maxEntries: 500,
       ttlDays: 30,
@@ -20,7 +27,7 @@ class FileUsageHistoryManager extends UsageHistoryManager {
 
   static getInstance(): FileUsageHistoryManager {
     if (!FileUsageHistoryManager.instance) {
-      FileUsageHistoryManager.instance = new FileUsageHistoryManager();
+      FileUsageHistoryManager.instance = new FileUsageHistoryManager(FileUsageHistoryManager.filePath);
     }
     return FileUsageHistoryManager.instance;
   }
@@ -50,5 +57,13 @@ class FileUsageHistoryManager extends UsageHistoryManager {
   }
 }
 
-export const fileUsageHistoryManager = FileUsageHistoryManager.getInstance();
+// Lazy singleton - only instantiated when first accessed
+let _fileUsageHistoryManager: FileUsageHistoryManager | null = null;
+export function getFileUsageHistoryManager(): FileUsageHistoryManager {
+  if (!_fileUsageHistoryManager) {
+    _fileUsageHistoryManager = FileUsageHistoryManager.getInstance();
+  }
+  return _fileUsageHistoryManager;
+}
+
 export { FileUsageHistoryManager };
