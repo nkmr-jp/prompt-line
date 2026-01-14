@@ -464,6 +464,12 @@ export class NavigationManager {
    * @param agent - Agent item to select
    */
   public selectAgentByInfo(agent: AgentItem): void {
+    // Record agent usage for bonus calculation
+    if (electronAPI?.usageHistory?.recordAgentUsage) {
+      electronAPI.usageHistory.recordAgentUsage(agent.name)
+        .catch((error) => console.warn('[NavigationManager] Failed to record agent usage:', error));
+    }
+
     // Determine what to insert based on agent's inputFormat setting
     // Default to 'name' for agents (backward compatible behavior)
     const inputFormat = agent.inputFormat ?? 'name';

@@ -184,7 +184,7 @@ export class HistorySearchFilterEngine {
 
   /**
    * Calculate recency bonus based on timestamp
-   * More recent items get higher bonus (0-400 points)
+   * More recent items get higher bonus (0-600 points)
    * TTL is configurable via RECENCY_CONFIG.TTL_DAYS (default: 30 days)
    */
   private calculateRecencyBonus(timestamp: number): number {

@@ -66,8 +66,9 @@ export interface MentionInitializerCallbacks {
   removeAtQueryText: () => void;
   expandCurrentFile: () => void;
   updateTextInputWithPath: (path: string) => void;
-  filterFiles: (query: string) => FileInfo[];
-  mergeSuggestions: (query: string, maxSuggestions?: number) => SuggestionItem[];
+  filterFiles: (query: string, usageBonuses?: Record<string, number>) => FileInfo[];
+  mergeSuggestions: (query: string, maxSuggestions?: number, usageBonuses?: Record<string, number>) => SuggestionItem[];
+  getFileUsageBonuses?: () => Promise<Record<string, number>>;
   showSuggestions: (query: string) => void;
   _selectSymbol: (symbol: SymbolResult) => void;
   refreshSuggestions: () => void;
@@ -316,8 +317,9 @@ export class MentionInitializer {
         getCachedDirectoryData: () => null, // Will be set after directoryCacheManager is initialized
         getAtStartPosition: () => this.deps.state.atStartPosition,
         adjustCurrentPathToQuery: (query: string) => this.callbacks.adjustCurrentPathToQuery(query),
-        filterFiles: (query: string) => this.callbacks.filterFiles(query),
-        mergeSuggestions: (query: string, maxSuggestions?: number) => this.callbacks.mergeSuggestions(query, maxSuggestions),
+        filterFiles: (query: string, usageBonuses?: Record<string, number>) => this.callbacks.filterFiles(query, usageBonuses),
+        mergeSuggestions: (query: string, maxSuggestions?: number, usageBonuses?: Record<string, number>) => this.callbacks.mergeSuggestions(query, maxSuggestions, usageBonuses),
+        getFileUsageBonuses: async () => await this.callbacks.getFileUsageBonuses?.() ?? {},
         searchAgents: async (query: string) => this.callbacks.searchAgents(query),
         isIndexBeingBuilt: () => this.callbacks.isIndexBeingBuilt(),
         showIndexingHint: () => this.callbacks.showIndexingHint(),
