@@ -69,8 +69,11 @@ export class SlashCommandCacheManager {
 
       if (existingIndex >= 0) {
         // Update existing entry: increment count and update lastUsed
-        entries[existingIndex].count++;
-        entries[existingIndex].lastUsed = Date.now();
+        const existingEntry = entries[existingIndex];
+        if (existingEntry) {
+          existingEntry.count++;
+          existingEntry.lastUsed = Date.now();
+        }
       } else {
         // Create new entry
         const now = Date.now();
