@@ -86,7 +86,7 @@ export const MATCH_SCORES = {
   /** Exact match bonus */
   EXACT_MATCH: 1000,
   /** Text starts with query bonus */
-  STARTS_WITH: 500,
+  STARTS_WITH: 300,
   /** Text contains query bonus */
   CONTAINS: 200,
   /** Fuzzy match bonus */
