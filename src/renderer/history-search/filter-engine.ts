@@ -6,7 +6,7 @@
 
 import type { HistoryItem } from '../types';
 import type { HistorySearchConfig, SearchResult, FilterResult } from './types';
-import { DEFAULT_CONFIG, MATCH_SCORES } from './types';
+import { DEFAULT_CONFIG, MATCH_SCORES, RECENCY_CONFIG } from './types';
 
 export class HistorySearchFilterEngine {
   private config: HistorySearchConfig;
@@ -184,7 +184,8 @@ export class HistorySearchFilterEngine {
 
   /**
    * Calculate recency bonus based on timestamp
-   * More recent items get higher bonus (0-50 points)
+   * More recent items get higher bonus (0-200 points)
+   * TTL is configurable via RECENCY_CONFIG.TTL_DAYS (default: 30 days)
    */
   private calculateRecencyBonus(timestamp: number): number {
     const now = Date.now();
@@ -196,14 +197,16 @@ export class HistorySearchFilterEngine {
       return MATCH_SCORES.MAX_RECENCY_BONUS;
     }
 
-    // Decay over 7 days
-    const sevenDays = 7 * oneDay;
-    if (age > sevenDays) {
+    // Calculate TTL from config
+    const ttlMs = RECENCY_CONFIG.TTL_DAYS * oneDay;
+
+    // Items older than TTL get no bonus
+    if (age > ttlMs) {
       return 0;
     }
 
-    // Linear decay from MAX_RECENCY_BONUS to 0 over 7 days
-    const ratio = 1 - (age - oneDay) / (sevenDays - oneDay);
+    // Linear decay from MAX_RECENCY_BONUS to 0 over TTL period
+    const ratio = 1 - (age - oneDay) / (ttlMs - oneDay);
     return Math.floor(ratio * MATCH_SCORES.MAX_RECENCY_BONUS);
   }
 

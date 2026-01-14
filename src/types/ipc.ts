@@ -266,4 +266,12 @@ export interface ElectronAPI {
     registerGlobal: (atPath: string) => Promise<IPCResult>;
     getGlobalPaths: () => Promise<string[]>;
   };
+  usageHistory: {
+    recordFileUsage: (filePath: string) => Promise<IPCResult>;
+    getFileUsageBonuses: (filePaths: string[]) => Promise<Record<string, number>>;
+    recordSymbolUsage: (filePath: string, symbolName: string) => Promise<IPCResult>;
+    getSymbolUsageBonuses: (symbols: Array<{ filePath: string; symbolName: string }>) => Promise<Record<string, number>>;
+    recordAgentUsage: (agentName: string) => Promise<IPCResult>;
+    getAgentUsageBonuses: (agentNames: string[]) => Promise<Record<string, number>>;
+  };
 }
