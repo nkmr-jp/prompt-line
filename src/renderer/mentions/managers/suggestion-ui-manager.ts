@@ -42,6 +42,7 @@ export interface SuggestionUICallbacks {
   getCurrentQuery?: () => string;
   getCodeSearchQuery?: () => string;
   countFilesInDirectory?: (path: string) => number;
+  getFileUsageBonuses?: () => Promise<Record<string, number>>;
 
   // Popup interactions
   onMouseEnterInfo?: (suggestion: SuggestionItem, target: HTMLElement) => void | Promise<void>;
@@ -51,8 +52,8 @@ export interface SuggestionUICallbacks {
   getCachedDirectoryData?: () => DirectoryData | null;
   getAtStartPosition?: () => number;
   adjustCurrentPathToQuery?: (query: string) => void;
-  filterFiles?: (query: string) => FileInfo[];
-  mergeSuggestions?: (query: string, maxSuggestions?: number) => SuggestionItem[];
+  filterFiles?: (query: string, usageBonuses?: Record<string, number>) => FileInfo[];
+  mergeSuggestions?: (query: string, maxSuggestions?: number, usageBonuses?: Record<string, number>) => SuggestionItem[];
   searchAgents?: (query: string) => Promise<AgentItem[]>;
   isIndexBeingBuilt?: () => boolean;
   showIndexingHint?: () => void;
@@ -263,11 +264,14 @@ export class SuggestionUIManager {
     // Check if index is being built
     const isIndexBuilding = this.callbacks.isIndexBeingBuilt?.() ?? false;
 
+    // Fetch file usage bonuses before filtering
+    const fileUsageBonuses = await this.callbacks.getFileUsageBonuses?.() ?? {};
+
     // Filter files if directory data is available
     if (matchesPrefix) {
       this.callbacks.setFilteredFiles?.([]);
     } else if (this.callbacks.getCachedDirectoryData() && this.callbacks.filterFiles) {
-      const filtered = this.callbacks.filterFiles(searchTerm);
+      const filtered = this.callbacks.filterFiles(searchTerm, fileUsageBonuses);
       this.callbacks.setFilteredFiles?.(filtered);
     } else {
       this.callbacks.setFilteredFiles?.([]);
@@ -277,7 +281,7 @@ export class SuggestionUIManager {
     const maxSuggestions = await this.callbacks.getMaxSuggestions?.('mention') ?? 20;
 
     // Merge files and agents into a single sorted list
-    const merged = this.callbacks.mergeSuggestions?.(searchTerm, maxSuggestions) ?? [];
+    const merged = this.callbacks.mergeSuggestions?.(searchTerm, maxSuggestions, fileUsageBonuses) ?? [];
     this.callbacks.setMergedSuggestions?.(merged);
 
     this.callbacks.setSelectedIndex?.(0);

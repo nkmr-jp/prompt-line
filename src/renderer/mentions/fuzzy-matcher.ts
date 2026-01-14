@@ -5,6 +5,7 @@
 
 import type { FileInfo, AgentItem } from '../../types';
 import { FUZZY_MATCH_SCORES } from '../../constants';
+import { calculateFileMtimeBonus } from '../../lib/usage-bonus-calculator';
 
 /**
  * Cache for lowercase strings to avoid repeated toLowerCase() calls
@@ -84,8 +85,15 @@ export function fuzzyMatch(text: string, pattern: string): boolean {
  * - Fuzzy match on name: FUZZY_MATCH_SCORES.BASE_FUZZY (10)
  * - Bonus for files (not directories): FUZZY_MATCH_SCORES.FILE_BONUS (5)
  * - Bonus for shorter paths: up to FUZZY_MATCH_SCORES.MAX_PATH_BONUS (20)
+ * - Usage history bonus: 0-150 (optional parameter)
+ * - File modification time bonus: 0-50 (if mtimeMs available)
+ *
+ * @param file - File to score
+ * @param queryLower - Lowercased search query
+ * @param usageBonus - Optional usage history bonus (0-150)
+ * @returns Total score including bonuses
  */
-export function calculateMatchScore(file: FileInfo, queryLower: string): number {
+export function calculateMatchScore(file: FileInfo, queryLower: string, usageBonus: number = 0): number {
   const nameLower = lowercaseCache.get(file.name);
   const pathLower = lowercaseCache.get(file.path);
 
@@ -120,6 +128,14 @@ export function calculateMatchScore(file: FileInfo, queryLower: string): number 
   // Bonus for shorter paths
   score += Math.max(0, FUZZY_MATCH_SCORES.MAX_PATH_BONUS - pathLower.split('/').length);
 
+  // Add usage history bonus
+  score += usageBonus;
+
+  // Add file modification time bonus if mtimeMs is available
+  if (file.mtimeMs !== undefined) {
+    score += calculateFileMtimeBonus(file.mtimeMs);
+  }
+
   return score;
 }
 
@@ -134,7 +150,11 @@ export function calculateMatchScore(file: FileInfo, queryLower: string): number 
  * - Name contains query: FUZZY_MATCH_SCORES.CONTAINS (200)
  * - Description contains query: FUZZY_MATCH_SCORES.PATH_CONTAINS (50)
  */
-export function calculateAgentMatchScore(agent: AgentItem, queryLower: string): number {
+export function calculateAgentMatchScore(
+  agent: AgentItem,
+  queryLower: string,
+  usageBonus: number = 0
+): number {
   if (!queryLower) return FUZZY_MATCH_SCORES.AGENT_BASE; // Base score for no query
 
   const nameLower = lowercaseCache.get(agent.name);
@@ -158,6 +178,9 @@ export function calculateAgentMatchScore(agent: AgentItem, queryLower: string): 
   else if (descLower.includes(queryLower)) {
     score += FUZZY_MATCH_SCORES.PATH_CONTAINS;
   }
+
+  // Add usage history bonus
+  score += usageBonus;
 
   return score;
 }

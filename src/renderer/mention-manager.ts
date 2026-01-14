@@ -101,7 +101,8 @@ export class MentionManager implements IInitializable {
 
     // Initialize FileFilterManager
     this.fileFilterManager = new FileFilterManager({
-      getDefaultMaxSuggestions: () => this.settingsCacheManager.getDefaultMaxSuggestions()
+      getDefaultMaxSuggestions: () => this.settingsCacheManager.getDefaultMaxSuggestions(),
+      getAgentUsageBonuses: () => this.state.agentUsageBonuses
     });
 
     // Initialize PathManager (unified path management)
@@ -156,8 +157,8 @@ export class MentionManager implements IInitializable {
       expandCurrentFile: () => this.expandCurrentFile(),
       // Directory/File navigation helpers
       updateTextInputWithPath: (path: string) => this.updateTextInputWithPath(path),
-      filterFiles: (query: string) => this.filterFiles(query),
-      mergeSuggestions: (query: string) => this.mergeSuggestions(query),
+      filterFiles: (query: string, usageBonuses?: Record<string, number>) => this.filterFiles(query, usageBonuses),
+      mergeSuggestions: (query: string, maxSuggestions?: number, usageBonuses?: Record<string, number>) => this.mergeSuggestions(query, maxSuggestions, usageBonuses),
       updateSuggestionList: (suggestions: SuggestionItem[], showPath: boolean, selectedIndex: number) =>
         this.suggestionUIManager?.update(suggestions, showPath, selectedIndex),
       showTooltipForSelectedItem: () => this.popupManager.showTooltipForSelectedItem(),
@@ -371,8 +372,9 @@ export class MentionManager implements IInitializable {
         removeAtQueryText: () => this.removeAtQueryText(),
         expandCurrentFile: () => this.expandCurrentFile(),
         updateTextInputWithPath: (path: string) => this.updateTextInputWithPath(path),
-        filterFiles: (query: string) => this.filterFiles(query),
-        mergeSuggestions: (query: string, maxSuggestions?: number) => this.mergeSuggestions(query, maxSuggestions),
+        filterFiles: (query: string, usageBonuses?: Record<string, number>) => this.filterFiles(query, usageBonuses),
+        mergeSuggestions: (query: string, maxSuggestions?: number, usageBonuses?: Record<string, number>) => this.mergeSuggestions(query, maxSuggestions, usageBonuses),
+        getFileUsageBonuses: async () => await this.getFileUsageBonuses(),
         showSuggestions: (query: string) => this.showSuggestions(query),
         _selectSymbol: (symbol: SymbolResult) => this._selectSymbol(symbol),
         refreshSuggestions: () => this.refreshSuggestions(),
@@ -729,12 +731,34 @@ export class MentionManager implements IInitializable {
       if (electronAPI?.agents?.get) {
         const agents = await electronAPI.agents.get(query);
         const maxSuggestions = await this.getMaxSuggestions('mention');
+
+        // Fetch agent usage bonuses for scoring
+        const agentNames = agents.map(a => a.name);
+        const agentBonuses = await this.getAgentUsageBonuses(agentNames);
+
+        // Store bonuses in state for use during scoring
+        this.state.agentUsageBonuses = agentBonuses;
+
         return agents.slice(0, maxSuggestions);
       }
     } catch (error) {
       handleError('MentionManager.searchAgents', error);
     }
     return [];
+  }
+
+  /**
+   * Get usage bonuses for agents
+   */
+  private async getAgentUsageBonuses(agentNames: string[]): Promise<Record<string, number>> {
+    try {
+      if (electronAPI?.usageHistory?.getAgentUsageBonuses) {
+        return await electronAPI.usageHistory.getAgentUsageBonuses(agentNames);
+      }
+    } catch (error) {
+      handleError('MentionManager.getAgentUsageBonuses', error);
+    }
+    return {};
   }
 
   /**
@@ -826,13 +850,50 @@ export class MentionManager implements IInitializable {
     this.pathManager.removeAtQueryText(this.state.atStartPosition);
   }
 
+  // Cached usage bonuses to avoid repeated IPC calls
+  private cachedFileUsageBonuses: Record<string, number> = {};
+  private usageBonusesCacheTime: number = 0;
+  private readonly USAGE_BONUSES_CACHE_TTL = 5000; // 5 seconds
+
+  /**
+   * Get file usage bonuses (cached for performance)
+   */
+  private async getFileUsageBonuses(): Promise<Record<string, number>> {
+    const now = Date.now();
+    if (now - this.usageBonusesCacheTime < this.USAGE_BONUSES_CACHE_TTL) {
+      return this.cachedFileUsageBonuses;
+    }
+
+    try {
+      const cachedData = this.directoryCacheManager?.getCachedData() ?? null;
+      if (!cachedData?.files || cachedData.files.length === 0) {
+        return {};
+      }
+
+      // Get all file paths
+      const filePaths = cachedData.files.map(f => f.path);
+
+      // Fetch bonuses via IPC
+      const bonuses = await electronAPI?.usageHistory?.getFileUsageBonuses(filePaths) ?? {};
+
+      // Update cache
+      this.cachedFileUsageBonuses = bonuses;
+      this.usageBonusesCacheTime = now;
+
+      return bonuses;
+    } catch (error) {
+      console.warn('[MentionManager] Failed to fetch file usage bonuses:', error);
+      return {};
+    }
+  }
+
   /**
    * Filter files based on query (fuzzy matching) and currentPath
    * Delegates to FileFilterManager
    */
-  public filterFiles(query: string): FileInfo[] {
+  public filterFiles(query: string, usageBonuses?: Record<string, number>): FileInfo[] {
     const cachedData = this.directoryCacheManager?.getCachedData() ?? null;
-    return this.fileFilterManager.filterFiles(cachedData, this.state.currentPath, query);
+    return this.fileFilterManager.filterFiles(cachedData, this.state.currentPath, query, usageBonuses);
   }
 
   /**
@@ -855,12 +916,13 @@ export class MentionManager implements IInitializable {
    * Merge files and agents into a single sorted list based on match score
    * Delegates to FileFilterManager
    */
-  private mergeSuggestions(query: string, maxSuggestions?: number): SuggestionItem[] {
+  private mergeSuggestions(query: string, maxSuggestions?: number, usageBonuses?: Record<string, number>): SuggestionItem[] {
     return this.fileFilterManager.mergeSuggestions(
       this.state.filteredFiles,
       this.state.filteredAgents,
       query,
-      maxSuggestions
+      maxSuggestions,
+      usageBonuses
     );
   }
 

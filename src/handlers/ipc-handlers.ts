@@ -15,6 +15,7 @@ import WindowHandler from './window-handler';
 import SystemHandler from './system-handler';
 import MdSearchHandler from './mdsearch-handler';
 import FileHandler from './file-handler';
+import UsageHistoryHandler from './usage-history-handler';
 
 /**
  * IPCHandlers Coordinator
@@ -30,6 +31,7 @@ import FileHandler from './file-handler';
  * - SystemHandler: Provides system info, config, and settings
  * - MdSearchHandler: Manages slash commands and agent operations
  * - FileHandler: Handles file operations and external URLs
+ * - UsageHistoryHandler: Manages usage history tracking for files, symbols, and agents
  */
 class IPCHandlers {
   private pasteHandler: PasteHandler;
@@ -38,6 +40,7 @@ class IPCHandlers {
   private systemHandler: SystemHandler;
   private mdSearchHandler: MdSearchHandler;
   private fileHandler: FileHandler;
+  private usageHistoryHandler: UsageHistoryHandler;
 
   constructor(
     windowManager: WindowManager,
@@ -78,6 +81,7 @@ class IPCHandlers {
     this.systemHandler = new SystemHandler(settingsManager);
     this.mdSearchHandler = new MdSearchHandler(mdSearchLoader, settingsManager);
     this.fileHandler = new FileHandler(fileOpenerManager, directoryManager);
+    this.usageHistoryHandler = new UsageHistoryHandler();
 
     // Setup all handlers
     this.setupHandlers();
@@ -93,6 +97,7 @@ class IPCHandlers {
     this.systemHandler.setupHandlers(ipcMain);
     this.mdSearchHandler.setupHandlers(ipcMain);
     this.fileHandler.setupHandlers(ipcMain);
+    this.usageHistoryHandler.setupHandlers(ipcMain);
   }
 
   /**
@@ -105,6 +110,7 @@ class IPCHandlers {
     this.systemHandler.removeHandlers(ipcMain);
     this.mdSearchHandler.removeHandlers(ipcMain);
     this.fileHandler.removeHandlers(ipcMain);
+    this.usageHistoryHandler.removeHandlers(ipcMain);
 
     logger.info('All IPC handlers removed via coordinator');
   }

@@ -50,7 +50,7 @@ describe('PopupManager', () => {
       popupManager.initialize();
 
       const popups = document.querySelectorAll('#frontmatterPopup');
-      expect(popups.length).toBe(1);
+      expect(popups).toHaveLength(1);
     });
 
     test('should not throw when main-content is missing', () => {

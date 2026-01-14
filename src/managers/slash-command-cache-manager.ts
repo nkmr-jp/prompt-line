@@ -2,13 +2,16 @@ import fs from 'fs/promises';
 import path from 'path';
 import { ensureDir } from '../utils/file-utils';
 import { logger } from '../utils/logger';
+import { calculateFrequencyBonus, calculateUsageRecencyBonus } from '../lib/usage-bonus-calculator';
 
 const GLOBAL_CACHE_FILE_NAME = 'global-slash-commands.jsonl';
 const MAX_ENTRIES = 100;
 
-interface SlashCommandEntry {
+interface SlashCommandCacheEntry {
   name: string;
-  timestamp: number;
+  count: number;
+  lastUsed: number;
+  firstUsed: number;
 }
 
 /**
@@ -23,7 +26,7 @@ export class SlashCommandCacheManager {
    */
   private get cacheDir(): string {
     if (this._cacheDir === null) {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
+       
       const config = require('../config/app-config').default;
       this._cacheDir = config.paths.projectsCacheDir as string;
     }
@@ -52,6 +55,7 @@ export class SlashCommandCacheManager {
 
   /**
    * Add a command to global cache (with 100 entry limit)
+   * Updates count and lastUsed if entry exists, otherwise creates new entry
    */
   async addGlobalCommand(commandName: string): Promise<void> {
     try {
@@ -60,19 +64,34 @@ export class SlashCommandCacheManager {
       // Load existing entries
       const entries = await this.loadGlobalEntries();
 
-      // Remove duplicates
-      const filtered = entries.filter(e => e.name !== commandName);
+      // Find existing entry
+      const existingIndex = entries.findIndex(e => e.name === commandName);
 
-      // Add new entry
-      filtered.push({ name: commandName, timestamp: Date.now() });
+      if (existingIndex >= 0) {
+        // Update existing entry: increment count and update lastUsed
+        const existingEntry = entries[existingIndex];
+        if (existingEntry) {
+          existingEntry.count++;
+          existingEntry.lastUsed = Date.now();
+        }
+      } else {
+        // Create new entry
+        const now = Date.now();
+        entries.push({
+          name: commandName,
+          count: 1,
+          lastUsed: now,
+          firstUsed: now,
+        });
 
-      // Remove old entries if exceeding limit
-      while (filtered.length > MAX_ENTRIES) {
-        filtered.shift();
+        // Remove oldest entry if exceeding limit
+        if (entries.length > MAX_ENTRIES) {
+          entries.shift();
+        }
       }
 
       // Save
-      const content = filtered.map(e => JSON.stringify(e)).join('\n');
+      const content = entries.map(e => JSON.stringify(e)).join('\n');
       await fs.writeFile(this.getGlobalCacheFilePath(), content, 'utf8');
     } catch (error) {
       logger.error('Error adding global slash command:', error);
@@ -81,18 +100,32 @@ export class SlashCommandCacheManager {
 
   /**
    * Load global entries (internal)
+   * Handles backward compatibility with old format {name, timestamp}
    */
-  private async loadGlobalEntries(): Promise<SlashCommandEntry[]> {
+  private async loadGlobalEntries(): Promise<SlashCommandCacheEntry[]> {
     try {
       const filePath = this.getGlobalCacheFilePath();
       const content = await fs.readFile(filePath, 'utf8');
       const lines = content.trim().split('\n').filter(line => line.length > 0);
 
-      const entries: SlashCommandEntry[] = [];
+      const entries: SlashCommandCacheEntry[] = [];
       for (const line of lines) {
         try {
-          const entry: SlashCommandEntry = JSON.parse(line);
-          entries.push(entry);
+          const parsed = JSON.parse(line);
+
+          // Backward compatibility: convert old format to new format
+          if ('timestamp' in parsed && !('count' in parsed)) {
+            // Old format: {name, timestamp} -> new format: {name, count, lastUsed, firstUsed}
+            entries.push({
+              name: parsed.name,
+              count: 1,
+              lastUsed: parsed.timestamp,
+              firstUsed: parsed.timestamp,
+            });
+          } else {
+            // New format already
+            entries.push(parsed);
+          }
         } catch {
           // Skip invalid lines
         }
@@ -113,6 +146,38 @@ export class SlashCommandCacheManager {
       await fs.rm(filePath, { force: true });
     } catch (error) {
       logger.warn('Error clearing global slash command cache:', error);
+    }
+  }
+
+  /**
+   * Calculate bonus score for a command (frequency + recency)
+   * Used for sorting search results
+   *
+   * @param commandName - Slash command name to calculate bonus for
+   * @returns Total bonus score (0-150: frequency 0-100 + recency 0-50)
+   */
+  async calculateBonus(commandName: string): Promise<number> {
+    try {
+      // Load entries from cache
+      const entries = await this.loadGlobalEntries();
+
+      // Find entry for the command
+      const entry = entries.find(e => e.name === commandName);
+
+      if (!entry) {
+        return 0;
+      }
+
+      // Calculate frequency bonus (0-100)
+      const frequencyBonus = calculateFrequencyBonus(entry.count);
+
+      // Calculate recency bonus (0-50)
+      const recencyBonus = calculateUsageRecencyBonus(entry.lastUsed);
+
+      return frequencyBonus + recencyBonus;
+    } catch (error) {
+      logger.warn('Error calculating slash command bonus:', error);
+      return 0;
     }
   }
 }

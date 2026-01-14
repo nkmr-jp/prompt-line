@@ -87,7 +87,7 @@ describe('DOM Integration Tests', () => {
 
             // Check actual DOM elements
             const historyItems = document.querySelectorAll('.history-item');
-            expect(historyItems.length).toBe(20);
+            expect(historyItems).toHaveLength(20);
 
             // Check that more indicator is not shown (all items fit)
             const moreIndicator = document.querySelector('.history-more');
@@ -105,7 +105,7 @@ describe('DOM Integration Tests', () => {
 
             // Should use default of 200 (all 20 items should be visible)
             const historyItems = document.querySelectorAll('.history-item');
-            expect(historyItems.length).toBe(20);
+            expect(historyItems).toHaveLength(20);
 
             const moreIndicator = document.querySelector('.history-more');
             expect(moreIndicator).toBeNull();
@@ -125,7 +125,7 @@ describe('DOM Integration Tests', () => {
 
             // Should not have any history items
             const historyItems = document.querySelectorAll('.history-item');
-            expect(historyItems.length).toBe(0);
+            expect(historyItems).toHaveLength(0);
         });
 
         test('should handle small history dataset', () => {
@@ -144,7 +144,7 @@ describe('DOM Integration Tests', () => {
 
             // Should render all available items (3)
             const historyItems = document.querySelectorAll('.history-item');
-            expect(historyItems.length).toBe(3);
+            expect(historyItems).toHaveLength(3);
 
             // Should not show more indicator
             const moreIndicator = document.querySelector('.history-more');

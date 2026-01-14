@@ -133,7 +133,7 @@ describe('MdSearchLoader', () => {
 
       // Cache should still be valid, no new reads
       await loader.getItems('command');
-      expect(mockedFs.readdir.mock.calls.length).toBe(firstReadCount);
+      expect(mockedFs.readdir.mock.calls).toHaveLength(firstReadCount);
     });
 
     test('should use default config when undefined is passed', () => {
@@ -231,7 +231,7 @@ describe('MdSearchLoader', () => {
 
       // Second call within TTL - should use cache
       await loader.getItems('command');
-      expect(mockedFs.readdir.mock.calls.length).toBe(firstCallCount);
+      expect(mockedFs.readdir.mock.calls).toHaveLength(firstCallCount);
     });
   });
 
