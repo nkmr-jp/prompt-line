@@ -45,6 +45,7 @@ class MdSearchHandler {
     // Slash command cache handlers
     ipcMain.handle('register-global-slash-command', this.handleRegisterGlobalSlashCommand.bind(this));
     ipcMain.handle('get-global-slash-commands', this.handleGetGlobalSlashCommands.bind(this));
+    ipcMain.handle('get-usage-bonuses', this.handleGetUsageBonuses.bind(this));
   }
 
   /**
@@ -60,7 +61,8 @@ class MdSearchHandler {
       'get-md-search-max-suggestions',
       'get-md-search-prefixes',
       'register-global-slash-command',
-      'get-global-slash-commands'
+      'get-global-slash-commands',
+      'get-usage-bonuses'
     ];
 
     handlers.forEach(handler => {
@@ -388,6 +390,40 @@ class MdSearchHandler {
     } catch (error) {
       logger.error('Failed to get global slash commands:', error);
       return [];
+    }
+  }
+
+  /**
+   * Handler: get-usage-bonuses
+   * Calculates usage bonuses for multiple slash commands
+   * Used for sorting search results with usage frequency and recency
+   */
+  private async handleGetUsageBonuses(
+    _event: IpcMainInvokeEvent,
+    commandNames: string[]
+  ): Promise<Record<string, number>> {
+    try {
+      if (!Array.isArray(commandNames)) {
+        logger.warn('Invalid commandNames parameter for get-usage-bonuses');
+        return {};
+      }
+
+      const bonuses: Record<string, number> = {};
+
+      // Calculate bonus for each command
+      await Promise.all(
+        commandNames.map(async (name) => {
+          if (typeof name === 'string') {
+            const bonus = await slashCommandCacheManager.calculateBonus(name);
+            bonuses[name] = bonus;
+          }
+        })
+      );
+
+      return bonuses;
+    } catch (error) {
+      logger.error('Failed to get usage bonuses:', error);
+      return {};
     }
   }
 }

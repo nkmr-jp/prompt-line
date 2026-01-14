@@ -227,6 +227,8 @@ export interface ElectronAPI {
     // Global slash command cache
     registerGlobal: (commandName: string) => Promise<IPCResult>;
     getGlobalCommands: () => Promise<string[]>;
+    // Usage bonus calculation for sorting
+    getUsageBonuses: (commandNames: string[]) => Promise<Record<string, number>>;
   };
   agents: {
     get: (query?: string) => Promise<AgentItem[]>;

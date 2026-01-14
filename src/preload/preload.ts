@@ -71,6 +71,7 @@ const ALLOWED_CHANNELS = [
   // Slash command cache channels
   'register-global-slash-command',
   'get-global-slash-commands',
+  'get-usage-bonuses',
   // Settings update notification channel
   'settings-updated'
 ];
@@ -279,6 +280,10 @@ const electronAPI: ElectronAPI = {
     },
     getGlobalCommands: async (): Promise<string[]> => {
       return ipcRenderer.invoke('get-global-slash-commands');
+    },
+    // Usage bonus calculation for sorting
+    getUsageBonuses: async (commandNames: string[]): Promise<Record<string, number>> => {
+      return ipcRenderer.invoke('get-usage-bonuses', commandNames);
     },
   },
 
