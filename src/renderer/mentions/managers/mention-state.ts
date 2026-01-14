@@ -50,6 +50,9 @@ export class MentionState {
   codeSearchLanguage: string = '';
   codeSearchCacheRefreshed: boolean = false;
 
+  // Usage history bonuses
+  agentUsageBonuses: Record<string, number> = {};
+
   /**
    * Reset search state to initial values
    */

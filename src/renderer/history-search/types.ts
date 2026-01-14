@@ -91,8 +91,8 @@ export const MATCH_SCORES = {
   CONTAINS: 200,
   /** Fuzzy match bonus */
   FUZZY_MATCH: 10,
-  /** Maximum recency bonus (0-200 based on timestamp) */
-  MAX_RECENCY_BONUS: 200
+  /** Maximum recency bonus (0-400 based on timestamp) */
+  MAX_RECENCY_BONUS: 400
 } as const;
 
 /**

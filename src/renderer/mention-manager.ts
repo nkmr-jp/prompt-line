@@ -729,12 +729,34 @@ export class MentionManager implements IInitializable {
       if (electronAPI?.agents?.get) {
         const agents = await electronAPI.agents.get(query);
         const maxSuggestions = await this.getMaxSuggestions('mention');
+
+        // Fetch agent usage bonuses for scoring
+        const agentNames = agents.map(a => a.name);
+        const agentBonuses = await this.getAgentUsageBonuses(agentNames);
+
+        // Store bonuses in state for use during scoring
+        this.state.agentUsageBonuses = agentBonuses;
+
         return agents.slice(0, maxSuggestions);
       }
     } catch (error) {
       handleError('MentionManager.searchAgents', error);
     }
     return [];
+  }
+
+  /**
+   * Get usage bonuses for agents
+   */
+  private async getAgentUsageBonuses(agentNames: string[]): Promise<Record<string, number>> {
+    try {
+      if (electronAPI?.usageHistory?.getAgentUsageBonuses) {
+        return await electronAPI.usageHistory.getAgentUsageBonuses(agentNames);
+      }
+    } catch (error) {
+      handleError('MentionManager.getAgentUsageBonuses', error);
+    }
+    return {};
   }
 
   /**
