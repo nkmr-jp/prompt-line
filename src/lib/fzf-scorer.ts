@@ -1,6 +1,10 @@
 /**
  * FZF-like scoring engine for fuzzy string matching.
  * Implements scoring algorithms similar to fzf for high-quality fuzzy matching.
+ *
+ * Reference: https://github.com/junegunn/fzf
+ * Scoring algorithm inspired by fzf's algo.go:
+ * https://github.com/junegunn/fzf/blob/master/src/algo/algo.go
  */
 
 /**
