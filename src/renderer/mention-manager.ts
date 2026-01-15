@@ -917,12 +917,15 @@ export class MentionManager implements IInitializable {
    * Delegates to FileFilterManager
    */
   private mergeSuggestions(query: string, maxSuggestions?: number, usageBonuses?: Record<string, number>): SuggestionItem[] {
+    const cachedData = this.directoryCacheManager?.getCachedData() ?? null;
+    const baseDir = cachedData?.directory;
     return this.fileFilterManager.mergeSuggestions(
       this.state.filteredFiles,
       this.state.filteredAgents,
       query,
       maxSuggestions,
-      usageBonuses
+      usageBonuses,
+      baseDir
     );
   }
 

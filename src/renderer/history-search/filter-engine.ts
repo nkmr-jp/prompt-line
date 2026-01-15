@@ -7,6 +7,7 @@
 import type { HistoryItem } from '../types';
 import type { HistorySearchConfig, SearchResult, FilterResult } from './types';
 import { DEFAULT_CONFIG, MATCH_SCORES, RECENCY_CONFIG } from './types';
+import { compareTiebreak } from '../../lib/tiebreaker';
 
 export class HistorySearchFilterEngine {
   private config: HistorySearchConfig;
@@ -54,9 +55,17 @@ export class HistorySearchFilterEngine {
     // Score and filter items from the search scope
     // Sort by score descending, then by timestamp descending (newest first) for same score
     const allMatches = searchItems
-      .map(item => this.scoreItem(item, queryNormalized))
+      .map((item, index) => ({ ...this.scoreItem(item, queryNormalized), originalIndex: index }))
       .filter(result => result.score > 0)
-      .sort((a, b) => b.score - a.score || b.item.timestamp - a.item.timestamp);
+      .sort((a, b) => {
+        const scoreDiff = b.score - a.score;
+        if (scoreDiff !== 0) return scoreDiff;
+
+        // Tiebreak: use original index (maintains newest-first order)
+        return compareTiebreak(a, b, { criteria: ['index'] }, {
+          index: (item) => item.originalIndex ?? 0,
+        });
+      });
 
     const displayItems = allMatches
       .slice(0, this.config.maxDisplayResults)
@@ -77,42 +86,30 @@ export class HistorySearchFilterEngine {
   }
 
   /**
-   * Score a single keyword against text
+   * Score a single keyword against text using simple contains matching
    * Returns 0 if no match
    */
   private scoreKeyword(
     textNormalized: string,
     keyword: string
   ): { score: number; positions: number[] } {
-    const matchPositions: number[] = [];
-    let score = 0;
-
-    // Exact match (highest priority)
+    // Exact match is highest priority
     if (textNormalized === keyword) {
-      score = MATCH_SCORES.EXACT_MATCH;
-    }
-    // Starts with keyword
-    else if (textNormalized.startsWith(keyword)) {
-      score = MATCH_SCORES.STARTS_WITH;
-    }
-    // Contains keyword
-    else if (textNormalized.includes(keyword)) {
-      score = MATCH_SCORES.CONTAINS;
-      const matchIndex = textNormalized.indexOf(keyword);
-      for (let i = 0; i < keyword.length; i++) {
-        matchPositions.push(matchIndex + i);
-      }
-    }
-    // Fuzzy match (if enabled)
-    else if (this.config.enableFuzzyMatch) {
-      const fuzzyResult = this.fuzzyMatch(textNormalized, keyword);
-      if (fuzzyResult.matched) {
-        score = MATCH_SCORES.FUZZY_MATCH;
-        matchPositions.push(...fuzzyResult.positions);
-      }
+      return { score: MATCH_SCORES.EXACT_MATCH, positions: [] };
     }
 
-    return { score, positions: matchPositions };
+    // Starts with match
+    if (textNormalized.startsWith(keyword)) {
+      return { score: MATCH_SCORES.STARTS_WITH, positions: [] };
+    }
+
+    // Contains match
+    if (textNormalized.includes(keyword)) {
+      return { score: MATCH_SCORES.CONTAINS, positions: [] };
+    }
+
+    // No match
+    return { score: 0, positions: [] };
   }
 
   /**
@@ -265,9 +262,17 @@ export class HistorySearchFilterEngine {
 
     // Sort by score descending, then by timestamp descending (newest first) for same score
     const allMatches = searchItems
-      .map(item => this.scoreItem(item, queryNormalized))
+      .map((item, index) => ({ ...this.scoreItem(item, queryNormalized), originalIndex: index }))
       .filter(result => result.score > 0)
-      .sort((a, b) => b.score - a.score || b.item.timestamp - a.item.timestamp);
+      .sort((a, b) => {
+        const scoreDiff = b.score - a.score;
+        if (scoreDiff !== 0) return scoreDiff;
+
+        // Tiebreak: use original index (maintains newest-first order)
+        return compareTiebreak(a, b, { criteria: ['index'] }, {
+          index: (item) => item.originalIndex ?? 0,
+        });
+      });
 
     return {
       items: allMatches.slice(0, displayLimit).map(result => result.item),

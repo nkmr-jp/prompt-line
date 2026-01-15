@@ -72,12 +72,14 @@ export const VALIDATION = {
 export const FUZZY_MATCH_SCORES = {
   EXACT: 1000,
   STARTS_WITH: 500,
-  CONTAINS: 200,
+  CONTAINS: 300,
   PATH_CONTAINS: 50,
   BASE_FUZZY: 10,
   FILE_BONUS: 5,
   MAX_PATH_BONUS: 20,
   AGENT_BASE: 50,
+  MAX_FUZZY_BONUS: 200,  // FZF score upper limit
+  FZF_SCALE_FACTOR: 0.8, // FZF score scale coefficient
 } as const;
 
 // Time calculation constants

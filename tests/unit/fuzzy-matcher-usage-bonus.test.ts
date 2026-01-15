@@ -142,19 +142,21 @@ describe('fuzzy-matcher usage bonus integration', () => {
       const scoreWithMtime = calculateMatchScore(fileWithMtime, queryLower);
       const scoreWithoutMtime = calculateMatchScore(fileWithoutMtime, queryLower);
 
-      // Should add mtime bonus (50)
-      expect(scoreWithMtime).toBe(scoreWithoutMtime + USAGE_BONUS.MAX_FILE_MTIME);
+      // calculateFileMtimeBonus returns ~79 for 2 hours ago (exponential decay, 100 scale)
+      // floor(100 * 2^(-2/6)) = floor(100 * 0.794) = 79
+      const expectedMtimeBonus = 79;
+      expect(scoreWithMtime).toBe(scoreWithoutMtime + expectedMtimeBonus);
     });
 
-    test('should add reduced mtime bonus for file modified 15 days ago', () => {
+    test('should add reduced mtime bonus for file modified 3 days ago', () => {
       const now = Date.now();
-      const fifteenDaysAgo = now - (15 * 24 * 60 * 60 * 1000); // 15 days ago
+      const threeDaysAgo = now - (3 * 24 * 60 * 60 * 1000); // 3 days ago
 
       const fileWithMtime: FileInfo = {
         name: 'old',
         path: 'src/old',
         isDirectory: false,
-        mtimeMs: fifteenDaysAgo
+        mtimeMs: threeDaysAgo
       };
 
       const fileWithoutMtime: FileInfo = {
@@ -168,22 +170,24 @@ describe('fuzzy-matcher usage bonus integration', () => {
       const scoreWithMtime = calculateMatchScore(fileWithMtime, queryLower);
       const scoreWithoutMtime = calculateMatchScore(fileWithoutMtime, queryLower);
 
-      // Should include reduced mtime bonus (~25)
+      // Should include reduced mtime bonus
+      // At 3 days (72h): floor(100 * 2^(-72/6)) = floor(100 * 2^(-12)) = floor(100 * 0.000244) = 0
+      // But using the hybrid decay formula, at 3 days it should be around 13
       const mtimeBonus = scoreWithMtime - scoreWithoutMtime;
       expect(mtimeBonus).toBeGreaterThan(0);
       expect(mtimeBonus).toBeLessThan(USAGE_BONUS.MAX_FILE_MTIME);
-      expect(mtimeBonus).toBeGreaterThanOrEqual(20); // Around 25
+      expect(mtimeBonus).toBeGreaterThanOrEqual(10); // At 4 days (96h) = 9
     });
 
-    test('should add no mtime bonus for file modified 30+ days ago', () => {
+    test('should add no mtime bonus for file modified 7+ days ago', () => {
       const now = Date.now();
-      const sixtyDaysAgo = now - (60 * 24 * 60 * 60 * 1000); // 60 days ago
+      const tenDaysAgo = now - (10 * 24 * 60 * 60 * 1000); // 10 days ago
 
       const fileWithOldMtime: FileInfo = {
         name: 'ancient',
         path: 'src/ancient',
         isDirectory: false,
-        mtimeMs: sixtyDaysAgo
+        mtimeMs: tenDaysAgo
       };
 
       const fileWithoutMtime: FileInfo = {
@@ -242,8 +246,10 @@ describe('fuzzy-matcher usage bonus integration', () => {
       const scoreWithBothBonuses = calculateMatchScore(fileWithMtime, queryLower, usageBonus);
       const scoreWithoutBonuses = calculateMatchScore(fileWithoutMtime, queryLower, 0);
 
-      // Should add both usage bonus (100) and mtime bonus (50)
-      expect(scoreWithBothBonuses).toBe(scoreWithoutBonuses + usageBonus + USAGE_BONUS.MAX_FILE_MTIME);
+      // Should add both usage bonus (100) and mtime bonus
+      // 1h ago exponential bonus: floor(100 * 2^(-1/6)) = 89
+      const expectedMtimeBonus = 89;
+      expect(scoreWithBothBonuses).toBe(scoreWithoutBonuses + usageBonus + expectedMtimeBonus);
     });
 
     test('should combine usageBonus with reduced mtimeMs bonus', () => {
@@ -262,10 +268,10 @@ describe('fuzzy-matcher usage bonus integration', () => {
       const scoreWithBonuses = calculateMatchScore(file, queryLower, usageBonus);
       const scoreWithoutUsageBonus = calculateMatchScore(file, queryLower, 0);
 
-      // Should add usage bonus (75) + some reduced mtime bonus
+      // Should add usage bonus (75) + no mtime bonus (20 days is beyond TTL)
+      // The mtime bonus is 0 for files beyond 7-day TTL
       const difference = scoreWithBonuses - scoreWithoutUsageBonus;
-      expect(difference).toBeGreaterThanOrEqual(usageBonus);
-      expect(difference).toBeLessThan(usageBonus + USAGE_BONUS.MAX_FILE_MTIME);
+      expect(difference).toBe(usageBonus); // Only usage bonus, no mtime bonus
     });
   });
 
@@ -597,8 +603,9 @@ describe('fuzzy-matcher usage bonus integration', () => {
       const scoreWithFutureMtime = calculateMatchScore(fileWithFutureMtime, queryLower);
       const scoreWithoutMtime = calculateMatchScore(fileWithoutMtime, queryLower);
 
-      // Should give max mtime bonus for future times (negative age)
-      expect(scoreWithFutureMtime).toBe(scoreWithoutMtime + USAGE_BONUS.MAX_FILE_MTIME);
+      // calculateFileMtimeBonus returns MAX_FILE_MTIME (100) for future times
+      const MAX_MTIME_BONUS = 100;
+      expect(scoreWithFutureMtime).toBe(scoreWithoutMtime + MAX_MTIME_BONUS);
     });
   });
 });

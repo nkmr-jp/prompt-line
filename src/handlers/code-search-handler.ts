@@ -22,6 +22,8 @@ import type {
   RgCheckResponse,
   LanguagesResponse
 } from '../managers/symbol-search/types';
+import { FzfScorer } from '../lib/fzf-scorer.js';
+import { normalizeFzfScore } from '../lib/fzf-normalizer.js';
 
 /**
  * Code Search Handler class
@@ -243,8 +245,11 @@ class CodeSearchHandler {
           s.lineContent.toLowerCase().includes(lowerQuery);
       });
 
-      // Sort by relevance (match score + mtime bonus)
+      // Sort by relevance (match score + fzf score + mtime bonus)
       // Match scores: exact=1000, starts=500, contains=200
+      // Fzf score: normalized to max 500 for camelCase and word boundary matches
+      // Mtime bonus: capped at 100
+      const scorer = new FzfScorer();
       filtered.sort((a, b) => {
         const aName = a.nameLower ?? a.name.toLowerCase();
         const bName = b.nameLower ?? b.name.toLowerCase();
@@ -261,12 +266,18 @@ class CodeSearchHandler {
         else if (bName.startsWith(lowerQuery)) bMatchScore = 500;
         else bMatchScore = 200;
 
-        // Add mtime bonus if available
-        const aMtimeBonus = a.mtimeMs ? calculateFileMtimeBonus(a.mtimeMs) : 0;
-        const bMtimeBonus = b.mtimeMs ? calculateFileMtimeBonus(b.mtimeMs) : 0;
+        // Calculate fzf scores for camelCase and word boundary matches
+        const aFzfResult = scorer.score(a.name, query);
+        const bFzfResult = scorer.score(b.name, query);
+        const aFzfScore = normalizeFzfScore(aFzfResult.score, 500);
+        const bFzfScore = normalizeFzfScore(bFzfResult.score, 500);
 
-        const aTotal = aMatchScore + aMtimeBonus;
-        const bTotal = bMatchScore + bMtimeBonus;
+        // Add mtime bonus if available (capped at 100)
+        const aMtimeBonus = a.mtimeMs ? Math.min(calculateFileMtimeBonus(a.mtimeMs), 100) : 0;
+        const bMtimeBonus = b.mtimeMs ? Math.min(calculateFileMtimeBonus(b.mtimeMs), 100) : 0;
+
+        const aTotal = aMatchScore + aFzfScore + aMtimeBonus;
+        const bTotal = bMatchScore + bFzfScore + bMtimeBonus;
 
         if (aTotal !== bTotal) return bTotal - aTotal;
         return aName.localeCompare(bName);
