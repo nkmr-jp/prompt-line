@@ -7,15 +7,7 @@
 import type { HistoryItem } from '../types';
 import type { HistorySearchConfig, SearchResult, FilterResult } from './types';
 import { DEFAULT_CONFIG, MATCH_SCORES, RECENCY_CONFIG } from './types';
-import { FzfScorer } from '../../lib/fzf-scorer';
 import { compareTiebreak } from '../../lib/tiebreaker';
-
-// FzfScorer instance for advanced fuzzy matching
-const fzfScorer = new FzfScorer({
-  caseSensitive: false,
-  enableCamelCase: true,
-  enableBoundaryBonus: true,
-});
 
 export class HistorySearchFilterEngine {
   private config: HistorySearchConfig;
@@ -94,34 +86,30 @@ export class HistorySearchFilterEngine {
   }
 
   /**
-   * Score a single keyword against text using fzf scoring
+   * Score a single keyword against text using simple contains matching
    * Returns 0 if no match
    */
   private scoreKeyword(
     textNormalized: string,
     keyword: string
   ): { score: number; positions: number[] } {
-    const matchPositions: number[] = [];
-    let score = 0;
-
-    // Exact match is highest priority (maintain existing behavior)
+    // Exact match is highest priority
     if (textNormalized === keyword) {
       return { score: MATCH_SCORES.EXACT_MATCH, positions: [] };
     }
 
-    // Use fzf scoring for fuzzy matching
-    const fzfResult = fzfScorer.score(textNormalized, keyword);
-    if (!fzfResult.matched) {
-      return { score: 0, positions: [] };
+    // Starts with match
+    if (textNormalized.startsWith(keyword)) {
+      return { score: MATCH_SCORES.STARTS_WITH, positions: [] };
     }
 
-    // Normalize fzf score to existing scale
-    // fzf scores are typically ~50-200, scale to 10-500 range
-    // This maintains compatibility with existing MATCH_SCORES
-    score = Math.min(500, Math.max(10, fzfResult.score * 2));
-    matchPositions.push(...fzfResult.positions);
+    // Contains match
+    if (textNormalized.includes(keyword)) {
+      return { score: MATCH_SCORES.CONTAINS, positions: [] };
+    }
 
-    return { score, positions: matchPositions };
+    // No match
+    return { score: 0, positions: [] };
   }
 
   /**
