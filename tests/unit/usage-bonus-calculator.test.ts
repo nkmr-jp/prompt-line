@@ -3,7 +3,7 @@ import {
   USAGE_BONUS,
   calculateFrequencyBonus,
   calculateUsageRecencyBonus,
-  calculateFileMtimeBonus
+  calculateFileLastUsedBonus
 } from '../../src/lib/usage-bonus-calculator';
 
 describe('usage-bonus-calculator', () => {
@@ -13,11 +13,11 @@ describe('usage-bonus-calculator', () => {
       expect(USAGE_BONUS.MAX_USAGE_RECENCY).toBe(100);
       expect(USAGE_BONUS.FREQUENCY_LOG_BASE).toBe(10);
       expect(USAGE_BONUS.USAGE_RECENCY_TTL_DAYS).toBe(7);
-      expect(USAGE_BONUS.MAX_FILE_MTIME).toBe(100);
-      expect(USAGE_BONUS.FILE_MTIME_TTL_DAYS).toBe(7);
-      expect(USAGE_BONUS.FILE_MTIME_HALF_LIFE_MS).toBe(6 * 60 * 60 * 1000); // 6 hours
-      expect(USAGE_BONUS.MTIME_PROPORTION_AT_6H).toBe(0.5);
-      expect(USAGE_BONUS.MTIME_PROPORTION_AT_24H).toBe(0.2);
+      expect(USAGE_BONUS.MAX_FILE_LAST_USED).toBe(100);
+      expect(USAGE_BONUS.FILE_LAST_USED_TTL_DAYS).toBe(7);
+      expect(USAGE_BONUS.FILE_LAST_USED_HALF_LIFE_MS).toBe(6 * 60 * 60 * 1000); // 6 hours
+      expect(USAGE_BONUS.LAST_USED_PROPORTION_AT_6H).toBe(0.5);
+      expect(USAGE_BONUS.LAST_USED_PROPORTION_AT_24H).toBe(0.2);
     });
   });
 
@@ -193,7 +193,7 @@ describe('usage-bonus-calculator', () => {
     });
   });
 
-  describe('calculateFileMtimeBonus', () => {
+  describe('calculateFileLastUsedBonus', () => {
     beforeEach(() => {
       jest.useFakeTimers();
       // Set system time to a fixed point: 2024-01-15 12:00:00 UTC
@@ -208,7 +208,7 @@ describe('usage-bonus-calculator', () => {
       const now = Date.now();
       const oneHourAgo = now - (1 * 60 * 60 * 1000); // 1 hour ago
 
-      const bonus = calculateFileMtimeBonus(oneHourAgo);
+      const bonus = calculateFileLastUsedBonus(oneHourAgo);
       // Phase 1 (exponential): age = 1h, half-life = 6h
       // bonus = floor(100 * 2^(-1/6)) = floor(100 * 0.8909) = 89
       expect(bonus).toBe(89);
@@ -217,7 +217,7 @@ describe('usage-bonus-calculator', () => {
     test('should return 100 (max) for file modified just now', () => {
       const now = Date.now();
 
-      const bonus = calculateFileMtimeBonus(now);
+      const bonus = calculateFileLastUsedBonus(now);
       expect(bonus).toBe(100);
     });
 
@@ -225,7 +225,7 @@ describe('usage-bonus-calculator', () => {
       const now = Date.now();
       const sixHoursAgo = now - (6 * 60 * 60 * 1000); // 6 hours ago
 
-      const bonus = calculateFileMtimeBonus(sixHoursAgo);
+      const bonus = calculateFileLastUsedBonus(sixHoursAgo);
       // Phase 1 end / Phase 2 start: age = 6h, half-life point
       // bonus = floor(100 * 2^(-1)) = floor(100 * 0.5) = 50
       expect(bonus).toBe(50);
@@ -235,7 +235,7 @@ describe('usage-bonus-calculator', () => {
       const now = Date.now();
       const twelveHoursAgo = now - (12 * 60 * 60 * 1000); // 12 hours ago
 
-      const bonus = calculateFileMtimeBonus(twelveHoursAgo);
+      const bonus = calculateFileLastUsedBonus(twelveHoursAgo);
       // Phase 2 (linear): age = 12h, midpoint between 6h and 24h
       // valueAt24h = floor(100 * 0.2) = 20
       // valueAt6h = floor(100 * 0.5) = 50
@@ -248,7 +248,7 @@ describe('usage-bonus-calculator', () => {
       const now = Date.now();
       const oneDayAgo = now - (24 * 60 * 60 * 1000); // 24 hours ago
 
-      const bonus = calculateFileMtimeBonus(oneDayAgo);
+      const bonus = calculateFileLastUsedBonus(oneDayAgo);
       // Phase 3 (linear): age = 24h exactly, at start of Phase 3
       // valueAt24h = floor(100 * 0.2) = 20
       // ratio = 1 - (0h / 144h) = 1.0
@@ -260,7 +260,7 @@ describe('usage-bonus-calculator', () => {
       const now = Date.now();
       const fourDaysAgo = now - (4 * 24 * 60 * 60 * 1000); // 4 days ago
 
-      const bonus = calculateFileMtimeBonus(fourDaysAgo);
+      const bonus = calculateFileLastUsedBonus(fourDaysAgo);
       // Phase 3 (linear): age = 4 days (96h), ageAfterFirstDay = 72h
       // remainingTtl = 144h (6 days in ms)
       // valueAt24h = floor(100 * 0.2) = 20
@@ -273,7 +273,7 @@ describe('usage-bonus-calculator', () => {
       const now = Date.now();
       const sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000); // 7 days ago
 
-      const bonus = calculateFileMtimeBonus(sevenDaysAgo);
+      const bonus = calculateFileLastUsedBonus(sevenDaysAgo);
       // age = 7 days, ttl = 7 days
       // After TTL: no bonus
       expect(bonus).toBe(0);
@@ -283,7 +283,7 @@ describe('usage-bonus-calculator', () => {
       const now = Date.now();
       const tenDaysAgo = now - (10 * 24 * 60 * 60 * 1000); // 10 days ago
 
-      const bonus = calculateFileMtimeBonus(tenDaysAgo);
+      const bonus = calculateFileLastUsedBonus(tenDaysAgo);
       expect(bonus).toBe(0);
     });
 
@@ -291,7 +291,7 @@ describe('usage-bonus-calculator', () => {
       const now = Date.now();
       const thirtyDaysAgo = now - (30 * 24 * 60 * 60 * 1000); // 30 days ago
 
-      const bonus = calculateFileMtimeBonus(thirtyDaysAgo);
+      const bonus = calculateFileLastUsedBonus(thirtyDaysAgo);
       expect(bonus).toBe(0);
     });
 
@@ -299,7 +299,7 @@ describe('usage-bonus-calculator', () => {
       const now = Date.now();
       const futureTime = now + (1 * 60 * 60 * 1000); // 1 hour in future
 
-      const bonus = calculateFileMtimeBonus(futureTime);
+      const bonus = calculateFileLastUsedBonus(futureTime);
       // age = negative, which is <= 0, so full bonus
       expect(bonus).toBe(100);
     });
@@ -311,10 +311,10 @@ describe('usage-bonus-calculator', () => {
       const threeDaysAgo = now - (3 * 24 * 60 * 60 * 1000);
       const sixDaysAgo = now - (6 * 24 * 60 * 60 * 1000);
 
-      const bonus1h = calculateFileMtimeBonus(oneHourAgo);
-      const bonus1d = calculateFileMtimeBonus(oneDayAgo);
-      const bonus3d = calculateFileMtimeBonus(threeDaysAgo);
-      const bonus6d = calculateFileMtimeBonus(sixDaysAgo);
+      const bonus1h = calculateFileLastUsedBonus(oneHourAgo);
+      const bonus1d = calculateFileLastUsedBonus(oneDayAgo);
+      const bonus3d = calculateFileLastUsedBonus(threeDaysAgo);
+      const bonus6d = calculateFileLastUsedBonus(sixDaysAgo);
 
       expect(bonus1h).toBeGreaterThan(bonus1d);
       expect(bonus1d).toBeGreaterThan(bonus3d);
@@ -327,9 +327,9 @@ describe('usage-bonus-calculator', () => {
       const oneDayAndOneHourAgo = now - (25 * 60 * 60 * 1000); // 25 hours ago
       const almostSevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000 - 1000); // 6 days, 23:59:59 ago
 
-      const bonusAlmost1d = calculateFileMtimeBonus(almostOneDayAgo);
-      const bonus25h = calculateFileMtimeBonus(oneDayAndOneHourAgo);
-      const bonusAlmost7d = calculateFileMtimeBonus(almostSevenDaysAgo);
+      const bonusAlmost1d = calculateFileLastUsedBonus(almostOneDayAgo);
+      const bonus25h = calculateFileLastUsedBonus(oneDayAndOneHourAgo);
+      const bonusAlmost7d = calculateFileLastUsedBonus(almostSevenDaysAgo);
 
       // Phase 2: almostOneDayAgo (23:59:59.999) should be just above 20
       // valueAt24h = floor(100 * 0.2) = 20
@@ -368,15 +368,15 @@ describe('usage-bonus-calculator', () => {
 
       const frequencyBonus = calculateFrequencyBonus(usageCount);
       const recencyBonus = calculateUsageRecencyBonus(recentTime);
-      const mtimeBonus = calculateFileMtimeBonus(recentTime);
+      const lastUsedBonus = calculateFileLastUsedBonus(recentTime);
 
       expect(frequencyBonus).toBeGreaterThan(0);
       expect(recencyBonus).toBe(100); // Within 24h
       // Phase 1 (exponential): age = 2h, half-life = 6h
       // bonus = floor(100 * 2^(-2/6)) = floor(100 * 0.7937) = 79
-      expect(mtimeBonus).toBe(79);
+      expect(lastUsedBonus).toBe(79);
 
-      const totalBonus = frequencyBonus + recencyBonus + mtimeBonus;
+      const totalBonus = frequencyBonus + recencyBonus + lastUsedBonus;
       expect(totalBonus).toBeGreaterThan(150);
     });
 
@@ -387,13 +387,13 @@ describe('usage-bonus-calculator', () => {
 
       const frequencyBonus = calculateFrequencyBonus(usageCount);
       const recencyBonus = calculateUsageRecencyBonus(oldTime);
-      const mtimeBonus = calculateFileMtimeBonus(oldTime);
+      const lastUsedBonus = calculateFileLastUsedBonus(oldTime);
 
       expect(frequencyBonus).toBe(0);
       expect(recencyBonus).toBe(0); // Beyond TTL (7 days)
-      expect(mtimeBonus).toBe(0); // Beyond TTL (7 days)
+      expect(lastUsedBonus).toBe(0); // Beyond TTL (7 days)
 
-      const totalBonus = frequencyBonus + recencyBonus + mtimeBonus;
+      const totalBonus = frequencyBonus + recencyBonus + lastUsedBonus;
       expect(totalBonus).toBe(0);
     });
 
@@ -406,10 +406,10 @@ describe('usage-bonus-calculator', () => {
       const highFrequencyBonus = calculateFrequencyBonus(highUsageCount);
       const lowFrequencyBonus = calculateFrequencyBonus(lowUsageCount);
       const recencyBonus = calculateUsageRecencyBonus(oldTime);
-      const mtimeBonus = calculateFileMtimeBonus(oldTime);
+      const lastUsedBonus = calculateFileLastUsedBonus(oldTime);
 
-      const highUsageTotal = highFrequencyBonus + recencyBonus + mtimeBonus;
-      const lowUsageTotal = lowFrequencyBonus + recencyBonus + mtimeBonus;
+      const highUsageTotal = highFrequencyBonus + recencyBonus + lastUsedBonus;
+      const lowUsageTotal = lowFrequencyBonus + recencyBonus + lastUsedBonus;
 
       expect(highUsageTotal).toBeGreaterThan(lowUsageTotal);
     });

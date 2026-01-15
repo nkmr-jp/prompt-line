@@ -42,6 +42,7 @@ export interface FileInfo {
   path: string;
   isDirectory: boolean;
   mtimeMs?: number;  // File modification time in milliseconds
+  lastUsedMs?: number;  // File last used time in milliseconds from macOS kMDItemLastUsedDate
 }
 
 export interface DirectoryInfo {

@@ -6,13 +6,13 @@
 
 import type { FileInfo, AgentItem } from '../../types';
 import { FUZZY_MATCH_SCORES } from '../../constants';
-import { calculateFileMtimeBonus } from '../../lib/usage-bonus-calculator';
+import { calculateFileLastUsedBonus } from '../../lib/usage-bonus-calculator';
 import { FzfScorer } from '../../lib/fzf-scorer';
 import { getRelativePath } from './path-utils';
 export { compareTiebreak } from '../../lib/tiebreaker';
 
-/** Maximum mtime bonus - caps the mtime bonus to balance with match scores */
-const MAX_MTIME_BONUS = 100;
+/** Maximum lastUsed bonus - caps the lastUsed bonus to balance with match scores */
+const MAX_LAST_USED_BONUS = 100;
 
 /**
  * Cache for lowercase strings to avoid repeated toLowerCase() calls
@@ -95,7 +95,7 @@ export function fuzzyMatch(text: string, pattern: string): boolean {
  * - Bonus for shorter paths: up to FUZZY_MATCH_SCORES.MAX_PATH_BONUS (20)
  *   - When baseDir is provided, path bonus is calculated from relative path
  * - Usage history bonus: 0-150 (optional parameter)
- * - File modification time bonus: 0-500 (if mtimeMs available)
+ * - File last used bonus: 0-500 (if lastUsedMs available)
  *
  * @param file - File to score
  * @param queryLower - Lowercased search query
@@ -161,9 +161,9 @@ export function calculateMatchScore(
   // Add usage history bonus
   score += usageBonus;
 
-  // Add file modification time bonus if mtimeMs is available
-  if (file.mtimeMs !== undefined) {
-    score += Math.min(calculateFileMtimeBonus(file.mtimeMs), MAX_MTIME_BONUS);
+  // Add file last used bonus if lastUsedMs is available
+  if (file.lastUsedMs !== undefined) {
+    score += Math.min(calculateFileLastUsedBonus(file.lastUsedMs), MAX_LAST_USED_BONUS);
   }
 
   return score;
