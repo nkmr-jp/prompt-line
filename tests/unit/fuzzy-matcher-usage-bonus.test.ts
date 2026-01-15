@@ -143,8 +143,8 @@ describe('fuzzy-matcher usage bonus integration', () => {
       const scoreWithoutMtime = calculateMatchScore(fileWithoutMtime, queryLower);
 
       // calculateFileMtimeBonus returns MAX_FILE_MTIME (1000) for recent files
-      // but fuzzy-matcher caps it at MAX_MTIME_BONUS (200)
-      const MAX_MTIME_BONUS = 200;
+      // but fuzzy-matcher caps it at MAX_MTIME_BONUS (500)
+      const MAX_MTIME_BONUS = 500;
       expect(scoreWithMtime).toBe(scoreWithoutMtime + MAX_MTIME_BONUS);
     });
 
@@ -173,7 +173,7 @@ describe('fuzzy-matcher usage bonus integration', () => {
       // Should include reduced mtime bonus
       // At 3 days: phase 2, ageAfterFirstDay = 2 days, remainingTtl = 6 days
       // ratio = 1 - (2/6) = 0.667, bonus = floor(0.667 * 500) = 333
-      // But capped at MAX_MTIME_BONUS (200)
+      // Capped at MAX_MTIME_BONUS (500), so 333 stays as-is
       const mtimeBonus = scoreWithMtime - scoreWithoutMtime;
       expect(mtimeBonus).toBeGreaterThan(0);
       expect(mtimeBonus).toBeLessThan(USAGE_BONUS.MAX_FILE_MTIME);
@@ -247,9 +247,9 @@ describe('fuzzy-matcher usage bonus integration', () => {
       const scoreWithBothBonuses = calculateMatchScore(fileWithMtime, queryLower, usageBonus);
       const scoreWithoutBonuses = calculateMatchScore(fileWithoutMtime, queryLower, 0);
 
-      // Should add both usage bonus (100) and capped mtime bonus (200, not 500)
-      // calculateFileMtimeBonus returns up to 500, but fuzzy-matcher caps it at MAX_MTIME_BONUS (200)
-      const MAX_MTIME_BONUS = 200;
+      // Should add both usage bonus (100) and capped mtime bonus (500)
+      // calculateFileMtimeBonus returns up to 1000, but fuzzy-matcher caps it at MAX_MTIME_BONUS (500)
+      const MAX_MTIME_BONUS = 500;
       expect(scoreWithBothBonuses).toBe(scoreWithoutBonuses + usageBonus + MAX_MTIME_BONUS);
     });
 
@@ -270,8 +270,8 @@ describe('fuzzy-matcher usage bonus integration', () => {
       const scoreWithoutUsageBonus = calculateMatchScore(file, queryLower, 0);
 
       // Should add usage bonus (75) + some reduced mtime bonus
-      // The mtime bonus is capped at MAX_MTIME_BONUS (200), not USAGE_BONUS.MAX_FILE_MTIME (500)
-      const MAX_MTIME_BONUS = 200;
+      // The mtime bonus is capped at MAX_MTIME_BONUS (500)
+      const MAX_MTIME_BONUS = 500;
       const difference = scoreWithBonuses - scoreWithoutUsageBonus;
       expect(difference).toBeGreaterThanOrEqual(usageBonus);
       expect(difference).toBeLessThan(usageBonus + MAX_MTIME_BONUS);
@@ -606,9 +606,9 @@ describe('fuzzy-matcher usage bonus integration', () => {
       const scoreWithFutureMtime = calculateMatchScore(fileWithFutureMtime, queryLower);
       const scoreWithoutMtime = calculateMatchScore(fileWithoutMtime, queryLower);
 
-      // calculateFileMtimeBonus returns MAX_FILE_MTIME (500) for future times
-      // but fuzzy-matcher caps it at MAX_MTIME_BONUS (200)
-      const MAX_MTIME_BONUS = 200;
+      // calculateFileMtimeBonus returns MAX_FILE_MTIME (1000) for future times
+      // but fuzzy-matcher caps it at MAX_MTIME_BONUS (500)
+      const MAX_MTIME_BONUS = 500;
       expect(scoreWithFutureMtime).toBe(scoreWithoutMtime + MAX_MTIME_BONUS);
     });
   });

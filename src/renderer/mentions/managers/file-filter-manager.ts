@@ -15,7 +15,7 @@
 
 import type { FileInfo, AgentItem } from '../../../types';
 import type { DirectoryData, SuggestionItem } from '../types';
-import { getRelativePath, calculateMatchScore, calculateAgentMatchScore } from '../index';
+import { getRelativePath, calculateMatchScore, calculateAgentMatchScore, compareTiebreak } from '../index';
 
 /**
  * Callbacks for FileFilterManager
@@ -177,7 +177,15 @@ export class FileFilterManager {
         };
       })
       .filter(item => item.score > 0)
-      .sort((a, b) => b.score - a.score)
+      .sort((a, b) => {
+        const scoreDiff = b.score - a.score;
+        if (scoreDiff !== 0) return scoreDiff;
+        // Tiebreaker: prefer shorter names, then shallower paths
+        return compareTiebreak(a.file, b.file, { criteria: ['length', 'pathname'] }, {
+          length: (item) => item.name.length,
+          pathname: (item) => item.path,
+        });
+      })
       .slice(0, maxSuggestions);
 
     return scored.map(item => item.file);
@@ -344,9 +352,17 @@ export class FileFilterManager {
       };
     });
 
-    // Combine and sort by score
+    // Combine and sort by score, with tiebreaker for equal scores
     const allScored = [...scoredFiles, ...scoredDirs]
-      .sort((a, b) => b.score - a.score);
+      .sort((a, b) => {
+        const scoreDiff = b.score - a.score;
+        if (scoreDiff !== 0) return scoreDiff;
+        // Tiebreaker: prefer shorter names, then shallower paths
+        return compareTiebreak(a.file, b.file, { criteria: ['length', 'pathname'] }, {
+          length: (item) => item.name.length,
+          pathname: (item) => item.path,
+        });
+      });
 
     // Store full results before truncation
     const fullResults = allScored.map(item => item.file);

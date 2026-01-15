@@ -35,7 +35,8 @@ export {
   calculateMatchScore,
   calculateAgentMatchScore,
   clearLowercaseCache,
-  getLowercaseCacheSize
+  getLowercaseCacheSize,
+  compareTiebreak
 } from './fuzzy-matcher';
 
 // Text finding utilities

@@ -10,8 +10,8 @@ import { calculateFileMtimeBonus } from '../../lib/usage-bonus-calculator';
 import { FzfScorer } from '../../lib/fzf-scorer';
 export { compareTiebreak } from '../../lib/tiebreaker';
 
-/** Maximum mtime bonus to prevent recency from dominating the score */
-const MAX_MTIME_BONUS = 200;
+/** Maximum mtime bonus - allows differentiation between recently modified files */
+const MAX_MTIME_BONUS = 500;
 
 /**
  * Cache for lowercase strings to avoid repeated toLowerCase() calls
