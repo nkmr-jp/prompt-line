@@ -51,8 +51,9 @@ describe('FzfScorer', () => {
 
     it('先頭文字のボーナスは倍', () => {
       // 先頭でのマッチは他の位置より高いボーナス
-      const startMatch = scorer.score('MyConfig', 'M');
-      const midMatch = scorer.score('aMyConfig', 'M');
+      // BOUNDARY_WHITE (10) at start vs no bonus at middle
+      const startMatch = scorer.score('my-config', 'm');
+      const midMatch = scorer.score('xmy-config', 'm');
       expect(startMatch.score).toBeGreaterThan(midMatch.score);
     });
 
@@ -139,7 +140,7 @@ describe('FZF_SCORES', () => {
     expect(FZF_SCORES.BOUNDARY).toBe(8);
     expect(FZF_SCORES.BOUNDARY_WHITE).toBe(10);
     expect(FZF_SCORES.BOUNDARY_DELIMITER).toBe(9);
-    expect(FZF_SCORES.CAMEL_CASE).toBe(7);
+    expect(FZF_SCORES.CAMEL_CASE).toBe(10);
     expect(FZF_SCORES.CONSECUTIVE).toBe(4);
     expect(FZF_SCORES.FIRST_CHAR_MULTIPLIER).toBe(2);
   });

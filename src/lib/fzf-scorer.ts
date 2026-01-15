@@ -16,9 +16,10 @@ export const FZF_SCORES = {
   BOUNDARY: 8, // Word boundary
   BOUNDARY_WHITE: 10, // After whitespace
   BOUNDARY_DELIMITER: 9, // After delimiter (/,:,;,|,-,_)
-  CAMEL_CASE: 7, // CamelCase transition
+  CAMEL_CASE: 10, // CamelCase transition (prioritized for code file matching)
   CONSECUTIVE: 4, // Consecutive match
   FIRST_CHAR_MULTIPLIER: 2, // First character multiplier
+  EXACT_MATCH: 20, // Bonus when pattern exactly matches entire text
 } as const;
 
 /**
@@ -159,6 +160,11 @@ export class FzfScorer {
       }
 
       prevMatchPos = pos;
+    }
+
+    // Apply exact match bonus when pattern exactly matches entire text
+    if (searchPattern.length === searchText.length) {
+      totalScore += FZF_SCORES.EXACT_MATCH;
     }
 
     return {
