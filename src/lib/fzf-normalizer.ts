@@ -2,8 +2,7 @@
  * FZF score normalization utilities.
  * Normalizes raw fzf scores to a configurable range for consistent score comparison.
  *
- * @see fzf-scorer.ts for the scoring implementation
- * @see https://github.com/junegunn/fzf for the original fzf project
+ * @see fzf-scorer.ts for the scoring implementation and fzf license attribution
  */
 
 /**

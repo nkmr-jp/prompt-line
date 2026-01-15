@@ -2,9 +2,22 @@
  * FZF-like scoring engine for fuzzy string matching.
  * Implements scoring algorithms similar to fzf for high-quality fuzzy matching.
  *
+ * This implementation is inspired by fzf's scoring algorithm.
  * Reference: https://github.com/junegunn/fzf
- * Scoring algorithm inspired by fzf's algo.go:
- * https://github.com/junegunn/fzf/blob/master/src/algo/algo.go
+ * Algorithm source: https://github.com/junegunn/fzf/blob/master/src/algo/algo.go
+ *
+ * fzf is licensed under the MIT License:
+ * Copyright (c) 2013-2025 Junegunn Choi
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  */
 
 /**
