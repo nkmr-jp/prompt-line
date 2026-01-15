@@ -17,8 +17,8 @@ export const USAGE_BONUS = {
   FREQUENCY_LOG_BASE: 10,
   USAGE_RECENCY_TTL_DAYS: 7,
 
-  // File modification time related
-  MAX_FILE_MTIME: 1000,
+  // File modification time related (scaled to fit within MAX_MTIME_BONUS=500)
+  MAX_FILE_MTIME: 500,
   FILE_MTIME_TTL_DAYS: 7,
   FILE_MTIME_HALF_LIFE_MS: SIX_HOURS_MS, // Half-life for exponential decay
 } as const;
@@ -67,16 +67,17 @@ export function calculateUsageRecencyBonus(lastUsed: number): number {
 }
 
 /**
- * Calculate file modification time bonus using hybrid decay.
- * Phase 1 (0-6h): Exponential decay with 6-hour half-life: 1000 → 500
- * Phase 2 (6h-24h): Linear decay: 500 → 200
- * Phase 3 (24h-7d): Linear decay: 200 → 0
+ * Calculate file modification time bonus using hybrid decay (scaled to 500 max).
+ * Phase 1 (0-6h): Exponential decay with 6-hour half-life: 500 → 250
+ * Phase 2 (6h-24h): Linear decay: 250 → 100
+ * Phase 3 (24h-7d): Linear decay: 100 → 0
  *
  * This gives strong priority to very recently edited files while still
  * providing meaningful bonuses for files edited within the past week.
+ * Scaled to fit within MAX_MTIME_BONUS=500 while maintaining differentiation.
  *
  * @param mtimeMs - File modification timestamp (ms)
- * @returns Bonus score (0 to MAX_FILE_MTIME)
+ * @returns Bonus score (0 to MAX_FILE_MTIME=500)
  */
 export function calculateFileMtimeBonus(mtimeMs: number): number {
   const now = Date.now();
@@ -94,24 +95,24 @@ export function calculateFileMtimeBonus(mtimeMs: number): number {
     return 0;
   }
 
-  // Hybrid decay:
-  // Phase 1 (0-6h): Exponential decay 1000 → 500
-  // Phase 2 (6h-24h): Linear decay 500 → 200
-  // Phase 3 (24h-7d): Linear decay 200 → 0
+  // Hybrid decay (scaled to 500 max):
+  // Phase 1 (0-6h): Exponential decay 500 → 250
+  // Phase 2 (6h-24h): Linear decay 250 → 100
+  // Phase 3 (24h-7d): Linear decay 100 → 0
 
   if (age < SIX_HOURS_MS) {
     // Phase 1: Exponential decay with 6-hour half-life
     const lambda = Math.LN2 / USAGE_BONUS.FILE_MTIME_HALF_LIFE_MS;
     return Math.floor(USAGE_BONUS.MAX_FILE_MTIME * Math.exp(-lambda * age));
   } else if (age < ONE_DAY_MS) {
-    // Phase 2: Linear decay from 500 to 200
+    // Phase 2: Linear decay from 250 to 100
     const ratio = 1 - (age - SIX_HOURS_MS) / (ONE_DAY_MS - SIX_HOURS_MS);
-    return Math.floor(200 + ratio * 300);
+    return Math.floor(100 + ratio * 150);
   } else {
-    // Phase 3: Linear decay from 200 to 0
+    // Phase 3: Linear decay from 100 to 0
     const remainingTtl = ttlMs - ONE_DAY_MS;
     const ageAfterFirstDay = age - ONE_DAY_MS;
     const ratio = 1 - (ageAfterFirstDay / remainingTtl);
-    return Math.floor(ratio * 200);
+    return Math.floor(ratio * 100);
   }
 }
