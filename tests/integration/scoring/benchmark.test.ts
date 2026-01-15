@@ -146,7 +146,7 @@ describe('Scoring Performance Benchmarks', () => {
       } else {
         console.log('\n[REAL DATA NOT AVAILABLE - Using synthetic data]\n');
       }
-    } catch (error) {
+    } catch (_error) {
       console.log('\n[REAL DATA LOAD FAILED - Using synthetic data]\n');
       hasRealData = false;
     }
