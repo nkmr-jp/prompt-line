@@ -131,10 +131,21 @@ export function calculateMatchScore(
     score += FUZZY_MATCH_SCORES.PATH_CONTAINS;
   }
   // Fuzzy match on name using FzfScorer
+  // Pass original file.name to preserve CamelCase detection for position bonuses
   else {
-    const fzfResult = fzfScorer.score(nameLower, queryLower);
+    const fzfResult = fzfScorer.score(file.name, queryLower);
     if (fzfResult.matched) {
-      score += FUZZY_MATCH_SCORES.BASE_FUZZY;
+      // Scale FZF score to fit within score hierarchy
+      // FZF scores typically range ~20-150
+      // Scale to 10-100 range (under CONTAINS=200, above PATH_CONTAINS=50 for good matches)
+      const scaledFzfScore = Math.min(
+        FUZZY_MATCH_SCORES.MAX_FUZZY_BONUS,
+        Math.max(
+          FUZZY_MATCH_SCORES.BASE_FUZZY,
+          Math.floor(fzfResult.score * FUZZY_MATCH_SCORES.FZF_SCALE_FACTOR)
+        )
+      );
+      score += scaledFzfScore;
     }
   }
 
@@ -199,10 +210,21 @@ export function calculateAgentMatchScore(
     score += FUZZY_MATCH_SCORES.PATH_CONTAINS;
   }
   // Fuzzy match on name using FzfScorer
+  // Pass original agent.name to preserve CamelCase detection for position bonuses
   else {
-    const fzfResult = fzfScorer.score(nameLower, queryLower);
+    const fzfResult = fzfScorer.score(agent.name, queryLower);
     if (fzfResult.matched) {
-      score += FUZZY_MATCH_SCORES.BASE_FUZZY;
+      // Scale FZF score to fit within score hierarchy
+      // FZF scores typically range ~20-150
+      // Scale to 10-100 range (under CONTAINS=200, above PATH_CONTAINS=50 for good matches)
+      const scaledFzfScore = Math.min(
+        FUZZY_MATCH_SCORES.MAX_FUZZY_BONUS,
+        Math.max(
+          FUZZY_MATCH_SCORES.BASE_FUZZY,
+          Math.floor(fzfResult.score * FUZZY_MATCH_SCORES.FZF_SCALE_FACTOR)
+        )
+      );
+      score += scaledFzfScore;
     }
   }
 

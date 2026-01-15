@@ -78,6 +78,8 @@ export const FUZZY_MATCH_SCORES = {
   FILE_BONUS: 5,
   MAX_PATH_BONUS: 20,
   AGENT_BASE: 50,
+  MAX_FUZZY_BONUS: 100,  // FZF score upper limit (below CONTAINS=200)
+  FZF_SCALE_FACTOR: 0.8, // FZF score scale coefficient
 } as const;
 
 // Time calculation constants
