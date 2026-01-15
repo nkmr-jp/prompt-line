@@ -12,7 +12,7 @@ import { getRelativePath } from './path-utils';
 export { compareTiebreak } from '../../lib/tiebreaker';
 
 /** Maximum mtime bonus - caps the mtime bonus to balance with match scores */
-const MAX_MTIME_BONUS = 500;
+const MAX_MTIME_BONUS = 200;
 
 /**
  * Cache for lowercase strings to avoid repeated toLowerCase() calls

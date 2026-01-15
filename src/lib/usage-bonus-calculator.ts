@@ -12,15 +12,19 @@ const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
  */
 export const USAGE_BONUS = {
   // Usage history related
-  MAX_FREQUENCY: 200,
-  MAX_USAGE_RECENCY: 300,
+  MAX_FREQUENCY: 100,
+  MAX_USAGE_RECENCY: 100,
   FREQUENCY_LOG_BASE: 10,
   USAGE_RECENCY_TTL_DAYS: 7,
 
-  // File modification time related (scaled to fit within MAX_MTIME_BONUS=500)
-  MAX_FILE_MTIME: 500,
+  // File modification time related (scaled to fit within MAX_MTIME_BONUS=200)
+  MAX_FILE_MTIME: 200,
   FILE_MTIME_TTL_DAYS: 7,
   FILE_MTIME_HALF_LIFE_MS: SIX_HOURS_MS, // Half-life for exponential decay
+
+  // Proportions for hybrid decay algorithm (percentage of MAX_FILE_MTIME)
+  MTIME_PROPORTION_AT_6H: 0.5, // 50% at 6 hours (due to half-life)
+  MTIME_PROPORTION_AT_24H: 0.2, // 20% at 24 hours
 } as const;
 
 /**
@@ -67,17 +71,17 @@ export function calculateUsageRecencyBonus(lastUsed: number): number {
 }
 
 /**
- * Calculate file modification time bonus using hybrid decay (scaled to 500 max).
- * Phase 1 (0-6h): Exponential decay with 6-hour half-life: 500 → 250
- * Phase 2 (6h-24h): Linear decay: 250 → 100
- * Phase 3 (24h-7d): Linear decay: 100 → 0
+ * Calculate file modification time bonus using hybrid decay.
+ * Phase 1 (0-6h): Exponential decay with 6-hour half-life: MAX → 50%
+ * Phase 2 (6h-24h): Linear decay: 50% → 20%
+ * Phase 3 (24h-7d): Linear decay: 20% → 0%
  *
  * This gives strong priority to very recently edited files while still
  * providing meaningful bonuses for files edited within the past week.
- * Scaled to fit within MAX_MTIME_BONUS=500 while maintaining differentiation.
+ * Algorithm uses proportions to scale correctly for any MAX_FILE_MTIME value.
  *
  * @param mtimeMs - File modification timestamp (ms)
- * @returns Bonus score (0 to MAX_FILE_MTIME=500)
+ * @returns Bonus score (0 to MAX_FILE_MTIME)
  */
 export function calculateFileMtimeBonus(mtimeMs: number): number {
   const now = Date.now();
@@ -95,24 +99,28 @@ export function calculateFileMtimeBonus(mtimeMs: number): number {
     return 0;
   }
 
-  // Hybrid decay (scaled to 500 max):
-  // Phase 1 (0-6h): Exponential decay 500 → 250
-  // Phase 2 (6h-24h): Linear decay 250 → 100
-  // Phase 3 (24h-7d): Linear decay 100 → 0
+  // Calculate proportional values based on MAX_FILE_MTIME
+  const valueAt6h = Math.floor(USAGE_BONUS.MAX_FILE_MTIME * USAGE_BONUS.MTIME_PROPORTION_AT_6H);
+  const valueAt24h = Math.floor(USAGE_BONUS.MAX_FILE_MTIME * USAGE_BONUS.MTIME_PROPORTION_AT_24H);
+
+  // Hybrid decay using proportions:
+  // Phase 1 (0-6h): Exponential decay MAX → valueAt6h (50%)
+  // Phase 2 (6h-24h): Linear decay valueAt6h → valueAt24h (50% → 20%)
+  // Phase 3 (24h-7d): Linear decay valueAt24h → 0 (20% → 0%)
 
   if (age < SIX_HOURS_MS) {
     // Phase 1: Exponential decay with 6-hour half-life
     const lambda = Math.LN2 / USAGE_BONUS.FILE_MTIME_HALF_LIFE_MS;
     return Math.floor(USAGE_BONUS.MAX_FILE_MTIME * Math.exp(-lambda * age));
   } else if (age < ONE_DAY_MS) {
-    // Phase 2: Linear decay from 250 to 100
+    // Phase 2: Linear decay from valueAt6h to valueAt24h
     const ratio = 1 - (age - SIX_HOURS_MS) / (ONE_DAY_MS - SIX_HOURS_MS);
-    return Math.floor(100 + ratio * 150);
+    return Math.floor(valueAt24h + ratio * (valueAt6h - valueAt24h));
   } else {
-    // Phase 3: Linear decay from 100 to 0
+    // Phase 3: Linear decay from valueAt24h to 0
     const remainingTtl = ttlMs - ONE_DAY_MS;
     const ageAfterFirstDay = age - ONE_DAY_MS;
     const ratio = 1 - (ageAfterFirstDay / remainingTtl);
-    return Math.floor(ratio * 100);
+    return Math.floor(ratio * valueAt24h);
   }
 }

@@ -9,7 +9,7 @@ import { fileSearchTestCases } from '../../fixtures/scoring/file-search-cases';
 import type { FileInfo } from '../../../src/types/file-search';
 
 // MAX_MTIME_BONUS constant from fuzzy-matcher
-const MAX_MTIME_BONUS = 500;
+const MAX_MTIME_BONUS = 200;
 
 describe('File Search Scoring', () => {
   describe('CamelCase matches', () => {
