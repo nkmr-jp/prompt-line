@@ -374,7 +374,7 @@ export class MentionManager implements IInitializable {
         updateTextInputWithPath: (path: string) => this.updateTextInputWithPath(path),
         filterFiles: (query: string, usageBonuses?: Record<string, number>) => this.filterFiles(query, usageBonuses),
         mergeSuggestions: (query: string, maxSuggestions?: number, usageBonuses?: Record<string, number>) => this.mergeSuggestions(query, maxSuggestions, usageBonuses),
-        getFileUsageBonuses: async (filePaths?: string[]) => await this.getFileUsageBonuses(filePaths),
+        getFileUsageBonuses: async () => await this.getFileUsageBonuses(),
         showSuggestions: (query: string) => this.showSuggestions(query),
         _selectSymbol: (symbol: SymbolResult) => this._selectSymbol(symbol),
         refreshSuggestions: () => this.refreshSuggestions(),
@@ -853,43 +853,32 @@ export class MentionManager implements IInitializable {
   // Cached usage bonuses to avoid repeated IPC calls
   private cachedFileUsageBonuses: Record<string, number> = {};
   private usageBonusesCacheTime: number = 0;
-  private readonly USAGE_BONUSES_CACHE_TTL = 10000; // 10 seconds (increased from 5s for better cache efficiency)
+  private readonly USAGE_BONUSES_CACHE_TTL = 5000; // 5 seconds
 
   /**
-   * Get file usage bonuses for specific file paths (cached for performance)
-   * OPTIMIZATION: Only fetches bonuses for the specified paths instead of all files
-   * @param filePaths - Array of file paths to get bonuses for (typically top candidates only)
+   * Get file usage bonuses (cached for performance)
    */
-  private async getFileUsageBonuses(filePaths?: string[]): Promise<Record<string, number>> {
+  private async getFileUsageBonuses(): Promise<Record<string, number>> {
     const now = Date.now();
-
-    // If no specific paths requested and cache is valid, return cached data
-    if (!filePaths && now - this.usageBonusesCacheTime < this.USAGE_BONUSES_CACHE_TTL) {
+    if (now - this.usageBonusesCacheTime < this.USAGE_BONUSES_CACHE_TTL) {
       return this.cachedFileUsageBonuses;
     }
 
     try {
-      // If specific paths requested, only fetch bonuses for those paths
-      const pathsToFetch = filePaths ?? (() => {
-        const cachedData = this.directoryCacheManager?.getCachedData() ?? null;
-        if (!cachedData?.files || cachedData.files.length === 0) {
-          return [];
-        }
-        return cachedData.files.map(f => f.path);
-      })();
-
-      if (pathsToFetch.length === 0) {
+      const cachedData = this.directoryCacheManager?.getCachedData() ?? null;
+      if (!cachedData?.files || cachedData.files.length === 0) {
         return {};
       }
 
-      // Fetch bonuses via IPC (only for requested paths)
-      const bonuses = await electronAPI?.usageHistory?.getFileUsageBonuses(pathsToFetch) ?? {};
+      // Get all file paths
+      const filePaths = cachedData.files.map(f => f.path);
 
-      // Update cache only if we fetched all files (not specific paths)
-      if (!filePaths) {
-        this.cachedFileUsageBonuses = bonuses;
-        this.usageBonusesCacheTime = now;
-      }
+      // Fetch bonuses via IPC
+      const bonuses = await electronAPI?.usageHistory?.getFileUsageBonuses(filePaths) ?? {};
+
+      // Update cache
+      this.cachedFileUsageBonuses = bonuses;
+      this.usageBonusesCacheTime = now;
 
       return bonuses;
     } catch (error) {
@@ -901,12 +890,10 @@ export class MentionManager implements IInitializable {
   /**
    * Filter files based on query (fuzzy matching) and currentPath
    * Delegates to FileFilterManager
-   * Note: usageBonuses are no longer used during filtering - they're applied later in mergeSuggestions
    */
-  public filterFiles(query: string, _usageBonuses?: Record<string, number>): FileInfo[] {
+  public filterFiles(query: string, usageBonuses?: Record<string, number>): FileInfo[] {
     const cachedData = this.directoryCacheManager?.getCachedData() ?? null;
-    // Pass undefined for usageBonuses since they're now applied in mergeSuggestions
-    return this.fileFilterManager.filterFiles(cachedData, this.state.currentPath, query, undefined);
+    return this.fileFilterManager.filterFiles(cachedData, this.state.currentPath, query, usageBonuses);
   }
 
   /**

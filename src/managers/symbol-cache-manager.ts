@@ -45,7 +45,6 @@ export class SymbolCacheManager {
   private cacheDir: string;
 
   /** In-memory cache: Map<"directory:language", MemoryCacheEntry> */
-  /** Note: Map maintains insertion order, enabling O(1) LRU operations */
   private memoryCache: Map<string, MemoryCacheEntry> = new Map();
 
   /** Memory cache TTL (5 minutes) - refresh from disk after this time */
@@ -53,6 +52,9 @@ export class SymbolCacheManager {
 
   /** Maximum number of cache entries to keep in memory */
   private readonly MAX_CACHE_ENTRIES = 50;
+
+  /** LRU order tracking: most recently used at the end */
+  private cacheOrder: string[] = [];
 
   constructor() {
     this.cacheDir = config.paths.projectsCacheDir;
@@ -69,23 +71,21 @@ export class SymbolCacheManager {
    * Update LRU order for a cache key
    * Moves the key to the end (most recently used position)
    * Evicts oldest entries if MAX_CACHE_ENTRIES is exceeded
-   *
-   * Time Complexity: O(1) - Map.delete() and Map.set() are O(1)
    */
   private updateCacheOrder(key: string): void {
-    const entry = this.memoryCache.get(key);
-
-    // If key exists, delete and re-insert to move to end (most recently used)
-    if (entry !== undefined) {
-      this.memoryCache.delete(key);
-      this.memoryCache.set(key, entry);
+    // Remove key from current position if it exists
+    const index = this.cacheOrder.indexOf(key);
+    if (index > -1) {
+      this.cacheOrder.splice(index, 1);
     }
 
+    // Add key to the end (most recently used)
+    this.cacheOrder.push(key);
+
     // Evict oldest entries if we exceed the limit
-    // Map iterator returns entries in insertion order, oldest first
-    while (this.memoryCache.size > this.MAX_CACHE_ENTRIES) {
-      const oldestKey = this.memoryCache.keys().next().value;
-      if (oldestKey !== undefined) {
+    while (this.cacheOrder.length > this.MAX_CACHE_ENTRIES) {
+      const oldestKey = this.cacheOrder.shift();
+      if (oldestKey) {
         this.memoryCache.delete(oldestKey);
       }
     }
@@ -112,6 +112,11 @@ export class SymbolCacheManager {
     }
     for (const key of keysToDelete) {
       this.memoryCache.delete(key);
+      // Remove from LRU order tracking
+      const index = this.cacheOrder.indexOf(key);
+      if (index > -1) {
+        this.cacheOrder.splice(index, 1);
+      }
     }
   }
 
@@ -120,6 +125,7 @@ export class SymbolCacheManager {
    */
   public clearMemoryCache(): void {
     this.memoryCache.clear();
+    this.cacheOrder = [];
   }
 
   /**
@@ -222,19 +228,14 @@ export class SymbolCacheManager {
       }
 
       const allSymbols: SymbolResult[] = [];
-
-      // Parallel loading for better performance
-      const langPromises = Object.keys(metadata.languages).map((lang) =>
-        this.loadSymbolsForLanguage(directory, lang, maxSymbols)
-      );
-      const langResults = await Promise.all(langPromises);
-
-      for (const symbols of langResults) {
-        allSymbols.push(...symbols);
-        // Early termination if maxSymbols reached
-        if (maxSymbols !== undefined && allSymbols.length >= maxSymbols) {
-          return allSymbols.slice(0, maxSymbols);
+      for (const lang of Object.keys(metadata.languages)) {
+        // Calculate remaining symbols to load
+        const remaining = maxSymbols !== undefined ? maxSymbols - allSymbols.length : undefined;
+        if (remaining !== undefined && remaining <= 0) {
+          break; // Early termination if maxSymbols reached
         }
+        const langSymbols = await this.loadSymbolsForLanguage(directory, lang, remaining);
+        allSymbols.push(...langSymbols);
       }
 
       return allSymbols;
@@ -510,6 +511,12 @@ export class SymbolCacheManager {
       // Clear memory cache for this language
       const cacheKey = this.getMemoryCacheKey(directory, language);
       this.memoryCache.delete(cacheKey);
+
+      // Remove from LRU order tracking
+      const index = this.cacheOrder.indexOf(cacheKey);
+      if (index > -1) {
+        this.cacheOrder.splice(index, 1);
+      }
 
       // Remove language-specific file
       const symbolsPath = this.getSymbolsPath(directory, language);

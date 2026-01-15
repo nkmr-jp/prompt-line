@@ -12,8 +12,6 @@ import { compareTiebreak } from '../../lib/tiebreaker';
 export class HistorySearchFilterEngine {
   private config: HistorySearchConfig;
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
-  private lastQuery: string = '';
-  private lastResults: HistoryItem[] = [];
 
   constructor(config: Partial<HistorySearchConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -37,10 +35,46 @@ export class HistorySearchFilterEngine {
    * Filter and score history items based on query
    * Searches through up to maxSearchItems, returns up to maxDisplayResults
    * Returns both filtered items and total match count
-   * Optimized: Uses incremental filtering when query extends previous query
    */
   public filter(items: HistoryItem[], query: string): FilterResult {
-    return this.filterWithLimit(items, query, this.config.maxDisplayResults);
+    // Limit search scope to maxSearchItems
+    const searchItems = items.slice(0, this.config.maxSearchItems);
+
+    if (!query.trim()) {
+      // Return items when query is empty, limited by maxDisplayResults
+      return {
+        items: searchItems.slice(0, this.config.maxDisplayResults),
+        totalMatches: searchItems.length
+      };
+    }
+
+    const queryNormalized = this.config.caseSensitive
+      ? query.trim()
+      : query.trim().toLowerCase();
+
+    // Score and filter items from the search scope
+    // Sort by score descending, then by timestamp descending (newest first) for same score
+    const allMatches = searchItems
+      .map((item, index) => ({ ...this.scoreItem(item, queryNormalized), originalIndex: index }))
+      .filter(result => result.score > 0)
+      .sort((a, b) => {
+        const scoreDiff = b.score - a.score;
+        if (scoreDiff !== 0) return scoreDiff;
+
+        // Tiebreak: use original index (maintains newest-first order)
+        return compareTiebreak(a, b, { criteria: ['index'] }, {
+          index: (item) => item.originalIndex ?? 0,
+        });
+      });
+
+    const displayItems = allMatches
+      .slice(0, this.config.maxDisplayResults)
+      .map(result => result.item);
+
+    return {
+      items: displayItems,
+      totalMatches: allMatches.length
+    };
   }
 
   /**
@@ -210,16 +244,12 @@ export class HistorySearchFilterEngine {
 
   /**
    * Filter with custom display limit (for pagination/load more)
-   * Optimized: Uses incremental filtering when query extends previous query
    */
   public filterWithLimit(items: HistoryItem[], query: string, displayLimit: number): FilterResult {
     // Limit search scope to maxSearchItems
     const searchItems = items.slice(0, this.config.maxSearchItems);
 
     if (!query.trim()) {
-      // Clear cache when query is empty
-      this.lastQuery = '';
-      this.lastResults = [];
       return {
         items: searchItems.slice(0, displayLimit),
         totalMatches: searchItems.length
@@ -230,18 +260,8 @@ export class HistorySearchFilterEngine {
       ? query.trim()
       : query.trim().toLowerCase();
 
-    // Incremental filtering optimization: if query extends previous query, filter from previous results
-    let sourceItems: HistoryItem[];
-    if (queryNormalized.startsWith(this.lastQuery) && this.lastQuery.length > 0 && this.lastResults.length > 0) {
-      // Query is an extension of previous query, filter from previous results
-      sourceItems = this.lastResults;
-    } else {
-      // New query or query doesn't extend previous, search from full scope
-      sourceItems = searchItems;
-    }
-
     // Sort by score descending, then by timestamp descending (newest first) for same score
-    const allMatches = sourceItems
+    const allMatches = searchItems
       .map((item, index) => ({ ...this.scoreItem(item, queryNormalized), originalIndex: index }))
       .filter(result => result.score > 0)
       .sort((a, b) => {
@@ -254,12 +274,6 @@ export class HistorySearchFilterEngine {
         });
       });
 
-    const matchedItems = allMatches.map(result => result.item);
-
-    // Cache results for next incremental search
-    this.lastQuery = queryNormalized;
-    this.lastResults = matchedItems;
-
     return {
       items: allMatches.slice(0, displayLimit).map(result => result.item),
       totalMatches: allMatches.length
@@ -267,18 +281,9 @@ export class HistorySearchFilterEngine {
   }
 
   /**
-   * Clear incremental search cache
-   */
-  public clearCache(): void {
-    this.lastQuery = '';
-    this.lastResults = [];
-  }
-
-  /**
    * Cleanup resources
    */
   public cleanup(): void {
     this.cancelPendingSearch();
-    this.clearCache();
   }
 }

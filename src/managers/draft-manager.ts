@@ -4,8 +4,12 @@ import config from '../config/app-config';
 import {
   logger,
   safeJsonParse,
-  safeJsonStringify
+  safeJsonStringify,
+  debounce
 } from '../utils/utils';
+import type {
+  DebounceFunction
+} from '../types';
 import { DEBOUNCE, LIMITS } from '../constants';
 
 interface DraftMetadata {
@@ -40,10 +44,14 @@ class DraftManager {
   private hasUnsavedChanges = false;
   private lastSavedContent: string | null = null;
   private lastSavedScrollTop = 0;
-  private saveTimer: number | null = null;
+  private debouncedSave: DebounceFunction<[string, number]>;
+  private quickSave: DebounceFunction<[string, number]>;
 
   constructor() {
     this.draftFile = config.paths.draftFile;
+
+    this.debouncedSave = debounce(this._saveDraft.bind(this), DEBOUNCE.LONG_TEXT);
+    this.quickSave = debounce(this._saveDraft.bind(this), DEBOUNCE.SHORT_TEXT);
   }
 
   async initialize(): Promise<void> {
@@ -112,18 +120,11 @@ class DraftManager {
         throw new Error('Draft size exceeds 1MB limit');
       }
 
-      // 前回のタイマーをクリア
-      if (this.saveTimer !== null) {
-        clearTimeout(this.saveTimer);
+      if (text.length > DEBOUNCE.TEXT_LENGTH_THRESHOLD) {
+        this.debouncedSave(text, scrollTop);
+      } else {
+        this.quickSave(text, scrollTop);
       }
-
-      // テキスト長に応じて遅延を動的に決定
-      const delay = text.length > DEBOUNCE.TEXT_LENGTH_THRESHOLD ? DEBOUNCE.LONG_TEXT : DEBOUNCE.SHORT_TEXT;
-
-      this.saveTimer = setTimeout(() => {
-        this._saveDraft(text, scrollTop);
-        this.saveTimer = null;
-      }, delay) as unknown as number;
     } catch (error) {
       logger.error('Failed to schedule draft save:', error);
       throw error;
@@ -201,10 +202,8 @@ class DraftManager {
       this.currentDraft = null;
       this.currentScrollTop = 0;
 
-      // タイマーをクリア
-      if (this.saveTimer !== null) {
-        clearTimeout(this.saveTimer);
-        this.saveTimer = null;
+      if (this.debouncedSave.cancel) {
+        this.debouncedSave.cancel();
       }
 
       await fs.unlink(this.draftFile);
@@ -385,10 +384,11 @@ class DraftManager {
     try {
       await this.flushPendingSaves();
 
-      // タイマーをクリア
-      if (this.saveTimer !== null) {
-        clearTimeout(this.saveTimer);
-        this.saveTimer = null;
+      if (this.debouncedSave.cancel) {
+        this.debouncedSave.cancel();
+      }
+      if (this.quickSave.cancel) {
+        this.quickSave.cancel();
       }
 
       this.currentDraft = null;

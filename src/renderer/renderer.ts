@@ -249,10 +249,7 @@ export class PromptLineRenderer {
   private setupEventListeners(): void {
     if (!this.domManager.textarea) return;
 
-    this.domManager.textarea.addEventListener('input', (e) => {
-      // Ignore programmatic dispatchEvent calls to prevent redundant processing
-      if (!e.isTrusted) return;
-
+    this.domManager.textarea.addEventListener('input', () => {
       this.domManager.updateCharCount();
       this.draftManager.saveDraftDebounced();
       this.historyUIManager.clearHistorySelection();

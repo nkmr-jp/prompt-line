@@ -26,23 +26,12 @@ interface SlashCommandItem {
   displayName?: string;  // Human-readable source name for display (e.g., 'Claude Code')
 }
 
-/**
- * Cached version of SlashCommandItem with pre-computed lowercase strings
- * for faster filtering without repeated toLowerCase() calls
- */
-interface CachedSlashCommand extends SlashCommandItem {
-  nameLower: string;
-  descLower: string;
-  displayNameLower: string | undefined;
-  labelLower: string | undefined;
-}
-
 export class SlashCommandManager implements IInitializable {
 
   private suggestionsContainer: HTMLElement | null = null;
   private textarea: HTMLTextAreaElement | null = null;
   private mirrorDiv: HTMLDivElement | null = null;
-  private commands: CachedSlashCommand[] = [];
+  private commands: SlashCommandItem[] = [];
   private filteredCommands: SlashCommandItem[] = [];
   private selectedIndex: number = 0;
   private isActive: boolean = false;
@@ -54,19 +43,9 @@ export class SlashCommandManager implements IInitializable {
   private onCommandInsert: (command: string) => void;
   private onBeforeOpenFile: (() => void) | undefined;
   private setDraggable: ((enabled: boolean) => void) | undefined;
-  private previousSelectedElement: HTMLElement | null = null; // Cache for selected element
 
   // Frontmatter popup manager
   private frontmatterPopupManager: FrontmatterPopupManager;
-
-  // Debounce timers for performance optimization
-  private debounceTimer: number | null = null;
-  private cursorCheckTimer: number | null = null;
-
-  // Debounce delays
-  private readonly DEBOUNCE_SHORT = 150; // For short queries (≤200 chars)
-  private readonly DEBOUNCE_LONG = 300;  // For long queries (>200 chars)
-  private readonly CURSOR_CHECK_DEBOUNCE = 50; // For cursor position checks
 
   // FZF scorer for improved matching
   private fzfScorer = new FzfScorer({
@@ -146,15 +125,12 @@ export class SlashCommandManager implements IInitializable {
     if (!this.textarea) return;
 
     // Monitor input for slash command detection and argumentHint display
-    this.textarea.addEventListener('input', (e) => {
-      // Ignore programmatic dispatchEvent calls to prevent redundant processing
-      if (!e.isTrusted) return;
-
+    this.textarea.addEventListener('input', () => {
       this.checkForSlashCommand();
       // After checking for slash command, also check if we need to show argumentHint
       // This handles the case when user deletes characters and cursor returns to argument position
       if (!this.isActive) {
-        this.scheduleCursorCheck();
+        this.checkForArgumentHintAtCursor();
       }
     });
 
@@ -173,18 +149,18 @@ export class SlashCommandManager implements IInitializable {
     // Check for argumentHint when cursor position changes (arrow keys, home, end)
     this.textarea.addEventListener('keyup', (e) => {
       if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) {
-        this.scheduleCursorCheck();
+        this.checkForArgumentHintAtCursor();
       }
     });
 
     // Check for argumentHint when clicking in textarea
     this.textarea.addEventListener('click', () => {
-      this.scheduleCursorCheck();
+      this.checkForArgumentHintAtCursor();
     });
 
     // Check for argumentHint when textarea receives focus
     this.textarea.addEventListener('focus', () => {
-      this.scheduleCursorCheck();
+      this.checkForArgumentHintAtCursor();
     });
 
     // Hide suggestions on blur (with delay to allow click)
@@ -242,20 +218,12 @@ export class SlashCommandManager implements IInitializable {
   }
 
   /**
-   * Load commands from main process and pre-compute lowercase strings for filtering
+   * Load commands from main process
    */
   public async loadCommands(): Promise<void> {
     try {
       if (electronAPI?.slashCommands?.get) {
-        const rawCommands = await electronAPI.slashCommands.get();
-        // Cache lowercase strings for faster filtering
-        this.commands = rawCommands.map(cmd => ({
-          ...cmd,
-          nameLower: cmd.name.toLowerCase(),
-          descLower: cmd.description.toLowerCase(),
-          displayNameLower: cmd.displayName?.toLowerCase(),
-          labelLower: cmd.label?.toLowerCase(),
-        }));
+        this.commands = await electronAPI.slashCommands.get();
       }
     } catch (error) {
       console.error('Failed to load slash commands:', error);
@@ -264,43 +232,9 @@ export class SlashCommandManager implements IInitializable {
   }
 
   /**
-   * Schedule a debounced cursor position check to avoid redundant calls
-   */
-  private scheduleCursorCheck(): void {
-    if (this.cursorCheckTimer !== null) {
-      clearTimeout(this.cursorCheckTimer);
-    }
-    this.cursorCheckTimer = window.setTimeout(() => {
-      this.checkForArgumentHintAtCursor();
-      this.cursorCheckTimer = null;
-    }, this.CURSOR_CHECK_DEBOUNCE);
-  }
-
-  /**
-   * Check if user is typing a slash command at cursor position (with debouncing)
+   * Check if user is typing a slash command at cursor position
    */
   private checkForSlashCommand(): void {
-    if (!this.textarea) return;
-
-    // Clear existing debounce timer
-    if (this.debounceTimer !== null) {
-      clearTimeout(this.debounceTimer);
-    }
-
-    // Determine debounce delay based on query length
-    const queryLength = this.textarea.value.length;
-    const debounceDelay = queryLength > 200 ? this.DEBOUNCE_LONG : this.DEBOUNCE_SHORT;
-
-    this.debounceTimer = window.setTimeout(() => {
-      this.performSlashCommandCheck();
-      this.debounceTimer = null;
-    }, debounceDelay);
-  }
-
-  /**
-   * Actual slash command check logic (called after debounce)
-   */
-  private performSlashCommandCheck(): void {
     if (!this.textarea) return;
 
     const result = extractTriggerQueryAtCursor(
@@ -430,24 +364,26 @@ export class SlashCommandManager implements IInitializable {
   }
 
   /**
-   * Calculate match score for a command
+   * Calculate match score for a command name
    * Higher score = better match
-   * Uses cached lowercase strings for better performance
    */
-  private getMatchScore(cmd: CachedSlashCommand, lowerQuery: string): number {
+  private getMatchScore(name: string, query: string, description?: string): number {
+    const lowerQuery = query.toLowerCase();
+    const lowerName = name.toLowerCase();
+
     // 完全一致は最優先（既存動作維持）
-    if (cmd.nameLower === lowerQuery) return 1000;
+    if (lowerName === lowerQuery) return 1000;
 
     // fzfスコアリング（名前）
-    const nameResult = this.fzfScorer.score(cmd.name, lowerQuery);
+    const nameResult = this.fzfScorer.score(name, lowerQuery);
     if (nameResult.matched) {
       // 名前マッチは2倍重要、最大900点（完全一致より下）
       return Math.min(900, nameResult.score * 2);
     }
 
     // fzfスコアリング（説明）
-    if (cmd.description) {
-      const descResult = this.fzfScorer.score(cmd.description, lowerQuery);
+    if (description) {
+      const descResult = this.fzfScorer.score(description, lowerQuery);
       if (descResult.matched) {
         // 説明マッチは最大400点
         return Math.min(400, descResult.score);
@@ -467,14 +403,14 @@ export class SlashCommandManager implements IInitializable {
       await this.loadCommands();
     }
 
-    // Filter commands using cached lowercase strings for better performance
+    // Filter commands - prioritize: prefix match > contains match > description match > source match
     const lowerQuery = query.toLowerCase();
     this.filteredCommands = this.commands
       .filter(cmd =>
-        cmd.nameLower.includes(lowerQuery) ||
-        cmd.descLower.includes(lowerQuery) ||
-        (cmd.displayNameLower && cmd.displayNameLower.includes(lowerQuery)) ||
-        (cmd.labelLower && cmd.labelLower.includes(lowerQuery))
+        cmd.name.toLowerCase().includes(lowerQuery) ||
+        cmd.description.toLowerCase().includes(lowerQuery) ||
+        (cmd.displayName && cmd.displayName.toLowerCase().includes(lowerQuery)) ||
+        (cmd.label && cmd.label.toLowerCase().includes(lowerQuery))
       );
 
     if (this.filteredCommands.length === 0) {
@@ -495,13 +431,9 @@ export class SlashCommandManager implements IInitializable {
     }
 
     // Sort by total score (match score + usage bonus)
-    // Note: filteredCommands contains CachedSlashCommand, but we treat as SlashCommandItem for compatibility
     this.filteredCommands.sort((a, b) => {
-      const cmdA = a as CachedSlashCommand;
-      const cmdB = b as CachedSlashCommand;
-
-      const aMatchScore = this.getMatchScore(cmdA, lowerQuery);
-      const bMatchScore = this.getMatchScore(cmdB, lowerQuery);
+      const aMatchScore = this.getMatchScore(a.name, lowerQuery, a.description);
+      const bMatchScore = this.getMatchScore(b.name, lowerQuery, b.description);
 
       const aBonus = usageBonuses[a.name] ?? 0;
       const bBonus = usageBonuses[b.name] ?? 0;
@@ -537,8 +469,6 @@ export class SlashCommandManager implements IInitializable {
     this.suggestionsContainer.classList.remove('hover-enabled');
     // Reset scroll position to top when search text changes
     this.suggestionsContainer.scrollTop = 0;
-    // Reset cached selected element when re-rendering
-    this.previousSelectedElement = null;
 
     const fragment = document.createDocumentFragment();
 
@@ -691,8 +621,6 @@ export class SlashCommandManager implements IInitializable {
       this.suggestionsContainer.textContent = '';
       this.suggestionsContainer.classList.remove('hover-enabled');
     }
-    // Reset cached selected element when hiding
-    this.previousSelectedElement = null;
     // Also hide frontmatter popup
     this.frontmatterPopupManager.hide();
   }
@@ -789,28 +717,20 @@ export class SlashCommandManager implements IInitializable {
 
   /**
    * Update visual selection
-   * Performance optimized: Uses cached element reference to avoid iterating all items
    */
   private updateSelection(): void {
     if (!this.suggestionsContainer) return;
 
-    // Remove selection from previously selected element
-    if (this.previousSelectedElement) {
-      this.previousSelectedElement.classList.remove('selected');
-    }
-
-    // Get new selected element by index
     const items = this.suggestionsContainer.querySelectorAll('.slash-suggestion-item');
-    const newSelectedElement = items[this.selectedIndex] as HTMLElement | undefined;
-
-    if (newSelectedElement) {
-      // Add selection to new element
-      newSelectedElement.classList.add('selected');
-      // Scroll into view if needed (use 'instant' to ensure scroll completes before popup positioning)
-      newSelectedElement.scrollIntoView({ block: 'nearest', behavior: 'instant' });
-      // Cache the newly selected element
-      this.previousSelectedElement = newSelectedElement;
-    }
+    items.forEach((item, index) => {
+      if (index === this.selectedIndex) {
+        item.classList.add('selected');
+        // Scroll into view if needed (use 'instant' to ensure scroll completes before popup positioning)
+        (item as HTMLElement).scrollIntoView({ block: 'nearest', behavior: 'instant' });
+      } else {
+        item.classList.remove('selected');
+      }
+    });
 
     // Update tooltip if auto-show is enabled
     // Use requestAnimationFrame to ensure scroll position is settled before calculating popup position
@@ -1046,20 +966,5 @@ export class SlashCommandManager implements IInitializable {
    */
   public invalidateCache(): void {
     this.commands = [];
-  }
-
-  /**
-   * Cleanup method to clear all pending timers
-   * Should be called when the manager is being destroyed
-   */
-  public cleanup(): void {
-    if (this.debounceTimer !== null) {
-      clearTimeout(this.debounceTimer);
-      this.debounceTimer = null;
-    }
-    if (this.cursorCheckTimer !== null) {
-      clearTimeout(this.cursorCheckTimer);
-      this.cursorCheckTimer = null;
-    }
   }
 }

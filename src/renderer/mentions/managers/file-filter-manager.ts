@@ -35,42 +35,9 @@ export class FileFilterManager {
   private lastQuery: string = '';
   private lastResults: FileInfo[] = [];
   private lastWasTruncated: boolean = false;
-  // Optimization 3: Cache for relativePath computations
-  private relativePathCache: Map<string, Map<string, string>> = new Map();
 
   constructor(callbacks: FileFilterCallbacks) {
     this.callbacks = callbacks;
-  }
-
-  /**
-   * Get cached relative path or compute and cache it
-   * Optimization 3: Avoid repeated relativePath calculations
-   */
-  private getCachedRelativePath(fullPath: string, baseDir: string): string {
-    let baseDirCache = this.relativePathCache.get(baseDir);
-    if (!baseDirCache) {
-      baseDirCache = new Map<string, string>();
-      this.relativePathCache.set(baseDir, baseDirCache);
-    }
-
-    let relativePath = baseDirCache.get(fullPath);
-    if (relativePath === undefined) {
-      relativePath = getRelativePath(fullPath, baseDir);
-      baseDirCache.set(fullPath, relativePath);
-    }
-
-    return relativePath;
-  }
-
-  /**
-   * Clear all caches - call when switching to a different base directory
-   * Optimization 3: Cache management for directory changes
-   */
-  public clearCache(): void {
-    this.lastQuery = '';
-    this.lastResults = [];
-    this.lastWasTruncated = false;
-    this.relativePathCache.clear();
   }
 
   /**
@@ -111,8 +78,8 @@ export class FileFilterManager {
    * @param cachedData - Cached directory data
    * @param currentPath - Current directory path being browsed (relative from root)
    * @param query - Search query
-   * @param usageBonuses - Optional map of file paths to usage bonuses (only applied during merge, not filter)
-   * @returns Filtered files (without scores - scoring happens in mergeSuggestions)
+   * @param usageBonuses - Optional map of file paths to usage bonuses
+   * @returns Filtered and scored files
    */
   public filterFiles(
     cachedData: DirectoryData | null,
@@ -129,11 +96,10 @@ export class FileFilterManager {
     // Clear cache when switching between subdirectory and root level
     // or when currentPath changes
     if (currentPath) {
-      // In subdirectory - clear incremental search cache (only works at root level)
+      // In subdirectory - clear cache (incremental search only works at root level)
       this.lastQuery = '';
       this.lastResults = [];
       this.lastWasTruncated = false;
-      // Note: Keep relativePathCache as it's valid across directory navigation within same baseDir
       return this.filterFilesInSubdirectory(allFiles, baseDir, currentPath, query, maxSuggestions, usageBonuses);
     }
 
@@ -157,7 +123,7 @@ export class FileFilterManager {
     const files: FileInfo[] = [];
 
     for (const file of allFiles) {
-      const relativePath = this.getCachedRelativePath(file.path, baseDir);
+      const relativePath = getRelativePath(file.path, baseDir);
 
       // Check if file is under currentPath
       if (!relativePath.startsWith(currentPath)) {
@@ -251,7 +217,6 @@ export class FileFilterManager {
   /**
    * Get top-level files and directories (no query)
    * (Inlined from RootFilterManager)
-   * Optimization: Pre-build directory map for O(1) lookup
    */
   private getTopLevelFiles(
     allFiles: FileInfo[],
@@ -262,16 +227,8 @@ export class FileFilterManager {
     const seenDirs = new Set<string>();
     const files: FileInfo[] = [];
 
-    // Optimization 1: Pre-build directory map for O(1) lookup instead of O(n) find()
-    const dirMap = new Map<string, FileInfo>();
     for (const file of allFiles) {
-      if (file.isDirectory) {
-        dirMap.set(this.getCachedRelativePath(file.path, baseDir), file);
-      }
-    }
-
-    for (const file of allFiles) {
-      const relativePath = this.getCachedRelativePath(file.path, baseDir);
+      const relativePath = getRelativePath(file.path, baseDir);
       const slashIndex = relativePath.indexOf('/');
 
       if (slashIndex === -1) {
@@ -282,8 +239,10 @@ export class FileFilterManager {
         const dirName = relativePath.substring(0, slashIndex);
         if (!seenDirs.has(dirName)) {
           seenDirs.add(dirName);
-          // O(1) lookup from pre-built map
-          const existingDir = dirMap.get(dirName);
+          // Check if we already have this directory in allFiles
+          const existingDir = allFiles.find(f =>
+            f.isDirectory && getRelativePath(f.path, baseDir) === dirName
+          );
           if (existingDir) {
             files.push(existingDir);
           } else {
@@ -339,25 +298,20 @@ export class FileFilterManager {
         return {
           file,
           score: calculateMatchScore(file, queryLower, bonus, baseDir),
-          relativePath: this.getCachedRelativePath(file.path, baseDir)
+          relativePath: getRelativePath(file.path, baseDir)
         };
       })
       .filter(item => item.score > 0);
 
     // Find matching directories (by path containing the query)
-    // Optimization 2: Use incremental string building instead of slice().join()
     for (const file of sourceFiles) {
 
-      const relativePath = this.getCachedRelativePath(file.path, baseDir);
+      const relativePath = getRelativePath(file.path, baseDir);
       const pathParts = relativePath.split('/').filter(p => p);
 
       // Check each directory in the path (except the last part which is the file name)
-      let dirPath = '';
       for (let i = 0; i < pathParts.length - 1; i++) {
-        // Incremental path building: O(1) instead of O(m) slice().join()
-        if (dirPath) dirPath += '/';
-        dirPath += pathParts[i];
-
+        const dirPath = pathParts.slice(0, i + 1).join('/');
         const dirName = pathParts[i] || '';
 
         if (!dirName || seenDirs.has(dirPath)) continue;
@@ -395,7 +349,7 @@ export class FileFilterManager {
       return {
         file: dir,
         score: calculateMatchScore(dir, queryLower, bonus, baseDir),
-        relativePath: this.getCachedRelativePath(dir.path, baseDir)
+        relativePath: getRelativePath(dir.path, baseDir)
       };
     });
 
@@ -451,14 +405,14 @@ export class FileFilterManager {
     if (!cachedData?.files) return 0;
 
     const baseDir = cachedData.directory;
-    const dirRelativePath = this.getCachedRelativePath(dirPath, baseDir);
+    const dirRelativePath = getRelativePath(dirPath, baseDir);
     const dirPrefix = dirRelativePath.endsWith('/') ? dirRelativePath : dirRelativePath + '/';
 
     let count = 0;
     const seenChildren = new Set<string>();
 
     for (const file of cachedData.files) {
-      const relativePath = this.getCachedRelativePath(file.path, baseDir);
+      const relativePath = getRelativePath(file.path, baseDir);
 
       if (!relativePath.startsWith(dirPrefix)) continue;
 
@@ -481,17 +435,13 @@ export class FileFilterManager {
   /**
    * Merge files and agents into a single sorted list based on match score
    * When query is empty, prioritize directories first
-   *
-   * OPTIMIZATION: Only fetches usage bonuses for top candidates (after initial filtering)
-   * This reduces IPC calls from all files to just maxSuggestions items.
-   *
-   * @param filteredFiles - Pre-filtered files (without scores)
+   * @param filteredFiles - Pre-filtered files
    * @param filteredAgents - Pre-filtered agents
    * @param query - Search query
    * @param maxSuggestions - Maximum suggestions to return
-   * @param usageBonuses - Optional map of file paths to usage bonuses (applied to top candidates only)
+   * @param usageBonuses - Optional map of file paths to usage bonuses
    * @param baseDir - Optional base directory for relative path calculation
-   * @returns Merged and sorted suggestions with scores
+   * @returns Merged and sorted suggestions
    */
   public mergeSuggestions(
     filteredFiles: FileInfo[],
@@ -503,28 +453,23 @@ export class FileFilterManager {
   ): SuggestionItem[] {
     const items: SuggestionItem[] = [];
     const queryLower = query.toLowerCase();
-    const limit = maxSuggestions ?? this.callbacks.getDefaultMaxSuggestions();
 
-    // OPTIMIZATION: Calculate scores WITHOUT usage bonuses first
-    // This allows us to identify top candidates before expensive IPC calls
-    const fileItems = filteredFiles.map(file => ({
-      type: 'file' as const,
-      file,
-      score: calculateMatchScore(file, queryLower, 0, baseDir) // No bonus yet
-    }));
+    // Add files with scores (including usage bonuses)
+    for (const file of filteredFiles) {
+      const bonus = usageBonuses?.[file.path] ?? 0;
+      const score = calculateMatchScore(file, queryLower, bonus, baseDir);
+      items.push({ type: 'file', file, score });
+    }
 
     // Get agent usage bonuses
     const agentBonuses = this.callbacks.getAgentUsageBonuses?.() ?? {};
 
     // Add agents with scores (including usage bonuses)
-    const agentItems = filteredAgents.map(agent => ({
-      type: 'agent' as const,
-      agent,
-      score: calculateAgentMatchScore(agent, queryLower, agentBonuses[agent.name] ?? 0)
-    }));
-
-    // Merge all items
-    items.push(...fileItems, ...agentItems);
+    for (const agent of filteredAgents) {
+      const bonus = agentBonuses[agent.name] ?? 0;
+      const score = calculateAgentMatchScore(agent, queryLower, bonus);
+      items.push({ type: 'agent', agent, score });
+    }
 
     // Sort: when no query, directories first then by name; otherwise by score
     if (!query) {
@@ -537,51 +482,16 @@ export class FileFilterManager {
 
         // Then by name alphabetically
         const aName = a.type === 'file' ? a.file?.name || '' : a.agent?.name || '';
-        const bName = b.type === 'file' ? b.file?.name || '' : a.agent?.name || '';
+        const bName = b.type === 'file' ? b.file?.name || '' : b.agent?.name || '';
         return aName.localeCompare(bName);
       });
     } else {
-      // Sort by score descending (without bonuses first)
+      // Sort by score descending
       items.sort((a, b) => b.score - a.score);
     }
 
-    // OPTIMIZATION: Take top candidates BEFORE applying usage bonuses
-    const topCandidates = items.slice(0, limit);
-
-    // OPTIMIZATION: Apply usage bonuses ONLY to top candidates
-    if (usageBonuses && Object.keys(usageBonuses).length > 0) {
-      for (const item of topCandidates) {
-        if (item.type === 'file' && item.file) {
-          const bonus = usageBonuses[item.file.path] ?? 0;
-          if (bonus > 0) {
-            // Recalculate score with bonus
-            item.score = calculateMatchScore(item.file, queryLower, bonus, baseDir);
-          }
-        }
-      }
-
-      // Re-sort top candidates with bonuses applied
-      if (query) {
-        topCandidates.sort((a, b) => b.score - a.score);
-      } else {
-        // For no query, re-sort by bonus then name
-        topCandidates.sort((a, b) => {
-          const aIsDir = a.type === 'file' && a.file?.isDirectory;
-          const bIsDir = b.type === 'file' && b.file?.isDirectory;
-          if (aIsDir && !bIsDir) return -1;
-          if (!aIsDir && bIsDir) return 1;
-
-          // Compare bonuses (higher first)
-          const bonusDiff = b.score - a.score;
-          if (bonusDiff !== 0) return bonusDiff;
-
-          const aName = a.type === 'file' ? a.file?.name || '' : a.agent?.name || '';
-          const bName = b.type === 'file' ? b.file?.name || '' : a.agent?.name || '';
-          return aName.localeCompare(bName);
-        });
-      }
-    }
-
-    return topCandidates;
+    // Limit to maxSuggestions
+    const limit = maxSuggestions ?? this.callbacks.getDefaultMaxSuggestions();
+    return items.slice(0, limit);
   }
 }

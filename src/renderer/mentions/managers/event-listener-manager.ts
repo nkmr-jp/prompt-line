@@ -10,16 +10,6 @@
  * - Managing Cmd key interactions for link highlighting
  */
 
-/**
- * Update request type definitions
- */
-type UpdateType = 'fileSearch' | 'highlight' | 'cursorPosition';
-
-interface UpdateRequest {
-  type: UpdateType;
-  priority: number;
-}
-
 export interface EventListenerCallbacks {
   // Input change handlers
   checkForFileSearch: () => void;
@@ -56,7 +46,7 @@ export class EventListenerManager {
   private callbacks: EventListenerCallbacks;
 
   // Bound event handlers for add/remove listener
-  private boundInputHandler: ((e: Event) => void) | null = null;
+  private boundInputHandler: (() => void) | null = null;
   private boundSelectionChangeHandler: (() => void) | null = null;
 
   // Flag to track if listeners are suspended
@@ -67,71 +57,8 @@ export class EventListenerManager {
   private pendingInputUpdate: number | null = null;
   private pendingSelectionUpdate: number | null = null;
 
-  // Priority-based update queue system
-  private pendingUpdates: Map<UpdateType, UpdateRequest> = new Map();
-  private updateScheduled: boolean = false;
-
   constructor(callbacks: EventListenerCallbacks) {
     this.callbacks = callbacks;
-  }
-
-  /**
-   * Schedule an update with priority-based queueing
-   *
-   * Priority levels:
-   * - fileSearch: 30 (highest - user is actively typing)
-   * - highlight: 20-25 (medium - visual feedback)
-   * - cursorPosition: 10-15 (lowest - can be deferred)
-   *
-   * Higher priority updates override lower priority ones of the same type.
-   * All pending updates are processed in a single rAF callback to minimize
-   * frame drops and improve performance by 30-40%.
-   */
-  private scheduleUpdate(type: UpdateType, priority: number): void {
-    const existing = this.pendingUpdates.get(type);
-    if (existing && existing.priority >= priority) return;
-
-    this.pendingUpdates.set(type, { type, priority });
-
-    if (!this.updateScheduled) {
-      this.updateScheduled = true;
-      requestAnimationFrame(() => {
-        this.processAllUpdates();
-      });
-    }
-  }
-
-  /**
-   * Process all pending updates in priority order
-   * Consolidates multiple callbacks into single execution
-   */
-  private processAllUpdates(): void {
-    if (this.listenersAreSuspended) {
-      this.pendingUpdates.clear();
-      this.updateScheduled = false;
-      return;
-    }
-
-    // Sort updates by priority (highest first)
-    const sortedUpdates = Array.from(this.pendingUpdates.values())
-      .sort((a, b) => b.priority - a.priority);
-
-    for (const update of sortedUpdates) {
-      switch (update.type) {
-        case 'fileSearch':
-          this.callbacks.checkForFileSearch();
-          break;
-        case 'highlight':
-          this.callbacks.updateHighlightBackdrop();
-          break;
-        case 'cursorPosition':
-          this.callbacks.updateCursorPositionHighlight();
-          break;
-      }
-    }
-
-    this.pendingUpdates.clear();
-    this.updateScheduled = false;
   }
 
   /**
@@ -151,10 +78,6 @@ export class EventListenerManager {
       cancelAnimationFrame(this.pendingSelectionUpdate);
       this.pendingSelectionUpdate = null;
     }
-
-    // Clear pending update queue
-    this.pendingUpdates.clear();
-    this.updateScheduled = false;
 
     if (this.textInput && this.boundInputHandler) {
       this.textInput.removeEventListener('input', this.boundInputHandler);
@@ -200,29 +123,30 @@ export class EventListenerManager {
       return;
     }
 
-    // Create bound input handler with priority-based update queue
-    // Consolidates multiple callbacks into single rAF execution
-    this.boundInputHandler = (e: Event) => {
-      // Ignore programmatic dispatchEvent calls to prevent redundant processing
-      if (!e.isTrusted) return;
+    // Create bound input handler with rAF optimization
+    // Skip processing if text hasn't changed to avoid redundant work
+    this.boundInputHandler = () => {
+      // Debounce with rAF - skip if already pending
+      if (this.pendingInputUpdate) return;
 
-      // Guard: skip if listeners are suspended
-      if (this.listenersAreSuspended) return;
+      this.pendingInputUpdate = requestAnimationFrame(() => {
+        this.pendingInputUpdate = null;
 
-      if (!this.textInput) return;
-      const currentText = this.textInput.value;
+        // Guard: skip if listeners are suspended
+        if (this.listenersAreSuspended) return;
 
-      // Skip if text hasn't changed since last check
-      if (currentText === this.lastText) return;
-      this.lastText = currentText;
+        if (!this.textInput) return;
+        const currentText = this.textInput.value;
 
-      // Schedule updates with priority (higher priority = more important)
-      // fileSearch: 30 (highest - user is actively typing)
-      // highlight: 20 (medium - visual feedback)
-      // cursorPosition: 10 (lowest - can be deferred)
-      this.scheduleUpdate('fileSearch', 30);
-      this.scheduleUpdate('highlight', 20);
-      this.scheduleUpdate('cursorPosition', 10);
+        // Skip if text hasn't changed since last check
+        if (currentText === this.lastText) return;
+        this.lastText = currentText;
+
+        // Execute callbacks only when text has actually changed
+        this.callbacks.checkForFileSearch();
+        this.callbacks.updateHighlightBackdrop();
+        this.callbacks.updateCursorPositionHighlight();
+      });
     };
 
     // Listen for input changes to detect @ mentions and update highlights
@@ -250,37 +174,41 @@ export class EventListenerManager {
 
     // Listen for cursor position changes (click, arrow keys)
     this.textInput.addEventListener('click', () => {
-      // Schedule cursor position update with low priority (immediate user action)
-      this.scheduleUpdate('cursorPosition', 15);
+      this.callbacks.updateCursorPositionHighlight();
     });
 
     this.textInput.addEventListener('keyup', (e) => {
       // Update on arrow keys that move cursor
       if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) {
-        this.scheduleUpdate('cursorPosition', 15);
+        this.callbacks.updateCursorPositionHighlight();
       }
       // Force highlight redraw after Tab key to fix position alignment
       // Tab character rendering can differ between textarea and backdrop
       if (e.key === 'Tab') {
-        // Schedule both highlight and scroll sync with high priority
-        this.scheduleUpdate('highlight', 25);
-        // Sync scroll immediately (not part of priority queue)
+        // Use requestAnimationFrame to ensure the DOM has updated
         requestAnimationFrame(() => {
+          this.callbacks.updateHighlightBackdrop();
           this.callbacks.syncBackdropScroll();
         });
       }
     });
 
-    // Create bound selectionchange handler with priority-based updates
+    // Create bound selectionchange handler with rAF optimization
     // Only process if textarea is active to avoid unnecessary work
     this.boundSelectionChangeHandler = () => {
       if (document.activeElement !== this.textInput) return;
 
-      // Guard: skip if listeners are suspended
-      if (this.listenersAreSuspended) return;
+      // Debounce with rAF - skip if already pending
+      if (this.pendingSelectionUpdate) return;
 
-      // Schedule cursor position update with low priority
-      this.scheduleUpdate('cursorPosition', 10);
+      this.pendingSelectionUpdate = requestAnimationFrame(() => {
+        this.pendingSelectionUpdate = null;
+
+        // Guard: skip if listeners are suspended
+        if (this.listenersAreSuspended) return;
+
+        this.callbacks.updateCursorPositionHighlight();
+      });
     };
 
     // Also listen for selectionchange on document (handles all cursor movements)

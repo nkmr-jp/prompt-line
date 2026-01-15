@@ -26,7 +26,6 @@ export class HistorySearchManager implements IInitializable {
   private isSearchMode: boolean = false;
   private historyData: HistoryItem[] = [];
   private currentDisplayLimit: number = DEFAULT_CONFIG.maxDisplayResults;
-  private searchDebounceTimer: number | null = null;
 
   // Callbacks
   private callbacks: HistorySearchCallbacks;
@@ -73,10 +72,7 @@ export class HistorySearchManager implements IInitializable {
 
     // Search input events
     if (this.searchInput) {
-      this.searchInput.addEventListener('input', (e) => {
-        // Ignore programmatic dispatchEvent calls to prevent redundant processing
-        if (!e.isTrusted) return;
-
+      this.searchInput.addEventListener('input', () => {
         this.performSearch();
       });
 
@@ -184,13 +180,7 @@ export class HistorySearchManager implements IInitializable {
     this.searchButton.classList.remove('active');
     this.searchInput.value = '';
 
-    // Clear pending timer
-    if (this.searchDebounceTimer !== null) {
-      clearTimeout(this.searchDebounceTimer);
-      this.searchDebounceTimer = null;
-    }
-
-    // Cancel any pending search in filter engine
+    // Cancel any pending search
     this.filterEngine.cancelPendingSearch();
 
     // Reset to show all history items (no totalMatches when not searching)
@@ -208,19 +198,16 @@ export class HistorySearchManager implements IInitializable {
     // Reset display limit when search query changes
     this.currentDisplayLimit = DEFAULT_CONFIG.maxDisplayResults;
 
-    // Clear previous timer to prevent double execution
-    if (this.searchDebounceTimer !== null) {
-      clearTimeout(this.searchDebounceTimer);
-      this.searchDebounceTimer = null;
-    }
-
-    // Schedule new search with debounce
-    this.searchDebounceTimer = window.setTimeout(() => {
+    // Use debounced search with current display limit
+    this.filterEngine.cancelPendingSearch();
+    const debounceTimer = setTimeout(() => {
       const result = this.filterEngine.filterWithLimit(this.historyData, query, this.currentDisplayLimit);
       this.callbacks.onSearchStateChange(true, result.items, result.totalMatches);
       this.notifyResultCount(result.items.length, result.totalMatches);
-      this.searchDebounceTimer = null;
     }, this.filterEngine.getConfig().debounceDelay);
+
+    // Store timer reference for cleanup (using internal mechanism)
+    (this as any)._searchDebounceTimer = debounceTimer;
   }
 
   /**

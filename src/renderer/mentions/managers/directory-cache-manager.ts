@@ -61,8 +61,11 @@ export class DirectoryCacheManager {
       return;
     }
 
-    // Note: LowercaseCache uses LRU with MAX_SIZE=2000, so manual clearing is not needed.
-    // Cache will automatically evict oldest entries when limit is reached.
+    // Clear lowercase cache when directory changes
+    const directoryChanged = this.cachedDirectoryData?.directory !== data.directory;
+    if (directoryChanged) {
+      clearLowercaseCache();
+    }
 
     // Check if this is from cache or just draft fallback
     const fromCache = data.fromCache === true;
@@ -127,8 +130,11 @@ export class DirectoryCacheManager {
       return;
     }
 
-    // Note: LowercaseCache uses LRU with MAX_SIZE=2000, so manual clearing is not needed.
-    // Cache will automatically evict oldest entries when limit is reached.
+    // Clear lowercase cache when directory changes
+    const directoryChanged = this.cachedDirectoryData?.directory !== data.directory;
+    if (directoryChanged) {
+      clearLowercaseCache();
+    }
 
     // Get hint and filesDisabled from DirectoryInfo if available
     const hint = 'hint' in data ? (data as DirectoryInfo).hint : undefined;
