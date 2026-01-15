@@ -250,38 +250,41 @@ class CodeSearchHandler {
       // Fzf score: normalized to max 500 for camelCase and word boundary matches
       // Mtime bonus: capped at 100
       const scorer = new FzfScorer();
-      filtered.sort((a, b) => {
-        const aName = a.nameLower ?? a.name.toLowerCase();
-        const bName = b.nameLower ?? b.name.toLowerCase();
 
-        // Calculate match scores
-        let aMatchScore = 0;
-        let bMatchScore = 0;
+      // Calculate scores once and store them with symbols
+      const scoredSymbols = filtered.map(symbol => {
+        const nameLower = symbol.nameLower ?? symbol.name.toLowerCase();
 
-        if (aName === lowerQuery) aMatchScore = 1000;
-        else if (aName.startsWith(lowerQuery)) aMatchScore = 500;
-        else aMatchScore = 200;
+        // Calculate match score
+        let matchScore = 0;
+        if (nameLower === lowerQuery) matchScore = 1000;
+        else if (nameLower.startsWith(lowerQuery)) matchScore = 500;
+        else matchScore = 200;
 
-        if (bName === lowerQuery) bMatchScore = 1000;
-        else if (bName.startsWith(lowerQuery)) bMatchScore = 500;
-        else bMatchScore = 200;
-
-        // Calculate fzf scores for camelCase and word boundary matches
-        const aFzfResult = scorer.score(a.name, query);
-        const bFzfResult = scorer.score(b.name, query);
-        const aFzfScore = normalizeFzfScore(aFzfResult.score, 500);
-        const bFzfScore = normalizeFzfScore(bFzfResult.score, 500);
+        // Calculate fzf score for camelCase and word boundary matches
+        const fzfResult = scorer.score(symbol.name, query);
+        const fzfScore = normalizeFzfScore(fzfResult.score, 500);
 
         // Add mtime bonus if available (capped at 100)
-        const aMtimeBonus = a.mtimeMs ? Math.min(calculateFileMtimeBonus(a.mtimeMs), 100) : 0;
-        const bMtimeBonus = b.mtimeMs ? Math.min(calculateFileMtimeBonus(b.mtimeMs), 100) : 0;
+        const mtimeBonus = symbol.mtimeMs ? Math.min(calculateFileMtimeBonus(symbol.mtimeMs), 100) : 0;
 
-        const aTotal = aMatchScore + aFzfScore + aMtimeBonus;
-        const bTotal = bMatchScore + bFzfScore + bMtimeBonus;
+        const totalScore = matchScore + fzfScore + mtimeBonus;
 
-        if (aTotal !== bTotal) return bTotal - aTotal;
-        return aName.localeCompare(bName);
+        return {
+          symbol,
+          nameLower,
+          totalScore
+        };
       });
+
+      // Sort using pre-calculated scores
+      scoredSymbols.sort((a, b) => {
+        if (a.totalScore !== b.totalScore) return b.totalScore - a.totalScore;
+        return a.nameLower.localeCompare(b.nameLower);
+      });
+
+      // Extract symbols from scored results
+      filtered = scoredSymbols.map(s => s.symbol);
     }
 
     // Update incremental cache (store full filtered results before limiting)
@@ -362,24 +365,46 @@ class CodeSearchHandler {
             });
           }
 
-          // Enrich symbols with mtime for bonus calculation (only if query provided for scoring)
-          if (options?.query) {
-            await this.enrichSymbolsWithMtime(cachedSymbols, directory);
-          }
-
-          // Apply query filtering if provided (Main process filtering for performance)
-          const unfilteredCount = cachedSymbols.length;
+          // Two-stage filtering to minimize expensive mtime calls
+          // Stage 1: Get top candidates with text-based scoring (no mtime required)
           const cacheKey = `${directory}:${language}`;
-          const filteredSymbols = options?.query !== undefined
+          const unfilteredCount = cachedSymbols.length;
+
+          // Get more candidates than needed for mtime refinement
+          // Use 5x maxResults to ensure rare symbols aren't excluded by early filtering
+          const candidateCount = options?.query !== undefined
+            ? Math.min(maxResults * 5, cachedSymbols.length)
+            : effectiveMaxSymbols;
+
+          const topCandidates = options?.query !== undefined
             ? this.filterSymbolsByQuery(
                 cachedSymbols,
                 options.query,
                 options.symbolTypeFilter,
-                maxResults,
+                candidateCount,
                 cacheKey,
                 options.relativePath
               )
-            : cachedSymbols.slice(0, effectiveMaxSymbols);
+            : cachedSymbols.slice(0, candidateCount);
+
+          // Stage 2: Enrich top candidates with mtime and get final results
+          let filteredSymbols: import('../managers/symbol-search/types').SymbolResult[];
+          if (options?.query !== undefined && topCandidates.length > 0) {
+            // Enrich only top candidates (not all symbols)
+            await this.enrichSymbolsWithMtime(topCandidates, directory);
+
+            // Re-filter with mtime bonus to get final ranking
+            filteredSymbols = this.filterSymbolsByQuery(
+              topCandidates,
+              options.query,
+              options.symbolTypeFilter,
+              maxResults,
+              cacheKey,
+              options.relativePath
+            );
+          } else {
+            filteredSymbols = topCandidates;
+          }
 
           const wasLimited = options?.query !== undefined
             ? false // Query filtering already limits results

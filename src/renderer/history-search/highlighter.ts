@@ -70,7 +70,7 @@ export class HistorySearchHighlighter {
     }
 
     const positionSet = new Set(positions);
-    let result = '';
+    const result: string[] = [];
     let inHighlight = false;
 
     for (let i = 0; i < text.length; i++) {
@@ -78,21 +78,21 @@ export class HistorySearchHighlighter {
       const char = escapeHtml(text[i] || '');
 
       if (isMatch && !inHighlight) {
-        result += `<span class="${this.highlightClass}">`;
+        result.push(`<span class="${this.highlightClass}">`);
         inHighlight = true;
       } else if (!isMatch && inHighlight) {
-        result += '</span>';
+        result.push('</span>');
         inHighlight = false;
       }
 
-      result += char;
+      result.push(char);
     }
 
     if (inHighlight) {
-      result += '</span>';
+      result.push('</span>');
     }
 
-    return result;
+    return result.join('');
   }
 
   /**

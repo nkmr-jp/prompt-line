@@ -15,11 +15,10 @@
  */
 
 import type { SuggestionItem, DirectoryData } from '../types';
-import { insertSvgIntoElement } from '../types';
 import type { FileInfo, AgentItem } from '../../../types';
 import type { SymbolResult } from '../code-search/types';
 import { getSymbolTypeDisplay } from '../code-search/types';
-import { getCaretCoordinates, createMirrorDiv, insertHighlightedText } from '../dom-utils';
+import { getCaretCoordinates, createMirrorDiv } from '../dom-utils';
 import { getRelativePath, getDirectoryFromPath } from '../path-utils';
 import { getFileIconSvg, getMentionIconSvg, getSymbolIconSvg } from '../../assets/icons/file-icons';
 
@@ -42,7 +41,7 @@ export interface SuggestionUICallbacks {
   getCurrentQuery?: () => string;
   getCodeSearchQuery?: () => string;
   countFilesInDirectory?: (path: string) => number;
-  getFileUsageBonuses?: () => Promise<Record<string, number>>;
+  getFileUsageBonuses?: (filePaths?: string[]) => Promise<Record<string, number>>;
 
   // Popup interactions
   onMouseEnterInfo?: (suggestion: SuggestionItem, target: HTMLElement) => void | Promise<void>;
@@ -87,6 +86,7 @@ export class SuggestionUIManager {
   private containerClickHandler: ((e: MouseEvent) => void) | null = null;
   private containerMouseMoveHandler: ((e: MouseEvent) => void) | null = null;
   private containerMouseLeaveHandler: ((e: MouseEvent) => void) | null = null;
+  private hoveredElement: HTMLElement | null = null;
 
   constructor(textInput: HTMLTextAreaElement, callbacks: SuggestionUICallbacks) {
     this.textInput = textInput;
@@ -153,15 +153,20 @@ export class SuggestionUIManager {
       const item = target.closest('[data-suggestion-index]') as HTMLElement;
       if (!item) return;
 
-      const allItems = this.suggestionsContainer?.querySelectorAll('.file-suggestion-item');
-      allItems?.forEach(el => el.classList.remove('hovered'));
+      // Remove hover from previous element only
+      if (this.hoveredElement && this.hoveredElement !== item) {
+        this.hoveredElement.classList.remove('hovered');
+      }
       item.classList.add('hovered');
+      this.hoveredElement = item;
     };
 
-    // MouseLeave event delegation - clear all hovered states when leaving container
+    // MouseLeave event delegation - clear hovered state when leaving container
     this.containerMouseLeaveHandler = () => {
-      const hoveredItems = this.suggestionsContainer?.querySelectorAll('.hovered');
-      hoveredItems?.forEach(item => item.classList.remove('hovered'));
+      if (this.hoveredElement) {
+        this.hoveredElement.classList.remove('hovered');
+        this.hoveredElement = null;
+      }
     };
 
     this.suggestionsContainer.addEventListener('click', this.containerClickHandler);
@@ -264,14 +269,12 @@ export class SuggestionUIManager {
     // Check if index is being built
     const isIndexBuilding = this.callbacks.isIndexBeingBuilt?.() ?? false;
 
-    // Fetch file usage bonuses before filtering
-    const fileUsageBonuses = await this.callbacks.getFileUsageBonuses?.() ?? {};
-
-    // Filter files if directory data is available
+    // OPTIMIZATION: Filter files WITHOUT usage bonuses (bonuses applied later)
+    // This avoids expensive IPC call during filtering
     if (matchesPrefix) {
       this.callbacks.setFilteredFiles?.([]);
     } else if (this.callbacks.getCachedDirectoryData() && this.callbacks.filterFiles) {
-      const filtered = this.callbacks.filterFiles(searchTerm, fileUsageBonuses);
+      const filtered = this.callbacks.filterFiles(searchTerm, undefined);
       this.callbacks.setFilteredFiles?.(filtered);
     } else {
       this.callbacks.setFilteredFiles?.([]);
@@ -280,7 +283,19 @@ export class SuggestionUIManager {
     // Get maxSuggestions setting for merged list
     const maxSuggestions = await this.callbacks.getMaxSuggestions?.('mention') ?? 20;
 
-    // Merge files and agents into a single sorted list
+    // OPTIMIZATION: Preliminary merge to identify top candidates
+    const preliminaryMerged = this.callbacks.mergeSuggestions?.(searchTerm, maxSuggestions, undefined) ?? [];
+
+    // OPTIMIZATION: Fetch usage bonuses ONLY for top candidates (not all files)
+    const topFilePaths = preliminaryMerged
+      .filter(s => s.type === 'file' && s.file)
+      .map(s => s.file!.path);
+
+    const fileUsageBonuses = topFilePaths.length > 0
+      ? await this.callbacks.getFileUsageBonuses?.(topFilePaths) ?? {}
+      : {};
+
+    // Final merge with usage bonuses applied to top candidates
     const merged = this.callbacks.mergeSuggestions?.(searchTerm, maxSuggestions, fileUsageBonuses) ?? [];
     this.callbacks.setMergedSuggestions?.(merged);
 
@@ -446,26 +461,27 @@ export class SuggestionUIManager {
 
     this.suggestionsContainer.scrollTop = 0;
 
-    const fragment = document.createDocumentFragment();
+    // Build HTML string for better performance
+    let htmlParts: string[] = [];
 
     // Add path header if we're in a subdirectory
     const currentPath = this.callbacks.getCurrentPath?.();
     if (currentPath) {
-      const header = document.createElement('div');
-      header.className = 'file-suggestion-header';
-      header.textContent = currentPath;
-      fragment.appendChild(header);
+      const escapedPath = this.escapeHtml(currentPath);
+      htmlParts.push(`<div class="file-suggestion-header">${escapedPath}</div>`);
     }
 
-    // Render suggestions
+    // Render suggestions as HTML strings
     this.mergedSuggestions.forEach((suggestion, index) => {
-      const item = this.createSuggestionItem(suggestion, index);
-      fragment.appendChild(item);
+      htmlParts.push(this.createSuggestionItemHtml(suggestion, index));
     });
 
-    this.suggestionsContainer.innerHTML = '';
-    this.suggestionsContainer.appendChild(fragment);
+    // Single innerHTML assignment for all items
+    this.suggestionsContainer.innerHTML = htmlParts.join('');
     this.suggestionsContainer.style.display = 'block';
+
+    // Attach event listeners for info icons after HTML insertion
+    this.attachInfoIconListeners();
   }
 
   /**
@@ -488,135 +504,132 @@ export class SuggestionUIManager {
   }
 
   /**
-   * Create a suggestion item element
+   * Create a suggestion item HTML string (optimized for performance)
    */
-  private createSuggestionItem(suggestion: SuggestionItem, index: number): HTMLElement {
-    const item = document.createElement('div');
-    item.className = 'file-suggestion-item';
-    item.setAttribute('role', 'option');
-    item.setAttribute('data-index', index.toString());
-    item.setAttribute('data-suggestion-index', index.toString());
-
+  private createSuggestionItemHtml(suggestion: SuggestionItem, index: number): string {
     if (suggestion.type === 'file' && suggestion.file) {
-      this.renderFileItem(item, suggestion.file);
+      return this.renderFileItemHtml(suggestion.file, index);
     } else if (suggestion.type === 'agent' && suggestion.agent) {
-      this.renderAgentItem(item, suggestion.agent, suggestion);
+      return this.renderAgentItemHtml(suggestion.agent, index);
     } else if (suggestion.type === 'symbol' && suggestion.symbol) {
-      this.renderSymbolItem(item, suggestion.symbol);
+      return this.renderSymbolItemHtml(suggestion.symbol, index);
     }
+    return '';
+  }
 
-    return item;
+  // ============================================================
+  // HTML Template Rendering (Performance Optimized)
+  // ============================================================
+
+  /**
+   * Escape HTML special characters to prevent XSS
+   */
+  private escapeHtml(text: string): string {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
 
   /**
-   * Render a file item
+   * Create highlighted HTML for search terms
    */
-  private renderFileItem(item: HTMLElement, file: FileInfo): void {
-    item.setAttribute('data-type', 'file');
+  private createHighlightedHtml(text: string, query: string): string {
+    if (!query) return this.escapeHtml(text);
 
-    const icon = document.createElement('span');
-    icon.className = 'file-icon';
-    insertSvgIntoElement(icon, getFileIconSvg(file.name, file.isDirectory));
+    const escapedText = this.escapeHtml(text);
+    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(${escapedQuery})`, 'gi');
+    return escapedText.replace(regex, '<mark>$1</mark>');
+  }
 
-    const name = document.createElement('span');
-    name.className = 'file-name';
-
+  /**
+   * Render a file item as HTML string
+   */
+  private renderFileItemHtml(file: FileInfo, index: number): string {
+    const iconSvg = getFileIconSvg(file.name, file.isDirectory);
     const currentQuery = this.callbacks.getCurrentQuery?.() || '';
+    const highlightedName = this.createHighlightedHtml(file.name, currentQuery);
+
+    let fileCountHtml = '';
     if (file.isDirectory) {
-      insertHighlightedText(name, file.name, currentQuery);
-
       const fileCount = this.callbacks.countFilesInDirectory?.(file.path) || 0;
-      const countSpan = document.createElement('span');
-      countSpan.className = 'file-count';
-      countSpan.textContent = ` (${fileCount} files)`;
-      name.appendChild(countSpan);
-    } else {
-      insertHighlightedText(name, file.name, currentQuery);
+      fileCountHtml = `<span class="file-count"> (${fileCount} files)</span>`;
     }
-
-    item.appendChild(icon);
-    item.appendChild(name);
 
     const baseDir = this.callbacks.getBaseDir?.() || '';
     const relativePath = getRelativePath(file.path, baseDir);
     const dirPath = getDirectoryFromPath(relativePath);
-    if (dirPath) {
-      const pathEl = document.createElement('span');
-      pathEl.className = 'file-path';
-      pathEl.textContent = dirPath;
-      item.appendChild(pathEl);
-    }
+    const pathHtml = dirPath ? `<span class="file-path">${this.escapeHtml(dirPath)}</span>` : '';
+
+    return `<div class="file-suggestion-item" role="option" data-index="${index}" data-suggestion-index="${index}" data-type="file">
+      <span class="file-icon">${iconSvg}</span>
+      <span class="file-name">${highlightedName}${fileCountHtml}</span>
+      ${pathHtml}
+    </div>`;
   }
 
   /**
-   * Render an agent item
+   * Render an agent item as HTML string
    */
-  private renderAgentItem(item: HTMLElement, agent: AgentItem, suggestion: SuggestionItem): void {
-    item.className += ' agent-suggestion-item';
-    item.setAttribute('data-type', 'agent');
-
-    const icon = document.createElement('span');
-    icon.className = 'file-icon mention-icon';
-    insertSvgIntoElement(icon, getMentionIconSvg());
-
-    const name = document.createElement('span');
-    name.className = 'file-name agent-name';
+  private renderAgentItemHtml(agent: AgentItem, index: number): string {
+    const iconSvg = getMentionIconSvg();
     const currentQuery = this.callbacks.getCurrentQuery?.() || '';
-    insertHighlightedText(name, agent.name, currentQuery);
+    const highlightedName = this.createHighlightedHtml(agent.name, currentQuery);
+    const escapedDescription = this.escapeHtml(agent.description);
 
-    const desc = document.createElement('span');
-    desc.className = 'file-path agent-description';
-    desc.textContent = agent.description;
+    const infoIconHtml = agent.frontmatter
+      ? `<span class="frontmatter-info-icon" data-agent-index="${index}">ⓘ</span>`
+      : '';
 
-    item.appendChild(icon);
-    item.appendChild(name);
-    item.appendChild(desc);
+    return `<div class="file-suggestion-item agent-suggestion-item" role="option" data-index="${index}" data-suggestion-index="${index}" data-type="agent">
+      <span class="file-icon mention-icon">${iconSvg}</span>
+      <span class="file-name agent-name">${highlightedName}</span>
+      <span class="file-path agent-description">${escapedDescription}</span>
+      ${infoIconHtml}
+    </div>`;
+  }
 
-    if (agent.frontmatter && this.callbacks.onMouseEnterInfo) {
-      const infoIcon = document.createElement('span');
-      infoIcon.className = 'frontmatter-info-icon';
-      infoIcon.textContent = 'ⓘ';
+  /**
+   * Render a symbol item as HTML string
+   */
+  private renderSymbolItemHtml(symbol: SymbolResult, index: number): string {
+    const iconSvg = getSymbolIconSvg(symbol.type);
+    const codeSearchQuery = this.callbacks.getCodeSearchQuery?.() || '';
+    const highlightedName = this.createHighlightedHtml(symbol.name, codeSearchQuery);
+    const typeDisplay = this.escapeHtml(getSymbolTypeDisplay(symbol.type));
+    const pathText = this.escapeHtml(`${symbol.relativePath}:${symbol.lineNumber}`);
 
-      infoIcon.addEventListener('mouseenter', () => {
-        this.callbacks.onMouseEnterInfo?.(suggestion, infoIcon);
+    return `<div class="file-suggestion-item symbol-suggestion-item" role="option" data-index="${index}" data-suggestion-index="${index}" data-type="symbol">
+      <span class="file-icon symbol-icon">${iconSvg}</span>
+      <span class="file-name symbol-name">${highlightedName}</span>
+      <span class="symbol-type-badge">${typeDisplay}</span>
+      <span class="file-path symbol-path">${pathText}</span>
+    </div>`;
+  }
+
+  /**
+   * Attach event listeners to info icons after HTML insertion
+   */
+  private attachInfoIconListeners(): void {
+    if (!this.suggestionsContainer || !this.callbacks.onMouseEnterInfo) return;
+
+    const infoIcons = this.suggestionsContainer.querySelectorAll('.frontmatter-info-icon');
+    infoIcons.forEach((icon) => {
+      const agentIndexStr = icon.getAttribute('data-agent-index');
+      if (!agentIndexStr) return;
+
+      const agentIndex = parseInt(agentIndexStr, 10);
+      const suggestion = this.mergedSuggestions[agentIndex];
+      if (!suggestion) return;
+
+      icon.addEventListener('mouseenter', () => {
+        this.callbacks.onMouseEnterInfo?.(suggestion, icon as HTMLElement);
       });
 
-      infoIcon.addEventListener('mouseleave', () => {
+      icon.addEventListener('mouseleave', () => {
         this.callbacks.onMouseLeaveInfo?.();
       });
-
-      item.appendChild(infoIcon);
-    }
-  }
-
-  /**
-   * Render a symbol item
-   */
-  private renderSymbolItem(item: HTMLElement, symbol: SymbolResult): void {
-    item.className += ' symbol-suggestion-item';
-    item.setAttribute('data-type', 'symbol');
-
-    const icon = document.createElement('span');
-    icon.className = 'file-icon symbol-icon';
-    insertSvgIntoElement(icon, getSymbolIconSvg(symbol.type));
-
-    const name = document.createElement('span');
-    name.className = 'file-name symbol-name';
-    const codeSearchQuery = this.callbacks.getCodeSearchQuery?.() || '';
-    insertHighlightedText(name, symbol.name, codeSearchQuery);
-
-    const typeBadge = document.createElement('span');
-    typeBadge.className = 'symbol-type-badge';
-    typeBadge.textContent = getSymbolTypeDisplay(symbol.type);
-
-    const pathEl = document.createElement('span');
-    pathEl.className = 'file-path symbol-path';
-    pathEl.textContent = `${symbol.relativePath}:${symbol.lineNumber}`;
-
-    item.appendChild(icon);
-    item.appendChild(name);
-    item.appendChild(typeBadge);
-    item.appendChild(pathEl);
+    });
   }
 
 

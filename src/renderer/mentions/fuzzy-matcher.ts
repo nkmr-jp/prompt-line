@@ -15,20 +15,39 @@ export { compareTiebreak } from '../../lib/tiebreaker';
 const MAX_MTIME_BONUS = 100;
 
 /**
- * Cache for lowercase strings to avoid repeated toLowerCase() calls
+ * LRU Cache for lowercase strings to avoid repeated toLowerCase() calls
+ * Implements Least Recently Used eviction policy with a fixed maximum size
  */
 class LowercaseCache {
   private cache: Map<string, string> = new Map();
+  private readonly MAX_SIZE = 2000;
 
   /**
-   * Get lowercase version of string (cached)
+   * Get lowercase version of string (cached with LRU behavior)
+   * When a cached entry is accessed, it's moved to the end of the Map
+   * to mark it as recently used
    */
   get(str: string): string {
-    const cached = this.cache.get(str);
-    if (cached !== undefined) return cached;
+    if (this.cache.has(str)) {
+      // Map maintains insertion order, so delete and re-insert
+      // to move this entry to the end (most recently used)
+      const value = this.cache.get(str)!;
+      this.cache.delete(str);
+      this.cache.set(str, value);
+      return value;
+    }
 
     const lower = str.toLowerCase();
     this.cache.set(str, lower);
+
+    // Evict oldest entry when size exceeds MAX_SIZE
+    if (this.cache.size > this.MAX_SIZE) {
+      const firstKey = this.cache.keys().next().value;
+      if (firstKey !== undefined) {
+        this.cache.delete(firstKey);
+      }
+    }
+
     return lower;
   }
 
@@ -82,7 +101,39 @@ export function fuzzyMatch(text: string, pattern: string): boolean {
 }
 
 /**
- * Calculate match score for a file
+ * Calculate additional bonuses for file scoring
+ * Extracted for DRY principle and better maintainability
+ *
+ * @param file - File to calculate bonuses for
+ * @param usageBonus - Usage history bonus
+ * @param baseDir - Optional base directory for relative path calculation
+ * @returns Total bonus score
+ */
+function calculateBonuses(file: FileInfo, usageBonus: number, baseDir?: string): number {
+  let bonus = 0;
+
+  // Bonus for files (not directories)
+  if (!file.isDirectory) {
+    bonus += FUZZY_MATCH_SCORES.FILE_BONUS;
+  }
+
+  // Bonus for shorter paths (calculated from relative path when baseDir is provided)
+  const pathForBonus = baseDir ? getRelativePath(file.path, baseDir) : file.path;
+  bonus += Math.max(0, FUZZY_MATCH_SCORES.MAX_PATH_BONUS - pathForBonus.split('/').length);
+
+  // Add usage history bonus
+  bonus += usageBonus;
+
+  // Add file modification time bonus if mtimeMs is available
+  if (file.mtimeMs !== undefined) {
+    bonus += Math.min(calculateFileMtimeBonus(file.mtimeMs), MAX_MTIME_BONUS);
+  }
+
+  return bonus;
+}
+
+/**
+ * Calculate match score for a file with staged matching
  * Higher score = better match
  *
  * Scoring rules:
@@ -97,6 +148,13 @@ export function fuzzyMatch(text: string, pattern: string): boolean {
  * - Usage history bonus: 0-150 (optional parameter)
  * - File modification time bonus: 0-500 (if mtimeMs available)
  *
+ * Performance optimization: Uses staged matching with early returns to avoid expensive FzfScorer calls
+ * - Stage 1: Exact match (O(1)) - immediate return
+ * - Stage 2: Prefix match (O(query)) - immediate return
+ * - Stage 3: Contains match (O(name)) - immediate return
+ * - Stage 4: Path contains (O(path)) - immediate return
+ * - Stage 5: Fuzzy match (expensive) - last resort
+ *
  * @param file - File to score
  * @param queryLower - Lowercased search query
  * @param usageBonus - Optional usage history bonus (0-150)
@@ -110,67 +168,51 @@ export function calculateMatchScore(
   baseDir?: string
 ): number {
   const nameLower = lowercaseCache.get(file.name);
-  const pathLower = lowercaseCache.get(file.path);
 
-  let score = 0;
-
-  // Exact name match
+  // Stage 1: Exact name match (O(1)) - immediate return
   if (nameLower === queryLower) {
-    score += FUZZY_MATCH_SCORES.EXACT;
+    return FUZZY_MATCH_SCORES.EXACT + calculateBonuses(file, usageBonus, baseDir);
   }
-  // Name starts with query
-  else if (nameLower.startsWith(queryLower)) {
-    score += FUZZY_MATCH_SCORES.STARTS_WITH;
+
+  // Stage 2: Name starts with query (O(query)) - immediate return
+  if (nameLower.startsWith(queryLower)) {
+    return FUZZY_MATCH_SCORES.STARTS_WITH + calculateBonuses(file, usageBonus, baseDir);
   }
-  // Name contains query
-  else if (nameLower.includes(queryLower)) {
-    score += FUZZY_MATCH_SCORES.CONTAINS;
+
+  // Stage 3: Name contains query (O(name)) - immediate return
+  if (nameLower.includes(queryLower)) {
+    return FUZZY_MATCH_SCORES.CONTAINS + calculateBonuses(file, usageBonus, baseDir);
   }
-  // Path contains query
-  else if (pathLower.includes(queryLower)) {
-    score += FUZZY_MATCH_SCORES.PATH_CONTAINS;
+
+  // Stage 4: Path contains query (O(path)) - immediate return
+  const pathLower = lowercaseCache.get(file.path);
+  if (pathLower.includes(queryLower)) {
+    return FUZZY_MATCH_SCORES.PATH_CONTAINS + calculateBonuses(file, usageBonus, baseDir);
   }
-  // Fuzzy match on name using FzfScorer
+
+  // Stage 5: Fuzzy match on name using FzfScorer (expensive) - last resort
   // Pass original file.name to preserve CamelCase detection for position bonuses
-  else {
-    const fzfResult = fzfScorer.score(file.name, queryLower);
-    if (fzfResult.matched) {
-      // Scale FZF score to fit within score hierarchy
-      // FZF scores typically range ~20-150
-      // Scale to 10-100 range (under CONTAINS=200, above PATH_CONTAINS=50 for good matches)
-      const scaledFzfScore = Math.min(
-        FUZZY_MATCH_SCORES.MAX_FUZZY_BONUS,
-        Math.max(
-          FUZZY_MATCH_SCORES.BASE_FUZZY,
-          Math.floor(fzfResult.score * FUZZY_MATCH_SCORES.FZF_SCALE_FACTOR)
-        )
-      );
-      score += scaledFzfScore;
-    }
+  const fzfResult = fzfScorer.score(file.name, queryLower);
+  if (fzfResult.matched) {
+    // Scale FZF score to fit within score hierarchy
+    // FZF scores typically range ~20-150
+    // Scale to 10-100 range (under CONTAINS=200, above PATH_CONTAINS=50 for good matches)
+    const scaledFzfScore = Math.min(
+      FUZZY_MATCH_SCORES.MAX_FUZZY_BONUS,
+      Math.max(
+        FUZZY_MATCH_SCORES.BASE_FUZZY,
+        Math.floor(fzfResult.score * FUZZY_MATCH_SCORES.FZF_SCALE_FACTOR)
+      )
+    );
+    return scaledFzfScore + calculateBonuses(file, usageBonus, baseDir);
   }
 
-  // Bonus for files (not directories)
-  if (!file.isDirectory) {
-    score += FUZZY_MATCH_SCORES.FILE_BONUS;
-  }
-
-  // Bonus for shorter paths (calculated from relative path when baseDir is provided)
-  const pathForBonus = baseDir ? getRelativePath(file.path, baseDir) : file.path;
-  score += Math.max(0, FUZZY_MATCH_SCORES.MAX_PATH_BONUS - pathForBonus.split('/').length);
-
-  // Add usage history bonus
-  score += usageBonus;
-
-  // Add file modification time bonus if mtimeMs is available
-  if (file.mtimeMs !== undefined) {
-    score += Math.min(calculateFileMtimeBonus(file.mtimeMs), MAX_MTIME_BONUS);
-  }
-
-  return score;
+  // No match found
+  return 0;
 }
 
 /**
- * Calculate match score for an agent
+ * Calculate match score for an agent with staged matching
  * Higher score = better match
  *
  * Scoring rules:
@@ -180,56 +222,62 @@ export function calculateMatchScore(
  * - Name contains query: FUZZY_MATCH_SCORES.CONTAINS (200)
  * - Description contains query: FUZZY_MATCH_SCORES.PATH_CONTAINS (50)
  * - Fuzzy match on name: FUZZY_MATCH_SCORES.BASE_FUZZY (10)
+ *
+ * Performance optimization: Uses staged matching with early returns to avoid expensive FzfScorer calls
+ * - Stage 1: Exact match (O(1)) - immediate return
+ * - Stage 2: Prefix match (O(query)) - immediate return
+ * - Stage 3: Contains match (O(name)) - immediate return
+ * - Stage 4: Description contains (O(description)) - immediate return
+ * - Stage 5: Fuzzy match (expensive) - last resort
  */
 export function calculateAgentMatchScore(
   agent: AgentItem,
   queryLower: string,
   usageBonus: number = 0
 ): number {
-  if (!queryLower) return FUZZY_MATCH_SCORES.AGENT_BASE; // Base score for no query
+  // Base score for no query (no usage bonus applied)
+  if (!queryLower) return FUZZY_MATCH_SCORES.AGENT_BASE;
 
   const nameLower = lowercaseCache.get(agent.name);
-  const descLower = lowercaseCache.get(agent.description);
 
-  let score = 0;
-
-  // Exact name match
+  // Stage 1: Exact name match (O(1)) - immediate return
   if (nameLower === queryLower) {
-    score += FUZZY_MATCH_SCORES.EXACT;
+    return FUZZY_MATCH_SCORES.EXACT + usageBonus;
   }
-  // Name starts with query
-  else if (nameLower.startsWith(queryLower)) {
-    score += FUZZY_MATCH_SCORES.STARTS_WITH;
+
+  // Stage 2: Name starts with query (O(query)) - immediate return
+  if (nameLower.startsWith(queryLower)) {
+    return FUZZY_MATCH_SCORES.STARTS_WITH + usageBonus;
   }
-  // Name contains query
-  else if (nameLower.includes(queryLower)) {
-    score += FUZZY_MATCH_SCORES.CONTAINS;
+
+  // Stage 3: Name contains query (O(name)) - immediate return
+  if (nameLower.includes(queryLower)) {
+    return FUZZY_MATCH_SCORES.CONTAINS + usageBonus;
   }
-  // Description contains query
-  else if (descLower.includes(queryLower)) {
-    score += FUZZY_MATCH_SCORES.PATH_CONTAINS;
+
+  // Stage 4: Description contains query (O(description)) - immediate return
+  const descLower = lowercaseCache.get(agent.description);
+  if (descLower.includes(queryLower)) {
+    return FUZZY_MATCH_SCORES.PATH_CONTAINS + usageBonus;
   }
-  // Fuzzy match on name using FzfScorer
+
+  // Stage 5: Fuzzy match on name using FzfScorer (expensive) - last resort
   // Pass original agent.name to preserve CamelCase detection for position bonuses
-  else {
-    const fzfResult = fzfScorer.score(agent.name, queryLower);
-    if (fzfResult.matched) {
-      // Scale FZF score to fit within score hierarchy
-      // FZF scores typically range ~20-150
-      // Scale to 10-100 range (under CONTAINS=200, above PATH_CONTAINS=50 for good matches)
-      const scaledFzfScore = Math.min(
-        FUZZY_MATCH_SCORES.MAX_FUZZY_BONUS,
-        Math.max(
-          FUZZY_MATCH_SCORES.BASE_FUZZY,
-          Math.floor(fzfResult.score * FUZZY_MATCH_SCORES.FZF_SCALE_FACTOR)
-        )
-      );
-      score += scaledFzfScore;
-    }
+  const fzfResult = fzfScorer.score(agent.name, queryLower);
+  if (fzfResult.matched) {
+    // Scale FZF score to fit within score hierarchy
+    // FZF scores typically range ~20-150
+    // Scale to 10-100 range (under CONTAINS=200, above PATH_CONTAINS=50 for good matches)
+    const scaledFzfScore = Math.min(
+      FUZZY_MATCH_SCORES.MAX_FUZZY_BONUS,
+      Math.max(
+        FUZZY_MATCH_SCORES.BASE_FUZZY,
+        Math.floor(fzfResult.score * FUZZY_MATCH_SCORES.FZF_SCALE_FACTOR)
+      )
+    );
+    return scaledFzfScore + usageBonus;
   }
 
-  // Add usage history bonus
-  score += usageBonus;
-
-  return score;
+  // No match found
+  return usageBonus;
 }

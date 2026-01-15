@@ -95,6 +95,9 @@ export class PathManager {
   // Cached valid paths set (rebuilt only when directory data changes)
   private cachedValidPaths: Set<string> | null = null;
 
+  // Performance optimization: cache last scanned text to avoid redundant scans
+  private lastScannedText: string = '';
+
   /**
    * Set registered at-paths from persistent cache
    * These paths may contain spaces and are matched before the default regex
@@ -172,6 +175,8 @@ export class PathManager {
   public clearAtPaths(): void {
     this.atPaths = [];
     this.selectedPaths.clear();
+    // Clear scan cache when clearing paths
+    this.lastScannedText = '';
   }
 
   /**
@@ -202,8 +207,18 @@ export class PathManager {
    *
    * Phase 3 improvement: Valid paths are automatically added to selectedPaths
    * for persistence, ensuring highlights survive cache invalidation.
+   *
+   * Performance optimization: Skips re-scanning if text hasn't changed since last scan.
    */
   public rescanAtPaths(text: string, validPaths?: Set<string> | null): void {
+    // Performance: Skip re-scan if text hasn't changed
+    if (text === this.lastScannedText) {
+      return;
+    }
+
+    // Update cache before scanning
+    this.lastScannedText = text;
+
     const foundPaths: AtPathRange[] = [];
     const validPathsSet = validPaths !== undefined ? validPaths : this.getValidPathsSet();
 

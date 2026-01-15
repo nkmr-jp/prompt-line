@@ -247,9 +247,8 @@ export class HistoryUIManager {
       }
       fragment.appendChild(countIndicator);
 
-      // Single DOM update: clear and append fragment
-      historyList.innerHTML = '';
-      historyList.appendChild(fragment);
+      // Single DOM update: use replaceChildren for better performance
+      historyList.replaceChildren(fragment);
 
       // Update scrollbar after content is rendered
       // Use requestAnimationFrame to ensure DOM layout is complete
