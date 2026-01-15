@@ -11,8 +11,8 @@ import { FzfScorer } from '../../lib/fzf-scorer';
 import { getRelativePath } from './path-utils';
 export { compareTiebreak } from '../../lib/tiebreaker';
 
-/** Maximum mtime bonus - allows differentiation between recently modified files */
-const MAX_MTIME_BONUS = 1000;
+/** Maximum mtime bonus - caps the mtime bonus to balance with match scores */
+const MAX_MTIME_BONUS = 500;
 
 /**
  * Cache for lowercase strings to avoid repeated toLowerCase() calls

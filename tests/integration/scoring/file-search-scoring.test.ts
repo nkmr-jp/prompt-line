@@ -8,8 +8,8 @@ import { calculateMatchScore } from '../../../src/renderer/mentions/fuzzy-matche
 import { fileSearchTestCases } from '../../fixtures/scoring/file-search-cases';
 import type { FileInfo } from '../../../src/types/file-search';
 
-// MAX_MTIME_BONUS constant from fuzzy-matcher (updated to 1000 for hybrid decay)
-const MAX_MTIME_BONUS = 1000;
+// MAX_MTIME_BONUS constant from fuzzy-matcher
+const MAX_MTIME_BONUS = 500;
 
 describe('File Search Scoring', () => {
   describe('CamelCase matches', () => {
@@ -67,7 +67,7 @@ describe('File Search Scoring', () => {
   });
 
   describe('Mtime bonus', () => {
-    test('mtime bonus is capped at MAX_MTIME_BONUS (1000)', () => {
+    test('mtime bonus is capped at MAX_MTIME_BONUS (500)', () => {
       const recentFile: FileInfo = {
         name: 'recent.ts',
         path: '/src/recent.ts',
