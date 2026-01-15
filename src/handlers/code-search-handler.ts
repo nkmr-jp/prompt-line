@@ -248,7 +248,7 @@ class CodeSearchHandler {
       // Sort by relevance (match score + fzf score + mtime bonus)
       // Match scores: exact=1000, starts=500, contains=200
       // Fzf score: normalized to max 500 for camelCase and word boundary matches
-      // Mtime bonus: capped at 200
+      // Mtime bonus: capped at 100
       const scorer = new FzfScorer();
       filtered.sort((a, b) => {
         const aName = a.nameLower ?? a.name.toLowerCase();
@@ -272,9 +272,9 @@ class CodeSearchHandler {
         const aFzfScore = normalizeFzfScore(aFzfResult.score, 500);
         const bFzfScore = normalizeFzfScore(bFzfResult.score, 500);
 
-        // Add mtime bonus if available (capped at 200)
-        const aMtimeBonus = a.mtimeMs ? Math.min(calculateFileMtimeBonus(a.mtimeMs), 200) : 0;
-        const bMtimeBonus = b.mtimeMs ? Math.min(calculateFileMtimeBonus(b.mtimeMs), 200) : 0;
+        // Add mtime bonus if available (capped at 100)
+        const aMtimeBonus = a.mtimeMs ? Math.min(calculateFileMtimeBonus(a.mtimeMs), 100) : 0;
+        const bMtimeBonus = b.mtimeMs ? Math.min(calculateFileMtimeBonus(b.mtimeMs), 100) : 0;
 
         const aTotal = aMatchScore + aFzfScore + aMtimeBonus;
         const bTotal = bMatchScore + bFzfScore + bMtimeBonus;

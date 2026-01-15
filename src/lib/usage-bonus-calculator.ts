@@ -17,8 +17,8 @@ export const USAGE_BONUS = {
   FREQUENCY_LOG_BASE: 10,
   USAGE_RECENCY_TTL_DAYS: 7,
 
-  // File modification time related (scaled to fit within MAX_MTIME_BONUS=200)
-  MAX_FILE_MTIME: 200,
+  // File modification time related (scaled to fit within MAX_MTIME_BONUS=100)
+  MAX_FILE_MTIME: 100,
   FILE_MTIME_TTL_DAYS: 7,
   FILE_MTIME_HALF_LIFE_MS: SIX_HOURS_MS, // Half-life for exponential decay
 

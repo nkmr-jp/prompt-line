@@ -142,9 +142,9 @@ describe('fuzzy-matcher usage bonus integration', () => {
       const scoreWithMtime = calculateMatchScore(fileWithMtime, queryLower);
       const scoreWithoutMtime = calculateMatchScore(fileWithoutMtime, queryLower);
 
-      // calculateFileMtimeBonus returns ~158 for 2 hours ago (exponential decay, 200 scale)
-      // floor(200 * 2^(-2/6)) = floor(200 * 0.794) = 158
-      const expectedMtimeBonus = 158;
+      // calculateFileMtimeBonus returns ~79 for 2 hours ago (exponential decay, 100 scale)
+      // floor(100 * 2^(-2/6)) = floor(100 * 0.794) = 79
+      const expectedMtimeBonus = 79;
       expect(scoreWithMtime).toBe(scoreWithoutMtime + expectedMtimeBonus);
     });
 
@@ -171,12 +171,12 @@ describe('fuzzy-matcher usage bonus integration', () => {
       const scoreWithoutMtime = calculateMatchScore(fileWithoutMtime, queryLower);
 
       // Should include reduced mtime bonus
-      // At 3 days (72h): floor(200 * 2^(-72/6)) = floor(200 * 2^(-12)) = floor(200 * 0.000244) = 0
-      // But using the decay formula, at 3 days it should be around floor(200 * 2^(-3/0.25)) ≈ 25
+      // At 3 days (72h): floor(100 * 2^(-72/6)) = floor(100 * 2^(-12)) = floor(100 * 0.000244) = 0
+      // But using the hybrid decay formula, at 3 days it should be around 13
       const mtimeBonus = scoreWithMtime - scoreWithoutMtime;
       expect(mtimeBonus).toBeGreaterThan(0);
       expect(mtimeBonus).toBeLessThan(USAGE_BONUS.MAX_FILE_MTIME);
-      expect(mtimeBonus).toBeGreaterThanOrEqual(20); // At 4 days (96h) = 20
+      expect(mtimeBonus).toBeGreaterThanOrEqual(10); // At 4 days (96h) = 9
     });
 
     test('should add no mtime bonus for file modified 7+ days ago', () => {
@@ -247,8 +247,8 @@ describe('fuzzy-matcher usage bonus integration', () => {
       const scoreWithoutBonuses = calculateMatchScore(fileWithoutMtime, queryLower, 0);
 
       // Should add both usage bonus (100) and mtime bonus
-      // 1h ago exponential bonus: floor(200 * 2^(-1/6)) = 178
-      const expectedMtimeBonus = 178;
+      // 1h ago exponential bonus: floor(100 * 2^(-1/6)) = 89
+      const expectedMtimeBonus = 89;
       expect(scoreWithBothBonuses).toBe(scoreWithoutBonuses + usageBonus + expectedMtimeBonus);
     });
 
@@ -603,8 +603,8 @@ describe('fuzzy-matcher usage bonus integration', () => {
       const scoreWithFutureMtime = calculateMatchScore(fileWithFutureMtime, queryLower);
       const scoreWithoutMtime = calculateMatchScore(fileWithoutMtime, queryLower);
 
-      // calculateFileMtimeBonus returns MAX_FILE_MTIME (200) for future times
-      const MAX_MTIME_BONUS = 200;
+      // calculateFileMtimeBonus returns MAX_FILE_MTIME (100) for future times
+      const MAX_MTIME_BONUS = 100;
       expect(scoreWithFutureMtime).toBe(scoreWithoutMtime + MAX_MTIME_BONUS);
     });
   });
