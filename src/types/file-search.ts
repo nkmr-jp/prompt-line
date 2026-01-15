@@ -10,7 +10,6 @@ export interface FileInfo {
   size?: number;
   modifiedAt?: string;
   mtimeMs?: number;  // File modification time in milliseconds - for usage bonus calculation
-  lastUsedMs?: number;  // File last used time in milliseconds from macOS kMDItemLastUsedDate - for usage bonus calculation
   error?: string;
 }
 

@@ -8,8 +8,8 @@ import { calculateMatchScore } from '../../../src/renderer/mentions/fuzzy-matche
 import { fileSearchTestCases } from '../../fixtures/scoring/file-search-cases';
 import type { FileInfo } from '../../../src/types/file-search';
 
-// MAX_LAST_USED_BONUS constant from fuzzy-matcher
-const MAX_LAST_USED_BONUS = 100;
+// MAX_MTIME_BONUS constant from fuzzy-matcher
+const MAX_MTIME_BONUS = 100;
 
 describe('File Search Scoring', () => {
   describe('CamelCase matches', () => {
@@ -23,7 +23,7 @@ describe('File Search Scoring', () => {
         name: f.path.split('/').pop()!,
         path: f.path,
         isDirectory: false,
-        ...(f.lastModified !== undefined ? { lastUsedMs: f.lastModified } : {}),
+        ...(f.lastModified !== undefined ? { mtimeMs: f.lastModified } : {}),
       }));
 
       const queryLower = testCase!.query.toLowerCase();
@@ -49,7 +49,7 @@ describe('File Search Scoring', () => {
         name: f.path.split('/').pop()!,
         path: f.path,
         isDirectory: false,
-        ...(f.lastModified !== undefined ? { lastUsedMs: f.lastModified } : {}),
+        ...(f.lastModified !== undefined ? { mtimeMs: f.lastModified } : {}),
       }));
 
       const queryLower = testCase!.query.toLowerCase();
@@ -66,51 +66,51 @@ describe('File Search Scoring', () => {
     });
   });
 
-  describe('Last used bonus', () => {
-    test('last used bonus is capped at MAX_LAST_USED_BONUS (100)', () => {
+  describe('Mtime bonus', () => {
+    test('mtime bonus is capped at MAX_MTIME_BONUS (500)', () => {
       const recentFile: FileInfo = {
         name: 'recent.ts',
         path: '/src/recent.ts',
         isDirectory: false,
-        lastUsedMs: Date.now() - 1000, // Just now
+        mtimeMs: Date.now() - 1000, // Just now
       };
 
       const oldFile: FileInfo = {
         name: 'old.ts',
         path: '/src/old.ts',
         isDirectory: false,
-        lastUsedMs: Date.now() - 60 * 24 * 60 * 60 * 1000, // 60 days ago
+        mtimeMs: Date.now() - 60 * 24 * 60 * 60 * 1000, // 60 days ago
       };
 
       const recentScore = calculateMatchScore(recentFile, 'recent', 0);
       const oldScore = calculateMatchScore(oldFile, 'old', 0);
 
       // Both are exact matches on name, so base scores are equal
-      // Difference should be at most MAX_LAST_USED_BONUS
+      // Difference should be at most MAX_MTIME_BONUS
       const scoreDiff = recentScore - oldScore;
-      expect(scoreDiff).toBeLessThanOrEqual(MAX_LAST_USED_BONUS);
+      expect(scoreDiff).toBeLessThanOrEqual(MAX_MTIME_BONUS);
     });
 
-    test('recently used files score higher with last used bonus', () => {
+    test('recently edited files score higher with mtime bonus', () => {
       // Use direct test data instead of fixture
       const recentFile: FileInfo = {
         name: 'config.ts',
         path: '/src/config.ts',
         isDirectory: false,
-        lastUsedMs: Date.now() - 10 * 60 * 1000, // 10 minutes ago
+        mtimeMs: Date.now() - 10 * 60 * 1000, // 10 minutes ago
       };
 
       const oldFile: FileInfo = {
         name: 'config.ts',
         path: '/src/old-config.ts',
         isDirectory: false,
-        lastUsedMs: Date.now() - 30 * 24 * 60 * 60 * 1000, // 30 days ago
+        mtimeMs: Date.now() - 30 * 24 * 60 * 60 * 1000, // 30 days ago
       };
 
       const recentScore = calculateMatchScore(recentFile, 'config', 0);
       const oldScore = calculateMatchScore(oldFile, 'config', 0);
 
-      // Recent file should have higher score due to last used bonus
+      // Recent file should have higher score due to mtime bonus
       expect(recentScore).toBeGreaterThan(oldScore);
     });
   });

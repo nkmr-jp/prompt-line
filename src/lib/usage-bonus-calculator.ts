@@ -1,6 +1,6 @@
 /**
  * Usage bonus calculator for search result scoring.
- * Provides bonus calculations based on usage frequency, recency, and file last used time.
+ * Provides bonus calculations based on usage frequency, recency, and file modification time.
  */
 
 // Time constants
@@ -17,14 +17,14 @@ export const USAGE_BONUS = {
   FREQUENCY_LOG_BASE: 10,
   USAGE_RECENCY_TTL_DAYS: 7,
 
-  // File last used time related (scaled to fit within MAX_LAST_USED_BONUS=100)
-  MAX_FILE_LAST_USED: 100,
-  FILE_LAST_USED_TTL_DAYS: 7,
-  FILE_LAST_USED_HALF_LIFE_MS: SIX_HOURS_MS, // Half-life for exponential decay
+  // File modification time related (scaled to fit within MAX_MTIME_BONUS=100)
+  MAX_FILE_MTIME: 100,
+  FILE_MTIME_TTL_DAYS: 7,
+  FILE_MTIME_HALF_LIFE_MS: SIX_HOURS_MS, // Half-life for exponential decay
 
-  // Proportions for hybrid decay algorithm (percentage of MAX_FILE_LAST_USED)
-  LAST_USED_PROPORTION_AT_6H: 0.5, // 50% at 6 hours (due to half-life)
-  LAST_USED_PROPORTION_AT_24H: 0.2, // 20% at 24 hours
+  // Proportions for hybrid decay algorithm (percentage of MAX_FILE_MTIME)
+  MTIME_PROPORTION_AT_6H: 0.5, // 50% at 6 hours (due to half-life)
+  MTIME_PROPORTION_AT_24H: 0.2, // 20% at 24 hours
 } as const;
 
 /**
@@ -71,37 +71,37 @@ export function calculateUsageRecencyBonus(lastUsed: number): number {
 }
 
 /**
- * Calculate file last used time bonus using hybrid decay.
+ * Calculate file modification time bonus using hybrid decay.
  * Phase 1 (0-6h): Exponential decay with 6-hour half-life: MAX → 50%
  * Phase 2 (6h-24h): Linear decay: 50% → 20%
  * Phase 3 (24h-7d): Linear decay: 20% → 0%
  *
- * This gives strong priority to very recently used files while still
- * providing meaningful bonuses for files used within the past week.
- * Algorithm uses proportions to scale correctly for any MAX_FILE_LAST_USED value.
+ * This gives strong priority to very recently edited files while still
+ * providing meaningful bonuses for files edited within the past week.
+ * Algorithm uses proportions to scale correctly for any MAX_FILE_MTIME value.
  *
- * @param lastUsedMs - File last used timestamp (ms)
- * @returns Bonus score (0 to MAX_FILE_LAST_USED)
+ * @param mtimeMs - File modification timestamp (ms)
+ * @returns Bonus score (0 to MAX_FILE_MTIME)
  */
-export function calculateFileLastUsedBonus(lastUsedMs: number): number {
+export function calculateFileMtimeBonus(mtimeMs: number): number {
   const now = Date.now();
-  const age = now - lastUsedMs;
+  const age = now - mtimeMs;
 
   // Future timestamps get max bonus
   if (age <= 0) {
-    return USAGE_BONUS.MAX_FILE_LAST_USED;
+    return USAGE_BONUS.MAX_FILE_MTIME;
   }
 
-  const ttlMs = USAGE_BONUS.FILE_LAST_USED_TTL_DAYS * ONE_DAY_MS;
+  const ttlMs = USAGE_BONUS.FILE_MTIME_TTL_DAYS * ONE_DAY_MS;
 
   // After TTL (7 days): no bonus
   if (age >= ttlMs) {
     return 0;
   }
 
-  // Calculate proportional values based on MAX_FILE_LAST_USED
-  const valueAt6h = Math.floor(USAGE_BONUS.MAX_FILE_LAST_USED * USAGE_BONUS.LAST_USED_PROPORTION_AT_6H);
-  const valueAt24h = Math.floor(USAGE_BONUS.MAX_FILE_LAST_USED * USAGE_BONUS.LAST_USED_PROPORTION_AT_24H);
+  // Calculate proportional values based on MAX_FILE_MTIME
+  const valueAt6h = Math.floor(USAGE_BONUS.MAX_FILE_MTIME * USAGE_BONUS.MTIME_PROPORTION_AT_6H);
+  const valueAt24h = Math.floor(USAGE_BONUS.MAX_FILE_MTIME * USAGE_BONUS.MTIME_PROPORTION_AT_24H);
 
   // Hybrid decay using proportions:
   // Phase 1 (0-6h): Exponential decay MAX → valueAt6h (50%)
@@ -110,8 +110,8 @@ export function calculateFileLastUsedBonus(lastUsedMs: number): number {
 
   if (age < SIX_HOURS_MS) {
     // Phase 1: Exponential decay with 6-hour half-life
-    const lambda = Math.LN2 / USAGE_BONUS.FILE_LAST_USED_HALF_LIFE_MS;
-    return Math.floor(USAGE_BONUS.MAX_FILE_LAST_USED * Math.exp(-lambda * age));
+    const lambda = Math.LN2 / USAGE_BONUS.FILE_MTIME_HALF_LIFE_MS;
+    return Math.floor(USAGE_BONUS.MAX_FILE_MTIME * Math.exp(-lambda * age));
   } else if (age < ONE_DAY_MS) {
     // Phase 2: Linear decay from valueAt6h to valueAt24h
     const ratio = 1 - (age - SIX_HOURS_MS) / (ONE_DAY_MS - SIX_HOURS_MS);

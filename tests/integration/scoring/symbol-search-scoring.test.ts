@@ -6,10 +6,10 @@
 import { describe, test, expect } from '@jest/globals';
 import { FzfScorer } from '../../../src/lib/fzf-scorer';
 import { symbolSearchTestCases } from '../../fixtures/scoring/symbol-search-cases';
-import { calculateFileLastUsedBonus, USAGE_BONUS } from '../../../src/lib/usage-bonus-calculator';
+import { calculateFileMtimeBonus, USAGE_BONUS } from '../../../src/lib/usage-bonus-calculator';
 
-// Symbol last used bonus cap (same as code-search-handler)
-const MAX_SYMBOL_LAST_USED_BONUS = 100;
+// Symbol mtime bonus cap (same as code-search-handler)
+const MAX_SYMBOL_MTIME_BONUS = 100;
 
 describe('Symbol Search Scoring', () => {
   const fzfScorer = new FzfScorer({
@@ -64,26 +64,26 @@ describe('Symbol Search Scoring', () => {
     });
   });
 
-  describe('Last used bonus for symbols', () => {
-    test('last used bonus is capped at MAX_SYMBOL_LAST_USED_BONUS (100)', () => {
-      // Test that calculateFileLastUsedBonus returns up to USAGE_BONUS.MAX_FILE_LAST_USED (100)
-      // which is the same as MAX_SYMBOL_LAST_USED_BONUS (100)
-      const veryRecentLastUsed = Date.now() - 1000; // Just now
-      const oldLastUsed = Date.now() - 60 * 24 * 60 * 60 * 1000; // 60 days ago
+  describe('Mtime bonus for symbols', () => {
+    test('mtime bonus is capped at MAX_SYMBOL_MTIME_BONUS (100)', () => {
+      // Test that calculateFileMtimeBonus returns up to USAGE_BONUS.MAX_FILE_MTIME (100)
+      // which is the same as MAX_SYMBOL_MTIME_BONUS (100)
+      const veryRecentMtime = Date.now() - 1000; // Just now
+      const oldMtime = Date.now() - 60 * 24 * 60 * 60 * 1000; // 60 days ago
 
-      const recentBonus = calculateFileLastUsedBonus(veryRecentLastUsed);
-      const oldBonus = calculateFileLastUsedBonus(oldLastUsed);
+      const recentBonus = calculateFileMtimeBonus(veryRecentMtime);
+      const oldBonus = calculateFileMtimeBonus(oldMtime);
 
       // Recent file should get high bonus (close to max 100)
-      expect(recentBonus).toBeGreaterThanOrEqual(USAGE_BONUS.MAX_FILE_LAST_USED - 10);
-      // The raw bonus can exceed MAX_SYMBOL_LAST_USED_BONUS, it's capped when used
-      expect(recentBonus).toBeLessThanOrEqual(USAGE_BONUS.MAX_FILE_LAST_USED);
+      expect(recentBonus).toBeGreaterThanOrEqual(USAGE_BONUS.MAX_FILE_MTIME - 10);
+      // The raw bonus can exceed MAX_SYMBOL_MTIME_BONUS, it's capped when used
+      expect(recentBonus).toBeLessThanOrEqual(USAGE_BONUS.MAX_FILE_MTIME);
 
       // Old file should get 0 bonus
       expect(oldBonus).toBe(0);
     });
 
-    test('recently used file symbols get higher combined score', () => {
+    test('recently edited file symbols get higher combined score', () => {
       // Direct test with controlled data
       const recentSymbol = {
         name: 'Config',
@@ -98,10 +98,10 @@ describe('Symbol Search Scoring', () => {
 
       const recentScore =
         fzfScorer.score(recentSymbol.name, query).score +
-        Math.min(calculateFileLastUsedBonus(recentSymbol.lastModified), MAX_SYMBOL_LAST_USED_BONUS);
+        Math.min(calculateFileMtimeBonus(recentSymbol.lastModified), MAX_SYMBOL_MTIME_BONUS);
       const oldScore =
         fzfScorer.score(oldSymbol.name, query).score +
-        Math.min(calculateFileLastUsedBonus(oldSymbol.lastModified), MAX_SYMBOL_LAST_USED_BONUS);
+        Math.min(calculateFileMtimeBonus(oldSymbol.lastModified), MAX_SYMBOL_MTIME_BONUS);
 
       // Recent symbol should have higher combined score
       expect(recentScore).toBeGreaterThan(oldScore);
@@ -120,14 +120,14 @@ describe('Symbol Search Scoring', () => {
 
       const scored = symbols.map(sym => {
         const fzfScore = fzfScorer.score(sym.name, query).score;
-        const lastUsedBonus = sym.lastModified
-          ? Math.min(calculateFileLastUsedBonus(sym.lastModified), MAX_SYMBOL_LAST_USED_BONUS)
+        const mtimeBonus = sym.lastModified
+          ? Math.min(calculateFileMtimeBonus(sym.lastModified), MAX_SYMBOL_MTIME_BONUS)
           : 0;
         return {
           name: sym.name,
           fzfScore,
-          lastUsedBonus,
-          totalScore: fzfScore + lastUsedBonus,
+          mtimeBonus,
+          totalScore: fzfScore + mtimeBonus,
         };
       });
 

@@ -2,7 +2,6 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { createReadStream, createWriteStream } from 'fs';
 import { createInterface } from 'readline';
-import { exec } from 'child_process';
 import config from '../config/app-config';
 import { logger } from '../utils/utils';
 import type {
@@ -60,11 +59,11 @@ class FileCacheManager {
    * Load cache for a directory (returns immediately if exists)
    * Returns null if cache doesn't exist or is invalid
    * @param directory - Directory path to load cache for
-   * @param options.withRecentLastUsed - If true, merge recent last used data for scoring (for window show)
+   * @param options.withRecentMtimes - If true, merge recent mtime data for scoring (for window show)
    */
   async loadCache(
     directory: string,
-    options?: { withRecentLastUsed?: boolean }
+    options?: { withRecentMtimes?: boolean }
   ): Promise<CachedDirectoryData | null> {
     try {
       const cachePath = this.getCachePath(directory);
@@ -87,9 +86,9 @@ class FileCacheManager {
       const entries = await this.readJsonlFile(filesPath);
       let files = entries.map(entry => this.cacheEntryToFileInfo(entry));
 
-      // Merge recent last used data if requested (for window show scoring)
-      if (options?.withRecentLastUsed) {
-        files = await this.mergeRecentLastUsed(directory, files);
+      // Merge recent mtime data if requested (for window show scoring)
+      if (options?.withRecentMtimes) {
+        files = await this.mergeRecentMtimes(directory, files);
       }
 
       return {
@@ -108,95 +107,47 @@ class FileCacheManager {
   // ============================================================================
 
   private static readonly MAX_RECENT_FILES = 100;
-  private static readonly RECENT_LAST_USED_FILE = 'recent-last-used.json';
+  private static readonly RECENT_MTIMES_FILE = 'recent-mtimes.json';
 
   /**
-   * Execute mdls command to get kMDItemLastUsedDate for multiple files
-   * Returns Map<filePath, lastUsedMs>
+   * Merge recent mtime data into file list for scoring
+   * Only the top 100 recently modified files get mtime bonus
    */
-  private async getLastUsedDates(filePaths: string[]): Promise<Map<string, number>> {
-    const result = new Map<string, number>();
-    if (filePaths.length === 0) return result;
-
-    return new Promise((resolve) => {
-      // Escape file paths for shell command
-      const escapedPaths = filePaths.map(p => `"${p.replace(/"/g, '\\"')}"`).join(' ');
-      const cmd = `mdls -name kMDItemLastUsedDate ${escapedPaths}`;
-
-      exec(cmd, { maxBuffer: 10 * 1024 * 1024 }, (error, stdout) => {
-        if (error) {
-          logger.warn('mdls command failed:', error);
-          resolve(result);
-          return;
-        }
-
-        // Parse mdls output
-        // Format: kMDItemLastUsedDate = 2024-01-15 10:30:45 +0000
-        // Or: kMDItemLastUsedDate = (null)
-        const lines = stdout.trim().split('\n');
-        let fileIndex = 0;
-
-        for (const line of lines) {
-          if (fileIndex >= filePaths.length) break;
-
-          const match = line.match(/kMDItemLastUsedDate\s*=\s*(.+)/);
-          if (match && match[1]) {
-            const dateStr = match[1].trim();
-            const filePath = filePaths[fileIndex];
-            if (dateStr !== '(null)' && filePath) {
-              const timestamp = Date.parse(dateStr);
-              if (!isNaN(timestamp)) {
-                result.set(filePath, timestamp);
-              }
-            }
-            fileIndex++;
-          }
-        }
-
-        resolve(result);
-      });
-    });
-  }
-
-  /**
-   * Merge recent last used data into file list for scoring
-   * Only the top 100 recently used files get lastUsed bonus
-   */
-  private async mergeRecentLastUsed(directory: string, files: FileInfo[]): Promise<FileInfo[]> {
+  private async mergeRecentMtimes(directory: string, files: FileInfo[]): Promise<FileInfo[]> {
     try {
-      // Load and refresh recent last used dates
-      const recentLastUsed = await this.refreshRecentLastUsed(directory);
-      if (!recentLastUsed || recentLastUsed.size === 0) {
+      // Load and refresh recent mtimes
+      const recentMtimes = await this.refreshRecentMtimes(directory);
+      if (!recentMtimes || recentMtimes.size === 0) {
         return files;
       }
 
-      // Merge lastUsed data into file list
+      // Merge mtime data into file list
       return files.map(file => {
-        const lastUsedMs = recentLastUsed.get(file.path);
-        if (lastUsedMs !== undefined) {
-          return { ...file, lastUsedMs };
+        const mtimeMs = recentMtimes.get(file.path);
+        if (mtimeMs !== undefined) {
+          return { ...file, mtimeMs };
         }
         return file;
       });
     } catch (error) {
-      logger.warn('Failed to merge recent last used:', error);
+      logger.warn('Failed to merge recent mtimes:', error);
       return files;
     }
   }
 
   /**
-   * Refresh last used dates for recent files and save back to cache
-   * Returns Map<path, lastUsedMs> for the top 100 recently used files
+   * Refresh mtime for recent files and save back to cache
+   * Returns Map<path, mtimeMs> for the top 100 recently modified files
    */
-  async refreshRecentLastUsed(directory: string): Promise<Map<string, number> | null> {
+  async refreshRecentMtimes(directory: string): Promise<Map<string, number> | null> {
     const cachePath = this.getCachePath(directory);
-    const recentLastUsedPath = path.join(cachePath, FileCacheManager.RECENT_LAST_USED_FILE);
+    const recentMtimesPath = path.join(cachePath, FileCacheManager.RECENT_MTIMES_FILE);
 
     try {
       // Load existing recent files list
       let recentPaths: string[];
       try {
-        const content = await fs.readFile(recentLastUsedPath, 'utf8');
+        const content = await fs.readFile(recentMtimesPath, 'utf8');
         const data = JSON.parse(content) as { files: Array<{ path: string }> };
         recentPaths = data.files.map(f => f.path);
       } catch {
@@ -204,66 +155,79 @@ class FileCacheManager {
         return null;
       }
 
-      // Refresh last used dates using mdls (batch operation)
-      const lastUsedMap = await this.getLastUsedDates(recentPaths);
-      const refreshedFiles: Array<{ path: string; lastUsedMs: number }> = [];
+      // Refresh mtime for these files (only 100 fs.stat calls)
+      const mtimeMap = new Map<string, number>();
+      const refreshedFiles: Array<{ path: string; mtimeMs: number }> = [];
 
-      for (const [filePath, lastUsedMs] of lastUsedMap) {
-        refreshedFiles.push({ path: filePath, lastUsedMs });
-      }
+      await Promise.all(
+        recentPaths.map(async (filePath) => {
+          try {
+            const stats = await fs.stat(filePath);
+            mtimeMap.set(filePath, stats.mtimeMs);
+            refreshedFiles.push({ path: filePath, mtimeMs: stats.mtimeMs });
+          } catch {
+            // File may have been deleted, skip it
+          }
+        })
+      );
 
-      // Re-sort by lastUsedMs and save back (in case files were deleted or order changed)
-      refreshedFiles.sort((a, b) => b.lastUsedMs - a.lastUsedMs);
+      // Re-sort by mtime and save back (in case files were deleted or order changed)
+      refreshedFiles.sort((a, b) => b.mtimeMs - a.mtimeMs);
       await fs.writeFile(
-        recentLastUsedPath,
+        recentMtimesPath,
         JSON.stringify({ files: refreshedFiles.slice(0, FileCacheManager.MAX_RECENT_FILES) }, null, 2),
         { mode: 0o600 }
       );
 
-      return lastUsedMap;
+      return mtimeMap;
     } catch (error) {
-      logger.warn('Failed to refresh recent last used:', error);
+      logger.warn('Failed to refresh recent mtimes:', error);
       return null;
     }
   }
 
   /**
-   * Build recent last used cache by scanning all files using mdls
+   * Build recent mtimes cache by scanning all files for mtime
    * Called when saving cache (background operation)
    */
-  async buildRecentLastUsed(directory: string, files: FileInfo[]): Promise<void> {
+  async buildRecentMtimes(directory: string, files: FileInfo[]): Promise<void> {
     const cachePath = this.getCachePath(directory);
-    const recentLastUsedPath = path.join(cachePath, FileCacheManager.RECENT_LAST_USED_FILE);
+    const recentMtimesPath = path.join(cachePath, FileCacheManager.RECENT_MTIMES_FILE);
 
     try {
-      // Get last used dates for all files using mdls (batch operation)
-      const filesWithLastUsed: Array<{ path: string; lastUsedMs: number }> = [];
+      // Get mtime for all files (batch fs.stat)
+      const filesWithMtime: Array<{ path: string; mtimeMs: number }> = [];
       const BATCH_SIZE = 200;
 
       for (let i = 0; i < files.length; i += BATCH_SIZE) {
         const batch = files.slice(i, i + BATCH_SIZE);
-        const filePaths = batch.map(f => f.path);
-        const lastUsedMap = await this.getLastUsedDates(filePaths);
-
-        for (const [filePath, lastUsedMs] of lastUsedMap) {
-          filesWithLastUsed.push({ path: filePath, lastUsedMs });
-        }
+        const results = await Promise.all(
+          batch.map(async (file) => {
+            try {
+              const stats = await fs.stat(file.path);
+              return { path: file.path, mtimeMs: stats.mtimeMs };
+            } catch {
+              return null;
+            }
+          })
+        );
+        filesWithMtime.push(...results.filter((r): r is { path: string; mtimeMs: number } => r !== null));
       }
 
-      // Sort by lastUsedMs descending and take top 100
-      filesWithLastUsed.sort((a, b) => b.lastUsedMs - a.lastUsedMs);
-      const recentFiles = filesWithLastUsed.slice(0, FileCacheManager.MAX_RECENT_FILES);
+      // Sort by mtime descending and take top 100
+      filesWithMtime.sort((a, b) => b.mtimeMs - a.mtimeMs);
+      const recentFiles = filesWithMtime.slice(0, FileCacheManager.MAX_RECENT_FILES);
 
       // Save to cache
       await fs.writeFile(
-        recentLastUsedPath,
+        recentMtimesPath,
         JSON.stringify({ files: recentFiles }, null, 2),
         { mode: 0o600 }
       );
 
-      logger.debug(`Built recent last used cache: ${recentFiles.length} files for ${directory}`);
+      logger.debug(`Built recent mtimes cache: ${recentFiles.length} files for ${directory}`);
     } catch (error) {
-      logger.warn('Failed to build recent last used:', error);
+      logger.warn('Failed to build recent mtimes:', error);
     }
   }
 
@@ -309,10 +273,10 @@ class FileCacheManager {
       const entries = files.map(file => this.fileInfoToCacheEntry(file));
       await this.writeJsonlFile(filesPath, entries);
 
-      // Build recent last used cache in background (top 100 recently used files)
+      // Build recent mtimes cache in background (top 100 recently modified files)
       // This runs in background to not block the main cache save
-      this.buildRecentLastUsed(directory, files).catch(err => {
-        logger.warn('Failed to build recent last used in background:', err);
+      this.buildRecentMtimes(directory, files).catch(err => {
+        logger.warn('Failed to build recent mtimes in background:', err);
       });
 
       // Update global metadata

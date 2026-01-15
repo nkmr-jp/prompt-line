@@ -7,7 +7,7 @@ import { ipcMain, IpcMainInvokeEvent } from 'electron';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { logger } from '../utils/utils';
-import { calculateFileLastUsedBonus } from '../lib/usage-bonus-calculator';
+import { calculateFileMtimeBonus } from '../lib/usage-bonus-calculator';
 import {
   checkRgAvailable,
   getSupportedLanguages,
@@ -132,7 +132,7 @@ class CodeSearchHandler {
   }
 
   /**
-   * Enrich symbols with file last used time for bonus calculation
+   * Enrich symbols with file mtime for bonus calculation
    * Uses batched fs.stat for efficiency
    */
   private async enrichSymbolsWithMtime(
@@ -245,10 +245,10 @@ class CodeSearchHandler {
           s.lineContent.toLowerCase().includes(lowerQuery);
       });
 
-      // Sort by relevance (match score + fzf score + last used bonus)
+      // Sort by relevance (match score + fzf score + mtime bonus)
       // Match scores: exact=1000, starts=500, contains=200
       // Fzf score: normalized to max 500 for camelCase and word boundary matches
-      // Last used bonus: capped at 100
+      // Mtime bonus: capped at 100
       const scorer = new FzfScorer();
       filtered.sort((a, b) => {
         const aName = a.nameLower ?? a.name.toLowerCase();
@@ -272,12 +272,12 @@ class CodeSearchHandler {
         const aFzfScore = normalizeFzfScore(aFzfResult.score, 500);
         const bFzfScore = normalizeFzfScore(bFzfResult.score, 500);
 
-        // Add last used bonus if available (capped at 100)
-        const aLastUsedBonus = a.mtimeMs ? Math.min(calculateFileLastUsedBonus(a.mtimeMs), 100) : 0;
-        const bLastUsedBonus = b.mtimeMs ? Math.min(calculateFileLastUsedBonus(b.mtimeMs), 100) : 0;
+        // Add mtime bonus if available (capped at 100)
+        const aMtimeBonus = a.mtimeMs ? Math.min(calculateFileMtimeBonus(a.mtimeMs), 100) : 0;
+        const bMtimeBonus = b.mtimeMs ? Math.min(calculateFileMtimeBonus(b.mtimeMs), 100) : 0;
 
-        const aTotal = aMatchScore + aFzfScore + aLastUsedBonus;
-        const bTotal = bMatchScore + bFzfScore + bLastUsedBonus;
+        const aTotal = aMatchScore + aFzfScore + aMtimeBonus;
+        const bTotal = bMatchScore + bFzfScore + bMtimeBonus;
 
         if (aTotal !== bTotal) return bTotal - aTotal;
         return aName.localeCompare(bName);
@@ -362,7 +362,7 @@ class CodeSearchHandler {
             });
           }
 
-          // Enrich symbols with last used time for bonus calculation (only if query provided for scoring)
+          // Enrich symbols with mtime for bonus calculation (only if query provided for scoring)
           if (options?.query) {
             await this.enrichSymbolsWithMtime(cachedSymbols, directory);
           }

@@ -119,19 +119,19 @@ describe('fuzzy-matcher usage bonus integration', () => {
     });
   });
 
-  describe('calculateMatchScore with lastUsedMs', () => {
-    test('should add last used bonus for recently used file (within 24h)', () => {
+  describe('calculateMatchScore with mtimeMs', () => {
+    test('should add mtime bonus for recently modified file (within 24h)', () => {
       const now = Date.now();
       const twoHoursAgo = now - (2 * 60 * 60 * 1000); // 2 hours ago
 
-      const fileWithLastUsed: FileInfo = {
+      const fileWithMtime: FileInfo = {
         name: 'recent',
         path: 'src/recent',
         isDirectory: false,
-        lastUsedMs: twoHoursAgo
+        mtimeMs: twoHoursAgo
       };
 
-      const fileWithoutLastUsed: FileInfo = {
+      const fileWithoutMtime: FileInfo = {
         name: 'recent',
         path: 'src/recent',
         isDirectory: false
@@ -139,27 +139,27 @@ describe('fuzzy-matcher usage bonus integration', () => {
 
       const queryLower = 'recent';
 
-      const scoreWithLastUsed = calculateMatchScore(fileWithLastUsed, queryLower);
-      const scoreWithoutLastUsed = calculateMatchScore(fileWithoutLastUsed, queryLower);
+      const scoreWithMtime = calculateMatchScore(fileWithMtime, queryLower);
+      const scoreWithoutMtime = calculateMatchScore(fileWithoutMtime, queryLower);
 
-      // calculateFileLastUsedBonus returns ~79 for 2 hours ago (exponential decay, 100 scale)
+      // calculateFileMtimeBonus returns ~79 for 2 hours ago (exponential decay, 100 scale)
       // floor(100 * 2^(-2/6)) = floor(100 * 0.794) = 79
-      const expectedLastUsedBonus = 79;
-      expect(scoreWithLastUsed).toBe(scoreWithoutLastUsed + expectedLastUsedBonus);
+      const expectedMtimeBonus = 79;
+      expect(scoreWithMtime).toBe(scoreWithoutMtime + expectedMtimeBonus);
     });
 
-    test('should add reduced last used bonus for file used 3 days ago', () => {
+    test('should add reduced mtime bonus for file modified 3 days ago', () => {
       const now = Date.now();
       const threeDaysAgo = now - (3 * 24 * 60 * 60 * 1000); // 3 days ago
 
-      const fileWithLastUsed: FileInfo = {
+      const fileWithMtime: FileInfo = {
         name: 'old',
         path: 'src/old',
         isDirectory: false,
-        lastUsedMs: threeDaysAgo
+        mtimeMs: threeDaysAgo
       };
 
-      const fileWithoutLastUsed: FileInfo = {
+      const fileWithoutMtime: FileInfo = {
         name: 'old',
         path: 'src/old',
         isDirectory: false
@@ -167,30 +167,30 @@ describe('fuzzy-matcher usage bonus integration', () => {
 
       const queryLower = 'old';
 
-      const scoreWithLastUsed = calculateMatchScore(fileWithLastUsed, queryLower);
-      const scoreWithoutLastUsed = calculateMatchScore(fileWithoutLastUsed, queryLower);
+      const scoreWithMtime = calculateMatchScore(fileWithMtime, queryLower);
+      const scoreWithoutMtime = calculateMatchScore(fileWithoutMtime, queryLower);
 
-      // Should include reduced last used bonus
+      // Should include reduced mtime bonus
       // At 3 days (72h): floor(100 * 2^(-72/6)) = floor(100 * 2^(-12)) = floor(100 * 0.000244) = 0
       // But using the hybrid decay formula, at 3 days it should be around 13
-      const lastUsedBonus = scoreWithLastUsed - scoreWithoutLastUsed;
-      expect(lastUsedBonus).toBeGreaterThan(0);
-      expect(lastUsedBonus).toBeLessThan(USAGE_BONUS.MAX_FILE_LAST_USED);
-      expect(lastUsedBonus).toBeGreaterThanOrEqual(10); // At 4 days (96h) = 9
+      const mtimeBonus = scoreWithMtime - scoreWithoutMtime;
+      expect(mtimeBonus).toBeGreaterThan(0);
+      expect(mtimeBonus).toBeLessThan(USAGE_BONUS.MAX_FILE_MTIME);
+      expect(mtimeBonus).toBeGreaterThanOrEqual(10); // At 4 days (96h) = 9
     });
 
-    test('should add no last used bonus for file used 7+ days ago', () => {
+    test('should add no mtime bonus for file modified 7+ days ago', () => {
       const now = Date.now();
       const tenDaysAgo = now - (10 * 24 * 60 * 60 * 1000); // 10 days ago
 
-      const fileWithOldLastUsed: FileInfo = {
+      const fileWithOldMtime: FileInfo = {
         name: 'ancient',
         path: 'src/ancient',
         isDirectory: false,
-        lastUsedMs: tenDaysAgo
+        mtimeMs: tenDaysAgo
       };
 
-      const fileWithoutLastUsed: FileInfo = {
+      const fileWithoutMtime: FileInfo = {
         name: 'ancient',
         path: 'src/ancient',
         isDirectory: false
@@ -198,43 +198,43 @@ describe('fuzzy-matcher usage bonus integration', () => {
 
       const queryLower = 'ancient';
 
-      const scoreWithOldLastUsed = calculateMatchScore(fileWithOldLastUsed, queryLower);
-      const scoreWithoutLastUsed = calculateMatchScore(fileWithoutLastUsed, queryLower);
+      const scoreWithOldMtime = calculateMatchScore(fileWithOldMtime, queryLower);
+      const scoreWithoutMtime = calculateMatchScore(fileWithoutMtime, queryLower);
 
-      // Old last used should give 0 bonus, same as no last used
-      expect(scoreWithOldLastUsed).toBe(scoreWithoutLastUsed);
+      // Old mtime should give 0 bonus, same as no mtime
+      expect(scoreWithOldMtime).toBe(scoreWithoutMtime);
     });
 
-    test('should not add last used bonus when lastUsedMs is undefined', () => {
+    test('should not add mtime bonus when mtimeMs is undefined', () => {
       const file: FileInfo = {
-        name: 'no-lastused',
-        path: 'src/no-lastused',
+        name: 'no-mtime',
+        path: 'src/no-mtime',
         isDirectory: false
-        // lastUsedMs is undefined
+        // mtimeMs is undefined
       };
-      const queryLower = 'no-lastused';
+      const queryLower = 'no-mtime';
 
       const score = calculateMatchScore(file, queryLower);
 
-      // Should only include exact match + file bonus + path bonus (no last used bonus)
+      // Should only include exact match + file bonus + path bonus (no mtime bonus)
       const expectedMaxScore = FUZZY_MATCH_SCORES.EXACT + FUZZY_MATCH_SCORES.FILE_BONUS + FUZZY_MATCH_SCORES.MAX_PATH_BONUS + 1;
       expect(score).toBeLessThan(expectedMaxScore);
     });
   });
 
   describe('calculateMatchScore with combined bonuses', () => {
-    test('should combine usageBonus and lastUsedMs bonuses', () => {
+    test('should combine usageBonus and mtimeMs bonuses', () => {
       const now = Date.now();
       const recentTime = now - (1 * 60 * 60 * 1000); // 1 hour ago
 
-      const fileWithLastUsed: FileInfo = {
+      const fileWithMtime: FileInfo = {
         name: 'popular',
         path: 'src/popular',
         isDirectory: false,
-        lastUsedMs: recentTime
+        mtimeMs: recentTime
       };
 
-      const fileWithoutLastUsed: FileInfo = {
+      const fileWithoutMtime: FileInfo = {
         name: 'popular',
         path: 'src/popular',
         isDirectory: false
@@ -243,16 +243,16 @@ describe('fuzzy-matcher usage bonus integration', () => {
       const queryLower = 'popular';
       const usageBonus = 100;
 
-      const scoreWithBothBonuses = calculateMatchScore(fileWithLastUsed, queryLower, usageBonus);
-      const scoreWithoutBonuses = calculateMatchScore(fileWithoutLastUsed, queryLower, 0);
+      const scoreWithBothBonuses = calculateMatchScore(fileWithMtime, queryLower, usageBonus);
+      const scoreWithoutBonuses = calculateMatchScore(fileWithoutMtime, queryLower, 0);
 
-      // Should add both usage bonus (100) and last used bonus
+      // Should add both usage bonus (100) and mtime bonus
       // 1h ago exponential bonus: floor(100 * 2^(-1/6)) = 89
-      const expectedLastUsedBonus = 89;
-      expect(scoreWithBothBonuses).toBe(scoreWithoutBonuses + usageBonus + expectedLastUsedBonus);
+      const expectedMtimeBonus = 89;
+      expect(scoreWithBothBonuses).toBe(scoreWithoutBonuses + usageBonus + expectedMtimeBonus);
     });
 
-    test('should combine usageBonus with reduced lastUsedMs bonus', () => {
+    test('should combine usageBonus with reduced mtimeMs bonus', () => {
       const now = Date.now();
       const oldTime = now - (20 * 24 * 60 * 60 * 1000); // 20 days ago
 
@@ -260,7 +260,7 @@ describe('fuzzy-matcher usage bonus integration', () => {
         name: 'semi-old',
         path: 'src/semi-old',
         isDirectory: false,
-        lastUsedMs: oldTime
+        mtimeMs: oldTime
       };
       const queryLower = 'semi-old';
       const usageBonus = 75;
@@ -268,10 +268,10 @@ describe('fuzzy-matcher usage bonus integration', () => {
       const scoreWithBonuses = calculateMatchScore(file, queryLower, usageBonus);
       const scoreWithoutUsageBonus = calculateMatchScore(file, queryLower, 0);
 
-      // Should add usage bonus (75) + no last used bonus (20 days is beyond TTL)
-      // The last used bonus is 0 for files beyond 7-day TTL
+      // Should add usage bonus (75) + no mtime bonus (20 days is beyond TTL)
+      // The mtime bonus is 0 for files beyond 7-day TTL
       const difference = scoreWithBonuses - scoreWithoutUsageBonus;
-      expect(difference).toBe(usageBonus); // Only usage bonus, no last used bonus
+      expect(difference).toBe(usageBonus); // Only usage bonus, no mtime bonus
     });
   });
 
@@ -436,7 +436,7 @@ describe('fuzzy-matcher usage bonus integration', () => {
       expect(startsWithScore).toBeGreaterThan(exactScore);
     });
 
-    test('should allow last used bonus to influence ranking between equal matches', () => {
+    test('should allow mtime bonus to influence ranking between equal matches', () => {
       const now = Date.now();
       const recentTime = now - (1 * 60 * 60 * 1000); // 1 hour ago
       const oldTime = now - (60 * 24 * 60 * 60 * 1000); // 60 days ago
@@ -445,14 +445,14 @@ describe('fuzzy-matcher usage bonus integration', () => {
         name: 'utils.ts',
         path: 'src/utils.ts',
         isDirectory: false,
-        lastUsedMs: recentTime
+        mtimeMs: recentTime
       };
 
       const oldFile: FileInfo = {
         name: 'utils.js',
         path: 'lib/utils.js',
         isDirectory: false,
-        lastUsedMs: oldTime
+        mtimeMs: oldTime
       };
 
       const queryLower = 'utils';
@@ -460,7 +460,7 @@ describe('fuzzy-matcher usage bonus integration', () => {
       const recentScore = calculateMatchScore(recentFile, queryLower);
       const oldScore = calculateMatchScore(oldFile, queryLower);
 
-      // Recent file should rank higher due to last used bonus
+      // Recent file should rank higher due to mtime bonus
       expect(recentScore).toBeGreaterThan(oldScore);
     });
 
@@ -472,14 +472,14 @@ describe('fuzzy-matcher usage bonus integration', () => {
         name: 'index.ts',
         path: 'src/index.ts',
         isDirectory: false,
-        lastUsedMs: recentTime
+        mtimeMs: recentTime
       };
 
       const unpopularOldFile: FileInfo = {
         name: 'index.js',
         path: 'old/deep/nested/index.js',
         isDirectory: false,
-        lastUsedMs: now - (100 * 24 * 60 * 60 * 1000) // 100 days ago
+        mtimeMs: now - (100 * 24 * 60 * 60 * 1000) // 100 days ago
       };
 
       const queryLower = 'index';
@@ -566,33 +566,33 @@ describe('fuzzy-matcher usage bonus integration', () => {
       expect(scoreWithFractional).toBe(baseScore + fractionalBonus);
     });
 
-    test('should handle zero lastUsedMs (epoch time)', () => {
+    test('should handle zero mtimeMs (epoch time)', () => {
       const file: FileInfo = {
         name: 'ancient.ts',
         path: 'ancient.ts',
         isDirectory: false,
-        lastUsedMs: 0 // Unix epoch
+        mtimeMs: 0 // Unix epoch
       };
       const queryLower = 'ancient';
 
       const score = calculateMatchScore(file, queryLower);
 
-      // Should work without errors, last used bonus will be 0 for such old files
+      // Should work without errors, mtime bonus will be 0 for such old files
       expect(score).toBeGreaterThan(0);
     });
 
-    test('should handle future lastUsedMs gracefully', () => {
+    test('should handle future mtimeMs gracefully', () => {
       const now = Date.now();
       const futureTime = now + (24 * 60 * 60 * 1000); // 1 day in future
 
-      const fileWithFutureLastUsed: FileInfo = {
+      const fileWithFutureMtime: FileInfo = {
         name: 'future',
         path: 'future',
         isDirectory: false,
-        lastUsedMs: futureTime
+        mtimeMs: futureTime
       };
 
-      const fileWithoutLastUsed: FileInfo = {
+      const fileWithoutMtime: FileInfo = {
         name: 'future',
         path: 'future',
         isDirectory: false
@@ -600,12 +600,12 @@ describe('fuzzy-matcher usage bonus integration', () => {
 
       const queryLower = 'future';
 
-      const scoreWithFutureLastUsed = calculateMatchScore(fileWithFutureLastUsed, queryLower);
-      const scoreWithoutLastUsed = calculateMatchScore(fileWithoutLastUsed, queryLower);
+      const scoreWithFutureMtime = calculateMatchScore(fileWithFutureMtime, queryLower);
+      const scoreWithoutMtime = calculateMatchScore(fileWithoutMtime, queryLower);
 
-      // calculateFileLastUsedBonus returns MAX_FILE_LAST_USED (100) for future times
-      const MAX_LAST_USED_BONUS = 100;
-      expect(scoreWithFutureLastUsed).toBe(scoreWithoutLastUsed + MAX_LAST_USED_BONUS);
+      // calculateFileMtimeBonus returns MAX_FILE_MTIME (100) for future times
+      const MAX_MTIME_BONUS = 100;
+      expect(scoreWithFutureMtime).toBe(scoreWithoutMtime + MAX_MTIME_BONUS);
     });
   });
 });
