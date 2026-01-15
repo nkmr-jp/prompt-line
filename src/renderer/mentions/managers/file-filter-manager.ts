@@ -173,7 +173,7 @@ export class FileFilterManager {
         const bonus = usageBonuses?.[file.path] ?? 0;
         return {
           file,
-          score: calculateMatchScore(file, queryLower, bonus)
+          score: calculateMatchScore(file, queryLower, bonus, baseDir)
         };
       })
       .filter(item => item.score > 0)
@@ -297,7 +297,7 @@ export class FileFilterManager {
         const bonus = usageBonuses?.[file.path] ?? 0;
         return {
           file,
-          score: calculateMatchScore(file, queryLower, bonus),
+          score: calculateMatchScore(file, queryLower, bonus, baseDir),
           relativePath: getRelativePath(file.path, baseDir)
         };
       })
@@ -348,7 +348,7 @@ export class FileFilterManager {
       const bonus = usageBonuses?.[dir.path] ?? 0;
       return {
         file: dir,
-        score: calculateMatchScore(dir, queryLower, bonus),
+        score: calculateMatchScore(dir, queryLower, bonus, baseDir),
         relativePath: getRelativePath(dir.path, baseDir)
       };
     });
@@ -440,6 +440,7 @@ export class FileFilterManager {
    * @param query - Search query
    * @param maxSuggestions - Maximum suggestions to return
    * @param usageBonuses - Optional map of file paths to usage bonuses
+   * @param baseDir - Optional base directory for relative path calculation
    * @returns Merged and sorted suggestions
    */
   public mergeSuggestions(
@@ -447,7 +448,8 @@ export class FileFilterManager {
     filteredAgents: AgentItem[],
     query: string,
     maxSuggestions?: number,
-    usageBonuses?: Record<string, number>
+    usageBonuses?: Record<string, number>,
+    baseDir?: string
   ): SuggestionItem[] {
     const items: SuggestionItem[] = [];
     const queryLower = query.toLowerCase();
@@ -455,7 +457,7 @@ export class FileFilterManager {
     // Add files with scores (including usage bonuses)
     for (const file of filteredFiles) {
       const bonus = usageBonuses?.[file.path] ?? 0;
-      const score = calculateMatchScore(file, queryLower, bonus);
+      const score = calculateMatchScore(file, queryLower, bonus, baseDir);
       items.push({ type: 'file', file, score });
     }
 

@@ -8,6 +8,7 @@ import type { FileInfo, AgentItem } from '../../types';
 import { FUZZY_MATCH_SCORES } from '../../constants';
 import { calculateFileMtimeBonus } from '../../lib/usage-bonus-calculator';
 import { FzfScorer } from '../../lib/fzf-scorer';
+import { getRelativePath } from './path-utils';
 export { compareTiebreak } from '../../lib/tiebreaker';
 
 /** Maximum mtime bonus - allows differentiation between recently modified files */
@@ -92,15 +93,22 @@ export function fuzzyMatch(text: string, pattern: string): boolean {
  * - Fuzzy match on name: FUZZY_MATCH_SCORES.BASE_FUZZY (10)
  * - Bonus for files (not directories): FUZZY_MATCH_SCORES.FILE_BONUS (5)
  * - Bonus for shorter paths: up to FUZZY_MATCH_SCORES.MAX_PATH_BONUS (20)
+ *   - When baseDir is provided, path bonus is calculated from relative path
  * - Usage history bonus: 0-150 (optional parameter)
- * - File modification time bonus: 0-50 (if mtimeMs available)
+ * - File modification time bonus: 0-500 (if mtimeMs available)
  *
  * @param file - File to score
  * @param queryLower - Lowercased search query
  * @param usageBonus - Optional usage history bonus (0-150)
+ * @param baseDir - Optional base directory for relative path calculation
  * @returns Total score including bonuses
  */
-export function calculateMatchScore(file: FileInfo, queryLower: string, usageBonus: number = 0): number {
+export function calculateMatchScore(
+  file: FileInfo,
+  queryLower: string,
+  usageBonus: number = 0,
+  baseDir?: string
+): number {
   const nameLower = lowercaseCache.get(file.name);
   const pathLower = lowercaseCache.get(file.path);
 
@@ -135,8 +143,9 @@ export function calculateMatchScore(file: FileInfo, queryLower: string, usageBon
     score += FUZZY_MATCH_SCORES.FILE_BONUS;
   }
 
-  // Bonus for shorter paths
-  score += Math.max(0, FUZZY_MATCH_SCORES.MAX_PATH_BONUS - pathLower.split('/').length);
+  // Bonus for shorter paths (calculated from relative path when baseDir is provided)
+  const pathForBonus = baseDir ? getRelativePath(file.path, baseDir) : file.path;
+  score += Math.max(0, FUZZY_MATCH_SCORES.MAX_PATH_BONUS - pathForBonus.split('/').length);
 
   // Add usage history bonus
   score += usageBonus;
