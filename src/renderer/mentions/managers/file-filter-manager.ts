@@ -28,38 +28,6 @@ export interface FileFilterCallbacks {
 }
 
 /**
- * System directories to exclude from file search results
- * Files with absolute paths starting with these directories are filtered out
- */
-const EXCLUDED_SYSTEM_DIRECTORIES = [
-  '/private/tmp',
-  '/private/var',
-  '/tmp',
-  '/var/tmp',
-  '/Library',
-  '/System',
-  '/Applications',
-  '/bin',
-  '/sbin',
-  '/usr',
-  '/etc',
-  '/cores',
-  '/opt'
-];
-
-/**
- * Check if a file path should be excluded from search results
- */
-function isExcludedSystemPath(filePath: string): boolean {
-  for (const excludedDir of EXCLUDED_SYSTEM_DIRECTORIES) {
-    if (filePath.startsWith(excludedDir + '/') || filePath === excludedDir) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/**
  * FileFilterManager handles all file filtering and suggestion merging logic
  */
 export class FileFilterManager {
@@ -155,9 +123,6 @@ export class FileFilterManager {
     const files: FileInfo[] = [];
 
     for (const file of allFiles) {
-      // Skip files from system directories
-      if (isExcludedSystemPath(file.path)) continue;
-
       const relativePath = getRelativePath(file.path, baseDir);
 
       // Check if file is under currentPath
@@ -263,9 +228,6 @@ export class FileFilterManager {
     const files: FileInfo[] = [];
 
     for (const file of allFiles) {
-      // Skip files from system directories
-      if (isExcludedSystemPath(file.path)) continue;
-
       const relativePath = getRelativePath(file.path, baseDir);
       const slashIndex = relativePath.indexOf('/');
 
@@ -329,9 +291,8 @@ export class FileFilterManager {
     const matchingDirs: FileInfo[] = [];
 
     // Find all matching files (from source files)
-    // Exclude files from system directories (e.g., /tmp, /private/tmp)
     const scoredFiles = sourceFiles
-      .filter(file => !file.isDirectory && !isExcludedSystemPath(file.path))
+      .filter(file => !file.isDirectory)
       .map(file => {
         const bonus = usageBonuses?.[file.path] ?? 0;
         return {
@@ -344,8 +305,6 @@ export class FileFilterManager {
 
     // Find matching directories (by path containing the query)
     for (const file of sourceFiles) {
-      // Skip files from system directories
-      if (isExcludedSystemPath(file.path)) continue;
 
       const relativePath = getRelativePath(file.path, baseDir);
       const pathParts = relativePath.split('/').filter(p => p);
