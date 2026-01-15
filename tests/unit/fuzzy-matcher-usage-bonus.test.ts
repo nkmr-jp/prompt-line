@@ -142,10 +142,10 @@ describe('fuzzy-matcher usage bonus integration', () => {
       const scoreWithMtime = calculateMatchScore(fileWithMtime, queryLower);
       const scoreWithoutMtime = calculateMatchScore(fileWithoutMtime, queryLower);
 
-      // calculateFileMtimeBonus returns MAX_FILE_MTIME (1000) for recent files
-      // but fuzzy-matcher caps it at MAX_MTIME_BONUS (500)
-      const MAX_MTIME_BONUS = 500;
-      expect(scoreWithMtime).toBe(scoreWithoutMtime + MAX_MTIME_BONUS);
+      // calculateFileMtimeBonus returns ~793 for 2 hours ago (exponential decay)
+      // 2h ago exponential bonus: floor(1000 * exp(-ln(2) * 2/6)) ≈ 793
+      const expectedMtimeBonus = 793;
+      expect(scoreWithMtime).toBe(scoreWithoutMtime + expectedMtimeBonus);
     });
 
     test('should add reduced mtime bonus for file modified 3 days ago', () => {
@@ -171,13 +171,13 @@ describe('fuzzy-matcher usage bonus integration', () => {
       const scoreWithoutMtime = calculateMatchScore(fileWithoutMtime, queryLower);
 
       // Should include reduced mtime bonus
-      // At 3 days: phase 2, ageAfterFirstDay = 2 days, remainingTtl = 6 days
-      // ratio = 1 - (2/6) = 0.667, bonus = floor(0.667 * 500) = 333
-      // Capped at MAX_MTIME_BONUS (500), so 333 stays as-is
+      // At 3 days: Phase 3, ageAfterFirstDay = 2 days, remainingTtl = 6 days
+      // ratio = 1 - (2/6) = 0.667, bonus = floor(0.667 * 200) = 133
+      // No cap needed since MAX_MTIME_BONUS (1000) > 200
       const mtimeBonus = scoreWithMtime - scoreWithoutMtime;
       expect(mtimeBonus).toBeGreaterThan(0);
       expect(mtimeBonus).toBeLessThan(USAGE_BONUS.MAX_FILE_MTIME);
-      expect(mtimeBonus).toBeGreaterThanOrEqual(100); // Should be around 200 (capped)
+      expect(mtimeBonus).toBeGreaterThanOrEqual(100); // Should be around 133
     });
 
     test('should add no mtime bonus for file modified 7+ days ago', () => {
@@ -247,10 +247,10 @@ describe('fuzzy-matcher usage bonus integration', () => {
       const scoreWithBothBonuses = calculateMatchScore(fileWithMtime, queryLower, usageBonus);
       const scoreWithoutBonuses = calculateMatchScore(fileWithoutMtime, queryLower, 0);
 
-      // Should add both usage bonus (100) and capped mtime bonus (500)
-      // calculateFileMtimeBonus returns up to 1000, but fuzzy-matcher caps it at MAX_MTIME_BONUS (500)
-      const MAX_MTIME_BONUS = 500;
-      expect(scoreWithBothBonuses).toBe(scoreWithoutBonuses + usageBonus + MAX_MTIME_BONUS);
+      // Should add both usage bonus (100) and mtime bonus
+      // 1h ago exponential bonus: floor(1000 * exp(-ln(2) * 1/6)) ≈ 890
+      const expectedMtimeBonus = 890;
+      expect(scoreWithBothBonuses).toBe(scoreWithoutBonuses + usageBonus + expectedMtimeBonus);
     });
 
     test('should combine usageBonus with reduced mtimeMs bonus', () => {
@@ -269,12 +269,10 @@ describe('fuzzy-matcher usage bonus integration', () => {
       const scoreWithBonuses = calculateMatchScore(file, queryLower, usageBonus);
       const scoreWithoutUsageBonus = calculateMatchScore(file, queryLower, 0);
 
-      // Should add usage bonus (75) + some reduced mtime bonus
-      // The mtime bonus is capped at MAX_MTIME_BONUS (500)
-      const MAX_MTIME_BONUS = 500;
+      // Should add usage bonus (75) + no mtime bonus (20 days is beyond TTL)
+      // The mtime bonus is 0 for files beyond 7-day TTL
       const difference = scoreWithBonuses - scoreWithoutUsageBonus;
-      expect(difference).toBeGreaterThanOrEqual(usageBonus);
-      expect(difference).toBeLessThan(usageBonus + MAX_MTIME_BONUS);
+      expect(difference).toBe(usageBonus); // Only usage bonus, no mtime bonus
     });
   });
 
@@ -607,8 +605,8 @@ describe('fuzzy-matcher usage bonus integration', () => {
       const scoreWithoutMtime = calculateMatchScore(fileWithoutMtime, queryLower);
 
       // calculateFileMtimeBonus returns MAX_FILE_MTIME (1000) for future times
-      // but fuzzy-matcher caps it at MAX_MTIME_BONUS (500)
-      const MAX_MTIME_BONUS = 500;
+      // fuzzy-matcher caps it at MAX_MTIME_BONUS (1000)
+      const MAX_MTIME_BONUS = 1000;
       expect(scoreWithFutureMtime).toBe(scoreWithoutMtime + MAX_MTIME_BONUS);
     });
   });
