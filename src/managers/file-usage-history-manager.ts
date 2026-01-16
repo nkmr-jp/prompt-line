@@ -1,5 +1,6 @@
 import path from 'path';
 import { UsageHistoryManager } from './usage-history-manager';
+import appConfig from '../config/app-config';
 
 /**
  * File Usage History Manager
@@ -11,9 +12,7 @@ class FileUsageHistoryManager extends UsageHistoryManager {
 
   private static get filePath(): string {
     if (!FileUsageHistoryManager._filePath) {
-       
-      const config = require('../config/app-config').default;
-      FileUsageHistoryManager._filePath = path.join(config.paths.projectsCacheDir, 'file-usage-history.jsonl');
+      FileUsageHistoryManager._filePath = path.join(appConfig.paths.projectsCacheDir, 'file-usage-history.jsonl');
     }
     return FileUsageHistoryManager._filePath;
   }
@@ -37,7 +36,12 @@ class FileUsageHistoryManager extends UsageHistoryManager {
    * Removes leading/trailing slashes and normalizes separators
    */
   normalizeKey(filePath: string): string {
-    return path.normalize(filePath).replace(/^\/+|\/+$/g, '');
+    const normalized = path.normalize(filePath);
+    // Path traversal detection
+    if (normalized.includes('..')) {
+      throw new Error('Path traversal detected');
+    }
+    return normalized.replace(/^\/+|\/+$/g, '');
   }
 
   /**

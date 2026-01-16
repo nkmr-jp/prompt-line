@@ -1,5 +1,6 @@
 import path from 'path';
 import { UsageHistoryManager } from './usage-history-manager';
+import appConfig from '../config/app-config';
 
 /**
  * Agent Usage History Manager
@@ -11,8 +12,6 @@ class AgentUsageHistoryManager extends UsageHistoryManager {
 
   private static get filePath(): string {
     if (!AgentUsageHistoryManager._filePath) {
-       
-      const appConfig = require('../config/app-config').default;
       AgentUsageHistoryManager._filePath = path.join(appConfig.paths.projectsCacheDir, 'agent-usage-history.jsonl');
     }
     return AgentUsageHistoryManager._filePath;

@@ -145,8 +145,13 @@ export class UsageHistoryManager {
 
       for (const line of lines) {
         try {
-          const entry: UsageEntry = JSON.parse(line);
-          this.cache.set(entry.key, entry);
+          const parsed = JSON.parse(line);
+          // Schema validation
+          if (this.isValidUsageEntry(parsed)) {
+            this.cache.set(parsed.key, parsed);
+          } else {
+            logger.warn('Invalid usage entry skipped', { line });
+          }
         } catch {
           // Skip invalid lines
         }
@@ -180,6 +185,19 @@ export class UsageHistoryManager {
       logger.error('Failed to save usage history', { error, filePath: this.filePath });
       throw error;
     }
+  }
+
+  /**
+   * Validate that an object is a valid UsageEntry
+   */
+  private isValidUsageEntry(obj: unknown): obj is UsageEntry {
+    return (
+      typeof obj === 'object' && obj !== null &&
+      'key' in obj && typeof (obj as Record<string, unknown>).key === 'string' &&
+      'count' in obj && typeof (obj as Record<string, unknown>).count === 'number' &&
+      'lastUsed' in obj && typeof (obj as Record<string, unknown>).lastUsed === 'number' &&
+      'firstUsed' in obj && typeof (obj as Record<string, unknown>).firstUsed === 'number'
+    );
   }
 
   /**

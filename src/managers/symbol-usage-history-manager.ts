@@ -1,5 +1,6 @@
 import path from 'path';
 import { UsageHistoryManager } from './usage-history-manager';
+import appConfig from '../config/app-config';
 
 /**
  * Symbol Usage History Manager
@@ -11,9 +12,7 @@ class SymbolUsageHistoryManager extends UsageHistoryManager {
 
   private static get filePath(): string {
     if (!SymbolUsageHistoryManager._filePath) {
-       
-      const config = require('../config/app-config').default;
-      SymbolUsageHistoryManager._filePath = path.join(config.paths.projectsCacheDir, 'symbol-usage-history.jsonl');
+      SymbolUsageHistoryManager._filePath = path.join(appConfig.paths.projectsCacheDir, 'symbol-usage-history.jsonl');
     }
     return SymbolUsageHistoryManager._filePath;
   }
@@ -37,7 +36,12 @@ class SymbolUsageHistoryManager extends UsageHistoryManager {
    * Format: {filePath}:{symbolName}
    */
   createSymbolKey(filePath: string, symbolName: string): string {
-    return `${path.normalize(filePath)}:${symbolName}`;
+    const normalized = path.normalize(filePath);
+    // Path traversal detection
+    if (normalized.includes('..')) {
+      throw new Error('Path traversal detected');
+    }
+    return `${normalized}:${symbolName}`;
   }
 
   /**
