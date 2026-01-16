@@ -1,3 +1,69 @@
+## [0.18.0](https://github.com/nkmr-jp/prompt-line/compare/v0.17.0...v0.18.0) (2026-01-16)
+
+### Features
+
+* **code-search:** enhance symbol ranking with file modification time scoring ([e99d94c](https://github.com/nkmr-jp/prompt-line/commit/e99d94cff4db878fe17aa1fb6fdcf2303bda0bd0))
+* **code-search:** integrate fzf-based scoring with mtime bonus capping ([0848cb1](https://github.com/nkmr-jp/prompt-line/commit/0848cb1f7ecdc062fdbb7909eb3a0decb3fd52d2))
+* **file-cache:** add mtime refresh on window show for accurate scoring ([ee848b9](https://github.com/nkmr-jp/prompt-line/commit/ee848b92d6bd350aed8aa85e1818774c12ea8be7))
+* **file-filter-manager:** exclude system directories from file search results ([3083396](https://github.com/nkmr-jp/prompt-line/commit/3083396c29e4efc0b2f6631d3b64f7fdfda56f26))
+* **file-search:** calculate path bonus from relative path when baseDir is provided ([b4e59a2](https://github.com/nkmr-jp/prompt-line/commit/b4e59a25f97e438113e7d6d4a2bad1c7c99aa770))
+* **scoring:** add file modification time and usage history bonuses to fuzzy matching ([b7b748c](https://github.com/nkmr-jp/prompt-line/commit/b7b748c3ae10371f4047d366f8e652602294c3c8))
+* **search:** integrate FzfScorer for improved fuzzy matching across search modules ([08c0dbf](https://github.com/nkmr-jp/prompt-line/commit/08c0dbf17177467013c5d63737d59a3add4695b2))
+* **slash-command:** add usage frequency and recency tracking ([1e32545](https://github.com/nkmr-jp/prompt-line/commit/1e325459abbb0773e1b0f07ec79174d1b2551a05))
+* **slash-command:** integrate usage bonus into search result sorting ([dbe8f3f](https://github.com/nkmr-jp/prompt-line/commit/dbe8f3f9a079b85673f07a30dc4cf5f508e120f7))
+* **usage-history:** add usage history tracking infrastructure ([81f0529](https://github.com/nkmr-jp/prompt-line/commit/81f05294bb46d737daa89868e6db4f1bc6780f91))
+
+### Bug Fixes
+
+* **lint:** prefix unused error variable with underscore ([bc8f64d](https://github.com/nkmr-jp/prompt-line/commit/bc8f64d76cda7991e5c389f09d261ed9da19a0ff))
+* **scoring:** reduce MAX_MTIME_BONUS from 1000 to 500 ([bc8897b](https://github.com/nkmr-jp/prompt-line/commit/bc8897bfd72c12f00b95773cc7e6275b381cd078))
+* **security:** add path traversal protection and schema validation ([e2e0d49](https://github.com/nkmr-jp/prompt-line/commit/e2e0d490147d953d91c0f536a9ed7c2080c8c0c3)), closes [#171](https://github.com/nkmr-jp/prompt-line/issues/171)
+* **security:** check path traversal before normalization ([d0712b9](https://github.com/nkmr-jp/prompt-line/commit/d0712b96093270743eaa393015f14aa786d21c22))
+* **test:** relax scalability test threshold for CI environment variance ([30b0f15](https://github.com/nkmr-jp/prompt-line/commit/30b0f157b59d5a5c207dc6e5227a3a95e14e96bc))
+
+### Code Refactoring
+
+* **file-cache:** optimize mtime scoring with recent files cache ([452b231](https://github.com/nkmr-jp/prompt-line/commit/452b23102e5466d585ce3d64a1b5fad3b15f7128))
+* **file-filter-manager:** remove system directory exclusion filter ([c388056](https://github.com/nkmr-jp/prompt-line/commit/c388056964802f8b011c2d66e9aabbd8730061c8))
+* **history-search:** disable FzfScorer and use simple contains matching ([62dbf6b](https://github.com/nkmr-jp/prompt-line/commit/62dbf6b62af3ef015d3df5e6eeb6bad903ce7320))
+* remove unused FZF constants and symbol search test fixtures ([d0c93e2](https://github.com/nkmr-jp/prompt-line/commit/d0c93e2de4660afb76b05fb365ede480a4a8aeb6))
+* **search:** remove FZF fuzzy matching and simplify scoring algorithms ([0c556d6](https://github.com/nkmr-jp/prompt-line/commit/0c556d6525612263d28b8c894775fe6775bef81e))
+* **usage-bonus:** implement continuous linear decay for file mtime bonus ([42c77ac](https://github.com/nkmr-jp/prompt-line/commit/42c77ac286113e320b337abfafb1191b469f67d6))
+* **usage-history:** convert singleton managers to lazy-loaded functions ([81edeed](https://github.com/nkmr-jp/prompt-line/commit/81edeedadda36b9b1f5776fbe0ce585c83ad300d))
+
+### Performance Improvements
+
+* **file-cache-manager:** enrich cached files with mtime for improved scoring ([ae12ba8](https://github.com/nkmr-jp/prompt-line/commit/ae12ba8b1698b251409a2da07afd8da273877651))
+* **file-search:** implement hybrid decay algorithm for mtime bonus scoring ([3ce5f7c](https://github.com/nkmr-jp/prompt-line/commit/3ce5f7cbfaca07da73e47849a8f33f3502177188))
+* **fuzzy-matcher:** cap mtime bonus to prevent recency from dominating score ([cd41e6e](https://github.com/nkmr-jp/prompt-line/commit/cd41e6ecc2486995bb9e80475f7dc2f1da062253))
+* **fuzzy-matcher:** scale FZF scores and preserve case sensitivity ([ad5086c](https://github.com/nkmr-jp/prompt-line/commit/ad5086c91fe20dd852ff63780ac6bb24ae2dac68))
+* **history-search:** improve recency bonus calculation for fresher results ([26a7e82](https://github.com/nkmr-jp/prompt-line/commit/26a7e8233e4e4a7a869e05ab83d4336c8fe24288))
+* **history-search:** increase recency bonus and TTL for better ranking ([b111637](https://github.com/nkmr-jp/prompt-line/commit/b11163756323c2b548dc815c96141be71574f695))
+* **history-search:** increase recency bonus from 200 to 400 points ([dda8de0](https://github.com/nkmr-jp/prompt-line/commit/dda8de0447ef73add1f0bec91e0009c44ff51d89))
+* **history-search:** reduce maximum recency bonus from 2500 to 1000 points ([4963789](https://github.com/nkmr-jp/prompt-line/commit/49637895717045738466f63fc3c6342ce27e86db))
+* **history-search:** reduce STARTS_WITH match score from 500 to 300 ([713acce](https://github.com/nkmr-jp/prompt-line/commit/713acce254881213241c52b3604ae1bd07dd3bda))
+* **mention-search:** increase recency bonus to 600 points and implement file usage bonuses ([9564660](https://github.com/nkmr-jp/prompt-line/commit/95646608ec39c95357491c40ecc5e48283eb255a))
+* **mentions:** increase mtime bonus cap and add tiebreaker for file scoring ([9b7f12a](https://github.com/nkmr-jp/prompt-line/commit/9b7f12a76a59a57fdef5faeb24b1a41c325bef1e))
+* **scoring:** reduce file mtime bonus cap from 200 to 100 ([27543e1](https://github.com/nkmr-jp/prompt-line/commit/27543e1cc86c45fff9eee1d57184f949f69d2701))
+* **scoring:** reduce MAX_FILE_MTIME bonus from 500 to 200 ([f30fe1e](https://github.com/nkmr-jp/prompt-line/commit/f30fe1e9f2e4e3a8bcbb1b94a3e41bb87d40b960))
+* **usage-bonus-calculator:** increase MAX_FILE_MTIME from 500 to 2500 ([7e31457](https://github.com/nkmr-jp/prompt-line/commit/7e31457ac46e49c3394da02914b42b6ae87d71fa))
+* **usage-bonus-calculator:** scale file modification time bonus to 500 ([b321f6a](https://github.com/nkmr-jp/prompt-line/commit/b321f6a0c3df3d99d14e95c219537a045064f9cc))
+* **usage-bonus:** adjust scoring constants for optimized ranking ([93005eb](https://github.com/nkmr-jp/prompt-line/commit/93005eb87b23d6eaefb0193471da255631f3c859))
+* **usage-bonus:** implement two-phase mtime decay with increased bonus ceiling ([622e9f1](https://github.com/nkmr-jp/prompt-line/commit/622e9f1853f3c56edae5eed1fb173df4e47af87e))
+* **usage-bonus:** increase bonus constants by 10x for better ranking ([c507025](https://github.com/nkmr-jp/prompt-line/commit/c507025e59b547088d5dd0228edc237870cc2b4b))
+
+### Tests
+
+* **fzf-scorer:** improve scoring logic with exact match bonus and camel case prioritization ([68174f8](https://github.com/nkmr-jp/prompt-line/commit/68174f8fd719d1f51172b5f4d0ab388af68923de))
+* **history-search:** reduce MAX_RECENCY_BONUS from 3500 to 1500 and add type cast ([aaf8847](https://github.com/nkmr-jp/prompt-line/commit/aaf88479576830b807a3eee95add1e9e35f85c6c))
+* update assertion syntax to use toHaveLength matcher ([6d98512](https://github.com/nkmr-jp/prompt-line/commit/6d98512aaf1301d955a38b55f8d176a8e492ccad))
+* **usage-bonus-calculator:** reduce MAX_FILE_MTIME from 2500 to 500 ([31f9746](https://github.com/nkmr-jp/prompt-line/commit/31f97463aeb6c6a6bc9e5a99ae2b8a8ce7ea32c0))
+
+### Maintenance
+
+* **release:** 0.16.1 [skip ci] ([dc4c2d2](https://github.com/nkmr-jp/prompt-line/commit/dc4c2d26e988f76bc822ff2cd8e419d1dda72156))
+* **release:** 0.17.0 [skip ci] ([69621c6](https://github.com/nkmr-jp/prompt-line/commit/69621c6d44d5eacbe3e68375cbb46f4d6afe110e))
+
 ## [0.17.0](https://github.com/nkmr-jp/prompt-line/compare/v0.16.1...v0.17.0) (2026-01-12)
 
 ### Features
