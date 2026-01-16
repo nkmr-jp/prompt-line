@@ -35,34 +35,8 @@ describe('File Search Scoring', () => {
       // Sort by score descending
       scored.sort((a, b) => b.score - a.score);
 
-      // MyConfig.ts should be first (camelCase match)
+      // MyConfig.ts should be first
       expect(scored[0]?.path).toBe('src/MyConfig.ts');
-    });
-
-    test('FzfScorer camelCase match preferred', () => {
-      const testCase = fileSearchTestCases.find(tc =>
-        tc.description.includes('Camel case FzfScorer should rank higher')
-      );
-      expect(testCase).toBeDefined();
-
-      const files: FileInfo[] = testCase!.files.map(f => ({
-        name: f.path.split('/').pop()!,
-        path: f.path,
-        isDirectory: false,
-        ...(f.lastModified !== undefined ? { mtimeMs: f.lastModified } : {}),
-      }));
-
-      const queryLower = testCase!.query.toLowerCase();
-      const scored = files.map(file => ({
-        path: file.path,
-        score: calculateMatchScore(file, queryLower, 0),
-      }));
-
-      // Sort by score descending
-      scored.sort((a, b) => b.score - a.score);
-
-      // FzfScorer.ts should be first
-      expect(scored[0]?.path).toBe('src/lib/FzfScorer.ts');
     });
   });
 

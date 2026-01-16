@@ -10,7 +10,6 @@ import { highlightMatch } from './utils/highlight-utils';
 import { electronAPI } from './services/electron-api';
 import { extractTriggerQueryAtCursor } from './utils/trigger-query-extractor';
 import { getCaretCoordinates, createMirrorDiv } from './mentions/dom-utils';
-import { FzfScorer } from '../lib/fzf-scorer';
 import { compareTiebreak } from '../lib/tiebreaker';
 
 interface SlashCommandItem {
@@ -46,13 +45,6 @@ export class SlashCommandManager implements IInitializable {
 
   // Frontmatter popup manager
   private frontmatterPopupManager: FrontmatterPopupManager;
-
-  // FZF scorer for improved matching
-  private fzfScorer = new FzfScorer({
-    caseSensitive: false,
-    enableCamelCase: true,
-    enableBoundaryBonus: true,
-  });
 
   constructor(callbacks: {
     onCommandSelect: (command: string) => void;
@@ -371,26 +363,21 @@ export class SlashCommandManager implements IInitializable {
     const lowerQuery = query.toLowerCase();
     const lowerName = name.toLowerCase();
 
-    // 完全一致は最優先（既存動作維持）
+    // Exact match is highest priority
     if (lowerName === lowerQuery) return 1000;
 
-    // fzfスコアリング（名前）
-    const nameResult = this.fzfScorer.score(name, lowerQuery);
-    if (nameResult.matched) {
-      // 名前マッチは2倍重要、最大900点（完全一致より下）
-      return Math.min(900, nameResult.score * 2);
+    // Name starts with query
+    if (lowerName.startsWith(lowerQuery)) return 500;
+
+    // Name contains query
+    if (lowerName.includes(lowerQuery)) return 200;
+
+    // Description contains query
+    if (description && description.toLowerCase().includes(lowerQuery)) {
+      return 50;
     }
 
-    // fzfスコアリング（説明）
-    if (description) {
-      const descResult = this.fzfScorer.score(description, lowerQuery);
-      if (descResult.matched) {
-        // 説明マッチは最大400点
-        return Math.min(400, descResult.score);
-      }
-    }
-
-    // マッチしない場合
+    // No match
     return 0;
   }
 
