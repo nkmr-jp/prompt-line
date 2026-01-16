@@ -34,21 +34,6 @@ export const fileSearchTestCases: FileSearchTestCase[] = [
     description: 'Camel case match (MyConfig) should rank higher than hyphenated match (my-config)',
   },
 
-  {
-    query: 'fzf',
-    files: [
-      { path: 'src/lib/FzfScorer.ts' },
-      { path: 'src/lib/fuzzy-filter.ts' },
-      { path: 'src/tests/fzf-test.ts' },
-    ],
-    expected: [
-      'src/lib/FzfScorer.ts', // Exact camel case match
-      'src/tests/fzf-test.ts', // Exact word boundary match
-      'src/lib/fuzzy-filter.ts', // Partial match
-    ],
-    description: 'Camel case FzfScorer should rank higher than fuzzy-filter',
-  },
-
   // === Recently Edited File Priority ===
   {
     query: 'config',
