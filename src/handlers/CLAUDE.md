@@ -6,7 +6,7 @@ This module handles all Inter-Process Communication (IPC) between the main and r
 
 The handlers module provides:
 - **Process Communication Bridge**: Secure IPC channel management between main and renderer processes
-- **Manager Orchestration**: Coordinates operations across WindowManager, HistoryManager, DraftManager, and SettingsManager
+- **Manager Orchestration**: Coordinates operations across WindowManager, HistoryManager, DraftManager, SettingsManager, and usage history managers
 - **Security Layer**: Input validation, size limits, and path traversal prevention
 - **Platform Integration**: Native tool integration for macOS automation and cross-platform compatibility
 - **Error Handling**: Comprehensive error handling with structured logging and user feedback
@@ -14,7 +14,7 @@ The handlers module provides:
 ## Files
 
 ### Handler Files Overview
-The handlers module consists of 9 specialized files:
+The handlers module consists of 10 specialized files:
 - **ipc-handlers.ts**: Coordinator that delegates to specialized handlers
 - **paste-handler.ts**: Text and image paste operations
 - **history-draft-handler.ts**: History CRUD and draft management with @path caching
@@ -23,6 +23,7 @@ The handlers module consists of 9 specialized files:
 - **mdsearch-handler.ts**: Slash commands and agent selection
 - **file-handler.ts**: File operations and external URL handling
 - **code-search-handler.ts**: Symbol search with ripgrep integration
+- **usage-history-handler.ts**: Usage history tracking for files, symbols, and agents
 - **handler-utils.ts**: Shared validation and utility functions
 
 ### ipc-handlers.ts
@@ -33,7 +34,7 @@ Core IPCHandlers class that manages all Inter-Process Communication with the fol
 - **Type Safety**: Comprehensive TypeScript interfaces for all operations and responses
 - **Handler Registration**: Automatic setup of all IPC channels via `ipcMain.handle()`
 - **Clean Shutdown**: `removeAllHandlers()` method for proper cleanup
-- **Delegation Pattern**: Coordinates specialized handlers (paste, history-draft, window, system, mdsearch, file, code-search)
+- **Delegation Pattern**: Coordinates specialized handlers (paste, history-draft, window, system, mdsearch, file, code-search, usage-history)
 
 #### Key Dependencies
 ```typescript
@@ -64,6 +65,30 @@ async function handleSearchSymbols(directory: string, language: string, options:
   // 2. If cached: return cached + trigger background refresh
   // 3. If not cached: perform full search + save to cache
 }
+```
+
+### usage-history-handler.ts
+Handles usage history tracking for files, symbols, and agents to enable intelligent scoring and prioritization:
+
+#### Architecture
+- **Usage Recording**: Tracks usage frequency and recency for intelligent scoring
+- **Bonus Calculation**: Calculates usage bonuses based on usage patterns
+- **Manager Integration**: Uses specialized managers for each usage type
+- **Performance**: Efficient batch bonus retrieval for search results
+
+#### Key Features
+```typescript
+// File usage tracking
+async recordFileUsage(filePath: string): Promise<void>
+calculateFileBonus(filePath: string): number
+
+// Symbol usage tracking
+async recordSymbolUsage(filePath: string, symbolName: string): Promise<void>
+calculateSymbolBonus(filePath: string, symbolName: string): number
+
+// Agent usage tracking
+async recordAgentUsage(agentName: string): Promise<void>
+calculateAgentBonus(agentName: string): number
 ```
 
 ### handler-utils.ts
@@ -125,20 +150,26 @@ Shared utilities for all handlers:
   - Whitelist validation: `['shortcuts', 'history', 'draft', 'timing', 'app', 'platform']`
   - Supports full config or specific section requests
   - Security-focused exposure of safe configuration data
+- **`get-file-search-max-suggestions`**: Retrieves max suggestions for file search
 
 ### Settings Management
 - **`get-settings`**: Current UserSettings retrieval
 - **`update-settings`**: Settings modification with validation
 - **`reset-settings`**: Settings reset to defaults
 - **`open-settings`**: Opens settings file in default editor
+- **`open-settings-directory`**: Opens settings directory in Finder
 
 ### Slash Commands & Agents
 - **`get-slash-commands`**: Retrieves slash commands with optional query filtering
 - **`get-slash-command-file-path`**: Resolves slash command file path
+- **`has-command-file`**: Checks if a slash command file exists
 - **`get-agents`**: Retrieves agent definitions with optional query filtering
 - **`get-agent-file-path`**: Resolves agent file path
 - **`get-md-search-max-suggestions`**: Gets max suggestions for search type
 - **`get-md-search-prefixes`**: Gets search prefixes for search type
+- **`register-global-slash-command`**: Registers a global slash command for caching
+- **`get-global-slash-commands`**: Retrieves registered global slash commands
+- **`get-usage-bonuses`**: Gets usage bonuses for agents
 
 ### File Operations
 - **`open-file-in-editor`**: Opens file with configured editor based on extension
@@ -148,6 +179,7 @@ Shared utilities for all handlers:
 ### Draft Directory Management
 - **`set-draft-directory`**: Sets the draft directory for file operations
 - **`get-draft-directory`**: Retrieves the current draft directory
+- **`save-draft-to-history`**: Saves the current draft to history without clearing
 
 ### Code Search (code-search-handler.ts)
 - **`check-rg`**: Checks ripgrep availability for symbol search
@@ -165,6 +197,14 @@ Shared utilities for all handlers:
 - **`get-registered-at-paths`**: Retrieves registered @path patterns for a directory
 - **`register-global-at-path`**: Registers a global @path pattern (for mdSearch agents)
 - **`get-global-at-paths`**: Retrieves global @path patterns
+
+### Usage History Tracking (usage-history-handler.ts)
+- **`record-file-usage`**: Records file usage for intelligent scoring
+- **`get-file-usage-bonuses`**: Retrieves usage bonuses for file paths
+- **`record-symbol-usage`**: Records symbol usage for intelligent scoring
+- **`get-symbol-usage-bonuses`**: Retrieves usage bonuses for symbols
+- **`record-agent-usage`**: Records agent usage for intelligent scoring
+- **`get-agent-usage-bonuses`**: Retrieves usage bonuses for agents
 
 ## Implementation Details
 
@@ -216,6 +256,9 @@ interface IPCResult {
 - **SymbolCacheManager**: Symbol search result caching with language separation
 - **AtPathCacheManager**: @path pattern caching for file highlighting
 - **MdSearchLoader**: Markdown file search for slash commands and agents
+- **FileUsageHistoryManager**: File usage tracking and bonus calculation
+- **SymbolUsageHistoryManager**: Symbol usage tracking and bonus calculation
+- **AgentUsageHistoryManager**: Agent usage tracking and bonus calculation
 
 ### Utility Integration
 - **utils/utils**: Native tool functions, accessibility checks, logging utilities

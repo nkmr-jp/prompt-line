@@ -4,32 +4,60 @@ This module provides centralized configuration management for the Prompt Line ap
 
 ## Files
 
+### default-settings.ts
+**Single source of truth** for all default settings across the application.
+
+This file exports `defaultSettings` which serves as:
+- Runtime defaults when user has no settings.yml (used by SettingsManager)
+- Application configuration (used by app-config.ts for shortcuts and window dimensions)
+- Base for settings.example.yml generation (via settings-yaml-generator.ts)
+
+**Key exports:**
+- `defaultSettings`: The active default values used throughout the application
+- `commentedExamples`: Additional example entries shown as comments in settings.example.yml
+
+**Important principles:**
+- This is the ONLY place to modify default values
+- After updating, run `npm run generate:settings-example` to regenerate settings.example.yml
+- Ensures no discrepancy between runtime defaults and documented examples
+
+### settings-yaml-generator.ts
+Generates `settings.example.yml` from default-settings.ts.
+
+- **Purpose**: Create user-facing example configuration file
+- **Source**: Uses `defaultSettings` and `commentedExamples` from default-settings.ts
+- **Usage**: Run `npm run generate:settings-example` after modifying defaults
+- **Output**: Creates/updates settings.example.yml in the repository root
+
 ### app-config.ts
 Comprehensive AppConfigClass providing centralized configuration management through a singleton instance exported as default.
 
 **Window Configuration:**
 ```typescript
 window: {
-  width: 600,
-  height: 300,
+  width: 600,                    // From default-settings.ts
+  height: 300,                   // From default-settings.ts
   frame: false,
-  transparent: false,           // Updated: Set to non-transparent
-  backgroundColor: '#141414',   // Dark background color
+  transparent: false,
+  backgroundColor: '#141414',
   alwaysOnTop: true,
   skipTaskbar: true,
   resizable: false,
   webPreferences: {
     nodeIntegration: false,       // Disabled for security (uses preload script)
     contextIsolation: true,       // Enabled for security (uses contextBridge)
-    webSecurity: false,           // Disabled for local file access
-    spellcheck: false,           // Disabled for performance
-    disableDialogs: true,        // Prevent unwanted dialogs
-    enableWebSQL: false,         // Disabled for security
-    experimentalFeatures: false, // Stable feature set only
-    defaultEncoding: 'UTF-8',   // Consistent text encoding
-    offscreen: false,            // Disable offscreen rendering
+    webSecurity: true,            // Enabled for security
+    preload: path.join(__dirname, '..', 'preload', 'preload.js'),
+    spellcheck: false,            // Disabled for performance
+    disableDialogs: true,         // Prevent unwanted dialogs
+    enableWebSQL: false,          // Disabled for security
+    experimentalFeatures: false,  // Stable feature set only
+    defaultEncoding: 'UTF-8',     // Consistent text encoding
+    offscreen: false,             // Disable offscreen rendering
     enablePreferredSizeMode: false,  // Disable preferred size mode
-    disableHtmlFullscreenWindowResize: true  // Prevent fullscreen resize
+    disableHtmlFullscreenWindowResize: true,  // Prevent fullscreen resize
+    allowRunningInsecureContent: false,  // Additional security
+    sandbox: true                 // Enabled for enhanced security
   }
 }
 ```
@@ -40,13 +68,15 @@ paths: {
   userDataDir: path.join(os.homedir(), '.prompt-line'),
   get historyFile() { return path.join(userDataDir, 'history.jsonl'); },
   get draftFile() { return path.join(userDataDir, 'draft.json'); },
-  get settingsFile() { return path.join(userDataDir, 'settings.yml'); },
   get logFile() { return path.join(userDataDir, 'app.log'); },
   get imagesDir() { return path.join(userDataDir, 'images'); },
+  get directoryFile() { return path.join(userDataDir, 'directory.json'); },
   get cacheDir() { return path.join(userDataDir, 'cache'); },
-  get directoryFile() { return path.join(userDataDir, 'directory.json'); }
+  get projectsCacheDir() { return path.join(userDataDir, 'cache', 'projects'); },
+  get builtInCommandsDir() { return path.join(userDataDir, 'built-in-commands'); }
 }
 ```
+**Note:** settingsFile path is managed by SettingsManager using default-settings.ts
 - **Dynamic Path Generation**: Getter-based path construction for flexibility
 - **Cross-platform Compatibility**: Uses `os.homedir()` and `path.join()`
 - **Centralized Location**: Single user data directory for all app files
@@ -58,9 +88,11 @@ shortcuts: {
   paste: 'Cmd+Enter',           // Paste and close action
   close: 'Escape',              // Close window action
   historyNext: 'Ctrl+j',        // Navigate to next history item
-  historyPrev: 'Ctrl+k'         // Navigate to previous history item
+  historyPrev: 'Ctrl+k',        // Navigate to previous history item
+  search: 'Cmd+f'               // Search within textarea
 }
 ```
+**Note:** Shortcuts are loaded from default-settings.ts via shared configuration
 
 **Performance & Timing Configuration:**
 ```typescript
@@ -98,44 +130,21 @@ platform: {
 ```typescript
 // Determine log level based on LOG_LEVEL environment variable
 let logLevel: LogLevel = 'info'; // Default to info
-
-// Only enable debug logging when LOG_LEVEL=debug is explicitly set
-// This ensures packaged apps never log debug, and development mode
-// only logs debug when explicitly requested
-try {
-  const electron = require('electron');
-  const app = electron.app;
-
-  // Check if app is packaged
-  const appPath = app?.getAppPath?.() || '';
-  const isPackaged = appPath.includes('.asar') || appPath.includes('app.asar');
-
-  // Only allow debug logging in non-packaged apps with LOG_LEVEL=debug
-  if (!isPackaged && process.env.LOG_LEVEL === 'debug') {
-    logLevel = 'debug';
-  }
-} catch (error) {
-  // Electron not available (e.g., in tests)
-  // Check LOG_LEVEL environment variable
-  if (process.env.LOG_LEVEL === 'debug') {
-    logLevel = 'debug';
-  }
+if (process.env.LOG_LEVEL === 'debug') {
+  logLevel = 'debug';
 }
 
 logging: {
-  level: logLevel,                   // DEBUG only when LOG_LEVEL=debug, INFO otherwise
+  level: logLevel,                   // DEBUG when LOG_LEVEL=debug, INFO otherwise
   enableFileLogging: true,
   maxLogFileSize: 5 * 1024 * 1024,  // 5MB
   maxLogFiles: 3                     // Rotation limit
 }
 ```
 - **Environment Variable Based Log Level**:
-  - Development mode (`npm start`): Uses DEBUG level when `LOG_LEVEL=debug` is set
-  - Production/Packaged mode: Always uses INFO level (ignores LOG_LEVEL)
-  - Test mode: Uses DEBUG level if `LOG_LEVEL=debug`, otherwise INFO
-- **Packaging Status Check**: Packaged apps (containing `.asar`) always use INFO level
-- **Explicit Control**: Requires explicit `LOG_LEVEL=debug` to enable debug logging
-- **Safe Fallback**: Uses try-catch to handle cases where Electron app object is unavailable
+  - Uses DEBUG level when `LOG_LEVEL=debug` is explicitly set
+  - Uses INFO level otherwise (default)
+  - Simple and predictable behavior across all environments
 
 ## Key Responsibilities
 
@@ -197,11 +206,13 @@ The configuration is initialized through a private `init()` method called in the
 - **File Type Organization**:
   - `history.jsonl`: JSONL format for efficient append operations
   - `draft.json`: JSON format for structured draft data
-  - `settings.yml`: YAML format for user preferences
+  - `settings.yml`: YAML format for user preferences (managed by SettingsManager)
   - `directory.json`: JSON format for current working directory tracking
   - `app.log`: Plain text for logging output
   - `images/`: Directory for pasted images
   - `cache/`: Directory for file caching and metadata
+  - `cache/projects/`: Directory for per-project symbol and metadata caching
+  - `built-in-commands/`: Directory for built-in slash commands
 
 ## Usage Patterns
 
@@ -216,6 +227,8 @@ const shortcuts = config.shortcuts;
 // Path access with getters
 const historyFile = config.paths.historyFile;
 const draftFile = config.paths.draftFile;
+const projectsCacheDir = config.paths.projectsCacheDir;
+const builtInCommandsDir = config.paths.builtInCommandsDir;
 
 // Environment detection
 if (config.isDevelopment()) {
@@ -227,9 +240,10 @@ if (config.platform.isMac) {
   // macOS-specific code
 }
 
-// New history navigation shortcuts
+// Keyboard shortcuts
 console.log(config.shortcuts.historyNext); // 'Ctrl+j'
 console.log(config.shortcuts.historyPrev); // 'Ctrl+k'
+console.log(config.shortcuts.search);      // 'Cmd+f'
 ```
 
 ### Dynamic Configuration Access
@@ -328,9 +342,10 @@ describe('AppConfig', () => {
     expect(config.logging).toBeDefined();
   });
   
-  it('should include new history navigation shortcuts', () => {
+  it('should include all keyboard shortcuts from default-settings', () => {
     expect(config.shortcuts.historyNext).toBe('Ctrl+j');
     expect(config.shortcuts.historyPrev).toBe('Ctrl+k');
+    expect(config.shortcuts.search).toBe('Cmd+f');
   });
 });
 ```
@@ -348,6 +363,12 @@ it('should detect development environment', () => {
   process.env.NODE_ENV = 'development';
   expect(config.isDevelopment()).toBe(true);
   expect(config.isProduction()).toBe(false);
+});
+
+// Log level based on LOG_LEVEL environment variable
+it('should use debug log level when LOG_LEVEL=debug', () => {
+  process.env.LOG_LEVEL = 'debug';
+  // Note: Need to re-initialize config to pick up env var change
   expect(config.logging.level).toBe('debug');
 });
 
@@ -370,3 +391,35 @@ it('should detect platform correctly', () => {
 - **Path Validation**: Verify all file paths are accessible and writable
 - **Settings Coordination**: Test interaction with SettingsManager
 - **Performance Impact**: Measure configuration access performance with getter-based paths
+- **Default Settings Sync**: Verify app-config.ts uses default-settings.ts correctly
+
+## Configuration File Relationships
+
+The configuration system follows a clear hierarchy:
+
+```
+default-settings.ts (Single Source of Truth)
+    ↓
+    ├─→ app-config.ts (Application configuration)
+    │   - Uses defaultSettings for shortcuts and window dimensions
+    │   - Provides additional Electron-specific configuration
+    │   - Exports singleton instance for application-wide use
+    │
+    ├─→ SettingsManager (Runtime settings management)
+    │   - Uses defaultSettings as fallback when no user settings.yml
+    │   - Manages user preferences with YAML-based configuration
+    │   - Provides real-time settings updates with deep merge
+    │
+    └─→ settings-yaml-generator.ts (Documentation generation)
+        - Generates settings.example.yml from defaultSettings
+        - Includes commentedExamples for user guidance
+        - Run via: npm run generate:settings-example
+```
+
+**Key principles:**
+1. **Single Source of Truth**: All defaults originate from default-settings.ts
+2. **No Duplication**: Configuration values should only be defined once
+3. **Clear Separation**:
+   - default-settings.ts: User-configurable defaults
+   - app-config.ts: Application internals and Electron configuration
+4. **Consistency**: Runtime defaults = documented defaults = example file values

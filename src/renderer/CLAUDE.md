@@ -53,6 +53,28 @@ Comprehensive TypeScript definitions providing:
 
 ## Manager Classes Architecture
 
+The renderer process uses a modular manager pattern with 15+ specialized classes:
+
+**Core Managers:**
+- DomManager: DOM element access and manipulation
+- LifecycleManager: Window and application lifecycle
+- EventHandler: Comprehensive event management
+- UIManager: Theme and notification system
+
+**Data Management:**
+- DraftManagerClient: Auto-save functionality (renderer side)
+- HistoryUIManager: History display and interaction
+- HistorySearchManager: Advanced history search with scoring
+- SnapshotManager: Undo/redo with state tracking
+
+**Mention System:**
+- MentionManager: @ mention orchestration (15+ sub-managers)
+- SlashCommandManager: Slash command system
+- FrontmatterPopupManager: Frontmatter display
+
+**Search & Navigation:**
+- SearchManager: Real-time search functionality
+
 ### DomManager
 Centralized DOM element access and manipulation:
 - **Element Caching**: Initializes and validates all required DOM elements on startup
@@ -80,13 +102,21 @@ Implementation details:
 - Extracts draft data from multiple possible formats (string or object)
 - Integrates with shortcut formatter for cross-platform display
 
-### DraftManager
+### DraftManager & DraftManagerClient
 Intelligent auto-save functionality with performance optimization:
+
+**DraftManager (Main Process):**
+- Manages draft persistence to disk
+- Handles draft CRUD operations
+- Directory-aware draft management
+
+**DraftManagerClient (Renderer Process):**
 - **Debounced Saving**: 500ms delay prevents excessive disk writes during typing
 - **Immediate Save**: Force-save capability for critical moments (window hide)
 - **Configuration**: Respects user-defined save delays from config
 - **State Management**: Tracks and clears timeouts properly
 - **Error Handling**: Graceful degradation if IPC communication fails
+- **IPC Communication**: Bridges renderer to main process draft operations
 
 Performance considerations:
 - Uses shared constants for consistent timing across application
@@ -140,43 +170,60 @@ User experience features:
 - Auto-focus on search input when entering search mode
 - Seamless transition back to main textarea on search exit
 
-### FileSearchManager
-File search functionality with @ mention detection:
-- **@ Mention Detection**: Triggers file search when user types `@` anywhere in textarea
-- **Incremental Search**: Real-time file filtering as user types after `@`
-- **Hybrid Loading**: Stage 1 (quick single-level) + Stage 2 (recursive with fd/find)
-- **Fuzzy Matching**: Intelligent file matching with score-based ranking
+### MentionManager (mentions/)
+Comprehensive @ mention system with modular architecture for file search and code search:
+
+**Module Structure:**
+- `mentions/index.ts`: Public API exports
+- `mentions/types.ts`: Type definitions for mention system
+- `mentions/managers/`: 15+ specialized managers (see below)
+- `mentions/code-search/`: Code/symbol search module
+- `mentions/dom-utils.ts`: DOM manipulation utilities
+- `mentions/fuzzy-matcher.ts`: Fuzzy matching algorithms
+- `mentions/text-finder.ts`: Text pattern detection
+- `mentions/path-utils.ts`: Path manipulation utilities
+
+**Specialized Managers (mentions/managers/):**
+1. **MentionInitializer** (`mention-initializer.ts`): Orchestrates initialization of all mention subsystems
+2. **MentionState** (`mention-state.ts`): Centralized state management for mention functionality
+3. **SuggestionUIManager** (`suggestion-ui-manager.ts`): Manages suggestion dropdown display and positioning
+4. **PopupManager** (`popup-manager.ts`): Controls popup lifecycle and visibility
+5. **FileFilterManager** (`file-filter-manager.ts`): Implements file filtering with fuzzy matching
+6. **DirectoryCacheManager** (`directory-cache-manager.ts`): Manages directory data caching with hybrid loading
+7. **NavigationManager** (`navigation-manager.ts`): Handles keyboard navigation through suggestions
+8. **PathManager** (`path-manager.ts`): Path detection, insertion, and file opening
+9. **BaseCacheManager** (`base-cache-manager.ts`): Abstract base class for cache implementations
+10. **HighlightManager** (`highlight-manager.ts`): @path highlighting and Cmd+click support in textarea
+11. **FileOpenerEventHandler** (`file-opener-event-handler.ts`): Handles file opening events
+12. **CodeSearchManager** (`code-search-manager.ts`): Symbol search integration with ripgrep
+13. **EventListenerManager** (`event-listener-manager.ts`): Centralized event listener management
+14. **QueryExtractionManager** (`query-extraction-manager.ts`): Extracts and parses @ mention queries
+15. **SettingsCacheManager** (`settings-cache-manager.ts`): Caches user settings for mention features
+
+**Core Features:**
+- **@ Mention Detection**: Triggers file/code search when user types `@` or `@language:` in textarea
+- **Incremental Search**: Real-time filtering as user types after `@`
+- **Hybrid Loading**: Stage 1 (quick single-level) + Stage 2 (recursive with fd command)
+- **Fuzzy Matching**: Score-based ranking (exact, starts-with, contains, fuzzy)
 - **Keyboard Navigation**: Arrow keys, Enter/Tab to select, Escape to close
-- **Cache Management**: Caches directory data from window-shown and directory-data-updated events
+- **Cache Management**: Multi-layer caching for performance optimization
+- **@path Highlighting**: Visual highlighting with Cmd+click to open files
+- **XSS Prevention**: Safe DOM manipulation with proper escaping
 
-Implementation details:
+**Implementation Details:**
 - Uses fd command (if available) for fast recursive file searching
-- Respects .gitignore patterns with optional override via includePatterns
-- Supports hidden files via includeHidden setting
-- Configurable maxFiles limit (default: 5000) and maxDepth
+- Respects .gitignore patterns with optional override
+- Supports hidden files via settings
+- Configurable limits (maxFiles: 5000, maxDepth)
 - File icons based on extension with emoji indicators
-- Search highlighting with matched text emphasis
+- Modular design with clear separation of concerns
 
-Key methods:
-- `cacheDirectoryData()`: Stage 1 data from window-shown event
-- `updateCache()`: Stage 2 data from background directory-data-updated event
-- `checkForFileSearch()`: Detects @ patterns and triggers suggestions
-- `filterFiles()`: Fuzzy matching with score-based sorting
-- `selectFile()`: Inserts relative file path, replacing @query
-
-User experience features:
-- Dropdown appears above textarea with smooth positioning
-- Visual feedback with file icons and relative paths
-- Mouse hover and click selection support
-- Auto-scrolling to selected item during keyboard navigation
-- XSS prevention in file name display
-
-### CodeSearchManager (code-search/)
+### CodeSearchManager (mentions/code-search/)
 Code/symbol search functionality with `@language:query` syntax for 20+ programming languages:
 
 **Module Structure:**
-- `code-search/types.ts`: Type definitions and symbol utilities
-- `code-search/index.ts`: Public API exports
+- `mentions/code-search/types.ts`: Type definitions and symbol utilities
+- `mentions/code-search/index.ts`: Public API exports
 
 **Features:**
 - **Syntax**: Type `@<language>:<query>` to search for symbols (e.g., `@ts:Config`, `@go:Handler`)
@@ -283,6 +330,30 @@ const MATCH_SCORES = {
 - `highlightSearchTerms(text, query)`: Safe term highlighting
 - `highlightFuzzyMatch(text, positions)`: Position-based highlighting
 
+### SlashCommandManager
+Slash command system for quick command access:
+- **Command Detection**: Triggers on `/` character at start of line
+- **Command Loading**: Loads commands from markdown files
+- **Agent Selection**: Provides agent selection functionality
+- **Integration**: Works with MdSearchLoader for command discovery
+
+Features:
+- Dynamic command loading from user-defined files
+- Keyboard navigation through available commands
+- Seamless integration with mention system
+
+### FrontmatterPopupManager
+Frontmatter data display for context-aware editing:
+- **Popup Display**: Shows frontmatter information in overlay
+- **Dynamic Positioning**: Positions popup near relevant content
+- **Data Parsing**: Extracts and displays frontmatter metadata
+- **User Interaction**: Handles popup show/hide lifecycle
+
+Implementation:
+- Coordinates with mention system for context display
+- Provides visual feedback for markdown frontmatter
+- Supports YAML frontmatter format
+
 ### UIManager
 Theme and notification management (currently optimized for performance):
 - **Theme System**: CSS custom property-based theming with type-safe theme definitions
@@ -314,6 +385,39 @@ Implementation:
 - Lightweight state storage with minimal memory footprint
 - Debounced snapshot creation to avoid excessive history entries
 - Maximum history depth limit for memory management
+
+## Supporting Modules
+
+### Interfaces (interfaces/)
+TypeScript interface definitions for shared contracts:
+
+**interfaces/initializable.ts:**
+- `IInitializable`: Interface for manager initialization lifecycle
+  - `initialize()`: Setup method for DOM elements and event listeners
+  - `destroy()`: Cleanup method for resource disposal (optional)
+
+**interfaces/index.ts:**
+- Public API exports for all interfaces
+
+Design principles:
+- Standardizes manager lifecycle patterns
+- Enables consistent initialization and cleanup
+- Supports dependency injection and testing
+
+### Services (services/)
+Service layer for cross-cutting concerns:
+
+**services/electron-api.ts:**
+- `getElectronAPI()`: Type-safe access to Electron preload API
+- `electronAPI`: Lazy-initialized singleton proxy for convenience
+- Error handling for missing preload script
+- Test-friendly Proxy implementation for mocking support
+
+Features:
+- Centralized Electron API access point
+- Type safety with ElectronAPI interface
+- Prevents direct window.electronAPI access
+- Graceful error messages for debugging
 
 ## Utility Functions
 

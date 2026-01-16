@@ -9,6 +9,7 @@ export interface FileInfo {
   isSymlink?: boolean;
   size?: number;
   modifiedAt?: string;
+  mtimeMs?: number;  // File modification time in milliseconds - for usage bonus calculation
   error?: string;
 }
 

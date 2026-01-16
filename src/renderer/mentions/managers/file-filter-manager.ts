@@ -15,7 +15,7 @@
 
 import type { FileInfo, AgentItem } from '../../../types';
 import type { DirectoryData, SuggestionItem } from '../types';
-import { getRelativePath, calculateMatchScore, calculateAgentMatchScore } from '../index';
+import { getRelativePath, calculateMatchScore, calculateAgentMatchScore, compareTiebreak } from '../index';
 
 /**
  * Callbacks for FileFilterManager
@@ -23,6 +23,8 @@ import { getRelativePath, calculateMatchScore, calculateAgentMatchScore } from '
 export interface FileFilterCallbacks {
   /** Get default max suggestions limit */
   getDefaultMaxSuggestions: () => number;
+  /** Get agent usage bonuses */
+  getAgentUsageBonuses?: () => Record<string, number>;
 }
 
 /**
@@ -76,12 +78,14 @@ export class FileFilterManager {
    * @param cachedData - Cached directory data
    * @param currentPath - Current directory path being browsed (relative from root)
    * @param query - Search query
+   * @param usageBonuses - Optional map of file paths to usage bonuses
    * @returns Filtered and scored files
    */
   public filterFiles(
     cachedData: DirectoryData | null,
     currentPath: string,
-    query: string
+    query: string,
+    usageBonuses?: Record<string, number>
   ): FileInfo[] {
     if (!cachedData?.files) return [];
 
@@ -96,11 +100,11 @@ export class FileFilterManager {
       this.lastQuery = '';
       this.lastResults = [];
       this.lastWasTruncated = false;
-      return this.filterFilesInSubdirectory(allFiles, baseDir, currentPath, query, maxSuggestions);
+      return this.filterFilesInSubdirectory(allFiles, baseDir, currentPath, query, maxSuggestions, usageBonuses);
     }
 
     // At root level
-    return this.filterFilesAtRoot(allFiles, baseDir, query, maxSuggestions);
+    return this.filterFilesAtRoot(allFiles, baseDir, query, maxSuggestions, usageBonuses);
   }
 
   /**
@@ -112,7 +116,8 @@ export class FileFilterManager {
     baseDir: string,
     currentPath: string,
     query: string,
-    maxSuggestions: number
+    maxSuggestions: number,
+    usageBonuses?: Record<string, number>
   ): FileInfo[] {
     const seenDirs = new Set<string>();
     const files: FileInfo[] = [];
@@ -158,18 +163,29 @@ export class FileFilterManager {
 
     if (!query) {
       // Return first N files if no query, with directories first
-      return this.sortByDirectoryFirst(files).slice(0, maxSuggestions);
+      return this.sortByDirectoryFirstAndUsage(files, usageBonuses).slice(0, maxSuggestions);
     }
 
     // Score and filter files
     const queryLower = query.toLowerCase();
     const scored = files
-      .map(file => ({
-        file,
-        score: calculateMatchScore(file, queryLower)
-      }))
+      .map(file => {
+        const bonus = usageBonuses?.[file.path] ?? 0;
+        return {
+          file,
+          score: calculateMatchScore(file, queryLower, bonus, baseDir)
+        };
+      })
       .filter(item => item.score > 0)
-      .sort((a, b) => b.score - a.score)
+      .sort((a, b) => {
+        const scoreDiff = b.score - a.score;
+        if (scoreDiff !== 0) return scoreDiff;
+        // Tiebreaker: prefer shorter names, then shallower paths
+        return compareTiebreak(a.file, b.file, { criteria: ['length', 'pathname'] }, {
+          length: (item) => item.name.length,
+          pathname: (item) => item.path,
+        });
+      })
       .slice(0, maxSuggestions);
 
     return scored.map(item => item.file);
@@ -183,18 +199,19 @@ export class FileFilterManager {
     allFiles: FileInfo[],
     baseDir: string,
     query: string,
-    maxSuggestions: number
+    maxSuggestions: number,
+    usageBonuses?: Record<string, number>
   ): FileInfo[] {
     if (!query) {
       // No query - clear cache and show top-level files and directories only
       this.lastQuery = '';
       this.lastResults = [];
       this.lastWasTruncated = false;
-      return this.getTopLevelFiles(allFiles, baseDir, maxSuggestions);
+      return this.getTopLevelFiles(allFiles, baseDir, maxSuggestions, usageBonuses);
     }
 
     // With query at root level - search ALL files recursively
-    return this.searchAllFiles(allFiles, baseDir, query, maxSuggestions);
+    return this.searchAllFiles(allFiles, baseDir, query, maxSuggestions, usageBonuses);
   }
 
   /**
@@ -204,7 +221,8 @@ export class FileFilterManager {
   private getTopLevelFiles(
     allFiles: FileInfo[],
     baseDir: string,
-    maxSuggestions: number
+    maxSuggestions: number,
+    usageBonuses?: Record<string, number>
   ): FileInfo[] {
     const seenDirs = new Set<string>();
     const files: FileInfo[] = [];
@@ -240,7 +258,7 @@ export class FileFilterManager {
       }
     }
 
-    return this.sortByDirectoryFirst(files).slice(0, maxSuggestions);
+    return this.sortByDirectoryFirstAndUsage(files, usageBonuses).slice(0, maxSuggestions);
   }
 
   /**
@@ -254,7 +272,8 @@ export class FileFilterManager {
     allFiles: FileInfo[],
     baseDir: string,
     query: string,
-    maxSuggestions: number
+    maxSuggestions: number,
+    usageBonuses?: Record<string, number>
   ): FileInfo[] {
     // Check if we can use incremental search
     // Query extends previous query AND we have previous results AND previous results were NOT truncated
@@ -274,15 +293,19 @@ export class FileFilterManager {
     // Find all matching files (from source files)
     const scoredFiles = sourceFiles
       .filter(file => !file.isDirectory)
-      .map(file => ({
-        file,
-        score: calculateMatchScore(file, queryLower),
-        relativePath: getRelativePath(file.path, baseDir)
-      }))
+      .map(file => {
+        const bonus = usageBonuses?.[file.path] ?? 0;
+        return {
+          file,
+          score: calculateMatchScore(file, queryLower, bonus, baseDir),
+          relativePath: getRelativePath(file.path, baseDir)
+        };
+      })
       .filter(item => item.score > 0);
 
     // Find matching directories (by path containing the query)
     for (const file of sourceFiles) {
+
       const relativePath = getRelativePath(file.path, baseDir);
       const pathParts = relativePath.split('/').filter(p => p);
 
@@ -321,15 +344,26 @@ export class FileFilterManager {
     }).filter((d): d is FileInfo => d !== undefined);
 
     // Score directories
-    const scoredDirs = uniqueDirs.map(dir => ({
-      file: dir,
-      score: calculateMatchScore(dir, queryLower),
-      relativePath: getRelativePath(dir.path, baseDir)
-    }));
+    const scoredDirs = uniqueDirs.map(dir => {
+      const bonus = usageBonuses?.[dir.path] ?? 0;
+      return {
+        file: dir,
+        score: calculateMatchScore(dir, queryLower, bonus, baseDir),
+        relativePath: getRelativePath(dir.path, baseDir)
+      };
+    });
 
-    // Combine and sort by score
+    // Combine and sort by score, with tiebreaker for equal scores
     const allScored = [...scoredFiles, ...scoredDirs]
-      .sort((a, b) => b.score - a.score);
+      .sort((a, b) => {
+        const scoreDiff = b.score - a.score;
+        if (scoreDiff !== 0) return scoreDiff;
+        // Tiebreaker: prefer shorter names, then shallower paths
+        return compareTiebreak(a.file, b.file, { criteria: ['length', 'pathname'] }, {
+          length: (item) => item.name.length,
+          pathname: (item) => item.path,
+        });
+      });
 
     // Store full results before truncation
     const fullResults = allScored.map(item => item.file);
@@ -345,13 +379,17 @@ export class FileFilterManager {
   }
 
   /**
-   * Sort files with directories first, then by name
+   * Sort files with directories first, then by usage bonus + name
    */
-  private sortByDirectoryFirst(files: FileInfo[]): FileInfo[] {
+  private sortByDirectoryFirstAndUsage(files: FileInfo[], usageBonuses?: Record<string, number>): FileInfo[] {
     return [...files].sort((a, b) => {
       // Directories come first
       if (a.isDirectory && !b.isDirectory) return -1;
       if (!a.isDirectory && b.isDirectory) return 1;
+      // Then sort by usage bonus (higher first)
+      const bonusA = usageBonuses?.[a.path] ?? 0;
+      const bonusB = usageBonuses?.[b.path] ?? 0;
+      if (bonusA !== bonusB) return bonusB - bonusA;
       // Then sort by name
       return a.name.localeCompare(b.name);
     });
@@ -401,26 +439,35 @@ export class FileFilterManager {
    * @param filteredAgents - Pre-filtered agents
    * @param query - Search query
    * @param maxSuggestions - Maximum suggestions to return
+   * @param usageBonuses - Optional map of file paths to usage bonuses
+   * @param baseDir - Optional base directory for relative path calculation
    * @returns Merged and sorted suggestions
    */
   public mergeSuggestions(
     filteredFiles: FileInfo[],
     filteredAgents: AgentItem[],
     query: string,
-    maxSuggestions?: number
+    maxSuggestions?: number,
+    usageBonuses?: Record<string, number>,
+    baseDir?: string
   ): SuggestionItem[] {
     const items: SuggestionItem[] = [];
     const queryLower = query.toLowerCase();
 
-    // Add files with scores
+    // Add files with scores (including usage bonuses)
     for (const file of filteredFiles) {
-      const score = calculateMatchScore(file, queryLower);
+      const bonus = usageBonuses?.[file.path] ?? 0;
+      const score = calculateMatchScore(file, queryLower, bonus, baseDir);
       items.push({ type: 'file', file, score });
     }
 
-    // Add agents with scores
+    // Get agent usage bonuses
+    const agentBonuses = this.callbacks.getAgentUsageBonuses?.() ?? {};
+
+    // Add agents with scores (including usage bonuses)
     for (const agent of filteredAgents) {
-      const score = calculateAgentMatchScore(agent, queryLower);
+      const bonus = agentBonuses[agent.name] ?? 0;
+      const score = calculateAgentMatchScore(agent, queryLower, bonus);
       items.push({ type: 'agent', agent, score });
     }
 

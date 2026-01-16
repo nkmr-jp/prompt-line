@@ -16,6 +16,7 @@ export interface SymbolResult {
   lineContent: string;
   language: string;
   nameLower?: string; // Pre-computed lowercase name for efficient filtering
+  mtimeMs?: number; // File modification time in milliseconds for scoring
 }
 
 // Response from symbol search command

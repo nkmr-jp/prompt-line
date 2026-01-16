@@ -219,6 +219,13 @@ export class NavigationManager {
         const relativePath = getRelativePath(suggestion.file.path, baseDir);
         this.callbacks.insertFilePath(relativePath);
         this.callbacks.hideSuggestions();
+
+        // Record file usage for bonus calculation
+        if (electronAPI?.usageHistory?.recordFileUsage) {
+          electronAPI.usageHistory.recordFileUsage(suggestion.file.path)
+            .catch((error) => console.warn('[NavigationManager] Failed to record file usage:', error));
+        }
+
         this.callbacks.onFileSelected(relativePath);
         return;
       }
@@ -455,6 +462,12 @@ export class NavigationManager {
     this.callbacks.insertFilePath(relativePath);
     this.callbacks.hideSuggestions();
 
+    // Record file usage for bonus calculation
+    if (electronAPI?.usageHistory?.recordFileUsage) {
+      electronAPI.usageHistory.recordFileUsage(file.path)
+        .catch((error) => console.warn('[NavigationManager] Failed to record file usage:', error));
+    }
+
     // Callback for external handling
     this.callbacks.onFileSelected(relativePath);
   }
@@ -464,6 +477,12 @@ export class NavigationManager {
    * @param agent - Agent item to select
    */
   public selectAgentByInfo(agent: AgentItem): void {
+    // Record agent usage for bonus calculation
+    if (electronAPI?.usageHistory?.recordAgentUsage) {
+      electronAPI.usageHistory.recordAgentUsage(agent.name)
+        .catch((error) => console.warn('[NavigationManager] Failed to record agent usage:', error));
+    }
+
     // Determine what to insert based on agent's inputFormat setting
     // Default to 'name' for agents (backward compatible behavior)
     const inputFormat = agent.inputFormat ?? 'name';

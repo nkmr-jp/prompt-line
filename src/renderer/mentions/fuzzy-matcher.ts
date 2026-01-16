@@ -5,6 +5,12 @@
 
 import type { FileInfo, AgentItem } from '../../types';
 import { FUZZY_MATCH_SCORES } from '../../constants';
+import { calculateFileMtimeBonus } from '../../lib/usage-bonus-calculator';
+import { getRelativePath } from './path-utils';
+export { compareTiebreak } from '../../lib/tiebreaker';
+
+/** Maximum mtime bonus - caps the mtime bonus to balance with match scores */
+const MAX_MTIME_BONUS = 100;
 
 /**
  * Cache for lowercase strings to avoid repeated toLowerCase() calls
@@ -58,18 +64,11 @@ export function getLowercaseCacheSize(): number {
 }
 
 /**
- * Simple fuzzy matching - checks if all pattern characters appear in text in order
+ * Simple fuzzy matching - checks if pattern appears in text
  */
 export function fuzzyMatch(text: string, pattern: string): boolean {
-  let patternIdx = 0;
-
-  for (let i = 0; i < text.length && patternIdx < pattern.length; i++) {
-    if (text[i] === pattern[patternIdx]) {
-      patternIdx++;
-    }
-  }
-
-  return patternIdx === pattern.length;
+  // Simple substring match (case-insensitive)
+  return text.toLowerCase().includes(pattern.toLowerCase());
 }
 
 /**
@@ -84,8 +83,22 @@ export function fuzzyMatch(text: string, pattern: string): boolean {
  * - Fuzzy match on name: FUZZY_MATCH_SCORES.BASE_FUZZY (10)
  * - Bonus for files (not directories): FUZZY_MATCH_SCORES.FILE_BONUS (5)
  * - Bonus for shorter paths: up to FUZZY_MATCH_SCORES.MAX_PATH_BONUS (20)
+ *   - When baseDir is provided, path bonus is calculated from relative path
+ * - Usage history bonus: 0-150 (optional parameter)
+ * - File modification time bonus: 0-500 (if mtimeMs available)
+ *
+ * @param file - File to score
+ * @param queryLower - Lowercased search query
+ * @param usageBonus - Optional usage history bonus (0-150)
+ * @param baseDir - Optional base directory for relative path calculation
+ * @returns Total score including bonuses
  */
-export function calculateMatchScore(file: FileInfo, queryLower: string): number {
+export function calculateMatchScore(
+  file: FileInfo,
+  queryLower: string,
+  usageBonus: number = 0,
+  baseDir?: string
+): number {
   const nameLower = lowercaseCache.get(file.name);
   const pathLower = lowercaseCache.get(file.path);
 
@@ -107,7 +120,7 @@ export function calculateMatchScore(file: FileInfo, queryLower: string): number 
   else if (pathLower.includes(queryLower)) {
     score += FUZZY_MATCH_SCORES.PATH_CONTAINS;
   }
-  // Fuzzy match on name
+  // Fuzzy match on name - basic substring match
   else if (fuzzyMatch(nameLower, queryLower)) {
     score += FUZZY_MATCH_SCORES.BASE_FUZZY;
   }
@@ -117,8 +130,17 @@ export function calculateMatchScore(file: FileInfo, queryLower: string): number 
     score += FUZZY_MATCH_SCORES.FILE_BONUS;
   }
 
-  // Bonus for shorter paths
-  score += Math.max(0, FUZZY_MATCH_SCORES.MAX_PATH_BONUS - pathLower.split('/').length);
+  // Bonus for shorter paths (calculated from relative path when baseDir is provided)
+  const pathForBonus = baseDir ? getRelativePath(file.path, baseDir) : file.path;
+  score += Math.max(0, FUZZY_MATCH_SCORES.MAX_PATH_BONUS - pathForBonus.split('/').length);
+
+  // Add usage history bonus
+  score += usageBonus;
+
+  // Add file modification time bonus if mtimeMs is available
+  if (file.mtimeMs !== undefined) {
+    score += Math.min(calculateFileMtimeBonus(file.mtimeMs), MAX_MTIME_BONUS);
+  }
 
   return score;
 }
@@ -133,8 +155,13 @@ export function calculateMatchScore(file: FileInfo, queryLower: string): number 
  * - Name starts with query: FUZZY_MATCH_SCORES.STARTS_WITH (500)
  * - Name contains query: FUZZY_MATCH_SCORES.CONTAINS (200)
  * - Description contains query: FUZZY_MATCH_SCORES.PATH_CONTAINS (50)
+ * - Fuzzy match on name: FUZZY_MATCH_SCORES.BASE_FUZZY (10)
  */
-export function calculateAgentMatchScore(agent: AgentItem, queryLower: string): number {
+export function calculateAgentMatchScore(
+  agent: AgentItem,
+  queryLower: string,
+  usageBonus: number = 0
+): number {
   if (!queryLower) return FUZZY_MATCH_SCORES.AGENT_BASE; // Base score for no query
 
   const nameLower = lowercaseCache.get(agent.name);
@@ -158,6 +185,13 @@ export function calculateAgentMatchScore(agent: AgentItem, queryLower: string): 
   else if (descLower.includes(queryLower)) {
     score += FUZZY_MATCH_SCORES.PATH_CONTAINS;
   }
+  // Fuzzy match on name - basic substring match
+  else if (fuzzyMatch(nameLower, queryLower)) {
+    score += FUZZY_MATCH_SCORES.BASE_FUZZY;
+  }
+
+  // Add usage history bonus
+  score += usageBonus;
 
   return score;
 }

@@ -10,6 +10,7 @@ import { highlightMatch } from './utils/highlight-utils';
 import { electronAPI } from './services/electron-api';
 import { extractTriggerQueryAtCursor } from './utils/trigger-query-extractor';
 import { getCaretCoordinates, createMirrorDiv } from './mentions/dom-utils';
+import { compareTiebreak } from '../lib/tiebreaker';
 
 interface SlashCommandItem {
   name: string;
@@ -355,6 +356,32 @@ export class SlashCommandManager implements IInitializable {
   }
 
   /**
+   * Calculate match score for a command name
+   * Higher score = better match
+   */
+  private getMatchScore(name: string, query: string, description?: string): number {
+    const lowerQuery = query.toLowerCase();
+    const lowerName = name.toLowerCase();
+
+    // Exact match is highest priority
+    if (lowerName === lowerQuery) return 1000;
+
+    // Name starts with query
+    if (lowerName.startsWith(lowerQuery)) return 500;
+
+    // Name contains query
+    if (lowerName.includes(lowerQuery)) return 200;
+
+    // Description contains query
+    if (description && description.toLowerCase().includes(lowerQuery)) {
+      return 50;
+    }
+
+    // No match
+    return 0;
+  }
+
+  /**
    * Show suggestions based on query
    */
   private async showSuggestions(query: string): Promise<void> {
@@ -363,7 +390,7 @@ export class SlashCommandManager implements IInitializable {
       await this.loadCommands();
     }
 
-    // Filter and sort commands - prioritize: prefix match > contains match > description match > source match
+    // Filter commands - prioritize: prefix match > contains match > description match > source match
     const lowerQuery = query.toLowerCase();
     this.filteredCommands = this.commands
       .filter(cmd =>
@@ -371,36 +398,45 @@ export class SlashCommandManager implements IInitializable {
         cmd.description.toLowerCase().includes(lowerQuery) ||
         (cmd.displayName && cmd.displayName.toLowerCase().includes(lowerQuery)) ||
         (cmd.label && cmd.label.toLowerCase().includes(lowerQuery))
-      )
-      .sort((a, b) => {
-        const aName = a.name.toLowerCase();
-        const bName = b.name.toLowerCase();
-        const aNamePrefix = aName.startsWith(lowerQuery);
-        const bNamePrefix = bName.startsWith(lowerQuery);
-        const aNameContains = aName.includes(lowerQuery);
-        const bNameContains = bName.includes(lowerQuery);
-
-        // 1. Prioritize prefix matches in name
-        if (aNamePrefix && !bNamePrefix) return -1;
-        if (!aNamePrefix && bNamePrefix) return 1;
-
-        // 2. If both are prefix matches, sort by name alphabetically
-        if (aNamePrefix && bNamePrefix) {
-          return a.name.localeCompare(b.name);
-        }
-
-        // 3. Prioritize contains matches in name over description-only matches
-        if (aNameContains && !bNameContains) return -1;
-        if (!aNameContains && bNameContains) return 1;
-
-        // 4. Sort by name alphabetically
-        return a.name.localeCompare(b.name);
-      });
+      );
 
     if (this.filteredCommands.length === 0) {
       this.hideSuggestions();
       return;
     }
+
+    // Get usage bonuses for all filtered commands
+    const commandNames = this.filteredCommands.map(cmd => cmd.name);
+    let usageBonuses: Record<string, number> = {};
+    try {
+      if (electronAPI?.slashCommands?.getUsageBonuses) {
+        usageBonuses = await electronAPI.slashCommands.getUsageBonuses(commandNames);
+      }
+    } catch (error) {
+      console.error('Failed to get usage bonuses:', error);
+      // Continue with empty bonuses (no usage bonus applied)
+    }
+
+    // Sort by total score (match score + usage bonus)
+    this.filteredCommands.sort((a, b) => {
+      const aMatchScore = this.getMatchScore(a.name, lowerQuery, a.description);
+      const bMatchScore = this.getMatchScore(b.name, lowerQuery, b.description);
+
+      const aBonus = usageBonuses[a.name] ?? 0;
+      const bBonus = usageBonuses[b.name] ?? 0;
+
+      const aTotal = aMatchScore + aBonus;
+      const bTotal = bMatchScore + bBonus;
+
+      // Sort by total score descending
+      const scoreDiff = bTotal - aTotal;
+      if (scoreDiff !== 0) return scoreDiff;
+
+      // Tiebreak: prefer shorter names, then alphabetical
+      return compareTiebreak(a, b, { criteria: ['length'] }, {
+        length: (item) => item.name.length,
+      }) || a.name.localeCompare(b.name);
+    });
 
     this.isActive = true;
     this.selectedIndex = 0;

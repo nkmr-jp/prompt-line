@@ -161,7 +161,7 @@ describe('AppleScript Sanitizer', () => {
       expect(warnings).toContain('shell script execution detected');
       expect(warnings).toContain('application termination detected');
       expect(warnings).toContain('file deletion commands detected');
-      expect(warnings.length).toBe(3);
+      expect(warnings).toHaveLength(3);
     });
   });
 });

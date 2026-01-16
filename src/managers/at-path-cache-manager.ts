@@ -26,7 +26,7 @@ export class AtPathCacheManager {
   private get cacheDir(): string {
     if (this._cacheDir === null) {
       // Lazy import to avoid issues during module loading
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
+       
       const config = require('../config/app-config').default;
       this._cacheDir = config.paths.projectsCacheDir as string;
     }

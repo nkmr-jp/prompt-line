@@ -227,6 +227,8 @@ export interface ElectronAPI {
     // Global slash command cache
     registerGlobal: (commandName: string) => Promise<IPCResult>;
     getGlobalCommands: () => Promise<string[]>;
+    // Usage bonus calculation for sorting
+    getUsageBonuses: (commandNames: string[]) => Promise<Record<string, number>>;
   };
   agents: {
     get: (query?: string) => Promise<AgentItem[]>;
@@ -263,5 +265,13 @@ export interface ElectronAPI {
     // Global at-path cache (for mdSearch agents and other project-independent items)
     registerGlobal: (atPath: string) => Promise<IPCResult>;
     getGlobalPaths: () => Promise<string[]>;
+  };
+  usageHistory: {
+    recordFileUsage: (filePath: string) => Promise<IPCResult>;
+    getFileUsageBonuses: (filePaths: string[]) => Promise<Record<string, number>>;
+    recordSymbolUsage: (filePath: string, symbolName: string) => Promise<IPCResult>;
+    getSymbolUsageBonuses: (symbols: Array<{ filePath: string; symbolName: string }>) => Promise<Record<string, number>>;
+    recordAgentUsage: (agentName: string) => Promise<IPCResult>;
+    getAgentUsageBonuses: (agentNames: string[]) => Promise<Record<string, number>>;
   };
 }

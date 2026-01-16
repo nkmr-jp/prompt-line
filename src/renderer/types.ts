@@ -41,6 +41,7 @@ export interface FileInfo {
   name: string;
   path: string;
   isDirectory: boolean;
+  mtimeMs?: number;  // File modification time in milliseconds
 }
 
 export interface DirectoryInfo {

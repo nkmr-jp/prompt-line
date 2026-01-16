@@ -58,7 +58,8 @@ export class DirectoryCacheHelper {
       };
     }
 
-    const cached = await this.fileCacheManager.loadCache(directory);
+    // Load cache with recent mtimes for accurate mtime-based scoring
+    const cached = await this.fileCacheManager.loadCache(directory, { withRecentMtimes: true });
     if (cached && this.fileCacheManager.isCacheValid(cached.metadata)) {
       return {
         success: true,

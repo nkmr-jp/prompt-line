@@ -71,6 +71,14 @@ const ALLOWED_CHANNELS = [
   // Slash command cache channels
   'register-global-slash-command',
   'get-global-slash-commands',
+  'get-usage-bonuses',
+  // Usage history channels
+  'record-file-usage',
+  'get-file-usage-bonuses',
+  'record-symbol-usage',
+  'get-symbol-usage-bonuses',
+  'record-agent-usage',
+  'get-agent-usage-bonuses',
   // Settings update notification channel
   'settings-updated'
 ];
@@ -280,6 +288,10 @@ const electronAPI: ElectronAPI = {
     getGlobalCommands: async (): Promise<string[]> => {
       return ipcRenderer.invoke('get-global-slash-commands');
     },
+    // Usage bonus calculation for sorting
+    getUsageBonuses: async (commandNames: string[]): Promise<Record<string, number>> => {
+      return ipcRenderer.invoke('get-usage-bonuses', commandNames);
+    },
   },
 
   // Agents
@@ -363,6 +375,28 @@ const electronAPI: ElectronAPI = {
     },
     getGlobalPaths: async (): Promise<string[]> => {
       return ipcRenderer.invoke('get-global-at-paths');
+    },
+  },
+
+  // Usage history tracking
+  usageHistory: {
+    recordFileUsage: async (filePath: string): Promise<IPCResult> => {
+      return ipcRenderer.invoke('record-file-usage', filePath);
+    },
+    getFileUsageBonuses: async (filePaths: string[]): Promise<Record<string, number>> => {
+      return ipcRenderer.invoke('get-file-usage-bonuses', filePaths);
+    },
+    recordSymbolUsage: async (filePath: string, symbolName: string): Promise<IPCResult> => {
+      return ipcRenderer.invoke('record-symbol-usage', filePath, symbolName);
+    },
+    getSymbolUsageBonuses: async (symbols: Array<{ filePath: string; symbolName: string }>): Promise<Record<string, number>> => {
+      return ipcRenderer.invoke('get-symbol-usage-bonuses', symbols);
+    },
+    recordAgentUsage: async (agentName: string): Promise<IPCResult> => {
+      return ipcRenderer.invoke('record-agent-usage', agentName);
+    },
+    getAgentUsageBonuses: async (agentNames: string[]): Promise<Record<string, number>> => {
+      return ipcRenderer.invoke('get-agent-usage-bonuses', agentNames);
     },
   },
 };

@@ -474,7 +474,7 @@ describe('prefix-resolver', () => {
         testDir
       );
       expect(result2).toBe('');
-      expect(mockedGlob.mock.calls.length).toBe(firstCallCount); // No additional calls
+      expect(mockedGlob.mock.calls).toHaveLength(firstCallCount); // No additional calls
     });
 
     test('should use different cache entries for different patterns', async () => {
