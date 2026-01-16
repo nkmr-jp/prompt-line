@@ -36,11 +36,12 @@ class FileUsageHistoryManager extends UsageHistoryManager {
    * Removes leading/trailing slashes and normalizes separators
    */
   normalizeKey(filePath: string): string {
-    const normalized = path.normalize(filePath);
-    // Path traversal detection
-    if (normalized.includes('..')) {
+    // Path traversal detection BEFORE normalization
+    // (path.normalize resolves .. sequences, so check must be done first)
+    if (filePath.includes('..')) {
       throw new Error('Path traversal detected');
     }
+    const normalized = path.normalize(filePath);
     return normalized.replace(/^\/+|\/+$/g, '');
   }
 
