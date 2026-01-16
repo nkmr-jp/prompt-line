@@ -1,11 +1,253 @@
 # Utils Module
 
-    This module contains shared utility functions used across the application with comprehensive system integration and native tools support.
+This module contains shared utility functions used across the application with comprehensive system integration and native tools support.
+
+## Architecture
+
+The utils module is organized into specialized files for maintainability:
+
+- **utils.ts**: Re-export hub maintaining backward compatibility
+- **logger.ts**: Logging system with sensitive data masking
+- **common.ts**: General utilities (debounce, JSON, ID generation)
+- **security.ts**: Security utilities and error handling
+- **file-utils.ts**: File system operations
+- **rate-limiter.ts**: Rate limiting for abuse prevention
+- **apple-script-sanitizer.ts**: AppleScript security
+- **native-tools.ts**: Re-export hub for native tools
+- **native-tools/**: Modular native tool integrations
+  - `index.ts`: Main export hub
+  - `paths.ts`: Tool path constants
+  - `app-detection.ts`: App and window detection
+  - `paste-operations.ts`: Paste and activate operations
+  - `directory-operations.ts`: Directory detection and listing
 
 ## Files
 
 ### utils.ts
-Comprehensive utility module with native tool integration and performance optimization for macOS systems:
+Re-export module that maintains the original API for backward compatibility. All implementation is split into specialized modules.
+
+### logger.ts
+Comprehensive logging system with sensitive data masking:
+
+**Sensitive Data Masking:**
+```typescript
+function maskSensitiveData(data: unknown): unknown {
+  // Masks sensitive information in strings and objects
+  // Pattern-based masking for passwords, tokens, API keys, secrets
+  // Recursive object and array masking
+  // Key-based masking for sensitive field names
+}
+```
+
+**Sensitive Patterns:**
+- `password`: Masked in strings and object keys
+- `token`: Masked in strings and object keys
+- `api_key`: Masked in strings and object keys
+- `secret`: Masked in strings and object keys
+- `authorization`: Bearer tokens masked
+- Pattern matching with case-insensitive detection
+
+**Logger Class:**
+```typescript
+class Logger {
+  private level: LogLevel = 'info';
+  private enableFileLogging: boolean = true;
+  private logFile: string;
+
+  constructor() {
+    this.logFile = path.join(os.homedir(), '.prompt-line', 'app.log');
+    this.initializeConfig();
+  }
+
+  log(level: LogLevel, message: string, data?: unknown): void {
+    // Early return if log level doesn't meet threshold
+    // Console output with appropriate method (log/warn/error)
+    // Non-blocking file append operations
+    // Structured logging with ISO timestamps
+  }
+}
+```
+- **Level-based Filtering**: debug, info, warn, error with configurable thresholds
+- **Dual Output**: Console and file logging with independent control
+- **Performance**: Non-blocking file writes using `fs.appendFile()` without await
+- **Structured Data**: JSON serialization for complex data objects
+- **ISO Timestamps**: Consistent timestamp formatting across all log entries
+- **Dynamic Configuration**: Loads config from app-config module (uses LOG_LEVEL env var)
+- **Environment-based Control**: DEBUG logs only enabled when LOG_LEVEL=debug in non-packaged apps
+- **Circular Dependency Prevention**: Uses ES6 import to avoid require() circular dependency issues
+- **Early Return Pattern**: Simplified code flow with early returns for better readability
+
+### common.ts
+General utility functions for common operations:
+
+**Performance Utilities:**
+```typescript
+function debounce<T extends unknown[]>(
+  func: (...args: T) => void,
+  wait: number,
+  immediate = false
+): DebounceFunction<T> {
+  // Generic debouncing with immediate execution support
+  // Proper context binding with 'this' preservation
+}
+```
+- **Generic Functions**: Type-safe debouncing for any function signature
+- **Context Preservation**: Proper `this` binding for method calls
+- **Immediate Mode**: Option for immediate execution with trailing debounce
+- **Memory Management**: Proper timeout cleanup to prevent memory leaks
+
+**Safe JSON Operations:**
+```typescript
+function safeJsonParse<T = unknown>(jsonString: string, fallback?: T): T | null {
+  // Generic type support with optional fallback
+  // Nullish coalescing for clean fallback handling
+}
+
+function safeJsonStringify(obj: unknown, fallback = '{}'): string {
+  // Pretty printing with 2-space indentation
+  // Comprehensive error handling with logging
+}
+```
+- **Type Safety**: Generic type support for compile-time safety
+- **Nullish Coalescing**: Modern JavaScript patterns for clean fallback handling
+- **Error Handling**: Comprehensive error catching with logging
+- **Pretty Printing**: JSON formatting with 2-space indentation
+
+**ID Generation:**
+```typescript
+function generateId(): string {
+  // Returns: "abc123xyz789" (lowercase alphanumeric)
+}
+```
+- **Format**: Lowercase alphanumeric using base-36 encoding
+- **Uniqueness**: Timestamp + random components for collision avoidance
+- **Base-36 Encoding**: Uses TIME_CALCULATIONS.TIMESTAMP_BASE constant
+- **Validation**: Coordinated with IPC handlers for security
+- **Implementation Note**: ID validation in ipc-handlers.ts depends on this format
+
+**Sleep Utility:**
+```typescript
+function sleep(ms: number): Promise<void> {
+  // Promise-based delay
+}
+```
+
+### security.ts
+Security utilities and error handling:
+
+**Secure Error Messages:**
+```typescript
+const SecureErrors = {
+  INVALID_INPUT: 'Invalid input provided',
+  OPERATION_FAILED: 'Operation failed',
+  FILE_NOT_FOUND: 'File not found',
+  PERMISSION_DENIED: 'Permission denied',
+  INTERNAL_ERROR: 'An internal error occurred',
+  INVALID_FORMAT: 'Invalid format',
+  SIZE_LIMIT_EXCEEDED: 'Size limit exceeded',
+} as const;
+```
+- **User-Facing Messages**: Generic error messages that don't expose internal details
+- **Internal Logging**: Separate internal log messages with full error context
+- **Security**: Prevents information leakage through error messages
+
+**Command Argument Sanitization:**
+```typescript
+function sanitizeCommandArgument(input: string, maxLength = 256): string {
+  // Removes dangerous characters
+  // Limits length to prevent buffer overflows
+  // Logs sanitization events
+}
+
+function isCommandArgumentSafe(input: string): boolean {
+  // Validates command arguments contain only safe characters
+  // Checks for shell metacharacters, null bytes, newlines
+  // Prevents path traversal and flag injection
+}
+```
+- **Command Injection Prevention**: Removes shell metacharacters
+- **Length Limits**: Default 256 characters to prevent buffer overflows
+- **Pattern Detection**: Identifies dangerous characters and patterns
+- **Logging**: Automatic logging when sanitization occurs
+
+**Error Handling:**
+```typescript
+function handleError(error: Error, context: string): { logMessage: string; userMessage: string } {
+  // Separates user-facing and internal log messages
+}
+```
+
+### file-utils.ts
+File system operations:
+
+**Directory Management:**
+```typescript
+async function ensureDir(dirPath: string): Promise<void> {
+  // ENOENT-specific error handling for missing directories
+  // Recursive directory creation with performance optimization
+  // Restrictive permissions (0o700 - owner read/write/execute only)
+}
+
+async function fileExists(filePath: string): Promise<boolean> {
+  // Simple boolean file existence check
+  // Uses fs.access for efficient existence testing
+}
+```
+- **Directory Creation**: Recursive directory creation with existence checking
+- **Error Differentiation**: Distinguish between missing directories and permission errors
+- **Performance**: fs.access existence checks before creation attempts
+- **Security**: Restrictive directory permissions (0o700)
+
+### rate-limiter.ts
+Rate limiting for abuse prevention and DoS protection:
+
+**RateLimiter Class:**
+```typescript
+class RateLimiter {
+  constructor(config: RateLimitConfig) {
+    // windowMs: Time window in milliseconds
+    // maxRequests: Maximum requests allowed within the window
+  }
+
+  isAllowed(key: string): boolean {
+    // Sliding window algorithm
+    // Per-key tracking
+  }
+
+  reset(key: string): void;
+  resetAll(): void;
+  getCount(key: string): number;
+  getTimeUntilReset(key: string): number;
+}
+```
+
+**Pre-configured Rate Limiters:**
+```typescript
+// Paste operations: 10 requests per second
+export const pasteRateLimiter = new RateLimiter({
+  windowMs: 1000,
+  maxRequests: 10
+});
+
+// History operations: 50 requests per second
+export const historyRateLimiter = new RateLimiter({
+  windowMs: 1000,
+  maxRequests: 50
+});
+
+// Image operations: 5 requests per second
+export const imageRateLimiter = new RateLimiter({
+  windowMs: 1000,
+  maxRequests: 5
+});
+```
+
+**Features:**
+- **Sliding Window**: Accurate rate limiting with timestamp tracking
+- **Per-Key Tracking**: Independent limits for different operations
+- **Configurable**: Customizable window size and request limits
+- **Utility Methods**: Reset, count, and time-until-reset methods
+- **DoS Prevention**: Prevents abuse through request throttling
 
 ### apple-script-sanitizer.ts
 Security-focused AppleScript sanitization and execution module providing comprehensive protection against script injection attacks:
@@ -48,78 +290,63 @@ function validateAppleScriptSecurity(script: string): { isValid: boolean; issues
 - **File System Protection**: Pattern detection prevents unauthorized file operations
 - **Credential Protection**: Detects attempts to access keychain or passwords
 
-### utils.ts (continued)
-Comprehensive utility module with native tool integration and performance optimization for macOS systems:
+### native-tools.ts
+Re-export module for macOS native tool integrations. Implementation is in `native-tools/` directory.
 
-**Logger Class:**
+### native-tools/ Directory
+
+**Module Structure:**
+- `index.ts`: Main export hub coordinating all native tool integrations
+- `paths.ts`: Tool path constants for all native binaries
+- `app-detection.ts`: App and window detection using native tools
+- `paste-operations.ts`: Paste and activate operations
+- `directory-operations.ts`: Directory detection and listing
+
+**Native Tools Integration (paths.ts):**
 ```typescript
-class Logger {
-  private level: LogLevel = 'info';
-  private enableFileLogging: boolean = true;
-  private logFile: string;
-
-  constructor() {
-    this.logFile = path.join(os.homedir(), '.prompt-line', 'app.log');
-    this.initializeConfig();
-  }
-
-  log(level: LogLevel, message: string, data?: unknown): void {
-    // Early return if log level doesn't meet threshold
-    // Console output with appropriate method (log/warn/error)
-    // Non-blocking file append operations
-    // Structured logging with ISO timestamps
-  }
-}
-```
-- **Level-based Filtering**: debug, info, warn, error with configurable thresholds
-- **Dual Output**: Console and file logging with independent control
-- **Performance**: Non-blocking file writes using `fs.appendFile()` without await
-- **Structured Data**: JSON serialization for complex data objects
-- **ISO Timestamps**: Consistent timestamp formatting across all log entries
-- **Dynamic Configuration**: Loads config from app-config module (uses LOG_LEVEL env var)
-- **Environment-based Control**: DEBUG logs only enabled when LOG_LEVEL=debug in non-packaged apps
-- **Circular Dependency Prevention**: Uses ES6 import to avoid require() circular dependency issues
-- **Early Return Pattern**: Simplified code flow with early returns for better readability
-
-**Native Tools Integration:**
-```typescript
-function getNativeToolsPath(): string {
-  // Handle both packaged and development modes
-  // In packaged mode: resources/app.asar.unpacked/dist/native-tools
-  // Development mode: src/native-tools
-}
+const WINDOW_DETECTOR_PATH: string;        // Window bounds and app detection
+const KEYBOARD_SIMULATOR_PATH: string;     // Keyboard simulation and app activation
+const TEXT_FIELD_DETECTOR_PATH: string;    // Focused text field detection
+const DIRECTORY_DETECTOR_PATH: string;     // Current working directory detection
+const FILE_SEARCHER_PATH: string;          // Fast file listing with fd
+const SYMBOL_SEARCHER_PATH: string;        // Code symbol search with ripgrep
 ```
 - **Path Resolution**: Dynamic path resolution for packaged vs development environments
 - **Native Executables**: Uses compiled native tools for security and performance
-- **Window Detector**: `window-detector` binary for window bounds and app detection
-- **Keyboard Simulator**: `keyboard-simulator` binary for secure paste operations
-- **Text Field Detector**: `text-field-detector` binary for focused text field positioning
+- **Security**: Compiled binaries eliminate script injection vulnerabilities
 
-**macOS Native App Detection:**
+**macOS Native App Detection (app-detection.ts):**
 ```typescript
 function getCurrentApp(): Promise<AppInfo | null> {
-  // Uses native window-detector tool with JSON output:
-  // exec('"${WINDOW_DETECTOR_PATH}" current-app', ...)
+  // Uses native window-detector tool with JSON output
   // Returns: {"name": "Terminal", "bundleId": "com.apple.Terminal"}
+}
+
+function getActiveWindowBounds(): Promise<WindowBounds | null> {
+  // Uses native window-detector tool
+  // Returns: {"x": 100, "y": 200, "width": 800, "height": 600}
+}
+
+function checkAccessibilityPermission(): Promise<AccessibilityStatus> {
+  // AppleScript-based accessibility permission check
+  // Tests actual accessibility functions to verify permissions
 }
 ```
 - **Native Tool Integration**: Uses compiled window-detector for secure app detection
 - **JSON Communication**: Structured data exchange prevents parsing vulnerabilities
-- **Error Recovery**: Graceful fallback for apps without bundle identifiers  
-- **Timeout Protection**: 2-second timeout to prevent hanging
-- **Platform Check**: Direct platform check to avoid config dependencies
+- **Error Recovery**: Graceful fallback for apps without bundle identifiers
+- **Timeout Protection**: 2-3 second timeouts to prevent hanging
+- **Validation**: Checks for valid numeric values in window bounds
 
-**Native Paste Operations:**
+**Native Paste Operations (paste-operations.ts):**
 ```typescript
 function pasteWithNativeTool(): Promise<void> {
-  // Simple paste using keyboard-simulator:
-  // exec('"${KEYBOARD_SIMULATOR_PATH}" paste', ...)
+  // Simple paste using keyboard-simulator
 }
 
 function activateAndPasteWithNativeTool(appInfo: AppInfo | string): Promise<void> {
-  // Atomic app activation and paste:
+  // Atomic app activation and paste
   // Uses bundle ID when available for precision
-  // Fallbacks to app name when bundle ID unavailable
 }
 ```
 - **Atomic Operations**: Combined app activation and paste to prevent race conditions
@@ -128,92 +355,28 @@ function activateAndPasteWithNativeTool(appInfo: AppInfo | string): Promise<void
 - **Fallback Strategy**: Graceful degradation from bundle ID to app name
 - **Timeout Handling**: Comprehensive timeout and error recovery
 
-**Window Bounds Detection:**
+**Directory Operations (directory-operations.ts):**
 ```typescript
-function getActiveWindowBounds(): Promise<WindowBounds | null> {
-  // Uses native window-detector tool:
-  // exec('"${WINDOW_DETECTOR_PATH}" window-bounds', ...)
-  // Returns: {"x": 100, "y": 200, "width": 800, "height": 600}
+function detectCurrentDirectory(options?: DirectoryDetectionOptions): Promise<string | null> {
+  // Uses native directory-detector tool
+  // Returns current working directory of active application
+}
+
+function detectCurrentDirectoryWithFiles(options?: DirectoryDetectionOptions): Promise<{ directory: string; files: string[] } | null> {
+  // Combines directory detection with file listing
+  // Uses fd for fast file discovery
+}
+
+function listDirectory(directoryPath: string, options?: object): Promise<string[]> {
+  // Uses file-searcher (fd) for fast file listing
+  // Respects .gitignore by default
 }
 ```
-- **Native Implementation**: Uses compiled tool for reliable window detection
-- **JSON Output**: Structured data format with numeric validation
-- **Error Recovery**: Returns `null` on parsing failures, triggering cursor fallback
-- **Timeout Protection**: 3-second timeout prevents hanging on unresponsive apps
-- **Validation**: Checks for valid numeric values in window bounds
-- **Debug Logging**: Comprehensive logging for troubleshooting window detection
-
-**Accessibility Permission Management:**
-```typescript
-function checkAccessibilityPermission(): Promise<AccessibilityStatus> {
-  // AppleScript-based accessibility permission check
-  // Tests actual accessibility functions to verify permissions
-  // Returns bundle ID information for system preferences
-}
-```
-- **Permission Verification**: Tests actual accessibility functions rather than just querying
-- **Bundle ID Detection**: Retrieves app bundle ID for system preference navigation
-- **Multiple Fallbacks**: Multiple AppleScript approaches for reliable detection
-- **Error Recovery**: Graceful handling of permission-related errors
-
-**Safe Operations Suite:**
-```typescript
-function safeJsonParse<T = unknown>(jsonString: string, fallback?: T): T | null {
-  // Generic type support with optional fallback
-  // Nullish coalescing for clean fallback handling
-}
-
-function safeJsonStringify(obj: unknown, fallback = '{}'): string {
-  // Pretty printing with 2-space indentation
-  // Comprehensive error handling with logging
-}
-```
-- **Type Safety**: Generic type support for compile-time safety
-- **Nullish Coalescing**: Modern JavaScript patterns for clean fallback handling
-- **Error Handling**: Comprehensive error catching with logging
-- **Pretty Printing**: JSON formatting with 2-space indentation
-
-**File System Utilities:**
-```typescript
-async function ensureDir(dirPath: string): Promise<void> {
-  // ENOENT-specific error handling for missing directories
-  // Recursive directory creation with performance optimization
-}
-
-async function fileExists(filePath: string): Promise<boolean> {
-  // Simple boolean file existence check
-  // Uses fs.access for efficient existence testing
-}
-```
-- **Directory Creation**: Recursive directory creation with existence checking
-- **Error Differentiation**: Distinguish between missing directories and permission errors
-- **Performance**: Avoid unnecessary operations when directories exist
-- **Boolean Utility**: Clean boolean file existence checking
-
-**Performance Utilities:**
-```typescript
-function debounce<T extends unknown[]>(
-  func: (...args: T) => void, 
-  wait: number, 
-  immediate = false
-): DebounceFunction<T> {
-  // Generic debouncing with immediate execution support
-  // Proper context binding with 'this' preservation
-}
-
-function throttle<T extends unknown[]>(
-  func: (...args: T) => void, 
-  wait: number
-): (...args: T) => void {
-  // Leading-edge throttling implementation
-  // Time-based execution control
-}
-```
-- **Generic Functions**: Type-safe debouncing and throttling for any function signature
-- **Context Preservation**: Proper `this` binding for method calls
-- **Immediate Mode**: Option for immediate execution with trailing debounce
-- **Memory Management**: Proper timeout cleanup to prevent memory leaks
-- **Leading Edge**: Throttle executes immediately then waits
+- **Native Tool Integration**: Uses directory-detector and file-searcher binaries
+- **JSON Communication**: Structured data exchange with native tools
+- **Performance**: Fast directory detection using libproc (10-50x faster)
+- **Gitignore Support**: Respects .gitignore when listing files
+- **Timeout Protection**: Configurable timeouts for all operations
 
 ## Key Utilities
 
@@ -306,9 +469,6 @@ await activateAndPasteWithNativeTool(appInfo);
 const debouncedSave = debounce(saveFunction, 500);
 // Note: Current implementation doesn't include cancel method
 
-// Throttling for rate limiting (leading-edge)
-const throttledUpdate = throttle(updateFunction, 100);
-
 // Timing utilities
 await sleep(100); // Promise-based delay
 ```
@@ -324,15 +484,22 @@ const uniqueId = generateId();
 - **Validation**: Coordinated with IPC handlers for security
 - **Implementation Note**: ID validation in ipc-handlers.ts depends on this format
 
-**Time Utilities:**
+**Rate Limiting:**
 ```typescript
-const timeAgo = formatTimeAgo(timestamp);
-// Returns: "Just now", "5m ago", "2h ago", "3d ago"
+// Check if paste operation is allowed
+if (pasteRateLimiter.isAllowed('paste')) {
+  // Perform paste operation
+} else {
+  // Handle rate limit exceeded
+  const waitTime = pasteRateLimiter.getTimeUntilReset('paste');
+}
+
+// Check current count
+const count = historyRateLimiter.getCount('history-search');
+
+// Reset rate limit for specific operation
+pasteRateLimiter.reset('paste');
 ```
-- **Relative Formatting**: Human-readable relative timestamps
-- **Performance**: Efficient calculation using TIME_CALCULATIONS constants
-- **Granular Thresholds**: Minutes < 1 (Just now), < 60 (Xm ago), < 24h (Xh ago), else (Xd ago)
-- **Consistent Constants**: Uses TIME_CALCULATIONS for millisecond conversions
 
 ## Implementation Patterns
 
@@ -503,8 +670,60 @@ jest.mock('child_process', () => ({
 - **Console Method Selection**: Test proper console method selection for each level
 - **File Output**: Test file writing with temporary directories
 - **Structured Data**: Validate JSON serialization of complex objects
+- **Sensitive Data Masking**: Verify masking of passwords, tokens, API keys, secrets
 - **Error Handling**: Test file write failures and recovery
 - **Configuration Loading**: Test safe config loading with fallback defaults
+
+**Security Testing:**
+```typescript
+describe('Security Utilities', () => {
+  it('should sanitize command arguments', () => {
+    const dangerous = 'test; rm -rf /';
+    const safe = sanitizeCommandArgument(dangerous);
+    expect(safe).not.toContain(';');
+    expect(safe).not.toContain('rm');
+  });
+
+  it('should validate command argument safety', () => {
+    expect(isCommandArgumentSafe('safe-input')).toBe(true);
+    expect(isCommandArgumentSafe('danger;ous')).toBe(false);
+    expect(isCommandArgumentSafe('../../../etc/passwd')).toBe(false);
+  });
+
+  it('should provide secure error messages', () => {
+    const error = new Error('Internal database connection failed');
+    const { logMessage, userMessage } = handleError(error, 'Database operation');
+    expect(logMessage).toContain('Internal database');
+    expect(userMessage).toBe(SecureErrors.OPERATION_FAILED);
+  });
+});
+```
+
+**Rate Limiter Testing:**
+```typescript
+describe('Rate Limiter', () => {
+  it('should allow requests within limit', () => {
+    const limiter = new RateLimiter({ windowMs: 1000, maxRequests: 3 });
+    expect(limiter.isAllowed('test')).toBe(true);
+    expect(limiter.isAllowed('test')).toBe(true);
+    expect(limiter.isAllowed('test')).toBe(true);
+  });
+
+  it('should block requests exceeding limit', () => {
+    const limiter = new RateLimiter({ windowMs: 1000, maxRequests: 2 });
+    limiter.isAllowed('test');
+    limiter.isAllowed('test');
+    expect(limiter.isAllowed('test')).toBe(false);
+  });
+
+  it('should reset after window expires', async () => {
+    const limiter = new RateLimiter({ windowMs: 100, maxRequests: 1 });
+    limiter.isAllowed('test');
+    expect(limiter.isAllowed('test')).toBe(false);
+    await new Promise(resolve => setTimeout(resolve, 150));
+    expect(limiter.isAllowed('test')).toBe(true);
+  });
+});
 
 **Native Tools Testing:**
 ```typescript
@@ -614,51 +833,107 @@ describe('AppleScript Security Functions', () => {
 
 ### Performance Testing
 - **Debounce Timing**: Verify debounce delays and immediate execution mode
-- **Throttle Behavior**: Test leading-edge throttling implementation
 - **Memory Leaks**: Monitor timeout cleanup and reference management
-- **File I/O Performance**: Measure file operation efficiency
+- **File I/O Performance**: Measure file operation efficiency with 0o700 permissions
 - **Native Tool Performance**: Test binary execution timing and timeout handling
 - **JSON Parsing Performance**: Benchmark safe JSON operations
+- **Rate Limiter Performance**: Test sliding window algorithm efficiency
+- **Masking Performance**: Benchmark sensitive data masking for large objects
+- **Directory Detection**: Measure native directory-detector performance (target: <5ms)
 
 ## Usage Guidelines
 
 ### Import Patterns
 ```typescript
 // Named imports for specific utilities
-import { logger, safeJsonParse, generateId } from '../utils/utils';
+import { logger, maskSensitiveData, safeJsonParse, generateId } from '../utils/utils';
+
+// Security utilities
+import { SecureErrors, handleError, sanitizeCommandArgument, isCommandArgumentSafe } from '../utils/utils';
 
 // Native tool utilities (macOS only)
-import { getCurrentApp, pasteWithNativeTool, activateAndPasteWithNativeTool } from '../utils/utils';
+import {
+  getCurrentApp,
+  pasteWithNativeTool,
+  activateAndPasteWithNativeTool,
+  detectCurrentDirectory,
+  detectCurrentDirectoryWithFiles,
+  listDirectory
+} from '../utils/utils';
 
 // System utilities
 import { getActiveWindowBounds, checkAccessibilityPermission } from '../utils/utils';
 
 // Performance utilities
-import { debounce, throttle, sleep } from '../utils/utils';
+import { debounce, sleep } from '../utils/utils';
 
 // File system utilities
 import { ensureDir, fileExists } from '../utils/utils';
 
-// Time utilities
-import { formatTimeAgo } from '../utils/utils';
+// AppleScript security
+import { sanitizeAppleScript, executeAppleScriptSafely, validateAppleScriptSecurity } from '../utils/utils';
+
+// Rate limiting (separate module)
+import { pasteRateLimiter, historyRateLimiter, imageRateLimiter, RateLimiter } from '../utils/rate-limiter';
+import type { RateLimitConfig } from '../utils/rate-limiter';
 ```
 
 ### Best Practices
-**Logging:**
+
+**Logging with Sensitive Data Masking:**
 ```typescript
-// Structured logging with context
-logger.info('Operation completed', { 
-  operation: 'paste', 
-  textLength: text.length, 
-  timestamp: Date.now() 
+// Structured logging with context (sensitive data automatically masked)
+logger.info('Operation completed', {
+  operation: 'paste',
+  textLength: text.length,
+  timestamp: Date.now(),
+  apiKey: 'secret123'  // Automatically masked in logs
 });
 
 // Error logging with full context
-logger.error('Operation failed', { 
-  error: error.message, 
-  stack: error.stack, 
-  context: operationContext 
+logger.error('Operation failed', {
+  error: error.message,
+  stack: error.stack,
+  context: operationContext
 });
+
+// Manual masking if needed
+const maskedData = maskSensitiveData(userData);
+logger.debug('User data', maskedData);
+```
+
+**Security Best Practices:**
+```typescript
+// Use secure error messages for user-facing errors
+try {
+  // Some operation
+} catch (error) {
+  const { logMessage, userMessage } = handleError(error as Error, 'Operation context');
+  logger.error(logMessage);
+  throw new Error(userMessage); // User sees generic message
+}
+
+// Sanitize command arguments before shell execution
+const userInput = sanitizeCommandArgument(rawInput, 256);
+// Or validate first
+if (!isCommandArgumentSafe(rawInput)) {
+  throw new Error(SecureErrors.INVALID_INPUT);
+}
+```
+
+**Rate Limiting:**
+```typescript
+// Check rate limit before performing operation
+if (!pasteRateLimiter.isAllowed('paste')) {
+  const waitTime = pasteRateLimiter.getTimeUntilReset('paste');
+  throw new Error(`Rate limit exceeded. Please wait ${waitTime}ms`);
+}
+// Perform paste operation
+
+// Use different rate limiters for different operations
+if (!historyRateLimiter.isAllowed('search')) {
+  // Handle rate limit
+}
 ```
 
 **Native Tools Usage:**
@@ -672,6 +947,13 @@ if (process.platform === 'darwin') {
     await pasteWithNativeTool(); // Fallback strategy
   }
 }
+
+// Directory detection with error handling
+const directory = await detectCurrentDirectory({ timeout: 5000 });
+if (directory) {
+  const { files } = await detectCurrentDirectoryWithFiles({ timeout: 5000 });
+  // Use detected directory and files
+}
 ```
 
 **Safe Operations:**
@@ -683,7 +965,7 @@ const jsonString = safeJsonStringify(data, '{}');
 
 // File operations with error handling
 try {
-  await ensureDir(directoryPath);
+  await ensureDir(directoryPath);  // Creates with 0o700 permissions
   const exists = await fileExists(filePath);
   if (!exists) {
     await fs.writeFile(filePath, content);
@@ -696,35 +978,48 @@ try {
 
 ## Exported Functions
 
-The utils module exports the following functions:
+The utils module exports the following functions from specialized modules:
 
+**From utils.ts (main export hub):**
 ```typescript
 export {
-  // Core utilities
+  // Logger (from logger.ts)
   logger,                           // Logger instance
-  debounce,                       // Function debouncing
-  throttle,                       // Function throttling
-  safeJsonParse,                  // Safe JSON parsing
-  safeJsonStringify,              // Safe JSON stringification
-  generateId,                     // Generate unique IDs
-  formatTimeAgo,                  // Format relative timestamps
-  ensureDir,                      // Ensure directory exists
-  fileExists,                     // Check file existence
-  sleep,                          // Promise-based delay
-  
-  // Native macOS integration
-  getCurrentApp,                    // Get current active application info
+  maskSensitiveData,               // Mask sensitive data in logs
+
+  // Security (from security.ts)
+  SecureErrors,                    // Secure error message constants
+  handleError,                     // Error handler helper
+  sanitizeCommandArgument,         // Sanitize command arguments
+  isCommandArgumentSafe,           // Validate command argument safety
+
+  // Native tools (from native-tools.ts)
+  getCurrentApp,                   // Get current active application info
   getActiveWindowBounds,           // Get active window bounds
   pasteWithNativeTool,            // Simple paste using native tool
   activateAndPasteWithNativeTool, // Activate app and paste
   checkAccessibilityPermission,   // Check accessibility permissions
-  
-  // Native tool paths
+  detectCurrentDirectory,         // Detect current working directory
+  detectCurrentDirectoryWithFiles, // Detect directory with file listing
+  listDirectory,                  // List directory files
   KEYBOARD_SIMULATOR_PATH,        // Path to keyboard-simulator binary
-  WINDOW_DETECTOR_PATH,           // Path to window-detector binary
   TEXT_FIELD_DETECTOR_PATH,       // Path to text-field-detector binary
+  WINDOW_DETECTOR_PATH,           // Path to window-detector binary
   DIRECTORY_DETECTOR_PATH,        // Path to directory-detector binary
-  
+  FILE_SEARCHER_PATH,             // Path to file-searcher binary
+  SYMBOL_SEARCHER_PATH,           // Path to symbol-searcher binary
+
+  // Common utilities (from common.ts)
+  debounce,                       // Function debouncing
+  safeJsonParse,                  // Safe JSON parsing
+  safeJsonStringify,              // Safe JSON stringification
+  generateId,                     // Generate unique IDs
+  sleep,                          // Promise-based delay
+
+  // File utilities (from file-utils.ts)
+  ensureDir,                      // Ensure directory exists
+  fileExists,                     // Check file existence
+
   // AppleScript security (from apple-script-sanitizer.ts)
   sanitizeAppleScript,            // Sanitize AppleScript input
   executeAppleScriptSafely,       // Execute AppleScript with security
@@ -732,13 +1027,54 @@ export {
 };
 ```
 
+**From rate-limiter.ts (separate export):**
+```typescript
+export {
+  RateLimiter,                    // Rate limiter class
+  pasteRateLimiter,              // Pre-configured for paste operations
+  historyRateLimiter,            // Pre-configured for history operations
+  imageRateLimiter,              // Pre-configured for image operations
+};
+export type { RateLimitConfig };   // Rate limiter configuration type
+```
+
 ## Dependencies
 
+**External Dependencies:**
 - **Node.js Built-ins**: `child_process`, `fs/promises`, `path`, `os`
 - **Electron**: `app` (for packaged mode detection)
-- **Internal**: `../types`, `../constants`, `../config/app-config`
-- **Native Tools**: `window-detector`, `keyboard-simulator`, `text-field-detector` binaries
-- **Security Module**: `./apple-script-sanitizer` for AppleScript security functions
+
+**Internal Dependencies:**
+- `../types`: Type definitions (LogLevel, DebounceFunction, AppInfo, WindowBounds, etc.)
+- `../constants`: Constants (TIME_CALCULATIONS, TIMEOUTS, etc.)
+- `../config/app-config`: Application configuration
+
+**Module Dependencies:**
+```
+utils.ts (re-export hub)
+  ├── logger.ts (logging, masking)
+  ├── common.ts (general utilities)
+  ├── security.ts (security utilities)
+  ├── file-utils.ts (file operations)
+  ├── apple-script-sanitizer.ts (AppleScript security)
+  └── native-tools.ts (re-export hub)
+      └── native-tools/
+          ├── index.ts (main export hub)
+          ├── paths.ts (path constants)
+          ├── app-detection.ts (app/window detection)
+          ├── paste-operations.ts (paste operations)
+          └── directory-operations.ts (directory operations)
+
+rate-limiter.ts (independent module)
+```
+
+**Native Tools:**
+- `window-detector`: Window bounds and app detection
+- `keyboard-simulator`: Keyboard simulation and app activation
+- `text-field-detector`: Focused text field detection
+- `directory-detector`: Current working directory detection
+- `file-searcher`: Fast file listing with fd
+- `symbol-searcher`: Code symbol search with ripgrep
 
 ## Platform Support
 

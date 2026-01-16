@@ -238,14 +238,26 @@ text-field-detector focused-element    # Get information about focused element
 - **Ghostty**: Uses container detection via parent hierarchy traversal
 - **Other terminals**: Falls back to container detection when text field not exposed
 
-### directory-detector.swift
+### directory-detector/ (Multi-file tool)
 Native tool for terminal/IDE directory detection and file search:
+
+**Directory Structure:**
+- `directory-detector/main.swift` - Entry point and CLI handling
+- `directory-detector/DirectoryDetector.swift` - Main coordinator for detection logic
+- `directory-detector/CWDDetector.swift` - CWD detection using libproc
+- `directory-detector/TerminalDetector.swift` - Terminal-specific detection (Terminal.app, iTerm2)
+- `directory-detector/IDEDetector.swift` - IDE-specific detection (VSCode, JetBrains, Cursor, etc.)
+- `directory-detector/ProcessTree.swift` - Process tree traversal utilities
+- `directory-detector/MultiplexerDetector.swift` - tmux/screen multiplexer detection
 
 **Core Functionality:**
 ```swift
 class DirectoryDetector {
     static func detectCurrentDirectory() -> [String: Any]
     static func getFileList(from directory: String) -> FileListResult?
+}
+
+class CWDDetector {
     static func getCwdFromPid(_ pid: pid_t) -> String?
 }
 ```
@@ -411,7 +423,7 @@ Native tool for code symbol search across 20+ programming languages using ripgre
 - `symbol-searcher/Types.swift` - Type definitions for symbols and languages
 - `symbol-searcher/SymbolPatterns.swift` - Language-specific regex patterns for symbol detection
 - `symbol-searcher/RipgrepExecutor.swift` - ripgrep command execution and result parsing
-- `symbol-searcher/CacheManager.swift` - Deprecated: Cache management now handled by JS-side SymbolCacheManager
+- `symbol-searcher/CacheManager.swift` - Cache management (deprecated, use JS-side SymbolCacheManager)
 
 **Core Functionality:**
 ```swift

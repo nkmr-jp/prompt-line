@@ -4,12 +4,10 @@ This module contains specialized managers that handle core application functiona
 
 ## Files Overview
 
-The managers module consists of twelve main components plus a symbol-search sub-module:
+The managers module consists of sixteen main components plus two sub-modules:
 
 ### Core Managers
-- **window-manager.ts**: Advanced window lifecycle management with native app integration
-- **history-manager.ts**: Traditional unlimited history management with JSONL format
-- **optimized-history-manager.ts**: Performance-optimized history management with caching
+- **history-manager.ts**: Unlimited history management with JSONL format
 - **draft-manager.ts**: Intelligent draft auto-save with backup system
 - **settings-manager.ts**: YAML-based user configuration management
 - **desktop-space-manager.ts**: Ultra-fast desktop space change detection for window recreation
@@ -19,21 +17,43 @@ The managers module consists of twelve main components plus a symbol-search sub-
 - **directory-manager.ts**: Directory operations and CWD management
 - **symbol-cache-manager.ts**: Language-separated symbol search caching with JSONL storage
 - **at-path-cache-manager.ts**: @path pattern caching for file highlighting
+- **slash-command-cache-manager.ts**: Slash command caching with TTL-based invalidation
+- **built-in-commands-manager.ts**: Built-in command definitions and management
+- **usage-history-manager.ts**: Base class for usage history tracking with LRU-based management
+- **agent-usage-history-manager.ts**: Agent usage history tracking for smart suggestions
+- **file-usage-history-manager.ts**: File usage history tracking for smart suggestions
+- **symbol-usage-history-manager.ts**: Symbol usage history tracking for smart suggestions
 
 ### Sub-Modules
 - **symbol-search/**: Native symbol search integration with ripgrep (types.ts, symbol-searcher.ts, index.ts)
+- **window/**: Advanced window lifecycle management with native app integration (10 files including strategies/)
 
 ## Implementation Details
 
-### window-manager.ts
-WindowManager class controlling Electron window lifecycle with native macOS integration:
+### window/ (Sub-Module)
+Advanced window lifecycle management with native macOS integration using modular architecture.
 
-**Core Window Management:**
+**Module Structure:**
+- `window-manager.ts`: Main window lifecycle controller
+- `position-calculator.ts`: Window positioning algorithms
+- `native-tool-executor.ts`: Native tool execution with timeout protection
+- `directory-detector.ts`: Directory detection orchestration
+- `directory-detector-utils.ts`: Directory detection utility functions
+- `directory-cache-helper.ts`: Directory detection caching for performance
+- `text-field-bounds-detector.ts`: Text field bounds detection
+- `types.ts`: Type definitions for window module
+- `index.ts`: Public API exports
+- `strategies/`: Detection strategy implementations
+  - `native-detector-strategy.ts`: Native tool-based detection strategy
+  - `types.ts`: Strategy type definitions
+  - `index.ts`: Strategy exports
+
+**window-manager.ts - Core Window Management:**
 - BrowserWindow creation with dynamic configuration from settings
 - Advanced window positioning with four positioning modes:
   - `active-text-field`: Positions near currently focused text field (default)
   - `active-window-center`: Centers within currently active window
-  - `cursor`: Positions at mouse cursor location  
+  - `cursor`: Positions at mouse cursor location
   - `center`: Centers on primary display with slight upward offset (-100px)
 - Multi-monitor aware positioning with screen boundary constraints
 - Intelligent window reuse: checks if window exists and is visible before creating new
@@ -43,13 +63,14 @@ WindowManager class controlling Electron window lifecycle with native macOS inte
 - Previous app detection using `getCurrentApp()` with native `window-detector` tool
 - App restoration via `focusPreviousApp()` with native `keyboard-simulator` tool
 - Text field detection using native `text-field-detector` for precise positioning
-- Native Swift tools: `window-detector`, `keyboard-simulator`, `text-field-detector`
+- Directory detection using native `directory-detector` tool with caching
+- Native Swift tools: `window-detector`, `keyboard-simulator`, `text-field-detector`, `directory-detector`
 - Bundle ID and app name support for reliable app activation
 - JSON response parsing from native tools with comprehensive error handling
-- 3-second timeout protection for native tool execution
+- 3-5 second timeout protection for native tool execution
 - Accessibility permission management with automatic user guidance
 
-**Advanced Positioning Algorithm:**
+**position-calculator.ts - Positioning Algorithms:**
 ```typescript
 // Active window center positioning
 const activeWindowBounds = await getActiveWindowBounds();
@@ -63,6 +84,17 @@ x = Math.max(bounds.x, Math.min(x, bounds.x + bounds.width - windowWidth));
 y = Math.max(bounds.y, Math.min(y, bounds.y + bounds.height - windowHeight));
 ```
 
+**directory-detector.ts - Directory Detection:**
+- Orchestrates directory detection with native tool integration
+- Supports multiple source applications (Terminal, iTerm2, VSCode, JetBrains IDEs, etc.)
+- Caching strategy for performance optimization
+- Fallback chain for robust detection
+
+**directory-cache-helper.ts - Caching:**
+- 2-second cache TTL for directory detection results
+- Reduces expensive native tool calls
+- Cache invalidation on directory changes
+
 **Event Handling & Security:**
 - Context menu prevention via webContents event handling
 - Tab key prevention to avoid unwanted navigation
@@ -71,7 +103,7 @@ y = Math.max(bounds.y, Math.min(y, bounds.y + bounds.height - windowHeight));
 - Settings-driven window customization with runtime updates
 
 ### history-manager.ts
-Traditional HistoryManager with full-file based JSONL persistence:
+HistoryManager with full-file based JSONL persistence:
 
 **File Format & Persistence:**
 - JSONL (JSON Lines) format: `{"text": "content", "timestamp": 1234567890, "id": "abc123"}`
@@ -101,34 +133,61 @@ interface ExportData {
 }
 ```
 
-### optimized-history-manager.ts
-Performance-optimized HistoryManager for large datasets with caching strategy:
+### usage-history-manager.ts
+Base class for usage history tracking with LRU-based management:
 
-**Caching Architecture:**
-- LRU cache of recent items (LIMITS.MAX_VISIBLE_ITEMS = 200)
-- Duplicate check set for O(1) duplicate detection in cache
-- Background total count calculation to avoid blocking startup
-- Append-only file operations for better performance with large files
-
-**Advanced File Operations:**
-- `readLastNLines()`: Efficient backward file reading with 8KB chunks
-- Streaming line processing for large files using readline interface
-- Append queue with debounced batch writes (100ms debounce)
-- Atomic file operations for item removal with temporary file strategy
-
-**Memory Management:**
+**Core Functionality:**
 ```typescript
-private recentCache: HistoryItem[] = []; // 最新N件のキャッシュ
-private duplicateCheckSet = new Set<string>(); // O(1) duplicate detection
-private totalItemCount = 0; // Background calculated total
-private appendQueue: HistoryItem[] = []; // Batch append queue
+abstract class UsageHistoryManager<T extends UsageHistoryEntry> {
+  abstract getStoragePath(): string;
+  async recordUsage(item: T): Promise<void>;
+  async getHistory(limit?: number): Promise<T[]>;
+  async clearHistory(): Promise<void>;
+}
 ```
 
-**Performance Features:**
-- Lazy total count calculation (background after startup)
-- Cache-first operations for UI responsiveness
-- Streaming export/import for large datasets
-- Optimized search within cached items only
+**Features:**
+- LRU (Least Recently Used) cache management with configurable limits
+- Automatic deduplication based on unique identifiers
+- JSONL storage format for efficient append operations
+- Timestamp-based sorting (newest first)
+- Generic type support for different history item types
+
+### agent-usage-history-manager.ts
+Agent usage history tracking for smart suggestions:
+
+**Storage:**
+- File path: `~/.prompt-line/agent-usage-history.jsonl`
+- Entry format: `{id: string, timestamp: number}`
+
+**Features:**
+- Extends UsageHistoryManager base class
+- Records agent selection frequency
+- Provides smart agent suggestions based on usage patterns
+
+### file-usage-history-manager.ts
+File usage history tracking for smart suggestions:
+
+**Storage:**
+- File path: `~/.prompt-line/file-usage-history.jsonl`
+- Entry format: `{path: string, timestamp: number}`
+
+**Features:**
+- Extends UsageHistoryManager base class
+- Records file access frequency
+- Provides smart file suggestions based on usage patterns
+
+### symbol-usage-history-manager.ts
+Symbol usage history tracking for smart suggestions:
+
+**Storage:**
+- File path: `~/.prompt-line/symbol-usage-history.jsonl`
+- Entry format: `{name: string, type: string, filePath: string, timestamp: number}`
+
+**Features:**
+- Extends UsageHistoryManager base class
+- Records symbol access frequency
+- Provides smart symbol suggestions based on usage patterns
 
 ### draft-manager.ts
 Intelligent draft management with adaptive auto-save and backup system:
@@ -504,6 +563,47 @@ interface AtPathEntry {
 - Project-level and global separation for different content types
 - JSONL format with one entry per line for streaming
 
+### slash-command-cache-manager.ts
+Slash command caching with TTL-based invalidation:
+
+**Core Functionality:**
+```typescript
+class SlashCommandCacheManager {
+  async loadCommands(directory: string): Promise<SlashCommandItem[]>
+  async saveCommands(directory: string, commands: SlashCommandItem[]): Promise<void>
+  async isCacheValid(directory: string): Promise<boolean>
+  async clearCache(directory: string): Promise<void>
+}
+```
+
+**Storage:**
+- Cache location: `~/.prompt-line/cache/<encoded-path>/slash-commands.json`
+- Metadata: `{commands: SlashCommandItem[], timestamp: number, ttl: number}`
+
+**Features:**
+- TTL-based cache invalidation (default: 1 hour)
+- Directory-specific caching
+- Automatic cache expiration based on file modification time
+- Reduces expensive file system operations for slash command loading
+
+### built-in-commands-manager.ts
+Built-in command definitions and management:
+
+**Core Functionality:**
+```typescript
+class BuiltInCommandsManager {
+  getCommands(): BuiltInCommand[]
+  getCommand(id: string): BuiltInCommand | undefined
+  executeCommand(id: string, context: CommandContext): Promise<void>
+}
+```
+
+**Features:**
+- Defines system-level built-in commands
+- Provides command metadata and execution handlers
+- Integrated with slash command system
+- Examples: clear history, open settings, show help, etc.
+
 ## Manager Pattern Implementation
 
 ### Common Patterns
@@ -560,18 +660,14 @@ The window positioning system uses a sophisticated multi-step process:
 4. **Boundary Constraints**: Ensures window stays within screen bounds on multi-monitor setups
 5. **Precise Positioning**: Uses `Math.round()` for pixel-perfect placement
 
-### History Management Strategies
+### History Management Strategy
 
-**Traditional HistoryManager (history-manager.ts):**
+**HistoryManager (history-manager.ts):**
 - Complete file rewrite approach for atomic operations
 - Full dataset loaded into memory for fast access
-- Suitable for moderate history sizes (< 10,000 items)
-
-**OptimizedHistoryManager (optimized-history-manager.ts):**
-- Streaming file operations with LRU caching
-- Background total count calculation
-- Designed for unlimited history with minimal memory footprint
-- Suitable for large datasets (> 10,000 items)
+- Debounced save operations for performance
+- JSONL format for efficient storage and parsing
+- Supports unlimited history with duplicate prevention
 
 ### Draft Persistence Strategy (draft-manager.ts)
 **Adaptive Debouncing Logic:**
@@ -637,12 +733,19 @@ if (textFieldBounds) {
 - Test positioning algorithms with various screen configurations
 - Verify native app detection and restoration flows
 - Test window recreation and data injection
+- Test directory detection with caching
 
-**HistoryManager/OptimizedHistoryManager:**
+**HistoryManager:**
 - Test JSONL file parsing with malformed lines
-- Verify duplicate prevention and caching behavior
+- Verify duplicate prevention
 - Test search functionality with various query patterns
 - Verify export/import operations with version handling
+
+**UsageHistoryManagers:**
+- Test LRU cache management with limits
+- Verify deduplication logic
+- Test timestamp-based sorting
+- Test JSONL storage operations
 
 **DraftManager:**
 - Test adaptive debouncing with different text sizes
@@ -669,17 +772,18 @@ if (textFieldBounds) {
 - Test error propagation and recovery across manager boundaries
 - Verify resource cleanup during app shutdown
 
-## Migration Notes
+## Architecture Notes
 
-### From HistoryManager to OptimizedHistoryManager
-The application can use either history manager implementation:
-- **HistoryManager**: Traditional approach with full file operations
-- **OptimizedHistoryManager**: Streaming approach with caching for better performance
+### Window Module Refactoring
+The window management functionality has been refactored into a modular architecture:
+- **Separation of Concerns**: Each component (positioning, detection, caching) has dedicated files
+- **Strategy Pattern**: Detection strategies are pluggable through the strategies/ subdirectory
+- **Improved Testability**: Smaller, focused modules are easier to test in isolation
+- **Enhanced Caching**: Directory detection caching reduces expensive native tool calls
 
-Both implement the same `IHistoryManager` interface ensuring seamless interchangeability.
-
-### Key Differences:
-- **Memory Usage**: OptimizedHistoryManager uses fixed-size cache vs full dataset in memory
-- **Startup Time**: OptimizedHistoryManager has faster startup with background total count
-- **File Operations**: OptimizedHistoryManager uses append-only operations vs complete rewrites
-- **Search Scope**: OptimizedHistoryManager searches within cache only vs full dataset
+### Usage History Pattern
+The usage history managers follow a consistent inheritance pattern:
+- **Base Class**: UsageHistoryManager provides common LRU functionality
+- **Specialized Managers**: agent-usage, file-usage, and symbol-usage extend the base
+- **Type Safety**: Generic type parameter ensures type-safe operations
+- **Consistent API**: All usage managers share the same interface

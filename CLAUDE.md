@@ -156,9 +156,12 @@ The app uses Electron's two-process model with clean separation:
   - `renderer.ts`: Main renderer class with integrated keyboard handling and manager pattern
   - `ui-manager.ts`: Advanced UI management with themes, animations, and notifications
   - `input.html`: Main window template
-  - 13+ specialized managers: DOM, events, search, lifecycle, shortcuts, animation, file-search, slash-commands, history-ui, and more
+  - 15+ specialized managers: DOM, events, search, lifecycle, shortcuts, animation, mentions, slash-commands, history-ui, and more
   - Comprehensive CSS architecture with themes and modular stylesheets
   - TypeScript configuration and utility functions
+  - `interfaces/`: Shared TypeScript type definitions
+  - `services/`: Service layer components
+  - `lib/`: Shared library code
 - **Preload Script** (`src/preload/preload.ts`): Secure context bridge with whitelisted IPC channels
 - **IPC Handlers** (`src/handlers/`): Modular handler architecture with 8 specialized components:
   - `ipc-handlers.ts`: Main coordinator that delegates to specialized handlers
@@ -205,19 +208,26 @@ Core functionality is organized into specialized managers:
 - **EventHandler**: Centralized event processing
 - **SearchManager**: Search functionality implementation
 - **SlashCommandManager**: Slash command processing and execution
-- **FileSearchManager** (`src/renderer/file-search/`): Modular architecture with 7 components:
-  - `file-search-manager.ts`: Main orchestration layer for @ mention file search
-  - `cache-manager.ts`: Directory data caching with two-stage loading
-  - `fuzzy-matcher.ts`: File filtering and scoring algorithms
-  - `highlighter.ts`: @path highlighting and tracking in textarea
-  - `path-utils.ts`: Path detection, coordinates, and file opening
-  - `types.ts`: Type definitions for file-search module
-  - `index.ts`: Public API exports
-  - Fuzzy matching with score-based ranking (disabled by default)
+- **MentionSystem** (`src/renderer/mentions/`): Modular @ mention architecture with 15+ specialized managers:
+  - `mention-initializer.ts`: System initialization and lifecycle management
+  - `mention-state.ts`: Centralized state management for mention system
+  - `suggestion-ui-manager.ts`: UI rendering and interaction for suggestions
+  - `popup-manager.ts`: Popup positioning and lifecycle control
+  - `file-filter-manager.ts`: File filtering and scoring algorithms
+  - `directory-cache-manager.ts`: Directory data caching with two-stage loading
+  - `navigation-manager.ts`: Keyboard navigation and selection handling
+  - `path-manager.ts`: Path detection, insertion, and tracking
+  - `base-cache-manager.ts`: Base cache functionality for directory and code search
+  - `highlight-manager.ts`: @path highlighting and visual tracking
+  - `file-opener-event-handler.ts`: File opening via Cmd+click
+  - `code-search-manager.ts`: Symbol search integration with ripgrep
+  - `event-listener-manager.ts`: Event lifecycle management
+  - `query-extraction-manager.ts`: Query parsing and extraction
+  - `settings-cache-manager.ts`: Settings caching and updates
+  - Supports file search (`@`), code search (`@lang:query`), and directory navigation (`@dir/`)
 - **HistoryUIManager**: History display and interaction management
 - **SnapshotManager**: Undo/redo functionality with text and cursor state tracking
 - **HistorySearchManager** (`src/renderer/history-search/`): Score-based history search with fuzzy matching
-- **CodeSearchManager** (`src/renderer/code-search/`): Symbol search types and utilities for 20+ languages
 
 ### Data Flow
 ```
@@ -393,10 +403,11 @@ The window supports multiple positioning modes with dynamic configuration:
 - **Real-time search** with highlighting and case-insensitive matching
 - **Streaming operations** for large files with efficient append-only strategy
 
-### File Search Feature
-- **@ mention syntax**: Type `@` to trigger file search with directory navigation support
-- **Modular architecture**: 7 specialized modules (cache-manager, fuzzy-matcher, highlighter, path-utils, etc.)
-- **Fuzzy matching**: Score-based ranking (exact: 1000, starts-with: 500, contains: 200, fuzzy: 10)
+### @ Mention System (File & Code Search)
+- **@ mention syntax**: Type `@` to trigger file search, `@lang:query` for code search
+- **Modular architecture**: 15+ specialized managers for mentions functionality
+- **File search**: Directory navigation with fuzzy matching and score-based ranking
+- **Code search**: Symbol search with ripgrep integration for 20+ languages
 - **Hybrid loading strategy**: Stage 1 (quick single-level) + Stage 2 (recursive fd command)
 - **@path highlighting**: Visual highlighting in textarea with Cmd+click to open files
 - **Undo/redo support**: Full undo/redo integration for file path insertion
@@ -417,9 +428,10 @@ The window supports multiple positioning modes with dynamic configuration:
   - Antigravity (`com.google.antigravity`) - tmux-based terminal
   - Kiro (`dev.kiro.desktop`)
 
-### Code Search / Symbol Search
+### Code Search (Symbol Search)
 - **Syntax**: Type `@<language>:<query>` to search for symbols (e.g., `@ts:Config`, `@go:Handler`)
-- **ripgrep-based**: Uses `rg` (ripgrep) for fast symbol searching
+- **Part of @ mention system**: Integrated with file search in `src/renderer/mentions/`
+- **ripgrep-based**: Uses `rg` (ripgrep) for fast symbol searching via `code-search-manager.ts`
 - **Native Swift tool**: `symbol-searcher` binary in `native/symbol-searcher/`
 - **Symbol caching**: Results cached per directory and language for faster subsequent searches
 - **Supported languages (20)**:
@@ -476,7 +488,7 @@ The window supports multiple positioning modes with dynamic configuration:
 - **Explicit permissions**: Requires user accessibility permissions with guided setup
 - **Local data only**: All data stored locally, no network requests
 - **JSON communication**: Structured data exchange prevents parsing attacks
-- **XSS prevention**: Safe SVG injection using DOMParser in file-search module
+- **XSS prevention**: Safe SVG injection using DOMParser in mentions module
 
 ## Common Build Issues and Troubleshooting
 
