@@ -64,27 +64,6 @@ historySearchTestCases.forEach(testCase => {
 });
 ```
 
-### `symbol-search-cases.ts`
-Test cases for symbol (code) search scoring, covering:
-- **Camel case priority**: `mc` → `MyConfig` > `matchCase`
-- **Recently edited file symbols priority**: Symbols from recent files rank higher
-- **Language-specific filtering**: Filter by programming language
-- **Symbol type consideration**: Interface, class, function, etc.
-- **Path depth tiebreaker**: Shorter paths preferred
-
-**Usage:**
-```typescript
-import { symbolSearchTestCases } from './tests/fixtures/scoring';
-
-symbolSearchTestCases.forEach(testCase => {
-  // testCase.query - search query
-  // testCase.symbols - array of symbol objects with name, type, filePath, language, lastModified
-  // testCase.expected - expected order of symbol names
-  // testCase.description - human-readable description
-  // testCase.language - optional language filter
-});
-```
-
 ### `real-data-loader.ts`
 Utilities for loading real user data from `~/.prompt-line` for realistic testing:
 - `loadRealTestData()` - Loads history, file usage, slash commands, and agents
@@ -127,15 +106,14 @@ Each test case includes:
 import {
   fileSearchTestCases,
   slashCommandTestCases,
-  historySearchTestCases,
-  symbolSearchTestCases
+  historySearchTestCases
 } from './tests/fixtures/scoring';
 
-describe('FzfScorer with file search', () => {
+describe('File search scoring', () => {
   fileSearchTestCases.forEach(testCase => {
     it(testCase.description, () => {
       // Test implementation
-      const results = scorer.scoreFiles(testCase.query, testCase.files);
+      const results = scoreFiles(testCase.query, testCase.files);
       const resultPaths = results.map(r => r.path);
       expect(resultPaths).toEqual(testCase.expected);
     });
@@ -153,9 +131,3 @@ To add new test cases:
 4. Include clear `expected` order
 5. Write descriptive `description`
 6. Keep it minimal (KISS principle)
-
-## Related Files
-
-- `/src/lib/fzf-scorer.ts` - Main scoring algorithm
-- `/tests/unit/fzf-scorer.test.ts` - Unit tests for scorer
-- `/.claude/artifact/202601150329-impl-fzf-search-plan.md` - Implementation plan

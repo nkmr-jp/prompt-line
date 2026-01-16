@@ -6,5 +6,4 @@
 export * from './file-search-cases';
 export * from './slash-command-cases';
 export * from './history-search-cases';
-export * from './symbol-search-cases';
 export * from './real-data-loader';
