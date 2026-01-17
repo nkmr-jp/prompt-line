@@ -136,7 +136,6 @@
   "overrides": {
     "js-yaml": "^4.1.1",
     "test-exclude": "^7.0.1",
-    "@electron/asar": "^4.0.1",
-    "tar": "^7.5.3"
+    "@electron/asar": "^4.0.1"
   }
 }
