@@ -1,3 +1,10 @@
+## [0.18.1](https://github.com/nkmr-jp/prompt-line/compare/v0.18.0...v0.18.1) (2026-01-17)
+
+### Maintenance
+
+* **deps:** update jest, ts-jest, and ts-node with lock file regeneration ([a0b4809](https://github.com/nkmr-jp/prompt-line/commit/a0b48093bbc3d31ac15474b126d34ef6f6a0b408))
+* **deps:** upgrade tar to 7.5.3 and remove duplicate dependencies ([b7b6464](https://github.com/nkmr-jp/prompt-line/commit/b7b646466ce1d48a0eff5110ea8a53d2ae97a792))
+
 ## [0.18.0](https://github.com/nkmr-jp/prompt-line/compare/v0.17.0...v0.18.0) (2026-01-16)
 
 ### Features
