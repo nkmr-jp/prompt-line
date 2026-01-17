@@ -1,3 +1,13 @@
+## [0.18.2](https://github.com/nkmr-jp/prompt-line/compare/v0.18.1...v0.18.2) (2026-01-17)
+
+### Bug Fixes
+
+* **deps:** correct ts-node version from 1.7.1 to 10.9.2 ([1f9c990](https://github.com/nkmr-jp/prompt-line/commit/1f9c99063d06516b02b2cabb3b8604b3003c4050))
+
+### Maintenance
+
+* **deps:** remove tar override to fix @electron/rebuild compatibility ([fd22e14](https://github.com/nkmr-jp/prompt-line/commit/fd22e148d6809ef04fda6d5ef93bb440af0e5cbf))
+
 ## [0.18.1](https://github.com/nkmr-jp/prompt-line/compare/v0.18.0...v0.18.1) (2026-01-17)
 
 ### Maintenance
