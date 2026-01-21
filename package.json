@@ -54,7 +54,7 @@
     "@typescript-eslint/parser": "^8.34.0",
     "conventional-changelog-conventionalcommits": "^9.1.0",
     "electron": "^36.9.5",
-    "electron-builder": "26.4.0",
+    "electron-builder": "^26.5.0",
     "electron-mock-ipc": "0.3.12",
     "eslint": "^9.29.0",
     "eslint-plugin-jest": "^28.11.0",
