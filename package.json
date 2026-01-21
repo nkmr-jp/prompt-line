@@ -24,6 +24,7 @@
     "test:mutation": "stryker run",
     "pre-push": "npm run lint && npm run typecheck && npm test",
     "prepare": "husky",
+    "postinstall": "node scripts/fix-npm-vulnerabilities.js",
     "reset-accessibility": "tccutil reset Accessibility com.electron.prompt-line && echo '✅ Accessibility permissions for Prompt Line have been reset'",
     "generate:settings-example": "npx ts-node scripts/generate-settings-example.ts"
   },
@@ -73,6 +74,7 @@
   "build": {
     "appId": "com.electron.prompt-line",
     "productName": "Prompt Line",
+    "npmRebuild": false,
     "files": [
       "dist/**/*",
       "assets/**/*",
@@ -137,8 +139,21 @@
     "js-yaml": "^4.1.1",
     "test-exclude": "^7.0.1",
     "@electron/asar": "^4.0.1",
+    "diff": "^8.0.3",
+    "undici": "^7.18.2",
+    "tar": "^7.5.6",
+    "cacache": {
+      "tar": "^7.5.6"
+    },
     "app-builder-lib": {
-      "tar": "^7.5.4"
+      "tar": "^7.5.6"
+    },
+    "node-gyp": {
+      "tar": "^7.5.6"
+    },
+    "npm": {
+      "tar": "^7.5.6",
+      "diff": "^8.0.3"
     }
   }
 }
