@@ -1,3 +1,9 @@
+## [0.18.3](https://github.com/nkmr-jp/prompt-line/compare/v0.18.2...v0.18.3) (2026-01-22)
+
+### Maintenance
+
+* **deps-dev:** bump lodash-es ([cbc6c8b](https://github.com/nkmr-jp/prompt-line/commit/cbc6c8b943f6df5f993feea183d8e7ed6940b44d))
+
 ## [0.18.2](https://github.com/nkmr-jp/prompt-line/compare/v0.18.1...v0.18.2) (2026-01-17)
 
 ### Bug Fixes
