@@ -1,3 +1,9 @@
+## [0.18.5](https://github.com/nkmr-jp/prompt-line/compare/v0.18.4...v0.18.5) (2026-01-29)
+
+### Maintenance
+
+* **deps:** bump tar in the npm_and_yarn group across 1 directory ([6388037](https://github.com/nkmr-jp/prompt-line/commit/6388037d012ac79a58239a6a9ad8d6b72847fb54))
+
 ## [0.18.4](https://github.com/nkmr-jp/prompt-line/compare/v0.18.3...v0.18.4) (2026-01-22)
 
 ### Maintenance
