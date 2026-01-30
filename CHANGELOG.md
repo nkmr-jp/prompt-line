@@ -1,3 +1,9 @@
+## [0.18.6](https://github.com/nkmr-jp/prompt-line/compare/v0.18.5...v0.18.6) (2026-01-30)
+
+### Maintenance
+
+* **config:** add configuration documentation and update peer dependency metadata ([f2e5af7](https://github.com/nkmr-jp/prompt-line/commit/f2e5af7a99cd6a4b302c98ea25aaa9b7d6337ad4))
+
 ## [0.18.5](https://github.com/nkmr-jp/prompt-line/compare/v0.18.4...v0.18.5) (2026-01-29)
 
 ### Maintenance
