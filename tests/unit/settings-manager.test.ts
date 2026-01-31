@@ -162,7 +162,7 @@ window:
           defaultEditor: null
         },
         slashCommands: {
-          builtIn: ['claude'],
+          builtIn: ['claude', 'openclaw'],
           custom: [
             {
               name: '{basename}',
@@ -354,7 +354,7 @@ window:
           defaultEditor: null
         },
         slashCommands: {
-          builtIn: ['claude'],
+          builtIn: ['claude', 'openclaw'],
           custom: [
             {
               name: '{basename}',

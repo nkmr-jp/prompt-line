@@ -48,7 +48,7 @@ export const defaultSettings: UserSettings = {
     defaultEditor: null
   },
   slashCommands: {
-    builtIn: ['claude'],
+    builtIn: ['claude', 'openclaw'],
     custom: [
       {
         name: '{basename}',
