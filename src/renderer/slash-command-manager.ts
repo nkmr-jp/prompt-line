@@ -16,7 +16,7 @@ interface SlashCommandItem {
   name: string;
   description: string;
   label?: string;  // Label text (e.g., from frontmatter)
-  color?: 'grey' | 'darkGrey' | 'purple' | 'teal' | 'green' | 'yellow' | 'orange' | 'pink' | 'red';  // Color for label and highlight
+  color?: 'grey' | 'darkGrey' | 'blue' | 'purple' | 'teal' | 'green' | 'yellow' | 'orange' | 'pink' | 'red';  // Color for label and highlight
   argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）

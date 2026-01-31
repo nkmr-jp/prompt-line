@@ -12,7 +12,7 @@ interface CommandDefinition {
   name: string;
   description: string;
   'argument-hint'?: string;
-  color?: 'grey' | 'darkGrey' | 'purple' | 'teal' | 'green' | 'yellow' | 'orange' | 'pink' | 'red';
+  color?: 'grey' | 'darkGrey' | 'blue' | 'purple' | 'teal' | 'green' | 'yellow' | 'orange' | 'pink' | 'red';
 }
 
 /**
@@ -21,7 +21,7 @@ interface CommandDefinition {
 interface BuiltInCommandsYaml {
   name?: string;  // Display name for the tool (e.g., "claude")
   reference?: string;  // Reference URL for documentation
-  color?: 'grey' | 'darkGrey' | 'purple' | 'teal' | 'green' | 'yellow' | 'orange' | 'pink' | 'red';  // Default color for all commands in this file
+  color?: 'grey' | 'darkGrey' | 'blue' | 'purple' | 'teal' | 'green' | 'yellow' | 'orange' | 'pink' | 'red';  // Default color for all commands in this file
   commands: CommandDefinition[];
 }
 
@@ -136,7 +136,7 @@ class BuiltInCommandsLoader {
     toolName: string,
     displayName: string,
     reference?: string,
-    defaultColor?: 'grey' | 'darkGrey' | 'purple' | 'teal' | 'green' | 'yellow' | 'orange' | 'pink' | 'red'
+    defaultColor?: 'grey' | 'darkGrey' | 'blue' | 'purple' | 'teal' | 'green' | 'yellow' | 'orange' | 'pink' | 'red'
   ): SlashCommandItem {
     // Determine color: command-level color takes precedence over file-level default color
     const color = cmd.color || defaultColor;
