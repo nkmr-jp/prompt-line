@@ -1,7 +1,7 @@
 # Claude Code built-in slash commands
 
 name: claude
-color: blue
+color: orange
 reference: https://code.claude.com/docs/en/interactive-mode#built-in-commands
 
 commands:

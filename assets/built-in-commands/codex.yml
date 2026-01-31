@@ -1,7 +1,7 @@
 # OpenAI Codex CLI built-in slash commands
 
 name: codex
-color: orange
+color: green
 reference: https://developers.openai.com/codex/cli/slash-commands/
 
 commands:

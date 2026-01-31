@@ -1,7 +1,7 @@
 # Google Gemini CLI built-in slash commands
 
 name: gemini
-color: purple
+color: blue
 reference: https://google-gemini.github.io/gemini-cli/docs/cli/commands.html
 
 commands:
