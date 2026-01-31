@@ -10,12 +10,17 @@ commands:
     description: Summarize the visible conversation to free tokens
   - name: diff
     description: Show the Git diff, including files Git isn't tracking yet
+  - name: elevate-sandbox
+    description: Upgrade to elevated sandbox mode for enhanced permissions
   - name: exit
     description: Exit the CLI
   - name: experimental
     description: Open the experimental menu to enable features from beta program
   - name: feedback
     description: Send logs to the Codex maintainers
+  - name: fork
+    description: Clone a conversation into a new thread
+    argument-hint: "[session]"
   - name: init
     description: Generate an AGENTS.md scaffold in the current directory
   - name: logout

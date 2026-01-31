@@ -30,6 +30,9 @@ commands:
   - name: export
     description: Export the current conversation to a file or clipboard
     argument-hint: "[filename]"
+  - name: fork
+    description: Clone a conversation into a new thread
+    argument-hint: "[session]"
   - name: help
     description: Get usage help
   - name: hooks
@@ -61,6 +64,9 @@ commands:
     description: View pull request comments
   - name: privacy-settings
     description: View and update your privacy settings
+  - name: remote-env
+    description: Configure remote sessions and environments
+    argument-hint: "[settings]"
   - name: release-notes
     description: View release notes
   - name: rename
@@ -83,6 +89,9 @@ commands:
     description: "Open the Settings interface (Status tab) showing version, model, account, and connectivity"
   - name: statusline
     description: "Set up Claude Code's status line UI"
+  - name: teleport
+    description: Resume sessions at claude.ai/code for seamless web integration
+    argument-hint: "[session]"
   - name: terminal-setup
     description: Install Shift+Enter key binding for newlines (iTerm2 and VSCode only)
   - name: todos
