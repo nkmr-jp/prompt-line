@@ -55,7 +55,7 @@ export const defaultSettings: UserSettings = {
         description: '{frontmatter@description}',
         path: '~/.claude/commands',
         label: 'command',
-        color: 'teal',
+        color: 'purple',
         pattern: '*.md',
         argumentHint: '{frontmatter@argument-hint}',
         maxSuggestions: 20
@@ -65,7 +65,7 @@ export const defaultSettings: UserSettings = {
         description: '{frontmatter@description}',
         path: '~/.claude/skills',
         label: 'skill',
-        color: 'teal',
+        color: 'purple',
         pattern: '**/*/SKILL.md',
         maxSuggestions: 20
       },
@@ -76,7 +76,7 @@ export const defaultSettings: UserSettings = {
         pattern: '**/commands/*.md',
         prefixPattern: '**/.claude-plugin/*.json@name',
         label: 'command',
-        color: 'red',
+        color: 'teal',
         argumentHint: '{frontmatter@argument-hint}',
         maxSuggestions: 20
       },
@@ -87,7 +87,7 @@ export const defaultSettings: UserSettings = {
         pattern: '**/*/SKILL.md',
         prefixPattern: '**/.claude-plugin/*.json@name',
         label: 'skill',
-        color: 'red',
+        color: 'teal',
         argumentHint: '{frontmatter@argument-hint}',
         maxSuggestions: 20
       }
