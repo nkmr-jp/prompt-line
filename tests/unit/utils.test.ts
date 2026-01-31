@@ -16,9 +16,9 @@ jest.mock('fs', () => ({
     }
 }));
 
-import { 
-    logger, 
-    getCurrentApp, 
+import {
+    logger,
+    getCurrentApp,
     pasteWithNativeTool,
     debounce,
     safeJsonParse,
@@ -30,7 +30,9 @@ import {
     getActiveWindowBounds,
     sanitizeCommandArgument,
     isCommandArgumentSafe,
-    activateAndPasteWithNativeTool
+    activateAndPasteWithNativeTool,
+    isValidHexColor,
+    validateColorValue
 } from '../../src/utils/utils';
 
 import { execFile } from 'child_process';
@@ -667,6 +669,141 @@ describe('Utils', () => {
                 );
 
                 Object.defineProperty(process, 'platform', { value: originalPlatform });
+            });
+        });
+    });
+
+    describe('Color Validation', () => {
+        describe('isValidHexColor', () => {
+            test('should return true for valid 6-digit hex colors', () => {
+                const validColors = [
+                    '#000000',
+                    '#FFFFFF',
+                    '#ff0000',
+                    '#0066CC',
+                    '#ABC123',
+                    '#abcdef',
+                    '#123456'
+                ];
+
+                validColors.forEach(color => {
+                    expect(isValidHexColor(color)).toBe(true);
+                });
+            });
+
+            test('should return true for valid 3-digit hex colors', () => {
+                const validColors = [
+                    '#000',
+                    '#FFF',
+                    '#f00',
+                    '#0AC',
+                    '#abc',
+                    '#123'
+                ];
+
+                validColors.forEach(color => {
+                    expect(isValidHexColor(color)).toBe(true);
+                });
+            });
+
+            test('should return false for invalid hex colors', () => {
+                const invalidColors = [
+                    '#GGGGGG',  // Invalid characters
+                    '#12345',   // 5 digits
+                    '#1234567', // 7 digits
+                    '000000',   // Missing #
+                    '#',        // Only hash
+                    '#12',      // 2 digits
+                    'blue',     // Named color
+                    '',         // Empty string
+                    '#XYZ',     // Invalid characters in 3-digit
+                    '#12G'      // Invalid character in 3-digit
+                ];
+
+                invalidColors.forEach(color => {
+                    expect(isValidHexColor(color)).toBe(false);
+                });
+            });
+        });
+
+        describe('validateColorValue', () => {
+            let consoleSpy: ReturnType<typeof captureConsole>;
+
+            beforeEach(() => {
+                consoleSpy = captureConsole();
+            });
+
+            afterEach(() => {
+                consoleSpy.restore();
+            });
+
+            test('should accept valid named colors', () => {
+                const namedColors = [
+                    'grey', 'darkGrey', 'blue', 'purple',
+                    'teal', 'green', 'yellow', 'orange',
+                    'pink', 'red'
+                ];
+
+                namedColors.forEach(color => {
+                    expect(validateColorValue(color)).toBe(color);
+                });
+            });
+
+            test('should accept valid hex color codes', () => {
+                const hexColors = [
+                    '#000000',
+                    '#FFFFFF',
+                    '#0066CC',
+                    '#FF5722',
+                    '#abc',
+                    '#F5A'
+                ];
+
+                hexColors.forEach(color => {
+                    expect(validateColorValue(color)).toBe(color);
+                });
+            });
+
+            test('should return default color for invalid values', () => {
+                const invalidColors = [
+                    'invalid-color',
+                    '#GGGGGG',
+                    '#12345',
+                    'notacolor',
+                    ''
+                ];
+
+                invalidColors.forEach(color => {
+                    const result = validateColorValue(color);
+                    expect(result).toBe('grey');
+                });
+            });
+
+            test('should return custom default color', () => {
+                const result = validateColorValue('invalid', 'blue');
+                expect(result).toBe('blue');
+            });
+
+            test('should return default for undefined input', () => {
+                expect(validateColorValue(undefined)).toBe('grey');
+                expect(validateColorValue(undefined, 'orange')).toBe('orange');
+            });
+
+            test('should log warning for invalid colors', () => {
+                validateColorValue('invalid-color');
+
+                const logs = consoleSpy.getLogs();
+                const warningLogs = logs.filter(log => log[0] === 'warn');
+                expect(warningLogs.length).toBeGreaterThan(0);
+            });
+
+            test('should not log warning for valid colors', () => {
+                validateColorValue('blue');
+                validateColorValue('#0066CC');
+
+                const logs = consoleSpy.getLogs();
+                const warningLogs = logs.filter(log => log[0] === 'warn');
+                expect(warningLogs).toHaveLength(0);
             });
         });
     });

@@ -35,7 +35,7 @@ export {
 export type { DirectoryDetectionOptions } from './native-tools';
 
 // Common utilities
-export { debounce, safeJsonParse, safeJsonStringify, generateId, sleep } from './common';
+export { debounce, safeJsonParse, safeJsonStringify, generateId, sleep, isValidHexColor, validateColorValue } from './common';
 
 // File utilities
 export { ensureDir, fileExists } from './file-utils';

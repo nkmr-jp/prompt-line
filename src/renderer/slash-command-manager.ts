@@ -3,7 +3,7 @@
  * Manages slash command suggestions and selection
  */
 
-import type { InputFormatType } from '../types';
+import type { InputFormatType, ColorValue } from '../types';
 import type { IInitializable } from './interfaces/initializable';
 import { FrontmatterPopupManager } from './frontmatter-popup-manager';
 import { highlightMatch } from './utils/highlight-utils';
@@ -16,7 +16,7 @@ interface SlashCommandItem {
   name: string;
   description: string;
   label?: string;  // Label text (e.g., from frontmatter)
-  color?: 'grey' | 'darkGrey' | 'blue' | 'purple' | 'teal' | 'green' | 'yellow' | 'orange' | 'pink' | 'red';  // Color for label and highlight
+  color?: ColorValue;  // Color for label and highlight (named color or hex code)
   argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）

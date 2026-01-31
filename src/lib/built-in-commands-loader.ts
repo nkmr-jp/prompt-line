@@ -2,8 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
 import config from '../config/app-config';
-import { logger } from '../utils/utils';
-import { SlashCommandItem } from '../types/window';
+import { logger, validateColorValue } from '../utils/utils';
+import { SlashCommandItem, ColorValue } from '../types/window';
 
 /**
  * Command definition in YAML file
@@ -12,7 +12,7 @@ interface CommandDefinition {
   name: string;
   description: string;
   'argument-hint'?: string;
-  color?: 'grey' | 'darkGrey' | 'blue' | 'purple' | 'teal' | 'green' | 'yellow' | 'orange' | 'pink' | 'red';
+  color?: ColorValue;
 }
 
 /**
@@ -21,7 +21,7 @@ interface CommandDefinition {
 interface BuiltInCommandsYaml {
   name?: string;  // Display name for the tool (e.g., "claude")
   reference?: string;  // Reference URL for documentation
-  color?: 'grey' | 'darkGrey' | 'blue' | 'purple' | 'teal' | 'green' | 'yellow' | 'orange' | 'pink' | 'red';  // Default color for all commands in this file
+  color?: ColorValue;  // Default color for all commands in this file (named color or hex code)
   commands: CommandDefinition[];
 }
 
@@ -136,10 +136,12 @@ class BuiltInCommandsLoader {
     toolName: string,
     displayName: string,
     reference?: string,
-    defaultColor?: 'grey' | 'darkGrey' | 'blue' | 'purple' | 'teal' | 'green' | 'yellow' | 'orange' | 'pink' | 'red'
+    defaultColor?: ColorValue
   ): SlashCommandItem {
     // Determine color: command-level color takes precedence over file-level default color
-    const color = cmd.color || defaultColor;
+    const rawColor = cmd.color || defaultColor;
+    // Validate color value (supports both named colors and hex codes)
+    const color = rawColor ? validateColorValue(rawColor) : undefined;
 
     // Build frontmatter string for popup display
     const frontmatterLines = [
