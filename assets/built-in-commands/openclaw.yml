@@ -1,7 +1,11 @@
 # OpenClaw TUI built-in slash commands
+#
+# Color property supports both named colors and hex color codes:
+# - Named colors: grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red
+# - Hex codes: #RGB or #RRGGBB (e.g., #FF0000, #F00)
 
 name: openclaw
-color: red
+color: red  # You can also use hex codes like "#FF0000"
 reference: https://docs.openclaw.ai/tools/slash-commands
 
 commands:

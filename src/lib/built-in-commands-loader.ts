@@ -12,6 +12,12 @@ interface CommandDefinition {
   name: string;
   description: string;
   'argument-hint'?: string;
+  /**
+   * Color for label and highlight
+   * Supports both named colors and hex color codes:
+   * - Named colors: 'grey', 'darkGrey', 'blue', 'purple', 'teal', 'green', 'yellow', 'orange', 'pink', 'red'
+   * - Hex codes: '#RGB' or '#RRGGBB' (e.g., '#FF6B35', '#F63')
+   */
   color?: ColorValue;
 }
 
@@ -21,7 +27,13 @@ interface CommandDefinition {
 interface BuiltInCommandsYaml {
   name?: string;  // Display name for the tool (e.g., "claude")
   reference?: string;  // Reference URL for documentation
-  color?: ColorValue;  // Default color for all commands in this file (named color or hex code)
+  /**
+   * Default color for all commands in this file
+   * Supports both named colors and hex color codes:
+   * - Named colors: 'grey', 'darkGrey', 'blue', 'purple', 'teal', 'green', 'yellow', 'orange', 'pink', 'red'
+   * - Hex codes: '#RGB' or '#RRGGBB' (e.g., '#FF6B35', '#F63')
+   */
+  color?: ColorValue;
   commands: CommandDefinition[];
 }
 
