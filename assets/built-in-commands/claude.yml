@@ -1,7 +1,8 @@
 # Claude Code built-in slash commands
 
 name: claude
-reference: https://code.claude.com/docs/en/slash-commands#built-in-slash-commands
+color: blue
+reference: https://code.claude.com/docs/en/interactive-mode#built-in-commands
 
 commands:
   - name: add-dir
@@ -12,6 +13,8 @@ commands:
     description: List and manage background tasks
   - name: bug
     description: Report bugs (sends conversation to Anthropic)
+  - name: chrome
+    description: Configure Claude in Chrome (Beta) settings
   - name: clear
     description: Clear conversation history
   - name: compact
@@ -21,6 +24,8 @@ commands:
     description: Open the Settings interface (Config tab)
   - name: context
     description: Visualize current context usage as a colored grid
+  - name: copy
+    description: Copy Claude's last response to clipboard as markdown
   - name: cost
     description: Show token usage statistics
   - name: doctor
@@ -30,6 +35,8 @@ commands:
   - name: export
     description: Export the current conversation to a file or clipboard
     argument-hint: "[filename]"
+  - name: feedback
+    description: Submit feedback about Claude Code
   - name: fork
     description: Clone a conversation into a new thread
     argument-hint: "[session]"
@@ -43,6 +50,10 @@ commands:
     description: Initialize project with CLAUDE.md guide
   - name: install-github-app
     description: Set up Claude GitHub Actions for a repository
+  - name: install-slack-app
+    description: Install the Claude Slack app
+  - name: keybindings
+    description: Open or create your keybindings configuration file
   - name: login
     description: Switch Anthropic accounts
   - name: logout
@@ -51,6 +62,8 @@ commands:
     description: Manage MCP server connections and OAuth authentication
   - name: memory
     description: Edit CLAUDE.md memory files
+  - name: mobile
+    description: Show QR code to download the Claude mobile app
   - name: model
     description: Select or change the AI model
   - name: output-style
@@ -58,6 +71,8 @@ commands:
     argument-hint: "[style]"
   - name: permissions
     description: View or update permissions
+  - name: plan
+    description: Enable plan mode or view the current session plan
   - name: plugin
     description: Manage Claude Code plugins
   - name: pr-comments
@@ -83,20 +98,30 @@ commands:
     description: "Enable sandboxed bash tool with filesystem and network isolation for safer, more autonomous execution"
   - name: security-review
     description: Complete a security review of pending changes on the current branch
+  - name: skills
+    description: List available skills
   - name: stats
     description: "Visualize daily usage, session history, streaks, and model preferences"
   - name: status
     description: "Open the Settings interface (Status tab) showing version, model, account, and connectivity"
   - name: statusline
     description: "Set up Claude Code's status line UI"
+  - name: stickers
+    description: Order Claude Code stickers
+  - name: tasks
+    description: List and manage background tasks
   - name: teleport
     description: Resume sessions at claude.ai/code for seamless web integration
     argument-hint: "[session]"
   - name: terminal-setup
     description: Install Shift+Enter key binding for newlines (iTerm2 and VSCode only)
+  - name: theme
+    description: Change the theme
   - name: todos
     description: List current TODO items
   - name: usage
     description: "For subscription plans only: show plan usage limits and rate limit status"
+  - name: upgrade
+    description: Upgrade to Max for higher rate limits and more Opus
   - name: vim
     description: Enter vim mode for alternating insert and command modes

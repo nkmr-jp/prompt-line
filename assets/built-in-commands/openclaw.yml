@@ -1,6 +1,7 @@
 # OpenClaw TUI built-in slash commands
 
 name: openclaw
+color: green
 reference: https://docs.openclaw.ai/cli/tui
 
 commands:
