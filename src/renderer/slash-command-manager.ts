@@ -500,6 +500,18 @@ export class SlashCommandManager implements IInitializable {
         const sourceBadge = document.createElement('span');
         sourceBadge.className = 'slash-command-source';
         sourceBadge.dataset.source = cmd.source || cmd.displayName;
+        // Apply color if specified
+        if (cmd.color) {
+          // Check if color is a hex code (e.g., #FF6B35, #F63)
+          if (cmd.color.startsWith('#')) {
+            // Apply hex color directly as inline style
+            sourceBadge.style.color = cmd.color;
+            sourceBadge.style.background = `${cmd.color}33`; // Add 20% opacity (33 in hex)
+          } else {
+            // Use predefined color names via data attribute
+            sourceBadge.dataset.color = cmd.color;
+          }
+        }
         sourceBadge.textContent = cmd.displayName;
         item.appendChild(sourceBadge);
       }
