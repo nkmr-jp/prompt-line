@@ -61,6 +61,16 @@ slashCommands:
     # - gemini
 
   # Custom slash commands from markdown files
+  # Configuration fields:
+  #   name: Display name template (variables: {basename}, {frontmatter@field}, {prefix})
+  #   description: Command description template
+  #   path: Directory path to search for command files
+  #   label: Display label for UI badge (e.g., "command", "skill", "agent")
+  #   color: Badge color (name: purple, teal, blue, green, orange, red, or hex: #FF5733)
+  #   pattern: Glob pattern to match files (e.g., "*.md", "**/*/SKILL.md")
+  #   prefixPattern: Pattern to extract prefix from plugin metadata
+  #   argumentHint: Hint for command arguments
+  #   maxSuggestions: Maximum number of suggestions to display
   custom:
     - name: "{basename}"
       description: "{frontmatter@description}"
@@ -142,6 +152,17 @@ mentions:
     excludePatterns: []
 
   # Markdown-based mentions from markdown files
+  # Configuration fields:
+  #   name: Display name template (variables: {basename}, {frontmatter@field}, {prefix})
+  #   description: Entry description template
+  #   path: Directory path to search for markdown files
+  #   pattern: Glob pattern to match files
+  #   prefixPattern: Pattern to extract prefix from plugin metadata
+  #   searchPrefix: Prefix to trigger this search (e.g., "agent" → @agent:)
+  #   maxSuggestions: Maximum number of suggestions to display
+  #   sortOrder: Sort order (asc, desc)
+  #   inputFormat: Insert format (name, path)
+  #
   # Pattern examples:
   #   "*.md"                  - Root directory only
   #   "**/*.md"               - All subdirectories (recursive)
@@ -149,7 +170,6 @@ mentions:
   #   "**/*/SKILL.md"         - SKILL.md in any subdirectory
   #   "**/{cmd,agent}/*.md"   - Brace expansion (cmd or agent dirs)
   #   "test-*.md"             - Wildcard prefix
-  # searchPrefix: Search with @<prefix>: (e.g., searchPrefix: "agent" → @agent:)
   mdSearch:
     - name: "agent-{basename}"
       description: "{frontmatter@description}"
