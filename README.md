@@ -117,6 +117,42 @@ Accessibility permissions can also be reset using the following command:
 npm run reset-accessibility
 ```
 
+### Built-in Commands Customization
+
+You can customize built-in slash commands by editing YAML files in `~/.prompt-line/built-in-commands/`.
+
+**Available command files:**
+- `claude.yml` - Claude Code commands
+- `openclaw.yml` - OpenClaw commands
+- `codex.yml` - Codex commands
+- `gemini.yml` - Gemini CLI commands
+
+**Editing commands:**
+1. Open the YAML file: `open ~/.prompt-line/built-in-commands/claude.yml`
+2. Edit command definitions (color, description, arguments, etc.)
+3. Changes apply automatically (no restart required)
+
+**Customizable properties:**
+```yaml
+name: claude
+color: "#FF6B35"  # Hex color or named color (orange, blue, etc.)
+reference: https://...
+
+commands:
+  - name: add-dir
+    description: Custom description
+    color: "#0066CC"  # Optional: override tool color
+    argument-hint: "custom hint"
+```
+
+**Reset to defaults:**
+```bash
+npm run reset-built-in-commands
+```
+Then restart Prompt Line to apply changes.
+
+**Note:** Your customizations are preserved during app updates. Only new command files added in updates will be copied.
+
 ## 📦 Update
 
 If you already have an older version installed and want to update to the latest version, follow these steps.

@@ -92,12 +92,17 @@ class PromptLineApp {
     }
     this.windowManager.setDirectoryManager(this.directoryManager);
 
+    if (!this.builtInCommandsManager) {
+      throw new Error('BuiltInCommandsManager not initialized');
+    }
+
     this.ipcHandlers = new IPCHandlers(
       this.windowManager,
       this.historyManager,
       this.draftManager,
       this.directoryManager,
-      this.settingsManager
+      this.settingsManager,
+      this.builtInCommandsManager
     );
 
     codeSearchHandler.setSettingsManager(this.settingsManager);
@@ -370,24 +375,33 @@ class PromptLineApp {
 
     app.on('before-quit', async (_event) => {
       logger.info('Application is about to quit');
-      
+
       const savePromises: Promise<unknown>[] = [];
-      
+
       if (this.draftManager && this.draftManager.hasDraft()) {
         savePromises.push(
           this.draftManager.saveDraftImmediately(this.draftManager.getCurrentDraft())
         );
       }
-      
+
       if (this.historyManager) {
         savePromises.push(this.historyManager.flushPendingSaves());
       }
-      
+
       try {
         await Promise.allSettled(savePromises);
         logger.info('Critical data saved before quit');
       } catch (error) {
         logger.error('Error saving critical data before quit:', error);
+      }
+
+      // Clean up built-in commands manager
+      if (this.builtInCommandsManager) {
+        try {
+          await this.builtInCommandsManager.destroy();
+        } catch (error) {
+          logger.error('Error destroying built-in commands manager:', error);
+        }
       }
     });
   }

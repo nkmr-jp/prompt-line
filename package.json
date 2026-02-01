@@ -25,6 +25,7 @@
     "pre-push": "npm run lint && npm run typecheck && npm test",
     "prepare": "husky",
     "reset-accessibility": "tccutil reset Accessibility com.electron.prompt-line && echo '✅ Accessibility permissions for Prompt Line have been reset'",
+    "reset-built-in-commands": "rm -rf ~/.prompt-line/built-in-commands && echo '✅ Built-in commands reset to defaults. Restart the app to apply changes.'",
     "generate:settings-example": "npx ts-node scripts/generate-settings-example.ts"
   },
   "keywords": [
