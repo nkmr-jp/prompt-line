@@ -139,28 +139,46 @@ class BuiltInCommandsManager extends EventEmitter {
       },
       // Only watch YAML files
       ignored: (filePath: string, stats?: fs.Stats) => {
-        // Don't ignore directories (they have no extension)
-        if (stats?.isDirectory()) {
+        // Check if stats is provided and it's a directory
+        if (stats && stats.isDirectory()) {
+          logger.debug('Watcher: Not ignoring directory (stats):', filePath);
           return false;
         }
-        // Ignore files that are not YAML files
+
+        // If no stats, check if path has no extension (likely a directory)
         const ext = path.extname(filePath);
-        return ext !== '.yaml' && ext !== '.yml';
+        if (!ext) {
+          logger.debug('Watcher: Not ignoring (no extension, likely directory):', filePath);
+          return false;
+        }
+
+        // Ignore files that are not YAML files
+        const shouldIgnore = ext !== '.yaml' && ext !== '.yml';
+        logger.debug(`Watcher: File ${filePath} (ext: ${ext}) - ignore: ${shouldIgnore}`);
+        return shouldIgnore;
       }
     });
 
+    this.watcher.on('ready', () => {
+      logger.info('Built-in commands watcher ready, watching:', this.targetDir);
+    });
+
+    this.watcher.on('raw', (event: string, path: string, details: unknown) => {
+      logger.debug('Built-in commands raw event:', { event, path, details });
+    });
+
     this.watcher.on('change', (filePath: string) => {
-      logger.debug('Built-in commands file changed:', filePath);
+      logger.info('Built-in commands file changed:', filePath);
       this.handleFileChange();
     });
 
     this.watcher.on('add', (filePath: string) => {
-      logger.debug('Built-in commands file added:', filePath);
+      logger.info('Built-in commands file added:', filePath);
       this.handleFileChange();
     });
 
     this.watcher.on('unlink', (filePath: string) => {
-      logger.debug('Built-in commands file removed:', filePath);
+      logger.info('Built-in commands file removed:', filePath);
       this.handleFileChange();
     });
 
