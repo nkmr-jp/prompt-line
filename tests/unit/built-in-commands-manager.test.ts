@@ -42,13 +42,16 @@ jest.mock('../../src/utils/utils', () => ({
   ensureDir: jest.fn()
 }));
 
-// Create mock with mocked clearCache
-const mockClearCache = jest.fn();
-jest.mock('../../src/lib/built-in-commands-loader', () => ({
-  default: {
-    clearCache: mockClearCache
-  }
-}));
+// Mock built-in-commands-loader with clearCache method
+jest.mock('../../src/lib/built-in-commands-loader', () => {
+  const mockClearCache = jest.fn();
+  return {
+    __esModule: true,
+    default: {
+      clearCache: mockClearCache
+    }
+  };
+});
 
 // Import after mocks
 import BuiltInCommandsManager from '../../src/managers/built-in-commands-manager';
@@ -58,9 +61,14 @@ describe('BuiltInCommandsManager', () => {
   const mockFs = fs as jest.Mocked<typeof fs>;
   const mockChokidar = require('chokidar');
   const mockUtils = require('../../src/utils/utils');
+  let mockClearCache: jest.MockedFunction<() => void>;
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // Get the mocked clearCache function
+    const builtInCommandsLoader = require('../../src/lib/built-in-commands-loader').default;
+    mockClearCache = builtInCommandsLoader.clearCache;
     mockClearCache.mockClear();
 
     // Default fs.existsSync behavior - source dir exists
