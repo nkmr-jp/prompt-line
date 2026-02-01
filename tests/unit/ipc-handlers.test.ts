@@ -168,12 +168,21 @@ describe('IPCHandlers', () => {
             saveDirectory: jest.fn()
         };
 
+        const mockBuiltInCommandsManager = {
+            initialize: jest.fn(),
+            destroy: jest.fn(),
+            getTargetDirectory: jest.fn(() => '/test/built-in-commands'),
+            on: jest.fn(),
+            emit: jest.fn()
+        };
+
         ipcHandlers = new IPCHandlers(
             mockWindowManager,
             mockHistoryManager,
             mockDraftManager,
             mockDirectoryManager,
-            mockSettingsManager
+            mockSettingsManager,
+            mockBuiltInCommandsManager as any
         );
     });
 

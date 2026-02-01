@@ -50,3 +50,42 @@ export function generateId(): string {
 export function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
+
+/**
+ * Validates a hex color code
+ * Supports both 3-digit (#RGB) and 6-digit (#RRGGBB) formats
+ * @param color - Color value to validate (named color or hex code)
+ * @returns true if valid hex color code, false otherwise
+ */
+export function isValidHexColor(color: string): boolean {
+  const hexColorRegex = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/;
+  return hexColorRegex.test(color);
+}
+
+/**
+ * Validates a color value (named color or hex code)
+ * @param color - Color value to validate
+ * @returns Validated color value or default color if invalid
+ */
+export function validateColorValue(color: string | undefined, defaultColor = 'grey'): string {
+  if (!color) {
+    return defaultColor;
+  }
+
+  // Named colors list
+  const namedColors = ['grey', 'darkGrey', 'blue', 'purple', 'teal', 'green', 'yellow', 'orange', 'pink', 'red'];
+
+  // Check if it's a named color
+  if (namedColors.includes(color)) {
+    return color;
+  }
+
+  // Check if it's a valid hex color code
+  if (isValidHexColor(color)) {
+    return color;
+  }
+
+  // Invalid color: log warning and return default
+  logger.warn(`Invalid color value: ${color}. Using default color: ${defaultColor}`);
+  return defaultColor;
+}

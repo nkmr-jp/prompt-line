@@ -1,3 +1,27 @@
+## [0.18.6](https://github.com/nkmr-jp/prompt-line/compare/v0.18.5...v0.18.6) (2026-01-30)
+
+### Maintenance
+
+* **config:** add configuration documentation and update peer dependency metadata ([f2e5af7](https://github.com/nkmr-jp/prompt-line/commit/f2e5af7a99cd6a4b302c98ea25aaa9b7d6337ad4))
+
+## [0.18.5](https://github.com/nkmr-jp/prompt-line/compare/v0.18.4...v0.18.5) (2026-01-29)
+
+### Maintenance
+
+* **deps:** bump tar in the npm_and_yarn group across 1 directory ([6388037](https://github.com/nkmr-jp/prompt-line/commit/6388037d012ac79a58239a6a9ad8d6b72847fb54))
+
+## [0.18.4](https://github.com/nkmr-jp/prompt-line/compare/v0.18.3...v0.18.4) (2026-01-22)
+
+### Maintenance
+
+* **deps-dev:** bump lodash ([e1f6cea](https://github.com/nkmr-jp/prompt-line/commit/e1f6cea8d2c91de9dbe9da896a1d239aaf698309))
+
+## [0.18.3](https://github.com/nkmr-jp/prompt-line/compare/v0.18.2...v0.18.3) (2026-01-22)
+
+### Maintenance
+
+* **deps-dev:** bump lodash-es ([cbc6c8b](https://github.com/nkmr-jp/prompt-line/commit/cbc6c8b943f6df5f993feea183d8e7ed6940b44d))
+
 ## [0.18.2](https://github.com/nkmr-jp/prompt-line/compare/v0.18.1...v0.18.2) (2026-01-17)
 
 ### Bug Fixes

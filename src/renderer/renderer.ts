@@ -473,6 +473,11 @@ export class PromptLineRenderer {
       this.pendingWindowData = data;
       return;
     }
+
+    // Invalidate slash command cache to reload built-in commands with latest changes
+    // This enables hot reload for built-in command YAML files (similar to settings.yml)
+    this.slashCommandManager?.invalidateCache();
+
     await this.directoryDataHandler.handleWindowShown(data);
   }
 

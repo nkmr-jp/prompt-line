@@ -90,6 +90,52 @@
   background: rgba(199, 146, 234, 0.2);
 }
 
+/* Source badge color variations (same as label colors) */
+.slash-command-source[data-color="grey"] {
+  color: #888888;
+  background: rgba(136, 136, 136, 0.2);
+}
+
+.slash-command-source[data-color="darkGrey"] {
+  color: #6b7280;
+  background: rgba(107, 114, 128, 0.2);
+}
+
+.slash-command-source[data-color="purple"] {
+  color: #c792ea;
+  background: rgba(199, 146, 234, 0.2);
+}
+
+.slash-command-source[data-color="teal"] {
+  color: #89DDFF;
+  background: rgba(137, 221, 255, 0.2);
+}
+
+.slash-command-source[data-color="green"] {
+  color: #7fdbc8;
+  background: rgba(127, 219, 200, 0.2);
+}
+
+.slash-command-source[data-color="yellow"] {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.2);
+}
+
+.slash-command-source[data-color="orange"] {
+  color: #ffcb6b;
+  background: rgba(255, 203, 107, 0.2);
+}
+
+.slash-command-source[data-color="pink"] {
+  color: #f472b6;
+  background: rgba(244, 114, 182, 0.2);
+}
+
+.slash-command-source[data-color="red"] {
+  color: #f07178;
+  background: rgba(240, 113, 120, 0.2);
+}
+
 /* Label badge (same color as custom) */
 .slash-command-label {
   flex-shrink: 0;

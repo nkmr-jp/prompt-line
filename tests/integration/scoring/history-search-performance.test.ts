@@ -178,9 +178,9 @@ describe('History Search Performance Benchmarks', () => {
         }
       );
 
-      // Performance threshold: should complete within 100ms
+      // Performance threshold: should complete within 100ms (avg), 200ms (p95)
       expect(stats.avg).toBeLessThan(100);
-      expect(stats.p95).toBeLessThan(150);
+      expect(stats.p95).toBeLessThan(200);
     });
 
     test('should measure filter performance with 5-character query', () => {

@@ -51,12 +51,12 @@ fileOpener:
 # ============================================================================
 # Configure slash commands (/) for quick actions
 # Template variables: {basename}, {frontmatter@fieldName}
-# Available colors: grey, darkGrey, purple, teal, green, yellow, orange, pink, red
 
 slashCommands:
   # Built-in commands (Claude, Codex, Gemini, etc.)
   builtIn:                            # List of tools to enable
     - claude
+    - openclaw
     # - codex
     # - gemini
 
@@ -65,46 +65,26 @@ slashCommands:
     - name: "{basename}"
       description: "{frontmatter@description}"
       path: ~/.claude/commands
-      label: command
-      color: teal
       pattern: "*.md"
       argumentHint: "{frontmatter@argument-hint}"
       maxSuggestions: 20
-
     - name: "{frontmatter@name}"
       description: "{frontmatter@description}"
       path: ~/.claude/skills
-      label: skill
-      color: teal
       pattern: "**/*/SKILL.md"
       maxSuggestions: 20
-
     - name: "{prefix}:{basename}"
       description: "{frontmatter@description}"
       path: ~/.claude/plugins/cache
       pattern: "**/commands/*.md"
-      prefixPattern: "**/.claude-plugin/*.json@name"
-      label: command
-      color: red
       argumentHint: "{frontmatter@argument-hint}"
       maxSuggestions: 20
-      # enable:
-      #   - "ralph-loop:*"           # Enable all ralph-loop plugin commands
-      #   - "example-skills:*"       # Enable all example-skills plugin commands
-      # disable:
-      #   - "example-skills:debug-*" # Disable debug commands
-      #   - "old-*"                  # Disable commands starting with old-
-
     - name: "{prefix}:{frontmatter@name}"
       description: "{frontmatter@description}"
       path: ~/.claude/plugins/cache
       pattern: "**/*/SKILL.md"
-      prefixPattern: "**/.claude-plugin/*.json@name"
-      label: skill
-      color: red
       argumentHint: "{frontmatter@argument-hint}"
       maxSuggestions: 20
-
 
 # ============================================================================
 # MENTION SETTINGS (@ mentions)
@@ -160,12 +140,6 @@ mentions:
   #   "**/{cmd,agent}/*.md"   - Brace expansion (cmd or agent dirs)
   #   "test-*.md"             - Wildcard prefix
   # searchPrefix: Search with @<prefix>: (e.g., searchPrefix: "agent" → @agent:)
-  #
-  # Global enable/disable filters for all mdSearch mentions (optional)
-  # enable:
-  #   - "agent-*"              # Enable all agents starting with agent-
-  # disable:
-  #   - "agent-legacy"         # Disable specific agent
   mdSearch:
     - name: "agent-{basename}"
       description: "{frontmatter@description}"
@@ -177,15 +151,7 @@ mentions:
       description: "{frontmatter@description}"
       path: ~/.claude/plugins/cache
       pattern: "**/agents/*.md"
-      prefixPattern: "**/.claude-plugin/*.json@name"
-      searchPrefix: agent
-      # Entry-level enable/disable (optional)
-      # enable:
-      #   - "agent-claude"     # Enable specific agent
-      #   - "agent-*"          # Enable all agents starting with agent-
-      # disable:
-      #   - "agent-legacy"     # Disable specific agent
-      #   - "old-*"            # Disable all agents starting with old-
+      searchPrefix: agent            # Search with @agent:
 
     - name: "{basename}"
       description: "{frontmatter@title}"
@@ -203,9 +169,3 @@ mentions:
     #   maxSuggestions: 100
     #   sortOrder: desc
     #   inputFormat: path               # Insert file path instead of name
-    #   # enable:
-    #   #   - "api-*"                # Enable entries starting with api-
-    #   #   - "guide"                # Enable specific entry
-    #   # disable:
-    #   #   - "draft-*"              # Disable entries starting with draft-
-    #   #   - "obsolete"             # Disable specific entry

@@ -1,6 +1,11 @@
 # Google Gemini CLI built-in slash commands
+#
+# Color property supports both named colors and hex color codes:
+# - Named colors: grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red
+# - Hex codes: #RGB or #RRGGBB (e.g., #0066CC, #06C)
 
 name: gemini
+color: blue  # You can also use hex codes like "#0066CC"
 reference: https://google-gemini.github.io/gemini-cli/docs/cli/commands.html
 
 commands:
@@ -43,8 +48,16 @@ commands:
     description: Exit Gemini CLI
   - name: restore
     description: Revert project files to their state before a tool execution
+  - name: resume
+    description: Resume a previous conversation session
+    argument-hint: "[session]"
+  - name: rewind
+    description: Browse and rewind conversation history and file changes
   - name: settings
     description: Open the settings editor to view and modify settings
+  - name: skills
+    description: Manage Agent Skills for specialized workflows
+    argument-hint: "[list|enable|disable|refresh]"
   - name: stats
     description: Display session statistics including token usage and duration
   - name: theme

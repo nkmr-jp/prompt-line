@@ -3,7 +3,7 @@
  * Manages slash command suggestions and selection
  */
 
-import type { InputFormatType } from '../types';
+import type { InputFormatType, ColorValue } from '../types';
 import type { IInitializable } from './interfaces/initializable';
 import { FrontmatterPopupManager } from './frontmatter-popup-manager';
 import { highlightMatch } from './utils/highlight-utils';
@@ -16,7 +16,13 @@ interface SlashCommandItem {
   name: string;
   description: string;
   label?: string;  // Label text (e.g., from frontmatter)
-  color?: 'grey' | 'darkGrey' | 'purple' | 'teal' | 'green' | 'yellow' | 'orange' | 'pink' | 'red';  // Color for label and highlight
+  /**
+   * Color for label and highlight
+   * Supports both named colors and hex color codes:
+   * - Named colors: 'grey', 'darkGrey', 'blue', 'purple', 'teal', 'green', 'yellow', 'orange', 'pink', 'red'
+   * - Hex codes: '#RGB' or '#RRGGBB' (e.g., '#FF6B35', '#F63')
+   */
+  color?: ColorValue;
   argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
@@ -478,7 +484,15 @@ export class SlashCommandManager implements IInitializable {
         const labelBadge = document.createElement('span');
         labelBadge.className = 'slash-command-label';
         if (cmd.color) {
-          labelBadge.dataset.color = cmd.color;
+          // Check if color is a hex code (e.g., #FF6B35, #F63)
+          if (cmd.color.startsWith('#')) {
+            // Apply hex color directly as inline style
+            labelBadge.style.color = cmd.color;
+            labelBadge.style.background = `${cmd.color}33`; // Add 20% opacity (33 in hex)
+          } else {
+            // Use predefined color names via data attribute
+            labelBadge.dataset.color = cmd.color;
+          }
         }
         labelBadge.textContent = cmd.label;
         item.appendChild(labelBadge);
@@ -486,6 +500,18 @@ export class SlashCommandManager implements IInitializable {
         const sourceBadge = document.createElement('span');
         sourceBadge.className = 'slash-command-source';
         sourceBadge.dataset.source = cmd.source || cmd.displayName;
+        // Apply color if specified
+        if (cmd.color) {
+          // Check if color is a hex code (e.g., #FF6B35, #F63)
+          if (cmd.color.startsWith('#')) {
+            // Apply hex color directly as inline style
+            sourceBadge.style.color = cmd.color;
+            sourceBadge.style.background = `${cmd.color}33`; // Add 20% opacity (33 in hex)
+          } else {
+            // Use predefined color names via data attribute
+            sourceBadge.dataset.color = cmd.color;
+          }
+        }
         sourceBadge.textContent = cmd.displayName;
         item.appendChild(sourceBadge);
       }
