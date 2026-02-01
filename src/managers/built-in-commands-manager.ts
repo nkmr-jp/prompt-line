@@ -137,7 +137,12 @@ class BuiltInCommandsManager extends EventEmitter {
         pollInterval: 50
       },
       // Only watch YAML files
-      ignored: (filePath: string) => {
+      ignored: (filePath: string, stats?: fs.Stats) => {
+        // Don't ignore directories (they have no extension)
+        if (stats?.isDirectory()) {
+          return false;
+        }
+        // Ignore files that are not YAML files
         const ext = path.extname(filePath);
         return ext !== '.yaml' && ext !== '.yml';
       }
