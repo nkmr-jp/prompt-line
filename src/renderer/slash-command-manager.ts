@@ -484,7 +484,15 @@ export class SlashCommandManager implements IInitializable {
         const labelBadge = document.createElement('span');
         labelBadge.className = 'slash-command-label';
         if (cmd.color) {
-          labelBadge.dataset.color = cmd.color;
+          // Check if color is a hex code (e.g., #FF6B35, #F63)
+          if (cmd.color.startsWith('#')) {
+            // Apply hex color directly as inline style
+            labelBadge.style.color = cmd.color;
+            labelBadge.style.background = `${cmd.color}33`; // Add 20% opacity (33 in hex)
+          } else {
+            // Use predefined color names via data attribute
+            labelBadge.dataset.color = cmd.color;
+          }
         }
         labelBadge.textContent = cmd.label;
         item.appendChild(labelBadge);
