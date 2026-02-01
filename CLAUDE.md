@@ -445,6 +445,7 @@ The window supports multiple positioning modes with dynamic configuration:
   - Cursor (`com.todesktop.230313mzl4w4u92`)
   - Windsurf (`com.exafunction.windsurf`)
   - Zed (`dev.zed.Zed`)
+  - OpenCode (`ai.opencode.desktop`)
   - Antigravity (`com.google.antigravity`) - tmux-based terminal
   - Kiro (`dev.kiro.desktop`)
 
