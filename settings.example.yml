@@ -56,7 +56,7 @@ slashCommands:
   # Built-in commands (Claude, Codex, Gemini, etc.)
   builtIn:                            # List of tools to enable
     - claude
-    - openclaw
+    # - openclaw
     # - codex
     # - gemini
 

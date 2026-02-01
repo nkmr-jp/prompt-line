@@ -48,7 +48,7 @@ export const defaultSettings: UserSettings = {
     defaultEditor: null
   },
   slashCommands: {
-    builtIn: ['claude', 'openclaw'],
+    builtIn: ['claude'],
     custom: [
       {
         name: '{basename}',
@@ -147,7 +147,7 @@ export const defaultSettings: UserSettings = {
  */
 export const commentedExamples = {
   slashCommands: {
-    builtIn: ['codex', 'gemini'],
+    builtIn: ['openclaw', 'codex', 'gemini'],
     custom: [] as Array<{
       name: string;
       description: string;
