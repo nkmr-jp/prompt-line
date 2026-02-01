@@ -65,24 +65,34 @@ slashCommands:
     - name: "{basename}"
       description: "{frontmatter@description}"
       path: ~/.claude/commands
+      label: "command"
+      color: "purple"
       pattern: "*.md"
       argumentHint: "{frontmatter@argument-hint}"
       maxSuggestions: 20
     - name: "{frontmatter@name}"
       description: "{frontmatter@description}"
       path: ~/.claude/skills
+      label: "skill"
+      color: "purple"
       pattern: "**/*/SKILL.md"
       maxSuggestions: 20
     - name: "{prefix}:{basename}"
       description: "{frontmatter@description}"
       path: ~/.claude/plugins/cache
+      label: "command"
+      color: "teal"
       pattern: "**/commands/*.md"
+      prefixPattern: "**/.claude-plugin/*.json@name"
       argumentHint: "{frontmatter@argument-hint}"
       maxSuggestions: 20
     - name: "{prefix}:{frontmatter@name}"
       description: "{frontmatter@description}"
       path: ~/.claude/plugins/cache
+      label: "skill"
+      color: "teal"
       pattern: "**/*/SKILL.md"
+      prefixPattern: "**/.claude-plugin/*.json@name"
       argumentHint: "{frontmatter@argument-hint}"
       maxSuggestions: 20
 
@@ -151,6 +161,7 @@ mentions:
       description: "{frontmatter@description}"
       path: ~/.claude/plugins/cache
       pattern: "**/agents/*.md"
+      prefixPattern: "**/.claude-plugin/*.json@name"
       searchPrefix: agent            # Search with @agent:
 
     - name: "{basename}"

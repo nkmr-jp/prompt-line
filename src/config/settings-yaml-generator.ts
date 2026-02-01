@@ -95,9 +95,25 @@ function formatSlashCommandEntry(entry: SlashCommandEntry, indent: string, comme
   const lines = [
     `${firstLinePrefix}- name: "${entry.name}"`,
     `${contentLinePrefix}description: "${entry.description || ''}"`,
-    `${contentLinePrefix}path: ${entry.path}`,
-    `${contentLinePrefix}pattern: "${entry.pattern}"`
+    `${contentLinePrefix}path: ${entry.path}`
   ];
+
+  // Add label if present
+  if (entry.label) {
+    lines.push(`${contentLinePrefix}label: "${entry.label}"`);
+  }
+
+  // Add color if present
+  if (entry.color) {
+    lines.push(`${contentLinePrefix}color: "${entry.color}"`);
+  }
+
+  lines.push(`${contentLinePrefix}pattern: "${entry.pattern}"`);
+
+  // Add prefixPattern if present
+  if (entry.prefixPattern) {
+    lines.push(`${contentLinePrefix}prefixPattern: "${entry.prefixPattern}"`);
+  }
 
   if (entry.argumentHint) {
     lines.push(`${contentLinePrefix}argumentHint: "${entry.argumentHint}"`);
@@ -133,6 +149,11 @@ function formatMdSearchEntry(entry: MentionEntry, indent: string, commented = fa
     `${contentLinePrefix}path: ${entry.path}`,
     `${contentLinePrefix}pattern: "${entry.pattern}"`
   ];
+
+  // Add prefixPattern if present
+  if (entry.prefixPattern) {
+    lines.push(`${contentLinePrefix}prefixPattern: "${entry.prefixPattern}"`);
+  }
 
   if (entry.searchPrefix) {
     lines.push(`${contentLinePrefix}searchPrefix: ${entry.searchPrefix}            # Search with @${entry.searchPrefix}:`);
