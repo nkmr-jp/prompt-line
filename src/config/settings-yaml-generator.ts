@@ -253,7 +253,7 @@ function buildSlashCommandsSection(settings: UserSettings, options: YamlGenerato
   section += '  #   description: Command description template\n';
   section += '  #   path: Directory path to search for command files\n';
   section += '  #   label: Display label for UI badge (e.g., "command", "skill", "agent")\n';
-  section += '  #   color: Badge color (name: purple, teal, blue, green, orange, red, or hex: #FF5733)\n';
+  section += '  #   color: Badge color (name: grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red, or hex: #FF5733)\n';
   section += '  #   pattern: Glob pattern to match files (e.g., "*.md", "**/*/SKILL.md")\n';
   section += '  #   prefixPattern: Pattern to extract prefix from plugin metadata\n';
   section += '  #   argumentHint: Hint for command arguments\n';

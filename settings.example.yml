@@ -66,7 +66,7 @@ slashCommands:
   #   description: Command description template
   #   path: Directory path to search for command files
   #   label: Display label for UI badge (e.g., "command", "skill", "agent")
-  #   color: Badge color (name: purple, teal, blue, green, orange, red, or hex: #FF5733)
+  #   color: Badge color (name: grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red, or hex: #FF5733)
   #   pattern: Glob pattern to match files (e.g., "*.md", "**/*/SKILL.md")
   #   prefixPattern: Pattern to extract prefix from plugin metadata
   #   argumentHint: Hint for command arguments
