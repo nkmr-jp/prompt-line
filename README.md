@@ -145,7 +145,20 @@ commands:
     argument-hint: "custom hint"
 ```
 
+**Update built-in commands:**
+
+If you want to update built-in command files to the latest defaults:
+```bash
+npm run update-built-in-commands
+```
+This will:
+- Check for existing files and ask for confirmation before overwriting
+- Copy the latest default command files from the repository
+- Preserve your customizations if you choose not to overwrite
+
 **Reset to defaults:**
+
+If you want to completely remove all built-in commands and start fresh:
 ```bash
 npm run reset-built-in-commands
 ```
