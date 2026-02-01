@@ -4,6 +4,7 @@ import { EventEmitter } from 'events';
 import chokidar, { type FSWatcher } from 'chokidar';
 import config from '../config/app-config';
 import { logger, ensureDir } from '../utils/utils';
+import builtInCommandsLoader from '../lib/built-in-commands-loader';
 
 /**
  * Manages built-in slash commands for CLI tools (Claude Code, etc.)
@@ -180,7 +181,6 @@ class BuiltInCommandsManager extends EventEmitter {
 
     this.reloadDebounceTimer = setTimeout(() => {
       // Clear cache to trigger reload on next request
-      const builtInCommandsLoader = require('../lib/built-in-commands-loader').default;
       builtInCommandsLoader.clearCache();
 
       // Emit event for listeners (e.g., MdSearchHandler)
