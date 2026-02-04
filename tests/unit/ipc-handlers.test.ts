@@ -8,9 +8,9 @@ import type DraftManager from '../../src/managers/draft-manager';
 // Unmock path module (needed for prefix-resolver)
 jest.unmock('path');
 
-// Mock glob module
-jest.mock('glob', () => ({
-  glob: jest.fn()
+// Mock fast-glob module
+jest.mock('fast-glob', () => ({
+  default: jest.fn()
 }));
 
 // Mock dependencies

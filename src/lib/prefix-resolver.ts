@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import os from 'os';
-import { glob } from 'glob';
+import fg from 'fast-glob';
 
 interface PrefixPatternParts {
   globPattern: string;
@@ -67,10 +67,10 @@ export async function resolvePrefix(
   const normalizedBasePath = path.normalize(basePath.replace(/^~/, os.homedir()));
 
   while (searchDir.startsWith(normalizedBasePath)) {
-    const matches = await glob(parts.globPattern, {
+    const matches = await fg(parts.globPattern, {
       cwd: searchDir,
       absolute: true,
-      nodir: true
+      onlyFiles: true
     });
 
     if (matches.length > 0) {

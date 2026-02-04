@@ -6,9 +6,9 @@ import type { MdSearchEntry } from '../../src/types';
 // Unmock path module (needed for prefix-resolver which is used by md-search-loader)
 jest.unmock('path');
 
-// Mock glob module
-jest.mock('glob', () => ({
-  glob: jest.fn()
+// Mock fast-glob module
+jest.mock('fast-glob', () => ({
+  default: jest.fn()
 }));
 
 // Mock fs promises module

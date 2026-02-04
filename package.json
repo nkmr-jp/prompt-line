@@ -131,7 +131,7 @@
   },
   "dependencies": {
     "chokidar": "^5.0.0",
-    "glob": "^13.0.0",
+    "fast-glob": "^3.3.3",
     "js-yaml": "^4.1.1"
   },
   "overrides": {

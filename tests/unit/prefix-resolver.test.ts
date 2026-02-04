@@ -6,10 +6,9 @@ import * as os from 'os';
 // Unmock path module for this test (we need real path functions)
 jest.unmock('path');
 
-// Mock glob before importing prefix-resolver
-jest.mock('glob', () => ({
-  glob: jest.fn()
-}));
+// Mock fast-glob before importing prefix-resolver
+const mockFastGlob = jest.fn<() => Promise<string[]>>();
+jest.mock('fast-glob', () => mockFastGlob);
 
 // Import after mocks
 import {
@@ -17,9 +16,8 @@ import {
   resolvePrefix,
   clearPrefixCache
 } from '../../src/lib/prefix-resolver';
-import { glob } from 'glob';
 
-const mockedGlob = jest.mocked(glob);
+const mockedGlob = mockFastGlob;
 
 describe('prefix-resolver', () => {
   let testDir: string;
