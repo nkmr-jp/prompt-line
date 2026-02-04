@@ -156,6 +156,25 @@ AIコーディングアシスタント（Claude Code、OpenAI Codex、Google Gem
 
 ![doc11.png](assets/doc11.png)
 
+**ビルトインコマンドの更新:**
+
+最新のデフォルトコマンドファイルに更新する場合:
+```bash
+npm run update-built-in-commands
+```
+このコマンドは以下を実行します:
+- 既存ファイルがある場合は上書き前に確認
+- リポジトリから最新のデフォルトコマンドファイルをコピー
+- 上書きしない選択をした場合、カスタマイズを保持
+
+**デフォルトにリセット:**
+
+すべてのビルトインコマンドを完全に削除して最初からやり直す場合:
+```bash
+npm run reset-built-in-commands
+```
+その後、Prompt Lineを再起動して変更を適用してください。
+
 #### @Mentions
 
 #### ファイル検索
