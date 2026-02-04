@@ -40,7 +40,9 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
-      - name: Run semantic-release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx semantic-release
+      - name: Run go-semantic-release
+        uses: go-semantic-release/action@453e003c94ddb9c64e7ea4153794ef69e477259e # v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          allow-initial-development-versions: true
+          force-bump-patch-version: true

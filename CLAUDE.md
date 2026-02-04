@@ -71,16 +71,28 @@ npm run build:renderer  # Vite build for renderer process
 npm run clean      # Removes build artifacts (DMG, zip files, etc.)
 npm run clean:cache     # Clears build caches (node_modules/.cache, electron caches)
 npm run clean:full      # Full cleanup (build artifacts + caches + dist directory)
-npm run release    # Semantic release process
+npm run release    # Info about automated release process (via GitHub Actions)
 npm run prepare    # Husky setup
 ```
 
 **Build Process Details:**
 The `npm run compile` command performs:
 1. TypeScript compilation (`tsc`)
-2. Renderer build (`npm run build:renderer`)  
+2. Renderer build (`npm run build:renderer`)
 3. Native tools compilation (`cd native && make install`)
 4. Copy compiled tools to distribution directory
+
+**Release Process:**
+This project uses [go-semantic-release](https://github.com/go-semantic-release/semantic-release) for automated releases:
+- Releases are triggered automatically on push to `main` branch via GitHub Actions
+- Version numbers follow [Semantic Versioning](https://semver.org/) based on [Conventional Commits](https://www.conventionalcommits.org/)
+- Configuration: `.semrelrc` file in project root
+- Workflow: `.github/workflows/release.yml`
+- The release process automatically:
+  - Analyzes commit messages to determine version bump
+  - Updates `package.json` and `package-lock.json` versions
+  - Generates changelog with emojis
+  - Creates GitHub release with notes
 
 ### Git Hooks & Quality Assurance
 The project uses automated git hooks to ensure code quality:
