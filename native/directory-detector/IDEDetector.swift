@@ -45,11 +45,16 @@ extension DirectoryDetector {
         return bundleId == "dev.zed.Zed"
     }
 
-    /// Check if bundle ID is an Electron-based IDE or similar (VSCode, Cursor, Windsurf, Antigravity, Kiro, Zed)
+    /// Check if bundle ID is OpenCode
+    static func isOpenCode(_ bundleId: String) -> Bool {
+        return bundleId == "ai.opencode.desktop"
+    }
+
+    /// Check if bundle ID is an Electron-based IDE or similar (VSCode, Cursor, Windsurf, Antigravity, Kiro, Zed, OpenCode)
     /// These IDEs have a different process hierarchy than JetBrains IDEs
-    /// Note: Zed is not Electron-based but uses similar process tree detection
+    /// Note: Zed and OpenCode are not Electron-based (Zed uses native, OpenCode uses Tauri) but use similar process tree detection
     static func isElectronIDE(_ bundleId: String) -> Bool {
-        return isVSCode(bundleId) || isCursor(bundleId) || isWindsurf(bundleId) || isAntigravity(bundleId) || isKiro(bundleId) || isZed(bundleId)
+        return isVSCode(bundleId) || isCursor(bundleId) || isWindsurf(bundleId) || isAntigravity(bundleId) || isKiro(bundleId) || isZed(bundleId) || isOpenCode(bundleId)
     }
 
     /// Check if the app is an IDE with integrated terminal

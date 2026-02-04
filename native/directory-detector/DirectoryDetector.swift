@@ -8,7 +8,7 @@ import Foundation
 /// Methods are organized across multiple files using extensions:
 /// - CWDDetector.swift: CWD detection (libproc + lsof)
 /// - TerminalDetector.swift: Terminal.app, iTerm2, Ghostty, Warp, WezTerm
-/// - IDEDetector.swift: JetBrains, VSCode, Cursor, Windsurf, Zed, Antigravity, Kiro
+/// - IDEDetector.swift: JetBrains, VSCode, Cursor, Windsurf, Zed, Antigravity, Kiro, OpenCode
 /// - ProcessTree.swift: Process tree traversal
 /// Note: FileSearch functionality has been moved to separate file-searcher tool
 class DirectoryDetector {

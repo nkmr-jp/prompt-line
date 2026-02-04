@@ -7,7 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Development
 ```bash
 npm start          # Run app in development mode (with DEBUG logging enabled)
-npm run reset-built-in-commands  # Reset slash commands to defaults
+npm run update-built-in-commands # Update slash commands with confirmation
+npm run reset-built-in-commands  # Reset slash commands to defaults (removes all)
 npm run reset-accessibility      # Reset accessibility permissions for Prompt Line
 ```
 
@@ -459,6 +460,7 @@ The window supports multiple positioning modes with dynamic configuration:
   - Cursor (`com.todesktop.230313mzl4w4u92`)
   - Windsurf (`com.exafunction.windsurf`)
   - Zed (`dev.zed.Zed`)
+  - OpenCode (`ai.opencode.desktop`)
   - Antigravity (`com.google.antigravity`) - tmux-based terminal
   - Kiro (`dev.kiro.desktop`)
 

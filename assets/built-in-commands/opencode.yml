@@ -1,0 +1,27 @@
+# OpenCode (now Crush) built-in slash commands
+#
+# Note: OpenCode has been archived and continued as "Crush" (github.com/charmbracelet/crush).
+# OpenCode primarily uses keyboard shortcuts and a command dialog (Ctrl+K) rather than
+# traditional slash commands. The commands below are accessed via the command dialog.
+#
+# Color property supports both named colors and hex color codes:
+# - Named colors: grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red
+# - Hex codes: #RGB or #RRGGBB (e.g., #5C6BC0, #5CB)
+
+name: opencode
+color: teal  # You can also use hex codes like "#5C6BC0"
+reference: https://github.com/opencode-ai/opencode
+
+commands:
+  - name: init
+    description: Initialize project with AGENTS.md context file
+  - name: compact
+    description: Summarize conversation to create new session with context
+  - name: new
+    description: Start a new conversation session
+  - name: model
+    description: Select or change the AI model
+  - name: help
+    description: Display help information
+  - name: quit
+    description: Exit the application

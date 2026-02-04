@@ -95,9 +95,25 @@ function formatSlashCommandEntry(entry: SlashCommandEntry, indent: string, comme
   const lines = [
     `${firstLinePrefix}- name: "${entry.name}"`,
     `${contentLinePrefix}description: "${entry.description || ''}"`,
-    `${contentLinePrefix}path: ${entry.path}`,
-    `${contentLinePrefix}pattern: "${entry.pattern}"`
+    `${contentLinePrefix}path: ${entry.path}`
   ];
+
+  // Add label if present
+  if (entry.label) {
+    lines.push(`${contentLinePrefix}label: "${entry.label}"`);
+  }
+
+  // Add color if present
+  if (entry.color) {
+    lines.push(`${contentLinePrefix}color: "${entry.color}"`);
+  }
+
+  lines.push(`${contentLinePrefix}pattern: "${entry.pattern}"`);
+
+  // Add prefixPattern if present
+  if (entry.prefixPattern) {
+    lines.push(`${contentLinePrefix}prefixPattern: "${entry.prefixPattern}"`);
+  }
 
   if (entry.argumentHint) {
     lines.push(`${contentLinePrefix}argumentHint: "${entry.argumentHint}"`);
@@ -133,6 +149,11 @@ function formatMdSearchEntry(entry: MentionEntry, indent: string, commented = fa
     `${contentLinePrefix}path: ${entry.path}`,
     `${contentLinePrefix}pattern: "${entry.pattern}"`
   ];
+
+  // Add prefixPattern if present
+  if (entry.prefixPattern) {
+    lines.push(`${contentLinePrefix}prefixPattern: "${entry.prefixPattern}"`);
+  }
 
   if (entry.searchPrefix) {
     lines.push(`${contentLinePrefix}searchPrefix: ${entry.searchPrefix}            # Search with @${entry.searchPrefix}:`);
@@ -227,6 +248,16 @@ function buildSlashCommandsSection(settings: UserSettings, options: YamlGenerato
 
   // Custom section
   section += '\n  # Custom slash commands from markdown files\n';
+  section += '  # Configuration fields:\n';
+  section += '  #   name: Display name template (variables: {basename}, {frontmatter@field}, {prefix})\n';
+  section += '  #   description: Command description template\n';
+  section += '  #   path: Directory path to search for command files\n';
+  section += '  #   label: Display label for UI badge (e.g., "command", "skill", "agent")\n';
+  section += '  #   color: Badge color (name: grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red, or hex: #FF5733)\n';
+  section += '  #   pattern: Glob pattern to match files (e.g., "*.md", "**/*/SKILL.md")\n';
+  section += '  #   prefixPattern: Pattern to extract prefix from plugin metadata\n';
+  section += '  #   argumentHint: Hint for command arguments\n';
+  section += '  #   maxSuggestions: Maximum number of suggestions to display\n';
   section += '  custom:\n';
 
   if (hasCustom) {
@@ -375,6 +406,17 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
   // Markdown-based mentions subsection
   section += `
   # Markdown-based mentions from markdown files
+  # Configuration fields:
+  #   name: Display name template (variables: {basename}, {frontmatter@field}, {prefix})
+  #   description: Entry description template
+  #   path: Directory path to search for markdown files
+  #   pattern: Glob pattern to match files
+  #   prefixPattern: Pattern to extract prefix from plugin metadata
+  #   searchPrefix: Prefix to trigger this search (e.g., "agent" → @agent:)
+  #   maxSuggestions: Maximum number of suggestions to display
+  #   sortOrder: Sort order (asc, desc)
+  #   inputFormat: Insert format (name, path)
+  #
   # Pattern examples:
   #   "*.md"                  - Root directory only
   #   "**/*.md"               - All subdirectories (recursive)
@@ -382,7 +424,6 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
   #   "**/*/SKILL.md"         - SKILL.md in any subdirectory
   #   "**/{cmd,agent}/*.md"   - Brace expansion (cmd or agent dirs)
   #   "test-*.md"             - Wildcard prefix
-  # searchPrefix: Search with @<prefix>: (e.g., searchPrefix: "agent" → @agent:)
   mdSearch:
 `;
 
