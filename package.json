@@ -12,6 +12,7 @@
     "clean": "rm -rf dist/mac* dist/*.dmg dist/*.zip dist/*.blockmap",
     "clean:cache": "rm -rf node_modules/.cache ~/Library/Caches/electron-builder ~/Library/Caches/electron",
     "clean:full": "npm run clean && npm run clean:cache && rm -rf dist/",
+    "release": "echo 'Releases are automated via GitHub Actions on push to main branch'",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
