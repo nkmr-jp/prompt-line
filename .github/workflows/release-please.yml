@@ -17,6 +17,7 @@ jobs:
         id: release
         with:
           release-type: node
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       # Checkout and run tests only if a release was created
       - name: Checkout code
