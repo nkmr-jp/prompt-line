@@ -46,3 +46,5 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           allow-initial-development-versions: true
           force-bump-patch-version: true
+          changelog-file: CHANGELOG.md
+          update-file: package.json,package-lock.json,CHANGELOG.md
