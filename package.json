@@ -12,7 +12,7 @@
     "clean": "rm -rf dist/mac* dist/*.dmg dist/*.zip dist/*.blockmap",
     "clean:cache": "rm -rf node_modules/.cache ~/Library/Caches/electron-builder ~/Library/Caches/electron",
     "clean:full": "npm run clean && npm run clean:cache && rm -rf dist/",
-    "release": "semantic-release",
+    "release": "echo 'Releases are automated via GitHub Actions on push to main branch'",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
@@ -25,6 +25,7 @@
     "pre-push": "npm run lint && npm run typecheck && npm test",
     "prepare": "husky",
     "reset-accessibility": "tccutil reset Accessibility com.electron.prompt-line && echo '✅ Accessibility permissions for Prompt Line have been reset'",
+    "reset-built-in-commands": "rm -rf ~/.prompt-line/built-in-commands && echo '✅ Built-in commands reset to defaults. Restart the app to apply changes.'",
     "generate:settings-example": "npx ts-node scripts/generate-settings-example.ts"
   },
   "keywords": [
@@ -41,9 +42,6 @@
   "devDependencies": {
     "@eslint/js": "^9.29.0",
     "@jest/globals": "^30.0.0",
-    "@semantic-release/changelog": "^6.0.3",
-    "@semantic-release/git": "^10.0.1",
-    "@semantic-release/github": "^11.0.3",
     "@stryker-mutator/core": "^9.4.0",
     "@stryker-mutator/jest-runner": "^9.4.0",
     "@stryker-mutator/typescript-checker": "^9.4.0",
@@ -52,7 +50,6 @@
     "@types/node": "^20.17.57",
     "@typescript-eslint/eslint-plugin": "^8.34.0",
     "@typescript-eslint/parser": "^8.34.0",
-    "conventional-changelog-conventionalcommits": "^9.1.0",
     "electron": "^36.9.5",
     "electron-builder": "26.6.0",
     "electron-mock-ipc": "0.3.12",
@@ -64,7 +61,6 @@
     "jest-environment-jsdom": "^30.2.0",
     "jest-environment-node": "^30.0.0",
     "jscpd": "^4.0.5",
-    "semantic-release": "^25.0.2",
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
     "typescript": "~5.5.0",

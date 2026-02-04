@@ -48,6 +48,8 @@ export type {
   LoggingConfig,
   LogLevel,
   UserSettings,
+  // Color types
+  ColorValue,
   // Mention settings types (@ mentions)
   FileSearchUserSettings,
   SymbolSearchUserSettings,

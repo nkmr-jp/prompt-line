@@ -1,0 +1,117 @@
+# OpenClaw TUI built-in slash commands
+#
+# Color property supports both named colors and hex color codes:
+# - Named colors: grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red
+# - Hex codes: #RGB or #RRGGBB (e.g., #FF0000, #F00)
+
+name: openclaw
+color: red  # You can also use hex codes like "#FF0000"
+reference: https://docs.openclaw.ai/tools/slash-commands
+
+commands:
+  - name: abort
+    description: Abort current execution
+  - name: activation
+    description: Group-specific activation control
+    argument-hint: "<mention|always>"
+  - name: agent
+    description: Manage agents
+  - name: allowlist
+    description: List, add or remove allowlist entries
+  - name: approve
+    description: Resolve execution approval prompts
+    argument-hint: "<id> <allow-once|allow-always|deny>"
+  - name: bash
+    description: Execute bash commands directly (host-only)
+    argument-hint: "<command>"
+  - name: commands
+    description: List available commands (same as /help)
+  - name: compact
+    description: Compact messages to manage context size
+    argument-hint: "[instructions]"
+  - name: config
+    description: Manage persistent settings (owner-only)
+    argument-hint: "<show|get|set|unset>"
+  - name: context
+    description: Show detailed system context explanation
+    argument-hint: "[list|detail|json]"
+  - name: debug
+    description: Manage temporary runtime adjustments (owner-only)
+    argument-hint: "<show|set|unset|reset>"
+  - name: deliver
+    description: Delivery settings
+  - name: dock-discord
+    description: Switch replies to Discord
+  - name: dock-slack
+    description: Switch replies to Slack
+  - name: dock-telegram
+    description: Switch replies to Telegram
+  - name: elev
+    description: Manage elevated permissions (alias for /elevated)
+    argument-hint: "<on|off|ask|full>"
+  - name: elevated
+    description: Manage elevated permissions
+    argument-hint: "<on|off|ask|full>"
+  - name: exec
+    description: Send commands to specific hosts with security settings
+  - name: exit
+    description: Exit the TUI
+  - name: help
+    description: Get usage help and understand system capabilities
+  - name: id
+    description: Display sender ID (alias for /whoami)
+  - name: model
+    description: Switch AI models
+    argument-hint: "[name]"
+  - name: new
+    description: Start a new session
+    argument-hint: "[model]"
+  - name: prose
+    description: OpenProse VM commands
+    argument-hint: "<help|run|compile|examples|update>"
+  - name: queue
+    description: Manage command queue with debouncing and capping
+    argument-hint: "<mode>"
+  - name: reasoning
+    description: Control reasoning step visibility
+    argument-hint: "<on|off|stream>"
+  - name: reset
+    description: Reset current session
+  - name: restart
+    description: Restart session (optional, configurable)
+  - name: send
+    description: Owner-only send control
+    argument-hint: "<on|off|inherit>"
+  - name: session
+    description: Manage sessions
+  - name: settings
+    description: Manage settings
+  - name: skill
+    description: Execute specific skills by name
+    argument-hint: "<name> [input]"
+  - name: status
+    description: Show operational state, provider usage and quota information
+  - name: stop
+    description: Stop current execution
+  - name: subagents
+    description: Inspect, stop, log or message sub-agent runs
+    argument-hint: "<list|stop|log|info|send>"
+  - name: think
+    description: Adjust thinking verbosity level
+    argument-hint: "<off|minimal|low|medium|high|xhigh>"
+  - name: tts
+    description: Control Text-to-Speech functionality
+    argument-hint: "<off|always|inbound|tagged|status|provider|limit|summary|audio>"
+  - name: usage
+    description: Control usage display
+    argument-hint: "<off|tokens|full|cost>"
+  - name: v
+    description: Adjust verbosity level (alias for /verbose)
+    argument-hint: "<on|full|off>"
+  - name: verbose
+    description: Adjust verbosity level
+    argument-hint: "<on|full|off>"
+  - name: voice
+    description: Discord native TTS command
+  - name: whoami
+    description: Display sender ID

@@ -2,6 +2,7 @@ import { IpcMainInvokeEvent } from 'electron';
 import { logger } from '../utils/utils';
 import type MdSearchLoader from '../managers/md-search-loader';
 import type SettingsManager from '../managers/settings-manager';
+import type BuiltInCommandsManager from '../managers/built-in-commands-manager';
 import type { SlashCommandItem, AgentItem } from '../types';
 import builtInCommandsLoader from '../lib/built-in-commands-loader';
 import { slashCommandCacheManager } from '../managers/slash-command-cache-manager';
@@ -17,7 +18,11 @@ class MdSearchHandler {
   private lastConfigUpdate: number = 0;
   private readonly CONFIG_CACHE_TTL = 5000; // 5 seconds cache TTL
 
-  constructor(mdSearchLoader: MdSearchLoader, settingsManager: SettingsManager) {
+  constructor(
+    mdSearchLoader: MdSearchLoader,
+    settingsManager: SettingsManager,
+    builtInCommandsManager: BuiltInCommandsManager
+  ) {
     this.mdSearchLoader = mdSearchLoader;
     this.settingsManager = settingsManager;
 
@@ -25,6 +30,12 @@ class MdSearchHandler {
     settingsManager.on('settings-changed', () => {
       this.updateConfig();
       logger.debug('MdSearch config updated via hot reload');
+    });
+
+    // Subscribe to built-in commands changes for hot reload
+    builtInCommandsManager.on('commands-changed', () => {
+      logger.debug('Built-in commands updated via hot reload');
+      // Cache is already cleared by the manager, next request will trigger reload
     });
 
     // Initial config load

@@ -4,6 +4,7 @@ import type WindowManager from '../managers/window';
 import type DraftManager from '../managers/draft-manager';
 import type DirectoryManager from '../managers/directory-manager';
 import type SettingsManager from '../managers/settings-manager';
+import type BuiltInCommandsManager from '../managers/built-in-commands-manager';
 import type { IHistoryManager, HandlerStats } from '../types';
 import MdSearchLoader from '../managers/md-search-loader';
 import FileOpenerManager from '../managers/file-opener-manager';
@@ -47,7 +48,8 @@ class IPCHandlers {
     historyManager: IHistoryManager,
     draftManager: DraftManager,
     directoryManager: DirectoryManager,
-    settingsManager: SettingsManager
+    settingsManager: SettingsManager,
+    builtInCommandsManager: BuiltInCommandsManager
   ) {
     // Initialize MdSearchLoader and FileOpenerManager
     const settings = settingsManager.getSettings();
@@ -79,7 +81,11 @@ class IPCHandlers {
     );
     this.windowHandler = new WindowHandler(windowManager);
     this.systemHandler = new SystemHandler(settingsManager);
-    this.mdSearchHandler = new MdSearchHandler(mdSearchLoader, settingsManager);
+    this.mdSearchHandler = new MdSearchHandler(
+      mdSearchLoader,
+      settingsManager,
+      builtInCommandsManager
+    );
     this.fileHandler = new FileHandler(fileOpenerManager, directoryManager);
     this.usageHistoryHandler = new UsageHistoryHandler();
 

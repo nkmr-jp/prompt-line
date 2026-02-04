@@ -7,7 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Development
 ```bash
 npm start          # Run app in development mode (with DEBUG logging enabled)
-npm run reset-accessibility  # Reset accessibility permissions for Prompt Line
+npm run reset-built-in-commands  # Reset slash commands to defaults
+npm run reset-accessibility      # Reset accessibility permissions for Prompt Line
 ```
 
 **Development vs Production Modes:**
@@ -70,16 +71,28 @@ npm run build:renderer  # Vite build for renderer process
 npm run clean      # Removes build artifacts (DMG, zip files, etc.)
 npm run clean:cache     # Clears build caches (node_modules/.cache, electron caches)
 npm run clean:full      # Full cleanup (build artifacts + caches + dist directory)
-npm run release    # Semantic release process
+npm run release    # Info about automated release process (via GitHub Actions)
 npm run prepare    # Husky setup
 ```
 
 **Build Process Details:**
 The `npm run compile` command performs:
 1. TypeScript compilation (`tsc`)
-2. Renderer build (`npm run build:renderer`)  
+2. Renderer build (`npm run build:renderer`)
 3. Native tools compilation (`cd native && make install`)
 4. Copy compiled tools to distribution directory
+
+**Release Process:**
+This project uses [go-semantic-release](https://github.com/go-semantic-release/semantic-release) for automated releases:
+- Releases are triggered automatically on push to `main` branch via GitHub Actions
+- Version numbers follow [Semantic Versioning](https://semver.org/) based on [Conventional Commits](https://www.conventionalcommits.org/)
+- Configuration: `.semrelrc` file in project root
+- Workflow: `.github/workflows/release.yml`
+- The release process automatically:
+  - Analyzes commit messages to determine version bump
+  - Updates `package.json` and `package-lock.json` versions
+  - Generates changelog with emojis
+  - Creates GitHub release with notes
 
 ### Git Hooks & Quality Assurance
 The project uses automated git hooks to ensure code quality:
@@ -293,6 +306,24 @@ IPC response → Renderer Process
 - `directory-data-updated`: Directory change notifications
 
 Total: 30+ IPC channels across 7 specialized handlers
+
+### Built-in Commands Hot Reload
+
+Built-in command YAMLファイルの変更は自動的に検知され、リアルタイムで反映されます:
+
+**仕組み:**
+- ファイル監視: `~/.prompt-line/built-in-commands/`
+- デバウンス: 300ms
+- アプリ再起動不要
+
+**実装パターン:**
+- SettingsManagerと同じchokidar + EventEmitterパターン
+- YAMLファイル(.yaml, .yml)のみを監視
+- ファイル変更時にキャッシュクリアと'commands-changed'イベント発火
+
+**関連ファイル:**
+- `src/managers/built-in-commands-manager.ts` - ファイルウォッチング実装
+- `src/handlers/mdsearch-handler.ts` - イベントリスナー
 
 ## Platform-Specific Implementation
 
