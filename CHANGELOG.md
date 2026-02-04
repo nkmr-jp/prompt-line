@@ -1,3 +1,53 @@
+## [0.19.1](https://github.com/nkmr-jp/prompt-line/compare/v0.19.0...v0.19.1) (2026-02-04)
+
+### Bug Fixes
+
+* **ci:** enable CHANGELOG.md auto-update in release workflow ([a441ab0](https://github.com/nkmr-jp/prompt-line/commit/a441ab0e))
+
+## [0.19.0](https://github.com/nkmr-jp/prompt-line/compare/v0.18.6...v0.19.0) (2026-02-04)
+
+### Features
+
+* **release:** migrate to go-semantic-release ([e8c2733](https://github.com/nkmr-jp/prompt-line/commit/e8c27338))
+* **renderer:** invalidate slash command cache on window shown ([f340644](https://github.com/nkmr-jp/prompt-line/commit/f3406446))
+* **slash-commands:** add color support to source badges ([3caa8f5](https://github.com/nkmr-jp/prompt-line/commit/3caa8f56))
+* **slash-command-manager:** support hex color codes for command labels ([caab6f9](https://github.com/nkmr-jp/prompt-line/commit/caab6f90))
+* **built-in-commands:** add hot reload support for command YAML files ([8be6ca4](https://github.com/nkmr-jp/prompt-line/commit/8be6ca49))
+* **colors:** add blue color option to command and search interfaces ([95a7ca2](https://github.com/nkmr-jp/prompt-line/commit/95a7ca23))
+* **built-in-commands:** add color property and new commands to CLI tools ([f52ce88](https://github.com/nkmr-jp/prompt-line/commit/f52ce882))
+* **slash-commands:** update builtin commands with 2026 additions ([effdef1](https://github.com/nkmr-jp/prompt-line/commit/effdef14))
+* **slash-commands:** add OpenClaw TUI built-in commands ([b60ff1d](https://github.com/nkmr-jp/prompt-line/commit/b60ff1d1))
+
+### Bug Fixes
+
+* **security:** remove semantic-release and resolve all vulnerabilities ([cc5198a](https://github.com/nkmr-jp/prompt-line/commit/cc5198af))
+* **built-in-commands-manager:** exclude directories from YAML file filter ([772e425](https://github.com/nkmr-jp/prompt-line/commit/772e425b))
+
+### Performance Improvements
+
+* **built-in-commands:** improve file watcher logging and directory detection ([af2614a](https://github.com/nkmr-jp/prompt-line/commit/af2614a3))
+
+### Documentation
+
+* **color:** add comprehensive color documentation for slash commands ([2b50db3](https://github.com/nkmr-jp/prompt-line/commit/2b50db3c))
+
+### Tests
+
+* **built-in-commands:** fix mock setup for clearCache method ([ef3518a](https://github.com/nkmr-jp/prompt-line/commit/ef3518a3))
+* **performance:** adjust p95 threshold for environment variance ([bc2d3c0](https://github.com/nkmr-jp/prompt-line/commit/bc2d3c0a))
+
+### Code Refactoring
+
+* **built-in-commands:** clean up debug logs for production ([268e7e1](https://github.com/nkmr-jp/prompt-line/commit/268e7e18))
+* **built-in-commands-manager:** use imported loader singleton instead of dynamic require ([fd1e06a](https://github.com/nkmr-jp/prompt-line/commit/fd1e06af))
+* **types:** consolidate color type definitions and add hex color support ([0cf60f0](https://github.com/nkmr-jp/prompt-line/commit/0cf60f0b))
+
+### Miscellaneous Chores
+
+* **ci:** pin go-semantic-release action to commit hash ([9a9a3e5](https://github.com/nkmr-jp/prompt-line/commit/9a9a3e50))
+* **built-in-commands:** update color scheme for CLI tools in YAML definitions ([54f5d35](https://github.com/nkmr-jp/prompt-line/commit/54f5d355))
+* **config:** update default settings color scheme for commands and skills ([a0cbc98](https://github.com/nkmr-jp/prompt-line/commit/a0cbc983))
+
 ## [0.18.6](https://github.com/nkmr-jp/prompt-line/compare/v0.18.5...v0.18.6) (2026-01-30)
 
 ### Maintenance
