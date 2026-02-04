@@ -1,4 +1,4 @@
-name: Release
+name: Release Please
 
 on:
   push:
@@ -7,44 +7,41 @@ on:
 
 permissions:
   contents: write
-  issues: write
   pull-requests: write
-  actions: read
 
 jobs:
-  release:
+  release-please:
     runs-on: ubuntu-latest
-    if: "!contains(github.event.head_commit.message, '[skip ci]')"
-
     steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          release-type: node
+
+      # Checkout and run tests only if a release was created
       - name: Checkout code
         uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
-        with:
-          fetch-depth: 0
+        if: ${{ steps.release.outputs.release_created }}
 
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
           cache: 'npm'
+        if: ${{ steps.release.outputs.release_created }}
 
       - name: Install dependencies
         run: npm ci
+        if: ${{ steps.release.outputs.release_created }}
 
       - name: Run tests
         run: npm test
+        if: ${{ steps.release.outputs.release_created }}
 
       - name: Run linter
         run: npm run lint
+        if: ${{ steps.release.outputs.release_created }}
 
       - name: Type check
         run: npm run typecheck
-
-      - name: Run go-semantic-release
-        uses: go-semantic-release/action@453e003c94ddb9c64e7ea4153794ef69e477259e # v1
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          allow-initial-development-versions: true
-          force-bump-patch-version: true
-          changelog-file: CHANGELOG.md
-          update-file: package.json,package-lock.json,CHANGELOG.md
+        if: ${{ steps.release.outputs.release_created }}

@@ -83,16 +83,19 @@ The `npm run compile` command performs:
 4. Copy compiled tools to distribution directory
 
 **Release Process:**
-This project uses [go-semantic-release](https://github.com/go-semantic-release/semantic-release) for automated releases:
-- Releases are triggered automatically on push to `main` branch via GitHub Actions
+This project uses [Release Please](https://github.com/googleapis/release-please) (Google's official release automation tool) for automated releases:
+- Release PRs are created automatically on push to `main` branch via GitHub Actions
 - Version numbers follow [Semantic Versioning](https://semver.org/) based on [Conventional Commits](https://www.conventionalcommits.org/)
-- Configuration: `.semrelrc` file in project root
-- Workflow: `.github/workflows/release.yml`
+- Configuration: `release-please-config.json` and `.release-please-manifest.json` in project root
+- Workflow: `.github/workflows/release-please.yml`
 - The release process automatically:
-  - Analyzes commit messages to determine version bump
-  - Updates `package.json` and `package-lock.json` versions
-  - Generates changelog with emojis
-  - Creates GitHub release with notes
+  1. **Creates Release PR**: Analyzes commits and creates a PR with version bump and CHANGELOG updates
+  2. **Manual Review**: Team reviews the PR before merging (optional but recommended)
+  3. **On PR Merge**: Automatically creates GitHub release and runs tests
+  4. **Updates Files**:
+     - `package.json` and `package-lock.json` versions
+     - `CHANGELOG.md` with categorized changes
+     - Creates git tags and GitHub releases
 
 ### Git Hooks & Quality Assurance
 The project uses automated git hooks to ensure code quality:
