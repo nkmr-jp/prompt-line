@@ -18,5 +18,8 @@
     "files-updater": {
       "names": ["npm"]
     }
+  },
+  "changelog": {
+    "file": "CHANGELOG.md"
   }
 }
