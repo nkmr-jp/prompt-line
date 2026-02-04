@@ -4,6 +4,21 @@
 
 * **ci:** enable CHANGELOG.md auto-update in release workflow ([a441ab0](https://github.com/nkmr-jp/prompt-line/commit/a441ab0e))
 
+## [0.20.0](https://github.com/nkmr-jp/prompt-line/compare/v0.19.1...v0.20.0) (2026-02-04)
+
+
+### Features
+
+* add OpenCode support and built-in command management ([5af3e7b](https://github.com/nkmr-jp/prompt-line/commit/5af3e7bc7482e2c4ccbcc9c547ece67611721f68))
+* **ci:** migrate from go-semantic-release to Release Please ([fd0598b](https://github.com/nkmr-jp/prompt-line/commit/fd0598b917ae438ca5e78b2a3d4f51fbd905288e))
+* **ci:** Migrate from go-semantic-release to Release Please ([dc8dbf8](https://github.com/nkmr-jp/prompt-line/commit/dc8dbf8f9ec46074608e3bd3bb71cebd1bb2d8ea))
+* **commands:** add OpenCode built-in commands ([0416253](https://github.com/nkmr-jp/prompt-line/commit/0416253d149161023e5356ad16efd7d65d5b8708))
+
+
+### Bug Fixes
+
+* **ci:** enable CHANGELOG.md auto-update via .semrelrc ([7f1c805](https://github.com/nkmr-jp/prompt-line/commit/7f1c805c26b38ba2d99a0ac8e8d0e3c9555db192))
+
 ## [0.19.0](https://github.com/nkmr-jp/prompt-line/compare/v0.18.6...v0.19.0) (2026-02-04)
 
 ### Features
