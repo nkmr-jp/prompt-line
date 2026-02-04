@@ -49,8 +49,15 @@ Enterを押しても勝手に送信されないので、改行する場合も気
 ### システム要件
 
 - macOS 10.14以降
-- Node.js 20以上
-- Xcodeコマンドラインツール または Xcode（ネイティブツールのコンパイル用）
+- Node.js 20以上（ソースからビルドする場合のみ）
+- Xcodeコマンドラインツール または Xcode（ソースからビルドする場合のみ）
+
+### ビルド済みバイナリのダウンロード（推奨）
+
+[GitHubリリースページ](https://github.com/nkmr-jp/prompt-line/releases)から、ご使用のシステムに合った最新の`.dmg`ファイルをダウンロードしてください：
+
+- **Apple Silicon（M1/M2/M3）**: `Prompt-Line-{version}-arm64.dmg`
+- **Intel**: `Prompt-Line-{version}-x64.dmg`
 
 ### ソースからビルド
 

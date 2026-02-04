@@ -50,8 +50,15 @@ Of course, it also works with apps other than Terminal.
 ### System Requirements
 
 - macOS 10.14 or later
-- Node.js 20 or later
-- Xcode Command Line Tools or Xcode (for compiling native tools)
+- Node.js 20 or later (only for building from source)
+- Xcode Command Line Tools or Xcode (only for building from source)
+
+### Download Pre-built Binary (Recommended)
+
+Download the latest `.dmg` file for your system from the [GitHub Releases](https://github.com/nkmr-jp/prompt-line/releases) page:
+
+- **Apple Silicon (M1/M2/M3)**: `Prompt-Line-{version}-arm64.dmg`
+- **Intel**: `Prompt-Line-{version}-x64.dmg`
 
 ### Build from Source
 
