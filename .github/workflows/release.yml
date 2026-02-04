@@ -7,9 +7,6 @@ on:
 
 permissions:
   contents: write
-  issues: write
-  pull-requests: write
-  actions: read
 
 jobs:
   release:
@@ -40,7 +37,10 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
-      - name: Run semantic-release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx semantic-release
+      - name: Run go-semantic-release
+        uses: go-semantic-release/action@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          changelog-file: CHANGELOG.md
+          changelog-generator-opt: emojis=true
+          prepend: true

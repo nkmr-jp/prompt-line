@@ -71,16 +71,42 @@ npm run build:renderer  # Vite build for renderer process
 npm run clean      # Removes build artifacts (DMG, zip files, etc.)
 npm run clean:cache     # Clears build caches (node_modules/.cache, electron caches)
 npm run clean:full      # Full cleanup (build artifacts + caches + dist directory)
-npm run release    # Semantic release process
 npm run prepare    # Husky setup
 ```
 
 **Build Process Details:**
 The `npm run compile` command performs:
 1. TypeScript compilation (`tsc`)
-2. Renderer build (`npm run build:renderer`)  
+2. Renderer build (`npm run build:renderer`)
 3. Native tools compilation (`cd native && make install`)
 4. Copy compiled tools to distribution directory
+
+### Release Process
+
+The project uses [go-semantic-release](https://github.com/go-semantic-release/semantic-release) for automated versioning and releases:
+
+**Automatic Release:**
+- Releases are automatically created when commits are pushed to the `main` branch
+- Version numbers follow [Semantic Versioning](https://semver.org/)
+- Release notes are generated based on [Conventional Commits](https://www.conventionalcommits.org/)
+- CHANGELOG.md is automatically updated with emoji support
+
+**GitHub Actions Workflow:**
+- Defined in `.github/workflows/release.yml`
+- Runs tests, linter, and type checking before release
+- Uses `go-semantic-release/action@v1` for release automation
+- Requires `GITHUB_TOKEN` for creating releases and tags
+
+**Conventional Commit Types:**
+- `feat:` - New feature (minor version bump)
+- `fix:` - Bug fix (patch version bump)
+- `refactor:` - Code refactoring (patch version bump)
+- `perf:` - Performance improvement (patch version bump)
+- `test:` - Test changes (patch version bump)
+- `chore:` - Maintenance tasks (patch version bump)
+- `BREAKING CHANGE:` - Breaking changes (major version bump)
+
+**Note:** Releases are fully automated via GitHub Actions. There is no manual `npm run release` command.
 
 ### Git Hooks & Quality Assurance
 The project uses automated git hooks to ensure code quality:
