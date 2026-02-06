@@ -11,6 +11,38 @@
 
 * **ci:** enable CHANGELOG.md auto-update via .semrelrc ([7f1c805](https://github.com/nkmr-jp/prompt-line/commit/7f1c805c26b38ba2d99a0ac8e8d0e3c9555db192))
 
+## [0.21.0](https://github.com/nkmr-jp/prompt-line/compare/v0.20.0...v0.21.0) (2026-02-06)
+
+
+### Features
+
+* **file-opener-manager:** add lineFormat support for useOpenArgs editors ([db5a5e7](https://github.com/nkmr-jp/prompt-line/commit/db5a5e786b46225c66eb9e332deadde3b72c8102))
+* **file-opener:** add Xcode support with xed CLI and open fallback ([d1b63f0](https://github.com/nkmr-jp/prompt-line/commit/d1b63f0611c101222fda8bae1b20a08b06ff9e21))
+* **file-opener:** improve symbol link line jumping and unify editor launching ([09b4b49](https://github.com/nkmr-jp/prompt-line/commit/09b4b499cf5800d74ab7b95736a21aab300e5613))
+* **file-opener:** support line number jumping with default app detection ([6cc9ed9](https://github.com/nkmr-jp/prompt-line/commit/6cc9ed9ddb8b7206f0b27491cdc62f96c153c060))
+* **symbol-search:** implement multiline block detection for Go/Rust/TypeScript ([081670a](https://github.com/nkmr-jp/prompt-line/commit/081670a99ce90e6646c19caf6fb403a6eb79708b))
+
+
+### Bug Fixes
+
+* **file-opener-manager:** correct JXA property name for getting app name ([c67cf3e](https://github.com/nkmr-jp/prompt-line/commit/c67cf3ea048600118f5c2b7fb304834ec2aebe97))
+* **file-search:** allow /tmp access on macOS while maintaining security ([8d6db98](https://github.com/nkmr-jp/prompt-line/commit/8d6db98ab27daadfb30197835d4626c73401d850))
+* **file-search:** always apply DEFAULT_EXCLUDES regardless of includePatterns ([1893728](https://github.com/nkmr-jp/prompt-line/commit/1893728fb3388c8009d6b96983dcd070a00cf27c))
+* **file-search:** enhance security and validation for includePatterns ([6375712](https://github.com/nkmr-jp/prompt-line/commit/6375712c53ca10f9efae24dccf6552963b0f406a))
+* **file-search:** exclude .git and other defaults in includePatterns ([30adb66](https://github.com/nkmr-jp/prompt-line/commit/30adb66c037cd98177a40900770e9c5e93b0d838))
+* **file-search:** handle absolute paths in glob pattern extraction ([27db94f](https://github.com/nkmr-jp/prompt-line/commit/27db94f1b67375b1374c015ea6ea641e49a48757))
+* **file-search:** implement includePatterns processing ([92bcc04](https://github.com/nkmr-jp/prompt-line/commit/92bcc0425461234b78a49190e11e0a90bcc209f8))
+* **file-search:** skip non-existent directories in includePattern search paths ([89e282e](https://github.com/nkmr-jp/prompt-line/commit/89e282e649382e3fa659c2eb932c36d66370955b))
+* **file-search:** use search-path instead of glob for includePatterns ([9407206](https://github.com/nkmr-jp/prompt-line/commit/9407206e7817e2e2ffdb3d232167fa4872836a35))
+* implement two-phase symbol search matching Swift behavior ([b700609](https://github.com/nkmr-jp/prompt-line/commit/b70060985165b9791b690ef338e81f822614ed60))
+* remove unsupported lookahead regex from Go variable patterns ([2d694b0](https://github.com/nkmr-jp/prompt-line/commit/2d694b004797beb1390dd1aff307fb3ca05575bd))
+* remove unsupported lookbehind regex from Go symbol patterns ([debda93](https://github.com/nkmr-jp/prompt-line/commit/debda93bf4ce63fd114927ada17fdadb6539eeb3))
+* restore fd/rg hint messages and symbol-searcher functionality after Node.js migration ([bd58264](https://github.com/nkmr-jp/prompt-line/commit/bd582645a66157093d727e77c0a706c1d2599422))
+* **security:** harden file-opener against injection attacks ([ade7920](https://github.com/nkmr-jp/prompt-line/commit/ade7920d2966358a20613279e9cc6dd232b66cad))
+* **security:** harden input validation and sanitization ([2cf9392](https://github.com/nkmr-jp/prompt-line/commit/2cf9392eaf82c543a2a42dda1a9e505ef7c0b3c5))
+* **symbol-search:** add mk language alias for make ([62282e4](https://github.com/nkmr-jp/prompt-line/commit/62282e4e323b30518b14a4307ebe9c4008656de6))
+* **symbol-search:** correct ripgrep type mappings for tsx, jsx, and terraform ([4bf6c62](https://github.com/nkmr-jp/prompt-line/commit/4bf6c6282b07ecae973e9458615707487001d261))
+
 ## [0.19.1](https://github.com/nkmr-jp/prompt-line/compare/v0.19.0...v0.19.1) (2026-02-04)
 
 ### Bug Fixes
