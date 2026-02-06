@@ -22,9 +22,11 @@ SWIFTC = swiftc
 SWIFT_FLAGS = -O
 FRAMEWORKS = -framework Cocoa -framework ApplicationServices
 OUTPUT_DIR = ../src/native-tools
-SOURCES = window-detector.swift keyboard-simulator.swift text-field-detector.swift directory-detector file-searcher symbol-searcher
-TARGETS = $(OUTPUT_DIR)/window-detector $(OUTPUT_DIR)/keyboard-simulator $(OUTPUT_DIR)/text-field-detector $(OUTPUT_DIR)/directory-detector $(OUTPUT_DIR)/file-searcher $(OUTPUT_DIR)/symbol-searcher
+SOURCES = window-detector.swift keyboard-simulator.swift text-field-detector.swift directory-detector
+TARGETS = $(OUTPUT_DIR)/window-detector $(OUTPUT_DIR)/keyboard-simulator $(OUTPUT_DIR)/text-field-detector $(OUTPUT_DIR)/directory-detector
 ```
+
+**Note:** `file-searcher` and `symbol-searcher` have been migrated to Node.js implementations (see `src/managers/file-search/file-searcher-node.ts` and `src/utils/symbol-search/symbol-searcher-node.ts`).
 
 **Build Process:**
 - **Compiler**: Uses `swiftc` with optimization flags (`-O`)
@@ -720,23 +722,8 @@ npm run compile  # Builds TypeScript + native tools + copies to dist/
 # Check fd availability
 ../src/native-tools/directory-detector check-fd
 
-# Test file-searcher
-../src/native-tools/file-searcher list /path/to/project
-../src/native-tools/file-searcher check-fd
-
-# Test symbol-searcher
-../src/native-tools/symbol-searcher check-rg
-../src/native-tools/symbol-searcher list-languages
-../src/native-tools/symbol-searcher search /path/to/project --language go
-../src/native-tools/symbol-searcher search /path/to/project --language ts --max-symbols 1000
-../src/native-tools/symbol-searcher search /path/to/project -l go --no-cache
-
-# Test symbol-searcher cache commands
-../src/native-tools/symbol-searcher build-cache /path/to/project -l go
-../src/native-tools/symbol-searcher cache-info /path/to/project
-../src/native-tools/symbol-searcher cache-info /path/to/project -l go
-../src/native-tools/symbol-searcher clear-cache /path/to/project -l go
-../src/native-tools/symbol-searcher clear-cache /path/to/project --all
+# Note: file-searcher and symbol-searcher have been migrated to Node.js implementations
+# See src/managers/file-search/file-searcher-node.ts and src/utils/symbol-search/symbol-searcher-node.ts
 ```
 
 ### Debugging
@@ -772,9 +759,8 @@ npm run compile  # Builds TypeScript + native tools + copies to dist/
 5. **Window Management**: `focusPreviousApp()` in `window-manager.ts` for app switching
 6. **Text Field Detection**: `detectTextFieldPosition()` in `window-manager.ts` for `active-text-field` positioning
 7. **Directory Detection**: `detectDirectory()` in `window-manager.ts` for terminal/IDE CWD detection
-8. **File Search**: `getFileListWithDirectory()` in `window-manager.ts` for @ mention file search
-9. **Symbol Search**: `searchSymbols()` in `symbol-searcher.ts` for `@language:query` code search
-10. **File Listing**: `listFiles()` in `file-searcher.ts` for fast file discovery
+8. **File Search**: Node.js implementation (`file-searcher-node.ts`) for @ mention file search
+9. **Symbol Search**: Node.js implementation (`symbol-searcher-node.ts`) for `@language:query` code search
 
 ### Timeout Configuration
 ```typescript
