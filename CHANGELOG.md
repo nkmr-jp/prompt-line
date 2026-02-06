@@ -1,3 +1,5 @@
+# Changelog
+
 ## [0.21.0](https://github.com/nkmr-jp/prompt-line/compare/v0.20.0...v0.21.0) (2026-02-06)
 
 
