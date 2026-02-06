@@ -1240,6 +1240,27 @@ describe('symbol-searcher-node', () => {
         expect(result.success).toBe(true);
       });
     }
+
+    test('no patterns should use lookahead or lookbehind (unsupported by ripgrep)', async () => {
+      // ripgrep's default regex engine does not support look-around.
+      // Using (?! (?= (?<! (?<= in patterns will cause rg to fail with:
+      // "look-around, including look-ahead and look-behind, is not supported"
+      for (const lang of ALL_LANGUAGES) {
+        jest.clearAllMocks();
+        const captor = mockExecFileCapturingArgs('');
+        await searchSymbols('/project', lang);
+        const args = captor.getCapturedArgs();
+        if (args.length === 0) continue;
+
+        const searchArgs = args[0]!;
+        const eIndex = searchArgs.indexOf('-e');
+        if (eIndex === -1) continue;
+
+        const pattern = searchArgs[eIndex + 1]!;
+        // Check for lookahead/lookbehind syntax
+        expect(pattern).not.toMatch(/\(\?[!=<]/);
+      }
+    });
   });
 
   // ============================================================

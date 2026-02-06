@@ -85,10 +85,10 @@ const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
       // Constants inside const ( ... ) block: iota continuation (name only, e.g., `StatusOK`)
       { type: 'constant', pattern: '^(?:\\t|    )([A-Z]\\w*)\\s*$', captureGroup: 1 },
       { type: 'variable', pattern: '^var\\s+(\\w+)\\s+', captureGroup: 1 },
-      // Variables inside var ( ... ) block with exported type
-      { type: 'variable', pattern: '^(?:\\t|    )(?!(?:if|for|switch|select|case|default|return|break|continue|goto|fallthrough|defer|go|var|const|type|func)\\s)(\\w+)\\s+\\*?(?:\\[\\])?(?:map\\[.+\\])?(?:chan\\s+)?(?:\\w+\\.)?[A-Z]\\w*\\s*$', captureGroup: 1 },
-      // Variables inside var ( ... ) block with basic type
-      { type: 'variable', pattern: '^(?:\\t|    )(?!(?:if|for|switch|select|case|default|return|break|continue|goto|fallthrough|defer|go|var|const|type|func)\\s)(\\w+)\\s+(string|bool|byte|rune|error|any|int\\d*|uint\\d*|float\\d*|complex\\d*|uintptr)\\s*$', captureGroup: 1 },
+      // Variables inside var ( ... ) block with exported type (uppercase = exported, excludes all lowercase Go keywords)
+      { type: 'variable', pattern: '^(?:\\t|    )([A-Z]\\w*)\\s+\\*?(?:\\[\\])?(?:map\\[.+\\])?(?:chan\\s+)?(?:\\w+\\.)?[A-Z]\\w*\\s*$', captureGroup: 1 },
+      // Variables inside var ( ... ) block with basic type (uppercase = exported, excludes all lowercase Go keywords)
+      { type: 'variable', pattern: '^(?:\\t|    )([A-Z]\\w*)\\s+(string|bool|byte|rune|error|any|int\\d*|uint\\d*|float\\d*|complex\\d*|uintptr)\\s*$', captureGroup: 1 },
     ]
   },
   ts: {
