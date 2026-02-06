@@ -294,6 +294,116 @@ export async function listDirectory(
     if (fdAvailable && fdPath) {
       try {
         files = await listFilesWithFd(sanitizedPath, fdPath, mergedSettings);
+
+        // Process includePatterns (like Swift implementation)
+        // Search each includePattern separately with respectGitignore: false
+        if (mergedSettings.includePatterns && mergedSettings.includePatterns.length > 0) {
+          logger.debug('Processing includePatterns', {
+            patterns: mergedSettings.includePatterns,
+            directory: sanitizedPath
+          });
+
+          for (const pattern of mergedSettings.includePatterns) {
+            try {
+              // Create settings for include pattern search
+              const includeSettings: FileSearchSettings = {
+                ...mergedSettings,
+                respectGitignore: false,  // Ignore .gitignore for include patterns
+                includeHidden: true,      // Allow hidden files in include patterns
+                includePatterns: []       // Clear to avoid recursion
+              };
+
+              // Build args with pattern
+              const args: string[] = [
+                '--type', 'f',
+                '--color', 'never',
+                '--absolute-path',
+                '--no-ignore',           // Force ignore .gitignore
+                '--no-ignore-vcs',       // Force ignore VCS ignore files
+                '--hidden'               // Include hidden files
+              ];
+
+              // Add depth limit if specified
+              if (includeSettings.maxDepth !== null && includeSettings.maxDepth !== undefined) {
+                args.push('--max-depth', String(includeSettings.maxDepth));
+              }
+
+              // Add exclude patterns
+              for (const exclude of includeSettings.excludePatterns) {
+                args.push('--exclude', exclude);
+              }
+
+              // Add glob pattern
+              args.push('--glob', pattern);
+              args.push('.');
+
+              // Execute fd with include pattern
+              const includeFiles = await new Promise<FileInfo[]>((resolve, _reject) => {
+                execFile(fdPath, args, {
+                  cwd: sanitizedPath,
+                  timeout: DEFAULT_TIMEOUT,
+                  maxBuffer: DEFAULT_MAX_BUFFER,
+                  killSignal: 'SIGTERM' as const
+                }, (error, stdout, stderr) => {
+                  if (error) {
+                    logger.debug('includePattern search failed', { pattern, error: error.message });
+                    resolve([]); // Empty result on error
+                    return;
+                  }
+
+                  if (stderr) {
+                    logger.debug('fd stderr for includePattern', { pattern, stderr });
+                  }
+
+                  const lines = stdout.split('\n').filter(line => line.trim());
+                  const patternFiles: FileInfo[] = [];
+
+                  for (const line of lines) {
+                    const filePath = line.trim();
+                    if (!filePath) continue;
+
+                    patternFiles.push({
+                      name: basename(filePath),
+                      path: filePath,
+                      isDirectory: false
+                    });
+                  }
+
+                  resolve(patternFiles);
+                });
+              });
+
+              logger.debug('includePattern search result', {
+                pattern,
+                foundFiles: includeFiles.length
+              });
+
+              // Merge results
+              files.push(...includeFiles);
+            } catch (patternError) {
+              logger.warn('Error processing includePattern', {
+                pattern,
+                error: patternError instanceof Error ? patternError.message : String(patternError)
+              });
+            }
+          }
+
+          // Remove duplicates by path
+          const uniquePaths = new Set<string>();
+          files = files.filter(file => {
+            if (uniquePaths.has(file.path)) {
+              return false;
+            }
+            uniquePaths.add(file.path);
+            return true;
+          });
+
+          logger.debug('Files after includePatterns merge', {
+            totalFiles: files.length,
+            uniqueFiles: uniquePaths.size
+          });
+        }
+
         const partial = files.length >= mergedSettings.maxFiles;
 
         return {
