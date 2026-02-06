@@ -218,7 +218,7 @@ Core functionality is organized into specialized managers:
 - **FileOpenerManager**: File opening with custom editor support
 - **SymbolCacheManager**: Language-separated symbol search caching with TTL
 - **AtPathCacheManager**: @path pattern caching for file highlighting
-- **symbol-search/**: Native symbol search integration with ripgrep (20+ languages)
+- **symbol-search/**: Symbol search integration with ripgrep via Node.js (20+ languages)
 
 **Renderer Process Managers:**
 - **DomManager**: DOM element management and manipulation
@@ -336,17 +336,21 @@ The app uses compiled Swift native tools to simulate Cmd+V in the previously act
 - Accessibility permissions (prompted on first use)
 - Proper window management to restore focus
 
-**Native Swift Tools Integration (6 tools):**
+**Native Swift Tools (4 tools):**
 - **Window Detector**: Compiled Swift binary for reliable window bounds and app detection
 - **Keyboard Simulator**: Native Cmd+V simulation and app activation with bundle ID support
 - **Text Field Detector**: Focused text field detection for precise positioning using Accessibility APIs
 - **Directory Detector**: Fast CWD (current working directory) detection using libproc for 10-50x faster performance
-- **File Searcher**: Fast file listing using `fd` command with .gitignore support
-- **Symbol Searcher**: Code symbol search using `ripgrep` supporting 20+ programming languages
+
+**Node.js Tool Integrations (2 modules):**
+- **File Searcher** (`src/utils/file-search/`): Cross-platform file listing using `fd` command with Node.js `fs.readdir` fallback
+- **Symbol Searcher** (`src/utils/symbol-search/`): Cross-platform code symbol search using `ripgrep` directly from Node.js, supporting 20+ programming languages
+
+**Integration Features:**
 - **JSON Communication**: Structured data exchange prevents parsing vulnerabilities
 - **Error Recovery**: Graceful fallback from text field → window center → cursor → center positioning
 - **Timeout Protection**: 3-5 second timeouts prevent hanging on unresponsive operations
-- **Security**: Compiled binaries eliminate script injection vulnerabilities
+- **Security**: Compiled binaries for window/keyboard operations eliminate script injection vulnerabilities
 
 ### Data Storage
 All data is stored in `~/.prompt-line/`:
@@ -468,7 +472,7 @@ The window supports multiple positioning modes with dynamic configuration:
 - **Syntax**: Type `@<language>:<query>` to search for symbols (e.g., `@ts:Config`, `@go:Handler`)
 - **Part of @ mention system**: Integrated with file search in `src/renderer/mentions/`
 - **ripgrep-based**: Uses `rg` (ripgrep) for fast symbol searching via `code-search-manager.ts`
-- **Native Swift tool**: `symbol-searcher` binary in `native/symbol-searcher/`
+- **Node.js implementation**: `src/utils/symbol-search/symbol-searcher-node.ts` (replaces former native Swift binary)
 - **Symbol caching**: Results cached per directory and language for faster subsequent searches
 - **Supported languages (20)**:
   | Language | Key | Example | Symbol Types |
@@ -510,7 +514,7 @@ The window supports multiple positioning modes with dynamic configuration:
 - **Accessibility integration**: Seamless integration with macOS accessibility APIs
 
 ### Security Considerations
-- **Native tools security**: Compiled Swift binaries eliminate script injection vulnerabilities
+- **Native tools security**: Compiled Swift binaries for window/keyboard operations eliminate script injection vulnerabilities
 - **Input sanitization**: AppleScript sanitization with 64KB limits and character escaping, input size limits (1MB)
 - **Path validation**: Comprehensive path normalization prevents directory traversal in all handlers
 - **Image file security**: Path traversal prevention with restrictive file permissions (0o700/0o600)

@@ -19,7 +19,13 @@ The utils module is organized into specialized files for maintainability:
   - `paths.ts`: Tool path constants
   - `app-detection.ts`: App and window detection
   - `paste-operations.ts`: Paste and activate operations
-  - `directory-operations.ts`: Directory detection and listing
+  - `directory-operations.ts`: Directory detection and file listing (delegates to `file-search/` for file listing)
+- **file-search/**: Cross-platform file search module (replaces native Swift file-searcher)
+  - `index.ts`: Module exports (`listDirectory`, `checkFdAvailable`)
+  - `file-searcher.ts`: File search implementation using `fd` with Node.js `fs.readdir` fallback
+- **symbol-search/**: Cross-platform symbol search module (replaces native Swift symbol-searcher)
+  - `index.ts`: Module exports (`checkRgAvailable`, `getSupportedLanguages`, `searchSymbols`)
+  - `symbol-searcher-node.ts`: Symbol search implementation using `ripgrep` directly from Node.js
 
 ## Files
 
@@ -300,7 +306,7 @@ Re-export module for macOS native tool integrations. Implementation is in `nativ
 - `paths.ts`: Tool path constants for all native binaries
 - `app-detection.ts`: App and window detection using native tools
 - `paste-operations.ts`: Paste and activate operations
-- `directory-operations.ts`: Directory detection and listing
+- `directory-operations.ts`: Directory detection and file listing (delegates to `file-search/`)
 
 **Native Tools Integration (paths.ts):**
 ```typescript
@@ -308,12 +314,13 @@ const WINDOW_DETECTOR_PATH: string;        // Window bounds and app detection
 const KEYBOARD_SIMULATOR_PATH: string;     // Keyboard simulation and app activation
 const TEXT_FIELD_DETECTOR_PATH: string;    // Focused text field detection
 const DIRECTORY_DETECTOR_PATH: string;     // Current working directory detection
-const FILE_SEARCHER_PATH: string;          // Fast file listing with fd
-const SYMBOL_SEARCHER_PATH: string;        // Code symbol search with ripgrep
+const FILE_SEARCHER_PATH: string;          // Legacy path (file search now uses file-search/ module)
+const SYMBOL_SEARCHER_PATH: string;        // Legacy path (symbol search now uses symbol-search/ module)
 ```
 - **Path Resolution**: Dynamic path resolution for packaged vs development environments
 - **Native Executables**: Uses compiled native tools for security and performance
 - **Security**: Compiled binaries eliminate script injection vulnerabilities
+- **Note**: File search and symbol search have been migrated to Node.js modules (`file-search/` and `symbol-search/`). Path constants are retained for backward compatibility.
 
 **macOS Native App Detection (app-detection.ts):**
 ```typescript
@@ -357,26 +364,66 @@ function activateAndPasteWithNativeTool(appInfo: AppInfo | string): Promise<void
 
 **Directory Operations (directory-operations.ts):**
 ```typescript
-function detectCurrentDirectory(options?: DirectoryDetectionOptions): Promise<string | null> {
-  // Uses native directory-detector tool
+function detectCurrentDirectory(options?: DirectoryDetectionOptions): Promise<DirectoryInfo> {
+  // Uses native directory-detector tool for CWD detection
   // Returns current working directory of active application
 }
 
-function detectCurrentDirectoryWithFiles(options?: DirectoryDetectionOptions): Promise<{ directory: string; files: string[] } | null> {
+function detectCurrentDirectoryWithFiles(options?: DirectoryDetectionOptions): Promise<DirectoryInfo> {
   // Combines directory detection with file listing
-  // Uses fd for fast file discovery
+  // Step 1: directory-detector for CWD, Step 2: file-search module for file listing
 }
 
-function listDirectory(directoryPath: string, options?: object): Promise<string[]> {
-  // Uses file-searcher (fd) for fast file listing
-  // Respects .gitignore by default
+function listDirectory(directoryPath: string, fileSearchSettings?: FileSearchSettings): Promise<DirectoryInfo> {
+  // Delegates to Node.js file-search module (cross-platform)
 }
 ```
-- **Native Tool Integration**: Uses directory-detector and file-searcher binaries
-- **JSON Communication**: Structured data exchange with native tools
+- **Hybrid Architecture**: Uses native directory-detector for CWD detection, Node.js `file-search/` module for file listing
+- **JSON Communication**: Structured data exchange with native directory-detector
 - **Performance**: Fast directory detection using libproc (10-50x faster)
-- **Gitignore Support**: Respects .gitignore when listing files
-- **Timeout Protection**: Configurable timeouts for all operations
+- **Cross-platform File Listing**: File listing via `file-search/` module works on all platforms
+- **Timeout Protection**: Configurable timeouts for directory detection
+
+**File Search Module (file-search/):**
+```typescript
+function listDirectory(directoryPath: string, settings?: Partial<FileSearchSettings>): Promise<DirectoryInfo> {
+  // Cross-platform file listing
+  // Uses fd if available, falls back to Node.js fs.readdir
+}
+
+function checkFdAvailable(): Promise<{ fdAvailable: boolean; fdPath: string | null }> {
+  // Checks multiple fd paths: /opt/homebrew/bin/fd, /usr/local/bin/fd, /usr/bin/fd, PATH
+}
+```
+- **Replaces Native Swift file-searcher**: Cross-platform Node.js implementation
+- **fd Integration**: Uses `fd` command for fast recursive file listing when available
+- **Node.js Fallback**: Falls back to `fs.readdir` (single level) when `fd` is not installed
+- **Default Excludes**: Filters out common non-essential directories (node_modules, .git, dist, build, etc.)
+- **Security**: Path sanitization, root directory disabled, input validation
+- **Configurable**: `FileSearchSettings` for gitignore, hidden files, max depth, exclude patterns, max files (default 5000)
+- **Timeout Protection**: 5-second default timeout for `fd` commands
+
+**Symbol Search Module (symbol-search/):**
+```typescript
+function searchSymbols(directory: string, language: string, options?: SymbolSearchOptions): Promise<SymbolSearchResponse> {
+  // Search for code symbols using ripgrep
+}
+
+function checkRgAvailable(): Promise<RgCheckResponse> {
+  // Checks multiple rg paths: /opt/homebrew/bin/rg, /usr/local/bin/rg, /usr/bin/rg, PATH
+}
+
+function getSupportedLanguages(): Promise<LanguagesResponse> {
+  // Returns list of supported programming languages with their keys and extensions
+}
+```
+- **Replaces Native Swift symbol-searcher**: Cross-platform Node.js implementation
+- **ripgrep Integration**: Uses `rg` for fast symbol pattern matching
+- **Language Configs**: Built-in regex patterns for Go, TypeScript, TSX, JavaScript, JSX, Python, Rust (8 languages with patterns defined in `LANGUAGE_CONFIGS`)
+- **Pattern Matching**: Each language defines symbol type patterns (function, class, struct, interface, etc.)
+- **Output Parsing**: Parses ripgrep `path:lineNumber:lineContent` format and extracts symbol names
+- **Configurable**: Options for max symbols (default 200,000), timeout (default 5s), exclude patterns
+- **Error Handling**: Graceful handling of rg exit code 1 (no matches), timeouts, and invalid inputs
 
 ## Key Utilities
 
@@ -1063,22 +1110,32 @@ utils.ts (re-export hub)
           ├── paths.ts (path constants)
           ├── app-detection.ts (app/window detection)
           ├── paste-operations.ts (paste operations)
-          └── directory-operations.ts (directory operations)
+          └── directory-operations.ts (directory detection, delegates file listing to file-search/)
+
+file-search/ (cross-platform file search, replaces native Swift file-searcher)
+  ├── index.ts (exports listDirectory, checkFdAvailable)
+  └── file-searcher.ts (fd + Node.js fs.readdir fallback)
+
+symbol-search/ (cross-platform symbol search, replaces native Swift symbol-searcher)
+  ├── index.ts (exports checkRgAvailable, getSupportedLanguages, searchSymbols)
+  └── symbol-searcher-node.ts (ripgrep-based symbol search)
 
 rate-limiter.ts (independent module)
 ```
 
-**Native Tools:**
+**Native Tools (macOS Swift binaries):**
 - `window-detector`: Window bounds and app detection
 - `keyboard-simulator`: Keyboard simulation and app activation
 - `text-field-detector`: Focused text field detection
 - `directory-detector`: Current working directory detection
-- `file-searcher`: Fast file listing with fd
-- `symbol-searcher`: Code symbol search with ripgrep
+
+**Node.js Modules (cross-platform, replaced native Swift binaries):**
+- `file-search/`: File listing using `fd` command with Node.js `fs.readdir` fallback
+- `symbol-search/`: Symbol search using `ripgrep` directly from Node.js
 
 ## Platform Support
 
-- **macOS**: Full functionality with native tools
-- **Windows/Linux**: Limited functionality (file system and utility functions only)
+- **macOS**: Full functionality with native tools + cross-platform modules
+- **Windows/Linux**: Limited functionality (file system, utility functions, file-search, and symbol-search modules work cross-platform)
 - **Development**: Uses relative paths to native tools
 - **Production**: Uses unpacked asar paths for native tools

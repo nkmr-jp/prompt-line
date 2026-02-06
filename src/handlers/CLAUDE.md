@@ -186,7 +186,7 @@ Shared utilities for all handlers:
 - **`get-supported-languages`**: Returns list of 20+ supported programming languages
 - **`search-symbols`**: Searches for symbols in a directory for a specific language
   - Parameters: directory, language, options (maxSymbols, useCache)
-  - Uses native `symbol-searcher` tool with ripgrep
+  - Uses Node.js symbol search module with ripgrep
   - Stale-while-revalidate caching pattern with background refresh
   - Background refresh deduplication to prevent duplicate searches
 - **`get-cached-symbols`**: Retrieves cached symbols for a directory and optional language
