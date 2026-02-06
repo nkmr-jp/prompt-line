@@ -198,8 +198,13 @@ export class FileOpenerManager {
     options: OpenFileOptions
   ): Promise<OpenFileResult> {
     return new Promise((resolve, reject) => {
-      const lineNumber = options.lineNumber || 1;
-      const columnNumber = options.columnNumber || 1;
+      // Validate inputs to prevent argument injection
+      if (filePath.startsWith('-') || filePath.includes('\0')) {
+        reject(new Error('Invalid file path'));
+        return;
+      }
+      const lineNumber = Math.max(1, Math.min(options.lineNumber || 1, 999999));
+      const columnNumber = Math.max(1, Math.min(options.columnNumber || 1, 9999));
 
       // Build app-specific arguments based on lineFormat
       let appArgs: string[];
@@ -244,8 +249,15 @@ export class FileOpenerManager {
     if (process.platform !== 'darwin') return null;
 
     return new Promise((resolve) => {
-      const escapedPath = filePath.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-      const script = `ObjC.import("AppKit");var ws=$.NSWorkspace.sharedWorkspace;var url=$.NSURL.fileURLWithPath("${escapedPath}");var appUrl=ws.URLForApplicationToOpenURL(url);appUrl?ObjC.unwrap(appUrl.deletingPathExtension.lastPathComponent):""`;
+      // Reject paths with control characters to prevent script injection
+      if (filePath.includes('\n') || filePath.includes('\r') || filePath.includes('\0')) {
+        logger.warn('Rejected file path with control characters', { filePath });
+        resolve(null);
+        return;
+      }
+      // Use JSON.stringify for safe JavaScript string escaping (handles all special characters)
+      const safePathJson = JSON.stringify(filePath);
+      const script = `ObjC.import("AppKit");var ws=$.NSWorkspace.sharedWorkspace;var url=$.NSURL.fileURLWithPath(${safePathJson});var appUrl=ws.URLForApplicationToOpenURL(url);appUrl?ObjC.unwrap(appUrl.deletingPathExtension.lastPathComponent):""`;
 
       execFile('osascript', ['-l', 'JavaScript', '-e', script], { timeout: 3000 }, (error, stdout) => {
         if (error || !stdout?.trim()) {
