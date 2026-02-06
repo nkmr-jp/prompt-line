@@ -524,7 +524,7 @@ describe('FileOpenerManager', () => {
   });
 
   describe('line number support with configured editor', () => {
-    it('should open file with --goto for VSCode when line number is provided', async () => {
+    it('should open file with open -na --goto for VSCode when line number is provided', async () => {
       mockSettingsManager.getSettings.mockReturnValue({
         ...defaultSettings,
         fileOpener: {
@@ -542,13 +542,13 @@ describe('FileOpenerManager', () => {
 
       expect(result.success).toBe(true);
       expect(mockedExecFile).toHaveBeenCalledWith(
-        'code',
-        ['--goto', '/path/to/file.ts:42:1'],
+        'open',
+        ['-na', 'Visual Studio Code', '--args', '--goto', '/path/to/file.ts:42:1'],
         expect.any(Function)
       );
     });
 
-    it('should open file with --goto for Cursor when line number is provided', async () => {
+    it('should open file with open -na --goto for Cursor when line number is provided', async () => {
       mockSettingsManager.getSettings.mockReturnValue({
         ...defaultSettings,
         fileOpener: {
@@ -566,8 +566,8 @@ describe('FileOpenerManager', () => {
 
       expect(result.success).toBe(true);
       expect(mockedExecFile).toHaveBeenCalledWith(
-        'cursor',
-        ['--goto', '/path/to/file.ts:10:1'],
+        'open',
+        ['-na', 'Cursor', '--args', '--goto', '/path/to/file.ts:10:1'],
         expect.any(Function)
       );
     });
@@ -664,7 +664,7 @@ describe('FileOpenerManager', () => {
       });
 
       let callIndex = 0;
-      mockedExecFile.mockImplementation((cmd: any, _args: any, optionsOrCb: any, cb?: any) => {
+      mockedExecFile.mockImplementation((cmd: any, args: any, optionsOrCb: any, cb?: any) => {
         const callback = typeof optionsOrCb === 'function' ? optionsOrCb : cb;
         callIndex++;
         if (callIndex === 1) {
@@ -672,8 +672,9 @@ describe('FileOpenerManager', () => {
           expect(cmd).toBe('osascript');
           callback(null, 'Cursor\n');
         } else {
-          // Second call: cursor --goto
-          expect(cmd).toBe('cursor');
+          // Second call: open -na Cursor --args --goto
+          expect(cmd).toBe('open');
+          expect(args).toEqual(['-na', 'Cursor', '--args', '--goto', '/path/to/file.ts:42:1']);
           callback(null);
         }
         return {} as any;

@@ -13,29 +13,28 @@ interface OpenFileOptions {
   columnNumber?: number;
 }
 
-// Editor CLI commands and their line number support
+// Editor configuration for line number support
+// All editors use 'open -na <appName> --args' for reliable macOS integration
 interface EditorConfig {
-  // CLI command to use (if different from app name)
-  cli?: string;
-  // Format for line number argument: 'goto' = --goto file:line, 'line' = --line N file, 'colon' = file:line
-  lineFormat?: 'goto' | 'line' | 'colon' | 'url';
-  // URL scheme for JetBrains-style navigation
-  urlScheme?: string;
-  // Use 'open -na <appName> --args' for macOS apps that accept file:line as argument
-  useOpenArgs?: boolean;
+  // Always true - use 'open -na <appName> --args' to launch
+  useOpenArgs: boolean;
+  // Format for line number argument: 'goto' = --goto file:line:col, 'line' = -l N file, 'colon' = file:line:col
+  // Default (undefined) = JetBrains style: --line N file
+  lineFormat?: 'goto' | 'line' | 'colon';
 }
 
 // Known editors and their configurations
+// All editors use 'open -na <app> --args ...' for reliable macOS integration without CLI dependency
 const EDITOR_CONFIGS: Record<string, EditorConfig> = {
-  // VSCode and variants
-  'Visual Studio Code': { cli: 'code', lineFormat: 'goto' },
-  'Visual Studio Code - Insiders': { cli: 'code-insiders', lineFormat: 'goto' },
-  'VSCodium': { cli: 'codium', lineFormat: 'goto' },
-  'Cursor': { cli: 'cursor', lineFormat: 'goto' },
+  // VSCode and variants (--goto file:line:column)
+  'Visual Studio Code': { useOpenArgs: true, lineFormat: 'goto' },
+  'Visual Studio Code - Insiders': { useOpenArgs: true, lineFormat: 'goto' },
+  'VSCodium': { useOpenArgs: true, lineFormat: 'goto' },
+  'Cursor': { useOpenArgs: true, lineFormat: 'goto' },
   'Windsurf': { useOpenArgs: true, lineFormat: 'goto' },
   'Antigravity': { useOpenArgs: true, lineFormat: 'goto' },
   'Kiro': { useOpenArgs: true, lineFormat: 'goto' },
-  // JetBrains IDEs (use 'open -na <app> --args file:line' for reliable line number support)
+  // JetBrains IDEs (--line N file)
   'IntelliJ IDEA': { useOpenArgs: true },
   'IntelliJ IDEA Ultimate': { useOpenArgs: true },
   'IntelliJ IDEA Community': { useOpenArgs: true },
@@ -52,10 +51,10 @@ const EDITOR_CONFIGS: Record<string, EditorConfig> = {
   'AppCode': { useOpenArgs: true },
   'Android Studio': { useOpenArgs: true },
   // Other editors
-  'Sublime Text': { cli: 'subl', lineFormat: 'colon' },
-  'TextMate': { cli: 'mate', lineFormat: 'line' },
-  'Atom': { cli: 'atom', lineFormat: 'colon' },
-  'Zed': { cli: 'zed', lineFormat: 'colon' },
+  'Sublime Text': { useOpenArgs: true, lineFormat: 'colon' },
+  'TextMate': { useOpenArgs: true, lineFormat: 'line' },
+  'Atom': { useOpenArgs: true, lineFormat: 'colon' },
+  'Zed': { useOpenArgs: true, lineFormat: 'colon' },
 };
 
 /**
@@ -202,103 +201,38 @@ export class FileOpenerManager {
       const lineNumber = options.lineNumber || 1;
       const columnNumber = options.columnNumber || 1;
 
-      // macOS 'open -na <app> --args ...' method (for JetBrains IDEs, Windsurf, Antigravity, Kiro)
-      if (config.useOpenArgs) {
-        let appArgs: string[];
-        switch (config.lineFormat) {
-          case 'goto':
-            // VSCode-style: --goto file:line:column (for Windsurf, Antigravity, Kiro)
-            appArgs = ['--goto', `${filePath}:${lineNumber}:${columnNumber}`];
-            break;
-          case 'colon':
-            // Sublime/Zed style: file:line:column
-            appArgs = [`${filePath}:${lineNumber}:${columnNumber}`];
-            break;
-          case 'line':
-            // TextMate style: -l <line> file
-            appArgs = ['-l', String(lineNumber), filePath];
-            break;
-          default:
-            // JetBrains IDEs: --line <line> file
-            appArgs = ['--line', String(lineNumber), filePath];
-            break;
+      // Build app-specific arguments based on lineFormat
+      let appArgs: string[];
+      switch (config.lineFormat) {
+        case 'goto':
+          // VSCode/Cursor/Windsurf style: --goto file:line:column
+          appArgs = ['--goto', `${filePath}:${lineNumber}:${columnNumber}`];
+          break;
+        case 'colon':
+          // Sublime/Zed style: file:line:column
+          appArgs = [`${filePath}:${lineNumber}:${columnNumber}`];
+          break;
+        case 'line':
+          // TextMate style: -l <line> file
+          appArgs = ['-l', String(lineNumber), filePath];
+          break;
+        default:
+          // JetBrains IDEs: --line <line> file
+          appArgs = ['--line', String(lineNumber), filePath];
+          break;
+      }
+
+      // Launch via macOS 'open -na <app> --args ...'
+      const args = ['-na', appName, '--args', ...appArgs];
+      execFile('open', args, (error) => {
+        if (error) {
+          logger.warn('open -na --args failed', { error: error.message, appName, args });
+          reject(error);
+          return;
         }
-        const args = ['-na', appName, '--args', ...appArgs];
-        execFile('open', args, (error) => {
-          if (error) {
-            logger.warn('open -na --args failed', { error: error.message, appName, args });
-            reject(error);
-            return;
-          }
-          logger.info('File opened successfully with open -na --args', {
-            filePath,
-            lineNumber,
-            app: appName
-          });
-          resolve({ success: true });
-        });
-        return;
-      }
-
-      // JetBrains URL scheme
-      if (config.urlScheme) {
-        // Use URL scheme: jetbrains://<ide>/navigate/reference?path=<file>&line=<line>
-        const url = `${config.urlScheme}://open?file=${encodeURIComponent(filePath)}&line=${lineNumber}`;
-        execFile('open', [url], (error) => {
-          if (error) {
-            logger.warn('JetBrains URL scheme failed', { error: error.message, url });
-            reject(error);
-            return;
-          }
-          logger.info('File opened successfully with JetBrains URL scheme', {
-            filePath,
-            lineNumber,
-            app: appName
-          });
-          resolve({ success: true });
-        });
-        return;
-      }
-
-      // CLI-based editors
-      if (config.cli) {
-        let args: string[];
-
-        switch (config.lineFormat) {
-          case 'goto':
-            // VSCode style: --goto file:line:column
-            args = ['--goto', `${filePath}:${lineNumber}:${columnNumber}`];
-            break;
-          case 'line':
-            // TextMate style: -l <line> <file>
-            args = ['-l', String(lineNumber), filePath];
-            break;
-          case 'colon':
-            // Sublime/Atom style: file:line:column
-            args = [`${filePath}:${lineNumber}:${columnNumber}`];
-            break;
-          default:
-            args = [filePath];
-        }
-
-        execFile(config.cli, args, (error) => {
-          if (error) {
-            logger.warn('CLI open failed', { error: error.message, cli: config.cli, args });
-            reject(error);
-            return;
-          }
-          logger.info('File opened successfully with CLI', {
-            filePath,
-            lineNumber,
-            cli: config.cli
-          });
-          resolve({ success: true });
-        });
-        return;
-      }
-
-      // No special handling available
-      reject(new Error('No line number handling available for this editor'));
+        logger.info('File opened with line number', { filePath, lineNumber, app: appName });
+        resolve({ success: true });
+      });
     });
   }
 
