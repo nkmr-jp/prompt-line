@@ -4,10 +4,27 @@
  */
 
 import { execFile } from 'child_process';
-import { readdir, stat } from 'fs/promises';
-import { join, basename } from 'path';
+import { readdir, stat, lstat, realpath } from 'fs/promises';
+import { join, basename, resolve, normalize } from 'path';
 import { logger } from '../logger';
 import type { FileSearchSettings, FileInfo, DirectoryInfo } from '../../types';
+
+// Restricted directories for security (prevent accidental enumeration of sensitive system directories)
+const RESTRICTED_DIRECTORIES = [
+  '/',
+  '/System',
+  '/Library',
+  '/private',
+  '/etc',
+  '/var',
+  '/usr',
+  '/bin',
+  '/sbin',
+  '/boot',
+  '/dev',
+  '/proc',
+  '/sys'
+];
 
 // Default exclude patterns
 const DEFAULT_EXCLUDES = [
@@ -29,6 +46,77 @@ const DEFAULT_EXCLUDES = [
 
 const DEFAULT_TIMEOUT = 5000; // 5 seconds
 const DEFAULT_MAX_BUFFER = 50 * 1024 * 1024; // 50MB
+
+/**
+ * Sanitize path to prevent command injection and path traversal
+ */
+function sanitizePath(pathString: string): string {
+  return pathString
+    .replace(/[;&|`$(){}[\]<>"'\\*?~^]/g, '')
+    .replace(/\x00/g, '')
+    .replace(/[\r\n]/g, '')
+    .trim();
+}
+
+/**
+ * Check if a path is in a restricted directory
+ */
+function isRestrictedDirectory(pathString: string): boolean {
+  const normalizedPath = normalize(pathString);
+  return RESTRICTED_DIRECTORIES.some(restricted => {
+    return normalizedPath === restricted || normalizedPath.startsWith(restricted + '/');
+  });
+}
+
+/**
+ * Validate and resolve path safely
+ * Returns null if path is invalid, restricted, or doesn't exist
+ */
+// eslint-disable-next-line max-statements
+async function validateAndResolvePath(pathString: string, basePath?: string): Promise<string | null> {
+  try {
+    // Sanitize first
+    const sanitized = sanitizePath(pathString);
+    if (!sanitized) return null;
+
+    // Resolve to absolute path
+    const absolutePath = basePath ? resolve(basePath, sanitized) : resolve(sanitized);
+
+    // Check if restricted
+    if (isRestrictedDirectory(absolutePath)) {
+      logger.debug('Path is in restricted directory', { path: absolutePath });
+      return null;
+    }
+
+    // Resolve symlinks to real path
+    const realPath = await realpath(absolutePath);
+
+    // Check again after resolving symlinks
+    if (isRestrictedDirectory(realPath)) {
+      logger.debug('Real path is in restricted directory', { path: realPath, original: absolutePath });
+      return null;
+    }
+
+    // Verify it's a directory using lstat (doesn't follow symlinks)
+    const stats = await lstat(absolutePath);
+    if (!stats.isDirectory() && !stats.isSymbolicLink()) {
+      return null;
+    }
+
+    // If it's a symlink, verify the target is a directory
+    if (stats.isSymbolicLink()) {
+      const targetStats = await stat(absolutePath);
+      if (!targetStats.isDirectory()) {
+        return null;
+      }
+    }
+
+    return realPath;
+  } catch (_error) {
+    // Path doesn't exist or other error
+    return null;
+  }
+}
 
 /**
  * Check if fd command is available
@@ -118,6 +206,7 @@ async function listFilesWithFd(
       killSignal: 'SIGTERM' as const
     };
 
+    // eslint-disable-next-line max-statements
     execFile(fdPath, args, options, (error, stdout, stderr) => {
       if (error) {
         if (error.killed) {
@@ -165,6 +254,7 @@ async function listFilesWithFd(
 /**
  * Fallback: List files using Node.js fs.readdir (single level only)
  */
+// eslint-disable-next-line max-statements
 async function listFilesWithNodeFs(
   directory: string,
   settings: FileSearchSettings
@@ -225,6 +315,7 @@ async function listFilesWithNodeFs(
  * List files in a directory
  * Uses fd if available, falls back to Node.js fs.readdir
  */
+// eslint-disable-next-line max-lines-per-function, max-statements
 export async function listDirectory(
   directoryPath: string,
   settings?: Partial<FileSearchSettings>
@@ -252,38 +343,13 @@ export async function listDirectory(
       return { error: 'Invalid directory path' };
     }
 
-    // Sanitize path to prevent command injection
-    const sanitizedPath = directoryPath
-      .replace(/[;&|`$(){}[\]<>"'\\*?~^]/g, '')
-      .replace(/\x00/g, '')
-      .replace(/[\r\n]/g, '')
-      .trim();
-
-    if (sanitizedPath.length === 0) {
-      return { error: 'Directory path is empty after sanitization' };
+    // Validate and resolve path (includes sanitization, symlink resolution, and restriction checks)
+    const validatedPath = await validateAndResolvePath(directoryPath);
+    if (!validatedPath) {
+      return { error: 'Invalid, restricted, or non-existent directory path', directory: directoryPath };
     }
 
-    // Check if directory exists
-    try {
-      const stats = await stat(sanitizedPath);
-      if (!stats.isDirectory()) {
-        return { error: 'Path is not a directory', directory: sanitizedPath };
-      }
-    } catch (_statError) {
-      return { error: 'Path does not exist', directory: sanitizedPath };
-    }
-
-    // Security: Disable file search for root directory
-    if (sanitizedPath === '/') {
-      return {
-        success: true,
-        directory: sanitizedPath,
-        files: [],
-        fileCount: 0,
-        // searchMode is omitted when disabled (DirectoryInfo only allows 'recursive')
-        partial: false
-      };
-    }
+    const sanitizedPath = validatedPath;
 
     // Try fd first
     const { fdAvailable, fdPath } = await checkFdAvailable();
@@ -301,6 +367,7 @@ export async function listDirectory(
             directory: sanitizedPath
           });
 
+          // eslint-disable-next-line max-depth
           for (const pattern of mergedSettings.includePatterns) {
             try {
               // Create settings for include pattern search
@@ -316,29 +383,28 @@ export async function listDirectory(
               // so we extract the directory part and use it as the search path instead.
               const searchDir = pattern.replace(/\/\*\*.*$/, '').replace(/\/\*$/, '');
 
+              // Sanitize the pattern-derived search directory
+              const sanitizedSearchDir = sanitizePath(searchDir);
+              if (!sanitizedSearchDir) {
+                logger.debug('includePattern search directory is empty after sanitization, skipping', { pattern });
+                continue;
+              }
+
               // Check if searchDir is an absolute path
-              const isAbsolute = searchDir.startsWith('/');
+              const isAbsolute = sanitizedSearchDir.startsWith('/');
 
-              // Determine the full path to check existence
-              const fullSearchPath = isAbsolute ? searchDir : join(sanitizedPath, searchDir);
+              // Validate and resolve the search path (includes restriction checks and symlink resolution)
+              const validatedSearchPath = await validateAndResolvePath(
+                sanitizedSearchDir,
+                isAbsolute ? undefined : sanitizedPath
+              );
 
-              // Check if the search directory exists and is a directory
-              try {
-                const stats = await stat(fullSearchPath);
-                if (!stats.isDirectory()) {
-                  logger.debug('includePattern search path is not a directory, skipping', {
-                    pattern,
-                    searchPath: fullSearchPath
-                  });
-                  continue; // Skip this pattern
-                }
-              } catch (error) {
-                logger.debug('includePattern search path does not exist, skipping', {
+              if (!validatedSearchPath) {
+                logger.debug('includePattern search path is invalid, restricted, or does not exist, skipping', {
                   pattern,
-                  searchPath: fullSearchPath,
-                  error: error instanceof Error ? error.message : String(error)
+                  searchDir: sanitizedSearchDir
                 });
-                continue; // Skip this pattern
+                continue;
               }
 
               // Build args with search directory instead of glob pattern
@@ -357,23 +423,17 @@ export async function listDirectory(
               }
 
               // Add exclude patterns (DEFAULT_EXCLUDES + user excludes)
-              const allExcludes = [...DEFAULT_EXCLUDES, ...includeSettings.excludePatterns];
-              for (const exclude of allExcludes) {
+              const includeExcludes = [...DEFAULT_EXCLUDES, ...includeSettings.excludePatterns];
+              for (const exclude of includeExcludes) {
                 args.push('--exclude', exclude);
               }
 
-              // Use '.' pattern to match all files
-              args.push('.');
+              // fd syntax: fd [PATTERN] [PATH...]
+              // Push pattern first
+              args.push('.');  // Match all files
 
-              // For absolute paths, use the path directly as search directory
-              // For relative paths, append to current directory
-              let searchPath: string;
-              if (isAbsolute) {
-                searchPath = searchDir;
-              } else {
-                args.push(searchDir);
-                searchPath = sanitizedPath;
-              }
+              // Use the validated path as cwd for fd
+              const searchPath = validatedSearchPath;
 
               // Execute fd with include pattern
               const includeFiles = await new Promise<FileInfo[]>((resolve, _reject) => {
@@ -416,8 +476,19 @@ export async function listDirectory(
                 foundFiles: includeFiles.length
               });
 
-              // Merge results
-              files.push(...includeFiles);
+              // Merge results with maxFiles limit check
+              const remaining = mergedSettings.maxFiles - files.length;
+              if (remaining <= 0) {
+                logger.debug('Reached maxFiles limit, skipping remaining includePatterns', {
+                  maxFiles: mergedSettings.maxFiles,
+                  currentCount: files.length
+                });
+                break;
+              }
+
+              // Only add files up to the remaining limit
+              const filesToAdd = includeFiles.slice(0, remaining);
+              files.push(...filesToAdd);
             } catch (patternError) {
               logger.warn('Error processing includePattern', {
                 pattern,
