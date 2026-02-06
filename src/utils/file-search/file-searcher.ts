@@ -302,7 +302,8 @@ export async function listDirectory(
           files,
           fileCount: files.length,
           searchMode: 'recursive' as const,  // Only set when actually recursive
-          partial
+          partial,
+          fdAvailable: true
         };
       } catch (fdError) {
         const errorMessage = fdError instanceof Error ? fdError.message : String(fdError);
@@ -316,14 +317,15 @@ export async function listDirectory(
 
     const partial = files.length >= mergedSettings.maxFiles;
 
-    // Fallback mode: omit searchMode (DirectoryInfo only allows 'recursive')
+    // Fallback mode: fd was either not available or failed
     return {
       success: true,
       directory: sanitizedPath,
       files,
       fileCount: files.length,
       partial,
-      searchMode: 'recursive' // Always recursive in this implementation
+      searchMode: 'recursive', // Always recursive in this implementation
+      fdAvailable: fdAvailable
     };
 
   } catch (error) {
