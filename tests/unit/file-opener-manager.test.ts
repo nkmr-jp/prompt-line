@@ -522,4 +522,242 @@ describe('FileOpenerManager', () => {
       );
     });
   });
+
+  describe('line number support with configured editor', () => {
+    it('should open file with --goto for VSCode when line number is provided', async () => {
+      mockSettingsManager.getSettings.mockReturnValue({
+        ...defaultSettings,
+        fileOpener: {
+          extensions: {},
+          defaultEditor: 'Visual Studio Code'
+        }
+      });
+
+      mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
+        callback(null);
+        return {} as any;
+      });
+
+      const result = await fileOpenerManager.openFile('/path/to/file.ts', { lineNumber: 42 });
+
+      expect(result.success).toBe(true);
+      expect(mockedExecFile).toHaveBeenCalledWith(
+        'code',
+        ['--goto', '/path/to/file.ts:42:1'],
+        expect.any(Function)
+      );
+    });
+
+    it('should open file with --goto for Cursor when line number is provided', async () => {
+      mockSettingsManager.getSettings.mockReturnValue({
+        ...defaultSettings,
+        fileOpener: {
+          extensions: {},
+          defaultEditor: 'Cursor'
+        }
+      });
+
+      mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
+        callback(null);
+        return {} as any;
+      });
+
+      const result = await fileOpenerManager.openFile('/path/to/file.ts', { lineNumber: 10 });
+
+      expect(result.success).toBe(true);
+      expect(mockedExecFile).toHaveBeenCalledWith(
+        'cursor',
+        ['--goto', '/path/to/file.ts:10:1'],
+        expect.any(Function)
+      );
+    });
+
+    it('should open file with open -na for JetBrains IDEs when line number is provided', async () => {
+      mockSettingsManager.getSettings.mockReturnValue({
+        ...defaultSettings,
+        fileOpener: {
+          extensions: {},
+          defaultEditor: 'WebStorm'
+        }
+      });
+
+      mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
+        callback(null);
+        return {} as any;
+      });
+
+      const result = await fileOpenerManager.openFile('/path/to/file.ts', { lineNumber: 25 });
+
+      expect(result.success).toBe(true);
+      expect(mockedExecFile).toHaveBeenCalledWith(
+        'open',
+        ['-na', 'WebStorm', '--args', '--line', '25', '/path/to/file.ts'],
+        expect.any(Function)
+      );
+    });
+  });
+
+  describe('default app detection for line number support', () => {
+    const originalPlatform = process.platform;
+
+    afterEach(() => {
+      Object.defineProperty(process, 'platform', { value: originalPlatform });
+    });
+
+    it('should detect default app and use line number when fileOpener is not configured', async () => {
+      Object.defineProperty(process, 'platform', { value: 'darwin' });
+
+      mockSettingsManager.getSettings.mockReturnValue({
+        ...defaultSettings,
+        fileOpener: {
+          extensions: {},
+          defaultEditor: null
+        }
+      });
+
+      let callIndex = 0;
+      mockedExecFile.mockImplementation((cmd: any, _args: any, optionsOrCb: any, cb?: any) => {
+        const callback = typeof optionsOrCb === 'function' ? optionsOrCb : cb;
+        callIndex++;
+        if (callIndex === 1) {
+          // First call: osascript for default app detection
+          expect(cmd).toBe('osascript');
+          callback(null, 'Cursor\n');
+        } else {
+          // Second call: cursor --goto
+          expect(cmd).toBe('cursor');
+          callback(null);
+        }
+        return {} as any;
+      });
+
+      const result = await fileOpenerManager.openFile('/path/to/file.ts', { lineNumber: 42 });
+
+      expect(result.success).toBe(true);
+      expect(mockedExecFile).toHaveBeenCalledTimes(2);
+    });
+
+    it('should fall through to openWithDefault when detection fails', async () => {
+      Object.defineProperty(process, 'platform', { value: 'darwin' });
+
+      mockSettingsManager.getSettings.mockReturnValue({
+        ...defaultSettings,
+        fileOpener: {
+          extensions: {},
+          defaultEditor: null
+        }
+      });
+
+      let callIndex = 0;
+      mockedExecFile.mockImplementation((cmd: any, _args: any, optionsOrCb: any, cb?: any) => {
+        const callback = typeof optionsOrCb === 'function' ? optionsOrCb : cb;
+        callIndex++;
+        if (callIndex === 1) {
+          // osascript fails
+          expect(cmd).toBe('osascript');
+          callback(new Error('osascript failed'));
+        } else {
+          // Fallback to system default
+          expect(cmd).toBe('open');
+          callback(null);
+        }
+        return {} as any;
+      });
+
+      const result = await fileOpenerManager.openFile('/path/to/file.ts', { lineNumber: 42 });
+
+      expect(result.success).toBe(true);
+      // Should fall through to openWithDefault
+      expect(mockedExecFile).toHaveBeenCalledTimes(2);
+    });
+
+    it('should fall through to openWithDefault when detected app is unknown', async () => {
+      Object.defineProperty(process, 'platform', { value: 'darwin' });
+
+      mockSettingsManager.getSettings.mockReturnValue({
+        ...defaultSettings,
+        fileOpener: {
+          extensions: {},
+          defaultEditor: null
+        }
+      });
+
+      let callIndex = 0;
+      mockedExecFile.mockImplementation((cmd: any, _args: any, optionsOrCb: any, cb?: any) => {
+        const callback = typeof optionsOrCb === 'function' ? optionsOrCb : cb;
+        callIndex++;
+        if (callIndex === 1) {
+          // osascript returns an unknown app
+          expect(cmd).toBe('osascript');
+          callback(null, 'UnknownEditor\n');
+        } else {
+          // Fallback to system default
+          expect(cmd).toBe('open');
+          callback(null);
+        }
+        return {} as any;
+      });
+
+      const result = await fileOpenerManager.openFile('/path/to/file.ts', { lineNumber: 42 });
+
+      expect(result.success).toBe(true);
+      expect(mockedExecFile).toHaveBeenCalledTimes(2);
+    });
+
+    it('should skip detection on non-macOS platforms', async () => {
+      Object.defineProperty(process, 'platform', { value: 'linux' });
+
+      mockSettingsManager.getSettings.mockReturnValue({
+        ...defaultSettings,
+        fileOpener: {
+          extensions: {},
+          defaultEditor: null
+        }
+      });
+
+      mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
+        callback(null);
+        return {} as any;
+      });
+
+      const result = await fileOpenerManager.openFile('/path/to/file.ts', { lineNumber: 42 });
+
+      expect(result.success).toBe(true);
+      // Should only call openWithDefault (1 call), not osascript
+      expect(mockedExecFile).toHaveBeenCalledTimes(1);
+      expect(mockedExecFile).toHaveBeenCalledWith(
+        'open',
+        ['/path/to/file.ts'],
+        expect.any(Function)
+      );
+    });
+
+    it('should not detect default app when no line number is provided', async () => {
+      Object.defineProperty(process, 'platform', { value: 'darwin' });
+
+      mockSettingsManager.getSettings.mockReturnValue({
+        ...defaultSettings,
+        fileOpener: {
+          extensions: {},
+          defaultEditor: null
+        }
+      });
+
+      mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
+        callback(null);
+        return {} as any;
+      });
+
+      const result = await fileOpenerManager.openFile('/path/to/file.ts');
+
+      expect(result.success).toBe(true);
+      // Should only call openWithDefault (1 call), not osascript
+      expect(mockedExecFile).toHaveBeenCalledTimes(1);
+      expect(mockedExecFile).toHaveBeenCalledWith(
+        'open',
+        ['/path/to/file.ts'],
+        expect.any(Function)
+      );
+    });
+  });
 });

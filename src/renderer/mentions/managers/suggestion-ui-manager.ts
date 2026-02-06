@@ -740,7 +740,11 @@ export class SuggestionUIManager {
     } else if (suggestion.type === 'agent') {
       return suggestion.agent?.filePath;
     } else if (suggestion.type === 'symbol') {
-      return suggestion.symbol?.filePath;
+      const symbol = suggestion.symbol;
+      if (symbol) {
+        // Include line number and symbol name so editors can jump to the correct line
+        return `${symbol.filePath}:${symbol.lineNumber}#${symbol.name}`;
+      }
     }
     return undefined;
   }

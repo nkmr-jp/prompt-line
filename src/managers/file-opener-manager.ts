@@ -103,6 +103,22 @@ export class FileOpenerManager {
       return this.openWithApp(filePath, app, options);
     }
 
+    // 行番号が指定されていてエディタ未設定の場合、デフォルトアプリを検出して行ジャンプを試みる
+    if (options?.lineNumber) {
+      try {
+        const detectedApp = await this.detectDefaultApp(filePath);
+        if (detectedApp) {
+          const editorMatch = findEditorConfig(detectedApp);
+          if (editorMatch) {
+            logger.info('Detected default app for line number support', { detectedApp, filePath });
+            return this.openWithApp(filePath, editorMatch.canonicalName, options);
+          }
+        }
+      } catch {
+        // Detection failed, fall through to default
+      }
+    }
+
     // デフォルト動作（システムデフォルトアプリ）
     return this.openWithDefault(filePath);
   }
@@ -265,6 +281,27 @@ export class FileOpenerManager {
 
       // No special handling available
       reject(new Error('No line number handling available for this editor'));
+    });
+  }
+
+  /**
+   * macOSのデフォルトアプリを検出する
+   * NSWorkspace APIを使用してファイルタイプに対応するデフォルトアプリ名を取得
+   */
+  private async detectDefaultApp(filePath: string): Promise<string | null> {
+    if (process.platform !== 'darwin') return null;
+
+    return new Promise((resolve) => {
+      const escapedPath = filePath.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      const script = `ObjC.import("AppKit");var ws=$.NSWorkspace.sharedWorkspace;var url=$.NSURL.fileURLWithPath("${escapedPath}");var appUrl=ws.URLForApplicationToOpenURL(url);appUrl?ObjC.unwrap(appUrl.deletingPathExtension.lastPathComponent):""`;
+
+      execFile('osascript', ['-l', 'JavaScript', '-e', script], { timeout: 3000 }, (error, stdout) => {
+        if (error || !stdout?.trim()) {
+          resolve(null);
+          return;
+        }
+        resolve(stdout.trim());
+      });
     });
   }
 
