@@ -572,6 +572,54 @@ describe('FileOpenerManager', () => {
       );
     });
 
+    it('should open file with open -na --goto for Windsurf when line number is provided', async () => {
+      mockSettingsManager.getSettings.mockReturnValue({
+        ...defaultSettings,
+        fileOpener: {
+          extensions: {},
+          defaultEditor: 'Windsurf'
+        }
+      });
+
+      mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
+        callback(null);
+        return {} as any;
+      });
+
+      const result = await fileOpenerManager.openFile('/path/to/file.ts', { lineNumber: 15 });
+
+      expect(result.success).toBe(true);
+      expect(mockedExecFile).toHaveBeenCalledWith(
+        'open',
+        ['-na', 'Windsurf', '--args', '--goto', '/path/to/file.ts:15:1'],
+        expect.any(Function)
+      );
+    });
+
+    it('should open file with open -na --goto for Antigravity when line number is provided', async () => {
+      mockSettingsManager.getSettings.mockReturnValue({
+        ...defaultSettings,
+        fileOpener: {
+          extensions: {},
+          defaultEditor: 'Antigravity'
+        }
+      });
+
+      mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
+        callback(null);
+        return {} as any;
+      });
+
+      const result = await fileOpenerManager.openFile('/path/to/file.ts', { lineNumber: 99 });
+
+      expect(result.success).toBe(true);
+      expect(mockedExecFile).toHaveBeenCalledWith(
+        'open',
+        ['-na', 'Antigravity', '--args', '--goto', '/path/to/file.ts:99:1'],
+        expect.any(Function)
+      );
+    });
+
     it('should open file with open -na for JetBrains IDEs when line number is provided', async () => {
       mockSettingsManager.getSettings.mockReturnValue({
         ...defaultSettings,

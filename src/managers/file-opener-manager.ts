@@ -32,9 +32,9 @@ const EDITOR_CONFIGS: Record<string, EditorConfig> = {
   'Visual Studio Code - Insiders': { cli: 'code-insiders', lineFormat: 'goto' },
   'VSCodium': { cli: 'codium', lineFormat: 'goto' },
   'Cursor': { cli: 'cursor', lineFormat: 'goto' },
-  'Windsurf': { cli: 'windsurf', lineFormat: 'goto' },
-  'Antigravity': { cli: 'antigravity', lineFormat: 'goto' },
-  'Kiro': { cli: 'kiro', lineFormat: 'goto' },
+  'Windsurf': { useOpenArgs: true, lineFormat: 'goto' },
+  'Antigravity': { useOpenArgs: true, lineFormat: 'goto' },
+  'Kiro': { useOpenArgs: true, lineFormat: 'goto' },
   // JetBrains IDEs (use 'open -na <app> --args file:line' for reliable line number support)
   'IntelliJ IDEA': { useOpenArgs: true },
   'IntelliJ IDEA Ultimate': { useOpenArgs: true },
@@ -202,10 +202,28 @@ export class FileOpenerManager {
       const lineNumber = options.lineNumber || 1;
       const columnNumber = options.columnNumber || 1;
 
-      // macOS 'open -na <app> --args --line <line> file' method (for JetBrains IDEs)
+      // macOS 'open -na <app> --args ...' method (for JetBrains IDEs, Windsurf, Antigravity, Kiro)
       if (config.useOpenArgs) {
-        // JetBrains IDEs use: --line <line> [--column <column>] file
-        const args = ['-na', appName, '--args', '--line', String(lineNumber), filePath];
+        let appArgs: string[];
+        switch (config.lineFormat) {
+          case 'goto':
+            // VSCode-style: --goto file:line:column (for Windsurf, Antigravity, Kiro)
+            appArgs = ['--goto', `${filePath}:${lineNumber}:${columnNumber}`];
+            break;
+          case 'colon':
+            // Sublime/Zed style: file:line:column
+            appArgs = [`${filePath}:${lineNumber}:${columnNumber}`];
+            break;
+          case 'line':
+            // TextMate style: -l <line> file
+            appArgs = ['-l', String(lineNumber), filePath];
+            break;
+          default:
+            // JetBrains IDEs: --line <line> file
+            appArgs = ['--line', String(lineNumber), filePath];
+            break;
+        }
+        const args = ['-na', appName, '--args', ...appArgs];
         execFile('open', args, (error) => {
           if (error) {
             logger.warn('open -na --args failed', { error: error.message, appName, args });
