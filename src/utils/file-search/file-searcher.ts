@@ -88,9 +88,7 @@ function buildFdArgs(settings: FileSearchSettings): string[] {
   }
 
   // Exclude patterns
-  const allExcludes = settings.includePatterns && settings.includePatterns.length > 0
-    ? settings.excludePatterns
-    : [...DEFAULT_EXCLUDES, ...settings.excludePatterns];
+  const allExcludes = [...DEFAULT_EXCLUDES, ...settings.excludePatterns];
 
   for (const pattern of allExcludes) {
     args.push('--exclude', pattern);
