@@ -14,7 +14,9 @@ const RESTRICTED_DIRECTORIES = [
   '/',
   '/System',
   '/Library',
-  '/private',
+  '/private/etc',      // macOS: /etc -> /private/etc (symlink)
+  '/private/var',      // macOS: /var -> /private/var (symlink)
+  // Note: /private/tmp is intentionally NOT restricted to allow temporary build artifacts
   '/etc',
   '/var',
   '/usr',
@@ -112,8 +114,12 @@ async function validateAndResolvePath(pathString: string, basePath?: string): Pr
     }
 
     return realPath;
-  } catch (_error) {
+  } catch (error) {
     // Path doesn't exist or other error
+    logger.debug('Path validation failed', {
+      path: pathString,
+      error: error instanceof Error ? error.message : String(error)
+    });
     return null;
   }
 }
