@@ -328,8 +328,9 @@ export async function listDirectory(
                 args.push('--max-depth', String(includeSettings.maxDepth));
               }
 
-              // Add exclude patterns
-              for (const exclude of includeSettings.excludePatterns) {
+              // Add exclude patterns (DEFAULT_EXCLUDES + user excludes)
+              const allExcludes = [...DEFAULT_EXCLUDES, ...includeSettings.excludePatterns];
+              for (const exclude of allExcludes) {
                 args.push('--exclude', exclude);
               }
 
