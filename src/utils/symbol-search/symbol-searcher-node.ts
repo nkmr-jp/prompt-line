@@ -452,7 +452,120 @@ function parseRipgrepOutput(
 }
 
 /**
+ * Execute a single ripgrep search and return raw output
+ */
+function executeRg(
+  rgCommand: string,
+  args: string[],
+  timeout: number
+): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    const execOptions = {
+      timeout,
+      maxBuffer: DEFAULT_MAX_BUFFER,
+      killSignal: 'SIGTERM' as const
+    };
+
+    execFile(rgCommand, args, execOptions, (error, stdout, stderr) => {
+      // rg exits with code 1 when no matches found, which is not an error
+      if (error && error.code !== 1) {
+        if (error.killed) {
+          reject(new Error('ripgrep command timed out'));
+        } else {
+          reject(error);
+        }
+        return;
+      }
+
+      if (stderr) {
+        logger.debug('rg stderr', { stderr });
+      }
+
+      resolve(stdout);
+    });
+  });
+}
+
+/**
+ * Build rg arguments for a search phase
+ * Matches Swift's buildRgArgs behavior
+ */
+function buildRgArgs(
+  directory: string,
+  combinedPattern: string,
+  rgType: string,
+  excludePatterns: string[],
+  includePatterns: string[]
+): string[] {
+  const args = [
+    '--line-number',
+    '--no-heading',
+    '--color', 'never'
+  ];
+
+  // When includePatterns are specified, search hidden files and ignore .gitignore rules
+  // This matches Swift's behavior: only the include search phase uses --hidden/--no-ignore
+  if (includePatterns.length > 0) {
+    args.push('--hidden');
+    args.push('--no-ignore');
+  }
+
+  args.push('--type', rgType);
+
+  // Add exclude patterns using --glob with negation
+  for (const pattern of excludePatterns) {
+    args.push('--glob', `!${pattern}`);
+  }
+
+  // Add include patterns using --glob
+  for (const pattern of includePatterns) {
+    args.push('--glob', pattern);
+  }
+
+  args.push('-e', combinedPattern);
+  args.push(directory);
+
+  return args;
+}
+
+/**
+ * Deduplicate and sort symbol results
+ * Matches Swift's deduplicateAndSort: dedup by filePath:lineNumber:name, sort by filePath then lineNumber
+ */
+function deduplicateAndSort(results: SymbolResult[], maxSymbols: number): SymbolResult[] {
+  const seen = new Set<string>();
+  const unique: SymbolResult[] = [];
+
+  for (const result of results) {
+    const key = `${result.filePath}:${result.lineNumber}:${result.name}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(result);
+    }
+  }
+
+  // Sort by file path, then line number
+  unique.sort((a, b) => {
+    if (a.filePath !== b.filePath) {
+      return a.filePath < b.filePath ? -1 : 1;
+    }
+    return a.lineNumber - b.lineNumber;
+  });
+
+  // Apply max symbols limit
+  if (unique.length > maxSymbols) {
+    return unique.slice(0, maxSymbols);
+  }
+  return unique;
+}
+
+/**
  * Search for symbols in a directory for a specific language
+ *
+ * Uses two-phase search matching Swift implementation:
+ * Phase 1: Normal search respecting .gitignore with excludePatterns
+ * Phase 2: Include patterns search with --hidden --no-ignore (only when includePatterns specified)
+ * Results are deduplicated and sorted by filePath then lineNumber
  */
 export async function searchSymbols(
   directory: string,
@@ -520,75 +633,44 @@ export async function searchSymbols(
       };
     }
 
-    // At this point, rgPath is guaranteed to be non-null
     const rgCommand: string = rgPath;
-
-    // Build rg arguments
     const maxSymbols = options.maxSymbols || DEFAULT_MAX_SYMBOLS;
+    const timeout = options.timeout || DEFAULT_SEARCH_TIMEOUT;
     const hasIncludePatterns = options.includePatterns && options.includePatterns.length > 0;
-    const args = [
-      '--line-number',
-      '--no-heading',
-      '--color', 'never'
-    ];
 
-    // Use --type for file type filtering (same as Swift version)
-    // When include patterns are specified, also search hidden files and ignore rules
-    if (hasIncludePatterns) {
-      args.push('--hidden');
-      args.push('--no-ignore');
-    }
-
-    args.push('--type', config.rgType);
-
-    // Add exclude patterns using --glob with negation
-    if (options.excludePatterns && options.excludePatterns.length > 0) {
-      for (const pattern of options.excludePatterns) {
-        args.push('--glob', `!${pattern}`);
-      }
-    }
-
-    // Add include patterns using --glob
-    if (hasIncludePatterns) {
-      for (const pattern of options.includePatterns!) {
-        args.push('--glob', pattern);
-      }
-    }
-
-    // Combine all pattern regexes
+    // Combine all pattern regexes into one (used for both phases)
     const combinedPattern = config.patterns.map(p => `(${p.pattern})`).join('|');
-    args.push('-e', combinedPattern);
-    args.push(directory);
 
-    // Execute ripgrep
-    const rgOutput = await new Promise<string>((resolve, reject) => {
-      const execOptions = {
-        timeout: options.timeout || DEFAULT_SEARCH_TIMEOUT,
-        maxBuffer: DEFAULT_MAX_BUFFER,
-        killSignal: 'SIGTERM' as const
-      };
+    // Phase 1: Normal search (respects .gitignore, uses excludePatterns)
+    const normalArgs = buildRgArgs(
+      directory,
+      combinedPattern,
+      config.rgType,
+      options.excludePatterns || [],
+      [] // No includePatterns for normal search
+    );
 
-      execFile(rgCommand, args, execOptions, (error, stdout, stderr) => {
-        // rg exits with code 1 when no matches found, which is not an error
-        if (error && error.code !== 1) {
-          if (error.killed) {
-            reject(new Error('ripgrep command timed out'));
-          } else {
-            reject(error);
-          }
-          return;
-        }
+    const normalOutput = await executeRg(rgCommand, normalArgs, timeout);
+    let allSymbols = parseRipgrepOutput(normalOutput, language, maxSymbols, directory);
 
-        if (stderr) {
-          logger.debug('rg stderr', { stderr });
-        }
+    // Phase 2: Include patterns search (with --hidden --no-ignore, only when includePatterns specified)
+    // This matches Swift behavior: separate rg execution for include patterns
+    if (hasIncludePatterns) {
+      const includeArgs = buildRgArgs(
+        directory,
+        combinedPattern,
+        config.rgType,
+        [], // No excludePatterns for include search
+        options.includePatterns!
+      );
 
-        resolve(stdout);
-      });
-    });
+      const includeOutput = await executeRg(rgCommand, includeArgs, timeout);
+      const includeSymbols = parseRipgrepOutput(includeOutput, language, maxSymbols, directory);
+      allSymbols = allSymbols.concat(includeSymbols);
+    }
 
-    // Parse output
-    const symbols = parseRipgrepOutput(rgOutput, language, maxSymbols, directory);
+    // Deduplicate and sort (matching Swift's deduplicateAndSort)
+    const symbols = deduplicateAndSort(allSymbols, maxSymbols);
 
     return {
       success: true,
