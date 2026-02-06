@@ -547,6 +547,18 @@ const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
     patterns: [
       { type: 'heading', pattern: '^#{1,6}\\s+(.+?)\\s*$', captureGroup: 1 },
     ]
+  },
+  // Language alias: mk -> make
+  mk: {
+    name: 'Makefile',
+    rgType: 'make',
+    extensions: ['.mk', 'Makefile'],
+    patterns: [
+      // Variable assignments: NAME =, NAME :=, NAME ?=, NAME +=
+      { type: 'variable', pattern: '^([A-Z_]\\w*)\\s*[:?+]?=', captureGroup: 1 },
+      // Targets (with hyphen support, excluding := assignments)
+      { type: 'function', pattern: '^([\\w-]+)\\s*:([^=]|$)', captureGroup: 1 },
+    ]
   }
 };
 
