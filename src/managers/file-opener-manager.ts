@@ -14,10 +14,11 @@ interface OpenFileOptions {
 }
 
 // Editor configuration for line number support
-// All editors use 'open -na <appName> --args' for reliable macOS integration
 interface EditorConfig {
-  // Always true - use 'open -na <appName> --args' to launch
-  useOpenArgs: boolean;
+  // Use 'open -na <appName> --args' to launch (most editors)
+  useOpenArgs?: boolean;
+  // CLI command for editors that require their own CLI tool (e.g. xed for Xcode)
+  cli?: string;
   // Format for line number argument: 'goto' = --goto file:line:col, 'line' = -l N file, 'colon' = file:line:col
   // Default (undefined) = JetBrains style: --line N file
   lineFormat?: 'goto' | 'line' | 'colon';
@@ -50,6 +51,8 @@ const EDITOR_CONFIGS: Record<string, EditorConfig> = {
   'DataGrip': { useOpenArgs: true },
   'AppCode': { useOpenArgs: true },
   'Android Studio': { useOpenArgs: true },
+  // Apple (xed CLI required - falls back to 'open' if xed unavailable)
+  'Xcode': { cli: 'xed', lineFormat: 'line' },
   // Other editors
   'Sublime Text': { useOpenArgs: true, lineFormat: 'colon' },
   'TextMate': { useOpenArgs: true, lineFormat: 'line' },
@@ -207,31 +210,35 @@ export class FileOpenerManager {
       const columnNumber = Math.max(1, Math.min(options.columnNumber || 1, 9999));
 
       // Build app-specific arguments based on lineFormat
-      let appArgs: string[];
-      switch (config.lineFormat) {
-        case 'goto':
-          // VSCode/Cursor/Windsurf style: --goto file:line:column
-          appArgs = ['--goto', `${filePath}:${lineNumber}:${columnNumber}`];
-          break;
-        case 'colon':
-          // Sublime/Zed style: file:line:column
-          appArgs = [`${filePath}:${lineNumber}:${columnNumber}`];
-          break;
-        case 'line':
-          // TextMate style: -l <line> file
-          appArgs = ['-l', String(lineNumber), filePath];
-          break;
-        default:
-          // JetBrains IDEs: --line <line> file
-          appArgs = ['--line', String(lineNumber), filePath];
-          break;
+      const appArgs = this.buildLineArgs(filePath, lineNumber, columnNumber, config.lineFormat);
+
+      if (config.cli) {
+        // CLI-based launch (e.g. xed for Xcode)
+        execFile(config.cli, appArgs, (error) => {
+          if (error) {
+            logger.warn('CLI open failed, falling back to open command', { error: error.message, cli: config.cli });
+            // Fallback: open file without line number
+            execFile('open', ['-a', appName, filePath], (fallbackError) => {
+              if (fallbackError) {
+                reject(fallbackError);
+                return;
+              }
+              logger.info('File opened with fallback (no line jump)', { filePath, app: appName });
+              resolve({ success: true });
+            });
+            return;
+          }
+          logger.info('File opened with line number', { filePath, lineNumber, cli: config.cli });
+          resolve({ success: true });
+        });
+        return;
       }
 
       // Launch via macOS 'open -na <app> --args ...'
       const args = ['-na', appName, '--args', ...appArgs];
       execFile('open', args, (error) => {
         if (error) {
-          logger.warn('open -na --args failed', { error: error.message, appName, args });
+          logger.warn('open -na --args failed', { error: error.message, appName });
           reject(error);
           return;
         }
@@ -239,6 +246,26 @@ export class FileOpenerManager {
         resolve({ success: true });
       });
     });
+  }
+
+  /**
+   * lineFormat に応じた引数配列を生成する
+   */
+  private buildLineArgs(filePath: string, lineNumber: number, columnNumber: number, lineFormat?: string): string[] {
+    switch (lineFormat) {
+      case 'goto':
+        // VSCode/Cursor/Windsurf style: --goto file:line:column
+        return ['--goto', `${filePath}:${lineNumber}:${columnNumber}`];
+      case 'colon':
+        // Sublime/Zed style: file:line:column
+        return [`${filePath}:${lineNumber}:${columnNumber}`];
+      case 'line':
+        // TextMate/Xcode(xed) style: -l <line> file
+        return ['-l', String(lineNumber), filePath];
+      default:
+        // JetBrains IDEs: --line <line> file
+        return ['--line', String(lineNumber), filePath];
+    }
   }
 
   /**

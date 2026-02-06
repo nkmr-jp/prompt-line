@@ -620,6 +620,70 @@ describe('FileOpenerManager', () => {
       );
     });
 
+    it('should open file with xed -l for Xcode when line number is provided', async () => {
+      mockSettingsManager.getSettings.mockReturnValue({
+        ...defaultSettings,
+        fileOpener: {
+          extensions: {},
+          defaultEditor: 'Xcode'
+        }
+      });
+
+      mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
+        callback(null);
+        return {} as any;
+      });
+
+      const result = await fileOpenerManager.openFile('/path/to/file.swift', { lineNumber: 75 });
+
+      expect(result.success).toBe(true);
+      expect(mockedExecFile).toHaveBeenCalledWith(
+        'xed',
+        ['-l', '75', '/path/to/file.swift'],
+        expect.any(Function)
+      );
+    });
+
+    it('should fallback to open -a Xcode when xed fails', async () => {
+      mockSettingsManager.getSettings.mockReturnValue({
+        ...defaultSettings,
+        fileOpener: {
+          extensions: {},
+          defaultEditor: 'Xcode'
+        }
+      });
+
+      let callIndex = 0;
+      mockedExecFile.mockImplementation((cmd: any, _args: any, callback: any) => {
+        callIndex++;
+        if (callIndex === 1) {
+          // xed fails
+          expect(cmd).toBe('xed');
+          callback(new Error('xed not found'));
+        } else {
+          // fallback to open -a Xcode
+          expect(cmd).toBe('open');
+          callback(null);
+        }
+        return {} as any;
+      });
+
+      const result = await fileOpenerManager.openFile('/path/to/file.swift', { lineNumber: 75 });
+
+      expect(result.success).toBe(true);
+      expect(mockedExecFile).toHaveBeenCalledTimes(2);
+      expect(mockedExecFile).toHaveBeenNthCalledWith(1,
+        'xed',
+        ['-l', '75', '/path/to/file.swift'],
+        expect.any(Function)
+      );
+      expect(mockedExecFile).toHaveBeenNthCalledWith(2,
+        'open',
+        ['-a', 'Xcode', '/path/to/file.swift'],
+        expect.any(Function)
+      );
+    });
+
     it('should open file with open -na for JetBrains IDEs when line number is provided', async () => {
       mockSettingsManager.getSettings.mockReturnValue({
         ...defaultSettings,
