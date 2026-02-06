@@ -13,29 +13,29 @@ interface OpenFileOptions {
   columnNumber?: number;
 }
 
-// Editor CLI commands and their line number support
+// Editor configuration for line number support
 interface EditorConfig {
-  // CLI command to use (if different from app name)
-  cli?: string;
-  // Format for line number argument: 'goto' = --goto file:line, 'line' = --line N file, 'colon' = file:line
-  lineFormat?: 'goto' | 'line' | 'colon' | 'url';
-  // URL scheme for JetBrains-style navigation
-  urlScheme?: string;
-  // Use 'open -na <appName> --args' for macOS apps that accept file:line as argument
+  // Use 'open -na <appName> --args' to launch (most editors)
   useOpenArgs?: boolean;
+  // CLI command for editors that require their own CLI tool (e.g. xed for Xcode)
+  cli?: string;
+  // Format for line number argument: 'goto' = --goto file:line:col, 'line' = -l N file, 'colon' = file:line:col
+  // Default (undefined) = JetBrains style: --line N file
+  lineFormat?: 'goto' | 'line' | 'colon';
 }
 
 // Known editors and their configurations
+// All editors use 'open -na <app> --args ...' for reliable macOS integration without CLI dependency
 const EDITOR_CONFIGS: Record<string, EditorConfig> = {
-  // VSCode and variants
-  'Visual Studio Code': { cli: 'code', lineFormat: 'goto' },
-  'Visual Studio Code - Insiders': { cli: 'code-insiders', lineFormat: 'goto' },
-  'VSCodium': { cli: 'codium', lineFormat: 'goto' },
-  'Cursor': { cli: 'cursor', lineFormat: 'goto' },
-  'Windsurf': { cli: 'windsurf', lineFormat: 'goto' },
-  'Antigravity': { cli: 'antigravity', lineFormat: 'goto' },
-  'Kiro': { cli: 'kiro', lineFormat: 'goto' },
-  // JetBrains IDEs (use 'open -na <app> --args file:line' for reliable line number support)
+  // VSCode and variants (--goto file:line:column)
+  'Visual Studio Code': { useOpenArgs: true, lineFormat: 'goto' },
+  'Visual Studio Code - Insiders': { useOpenArgs: true, lineFormat: 'goto' },
+  'VSCodium': { useOpenArgs: true, lineFormat: 'goto' },
+  'Cursor': { useOpenArgs: true, lineFormat: 'goto' },
+  'Windsurf': { useOpenArgs: true, lineFormat: 'goto' },
+  'Antigravity': { useOpenArgs: true, lineFormat: 'goto' },
+  'Kiro': { useOpenArgs: true, lineFormat: 'goto' },
+  // JetBrains IDEs (--line N file)
   'IntelliJ IDEA': { useOpenArgs: true },
   'IntelliJ IDEA Ultimate': { useOpenArgs: true },
   'IntelliJ IDEA Community': { useOpenArgs: true },
@@ -51,11 +51,13 @@ const EDITOR_CONFIGS: Record<string, EditorConfig> = {
   'DataGrip': { useOpenArgs: true },
   'AppCode': { useOpenArgs: true },
   'Android Studio': { useOpenArgs: true },
+  // Apple (xed CLI required - falls back to 'open' if xed unavailable)
+  'Xcode': { cli: 'xed', lineFormat: 'line' },
   // Other editors
-  'Sublime Text': { cli: 'subl', lineFormat: 'colon' },
-  'TextMate': { cli: 'mate', lineFormat: 'line' },
-  'Atom': { cli: 'atom', lineFormat: 'colon' },
-  'Zed': { cli: 'zed', lineFormat: 'colon' },
+  'Sublime Text': { useOpenArgs: true, lineFormat: 'colon' },
+  'TextMate': { useOpenArgs: true, lineFormat: 'line' },
+  'Atom': { useOpenArgs: true, lineFormat: 'colon' },
+  'Zed': { useOpenArgs: true, lineFormat: 'colon' },
 };
 
 /**
@@ -103,6 +105,22 @@ export class FileOpenerManager {
       return this.openWithApp(filePath, app, options);
     }
 
+    // 行番号が指定されていてエディタ未設定の場合、デフォルトアプリを検出して行ジャンプを試みる
+    if (options?.lineNumber) {
+      try {
+        const detectedApp = await this.detectDefaultApp(filePath);
+        if (detectedApp) {
+          const editorMatch = findEditorConfig(detectedApp);
+          if (editorMatch) {
+            logger.info('Detected default app for line number support', { detectedApp, filePath });
+            return this.openWithApp(filePath, editorMatch.canonicalName, options);
+          }
+        }
+      } catch {
+        // Detection failed, fall through to default
+      }
+    }
+
     // デフォルト動作（システムデフォルトアプリ）
     return this.openWithDefault(filePath);
   }
@@ -119,8 +137,9 @@ export class FileOpenerManager {
         return;
       }
 
-      // パストラバーサルパターンの検出
-      if (appName.includes('..') || appName.includes('/')) {
+      // 基本的なパストラバーサルパターンの検出
+      // ユーザー設定のアプリは信頼するが、明らかな攻撃パターンは防ぐ
+      if (appName.includes('..') || appName.includes('/') || appName.includes('\0')) {
         logger.warn('Potentially malicious app name detected', { appName });
         this.openWithDefault(filePath).then(resolve);
         return;
@@ -183,88 +202,149 @@ export class FileOpenerManager {
     options: OpenFileOptions
   ): Promise<OpenFileResult> {
     return new Promise((resolve, reject) => {
-      const lineNumber = options.lineNumber || 1;
-      const columnNumber = options.columnNumber || 1;
-
-      // macOS 'open -na <app> --args --line <line> file' method (for JetBrains IDEs)
-      if (config.useOpenArgs) {
-        // JetBrains IDEs use: --line <line> [--column <column>] file
-        const args = ['-na', appName, '--args', '--line', String(lineNumber), filePath];
-        execFile('open', args, (error) => {
-          if (error) {
-            logger.warn('open -na --args failed', { error: error.message, appName, args });
-            reject(error);
-            return;
-          }
-          logger.info('File opened successfully with open -na --args', {
-            filePath,
-            lineNumber,
-            app: appName
-          });
-          resolve({ success: true });
-        });
+      // Comprehensive file path validation to prevent argument injection
+      if (!filePath || typeof filePath !== 'string') {
+        reject(new Error('Invalid file path: must be a non-empty string'));
+        return;
+      }
+      if (filePath.startsWith('-') || filePath.includes('\0') || filePath.includes('\n') || filePath.includes('\r')) {
+        reject(new Error('Invalid file path: contains forbidden characters'));
         return;
       }
 
-      // JetBrains URL scheme
-      if (config.urlScheme) {
-        // Use URL scheme: jetbrains://<ide>/navigate/reference?path=<file>&line=<line>
-        const url = `${config.urlScheme}://open?file=${encodeURIComponent(filePath)}&line=${lineNumber}`;
-        execFile('open', [url], (error) => {
-          if (error) {
-            logger.warn('JetBrains URL scheme failed', { error: error.message, url });
-            reject(error);
-            return;
-          }
-          logger.info('File opened successfully with JetBrains URL scheme', {
-            filePath,
-            lineNumber,
-            app: appName
-          });
-          resolve({ success: true });
-        });
+      // Validate and clamp line/column numbers
+      if (options.lineNumber !== undefined && (!Number.isInteger(options.lineNumber) || options.lineNumber < 1)) {
+        reject(new Error('Invalid line number: must be a positive integer'));
         return;
       }
+      if (options.columnNumber !== undefined && (!Number.isInteger(options.columnNumber) || options.columnNumber < 1)) {
+        reject(new Error('Invalid column number: must be a positive integer'));
+        return;
+      }
+      const lineNumber = Math.max(1, Math.min(options.lineNumber || 1, 999999));
+      const columnNumber = Math.max(1, Math.min(options.columnNumber || 1, 9999));
 
-      // CLI-based editors
+      // Build app-specific arguments based on lineFormat
+      const appArgs = this.buildLineArgs(filePath, lineNumber, columnNumber, config.lineFormat);
+
       if (config.cli) {
-        let args: string[];
+        // CLI-based launch (e.g. xed for Xcode)
+        execFile(config.cli, appArgs, (error) => {
+          if (error) {
+            logger.warn('CLI open failed, falling back to open command', { error: error.message, cli: config.cli });
+            // Fallback: open file without line number
+            execFile('open', ['-a', appName, filePath], (fallbackError) => {
+              if (fallbackError) {
+                reject(fallbackError);
+                return;
+              }
+              logger.info('File opened with fallback (no line jump)', { filePath, app: appName });
+              resolve({ success: true });
+            });
+            return;
+          }
+          logger.info('File opened with line number', { filePath, lineNumber, cli: config.cli });
+          resolve({ success: true });
+        });
+        return;
+      }
 
-        switch (config.lineFormat) {
-          case 'goto':
-            // VSCode style: --goto file:line:column
-            args = ['--goto', `${filePath}:${lineNumber}:${columnNumber}`];
-            break;
-          case 'line':
-            // TextMate style: -l <line> <file>
-            args = ['-l', String(lineNumber), filePath];
-            break;
-          case 'colon':
-            // Sublime/Atom style: file:line:column
-            args = [`${filePath}:${lineNumber}:${columnNumber}`];
-            break;
-          default:
-            args = [filePath];
+      // Launch via macOS 'open -na <app> --args ...'
+      const args = ['-na', appName, '--args', ...appArgs];
+      execFile('open', args, (error) => {
+        if (error) {
+          logger.warn('open -na --args failed', { error: error.message, appName });
+          reject(error);
+          return;
+        }
+        logger.info('File opened with line number', { filePath, lineNumber, app: appName });
+        resolve({ success: true });
+      });
+    });
+  }
+
+  /**
+   * lineFormat に応じた引数配列を生成する
+   */
+  private buildLineArgs(filePath: string, lineNumber: number, columnNumber: number, lineFormat?: string): string[] {
+    switch (lineFormat) {
+      case 'goto':
+        // VSCode/Cursor/Windsurf style: --goto file:line:column
+        return ['--goto', `${filePath}:${lineNumber}:${columnNumber}`];
+      case 'colon':
+        // Sublime/Zed style: file:line:column
+        return [`${filePath}:${lineNumber}:${columnNumber}`];
+      case 'line':
+        // TextMate/Xcode(xed) style: -l <line> file
+        return ['-l', String(lineNumber), filePath];
+      default:
+        // JetBrains IDEs: --line <line> file
+        return ['--line', String(lineNumber), filePath];
+    }
+  }
+
+  /**
+   * アプリ名がホワイトリストに登録されているか確認
+   * EDITOR_CONFIGSに登録されているアプリのみを許可
+   */
+  private isWhitelistedApp(appName: string): boolean {
+    // Case-insensitive match against EDITOR_CONFIGS
+    const lowerAppName = appName.toLowerCase();
+    const whitelistedApps = Object.keys(EDITOR_CONFIGS).map(name => name.toLowerCase());
+    return whitelistedApps.includes(lowerAppName);
+  }
+
+  /**
+   * macOSのデフォルトアプリを検出する
+   * NSWorkspace APIを使用してファイルタイプに対応するデフォルトアプリ名を取得
+   */
+  private async detectDefaultApp(filePath: string): Promise<string | null> {
+    if (process.platform !== 'darwin') return null;
+
+    return new Promise((resolve) => {
+      // Comprehensive path validation to prevent script injection
+      if (!filePath || typeof filePath !== 'string') {
+        logger.warn('Invalid file path type', { filePath });
+        resolve(null);
+        return;
+      }
+
+      // Reject paths with control characters, newlines, or other dangerous characters
+      const dangerousChars = ['\n', '\r', '\0', '\t', '\x00', '\x01', '\x02', '\x03', '\x04', '\x05', '\x06', '\x07', '\x08', '\x0b', '\x0c', '\x0e', '\x0f'];
+      if (dangerousChars.some(char => filePath.includes(char))) {
+        logger.warn('Rejected file path with control characters', { filePath });
+        resolve(null);
+        return;
+      }
+
+      // Additional validation: reject paths with backticks or dollar signs that could be used in command substitution
+      if (filePath.includes('`') || filePath.includes('$')) {
+        logger.warn('Rejected file path with shell metacharacters', { filePath });
+        resolve(null);
+        return;
+      }
+
+      // Use JSON.stringify for safe JavaScript string escaping (handles quotes, backslashes, and special characters)
+      const safePathJson = JSON.stringify(filePath);
+      const script = `ObjC.import("AppKit");var ws=$.NSWorkspace.sharedWorkspace;var url=$.NSURL.fileURLWithPath(${safePathJson});var appUrl=ws.URLForApplicationToOpenURL(url);appUrl?ObjC.unwrap(appUrl.URLByDeletingPathExtension.lastPathComponent):""`;
+
+      execFile('osascript', ['-l', 'JavaScript', '-e', script], { timeout: 3000 }, (error, stdout) => {
+        if (error || !stdout?.trim()) {
+          resolve(null);
+          return;
         }
 
-        execFile(config.cli, args, (error) => {
-          if (error) {
-            logger.warn('CLI open failed', { error: error.message, cli: config.cli, args });
-            reject(error);
-            return;
-          }
-          logger.info('File opened successfully with CLI', {
-            filePath,
-            lineNumber,
-            cli: config.cli
-          });
-          resolve({ success: true });
-        });
-        return;
-      }
+        const detectedApp = stdout.trim();
 
-      // No special handling available
-      reject(new Error('No line number handling available for this editor'));
+        // Validate detected app name against whitelist
+        if (!this.isWhitelistedApp(detectedApp)) {
+          logger.warn('Detected app not in whitelist', { detectedApp });
+          resolve(null);
+          return;
+        }
+
+        resolve(detectedApp);
+      });
     });
   }
 
