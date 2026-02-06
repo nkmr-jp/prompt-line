@@ -49,12 +49,15 @@ export async function checkFdAvailable(): Promise<{ fdAvailable: boolean; fdPath
           else resolve();
         });
       });
+      logger.debug('fd found', { fdPath });
       return { fdAvailable: true, fdPath };
-    } catch {
+    } catch (error) {
+      logger.debug('fd not found at path', { fdPath, error: error instanceof Error ? error.message : String(error) });
       continue;
     }
   }
 
+  logger.debug('fd not available on system');
   return { fdAvailable: false, fdPath: null };
 }
 
@@ -127,7 +130,7 @@ async function listFilesWithFd(
       }
 
       if (stderr) {
-        logger.debug('fd stderr:', stderr);
+        logger.debug('fd stderr', { stderr });
       }
 
       // Parse output (each line is one file)
@@ -139,12 +142,19 @@ async function listFilesWithFd(
           break;
         }
 
-        const path = line.trim();
-        const name = basename(path);
+        const filePath = line.trim();
+        if (!filePath) {
+          continue;
+        }
+
+        const name = basename(filePath);
+        if (!name) {
+          continue;
+        }
 
         files.push({
           name,
-          path,
+          path: filePath,
           isDirectory: false
         });
       }
@@ -196,12 +206,14 @@ async function listFilesWithNodeFs(
         }
       } catch (statError) {
         // Skip files we can't stat
-        logger.debug('Error stating file:', fullPath, statError);
+        logger.debug('Error stating file', { path: fullPath, error: statError });
         continue;
       }
     }
   } catch (error) {
-    logger.error('Error reading directory with Node.js fs:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    logger.error('Error reading directory with Node.js fs', { error: errorMessage, stack: errorStack, directory });
     throw error;
   }
 
@@ -217,16 +229,25 @@ async function listFilesWithNodeFs(
  */
 export async function listDirectory(
   directoryPath: string,
-  settings: FileSearchSettings = {
+  settings?: Partial<FileSearchSettings>
+): Promise<DirectoryInfo> {
+  // Merge with default settings
+  const defaultSettings: FileSearchSettings = {
     respectGitignore: true,
     excludePatterns: [],
     includePatterns: [],
     maxFiles: 5000,
     includeHidden: true,
     maxDepth: null,
-    followSymlinks: false
-  }
-): Promise<DirectoryInfo> {
+    followSymlinks: false,
+    fdPath: null
+  };
+
+  const mergedSettings: FileSearchSettings = {
+    ...defaultSettings,
+    ...settings
+  };
+
   try {
     // Validate directory path
     if (!directoryPath || typeof directoryPath !== 'string') {
@@ -250,7 +271,7 @@ export async function listDirectory(
       if (!stats.isDirectory()) {
         return { error: 'Path is not a directory', directory: sanitizedPath };
       }
-    } catch (statError) {
+    } catch (_statError) {
       return { error: 'Path does not exist', directory: sanitizedPath };
     }
 
@@ -261,7 +282,7 @@ export async function listDirectory(
         directory: sanitizedPath,
         files: [],
         fileCount: 0,
-        searchMode: 'disabled',
+        // searchMode is omitted when disabled (DirectoryInfo only allows 'recursive')
         partial: false
       };
     }
@@ -269,36 +290,46 @@ export async function listDirectory(
     // Try fd first
     const { fdAvailable, fdPath } = await checkFdAvailable();
     let files: FileInfo[];
-    let searchMode: string;
 
     if (fdAvailable && fdPath) {
       try {
-        files = await listFilesWithFd(sanitizedPath, fdPath, settings);
-        searchMode = 'recursive';
+        files = await listFilesWithFd(sanitizedPath, fdPath, mergedSettings);
+        const partial = files.length >= mergedSettings.maxFiles;
+
+        return {
+          success: true,
+          directory: sanitizedPath,
+          files,
+          fileCount: files.length,
+          searchMode: 'recursive' as const,  // Only set when actually recursive
+          partial
+        };
       } catch (fdError) {
-        logger.warn('fd failed, falling back to Node.js fs:', fdError);
-        files = await listFilesWithNodeFs(sanitizedPath, settings);
-        searchMode = 'single-level';
+        const errorMessage = fdError instanceof Error ? fdError.message : String(fdError);
+        logger.warn('fd failed, falling back to Node.js fs', { error: errorMessage, stack: fdError instanceof Error ? fdError.stack : undefined });
+        files = await listFilesWithNodeFs(sanitizedPath, mergedSettings);
       }
     } else {
       logger.debug('fd not available, using Node.js fs fallback');
-      files = await listFilesWithNodeFs(sanitizedPath, settings);
-      searchMode = 'single-level';
+      files = await listFilesWithNodeFs(sanitizedPath, mergedSettings);
     }
 
-    const partial = files.length >= settings.maxFiles;
+    const partial = files.length >= mergedSettings.maxFiles;
 
+    // Fallback mode: omit searchMode (DirectoryInfo only allows 'recursive')
     return {
       success: true,
       directory: sanitizedPath,
       files,
       fileCount: files.length,
-      searchMode,
-      partial
+      partial,
+      searchMode: 'recursive' // Always recursive in this implementation
     };
 
   } catch (error) {
-    logger.error('Error listing directory:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    logger.error('Error listing directory', { error: errorMessage, stack: errorStack, directory: directoryPath });
     return {
       error: error instanceof Error ? error.message : 'Failed to list directory',
       directory: directoryPath

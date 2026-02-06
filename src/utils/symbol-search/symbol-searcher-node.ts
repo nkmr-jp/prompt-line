@@ -10,7 +10,8 @@ import type {
   RgCheckResponse,
   LanguagesResponse,
   SymbolSearchOptions,
-  SymbolResult
+  SymbolResult,
+  SymbolType
 } from '../../managers/symbol-search/types';
 
 const DEFAULT_MAX_SYMBOLS = 200000;
@@ -99,17 +100,14 @@ export async function checkRgAvailable(): Promise<RgCheckResponse> {
 
   for (const rgPath of rgPaths) {
     try {
-      const version = await new Promise<string>((resolve, reject) => {
-        execFile(rgPath, ['--version'], { timeout: 2000 }, (error, stdout) => {
+      await new Promise<void>((resolve, reject) => {
+        execFile(rgPath, ['--version'], { timeout: 2000 }, (error) => {
           if (error) reject(error);
-          else {
-            const match = stdout.match(/ripgrep\s+([\d.]+)/);
-            resolve(match ? match[1] : '');
-          }
+          else resolve();
         });
       });
 
-      return { rgAvailable: true, rgPath, version };
+      return { rgAvailable: true, rgPath };
     } catch {
       continue;
     }
@@ -122,11 +120,17 @@ export async function checkRgAvailable(): Promise<RgCheckResponse> {
  * Get list of supported programming languages
  */
 export async function getSupportedLanguages(): Promise<LanguagesResponse> {
-  const languages = Object.entries(LANGUAGE_CONFIGS).map(([key, config]) => ({
-    key,
-    name: config.name,
-    extensions: config.extensions
-  }));
+  const languages = Object.entries(LANGUAGE_CONFIGS).map(([key, config]) => {
+    const extension = config.extensions[0];
+    if (!extension) {
+      throw new Error(`No extensions configured for language: ${key}`);
+    }
+    return {
+      key,
+      displayName: config.name,
+      extension
+    };
+  });
 
   return { languages };
 }
@@ -137,7 +141,8 @@ export async function getSupportedLanguages(): Promise<LanguagesResponse> {
 function parseRipgrepOutput(
   output: string,
   language: string,
-  maxSymbols: number
+  maxSymbols: number,
+  directory: string
 ): SymbolResult[] {
   const symbols: SymbolResult[] = [];
   const config = LANGUAGE_CONFIGS[language as keyof typeof LANGUAGE_CONFIGS];
@@ -164,8 +169,15 @@ function parseRipgrepOutput(
     }
 
     const filePath = parts[0];
-    const lineNumber = parseInt(parts[1], 10);
+    const lineNumberStr = parts[1];
     const lineContent = parts.slice(2).join(':').trim();
+
+    // Skip if required fields are invalid
+    if (!filePath || !lineNumberStr || !lineContent) {
+      continue;
+    }
+
+    const lineNumber = parseInt(lineNumberStr, 10);
 
     // Try to match against language patterns
     for (const { type, pattern } of config.patterns) {
@@ -176,12 +188,24 @@ function parseRipgrepOutput(
         // Extract symbol name from the last capturing group
         const name = match[match.length - 1];
 
+        // Skip if name is undefined or empty
+        if (!name) {
+          continue;
+        }
+
+        // Calculate relative path
+        const relativePath = filePath.startsWith(directory)
+          ? filePath.substring(directory.length + 1)
+          : filePath;
+
         symbols.push({
           name,
-          type,
+          type: type as SymbolType,
           filePath,
+          relativePath,
           lineNumber,
-          lineContent
+          lineContent,
+          language
         });
         break;
       }
@@ -260,6 +284,9 @@ export async function searchSymbols(
       };
     }
 
+    // At this point, rgPath is guaranteed to be non-null
+    const rgCommand: string = rgPath;
+
     // Build rg arguments
     const maxSymbols = options.maxSymbols || DEFAULT_MAX_SYMBOLS;
     const args = [
@@ -293,7 +320,7 @@ export async function searchSymbols(
         killSignal: 'SIGTERM' as const
       };
 
-      execFile(rgPath, args, execOptions, (error, stdout, stderr) => {
+      execFile(rgCommand, args, execOptions, (error, stdout, stderr) => {
         // rg exits with code 1 when no matches found, which is not an error
         if (error && error.code !== 1) {
           if (error.killed) {
@@ -305,7 +332,7 @@ export async function searchSymbols(
         }
 
         if (stderr) {
-          logger.debug('rg stderr:', stderr);
+          logger.debug('rg stderr', { stderr });
         }
 
         resolve(stdout);
@@ -313,7 +340,7 @@ export async function searchSymbols(
     });
 
     // Parse output
-    const symbols = parseRipgrepOutput(rgOutput, language, maxSymbols);
+    const symbols = parseRipgrepOutput(rgOutput, language, maxSymbols, directory);
 
     return {
       success: true,

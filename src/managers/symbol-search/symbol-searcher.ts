@@ -3,14 +3,12 @@
  * Uses Node.js implementation instead of Swift binary
  */
 
-import { logger } from '../../utils/utils';
 import type {
   SymbolSearchResponse,
   RgCheckResponse,
   LanguagesResponse,
   SymbolSearchOptions
 } from './types';
-import { TIMEOUTS } from '../../constants';
 import {
   checkRgAvailable as checkRgNode,
   getSupportedLanguages as getLanguagesNode,
@@ -19,7 +17,7 @@ import {
 
 // Default search options (exported for use by handlers)
 export const DEFAULT_MAX_SYMBOLS = 200000;
-export const DEFAULT_SEARCH_TIMEOUT = TIMEOUTS.SYMBOL_SEARCH;
+export const DEFAULT_SEARCH_TIMEOUT = 5000; // 5 seconds
 export const DEFAULT_MAX_BUFFER = 100 * 1024 * 1024; // 100MB buffer for large codebases
 
 /**
