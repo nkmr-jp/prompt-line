@@ -817,6 +817,40 @@ describe('FileOpenerManager', () => {
       expect(mockedExecFile).toHaveBeenCalledTimes(2);
     });
 
+    it('should detect Xcode as default app and use xed for line number', async () => {
+      Object.defineProperty(process, 'platform', { value: 'darwin' });
+
+      mockSettingsManager.getSettings.mockReturnValue({
+        ...defaultSettings,
+        fileOpener: {
+          extensions: {},
+          defaultEditor: null
+        }
+      });
+
+      let callIndex = 0;
+      mockedExecFile.mockImplementation((cmd: any, args: any, optionsOrCb: any, cb?: any) => {
+        const callback = typeof optionsOrCb === 'function' ? optionsOrCb : cb;
+        callIndex++;
+        if (callIndex === 1) {
+          // First call: osascript detects Xcode
+          expect(cmd).toBe('osascript');
+          callback(null, 'Xcode\n');
+        } else {
+          // Second call: xed -l 42 file
+          expect(cmd).toBe('xed');
+          expect(args).toEqual(['-l', '42', '/path/to/file.swift']);
+          callback(null);
+        }
+        return {} as any;
+      });
+
+      const result = await fileOpenerManager.openFile('/path/to/file.swift', { lineNumber: 42 });
+
+      expect(result.success).toBe(true);
+      expect(mockedExecFile).toHaveBeenCalledTimes(2);
+    });
+
     it('should skip detection on non-macOS platforms', async () => {
       Object.defineProperty(process, 'platform', { value: 'linux' });
 

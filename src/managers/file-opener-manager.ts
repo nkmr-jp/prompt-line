@@ -284,7 +284,7 @@ export class FileOpenerManager {
       }
       // Use JSON.stringify for safe JavaScript string escaping (handles all special characters)
       const safePathJson = JSON.stringify(filePath);
-      const script = `ObjC.import("AppKit");var ws=$.NSWorkspace.sharedWorkspace;var url=$.NSURL.fileURLWithPath(${safePathJson});var appUrl=ws.URLForApplicationToOpenURL(url);appUrl?ObjC.unwrap(appUrl.deletingPathExtension.lastPathComponent):""`;
+      const script = `ObjC.import("AppKit");var ws=$.NSWorkspace.sharedWorkspace;var url=$.NSURL.fileURLWithPath(${safePathJson});var appUrl=ws.URLForApplicationToOpenURL(url);appUrl?ObjC.unwrap(appUrl.URLByDeletingPathExtension.lastPathComponent):""`;
 
       execFile('osascript', ['-l', 'JavaScript', '-e', script], { timeout: 3000 }, (error, stdout) => {
         if (error || !stdout?.trim()) {
