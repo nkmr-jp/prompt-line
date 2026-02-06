@@ -4,7 +4,25 @@
  */
 
 // Symbol types that can be detected
-export type SymbolType = 'function' | 'method' | 'class' | 'struct' | 'interface' | 'type';
+export type SymbolType =
+  | 'function'
+  | 'method'
+  | 'class'
+  | 'struct'
+  | 'interface'
+  | 'type'
+  | 'constant'
+  | 'variable'
+  | 'enum'
+  | 'property'
+  | 'module'
+  | 'namespace'
+  | 'heading'
+  // Terraform-specific types
+  | 'resource'
+  | 'data'
+  | 'output'
+  | 'provider';
 
 // A single symbol search result
 export interface SymbolResult {

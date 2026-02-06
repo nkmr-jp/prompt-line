@@ -14,8 +14,6 @@ export {
   KEYBOARD_SIMULATOR_PATH,
   TEXT_FIELD_DETECTOR_PATH,
   DIRECTORY_DETECTOR_PATH,
-  FILE_SEARCHER_PATH,
-  SYMBOL_SEARCHER_PATH,
   // App detection
   getCurrentApp,
   getActiveWindowBounds,

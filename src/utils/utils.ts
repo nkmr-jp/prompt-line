@@ -29,8 +29,6 @@ export {
   TEXT_FIELD_DETECTOR_PATH,
   WINDOW_DETECTOR_PATH,
   DIRECTORY_DETECTOR_PATH,
-  FILE_SEARCHER_PATH,
-  SYMBOL_SEARCHER_PATH,
 } from './native-tools';
 export type { DirectoryDetectionOptions } from './native-tools';
 

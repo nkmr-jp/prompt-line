@@ -1,6 +1,7 @@
 import { execFile } from 'child_process';
 import config from '../../../config/app-config';
-import { logger, DIRECTORY_DETECTOR_PATH, FILE_SEARCHER_PATH } from '../../../utils/utils';
+import { logger, DIRECTORY_DETECTOR_PATH } from '../../../utils/utils';
+import { listDirectory } from '../../../utils/file-search';
 import type { DirectoryInfo, FileSearchSettings, AppInfo } from '../../../types';
 import type { IDirectoryDetectionStrategy } from './types';
 import { TIMEOUTS } from '../../../constants';
@@ -61,49 +62,49 @@ export class NativeDetectorStrategy implements IDirectoryDetectionStrategy {
             return;
           }
 
-          // Step 2: List files using file-searcher
-          const listArgs: string[] = ['list', detectResult.directory];
-
-          // Apply file search settings if available
+          // Step 2: List files using Node.js file-search module
           if (fileSearchSettings) {
             logger.debug('Applying file search settings:', {
               maxFiles: fileSearchSettings.maxFiles,
               respectGitignore: fileSearchSettings.respectGitignore,
               includeHidden: fileSearchSettings.includeHidden
             });
-            this.applyFileSearchSettings(listArgs, fileSearchSettings);
-            logger.debug('File searcher args:', listArgs.join(' '));
           } else {
             logger.debug('No file search settings provided, using defaults');
           }
 
-          // Calculate remaining timeout with minimum threshold
-          const remainingTimeout = Math.round(Math.max(timeout - detectElapsed, TIMEOUTS.SHORT_OPERATION));
-
-          const listOptions = {
-            timeout: remainingTimeout,
-            killSignal: 'SIGTERM' as const,
-            maxBuffer: 50 * 1024 * 1024 // 50MB for large file lists
-          };
-
           try {
-            execFile(FILE_SEARCHER_PATH, listArgs, listOptions, (listError: Error | null, listStdout?: string) => {
-              // Merge results
-              const result: DirectoryInfo = {
-                ...detectResult
-              };
+            const listResult = await listDirectory(detectResult.directory, fileSearchSettings || undefined);
 
-              if (listError) {
-                logger.warn(`File listing failed:`, listError);
-                result.filesError = listError.message;
-              } else {
-                this.parseFileListResult(listStdout, result);
+            // Merge results
+            const result: DirectoryInfo = {
+              ...detectResult
+            };
+
+            if (listResult.error) {
+              result.filesError = listResult.error;
+            } else {
+              if (listResult.files) {
+                result.files = listResult.files;
+                result.fileCount = listResult.fileCount ?? listResult.files.length;
               }
+              if (listResult.searchMode) {
+                result.searchMode = listResult.searchMode;
+              }
+              if (listResult.partial !== undefined) {
+                result.fileLimitReached = listResult.partial;
+              }
+            }
 
-              resolve(result);
-            });
-          } catch (execError) {
-            logger.warn('Error executing file searcher:', execError);
+            // Set hint message if fd is not available
+            if (listResult.fdAvailable === false) {
+              result.hint = 'Install fd for file search: brew install fd';
+              logger.warn('fd command not found. File search will not work. Install with: brew install fd');
+            }
+
+            resolve(result);
+          } catch (listError) {
+            logger.warn('Error listing files:', listError);
             // Return detect result without files on file searcher error
             resolve(detectResult);
           }
@@ -115,68 +116,4 @@ export class NativeDetectorStrategy implements IDirectoryDetectionStrategy {
     });
   }
 
-  /**
-   * Apply file search settings to fd arguments
-   */
-  private applyFileSearchSettings(args: string[], settings: FileSearchSettings): void {
-    if (!settings.respectGitignore) {
-      args.push('--no-gitignore');
-    }
-    if (settings.excludePatterns && settings.excludePatterns.length > 0) {
-      for (const pattern of settings.excludePatterns) {
-        args.push('--exclude', pattern);
-      }
-    }
-    if (settings.includePatterns && settings.includePatterns.length > 0) {
-      for (const pattern of settings.includePatterns) {
-        args.push('--include', pattern);
-      }
-    }
-    if (settings.maxFiles) {
-      args.push('--max-files', String(settings.maxFiles));
-    }
-    if (settings.includeHidden) {
-      args.push('--include-hidden');
-    }
-    if (settings.maxDepth !== null && settings.maxDepth !== undefined) {
-      args.push('--max-depth', String(settings.maxDepth));
-    }
-    if (settings.followSymlinks) {
-      args.push('--follow-symlinks');
-    }
-  }
-
-  /**
-   * Parse file list result from file-searcher output
-   */
-  private parseFileListResult(stdout: string | undefined, result: DirectoryInfo): void {
-    try {
-      const listResult = JSON.parse(stdout?.trim() || '{}');
-
-      if (listResult.files) {
-        result.files = listResult.files;
-        result.fileCount = listResult.fileCount;
-      }
-      if (listResult.searchMode) {
-        result.searchMode = listResult.searchMode;
-      }
-      if (listResult.fileLimitReached) {
-        result.fileLimitReached = listResult.fileLimitReached;
-      }
-      if (listResult.maxFiles) {
-        result.maxFiles = listResult.maxFiles;
-      }
-      if (listResult.filesError) {
-        result.filesError = listResult.filesError;
-        // Add hint message if fd command is not available
-        if (listResult.filesError.includes('fd required')) {
-          result.hint = 'Install fd for file search: brew install fd';
-          logger.warn('fd command not found. File search will not work. Install with: brew install fd');
-        }
-      }
-    } catch (parseError) {
-      logger.warn('Error parsing file list result:', parseError);
-      result.filesError = 'Failed to parse file list';
-    }
-  }
 }

@@ -28,7 +28,4 @@ export const WINDOW_DETECTOR_PATH = path.join(NATIVE_TOOLS_DIR, 'window-detector
 export const KEYBOARD_SIMULATOR_PATH = path.join(NATIVE_TOOLS_DIR, 'keyboard-simulator');
 export const TEXT_FIELD_DETECTOR_PATH = path.join(NATIVE_TOOLS_DIR, 'text-field-detector');
 export const DIRECTORY_DETECTOR_PATH = path.join(NATIVE_TOOLS_DIR, 'directory-detector');
-export const FILE_SEARCHER_PATH = path.join(NATIVE_TOOLS_DIR, 'file-searcher');
-export const SYMBOL_SEARCHER_PATH = path.join(NATIVE_TOOLS_DIR, 'symbol-searcher');
-
 export { NATIVE_TOOLS_DIR };
