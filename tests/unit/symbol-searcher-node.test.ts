@@ -86,17 +86,17 @@ describe('symbol-searcher-node', () => {
   describe('LANGUAGE_CONFIGS validation (via getSupportedLanguages)', () => {
     const EXPECTED_LANGUAGES = [
       'go', 'ts', 'tsx', 'js', 'jsx', 'py', 'rs', 'java', 'kt',
-      'swift', 'rb', 'cpp', 'c', 'sh', 'make', 'php', 'cs', 'scala', 'tf', 'md'
+      'swift', 'rb', 'cpp', 'c', 'sh', 'make', 'php', 'cs', 'scala', 'tf', 'md', 'mk'
     ];
 
-    test('should include all 20 expected language keys', async () => {
+    test('should include all 21 expected language keys', async () => {
       const { languages } = await getSupportedLanguages();
       const keys = languages.map(l => l.key);
 
       for (const expected of EXPECTED_LANGUAGES) {
         expect(keys).toContain(expected);
       }
-      expect(languages).toHaveLength(20);
+      expect(languages).toHaveLength(21);
     });
 
     test('each language should have a displayName and extension', async () => {
@@ -614,9 +614,9 @@ describe('symbol-searcher-node', () => {
   // 4. getSupportedLanguages()
   // ============================================================
   describe('getSupportedLanguages', () => {
-    test('should return all 20 languages', async () => {
+    test('should return all 21 languages', async () => {
       const { languages } = await getSupportedLanguages();
-      expect(languages).toHaveLength(20);
+      expect(languages).toHaveLength(21);
     });
 
     test('should return languages with key, displayName, and extension', async () => {
