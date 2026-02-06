@@ -45,6 +45,18 @@ interface LanguageConfig {
 }
 
 /**
+ * Block search configuration for multiline block detection
+ * Used for detecting symbols inside multi-line blocks (e.g., Go const/var blocks)
+ * Ported from native/symbol-searcher/RipgrepExecutor.swift
+ */
+interface BlockSearchConfig {
+  symbolType: SymbolType;
+  blockPattern: string;        // rg multiline pattern (-U --multiline-dotall)
+  symbolNameRegex: string;     // Regex to extract symbol name from each line within block
+  indentFilter: 'singleLevel' | 'any'; // singleLevel: tab or 2-4 spaces only (top-level block content)
+}
+
+/**
  * Language configurations with file extensions and symbol patterns
  * Enhanced to LSP-level symbol detection quality
  * Go patterns ported from native/symbol-searcher/SymbolPatterns.swift
@@ -81,17 +93,9 @@ const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
       // Type aliases: package types (e.g., type Handler http.Handler, type Time time.Time)
       { type: 'type', pattern: '^type\\s+(\\w+)\\s+[a-z]\\w*\\.', captureGroup: 1 },
       { type: 'constant', pattern: '^const\\s+(\\w+)\\s*=', captureGroup: 1 },
-      // Constants inside const ( ... ) block with type: `Name Type = value` (uppercase first to avoid if/for/return FPs)
-      { type: 'constant', pattern: '^(?:\\t|    )([A-Z]\\w*)\\s+\\w+\\s*=', captureGroup: 1 },
-      // Constants inside const ( ... ) block without type: `Name = literal`
-      { type: 'constant', pattern: '^(?:\\t|    )(\\w+)\\s*=\\s*(?:iota|-?\\d[\\d_.]*|"[^"]*"|`[^`]*`|\'[^\']*\'|true|false|nil)\\s*(?://.*)?$', captureGroup: 1 },
-      // Constants inside const ( ... ) block: iota continuation (name only, e.g., `StatusOK`)
-      { type: 'constant', pattern: '^(?:\\t|    )([A-Z]\\w*)\\s*$', captureGroup: 1 },
+      // Note: const/var block symbols (inside const ( ... ) and var ( ... )) are detected by
+      // block-based multiline search (GO_BLOCK_CONFIGS), not by single-line patterns
       { type: 'variable', pattern: '^var\\s+(\\w+)\\s+', captureGroup: 1 },
-      // Variables inside var ( ... ) block with exported type (uppercase = exported, excludes all lowercase Go keywords)
-      { type: 'variable', pattern: '^(?:\\t|    )([A-Z]\\w*)\\s+\\*?(?:\\[\\])?(?:map\\[.+\\])?(?:chan\\s+)?(?:\\w+\\.)?[A-Z]\\w*\\s*$', captureGroup: 1 },
-      // Variables inside var ( ... ) block with basic type (uppercase = exported, excludes all lowercase Go keywords)
-      { type: 'variable', pattern: '^(?:\\t|    )([A-Z]\\w*)\\s+(string|bool|byte|rune|error|any|int\\d*|uint\\d*|float\\d*|complex\\d*|uintptr)\\s*$', captureGroup: 1 },
     ]
   },
   ts: {
@@ -547,6 +551,86 @@ const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
 };
 
 /**
+ * Go block search configurations for multiline block detection
+ * Ported from native/symbol-searcher/SymbolPatterns.swift GO_BLOCK_CONFIGS
+ *
+ * Uses ripgrep multiline mode (-U --multiline-dotall) to match entire
+ * const ( ... ) and var ( ... ) blocks, then extracts symbol names line-by-line.
+ * This is more reliable than single-line patterns because:
+ * 1. Context-aware: knows the line is inside a const/var block (not in a function)
+ * 2. Proper indent filtering rejects nested/function-local blocks
+ * 3. Negative lookahead excludes Go keywords
+ */
+const GO_BLOCK_CONFIGS: BlockSearchConfig[] = [
+  // var ( ... ) block - detects variables with type annotation
+  {
+    symbolType: 'variable',
+    blockPattern: 'var \\([\\s\\S]*?^\\)',
+    symbolNameRegex: '^\\s+(?!(?:if|for|switch|select|case|default|return|break|continue|goto|fallthrough|defer|go|var|const|type|func)\\s)([a-zA-Z_]\\w*)\\s+\\S',
+    indentFilter: 'singleLevel'
+  },
+  // const ( ... ) block - name = value or name Type = value
+  {
+    symbolType: 'constant',
+    blockPattern: 'const \\([\\s\\S]*?^\\)',
+    symbolNameRegex: '^\\s+(?!(?:if|for|switch|select|case|default|return|break|continue|goto|fallthrough|defer|go|var|const|type|func)\\s)([a-zA-Z_]\\w*)\\s*((?<![!:<>=])=|\\s+\\w+\\s*(?<![!:<>=])=)',
+    indentFilter: 'singleLevel'
+  },
+  // const ( ... ) block - iota continuation (name only, no = sign)
+  // Enhancement over Swift implementation: captures names like StatusCreated in iota sequences
+  {
+    symbolType: 'constant',
+    blockPattern: 'const \\([\\s\\S]*?^\\)',
+    symbolNameRegex: '^\\s+(?!(?:if|for|switch|select|case|default|return|break|continue|goto|fallthrough|defer|go|var|const|type|func)\\s)([A-Z]\\w*)\\s*(?://.*)?$',
+    indentFilter: 'singleLevel'
+  }
+];
+
+/**
+ * Rust enum variant block detection
+ *
+ * Rust enum variants are declared inside enum { } blocks without keyword markers
+ * on individual lines, making them invisible to single-line patterns.
+ * Example: enum Status { Active, Inactive, Pending(String) }
+ */
+const RUST_BLOCK_CONFIGS: BlockSearchConfig[] = [
+  // enum { ... } block - detect enum variants (must start with uppercase)
+  {
+    symbolType: 'enum',
+    blockPattern: 'enum\\s+\\w+[^\\n]*\\{[\\s\\S]*?^\\}',
+    symbolNameRegex: '^\\s+([A-Z]\\w*)\\s*(?:[\\({,=]|//|$)',
+    indentFilter: 'singleLevel'
+  }
+];
+
+/**
+ * TypeScript/TSX enum member block detection
+ *
+ * TypeScript enum members are declared inside enum { } blocks without keyword markers.
+ * Example: enum Direction { Up = 'UP', Down = 'DOWN' }
+ */
+const TS_BLOCK_CONFIGS: BlockSearchConfig[] = [
+  // enum { ... } block - detect enum members
+  {
+    symbolType: 'constant',
+    blockPattern: '(?:export\\s+)?(?:const\\s+)?enum\\s+\\w+\\s*\\{[\\s\\S]*?^\\}',
+    symbolNameRegex: '^\\s+([A-Za-z_]\\w*)\\s*(?:[=,]|$)',
+    indentFilter: 'singleLevel'
+  }
+];
+
+/**
+ * Block search configurations by language
+ * Languages that need multiline block detection for accurate symbol extraction
+ */
+const BLOCK_SEARCH_CONFIGS: Record<string, BlockSearchConfig[]> = {
+  go: GO_BLOCK_CONFIGS,
+  rs: RUST_BLOCK_CONFIGS,
+  ts: TS_BLOCK_CONFIGS,
+  tsx: TS_BLOCK_CONFIGS
+};
+
+/**
  * Check if ripgrep (rg) is available
  */
 export async function checkRgAvailable(): Promise<RgCheckResponse> {
@@ -758,6 +842,140 @@ function buildRgArgs(
 }
 
 /**
+ * Parse ripgrep multiline output and extract symbols from block content
+ * Ported from native/symbol-searcher/RipgrepExecutor.swift parseAndFilterBlockOutput
+ *
+ * Processes rg output in path:lineNumber:content format, applies indent filtering,
+ * and extracts symbol names using the config's symbolNameRegex.
+ */
+function parseBlockOutput(
+  output: string,
+  config: BlockSearchConfig,
+  language: string,
+  directory: string,
+  maxSymbols: number
+): SymbolResult[] {
+  const symbols: SymbolResult[] = [];
+  const symbolRegex = new RegExp(config.symbolNameRegex);
+
+  for (const line of output.split('\n')) {
+    if (symbols.length >= maxSymbols) break;
+    if (!line) continue;
+
+    // Parse "path:lineNumber:content" format
+    const firstColon = line.indexOf(':');
+    if (firstColon < 0) continue;
+
+    const afterFirst = line.substring(firstColon + 1);
+    const secondColon = afterFirst.indexOf(':');
+    if (secondColon < 0) continue;
+
+    const filePath = line.substring(0, firstColon);
+    const lineNumberStr = afterFirst.substring(0, secondColon);
+    const lineNumber = parseInt(lineNumberStr, 10);
+    if (isNaN(lineNumber)) continue;
+
+    const content = afterFirst.substring(secondColon + 1);
+    const contentTrimmed = content.trim();
+
+    // Skip empty content, comment lines, and closing delimiters
+    if (!contentTrimmed || contentTrimmed.startsWith('//') || contentTrimmed === ')' || contentTrimmed === '}') continue;
+
+    // Apply indent filter (matches Swift's indentFilter logic)
+    if (config.indentFilter === 'singleLevel') {
+      // Reject double tab or 5+ spaces (too deeply indented - likely function-local)
+      if (content.startsWith('\t\t') || content.startsWith('     ')) continue;
+      // Require some indentation (skip block opening line like "const (")
+      if (!content.startsWith('\t') && !content.startsWith('  ')) continue;
+    }
+
+    // Extract symbol name using regex
+    const match = content.match(symbolRegex);
+    if (!match || !match[1]) continue;
+
+    const name = match[1].trim();
+    if (!name) continue;
+
+    // Calculate relative path
+    const relativePath = filePath.startsWith(directory)
+      ? filePath.substring(directory.length + 1)
+      : filePath;
+
+    symbols.push({
+      name,
+      type: config.symbolType as SymbolType,
+      filePath,
+      relativePath,
+      lineNumber,
+      lineContent: contentTrimmed,
+      language
+    });
+  }
+
+  return symbols;
+}
+
+/**
+ * Search for symbols in multiline blocks using ripgrep multiline mode
+ * Ported from native/symbol-searcher/RipgrepExecutor.swift searchBlockSymbols
+ *
+ * Groups configs by blockPattern to avoid redundant rg invocations,
+ * then applies each config's symbolNameRegex to the output.
+ */
+async function searchBlockSymbols(
+  rgCommand: string,
+  directory: string,
+  configs: BlockSearchConfig[],
+  language: string,
+  rgType: string,
+  maxSymbols: number,
+  timeout: number,
+  excludePatterns: string[]
+): Promise<SymbolResult[]> {
+  // Group configs by blockPattern to avoid running the same rg search multiple times
+  const patternGroups = new Map<string, BlockSearchConfig[]>();
+  for (const config of configs) {
+    const existing = patternGroups.get(config.blockPattern) || [];
+    existing.push(config);
+    patternGroups.set(config.blockPattern, existing);
+  }
+
+  const allResults: SymbolResult[] = [];
+
+  // Run one rg invocation per unique block pattern
+  const promises = Array.from(patternGroups.entries()).map(async ([blockPattern, groupConfigs]) => {
+    const args = [
+      '-U', '--multiline-dotall',  // Multiline mode (matches Swift's -U --multiline-dotall)
+      '--line-number',
+      '--no-heading',
+      '--color', 'never',
+      '--type', rgType
+    ];
+
+    // Add exclude patterns
+    for (const pattern of excludePatterns) {
+      args.push('--glob', `!${pattern}`);
+    }
+
+    args.push('-e', blockPattern, directory);
+
+    try {
+      const output = await executeRg(rgCommand, args, timeout);
+      // Apply each config's symbolNameRegex to the same block output
+      for (const config of groupConfigs) {
+        const results = parseBlockOutput(output, config, language, directory, maxSymbols);
+        allResults.push(...results);
+      }
+    } catch (error) {
+      logger.debug('Block search failed for pattern', { blockPattern, error });
+    }
+  });
+
+  await Promise.all(promises);
+  return allResults;
+}
+
+/**
  * Deduplicate and sort symbol results
  * Matches Swift's deduplicateAndSort: dedup by filePath:lineNumber:name, sort by filePath then lineNumber
  */
@@ -791,9 +1009,10 @@ function deduplicateAndSort(results: SymbolResult[], maxSymbols: number): Symbol
 /**
  * Search for symbols in a directory for a specific language
  *
- * Uses two-phase search matching Swift implementation:
- * Phase 1: Normal search respecting .gitignore with excludePatterns
+ * Uses three-phase search matching Swift implementation:
+ * Phase 1: Normal single-line search respecting .gitignore with excludePatterns
  * Phase 2: Include patterns search with --hidden --no-ignore (only when includePatterns specified)
+ * Phase 3: Block-based multiline search for languages with block configs (e.g., Go const/var blocks)
  * Results are deduplicated and sorted by filePath then lineNumber
  */
 export async function searchSymbols(
@@ -896,6 +1115,18 @@ export async function searchSymbols(
       const includeOutput = await executeRg(rgCommand, includeArgs, timeout);
       const includeSymbols = parseRipgrepOutput(includeOutput, language, maxSymbols, directory);
       allSymbols = allSymbols.concat(includeSymbols);
+    }
+
+    // Phase 3: Block-based multiline search (e.g., Go const/var blocks)
+    // Matches Swift's searchBlockSymbols: uses rg -U --multiline-dotall
+    const blockConfigs = BLOCK_SEARCH_CONFIGS[language];
+    if (blockConfigs && blockConfigs.length > 0) {
+      const blockResults = await searchBlockSymbols(
+        rgCommand, directory, blockConfigs, language,
+        config.rgType, maxSymbols, timeout,
+        options.excludePatterns || []
+      );
+      allSymbols = allSymbols.concat(blockResults);
     }
 
     // Deduplicate and sort (matching Swift's deduplicateAndSort)

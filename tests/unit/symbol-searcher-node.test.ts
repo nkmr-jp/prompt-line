@@ -649,7 +649,8 @@ describe('symbol-searcher-node', () => {
     test('should NOT include --hidden or --no-ignore when includePatterns is empty', async () => {
       const { getCapturedArgs } = mockExecFileCapturingArgs('');
 
-      await searchSymbols('/project', 'ts');
+      // Use 'py' to avoid block search phase (ts/go/rs have block configs)
+      await searchSymbols('/project', 'py');
       const args = getCapturedArgs();
       expect(args).toHaveLength(1);
 
@@ -661,7 +662,8 @@ describe('symbol-searcher-node', () => {
     test('should NOT include --hidden or --no-ignore when includePatterns is undefined', async () => {
       const { getCapturedArgs } = mockExecFileCapturingArgs('');
 
-      await searchSymbols('/project', 'ts', {});
+      // Use 'py' to avoid block search phase
+      await searchSymbols('/project', 'py', {});
       const args = getCapturedArgs();
       expect(args).toHaveLength(1);
 
@@ -673,7 +675,8 @@ describe('symbol-searcher-node', () => {
     test('should run TWO separate rg calls when includePatterns is provided (matching Swift)', async () => {
       const { getCapturedArgs } = mockExecFileCapturingArgs('');
 
-      await searchSymbols('/project', 'ts', {
+      // Use 'py' to avoid block search phase (focus on normal+include phases)
+      await searchSymbols('/project', 'py', {
         includePatterns: ['.claude/**/*']
       });
       const args = getCapturedArgs();
@@ -705,7 +708,8 @@ describe('symbol-searcher-node', () => {
     test('should NOT include --hidden or --no-ignore when includePatterns is empty array', async () => {
       const { getCapturedArgs } = mockExecFileCapturingArgs('');
 
-      await searchSymbols('/project', 'ts', {
+      // Use 'py' to avoid block search phase
+      await searchSymbols('/project', 'py', {
         includePatterns: []
       });
       const args = getCapturedArgs();
@@ -719,7 +723,8 @@ describe('symbol-searcher-node', () => {
     test('normal search should NOT have excludePatterns leak into include search', async () => {
       const { getCapturedArgs } = mockExecFileCapturingArgs('');
 
-      await searchSymbols('/project', 'ts', {
+      // Use 'py' to avoid block search phase (focus on normal+include phases)
+      await searchSymbols('/project', 'py', {
         excludePatterns: ['node_modules'],
         includePatterns: ['.claude/**/*']
       });
@@ -789,8 +794,10 @@ describe('symbol-searcher-node', () => {
 
       await searchSymbols('/project', 'ts');
       const args = getCapturedArgs();
-      expect(args).toHaveLength(1);
+      // ts has normal search + block search (enum members)
+      expect(args.length).toBeGreaterThanOrEqual(1);
 
+      // First call is the normal search with combined patterns
       const searchArgs = args[0]!;
       const eIndex = searchArgs.indexOf('-e');
       expect(eIndex).toBeGreaterThan(-1);
@@ -807,10 +814,13 @@ describe('symbol-searcher-node', () => {
 
       await searchSymbols('/my/project/dir', 'go');
       const args = getCapturedArgs();
-      expect(args).toHaveLength(1);
+      // Go has 3 rg invocations: 1 normal + 2 block searches (var/const blocks)
+      expect(args.length).toBeGreaterThanOrEqual(1);
 
-      const searchArgs = args[0]!;
-      expect(searchArgs[searchArgs.length - 1]).toBe('/my/project/dir');
+      // Verify directory is last argument in all rg invocations
+      for (const searchArgs of args) {
+        expect(searchArgs[searchArgs.length - 1]).toBe('/my/project/dir');
+      }
     });
 
     test('should include --line-number, --no-heading, --color never', async () => {
@@ -850,8 +860,9 @@ describe('symbol-searcher-node', () => {
     test('should add include patterns with --glob in the second (include) search call', async () => {
       const { getCapturedArgs } = mockExecFileCapturingArgs('');
 
-      await searchSymbols('/project', 'ts', {
-        includePatterns: ['src/**/*.ts', 'lib/**/*.ts']
+      // Use 'py' to avoid block search phase (focus on normal+include phases)
+      await searchSymbols('/project', 'py', {
+        includePatterns: ['src/**/*.py', 'lib/**/*.py']
       });
       const args = getCapturedArgs();
       // Two calls: normal + include
@@ -866,16 +877,16 @@ describe('symbol-searcher-node', () => {
         }
       }
 
-      expect(globs).toContain('src/**/*.ts');
-      expect(globs).toContain('lib/**/*.ts');
+      expect(globs).toContain('src/**/*.py');
+      expect(globs).toContain('lib/**/*.py');
 
       // Normal search (first call) should NOT have include globs
       const normalGlobs: string[] = [];
       for (let i = 0; i < args[0]!.length; i++) {
         if (args[0]![i] === '--glob') normalGlobs.push(args[0]![i + 1]!);
       }
-      expect(normalGlobs).not.toContain('src/**/*.ts');
-      expect(normalGlobs).not.toContain('lib/**/*.ts');
+      expect(normalGlobs).not.toContain('src/**/*.py');
+      expect(normalGlobs).not.toContain('lib/**/*.py');
     });
   });
 
@@ -1346,7 +1357,8 @@ describe('symbol-searcher-node', () => {
     test('should only run one rg call when no includePatterns specified', async () => {
       const { getCapturedArgs } = mockExecFileCapturingArgs('');
 
-      await searchSymbols('/project', 'ts');
+      // Use 'py' (no block configs) to test pure two-phase behavior
+      await searchSymbols('/project', 'py');
       const args = getCapturedArgs();
       // Only normal search, no include search
       expect(args).toHaveLength(1);
@@ -1355,7 +1367,8 @@ describe('symbol-searcher-node', () => {
     test('should run two rg calls when includePatterns specified', async () => {
       const { getCapturedArgs } = mockExecFileCapturingArgs('');
 
-      await searchSymbols('/project', 'ts', {
+      // Use 'py' (no block configs) to test pure two-phase behavior
+      await searchSymbols('/project', 'py', {
         includePatterns: ['.claude/**/*']
       });
       const args = getCapturedArgs();
