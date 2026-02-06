@@ -311,7 +311,12 @@ export async function listDirectory(
                 includePatterns: []       // Clear to avoid recursion
               };
 
-              // Build args with pattern
+              // Extract base directory from glob pattern (e.g., ".claude/**/*" -> ".claude")
+              // fd's --glob flag doesn't match path components reliably for dot-directories,
+              // so we extract the directory part and use it as the search path instead.
+              const searchDir = pattern.replace(/\/\*\*.*$/, '').replace(/\/\*$/, '');
+
+              // Build args with search directory instead of glob pattern
               const args: string[] = [
                 '--type', 'f',
                 '--color', 'never',
@@ -332,9 +337,9 @@ export async function listDirectory(
                 args.push('--exclude', exclude);
               }
 
-              // Add glob pattern
-              args.push('--glob', pattern);
+              // Use '.' pattern to match all files, search in the extracted directory
               args.push('.');
+              args.push(searchDir);
 
               // Execute fd with include pattern
               const includeFiles = await new Promise<FileInfo[]>((resolve, _reject) => {
