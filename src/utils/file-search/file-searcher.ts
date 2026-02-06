@@ -319,6 +319,28 @@ export async function listDirectory(
               // Check if searchDir is an absolute path
               const isAbsolute = searchDir.startsWith('/');
 
+              // Determine the full path to check existence
+              const fullSearchPath = isAbsolute ? searchDir : join(sanitizedPath, searchDir);
+
+              // Check if the search directory exists and is a directory
+              try {
+                const stats = await stat(fullSearchPath);
+                if (!stats.isDirectory()) {
+                  logger.debug('includePattern search path is not a directory, skipping', {
+                    pattern,
+                    searchPath: fullSearchPath
+                  });
+                  continue; // Skip this pattern
+                }
+              } catch (error) {
+                logger.debug('includePattern search path does not exist, skipping', {
+                  pattern,
+                  searchPath: fullSearchPath,
+                  error: error instanceof Error ? error.message : String(error)
+                });
+                continue; // Skip this pattern
+              }
+
               // Build args with search directory instead of glob pattern
               const args: string[] = [
                 '--type', 'f',
