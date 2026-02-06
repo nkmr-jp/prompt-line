@@ -50,8 +50,6 @@ const EDITOR_CONFIGS: Record<string, EditorConfig> = {
   'DataGrip': { useOpenArgs: true },
   'AppCode': { useOpenArgs: true },
   'Android Studio': { useOpenArgs: true },
-  // Apple
-  'Xcode': { useOpenArgs: true },
   // Other editors
   'Sublime Text': { useOpenArgs: true, lineFormat: 'colon' },
   'TextMate': { useOpenArgs: true, lineFormat: 'line' },
