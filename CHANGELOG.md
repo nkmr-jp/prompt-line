@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.22.0](https://github.com/nkmr-jp/prompt-line/compare/v0.21.0...v0.22.0) (2026-02-06)
+
+
+### Features
+
+* **ci:** enable always-bump-patch versioning strategy ([8014389](https://github.com/nkmr-jp/prompt-line/commit/8014389d4bbb85e4637037d5d86e14440d66da50))
+
+
+### Bug Fixes
+
+* **changelog:** correct version order and add header for release-please ([8398415](https://github.com/nkmr-jp/prompt-line/commit/83984152b0b5a5c855b7e5d3178660ec4dc8dab7))
+* **changelog:** correct version order to put latest version first ([fbcd82f](https://github.com/nkmr-jp/prompt-line/commit/fbcd82fa2bace2fb2661bec90b67f93a1c2c47cb))
+
 ## [0.21.0](https://github.com/nkmr-jp/prompt-line/compare/v0.20.0...v0.21.0) (2026-02-06)
 
 
