@@ -79,7 +79,7 @@ const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
       { type: 'type', pattern: '^type\\s+(\\w+)\\s+[a-z]\\w*\\.', captureGroup: 1 },
       { type: 'constant', pattern: '^const\\s+(\\w+)\\s*=', captureGroup: 1 },
       // Constants inside const ( ... ) block with type: `Name Type = value`
-      { type: 'constant', pattern: '^(?:\\t|    )(\\w+)\\s+\\w+\\s*(?<![!:<>=])=', captureGroup: 1 },
+      { type: 'constant', pattern: '^(?:\\t|    )(\\w+)\\s+\\w+\\s*=', captureGroup: 1 },
       // Constants inside const ( ... ) block without type: `Name = literal`
       { type: 'constant', pattern: '^(?:\\t|    )(\\w+)\\s*=\\s*(?:iota|-?\\d[\\d_.]*|"[^"]*"|`[^`]*`|\'[^\']*\'|true|false|nil)\\s*(?://.*)?$', captureGroup: 1 },
       // Constants inside const ( ... ) block: iota continuation (name only, e.g., `StatusOK`)
@@ -99,10 +99,10 @@ const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
       { type: 'function', pattern: '^(?:export\\s+)?(?:async\\s+)?function\\s+(\\w+)', captureGroup: 1 },
       { type: 'class', pattern: '^(?:export\\s+)?(?:abstract\\s+)?class\\s+(\\w+)', captureGroup: 1 },
       { type: 'interface', pattern: '^(?:export\\s+)?interface\\s+(\\w+)', captureGroup: 1 },
-      { type: 'type', pattern: '^(?:export\\s+)?type\\s+(\\w+)\\s*[=<]', captureGroup: 1 },
-      { type: 'enum', pattern: '^(?:export\\s+)?(?:const\\s+)?enum\\s+(\\w+)', captureGroup: 1 },
+      { type: 'type', pattern: '^(?:export\\s+)?type\\s+(\\w+)\\s*=', captureGroup: 1 },
+      { type: 'enum', pattern: '^(?:export\\s+)?enum\\s+(\\w+)', captureGroup: 1 },
       { type: 'constant', pattern: '^(?:export\\s+)?const\\s+(\\w+)\\s*[=:]', captureGroup: 1 },
-      { type: 'namespace', pattern: '^(?:export\\s+)?(?:declare\\s+)?namespace\\s+(\\w+)', captureGroup: 1 },
+      { type: 'namespace', pattern: '^(?:export\\s+)?namespace\\s+(\\w+)', captureGroup: 1 },
     ]
   },
   tsx: {
@@ -113,8 +113,8 @@ const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
       { type: 'function', pattern: '^(?:export\\s+)?(?:async\\s+)?function\\s+(\\w+)', captureGroup: 1 },
       { type: 'class', pattern: '^(?:export\\s+)?(?:abstract\\s+)?class\\s+(\\w+)', captureGroup: 1 },
       { type: 'interface', pattern: '^(?:export\\s+)?interface\\s+(\\w+)', captureGroup: 1 },
-      { type: 'type', pattern: '^(?:export\\s+)?type\\s+(\\w+)\\s*[=<]', captureGroup: 1 },
-      { type: 'enum', pattern: '^(?:export\\s+)?(?:const\\s+)?enum\\s+(\\w+)', captureGroup: 1 },
+      { type: 'type', pattern: '^(?:export\\s+)?type\\s+(\\w+)\\s*=', captureGroup: 1 },
+      { type: 'enum', pattern: '^(?:export\\s+)?enum\\s+(\\w+)', captureGroup: 1 },
       { type: 'constant', pattern: '^(?:export\\s+)?const\\s+(\\w+)\\s*[=:]', captureGroup: 1 },
     ]
   },
@@ -125,9 +125,8 @@ const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
     patterns: [
       { type: 'function', pattern: '^(?:export\\s+)?(?:async\\s+)?function\\s+(\\w+)', captureGroup: 1 },
       { type: 'class', pattern: '^(?:export\\s+)?class\\s+(\\w+)', captureGroup: 1 },
-      { type: 'constant', pattern: '^(?:export\\s+)?const\\s+(\\w+)\\s*[=;]', captureGroup: 1 },
-      { type: 'variable', pattern: '^(?:export\\s+)?let\\s+(\\w+)\\s*[=;,]', captureGroup: 1 },
-      { type: 'variable', pattern: '^(?:export\\s+)?var\\s+(\\w+)\\s*[=;,]', captureGroup: 1 },
+      { type: 'constant', pattern: '^(?:export\\s+)?const\\s+(\\w+)\\s*=', captureGroup: 1 },
+      { type: 'variable', pattern: '^(?:export\\s+)?(?:var|let)\\s+(\\w+)', captureGroup: 1 },
     ]
   },
   jsx: {
@@ -137,9 +136,7 @@ const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
     patterns: [
       { type: 'function', pattern: '^(?:export\\s+)?(?:async\\s+)?function\\s+(\\w+)', captureGroup: 1 },
       { type: 'class', pattern: '^(?:export\\s+)?class\\s+(\\w+)', captureGroup: 1 },
-      { type: 'constant', pattern: '^(?:export\\s+)?const\\s+(\\w+)\\s*[=;]', captureGroup: 1 },
-      { type: 'variable', pattern: '^(?:export\\s+)?let\\s+(\\w+)\\s*[=;,]', captureGroup: 1 },
-      { type: 'variable', pattern: '^(?:export\\s+)?var\\s+(\\w+)\\s*[=;,]', captureGroup: 1 },
+      { type: 'constant', pattern: '^(?:export\\s+)?const\\s+(\\w+)\\s*=', captureGroup: 1 },
     ]
   },
   py: {
@@ -147,9 +144,9 @@ const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
     rgType: 'py',
     extensions: ['.py'],
     patterns: [
-      { type: 'function', pattern: '^(?:async\\s+)?def\\s+(\\w+)\\s*\\(', captureGroup: 1 },
+      { type: 'function', pattern: '^(?:async\\s+)?def\\s+(\\w+)', captureGroup: 1 },
       { type: 'class', pattern: '^class\\s+(\\w+)', captureGroup: 1 },
-      { type: 'constant', pattern: '^([A-Z][A-Z0-9_]+)\\s*=', captureGroup: 1 },
+      { type: 'constant', pattern: '^([A-Z_][A-Z0-9_]*)\\s*=', captureGroup: 1 },
     ]
   },
   rs: {
@@ -157,14 +154,14 @@ const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
     rgType: 'rust',
     extensions: ['.rs'],
     patterns: [
-      { type: 'function', pattern: '^(?:pub(?:\\([^)]+\\))?\\s+)?(?:async\\s+)?(?:unsafe\\s+)?(?:extern\\s+"C"\\s+)?fn\\s+(\\w+)', captureGroup: 1 },
-      { type: 'struct', pattern: '^(?:pub(?:\\([^)]+\\))?\\s+)?struct\\s+(\\w+)', captureGroup: 1 },
-      { type: 'enum', pattern: '^(?:pub(?:\\([^)]+\\))?\\s+)?enum\\s+(\\w+)', captureGroup: 1 },
-      { type: 'interface', pattern: '^(?:pub(?:\\([^)]+\\))?\\s+)?(?:unsafe\\s+)?trait\\s+(\\w+)', captureGroup: 1 },
-      { type: 'type', pattern: '^(?:pub(?:\\([^)]+\\))?\\s+)?type\\s+(\\w+)', captureGroup: 1 },
-      { type: 'constant', pattern: '^(?:pub(?:\\([^)]+\\))?\\s+)?const\\s+(\\w+)\\s*:', captureGroup: 1 },
-      { type: 'variable', pattern: '^(?:pub(?:\\([^)]+\\))?\\s+)?static\\s+(?:mut\\s+)?(\\w+)\\s*:', captureGroup: 1 },
-      { type: 'module', pattern: '^(?:pub(?:\\([^)]+\\))?\\s+)?mod\\s+(\\w+)', captureGroup: 1 },
+      { type: 'function', pattern: '^(?:pub\\s+)?(?:async\\s+)?(?:unsafe\\s+)?fn\\s+(\\w+)', captureGroup: 1 },
+      { type: 'struct', pattern: '^(?:pub\\s+)?struct\\s+(\\w+)', captureGroup: 1 },
+      { type: 'enum', pattern: '^(?:pub\\s+)?enum\\s+(\\w+)', captureGroup: 1 },
+      { type: 'type', pattern: '^(?:pub\\s+)?type\\s+(\\w+)', captureGroup: 1 },
+      { type: 'constant', pattern: '^(?:pub\\s+)?const\\s+(\\w+)', captureGroup: 1 },
+      { type: 'variable', pattern: '^(?:pub\\s+)?static\\s+(\\w+)', captureGroup: 1 },
+      { type: 'module', pattern: '^(?:pub\\s+)?mod\\s+(\\w+)', captureGroup: 1 },
+      { type: 'property', pattern: '^\\s+pub\\s+(\\w+):', captureGroup: 1 },
     ]
   },
   java: {
@@ -172,10 +169,10 @@ const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
     rgType: 'java',
     extensions: ['.java'],
     patterns: [
-      { type: 'class', pattern: '^(?:public\\s+|private\\s+|protected\\s+)?(?:abstract\\s+|final\\s+)?class\\s+(\\w+)', captureGroup: 1 },
+      { type: 'class', pattern: '^(?:public\\s+)?(?:abstract\\s+)?(?:final\\s+)?class\\s+(\\w+)', captureGroup: 1 },
       { type: 'interface', pattern: '^(?:public\\s+)?interface\\s+(\\w+)', captureGroup: 1 },
       { type: 'enum', pattern: '^(?:public\\s+)?enum\\s+(\\w+)', captureGroup: 1 },
-      { type: 'method', pattern: '^\\s+(?:public\\s+|private\\s+|protected\\s+)?(?:static\\s+)?(?:final\\s+)?(?:synchronized\\s+)?(?:\\w+(?:<[^>]+>)?\\s+)(\\w+)\\s*\\(', captureGroup: 1 },
+      { type: 'method', pattern: '^\\s+(?:public|private|protected)?\\s+(?:static\\s+)?\\w[\\w<>\\[\\]]*\\s+(\\w+)\\s*\\(', captureGroup: 1 },
     ]
   },
   kt: {
@@ -183,12 +180,12 @@ const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
     rgType: 'kotlin',
     extensions: ['.kt'],
     patterns: [
-      { type: 'function', pattern: '^(?:suspend\\s+)?(?:inline\\s+)?(?:private\\s+|internal\\s+)?fun\\s+(?:<[^>]+>\\s+)?(\\w+)', captureGroup: 1 },
-      { type: 'class', pattern: '^(?:data\\s+|sealed\\s+|open\\s+|abstract\\s+)?(?:private\\s+|internal\\s+)?class\\s+(\\w+)', captureGroup: 1 },
-      { type: 'interface', pattern: '^(?:private\\s+|internal\\s+)?interface\\s+(\\w+)', captureGroup: 1 },
-      { type: 'enum', pattern: '^(?:private\\s+|internal\\s+)?enum\\s+class\\s+(\\w+)', captureGroup: 1 },
-      { type: 'type', pattern: '^(?:private\\s+|internal\\s+)?typealias\\s+(\\w+)', captureGroup: 1 },
-      { type: 'constant', pattern: '^(?:private\\s+|internal\\s+)?(?:const\\s+)?val\\s+(\\w+)\\s*[=:]', captureGroup: 1 },
+      { type: 'function', pattern: '^(?:fun\\s+)(\\w+)', captureGroup: 1 },
+      { type: 'class', pattern: '^(?:class\\s+)(\\w+)', captureGroup: 1 },
+      { type: 'interface', pattern: '^(?:interface\\s+)(\\w+)', captureGroup: 1 },
+      { type: 'enum', pattern: '^(?:enum\\s+class\\s+)(\\w+)', captureGroup: 1 },
+      { type: 'type', pattern: '^(?:typealias\\s+)(\\w+)', captureGroup: 1 },
+      { type: 'constant', pattern: '^(?:const\\s+val\\s+)(\\w+)', captureGroup: 1 },
     ]
   },
   swift: {
@@ -196,12 +193,12 @@ const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
     rgType: 'swift',
     extensions: ['.swift'],
     patterns: [
-      { type: 'function', pattern: '^\\s*(?:public\\s+|private\\s+|internal\\s+|fileprivate\\s+|open\\s+)?(?:static\\s+)?(?:class\\s+)?func\\s+(\\w+)', captureGroup: 1 },
-      { type: 'class', pattern: '^(?:public\\s+|private\\s+|internal\\s+|fileprivate\\s+|open\\s+)?(?:final\\s+)?class\\s+(\\w+)', captureGroup: 1 },
-      { type: 'struct', pattern: '^(?:public\\s+|private\\s+|internal\\s+|fileprivate\\s+)?struct\\s+(\\w+)', captureGroup: 1 },
-      { type: 'interface', pattern: '^(?:public\\s+|private\\s+|internal\\s+|fileprivate\\s+)?protocol\\s+(\\w+)', captureGroup: 1 },
-      { type: 'enum', pattern: '^(?:public\\s+|private\\s+|internal\\s+|fileprivate\\s+)?enum\\s+(\\w+)', captureGroup: 1 },
-      { type: 'type', pattern: '^(?:public\\s+|private\\s+|internal\\s+|fileprivate\\s+)?typealias\\s+(\\w+)', captureGroup: 1 },
+      { type: 'function', pattern: '^(?:func\\s+)(\\w+)', captureGroup: 1 },
+      { type: 'class', pattern: '^(?:class\\s+)(\\w+)', captureGroup: 1 },
+      { type: 'struct', pattern: '^(?:struct\\s+)(\\w+)', captureGroup: 1 },
+      { type: 'enum', pattern: '^(?:enum\\s+)(\\w+)', captureGroup: 1 },
+      { type: 'property', pattern: '^\\s+(?:var|let)\\s+(\\w+):', captureGroup: 1 },
+      { type: 'type', pattern: '^(?:typealias\\s+)(\\w+)', captureGroup: 1 },
     ]
   },
   rb: {
@@ -209,22 +206,22 @@ const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
     rgType: 'ruby',
     extensions: ['.rb'],
     patterns: [
-      { type: 'function', pattern: '^\\s*def\\s+(?:self\\.)?(\\w+[!?]?)', captureGroup: 1 },
-      { type: 'class', pattern: '^class\\s+(\\w+)', captureGroup: 1 },
-      { type: 'module', pattern: '^module\\s+(\\w+)', captureGroup: 1 },
-      { type: 'constant', pattern: '^\\s*([A-Z][A-Z0-9_]+)\\s*=', captureGroup: 1 },
+      { type: 'function', pattern: '^(?:def\\s+)(\\w+)', captureGroup: 1 },
+      { type: 'class', pattern: '^(?:class\\s+)(\\w+)', captureGroup: 1 },
+      { type: 'module', pattern: '^(?:module\\s+)(\\w+)', captureGroup: 1 },
+      { type: 'constant', pattern: '^([A-Z]\\w*)\\s*=', captureGroup: 1 },
     ]
   },
   cpp: {
     name: 'C++',
     rgType: 'cpp',
-    extensions: ['.cpp', '.hpp', '.cc', '.cxx', '.hxx'],
+    extensions: ['.cpp', '.h', '.hpp'],
     patterns: [
-      { type: 'class', pattern: '^(?:template\\s*<[^>]*>\\s*)?class\\s+(\\w+)', captureGroup: 1 },
-      { type: 'struct', pattern: '^(?:template\\s*<[^>]*>\\s*)?struct\\s+(\\w+)', captureGroup: 1 },
-      { type: 'enum', pattern: '^enum\\s+(?:class\\s+)?(\\w+)', captureGroup: 1 },
+      { type: 'class', pattern: '^(?:class|struct)\\s+(\\w+)', captureGroup: 1 },
       { type: 'namespace', pattern: '^namespace\\s+(\\w+)', captureGroup: 1 },
-      { type: 'type', pattern: '^(?:using|typedef)\\s+(?:\\w+\\s+)*(\\w+)\\s*=', captureGroup: 1 },
+      { type: 'enum', pattern: '^enum\\s+(?:class\\s+)?(\\w+)', captureGroup: 1 },
+      { type: 'type', pattern: '^typedef\\s+.+\\s+(\\w+);', captureGroup: 1 },
+      { type: 'variable', pattern: '^extern\\s+.+\\s+(\\w+);', captureGroup: 1 },
     ]
   },
   c: {
@@ -234,41 +231,26 @@ const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
     patterns: [
       { type: 'struct', pattern: '^(?:typedef\\s+)?struct\\s+(\\w+)', captureGroup: 1 },
       { type: 'enum', pattern: '^(?:typedef\\s+)?enum\\s+(\\w+)', captureGroup: 1 },
-      { type: 'type', pattern: '^typedef\\s+\\w+\\s+(\\w+)\\s*;', captureGroup: 1 },
+      { type: 'type', pattern: '^typedef\\s+.+\\s+(\\w+);', captureGroup: 1 },
     ]
   },
   sh: {
     name: 'Shell',
     rgType: 'sh',
-    extensions: ['.sh', '.bash'],
+    extensions: ['.sh'],
     patterns: [
-      // function name() { or function name {
-      { type: 'function', pattern: '^function\\s+(\\w+)\\s*(?:\\(\\)|\\{)', captureGroup: 1 },
-      // name() { (POSIX style)
-      { type: 'function', pattern: '^(\\w+)\\s*\\(\\)\\s*\\{', captureGroup: 1 },
-      // Variable assignment (uppercase convention)
-      { type: 'variable', pattern: '^([A-Z][A-Z0-9_]*)=', captureGroup: 1 },
+      { type: 'function', pattern: '^(\\w+)\\s*\\(\\)', captureGroup: 1 },
+      { type: 'variable', pattern: '^([A-Z_]\\w*)=', captureGroup: 1 },
+      { type: 'variable', pattern: '^export\\s+([A-Z_]\\w*)', captureGroup: 1 },
     ]
   },
   make: {
     name: 'Makefile',
     rgType: 'make',
-    extensions: ['.mk', 'Makefile', 'makefile'],
+    extensions: ['.mk', 'Makefile'],
     patterns: [
-      // Targets (target: or target::)
-      { type: 'function', pattern: '^([a-zA-Z_][a-zA-Z0-9_-]*)\\s*::?', captureGroup: 1 },
-      // Variable definitions (VAR = or VAR :=)
-      { type: 'variable', pattern: '^([A-Z][A-Z0-9_]*)\\s*[:?]?=', captureGroup: 1 },
-    ]
-  },
-  // Alias: @mk: for Makefile (same as @make:)
-  mk: {
-    name: 'Makefile',
-    rgType: 'make',
-    extensions: ['.mk', 'Makefile', 'makefile'],
-    patterns: [
-      { type: 'function', pattern: '^([a-zA-Z_][a-zA-Z0-9_-]*)\\s*::?', captureGroup: 1 },
-      { type: 'variable', pattern: '^([A-Z][A-Z0-9_]*)\\s*[:?]?=', captureGroup: 1 },
+      { type: 'function', pattern: '^(\\w+):', captureGroup: 1 },
+      { type: 'variable', pattern: '^([A-Z_]\\w*)\\s*=', captureGroup: 1 },
     ]
   },
   php: {
@@ -276,12 +258,12 @@ const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
     rgType: 'php',
     extensions: ['.php'],
     patterns: [
-      { type: 'function', pattern: '^\\s*(?:public\\s+|private\\s+|protected\\s+)?(?:static\\s+)?function\\s+(\\w+)', captureGroup: 1 },
-      { type: 'class', pattern: '^(?:abstract\\s+|final\\s+)?class\\s+(\\w+)', captureGroup: 1 },
-      { type: 'interface', pattern: '^interface\\s+(\\w+)', captureGroup: 1 },
-      { type: 'interface', pattern: '^trait\\s+(\\w+)', captureGroup: 1 },
-      { type: 'constant', pattern: '^\\s*(?:public\\s+|private\\s+|protected\\s+)?const\\s+(\\w+)\\s*=', captureGroup: 1 },
-      { type: 'enum', pattern: '^enum\\s+(\\w+)', captureGroup: 1 },
+      { type: 'function', pattern: '^(?:function\\s+)(\\w+)', captureGroup: 1 },
+      { type: 'class', pattern: '^(?:class\\s+)(\\w+)', captureGroup: 1 },
+      { type: 'interface', pattern: '^(?:interface\\s+)(\\w+)', captureGroup: 1 },
+      { type: 'type', pattern: '^(?:trait\\s+)(\\w+)', captureGroup: 1 },
+      { type: 'constant', pattern: '^(?:const\\s+)(\\w+)', captureGroup: 1 },
+      { type: 'enum', pattern: '^(?:enum\\s+)(\\w+)', captureGroup: 1 },
     ]
   },
   cs: {
@@ -289,12 +271,12 @@ const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
     rgType: 'csharp',
     extensions: ['.cs'],
     patterns: [
-      { type: 'class', pattern: '^\\s*(?:public\\s+|private\\s+|protected\\s+|internal\\s+)?(?:static\\s+)?(?:sealed\\s+|abstract\\s+|partial\\s+)?class\\s+(\\w+)', captureGroup: 1 },
-      { type: 'interface', pattern: '^\\s*(?:public\\s+|private\\s+|protected\\s+|internal\\s+)?interface\\s+(\\w+)', captureGroup: 1 },
-      { type: 'struct', pattern: '^\\s*(?:public\\s+|private\\s+|protected\\s+|internal\\s+)?(?:readonly\\s+)?struct\\s+(\\w+)', captureGroup: 1 },
-      { type: 'enum', pattern: '^\\s*(?:public\\s+|private\\s+|protected\\s+|internal\\s+)?enum\\s+(\\w+)', captureGroup: 1 },
-      { type: 'method', pattern: '^\\s*(?:public\\s+|private\\s+|protected\\s+|internal\\s+)?(?:static\\s+)?(?:async\\s+)?(?:virtual\\s+|override\\s+|abstract\\s+)?(?:\\w+(?:<[^>]+>)?\\s+)(\\w+)\\s*\\(', captureGroup: 1 },
-      { type: 'namespace', pattern: '^namespace\\s+([\\w.]+)', captureGroup: 1 },
+      { type: 'class', pattern: '^(?:public\\s+)?(?:abstract\\s+)?class\\s+(\\w+)', captureGroup: 1 },
+      { type: 'interface', pattern: '^(?:public\\s+)?interface\\s+(\\w+)', captureGroup: 1 },
+      { type: 'struct', pattern: '^(?:public\\s+)?struct\\s+(\\w+)', captureGroup: 1 },
+      { type: 'enum', pattern: '^(?:public\\s+)?enum\\s+(\\w+)', captureGroup: 1 },
+      { type: 'namespace', pattern: '^namespace\\s+(\\w+)', captureGroup: 1 },
+      { type: 'method', pattern: '^\\s+(?:public|private|protected)?\\s+\\w[\\w<>\\[\\]]*\\s+(\\w+)\\s*\\(', captureGroup: 1 },
     ]
   },
   scala: {
@@ -302,49 +284,27 @@ const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
     rgType: 'scala',
     extensions: ['.scala'],
     patterns: [
-      { type: 'function', pattern: '^\\s*(?:private\\s+|protected\\s+)?def\\s+(\\w+)', captureGroup: 1 },
-      { type: 'class', pattern: '^(?:sealed\\s+|abstract\\s+|final\\s+)?(?:case\\s+)?class\\s+(\\w+)', captureGroup: 1 },
-      { type: 'interface', pattern: '^(?:sealed\\s+)?trait\\s+(\\w+)', captureGroup: 1 },
-      { type: 'module', pattern: '^(?:case\\s+)?object\\s+(\\w+)', captureGroup: 1 },
-      { type: 'type', pattern: '^\\s*type\\s+(\\w+)', captureGroup: 1 },
-      { type: 'constant', pattern: '^\\s*(?:private\\s+|protected\\s+)?val\\s+(\\w+)\\s*[=:]', captureGroup: 1 },
-      { type: 'variable', pattern: '^\\s*(?:private\\s+|protected\\s+)?var\\s+(\\w+)\\s*[=:]', captureGroup: 1 },
+      { type: 'function', pattern: '^(?:def\\s+)(\\w+)', captureGroup: 1 },
+      { type: 'class', pattern: '^(?:class\\s+)(\\w+)', captureGroup: 1 },
+      { type: 'type', pattern: '^(?:case\\s+class\\s+)(\\w+)', captureGroup: 1 },
+      { type: 'type', pattern: '^(?:trait\\s+)(\\w+)', captureGroup: 1 },
+      { type: 'module', pattern: '^(?:object\\s+)(\\w+)', captureGroup: 1 },
+      { type: 'type', pattern: '^(?:type\\s+)(\\w+)', captureGroup: 1 },
+      { type: 'constant', pattern: '^(?:val\\s+)(\\w+)', captureGroup: 1 },
     ]
   },
   tf: {
     name: 'Terraform',
-    rgType: 'tf',
+    rgType: 'hcl',
     extensions: ['.tf'],
     patterns: [
-      // resource "aws_instance" "example" { → captures "example"
-      { type: 'resource', pattern: '^resource\\s+"[^"]+"\\s+"([\\w-]+)"', captureGroup: 1 },
-      // data "aws_ami" "example" { → captures "example"
-      { type: 'data', pattern: '^data\\s+"[^"]+"\\s+"([\\w-]+)"', captureGroup: 1 },
-      // variable "instance_type" { → captures "instance_type"
-      { type: 'variable', pattern: '^variable\\s+"([\\w-]+)"', captureGroup: 1 },
-      // output "instance_ip" { → captures "instance_ip"
-      { type: 'output', pattern: '^output\\s+"([\\w-]+)"', captureGroup: 1 },
-      // module "vpc" { → captures "vpc"
-      { type: 'module', pattern: '^module\\s+"([\\w-]+)"', captureGroup: 1 },
-      // provider "aws" { → captures "aws"
-      { type: 'provider', pattern: '^provider\\s+"([\\w-]+)"', captureGroup: 1 },
-      // locals { with named values inside: local_name = value
-      { type: 'constant', pattern: '^\\s+([a-z][\\w-]*)\\s*=\\s*(?![=])', captureGroup: 1 },
-    ]
-  },
-  // Alias: @terraform: for Terraform (same as @tf:)
-  terraform: {
-    name: 'Terraform',
-    rgType: 'tf',
-    extensions: ['.tf'],
-    patterns: [
-      { type: 'resource', pattern: '^resource\\s+"[^"]+"\\s+"([\\w-]+)"', captureGroup: 1 },
-      { type: 'data', pattern: '^data\\s+"[^"]+"\\s+"([\\w-]+)"', captureGroup: 1 },
-      { type: 'variable', pattern: '^variable\\s+"([\\w-]+)"', captureGroup: 1 },
-      { type: 'output', pattern: '^output\\s+"([\\w-]+)"', captureGroup: 1 },
-      { type: 'module', pattern: '^module\\s+"([\\w-]+)"', captureGroup: 1 },
-      { type: 'provider', pattern: '^provider\\s+"([\\w-]+)"', captureGroup: 1 },
-      { type: 'constant', pattern: '^\\s+([a-z][\\w-]*)\\s*=\\s*(?![=])', captureGroup: 1 },
+      { type: 'resource', pattern: '^resource\\s+"([^"]+)"\\s+"([^"]+)"', captureGroup: 2 },
+      { type: 'data', pattern: '^data\\s+"([^"]+)"\\s+"([^"]+)"', captureGroup: 2 },
+      { type: 'variable', pattern: '^variable\\s+"(\\w+)"', captureGroup: 1 },
+      { type: 'output', pattern: '^output\\s+"(\\w+)"', captureGroup: 1 },
+      { type: 'module', pattern: '^module\\s+"(\\w+)"', captureGroup: 1 },
+      { type: 'provider', pattern: '^provider\\s+"(\\w+)"', captureGroup: 1 },
+      { type: 'constant', pattern: '^locals\\s+{', captureGroup: 1 },
     ]
   },
   md: {
@@ -352,19 +312,9 @@ const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
     rgType: 'markdown',
     extensions: ['.md'],
     patterns: [
-      // ATX-style headings: # Heading, ## Heading, etc. (capture heading text)
-      { type: 'heading', pattern: '^#{1,6}\\s+(.+?)(?:\\s+#+)?$', captureGroup: 1 },
+      { type: 'heading', pattern: '^#{1,6}\\s+(.+?)\\s*$', captureGroup: 1 },
     ]
-  },
-  // Alias: @markdown: for Markdown (same as @md:)
-  markdown: {
-    name: 'Markdown',
-    rgType: 'markdown',
-    extensions: ['.md'],
-    patterns: [
-      { type: 'heading', pattern: '^#{1,6}\\s+(.+?)(?:\\s+#+)?$', captureGroup: 1 },
-    ]
-  },
+  }
 };
 
 /**
