@@ -137,8 +137,9 @@ export class FileOpenerManager {
         return;
       }
 
-      // パストラバーサルパターンの検出
-      if (appName.includes('..') || appName.includes('/')) {
+      // 基本的なパストラバーサルパターンの検出
+      // ユーザー設定のアプリは信頼するが、明らかな攻撃パターンは防ぐ
+      if (appName.includes('..') || appName.includes('/') || appName.includes('\0')) {
         logger.warn('Potentially malicious app name detected', { appName });
         this.openWithDefault(filePath).then(resolve);
         return;
@@ -201,9 +202,23 @@ export class FileOpenerManager {
     options: OpenFileOptions
   ): Promise<OpenFileResult> {
     return new Promise((resolve, reject) => {
-      // Validate inputs to prevent argument injection
-      if (filePath.startsWith('-') || filePath.includes('\0')) {
-        reject(new Error('Invalid file path'));
+      // Comprehensive file path validation to prevent argument injection
+      if (!filePath || typeof filePath !== 'string') {
+        reject(new Error('Invalid file path: must be a non-empty string'));
+        return;
+      }
+      if (filePath.startsWith('-') || filePath.includes('\0') || filePath.includes('\n') || filePath.includes('\r')) {
+        reject(new Error('Invalid file path: contains forbidden characters'));
+        return;
+      }
+
+      // Validate and clamp line/column numbers
+      if (options.lineNumber !== undefined && (!Number.isInteger(options.lineNumber) || options.lineNumber < 1)) {
+        reject(new Error('Invalid line number: must be a positive integer'));
+        return;
+      }
+      if (options.columnNumber !== undefined && (!Number.isInteger(options.columnNumber) || options.columnNumber < 1)) {
+        reject(new Error('Invalid column number: must be a positive integer'));
         return;
       }
       const lineNumber = Math.max(1, Math.min(options.lineNumber || 1, 999999));
@@ -269,6 +284,17 @@ export class FileOpenerManager {
   }
 
   /**
+   * アプリ名がホワイトリストに登録されているか確認
+   * EDITOR_CONFIGSに登録されているアプリのみを許可
+   */
+  private isWhitelistedApp(appName: string): boolean {
+    // Case-insensitive match against EDITOR_CONFIGS
+    const lowerAppName = appName.toLowerCase();
+    const whitelistedApps = Object.keys(EDITOR_CONFIGS).map(name => name.toLowerCase());
+    return whitelistedApps.includes(lowerAppName);
+  }
+
+  /**
    * macOSのデフォルトアプリを検出する
    * NSWorkspace APIを使用してファイルタイプに対応するデフォルトアプリ名を取得
    */
@@ -276,13 +302,29 @@ export class FileOpenerManager {
     if (process.platform !== 'darwin') return null;
 
     return new Promise((resolve) => {
-      // Reject paths with control characters to prevent script injection
-      if (filePath.includes('\n') || filePath.includes('\r') || filePath.includes('\0')) {
+      // Comprehensive path validation to prevent script injection
+      if (!filePath || typeof filePath !== 'string') {
+        logger.warn('Invalid file path type', { filePath });
+        resolve(null);
+        return;
+      }
+
+      // Reject paths with control characters, newlines, or other dangerous characters
+      const dangerousChars = ['\n', '\r', '\0', '\t', '\x00', '\x01', '\x02', '\x03', '\x04', '\x05', '\x06', '\x07', '\x08', '\x0b', '\x0c', '\x0e', '\x0f'];
+      if (dangerousChars.some(char => filePath.includes(char))) {
         logger.warn('Rejected file path with control characters', { filePath });
         resolve(null);
         return;
       }
-      // Use JSON.stringify for safe JavaScript string escaping (handles all special characters)
+
+      // Additional validation: reject paths with backticks or dollar signs that could be used in command substitution
+      if (filePath.includes('`') || filePath.includes('$')) {
+        logger.warn('Rejected file path with shell metacharacters', { filePath });
+        resolve(null);
+        return;
+      }
+
+      // Use JSON.stringify for safe JavaScript string escaping (handles quotes, backslashes, and special characters)
       const safePathJson = JSON.stringify(filePath);
       const script = `ObjC.import("AppKit");var ws=$.NSWorkspace.sharedWorkspace;var url=$.NSURL.fileURLWithPath(${safePathJson});var appUrl=ws.URLForApplicationToOpenURL(url);appUrl?ObjC.unwrap(appUrl.URLByDeletingPathExtension.lastPathComponent):""`;
 
@@ -291,7 +333,17 @@ export class FileOpenerManager {
           resolve(null);
           return;
         }
-        resolve(stdout.trim());
+
+        const detectedApp = stdout.trim();
+
+        // Validate detected app name against whitelist
+        if (!this.isWhitelistedApp(detectedApp)) {
+          logger.warn('Detected app not in whitelist', { detectedApp });
+          resolve(null);
+          return;
+        }
+
+        resolve(detectedApp);
       });
     });
   }

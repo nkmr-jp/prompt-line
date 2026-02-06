@@ -742,8 +742,13 @@ export class SuggestionUIManager {
     } else if (suggestion.type === 'symbol') {
       const symbol = suggestion.symbol;
       if (symbol) {
-        // Sanitize symbol name to prevent path parsing confusion (: and # are delimiters)
-        const sanitizedName = symbol.name.replace(/[:#]/g, '_');
+        // Comprehensive symbol name sanitization to prevent:
+        // - Path parsing confusion (: and # are delimiters)
+        // - Shell injection (metacharacters like $, `, &, |, ;, etc.)
+        // - Control characters (\n, \r, \0, etc.)
+        // - Path traversal attempts (/, \)
+        // Allow only: alphanumeric, underscore, hyphen, dot, and space
+        const sanitizedName = symbol.name.replace(/[^a-zA-Z0-9_\-. ]/g, '_');
         // Include line number and symbol name so editors can jump to the correct line
         return `${symbol.filePath}:${symbol.lineNumber}#${sanitizedName}`;
       }
