@@ -316,6 +316,9 @@ export async function listDirectory(
               // so we extract the directory part and use it as the search path instead.
               const searchDir = pattern.replace(/\/\*\*.*$/, '').replace(/\/\*$/, '');
 
+              // Check if searchDir is an absolute path
+              const isAbsolute = searchDir.startsWith('/');
+
               // Build args with search directory instead of glob pattern
               const args: string[] = [
                 '--type', 'f',
@@ -337,14 +340,23 @@ export async function listDirectory(
                 args.push('--exclude', exclude);
               }
 
-              // Use '.' pattern to match all files, search in the extracted directory
+              // Use '.' pattern to match all files
               args.push('.');
-              args.push(searchDir);
+
+              // For absolute paths, use the path directly as search directory
+              // For relative paths, append to current directory
+              let searchPath: string;
+              if (isAbsolute) {
+                searchPath = searchDir;
+              } else {
+                args.push(searchDir);
+                searchPath = sanitizedPath;
+              }
 
               // Execute fd with include pattern
               const includeFiles = await new Promise<FileInfo[]>((resolve, _reject) => {
                 execFile(fdPath, args, {
-                  cwd: sanitizedPath,
+                  cwd: searchPath,
                   timeout: DEFAULT_TIMEOUT,
                   maxBuffer: DEFAULT_MAX_BUFFER,
                   killSignal: 'SIGTERM' as const
