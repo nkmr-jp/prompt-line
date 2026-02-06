@@ -5,7 +5,6 @@
  * - App detection (window-detector)
  * - Keyboard simulation (keyboard-simulator)
  * - Directory detection (directory-detector)
- * - File searching (file-searcher)
  */
 
 // Path constants
@@ -14,8 +13,6 @@ export {
   KEYBOARD_SIMULATOR_PATH,
   TEXT_FIELD_DETECTOR_PATH,
   DIRECTORY_DETECTOR_PATH,
-  FILE_SEARCHER_PATH,
-  SYMBOL_SEARCHER_PATH,
 } from './paths';
 
 // App detection

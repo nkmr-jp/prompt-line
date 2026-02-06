@@ -41,6 +41,8 @@ export interface DirectoryInfo {
   // File limit status
   fileLimitReached?: boolean;  // true if file count reached maxFiles limit
   maxFiles?: number;           // the maxFiles limit that was applied
+  // Tool availability
+  fdAvailable?: boolean;       // true if fd command is available for file search
   // User hint message
   hint?: string;               // hint message to display to user (e.g., "Install fd: brew install fd")
   // Git repository status

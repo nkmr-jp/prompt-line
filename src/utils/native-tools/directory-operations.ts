@@ -2,7 +2,8 @@ import { execFile } from 'child_process';
 import type { DirectoryInfo, FileSearchSettings } from '../../types';
 import { TIMEOUTS } from '../../constants';
 import { logger } from '../logger';
-import { DIRECTORY_DETECTOR_PATH, FILE_SEARCHER_PATH } from './paths';
+import { DIRECTORY_DETECTOR_PATH } from './paths';
+import { listDirectory as listDirectoryNode } from '../file-search';
 
 /**
  * Options for directory detection with source app override
@@ -61,101 +62,14 @@ export function detectCurrentDirectory(options?: DirectoryDetectionOptions): Pro
 }
 
 /**
- * Build file-searcher arguments from file search settings
- */
-function buildFileSearcherArgs(settings: FileSearchSettings): string[] {
-  const args: string[] = [];
-
-  if (!settings.respectGitignore) {
-    args.push('--no-gitignore');
-  }
-  if (settings.excludePatterns && settings.excludePatterns.length > 0) {
-    for (const pattern of settings.excludePatterns) {
-      args.push('--exclude', pattern);
-    }
-  }
-  if (settings.includePatterns && settings.includePatterns.length > 0) {
-    for (const pattern of settings.includePatterns) {
-      args.push('--include', pattern);
-    }
-  }
-  if (settings.maxFiles) {
-    args.push('--max-files', String(settings.maxFiles));
-  }
-  if (settings.includeHidden) {
-    args.push('--include-hidden');
-  }
-  if (settings.maxDepth !== null && settings.maxDepth !== undefined) {
-    args.push('--max-depth', String(settings.maxDepth));
-  }
-  if (settings.followSymlinks) {
-    args.push('--follow-symlinks');
-  }
-
-  return args;
-}
-
-/**
- * List files in a specified directory using file-searcher native tool
+ * List files in a specified directory using Node.js file-searcher implementation
  * @param directoryPath - Path to the directory to list
  * @param fileSearchSettings - Optional file search settings
  * @returns Promise<DirectoryInfo> - Object with file list or error
  */
-export function listDirectory(directoryPath: string, fileSearchSettings?: FileSearchSettings): Promise<DirectoryInfo> {
-  return new Promise((resolve) => {
-    if (process.platform !== 'darwin') {
-      resolve({ error: 'Directory listing only supported on macOS' });
-      return;
-    }
-
-    // Validate path input
-    if (!directoryPath || typeof directoryPath !== 'string') {
-      resolve({ error: 'Invalid directory path' });
-      return;
-    }
-
-    // Sanitize path to prevent command injection
-    const sanitizedPath = directoryPath
-      .replace(/[;&|`$(){}[\]<>"'\\*?~^]/g, '')
-      .replace(/\x00/g, '')
-      .replace(/[\r\n]/g, '')
-      .trim();
-
-    if (sanitizedPath.length === 0) {
-      resolve({ error: 'Directory path is empty after sanitization' });
-      return;
-    }
-
-    const options = {
-      timeout: TIMEOUTS.WINDOW_BOUNDS_TIMEOUT,
-      killSignal: 'SIGTERM' as const
-    };
-
-    // Build arguments with optional file search settings
-    const args = ['list', sanitizedPath];
-    if (fileSearchSettings) {
-      args.push(...buildFileSearcherArgs(fileSearchSettings));
-      logger.debug('listDirectory: file-searcher args with settings:', args.join(' '));
-    } else {
-      logger.debug('listDirectory: file-searcher args (no settings):', args.join(' '));
-    }
-
-    // Use file-searcher native tool for file listing
-    execFile(FILE_SEARCHER_PATH, args, options, (error, stdout) => {
-      if (error) {
-        logger.warn('Error listing directory (non-blocking):', error.message);
-        resolve({ error: error.message });
-      } else {
-        try {
-          const result = JSON.parse(stdout.trim()) as DirectoryInfo;
-          resolve(result);
-        } catch (parseError) {
-          logger.warn('Error parsing directory listing result:', parseError);
-          resolve({ error: 'Failed to parse directory listing result' });
-        }
-      }
-    });
-  });
+export async function listDirectory(directoryPath: string, fileSearchSettings?: FileSearchSettings): Promise<DirectoryInfo> {
+  // Use Node.js implementation (cross-platform)
+  return listDirectoryNode(directoryPath, fileSearchSettings);
 }
 
 /**

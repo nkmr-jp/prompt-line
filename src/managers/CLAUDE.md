@@ -25,7 +25,7 @@ The managers module consists of sixteen main components plus two sub-modules:
 - **symbol-usage-history-manager.ts**: Symbol usage history tracking for smart suggestions
 
 ### Sub-Modules
-- **symbol-search/**: Native symbol search integration with ripgrep (types.ts, symbol-searcher.ts, index.ts)
+- **symbol-search/**: Cross-platform symbol search using ripgrep via Node.js (types.ts, symbol-searcher.ts, index.ts)
 - **window/**: Advanced window lifecycle management with native app integration (10 files including strategies/)
 
 ## Implementation Details
@@ -432,52 +432,60 @@ class DirectoryManager {
 ```
 
 ### symbol-search/ (Sub-Module)
-Native symbol search integration with ripgrep for code navigation:
+Cross-platform symbol search using ripgrep via Node.js for code navigation:
 
 **Module Structure:**
 - `symbol-search/types.ts`: Type definitions for symbols and search responses
-- `symbol-search/symbol-searcher.ts`: Native tool executor for symbol-searcher binary
+- `symbol-search/symbol-searcher.ts`: Thin wrapper that delegates to `src/utils/symbol-search/` Node.js implementation
 - `symbol-search/index.ts`: Public API exports
 
 **Core Functionality:**
 ```typescript
 // Exported functions
-function checkRgAvailable(): Promise<boolean>
-function getSupportedLanguages(): Promise<LanguageInfo[]>
-function searchSymbols(directory: string, language: string, options?: SearchOptions): Promise<SymbolSearchResponse>
+function checkRgAvailable(): Promise<RgCheckResponse>
+function getSupportedLanguages(): Promise<LanguagesResponse>
+function searchSymbols(directory: string, language: string, options?: SymbolSearchOptions): Promise<SymbolSearchResponse>
 
 // Constants
-const DEFAULT_MAX_SYMBOLS = 20000
-const DEFAULT_SEARCH_TIMEOUT = 5000  // 5 seconds
+const DEFAULT_MAX_SYMBOLS = 200000
+const DEFAULT_SEARCH_TIMEOUT = 5000   // 5 seconds
+const DEFAULT_MAX_BUFFER = 100 * 1024 * 1024  // 100MB buffer for large codebases
 ```
 
 **Key Types:**
 ```typescript
 interface SymbolResult {
   name: string;
-  type: SymbolType;  // 'function' | 'class' | 'interface' | ...
+  type: SymbolType;  // 'function' | 'method' | 'class' | 'struct' | 'interface' | 'type'
   filePath: string;
+  relativePath: string;
   lineNumber: number;
   lineContent: string;
+  language: string;
+  nameLower?: string;  // Pre-computed lowercase for efficient filtering
+  mtimeMs?: number;    // File modification time for scoring
 }
 
 interface SymbolSearchResponse {
   success: boolean;
   symbols: SymbolResult[];
-  count: number;
-  directory: string;
-  language: string;
+  symbolCount: number;
+  directory?: string;
+  language?: string;
   searchMode: 'full' | 'cached';
+  partial: boolean;
+  maxSymbols: number;
   error?: string;
 }
 ```
 
 **Features:**
-- Uses native `symbol-searcher` Swift binary with ripgrep
-- Supports 20+ programming languages (Go, TypeScript, Python, Rust, etc.)
-- JSON communication protocol for safe data exchange
+- Cross-platform Node.js implementation (replaces native Swift binary)
+- Delegates to `src/utils/symbol-search/symbol-searcher-node.ts` which invokes ripgrep via `child_process.execFile`
+- Supports multiple languages (Go, TypeScript, TSX, JavaScript, JSX, Python, Rust, etc.)
+- Regex-based symbol pattern matching per language
 - Timeout protection (5 seconds) to prevent hanging
-- macOS-only with platform check
+- 100MB buffer for large codebases
 
 ### symbol-cache-manager.ts
 Manages disk-based caching for symbol search results with language-separated storage:
@@ -632,7 +640,8 @@ All managers follow consistent architectural patterns:
 ### Dependencies
 - **Core Config**: `src/config/app-config` - Centralized configuration paths and settings
 - **Utilities**: `src/utils/utils` - Logger, safe JSON operations, ID generation, native tools integration
-- **Native Tools**: Swift binaries for macOS system integration (`window-detector`, `keyboard-simulator`, `text-field-detector`, `directory-detector`, `symbol-searcher`, `file-searcher`)
+- **Native Tools**: Swift binaries for macOS system integration (`window-detector`, `keyboard-simulator`, `text-field-detector`, `directory-detector`)
+- **Node.js Implementations**: Cross-platform modules replacing native binaries (`src/utils/symbol-search/` for symbol search, `src/utils/file-search/` for file listing)
 - **Electron APIs**: BrowserWindow, screen, ipcMain for system integration
 - **Node.js APIs**: fs.promises for async file operations, path for cross-platform paths, child_process for native tool execution
 - **External Libraries**: js-yaml for YAML parsing, readline for streaming file operations
