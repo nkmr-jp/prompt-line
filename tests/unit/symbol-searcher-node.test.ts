@@ -751,9 +751,9 @@ describe('symbol-searcher-node', () => {
       const languageToRgType: Record<string, string> = {
         go: 'go',
         ts: 'ts',
-        tsx: 'tsx',
+        tsx: 'ts',
         js: 'js',
-        jsx: 'jsx',
+        jsx: 'js',
         py: 'py',
         rs: 'rust',
         java: 'java',
@@ -767,7 +767,7 @@ describe('symbol-searcher-node', () => {
         php: 'php',
         cs: 'csharp',
         scala: 'scala',
-        tf: 'hcl',
+        tf: 'tf',
         md: 'markdown'
       };
 

@@ -139,7 +139,7 @@ const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
   },
   tsx: {
     name: 'TypeScript React',
-    rgType: 'tsx',
+    rgType: 'ts',
     extensions: ['.tsx'],
     patterns: [
       // Generator function: function* name() or export function* name()
@@ -181,7 +181,7 @@ const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
   },
   jsx: {
     name: 'JavaScript React',
-    rgType: 'jsx',
+    rgType: 'js',
     extensions: ['.jsx'],
     patterns: [
       // Generator function: function* name() or export function* name()
@@ -525,7 +525,7 @@ const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
   },
   tf: {
     name: 'Terraform',
-    rgType: 'hcl',
+    rgType: 'tf',
     extensions: ['.tf'],
     patterns: [
       { type: 'resource', pattern: '^resource\\s+"([^"]+)"\\s+"([^"]+)"', captureGroup: 2 },
