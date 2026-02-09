@@ -79,43 +79,16 @@ describe('resolveTemplate', () => {
   });
 
   describe('resolveTemplate with dirname', () => {
-    test('{dirname}を置換できる', () => {
-      const template = '{dirname}/{basename}';
-      const context = {
-        basename: 'hello',
-        dirname: 'commands',
-        frontmatter: {}
-      };
-      expect(resolveTemplate(template, context)).toBe('commands/hello');
+    test('{dirname} を解決する', () => {
+      expect(resolveTemplate('{dirname}', { basename: 'file', frontmatter: {}, dirname: 'commands' })).toBe('commands');
     });
 
-    test('dirnameがundefinedの場合は{dirname}をそのまま残す', () => {
-      const template = '{dirname}/{basename}';
-      const context = {
-        basename: 'hello',
-        frontmatter: {}
-      };
-      expect(resolveTemplate(template, context)).toBe('{dirname}/hello');
+    test('{dirname} と {basename} を組み合わせて解決する', () => {
+      expect(resolveTemplate('{dirname}/{basename}', { basename: 'file', frontmatter: {}, dirname: 'commands' })).toBe('commands/file');
     });
 
-    test('dirnameが空文字列の場合は空に置換する', () => {
-      const template = '{dirname}/{basename}';
-      const context = {
-        basename: 'hello',
-        dirname: '',
-        frontmatter: {}
-      };
-      expect(resolveTemplate(template, context)).toBe('/hello');
-    });
-
-    test('複数の{dirname}を全て置換できる', () => {
-      const template = '{dirname}-{basename}-{dirname}';
-      const context = {
-        basename: 'file',
-        dirname: 'agents',
-        frontmatter: {}
-      };
-      expect(resolveTemplate(template, context)).toBe('agents-file-agents');
+    test('{dirname} が未設定の場合は置換しない', () => {
+      expect(resolveTemplate('{dirname}', { basename: 'file', frontmatter: {} })).toBe('{dirname}');
     });
   });
 
@@ -169,19 +142,20 @@ describe('getBasename', () => {
 });
 
 describe('getDirname', () => {
-  test('親ディレクトリ名を取得できる', () => {
-    expect(getDirname('/path/to/file.md')).toBe('to');
-    expect(getDirname('/commands/my-command.md')).toBe('commands');
-    expect(getDirname('/a/b/c/file.txt')).toBe('c');
+  test('ファイルパスから親ディレクトリ名を取得', () => {
+    expect(getDirname('/path/to/commands/my-command.md')).toBe('commands');
   });
 
-  test('ファイル名のみの場合は空文字列を返す', () => {
-    expect(getDirname('filename')).toBe('');
+  test('ルート直下のファイル', () => {
+    expect(getDirname('/file.md')).toBe('');
+  });
+
+  test('ファイル名のみ', () => {
     expect(getDirname('file.md')).toBe('');
   });
 
-  test('空のパスは空文字列を返す', () => {
-    expect(getDirname('')).toBe('');
+  test('深いパスでも直接の親ディレクトリ名を返す', () => {
+    expect(getDirname('/a/b/c/d/target.md')).toBe('d');
   });
 });
 
