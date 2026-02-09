@@ -128,7 +128,7 @@ export const defaultSettings: UserSettings = {
       },
       {
         name: '{basename}',
-        description: '',
+        description: '{dirname:2}',
         path: '~/.claude/tasks',
         pattern: '**/agents/*.md',
         searchPrefix: 'team'
