@@ -372,6 +372,44 @@ describe('MdSearchLoader', () => {
 
       expect(items[0]?.description).toBe('Single quoted');
     });
+
+    test('should resolve {dirname} in description template', async () => {
+      loader = new MdSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{dirname}: {frontmatter@description}',
+          path: '/path/to/commands',
+          pattern: '*.md',
+        },
+      ]);
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('test.md', true)] as any);
+      mockedFs.readFile.mockResolvedValue('---\ndescription: A command\n---\nContent');
+
+      const items = await loader.getItems('command');
+
+      expect(items[0]?.description).toBe('commands: A command');
+    });
+
+    test('should resolve {dirname} in name template', async () => {
+      loader = new MdSearchLoader([
+        {
+          name: '{dirname}/{basename}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          path: '/path/to/commands',
+          pattern: '*.md',
+        },
+      ]);
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('test.md', true)] as any);
+      mockedFs.readFile.mockResolvedValue('---\ndescription: A command\n---\nContent');
+
+      const items = await loader.getItems('command');
+
+      expect(items[0]?.name).toBe('commands/test');
+    });
   });
 
   describe('file pattern matching', () => {
