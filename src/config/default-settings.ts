@@ -128,10 +128,26 @@ export const defaultSettings: UserSettings = {
       },
       {
         name: '{basename}',
-        description: '{frontmatter@title}',
+        description: '',
+        path: '~/.claude/tasks',
+        pattern: '**/agents/*.md',
+        searchPrefix: 'team'
+      },
+      {
+        name: '{basename}',
+        description: '',
         path: '~/.claude/plans',
         pattern: '*.md',
         searchPrefix: 'plan',
+        maxSuggestions: 100,
+        inputFormat: 'path'
+      },
+      {
+        name: '{basename}',
+        description: '{dirname}',
+        path: '~/.claude/tasks',
+        pattern: '**/*/*.md',
+        searchPrefix: 'task',
         maxSuggestions: 100,
         inputFormat: 'path'
       }

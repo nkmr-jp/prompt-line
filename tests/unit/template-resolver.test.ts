@@ -90,6 +90,30 @@ describe('resolveTemplate', () => {
     test('{dirname} が未設定の場合は置換しない', () => {
       expect(resolveTemplate('{dirname}', { basename: 'file', frontmatter: {} })).toBe('{dirname}');
     });
+
+    test('{dirname:2} で2つ上のディレクトリ名を解決する', () => {
+      expect(resolveTemplate('{dirname:2}', {
+        basename: 'file', frontmatter: {}, filePath: '/a/b/c/d/file.md'
+      })).toBe('c');
+    });
+
+    test('{dirname:3} で3つ上のディレクトリ名を解決する', () => {
+      expect(resolveTemplate('{dirname:3}', {
+        basename: 'file', frontmatter: {}, filePath: '/a/b/c/d/file.md'
+      })).toBe('b');
+    });
+
+    test('{dirname} と {dirname:2} を組み合わせて使用できる', () => {
+      expect(resolveTemplate('{dirname:2}/{dirname}', {
+        basename: 'file', frontmatter: {}, dirname: 'd', filePath: '/a/b/c/d/file.md'
+      })).toBe('c/d');
+    });
+
+    test('{dirname:N} で階層が足りない場合は空文字を返す', () => {
+      expect(resolveTemplate('{dirname:10}', {
+        basename: 'file', frontmatter: {}, filePath: '/a/file.md'
+      })).toBe('');
+    });
   });
 
   describe('edge cases', () => {
@@ -156,6 +180,18 @@ describe('getDirname', () => {
 
   test('深いパスでも直接の親ディレクトリ名を返す', () => {
     expect(getDirname('/a/b/c/d/target.md')).toBe('d');
+  });
+
+  test('level=2で2つ上のディレクトリ名を返す', () => {
+    expect(getDirname('/a/b/c/d/target.md', 2)).toBe('c');
+  });
+
+  test('level=3で3つ上のディレクトリ名を返す', () => {
+    expect(getDirname('/a/b/c/d/target.md', 3)).toBe('b');
+  });
+
+  test('階層が足りない場合は空文字を返す', () => {
+    expect(getDirname('/a/file.md', 5)).toBe('');
   });
 });
 

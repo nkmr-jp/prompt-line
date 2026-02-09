@@ -370,7 +370,7 @@ class MdSearchLoader {
       }
 
       const dirname = getDirname(filePath);
-      const context = { basename, frontmatter, prefix, dirname };
+      const context = { basename, frontmatter, prefix, dirname, filePath };
 
       const item: MdSearchItem = {
         name: resolveTemplate(entry.name, context),

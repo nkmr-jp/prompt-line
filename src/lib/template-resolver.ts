@@ -5,6 +5,7 @@
  * - {prefix}: プレフィックス文字列
  * - {basename}: ファイル名（拡張子なし）
  * - {dirname}: 親ディレクトリ名
+ * - {dirname:N}: N階層上のディレクトリ名（例: {dirname:2} = 2つ上）
  * - {frontmatter@fieldName}: frontmatterの任意フィールド
  */
 
@@ -12,6 +13,7 @@ export interface TemplateContext {
   prefix?: string;
   basename: string;
   dirname?: string;
+  filePath?: string;
   frontmatter: Record<string, string>;
 }
 
@@ -35,7 +37,12 @@ export function resolveTemplate(template: string, context: TemplateContext): str
   // Replace {basename}
   result = result.replace(/\{basename\}/g, context.basename);
 
-  // Replace {dirname}
+  // Replace {dirname} and {dirname:N}
+  if (context.filePath) {
+    result = result.replace(/\{dirname:(\d+)\}/g, (_, level: string) => {
+      return getDirname(context.filePath!, parseInt(level, 10));
+    });
+  }
   if (context.dirname !== undefined) {
     result = result.replace(/\{dirname\}/g, context.dirname);
   }
@@ -50,10 +57,12 @@ export function resolveTemplate(template: string, context: TemplateContext): str
 
 /**
  * ファイルの親ディレクトリ名を取得
+ * @param level 階層数（1=親、2=2つ上、デフォルト: 1）
  */
-export function getDirname(filePath: string): string {
+export function getDirname(filePath: string, level: number = 1): string {
   const parts = filePath.split('/');
-  return parts.length >= 2 ? parts[parts.length - 2] ?? '' : '';
+  const index = parts.length - 1 - level;
+  return index >= 0 ? parts[index] ?? '' : '';
 }
 
 /**
