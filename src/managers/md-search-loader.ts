@@ -3,7 +3,7 @@ import path from 'path';
 import os from 'os';
 import { logger } from '../utils/utils';
 import type { MdSearchEntry, MdSearchItem, MdSearchType, UserSettings } from '../types';
-import { resolveTemplate, getBasename, parseFrontmatter, extractRawFrontmatter } from '../lib/template-resolver';
+import { resolveTemplate, getBasename, getDirname, parseFrontmatter, extractRawFrontmatter } from '../lib/template-resolver';
 import { getDefaultMdSearchConfig, DEFAULT_MAX_SUGGESTIONS, DEFAULT_SORT_ORDER } from '../lib/default-md-search-config';
 import { CACHE_TTL } from '../constants';
 import { resolvePrefix } from '../lib/prefix-resolver';
@@ -369,7 +369,8 @@ class MdSearchLoader {
         prefix = await resolvePrefix(filePath, entry.prefixPattern, expandedPath);
       }
 
-      const context = { basename, frontmatter, prefix };
+      const dirname = getDirname(filePath);
+      const context = { basename, frontmatter, prefix, dirname };
 
       const item: MdSearchItem = {
         name: resolveTemplate(entry.name, context),
