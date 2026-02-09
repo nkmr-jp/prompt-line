@@ -250,7 +250,7 @@ function buildSlashCommandsSection(settings: UserSettings, options: YamlGenerato
   section += '\n  # Custom slash commands from markdown files\n';
   section += '  # Configuration fields:\n';
   section += '  #   name: Display name template (variables: {basename}, {frontmatter@field}, {prefix})\n';
-  section += '  #   description: Command description template\n';
+  section += '  #   description: Command description template (variables: {basename}, {frontmatter@field}, {dirname}, {dirname:N})\n';
   section += '  #   path: Directory path to search for command files\n';
   section += '  #   label: Display label for UI badge (e.g., "command", "skill", "agent")\n';
   section += '  #   color: Badge color (name: grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red, or hex: #FF5733)\n';
@@ -258,6 +258,8 @@ function buildSlashCommandsSection(settings: UserSettings, options: YamlGenerato
   section += '  #   prefixPattern: Pattern to extract prefix from plugin metadata\n';
   section += '  #   argumentHint: Hint for command arguments\n';
   section += '  #   maxSuggestions: Maximum number of suggestions to display\n';
+  section += '  #   {dirname}: Parent directory name\n';
+  section += '  #   {dirname:N}: N levels up directory name (e.g., {dirname:2} = grandparent)\n';
   section += '  custom:\n';
 
   if (hasCustom) {
@@ -408,7 +410,7 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
   # Markdown-based mentions from markdown files
   # Configuration fields:
   #   name: Display name template (variables: {basename}, {frontmatter@field}, {prefix})
-  #   description: Entry description template
+  #   description: Entry description template (variables: {basename}, {frontmatter@field}, {dirname}, {dirname:N})
   #   path: Directory path to search for markdown files
   #   pattern: Glob pattern to match files
   #   prefixPattern: Pattern to extract prefix from plugin metadata
@@ -416,6 +418,8 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
   #   maxSuggestions: Maximum number of suggestions to display
   #   sortOrder: Sort order (asc, desc)
   #   inputFormat: Insert format (name, path)
+  #   {dirname}: Parent directory name
+  #   {dirname:N}: N levels up directory name (e.g., {dirname:2} = grandparent)
   #
   # Pattern examples:
   #   "*.md"                  - Root directory only
