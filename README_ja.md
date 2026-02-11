@@ -15,6 +15,18 @@ Prompt Lineは、[Claude Code](https://github.com/anthropics/claude-code)、[Gem
 2. **Enterを押したら意図しないタイミングで送信されてしまうチャットアプリ**
 3. **入力の重たいテキストエディタ(例：巨大なコンフルエンスのドキュメントなど)**
 
+また、/や@による入力補完機能もついておりプロンプト入力の手間を軽減します。
+以下のような入力補完に対応しています。
+
+- プロジェクト内のディレクトリ・ファイル・シンボル
+- Claude Code, Codex, Gemini などの主要なAIエージェントのBuilt-in commands
+- Pluginでインストールした Agent Skills, Subagents
+- 独自に定義した Agent Skills, Subagents
+- Claude Code の Agent Teams のメンバー
+- 独自に作成したマークダウンのドキュメント
+- など
+
+これらは設定ファイルでカスタマイズできます。参考: [settings.example.yml](settings.example.yml)
 
 ## 特徴
 ### サクッと起動、サクッと貼付け
@@ -45,6 +57,13 @@ Enterを押しても勝手に送信されないので、改行する場合も気
 
 
 ## 📦 インストール
+
+### コマンドインストール
+
+[fd](https://github.com/sharkdp/fd)と[rg(ripgrep)](https://github.com/BurntSushi/ripgrep)コマンドのインストール。ファイル検索やシンボル検索の機能で使います。
+```bash
+brew install fd ripgrep
+```
 
 ### システム要件
 
@@ -139,9 +158,9 @@ npm run reset-accessibility
 - **ドラフト自動保存** - 作業内容を自動的に保存
 - **画像サポート** - `Cmd+V`でクリップボード画像を貼り付け
 - **ファイルオープン** - ファイルパスのテキストからファイルを起動 (`Ctrl+Enter` or `Cmd+クリック`)
-- **ファイル検索** - `@`を入力してファイルを検索 (fdコマンドと設定が必要)
-- **シンボル検索** - `@<言語>:<クエリ>`と入力してコードシンボルを検索 (例: `@ts:Config`) (ripgrepが必要)
-- **マークダウン検索** - `/`を入力してスラッシュコマンドを検索、または`@`でサブエージェントを検索 (設定が必要)
+- **ファイル検索** - `@`を入力してファイルを検索
+- **シンボル検索** - `@<言語>:<クエリ>`と入力してコードシンボルを検索 (例: `@ts:Config`)
+- **マークダウン検索** - `/`を入力してSlash CommandsやAgent Skillsを検索、または`@`でサブエージェントを検索
 
 #### ファイルオープン
 ファイルパスや@で検索したファイルを起動して内容を確認できます。(`Ctrl+Enter` or `Cmd+クリック`)
@@ -149,14 +168,14 @@ npm run reset-accessibility
 ![doc9.png](assets/doc9.png)
 
 
-#### スラッシュコマンド
-`/`を入力するとスラッシュコマンドを検索できます。<br>
-AIコーディングアシスタント（Claude Code、OpenAI Codex、Google Gemini）用のビルトインコマンドが利用可能です。<br>
+#### Built-in commands と Agent Skills
+`/`を入力するとBuilt-in commands や Agent Skillsを検索できます。<br>
+Claude Code、OpenAI Codex、Google GeminiなどのBuilt-in commandsが利用可能です。<br>
 カスタムコマンドは `~/.prompt-line/settings.yml` で追加できます。「⚙️ 設定」の項目参照
 
 ![doc11.png](assets/doc11.png)
 
-ビルトインコマンドは `~/.prompt-line/built-in-commands/` のYAMLファイルを編集してカスタマイズできます。変更は自動的に反映されます。
+Built-in commandsは `~/.prompt-line/built-in-commands/` のYAMLファイルを編集してカスタマイズできます。変更は自動的に反映されます。
 
 ```bash
 npm run update-built-in-commands  # 最新のデフォルトに更新
@@ -165,7 +184,7 @@ npm run reset-built-in-commands   # すべてデフォルトにリセット
 
 #### @Mentions
 
-#### ファイル検索
+##### ファイル検索
 @を入力するとファイルを検索できます。<br>
 ※ [fd](https://github.com/sharkdp/fd)コマンドのインストールが必要です。( `brew install fd` )<br>
 ※ `~/.prompt-line/settings.yml` で `fileSearch`の項目を設定する必要があります。 「⚙️ 設定」の項目参照<br>
@@ -173,7 +192,7 @@ npm run reset-built-in-commands   # すべてデフォルトにリセット
 
 ![doc10.png](assets/doc10.png)
 
-#### シンボル検索
+##### シンボル検索
 `@<言語>:<クエリ>`と入力することで、コードシンボル（関数、クラス、型など）を検索できます。<br>
 この機能はファイル検索と統合されているため、先にファイル検索を有効にする必要があります。
 
@@ -191,7 +210,7 @@ npm run reset-built-in-commands   # すべてデフォルトにリセット
 ![doc13.png](assets/doc13.png)
 
 #### マークダウン検索
-`@<検索プレフィックス>:<クエリ>` を入力するとサブエージェントやエージェントのスキルを検索できます。自分のナレッジ検索にも使用できます。
+`@<検索プレフィックス>:<クエリ>` を入力するとSubagentsやAgent Teamsのメンバーを検索できます。独自に作成したマークダウンのドキュメントの検索にも利用できます。
 
 ![doc12.png](assets/doc12.png)
 
@@ -210,7 +229,7 @@ npm run reset-built-in-commands   # すべてデフォルトにリセット
 | `shortcuts` | キーボードショートカット（メイン、ペースト、クローズ、履歴ナビゲーション、検索） |
 | `window` | ウィンドウサイズと配置モード |
 | `fileOpener` | デフォルトエディタと拡張子別アプリケーション |
-| `slashCommands` | 組み込みAIツールコマンド、カスタムスラッシュコマンド、スキル検索 |
+| `slashCommands` | Built-in commands や Agent Skills検索 |
 | `mentions.fileSearch` | ファイル検索設定（@path/to/file補完） |
 | `mentions.symbolSearch` | シンボル検索設定（@ts:Config、@go:Handler） |
 | `mentions.mdSearch` | searchPrefixによるマークダウン検索（agent, rules, docs等）、frontmatterテンプレート変数対応 |

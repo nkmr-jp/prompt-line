@@ -190,8 +190,8 @@ mentions:
 
     - name: "{basename}"
       description: "{dirname:2}"
-      path: ~/.claude/tasks
-      pattern: "**/agents/*.md"
+      path: ~/.claude/teams
+      pattern: "**/inboxes/*.json"
       searchPrefix: team            # Search with @team:
 
     - name: "{basename}"
@@ -199,7 +199,6 @@ mentions:
       path: ~/.claude/plans
       pattern: "*.md"
       searchPrefix: plan            # Search with @plan:
-      maxSuggestions: 100
       inputFormat: path               # Insert file path instead of name
 
     - name: "{basename}"
@@ -207,7 +206,6 @@ mentions:
       path: ~/.claude/tasks
       pattern: "**/*/*.md"
       searchPrefix: task            # Search with @task:
-      maxSuggestions: 100
       inputFormat: path               # Insert file path instead of name
 
     # - name: "{basename}"
