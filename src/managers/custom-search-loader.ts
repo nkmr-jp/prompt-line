@@ -3,7 +3,8 @@ import path from 'path';
 import os from 'os';
 import { logger } from '../utils/utils';
 import type { CustomSearchEntry, CustomSearchItem, CustomSearchType, UserSettings } from '../types';
-import { resolveTemplate, getBasename, getDirname, parseFrontmatter, extractRawFrontmatter, parseFirstHeading, parseJsonContent, resolveJsonPath } from '../lib/template-resolver';
+import { resolveTemplate, getBasename, getDirname, parseFrontmatter, extractRawFrontmatter, parseFirstHeading, parseJsonContent } from '../lib/template-resolver';
+import { evaluateJq } from '../lib/jq-resolver';
 import { getDefaultCustomSearchConfig, DEFAULT_MAX_SUGGESTIONS, DEFAULT_SORT_ORDER } from '../lib/default-custom-search-config';
 import { CACHE_TTL } from '../constants';
 import { resolvePrefix } from '../lib/prefix-resolver';
@@ -296,9 +297,11 @@ class CustomSearchLoader {
       return [];
     }
 
-    const files = await this.findFiles(expandedPath, entry.pattern);
+    // Parse jq expression from pattern: '**/config.json@.members' → filePattern + jqExpression
+    const { filePattern, jqExpression } = this.parseJqPath(entry.pattern);
+    const files = await this.findFiles(expandedPath, filePattern);
     const sourceId = `${entry.path}:${entry.pattern}`;
-    const items = await this.parseFilesToItems(files, entry, sourceId);
+    const items = await this.parseFilesToItems(files, entry, sourceId, jqExpression);
     return items;
   }
 
@@ -327,14 +330,18 @@ class CustomSearchLoader {
   private async parseFilesToItems(
     files: string[],
     entry: CustomSearchEntry,
-    sourceId: string
+    sourceId: string,
+    jqExpression: string | null
   ): Promise<CustomSearchItem[]> {
     const items: CustomSearchItem[] = [];
 
     for (const filePath of files) {
-      if (entry.jsonArrayPath && filePath.endsWith('.json')) {
-        const arrayItems = await this.parseJsonArrayToItems(filePath, entry, sourceId);
+      if (jqExpression && filePath.endsWith('.json')) {
+        const arrayItems = await this.parseJsonArrayToItems(filePath, entry, sourceId, jqExpression);
         items.push(...arrayItems);
+      } else if (filePath.endsWith('.jsonl')) {
+        const jsonlItems = await this.parseJsonlToItems(filePath, entry, sourceId, jqExpression);
+        items.push(...jsonlItems);
       } else {
         const item = await this.parseFileToItem(filePath, entry, sourceId);
         if (item) {
@@ -410,31 +417,23 @@ class CustomSearchLoader {
   }
 
   /**
-   * Parse JSON file with jsonArrayPath to generate multiple CustomSearchItems
+   * Parse JSON file with jq expression to generate multiple CustomSearchItems
    */
   private async parseJsonArrayToItems(
     filePath: string,
     entry: CustomSearchEntry,
-    sourceId: string
+    sourceId: string,
+    jqExpression: string
   ): Promise<CustomSearchItem[]> {
     try {
       const content = await fs.readFile(filePath, 'utf8');
       const jsonData = parseJsonContent(content);
       if (!jsonData) return [];
 
-      // Resolve the array from jsonArrayPath
-      const arrayPath = entry.jsonArrayPath!;
-      const rawArray = resolveJsonPath(jsonData, arrayPath);
-
-      // resolveJsonPath returns a JSON string for arrays/objects
-      let arrayData: unknown[];
-      try {
-        const parsed = JSON.parse(rawArray);
-        if (!Array.isArray(parsed)) return [];
-        arrayData = parsed;
-      } catch {
-        return [];
-      }
+      // Evaluate jq expression
+      const result = await evaluateJq(jsonData, jqExpression);
+      if (!Array.isArray(result)) return [];
+      const arrayData: unknown[] = result;
 
       const basename = getBasename(filePath);
       const dirname = getDirname(filePath);
@@ -475,6 +474,109 @@ class CustomSearchLoader {
       logger.warn('Failed to parse JSON array file', { filePath, error });
       return [];
     }
+  }
+
+  /**
+   * Parse jq expression from pattern
+   * Example: 'config.json@.members' → { filePattern: 'config.json', jqExpression: '.members' }
+   * Example: 'config.json@.members | map(select(.active))' → { filePattern: 'config.json', jqExpression: '.members | map(select(.active))' }
+   */
+  private parseJqPath(pattern: string): { filePattern: string; jqExpression: string | null } {
+    const atIndex = pattern.indexOf('@.');
+    if (atIndex === -1) return { filePattern: pattern, jqExpression: null };
+    return {
+      filePattern: pattern.slice(0, atIndex),
+      jqExpression: pattern.slice(atIndex + 1),  // skip '@', keep '.'
+    };
+  }
+
+  /**
+   * Parse JSONL file to generate multiple CustomSearchItems (one per line)
+   * jqExpression がある場合、各行のJSONに対してjq式を適用する
+   */
+  private async parseJsonlToItems(
+    filePath: string,
+    entry: CustomSearchEntry,
+    sourceId: string,
+    jqExpression: string | null = null
+  ): Promise<CustomSearchItem[]> {
+    try {
+      const content = await fs.readFile(filePath, 'utf8');
+      const lines = content.split('\n');
+      const basename = getBasename(filePath);
+      const dirname = getDirname(filePath);
+      const items: CustomSearchItem[] = [];
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(trimmed);
+          if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) continue;
+        } catch {
+          continue;  // skip invalid JSON lines
+        }
+
+        // jq式が指定されている場合、各行に適用
+        if (jqExpression) {
+          const jqResult = await evaluateJq(parsed, jqExpression);
+          if (jqResult === null || jqResult === undefined) continue;
+
+          // 結果が配列なら展開して複数アイテムに
+          const elements = Array.isArray(jqResult) ? jqResult : [jqResult];
+          for (const element of elements) {
+            if (element === null || typeof element !== 'object' || Array.isArray(element)) continue;
+            const elementData = element as Record<string, unknown>;
+            const item = this.createItemFromJsonData(elementData, basename, dirname, filePath, entry, sourceId);
+            if (item) items.push(item);
+          }
+        } else {
+          const elementData = parsed as Record<string, unknown>;
+          const item = this.createItemFromJsonData(elementData, basename, dirname, filePath, entry, sourceId);
+          if (item) items.push(item);
+        }
+      }
+      return items;
+    } catch (error) {
+      logger.warn('Failed to parse JSONL file', { filePath, error });
+      return [];
+    }
+  }
+
+  /**
+   * JSONデータからCustomSearchItemを生成するヘルパー
+   */
+  private createItemFromJsonData(
+    elementData: Record<string, unknown>,
+    basename: string,
+    dirname: string,
+    filePath: string,
+    entry: CustomSearchEntry,
+    sourceId: string
+  ): CustomSearchItem | null {
+    const context = { basename, frontmatter: {}, prefix: '', dirname, filePath, heading: '', jsonData: elementData };
+    const item: CustomSearchItem = {
+      name: resolveTemplate(entry.name, context),
+      description: resolveTemplate(entry.description, context),
+      type: entry.type,
+      filePath,
+      sourceId,
+    };
+
+    if (entry.label) {
+      const resolvedLabel = resolveTemplate(entry.label, context);
+      if (resolvedLabel) item.label = resolvedLabel;
+    }
+    if (entry.color) item.color = entry.color;
+    if (entry.argumentHint) {
+      const resolvedHint = resolveTemplate(entry.argumentHint, context);
+      if (resolvedHint) item.argumentHint = resolvedHint;
+    }
+    if (entry.inputFormat) item.inputFormat = entry.inputFormat;
+
+    return item.name ? item : null;
   }
 
   /**

@@ -35,6 +35,12 @@ jest.mock('os', () => ({
   homedir: jest.fn(() => '/Users/test')
 }));
 
+// Mock jq-resolver module
+const mockEvaluateJq = jest.fn<(data: unknown, expression: string) => Promise<unknown>>();
+jest.mock('../../src/lib/jq-resolver', () => ({
+  evaluateJq: (...args: unknown[]) => mockEvaluateJq(...args as [unknown, string])
+}));
+
 const mockedFs = jest.mocked(fs);
 
 // Helper to create Dirent-like objects for readdir with withFileTypes
@@ -1509,17 +1515,16 @@ Content`;
     });
   });
 
-  describe('jsonArrayPath support', () => {
-    test('should expand JSON array into multiple items', async () => {
+  describe('jq expression support (pattern @. syntax)', () => {
+    test('should expand JSON array into multiple items using jq expression', async () => {
       loader = new CustomSearchLoader([
         {
           name: '{json@name}',
           type: 'mention',
           description: '{json@agentType}',
           path: '/path/to/teams',
-          pattern: '**/config.json',
+          pattern: '**/config.json@.members',
           searchPrefix: 'member',
-          jsonArrayPath: 'members',
         },
       ]);
 
@@ -1542,24 +1547,29 @@ Content`;
           { name: 'researcher', agentType: 'Explore' }
         ]
       }));
+      mockEvaluateJq.mockResolvedValue([
+        { name: 'team-lead', agentType: 'team-lead' },
+        { name: 'worker', agentType: 'general-purpose' },
+        { name: 'researcher', agentType: 'Explore' }
+      ]);
 
       const items = await loader.searchItems('mention', 'member:');
 
+      expect(mockEvaluateJq).toHaveBeenCalledWith(expect.any(Object), '.members');
       expect(items).toHaveLength(3);
       expect(items.map(i => i.name).sort()).toEqual(['researcher', 'team-lead', 'worker']);
       expect(items.find(i => i.name === 'team-lead')?.description).toBe('team-lead');
       expect(items.find(i => i.name === 'worker')?.description).toBe('general-purpose');
     });
 
-    test('should return empty array when jsonArrayPath points to non-array', async () => {
+    test('should return empty array when jq result is not an array', async () => {
       loader = new CustomSearchLoader([
         {
           name: '{json@name}',
           type: 'mention',
           description: '',
           path: '/path/to/teams',
-          pattern: '*.json',
-          jsonArrayPath: 'members',
+          pattern: '*.json@.members',
         },
       ]);
 
@@ -1569,21 +1579,21 @@ Content`;
         name: 'my-team',
         members: 'not-an-array'
       }));
+      mockEvaluateJq.mockResolvedValue('not-an-array');
 
       const items = await loader.getItems('mention');
 
       expect(items).toHaveLength(0);
     });
 
-    test('should skip non-object elements in array', async () => {
+    test('should skip non-object elements in jq result array', async () => {
       loader = new CustomSearchLoader([
         {
           name: '{json@name}',
           type: 'mention',
           description: '',
           path: '/path/to/teams',
-          pattern: '*.json',
-          jsonArrayPath: 'members',
+          pattern: '*.json@.members',
         },
       ]);
 
@@ -1598,6 +1608,13 @@ Content`;
           { name: 'another-member' }
         ]
       }));
+      mockEvaluateJq.mockResolvedValue([
+        { name: 'valid-member' },
+        'string-value',
+        null,
+        42,
+        { name: 'another-member' }
+      ]);
 
       const items = await loader.getItems('mention');
 
@@ -1605,15 +1622,14 @@ Content`;
       expect(items.map(i => i.name).sort()).toEqual(['another-member', 'valid-member']);
     });
 
-    test('should handle nested jsonArrayPath', async () => {
+    test('should handle complex jq expressions', async () => {
       loader = new CustomSearchLoader([
         {
           name: '{json@name}',
           type: 'mention',
           description: '{json@role}',
           path: '/path/to/data',
-          pattern: '*.json',
-          jsonArrayPath: 'team.members',
+          pattern: '*.json@.team.members | map(select(.active))',
         },
       ]);
 
@@ -1622,19 +1638,26 @@ Content`;
       mockedFs.readFile.mockResolvedValue(JSON.stringify({
         team: {
           members: [
-            { name: 'alice', role: 'lead' },
-            { name: 'bob', role: 'dev' }
+            { name: 'alice', role: 'lead', active: true },
+            { name: 'bob', role: 'dev', active: false },
+            { name: 'carol', role: 'pm', active: true }
           ]
         }
       }));
+      mockEvaluateJq.mockResolvedValue([
+        { name: 'alice', role: 'lead', active: true },
+        { name: 'carol', role: 'pm', active: true }
+      ]);
 
       const items = await loader.getItems('mention');
 
+      expect(mockEvaluateJq).toHaveBeenCalledWith(expect.any(Object), '.team.members | map(select(.active))');
       expect(items).toHaveLength(2);
       expect(items.find(i => i.name === 'alice')?.description).toBe('lead');
+      expect(items.find(i => i.name === 'carol')?.description).toBe('pm');
     });
 
-    test('should not use jsonArrayPath for non-JSON files', async () => {
+    test('should not use jq expression for non-JSON files', async () => {
       loader = new CustomSearchLoader([
         {
           name: '{basename}',
@@ -1642,7 +1665,6 @@ Content`;
           description: '{frontmatter@description}',
           path: '/path/to/commands',
           pattern: '*.md',
-          jsonArrayPath: 'items',
         },
       ]);
 
@@ -1655,6 +1677,7 @@ Content`;
       // Should fall back to normal parsing for .md files
       expect(items).toHaveLength(1);
       expect(items[0]?.name).toBe('test');
+      expect(mockEvaluateJq).not.toHaveBeenCalled();
     });
 
     test('should apply entry-level enable/disable filtering to expanded items', async () => {
@@ -1664,8 +1687,7 @@ Content`;
           type: 'mention',
           description: '',
           path: '/path/to/teams',
-          pattern: '*.json',
-          jsonArrayPath: 'members',
+          pattern: '*.json@.members',
           enable: ['team-*'],
         },
       ]);
@@ -1679,11 +1701,143 @@ Content`;
           { name: 'team-researcher' }
         ]
       }));
+      mockEvaluateJq.mockResolvedValue([
+        { name: 'team-lead' },
+        { name: 'worker' },
+        { name: 'team-researcher' }
+      ]);
 
       const items = await loader.getItems('mention');
 
       expect(items).toHaveLength(2);
       expect(items.map(i => i.name).sort()).toEqual(['team-lead', 'team-researcher']);
+    });
+
+    test('should return empty array when jq evaluation returns null', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'mention',
+          description: '',
+          path: '/path/to/teams',
+          pattern: '*.json@.nonexistent',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('config.json', true)] as any);
+      mockedFs.readFile.mockResolvedValue(JSON.stringify({ name: 'test' }));
+      mockEvaluateJq.mockResolvedValue(null);
+
+      const items = await loader.getItems('mention');
+
+      expect(items).toHaveLength(0);
+    });
+  });
+
+  describe('JSONL with jq expression support', () => {
+    test('should apply jq expression to each JSONL line', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'mention',
+          description: '{json@role}',
+          path: '/path/to/data',
+          pattern: '*.jsonl@.user',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('entries.jsonl', true)] as any);
+      mockedFs.readFile.mockResolvedValue(
+        '{"user": {"name": "alice", "role": "lead"}}\n{"user": {"name": "bob", "role": "dev"}}'
+      );
+      mockEvaluateJq
+        .mockResolvedValueOnce({ name: 'alice', role: 'lead' })
+        .mockResolvedValueOnce({ name: 'bob', role: 'dev' });
+
+      const items = await loader.getItems('mention');
+
+      expect(mockEvaluateJq).toHaveBeenCalledTimes(2);
+      expect(mockEvaluateJq).toHaveBeenCalledWith(expect.objectContaining({ user: expect.any(Object) }), '.user');
+      expect(items).toHaveLength(2);
+      expect(items.map(i => i.name).sort()).toEqual(['alice', 'bob']);
+    });
+
+    test('should expand array results from jq on JSONL lines', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'mention',
+          description: '',
+          path: '/path/to/data',
+          pattern: '*.jsonl@.items',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('entries.jsonl', true)] as any);
+      mockedFs.readFile.mockResolvedValue(
+        '{"items": [{"name": "a"}, {"name": "b"}]}\n{"items": [{"name": "c"}]}'
+      );
+      mockEvaluateJq
+        .mockResolvedValueOnce([{ name: 'a' }, { name: 'b' }])
+        .mockResolvedValueOnce([{ name: 'c' }]);
+
+      const items = await loader.getItems('mention');
+
+      expect(items).toHaveLength(3);
+      expect(items.map(i => i.name).sort()).toEqual(['a', 'b', 'c']);
+    });
+
+    test('should skip JSONL lines where jq returns null', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'mention',
+          description: '',
+          path: '/path/to/data',
+          pattern: '*.jsonl@.data',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('entries.jsonl', true)] as any);
+      mockedFs.readFile.mockResolvedValue(
+        '{"data": {"name": "valid"}}\n{"other": "no-data"}'
+      );
+      mockEvaluateJq
+        .mockResolvedValueOnce({ name: 'valid' })
+        .mockResolvedValueOnce(null);
+
+      const items = await loader.getItems('mention');
+
+      expect(items).toHaveLength(1);
+      expect(items[0]?.name).toBe('valid');
+    });
+
+    test('should parse JSONL without jq expression (default behavior)', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'mention',
+          description: '{json@role}',
+          path: '/path/to/data',
+          pattern: '*.jsonl',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('entries.jsonl', true)] as any);
+      mockedFs.readFile.mockResolvedValue(
+        '{"name": "alice", "role": "lead"}\n{"name": "bob", "role": "dev"}'
+      );
+
+      const items = await loader.getItems('mention');
+
+      expect(mockEvaluateJq).not.toHaveBeenCalled();
+      expect(items).toHaveLength(2);
+      expect(items.map(i => i.name).sort()).toEqual(['alice', 'bob']);
     });
   });
 

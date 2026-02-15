@@ -128,6 +128,7 @@
   "dependencies": {
     "chokidar": "^5.0.0",
     "glob": "^13.0.0",
+    "jq-web": "^0.6.2",
     "js-yaml": "^4.1.1"
   },
   "overrides": {

@@ -206,8 +206,7 @@ mentions:
     - name: "{json@name}"
       description: "{dirname:2}"
       path: ~/.claude/teams
-      pattern: "**/config.json"
-      jsonArrayPath: members          # Expand JSON array to multiple items
+      pattern: "**/config.json@.members"  # jq expression after @ (supports complex jq like: @.members | map(select(.active)))
       searchPrefix: member            # Search with @member:
 
     - name: "{basename}"

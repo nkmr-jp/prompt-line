@@ -249,9 +249,8 @@ window:
               name: '{json@name}',
               description: '{dirname:2}',
               path: '~/.claude/teams',
-              pattern: '**/config.json',
-              searchPrefix: 'member',
-              jsonArrayPath: 'members'
+              pattern: '**/config.json@.members',
+              searchPrefix: 'member'
             },
             {
               name: '{basename}',
@@ -461,9 +460,8 @@ window:
               name: '{json@name}',
               description: '{dirname:2}',
               path: '~/.claude/teams',
-              pattern: '**/config.json',
-              searchPrefix: 'member',
-              jsonArrayPath: 'members'
+              pattern: '**/config.json@.members',
+              searchPrefix: 'member'
             },
             {
               name: '{basename}',

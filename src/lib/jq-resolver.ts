@@ -1,0 +1,48 @@
+/**
+ * jq-resolver - jq-web (WebAssembly版jq) のラッパーモジュール
+ *
+ * 遅延初期化でjqインスタンスを管理し、jq式を評価する
+ */
+
+import { logger } from '../utils/utils';
+
+// jq-web の型定義
+interface JqInstance {
+  json(data: unknown, expression: string): unknown;
+}
+
+let jqInstance: JqInstance | null = null;
+let jqInitPromise: Promise<JqInstance> | null = null;
+
+/**
+ * jq-web インスタンスを遅延初期化で取得
+ */
+async function getJqInstance(): Promise<JqInstance> {
+  if (jqInstance) return jqInstance;
+
+  if (!jqInitPromise) {
+    jqInitPromise = (async () => {
+       
+      const jqModule = require('jq-web');
+      const instance = await jqModule;
+      jqInstance = instance;
+      return instance;
+    })();
+  }
+
+  return jqInitPromise;
+}
+
+/**
+ * jq式を評価し、結果をJS値で返す
+ * - エラー時は null を返す
+ */
+export async function evaluateJq(data: unknown, expression: string): Promise<unknown> {
+  try {
+    const jq = await getJqInstance();
+    return jq.json(data, expression);
+  } catch (error) {
+    logger.warn('jq evaluation failed', { expression, error });
+    return null;
+  }
+}

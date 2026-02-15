@@ -155,9 +155,6 @@ function formatCustomSearchEntry(entry: MentionEntry, indent: string, commented 
     lines.push(`${contentLinePrefix}prefixPattern: "${entry.prefixPattern}"`);
   }
 
-  if (entry.jsonArrayPath) {
-    lines.push(`${contentLinePrefix}jsonArrayPath: ${entry.jsonArrayPath}          # Expand JSON array to multiple items`);
-  }
   if (entry.searchPrefix) {
     lines.push(`${contentLinePrefix}searchPrefix: ${entry.searchPrefix}            # Search with @${entry.searchPrefix}:`);
   }
@@ -429,6 +426,8 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
   #   "**/{cmd,agent}/*.md"   - Brace expansion (cmd or agent dirs)
   #   "test-*.md"             - Wildcard prefix
   #   "*.json"                - JSON files (use {json@field} for template variables)
+  #   "*.json@.items"             - JSON array expansion (jq-like path)
+  #   "*.jsonl"                   - JSONL files (one JSON per line)
   #
   # JSON file support:
   #   Use pattern "*.json" with {json@field} template variables
