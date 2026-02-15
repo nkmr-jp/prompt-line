@@ -77,7 +77,7 @@ function formatExtensionsAsList(ext: Record<string, string> | undefined): string
 /**
  * Format an agent skill entry as YAML
  */
-function formatSlashCommandEntry(entry: SlashCommandEntry, indent: string, commented = false): string {
+function formatAgentSkillEntry(entry: SlashCommandEntry, indent: string, commented = false): string {
   // When commented, use indent + "# " prefix
   // Active:    "  - name:" (indent + -)
   // Commented: "  # - name:" (indent trimmed to base + # + space + -)
@@ -256,21 +256,21 @@ function buildAgentSkillsSection(settings: UserSettings, options: YamlGeneratorO
   section += '#   color: Badge color (name: grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red, or hex: #FF5733)\n';
   section += '#   pattern: Glob pattern to match files (e.g., "*.md", "**/*/SKILL.md")\n';
   section += '#   prefixPattern: Pattern to extract prefix from plugin metadata\n';
-  section += '#   argumentHint: Hint for command arguments\n';
+  section += '#   argumentHint: Hint for skill arguments\n';
   section += '#   maxSuggestions: Maximum number of suggestions to display\n';
   section += '#   {dirname}: Parent directory name\n';
   section += '#   {dirname:N}: N levels up directory name (e.g., {dirname:2} = grandparent)\n';
   section += 'agentSkills:\n';
 
   for (const entry of agentSkills) {
-    section += formatSlashCommandEntry(entry, '  ') + '\n';
+    section += formatAgentSkillEntry(entry, '  ') + '\n';
   }
 
   // Add commented examples if requested
   if (options.includeCommentedExamples) {
     const commentedEntries = commentedExamples.agentSkills || [];
     for (const entry of commentedEntries) {
-      section += formatSlashCommandEntry(entry, '  ', true) + '\n';
+      section += formatAgentSkillEntry(entry, '  ', true) + '\n';
     }
   }
 
