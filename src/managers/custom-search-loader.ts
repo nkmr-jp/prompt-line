@@ -439,6 +439,13 @@ class CustomSearchLoader {
 
       // Evaluate jq expression
       const result = await evaluateJq(jsonData, jqExpression);
+      logger.debug('parseJsonArrayToItems jq result', {
+        filePath,
+        jqExpression,
+        resultType: typeof result,
+        isArray: Array.isArray(result),
+        length: Array.isArray(result) ? result.length : 'N/A'
+      });
       if (!Array.isArray(result)) return [];
       const arrayData: unknown[] = result;
 
