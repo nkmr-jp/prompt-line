@@ -12,7 +12,7 @@ The managers module consists of sixteen main components plus two sub-modules:
 - **settings-manager.ts**: YAML-based user configuration management
 - **desktop-space-manager.ts**: Ultra-fast desktop space change detection for window recreation
 - **file-cache-manager.ts**: File caching with invalidation for performance optimization
-- **md-search-loader.ts**: Markdown file search and loading functionality for slash commands and agents
+- **custom-search-loader.ts**: Custom search and loading functionality for slash commands and agents
 - **file-opener-manager.ts**: File opening with custom editor support
 - **directory-manager.ts**: Directory operations and CWD management
 - **symbol-cache-manager.ts**: Language-separated symbol search caching with JSONL storage
@@ -344,18 +344,18 @@ interface CachedDirectoryData {
 - Efficient JSONL streaming for large file lists
 - Integration with directory-detector for source data
 
-### md-search-loader.ts
-Markdown file search and loading functionality for slash commands and agents:
+### custom-search-loader.ts
+Custom search and loading functionality for slash commands and agents:
 
 **Core Functionality:**
 ```typescript
-class MdSearchLoader {
+class CustomSearchLoader {
   loadSlashCommands(directory: string, query?: string): Promise<SlashCommandItem[]>
   loadAgents(directory: string, query?: string): Promise<AgentItem[]>
-  getMaxSuggestions(type: MdSearchType): number
-  getPrefixes(type: MdSearchType): string[]
-  getSortOrder(type: MdSearchType): 'asc' | 'desc'
-  getSortOrderForQuery(type: MdSearchType, query: string): 'asc' | 'desc'
+  getMaxSuggestions(type: CustomSearchType): number
+  getPrefixes(type: CustomSearchType): string[]
+  getSortOrder(type: CustomSearchType): 'asc' | 'desc'
+  getSortOrderForQuery(type: CustomSearchType, query: string): 'asc' | 'desc'
 }
 ```
 
@@ -545,7 +545,7 @@ class AtPathCacheManager {
   addPath(directory: string, atPath: string): Promise<void>
   clearCache(directory: string): Promise<void>
 
-  // Global cache (for mdSearch agents, etc.)
+  // Global cache (for customSearch agents, etc.)
   loadGlobalPaths(): Promise<AtPathEntry[]>
   addGlobalPath(atPath: string): Promise<void>
   clearGlobalCache(): Promise<void>

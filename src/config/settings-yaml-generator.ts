@@ -425,6 +425,12 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
   #   "**/*/SKILL.md"         - SKILL.md in any subdirectory
   #   "**/{cmd,agent}/*.md"   - Brace expansion (cmd or agent dirs)
   #   "test-*.md"             - Wildcard prefix
+  #   "*.json"                - JSON files (use {json@field} for template variables)
+  #
+  # JSON file support:
+  #   Use pattern "*.json" with {json@field} template variables
+  #   Example: name: "{json@name}", description: "{json@description}"
+  #   Nested fields: {json@nested.field}
   customSearch:
 `;
 

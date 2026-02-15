@@ -1508,4 +1508,119 @@ Content`;
       expect(items.map(i => i.name).sort()).toEqual(['agent-claude', 'agent-gemini']);
     });
   });
+
+  describe('JSON file support', () => {
+    test('should search JSON files with *.json pattern', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'command',
+          description: '{json@description}',
+          path: '/path/to/json-commands',
+          pattern: '*.json',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([
+        createDirent('my-command.json', true),
+        createDirent('other.md', true),
+      ] as any);
+      mockedFs.readFile.mockResolvedValue(JSON.stringify({
+        name: 'test-command',
+        description: 'A test JSON command',
+      }));
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(1);
+      expect(items[0]?.name).toBe('test-command');
+      expect(items[0]?.description).toBe('A test JSON command');
+    });
+
+    test('should resolve {json@field} template variables', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'mention',
+          description: '{json@role}',
+          path: '/path/to/agents',
+          pattern: '*.json',
+          searchPrefix: 'agent',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([
+        createDirent('claude-agent.json', true),
+      ] as any);
+      mockedFs.readFile.mockResolvedValue(JSON.stringify({
+        name: 'claude',
+        role: 'AI coding assistant',
+      }));
+
+      const items = await loader.searchItems('mention', 'agent:');
+
+      expect(items).toHaveLength(1);
+      expect(items[0]?.name).toBe('claude');
+      expect(items[0]?.description).toBe('AI coding assistant');
+    });
+
+    test('should resolve nested JSON paths with {json@nested.field}', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{json@config.displayName}',
+          type: 'command',
+          description: '{json@config.metadata.description}',
+          path: '/path/to/nested',
+          pattern: '*.json',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([
+        createDirent('nested-config.json', true),
+      ] as any);
+      mockedFs.readFile.mockResolvedValue(JSON.stringify({
+        config: {
+          displayName: 'My Plugin',
+          metadata: {
+            description: 'A nested plugin config',
+          },
+        },
+      }));
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(1);
+      expect(items[0]?.name).toBe('My Plugin');
+      expect(items[0]?.description).toBe('A nested plugin config');
+    });
+
+    test('should not include frontmatter for JSON files', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'command',
+          description: '{json@description}',
+          path: '/path/to/json-commands',
+          pattern: '*.json',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([
+        createDirent('cmd.json', true),
+      ] as any);
+      mockedFs.readFile.mockResolvedValue(JSON.stringify({
+        name: 'json-cmd',
+        description: 'JSON command',
+      }));
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(1);
+      expect(items[0]?.frontmatter).toBeUndefined();
+    });
+  });
 });

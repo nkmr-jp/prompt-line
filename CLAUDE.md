@@ -186,7 +186,7 @@ The app uses Electron's two-process model with clean separation:
   - `history-draft-handler.ts`: History CRUD and draft management operations
   - `window-handler.ts`: Window visibility and focus control
   - `system-handler.ts`: App info, config, and settings retrieval
-  - `mdsearch-handler.ts`: Slash commands and agent selection
+  - `custom-search-handler.ts`: Slash commands and agent selection
   - `file-handler.ts`: File operations and external URL handling
   - `handler-utils.ts`: Shared validation and utility functions
 
@@ -213,7 +213,7 @@ Core functionality is organized into specialized managers:
   - Automatic settings file creation with sensible defaults
 - **DesktopSpaceManager**: Ultra-fast desktop space change detection for window recreation
 - **FileCacheManager**: File caching with invalidation for performance optimization
-- **MdSearchLoader**: Markdown file search and loading functionality
+- **CustomSearchLoader**: Custom search and loading functionality for slash commands and agents
 - **DirectoryManager**: Directory operations and management
 - **FileOpenerManager**: File opening with custom editor support
 - **SymbolCacheManager**: Language-separated symbol search caching with TTL
@@ -261,7 +261,7 @@ IPC invoke request
     ↓
 IPCHandlers (coordinator)
     ↓
-Specialized Handler (paste, history-draft, window, system, mdsearch, file, code-search)
+Specialized Handler (paste, history-draft, window, system, custom-search, file, code-search)
     ↓
 Manager (WindowManager, HistoryManager, SymbolCacheManager, etc.)
     ↓
@@ -289,10 +289,10 @@ IPC response → Renderer Process
 - `get-config`: Configuration access with whitelist validation
 - `open-settings`: Settings file management
 
-**MdSearch Handler (mdsearch-handler.ts):**
+**CustomSearch Handler (custom-search-handler.ts):**
 - `get-slash-commands`, `get-slash-command-file-path`: Slash command support
 - `get-agents`, `get-agent-file-path`: Agent selection and management
-- `get-md-search-max-suggestions`, `get-md-search-prefixes`: Search configuration
+- `get-custom-search-max-suggestions`, `get-custom-search-prefixes`: Search configuration
 
 **File Handler (file-handler.ts):**
 - `check-file-exists`, `open-file-in-editor`: File operations
@@ -327,7 +327,7 @@ Built-in command YAMLファイルの変更は自動的に検知され、リア�
 
 **関連ファイル:**
 - `src/managers/built-in-commands-manager.ts` - ファイルウォッチング実装
-- `src/handlers/mdsearch-handler.ts` - イベントリスナー
+- `src/handlers/custom-search-handler.ts` - イベントリスナー
 
 ## Platform-Specific Implementation
 
@@ -364,7 +364,7 @@ All data is stored in `~/.prompt-line/`:
   - `<encoded-path>/symbol-metadata.json`: Symbol cache metadata with TTL
   - `<encoded-path>/symbols-{lang}.jsonl`: Language-specific symbol cache
   - `<encoded-path>/registered-at-paths.jsonl`: Project @path patterns
-  - `global-at-paths.jsonl`: Global @path patterns for mdSearch agents
+  - `global-at-paths.jsonl`: Global @path patterns for customSearch agents
 
 ### Build Output
 The built application is stored in `dist/`:

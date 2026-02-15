@@ -335,7 +335,7 @@ Slash command system for quick command access:
 - **Command Detection**: Triggers on `/` character at start of line
 - **Command Loading**: Loads commands from markdown files
 - **Agent Selection**: Provides agent selection functionality
-- **Integration**: Works with MdSearchLoader for command discovery
+- **Integration**: Works with CustomSearchLoader for command discovery
 
 Features:
 - Dynamic command loading from user-defined files
