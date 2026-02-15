@@ -725,8 +725,33 @@ describe('CustomSearchLoader', () => {
 
       const items = await loader.getItems('command');
 
-      expect(items).toHaveLength(1);
+      // Items from different source entries (different paths) are NOT deduplicated
+      // This allows items with same name but different searchPrefix to coexist
+      expect(items).toHaveLength(2);
       expect(items[0]?.description).toBe('First version');
+      expect(items[1]?.description).toBe('Second version');
+    });
+
+    test('should deduplicate within same source entry', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          path: '/path/one',
+          pattern: '*.md',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      // Return two files with same basename after extension stripping
+      mockedFs.readdir.mockResolvedValue([createDirent('duplicate.md', true)] as any);
+      mockedFs.readFile.mockResolvedValue('---\ndescription: Test\n---\n');
+
+      const items = await loader.getItems('command');
+
+      // Within same source entry, duplicates are removed
+      expect(items).toHaveLength(1);
     });
 
     test('should allow same name in different types', async () => {

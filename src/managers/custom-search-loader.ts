@@ -239,12 +239,13 @@ class CustomSearchLoader {
    */
   private async loadAllEntries(): Promise<CustomSearchItem[]> {
     const allItems: CustomSearchItem[] = [];
-    const seenNames = new Map<CustomSearchType, Set<string>>();
+    const seenNames = new Map<string, Set<string>>();
 
     for (const entry of this.config) {
       try {
         const items = await this.loadEntry(entry);
-        this.addItemsWithDeduplication(items, entry.type, seenNames, allItems);
+        const sourceId = `${entry.path}:${entry.pattern}`;
+        this.addItemsWithDeduplication(items, sourceId, seenNames, allItems);
       } catch (error) {
         logger.error('Failed to load entry', { entry, error });
       }
@@ -254,22 +255,22 @@ class CustomSearchLoader {
   }
 
   /**
-   * Add items with deduplication check
+   * Add items with deduplication check (scoped per sourceId to avoid cross-entry name collisions)
    */
   private addItemsWithDeduplication(
     items: CustomSearchItem[],
-    type: CustomSearchType,
-    seenNames: Map<CustomSearchType, Set<string>>,
+    sourceId: string,
+    seenNames: Map<string, Set<string>>,
     allItems: CustomSearchItem[]
   ): void {
-    if (!seenNames.has(type)) {
-      seenNames.set(type, new Set());
+    if (!seenNames.has(sourceId)) {
+      seenNames.set(sourceId, new Set());
     }
-    const typeSeenNames = seenNames.get(type)!;
+    const sourceSeenNames = seenNames.get(sourceId)!;
 
     for (const item of items) {
-      if (!typeSeenNames.has(item.name)) {
-        typeSeenNames.add(item.name);
+      if (!sourceSeenNames.has(item.name)) {
+        sourceSeenNames.add(item.name);
         allItems.push(item);
       }
     }
