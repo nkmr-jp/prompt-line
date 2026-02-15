@@ -453,4 +453,5 @@ export interface AgentItem {
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
   inputFormat?: InputFormatType;  // 入力フォーマット（'name' | 'path'）
+  color?: ColorValue;
 }

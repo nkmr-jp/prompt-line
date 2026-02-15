@@ -2,7 +2,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
 import { logger } from '../utils/utils';
-import type { CustomSearchEntry, CustomSearchItem, CustomSearchType, UserSettings } from '../types';
+import type { CustomSearchEntry, CustomSearchItem, CustomSearchType, UserSettings, ColorValue } from '../types';
 import { resolveTemplate, getBasename, getDirname, parseFrontmatter, extractRawFrontmatter, parseFirstHeading, parseJsonContent } from '../lib/template-resolver';
 import { evaluateJq } from '../lib/jq-resolver';
 import { getDefaultCustomSearchConfig, DEFAULT_MAX_SUGGESTIONS, DEFAULT_SORT_ORDER } from '../lib/default-custom-search-config';
@@ -410,7 +410,10 @@ class CustomSearchLoader {
         const resolvedLabel = resolveTemplate(entry.label, context);
         if (resolvedLabel) item.label = resolvedLabel;
       }
-      if (entry.color) item.color = entry.color;
+      if (entry.color) {
+        const resolvedColor = resolveTemplate(entry.color, context);
+        if (resolvedColor) item.color = resolvedColor as ColorValue;
+      }
       if (entry.argumentHint) {
         const resolvedHint = resolveTemplate(entry.argumentHint, context);
         if (resolvedHint) item.argumentHint = resolvedHint;
@@ -472,7 +475,10 @@ class CustomSearchLoader {
           const resolvedLabel = resolveTemplate(entry.label, context);
           if (resolvedLabel) item.label = resolvedLabel;
         }
-        if (entry.color) item.color = entry.color;
+        if (entry.color) {
+          const resolvedColor = resolveTemplate(entry.color, context);
+          if (resolvedColor) item.color = resolvedColor as ColorValue;
+        }
         if (entry.argumentHint) {
           const resolvedHint = resolveTemplate(entry.argumentHint, context);
           if (resolvedHint) item.argumentHint = resolvedHint;
@@ -584,7 +590,10 @@ class CustomSearchLoader {
       const resolvedLabel = resolveTemplate(entry.label, context);
       if (resolvedLabel) item.label = resolvedLabel;
     }
-    if (entry.color) item.color = entry.color;
+    if (entry.color) {
+      const resolvedColor = resolveTemplate(entry.color, context);
+      if (resolvedColor) item.color = resolvedColor as ColorValue;
+    }
     if (entry.argumentHint) {
       const resolvedHint = resolveTemplate(entry.argumentHint, context);
       if (resolvedHint) item.argumentHint = resolvedHint;

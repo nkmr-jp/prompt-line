@@ -563,6 +563,18 @@ export class SuggestionUIManager {
     name.className = 'file-name agent-name';
     const currentQuery = this.callbacks.getCurrentQuery?.() || '';
     insertHighlightedText(name, agent.name, currentQuery);
+    if (agent.color) {
+      if (agent.color.startsWith('#')) {
+        name.style.color = agent.color;
+      } else {
+        const colorMap: Record<string, string> = {
+          grey: '#888888', darkGrey: '#6b7280', blue: '#89DDFF',
+          purple: '#c792ea', teal: '#89DDFF', green: '#7fdbc8',
+          yellow: '#fbbf24', orange: '#ffcb6b', pink: '#f472b6', red: '#f07178',
+        };
+        name.style.color = colorMap[agent.color] || agent.color;
+      }
+    }
 
     const desc = document.createElement('span');
     desc.className = 'file-path agent-description';

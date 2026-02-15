@@ -288,6 +288,9 @@ class CustomSearchHandler {
         if (item.inputFormat) {
           agent.inputFormat = item.inputFormat;
         }
+        if (item.color) {
+          agent.color = item.color;
+        }
         return agent;
       });
 
