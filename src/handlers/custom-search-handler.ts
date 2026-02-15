@@ -274,6 +274,7 @@ class CustomSearchHandler {
       // Get mentions (agents) from CustomSearchLoader
       // Always use searchItems to apply searchPrefix filtering, even for empty query
       const items = await this.customSearchLoader.searchItems('mention', query ?? '');
+      logger.debug('handleGetAgents items', { count: items.length, firstColor: items[0]?.color, firstKeys: items[0] ? Object.keys(items[0]) : [] });
 
       // Convert CustomSearchItem to AgentItem for backward compatibility
       const agents: AgentItem[] = items.map(item => {
