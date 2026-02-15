@@ -563,6 +563,7 @@ export class SuggestionUIManager {
     name.className = 'file-name agent-name';
     const currentQuery = this.callbacks.getCurrentQuery?.() || '';
     insertHighlightedText(name, agent.name, currentQuery);
+    console.debug('[renderAgentItem] agent:', agent.name, 'color:', agent.color, 'keys:', Object.keys(agent));
     if (agent.color) {
       if (agent.color.startsWith('#')) {
         name.style.color = agent.color;
