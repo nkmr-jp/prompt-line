@@ -2,7 +2,6 @@
   "packages": {
     ".": {
       "release-type": "simple",
-      "versioning": "always-bump-patch",
       "changelog-path": "CHANGELOG.md",
       "changelog-sections": [
         {"type": "feat", "section": "Features"},

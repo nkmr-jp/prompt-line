@@ -75,7 +75,7 @@ function formatExtensionsAsList(ext: Record<string, string> | undefined): string
 }
 
 /**
- * Format a custom slash command entry as YAML
+ * Format an agent skill entry as YAML
  */
 function formatSlashCommandEntry(entry: SlashCommandEntry, indent: string, commented = false): string {
   // When commented, use indent + "# " prefix
@@ -126,7 +126,7 @@ function formatSlashCommandEntry(entry: SlashCommandEntry, indent: string, comme
 }
 
 /**
- * Format an MdSearch entry as YAML
+ * Format a mdSearch entry as YAML
  */
 function formatMdSearchEntry(entry: MentionEntry, indent: string, commented = false): string {
   // When commented, use "    # " prefix to match the mdSearch indentation level
@@ -247,11 +247,11 @@ function buildAgentSkillsSection(settings: UserSettings, options: YamlGeneratorO
   }
 
   // Build the section with actual values
-  let section = '# Custom slash commands from markdown files\n';
+  let section = '# Agent skills: custom commands from markdown files\n';
   section += '# Configuration fields:\n';
   section += '#   name: Display name template (variables: {basename}, {frontmatter@field}, {prefix})\n';
-  section += '#   description: Command description template (variables: {basename}, {frontmatter@field}, {dirname}, {dirname:N})\n';
-  section += '#   path: Directory path to search for command files\n';
+  section += '#   description: Skill description template (variables: {basename}, {frontmatter@field}, {dirname}, {dirname:N})\n';
+  section += '#   path: Directory path to search for skill files\n';
   section += '#   label: Display label for UI badge (e.g., "command", "skill", "agent")\n';
   section += '#   color: Badge color (name: grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red, or hex: #FF5733)\n';
   section += '#   pattern: Glob pattern to match files (e.g., "*.md", "**/*/SKILL.md")\n';
@@ -512,7 +512,7 @@ ${builtInCommandsSection}
 # ============================================================================
 # AGENT SKILLS SETTINGS
 # ============================================================================
-# Configure agent skills: custom slash commands from markdown files
+# Configure agent skills: custom commands from markdown files
 # Template variables: {basename}, {frontmatter@fieldName}
 
 ${agentSkillsSection}
