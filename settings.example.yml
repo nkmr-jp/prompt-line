@@ -60,19 +60,19 @@ builtInCommands:                      # List of tools to enable
 # ============================================================================
 # AGENT SKILLS SETTINGS
 # ============================================================================
-# Configure agent skills: custom slash commands from markdown files
+# Configure agent skills: custom commands from markdown files
 # Template variables: {basename}, {frontmatter@fieldName}
 
-# Custom slash commands from markdown files
+# Agent skills: custom commands from markdown files
 # Configuration fields:
 #   name: Display name template (variables: {basename}, {frontmatter@field}, {prefix})
-#   description: Command description template (variables: {basename}, {frontmatter@field}, {dirname}, {dirname:N})
-#   path: Directory path to search for command files
+#   description: Skill description template (variables: {basename}, {frontmatter@field}, {dirname}, {dirname:N})
+#   path: Directory path to search for skill files
 #   label: Display label for UI badge (e.g., "command", "skill", "agent")
 #   color: Badge color (name: grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red, or hex: #FF5733)
 #   pattern: Glob pattern to match files (e.g., "*.md", "**/*/SKILL.md")
 #   prefixPattern: Pattern to extract prefix from plugin metadata
-#   argumentHint: Hint for command arguments
+#   argumentHint: Hint for skill arguments
 #   maxSuggestions: Maximum number of suggestions to display
 #   {dirname}: Parent directory name
 #   {dirname:N}: N levels up directory name (e.g., {dirname:2} = grandparent)
@@ -178,13 +178,13 @@ mentions:
   #   "**/{cmd,agent}/*.md"   - Brace expansion (cmd or agent dirs)
   #   "test-*.md"             - Wildcard prefix
   mdSearch:
-    - name: "agent-{basename}"
+    - name: "{basename}(agent)"
       description: "{frontmatter@description}"
       path: ~/.claude/agents
       pattern: "*.md"
       searchPrefix: agent            # Search with @agent:
 
-    - name: "agent-{prefix}:{basename}"
+    - name: "{prefix}:{basename}(agent)"
       description: "{frontmatter@description}"
       path: ~/.claude/plugins/cache
       pattern: "**/agents/*.md"

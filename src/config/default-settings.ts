@@ -110,14 +110,14 @@ export const defaultSettings: UserSettings = {
     },
     mdSearch: [
       {
-        name: 'agent-{basename}',
+        name: '{basename}(agent)',
         description: '{frontmatter@description}',
         path: '~/.claude/agents',
         pattern: '*.md',
         searchPrefix: 'agent'
       },
       {
-        name: 'agent-{prefix}:{basename}',
+        name: '{prefix}:{basename}(agent)',
         description: '{frontmatter@description}',
         path: '~/.claude/plugins/cache',
         pattern: '**/agents/*.md',
