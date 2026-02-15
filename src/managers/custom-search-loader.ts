@@ -3,7 +3,7 @@ import path from 'path';
 import os from 'os';
 import { logger } from '../utils/utils';
 import type { CustomSearchEntry, CustomSearchItem, CustomSearchType, UserSettings } from '../types';
-import { resolveTemplate, getBasename, getDirname, parseFrontmatter, extractRawFrontmatter, parseFirstHeading, parseJsonContent } from '../lib/template-resolver';
+import { resolveTemplate, getBasename, getDirname, parseFrontmatter, extractRawFrontmatter, parseFirstHeading, parseJsonContent, resolveJsonPath } from '../lib/template-resolver';
 import { getDefaultCustomSearchConfig, DEFAULT_MAX_SUGGESTIONS, DEFAULT_SORT_ORDER } from '../lib/default-custom-search-config';
 import { CACHE_TTL } from '../constants';
 import { resolvePrefix } from '../lib/prefix-resolver';
@@ -332,9 +332,14 @@ class CustomSearchLoader {
     const items: CustomSearchItem[] = [];
 
     for (const filePath of files) {
-      const item = await this.parseFileToItem(filePath, entry, sourceId);
-      if (item) {
-        items.push(item);
+      if (entry.jsonArrayPath && filePath.endsWith('.json')) {
+        const arrayItems = await this.parseJsonArrayToItems(filePath, entry, sourceId);
+        items.push(...arrayItems);
+      } else {
+        const item = await this.parseFileToItem(filePath, entry, sourceId);
+        if (item) {
+          items.push(item);
+        }
       }
     }
 
@@ -401,6 +406,74 @@ class CustomSearchLoader {
     } catch (error) {
       logger.warn('Failed to parse file', { filePath, error });
       return null;
+    }
+  }
+
+  /**
+   * Parse JSON file with jsonArrayPath to generate multiple CustomSearchItems
+   */
+  private async parseJsonArrayToItems(
+    filePath: string,
+    entry: CustomSearchEntry,
+    sourceId: string
+  ): Promise<CustomSearchItem[]> {
+    try {
+      const content = await fs.readFile(filePath, 'utf8');
+      const jsonData = parseJsonContent(content);
+      if (!jsonData) return [];
+
+      // Resolve the array from jsonArrayPath
+      const arrayPath = entry.jsonArrayPath!;
+      const rawArray = resolveJsonPath(jsonData, arrayPath);
+
+      // resolveJsonPath returns a JSON string for arrays/objects
+      let arrayData: unknown[];
+      try {
+        const parsed = JSON.parse(rawArray);
+        if (!Array.isArray(parsed)) return [];
+        arrayData = parsed;
+      } catch {
+        return [];
+      }
+
+      const basename = getBasename(filePath);
+      const dirname = getDirname(filePath);
+      const items: CustomSearchItem[] = [];
+
+      for (const element of arrayData) {
+        if (element === null || typeof element !== 'object' || Array.isArray(element)) continue;
+
+        const elementData = element as Record<string, unknown>;
+        const context = { basename, frontmatter: {}, prefix: '', dirname, filePath, heading: '', jsonData: elementData };
+
+        const item: CustomSearchItem = {
+          name: resolveTemplate(entry.name, context),
+          description: resolveTemplate(entry.description, context),
+          type: entry.type,
+          filePath,
+          sourceId,
+        };
+
+        if (entry.label) {
+          const resolvedLabel = resolveTemplate(entry.label, context);
+          if (resolvedLabel) item.label = resolvedLabel;
+        }
+        if (entry.color) item.color = entry.color;
+        if (entry.argumentHint) {
+          const resolvedHint = resolveTemplate(entry.argumentHint, context);
+          if (resolvedHint) item.argumentHint = resolvedHint;
+        }
+        if (entry.inputFormat) item.inputFormat = entry.inputFormat;
+
+        if (item.name) {
+          items.push(item);
+        }
+      }
+
+      return items;
+    } catch (error) {
+      logger.warn('Failed to parse JSON array file', { filePath, error });
+      return [];
     }
   }
 

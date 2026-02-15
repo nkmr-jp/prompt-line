@@ -1509,6 +1509,184 @@ Content`;
     });
   });
 
+  describe('jsonArrayPath support', () => {
+    test('should expand JSON array into multiple items', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'mention',
+          description: '{json@agentType}',
+          path: '/path/to/teams',
+          pattern: '**/config.json',
+          searchPrefix: 'member',
+          jsonArrayPath: 'members',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockImplementation((dir) => {
+        const dirStr = String(dir);
+        if (dirStr === '/path/to/teams') {
+          return Promise.resolve([createDirent('my-team', false)] as any);
+        }
+        if (dirStr === '/path/to/teams/my-team') {
+          return Promise.resolve([createDirent('config.json', true)] as any);
+        }
+        return Promise.resolve([] as any);
+      });
+      mockedFs.readFile.mockResolvedValue(JSON.stringify({
+        name: 'my-team',
+        members: [
+          { name: 'team-lead', agentType: 'team-lead' },
+          { name: 'worker', agentType: 'general-purpose' },
+          { name: 'researcher', agentType: 'Explore' }
+        ]
+      }));
+
+      const items = await loader.searchItems('mention', 'member:');
+
+      expect(items).toHaveLength(3);
+      expect(items.map(i => i.name).sort()).toEqual(['researcher', 'team-lead', 'worker']);
+      expect(items.find(i => i.name === 'team-lead')?.description).toBe('team-lead');
+      expect(items.find(i => i.name === 'worker')?.description).toBe('general-purpose');
+    });
+
+    test('should return empty array when jsonArrayPath points to non-array', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'mention',
+          description: '',
+          path: '/path/to/teams',
+          pattern: '*.json',
+          jsonArrayPath: 'members',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('config.json', true)] as any);
+      mockedFs.readFile.mockResolvedValue(JSON.stringify({
+        name: 'my-team',
+        members: 'not-an-array'
+      }));
+
+      const items = await loader.getItems('mention');
+
+      expect(items).toHaveLength(0);
+    });
+
+    test('should skip non-object elements in array', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'mention',
+          description: '',
+          path: '/path/to/teams',
+          pattern: '*.json',
+          jsonArrayPath: 'members',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('config.json', true)] as any);
+      mockedFs.readFile.mockResolvedValue(JSON.stringify({
+        members: [
+          { name: 'valid-member' },
+          'string-value',
+          null,
+          42,
+          { name: 'another-member' }
+        ]
+      }));
+
+      const items = await loader.getItems('mention');
+
+      expect(items).toHaveLength(2);
+      expect(items.map(i => i.name).sort()).toEqual(['another-member', 'valid-member']);
+    });
+
+    test('should handle nested jsonArrayPath', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'mention',
+          description: '{json@role}',
+          path: '/path/to/data',
+          pattern: '*.json',
+          jsonArrayPath: 'team.members',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('data.json', true)] as any);
+      mockedFs.readFile.mockResolvedValue(JSON.stringify({
+        team: {
+          members: [
+            { name: 'alice', role: 'lead' },
+            { name: 'bob', role: 'dev' }
+          ]
+        }
+      }));
+
+      const items = await loader.getItems('mention');
+
+      expect(items).toHaveLength(2);
+      expect(items.find(i => i.name === 'alice')?.description).toBe('lead');
+    });
+
+    test('should not use jsonArrayPath for non-JSON files', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          path: '/path/to/commands',
+          pattern: '*.md',
+          jsonArrayPath: 'items',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('test.md', true)] as any);
+      mockedFs.readFile.mockResolvedValue('---\ndescription: Test command\n---\nContent');
+
+      const items = await loader.getItems('command');
+
+      // Should fall back to normal parsing for .md files
+      expect(items).toHaveLength(1);
+      expect(items[0]?.name).toBe('test');
+    });
+
+    test('should apply entry-level enable/disable filtering to expanded items', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'mention',
+          description: '',
+          path: '/path/to/teams',
+          pattern: '*.json',
+          jsonArrayPath: 'members',
+          enable: ['team-*'],
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('config.json', true)] as any);
+      mockedFs.readFile.mockResolvedValue(JSON.stringify({
+        members: [
+          { name: 'team-lead' },
+          { name: 'worker' },
+          { name: 'team-researcher' }
+        ]
+      }));
+
+      const items = await loader.getItems('mention');
+
+      expect(items).toHaveLength(2);
+      expect(items.map(i => i.name).sort()).toEqual(['team-lead', 'team-researcher']);
+    });
+  });
+
   describe('JSON file support', () => {
     test('should search JSON files with *.json pattern', async () => {
       loader = new CustomSearchLoader([

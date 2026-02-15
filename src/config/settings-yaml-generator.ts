@@ -155,6 +155,9 @@ function formatCustomSearchEntry(entry: MentionEntry, indent: string, commented 
     lines.push(`${contentLinePrefix}prefixPattern: "${entry.prefixPattern}"`);
   }
 
+  if (entry.jsonArrayPath) {
+    lines.push(`${contentLinePrefix}jsonArrayPath: ${entry.jsonArrayPath}          # Expand JSON array to multiple items`);
+  }
   if (entry.searchPrefix) {
     lines.push(`${contentLinePrefix}searchPrefix: ${entry.searchPrefix}            # Search with @${entry.searchPrefix}:`);
   }

@@ -522,6 +522,7 @@ class SettingsManager extends EventEmitter {
         if (mention.sortOrder !== undefined) entry.sortOrder = mention.sortOrder;
         if (mention.inputFormat !== undefined) entry.inputFormat = mention.inputFormat;
         if (mention.prefixPattern !== undefined) entry.prefixPattern = mention.prefixPattern;
+        if (mention.jsonArrayPath !== undefined) entry.jsonArrayPath = mention.jsonArrayPath;
         if (mention.enable !== undefined) entry.enable = mention.enable;
         if (mention.disable !== undefined) entry.disable = mention.disable;
         entries.push(entry);

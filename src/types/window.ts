@@ -340,6 +340,11 @@ export interface MentionEntry {
   /** オプション: プレフィックスパターン - 特定JSONファイルからプレフィックスを動的に読み込むためのパターン */
   prefixPattern?: string;
   /**
+   * オプション: JSON配列パス - JSONファイル内の配列を展開して複数アイテムを生成
+   * 例: "members" → JSONの members 配列の各要素をアイテムとして展開
+   */
+  jsonArrayPath?: string;
+  /**
    * オプション: 有効にするメンション名のリスト（このエントリのみに適用）
    * - 完全一致: "agent-claude"
    * - 前方一致: "agent-*"
@@ -394,6 +399,11 @@ export interface CustomSearchEntry {
   inputFormat?: InputFormatType;
   /** オプション: プレフィックスパターン - 特定JSONファイルからプレフィックスを動的に読み込むためのパターン */
   prefixPattern?: string;
+  /**
+   * オプション: JSON配列パス - JSONファイル内の配列を展開して複数アイテムを生成
+   * 例: "members" → JSONの members 配列の各要素をアイテムとして展開
+   */
+  jsonArrayPath?: string;
   /**
    * オプション: 有効にするアイテム名のリスト（このエントリのみに適用）
    * - 完全一致: "commit"

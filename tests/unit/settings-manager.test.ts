@@ -246,6 +246,14 @@ window:
               searchPrefix: 'team'
             },
             {
+              name: '{json@name}',
+              description: '{dirname:2}',
+              path: '~/.claude/teams',
+              pattern: '**/config.json',
+              searchPrefix: 'member',
+              jsonArrayPath: 'members'
+            },
+            {
               name: '{basename}',
               description: '',
               path: '~/.claude/plans',
@@ -448,6 +456,14 @@ window:
               path: '~/.claude/teams',
               pattern: '**/inboxes/*.json',
               searchPrefix: 'team'
+            },
+            {
+              name: '{json@name}',
+              description: '{dirname:2}',
+              path: '~/.claude/teams',
+              pattern: '**/config.json',
+              searchPrefix: 'member',
+              jsonArrayPath: 'members'
             },
             {
               name: '{basename}',
