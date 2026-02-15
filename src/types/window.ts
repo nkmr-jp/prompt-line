@@ -151,8 +151,10 @@ export interface UserSettings {
     // Default editor when no extension-specific setting exists
     defaultEditor?: string | null;
   };
-  // Agent skills settings (built-in commands and user-defined)
-  agentSkills?: AgentSkillsSettings;
+  // Built-in commands: list of tools to enable (e.g., ['claude', 'codex', 'gemini'])
+  builtInCommands?: string[];
+  // Agent skills: flat list of custom slash command entries (no more .custom nesting)
+  agentSkills?: SlashCommandEntry[];
   // Mention settings (@ mentions: fileSearch, symbolSearch, userDefined)
   mentions?: MentionsSettings;
 
@@ -164,8 +166,8 @@ export interface UserSettings {
   mdSearch?: MdSearchEntry[];
   // Legacy: slashCommands (use agentSkills instead)
   slashCommands?: AgentSkillsSettings;
-  // Legacy: Built-in commands configuration (use agentSkills.builtInCommands instead)
-  builtInCommands?: {
+  // Legacy: Built-in commands configuration (use builtInCommands instead)
+  legacyBuiltInCommands?: {
     tools?: string[];
   };
 }
@@ -252,8 +254,6 @@ export interface MentionsSettings {
  * Agent skills settings combining built-in commands and user-defined entries
  */
 export interface AgentSkillsSettings {
-  /** Built-in commands: list of tools to enable (e.g., ['claude', 'codex', 'gemini']) */
-  builtInCommands?: string[];
   /** Custom slash commands from markdown files */
   custom?: SlashCommandEntry[];
   /**
@@ -268,6 +268,8 @@ export interface AgentSkillsSettings {
    * - 前方一致: "debug-*"
    */
   disable?: string[];
+  // Legacy: builtInCommands (use root-level builtInCommands instead)
+  builtInCommands?: string[];
 }
 
 /** @deprecated Use AgentSkillsSettings instead */

@@ -66,8 +66,10 @@ class MdSearchLoader {
     let items = allItems.filter(item => item.type === type);
 
     // グローバル enable/disable フィルタを適用
-    if (type === 'command' && (this.settings?.agentSkills ?? this.settings?.slashCommands)) {
-      const { enable, disable } = (this.settings!.agentSkills ?? this.settings!.slashCommands)!;
+    if (type === 'command' && this.settings?.slashCommands) {
+      // Global enable/disable only available via legacy slashCommands (AgentSkillsSettings)
+      // agentSkills is now a flat array without global enable/disable
+      const { enable, disable } = this.settings.slashCommands;
       items = items.filter(item =>
         isCommandEnabled(item.name, enable, disable)
       );

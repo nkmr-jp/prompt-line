@@ -78,15 +78,15 @@ function formatExtensionsAsList(ext: Record<string, string> | undefined): string
  * Format a custom slash command entry as YAML
  */
 function formatSlashCommandEntry(entry: SlashCommandEntry, indent: string, commented = false): string {
-  // When commented, use "    # " prefix to match the custom indentation level
-  // Active:    "    - name:" (4 spaces + -)
-  // Commented: "    # - name:" (4 spaces + # + space + -)
+  // When commented, use indent + "# " prefix
+  // Active:    "  - name:" (indent + -)
+  // Commented: "  # - name:" (indent trimmed to base + # + space + -)
   let firstLinePrefix: string;
   let contentLinePrefix: string;
 
   if (commented) {
-    firstLinePrefix = '    # ';
-    contentLinePrefix = '    #   ';
+    firstLinePrefix = `${indent}# `;
+    contentLinePrefix = `${indent}#   `;
   } else {
     firstLinePrefix = indent;
     contentLinePrefix = `${indent}  `;
@@ -199,82 +199,78 @@ function buildExtensionsSection(settings: UserSettings, options: YamlGeneratorOp
 }
 
 /**
+ * Build builtInCommands section
+ */
+function buildBuiltInCommandsSection(settings: UserSettings, options: YamlGeneratorOptions): string {
+  const builtInCommands = settings.builtInCommands;
+  const hasBuiltInCommands = builtInCommands && builtInCommands.length > 0;
+
+  if (!hasBuiltInCommands) {
+    return `#builtInCommands:                      # List of tools to enable
+#  - claude
+#  - codex
+#  - gemini`;
+  }
+
+  let section = 'builtInCommands:                      # List of tools to enable\n';
+  for (const cmd of builtInCommands) {
+    section += `  - ${cmd}\n`;
+  }
+
+  // Add commented examples if requested
+  if (options.includeCommentedExamples) {
+    const commentedCmds = commentedExamples.builtInCommands || [];
+    for (const cmd of commentedCmds) {
+      section += `  # - ${cmd}\n`;
+    }
+  }
+
+  return section.trimEnd();
+}
+
+/**
  * Build agentSkills section
  */
 function buildAgentSkillsSection(settings: UserSettings, options: YamlGeneratorOptions): string {
-  const agentSkills = settings.agentSkills ?? settings.slashCommands;
-  const hasBuiltInCommands = agentSkills?.builtInCommands && agentSkills.builtInCommands.length > 0;
-  const hasCustom = agentSkills?.custom && agentSkills.custom.length > 0;
+  const agentSkills = settings.agentSkills;
+  const hasAgentSkills = agentSkills && agentSkills.length > 0;
 
-  if (!hasBuiltInCommands && !hasCustom) {
+  if (!hasAgentSkills) {
     // No agent skills configured - output commented template
     return `#agentSkills:
-#  # Built-in commands (Claude, Codex, Gemini, etc.)
-#  builtInCommands:                    # List of tools to enable
-#    - claude
-#    - codex
-#    - gemini
-#
-#  # Custom slash commands from markdown files
-#  custom:
-#    - name: "{basename}"
-#      description: "{frontmatter@description}"
-#      path: ~/.claude/commands
-#      pattern: "*.md"
-#      argumentHint: "{frontmatter@argument-hint}"
-#      maxSuggestions: 20`;
+#  - name: "{basename}"
+#    description: "{frontmatter@description}"
+#    path: ~/.claude/commands
+#    pattern: "*.md"
+#    argumentHint: "{frontmatter@argument-hint}"
+#    maxSuggestions: 20`;
   }
 
   // Build the section with actual values
-  let section = 'agentSkills:\n';
+  let section = '# Custom slash commands from markdown files\n';
+  section += '# Configuration fields:\n';
+  section += '#   name: Display name template (variables: {basename}, {frontmatter@field}, {prefix})\n';
+  section += '#   description: Command description template (variables: {basename}, {frontmatter@field}, {dirname}, {dirname:N})\n';
+  section += '#   path: Directory path to search for command files\n';
+  section += '#   label: Display label for UI badge (e.g., "command", "skill", "agent")\n';
+  section += '#   color: Badge color (name: grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red, or hex: #FF5733)\n';
+  section += '#   pattern: Glob pattern to match files (e.g., "*.md", "**/*/SKILL.md")\n';
+  section += '#   prefixPattern: Pattern to extract prefix from plugin metadata\n';
+  section += '#   argumentHint: Hint for command arguments\n';
+  section += '#   maxSuggestions: Maximum number of suggestions to display\n';
+  section += '#   {dirname}: Parent directory name\n';
+  section += '#   {dirname:N}: N levels up directory name (e.g., {dirname:2} = grandparent)\n';
+  section += 'agentSkills:\n';
 
-  // Built-in commands section
-  section += '  # Built-in commands (Claude, Codex, Gemini, etc.)\n';
-  section += '  builtInCommands:                    # List of tools to enable\n';
-
-  if (hasBuiltInCommands) {
-    const tools = agentSkills!.builtInCommands!;
-    for (const cmd of tools) {
-      section += `    - ${cmd}\n`;
-    }
+  for (const entry of agentSkills) {
+    section += formatSlashCommandEntry(entry, '  ') + '\n';
   }
 
-  // Add commented examples for builtInCommands if requested
+  // Add commented examples if requested
   if (options.includeCommentedExamples) {
-    const commentedBuiltInCommands = commentedExamples.agentSkills?.builtInCommands || [];
-    for (const cmd of commentedBuiltInCommands) {
-      section += `    # - ${cmd}\n`;
-    }
-  }
-
-  // Custom section
-  section += '\n  # Custom slash commands from markdown files\n';
-  section += '  # Configuration fields:\n';
-  section += '  #   name: Display name template (variables: {basename}, {frontmatter@field}, {prefix})\n';
-  section += '  #   description: Command description template (variables: {basename}, {frontmatter@field}, {dirname}, {dirname:N})\n';
-  section += '  #   path: Directory path to search for command files\n';
-  section += '  #   label: Display label for UI badge (e.g., "command", "skill", "agent")\n';
-  section += '  #   color: Badge color (name: grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red, or hex: #FF5733)\n';
-  section += '  #   pattern: Glob pattern to match files (e.g., "*.md", "**/*/SKILL.md")\n';
-  section += '  #   prefixPattern: Pattern to extract prefix from plugin metadata\n';
-  section += '  #   argumentHint: Hint for command arguments\n';
-  section += '  #   maxSuggestions: Maximum number of suggestions to display\n';
-  section += '  #   {dirname}: Parent directory name\n';
-  section += '  #   {dirname:N}: N levels up directory name (e.g., {dirname:2} = grandparent)\n';
-  section += '  custom:\n';
-
-  if (hasCustom) {
-    const customs = agentSkills!.custom!;
-    for (const entry of customs) {
-      section += formatSlashCommandEntry(entry, '    ') + '\n';
-    }
-  }
-
-  // Add commented examples for custom if requested
-  if (options.includeCommentedExamples) {
-    const commentedCustom = commentedExamples.agentSkills?.custom || [];
-    for (const entry of commentedCustom) {
-      section += formatSlashCommandEntry(entry, '    ', true) + '\n';
+    const commentedEntries = commentedExamples.agentSkills || [];
+    for (const entry of commentedEntries) {
+      section += formatSlashCommandEntry(entry, '  ', true) + '\n';
     }
   }
 
@@ -458,6 +454,7 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
  */
 export function generateSettingsYaml(settings: UserSettings, options: YamlGeneratorOptions = {}): string {
   const extensionsSection = buildExtensionsSection(settings, options);
+  const builtInCommandsSection = buildBuiltInCommandsSection(settings, options);
   const agentSkillsSection = buildAgentSkillsSection(settings, options);
   const mentionsSection = buildMentionsSection(settings, options);
 
@@ -506,9 +503,16 @@ fileOpener:
   ${extensionsSection}
 
 # ============================================================================
+# BUILT-IN COMMANDS
+# ============================================================================
+# Built-in commands (Claude, Codex, Gemini, etc.)
+
+${builtInCommandsSection}
+
+# ============================================================================
 # AGENT SKILLS SETTINGS
 # ============================================================================
-# Configure agent skills: built-in commands and custom slash commands
+# Configure agent skills: custom slash commands from markdown files
 # Template variables: {basename}, {frontmatter@fieldName}
 
 ${agentSkillsSection}

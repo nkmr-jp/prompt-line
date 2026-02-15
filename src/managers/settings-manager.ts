@@ -211,16 +211,59 @@ class SettingsManager extends EventEmitter {
       result.mentions.mdSearch = mdSearch;
     }
 
-    // Handle agentSkills: use user settings if provided, otherwise use defaults
-    // Also support legacy slashCommands key
-    const agentSkills = userSettings.agentSkills ?? userSettings.slashCommands ?? this.defaultSettings.agentSkills;
-    if (agentSkills) {
-      // Migrate legacy builtIn -> builtInCommands within agentSkills
-      const migratedSkills = { ...agentSkills };
-      if (!migratedSkills.builtInCommands && (agentSkills as Record<string, unknown>).builtIn) {
-        migratedSkills.builtInCommands = (agentSkills as Record<string, unknown>).builtIn as string[];
+    // Handle builtInCommands at root level
+    // Priority: root builtInCommands > legacy agentSkills.builtInCommands > legacy builtInCommands.tools > defaults
+    const rawAgentSkills = userSettings.agentSkills as unknown;
+
+    const defaultBuiltInCommands = this.defaultSettings.builtInCommands ?? ['claude'];
+    const defaultAgentSkills = this.defaultSettings.agentSkills ?? [];
+
+    if (Array.isArray(userSettings.builtInCommands)) {
+      // New format: root-level builtInCommands as string[]
+      result.builtInCommands = userSettings.builtInCommands;
+    } else if (rawAgentSkills && !Array.isArray(rawAgentSkills) && typeof rawAgentSkills === 'object') {
+      // Legacy: agentSkills is an object with builtInCommands
+      const legacySkills = rawAgentSkills as Record<string, unknown>;
+      if (Array.isArray(legacySkills.builtInCommands)) {
+        result.builtInCommands = legacySkills.builtInCommands as string[];
+      } else if (Array.isArray(legacySkills.builtIn)) {
+        result.builtInCommands = legacySkills.builtIn as string[];
+      } else {
+        result.builtInCommands = defaultBuiltInCommands;
       }
-      result.agentSkills = migratedSkills;
+    } else if (userSettings.slashCommands?.builtInCommands) {
+      // Legacy: slashCommands.builtInCommands
+      result.builtInCommands = userSettings.slashCommands.builtInCommands;
+    } else if ((userSettings as Record<string, unknown>).legacyBuiltInCommands) {
+      // Legacy: builtInCommands.tools format
+      const legacy = (userSettings as Record<string, unknown>).legacyBuiltInCommands as { tools?: string[] };
+      if (legacy.tools) {
+        result.builtInCommands = legacy.tools;
+      } else {
+        result.builtInCommands = defaultBuiltInCommands;
+      }
+    } else {
+      result.builtInCommands = defaultBuiltInCommands;
+    }
+
+    // Handle agentSkills as flat array
+    // Priority: flat array > legacy object.custom > legacy slashCommands.custom > defaults
+    if (Array.isArray(userSettings.agentSkills)) {
+      // New format: agentSkills is already a flat array
+      result.agentSkills = userSettings.agentSkills;
+    } else if (rawAgentSkills && !Array.isArray(rawAgentSkills) && typeof rawAgentSkills === 'object') {
+      // Legacy: agentSkills is an object with custom property
+      const legacySkills = rawAgentSkills as Record<string, unknown>;
+      if (Array.isArray(legacySkills.custom)) {
+        result.agentSkills = legacySkills.custom as SlashCommandEntry[];
+      } else {
+        result.agentSkills = defaultAgentSkills;
+      }
+    } else if (userSettings.slashCommands?.custom) {
+      // Legacy: slashCommands.custom
+      result.agentSkills = userSettings.slashCommands.custom;
+    } else {
+      result.agentSkills = defaultAgentSkills;
     }
 
     // Handle legacy fileSearch -> mentions.fileSearch (with deep merge)
@@ -247,15 +290,13 @@ class SettingsManager extends EventEmitter {
       result.symbolSearch = userSettings.symbolSearch;
     }
 
-    // Handle legacy settings (mdSearch, builtInCommands) for backward compatibility
+    // Handle legacy settings (mdSearch) for backward compatibility
     if (userSettings.mdSearch && userSettings.mdSearch.length > 0) {
       const converted = this.convertLegacyMdSearch(userSettings.mdSearch);
 
       // If agentSkills not set, use converted custom
       if (!result.agentSkills && converted.custom.length > 0) {
-        result.agentSkills = {
-          custom: converted.custom
-        };
+        result.agentSkills = converted.custom;
       }
       // If mentions.mdSearch not set, use converted mdSearchMentions
       if (converted.mdSearchMentions.length > 0) {
@@ -269,18 +310,6 @@ class SettingsManager extends EventEmitter {
 
       // Keep legacy mdSearch for backward compatibility
       result.mdSearch = userSettings.mdSearch;
-    }
-
-    // Handle legacy builtInCommands
-    if (userSettings.builtInCommands?.tools) {
-      // Merge into agentSkills.builtInCommands
-      if (!result.agentSkills) {
-        result.agentSkills = {};
-      }
-      result.agentSkills.builtInCommands = userSettings.builtInCommands.tools;
-
-      // Keep legacy builtInCommands for backward compatibility
-      result.builtInCommands = userSettings.builtInCommands;
     }
 
     return result;
@@ -430,10 +459,10 @@ class SettingsManager extends EventEmitter {
 
   /**
    * Get built-in commands settings
-   * Returns from agentSkills.builtInCommands (new) or builtInCommands.tools (legacy)
+   * Returns from root-level builtInCommands
    */
   getBuiltInCommandsSettings(): string[] | undefined {
-    return this.currentSettings.agentSkills?.builtInCommands || this.currentSettings.builtInCommands?.tools;
+    return this.currentSettings.builtInCommands;
   }
 
   /**
@@ -449,10 +478,10 @@ class SettingsManager extends EventEmitter {
     // Convert new format to legacy MdSearchEntry format
     const entries: MdSearchEntry[] = [];
 
-    // Convert custom slash commands
+    // Convert agent skills (flat array of slash command entries)
     const agentSkills = this.currentSettings.agentSkills;
-    if (agentSkills?.custom) {
-      for (const cmd of agentSkills.custom) {
+    if (agentSkills && agentSkills.length > 0) {
+      for (const cmd of agentSkills) {
         const entry: MdSearchEntry = {
           type: 'command',
           name: cmd.name,

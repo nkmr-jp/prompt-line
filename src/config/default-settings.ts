@@ -47,52 +47,50 @@ export const defaultSettings: UserSettings = {
     },
     defaultEditor: null
   },
-  agentSkills: {
-    builtInCommands: ['claude'],
-    custom: [
-      {
-        name: '{basename}',
-        description: '{frontmatter@description}',
-        path: '~/.claude/commands',
-        label: 'command',
-        color: 'purple',
-        pattern: '*.md',
-        argumentHint: '{frontmatter@argument-hint}',
-        maxSuggestions: 20
-      },
-      {
-        name: '{frontmatter@name}',
-        description: '{frontmatter@description}',
-        path: '~/.claude/skills',
-        label: 'skill',
-        color: 'purple',
-        pattern: '**/*/SKILL.md',
-        maxSuggestions: 20
-      },
-      {
-        name: '{prefix}:{basename}',
-        description: '{frontmatter@description}',
-        path: '~/.claude/plugins/cache',
-        pattern: '**/commands/*.md',
-        prefixPattern: '**/.claude-plugin/*.json@name',
-        label: 'command',
-        color: 'teal',
-        argumentHint: '{frontmatter@argument-hint}',
-        maxSuggestions: 20
-      },
-      {
-        name: '{prefix}:{frontmatter@name}',
-        description: '{frontmatter@description}',
-        path: '~/.claude/plugins/cache',
-        pattern: '**/*/SKILL.md',
-        prefixPattern: '**/.claude-plugin/*.json@name',
-        label: 'skill',
-        color: 'teal',
-        argumentHint: '{frontmatter@argument-hint}',
-        maxSuggestions: 20
-      }
-    ]
-  },
+  builtInCommands: ['claude'],
+  agentSkills: [
+    {
+      name: '{basename}',
+      description: '{frontmatter@description}',
+      path: '~/.claude/commands',
+      label: 'command',
+      color: 'purple',
+      pattern: '*.md',
+      argumentHint: '{frontmatter@argument-hint}',
+      maxSuggestions: 20
+    },
+    {
+      name: '{frontmatter@name}',
+      description: '{frontmatter@description}',
+      path: '~/.claude/skills',
+      label: 'skill',
+      color: 'purple',
+      pattern: '**/*/SKILL.md',
+      maxSuggestions: 20
+    },
+    {
+      name: '{prefix}:{basename}',
+      description: '{frontmatter@description}',
+      path: '~/.claude/plugins/cache',
+      pattern: '**/commands/*.md',
+      prefixPattern: '**/.claude-plugin/*.json@name',
+      label: 'command',
+      color: 'teal',
+      argumentHint: '{frontmatter@argument-hint}',
+      maxSuggestions: 20
+    },
+    {
+      name: '{prefix}:{frontmatter@name}',
+      description: '{frontmatter@description}',
+      path: '~/.claude/plugins/cache',
+      pattern: '**/*/SKILL.md',
+      prefixPattern: '**/.claude-plugin/*.json@name',
+      label: 'skill',
+      color: 'teal',
+      argumentHint: '{frontmatter@argument-hint}',
+      maxSuggestions: 20
+    }
+  ],
   mentions: {
     fileSearch: {
       respectGitignore: true,
@@ -160,16 +158,14 @@ export const defaultSettings: UserSettings = {
  * understand available options.
  */
 export const commentedExamples = {
-  agentSkills: {
-    builtInCommands: ['openclaw', 'codex', 'gemini'],
-    custom: [] as Array<{
-      name: string;
-      description: string;
-      path: string;
-      pattern: string;
-      argumentHint?: string;
-    }>
-  },
+  builtInCommands: ['openclaw', 'codex', 'gemini'],
+  agentSkills: [] as Array<{
+    name: string;
+    description: string;
+    path: string;
+    pattern: string;
+    argumentHint?: string;
+  }>,
   fileOpener: {
     extensions: {
       go: 'Goland',

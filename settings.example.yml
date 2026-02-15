@@ -47,66 +47,69 @@ fileOpener:
     # md: "Typora"
 
 # ============================================================================
+# BUILT-IN COMMANDS
+# ============================================================================
+# Built-in commands (Claude, Codex, Gemini, etc.)
+
+builtInCommands:                      # List of tools to enable
+  - claude
+  # - openclaw
+  # - codex
+  # - gemini
+
+# ============================================================================
 # AGENT SKILLS SETTINGS
 # ============================================================================
-# Configure agent skills: built-in commands and custom slash commands
+# Configure agent skills: custom slash commands from markdown files
 # Template variables: {basename}, {frontmatter@fieldName}
 
+# Custom slash commands from markdown files
+# Configuration fields:
+#   name: Display name template (variables: {basename}, {frontmatter@field}, {prefix})
+#   description: Command description template (variables: {basename}, {frontmatter@field}, {dirname}, {dirname:N})
+#   path: Directory path to search for command files
+#   label: Display label for UI badge (e.g., "command", "skill", "agent")
+#   color: Badge color (name: grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red, or hex: #FF5733)
+#   pattern: Glob pattern to match files (e.g., "*.md", "**/*/SKILL.md")
+#   prefixPattern: Pattern to extract prefix from plugin metadata
+#   argumentHint: Hint for command arguments
+#   maxSuggestions: Maximum number of suggestions to display
+#   {dirname}: Parent directory name
+#   {dirname:N}: N levels up directory name (e.g., {dirname:2} = grandparent)
 agentSkills:
-  # Built-in commands (Claude, Codex, Gemini, etc.)
-  builtInCommands:                    # List of tools to enable
-    - claude
-    # - openclaw
-    # - codex
-    # - gemini
-
-  # Custom slash commands from markdown files
-  # Configuration fields:
-  #   name: Display name template (variables: {basename}, {frontmatter@field}, {prefix})
-  #   description: Command description template (variables: {basename}, {frontmatter@field}, {dirname}, {dirname:N})
-  #   path: Directory path to search for command files
-  #   label: Display label for UI badge (e.g., "command", "skill", "agent")
-  #   color: Badge color (name: grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red, or hex: #FF5733)
-  #   pattern: Glob pattern to match files (e.g., "*.md", "**/*/SKILL.md")
-  #   prefixPattern: Pattern to extract prefix from plugin metadata
-  #   argumentHint: Hint for command arguments
-  #   maxSuggestions: Maximum number of suggestions to display
-  #   {dirname}: Parent directory name
-  #   {dirname:N}: N levels up directory name (e.g., {dirname:2} = grandparent)
-  custom:
-    - name: "{basename}"
-      description: "{frontmatter@description}"
-      path: ~/.claude/commands
-      label: "command"
-      color: "purple"
-      pattern: "*.md"
-      argumentHint: "{frontmatter@argument-hint}"
-      maxSuggestions: 20
-    - name: "{frontmatter@name}"
-      description: "{frontmatter@description}"
-      path: ~/.claude/skills
-      label: "skill"
-      color: "purple"
-      pattern: "**/*/SKILL.md"
-      maxSuggestions: 20
-    - name: "{prefix}:{basename}"
-      description: "{frontmatter@description}"
-      path: ~/.claude/plugins/cache
-      label: "command"
-      color: "teal"
-      pattern: "**/commands/*.md"
-      prefixPattern: "**/.claude-plugin/*.json@name"
-      argumentHint: "{frontmatter@argument-hint}"
-      maxSuggestions: 20
-    - name: "{prefix}:{frontmatter@name}"
-      description: "{frontmatter@description}"
-      path: ~/.claude/plugins/cache
-      label: "skill"
-      color: "teal"
-      pattern: "**/*/SKILL.md"
-      prefixPattern: "**/.claude-plugin/*.json@name"
-      argumentHint: "{frontmatter@argument-hint}"
-      maxSuggestions: 20
+  - name: "{basename}"
+    description: "{frontmatter@description}"
+    path: ~/.claude/commands
+    label: "command"
+    color: "purple"
+    pattern: "*.md"
+    argumentHint: "{frontmatter@argument-hint}"
+    maxSuggestions: 20
+  - name: "{frontmatter@name}"
+    description: "{frontmatter@description}"
+    path: ~/.claude/skills
+    label: "skill"
+    color: "purple"
+    pattern: "**/*/SKILL.md"
+    maxSuggestions: 20
+  - name: "{prefix}:{basename}"
+    description: "{frontmatter@description}"
+    path: ~/.claude/plugins/cache
+    label: "command"
+    color: "teal"
+    pattern: "**/commands/*.md"
+    prefixPattern: "**/.claude-plugin/*.json@name"
+    argumentHint: "{frontmatter@argument-hint}"
+    maxSuggestions: 20
+  - name: "{prefix}:{frontmatter@name}"
+    description: "{frontmatter@description}"
+    path: ~/.claude/plugins/cache
+    label: "skill"
+    color: "teal"
+    pattern: "**/*/SKILL.md"
+    prefixPattern: "**/.claude-plugin/*.json@name"
+    argumentHint: "{frontmatter@argument-hint}"
+    maxSuggestions: 20
 
 # ============================================================================
 # MENTION SETTINGS (@ mentions)

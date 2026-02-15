@@ -139,7 +139,7 @@ window:
     it('should return default settings', () => {
       const settings = settingsManager.getSettings();
 
-      // includes all default values: shortcuts, window, fileOpener, agentSkills, mentions
+      // includes all default values: shortcuts, window, fileOpener, builtInCommands, agentSkills, mentions
       expect(settings).toEqual({
         shortcuts: {
           main: 'Cmd+Shift+Space',
@@ -161,52 +161,50 @@ window:
           },
           defaultEditor: null
         },
-        agentSkills: {
-          builtInCommands: ['claude'],
-          custom: [
-            {
-              name: '{basename}',
-              description: '{frontmatter@description}',
-              path: '~/.claude/commands',
-              label: 'command',
-              color: 'purple',
-              pattern: '*.md',
-              argumentHint: '{frontmatter@argument-hint}',
-              maxSuggestions: 20
-            },
-            {
-              name: '{frontmatter@name}',
-              description: '{frontmatter@description}',
-              path: '~/.claude/skills',
-              label: 'skill',
-              color: 'purple',
-              pattern: '**/*/SKILL.md',
-              maxSuggestions: 20
-            },
-            {
-              name: '{prefix}:{basename}',
-              description: '{frontmatter@description}',
-              path: '~/.claude/plugins/cache',
-              pattern: '**/commands/*.md',
-              prefixPattern: '**/.claude-plugin/*.json@name',
-              label: 'command',
-              color: 'teal',
-              argumentHint: '{frontmatter@argument-hint}',
-              maxSuggestions: 20
-            },
-            {
-              name: '{prefix}:{frontmatter@name}',
-              description: '{frontmatter@description}',
-              path: '~/.claude/plugins/cache',
-              pattern: '**/*/SKILL.md',
-              prefixPattern: '**/.claude-plugin/*.json@name',
-              label: 'skill',
-              color: 'teal',
-              argumentHint: '{frontmatter@argument-hint}',
-              maxSuggestions: 20
-            }
-          ]
-        },
+        builtInCommands: ['claude'],
+        agentSkills: [
+          {
+            name: '{basename}',
+            description: '{frontmatter@description}',
+            path: '~/.claude/commands',
+            label: 'command',
+            color: 'purple',
+            pattern: '*.md',
+            argumentHint: '{frontmatter@argument-hint}',
+            maxSuggestions: 20
+          },
+          {
+            name: '{frontmatter@name}',
+            description: '{frontmatter@description}',
+            path: '~/.claude/skills',
+            label: 'skill',
+            color: 'purple',
+            pattern: '**/*/SKILL.md',
+            maxSuggestions: 20
+          },
+          {
+            name: '{prefix}:{basename}',
+            description: '{frontmatter@description}',
+            path: '~/.claude/plugins/cache',
+            pattern: '**/commands/*.md',
+            prefixPattern: '**/.claude-plugin/*.json@name',
+            label: 'command',
+            color: 'teal',
+            argumentHint: '{frontmatter@argument-hint}',
+            maxSuggestions: 20
+          },
+          {
+            name: '{prefix}:{frontmatter@name}',
+            description: '{frontmatter@description}',
+            path: '~/.claude/plugins/cache',
+            pattern: '**/*/SKILL.md',
+            prefixPattern: '**/.claude-plugin/*.json@name',
+            label: 'skill',
+            color: 'teal',
+            argumentHint: '{frontmatter@argument-hint}',
+            maxSuggestions: 20
+          }
+        ],
         mentions: {
           fileSearch: {
             respectGitignore: true,
@@ -345,7 +343,7 @@ window:
     it('should return default settings copy', () => {
       const defaults = settingsManager.getDefaultSettings();
 
-      // includes all default values: shortcuts, window, fileOpener, agentSkills, mentions
+      // includes all default values: shortcuts, window, fileOpener, builtInCommands, agentSkills, mentions
       expect(defaults).toEqual({
         shortcuts: {
           main: 'Cmd+Shift+Space',
@@ -367,52 +365,50 @@ window:
           },
           defaultEditor: null
         },
-        agentSkills: {
-          builtInCommands: ['claude'],
-          custom: [
-            {
-              name: '{basename}',
-              description: '{frontmatter@description}',
-              path: '~/.claude/commands',
-              label: 'command',
-              color: 'purple',
-              pattern: '*.md',
-              argumentHint: '{frontmatter@argument-hint}',
-              maxSuggestions: 20
-            },
-            {
-              name: '{frontmatter@name}',
-              description: '{frontmatter@description}',
-              path: '~/.claude/skills',
-              label: 'skill',
-              color: 'purple',
-              pattern: '**/*/SKILL.md',
-              maxSuggestions: 20
-            },
-            {
-              name: '{prefix}:{basename}',
-              description: '{frontmatter@description}',
-              path: '~/.claude/plugins/cache',
-              pattern: '**/commands/*.md',
-              prefixPattern: '**/.claude-plugin/*.json@name',
-              label: 'command',
-              color: 'teal',
-              argumentHint: '{frontmatter@argument-hint}',
-              maxSuggestions: 20
-            },
-            {
-              name: '{prefix}:{frontmatter@name}',
-              description: '{frontmatter@description}',
-              path: '~/.claude/plugins/cache',
-              pattern: '**/*/SKILL.md',
-              prefixPattern: '**/.claude-plugin/*.json@name',
-              label: 'skill',
-              color: 'teal',
-              argumentHint: '{frontmatter@argument-hint}',
-              maxSuggestions: 20
-            }
-          ]
-        },
+        builtInCommands: ['claude'],
+        agentSkills: [
+          {
+            name: '{basename}',
+            description: '{frontmatter@description}',
+            path: '~/.claude/commands',
+            label: 'command',
+            color: 'purple',
+            pattern: '*.md',
+            argumentHint: '{frontmatter@argument-hint}',
+            maxSuggestions: 20
+          },
+          {
+            name: '{frontmatter@name}',
+            description: '{frontmatter@description}',
+            path: '~/.claude/skills',
+            label: 'skill',
+            color: 'purple',
+            pattern: '**/*/SKILL.md',
+            maxSuggestions: 20
+          },
+          {
+            name: '{prefix}:{basename}',
+            description: '{frontmatter@description}',
+            path: '~/.claude/plugins/cache',
+            pattern: '**/commands/*.md',
+            prefixPattern: '**/.claude-plugin/*.json@name',
+            label: 'command',
+            color: 'teal',
+            argumentHint: '{frontmatter@argument-hint}',
+            maxSuggestions: 20
+          },
+          {
+            name: '{prefix}:{frontmatter@name}',
+            description: '{frontmatter@description}',
+            path: '~/.claude/plugins/cache',
+            pattern: '**/*/SKILL.md',
+            prefixPattern: '**/.claude-plugin/*.json@name',
+            label: 'skill',
+            color: 'teal',
+            argumentHint: '{frontmatter@argument-hint}',
+            maxSuggestions: 20
+          }
+        ],
         mentions: {
           fileSearch: {
             respectGitignore: true,
@@ -591,25 +587,30 @@ window:
       });
     });
 
-    it('should migrate builtInCommands.tools to agentSkills.builtInCommands', async () => {
-      // User has builtInCommands: { tools: ['claude'] }
-      // Should convert to agentSkills.builtInCommands: ['claude']
-      const userSettings: Partial<UserSettings> = {
-        builtInCommands: {
+    it('should migrate legacy builtInCommands.tools to root-level builtInCommands', async () => {
+      // Simulate a fresh settings load where user only has legacyBuiltInCommands (no root builtInCommands)
+      // This tests the mergeWithDefaults migration logic directly
+      const legacyManager = new SettingsManager();
+
+      // Mock readFile to return YAML that js-yaml.load will parse
+      // We need to simulate a user config that only has legacyBuiltInCommands
+      const yamlLoad = require('js-yaml').load;
+      yamlLoad.mockReturnValueOnce({
+        shortcuts: { main: 'Cmd+Shift+Space', paste: 'Cmd+Enter', close: 'Escape' },
+        window: { position: 'active-text-field', width: 600, height: 300 },
+        legacyBuiltInCommands: {
           tools: ['claude', 'custom-tool']
         }
-      };
-
-      await settingsManager.updateSettings(userSettings);
-      const settings = settingsManager.getSettings();
-
-      // Check that builtInCommands.tools was migrated to agentSkills.builtInCommands
-      expect(settings.agentSkills?.builtInCommands).toEqual(['claude', 'custom-tool']);
-
-      // Check that legacy builtInCommands is kept for backward compatibility
-      expect(settings.builtInCommands).toEqual({
-        tools: ['claude', 'custom-tool']
       });
+      mockedFs.readFile.mockResolvedValueOnce('mock yaml content');
+      mockedFs.mkdir.mockResolvedValue(undefined);
+      mockedFs.writeFile.mockResolvedValue();
+
+      await legacyManager.init();
+      const settings = legacyManager.getSettings();
+
+      // Check that legacy builtInCommands.tools was migrated to root-level builtInCommands
+      expect(settings.builtInCommands).toEqual(['claude', 'custom-tool']);
     });
 
     it('should deep merge multiple fileSearch properties', async () => {
@@ -703,21 +704,19 @@ window:
   });
 
   describe('getMdSearchEntries', () => {
-    it('should convert agentSkills.custom with enable/disable filters', async () => {
+    it('should convert agentSkills with enable/disable filters', async () => {
       const userSettings: Partial<UserSettings> = {
-        agentSkills: {
-          custom: [
-            {
-              name: '{prefix}:{basename}',
-              description: '{frontmatter@description}',
-              path: '~/.claude/plugins',
-              pattern: '**/commands/*.md',
-              prefixPattern: '**/.claude-plugin/plugin.json@name',
-              enable: ['ralph-loop:help*'],
-              disable: ['ralph-loop:cancel']
-            }
-          ]
-        }
+        agentSkills: [
+          {
+            name: '{prefix}:{basename}',
+            description: '{frontmatter@description}',
+            path: '~/.claude/plugins',
+            pattern: '**/commands/*.md',
+            prefixPattern: '**/.claude-plugin/plugin.json@name',
+            enable: ['ralph-loop:help*'],
+            disable: ['ralph-loop:cancel']
+          }
+        ]
       };
 
       await settingsManager.updateSettings(userSettings);

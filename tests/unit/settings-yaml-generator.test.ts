@@ -73,9 +73,11 @@ describe('settings-yaml-generator', () => {
         expect(result).toContain('#extensions:');
         expect(result).toContain('#  ts: "WebStorm"');
 
+        // Should have commented builtInCommands section
+        expect(result).toContain('#builtInCommands:');
+
         // Should have commented agentSkills section
         expect(result).toContain('#agentSkills:');
-        expect(result).toContain('#  builtInCommands:');
 
         // Should have commented mentions section
         expect(result).toContain('#mentions:');
@@ -107,19 +109,17 @@ describe('settings-yaml-generator', () => {
               md: 'Typora'
             }
           },
-          agentSkills: {
-            builtInCommands: ['claude', 'codex'],
-            custom: [
-              {
-                name: 'test-{basename}',
-                description: 'Test command',
-                path: '~/.claude/test',
-                pattern: '*.md',
-                argumentHint: 'Enter argument',
-                maxSuggestions: 10
-              }
-            ]
-          },
+          builtInCommands: ['claude', 'codex'],
+          agentSkills: [
+            {
+              name: 'test-{basename}',
+              description: 'Test command',
+              path: '~/.claude/test',
+              pattern: '*.md',
+              argumentHint: 'Enter argument',
+              maxSuggestions: 10
+            }
+          ],
           mentions: {
             fileSearch: {
               respectGitignore: false,
@@ -235,7 +235,7 @@ describe('settings-yaml-generator', () => {
         expect(result).toContain('# go: "Goland"');
         expect(result).toContain('# md: "Typora"');
 
-        // Should include commented agent skills examples (builtInCommands only, custom has no commented examples)
+        // Should include commented builtInCommands examples
         expect(result).toContain('# - codex');
         expect(result).toContain('# - gemini');
       });
@@ -268,10 +268,8 @@ describe('settings-yaml-generator', () => {
         const settings: UserSettings = {
           shortcuts: defaultSettings.shortcuts,
           window: defaultSettings.window,
-          agentSkills: {
-            builtInCommands: [],
-            custom: []
-          },
+          builtInCommands: [],
+          agentSkills: [],
           mentions: {
             fileSearch: {
               respectGitignore: true,
@@ -366,17 +364,15 @@ describe('settings-yaml-generator', () => {
         const settings: UserSettings = {
           shortcuts: defaultSettings.shortcuts,
           window: defaultSettings.window,
-          agentSkills: {
-            builtInCommands: ['claude'],
-            custom: [
-              {
-                name: 'test: command',
-                description: 'Command with "quotes" and special chars',
-                path: '~/path/with spaces/commands',
-                pattern: '*.md'
-              }
-            ]
-          }
+          builtInCommands: ['claude'],
+          agentSkills: [
+            {
+              name: 'test: command',
+              description: 'Command with "quotes" and special chars',
+              path: '~/path/with spaces/commands',
+              pattern: '*.md'
+            }
+          ]
         };
 
         const result = generateSettingsYaml(settings);
@@ -390,17 +386,15 @@ describe('settings-yaml-generator', () => {
         const settings: UserSettings = {
           shortcuts: defaultSettings.shortcuts,
           window: defaultSettings.window,
-          agentSkills: {
-            builtInCommands: ['claude'],
-            custom: [
-              {
-                name: 'test',
-                description: '',
-                path: '~/.claude/commands',
-                pattern: '*.md'
-              }
-            ]
-          }
+          builtInCommands: ['claude'],
+          agentSkills: [
+            {
+              name: 'test',
+              description: '',
+              path: '~/.claude/commands',
+              pattern: '*.md'
+            }
+          ]
         };
 
         const result = generateSettingsYaml(settings);
@@ -431,10 +425,9 @@ describe('settings-yaml-generator', () => {
 
         const result = generateSettingsYaml(settings);
 
-        // Should have commented agentSkills template
+        // Should have commented builtInCommands and agentSkills templates
+        expect(result).toContain('#builtInCommands:');
         expect(result).toContain('#agentSkills:');
-        expect(result).toContain('#  builtInCommands:');
-        expect(result).toContain('#  custom:');
       });
 
       test('should handle missing mentions section', () => {
@@ -452,21 +445,20 @@ describe('settings-yaml-generator', () => {
         expect(result).toContain('#  mdSearch:');
       });
 
-      test('should handle partially populated agentSkills', () => {
+      test('should handle builtInCommands without agentSkills', () => {
         const settings: UserSettings = {
           shortcuts: defaultSettings.shortcuts,
           window: defaultSettings.window,
-          agentSkills: {
-            builtInCommands: ['claude']
-            // No custom commands
-          }
+          builtInCommands: ['claude']
+          // No agentSkills
         };
 
         const result = generateSettingsYaml(settings);
 
         expect(result).toContain('builtInCommands:');
         expect(result).toContain('- claude');
-        expect(result).toContain('custom:');
+        // agentSkills should be commented since not provided
+        expect(result).toContain('#agentSkills:');
       });
     });
 
@@ -507,19 +499,17 @@ describe('settings-yaml-generator', () => {
               md: 'Typora'
             }
           },
-          agentSkills: {
-            builtInCommands: ['claude', 'codex'],
-            custom: [
-              {
-                name: '{basename}',
-                description: 'Test',
-                path: '~/.claude/commands',
-                pattern: '*.md',
-                argumentHint: 'hint',
-                maxSuggestions: 20
-              }
-            ]
-          },
+          builtInCommands: ['claude', 'codex'],
+          agentSkills: [
+            {
+              name: '{basename}',
+              description: 'Test',
+              path: '~/.claude/commands',
+              pattern: '*.md',
+              argumentHint: 'hint',
+              maxSuggestions: 20
+            }
+          ],
           mentions: {
             fileSearch: {
               respectGitignore: true,
@@ -561,7 +551,7 @@ describe('settings-yaml-generator', () => {
         expect(parsed.shortcuts.main).toBe('Alt+Space');
         expect(parsed.window.position).toBe('cursor');
         expect(parsed.fileOpener.defaultEditor).toBe('VSCode');
-        expect(parsed.agentSkills.builtInCommands).toEqual(['claude', 'codex']);
+        expect(parsed.builtInCommands).toEqual(['claude', 'codex']);
       });
 
       test('should preserve data types after round-trip parsing', () => {
@@ -621,6 +611,7 @@ describe('settings-yaml-generator', () => {
         expect(result).toContain('# KEYBOARD SHORTCUTS');
         expect(result).toContain('# WINDOW SETTINGS');
         expect(result).toContain('# FILE OPENER SETTINGS');
+        expect(result).toContain('# BUILT-IN COMMANDS');
         expect(result).toContain('# AGENT SKILLS SETTINGS');
         expect(result).toContain('# MENTION SETTINGS');
       });
@@ -629,28 +620,25 @@ describe('settings-yaml-generator', () => {
         const settings: UserSettings = {
           shortcuts: defaultSettings.shortcuts,
           window: defaultSettings.window,
-          agentSkills: {
-            builtInCommands: ['claude'],
-            custom: [
-              {
-                name: 'test',
-                description: 'desc',
-                path: '~/.claude/commands',
-                pattern: '*.md'
-              }
-            ]
-          }
+          builtInCommands: ['claude'],
+          agentSkills: [
+            {
+              name: 'test',
+              description: 'desc',
+              path: '~/.claude/commands',
+              pattern: '*.md'
+            }
+          ]
         };
 
         const result = generateSettingsYaml(settings);
 
         // Check indentation patterns
+        expect(result).toContain('builtInCommands:');
+        expect(result).toContain('  - claude');
         expect(result).toContain('agentSkills:');
-        expect(result).toContain('  builtInCommands:');
-        expect(result).toContain('    - claude');
-        expect(result).toContain('  custom:');
-        expect(result).toContain('    - name: "test"');
-        expect(result).toContain('      description: "desc"');
+        expect(result).toContain('  - name: "test"');
+        expect(result).toContain('    description: "desc"');
       });
 
       test('should include inline comments for important fields', () => {
