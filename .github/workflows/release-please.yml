@@ -15,8 +15,6 @@ jobs:
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
-        with:
-          release-type: node
 
       # Checkout and run tests only if a release was created
       - name: Checkout code
