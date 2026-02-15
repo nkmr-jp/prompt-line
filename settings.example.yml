@@ -47,14 +47,14 @@ fileOpener:
     # md: "Typora"
 
 # ============================================================================
-# SLASH COMMAND SETTINGS
+# AGENT SKILLS SETTINGS
 # ============================================================================
-# Configure slash commands (/) for quick actions
+# Configure agent skills: built-in commands and custom slash commands
 # Template variables: {basename}, {frontmatter@fieldName}
 
-slashCommands:
+agentSkills:
   # Built-in commands (Claude, Codex, Gemini, etc.)
-  builtIn:                            # List of tools to enable
+  builtInCommands:                    # List of tools to enable
     - claude
     # - openclaw
     # - codex

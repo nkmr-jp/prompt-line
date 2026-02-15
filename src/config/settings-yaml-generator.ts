@@ -199,17 +199,18 @@ function buildExtensionsSection(settings: UserSettings, options: YamlGeneratorOp
 }
 
 /**
- * Build slashCommands section
+ * Build agentSkills section
  */
-function buildSlashCommandsSection(settings: UserSettings, options: YamlGeneratorOptions): string {
-  const hasBuiltIn = settings.slashCommands?.builtIn && settings.slashCommands.builtIn.length > 0;
-  const hasCustom = settings.slashCommands?.custom && settings.slashCommands.custom.length > 0;
+function buildAgentSkillsSection(settings: UserSettings, options: YamlGeneratorOptions): string {
+  const agentSkills = settings.agentSkills ?? settings.slashCommands;
+  const hasBuiltInCommands = agentSkills?.builtInCommands && agentSkills.builtInCommands.length > 0;
+  const hasCustom = agentSkills?.custom && agentSkills.custom.length > 0;
 
-  if (!hasBuiltIn && !hasCustom) {
-    // No slash commands configured - output commented template
-    return `#slashCommands:
+  if (!hasBuiltInCommands && !hasCustom) {
+    // No agent skills configured - output commented template
+    return `#agentSkills:
 #  # Built-in commands (Claude, Codex, Gemini, etc.)
-#  builtIn:                            # List of tools to enable
+#  builtInCommands:                    # List of tools to enable
 #    - claude
 #    - codex
 #    - gemini
@@ -225,23 +226,23 @@ function buildSlashCommandsSection(settings: UserSettings, options: YamlGenerato
   }
 
   // Build the section with actual values
-  let section = 'slashCommands:\n';
+  let section = 'agentSkills:\n';
 
-  // Built-in section
+  // Built-in commands section
   section += '  # Built-in commands (Claude, Codex, Gemini, etc.)\n';
-  section += '  builtIn:                            # List of tools to enable\n';
+  section += '  builtInCommands:                    # List of tools to enable\n';
 
-  if (hasBuiltIn) {
-    const tools = settings.slashCommands!.builtIn!;
+  if (hasBuiltInCommands) {
+    const tools = agentSkills!.builtInCommands!;
     for (const cmd of tools) {
       section += `    - ${cmd}\n`;
     }
   }
 
-  // Add commented examples for builtIn if requested
+  // Add commented examples for builtInCommands if requested
   if (options.includeCommentedExamples) {
-    const commentedBuiltIn = commentedExamples.slashCommands?.builtIn || [];
-    for (const cmd of commentedBuiltIn) {
+    const commentedBuiltInCommands = commentedExamples.agentSkills?.builtInCommands || [];
+    for (const cmd of commentedBuiltInCommands) {
       section += `    # - ${cmd}\n`;
     }
   }
@@ -263,7 +264,7 @@ function buildSlashCommandsSection(settings: UserSettings, options: YamlGenerato
   section += '  custom:\n';
 
   if (hasCustom) {
-    const customs = settings.slashCommands!.custom!;
+    const customs = agentSkills!.custom!;
     for (const entry of customs) {
       section += formatSlashCommandEntry(entry, '    ') + '\n';
     }
@@ -271,7 +272,7 @@ function buildSlashCommandsSection(settings: UserSettings, options: YamlGenerato
 
   // Add commented examples for custom if requested
   if (options.includeCommentedExamples) {
-    const commentedCustom = commentedExamples.slashCommands?.custom || [];
+    const commentedCustom = commentedExamples.agentSkills?.custom || [];
     for (const entry of commentedCustom) {
       section += formatSlashCommandEntry(entry, '    ', true) + '\n';
     }
@@ -457,7 +458,7 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
  */
 export function generateSettingsYaml(settings: UserSettings, options: YamlGeneratorOptions = {}): string {
   const extensionsSection = buildExtensionsSection(settings, options);
-  const slashCommandsSection = buildSlashCommandsSection(settings, options);
+  const agentSkillsSection = buildAgentSkillsSection(settings, options);
   const mentionsSection = buildMentionsSection(settings, options);
 
   return `# Prompt Line Settings Configuration
@@ -505,12 +506,12 @@ fileOpener:
   ${extensionsSection}
 
 # ============================================================================
-# SLASH COMMAND SETTINGS
+# AGENT SKILLS SETTINGS
 # ============================================================================
-# Configure slash commands (/) for quick actions
+# Configure agent skills: built-in commands and custom slash commands
 # Template variables: {basename}, {frontmatter@fieldName}
 
-${slashCommandsSection}
+${agentSkillsSection}
 
 # ============================================================================
 # MENTION SETTINGS (@ mentions)

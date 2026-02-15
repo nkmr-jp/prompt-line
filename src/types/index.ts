@@ -55,9 +55,11 @@ export type {
   SymbolSearchUserSettings,
   MentionsSettings,
   MentionEntry,
-  // Slash command settings types
-  SlashCommandsSettings,
+  // Agent skills settings types
+  AgentSkillsSettings,
   SlashCommandEntry,
+  // Legacy alias
+  SlashCommandsSettings,
   // Legacy types (for backward compatibility)
   MdSearchType,
   MdSearchEntry,

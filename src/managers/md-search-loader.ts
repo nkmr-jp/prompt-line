@@ -3,7 +3,7 @@ import path from 'path';
 import os from 'os';
 import { logger } from '../utils/utils';
 import type { MdSearchEntry, MdSearchItem, MdSearchType, UserSettings } from '../types';
-import { resolveTemplate, getBasename, getDirname, parseFrontmatter, extractRawFrontmatter } from '../lib/template-resolver';
+import { resolveTemplate, getBasename, getDirname, parseFrontmatter, extractRawFrontmatter, parseFirstHeading, parseJsonContent } from '../lib/template-resolver';
 import { getDefaultMdSearchConfig, DEFAULT_MAX_SUGGESTIONS, DEFAULT_SORT_ORDER } from '../lib/default-md-search-config';
 import { CACHE_TTL } from '../constants';
 import { resolvePrefix } from '../lib/prefix-resolver';
@@ -66,8 +66,8 @@ class MdSearchLoader {
     let items = allItems.filter(item => item.type === type);
 
     // グローバル enable/disable フィルタを適用
-    if (type === 'command' && this.settings?.slashCommands) {
-      const { enable, disable } = this.settings.slashCommands;
+    if (type === 'command' && (this.settings?.agentSkills ?? this.settings?.slashCommands)) {
+      const { enable, disable } = (this.settings!.agentSkills ?? this.settings!.slashCommands)!;
       items = items.filter(item =>
         isCommandEnabled(item.name, enable, disable)
       );
@@ -356,8 +356,9 @@ class MdSearchLoader {
   ): Promise<MdSearchItem | null> {
     try {
       const content = await fs.readFile(filePath, 'utf8');
-      const frontmatter = parseFrontmatter(content);
-      const rawFrontmatter = extractRawFrontmatter(content);
+      const isJsonFile = filePath.endsWith('.json');
+      const frontmatter = isJsonFile ? {} : parseFrontmatter(content);
+      const rawFrontmatter = isJsonFile ? '' : extractRawFrontmatter(content);
       const basename = getBasename(filePath);
 
       // Expand path for prefix resolution
@@ -370,7 +371,9 @@ class MdSearchLoader {
       }
 
       const dirname = getDirname(filePath);
-      const context = { basename, frontmatter, prefix, dirname, filePath };
+      const heading = isJsonFile ? '' : parseFirstHeading(content);
+      const jsonData = isJsonFile ? parseJsonContent(content) : undefined;
+      const context = { basename, frontmatter, prefix, dirname, filePath, heading, ...(jsonData && { jsonData }) };
 
       const item: MdSearchItem = {
         name: resolveTemplate(entry.name, context),

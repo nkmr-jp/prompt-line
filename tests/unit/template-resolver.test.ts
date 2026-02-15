@@ -4,7 +4,8 @@ import {
   getBasename,
   getDirname,
   parseFrontmatter,
-  extractRawFrontmatter
+  extractRawFrontmatter,
+  parseFirstHeading
 } from '../../src/lib/template-resolver';
 
 describe('resolveTemplate', () => {
@@ -113,6 +114,37 @@ describe('resolveTemplate', () => {
       expect(resolveTemplate('{dirname:10}', {
         basename: 'file', frontmatter: {}, filePath: '/a/file.md'
       })).toBe('');
+    });
+  });
+
+  describe('resolveTemplate with heading', () => {
+    test('{heading}を置換できる', () => {
+      const template = '{heading}';
+      const context = {
+        basename: 'test',
+        frontmatter: {},
+        heading: 'My Document Title'
+      };
+      expect(resolveTemplate(template, context)).toBe('My Document Title');
+    });
+
+    test('headingがundefinedの場合は空文字に置換される', () => {
+      const template = '{heading}';
+      const context = {
+        basename: 'test',
+        frontmatter: {}
+      };
+      expect(resolveTemplate(template, context)).toBe('');
+    });
+
+    test('{heading}と他の変数を組み合わせて使用できる', () => {
+      const template = '{basename} - {heading}';
+      const context = {
+        basename: 'doc',
+        frontmatter: {},
+        heading: 'Introduction'
+      };
+      expect(resolveTemplate(template, context)).toBe('doc - Introduction');
     });
   });
 
@@ -252,5 +284,50 @@ content`;
 ---
 content`;
     expect(extractRawFrontmatter(content)).toBe('');
+  });
+});
+
+describe('parseFirstHeading', () => {
+  test('frontmatter付きコンテンツから最初の#headingを取得できる', () => {
+    const content = `---
+description: "Some description"
+---
+# My Document Title
+
+Content here...`;
+    expect(parseFirstHeading(content)).toBe('My Document Title');
+  });
+
+  test('frontmatterなしのコンテンツから最初の#headingを取得できる', () => {
+    const content = `# Simple Doc
+Content without frontmatter`;
+    expect(parseFirstHeading(content)).toBe('Simple Doc');
+  });
+
+  test('headingがない場合は空文字を返す', () => {
+    const content = `---
+name: test
+---
+No heading here`;
+    expect(parseFirstHeading(content)).toBe('');
+  });
+
+  test('##以上のheadingは無視して#のみ取得する', () => {
+    const content = `## Sub heading
+### Another heading
+# First H1`;
+    expect(parseFirstHeading(content)).toBe('First H1');
+  });
+
+  test('frontmatter内の#行は無視する', () => {
+    const content = `---
+comment: "# not a heading"
+---
+# Real Heading`;
+    expect(parseFirstHeading(content)).toBe('Real Heading');
+  });
+
+  test('空のコンテンツは空文字を返す', () => {
+    expect(parseFirstHeading('')).toBe('');
   });
 });

@@ -47,8 +47,8 @@ export const defaultSettings: UserSettings = {
     },
     defaultEditor: null
   },
-  slashCommands: {
-    builtIn: ['claude'],
+  agentSkills: {
+    builtInCommands: ['claude'],
     custom: [
       {
         name: '{basename}',
@@ -160,8 +160,8 @@ export const defaultSettings: UserSettings = {
  * understand available options.
  */
 export const commentedExamples = {
-  slashCommands: {
-    builtIn: ['openclaw', 'codex', 'gemini'],
+  agentSkills: {
+    builtInCommands: ['openclaw', 'codex', 'gemini'],
     custom: [] as Array<{
       name: string;
       description: string;

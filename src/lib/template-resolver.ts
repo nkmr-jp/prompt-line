@@ -7,6 +7,8 @@
  * - {dirname}: 親ディレクトリ名
  * - {dirname:N}: N階層上のディレクトリ名（例: {dirname:2} = 2つ上）
  * - {frontmatter@fieldName}: frontmatterの任意フィールド
+ * - {heading}: 最初の # heading のテキスト
+ * - {json@path}: JSONデータの値参照（ドット記法・配列インデックス対応）
  */
 
 export interface TemplateContext {
@@ -15,6 +17,8 @@ export interface TemplateContext {
   dirname?: string;
   filePath?: string;
   frontmatter: Record<string, string>;
+  heading?: string;
+  jsonData?: Record<string, unknown>;
 }
 
 /**
@@ -47,10 +51,20 @@ export function resolveTemplate(template: string, context: TemplateContext): str
     result = result.replace(/\{dirname\}/g, context.dirname);
   }
 
+  // Replace {heading}
+  result = result.replace(/\{heading\}/g, context.heading ?? '');
+
   // Replace {frontmatter@fieldName}
   result = result.replace(/\{frontmatter@([^}]+)\}/g, (_, fieldName: string) => {
     return context.frontmatter[fieldName] ?? '';
   });
+
+  // Replace {json@path}
+  if (context.jsonData) {
+    result = result.replace(/\{json@([^}]+)\}/g, (_, jsonPath: string) => {
+      return resolveJsonPath(context.jsonData!, jsonPath);
+    });
+  }
 
   return result;
 }
@@ -102,6 +116,93 @@ export function parseFrontmatter(content: string): Record<string, string> {
   }
 
   return result;
+}
+
+/**
+ * Markdownファイルの内容から最初の # heading を取得
+ * frontmatter部分をスキップして、最初の `# ` で始まる行を返す
+ */
+export function parseFirstHeading(content: string): string {
+  // frontmatter部分をスキップ
+  let body = content;
+  const frontmatterMatch = content.match(/^---\s*\n[\s\S]*?\n---\s*\n?/);
+  if (frontmatterMatch) {
+    body = content.slice(frontmatterMatch[0].length);
+  }
+
+  // 最初の # heading を検索
+  const headingMatch = body.match(/^# (.+)$/m);
+  return headingMatch?.[1]?.trim() ?? '';
+}
+
+/**
+ * JSON文字列をパースしてオブジェクトを返す
+ * パース失敗またはオブジェクトでない場合はnullを返す
+ */
+export function parseJsonContent(content: string): Record<string, unknown> | null {
+  try {
+    const parsed = JSON.parse(content);
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return null;
+    }
+    return parsed as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * JSONデータからパスを辿って値を取得する
+ * - ドット記法: `items.name` -> data.items.name
+ * - 配列インデックス: `items[0]` -> 最初の要素, `items[-1]` -> 最後の要素
+ * - 値が見つからない場合は空文字を返す
+ * - 値がobject/arrayの場合はJSON.stringifyして返す
+ */
+export function resolveJsonPath(data: Record<string, unknown>, path: string): string {
+  // パスをトークンに分割: "items[0].name" -> ["items", "[0]", "name"]
+  const tokens = path.split(/\.|\[/).reduce<string[]>((acc, part) => {
+    if (part === '') return acc;
+    if (part.endsWith(']')) {
+      acc.push('[' + part);
+    } else {
+      acc.push(part);
+    }
+    return acc;
+  }, []);
+
+  let current: unknown = data;
+
+  for (const token of tokens) {
+    if (current === null || current === undefined) {
+      return '';
+    }
+
+    const indexMatch = token.match(/^\[(-?\d+)\]$/);
+    if (indexMatch) {
+      // 配列インデックスアクセス
+      if (!Array.isArray(current)) {
+        return '';
+      }
+      const index = parseInt(indexMatch[1]!, 10);
+      current = index < 0 ? current[current.length + index] : current[index];
+    } else {
+      // オブジェクトキーアクセス
+      if (typeof current !== 'object' || Array.isArray(current)) {
+        return '';
+      }
+      current = (current as Record<string, unknown>)[token];
+    }
+  }
+
+  if (current === null || current === undefined) {
+    return '';
+  }
+
+  if (typeof current === 'object') {
+    return JSON.stringify(current);
+  }
+
+  return String(current);
 }
 
 /**

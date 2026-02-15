@@ -151,8 +151,8 @@ export interface UserSettings {
     // Default editor when no extension-specific setting exists
     defaultEditor?: string | null;
   };
-  // Slash command settings (built-in and user-defined)
-  slashCommands?: SlashCommandsSettings;
+  // Agent skills settings (built-in commands and user-defined)
+  agentSkills?: AgentSkillsSettings;
   // Mention settings (@ mentions: fileSearch, symbolSearch, userDefined)
   mentions?: MentionsSettings;
 
@@ -162,7 +162,9 @@ export interface UserSettings {
   symbolSearch?: SymbolSearchUserSettings;
   // Legacy: mdSearch configuration (for backward compatibility)
   mdSearch?: MdSearchEntry[];
-  // Legacy: Built-in commands configuration (use slashCommands.builtIn instead)
+  // Legacy: slashCommands (use agentSkills instead)
+  slashCommands?: AgentSkillsSettings;
+  // Legacy: Built-in commands configuration (use agentSkills.builtInCommands instead)
   builtInCommands?: {
     tools?: string[];
   };
@@ -243,15 +245,15 @@ export interface MentionsSettings {
 }
 
 // ============================================================================
-// Slash Command Settings Types
+// Agent Skills Settings Types
 // ============================================================================
 
 /**
- * Slash command settings combining built-in and user-defined commands
+ * Agent skills settings combining built-in commands and user-defined entries
  */
-export interface SlashCommandsSettings {
+export interface AgentSkillsSettings {
   /** Built-in commands: list of tools to enable (e.g., ['claude', 'codex', 'gemini']) */
-  builtIn?: string[];
+  builtInCommands?: string[];
   /** Custom slash commands from markdown files */
   custom?: SlashCommandEntry[];
   /**
@@ -267,6 +269,9 @@ export interface SlashCommandsSettings {
    */
   disable?: string[];
 }
+
+/** @deprecated Use AgentSkillsSettings instead */
+export type SlashCommandsSettings = AgentSkillsSettings;
 
 /**
  * User-defined slash command entry

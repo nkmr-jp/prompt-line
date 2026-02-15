@@ -211,10 +211,16 @@ class SettingsManager extends EventEmitter {
       result.mentions.mdSearch = mdSearch;
     }
 
-    // Handle slashCommands: use user settings if provided, otherwise use defaults
-    const slashCommands = userSettings.slashCommands ?? this.defaultSettings.slashCommands;
-    if (slashCommands) {
-      result.slashCommands = slashCommands;
+    // Handle agentSkills: use user settings if provided, otherwise use defaults
+    // Also support legacy slashCommands key
+    const agentSkills = userSettings.agentSkills ?? userSettings.slashCommands ?? this.defaultSettings.agentSkills;
+    if (agentSkills) {
+      // Migrate legacy builtIn -> builtInCommands within agentSkills
+      const migratedSkills = { ...agentSkills };
+      if (!migratedSkills.builtInCommands && (agentSkills as Record<string, unknown>).builtIn) {
+        migratedSkills.builtInCommands = (agentSkills as Record<string, unknown>).builtIn as string[];
+      }
+      result.agentSkills = migratedSkills;
     }
 
     // Handle legacy fileSearch -> mentions.fileSearch (with deep merge)
@@ -245,9 +251,9 @@ class SettingsManager extends EventEmitter {
     if (userSettings.mdSearch && userSettings.mdSearch.length > 0) {
       const converted = this.convertLegacyMdSearch(userSettings.mdSearch);
 
-      // If slashCommands not set, use converted custom
-      if (!result.slashCommands && converted.custom.length > 0) {
-        result.slashCommands = {
+      // If agentSkills not set, use converted custom
+      if (!result.agentSkills && converted.custom.length > 0) {
+        result.agentSkills = {
           custom: converted.custom
         };
       }
@@ -267,11 +273,11 @@ class SettingsManager extends EventEmitter {
 
     // Handle legacy builtInCommands
     if (userSettings.builtInCommands?.tools) {
-      // Merge into slashCommands.builtIn (convert tools array to direct builtIn array)
-      if (!result.slashCommands) {
-        result.slashCommands = {};
+      // Merge into agentSkills.builtInCommands
+      if (!result.agentSkills) {
+        result.agentSkills = {};
       }
-      result.slashCommands.builtIn = userSettings.builtInCommands.tools;
+      result.agentSkills.builtInCommands = userSettings.builtInCommands.tools;
 
       // Keep legacy builtInCommands for backward compatibility
       result.builtInCommands = userSettings.builtInCommands;
@@ -401,8 +407,13 @@ class SettingsManager extends EventEmitter {
     });
   }
 
-  getSlashCommandsSettings(): UserSettings['slashCommands'] {
-    return this.currentSettings.slashCommands;
+  getAgentSkillsSettings(): UserSettings['agentSkills'] {
+    return this.currentSettings.agentSkills;
+  }
+
+  /** @deprecated Use getAgentSkillsSettings instead */
+  getSlashCommandsSettings(): UserSettings['agentSkills'] {
+    return this.getAgentSkillsSettings();
   }
 
   getMentionsSettings(): UserSettings['mentions'] {
@@ -419,10 +430,10 @@ class SettingsManager extends EventEmitter {
 
   /**
    * Get built-in commands settings
-   * Returns from slashCommands.builtIn (new) or builtInCommands.tools (legacy)
+   * Returns from agentSkills.builtInCommands (new) or builtInCommands.tools (legacy)
    */
   getBuiltInCommandsSettings(): string[] | undefined {
-    return this.currentSettings.slashCommands?.builtIn || this.currentSettings.builtInCommands?.tools;
+    return this.currentSettings.agentSkills?.builtInCommands || this.currentSettings.builtInCommands?.tools;
   }
 
   /**
@@ -439,8 +450,9 @@ class SettingsManager extends EventEmitter {
     const entries: MdSearchEntry[] = [];
 
     // Convert custom slash commands
-    if (this.currentSettings.slashCommands?.custom) {
-      for (const cmd of this.currentSettings.slashCommands.custom) {
+    const agentSkills = this.currentSettings.agentSkills;
+    if (agentSkills?.custom) {
+      for (const cmd of agentSkills.custom) {
         const entry: MdSearchEntry = {
           type: 'command',
           name: cmd.name,

@@ -139,7 +139,7 @@ window:
     it('should return default settings', () => {
       const settings = settingsManager.getSettings();
 
-      // includes all default values: shortcuts, window, fileOpener, slashCommands, mentions
+      // includes all default values: shortcuts, window, fileOpener, agentSkills, mentions
       expect(settings).toEqual({
         shortcuts: {
           main: 'Cmd+Shift+Space',
@@ -161,8 +161,8 @@ window:
           },
           defaultEditor: null
         },
-        slashCommands: {
-          builtIn: ['claude'],
+        agentSkills: {
+          builtInCommands: ['claude'],
           custom: [
             {
               name: '{basename}',
@@ -243,8 +243,8 @@ window:
             {
               name: '{basename}',
               description: '{dirname:2}',
-              path: '~/.claude/tasks',
-              pattern: '**/agents/*.md',
+              path: '~/.claude/teams',
+              pattern: '**/inboxes/*.json',
               searchPrefix: 'team'
             },
             {
@@ -253,7 +253,6 @@ window:
               path: '~/.claude/plans',
               pattern: '*.md',
               searchPrefix: 'plan',
-              maxSuggestions: 100,
               inputFormat: 'path'
             },
             {
@@ -262,7 +261,6 @@ window:
               path: '~/.claude/tasks',
               pattern: '**/*/*.md',
               searchPrefix: 'task',
-              maxSuggestions: 100,
               inputFormat: 'path'
             }
           ]
@@ -347,7 +345,7 @@ window:
     it('should return default settings copy', () => {
       const defaults = settingsManager.getDefaultSettings();
 
-      // includes all default values: shortcuts, window, fileOpener, slashCommands, mentions
+      // includes all default values: shortcuts, window, fileOpener, agentSkills, mentions
       expect(defaults).toEqual({
         shortcuts: {
           main: 'Cmd+Shift+Space',
@@ -369,8 +367,8 @@ window:
           },
           defaultEditor: null
         },
-        slashCommands: {
-          builtIn: ['claude'],
+        agentSkills: {
+          builtInCommands: ['claude'],
           custom: [
             {
               name: '{basename}',
@@ -451,8 +449,8 @@ window:
             {
               name: '{basename}',
               description: '{dirname:2}',
-              path: '~/.claude/tasks',
-              pattern: '**/agents/*.md',
+              path: '~/.claude/teams',
+              pattern: '**/inboxes/*.json',
               searchPrefix: 'team'
             },
             {
@@ -461,7 +459,6 @@ window:
               path: '~/.claude/plans',
               pattern: '*.md',
               searchPrefix: 'plan',
-              maxSuggestions: 100,
               inputFormat: 'path'
             },
             {
@@ -470,7 +467,6 @@ window:
               path: '~/.claude/tasks',
               pattern: '**/*/*.md',
               searchPrefix: 'task',
-              maxSuggestions: 100,
               inputFormat: 'path'
             }
           ]
@@ -595,9 +591,9 @@ window:
       });
     });
 
-    it('should migrate builtInCommands.tools to slashCommands.builtIn', async () => {
+    it('should migrate builtInCommands.tools to agentSkills.builtInCommands', async () => {
       // User has builtInCommands: { tools: ['claude'] }
-      // Should convert to slashCommands.builtIn: ['claude']
+      // Should convert to agentSkills.builtInCommands: ['claude']
       const userSettings: Partial<UserSettings> = {
         builtInCommands: {
           tools: ['claude', 'custom-tool']
@@ -607,8 +603,8 @@ window:
       await settingsManager.updateSettings(userSettings);
       const settings = settingsManager.getSettings();
 
-      // Check that builtInCommands.tools was migrated to slashCommands.builtIn
-      expect(settings.slashCommands?.builtIn).toEqual(['claude', 'custom-tool']);
+      // Check that builtInCommands.tools was migrated to agentSkills.builtInCommands
+      expect(settings.agentSkills?.builtInCommands).toEqual(['claude', 'custom-tool']);
 
       // Check that legacy builtInCommands is kept for backward compatibility
       expect(settings.builtInCommands).toEqual({
@@ -707,9 +703,9 @@ window:
   });
 
   describe('getMdSearchEntries', () => {
-    it('should convert slashCommands.custom with enable/disable filters', async () => {
+    it('should convert agentSkills.custom with enable/disable filters', async () => {
       const userSettings: Partial<UserSettings> = {
-        slashCommands: {
+        agentSkills: {
           custom: [
             {
               name: '{prefix}:{basename}',
