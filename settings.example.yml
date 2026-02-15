@@ -178,11 +178,18 @@ mentions:
   #   "**/{cmd,agent}/*.md"   - Brace expansion (cmd or agent dirs)
   #   "test-*.md"             - Wildcard prefix
   #   "*.json"                - JSON files (use {json@field} for template variables)
+  #   "**/config.json@.members"  - JSON + jq expression (expands array into items)
+  #   "*.json@.items | map(select(.active))" - Complex jq expressions supported
+  #   "*.jsonl"               - JSONL files (one JSON per line)
   #
   # JSON file support:
   #   Use pattern "*.json" with {json@field} template variables
   #   Example: name: "{json@name}", description: "{json@description}"
   #   Nested fields: {json@nested.field}
+  #
+  # jq expression support (after @ in pattern):
+  #   pattern: "**/config.json@.members"  → expands .members array into individual items
+  #   pattern: "*.json@.items | map(select(.active))"  → complex jq filtering
   customSearch:
     - name: "{basename}(agent)"
       description: "{frontmatter@description}"

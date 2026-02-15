@@ -301,6 +301,13 @@ class CustomSearchLoader {
     const { filePattern, jqExpression } = this.parseJqPath(entry.pattern);
     const files = await this.findFiles(expandedPath, filePattern);
     const sourceId = `${entry.path}:${entry.pattern}`;
+    logger.debug('CustomSearch loadEntry', {
+      path: entry.path,
+      pattern: entry.pattern,
+      filePattern,
+      jqExpression,
+      filesFound: files.length
+    });
     const items = await this.parseFilesToItems(files, entry, sourceId, jqExpression);
     return items;
   }

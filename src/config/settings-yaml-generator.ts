@@ -426,7 +426,8 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
   #   "**/{cmd,agent}/*.md"   - Brace expansion (cmd or agent dirs)
   #   "test-*.md"             - Wildcard prefix
   #   "*.json"                - JSON files (use {json@field} for template variables)
-  #   "*.json@.items"             - JSON array expansion (jq-like path)
+  #   "**/config.json@.members"  - JSON + jq expression (expands array into items)
+  #   "*.json@.items | map(select(.active))" - Complex jq expressions supported
   #   "*.jsonl"                   - JSONL files (one JSON per line)
   #
   # JSON file support:
