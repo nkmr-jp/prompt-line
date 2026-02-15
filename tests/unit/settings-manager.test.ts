@@ -222,7 +222,7 @@ window:
             includePatterns: [],
             excludePatterns: []
           },
-          mdSearch: [
+          customSearch: [
             {
               name: 'agent-{basename}',
               description: '{frontmatter@description}',
@@ -426,7 +426,7 @@ window:
             includePatterns: [],
             excludePatterns: []
           },
-          mdSearch: [
+          customSearch: [
             {
               name: 'agent-{basename}',
               description: '{frontmatter@description}',
@@ -703,7 +703,7 @@ window:
     });
   });
 
-  describe('getMdSearchEntries', () => {
+  describe('getCustomSearchEntries', () => {
     it('should convert agentSkills with enable/disable filters', async () => {
       const userSettings: Partial<UserSettings> = {
         agentSkills: [
@@ -720,7 +720,7 @@ window:
       };
 
       await settingsManager.updateSettings(userSettings);
-      const entries = settingsManager.getMdSearchEntries();
+      const entries = settingsManager.getCustomSearchEntries();
 
       // Find the entry with enable/disable filters
       const filteredEntry = entries?.find(e => e.enable !== undefined || e.disable !== undefined);
@@ -730,10 +730,10 @@ window:
       expect(filteredEntry?.disable).toEqual(['ralph-loop:cancel']);
     });
 
-    it('should convert mentions.mdSearch with enable/disable filters', async () => {
+    it('should convert mentions.customSearch with enable/disable filters', async () => {
       const userSettings: Partial<UserSettings> = {
         mentions: {
-          mdSearch: [
+          customSearch: [
             {
               name: 'agent-{basename}',
               description: '{frontmatter@description}',
@@ -748,7 +748,7 @@ window:
       };
 
       await settingsManager.updateSettings(userSettings);
-      const entries = settingsManager.getMdSearchEntries();
+      const entries = settingsManager.getCustomSearchEntries();
 
       // Find the mention entry with enable/disable filters
       const filteredEntry = entries?.find(e => e.type === 'mention' && (e.enable !== undefined || e.disable !== undefined));
@@ -757,10 +757,10 @@ window:
       expect(filteredEntry?.disable).toEqual(['agent-legacy']);
     });
 
-    it('should convert mentions.mdSearch with prefixPattern', async () => {
+    it('should convert mentions.customSearch with prefixPattern', async () => {
       const userSettings: Partial<UserSettings> = {
         mentions: {
-          mdSearch: [
+          customSearch: [
             {
               name: 'agent-{prefix}:{basename}',
               description: '{frontmatter@description}',
@@ -774,7 +774,7 @@ window:
       };
 
       await settingsManager.updateSettings(userSettings);
-      const entries = settingsManager.getMdSearchEntries();
+      const entries = settingsManager.getCustomSearchEntries();
 
       const entryWithPrefix = entries?.find(e => e.type === 'mention' && e.prefixPattern !== undefined);
       expect(entryWithPrefix).toBeDefined();

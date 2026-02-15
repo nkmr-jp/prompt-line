@@ -1,8 +1,8 @@
-import type { MdSearchEntry } from '../types';
+import type { CustomSearchEntry } from '../types';
 import { SUGGESTIONS } from '../constants';
 
 /**
- * mdSearch設定が未定義の場合のデフォルト設定を返す
+ * customSearch設定が未定義の場合のデフォルト設定を返す
  * 既存の commands.directories と agents.directories 設定と互換性のある動作を提供
  */
 /** デフォルトの検索候補最大表示数 - 互換性のため再エクスポート */
@@ -11,10 +11,10 @@ export const DEFAULT_MAX_SUGGESTIONS = SUGGESTIONS.DEFAULT_MAX;
 /** デフォルトのソート順 */
 export const DEFAULT_SORT_ORDER: 'asc' | 'desc' = 'asc';
 
-export function getDefaultMdSearchConfig(): MdSearchEntry[] {
+export function getDefaultCustomSearchConfig(): CustomSearchEntry[] {
   return [
     // NOTE: Built-in commands (Claude Code, etc.) are loaded from YAML files
-    // via BuiltInCommandsLoader, not via mdSearch. This keeps them separate
+    // via BuiltInCommandsLoader, not via customSearch. This keeps them separate
     // and allows YAML-based management.
 
     // User's custom slash commands

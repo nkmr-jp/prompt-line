@@ -13,7 +13,7 @@ import type {
   SymbolSearchUserSettings,
   SlashCommandEntry,
   MentionEntry,
-  MdSearchEntry
+  CustomSearchEntry
 } from '../types';
 
 class SettingsManager extends EventEmitter {
@@ -136,9 +136,9 @@ class SettingsManager extends EventEmitter {
    * Convert legacy mdSearch entries to new format
    * Separates command entries (/) and mention entries (@)
    */
-  private convertLegacyMdSearch(mdSearch: MdSearchEntry[]): { custom: SlashCommandEntry[]; mdSearchMentions: MentionEntry[] } {
+  private convertLegacyCustomSearch(mdSearch: CustomSearchEntry[]): { custom: SlashCommandEntry[]; customSearchMentions: MentionEntry[] } {
     const custom: SlashCommandEntry[] = [];
-    const mdSearchMentions: MentionEntry[] = [];
+    const customSearchMentions: MentionEntry[] = [];
 
     for (const entry of mdSearch) {
       if (entry.type === 'command') {
@@ -166,11 +166,11 @@ class SettingsManager extends EventEmitter {
         if (entry.searchPrefix) mention.searchPrefix = entry.searchPrefix;
         if (entry.sortOrder) mention.sortOrder = entry.sortOrder;
         if (entry.inputFormat) mention.inputFormat = entry.inputFormat;
-        mdSearchMentions.push(mention);
+        customSearchMentions.push(mention);
       }
     }
 
-    return { custom, mdSearchMentions };
+    return { custom, customSearchMentions };
   }
 
   private mergeWithDefaults(userSettings: Partial<UserSettings>): UserSettings {
@@ -194,7 +194,7 @@ class SettingsManager extends EventEmitter {
       }
     };
 
-    // Handle mentions structure with deep merge (fileSearch, symbolSearch, mdSearch)
+    // Handle mentions structure with deep merge (fileSearch, symbolSearch, customSearch)
     result.mentions = {
       fileSearch: {
         ...this.defaultSettings.mentions?.fileSearch,
@@ -205,10 +205,10 @@ class SettingsManager extends EventEmitter {
         ...(userSettings.mentions?.symbolSearch || {})
       }
     };
-    // mdSearch: use user settings if provided, otherwise use defaults
-    const mdSearch = userSettings.mentions?.mdSearch ?? this.defaultSettings.mentions?.mdSearch;
-    if (mdSearch) {
-      result.mentions.mdSearch = mdSearch;
+    // customSearch: use user settings if provided (new key first, then legacy mdSearch), otherwise use defaults
+    const customSearch = userSettings.mentions?.customSearch ?? userSettings.mentions?.mdSearch ?? this.defaultSettings.mentions?.customSearch;
+    if (customSearch) {
+      result.mentions.customSearch = customSearch;
     }
 
     // Handle builtInCommands at root level
@@ -292,19 +292,19 @@ class SettingsManager extends EventEmitter {
 
     // Handle legacy settings (mdSearch) for backward compatibility
     if (userSettings.mdSearch && userSettings.mdSearch.length > 0) {
-      const converted = this.convertLegacyMdSearch(userSettings.mdSearch);
+      const converted = this.convertLegacyCustomSearch(userSettings.mdSearch);
 
       // If agentSkills not set, use converted custom
       if (!result.agentSkills && converted.custom.length > 0) {
         result.agentSkills = converted.custom;
       }
-      // If mentions.mdSearch not set, use converted mdSearchMentions
-      if (converted.mdSearchMentions.length > 0) {
+      // If mentions.customSearch not set, use converted customSearchMentions
+      if (converted.customSearchMentions.length > 0) {
         if (!result.mentions) {
           result.mentions = {};
         }
-        if (!result.mentions.mdSearch || result.mentions.mdSearch.length === 0) {
-          result.mentions.mdSearch = converted.mdSearchMentions;
+        if (!result.mentions.customSearch || result.mentions.customSearch.length === 0) {
+          result.mentions.customSearch = converted.customSearchMentions;
         }
       }
 
@@ -450,11 +450,11 @@ class SettingsManager extends EventEmitter {
   }
 
   /**
-   * Get mdSearch mentions for @ syntax
-   * Returns from mentions.mdSearch (new structure)
+   * Get customSearch mentions for @ syntax
+   * Returns from mentions.customSearch (new structure), fallback to mentions.mdSearch
    */
-  getMdSearchMentions(): MentionEntry[] | undefined {
-    return this.currentSettings.mentions?.mdSearch;
+  getCustomSearchMentions(): MentionEntry[] | undefined {
+    return this.currentSettings.mentions?.customSearch ?? this.currentSettings.mentions?.mdSearch;
   }
 
   /**
@@ -466,23 +466,26 @@ class SettingsManager extends EventEmitter {
   }
 
   /**
-   * Convert current settings to MdSearchEntry format for backward compatibility
-   * This is used by MdSearchLoader
+   * Convert current settings to CustomSearchEntry format for backward compatibility
+   * This is used by CustomSearchLoader
    */
-  getMdSearchEntries(): UserSettings['mdSearch'] {
-    // If legacy mdSearch exists, use it
+  getCustomSearchEntries(): UserSettings['customSearch'] {
+    // If legacy customSearch or mdSearch exists, use it
+    if (this.currentSettings.customSearch && this.currentSettings.customSearch.length > 0) {
+      return this.currentSettings.customSearch;
+    }
     if (this.currentSettings.mdSearch && this.currentSettings.mdSearch.length > 0) {
       return this.currentSettings.mdSearch;
     }
 
-    // Convert new format to legacy MdSearchEntry format
-    const entries: MdSearchEntry[] = [];
+    // Convert new format to legacy CustomSearchEntry format
+    const entries: CustomSearchEntry[] = [];
 
     // Convert agent skills (flat array of slash command entries)
     const agentSkills = this.currentSettings.agentSkills;
     if (agentSkills && agentSkills.length > 0) {
       for (const cmd of agentSkills) {
-        const entry: MdSearchEntry = {
+        const entry: CustomSearchEntry = {
           type: 'command',
           name: cmd.name,
           description: cmd.description,
@@ -502,11 +505,11 @@ class SettingsManager extends EventEmitter {
       }
     }
 
-    // Convert mdSearch mentions (from mentions.mdSearch)
-    const mdSearchMentions = this.currentSettings.mentions?.mdSearch;
-    if (mdSearchMentions) {
-      for (const mention of mdSearchMentions) {
-        const entry: MdSearchEntry = {
+    // Convert customSearch mentions (from mentions.customSearch, fallback to mentions.mdSearch)
+    const customSearchMentions = this.currentSettings.mentions?.customSearch ?? this.currentSettings.mentions?.mdSearch;
+    if (customSearchMentions) {
+      for (const mention of customSearchMentions) {
+        const entry: CustomSearchEntry = {
           type: 'mention',
           name: mention.name,
           description: mention.description,

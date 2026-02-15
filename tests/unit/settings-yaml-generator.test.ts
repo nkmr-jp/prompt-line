@@ -137,7 +137,7 @@ describe('settings-yaml-generator', () => {
               timeout: 3000,
               rgPath: '/opt/homebrew/bin/rg'
             },
-            mdSearch: [
+            customSearch: [
               {
                 name: 'agent-{basename}',
                 description: 'Agent files',
@@ -199,7 +199,7 @@ describe('settings-yaml-generator', () => {
         expect(result).toContain('timeout: 3000');
         expect(result).toContain('rgPath: "/opt/homebrew/bin/rg"');
 
-        // Mentions - mdSearch
+        // Mentions - customSearch
         expect(result).toContain('searchPrefix: agent');
         expect(result).toContain('sortOrder: asc');
         expect(result).toContain('inputFormat: path');
@@ -220,7 +220,7 @@ describe('settings-yaml-generator', () => {
         expect(result).not.toContain('# - codex');
         expect(result).not.toContain('# - gemini');
 
-        // Should not include commented mdSearch examples
+        // Should not include commented customSearch examples
         expect(result).not.toContain('# - name: "{frontmatter@name}"');
         // Note: ~/.claude/plugins/cache is now an active value in default settings
       });
@@ -285,7 +285,7 @@ describe('settings-yaml-generator', () => {
               maxSymbols: 20000,
               timeout: 5000
             },
-            mdSearch: []
+            customSearch: []
           }
         };
 
@@ -442,7 +442,7 @@ describe('settings-yaml-generator', () => {
         expect(result).toContain('#mentions:');
         expect(result).toContain('#  fileSearch:');
         expect(result).toContain('#  symbolSearch:');
-        expect(result).toContain('#  mdSearch:');
+        expect(result).toContain('#  customSearch:');
       });
 
       test('should handle builtInCommands without agentSkills', () => {
@@ -525,7 +525,7 @@ describe('settings-yaml-generator', () => {
               maxSymbols: 20000,
               timeout: 5000
             },
-            mdSearch: [
+            customSearch: [
               {
                 name: 'agent-{basename}',
                 description: 'Test agent',
@@ -660,7 +660,7 @@ describe('settings-yaml-generator', () => {
               maxSymbols: 20000,
               timeout: 5000
             },
-            mdSearch: [
+            customSearch: [
               {
                 name: 'agent-{basename}',
                 description: 'Test',
@@ -683,8 +683,8 @@ describe('settings-yaml-generator', () => {
       });
     });
 
-    describe('mdSearch entry formatting', () => {
-      test('should format mdSearch entries with all optional fields', () => {
+    describe('customSearch entry formatting', () => {
+      test('should format customSearch entries with all optional fields', () => {
         const settings: UserSettings = {
           shortcuts: defaultSettings.shortcuts,
           window: defaultSettings.window,
@@ -703,7 +703,7 @@ describe('settings-yaml-generator', () => {
               maxSymbols: 20000,
               timeout: 5000
             },
-            mdSearch: [
+            customSearch: [
               {
                 name: 'test-{basename}',
                 description: 'Test description',
@@ -730,7 +730,7 @@ describe('settings-yaml-generator', () => {
         expect(result).toContain('inputFormat: path');
       });
 
-      test('should format mdSearch entries without optional fields', () => {
+      test('should format customSearch entries without optional fields', () => {
         const settings: UserSettings = {
           shortcuts: defaultSettings.shortcuts,
           window: defaultSettings.window,
@@ -749,7 +749,7 @@ describe('settings-yaml-generator', () => {
               maxSymbols: 20000,
               timeout: 5000
             },
-            mdSearch: [
+            customSearch: [
               {
                 name: 'simple',
                 description: 'Simple entry',
@@ -952,8 +952,8 @@ describe('settings-yaml-generator', () => {
         expect(result).toContain('ext19: "App19"');
       });
 
-      test('should handle multiple mdSearch entries', () => {
-        const mdSearch = [
+      test('should handle multiple customSearch entries', () => {
+        const customSearch = [
           {
             name: 'entry1',
             description: 'First entry',
@@ -992,7 +992,7 @@ describe('settings-yaml-generator', () => {
               maxSymbols: 20000,
               timeout: 5000
             },
-            mdSearch
+            customSearch
           }
         };
 

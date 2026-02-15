@@ -6,7 +6,7 @@ import type DirectoryManager from '../managers/directory-manager';
 import type SettingsManager from '../managers/settings-manager';
 import type BuiltInCommandsManager from '../managers/built-in-commands-manager';
 import type { IHistoryManager, HandlerStats } from '../types';
-import MdSearchLoader from '../managers/md-search-loader';
+import CustomSearchLoader from '../managers/custom-search-loader';
 import FileOpenerManager from '../managers/file-opener-manager';
 
 // Import specialized handlers
@@ -14,7 +14,7 @@ import PasteHandler from './paste-handler';
 import HistoryDraftHandler from './history-draft-handler';
 import WindowHandler from './window-handler';
 import SystemHandler from './system-handler';
-import MdSearchHandler from './mdsearch-handler';
+import CustomSearchHandler from './custom-search-handler';
 import FileHandler from './file-handler';
 import UsageHistoryHandler from './usage-history-handler';
 
@@ -30,7 +30,7 @@ import UsageHistoryHandler from './usage-history-handler';
  * - HistoryDraftHandler: Manages history and draft operations
  * - WindowHandler: Controls window visibility and focus
  * - SystemHandler: Provides system info, config, and settings
- * - MdSearchHandler: Manages slash commands and agent operations
+ * - CustomSearchHandler: Manages slash commands and agent operations
  * - FileHandler: Handles file operations and external URLs
  * - UsageHistoryHandler: Manages usage history tracking for files, symbols, and agents
  */
@@ -39,7 +39,7 @@ class IPCHandlers {
   private historyDraftHandler: HistoryDraftHandler;
   private windowHandler: WindowHandler;
   private systemHandler: SystemHandler;
-  private mdSearchHandler: MdSearchHandler;
+  private customSearchHandler: CustomSearchHandler;
   private fileHandler: FileHandler;
   private usageHistoryHandler: UsageHistoryHandler;
 
@@ -51,19 +51,20 @@ class IPCHandlers {
     settingsManager: SettingsManager,
     builtInCommandsManager: BuiltInCommandsManager
   ) {
-    // Initialize MdSearchLoader and FileOpenerManager
+    // Initialize CustomSearchLoader and FileOpenerManager
     const settings = settingsManager.getSettings();
-    const mdSearchLoader = new MdSearchLoader(
-      settings.mdSearch,
+    const customSearchLoader = new CustomSearchLoader(
+      settings.customSearch ?? settings.mdSearch,
       settings
     );
     const fileOpenerManager = new FileOpenerManager(settingsManager);
 
-    // Initialize MdSearchLoader with settings
-    if (settings.mdSearch) {
-      mdSearchLoader.updateConfig(settings.mdSearch);
-      mdSearchLoader.updateSettings(settings);
-      logger.info('MdSearch config updated from settings');
+    // Initialize CustomSearchLoader with settings
+    const customSearchConfig = settings.customSearch ?? settings.mdSearch;
+    if (customSearchConfig) {
+      customSearchLoader.updateConfig(customSearchConfig);
+      customSearchLoader.updateSettings(settings);
+      logger.info('CustomSearch config updated from settings');
     }
 
     // Instantiate specialized handler classes
@@ -81,8 +82,8 @@ class IPCHandlers {
     );
     this.windowHandler = new WindowHandler(windowManager);
     this.systemHandler = new SystemHandler(settingsManager);
-    this.mdSearchHandler = new MdSearchHandler(
-      mdSearchLoader,
+    this.customSearchHandler = new CustomSearchHandler(
+      customSearchLoader,
       settingsManager,
       builtInCommandsManager
     );
@@ -101,7 +102,7 @@ class IPCHandlers {
     this.historyDraftHandler.setupHandlers(ipcMain);
     this.windowHandler.setupHandlers(ipcMain);
     this.systemHandler.setupHandlers(ipcMain);
-    this.mdSearchHandler.setupHandlers(ipcMain);
+    this.customSearchHandler.setupHandlers(ipcMain);
     this.fileHandler.setupHandlers(ipcMain);
     this.usageHistoryHandler.setupHandlers(ipcMain);
   }
@@ -114,7 +115,7 @@ class IPCHandlers {
     this.historyDraftHandler.removeHandlers(ipcMain);
     this.windowHandler.removeHandlers(ipcMain);
     this.systemHandler.removeHandlers(ipcMain);
-    this.mdSearchHandler.removeHandlers(ipcMain);
+    this.customSearchHandler.removeHandlers(ipcMain);
     this.fileHandler.removeHandlers(ipcMain);
     this.usageHistoryHandler.removeHandlers(ipcMain);
 

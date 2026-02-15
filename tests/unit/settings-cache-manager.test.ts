@@ -12,7 +12,7 @@ describe('SettingsCacheManager', () => {
   beforeEach(() => {
     // Create mock electronAPI
     mockElectronAPI = {
-      mdSearch: {
+      customSearch: {
         getMaxSuggestions: jest.fn(() => Promise.resolve(20)),
         getSearchPrefixes: jest.fn(() => Promise.resolve([] as string[]))
       },
@@ -36,19 +36,19 @@ describe('SettingsCacheManager', () => {
 
   describe('getMaxSuggestions', () => {
     test('should return cached value on second call', async () => {
-      mockElectronAPI.mdSearch.getMaxSuggestions = jest.fn(() => Promise.resolve(30));
+      mockElectronAPI.customSearch.getMaxSuggestions = jest.fn(() => Promise.resolve(30));
 
       const result1 = await settingsCacheManager.getMaxSuggestions('command');
       const result2 = await settingsCacheManager.getMaxSuggestions('command');
 
       expect(result1).toBe(30);
       expect(result2).toBe(30);
-      expect(mockElectronAPI.mdSearch.getMaxSuggestions).toHaveBeenCalledTimes(1);
+      expect(mockElectronAPI.customSearch.getMaxSuggestions).toHaveBeenCalledTimes(1);
     });
 
     test('should call API separately for different types', async () => {
       let callCount = 0;
-      mockElectronAPI.mdSearch.getMaxSuggestions = jest.fn(() => {
+      mockElectronAPI.customSearch.getMaxSuggestions = jest.fn(() => {
         callCount++;
         return Promise.resolve(callCount === 1 ? 30 : 25);
       });
@@ -58,11 +58,11 @@ describe('SettingsCacheManager', () => {
 
       expect(commandResult).toBe(30);
       expect(mentionResult).toBe(25);
-      expect(mockElectronAPI.mdSearch.getMaxSuggestions).toHaveBeenCalledTimes(2);
+      expect(mockElectronAPI.customSearch.getMaxSuggestions).toHaveBeenCalledTimes(2);
     });
 
     test('should return default value on API error', async () => {
-      mockElectronAPI.mdSearch.getMaxSuggestions = jest.fn(() => Promise.reject(new Error('API error')));
+      mockElectronAPI.customSearch.getMaxSuggestions = jest.fn(() => Promise.reject(new Error('API error')));
 
       const result = await settingsCacheManager.getMaxSuggestions('command');
 
@@ -81,7 +81,7 @@ describe('SettingsCacheManager', () => {
   describe('clearMaxSuggestionsCache', () => {
     test('should clear the cache and fetch fresh values', async () => {
       let callCount = 0;
-      mockElectronAPI.mdSearch.getMaxSuggestions = jest.fn(() => {
+      mockElectronAPI.customSearch.getMaxSuggestions = jest.fn(() => {
         callCount++;
         return Promise.resolve(callCount === 1 ? 30 : 35);
       });
@@ -91,7 +91,7 @@ describe('SettingsCacheManager', () => {
       const result = await settingsCacheManager.getMaxSuggestions('command');
 
       expect(result).toBe(35);
-      expect(mockElectronAPI.mdSearch.getMaxSuggestions).toHaveBeenCalledTimes(2);
+      expect(mockElectronAPI.customSearch.getMaxSuggestions).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -118,19 +118,19 @@ describe('SettingsCacheManager', () => {
 
   describe('getSearchPrefixes', () => {
     test('should return cached value on second call', async () => {
-      mockElectronAPI.mdSearch.getSearchPrefixes = jest.fn(() => Promise.resolve(['/prefix1', '/prefix2']));
+      mockElectronAPI.customSearch.getSearchPrefixes = jest.fn(() => Promise.resolve(['/prefix1', '/prefix2']));
 
       const result1 = await settingsCacheManager.getSearchPrefixes('command');
       const result2 = await settingsCacheManager.getSearchPrefixes('command');
 
       expect(result1).toEqual(['/prefix1', '/prefix2']);
       expect(result2).toEqual(['/prefix1', '/prefix2']);
-      expect(mockElectronAPI.mdSearch.getSearchPrefixes).toHaveBeenCalledTimes(1);
+      expect(mockElectronAPI.customSearch.getSearchPrefixes).toHaveBeenCalledTimes(1);
     });
 
     test('should call API separately for different types', async () => {
       let callCount = 0;
-      mockElectronAPI.mdSearch.getSearchPrefixes = jest.fn(() => {
+      mockElectronAPI.customSearch.getSearchPrefixes = jest.fn(() => {
         callCount++;
         return Promise.resolve(callCount === 1 ? ['/cmd1'] : ['@mention1']);
       });
@@ -140,11 +140,11 @@ describe('SettingsCacheManager', () => {
 
       expect(commandResult).toEqual(['/cmd1']);
       expect(mentionResult).toEqual(['@mention1']);
-      expect(mockElectronAPI.mdSearch.getSearchPrefixes).toHaveBeenCalledTimes(2);
+      expect(mockElectronAPI.customSearch.getSearchPrefixes).toHaveBeenCalledTimes(2);
     });
 
     test('should return empty array on API error', async () => {
-      mockElectronAPI.mdSearch.getSearchPrefixes = jest.fn(() => Promise.reject(new Error('API error')));
+      mockElectronAPI.customSearch.getSearchPrefixes = jest.fn(() => Promise.reject(new Error('API error')));
 
       const result = await settingsCacheManager.getSearchPrefixes('command');
 
@@ -155,7 +155,7 @@ describe('SettingsCacheManager', () => {
   describe('clearSearchPrefixesCache', () => {
     test('should clear the cache and fetch fresh values', async () => {
       let callCount = 0;
-      mockElectronAPI.mdSearch.getSearchPrefixes = jest.fn(() => {
+      mockElectronAPI.customSearch.getSearchPrefixes = jest.fn(() => {
         callCount++;
         return Promise.resolve(callCount === 1 ? ['/old'] : ['/new']);
       });
@@ -165,7 +165,7 @@ describe('SettingsCacheManager', () => {
       const result = await settingsCacheManager.getSearchPrefixes('command');
 
       expect(result).toEqual(['/new']);
-      expect(mockElectronAPI.mdSearch.getSearchPrefixes).toHaveBeenCalledTimes(2);
+      expect(mockElectronAPI.customSearch.getSearchPrefixes).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -175,11 +175,11 @@ describe('SettingsCacheManager', () => {
       let prefixesCallCount = 0;
       let fileSearchCallCount = 0;
 
-      mockElectronAPI.mdSearch.getMaxSuggestions = jest.fn(() => {
+      mockElectronAPI.customSearch.getMaxSuggestions = jest.fn(() => {
         maxSuggestionsCallCount++;
         return Promise.resolve(maxSuggestionsCallCount === 1 ? 30 : 35);
       });
-      mockElectronAPI.mdSearch.getSearchPrefixes = jest.fn(() => {
+      mockElectronAPI.customSearch.getSearchPrefixes = jest.fn(() => {
         prefixesCallCount++;
         return Promise.resolve(prefixesCallCount === 1 ? ['/test'] : ['/new']);
       });
@@ -206,7 +206,7 @@ describe('SettingsCacheManager', () => {
 
   describe('matchesSearchPrefix', () => {
     test('should return true when query matches a prefix', async () => {
-      mockElectronAPI.mdSearch.getSearchPrefixes = jest.fn(() => Promise.resolve(['/test', '/demo']));
+      mockElectronAPI.customSearch.getSearchPrefixes = jest.fn(() => Promise.resolve(['/test', '/demo']));
 
       const result = await settingsCacheManager.matchesSearchPrefix('/test command', 'command');
 
@@ -214,7 +214,7 @@ describe('SettingsCacheManager', () => {
     });
 
     test('should return false when query does not match any prefix', async () => {
-      mockElectronAPI.mdSearch.getSearchPrefixes = jest.fn(() => Promise.resolve(['/test', '/demo']));
+      mockElectronAPI.customSearch.getSearchPrefixes = jest.fn(() => Promise.resolve(['/test', '/demo']));
 
       const result = await settingsCacheManager.matchesSearchPrefix('no match', 'command');
 
@@ -230,7 +230,7 @@ describe('SettingsCacheManager', () => {
     });
 
     test('should return true when command prefixes are cached', async () => {
-      mockElectronAPI.mdSearch.getSearchPrefixes = jest.fn(() => Promise.resolve(['/cmd']));
+      mockElectronAPI.customSearch.getSearchPrefixes = jest.fn(() => Promise.resolve(['/cmd']));
       await settingsCacheManager.getSearchPrefixes('command');
 
       const result = settingsCacheManager.isCommandEnabledSync();
@@ -239,7 +239,7 @@ describe('SettingsCacheManager', () => {
     });
 
     test('should return false when command prefixes are empty', async () => {
-      mockElectronAPI.mdSearch.getSearchPrefixes = jest.fn(() => Promise.resolve([]));
+      mockElectronAPI.customSearch.getSearchPrefixes = jest.fn(() => Promise.resolve([]));
       await settingsCacheManager.getSearchPrefixes('command');
 
       const result = settingsCacheManager.isCommandEnabledSync();
@@ -256,7 +256,7 @@ describe('SettingsCacheManager', () => {
     });
 
     test('should return true when query matches cached prefix', async () => {
-      mockElectronAPI.mdSearch.getSearchPrefixes = jest.fn(() => Promise.resolve(['/test', '/demo']));
+      mockElectronAPI.customSearch.getSearchPrefixes = jest.fn(() => Promise.resolve(['/test', '/demo']));
       await settingsCacheManager.getSearchPrefixes('command');
 
       const result = settingsCacheManager.matchesSearchPrefixSync('/test command', 'command');
@@ -265,7 +265,7 @@ describe('SettingsCacheManager', () => {
     });
 
     test('should return false when query does not match cached prefix', async () => {
-      mockElectronAPI.mdSearch.getSearchPrefixes = jest.fn(() => Promise.resolve(['/test', '/demo']));
+      mockElectronAPI.customSearch.getSearchPrefixes = jest.fn(() => Promise.resolve(['/test', '/demo']));
       await settingsCacheManager.getSearchPrefixes('command');
 
       const result = settingsCacheManager.matchesSearchPrefixSync('no match', 'command');
@@ -276,7 +276,7 @@ describe('SettingsCacheManager', () => {
 
   describe('preloadSearchPrefixesCache', () => {
     test('should preload both command and mention prefixes', async () => {
-      mockElectronAPI.mdSearch.getSearchPrefixes = jest.fn((type: string) => {
+      mockElectronAPI.customSearch.getSearchPrefixes = jest.fn((type: string) => {
         if (type === 'command') {
           return Promise.resolve(['/cmd1']);
         } else {
@@ -292,12 +292,12 @@ describe('SettingsCacheManager', () => {
 
       expect(commandEnabled).toBe(true);
       expect(mentionMatches).toBe(true);
-      expect(mockElectronAPI.mdSearch.getSearchPrefixes).toHaveBeenCalledWith('command');
-      expect(mockElectronAPI.mdSearch.getSearchPrefixes).toHaveBeenCalledWith('mention');
+      expect(mockElectronAPI.customSearch.getSearchPrefixes).toHaveBeenCalledWith('command');
+      expect(mockElectronAPI.customSearch.getSearchPrefixes).toHaveBeenCalledWith('mention');
     });
 
     test('should handle errors gracefully', async () => {
-      mockElectronAPI.mdSearch.getSearchPrefixes = jest.fn(() => Promise.reject(new Error('API error')));
+      mockElectronAPI.customSearch.getSearchPrefixes = jest.fn(() => Promise.reject(new Error('API error')));
 
       await expect(settingsCacheManager.preloadSearchPrefixesCache()).resolves.not.toThrow();
     });

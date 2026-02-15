@@ -108,7 +108,7 @@ export const defaultSettings: UserSettings = {
       includePatterns: [],
       excludePatterns: []
     },
-    mdSearch: [
+    customSearch: [
       {
         name: '{basename}(agent)',
         description: '{frontmatter@description}',
@@ -173,7 +173,7 @@ export const commentedExamples = {
     }
   },
   mentions: {
-    mdSearch: [
+    customSearch: [
       {
         name: '{basename}',
         description: '{frontmatter@title}',

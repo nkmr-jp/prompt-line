@@ -126,10 +126,10 @@ function formatAgentSkillEntry(entry: SlashCommandEntry, indent: string, comment
 }
 
 /**
- * Format a mdSearch entry as YAML
+ * Format a customSearch entry as YAML
  */
-function formatMdSearchEntry(entry: MentionEntry, indent: string, commented = false): string {
-  // When commented, use "    # " prefix to match the mdSearch indentation level
+function formatCustomSearchEntry(entry: MentionEntry, indent: string, commented = false): string {
+  // When commented, use "    # " prefix to match the customSearch indentation level
   // Active:    "    - name:" (4 spaces + -)
   // Commented: "    # - name:" (4 spaces + # + space + -)
   let firstLinePrefix: string;
@@ -283,9 +283,9 @@ function buildAgentSkillsSection(settings: UserSettings, options: YamlGeneratorO
 function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOptions): string {
   const fileSearch = settings.mentions?.fileSearch || settings.fileSearch;
   const symbolSearch = settings.mentions?.symbolSearch || settings.symbolSearch;
-  const mdSearchEntries = settings.mentions?.mdSearch;
+  const customSearchEntries = settings.mentions?.customSearch ?? settings.mentions?.mdSearch;
 
-  const hasAnyMentionSettings = fileSearch || symbolSearch || (mdSearchEntries && mdSearchEntries.length > 0);
+  const hasAnyMentionSettings = fileSearch || symbolSearch || (customSearchEntries && customSearchEntries.length > 0);
 
   if (!hasAnyMentionSettings) {
     // No mentions configured - output commented template
@@ -317,7 +317,7 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
 #  #   "**/{cmd,agent}/*.md"   - Brace expansion (cmd or agent dirs)
 #  #   "test-*.md"             - Wildcard prefix
 #  # searchPrefix: Search with @<prefix>: (e.g., searchPrefix: "agent" → @agent:)
-#  mdSearch:
+#  customSearch:
 #    - name: "agent-{basename}"
 #      description: "{frontmatter@description}"
 #      path: ~/.claude/agents
@@ -425,20 +425,20 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
   #   "**/*/SKILL.md"         - SKILL.md in any subdirectory
   #   "**/{cmd,agent}/*.md"   - Brace expansion (cmd or agent dirs)
   #   "test-*.md"             - Wildcard prefix
-  mdSearch:
+  customSearch:
 `;
 
-  if (mdSearchEntries && mdSearchEntries.length > 0) {
-    for (const entry of mdSearchEntries) {
-      section += formatMdSearchEntry(entry, '    ') + '\n\n';
+  if (customSearchEntries && customSearchEntries.length > 0) {
+    for (const entry of customSearchEntries) {
+      section += formatCustomSearchEntry(entry, '    ') + '\n\n';
     }
   }
 
-  // Add commented mdSearch examples if requested
+  // Add commented customSearch examples if requested
   if (options.includeCommentedExamples) {
-    const commentedMdSearch = commentedExamples.mentions?.mdSearch || [];
-    for (const entry of commentedMdSearch) {
-      section += formatMdSearchEntry(entry as MentionEntry, '    ', true) + '\n\n';
+    const commentedCustomSearch = commentedExamples.mentions?.customSearch ?? [];
+    for (const entry of commentedCustomSearch) {
+      section += formatCustomSearchEntry(entry as MentionEntry, '    ', true) + '\n\n';
     }
   }
 
@@ -520,8 +520,8 @@ ${agentSkillsSection}
 # ============================================================================
 # MENTION SETTINGS (@ mentions)
 # ============================================================================
-# Configure @ mention sources: fileSearch, symbolSearch, mdSearch
-# Template variables for mdSearch: {basename}, {frontmatter@fieldName}
+# Configure @ mention sources: fileSearch, symbolSearch, customSearch
+# Template variables for customSearch: {basename}, {frontmatter@fieldName}
 
 ${mentionsSection}
 `;

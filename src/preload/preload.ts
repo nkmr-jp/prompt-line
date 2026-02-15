@@ -49,8 +49,8 @@ const ALLOWED_CHANNELS = [
   'open-settings-directory',
   'get-agents',
   'get-agent-file-path',
-  'get-md-search-max-suggestions',
-  'get-md-search-prefixes',
+  'get-custom-search-max-suggestions',
+  'get-custom-search-prefixes',
   'open-file-in-editor',
   'check-file-exists',
   'open-external-url',
@@ -63,7 +63,7 @@ const ALLOWED_CHANNELS = [
   // At-path cache channels (for highlighting symbols with spaces)
   'register-at-path',
   'get-registered-at-paths',
-  // Global at-path cache channels (for mdSearch agents and other project-independent items)
+  // Global at-path cache channels (for customSearch agents and other project-independent items)
   'register-global-at-path',
   'get-global-at-paths',
   // Draft to history channel
@@ -304,13 +304,13 @@ const electronAPI: ElectronAPI = {
     },
   },
 
-  // MdSearch settings
-  mdSearch: {
+  // CustomSearch settings
+  customSearch: {
     getMaxSuggestions: async (type: 'command' | 'mention'): Promise<number> => {
-      return ipcRenderer.invoke('get-md-search-max-suggestions', type);
+      return ipcRenderer.invoke('get-custom-search-max-suggestions', type);
     },
     getSearchPrefixes: async (type: 'command' | 'mention'): Promise<string[]> => {
-      return ipcRenderer.invoke('get-md-search-prefixes', type);
+      return ipcRenderer.invoke('get-custom-search-prefixes', type);
     }
   },
 
@@ -369,7 +369,7 @@ const electronAPI: ElectronAPI = {
     getPaths: async (directory: string): Promise<string[]> => {
       return ipcRenderer.invoke('get-registered-at-paths', directory);
     },
-    // Global at-path cache (for mdSearch agents and other project-independent items)
+    // Global at-path cache (for customSearch agents and other project-independent items)
     registerGlobal: async (atPath: string): Promise<IPCResult> => {
       return ipcRenderer.invoke('register-global-at-path', atPath);
     },

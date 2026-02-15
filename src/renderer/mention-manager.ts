@@ -417,7 +417,7 @@ export class MentionManager implements IInitializable {
     // The manager will notify via onCacheUpdated callback to sync local copy
     this.directoryCacheManager?.handleCachedDirectoryData(data);
 
-    // Load registered at-paths (supports symbols with spaces and mdSearch agents)
+    // Load registered at-paths (supports symbols with spaces and customSearch agents)
     // Always load global paths; load project paths only if directory is available
     this.loadRegisteredAtPaths(data?.directory ?? null);
   }
@@ -425,7 +425,7 @@ export class MentionManager implements IInitializable {
   /**
    * Load registered at-paths from persistent cache
    * These paths may contain spaces (e.g., symbol names with spaces)
-   * Loads both project-specific paths and global paths (for mdSearch agents)
+   * Loads both project-specific paths and global paths (for customSearch agents)
    * @param directory - Project directory (null if not available)
    */
   private async loadRegisteredAtPaths(directory: string | null): Promise<void> {
@@ -439,7 +439,7 @@ export class MentionManager implements IInitializable {
         ? await electronAPI.atPathCache.getPaths(directory)
         : [];
 
-      // Load global paths (for mdSearch agents and other project-independent items)
+      // Load global paths (for customSearch agents and other project-independent items)
       const globalPaths = electronAPI.atPathCache.getGlobalPaths
         ? await electronAPI.atPathCache.getGlobalPaths()
         : [];

@@ -1,9 +1,9 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals';
-import MdSearchLoader from '../../src/managers/md-search-loader';
+import CustomSearchLoader from '../../src/managers/custom-search-loader';
 import { promises as fs } from 'fs';
-import type { MdSearchEntry } from '../../src/types';
+import type { CustomSearchEntry } from '../../src/types';
 
-// Unmock path module (needed for prefix-resolver which is used by md-search-loader)
+// Unmock path module (needed for prefix-resolver which is used by custom-search-loader)
 jest.unmock('path');
 
 // Mock glob module
@@ -49,11 +49,11 @@ const createDirent = (name: string, isFile: boolean) => ({
   isSocket: () => false,
 });
 
-describe('MdSearchLoader', () => {
-  let loader: MdSearchLoader;
+describe('CustomSearchLoader', () => {
+  let loader: CustomSearchLoader;
 
-  const createTestConfig = (overrides?: Partial<MdSearchEntry>[]): MdSearchEntry[] => {
-    const defaults: MdSearchEntry[] = [
+  const createTestConfig = (overrides?: Partial<CustomSearchEntry>[]): CustomSearchEntry[] => {
+    const defaults: CustomSearchEntry[] = [
       {
         name: '{basename}',
         type: 'command',
@@ -70,26 +70,26 @@ describe('MdSearchLoader', () => {
       },
     ];
     if (overrides) {
-      return overrides.map((override, i) => ({ ...defaults[i % 2], ...override })) as MdSearchEntry[];
+      return overrides.map((override, i) => ({ ...defaults[i % 2], ...override })) as CustomSearchEntry[];
     }
     return defaults;
   };
 
   beforeEach(() => {
-    loader = new MdSearchLoader(createTestConfig());
+    loader = new CustomSearchLoader(createTestConfig());
     jest.clearAllMocks();
   });
 
   describe('constructor', () => {
     test('should initialize with provided config', () => {
       const config = createTestConfig();
-      const testLoader = new MdSearchLoader(config);
-      expect(testLoader).toBeInstanceOf(MdSearchLoader);
+      const testLoader = new CustomSearchLoader(config);
+      expect(testLoader).toBeInstanceOf(CustomSearchLoader);
     });
 
     test('should use default config when none provided', () => {
-      const testLoader = new MdSearchLoader();
-      expect(testLoader).toBeInstanceOf(MdSearchLoader);
+      const testLoader = new CustomSearchLoader();
+      expect(testLoader).toBeInstanceOf(CustomSearchLoader);
     });
   });
 
@@ -104,7 +104,7 @@ describe('MdSearchLoader', () => {
       const firstReadCount = mockedFs.readdir.mock.calls.length;
 
       // Update config with different path
-      const newConfig: MdSearchEntry[] = [
+      const newConfig: CustomSearchEntry[] = [
         { name: '{basename}', type: 'command', description: '{frontmatter@description}', path: '/new/path', pattern: '*.md' }
       ];
       loader.updateConfig(newConfig);
@@ -138,7 +138,7 @@ describe('MdSearchLoader', () => {
 
     test('should use default config when undefined is passed', () => {
       loader.updateConfig(undefined);
-      expect(loader).toBeInstanceOf(MdSearchLoader);
+      expect(loader).toBeInstanceOf(CustomSearchLoader);
     });
   });
 
@@ -303,7 +303,7 @@ describe('MdSearchLoader', () => {
 
   describe('template resolution', () => {
     beforeEach(() => {
-      loader = new MdSearchLoader([
+      loader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
@@ -374,14 +374,14 @@ describe('MdSearchLoader', () => {
     });
 
     test('description テンプレートで {dirname} を使用できる', async () => {
-      const config: MdSearchEntry[] = [{
+      const config: CustomSearchEntry[] = [{
         name: '{basename}',
         type: 'command' as const,
         description: '{dirname}',
         path: '~/commands',
         pattern: '*.md',
       }];
-      const testLoader = new MdSearchLoader(config);
+      const testLoader = new CustomSearchLoader(config);
 
       mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
       mockedFs.readdir.mockResolvedValue([
@@ -412,7 +412,7 @@ describe('MdSearchLoader', () => {
     });
 
     test('should match specific filename pattern', async () => {
-      loader = new MdSearchLoader([
+      loader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
@@ -435,7 +435,7 @@ describe('MdSearchLoader', () => {
     });
 
     test('should handle recursive pattern **/*.md', async () => {
-      loader = new MdSearchLoader([
+      loader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
@@ -470,7 +470,7 @@ describe('MdSearchLoader', () => {
     });
 
     test('should handle intermediate directory pattern **/commands/*.md', async () => {
-      loader = new MdSearchLoader([
+      loader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
@@ -528,7 +528,7 @@ describe('MdSearchLoader', () => {
     });
 
     test('should handle wildcard intermediate pattern **/*/*.md', async () => {
-      loader = new MdSearchLoader([
+      loader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
@@ -570,7 +570,7 @@ describe('MdSearchLoader', () => {
     });
 
     test('should handle brace expansion pattern **/{commands,agents}/*.md', async () => {
-      loader = new MdSearchLoader([
+      loader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
@@ -616,7 +616,7 @@ describe('MdSearchLoader', () => {
     });
 
     test('should handle deeply nested intermediate directory pattern', async () => {
-      loader = new MdSearchLoader([
+      loader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
@@ -660,7 +660,7 @@ describe('MdSearchLoader', () => {
     });
 
     test('should handle pattern with wildcard prefix test-*.md', async () => {
-      loader = new MdSearchLoader([
+      loader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
@@ -688,7 +688,7 @@ describe('MdSearchLoader', () => {
 
   describe('duplicate handling', () => {
     test('should prevent duplicates within same type', async () => {
-      loader = new MdSearchLoader([
+      loader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
@@ -724,7 +724,7 @@ describe('MdSearchLoader', () => {
     });
 
     test('should allow same name in different types', async () => {
-      loader = new MdSearchLoader([
+      loader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
@@ -755,7 +755,7 @@ describe('MdSearchLoader', () => {
 
   describe('home directory expansion', () => {
     test('should expand ~ to home directory', async () => {
-      loader = new MdSearchLoader([
+      loader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
@@ -868,11 +868,11 @@ Content`;
   });
 
   describe('searchPrefix', () => {
-    let prefixLoader: MdSearchLoader;
+    let prefixLoader: CustomSearchLoader;
 
     beforeEach(() => {
       // searchPrefixが設定されたmention設定を持つローダーを作成
-      prefixLoader = new MdSearchLoader([
+      prefixLoader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
@@ -960,7 +960,7 @@ Content`;
 
     test('should handle multiple entries with different searchPrefix', async () => {
       // 複数エントリで異なるsearchPrefixの場合
-      const multiPrefixLoader = new MdSearchLoader([
+      const multiPrefixLoader = new CustomSearchLoader([
         {
           name: 'agent-{basename}',
           type: 'mention',
@@ -1024,7 +1024,7 @@ Content`;
 
   describe('getSearchPrefixes', () => {
     test('should return empty array when no prefixes configured', () => {
-      const noPrefixLoader = new MdSearchLoader([
+      const noPrefixLoader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
@@ -1039,7 +1039,7 @@ Content`;
     });
 
     test('should return configured prefixes for type', () => {
-      const prefixLoader = new MdSearchLoader([
+      const prefixLoader = new CustomSearchLoader([
         {
           name: 'agent-{basename}',
           type: 'mention',
@@ -1055,7 +1055,7 @@ Content`;
     });
 
     test('should return multiple prefixes when configured', () => {
-      const multiPrefixLoader = new MdSearchLoader([
+      const multiPrefixLoader = new CustomSearchLoader([
         {
           name: 'agent-{basename}',
           type: 'mention',
@@ -1079,7 +1079,7 @@ Content`;
     });
 
     test('should only return prefixes for specified type', () => {
-      const mixedLoader = new MdSearchLoader([
+      const mixedLoader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
@@ -1108,7 +1108,7 @@ Content`;
 
   describe('entry-level enable/disable filtering', () => {
     test('should filter slash commands using entry-level enable list', async () => {
-      loader = new MdSearchLoader([
+      loader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
@@ -1143,7 +1143,7 @@ Content`;
     });
 
     test('should filter slash commands using entry-level disable list', async () => {
-      loader = new MdSearchLoader([
+      loader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
@@ -1178,7 +1178,7 @@ Content`;
     });
 
     test('should apply both entry-level and global-level filtering', async () => {
-      loader = new MdSearchLoader(
+      loader = new CustomSearchLoader(
         [
           {
             name: '{basename}',
@@ -1236,7 +1236,7 @@ Content`;
     });
 
     test('should work with mention type', async () => {
-      loader = new MdSearchLoader([
+      loader = new CustomSearchLoader([
         {
           name: 'agent-{basename}',
           type: 'mention',
@@ -1273,7 +1273,7 @@ Content`;
 
   describe('global-level enable/disable filtering for mentions', () => {
     test('should filter mentions using global enable list', async () => {
-      loader = new MdSearchLoader(
+      loader = new CustomSearchLoader(
         [
           {
             name: 'agent-{basename}',
@@ -1331,7 +1331,7 @@ Content`;
     });
 
     test('should filter mentions using global disable list', async () => {
-      loader = new MdSearchLoader(
+      loader = new CustomSearchLoader(
         [
           {
             name: 'agent-{basename}',
@@ -1389,7 +1389,7 @@ Content`;
     });
 
     test('should apply both global enable and disable filters for mentions', async () => {
-      loader = new MdSearchLoader(
+      loader = new CustomSearchLoader(
         [
           {
             name: 'agent-{basename}',
@@ -1447,7 +1447,7 @@ Content`;
     });
 
     test('should apply both entry-level and global-level filtering for mentions', async () => {
-      loader = new MdSearchLoader(
+      loader = new CustomSearchLoader(
         [
           {
             name: 'agent-{basename}',

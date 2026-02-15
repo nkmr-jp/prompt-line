@@ -114,8 +114,8 @@ agentSkills:
 # ============================================================================
 # MENTION SETTINGS (@ mentions)
 # ============================================================================
-# Configure @ mention sources: fileSearch, symbolSearch, mdSearch
-# Template variables for mdSearch: {basename}, {frontmatter@fieldName}
+# Configure @ mention sources: fileSearch, symbolSearch, customSearch
+# Template variables for customSearch: {basename}, {frontmatter@fieldName}
 
 mentions:
   # File search settings (@path/to/file completion)
@@ -177,7 +177,7 @@ mentions:
   #   "**/*/SKILL.md"         - SKILL.md in any subdirectory
   #   "**/{cmd,agent}/*.md"   - Brace expansion (cmd or agent dirs)
   #   "test-*.md"             - Wildcard prefix
-  mdSearch:
+  customSearch:
     - name: "{basename}(agent)"
       description: "{frontmatter@description}"
       path: ~/.claude/agents

@@ -2,39 +2,39 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
 import { logger } from '../utils/utils';
-import type { MdSearchEntry, MdSearchItem, MdSearchType, UserSettings } from '../types';
+import type { CustomSearchEntry, CustomSearchItem, CustomSearchType, UserSettings } from '../types';
 import { resolveTemplate, getBasename, getDirname, parseFrontmatter, extractRawFrontmatter, parseFirstHeading, parseJsonContent } from '../lib/template-resolver';
-import { getDefaultMdSearchConfig, DEFAULT_MAX_SUGGESTIONS, DEFAULT_SORT_ORDER } from '../lib/default-md-search-config';
+import { getDefaultCustomSearchConfig, DEFAULT_MAX_SUGGESTIONS, DEFAULT_SORT_ORDER } from '../lib/default-custom-search-config';
 import { CACHE_TTL } from '../constants';
 import { resolvePrefix } from '../lib/prefix-resolver';
 import { isCommandEnabled } from '../lib/command-name-matcher';
 
 /**
- * MdSearchLoader - 設定ベースの統合Markdownファイルローダー
+ * CustomSearchLoader - 設定ベースの統合Markdownファイルローダー
  *
  * SlashCommandLoaderとAgentLoaderを統合し、より柔軟な設定が可能
  */
-class MdSearchLoader {
-  private config: MdSearchEntry[];
-  private cache: Map<string, { items: MdSearchItem[]; timestamp: number }> = new Map();
+class CustomSearchLoader {
+  private config: CustomSearchEntry[];
+  private cache: Map<string, { items: CustomSearchItem[]; timestamp: number }> = new Map();
   private cacheTTL: number = CACHE_TTL.MD_SEARCH;
   private settings: UserSettings | undefined;
 
   constructor(
-    config?: MdSearchEntry[],
+    config?: CustomSearchEntry[],
     settings?: UserSettings
   ) {
     // Use default config if config is undefined or empty array
-    this.config = (config && config.length > 0) ? config : getDefaultMdSearchConfig();
+    this.config = (config && config.length > 0) ? config : getDefaultCustomSearchConfig();
     this.settings = settings;
   }
 
   /**
    * 設定を更新（設定変更時に呼び出す）
    */
-  updateConfig(config: MdSearchEntry[] | undefined): void {
+  updateConfig(config: CustomSearchEntry[] | undefined): void {
     // Use default config if config is undefined or empty array
-    const newConfig = (config && config.length > 0) ? config : getDefaultMdSearchConfig();
+    const newConfig = (config && config.length > 0) ? config : getDefaultCustomSearchConfig();
 
     // 設定が変わった場合のみキャッシュをクリア
     if (JSON.stringify(this.config) !== JSON.stringify(newConfig)) {
@@ -61,7 +61,7 @@ class MdSearchLoader {
   /**
    * 指定タイプのアイテムを取得
    */
-  async getItems(type: MdSearchType): Promise<MdSearchItem[]> {
+  async getItems(type: CustomSearchType): Promise<CustomSearchItem[]> {
     const allItems = await this.loadAll();
     let items = allItems.filter(item => item.type === type);
 
@@ -90,7 +90,7 @@ class MdSearchLoader {
    * 指定タイプのアイテムを検索
    * searchPrefixが設定されているエントリは、クエリがそのプレフィックスで始まる場合のみ検索対象
    */
-  async searchItems(type: MdSearchType, query: string): Promise<MdSearchItem[]> {
+  async searchItems(type: CustomSearchType, query: string): Promise<CustomSearchItem[]> {
     const allItems = await this.loadAll();
 
     // タイプでフィルタリング
@@ -137,7 +137,7 @@ class MdSearchLoader {
   /**
    * アイテムに対応する設定エントリを検索
    */
-  private findEntryForItem(item: MdSearchItem): MdSearchEntry | undefined {
+  private findEntryForItem(item: CustomSearchItem): CustomSearchEntry | undefined {
     return this.config.find(entry =>
       entry.type === item.type &&
       `${entry.path}:${entry.pattern}` === item.sourceId
@@ -147,7 +147,7 @@ class MdSearchLoader {
   /**
    * 指定タイプのmaxSuggestionsを取得（複数エントリがある場合は最大値を返す）
    */
-  getMaxSuggestions(type: MdSearchType): number {
+  getMaxSuggestions(type: CustomSearchType): number {
     const entries = this.config.filter(entry => entry.type === type);
     if (entries.length === 0) {
       return DEFAULT_MAX_SUGGESTIONS;
@@ -159,7 +159,7 @@ class MdSearchLoader {
   /**
    * 指定タイプのsearchPrefixリストを取得（: 付き）
    */
-  getSearchPrefixes(type: MdSearchType): string[] {
+  getSearchPrefixes(type: CustomSearchType): string[] {
     const entries = this.config.filter(entry => entry.type === type && entry.searchPrefix);
     return entries.map(entry => entry.searchPrefix! + ':');
   }
@@ -167,7 +167,7 @@ class MdSearchLoader {
   /**
    * 指定タイプのsortOrderを取得（複数エントリがある場合は最初のエントリの設定を返す）
    */
-  getSortOrder(type: MdSearchType): 'asc' | 'desc' {
+  getSortOrder(type: CustomSearchType): 'asc' | 'desc' {
     const entries = this.config.filter(entry => entry.type === type);
     if (entries.length === 0) {
       return DEFAULT_SORT_ORDER;
@@ -179,7 +179,7 @@ class MdSearchLoader {
   /**
    * クエリのsearchPrefixにマッチするエントリのsortOrderを取得
    */
-  getSortOrderForQuery(type: MdSearchType, query: string): 'asc' | 'desc' {
+  getSortOrderForQuery(type: CustomSearchType, query: string): 'asc' | 'desc' {
     const entries = this.config.filter(entry => entry.type === type);
     if (entries.length === 0) {
       return DEFAULT_SORT_ORDER;
@@ -207,7 +207,7 @@ class MdSearchLoader {
   /**
    * アイテムを指定のソート順でソート
    */
-  private sortItems(items: MdSearchItem[], sortOrder: 'asc' | 'desc'): MdSearchItem[] {
+  private sortItems(items: CustomSearchItem[], sortOrder: 'asc' | 'desc'): CustomSearchItem[] {
     return [...items].sort((a, b) => {
       const comparison = a.name.localeCompare(b.name);
       return sortOrder === 'desc' ? -comparison : comparison;
@@ -217,7 +217,7 @@ class MdSearchLoader {
   /**
    * 全設定エントリからアイテムをロード
    */
-  private async loadAll(): Promise<MdSearchItem[]> {
+  private async loadAll(): Promise<CustomSearchItem[]> {
     const cacheKey = 'all';
     const cached = this.cache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < this.cacheTTL) {
@@ -236,9 +236,9 @@ class MdSearchLoader {
   /**
    * Load all entries with deduplication
    */
-  private async loadAllEntries(): Promise<MdSearchItem[]> {
-    const allItems: MdSearchItem[] = [];
-    const seenNames = new Map<MdSearchType, Set<string>>();
+  private async loadAllEntries(): Promise<CustomSearchItem[]> {
+    const allItems: CustomSearchItem[] = [];
+    const seenNames = new Map<CustomSearchType, Set<string>>();
 
     for (const entry of this.config) {
       try {
@@ -256,10 +256,10 @@ class MdSearchLoader {
    * Add items with deduplication check
    */
   private addItemsWithDeduplication(
-    items: MdSearchItem[],
-    type: MdSearchType,
-    seenNames: Map<MdSearchType, Set<string>>,
-    allItems: MdSearchItem[]
+    items: CustomSearchItem[],
+    type: CustomSearchType,
+    seenNames: Map<CustomSearchType, Set<string>>,
+    allItems: CustomSearchItem[]
   ): void {
     if (!seenNames.has(type)) {
       seenNames.set(type, new Set());
@@ -277,8 +277,8 @@ class MdSearchLoader {
   /**
    * Log loaded items statistics
    */
-  private logLoadedItems(allItems: MdSearchItem[]): void {
-    logger.info('MdSearch items loaded', {
+  private logLoadedItems(allItems: CustomSearchItem[]): void {
+    logger.info('CustomSearch items loaded', {
       total: allItems.length,
       commands: allItems.filter(i => i.type === 'command').length,
       mentions: allItems.filter(i => i.type === 'mention').length
@@ -288,7 +288,7 @@ class MdSearchLoader {
   /**
    * 単一エントリをロード
    */
-  private async loadEntry(entry: MdSearchEntry): Promise<MdSearchItem[]> {
+  private async loadEntry(entry: CustomSearchEntry): Promise<CustomSearchItem[]> {
     const expandedPath = entry.path.replace(/^~/, os.homedir());
 
     const isValid = await this.validateDirectory(expandedPath);
@@ -309,7 +309,7 @@ class MdSearchLoader {
     try {
       const stats = await fs.stat(path);
       if (!stats.isDirectory()) {
-        logger.warn('MdSearch path is not a directory', { path });
+        logger.warn('CustomSearch path is not a directory', { path });
         return false;
       }
       return true;
@@ -322,14 +322,14 @@ class MdSearchLoader {
   }
 
   /**
-   * Parse files to MdSearchItems
+   * Parse files to CustomSearchItems
    */
   private async parseFilesToItems(
     files: string[],
-    entry: MdSearchEntry,
+    entry: CustomSearchEntry,
     sourceId: string
-  ): Promise<MdSearchItem[]> {
-    const items: MdSearchItem[] = [];
+  ): Promise<CustomSearchItem[]> {
+    const items: CustomSearchItem[] = [];
 
     for (const filePath of files) {
       const item = await this.parseFileToItem(filePath, entry, sourceId);
@@ -349,13 +349,13 @@ class MdSearchLoader {
   }
 
   /**
-   * Parse single file to MdSearchItem
+   * Parse single file to CustomSearchItem
    */
   private async parseFileToItem(
     filePath: string,
-    entry: MdSearchEntry,
+    entry: CustomSearchEntry,
     sourceId: string
-  ): Promise<MdSearchItem | null> {
+  ): Promise<CustomSearchItem | null> {
     try {
       const content = await fs.readFile(filePath, 'utf8');
       const isJsonFile = filePath.endsWith('.json');
@@ -377,7 +377,7 @@ class MdSearchLoader {
       const jsonData = isJsonFile ? parseJsonContent(content) : undefined;
       const context = { basename, frontmatter, prefix, dirname, filePath, heading, ...(jsonData && { jsonData }) };
 
-      const item: MdSearchItem = {
+      const item: CustomSearchItem = {
         name: resolveTemplate(entry.name, context),
         description: resolveTemplate(entry.description, context),
         type: entry.type,
@@ -659,4 +659,4 @@ class MdSearchLoader {
   }
 }
 
-export default MdSearchLoader;
+export default CustomSearchLoader;

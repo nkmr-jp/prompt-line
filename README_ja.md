@@ -232,7 +232,7 @@ npm run reset-built-in-commands   # すべてデフォルトにリセット
 | `slashCommands` | Built-in commands や Agent Skills検索 |
 | `mentions.fileSearch` | ファイル検索設定（@path/to/file補完） |
 | `mentions.symbolSearch` | シンボル検索設定（@ts:Config、@go:Handler） |
-| `mentions.mdSearch` | searchPrefixによるマークダウン検索（agent, rules, docs等）、frontmatterテンプレート変数対応 |
+| `mentions.customSearch` | searchPrefixによるマークダウン検索（agent, rules, docs等）、frontmatterテンプレート変数対応 |
 
 ## プロンプト履歴
 

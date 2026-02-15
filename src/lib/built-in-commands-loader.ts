@@ -47,7 +47,7 @@ type BuiltInCommandsSettings = string[];
 
 /**
  * Loads and searches built-in slash commands from YAML files
- * Separate from MdSearchLoader - handles YAML format directly
+ * Separate from CustomSearchLoader - handles YAML format directly
  */
 class BuiltInCommandsLoader {
   private commands: SlashCommandItem[] = [];

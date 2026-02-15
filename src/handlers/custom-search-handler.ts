@@ -1,6 +1,6 @@
 import { IpcMainInvokeEvent } from 'electron';
 import { logger } from '../utils/utils';
-import type MdSearchLoader from '../managers/md-search-loader';
+import type CustomSearchLoader from '../managers/custom-search-loader';
 import type SettingsManager from '../managers/settings-manager';
 import type BuiltInCommandsManager from '../managers/built-in-commands-manager';
 import type { SlashCommandItem, AgentItem } from '../types';
@@ -9,27 +9,27 @@ import { slashCommandCacheManager } from '../managers/slash-command-cache-manage
 import type { IPCResult } from './handler-utils';
 
 /**
- * MdSearchHandler manages all IPC handlers related to MD search functionality.
+ * CustomSearchHandler manages all IPC handlers related to MD search functionality.
  * This includes slash commands, agents, and search configuration.
  */
-class MdSearchHandler {
-  private mdSearchLoader: MdSearchLoader;
+class CustomSearchHandler {
+  private customSearchLoader: CustomSearchLoader;
   private settingsManager: SettingsManager;
   private lastConfigUpdate: number = 0;
   private readonly CONFIG_CACHE_TTL = 5000; // 5 seconds cache TTL
 
   constructor(
-    mdSearchLoader: MdSearchLoader,
+    customSearchLoader: CustomSearchLoader,
     settingsManager: SettingsManager,
     builtInCommandsManager: BuiltInCommandsManager
   ) {
-    this.mdSearchLoader = mdSearchLoader;
+    this.customSearchLoader = customSearchLoader;
     this.settingsManager = settingsManager;
 
     // Subscribe to settings changes for hot reload
     settingsManager.on('settings-changed', () => {
       this.updateConfig();
-      logger.debug('MdSearch config updated via hot reload');
+      logger.debug('CustomSearch config updated via hot reload');
     });
 
     // Subscribe to built-in commands changes for hot reload
@@ -51,8 +51,8 @@ class MdSearchHandler {
     ipcMain.handle('has-command-file', this.handleHasCommandFile.bind(this));
     ipcMain.handle('get-agents', this.handleGetAgents.bind(this));
     ipcMain.handle('get-agent-file-path', this.handleGetAgentFilePath.bind(this));
-    ipcMain.handle('get-md-search-max-suggestions', this.handleGetMdSearchMaxSuggestions.bind(this));
-    ipcMain.handle('get-md-search-prefixes', this.handleGetMdSearchPrefixes.bind(this));
+    ipcMain.handle('get-custom-search-max-suggestions', this.handleGetCustomSearchMaxSuggestions.bind(this));
+    ipcMain.handle('get-custom-search-prefixes', this.handleGetCustomSearchPrefixes.bind(this));
     // Slash command cache handlers
     ipcMain.handle('register-global-slash-command', this.handleRegisterGlobalSlashCommand.bind(this));
     ipcMain.handle('get-global-slash-commands', this.handleGetGlobalSlashCommands.bind(this));
@@ -69,8 +69,8 @@ class MdSearchHandler {
       'has-command-file',
       'get-agents',
       'get-agent-file-path',
-      'get-md-search-max-suggestions',
-      'get-md-search-prefixes',
+      'get-custom-search-max-suggestions',
+      'get-custom-search-prefixes',
       'register-global-slash-command',
       'get-global-slash-commands',
       'get-usage-bonuses'
@@ -80,17 +80,17 @@ class MdSearchHandler {
       ipcMain.removeAllListeners(handler);
     });
 
-    logger.info('MdSearch IPC handlers removed');
+    logger.info('CustomSearch IPC handlers removed');
   }
 
   /**
-   * Update MdSearchLoader configuration with latest settings
-   * Uses getMdSearchEntries to support both new and legacy settings format
+   * Update CustomSearchLoader configuration with latest settings
+   * Uses getCustomSearchEntries to support both new and legacy settings format
    */
   private updateConfig(): void {
-    const mdSearchEntries = this.settingsManager.getMdSearchEntries();
-    if (mdSearchEntries && mdSearchEntries.length > 0) {
-      this.mdSearchLoader.updateConfig(mdSearchEntries);
+    const customSearchEntries = this.settingsManager.getCustomSearchEntries();
+    if (customSearchEntries && customSearchEntries.length > 0) {
+      this.customSearchLoader.updateConfig(customSearchEntries);
     }
     this.lastConfigUpdate = Date.now();
   }
@@ -131,12 +131,12 @@ class MdSearchHandler {
       // Get built-in commands from YAML files (respects enabled/tools settings)
       const builtInCommands = builtInCommandsLoader.searchCommands(query, builtInSettings);
 
-      // Get user commands from MdSearchLoader (MD files)
+      // Get user commands from CustomSearchLoader (MD files)
       const items = query
-        ? await this.mdSearchLoader.searchItems('command', query)
-        : await this.mdSearchLoader.getItems('command');
+        ? await this.customSearchLoader.searchItems('command', query)
+        : await this.customSearchLoader.getItems('command');
 
-      // Convert MdSearchItem to SlashCommandItem for backward compatibility
+      // Convert CustomSearchItem to SlashCommandItem for backward compatibility
       const userCommands: SlashCommandItem[] = items.map(item => {
         const cmd: SlashCommandItem = {
           name: item.name,
@@ -207,7 +207,7 @@ class MdSearchHandler {
       // Refresh config from settings if cache expired
       this.updateConfigIfNeeded();
 
-      const items = await this.mdSearchLoader.getItems('command');
+      const items = await this.customSearchLoader.getItems('command');
       const command = items.find(c => c.name === commandName);
 
       if (command) {
@@ -249,10 +249,10 @@ class MdSearchHandler {
       }
 
       // Check if this is a user-defined command (custom)
-      const items = await this.mdSearchLoader.getItems('command');
+      const items = await this.customSearchLoader.getItems('command');
       const command = items.find(c => c.name === commandName);
 
-      return !!command; // Has file if found in mdSearchLoader
+      return !!command; // Has file if found in customSearchLoader
     } catch (error) {
       logger.error('Failed to check command file:', error);
       return false;
@@ -271,11 +271,11 @@ class MdSearchHandler {
       // Refresh config from settings if cache expired
       this.updateConfigIfNeeded();
 
-      // Get mentions (agents) from MdSearchLoader
+      // Get mentions (agents) from CustomSearchLoader
       // Always use searchItems to apply searchPrefix filtering, even for empty query
-      const items = await this.mdSearchLoader.searchItems('mention', query ?? '');
+      const items = await this.customSearchLoader.searchItems('mention', query ?? '');
 
-      // Convert MdSearchItem to AgentItem for backward compatibility
+      // Convert CustomSearchItem to AgentItem for backward compatibility
       const agents: AgentItem[] = items.map(item => {
         const agent: AgentItem = {
           name: item.name,
@@ -314,7 +314,7 @@ class MdSearchHandler {
       // Refresh config from settings if cache expired
       this.updateConfigIfNeeded();
 
-      const items = await this.mdSearchLoader.getItems('mention');
+      const items = await this.customSearchLoader.getItems('mention');
       const agent = items.find(a => a.name === agentName);
 
       if (agent) {
@@ -329,10 +329,10 @@ class MdSearchHandler {
   }
 
   /**
-   * Handler: get-md-search-max-suggestions
+   * Handler: get-custom-search-max-suggestions
    * Returns the maximum number of suggestions for a given search type
    */
-  private handleGetMdSearchMaxSuggestions(
+  private handleGetCustomSearchMaxSuggestions(
     _event: IpcMainInvokeEvent,
     type: 'command' | 'mention'
   ): number {
@@ -340,18 +340,18 @@ class MdSearchHandler {
       // Refresh config from settings if cache expired
       this.updateConfigIfNeeded();
 
-      return this.mdSearchLoader.getMaxSuggestions(type);
+      return this.customSearchLoader.getMaxSuggestions(type);
     } catch (error) {
-      logger.error('Failed to get MdSearch maxSuggestions:', error);
+      logger.error('Failed to get CustomSearch maxSuggestions:', error);
       return 20; // Default fallback
     }
   }
 
   /**
-   * Handler: get-md-search-prefixes
+   * Handler: get-custom-search-prefixes
    * Returns the search prefixes for a given search type
    */
-  private handleGetMdSearchPrefixes(
+  private handleGetCustomSearchPrefixes(
     _event: IpcMainInvokeEvent,
     type: 'command' | 'mention'
   ): string[] {
@@ -359,9 +359,9 @@ class MdSearchHandler {
       // Refresh config from settings if cache expired
       this.updateConfigIfNeeded();
 
-      return this.mdSearchLoader.getSearchPrefixes(type);
+      return this.customSearchLoader.getSearchPrefixes(type);
     } catch (error) {
-      logger.error('Failed to get MdSearch searchPrefixes:', error);
+      logger.error('Failed to get CustomSearch searchPrefixes:', error);
       return []; // Default fallback
     }
   }
@@ -439,4 +439,4 @@ class MdSearchHandler {
   }
 }
 
-export default MdSearchHandler;
+export default CustomSearchHandler;

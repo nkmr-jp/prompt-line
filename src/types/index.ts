@@ -61,9 +61,9 @@ export type {
   // Legacy alias
   SlashCommandsSettings,
   // Legacy types (for backward compatibility)
-  MdSearchType,
-  MdSearchEntry,
-  MdSearchItem,
+  CustomSearchType,
+  CustomSearchEntry,
+  CustomSearchItem,
   SlashCommandItem,
   AgentItem,
 } from './window';

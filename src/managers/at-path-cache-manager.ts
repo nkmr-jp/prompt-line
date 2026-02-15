@@ -135,7 +135,7 @@ export class AtPathCacheManager {
   }
 
   // ============================================================================
-  // Global Cache Methods (for mdSearch agents and other project-independent items)
+  // Global Cache Methods (for customSearch agents and other project-independent items)
   // ============================================================================
 
   /**

@@ -216,7 +216,7 @@ For the full configuration example with all available options and comments, see:
 | `slashCommands` | Built-in AI tool commands, custom slash commands, and skill search |
 | `mentions.fileSearch` | File search settings (@path/to/file completion) |
 | `mentions.symbolSearch` | Symbol search settings (@ts:Config, @go:Handler) |
-| `mentions.mdSearch` | Markdown-based mentions with searchPrefix support (agent, rules, docs, etc.) and frontmatter template variables |
+| `mentions.customSearch` | Markdown-based mentions with searchPrefix support (agent, rules, docs, etc.) and frontmatter template variables |
 
 ## Prompt History
 

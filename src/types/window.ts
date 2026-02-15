@@ -162,8 +162,10 @@ export interface UserSettings {
   fileSearch?: FileSearchUserSettings;
   // Legacy: symbolSearch configuration (use mentions.symbolSearch instead)
   symbolSearch?: SymbolSearchUserSettings;
-  // Legacy: mdSearch configuration (for backward compatibility)
-  mdSearch?: MdSearchEntry[];
+  // Legacy: customSearch configuration (for backward compatibility)
+  customSearch?: CustomSearchEntry[];
+  // Legacy alias: mdSearch (for backward compatibility)
+  mdSearch?: CustomSearchEntry[];
   // Legacy: slashCommands (use agentSkills instead)
   slashCommands?: AgentSkillsSettings;
   // Legacy: Built-in commands configuration (use builtInCommands instead)
@@ -230,7 +232,9 @@ export interface MentionsSettings {
   fileSearch?: FileSearchUserSettings;
   /** Symbol search settings (@ts:Config, @go:Handler) */
   symbolSearch?: SymbolSearchUserSettings;
-  /** Markdown-based mentions from markdown files */
+  /** Custom search: mentions from markdown files */
+  customSearch?: MentionEntry[];
+  /** @deprecated Use customSearch instead */
   mdSearch?: MentionEntry[];
   /**
    * 有効にするメンション名のリスト（ホワイトリスト）
@@ -350,24 +354,24 @@ export interface MentionEntry {
 }
 
 // ============================================================================
-// MdSearch Related Types (Legacy - for backward compatibility)
+// CustomSearch Related Types (Legacy - for backward compatibility)
 // ============================================================================
 
 /**
- * mdSearch エントリの種類
+ * customSearch エントリの種類
  * - command: スラッシュコマンド（/で始まる）
  * - mention: メンション（@で始まる）
  */
-export type MdSearchType = 'command' | 'mention';
+export type CustomSearchType = 'command' | 'mention';
 
 /**
- * mdSearch 設定エントリ
+ * customSearch 設定エントリ
  */
-export interface MdSearchEntry {
+export interface CustomSearchEntry {
   /** 名前テンプレート（例: "{basename}", "agent-{frontmatter@name}"） */
   name: string;
   /** 検索タイプ */
-  type: MdSearchType;
+  type: CustomSearchType;
   /** 説明テンプレート（例: "{frontmatter@description}"） */
   description: string;
   /** 検索ディレクトリパス */
@@ -407,13 +411,13 @@ export interface MdSearchEntry {
 /**
  * 検索結果アイテム（統一型）
  */
-export interface MdSearchItem {
+export interface CustomSearchItem {
   /** 解決済み名前 */
   name: string;
   /** 解決済み説明 */
   description: string;
   /** ソースタイプ */
-  type: MdSearchType;
+  type: CustomSearchType;
   /** ファイルパス */
   filePath: string;
   /** 元のfrontmatter文字列 */

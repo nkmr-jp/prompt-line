@@ -559,7 +559,7 @@ export class CodeSearchManager {
       });
     }
 
-    // Limit results using fileSearch settings (not mdSearch)
+    // Limit results using fileSearch settings (not customSearch)
     const maxSuggestions = await (this.callbacks.getFileSearchMaxSuggestions?.() ?? Promise.resolve(20));
     filtered = filtered.slice(0, maxSuggestions);
 

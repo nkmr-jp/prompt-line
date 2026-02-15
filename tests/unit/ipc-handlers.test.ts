@@ -153,7 +153,7 @@ describe('IPCHandlers', () => {
             })),
             updateSettings: jest.fn(),
             resetSettings: jest.fn(),
-            getMdSearchEntries: jest.fn(() => []),
+            getCustomSearchEntries: jest.fn(() => []),
             getBuiltInCommandsSettings: jest.fn(() => undefined),
             // EventEmitter methods for hot reload
             on: jest.fn(),
@@ -651,7 +651,7 @@ describe('IPCHandlers', () => {
 
             // Should be called for each handler (count: 43 handlers)
             // paste-handler: 2, window-handler: 3, history-draft-handler: 14 (includes 2 at-path cache handlers + save-draft-to-history)
-            // system-handler: 5, file-handler: 3, mdsearch-handler: 10 (includes has-command-file + 3 slash command cache handlers), code-search-handler: 1
+            // system-handler: 5, file-handler: 3, custom-search-handler: 10 (includes has-command-file + 3 slash command cache handlers), code-search-handler: 1
             // usage-history-handler: 6 (record/get bonuses for file, symbol, agent)
             expect(ipcMain.removeAllListeners).toHaveBeenCalledTimes(43);
             expect(logger.info).toHaveBeenCalledWith('All IPC handlers removed via coordinator');
