@@ -1,7 +1,7 @@
 {
   "packages": {
     ".": {
-      "release-type": "simple",
+      "release-type": "node",
       "changelog-path": "CHANGELOG.md",
       "changelog-sections": [
         {"type": "feat", "section": "Features"},
