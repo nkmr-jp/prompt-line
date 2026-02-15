@@ -1,0 +1,101 @@
+# https://docs.github.com/en/code-security/dependabot/working-with-dependabot/dependabot-options-reference
+version: 2
+updates:
+  # --- npm dependencies ---
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Tokyo"
+    open-pull-requests-limit: 10
+    target-branch: "develop"
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      # patch updates: low risk, grouped together
+      patch-updates:
+        applies-to: version-updates
+        update-types:
+          - "patch"
+        patterns:
+          - "*"
+      # minor updates: medium risk, grouped together
+      minor-updates:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+        patterns:
+          - "*"
+      # Electron related: grouped for compatibility
+      electron:
+        applies-to: version-updates
+        update-types:
+          - "major"
+        patterns:
+          - "electron"
+          - "electron-*"
+          - "@electron/*"
+      # Testing tools
+      testing:
+        applies-to: version-updates
+        update-types:
+          - "major"
+        patterns:
+          - "jest"
+          - "jest-*"
+          - "@jest/*"
+          - "ts-jest"
+          - "@stryker-mutator/*"
+      # Linting & formatting
+      linting:
+        applies-to: version-updates
+        update-types:
+          - "major"
+        patterns:
+          - "eslint"
+          - "eslint-*"
+          - "@eslint/*"
+          - "@typescript-eslint/*"
+          - "prettier"
+      # Build tools
+      build-tools:
+        applies-to: version-updates
+        update-types:
+          - "major"
+        patterns:
+          - "typescript"
+          - "vite"
+          - "vite-*"
+          - "husky"
+      # Security updates: grouped separately
+      security-patch:
+        applies-to: security-updates
+        update-types:
+          - "patch"
+          - "minor"
+        patterns:
+          - "*"
+
+  # --- GitHub Actions ---
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Tokyo"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
