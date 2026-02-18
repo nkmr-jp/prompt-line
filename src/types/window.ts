@@ -384,6 +384,8 @@ export interface CustomSearchEntry {
   label?: string;
   /** オプション: ラベルとハイライトの色（grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red） */
   color?: ColorValue;
+  /** オプション: codiconアイコンクラス名（例: "codicon-rocket", "codicon-symbol-class"） */
+  icon?: string;
   /** オプション: argumentHintテンプレート */
   argumentHint?: string;
   /** オプション: 検索候補の最大表示数（デフォルト: 20） */
@@ -428,6 +430,8 @@ export interface CustomSearchItem {
   label?: string;
   /** ラベルとハイライトの色（オプション） */
   color?: ColorValue;
+  /** codiconアイコンクラス名（オプション） */
+  icon?: string;
   /** argumentHint（commandタイプのみ） */
   argumentHint?: string;
   /** 検索ソースの識別子（path + pattern） */
@@ -441,6 +445,7 @@ export interface SlashCommandItem {
   description: string;
   label?: string;  // Label text (e.g., from frontmatter)
   color?: ColorValue;  // Color for label and highlight
+  icon?: string;  // Codicon icon class name (e.g., "codicon-rocket")
   argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
@@ -456,4 +461,5 @@ export interface AgentItem {
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
   inputFormat?: InputFormatType;  // 入力フォーマット（'name' | 'path'）
   color?: ColorValue;
+  icon?: string;  // Codicon icon class name (e.g., "codicon-rocket")
 }

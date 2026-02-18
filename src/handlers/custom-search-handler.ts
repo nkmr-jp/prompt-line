@@ -151,6 +151,9 @@ class CustomSearchHandler {
         if (item.color) {
           cmd.color = item.color;
         }
+        if (item.icon) {
+          cmd.icon = item.icon;
+        }
         if (item.argumentHint) {
           cmd.argumentHint = item.argumentHint;
         }
@@ -289,6 +292,9 @@ class CustomSearchHandler {
         }
         if (item.color) {
           agent.color = item.color;
+        }
+        if (item.icon) {
+          agent.icon = item.icon;
         }
         return agent;
       });

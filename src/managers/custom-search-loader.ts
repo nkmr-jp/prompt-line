@@ -446,6 +446,10 @@ class CustomSearchLoader {
         const resolvedColor = resolveTemplate(entry.color, context);
         if (resolvedColor) item.color = resolvedColor as ColorValue;
       }
+      if (entry.icon) {
+        const resolvedIcon = resolveTemplate(entry.icon, context);
+        if (resolvedIcon) item.icon = resolvedIcon;
+      }
       if (entry.argumentHint) {
         const resolvedHint = resolveTemplate(entry.argumentHint, context);
         if (resolvedHint) item.argumentHint = resolvedHint;
@@ -510,6 +514,10 @@ class CustomSearchLoader {
         if (entry.color) {
           const resolvedColor = resolveTemplate(entry.color, context);
           if (resolvedColor) item.color = resolvedColor as ColorValue;
+        }
+        if (entry.icon) {
+          const resolvedIcon = resolveTemplate(entry.icon, context);
+          if (resolvedIcon) item.icon = resolvedIcon;
         }
         if (entry.argumentHint) {
           const resolvedHint = resolveTemplate(entry.argumentHint, context);
@@ -625,6 +633,10 @@ class CustomSearchLoader {
     if (entry.color) {
       const resolvedColor = resolveTemplate(entry.color, context);
       if (resolvedColor) item.color = resolvedColor as ColorValue;
+    }
+    if (entry.icon) {
+      const resolvedIcon = resolveTemplate(entry.icon, context);
+      if (resolvedIcon) item.icon = resolvedIcon;
     }
     if (entry.argumentHint) {
       const resolvedHint = resolveTemplate(entry.argumentHint, context);
