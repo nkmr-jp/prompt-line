@@ -137,27 +137,17 @@ class CustomSearchLoader {
 
   /**
    * エントリのsourceIdを取得
-   * patternフィールドがある場合: `${path}:${pattern}`（後方互換）
-   * patternフィールドがない場合: `path`そのまま
    */
   private getSourceId(entry: CustomSearchEntry): string {
-    return entry.pattern != null ? `${entry.path}:${entry.pattern}` : entry.path;
+    return entry.path;
   }
 
   /**
    * pathからディレクトリとglobパターンを分離する
-   * - patternフィールドがある場合: pathをディレクトリ、patternをglobとして使用（後方互換）
-   * - patternフィールドがない場合: pathの最初のglob文字(*, ?, {, [)の手前で分割
+   * - pathの最初のglob文字(*, ?, {, [)の手前で分割
    * - glob文字がない場合: pathをそのままディレクトリとして扱う
    */
   private resolvePathAndPattern(entry: CustomSearchEntry): { directory: string; pattern: string | undefined } {
-    if (entry.pattern != null) {
-      return {
-        directory: entry.path.replace(/^~/, os.homedir()),
-        pattern: entry.pattern,
-      };
-    }
-
     const expandedPath = entry.path.replace(/^~/, os.homedir());
     const globChars = ['*', '?', '{', '['];
     let firstGlobIndex = -1;
@@ -380,7 +370,7 @@ class CustomSearchLoader {
     }
 
     if (!pattern) {
-      // glob文字もpatternフィールドもない場合はスキップ
+      // glob文字がない場合はスキップ
       return [];
     }
 

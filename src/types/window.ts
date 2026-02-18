@@ -289,8 +289,6 @@ export interface SlashCommandEntry {
   description: string;
   /** 検索ディレクトリパスまたはglobパス（例: "~/.claude/agents/*.md"） */
   path: string;
-  /** ファイルパターン（glob形式、例: "*.md"）- 省略時はpathからglobを分離 */
-  pattern?: string;
   /** オプション: argumentHintテンプレート */
   argumentHint?: string;
   /** オプション: 検索候補の最大表示数（デフォルト: 20） */
@@ -329,8 +327,6 @@ export interface MentionEntry {
   description: string;
   /** 検索ディレクトリパスまたはglobパス（例: "~/.claude/agents/*.md"） */
   path: string;
-  /** ファイルパターン（glob形式、例: "*.md"）- 省略時はpathからglobを分離 */
-  pattern?: string;
   /** オプション: 検索候補の最大表示数（デフォルト: 20） */
   maxSuggestions?: number;
   /** オプション: 検索プレフィックス（例: "agent"）- 自動で : が追加されます（@agent: で検索） */
@@ -382,8 +378,6 @@ export interface CustomSearchEntry {
   description: string;
   /** 検索ディレクトリパスまたはglobパス（例: "~/.claude/agents/*.md"） */
   path: string;
-  /** ファイルパターン（glob形式、例: "*.md", "SKILL.md"）- 省略時はpathからglobを分離 */
-  pattern?: string;
   /** オプション: label（静的な値 "skill" または テンプレート "{frontmatter@label}"） */
   label?: string;
   /** オプション: ラベルとハイライトの色（grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red） */
@@ -438,7 +432,7 @@ export interface CustomSearchItem {
   icon?: string;
   /** argumentHint（commandタイプのみ） */
   argumentHint?: string;
-  /** 検索ソースの識別子（path + pattern） */
+  /** 検索ソースの識別子（path） */
   sourceId: string;
   /** 入力フォーマット（'name' | 'path'） */
   inputFormat?: InputFormatType;

@@ -148,7 +148,6 @@ class SettingsManager extends EventEmitter {
           description: entry.description,
           path: entry.path,
         };
-        if (entry.pattern != null) cmd.pattern = entry.pattern;
         if (entry.argumentHint) cmd.argumentHint = entry.argumentHint;
         if (entry.maxSuggestions) cmd.maxSuggestions = entry.maxSuggestions;
         if (entry.orderBy) cmd.orderBy = entry.orderBy;
@@ -161,7 +160,6 @@ class SettingsManager extends EventEmitter {
           description: entry.description,
           path: entry.path,
         };
-        if (entry.pattern != null) mention.pattern = entry.pattern;
         if (entry.maxSuggestions) mention.maxSuggestions = entry.maxSuggestions;
         if (entry.searchPrefix) mention.searchPrefix = entry.searchPrefix;
         if (entry.orderBy) mention.orderBy = entry.orderBy;
@@ -491,7 +489,6 @@ class SettingsManager extends EventEmitter {
           description: cmd.description,
           path: cmd.path,
         };
-        if (cmd.pattern != null) entry.pattern = cmd.pattern;
         // Only add optional properties if defined
         if (cmd.argumentHint !== undefined) entry.argumentHint = cmd.argumentHint;
         if (cmd.maxSuggestions !== undefined) entry.maxSuggestions = cmd.maxSuggestions;
@@ -516,7 +513,6 @@ class SettingsManager extends EventEmitter {
           description: mention.description,
           path: mention.path,
         };
-        if (mention.pattern != null) entry.pattern = mention.pattern;
         // Only add optional properties if defined
         if (mention.maxSuggestions !== undefined) entry.maxSuggestions = mention.maxSuggestions;
         if (mention.searchPrefix !== undefined) entry.searchPrefix = mention.searchPrefix;

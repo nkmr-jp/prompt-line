@@ -436,7 +436,7 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
   #   "*.jsonl"                   - JSONL files (one JSON per line)
   #
   # JSON file support:
-  #   Use pattern "*.json" with {json@field} template variables
+  #   Use path "*.json" with {json@field} template variables
   #   Example: name: "{json@name}", description: "{json@description}"
   #   Nested fields: {json@nested.field}
   customSearch:
