@@ -886,6 +886,58 @@ Content`;
     });
   });
 
+  describe('icon attribute', () => {
+    test('should resolve icon from entry config', async () => {
+      const loaderWithIcon = new CustomSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command' as const,
+          description: '{frontmatter@description}',
+          path: '/path/to/commands',
+          pattern: '*.md',
+          icon: 'codicon-rocket',
+        },
+      ]);
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('test.md', true)] as any);
+      mockedFs.readFile.mockResolvedValue('---\ndescription: Test command\n---\nContent');
+
+      const items = await loaderWithIcon.getItems('command');
+
+      expect(items[0]?.icon).toBe('codicon-rocket');
+    });
+
+    test('should resolve icon from frontmatter template', async () => {
+      const loaderWithIcon = new CustomSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command' as const,
+          description: '{frontmatter@description}',
+          path: '/path/to/commands',
+          pattern: '*.md',
+          icon: '{frontmatter@icon}',
+        },
+      ]);
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('test.md', true)] as any);
+      mockedFs.readFile.mockResolvedValue('---\ndescription: Test\nicon: codicon-symbol-class\n---\nContent');
+
+      const items = await loaderWithIcon.getItems('command');
+
+      expect(items[0]?.icon).toBe('codicon-symbol-class');
+    });
+
+    test('should not set icon when entry has no icon config', async () => {
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('test.md', true)] as any);
+      mockedFs.readFile.mockResolvedValue('---\ndescription: Test\n---\nContent');
+
+      const items = await loader.getItems('command');
+
+      expect(items[0]?.icon).toBeUndefined();
+    });
+  });
+
   describe('sourceId', () => {
     test('should include sourceId in items', async () => {
       mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);

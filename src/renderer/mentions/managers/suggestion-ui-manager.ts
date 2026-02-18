@@ -556,8 +556,24 @@ export class SuggestionUIManager {
     item.setAttribute('data-type', 'agent');
 
     const icon = document.createElement('span');
-    icon.className = 'file-icon mention-icon';
-    insertSvgIntoElement(icon, getMentionIconSvg());
+    if (agent.icon) {
+      icon.className = `file-icon codicon ${agent.icon}`;
+      if (agent.color) {
+        if (agent.color.startsWith('#')) {
+          icon.style.color = agent.color;
+        } else {
+          const colorMap: Record<string, string> = {
+            grey: '#9ca3af', darkGrey: '#78818c', blue: '#89DDFF',
+            purple: '#c792ea', teal: '#5eead4', green: '#86efac',
+            yellow: '#fde047', orange: '#fb923c', pink: '#f472b6', red: '#f07178',
+          };
+          icon.style.color = colorMap[agent.color] || agent.color;
+        }
+      }
+    } else {
+      icon.className = 'file-icon mention-icon';
+      insertSvgIntoElement(icon, getMentionIconSvg());
+    }
 
     const name = document.createElement('span');
     name.className = 'file-name agent-name';

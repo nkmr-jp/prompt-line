@@ -23,6 +23,7 @@ interface SlashCommandItem {
    * - Hex codes: '#RGB' or '#RRGGBB' (e.g., '#FF6B35', '#F63')
    */
   color?: ColorValue;
+  icon?: string;  // Codicon icon class name (e.g., "codicon-rocket")
   argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
@@ -472,6 +473,25 @@ export class SlashCommandManager implements IInitializable {
         item.classList.add('selected');
       }
       item.dataset.index = index.toString();
+
+      // Create codicon icon if icon attribute exists
+      if (cmd.icon) {
+        const iconSpan = document.createElement('span');
+        iconSpan.className = `file-icon codicon ${cmd.icon}`;
+        if (cmd.color) {
+          if (cmd.color.startsWith('#')) {
+            iconSpan.style.color = cmd.color;
+          } else {
+            const colorMap: Record<string, string> = {
+              grey: '#9ca3af', darkGrey: '#78818c', blue: '#89DDFF',
+              purple: '#c792ea', teal: '#5eead4', green: '#86efac',
+              yellow: '#fde047', orange: '#fb923c', pink: '#f472b6', red: '#f07178',
+            };
+            iconSpan.style.color = colorMap[cmd.color] || cmd.color;
+          }
+        }
+        item.appendChild(iconSpan);
+      }
 
       // Create name element with highlighting
       const nameSpan = document.createElement('span');
