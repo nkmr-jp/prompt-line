@@ -52,27 +52,24 @@ export const defaultSettings: UserSettings = {
     {
       name: '{basename}',
       description: '{frontmatter@description}',
-      path: '~/.claude/commands',
+      path: '~/.claude/commands/*.md',
       label: 'command',
       color: 'purple',
-      pattern: '*.md',
       argumentHint: '{frontmatter@argument-hint}',
       maxSuggestions: 20
     },
     {
       name: '{frontmatter@name}',
       description: '{frontmatter@description}',
-      path: '~/.claude/skills',
+      path: '~/.claude/skills/**/*/SKILL.md',
       label: 'skill',
       color: 'purple',
-      pattern: '**/*/SKILL.md',
       maxSuggestions: 20
     },
     {
       name: '{prefix}:{basename}',
       description: '{frontmatter@description}',
-      path: '~/.claude/plugins/cache',
-      pattern: '**/commands/*.md',
+      path: '~/.claude/plugins/cache/**/commands/*.md',
       prefixPattern: '**/.claude-plugin/*.json@name',
       label: 'command',
       color: 'teal',
@@ -82,8 +79,7 @@ export const defaultSettings: UserSettings = {
     {
       name: '{prefix}:{frontmatter@name}',
       description: '{frontmatter@description}',
-      path: '~/.claude/plugins/cache',
-      pattern: '**/*/SKILL.md',
+      path: '~/.claude/plugins/cache/**/*/SKILL.md',
       prefixPattern: '**/.claude-plugin/*.json@name',
       label: 'skill',
       color: 'teal',
@@ -112,45 +108,39 @@ export const defaultSettings: UserSettings = {
       {
         name: '{basename}(agent)',
         description: '{frontmatter@description}',
-        path: '~/.claude/agents',
-        pattern: '*.md',
+        path: '~/.claude/agents/*.md',
         searchPrefix: 'agent'
       },
       {
         name: '{prefix}:{basename}(agent)',
         description: '{frontmatter@description}',
-        path: '~/.claude/plugins/cache',
-        pattern: '**/agents/*.md',
+        path: '~/.claude/plugins/cache/**/agents/*.md',
         prefixPattern: '**/.claude-plugin/*.json@name',
         searchPrefix: 'agent'
       },
       {
         name: '{basename}',
         description: '{dirname:2}',
-        path: '~/.claude/teams',
-        pattern: '**/inboxes/*.json',
+        path: '~/.claude/teams/**/inboxes/*.json',
         searchPrefix: 'team'
       },
       {
         name: '{json@name}',
         description: '{dirname:2}',
-        path: '~/.claude/teams',
-        pattern: '**/config.json@.members',
+        path: '~/.claude/teams/**/config.json@.members',
         searchPrefix: 'member'
       },
       {
         name: '{basename}',
         description: '',
-        path: '~/.claude/plans',
-        pattern: '*.md',
+        path: '~/.claude/plans/*.md',
         searchPrefix: 'plan',
         inputFormat: 'path'
       },
       {
         name: '{basename}',
         description: '{dirname}',
-        path: '~/.claude/tasks',
-        pattern: '**/*/*.md',
+        path: '~/.claude/tasks/**/*/*.md',
         searchPrefix: 'task',
         inputFormat: 'path'
       }
@@ -170,7 +160,6 @@ export const commentedExamples = {
     name: string;
     description: string;
     path: string;
-    pattern: string;
     argumentHint?: string;
   }>,
   fileOpener: {
@@ -184,8 +173,7 @@ export const commentedExamples = {
       {
         name: '{basename}',
         description: '{frontmatter@title}',
-        path: '/path/to/knowledge-base',
-        pattern: '**/*/*.md',
+        path: '/path/to/knowledge-base/**/*/*.md',
         searchPrefix: 'kb',
         maxSuggestions: 100,
         orderBy: 'name desc',
