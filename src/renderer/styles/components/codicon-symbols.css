@@ -1,0 +1,62 @@
+/* Codicon Font - Symbol Icons for Code Search */
+/* Uses @vscode/codicons font for symbol type icons */
+
+@font-face {
+  font-family: 'codicon';
+  src: url('../fonts/codicon.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+
+.codicon {
+  font-family: 'codicon';
+  font-size: 16px;
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  text-decoration: none;
+  text-rendering: auto;
+  text-align: center;
+}
+
+/* Symbol type icons - content codes from @vscode/codicons */
+.codicon-symbol-class:before { content: "\eb5b"; }
+.codicon-symbol-method:before { content: "\ea8c"; }
+.codicon-symbol-interface:before { content: "\eb61"; }
+.codicon-symbol-structure:before { content: "\ea91"; }
+.codicon-symbol-type-parameter:before { content: "\ea92"; }
+.codicon-symbol-variable:before { content: "\ea88"; }
+.codicon-symbol-constant:before { content: "\eb5d"; }
+.codicon-symbol-field:before { content: "\eb5f"; }
+.codicon-symbol-property:before { content: "\eb65"; }
+.codicon-symbol-enum:before { content: "\ea95"; }
+.codicon-symbol-module:before { content: "\ea8b"; }
+.codicon-symbol-namespace:before { content: "\ea8b"; }
+.codicon-symbol-key:before { content: "\ea93"; }
+.codicon-symbol-misc:before { content: "\eb63"; }
+.codicon-package:before { content: "\eb29"; }
+.codicon-database:before { content: "\eace"; }
+.codicon-output:before { content: "\eb9d"; }
+.codicon-cloud:before { content: "\ebaa"; }
+
+/* Symbol type colors - matching original SVG icon colors */
+.symbol-icon.codicon-symbol-class { color: #ffab40; }
+.symbol-icon.codicon-symbol-method { color: #b388ff; }
+.symbol-icon.codicon-symbol-interface { color: #80cbc4; }
+.symbol-icon.codicon-symbol-structure { color: #80deea; }
+.symbol-icon.codicon-symbol-type-parameter { color: #82b1ff; }
+.symbol-icon.codicon-symbol-variable { color: #90caf9; }
+.symbol-icon.codicon-symbol-constant { color: #ffca28; }
+.symbol-icon.codicon-symbol-field { color: #c5e1a5; }
+.symbol-icon.codicon-symbol-property { color: #c5e1a5; }
+.symbol-icon.codicon-symbol-enum { color: #ff8a65; }
+.symbol-icon.codicon-symbol-module { color: #bcaaa4; }
+.symbol-icon.codicon-symbol-namespace { color: #bcaaa4; }
+.symbol-icon.codicon-symbol-key { color: #90a4ae; }
+.symbol-icon.codicon-symbol-misc { color: #90a4ae; }
+.symbol-icon.codicon-package { color: #7c4dff; }
+.symbol-icon.codicon-database { color: #00bcd4; }
+.symbol-icon.codicon-output { color: #4caf50; }
+.symbol-icon.codicon-cloud { color: #ff9800; }
