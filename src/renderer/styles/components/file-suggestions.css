@@ -159,10 +159,9 @@
 
 .symbol-icon,
 .file-suggestion-icon.symbol-icon {
-  /* Symbol icon uses text characters for symbol types */
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary, #aaa);
+  /* Symbol icon uses codicon font */
+  font-size: 16px;
+  line-height: 1;
 }
 
 .symbol-name {

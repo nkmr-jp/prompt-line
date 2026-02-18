@@ -21,7 +21,7 @@ import type { SymbolResult } from '../code-search/types';
 import { getSymbolTypeDisplay } from '../code-search/types';
 import { getCaretCoordinates, createMirrorDiv, insertHighlightedText } from '../dom-utils';
 import { getRelativePath, getDirectoryFromPath } from '../path-utils';
-import { getFileIconSvg, getMentionIconSvg, getSymbolIconSvg } from '../../assets/icons/file-icons';
+import { getFileIconSvg, getMentionIconSvg, getSymbolCodiconClass } from '../../assets/icons/file-icons';
 
 /**
  * Callbacks for SuggestionUIManager
@@ -609,8 +609,8 @@ export class SuggestionUIManager {
     item.setAttribute('data-type', 'symbol');
 
     const icon = document.createElement('span');
-    icon.className = 'file-icon symbol-icon';
-    insertSvgIntoElement(icon, getSymbolIconSvg(symbol.type));
+    icon.className = 'file-icon symbol-icon codicon ' + getSymbolCodiconClass(symbol.type);
+    icon.dataset.symbolType = symbol.type;
 
     const name = document.createElement('span');
     name.className = 'file-name symbol-name';

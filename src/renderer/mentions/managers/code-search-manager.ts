@@ -23,8 +23,7 @@ import type {
 } from '../code-search/types';
 import { getSymbolTypeDisplay } from '../code-search/types';
 import type { DirectoryData, SuggestionItem } from '../types';
-import { getSymbolIconSvg } from '../../assets/icons/file-icons';
-import { insertSvgIntoElement } from '../index';
+import { getSymbolCodiconClass } from '../../assets/icons/file-icons';
 import { handleError } from '../../utils/error-handler';
 
 /**
@@ -631,9 +630,8 @@ export class CodeSearchManager {
 
     // Symbol type icon
     const iconSpan = document.createElement('span');
-    iconSpan.className = 'file-icon symbol-icon';
-    const iconSvg = getSymbolIconSvg(symbol.type);
-    insertSvgIntoElement(iconSpan, iconSvg);
+    iconSpan.className = 'file-icon symbol-icon codicon ' + getSymbolCodiconClass(symbol.type);
+    iconSpan.dataset.symbolType = symbol.type;
     item.appendChild(iconSpan);
 
     // Symbol name

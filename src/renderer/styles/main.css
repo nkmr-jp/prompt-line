@@ -17,6 +17,7 @@
 @import './components/slash-commands.css';
 @import './components/file-suggestions.css';
 @import './components/code-suggestions.css';
+@import './components/codicon-symbols.css';
 
 /* Themes */
 @import './themes/themes.css';
