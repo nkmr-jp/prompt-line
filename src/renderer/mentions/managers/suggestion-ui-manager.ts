@@ -579,9 +579,6 @@ export class SuggestionUIManager {
     name.className = 'file-name agent-name';
     const currentQuery = this.callbacks.getCurrentQuery?.() || '';
     insertHighlightedText(name, agent.name, currentQuery);
-    if (agent.color) {
-      name.style.color = resolveColorValue(agent.color);
-    }
 
     const desc = document.createElement('span');
     desc.className = 'file-path agent-description';

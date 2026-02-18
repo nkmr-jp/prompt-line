@@ -443,7 +443,7 @@ class CustomSearchLoader {
         if (resolvedLabel) item.label = resolvedLabel;
       }
       if (entry.color) {
-        const resolvedColor = resolveTemplate(entry.color, context);
+        const resolvedColor = this.resolveColorWithFallback(entry.color, context);
         if (resolvedColor) item.color = resolvedColor as ColorValue;
       }
       if (entry.icon) {
@@ -512,7 +512,7 @@ class CustomSearchLoader {
           if (resolvedLabel) item.label = resolvedLabel;
         }
         if (entry.color) {
-          const resolvedColor = resolveTemplate(entry.color, context);
+          const resolvedColor = this.resolveColorWithFallback(entry.color, context);
           if (resolvedColor) item.color = resolvedColor as ColorValue;
         }
         if (entry.icon) {
@@ -607,6 +607,21 @@ class CustomSearchLoader {
   }
 
   /**
+   * colorテンプレートをフォールバック付きで解決する
+   * 例: "{json@color}|#ffffff" → json@colorが空なら"#ffffff"
+   */
+  private resolveColorWithFallback(colorTemplate: string, context: Parameters<typeof resolveTemplate>[1]): string {
+    const pipeIndex = colorTemplate.indexOf('|');
+    if (pipeIndex === -1) {
+      return resolveTemplate(colorTemplate, context);
+    }
+    const template = colorTemplate.slice(0, pipeIndex);
+    const fallback = colorTemplate.slice(pipeIndex + 1);
+    const resolved = resolveTemplate(template, context);
+    return resolved || fallback;
+  }
+
+  /**
    * JSONデータからCustomSearchItemを生成するヘルパー
    */
   private createItemFromJsonData(
@@ -631,7 +646,7 @@ class CustomSearchLoader {
       if (resolvedLabel) item.label = resolvedLabel;
     }
     if (entry.color) {
-      const resolvedColor = resolveTemplate(entry.color, context);
+      const resolvedColor = this.resolveColorWithFallback(entry.color, context);
       if (resolvedColor) item.color = resolvedColor as ColorValue;
     }
     if (entry.icon) {
