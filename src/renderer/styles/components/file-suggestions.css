@@ -138,9 +138,9 @@
   /* SVG icon styling handled by .file-icon */
 }
 
-/* Codicon icons in agent/customSearch items - match SVG icon visual size */
+/* Codicon icons in agent/customSearch items - match symbol icon size */
 .agent-suggestion-item .file-icon.codicon {
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .agent-name {
