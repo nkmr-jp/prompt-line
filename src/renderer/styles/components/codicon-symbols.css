@@ -41,6 +41,18 @@
 .codicon-output:before { content: "\eb9d"; }
 .codicon-cloud:before { content: "\ebaa"; }
 
+/* General purpose icons for customSearch */
+.codicon-agent:before { content: "\ec67"; }
+.codicon-robot:before { content: "\ec20"; }
+.codicon-hubot:before { content: "\eb08"; }
+.codicon-rocket:before { content: "\eab1"; }
+.codicon-terminal:before { content: "\ea85"; }
+.codicon-tools:before { content: "\eaff"; }
+.codicon-gear:before { content: "\eb51"; }
+.codicon-zap:before { content: "\ea86"; }
+.codicon-beaker:before { content: "\ea79"; }
+.codicon-bookmark:before { content: "\ea7c"; }
+
 /* Symbol type colors - matching original SVG icon colors */
 .symbol-icon.codicon-symbol-class { color: #ffab40; }
 .symbol-icon.codicon-symbol-method { color: #b388ff; }

@@ -21,7 +21,7 @@ import type { SymbolResult } from '../code-search/types';
 import { getSymbolTypeDisplay } from '../code-search/types';
 import { getCaretCoordinates, createMirrorDiv, insertHighlightedText } from '../dom-utils';
 import { getRelativePath, getDirectoryFromPath } from '../path-utils';
-import { getFileIconSvg, getMentionIconSvg, getSymbolCodiconClass } from '../../assets/icons/file-icons';
+import { getFileIconSvg, getSymbolCodiconClass } from '../../assets/icons/file-icons';
 
 /**
  * Callbacks for SuggestionUIManager
@@ -572,8 +572,8 @@ export class SuggestionUIManager {
         }
       }
     } else {
-      icon.className = 'file-icon mention-icon';
-      insertSvgIntoElement(icon, getMentionIconSvg());
+      icon.className = 'file-icon codicon codicon-agent';
+      icon.style.color = '#00bfa5';
     }
 
     const name = document.createElement('span');

@@ -108,6 +108,11 @@ function formatAgentSkillEntry(entry: SlashCommandEntry, indent: string, comment
     lines.push(`${contentLinePrefix}color: "${entry.color}"`);
   }
 
+  // Add icon if present
+  if (entry.icon) {
+    lines.push(`${contentLinePrefix}icon: "${entry.icon}"`);
+  }
+
   lines.push(`${contentLinePrefix}pattern: "${entry.pattern}"`);
 
   // Add prefixPattern if present
@@ -166,6 +171,11 @@ function formatCustomSearchEntry(entry: MentionEntry, indent: string, commented 
   }
   if (entry.inputFormat !== undefined) {
     lines.push(`${contentLinePrefix}inputFormat: ${entry.inputFormat}               # Insert file path instead of name`);
+  }
+
+  // Add icon if present
+  if (entry.icon) {
+    lines.push(`${contentLinePrefix}icon: "${entry.icon}"`);
   }
 
   return lines.join('\n');
@@ -254,6 +264,7 @@ function buildAgentSkillsSection(settings: UserSettings, options: YamlGeneratorO
   section += '#   path: Directory path to search for skill files\n';
   section += '#   label: Display label for UI badge (e.g., "command", "skill", "agent")\n';
   section += '#   color: Badge color (name: grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red, or hex: #FF5733)\n';
+  section += '#   icon: Codicon icon name (e.g., "agent", "rocket", "terminal") https://microsoft.github.io/vscode-codicons/dist/codicon.html\n';
   section += '#   pattern: Glob pattern to match files (e.g., "*.md", "**/*/SKILL.md")\n';
   section += '#   prefixPattern: Pattern to extract prefix from plugin metadata\n';
   section += '#   argumentHint: Hint for skill arguments\n';
@@ -415,6 +426,7 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
   #   maxSuggestions: Maximum number of suggestions to display
   #   orderBy: Sort order (e.g., "name", "name desc", "description desc")
   #   inputFormat: Insert format (name, path)
+  #   icon: Codicon icon name (e.g., "agent", "rocket", "terminal") https://microsoft.github.io/vscode-codicons/dist/codicon.html
   #   {dirname}: Parent directory name
   #   {dirname:N}: N levels up directory name (e.g., {dirname:2} = grandparent)
   #

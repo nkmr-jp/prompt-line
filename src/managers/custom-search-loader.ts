@@ -448,7 +448,7 @@ class CustomSearchLoader {
       }
       if (entry.icon) {
         const resolvedIcon = resolveTemplate(entry.icon, context);
-        if (resolvedIcon) item.icon = resolvedIcon;
+        if (resolvedIcon) item.icon = resolvedIcon.startsWith('codicon-') ? resolvedIcon : `codicon-${resolvedIcon}`;
       }
       if (entry.argumentHint) {
         const resolvedHint = resolveTemplate(entry.argumentHint, context);
@@ -517,7 +517,7 @@ class CustomSearchLoader {
         }
         if (entry.icon) {
           const resolvedIcon = resolveTemplate(entry.icon, context);
-          if (resolvedIcon) item.icon = resolvedIcon;
+          if (resolvedIcon) item.icon = resolvedIcon.startsWith('codicon-') ? resolvedIcon : `codicon-${resolvedIcon}`;
         }
         if (entry.argumentHint) {
           const resolvedHint = resolveTemplate(entry.argumentHint, context);
@@ -636,7 +636,7 @@ class CustomSearchLoader {
     }
     if (entry.icon) {
       const resolvedIcon = resolveTemplate(entry.icon, context);
-      if (resolvedIcon) item.icon = resolvedIcon;
+      if (resolvedIcon) item.icon = resolvedIcon.startsWith('codicon-') ? resolvedIcon : `codicon-${resolvedIcon}`;
     }
     if (entry.argumentHint) {
       const resolvedHint = resolveTemplate(entry.argumentHint, context);
