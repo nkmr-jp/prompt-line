@@ -704,8 +704,7 @@ window:
           {
             name: '{prefix}:{basename}',
             description: '{frontmatter@description}',
-            path: '~/.claude/plugins',
-            pattern: '**/commands/*.md',
+            path: '~/.claude/plugins/**/commands/*.md',
             prefixPattern: '**/.claude-plugin/plugin.json@name',
             enable: ['ralph-loop:help*'],
             disable: ['ralph-loop:cancel']
@@ -731,8 +730,7 @@ window:
             {
               name: 'agent-{basename}',
               description: '{frontmatter@description}',
-              path: '~/.claude/agents',
-              pattern: '*.md',
+              path: '~/.claude/agents/*.md',
               searchPrefix: 'agent',
               enable: ['agent-*'],
               disable: ['agent-legacy']
@@ -758,8 +756,7 @@ window:
             {
               name: 'agent-{prefix}:{basename}',
               description: '{frontmatter@description}',
-              path: '~/.claude/plugins/cache',
-              pattern: '**/agents/*.md',
+              path: '~/.claude/plugins/cache/**/agents/*.md',
               searchPrefix: 'agent',
               prefixPattern: '**/.claude-plugin/plugin.json@name'
             }

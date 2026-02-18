@@ -64,15 +64,13 @@ describe('CustomSearchLoader', () => {
         name: '{basename}',
         type: 'command',
         description: '{frontmatter@description}',
-        path: '/path/to/commands',
-        pattern: '*.md',
+        path: '/path/to/commands/*.md',
       },
       {
         name: '{basename}',
         type: 'mention',
         description: '{frontmatter@description}',
-        path: '/path/to/agents',
-        pattern: '*.md',
+        path: '/path/to/agents/*.md',
       },
     ];
     if (overrides) {
@@ -111,7 +109,7 @@ describe('CustomSearchLoader', () => {
 
       // Update config with different path
       const newConfig: CustomSearchEntry[] = [
-        { name: '{basename}', type: 'command', description: '{frontmatter@description}', path: '/new/path', pattern: '*.md' }
+        { name: '{basename}', type: 'command', description: '{frontmatter@description}', path: '/new/path/*.md' }
       ];
       loader.updateConfig(newConfig);
 
@@ -314,8 +312,7 @@ describe('CustomSearchLoader', () => {
           name: '{basename}',
           type: 'command',
           description: '{frontmatter@description}',
-          path: '/path/to/commands',
-          pattern: '*.md',
+          path: '/path/to/commands/*.md',
           argumentHint: '{frontmatter@argument-hint}',
         },
       ]);
@@ -384,8 +381,7 @@ describe('CustomSearchLoader', () => {
         name: '{basename}',
         type: 'command' as const,
         description: '{dirname}',
-        path: '~/commands',
-        pattern: '*.md',
+        path: '~/commands/*.md',
       }];
       const testLoader = new CustomSearchLoader(config);
 
@@ -417,37 +413,13 @@ describe('CustomSearchLoader', () => {
       expect(items[0]?.name).toBe('test');
     });
 
-    test('should match specific filename pattern', async () => {
-      loader = new CustomSearchLoader([
-        {
-          name: '{basename}',
-          type: 'command',
-          description: '{frontmatter@description}',
-          path: '/path/to/commands',
-          pattern: 'SKILL.md',
-        },
-      ]);
-
-      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
-      mockedFs.readdir.mockResolvedValue([
-        createDirent('SKILL.md', true),
-        createDirent('other.md', true),
-      ] as any);
-      mockedFs.readFile.mockResolvedValue('---\ndescription: Skill\n---\nContent');
-
-      const items = await loader.getItems('command');
-
-      expect(items).toHaveLength(1);
-    });
-
     test('should handle recursive pattern **/*.md', async () => {
       loader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
           description: '{frontmatter@description}',
-          path: '/path/to/commands',
-          pattern: '**/*.md',
+          path: '/path/to/commands/**/*.md',
         },
       ]);
 
@@ -481,8 +453,7 @@ describe('CustomSearchLoader', () => {
           name: '{basename}',
           type: 'command',
           description: '{frontmatter@description}',
-          path: '/path/to/root',
-          pattern: '**/commands/*.md',
+          path: '/path/to/root/**/commands/*.md',
         },
       ]);
 
@@ -539,8 +510,7 @@ describe('CustomSearchLoader', () => {
           name: '{basename}',
           type: 'command',
           description: '{frontmatter@description}',
-          path: '/path/to/root',
-          pattern: '**/*/*.md',
+          path: '/path/to/root/**/*/*.md',
         },
       ]);
 
@@ -581,8 +551,7 @@ describe('CustomSearchLoader', () => {
           name: '{basename}',
           type: 'command',
           description: '{frontmatter@description}',
-          path: '/path/to/root',
-          pattern: '**/{commands,agents}/*.md',
+          path: '/path/to/root/**/{commands,agents}/*.md',
         },
       ]);
 
@@ -627,8 +596,7 @@ describe('CustomSearchLoader', () => {
           name: '{basename}',
           type: 'command',
           description: '{frontmatter@description}',
-          path: '/path/to/root',
-          pattern: '**/plugins/*/commands/*.md',
+          path: '/path/to/root/**/plugins/*/commands/*.md',
         },
       ]);
 
@@ -671,8 +639,7 @@ describe('CustomSearchLoader', () => {
           name: '{basename}',
           type: 'command',
           description: '{frontmatter@description}',
-          path: '/path/to/commands',
-          pattern: 'test-*.md',
+          path: '/path/to/commands/test-*.md',
         },
       ]);
 
@@ -699,15 +666,13 @@ describe('CustomSearchLoader', () => {
           name: '{basename}',
           type: 'command',
           description: '{frontmatter@description}',
-          path: '/path/one',
-          pattern: '*.md',
+          path: '/path/one/*.md',
         },
         {
           name: '{basename}',
           type: 'command',
           description: '{frontmatter@description}',
-          path: '/path/two',
-          pattern: '*.md',
+          path: '/path/two/*.md',
         },
       ]);
 
@@ -738,8 +703,7 @@ describe('CustomSearchLoader', () => {
           name: '{basename}',
           type: 'command',
           description: '{frontmatter@description}',
-          path: '/path/one',
-          pattern: '*.md',
+          path: '/path/one/*.md',
         },
       ]);
 
@@ -760,15 +724,13 @@ describe('CustomSearchLoader', () => {
           name: '{basename}',
           type: 'command',
           description: '{frontmatter@description}',
-          path: '/path/commands',
-          pattern: '*.md',
+          path: '/path/commands/*.md',
         },
         {
           name: '{basename}',
           type: 'mention',
           description: '{frontmatter@description}',
-          path: '/path/agents',
-          pattern: '*.md',
+          path: '/path/agents/*.md',
         },
       ]);
 
@@ -791,8 +753,7 @@ describe('CustomSearchLoader', () => {
           name: '{basename}',
           type: 'command',
           description: '{frontmatter@description}',
-          path: '~/.claude/commands',
-          pattern: '*.md',
+          path: '~/.claude/commands/*.md',
         },
       ]);
 
@@ -893,8 +854,7 @@ Content`;
           name: '{basename}',
           type: 'command' as const,
           description: '{frontmatter@description}',
-          path: '/path/to/commands',
-          pattern: '*.md',
+          path: '/path/to/commands/*.md',
           icon: 'codicon-rocket',
         },
       ]);
@@ -913,8 +873,7 @@ Content`;
           name: '{basename}',
           type: 'command' as const,
           description: '{frontmatter@description}',
-          path: '/path/to/commands',
-          pattern: '*.md',
+          path: '/path/to/commands/*.md',
           icon: '{frontmatter@icon}',
         },
       ]);
@@ -946,7 +905,7 @@ Content`;
 
       const items = await loader.getItems('command');
 
-      expect(items[0]?.sourceId).toBe('/path/to/commands:*.md');
+      expect(items[0]?.sourceId).toBe('/path/to/commands/*.md');
     });
   });
 
@@ -960,16 +919,14 @@ Content`;
           name: '{basename}',
           type: 'command',
           description: '{frontmatter@description}',
-          path: '/path/to/commands',
-          pattern: '*.md',
+          path: '/path/to/commands/*.md',
           // searchPrefixなし - 常に検索対象
         },
         {
           name: 'agent-{basename}',
           type: 'mention',
           description: '{frontmatter@description}',
-          path: '/path/to/agents',
-          pattern: '*.md',
+          path: '/path/to/agents/*.md',
           searchPrefix: 'agent',
         },
       ]);
@@ -1048,16 +1005,14 @@ Content`;
           name: 'agent-{basename}',
           type: 'mention',
           description: '{frontmatter@description}',
-          path: '/path/to/agents',
-          pattern: '*.md',
+          path: '/path/to/agents/*.md',
           searchPrefix: 'agent',
         },
         {
           name: 'tool-{basename}',
           type: 'mention',
           description: '{frontmatter@description}',
-          path: '/path/to/tools',
-          pattern: '*.md',
+          path: '/path/to/tools/*.md',
           searchPrefix: 'tool',
         },
       ]);
@@ -1112,8 +1067,7 @@ Content`;
           name: '{basename}',
           type: 'command',
           description: '{frontmatter@description}',
-          path: '/path/to/commands',
-          pattern: '*.md',
+          path: '/path/to/commands/*.md',
         },
       ]);
 
@@ -1127,8 +1081,7 @@ Content`;
           name: 'agent-{basename}',
           type: 'mention',
           description: '{frontmatter@description}',
-          path: '/path/to/agents',
-          pattern: '*.md',
+          path: '/path/to/agents/*.md',
           searchPrefix: 'agent',
         },
       ]);
@@ -1143,16 +1096,14 @@ Content`;
           name: 'agent-{basename}',
           type: 'mention',
           description: '{frontmatter@description}',
-          path: '/path/to/agents',
-          pattern: '*.md',
+          path: '/path/to/agents/*.md',
           searchPrefix: 'agent',
         },
         {
           name: 'tool-{basename}',
           type: 'mention',
           description: '{frontmatter@description}',
-          path: '/path/to/tools',
-          pattern: '*.md',
+          path: '/path/to/tools/*.md',
           searchPrefix: 'tool',
         },
       ]);
@@ -1167,16 +1118,14 @@ Content`;
           name: '{basename}',
           type: 'command',
           description: '{frontmatter@description}',
-          path: '/path/to/commands',
-          pattern: '*.md',
+          path: '/path/to/commands/*.md',
           searchPrefix: 'cmd',
         },
         {
           name: 'agent-{basename}',
           type: 'mention',
           description: '{frontmatter@description}',
-          path: '/path/to/agents',
-          pattern: '*.md',
+          path: '/path/to/agents/*.md',
           searchPrefix: 'agent',
         },
       ]);
@@ -1196,8 +1145,7 @@ Content`;
           name: '{basename}',
           type: 'command',
           description: '{frontmatter@description}',
-          path: '/path/to/commands',
-          pattern: '*.md',
+          path: '/path/to/commands/*.md',
           enable: ['test-*', 'commit'],
         },
       ]);
@@ -1231,8 +1179,7 @@ Content`;
           name: '{basename}',
           type: 'command',
           description: '{frontmatter@description}',
-          path: '/path/to/commands',
-          pattern: '*.md',
+          path: '/path/to/commands/*.md',
           disable: ['debug', 'old-*'],
         },
       ]);
@@ -1267,8 +1214,7 @@ Content`;
             name: '{basename}',
             type: 'command',
             description: '{frontmatter@description}',
-            path: '/path/to/commands',
-            pattern: '*.md',
+            path: '/path/to/commands/*.md',
             enable: ['test-*', 'commit', 'debug'],
           },
         ],
@@ -1324,8 +1270,7 @@ Content`;
           name: 'agent-{basename}',
           type: 'mention',
           description: '{frontmatter@description}',
-          path: '/path/to/agents',
-          pattern: '*.md',
+          path: '/path/to/agents/*.md',
           enable: ['agent-claude', 'agent-gemini'],
         },
       ]);
@@ -1362,8 +1307,7 @@ Content`;
             name: 'agent-{basename}',
             type: 'mention',
             description: '{frontmatter@description}',
-            path: '/path/to/agents',
-            pattern: '*.md',
+            path: '/path/to/agents/*.md',
           },
         ],
         {
@@ -1420,8 +1364,7 @@ Content`;
             name: 'agent-{basename}',
             type: 'mention',
             description: '{frontmatter@description}',
-            path: '/path/to/agents',
-            pattern: '*.md',
+            path: '/path/to/agents/*.md',
           },
         ],
         {
@@ -1478,8 +1421,7 @@ Content`;
             name: 'agent-{basename}',
             type: 'mention',
             description: '{frontmatter@description}',
-            path: '/path/to/agents',
-            pattern: '*.md',
+            path: '/path/to/agents/*.md',
           },
         ],
         {
@@ -1536,8 +1478,7 @@ Content`;
             name: 'agent-{basename}',
             type: 'mention',
             description: '{frontmatter@description}',
-            path: '/path/to/agents',
-            pattern: '*.md',
+            path: '/path/to/agents/*.md',
             enable: ['agent-claude', 'agent-gemini', 'agent-openai'],
           },
         ],
@@ -1599,8 +1540,7 @@ Content`;
           name: '{json@name}',
           type: 'mention',
           description: '{json@agentType}',
-          path: '/path/to/teams',
-          pattern: '**/config.json@.members',
+          path: '/path/to/teams/**/config.json@.members',
           searchPrefix: 'member',
         },
       ]);
@@ -1645,8 +1585,7 @@ Content`;
           name: '{json@name}',
           type: 'mention',
           description: '',
-          path: '/path/to/teams',
-          pattern: '*.json@.members',
+          path: '/path/to/teams/*.json@.members',
         },
       ]);
 
@@ -1669,8 +1608,7 @@ Content`;
           name: '{json@name}',
           type: 'mention',
           description: '',
-          path: '/path/to/teams',
-          pattern: '*.json@.members',
+          path: '/path/to/teams/*.json@.members',
         },
       ]);
 
@@ -1705,8 +1643,7 @@ Content`;
           name: '{json@name}',
           type: 'mention',
           description: '{json@role}',
-          path: '/path/to/data',
-          pattern: '*.json@.team.members | map(select(.active))',
+          path: '/path/to/data/*.json@.team.members | map(select(.active))',
         },
       ]);
 
@@ -1740,8 +1677,7 @@ Content`;
           name: '{basename}',
           type: 'command',
           description: '{frontmatter@description}',
-          path: '/path/to/commands',
-          pattern: '*.md',
+          path: '/path/to/commands/*.md',
         },
       ]);
 
@@ -1763,8 +1699,7 @@ Content`;
           name: '{json@name}',
           type: 'mention',
           description: '',
-          path: '/path/to/teams',
-          pattern: '*.json@.members',
+          path: '/path/to/teams/*.json@.members',
           enable: ['team-*'],
         },
       ]);
@@ -1796,8 +1731,7 @@ Content`;
           name: '{json@name}',
           type: 'mention',
           description: '',
-          path: '/path/to/teams',
-          pattern: '*.json@.nonexistent',
+          path: '/path/to/teams/*.json@.nonexistent',
         },
       ]);
 
@@ -1819,8 +1753,7 @@ Content`;
           name: '{json@name}',
           type: 'mention',
           description: '{json@role}',
-          path: '/path/to/data',
-          pattern: '*.jsonl@.user',
+          path: '/path/to/data/*.jsonl@.user',
         },
       ]);
 
@@ -1847,8 +1780,7 @@ Content`;
           name: '{json@name}',
           type: 'mention',
           description: '',
-          path: '/path/to/data',
-          pattern: '*.jsonl@.items',
+          path: '/path/to/data/*.jsonl@.items',
         },
       ]);
 
@@ -1873,8 +1805,7 @@ Content`;
           name: '{json@name}',
           type: 'mention',
           description: '',
-          path: '/path/to/data',
-          pattern: '*.jsonl@.data',
+          path: '/path/to/data/*.jsonl@.data',
         },
       ]);
 
@@ -1899,8 +1830,7 @@ Content`;
           name: '{json@name}',
           type: 'mention',
           description: '{json@role}',
-          path: '/path/to/data',
-          pattern: '*.jsonl',
+          path: '/path/to/data/*.jsonl',
         },
       ]);
 
@@ -1925,8 +1855,7 @@ Content`;
           name: '{json@name}',
           type: 'command',
           description: '{json@description}',
-          path: '/path/to/json-commands',
-          pattern: '*.json',
+          path: '/path/to/json-commands/*.json',
         },
       ]);
 
@@ -1953,8 +1882,7 @@ Content`;
           name: '{json@name}',
           type: 'mention',
           description: '{json@role}',
-          path: '/path/to/agents',
-          pattern: '*.json',
+          path: '/path/to/agents/*.json',
           searchPrefix: 'agent',
         },
       ]);
@@ -1981,8 +1909,7 @@ Content`;
           name: '{json@config.displayName}',
           type: 'command',
           description: '{json@config.metadata.description}',
-          path: '/path/to/nested',
-          pattern: '*.json',
+          path: '/path/to/nested/*.json',
         },
       ]);
 
@@ -2012,8 +1939,7 @@ Content`;
           name: '{json@name}',
           type: 'command',
           description: '{json@description}',
-          path: '/path/to/json-commands',
-          pattern: '*.json',
+          path: '/path/to/json-commands/*.json',
         },
       ]);
 
