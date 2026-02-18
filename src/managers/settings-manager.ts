@@ -151,7 +151,7 @@ class SettingsManager extends EventEmitter {
         };
         if (entry.argumentHint) cmd.argumentHint = entry.argumentHint;
         if (entry.maxSuggestions) cmd.maxSuggestions = entry.maxSuggestions;
-        if (entry.sortOrder) cmd.sortOrder = entry.sortOrder;
+        if (entry.orderBy) cmd.orderBy = entry.orderBy;
         if (entry.prefixPattern) cmd.prefixPattern = entry.prefixPattern;
         custom.push(cmd);
       } else if (entry.type === 'mention') {
@@ -164,7 +164,7 @@ class SettingsManager extends EventEmitter {
         };
         if (entry.maxSuggestions) mention.maxSuggestions = entry.maxSuggestions;
         if (entry.searchPrefix) mention.searchPrefix = entry.searchPrefix;
-        if (entry.sortOrder) mention.sortOrder = entry.sortOrder;
+        if (entry.orderBy) mention.orderBy = entry.orderBy;
         if (entry.inputFormat) mention.inputFormat = entry.inputFormat;
         customSearchMentions.push(mention);
       }
@@ -495,7 +495,7 @@ class SettingsManager extends EventEmitter {
         // Only add optional properties if defined
         if (cmd.argumentHint !== undefined) entry.argumentHint = cmd.argumentHint;
         if (cmd.maxSuggestions !== undefined) entry.maxSuggestions = cmd.maxSuggestions;
-        if (cmd.sortOrder !== undefined) entry.sortOrder = cmd.sortOrder;
+        if (cmd.orderBy !== undefined) entry.orderBy = cmd.orderBy;
         if (cmd.label !== undefined) entry.label = cmd.label;
         if (cmd.color !== undefined) entry.color = cmd.color;
         if (cmd.prefixPattern !== undefined) entry.prefixPattern = cmd.prefixPattern;
@@ -519,7 +519,7 @@ class SettingsManager extends EventEmitter {
         // Only add optional properties if defined
         if (mention.maxSuggestions !== undefined) entry.maxSuggestions = mention.maxSuggestions;
         if (mention.searchPrefix !== undefined) entry.searchPrefix = mention.searchPrefix;
-        if (mention.sortOrder !== undefined) entry.sortOrder = mention.sortOrder;
+        if (mention.orderBy !== undefined) entry.orderBy = mention.orderBy;
         if (mention.inputFormat !== undefined) entry.inputFormat = mention.inputFormat;
         if (mention.prefixPattern !== undefined) entry.prefixPattern = mention.prefixPattern;
         if (mention.color !== undefined) entry.color = mention.color;

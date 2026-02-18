@@ -8,8 +8,8 @@ import { SUGGESTIONS } from '../constants';
 /** デフォルトの検索候補最大表示数 - 互換性のため再エクスポート */
 export const DEFAULT_MAX_SUGGESTIONS = SUGGESTIONS.DEFAULT_MAX;
 
-/** デフォルトのソート順 */
-export const DEFAULT_SORT_ORDER: 'asc' | 'desc' = 'asc';
+/** デフォルトのソート順（フィールド名 [asc|desc]） */
+export const DEFAULT_ORDER_BY = 'name';
 
 export function getDefaultCustomSearchConfig(): CustomSearchEntry[] {
   return [
@@ -26,7 +26,7 @@ export function getDefaultCustomSearchConfig(): CustomSearchEntry[] {
       pattern: '*.md',
       argumentHint: '{frontmatter@argument-hint}',
       maxSuggestions: DEFAULT_MAX_SUGGESTIONS,
-      sortOrder: DEFAULT_SORT_ORDER,
+      orderBy: DEFAULT_ORDER_BY,
     },
     // User's custom agents
     {
@@ -36,7 +36,7 @@ export function getDefaultCustomSearchConfig(): CustomSearchEntry[] {
       path: '~/.claude/agents',
       pattern: '*.md',
       maxSuggestions: DEFAULT_MAX_SUGGESTIONS,
-      sortOrder: DEFAULT_SORT_ORDER,
+      orderBy: DEFAULT_ORDER_BY,
       // searchPrefix: 'agent', // Uncomment to require @agent: prefix for agent search
     },
   ];

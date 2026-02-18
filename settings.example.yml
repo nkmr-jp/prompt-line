@@ -165,7 +165,7 @@ mentions:
   #   prefixPattern: Pattern to extract prefix from plugin metadata
   #   searchPrefix: Prefix to trigger this search (e.g., "agent" → @agent:)
   #   maxSuggestions: Maximum number of suggestions to display
-  #   sortOrder: Sort order (asc, desc)
+  #   orderBy: Sort order (e.g., "name", "name desc", "description desc")
   #   inputFormat: Insert format (name, path)
   #   {dirname}: Parent directory name
   #   {dirname:N}: N levels up directory name (e.g., {dirname:2} = grandparent)
@@ -236,5 +236,5 @@ mentions:
     #   pattern: "**/*/*.md"
     #   searchPrefix: kb            # Search with @kb:
     #   maxSuggestions: 100
-    #   sortOrder: desc
+    #   orderBy: "name desc"
     #   inputFormat: path               # Insert file path instead of name

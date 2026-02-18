@@ -188,7 +188,7 @@ export const commentedExamples = {
         pattern: '**/*/*.md',
         searchPrefix: 'kb',
         maxSuggestions: 100,
-        sortOrder: 'desc',
+        orderBy: 'name desc',
         inputFormat: 'path'
       }
     ]

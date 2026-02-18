@@ -161,8 +161,8 @@ function formatCustomSearchEntry(entry: MentionEntry, indent: string, commented 
   if (entry.maxSuggestions !== undefined) {
     lines.push(`${contentLinePrefix}maxSuggestions: ${entry.maxSuggestions}`);
   }
-  if (entry.sortOrder !== undefined) {
-    lines.push(`${contentLinePrefix}sortOrder: ${entry.sortOrder}`);
+  if (entry.orderBy !== undefined) {
+    lines.push(`${contentLinePrefix}orderBy: "${entry.orderBy}"`);
   }
   if (entry.inputFormat !== undefined) {
     lines.push(`${contentLinePrefix}inputFormat: ${entry.inputFormat}               # Insert file path instead of name`);
@@ -413,7 +413,7 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
   #   prefixPattern: Pattern to extract prefix from plugin metadata
   #   searchPrefix: Prefix to trigger this search (e.g., "agent" → @agent:)
   #   maxSuggestions: Maximum number of suggestions to display
-  #   sortOrder: Sort order (asc, desc)
+  #   orderBy: Sort order (e.g., "name", "name desc", "description desc")
   #   inputFormat: Insert format (name, path)
   #   {dirname}: Parent directory name
   #   {dirname:N}: N levels up directory name (e.g., {dirname:2} = grandparent)

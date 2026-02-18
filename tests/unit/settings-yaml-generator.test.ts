@@ -145,7 +145,7 @@ describe('settings-yaml-generator', () => {
                 pattern: '*.md',
                 searchPrefix: 'agent',
                 maxSuggestions: 20,
-                sortOrder: 'asc',
+                orderBy: 'name',
                 inputFormat: 'path'
               }
             ]
@@ -201,7 +201,7 @@ describe('settings-yaml-generator', () => {
 
         // Mentions - customSearch
         expect(result).toContain('searchPrefix: agent');
-        expect(result).toContain('sortOrder: asc');
+        expect(result).toContain('orderBy: "name"');
         expect(result).toContain('inputFormat: path');
       });
     });
@@ -711,7 +711,7 @@ describe('settings-yaml-generator', () => {
                 pattern: '**/*.md',
                 searchPrefix: 'test',
                 maxSuggestions: 100,
-                sortOrder: 'desc',
+                orderBy: 'name desc',
                 inputFormat: 'path'
               }
             ]
@@ -726,7 +726,7 @@ describe('settings-yaml-generator', () => {
         expect(result).toContain('pattern: "**/*.md"');
         expect(result).toContain('searchPrefix: test');
         expect(result).toContain('maxSuggestions: 100');
-        expect(result).toContain('sortOrder: desc');
+        expect(result).toContain('orderBy: "name desc"');
         expect(result).toContain('inputFormat: path');
       });
 
@@ -791,7 +791,7 @@ describe('settings-yaml-generator', () => {
         // Check that optional field values are not in the actual entry
         expect(simpleEntryText).not.toMatch(/searchPrefix:\s+\w+/);  // No actual searchPrefix value
         expect(simpleEntryText).not.toMatch(/maxSuggestions:\s+\d+/);  // No actual maxSuggestions value
-        expect(simpleEntryText).not.toMatch(/sortOrder:\s+\w+/);  // No actual sortOrder value
+        expect(simpleEntryText).not.toMatch(/orderBy:\s+/);  // No actual orderBy value
       });
     });
 

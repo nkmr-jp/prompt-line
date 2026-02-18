@@ -5,7 +5,7 @@ import { logger } from '../utils/utils';
 import type { CustomSearchEntry, CustomSearchItem, CustomSearchType, UserSettings, ColorValue } from '../types';
 import { resolveTemplate, getBasename, getDirname, parseFrontmatter, extractRawFrontmatter, parseFirstHeading, parseJsonContent } from '../lib/template-resolver';
 import { evaluateJq } from '../lib/jq-resolver';
-import { getDefaultCustomSearchConfig, DEFAULT_MAX_SUGGESTIONS, DEFAULT_SORT_ORDER } from '../lib/default-custom-search-config';
+import { getDefaultCustomSearchConfig, DEFAULT_MAX_SUGGESTIONS, DEFAULT_ORDER_BY } from '../lib/default-custom-search-config';
 import { CACHE_TTL } from '../constants';
 import { resolvePrefix } from '../lib/prefix-resolver';
 import { isCommandEnabled } from '../lib/command-name-matcher';
@@ -83,8 +83,8 @@ class CustomSearchLoader {
       );
     }
 
-    const sortOrder = this.getSortOrder(type);
-    return this.sortItems(items, sortOrder);
+    const orderBy = this.getOrderBy(type);
+    return this.sortItems(items, orderBy);
   }
 
   /**
@@ -110,10 +110,10 @@ class CustomSearchLoader {
     });
 
     // クエリに基づいてソート順を決定
-    const sortOrder = this.getSortOrderForQuery(type, query);
+    const orderBy = this.getOrderByForQuery(type, query);
 
     if (!query) {
-      return this.sortItems(items, sortOrder);
+      return this.sortItems(items, orderBy);
     }
 
     // 各アイテムの実際の検索クエリを計算（searchPrefix:を除去）
@@ -132,7 +132,7 @@ class CustomSearchLoader {
              item.description.toLowerCase().includes(lowerActualQuery);
     });
 
-    return this.sortItems(filteredItems, sortOrder);
+    return this.sortItems(filteredItems, orderBy);
   }
 
   /**
@@ -166,24 +166,24 @@ class CustomSearchLoader {
   }
 
   /**
-   * 指定タイプのsortOrderを取得（複数エントリがある場合は最初のエントリの設定を返す）
+   * 指定タイプのorderByを取得（複数エントリがある場合は最初のエントリの設定を返す）
    */
-  getSortOrder(type: CustomSearchType): 'asc' | 'desc' {
+  getOrderBy(type: CustomSearchType): string {
     const entries = this.config.filter(entry => entry.type === type);
     if (entries.length === 0) {
-      return DEFAULT_SORT_ORDER;
+      return DEFAULT_ORDER_BY;
     }
     // 最初のエントリの設定を使用（未設定の場合はデフォルト）
-    return entries[0]?.sortOrder ?? DEFAULT_SORT_ORDER;
+    return entries[0]?.orderBy ?? DEFAULT_ORDER_BY;
   }
 
   /**
-   * クエリのsearchPrefixにマッチするエントリのsortOrderを取得
+   * クエリのsearchPrefixにマッチするエントリのorderByを取得
    */
-  getSortOrderForQuery(type: CustomSearchType, query: string): 'asc' | 'desc' {
+  getOrderByForQuery(type: CustomSearchType, query: string): string {
     const entries = this.config.filter(entry => entry.type === type);
     if (entries.length === 0) {
-      return DEFAULT_SORT_ORDER;
+      return DEFAULT_ORDER_BY;
     }
 
     // クエリがsearchPrefix:で始まるエントリを探す（: は自動で追加）
@@ -192,26 +192,58 @@ class CustomSearchLoader {
     );
 
     if (matchingEntry) {
-      return matchingEntry.sortOrder ?? DEFAULT_SORT_ORDER;
+      return matchingEntry.orderBy ?? DEFAULT_ORDER_BY;
     }
 
     // searchPrefixがマッチしない場合は、searchPrefixが未設定のエントリを探す
     const defaultEntry = entries.find(entry => !entry.searchPrefix);
     if (defaultEntry) {
-      return defaultEntry.sortOrder ?? DEFAULT_SORT_ORDER;
+      return defaultEntry.orderBy ?? DEFAULT_ORDER_BY;
     }
 
     // フォールバック: 最初のエントリの設定を使用
-    return entries[0]?.sortOrder ?? DEFAULT_SORT_ORDER;
+    return entries[0]?.orderBy ?? DEFAULT_ORDER_BY;
+  }
+
+  /**
+   * orderBy文字列をパースしてフィールド名とソート方向を取得
+   * 例: "name" → { field: "name", direction: "asc" }
+   *     "name desc" → { field: "name", direction: "desc" }
+   *     "{json@name} desc" → { field: "name", direction: "desc" }
+   */
+  static parseOrderBy(orderBy: string): { field: string; direction: 'asc' | 'desc' } {
+    const parts = orderBy.trim().split(/\s+/);
+    const lastPart = parts[parts.length - 1]?.toLowerCase();
+    const hasDirection = lastPart === 'asc' || lastPart === 'desc';
+    const direction: 'asc' | 'desc' = hasDirection ? lastPart as 'asc' | 'desc' : 'asc';
+    const rawField = hasDirection ? parts.slice(0, -1).join(' ') : orderBy.trim();
+
+    // テンプレート構文からフィールド名を抽出（例: "{json@name}" → "name"）
+    // "name" や "description" はそのまま使用
+    let field = rawField;
+    const templateMatch = rawField.match(/\{(?:json@|frontmatter@)?(\w+(?:\.\w+)*)\}/);
+    if (templateMatch?.[1]) {
+      field = templateMatch[1];
+    }
+
+    // サポートされるフィールド: name, description（それ以外はnameにフォールバック）
+    if (field !== 'name' && field !== 'description') {
+      field = 'name';
+    }
+
+    return { field, direction };
   }
 
   /**
    * アイテムを指定のソート順でソート
    */
-  private sortItems(items: CustomSearchItem[], sortOrder: 'asc' | 'desc'): CustomSearchItem[] {
+  private sortItems(items: CustomSearchItem[], orderBy: string): CustomSearchItem[] {
+    const { field, direction } = CustomSearchLoader.parseOrderBy(orderBy);
     return [...items].sort((a, b) => {
-      const comparison = a.name.localeCompare(b.name);
-      return sortOrder === 'desc' ? -comparison : comparison;
+      const aValue = field === 'description' ? a.description : a.name;
+      const bValue = field === 'description' ? b.description : b.name;
+      const comparison = aValue.localeCompare(bValue);
+      return direction === 'desc' ? -comparison : comparison;
     });
   }
 

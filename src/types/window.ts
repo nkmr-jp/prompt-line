@@ -295,8 +295,8 @@ export interface SlashCommandEntry {
   argumentHint?: string;
   /** オプション: 検索候補の最大表示数（デフォルト: 20） */
   maxSuggestions?: number;
-  /** オプション: 名前ソート順（デフォルト: 'asc'） */
-  sortOrder?: 'asc' | 'desc';
+  /** オプション: ソート順（デフォルト: 'name'） - 'name', 'name desc', 'description desc' など */
+  orderBy?: string;
   /** オプション: label（静的な値 "skill" または テンプレート "{frontmatter@label}"） */
   label?: string;
   /** オプション: ラベルとハイライトの色（grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red） */
@@ -333,8 +333,8 @@ export interface MentionEntry {
   maxSuggestions?: number;
   /** オプション: 検索プレフィックス（例: "agent"）- 自動で : が追加されます（@agent: で検索） */
   searchPrefix?: string;
-  /** オプション: 名前ソート順（デフォルト: 'asc'） */
-  sortOrder?: 'asc' | 'desc';
+  /** オプション: ソート順（デフォルト: 'name'） - 'name', 'name desc', 'description desc' など */
+  orderBy?: string;
   /** オプション: 入力フォーマット（デフォルト: 'name'） */
   inputFormat?: InputFormatType;
   /** オプション: プレフィックスパターン - 特定JSONファイルからプレフィックスを動的に読み込むためのパターン */
@@ -390,8 +390,8 @@ export interface CustomSearchEntry {
   maxSuggestions?: number;
   /** オプション: 検索プレフィックス（例: "agent"）- 自動で : が追加されます（@agent: で検索） */
   searchPrefix?: string;
-  /** オプション: 名前ソート順（デフォルト: 'asc'） - 'asc': 昇順, 'desc': 降順 */
-  sortOrder?: 'asc' | 'desc';
+  /** オプション: ソート順（デフォルト: 'name'） - 'name', 'name desc', 'description desc' など */
+  orderBy?: string;
   /** オプション: 入力フォーマット（デフォルト: 'name'） - 'name': 名前のみ, 'path': ファイルパス */
   inputFormat?: InputFormatType;
   /** オプション: プレフィックスパターン - 特定JSONファイルからプレフィックスを動的に読み込むためのパターン */
