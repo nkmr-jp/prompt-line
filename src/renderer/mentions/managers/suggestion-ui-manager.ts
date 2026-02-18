@@ -23,6 +23,18 @@ import { getCaretCoordinates, createMirrorDiv, insertHighlightedText } from '../
 import { getRelativePath, getDirectoryFromPath } from '../path-utils';
 import { getFileIconSvg, getSymbolCodiconClass } from '../../assets/icons/file-icons';
 
+const COLOR_MAP: Record<string, string> = {
+  grey: '#9ca3af', darkGrey: '#78818c', blue: '#89DDFF',
+  purple: '#c792ea', teal: '#5eead4', green: '#86efac',
+  yellow: '#fde047', orange: '#fb923c', pink: '#f472b6', red: '#f07178',
+};
+
+function resolveColorValue(color: string | undefined, fallback?: string): string {
+  if (!color) return fallback || '';
+  if (color.startsWith('#')) return color;
+  return COLOR_MAP[color] || color;
+}
+
 /**
  * Callbacks for SuggestionUIManager
  */
@@ -556,41 +568,18 @@ export class SuggestionUIManager {
     item.setAttribute('data-type', 'agent');
 
     const icon = document.createElement('span');
-    if (agent.icon) {
-      const iconClass = agent.icon.startsWith('codicon-') ? agent.icon : `codicon-${agent.icon}`;
-      icon.className = `file-icon codicon ${iconClass}`;
-      if (agent.color) {
-        if (agent.color.startsWith('#')) {
-          icon.style.color = agent.color;
-        } else {
-          const colorMap: Record<string, string> = {
-            grey: '#9ca3af', darkGrey: '#78818c', blue: '#89DDFF',
-            purple: '#c792ea', teal: '#5eead4', green: '#86efac',
-            yellow: '#fde047', orange: '#fb923c', pink: '#f472b6', red: '#f07178',
-          };
-          icon.style.color = colorMap[agent.color] || agent.color;
-        }
-      }
-    } else {
-      icon.className = 'file-icon codicon codicon-agent';
-      icon.style.color = '#00bfa5';
-    }
+    const iconClass = agent.icon
+      ? (agent.icon.startsWith('codicon-') ? agent.icon : `codicon-${agent.icon}`)
+      : 'codicon-agent';
+    icon.className = `file-icon codicon ${iconClass}`;
+    icon.style.color = resolveColorValue(agent.color, '#00bfa5');
 
     const name = document.createElement('span');
     name.className = 'file-name agent-name';
     const currentQuery = this.callbacks.getCurrentQuery?.() || '';
     insertHighlightedText(name, agent.name, currentQuery);
     if (agent.color) {
-      if (agent.color.startsWith('#')) {
-        name.style.color = agent.color;
-      } else {
-        const colorMap: Record<string, string> = {
-          grey: '#9ca3af', darkGrey: '#78818c', blue: '#89DDFF',
-          purple: '#c792ea', teal: '#5eead4', green: '#86efac',
-          yellow: '#fde047', orange: '#fb923c', pink: '#f472b6', red: '#f07178',
-        };
-        name.style.color = colorMap[agent.color] || agent.color;
-      }
+      name.style.color = resolveColorValue(agent.color);
     }
 
     const desc = document.createElement('span');

@@ -12,6 +12,18 @@ import { extractTriggerQueryAtCursor } from './utils/trigger-query-extractor';
 import { getCaretCoordinates, createMirrorDiv } from './mentions/dom-utils';
 import { compareTiebreak } from '../lib/tiebreaker';
 
+const COLOR_MAP: Record<string, string> = {
+  grey: '#9ca3af', darkGrey: '#78818c', blue: '#89DDFF',
+  purple: '#c792ea', teal: '#5eead4', green: '#86efac',
+  yellow: '#fde047', orange: '#fb923c', pink: '#f472b6', red: '#f07178',
+};
+
+function resolveColorValue(color: string | undefined, fallback?: string): string {
+  if (!color) return fallback || '';
+  if (color.startsWith('#')) return color;
+  return COLOR_MAP[color] || color;
+}
+
 interface SlashCommandItem {
   name: string;
   description: string;
@@ -474,25 +486,14 @@ export class SlashCommandManager implements IInitializable {
       }
       item.dataset.index = index.toString();
 
-      // Create codicon icon if icon attribute exists
-      if (cmd.icon) {
-        const iconSpan = document.createElement('span');
-        const iconClass = cmd.icon.startsWith('codicon-') ? cmd.icon : `codicon-${cmd.icon}`;
-        iconSpan.className = `file-icon codicon ${iconClass}`;
-        if (cmd.color) {
-          if (cmd.color.startsWith('#')) {
-            iconSpan.style.color = cmd.color;
-          } else {
-            const colorMap: Record<string, string> = {
-              grey: '#9ca3af', darkGrey: '#78818c', blue: '#89DDFF',
-              purple: '#c792ea', teal: '#5eead4', green: '#86efac',
-              yellow: '#fde047', orange: '#fb923c', pink: '#f472b6', red: '#f07178',
-            };
-            iconSpan.style.color = colorMap[cmd.color] || cmd.color;
-          }
-        }
-        item.appendChild(iconSpan);
-      }
+      // Create codicon icon (default: codicon-terminal)
+      const iconSpan = document.createElement('span');
+      const iconClass = cmd.icon
+        ? (cmd.icon.startsWith('codicon-') ? cmd.icon : `codicon-${cmd.icon}`)
+        : 'codicon-terminal';
+      iconSpan.className = `file-icon codicon ${iconClass}`;
+      iconSpan.style.color = resolveColorValue(cmd.color, '#00bfa5');
+      item.appendChild(iconSpan);
 
       // Create name element with highlighting
       const nameSpan = document.createElement('span');
