@@ -136,51 +136,12 @@ class CustomSearchLoader {
   }
 
   /**
-   * エントリのsourceIdを取得
-   */
-  private getSourceId(entry: CustomSearchEntry): string {
-    return entry.path;
-  }
-
-  /**
-   * pathからディレクトリとglobパターンを分離する
-   * - pathの最初のglob文字(*, ?, {, [)の手前で分割
-   * - glob文字がない場合: pathをそのままディレクトリとして扱う
-   */
-  private resolvePathAndPattern(entry: CustomSearchEntry): { directory: string; pattern: string | undefined } {
-    const expandedPath = entry.path.replace(/^~/, os.homedir());
-    const globChars = ['*', '?', '{', '['];
-    let firstGlobIndex = -1;
-    for (let i = 0; i < expandedPath.length; i++) {
-      if (globChars.includes(expandedPath[i]!)) {
-        firstGlobIndex = i;
-        break;
-      }
-    }
-
-    if (firstGlobIndex === -1) {
-      // glob文字なし: pathをそのままディレクトリとして扱う
-      return { directory: expandedPath, pattern: undefined };
-    }
-
-    const lastSlashIndex = expandedPath.lastIndexOf('/', firstGlobIndex - 1);
-    if (lastSlashIndex === -1) {
-      return { directory: '.', pattern: expandedPath };
-    }
-
-    return {
-      directory: expandedPath.slice(0, lastSlashIndex),
-      pattern: expandedPath.slice(lastSlashIndex + 1),
-    };
-  }
-
-  /**
    * アイテムに対応する設定エントリを検索
    */
   private findEntryForItem(item: CustomSearchItem): CustomSearchEntry | undefined {
     return this.config.find(entry =>
       entry.type === item.type &&
-      this.getSourceId(entry) === item.sourceId
+      `${entry.path}:${entry.pattern}` === item.sourceId
     );
   }
 
@@ -315,7 +276,7 @@ class CustomSearchLoader {
     for (const entry of this.config) {
       try {
         const items = await this.loadEntry(entry);
-        const sourceId = this.getSourceId(entry);
+        const sourceId = `${entry.path}:${entry.pattern}`;
         this.addItemsWithDeduplication(items, sourceId, seenNames, allItems);
       } catch (error) {
         logger.error('Failed to load entry', { entry, error });
@@ -362,26 +323,20 @@ class CustomSearchLoader {
    * 単一エントリをロード
    */
   private async loadEntry(entry: CustomSearchEntry): Promise<CustomSearchItem[]> {
-    const { directory, pattern } = this.resolvePathAndPattern(entry);
+    const expandedPath = entry.path.replace(/^~/, os.homedir());
 
-    const isValid = await this.validateDirectory(directory);
+    const isValid = await this.validateDirectory(expandedPath);
     if (!isValid) {
       return [];
     }
 
-    if (!pattern) {
-      // glob文字がない場合はスキップ
-      return [];
-    }
-
     // Parse jq expression from pattern: '**/config.json@.members' → filePattern + jqExpression
-    const { filePattern, jqExpression } = this.parseJqPath(pattern);
-    const files = await this.findFiles(directory, filePattern);
-    const sourceId = this.getSourceId(entry);
+    const { filePattern, jqExpression } = this.parseJqPath(entry.pattern);
+    const files = await this.findFiles(expandedPath, filePattern);
+    const sourceId = `${entry.path}:${entry.pattern}`;
     logger.debug('CustomSearch loadEntry', {
       path: entry.path,
-      directory,
-      pattern,
+      pattern: entry.pattern,
       filePattern,
       jqExpression,
       filesFound: files.length

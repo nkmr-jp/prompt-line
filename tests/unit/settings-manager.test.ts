@@ -166,24 +166,27 @@ window:
           {
             name: '{basename}',
             description: '{frontmatter@description}',
-            path: '~/.claude/commands/*.md',
+            path: '~/.claude/commands',
             label: 'command',
             color: 'purple',
+            pattern: '*.md',
             argumentHint: '{frontmatter@argument-hint}',
             maxSuggestions: 20
           },
           {
             name: '{frontmatter@name}',
             description: '{frontmatter@description}',
-            path: '~/.claude/skills/**/*/SKILL.md',
+            path: '~/.claude/skills',
             label: 'skill',
             color: 'purple',
+            pattern: '**/*/SKILL.md',
             maxSuggestions: 20
           },
           {
             name: '{prefix}:{basename}',
             description: '{frontmatter@description}',
-            path: '~/.claude/plugins/cache/**/commands/*.md',
+            path: '~/.claude/plugins/cache',
+            pattern: '**/commands/*.md',
             prefixPattern: '**/.claude-plugin/*.json@name',
             label: 'command',
             color: 'teal',
@@ -193,7 +196,8 @@ window:
           {
             name: '{prefix}:{frontmatter@name}',
             description: '{frontmatter@description}',
-            path: '~/.claude/plugins/cache/**/*/SKILL.md',
+            path: '~/.claude/plugins/cache',
+            pattern: '**/*/SKILL.md',
             prefixPattern: '**/.claude-plugin/*.json@name',
             label: 'skill',
             color: 'teal',
@@ -222,39 +226,45 @@ window:
             {
               name: '{basename}(agent)',
               description: '{frontmatter@description}',
-              path: '~/.claude/agents/*.md',
+              path: '~/.claude/agents',
+              pattern: '*.md',
               searchPrefix: 'agent'
             },
             {
               name: '{prefix}:{basename}(agent)',
               description: '{frontmatter@description}',
-              path: '~/.claude/plugins/cache/**/agents/*.md',
+              path: '~/.claude/plugins/cache',
+              pattern: '**/agents/*.md',
               prefixPattern: '**/.claude-plugin/*.json@name',
               searchPrefix: 'agent'
             },
             {
               name: '{basename}',
               description: '{dirname:2}',
-              path: '~/.claude/teams/**/inboxes/*.json',
+              path: '~/.claude/teams',
+              pattern: '**/inboxes/*.json',
               searchPrefix: 'team'
             },
             {
               name: '{json@name}',
               description: '{dirname:2}',
-              path: '~/.claude/teams/**/config.json@.members',
+              path: '~/.claude/teams',
+              pattern: '**/config.json@.members',
               searchPrefix: 'member'
             },
             {
               name: '{basename}',
               description: '',
-              path: '~/.claude/plans/*.md',
+              path: '~/.claude/plans',
+              pattern: '*.md',
               searchPrefix: 'plan',
               inputFormat: 'path'
             },
             {
               name: '{basename}',
               description: '{dirname}',
-              path: '~/.claude/tasks/**/*/*.md',
+              path: '~/.claude/tasks',
+              pattern: '**/*/*.md',
               searchPrefix: 'task',
               inputFormat: 'path'
             }
@@ -367,24 +377,27 @@ window:
           {
             name: '{basename}',
             description: '{frontmatter@description}',
-            path: '~/.claude/commands/*.md',
+            path: '~/.claude/commands',
             label: 'command',
             color: 'purple',
+            pattern: '*.md',
             argumentHint: '{frontmatter@argument-hint}',
             maxSuggestions: 20
           },
           {
             name: '{frontmatter@name}',
             description: '{frontmatter@description}',
-            path: '~/.claude/skills/**/*/SKILL.md',
+            path: '~/.claude/skills',
             label: 'skill',
             color: 'purple',
+            pattern: '**/*/SKILL.md',
             maxSuggestions: 20
           },
           {
             name: '{prefix}:{basename}',
             description: '{frontmatter@description}',
-            path: '~/.claude/plugins/cache/**/commands/*.md',
+            path: '~/.claude/plugins/cache',
+            pattern: '**/commands/*.md',
             prefixPattern: '**/.claude-plugin/*.json@name',
             label: 'command',
             color: 'teal',
@@ -394,7 +407,8 @@ window:
           {
             name: '{prefix}:{frontmatter@name}',
             description: '{frontmatter@description}',
-            path: '~/.claude/plugins/cache/**/*/SKILL.md',
+            path: '~/.claude/plugins/cache',
+            pattern: '**/*/SKILL.md',
             prefixPattern: '**/.claude-plugin/*.json@name',
             label: 'skill',
             color: 'teal',
@@ -423,39 +437,45 @@ window:
             {
               name: '{basename}(agent)',
               description: '{frontmatter@description}',
-              path: '~/.claude/agents/*.md',
+              path: '~/.claude/agents',
+              pattern: '*.md',
               searchPrefix: 'agent'
             },
             {
               name: '{prefix}:{basename}(agent)',
               description: '{frontmatter@description}',
-              path: '~/.claude/plugins/cache/**/agents/*.md',
+              path: '~/.claude/plugins/cache',
+              pattern: '**/agents/*.md',
               prefixPattern: '**/.claude-plugin/*.json@name',
               searchPrefix: 'agent'
             },
             {
               name: '{basename}',
               description: '{dirname:2}',
-              path: '~/.claude/teams/**/inboxes/*.json',
+              path: '~/.claude/teams',
+              pattern: '**/inboxes/*.json',
               searchPrefix: 'team'
             },
             {
               name: '{json@name}',
               description: '{dirname:2}',
-              path: '~/.claude/teams/**/config.json@.members',
+              path: '~/.claude/teams',
+              pattern: '**/config.json@.members',
               searchPrefix: 'member'
             },
             {
               name: '{basename}',
               description: '',
-              path: '~/.claude/plans/*.md',
+              path: '~/.claude/plans',
+              pattern: '*.md',
               searchPrefix: 'plan',
               inputFormat: 'path'
             },
             {
               name: '{basename}',
               description: '{dirname}',
-              path: '~/.claude/tasks/**/*/*.md',
+              path: '~/.claude/tasks',
+              pattern: '**/*/*.md',
               searchPrefix: 'task',
               inputFormat: 'path'
             }
@@ -704,7 +724,8 @@ window:
           {
             name: '{prefix}:{basename}',
             description: '{frontmatter@description}',
-            path: '~/.claude/plugins/**/commands/*.md',
+            path: '~/.claude/plugins',
+            pattern: '**/commands/*.md',
             prefixPattern: '**/.claude-plugin/plugin.json@name',
             enable: ['ralph-loop:help*'],
             disable: ['ralph-loop:cancel']
@@ -730,7 +751,8 @@ window:
             {
               name: 'agent-{basename}',
               description: '{frontmatter@description}',
-              path: '~/.claude/agents/*.md',
+              path: '~/.claude/agents',
+              pattern: '*.md',
               searchPrefix: 'agent',
               enable: ['agent-*'],
               disable: ['agent-legacy']
@@ -756,7 +778,8 @@ window:
             {
               name: 'agent-{prefix}:{basename}',
               description: '{frontmatter@description}',
-              path: '~/.claude/plugins/cache/**/agents/*.md',
+              path: '~/.claude/plugins/cache',
+              pattern: '**/agents/*.md',
               searchPrefix: 'agent',
               prefixPattern: '**/.claude-plugin/plugin.json@name'
             }

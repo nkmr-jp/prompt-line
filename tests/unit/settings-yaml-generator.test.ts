@@ -114,7 +114,8 @@ describe('settings-yaml-generator', () => {
             {
               name: 'test-{basename}',
               description: 'Test command',
-              path: '~/.claude/test/*.md',
+              path: '~/.claude/test',
+              pattern: '*.md',
               argumentHint: 'Enter argument',
               maxSuggestions: 10
             }
@@ -140,7 +141,8 @@ describe('settings-yaml-generator', () => {
               {
                 name: 'agent-{basename}',
                 description: 'Agent files',
-                path: '~/.claude/agents/*.md',
+                path: '~/.claude/agents',
+                pattern: '*.md',
                 searchPrefix: 'agent',
                 maxSuggestions: 20,
                 orderBy: 'name',
@@ -172,7 +174,8 @@ describe('settings-yaml-generator', () => {
         expect(result).toContain('- codex');
         expect(result).toContain('name: "test-{basename}"');
         expect(result).toContain('description: "Test command"');
-        expect(result).toContain('path: ~/.claude/test/*.md');
+        expect(result).toContain('path: ~/.claude/test');
+        expect(result).toContain('pattern: "*.md"');
         expect(result).toContain('argumentHint: "Enter argument"');
         expect(result).toContain('maxSuggestions: 10');
 
@@ -366,7 +369,8 @@ describe('settings-yaml-generator', () => {
             {
               name: 'test: command',
               description: 'Command with "quotes" and special chars',
-              path: '~/path/with spaces/commands/*.md',
+              path: '~/path/with spaces/commands',
+              pattern: '*.md'
             }
           ]
         };
@@ -387,7 +391,8 @@ describe('settings-yaml-generator', () => {
             {
               name: 'test',
               description: '',
-              path: '~/.claude/commands/*.md',
+              path: '~/.claude/commands',
+              pattern: '*.md'
             }
           ]
         };
@@ -499,7 +504,8 @@ describe('settings-yaml-generator', () => {
             {
               name: '{basename}',
               description: 'Test',
-              path: '~/.claude/commands/*.md',
+              path: '~/.claude/commands',
+              pattern: '*.md',
               argumentHint: 'hint',
               maxSuggestions: 20
             }
@@ -523,7 +529,8 @@ describe('settings-yaml-generator', () => {
               {
                 name: 'agent-{basename}',
                 description: 'Test agent',
-                path: '~/.claude/agents/*.md',
+                path: '~/.claude/agents',
+                pattern: '*.md',
                 searchPrefix: 'agent'
               }
             ]
@@ -618,7 +625,8 @@ describe('settings-yaml-generator', () => {
             {
               name: 'test',
               description: 'desc',
-              path: '~/.claude/commands/*.md',
+              path: '~/.claude/commands',
+              pattern: '*.md'
             }
           ]
         };
@@ -656,7 +664,8 @@ describe('settings-yaml-generator', () => {
               {
                 name: 'agent-{basename}',
                 description: 'Test',
-                path: '~/.claude/agents/*.md',
+                path: '~/.claude/agents',
+                pattern: '*.md',
                 searchPrefix: 'agent',
                 inputFormat: 'path'
               }
@@ -698,7 +707,8 @@ describe('settings-yaml-generator', () => {
               {
                 name: 'test-{basename}',
                 description: 'Test description',
-                path: '~/.test/path/**/*.md',
+                path: '~/.test/path',
+                pattern: '**/*.md',
                 searchPrefix: 'test',
                 maxSuggestions: 100,
                 orderBy: 'name desc',
@@ -712,7 +722,8 @@ describe('settings-yaml-generator', () => {
 
         expect(result).toContain('- name: "test-{basename}"');
         expect(result).toContain('description: "Test description"');
-        expect(result).toContain('path: ~/.test/path/**/*.md');
+        expect(result).toContain('path: ~/.test/path');
+        expect(result).toContain('pattern: "**/*.md"');
         expect(result).toContain('searchPrefix: test');
         expect(result).toContain('maxSuggestions: 100');
         expect(result).toContain('orderBy: "name desc"');
@@ -742,7 +753,8 @@ describe('settings-yaml-generator', () => {
               {
                 name: 'simple',
                 description: 'Simple entry',
-                path: '~/.simple/*.md',
+                path: '~/.simple',
+                pattern: '*.md'
               }
             ]
           }
@@ -752,7 +764,8 @@ describe('settings-yaml-generator', () => {
 
         expect(result).toContain('- name: "simple"');
         expect(result).toContain('description: "Simple entry"');
-        expect(result).toContain('path: ~/.simple/*.md');
+        expect(result).toContain('path: ~/.simple');
+        expect(result).toContain('pattern: "*.md"');
 
         // The result will still contain "searchPrefix:" in the commented help text
         // Verify that optional fields are not present in the entry by checking for
@@ -944,17 +957,20 @@ describe('settings-yaml-generator', () => {
           {
             name: 'entry1',
             description: 'First entry',
-            path: '~/.path1/*.md',
+            path: '~/.path1',
+            pattern: '*.md'
           },
           {
             name: 'entry2',
             description: 'Second entry',
-            path: '~/.path2/**/*.md',
+            path: '~/.path2',
+            pattern: '**/*.md'
           },
           {
             name: 'entry3',
             description: 'Third entry',
-            path: '~/.path3/test-*.md',
+            path: '~/.path3',
+            pattern: 'test-*.md'
           }
         ];
 
