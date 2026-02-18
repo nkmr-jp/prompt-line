@@ -31,8 +31,9 @@ const COLOR_MAP: Record<string, string> = {
 
 function resolveColorValue(color: string | undefined, fallback?: string): string {
   if (!color) return fallback || '';
-  if (color.startsWith('#')) return color;
-  return COLOR_MAP[color] || color;
+  const c = color.replace(/^["']|["']$/g, '');
+  if (c.startsWith('#')) return c;
+  return COLOR_MAP[c] || c;
 }
 
 /**
