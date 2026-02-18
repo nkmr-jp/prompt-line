@@ -477,7 +477,8 @@ export class SlashCommandManager implements IInitializable {
       // Create codicon icon if icon attribute exists
       if (cmd.icon) {
         const iconSpan = document.createElement('span');
-        iconSpan.className = `file-icon codicon ${cmd.icon}`;
+        const iconClass = cmd.icon.startsWith('codicon-') ? cmd.icon : `codicon-${cmd.icon}`;
+        iconSpan.className = `file-icon codicon ${iconClass}`;
         if (cmd.color) {
           if (cmd.color.startsWith('#')) {
             iconSpan.style.color = cmd.color;

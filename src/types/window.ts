@@ -301,6 +301,8 @@ export interface SlashCommandEntry {
   label?: string;
   /** オプション: ラベルとハイライトの色（grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red） */
   color?: ColorValue;
+  /** オプション: codiconアイコンクラス名（例: "codicon-rocket", "symbol-class"） */
+  icon?: string;
   /** オプション: プレフィックスパターン - 特定JSONファイルからプレフィックスを動的に読み込むためのパターン */
   prefixPattern?: string;
   /**
@@ -341,6 +343,8 @@ export interface MentionEntry {
   prefixPattern?: string;
   /** オプション: ラベルとハイライトの色（grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red） */
   color?: ColorValue;
+  /** オプション: codiconアイコンクラス名（例: "codicon-rocket", "symbol-class"） */
+  icon?: string;
   /**
    * オプション: 有効にするメンション名のリスト（このエントリのみに適用）
    * - 完全一致: "agent-claude"

@@ -557,7 +557,8 @@ export class SuggestionUIManager {
 
     const icon = document.createElement('span');
     if (agent.icon) {
-      icon.className = `file-icon codicon ${agent.icon}`;
+      const iconClass = agent.icon.startsWith('codicon-') ? agent.icon : `codicon-${agent.icon}`;
+      icon.className = `file-icon codicon ${iconClass}`;
       if (agent.color) {
         if (agent.color.startsWith('#')) {
           icon.style.color = agent.color;

@@ -498,6 +498,7 @@ class SettingsManager extends EventEmitter {
         if (cmd.orderBy !== undefined) entry.orderBy = cmd.orderBy;
         if (cmd.label !== undefined) entry.label = cmd.label;
         if (cmd.color !== undefined) entry.color = cmd.color;
+        if (cmd.icon !== undefined) entry.icon = cmd.icon;
         if (cmd.prefixPattern !== undefined) entry.prefixPattern = cmd.prefixPattern;
         if (cmd.enable !== undefined) entry.enable = cmd.enable;
         if (cmd.disable !== undefined) entry.disable = cmd.disable;
@@ -523,6 +524,7 @@ class SettingsManager extends EventEmitter {
         if (mention.inputFormat !== undefined) entry.inputFormat = mention.inputFormat;
         if (mention.prefixPattern !== undefined) entry.prefixPattern = mention.prefixPattern;
         if (mention.color !== undefined) entry.color = mention.color;
+        if (mention.icon !== undefined) entry.icon = mention.icon;
         if (mention.enable !== undefined) entry.enable = mention.enable;
         if (mention.disable !== undefined) entry.disable = mention.disable;
         entries.push(entry);
