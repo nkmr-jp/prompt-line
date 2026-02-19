@@ -167,18 +167,18 @@ class CustomSearchHandler {
       });
 
       // Merge: built-in commands first, then custom commands
-      // Commands with same name but different sources are kept (use name+source as key)
+      // Commands with same name but different sources or labels are kept
       const commandMap = new Map<string, AgentSkillItem>();
 
       // Add built-in commands first
       for (const cmd of builtInCommands) {
-        const key = `${cmd.name}:${cmd.source || ''}`;
+        const key = `${cmd.name}:${cmd.source || ''}:${cmd.label || ''}`;
         commandMap.set(key, cmd);
       }
 
-      // Add custom commands (same name with different source is kept)
+      // Add custom commands (same name with different source or label is kept)
       for (const cmd of userCommands) {
-        const key = `${cmd.name}:${cmd.source || ''}`;
+        const key = `${cmd.name}:${cmd.source || ''}:${cmd.label || ''}`;
         commandMap.set(key, cmd);
       }
 

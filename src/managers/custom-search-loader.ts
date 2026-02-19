@@ -321,8 +321,10 @@ class CustomSearchLoader {
     const sourceSeenNames = seenNames.get(sourceId)!;
 
     for (const item of items) {
-      if (!sourceSeenNames.has(item.name)) {
-        sourceSeenNames.add(item.name);
+      // Use name+label as key to allow same name with different labels
+      const key = item.label ? `${item.name}:${item.label}` : item.name;
+      if (!sourceSeenNames.has(key)) {
+        sourceSeenNames.add(key);
         allItems.push(item);
       }
     }
