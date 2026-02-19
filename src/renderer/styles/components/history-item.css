@@ -5,7 +5,7 @@
     transition: background-color var(--animation-normal) ease;
     font-size: var(--font-size-md);
     line-height: 1.4;
-    border-bottom: 1px solid oklch(from var(--color-white) l c h / 0.12);
+    border-bottom: 1px solid oklch(from var(--color-white) l c h / 0.08);
     color: var(--text-primary);
 }
 

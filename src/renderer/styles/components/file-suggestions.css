@@ -259,7 +259,7 @@
 }
 
 .frontmatter-value {
-  color: var(--text-primary, #fff);
+  color: var(--text-secondary, #888);
 }
 
 .frontmatter-link {
