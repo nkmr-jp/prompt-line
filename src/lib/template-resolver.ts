@@ -9,6 +9,11 @@
  * - {frontmatter@fieldName}: frontmatterの任意フィールド
  * - {heading}: 最初の # heading のテキスト
  * - {json@path}: JSONデータの値参照（ドット記法・配列インデックス対応）
+ * - {json:N@path}: 親要素のJSONデータ参照（N=1: 直接の親、N=2: 2つ上の親）
+ *
+ * フォールバック構文:
+ * - テンプレート全体で `|` を使うと、左側が空文字の場合に右側にフォールバック
+ * - 例: "{frontmatter@description}|{heading}" → frontmatterが空なら最初のheadingを使用
  */
 
 export interface TemplateContext {
@@ -19,6 +24,7 @@ export interface TemplateContext {
   frontmatter: Record<string, string>;
   heading?: string;
   jsonData?: Record<string, unknown>;
+  parentJsonDataStack?: Record<string, unknown>[];
 }
 
 /**
@@ -31,6 +37,15 @@ export interface TemplateContext {
  * // => "agent-helper"
  */
 export function resolveTemplate(template: string, context: TemplateContext): string {
+  // フォールバック構文: "templateA|templateB" → templateAが空ならtemplateBを使用
+  const pipeIndex = template.indexOf('|');
+  if (pipeIndex !== -1) {
+    const primary = template.slice(0, pipeIndex);
+    const fallback = template.slice(pipeIndex + 1);
+    const primaryResult = resolveTemplate(primary, context);
+    return primaryResult || resolveTemplate(fallback, context);
+  }
+
   let result = template;
 
   // Replace {prefix}
@@ -58,6 +73,16 @@ export function resolveTemplate(template: string, context: TemplateContext): str
   result = result.replace(/\{frontmatter@([^}]+)\}/g, (_, fieldName: string) => {
     return context.frontmatter[fieldName] ?? '';
   });
+
+  // Replace {json:N@path} (parent JSON data reference)
+  if (context.parentJsonDataStack) {
+    result = result.replace(/\{json:(\d+)@([^}]+)\}/g, (_, level: string, jsonPath: string) => {
+      const index = parseInt(level, 10) - 1; // N=1 → index 0 (direct parent)
+      const stack = context.parentJsonDataStack!;
+      if (index < 0 || index >= stack.length) return '';
+      return resolveJsonPath(stack[index]!, jsonPath);
+    });
+  }
 
   // Replace {json@path}
   if (context.jsonData) {

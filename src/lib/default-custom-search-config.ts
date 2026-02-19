@@ -21,7 +21,7 @@ export function getDefaultCustomSearchConfig(): CustomSearchEntry[] {
     {
       name: '{basename}',
       type: 'command',
-      description: '{frontmatter@description}',
+      description: '{frontmatter@description}|{heading}',
       path: '~/.claude/commands',
       pattern: '*.md',
       argumentHint: '{frontmatter@argument-hint}',
@@ -32,7 +32,7 @@ export function getDefaultCustomSearchConfig(): CustomSearchEntry[] {
     {
       name: 'agent-{basename}',
       type: 'mention',
-      description: '{frontmatter@description}',
+      description: '{frontmatter@description}|{heading}',
       path: '~/.claude/agents',
       pattern: '*.md',
       maxSuggestions: DEFAULT_MAX_SUGGESTIONS,

@@ -497,7 +497,8 @@ class CustomSearchLoader {
         if (element === null || typeof element !== 'object' || Array.isArray(element)) continue;
 
         const elementData = element as Record<string, unknown>;
-        const context = { basename, frontmatter: {}, prefix: '', dirname, filePath, heading: '', jsonData: elementData };
+        const parentJsonDataStack = [jsonData];
+        const context = { basename, frontmatter: {}, prefix: '', dirname, filePath, heading: '', jsonData: elementData, parentJsonDataStack };
 
         const item: CustomSearchItem = {
           name: resolveTemplate(entry.name, context),
@@ -512,6 +513,7 @@ class CustomSearchLoader {
           if (resolvedLabel) item.label = resolvedLabel;
         }
         if (entry.color) {
+          logger.debug('parseJsonArrayToItems entry.color', { entryColor: entry.color, itemName: item.name });
           const resolvedColor = this.resolveColorWithFallback(entry.color, context);
           if (resolvedColor) item.color = resolvedColor as ColorValue;
         }
@@ -587,10 +589,11 @@ class CustomSearchLoader {
 
           // 結果が配列なら展開して複数アイテムに
           const elements = Array.isArray(jqResult) ? jqResult : [jqResult];
+          const lineData = parsed as Record<string, unknown>;
           for (const element of elements) {
             if (element === null || typeof element !== 'object' || Array.isArray(element)) continue;
             const elementData = element as Record<string, unknown>;
-            const item = this.createItemFromJsonData(elementData, basename, dirname, filePath, entry, sourceId);
+            const item = this.createItemFromJsonData(elementData, basename, dirname, filePath, entry, sourceId, [lineData]);
             if (item) items.push(item);
           }
         } else {
@@ -618,6 +621,7 @@ class CustomSearchLoader {
     const template = colorTemplate.slice(0, pipeIndex);
     const fallback = colorTemplate.slice(pipeIndex + 1);
     const resolved = resolveTemplate(template, context);
+    logger.debug('resolveColorWithFallback', { colorTemplate, template, fallback, resolved, result: resolved || fallback });
     return resolved || fallback;
   }
 
@@ -630,9 +634,10 @@ class CustomSearchLoader {
     dirname: string,
     filePath: string,
     entry: CustomSearchEntry,
-    sourceId: string
+    sourceId: string,
+    parentJsonDataStack?: Record<string, unknown>[]
   ): CustomSearchItem | null {
-    const context = { basename, frontmatter: {}, prefix: '', dirname, filePath, heading: '', jsonData: elementData };
+    const context = { basename, frontmatter: {}, prefix: '', dirname, filePath, heading: '', jsonData: elementData, ...(parentJsonDataStack && { parentJsonDataStack }) };
     const item: CustomSearchItem = {
       name: resolveTemplate(entry.name, context),
       description: resolveTemplate(entry.description, context),

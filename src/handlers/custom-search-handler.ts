@@ -296,6 +296,9 @@ class CustomSearchHandler {
         if (item.icon) {
           agent.icon = item.icon;
         }
+        if (item.label) {
+          agent.label = item.label;
+        }
         return agent;
       });
 

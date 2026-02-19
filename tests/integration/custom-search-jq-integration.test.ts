@@ -420,6 +420,109 @@ describe('CustomSearchLoader + jq integration', () => {
     });
   });
 
+  describe('JSON file with parent reference {json:1@field}', () => {
+    test('should resolve {json:1@field} to parent JSON data when using jq expansion', async () => {
+      const loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'mention',
+          description: '{json:1@team_name}',
+          path: '/path/to/teams',
+          pattern: '**/config.json@.members',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockImplementation((dir) => {
+        const dirStr = String(dir);
+        if (dirStr === '/path/to/teams') {
+          return Promise.resolve([createDirent('my-team', false)] as any);
+        }
+        if (dirStr === '/path/to/teams/my-team') {
+          return Promise.resolve([createDirent('config.json', true)] as any);
+        }
+        return Promise.resolve([] as any);
+      });
+      mockedFs.readFile.mockResolvedValue(JSON.stringify({
+        team_name: 'alpha',
+        members: [
+          { name: 'alice', role: 'lead' },
+          { name: 'bob', role: 'dev' }
+        ]
+      }));
+
+      const items = await loader.getItems('mention');
+
+      expect(items).toHaveLength(2);
+      // All items should have parent's team_name as description
+      expect(items.find(i => i.name === 'alice')?.description).toBe('alpha');
+      expect(items.find(i => i.name === 'bob')?.description).toBe('alpha');
+    });
+
+    test('should combine {json@path} and {json:1@path} in same template', async () => {
+      const loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'mention',
+          description: '{json@role} in {json:1@team_name}',
+          path: '/path/to/teams',
+          pattern: '**/config.json@.members',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockImplementation((dir) => {
+        const dirStr = String(dir);
+        if (dirStr === '/path/to/teams') {
+          return Promise.resolve([createDirent('my-team', false)] as any);
+        }
+        if (dirStr === '/path/to/teams/my-team') {
+          return Promise.resolve([createDirent('config.json', true)] as any);
+        }
+        return Promise.resolve([] as any);
+      });
+      mockedFs.readFile.mockResolvedValue(JSON.stringify({
+        team_name: 'alpha',
+        members: [
+          { name: 'alice', role: 'lead' },
+        ]
+      }));
+
+      const items = await loader.getItems('mention');
+
+      expect(items).toHaveLength(1);
+      expect(items[0]?.description).toBe('lead in alpha');
+    });
+  });
+
+  describe('JSONL file with parent reference {json:1@field}', () => {
+    test('should resolve {json:1@field} to line data when jq expands array', async () => {
+      const loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'mention',
+          description: '{json:1@group}',
+          path: '/path/to/data',
+          pattern: '*.jsonl@.items',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('data.jsonl', true)] as any);
+      mockedFs.readFile.mockResolvedValue([
+        JSON.stringify({ group: 'team-a', items: [{ name: 'alice' }, { name: 'bob' }] }),
+        JSON.stringify({ group: 'team-b', items: [{ name: 'carol' }] })
+      ].join('\n'));
+
+      const items = await loader.getItems('mention');
+
+      expect(items).toHaveLength(3);
+      expect(items.find(i => i.name === 'alice')?.description).toBe('team-a');
+      expect(items.find(i => i.name === 'bob')?.description).toBe('team-a');
+      expect(items.find(i => i.name === 'carol')?.description).toBe('team-b');
+    });
+  });
+
   describe('edge cases', () => {
     test('should handle empty JSON array from jq', async () => {
       const loader = new CustomSearchLoader([

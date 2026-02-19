@@ -588,6 +588,16 @@ export class SuggestionUIManager {
     item.appendChild(name);
     item.appendChild(desc);
 
+    if (agent.label) {
+      const labelBadge = document.createElement('span');
+      labelBadge.className = 'slash-command-label';
+      labelBadge.textContent = agent.label;
+      if (agent.color) {
+        labelBadge.dataset.color = agent.color;
+      }
+      item.appendChild(labelBadge);
+    }
+
     if (agent.frontmatter && this.callbacks.onMouseEnterInfo) {
       const infoIcon = document.createElement('span');
       infoIcon.className = 'frontmatter-info-icon';

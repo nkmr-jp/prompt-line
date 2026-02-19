@@ -466,4 +466,5 @@ export interface AgentItem {
   inputFormat?: InputFormatType;  // 入力フォーマット（'name' | 'path'）
   color?: ColorValue;
   icon?: string;  // Codicon icon class name (e.g., "codicon-rocket")
+  label?: string;
 }

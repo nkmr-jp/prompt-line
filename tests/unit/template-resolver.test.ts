@@ -148,6 +148,87 @@ describe('resolveTemplate', () => {
     });
   });
 
+  describe('resolveTemplate with json:N (parent JSON reference)', () => {
+    test('{json:1@path}で親要素の値を取得できる', () => {
+      const template = '{json:1@team_name}';
+      const context = {
+        basename: 'config',
+        frontmatter: {},
+        jsonData: { name: 'alice' },
+        parentJsonDataStack: [{ team_name: 'alpha', members: [] }]
+      };
+      expect(resolveTemplate(template, context)).toBe('alpha');
+    });
+
+    test('{json:2@path}で2階層上の値を取得できる', () => {
+      const template = '{json:2@org}';
+      const context = {
+        basename: 'config',
+        frontmatter: {},
+        jsonData: { name: 'alice' },
+        parentJsonDataStack: [
+          { team_name: 'alpha' },
+          { org: 'acme-corp' }
+        ]
+      };
+      expect(resolveTemplate(template, context)).toBe('acme-corp');
+    });
+
+    test('階層不足時に空文字を返す', () => {
+      const template = '{json:3@field}';
+      const context = {
+        basename: 'config',
+        frontmatter: {},
+        jsonData: { name: 'alice' },
+        parentJsonDataStack: [{ team_name: 'alpha' }]
+      };
+      expect(resolveTemplate(template, context)).toBe('');
+    });
+
+    test('{json@path}と{json:1@path}を組み合わせて使用できる', () => {
+      const template = '{json@name} ({json:1@team_name})';
+      const context = {
+        basename: 'config',
+        frontmatter: {},
+        jsonData: { name: 'alice' },
+        parentJsonDataStack: [{ team_name: 'alpha' }]
+      };
+      expect(resolveTemplate(template, context)).toBe('alice (alpha)');
+    });
+
+    test('parentJsonDataStackがundefinedの場合は{json:N@path}をそのまま残す', () => {
+      const template = '{json:1@field}';
+      const context = {
+        basename: 'config',
+        frontmatter: {},
+        jsonData: { name: 'alice' }
+      };
+      expect(resolveTemplate(template, context)).toBe('{json:1@field}');
+    });
+
+    test('{json:0@path}は無効（N=0は範囲外）で空文字を返す', () => {
+      const template = '{json:0@field}';
+      const context = {
+        basename: 'config',
+        frontmatter: {},
+        jsonData: { name: 'alice' },
+        parentJsonDataStack: [{ field: 'value' }]
+      };
+      expect(resolveTemplate(template, context)).toBe('');
+    });
+
+    test('{json:1@nested.path}でネストされた親要素の値を取得できる', () => {
+      const template = '{json:1@config.name}';
+      const context = {
+        basename: 'file',
+        frontmatter: {},
+        jsonData: { id: 1 },
+        parentJsonDataStack: [{ config: { name: 'test-config' } }]
+      };
+      expect(resolveTemplate(template, context)).toBe('test-config');
+    });
+  });
+
   describe('edge cases', () => {
     test('存在しないfrontmatterフィールドは空文字に置換される', () => {
       const template = '{frontmatter@missing}';
@@ -329,5 +410,55 @@ comment: "# not a heading"
 
   test('空のコンテンツは空文字を返す', () => {
     expect(parseFirstHeading('')).toBe('');
+  });
+});
+
+describe('resolveTemplate fallback syntax (pipe)', () => {
+  test('左側が空の場合、右側にフォールバックする', () => {
+    const template = '{frontmatter@description}|{heading}';
+    const context = {
+      basename: 'test',
+      frontmatter: {},
+      heading: 'My Heading'
+    };
+    expect(resolveTemplate(template, context)).toBe('My Heading');
+  });
+
+  test('左側に値がある場合、左側を使用する', () => {
+    const template = '{frontmatter@description}|{heading}';
+    const context = {
+      basename: 'test',
+      frontmatter: { description: 'From frontmatter' },
+      heading: 'My Heading'
+    };
+    expect(resolveTemplate(template, context)).toBe('From frontmatter');
+  });
+
+  test('両方空の場合は空文字を返す', () => {
+    const template = '{frontmatter@description}|{heading}';
+    const context = {
+      basename: 'test',
+      frontmatter: {},
+      heading: ''
+    };
+    expect(resolveTemplate(template, context)).toBe('');
+  });
+
+  test('リテラル文字列をフォールバックに使用できる', () => {
+    const template = '{frontmatter@description}|No description';
+    const context = {
+      basename: 'test',
+      frontmatter: {}
+    };
+    expect(resolveTemplate(template, context)).toBe('No description');
+  });
+
+  test('パイプなしのテンプレートは従来通り動作する', () => {
+    const template = '{basename}';
+    const context = {
+      basename: 'test',
+      frontmatter: {}
+    };
+    expect(resolveTemplate(template, context)).toBe('test');
   });
 });
