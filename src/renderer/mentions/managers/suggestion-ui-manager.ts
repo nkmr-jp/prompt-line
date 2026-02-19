@@ -589,9 +589,8 @@ export class SuggestionUIManager {
 
     if (agent.label) {
       const labelBadge = document.createElement('span');
-      labelBadge.className = 'slash-command-label';
+      labelBadge.className = 'symbol-type-badge';
       labelBadge.textContent = agent.label;
-      labelBadge.dataset.color = 'grey';
       item.appendChild(labelBadge);
     }
 
