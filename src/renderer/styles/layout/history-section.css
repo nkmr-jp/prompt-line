@@ -1,31 +1,22 @@
 /* History Section Layout */
 .history-section {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
+    @apply flex-1 flex flex-col min-w-0;
     border-left: 1px solid var(--border-primary);
 }
 
 .history-container {
+    @apply overflow-hidden flex flex-col h-full;
     background: var(--bg-primary);
     border-radius: 0;
     box-shadow: none;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
     border-left: 1px solid var(--border-primary);
 }
 
 .history-header {
+    @apply flex justify-between items-center relative;
     padding: var(--spacing-md) var(--spacing-lg);
     border-bottom: 1px solid var(--border-primary);
     background: var(--bg-secondary);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    position: relative;
 }
 
 /* Search mode toggle states */
@@ -61,9 +52,7 @@
 }
 
 .history-list-wrapper {
-    flex: 1;
-    position: relative;
-    overflow: hidden;
+    @apply flex-1 relative overflow-hidden;
 }
 
 .history-list {
@@ -118,8 +107,8 @@
 }
 
 .history-empty {
+    @apply text-center;
     padding: var(--spacing-xl) var(--spacing-lg);
-    text-align: center;
     color: var(--text-tertiary);
     font-size: var(--font-size-md);
 }

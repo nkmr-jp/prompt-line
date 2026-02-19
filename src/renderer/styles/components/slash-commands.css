@@ -7,24 +7,19 @@
   max-height: 40vh;
   width: max-content;
   overflow-y: auto;
-  overflow-x: hidden;
+  @apply overflow-x-hidden;
   background: var(--color-gray-900);
   border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px oklch(from var(--color-black) l c h / 0.3);
   z-index: 100;
   box-sizing: border-box;
 }
 
 .slash-suggestion-item {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  align-items: center;
+  @apply flex flex-row flex-nowrap items-center cursor-pointer min-w-0;
   padding: 4px 10px;
   gap: 4px;
-  cursor: pointer;
   transition: background-color 0.1s ease;
-  min-width: 0;
 }
 
 .slash-suggestion-item:last-child {
@@ -37,36 +32,30 @@
 }
 
 .slash-suggestion-item.selected {
-  background: var(--bg-active, #3a3a3a);
+  background: var(--bg-active, oklch(from var(--color-white) l c h / 0.15));
 }
 
 .slash-command-name {
+  @apply whitespace-nowrap font-medium;
   padding-right: 2px;
   font-size: 13px;
-  font-weight: 500;
-  white-space: nowrap;
   color: var(--text-primary, #fff);
 }
 
 .slash-command-description {
-  flex: 1;
-  min-width: 0;
+  @apply flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap;
   font-size: 11px;
   color: var(--text-secondary, #888);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .slash-command-source {
-  flex-shrink: 0;
+  @apply shrink-0 whitespace-nowrap;
   font-size: 9px;
   color: var(--text-secondary, #888);
-  background: rgba(100, 100, 100, 0.3);
+  background: oklch(from var(--color-gray-500) l c h / 0.3);
   padding: 2px 4px;
   border-radius: 3px;
   margin-right: 2px;
-  white-space: nowrap;
 }
 
 /* Source-specific badge colors */
@@ -138,14 +127,13 @@
 
 /* Label badge (same color as custom) */
 .slash-command-label {
-  flex-shrink: 0;
+  @apply shrink-0 whitespace-nowrap;
   font-size: 9px;
   color: var(--color-purple-400);
   background: oklch(from var(--color-purple-400) l c h / 0.2);
   padding: 2px 4px;
   border-radius: 3px;
   margin-right: 2px;
-  white-space: nowrap;
 }
 
 /* Label color variations */
@@ -205,31 +193,28 @@
 
 /* Argument hint badge (gray) */
 .slash-command-source.argument-hint-badge {
-  color: #999;
-  background: rgba(128, 128, 128, 0.3);
+  color: var(--text-tertiary);
+  background: oklch(from var(--color-gray-500) l c h / 0.3);
   padding: 2px 4px;
   margin-right: 2px;
 }
 
 /* Copy icon for argument hint */
 .argument-hint-copy-icon {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  color: #666;
-  cursor: pointer;
+  @apply shrink-0 flex items-center cursor-pointer;
+  color: oklch(from var(--color-white) l c h / 0.3);
   margin-left: 6px;
   opacity: 0.7;
   transition: opacity 0.2s ease, color 0.2s ease;
 }
 
 .argument-hint-copy-icon:hover {
-  color: #999;
+  color: var(--text-tertiary);
   opacity: 1;
 }
 
 .slash-highlight {
-  background: rgba(255, 200, 0, 0.3);
+  background: oklch(from var(--color-amber-400) l c h / 0.3);
   color: var(--text-primary, #fff);
   border-radius: 2px;
   padding: 0 1px;

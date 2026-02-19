@@ -1,6 +1,6 @@
-/* CSS Custom Properties */
+/* CSS Custom Properties - Semantic Colors & Animation Tokens */
 :root {
-    /* Colors */
+    /* Semantic Colors */
     --bg-primary: var(--color-gray-950);
     --bg-secondary: oklch(from var(--color-white) l c h / 0.05);
     --bg-tertiary: oklch(from var(--color-white) l c h / 0.1);
@@ -13,28 +13,8 @@
     --accent-yellow: var(--color-amber-400);
     --accent-gray: oklch(from var(--color-gray-500) l c h / 0.6);
 
-    /* Spacing */
-    --spacing-xs: 4px;
-    --spacing-sm: 8px;
-    --spacing-md: 12px;
-    --spacing-lg: 16px;
-    --spacing-xl: 20px;
-
-    /* Border radius */
-    --radius-sm: 4px;
-    --radius-md: 8px;
-    --radius-lg: 12px;
-
     /* Animations */
     --animation-fast: 0.15s;
     --animation-normal: 0.2s;
     --animation-slow: 0.3s;
-
-    /* Fonts */
-    --font-size-xs: 9px;
-    --font-size-sm: 10px;
-    --font-size-base: 12px;
-    --font-size-md: 13px;
-    --font-size-lg: 14px;
-    --font-size-xl: 16px;
 }

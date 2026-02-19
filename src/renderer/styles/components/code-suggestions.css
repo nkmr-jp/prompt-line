@@ -4,20 +4,17 @@
  */
 
 .code-suggestions {
-  position: absolute;
+  @apply absolute overflow-y-auto;
   background: var(--bg-color, var(--color-gray-900));
   border: 1px solid var(--border-color, #444);
   border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  overflow-y: auto;
+  box-shadow: 0 4px 12px oklch(from var(--color-black) l c h / 0.3);
   z-index: 1000;
 }
 
 .code-suggestion-item {
-  display: flex;
-  align-items: center;
+  @apply flex items-center cursor-pointer;
   padding: 8px 12px;
-  cursor: pointer;
   gap: 8px;
   border-bottom: 1px solid var(--border-color, #333);
   transition: background-color 0.1s ease;
@@ -33,34 +30,48 @@
 }
 
 .code-suggestion-icon {
+  @apply shrink-0 text-center;
   font-size: 14px;
   width: 20px;
-  text-align: center;
   color: var(--accent-color, #569cd6);
-  flex-shrink: 0;
 }
 
 .code-suggestion-name {
-  font-weight: 600;
+  @apply font-semibold shrink-0;
   color: var(--text-color, #d4d4d4);
-  flex-shrink: 0;
 }
 
 .code-suggestion-type {
+  @apply shrink-0;
   font-size: 11px;
   color: var(--muted-color, #888);
   padding: 2px 6px;
   background: var(--tag-bg, #333);
   border-radius: 4px;
-  flex-shrink: 0;
 }
 
 .code-suggestion-path {
+  @apply overflow-hidden text-ellipsis whitespace-nowrap;
   font-size: 12px;
   color: var(--muted-color, #888);
   margin-left: auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   max-width: 50%;
+}
+
+/* Scrollbar styling */
+.code-suggestions::-webkit-scrollbar {
+  width: 3px;
+}
+
+.code-suggestions::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.code-suggestions::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb, #555);
+  border-radius: 3px;
+}
+
+.code-suggestions::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover, #666);
 }

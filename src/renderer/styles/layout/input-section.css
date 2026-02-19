@@ -1,27 +1,18 @@
 /* Input Section Layout */
 .input-section {
-    flex: 2;
-    display: flex;
-    flex-direction: column;
-    position: relative; /* Required for file suggestions absolute positioning */
+    @apply flex-[2] flex flex-col relative; /* Required for file suggestions absolute positioning */
 }
 
 .input-wrapper {
-    width: 100%;
-    height: 100%;
+    @apply w-full h-full flex flex-col;
     background: var(--bg-primary);
     border-radius: 0;
     box-shadow: none;
-    display: flex;
-    flex-direction: column;
     padding: var(--spacing-lg);
 }
 
 .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--spacing-md);
+    @apply flex justify-between items-center;
     min-height: 24px;
     padding: var(--spacing-sm) var(--spacing-md);
     margin: calc(-1 * var(--spacing-sm)) calc(-1 * var(--spacing-md));
@@ -84,9 +75,9 @@
 }
 
 .app-name {
+    @apply font-medium;
     font-size: var(--font-size-md);
     color: oklch(from var(--color-white) l c h / 0.5);
-    font-weight: 500;
 }
 
 .shortcuts {
@@ -96,10 +87,7 @@
 
 /* Text input container for highlight backdrop */
 .text-input-container {
-    flex: 1;
-    position: relative;
-    display: flex;
-    width: 100%;
+    @apply flex-1 relative flex w-full;
     /* Prevent layout thrashing when inserting long text */
     contain: content;
 }
@@ -271,17 +259,12 @@
 }
 
 #textInput {
-    flex: 1;
-    width: 100%;
-    background: transparent;
+    @apply flex-1 w-full bg-transparent outline-none resize-none relative;
     border: 1px solid oklch(from var(--color-white) l c h / 0.15);
     border-radius: var(--radius-md);
     padding: var(--spacing-md);
     color: var(--text-primary);
-    outline: none;
-    resize: none;
     transition: border-color var(--animation-normal) ease, box-shadow var(--animation-normal) ease;
-    position: relative;
     z-index: 1;
 
     /* Font metrics - must match backdrop exactly */
@@ -371,20 +354,16 @@ textarea:-webkit-autofill:focus {
 }
 
 .footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    @apply flex justify-between items-center;
     /*margin-top: var(--spacing-md);*/
     padding-top: var(--spacing-md);
     /*border-top: 1px solid var(--border-primary);*/
 }
 
 .hint {
+    @apply overflow-hidden text-ellipsis whitespace-nowrap;
     font-size: var(--font-size-sm);
     color: var(--text-tertiary);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
     max-width: 80%;
     margin-right: var(--spacing-md);
 }
@@ -405,7 +384,7 @@ textarea:-webkit-autofill:focus {
 }
 
 kbd {
-    display: inline-block;
+    @apply inline-block;
     padding: 2px 6px;
     background: var(--bg-tertiary);
     border-radius: var(--radius-sm);

@@ -1,16 +1,14 @@
 /* Notification System Styles */
 .notification {
-    position: fixed;
+    @apply fixed font-medium break-words;
     top: 16px;
     right: 16px;
     padding: 12px 16px;
     border-radius: 8px;
     font-size: 13px;
-    font-weight: 500;
     z-index: 10000;
     max-width: 300px;
-    word-wrap: break-word;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 16px oklch(from var(--color-black) l c h / 0.2);
 }
 
 .notification-info {
@@ -44,7 +42,7 @@
 
 /* Loading states */
 .loading {
-    cursor: wait;
+    @apply cursor-wait;
 }
 
 .textarea-loading {

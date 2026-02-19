@@ -35,6 +35,26 @@
   --color-purple-400: oklch(0.714 0.203 305.504);
   --color-violet-500: oklch(0.606 0.25 292.717);
   --color-pink-400: oklch(0.718 0.202 349.761);
+
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 20px;
+
+  /* Border radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* Font sizes */
+  --font-size-xs: 9px;
+  --font-size-sm: 10px;
+  --font-size-base: 12px;
+  --font-size-md: 13px;
+  --font-size-lg: 14px;
+  --font-size-xl: 16px;
 }
 
 /* Base styles */
