@@ -586,7 +586,6 @@ export class SuggestionUIManager {
 
     item.appendChild(icon);
     item.appendChild(name);
-    item.appendChild(desc);
 
     if (agent.label) {
       const labelBadge = document.createElement('span');
@@ -597,6 +596,8 @@ export class SuggestionUIManager {
       }
       item.appendChild(labelBadge);
     }
+
+    item.appendChild(desc);
 
     if (agent.frontmatter && this.callbacks.onMouseEnterInfo) {
       const infoIcon = document.createElement('span');
