@@ -522,6 +522,7 @@ class SettingsManager extends EventEmitter {
         if (mention.searchPrefix !== undefined) entry.searchPrefix = mention.searchPrefix;
         if (mention.orderBy !== undefined) entry.orderBy = mention.orderBy;
         if (mention.inputFormat !== undefined) entry.inputFormat = mention.inputFormat;
+        if (mention.label !== undefined) entry.label = mention.label;
         if (mention.prefixPattern !== undefined) entry.prefixPattern = mention.prefixPattern;
         if (mention.color !== undefined) entry.color = mention.color;
         if (mention.icon !== undefined) entry.icon = mention.icon;

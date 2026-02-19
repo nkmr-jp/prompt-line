@@ -341,6 +341,8 @@ export interface MentionEntry {
   inputFormat?: InputFormatType;
   /** オプション: プレフィックスパターン - 特定JSONファイルからプレフィックスを動的に読み込むためのパターン */
   prefixPattern?: string;
+  /** オプション: label（静的な値 "skill" または テンプレート "{frontmatter@label}"） */
+  label?: string;
   /** オプション: ラベルとハイライトの色（grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red） */
   color?: ColorValue;
   /** オプション: codiconアイコンクラス名（例: "codicon-rocket", "symbol-class"） */
