@@ -111,17 +111,17 @@ export function findUrlAtPosition(text: string, cursorPos: number): UrlMatch | n
 }
 
 /**
- * Find slash command at the given cursor position
+ * Find agent skill at the given cursor position
  * Returns { command, start, end } if found, null otherwise
- * Slash commands are like /commit, /help (single word after /)
+ * Agent skills are like /commit, /help (single word after /)
  * When knownCommandNames is provided, also matches multi-word commands like /Linear API
  */
-export function findSlashCommandAtPosition(text: string, cursorPos: number, knownCommandNames?: string[]): CommandMatch | null {
-  // Use findAllSlashCommands to get all commands (including multi-word ones if knownCommandNames provided)
-  const commands = findAllSlashCommands(text, knownCommandNames);
+export function findAgentSkillAtPosition(text: string, cursorPos: number, knownCommandNames?: string[]): CommandMatch | null {
+  // Use findAllAgentSkills to get all commands (including multi-word ones if knownCommandNames provided)
+  const commands = findAllAgentSkills(text, knownCommandNames);
 
   for (const cmd of commands) {
-    // Check if cursor is within this slash command
+    // Check if cursor is within this agent skill
     if (cursorPos >= cmd.start && cursorPos <= cmd.end) {
       return cmd;
     }
@@ -143,9 +143,9 @@ export function findAbsolutePathAtPosition(text: string, cursorPos: number): str
     'g'
   );
 
-  // Pattern to identify slash commands (single segment starting with /, no additional slashes or dots)
-  // Slash commands look like /commit, /help, /skill:creater - single word after / without extensions
-  const slashCommandPattern = /^\/[a-zA-Z][a-zA-Z0-9_:-]*$/;
+  // Pattern to identify agent skills (single segment starting with /, no additional slashes or dots)
+  // Agent skills look like /commit, /help, /skill:creater - single word after / without extensions
+  const agentSkillPattern = /^\/[a-zA-Z][a-zA-Z0-9_:-]*$/;
 
   let match;
 
@@ -160,10 +160,10 @@ export function findAbsolutePathAtPosition(text: string, cursorPos: number): str
       continue; // Skip - not a standalone absolute path
     }
 
-    // Skip if this matches the slash command pattern
-    // Slash commands are single segments like /commit, /help (no additional slashes or dots)
-    // This prevents conflict with the slash command feature
-    if (slashCommandPattern.test(match[0])) {
+    // Skip if this matches the agent skill pattern
+    // Agent skills are single segments like /commit, /help (no additional slashes or dots)
+    // This prevents conflict with the agent skill feature
+    if (agentSkillPattern.test(match[0])) {
       continue;
     }
 
@@ -180,7 +180,7 @@ export function findAbsolutePathAtPosition(text: string, cursorPos: number): str
  * Find any clickable file path at the given position
  * Returns { path, start, end } if found
  * Supports @path, relative paths (./, ../), and absolute paths (/, ~/)
- * Excludes slash commands (e.g., /commit)
+ * Excludes agent skills (e.g., /commit)
  */
 export function findClickablePathAtPosition(text: string, cursorPos: number): PathMatch | null {
   // First check @path
@@ -198,7 +198,7 @@ export function findClickablePathAtPosition(text: string, cursorPos: number): Pa
 
   // Then check file paths (relative and absolute)
   // Uses common path pattern constants for consistency
-  // Excludes single-level paths like /commit (slash commands)
+  // Excludes single-level paths like /commit (agent skills)
   const absolutePathPattern = new RegExp(
     `(?:${RELATIVE_PATH_PATTERN}|${MULTI_LEVEL_ABSOLUTE_PATH_PATTERN}|${TILDE_PATH_PATTERN})`,
     'g'
@@ -245,12 +245,12 @@ export function findAllUrls(text: string): UrlMatch[] {
 /**
  * Find all file paths in the text
  * Returns array of { path, start, end }
- * Includes relative paths (./, ../) and excludes slash commands (e.g., /commit)
+ * Includes relative paths (./, ../) and excludes agent skills (e.g., /commit)
  */
 export function findAllAbsolutePaths(text: string): PathMatch[] {
   const results: PathMatch[] = [];
   // Uses common path pattern constants for consistency
-  // Excludes single-level paths like /commit (slash commands)
+  // Excludes single-level paths like /commit (agent skills)
   // Path must end with valid ending characters (alphanumeric, dot, underscore, closing brackets)
   const absolutePathPattern = new RegExp(
     `(?:${RELATIVE_PATH_PATTERN}|${MULTI_LEVEL_ABSOLUTE_PATH_PATTERN}${PATH_END_CHAR}|${TILDE_PATH_PATTERN}${PATH_END_CHAR})`,
@@ -279,12 +279,12 @@ export function findAllAbsolutePaths(text: string): PathMatch[] {
 }
 
 /**
- * Find all slash commands in the text
+ * Find all agent skills in the text
  * Returns array of { command, start, end }
- * Slash commands are like /commit, /help (single word after /)
+ * Agent skills are like /commit, /help (single word after /)
  * When knownCommandNames is provided, also matches multi-word commands like /Linear API
  */
-export function findAllSlashCommands(text: string, knownCommandNames?: string[]): CommandMatch[] {
+export function findAllAgentSkills(text: string, knownCommandNames?: string[]): CommandMatch[] {
   const results: CommandMatch[] = [];
   // Track matched ranges to avoid duplicates
   const matchedRanges = new Set<string>();
@@ -329,11 +329,11 @@ export function findAllSlashCommands(text: string, knownCommandNames?: string[])
     }
   }
 
-  // Then, find simple slash commands using regex
-  const slashCommandPattern = /\/([a-zA-Z][a-zA-Z0-9_:-]*)/g;
+  // Then, find simple agent skills using regex
+  const agentSkillPattern = /\/([a-zA-Z][a-zA-Z0-9_:-]*)/g;
   let match;
 
-  while ((match = slashCommandPattern.exec(text)) !== null) {
+  while ((match = agentSkillPattern.exec(text)) !== null) {
     const start = match.index;
     const end = start + match[0].length;
     const commandName = match[1] ?? '';
@@ -411,15 +411,15 @@ export function resolveAtPathToAbsolute(
 }
 
 /**
- * Find slash command at cursor position for backspace deletion
+ * Find agent skill at cursor position for backspace deletion
  * Returns command if cursor is at end of command (within 3 chars, only spaces between)
  */
-export function findSlashCommandAtCursor(
+export function findAgentSkillAtCursor(
   text: string,
   cursorPos: number,
   knownCommandNames?: string[]
 ): CommandMatch | null {
-  const commands = findAllSlashCommands(text, knownCommandNames);
+  const commands = findAllAgentSkills(text, knownCommandNames);
 
   for (const cmd of commands) {
     // Check if cursor is at end of command (within 3 chars, only terminators between)

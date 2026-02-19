@@ -11,7 +11,7 @@ import type {
   UserSettings,
   FileSearchSettings,
   SymbolSearchUserSettings,
-  SlashCommandEntry,
+  AgentSkillEntry,
   MentionEntry,
   CustomSearchEntry
 } from '../types';
@@ -136,14 +136,14 @@ class SettingsManager extends EventEmitter {
    * Convert legacy mdSearch entries to new format
    * Separates command entries (/) and mention entries (@)
    */
-  private convertLegacyCustomSearch(mdSearch: CustomSearchEntry[]): { custom: SlashCommandEntry[]; customSearchMentions: MentionEntry[] } {
-    const custom: SlashCommandEntry[] = [];
+  private convertLegacyCustomSearch(mdSearch: CustomSearchEntry[]): { custom: AgentSkillEntry[]; customSearchMentions: MentionEntry[] } {
+    const custom: AgentSkillEntry[] = [];
     const customSearchMentions: MentionEntry[] = [];
 
     for (const entry of mdSearch) {
       if (entry.type === 'command') {
-        // Convert to SlashCommandEntry (without type field)
-        const cmd: SlashCommandEntry = {
+        // Convert to AgentSkillEntry format (without type field)
+        const cmd: AgentSkillEntry = {
           name: entry.name,
           description: entry.description,
           path: entry.path,
@@ -255,7 +255,7 @@ class SettingsManager extends EventEmitter {
       // Legacy: agentSkills is an object with custom property
       const legacySkills = rawAgentSkills as Record<string, unknown>;
       if (Array.isArray(legacySkills.custom)) {
-        result.agentSkills = legacySkills.custom as SlashCommandEntry[];
+        result.agentSkills = legacySkills.custom as AgentSkillEntry[];
       } else {
         result.agentSkills = defaultAgentSkills;
       }

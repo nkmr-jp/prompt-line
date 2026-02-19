@@ -1,5 +1,5 @@
 /* File Suggestions Component Styles */
-/* Aligned with slash-commands.css for consistency */
+/* Aligned with agent-skills.css for consistency */
 
 .file-suggestions {
   @apply overflow-x-hidden;

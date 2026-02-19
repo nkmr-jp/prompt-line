@@ -137,7 +137,7 @@ describe('Scoring Performance Benchmarks', () => {
         console.log('\n[REAL DATA LOADED]');
         console.log(`  History entries: ${stats.total}`);
         console.log(`  File usage entries: ${realData.fileUsage.length}`);
-        console.log(`  Slash commands: ${realData.slashCommands.length}`);
+        console.log(`  Agent skills: ${realData.agentSkills.length}`);
         console.log(`  Agents: ${realData.agents.length}`);
         console.log(`  Last 24h: ${stats.last24h}`);
         console.log(`  Last 7d: ${stats.last7d}`);

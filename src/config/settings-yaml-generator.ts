@@ -12,7 +12,7 @@
 import type {
   UserSettings,
   MentionEntry,
-  SlashCommandEntry,
+  AgentSkillEntry,
   FileSearchUserSettings,
   SymbolSearchUserSettings
 } from '../types';
@@ -77,7 +77,7 @@ function formatExtensionsAsList(ext: Record<string, string> | undefined): string
 /**
  * Format an agent skill entry as YAML
  */
-function formatAgentSkillEntry(entry: SlashCommandEntry, indent: string, commented = false): string {
+function formatAgentSkillEntry(entry: AgentSkillEntry, indent: string, commented = false): string {
   // When commented, use indent + "# " prefix
   // Active:    "  - name:" (indent + -)
   // Commented: "  # - name:" (indent trimmed to base + # + space + -)

@@ -116,7 +116,7 @@ export class MentionManager implements IInitializable {
       getCachedDirectoryData: () => this.directoryCacheManager?.getCachedData() ?? null,
       isCommandEnabledSync: () => this.isCommandEnabledSync(),
       checkFileExists: (path: string) => this.checkFileExistsAbsolute(path),
-      getKnownCommandNames: () => this.callbacks.getKnownCommandNames?.() ?? []
+      getKnownSkillNames: () => this.callbacks.getKnownSkillNames?.() ?? []
     });
 
     // Initialize NavigationManager (consolidated keyboard + directory/file navigation + item selection)
@@ -190,7 +190,7 @@ export class MentionManager implements IInitializable {
       updateCursorPositionHighlight: () => this.updateCursorPositionHighlight(),
       handleKeyDown: (e: KeyboardEvent) => this.handleKeyDown(e),
       handleBackspaceForAtPath: (e: KeyboardEvent) => this.handleBackspaceForAtPath(e),
-      handleBackspaceForSlashCommand: (e: KeyboardEvent) => this.handleBackspaceForSlashCommand(e),
+      handleBackspaceForAgentSkill: (e: KeyboardEvent) => this.handleBackspaceForAgentSkill(e),
       handleCtrlEnterOpenFile: (e: KeyboardEvent) => this.fileOpenerManager?.handleCtrlEnter(e),
       handleCmdClickOnAtPath: (e: MouseEvent) => this.fileOpenerManager?.handleCmdClick(e),
       handleMouseMove: (e: MouseEvent) => this.handleMouseMove(e),
@@ -353,14 +353,14 @@ export class MentionManager implements IInitializable {
         buildValidPathsSet: () => this.getValidPathsSet(),
         getTotalItemCount: () => this.getTotalItemCount(),
         _getFileSearchMaxSuggestions: () => this._getFileSearchMaxSuggestions(),
-        ...(this.callbacks.getCommandSource && {
-          getCommandSource: (commandName: string) => this.callbacks.getCommandSource?.(commandName)
+        ...(this.callbacks.getSkillSource && {
+          getSkillSource: (commandName: string) => this.callbacks.getSkillSource?.(commandName)
         }),
-        ...(this.callbacks.getCommandColor && {
-          getCommandColor: (commandName: string) => this.callbacks.getCommandColor?.(commandName)
+        ...(this.callbacks.getSkillColor && {
+          getSkillColor: (commandName: string) => this.callbacks.getSkillColor?.(commandName)
         }),
-        ...(this.callbacks.getKnownCommandNames && {
-          getKnownCommandNames: () => this.callbacks.getKnownCommandNames?.() ?? []
+        ...(this.callbacks.getKnownSkillNames && {
+          getKnownSkillNames: () => this.callbacks.getKnownSkillNames?.() ?? []
         }),
         invalidateValidPathsCache: () => this.invalidateValidPathsCache(),
         updateHighlightBackdrop: () => this.updateHighlightBackdrop(),
@@ -1047,11 +1047,11 @@ export class MentionManager implements IInitializable {
   }
 
   /**
-   * Handle backspace key to delete entire slash command if cursor is at the end
+   * Handle backspace key to delete entire agent skill if cursor is at the end
    * Delegates to PathManager
    */
-  private handleBackspaceForSlashCommand(e: KeyboardEvent): boolean {
-    return this.pathManager.handleBackspaceForSlashCommand(e);
+  private handleBackspaceForAgentSkill(e: KeyboardEvent): boolean {
+    return this.pathManager.handleBackspaceForAgentSkill(e);
   }
 
   /**

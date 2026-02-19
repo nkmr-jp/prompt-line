@@ -13,7 +13,7 @@ import type {
 } from './types';
 import { EventHandler } from './event-handler';
 import { HistorySearchManager } from './history-search';
-import { SlashCommandManager } from './slash-command-manager';
+import { AgentSkillManager } from './agent-skill-manager';
 import { DomManager } from './dom-manager';
 import { DraftManagerClient } from './draft-manager-client';
 import { HistoryUIManager } from './history-ui-manager';
@@ -39,7 +39,7 @@ export class PromptLineRenderer {
   private userSettings: UserSettings | null = null;
   private eventHandler: EventHandler | null = null;
   private searchManager: HistorySearchManager | null = null;
-  private slashCommandManager: SlashCommandManager | null = null;
+  private agentSkillManager: AgentSkillManager | null = null;
   private fileSearchManager: MentionManager | null = null;
   private directoryDataHandler: DirectoryDataHandler;
   private domManager: DomManager;
@@ -115,7 +115,7 @@ export class PromptLineRenderer {
 
       this.setupEventHandler();
       this.setupSearchManager();
-      this.setupSlashCommandManager();
+      this.setupAgentSkillManager();
       this.setupMentionManager();
       // Code search is now integrated into MentionManager
       // await this.setupCodeSearchManager();
@@ -171,19 +171,19 @@ export class PromptLineRenderer {
     }
   }
 
-  private setupSlashCommandManager(): void {
-    this.slashCommandManager = new SlashCommandManager({
-      onCommandSelect: async (command: string) => {
-        console.debug('Slash command selected (Enter):', command);
+  private setupAgentSkillManager(): void {
+    this.agentSkillManager = new AgentSkillManager({
+      onSkillSelect: async (command: string) => {
+        console.debug('Agent skill selected (Enter):', command);
         // Paste the selected command immediately
         if (command) {
           await this.handleTextPasteCallback(command);
         }
       },
-      onCommandInsert: (command: string) => {
-        console.debug('Slash command inserted (Tab):', command);
+      onSkillInsert: (command: string) => {
+        console.debug('Agent skill inserted (Tab):', command);
         // Just insert into textarea for editing, don't paste
-        // The command is already inserted by SlashCommandManager
+        // The command is already inserted by AgentSkillManager
       },
       onBeforeOpenFile: () => {
         // Suppress blur event to prevent window from closing when opening file
@@ -195,16 +195,16 @@ export class PromptLineRenderer {
       }
     });
 
-    this.slashCommandManager.initializeElements();
-    this.slashCommandManager.setupEventListeners();
+    this.agentSkillManager.initializeElements();
+    this.agentSkillManager.setupEventListeners();
 
-    // Set SlashCommandManager reference in EventHandler
+    // Set AgentSkillManager reference in EventHandler
     if (this.eventHandler) {
-      this.eventHandler.setSlashCommandManager(this.slashCommandManager);
+      this.eventHandler.setAgentSkillManager(this.agentSkillManager);
     }
 
-    // Pre-load commands
-    this.slashCommandManager.loadCommands();
+    // Pre-load skills
+    this.agentSkillManager.loadSkills();
   }
 
   private setupMentionManager(): void {
@@ -235,9 +235,9 @@ export class PromptLineRenderer {
       },
       getIsComposing: () => this.eventHandler?.getIsComposing() ?? false,
       showError: (message: string) => this.domManager.showError(message),
-      getCommandSource: (commandName: string) => this.slashCommandManager?.getCommandSource(commandName),
-      getCommandColor: (commandName: string) => this.slashCommandManager?.getCommandColor(commandName),
-      getKnownCommandNames: () => this.slashCommandManager?.getKnownCommandNames() ?? []
+      getSkillSource: (skillName: string) => this.agentSkillManager?.getSkillSource(skillName),
+      getSkillColor: (skillName: string) => this.agentSkillManager?.getSkillColor(skillName),
+      getKnownSkillNames: () => this.agentSkillManager?.getKnownSkillNames() ?? []
     });
 
     this.fileSearchManager.initializeElements();
@@ -477,9 +477,9 @@ export class PromptLineRenderer {
       return;
     }
 
-    // Invalidate slash command cache to reload built-in commands with latest changes
+    // Invalidate agent skill cache to reload built-in commands with latest changes
     // This enables hot reload for built-in command YAML files (similar to settings.yml)
-    this.slashCommandManager?.invalidateCache();
+    this.agentSkillManager?.invalidateCache();
 
     await this.directoryDataHandler.handleWindowShown(data);
   }

@@ -14,7 +14,7 @@ import { electronAPI } from '../../services/electron-api';
 
 import {
   findUrlAtPosition,
-  findSlashCommandAtPosition,
+  findAgentSkillAtPosition,
   findAtPathAtPosition,
   findAbsolutePathAtPosition,
   resolveAtPathToAbsolute
@@ -43,7 +43,7 @@ export interface FileOpenerCallbacks {
   // Current directory for resolving relative paths
   getCurrentDirectory: () => string | null;
 
-  // Check if command type is enabled (for slash commands)
+  // Check if command type is enabled (for agent skills)
   isCommandEnabledSync?: () => boolean;
 
   // Window operations
@@ -53,8 +53,8 @@ export interface FileOpenerCallbacks {
   // Error notification
   showError?: (message: string) => void;
 
-  // Slash command support (for multi-word command detection)
-  getKnownCommandNames?: () => string[];
+  // Agent skill support (for multi-word command detection)
+  getKnownSkillNames?: () => string[];
 }
 
 /**
@@ -127,7 +127,7 @@ export class FileOpenerEventHandler {
 
   /**
    * Handle Ctrl+Enter to open file or URL at cursor position
-   * Priority order: URL → Slash Command → @path → Absolute Path
+   * Priority order: URL → Agent Skill → @path → Absolute Path
    */
   async handleCtrlEnter(e: KeyboardEvent): Promise<void> {
     const handled = await this.tryOpenItemAtCursor();
@@ -140,7 +140,7 @@ export class FileOpenerEventHandler {
   /**
    * Handle Cmd+Click on @path, absolute path, or URL in textarea
    * Supports: URLs, file paths, agent names, and absolute paths (including ~)
-   * Priority order: URL → Slash Command → @path → Absolute Path
+   * Priority order: URL → Agent Skill → @path → Absolute Path
    */
   async handleCmdClick(e: MouseEvent): Promise<void> {
     // Wait for the browser to update cursor position after click
@@ -155,14 +155,14 @@ export class FileOpenerEventHandler {
   }
 
   /**
-   * Try to open URL, slash command, @path, or absolute path at cursor position
-   * Priority order: URL → Slash Command → @path → Absolute Path
+   * Try to open URL, agent skill, @path, or absolute path at cursor position
+   * Priority order: URL → Agent Skill → @path → Absolute Path
    * @returns true if something was opened, false otherwise
    */
   private async tryOpenItemAtCursor(): Promise<boolean> {
     const text = this.callbacks.getTextContent();
     const cursorPos = this.callbacks.getCursorPosition();
-    const knownCommandNames = this.callbacks.getKnownCommandNames?.();
+    const knownSkillNames = this.callbacks.getKnownSkillNames?.();
 
     // Check for URL first
     const url = findUrlAtPosition(text, cursorPos);
@@ -171,19 +171,19 @@ export class FileOpenerEventHandler {
       return true;
     }
 
-    // Check for slash command (like /commit, /help, /Linear API)
+    // Check for agent skill (like /commit, /help, /Linear API)
     // Only user-defined commands have file paths; built-in commands return null
-    const slashCommand = findSlashCommandAtPosition(text, cursorPos, knownCommandNames);
-    if (slashCommand) {
+    const agentSkill = findAgentSkillAtPosition(text, cursorPos, knownSkillNames);
+    if (agentSkill) {
       try {
-        const commandFilePath = await electronAPI.slashCommands.getFilePath(slashCommand.command);
+        const commandFilePath = await electronAPI.agentSkills.getFilePath(agentSkill.command);
         if (commandFilePath) {
           await this.openFile(commandFilePath);
           return true;
         }
         // Built-in commands (no file path) - don't consume event, allow fallthrough
       } catch (err) {
-        handleError('FileOpenerEventHandler.handleCtrlEnter.slashCommand', err);
+        handleError('FileOpenerEventHandler.handleCtrlEnter.agentSkill', err);
       }
     }
 

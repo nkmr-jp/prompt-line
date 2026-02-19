@@ -57,14 +57,16 @@ export type {
   MentionEntry,
   // Agent skills settings types
   AgentSkillsSettings,
-  SlashCommandEntry,
-  // Legacy alias
+  AgentSkillEntry,
+  AgentSkillItem,
+  // Legacy aliases (for backward compatibility)
   SlashCommandsSettings,
+  SlashCommandEntry,
+  SlashCommandItem,
   // Legacy types (for backward compatibility)
   CustomSearchType,
   CustomSearchEntry,
   CustomSearchItem,
-  SlashCommandItem,
   AgentItem,
 } from './window';
 

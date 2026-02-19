@@ -12,7 +12,7 @@ export class ShortcutHandler {
   private textarea: HTMLTextAreaElement | null = null;
   private isComposing = false;
   private searchManager: { isInSearchMode(): boolean; exitSearchMode(): void } | null = null;
-  private slashCommandManager: { isActiveMode(): boolean } | null = null;
+  private agentSkillManager: { isActiveMode(): boolean } | null = null;
   private fileSearchManager: { isActive(): boolean } | null = null;
   private userSettings: UserSettings | null = null;
   private onTextPaste: (text: string) => Promise<void>;
@@ -52,8 +52,8 @@ export class ShortcutHandler {
     this.searchManager = searchManager;
   }
 
-  public setSlashCommandManager(slashCommandManager: { isActiveMode(): boolean }): void {
-    this.slashCommandManager = slashCommandManager;
+  public setAgentSkillManager(agentSkillManager: { isActiveMode(): boolean }): void {
+    this.agentSkillManager = agentSkillManager;
   }
 
   public setMentionManager(fileSearchManager: { isActive(): boolean }): void {
@@ -162,8 +162,8 @@ export class ShortcutHandler {
   }
 
   private async handleEscapeKey(e: KeyboardEvent): Promise<boolean> {
-    // Skip if slash command menu is active (let slash command manager handle it)
-    if (this.slashCommandManager?.isActiveMode()) {
+    // Skip if agent skill menu is active (let agent skill manager handle it)
+    if (this.agentSkillManager?.isActiveMode()) {
       return false;
     }
 
@@ -211,10 +211,10 @@ export class ShortcutHandler {
   }
 
   private async handleHistoryNavigationShortcuts(e: KeyboardEvent): Promise<boolean> {
-    // Skip if slash command menu is active (let slash command manager handle Ctrl+j/k)
+    // Skip if agent skill menu is active (let agent skill manager handle Ctrl+j/k)
     // Skip if file search is active (let file search manager handle Ctrl+j/k)
     if (!this.userSettings?.shortcuts ||
-        this.slashCommandManager?.isActiveMode() ||
+        this.agentSkillManager?.isActiveMode() ||
         this.fileSearchManager?.isActive()) {
       return false;
     }
@@ -292,8 +292,8 @@ export class ShortcutHandler {
       return false;
     }
 
-    // Skip if slash command menu is active (let slash command manager handle Ctrl+j/k)
-    if (this.slashCommandManager?.isActiveMode()) {
+    // Skip if agent skill menu is active (let agent skill manager handle Ctrl+j/k)
+    if (this.agentSkillManager?.isActiveMode()) {
       return false;
     }
 

@@ -154,7 +154,7 @@ export interface UserSettings {
   // Built-in commands: list of tools to enable (e.g., ['claude', 'codex', 'gemini'])
   builtInCommands?: string[];
   // Agent skills: flat list of custom slash command entries (no more .custom nesting)
-  agentSkills?: SlashCommandEntry[];
+  agentSkills?: AgentSkillEntry[];
   // Mention settings (@ mentions: fileSearch, symbolSearch, userDefined)
   mentions?: MentionsSettings;
 
@@ -258,8 +258,8 @@ export interface MentionsSettings {
  * Agent skills settings combining built-in commands and user-defined entries
  */
 export interface AgentSkillsSettings {
-  /** Custom slash commands from markdown files */
-  custom?: SlashCommandEntry[];
+  /** Custom agent skills from markdown files */
+  custom?: AgentSkillEntry[];
   /**
    * 有効にするコマンド名のリスト（ホワイトリスト）
    * - 完全一致: "commit"
@@ -280,9 +280,9 @@ export interface AgentSkillsSettings {
 export type SlashCommandsSettings = AgentSkillsSettings;
 
 /**
- * User-defined slash command entry
+ * User-defined agent skill entry
  */
-export interface SlashCommandEntry {
+export interface AgentSkillEntry {
   /** 名前テンプレート（例: "{basename}", "{frontmatter@name}"） */
   name: string;
   /** 説明テンプレート（例: "{frontmatter@description}"） */
@@ -318,6 +318,9 @@ export interface SlashCommandEntry {
    */
   disable?: string[];
 }
+
+/** @deprecated Use AgentSkillEntry instead */
+export type SlashCommandEntry = AgentSkillEntry;
 
 /**
  * Mention entry (@ mentions from markdown files)
@@ -446,7 +449,7 @@ export interface CustomSearchItem {
   inputFormat?: InputFormatType;
 }
 
-export interface SlashCommandItem {
+export interface AgentSkillItem {
   name: string;
   description: string;
   label?: string;  // Label text (e.g., from frontmatter)
@@ -459,6 +462,9 @@ export interface SlashCommandItem {
   source?: string;  // Source tool identifier (e.g., 'claude-code') for filtering
   displayName?: string;  // Human-readable source name for display (e.g., 'Claude Code')
 }
+
+/** @deprecated Use AgentSkillItem instead */
+export type SlashCommandItem = AgentSkillItem;
 
 export interface AgentItem {
   name: string;

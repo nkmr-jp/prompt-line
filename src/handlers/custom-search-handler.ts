@@ -3,9 +3,9 @@ import { logger } from '../utils/utils';
 import type CustomSearchLoader from '../managers/custom-search-loader';
 import type SettingsManager from '../managers/settings-manager';
 import type BuiltInCommandsManager from '../managers/built-in-commands-manager';
-import type { SlashCommandItem, AgentItem } from '../types';
+import type { AgentSkillItem, AgentItem } from '../types';
 import builtInCommandsLoader from '../lib/built-in-commands-loader';
-import { slashCommandCacheManager } from '../managers/slash-command-cache-manager';
+import { agentSkillCacheManager } from '../managers/agent-skill-cache-manager';
 import type { IPCResult } from './handler-utils';
 
 /**
@@ -46,16 +46,16 @@ class CustomSearchHandler {
    * Register all MD search related IPC handlers
    */
   setupHandlers(ipcMain: typeof import('electron').ipcMain): void {
-    ipcMain.handle('get-slash-commands', this.handleGetSlashCommands.bind(this));
-    ipcMain.handle('get-slash-command-file-path', this.handleGetSlashCommandFilePath.bind(this));
+    ipcMain.handle('get-agent-skills', this.handleGetAgentSkills.bind(this));
+    ipcMain.handle('get-agent-skill-file-path', this.handleGetAgentSkillFilePath.bind(this));
     ipcMain.handle('has-command-file', this.handleHasCommandFile.bind(this));
     ipcMain.handle('get-agents', this.handleGetAgents.bind(this));
     ipcMain.handle('get-agent-file-path', this.handleGetAgentFilePath.bind(this));
     ipcMain.handle('get-custom-search-max-suggestions', this.handleGetCustomSearchMaxSuggestions.bind(this));
     ipcMain.handle('get-custom-search-prefixes', this.handleGetCustomSearchPrefixes.bind(this));
-    // Slash command cache handlers
-    ipcMain.handle('register-global-slash-command', this.handleRegisterGlobalSlashCommand.bind(this));
-    ipcMain.handle('get-global-slash-commands', this.handleGetGlobalSlashCommands.bind(this));
+    // Agent skill cache handlers
+    ipcMain.handle('register-global-agent-skill', this.handleRegisterGlobalAgentSkill.bind(this));
+    ipcMain.handle('get-global-agent-skills', this.handleGetGlobalAgentSkills.bind(this));
     ipcMain.handle('get-usage-bonuses', this.handleGetUsageBonuses.bind(this));
   }
 
@@ -64,15 +64,15 @@ class CustomSearchHandler {
    */
   removeHandlers(ipcMain: typeof import('electron').ipcMain): void {
     const handlers = [
-      'get-slash-commands',
-      'get-slash-command-file-path',
+      'get-agent-skills',
+      'get-agent-skill-file-path',
       'has-command-file',
       'get-agents',
       'get-agent-file-path',
       'get-custom-search-max-suggestions',
       'get-custom-search-prefixes',
-      'register-global-slash-command',
-      'get-global-slash-commands',
+      'register-global-agent-skill',
+      'get-global-agent-skills',
       'get-usage-bonuses'
     ];
 
@@ -113,14 +113,14 @@ class CustomSearchHandler {
   }
 
   /**
-   * Handler: get-slash-commands
-   * Retrieves slash commands with optional query filtering
+   * Handler: get-agent-skills
+   * Retrieves agent skills with optional query filtering
    * Merges built-in commands (from YAML) with user commands (from MD files)
    */
-  private async handleGetSlashCommands(
+  private async handleGetAgentSkills(
     _event: IpcMainInvokeEvent,
     query?: string
-  ): Promise<SlashCommandItem[]> {
+  ): Promise<AgentSkillItem[]> {
     try {
       // Refresh config from settings if cache expired
       this.updateConfigIfNeeded();
@@ -136,9 +136,9 @@ class CustomSearchHandler {
         ? await this.customSearchLoader.searchItems('command', query)
         : await this.customSearchLoader.getItems('command');
 
-      // Convert CustomSearchItem to SlashCommandItem for backward compatibility
-      const userCommands: SlashCommandItem[] = items.map(item => {
-        const cmd: SlashCommandItem = {
+      // Convert CustomSearchItem to AgentSkillItem for backward compatibility
+      const userCommands: AgentSkillItem[] = items.map(item => {
+        const cmd: AgentSkillItem = {
           name: item.name,
           description: item.description,
           filePath: item.filePath,
@@ -168,7 +168,7 @@ class CustomSearchHandler {
 
       // Merge: built-in commands first, then custom commands
       // Commands with same name but different sources are kept (use name+source as key)
-      const commandMap = new Map<string, SlashCommandItem>();
+      const commandMap = new Map<string, AgentSkillItem>();
 
       // Add built-in commands first
       for (const cmd of builtInCommands) {
@@ -189,16 +189,16 @@ class CustomSearchHandler {
         return (a.source || '').localeCompare(b.source || '');
       });
     } catch (error) {
-      logger.error('Failed to get slash commands:', error);
+      logger.error('Failed to get agent skills:', error);
       return [];
     }
   }
 
   /**
-   * Handler: get-slash-command-file-path
-   * Resolves the file path for a specific slash command
+   * Handler: get-agent-skill-file-path
+   * Resolves the file path for a specific agent skill
    */
-  private async handleGetSlashCommandFilePath(
+  private async handleGetAgentSkillFilePath(
     _event: IpcMainInvokeEvent,
     commandName: string
   ): Promise<string | null> {
@@ -219,7 +219,7 @@ class CustomSearchHandler {
 
       return null;
     } catch (error) {
-      logger.error('Failed to get slash command file path:', error);
+      logger.error('Failed to get agent skill file path:', error);
       return null;
     }
   }
@@ -377,13 +377,13 @@ class CustomSearchHandler {
     }
   }
 
-  // Slash command cache handlers
+  // Agent skill cache handlers
 
   /**
-   * Handler: register-global-slash-command
-   * Registers a slash command to the global cache for quick access
+   * Handler: register-global-agent-skill
+   * Registers an agent skill to the global cache for quick access
    */
-  private async handleRegisterGlobalSlashCommand(
+  private async handleRegisterGlobalAgentSkill(
     _event: IpcMainInvokeEvent,
     commandName: string
   ): Promise<IPCResult> {
@@ -392,32 +392,32 @@ class CustomSearchHandler {
         return { success: false, error: 'Invalid command name' };
       }
 
-      await slashCommandCacheManager.addGlobalCommand(commandName);
+      await agentSkillCacheManager.addGlobalSkill(commandName);
       return { success: true };
     } catch (error) {
-      logger.error('Failed to register global slash command:', error);
+      logger.error('Failed to register global agent skill:', error);
       return { success: false, error: 'Operation failed' };
     }
   }
 
   /**
-   * Handler: get-global-slash-commands
-   * Retrieves recently used slash commands from global cache
+   * Handler: get-global-agent-skills
+   * Retrieves recently used agent skills from global cache
    */
-  private async handleGetGlobalSlashCommands(
+  private async handleGetGlobalAgentSkills(
     _event: IpcMainInvokeEvent
   ): Promise<string[]> {
     try {
-      return await slashCommandCacheManager.loadGlobalCommands();
+      return await agentSkillCacheManager.loadGlobalSkills();
     } catch (error) {
-      logger.error('Failed to get global slash commands:', error);
+      logger.error('Failed to get global agent skills:', error);
       return [];
     }
   }
 
   /**
    * Handler: get-usage-bonuses
-   * Calculates usage bonuses for multiple slash commands
+   * Calculates usage bonuses for multiple agent skills
    * Used for sorting search results with usage frequency and recency
    */
   private async handleGetUsageBonuses(
@@ -436,7 +436,7 @@ class CustomSearchHandler {
       await Promise.all(
         commandNames.map(async (name) => {
           if (typeof name === 'string') {
-            const bonus = await slashCommandCacheManager.calculateBonus(name);
+            const bonus = await agentSkillCacheManager.calculateBonus(name);
             bonuses[name] = bonus;
           }
         })

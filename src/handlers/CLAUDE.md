@@ -159,16 +159,16 @@ Shared utilities for all handlers:
 - **`open-settings`**: Opens settings file in default editor
 - **`open-settings-directory`**: Opens settings directory in Finder
 
-### Slash Commands & Agents
-- **`get-slash-commands`**: Retrieves slash commands with optional query filtering
-- **`get-slash-command-file-path`**: Resolves slash command file path
-- **`has-command-file`**: Checks if a slash command file exists
+### Agent Skills & Agents
+- **`get-agent-skills`**: Retrieves agent skills with optional query filtering
+- **`get-agent-skill-file-path`**: Resolves agent skill file path
+- **`has-command-file`**: Checks if an agent skill file exists
 - **`get-agents`**: Retrieves agent definitions with optional query filtering
 - **`get-agent-file-path`**: Resolves agent file path
 - **`get-custom-search-max-suggestions`**: Gets max suggestions for search type
 - **`get-custom-search-prefixes`**: Gets search prefixes for search type
-- **`register-global-slash-command`**: Registers a global slash command for caching
-- **`get-global-slash-commands`**: Retrieves registered global slash commands
+- **`register-global-agent-skill`**: Registers a global agent skill for caching
+- **`get-global-agent-skills`**: Retrieves registered global agent skills
 - **`get-usage-bonuses`**: Gets usage bonuses for agents
 
 ### File Operations

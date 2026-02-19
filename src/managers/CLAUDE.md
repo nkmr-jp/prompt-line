@@ -17,7 +17,7 @@ The managers module consists of sixteen main components plus two sub-modules:
 - **directory-manager.ts**: Directory operations and CWD management
 - **symbol-cache-manager.ts**: Language-separated symbol search caching with JSONL storage
 - **at-path-cache-manager.ts**: @path pattern caching for file highlighting
-- **slash-command-cache-manager.ts**: Slash command caching with TTL-based invalidation
+- **agent-skill-cache-manager.ts**: Agent skill caching with TTL-based invalidation
 - **built-in-commands-manager.ts**: Built-in command definitions and management
 - **usage-history-manager.ts**: Base class for usage history tracking with LRU-based management
 - **agent-usage-history-manager.ts**: Agent usage history tracking for smart suggestions
@@ -345,12 +345,12 @@ interface CachedDirectoryData {
 - Integration with directory-detector for source data
 
 ### custom-search-loader.ts
-Custom search and loading functionality for slash commands and agents:
+Custom search and loading functionality for agent skills and agents:
 
 **Core Functionality:**
 ```typescript
 class CustomSearchLoader {
-  loadSlashCommands(directory: string, query?: string): Promise<SlashCommandItem[]>
+  loadAgentSkills(directory: string, query?: string): Promise<AgentSkillItem[]>
   loadAgents(directory: string, query?: string): Promise<AgentItem[]>
   getMaxSuggestions(type: CustomSearchType): number
   getPrefixes(type: CustomSearchType): string[]
@@ -571,22 +571,22 @@ interface AtPathEntry {
 - Project-level and global separation for different content types
 - JSONL format with one entry per line for streaming
 
-### slash-command-cache-manager.ts
-Slash command caching with TTL-based invalidation:
+### agent-skill-cache-manager.ts
+Agent skill caching with TTL-based invalidation:
 
 **Core Functionality:**
 ```typescript
-class SlashCommandCacheManager {
-  async loadCommands(directory: string): Promise<SlashCommandItem[]>
-  async saveCommands(directory: string, commands: SlashCommandItem[]): Promise<void>
+class AgentSkillCacheManager {
+  async loadSkills(directory: string): Promise<AgentSkillItem[]>
+  async saveSkills(directory: string, skills: AgentSkillItem[]): Promise<void>
   async isCacheValid(directory: string): Promise<boolean>
   async clearCache(directory: string): Promise<void>
 }
 ```
 
 **Storage:**
-- Cache location: `~/.prompt-line/cache/<encoded-path>/slash-commands.json`
-- Metadata: `{commands: SlashCommandItem[], timestamp: number, ttl: number}`
+- Cache location: `~/.prompt-line/cache/<encoded-path>/agent-skills.json`
+- Metadata: `{skills: AgentSkillItem[], timestamp: number, ttl: number}`
 
 **Features:**
 - TTL-based cache invalidation (default: 1 hour)

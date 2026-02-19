@@ -159,8 +159,8 @@
     -webkit-box-decoration-break: clone;
 }
 
-/* Default slash command highlight (gray for unknown source or duplicate commands) */
-.highlight-backdrop .slash-command-highlight {
+/* Default agent skill highlight (gray for unknown source or duplicate skills) */
+.highlight-backdrop .agent-skill-highlight {
     background: oklch(from var(--color-gray-500) l c h / 0.25);
     border-radius: 4px;
     color: transparent;
@@ -174,62 +174,62 @@
     -webkit-box-decoration-break: clone;
 }
 
-/* Source-specific slash command highlight colors */
-.highlight-backdrop .slash-command-highlight.slash-command-source-claude {
+/* Source-specific agent skill highlight colors */
+.highlight-backdrop .agent-skill-highlight.agent-skill-source-claude {
     background: oklch(from var(--color-amber-300) l c h / 0.25);
 }
 
-.highlight-backdrop .slash-command-highlight.slash-command-source-codex {
+.highlight-backdrop .agent-skill-highlight.agent-skill-source-codex {
     background: oklch(from var(--color-teal-300) l c h / 0.25);
 }
 
-.highlight-backdrop .slash-command-highlight.slash-command-source-gemini {
+.highlight-backdrop .agent-skill-highlight.agent-skill-source-gemini {
     background: oklch(from var(--color-blue-300) l c h / 0.25);
 }
 
-.highlight-backdrop .slash-command-highlight.slash-command-source-custom {
+.highlight-backdrop .agent-skill-highlight.agent-skill-source-custom {
     background: oklch(from var(--color-purple-400) l c h / 0.25);
 }
 
 /* Color based highlights (takes priority over source) */
-.highlight-backdrop .slash-command-highlight.slash-command-color-purple {
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-purple {
     background: oklch(from var(--color-purple-400) l c h / 0.25);
 }
 
-.highlight-backdrop .slash-command-highlight.slash-command-color-blue {
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-blue {
     background: oklch(from var(--color-blue-400) l c h / 0.25);
 }
 
-.highlight-backdrop .slash-command-highlight.slash-command-color-teal {
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-teal {
     background: oklch(from var(--color-teal-400) l c h / 0.25);
 }
 
-.highlight-backdrop .slash-command-highlight.slash-command-color-green {
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-green {
     background: oklch(from var(--color-green-400) l c h / 0.25);
 }
 
-.highlight-backdrop .slash-command-highlight.slash-command-color-yellow {
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-yellow {
     background: oklch(from var(--color-yellow-300) l c h / 0.25);
 }
 
-.highlight-backdrop .slash-command-highlight.slash-command-color-orange {
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-orange {
     background: oklch(from var(--color-orange-400) l c h / 0.25);
 }
 
-.highlight-backdrop .slash-command-highlight.slash-command-color-pink {
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-pink {
     background: oklch(from var(--color-pink-400) l c h / 0.25);
 }
 
-.highlight-backdrop .slash-command-highlight.slash-command-color-red {
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-red {
     background: oklch(from var(--color-red-400) l c h / 0.25);
 }
 
-.highlight-backdrop .slash-command-highlight.slash-command-color-gray {
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-gray {
     background: oklch(from var(--color-gray-500) l c h / 0.25);
 }
 
-/* Slash command with link style (Cmd+hover or cursor over slash command) */
-.highlight-backdrop .slash-command-highlight.file-path-link {
+/* Agent skill with link style (Cmd+hover or cursor over agent skill) */
+.highlight-backdrop .agent-skill-highlight.file-path-link {
     text-decoration: underline;
     text-decoration-color: oklch(from var(--color-white) l c h / 0.4);
     text-decoration-thickness: 1px;

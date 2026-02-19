@@ -20,8 +20,8 @@ import type { FileInfo } from '../../../types';
 import {
   findAtPathAtPosition,
   findUrlAtPosition,
-  findSlashCommandAtPosition,
-  findSlashCommandAtCursor,
+  findAgentSkillAtPosition,
+  findAgentSkillAtCursor,
   findClickablePathAtPosition
 } from '../text-finder';
 import { getRelativePath, parsePathWithLineInfo } from '../index';
@@ -61,8 +61,8 @@ export interface PathManagerCallbacks {
   suspendInputListeners?: (() => void) | undefined;
   resumeInputListeners?: (() => void) | undefined;
 
-  // Slash command support (for multi-word command detection)
-  getKnownCommandNames?: (() => string[]) | undefined;
+  // Agent skill support (for multi-word command detection)
+  getKnownSkillNames?: (() => string[]) | undefined;
 }
 
 /**
@@ -397,7 +397,7 @@ export class PathManager {
 
   /**
    * Check for any clickable path at position and return the range
-   * Priority: @path > URL > slash command > absolute path
+   * Priority: @path > URL > agent skill > absolute path
    */
   public findClickableRangeAtPosition(charPos: number): AtPathRange | null {
     const text = this.callbacks.getTextContent();
@@ -417,10 +417,10 @@ export class PathManager {
       return { start: url.start, end: url.end };
     }
 
-    // Check for slash command (always enabled)
-    const slashCommand = findSlashCommandAtPosition(text, charPos);
-    if (slashCommand) {
-      return { start: slashCommand.start, end: slashCommand.end };
+    // Check for agent skill (always enabled)
+    const agentSkill = findAgentSkillAtPosition(text, charPos);
+    if (agentSkill) {
+      return { start: agentSkill.start, end: agentSkill.end };
     }
 
     // Check for absolute path
@@ -710,32 +710,32 @@ export class PathManager {
   }
 
   /**
-   * Handle backspace key for slash command deletion
-   * Deletes the entire slash command when cursor is at the end
+   * Handle backspace key for agent skill deletion
+   * Deletes the entire agent skill when cursor is at the end
    *
    * Uses event listener suspension to prevent cursor interference.
    *
    * @param e - Keyboard event
-   * @returns true if slash command was deleted, false otherwise
+   * @returns true if agent skill was deleted, false otherwise
    */
-  public handleBackspaceForSlashCommand(e: KeyboardEvent): boolean {
+  public handleBackspaceForAgentSkill(e: KeyboardEvent): boolean {
     if (!this.callbacks.getCursorPosition || !this.callbacks.setCursorPosition) return false;
 
     const cursorPos = this.callbacks.getCursorPosition();
     const text = this.callbacks.getTextContent();
-    const knownCommandNames = this.callbacks.getKnownCommandNames?.();
+    const knownSkillNames = this.callbacks.getKnownSkillNames?.();
 
-    const slashCommand = findSlashCommandAtCursor(text, cursorPos, knownCommandNames);
+    const agentSkill = findAgentSkillAtCursor(text, cursorPos, knownSkillNames);
 
-    if (!slashCommand) {
+    if (!agentSkill) {
       return false;
     }
 
     // Save state before deletion
     const savedScrollTop = this.textInput?.scrollTop ?? 0;
     const savedScrollLeft = this.textInput?.scrollLeft ?? 0;
-    const savedStart = slashCommand.start;
-    const savedEnd = slashCommand.end;
+    const savedStart = agentSkill.start;
+    const savedEnd = agentSkill.end;
 
     // Calculate delete range (include trailing space if present)
     let deleteEnd = savedEnd;
@@ -769,7 +769,7 @@ export class PathManager {
       this.textInput.scrollLeft = savedScrollLeft;
     }
 
-    // Update highlight backdrop (slash commands are found dynamically, no rescan needed)
+    // Update highlight backdrop (agent skills are found dynamically, no rescan needed)
     this.callbacks.updateHighlightBackdrop?.();
 
     // Resume listeners after a short delay to ensure all updates are complete

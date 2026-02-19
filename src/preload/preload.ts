@@ -20,7 +20,7 @@ import type {
   IPCEventCallback,
   ElectronAPI,
 } from '../types/ipc';
-import type { HistoryItem, SlashCommandItem, AgentItem } from '../types';
+import type { HistoryItem, AgentSkillItem, AgentItem } from '../types';
 
 // Security: Only expose allowed IPC channels
 const ALLOWED_CHANNELS = [
@@ -41,8 +41,8 @@ const ALLOWED_CHANNELS = [
   'get-app-info',
   'focus-window',
   'window-shown',
-  'get-slash-commands',
-  'get-slash-command-file-path',
+  'get-agent-skills',
+  'get-agent-skill-file-path',
   'has-command-file',
   'directory-data-updated',
   'open-settings',
@@ -68,9 +68,9 @@ const ALLOWED_CHANNELS = [
   'get-global-at-paths',
   // Draft to history channel
   'save-draft-to-history',
-  // Slash command cache channels
-  'register-global-slash-command',
-  'get-global-slash-commands',
+  // Agent skill cache channels
+  'register-global-agent-skill',
+  'get-global-agent-skills',
   'get-usage-bonuses',
   // Usage history channels
   'record-file-usage',
@@ -270,23 +270,23 @@ const electronAPI: ElectronAPI = {
     }
   },
 
-  // Slash commands
-  slashCommands: {
-    get: async (query?: string): Promise<SlashCommandItem[]> => {
-      return ipcRenderer.invoke('get-slash-commands', query);
+  // Agent skills (slash commands)
+  agentSkills: {
+    get: async (query?: string): Promise<AgentSkillItem[]> => {
+      return ipcRenderer.invoke('get-agent-skills', query);
     },
     getFilePath: async (commandName: string): Promise<string | null> => {
-      return ipcRenderer.invoke('get-slash-command-file-path', commandName);
+      return ipcRenderer.invoke('get-agent-skill-file-path', commandName);
     },
     hasFile: async (commandName: string): Promise<boolean> => {
       return ipcRenderer.invoke('has-command-file', commandName);
     },
-    // Global slash command cache
+    // Global agent skill cache
     registerGlobal: async (commandName: string): Promise<IPCResult> => {
-      return ipcRenderer.invoke('register-global-slash-command', commandName);
+      return ipcRenderer.invoke('register-global-agent-skill', commandName);
     },
-    getGlobalCommands: async (): Promise<string[]> => {
-      return ipcRenderer.invoke('get-global-slash-commands');
+    getGlobalSkills: async (): Promise<string[]> => {
+      return ipcRenderer.invoke('get-global-agent-skills');
     },
     // Usage bonus calculation for sorting
     getUsageBonuses: async (commandNames: string[]): Promise<Record<string, number>> => {

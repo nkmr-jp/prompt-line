@@ -131,7 +131,7 @@ export const defaultSettings: UserSettings = {
         icon: "organization",
         label: "{dirname}",
         path: "~/.claude/teams",
-        pattern: "**/config.json@. | select(.createdAt / 1000 > (now - 86400)) | select((.members | length) >= 2) | .members')",
+        pattern: "**/config.json@. | select(.createdAt / 1000 > (now - 86400)) | select((.members | length) >= 2) | .members",
         searchPrefix: "team"
       },
       {

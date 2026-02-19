@@ -173,7 +173,7 @@ The app uses Electron's two-process model with clean separation:
   - `renderer.ts`: Main renderer class with integrated keyboard handling and manager pattern
   - `ui-manager.ts`: Advanced UI management with themes, animations, and notifications
   - `input.html`: Main window template
-  - 15+ specialized managers: DOM, events, search, lifecycle, shortcuts, animation, mentions, slash-commands, history-ui, and more
+  - 15+ specialized managers: DOM, events, search, lifecycle, shortcuts, animation, mentions, agent-skills, history-ui, and more
   - Comprehensive CSS architecture with themes and modular stylesheets
   - TypeScript configuration and utility functions
   - `interfaces/`: Shared TypeScript type definitions
@@ -224,7 +224,7 @@ Core functionality is organized into specialized managers:
 - **DomManager**: DOM element management and manipulation
 - **EventHandler**: Centralized event processing
 - **SearchManager**: Search functionality implementation
-- **SlashCommandManager**: Slash command processing and execution
+- **AgentSkillManager**: Agent skill processing and execution
 - **MentionSystem** (`src/renderer/mentions/`): Modular @ mention architecture with 15+ specialized managers:
   - `mention-initializer.ts`: System initialization and lifecycle management
   - `mention-state.ts`: Centralized state management for mention system
@@ -290,7 +290,7 @@ IPC response → Renderer Process
 - `open-settings`: Settings file management
 
 **CustomSearch Handler (custom-search-handler.ts):**
-- `get-slash-commands`, `get-slash-command-file-path`: Slash command support
+- `get-agent-skills`, `get-agent-skill-file-path`: Agent skill support
 - `get-agents`, `get-agent-file-path`: Agent selection and management
 - `get-custom-search-max-suggestions`, `get-custom-search-prefixes`: Search configuration
 

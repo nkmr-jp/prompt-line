@@ -3,7 +3,7 @@
  */
 
 import type { HistoryItem } from './history';
-import type { SlashCommandItem, AgentItem, UserSettings } from './window';
+import type { AgentSkillItem, AgentItem, UserSettings } from './window';
 
 // ============================================================================
 // Input Sanitization Types
@@ -220,13 +220,13 @@ export interface ElectronAPI {
     setDirectory: (directory: string | null) => Promise<void>;
     getDirectory: () => Promise<string | null>;
   };
-  slashCommands: {
-    get: (query?: string) => Promise<SlashCommandItem[]>;
+  agentSkills: {
+    get: (query?: string) => Promise<AgentSkillItem[]>;
     getFilePath: (commandName: string) => Promise<string | null>;
     hasFile: (commandName: string) => Promise<boolean>;
-    // Global slash command cache
+    // Global agent skill cache
     registerGlobal: (commandName: string) => Promise<IPCResult>;
-    getGlobalCommands: () => Promise<string[]>;
+    getGlobalSkills: () => Promise<string[]>;
     // Usage bonus calculation for sorting
     getUsageBonuses: (commandNames: string[]) => Promise<Record<string, number>>;
   };

@@ -3,7 +3,7 @@ import path from 'path';
 import yaml from 'js-yaml';
 import config from '../config/app-config';
 import { logger, validateColorValue } from '../utils/utils';
-import { SlashCommandItem, ColorValue } from '../types/window';
+import { AgentSkillItem, ColorValue } from '../types/window';
 
 /**
  * Command definition in YAML file
@@ -50,7 +50,7 @@ type BuiltInCommandsSettings = string[];
  * Separate from CustomSearchLoader - handles YAML format directly
  */
 class BuiltInCommandsLoader {
-  private commands: SlashCommandItem[] = [];
+  private commands: AgentSkillItem[] = [];
   private initialized = false;
   private targetDir: string;
 
@@ -69,7 +69,7 @@ class BuiltInCommandsLoader {
   /**
    * Load all commands from YAML files in target directory
    */
-  loadCommands(): SlashCommandItem[] {
+  loadCommands(): AgentSkillItem[] {
     if (this.initialized) {
       return this.commands;
     }
@@ -107,9 +107,9 @@ class BuiltInCommandsLoader {
   }
 
   /**
-   * Parse a YAML file and return SlashCommandItem array
+   * Parse a YAML file and return AgentSkillItem array
    */
-  private parseYamlFile(filePath: string, toolName: string): SlashCommandItem[] {
+  private parseYamlFile(filePath: string, toolName: string): AgentSkillItem[] {
     try {
       const content = fs.readFileSync(filePath, 'utf-8');
       const parsed = yaml.load(content) as BuiltInCommandsYaml;
@@ -126,7 +126,7 @@ class BuiltInCommandsLoader {
 
       return parsed.commands
         .filter(cmd => cmd.name && cmd.description)
-        .map(cmd => this.toSlashCommandItem(cmd, filePath, toolName, displayName, reference, defaultColor));
+        .map(cmd => this.toAgentSkillItem(cmd, filePath, toolName, displayName, reference, defaultColor));
     } catch (error) {
       logger.warn(`Failed to parse YAML file: ${filePath}`, error);
       return [];
@@ -134,7 +134,7 @@ class BuiltInCommandsLoader {
   }
 
   /**
-   * Convert CommandDefinition to SlashCommandItem
+   * Convert CommandDefinition to AgentSkillItem
    * @param cmd - Command definition from YAML
    * @param filePath - Path to the YAML file
    * @param toolName - Tool identifier from filename (for filtering)
@@ -142,14 +142,14 @@ class BuiltInCommandsLoader {
    * @param reference - Reference URL for documentation (optional)
    * @param defaultColor - Default color from YAML file level (optional)
    */
-  private toSlashCommandItem(
+  private toAgentSkillItem(
     cmd: CommandDefinition,
     filePath: string,
     toolName: string,
     displayName: string,
     reference?: string,
     defaultColor?: ColorValue
-  ): SlashCommandItem {
+  ): AgentSkillItem {
     // Determine color: command-level color takes precedence over file-level default color
     const rawColor = cmd.color || defaultColor;
     // Validate color value (supports both named colors and hex codes)
@@ -170,7 +170,7 @@ class BuiltInCommandsLoader {
       frontmatterLines.push(`reference: ${reference}`);
     }
 
-    const item: SlashCommandItem = {
+    const item: AgentSkillItem = {
       name: cmd.name,
       description: cmd.description,
       filePath: filePath,
@@ -199,7 +199,7 @@ class BuiltInCommandsLoader {
    * @param query - Search query (optional)
    * @param settings - Built-in commands settings (if undefined, commands are disabled)
    */
-  searchCommands(query?: string, settings?: BuiltInCommandsSettings): SlashCommandItem[] {
+  searchCommands(query?: string, settings?: BuiltInCommandsSettings): AgentSkillItem[] {
     // If settings is undefined (builtIn section is commented out), commands are disabled
     if (!settings) {
       return [];

@@ -1,6 +1,6 @@
-/* Slash Command Suggestions Styles */
+/* Agent Skill Suggestions Styles */
 
-.slash-command-suggestions {
+.agent-skill-suggestions {
   display: none;
   position: absolute;
   /* top/left are dynamically set by JS based on cursor position */
@@ -15,40 +15,40 @@
   box-sizing: border-box;
 }
 
-.slash-suggestion-item {
+.agent-skill-suggestion-item {
   @apply flex flex-row flex-nowrap items-center cursor-pointer min-w-0;
   padding: 4px 10px;
   gap: 4px;
   transition: background-color 0.1s ease;
 }
 
-.slash-suggestion-item:last-child {
+.agent-skill-suggestion-item:last-child {
   border-bottom: none;
 }
 
 /* Hover style only when mouse has explicitly moved (hover-enabled class is added by JS) */
-.slash-command-suggestions.hover-enabled .slash-suggestion-item:hover {
+.agent-skill-suggestions.hover-enabled .agent-skill-suggestion-item:hover {
   background: var(--bg-hover, var(--color-gray-900));
 }
 
-.slash-suggestion-item.selected {
+.agent-skill-suggestion-item.selected {
   background: var(--bg-active, oklch(from var(--color-white) l c h / 0.15));
 }
 
-.slash-command-name {
+.agent-skill-name {
   @apply whitespace-nowrap font-medium;
   padding-right: 2px;
   font-size: 13px;
   color: var(--text-primary, #fff);
 }
 
-.slash-command-description {
+.agent-skill-description {
   @apply flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap;
   font-size: 11px;
   color: var(--text-secondary, #888);
 }
 
-.slash-command-source {
+.agent-skill-source {
   @apply shrink-0 whitespace-nowrap;
   font-size: 9px;
   color: var(--text-secondary, #888);
@@ -59,79 +59,79 @@
 }
 
 /* Source-specific badge colors */
-.slash-command-source[data-source="claude"] {
+.agent-skill-source[data-source="claude"] {
   color: var(--color-amber-300);
   background: oklch(from var(--color-amber-300) l c h / 0.2);
 }
 
-.slash-command-source[data-source="codex"] {
+.agent-skill-source[data-source="codex"] {
   color: var(--color-teal-300);
   background: oklch(from var(--color-teal-300) l c h / 0.2);
 }
 
-.slash-command-source[data-source="gemini"] {
+.agent-skill-source[data-source="gemini"] {
   color: var(--color-blue-300);
   background: oklch(from var(--color-blue-300) l c h / 0.2);
 }
 
-.slash-command-source[data-source="custom"] {
+.agent-skill-source[data-source="custom"] {
   color: var(--color-purple-400);
   background: oklch(from var(--color-purple-400) l c h / 0.2);
 }
 
 /* Source badge color variations (same as label colors) */
-.slash-command-source[data-color="grey"] {
+.agent-skill-source[data-color="grey"] {
   color: var(--color-gray-400);
   background: oklch(from var(--color-gray-400) l c h / 0.2);
 }
 
-.slash-command-source[data-color="darkGrey"] {
+.agent-skill-source[data-color="darkGrey"] {
   color: var(--color-gray-500);
   background: oklch(from var(--color-gray-500) l c h / 0.2);
 }
 
-.slash-command-source[data-color="blue"] {
+.agent-skill-source[data-color="blue"] {
   color: var(--color-blue-400);
   background: oklch(from var(--color-blue-400) l c h / 0.2);
 }
 
-.slash-command-source[data-color="purple"] {
+.agent-skill-source[data-color="purple"] {
   color: var(--color-purple-400);
   background: oklch(from var(--color-purple-400) l c h / 0.2);
 }
 
-.slash-command-source[data-color="teal"] {
+.agent-skill-source[data-color="teal"] {
   color: var(--color-teal-400);
   background: oklch(from var(--color-teal-400) l c h / 0.2);
 }
 
-.slash-command-source[data-color="green"] {
+.agent-skill-source[data-color="green"] {
   color: var(--color-green-400);
   background: oklch(from var(--color-green-400) l c h / 0.2);
 }
 
-.slash-command-source[data-color="yellow"] {
+.agent-skill-source[data-color="yellow"] {
   color: var(--color-yellow-300);
   background: oklch(from var(--color-yellow-300) l c h / 0.2);
 }
 
-.slash-command-source[data-color="orange"] {
+.agent-skill-source[data-color="orange"] {
   color: var(--color-orange-400);
   background: oklch(from var(--color-orange-400) l c h / 0.2);
 }
 
-.slash-command-source[data-color="pink"] {
+.agent-skill-source[data-color="pink"] {
   color: var(--color-pink-400);
   background: oklch(from var(--color-pink-400) l c h / 0.2);
 }
 
-.slash-command-source[data-color="red"] {
+.agent-skill-source[data-color="red"] {
   color: var(--color-red-400);
   background: oklch(from var(--color-red-400) l c h / 0.2);
 }
 
 /* Label badge (same color as custom) */
-.slash-command-label {
+.agent-skill-label {
   @apply shrink-0 whitespace-nowrap;
   font-size: 9px;
   color: var(--color-purple-400);
@@ -142,67 +142,67 @@
 }
 
 /* Label color variations */
-.slash-command-label[data-color="grey"] {
+.agent-skill-label[data-color="grey"] {
   color: var(--color-gray-400);
   background: oklch(from var(--color-gray-400) l c h / 0.2);
 }
 
-.slash-command-label[data-color="darkGrey"] {
+.agent-skill-label[data-color="darkGrey"] {
   color: var(--color-gray-500);
   background: oklch(from var(--color-gray-500) l c h / 0.2);
 }
 
-.slash-command-label[data-color="blue"] {
+.agent-skill-label[data-color="blue"] {
   color: var(--color-blue-400);
   background: oklch(from var(--color-blue-400) l c h / 0.2);
 }
 
-.slash-command-label[data-color="purple"] {
+.agent-skill-label[data-color="purple"] {
   color: var(--color-purple-400);
   background: oklch(from var(--color-purple-400) l c h / 0.2);
 }
 
-.slash-command-label[data-color="teal"] {
+.agent-skill-label[data-color="teal"] {
   color: var(--color-teal-400);
   background: oklch(from var(--color-teal-400) l c h / 0.2);
 }
 
-.slash-command-label[data-color="green"] {
+.agent-skill-label[data-color="green"] {
   color: var(--color-green-400);
   background: oklch(from var(--color-green-400) l c h / 0.2);
 }
 
-.slash-command-label[data-color="yellow"] {
+.agent-skill-label[data-color="yellow"] {
   color: var(--color-yellow-300);
   background: oklch(from var(--color-yellow-300) l c h / 0.2);
 }
 
-.slash-command-label[data-color="orange"] {
+.agent-skill-label[data-color="orange"] {
   color: var(--color-orange-400);
   background: oklch(from var(--color-orange-400) l c h / 0.2);
 }
 
-.slash-command-label[data-color="pink"] {
+.agent-skill-label[data-color="pink"] {
   color: var(--color-pink-400);
   background: oklch(from var(--color-pink-400) l c h / 0.2);
 }
 
-.slash-command-label[data-color="red"] {
+.agent-skill-label[data-color="red"] {
   color: var(--color-red-400);
   background: oklch(from var(--color-red-400) l c h / 0.2);
 }
 
 /* Argument hint only mode - tighter spacing */
-.slash-suggestion-item.argument-hint-only {
+.agent-skill-suggestion-item.argument-hint-only {
   gap: 4px;
 }
 
-.slash-suggestion-item.argument-hint-only .slash-command-name {
+.agent-skill-suggestion-item.argument-hint-only .agent-skill-name {
   padding-right: 2px;
 }
 
 /* Argument hint badge (gray) */
-.slash-command-source.argument-hint-badge {
+.agent-skill-source.argument-hint-badge {
   color: var(--text-tertiary);
   background: oklch(from var(--color-gray-500) l c h / 0.3);
   padding: 2px 4px;
@@ -223,7 +223,7 @@
   opacity: 1;
 }
 
-.slash-highlight {
+.agent-skill-highlight {
   background: oklch(from var(--color-amber-400) l c h / 0.3);
   color: var(--text-primary, #fff);
   border-radius: 2px;
@@ -231,20 +231,20 @@
 }
 
 /* Scrollbar styling */
-.slash-command-suggestions::-webkit-scrollbar {
+.agent-skill-suggestions::-webkit-scrollbar {
   /*display: none;*/
   width: 3px;
 }
 
-.slash-command-suggestions::-webkit-scrollbar-track {
+.agent-skill-suggestions::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.slash-command-suggestions::-webkit-scrollbar-thumb {
+.agent-skill-suggestions::-webkit-scrollbar-thumb {
   background: var(--scrollbar-thumb, #555);
   border-radius: 3px;
 }
 
-.slash-command-suggestions::-webkit-scrollbar-thumb:hover {
+.agent-skill-suggestions::-webkit-scrollbar-thumb:hover {
   background: var(--scrollbar-thumb-hover, #666);
 }

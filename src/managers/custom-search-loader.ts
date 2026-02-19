@@ -13,7 +13,7 @@ import { isCommandEnabled } from '../lib/command-name-matcher';
 /**
  * CustomSearchLoader - 設定ベースの統合Markdownファイルローダー
  *
- * SlashCommandLoaderとAgentLoaderを統合し、より柔軟な設定が可能
+ * AgentSkillLoaderとAgentLoaderを統合し、より柔軟な設定が可能
  */
 class CustomSearchLoader {
   private config: CustomSearchEntry[];
