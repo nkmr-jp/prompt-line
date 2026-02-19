@@ -210,6 +210,7 @@ class CustomSearchLoader {
    * 例: "name" → { field: "name", direction: "asc" }
    *     "name desc" → { field: "name", direction: "desc" }
    *     "{json@name} desc" → { field: "name", direction: "desc" }
+   *     "{json@createdAt} desc" → { field: "createdAt", direction: "desc" }
    */
   static parseOrderBy(orderBy: string): { field: string; direction: 'asc' | 'desc' } {
     const parts = orderBy.trim().split(/\s+/);
@@ -226,12 +227,20 @@ class CustomSearchLoader {
       field = templateMatch[1];
     }
 
-    // サポートされるフィールド: name, description（それ以外はnameにフォールバック）
-    if (field !== 'name' && field !== 'description') {
-      field = 'name';
-    }
-
     return { field, direction };
+  }
+
+  /**
+   * orderBy文字列からテンプレート部分を抽出（ソート方向を除く）
+   * 例: "{json@createdAt} desc" → "{json@createdAt}"
+   *     "name desc" → "name"
+   *     "name" → "name"
+   */
+  static extractOrderByTemplate(orderBy: string): string {
+    const parts = orderBy.trim().split(/\s+/);
+    const lastPart = parts[parts.length - 1]?.toLowerCase();
+    const hasDirection = lastPart === 'asc' || lastPart === 'desc';
+    return hasDirection ? parts.slice(0, -1).join(' ') : orderBy.trim();
   }
 
   /**
@@ -240,8 +249,19 @@ class CustomSearchLoader {
   private sortItems(items: CustomSearchItem[], orderBy: string): CustomSearchItem[] {
     const { field, direction } = CustomSearchLoader.parseOrderBy(orderBy);
     return [...items].sort((a, b) => {
-      const aValue = field === 'description' ? a.description : a.name;
-      const bValue = field === 'description' ? b.description : b.name;
+      let aValue: string;
+      let bValue: string;
+      if (field === 'name') {
+        aValue = a.name;
+        bValue = b.name;
+      } else if (field === 'description') {
+        aValue = a.description;
+        bValue = b.description;
+      } else {
+        // カスタムフィールド: sortKeyを使用（未設定の場合はnameにフォールバック）
+        aValue = a.sortKey ?? a.name;
+        bValue = b.sortKey ?? b.name;
+      }
       const comparison = aValue.localeCompare(bValue);
       return direction === 'desc' ? -comparison : comparison;
     });
@@ -437,6 +457,8 @@ class CustomSearchLoader {
         sourceId,
       };
 
+      const sortKey = this.resolveSortKey(entry, context);
+      if (sortKey) item.sortKey = sortKey;
       if (rawFrontmatter) item.frontmatter = rawFrontmatter;
       if (entry.label) {
         const resolvedLabel = resolveTemplate(entry.label, context);
@@ -507,6 +529,9 @@ class CustomSearchLoader {
           filePath,
           sourceId,
         };
+
+        const sortKey = this.resolveSortKey(entry, context);
+        if (sortKey) item.sortKey = sortKey;
 
         if (entry.label) {
           const resolvedLabel = resolveTemplate(entry.label, context);
@@ -626,6 +651,19 @@ class CustomSearchLoader {
   }
 
   /**
+   * entryのorderByテンプレートからsortKeyを解決する
+   * name/descriptionフィールドの場合はsortKey不要（sortItemsが直接参照する）
+   */
+  private resolveSortKey(entry: CustomSearchEntry, context: Parameters<typeof resolveTemplate>[1]): string | undefined {
+    if (!entry.orderBy) return undefined;
+    const { field } = CustomSearchLoader.parseOrderBy(entry.orderBy);
+    if (field === 'name' || field === 'description') return undefined;
+    const template = CustomSearchLoader.extractOrderByTemplate(entry.orderBy);
+    const resolved = resolveTemplate(template, context);
+    return resolved || undefined;
+  }
+
+  /**
    * JSONデータからCustomSearchItemを生成するヘルパー
    */
   private createItemFromJsonData(
@@ -645,6 +683,9 @@ class CustomSearchLoader {
       filePath,
       sourceId,
     };
+
+    const sortKey = this.resolveSortKey(entry, context);
+    if (sortKey) item.sortKey = sortKey;
 
     if (entry.label) {
       const resolvedLabel = resolveTemplate(entry.label, context);

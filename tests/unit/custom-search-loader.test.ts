@@ -2032,4 +2032,245 @@ Content`;
       expect(items[0]?.frontmatter).toBeUndefined();
     });
   });
+
+  describe('parseOrderBy', () => {
+    test('should parse "{json@createdAt} desc" to field createdAt with desc direction', () => {
+      const result = CustomSearchLoader.parseOrderBy('{json@createdAt} desc');
+      expect(result).toEqual({ field: 'createdAt', direction: 'desc' });
+    });
+
+    test('should parse "{frontmatter@date}" to field date with asc direction (default)', () => {
+      const result = CustomSearchLoader.parseOrderBy('{frontmatter@date}');
+      expect(result).toEqual({ field: 'date', direction: 'asc' });
+    });
+
+    test('should parse "name" to field name with asc direction (default)', () => {
+      const result = CustomSearchLoader.parseOrderBy('name');
+      expect(result).toEqual({ field: 'name', direction: 'asc' });
+    });
+
+    test('should parse "name desc" to field name with desc direction', () => {
+      const result = CustomSearchLoader.parseOrderBy('name desc');
+      expect(result).toEqual({ field: 'name', direction: 'desc' });
+    });
+
+    test('should parse "description asc" to field description with asc direction', () => {
+      const result = CustomSearchLoader.parseOrderBy('description asc');
+      expect(result).toEqual({ field: 'description', direction: 'asc' });
+    });
+  });
+
+  describe('extractOrderByTemplate', () => {
+    test('should extract "{json@createdAt}" from "{json@createdAt} desc"', () => {
+      const result = CustomSearchLoader.extractOrderByTemplate('{json@createdAt} desc');
+      expect(result).toBe('{json@createdAt}');
+    });
+
+    test('should return "name" unchanged from "name"', () => {
+      const result = CustomSearchLoader.extractOrderByTemplate('name');
+      expect(result).toBe('name');
+    });
+
+    test('should extract template part from "name desc"', () => {
+      const result = CustomSearchLoader.extractOrderByTemplate('name desc');
+      expect(result).toBe('name');
+    });
+
+    test('should extract "{frontmatter@date}" from "{frontmatter@date} asc"', () => {
+      const result = CustomSearchLoader.extractOrderByTemplate('{frontmatter@date} asc');
+      expect(result).toBe('{frontmatter@date}');
+    });
+  });
+
+  describe('sortKey-based sorting with orderBy custom field', () => {
+    test('should sort JSON array items by createdAt desc using sortKey', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'mention',
+          description: '',
+          path: '/path/to/teams',
+          pattern: '*.json@.items',
+          orderBy: '{json@createdAt} desc',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('data.json', true)] as any);
+      mockedFs.readFile.mockResolvedValue(JSON.stringify({
+        items: [
+          { name: 'item-a', createdAt: '2024-01-01' },
+          { name: 'item-c', createdAt: '2024-03-01' },
+          { name: 'item-b', createdAt: '2024-02-01' },
+        ],
+      }));
+      mockEvaluateJq.mockResolvedValue([
+        { name: 'item-a', createdAt: '2024-01-01' },
+        { name: 'item-c', createdAt: '2024-03-01' },
+        { name: 'item-b', createdAt: '2024-02-01' },
+      ]);
+
+      const items = await loader.getItems('mention');
+
+      // desc order: item-c (2024-03-01) > item-b (2024-02-01) > item-a (2024-01-01)
+      expect(items).toHaveLength(3);
+      expect(items.map(i => i.name)).toEqual(['item-c', 'item-b', 'item-a']);
+    });
+
+    test('should store sortKey on each item when orderBy uses custom field', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'mention',
+          description: '',
+          path: '/path/to/teams',
+          pattern: '*.json@.items',
+          orderBy: '{json@createdAt} desc',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('data.json', true)] as any);
+      mockedFs.readFile.mockResolvedValue(JSON.stringify({
+        items: [
+          { name: 'item-a', createdAt: '2024-01-01' },
+        ],
+      }));
+      mockEvaluateJq.mockResolvedValue([
+        { name: 'item-a', createdAt: '2024-01-01' },
+      ]);
+
+      const items = await loader.getItems('mention');
+
+      expect(items).toHaveLength(1);
+      expect(items[0]?.sortKey).toBe('2024-01-01');
+    });
+  });
+
+  describe('orderBy regression: name and description sorting still works', () => {
+    test('should sort items by name asc (default) from markdown files', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          path: '/path/to/commands',
+          pattern: '*.md',
+          orderBy: 'name',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([
+        createDirent('zebra.md', true),
+        createDirent('alpha.md', true),
+        createDirent('beta.md', true),
+      ] as any);
+      mockedFs.readFile.mockResolvedValue('---\ndescription: Command\n---\n');
+
+      const items = await loader.getItems('command');
+
+      expect(items.map(i => i.name)).toEqual(['alpha', 'beta', 'zebra']);
+    });
+
+    test('should sort items by name desc from markdown files', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          path: '/path/to/commands',
+          pattern: '*.md',
+          orderBy: 'name desc',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([
+        createDirent('alpha.md', true),
+        createDirent('beta.md', true),
+        createDirent('zebra.md', true),
+      ] as any);
+      mockedFs.readFile.mockResolvedValue('---\ndescription: Command\n---\n');
+
+      const items = await loader.getItems('command');
+
+      expect(items.map(i => i.name)).toEqual(['zebra', 'beta', 'alpha']);
+    });
+
+    test('should sort items by description asc', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          path: '/path/to/commands',
+          pattern: '*.md',
+          orderBy: 'description',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([
+        createDirent('cmd-a.md', true),
+        createDirent('cmd-b.md', true),
+        createDirent('cmd-c.md', true),
+      ] as any);
+      mockedFs.readFile.mockImplementation(((filePath: any) => {
+        const pathStr = String(filePath);
+        if (pathStr.includes('cmd-a')) return Promise.resolve('---\ndescription: Zebra command\n---\n');
+        if (pathStr.includes('cmd-b')) return Promise.resolve('---\ndescription: Alpha command\n---\n');
+        return Promise.resolve('---\ndescription: Beta command\n---\n');
+      }) as any);
+
+      const items = await loader.getItems('command');
+
+      // sorted by description asc: Alpha, Beta, Zebra
+      expect(items.map(i => i.description)).toEqual(['Alpha command', 'Beta command', 'Zebra command']);
+    });
+
+    test('should not set sortKey when orderBy is "name"', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          path: '/path/to/commands',
+          pattern: '*.md',
+          orderBy: 'name',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('test.md', true)] as any);
+      mockedFs.readFile.mockResolvedValue('---\ndescription: Test\n---\n');
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(1);
+      expect(items[0]?.sortKey).toBeUndefined();
+    });
+
+    test('should not set sortKey when orderBy is "description"', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          path: '/path/to/commands',
+          pattern: '*.md',
+          orderBy: 'description',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('test.md', true)] as any);
+      mockedFs.readFile.mockResolvedValue('---\ndescription: Test\n---\n');
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(1);
+      expect(items[0]?.sortKey).toBeUndefined();
+    });
+  });
 });

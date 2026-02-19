@@ -445,6 +445,8 @@ export interface CustomSearchItem {
   argumentHint?: string;
   /** 検索ソースの識別子（path + pattern） */
   sourceId: string;
+  /** カスタムソートキー（orderByテンプレートの解決値） */
+  sortKey?: string;
   /** 入力フォーマット（'name' | 'path'） */
   inputFormat?: InputFormatType;
 }
