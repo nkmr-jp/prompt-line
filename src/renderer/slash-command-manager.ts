@@ -506,12 +506,18 @@ export class SlashCommandManager implements IInitializable {
       if (cmd.label) {
         const labelBadge = document.createElement('span');
         labelBadge.className = 'slash-command-label';
+        if (cmd.color) {
+          labelBadge.dataset.color = cmd.color;
+        }
         labelBadge.textContent = cmd.label;
         item.appendChild(labelBadge);
       } else if (cmd.displayName) {
         const sourceBadge = document.createElement('span');
         sourceBadge.className = 'slash-command-source';
         sourceBadge.dataset.source = cmd.source || cmd.displayName;
+        if (cmd.color) {
+          sourceBadge.dataset.color = cmd.color;
+        }
         sourceBadge.textContent = cmd.displayName;
         item.appendChild(sourceBadge);
       }
