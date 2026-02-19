@@ -197,15 +197,27 @@
 }
 
 .highlight-backdrop .slash-command-highlight.slash-command-color-blue {
-    background: oklch(from var(--color-cyan-300) l c h / 0.25);
+    background: oklch(from var(--color-blue-400) l c h / 0.25);
+}
+
+.highlight-backdrop .slash-command-highlight.slash-command-color-teal {
+    background: oklch(from var(--color-teal-400) l c h / 0.25);
 }
 
 .highlight-backdrop .slash-command-highlight.slash-command-color-green {
-    background: oklch(from var(--color-teal-300) l c h / 0.25);
+    background: oklch(from var(--color-green-400) l c h / 0.25);
+}
+
+.highlight-backdrop .slash-command-highlight.slash-command-color-yellow {
+    background: oklch(from var(--color-yellow-300) l c h / 0.25);
 }
 
 .highlight-backdrop .slash-command-highlight.slash-command-color-orange {
-    background: oklch(from var(--color-amber-300) l c h / 0.25);
+    background: oklch(from var(--color-orange-400) l c h / 0.25);
+}
+
+.highlight-backdrop .slash-command-highlight.slash-command-color-pink {
+    background: oklch(from var(--color-pink-400) l c h / 0.25);
 }
 
 .highlight-backdrop .slash-command-highlight.slash-command-color-red {

@@ -81,13 +81,18 @@
 
 /* Source badge color variations (same as label colors) */
 .slash-command-source[data-color="grey"] {
-  color: var(--color-gray-500);
-  background: oklch(from var(--color-gray-500) l c h / 0.2);
+  color: var(--color-gray-400);
+  background: oklch(from var(--color-gray-400) l c h / 0.2);
 }
 
 .slash-command-source[data-color="darkGrey"] {
   color: var(--color-gray-500);
   background: oklch(from var(--color-gray-500) l c h / 0.2);
+}
+
+.slash-command-source[data-color="blue"] {
+  color: var(--color-blue-400);
+  background: oklch(from var(--color-blue-400) l c h / 0.2);
 }
 
 .slash-command-source[data-color="purple"] {
@@ -96,23 +101,23 @@
 }
 
 .slash-command-source[data-color="teal"] {
-  color: var(--color-cyan-300);
-  background: oklch(from var(--color-cyan-300) l c h / 0.2);
+  color: var(--color-teal-400);
+  background: oklch(from var(--color-teal-400) l c h / 0.2);
 }
 
 .slash-command-source[data-color="green"] {
-  color: var(--color-teal-300);
-  background: oklch(from var(--color-teal-300) l c h / 0.2);
+  color: var(--color-green-400);
+  background: oklch(from var(--color-green-400) l c h / 0.2);
 }
 
 .slash-command-source[data-color="yellow"] {
-  color: var(--color-amber-400);
-  background: oklch(from var(--color-amber-400) l c h / 0.2);
+  color: var(--color-yellow-300);
+  background: oklch(from var(--color-yellow-300) l c h / 0.2);
 }
 
 .slash-command-source[data-color="orange"] {
-  color: var(--color-amber-300);
-  background: oklch(from var(--color-amber-300) l c h / 0.2);
+  color: var(--color-orange-400);
+  background: oklch(from var(--color-orange-400) l c h / 0.2);
 }
 
 .slash-command-source[data-color="pink"] {
@@ -138,13 +143,18 @@
 
 /* Label color variations */
 .slash-command-label[data-color="grey"] {
-  color: var(--color-gray-500);
-  background: oklch(from var(--color-gray-500) l c h / 0.2);
+  color: var(--color-gray-400);
+  background: oklch(from var(--color-gray-400) l c h / 0.2);
 }
 
 .slash-command-label[data-color="darkGrey"] {
   color: var(--color-gray-500);
   background: oklch(from var(--color-gray-500) l c h / 0.2);
+}
+
+.slash-command-label[data-color="blue"] {
+  color: var(--color-blue-400);
+  background: oklch(from var(--color-blue-400) l c h / 0.2);
 }
 
 .slash-command-label[data-color="purple"] {
@@ -153,23 +163,23 @@
 }
 
 .slash-command-label[data-color="teal"] {
-  color: var(--color-cyan-300);
-  background: oklch(from var(--color-cyan-300) l c h / 0.2);
+  color: var(--color-teal-400);
+  background: oklch(from var(--color-teal-400) l c h / 0.2);
 }
 
 .slash-command-label[data-color="green"] {
-  color: var(--color-teal-300);
-  background: oklch(from var(--color-teal-300) l c h / 0.2);
+  color: var(--color-green-400);
+  background: oklch(from var(--color-green-400) l c h / 0.2);
 }
 
 .slash-command-label[data-color="yellow"] {
-  color: var(--color-amber-400);
-  background: oklch(from var(--color-amber-400) l c h / 0.2);
+  color: var(--color-yellow-300);
+  background: oklch(from var(--color-yellow-300) l c h / 0.2);
 }
 
 .slash-command-label[data-color="orange"] {
-  color: var(--color-amber-300);
-  background: oklch(from var(--color-amber-300) l c h / 0.2);
+  color: var(--color-orange-400);
+  background: oklch(from var(--color-orange-400) l c h / 0.2);
 }
 
 .slash-command-label[data-color="pink"] {

@@ -37,8 +37,8 @@ export const defaultSettings: UserSettings = {
   },
   window: {
     position: 'active-text-field',
-    width: 600,
-    height: 300
+    width: 640,
+    height: 320
   },
   fileOpener: {
     extensions: {
@@ -125,18 +125,14 @@ export const defaultSettings: UserSettings = {
         searchPrefix: 'agent'
       },
       {
-        name: '{basename}',
-        description: '{dirname:2}',
-        path: '~/.claude/teams',
-        pattern: '**/inboxes/*.json',
-        searchPrefix: 'team'
-      },
-      {
-        name: '{json@name}',
-        description: '{dirname:2}',
-        path: '~/.claude/teams',
-        pattern: '**/config.json@.members',
-        searchPrefix: 'member'
+        name: "{json@name}",
+        description: "{json@prompt}|{json:1@description}",
+        color: "{json@color}|#ffffff",
+        icon: "organization",
+        label: "{dirname}",
+        path: "~/.claude/teams",
+        pattern: "**/config.json@. | select(.createdAt / 1000 > (now - 86400)) | select((.members | length) >= 2) | .members')",
+        searchPrefix: "team"
       },
       {
         name: '{basename}',
