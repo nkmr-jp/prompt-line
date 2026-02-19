@@ -70,10 +70,10 @@
 
 /* App name error state */
 .app-name-error {
-    color: #ff6b6b !important;
+    color: oklch(0.704 0.191 22.216) !important;
 }
 
 /* App name success state */
 .app-name-success {
-    color: #7fdbc8 !important;
+    color: oklch(0.855 0.138 181.071) !important;
 }

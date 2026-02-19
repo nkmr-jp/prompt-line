@@ -2,18 +2,18 @@
 
 /* Light theme variables */
 .theme-light {
-    --bg-color: rgba(255, 255, 255, 0.95);
-    --text-color: #000000;
-    --text-secondary: rgba(0, 0, 0, 0.6);
-    --border-color: rgba(0, 0, 0, 0.15);
-    --accent-color: #007AFF;
+    --bg-color: oklch(1 0 0 / 0.95);
+    --text-color: oklch(0 0 0);
+    --text-secondary: oklch(0 0 0 / 0.6);
+    --border-color: oklch(0 0 0 / 0.15);
+    --accent-color: oklch(0.623 0.214 259.815);
 }
 
 /* Dark theme variables */
 .theme-dark {
-    --bg-color: rgba(20, 20, 20, 0.95);
-    --text-color: #ffffff;
-    --text-secondary: rgba(255, 255, 255, 0.6);
-    --border-color: rgba(255, 255, 255, 0.15);
-    --accent-color: #007AFF;
+    --bg-color: oklch(0.129 0.042 264.695 / 0.95);
+    --text-color: oklch(1 0 0);
+    --text-secondary: oklch(1 0 0 / 0.6);
+    --border-color: oklch(1 0 0 / 0.15);
+    --accent-color: oklch(0.623 0.214 259.815);
 }

@@ -5,7 +5,7 @@
 
 .code-suggestions {
   position: absolute;
-  background: var(--bg-color, #1e1e1e);
+  background: var(--bg-color, oklch(0.208 0.042 265.755));
   border: 1px solid var(--border-color, #444);
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);

@@ -665,21 +665,21 @@
 .codicon-vm-pending:before { content: "\f102"; }
 
 /* Symbol type colors - matching original SVG icon colors */
-.symbol-icon.codicon-symbol-class { color: #ffab40; }
-.symbol-icon.codicon-symbol-method { color: #b388ff; }
-.symbol-icon.codicon-symbol-interface { color: #80cbc4; }
-.symbol-icon.codicon-symbol-structure { color: #80deea; }
-.symbol-icon.codicon-symbol-type-parameter { color: #82b1ff; }
-.symbol-icon.codicon-symbol-variable { color: #90caf9; }
-.symbol-icon.codicon-symbol-constant { color: #ffca28; }
-.symbol-icon.codicon-symbol-field { color: #c5e1a5; }
-.symbol-icon.codicon-symbol-property { color: #c5e1a5; }
-.symbol-icon.codicon-symbol-enum { color: #ff8a65; }
-.symbol-icon.codicon-symbol-module { color: #bcaaa4; }
-.symbol-icon.codicon-symbol-namespace { color: #bcaaa4; }
-.symbol-icon.codicon-symbol-key { color: #90a4ae; }
-.symbol-icon.codicon-symbol-misc { color: #90a4ae; }
-.symbol-icon.codicon-package { color: #7c4dff; }
-.symbol-icon.codicon-database { color: #00bcd4; }
-.symbol-icon.codicon-output { color: #4caf50; }
-.symbol-icon.codicon-cloud { color: #ff9800; }
+.symbol-icon.codicon-symbol-class { color: oklch(0.75 0.183 55.934); }
+.symbol-icon.codicon-symbol-method { color: oklch(0.827 0.119 306.383); }
+.symbol-icon.codicon-symbol-interface { color: oklch(0.855 0.138 181.071); }
+.symbol-icon.codicon-symbol-structure { color: oklch(0.865 0.127 207.078); }
+.symbol-icon.codicon-symbol-type-parameter { color: oklch(0.809 0.105 251.813); }
+.symbol-icon.codicon-symbol-variable { color: oklch(0.809 0.105 251.813); }
+.symbol-icon.codicon-symbol-constant { color: oklch(0.828 0.189 84.429); }
+.symbol-icon.codicon-symbol-field { color: oklch(0.897 0.196 126.665); }
+.symbol-icon.codicon-symbol-property { color: oklch(0.897 0.196 126.665); }
+.symbol-icon.codicon-symbol-enum { color: oklch(0.837 0.128 66.29); }
+.symbol-icon.codicon-symbol-module { color: oklch(0.704 0.04 256.788); }
+.symbol-icon.codicon-symbol-namespace { color: oklch(0.704 0.04 256.788); }
+.symbol-icon.codicon-symbol-key { color: oklch(0.704 0.04 256.788); }
+.symbol-icon.codicon-symbol-misc { color: oklch(0.704 0.04 256.788); }
+.symbol-icon.codicon-package { color: oklch(0.606 0.25 292.717); }
+.symbol-icon.codicon-database { color: oklch(0.715 0.143 215.221); }
+.symbol-icon.codicon-output { color: oklch(0.723 0.219 149.579); }
+.symbol-icon.codicon-cloud { color: oklch(0.705 0.213 47.604); }
