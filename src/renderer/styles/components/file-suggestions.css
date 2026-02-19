@@ -10,7 +10,7 @@
   width: max-content;
   overflow-y: auto;
   overflow-x: hidden;
-  background: oklch(0.208 0.042 265.755);
+  background: var(--color-gray-900);
   /*border: 1px solid #444;*/
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
@@ -49,7 +49,7 @@
    The .hovered class is added only when mouse actually moves over an item. */
 
 .file-suggestion-item.hovered {
-  background: var(--bg-hover, oklch(0.208 0.042 265.755));
+  background: var(--bg-hover, var(--color-gray-900));
 }
 
 .file-suggestion-item.selected {
@@ -232,7 +232,7 @@
 /* Frontmatter Popup Styles */
 .frontmatter-popup {
   position: fixed;
-  background: oklch(0.129 0.042 264.695); /* Darker than menu for contrast */
+  background: var(--color-gray-950); /* Darker than menu for contrast */
   border: 1px solid #444;
   border-radius: 6px;
   padding: 8px 10px;
@@ -285,14 +285,14 @@
 }
 
 .frontmatter-link {
-  color: oklch(0.707 0.165 254.624);
+  color: var(--color-blue-400);
   text-decoration: none;
   cursor: pointer;
 }
 
 .frontmatter-link:hover {
   text-decoration: underline;
-  color: oklch(0.809 0.105 251.813);
+  color: var(--color-blue-300);
 }
 
 /* Frontmatter Hint */

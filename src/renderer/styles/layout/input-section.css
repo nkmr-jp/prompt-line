@@ -34,8 +34,8 @@
 .header.draggable {
     -webkit-app-region: drag;
     cursor: grab;
-    background-color: oklch(0.623 0.214 259.815 / 0.15);
-    border: 1px solid oklch(0.623 0.214 259.815 / 0.3);
+    background-color: oklch(from var(--color-blue-500) l c h / 0.15);
+    border: 1px solid oklch(from var(--color-blue-500) l c h / 0.3);
 }
 
 .header.draggable:active {
@@ -47,7 +47,7 @@
     display: none;
     align-items: center;
     gap: 6px;
-    color: oklch(0.623 0.214 259.815 / 0.9);
+    color: oklch(from var(--color-blue-500) l c h / 0.9);
     font-size: var(--font-size-sm);
     animation: fadeInPulse 0.3s ease-out;
 }
@@ -85,7 +85,7 @@
 
 .app-name {
     font-size: var(--font-size-md);
-    color: oklch(1 0 0 / 0.5);
+    color: oklch(from var(--color-white) l c h / 0.5);
     font-weight: 500;
 }
 
@@ -111,7 +111,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: oklch(1 0 0 / 0.08);
+    background: oklch(from var(--color-white) l c h / 0.08);
     border: 1px solid transparent;
     border-radius: var(--radius-md);
     padding: var(--spacing-md);
@@ -158,7 +158,7 @@
 }
 
 .highlight-backdrop .at-path-highlight {
-    background: oklch(0.623 0.214 259.815 / 0.4);
+    background: oklch(from var(--color-blue-500) l c h / 0.4);
     border-radius: 4px;
     color: transparent;
 
@@ -173,7 +173,7 @@
 
 /* Default slash command highlight (gray for unknown source or duplicate commands) */
 .highlight-backdrop .slash-command-highlight {
-    background: oklch(0.554 0.046 257.417 / 0.25);
+    background: oklch(from var(--color-gray-500) l c h / 0.25);
     border-radius: 4px;
     color: transparent;
 
@@ -188,50 +188,50 @@
 
 /* Source-specific slash command highlight colors */
 .highlight-backdrop .slash-command-highlight.slash-command-source-claude {
-    background: oklch(0.879 0.169 91.605 / 0.25);
+    background: oklch(from var(--color-amber-300) l c h / 0.25);
 }
 
 .highlight-backdrop .slash-command-highlight.slash-command-source-codex {
-    background: oklch(0.855 0.138 181.071 / 0.25);
+    background: oklch(from var(--color-teal-300) l c h / 0.25);
 }
 
 .highlight-backdrop .slash-command-highlight.slash-command-source-gemini {
-    background: oklch(0.809 0.105 251.813 / 0.25);
+    background: oklch(from var(--color-blue-300) l c h / 0.25);
 }
 
 .highlight-backdrop .slash-command-highlight.slash-command-source-custom {
-    background: oklch(0.714 0.203 305.504 / 0.25);
+    background: oklch(from var(--color-purple-400) l c h / 0.25);
 }
 
 /* Color based highlights (takes priority over source) */
 .highlight-backdrop .slash-command-highlight.slash-command-color-purple {
-    background: oklch(0.714 0.203 305.504 / 0.25);
+    background: oklch(from var(--color-purple-400) l c h / 0.25);
 }
 
 .highlight-backdrop .slash-command-highlight.slash-command-color-blue {
-    background: oklch(0.865 0.127 207.078 / 0.25);
+    background: oklch(from var(--color-cyan-300) l c h / 0.25);
 }
 
 .highlight-backdrop .slash-command-highlight.slash-command-color-green {
-    background: oklch(0.855 0.138 181.071 / 0.25);
+    background: oklch(from var(--color-teal-300) l c h / 0.25);
 }
 
 .highlight-backdrop .slash-command-highlight.slash-command-color-orange {
-    background: oklch(0.879 0.169 91.605 / 0.25);
+    background: oklch(from var(--color-amber-300) l c h / 0.25);
 }
 
 .highlight-backdrop .slash-command-highlight.slash-command-color-red {
-    background: oklch(0.704 0.191 22.216 / 0.25);
+    background: oklch(from var(--color-red-400) l c h / 0.25);
 }
 
 .highlight-backdrop .slash-command-highlight.slash-command-color-gray {
-    background: oklch(0.554 0.046 257.417 / 0.25);
+    background: oklch(from var(--color-gray-500) l c h / 0.25);
 }
 
 /* Slash command with link style (Cmd+hover or cursor over slash command) */
 .highlight-backdrop .slash-command-highlight.file-path-link {
     text-decoration: underline;
-    text-decoration-color: oklch(1 0 0 / 0.4);
+    text-decoration-color: oklch(from var(--color-white) l c h / 0.4);
     text-decoration-thickness: 1px;
     text-underline-offset: 2px;
     cursor: pointer;
@@ -242,7 +242,7 @@
     /* Override the transparent color to make link visible */
     color: var(--text-primary) !important;
     text-decoration: underline;
-    text-decoration-color: oklch(1 0 0 / 0.4);
+    text-decoration-color: oklch(from var(--color-white) l c h / 0.4);
     text-decoration-thickness: 1px;
     text-underline-offset: 2px;
     cursor: pointer;
@@ -253,7 +253,7 @@
     /* Override the transparent color to make link visible */
     color: var(--text-primary) !important;
     text-decoration: underline;
-    text-decoration-color: oklch(1 0 0 / 0.4);
+    text-decoration-color: oklch(from var(--color-white) l c h / 0.4);
     text-decoration-thickness: 1px;
     text-underline-offset: 2px;
     /* Underline only, no background highlight */
@@ -264,7 +264,7 @@
     /* Solid underline for linkable file paths */
     color: transparent;
     text-decoration: underline;
-    text-decoration-color: oklch(1 0 0 / 0.3);
+    text-decoration-color: oklch(from var(--color-white) l c h / 0.3);
     text-decoration-thickness: 1px;
     text-underline-offset: 2px;
     cursor: pointer;
@@ -274,7 +274,7 @@
     flex: 1;
     width: 100%;
     background: transparent;
-    border: 1px solid oklch(1 0 0 / 0.15);
+    border: 1px solid oklch(from var(--color-white) l c h / 0.15);
     border-radius: var(--radius-md);
     padding: var(--spacing-md);
     color: var(--text-primary);
@@ -319,7 +319,7 @@
 
 #textInput:focus {
     background: transparent;
-    border-color: oklch(1 0 0 / 0.25);
+    border-color: oklch(from var(--color-white) l c h / 0.25);
     box-shadow: 0 0 0 1px var(--bg-tertiary);
 }
 
@@ -342,12 +342,12 @@
 }
 
 #textInput::-webkit-scrollbar-thumb {
-    background: oklch(1 0 0 / 0.1);
+    background: oklch(from var(--color-white) l c h / 0.1);
     border-radius: var(--radius-sm);
 }
 
 #textInput::-webkit-scrollbar-thumb:hover {
-    background: oklch(1 0 0 / 0.2);
+    background: oklch(from var(--color-white) l c h / 0.2);
 }
 
 /* Disable IME suggestions */
@@ -391,17 +391,17 @@ textarea:-webkit-autofill:focus {
 
 .char-count {
     font-size: var(--font-size-base);
-    color: oklch(1 0 0 / 0.3);
+    color: oklch(from var(--color-white) l c h / 0.3);
     font-variant-numeric: tabular-nums;
     transition: color var(--animation-normal) ease;
 }
 
 .char-count.warning {
-    color: oklch(0.705 0.213 47.604);
+    color: var(--color-orange-500);
 }
 
 .char-count.error {
-    color: oklch(0.637 0.237 25.331);
+    color: var(--color-red-500);
 }
 
 kbd {

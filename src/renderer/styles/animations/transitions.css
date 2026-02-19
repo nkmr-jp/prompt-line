@@ -3,7 +3,7 @@
 /* Flash animation for history items */
 @keyframes flashOut {
     0% {
-        background: oklch(1 0 0 / 0.15);
+        background: oklch(from var(--color-white) l c h / 0.15);
     }
     100% {
         background: transparent;

@@ -2,18 +2,18 @@
 
 /* Light theme variables */
 .theme-light {
-    --bg-color: oklch(1 0 0 / 0.95);
-    --text-color: oklch(0 0 0);
-    --text-secondary: oklch(0 0 0 / 0.6);
-    --border-color: oklch(0 0 0 / 0.15);
-    --accent-color: oklch(0.623 0.214 259.815);
+    --bg-color: oklch(from var(--color-white) l c h / 0.95);
+    --text-color: var(--color-black);
+    --text-secondary: oklch(from var(--color-black) l c h / 0.6);
+    --border-color: oklch(from var(--color-black) l c h / 0.15);
+    --accent-color: var(--color-blue-500);
 }
 
 /* Dark theme variables */
 .theme-dark {
-    --bg-color: oklch(0.129 0.042 264.695 / 0.95);
-    --text-color: oklch(1 0 0);
-    --text-secondary: oklch(1 0 0 / 0.6);
-    --border-color: oklch(1 0 0 / 0.15);
-    --accent-color: oklch(0.623 0.214 259.815);
+    --bg-color: oklch(from var(--color-gray-950) l c h / 0.95);
+    --text-color: var(--color-white);
+    --text-secondary: oklch(from var(--color-white) l c h / 0.6);
+    --border-color: oklch(from var(--color-white) l c h / 0.15);
+    --accent-color: var(--color-blue-500);
 }

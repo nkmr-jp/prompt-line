@@ -14,32 +14,32 @@
 }
 
 .notification-info {
-    background-color: oklch(0.623 0.214 259.815);
-    color: oklch(1 0 0);
+    background-color: var(--color-blue-500);
+    color: var(--color-white);
 }
 
 .notification-success {
-    background-color: oklch(0.627 0.194 149.214);
-    color: oklch(1 0 0);
+    background-color: var(--color-green-600);
+    color: var(--color-white);
 }
 
 .notification-warning {
-    background-color: oklch(0.828 0.189 84.429);
-    color: oklch(0 0 0);
+    background-color: var(--color-amber-400);
+    color: var(--color-black);
 }
 
 .notification-error {
-    background-color: oklch(0.577 0.245 27.325);
-    color: oklch(1 0 0);
+    background-color: var(--color-red-600);
+    color: var(--color-white);
 }
 
 /* Character count states */
 .char-count-warning {
-    color: oklch(0.828 0.189 84.429) !important;
+    color: var(--color-amber-400) !important;
 }
 
 .char-count-error {
-    color: oklch(0.577 0.245 27.325) !important;
+    color: var(--color-red-600) !important;
 }
 
 /* Loading states */
@@ -70,10 +70,10 @@
 
 /* App name error state */
 .app-name-error {
-    color: oklch(0.704 0.191 22.216) !important;
+    color: var(--color-red-400) !important;
 }
 
 /* App name success state */
 .app-name-success {
-    color: oklch(0.855 0.138 181.071) !important;
+    color: var(--color-teal-300) !important;
 }

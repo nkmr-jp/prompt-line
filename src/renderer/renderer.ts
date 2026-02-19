@@ -1,3 +1,6 @@
+// Import styles (processed by Vite + TailwindCSS)
+import './styles/main.css';
+
 // Import types and dependencies
 import type {
   HistoryItem,

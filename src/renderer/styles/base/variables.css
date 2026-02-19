@@ -1,17 +1,17 @@
 /* CSS Custom Properties */
 :root {
     /* Colors */
-    --bg-primary: oklch(0.129 0.042 264.695);
-    --bg-secondary: oklch(1 0 0 / 0.05);
-    --bg-tertiary: oklch(1 0 0 / 0.1);
-    --text-primary: oklch(1 0 0);
-    --text-secondary: oklch(1 0 0 / 0.6);
-    --text-tertiary: oklch(1 0 0 / 0.4);
-    --border-primary: oklch(1 0 0 / 0.1);
-    --border-secondary: oklch(1 0 0 / 0.2);
-    --accent-blue: oklch(0.707 0.165 254.624);
-    --accent-yellow: oklch(0.828 0.189 84.429);
-    --accent-gray: oklch(0.554 0.046 257.417 / 0.6);
+    --bg-primary: var(--color-gray-950);
+    --bg-secondary: oklch(from var(--color-white) l c h / 0.05);
+    --bg-tertiary: oklch(from var(--color-white) l c h / 0.1);
+    --text-primary: var(--color-white);
+    --text-secondary: oklch(from var(--color-white) l c h / 0.6);
+    --text-tertiary: oklch(from var(--color-white) l c h / 0.4);
+    --border-primary: oklch(from var(--color-white) l c h / 0.1);
+    --border-secondary: oklch(from var(--color-white) l c h / 0.2);
+    --accent-blue: var(--color-blue-400);
+    --accent-yellow: var(--color-amber-400);
+    --accent-gray: oklch(from var(--color-gray-500) l c h / 0.6);
 
     /* Spacing */
     --spacing-xs: 4px;

@@ -6,7 +6,7 @@
   "scripts": {
     "start": "LOG_LEVEL=debug npm run compile && LOG_LEVEL=debug electron .",
     "compile": "node node_modules/electron/install.js && tsc && npm run build:renderer && cd native && make install && cp -r ../src/native-tools ../dist/",
-    "build:renderer": "vite build && cp src/renderer/input.html dist/renderer/input.html && cp -r src/renderer/styles dist/renderer/",
+    "build:renderer": "vite build && cp src/renderer/input.html dist/renderer/input.html",
     "typecheck": "tsc --noEmit",
     "build": "npm run compile && electron-builder --mac --publish=never",
     "clean": "rm -rf dist/mac* dist/*.dmg dist/*.zip dist/*.blockmap",

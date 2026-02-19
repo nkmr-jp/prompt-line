@@ -50,7 +50,7 @@
 
 .history-shortcuts {
     font-size: 10px;
-    color: oklch(1 0 0 / 0.4);
+    color: oklch(from var(--color-white) l c h / 0.4);
     font-weight: normal;
 }
 
@@ -108,13 +108,13 @@
 }
 
 .custom-scrollbar-thumb {
-    background: oklch(1 0 0 / 0.2);
+    background: oklch(from var(--color-white) l c h / 0.2);
     border-radius: 5px;
     min-height: 20px;
 }
 
 .custom-scrollbar-thumb:active {
-    background: oklch(1 0 0 / 0.35);
+    background: oklch(from var(--color-white) l c h / 0.35);
 }
 
 .history-empty {

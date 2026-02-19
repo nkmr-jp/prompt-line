@@ -665,21 +665,21 @@
 .codicon-vm-pending:before { content: "\f102"; }
 
 /* Symbol type colors - matching original SVG icon colors */
-.symbol-icon.codicon-symbol-class { color: oklch(0.75 0.183 55.934); }
-.symbol-icon.codicon-symbol-method { color: oklch(0.827 0.119 306.383); }
-.symbol-icon.codicon-symbol-interface { color: oklch(0.855 0.138 181.071); }
-.symbol-icon.codicon-symbol-structure { color: oklch(0.865 0.127 207.078); }
-.symbol-icon.codicon-symbol-type-parameter { color: oklch(0.809 0.105 251.813); }
-.symbol-icon.codicon-symbol-variable { color: oklch(0.809 0.105 251.813); }
-.symbol-icon.codicon-symbol-constant { color: oklch(0.828 0.189 84.429); }
-.symbol-icon.codicon-symbol-field { color: oklch(0.897 0.196 126.665); }
-.symbol-icon.codicon-symbol-property { color: oklch(0.897 0.196 126.665); }
-.symbol-icon.codicon-symbol-enum { color: oklch(0.837 0.128 66.29); }
-.symbol-icon.codicon-symbol-module { color: oklch(0.704 0.04 256.788); }
-.symbol-icon.codicon-symbol-namespace { color: oklch(0.704 0.04 256.788); }
-.symbol-icon.codicon-symbol-key { color: oklch(0.704 0.04 256.788); }
-.symbol-icon.codicon-symbol-misc { color: oklch(0.704 0.04 256.788); }
-.symbol-icon.codicon-package { color: oklch(0.606 0.25 292.717); }
-.symbol-icon.codicon-database { color: oklch(0.715 0.143 215.221); }
-.symbol-icon.codicon-output { color: oklch(0.723 0.219 149.579); }
-.symbol-icon.codicon-cloud { color: oklch(0.705 0.213 47.604); }
+.symbol-icon.codicon-symbol-class { color: var(--color-orange-400); }
+.symbol-icon.codicon-symbol-method { color: var(--color-purple-300); }
+.symbol-icon.codicon-symbol-interface { color: var(--color-teal-300); }
+.symbol-icon.codicon-symbol-structure { color: var(--color-cyan-300); }
+.symbol-icon.codicon-symbol-type-parameter { color: var(--color-blue-300); }
+.symbol-icon.codicon-symbol-variable { color: var(--color-blue-300); }
+.symbol-icon.codicon-symbol-constant { color: var(--color-amber-400); }
+.symbol-icon.codicon-symbol-field { color: var(--color-lime-300); }
+.symbol-icon.codicon-symbol-property { color: var(--color-lime-300); }
+.symbol-icon.codicon-symbol-enum { color: var(--color-orange-300); }
+.symbol-icon.codicon-symbol-module { color: var(--color-slate-400); }
+.symbol-icon.codicon-symbol-namespace { color: var(--color-slate-400); }
+.symbol-icon.codicon-symbol-key { color: var(--color-slate-400); }
+.symbol-icon.codicon-symbol-misc { color: var(--color-slate-400); }
+.symbol-icon.codicon-package { color: var(--color-violet-500); }
+.symbol-icon.codicon-database { color: var(--color-cyan-500); }
+.symbol-icon.codicon-output { color: var(--color-green-500); }
+.symbol-icon.codicon-cloud { color: var(--color-orange-500); }

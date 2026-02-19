@@ -20,6 +20,9 @@ module.exports = {
       }
     }]
   },
+  moduleNameMapper: {
+    '\\.(css)$': '<rootDir>/tests/__mocks__/styleMock.js'
+  },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   collectCoverageFrom: [
     'src/**/*.{js,ts}',
