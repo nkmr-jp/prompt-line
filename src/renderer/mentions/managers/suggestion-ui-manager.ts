@@ -24,9 +24,9 @@ import { getRelativePath, getDirectoryFromPath } from '../path-utils';
 import { getFileIconSvg, getSymbolCodiconClass } from '../../assets/icons/file-icons';
 
 const COLOR_MAP: Record<string, string> = {
-  grey: '#9ca3af', darkGrey: '#78818c', blue: '#89DDFF',
-  purple: '#c792ea', teal: '#5eead4', green: '#86efac',
-  yellow: '#fde047', orange: '#fb923c', pink: '#f472b6', red: '#f07178',
+  grey: 'oklch(0.714 0.02 264.695)', darkGrey: 'oklch(0.599 0.020 253.422)', blue: 'oklch(0.856 0.094 225.866)',
+  purple: 'oklch(0.743 0.135 311.057)', teal: 'oklch(0.845 0.108 176.891)', green: 'oklch(0.871 0.15 154.449)',
+  yellow: 'oklch(0.905 0.182 98.111)', orange: 'oklch(0.75 0.183 55.934)', pink: 'oklch(0.718 0.202 349.761)', red: 'oklch(0.701 0.157 18.621)',
 };
 
 function resolveColorValue(color: string | undefined, fallback?: string): string {
@@ -573,7 +573,7 @@ export class SuggestionUIManager {
       ? (agent.icon.startsWith('codicon-') ? agent.icon : `codicon-${agent.icon}`)
       : 'codicon-agent';
     icon.className = `file-icon codicon ${iconClass}`;
-    icon.style.color = resolveColorValue(agent.color, '#00bfa5');
+    icon.style.color = resolveColorValue(agent.color, 'oklch(0.720 0.132 178.270)');
 
     const name = document.createElement('span');
     name.className = 'file-name agent-name';
