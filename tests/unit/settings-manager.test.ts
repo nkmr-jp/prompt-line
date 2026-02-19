@@ -151,8 +151,8 @@ window:
         },
         window: {
           position: 'active-text-field',
-          width: 600,
-          height: 300
+          width: 640,
+          height: 320
         },
         fileOpener: {
           extensions: {
@@ -239,18 +239,14 @@ window:
               searchPrefix: 'agent'
             },
             {
-              name: '{basename}',
-              description: '{dirname:2}',
-              path: '~/.claude/teams',
-              pattern: '**/inboxes/*.json',
-              searchPrefix: 'team'
-            },
-            {
               name: '{json@name}',
-              description: '{dirname:2}',
+              description: '{json@prompt}|{json:1@description}',
+              color: '{json@color}|#ffffff',
+              icon: 'organization',
+              label: '{dirname}',
               path: '~/.claude/teams',
-              pattern: '**/config.json@.members',
-              searchPrefix: 'member'
+              pattern: '**/config.json@. | select(.createdAt / 1000 > (now - 86400)) | select((.members | length) >= 2) | .members',
+              searchPrefix: 'team'
             },
             {
               name: '{basename}',
@@ -289,7 +285,7 @@ window:
 
       const settings = settingsManager.getSettings();
       expect(settings.shortcuts.main).toBe('Ctrl+Shift+P');
-      expect(settings.window.width).toBe(600); // Should remain unchanged
+      expect(settings.window.width).toBe(640); // Should remain unchanged
     });
 
     it('should reset settings to defaults', async () => {
@@ -303,7 +299,7 @@ window:
 
       const settings = settingsManager.getSettings();
       expect(settings.window.position).toBe('active-text-field');
-      expect(settings.window.width).toBe(600);
+      expect(settings.window.width).toBe(640);
     });
   });
 
@@ -334,7 +330,7 @@ window:
       const updatedWindowSettings = settingsManager.getWindowSettings();
       expect(updatedWindowSettings.position).toBe('center');
       expect(updatedWindowSettings.width).toBe(800);
-      expect(updatedWindowSettings.height).toBe(300); // Should remain unchanged
+      expect(updatedWindowSettings.height).toBe(320); // Should remain unchanged
     });
 
   });
@@ -362,8 +358,8 @@ window:
         },
         window: {
           position: 'active-text-field',
-          width: 600,
-          height: 300
+          width: 640,
+          height: 320
         },
         fileOpener: {
           extensions: {
@@ -450,18 +446,14 @@ window:
               searchPrefix: 'agent'
             },
             {
-              name: '{basename}',
-              description: '{dirname:2}',
-              path: '~/.claude/teams',
-              pattern: '**/inboxes/*.json',
-              searchPrefix: 'team'
-            },
-            {
               name: '{json@name}',
-              description: '{dirname:2}',
+              description: '{json@prompt}|{json:1@description}',
+              color: '{json@color}|#ffffff',
+              icon: 'organization',
+              label: '{dirname}',
               path: '~/.claude/teams',
-              pattern: '**/config.json@.members',
-              searchPrefix: 'member'
+              pattern: '**/config.json@. | select(.createdAt / 1000 > (now - 86400)) | select((.members | length) >= 2) | .members',
+              searchPrefix: 'team'
             },
             {
               name: '{basename}',
@@ -611,7 +603,7 @@ window:
       const yamlLoad = require('js-yaml').load;
       yamlLoad.mockReturnValueOnce({
         shortcuts: { main: 'Cmd+Shift+Space', paste: 'Cmd+Enter', close: 'Escape' },
-        window: { position: 'active-text-field', width: 600, height: 300 },
+        window: { position: 'active-text-field', width: 640, height: 320 },
         legacyBuiltInCommands: {
           tools: ['claude', 'custom-tool']
         }
