@@ -14,32 +14,32 @@
 }
 
 .notification-info {
-    background-color: #007AFF;
-    color: #ffffff;
+    background-color: oklch(0.623 0.214 259.815);
+    color: oklch(1 0 0);
 }
 
 .notification-success {
-    background-color: #28a745;
-    color: #ffffff;
+    background-color: oklch(0.627 0.194 149.214);
+    color: oklch(1 0 0);
 }
 
 .notification-warning {
-    background-color: #ffc107;
-    color: #000000;
+    background-color: oklch(0.828 0.189 84.429);
+    color: oklch(0 0 0);
 }
 
 .notification-error {
-    background-color: #dc3545;
-    color: #ffffff;
+    background-color: oklch(0.577 0.245 27.325);
+    color: oklch(1 0 0);
 }
 
 /* Character count states */
 .char-count-warning {
-    color: #ffc107 !important;
+    color: oklch(0.828 0.189 84.429) !important;
 }
 
 .char-count-error {
-    color: #dc3545 !important;
+    color: oklch(0.577 0.245 27.325) !important;
 }
 
 /* Loading states */

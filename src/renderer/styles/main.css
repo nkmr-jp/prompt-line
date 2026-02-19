@@ -1,4 +1,5 @@
 /* Main CSS Entry Point */
+@import "tailwindcss";
 
 /* Base styles */
 @import './base/variables.css';

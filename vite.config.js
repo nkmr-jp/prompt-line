@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
 import { fileURLToPath } from 'url';
+import tailwindcss from '@tailwindcss/vite';
 
 const __dirname = resolve(fileURLToPath(import.meta.url), '..');
 
@@ -8,7 +9,7 @@ export default defineConfig({
   // Electron renderer process configuration
   root: 'src/renderer',
   base: './',
-  
+
   build: {
     outDir: '../../dist/renderer',
     emptyOutDir: false, // Don't clear the entire dist/renderer (keep HTML and CSS)
@@ -49,7 +50,9 @@ export default defineConfig({
   },
   
   // Plugin configuration
-  plugins: [],
+  plugins: [
+    tailwindcss(),
+  ],
   
   // Development server (not used in Electron, but good to have)
   server: {
