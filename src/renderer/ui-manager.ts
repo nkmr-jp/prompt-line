@@ -31,7 +31,7 @@ class UIManager {
   constructor() {
     this.themes = {
       dark: {
-        background: 'oklch(from var(--color-gray-950) l c h / 0.95)',
+        background: 'oklch(from var(--color-neutral-950) l c h / 0.95)',
         text: 'var(--color-white)',
         textSecondary: 'oklch(from var(--color-white) l c h / 0.6)',
         border: 'oklch(from var(--color-white) l c h / 0.15)',

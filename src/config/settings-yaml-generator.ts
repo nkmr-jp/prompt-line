@@ -149,11 +149,27 @@ function formatCustomSearchEntry(entry: MentionEntry, indent: string, commented 
   }
 
   const lines = [
-    `${firstLinePrefix}- name: "${entry.name}"`,
-    `${contentLinePrefix}description: "${entry.description}"`,
-    `${contentLinePrefix}path: ${entry.path}`,
-    `${contentLinePrefix}pattern: "${entry.pattern}"`
+    `${firstLinePrefix}- name: "${entry.name}"`
   ];
+
+  // Add label if present
+  if (entry.label) {
+    lines.push(`${contentLinePrefix}label: "${entry.label}"`);
+  }
+
+  // Add icon if present
+  if (entry.icon) {
+    lines.push(`${contentLinePrefix}icon: ${entry.icon}`);
+  }
+
+  // Add color if present
+  if (entry.color) {
+    lines.push(`${contentLinePrefix}color: "${entry.color}"`);
+  }
+
+  lines.push(`${contentLinePrefix}description: "${entry.description}"`);
+  lines.push(`${contentLinePrefix}path: ${entry.path}`);
+  lines.push(`${contentLinePrefix}pattern: "${entry.pattern}"`);
 
   // Add prefixPattern if present
   if (entry.prefixPattern) {
@@ -169,13 +185,11 @@ function formatCustomSearchEntry(entry: MentionEntry, indent: string, commented 
   if (entry.orderBy !== undefined) {
     lines.push(`${contentLinePrefix}orderBy: "${entry.orderBy}"`);
   }
+  if (entry.displayTime !== undefined) {
+    lines.push(`${contentLinePrefix}displayTime: "${entry.displayTime}"`);
+  }
   if (entry.inputFormat !== undefined) {
     lines.push(`${contentLinePrefix}inputFormat: ${entry.inputFormat}               # Insert file path instead of name`);
-  }
-
-  // Add icon if present
-  if (entry.icon) {
-    lines.push(`${contentLinePrefix}icon: "${entry.icon}"`);
   }
 
   return lines.join('\n');
@@ -263,7 +277,7 @@ function buildAgentSkillsSection(settings: UserSettings, options: YamlGeneratorO
   section += '#   description: Skill description template (variables: {basename}, {frontmatter@field}, {dirname}, {dirname:N})\n';
   section += '#   path: Directory path to search for skill files\n';
   section += '#   label: Display label for UI badge (e.g., "command", "skill", "agent")\n';
-  section += '#   color: Badge color (name: grey, slate, red, rose, orange, amber, yellow, lime, green, emerald, teal, cyan, sky, blue, indigo, violet, purple, fuchsia, pink, or hex: #FF5733)\n';
+  section += '#   color: Badge color (name: grey, darkGrey, slate, stone, red, rose, orange, amber, yellow, lime, green, emerald, teal, cyan, sky, blue, indigo, violet, purple, fuchsia, pink, or hex: #FF5733)\n';
   section += '#   icon: Codicon icon name (e.g., "agent", "rocket", "terminal") https://microsoft.github.io/vscode-codicons/dist/codicon.html\n';
   section += '#   pattern: Glob pattern to match files (e.g., "*.md", "**/*/SKILL.md")\n';
   section += '#   prefixPattern: Pattern to extract prefix from plugin metadata\n';
@@ -301,6 +315,16 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
   if (!hasAnyMentionSettings) {
     // No mentions configured - output commented template
     return `#mentions:
+#  # Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
+#  # Supports: Markdown (.md), JSON (.json), JSONL (.jsonl), and jq expressions.
+#  # searchPrefix: Search with @<prefix>: (e.g., searchPrefix: "agent" → @agent:)
+#  customSearch:
+#    - name: "agent-{basename}"
+#      description: "{frontmatter@description}"
+#      path: ~/.claude/agents
+#      pattern: "*.md"
+#      searchPrefix: agent            # Search with @agent:
+#
 #  # File search settings (@path/to/file completion)
 #  # Note: fd command required (brew install fd)
 #  fileSearch:
@@ -317,26 +341,67 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
 #  symbolSearch:
 #    maxSymbols: 200000               # Maximum symbols to return
 #    timeout: 60000                   # Search timeout in ms
-#    #rgPath: null                    # Custom path to rg
-#
-#  # Markdown-based mentions from markdown files
-#  # Pattern examples:
-#  #   "*.md"                  - Root directory only
-#  #   "**/*.md"               - All subdirectories (recursive)
-#  #   "**/commands/*.md"      - Any "commands" subdirectory
-#  #   "**/*/SKILL.md"         - SKILL.md in any subdirectory
-#  #   "**/{cmd,agent}/*.md"   - Brace expansion (cmd or agent dirs)
-#  #   "test-*.md"             - Wildcard prefix
-#  # searchPrefix: Search with @<prefix>: (e.g., searchPrefix: "agent" → @agent:)
-#  customSearch:
-#    - name: "agent-{basename}"
-#      description: "{frontmatter@description}"
-#      path: ~/.claude/agents
-#      pattern: "*.md"
-#      searchPrefix: agent            # Search with @agent:`;
+#    #rgPath: null                    # Custom path to rg`;
   }
 
   let section = 'mentions:\n';
+
+  // Custom search subsection (first, as the most configurable section)
+  section += `  # Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
+  # Scans directories for files matching glob patterns and provides @ mention suggestions.
+  # Supports: Markdown (.md), JSON (.json), JSONL (.jsonl), and jq expressions.
+  #
+  # Configuration fields:
+  #   name            : Display name template
+  #   description     : Entry description template (supports "|" fallback: "{json@a}|{json@b}")
+  #   path            : Directory path to scan (supports ~ for home)
+  #   pattern         : Glob pattern to match files
+  #   prefixPattern   : Pattern to extract prefix from plugin metadata
+  #   searchPrefix    : Prefix to trigger this search (e.g., "agent" → @agent:)
+  #   maxSuggestions  : Maximum number of suggestions to display
+  #   orderBy         : Sort order (e.g., "name", "name desc", "{updatedAt} desc")
+  #   displayTime     : Timestamp to display (e.g., "{updatedAt}", "{json@createdAt}", "none" to hide)
+  #   inputFormat     : Insert format (name, path)
+  #   color           : Badge color (name or hex)
+  #   icon            : Codicon icon name (e.g., "agent", "rocket", "terminal")
+  #                     https://microsoft.github.io/vscode-codicons/dist/codicon.html
+  #   label           : UI badge label
+  #
+  # Template variables:
+  #   {basename}          — File name without extension
+  #   {frontmatter@field} — YAML frontmatter field from markdown files
+  #   {json@field}        — JSON field value (for .json/.jsonl files)
+  #   {json:N@field}      — JSON field from N-th level array item
+  #   {prefix}            — Prefix extracted via prefixPattern
+  #   {dirname}           — Parent directory name
+  #   {dirname:N}         — N levels up directory name (e.g., {dirname:2} = grandparent)
+  #
+  # Pattern examples:
+  #   "*.md"                              — Markdown files in root directory only
+  #   "**/*.md"                           — All subdirectories (recursive)
+  #   "**/commands/*.md"                  — Any "commands" subdirectory
+  #   "**/*/SKILL.md"                     — SKILL.md in any subdirectory
+  #   "**/{cmd,agent}/*.md"              — Brace expansion (cmd or agent dirs)
+  #   "*.json"                            — JSON files (use {json@field} for template variables)
+  #   "**/config.json@.members"          — JSON + jq expression (expands array into items)
+  #   "*.json@.items | map(select(.active))" — Complex jq expressions supported
+  #   "*.jsonl"                           — JSONL files (one JSON per line)
+  customSearch:
+`;
+
+  if (customSearchEntries && customSearchEntries.length > 0) {
+    for (const entry of customSearchEntries) {
+      section += formatCustomSearchEntry(entry, '    ') + '\n\n';
+    }
+  }
+
+  // Add commented customSearch examples if requested
+  if (options.includeCommentedExamples) {
+    const commentedCustomSearch = commentedExamples.mentions?.customSearch ?? [];
+    for (const entry of commentedCustomSearch) {
+      section += formatCustomSearchEntry(entry as MentionEntry, '    ', true) + '\n\n';
+    }
+  }
 
   // File search subsection
   if (fileSearch) {
@@ -411,56 +476,6 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
     timeout: 60000
     #rgPath: null
 `;
-  }
-
-  // Markdown-based mentions subsection
-  section += `
-  # Markdown-based mentions from markdown files
-  # Configuration fields:
-  #   name: Display name template (variables: {basename}, {frontmatter@field}, {prefix})
-  #   description: Entry description template (variables: {basename}, {frontmatter@field}, {dirname}, {dirname:N})
-  #   path: Directory path to search for markdown files
-  #   pattern: Glob pattern to match files
-  #   prefixPattern: Pattern to extract prefix from plugin metadata
-  #   searchPrefix: Prefix to trigger this search (e.g., "agent" → @agent:)
-  #   maxSuggestions: Maximum number of suggestions to display
-  #   orderBy: Sort order (e.g., "name", "name desc", "description desc")
-  #   inputFormat: Insert format (name, path)
-  #   icon: Codicon icon name (e.g., "agent", "rocket", "terminal") https://microsoft.github.io/vscode-codicons/dist/codicon.html
-  #   {dirname}: Parent directory name
-  #   {dirname:N}: N levels up directory name (e.g., {dirname:2} = grandparent)
-  #
-  # Pattern examples:
-  #   "*.md"                  - Root directory only
-  #   "**/*.md"               - All subdirectories (recursive)
-  #   "**/commands/*.md"      - Any "commands" subdirectory
-  #   "**/*/SKILL.md"         - SKILL.md in any subdirectory
-  #   "**/{cmd,agent}/*.md"   - Brace expansion (cmd or agent dirs)
-  #   "test-*.md"             - Wildcard prefix
-  #   "*.json"                - JSON files (use {json@field} for template variables)
-  #   "**/config.json@.members"  - JSON + jq expression (expands array into items)
-  #   "*.json@.items | map(select(.active))" - Complex jq expressions supported
-  #   "*.jsonl"                   - JSONL files (one JSON per line)
-  #
-  # JSON file support:
-  #   Use pattern "*.json" with {json@field} template variables
-  #   Example: name: "{json@name}", description: "{json@description}"
-  #   Nested fields: {json@nested.field}
-  customSearch:
-`;
-
-  if (customSearchEntries && customSearchEntries.length > 0) {
-    for (const entry of customSearchEntries) {
-      section += formatCustomSearchEntry(entry, '    ') + '\n\n';
-    }
-  }
-
-  // Add commented customSearch examples if requested
-  if (options.includeCommentedExamples) {
-    const commentedCustomSearch = commentedExamples.mentions?.customSearch ?? [];
-    for (const entry of commentedCustomSearch) {
-      section += formatCustomSearchEntry(entry as MentionEntry, '    ', true) + '\n\n';
-    }
   }
 
   return section.trimEnd();

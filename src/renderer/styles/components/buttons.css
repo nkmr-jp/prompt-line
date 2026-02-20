@@ -36,11 +36,11 @@
 }
 
 .search-close:hover {
-    background: oklch(from var(--color-gray-500) l c h / 0.8);
+    background: oklch(from var(--color-neutral-500) l c h / 0.8);
     color: oklch(from var(--color-white) l c h / 0.9);
 }
 
 .search-close:active {
-    background: var(--color-gray-500);
+    background: var(--color-neutral-500);
     transform: scale(0.95);
 }

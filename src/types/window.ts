@@ -7,10 +7,10 @@ import type { DirectoryInfo } from './file-search';
 
 /**
  * Color value type supporting both named colors and hex color codes
- * Named colors: 'grey', 'slate', 'red', 'rose', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink'
+ * Named colors: 'grey', 'darkGrey', 'slate', 'stone', 'red', 'rose', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink'
  * Hex codes: '#RGB' or '#RRGGBB' (e.g., '#0066CC', '#F5A')
  */
-export type ColorValue = 'grey' | 'darkGrey' | 'slate' | 'red' | 'rose' | 'orange' | 'amber' | 'yellow' | 'lime' | 'green' | 'emerald' | 'teal' | 'cyan' | 'sky' | 'blue' | 'indigo' | 'violet' | 'purple' | 'fuchsia' | 'pink' | string;
+export type ColorValue = 'grey' | 'darkGrey' | 'slate' | 'stone' | 'red' | 'rose' | 'orange' | 'amber' | 'yellow' | 'lime' | 'green' | 'emerald' | 'teal' | 'cyan' | 'sky' | 'blue' | 'indigo' | 'violet' | 'purple' | 'fuchsia' | 'pink' | string;
 
 export interface AppInfo {
   name: string;
@@ -340,6 +340,8 @@ export interface MentionEntry {
   searchPrefix?: string;
   /** オプション: ソート順（デフォルト: 'name'） - 'name', 'name desc', 'description desc' など */
   orderBy?: string;
+  /** オプション: 末尾に表示する日時テンプレート（例: "{updatedAt}", "{json@createdAt}", "none"で非表示） */
+  displayTime?: string;
   /** オプション: 入力フォーマット（デフォルト: 'name'） */
   inputFormat?: InputFormatType;
   /** オプション: プレフィックスパターン - 特定JSONファイルからプレフィックスを動的に読み込むためのパターン */
@@ -403,6 +405,8 @@ export interface CustomSearchEntry {
   searchPrefix?: string;
   /** オプション: ソート順（デフォルト: 'name'） - 'name', 'name desc', 'description desc' など */
   orderBy?: string;
+  /** オプション: 末尾に表示する日時テンプレート（例: "{updatedAt}", "{json@createdAt}", "none"で非表示） */
+  displayTime?: string;
   /** オプション: 入力フォーマット（デフォルト: 'name'） - 'name': 名前のみ, 'path': ファイルパス */
   inputFormat?: InputFormatType;
   /** オプション: プレフィックスパターン - 特定JSONファイルからプレフィックスを動的に読み込むためのパターン */
@@ -449,6 +453,10 @@ export interface CustomSearchItem {
   sortKey?: string;
   /** 入力フォーマット（'name' | 'path'） */
   inputFormat?: InputFormatType;
+  /** ファイル更新日時（mtimeMs） */
+  updatedAt?: number;
+  /** 表示用日時（displayTime設定で解決された値。undefinedはupdatedAtにフォールバック、nullは非表示） */
+  displayTime?: number | null;
 }
 
 export interface AgentSkillItem {
@@ -463,6 +471,7 @@ export interface AgentSkillItem {
   inputFormat?: InputFormatType;  // 入力フォーマット（'name' | 'path'）
   source?: string;  // Source tool identifier (e.g., 'claude-code') for filtering
   displayName?: string;  // Human-readable source name for display (e.g., 'Claude Code')
+  updatedAt?: number;  // File modification timestamp (mtimeMs)
 }
 
 /** @deprecated Use AgentSkillItem instead */
@@ -477,4 +486,6 @@ export interface AgentItem {
   color?: ColorValue;
   icon?: string;  // Codicon icon class name (e.g., "codicon-rocket")
   label?: string;
+  updatedAt?: number;  // File modification timestamp (mtimeMs)
+  displayTime?: number | null;  // Resolved display time (null = hidden, undefined = fallback to updatedAt)
 }

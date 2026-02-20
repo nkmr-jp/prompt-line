@@ -464,6 +464,10 @@ export class FileFilterManager {
     // Get agent usage bonuses
     const agentBonuses = this.callbacks.getAgentUsageBonuses?.() ?? {};
 
+    // Track original agent order from backend (preserves orderBy setting like updatedAt desc)
+    const agentOrder = new Map<AgentItem, number>();
+    filteredAgents.forEach((agent, i) => agentOrder.set(agent, i));
+
     // Add agents with scores (including usage bonuses)
     for (const agent of filteredAgents) {
       const bonus = agentBonuses[agent.name] ?? 0;
@@ -480,14 +484,26 @@ export class FileFilterManager {
         if (aIsDir && !bIsDir) return -1;
         if (!aIsDir && bIsDir) return 1;
 
+        // Both agents: preserve backend sort order (e.g., orderBy: updatedAt desc)
+        if (a.type === 'agent' && b.type === 'agent') {
+          return (agentOrder.get(a.agent!) ?? 0) - (agentOrder.get(b.agent!) ?? 0);
+        }
+
         // Then by name alphabetically
         const aName = a.type === 'file' ? a.file?.name || '' : a.agent?.name || '';
         const bName = b.type === 'file' ? b.file?.name || '' : b.agent?.name || '';
         return aName.localeCompare(bName);
       });
     } else {
-      // Sort by score descending
-      items.sort((a, b) => b.score - a.score);
+      // Sort by score descending, with backend order as tiebreaker for agents
+      items.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        // Tiebreaker: preserve backend sort order for agents
+        if (a.type === 'agent' && b.type === 'agent') {
+          return (agentOrder.get(a.agent!) ?? 0) - (agentOrder.get(b.agent!) ?? 0);
+        }
+        return 0;
+      });
     }
 
     // Limit to maxSuggestions

@@ -161,7 +161,7 @@
 
 /* Default agent skill highlight (gray for unknown source or duplicate skills) */
 .highlight-backdrop .agent-skill-highlight {
-    background: oklch(from var(--color-gray-500) l c h / 0.25);
+    background: oklch(from var(--color-neutral-500) l c h / 0.25);
     border-radius: 4px;
     color: transparent;
 
@@ -194,12 +194,13 @@
 /* Color based highlights (takes priority over source) */
 .highlight-backdrop .agent-skill-highlight.agent-skill-color-grey,
 .highlight-backdrop .agent-skill-highlight.agent-skill-color-gray {
-    background: oklch(from var(--color-gray-400) l c h / 0.25);
+    background: oklch(from var(--color-neutral-400) l c h / 0.25);
 }
 
 .highlight-backdrop .agent-skill-highlight.agent-skill-color-darkGrey,
-.highlight-backdrop .agent-skill-highlight.agent-skill-color-slate {
-    background: oklch(from var(--color-slate-400) l c h / 0.25);
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-slate,
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-stone {
+    background: oklch(from var(--color-stone-400) l c h / 0.25);
 }
 
 .highlight-backdrop .agent-skill-highlight.agent-skill-color-red {

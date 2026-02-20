@@ -8,7 +8,7 @@
   width: max-content;
   overflow-y: auto;
   @apply overflow-x-hidden;
-  background: var(--color-gray-900);
+  background: var(--color-neutral-900);
   border-radius: 6px;
   box-shadow: 0 4px 12px oklch(from var(--color-black) l c h / 0.3);
   z-index: 100;
@@ -28,7 +28,7 @@
 
 /* Hover style only when mouse has explicitly moved (hover-enabled class is added by JS) */
 .agent-skill-suggestions.hover-enabled .agent-skill-suggestion-item:hover {
-  background: var(--bg-hover, var(--color-gray-900));
+  background: var(--bg-hover, var(--color-neutral-900));
 }
 
 .agent-skill-suggestion-item.selected {
@@ -52,7 +52,7 @@
   @apply shrink-0 whitespace-nowrap;
   font-size: 9px;
   color: var(--text-secondary, #888);
-  background: oklch(from var(--color-gray-500) l c h / 0.3);
+  background: oklch(from var(--color-neutral-500) l c h / 0.3);
   padding: 2px 4px;
   border-radius: 3px;
   margin-right: 2px;
@@ -81,14 +81,15 @@
 
 /* Source badge color variations (same as label colors) */
 .agent-skill-source[data-color="grey"] {
-  color: var(--color-gray-400);
-  background: oklch(from var(--color-gray-400) l c h / 0.2);
+  color: var(--color-neutral-400);
+  background: oklch(from var(--color-neutral-400) l c h / 0.2);
 }
 
 .agent-skill-source[data-color="darkGrey"],
-.agent-skill-source[data-color="slate"] {
-  color: var(--color-slate-400);
-  background: oklch(from var(--color-slate-400) l c h / 0.2);
+.agent-skill-source[data-color="slate"],
+.agent-skill-source[data-color="stone"] {
+  color: var(--color-stone-400);
+  background: oklch(from var(--color-stone-400) l c h / 0.2);
 }
 
 .agent-skill-source[data-color="red"] {
@@ -189,14 +190,15 @@
 
 /* Label color variations */
 .agent-skill-label[data-color="grey"] {
-  color: var(--color-gray-400);
-  background: oklch(from var(--color-gray-400) l c h / 0.2);
+  color: var(--color-neutral-400);
+  background: oklch(from var(--color-neutral-400) l c h / 0.2);
 }
 
 .agent-skill-label[data-color="darkGrey"],
-.agent-skill-label[data-color="slate"] {
-  color: var(--color-slate-400);
-  background: oklch(from var(--color-slate-400) l c h / 0.2);
+.agent-skill-label[data-color="slate"],
+.agent-skill-label[data-color="stone"] {
+  color: var(--color-stone-400);
+  background: oklch(from var(--color-stone-400) l c h / 0.2);
 }
 
 .agent-skill-label[data-color="red"] {
@@ -296,7 +298,7 @@
 /* Argument hint badge (gray) */
 .agent-skill-source.argument-hint-badge {
   color: var(--text-tertiary);
-  background: oklch(from var(--color-gray-500) l c h / 0.3);
+  background: oklch(from var(--color-neutral-500) l c h / 0.3);
   padding: 2px 4px;
   margin-right: 2px;
 }
@@ -313,6 +315,15 @@
 .argument-hint-copy-icon:hover {
   color: var(--text-tertiary);
   opacity: 1;
+}
+
+/* Updated-at timestamp */
+.agent-skill-updated-at {
+  @apply shrink-0 whitespace-nowrap;
+  font-size: 9px;
+  color: oklch(from var(--color-neutral-500) l c h / 0.6);
+  margin-left: auto;
+  padding-left: 4px;
 }
 
 .agent-skill-highlight {
@@ -333,10 +344,10 @@
 }
 
 .agent-skill-suggestions::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb, #555);
+  background: var(--scrollbar-thumb, var(--color-neutral-600));
   border-radius: 3px;
 }
 
 .agent-skill-suggestions::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-thumb-hover, #666);
+  background: var(--scrollbar-thumb-hover, var(--color-neutral-500));
 }

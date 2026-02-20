@@ -179,7 +179,6 @@ Built-in commandsは `~/.prompt-line/built-in-commands/` のYAMLファイルを�
 
 ```bash
 pnpm run update-built-in-commands  # 最新のデフォルトに更新
-pnpm run reset-built-in-commands   # すべてデフォルトにリセット
 ```
 
 #### @Mentions
@@ -229,7 +228,8 @@ pnpm run reset-built-in-commands   # すべてデフォルトにリセット
 | `shortcuts` | キーボードショートカット（メイン、ペースト、クローズ、履歴ナビゲーション、検索） |
 | `window` | ウィンドウサイズと配置モード |
 | `fileOpener` | デフォルトエディタと拡張子別アプリケーション |
-| `slashCommands` | Built-in commands や Agent Skills検索 |
+| `builtInCommands` | Built-inスラッシュコマンドの有効化（claude, codex, gemini等） |
+| `agentSkills` | マークダウンファイルからのAgent Skills（カスタムコマンド、スキル、プラグイン） |
 | `mentions.fileSearch` | ファイル検索設定（@path/to/file補完） |
 | `mentions.symbolSearch` | シンボル検索設定（@ts:Config、@go:Handler） |
 | `mentions.customSearch` | searchPrefixによるマークダウン検索（agent, rules, docs等）、frontmatterテンプレート変数対応 |

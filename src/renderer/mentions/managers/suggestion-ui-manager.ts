@@ -22,9 +22,10 @@ import { getSymbolTypeDisplay } from '../code-search/types';
 import { getCaretCoordinates, createMirrorDiv, insertHighlightedText } from '../dom-utils';
 import { getRelativePath, getDirectoryFromPath } from '../path-utils';
 import { getFileIconSvg, getSymbolCodiconClass } from '../../assets/icons/file-icons';
+import { formatTime } from '../../utils/time-formatter';
 
 const COLOR_MAP: Record<string, string> = {
-  grey: 'var(--color-gray-400)', darkGrey: 'var(--color-gray-500)', slate: 'var(--color-slate-400)',
+  grey: 'var(--color-neutral-400)', darkGrey: 'var(--color-neutral-500)', slate: 'var(--color-stone-400)', stone: 'var(--color-stone-400)',
   red: 'var(--color-red-400)', rose: 'var(--color-rose-400)',
   orange: 'var(--color-orange-400)', amber: 'var(--color-amber-400)',
   yellow: 'var(--color-yellow-300)', lime: 'var(--color-lime-400)',
@@ -298,8 +299,17 @@ export class SuggestionUIManager {
     // Get maxSuggestions setting for merged list
     const maxSuggestions = await this.callbacks.getMaxSuggestions?.('mention') ?? 20;
 
+    // Strip searchPrefix from query for scoring (e.g., "plan:" → "", "plan:custom" → "custom")
+    let scoringQuery = searchTerm;
+    if (matchesPrefix) {
+      const colonIndex = searchTerm.indexOf(':');
+      if (colonIndex >= 0) {
+        scoringQuery = searchTerm.substring(colonIndex + 1);
+      }
+    }
+
     // Merge files and agents into a single sorted list
-    const merged = this.callbacks.mergeSuggestions?.(searchTerm, maxSuggestions, fileUsageBonuses) ?? [];
+    const merged = this.callbacks.mergeSuggestions?.(scoringQuery, maxSuggestions, fileUsageBonuses) ?? [];
     this.callbacks.setMergedSuggestions?.(merged);
 
     this.callbacks.setSelectedIndex?.(0);
@@ -600,6 +610,15 @@ export class SuggestionUIManager {
     }
 
     item.appendChild(desc);
+
+    // displayTime: null means explicitly hidden, undefined means no display
+    const timeValue = agent.displayTime;
+    if (timeValue != null && timeValue !== undefined) {
+      const timeSpan = document.createElement('span');
+      timeSpan.className = 'agent-skill-updated-at';
+      timeSpan.textContent = formatTime(timeValue);
+      item.appendChild(timeSpan);
+    }
 
     if (agent.frontmatter && this.callbacks.onMouseEnterInfo) {
       const infoIcon = document.createElement('span');

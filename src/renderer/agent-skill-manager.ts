@@ -12,8 +12,9 @@ import { extractTriggerQueryAtCursor } from './utils/trigger-query-extractor';
 import { getCaretCoordinates, createMirrorDiv } from './mentions/dom-utils';
 import { compareTiebreak } from '../lib/tiebreaker';
 
+
 const COLOR_MAP: Record<string, string> = {
-  grey: 'var(--color-gray-400)', darkGrey: 'var(--color-gray-500)', slate: 'var(--color-slate-400)',
+  grey: 'var(--color-neutral-400)', darkGrey: 'var(--color-neutral-500)', slate: 'var(--color-stone-400)', stone: 'var(--color-stone-400)',
   red: 'var(--color-red-400)', rose: 'var(--color-rose-400)',
   orange: 'var(--color-orange-400)', amber: 'var(--color-amber-400)',
   yellow: 'var(--color-yellow-300)', lime: 'var(--color-lime-400)',
@@ -37,7 +38,7 @@ interface AgentSkillItem {
   /**
    * Color for label and highlight
    * Supports both named colors and hex color codes:
-   * - Named colors: 'grey', 'slate', 'red', 'rose', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink'
+   * - Named colors: 'grey', 'darkGrey', 'slate', 'stone', 'red', 'rose', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink'
    * - Hex codes: '#RGB' or '#RRGGBB' (e.g., '#FF6B35', '#F63')
    */
   color?: ColorValue;
@@ -48,6 +49,7 @@ interface AgentSkillItem {
   inputFormat?: InputFormatType;  // 入力フォーマット（'name' | 'path'）
   source?: string;  // Source tool identifier (e.g., 'claude-code') for filtering
   displayName?: string;  // Human-readable source name for display (e.g., 'Claude Code')
+  updatedAt?: number;  // File modification timestamp (mtimeMs)
 }
 
 export class AgentSkillManager implements IInitializable {

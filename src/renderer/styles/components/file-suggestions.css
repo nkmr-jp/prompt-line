@@ -10,7 +10,7 @@
   /* Width is determined by content, with max-width set dynamically via JS */
   width: max-content;
   overflow-y: auto;
-  background: var(--color-gray-900);
+  background: var(--color-neutral-900);
   /*border: 1px solid #444;*/
   border-radius: 6px;
   box-shadow: 0 4px 12px oklch(from var(--color-black) l c h / 0.3);
@@ -22,7 +22,7 @@
   font-size: 11px;
   color: var(--text-secondary, #888);
   background: var(--bg-tertiary, #2a2a2a);
-  border-bottom: 1px solid var(--border-color, #333);
+  border-bottom: 1px solid var(--border-color, var(--color-neutral-700));
   /*font-family: monospace;*/
 }
 
@@ -30,7 +30,7 @@
   @apply flex flex-row flex-nowrap items-center cursor-pointer min-w-0;
   padding: 4px 10px;
   gap: 6px;
-  /*border-bottom: 1px solid var(--border-color, #333);*/
+  /*border-bottom: 1px solid var(--border-color, var(--color-neutral-700));*/
   transition: background-color 0.1s ease;
 }
 
@@ -44,7 +44,7 @@
    The .hovered class is added only when mouse actually moves over an item. */
 
 .file-suggestion-item.hovered {
-  background: var(--bg-hover, var(--color-gray-900));
+  background: var(--bg-hover, var(--color-neutral-900));
 }
 
 .file-suggestion-item.selected {
@@ -110,7 +110,7 @@
   letter-spacing: 0.5px;
   color: var(--text-secondary, #888);
   background: var(--bg-tertiary, #2a2a2a);
-  border-bottom: 1px solid var(--border-color, #333);
+  border-bottom: 1px solid var(--border-color, var(--color-neutral-700));
 }
 
 /* Agent-specific styles */
@@ -177,11 +177,11 @@
 /* Back button for symbol navigation */
 .file-suggestion-item.back-item {
   background: var(--bg-tertiary, #2a2a2a);
-  border-bottom: 1px solid var(--border-color, #333);
+  border-bottom: 1px solid var(--border-color, var(--color-neutral-700));
 }
 
 .file-suggestion-item.back-item:hover {
-  background: var(--bg-hover, #333);
+  background: var(--bg-hover, var(--color-neutral-800));
 }
 
 .file-suggestion-item.back-item .file-suggestion-icon {
@@ -199,18 +199,18 @@
 }
 
 .file-suggestions::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb, #555);
+  background: var(--scrollbar-thumb, var(--color-neutral-600));
   border-radius: 3px;
 }
 
 .file-suggestions::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-thumb-hover, #666);
+  background: var(--scrollbar-thumb-hover, var(--color-neutral-500));
 }
 
 /* Frontmatter Popup Styles */
 .frontmatter-popup {
   position: fixed;
-  background: var(--color-gray-950); /* Darker than menu for contrast */
+  background: var(--color-neutral-950); /* Darker than menu for contrast */
   border: 1px solid oklch(from var(--color-white) l c h / 0.2);
   border-radius: 6px;
   padding: 8px 10px;
@@ -236,12 +236,12 @@
 }
 
 .frontmatter-popup::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb, #555);
+  background: var(--scrollbar-thumb, var(--color-neutral-600));
   border-radius: 4px;
 }
 
 .frontmatter-popup::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-thumb-hover, #666);
+  background: var(--scrollbar-thumb-hover, var(--color-neutral-500));
 }
 
 /* Frontmatter Content */

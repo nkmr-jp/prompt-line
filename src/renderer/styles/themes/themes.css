@@ -11,7 +11,7 @@
 
 /* Dark theme variables */
 .theme-dark {
-    --bg-color: oklch(from var(--color-gray-950) l c h / 0.95);
+    --bg-color: oklch(from var(--color-neutral-950) l c h / 0.95);
     --text-color: var(--color-white);
     --text-secondary: oklch(from var(--color-white) l c h / 0.6);
     --border-color: oklch(from var(--color-white) l c h / 0.15);

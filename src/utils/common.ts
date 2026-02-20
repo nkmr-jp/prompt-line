@@ -73,7 +73,7 @@ export function validateColorValue(color: string | undefined, defaultColor = 'gr
   }
 
   // Named colors list
-  const namedColors = ['grey', 'darkGrey', 'blue', 'purple', 'teal', 'green', 'yellow', 'orange', 'pink', 'red'];
+  const namedColors = ['grey', 'darkGrey', 'slate', 'stone', 'red', 'rose', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink'];
 
   // Check if it's a named color
   if (namedColors.includes(color)) {

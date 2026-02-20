@@ -249,6 +249,14 @@ class CustomSearchLoader {
   private sortItems(items: CustomSearchItem[], orderBy: string): CustomSearchItem[] {
     const { field, direction } = CustomSearchLoader.parseOrderBy(orderBy);
     return [...items].sort((a, b) => {
+      // updatedAt: 数値比較（未設定は0扱い）
+      if (field === 'updatedAt') {
+        const aTime = a.updatedAt ?? 0;
+        const bTime = b.updatedAt ?? 0;
+        const comparison = aTime - bTime;
+        return direction === 'desc' ? -comparison : comparison;
+      }
+
       let aValue: string;
       let bValue: string;
       if (field === 'name') {
@@ -431,7 +439,10 @@ class CustomSearchLoader {
     sourceId: string
   ): Promise<CustomSearchItem | null> {
     try {
-      const content = await fs.readFile(filePath, 'utf8');
+      const [content, fileStat] = await Promise.all([
+        fs.readFile(filePath, 'utf8'),
+        fs.stat(filePath),
+      ]);
       const isJsonFile = filePath.endsWith('.json');
       const frontmatter = isJsonFile ? {} : parseFrontmatter(content);
       const rawFrontmatter = isJsonFile ? '' : extractRawFrontmatter(content);
@@ -479,6 +490,10 @@ class CustomSearchLoader {
         if (resolvedHint) item.argumentHint = resolvedHint;
       }
       if (entry.inputFormat) item.inputFormat = entry.inputFormat;
+      item.updatedAt = fileStat.mtimeMs;
+
+      const displayTime = this.resolveDisplayTime(entry, context, fileStat.mtimeMs);
+      if (displayTime !== undefined) item.displayTime = displayTime;
 
       return item;
     } catch (error) {
@@ -553,6 +568,9 @@ class CustomSearchLoader {
           if (resolvedHint) item.argumentHint = resolvedHint;
         }
         if (entry.inputFormat) item.inputFormat = entry.inputFormat;
+
+        const displayTime = this.resolveDisplayTime(entry, context);
+        if (displayTime !== undefined) item.displayTime = displayTime;
 
         if (item.name) {
           items.push(item);
@@ -653,13 +671,38 @@ class CustomSearchLoader {
   }
 
   /**
+   * entryのdisplayTimeテンプレートからタイムスタンプを解決する
+   * @returns number（タイムスタンプ）、null（"none"で非表示）、undefined（未設定）
+   */
+  private resolveDisplayTime(
+    entry: CustomSearchEntry,
+    context: Parameters<typeof resolveTemplate>[1],
+    fileMtimeMs?: number
+  ): number | null | undefined {
+    if (!entry.displayTime) return undefined;
+    if (entry.displayTime === 'none') return null;
+
+    // {updatedAt} は特別扱い: ファイル更新日時を使用
+    const parsed = CustomSearchLoader.parseOrderBy(entry.displayTime);
+    if (parsed.field === 'updatedAt') {
+      return fileMtimeMs;
+    }
+
+    // テンプレートを解決して数値に変換
+    const resolved = resolveTemplate(entry.displayTime, context);
+    if (!resolved) return undefined;
+    const num = Number(resolved);
+    return isNaN(num) ? undefined : num;
+  }
+
+  /**
    * entryのorderByテンプレートからsortKeyを解決する
    * name/descriptionフィールドの場合はsortKey不要（sortItemsが直接参照する）
    */
   private resolveSortKey(entry: CustomSearchEntry, context: Parameters<typeof resolveTemplate>[1]): string | undefined {
     if (!entry.orderBy) return undefined;
     const { field } = CustomSearchLoader.parseOrderBy(entry.orderBy);
-    if (field === 'name' || field === 'description') return undefined;
+    if (field === 'name' || field === 'description' || field === 'updatedAt') return undefined;
     const template = CustomSearchLoader.extractOrderByTemplate(entry.orderBy);
     const resolved = resolveTemplate(template, context);
     return resolved || undefined;
@@ -706,6 +749,9 @@ class CustomSearchLoader {
       if (resolvedHint) item.argumentHint = resolvedHint;
     }
     if (entry.inputFormat) item.inputFormat = entry.inputFormat;
+
+    const displayTime = this.resolveDisplayTime(entry, context);
+    if (displayTime !== undefined) item.displayTime = displayTime;
 
     return item.name ? item : null;
   }

@@ -5,8 +5,8 @@
 
 .code-suggestions {
   @apply absolute overflow-y-auto;
-  background: var(--bg-color, var(--color-gray-900));
-  border: 1px solid var(--border-color, #444);
+  background: var(--bg-color, var(--color-neutral-900));
+  border: 1px solid var(--border-color, var(--color-neutral-700));
   border-radius: 6px;
   box-shadow: 0 4px 12px oklch(from var(--color-black) l c h / 0.3);
   z-index: 1000;
@@ -16,7 +16,7 @@
   @apply flex items-center cursor-pointer;
   padding: 8px 12px;
   gap: 8px;
-  border-bottom: 1px solid var(--border-color, #333);
+  border-bottom: 1px solid var(--border-color, var(--color-neutral-700));
   transition: background-color 0.1s ease;
 }
 
@@ -26,34 +26,34 @@
 
 .code-suggestion-item:hover,
 .code-suggestion-item.selected {
-  background: var(--selection-bg, #2a2d2e);
+  background: var(--selection-bg, var(--color-neutral-800));
 }
 
 .code-suggestion-icon {
   @apply shrink-0 text-center;
   font-size: 14px;
   width: 20px;
-  color: var(--accent-color, #569cd6);
+  color: var(--accent-color, var(--color-blue-400));
 }
 
 .code-suggestion-name {
   @apply font-semibold shrink-0;
-  color: var(--text-color, #d4d4d4);
+  color: var(--text-color, var(--color-neutral-300));
 }
 
 .code-suggestion-type {
   @apply shrink-0;
   font-size: 11px;
-  color: var(--muted-color, #888);
+  color: var(--muted-color, var(--color-neutral-500));
   padding: 2px 6px;
-  background: var(--tag-bg, #333);
+  background: var(--tag-bg, var(--color-neutral-800));
   border-radius: 4px;
 }
 
 .code-suggestion-path {
   @apply overflow-hidden text-ellipsis whitespace-nowrap;
   font-size: 12px;
-  color: var(--muted-color, #888);
+  color: var(--muted-color, var(--color-neutral-500));
   margin-left: auto;
   max-width: 50%;
 }
@@ -68,10 +68,10 @@
 }
 
 .code-suggestions::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb, #555);
+  background: var(--scrollbar-thumb, var(--color-neutral-600));
   border-radius: 3px;
 }
 
 .code-suggestions::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-thumb-hover, #666);
+  background: var(--scrollbar-thumb-hover, var(--color-neutral-500));
 }

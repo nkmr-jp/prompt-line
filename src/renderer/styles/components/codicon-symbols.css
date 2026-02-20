@@ -675,10 +675,10 @@
 .symbol-icon.codicon-symbol-field { color: var(--color-lime-300); }
 .symbol-icon.codicon-symbol-property { color: var(--color-lime-300); }
 .symbol-icon.codicon-symbol-enum { color: var(--color-orange-300); }
-.symbol-icon.codicon-symbol-module { color: var(--color-slate-400); }
-.symbol-icon.codicon-symbol-namespace { color: var(--color-slate-400); }
-.symbol-icon.codicon-symbol-key { color: var(--color-slate-400); }
-.symbol-icon.codicon-symbol-misc { color: var(--color-slate-400); }
+.symbol-icon.codicon-symbol-module { color: var(--color-stone-400); }
+.symbol-icon.codicon-symbol-namespace { color: var(--color-stone-400); }
+.symbol-icon.codicon-symbol-key { color: var(--color-stone-400); }
+.symbol-icon.codicon-symbol-misc { color: var(--color-stone-400); }
 .symbol-icon.codicon-package { color: var(--color-violet-500); }
 .symbol-icon.codicon-database { color: var(--color-cyan-500); }
 .symbol-icon.codicon-output { color: var(--color-green-500); }
