@@ -88,12 +88,12 @@ brew install fd ripgrep
 
 2. 依存関係をインストール:
    ```bash
-   npm install
+   pnpm install
    ```
 
 3. アプリケーションをビルド:
    ```bash
-   npm run build
+   pnpm run build
    ```
 
 4. ビルドされたアプリは `dist/` ディレクトリに作成されます
@@ -131,7 +131,7 @@ Prompt Lineが他のアプリケーションにテキストを貼り付けるに
 
 アクセシビリティ権限のリセットは以下のコマンドでもできます。
 ```bash
-npm run reset-accessibility
+pnpm run reset-accessibility
 ```
 
 
@@ -139,7 +139,7 @@ npm run reset-accessibility
 
 既に古いバージョンをインストール済みで、最新版にアップデートする場合は以下の手順を実行してください。
 
-1. `npm run reset-accessibility`のコマンドを実行して「Prompt Line」のアクセシビリティ権限をリセット
+1. `pnpm run reset-accessibility`のコマンドを実行して「Prompt Line」のアクセシビリティ権限をリセット
 2. 「📦 インストール」の項目を参照して、再度インストール
 
 
@@ -178,8 +178,8 @@ Claude Code、OpenAI Codex、Google GeminiなどのBuilt-in commandsが利用可
 Built-in commandsは `~/.prompt-line/built-in-commands/` のYAMLファイルを編集してカスタマイズできます。変更は自動的に反映されます。
 
 ```bash
-npm run update-built-in-commands  # 最新のデフォルトに更新
-npm run reset-built-in-commands   # すべてデフォルトにリセット
+pnpm run update-built-in-commands  # 最新のデフォルトに更新
+pnpm run reset-built-in-commands   # すべてデフォルトにリセット
 ```
 
 #### @Mentions

@@ -70,12 +70,12 @@ Of course, it also works with apps other than Terminal.
 
 2. Install dependencies:
    ```bash
-   npm install
+   pnpm install
    ```
 
 3. Build the application:
    ```bash
-   npm run build
+   pnpm run build
    ```
 
 4. The built app will be created in the `dist/` directory
@@ -114,14 +114,14 @@ A dialog box will appear on first use, so follow the instructions to set it up.
 
 Accessibility permissions can also be reset using the following command:
 ```bash
-npm run reset-accessibility
+pnpm run reset-accessibility
 ```
 
 ## 📦 Update
 
 If you already have an older version installed and want to update to the latest version, follow these steps.
 
-1. Run the `npm run reset-accessibility` command to reset the accessibility permissions in the “Prompt Line.”
+1. Run the `pnpm run reset-accessibility` command to reset the accessibility permissions in the “Prompt Line.”
 2. Refer to the “📦 Installation” section and reinstall
 
 
@@ -162,8 +162,8 @@ Custom commands can be added via `~/.prompt-line/settings.yml`. See "⚙️ Sett
 Built-in commands can be customized by editing YAML files in `~/.prompt-line/built-in-commands/`. Changes apply automatically.
 
 ```bash
-npm run update-built-in-commands  # Update to latest defaults
-npm run reset-built-in-commands   # Reset all to defaults
+pnpm run update-built-in-commands  # Update to latest defaults
+pnpm run reset-built-in-commands   # Reset all to defaults
 ```
 
 #### @Mentions

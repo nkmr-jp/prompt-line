@@ -13,7 +13,7 @@
  *
  * When modifying defaults:
  * 1. Update this file
- * 2. Run: npm run generate:settings-example
+ * 2. Run: pnpm run generate:settings-example
  * 3. Commit both this file and settings.example.yml
  */
 

@@ -6,18 +6,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Development
 ```bash
-npm start          # Run app in development mode (with DEBUG logging enabled)
-npm run update-built-in-commands # Update slash commands with confirmation
-npm run reset-built-in-commands  # Reset slash commands to defaults (removes all)
-npm run reset-accessibility      # Reset accessibility permissions for Prompt Line
+pnpm start          # Run app in development mode (with DEBUG logging enabled)
+pnpm run update-built-in-commands # Update slash commands with confirmation
+pnpm run reset-built-in-commands  # Reset slash commands to defaults (removes all)
+pnpm run reset-accessibility      # Reset accessibility permissions for Prompt Line
 ```
 
 **Development vs Production Modes:**
-- **Development Mode** (`npm start`):
+- **Development Mode** (`pnpm start`):
   - Sets `LOG_LEVEL=debug` environment variable
   - Enables DEBUG level logging
   - Shows detailed debug information in console and log files
-  - Only active when running `npm start` with `LOG_LEVEL=debug`
+  - Only active when running `pnpm start` with `LOG_LEVEL=debug`
 
 - **Production Mode** (packaged app):
   - Packaged apps (.dmg, .app) always use INFO level logging (DEBUG logs disabled)
@@ -41,45 +41,45 @@ grep -i error ~/.prompt-line/app.log | tail -20
 grep "Paste text" ~/.prompt-line/app.log | tail -10
 ```
 
-**Note:** When running `npm start` in JetBrains IDE, the console output shows Electron startup messages. For detailed application logs (DEBUG/INFO level), always check the log file directly.
+**Note:** When running `pnpm start` in JetBrains IDE, the console output shows Electron startup messages. For detailed application logs (DEBUG/INFO level), always check the log file directly.
 
 ### Testing
 ```bash
-npm test                    # Run all tests
-npm run test:watch         # Run tests in watch mode
-npm run test:coverage      # Generate coverage report
-npm run test:unit          # Run unit tests only
-npm run test:integration   # Run integration tests only
+pnpm test                    # Run all tests
+pnpm run test:watch         # Run tests in watch mode
+pnpm run test:coverage      # Generate coverage report
+pnpm run test:unit          # Run unit tests only
+pnpm run test:integration   # Run integration tests only
 
 # Run a specific test file
-npm test tests/unit/utils.test.js
+pnpm test tests/unit/utils.test.js
 
 # Run tests matching a pattern
-npm test -- --testNamePattern="formatTimeAgo"
+pnpm test -- --testNamePattern="formatTimeAgo"
 ```
 
 ### Build & Distribution
 ```bash
-npm run build      # Build the application for local use (creates app directory)
-npm run compile    # Full build: TypeScript + Renderer + Native Tools compilation
-npm run lint       # Check code style
-npm run lint:fix   # Auto-fix code style issues
-npm run typecheck  # Run TypeScript type checking
-npm run pre-push   # Run all pre-push checks (lint + typecheck + test)
+pnpm run build      # Build the application for local use (creates app directory)
+pnpm run compile    # Full build: TypeScript + Renderer + Native Tools compilation
+pnpm run lint       # Check code style
+pnpm run lint:fix   # Auto-fix code style issues
+pnpm run typecheck  # Run TypeScript type checking
+pnpm run pre-push   # Run all pre-push checks (lint + typecheck + test)
 
 # Additional build commands
-npm run build:renderer  # Vite build for renderer process
-npm run clean      # Removes build artifacts (DMG, zip files, etc.)
-npm run clean:cache     # Clears build caches (node_modules/.cache, electron caches)
-npm run clean:full      # Full cleanup (build artifacts + caches + dist directory)
-npm run release    # Info about automated release process (via GitHub Actions)
-npm run prepare    # Husky setup
+pnpm run build:renderer  # Vite build for renderer process
+pnpm run clean      # Removes build artifacts (DMG, zip files, etc.)
+pnpm run clean:cache     # Clears build caches (node_modules/.cache, electron caches)
+pnpm run clean:full      # Full cleanup (build artifacts + caches + dist directory)
+pnpm run release    # Info about automated release process (via GitHub Actions)
+pnpm run prepare    # Husky setup
 ```
 
 **Build Process Details:**
-The `npm run compile` command performs:
+The `pnpm run compile` command performs:
 1. TypeScript compilation (`tsc`)
-2. Renderer build (`npm run build:renderer`)
+2. Renderer build (`pnpm run build:renderer`)
 3. Native tools compilation (`cd native && make install`)
 4. Copy compiled tools to distribution directory
 
@@ -108,18 +108,18 @@ The project uses automated git hooks to ensure code quality:
 - Only processes files that are actually being committed (faster than full project linting)
 
 **Pre-push hooks:**
-- TypeScript type checking (`npm run typecheck`)
-- Full test suite (`npm test`)
+- TypeScript type checking (`pnpm run typecheck`)
+- Full test suite (`pnpm test`)
 - Prevents pushing if any checks fail
 
 **Manual quality checks:**
 ```bash
-npm run pre-push   # Run all pre-push checks manually
+pnpm run pre-push   # Run all pre-push checks manually
 ```
 
 **Setup for new contributors:**
 ```bash
-npm install        # Installs husky and sets up hooks automatically via "prepare" script
+pnpm install        # Installs husky and sets up hooks automatically via "prepare" script
 ```
 
 ### Development Tools
@@ -390,13 +390,13 @@ Tests use comprehensive mocks defined in `tests/setup.ts`:
 ### Running Specific Tests
 ```bash
 # Test a specific manager
-npm test tests/unit/history-manager.test.js
+pnpm test tests/unit/history-manager.test.js
 
 # Test with pattern matching
-npm test -- --testNamePattern="should save draft"
+pnpm test -- --testNamePattern="should save draft"
 
 # Debug test failures
-npm test -- --verbose
+pnpm test -- --verbose
 ```
 
 ## Critical Implementation Details
@@ -542,15 +542,15 @@ If you encounter an error like `ENOENT: no such file or directory, rename '...El
 **Solution:**
 ```bash
 # Full cleanup and rebuild
-npm run clean:full
-npm install
-npm run build
+pnpm run clean:full
+pnpm install
+pnpm run build
 ```
 
 **Quick Fix (cache only):**
 ```bash
-npm run clean:cache
-npm run build
+pnpm run clean:cache
+pnpm run build
 ```
 
 #### TypeScript Compilation Errors
@@ -559,8 +559,8 @@ If `tsc` command is not found or TypeScript compilation fails:
 **Solution:**
 ```bash
 # Reinstall dependencies
-npm install
-npm run build
+pnpm install
+pnpm run build
 ```
 
 #### Native Tools Compilation Errors
@@ -582,22 +582,22 @@ xcode-select -p
 ### Performance Issues
 
 #### Slow Build Times
-- Use `npm run compile` instead of full `npm run build` for faster development iterations
+- Use `pnpm run compile` instead of full `pnpm run build` for faster development iterations
 - Native tools are cached after first compilation
 - Consider using SSD for faster I/O operations
 
 #### Large Distribution Size
 - DMG files are ~100-110MB per architecture (expected size)
 - App bundle contains full Electron framework
-- Use `npm run clean` to remove old build artifacts
+- Use `pnpm run clean` to remove old build artifacts
 
 ### Cleanup Commands Reference
 
 | Command | Purpose | When to Use |
 |---------|---------|-------------|
-| `npm run clean` | Remove build artifacts only | After each build to clean up DMG/zip files |
-| `npm run clean:cache` | Clear build caches | When experiencing cache-related build issues |
-| `npm run clean:full` | Complete cleanup | Before fresh build or when troubleshooting build errors |
+| `pnpm run clean` | Remove build artifacts only | After each build to clean up DMG/zip files |
+| `pnpm run clean:cache` | Clear build caches | When experiencing cache-related build issues |
+| `pnpm run clean:full` | Complete cleanup | Before fresh build or when troubleshooting build errors |
 
 ### Build Process Verification
 
