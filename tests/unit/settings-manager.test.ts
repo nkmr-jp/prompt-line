@@ -178,7 +178,7 @@ window:
             description: '{frontmatter@description}',
             path: '~/.claude/skills',
             label: 'skill',
-            color: 'purple',
+            color: 'pink',
             pattern: '**/*/SKILL.md',
             maxSuggestions: 20
           },
@@ -226,6 +226,7 @@ window:
             {
               name: '{basename}(agent)',
               description: '{frontmatter@description}',
+              displayTime: '{updatedAt}',
               path: '~/.claude/agents',
               pattern: '*.md',
               searchPrefix: 'agent'
@@ -233,6 +234,7 @@ window:
             {
               name: '{prefix}:{basename}(agent)',
               description: '{frontmatter@description}',
+              displayTime: '{updatedAt}',
               path: '~/.claude/plugins/cache',
               pattern: '**/agents/*.md',
               prefixPattern: '**/.claude-plugin/*.json@name',
@@ -241,16 +243,22 @@ window:
             {
               name: '{json@name}',
               description: '{json@prompt}|{json:1@description}',
+              displayTime: '{json@joinedAt}',
               color: '{json@color}|#ffffff',
               icon: 'organization',
               label: '{dirname}',
+              orderBy: '{json@joinedAt} desc',
               path: '~/.claude/teams',
               pattern: '**/config.json@. | select(.createdAt / 1000 > (now - 86400)) | select((.members | length) >= 2) | .members',
               searchPrefix: 'team'
             },
             {
               name: '{basename}',
-              description: '',
+              description: '{heading}',
+              displayTime: '{updatedAt}',
+              color: 'blue',
+              icon: 'file-text',
+              orderBy: '{updatedAt} desc',
               path: '~/.claude/plans',
               pattern: '*.md',
               searchPrefix: 'plan',
@@ -258,7 +266,12 @@ window:
             },
             {
               name: '{basename}',
-              description: '{dirname}',
+              description: '{heading}',
+              displayTime: '{updatedAt}',
+              color: 'violet',
+              icon: 'tasklist',
+              label: '{dirname}',
+              orderBy: '{updatedAt} desc',
               path: '~/.claude/tasks',
               pattern: '**/*/*.md',
               searchPrefix: 'task',
@@ -385,7 +398,7 @@ window:
             description: '{frontmatter@description}',
             path: '~/.claude/skills',
             label: 'skill',
-            color: 'purple',
+            color: 'pink',
             pattern: '**/*/SKILL.md',
             maxSuggestions: 20
           },
@@ -433,6 +446,7 @@ window:
             {
               name: '{basename}(agent)',
               description: '{frontmatter@description}',
+              displayTime: '{updatedAt}',
               path: '~/.claude/agents',
               pattern: '*.md',
               searchPrefix: 'agent'
@@ -440,6 +454,7 @@ window:
             {
               name: '{prefix}:{basename}(agent)',
               description: '{frontmatter@description}',
+              displayTime: '{updatedAt}',
               path: '~/.claude/plugins/cache',
               pattern: '**/agents/*.md',
               prefixPattern: '**/.claude-plugin/*.json@name',
@@ -448,16 +463,22 @@ window:
             {
               name: '{json@name}',
               description: '{json@prompt}|{json:1@description}',
+              displayTime: '{json@joinedAt}',
               color: '{json@color}|#ffffff',
               icon: 'organization',
               label: '{dirname}',
+              orderBy: '{json@joinedAt} desc',
               path: '~/.claude/teams',
               pattern: '**/config.json@. | select(.createdAt / 1000 > (now - 86400)) | select((.members | length) >= 2) | .members',
               searchPrefix: 'team'
             },
             {
               name: '{basename}',
-              description: '',
+              description: '{heading}',
+              displayTime: '{updatedAt}',
+              color: 'blue',
+              icon: 'file-text',
+              orderBy: '{updatedAt} desc',
               path: '~/.claude/plans',
               pattern: '*.md',
               searchPrefix: 'plan',
@@ -465,7 +486,12 @@ window:
             },
             {
               name: '{basename}',
-              description: '{dirname}',
+              description: '{heading}',
+              displayTime: '{updatedAt}',
+              color: 'violet',
+              icon: 'tasklist',
+              label: '{dirname}',
+              orderBy: '{updatedAt} desc',
               path: '~/.claude/tasks',
               pattern: '**/*/*.md',
               searchPrefix: 'task',
