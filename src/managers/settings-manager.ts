@@ -165,6 +165,7 @@ class SettingsManager extends EventEmitter {
         if (entry.maxSuggestions) mention.maxSuggestions = entry.maxSuggestions;
         if (entry.searchPrefix) mention.searchPrefix = entry.searchPrefix;
         if (entry.orderBy) mention.orderBy = entry.orderBy;
+        if (entry.displayTime !== undefined) mention.displayTime = entry.displayTime;
         if (entry.inputFormat) mention.inputFormat = entry.inputFormat;
         customSearchMentions.push(mention);
       }
@@ -521,6 +522,7 @@ class SettingsManager extends EventEmitter {
         if (mention.maxSuggestions !== undefined) entry.maxSuggestions = mention.maxSuggestions;
         if (mention.searchPrefix !== undefined) entry.searchPrefix = mention.searchPrefix;
         if (mention.orderBy !== undefined) entry.orderBy = mention.orderBy;
+        if (mention.displayTime !== undefined) entry.displayTime = mention.displayTime;
         if (mention.inputFormat !== undefined) entry.inputFormat = mention.inputFormat;
         if (mention.label !== undefined) entry.label = mention.label;
         if (mention.prefixPattern !== undefined) entry.prefixPattern = mention.prefixPattern;

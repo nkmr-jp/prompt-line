@@ -163,6 +163,9 @@ class CustomSearchHandler {
         if (item.inputFormat) {
           cmd.inputFormat = item.inputFormat;
         }
+        if (item.updatedAt) {
+          cmd.updatedAt = item.updatedAt;
+        }
         return cmd;
       });
 
@@ -298,6 +301,12 @@ class CustomSearchHandler {
         }
         if (item.label) {
           agent.label = item.label;
+        }
+        if (item.updatedAt) {
+          agent.updatedAt = item.updatedAt;
+        }
+        if (item.displayTime !== undefined) {
+          agent.displayTime = item.displayTime;
         }
         return agent;
       });

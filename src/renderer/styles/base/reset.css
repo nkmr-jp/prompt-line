@@ -6,5 +6,5 @@
 }
 
 body {
-    @apply font-sans bg-gray-950 overflow-hidden select-none m-0 p-0;
+    @apply font-sans bg-neutral-950 overflow-hidden select-none m-0 p-0;
 }

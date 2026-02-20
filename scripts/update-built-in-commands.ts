@@ -62,7 +62,8 @@ function copyFile(source: string, target: string): void {
  * Main function
  */
 async function main(): Promise<void> {
-  console.log('🔄 Updating built-in commands...\n');
+  console.log('🔄 Updating built-in commands...');
+  console.log(`📂 Commands directory: ${BUILT_IN_COMMANDS_DIR}\n`);
 
   // Ensure target directory exists
   if (!fs.existsSync(BUILT_IN_COMMANDS_DIR)) {
@@ -120,6 +121,8 @@ async function main(): Promise<void> {
     console.log(`\n✅ ${updatedCount} file(s) updated successfully!`);
     console.log('🔄 Please restart the app to apply changes.');
   }
+
+  console.log(`\n📂 Commands directory: ${BUILT_IN_COMMANDS_DIR}`);
 }
 
 // Run main function

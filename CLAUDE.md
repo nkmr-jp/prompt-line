@@ -8,7 +8,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 pnpm start          # Run app in development mode (with DEBUG logging enabled)
 pnpm run update-built-in-commands # Update slash commands with confirmation
-pnpm run reset-built-in-commands  # Reset slash commands to defaults (removes all)
 pnpm run reset-accessibility      # Reset accessibility permissions for Prompt Line
 ```
 

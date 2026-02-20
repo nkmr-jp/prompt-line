@@ -1,7 +1,7 @@
 /* CSS Custom Properties - Semantic Colors & Animation Tokens */
 :root {
     /* Semantic Colors */
-    --bg-primary: var(--color-gray-950);
+    --bg-primary: var(--color-neutral-950);
     --bg-secondary: oklch(from var(--color-white) l c h / 0.05);
     --bg-tertiary: oklch(from var(--color-white) l c h / 0.1);
     --text-primary: var(--color-white);
@@ -11,7 +11,7 @@
     --border-secondary: oklch(from var(--color-white) l c h / 0.2);
     --accent-blue: var(--color-blue-400);
     --accent-yellow: var(--color-amber-400);
-    --accent-gray: oklch(from var(--color-gray-500) l c h / 0.6);
+    --accent-gray: oklch(from var(--color-neutral-500) l c h / 0.6);
 
     /* Animations */
     --animation-fast: 0.15s;

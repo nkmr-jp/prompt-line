@@ -163,7 +163,6 @@ Built-in commands can be customized by editing YAML files in `~/.prompt-line/bui
 
 ```bash
 pnpm run update-built-in-commands  # Update to latest defaults
-pnpm run reset-built-in-commands   # Reset all to defaults
 ```
 
 #### @Mentions
@@ -213,7 +212,8 @@ For the full configuration example with all available options and comments, see:
 | `shortcuts` | Keyboard shortcuts (main, paste, close, history navigation, search) |
 | `window` | Window size and positioning mode |
 | `fileOpener` | Default editor and extension-specific applications |
-| `slashCommands` | Built-in AI tool commands, custom slash commands, and skill search |
+| `builtInCommands` | Built-in slash commands to enable (claude, codex, gemini, etc.) |
+| `agentSkills` | Agent skills from markdown files (custom commands, skills, plugins) |
 | `mentions.fileSearch` | File search settings (@path/to/file completion) |
 | `mentions.symbolSearch` | Symbol search settings (@ts:Config, @go:Handler) |
 | `mentions.customSearch` | Markdown-based mentions with searchPrefix support (agent, rules, docs, etc.) and frontmatter template variables |
