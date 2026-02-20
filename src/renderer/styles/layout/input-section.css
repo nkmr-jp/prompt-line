@@ -192,40 +192,82 @@
 }
 
 /* Color based highlights (takes priority over source) */
-.highlight-backdrop .agent-skill-highlight.agent-skill-color-purple {
-    background: oklch(from var(--color-purple-400) l c h / 0.25);
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-grey,
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-gray {
+    background: oklch(from var(--color-gray-400) l c h / 0.25);
 }
 
-.highlight-backdrop .agent-skill-highlight.agent-skill-color-blue {
-    background: oklch(from var(--color-blue-400) l c h / 0.25);
-}
-
-.highlight-backdrop .agent-skill-highlight.agent-skill-color-teal {
-    background: oklch(from var(--color-teal-400) l c h / 0.25);
-}
-
-.highlight-backdrop .agent-skill-highlight.agent-skill-color-green {
-    background: oklch(from var(--color-green-400) l c h / 0.25);
-}
-
-.highlight-backdrop .agent-skill-highlight.agent-skill-color-yellow {
-    background: oklch(from var(--color-yellow-300) l c h / 0.25);
-}
-
-.highlight-backdrop .agent-skill-highlight.agent-skill-color-orange {
-    background: oklch(from var(--color-orange-400) l c h / 0.25);
-}
-
-.highlight-backdrop .agent-skill-highlight.agent-skill-color-pink {
-    background: oklch(from var(--color-pink-400) l c h / 0.25);
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-darkGrey,
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-slate {
+    background: oklch(from var(--color-slate-400) l c h / 0.25);
 }
 
 .highlight-backdrop .agent-skill-highlight.agent-skill-color-red {
     background: oklch(from var(--color-red-400) l c h / 0.25);
 }
 
-.highlight-backdrop .agent-skill-highlight.agent-skill-color-gray {
-    background: oklch(from var(--color-gray-500) l c h / 0.25);
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-rose {
+    background: oklch(from var(--color-rose-400) l c h / 0.25);
+}
+
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-orange {
+    background: oklch(from var(--color-orange-400) l c h / 0.25);
+}
+
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-amber {
+    background: oklch(from var(--color-amber-400) l c h / 0.25);
+}
+
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-yellow {
+    background: oklch(from var(--color-yellow-300) l c h / 0.25);
+}
+
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-lime {
+    background: oklch(from var(--color-lime-400) l c h / 0.25);
+}
+
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-green {
+    background: oklch(from var(--color-green-400) l c h / 0.25);
+}
+
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-emerald {
+    background: oklch(from var(--color-emerald-400) l c h / 0.25);
+}
+
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-teal {
+    background: oklch(from var(--color-teal-400) l c h / 0.25);
+}
+
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-cyan {
+    background: oklch(from var(--color-cyan-400) l c h / 0.25);
+}
+
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-sky {
+    background: oklch(from var(--color-sky-400) l c h / 0.25);
+}
+
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-blue {
+    background: oklch(from var(--color-blue-400) l c h / 0.25);
+}
+
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-indigo {
+    background: oklch(from var(--color-indigo-400) l c h / 0.25);
+}
+
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-violet {
+    background: oklch(from var(--color-violet-400) l c h / 0.25);
+}
+
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-purple {
+    background: oklch(from var(--color-purple-400) l c h / 0.25);
+}
+
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-fuchsia {
+    background: oklch(from var(--color-fuchsia-400) l c h / 0.25);
+}
+
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-pink {
+    background: oklch(from var(--color-pink-400) l c h / 0.25);
 }
 
 /* Agent skill with link style (Cmd+hover or cursor over agent skill) */

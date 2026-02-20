@@ -15,7 +15,7 @@ interface CommandDefinition {
   /**
    * Color for label and highlight
    * Supports both named colors and hex color codes:
-   * - Named colors: 'grey', 'darkGrey', 'blue', 'purple', 'teal', 'green', 'yellow', 'orange', 'pink', 'red'
+   * - Named colors: 'grey', 'slate', 'red', 'rose', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink'
    * - Hex codes: '#RGB' or '#RRGGBB' (e.g., '#FF6B35', '#F63')
    */
   color?: ColorValue;
@@ -30,7 +30,7 @@ interface BuiltInCommandsYaml {
   /**
    * Default color for all commands in this file
    * Supports both named colors and hex color codes:
-   * - Named colors: 'grey', 'darkGrey', 'blue', 'purple', 'teal', 'green', 'yellow', 'orange', 'pink', 'red'
+   * - Named colors: 'grey', 'slate', 'red', 'rose', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink'
    * - Hex codes: '#RGB' or '#RRGGBB' (e.g., '#FF6B35', '#F63')
    */
   color?: ColorValue;

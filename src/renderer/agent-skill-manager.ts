@@ -13,9 +13,14 @@ import { getCaretCoordinates, createMirrorDiv } from './mentions/dom-utils';
 import { compareTiebreak } from '../lib/tiebreaker';
 
 const COLOR_MAP: Record<string, string> = {
-  grey: 'var(--color-gray-400)', darkGrey: 'var(--color-gray-500)', blue: 'var(--color-blue-400)',
-  purple: 'var(--color-purple-400)', teal: 'var(--color-teal-400)', green: 'var(--color-green-400)',
-  yellow: 'var(--color-yellow-300)', orange: 'var(--color-orange-400)', pink: 'var(--color-pink-400)', red: 'var(--color-red-400)',
+  grey: 'var(--color-gray-400)', darkGrey: 'var(--color-gray-500)', slate: 'var(--color-slate-400)',
+  red: 'var(--color-red-400)', rose: 'var(--color-rose-400)',
+  orange: 'var(--color-orange-400)', amber: 'var(--color-amber-400)',
+  yellow: 'var(--color-yellow-300)', lime: 'var(--color-lime-400)',
+  green: 'var(--color-green-400)', emerald: 'var(--color-emerald-400)', teal: 'var(--color-teal-400)',
+  cyan: 'var(--color-cyan-400)', sky: 'var(--color-sky-400)', blue: 'var(--color-blue-400)',
+  indigo: 'var(--color-indigo-400)', violet: 'var(--color-violet-400)', purple: 'var(--color-purple-400)',
+  fuchsia: 'var(--color-fuchsia-400)', pink: 'var(--color-pink-400)',
 };
 
 function resolveColorValue(color: string | undefined, fallback?: string): string {
@@ -32,7 +37,7 @@ interface AgentSkillItem {
   /**
    * Color for label and highlight
    * Supports both named colors and hex color codes:
-   * - Named colors: 'grey', 'darkGrey', 'blue', 'purple', 'teal', 'green', 'yellow', 'orange', 'pink', 'red'
+   * - Named colors: 'grey', 'slate', 'red', 'rose', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink'
    * - Hex codes: '#RGB' or '#RRGGBB' (e.g., '#FF6B35', '#F63')
    */
   color?: ColorValue;

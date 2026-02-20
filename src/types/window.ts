@@ -7,10 +7,10 @@ import type { DirectoryInfo } from './file-search';
 
 /**
  * Color value type supporting both named colors and hex color codes
- * Named colors: 'grey', 'darkGrey', 'blue', 'purple', 'teal', 'green', 'yellow', 'orange', 'pink', 'red'
+ * Named colors: 'grey', 'slate', 'red', 'rose', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink'
  * Hex codes: '#RGB' or '#RRGGBB' (e.g., '#0066CC', '#F5A')
  */
-export type ColorValue = 'grey' | 'darkGrey' | 'blue' | 'purple' | 'teal' | 'green' | 'yellow' | 'orange' | 'pink' | 'red' | string;
+export type ColorValue = 'grey' | 'darkGrey' | 'slate' | 'red' | 'rose' | 'orange' | 'amber' | 'yellow' | 'lime' | 'green' | 'emerald' | 'teal' | 'cyan' | 'sky' | 'blue' | 'indigo' | 'violet' | 'purple' | 'fuchsia' | 'pink' | string;
 
 export interface AppInfo {
   name: string;
