@@ -1,9 +1,9 @@
 /**
- * Slash command search test cases for scoring tests
+ * Agent skill search test cases for scoring tests
  * Tests name vs description match priority and usage frequency bonus
  */
 
-export interface SlashCommandTestCase {
+export interface AgentSkillTestCase {
   query: string;
   commands: Array<{
     name: string;
@@ -15,9 +15,9 @@ export interface SlashCommandTestCase {
 }
 
 /**
- * Test cases for slash command search scoring
+ * Test cases for agent skill search scoring
  */
-export const slashCommandTestCases: SlashCommandTestCase[] = [
+export const agentSkillTestCases: AgentSkillTestCase[] = [
   // === Name Match vs Description Match ===
   {
     query: 'commit',

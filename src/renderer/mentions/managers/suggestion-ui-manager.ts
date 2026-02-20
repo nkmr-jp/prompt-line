@@ -21,7 +21,25 @@ import type { SymbolResult } from '../code-search/types';
 import { getSymbolTypeDisplay } from '../code-search/types';
 import { getCaretCoordinates, createMirrorDiv, insertHighlightedText } from '../dom-utils';
 import { getRelativePath, getDirectoryFromPath } from '../path-utils';
-import { getFileIconSvg, getMentionIconSvg, getSymbolIconSvg } from '../../assets/icons/file-icons';
+import { getFileIconSvg, getSymbolCodiconClass } from '../../assets/icons/file-icons';
+
+const COLOR_MAP: Record<string, string> = {
+  grey: 'var(--color-gray-400)', darkGrey: 'var(--color-gray-500)', slate: 'var(--color-slate-400)',
+  red: 'var(--color-red-400)', rose: 'var(--color-rose-400)',
+  orange: 'var(--color-orange-400)', amber: 'var(--color-amber-400)',
+  yellow: 'var(--color-yellow-300)', lime: 'var(--color-lime-400)',
+  green: 'var(--color-green-400)', emerald: 'var(--color-emerald-400)', teal: 'var(--color-teal-400)',
+  cyan: 'var(--color-cyan-400)', sky: 'var(--color-sky-400)', blue: 'var(--color-blue-400)',
+  indigo: 'var(--color-indigo-400)', violet: 'var(--color-violet-400)', purple: 'var(--color-purple-400)',
+  fuchsia: 'var(--color-fuchsia-400)', pink: 'var(--color-pink-400)',
+};
+
+function resolveColorValue(color: string | undefined, fallback?: string): string {
+  if (!color) return fallback || '';
+  const c = color.replace(/^["']|["']$/g, '');
+  if (c.startsWith('#')) return c;
+  return COLOR_MAP[c] || c;
+}
 
 /**
  * Callbacks for SuggestionUIManager
@@ -556,8 +574,11 @@ export class SuggestionUIManager {
     item.setAttribute('data-type', 'agent');
 
     const icon = document.createElement('span');
-    icon.className = 'file-icon mention-icon';
-    insertSvgIntoElement(icon, getMentionIconSvg());
+    const iconClass = agent.icon
+      ? (agent.icon.startsWith('codicon-') ? agent.icon : `codicon-${agent.icon}`)
+      : 'codicon-agent';
+    icon.className = `file-icon codicon ${iconClass}`;
+    icon.style.color = resolveColorValue(agent.color, 'var(--color-teal-400)');
 
     const name = document.createElement('span');
     name.className = 'file-name agent-name';
@@ -570,6 +591,14 @@ export class SuggestionUIManager {
 
     item.appendChild(icon);
     item.appendChild(name);
+
+    if (agent.label) {
+      const labelBadge = document.createElement('span');
+      labelBadge.className = 'symbol-type-badge';
+      labelBadge.textContent = agent.label;
+      item.appendChild(labelBadge);
+    }
+
     item.appendChild(desc);
 
     if (agent.frontmatter && this.callbacks.onMouseEnterInfo) {
@@ -597,8 +626,8 @@ export class SuggestionUIManager {
     item.setAttribute('data-type', 'symbol');
 
     const icon = document.createElement('span');
-    icon.className = 'file-icon symbol-icon';
-    insertSvgIntoElement(icon, getSymbolIconSvg(symbol.type));
+    icon.className = 'file-icon symbol-icon codicon ' + getSymbolCodiconClass(symbol.type);
+    icon.dataset.symbolType = symbol.type;
 
     const name = document.createElement('span');
     name.className = 'file-name symbol-name';

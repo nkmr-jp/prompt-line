@@ -1,7 +1,8 @@
 /* File Suggestions Component Styles */
-/* Aligned with slash-commands.css for consistency */
+/* Aligned with agent-skills.css for consistency */
 
 .file-suggestions {
+  @apply overflow-x-hidden;
   position: absolute;
   /* top and left are set dynamically by FileSearchManager.positionSuggestions() */
   max-height: 40vh; /* 40% of viewport height */
@@ -9,11 +10,10 @@
   /* Width is determined by content, with max-width set dynamically via JS */
   width: max-content;
   overflow-y: auto;
-  overflow-x: hidden;
-  background: #222;
+  background: var(--color-gray-900);
   /*border: 1px solid #444;*/
   border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px oklch(from var(--color-black) l c h / 0.3);
   z-index: 100;
 }
 
@@ -27,16 +27,11 @@
 }
 
 .file-suggestion-item {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  align-items: center;
+  @apply flex flex-row flex-nowrap items-center cursor-pointer min-w-0;
   padding: 4px 10px;
-  cursor: pointer;
   gap: 6px;
   /*border-bottom: 1px solid var(--border-color, #333);*/
   transition: background-color 0.1s ease;
-  min-width: 0;
 }
 
 .file-suggestion-item:last-child {
@@ -49,20 +44,17 @@
    The .hovered class is added only when mouse actually moves over an item. */
 
 .file-suggestion-item.hovered {
-  background: var(--bg-hover, #2a2a2a);
+  background: var(--bg-hover, var(--color-gray-900));
 }
 
 .file-suggestion-item.selected {
-  background: var(--bg-active, #3a3a3a);
+  background: var(--bg-active, oklch(from var(--color-white) l c h / 0.15));
 }
 
 .file-icon {
-  flex-shrink: 0;
+  @apply shrink-0 flex items-center justify-center;
   width: 16px;
   height: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .file-icon svg {
@@ -72,18 +64,13 @@
 }
 
 .file-name {
-  flex-shrink: 1;
-  min-width: 0;
+  @apply shrink min-w-0 font-medium overflow-hidden text-ellipsis whitespace-nowrap;
   color: var(--text-primary, #fff);
-  font-weight: 500;
   font-size: 11px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .file-name .highlight {
-  background: rgba(255, 200, 0, 0.3);
+  background: oklch(from var(--color-amber-400) l c h / 0.3);
   color: var(--text-primary, #fff);
   border-radius: 2px;
   padding: 0 1px;
@@ -97,12 +84,9 @@
 }
 
 .file-path {
-  flex: 1;
+  @apply flex-1 overflow-hidden text-ellipsis whitespace-nowrap;
   color: var(--text-secondary, #888);
   font-size: 10px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .file-suggestion-empty {
@@ -138,17 +122,19 @@
   /* SVG icon styling handled by .file-icon */
 }
 
+/* Codicon icons in agent/customSearch items - match symbol icon size */
+.agent-suggestion-item .file-icon.codicon {
+  font-size: 16px;
+}
+
 .agent-name {
   color: var(--text-primary, #fff);
 }
 
 .agent-description {
-  flex: 1;
+  @apply flex-1 overflow-hidden text-ellipsis whitespace-nowrap;
   color: var(--text-secondary, #888);
   font-size: 10px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* Symbol-specific styles (for code/symbol search @ts:, @go:, etc.) */
@@ -159,10 +145,9 @@
 
 .symbol-icon,
 .file-suggestion-icon.symbol-icon {
-  /* Symbol icon uses text characters for symbol types */
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary, #aaa);
+  /* Symbol icon uses codicon font */
+  font-size: 16px;
+  line-height: 1;
 }
 
 .symbol-name {
@@ -183,12 +168,9 @@
 }
 
 .symbol-path {
-  flex: 1;
+  @apply flex-1 overflow-hidden text-ellipsis whitespace-nowrap;
   color: var(--text-secondary, #888);
   font-size: 10px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   margin-left: auto;
 }
 
@@ -228,8 +210,8 @@
 /* Frontmatter Popup Styles */
 .frontmatter-popup {
   position: fixed;
-  background: #1a1a1a; /* Darker than menu for contrast */
-  border: 1px solid #444;
+  background: var(--color-gray-950); /* Darker than menu for contrast */
+  border: 1px solid oklch(from var(--color-white) l c h / 0.2);
   border-radius: 6px;
   padding: 8px 10px;
   max-height: 150px;
@@ -241,7 +223,7 @@
   color: var(--text-secondary, #aaa);
   white-space: pre-wrap;
   word-break: break-word;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 6px 20px oklch(from var(--color-black) l c h / 0.5), 0 2px 8px oklch(from var(--color-black) l c h / 0.3);
   box-sizing: border-box;
 }
 
@@ -277,18 +259,18 @@
 }
 
 .frontmatter-value {
-  color: var(--text-primary, #fff);
+  color: var(--text-secondary, #888);
 }
 
 .frontmatter-link {
-  color: #58a6ff;
+  color: var(--color-blue-400);
   text-decoration: none;
   cursor: pointer;
 }
 
 .frontmatter-link:hover {
   text-decoration: underline;
-  color: #79b8ff;
+  color: var(--color-blue-300);
 }
 
 /* Frontmatter Hint */

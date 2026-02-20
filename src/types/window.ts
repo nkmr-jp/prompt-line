@@ -7,10 +7,10 @@ import type { DirectoryInfo } from './file-search';
 
 /**
  * Color value type supporting both named colors and hex color codes
- * Named colors: 'grey', 'darkGrey', 'blue', 'purple', 'teal', 'green', 'yellow', 'orange', 'pink', 'red'
+ * Named colors: 'grey', 'slate', 'red', 'rose', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink'
  * Hex codes: '#RGB' or '#RRGGBB' (e.g., '#0066CC', '#F5A')
  */
-export type ColorValue = 'grey' | 'darkGrey' | 'blue' | 'purple' | 'teal' | 'green' | 'yellow' | 'orange' | 'pink' | 'red' | string;
+export type ColorValue = 'grey' | 'darkGrey' | 'slate' | 'red' | 'rose' | 'orange' | 'amber' | 'yellow' | 'lime' | 'green' | 'emerald' | 'teal' | 'cyan' | 'sky' | 'blue' | 'indigo' | 'violet' | 'purple' | 'fuchsia' | 'pink' | string;
 
 export interface AppInfo {
   name: string;
@@ -151,8 +151,10 @@ export interface UserSettings {
     // Default editor when no extension-specific setting exists
     defaultEditor?: string | null;
   };
-  // Slash command settings (built-in and user-defined)
-  slashCommands?: SlashCommandsSettings;
+  // Built-in commands: list of tools to enable (e.g., ['claude', 'codex', 'gemini'])
+  builtInCommands?: string[];
+  // Agent skills: flat list of custom slash command entries (no more .custom nesting)
+  agentSkills?: AgentSkillEntry[];
   // Mention settings (@ mentions: fileSearch, symbolSearch, userDefined)
   mentions?: MentionsSettings;
 
@@ -160,10 +162,14 @@ export interface UserSettings {
   fileSearch?: FileSearchUserSettings;
   // Legacy: symbolSearch configuration (use mentions.symbolSearch instead)
   symbolSearch?: SymbolSearchUserSettings;
-  // Legacy: mdSearch configuration (for backward compatibility)
-  mdSearch?: MdSearchEntry[];
-  // Legacy: Built-in commands configuration (use slashCommands.builtIn instead)
-  builtInCommands?: {
+  // Legacy: customSearch configuration (for backward compatibility)
+  customSearch?: CustomSearchEntry[];
+  // Legacy alias: mdSearch (for backward compatibility)
+  mdSearch?: CustomSearchEntry[];
+  // Legacy: slashCommands (use agentSkills instead)
+  slashCommands?: AgentSkillsSettings;
+  // Legacy: Built-in commands configuration (use builtInCommands instead)
+  legacyBuiltInCommands?: {
     tools?: string[];
   };
 }
@@ -226,7 +232,9 @@ export interface MentionsSettings {
   fileSearch?: FileSearchUserSettings;
   /** Symbol search settings (@ts:Config, @go:Handler) */
   symbolSearch?: SymbolSearchUserSettings;
-  /** Markdown-based mentions from markdown files */
+  /** Custom search: mentions from markdown files */
+  customSearch?: MentionEntry[];
+  /** @deprecated Use customSearch instead */
   mdSearch?: MentionEntry[];
   /**
    * 有効にするメンション名のリスト（ホワイトリスト）
@@ -243,17 +251,15 @@ export interface MentionsSettings {
 }
 
 // ============================================================================
-// Slash Command Settings Types
+// Agent Skills Settings Types
 // ============================================================================
 
 /**
- * Slash command settings combining built-in and user-defined commands
+ * Agent skills settings combining built-in commands and user-defined entries
  */
-export interface SlashCommandsSettings {
-  /** Built-in commands: list of tools to enable (e.g., ['claude', 'codex', 'gemini']) */
-  builtIn?: string[];
-  /** Custom slash commands from markdown files */
-  custom?: SlashCommandEntry[];
+export interface AgentSkillsSettings {
+  /** Custom agent skills from markdown files */
+  custom?: AgentSkillEntry[];
   /**
    * 有効にするコマンド名のリスト（ホワイトリスト）
    * - 完全一致: "commit"
@@ -266,12 +272,17 @@ export interface SlashCommandsSettings {
    * - 前方一致: "debug-*"
    */
   disable?: string[];
+  // Legacy: builtInCommands (use root-level builtInCommands instead)
+  builtInCommands?: string[];
 }
 
+/** @deprecated Use AgentSkillsSettings instead */
+export type SlashCommandsSettings = AgentSkillsSettings;
+
 /**
- * User-defined slash command entry
+ * User-defined agent skill entry
  */
-export interface SlashCommandEntry {
+export interface AgentSkillEntry {
   /** 名前テンプレート（例: "{basename}", "{frontmatter@name}"） */
   name: string;
   /** 説明テンプレート（例: "{frontmatter@description}"） */
@@ -284,12 +295,14 @@ export interface SlashCommandEntry {
   argumentHint?: string;
   /** オプション: 検索候補の最大表示数（デフォルト: 20） */
   maxSuggestions?: number;
-  /** オプション: 名前ソート順（デフォルト: 'asc'） */
-  sortOrder?: 'asc' | 'desc';
+  /** オプション: ソート順（デフォルト: 'name'） - 'name', 'name desc', 'description desc' など */
+  orderBy?: string;
   /** オプション: label（静的な値 "skill" または テンプレート "{frontmatter@label}"） */
   label?: string;
   /** オプション: ラベルとハイライトの色（grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red） */
   color?: ColorValue;
+  /** オプション: codiconアイコンクラス名（例: "codicon-rocket", "symbol-class"） */
+  icon?: string;
   /** オプション: プレフィックスパターン - 特定JSONファイルからプレフィックスを動的に読み込むためのパターン */
   prefixPattern?: string;
   /**
@@ -305,6 +318,9 @@ export interface SlashCommandEntry {
    */
   disable?: string[];
 }
+
+/** @deprecated Use AgentSkillEntry instead */
+export type SlashCommandEntry = AgentSkillEntry;
 
 /**
  * Mention entry (@ mentions from markdown files)
@@ -322,12 +338,18 @@ export interface MentionEntry {
   maxSuggestions?: number;
   /** オプション: 検索プレフィックス（例: "agent"）- 自動で : が追加されます（@agent: で検索） */
   searchPrefix?: string;
-  /** オプション: 名前ソート順（デフォルト: 'asc'） */
-  sortOrder?: 'asc' | 'desc';
+  /** オプション: ソート順（デフォルト: 'name'） - 'name', 'name desc', 'description desc' など */
+  orderBy?: string;
   /** オプション: 入力フォーマット（デフォルト: 'name'） */
   inputFormat?: InputFormatType;
   /** オプション: プレフィックスパターン - 特定JSONファイルからプレフィックスを動的に読み込むためのパターン */
   prefixPattern?: string;
+  /** オプション: label（静的な値 "skill" または テンプレート "{frontmatter@label}"） */
+  label?: string;
+  /** オプション: ラベルとハイライトの色（grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red） */
+  color?: ColorValue;
+  /** オプション: codiconアイコンクラス名（例: "codicon-rocket", "symbol-class"） */
+  icon?: string;
   /**
    * オプション: 有効にするメンション名のリスト（このエントリのみに適用）
    * - 完全一致: "agent-claude"
@@ -343,24 +365,24 @@ export interface MentionEntry {
 }
 
 // ============================================================================
-// MdSearch Related Types (Legacy - for backward compatibility)
+// CustomSearch Related Types (Legacy - for backward compatibility)
 // ============================================================================
 
 /**
- * mdSearch エントリの種類
+ * customSearch エントリの種類
  * - command: スラッシュコマンド（/で始まる）
  * - mention: メンション（@で始まる）
  */
-export type MdSearchType = 'command' | 'mention';
+export type CustomSearchType = 'command' | 'mention';
 
 /**
- * mdSearch 設定エントリ
+ * customSearch 設定エントリ
  */
-export interface MdSearchEntry {
+export interface CustomSearchEntry {
   /** 名前テンプレート（例: "{basename}", "agent-{frontmatter@name}"） */
   name: string;
   /** 検索タイプ */
-  type: MdSearchType;
+  type: CustomSearchType;
   /** 説明テンプレート（例: "{frontmatter@description}"） */
   description: string;
   /** 検索ディレクトリパス */
@@ -371,14 +393,16 @@ export interface MdSearchEntry {
   label?: string;
   /** オプション: ラベルとハイライトの色（grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red） */
   color?: ColorValue;
+  /** オプション: codiconアイコンクラス名（例: "codicon-rocket", "codicon-symbol-class"） */
+  icon?: string;
   /** オプション: argumentHintテンプレート */
   argumentHint?: string;
   /** オプション: 検索候補の最大表示数（デフォルト: 20） */
   maxSuggestions?: number;
   /** オプション: 検索プレフィックス（例: "agent"）- 自動で : が追加されます（@agent: で検索） */
   searchPrefix?: string;
-  /** オプション: 名前ソート順（デフォルト: 'asc'） - 'asc': 昇順, 'desc': 降順 */
-  sortOrder?: 'asc' | 'desc';
+  /** オプション: ソート順（デフォルト: 'name'） - 'name', 'name desc', 'description desc' など */
+  orderBy?: string;
   /** オプション: 入力フォーマット（デフォルト: 'name'） - 'name': 名前のみ, 'path': ファイルパス */
   inputFormat?: InputFormatType;
   /** オプション: プレフィックスパターン - 特定JSONファイルからプレフィックスを動的に読み込むためのパターン */
@@ -400,13 +424,13 @@ export interface MdSearchEntry {
 /**
  * 検索結果アイテム（統一型）
  */
-export interface MdSearchItem {
+export interface CustomSearchItem {
   /** 解決済み名前 */
   name: string;
   /** 解決済み説明 */
   description: string;
   /** ソースタイプ */
-  type: MdSearchType;
+  type: CustomSearchType;
   /** ファイルパス */
   filePath: string;
   /** 元のfrontmatter文字列 */
@@ -415,19 +439,24 @@ export interface MdSearchItem {
   label?: string;
   /** ラベルとハイライトの色（オプション） */
   color?: ColorValue;
+  /** codiconアイコンクラス名（オプション） */
+  icon?: string;
   /** argumentHint（commandタイプのみ） */
   argumentHint?: string;
   /** 検索ソースの識別子（path + pattern） */
   sourceId: string;
+  /** カスタムソートキー（orderByテンプレートの解決値） */
+  sortKey?: string;
   /** 入力フォーマット（'name' | 'path'） */
   inputFormat?: InputFormatType;
 }
 
-export interface SlashCommandItem {
+export interface AgentSkillItem {
   name: string;
   description: string;
   label?: string;  // Label text (e.g., from frontmatter)
   color?: ColorValue;  // Color for label and highlight
+  icon?: string;  // Codicon icon class name (e.g., "codicon-rocket")
   argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
@@ -436,10 +465,16 @@ export interface SlashCommandItem {
   displayName?: string;  // Human-readable source name for display (e.g., 'Claude Code')
 }
 
+/** @deprecated Use AgentSkillItem instead */
+export type SlashCommandItem = AgentSkillItem;
+
 export interface AgentItem {
   name: string;
   description: string;
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
   inputFormat?: InputFormatType;  // 入力フォーマット（'name' | 'path'）
+  color?: ColorValue;
+  icon?: string;  // Codicon icon class name (e.g., "codicon-rocket")
+  label?: string;
 }

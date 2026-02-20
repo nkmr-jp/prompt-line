@@ -1,4 +1,85 @@
 /* Main CSS Entry Point */
+@import "tailwindcss";
+
+/* Explicitly include Tailwind color tokens used in this project */
+@theme {
+  --color-white: #fff;
+  --color-black: #000;
+  /* Gray / Slate */
+  --color-slate-400: oklch(0.704 0.04 256.788);
+  --color-gray-400: oklch(0.707 0.022 261.325);
+  --color-gray-500: oklch(0.554 0.046 257.417);
+  --color-gray-900: oklch(0.208 0.042 265.755);
+  --color-gray-950: oklch(0.129 0.042 264.695);
+
+  /* Red / Rose */
+  --color-red-400: oklch(0.704 0.191 22.216);
+  --color-red-500: oklch(0.637 0.237 25.331);
+  --color-red-600: oklch(0.577 0.245 27.325);
+  --color-rose-400: oklch(0.712 0.194 13.428);
+
+  /* Orange / Amber */
+  --color-orange-300: oklch(0.837 0.128 66.29);
+  --color-orange-400: oklch(0.75 0.183 55.934);
+  --color-orange-500: oklch(0.705 0.213 47.604);
+  --color-amber-300: oklch(0.879 0.169 91.605);
+  --color-amber-400: oklch(0.828 0.189 84.429);
+
+  /* Yellow / Lime */
+  --color-yellow-300: oklch(0.905 0.182 98.111);
+  --color-lime-300: oklch(0.897 0.196 126.665);
+  --color-lime-400: oklch(0.841 0.238 128.85);
+
+  /* Green / Emerald / Teal */
+  --color-green-300: oklch(0.871 0.15 154.449);
+  --color-green-400: oklch(0.792 0.209 151.711);
+  --color-green-500: oklch(0.723 0.219 149.579);
+  --color-green-600: oklch(0.627 0.194 149.214);
+  --color-emerald-400: oklch(0.792 0.209 151.711);
+  --color-teal-300: oklch(0.855 0.138 181.071);
+  --color-teal-400: oklch(0.720 0.132 178.270);
+
+  /* Cyan / Sky / Blue */
+  --color-cyan-300: oklch(0.865 0.127 207.078);
+  --color-cyan-400: oklch(0.789 0.154 211.53);
+  --color-cyan-500: oklch(0.715 0.143 215.221);
+  --color-sky-300: oklch(0.828 0.111 230.318);
+  --color-sky-400: oklch(0.746 0.16 232.661);
+  --color-blue-300: oklch(0.809 0.105 251.813);
+  --color-blue-400: oklch(0.707 0.165 254.624);
+  --color-blue-500: oklch(0.623 0.214 259.815);
+
+  /* Indigo / Violet / Purple / Fuchsia */
+  --color-indigo-400: oklch(0.673 0.182 276.935);
+  --color-violet-400: oklch(0.702 0.183 293.541);
+  --color-violet-500: oklch(0.606 0.25 292.717);
+  --color-purple-300: oklch(0.827 0.119 306.383);
+  --color-purple-400: oklch(0.714 0.203 305.504);
+  --color-fuchsia-400: oklch(0.74 0.238 322.16);
+
+  /* Pink */
+  --color-pink-400: oklch(0.718 0.202 349.761);
+
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 20px;
+
+  /* Border radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* Font sizes */
+  --font-size-xs: 9px;
+  --font-size-sm: 10px;
+  --font-size-base: 12px;
+  --font-size-md: 13px;
+  --font-size-lg: 14px;
+  --font-size-xl: 16px;
+}
 
 /* Base styles */
 @import './base/variables.css';
@@ -14,9 +95,10 @@
 @import './components/search.css';
 @import './components/history-item.css';
 @import './components/notifications.css';
-@import './components/slash-commands.css';
+@import './components/agent-skills.css';
 @import './components/file-suggestions.css';
 @import './components/code-suggestions.css';
+@import './components/codicon-symbols.css';
 
 /* Themes */
 @import './themes/themes.css';

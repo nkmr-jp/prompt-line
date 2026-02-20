@@ -50,7 +50,7 @@ export type {
 export {
   findAtPathAtPosition,
   findUrlAtPosition,
-  findSlashCommandAtPosition,
+  findAgentSkillAtPosition,
   findAbsolutePathAtPosition,
   findClickablePathAtPosition,
   findAllUrls,

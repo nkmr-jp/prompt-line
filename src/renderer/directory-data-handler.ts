@@ -114,7 +114,7 @@ export class DirectoryDataHandler {
       // Update symbol search enabled state in MentionManager (disabled when rg is not available)
       fileSearchManager?.setSymbolSearchEnabled(data.symbolSearchEnabled ?? true);
 
-      // Preload searchPrefixes cache for command/mention (enables sync checks for slash command hints)
+      // Preload searchPrefixes cache for command/mention (enables sync checks for agent skill hints)
       fileSearchManager?.preloadSearchPrefixesCache();
 
       // Reset search mode and scroll position when window is shown

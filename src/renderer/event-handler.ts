@@ -23,7 +23,7 @@ export interface ImageResult {
 export class EventHandler implements IInitializable {
   private textarea: HTMLTextAreaElement | null = null;
   private isComposing = false;
-  private slashCommandManager: { isActiveMode(): boolean } | null = null;
+  private agentSkillManager: { isActiveMode(): boolean } | null = null;
   private fileSearchManager: { isActive(): boolean } | null = null;
   private onTabKeyInsert: (e: KeyboardEvent) => void;
   private onShiftTabKeyPress: (e: KeyboardEvent) => void;
@@ -64,9 +64,9 @@ export class EventHandler implements IInitializable {
     this.shortcutHandler.setSearchManager(searchManager);
   }
 
-  public setSlashCommandManager(slashCommandManager: { isActiveMode(): boolean }): void {
-    this.slashCommandManager = slashCommandManager;
-    this.shortcutHandler.setSlashCommandManager(slashCommandManager);
+  public setAgentSkillManager(agentSkillManager: { isActiveMode(): boolean }): void {
+    this.agentSkillManager = agentSkillManager;
+    this.shortcutHandler.setAgentSkillManager(agentSkillManager);
   }
 
   public setMentionManager(fileSearchManager: { isActive(): boolean }): void {
@@ -123,8 +123,8 @@ export class EventHandler implements IInitializable {
 
   private handleTextareaKeyDown(e: KeyboardEvent): void {
     if (e.key === 'Tab') {
-      // Skip if slash command menu is active (let slash command manager handle it)
-      if (this.slashCommandManager?.isActiveMode()) {
+      // Skip if agent skill menu is active (let agent skill manager handle it)
+      if (this.agentSkillManager?.isActiveMode()) {
         return;
       }
 

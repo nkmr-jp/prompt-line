@@ -12,7 +12,7 @@
 import type {
   UserSettings,
   MentionEntry,
-  SlashCommandEntry,
+  AgentSkillEntry,
   FileSearchUserSettings,
   SymbolSearchUserSettings
 } from '../types';
@@ -75,18 +75,18 @@ function formatExtensionsAsList(ext: Record<string, string> | undefined): string
 }
 
 /**
- * Format a custom slash command entry as YAML
+ * Format an agent skill entry as YAML
  */
-function formatSlashCommandEntry(entry: SlashCommandEntry, indent: string, commented = false): string {
-  // When commented, use "    # " prefix to match the custom indentation level
-  // Active:    "    - name:" (4 spaces + -)
-  // Commented: "    # - name:" (4 spaces + # + space + -)
+function formatAgentSkillEntry(entry: AgentSkillEntry, indent: string, commented = false): string {
+  // When commented, use indent + "# " prefix
+  // Active:    "  - name:" (indent + -)
+  // Commented: "  # - name:" (indent trimmed to base + # + space + -)
   let firstLinePrefix: string;
   let contentLinePrefix: string;
 
   if (commented) {
-    firstLinePrefix = '    # ';
-    contentLinePrefix = '    #   ';
+    firstLinePrefix = `${indent}# `;
+    contentLinePrefix = `${indent}#   `;
   } else {
     firstLinePrefix = indent;
     contentLinePrefix = `${indent}  `;
@@ -108,6 +108,11 @@ function formatSlashCommandEntry(entry: SlashCommandEntry, indent: string, comme
     lines.push(`${contentLinePrefix}color: "${entry.color}"`);
   }
 
+  // Add icon if present
+  if (entry.icon) {
+    lines.push(`${contentLinePrefix}icon: "${entry.icon}"`);
+  }
+
   lines.push(`${contentLinePrefix}pattern: "${entry.pattern}"`);
 
   // Add prefixPattern if present
@@ -126,10 +131,10 @@ function formatSlashCommandEntry(entry: SlashCommandEntry, indent: string, comme
 }
 
 /**
- * Format an MdSearch entry as YAML
+ * Format a customSearch entry as YAML
  */
-function formatMdSearchEntry(entry: MentionEntry, indent: string, commented = false): string {
-  // When commented, use "    # " prefix to match the mdSearch indentation level
+function formatCustomSearchEntry(entry: MentionEntry, indent: string, commented = false): string {
+  // When commented, use "    # " prefix to match the customSearch indentation level
   // Active:    "    - name:" (4 spaces + -)
   // Commented: "    # - name:" (4 spaces + # + space + -)
   let firstLinePrefix: string;
@@ -161,11 +166,16 @@ function formatMdSearchEntry(entry: MentionEntry, indent: string, commented = fa
   if (entry.maxSuggestions !== undefined) {
     lines.push(`${contentLinePrefix}maxSuggestions: ${entry.maxSuggestions}`);
   }
-  if (entry.sortOrder !== undefined) {
-    lines.push(`${contentLinePrefix}sortOrder: ${entry.sortOrder}`);
+  if (entry.orderBy !== undefined) {
+    lines.push(`${contentLinePrefix}orderBy: "${entry.orderBy}"`);
   }
   if (entry.inputFormat !== undefined) {
     lines.push(`${contentLinePrefix}inputFormat: ${entry.inputFormat}               # Insert file path instead of name`);
+  }
+
+  // Add icon if present
+  if (entry.icon) {
+    lines.push(`${contentLinePrefix}icon: "${entry.icon}"`);
   }
 
   return lines.join('\n');
@@ -199,79 +209,79 @@ function buildExtensionsSection(settings: UserSettings, options: YamlGeneratorOp
 }
 
 /**
- * Build slashCommands section
+ * Build builtInCommands section
  */
-function buildSlashCommandsSection(settings: UserSettings, options: YamlGeneratorOptions): string {
-  const hasBuiltIn = settings.slashCommands?.builtIn && settings.slashCommands.builtIn.length > 0;
-  const hasCustom = settings.slashCommands?.custom && settings.slashCommands.custom.length > 0;
+function buildBuiltInCommandsSection(settings: UserSettings, options: YamlGeneratorOptions): string {
+  const builtInCommands = settings.builtInCommands;
+  const hasBuiltInCommands = builtInCommands && builtInCommands.length > 0;
 
-  if (!hasBuiltIn && !hasCustom) {
-    // No slash commands configured - output commented template
-    return `#slashCommands:
-#  # Built-in commands (Claude, Codex, Gemini, etc.)
-#  builtIn:                            # List of tools to enable
-#    - claude
-#    - codex
-#    - gemini
-#
-#  # Custom slash commands from markdown files
-#  custom:
-#    - name: "{basename}"
-#      description: "{frontmatter@description}"
-#      path: ~/.claude/commands
-#      pattern: "*.md"
-#      argumentHint: "{frontmatter@argument-hint}"
-#      maxSuggestions: 20`;
+  if (!hasBuiltInCommands) {
+    return `#builtInCommands:                      # List of tools to enable
+#  - claude
+#  - codex
+#  - gemini`;
+  }
+
+  let section = 'builtInCommands:                      # List of tools to enable\n';
+  for (const cmd of builtInCommands) {
+    section += `  - ${cmd}\n`;
+  }
+
+  // Add commented examples if requested
+  if (options.includeCommentedExamples) {
+    const commentedCmds = commentedExamples.builtInCommands || [];
+    for (const cmd of commentedCmds) {
+      section += `  # - ${cmd}\n`;
+    }
+  }
+
+  return section.trimEnd();
+}
+
+/**
+ * Build agentSkills section
+ */
+function buildAgentSkillsSection(settings: UserSettings, options: YamlGeneratorOptions): string {
+  const agentSkills = settings.agentSkills;
+  const hasAgentSkills = agentSkills && agentSkills.length > 0;
+
+  if (!hasAgentSkills) {
+    // No agent skills configured - output commented template
+    return `#agentSkills:
+#  - name: "{basename}"
+#    description: "{frontmatter@description}"
+#    path: ~/.claude/commands
+#    pattern: "*.md"
+#    argumentHint: "{frontmatter@argument-hint}"
+#    maxSuggestions: 20`;
   }
 
   // Build the section with actual values
-  let section = 'slashCommands:\n';
+  let section = '# Agent skills: custom commands from markdown files\n';
+  section += '# Configuration fields:\n';
+  section += '#   name: Display name template (variables: {basename}, {frontmatter@field}, {prefix})\n';
+  section += '#   description: Skill description template (variables: {basename}, {frontmatter@field}, {dirname}, {dirname:N})\n';
+  section += '#   path: Directory path to search for skill files\n';
+  section += '#   label: Display label for UI badge (e.g., "command", "skill", "agent")\n';
+  section += '#   color: Badge color (name: grey, slate, red, rose, orange, amber, yellow, lime, green, emerald, teal, cyan, sky, blue, indigo, violet, purple, fuchsia, pink, or hex: #FF5733)\n';
+  section += '#   icon: Codicon icon name (e.g., "agent", "rocket", "terminal") https://microsoft.github.io/vscode-codicons/dist/codicon.html\n';
+  section += '#   pattern: Glob pattern to match files (e.g., "*.md", "**/*/SKILL.md")\n';
+  section += '#   prefixPattern: Pattern to extract prefix from plugin metadata\n';
+  section += '#   argumentHint: Hint for skill arguments\n';
+  section += '#   maxSuggestions: Maximum number of suggestions to display\n';
+  section += '#   {dirname}: Parent directory name\n';
+  section += '#   {dirname:N}: N levels up directory name (e.g., {dirname:2} = grandparent)\n';
+  section += 'agentSkills:\n';
 
-  // Built-in section
-  section += '  # Built-in commands (Claude, Codex, Gemini, etc.)\n';
-  section += '  builtIn:                            # List of tools to enable\n';
-
-  if (hasBuiltIn) {
-    const tools = settings.slashCommands!.builtIn!;
-    for (const cmd of tools) {
-      section += `    - ${cmd}\n`;
-    }
+  for (const entry of agentSkills) {
+    section += formatAgentSkillEntry(entry, '  ') + '\n';
   }
 
-  // Add commented examples for builtIn if requested
+  // Add commented examples if requested
   if (options.includeCommentedExamples) {
-    const commentedBuiltIn = commentedExamples.slashCommands?.builtIn || [];
-    for (const cmd of commentedBuiltIn) {
-      section += `    # - ${cmd}\n`;
-    }
-  }
-
-  // Custom section
-  section += '\n  # Custom slash commands from markdown files\n';
-  section += '  # Configuration fields:\n';
-  section += '  #   name: Display name template (variables: {basename}, {frontmatter@field}, {prefix})\n';
-  section += '  #   description: Command description template\n';
-  section += '  #   path: Directory path to search for command files\n';
-  section += '  #   label: Display label for UI badge (e.g., "command", "skill", "agent")\n';
-  section += '  #   color: Badge color (name: grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red, or hex: #FF5733)\n';
-  section += '  #   pattern: Glob pattern to match files (e.g., "*.md", "**/*/SKILL.md")\n';
-  section += '  #   prefixPattern: Pattern to extract prefix from plugin metadata\n';
-  section += '  #   argumentHint: Hint for command arguments\n';
-  section += '  #   maxSuggestions: Maximum number of suggestions to display\n';
-  section += '  custom:\n';
-
-  if (hasCustom) {
-    const customs = settings.slashCommands!.custom!;
-    for (const entry of customs) {
-      section += formatSlashCommandEntry(entry, '    ') + '\n';
-    }
-  }
-
-  // Add commented examples for custom if requested
-  if (options.includeCommentedExamples) {
-    const commentedCustom = commentedExamples.slashCommands?.custom || [];
-    for (const entry of commentedCustom) {
-      section += formatSlashCommandEntry(entry, '    ', true) + '\n';
+    const commentedEntries = commentedExamples.agentSkills || [];
+    for (const entry of commentedEntries) {
+      section += formatAgentSkillEntry(entry, '  ', true) + '\n';
     }
   }
 
@@ -284,9 +294,9 @@ function buildSlashCommandsSection(settings: UserSettings, options: YamlGenerato
 function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOptions): string {
   const fileSearch = settings.mentions?.fileSearch || settings.fileSearch;
   const symbolSearch = settings.mentions?.symbolSearch || settings.symbolSearch;
-  const mdSearchEntries = settings.mentions?.mdSearch;
+  const customSearchEntries = settings.mentions?.customSearch ?? settings.mentions?.mdSearch;
 
-  const hasAnyMentionSettings = fileSearch || symbolSearch || (mdSearchEntries && mdSearchEntries.length > 0);
+  const hasAnyMentionSettings = fileSearch || symbolSearch || (customSearchEntries && customSearchEntries.length > 0);
 
   if (!hasAnyMentionSettings) {
     // No mentions configured - output commented template
@@ -318,7 +328,7 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
 #  #   "**/{cmd,agent}/*.md"   - Brace expansion (cmd or agent dirs)
 #  #   "test-*.md"             - Wildcard prefix
 #  # searchPrefix: Search with @<prefix>: (e.g., searchPrefix: "agent" → @agent:)
-#  mdSearch:
+#  customSearch:
 #    - name: "agent-{basename}"
 #      description: "{frontmatter@description}"
 #      path: ~/.claude/agents
@@ -408,14 +418,17 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
   # Markdown-based mentions from markdown files
   # Configuration fields:
   #   name: Display name template (variables: {basename}, {frontmatter@field}, {prefix})
-  #   description: Entry description template
+  #   description: Entry description template (variables: {basename}, {frontmatter@field}, {dirname}, {dirname:N})
   #   path: Directory path to search for markdown files
   #   pattern: Glob pattern to match files
   #   prefixPattern: Pattern to extract prefix from plugin metadata
   #   searchPrefix: Prefix to trigger this search (e.g., "agent" → @agent:)
   #   maxSuggestions: Maximum number of suggestions to display
-  #   sortOrder: Sort order (asc, desc)
+  #   orderBy: Sort order (e.g., "name", "name desc", "description desc")
   #   inputFormat: Insert format (name, path)
+  #   icon: Codicon icon name (e.g., "agent", "rocket", "terminal") https://microsoft.github.io/vscode-codicons/dist/codicon.html
+  #   {dirname}: Parent directory name
+  #   {dirname:N}: N levels up directory name (e.g., {dirname:2} = grandparent)
   #
   # Pattern examples:
   #   "*.md"                  - Root directory only
@@ -424,20 +437,29 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
   #   "**/*/SKILL.md"         - SKILL.md in any subdirectory
   #   "**/{cmd,agent}/*.md"   - Brace expansion (cmd or agent dirs)
   #   "test-*.md"             - Wildcard prefix
-  mdSearch:
+  #   "*.json"                - JSON files (use {json@field} for template variables)
+  #   "**/config.json@.members"  - JSON + jq expression (expands array into items)
+  #   "*.json@.items | map(select(.active))" - Complex jq expressions supported
+  #   "*.jsonl"                   - JSONL files (one JSON per line)
+  #
+  # JSON file support:
+  #   Use pattern "*.json" with {json@field} template variables
+  #   Example: name: "{json@name}", description: "{json@description}"
+  #   Nested fields: {json@nested.field}
+  customSearch:
 `;
 
-  if (mdSearchEntries && mdSearchEntries.length > 0) {
-    for (const entry of mdSearchEntries) {
-      section += formatMdSearchEntry(entry, '    ') + '\n\n';
+  if (customSearchEntries && customSearchEntries.length > 0) {
+    for (const entry of customSearchEntries) {
+      section += formatCustomSearchEntry(entry, '    ') + '\n\n';
     }
   }
 
-  // Add commented mdSearch examples if requested
+  // Add commented customSearch examples if requested
   if (options.includeCommentedExamples) {
-    const commentedMdSearch = commentedExamples.mentions?.mdSearch || [];
-    for (const entry of commentedMdSearch) {
-      section += formatMdSearchEntry(entry as MentionEntry, '    ', true) + '\n\n';
+    const commentedCustomSearch = commentedExamples.mentions?.customSearch ?? [];
+    for (const entry of commentedCustomSearch) {
+      section += formatCustomSearchEntry(entry as MentionEntry, '    ', true) + '\n\n';
     }
   }
 
@@ -453,7 +475,8 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
  */
 export function generateSettingsYaml(settings: UserSettings, options: YamlGeneratorOptions = {}): string {
   const extensionsSection = buildExtensionsSection(settings, options);
-  const slashCommandsSection = buildSlashCommandsSection(settings, options);
+  const builtInCommandsSection = buildBuiltInCommandsSection(settings, options);
+  const agentSkillsSection = buildAgentSkillsSection(settings, options);
   const mentionsSection = buildMentionsSection(settings, options);
 
   return `# Prompt Line Settings Configuration
@@ -501,18 +524,25 @@ fileOpener:
   ${extensionsSection}
 
 # ============================================================================
-# SLASH COMMAND SETTINGS
+# BUILT-IN COMMANDS
 # ============================================================================
-# Configure slash commands (/) for quick actions
+# Built-in commands (Claude, Codex, Gemini, etc.)
+
+${builtInCommandsSection}
+
+# ============================================================================
+# AGENT SKILLS SETTINGS
+# ============================================================================
+# Configure agent skills: custom commands from markdown files
 # Template variables: {basename}, {frontmatter@fieldName}
 
-${slashCommandsSection}
+${agentSkillsSection}
 
 # ============================================================================
 # MENTION SETTINGS (@ mentions)
 # ============================================================================
-# Configure @ mention sources: fileSearch, symbolSearch, mdSearch
-# Template variables for mdSearch: {basename}, {frontmatter@fieldName}
+# Configure @ mention sources: fileSearch, symbolSearch, customSearch
+# Template variables for customSearch: {basename}, {frontmatter@fieldName}
 
 ${mentionsSection}
 `;

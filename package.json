@@ -6,7 +6,7 @@
   "scripts": {
     "start": "LOG_LEVEL=debug npm run compile && LOG_LEVEL=debug electron .",
     "compile": "node node_modules/electron/install.js && tsc && npm run build:renderer && cd native && make install && cp -r ../src/native-tools ../dist/",
-    "build:renderer": "vite build && cp src/renderer/input.html dist/renderer/input.html && cp -r src/renderer/styles dist/renderer/",
+    "build:renderer": "vite build && cp src/renderer/input.html dist/renderer/input.html",
     "typecheck": "tsc --noEmit",
     "build": "npm run compile && electron-builder --mac --publish=never",
     "clean": "rm -rf dist/mac* dist/*.dmg dist/*.zip dist/*.blockmap",
@@ -126,9 +126,13 @@
     }
   },
   "dependencies": {
+    "@tailwindcss/vite": "^4.2.0",
+    "@vscode/codicons": "^0.0.44",
     "chokidar": "^5.0.0",
     "glob": "^13.0.0",
-    "js-yaml": "^4.1.1"
+    "jq-web": "^0.6.2",
+    "js-yaml": "^4.1.1",
+    "tailwindcss": "^4.2.0"
   },
   "overrides": {
     "js-yaml": "^4.1.1",

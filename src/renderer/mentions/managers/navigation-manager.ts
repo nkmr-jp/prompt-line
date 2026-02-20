@@ -495,7 +495,7 @@ export class NavigationManager {
       this.callbacks.insertFilePath(agent.name);
 
       // Register agent name in global cache for persistent highlighting
-      // Agents are project-independent (mdSearch items)
+      // Agents are project-independent (customSearch items)
       if (electronAPI?.atPathCache?.registerGlobal) {
         electronAPI.atPathCache.registerGlobal(agent.name)
           .catch((error) => console.warn('[NavigationManager] Failed to register global at-path:', error));

@@ -39,7 +39,7 @@ jest.mock('../../src/renderer/event-handler', () => ({
     EventHandler: jest.fn().mockImplementation(() => ({
         setTextarea: jest.fn(),
         setSearchManager: jest.fn(),
-        setSlashCommandManager: jest.fn(),
+        setAgentSkillManager: jest.fn(),
         setMentionManager: jest.fn(),
         setDomManager: jest.fn(),
         setUserSettings: jest.fn(),

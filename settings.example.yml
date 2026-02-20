@@ -47,70 +47,75 @@ fileOpener:
     # md: "Typora"
 
 # ============================================================================
-# SLASH COMMAND SETTINGS
+# BUILT-IN COMMANDS
 # ============================================================================
-# Configure slash commands (/) for quick actions
+# Built-in commands (Claude, Codex, Gemini, etc.)
+
+builtInCommands:                      # List of tools to enable
+  - claude
+  # - openclaw
+  # - codex
+  # - gemini
+
+# ============================================================================
+# AGENT SKILLS SETTINGS
+# ============================================================================
+# Configure agent skills: custom commands from markdown files
 # Template variables: {basename}, {frontmatter@fieldName}
 
-slashCommands:
-  # Built-in commands (Claude, Codex, Gemini, etc.)
-  builtIn:                            # List of tools to enable
-    - claude
-    # - openclaw
-    # - codex
-    # - gemini
-
-  # Custom slash commands from markdown files
-  # Configuration fields:
-  #   name: Display name template (variables: {basename}, {frontmatter@field}, {prefix})
-  #   description: Command description template
-  #   path: Directory path to search for command files
-  #   label: Display label for UI badge (e.g., "command", "skill", "agent")
-  #   color: Badge color (name: grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red, or hex: #FF5733)
-  #   pattern: Glob pattern to match files (e.g., "*.md", "**/*/SKILL.md")
-  #   prefixPattern: Pattern to extract prefix from plugin metadata
-  #   argumentHint: Hint for command arguments
-  #   maxSuggestions: Maximum number of suggestions to display
-  custom:
-    - name: "{basename}"
-      description: "{frontmatter@description}"
-      path: ~/.claude/commands
-      label: "command"
-      color: "purple"
-      pattern: "*.md"
-      argumentHint: "{frontmatter@argument-hint}"
-      maxSuggestions: 20
-    - name: "{frontmatter@name}"
-      description: "{frontmatter@description}"
-      path: ~/.claude/skills
-      label: "skill"
-      color: "purple"
-      pattern: "**/*/SKILL.md"
-      maxSuggestions: 20
-    - name: "{prefix}:{basename}"
-      description: "{frontmatter@description}"
-      path: ~/.claude/plugins/cache
-      label: "command"
-      color: "teal"
-      pattern: "**/commands/*.md"
-      prefixPattern: "**/.claude-plugin/*.json@name"
-      argumentHint: "{frontmatter@argument-hint}"
-      maxSuggestions: 20
-    - name: "{prefix}:{frontmatter@name}"
-      description: "{frontmatter@description}"
-      path: ~/.claude/plugins/cache
-      label: "skill"
-      color: "teal"
-      pattern: "**/*/SKILL.md"
-      prefixPattern: "**/.claude-plugin/*.json@name"
-      argumentHint: "{frontmatter@argument-hint}"
-      maxSuggestions: 20
+# Agent skills: custom commands from markdown files
+# Configuration fields:
+#   name: Display name template (variables: {basename}, {frontmatter@field}, {prefix})
+#   description: Skill description template (variables: {basename}, {frontmatter@field}, {dirname}, {dirname:N})
+#   path: Directory path to search for skill files
+#   label: Display label for UI badge (e.g., "command", "skill", "agent")
+#   color: Badge color (name: grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red, or hex: #FF5733)
+#   pattern: Glob pattern to match files (e.g., "*.md", "**/*/SKILL.md")
+#   prefixPattern: Pattern to extract prefix from plugin metadata
+#   argumentHint: Hint for skill arguments
+#   maxSuggestions: Maximum number of suggestions to display
+#   {dirname}: Parent directory name
+#   {dirname:N}: N levels up directory name (e.g., {dirname:2} = grandparent)
+agentSkills:
+  - name: "{basename}"
+    description: "{frontmatter@description}"
+    path: ~/.claude/commands
+    label: "command"
+    color: "purple"
+    pattern: "*.md"
+    argumentHint: "{frontmatter@argument-hint}"
+    maxSuggestions: 20
+  - name: "{frontmatter@name}"
+    description: "{frontmatter@description}"
+    path: ~/.claude/skills
+    label: "skill"
+    color: "purple"
+    pattern: "**/*/SKILL.md"
+    maxSuggestions: 20
+  - name: "{prefix}:{basename}"
+    description: "{frontmatter@description}"
+    path: ~/.claude/plugins/cache
+    label: "command"
+    color: "teal"
+    pattern: "**/commands/*.md"
+    prefixPattern: "**/.claude-plugin/*.json@name"
+    argumentHint: "{frontmatter@argument-hint}"
+    maxSuggestions: 20
+  - name: "{prefix}:{frontmatter@name}"
+    description: "{frontmatter@description}"
+    path: ~/.claude/plugins/cache
+    label: "skill"
+    color: "teal"
+    pattern: "**/*/SKILL.md"
+    prefixPattern: "**/.claude-plugin/*.json@name"
+    argumentHint: "{frontmatter@argument-hint}"
+    maxSuggestions: 20
 
 # ============================================================================
 # MENTION SETTINGS (@ mentions)
 # ============================================================================
-# Configure @ mention sources: fileSearch, symbolSearch, mdSearch
-# Template variables for mdSearch: {basename}, {frontmatter@fieldName}
+# Configure @ mention sources: fileSearch, symbolSearch, customSearch
+# Template variables for customSearch: {basename}, {frontmatter@fieldName}
 
 mentions:
   # File search settings (@path/to/file completion)
@@ -154,14 +159,16 @@ mentions:
   # Markdown-based mentions from markdown files
   # Configuration fields:
   #   name: Display name template (variables: {basename}, {frontmatter@field}, {prefix})
-  #   description: Entry description template
+  #   description: Entry description template (variables: {basename}, {frontmatter@field}, {dirname}, {dirname:N})
   #   path: Directory path to search for markdown files
   #   pattern: Glob pattern to match files
   #   prefixPattern: Pattern to extract prefix from plugin metadata
   #   searchPrefix: Prefix to trigger this search (e.g., "agent" → @agent:)
   #   maxSuggestions: Maximum number of suggestions to display
-  #   sortOrder: Sort order (asc, desc)
+  #   orderBy: Sort order (e.g., "name", "name desc", "description desc")
   #   inputFormat: Insert format (name, path)
+  #   {dirname}: Parent directory name
+  #   {dirname:N}: N levels up directory name (e.g., {dirname:2} = grandparent)
   #
   # Pattern examples:
   #   "*.md"                  - Root directory only
@@ -170,14 +177,27 @@ mentions:
   #   "**/*/SKILL.md"         - SKILL.md in any subdirectory
   #   "**/{cmd,agent}/*.md"   - Brace expansion (cmd or agent dirs)
   #   "test-*.md"             - Wildcard prefix
-  mdSearch:
-    - name: "agent-{basename}"
+  #   "*.json"                - JSON files (use {json@field} for template variables)
+  #   "**/config.json@.members"  - JSON + jq expression (expands array into items)
+  #   "*.json@.items | map(select(.active))" - Complex jq expressions supported
+  #   "*.jsonl"               - JSONL files (one JSON per line)
+  #
+  # JSON file support:
+  #   Use pattern "*.json" with {json@field} template variables
+  #   Example: name: "{json@name}", description: "{json@description}"
+  #   Nested fields: {json@nested.field}
+  #
+  # jq expression support (after @ in pattern):
+  #   pattern: "**/config.json@.members"  → expands .members array into individual items
+  #   pattern: "*.json@.items | map(select(.active))"  → complex jq filtering
+  customSearch:
+    - name: "{basename}(agent)"
       description: "{frontmatter@description}"
       path: ~/.claude/agents
       pattern: "*.md"
       searchPrefix: agent            # Search with @agent:
 
-    - name: "agent-{prefix}:{basename}"
+    - name: "{prefix}:{basename}(agent)"
       description: "{frontmatter@description}"
       path: ~/.claude/plugins/cache
       pattern: "**/agents/*.md"
@@ -185,11 +205,29 @@ mentions:
       searchPrefix: agent            # Search with @agent:
 
     - name: "{basename}"
-      description: "{frontmatter@title}"
+      description: "{dirname:2}"
+      path: ~/.claude/teams
+      pattern: "**/inboxes/*.json"
+      searchPrefix: team            # Search with @team:
+
+    - name: "{json@name}"
+      description: "{dirname:2}"
+      path: ~/.claude/teams
+      pattern: "**/config.json@.members"  # jq expression after @ (supports complex jq like: @.members | map(select(.active)))
+      searchPrefix: member            # Search with @member:
+
+    - name: "{basename}"
+      description: ""
       path: ~/.claude/plans
       pattern: "*.md"
       searchPrefix: plan            # Search with @plan:
-      maxSuggestions: 100
+      inputFormat: path               # Insert file path instead of name
+
+    - name: "{basename}"
+      description: "{dirname}"
+      path: ~/.claude/tasks
+      pattern: "**/*/*.md"
+      searchPrefix: task            # Search with @task:
       inputFormat: path               # Insert file path instead of name
 
     # - name: "{basename}"
@@ -198,5 +236,5 @@ mentions:
     #   pattern: "**/*/*.md"
     #   searchPrefix: kb            # Search with @kb:
     #   maxSuggestions: 100
-    #   sortOrder: desc
+    #   orderBy: "name desc"
     #   inputFormat: path               # Insert file path instead of name

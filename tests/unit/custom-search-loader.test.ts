@@ -1,9 +1,9 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals';
-import MdSearchLoader from '../../src/managers/md-search-loader';
+import CustomSearchLoader from '../../src/managers/custom-search-loader';
 import { promises as fs } from 'fs';
-import type { MdSearchEntry } from '../../src/types';
+import type { CustomSearchEntry } from '../../src/types';
 
-// Unmock path module (needed for prefix-resolver which is used by md-search-loader)
+// Unmock path module (needed for prefix-resolver which is used by custom-search-loader)
 jest.unmock('path');
 
 // Mock glob module
@@ -35,6 +35,12 @@ jest.mock('os', () => ({
   homedir: jest.fn(() => '/Users/test')
 }));
 
+// Mock jq-resolver module
+const mockEvaluateJq = jest.fn<(data: unknown, expression: string) => Promise<unknown>>();
+jest.mock('../../src/lib/jq-resolver', () => ({
+  evaluateJq: (...args: unknown[]) => mockEvaluateJq(...args as [unknown, string])
+}));
+
 const mockedFs = jest.mocked(fs);
 
 // Helper to create Dirent-like objects for readdir with withFileTypes
@@ -49,11 +55,11 @@ const createDirent = (name: string, isFile: boolean) => ({
   isSocket: () => false,
 });
 
-describe('MdSearchLoader', () => {
-  let loader: MdSearchLoader;
+describe('CustomSearchLoader', () => {
+  let loader: CustomSearchLoader;
 
-  const createTestConfig = (overrides?: Partial<MdSearchEntry>[]): MdSearchEntry[] => {
-    const defaults: MdSearchEntry[] = [
+  const createTestConfig = (overrides?: Partial<CustomSearchEntry>[]): CustomSearchEntry[] => {
+    const defaults: CustomSearchEntry[] = [
       {
         name: '{basename}',
         type: 'command',
@@ -70,26 +76,26 @@ describe('MdSearchLoader', () => {
       },
     ];
     if (overrides) {
-      return overrides.map((override, i) => ({ ...defaults[i % 2], ...override })) as MdSearchEntry[];
+      return overrides.map((override, i) => ({ ...defaults[i % 2], ...override })) as CustomSearchEntry[];
     }
     return defaults;
   };
 
   beforeEach(() => {
-    loader = new MdSearchLoader(createTestConfig());
+    loader = new CustomSearchLoader(createTestConfig());
     jest.clearAllMocks();
   });
 
   describe('constructor', () => {
     test('should initialize with provided config', () => {
       const config = createTestConfig();
-      const testLoader = new MdSearchLoader(config);
-      expect(testLoader).toBeInstanceOf(MdSearchLoader);
+      const testLoader = new CustomSearchLoader(config);
+      expect(testLoader).toBeInstanceOf(CustomSearchLoader);
     });
 
     test('should use default config when none provided', () => {
-      const testLoader = new MdSearchLoader();
-      expect(testLoader).toBeInstanceOf(MdSearchLoader);
+      const testLoader = new CustomSearchLoader();
+      expect(testLoader).toBeInstanceOf(CustomSearchLoader);
     });
   });
 
@@ -104,7 +110,7 @@ describe('MdSearchLoader', () => {
       const firstReadCount = mockedFs.readdir.mock.calls.length;
 
       // Update config with different path
-      const newConfig: MdSearchEntry[] = [
+      const newConfig: CustomSearchEntry[] = [
         { name: '{basename}', type: 'command', description: '{frontmatter@description}', path: '/new/path', pattern: '*.md' }
       ];
       loader.updateConfig(newConfig);
@@ -138,7 +144,7 @@ describe('MdSearchLoader', () => {
 
     test('should use default config when undefined is passed', () => {
       loader.updateConfig(undefined);
-      expect(loader).toBeInstanceOf(MdSearchLoader);
+      expect(loader).toBeInstanceOf(CustomSearchLoader);
     });
   });
 
@@ -303,7 +309,7 @@ describe('MdSearchLoader', () => {
 
   describe('template resolution', () => {
     beforeEach(() => {
-      loader = new MdSearchLoader([
+      loader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
@@ -372,6 +378,27 @@ describe('MdSearchLoader', () => {
 
       expect(items[0]?.description).toBe('Single quoted');
     });
+
+    test('description テンプレートで {dirname} を使用できる', async () => {
+      const config: CustomSearchEntry[] = [{
+        name: '{basename}',
+        type: 'command' as const,
+        description: '{dirname}',
+        path: '~/commands',
+        pattern: '*.md',
+      }];
+      const testLoader = new CustomSearchLoader(config);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([
+        createDirent('test.md', true),
+      ] as any);
+      mockedFs.readFile.mockResolvedValue('---\n---\n# Content');
+
+      const items = await testLoader.getItems('command');
+      expect(items).toHaveLength(1);
+      expect(items[0]?.description).toBe('commands');
+    });
   });
 
   describe('file pattern matching', () => {
@@ -391,7 +418,7 @@ describe('MdSearchLoader', () => {
     });
 
     test('should match specific filename pattern', async () => {
-      loader = new MdSearchLoader([
+      loader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
@@ -414,7 +441,7 @@ describe('MdSearchLoader', () => {
     });
 
     test('should handle recursive pattern **/*.md', async () => {
-      loader = new MdSearchLoader([
+      loader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
@@ -449,7 +476,7 @@ describe('MdSearchLoader', () => {
     });
 
     test('should handle intermediate directory pattern **/commands/*.md', async () => {
-      loader = new MdSearchLoader([
+      loader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
@@ -507,7 +534,7 @@ describe('MdSearchLoader', () => {
     });
 
     test('should handle wildcard intermediate pattern **/*/*.md', async () => {
-      loader = new MdSearchLoader([
+      loader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
@@ -549,7 +576,7 @@ describe('MdSearchLoader', () => {
     });
 
     test('should handle brace expansion pattern **/{commands,agents}/*.md', async () => {
-      loader = new MdSearchLoader([
+      loader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
@@ -595,7 +622,7 @@ describe('MdSearchLoader', () => {
     });
 
     test('should handle deeply nested intermediate directory pattern', async () => {
-      loader = new MdSearchLoader([
+      loader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
@@ -639,7 +666,7 @@ describe('MdSearchLoader', () => {
     });
 
     test('should handle pattern with wildcard prefix test-*.md', async () => {
-      loader = new MdSearchLoader([
+      loader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
@@ -667,7 +694,7 @@ describe('MdSearchLoader', () => {
 
   describe('duplicate handling', () => {
     test('should prevent duplicates within same type', async () => {
-      loader = new MdSearchLoader([
+      loader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
@@ -698,12 +725,37 @@ describe('MdSearchLoader', () => {
 
       const items = await loader.getItems('command');
 
-      expect(items).toHaveLength(1);
+      // Items from different source entries (different paths) are NOT deduplicated
+      // This allows items with same name but different searchPrefix to coexist
+      expect(items).toHaveLength(2);
       expect(items[0]?.description).toBe('First version');
+      expect(items[1]?.description).toBe('Second version');
+    });
+
+    test('should deduplicate within same source entry', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          path: '/path/one',
+          pattern: '*.md',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      // Return two files with same basename after extension stripping
+      mockedFs.readdir.mockResolvedValue([createDirent('duplicate.md', true)] as any);
+      mockedFs.readFile.mockResolvedValue('---\ndescription: Test\n---\n');
+
+      const items = await loader.getItems('command');
+
+      // Within same source entry, duplicates are removed
+      expect(items).toHaveLength(1);
     });
 
     test('should allow same name in different types', async () => {
-      loader = new MdSearchLoader([
+      loader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
@@ -734,7 +786,7 @@ describe('MdSearchLoader', () => {
 
   describe('home directory expansion', () => {
     test('should expand ~ to home directory', async () => {
-      loader = new MdSearchLoader([
+      loader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
@@ -834,6 +886,58 @@ Content`;
     });
   });
 
+  describe('icon attribute', () => {
+    test('should resolve icon from entry config', async () => {
+      const loaderWithIcon = new CustomSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command' as const,
+          description: '{frontmatter@description}',
+          path: '/path/to/commands',
+          pattern: '*.md',
+          icon: 'codicon-rocket',
+        },
+      ]);
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('test.md', true)] as any);
+      mockedFs.readFile.mockResolvedValue('---\ndescription: Test command\n---\nContent');
+
+      const items = await loaderWithIcon.getItems('command');
+
+      expect(items[0]?.icon).toBe('codicon-rocket');
+    });
+
+    test('should resolve icon from frontmatter template', async () => {
+      const loaderWithIcon = new CustomSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command' as const,
+          description: '{frontmatter@description}',
+          path: '/path/to/commands',
+          pattern: '*.md',
+          icon: '{frontmatter@icon}',
+        },
+      ]);
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('test.md', true)] as any);
+      mockedFs.readFile.mockResolvedValue('---\ndescription: Test\nicon: codicon-symbol-class\n---\nContent');
+
+      const items = await loaderWithIcon.getItems('command');
+
+      expect(items[0]?.icon).toBe('codicon-symbol-class');
+    });
+
+    test('should not set icon when entry has no icon config', async () => {
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('test.md', true)] as any);
+      mockedFs.readFile.mockResolvedValue('---\ndescription: Test\n---\nContent');
+
+      const items = await loader.getItems('command');
+
+      expect(items[0]?.icon).toBeUndefined();
+    });
+  });
+
   describe('sourceId', () => {
     test('should include sourceId in items', async () => {
       mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
@@ -847,11 +951,11 @@ Content`;
   });
 
   describe('searchPrefix', () => {
-    let prefixLoader: MdSearchLoader;
+    let prefixLoader: CustomSearchLoader;
 
     beforeEach(() => {
       // searchPrefixが設定されたmention設定を持つローダーを作成
-      prefixLoader = new MdSearchLoader([
+      prefixLoader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
@@ -939,7 +1043,7 @@ Content`;
 
     test('should handle multiple entries with different searchPrefix', async () => {
       // 複数エントリで異なるsearchPrefixの場合
-      const multiPrefixLoader = new MdSearchLoader([
+      const multiPrefixLoader = new CustomSearchLoader([
         {
           name: 'agent-{basename}',
           type: 'mention',
@@ -1003,7 +1107,7 @@ Content`;
 
   describe('getSearchPrefixes', () => {
     test('should return empty array when no prefixes configured', () => {
-      const noPrefixLoader = new MdSearchLoader([
+      const noPrefixLoader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
@@ -1018,7 +1122,7 @@ Content`;
     });
 
     test('should return configured prefixes for type', () => {
-      const prefixLoader = new MdSearchLoader([
+      const prefixLoader = new CustomSearchLoader([
         {
           name: 'agent-{basename}',
           type: 'mention',
@@ -1034,7 +1138,7 @@ Content`;
     });
 
     test('should return multiple prefixes when configured', () => {
-      const multiPrefixLoader = new MdSearchLoader([
+      const multiPrefixLoader = new CustomSearchLoader([
         {
           name: 'agent-{basename}',
           type: 'mention',
@@ -1058,7 +1162,7 @@ Content`;
     });
 
     test('should only return prefixes for specified type', () => {
-      const mixedLoader = new MdSearchLoader([
+      const mixedLoader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
@@ -1087,7 +1191,7 @@ Content`;
 
   describe('entry-level enable/disable filtering', () => {
     test('should filter slash commands using entry-level enable list', async () => {
-      loader = new MdSearchLoader([
+      loader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
@@ -1122,7 +1226,7 @@ Content`;
     });
 
     test('should filter slash commands using entry-level disable list', async () => {
-      loader = new MdSearchLoader([
+      loader = new CustomSearchLoader([
         {
           name: '{basename}',
           type: 'command',
@@ -1157,7 +1261,7 @@ Content`;
     });
 
     test('should apply both entry-level and global-level filtering', async () => {
-      loader = new MdSearchLoader(
+      loader = new CustomSearchLoader(
         [
           {
             name: '{basename}',
@@ -1215,7 +1319,7 @@ Content`;
     });
 
     test('should work with mention type', async () => {
-      loader = new MdSearchLoader([
+      loader = new CustomSearchLoader([
         {
           name: 'agent-{basename}',
           type: 'mention',
@@ -1252,7 +1356,7 @@ Content`;
 
   describe('global-level enable/disable filtering for mentions', () => {
     test('should filter mentions using global enable list', async () => {
-      loader = new MdSearchLoader(
+      loader = new CustomSearchLoader(
         [
           {
             name: 'agent-{basename}',
@@ -1310,7 +1414,7 @@ Content`;
     });
 
     test('should filter mentions using global disable list', async () => {
-      loader = new MdSearchLoader(
+      loader = new CustomSearchLoader(
         [
           {
             name: 'agent-{basename}',
@@ -1368,7 +1472,7 @@ Content`;
     });
 
     test('should apply both global enable and disable filters for mentions', async () => {
-      loader = new MdSearchLoader(
+      loader = new CustomSearchLoader(
         [
           {
             name: 'agent-{basename}',
@@ -1426,7 +1530,7 @@ Content`;
     });
 
     test('should apply both entry-level and global-level filtering for mentions', async () => {
-      loader = new MdSearchLoader(
+      loader = new CustomSearchLoader(
         [
           {
             name: 'agent-{basename}',
@@ -1485,6 +1589,688 @@ Content`;
       // Result: agent-claude, agent-gemini (intersection)
       expect(items).toHaveLength(2);
       expect(items.map(i => i.name).sort()).toEqual(['agent-claude', 'agent-gemini']);
+    });
+  });
+
+  describe('jq expression support (pattern @. syntax)', () => {
+    test('should expand JSON array into multiple items using jq expression', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'mention',
+          description: '{json@agentType}',
+          path: '/path/to/teams',
+          pattern: '**/config.json@.members',
+          searchPrefix: 'member',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockImplementation((dir) => {
+        const dirStr = String(dir);
+        if (dirStr === '/path/to/teams') {
+          return Promise.resolve([createDirent('my-team', false)] as any);
+        }
+        if (dirStr === '/path/to/teams/my-team') {
+          return Promise.resolve([createDirent('config.json', true)] as any);
+        }
+        return Promise.resolve([] as any);
+      });
+      mockedFs.readFile.mockResolvedValue(JSON.stringify({
+        name: 'my-team',
+        members: [
+          { name: 'team-lead', agentType: 'team-lead' },
+          { name: 'worker', agentType: 'general-purpose' },
+          { name: 'researcher', agentType: 'Explore' }
+        ]
+      }));
+      mockEvaluateJq.mockResolvedValue([
+        { name: 'team-lead', agentType: 'team-lead' },
+        { name: 'worker', agentType: 'general-purpose' },
+        { name: 'researcher', agentType: 'Explore' }
+      ]);
+
+      const items = await loader.searchItems('mention', 'member:');
+
+      expect(mockEvaluateJq).toHaveBeenCalledWith(expect.any(Object), '.members');
+      expect(items).toHaveLength(3);
+      expect(items.map(i => i.name).sort()).toEqual(['researcher', 'team-lead', 'worker']);
+      expect(items.find(i => i.name === 'team-lead')?.description).toBe('team-lead');
+      expect(items.find(i => i.name === 'worker')?.description).toBe('general-purpose');
+    });
+
+    test('should return empty array when jq result is not an array', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'mention',
+          description: '',
+          path: '/path/to/teams',
+          pattern: '*.json@.members',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('config.json', true)] as any);
+      mockedFs.readFile.mockResolvedValue(JSON.stringify({
+        name: 'my-team',
+        members: 'not-an-array'
+      }));
+      mockEvaluateJq.mockResolvedValue('not-an-array');
+
+      const items = await loader.getItems('mention');
+
+      expect(items).toHaveLength(0);
+    });
+
+    test('should skip non-object elements in jq result array', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'mention',
+          description: '',
+          path: '/path/to/teams',
+          pattern: '*.json@.members',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('config.json', true)] as any);
+      mockedFs.readFile.mockResolvedValue(JSON.stringify({
+        members: [
+          { name: 'valid-member' },
+          'string-value',
+          null,
+          42,
+          { name: 'another-member' }
+        ]
+      }));
+      mockEvaluateJq.mockResolvedValue([
+        { name: 'valid-member' },
+        'string-value',
+        null,
+        42,
+        { name: 'another-member' }
+      ]);
+
+      const items = await loader.getItems('mention');
+
+      expect(items).toHaveLength(2);
+      expect(items.map(i => i.name).sort()).toEqual(['another-member', 'valid-member']);
+    });
+
+    test('should handle complex jq expressions', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'mention',
+          description: '{json@role}',
+          path: '/path/to/data',
+          pattern: '*.json@.team.members | map(select(.active))',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('data.json', true)] as any);
+      mockedFs.readFile.mockResolvedValue(JSON.stringify({
+        team: {
+          members: [
+            { name: 'alice', role: 'lead', active: true },
+            { name: 'bob', role: 'dev', active: false },
+            { name: 'carol', role: 'pm', active: true }
+          ]
+        }
+      }));
+      mockEvaluateJq.mockResolvedValue([
+        { name: 'alice', role: 'lead', active: true },
+        { name: 'carol', role: 'pm', active: true }
+      ]);
+
+      const items = await loader.getItems('mention');
+
+      expect(mockEvaluateJq).toHaveBeenCalledWith(expect.any(Object), '.team.members | map(select(.active))');
+      expect(items).toHaveLength(2);
+      expect(items.find(i => i.name === 'alice')?.description).toBe('lead');
+      expect(items.find(i => i.name === 'carol')?.description).toBe('pm');
+    });
+
+    test('should not use jq expression for non-JSON files', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          path: '/path/to/commands',
+          pattern: '*.md',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('test.md', true)] as any);
+      mockedFs.readFile.mockResolvedValue('---\ndescription: Test command\n---\nContent');
+
+      const items = await loader.getItems('command');
+
+      // Should fall back to normal parsing for .md files
+      expect(items).toHaveLength(1);
+      expect(items[0]?.name).toBe('test');
+      expect(mockEvaluateJq).not.toHaveBeenCalled();
+    });
+
+    test('should apply entry-level enable/disable filtering to expanded items', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'mention',
+          description: '',
+          path: '/path/to/teams',
+          pattern: '*.json@.members',
+          enable: ['team-*'],
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('config.json', true)] as any);
+      mockedFs.readFile.mockResolvedValue(JSON.stringify({
+        members: [
+          { name: 'team-lead' },
+          { name: 'worker' },
+          { name: 'team-researcher' }
+        ]
+      }));
+      mockEvaluateJq.mockResolvedValue([
+        { name: 'team-lead' },
+        { name: 'worker' },
+        { name: 'team-researcher' }
+      ]);
+
+      const items = await loader.getItems('mention');
+
+      expect(items).toHaveLength(2);
+      expect(items.map(i => i.name).sort()).toEqual(['team-lead', 'team-researcher']);
+    });
+
+    test('should return empty array when jq evaluation returns null', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'mention',
+          description: '',
+          path: '/path/to/teams',
+          pattern: '*.json@.nonexistent',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('config.json', true)] as any);
+      mockedFs.readFile.mockResolvedValue(JSON.stringify({ name: 'test' }));
+      mockEvaluateJq.mockResolvedValue(null);
+
+      const items = await loader.getItems('mention');
+
+      expect(items).toHaveLength(0);
+    });
+  });
+
+  describe('JSONL with jq expression support', () => {
+    test('should apply jq expression to each JSONL line', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'mention',
+          description: '{json@role}',
+          path: '/path/to/data',
+          pattern: '*.jsonl@.user',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('entries.jsonl', true)] as any);
+      mockedFs.readFile.mockResolvedValue(
+        '{"user": {"name": "alice", "role": "lead"}}\n{"user": {"name": "bob", "role": "dev"}}'
+      );
+      mockEvaluateJq
+        .mockResolvedValueOnce({ name: 'alice', role: 'lead' })
+        .mockResolvedValueOnce({ name: 'bob', role: 'dev' });
+
+      const items = await loader.getItems('mention');
+
+      expect(mockEvaluateJq).toHaveBeenCalledTimes(2);
+      expect(mockEvaluateJq).toHaveBeenCalledWith(expect.objectContaining({ user: expect.any(Object) }), '.user');
+      expect(items).toHaveLength(2);
+      expect(items.map(i => i.name).sort()).toEqual(['alice', 'bob']);
+    });
+
+    test('should expand array results from jq on JSONL lines', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'mention',
+          description: '',
+          path: '/path/to/data',
+          pattern: '*.jsonl@.items',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('entries.jsonl', true)] as any);
+      mockedFs.readFile.mockResolvedValue(
+        '{"items": [{"name": "a"}, {"name": "b"}]}\n{"items": [{"name": "c"}]}'
+      );
+      mockEvaluateJq
+        .mockResolvedValueOnce([{ name: 'a' }, { name: 'b' }])
+        .mockResolvedValueOnce([{ name: 'c' }]);
+
+      const items = await loader.getItems('mention');
+
+      expect(items).toHaveLength(3);
+      expect(items.map(i => i.name).sort()).toEqual(['a', 'b', 'c']);
+    });
+
+    test('should skip JSONL lines where jq returns null', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'mention',
+          description: '',
+          path: '/path/to/data',
+          pattern: '*.jsonl@.data',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('entries.jsonl', true)] as any);
+      mockedFs.readFile.mockResolvedValue(
+        '{"data": {"name": "valid"}}\n{"other": "no-data"}'
+      );
+      mockEvaluateJq
+        .mockResolvedValueOnce({ name: 'valid' })
+        .mockResolvedValueOnce(null);
+
+      const items = await loader.getItems('mention');
+
+      expect(items).toHaveLength(1);
+      expect(items[0]?.name).toBe('valid');
+    });
+
+    test('should parse JSONL without jq expression (default behavior)', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'mention',
+          description: '{json@role}',
+          path: '/path/to/data',
+          pattern: '*.jsonl',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('entries.jsonl', true)] as any);
+      mockedFs.readFile.mockResolvedValue(
+        '{"name": "alice", "role": "lead"}\n{"name": "bob", "role": "dev"}'
+      );
+
+      const items = await loader.getItems('mention');
+
+      expect(mockEvaluateJq).not.toHaveBeenCalled();
+      expect(items).toHaveLength(2);
+      expect(items.map(i => i.name).sort()).toEqual(['alice', 'bob']);
+    });
+  });
+
+  describe('JSON file support', () => {
+    test('should search JSON files with *.json pattern', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'command',
+          description: '{json@description}',
+          path: '/path/to/json-commands',
+          pattern: '*.json',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([
+        createDirent('my-command.json', true),
+        createDirent('other.md', true),
+      ] as any);
+      mockedFs.readFile.mockResolvedValue(JSON.stringify({
+        name: 'test-command',
+        description: 'A test JSON command',
+      }));
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(1);
+      expect(items[0]?.name).toBe('test-command');
+      expect(items[0]?.description).toBe('A test JSON command');
+    });
+
+    test('should resolve {json@field} template variables', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'mention',
+          description: '{json@role}',
+          path: '/path/to/agents',
+          pattern: '*.json',
+          searchPrefix: 'agent',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([
+        createDirent('claude-agent.json', true),
+      ] as any);
+      mockedFs.readFile.mockResolvedValue(JSON.stringify({
+        name: 'claude',
+        role: 'AI coding assistant',
+      }));
+
+      const items = await loader.searchItems('mention', 'agent:');
+
+      expect(items).toHaveLength(1);
+      expect(items[0]?.name).toBe('claude');
+      expect(items[0]?.description).toBe('AI coding assistant');
+    });
+
+    test('should resolve nested JSON paths with {json@nested.field}', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{json@config.displayName}',
+          type: 'command',
+          description: '{json@config.metadata.description}',
+          path: '/path/to/nested',
+          pattern: '*.json',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([
+        createDirent('nested-config.json', true),
+      ] as any);
+      mockedFs.readFile.mockResolvedValue(JSON.stringify({
+        config: {
+          displayName: 'My Plugin',
+          metadata: {
+            description: 'A nested plugin config',
+          },
+        },
+      }));
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(1);
+      expect(items[0]?.name).toBe('My Plugin');
+      expect(items[0]?.description).toBe('A nested plugin config');
+    });
+
+    test('should not include frontmatter for JSON files', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'command',
+          description: '{json@description}',
+          path: '/path/to/json-commands',
+          pattern: '*.json',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([
+        createDirent('cmd.json', true),
+      ] as any);
+      mockedFs.readFile.mockResolvedValue(JSON.stringify({
+        name: 'json-cmd',
+        description: 'JSON command',
+      }));
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(1);
+      expect(items[0]?.frontmatter).toBeUndefined();
+    });
+  });
+
+  describe('parseOrderBy', () => {
+    test('should parse "{json@createdAt} desc" to field createdAt with desc direction', () => {
+      const result = CustomSearchLoader.parseOrderBy('{json@createdAt} desc');
+      expect(result).toEqual({ field: 'createdAt', direction: 'desc' });
+    });
+
+    test('should parse "{frontmatter@date}" to field date with asc direction (default)', () => {
+      const result = CustomSearchLoader.parseOrderBy('{frontmatter@date}');
+      expect(result).toEqual({ field: 'date', direction: 'asc' });
+    });
+
+    test('should parse "name" to field name with asc direction (default)', () => {
+      const result = CustomSearchLoader.parseOrderBy('name');
+      expect(result).toEqual({ field: 'name', direction: 'asc' });
+    });
+
+    test('should parse "name desc" to field name with desc direction', () => {
+      const result = CustomSearchLoader.parseOrderBy('name desc');
+      expect(result).toEqual({ field: 'name', direction: 'desc' });
+    });
+
+    test('should parse "description asc" to field description with asc direction', () => {
+      const result = CustomSearchLoader.parseOrderBy('description asc');
+      expect(result).toEqual({ field: 'description', direction: 'asc' });
+    });
+  });
+
+  describe('extractOrderByTemplate', () => {
+    test('should extract "{json@createdAt}" from "{json@createdAt} desc"', () => {
+      const result = CustomSearchLoader.extractOrderByTemplate('{json@createdAt} desc');
+      expect(result).toBe('{json@createdAt}');
+    });
+
+    test('should return "name" unchanged from "name"', () => {
+      const result = CustomSearchLoader.extractOrderByTemplate('name');
+      expect(result).toBe('name');
+    });
+
+    test('should extract template part from "name desc"', () => {
+      const result = CustomSearchLoader.extractOrderByTemplate('name desc');
+      expect(result).toBe('name');
+    });
+
+    test('should extract "{frontmatter@date}" from "{frontmatter@date} asc"', () => {
+      const result = CustomSearchLoader.extractOrderByTemplate('{frontmatter@date} asc');
+      expect(result).toBe('{frontmatter@date}');
+    });
+  });
+
+  describe('sortKey-based sorting with orderBy custom field', () => {
+    test('should sort JSON array items by createdAt desc using sortKey', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'mention',
+          description: '',
+          path: '/path/to/teams',
+          pattern: '*.json@.items',
+          orderBy: '{json@createdAt} desc',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('data.json', true)] as any);
+      mockedFs.readFile.mockResolvedValue(JSON.stringify({
+        items: [
+          { name: 'item-a', createdAt: '2024-01-01' },
+          { name: 'item-c', createdAt: '2024-03-01' },
+          { name: 'item-b', createdAt: '2024-02-01' },
+        ],
+      }));
+      mockEvaluateJq.mockResolvedValue([
+        { name: 'item-a', createdAt: '2024-01-01' },
+        { name: 'item-c', createdAt: '2024-03-01' },
+        { name: 'item-b', createdAt: '2024-02-01' },
+      ]);
+
+      const items = await loader.getItems('mention');
+
+      // desc order: item-c (2024-03-01) > item-b (2024-02-01) > item-a (2024-01-01)
+      expect(items).toHaveLength(3);
+      expect(items.map(i => i.name)).toEqual(['item-c', 'item-b', 'item-a']);
+    });
+
+    test('should store sortKey on each item when orderBy uses custom field', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{json@name}',
+          type: 'mention',
+          description: '',
+          path: '/path/to/teams',
+          pattern: '*.json@.items',
+          orderBy: '{json@createdAt} desc',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('data.json', true)] as any);
+      mockedFs.readFile.mockResolvedValue(JSON.stringify({
+        items: [
+          { name: 'item-a', createdAt: '2024-01-01' },
+        ],
+      }));
+      mockEvaluateJq.mockResolvedValue([
+        { name: 'item-a', createdAt: '2024-01-01' },
+      ]);
+
+      const items = await loader.getItems('mention');
+
+      expect(items).toHaveLength(1);
+      expect(items[0]?.sortKey).toBe('2024-01-01');
+    });
+  });
+
+  describe('orderBy regression: name and description sorting still works', () => {
+    test('should sort items by name asc (default) from markdown files', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          path: '/path/to/commands',
+          pattern: '*.md',
+          orderBy: 'name',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([
+        createDirent('zebra.md', true),
+        createDirent('alpha.md', true),
+        createDirent('beta.md', true),
+      ] as any);
+      mockedFs.readFile.mockResolvedValue('---\ndescription: Command\n---\n');
+
+      const items = await loader.getItems('command');
+
+      expect(items.map(i => i.name)).toEqual(['alpha', 'beta', 'zebra']);
+    });
+
+    test('should sort items by name desc from markdown files', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          path: '/path/to/commands',
+          pattern: '*.md',
+          orderBy: 'name desc',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([
+        createDirent('alpha.md', true),
+        createDirent('beta.md', true),
+        createDirent('zebra.md', true),
+      ] as any);
+      mockedFs.readFile.mockResolvedValue('---\ndescription: Command\n---\n');
+
+      const items = await loader.getItems('command');
+
+      expect(items.map(i => i.name)).toEqual(['zebra', 'beta', 'alpha']);
+    });
+
+    test('should sort items by description asc', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          path: '/path/to/commands',
+          pattern: '*.md',
+          orderBy: 'description',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([
+        createDirent('cmd-a.md', true),
+        createDirent('cmd-b.md', true),
+        createDirent('cmd-c.md', true),
+      ] as any);
+      mockedFs.readFile.mockImplementation(((filePath: any) => {
+        const pathStr = String(filePath);
+        if (pathStr.includes('cmd-a')) return Promise.resolve('---\ndescription: Zebra command\n---\n');
+        if (pathStr.includes('cmd-b')) return Promise.resolve('---\ndescription: Alpha command\n---\n');
+        return Promise.resolve('---\ndescription: Beta command\n---\n');
+      }) as any);
+
+      const items = await loader.getItems('command');
+
+      // sorted by description asc: Alpha, Beta, Zebra
+      expect(items.map(i => i.description)).toEqual(['Alpha command', 'Beta command', 'Zebra command']);
+    });
+
+    test('should not set sortKey when orderBy is "name"', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          path: '/path/to/commands',
+          pattern: '*.md',
+          orderBy: 'name',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('test.md', true)] as any);
+      mockedFs.readFile.mockResolvedValue('---\ndescription: Test\n---\n');
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(1);
+      expect(items[0]?.sortKey).toBeUndefined();
+    });
+
+    test('should not set sortKey when orderBy is "description"', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          path: '/path/to/commands',
+          pattern: '*.md',
+          orderBy: 'description',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('test.md', true)] as any);
+      mockedFs.readFile.mockResolvedValue('---\ndescription: Test\n---\n');
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(1);
+      expect(items[0]?.sortKey).toBeUndefined();
     });
   });
 });

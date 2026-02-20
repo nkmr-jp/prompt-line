@@ -12,12 +12,12 @@ The managers module consists of sixteen main components plus two sub-modules:
 - **settings-manager.ts**: YAML-based user configuration management
 - **desktop-space-manager.ts**: Ultra-fast desktop space change detection for window recreation
 - **file-cache-manager.ts**: File caching with invalidation for performance optimization
-- **md-search-loader.ts**: Markdown file search and loading functionality for slash commands and agents
+- **custom-search-loader.ts**: Custom search and loading functionality for slash commands and agents
 - **file-opener-manager.ts**: File opening with custom editor support
 - **directory-manager.ts**: Directory operations and CWD management
 - **symbol-cache-manager.ts**: Language-separated symbol search caching with JSONL storage
 - **at-path-cache-manager.ts**: @path pattern caching for file highlighting
-- **slash-command-cache-manager.ts**: Slash command caching with TTL-based invalidation
+- **agent-skill-cache-manager.ts**: Agent skill caching with TTL-based invalidation
 - **built-in-commands-manager.ts**: Built-in command definitions and management
 - **usage-history-manager.ts**: Base class for usage history tracking with LRU-based management
 - **agent-usage-history-manager.ts**: Agent usage history tracking for smart suggestions
@@ -344,18 +344,18 @@ interface CachedDirectoryData {
 - Efficient JSONL streaming for large file lists
 - Integration with directory-detector for source data
 
-### md-search-loader.ts
-Markdown file search and loading functionality for slash commands and agents:
+### custom-search-loader.ts
+Custom search and loading functionality for agent skills and agents:
 
 **Core Functionality:**
 ```typescript
-class MdSearchLoader {
-  loadSlashCommands(directory: string, query?: string): Promise<SlashCommandItem[]>
+class CustomSearchLoader {
+  loadAgentSkills(directory: string, query?: string): Promise<AgentSkillItem[]>
   loadAgents(directory: string, query?: string): Promise<AgentItem[]>
-  getMaxSuggestions(type: MdSearchType): number
-  getPrefixes(type: MdSearchType): string[]
-  getSortOrder(type: MdSearchType): 'asc' | 'desc'
-  getSortOrderForQuery(type: MdSearchType, query: string): 'asc' | 'desc'
+  getMaxSuggestions(type: CustomSearchType): number
+  getPrefixes(type: CustomSearchType): string[]
+  getSortOrder(type: CustomSearchType): 'asc' | 'desc'
+  getSortOrderForQuery(type: CustomSearchType, query: string): 'asc' | 'desc'
 }
 ```
 
@@ -545,7 +545,7 @@ class AtPathCacheManager {
   addPath(directory: string, atPath: string): Promise<void>
   clearCache(directory: string): Promise<void>
 
-  // Global cache (for mdSearch agents, etc.)
+  // Global cache (for customSearch agents, etc.)
   loadGlobalPaths(): Promise<AtPathEntry[]>
   addGlobalPath(atPath: string): Promise<void>
   clearGlobalCache(): Promise<void>
@@ -571,22 +571,22 @@ interface AtPathEntry {
 - Project-level and global separation for different content types
 - JSONL format with one entry per line for streaming
 
-### slash-command-cache-manager.ts
-Slash command caching with TTL-based invalidation:
+### agent-skill-cache-manager.ts
+Agent skill caching with TTL-based invalidation:
 
 **Core Functionality:**
 ```typescript
-class SlashCommandCacheManager {
-  async loadCommands(directory: string): Promise<SlashCommandItem[]>
-  async saveCommands(directory: string, commands: SlashCommandItem[]): Promise<void>
+class AgentSkillCacheManager {
+  async loadSkills(directory: string): Promise<AgentSkillItem[]>
+  async saveSkills(directory: string, skills: AgentSkillItem[]): Promise<void>
   async isCacheValid(directory: string): Promise<boolean>
   async clearCache(directory: string): Promise<void>
 }
 ```
 
 **Storage:**
-- Cache location: `~/.prompt-line/cache/<encoded-path>/slash-commands.json`
-- Metadata: `{commands: SlashCommandItem[], timestamp: number, ttl: number}`
+- Cache location: `~/.prompt-line/cache/<encoded-path>/agent-skills.json`
+- Metadata: `{skills: AgentSkillItem[], timestamp: number, ttl: number}`
 
 **Features:**
 - TTL-based cache invalidation (default: 1 hour)

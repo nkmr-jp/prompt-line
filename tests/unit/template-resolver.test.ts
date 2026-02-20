@@ -2,8 +2,10 @@ import { describe, test, expect } from '@jest/globals';
 import {
   resolveTemplate,
   getBasename,
+  getDirname,
   parseFrontmatter,
-  extractRawFrontmatter
+  extractRawFrontmatter,
+  parseFirstHeading
 } from '../../src/lib/template-resolver';
 
 describe('resolveTemplate', () => {
@@ -77,6 +79,156 @@ describe('resolveTemplate', () => {
     });
   });
 
+  describe('resolveTemplate with dirname', () => {
+    test('{dirname} を解決する', () => {
+      expect(resolveTemplate('{dirname}', { basename: 'file', frontmatter: {}, dirname: 'commands' })).toBe('commands');
+    });
+
+    test('{dirname} と {basename} を組み合わせて解決する', () => {
+      expect(resolveTemplate('{dirname}/{basename}', { basename: 'file', frontmatter: {}, dirname: 'commands' })).toBe('commands/file');
+    });
+
+    test('{dirname} が未設定の場合は置換しない', () => {
+      expect(resolveTemplate('{dirname}', { basename: 'file', frontmatter: {} })).toBe('{dirname}');
+    });
+
+    test('{dirname:2} で2つ上のディレクトリ名を解決する', () => {
+      expect(resolveTemplate('{dirname:2}', {
+        basename: 'file', frontmatter: {}, filePath: '/a/b/c/d/file.md'
+      })).toBe('c');
+    });
+
+    test('{dirname:3} で3つ上のディレクトリ名を解決する', () => {
+      expect(resolveTemplate('{dirname:3}', {
+        basename: 'file', frontmatter: {}, filePath: '/a/b/c/d/file.md'
+      })).toBe('b');
+    });
+
+    test('{dirname} と {dirname:2} を組み合わせて使用できる', () => {
+      expect(resolveTemplate('{dirname:2}/{dirname}', {
+        basename: 'file', frontmatter: {}, dirname: 'd', filePath: '/a/b/c/d/file.md'
+      })).toBe('c/d');
+    });
+
+    test('{dirname:N} で階層が足りない場合は空文字を返す', () => {
+      expect(resolveTemplate('{dirname:10}', {
+        basename: 'file', frontmatter: {}, filePath: '/a/file.md'
+      })).toBe('');
+    });
+  });
+
+  describe('resolveTemplate with heading', () => {
+    test('{heading}を置換できる', () => {
+      const template = '{heading}';
+      const context = {
+        basename: 'test',
+        frontmatter: {},
+        heading: 'My Document Title'
+      };
+      expect(resolveTemplate(template, context)).toBe('My Document Title');
+    });
+
+    test('headingがundefinedの場合は空文字に置換される', () => {
+      const template = '{heading}';
+      const context = {
+        basename: 'test',
+        frontmatter: {}
+      };
+      expect(resolveTemplate(template, context)).toBe('');
+    });
+
+    test('{heading}と他の変数を組み合わせて使用できる', () => {
+      const template = '{basename} - {heading}';
+      const context = {
+        basename: 'doc',
+        frontmatter: {},
+        heading: 'Introduction'
+      };
+      expect(resolveTemplate(template, context)).toBe('doc - Introduction');
+    });
+  });
+
+  describe('resolveTemplate with json:N (parent JSON reference)', () => {
+    test('{json:1@path}で親要素の値を取得できる', () => {
+      const template = '{json:1@team_name}';
+      const context = {
+        basename: 'config',
+        frontmatter: {},
+        jsonData: { name: 'alice' },
+        parentJsonDataStack: [{ team_name: 'alpha', members: [] }]
+      };
+      expect(resolveTemplate(template, context)).toBe('alpha');
+    });
+
+    test('{json:2@path}で2階層上の値を取得できる', () => {
+      const template = '{json:2@org}';
+      const context = {
+        basename: 'config',
+        frontmatter: {},
+        jsonData: { name: 'alice' },
+        parentJsonDataStack: [
+          { team_name: 'alpha' },
+          { org: 'acme-corp' }
+        ]
+      };
+      expect(resolveTemplate(template, context)).toBe('acme-corp');
+    });
+
+    test('階層不足時に空文字を返す', () => {
+      const template = '{json:3@field}';
+      const context = {
+        basename: 'config',
+        frontmatter: {},
+        jsonData: { name: 'alice' },
+        parentJsonDataStack: [{ team_name: 'alpha' }]
+      };
+      expect(resolveTemplate(template, context)).toBe('');
+    });
+
+    test('{json@path}と{json:1@path}を組み合わせて使用できる', () => {
+      const template = '{json@name} ({json:1@team_name})';
+      const context = {
+        basename: 'config',
+        frontmatter: {},
+        jsonData: { name: 'alice' },
+        parentJsonDataStack: [{ team_name: 'alpha' }]
+      };
+      expect(resolveTemplate(template, context)).toBe('alice (alpha)');
+    });
+
+    test('parentJsonDataStackがundefinedの場合は{json:N@path}をそのまま残す', () => {
+      const template = '{json:1@field}';
+      const context = {
+        basename: 'config',
+        frontmatter: {},
+        jsonData: { name: 'alice' }
+      };
+      expect(resolveTemplate(template, context)).toBe('{json:1@field}');
+    });
+
+    test('{json:0@path}は無効（N=0は範囲外）で空文字を返す', () => {
+      const template = '{json:0@field}';
+      const context = {
+        basename: 'config',
+        frontmatter: {},
+        jsonData: { name: 'alice' },
+        parentJsonDataStack: [{ field: 'value' }]
+      };
+      expect(resolveTemplate(template, context)).toBe('');
+    });
+
+    test('{json:1@nested.path}でネストされた親要素の値を取得できる', () => {
+      const template = '{json:1@config.name}';
+      const context = {
+        basename: 'file',
+        frontmatter: {},
+        jsonData: { id: 1 },
+        parentJsonDataStack: [{ config: { name: 'test-config' } }]
+      };
+      expect(resolveTemplate(template, context)).toBe('test-config');
+    });
+  });
+
   describe('edge cases', () => {
     test('存在しないfrontmatterフィールドは空文字に置換される', () => {
       const template = '{frontmatter@missing}';
@@ -97,13 +249,14 @@ describe('resolveTemplate', () => {
     });
 
     test('すべての変数タイプを組み合わせて使用できる', () => {
-      const template = '{prefix}/{basename}/{frontmatter@type}';
+      const template = '{prefix}/{dirname}/{basename}/{frontmatter@type}';
       const context = {
         prefix: 'app',
         basename: 'command',
+        dirname: 'commands',
         frontmatter: { type: 'agent' }
       };
-      expect(resolveTemplate(template, context)).toBe('app/command/agent');
+      expect(resolveTemplate(template, context)).toBe('app/commands/command/agent');
     });
   });
 });
@@ -122,6 +275,36 @@ describe('getBasename', () => {
 
   test('空のパスは空文字列を返す', () => {
     expect(getBasename('')).toBe('');
+  });
+});
+
+describe('getDirname', () => {
+  test('ファイルパスから親ディレクトリ名を取得', () => {
+    expect(getDirname('/path/to/commands/my-command.md')).toBe('commands');
+  });
+
+  test('ルート直下のファイル', () => {
+    expect(getDirname('/file.md')).toBe('');
+  });
+
+  test('ファイル名のみ', () => {
+    expect(getDirname('file.md')).toBe('');
+  });
+
+  test('深いパスでも直接の親ディレクトリ名を返す', () => {
+    expect(getDirname('/a/b/c/d/target.md')).toBe('d');
+  });
+
+  test('level=2で2つ上のディレクトリ名を返す', () => {
+    expect(getDirname('/a/b/c/d/target.md', 2)).toBe('c');
+  });
+
+  test('level=3で3つ上のディレクトリ名を返す', () => {
+    expect(getDirname('/a/b/c/d/target.md', 3)).toBe('b');
+  });
+
+  test('階層が足りない場合は空文字を返す', () => {
+    expect(getDirname('/a/file.md', 5)).toBe('');
   });
 });
 
@@ -182,5 +365,100 @@ content`;
 ---
 content`;
     expect(extractRawFrontmatter(content)).toBe('');
+  });
+});
+
+describe('parseFirstHeading', () => {
+  test('frontmatter付きコンテンツから最初の#headingを取得できる', () => {
+    const content = `---
+description: "Some description"
+---
+# My Document Title
+
+Content here...`;
+    expect(parseFirstHeading(content)).toBe('My Document Title');
+  });
+
+  test('frontmatterなしのコンテンツから最初の#headingを取得できる', () => {
+    const content = `# Simple Doc
+Content without frontmatter`;
+    expect(parseFirstHeading(content)).toBe('Simple Doc');
+  });
+
+  test('headingがない場合は空文字を返す', () => {
+    const content = `---
+name: test
+---
+No heading here`;
+    expect(parseFirstHeading(content)).toBe('');
+  });
+
+  test('##以上のheadingは無視して#のみ取得する', () => {
+    const content = `## Sub heading
+### Another heading
+# First H1`;
+    expect(parseFirstHeading(content)).toBe('First H1');
+  });
+
+  test('frontmatter内の#行は無視する', () => {
+    const content = `---
+comment: "# not a heading"
+---
+# Real Heading`;
+    expect(parseFirstHeading(content)).toBe('Real Heading');
+  });
+
+  test('空のコンテンツは空文字を返す', () => {
+    expect(parseFirstHeading('')).toBe('');
+  });
+});
+
+describe('resolveTemplate fallback syntax (pipe)', () => {
+  test('左側が空の場合、右側にフォールバックする', () => {
+    const template = '{frontmatter@description}|{heading}';
+    const context = {
+      basename: 'test',
+      frontmatter: {},
+      heading: 'My Heading'
+    };
+    expect(resolveTemplate(template, context)).toBe('My Heading');
+  });
+
+  test('左側に値がある場合、左側を使用する', () => {
+    const template = '{frontmatter@description}|{heading}';
+    const context = {
+      basename: 'test',
+      frontmatter: { description: 'From frontmatter' },
+      heading: 'My Heading'
+    };
+    expect(resolveTemplate(template, context)).toBe('From frontmatter');
+  });
+
+  test('両方空の場合は空文字を返す', () => {
+    const template = '{frontmatter@description}|{heading}';
+    const context = {
+      basename: 'test',
+      frontmatter: {},
+      heading: ''
+    };
+    expect(resolveTemplate(template, context)).toBe('');
+  });
+
+  test('リテラル文字列をフォールバックに使用できる', () => {
+    const template = '{frontmatter@description}|No description';
+    const context = {
+      basename: 'test',
+      frontmatter: {}
+    };
+    expect(resolveTemplate(template, context)).toBe('No description');
+  });
+
+  test('パイプなしのテンプレートは従来通り動作する', () => {
+    const template = '{basename}';
+    const context = {
+      basename: 'test',
+      frontmatter: {}
+    };
+    expect(resolveTemplate(template, context)).toBe('test');
   });
 });

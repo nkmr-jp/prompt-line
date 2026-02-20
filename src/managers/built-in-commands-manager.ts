@@ -189,7 +189,7 @@ class BuiltInCommandsManager extends EventEmitter {
       // Clear cache to trigger reload on next request
       builtInCommandsLoader.clearCache();
 
-      // Emit event for listeners (e.g., MdSearchHandler)
+      // Emit event for listeners (e.g., CustomSearchHandler)
       this.emit('commands-changed');
 
       logger.info('Built-in commands reloaded from file change');

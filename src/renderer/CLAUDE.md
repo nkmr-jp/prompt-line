@@ -69,7 +69,7 @@ The renderer process uses a modular manager pattern with 15+ specialized classes
 
 **Mention System:**
 - MentionManager: @ mention orchestration (15+ sub-managers)
-- SlashCommandManager: Slash command system
+- AgentSkillManager: Agent skill system
 - FrontmatterPopupManager: Frontmatter display
 
 **Search & Navigation:**
@@ -330,16 +330,16 @@ const MATCH_SCORES = {
 - `highlightSearchTerms(text, query)`: Safe term highlighting
 - `highlightFuzzyMatch(text, positions)`: Position-based highlighting
 
-### SlashCommandManager
-Slash command system for quick command access:
-- **Command Detection**: Triggers on `/` character at start of line
-- **Command Loading**: Loads commands from markdown files
+### AgentSkillManager
+Agent skill system for quick skill access:
+- **Skill Detection**: Triggers on `/` character at start of line
+- **Skill Loading**: Loads skills from markdown files
 - **Agent Selection**: Provides agent selection functionality
-- **Integration**: Works with MdSearchLoader for command discovery
+- **Integration**: Works with CustomSearchLoader for skill discovery
 
 Features:
-- Dynamic command loading from user-defined files
-- Keyboard navigation through available commands
+- Dynamic skill loading from user-defined files
+- Keyboard navigation through available skills
 - Seamless integration with mention system
 
 ### FrontmatterPopupManager

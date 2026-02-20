@@ -1,35 +1,35 @@
 import { IpcMainInvokeEvent } from 'electron';
 import { logger } from '../utils/utils';
-import type MdSearchLoader from '../managers/md-search-loader';
+import type CustomSearchLoader from '../managers/custom-search-loader';
 import type SettingsManager from '../managers/settings-manager';
 import type BuiltInCommandsManager from '../managers/built-in-commands-manager';
-import type { SlashCommandItem, AgentItem } from '../types';
+import type { AgentSkillItem, AgentItem } from '../types';
 import builtInCommandsLoader from '../lib/built-in-commands-loader';
-import { slashCommandCacheManager } from '../managers/slash-command-cache-manager';
+import { agentSkillCacheManager } from '../managers/agent-skill-cache-manager';
 import type { IPCResult } from './handler-utils';
 
 /**
- * MdSearchHandler manages all IPC handlers related to MD search functionality.
+ * CustomSearchHandler manages all IPC handlers related to MD search functionality.
  * This includes slash commands, agents, and search configuration.
  */
-class MdSearchHandler {
-  private mdSearchLoader: MdSearchLoader;
+class CustomSearchHandler {
+  private customSearchLoader: CustomSearchLoader;
   private settingsManager: SettingsManager;
   private lastConfigUpdate: number = 0;
   private readonly CONFIG_CACHE_TTL = 5000; // 5 seconds cache TTL
 
   constructor(
-    mdSearchLoader: MdSearchLoader,
+    customSearchLoader: CustomSearchLoader,
     settingsManager: SettingsManager,
     builtInCommandsManager: BuiltInCommandsManager
   ) {
-    this.mdSearchLoader = mdSearchLoader;
+    this.customSearchLoader = customSearchLoader;
     this.settingsManager = settingsManager;
 
     // Subscribe to settings changes for hot reload
     settingsManager.on('settings-changed', () => {
       this.updateConfig();
-      logger.debug('MdSearch config updated via hot reload');
+      logger.debug('CustomSearch config updated via hot reload');
     });
 
     // Subscribe to built-in commands changes for hot reload
@@ -46,16 +46,16 @@ class MdSearchHandler {
    * Register all MD search related IPC handlers
    */
   setupHandlers(ipcMain: typeof import('electron').ipcMain): void {
-    ipcMain.handle('get-slash-commands', this.handleGetSlashCommands.bind(this));
-    ipcMain.handle('get-slash-command-file-path', this.handleGetSlashCommandFilePath.bind(this));
+    ipcMain.handle('get-agent-skills', this.handleGetAgentSkills.bind(this));
+    ipcMain.handle('get-agent-skill-file-path', this.handleGetAgentSkillFilePath.bind(this));
     ipcMain.handle('has-command-file', this.handleHasCommandFile.bind(this));
     ipcMain.handle('get-agents', this.handleGetAgents.bind(this));
     ipcMain.handle('get-agent-file-path', this.handleGetAgentFilePath.bind(this));
-    ipcMain.handle('get-md-search-max-suggestions', this.handleGetMdSearchMaxSuggestions.bind(this));
-    ipcMain.handle('get-md-search-prefixes', this.handleGetMdSearchPrefixes.bind(this));
-    // Slash command cache handlers
-    ipcMain.handle('register-global-slash-command', this.handleRegisterGlobalSlashCommand.bind(this));
-    ipcMain.handle('get-global-slash-commands', this.handleGetGlobalSlashCommands.bind(this));
+    ipcMain.handle('get-custom-search-max-suggestions', this.handleGetCustomSearchMaxSuggestions.bind(this));
+    ipcMain.handle('get-custom-search-prefixes', this.handleGetCustomSearchPrefixes.bind(this));
+    // Agent skill cache handlers
+    ipcMain.handle('register-global-agent-skill', this.handleRegisterGlobalAgentSkill.bind(this));
+    ipcMain.handle('get-global-agent-skills', this.handleGetGlobalAgentSkills.bind(this));
     ipcMain.handle('get-usage-bonuses', this.handleGetUsageBonuses.bind(this));
   }
 
@@ -64,15 +64,15 @@ class MdSearchHandler {
    */
   removeHandlers(ipcMain: typeof import('electron').ipcMain): void {
     const handlers = [
-      'get-slash-commands',
-      'get-slash-command-file-path',
+      'get-agent-skills',
+      'get-agent-skill-file-path',
       'has-command-file',
       'get-agents',
       'get-agent-file-path',
-      'get-md-search-max-suggestions',
-      'get-md-search-prefixes',
-      'register-global-slash-command',
-      'get-global-slash-commands',
+      'get-custom-search-max-suggestions',
+      'get-custom-search-prefixes',
+      'register-global-agent-skill',
+      'get-global-agent-skills',
       'get-usage-bonuses'
     ];
 
@@ -80,17 +80,17 @@ class MdSearchHandler {
       ipcMain.removeAllListeners(handler);
     });
 
-    logger.info('MdSearch IPC handlers removed');
+    logger.info('CustomSearch IPC handlers removed');
   }
 
   /**
-   * Update MdSearchLoader configuration with latest settings
-   * Uses getMdSearchEntries to support both new and legacy settings format
+   * Update CustomSearchLoader configuration with latest settings
+   * Uses getCustomSearchEntries to support both new and legacy settings format
    */
   private updateConfig(): void {
-    const mdSearchEntries = this.settingsManager.getMdSearchEntries();
-    if (mdSearchEntries && mdSearchEntries.length > 0) {
-      this.mdSearchLoader.updateConfig(mdSearchEntries);
+    const customSearchEntries = this.settingsManager.getCustomSearchEntries();
+    if (customSearchEntries && customSearchEntries.length > 0) {
+      this.customSearchLoader.updateConfig(customSearchEntries);
     }
     this.lastConfigUpdate = Date.now();
   }
@@ -113,14 +113,14 @@ class MdSearchHandler {
   }
 
   /**
-   * Handler: get-slash-commands
-   * Retrieves slash commands with optional query filtering
+   * Handler: get-agent-skills
+   * Retrieves agent skills with optional query filtering
    * Merges built-in commands (from YAML) with user commands (from MD files)
    */
-  private async handleGetSlashCommands(
+  private async handleGetAgentSkills(
     _event: IpcMainInvokeEvent,
     query?: string
-  ): Promise<SlashCommandItem[]> {
+  ): Promise<AgentSkillItem[]> {
     try {
       // Refresh config from settings if cache expired
       this.updateConfigIfNeeded();
@@ -131,14 +131,14 @@ class MdSearchHandler {
       // Get built-in commands from YAML files (respects enabled/tools settings)
       const builtInCommands = builtInCommandsLoader.searchCommands(query, builtInSettings);
 
-      // Get user commands from MdSearchLoader (MD files)
+      // Get user commands from CustomSearchLoader (MD files)
       const items = query
-        ? await this.mdSearchLoader.searchItems('command', query)
-        : await this.mdSearchLoader.getItems('command');
+        ? await this.customSearchLoader.searchItems('command', query)
+        : await this.customSearchLoader.getItems('command');
 
-      // Convert MdSearchItem to SlashCommandItem for backward compatibility
-      const userCommands: SlashCommandItem[] = items.map(item => {
-        const cmd: SlashCommandItem = {
+      // Convert CustomSearchItem to AgentSkillItem for backward compatibility
+      const userCommands: AgentSkillItem[] = items.map(item => {
+        const cmd: AgentSkillItem = {
           name: item.name,
           description: item.description,
           filePath: item.filePath,
@@ -150,6 +150,9 @@ class MdSearchHandler {
         }
         if (item.color) {
           cmd.color = item.color;
+        }
+        if (item.icon) {
+          cmd.icon = item.icon;
         }
         if (item.argumentHint) {
           cmd.argumentHint = item.argumentHint;
@@ -164,18 +167,18 @@ class MdSearchHandler {
       });
 
       // Merge: built-in commands first, then custom commands
-      // Commands with same name but different sources are kept (use name+source as key)
-      const commandMap = new Map<string, SlashCommandItem>();
+      // Commands with same name but different sources or labels are kept
+      const commandMap = new Map<string, AgentSkillItem>();
 
       // Add built-in commands first
       for (const cmd of builtInCommands) {
-        const key = `${cmd.name}:${cmd.source || ''}`;
+        const key = `${cmd.name}:${cmd.source || ''}:${cmd.label || ''}`;
         commandMap.set(key, cmd);
       }
 
-      // Add custom commands (same name with different source is kept)
+      // Add custom commands (same name with different source or label is kept)
       for (const cmd of userCommands) {
-        const key = `${cmd.name}:${cmd.source || ''}`;
+        const key = `${cmd.name}:${cmd.source || ''}:${cmd.label || ''}`;
         commandMap.set(key, cmd);
       }
 
@@ -186,16 +189,16 @@ class MdSearchHandler {
         return (a.source || '').localeCompare(b.source || '');
       });
     } catch (error) {
-      logger.error('Failed to get slash commands:', error);
+      logger.error('Failed to get agent skills:', error);
       return [];
     }
   }
 
   /**
-   * Handler: get-slash-command-file-path
-   * Resolves the file path for a specific slash command
+   * Handler: get-agent-skill-file-path
+   * Resolves the file path for a specific agent skill
    */
-  private async handleGetSlashCommandFilePath(
+  private async handleGetAgentSkillFilePath(
     _event: IpcMainInvokeEvent,
     commandName: string
   ): Promise<string | null> {
@@ -207,7 +210,7 @@ class MdSearchHandler {
       // Refresh config from settings if cache expired
       this.updateConfigIfNeeded();
 
-      const items = await this.mdSearchLoader.getItems('command');
+      const items = await this.customSearchLoader.getItems('command');
       const command = items.find(c => c.name === commandName);
 
       if (command) {
@@ -216,7 +219,7 @@ class MdSearchHandler {
 
       return null;
     } catch (error) {
-      logger.error('Failed to get slash command file path:', error);
+      logger.error('Failed to get agent skill file path:', error);
       return null;
     }
   }
@@ -249,10 +252,10 @@ class MdSearchHandler {
       }
 
       // Check if this is a user-defined command (custom)
-      const items = await this.mdSearchLoader.getItems('command');
+      const items = await this.customSearchLoader.getItems('command');
       const command = items.find(c => c.name === commandName);
 
-      return !!command; // Has file if found in mdSearchLoader
+      return !!command; // Has file if found in customSearchLoader
     } catch (error) {
       logger.error('Failed to check command file:', error);
       return false;
@@ -271,11 +274,10 @@ class MdSearchHandler {
       // Refresh config from settings if cache expired
       this.updateConfigIfNeeded();
 
-      // Get mentions (agents) from MdSearchLoader
+      // Get mentions (agents) from CustomSearchLoader
       // Always use searchItems to apply searchPrefix filtering, even for empty query
-      const items = await this.mdSearchLoader.searchItems('mention', query ?? '');
-
-      // Convert MdSearchItem to AgentItem for backward compatibility
+      const items = await this.customSearchLoader.searchItems('mention', query ?? '');
+      // Convert CustomSearchItem to AgentItem for backward compatibility
       const agents: AgentItem[] = items.map(item => {
         const agent: AgentItem = {
           name: item.name,
@@ -287,6 +289,15 @@ class MdSearchHandler {
         }
         if (item.inputFormat) {
           agent.inputFormat = item.inputFormat;
+        }
+        if (item.color) {
+          agent.color = item.color;
+        }
+        if (item.icon) {
+          agent.icon = item.icon;
+        }
+        if (item.label) {
+          agent.label = item.label;
         }
         return agent;
       });
@@ -314,7 +325,7 @@ class MdSearchHandler {
       // Refresh config from settings if cache expired
       this.updateConfigIfNeeded();
 
-      const items = await this.mdSearchLoader.getItems('mention');
+      const items = await this.customSearchLoader.getItems('mention');
       const agent = items.find(a => a.name === agentName);
 
       if (agent) {
@@ -329,10 +340,10 @@ class MdSearchHandler {
   }
 
   /**
-   * Handler: get-md-search-max-suggestions
+   * Handler: get-custom-search-max-suggestions
    * Returns the maximum number of suggestions for a given search type
    */
-  private handleGetMdSearchMaxSuggestions(
+  private handleGetCustomSearchMaxSuggestions(
     _event: IpcMainInvokeEvent,
     type: 'command' | 'mention'
   ): number {
@@ -340,18 +351,18 @@ class MdSearchHandler {
       // Refresh config from settings if cache expired
       this.updateConfigIfNeeded();
 
-      return this.mdSearchLoader.getMaxSuggestions(type);
+      return this.customSearchLoader.getMaxSuggestions(type);
     } catch (error) {
-      logger.error('Failed to get MdSearch maxSuggestions:', error);
+      logger.error('Failed to get CustomSearch maxSuggestions:', error);
       return 20; // Default fallback
     }
   }
 
   /**
-   * Handler: get-md-search-prefixes
+   * Handler: get-custom-search-prefixes
    * Returns the search prefixes for a given search type
    */
-  private handleGetMdSearchPrefixes(
+  private handleGetCustomSearchPrefixes(
     _event: IpcMainInvokeEvent,
     type: 'command' | 'mention'
   ): string[] {
@@ -359,20 +370,20 @@ class MdSearchHandler {
       // Refresh config from settings if cache expired
       this.updateConfigIfNeeded();
 
-      return this.mdSearchLoader.getSearchPrefixes(type);
+      return this.customSearchLoader.getSearchPrefixes(type);
     } catch (error) {
-      logger.error('Failed to get MdSearch searchPrefixes:', error);
+      logger.error('Failed to get CustomSearch searchPrefixes:', error);
       return []; // Default fallback
     }
   }
 
-  // Slash command cache handlers
+  // Agent skill cache handlers
 
   /**
-   * Handler: register-global-slash-command
-   * Registers a slash command to the global cache for quick access
+   * Handler: register-global-agent-skill
+   * Registers an agent skill to the global cache for quick access
    */
-  private async handleRegisterGlobalSlashCommand(
+  private async handleRegisterGlobalAgentSkill(
     _event: IpcMainInvokeEvent,
     commandName: string
   ): Promise<IPCResult> {
@@ -381,32 +392,32 @@ class MdSearchHandler {
         return { success: false, error: 'Invalid command name' };
       }
 
-      await slashCommandCacheManager.addGlobalCommand(commandName);
+      await agentSkillCacheManager.addGlobalSkill(commandName);
       return { success: true };
     } catch (error) {
-      logger.error('Failed to register global slash command:', error);
+      logger.error('Failed to register global agent skill:', error);
       return { success: false, error: 'Operation failed' };
     }
   }
 
   /**
-   * Handler: get-global-slash-commands
-   * Retrieves recently used slash commands from global cache
+   * Handler: get-global-agent-skills
+   * Retrieves recently used agent skills from global cache
    */
-  private async handleGetGlobalSlashCommands(
+  private async handleGetGlobalAgentSkills(
     _event: IpcMainInvokeEvent
   ): Promise<string[]> {
     try {
-      return await slashCommandCacheManager.loadGlobalCommands();
+      return await agentSkillCacheManager.loadGlobalSkills();
     } catch (error) {
-      logger.error('Failed to get global slash commands:', error);
+      logger.error('Failed to get global agent skills:', error);
       return [];
     }
   }
 
   /**
    * Handler: get-usage-bonuses
-   * Calculates usage bonuses for multiple slash commands
+   * Calculates usage bonuses for multiple agent skills
    * Used for sorting search results with usage frequency and recency
    */
   private async handleGetUsageBonuses(
@@ -425,7 +436,7 @@ class MdSearchHandler {
       await Promise.all(
         commandNames.map(async (name) => {
           if (typeof name === 'string') {
-            const bonus = await slashCommandCacheManager.calculateBonus(name);
+            const bonus = await agentSkillCacheManager.calculateBonus(name);
             bonuses[name] = bonus;
           }
         })
@@ -439,4 +450,4 @@ class MdSearchHandler {
   }
 }
 
-export default MdSearchHandler;
+export default CustomSearchHandler;

@@ -54,7 +54,7 @@ class HistoryDraftHandler {
     ipcMain.handle('register-at-path', this.handleRegisterAtPath.bind(this));
     ipcMain.handle('get-registered-at-paths', this.handleGetRegisteredAtPaths.bind(this));
 
-    // Global at-path cache handlers (for mdSearch agents and other project-independent items)
+    // Global at-path cache handlers (for customSearch agents and other project-independent items)
     ipcMain.handle('register-global-at-path', this.handleRegisterGlobalAtPath.bind(this));
     ipcMain.handle('get-global-at-paths', this.handleGetGlobalAtPaths.bind(this));
 
@@ -260,7 +260,7 @@ class HistoryDraftHandler {
     }
   }
 
-  // Global at-path cache handlers (for mdSearch agents and other project-independent items)
+  // Global at-path cache handlers (for customSearch agents and other project-independent items)
 
   private async handleRegisterGlobalAtPath(
     _event: IpcMainInvokeEvent,

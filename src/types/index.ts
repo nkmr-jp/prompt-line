@@ -55,14 +55,18 @@ export type {
   SymbolSearchUserSettings,
   MentionsSettings,
   MentionEntry,
-  // Slash command settings types
+  // Agent skills settings types
+  AgentSkillsSettings,
+  AgentSkillEntry,
+  AgentSkillItem,
+  // Legacy aliases (for backward compatibility)
   SlashCommandsSettings,
   SlashCommandEntry,
-  // Legacy types (for backward compatibility)
-  MdSearchType,
-  MdSearchEntry,
-  MdSearchItem,
   SlashCommandItem,
+  // Legacy types (for backward compatibility)
+  CustomSearchType,
+  CustomSearchEntry,
+  CustomSearchItem,
   AgentItem,
 } from './window';
 

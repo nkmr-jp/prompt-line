@@ -1,50 +1,48 @@
 /* Notification System Styles */
 .notification {
-    position: fixed;
+    @apply fixed font-medium break-words;
     top: 16px;
     right: 16px;
     padding: 12px 16px;
     border-radius: 8px;
     font-size: 13px;
-    font-weight: 500;
     z-index: 10000;
     max-width: 300px;
-    word-wrap: break-word;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 16px oklch(from var(--color-black) l c h / 0.2);
 }
 
 .notification-info {
-    background-color: #007AFF;
-    color: #ffffff;
+    background-color: var(--color-blue-500);
+    color: var(--color-white);
 }
 
 .notification-success {
-    background-color: #28a745;
-    color: #ffffff;
+    background-color: var(--color-green-600);
+    color: var(--color-white);
 }
 
 .notification-warning {
-    background-color: #ffc107;
-    color: #000000;
+    background-color: var(--color-amber-400);
+    color: var(--color-black);
 }
 
 .notification-error {
-    background-color: #dc3545;
-    color: #ffffff;
+    background-color: var(--color-red-600);
+    color: var(--color-white);
 }
 
 /* Character count states */
 .char-count-warning {
-    color: #ffc107 !important;
+    color: var(--color-amber-400) !important;
 }
 
 .char-count-error {
-    color: #dc3545 !important;
+    color: var(--color-red-600) !important;
 }
 
 /* Loading states */
 .loading {
-    cursor: wait;
+    @apply cursor-wait;
 }
 
 .textarea-loading {
@@ -70,10 +68,10 @@
 
 /* App name error state */
 .app-name-error {
-    color: #ff6b6b !important;
+    color: var(--color-red-400) !important;
 }
 
 /* App name success state */
 .app-name-success {
-    color: #7fdbc8 !important;
+    color: var(--color-teal-300) !important;
 }

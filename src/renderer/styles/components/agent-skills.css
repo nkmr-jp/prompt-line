@@ -1,0 +1,342 @@
+/* Agent Skill Suggestions Styles */
+
+.agent-skill-suggestions {
+  display: none;
+  position: absolute;
+  /* top/left are dynamically set by JS based on cursor position */
+  max-height: 40vh;
+  width: max-content;
+  overflow-y: auto;
+  @apply overflow-x-hidden;
+  background: var(--color-gray-900);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px oklch(from var(--color-black) l c h / 0.3);
+  z-index: 100;
+  box-sizing: border-box;
+}
+
+.agent-skill-suggestion-item {
+  @apply flex flex-row flex-nowrap items-center cursor-pointer min-w-0;
+  padding: 4px 10px;
+  gap: 4px;
+  transition: background-color 0.1s ease;
+}
+
+.agent-skill-suggestion-item:last-child {
+  border-bottom: none;
+}
+
+/* Hover style only when mouse has explicitly moved (hover-enabled class is added by JS) */
+.agent-skill-suggestions.hover-enabled .agent-skill-suggestion-item:hover {
+  background: var(--bg-hover, var(--color-gray-900));
+}
+
+.agent-skill-suggestion-item.selected {
+  background: var(--bg-active, oklch(from var(--color-white) l c h / 0.15));
+}
+
+.agent-skill-name {
+  @apply whitespace-nowrap font-medium;
+  padding-right: 2px;
+  font-size: 13px;
+  color: var(--text-primary, #fff);
+}
+
+.agent-skill-description {
+  @apply flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap;
+  font-size: 11px;
+  color: var(--text-secondary, #888);
+}
+
+.agent-skill-source {
+  @apply shrink-0 whitespace-nowrap;
+  font-size: 9px;
+  color: var(--text-secondary, #888);
+  background: oklch(from var(--color-gray-500) l c h / 0.3);
+  padding: 2px 4px;
+  border-radius: 3px;
+  margin-right: 2px;
+}
+
+/* Source-specific badge colors */
+.agent-skill-source[data-source="claude"] {
+  color: var(--color-amber-300);
+  background: oklch(from var(--color-amber-300) l c h / 0.2);
+}
+
+.agent-skill-source[data-source="codex"] {
+  color: var(--color-teal-300);
+  background: oklch(from var(--color-teal-300) l c h / 0.2);
+}
+
+.agent-skill-source[data-source="gemini"] {
+  color: var(--color-blue-300);
+  background: oklch(from var(--color-blue-300) l c h / 0.2);
+}
+
+.agent-skill-source[data-source="custom"] {
+  color: var(--color-purple-400);
+  background: oklch(from var(--color-purple-400) l c h / 0.2);
+}
+
+/* Source badge color variations (same as label colors) */
+.agent-skill-source[data-color="grey"] {
+  color: var(--color-gray-400);
+  background: oklch(from var(--color-gray-400) l c h / 0.2);
+}
+
+.agent-skill-source[data-color="darkGrey"],
+.agent-skill-source[data-color="slate"] {
+  color: var(--color-slate-400);
+  background: oklch(from var(--color-slate-400) l c h / 0.2);
+}
+
+.agent-skill-source[data-color="red"] {
+  color: var(--color-red-400);
+  background: oklch(from var(--color-red-400) l c h / 0.2);
+}
+
+.agent-skill-source[data-color="rose"] {
+  color: var(--color-rose-400);
+  background: oklch(from var(--color-rose-400) l c h / 0.2);
+}
+
+.agent-skill-source[data-color="orange"] {
+  color: var(--color-orange-400);
+  background: oklch(from var(--color-orange-400) l c h / 0.2);
+}
+
+.agent-skill-source[data-color="amber"] {
+  color: var(--color-amber-400);
+  background: oklch(from var(--color-amber-400) l c h / 0.2);
+}
+
+.agent-skill-source[data-color="yellow"] {
+  color: var(--color-yellow-300);
+  background: oklch(from var(--color-yellow-300) l c h / 0.2);
+}
+
+.agent-skill-source[data-color="lime"] {
+  color: var(--color-lime-400);
+  background: oklch(from var(--color-lime-400) l c h / 0.2);
+}
+
+.agent-skill-source[data-color="green"] {
+  color: var(--color-green-400);
+  background: oklch(from var(--color-green-400) l c h / 0.2);
+}
+
+.agent-skill-source[data-color="emerald"] {
+  color: var(--color-emerald-400);
+  background: oklch(from var(--color-emerald-400) l c h / 0.2);
+}
+
+.agent-skill-source[data-color="teal"] {
+  color: var(--color-teal-400);
+  background: oklch(from var(--color-teal-400) l c h / 0.2);
+}
+
+.agent-skill-source[data-color="cyan"] {
+  color: var(--color-cyan-400);
+  background: oklch(from var(--color-cyan-400) l c h / 0.2);
+}
+
+.agent-skill-source[data-color="sky"] {
+  color: var(--color-sky-400);
+  background: oklch(from var(--color-sky-400) l c h / 0.2);
+}
+
+.agent-skill-source[data-color="blue"] {
+  color: var(--color-blue-400);
+  background: oklch(from var(--color-blue-400) l c h / 0.2);
+}
+
+.agent-skill-source[data-color="indigo"] {
+  color: var(--color-indigo-400);
+  background: oklch(from var(--color-indigo-400) l c h / 0.2);
+}
+
+.agent-skill-source[data-color="violet"] {
+  color: var(--color-violet-400);
+  background: oklch(from var(--color-violet-400) l c h / 0.2);
+}
+
+.agent-skill-source[data-color="purple"] {
+  color: var(--color-purple-400);
+  background: oklch(from var(--color-purple-400) l c h / 0.2);
+}
+
+.agent-skill-source[data-color="fuchsia"] {
+  color: var(--color-fuchsia-400);
+  background: oklch(from var(--color-fuchsia-400) l c h / 0.2);
+}
+
+.agent-skill-source[data-color="pink"] {
+  color: var(--color-pink-400);
+  background: oklch(from var(--color-pink-400) l c h / 0.2);
+}
+
+/* Label badge (same color as custom) */
+.agent-skill-label {
+  @apply shrink-0 whitespace-nowrap;
+  font-size: 9px;
+  color: var(--color-purple-400);
+  background: oklch(from var(--color-purple-400) l c h / 0.2);
+  padding: 2px 4px;
+  border-radius: 3px;
+  margin-right: 2px;
+}
+
+/* Label color variations */
+.agent-skill-label[data-color="grey"] {
+  color: var(--color-gray-400);
+  background: oklch(from var(--color-gray-400) l c h / 0.2);
+}
+
+.agent-skill-label[data-color="darkGrey"],
+.agent-skill-label[data-color="slate"] {
+  color: var(--color-slate-400);
+  background: oklch(from var(--color-slate-400) l c h / 0.2);
+}
+
+.agent-skill-label[data-color="red"] {
+  color: var(--color-red-400);
+  background: oklch(from var(--color-red-400) l c h / 0.2);
+}
+
+.agent-skill-label[data-color="rose"] {
+  color: var(--color-rose-400);
+  background: oklch(from var(--color-rose-400) l c h / 0.2);
+}
+
+.agent-skill-label[data-color="orange"] {
+  color: var(--color-orange-400);
+  background: oklch(from var(--color-orange-400) l c h / 0.2);
+}
+
+.agent-skill-label[data-color="amber"] {
+  color: var(--color-amber-400);
+  background: oklch(from var(--color-amber-400) l c h / 0.2);
+}
+
+.agent-skill-label[data-color="yellow"] {
+  color: var(--color-yellow-300);
+  background: oklch(from var(--color-yellow-300) l c h / 0.2);
+}
+
+.agent-skill-label[data-color="lime"] {
+  color: var(--color-lime-400);
+  background: oklch(from var(--color-lime-400) l c h / 0.2);
+}
+
+.agent-skill-label[data-color="green"] {
+  color: var(--color-green-400);
+  background: oklch(from var(--color-green-400) l c h / 0.2);
+}
+
+.agent-skill-label[data-color="emerald"] {
+  color: var(--color-emerald-400);
+  background: oklch(from var(--color-emerald-400) l c h / 0.2);
+}
+
+.agent-skill-label[data-color="teal"] {
+  color: var(--color-teal-400);
+  background: oklch(from var(--color-teal-400) l c h / 0.2);
+}
+
+.agent-skill-label[data-color="cyan"] {
+  color: var(--color-cyan-400);
+  background: oklch(from var(--color-cyan-400) l c h / 0.2);
+}
+
+.agent-skill-label[data-color="sky"] {
+  color: var(--color-sky-400);
+  background: oklch(from var(--color-sky-400) l c h / 0.2);
+}
+
+.agent-skill-label[data-color="blue"] {
+  color: var(--color-blue-400);
+  background: oklch(from var(--color-blue-400) l c h / 0.2);
+}
+
+.agent-skill-label[data-color="indigo"] {
+  color: var(--color-indigo-400);
+  background: oklch(from var(--color-indigo-400) l c h / 0.2);
+}
+
+.agent-skill-label[data-color="violet"] {
+  color: var(--color-violet-400);
+  background: oklch(from var(--color-violet-400) l c h / 0.2);
+}
+
+.agent-skill-label[data-color="purple"] {
+  color: var(--color-purple-400);
+  background: oklch(from var(--color-purple-400) l c h / 0.2);
+}
+
+.agent-skill-label[data-color="fuchsia"] {
+  color: var(--color-fuchsia-400);
+  background: oklch(from var(--color-fuchsia-400) l c h / 0.2);
+}
+
+.agent-skill-label[data-color="pink"] {
+  color: var(--color-pink-400);
+  background: oklch(from var(--color-pink-400) l c h / 0.2);
+}
+
+/* Argument hint only mode - tighter spacing */
+.agent-skill-suggestion-item.argument-hint-only {
+  gap: 4px;
+}
+
+.agent-skill-suggestion-item.argument-hint-only .agent-skill-name {
+  padding-right: 2px;
+}
+
+/* Argument hint badge (gray) */
+.agent-skill-source.argument-hint-badge {
+  color: var(--text-tertiary);
+  background: oklch(from var(--color-gray-500) l c h / 0.3);
+  padding: 2px 4px;
+  margin-right: 2px;
+}
+
+/* Copy icon for argument hint */
+.argument-hint-copy-icon {
+  @apply shrink-0 flex items-center cursor-pointer;
+  color: oklch(from var(--color-white) l c h / 0.3);
+  margin-left: 6px;
+  opacity: 0.7;
+  transition: opacity 0.2s ease, color 0.2s ease;
+}
+
+.argument-hint-copy-icon:hover {
+  color: var(--text-tertiary);
+  opacity: 1;
+}
+
+.agent-skill-highlight {
+  background: oklch(from var(--color-amber-400) l c h / 0.3);
+  color: var(--text-primary, #fff);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+/* Scrollbar styling */
+.agent-skill-suggestions::-webkit-scrollbar {
+  /*display: none;*/
+  width: 3px;
+}
+
+.agent-skill-suggestions::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.agent-skill-suggestions::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb, #555);
+  border-radius: 3px;
+}
+
+.agent-skill-suggestions::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover, #666);
+}

@@ -1,12 +1,12 @@
 /**
- * FrontmatterPopupManager - Manages frontmatter popup display for slash commands
- * Extracted from SlashCommandManager to reduce file size and improve maintainability
+ * FrontmatterPopupManager - Manages frontmatter popup display for agent skills
+ * Extracted from AgentSkillManager to reduce file size and improve maintainability
  */
 
 import { calculatePopupPosition, applyPopupPosition } from './utils/popup-position-calculator';
 import { UI_TIMING } from '../constants';
 
-interface SlashCommandItemLike {
+interface AgentSkillItemLike {
   name: string;
   frontmatter?: string;
 }
@@ -16,15 +16,15 @@ interface SlashCommandItemLike {
  */
 export interface FrontmatterPopupCallbacks {
   getSuggestionsContainer: () => HTMLElement | null;
-  getFilteredCommands: () => SlashCommandItemLike[];
+  getFilteredSkills: () => AgentSkillItemLike[];
   getSelectedIndex: () => number;
   onBeforeOpenFile?: () => void;
   setDraggable?: (value: boolean) => void;
-  onSelectCommand?: (command: SlashCommandItemLike) => void;
+  onSelectSkill?: (command: AgentSkillItemLike) => void;
 }
 
 /**
- * Manages frontmatter popup display for slash command items
+ * Manages frontmatter popup display for agent skill items
  */
 export class FrontmatterPopupManager {
   private static readonly POPUP_HIDE_DELAY = UI_TIMING.POPUP_HIDE_DELAY; // ms delay before hiding popup
@@ -45,13 +45,13 @@ export class FrontmatterPopupManager {
   }
 
   /**
-   * Create the frontmatter popup element for slash command hover display
+   * Create the frontmatter popup element for agent skill hover display
    */
   public createPopup(): void {
     if (this.frontmatterPopup) return;
 
     this.frontmatterPopup = document.createElement('div');
-    this.frontmatterPopup.id = 'slashCommandFrontmatterPopup';
+    this.frontmatterPopup.id = 'agentSkillFrontmatterPopup';
     this.frontmatterPopup.className = 'frontmatter-popup';
     this.frontmatterPopup.style.display = 'none';
 
@@ -84,18 +84,18 @@ export class FrontmatterPopupManager {
   /**
    * Add file path as frontmatter line to content container
    */
-  private async addFilePathLine(contentDiv: HTMLElement, command: SlashCommandItemLike): Promise<void> {
+  private async addFilePathLine(contentDiv: HTMLElement, command: AgentSkillItemLike): Promise<void> {
     try {
-      // Determine if this is a slash command or agent, then get file path
+      // Determine if this is an agent skill or agent, then get file path
       let filePath: string | null | undefined;
       try {
-        // Try slash command API first
-        filePath = await window.electronAPI?.slashCommands?.getFilePath?.(command.name);
+        // Try agent skill API first
+        filePath = await window.electronAPI?.agentSkills?.getFilePath?.(command.name);
       } catch (_err) {
         // Silently ignore error - will try agent API next
       }
 
-      // If no slash command file path, try agent API
+      // If no agent skill file path, try agent API
       if (!filePath) {
         try {
           filePath = await window.electronAPI?.agents?.getFilePath?.(command.name);
@@ -133,8 +133,8 @@ export class FrontmatterPopupManager {
 
         try {
           // First, insert the command into textarea
-          if (this.callbacks.onSelectCommand) {
-            this.callbacks.onSelectCommand(command);
+          if (this.callbacks.onSelectSkill) {
+            this.callbacks.onSelectSkill(command);
           }
 
           // Then, open the file in editor
@@ -220,7 +220,7 @@ export class FrontmatterPopupManager {
   /**
    * Show the frontmatter popup for a command
    */
-  public async show(command: SlashCommandItemLike, targetElement: HTMLElement): Promise<void> {
+  public async show(command: AgentSkillItemLike, targetElement: HTMLElement): Promise<void> {
     const suggestionsContainer = this.callbacks.getSuggestionsContainer();
     if (!this.frontmatterPopup || !command.frontmatter || !suggestionsContainer) return;
 
@@ -317,7 +317,7 @@ export class FrontmatterPopupManager {
     this.cleanupRowListeners();
 
     // Find the parent row element
-    const rowElement = targetElement.closest('.slash-suggestion-item');
+    const rowElement = targetElement.closest('.agent-skill-suggestion-item');
     if (!rowElement) return;
 
     // Create bound handlers
@@ -337,19 +337,19 @@ export class FrontmatterPopupManager {
     const suggestionsContainer = this.callbacks.getSuggestionsContainer();
     if (!this.autoShowTooltip || !suggestionsContainer) return;
 
-    const filteredCommands = this.callbacks.getFilteredCommands();
+    const filteredSkills = this.callbacks.getFilteredSkills();
     const selectedIndex = this.callbacks.getSelectedIndex();
-    const selectedCommand = filteredCommands[selectedIndex];
-    if (!selectedCommand?.frontmatter) {
+    const selectedSkill = filteredSkills[selectedIndex];
+    if (!selectedSkill?.frontmatter) {
       this.hide();
       return;
     }
 
     // Find the info icon element for the selected item
-    const selectedItem = suggestionsContainer.querySelector('.slash-suggestion-item.selected');
+    const selectedItem = suggestionsContainer.querySelector('.agent-skill-suggestion-item.selected');
     const infoIcon = selectedItem?.querySelector('.frontmatter-info-icon') as HTMLElement;
     if (infoIcon) {
-      await this.show(selectedCommand, infoIcon);
+      await this.show(selectedSkill, infoIcon);
     }
   }
 

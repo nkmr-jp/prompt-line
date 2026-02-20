@@ -3,7 +3,7 @@
  */
 
 import type { HistoryItem } from './history';
-import type { SlashCommandItem, AgentItem, UserSettings } from './window';
+import type { AgentSkillItem, AgentItem, UserSettings } from './window';
 
 // ============================================================================
 // Input Sanitization Types
@@ -220,13 +220,13 @@ export interface ElectronAPI {
     setDirectory: (directory: string | null) => Promise<void>;
     getDirectory: () => Promise<string | null>;
   };
-  slashCommands: {
-    get: (query?: string) => Promise<SlashCommandItem[]>;
+  agentSkills: {
+    get: (query?: string) => Promise<AgentSkillItem[]>;
     getFilePath: (commandName: string) => Promise<string | null>;
     hasFile: (commandName: string) => Promise<boolean>;
-    // Global slash command cache
+    // Global agent skill cache
     registerGlobal: (commandName: string) => Promise<IPCResult>;
-    getGlobalCommands: () => Promise<string[]>;
+    getGlobalSkills: () => Promise<string[]>;
     // Usage bonus calculation for sorting
     getUsageBonuses: (commandNames: string[]) => Promise<Record<string, number>>;
   };
@@ -234,7 +234,7 @@ export interface ElectronAPI {
     get: (query?: string) => Promise<AgentItem[]>;
     getFilePath: (agentName: string) => Promise<string | null>;
   };
-  mdSearch: {
+  customSearch: {
     getMaxSuggestions: (type: 'command' | 'mention') => Promise<number>;
     getSearchPrefixes: (type: 'command' | 'mention') => Promise<string[]>;
   };
@@ -262,7 +262,7 @@ export interface ElectronAPI {
   atPathCache: {
     register: (directory: string, atPath: string) => Promise<IPCResult>;
     getPaths: (directory: string) => Promise<string[]>;
-    // Global at-path cache (for mdSearch agents and other project-independent items)
+    // Global at-path cache (for customSearch agents and other project-independent items)
     registerGlobal: (atPath: string) => Promise<IPCResult>;
     getGlobalPaths: () => Promise<string[]>;
   };
