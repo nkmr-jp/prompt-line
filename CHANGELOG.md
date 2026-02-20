@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.1](https://github.com/nkmr-jp/prompt-line/compare/v0.22.0...v0.22.1) (2026-02-20)
+
+
+### Bug Fixes
+
+* **deps-dev:** bump tar from 7.5.7 to 7.5.9 in the npm_and_yarn group across 1 directory ([709ff6d](https://github.com/nkmr-jp/prompt-line/commit/709ff6dc6aef3f4768ba61945234a69287d225b4))
+
 ## [0.22.0](https://github.com/nkmr-jp/prompt-line/compare/v0.21.0...v0.22.0) (2026-02-06)
 
 
