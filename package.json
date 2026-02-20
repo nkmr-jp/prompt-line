@@ -4,14 +4,14 @@
   "description": "Prompt Line is a macOS app developed to improve the prompt input experience in the terminal for CLI-based AI coding agents such as Claude Code, OpenAI Codex CLI, and Aider.",
   "main": "dist/main.js",
   "scripts": {
-    "start": "LOG_LEVEL=debug npm run compile && LOG_LEVEL=debug electron .",
-    "compile": "node node_modules/electron/install.js && tsc && npm run build:renderer && cd native && make install && cp -r ../src/native-tools ../dist/",
+    "start": "LOG_LEVEL=debug pnpm run compile && LOG_LEVEL=debug electron .",
+    "compile": "node node_modules/electron/install.js && tsc && pnpm run build:renderer && cd native && make install && cp -r ../src/native-tools ../dist/",
     "build:renderer": "vite build && cp src/renderer/input.html dist/renderer/input.html",
     "typecheck": "tsc --noEmit",
-    "build": "npm run compile && electron-builder --mac --publish=never",
+    "build": "pnpm run compile && electron-builder --mac --publish=never",
     "clean": "rm -rf dist/mac* dist/*.dmg dist/*.zip dist/*.blockmap",
     "clean:cache": "rm -rf node_modules/.cache ~/Library/Caches/electron-builder ~/Library/Caches/electron",
-    "clean:full": "npm run clean && npm run clean:cache && rm -rf dist/",
+    "clean:full": "pnpm run clean && pnpm run clean:cache && rm -rf dist/",
     "release": "echo 'Releases are automated via GitHub Actions on push to main branch'",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -22,12 +22,12 @@
     "lint:fix": "eslint 'src/**/*.{js,ts}' 'tests/**/*.{js,ts}' --fix",
     "lint:dupl": "jscpd ./src",
     "test:mutation": "stryker run",
-    "pre-push": "npm run lint && npm run typecheck && npm test",
+    "pre-push": "pnpm run lint && pnpm run typecheck && pnpm test",
     "prepare": "husky",
     "reset-accessibility": "tccutil reset Accessibility com.electron.prompt-line && echo '✅ Accessibility permissions for Prompt Line have been reset'",
     "reset-built-in-commands": "rm -rf ~/.prompt-line/built-in-commands && echo '✅ Built-in commands reset to defaults. Restart the app to apply changes.'",
-    "update-built-in-commands": "npx ts-node scripts/update-built-in-commands.ts",
-    "generate:settings-example": "npx ts-node scripts/generate-settings-example.ts"
+    "update-built-in-commands": "pnpm exec ts-node scripts/update-built-in-commands.ts",
+    "generate:settings-example": "pnpm exec ts-node scripts/generate-settings-example.ts"
   },
   "keywords": [
     "paste",
@@ -134,13 +134,16 @@
     "js-yaml": "^4.1.1",
     "tailwindcss": "^4.2.0"
   },
-  "overrides": {
-    "js-yaml": "^4.1.1",
-    "test-exclude": "^7.0.1",
-    "@electron/asar": "^4.0.1",
-    "global-agent": "^4.0.0",
-    "rimraf": "^6.0.0",
-    "glob": "$glob",
-    "jsdom": "^27.0.0"
+  "packageManager": "pnpm@10.30.0+sha512.2b5753de015d480eeb88f5b5b61e0051f05b4301808a82ec8b840c9d2adf7748eb352c83f5c1593ca703ff1017295bc3fdd3119abb9686efc96b9fcb18200937",
+  "pnpm": {
+    "overrides": {
+      "js-yaml": "^4.1.1",
+      "test-exclude": "^7.0.1",
+      "@electron/asar": "^4.0.1",
+      "global-agent": "^4.0.0",
+      "rimraf": "^6.0.0",
+      "glob": "$glob",
+      "jsdom": "^27.0.0"
+    }
   }
 }

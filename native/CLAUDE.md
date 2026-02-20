@@ -359,7 +359,7 @@ directory-detector check-fd                      # Check if fd is available
 
 ### Build Process Integration
 1. **Development Build**: Development build includes native tool compilation via `make install`
-2. **Production Build**: `npm run build` ensures native tools are compiled and distributed
+2. **Production Build**: `pnpm run build` ensures native tools are compiled and distributed
 3. **Distribution**: Native binaries are packaged with the Electron app in `dist/native-tools/`
 4. **Platform Detection**: Build process only compiles on macOS systems
 5. **Asset Unpacking**: Electron-builder configured to unpack native tools from ASAR (`asarUnpack: ["dist/native-tools/**/*"]`)
@@ -367,7 +367,7 @@ directory-detector check-fd                      # Check if fd is available
 **NPM Script Integration:**
 ```json
 {
-  "compile": "node node_modules/electron/install.js && tsc && npm run build:renderer && cd native && make install && cp -r ../src/native-tools ../dist/"
+  "compile": "node node_modules/electron/install.js && tsc && pnpm run build:renderer && cd native && make install && cp -r ../src/native-tools ../dist/"
 }
 ```
 
@@ -480,8 +480,8 @@ make install
 # Verify installation
 ls -la ../src/native-tools/
 
-# Or use integrated npm script
-npm run compile  # Builds TypeScript + native tools + copies to dist/
+# Or use integrated pnpm script
+pnpm run compile  # Builds TypeScript + native tools + copies to dist/
 ```
 
 ### Testing Integration

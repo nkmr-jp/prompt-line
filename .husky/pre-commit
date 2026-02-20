@@ -9,14 +9,14 @@ if [ -z "$STAGED_FILES" ]; then
 fi
 
 echo "🔧 Running ESLint with auto-fix on staged files..."
-npx eslint --fix $STAGED_FILES
+pnpm exec eslint --fix $STAGED_FILES
 if [ $? -ne 0 ]; then
   echo "❌ ESLint failed. Please fix the issues before committing."
   exit 1
 fi
 
 echo "🔍 Running TypeScript type check..."
-npx tsc --noEmit
+pnpm exec tsc --noEmit
 if [ $? -ne 0 ]; then
   echo "❌ TypeScript type check failed. Please fix the issues before committing."
   exit 1

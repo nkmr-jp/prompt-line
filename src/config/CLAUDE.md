@@ -18,7 +18,7 @@ This file exports `defaultSettings` which serves as:
 
 **Important principles:**
 - This is the ONLY place to modify default values
-- After updating, run `npm run generate:settings-example` to regenerate settings.example.yml
+- After updating, run `pnpm run generate:settings-example` to regenerate settings.example.yml
 - Ensures no discrepancy between runtime defaults and documented examples
 
 ### settings-yaml-generator.ts
@@ -26,7 +26,7 @@ Generates `settings.example.yml` from default-settings.ts.
 
 - **Purpose**: Create user-facing example configuration file
 - **Source**: Uses `defaultSettings` and `commentedExamples` from default-settings.ts
-- **Usage**: Run `npm run generate:settings-example` after modifying defaults
+- **Usage**: Run `pnpm run generate:settings-example` after modifying defaults
 - **Output**: Creates/updates settings.example.yml in the repository root
 
 ### app-config.ts
@@ -413,7 +413,7 @@ default-settings.ts (Single Source of Truth)
     └─→ settings-yaml-generator.ts (Documentation generation)
         - Generates settings.example.yml from defaultSettings
         - Includes commentedExamples for user guidance
-        - Run via: npm run generate:settings-example
+        - Run via: pnpm run generate:settings-example
 ```
 
 **Key principles:**
