@@ -45,10 +45,10 @@ Also convenient when you want to reuse the same prompt in other apps.
 Of course, it also works with apps other than Terminal.
 ![doc5.gif](assets/doc5.gif)
 
-### Advanced Search and Autocomplete
+### Context Search and Autocomplete
 
-Type `/` or `@` to search and autocomplete Agent Skills, files, and symbols.<br>
-These can be customized in the settings file. See: [settings.example.yml](settings.example.yml)
+Type `/` or `@` to search and autocomplete contexts such as Agent Skills, Built-in Commands, files, and symbols.<br>
+These can be customized in the settings file (`~/.prompt-line/settings.yml`). See: [settings.example.yml](settings.example.yml)
 <table>
 <tr>
 <td>Agent Skills and Built-in Commands <img src="assets/doc9.png"> </td>
@@ -56,11 +56,11 @@ These can be customized in the settings file. See: [settings.example.yml](settin
 </tr>
 <tr>
 <td>Symbol Search<img src="assets/doc11.png"> </td>
-<td>Custom Search (~/.claude/agents)  <img src="assets/doc14.png"> </td>
+<td>Sub-agent Search (~/.claude/agents)  <img src="assets/doc14.png"> </td>
 </tr>
 <tr>
-<td>Custom Search (~/.claude/plans) <img src="assets/doc12.png"> </td>
-<td>Custom Search (~/.claude/teams)  <img src="assets/doc13.png"> </td>
+<td>Plan Search (~/.claude/plans) <img src="assets/doc12.png"> </td>
+<td>Agent Team Search (~/.claude/teams)  <img src="assets/doc13.png"> </td>
 </tr>
 </table>
 
