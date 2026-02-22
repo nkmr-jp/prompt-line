@@ -51,6 +51,7 @@ const ALLOWED_CHANNELS = [
   'get-agent-file-path',
   'get-custom-search-max-suggestions',
   'get-custom-search-prefixes',
+  'get-file-search-max-suggestions',
   'open-file-in-editor',
   'check-file-exists',
   'open-external-url',

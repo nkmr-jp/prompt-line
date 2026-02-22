@@ -5,7 +5,7 @@
 # traditional slash commands. The commands below are accessed via the command dialog.
 #
 # Color property supports both named colors and hex color codes:
-# - Named colors: grey, darkGrey, slate, red, rose, orange, amber, yellow, lime, green, emerald, teal, cyan, sky, blue, indigo, violet, purple, fuchsia, pink
+# - Named colors: grey, darkGrey, slate, stone, red, rose, orange, amber, yellow, lime, green, emerald, teal, cyan, sky, blue, indigo, violet, purple, fuchsia, pink
 # - Hex codes: #RGB or #RRGGBB (e.g., #5C6BC0, #5CB)
 
 name: opencode

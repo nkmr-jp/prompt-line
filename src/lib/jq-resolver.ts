@@ -31,6 +31,7 @@ async function getJqInstance(): Promise<JqInstance> {
         return instance;
       } catch (error) {
         logger.error('jq-web: WASM initialization failed', { error: error instanceof Error ? error.message : String(error) });
+        jqInitPromise = null;
         throw error;
       }
     })();
