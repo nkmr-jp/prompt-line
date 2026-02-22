@@ -188,8 +188,8 @@ window:
             path: '~/.claude/plugins/cache',
             pattern: '**/commands/*.md',
             prefixPattern: '**/.claude-plugin/*.json@name',
-            label: 'command',
-            color: 'teal',
+            label: 'plugin command',
+            color: 'green',
             argumentHint: '{frontmatter@argument-hint}',
             maxSuggestions: 20
           },
@@ -199,8 +199,8 @@ window:
             path: '~/.claude/plugins/cache',
             pattern: '**/*/SKILL.md',
             prefixPattern: '**/.claude-plugin/*.json@name',
-            label: 'skill',
-            color: 'teal',
+            label: 'plugin skill',
+            color: 'cyan',
             argumentHint: '{frontmatter@argument-hint}',
             maxSuggestions: 20
           }
@@ -408,8 +408,8 @@ window:
             path: '~/.claude/plugins/cache',
             pattern: '**/commands/*.md',
             prefixPattern: '**/.claude-plugin/*.json@name',
-            label: 'command',
-            color: 'teal',
+            label: 'plugin command',
+            color: 'green',
             argumentHint: '{frontmatter@argument-hint}',
             maxSuggestions: 20
           },
@@ -419,8 +419,8 @@ window:
             path: '~/.claude/plugins/cache',
             pattern: '**/*/SKILL.md',
             prefixPattern: '**/.claude-plugin/*.json@name',
-            label: 'skill',
-            color: 'teal',
+            label: 'plugin skill',
+            color: 'cyan',
             argumentHint: '{frontmatter@argument-hint}',
             maxSuggestions: 20
           }
