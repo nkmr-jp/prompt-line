@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.23.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.23.0...prompt-line-v0.23.1) (2026-02-22)
+
+
+### Bug Fixes
+
+* **test:** relax flaky scalability test threshold for CI environments ([f2b9dca](https://github.com/nkmr-jp/prompt-line/commit/f2b9dca5d04931155423839af51b53c0d2245fea))
+
+
+### Documentation
+
+* **settings:** update example settings for plugin and mention configurations ([8326f33](https://github.com/nkmr-jp/prompt-line/commit/8326f33c87783c4f498c545345a9e243695b76dc))
+
 ## [0.23.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.22.0...prompt-line-v0.23.0) (2026-02-22)
 
 
