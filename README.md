@@ -194,7 +194,7 @@ This feature integrates with File Search, so you need to enable File Search firs
 
 ![doc13.png](assets/doc13.png)
 
-##### Markdown Search
+##### Custom Search
 You can search for sub-agents and agent skills by typing `@<searchPrefix>:<query>`, also use it for your own knowledge searches.
 
 ![doc12.png](assets/doc12.png)
@@ -216,7 +216,7 @@ For the full configuration example with all available options and comments, see:
 | `fileOpener` | Default editor and extension-specific applications |
 | `builtInCommands` | Built-in slash commands to enable (claude, codex, gemini, etc.) |
 | `agentSkills` | Agent skills from markdown files (custom commands, skills, plugins) |
-| `mentions.customSearch` | Markdown-based mentions with searchPrefix support (agent, rules, docs, etc.) and frontmatter template variables |
+| `mentions.customSearch` | Custom search entries triggered by @prefix: — supports Markdown (.md), JSON (.json), JSONL (.jsonl), and jq expressions |
 | `mentions.fileSearch` | File search settings (@path/to/file completion) |
 | `mentions.symbolSearch` | Symbol search settings (@ts:Config, @go:Handler) |
 
