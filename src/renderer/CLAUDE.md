@@ -65,15 +65,17 @@ The renderer process uses a modular manager pattern with 15+ specialized classes
 - DraftManagerClient: Auto-save functionality (renderer side)
 - HistoryUIManager: History display and interaction
 - HistorySearchManager: Advanced history search with scoring
-- SnapshotManager: Undo/redo with state tracking
+- SimpleSnapshotManager: Undo/redo with state tracking
 
 **Mention System:**
 - MentionManager: @ mention orchestration (15+ sub-managers)
 - AgentSkillManager: Agent skill system
 - FrontmatterPopupManager: Frontmatter display
 
-**Search & Navigation:**
-- SearchManager: Real-time search functionality
+**Event Delegation:**
+- ShortcutHandler: Keyboard shortcut handling (`shortcut-handler.ts`)
+- WindowBlurHandler: Window blur/auto-hide handling (`window-blur-handler.ts`)
+- DirectoryDataHandler: Directory data updates from main process (`directory-data-handler.ts`)
 
 ### DomManager
 Centralized DOM element access and manipulation:
@@ -153,22 +155,6 @@ Technical implementation:
 - Implements proper event capture/bubble phases
 - Includes timeout-based window blur handling to prevent accidental closes
 - Supports both event-target specific and global shortcut handling
-
-### SearchManager
-Real-time search functionality with advanced UI state management:
-- **Mode Management**: Search state tracking with visual feedback
-- **Real-time Filtering**: Instant search results as user types
-- **Highlight System**: Search term highlighting with escape character handling
-- **Event Coordination**: Comprehensive mouse, touch, and keyboard event handling
-- **Focus Management**: Intelligent focus transitions between search and main input
-- **Data Synchronization**: Maintains original data while providing filtered views
-
-User experience features:
-- Case-insensitive search with regex-based highlighting
-- Multiple event handlers for reliable close button functionality
-- Escape key handling with proper event propagation control
-- Auto-focus on search input when entering search mode
-- Seamless transition back to main textarea on search exit
 
 ### MentionManager (mentions/)
 Comprehensive @ mention system with modular architecture for file search and code search:
@@ -368,7 +354,7 @@ Design decisions:
 - Fixed positioning for notifications with z-index management
 - Global window attachment for browser environment compatibility
 
-### SnapshotManager
+### SimpleSnapshotManager
 Undo/redo functionality with text and cursor state tracking:
 - **State Snapshots**: Captures text content and cursor position together
 - **History Stack**: Maintains undo/redo history with configurable depth

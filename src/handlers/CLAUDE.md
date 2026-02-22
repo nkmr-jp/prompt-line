@@ -30,16 +30,16 @@ The handlers module consists of 10 specialized files:
 Core IPCHandlers class that manages all Inter-Process Communication with the following key features:
 
 #### Architecture
-- **Dependency Injection**: Constructor accepts WindowManager, IHistoryManager, DraftManager, and SettingsManager
+- **Dependency Injection**: Constructor accepts WindowManager, IHistoryManager, DraftManager, DirectoryManager, SettingsManager, and BuiltInCommandsManager
 - **Type Safety**: Comprehensive TypeScript interfaces for all operations and responses
 - **Handler Registration**: Automatic setup of all IPC channels via `ipcMain.handle()`
 - **Clean Shutdown**: `removeAllHandlers()` method for proper cleanup
-- **Delegation Pattern**: Coordinates specialized handlers (paste, history-draft, window, system, custom-search, file, code-search, usage-history)
+- **Delegation Pattern**: Coordinates specialized handlers (paste, history-draft, window, system, custom-search, file, usage-history)
+  - Note: `code-search-handler.ts` は IPCHandlers コーディネーターを経由せず、`main.ts` から直接 `codeSearchHandler.register()` で登録される
 
 #### Key Dependencies
 ```typescript
-import { ipcMain, clipboard, dialog } from 'electron';
-import { exec } from 'child_process';
+import { ipcMain } from 'electron';
 import { promises as fs } from 'fs';
 import {
   pasteWithNativeTool,
@@ -50,6 +50,10 @@ import {
 
 ### code-search-handler.ts
 Handles symbol search via native ripgrep integration:
+
+#### Registration
+- **独立した登録方式**: IPCHandlers コーディネーターを経由せず、`main.ts` から直接 `codeSearchHandler.register()` で登録される
+- **シングルトンパターン**: `register()` メソッドは `initialized` フラグで二重登録を防止する
 
 #### Architecture
 - **Stale-while-Revalidate**: Returns cached data while refreshing in background
@@ -153,9 +157,6 @@ Shared utilities for all handlers:
 - **`get-file-search-max-suggestions`**: Retrieves max suggestions for file search
 
 ### Settings Management
-- **`get-settings`**: Current UserSettings retrieval
-- **`update-settings`**: Settings modification with validation
-- **`reset-settings`**: Settings reset to defaults
 - **`open-settings`**: Opens settings file in default editor
 - **`open-settings-directory`**: Opens settings directory in Finder
 
@@ -175,6 +176,7 @@ Shared utilities for all handlers:
 - **`open-file-in-editor`**: Opens file with configured editor based on extension
 - **`check-file-exists`**: File existence check with path validation
 - **`open-external-url`**: Opens URLs with protocol whitelist (http://, https://)
+- **`reveal-in-finder`**: Opens the parent directory of the specified file in Finder
 
 ### Draft Directory Management
 - **`set-draft-directory`**: Sets the draft directory for file operations

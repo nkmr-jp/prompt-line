@@ -26,7 +26,7 @@ The managers module consists of sixteen main components plus two sub-modules:
 
 ### Sub-Modules
 - **symbol-search/**: Cross-platform symbol search using ripgrep via Node.js (types.ts, symbol-searcher.ts, index.ts)
-- **window/**: Advanced window lifecycle management with native app integration (10 files including strategies/)
+- **window/**: Advanced window lifecycle management with native app integration (12 files including strategies/)
 
 ## Implementation Details
 
@@ -134,60 +134,86 @@ interface ExportData {
 ```
 
 ### usage-history-manager.ts
-Base class for usage history tracking with LRU-based management:
+Usage history tracking with frequency/recency bonus calculation:
 
 **Core Functionality:**
 ```typescript
-abstract class UsageHistoryManager<T extends UsageHistoryEntry> {
-  abstract getStoragePath(): string;
-  async recordUsage(item: T): Promise<void>;
-  async getHistory(limit?: number): Promise<T[]>;
-  async clearHistory(): Promise<void>;
+class UsageHistoryManager {
+  constructor(filePath: string, config?: Partial<UsageHistoryConfig>)
+  async initialize(): Promise<void>
+  async recordUsage(key: string): Promise<void>
+  calculateBonus(key: string): number
+  getEntry(key: string): UsageEntry | undefined
+  getAllEntries(): UsageEntry[]
+  async clearCache(): Promise<void>
+}
+```
+
+**Entry Format:**
+```typescript
+interface UsageEntry {
+  key: string;       // Unique identifier
+  count: number;     // Usage count
+  lastUsed: number;  // Last used timestamp (ms)
+  firstUsed: number; // First used timestamp (ms)
 }
 ```
 
 **Features:**
-- LRU (Least Recently Used) cache management with configurable limits
-- Automatic deduplication based on unique identifiers
-- JSONL storage format for efficient append operations
-- Timestamp-based sorting (newest first)
-- Generic type support for different history item types
+- In-memory cache (Map) with lazy initialization
+- TTL-based and count-based pruning (default: 500 entries, 30 days)
+- Frequency and recency bonus calculation via `usage-bonus-calculator`
+- JSONL storage format for efficient operations
 
 ### agent-usage-history-manager.ts
 Agent usage history tracking for smart suggestions:
 
 **Storage:**
-- File path: `~/.prompt-line/agent-usage-history.jsonl`
-- Entry format: `{id: string, timestamp: number}`
+- File path: `appConfig.paths.projectsCacheDir/agent-usage-history.jsonl`
+- Entry format: `UsageEntry {key, count, lastUsed, firstUsed}`
+
+**Singleton Pattern:**
+- Private constructor with static `getInstance()` method
+- Lazy singleton via `getAgentUsageHistoryManager()` exported function
 
 **Features:**
-- Extends UsageHistoryManager base class
-- Records agent selection frequency
-- Provides smart agent suggestions based on usage patterns
+- Extends UsageHistoryManager (maxEntries: 100, ttlDays: 30)
+- Records agent selection by name via `recordAgentUsage(agentName)`
+- Calculates bonus score via `calculateAgentBonus(agentName)`
 
 ### file-usage-history-manager.ts
 File usage history tracking for smart suggestions:
 
 **Storage:**
-- File path: `~/.prompt-line/file-usage-history.jsonl`
-- Entry format: `{path: string, timestamp: number}`
+- File path: `projectsCacheDir/file-usage-history.jsonl`
+- Entry format: `UsageEntry {key, count, lastUsed, firstUsed}`
+
+**Singleton Pattern:**
+- Private constructor with static `getInstance()` method
+- Lazy singleton via `getFileUsageHistoryManager()` exported function
 
 **Features:**
-- Extends UsageHistoryManager base class
-- Records file access frequency
-- Provides smart file suggestions based on usage patterns
+- Extends UsageHistoryManager (maxEntries: 500, ttlDays: 30)
+- Normalizes file paths via `normalizeKey(filePath)` with path traversal detection
+- Records file usage via `recordFileUsage(filePath)`
+- Calculates bonus score via `calculateFileBonus(filePath)`
 
 ### symbol-usage-history-manager.ts
 Symbol usage history tracking for smart suggestions:
 
 **Storage:**
-- File path: `~/.prompt-line/symbol-usage-history.jsonl`
-- Entry format: `{name: string, type: string, filePath: string, timestamp: number}`
+- File path: `projectsCacheDir/symbol-usage-history.jsonl`
+- Entry format: `UsageEntry {key, count, lastUsed, firstUsed}`
+
+**Singleton Pattern:**
+- Private constructor with static `getInstance()` method
+- Lazy singleton via `getSymbolUsageHistoryManager()` exported function
 
 **Features:**
-- Extends UsageHistoryManager base class
-- Records symbol access frequency
-- Provides smart symbol suggestions based on usage patterns
+- Extends UsageHistoryManager (maxEntries: 500, ttlDays: 30)
+- Creates composite key `{filePath}:{symbolName}` with path traversal detection via `createSymbolKey()`
+- Records symbol usage via `recordSymbolUsage(filePath, symbolName)`
+- Calculates bonus score via `calculateSymbolBonus(filePath, symbolName)`
 
 ### draft-manager.ts
 Intelligent draft management with adaptive auto-save and backup system:
