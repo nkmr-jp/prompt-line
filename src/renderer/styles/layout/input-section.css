@@ -367,7 +367,7 @@
 }
 
 #textInput::placeholder {
-    color: var(--text-tertiary);
+    color: oklch(from var(--color-white) l c h / 0.25);
 }
 
 /* Scrollbar styles */
@@ -390,7 +390,7 @@
 
 /* Disable IME suggestions */
 #textInput::-webkit-input-placeholder {
-    color: var(--text-tertiary);
+    color: oklch(from var(--color-white) l c h / 0.25);
 }
 
 #textInput::-webkit-textfield-decoration-container {
