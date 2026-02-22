@@ -142,6 +142,7 @@ pnpm run reset-accessibility
 1. `pnpm run reset-accessibility`のコマンドを実行して「Prompt Line」のアクセシビリティ権限をリセット
 2. 「📦 インストール」の項目を参照して、再度インストール
 3. `pnpm run migrate-settings`を実行して設定ファイルを最新のデフォルトに移行（既存設定は自動バックアップされます）
+4. `pnpm run update-built-in-commands`を実行してビルトインコマンドを最新版に更新
 
 
 ## 使用方法
