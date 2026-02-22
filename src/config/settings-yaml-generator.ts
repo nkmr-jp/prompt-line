@@ -278,7 +278,7 @@ function buildAgentSkillsSection(settings: UserSettings, options: YamlGeneratorO
   section += '#   path: Directory path to search for skill files\n';
   section += '#   label: Display label for UI badge (e.g., "command", "skill", "agent")\n';
   section += '#   color: Badge color (name: grey, darkGrey, slate, stone, red, rose, orange, amber, yellow, lime, green, emerald, teal, cyan, sky, blue, indigo, violet, purple, fuchsia, pink, or hex: #FF5733)\n';
-  section += '#   icon: Codicon icon name (e.g., "agent", "rocket", "terminal") https://microsoft.github.io/vscode-codicons/dist/codicon.html\n';
+  section += '#   icon: Codicon icon name (e.g., "agent", "rocket", "terminal")\n';
   section += '#   pattern: Glob pattern to match files (e.g., "*.md", "**/*/SKILL.md")\n';
   section += '#   prefixPattern: Pattern to extract prefix from plugin metadata\n';
   section += '#   argumentHint: Hint for skill arguments\n';
