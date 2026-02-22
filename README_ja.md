@@ -15,19 +15,6 @@ Prompt Lineは、[Claude Code](https://github.com/anthropics/claude-code)、[Gem
 2. **Enterを押したら意図しないタイミングで送信されてしまうチャットアプリ**
 3. **入力の重たいテキストエディタ(例：巨大なコンフルエンスのドキュメントなど)**
 
-また、/や@による入力補完機能もついておりプロンプト入力の手間を軽減します。
-以下のような入力補完に対応しています。
-
-- プロジェクト内のディレクトリ・ファイル・シンボル
-- Claude Code, Codex, Gemini などの主要なAIエージェントのBuilt-in commands
-- Pluginでインストールした Agent Skills, Subagents
-- 独自に定義した Agent Skills, Subagents
-- Claude Code の Agent Teams のメンバー
-- 独自に作成したマークダウンのドキュメント
-- など
-
-これらは設定ファイルでカスタマイズできます。参考: [settings.example.yml](settings.example.yml)
-
 ## 特徴
 ### サクッと起動、サクッと貼付け
 ショートカットでサクッと起動 (`Cmd+Shift+Space`)。<br>
@@ -191,16 +178,16 @@ pnpm run reset-accessibility
 
 ### 設定項目の概要
 
-| セクション | 説明 |
-|---------|-------------|
-| `shortcuts` | キーボードショートカット（メイン、ペースト、クローズ、履歴ナビゲーション、検索） |
-| `window` | ウィンドウサイズと配置モード |
-| `fileOpener` | デフォルトエディタと拡張子別アプリケーション |
+| セクション | 説明                                            |
+|---------|-----------------------------------------------|
+| `shortcuts` | キーボードショートカット（メイン、ペースト、クローズ、履歴ナビゲーション、検索）      |
+| `window` | ウィンドウサイズと配置モード                                |
+| `fileOpener` | デフォルトエディタと拡張子別アプリケーション                        |
 | `builtInCommands` | Built-inスラッシュコマンドの有効化（claude, codex, gemini等） |
-| `agentSkills` | Agent Skills |
-| `mentions.customSearch` | @prefix:で発動するカスタム検索 — Markdown (.md)、JSON (.json)、JSONL (.jsonl)、jq式に対応 |
-| `mentions.fileSearch` | ファイル検索設定（@path/to/file補完） |
-| `mentions.symbolSearch` | シンボル検索設定（@ts:Config、@go:Handler） |
+| `agentSkills` | Agent Skills検索機能                              |
+| `mentions.customSearch` | @prefix:で発動するカスタム検索                           |
+| `mentions.fileSearch` | ファイル検索設定（@path/to/file補完）                     |
+| `mentions.symbolSearch` | シンボル検索設定（@ts:Config、@go:Handler）              |
 
 ## プロンプト履歴
 
