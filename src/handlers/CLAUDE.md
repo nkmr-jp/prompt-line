@@ -20,7 +20,7 @@ The handlers module consists of 10 specialized files:
 - **history-draft-handler.ts**: History CRUD and draft management with @path caching
 - **window-handler.ts**: Window visibility and focus control
 - **system-handler.ts**: App info, config, and settings retrieval
-- **mdsearch-handler.ts**: Slash commands and agent selection
+- **custom-search-handler.ts**: Slash commands and agent selection
 - **file-handler.ts**: File operations and external URL handling
 - **code-search-handler.ts**: Symbol search with ripgrep integration
 - **usage-history-handler.ts**: Usage history tracking for files, symbols, and agents
@@ -30,16 +30,16 @@ The handlers module consists of 10 specialized files:
 Core IPCHandlers class that manages all Inter-Process Communication with the following key features:
 
 #### Architecture
-- **Dependency Injection**: Constructor accepts WindowManager, IHistoryManager, DraftManager, and SettingsManager
+- **Dependency Injection**: Constructor accepts WindowManager, IHistoryManager, DraftManager, DirectoryManager, SettingsManager, and BuiltInCommandsManager
 - **Type Safety**: Comprehensive TypeScript interfaces for all operations and responses
 - **Handler Registration**: Automatic setup of all IPC channels via `ipcMain.handle()`
 - **Clean Shutdown**: `removeAllHandlers()` method for proper cleanup
-- **Delegation Pattern**: Coordinates specialized handlers (paste, history-draft, window, system, mdsearch, file, code-search, usage-history)
+- **Delegation Pattern**: Coordinates specialized handlers (paste, history-draft, window, system, custom-search, file, usage-history)
+  - Note: `code-search-handler.ts` は IPCHandlers コーディネーターを経由せず、`main.ts` から直接 `codeSearchHandler.register()` で登録される
 
 #### Key Dependencies
 ```typescript
-import { ipcMain, clipboard, dialog } from 'electron';
-import { exec } from 'child_process';
+import { ipcMain } from 'electron';
 import { promises as fs } from 'fs';
 import {
   pasteWithNativeTool,
@@ -50,6 +50,10 @@ import {
 
 ### code-search-handler.ts
 Handles symbol search via native ripgrep integration:
+
+#### Registration
+- **独立した登録方式**: IPCHandlers コーディネーターを経由せず、`main.ts` から直接 `codeSearchHandler.register()` で登録される
+- **シングルトンパターン**: `register()` メソッドは `initialized` フラグで二重登録を防止する
 
 #### Architecture
 - **Stale-while-Revalidate**: Returns cached data while refreshing in background
@@ -100,7 +104,7 @@ Shared utilities for all handlers:
 - `expandPath`: Path expansion with `~` and relative path support
 - `normalizeAndValidatePath`: Path normalization with traversal attack prevention
 - `validateHistoryId`: History ID format validation (lowercase alphanumeric)
-- `updateMdSearchConfig`: MdSearch configuration update utility
+- `updateCustomSearchConfig`: CustomSearch configuration update utility
 
 #### Types
 - `IPCResult`: Standard response interface with success/error/warning fields
@@ -153,28 +157,26 @@ Shared utilities for all handlers:
 - **`get-file-search-max-suggestions`**: Retrieves max suggestions for file search
 
 ### Settings Management
-- **`get-settings`**: Current UserSettings retrieval
-- **`update-settings`**: Settings modification with validation
-- **`reset-settings`**: Settings reset to defaults
 - **`open-settings`**: Opens settings file in default editor
 - **`open-settings-directory`**: Opens settings directory in Finder
 
-### Slash Commands & Agents
-- **`get-slash-commands`**: Retrieves slash commands with optional query filtering
-- **`get-slash-command-file-path`**: Resolves slash command file path
-- **`has-command-file`**: Checks if a slash command file exists
+### Agent Skills & Agents
+- **`get-agent-skills`**: Retrieves agent skills with optional query filtering
+- **`get-agent-skill-file-path`**: Resolves agent skill file path
+- **`has-command-file`**: Checks if an agent skill file exists
 - **`get-agents`**: Retrieves agent definitions with optional query filtering
 - **`get-agent-file-path`**: Resolves agent file path
-- **`get-md-search-max-suggestions`**: Gets max suggestions for search type
-- **`get-md-search-prefixes`**: Gets search prefixes for search type
-- **`register-global-slash-command`**: Registers a global slash command for caching
-- **`get-global-slash-commands`**: Retrieves registered global slash commands
+- **`get-custom-search-max-suggestions`**: Gets max suggestions for search type
+- **`get-custom-search-prefixes`**: Gets search prefixes for search type
+- **`register-global-agent-skill`**: Registers a global agent skill for caching
+- **`get-global-agent-skills`**: Retrieves registered global agent skills
 - **`get-usage-bonuses`**: Gets usage bonuses for agents
 
 ### File Operations
 - **`open-file-in-editor`**: Opens file with configured editor based on extension
 - **`check-file-exists`**: File existence check with path validation
 - **`open-external-url`**: Opens URLs with protocol whitelist (http://, https://)
+- **`reveal-in-finder`**: Opens the parent directory of the specified file in Finder
 
 ### Draft Directory Management
 - **`set-draft-directory`**: Sets the draft directory for file operations
@@ -195,7 +197,7 @@ Shared utilities for all handlers:
 ### At-Path Registration (history-draft-handler.ts)
 - **`register-at-path`**: Registers a file path pattern for highlighting (project-level)
 - **`get-registered-at-paths`**: Retrieves registered @path patterns for a directory
-- **`register-global-at-path`**: Registers a global @path pattern (for mdSearch agents)
+- **`register-global-at-path`**: Registers a global @path pattern (for customSearch agents)
 - **`get-global-at-paths`**: Retrieves global @path patterns
 
 ### Usage History Tracking (usage-history-handler.ts)
@@ -255,7 +257,7 @@ interface IPCResult {
 - **SettingsManager**: User preferences management with YAML persistence
 - **SymbolCacheManager**: Symbol search result caching with language separation
 - **AtPathCacheManager**: @path pattern caching for file highlighting
-- **MdSearchLoader**: Markdown file search for slash commands and agents
+- **CustomSearchLoader**: Custom search for slash commands and agents
 - **FileUsageHistoryManager**: File usage tracking and bonus calculation
 - **SymbolUsageHistoryManager**: Symbol usage tracking and bonus calculation
 - **AgentUsageHistoryManager**: Agent usage tracking and bonus calculation

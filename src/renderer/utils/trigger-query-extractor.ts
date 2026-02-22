@@ -1,7 +1,7 @@
 /**
  * Trigger Query Extractor
  * Common utility for extracting trigger-based queries at cursor position.
- * Used by both SlashCommandManager ('/') and MentionManager ('@').
+ * Used by both AgentSkillManager ('/') and MentionManager ('@').
  */
 
 export interface TriggerQueryResult {
@@ -22,11 +22,11 @@ export interface TriggerQueryResult {
  * @returns TriggerQueryResult if valid trigger found, null otherwise
  *
  * @example
- * // Slash command at start
+ * // Agent skill at start
  * extractTriggerQueryAtCursor('/comm', 5, '/') // { query: 'comm', startPos: 0, triggerChar: '/' }
  *
  * @example
- * // Slash command mid-text
+ * // Agent skill mid-text
  * extractTriggerQueryAtCursor('hello /wo', 10, '/') // { query: 'wo', startPos: 6, triggerChar: '/' }
  *
  * @example

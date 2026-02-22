@@ -1,11 +1,11 @@
 # OpenAI Codex CLI built-in slash commands
 #
 # Color property supports both named colors and hex color codes:
-# - Named colors: grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red
+# - Named colors: grey, darkGrey, slate, stone, red, rose, orange, amber, yellow, lime, green, emerald, teal, cyan, sky, blue, indigo, violet, purple, fuchsia, pink
 # - Hex codes: #RGB or #RRGGBB (e.g., #00CC66, #0C6)
 
 name: codex
-color: green  # You can also use hex codes like "#00CC66"
+color: emerald  # You can also use hex codes like "#00CC66"
 reference: https://developers.openai.com/codex/cli/slash-commands/
 
 commands:

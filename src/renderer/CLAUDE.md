@@ -65,15 +65,17 @@ The renderer process uses a modular manager pattern with 15+ specialized classes
 - DraftManagerClient: Auto-save functionality (renderer side)
 - HistoryUIManager: History display and interaction
 - HistorySearchManager: Advanced history search with scoring
-- SnapshotManager: Undo/redo with state tracking
+- SimpleSnapshotManager: Undo/redo with state tracking
 
 **Mention System:**
 - MentionManager: @ mention orchestration (15+ sub-managers)
-- SlashCommandManager: Slash command system
+- AgentSkillManager: Agent skill system
 - FrontmatterPopupManager: Frontmatter display
 
-**Search & Navigation:**
-- SearchManager: Real-time search functionality
+**Event Delegation:**
+- ShortcutHandler: Keyboard shortcut handling (`shortcut-handler.ts`)
+- WindowBlurHandler: Window blur/auto-hide handling (`window-blur-handler.ts`)
+- DirectoryDataHandler: Directory data updates from main process (`directory-data-handler.ts`)
 
 ### DomManager
 Centralized DOM element access and manipulation:
@@ -153,22 +155,6 @@ Technical implementation:
 - Implements proper event capture/bubble phases
 - Includes timeout-based window blur handling to prevent accidental closes
 - Supports both event-target specific and global shortcut handling
-
-### SearchManager
-Real-time search functionality with advanced UI state management:
-- **Mode Management**: Search state tracking with visual feedback
-- **Real-time Filtering**: Instant search results as user types
-- **Highlight System**: Search term highlighting with escape character handling
-- **Event Coordination**: Comprehensive mouse, touch, and keyboard event handling
-- **Focus Management**: Intelligent focus transitions between search and main input
-- **Data Synchronization**: Maintains original data while providing filtered views
-
-User experience features:
-- Case-insensitive search with regex-based highlighting
-- Multiple event handlers for reliable close button functionality
-- Escape key handling with proper event propagation control
-- Auto-focus on search input when entering search mode
-- Seamless transition back to main textarea on search exit
 
 ### MentionManager (mentions/)
 Comprehensive @ mention system with modular architecture for file search and code search:
@@ -330,16 +316,16 @@ const MATCH_SCORES = {
 - `highlightSearchTerms(text, query)`: Safe term highlighting
 - `highlightFuzzyMatch(text, positions)`: Position-based highlighting
 
-### SlashCommandManager
-Slash command system for quick command access:
-- **Command Detection**: Triggers on `/` character at start of line
-- **Command Loading**: Loads commands from markdown files
+### AgentSkillManager
+Agent skill system for quick skill access:
+- **Skill Detection**: Triggers on `/` character at start of line
+- **Skill Loading**: Loads skills from markdown files
 - **Agent Selection**: Provides agent selection functionality
-- **Integration**: Works with MdSearchLoader for command discovery
+- **Integration**: Works with CustomSearchLoader for skill discovery
 
 Features:
-- Dynamic command loading from user-defined files
-- Keyboard navigation through available commands
+- Dynamic skill loading from user-defined files
+- Keyboard navigation through available skills
 - Seamless integration with mention system
 
 ### FrontmatterPopupManager
@@ -368,7 +354,7 @@ Design decisions:
 - Fixed positioning for notifications with z-index management
 - Global window attachment for browser environment compatibility
 
-### SnapshotManager
+### SimpleSnapshotManager
 Undo/redo functionality with text and cursor state tracking:
 - **State Snapshots**: Captures text content and cursor position together
 - **History Stack**: Maintains undo/redo history with configurable depth
@@ -385,6 +371,14 @@ Implementation:
 - Lightweight state storage with minimal memory footprint
 - Debounced snapshot creation to avoid excessive history entries
 - Maximum history depth limit for memory management
+
+## Assets
+
+### assets/icons/file-icons.ts
+Material Icon Theme SVG icon definitions for file type display:
+- Provides SVG icon data for various file types and languages
+- Used by the mention/file search system to display file type icons
+- Based on Material Icon Theme icon set
 
 ## Supporting Modules
 
@@ -420,6 +414,38 @@ Features:
 - Graceful error messages for debugging
 
 ## Utility Functions
+
+### utils/debug-logger.ts
+Debug logging utilities for renderer process:
+- `createDebugLogger(prefix)`: Creates a prefixed debug logger function
+- `formatLog(prefix, ...args)`: Formats log messages with consistent prefix
+
+### utils/error-handler.ts
+Centralized error handling for renderer:
+- `handleError(error, context)`: Handles and logs errors with context information
+
+### utils/highlight-utils.ts
+Text highlighting utilities:
+- `highlightMatch(text, query)`: Highlights matching portions of text for search results
+
+### utils/html-utils.ts
+HTML manipulation utilities:
+- `escapeHtml(text)`: Escapes HTML special characters for safe DOM insertion
+- `escapeHtmlFast(text)`: Performance-optimized HTML escaping for frequent operations
+
+### utils/logger.ts
+Renderer process logging:
+- `RendererLogger`: Logger class for structured renderer-side logging
+- `rendererLogger`: Singleton instance for convenient logging access
+
+### utils/popup-position-calculator.ts
+Popup positioning utilities:
+- `calculatePopupPosition(anchor, popup, viewport)`: Calculates optimal popup position
+- `applyPopupPosition(element, position)`: Applies calculated position to DOM element
+
+### utils/trigger-query-extractor.ts
+Query extraction from text input:
+- `extractTriggerQueryAtCursor(text, cursorPos, trigger)`: Extracts query string at cursor for trigger characters (e.g., `@`, `/`)
 
 ### utils/shortcut-formatter.ts
 Cross-platform keyboard shortcut display:
@@ -464,6 +490,8 @@ Organized for maintainability and performance:
 
 #### styles/main.css
 - **Entry Point**: Single import point for all stylesheets
+- **Tailwind CSS v4**: Uses `@import "tailwindcss"` for Tailwind integration
+- **Theme Tokens**: Defines custom design tokens via `@theme {}` block (spacing, border-radius, font-sizes, etc.)
 - **Load Order**: Carefully ordered imports (base → layout → components → themes → animations)
 - **Dependency Management**: Explicit import declarations for build optimization
 
@@ -484,6 +512,14 @@ Interactive component styling:
 - **search.css**: Search overlay and input styling with transitions
 - **history-item.css**: Individual history item styling with interaction states
 - **file-suggestions.css**: File search dropdown styling with keyboard navigation states
+- **agent-skills.css**: Agent skill list styling
+- **code-suggestions.css**: Code symbol search suggestion dropdown styling
+- **codicon-symbols.css**: Codicon icon font usage and symbol styles
+- **notifications.css**: Toast notification styling
+
+#### styles/fonts/
+Font files for icon rendering:
+- **codicon.ttf**: Codicon icon font (Microsoft's codicon icon set)
 
 #### styles/themes/
 Theme definitions and variations:

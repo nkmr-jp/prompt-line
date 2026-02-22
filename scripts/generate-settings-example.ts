@@ -4,7 +4,7 @@
  * This ensures settings.example.yml stays in sync with the values
  * defined in config/default-settings.ts (single source of truth)
  *
- * Usage: npx ts-node scripts/generate-settings-example.ts
+ * Usage: pnpm exec ts-node scripts/generate-settings-example.ts
  */
 
 import * as fs from 'fs';

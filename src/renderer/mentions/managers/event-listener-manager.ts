@@ -19,8 +19,9 @@ export interface EventListenerCallbacks {
   // Keyboard handlers
   handleKeyDown: (e: KeyboardEvent) => void;
   handleBackspaceForAtPath: (e: KeyboardEvent) => boolean;
-  handleBackspaceForSlashCommand?: (e: KeyboardEvent) => boolean;
+  handleBackspaceForAgentSkill?: (e: KeyboardEvent) => boolean;
   handleCtrlEnterOpenFile: (e: KeyboardEvent) => void;
+  handleCtrlShiftEnterRevealDir: (e: KeyboardEvent) => void;
 
   // Mouse handlers
   handleCmdClickOnAtPath: (e: MouseEvent) => void;
@@ -164,8 +165,11 @@ export class EventListenerManager {
         // Try @path deletion first
         if (this.callbacks.handleBackspaceForAtPath(e)) return;
 
-        // Then try slash command deletion
-        if (this.callbacks.handleBackspaceForSlashCommand?.(e)) return;
+        // Then try agent skill deletion
+        if (this.callbacks.handleBackspaceForAgentSkill?.(e)) return;
+      } else if (e.key === 'Enter' && e.ctrlKey && e.shiftKey) {
+        // Ctrl+Shift+Enter: reveal file directory in Finder
+        this.callbacks.handleCtrlShiftEnterRevealDir(e);
       } else if (e.key === 'Enter' && e.ctrlKey) {
         // Ctrl+Enter: open file at cursor position
         this.callbacks.handleCtrlEnterOpenFile(e);

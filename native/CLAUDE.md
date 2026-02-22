@@ -256,8 +256,7 @@ Native tool for terminal/IDE directory detection and file search:
 **Core Functionality:**
 ```swift
 class DirectoryDetector {
-    static func detectCurrentDirectory() -> [String: Any]
-    static func getFileList(from directory: String) -> FileListResult?
+    static func detectCurrentDirectory(overridePid: pid_t? = nil, overrideBundleId: String? = nil) -> [String: Any]
 }
 
 class CWDDetector {
@@ -286,31 +285,16 @@ class CWDDetector {
 - Automatic fallback to lsof if libproc fails
 - Requires `libproc-bridge.h` bridging header
 
-**File Search Integration:**
-- Requires `fd` command (https://github.com/sharkdp/fd)
-- Supports `.gitignore` respect, exclude/include patterns
-- Handles symlink directories with path preservation
-- Default excludes: node_modules, .git, dist, build, etc.
-- Configurable max files, depth, and hidden file inclusion
+**Note:** File search functionality (fd command integration, file listing) has been migrated to Node.js. See `src/utils/file-search/file-searcher-node.ts`. The directory-detector tool only handles CWD detection.
 
 **Command-Line Interface:**
 ```bash
 directory-detector detect                        # Detect CWD from active terminal/IDE
-directory-detector detect --bundleId <id>        # Detect from specific app
-directory-detector detect-with-files [options]   # Detect CWD and list files
-directory-detector list <path> [options]         # List files in directory
-directory-detector check-fd                      # Check if fd is available
+directory-detector detect --pid <pid> --bundleId <id>  # Detect from specific app
 
 # Options:
 #   --pid <pid>            Use specific process ID
 #   --bundleId <id>        Bundle ID of the app
-#   --no-gitignore         Don't respect .gitignore
-#   --exclude <pattern>    Add exclude pattern
-#   --include <pattern>    Include pattern for .gitignored files
-#   --max-files <n>        Maximum files (default: 5000)
-#   --include-hidden       Include hidden files
-#   --max-depth <n>        Maximum directory depth
-#   --follow-symlinks      Follow symbolic links
 ```
 
 **JSON Response Format:**
@@ -337,16 +321,6 @@ directory-detector check-fd                      # Check if fd is available
   "method": "electron-pty"
 }
 
-// Detect with Files Response
-{
-  "success": true,
-  "directory": "/Users/user/project",
-  "files": [{"name": "index.ts", "path": "/Users/user/project/index.ts", "isDirectory": false}],
-  "fileCount": 150,
-  "searchMode": "recursive",
-  "partial": false
-}
-
 // Error Response
 {
   "error": "Not a supported terminal or IDE application",
@@ -359,7 +333,7 @@ directory-detector check-fd                      # Check if fd is available
 
 ### Build Process Integration
 1. **Development Build**: Development build includes native tool compilation via `make install`
-2. **Production Build**: `npm run build` ensures native tools are compiled and distributed
+2. **Production Build**: `pnpm run build` ensures native tools are compiled and distributed
 3. **Distribution**: Native binaries are packaged with the Electron app in `dist/native-tools/`
 4. **Platform Detection**: Build process only compiles on macOS systems
 5. **Asset Unpacking**: Electron-builder configured to unpack native tools from ASAR (`asarUnpack: ["dist/native-tools/**/*"]`)
@@ -367,7 +341,7 @@ directory-detector check-fd                      # Check if fd is available
 **NPM Script Integration:**
 ```json
 {
-  "compile": "node node_modules/electron/install.js && tsc && npm run build:renderer && cd native && make install && cp -r ../src/native-tools ../dist/"
+  "compile": "node node_modules/electron/install.js && tsc && pnpm run build:renderer && cd native && make install && cp -r ../src/native-tools ../dist/"
 }
 ```
 
@@ -480,8 +454,8 @@ make install
 # Verify installation
 ls -la ../src/native-tools/
 
-# Or use integrated npm script
-npm run compile  # Builds TypeScript + native tools + copies to dist/
+# Or use integrated pnpm script
+pnpm run compile  # Builds TypeScript + native tools + copies to dist/
 ```
 
 ### Testing Integration
@@ -503,19 +477,10 @@ npm run compile  # Builds TypeScript + native tools + copies to dist/
 ../src/native-tools/keyboard-simulator activate-and-paste-name "Terminal"
 
 # Test text field detection
-../src/native-tools/text-field-detector detect
+../src/native-tools/text-field-detector text-field-bounds
 
 # Test directory detection (from active terminal/IDE)
 ../src/native-tools/directory-detector detect
-
-# Test directory detection with files
-../src/native-tools/directory-detector detect-with-files
-
-# Test file listing
-../src/native-tools/directory-detector list /path/to/project
-
-# Check fd availability
-../src/native-tools/directory-detector check-fd
 ```
 
 ### Debugging

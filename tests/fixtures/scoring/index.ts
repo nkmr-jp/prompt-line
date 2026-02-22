@@ -4,6 +4,6 @@
  */
 
 export * from './file-search-cases';
-export * from './slash-command-cases';
+export * from './agent-skill-cases';
 export * from './history-search-cases';
 export * from './real-data-loader';

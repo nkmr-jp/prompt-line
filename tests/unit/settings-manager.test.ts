@@ -139,7 +139,7 @@ window:
     it('should return default settings', () => {
       const settings = settingsManager.getSettings();
 
-      // includes all default values: shortcuts, window, fileOpener, slashCommands, mentions
+      // includes all default values: shortcuts, window, fileOpener, builtInCommands, agentSkills, mentions
       expect(settings).toEqual({
         shortcuts: {
           main: 'Cmd+Shift+Space',
@@ -151,8 +151,8 @@ window:
         },
         window: {
           position: 'active-text-field',
-          width: 600,
-          height: 300
+          width: 640,
+          height: 320
         },
         fileOpener: {
           extensions: {
@@ -161,52 +161,50 @@ window:
           },
           defaultEditor: null
         },
-        slashCommands: {
-          builtIn: ['claude'],
-          custom: [
-            {
-              name: '{basename}',
-              description: '{frontmatter@description}',
-              path: '~/.claude/commands',
-              label: 'command',
-              color: 'purple',
-              pattern: '*.md',
-              argumentHint: '{frontmatter@argument-hint}',
-              maxSuggestions: 20
-            },
-            {
-              name: '{frontmatter@name}',
-              description: '{frontmatter@description}',
-              path: '~/.claude/skills',
-              label: 'skill',
-              color: 'purple',
-              pattern: '**/*/SKILL.md',
-              maxSuggestions: 20
-            },
-            {
-              name: '{prefix}:{basename}',
-              description: '{frontmatter@description}',
-              path: '~/.claude/plugins/cache',
-              pattern: '**/commands/*.md',
-              prefixPattern: '**/.claude-plugin/*.json@name',
-              label: 'command',
-              color: 'teal',
-              argumentHint: '{frontmatter@argument-hint}',
-              maxSuggestions: 20
-            },
-            {
-              name: '{prefix}:{frontmatter@name}',
-              description: '{frontmatter@description}',
-              path: '~/.claude/plugins/cache',
-              pattern: '**/*/SKILL.md',
-              prefixPattern: '**/.claude-plugin/*.json@name',
-              label: 'skill',
-              color: 'teal',
-              argumentHint: '{frontmatter@argument-hint}',
-              maxSuggestions: 20
-            }
-          ]
-        },
+        builtInCommands: ['claude'],
+        agentSkills: [
+          {
+            name: '{basename}',
+            description: '{frontmatter@description}',
+            path: '~/.claude/commands',
+            label: 'command',
+            color: 'purple',
+            pattern: '*.md',
+            argumentHint: '{frontmatter@argument-hint}',
+            maxSuggestions: 20
+          },
+          {
+            name: '{frontmatter@name}',
+            description: '{frontmatter@description}',
+            path: '~/.claude/skills',
+            label: 'skill',
+            color: 'pink',
+            pattern: '**/*/SKILL.md',
+            maxSuggestions: 20
+          },
+          {
+            name: '{prefix}:{basename}',
+            description: '{frontmatter@description}',
+            path: '~/.claude/plugins/cache',
+            pattern: '**/commands/*.md',
+            prefixPattern: '**/.claude-plugin/*.json@name',
+            label: 'plugin command',
+            color: 'green',
+            argumentHint: '{frontmatter@argument-hint}',
+            maxSuggestions: 20
+          },
+          {
+            name: '{prefix}:{frontmatter@name}',
+            description: '{frontmatter@description}',
+            path: '~/.claude/plugins/cache',
+            pattern: '**/*/SKILL.md',
+            prefixPattern: '**/.claude-plugin/*.json@name',
+            label: 'plugin skill',
+            color: 'cyan',
+            argumentHint: '{frontmatter@argument-hint}',
+            maxSuggestions: 20
+          }
+        ],
         mentions: {
           fileSearch: {
             respectGitignore: true,
@@ -224,29 +222,62 @@ window:
             includePatterns: [],
             excludePatterns: []
           },
-          mdSearch: [
+          customSearch: [
             {
-              name: 'agent-{basename}',
+              name: '{basename}(agent)',
+              label: 'agent',
               description: '{frontmatter@description}',
+              displayTime: '{updatedAt}',
               path: '~/.claude/agents',
               pattern: '*.md',
               searchPrefix: 'agent'
             },
             {
-              name: 'agent-{prefix}:{basename}',
+              name: '{prefix}:{basename}(agent)',
+              label: 'plugin agent',
               description: '{frontmatter@description}',
+              displayTime: '{updatedAt}',
+              color: 'yellow',
               path: '~/.claude/plugins/cache',
               pattern: '**/agents/*.md',
               prefixPattern: '**/.claude-plugin/*.json@name',
               searchPrefix: 'agent'
             },
             {
+              name: '{json@name}',
+              description: '{json@prompt}|{json:1@description}',
+              displayTime: '{json@joinedAt}',
+              color: '{json@color}|#ffffff',
+              icon: 'organization',
+              label: '{dirname}',
+              orderBy: '{json@joinedAt} desc',
+              path: '~/.claude/teams',
+              pattern: '**/config.json@. | select(.createdAt / 1000 > (now - 86400)) | select((.members | length) >= 2) | .members',
+              searchPrefix: 'team'
+            },
+            {
               name: '{basename}',
-              description: '{frontmatter@title}',
+              description: '{heading}',
+              displayTime: '{updatedAt}',
+              color: 'blue',
+              icon: 'file-text',
+              orderBy: '{updatedAt} desc',
               path: '~/.claude/plans',
               pattern: '*.md',
               searchPrefix: 'plan',
-              maxSuggestions: 100,
+              inputFormat: 'path'
+            },
+            {
+              name: '{basename}',
+              description: '{heading}',
+              displayTime: '{updatedAt}',
+              color: 'violet',
+              icon: 'tasklist',
+              label: '{dirname}',
+              orderBy: '{updatedAt} desc',
+              path: '~/.claude/tasks',
+              pattern: '**/*/*.md',
+              searchPrefix: 'task',
               inputFormat: 'path'
             }
           ]
@@ -270,7 +301,7 @@ window:
 
       const settings = settingsManager.getSettings();
       expect(settings.shortcuts.main).toBe('Ctrl+Shift+P');
-      expect(settings.window.width).toBe(600); // Should remain unchanged
+      expect(settings.window.width).toBe(640); // Should remain unchanged
     });
 
     it('should reset settings to defaults', async () => {
@@ -284,7 +315,7 @@ window:
 
       const settings = settingsManager.getSettings();
       expect(settings.window.position).toBe('active-text-field');
-      expect(settings.window.width).toBe(600);
+      expect(settings.window.width).toBe(640);
     });
   });
 
@@ -315,7 +346,7 @@ window:
       const updatedWindowSettings = settingsManager.getWindowSettings();
       expect(updatedWindowSettings.position).toBe('center');
       expect(updatedWindowSettings.width).toBe(800);
-      expect(updatedWindowSettings.height).toBe(300); // Should remain unchanged
+      expect(updatedWindowSettings.height).toBe(320); // Should remain unchanged
     });
 
   });
@@ -331,7 +362,7 @@ window:
     it('should return default settings copy', () => {
       const defaults = settingsManager.getDefaultSettings();
 
-      // includes all default values: shortcuts, window, fileOpener, slashCommands, mentions
+      // includes all default values: shortcuts, window, fileOpener, builtInCommands, agentSkills, mentions
       expect(defaults).toEqual({
         shortcuts: {
           main: 'Cmd+Shift+Space',
@@ -343,8 +374,8 @@ window:
         },
         window: {
           position: 'active-text-field',
-          width: 600,
-          height: 300
+          width: 640,
+          height: 320
         },
         fileOpener: {
           extensions: {
@@ -353,52 +384,50 @@ window:
           },
           defaultEditor: null
         },
-        slashCommands: {
-          builtIn: ['claude'],
-          custom: [
-            {
-              name: '{basename}',
-              description: '{frontmatter@description}',
-              path: '~/.claude/commands',
-              label: 'command',
-              color: 'purple',
-              pattern: '*.md',
-              argumentHint: '{frontmatter@argument-hint}',
-              maxSuggestions: 20
-            },
-            {
-              name: '{frontmatter@name}',
-              description: '{frontmatter@description}',
-              path: '~/.claude/skills',
-              label: 'skill',
-              color: 'purple',
-              pattern: '**/*/SKILL.md',
-              maxSuggestions: 20
-            },
-            {
-              name: '{prefix}:{basename}',
-              description: '{frontmatter@description}',
-              path: '~/.claude/plugins/cache',
-              pattern: '**/commands/*.md',
-              prefixPattern: '**/.claude-plugin/*.json@name',
-              label: 'command',
-              color: 'teal',
-              argumentHint: '{frontmatter@argument-hint}',
-              maxSuggestions: 20
-            },
-            {
-              name: '{prefix}:{frontmatter@name}',
-              description: '{frontmatter@description}',
-              path: '~/.claude/plugins/cache',
-              pattern: '**/*/SKILL.md',
-              prefixPattern: '**/.claude-plugin/*.json@name',
-              label: 'skill',
-              color: 'teal',
-              argumentHint: '{frontmatter@argument-hint}',
-              maxSuggestions: 20
-            }
-          ]
-        },
+        builtInCommands: ['claude'],
+        agentSkills: [
+          {
+            name: '{basename}',
+            description: '{frontmatter@description}',
+            path: '~/.claude/commands',
+            label: 'command',
+            color: 'purple',
+            pattern: '*.md',
+            argumentHint: '{frontmatter@argument-hint}',
+            maxSuggestions: 20
+          },
+          {
+            name: '{frontmatter@name}',
+            description: '{frontmatter@description}',
+            path: '~/.claude/skills',
+            label: 'skill',
+            color: 'pink',
+            pattern: '**/*/SKILL.md',
+            maxSuggestions: 20
+          },
+          {
+            name: '{prefix}:{basename}',
+            description: '{frontmatter@description}',
+            path: '~/.claude/plugins/cache',
+            pattern: '**/commands/*.md',
+            prefixPattern: '**/.claude-plugin/*.json@name',
+            label: 'plugin command',
+            color: 'green',
+            argumentHint: '{frontmatter@argument-hint}',
+            maxSuggestions: 20
+          },
+          {
+            name: '{prefix}:{frontmatter@name}',
+            description: '{frontmatter@description}',
+            path: '~/.claude/plugins/cache',
+            pattern: '**/*/SKILL.md',
+            prefixPattern: '**/.claude-plugin/*.json@name',
+            label: 'plugin skill',
+            color: 'cyan',
+            argumentHint: '{frontmatter@argument-hint}',
+            maxSuggestions: 20
+          }
+        ],
         mentions: {
           fileSearch: {
             respectGitignore: true,
@@ -416,29 +445,62 @@ window:
             includePatterns: [],
             excludePatterns: []
           },
-          mdSearch: [
+          customSearch: [
             {
-              name: 'agent-{basename}',
+              name: '{basename}(agent)',
+              label: 'agent',
               description: '{frontmatter@description}',
+              displayTime: '{updatedAt}',
               path: '~/.claude/agents',
               pattern: '*.md',
               searchPrefix: 'agent'
             },
             {
-              name: 'agent-{prefix}:{basename}',
+              name: '{prefix}:{basename}(agent)',
+              label: 'plugin agent',
               description: '{frontmatter@description}',
+              displayTime: '{updatedAt}',
+              color: 'yellow',
               path: '~/.claude/plugins/cache',
               pattern: '**/agents/*.md',
               prefixPattern: '**/.claude-plugin/*.json@name',
               searchPrefix: 'agent'
             },
             {
+              name: '{json@name}',
+              description: '{json@prompt}|{json:1@description}',
+              displayTime: '{json@joinedAt}',
+              color: '{json@color}|#ffffff',
+              icon: 'organization',
+              label: '{dirname}',
+              orderBy: '{json@joinedAt} desc',
+              path: '~/.claude/teams',
+              pattern: '**/config.json@. | select(.createdAt / 1000 > (now - 86400)) | select((.members | length) >= 2) | .members',
+              searchPrefix: 'team'
+            },
+            {
               name: '{basename}',
-              description: '{frontmatter@title}',
+              description: '{heading}',
+              displayTime: '{updatedAt}',
+              color: 'blue',
+              icon: 'file-text',
+              orderBy: '{updatedAt} desc',
               path: '~/.claude/plans',
               pattern: '*.md',
               searchPrefix: 'plan',
-              maxSuggestions: 100,
+              inputFormat: 'path'
+            },
+            {
+              name: '{basename}',
+              description: '{heading}',
+              displayTime: '{updatedAt}',
+              color: 'violet',
+              icon: 'tasklist',
+              label: '{dirname}',
+              orderBy: '{updatedAt} desc',
+              path: '~/.claude/tasks',
+              pattern: '**/*/*.md',
+              searchPrefix: 'task',
               inputFormat: 'path'
             }
           ]
@@ -563,25 +625,30 @@ window:
       });
     });
 
-    it('should migrate builtInCommands.tools to slashCommands.builtIn', async () => {
-      // User has builtInCommands: { tools: ['claude'] }
-      // Should convert to slashCommands.builtIn: ['claude']
-      const userSettings: Partial<UserSettings> = {
-        builtInCommands: {
+    it('should migrate legacy builtInCommands.tools to root-level builtInCommands', async () => {
+      // Simulate a fresh settings load where user only has legacyBuiltInCommands (no root builtInCommands)
+      // This tests the mergeWithDefaults migration logic directly
+      const legacyManager = new SettingsManager();
+
+      // Mock readFile to return YAML that js-yaml.load will parse
+      // We need to simulate a user config that only has legacyBuiltInCommands
+      const yamlLoad = require('js-yaml').load;
+      yamlLoad.mockReturnValueOnce({
+        shortcuts: { main: 'Cmd+Shift+Space', paste: 'Cmd+Enter', close: 'Escape' },
+        window: { position: 'active-text-field', width: 640, height: 320 },
+        legacyBuiltInCommands: {
           tools: ['claude', 'custom-tool']
         }
-      };
-
-      await settingsManager.updateSettings(userSettings);
-      const settings = settingsManager.getSettings();
-
-      // Check that builtInCommands.tools was migrated to slashCommands.builtIn
-      expect(settings.slashCommands?.builtIn).toEqual(['claude', 'custom-tool']);
-
-      // Check that legacy builtInCommands is kept for backward compatibility
-      expect(settings.builtInCommands).toEqual({
-        tools: ['claude', 'custom-tool']
       });
+      mockedFs.readFile.mockResolvedValueOnce('mock yaml content');
+      mockedFs.mkdir.mockResolvedValue(undefined);
+      mockedFs.writeFile.mockResolvedValue();
+
+      await legacyManager.init();
+      const settings = legacyManager.getSettings();
+
+      // Check that legacy builtInCommands.tools was migrated to root-level builtInCommands
+      expect(settings.builtInCommands).toEqual(['claude', 'custom-tool']);
     });
 
     it('should deep merge multiple fileSearch properties', async () => {
@@ -674,26 +741,24 @@ window:
     });
   });
 
-  describe('getMdSearchEntries', () => {
-    it('should convert slashCommands.custom with enable/disable filters', async () => {
+  describe('getCustomSearchEntries', () => {
+    it('should convert agentSkills with enable/disable filters', async () => {
       const userSettings: Partial<UserSettings> = {
-        slashCommands: {
-          custom: [
-            {
-              name: '{prefix}:{basename}',
-              description: '{frontmatter@description}',
-              path: '~/.claude/plugins',
-              pattern: '**/commands/*.md',
-              prefixPattern: '**/.claude-plugin/plugin.json@name',
-              enable: ['ralph-loop:help*'],
-              disable: ['ralph-loop:cancel']
-            }
-          ]
-        }
+        agentSkills: [
+          {
+            name: '{prefix}:{basename}',
+            description: '{frontmatter@description}',
+            path: '~/.claude/plugins',
+            pattern: '**/commands/*.md',
+            prefixPattern: '**/.claude-plugin/plugin.json@name',
+            enable: ['ralph-loop:help*'],
+            disable: ['ralph-loop:cancel']
+          }
+        ]
       };
 
       await settingsManager.updateSettings(userSettings);
-      const entries = settingsManager.getMdSearchEntries();
+      const entries = settingsManager.getCustomSearchEntries();
 
       // Find the entry with enable/disable filters
       const filteredEntry = entries?.find(e => e.enable !== undefined || e.disable !== undefined);
@@ -703,10 +768,10 @@ window:
       expect(filteredEntry?.disable).toEqual(['ralph-loop:cancel']);
     });
 
-    it('should convert mentions.mdSearch with enable/disable filters', async () => {
+    it('should convert mentions.customSearch with enable/disable filters', async () => {
       const userSettings: Partial<UserSettings> = {
         mentions: {
-          mdSearch: [
+          customSearch: [
             {
               name: 'agent-{basename}',
               description: '{frontmatter@description}',
@@ -721,7 +786,7 @@ window:
       };
 
       await settingsManager.updateSettings(userSettings);
-      const entries = settingsManager.getMdSearchEntries();
+      const entries = settingsManager.getCustomSearchEntries();
 
       // Find the mention entry with enable/disable filters
       const filteredEntry = entries?.find(e => e.type === 'mention' && (e.enable !== undefined || e.disable !== undefined));
@@ -730,10 +795,10 @@ window:
       expect(filteredEntry?.disable).toEqual(['agent-legacy']);
     });
 
-    it('should convert mentions.mdSearch with prefixPattern', async () => {
+    it('should convert mentions.customSearch with prefixPattern', async () => {
       const userSettings: Partial<UserSettings> = {
         mentions: {
-          mdSearch: [
+          customSearch: [
             {
               name: 'agent-{prefix}:{basename}',
               description: '{frontmatter@description}',
@@ -747,7 +812,7 @@ window:
       };
 
       await settingsManager.updateSettings(userSettings);
-      const entries = settingsManager.getMdSearchEntries();
+      const entries = settingsManager.getCustomSearchEntries();
 
       const entryWithPrefix = entries?.find(e => e.type === 'mention' && e.prefixPattern !== undefined);
       expect(entryWithPrefix).toBeDefined();

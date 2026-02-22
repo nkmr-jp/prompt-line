@@ -7,14 +7,13 @@
 ## 概要
 
 Prompt Lineは、[Claude Code](https://github.com/anthropics/claude-code)、[Gemini CLI](https://github.com/google-gemini/gemini-cli)、[OpenAI Codex CLI](https://github.com/openai/codex)、[Aider](https://github.com/paul-gauthier/aider) などのCLI型AIコーディングエージェントのターミナルでのプロンプト入力体験を改善することを目的として開発したmacOSアプリです。
-日本語などのマルチバイト文字入力時のUXの課題を専用のフローティング入力インターフェースで解決します。 
+日本語などのマルチバイト文字入力時のUXの課題を専用のフローティング入力インターフェースで解決します。/や＠によるコンテキスト検索と入力補完の機能も備えています。 
 
 特に以下のようなケースでのテキスト入力のストレスを大幅に軽減します。
 
 1. **ターミナルでのCLI型AIコーディングエージェントへのプロンプト入力**
 2. **Enterを押したら意図しないタイミングで送信されてしまうチャットアプリ**
 3. **入力の重たいテキストエディタ(例：巨大なコンフルエンスのドキュメントなど)**
-
 
 ## 特徴
 ### サクッと起動、サクッと貼付け
@@ -43,8 +42,33 @@ Enterを押しても勝手に送信されないので、改行する場合も気
 もちろん、ターミナル以外でも使えます。
 ![doc5.gif](assets/doc5.gif)
 
+### コンテキスト検索と入力補完
+
+`/`や`@`を入力するとAgent Skills・Built in Commands ・ファイル・シンボルなどのコンテキストを検索して入力補完できます。<br>
+これらは設定ファイル(`~/.prompt-line/settings.yml`)でカスタマイズできます。参考: [settings.example.yml](settings.example.yml)
+<table>
+<tr>
+<td>Agent SkillsとBuilt in Commands <img src="assets/doc9.png"> </td>
+<td>ファイルとディレクトリ検索 <img src="assets/doc10.png"> </td>
+</tr>
+<tr>
+<td>シンボル検索<img src="assets/doc11.png"> </td>
+<td>サブエージェント検索(~/.claude/agents)  <img src="assets/doc14.png"> </td>
+</tr>
+<tr>
+<td>プラン検索(~/.claude/plans) <img src="assets/doc12.png"> </td>
+<td>エージェントチーム検索(~/.claude/teams)  <img src="assets/doc13.png"> </td>
+</tr>
+</table>
 
 ## 📦 インストール
+
+### コマンドインストール
+
+[fd](https://github.com/sharkdp/fd)と[rg(ripgrep)](https://github.com/BurntSushi/ripgrep)コマンドのインストール。ファイル検索やシンボル検索の機能で使います。
+```bash
+brew install fd ripgrep
+```
 
 ### システム要件
 
@@ -69,12 +93,12 @@ Enterを押しても勝手に送信されないので、改行する場合も気
 
 2. 依存関係をインストール:
    ```bash
-   npm install
+   pnpm install
    ```
 
 3. アプリケーションをビルド:
    ```bash
-   npm run build
+   pnpm run build
    ```
 
 4. ビルドされたアプリは `dist/` ディレクトリに作成されます
@@ -112,7 +136,7 @@ Prompt Lineが他のアプリケーションにテキストを貼り付けるに
 
 アクセシビリティ権限のリセットは以下のコマンドでもできます。
 ```bash
-npm run reset-accessibility
+pnpm run reset-accessibility
 ```
 
 
@@ -120,8 +144,10 @@ npm run reset-accessibility
 
 既に古いバージョンをインストール済みで、最新版にアップデートする場合は以下の手順を実行してください。
 
-1. `npm run reset-accessibility`のコマンドを実行して「Prompt Line」のアクセシビリティ権限をリセット
+1. `pnpm run reset-accessibility`のコマンドを実行して「Prompt Line」のアクセシビリティ権限をリセット
 2. 「📦 インストール」の項目を参照して、再度インストール
+3. `pnpm run migrate-settings`を実行して設定ファイルを最新のデフォルトに移行（既存設定は自動バックアップされます）
+4. `pnpm run update-built-in-commands`を実行してビルトインコマンドを最新版に更新
 
 
 ## 使用方法
@@ -139,62 +165,9 @@ npm run reset-accessibility
 - **ドラフト自動保存** - 作業内容を自動的に保存
 - **画像サポート** - `Cmd+V`でクリップボード画像を貼り付け
 - **ファイルオープン** - ファイルパスのテキストからファイルを起動 (`Ctrl+Enter` or `Cmd+クリック`)
-- **ファイル検索** - `@`を入力してファイルを検索 (fdコマンドと設定が必要)
-- **シンボル検索** - `@<言語>:<クエリ>`と入力してコードシンボルを検索 (例: `@ts:Config`) (ripgrepが必要)
-- **マークダウン検索** - `/`を入力してスラッシュコマンドを検索、または`@`でサブエージェントを検索 (設定が必要)
-
-#### ファイルオープン
-ファイルパスや@で検索したファイルを起動して内容を確認できます。(`Ctrl+Enter` or `Cmd+クリック`)
-
-![doc9.png](assets/doc9.png)
-
-
-#### スラッシュコマンド
-`/`を入力するとスラッシュコマンドを検索できます。<br>
-AIコーディングアシスタント（Claude Code、OpenAI Codex、Google Gemini）用のビルトインコマンドが利用可能です。<br>
-カスタムコマンドは `~/.prompt-line/settings.yml` で追加できます。「⚙️ 設定」の項目参照
-
-![doc11.png](assets/doc11.png)
-
-ビルトインコマンドは `~/.prompt-line/built-in-commands/` のYAMLファイルを編集してカスタマイズできます。変更は自動的に反映されます。
-
-```bash
-npm run update-built-in-commands  # 最新のデフォルトに更新
-npm run reset-built-in-commands   # すべてデフォルトにリセット
-```
-
-#### @Mentions
-
-#### ファイル検索
-@を入力するとファイルを検索できます。<br>
-※ [fd](https://github.com/sharkdp/fd)コマンドのインストールが必要です。( `brew install fd` )<br>
-※ `~/.prompt-line/settings.yml` で `fileSearch`の項目を設定する必要があります。 「⚙️ 設定」の項目参照<br>
-※ 対応アプリ: Terminal.app, iTerm2, Ghostty, Warp, WezTerm, JetBrains IDE（IntelliJ, WebStormなど）, VSCode, Cursor, Windsurf, Zed, Antigravity, Kiro
-
-![doc10.png](assets/doc10.png)
-
-#### シンボル検索
-`@<言語>:<クエリ>`と入力することで、コードシンボル（関数、クラス、型など）を検索できます。<br>
-この機能はファイル検索と統合されているため、先にファイル検索を有効にする必要があります。
-
-**必要条件:**
-- [ripgrep](https://github.com/BurntSushi/ripgrep) (rg) コマンドのインストールが必要 (`brew install ripgrep`)
-- 設定でファイル検索を有効化
-
-**構文:** `@<言語>:<クエリ>`
-
-**例:**
-- `@ts:Config` - "Config"を含むTypeScriptシンボルを検索
-- `@go:Handler` - "Handler"を含むGoシンボルを検索
-- `@py:parse` - "parse"を含むPythonシンボルを検索
-
-![doc13.png](assets/doc13.png)
-
-#### マークダウン検索
-`@<検索プレフィックス>:<クエリ>` を入力するとサブエージェントやエージェントのスキルを検索できます。自分のナレッジ検索にも使用できます。
-
-![doc12.png](assets/doc12.png)
-
+- **ファイル検索** - `@`を入力してファイルを検索
+- **シンボル検索** - `@<言語>:<クエリ>`と入力してコードシンボルを検索 (例: `@ts:Config`)
+- **カスタム検索** - `/`を入力してSlash CommandsやAgent Skillsを検索、または`@`でサブエージェントを検索
 
 ## ⚙️ 設定
 
@@ -205,15 +178,16 @@ npm run reset-built-in-commands   # すべてデフォルトにリセット
 
 ### 設定項目の概要
 
-| セクション | 説明 |
-|---------|-------------|
-| `shortcuts` | キーボードショートカット（メイン、ペースト、クローズ、履歴ナビゲーション、検索） |
-| `window` | ウィンドウサイズと配置モード |
-| `fileOpener` | デフォルトエディタと拡張子別アプリケーション |
-| `slashCommands` | 組み込みAIツールコマンド、カスタムスラッシュコマンド、スキル検索 |
-| `mentions.fileSearch` | ファイル検索設定（@path/to/file補完） |
-| `mentions.symbolSearch` | シンボル検索設定（@ts:Config、@go:Handler） |
-| `mentions.mdSearch` | searchPrefixによるマークダウン検索（agent, rules, docs等）、frontmatterテンプレート変数対応 |
+| セクション | 説明                                            |
+|---------|-----------------------------------------------|
+| `shortcuts` | キーボードショートカット（メイン、ペースト、クローズ、履歴ナビゲーション、検索）      |
+| `window` | ウィンドウサイズと配置モード                                |
+| `fileOpener` | デフォルトエディタと拡張子別アプリケーション                        |
+| `builtInCommands` | Built-inスラッシュコマンドの有効化（claude, codex, gemini等） |
+| `agentSkills` | Agent Skills検索機能                              |
+| `mentions.customSearch` | @prefix:で発動するカスタム検索                           |
+| `mentions.fileSearch` | ファイル検索設定（@path/to/file補完）                     |
+| `mentions.symbolSearch` | シンボル検索設定（@ts:Config、@go:Handler）              |
 
 ## プロンプト履歴
 

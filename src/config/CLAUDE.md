@@ -14,20 +14,33 @@ This file exports `defaultSettings` which serves as:
 
 **Key exports:**
 - `defaultSettings`: The active default values used throughout the application
+  - `shortcuts`: キーボードショートカット設定
+  - `window`: ウィンドウの位置・サイズ設定（position, width: 640, height: 320）
+  - `fileOpener`: 拡張子→アプリマッピング（extensions, defaultEditor）
+  - `builtInCommands`: 有効にするビルトインコマンドリスト（デフォルト: `['claude']`）
+  - `agentSkills`: 4エントリ（claude commands / claude skills / plugin commands / plugin skills）
+  - `mentions.fileSearch`: ファイル検索設定（maxFiles: 5000 など）
+  - `mentions.symbolSearch`: シンボル検索設定（maxSymbols: 200000 など）
+  - `mentions.customSearch`: 5エントリ（agents / plugin agents / team members / plans / tasks）
 - `commentedExamples`: Additional example entries shown as comments in settings.example.yml
+  - `builtInCommands`: `['openclaw', 'codex', 'gemini', 'opencode']`
+  - `agentSkills`: 空配列（`[]`）
+  - `fileOpener.extensions`: `{ go: 'Goland', md: 'Typora' }`
+  - `mentions.customSearch`: 1エントリ（knowledge-base例）
 
 **Important principles:**
 - This is the ONLY place to modify default values
-- After updating, run `npm run generate:settings-example` to regenerate settings.example.yml
+- After updating, run `pnpm run generate:settings-example` to regenerate settings.example.yml
 - Ensures no discrepancy between runtime defaults and documented examples
 
 ### settings-yaml-generator.ts
 Generates `settings.example.yml` from default-settings.ts.
 
-- **Purpose**: Create user-facing example configuration file
+- **Purpose**: Provides shared YAML generation utility used by both runtime settings saving (settings-manager.ts) and example file generation (generate-settings-example.ts)
 - **Source**: Uses `defaultSettings` and `commentedExamples` from default-settings.ts
-- **Usage**: Run `npm run generate:settings-example` after modifying defaults
+- **Usage**: Run `pnpm run generate:settings-example` after modifying defaults
 - **Output**: Creates/updates settings.example.yml in the repository root
+- **Key exports**: `generateSettingsYaml` function, `YamlGeneratorOptions` interface
 
 ### app-config.ts
 Comprehensive AppConfigClass providing centralized configuration management through a singleton instance exported as default.
@@ -35,8 +48,8 @@ Comprehensive AppConfigClass providing centralized configuration management thro
 **Window Configuration:**
 ```typescript
 window: {
-  width: 600,                    // From default-settings.ts
-  height: 300,                   // From default-settings.ts
+  width: 640,                    // From default-settings.ts
+  height: 320,                   // From default-settings.ts
   frame: false,
   transparent: false,
   backgroundColor: '#141414',
@@ -413,7 +426,7 @@ default-settings.ts (Single Source of Truth)
     └─→ settings-yaml-generator.ts (Documentation generation)
         - Generates settings.example.yml from defaultSettings
         - Includes commentedExamples for user guidance
-        - Run via: npm run generate:settings-example
+        - Run via: pnpm run generate:settings-example
 ```
 
 **Key principles:**

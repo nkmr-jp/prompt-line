@@ -25,7 +25,7 @@ export interface FileUsageEntry {
   firstUsed: number;
 }
 
-export interface SlashCommandUsageEntry {
+export interface AgentSkillUsageEntry {
   name: string;
   count: number;
   lastUsed: number;
@@ -42,7 +42,7 @@ export interface AgentUsageEntry {
 export interface RealTestData {
   history: HistoryEntry[];
   fileUsage: FileUsageEntry[];
-  slashCommands: SlashCommandUsageEntry[];
+  agentSkills: AgentSkillUsageEntry[];
   agents: AgentUsageEntry[];
 }
 
@@ -61,7 +61,7 @@ const PROMPT_LINE_DIR = path.join(os.homedir(), '.prompt-line');
 const HISTORY_FILE = path.join(PROMPT_LINE_DIR, 'history.jsonl');
 const CACHE_DIR = path.join(PROMPT_LINE_DIR, 'cache', 'projects');
 const FILE_USAGE_FILE = path.join(CACHE_DIR, 'file-usage-history.jsonl');
-const SLASH_COMMANDS_FILE = path.join(CACHE_DIR, 'global-slash-commands.jsonl');
+const AGENT_SKILLS_FILE = path.join(CACHE_DIR, 'global-agent-skills.jsonl');
 const AGENT_USAGE_FILE = path.join(CACHE_DIR, 'agent-usage-history.jsonl');
 
 // === Core Functions ===
@@ -103,17 +103,17 @@ export async function loadJsonl<T>(filePath: string): Promise<T[]> {
  * @returns RealTestData containing history, file usage, slash commands, and agents
  */
 export async function loadRealTestData(): Promise<RealTestData> {
-  const [history, fileUsage, slashCommands, agents] = await Promise.all([
+  const [history, fileUsage, agentSkills, agents] = await Promise.all([
     loadJsonl<HistoryEntry>(HISTORY_FILE),
     loadJsonl<FileUsageEntry>(FILE_USAGE_FILE),
-    loadJsonl<SlashCommandUsageEntry>(SLASH_COMMANDS_FILE),
+    loadJsonl<AgentSkillUsageEntry>(AGENT_SKILLS_FILE),
     loadJsonl<AgentUsageEntry>(AGENT_USAGE_FILE),
   ]);
 
   return {
     history,
     fileUsage,
-    slashCommands,
+    agentSkills,
     agents,
   };
 }

@@ -4,22 +4,19 @@
  */
 
 .code-suggestions {
-  position: absolute;
-  background: var(--bg-color, #1e1e1e);
-  border: 1px solid var(--border-color, #444);
+  @apply absolute overflow-y-auto;
+  background: var(--bg-color, var(--color-neutral-900));
+  border: 1px solid var(--border-color, var(--color-neutral-700));
   border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  overflow-y: auto;
+  box-shadow: 0 4px 12px oklch(from var(--color-black) l c h / 0.3);
   z-index: 1000;
 }
 
 .code-suggestion-item {
-  display: flex;
-  align-items: center;
+  @apply flex items-center cursor-pointer;
   padding: 8px 12px;
-  cursor: pointer;
   gap: 8px;
-  border-bottom: 1px solid var(--border-color, #333);
+  border-bottom: 1px solid var(--border-color, var(--color-neutral-700));
   transition: background-color 0.1s ease;
 }
 
@@ -29,38 +26,52 @@
 
 .code-suggestion-item:hover,
 .code-suggestion-item.selected {
-  background: var(--selection-bg, #2a2d2e);
+  background: var(--selection-bg, var(--color-neutral-800));
 }
 
 .code-suggestion-icon {
+  @apply shrink-0 text-center;
   font-size: 14px;
   width: 20px;
-  text-align: center;
-  color: var(--accent-color, #569cd6);
-  flex-shrink: 0;
+  color: var(--accent-color, var(--color-blue-400));
 }
 
 .code-suggestion-name {
-  font-weight: 600;
-  color: var(--text-color, #d4d4d4);
-  flex-shrink: 0;
+  @apply font-semibold shrink-0;
+  color: var(--text-color, var(--color-neutral-300));
 }
 
 .code-suggestion-type {
+  @apply shrink-0;
   font-size: 11px;
-  color: var(--muted-color, #888);
+  color: var(--muted-color, var(--color-neutral-500));
   padding: 2px 6px;
-  background: var(--tag-bg, #333);
+  background: var(--tag-bg, var(--color-neutral-800));
   border-radius: 4px;
-  flex-shrink: 0;
 }
 
 .code-suggestion-path {
+  @apply overflow-hidden text-ellipsis whitespace-nowrap;
   font-size: 12px;
-  color: var(--muted-color, #888);
+  color: var(--muted-color, var(--color-neutral-500));
   margin-left: auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   max-width: 50%;
+}
+
+/* Scrollbar styling */
+.code-suggestions::-webkit-scrollbar {
+  width: 3px;
+}
+
+.code-suggestions::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.code-suggestions::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb, var(--color-neutral-600));
+  border-radius: 3px;
+}
+
+.code-suggestions::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover, var(--color-neutral-500));
 }

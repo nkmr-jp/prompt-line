@@ -8,7 +8,7 @@ English |
 ## Overview
 
 Prompt Line is a macOS app developed to improve the prompt input experience in the terminal for CLI-based AI coding agents such as [Claude Code](https://github.com/anthropics/claude-code), [Gemini CLI](https://github.com/google-gemini/gemini-cli), [OpenAI Codex CLI](https://github.com/openai/codex), and [Aider](https://github.com/paul-gauthier/aider).
-It addresses UX challenges related to multi-byte character input (e.g., Japanese) by providing a dedicated floating input interface. 
+It addresses UX challenges related to multi-byte character input (e.g., Japanese) by providing a dedicated floating input interface. It also features context search and autocomplete with / and @.
 
 This greatly reduces stress when entering text in the following cases in particular. 
 
@@ -45,7 +45,33 @@ Also convenient when you want to reuse the same prompt in other apps.
 Of course, it also works with apps other than Terminal.
 ![doc5.gif](assets/doc5.gif)
 
+### Context Search and Autocomplete
+
+Type `/` or `@` to search and autocomplete contexts such as Agent Skills, Built-in Commands, files, and symbols.<br>
+These can be customized in the settings file (`~/.prompt-line/settings.yml`). See: [settings.example.yml](settings.example.yml)
+<table>
+<tr>
+<td>Agent Skills and Built-in Commands <img src="assets/doc9.png"> </td>
+<td>File and Directory Search <img src="assets/doc10.png"> </td>
+</tr>
+<tr>
+<td>Symbol Search<img src="assets/doc11.png"> </td>
+<td>Subagents Search (~/.claude/agents)  <img src="assets/doc14.png"> </td>
+</tr>
+<tr>
+<td>Plans Search (~/.claude/plans) <img src="assets/doc12.png"> </td>
+<td>Agent Teams Search (~/.claude/teams)  <img src="assets/doc13.png"> </td>
+</tr>
+</table>
+
 ## 📦 Installation
+
+### Command Installation
+
+Install [fd](https://github.com/sharkdp/fd) and [rg (ripgrep)](https://github.com/BurntSushi/ripgrep) commands. Used for file search and symbol search features.
+```bash
+brew install fd ripgrep
+```
 
 ### System Requirements
 
@@ -70,12 +96,12 @@ Of course, it also works with apps other than Terminal.
 
 2. Install dependencies:
    ```bash
-   npm install
+   pnpm install
    ```
 
 3. Build the application:
    ```bash
-   npm run build
+   pnpm run build
    ```
 
 4. The built app will be created in the `dist/` directory
@@ -114,15 +140,17 @@ A dialog box will appear on first use, so follow the instructions to set it up.
 
 Accessibility permissions can also be reset using the following command:
 ```bash
-npm run reset-accessibility
+pnpm run reset-accessibility
 ```
 
 ## 📦 Update
 
 If you already have an older version installed and want to update to the latest version, follow these steps.
 
-1. Run the `npm run reset-accessibility` command to reset the accessibility permissions in the “Prompt Line.”
+1. Run the `pnpm run reset-accessibility` command to reset the accessibility permissions in the “Prompt Line.”
 2. Refer to the “📦 Installation” section and reinstall
+3. Run `pnpm run migrate-settings` to migrate your settings to the latest defaults (existing settings are automatically backed up)
+4. Run `pnpm run update-built-in-commands` to update built-in commands to the latest version
 
 
 ## Usage
@@ -140,64 +168,9 @@ If you already have an older version installed and want to update to the latest 
 - **Draft Autosave** - Automatically saves your work
 - **Image Support** - Paste clipboard images with `Cmd+V`
 - **File Opener** - Open files from file path text (`Ctrl+Enter` or `Cmd+Click`)
-- **Slash Commands** - Search slash commands by typing `/`
-- **@Mentions**
-  - **File Search** - Search files by typing `@` (requires fd command and settings configuration)
-  - **Symbol Search** - Search code symbols by typing `@<lang>:<query>` (e.g., `@ts:Config`) (requires ripgrep)
-  - **Markdown Search** - sub-agents and agent skills by typing `@` (requires settings configuration)
-
-#### File Opener
-You can launch a file searched for with a file path or @ and check its contents. (`Ctrl+Enter` or `Cmd+Click`)
-
-![doc9.png](assets/doc9.png)
-
-
-#### Slash Commands
-You can search for slash commands by typing `/`.<br>
-Built-in commands for AI coding assistants (Claude Code, OpenAI Codex, Google Gemini) are available.<br>
-Custom commands can be added via `~/.prompt-line/settings.yml`. See "⚙️ Settings" section.
-
-![doc11.png](assets/doc11.png)
-
-Built-in commands can be customized by editing YAML files in `~/.prompt-line/built-in-commands/`. Changes apply automatically.
-
-```bash
-npm run update-built-in-commands  # Update to latest defaults
-npm run reset-built-in-commands   # Reset all to defaults
-```
-
-#### @Mentions
-
-##### File Search
-You can search for files by typing @.<br>
-※ [fd](https://github.com/sharkdp/fd) command installation is required. (`brew install fd`)<br>
-※ You need to configure `fileSearch` in `~/.prompt-line/settings.yml`. See "⚙️ Settings" section.<br>
-※ Supported applications: Terminal.app, iTerm2, Ghostty, Warp, WezTerm, JetBrains IDEs (IntelliJ, WebStorm, etc.), VSCode, Cursor, Windsurf, Zed, Antigravity, Kiro
-
-![doc10.png](assets/doc10.png)
-
-##### Symbol Search
-You can search for code symbols (functions, classes, types, etc.) by typing `@<language>:<query>`.<br>
-This feature integrates with File Search, so you need to enable File Search first.
-
-**Requirements:**
-- [ripgrep](https://github.com/BurntSushi/ripgrep) (rg) command installation is required (`brew install ripgrep`)
-- File Search must be configured in settings
-
-**Syntax:** `@<language>:<query>`
-
-**Examples:**
-- `@ts:Config` - Search TypeScript symbols containing "Config"
-- `@go:Handler` - Search Go symbols containing "Handler"
-- `@py:parse` - Search Python symbols containing "parse"
-
-![doc13.png](assets/doc13.png)
-
-##### Markdown Search
-You can search for sub-agents and agent skills by typing `@<searchPrefix>:<query>`, also use it for your own knowledge searches.
-
-![doc12.png](assets/doc12.png)
-
+- **File Search** - Search files by typing `@`
+- **Symbol Search** - Search code symbols by typing `@<lang>:<query>` (e.g., `@ts:Config`)
+- **Custom Search** - Search Slash Commands and Agent Skills by typing `/`, or search sub-agents by typing `@`
 
 ## ⚙️ Settings
 
@@ -213,10 +186,11 @@ For the full configuration example with all available options and comments, see:
 | `shortcuts` | Keyboard shortcuts (main, paste, close, history navigation, search) |
 | `window` | Window size and positioning mode |
 | `fileOpener` | Default editor and extension-specific applications |
-| `slashCommands` | Built-in AI tool commands, custom slash commands, and skill search |
+| `builtInCommands` | Built-in slash commands to enable (claude, codex, gemini, etc.) |
+| `agentSkills` | Agent Skills search functionality |
+| `mentions.customSearch` | Custom search triggered by @prefix: |
 | `mentions.fileSearch` | File search settings (@path/to/file completion) |
 | `mentions.symbolSearch` | Symbol search settings (@ts:Config, @go:Handler) |
-| `mentions.mdSearch` | Markdown-based mentions with searchPrefix support (agent, rules, docs, etc.) and frontmatter template variables |
 
 ## Prompt History
 

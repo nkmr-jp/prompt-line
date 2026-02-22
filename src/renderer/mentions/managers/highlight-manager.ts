@@ -8,7 +8,7 @@
  *
  * Responsibilities:
  * - @path highlighting in textarea using backdrop layer
- * - Cmd+hover link style for @paths, URLs, slash commands, and absolute paths
+ * - Cmd+hover link style for @paths, URLs, agent skills, and absolute paths
  * - Ctrl+Enter hint text when cursor is on a clickable path
  * - Cursor position highlighting for absolute paths and URLs
  * - Scroll synchronization between textarea and backdrop
@@ -20,12 +20,12 @@ import type { FileInfo } from '../../../types';
 import {
   findAtPathAtPosition,
   findUrlAtPosition,
-  findSlashCommandAtPosition,
+  findAgentSkillAtPosition,
   findAbsolutePathAtPosition,
   findClickablePathAtPosition,
   findAllUrls,
   findAllAbsolutePaths,
-  findAllSlashCommands
+  findAllAgentSkills
 } from '../text-finder';
 import { PathManager } from './path-manager';
 
@@ -37,9 +37,9 @@ export interface HighlightManagerCallbacks {
   isFileSearchEnabled?: () => boolean;
   isCommandEnabledSync?: () => boolean;
   checkFileExists?: (path: string) => Promise<boolean>;
-  getCommandSource?: (commandName: string) => string | undefined;
-  getCommandColor?: (commandName: string) => string | undefined;
-  getKnownCommandNames?: () => string[];
+  getSkillSource?: (commandName: string) => string | undefined;
+  getSkillColor?: (commandName: string) => string | undefined;
+  getKnownSkillNames?: () => string[];
 }
 
 export interface DirectoryDataForHighlight {
@@ -77,7 +77,7 @@ export class HighlightManager {
   private cachedText: string = '';
   private cachedUrls: Array<{ start: number; end: number }> = [];
   private cachedAbsolutePaths: Array<{ start: number; end: number }> = [];
-  private cachedSlashCommands: Array<{ start: number; end: number }> = [];
+  private cachedAgentSkills: Array<{ start: number; end: number }> = [];
 
   constructor(
     textInput: HTMLTextAreaElement,
@@ -203,14 +203,14 @@ export class HighlightManager {
       return;
     }
 
-    // Check if cursor is on a slash command
-    const slashCommand = findSlashCommandAtPosition(text, cursorPos);
-    if (slashCommand) {
+    // Check if cursor is on an agent skill
+    const agentSkill = findAgentSkillAtPosition(text, cursorPos);
+    if (agentSkill) {
       // Extract command name (skip leading "/")
-      const commandName = text.substring(slashCommand.start + 1, slashCommand.end);
+      const commandName = text.substring(agentSkill.start + 1, agentSkill.end);
       // Check if command has a file (async, but we use cache for instant response)
-      this.checkAndShowSlashCommandHint(commandName);
-      const newRange: AtPathRange = { start: slashCommand.start, end: slashCommand.end };
+      this.checkAndShowAgentSkillHint(commandName);
+      const newRange: AtPathRange = { start: agentSkill.start, end: agentSkill.end };
       if (!this.cursorPositionPath ||
           this.cursorPositionPath.start !== newRange.start ||
           this.cursorPositionPath.end !== newRange.end) {
@@ -432,7 +432,7 @@ export class HighlightManager {
 
   /**
    * Update highlight detection cache if text has changed
-   * Caches URLs, absolute paths, and slash commands for performance
+   * Caches URLs, absolute paths, and agent skills for performance
    */
   private updateHighlightCache(text: string): void {
     if (text === this.cachedText) {
@@ -445,8 +445,8 @@ export class HighlightManager {
     this.cachedUrls = findAllUrls(text);
     this.cachedAbsolutePaths = findAllAbsolutePaths(text);
 
-    const knownCommandNames = this.callbacks.getKnownCommandNames?.();
-    this.cachedSlashCommands = findAllSlashCommands(text, knownCommandNames);
+    const knownSkillNames = this.callbacks.getKnownSkillNames?.();
+    this.cachedAgentSkills = findAllAgentSkills(text, knownSkillNames);
   }
 
   // ============================================================
@@ -458,7 +458,7 @@ export class HighlightManager {
       return;
     }
     if (this.callbacks.updateHintText) {
-      this.callbacks.updateHintText('Press Ctrl+Enter to open file in editor');
+      this.callbacks.updateHintText('Ctrl+Enter: open in editor / Ctrl+Shift+Enter: reveal in Finder');
     }
   }
 
@@ -468,9 +468,9 @@ export class HighlightManager {
     }
   }
 
-  private showSlashCommandOpenHint(): void {
+  private showAgentSkillOpenHint(): void {
     if (this.callbacks.updateHintText) {
-      this.callbacks.updateHintText('Press Ctrl+Enter to open command file');
+      this.callbacks.updateHintText('Ctrl+Enter: open file / Ctrl+Shift+Enter: reveal in Finder');
     }
   }
 
@@ -478,12 +478,12 @@ export class HighlightManager {
    * Check if command has a file and show hint accordingly
    * Uses cache to avoid repeated IPC calls for the same command
    */
-  private checkAndShowSlashCommandHint(commandName: string): void {
+  private checkAndShowAgentSkillHint(commandName: string): void {
     // Check cache first
     if (this.commandFileCache.has(commandName)) {
       const hasFile = this.commandFileCache.get(commandName);
       if (hasFile) {
-        this.showSlashCommandOpenHint();
+        this.showAgentSkillOpenHint();
       } else {
         this.restoreDefaultHint();
       }
@@ -491,18 +491,18 @@ export class HighlightManager {
     }
 
     // If not in cache, fetch from IPC and update cache
-    window.electronAPI.slashCommands.hasFile(commandName)
+    window.electronAPI.agentSkills.hasFile(commandName)
       .then(hasFile => {
         this.commandFileCache.set(commandName, hasFile);
         // Update hint only if cursor is still on the same command
         const text = this.callbacks.getTextContent();
         const cursorPos = this.callbacks.getCursorPosition();
-        const currentSlashCommand = findSlashCommandAtPosition(text, cursorPos);
-        if (currentSlashCommand) {
-          const currentCommandName = text.substring(currentSlashCommand.start + 1, currentSlashCommand.end);
+        const currentAgentSkill = findAgentSkillAtPosition(text, cursorPos);
+        if (currentAgentSkill) {
+          const currentCommandName = text.substring(currentAgentSkill.start + 1, currentAgentSkill.end);
           if (currentCommandName === commandName) {
             if (hasFile) {
-              this.showSlashCommandOpenHint();
+              this.showAgentSkillOpenHint();
             } else {
               this.restoreDefaultHint();
             }
@@ -532,31 +532,31 @@ export class HighlightManager {
   // ============================================================
 
   /**
-   * Get class name for slash command highlight based on its source
+   * Get class name for agent skill highlight based on its source
    * @param text - Full text content
-   * @param start - Start position of slash command
-   * @param end - End position of slash command
+   * @param start - Start position of agent skill
+   * @param end - End position of agent skill
    * @returns Class name string with source-specific class if available
    */
-  private getSlashCommandClassName(text: string, start: number, end: number): string {
-    const baseClassName = 'slash-command-highlight';
+  private getAgentSkillClassName(text: string, start: number, end: number): string {
+    const baseClassName = 'agent-skill-highlight';
 
     // Extract command name from text (skip leading "/")
     const commandName = text.substring(start + 1, end);
 
     // Check color first (takes priority over source)
-    if (this.callbacks.getCommandColor) {
-      const color = this.callbacks.getCommandColor(commandName);
+    if (this.callbacks.getSkillColor) {
+      const color = this.callbacks.getSkillColor(commandName);
       if (color) {
-        return `${baseClassName} slash-command-color-${color}`;
+        return `${baseClassName} agent-skill-color-${color}`;
       }
     }
 
     // Fall back to source if no color
-    if (this.callbacks.getCommandSource) {
-      const source = this.callbacks.getCommandSource(commandName);
+    if (this.callbacks.getSkillSource) {
+      const source = this.callbacks.getSkillSource(commandName);
       if (source) {
-        return `${baseClassName} slash-command-source-${source}`;
+        return `${baseClassName} agent-skill-source-${source}`;
       }
     }
 
@@ -647,8 +647,8 @@ export class HighlightManager {
       }
     }
 
-    // Always highlight slash commands (no dependency on searchPrefixes) - use cached results
-    for (const cmd of this.cachedSlashCommands) {
+    // Always highlight agent skills (no dependency on searchPrefixes) - use cached results
+    for (const cmd of this.cachedAgentSkills) {
       const overlapsWithAtPath = atPaths.some(
         ap => (cmd.start >= ap.start && cmd.start < ap.end) ||
               (cmd.end > ap.start && cmd.end <= ap.end)
@@ -662,7 +662,7 @@ export class HighlightManager {
              (cmd.end > p.start && cmd.end <= p.end)
       );
       if (!overlapsWithAtPath && !overlapsWithUrl && !overlapsWithPath) {
-        const className = this.getSlashCommandClassName(text, cmd.start, cmd.end);
+        const className = this.getAgentSkillClassName(text, cmd.start, cmd.end);
         ranges.push({ start: cmd.start, end: cmd.end, className });
       }
     }
@@ -726,8 +726,8 @@ export class HighlightManager {
       }
     }
 
-    // Always highlight slash commands (no dependency on searchPrefixes) - use cached results
-    for (const cmd of this.cachedSlashCommands) {
+    // Always highlight agent skills (no dependency on searchPrefixes) - use cached results
+    for (const cmd of this.cachedAgentSkills) {
       const overlapsWithAtPath = atPaths.some(
         ap => (cmd.start >= ap.start && cmd.start < ap.end) ||
               (cmd.end > ap.start && cmd.end <= ap.end)
@@ -741,7 +741,7 @@ export class HighlightManager {
              (cmd.end > p.start && cmd.end <= p.end)
       );
       if (!overlapsWithAtPath && !overlapsWithUrl && !overlapsWithPath) {
-        const className = this.getSlashCommandClassName(text, cmd.start, cmd.end);
+        const className = this.getAgentSkillClassName(text, cmd.start, cmd.end);
         ranges.push({ start: cmd.start, end: cmd.end, className });
       }
     }
@@ -802,8 +802,8 @@ export class HighlightManager {
       }
     }
 
-    // Always highlight slash commands (no dependency on searchPrefixes) - use cached results
-    for (const cmd of this.cachedSlashCommands) {
+    // Always highlight agent skills (no dependency on searchPrefixes) - use cached results
+    for (const cmd of this.cachedAgentSkills) {
       const overlapsWithAtPath = atPaths.some(
         ap => (cmd.start >= ap.start && cmd.start < ap.end) ||
               (cmd.end > ap.start && cmd.end <= ap.end)
@@ -818,18 +818,18 @@ export class HighlightManager {
       );
       if (!overlapsWithAtPath && !overlapsWithUrl && !overlapsWithPath) {
         const isHovered = cmd.start === this.hoveredAtPath.start && cmd.end === this.hoveredAtPath.end;
-        const baseClassName = this.getSlashCommandClassName(text, cmd.start, cmd.end);
+        const baseClassName = this.getAgentSkillClassName(text, cmd.start, cmd.end);
         const className = isHovered ? `${baseClassName} file-path-link` : baseClassName;
         ranges.push({ start: cmd.start, end: cmd.end, className });
       }
     }
 
-    // Add hovered path if it's not already added (for other linkable types like slash commands)
+    // Add hovered path if it's not already added (for other linkable types like agent skills)
     if (!isHoveredAtPath) {
       const isHoveredUrl = this.cachedUrls.some(u => u.start === this.hoveredAtPath!.start && u.end === this.hoveredAtPath!.end);
       const isHoveredPath = this.cachedAbsolutePaths.some(p => p.start === this.hoveredAtPath!.start && p.end === this.hoveredAtPath!.end);
-      const isHoveredSlashCommand = this.cachedSlashCommands.some(c => c.start === this.hoveredAtPath!.start && c.end === this.hoveredAtPath!.end);
-      if (!isHoveredUrl && !isHoveredPath && !isHoveredSlashCommand) {
+      const isHoveredAgentSkill = this.cachedAgentSkills.some(c => c.start === this.hoveredAtPath!.start && c.end === this.hoveredAtPath!.end);
+      if (!isHoveredUrl && !isHoveredPath && !isHoveredAgentSkill) {
         ranges.push({ ...this.hoveredAtPath, className: 'file-path-link' });
       }
     }

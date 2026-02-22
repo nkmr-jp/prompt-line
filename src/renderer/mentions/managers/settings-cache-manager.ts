@@ -2,7 +2,7 @@
  * SettingsCacheManager - Manages caching for settings-related data
  *
  * Responsibilities:
- * - Caching maxSuggestions for mdSearch and fileSearch
+ * - Caching maxSuggestions for customSearch and fileSearch
  * - Caching searchPrefixes for command and mention types
  * - Preloading cache on startup
  * - Sync access to cached values for performance-critical paths
@@ -33,8 +33,8 @@ export class SettingsCacheManager extends BaseCacheManager<string, number> {
   protected async fetchValue(key: string): Promise<number> {
     try {
       const type = key as 'command' | 'mention';
-      if (electronAPI?.mdSearch?.getMaxSuggestions) {
-        return await electronAPI.mdSearch.getMaxSuggestions(type);
+      if (electronAPI?.customSearch?.getMaxSuggestions) {
+        return await electronAPI.customSearch.getMaxSuggestions(type);
       }
     } catch (error) {
       handleError('SettingsCacheManager.fetchValue', error);
@@ -60,7 +60,7 @@ export class SettingsCacheManager extends BaseCacheManager<string, number> {
 
   /**
    * Get maxSuggestions for file search (cached)
-   * This is for @ mentions file/symbol search, separate from mdSearch settings
+   * This is for @ mentions file/symbol search, separate from customSearch settings
    */
   public async getFileSearchMaxSuggestions(): Promise<number> {
     // Check cache first
@@ -91,8 +91,8 @@ export class SettingsCacheManager extends BaseCacheManager<string, number> {
     }
 
     try {
-      if (electronAPI?.mdSearch?.getSearchPrefixes) {
-        const prefixes = await electronAPI.mdSearch.getSearchPrefixes(type);
+      if (electronAPI?.customSearch?.getSearchPrefixes) {
+        const prefixes = await electronAPI.customSearch.getSearchPrefixes(type);
         this.searchPrefixesCache.set(type, prefixes);
         return prefixes;
       }

@@ -1,7 +1,7 @@
 import path from 'path';
 import os from 'os';
 import { logger, SecureErrors } from '../utils/utils';
-import MdSearchLoader from '../managers/md-search-loader';
+import CustomSearchLoader from '../managers/custom-search-loader';
 import type { UserSettings } from '../types';
 import type { IpcMainInvokeEvent } from 'electron';
 import { VALIDATION } from '../constants';
@@ -177,14 +177,15 @@ export function validateHistoryId(id: string): boolean {
 }
 
 /**
- * Updates MdSearchLoader configuration from user settings.
+ * Updates CustomSearchLoader configuration from user settings.
  *
- * @param loader - The MdSearchLoader instance to update
- * @param settings - User settings containing mdSearch configuration
+ * @param loader - The CustomSearchLoader instance to update
+ * @param settings - User settings containing customSearch configuration
  */
-export function updateMdSearchConfig(loader: MdSearchLoader, settings: UserSettings): void {
-  if (settings.mdSearch) {
-    loader.updateConfig(settings.mdSearch);
-    logger.info('MdSearch config updated from settings');
+export function updateCustomSearchConfig(loader: CustomSearchLoader, settings: UserSettings): void {
+  const config = settings.customSearch ?? settings.mdSearch;
+  if (config) {
+    loader.updateConfig(config);
+    logger.info('CustomSearch config updated from settings');
   }
 }

@@ -6,18 +6,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Development
 ```bash
-npm start          # Run app in development mode (with DEBUG logging enabled)
-npm run update-built-in-commands # Update slash commands with confirmation
-npm run reset-built-in-commands  # Reset slash commands to defaults (removes all)
-npm run reset-accessibility      # Reset accessibility permissions for Prompt Line
+pnpm start          # Run app in development mode (with DEBUG logging enabled)
+pnpm run update-built-in-commands # Update slash commands with confirmation
+pnpm run reset-accessibility      # Reset accessibility permissions for Prompt Line
 ```
 
 **Development vs Production Modes:**
-- **Development Mode** (`npm start`):
+- **Development Mode** (`pnpm start`):
   - Sets `LOG_LEVEL=debug` environment variable
   - Enables DEBUG level logging
   - Shows detailed debug information in console and log files
-  - Only active when running `npm start` with `LOG_LEVEL=debug`
+  - Only active when running `pnpm start` with `LOG_LEVEL=debug`
 
 - **Production Mode** (packaged app):
   - Packaged apps (.dmg, .app) always use INFO level logging (DEBUG logs disabled)
@@ -41,45 +40,49 @@ grep -i error ~/.prompt-line/app.log | tail -20
 grep "Paste text" ~/.prompt-line/app.log | tail -10
 ```
 
-**Note:** When running `npm start` in JetBrains IDE, the console output shows Electron startup messages. For detailed application logs (DEBUG/INFO level), always check the log file directly.
+**Note:** When running `pnpm start` in JetBrains IDE, the console output shows Electron startup messages. For detailed application logs (DEBUG/INFO level), always check the log file directly.
 
 ### Testing
 ```bash
-npm test                    # Run all tests
-npm run test:watch         # Run tests in watch mode
-npm run test:coverage      # Generate coverage report
-npm run test:unit          # Run unit tests only
-npm run test:integration   # Run integration tests only
+pnpm test                    # Run all tests
+pnpm run test:watch         # Run tests in watch mode
+pnpm run test:coverage      # Generate coverage report
+pnpm run test:unit          # Run unit tests only
+pnpm run test:integration   # Run integration tests only
+pnpm run test:mutation      # Run mutation tests with Stryker
 
 # Run a specific test file
-npm test tests/unit/utils.test.js
+pnpm test tests/unit/utils.test.js
 
 # Run tests matching a pattern
-npm test -- --testNamePattern="formatTimeAgo"
+pnpm test -- --testNamePattern="formatTimeAgo"
 ```
 
 ### Build & Distribution
 ```bash
-npm run build      # Build the application for local use (creates app directory)
-npm run compile    # Full build: TypeScript + Renderer + Native Tools compilation
-npm run lint       # Check code style
-npm run lint:fix   # Auto-fix code style issues
-npm run typecheck  # Run TypeScript type checking
-npm run pre-push   # Run all pre-push checks (lint + typecheck + test)
+pnpm run build      # Build the application for local use (creates app directory)
+pnpm run compile    # Full build: TypeScript + Renderer + Native Tools compilation
+pnpm run lint       # Check code style
+pnpm run lint:fix   # Auto-fix code style issues
+pnpm run typecheck  # Run TypeScript type checking
+pnpm run pre-push   # Run all pre-push checks (lint + typecheck + test)
 
 # Additional build commands
-npm run build:renderer  # Vite build for renderer process
-npm run clean      # Removes build artifacts (DMG, zip files, etc.)
-npm run clean:cache     # Clears build caches (node_modules/.cache, electron caches)
-npm run clean:full      # Full cleanup (build artifacts + caches + dist directory)
-npm run release    # Info about automated release process (via GitHub Actions)
-npm run prepare    # Husky setup
+pnpm run build:renderer  # Vite build for renderer process
+pnpm run clean      # Removes build artifacts (DMG, zip files, etc.)
+pnpm run clean:cache     # Clears build caches (node_modules/.cache, electron caches)
+pnpm run clean:full      # Full cleanup (build artifacts + caches + dist directory)
+pnpm run release    # Info about automated release process (via GitHub Actions)
+pnpm run prepare    # Husky setup
+pnpm run generate:settings-example  # Generate settings example file
+pnpm run migrate-settings            # Run settings migration script
+pnpm run lint:dupl                   # Check duplicate code with jscpd
 ```
 
 **Build Process Details:**
-The `npm run compile` command performs:
+The `pnpm run compile` command performs:
 1. TypeScript compilation (`tsc`)
-2. Renderer build (`npm run build:renderer`)
+2. Renderer build (`pnpm run build:renderer`)
 3. Native tools compilation (`cd native && make install`)
 4. Copy compiled tools to distribution directory
 
@@ -108,18 +111,18 @@ The project uses automated git hooks to ensure code quality:
 - Only processes files that are actually being committed (faster than full project linting)
 
 **Pre-push hooks:**
-- TypeScript type checking (`npm run typecheck`)
-- Full test suite (`npm test`)
+- TypeScript type checking (`pnpm run typecheck`)
+- Full test suite (`pnpm test`)
 - Prevents pushing if any checks fail
 
 **Manual quality checks:**
 ```bash
-npm run pre-push   # Run all pre-push checks manually
+pnpm run pre-push   # Run all pre-push checks manually
 ```
 
 **Setup for new contributors:**
 ```bash
-npm install        # Installs husky and sets up hooks automatically via "prepare" script
+pnpm install        # Installs husky and sets up hooks automatically via "prepare" script
 ```
 
 ### Development Tools
@@ -173,34 +176,42 @@ The app uses Electron's two-process model with clean separation:
   - `renderer.ts`: Main renderer class with integrated keyboard handling and manager pattern
   - `ui-manager.ts`: Advanced UI management with themes, animations, and notifications
   - `input.html`: Main window template
-  - 15+ specialized managers: DOM, events, search, lifecycle, shortcuts, animation, mentions, slash-commands, history-ui, and more
+  - 15+ specialized managers: DOM, events, search, lifecycle, shortcuts, animation, mentions, agent-skills, history-ui, and more
   - Comprehensive CSS architecture with themes and modular stylesheets
   - TypeScript configuration and utility functions
   - `interfaces/`: Shared TypeScript type definitions
   - `services/`: Service layer components
   - `lib/`: Shared library code
 - **Preload Script** (`src/preload/preload.ts`): Secure context bridge with whitelisted IPC channels
-- **IPC Handlers** (`src/handlers/`): Modular handler architecture with 8 specialized components:
+- **IPC Handlers** (`src/handlers/`): Modular handler architecture with 9 specialized components:
   - `ipc-handlers.ts`: Main coordinator that delegates to specialized handlers
   - `paste-handler.ts`: Text and image paste operations with security validation
   - `history-draft-handler.ts`: History CRUD and draft management operations
   - `window-handler.ts`: Window visibility and focus control
   - `system-handler.ts`: App info, config, and settings retrieval
-  - `mdsearch-handler.ts`: Slash commands and agent selection
+  - `custom-search-handler.ts`: Slash commands and agent selection
   - `file-handler.ts`: File operations and external URL handling
+  - `usage-history-handler.ts`: Usage history tracking operations
   - `handler-utils.ts`: Shared validation and utility functions
 
 ### Manager Pattern
 Core functionality is organized into specialized managers:
 
 **Main Process Managers:**
-- **WindowManager** (`src/managers/window/`): Modular architecture with 6 specialized components:
+- **WindowManager** (`src/managers/window/`): Modular architecture with 9 specialized components:
   - `window-manager.ts`: Main coordinator for window creation and lifecycle
   - `directory-detector.ts`: Directory detection and file search orchestration
+  - `directory-cache-helper.ts`: Directory caching helper utilities
+  - `directory-detector-utils.ts`: Directory detector utility functions
+  - `text-field-bounds-detector.ts`: Text field bounds detection using Accessibility APIs
   - `position-calculator.ts`: Window positioning algorithms (4 modes)
   - `native-tool-executor.ts`: Native macOS tool execution with timeout
   - `types.ts`: Type definitions for window module
   - `index.ts`: Public API exports
+  - `strategies/`: Positioning strategy implementations
+    - `strategies/index.ts`: Strategy exports
+    - `strategies/native-detector-strategy.ts`: Native detector strategy implementation
+    - `strategies/types.ts`: Strategy type definitions
   - Supports multiple positioning modes: active-text-field (default), active-window-center, cursor, center
   - Native Swift tools integration for window and text field detection
   - Multi-monitor aware positioning with boundary constraints
@@ -213,18 +224,30 @@ Core functionality is organized into specialized managers:
   - Automatic settings file creation with sensible defaults
 - **DesktopSpaceManager**: Ultra-fast desktop space change detection for window recreation
 - **FileCacheManager**: File caching with invalidation for performance optimization
-- **MdSearchLoader**: Markdown file search and loading functionality
+- **CustomSearchLoader**: Custom search and loading functionality for slash commands and agents
 - **DirectoryManager**: Directory operations and management
 - **FileOpenerManager**: File opening with custom editor support
 - **SymbolCacheManager**: Language-separated symbol search caching with TTL
 - **AtPathCacheManager**: @path pattern caching for file highlighting
+- **UsageHistoryManager**: Usage tracking with count-based scoring
+- **AgentSkillCacheManager**: Agent skill caching
+- **AgentUsageHistoryManager**: Agent selection history
+- **FileUsageHistoryManager**: File selection history
+- **SymbolUsageHistoryManager**: Symbol selection history
 - **symbol-search/**: Symbol search integration with ripgrep via Node.js (20+ languages)
 
 **Renderer Process Managers:**
 - **DomManager**: DOM element management and manipulation
 - **EventHandler**: Centralized event processing
-- **SearchManager**: Search functionality implementation
-- **SlashCommandManager**: Slash command processing and execution
+- **AgentSkillManager**: Agent skill processing and execution
+- **FrontmatterPopupManager**: Frontmatter popup display and interaction
+- **MentionManager**: @ mention system coordination
+- **LifecycleManager**: Application lifecycle management
+- **ShortcutHandler**: Keyboard shortcut handling
+- **WindowBlurHandler**: Window blur event handling
+- **DirectoryDataHandler**: Directory data event handling
+- **DraftManagerClient**: Client-side draft management
+- **Types** (`types.ts`): Shared TypeScript type definitions for renderer
 - **MentionSystem** (`src/renderer/mentions/`): Modular @ mention architecture with 15+ specialized managers:
   - `mention-initializer.ts`: System initialization and lifecycle management
   - `mention-state.ts`: Centralized state management for mention system
@@ -241,6 +264,8 @@ Core functionality is organized into specialized managers:
   - `event-listener-manager.ts`: Event lifecycle management
   - `query-extraction-manager.ts`: Query parsing and extraction
   - `settings-cache-manager.ts`: Settings caching and updates
+  - `code-search/index.ts`: Code search module exports
+  - `code-search/types.ts`: Code search type definitions
   - Supports file search (`@`), code search (`@lang:query`), and directory navigation (`@dir/`)
 - **HistoryUIManager**: History display and interaction management
 - **SnapshotManager**: Undo/redo functionality with text and cursor state tracking
@@ -261,7 +286,7 @@ IPC invoke request
     ↓
 IPCHandlers (coordinator)
     ↓
-Specialized Handler (paste, history-draft, window, system, mdsearch, file, code-search)
+Specialized Handler (paste, history-draft, window, system, custom-search, file, code-search, usage-history)
     ↓
 Manager (WindowManager, HistoryManager, SymbolCacheManager, etc.)
     ↓
@@ -289,10 +314,10 @@ IPC response → Renderer Process
 - `get-config`: Configuration access with whitelist validation
 - `open-settings`: Settings file management
 
-**MdSearch Handler (mdsearch-handler.ts):**
-- `get-slash-commands`, `get-slash-command-file-path`: Slash command support
+**CustomSearch Handler (custom-search-handler.ts):**
+- `get-agent-skills`, `get-agent-skill-file-path`: Agent skill support
 - `get-agents`, `get-agent-file-path`: Agent selection and management
-- `get-md-search-max-suggestions`, `get-md-search-prefixes`: Search configuration
+- `get-custom-search-max-suggestions`, `get-custom-search-prefixes`: Search configuration
 
 **File Handler (file-handler.ts):**
 - `check-file-exists`, `open-file-in-editor`: File operations
@@ -305,11 +330,19 @@ IPC response → Renderer Process
 - `get-cached-symbols`: Retrieve cached symbols
 - `clear-symbol-cache`: Clear symbol cache
 
+**Usage History Handler (usage-history-handler.ts):**
+- `record-file-usage`: Record file usage for intelligent scoring
+- `get-file-usage-bonuses`: Retrieve usage bonuses for file paths
+- `record-symbol-usage`: Record symbol usage for intelligent scoring
+- `get-symbol-usage-bonuses`: Retrieve usage bonuses for symbols
+- `record-agent-usage`: Record agent usage for intelligent scoring
+- `get-agent-usage-bonuses`: Retrieve usage bonuses for agents
+
 **Events (Renderer → Main):**
 - `window-shown`: Window display with data context
 - `directory-data-updated`: Directory change notifications
 
-Total: 30+ IPC channels across 7 specialized handlers
+Total: 30+ IPC channels across 8 specialized handlers
 
 ### Built-in Commands Hot Reload
 
@@ -327,7 +360,7 @@ Built-in command YAMLファイルの変更は自動的に検知され、リア�
 
 **関連ファイル:**
 - `src/managers/built-in-commands-manager.ts` - ファイルウォッチング実装
-- `src/handlers/mdsearch-handler.ts` - イベントリスナー
+- `src/handlers/custom-search-handler.ts` - イベントリスナー
 
 ## Platform-Specific Implementation
 
@@ -364,7 +397,7 @@ All data is stored in `~/.prompt-line/`:
   - `<encoded-path>/symbol-metadata.json`: Symbol cache metadata with TTL
   - `<encoded-path>/symbols-{lang}.jsonl`: Language-specific symbol cache
   - `<encoded-path>/registered-at-paths.jsonl`: Project @path patterns
-  - `global-at-paths.jsonl`: Global @path patterns for mdSearch agents
+  - `global-at-paths.jsonl`: Global @path patterns for customSearch agents
 
 ### Build Output
 The built application is stored in `dist/`:
@@ -390,13 +423,13 @@ Tests use comprehensive mocks defined in `tests/setup.ts`:
 ### Running Specific Tests
 ```bash
 # Test a specific manager
-npm test tests/unit/history-manager.test.js
+pnpm test tests/unit/history-manager.test.js
 
 # Test with pattern matching
-npm test -- --testNamePattern="should save draft"
+pnpm test -- --testNamePattern="should save draft"
 
 # Debug test failures
-npm test -- --verbose
+pnpm test -- --verbose
 ```
 
 ## Critical Implementation Details
@@ -542,15 +575,15 @@ If you encounter an error like `ENOENT: no such file or directory, rename '...El
 **Solution:**
 ```bash
 # Full cleanup and rebuild
-npm run clean:full
-npm install
-npm run build
+pnpm run clean:full
+pnpm install
+pnpm run build
 ```
 
 **Quick Fix (cache only):**
 ```bash
-npm run clean:cache
-npm run build
+pnpm run clean:cache
+pnpm run build
 ```
 
 #### TypeScript Compilation Errors
@@ -559,8 +592,8 @@ If `tsc` command is not found or TypeScript compilation fails:
 **Solution:**
 ```bash
 # Reinstall dependencies
-npm install
-npm run build
+pnpm install
+pnpm run build
 ```
 
 #### Native Tools Compilation Errors
@@ -582,22 +615,22 @@ xcode-select -p
 ### Performance Issues
 
 #### Slow Build Times
-- Use `npm run compile` instead of full `npm run build` for faster development iterations
+- Use `pnpm run compile` instead of full `pnpm run build` for faster development iterations
 - Native tools are cached after first compilation
 - Consider using SSD for faster I/O operations
 
 #### Large Distribution Size
 - DMG files are ~100-110MB per architecture (expected size)
 - App bundle contains full Electron framework
-- Use `npm run clean` to remove old build artifacts
+- Use `pnpm run clean` to remove old build artifacts
 
 ### Cleanup Commands Reference
 
 | Command | Purpose | When to Use |
 |---------|---------|-------------|
-| `npm run clean` | Remove build artifacts only | After each build to clean up DMG/zip files |
-| `npm run clean:cache` | Clear build caches | When experiencing cache-related build issues |
-| `npm run clean:full` | Complete cleanup | Before fresh build or when troubleshooting build errors |
+| `pnpm run clean` | Remove build artifacts only | After each build to clean up DMG/zip files |
+| `pnpm run clean:cache` | Clear build caches | When experiencing cache-related build issues |
+| `pnpm run clean:full` | Complete cleanup | Before fresh build or when troubleshooting build errors |
 
 ### Build Process Verification
 

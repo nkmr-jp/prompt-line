@@ -1,58 +1,46 @@
 /* Button Components */
 .search-button {
+    @apply border-none cursor-pointer flex items-center justify-center;
     background: none;
-    border: none;
     color: var(--text-secondary);
-    cursor: pointer;
     padding: var(--spacing-xs);
     border-radius: var(--radius-sm);
     transition: all var(--animation-normal) ease;
     font-size: var(--font-size-lg);
-    display: flex;
-    align-items: center;
-    justify-content: center;
     width: 24px;
     height: 24px;
 }
 
 .search-button:hover {
     background: var(--bg-tertiary);
-    color: rgba(255, 255, 255, 0.8);
+    color: oklch(from var(--color-white) l c h / 0.8);
 }
 
 .search-button.active {
-    background: rgba(255, 255, 255, 0.15);
-    color: rgba(255, 255, 255, 0.9);
+    background: oklch(from var(--color-white) l c h / 0.15);
+    color: oklch(from var(--color-white) l c h / 0.9);
 }
 
 .search-close {
+    @apply border-none cursor-pointer flex items-center justify-center shrink-0 relative select-none outline-none;
     background: var(--accent-gray);
-    border: none;
     color: var(--text-primary);
-    cursor: pointer;
     padding: 2px;
     border-radius: 50%;
     transition: all var(--animation-normal) ease;
     font-size: var(--font-size-xs);
-    display: flex;
-    align-items: center;
-    justify-content: center;
     width: 14px;
     height: 14px;
-    flex-shrink: 0;
     z-index: 1001;
-    position: relative;
     pointer-events: auto;
-    user-select: none;
-    outline: none;
 }
 
 .search-close:hover {
-    background: rgba(128, 128, 128, 0.8);
-    color: rgba(255, 255, 255, 0.9);
+    background: oklch(from var(--color-neutral-500) l c h / 0.8);
+    color: oklch(from var(--color-white) l c h / 0.9);
 }
 
 .search-close:active {
-    background: rgba(128, 128, 128, 1.0);
+    background: var(--color-neutral-500);
     transform: scale(0.95);
 }

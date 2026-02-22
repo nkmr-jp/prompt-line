@@ -21,7 +21,26 @@ import type { SymbolResult } from '../code-search/types';
 import { getSymbolTypeDisplay } from '../code-search/types';
 import { getCaretCoordinates, createMirrorDiv, insertHighlightedText } from '../dom-utils';
 import { getRelativePath, getDirectoryFromPath } from '../path-utils';
-import { getFileIconSvg, getMentionIconSvg, getSymbolIconSvg } from '../../assets/icons/file-icons';
+import { getFileIconSvg, getSymbolCodiconClass } from '../../assets/icons/file-icons';
+import { formatTime } from '../../utils/time-formatter';
+
+const COLOR_MAP: Record<string, string> = {
+  grey: 'var(--color-neutral-400)', darkGrey: 'var(--color-neutral-500)', slate: 'var(--color-stone-400)', stone: 'var(--color-stone-400)',
+  red: 'var(--color-red-400)', rose: 'var(--color-rose-400)',
+  orange: 'var(--color-orange-400)', amber: 'var(--color-amber-400)',
+  yellow: 'var(--color-yellow-300)', lime: 'var(--color-lime-400)',
+  green: 'var(--color-green-400)', emerald: 'var(--color-emerald-400)', teal: 'var(--color-teal-400)',
+  cyan: 'var(--color-cyan-400)', sky: 'var(--color-sky-400)', blue: 'var(--color-blue-400)',
+  indigo: 'var(--color-indigo-400)', violet: 'var(--color-violet-400)', purple: 'var(--color-purple-400)',
+  fuchsia: 'var(--color-fuchsia-400)', pink: 'var(--color-pink-400)',
+};
+
+function resolveColorValue(color: string | undefined, fallback?: string): string {
+  if (!color) return fallback || '';
+  const c = color.replace(/^["']|["']$/g, '');
+  if (c.startsWith('#')) return c;
+  return COLOR_MAP[c] || c;
+}
 
 /**
  * Callbacks for SuggestionUIManager
@@ -280,8 +299,17 @@ export class SuggestionUIManager {
     // Get maxSuggestions setting for merged list
     const maxSuggestions = await this.callbacks.getMaxSuggestions?.('mention') ?? 20;
 
+    // Strip searchPrefix from query for scoring (e.g., "plan:" → "", "plan:custom" → "custom")
+    let scoringQuery = searchTerm;
+    if (matchesPrefix) {
+      const colonIndex = searchTerm.indexOf(':');
+      if (colonIndex >= 0) {
+        scoringQuery = searchTerm.substring(colonIndex + 1);
+      }
+    }
+
     // Merge files and agents into a single sorted list
-    const merged = this.callbacks.mergeSuggestions?.(searchTerm, maxSuggestions, fileUsageBonuses) ?? [];
+    const merged = this.callbacks.mergeSuggestions?.(scoringQuery, maxSuggestions, fileUsageBonuses) ?? [];
     this.callbacks.setMergedSuggestions?.(merged);
 
     this.callbacks.setSelectedIndex?.(0);
@@ -556,8 +584,11 @@ export class SuggestionUIManager {
     item.setAttribute('data-type', 'agent');
 
     const icon = document.createElement('span');
-    icon.className = 'file-icon mention-icon';
-    insertSvgIntoElement(icon, getMentionIconSvg());
+    const iconClass = agent.icon
+      ? (agent.icon.startsWith('codicon-') ? agent.icon : `codicon-${agent.icon}`)
+      : 'codicon-agent';
+    icon.className = `file-icon codicon ${iconClass}`;
+    icon.style.color = resolveColorValue(agent.color, 'var(--color-teal-400)');
 
     const name = document.createElement('span');
     name.className = 'file-name agent-name';
@@ -570,7 +601,24 @@ export class SuggestionUIManager {
 
     item.appendChild(icon);
     item.appendChild(name);
+
+    if (agent.label) {
+      const labelBadge = document.createElement('span');
+      labelBadge.className = 'symbol-type-badge';
+      labelBadge.textContent = agent.label;
+      item.appendChild(labelBadge);
+    }
+
     item.appendChild(desc);
+
+    // displayTime: null means explicitly hidden, undefined means no display
+    const timeValue = agent.displayTime;
+    if (timeValue != null && timeValue !== undefined) {
+      const timeSpan = document.createElement('span');
+      timeSpan.className = 'agent-skill-updated-at';
+      timeSpan.textContent = formatTime(timeValue);
+      item.appendChild(timeSpan);
+    }
 
     if (agent.frontmatter && this.callbacks.onMouseEnterInfo) {
       const infoIcon = document.createElement('span');
@@ -597,8 +645,8 @@ export class SuggestionUIManager {
     item.setAttribute('data-type', 'symbol');
 
     const icon = document.createElement('span');
-    icon.className = 'file-icon symbol-icon';
-    insertSvgIntoElement(icon, getSymbolIconSvg(symbol.type));
+    icon.className = 'file-icon symbol-icon codicon ' + getSymbolCodiconClass(symbol.type);
+    icon.dataset.symbolType = symbol.type;
 
     const name = document.createElement('span');
     name.className = 'file-name symbol-name';

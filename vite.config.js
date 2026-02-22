@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
 import { fileURLToPath } from 'url';
+import tailwindcss from '@tailwindcss/vite';
 
 const __dirname = resolve(fileURLToPath(import.meta.url), '..');
 
@@ -8,38 +9,49 @@ export default defineConfig({
   // Electron renderer process configuration
   root: 'src/renderer',
   base: './',
-  
+
   build: {
     outDir: '../../dist/renderer',
-    emptyOutDir: false, // Don't clear the entire dist/renderer (keep HTML and CSS)
-    
+    emptyOutDir: false, // Don't clear the entire dist/renderer (keep HTML)
+
+    // Collect all CSS into a single file
+    cssCodeSplit: false,
+
     rollupOptions: {
       input: {
         // Main entry point
         renderer: resolve(__dirname, 'src/renderer/renderer.ts')
       },
       output: {
-        // Generate a single bundle file
+        // Generate bundle files
         entryFileNames: 'bundle.js',
         chunkFileNames: 'bundle.js',
-        assetFileNames: 'bundle.js',
+        assetFileNames: (assetInfo) => {
+          // CSS files → bundle.css
+          const name = assetInfo.names?.[0] ?? assetInfo.name ?? '';
+          if (name.endsWith('.css') || assetInfo.type === 'asset' && name === '') {
+            return 'bundle.css';
+          }
+          // Fonts, images → assets/[name].[ext]
+          return 'assets/[name].[ext]';
+        },
         // Use IIFE format for browser compatibility
         format: 'iife',
         name: 'PromptLineApp'
       },
       external: [] // Bundle everything
     },
-    
+
     // Generate source maps for debugging
     sourcemap: true,
-    
+
     // Minimize bundle size
     minify: false, // Keep readable for debugging
-    
+
     // Target modern browsers (Electron)
     target: 'chrome120'
   },
-  
+
   // Configure how imports are resolved
   resolve: {
     alias: {
@@ -47,17 +59,14 @@ export default defineConfig({
       '@utils': resolve(__dirname, 'src/renderer/utils')
     }
   },
-  
+
   // Plugin configuration
-  plugins: [],
-  
+  plugins: [
+    tailwindcss(),
+  ],
+
   // Development server (not used in Electron, but good to have)
   server: {
     port: 3000
-  },
-  
-  // Disable CSS code splitting to keep everything in one file
-  css: {
-    codeSplit: false
   }
 });

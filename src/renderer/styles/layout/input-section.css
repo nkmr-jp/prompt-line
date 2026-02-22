@@ -1,27 +1,18 @@
 /* Input Section Layout */
 .input-section {
-    flex: 2;
-    display: flex;
-    flex-direction: column;
-    position: relative; /* Required for file suggestions absolute positioning */
+    @apply flex-[2] flex flex-col relative; /* Required for file suggestions absolute positioning */
 }
 
 .input-wrapper {
-    width: 100%;
-    height: 100%;
+    @apply w-full h-full flex flex-col;
     background: var(--bg-primary);
     border-radius: 0;
     box-shadow: none;
-    display: flex;
-    flex-direction: column;
     padding: var(--spacing-lg);
 }
 
 .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--spacing-md);
+    @apply flex justify-between items-center;
     min-height: 24px;
     padding: var(--spacing-sm) var(--spacing-md);
     margin: calc(-1 * var(--spacing-sm)) calc(-1 * var(--spacing-md));
@@ -34,8 +25,8 @@
 .header.draggable {
     -webkit-app-region: drag;
     cursor: grab;
-    background-color: rgba(59, 130, 246, 0.15);
-    border: 1px solid rgba(59, 130, 246, 0.3);
+    background-color: oklch(from var(--color-blue-500) l c h / 0.15);
+    border: 1px solid oklch(from var(--color-blue-500) l c h / 0.3);
 }
 
 .header.draggable:active {
@@ -47,7 +38,7 @@
     display: none;
     align-items: center;
     gap: 6px;
-    color: rgba(59, 130, 246, 0.9);
+    color: oklch(from var(--color-blue-500) l c h / 0.9);
     font-size: var(--font-size-sm);
     animation: fadeInPulse 0.3s ease-out;
 }
@@ -84,9 +75,9 @@
 }
 
 .app-name {
+    @apply font-medium;
     font-size: var(--font-size-md);
-    color: rgba(255, 255, 255, 0.5);
-    font-weight: 500;
+    color: oklch(from var(--color-white) l c h / 0.5);
 }
 
 .shortcuts {
@@ -96,10 +87,7 @@
 
 /* Text input container for highlight backdrop */
 .text-input-container {
-    flex: 1;
-    position: relative;
-    display: flex;
-    width: 100%;
+    @apply flex-1 relative flex w-full;
     /* Prevent layout thrashing when inserting long text */
     contain: content;
 }
@@ -111,7 +99,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(255, 255, 255, 0.08);
+    background: oklch(from var(--color-white) l c h / 0.08);
     border: 1px solid transparent;
     border-radius: var(--radius-md);
     padding: var(--spacing-md);
@@ -158,7 +146,7 @@
 }
 
 .highlight-backdrop .at-path-highlight {
-    background: rgba(59, 130, 246, 0.4);
+    background: oklch(from var(--color-blue-500) l c h / 0.4);
     border-radius: 4px;
     color: transparent;
 
@@ -171,9 +159,9 @@
     -webkit-box-decoration-break: clone;
 }
 
-/* Default slash command highlight (gray for unknown source or duplicate commands) */
-.highlight-backdrop .slash-command-highlight {
-    background: rgba(128, 128, 128, 0.25);
+/* Default agent skill highlight (gray for unknown source or duplicate skills) */
+.highlight-backdrop .agent-skill-highlight {
+    background: oklch(from var(--color-neutral-500) l c h / 0.25);
     border-radius: 4px;
     color: transparent;
 
@@ -186,52 +174,107 @@
     -webkit-box-decoration-break: clone;
 }
 
-/* Source-specific slash command highlight colors */
-.highlight-backdrop .slash-command-highlight.slash-command-source-claude {
-    background: rgba(232, 197, 143, 0.25);
+/* Source-specific agent skill highlight colors */
+.highlight-backdrop .agent-skill-highlight.agent-skill-source-claude {
+    background: oklch(from var(--color-amber-300) l c h / 0.25);
 }
 
-.highlight-backdrop .slash-command-highlight.slash-command-source-codex {
-    background: rgba(127, 219, 202, 0.25);
+.highlight-backdrop .agent-skill-highlight.agent-skill-source-codex {
+    background: oklch(from var(--color-teal-300) l c h / 0.25);
 }
 
-.highlight-backdrop .slash-command-highlight.slash-command-source-gemini {
-    background: rgba(130, 170, 255, 0.25);
+.highlight-backdrop .agent-skill-highlight.agent-skill-source-gemini {
+    background: oklch(from var(--color-blue-300) l c h / 0.25);
 }
 
-.highlight-backdrop .slash-command-highlight.slash-command-source-custom {
-    background: rgba(199, 146, 234, 0.25);
+.highlight-backdrop .agent-skill-highlight.agent-skill-source-custom {
+    background: oklch(from var(--color-purple-400) l c h / 0.25);
 }
 
 /* Color based highlights (takes priority over source) */
-.highlight-backdrop .slash-command-highlight.slash-command-color-purple {
-    background: rgba(199, 146, 234, 0.25);
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-grey,
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-gray {
+    background: oklch(from var(--color-neutral-400) l c h / 0.25);
 }
 
-.highlight-backdrop .slash-command-highlight.slash-command-color-blue {
-    background: rgba(137, 221, 255, 0.25);
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-darkGrey,
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-slate,
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-stone {
+    background: oklch(from var(--color-stone-400) l c h / 0.25);
 }
 
-.highlight-backdrop .slash-command-highlight.slash-command-color-green {
-    background: rgba(127, 219, 200, 0.25);
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-red {
+    background: oklch(from var(--color-red-400) l c h / 0.25);
 }
 
-.highlight-backdrop .slash-command-highlight.slash-command-color-orange {
-    background: rgba(255, 203, 107, 0.25);
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-rose {
+    background: oklch(from var(--color-rose-400) l c h / 0.25);
 }
 
-.highlight-backdrop .slash-command-highlight.slash-command-color-red {
-    background: rgba(240, 113, 120, 0.25);
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-orange {
+    background: oklch(from var(--color-orange-400) l c h / 0.25);
 }
 
-.highlight-backdrop .slash-command-highlight.slash-command-color-gray {
-    background: rgba(136, 136, 136, 0.25);
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-amber {
+    background: oklch(from var(--color-amber-400) l c h / 0.25);
 }
 
-/* Slash command with link style (Cmd+hover or cursor over slash command) */
-.highlight-backdrop .slash-command-highlight.file-path-link {
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-yellow {
+    background: oklch(from var(--color-yellow-300) l c h / 0.25);
+}
+
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-lime {
+    background: oklch(from var(--color-lime-400) l c h / 0.25);
+}
+
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-green {
+    background: oklch(from var(--color-green-400) l c h / 0.25);
+}
+
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-emerald {
+    background: oklch(from var(--color-emerald-400) l c h / 0.25);
+}
+
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-teal {
+    background: oklch(from var(--color-teal-400) l c h / 0.25);
+}
+
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-cyan {
+    background: oklch(from var(--color-cyan-400) l c h / 0.25);
+}
+
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-sky {
+    background: oklch(from var(--color-sky-400) l c h / 0.25);
+}
+
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-blue {
+    background: oklch(from var(--color-blue-400) l c h / 0.25);
+}
+
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-indigo {
+    background: oklch(from var(--color-indigo-400) l c h / 0.25);
+}
+
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-violet {
+    background: oklch(from var(--color-violet-400) l c h / 0.25);
+}
+
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-purple {
+    background: oklch(from var(--color-purple-400) l c h / 0.25);
+}
+
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-fuchsia {
+    background: oklch(from var(--color-fuchsia-400) l c h / 0.25);
+}
+
+.highlight-backdrop .agent-skill-highlight.agent-skill-color-pink {
+    background: oklch(from var(--color-pink-400) l c h / 0.25);
+}
+
+/* Agent skill with link style (Cmd+hover or cursor over agent skill) */
+.highlight-backdrop .agent-skill-highlight.file-path-link {
     text-decoration: underline;
-    text-decoration-color: rgba(255, 255, 255, 0.4);
+    text-decoration-color: oklch(from var(--color-white) l c h / 0.4);
     text-decoration-thickness: 1px;
     text-underline-offset: 2px;
     cursor: pointer;
@@ -242,7 +285,7 @@
     /* Override the transparent color to make link visible */
     color: var(--text-primary) !important;
     text-decoration: underline;
-    text-decoration-color: rgba(255, 255, 255, 0.4);
+    text-decoration-color: oklch(from var(--color-white) l c h / 0.4);
     text-decoration-thickness: 1px;
     text-underline-offset: 2px;
     cursor: pointer;
@@ -253,7 +296,7 @@
     /* Override the transparent color to make link visible */
     color: var(--text-primary) !important;
     text-decoration: underline;
-    text-decoration-color: rgba(255, 255, 255, 0.4);
+    text-decoration-color: oklch(from var(--color-white) l c h / 0.4);
     text-decoration-thickness: 1px;
     text-underline-offset: 2px;
     /* Underline only, no background highlight */
@@ -264,24 +307,19 @@
     /* Solid underline for linkable file paths */
     color: transparent;
     text-decoration: underline;
-    text-decoration-color: rgba(255, 255, 255, 0.3);
+    text-decoration-color: oklch(from var(--color-white) l c h / 0.3);
     text-decoration-thickness: 1px;
     text-underline-offset: 2px;
     cursor: pointer;
 }
 
 #textInput {
-    flex: 1;
-    width: 100%;
-    background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    @apply flex-1 w-full bg-transparent outline-none resize-none relative;
+    border: 1px solid oklch(from var(--color-white) l c h / 0.15);
     border-radius: var(--radius-md);
     padding: var(--spacing-md);
     color: var(--text-primary);
-    outline: none;
-    resize: none;
     transition: border-color var(--animation-normal) ease, box-shadow var(--animation-normal) ease;
-    position: relative;
     z-index: 1;
 
     /* Font metrics - must match backdrop exactly */
@@ -319,7 +357,7 @@
 
 #textInput:focus {
     background: transparent;
-    border-color: rgba(255, 255, 255, 0.25);
+    border-color: oklch(from var(--color-white) l c h / 0.25);
     box-shadow: 0 0 0 1px var(--bg-tertiary);
 }
 
@@ -329,7 +367,7 @@
 }
 
 #textInput::placeholder {
-    color: var(--text-tertiary);
+    color: oklch(from var(--color-white) l c h / 0.25);
 }
 
 /* Scrollbar styles */
@@ -342,17 +380,17 @@
 }
 
 #textInput::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: oklch(from var(--color-white) l c h / 0.1);
     border-radius: var(--radius-sm);
 }
 
 #textInput::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: oklch(from var(--color-white) l c h / 0.2);
 }
 
 /* Disable IME suggestions */
 #textInput::-webkit-input-placeholder {
-    color: var(--text-tertiary);
+    color: oklch(from var(--color-white) l c h / 0.25);
 }
 
 #textInput::-webkit-textfield-decoration-container {
@@ -371,41 +409,37 @@ textarea:-webkit-autofill:focus {
 }
 
 .footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    @apply flex justify-between items-center;
     /*margin-top: var(--spacing-md);*/
     padding-top: var(--spacing-md);
     /*border-top: 1px solid var(--border-primary);*/
 }
 
 .hint {
+    @apply overflow-hidden text-ellipsis whitespace-nowrap;
     font-size: var(--font-size-sm);
     color: var(--text-tertiary);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
     max-width: 80%;
     margin-right: var(--spacing-md);
 }
 
 .char-count {
     font-size: var(--font-size-base);
-    color: rgba(255, 255, 255, 0.3);
+    color: oklch(from var(--color-white) l c h / 0.3);
     font-variant-numeric: tabular-nums;
     transition: color var(--animation-normal) ease;
 }
 
 .char-count.warning {
-    color: #ff9500;
+    color: var(--color-orange-500);
 }
 
 .char-count.error {
-    color: #ff3b30;
+    color: var(--color-red-500);
 }
 
 kbd {
-    display: inline-block;
+    @apply inline-block;
     padding: 2px 6px;
     background: var(--bg-tertiary);
     border-radius: var(--radius-sm);

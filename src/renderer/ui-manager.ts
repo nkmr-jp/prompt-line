@@ -31,18 +31,18 @@ class UIManager {
   constructor() {
     this.themes = {
       dark: {
-        background: 'rgba(20, 20, 20, 0.95)',
-        text: '#ffffff',
-        textSecondary: 'rgba(255, 255, 255, 0.6)',
-        border: 'rgba(255, 255, 255, 0.15)',
-        accent: '#007AFF'
+        background: 'oklch(from var(--color-neutral-950) l c h / 0.95)',
+        text: 'var(--color-white)',
+        textSecondary: 'oklch(from var(--color-white) l c h / 0.6)',
+        border: 'oklch(from var(--color-white) l c h / 0.15)',
+        accent: 'var(--color-blue-500)'
       },
       light: {
-        background: 'rgba(255, 255, 255, 0.95)',
-        text: '#000000',
-        textSecondary: 'rgba(0, 0, 0, 0.6)',
-        border: 'rgba(0, 0, 0, 0.15)',
-        accent: '#007AFF'
+        background: 'oklch(from var(--color-white) l c h / 0.95)',
+        text: 'var(--color-black)',
+        textSecondary: 'oklch(from var(--color-black) l c h / 0.6)',
+        border: 'oklch(from var(--color-black) l c h / 0.15)',
+        accent: 'var(--color-blue-500)'
       }
     };
     this.currentTheme = 'dark';

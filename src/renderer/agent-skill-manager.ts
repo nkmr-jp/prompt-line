@@ -1,6 +1,6 @@
 /**
- * Slash Command Manager for renderer process
- * Manages slash command suggestions and selection
+ * Agent Skill Manager for renderer process
+ * Manages agent skill suggestions and selection
  */
 
 import type { InputFormatType, ColorValue } from '../types';
@@ -12,40 +12,61 @@ import { extractTriggerQueryAtCursor } from './utils/trigger-query-extractor';
 import { getCaretCoordinates, createMirrorDiv } from './mentions/dom-utils';
 import { compareTiebreak } from '../lib/tiebreaker';
 
-interface SlashCommandItem {
+
+const COLOR_MAP: Record<string, string> = {
+  grey: 'var(--color-neutral-400)', darkGrey: 'var(--color-neutral-500)', slate: 'var(--color-stone-400)', stone: 'var(--color-stone-400)',
+  red: 'var(--color-red-400)', rose: 'var(--color-rose-400)',
+  orange: 'var(--color-orange-400)', amber: 'var(--color-amber-400)',
+  yellow: 'var(--color-yellow-300)', lime: 'var(--color-lime-400)',
+  green: 'var(--color-green-400)', emerald: 'var(--color-emerald-400)', teal: 'var(--color-teal-400)',
+  cyan: 'var(--color-cyan-400)', sky: 'var(--color-sky-400)', blue: 'var(--color-blue-400)',
+  indigo: 'var(--color-indigo-400)', violet: 'var(--color-violet-400)', purple: 'var(--color-purple-400)',
+  fuchsia: 'var(--color-fuchsia-400)', pink: 'var(--color-pink-400)',
+};
+
+function resolveColorValue(color: string | undefined, fallback?: string): string {
+  if (!color) return fallback || '';
+  const c = color.replace(/^["']|["']$/g, '');
+  if (c.startsWith('#')) return c;
+  return COLOR_MAP[c] || c;
+}
+
+interface AgentSkillItem {
   name: string;
   description: string;
   label?: string;  // Label text (e.g., from frontmatter)
   /**
    * Color for label and highlight
    * Supports both named colors and hex color codes:
-   * - Named colors: 'grey', 'darkGrey', 'blue', 'purple', 'teal', 'green', 'yellow', 'orange', 'pink', 'red'
+   * - Named colors: 'grey', 'darkGrey', 'slate', 'stone', 'red', 'rose', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink'
    * - Hex codes: '#RGB' or '#RRGGBB' (e.g., '#FF6B35', '#F63')
    */
   color?: ColorValue;
+  icon?: string;  // Codicon icon class name (e.g., "codicon-rocket")
   argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
   inputFormat?: InputFormatType;  // 入力フォーマット（'name' | 'path'）
   source?: string;  // Source tool identifier (e.g., 'claude-code') for filtering
   displayName?: string;  // Human-readable source name for display (e.g., 'Claude Code')
+  updatedAt?: number;  // File modification timestamp (mtimeMs)
 }
 
-export class SlashCommandManager implements IInitializable {
+export class AgentSkillManager implements IInitializable {
 
   private suggestionsContainer: HTMLElement | null = null;
   private textarea: HTMLTextAreaElement | null = null;
   private mirrorDiv: HTMLDivElement | null = null;
-  private commands: SlashCommandItem[] = [];
-  private filteredCommands: SlashCommandItem[] = [];
+  private skills: AgentSkillItem[] = [];
+  private filteredSkills: AgentSkillItem[] = [];
   private selectedIndex: number = 0;
   private isActive: boolean = false;
   private isEditingMode: boolean = false; // True when Tab selected a command and user is editing arguments
-  private editingCommandName: string = ''; // The command name being edited
-  private editingCommandStartPos: number = 0; // Position where the editing command starts
+  private editingSkillName: string = ''; // The command name being edited
+  private editingSkillStartPos: number = 0; // Position where the editing command starts
   private currentTriggerStartPos: number = 0; // Position of trigger character
-  private onCommandSelect: (command: string) => void;
-  private onCommandInsert: (command: string) => void;
+  private onSkillSelect: (command: string) => void;
+  private onSkillInsert: (command: string) => void;
   private onBeforeOpenFile: (() => void) | undefined;
   private setDraggable: ((enabled: boolean) => void) | undefined;
 
@@ -53,27 +74,27 @@ export class SlashCommandManager implements IInitializable {
   private frontmatterPopupManager: FrontmatterPopupManager;
 
   constructor(callbacks: {
-    onCommandSelect: (command: string) => void;
-    onCommandInsert?: (command: string) => void;
+    onSkillSelect: (command: string) => void;
+    onSkillInsert?: (command: string) => void;
     onBeforeOpenFile?: () => void;
     setDraggable?: (enabled: boolean) => void;
   }) {
-    this.onCommandSelect = callbacks.onCommandSelect;
-    this.onCommandInsert = callbacks.onCommandInsert || (() => {});
+    this.onSkillSelect = callbacks.onSkillSelect;
+    this.onSkillInsert = callbacks.onSkillInsert || (() => {});
     this.onBeforeOpenFile = callbacks.onBeforeOpenFile;
     this.setDraggable = callbacks.setDraggable;
     this.frontmatterPopupManager = new FrontmatterPopupManager({
       getSuggestionsContainer: () => this.suggestionsContainer,
-      getFilteredCommands: () => this.filteredCommands,
+      getFilteredSkills: () => this.filteredSkills,
       getSelectedIndex: () => this.selectedIndex,
       ...(callbacks.onBeforeOpenFile ? { onBeforeOpenFile: callbacks.onBeforeOpenFile } : {}),
       ...(callbacks.setDraggable ? { setDraggable: callbacks.setDraggable } : {}),
-      onSelectCommand: (command) => {
+      onSelectSkill: (command) => {
         // Find the command in filteredCommands to get the full command object
-        const fullCommand = this.filteredCommands.find(cmd => cmd.name === command.name);
-        if (fullCommand) {
+        const fullSkill = this.filteredSkills.find(cmd => cmd.name === command.name);
+        if (fullSkill) {
           // Use Tab behavior (shouldPaste=false) to insert command with space for editing
-          this.selectCommand(this.filteredCommands.indexOf(fullCommand), false);
+          this.selectSkill(this.filteredSkills.indexOf(fullSkill), false);
         }
       }
     });
@@ -109,7 +130,7 @@ export class SlashCommandManager implements IInitializable {
   }
 
   public initializeElements(): void {
-    this.suggestionsContainer = document.getElementById('slashCommandSuggestions');
+    this.suggestionsContainer = document.getElementById('agentSkillSuggestions');
     this.textarea = document.getElementById('textInput') as HTMLTextAreaElement;
 
     // Create mirror div for caret position calculation
@@ -122,10 +143,10 @@ export class SlashCommandManager implements IInitializable {
   public setupEventListeners(): void {
     if (!this.textarea) return;
 
-    // Monitor input for slash command detection and argumentHint display
+    // Monitor input for agent skill detection and argumentHint display
     this.textarea.addEventListener('input', () => {
-      this.checkForSlashCommand();
-      // After checking for slash command, also check if we need to show argumentHint
+      this.checkForAgentSkill();
+      // After checking for agent skill, also check if we need to show argumentHint
       // This handles the case when user deletes characters and cursor returns to argument position
       if (!this.isActive) {
         this.checkForArgumentHintAtCursor();
@@ -136,11 +157,16 @@ export class SlashCommandManager implements IInitializable {
     this.textarea.addEventListener('keydown', (e) => {
       if (this.isActive) {
         this.handleKeyDown(e);
+      } else if (this.isEditingMode && e.ctrlKey && e.shiftKey && e.key === 'Enter') {
+        // Ctrl+Shift+Enter to reveal file directory in Finder in editing mode
+        e.preventDefault();
+        e.stopPropagation();
+        this.revealSkillFileDirectory(this.selectedIndex);
       } else if (this.isEditingMode && e.ctrlKey && e.key === 'Enter') {
         // Allow Ctrl+Enter to open file even in editing mode
         e.preventDefault();
         e.stopPropagation();
-        this.openCommandFile(this.selectedIndex);
+        this.openSkillFile(this.selectedIndex);
       }
     });
 
@@ -172,7 +198,7 @@ export class SlashCommandManager implements IInitializable {
     if (this.suggestionsContainer) {
       this.suggestionsContainer.addEventListener('click', async (e) => {
         const target = e.target as HTMLElement;
-        const suggestionItem = target.closest('.slash-suggestion-item') as HTMLElement;
+        const suggestionItem = target.closest('.agent-skill-suggestion-item') as HTMLElement;
         if (suggestionItem) {
           // Check if this is an argument-hint-only item
           if (suggestionItem.classList.contains('argument-hint-only')) {
@@ -191,7 +217,7 @@ export class SlashCommandManager implements IInitializable {
 
           // Normal suggestion handling
           const index = parseInt(suggestionItem.dataset.index || '0', 10);
-          const command = this.filteredCommands[index];
+          const command = this.filteredSkills[index];
 
           // Copy argumentHint to clipboard if it exists
           if (command?.argumentHint) {
@@ -204,7 +230,7 @@ export class SlashCommandManager implements IInitializable {
             }
           }
 
-          this.selectCommand(index);
+          this.selectSkill(index);
         }
       });
 
@@ -218,21 +244,21 @@ export class SlashCommandManager implements IInitializable {
   /**
    * Load commands from main process
    */
-  public async loadCommands(): Promise<void> {
+  public async loadSkills(): Promise<void> {
     try {
-      if (electronAPI?.slashCommands?.get) {
-        this.commands = await electronAPI.slashCommands.get();
+      if (electronAPI?.agentSkills?.get) {
+        this.skills = await electronAPI.agentSkills.get();
       }
     } catch (error) {
-      console.error('Failed to load slash commands:', error);
-      this.commands = [];
+      console.error('Failed to load agent skills:', error);
+      this.skills = [];
     }
   }
 
   /**
-   * Check if user is typing a slash command at cursor position
+   * Check if user is typing a agent skill at cursor position
    */
-  private checkForSlashCommand(): void {
+  private checkForAgentSkill(): void {
     if (!this.textarea) return;
 
     const result = extractTriggerQueryAtCursor(
@@ -246,18 +272,18 @@ export class SlashCommandManager implements IInitializable {
       if (this.isEditingMode) {
         // Check if the text still contains the command at the original position
         const text = this.textarea.value;
-        const expectedCommand = `/${this.editingCommandName}`;
-        const commandAtPos = text.substring(
-          this.editingCommandStartPos,
-          this.editingCommandStartPos + expectedCommand.length
+        const expectedSkill = `/${this.editingSkillName}`;
+        const skillAtPos = text.substring(
+          this.editingSkillStartPos,
+          this.editingSkillStartPos + expectedSkill.length
         );
-        if (commandAtPos === expectedCommand) {
+        if (skillAtPos === expectedSkill) {
           // Check if user has started typing arguments (after the trailing space)
-          const commandEndPos = this.editingCommandStartPos + expectedCommand.length;
-          const afterCommand = text.substring(commandEndPos);
+          const skillEndPos = this.editingSkillStartPos + expectedSkill.length;
+          const afterSkill = text.substring(skillEndPos);
 
           // Hide UI if user has typed any argument, but keep editing mode state
-          if (afterCommand !== ' ') {
+          if (afterSkill !== ' ') {
             this.hideUI();
             return;
           }
@@ -275,10 +301,10 @@ export class SlashCommandManager implements IInitializable {
     // If in editing mode (Tab selected), check if command name still matches
     if (this.isEditingMode) {
       // Exit editing mode if user modified the command name
-      if (query !== this.editingCommandName) {
+      if (query !== this.editingSkillName) {
         this.isEditingMode = false;
-        this.editingCommandName = '';
-        this.editingCommandStartPos = 0;
+        this.editingSkillName = '';
+        this.editingSkillStartPos = 0;
         // Continue to show suggestions based on new query
       } else {
         // Command name still matches, keep showing selected command
@@ -297,7 +323,7 @@ export class SlashCommandManager implements IInitializable {
   }
 
   /**
-   * Check if cursor is at the argument input position of an existing slash command.
+   * Check if cursor is at the argument input position of an existing agent skill.
    * If so, show the argumentHint for that command.
    * Called when cursor position changes (click, arrow keys).
    */
@@ -308,8 +334,8 @@ export class SlashCommandManager implements IInitializable {
     if (this.isActive) return;
 
     // Load commands if not loaded
-    if (this.commands.length === 0) {
-      await this.loadCommands();
+    if (this.skills.length === 0) {
+      await this.loadSkills();
     }
 
     const text = this.textarea.value;
@@ -319,46 +345,46 @@ export class SlashCommandManager implements IInitializable {
     // Cursor must be right after a space (argument input position)
     if (!textBeforeCursor.endsWith(' ')) {
       // 編集モード中で、UIが非表示の場合は何もしない（状態を保持）
-      // UIを非表示にするのは checkForSlashCommand() の責任
+      // UIを非表示にするのは checkForAgentSkill() の責任
       return;
     }
 
     // Use known command names to find matching command
     // Sort by name length descending to match longer commands first (e.g., "Linear API" before "Linear")
-    const sortedCommands = [...this.commands].sort((a, b) => b.name.length - a.name.length);
+    const sortedSkills = [...this.skills].sort((a, b) => b.name.length - a.name.length);
 
-    let matchedCommand: SlashCommandItem | null = null;
+    let matchedSkill: AgentSkillItem | null = null;
     let commandStartPos = -1;
 
-    for (const cmd of sortedCommands) {
+    for (const cmd of sortedSkills) {
       const pattern = '/' + cmd.name + ' ';
       if (textBeforeCursor.endsWith(pattern)) {
         // Verify it's at start of text or preceded by whitespace
         const patternStartPos = textBeforeCursor.length - pattern.length;
         const prevChar = patternStartPos > 0 ? textBeforeCursor[patternStartPos - 1] : '';
         if (prevChar === '' || prevChar === ' ' || prevChar === '\n' || prevChar === '\t') {
-          matchedCommand = cmd;
+          matchedSkill = cmd;
           commandStartPos = patternStartPos;
           break;
         }
       }
     }
 
-    if (!matchedCommand || !matchedCommand.argumentHint) {
+    if (!matchedSkill || !matchedSkill.argumentHint) {
       // No command found or command has no argumentHint
       // 編集モード中でUIが非表示の場合、状態はリセットしない
       return;
     }
 
     // Show argumentHint for this command
-    this.filteredCommands = [matchedCommand];
+    this.filteredSkills = [matchedSkill];
     this.selectedIndex = 0;
     this.isEditingMode = true;
-    this.editingCommandName = matchedCommand.name;
-    this.editingCommandStartPos = commandStartPos;
+    this.editingSkillName = matchedSkill.name;
+    this.editingSkillStartPos = commandStartPos;
     this.currentTriggerStartPos = commandStartPos;
 
-    this.showArgumentHintOnly(matchedCommand);
+    this.showArgumentHintOnly(matchedSkill);
   }
 
   /**
@@ -392,13 +418,13 @@ export class SlashCommandManager implements IInitializable {
    */
   private async showSuggestions(query: string): Promise<void> {
     // Load commands if not loaded
-    if (this.commands.length === 0) {
-      await this.loadCommands();
+    if (this.skills.length === 0) {
+      await this.loadSkills();
     }
 
     // Filter commands - prioritize: prefix match > contains match > description match > source match
     const lowerQuery = query.toLowerCase();
-    this.filteredCommands = this.commands
+    this.filteredSkills = this.skills
       .filter(cmd =>
         cmd.name.toLowerCase().includes(lowerQuery) ||
         cmd.description.toLowerCase().includes(lowerQuery) ||
@@ -406,17 +432,17 @@ export class SlashCommandManager implements IInitializable {
         (cmd.label && cmd.label.toLowerCase().includes(lowerQuery))
       );
 
-    if (this.filteredCommands.length === 0) {
+    if (this.filteredSkills.length === 0) {
       this.hideSuggestions();
       return;
     }
 
     // Get usage bonuses for all filtered commands
-    const commandNames = this.filteredCommands.map(cmd => cmd.name);
+    const skillNames = this.filteredSkills.map(cmd => cmd.name);
     let usageBonuses: Record<string, number> = {};
     try {
-      if (electronAPI?.slashCommands?.getUsageBonuses) {
-        usageBonuses = await electronAPI.slashCommands.getUsageBonuses(commandNames);
+      if (electronAPI?.agentSkills?.getUsageBonuses) {
+        usageBonuses = await electronAPI.agentSkills.getUsageBonuses(skillNames);
       }
     } catch (error) {
       console.error('Failed to get usage bonuses:', error);
@@ -424,7 +450,7 @@ export class SlashCommandManager implements IInitializable {
     }
 
     // Sort by total score (match score + usage bonus)
-    this.filteredCommands.sort((a, b) => {
+    this.filteredSkills.sort((a, b) => {
       const aMatchScore = this.getMatchScore(a.name, lowerQuery, a.description);
       const bMatchScore = this.getMatchScore(b.name, lowerQuery, b.description);
 
@@ -465,52 +491,44 @@ export class SlashCommandManager implements IInitializable {
 
     const fragment = document.createDocumentFragment();
 
-    this.filteredCommands.forEach((cmd, index) => {
+    this.filteredSkills.forEach((cmd, index) => {
       const item = document.createElement('div');
-      item.className = 'slash-suggestion-item';
+      item.className = 'agent-skill-suggestion-item';
       if (index === this.selectedIndex) {
         item.classList.add('selected');
       }
       item.dataset.index = index.toString();
 
+      // Create codicon icon only if explicitly configured
+      if (cmd.icon) {
+        const iconSpan = document.createElement('span');
+        const iconClass = cmd.icon.startsWith('codicon-') ? cmd.icon : `codicon-${cmd.icon}`;
+        iconSpan.className = `file-icon codicon ${iconClass}`;
+        iconSpan.style.color = resolveColorValue(cmd.color, 'var(--color-teal-400)');
+        item.appendChild(iconSpan);
+      }
+
       // Create name element with highlighting
       const nameSpan = document.createElement('span');
-      nameSpan.className = 'slash-command-name';
-      nameSpan.innerHTML = '/' + highlightMatch(cmd.name, query, 'slash-highlight');
+      nameSpan.className = 'agent-skill-name';
+      nameSpan.innerHTML = '/' + highlightMatch(cmd.name, query, 'agent-skill-highlight');
       item.appendChild(nameSpan);
 
       // Create badge (label takes priority over source/displayName)
       if (cmd.label) {
         const labelBadge = document.createElement('span');
-        labelBadge.className = 'slash-command-label';
+        labelBadge.className = 'agent-skill-label';
         if (cmd.color) {
-          // Check if color is a hex code (e.g., #FF6B35, #F63)
-          if (cmd.color.startsWith('#')) {
-            // Apply hex color directly as inline style
-            labelBadge.style.color = cmd.color;
-            labelBadge.style.background = `${cmd.color}33`; // Add 20% opacity (33 in hex)
-          } else {
-            // Use predefined color names via data attribute
-            labelBadge.dataset.color = cmd.color;
-          }
+          labelBadge.dataset.color = cmd.color;
         }
         labelBadge.textContent = cmd.label;
         item.appendChild(labelBadge);
       } else if (cmd.displayName) {
         const sourceBadge = document.createElement('span');
-        sourceBadge.className = 'slash-command-source';
+        sourceBadge.className = 'agent-skill-source';
         sourceBadge.dataset.source = cmd.source || cmd.displayName;
-        // Apply color if specified
         if (cmd.color) {
-          // Check if color is a hex code (e.g., #FF6B35, #F63)
-          if (cmd.color.startsWith('#')) {
-            // Apply hex color directly as inline style
-            sourceBadge.style.color = cmd.color;
-            sourceBadge.style.background = `${cmd.color}33`; // Add 20% opacity (33 in hex)
-          } else {
-            // Use predefined color names via data attribute
-            sourceBadge.dataset.color = cmd.color;
-          }
+          sourceBadge.dataset.color = cmd.color;
         }
         sourceBadge.textContent = cmd.displayName;
         item.appendChild(sourceBadge);
@@ -519,8 +537,8 @@ export class SlashCommandManager implements IInitializable {
       // Create description element with highlighting
       if (cmd.description) {
         const descSpan = document.createElement('span');
-        descSpan.className = 'slash-command-description';
-        descSpan.innerHTML = highlightMatch(cmd.description, query, 'slash-highlight');
+        descSpan.className = 'agent-skill-description';
+        descSpan.innerHTML = highlightMatch(cmd.description, query, 'agent-skill-highlight');
         item.appendChild(descSpan);
       }
 
@@ -643,8 +661,8 @@ export class SlashCommandManager implements IInitializable {
    */
   private resetState(): void {
     this.isEditingMode = false;
-    this.editingCommandName = '';
-    this.editingCommandStartPos = 0;
+    this.editingSkillName = '';
+    this.editingSkillStartPos = 0;
     this.selectedIndex = 0;
   }
 
@@ -673,7 +691,7 @@ export class SlashCommandManager implements IInitializable {
     if (e.ctrlKey && (e.key === 'n' || e.key === 'j')) {
       e.preventDefault();
       e.stopPropagation();
-      this.selectedIndex = Math.min(this.selectedIndex + 1, this.filteredCommands.length - 1);
+      this.selectedIndex = Math.min(this.selectedIndex + 1, this.filteredSkills.length - 1);
       this.updateSelection();
       return;
     }
@@ -691,7 +709,7 @@ export class SlashCommandManager implements IInitializable {
       case 'ArrowDown':
         e.preventDefault();
         e.stopPropagation();
-        this.selectedIndex = Math.min(this.selectedIndex + 1, this.filteredCommands.length - 1);
+        this.selectedIndex = Math.min(this.selectedIndex + 1, this.filteredSkills.length - 1);
         this.updateSelection();
         break;
 
@@ -705,19 +723,22 @@ export class SlashCommandManager implements IInitializable {
       case 'Enter':
         e.preventDefault();
         e.stopPropagation();
-        if (e.ctrlKey) {
+        if (e.ctrlKey && e.shiftKey) {
+          // Ctrl+Shift+Enter: Reveal file directory in Finder
+          this.revealSkillFileDirectory(this.selectedIndex);
+        } else if (e.ctrlKey) {
           // Ctrl+Enter: Open file in editor without inserting command
-          this.openCommandFile(this.selectedIndex);
+          this.openSkillFile(this.selectedIndex);
         } else {
           // Enter: Paste immediately
-          this.selectCommand(this.selectedIndex, true);
+          this.selectSkill(this.selectedIndex, true);
         }
         break;
 
       case 'Tab':
         e.preventDefault();
         e.stopPropagation();
-        this.selectCommand(this.selectedIndex, false); // Insert for editing
+        this.selectSkill(this.selectedIndex, false); // Insert for editing
         break;
 
       case 'Escape':
@@ -734,7 +755,7 @@ export class SlashCommandManager implements IInitializable {
   private updateSelection(): void {
     if (!this.suggestionsContainer) return;
 
-    const items = this.suggestionsContainer.querySelectorAll('.slash-suggestion-item');
+    const items = this.suggestionsContainer.querySelectorAll('.agent-skill-suggestion-item');
     items.forEach((item, index) => {
       if (index === this.selectedIndex) {
         item.classList.add('selected');
@@ -757,19 +778,19 @@ export class SlashCommandManager implements IInitializable {
    * @param index - The index of the command to select
    * @param shouldPaste - If true, paste immediately (Enter). If false, insert for editing (Tab).
    */
-  private selectCommand(index: number, shouldPaste: boolean = true): void {
-    if (index < 0 || index >= this.filteredCommands.length) return;
+  private selectSkill(index: number, shouldPaste: boolean = true): void {
+    if (index < 0 || index >= this.filteredSkills.length) return;
 
-    const command = this.filteredCommands[index];
+    const command = this.filteredSkills[index];
     if (!command || !this.textarea) return;
 
     // Register command to global cache for quick access
-    this.registerCommandToCache(command.name);
+    this.registerSkillToCache(command.name);
 
     // Determine what to insert based on inputFormat setting
     // Default to 'name' for commands (backward compatible behavior)
     const inputFormat = command.inputFormat ?? 'name';
-    const commandText = inputFormat === 'path' ? command.filePath : `/${command.name}`;
+    const skillText = inputFormat === 'path' ? command.filePath : `/${command.name}`;
 
     // Show argumentHint if available, otherwise hide suggestions
     if (command.argumentHint) {
@@ -783,29 +804,29 @@ export class SlashCommandManager implements IInitializable {
       // Replace only the /query portion
       const start = this.currentTriggerStartPos;
       const end = this.textarea.selectionStart;
-      this.replaceRangeWithUndo(start, end, commandText);
-      this.onCommandSelect(commandText);
+      this.replaceRangeWithUndo(start, end, skillText);
+      this.onSkillSelect(skillText);
     } else {
       // Tab, or Enter at non-start position: Insert with trailing space for editing
-      const commandWithSpace = commandText + ' ';
+      const skillWithSpace = skillText + ' ';
       // Replace only the /query portion
       const start = this.currentTriggerStartPos;
       const end = this.textarea.selectionStart;
-      this.replaceRangeWithUndo(start, end, commandWithSpace);
-      this.onCommandInsert(commandWithSpace);
+      this.replaceRangeWithUndo(start, end, skillWithSpace);
+      this.onSkillInsert(skillWithSpace);
     }
   }
 
   /**
    * Register a command to the global cache for quick access
    */
-  private async registerCommandToCache(commandName: string): Promise<void> {
+  private async registerSkillToCache(skillName: string): Promise<void> {
     try {
-      if (electronAPI?.slashCommands?.registerGlobal) {
-        await electronAPI.slashCommands.registerGlobal(commandName);
+      if (electronAPI?.agentSkills?.registerGlobal) {
+        await electronAPI.agentSkills.registerGlobal(skillName);
       }
     } catch (error) {
-      console.error('Failed to register slash command to cache:', error);
+      console.error('Failed to register agent skill to cache:', error);
     }
   }
 
@@ -833,7 +854,7 @@ export class SlashCommandManager implements IInitializable {
    * Used after command confirmation (Enter at text start) when argumentHint exists.
    * This provides guidance for argument input without being in editing mode.
    */
-  private showArgumentHintOnly(command: SlashCommandItem): void {
+  private showArgumentHintOnly(command: AgentSkillItem): void {
     if (!this.suggestionsContainer || !command.argumentHint) return;
 
     // Hide frontmatter popup
@@ -844,24 +865,24 @@ export class SlashCommandManager implements IInitializable {
     this.suggestionsContainer.classList.remove('hover-enabled');
 
     const item = document.createElement('div');
-    item.className = 'slash-suggestion-item argument-hint-only';
+    item.className = 'agent-skill-suggestion-item argument-hint-only';
     item.dataset.argumentHint = command.argumentHint;
 
     // Create name element
     const nameSpan = document.createElement('span');
-    nameSpan.className = 'slash-command-name';
+    nameSpan.className = 'agent-skill-name';
     nameSpan.textContent = `/${command.name}`;
     item.appendChild(nameSpan);
 
     // Add 'arg' badge with gray color
     const argBadge = document.createElement('span');
-    argBadge.className = 'slash-command-source argument-hint-badge';
+    argBadge.className = 'agent-skill-source argument-hint-badge';
     argBadge.textContent = 'arg';
     item.appendChild(argBadge);
 
     // Create argumentHint element
     const hintSpan = document.createElement('span');
-    hintSpan.className = 'slash-command-description';
+    hintSpan.className = 'agent-skill-description';
     hintSpan.textContent = command.argumentHint;
     item.appendChild(hintSpan);
 
@@ -879,12 +900,12 @@ export class SlashCommandManager implements IInitializable {
     this.suggestionsContainer.appendChild(item);
 
     // Keep tracking state for proper cleanup, but not in editing mode
-    this.filteredCommands = [command];
+    this.filteredSkills = [command];
     this.selectedIndex = 0;
     this.isActive = false;
     this.isEditingMode = true; // Use editing mode to keep showing the hint
-    this.editingCommandName = command.name;
-    this.editingCommandStartPos = this.currentTriggerStartPos; // Track command position
+    this.editingSkillName = command.name;
+    this.editingSkillStartPos = this.currentTriggerStartPos; // Track command position
 
     // Position at command location for correct display
     this.positionAtCursor(this.currentTriggerStartPos);
@@ -901,10 +922,10 @@ export class SlashCommandManager implements IInitializable {
    * Open the command file in editor without inserting command text
    * Similar to MentionManager behavior - window stays open and becomes draggable
    */
-  private async openCommandFile(index: number): Promise<void> {
-    if (index < 0 || index >= this.filteredCommands.length) return;
+  private async openSkillFile(index: number): Promise<void> {
+    if (index < 0 || index >= this.filteredSkills.length) return;
 
-    const command = this.filteredCommands[index];
+    const command = this.filteredSkills[index];
     if (!command?.filePath) return;
 
     try {
@@ -927,57 +948,87 @@ export class SlashCommandManager implements IInitializable {
   }
 
   /**
+   * Reveal the directory of a skill file in Finder
+   */
+  private async revealSkillFileDirectory(index: number): Promise<void> {
+    if (index < 0 || index >= this.filteredSkills.length) return;
+
+    const command = this.filteredSkills[index];
+    if (!command?.filePath) return;
+
+    try {
+      this.onBeforeOpenFile?.();
+      this.setDraggable?.(true);
+
+      if (electronAPI?.file?.revealInFinder) {
+        const result = await electronAPI.file.revealInFinder(command.filePath);
+        if (result.success) {
+          // Restore focus to PromptLine window after a short delay
+          setTimeout(() => {
+            electronAPI?.window?.focus?.().catch(() => {});
+          }, 100);
+          return;
+        }
+      }
+      this.setDraggable?.(false);
+    } catch (err) {
+      console.error('Failed to reveal skill file directory in Finder:', err);
+      this.setDraggable?.(false);
+    }
+  }
+
+  /**
    * Get command source by command name
    * Returns undefined if command is not found, has no source, or exists in multiple sources (duplicate)
-   * @param commandName - Command name without slash (e.g., "commit")
+   * @param skillName - Command name without slash (e.g., "commit")
    * @returns Source identifier (e.g., "claude", "codex", "gemini", "custom") or undefined
    */
-  public getCommandSource(commandName: string): string | undefined {
-    const matchingCommands = this.commands.filter(cmd => cmd.name === commandName);
+  public getSkillSource(skillName: string): string | undefined {
+    const matchingSkills = this.skills.filter(cmd => cmd.name === skillName);
 
     // No command found or command has no source
-    if (matchingCommands.length === 0) {
+    if (matchingSkills.length === 0) {
       return undefined;
     }
 
     // Check if command exists in multiple different sources (duplicate)
-    const uniqueSources = new Set(matchingCommands.map(cmd => cmd.source).filter(Boolean));
+    const uniqueSources = new Set(matchingSkills.map(cmd => cmd.source).filter(Boolean));
     if (uniqueSources.size > 1) {
       return undefined; // Duplicate command in multiple sources - return undefined for gray highlight
     }
 
-    return matchingCommands[0]?.source;
+    return matchingSkills[0]?.source;
   }
 
   /**
-   * Get color for a slash command by name
-   * @param commandName - Command name without slash (e.g., "commit")
+   * Get color for a agent skill by name
+   * @param skillName - Command name without slash (e.g., "commit")
    * @returns Color (e.g., "purple", "blue") or undefined
    */
-  public getCommandColor(commandName: string): string | undefined {
-    const matchingCommands = this.commands.filter(cmd => cmd.name === commandName);
+  public getSkillColor(skillName: string): string | undefined {
+    const matchingSkills = this.skills.filter(cmd => cmd.name === skillName);
 
     // No command found or command has no color
-    if (matchingCommands.length === 0) {
+    if (matchingSkills.length === 0) {
       return undefined;
     }
 
     // Return first matching command's color
-    return matchingCommands[0]?.color;
+    return matchingSkills[0]?.color;
   }
 
   /**
    * Get all known command names for multi-word command detection in highlighting
    * @returns Array of command names (without slash prefix)
    */
-  public getKnownCommandNames(): string[] {
-    return this.commands.map(cmd => cmd.name);
+  public getKnownSkillNames(): string[] {
+    return this.skills.map(cmd => cmd.name);
   }
 
   /**
    * Invalidate command cache to force reload
    */
   public invalidateCache(): void {
-    this.commands = [];
+    this.skills = [];
   }
 }

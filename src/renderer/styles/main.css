@@ -1,4 +1,28 @@
 /* Main CSS Entry Point */
+@import "tailwindcss";
+
+/* Project theme tokens — colors use Tailwind v4 defaults via @import "tailwindcss" */
+@theme {
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 20px;
+
+  /* Border radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* Font sizes */
+  --font-size-xs: 9px;
+  --font-size-sm: 10px;
+  --font-size-base: 12px;
+  --font-size-md: 13px;
+  --font-size-lg: 14px;
+  --font-size-xl: 16px;
+}
 
 /* Base styles */
 @import './base/variables.css';
@@ -14,9 +38,10 @@
 @import './components/search.css';
 @import './components/history-item.css';
 @import './components/notifications.css';
-@import './components/slash-commands.css';
+@import './components/agent-skills.css';
 @import './components/file-suggestions.css';
 @import './components/code-suggestions.css';
+@import './components/codicon-symbols.css';
 
 /* Themes */
 @import './themes/themes.css';

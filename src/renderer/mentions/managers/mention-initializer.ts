@@ -51,9 +51,9 @@ export interface MentionInitializerCallbacks {
   buildValidPathsSet: () => Set<string> | null;
   getTotalItemCount: () => number;
   _getFileSearchMaxSuggestions: () => Promise<number>;
-  getCommandSource?: (commandName: string) => string | undefined;
-  getCommandColor?: (commandName: string) => string | undefined;
-  getKnownCommandNames?: () => string[];
+  getSkillSource?: (commandName: string) => string | undefined;
+  getSkillColor?: (commandName: string) => string | undefined;
+  getKnownSkillNames?: () => string[];
 
   // Actions
   invalidateValidPathsCache?: () => void;
@@ -241,14 +241,14 @@ export class MentionInitializer {
             return false;
           }
         },
-        ...(this.callbacks.getCommandSource && {
-          getCommandSource: (commandName: string) => this.callbacks.getCommandSource?.(commandName)
+        ...(this.callbacks.getSkillSource && {
+          getSkillSource: (commandName: string) => this.callbacks.getSkillSource?.(commandName)
         }),
-        ...(this.callbacks.getCommandColor && {
-          getCommandColor: (commandName: string) => this.callbacks.getCommandColor?.(commandName)
+        ...(this.callbacks.getSkillColor && {
+          getSkillColor: (commandName: string) => this.callbacks.getSkillColor?.(commandName)
         }),
-        ...(this.callbacks.getKnownCommandNames && {
-          getKnownCommandNames: () => this.callbacks.getKnownCommandNames?.() ?? []
+        ...(this.callbacks.getKnownSkillNames && {
+          getKnownSkillNames: () => this.callbacks.getKnownSkillNames?.() ?? []
         })
       },
       this.deps.pathManager
@@ -281,7 +281,7 @@ export class MentionInitializer {
       hideWindow: () => electronAPI.window.hide(),
       restoreDefaultHint: () => this.callbacks.restoreDefaultHint(),
       showError: (message: string) => this.deps.callbacks.showError?.(message),
-      getKnownCommandNames: () => this.callbacks.getKnownCommandNames?.() ?? []
+      getKnownSkillNames: () => this.callbacks.getKnownSkillNames?.() ?? []
     });
   }
 

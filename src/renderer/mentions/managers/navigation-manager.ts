@@ -63,6 +63,7 @@ export interface NavigationCallbacks {
   exitSymbolMode: () => void;
   removeAtQueryText: () => void;
   openFileAndRestoreFocus: (filePath: string) => Promise<void>;
+  revealInFinderAndRestoreFocus: (filePath: string) => Promise<void>;
   toggleAutoShowTooltip: () => void;
   expandCurrentFile: () => void;
 
@@ -193,7 +194,21 @@ export class NavigationManager {
       // 未選択状態（selectedIndex < 0）の場合
       if (this.handleUnselectedState(selectedIndex)) return;
 
-      if (e.ctrlKey) {
+      if (e.ctrlKey && e.shiftKey) {
+        // Ctrl+Shift+EnterでFinderでディレクトリを開く（@検索テキストは削除、パス挿入なし）
+        const suggestion = this.callbacks.getMergedSuggestions()[selectedIndex];
+        if (suggestion) {
+          const filePath = suggestion.type === 'file'
+            ? suggestion.file?.path
+            : suggestion.agent?.filePath;
+          if (filePath) {
+            this.callbacks.removeAtQueryText();
+            this.callbacks.revealInFinderAndRestoreFocus(filePath)
+              .then(() => this.callbacks.hideSuggestions());
+            return;
+          }
+        }
+      } else if (e.ctrlKey) {
         // Ctrl+Enterでエディタで開く（@検索テキストは削除、パス挿入なし）
         const suggestion = this.callbacks.getMergedSuggestions()[selectedIndex];
         if (suggestion) {
@@ -495,7 +510,7 @@ export class NavigationManager {
       this.callbacks.insertFilePath(agent.name);
 
       // Register agent name in global cache for persistent highlighting
-      // Agents are project-independent (mdSearch items)
+      // Agents are project-independent (customSearch items)
       if (electronAPI?.atPathCache?.registerGlobal) {
         electronAPI.atPathCache.registerGlobal(agent.name)
           .catch((error) => console.warn('[NavigationManager] Failed to register global at-path:', error));

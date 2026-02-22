@@ -1,11 +1,11 @@
 # Google Gemini CLI built-in slash commands
 #
 # Color property supports both named colors and hex color codes:
-# - Named colors: grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red
+# - Named colors: grey, darkGrey, slate, stone, red, rose, orange, amber, yellow, lime, green, emerald, teal, cyan, sky, blue, indigo, violet, purple, fuchsia, pink
 # - Hex codes: #RGB or #RRGGBB (e.g., #0066CC, #06C)
 
 name: gemini
-color: blue  # You can also use hex codes like "#0066CC"
+color: indigo  # You can also use hex codes like "#0066CC"
 reference: https://google-gemini.github.io/gemini-cli/docs/cli/commands.html
 
 commands:

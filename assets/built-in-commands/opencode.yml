@@ -5,11 +5,11 @@
 # traditional slash commands. The commands below are accessed via the command dialog.
 #
 # Color property supports both named colors and hex color codes:
-# - Named colors: grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red
+# - Named colors: grey, darkGrey, slate, stone, red, rose, orange, amber, yellow, lime, green, emerald, teal, cyan, sky, blue, indigo, violet, purple, fuchsia, pink
 # - Hex codes: #RGB or #RRGGBB (e.g., #5C6BC0, #5CB)
 
 name: opencode
-color: teal  # You can also use hex codes like "#5C6BC0"
+color: stone  # You can also use hex codes like "#5C6BC0"
 reference: https://github.com/opencode-ai/opencode
 
 commands:
