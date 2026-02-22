@@ -126,11 +126,50 @@ export class FileOpenerEventHandler {
   }
 
   /**
+   * Open the parent directory of a file in Finder
+   * @param filePath - Path to the file whose directory to reveal
+   */
+  async revealInFinder(filePath: string): Promise<void> {
+    try {
+      this.callbacks.onBeforeOpenFile?.();
+      this.callbacks.setDraggable?.(true);
+      const result = await electronAPI.file.revealInFinder(filePath);
+
+      if (!result.success && result.error) {
+        this.callbacks.showError?.(result.error);
+        this.callbacks.setDraggable?.(false);
+        return;
+      }
+      // Restore focus to PromptLine window after a short delay
+      setTimeout(() => {
+        electronAPI.window.focus().catch((err: Error) =>
+          handleError('FileOpenerEventHandler.revealInFinder.restoreFocus', err)
+        );
+      }, 100);
+    } catch (err) {
+      handleError('FileOpenerEventHandler.revealInFinder', err);
+      this.callbacks.setDraggable?.(false);
+    }
+  }
+
+  /**
    * Handle Ctrl+Enter to open file or URL at cursor position
    * Priority order: URL → Agent Skill → @path → Absolute Path
    */
   async handleCtrlEnter(e: KeyboardEvent): Promise<void> {
     const handled = await this.tryOpenItemAtCursor();
+    if (handled) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }
+
+  /**
+   * Handle Ctrl+Shift+Enter to reveal file's directory in Finder
+   * Priority order: Agent Skill → @path → Absolute Path (URLs are skipped)
+   */
+  async handleCtrlShiftEnter(e: KeyboardEvent): Promise<void> {
+    const handled = await this.tryRevealDirectoryAtCursor();
     if (handled) {
       e.preventDefault();
       e.stopPropagation();
@@ -198,6 +237,60 @@ export class FileOpenerEventHandler {
     const absolutePath = findAbsolutePathAtPosition(text, cursorPos);
     if (absolutePath) {
       await this.openFile(absolutePath);
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Try to reveal the directory of a file at cursor position in Finder
+   * Priority order: Agent Skill → @path → Absolute Path (URLs are skipped)
+   * @returns true if a directory was revealed, false otherwise
+   */
+  private async tryRevealDirectoryAtCursor(): Promise<boolean> {
+    const text = this.callbacks.getTextContent();
+    const cursorPos = this.callbacks.getCursorPosition();
+    const knownSkillNames = this.callbacks.getKnownSkillNames?.();
+
+    // Check for agent skill
+    const agentSkill = findAgentSkillAtPosition(text, cursorPos, knownSkillNames);
+    if (agentSkill) {
+      try {
+        const commandFilePath = await electronAPI.agentSkills.getFilePath(agentSkill.command);
+        if (commandFilePath) {
+          await this.revealInFinder(commandFilePath);
+          return true;
+        }
+      } catch (err) {
+        handleError('FileOpenerEventHandler.tryRevealDirectoryAtCursor.agentSkill', err);
+      }
+    }
+
+    // Find @path at cursor position
+    const atPath = findAtPathAtPosition(text, cursorPos);
+    if (atPath) {
+      const filePath = this.resolveRelativePath(atPath);
+      if (filePath) {
+        await this.revealInFinder(filePath);
+        return true;
+      }
+      // Try agent file path
+      try {
+        const agentFilePath = await electronAPI.agents.getFilePath(atPath);
+        if (agentFilePath) {
+          await this.revealInFinder(agentFilePath);
+          return true;
+        }
+      } catch (err) {
+        handleError('FileOpenerEventHandler.tryRevealDirectoryAtCursor.agent', err);
+      }
+    }
+
+    // Find absolute path at cursor position
+    const absolutePath = findAbsolutePathAtPosition(text, cursorPos);
+    if (absolutePath) {
+      await this.revealInFinder(absolutePath);
       return true;
     }
 

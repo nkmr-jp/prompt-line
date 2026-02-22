@@ -458,7 +458,7 @@ export class HighlightManager {
       return;
     }
     if (this.callbacks.updateHintText) {
-      this.callbacks.updateHintText('Press Ctrl+Enter to open file in editor');
+      this.callbacks.updateHintText('Ctrl+Enter: open in editor / Ctrl+Shift+Enter: reveal in Finder');
     }
   }
 
@@ -470,7 +470,7 @@ export class HighlightManager {
 
   private showAgentSkillOpenHint(): void {
     if (this.callbacks.updateHintText) {
-      this.callbacks.updateHintText('Press Ctrl+Enter to open command file');
+      this.callbacks.updateHintText('Ctrl+Enter: open file / Ctrl+Shift+Enter: reveal in Finder');
     }
   }
 

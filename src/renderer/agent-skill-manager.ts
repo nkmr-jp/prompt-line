@@ -157,6 +157,11 @@ export class AgentSkillManager implements IInitializable {
     this.textarea.addEventListener('keydown', (e) => {
       if (this.isActive) {
         this.handleKeyDown(e);
+      } else if (this.isEditingMode && e.ctrlKey && e.shiftKey && e.key === 'Enter') {
+        // Ctrl+Shift+Enter to reveal file directory in Finder in editing mode
+        e.preventDefault();
+        e.stopPropagation();
+        this.revealSkillFileDirectory(this.selectedIndex);
       } else if (this.isEditingMode && e.ctrlKey && e.key === 'Enter') {
         // Allow Ctrl+Enter to open file even in editing mode
         e.preventDefault();
@@ -718,7 +723,10 @@ export class AgentSkillManager implements IInitializable {
       case 'Enter':
         e.preventDefault();
         e.stopPropagation();
-        if (e.ctrlKey) {
+        if (e.ctrlKey && e.shiftKey) {
+          // Ctrl+Shift+Enter: Reveal file directory in Finder
+          this.revealSkillFileDirectory(this.selectedIndex);
+        } else if (e.ctrlKey) {
           // Ctrl+Enter: Open file in editor without inserting command
           this.openSkillFile(this.selectedIndex);
         } else {
@@ -935,6 +943,36 @@ export class AgentSkillManager implements IInitializable {
     } catch (err) {
       console.error('Failed to open command file in editor:', err);
       // Disable draggable state on error
+      this.setDraggable?.(false);
+    }
+  }
+
+  /**
+   * Reveal the directory of a skill file in Finder
+   */
+  private async revealSkillFileDirectory(index: number): Promise<void> {
+    if (index < 0 || index >= this.filteredSkills.length) return;
+
+    const command = this.filteredSkills[index];
+    if (!command?.filePath) return;
+
+    try {
+      this.onBeforeOpenFile?.();
+      this.setDraggable?.(true);
+
+      if (electronAPI?.file?.revealInFinder) {
+        const result = await electronAPI.file.revealInFinder(command.filePath);
+        if (result.success) {
+          // Restore focus to PromptLine window after a short delay
+          setTimeout(() => {
+            electronAPI?.window?.focus?.().catch(() => {});
+          }, 100);
+          return;
+        }
+      }
+      this.setDraggable?.(false);
+    } catch (err) {
+      console.error('Failed to reveal skill file directory in Finder:', err);
       this.setDraggable?.(false);
     }
   }
