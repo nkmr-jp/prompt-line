@@ -232,9 +232,9 @@ pnpm run update-built-in-commands  # 最新のデフォルトに更新
 | `fileOpener` | デフォルトエディタと拡張子別アプリケーション |
 | `builtInCommands` | Built-inスラッシュコマンドの有効化（claude, codex, gemini等） |
 | `agentSkills` | マークダウンファイルからのAgent Skills（カスタムコマンド、スキル、プラグイン） |
+| `mentions.customSearch` | searchPrefixによるマークダウン検索（agent, rules, docs等）、frontmatterテンプレート変数対応 |
 | `mentions.fileSearch` | ファイル検索設定（@path/to/file補完） |
 | `mentions.symbolSearch` | シンボル検索設定（@ts:Config、@go:Handler） |
-| `mentions.customSearch` | searchPrefixによるマークダウン検索（agent, rules, docs等）、frontmatterテンプレート変数対応 |
 
 ## プロンプト履歴
 

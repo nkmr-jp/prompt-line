@@ -216,9 +216,9 @@ For the full configuration example with all available options and comments, see:
 | `fileOpener` | Default editor and extension-specific applications |
 | `builtInCommands` | Built-in slash commands to enable (claude, codex, gemini, etc.) |
 | `agentSkills` | Agent skills from markdown files (custom commands, skills, plugins) |
+| `mentions.customSearch` | Markdown-based mentions with searchPrefix support (agent, rules, docs, etc.) and frontmatter template variables |
 | `mentions.fileSearch` | File search settings (@path/to/file completion) |
 | `mentions.symbolSearch` | Symbol search settings (@ts:Config, @go:Handler) |
-| `mentions.customSearch` | Markdown-based mentions with searchPrefix support (agent, rules, docs, etc.) and frontmatter template variables |
 
 ## Prompt History
 

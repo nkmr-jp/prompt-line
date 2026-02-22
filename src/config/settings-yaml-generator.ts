@@ -570,7 +570,7 @@ ${agentSkillsSection}
 # ============================================================================
 # MENTION SETTINGS (@ mentions)
 # ============================================================================
-# Configure @ mention sources: fileSearch, symbolSearch, customSearch
+# Configure @ mention sources: customSearch, fileSearch, symbolSearch
 # Template variables for customSearch: {basename}, {frontmatter@fieldName}
 
 ${mentionsSection}
