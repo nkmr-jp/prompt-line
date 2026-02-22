@@ -182,52 +182,6 @@ pnpm run reset-accessibility
 - **シンボル検索** - `@<言語>:<クエリ>`と入力してコードシンボルを検索 (例: `@ts:Config`)
 - **カスタム検索** - `/`を入力してSlash CommandsやAgent Skillsを検索、または`@`でサブエージェントを検索
 
-#### ファイルオープン
-ファイルパスや@で検索したファイルを起動して内容を確認できます。(`Ctrl+Enter` or `Cmd+クリック`)
-
-![doc9.png](assets/doc9.png)
-
-
-#### Built-in commands と Agent Skills
-`/`を入力するとBuilt-in commands や Agent Skillsを検索できます。<br>
-Claude Code、OpenAI Codex、Google GeminiなどのBuilt-in commandsが利用可能です。<br>
-カスタムコマンドは `~/.prompt-line/settings.yml` で追加できます。「⚙️ 設定」の項目参照
-
-![doc11.png](assets/doc11.png)
-
-Built-in commandsは `~/.prompt-line/built-in-commands/` のYAMLファイルを編集してカスタマイズできます。変更は自動的に反映されます。
-
-```bash
-pnpm run update-built-in-commands  # 最新のデフォルトに更新
-```
-
-#### @Mentions
-
-##### ファイル検索
-@を入力するとファイルを検索できます。<br>
-※ 対応アプリ: Terminal.app, iTerm2, Ghostty, Warp, WezTerm, JetBrains IDE（IntelliJ, WebStormなど）, VSCode, Cursor, Windsurf, Zed, Antigravity, Kiro
-
-![doc10.png](assets/doc10.png)
-
-##### シンボル検索
-`@<言語>:<クエリ>`と入力することで、コードシンボル（関数、クラス、型など）を検索できます。<br>
-この機能はファイル検索と統合されているため、先にファイル検索を有効にする必要があります。
-
-**構文:** `@<言語>:<クエリ>`
-
-**例:**
-- `@ts:Config` - "Config"を含むTypeScriptシンボルを検索
-- `@go:Handler` - "Handler"を含むGoシンボルを検索
-- `@py:parse` - "parse"を含むPythonシンボルを検索
-
-![doc13.png](assets/doc13.png)
-
-#### マークダウン検索
-`@<検索プレフィックス>:<クエリ>` を入力するとSubagentsやAgent Teamsのメンバーを検索できます。独自に作成したマークダウンのドキュメントの検索にも利用できます。
-
-![doc12.png](assets/doc12.png)
-
-
 ## ⚙️ 設定
 
 `~/.prompt-line/settings.yml`に設定ファイルを作成してPrompt Lineの動作をカスタマイズできます。
@@ -243,7 +197,7 @@ pnpm run update-built-in-commands  # 最新のデフォルトに更新
 | `window` | ウィンドウサイズと配置モード |
 | `fileOpener` | デフォルトエディタと拡張子別アプリケーション |
 | `builtInCommands` | Built-inスラッシュコマンドの有効化（claude, codex, gemini等） |
-| `agentSkills` | マークダウンファイルからのAgent Skills（カスタムコマンド、スキル、プラグイン） |
+| `agentSkills` | Agent Skills |
 | `mentions.customSearch` | @prefix:で発動するカスタム検索 — Markdown (.md)、JSON (.json)、JSONL (.jsonl)、jq式に対応 |
 | `mentions.fileSearch` | ファイル検索設定（@path/to/file補完） |
 | `mentions.symbolSearch` | シンボル検索設定（@ts:Config、@go:Handler） |
