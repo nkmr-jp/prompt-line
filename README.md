@@ -45,7 +45,33 @@ Also convenient when you want to reuse the same prompt in other apps.
 Of course, it also works with apps other than Terminal.
 ![doc5.gif](assets/doc5.gif)
 
+### Advanced Search and Autocomplete
+
+Type `/` or `@` to search and autocomplete Agent Skills, files, and symbols.<br>
+These can be customized in the settings file. See: [settings.example.yml](settings.example.yml)
+<table>
+<tr>
+<td>Agent Skills and Built-in Commands <img src="assets/doc9.png"> </td>
+<td>File and Directory Search <img src="assets/doc10.png"> </td>
+</tr>
+<tr>
+<td>Symbol Search<img src="assets/doc11.png"> </td>
+<td>Custom Search (~/.claude/agents)  <img src="assets/doc14.png"> </td>
+</tr>
+<tr>
+<td>Custom Search (~/.claude/plans) <img src="assets/doc12.png"> </td>
+<td>Custom Search (~/.claude/teams)  <img src="assets/doc13.png"> </td>
+</tr>
+</table>
+
 ## 📦 Installation
+
+### Command Installation
+
+Install [fd](https://github.com/sharkdp/fd) and [rg (ripgrep)](https://github.com/BurntSushi/ripgrep) commands. Used for file search and symbol search features.
+```bash
+brew install fd ripgrep
+```
 
 ### System Requirements
 
@@ -142,63 +168,9 @@ If you already have an older version installed and want to update to the latest 
 - **Draft Autosave** - Automatically saves your work
 - **Image Support** - Paste clipboard images with `Cmd+V`
 - **File Opener** - Open files from file path text (`Ctrl+Enter` or `Cmd+Click`)
-- **Slash Commands** - Search slash commands by typing `/`
-- **@Mentions**
-  - **File Search** - Search files by typing `@` (requires fd command and settings configuration)
-  - **Symbol Search** - Search code symbols by typing `@<lang>:<query>` (e.g., `@ts:Config`) (requires ripgrep)
-  - **Markdown Search** - sub-agents and agent skills by typing `@` (requires settings configuration)
-
-#### File Opener
-You can launch a file searched for with a file path or @ and check its contents. (`Ctrl+Enter` or `Cmd+Click`)
-
-![doc9.png](assets/doc9.png)
-
-
-#### Slash Commands
-You can search for slash commands by typing `/`.<br>
-Built-in commands for AI coding assistants (Claude Code, OpenAI Codex, Google Gemini) are available.<br>
-Custom commands can be added via `~/.prompt-line/settings.yml`. See "⚙️ Settings" section.
-
-![doc11.png](assets/doc11.png)
-
-Built-in commands can be customized by editing YAML files in `~/.prompt-line/built-in-commands/`. Changes apply automatically.
-
-```bash
-pnpm run update-built-in-commands  # Update to latest defaults
-```
-
-#### @Mentions
-
-##### File Search
-You can search for files by typing @.<br>
-※ [fd](https://github.com/sharkdp/fd) command installation is required. (`brew install fd`)<br>
-※ You need to configure `fileSearch` in `~/.prompt-line/settings.yml`. See "⚙️ Settings" section.<br>
-※ Supported applications: Terminal.app, iTerm2, Ghostty, Warp, WezTerm, JetBrains IDEs (IntelliJ, WebStorm, etc.), VSCode, Cursor, Windsurf, Zed, Antigravity, Kiro
-
-![doc10.png](assets/doc10.png)
-
-##### Symbol Search
-You can search for code symbols (functions, classes, types, etc.) by typing `@<language>:<query>`.<br>
-This feature integrates with File Search, so you need to enable File Search first.
-
-**Requirements:**
-- [ripgrep](https://github.com/BurntSushi/ripgrep) (rg) command installation is required (`brew install ripgrep`)
-- File Search must be configured in settings
-
-**Syntax:** `@<language>:<query>`
-
-**Examples:**
-- `@ts:Config` - Search TypeScript symbols containing "Config"
-- `@go:Handler` - Search Go symbols containing "Handler"
-- `@py:parse` - Search Python symbols containing "parse"
-
-![doc13.png](assets/doc13.png)
-
-##### Custom Search
-You can search for sub-agents and agent skills by typing `@<searchPrefix>:<query>`, also use it for your own knowledge searches.
-
-![doc12.png](assets/doc12.png)
-
+- **File Search** - Search files by typing `@`
+- **Symbol Search** - Search code symbols by typing `@<lang>:<query>` (e.g., `@ts:Config`)
+- **Custom Search** - Search Slash Commands and Agent Skills by typing `/`, or search sub-agents by typing `@`
 
 ## ⚙️ Settings
 
