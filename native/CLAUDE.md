@@ -256,8 +256,7 @@ Native tool for terminal/IDE directory detection and file search:
 **Core Functionality:**
 ```swift
 class DirectoryDetector {
-    static func detectCurrentDirectory() -> [String: Any]
-    static func getFileList(from directory: String) -> FileListResult?
+    static func detectCurrentDirectory(overridePid: pid_t? = nil, overrideBundleId: String? = nil) -> [String: Any]
 }
 
 class CWDDetector {
@@ -286,31 +285,16 @@ class CWDDetector {
 - Automatic fallback to lsof if libproc fails
 - Requires `libproc-bridge.h` bridging header
 
-**File Search Integration:**
-- Requires `fd` command (https://github.com/sharkdp/fd)
-- Supports `.gitignore` respect, exclude/include patterns
-- Handles symlink directories with path preservation
-- Default excludes: node_modules, .git, dist, build, etc.
-- Configurable max files, depth, and hidden file inclusion
+**Note:** File search functionality (fd command integration, file listing) has been migrated to Node.js. See `src/utils/file-search/file-searcher-node.ts`. The directory-detector tool only handles CWD detection.
 
 **Command-Line Interface:**
 ```bash
 directory-detector detect                        # Detect CWD from active terminal/IDE
-directory-detector detect --bundleId <id>        # Detect from specific app
-directory-detector detect-with-files [options]   # Detect CWD and list files
-directory-detector list <path> [options]         # List files in directory
-directory-detector check-fd                      # Check if fd is available
+directory-detector detect --pid <pid> --bundleId <id>  # Detect from specific app
 
 # Options:
 #   --pid <pid>            Use specific process ID
 #   --bundleId <id>        Bundle ID of the app
-#   --no-gitignore         Don't respect .gitignore
-#   --exclude <pattern>    Add exclude pattern
-#   --include <pattern>    Include pattern for .gitignored files
-#   --max-files <n>        Maximum files (default: 5000)
-#   --include-hidden       Include hidden files
-#   --max-depth <n>        Maximum directory depth
-#   --follow-symlinks      Follow symbolic links
 ```
 
 **JSON Response Format:**
@@ -335,16 +319,6 @@ directory-detector check-fd                      # Check if fd is available
   "idePid": 12345,
   "pid": 12346,
   "method": "electron-pty"
-}
-
-// Detect with Files Response
-{
-  "success": true,
-  "directory": "/Users/user/project",
-  "files": [{"name": "index.ts", "path": "/Users/user/project/index.ts", "isDirectory": false}],
-  "fileCount": 150,
-  "searchMode": "recursive",
-  "partial": false
 }
 
 // Error Response
@@ -503,19 +477,10 @@ pnpm run compile  # Builds TypeScript + native tools + copies to dist/
 ../src/native-tools/keyboard-simulator activate-and-paste-name "Terminal"
 
 # Test text field detection
-../src/native-tools/text-field-detector detect
+../src/native-tools/text-field-detector text-field-bounds
 
 # Test directory detection (from active terminal/IDE)
 ../src/native-tools/directory-detector detect
-
-# Test directory detection with files
-../src/native-tools/directory-detector detect-with-files
-
-# Test file listing
-../src/native-tools/directory-detector list /path/to/project
-
-# Check fd availability
-../src/native-tools/directory-detector check-fd
 ```
 
 ### Debugging

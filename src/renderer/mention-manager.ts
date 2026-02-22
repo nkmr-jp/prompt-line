@@ -153,6 +153,9 @@ export class MentionManager implements IInitializable {
       openFileAndRestoreFocus: async (filePath: string) => {
         await this.fileOpenerManager?.openFile(filePath);
       },
+      revealInFinderAndRestoreFocus: async (filePath: string) => {
+        await this.fileOpenerManager?.revealInFinder(filePath);
+      },
       toggleAutoShowTooltip: () => this.popupManager.toggleAutoShowTooltip(),
       expandCurrentFile: () => this.expandCurrentFile(),
       // Directory/File navigation helpers
@@ -192,6 +195,7 @@ export class MentionManager implements IInitializable {
       handleBackspaceForAtPath: (e: KeyboardEvent) => this.handleBackspaceForAtPath(e),
       handleBackspaceForAgentSkill: (e: KeyboardEvent) => this.handleBackspaceForAgentSkill(e),
       handleCtrlEnterOpenFile: (e: KeyboardEvent) => this.fileOpenerManager?.handleCtrlEnter(e),
+      handleCtrlShiftEnterRevealDir: (e: KeyboardEvent) => this.fileOpenerManager?.handleCtrlShiftEnter(e),
       handleCmdClickOnAtPath: (e: MouseEvent) => this.fileOpenerManager?.handleCmdClick(e),
       handleMouseMove: (e: MouseEvent) => this.handleMouseMove(e),
       isVisible: () => this.state.isVisible,

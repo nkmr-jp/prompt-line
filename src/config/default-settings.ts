@@ -173,8 +173,8 @@ export const defaultSettings: UserSettings = {
       path: '~/.claude/plugins/cache',
       pattern: '**/commands/*.md',
       prefixPattern: '**/.claude-plugin/*.json@name',
-      label: 'command',
-      color: 'teal',
+      label: 'plugin command',
+      color: 'green',
       argumentHint: '{frontmatter@argument-hint}',
       maxSuggestions: 20
     },
@@ -185,8 +185,8 @@ export const defaultSettings: UserSettings = {
       path: '~/.claude/plugins/cache',
       pattern: '**/*/SKILL.md',
       prefixPattern: '**/.claude-plugin/*.json@name',
-      label: 'skill',
-      color: 'teal',
+      label: 'plugin skill',
+      color: 'cyan',
       argumentHint: '{frontmatter@argument-hint}',
       maxSuggestions: 20
     }
@@ -313,6 +313,7 @@ export const defaultSettings: UserSettings = {
       // Claude Code agents (from ~/.claude/agents/*.md, search with @agent:)
       {
         name: '{basename}(agent)',
+        label: "agent",
         description: '{frontmatter@description}',
         path: '~/.claude/agents',
         pattern: '*.md',
@@ -322,8 +323,10 @@ export const defaultSettings: UserSettings = {
       // Plugin agents (from ~/.claude/plugins/cache/**/agents/*.md, search with @agent:)
       {
         name: '{prefix}:{basename}(agent)',
+        label: "plugin agent",
         description: '{frontmatter@description}',
         path: '~/.claude/plugins/cache',
+        color: "yellow",
         pattern: '**/agents/*.md',
         prefixPattern: '**/.claude-plugin/*.json@name',
         searchPrefix: 'agent',
@@ -384,7 +387,7 @@ export const defaultSettings: UserSettings = {
  * To use these examples, uncomment them in ~/.prompt-line/settings.yml.
  */
 export const commentedExamples = {
-  builtInCommands: ['openclaw', 'codex', 'gemini'],
+  builtInCommands: ['openclaw', 'codex', 'gemini', 'opencode'],
   agentSkills: [] as Array<{
     name: string;
     description: string;

@@ -244,6 +244,7 @@ export interface ElectronAPI {
   file: {
     openInEditor: (filePath: string) => Promise<IPCResult>;
     checkExists: (filePath: string) => Promise<boolean>;
+    revealInFinder: (filePath: string) => Promise<IPCResult>;
   };
   shell: {
     openExternal: (url: string) => Promise<IPCResult>;

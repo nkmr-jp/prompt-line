@@ -35,6 +35,7 @@ class FileHandler {
     ipcMainInstance.handle('open-file-in-editor', this.handleOpenFileInEditor.bind(this));
     ipcMainInstance.handle('check-file-exists', this.handleCheckFileExists.bind(this));
     ipcMainInstance.handle('open-external-url', this.handleOpenExternalUrl.bind(this));
+    ipcMainInstance.handle('reveal-in-finder', this.handleRevealInFinder.bind(this));
   }
 
   /**
@@ -44,7 +45,8 @@ class FileHandler {
     const handlers = [
       'open-file-in-editor',
       'check-file-exists',
-      'open-external-url'
+      'open-external-url',
+      'reveal-in-finder'
     ];
 
     handlers.forEach(handler => {
@@ -215,6 +217,44 @@ class FileHandler {
       return { success: true };
     } catch (error) {
       logger.error('Failed to open external URL:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+  /**
+   * Handle reveal-in-finder IPC channel
+   * Opens the parent directory of the specified file in Finder
+   */
+  private async handleRevealInFinder(
+    _event: IpcMainInvokeEvent,
+    filePath: string
+  ): Promise<IPCResult> {
+    try {
+      if (!filePath || typeof filePath !== 'string') {
+        return { success: false, error: 'Invalid file path provided' };
+      }
+
+      // Parse line number from path (e.g., path:lineNumber)
+      const parsedPath = this.parsePathWithLineInfo(filePath);
+      const cleanPath = parsedPath.path;
+
+      const normalizedPath = this.expandPath(cleanPath);
+
+      // Check if file or directory exists
+      try {
+        await fs.access(normalizedPath);
+      } catch {
+        logger.warn('Path does not exist:', { normalizedPath });
+        return { success: false, error: 'Path does not exist' };
+      }
+
+      // Get the parent directory
+      const stat = await fs.stat(normalizedPath);
+      const directoryPath = stat.isDirectory() ? normalizedPath : path.dirname(normalizedPath);
+
+      await shell.openPath(directoryPath);
+      return { success: true };
+    } catch (error) {
+      logger.error('Failed to reveal in Finder:', error);
       return { success: false, error: (error as Error).message };
     }
   }

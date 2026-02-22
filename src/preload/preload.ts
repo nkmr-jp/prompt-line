@@ -54,6 +54,7 @@ const ALLOWED_CHANNELS = [
   'open-file-in-editor',
   'check-file-exists',
   'open-external-url',
+  'reveal-in-finder',
   // Code search channels
   'check-rg',
   'get-supported-languages',
@@ -328,6 +329,9 @@ const electronAPI: ElectronAPI = {
     },
     checkExists: async (filePath: string): Promise<boolean> => {
       return ipcRenderer.invoke('check-file-exists', filePath);
+    },
+    revealInFinder: async (filePath: string): Promise<{ success: boolean; error?: string }> => {
+      return ipcRenderer.invoke('reveal-in-finder', filePath);
     }
   },
 

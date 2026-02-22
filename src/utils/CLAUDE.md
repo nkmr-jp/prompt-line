@@ -138,6 +138,20 @@ function sleep(ms: number): Promise<void> {
 }
 ```
 
+**Color Validation:**
+```typescript
+function isValidHexColor(color: string): boolean {
+  // Validates hex color code (#RGB or #RRGGBB format)
+  // Returns true if valid hex color code, false otherwise
+}
+
+function validateColorValue(color: string | undefined, defaultColor?: string): string {
+  // Validates color value (named color or hex code)
+  // Returns the validated color or defaultColor ('grey' by default) if invalid
+  // Supports named colors: grey, darkGrey, slate, stone, red, rose, orange, etc.
+}
+```
+
 ### security.ts
 Security utilities and error handling:
 
@@ -302,7 +316,7 @@ Re-export module for macOS native tool integrations. Implementation is in `nativ
 ### native-tools/ Directory
 
 **Module Structure:**
-- `index.ts`: Main export hub coordinating all native tool integrations
+- `index.ts`: Main export hub coordinating all native tool integrations (exports `WINDOW_DETECTOR_PATH`, `KEYBOARD_SIMULATOR_PATH`, `TEXT_FIELD_DETECTOR_PATH`, `DIRECTORY_DETECTOR_PATH`)
 - `paths.ts`: Tool path constants for all native binaries
 - `app-detection.ts`: App and window detection using native tools
 - `paste-operations.ts`: Paste and activate operations
@@ -314,13 +328,11 @@ const WINDOW_DETECTOR_PATH: string;        // Window bounds and app detection
 const KEYBOARD_SIMULATOR_PATH: string;     // Keyboard simulation and app activation
 const TEXT_FIELD_DETECTOR_PATH: string;    // Focused text field detection
 const DIRECTORY_DETECTOR_PATH: string;     // Current working directory detection
-const FILE_SEARCHER_PATH: string;          // Legacy path (file search now uses file-search/ module)
-const SYMBOL_SEARCHER_PATH: string;        // Legacy path (symbol search now uses symbol-search/ module)
+const NATIVE_TOOLS_DIR: string;            // Base directory for all native tools
 ```
 - **Path Resolution**: Dynamic path resolution for packaged vs development environments
 - **Native Executables**: Uses compiled native tools for security and performance
 - **Security**: Compiled binaries eliminate script injection vulnerabilities
-- **Note**: File search and symbol search have been migrated to Node.js modules (`file-search/` and `symbol-search/`). Path constants are retained for backward compatibility.
 
 **macOS Native App Detection (app-detection.ts):**
 ```typescript
@@ -1053,8 +1065,6 @@ export {
   TEXT_FIELD_DETECTOR_PATH,       // Path to text-field-detector binary
   WINDOW_DETECTOR_PATH,           // Path to window-detector binary
   DIRECTORY_DETECTOR_PATH,        // Path to directory-detector binary
-  FILE_SEARCHER_PATH,             // Path to file-searcher binary
-  SYMBOL_SEARCHER_PATH,           // Path to symbol-searcher binary
 
   // Common utilities (from common.ts)
   debounce,                       // Function debouncing
@@ -1062,6 +1072,8 @@ export {
   safeJsonStringify,              // Safe JSON stringification
   generateId,                     // Generate unique IDs
   sleep,                          // Promise-based delay
+  isValidHexColor,                // Validate hex color code (#RGB or #RRGGBB)
+  validateColorValue,             // Validate color value (named color or hex code)
 
   // File utilities (from file-utils.ts)
   ensureDir,                      // Ensure directory exists

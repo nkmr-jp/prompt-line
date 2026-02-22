@@ -7,26 +7,13 @@
 ## 概要
 
 Prompt Lineは、[Claude Code](https://github.com/anthropics/claude-code)、[Gemini CLI](https://github.com/google-gemini/gemini-cli)、[OpenAI Codex CLI](https://github.com/openai/codex)、[Aider](https://github.com/paul-gauthier/aider) などのCLI型AIコーディングエージェントのターミナルでのプロンプト入力体験を改善することを目的として開発したmacOSアプリです。
-日本語などのマルチバイト文字入力時のUXの課題を専用のフローティング入力インターフェースで解決します。 
+日本語などのマルチバイト文字入力時のUXの課題を専用のフローティング入力インターフェースで解決します。/や＠によるコンテキスト検索と入力補完の機能も備えています。 
 
 特に以下のようなケースでのテキスト入力のストレスを大幅に軽減します。
 
 1. **ターミナルでのCLI型AIコーディングエージェントへのプロンプト入力**
 2. **Enterを押したら意図しないタイミングで送信されてしまうチャットアプリ**
 3. **入力の重たいテキストエディタ(例：巨大なコンフルエンスのドキュメントなど)**
-
-また、/や@による入力補完機能もついておりプロンプト入力の手間を軽減します。
-以下のような入力補完に対応しています。
-
-- プロジェクト内のディレクトリ・ファイル・シンボル
-- Claude Code, Codex, Gemini などの主要なAIエージェントのBuilt-in commands
-- Pluginでインストールした Agent Skills, Subagents
-- 独自に定義した Agent Skills, Subagents
-- Claude Code の Agent Teams のメンバー
-- 独自に作成したマークダウンのドキュメント
-- など
-
-これらは設定ファイルでカスタマイズできます。参考: [settings.example.yml](settings.example.yml)
 
 ## 特徴
 ### サクッと起動、サクッと貼付け
@@ -55,6 +42,24 @@ Enterを押しても勝手に送信されないので、改行する場合も気
 もちろん、ターミナル以外でも使えます。
 ![doc5.gif](assets/doc5.gif)
 
+### コンテキスト検索と入力補完
+
+`/`や`@`を入力するとAgent Skills・Built in Commands ・ファイル・シンボルなどのコンテキストを検索して入力補完できます。<br>
+これらは設定ファイル(`~/.prompt-line/settings.yml`)でカスタマイズできます。参考: [settings.example.yml](settings.example.yml)
+<table>
+<tr>
+<td>Agent SkillsとBuilt in Commands <img src="assets/doc9.png"> </td>
+<td>ファイルとディレクトリ検索 <img src="assets/doc10.png"> </td>
+</tr>
+<tr>
+<td>シンボル検索<img src="assets/doc11.png"> </td>
+<td>サブエージェント検索(~/.claude/agents)  <img src="assets/doc14.png"> </td>
+</tr>
+<tr>
+<td>プラン検索(~/.claude/plans) <img src="assets/doc12.png"> </td>
+<td>エージェントチーム検索(~/.claude/teams)  <img src="assets/doc13.png"> </td>
+</tr>
+</table>
 
 ## 📦 インストール
 
@@ -141,6 +146,8 @@ pnpm run reset-accessibility
 
 1. `pnpm run reset-accessibility`のコマンドを実行して「Prompt Line」のアクセシビリティ権限をリセット
 2. 「📦 インストール」の項目を参照して、再度インストール
+3. `pnpm run migrate-settings`を実行して設定ファイルを最新のデフォルトに移行（既存設定は自動バックアップされます）
+4. `pnpm run update-built-in-commands`を実行してビルトインコマンドを最新版に更新
 
 
 ## 使用方法
@@ -160,59 +167,7 @@ pnpm run reset-accessibility
 - **ファイルオープン** - ファイルパスのテキストからファイルを起動 (`Ctrl+Enter` or `Cmd+クリック`)
 - **ファイル検索** - `@`を入力してファイルを検索
 - **シンボル検索** - `@<言語>:<クエリ>`と入力してコードシンボルを検索 (例: `@ts:Config`)
-- **マークダウン検索** - `/`を入力してSlash CommandsやAgent Skillsを検索、または`@`でサブエージェントを検索
-
-#### ファイルオープン
-ファイルパスや@で検索したファイルを起動して内容を確認できます。(`Ctrl+Enter` or `Cmd+クリック`)
-
-![doc9.png](assets/doc9.png)
-
-
-#### Built-in commands と Agent Skills
-`/`を入力するとBuilt-in commands や Agent Skillsを検索できます。<br>
-Claude Code、OpenAI Codex、Google GeminiなどのBuilt-in commandsが利用可能です。<br>
-カスタムコマンドは `~/.prompt-line/settings.yml` で追加できます。「⚙️ 設定」の項目参照
-
-![doc11.png](assets/doc11.png)
-
-Built-in commandsは `~/.prompt-line/built-in-commands/` のYAMLファイルを編集してカスタマイズできます。変更は自動的に反映されます。
-
-```bash
-pnpm run update-built-in-commands  # 最新のデフォルトに更新
-```
-
-#### @Mentions
-
-##### ファイル検索
-@を入力するとファイルを検索できます。<br>
-※ [fd](https://github.com/sharkdp/fd)コマンドのインストールが必要です。( `brew install fd` )<br>
-※ `~/.prompt-line/settings.yml` で `fileSearch`の項目を設定する必要があります。 「⚙️ 設定」の項目参照<br>
-※ 対応アプリ: Terminal.app, iTerm2, Ghostty, Warp, WezTerm, JetBrains IDE（IntelliJ, WebStormなど）, VSCode, Cursor, Windsurf, Zed, Antigravity, Kiro
-
-![doc10.png](assets/doc10.png)
-
-##### シンボル検索
-`@<言語>:<クエリ>`と入力することで、コードシンボル（関数、クラス、型など）を検索できます。<br>
-この機能はファイル検索と統合されているため、先にファイル検索を有効にする必要があります。
-
-**必要条件:**
-- [ripgrep](https://github.com/BurntSushi/ripgrep) (rg) コマンドのインストールが必要 (`brew install ripgrep`)
-- 設定でファイル検索を有効化
-
-**構文:** `@<言語>:<クエリ>`
-
-**例:**
-- `@ts:Config` - "Config"を含むTypeScriptシンボルを検索
-- `@go:Handler` - "Handler"を含むGoシンボルを検索
-- `@py:parse` - "parse"を含むPythonシンボルを検索
-
-![doc13.png](assets/doc13.png)
-
-#### マークダウン検索
-`@<検索プレフィックス>:<クエリ>` を入力するとSubagentsやAgent Teamsのメンバーを検索できます。独自に作成したマークダウンのドキュメントの検索にも利用できます。
-
-![doc12.png](assets/doc12.png)
-
+- **カスタム検索** - `/`を入力してSlash CommandsやAgent Skillsを検索、または`@`でサブエージェントを検索
 
 ## ⚙️ 設定
 
@@ -223,16 +178,16 @@ pnpm run update-built-in-commands  # 最新のデフォルトに更新
 
 ### 設定項目の概要
 
-| セクション | 説明 |
-|---------|-------------|
-| `shortcuts` | キーボードショートカット（メイン、ペースト、クローズ、履歴ナビゲーション、検索） |
-| `window` | ウィンドウサイズと配置モード |
-| `fileOpener` | デフォルトエディタと拡張子別アプリケーション |
+| セクション | 説明                                            |
+|---------|-----------------------------------------------|
+| `shortcuts` | キーボードショートカット（メイン、ペースト、クローズ、履歴ナビゲーション、検索）      |
+| `window` | ウィンドウサイズと配置モード                                |
+| `fileOpener` | デフォルトエディタと拡張子別アプリケーション                        |
 | `builtInCommands` | Built-inスラッシュコマンドの有効化（claude, codex, gemini等） |
-| `agentSkills` | マークダウンファイルからのAgent Skills（カスタムコマンド、スキル、プラグイン） |
-| `mentions.fileSearch` | ファイル検索設定（@path/to/file補完） |
-| `mentions.symbolSearch` | シンボル検索設定（@ts:Config、@go:Handler） |
-| `mentions.customSearch` | searchPrefixによるマークダウン検索（agent, rules, docs等）、frontmatterテンプレート変数対応 |
+| `agentSkills` | Agent Skills検索機能                              |
+| `mentions.customSearch` | @prefix:で発動するカスタム検索                           |
+| `mentions.fileSearch` | ファイル検索設定（@path/to/file補完）                     |
+| `mentions.symbolSearch` | シンボル検索設定（@ts:Config、@go:Handler）              |
 
 ## プロンプト履歴
 

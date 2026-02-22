@@ -188,8 +188,8 @@ window:
             path: '~/.claude/plugins/cache',
             pattern: '**/commands/*.md',
             prefixPattern: '**/.claude-plugin/*.json@name',
-            label: 'command',
-            color: 'teal',
+            label: 'plugin command',
+            color: 'green',
             argumentHint: '{frontmatter@argument-hint}',
             maxSuggestions: 20
           },
@@ -199,8 +199,8 @@ window:
             path: '~/.claude/plugins/cache',
             pattern: '**/*/SKILL.md',
             prefixPattern: '**/.claude-plugin/*.json@name',
-            label: 'skill',
-            color: 'teal',
+            label: 'plugin skill',
+            color: 'cyan',
             argumentHint: '{frontmatter@argument-hint}',
             maxSuggestions: 20
           }
@@ -225,6 +225,7 @@ window:
           customSearch: [
             {
               name: '{basename}(agent)',
+              label: 'agent',
               description: '{frontmatter@description}',
               displayTime: '{updatedAt}',
               path: '~/.claude/agents',
@@ -233,8 +234,10 @@ window:
             },
             {
               name: '{prefix}:{basename}(agent)',
+              label: 'plugin agent',
               description: '{frontmatter@description}',
               displayTime: '{updatedAt}',
+              color: 'yellow',
               path: '~/.claude/plugins/cache',
               pattern: '**/agents/*.md',
               prefixPattern: '**/.claude-plugin/*.json@name',
@@ -408,8 +411,8 @@ window:
             path: '~/.claude/plugins/cache',
             pattern: '**/commands/*.md',
             prefixPattern: '**/.claude-plugin/*.json@name',
-            label: 'command',
-            color: 'teal',
+            label: 'plugin command',
+            color: 'green',
             argumentHint: '{frontmatter@argument-hint}',
             maxSuggestions: 20
           },
@@ -419,8 +422,8 @@ window:
             path: '~/.claude/plugins/cache',
             pattern: '**/*/SKILL.md',
             prefixPattern: '**/.claude-plugin/*.json@name',
-            label: 'skill',
-            color: 'teal',
+            label: 'plugin skill',
+            color: 'cyan',
             argumentHint: '{frontmatter@argument-hint}',
             maxSuggestions: 20
           }
@@ -445,6 +448,7 @@ window:
           customSearch: [
             {
               name: '{basename}(agent)',
+              label: 'agent',
               description: '{frontmatter@description}',
               displayTime: '{updatedAt}',
               path: '~/.claude/agents',
@@ -453,8 +457,10 @@ window:
             },
             {
               name: '{prefix}:{basename}(agent)',
+              label: 'plugin agent',
               description: '{frontmatter@description}',
               displayTime: '{updatedAt}',
+              color: 'yellow',
               path: '~/.claude/plugins/cache',
               pattern: '**/agents/*.md',
               prefixPattern: '**/.claude-plugin/*.json@name',

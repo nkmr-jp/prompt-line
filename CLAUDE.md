@@ -49,6 +49,7 @@ pnpm run test:watch         # Run tests in watch mode
 pnpm run test:coverage      # Generate coverage report
 pnpm run test:unit          # Run unit tests only
 pnpm run test:integration   # Run integration tests only
+pnpm run test:mutation      # Run mutation tests with Stryker
 
 # Run a specific test file
 pnpm test tests/unit/utils.test.js
@@ -73,6 +74,9 @@ pnpm run clean:cache     # Clears build caches (node_modules/.cache, electron ca
 pnpm run clean:full      # Full cleanup (build artifacts + caches + dist directory)
 pnpm run release    # Info about automated release process (via GitHub Actions)
 pnpm run prepare    # Husky setup
+pnpm run generate:settings-example  # Generate settings example file
+pnpm run migrate-settings            # Run settings migration script
+pnpm run lint:dupl                   # Check duplicate code with jscpd
 ```
 
 **Build Process Details:**
@@ -179,7 +183,7 @@ The app uses Electron's two-process model with clean separation:
   - `services/`: Service layer components
   - `lib/`: Shared library code
 - **Preload Script** (`src/preload/preload.ts`): Secure context bridge with whitelisted IPC channels
-- **IPC Handlers** (`src/handlers/`): Modular handler architecture with 8 specialized components:
+- **IPC Handlers** (`src/handlers/`): Modular handler architecture with 9 specialized components:
   - `ipc-handlers.ts`: Main coordinator that delegates to specialized handlers
   - `paste-handler.ts`: Text and image paste operations with security validation
   - `history-draft-handler.ts`: History CRUD and draft management operations
@@ -187,19 +191,27 @@ The app uses Electron's two-process model with clean separation:
   - `system-handler.ts`: App info, config, and settings retrieval
   - `custom-search-handler.ts`: Slash commands and agent selection
   - `file-handler.ts`: File operations and external URL handling
+  - `usage-history-handler.ts`: Usage history tracking operations
   - `handler-utils.ts`: Shared validation and utility functions
 
 ### Manager Pattern
 Core functionality is organized into specialized managers:
 
 **Main Process Managers:**
-- **WindowManager** (`src/managers/window/`): Modular architecture with 6 specialized components:
+- **WindowManager** (`src/managers/window/`): Modular architecture with 9 specialized components:
   - `window-manager.ts`: Main coordinator for window creation and lifecycle
   - `directory-detector.ts`: Directory detection and file search orchestration
+  - `directory-cache-helper.ts`: Directory caching helper utilities
+  - `directory-detector-utils.ts`: Directory detector utility functions
+  - `text-field-bounds-detector.ts`: Text field bounds detection using Accessibility APIs
   - `position-calculator.ts`: Window positioning algorithms (4 modes)
   - `native-tool-executor.ts`: Native macOS tool execution with timeout
   - `types.ts`: Type definitions for window module
   - `index.ts`: Public API exports
+  - `strategies/`: Positioning strategy implementations
+    - `strategies/index.ts`: Strategy exports
+    - `strategies/native-detector-strategy.ts`: Native detector strategy implementation
+    - `strategies/types.ts`: Strategy type definitions
   - Supports multiple positioning modes: active-text-field (default), active-window-center, cursor, center
   - Native Swift tools integration for window and text field detection
   - Multi-monitor aware positioning with boundary constraints
@@ -217,13 +229,25 @@ Core functionality is organized into specialized managers:
 - **FileOpenerManager**: File opening with custom editor support
 - **SymbolCacheManager**: Language-separated symbol search caching with TTL
 - **AtPathCacheManager**: @path pattern caching for file highlighting
+- **UsageHistoryManager**: Usage tracking with count-based scoring
+- **AgentSkillCacheManager**: Agent skill caching
+- **AgentUsageHistoryManager**: Agent selection history
+- **FileUsageHistoryManager**: File selection history
+- **SymbolUsageHistoryManager**: Symbol selection history
 - **symbol-search/**: Symbol search integration with ripgrep via Node.js (20+ languages)
 
 **Renderer Process Managers:**
 - **DomManager**: DOM element management and manipulation
 - **EventHandler**: Centralized event processing
-- **SearchManager**: Search functionality implementation
 - **AgentSkillManager**: Agent skill processing and execution
+- **FrontmatterPopupManager**: Frontmatter popup display and interaction
+- **MentionManager**: @ mention system coordination
+- **LifecycleManager**: Application lifecycle management
+- **ShortcutHandler**: Keyboard shortcut handling
+- **WindowBlurHandler**: Window blur event handling
+- **DirectoryDataHandler**: Directory data event handling
+- **DraftManagerClient**: Client-side draft management
+- **Types** (`types.ts`): Shared TypeScript type definitions for renderer
 - **MentionSystem** (`src/renderer/mentions/`): Modular @ mention architecture with 15+ specialized managers:
   - `mention-initializer.ts`: System initialization and lifecycle management
   - `mention-state.ts`: Centralized state management for mention system
@@ -240,6 +264,8 @@ Core functionality is organized into specialized managers:
   - `event-listener-manager.ts`: Event lifecycle management
   - `query-extraction-manager.ts`: Query parsing and extraction
   - `settings-cache-manager.ts`: Settings caching and updates
+  - `code-search/index.ts`: Code search module exports
+  - `code-search/types.ts`: Code search type definitions
   - Supports file search (`@`), code search (`@lang:query`), and directory navigation (`@dir/`)
 - **HistoryUIManager**: History display and interaction management
 - **SnapshotManager**: Undo/redo functionality with text and cursor state tracking
@@ -260,7 +286,7 @@ IPC invoke request
     ↓
 IPCHandlers (coordinator)
     ↓
-Specialized Handler (paste, history-draft, window, system, custom-search, file, code-search)
+Specialized Handler (paste, history-draft, window, system, custom-search, file, code-search, usage-history)
     ↓
 Manager (WindowManager, HistoryManager, SymbolCacheManager, etc.)
     ↓
@@ -304,11 +330,19 @@ IPC response → Renderer Process
 - `get-cached-symbols`: Retrieve cached symbols
 - `clear-symbol-cache`: Clear symbol cache
 
+**Usage History Handler (usage-history-handler.ts):**
+- `record-file-usage`: Record file usage for intelligent scoring
+- `get-file-usage-bonuses`: Retrieve usage bonuses for file paths
+- `record-symbol-usage`: Record symbol usage for intelligent scoring
+- `get-symbol-usage-bonuses`: Retrieve usage bonuses for symbols
+- `record-agent-usage`: Record agent usage for intelligent scoring
+- `get-agent-usage-bonuses`: Retrieve usage bonuses for agents
+
 **Events (Renderer → Main):**
 - `window-shown`: Window display with data context
 - `directory-data-updated`: Directory change notifications
 
-Total: 30+ IPC channels across 7 specialized handlers
+Total: 30+ IPC channels across 8 specialized handlers
 
 ### Built-in Commands Hot Reload
 

@@ -230,13 +230,25 @@ function buildBuiltInCommandsSection(settings: UserSettings, options: YamlGenera
   const hasBuiltInCommands = builtInCommands && builtInCommands.length > 0;
 
   if (!hasBuiltInCommands) {
-    return `#builtInCommands:                      # List of tools to enable
+    return `# Built-in slash commands (type "/" to access)
+# Available: claude, codex, gemini, openclaw, opencode
+# Storage: ~/.prompt-line/built-in-commands/ (YAML files, hot-reload supported)
+# Customize: Edit YAML files in the storage directory to add/modify/remove commands
+#            Changes are detected automatically — no app restart needed
+# Update: pnpm run update-built-in-commands (reset to defaults with confirmation)
+#builtInCommands:
 #  - claude
 #  - codex
 #  - gemini`;
   }
 
-  let section = 'builtInCommands:                      # List of tools to enable\n';
+  let section = `# Built-in slash commands (type "/" to access)
+# Available: claude, codex, gemini, openclaw, opencode
+# Storage: ~/.prompt-line/built-in-commands/ (YAML files, hot-reload supported)
+# Customize: Edit YAML files in the storage directory to add/modify/remove commands
+#            Changes are detected automatically — no app restart needed
+# Update: pnpm run update-built-in-commands (reset to defaults with confirmation)
+builtInCommands:                      # List of tools to enable\n`;
   for (const cmd of builtInCommands) {
     section += `  - ${cmd}\n`;
   }
@@ -278,7 +290,7 @@ function buildAgentSkillsSection(settings: UserSettings, options: YamlGeneratorO
   section += '#   path: Directory path to search for skill files\n';
   section += '#   label: Display label for UI badge (e.g., "command", "skill", "agent")\n';
   section += '#   color: Badge color (name: grey, darkGrey, slate, stone, red, rose, orange, amber, yellow, lime, green, emerald, teal, cyan, sky, blue, indigo, violet, purple, fuchsia, pink, or hex: #FF5733)\n';
-  section += '#   icon: Codicon icon name (e.g., "agent", "rocket", "terminal") https://microsoft.github.io/vscode-codicons/dist/codicon.html\n';
+  section += '#   icon: Codicon icon name (e.g., "agent", "rocket", "terminal")\n';
   section += '#   pattern: Glob pattern to match files (e.g., "*.md", "**/*/SKILL.md")\n';
   section += '#   prefixPattern: Pattern to extract prefix from plugin metadata\n';
   section += '#   argumentHint: Hint for skill arguments\n';
@@ -541,7 +553,9 @@ fileOpener:
 # ============================================================================
 # BUILT-IN COMMANDS
 # ============================================================================
-# Built-in commands (Claude, Codex, Gemini, etc.)
+# Built-in slash commands for CLI tools (Claude Code, Codex, Gemini CLI, etc.)
+# Storage: ~/.prompt-line/built-in-commands/ (YAML files per tool)
+# Hot-reload: YAML file changes are auto-detected (no restart needed)
 
 ${builtInCommandsSection}
 
@@ -556,7 +570,7 @@ ${agentSkillsSection}
 # ============================================================================
 # MENTION SETTINGS (@ mentions)
 # ============================================================================
-# Configure @ mention sources: fileSearch, symbolSearch, customSearch
+# Configure @ mention sources: customSearch, fileSearch, symbolSearch
 # Template variables for customSearch: {basename}, {frontmatter@fieldName}
 
 ${mentionsSection}
