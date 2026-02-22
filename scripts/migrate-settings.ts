@@ -13,8 +13,6 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import * as yaml from 'js-yaml';
-import { execSync } from 'child_process';
-
 import { defaultSettings } from '../src/config/default-settings';
 import { generateSettingsYaml } from '../src/config/settings-yaml-generator';
 import type { UserSettings, AgentSkillEntry, MentionEntry } from '../src/types';
@@ -150,7 +148,7 @@ function main(): void {
     const content = generateSettingsYaml(defaultSettings, { includeCommentedExamples: true });
     fs.writeFileSync(SETTINGS_FILE, content, { encoding: 'utf8', mode: 0o600 });
     console.log(`✅ Created: ${SETTINGS_FILE}`);
-    openSettingsDir();
+    printOpenCommand();
     return;
   }
 
@@ -188,20 +186,15 @@ function main(): void {
   console.log(`\n📄 Updated: ${SETTINGS_FILE}`);
   console.log(`💾 Backup:  ${backupPath}`);
 
-  openSettingsDir();
+  printOpenCommand();
 }
 
 /**
- * Open settings directory in Finder
+ * Print command to open settings directory
  */
-function openSettingsDir(): void {
-  try {
-    console.log(`\n📂 Opening settings directory in 5 seconds...`);
-    execSync('sleep 5');
-    execSync(`open "${SETTINGS_DIR}"`);
-  } catch {
-    // Ignore errors (non-macOS environments)
-  }
+function printOpenCommand(): void {
+  console.log(`\n📂 To open settings directory:`);
+  console.log(`   open ${SETTINGS_DIR}`);
 }
 
 // Run
