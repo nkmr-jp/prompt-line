@@ -8,7 +8,7 @@ English |
 ## Overview
 
 Prompt Line is a macOS app developed to improve the prompt input experience in the terminal for CLI-based AI coding agents such as [Claude Code](https://github.com/anthropics/claude-code), [Gemini CLI](https://github.com/google-gemini/gemini-cli), [OpenAI Codex CLI](https://github.com/openai/codex), and [Aider](https://github.com/paul-gauthier/aider).
-It addresses UX challenges related to multi-byte character input (e.g., Japanese) by providing a dedicated floating input interface. 
+It addresses UX challenges related to multi-byte character input (e.g., Japanese) by providing a dedicated floating input interface. It also features context search and autocomplete with / and @.
 
 This greatly reduces stress when entering text in the following cases in particular. 
 
@@ -187,8 +187,8 @@ For the full configuration example with all available options and comments, see:
 | `window` | Window size and positioning mode |
 | `fileOpener` | Default editor and extension-specific applications |
 | `builtInCommands` | Built-in slash commands to enable (claude, codex, gemini, etc.) |
-| `agentSkills` | Agent skills from markdown files (custom commands, skills, plugins) |
-| `mentions.customSearch` | Custom search entries triggered by @prefix: — supports Markdown (.md), JSON (.json), JSONL (.jsonl), and jq expressions |
+| `agentSkills` | Agent Skills search functionality |
+| `mentions.customSearch` | Custom search triggered by @prefix: |
 | `mentions.fileSearch` | File search settings (@path/to/file completion) |
 | `mentions.symbolSearch` | Symbol search settings (@ts:Config, @go:Handler) |
 
