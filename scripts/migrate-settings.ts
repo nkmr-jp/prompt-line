@@ -127,7 +127,7 @@ function createBackupFilename(): string {
     String(now.getHours()).padStart(2, '0') +
     String(now.getMinutes()).padStart(2, '0') +
     String(now.getSeconds()).padStart(2, '0');
-  return `settings.yml.backup.${timestamp}`;
+  return `settings.backup.${timestamp}.yml`;
 }
 
 /**
@@ -196,7 +196,8 @@ function main(): void {
  */
 function openSettingsDir(): void {
   try {
-    console.log(`\n📂 Opening settings directory...`);
+    console.log(`\n📂 Opening settings directory in 5 seconds...`);
+    execSync('sleep 5');
     execSync(`open "${SETTINGS_DIR}"`);
   } catch {
     // Ignore errors (non-macOS environments)
