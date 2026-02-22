@@ -372,6 +372,14 @@ Implementation:
 - Debounced snapshot creation to avoid excessive history entries
 - Maximum history depth limit for memory management
 
+## Assets
+
+### assets/icons/file-icons.ts
+Material Icon Theme SVG icon definitions for file type display:
+- Provides SVG icon data for various file types and languages
+- Used by the mention/file search system to display file type icons
+- Based on Material Icon Theme icon set
+
 ## Supporting Modules
 
 ### Interfaces (interfaces/)
@@ -406,6 +414,38 @@ Features:
 - Graceful error messages for debugging
 
 ## Utility Functions
+
+### utils/debug-logger.ts
+Debug logging utilities for renderer process:
+- `createDebugLogger(prefix)`: Creates a prefixed debug logger function
+- `formatLog(prefix, ...args)`: Formats log messages with consistent prefix
+
+### utils/error-handler.ts
+Centralized error handling for renderer:
+- `handleError(error, context)`: Handles and logs errors with context information
+
+### utils/highlight-utils.ts
+Text highlighting utilities:
+- `highlightMatch(text, query)`: Highlights matching portions of text for search results
+
+### utils/html-utils.ts
+HTML manipulation utilities:
+- `escapeHtml(text)`: Escapes HTML special characters for safe DOM insertion
+- `escapeHtmlFast(text)`: Performance-optimized HTML escaping for frequent operations
+
+### utils/logger.ts
+Renderer process logging:
+- `RendererLogger`: Logger class for structured renderer-side logging
+- `rendererLogger`: Singleton instance for convenient logging access
+
+### utils/popup-position-calculator.ts
+Popup positioning utilities:
+- `calculatePopupPosition(anchor, popup, viewport)`: Calculates optimal popup position
+- `applyPopupPosition(element, position)`: Applies calculated position to DOM element
+
+### utils/trigger-query-extractor.ts
+Query extraction from text input:
+- `extractTriggerQueryAtCursor(text, cursorPos, trigger)`: Extracts query string at cursor for trigger characters (e.g., `@`, `/`)
 
 ### utils/shortcut-formatter.ts
 Cross-platform keyboard shortcut display:
@@ -450,6 +490,8 @@ Organized for maintainability and performance:
 
 #### styles/main.css
 - **Entry Point**: Single import point for all stylesheets
+- **Tailwind CSS v4**: Uses `@import "tailwindcss"` for Tailwind integration
+- **Theme Tokens**: Defines custom design tokens via `@theme {}` block (spacing, border-radius, font-sizes, etc.)
 - **Load Order**: Carefully ordered imports (base → layout → components → themes → animations)
 - **Dependency Management**: Explicit import declarations for build optimization
 
@@ -470,6 +512,14 @@ Interactive component styling:
 - **search.css**: Search overlay and input styling with transitions
 - **history-item.css**: Individual history item styling with interaction states
 - **file-suggestions.css**: File search dropdown styling with keyboard navigation states
+- **agent-skills.css**: Agent skill list styling
+- **code-suggestions.css**: Code symbol search suggestion dropdown styling
+- **codicon-symbols.css**: Codicon icon font usage and symbol styles
+- **notifications.css**: Toast notification styling
+
+#### styles/fonts/
+Font files for icon rendering:
+- **codicon.ttf**: Codicon icon font (Microsoft's codicon icon set)
 
 #### styles/themes/
 Theme definitions and variations:

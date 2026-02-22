@@ -138,6 +138,20 @@ function sleep(ms: number): Promise<void> {
 }
 ```
 
+**Color Validation:**
+```typescript
+function isValidHexColor(color: string): boolean {
+  // Validates hex color code (#RGB or #RRGGBB format)
+  // Returns true if valid hex color code, false otherwise
+}
+
+function validateColorValue(color: string | undefined, defaultColor?: string): string {
+  // Validates color value (named color or hex code)
+  // Returns the validated color or defaultColor ('grey' by default) if invalid
+  // Supports named colors: grey, darkGrey, slate, stone, red, rose, orange, etc.
+}
+```
+
 ### security.ts
 Security utilities and error handling:
 
@@ -302,7 +316,7 @@ Re-export module for macOS native tool integrations. Implementation is in `nativ
 ### native-tools/ Directory
 
 **Module Structure:**
-- `index.ts`: Main export hub coordinating all native tool integrations
+- `index.ts`: Main export hub coordinating all native tool integrations (exports `WINDOW_DETECTOR_PATH`, `KEYBOARD_SIMULATOR_PATH`, `TEXT_FIELD_DETECTOR_PATH`, `DIRECTORY_DETECTOR_PATH`)
 - `paths.ts`: Tool path constants for all native binaries
 - `app-detection.ts`: App and window detection using native tools
 - `paste-operations.ts`: Paste and activate operations
