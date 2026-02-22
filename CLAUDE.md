@@ -49,6 +49,7 @@ pnpm run test:watch         # Run tests in watch mode
 pnpm run test:coverage      # Generate coverage report
 pnpm run test:unit          # Run unit tests only
 pnpm run test:integration   # Run integration tests only
+pnpm run test:mutation      # Run mutation tests with Stryker
 
 # Run a specific test file
 pnpm test tests/unit/utils.test.js
@@ -73,6 +74,9 @@ pnpm run clean:cache     # Clears build caches (node_modules/.cache, electron ca
 pnpm run clean:full      # Full cleanup (build artifacts + caches + dist directory)
 pnpm run release    # Info about automated release process (via GitHub Actions)
 pnpm run prepare    # Husky setup
+pnpm run generate:settings-example  # Generate settings example file
+pnpm run migrate-settings            # Run settings migration script
+pnpm run lint:dupl                   # Check duplicate code with jscpd
 ```
 
 **Build Process Details:**
