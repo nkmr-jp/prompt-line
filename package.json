@@ -26,7 +26,8 @@
     "prepare": "husky",
     "reset-accessibility": "tccutil reset Accessibility com.electron.prompt-line && echo '✅ Accessibility permissions for Prompt Line have been reset'",
     "update-built-in-commands": "pnpm exec ts-node scripts/update-built-in-commands.ts",
-    "generate:settings-example": "pnpm exec ts-node scripts/generate-settings-example.ts"
+    "generate:settings-example": "pnpm exec ts-node scripts/generate-settings-example.ts",
+    "migrate-settings": "pnpm exec ts-node scripts/migrate-settings.ts"
   },
   "keywords": [
     "paste",
