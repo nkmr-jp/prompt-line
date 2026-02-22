@@ -313,6 +313,7 @@ export const defaultSettings: UserSettings = {
       // Claude Code agents (from ~/.claude/agents/*.md, search with @agent:)
       {
         name: '{basename}(agent)',
+        label: "agent",
         description: '{frontmatter@description}',
         path: '~/.claude/agents',
         pattern: '*.md',
@@ -322,8 +323,10 @@ export const defaultSettings: UserSettings = {
       // Plugin agents (from ~/.claude/plugins/cache/**/agents/*.md, search with @agent:)
       {
         name: '{prefix}:{basename}(agent)',
+        label: "plugin agent",
         description: '{frontmatter@description}',
         path: '~/.claude/plugins/cache',
+        color: "yellow",
         pattern: '**/agents/*.md',
         prefixPattern: '**/.claude-plugin/*.json@name',
         searchPrefix: 'agent',

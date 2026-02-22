@@ -225,6 +225,7 @@ window:
           customSearch: [
             {
               name: '{basename}(agent)',
+              label: 'agent',
               description: '{frontmatter@description}',
               displayTime: '{updatedAt}',
               path: '~/.claude/agents',
@@ -233,8 +234,10 @@ window:
             },
             {
               name: '{prefix}:{basename}(agent)',
+              label: 'plugin agent',
               description: '{frontmatter@description}',
               displayTime: '{updatedAt}',
+              color: 'yellow',
               path: '~/.claude/plugins/cache',
               pattern: '**/agents/*.md',
               prefixPattern: '**/.claude-plugin/*.json@name',
@@ -445,6 +448,7 @@ window:
           customSearch: [
             {
               name: '{basename}(agent)',
+              label: 'agent',
               description: '{frontmatter@description}',
               displayTime: '{updatedAt}',
               path: '~/.claude/agents',
@@ -453,8 +457,10 @@ window:
             },
             {
               name: '{prefix}:{basename}(agent)',
+              label: 'plugin agent',
               description: '{frontmatter@description}',
               displayTime: '{updatedAt}',
+              color: 'yellow',
               path: '~/.claude/plugins/cache',
               pattern: '**/agents/*.md',
               prefixPattern: '**/.claude-plugin/*.json@name',
