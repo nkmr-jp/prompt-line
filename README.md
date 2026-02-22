@@ -56,11 +56,11 @@ These can be customized in the settings file (`~/.prompt-line/settings.yml`). Se
 </tr>
 <tr>
 <td>Symbol Search<img src="assets/doc11.png"> </td>
-<td>Sub-agent Search (~/.claude/agents)  <img src="assets/doc14.png"> </td>
+<td>Subagents Search (~/.claude/agents)  <img src="assets/doc14.png"> </td>
 </tr>
 <tr>
-<td>Plan Search (~/.claude/plans) <img src="assets/doc12.png"> </td>
-<td>Agent Team Search (~/.claude/teams)  <img src="assets/doc13.png"> </td>
+<td>Plans Search (~/.claude/plans) <img src="assets/doc12.png"> </td>
+<td>Agent Teams Search (~/.claude/teams)  <img src="assets/doc13.png"> </td>
 </tr>
 </table>
 
