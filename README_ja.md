@@ -187,8 +187,6 @@ pnpm run update-built-in-commands  # 最新のデフォルトに更新
 
 ##### ファイル検索
 @を入力するとファイルを検索できます。<br>
-※ [fd](https://github.com/sharkdp/fd)コマンドのインストールが必要です。( `brew install fd` )<br>
-※ `~/.prompt-line/settings.yml` で `fileSearch`の項目を設定する必要があります。 「⚙️ 設定」の項目参照<br>
 ※ 対応アプリ: Terminal.app, iTerm2, Ghostty, Warp, WezTerm, JetBrains IDE（IntelliJ, WebStormなど）, VSCode, Cursor, Windsurf, Zed, Antigravity, Kiro
 
 ![doc10.png](assets/doc10.png)
@@ -196,10 +194,6 @@ pnpm run update-built-in-commands  # 最新のデフォルトに更新
 ##### シンボル検索
 `@<言語>:<クエリ>`と入力することで、コードシンボル（関数、クラス、型など）を検索できます。<br>
 この機能はファイル検索と統合されているため、先にファイル検索を有効にする必要があります。
-
-**必要条件:**
-- [ripgrep](https://github.com/BurntSushi/ripgrep) (rg) コマンドのインストールが必要 (`brew install ripgrep`)
-- 設定でファイル検索を有効化
 
 **構文:** `@<言語>:<クエリ>`
 
