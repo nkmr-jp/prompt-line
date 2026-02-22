@@ -55,6 +55,24 @@ Enterを押しても勝手に送信されないので、改行する場合も気
 もちろん、ターミナル以外でも使えます。
 ![doc5.gif](assets/doc5.gif)
 
+### 高度な検索と入力補完
+
+/や@を入力するとAgent Skillやファイルやシンボルを検索して入力補完できます。<br>
+これらは設定ファイルでカスタマイズできます。参考: [settings.example.yml](settings.example.yml)
+<table>
+<tr>
+<td>Agent SkillsとBuilt in Commands <img src="assets/doc9.png"> </td>
+<td>ファイルとディレクトリ検索 <img src="assets/doc10.png"> </td>
+</tr>
+<tr>
+<td>シンボル検索<img src="assets/doc11.png"> </td>
+<td>カスタムサーチ(~/.claude/agents)  <img src="assets/doc14.png"> </td>
+</tr>
+<tr>
+<td>カスタムサーチ(~/.claude/plans) <img src="assets/doc12.png"> </td>
+<td>カスタムサーチ(~/.claude/teams)  <img src="assets/doc13.png"> </td>
+</tr>
+</table>
 
 ## 📦 インストール
 
