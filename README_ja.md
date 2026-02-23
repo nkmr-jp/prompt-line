@@ -48,7 +48,7 @@ Enterを押しても勝手に送信されないので、改行する場合も気
 これらは設定ファイル(`~/.prompt-line/settings.yml`)でカスタマイズできます。参考: [settings.example.yml](settings.example.yml)
 <table>
 <tr>
-<td>Agent SkillsとBuilt in Commands <img src="assets/doc9.png"> </td>
+<td>Agent SkillsとBuilt in Commands 検索<img src="assets/doc9.png"> </td>
 <td>ファイルとディレクトリ検索 <img src="assets/doc10.png"> </td>
 </tr>
 <tr>
@@ -63,20 +63,21 @@ Enterを押しても勝手に送信されないので、改行する場合も気
 
 ## 📦 インストール
 
-### コマンドインストール
-
-[fd](https://github.com/sharkdp/fd)と[rg(ripgrep)](https://github.com/BurntSushi/ripgrep)コマンドのインストール。ファイル検索やシンボル検索の機能で使います。
-```bash
-brew install fd ripgrep
-```
-
 ### システム要件
 
 - macOS 10.14以降
 - Node.js 20以上
 - Xcodeコマンドラインツール または Xcode（ネイティブツールのコンパイル用）
 
-### ソースからビルド
+### コマンドインストール
+
+[fd](https://github.com/sharkdp/fd)と[rg(ripgrep)](https://github.com/BurntSushi/ripgrep)コマンドのインストール。ファイル検索やシンボル検索の機能で使います。
+すでにインストール済みの場合は不要です。
+```bash
+brew install fd ripgrep
+```
+
+### Prompt Line の インストール
 
 1. リポジトリをクローン:
    ```bash
