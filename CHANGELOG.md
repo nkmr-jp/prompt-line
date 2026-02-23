@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.23.2](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.23.1...prompt-line-v0.23.2) (2026-02-23)
+
+
+### Documentation
+
+* **README_ja:** improve installation steps and update descriptions for dependencies ([c2ecbaa](https://github.com/nkmr-jp/prompt-line/commit/c2ecbaaba9925a2ae02eb58e8917c15d7e02379a))
+* **readme:** reorganize installation sections with prerequisite note ([c63ffe7](https://github.com/nkmr-jp/prompt-line/commit/c63ffe77e94bbeae80225a0e8209fef98bf6ab8f))
+
 ## [0.23.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.23.0...prompt-line-v0.23.1) (2026-02-22)
 
 
