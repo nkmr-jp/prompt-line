@@ -444,8 +444,9 @@ class CustomSearchLoader {
         fs.stat(filePath),
       ]);
       const isJsonFile = filePath.endsWith('.json');
-      const frontmatter = isJsonFile ? {} : parseFrontmatter(content);
-      const rawFrontmatter = isJsonFile ? '' : extractRawFrontmatter(content);
+      const isPlainText = !isJsonFile && this.isPlainTextFile(filePath);
+      const frontmatter = (isJsonFile || isPlainText) ? {} : parseFrontmatter(content);
+      const rawFrontmatter = (isJsonFile || isPlainText) ? '' : extractRawFrontmatter(content);
       const basename = getBasename(filePath);
 
       // Expand path for prefix resolution
@@ -458,7 +459,7 @@ class CustomSearchLoader {
       }
 
       const dirname = getDirname(filePath);
-      const heading = isJsonFile ? '' : parseFirstHeading(content);
+      const heading = isJsonFile ? '' : isPlainText ? this.parseFirstLine(content) : parseFirstHeading(content);
       const jsonData = isJsonFile ? parseJsonContent(content) : undefined;
       const context = { basename, frontmatter, prefix, dirname, filePath, heading, ...(jsonData && { jsonData }) };
 
@@ -500,6 +501,21 @@ class CustomSearchLoader {
       logger.warn('Failed to parse file', { filePath, error });
       return null;
     }
+  }
+
+  /** Markdown構造化ファイルの拡張子 */
+  private static readonly STRUCTURED_EXTENSIONS = new Set(['.md', '.json', '.jsonl', '.yaml', '.yml']);
+
+  /** プレーンテキストファイルかどうか判定（Markdown/JSON/YAML以外） */
+  private isPlainTextFile(filePath: string): boolean {
+    const ext = path.extname(filePath).toLowerCase();
+    return !CustomSearchLoader.STRUCTURED_EXTENSIONS.has(ext);
+  }
+
+  /** プレーンテキストの最初の非空行を取得 */
+  private parseFirstLine(content: string): string {
+    const firstLine = content.split('\n').find(line => line.trim() !== '');
+    return firstLine?.trim() ?? '';
   }
 
   /**

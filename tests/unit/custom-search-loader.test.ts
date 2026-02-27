@@ -2273,4 +2273,140 @@ Content`;
       expect(items[0]?.sortKey).toBeUndefined();
     });
   });
+
+  describe('plain text file support', () => {
+    test('should parse .txt file with first line as heading', async () => {
+      loader = new CustomSearchLoader(createTestConfig([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{heading}',
+          path: '/path/to/logs',
+          pattern: '*.txt',
+        },
+      ]));
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true, mtimeMs: 1000 } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('server.txt', true)] as any);
+      mockedFs.readFile.mockResolvedValue('2024-01-01 Server started\nLine 2\nLine 3');
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(1);
+      expect(items[0]?.name).toBe('server');
+      expect(items[0]?.description).toBe('2024-01-01 Server started');
+    });
+
+    test('should parse .log file as plain text', async () => {
+      loader = new CustomSearchLoader(createTestConfig([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{heading}',
+          path: '/path/to/logs',
+          pattern: '*.log',
+        },
+      ]));
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true, mtimeMs: 1000 } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('app.log', true)] as any);
+      mockedFs.readFile.mockResolvedValue('ERROR: Connection timeout\nRetrying...');
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(1);
+      expect(items[0]?.name).toBe('app');
+      expect(items[0]?.description).toBe('ERROR: Connection timeout');
+    });
+
+    test('should return empty heading for empty plain text file', async () => {
+      loader = new CustomSearchLoader(createTestConfig([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{heading}',
+          path: '/path/to/logs',
+          pattern: '*.txt',
+        },
+      ]));
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true, mtimeMs: 1000 } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('empty.txt', true)] as any);
+      mockedFs.readFile.mockResolvedValue('');
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(1);
+      expect(items[0]?.description).toBe('');
+    });
+
+    test('should skip blank lines when finding first line', async () => {
+      loader = new CustomSearchLoader(createTestConfig([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{heading}',
+          path: '/path/to/logs',
+          pattern: '*.txt',
+        },
+      ]));
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true, mtimeMs: 1000 } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('data.txt', true)] as any);
+      mockedFs.readFile.mockResolvedValue('\n\n  First real line\nSecond line');
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(1);
+      expect(items[0]?.description).toBe('First real line');
+    });
+
+    test('should not have frontmatter for plain text files', async () => {
+      loader = new CustomSearchLoader(createTestConfig([
+        {
+          name: '{frontmatter@title}|{basename}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          path: '/path/to/logs',
+          pattern: '*.txt',
+        },
+      ]));
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true, mtimeMs: 1000 } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('notes.txt', true)] as any);
+      mockedFs.readFile.mockResolvedValue('---\ntitle: This is not frontmatter\n---\nBody');
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(1);
+      // frontmatter@title is empty, so fallback to basename
+      expect(items[0]?.name).toBe('notes');
+      // frontmatter@description is empty
+      expect(items[0]?.description).toBe('');
+      // No raw frontmatter
+      expect(items[0]?.frontmatter).toBeUndefined();
+    });
+
+    test('should treat unknown extensions as plain text', async () => {
+      loader = new CustomSearchLoader(createTestConfig([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{heading}',
+          path: '/path/to/data',
+          pattern: '*.csv',
+        },
+      ]));
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true, mtimeMs: 1000 } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('data.csv', true)] as any);
+      mockedFs.readFile.mockResolvedValue('name,age,city\nAlice,30,Tokyo');
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(1);
+      expect(items[0]?.name).toBe('data');
+      expect(items[0]?.description).toBe('name,age,city');
+    });
+  });
 });
