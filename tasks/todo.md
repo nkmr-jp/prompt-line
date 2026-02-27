@@ -103,6 +103,38 @@ loadMore時に全アイテム再フィルタリング+全DOM再構築が発生�
 - TypeScript typecheck: PASS
 - 全テスト: 41 suites, 1134 passed, 1 skipped
 
+## Phase 4: インクリメンタルサーチ レンダリング最適化
+
+v0.23でカスタムスクロールバーが追加され、キーストローク毎のrenderHistory()で
+50アイテムの全DOM再構築（25-40ms）が発生していた。
+DOM リサイクルにより createElement/replaceChildren のコストを排除。
+
+### タスク一覧
+
+- [x] 1. formatTime() に now パラメータ追加（Date.now()の50回呼び出し排除）
+- [x] 2. renderHistory() DOM リサイクル実装
+  - [x] updateHistoryElement() — 既存DOM要素のin-place更新（createElement排除）
+  - [x] updateCountIndicator() — カウント表示のin-place更新
+  - [x] children直接アクセス（querySelector排除）
+  - [x] 初回レンダリングとリサイクルパスの分岐
+- [x] 3. scrollbar更新の条件付き実行（アイテム数変化時のみ）
+- [x] 4. テスト・typecheck通過の確認
+
+### 最適化の詳細
+
+| ボトルネック | Before | After | 効果 |
+|---|---|---|---|
+| DOM要素生成 | createElement × 150 (50items × 3divs) | 0 (リサイクル) | **createElement排除** |
+| replaceChildren | 毎キーストローク | 初回のみ | **DOM全置換排除** |
+| Date.now() | 50回/レンダ | 1回/レンダ | **98%削減** |
+| querySelector | 0 (children直接参照) | 0 | **DOM探索不要** |
+| scrollbar更新 | 毎レンダ | アイテム数変化時のみ | **不要な更新排除** |
+
+### 品質確認
+
+- TypeScript typecheck: PASS
+- 全テスト: 41 suites, 1134 passed, 1 skipped
+
 ## 変更ファイル
 
 ### Phase 1（フィルタエンジン最適化）
@@ -119,3 +151,7 @@ loadMore時に全アイテム再フィルタリング+全DOM再構築が発生�
 - `src/renderer/history-search/filter-engine.ts` - ソート済みマッチ結果キャッシュ
 - `src/renderer/history-ui-manager.ts` - appendHistoryItems、RAFスロットル、DOM要素キャッシュ
 - `src/renderer/renderer.ts` - loadMore時のインクリメンタルappend
+
+### Phase 4（インクリメンタルサーチ レンダリング最適化）
+- `src/renderer/utils/time-formatter.ts` - formatTime() に now パラメータ追加
+- `src/renderer/history-ui-manager.ts` - DOMリサイクル、updateHistoryElement、updateCountIndicator

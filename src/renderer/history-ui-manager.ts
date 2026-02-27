@@ -250,37 +250,77 @@ export class HistoryUIManager {
         return;
       }
 
-      // Create fragment for batch DOM updates to avoid layout thrashing
-      const fragment = document.createDocumentFragment();
-
       // Hoist search state once (avoids per-item getSearchManager() calls)
       const searchTerm = isSearchMode ? (searchManager?.getSearchTerm() || '') : '';
+      // Cache Date.now() once for all items (avoids 50x Date.now() calls)
+      const now = Date.now();
 
-      // Create all history items
-      dataToRender.forEach((item) => {
-        const historyItem = this.createHistoryElement(item, isSearchMode, searchTerm, searchManager);
-        fragment.appendChild(historyItem);
-      });
+      // DOM recycling: reuse existing elements instead of full rebuild
+      const existingItems = historyList.querySelectorAll('.history-item');
+      const existingCount = existingItems.length;
+      const newCount = dataToRender.length;
 
-      // Create count indicator
-      const totalCount = totalMatches !== undefined ? totalMatches : dataToRender.length;
-      const countIndicator = document.createElement('div');
-      countIndicator.className = 'history-more';
-      if (totalCount > dataToRender.length) {
-        countIndicator.textContent = `+${totalCount - dataToRender.length} more items`;
+      if (existingCount > 0) {
+        // Recycle path: update existing DOM elements in-place
+        const updateCount = Math.min(existingCount, newCount);
+        for (let i = 0; i < updateCount; i++) {
+          this.updateHistoryElement(existingItems[i] as HTMLElement, dataToRender[i]!, isSearchMode, searchTerm, searchManager, now);
+        }
+
+        // Add new elements if needed
+        if (newCount > existingCount) {
+          const fragment = document.createDocumentFragment();
+          for (let i = existingCount; i < newCount; i++) {
+            fragment.appendChild(this.createHistoryElement(dataToRender[i]!, isSearchMode, searchTerm, searchManager, now));
+          }
+          const countIndicator = historyList.querySelector('.history-more');
+          if (countIndicator) {
+            historyList.insertBefore(fragment, countIndicator);
+          } else {
+            historyList.appendChild(fragment);
+          }
+        }
+
+        // Remove excess elements if needed
+        if (existingCount > newCount) {
+          for (let i = existingCount - 1; i >= newCount; i--) {
+            existingItems[i]!.remove();
+          }
+        }
+
+        // Update count indicator in-place
+        this.updateCountIndicator(historyList, dataToRender.length, totalMatches);
+
+        // Only update scrollbar if item count changed
+        if (existingCount !== newCount) {
+          requestAnimationFrame(() => {
+            this.updateScrollbarAfterRender();
+          });
+        }
       } else {
-        countIndicator.textContent = `${totalCount} items`;
+        // Full build path: no existing elements to recycle (first render or after empty state)
+        const fragment = document.createDocumentFragment();
+        for (let i = 0; i < newCount; i++) {
+          fragment.appendChild(this.createHistoryElement(dataToRender[i]!, isSearchMode, searchTerm, searchManager, now));
+        }
+
+        // Create count indicator
+        const totalCount = totalMatches !== undefined ? totalMatches : dataToRender.length;
+        const countIndicator = document.createElement('div');
+        countIndicator.className = 'history-more';
+        if (totalCount > dataToRender.length) {
+          countIndicator.textContent = `+${totalCount - dataToRender.length} more items`;
+        } else {
+          countIndicator.textContent = `${totalCount} items`;
+        }
+        fragment.appendChild(countIndicator);
+
+        historyList.replaceChildren(fragment);
+
+        requestAnimationFrame(() => {
+          this.updateScrollbarAfterRender();
+        });
       }
-      fragment.appendChild(countIndicator);
-
-      // Single DOM update: replaceChildren avoids the double reflow of innerHTML='' + appendChild
-      historyList.replaceChildren(fragment);
-
-      // Update scrollbar after content is rendered
-      // Use requestAnimationFrame to ensure DOM layout is complete
-      requestAnimationFrame(() => {
-        this.updateScrollbarAfterRender();
-      });
 
     } catch (error) {
       console.error('Error rendering history:', error);
@@ -304,9 +344,10 @@ export class HistoryUIManager {
     const searchTerm = isSearchMode ? (searchManager?.getSearchTerm() || '') : '';
 
     // Create fragment for new items only
+    const now = Date.now();
     const fragment = document.createDocumentFragment();
     for (const item of newItems) {
-      fragment.appendChild(this.createHistoryElement(item, isSearchMode, searchTerm, searchManager));
+      fragment.appendChild(this.createHistoryElement(item, isSearchMode, searchTerm, searchManager, now));
     }
 
     // Remove existing count indicator
@@ -336,11 +377,59 @@ export class HistoryUIManager {
     });
   }
 
+  /**
+   * Update an existing DOM element in-place (avoids createElement overhead)
+   */
+  private updateHistoryElement(
+    element: HTMLElement,
+    item: HistoryItem,
+    isSearchMode: boolean,
+    searchTerm: string,
+    searchManager: { highlightSearchTerms(text: string, term: string): string } | null,
+    now: number
+  ): void {
+    // Update data attributes
+    element.dataset.text = item.text;
+    element.dataset.id = item.id;
+
+    // Update text (access children directly for speed, avoid querySelector)
+    const textDiv = element.children[0] as HTMLElement;
+    const displayText = item.text.replace(/\n/g, ' ');
+    if (isSearchMode && searchTerm) {
+      textDiv.innerHTML = searchManager?.highlightSearchTerms(displayText, searchTerm) || displayText;
+    } else {
+      textDiv.textContent = displayText;
+    }
+
+    // Update time
+    const timeDiv = element.children[1] as HTMLElement;
+    timeDiv.textContent = formatTime(item.timestamp, now);
+  }
+
+  /**
+   * Update the count indicator element in-place
+   */
+  private updateCountIndicator(historyList: HTMLElement, displayedCount: number, totalMatches?: number): void {
+    let countIndicator = historyList.querySelector('.history-more') as HTMLElement | null;
+    if (!countIndicator) {
+      countIndicator = document.createElement('div');
+      countIndicator.className = 'history-more';
+      historyList.appendChild(countIndicator);
+    }
+    const totalCount = totalMatches !== undefined ? totalMatches : displayedCount;
+    if (totalCount > displayedCount) {
+      countIndicator.textContent = `+${totalCount - displayedCount} more items`;
+    } else {
+      countIndicator.textContent = `${totalCount} items`;
+    }
+  }
+
   private createHistoryElement(
     item: HistoryItem,
     isSearchMode: boolean,
     searchTerm: string,
-    searchManager: { highlightSearchTerms(text: string, term: string): string } | null
+    searchManager: { highlightSearchTerms(text: string, term: string): string } | null,
+    now?: number
   ): HTMLElement {
     const historyItem = document.createElement('div');
     historyItem.className = 'history-item';
@@ -361,7 +450,7 @@ export class HistoryUIManager {
 
     const timeDiv = document.createElement('div');
     timeDiv.className = 'history-time';
-    timeDiv.textContent = formatTime(item.timestamp);
+    timeDiv.textContent = formatTime(item.timestamp, now);
 
     historyItem.appendChild(textDiv);
     historyItem.appendChild(timeDiv);
