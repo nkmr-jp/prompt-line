@@ -1,5 +1,47 @@
 # Changelog
 
+## [0.24.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.23.1...prompt-line-v0.24.0) (2026-02-27)
+
+
+### Features
+
+* **built-in-commands:** add new commands and update descriptions for Claude, Codex, and Gemini ([cbb9c02](https://github.com/nkmr-jp/prompt-line/commit/cbb9c02d5dcb30769b30f8055e3aad5231370fe2))
+* **config:** add language_backend configuration option to project.yml ([6439285](https://github.com/nkmr-jp/prompt-line/commit/6439285755e76717c7b589c8b2b49e71c075c9ca))
+* **custom-search:** add line-by-line parsing for plain text files ([b4c56c7](https://github.com/nkmr-jp/prompt-line/commit/b4c56c70132661c9a712005cc82defcf8c2dfcf7))
+* **custom-search:** add plain text file support ([793b23f](https://github.com/nkmr-jp/prompt-line/commit/793b23f7cf37a57205c57facdbfe330ccd1c0ee2))
+* **custom-search:** preserve plain text item line order instead of sorting by name ([59ba119](https://github.com/nkmr-jp/prompt-line/commit/59ba11983208294fcac8d508869ce27173e7e3ea))
+* **inputFormat:** support template-based formatting for custom search items ([c23f97f](https://github.com/nkmr-jp/prompt-line/commit/c23f97f1ad91a4581a3cfcc27b13cb9688711f82))
+
+
+### Bug Fixes
+
+* **history-search:** fix highlight not updating when search term changes ([4a1cfa5](https://github.com/nkmr-jp/prompt-line/commit/4a1cfa5e7c95856448e6d8e0719bedf5c8a01e8e))
+
+
+### Performance Improvements
+
+* **history-search:** optimize E2E rendering pipeline for faster input ([63660e4](https://github.com/nkmr-jp/prompt-line/commit/63660e4f40087e7ce988ffb268ab07404d7d5919))
+* **history-search:** optimize filter engine with caching and inlined scoring ([8345db2](https://github.com/nkmr-jp/prompt-line/commit/8345db21a8f375b889b7fd8a6d9e845f1075424d))
+* **history-search:** replace innerHTML with direct DOM building for search highlights ([d7e51b4](https://github.com/nkmr-jp/prompt-line/commit/d7e51b4acea32b670d800e8e85dcbaf5b034d094))
+* **history:** optimize rendering with DOM recycling and caching ([61980a6](https://github.com/nkmr-jp/prompt-line/commit/61980a6a6545cf0fd23e0e653513f1767409f85c))
+* **history:** optimize search and input performance (Phase 1-5) ([42cf475](https://github.com/nkmr-jp/prompt-line/commit/42cf47598754513823b7edc6b04c55094e496e7c))
+* **history:** optimize search rendering and add custom search enhancements ([14423cc](https://github.com/nkmr-jp/prompt-line/commit/14423cc4f32f3b38365a4309b971fe278b88b531))
+* **infinite-scroll:** optimize loadMore with result caching and incremental DOM ([6e84522](https://github.com/nkmr-jp/prompt-line/commit/6e84522be19bb084f3e3d2de461b8d80337c36e6))
+* **renderer:** optimize text input event handlers with early returns and pre-sorted skills ([b4366c5](https://github.com/nkmr-jp/prompt-line/commit/b4366c57a7733ae2d147a79be947f5bdba390e29))
+
+
+### Documentation
+
+* **mentions:** document new customSearch template variables and plain text file support ([fe03bbe](https://github.com/nkmr-jp/prompt-line/commit/fe03bbeb6b7eca1a335f74ac48d02d6da7151c78))
+* **README_ja:** improve installation steps and update descriptions for dependencies ([c2ecbaa](https://github.com/nkmr-jp/prompt-line/commit/c2ecbaaba9925a2ae02eb58e8917c15d7e02379a))
+* **readme:** reorganize installation sections with prerequisite note ([c63ffe7](https://github.com/nkmr-jp/prompt-line/commit/c63ffe77e94bbeae80225a0e8209fef98bf6ab8f))
+
+
+### Miscellaneous Chores
+
+* **config:** remove openclaw and opencode from example built-in commands ([a04e9b4](https://github.com/nkmr-jp/prompt-line/commit/a04e9b4efb9ad7892eaa08cb0ca200bb073239f6))
+* **settings:** remove obsolete built-in command examples ([a244472](https://github.com/nkmr-jp/prompt-line/commit/a244472e894504ac5698ed42aee112b296814a5e))
+
 ## [0.23.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.23.0...prompt-line-v0.23.1) (2026-02-22)
 
 
