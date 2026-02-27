@@ -2435,11 +2435,35 @@ Content`;
       const items = await loader.getItems('command');
 
       expect(items).toHaveLength(2);
-      // Items sorted by name (default asc)
-      const names = items.map(i => i.name);
-      expect(names).toContain('name,age,city');
-      expect(names).toContain('Alice,30,Tokyo');
+      // Preserves file order (not alphabetical)
+      expect(items[0]?.name).toBe('name,age,city');
+      expect(items[1]?.name).toBe('Alice,30,Tokyo');
       items.forEach(item => expect(item.description).toBe('data'));
+    });
+
+    test('should preserve file line order (not sort by name)', async () => {
+      loader = new CustomSearchLoader(createTestConfig([
+        {
+          name: '{line}',
+          type: 'command',
+          description: '{basename}',
+          path: '/path/to/logs',
+          pattern: '*.log',
+        },
+      ]));
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true, mtimeMs: 1000 } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('app.log', true)] as any);
+      // Alphabetically: CONNECT < ERROR < WARN, but file order is different
+      mockedFs.readFile.mockResolvedValue('WARN: Low memory\nERROR: Crash\nCONNECT: Retry');
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(3);
+      // Should follow file line order, not alphabetical
+      expect(items[0]?.name).toBe('WARN: Low memory');
+      expect(items[1]?.name).toBe('ERROR: Crash');
+      expect(items[2]?.name).toBe('CONNECT: Retry');
     });
   });
 });

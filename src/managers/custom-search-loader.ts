@@ -260,8 +260,9 @@ class CustomSearchLoader {
       let aValue: string;
       let bValue: string;
       if (field === 'name') {
-        aValue = a.name;
-        bValue = b.name;
+        // sortKeyがあればそちらを優先（プレーンテキストの行順保持用）
+        aValue = a.sortKey ?? a.name;
+        bValue = b.sortKey ?? b.name;
       } else if (field === 'description') {
         aValue = a.description;
         bValue = b.description;
@@ -547,6 +548,7 @@ class CustomSearchLoader {
 
       const heading = this.parseFirstLine(content);
 
+      let lineIndex = 0;
       for (const rawLine of lines) {
         const trimmed = rawLine.trim();
         if (!trimmed) continue;
@@ -561,8 +563,10 @@ class CustomSearchLoader {
           sourceId,
         };
 
+        // ユーザー指定の orderBy があればそちらを優先、なければ行順を保持
         const sortKey = this.resolveSortKey(entry, context);
-        if (sortKey) item.sortKey = sortKey;
+        item.sortKey = sortKey ?? String(lineIndex).padStart(8, '0');
+        lineIndex++;
         if (entry.label) {
           const resolvedLabel = resolveTemplate(entry.label, context);
           if (resolvedLabel) item.label = resolvedLabel;
