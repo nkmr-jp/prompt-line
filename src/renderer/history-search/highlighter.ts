@@ -10,11 +10,15 @@ export class HistorySearchHighlighter {
   /** CSS class for highlighted text */
   private highlightClass: string;
 
+  // Regex cache: avoids re-compiling RegExp per item when search term is unchanged
+  private cachedSearchTerm: string = '';
+  private cachedRegexes: RegExp[] = [];
+  private cachedReplacement: string = '';
+
   constructor(highlightClass: string = 'search-highlight') {
     this.highlightClass = highlightClass;
+    this.cachedReplacement = `<span class="${highlightClass}">$1</span>`;
   }
-
-
 
   /**
    * Split query into keywords (space-separated)
@@ -28,6 +32,9 @@ export class HistorySearchHighlighter {
    * Highlight search terms in text with XSS protection
    * Supports multiple keywords (space-separated)
    * Returns HTML string with highlighted matches
+   *
+   * Performance: RegExp objects are cached per search term to avoid
+   * re-compilation for each history item (typically 50 items per render)
    */
   public highlightSearchTerms(text: string, searchTerm: string): string {
     // Return escaped text if no search term
@@ -35,26 +42,30 @@ export class HistorySearchHighlighter {
       return escapeHtml(text);
     }
 
-    const keywords = this.splitKeywords(searchTerm);
-    if (keywords.length === 0) {
+    // Rebuild regex cache only when search term changes
+    if (searchTerm !== this.cachedSearchTerm) {
+      this.cachedSearchTerm = searchTerm;
+      const keywords = this.splitKeywords(searchTerm);
+      this.cachedRegexes = keywords.map(keyword => {
+        const escapedKeyword = escapeHtml(keyword);
+        const escapedPattern = escapedKeyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return new RegExp(`(${escapedPattern})`, 'gi');
+      });
+    }
+
+    if (this.cachedRegexes.length === 0) {
       return escapeHtml(text);
     }
 
     // Escape text for safety
     let result = escapeHtml(text);
 
-    // Highlight each keyword
-    for (const keyword of keywords) {
-      const escapedKeyword = escapeHtml(keyword);
-      // Escape regex special characters in keyword
-      const escapedPattern = escapedKeyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      // Create case-insensitive regex for matching
-      const regex = new RegExp(`(${escapedPattern})`, 'gi');
-      // Replace matches with highlighted spans
-      result = result.replace(
-        regex,
-        `<span class="${this.highlightClass}">$1</span>`
-      );
+    // Apply cached regexes
+    const replacement = this.cachedReplacement;
+    for (let i = 0; i < this.cachedRegexes.length; i++) {
+      const regex = this.cachedRegexes[i]!;
+      regex.lastIndex = 0;
+      result = result.replace(regex, replacement);
     }
 
     return result;

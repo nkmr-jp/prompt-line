@@ -16,6 +16,7 @@ export class HistoryUIManager {
   private thumbMouseDownHandler: ((e: MouseEvent) => void) | null = null;
   private documentMouseMoveHandler: ((e: MouseEvent) => void) | null = null;
   private documentMouseUpHandler: (() => void) | null = null;
+  private clickDelegationHandler: ((e: MouseEvent) => void) | null = null;
   private isDragging: boolean = false;
   private dragStartY: number = 0;
   private dragStartScrollTop: number = 0;
@@ -49,6 +50,17 @@ export class HistoryUIManager {
     };
 
     historyList.addEventListener('scroll', this.scrollHandler);
+
+    // Setup click delegation (single handler instead of per-item)
+    if (!this.clickDelegationHandler) {
+      this.clickDelegationHandler = (e: MouseEvent) => {
+        const target = (e.target as HTMLElement).closest('.history-item') as HTMLElement;
+        if (target?.dataset.text !== undefined) {
+          this.selectHistoryItemFromClick(target.dataset.text);
+        }
+      };
+      historyList.addEventListener('click', this.clickDelegationHandler);
+    }
 
     // Setup scrollbar hover interactions
     const scrollbar = document.getElementById('customScrollbar');
@@ -230,9 +242,12 @@ export class HistoryUIManager {
       // Create fragment for batch DOM updates to avoid layout thrashing
       const fragment = document.createDocumentFragment();
 
+      // Hoist search state once (avoids per-item getSearchManager() calls)
+      const searchTerm = isSearchMode ? (searchManager?.getSearchTerm() || '') : '';
+
       // Create all history items
       dataToRender.forEach((item) => {
-        const historyItem = this.createHistoryElement(item);
+        const historyItem = this.createHistoryElement(item, isSearchMode, searchTerm, searchManager);
         fragment.appendChild(historyItem);
       });
 
@@ -247,9 +262,8 @@ export class HistoryUIManager {
       }
       fragment.appendChild(countIndicator);
 
-      // Single DOM update: clear and append fragment
-      historyList.innerHTML = '';
-      historyList.appendChild(fragment);
+      // Single DOM update: replaceChildren avoids the double reflow of innerHTML='' + appendChild
+      historyList.replaceChildren(fragment);
 
       // Update scrollbar after content is rendered
       // Use requestAnimationFrame to ensure DOM layout is complete
@@ -266,7 +280,12 @@ export class HistoryUIManager {
     }
   }
 
-  private createHistoryElement(item: HistoryItem): HTMLElement {
+  private createHistoryElement(
+    item: HistoryItem,
+    isSearchMode: boolean,
+    searchTerm: string,
+    searchManager: { highlightSearchTerms(text: string, term: string): string } | null
+  ): HTMLElement {
     const historyItem = document.createElement('div');
     historyItem.className = 'history-item';
     historyItem.dataset.text = item.text;
@@ -274,13 +293,10 @@ export class HistoryUIManager {
 
     const textDiv = document.createElement('div');
     textDiv.className = 'history-text';
-    
+
     // Apply search highlighting if in search mode
     const displayText = item.text.replace(/\n/g, ' ');
-    const searchManager = this.getSearchManager();
-    const isSearchMode = searchManager?.isInSearchMode() || false;
-    const searchTerm = searchManager?.getSearchTerm() || '';
-    
+
     if (isSearchMode && searchTerm) {
       textDiv.innerHTML = searchManager?.highlightSearchTerms(displayText, searchTerm) || displayText;
     } else {
@@ -294,10 +310,7 @@ export class HistoryUIManager {
     historyItem.appendChild(textDiv);
     historyItem.appendChild(timeDiv);
 
-    historyItem.addEventListener('click', () => {
-      this.selectHistoryItemFromClick(item.text);
-    });
-
+    // Click handling is done via event delegation on the historyList
     return historyItem;
   }
 
@@ -459,12 +472,18 @@ export class HistoryUIManager {
     }
 
     // Remove scroll event listener
-    if (this.scrollHandler) {
+    if (this.scrollHandler || this.clickDelegationHandler) {
       const historyList = this.getHistoryList();
       if (historyList) {
-        historyList.removeEventListener('scroll', this.scrollHandler);
+        if (this.scrollHandler) {
+          historyList.removeEventListener('scroll', this.scrollHandler);
+        }
+        if (this.clickDelegationHandler) {
+          historyList.removeEventListener('click', this.clickDelegationHandler);
+        }
       }
       this.scrollHandler = null;
+      this.clickDelegationHandler = null;
     }
 
     // Remove scrollbar event listeners

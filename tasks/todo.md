@@ -38,7 +38,45 @@
 - ESLint: 0 errors
 - 全テスト: 41 suites, 1128 passed, 1 skipped
 
+## Phase 2: E2Eレンダリングパイプライン最適化
+
+フィルタエンジンは高速化済み（<0.3ms）だが体感速度が改善されなかったため、
+レンダリングパイプライン全体のボトルネックを特定・修正。
+
+### タスク一覧
+
+- [x] 1. highlighter.ts の RegExp キャッシュ最適化
+- [x] 2. history-ui-manager.ts の DOM 更新最適化
+  - [x] `innerHTML=''` → `replaceChildren()` (二重リフロー排除)
+  - [x] 検索状態のホイスト（per-item `getSearchManager()` 排除）
+  - [x] イベント委譲（per-item クリックハンドラ排除）
+- [x] 3. loadMore() の重複フィルタリング排除
+- [x] 4. デバウンス遅延削減 (150ms → 30ms)
+
+### 最適化の詳細
+
+| ボトルネック | Before | After | 効果 |
+|---|---|---|---|
+| デバウンス遅延 | 150ms | 30ms | **入力→表示の遅延を120ms削減** |
+| RegExp 生成 | 50個/レンダ | 1回/検索語 | **50x RegExp 生成削減** |
+| DOM リフロー | 2回 (innerHTML=''+appendChild) | 1回 (replaceChildren) | **リフロー50%削減** |
+| getSearchManager() | 50回/レンダ | 1回/レンダ | **関数呼び出し98%削減** |
+| クリックハンドラ | 50個/レンダ | 1個（委譲） | **イベントリスナ98%削減** |
+| filterWithLimit() in loadMore | 2回 | 1回 | **フィルタ処理50%削減** |
+
+### 品質確認
+
+- TypeScript typecheck: PASS
+- 全テスト: 41 suites, 1128 passed, 1 skipped
+
 ## 変更ファイル
 
+### Phase 1（フィルタエンジン最適化）
 - `src/renderer/history-search/filter-engine.ts` - コア最適化実装
 - `src/renderer/history-search/history-search-manager.ts` - キャッシュ連携
+
+### Phase 2（E2Eレンダリング最適化）
+- `src/renderer/history-search/types.ts` - デバウンス遅延 150ms → 30ms
+- `src/renderer/history-search/highlighter.ts` - RegExp キャッシュ追加
+- `src/renderer/history-ui-manager.ts` - replaceChildren、イベント委譲、検索状態ホイスト
+- `src/renderer/history-search/history-search-manager.ts` - loadMore 重複排除

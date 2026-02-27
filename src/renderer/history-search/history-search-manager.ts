@@ -223,18 +223,10 @@ export class HistorySearchManager implements IInitializable {
     const config = this.filterEngine.getConfig();
     const query = this.searchInput?.value.trim() || '';
 
-    // Get current total to check if we can load more
-    const currentResult = this.filterEngine.filterWithLimit(this.historyData, query, this.currentDisplayLimit);
-    if (currentResult.items.length >= currentResult.totalMatches) {
-      // Already showing all items
-      return;
-    }
-
-    // Increase display limit
+    // Increase display limit and filter once (eliminates duplicate filterWithLimit call)
     this.currentDisplayLimit += config.maxDisplayResults;
-
-    // Re-filter with new limit
     const result = this.filterEngine.filterWithLimit(this.historyData, query, this.currentDisplayLimit);
+
     this.callbacks.onSearchStateChange(true, result.items, result.totalMatches);
     this.notifyResultCount(result.items.length, result.totalMatches);
   }
