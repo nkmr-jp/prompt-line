@@ -155,3 +155,37 @@ DOM リサイクルにより createElement/replaceChildren のコストを排除
 ### Phase 4（インクリメンタルサーチ レンダリング最適化）
 - `src/renderer/utils/time-formatter.ts` - formatTime() に now パラメータ追加
 - `src/renderer/history-ui-manager.ts` - DOMリサイクル、updateHistoryElement、updateCountIndicator
+
+## Phase 5: テキスト入力時の引っかかり修正
+
+v0.23で追加されたagentSkill/mention機能により、textareaへのキーストローク毎に
+3つの独立inputイベントリスナが累積2.7-6.9msのオーバーヘッドを発生させていた。
+
+### タスク一覧
+
+- [x] 1. clearHistorySelection() ガード追加
+  - historyIndex === -1 の時にDOM操作をスキップ（querySelectorAll排除）
+- [x] 2. AgentSkillManager: sortedSkills のプリソート
+  - checkForArgumentHintAtCursor()内の毎回ソートを排除
+- [x] 3. checkForAgentSkill()/checkForArgumentHintAtCursor() の早期リターン最適化
+  - `/` が含まれない場合にextractTriggerQueryAtCursor/スキルループ呼び出しを排除
+- [x] 4. テスト・typecheck通過の確認
+
+### 最適化の詳細
+
+| ボトルネック | Before | After | 効果 |
+|---|---|---|---|
+| clearHistorySelection() | 毎キーストローク querySelectorAll+forEach | historyIndex===-1 で早期リターン | **DOM操作99%削減** |
+| checkForArgumentHintAtCursor sort | 毎回 [...skills].sort() | loadSkills時1回のみ | **配列コピー+ソート排除** |
+| checkForAgentSkill() | 毎回 extractTriggerQueryAtCursor | '/'無しで早期リターン | **通常入力時の処理排除** |
+| checkForArgumentHintAtCursor() | 毎回 skills ループ | '/'無しで早期リターン | **通常入力時の処理排除** |
+
+### 品質確認
+
+- TypeScript typecheck: PASS
+- 全テスト: 41 suites, 1134 passed, 1 skipped
+
+### 変更ファイル
+
+- `src/renderer/history-ui-manager.ts` - clearHistorySelection() 早期リターンガード
+- `src/renderer/agent-skill-manager.ts` - sortedSkillsByNameLength プリソート、'/'早期リターン

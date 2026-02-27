@@ -542,8 +542,11 @@ export class HistoryUIManager {
   }
 
   public clearHistorySelection(): void {
+    // Skip DOM operations if no selection is active
+    if (this.historyIndex === -1 && !this.keyboardNavigationTimeout) return;
+
     this.historyIndex = -1;
-    
+
     // Clear all flash effects
     const historyList = this.getHistoryList();
     if (historyList) {
