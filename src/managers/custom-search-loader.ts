@@ -493,7 +493,12 @@ class CustomSearchLoader {
         const resolvedHint = resolveTemplate(entry.argumentHint, context);
         if (resolvedHint) item.argumentHint = resolvedHint;
       }
-      if (entry.inputFormat) item.inputFormat = entry.inputFormat;
+      if (entry.inputFormat) {
+        item.inputFormat = entry.inputFormat;
+        if (entry.inputFormat !== 'name' && entry.inputFormat !== 'path') {
+          item.inputText = resolveTemplate(entry.inputFormat, context);
+        }
+      }
       item.updatedAt = fileStat.mtimeMs;
 
       const displayTime = this.resolveDisplayTime(entry, context, fileStat.mtimeMs);
@@ -583,7 +588,12 @@ class CustomSearchLoader {
           const resolvedHint = resolveTemplate(entry.argumentHint, context);
           if (resolvedHint) item.argumentHint = resolvedHint;
         }
-        if (entry.inputFormat) item.inputFormat = entry.inputFormat;
+        if (entry.inputFormat) {
+          item.inputFormat = entry.inputFormat;
+          if (entry.inputFormat !== 'name' && entry.inputFormat !== 'path') {
+            item.inputText = resolveTemplate(entry.inputFormat, context);
+          }
+        }
         item.updatedAt = fileStat.mtimeMs;
 
         const displayTime = this.resolveDisplayTime(entry, context, fileStat.mtimeMs);
@@ -666,7 +676,12 @@ class CustomSearchLoader {
           const resolvedHint = resolveTemplate(entry.argumentHint, context);
           if (resolvedHint) item.argumentHint = resolvedHint;
         }
-        if (entry.inputFormat) item.inputFormat = entry.inputFormat;
+        if (entry.inputFormat) {
+          item.inputFormat = entry.inputFormat;
+          if (entry.inputFormat !== 'name' && entry.inputFormat !== 'path') {
+            item.inputText = resolveTemplate(entry.inputFormat, context);
+          }
+        }
 
         const displayTime = this.resolveDisplayTime(entry, context);
         if (displayTime !== undefined) item.displayTime = displayTime;
@@ -847,7 +862,12 @@ class CustomSearchLoader {
       const resolvedHint = resolveTemplate(entry.argumentHint, context);
       if (resolvedHint) item.argumentHint = resolvedHint;
     }
-    if (entry.inputFormat) item.inputFormat = entry.inputFormat;
+    if (entry.inputFormat) {
+      item.inputFormat = entry.inputFormat;
+      if (entry.inputFormat !== 'name' && entry.inputFormat !== 'path') {
+        item.inputText = resolveTemplate(entry.inputFormat, context);
+      }
+    }
 
     const displayTime = this.resolveDisplayTime(entry, context);
     if (displayTime !== undefined) item.displayTime = displayTime;

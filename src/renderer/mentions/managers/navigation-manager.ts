@@ -502,7 +502,10 @@ export class NavigationManager {
     // Default to 'name' for agents (backward compatible behavior)
     const inputFormat = agent.inputFormat ?? 'name';
 
-    if (inputFormat === 'path') {
+    if (agent.inputText) {
+      // Template format: insert resolved text (no @)
+      this.callbacks.insertFilePathWithoutAt(agent.inputText);
+    } else if (inputFormat === 'path') {
       // For 'path' format, replace @ and query with just the file path (no @)
       this.callbacks.insertFilePathWithoutAt(agent.filePath);
     } else {
@@ -519,8 +522,8 @@ export class NavigationManager {
     this.callbacks.hideSuggestions();
 
     // Callback for external handling
-    const insertText = inputFormat === 'path' ? agent.filePath : agent.name;
-    this.callbacks.onFileSelected(inputFormat === 'name' ? `@${insertText}` : insertText);
+    const insertText = agent.inputText ?? (inputFormat === 'path' ? agent.filePath : agent.name);
+    this.callbacks.onFileSelected(agent.inputText ? insertText : (inputFormat === 'name' ? `@${insertText}` : insertText));
   }
 
   /**

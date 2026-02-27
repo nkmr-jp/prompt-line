@@ -46,7 +46,8 @@ interface AgentSkillItem {
   argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
-  inputFormat?: InputFormatType;  // 入力フォーマット（'name' | 'path'）
+  inputFormat?: InputFormatType;  // 入力フォーマット（'name' | 'path' | テンプレート）
+  inputText?: string;  // テンプレート解決済みの入力テキスト
   source?: string;  // Source tool identifier (e.g., 'claude-code') for filtering
   displayName?: string;  // Human-readable source name for display (e.g., 'Claude Code')
   updatedAt?: number;  // File modification timestamp (mtimeMs)
@@ -802,7 +803,9 @@ export class AgentSkillManager implements IInitializable {
     // Determine what to insert based on inputFormat setting
     // Default to 'name' for commands (backward compatible behavior)
     const inputFormat = command.inputFormat ?? 'name';
-    const skillText = inputFormat === 'path' ? command.filePath : `/${command.name}`;
+    const skillText = command.inputText
+      ? command.inputText
+      : inputFormat === 'path' ? command.filePath : `/${command.name}`;
 
     // Show argumentHint if available, otherwise hide suggestions
     if (command.argumentHint) {

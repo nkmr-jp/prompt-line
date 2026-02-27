@@ -451,8 +451,10 @@ export interface CustomSearchItem {
   sourceId: string;
   /** カスタムソートキー（orderByテンプレートの解決値） */
   sortKey?: string;
-  /** 入力フォーマット（'name' | 'path'） */
+  /** 入力フォーマット（'name' | 'path' | テンプレート文字列） */
   inputFormat?: InputFormatType;
+  /** テンプレート解決済みの入力テキスト（inputFormatがテンプレートの場合に使用） */
+  inputText?: string;
   /** ファイル更新日時（mtimeMs） */
   updatedAt?: number;
   /** 表示用日時（displayTime設定で解決された値。undefinedはupdatedAtにフォールバック、nullは非表示） */
@@ -468,7 +470,8 @@ export interface AgentSkillItem {
   argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
-  inputFormat?: InputFormatType;  // 入力フォーマット（'name' | 'path'）
+  inputFormat?: InputFormatType;  // 入力フォーマット（'name' | 'path' | テンプレート）
+  inputText?: string;  // テンプレート解決済みの入力テキスト
   source?: string;  // Source tool identifier (e.g., 'claude-code') for filtering
   displayName?: string;  // Human-readable source name for display (e.g., 'Claude Code')
   updatedAt?: number;  // File modification timestamp (mtimeMs)
@@ -482,7 +485,8 @@ export interface AgentItem {
   description: string;
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
-  inputFormat?: InputFormatType;  // 入力フォーマット（'name' | 'path'）
+  inputFormat?: InputFormatType;  // 入力フォーマット（'name' | 'path' | テンプレート）
+  inputText?: string;  // テンプレート解決済みの入力テキスト
   color?: ColorValue;
   icon?: string;  // Codicon icon class name (e.g., "codicon-rocket")
   label?: string;

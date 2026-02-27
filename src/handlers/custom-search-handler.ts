@@ -163,6 +163,9 @@ class CustomSearchHandler {
         if (item.inputFormat) {
           cmd.inputFormat = item.inputFormat;
         }
+        if (item.inputText) {
+          cmd.inputText = item.inputText;
+        }
         if (item.updatedAt) {
           cmd.updatedAt = item.updatedAt;
         }
@@ -292,6 +295,9 @@ class CustomSearchHandler {
         }
         if (item.inputFormat) {
           agent.inputFormat = item.inputFormat;
+        }
+        if (item.inputText) {
+          agent.inputText = item.inputText;
         }
         if (item.color) {
           agent.color = item.color;
