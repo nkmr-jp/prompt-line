@@ -61,10 +61,8 @@ fileOpener:
 # Update: pnpm run update-built-in-commands (reset to defaults with confirmation)
 builtInCommands:                      # List of tools to enable
   - claude
-  # - openclaw
   # - codex
   # - gemini
-  # - opencode
 
 # ============================================================================
 # AGENT SKILLS SETTINGS
