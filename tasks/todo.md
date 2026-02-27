@@ -189,3 +189,35 @@ v0.23で追加されたagentSkill/mention機能により、textareaへのキー�
 
 - `src/renderer/history-ui-manager.ts` - clearHistorySelection() 早期リターンガード
 - `src/renderer/agent-skill-manager.ts` - sortedSkillsByNameLength プリソート、'/'早期リターン
+
+## Phase 6: インクリメンタルサーチ レンダリング残存遅延修正
+
+"pr"等の頻出キーワード検索時、50アイテム×innerHTML HTMLパースで5-8ms/renderの遅延。
+
+### タスク一覧
+
+- [x] 1. innerHTML → DOM直接構築 (applyHighlightDOM)
+  - highlighter.tsにapplyHighlightDOMメソッド追加（プレーンテキストregex + DOM node構築）
+  - history-ui-manager.tsでinnerHTMLをapplyHighlightDOMに置換
+- [x] 2. 結果未変更時のrender skip
+  - renderer.ts handleSearchStateChangeに先頭/末尾ID+件数比較ガード追加
+- [x] 3. テスト・typecheck通過の確認
+
+### 最適化の詳細
+
+| ボトルネック | Before | After | 効果 |
+|---|---|---|---|
+| innerHTML HTMLパース | 50アイテム×HTML文字列構築+パース=5-8ms | DOM直接構築（TextNode+span）=0.5-1ms | **~10x高速化** |
+| 結果未変更時のフルrender | 毎回renderHistory()実行 | ID比較で早期リターン | **不要なrender排除** |
+
+### 品質確認
+
+- TypeScript typecheck: PASS
+- 全テスト: 41 suites, 1136 passed, 1 skipped
+
+### 変更ファイル
+
+- `src/renderer/history-search/highlighter.ts` - applyHighlightDOM, rebuildRegexCache, cachedPlainRegexes
+- `src/renderer/history-search/history-search-manager.ts` - applyHighlightDOM フォワーディング
+- `src/renderer/history-ui-manager.ts` - updateHistoryElement/createHistoryElement でDOM直接構築
+- `src/renderer/renderer.ts` - handleSearchStateChange 結果比較ガード

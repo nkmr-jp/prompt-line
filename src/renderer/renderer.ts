@@ -566,6 +566,18 @@ export class PromptLineRenderer {
       return;
     }
 
+    // Skip render if search results haven't changed (avoids unnecessary DOM recycling)
+    if (isSearchMode && this.filteredHistoryData.length > 0) {
+      const prevData = this.filteredHistoryData;
+      if (filteredData.length === prevData.length &&
+          filteredData[0]?.id === prevData[0]?.id &&
+          filteredData[filteredData.length - 1]?.id === prevData[prevData.length - 1]?.id) {
+        this.filteredHistoryData = filteredData;
+        this.totalMatchCount = totalMatches;
+        return;
+      }
+    }
+
     // Only clear history selection when entering search mode or when items are filtered down (not when loading more)
     const isLoadingMore = filteredData.length > this.filteredHistoryData.length;
     const shouldClearSelection = !isSearchMode || (filteredData.length !== this.filteredHistoryData.length && !isLoadingMore);

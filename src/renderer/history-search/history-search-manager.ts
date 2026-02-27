@@ -260,6 +260,13 @@ export class HistorySearchManager implements IInitializable {
   }
 
   /**
+   * Apply search term highlighting directly to a DOM element (no innerHTML)
+   */
+  public applyHighlightDOM(parent: HTMLElement, text: string, searchTerm: string): void {
+    this.highlighter.applyHighlightDOM(parent, text, searchTerm);
+  }
+
+  /**
    * Get current search term
    */
   public getSearchTerm(): string {

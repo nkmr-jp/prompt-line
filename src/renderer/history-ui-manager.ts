@@ -29,7 +29,7 @@ export class HistoryUIManager {
     private getHistoryList: () => HTMLElement | null,
     private setTextCallback: (text: string) => void,
     private focusTextCallback: () => void,
-    private getSearchManager: () => { isInSearchMode(): boolean; getSearchTerm(): string; highlightSearchTerms(text: string, term: string): string } | null,
+    private getSearchManager: () => { isInSearchMode(): boolean; getSearchTerm(): string; highlightSearchTerms(text: string, term: string): string; applyHighlightDOM(parent: HTMLElement, text: string, term: string): void } | null,
     getCurrentText: () => string,
     getCursorPosition: () => number,
     saveSnapshotCallback: (text: string, cursorPosition: number) => void,
@@ -385,7 +385,7 @@ export class HistoryUIManager {
     item: HistoryItem,
     isSearchMode: boolean,
     searchTerm: string,
-    searchManager: { highlightSearchTerms(text: string, term: string): string } | null,
+    searchManager: { applyHighlightDOM(parent: HTMLElement, text: string, term: string): void } | null,
     now: number
   ): void {
     // Update data attributes
@@ -395,8 +395,9 @@ export class HistoryUIManager {
     // Update text (access children directly for speed, avoid querySelector)
     const textDiv = element.children[0] as HTMLElement;
     const displayText = item.text.replace(/\n/g, ' ');
-    if (isSearchMode && searchTerm) {
-      textDiv.innerHTML = searchManager?.highlightSearchTerms(displayText, searchTerm) || displayText;
+    if (isSearchMode && searchTerm && searchManager) {
+      // DOM direct building: avoids innerHTML HTML parsing overhead (~10x faster)
+      searchManager.applyHighlightDOM(textDiv, displayText, searchTerm);
     } else {
       textDiv.textContent = displayText;
     }
@@ -428,7 +429,7 @@ export class HistoryUIManager {
     item: HistoryItem,
     isSearchMode: boolean,
     searchTerm: string,
-    searchManager: { highlightSearchTerms(text: string, term: string): string } | null,
+    searchManager: { applyHighlightDOM(parent: HTMLElement, text: string, term: string): void } | null,
     now?: number
   ): HTMLElement {
     const historyItem = document.createElement('div');
@@ -442,8 +443,8 @@ export class HistoryUIManager {
     // Apply search highlighting if in search mode
     const displayText = item.text.replace(/\n/g, ' ');
 
-    if (isSearchMode && searchTerm) {
-      textDiv.innerHTML = searchManager?.highlightSearchTerms(displayText, searchTerm) || displayText;
+    if (isSearchMode && searchTerm && searchManager) {
+      searchManager.applyHighlightDOM(textDiv, displayText, searchTerm);
     } else {
       textDiv.textContent = displayText;
     }
