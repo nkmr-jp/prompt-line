@@ -149,7 +149,8 @@ export interface FileCacheStats {
 
 /**
  * 入力フォーマットの種類
- * - name: 名前のみを挿入（例: "config.ts"）
- * - path: パスを挿入（例: "src/config.ts"）
+ * - 'name': 名前のみを挿入（例: "config.ts"）
+ * - 'path': パスを挿入（例: "src/config.ts"）
+ * - テンプレート文字列: テンプレート変数を展開して挿入（例: "~/ghq/{line}"）
  */
-export type InputFormatType = 'name' | 'path';
+export type InputFormatType = string;

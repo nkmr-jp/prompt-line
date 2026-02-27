@@ -29,9 +29,14 @@ commands:
   - name: context
     description: Visualize current context usage as a colored grid
   - name: copy
-    description: Copy Claude's last response to clipboard as markdown
+    description: Copy the last response to clipboard (with code block picker when applicable)
   - name: cost
     description: Show token usage statistics
+  - name: debug
+    description: Troubleshoot the current session by reading the session debug log
+    argument-hint: "[description]"
+  - name: desktop
+    description: Hand off the current CLI session to the Claude Code Desktop app (macOS and Windows only)
   - name: doctor
     description: Checks the health of your Claude Code installation
   - name: exit
@@ -69,14 +74,14 @@ commands:
   - name: mobile
     description: Show QR code to download the Claude mobile app
   - name: model
-    description: Select or change the AI model
+    description: Select or change the AI model (use left/right arrows to adjust effort level)
   - name: output-style
     description: Set the output style directly or from a selection menu
     argument-hint: "[style]"
   - name: permissions
     description: View or update permissions
   - name: plan
-    description: Enable plan mode or view the current session plan
+    description: Enter plan mode directly from the prompt
   - name: plugin
     description: Manage Claude Code plugins
   - name: pr-comments
@@ -86,18 +91,22 @@ commands:
   - name: remote-env
     description: Configure remote sessions and environments
     argument-hint: "[settings]"
+  - name: rc
+    description: Alias for /remote-control
   - name: release-notes
     description: View release notes
+  - name: remote-control
+    description: Start a Remote Control session to continue from another device via claude.ai/code or Claude mobile app
   - name: rename
-    description: Rename the current session for easier identification
-    argument-hint: "<name>"
+    description: Rename the current session (without a name, generates one from conversation history)
+    argument-hint: "[name]"
   - name: resume
     description: "Resume a conversation by ID or name, or open the session picker"
     argument-hint: "[session]"
   - name: review
     description: Request code review
   - name: rewind
-    description: Rewind the conversation and/or code
+    description: Rewind the conversation and/or code, or summarize from a selected message
   - name: sandbox
     description: "Enable sandboxed bash tool with filesystem and network isolation for safer, more autonomous execution"
   - name: security-review
@@ -115,12 +124,12 @@ commands:
   - name: tasks
     description: List and manage background tasks
   - name: teleport
-    description: Resume sessions at claude.ai/code for seamless web integration
+    description: Resume a remote session from claude.ai (subscribers only)
     argument-hint: "[session]"
   - name: terminal-setup
     description: Install Shift+Enter key binding for newlines (iTerm2 and VSCode only)
   - name: theme
-    description: Change the theme
+    description: Change the color theme
   - name: todos
     description: List current TODO items
   - name: usage

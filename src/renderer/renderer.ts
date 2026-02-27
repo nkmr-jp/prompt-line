@@ -53,6 +53,8 @@ export class PromptLineRenderer {
   private initCompleted: boolean = false;
   // Throttle timeout for mousemove events
   private mouseMoveThrottleTimeout: number | null = null;
+  // Last search term that was rendered (for render skip optimization)
+  private _lastRenderedSearchTerm: string = '';
 
   constructor() {
     this.domManager = new DomManager();
@@ -550,7 +552,38 @@ export class PromptLineRenderer {
     this.searchManager?.toggleSearchMode();
   }
 
+  // Flag to track when loadMore is in progress (for incremental append optimization)
+  private _isLoadingMore: boolean = false;
+
   private handleSearchStateChange(isSearchMode: boolean, filteredData: HistoryItem[], totalMatches?: number): void {
+    // Incremental append for loadMore (avoids full DOM rebuild)
+    if (this._isLoadingMore && isSearchMode) {
+      const previousLength = this.filteredHistoryData.length;
+      this.filteredHistoryData = filteredData;
+      this.totalMatchCount = totalMatches;
+      const newItems = filteredData.slice(previousLength);
+      if (newItems.length > 0) {
+        this.historyUIManager.appendHistoryItems(newItems, totalMatches);
+      }
+      return;
+    }
+
+    // Skip render if search results AND search term haven't changed
+    // (search term check is required because highlight needs updating even when items are the same)
+    if (isSearchMode && this.filteredHistoryData.length > 0) {
+      const currentSearchTerm = this.searchManager?.getSearchTerm() || '';
+      const prevData = this.filteredHistoryData;
+      if (currentSearchTerm === this._lastRenderedSearchTerm &&
+          filteredData.length === prevData.length &&
+          filteredData[0]?.id === prevData[0]?.id &&
+          filteredData[filteredData.length - 1]?.id === prevData[prevData.length - 1]?.id) {
+        this.filteredHistoryData = filteredData;
+        this.totalMatchCount = totalMatches;
+        return;
+      }
+      this._lastRenderedSearchTerm = currentSearchTerm;
+    }
+
     // Only clear history selection when entering search mode or when items are filtered down (not when loading more)
     const isLoadingMore = filteredData.length > this.filteredHistoryData.length;
     const shouldClearSelection = !isSearchMode || (filteredData.length !== this.filteredHistoryData.length && !isLoadingMore);
@@ -564,6 +597,7 @@ export class PromptLineRenderer {
       this.nonSearchDisplayLimit = DEFAULT_DISPLAY_LIMIT;
       this.filteredHistoryData = this.historyData.slice(0, this.nonSearchDisplayLimit);
       this.totalMatchCount = this.historyData.length;
+      this._lastRenderedSearchTerm = '';
     }
     this.renderHistory();
 
@@ -578,17 +612,24 @@ export class PromptLineRenderer {
   }
 
   private handleLoadMore(): void {
-    if (this.searchManager?.isInSearchMode()) {
-      this.searchManager.loadMore();
-    } else {
-      // Non-search mode: load more items from historyData
-      if (this.filteredHistoryData.length >= this.historyData.length) {
-        // Already showing all items
-        return;
+    this._isLoadingMore = true;
+    try {
+      if (this.searchManager?.isInSearchMode()) {
+        // Search mode: loadMore triggers handleSearchStateChange which uses incremental append
+        this.searchManager.loadMore();
+      } else {
+        // Non-search mode: incremental append directly
+        if (this.filteredHistoryData.length >= this.historyData.length) {
+          return;
+        }
+        const previousLength = this.filteredHistoryData.length;
+        this.nonSearchDisplayLimit += LOAD_MORE_INCREMENT;
+        this.filteredHistoryData = this.historyData.slice(0, this.nonSearchDisplayLimit);
+        const newItems = this.filteredHistoryData.slice(previousLength);
+        this.historyUIManager.appendHistoryItems(newItems, this.historyData.length);
       }
-      this.nonSearchDisplayLimit += LOAD_MORE_INCREMENT;
-      this.filteredHistoryData = this.historyData.slice(0, this.nonSearchDisplayLimit);
-      this.renderHistory();
+    } finally {
+      this._isLoadingMore = false;
     }
   }
 

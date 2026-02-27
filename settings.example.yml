@@ -61,7 +61,6 @@ fileOpener:
 # Update: pnpm run update-built-in-commands (reset to defaults with confirmation)
 builtInCommands:                      # List of tools to enable
   - claude
-  # - openclaw
   # - codex
   # - gemini
 
@@ -104,8 +103,8 @@ agentSkills:
   - name: "{prefix}:{basename}"
     description: "{frontmatter@description}"
     path: ~/.claude/plugins/cache
-    label: "command"
-    color: "teal"
+    label: "plugin command"
+    color: "green"
     pattern: "**/commands/*.md"
     prefixPattern: "**/.claude-plugin/*.json@name"
     argumentHint: "{frontmatter@argument-hint}"
@@ -113,8 +112,8 @@ agentSkills:
   - name: "{prefix}:{frontmatter@name}"
     description: "{frontmatter@description}"
     path: ~/.claude/plugins/cache
-    label: "skill"
-    color: "teal"
+    label: "plugin skill"
+    color: "cyan"
     pattern: "**/*/SKILL.md"
     prefixPattern: "**/.claude-plugin/*.json@name"
     argumentHint: "{frontmatter@argument-hint}"
@@ -123,7 +122,7 @@ agentSkills:
 # ============================================================================
 # MENTION SETTINGS (@ mentions)
 # ============================================================================
-# Configure @ mention sources: fileSearch, symbolSearch, customSearch
+# Configure @ mention sources: customSearch, fileSearch, symbolSearch
 # Template variables for customSearch: {basename}, {frontmatter@fieldName}
 
 mentions:
@@ -168,6 +167,7 @@ mentions:
   #   "*.jsonl"                           — JSONL files (one JSON per line)
   customSearch:
     - name: "{basename}(agent)"
+      label: "agent"
       description: "{frontmatter@description}"
       path: ~/.claude/agents
       pattern: "*.md"
@@ -175,6 +175,8 @@ mentions:
       displayTime: "{updatedAt}"
 
     - name: "{prefix}:{basename}(agent)"
+      label: "plugin agent"
+      color: "yellow"
       description: "{frontmatter@description}"
       path: ~/.claude/plugins/cache
       pattern: "**/agents/*.md"

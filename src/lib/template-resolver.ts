@@ -23,6 +23,7 @@ export interface TemplateContext {
   filePath?: string;
   frontmatter: Record<string, string>;
   heading?: string;
+  line?: string;
   jsonData?: Record<string, unknown>;
   parentJsonDataStack?: Record<string, unknown>[];
 }
@@ -68,6 +69,9 @@ export function resolveTemplate(template: string, context: TemplateContext): str
 
   // Replace {heading}
   result = result.replace(/\{heading\}/g, context.heading ?? '');
+
+  // Replace {line}
+  result = result.replace(/\{line\}/g, context.line ?? '');
 
   // Replace {frontmatter@fieldName}
   result = result.replace(/\{frontmatter@([^}]+)\}/g, (_, fieldName: string) => {

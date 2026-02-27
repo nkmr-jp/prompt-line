@@ -126,9 +126,12 @@ export class HistorySearchManager implements IInitializable {
 
   /**
    * Update history data for filtering
+   * Pre-computes normalized text cache for faster subsequent searches
    */
   public updateHistoryData(historyData: HistoryItem[]): void {
     this.historyData = historyData;
+    // Invalidate cache so next filter call will re-prepare
+    this.filterEngine.invalidateCache();
   }
 
   /**
@@ -220,18 +223,10 @@ export class HistorySearchManager implements IInitializable {
     const config = this.filterEngine.getConfig();
     const query = this.searchInput?.value.trim() || '';
 
-    // Get current total to check if we can load more
-    const currentResult = this.filterEngine.filterWithLimit(this.historyData, query, this.currentDisplayLimit);
-    if (currentResult.items.length >= currentResult.totalMatches) {
-      // Already showing all items
-      return;
-    }
-
-    // Increase display limit
+    // Increase display limit and filter once (eliminates duplicate filterWithLimit call)
     this.currentDisplayLimit += config.maxDisplayResults;
-
-    // Re-filter with new limit
     const result = this.filterEngine.filterWithLimit(this.historyData, query, this.currentDisplayLimit);
+
     this.callbacks.onSearchStateChange(true, result.items, result.totalMatches);
     this.notifyResultCount(result.items.length, result.totalMatches);
   }
@@ -262,6 +257,13 @@ export class HistorySearchManager implements IInitializable {
    */
   public highlightSearchTerms(text: string, searchTerm: string): string {
     return this.highlighter.highlightSearchTerms(text, searchTerm);
+  }
+
+  /**
+   * Apply search term highlighting directly to a DOM element (no innerHTML)
+   */
+  public applyHighlightDOM(parent: HTMLElement, text: string, searchTerm: string): void {
+    this.highlighter.applyHighlightDOM(parent, text, searchTerm);
   }
 
   /**

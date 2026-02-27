@@ -66,18 +66,19 @@ These can be customized in the settings file (`~/.prompt-line/settings.yml`). Se
 
 ## 📦 Installation
 
-### Command Installation
-
-Install [fd](https://github.com/sharkdp/fd) and [rg (ripgrep)](https://github.com/BurntSushi/ripgrep) commands. Used for file search and symbol search features.
-```bash
-brew install fd ripgrep
-```
-
 ### System Requirements
 
 - macOS 10.14 or later
 - Node.js 20 or later
 - Xcode Command Line Tools or Xcode (for compiling native tools)
+
+### Command Installation
+
+Install [fd](https://github.com/sharkdp/fd) and [rg (ripgrep)](https://github.com/BurntSushi/ripgrep) commands. Used for file search and symbol search features.
+Skip if already installed.
+```bash
+brew install fd ripgrep
+```
 
 ### Build from Source
 

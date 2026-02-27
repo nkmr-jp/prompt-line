@@ -9,22 +9,28 @@ color: emerald  # You can also use hex codes like "#00CC66"
 reference: https://developers.openai.com/codex/cli/slash-commands/
 
 commands:
+  - name: agent
+    description: Switch the active agent thread
   - name: approvals
     description: Set what Codex can do without asking first
+  - name: apps
+    description: Browse apps (connectors) and insert them into your prompt
   - name: compact
     description: Summarize the visible conversation to free tokens
   - name: diff
     description: Show the Git diff, including files Git isn't tracking yet
   - name: elevate-sandbox
     description: Upgrade to elevated sandbox mode for enhanced permissions
+  - name: debug-config
+    description: Print config layer and requirements diagnostics
   - name: exit
-    description: Exit the CLI
+    description: Exit the CLI (alias for /quit)
   - name: experimental
-    description: Open the experimental menu to enable features from beta program
+    description: Toggle experimental features
   - name: feedback
     description: Send logs to the Codex maintainers
   - name: fork
-    description: Clone a conversation into a new thread
+    description: Fork the current conversation into a new thread
     argument-hint: "[session]"
   - name: init
     description: Generate an AGENTS.md scaffold in the current directory
@@ -36,18 +42,30 @@ commands:
     description: Attach a file to the conversation
     argument-hint: "<path>"
   - name: model
-    description: Choose the active model and reasoning effort
+    description: Choose the active model (and reasoning effort, when available)
   - name: new
     description: Start a new conversation inside the same CLI session
+  - name: permissions
+    description: Set what Codex can do without asking first
+  - name: personality
+    description: Choose a communication style for responses
+  - name: plan
+    description: Switch to plan mode and optionally send a prompt
+  - name: ps
+    description: Show experimental background terminals and their recent output
   - name: quit
-    description: Exit the CLI immediately
+    description: Exit the CLI
   - name: resume
-    description: Resume an old chat
+    description: Resume a saved conversation from your session list
   - name: review
     description: Ask Codex to review your working tree
   - name: skills
     description: Browse and insert skills (experimental)
   - name: status
     description: Display session configuration and token usage
+  - name: sandbox-add-read-dir
+    description: Grant sandbox read access to an extra directory (Windows only)
+  - name: statusline
+    description: Configure TUI status-line fields interactively
   - name: undo
     description: Revert Codex's most recent turn
