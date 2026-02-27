@@ -126,9 +126,12 @@ export class HistorySearchManager implements IInitializable {
 
   /**
    * Update history data for filtering
+   * Pre-computes normalized text cache for faster subsequent searches
    */
   public updateHistoryData(historyData: HistoryItem[]): void {
     this.historyData = historyData;
+    // Invalidate cache so next filter call will re-prepare
+    this.filterEngine.invalidateCache();
   }
 
   /**
