@@ -2273,4 +2273,197 @@ Content`;
       expect(items[0]?.sortKey).toBeUndefined();
     });
   });
+
+  describe('plain text file support', () => {
+    test('should create one item per non-empty line in .txt file', async () => {
+      loader = new CustomSearchLoader(createTestConfig([
+        {
+          name: '{line}',
+          type: 'command',
+          description: '{basename}',
+          path: '/path/to/logs',
+          pattern: '*.txt',
+        },
+      ]));
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true, mtimeMs: 1000 } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('server.txt', true)] as any);
+      mockedFs.readFile.mockResolvedValue('2024-01-01 Server started\nLine 2\nLine 3');
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(3);
+      expect(items[0]?.name).toBe('2024-01-01 Server started');
+      expect(items[1]?.name).toBe('Line 2');
+      expect(items[2]?.name).toBe('Line 3');
+      expect(items[0]?.description).toBe('server');
+    });
+
+    test('should create one item per line in .log file', async () => {
+      loader = new CustomSearchLoader(createTestConfig([
+        {
+          name: '{line}',
+          type: 'command',
+          description: '{basename}',
+          path: '/path/to/logs',
+          pattern: '*.log',
+        },
+      ]));
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true, mtimeMs: 1000 } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('app.log', true)] as any);
+      mockedFs.readFile.mockResolvedValue('ERROR: Connection timeout\nRetrying...');
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(2);
+      expect(items[0]?.name).toBe('ERROR: Connection timeout');
+      expect(items[1]?.name).toBe('Retrying...');
+    });
+
+    test('should return empty array for empty plain text file', async () => {
+      loader = new CustomSearchLoader(createTestConfig([
+        {
+          name: '{line}',
+          type: 'command',
+          description: '{basename}',
+          path: '/path/to/logs',
+          pattern: '*.txt',
+        },
+      ]));
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true, mtimeMs: 1000 } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('empty.txt', true)] as any);
+      mockedFs.readFile.mockResolvedValue('');
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(0);
+    });
+
+    test('should skip blank lines', async () => {
+      loader = new CustomSearchLoader(createTestConfig([
+        {
+          name: '{line}',
+          type: 'command',
+          description: '{basename}',
+          path: '/path/to/logs',
+          pattern: '*.txt',
+        },
+      ]));
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true, mtimeMs: 1000 } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('data.txt', true)] as any);
+      mockedFs.readFile.mockResolvedValue('\n\n  First real line\n\nSecond line\n');
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(2);
+      expect(items[0]?.name).toBe('First real line');
+      expect(items[1]?.name).toBe('Second line');
+    });
+
+    test('should resolve {heading} as first non-empty line for all items', async () => {
+      loader = new CustomSearchLoader(createTestConfig([
+        {
+          name: '{line}',
+          type: 'command',
+          description: '{heading}',
+          path: '/path/to/logs',
+          pattern: '*.txt',
+        },
+      ]));
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true, mtimeMs: 1000 } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('data.txt', true)] as any);
+      mockedFs.readFile.mockResolvedValue('Header line\nSecond line');
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(2);
+      // All items share the same heading (first line of file)
+      expect(items[0]?.description).toBe('Header line');
+      expect(items[1]?.description).toBe('Header line');
+    });
+
+    test('should not have frontmatter for plain text files', async () => {
+      loader = new CustomSearchLoader(createTestConfig([
+        {
+          name: '{frontmatter@title}|{line}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          path: '/path/to/logs',
+          pattern: '*.txt',
+        },
+      ]));
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true, mtimeMs: 1000 } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('notes.txt', true)] as any);
+      mockedFs.readFile.mockResolvedValue('---\ntitle: This is not frontmatter\n---\nBody');
+
+      const items = await loader.getItems('command');
+
+      // 4 non-empty lines but '---' appears twice and is deduplicated → 3 items
+      expect(items).toHaveLength(3);
+      // frontmatter@title is empty, so all names fallback to {line} (sorted by name asc)
+      const names = items.map(i => i.name);
+      expect(names).toContain('---');
+      expect(names).toContain('Body');
+      expect(names).toContain('title: This is not frontmatter');
+      // frontmatter@description is empty for all items
+      items.forEach(item => {
+        expect(item.description).toBe('');
+        expect(item.frontmatter).toBeUndefined();
+      });
+    });
+
+    test('should treat unknown extensions as plain text', async () => {
+      loader = new CustomSearchLoader(createTestConfig([
+        {
+          name: '{line}',
+          type: 'command',
+          description: '{basename}',
+          path: '/path/to/data',
+          pattern: '*.csv',
+        },
+      ]));
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true, mtimeMs: 1000 } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('data.csv', true)] as any);
+      mockedFs.readFile.mockResolvedValue('name,age,city\nAlice,30,Tokyo');
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(2);
+      // Preserves file order (not alphabetical)
+      expect(items[0]?.name).toBe('name,age,city');
+      expect(items[1]?.name).toBe('Alice,30,Tokyo');
+      items.forEach(item => expect(item.description).toBe('data'));
+    });
+
+    test('should preserve file line order (not sort by name)', async () => {
+      loader = new CustomSearchLoader(createTestConfig([
+        {
+          name: '{line}',
+          type: 'command',
+          description: '{basename}',
+          path: '/path/to/logs',
+          pattern: '*.log',
+        },
+      ]));
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true, mtimeMs: 1000 } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('app.log', true)] as any);
+      // Alphabetically: CONNECT < ERROR < WARN, but file order is different
+      mockedFs.readFile.mockResolvedValue('WARN: Low memory\nERROR: Crash\nCONNECT: Retry');
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(3);
+      // Should follow file line order, not alphabetical
+      expect(items[0]?.name).toBe('WARN: Low memory');
+      expect(items[1]?.name).toBe('ERROR: Crash');
+      expect(items[2]?.name).toBe('CONNECT: Retry');
+    });
+  });
 });

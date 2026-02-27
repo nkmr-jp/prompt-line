@@ -387,7 +387,7 @@ export const defaultSettings: UserSettings = {
  * To use these examples, uncomment them in ~/.prompt-line/settings.yml.
  */
 export const commentedExamples = {
-  builtInCommands: ['openclaw', 'codex', 'gemini', 'opencode'],
+  builtInCommands: ['codex', 'gemini'],
   agentSkills: [] as Array<{
     name: string;
     description: string;

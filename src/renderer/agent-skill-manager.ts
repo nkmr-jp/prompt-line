@@ -46,7 +46,8 @@ interface AgentSkillItem {
   argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
-  inputFormat?: InputFormatType;  // 入力フォーマット（'name' | 'path'）
+  inputFormat?: InputFormatType;  // 入力フォーマット（'name' | 'path' | テンプレート）
+  inputText?: string;  // テンプレート解決済みの入力テキスト
   source?: string;  // Source tool identifier (e.g., 'claude-code') for filtering
   displayName?: string;  // Human-readable source name for display (e.g., 'Claude Code')
   updatedAt?: number;  // File modification timestamp (mtimeMs)
@@ -58,6 +59,7 @@ export class AgentSkillManager implements IInitializable {
   private textarea: HTMLTextAreaElement | null = null;
   private mirrorDiv: HTMLDivElement | null = null;
   private skills: AgentSkillItem[] = [];
+  private sortedSkillsByNameLength: AgentSkillItem[] = []; // Pre-sorted for checkForArgumentHintAtCursor
   private filteredSkills: AgentSkillItem[] = [];
   private selectedIndex: number = 0;
   private isActive: boolean = false;
@@ -253,6 +255,8 @@ export class AgentSkillManager implements IInitializable {
       console.error('Failed to load agent skills:', error);
       this.skills = [];
     }
+    // Pre-sort by name length descending for checkForArgumentHintAtCursor
+    this.sortedSkillsByNameLength = [...this.skills].sort((a, b) => b.name.length - a.name.length);
   }
 
   /**
@@ -261,9 +265,17 @@ export class AgentSkillManager implements IInitializable {
   private checkForAgentSkill(): void {
     if (!this.textarea) return;
 
+    // Quick check: skip if no '/' before cursor (avoids extractTriggerQueryAtCursor overhead)
+    const cursorPos = this.textarea.selectionStart;
+    const textBeforeCursor = this.textarea.value.substring(0, cursorPos);
+    if (!this.isEditingMode && !textBeforeCursor.includes('/')) {
+      if (this.isActive) this.hideSuggestions();
+      return;
+    }
+
     const result = extractTriggerQueryAtCursor(
       this.textarea.value,
-      this.textarea.selectionStart,
+      cursorPos,
       '/'
     );
 
@@ -333,14 +345,17 @@ export class AgentSkillManager implements IInitializable {
     // Don't interfere if suggestions popup is already active
     if (this.isActive) return;
 
+    const text = this.textarea.value;
+    const cursorPos = this.textarea.selectionStart;
+    const textBeforeCursor = text.substring(0, cursorPos);
+
+    // Quick check: skip if no '/' in text before cursor
+    if (!textBeforeCursor.includes('/')) return;
+
     // Load commands if not loaded
     if (this.skills.length === 0) {
       await this.loadSkills();
     }
-
-    const text = this.textarea.value;
-    const cursorPos = this.textarea.selectionStart;
-    const textBeforeCursor = text.substring(0, cursorPos);
 
     // Cursor must be right after a space (argument input position)
     if (!textBeforeCursor.endsWith(' ')) {
@@ -350,13 +365,11 @@ export class AgentSkillManager implements IInitializable {
     }
 
     // Use known command names to find matching command
-    // Sort by name length descending to match longer commands first (e.g., "Linear API" before "Linear")
-    const sortedSkills = [...this.skills].sort((a, b) => b.name.length - a.name.length);
-
+    // sortedSkillsByNameLength is pre-sorted by name length descending (e.g., "Linear API" before "Linear")
     let matchedSkill: AgentSkillItem | null = null;
     let commandStartPos = -1;
 
-    for (const cmd of sortedSkills) {
+    for (const cmd of this.sortedSkillsByNameLength) {
       const pattern = '/' + cmd.name + ' ';
       if (textBeforeCursor.endsWith(pattern)) {
         // Verify it's at start of text or preceded by whitespace
@@ -790,7 +803,9 @@ export class AgentSkillManager implements IInitializable {
     // Determine what to insert based on inputFormat setting
     // Default to 'name' for commands (backward compatible behavior)
     const inputFormat = command.inputFormat ?? 'name';
-    const skillText = inputFormat === 'path' ? command.filePath : `/${command.name}`;
+    const skillText = command.inputText
+      ? command.inputText
+      : inputFormat === 'path' ? command.filePath : `/${command.name}`;
 
     // Show argumentHint if available, otherwise hide suggestions
     if (command.argumentHint) {

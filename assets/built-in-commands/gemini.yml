@@ -10,26 +10,26 @@ reference: https://google-gemini.github.io/gemini-cli/docs/cli/commands.html
 
 commands:
   - name: about
-    description: Display version information for issue reporting
+    description: Display version information
   - name: auth
     description: Open a dialog to change authentication methods
   - name: bug
     description: File an issue about Gemini CLI
     argument-hint: "[headline]"
   - name: chat
-    description: Save and resume conversation history for branching or resuming state
+    description: Manage conversation history with sub-commands for saving, resuming, listing, deleting, and sharing chats
   - name: clear
     description: Clear the terminal screen including session history and scrollback
   - name: compress
     description: Replace chat context with a summary to reduce token usage
   - name: copy
-    description: Copy the last output to your clipboard for sharing or reuse
+    description: Copy the last output produced by Gemini CLI to your clipboard
   - name: directory
-    description: Manage workspace directories via add and show subcommands
+    description: Manage workspace directories for multi-directory support
   - name: dir
     description: Alias for /directory
   - name: editor
-    description: Open a selection dialog for choosing supported text editors
+    description: Open a dialog for selecting supported editors
   - name: exit
     description: Exit Gemini CLI
   - name: extensions
@@ -37,17 +37,19 @@ commands:
   - name: help
     description: Display help information about Gemini CLI and available commands
   - name: init
-    description: Generate a tailored GEMINI.md file based on the current directory
+    description: Generate a tailored GEMINI.md context file for your project
   - name: mcp
     description: List MCP servers, their status, and available tools
   - name: memory
-    description: Manage instructional context from GEMINI.md files
+    description: Manage AI instructional context loaded from GEMINI.md files
+  - name: model
+    description: Open model selection dialog
   - name: privacy
-    description: Display privacy notice and allow consent to data collection
+    description: Display the Privacy Notice and data collection preferences
   - name: quit
     description: Exit Gemini CLI
   - name: restore
-    description: Revert project files to their state before a tool execution
+    description: Restore project files to a previous state before tool execution
   - name: resume
     description: Resume a previous conversation session
     argument-hint: "[session]"
@@ -61,8 +63,8 @@ commands:
   - name: stats
     description: Display session statistics including token usage and duration
   - name: theme
-    description: Open a dialog to modify visual appearance
+    description: Open a dialog to change the visual theme
   - name: tools
-    description: Show available tools with optional detailed descriptions
+    description: Display available tools with optional detailed descriptions
   - name: vim
     description: Toggle vim-style navigation and editing in the input area

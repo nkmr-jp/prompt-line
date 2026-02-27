@@ -260,8 +260,9 @@ class CustomSearchLoader {
       let aValue: string;
       let bValue: string;
       if (field === 'name') {
-        aValue = a.name;
-        bValue = b.name;
+        // sortKeyがあればそちらを優先（プレーンテキストの行順保持用）
+        aValue = a.sortKey ?? a.name;
+        bValue = b.sortKey ?? b.name;
       } else if (field === 'description') {
         aValue = a.description;
         bValue = b.description;
@@ -412,6 +413,9 @@ class CustomSearchLoader {
       } else if (filePath.endsWith('.jsonl')) {
         const jsonlItems = await this.parseJsonlToItems(filePath, entry, sourceId, jqExpression);
         items.push(...jsonlItems);
+      } else if (this.isPlainTextFile(filePath)) {
+        const textItems = await this.parsePlainTextToItems(filePath, entry, sourceId);
+        items.push(...textItems);
       } else {
         const item = await this.parseFileToItem(filePath, entry, sourceId);
         if (item) {
@@ -489,7 +493,12 @@ class CustomSearchLoader {
         const resolvedHint = resolveTemplate(entry.argumentHint, context);
         if (resolvedHint) item.argumentHint = resolvedHint;
       }
-      if (entry.inputFormat) item.inputFormat = entry.inputFormat;
+      if (entry.inputFormat) {
+        item.inputFormat = entry.inputFormat;
+        if (entry.inputFormat !== 'name' && entry.inputFormat !== 'path') {
+          item.inputText = resolveTemplate(entry.inputFormat, context);
+        }
+      }
       item.updatedAt = fileStat.mtimeMs;
 
       const displayTime = this.resolveDisplayTime(entry, context, fileStat.mtimeMs);
@@ -499,6 +508,106 @@ class CustomSearchLoader {
     } catch (error) {
       logger.warn('Failed to parse file', { filePath, error });
       return null;
+    }
+  }
+
+  /** Markdown構造化ファイルの拡張子 */
+  private static readonly STRUCTURED_EXTENSIONS = new Set(['.md', '.json', '.jsonl', '.yaml', '.yml']);
+
+  /** プレーンテキストファイルかどうか判定（Markdown/JSON/YAML以外） */
+  private isPlainTextFile(filePath: string): boolean {
+    const ext = path.extname(filePath).toLowerCase();
+    return !CustomSearchLoader.STRUCTURED_EXTENSIONS.has(ext);
+  }
+
+  /** プレーンテキストの最初の非空行を取得 */
+  private parseFirstLine(content: string): string {
+    const firstLine = content.split('\n').find(line => line.trim() !== '');
+    return firstLine?.trim() ?? '';
+  }
+
+  /**
+   * Parse plain text file to generate multiple CustomSearchItems (one per non-empty line)
+   * テンプレート変数 {line} で各行のテキストを参照可能
+   */
+  private async parsePlainTextToItems(
+    filePath: string,
+    entry: CustomSearchEntry,
+    sourceId: string
+  ): Promise<CustomSearchItem[]> {
+    try {
+      const [content, fileStat] = await Promise.all([
+        fs.readFile(filePath, 'utf8'),
+        fs.stat(filePath),
+      ]);
+      const lines = content.split('\n');
+      const basename = getBasename(filePath);
+      const dirname = getDirname(filePath);
+      const items: CustomSearchItem[] = [];
+
+      const expandedPath = entry.path.replace(/^~/, os.homedir());
+      let prefix = '';
+      if (entry.prefixPattern) {
+        prefix = await resolvePrefix(filePath, entry.prefixPattern, expandedPath);
+      }
+
+      const heading = this.parseFirstLine(content);
+
+      let lineIndex = 0;
+      for (const rawLine of lines) {
+        const trimmed = rawLine.trim();
+        if (!trimmed) continue;
+
+        const context = { basename, frontmatter: {}, prefix, dirname, filePath, heading, line: trimmed };
+
+        const item: CustomSearchItem = {
+          name: resolveTemplate(entry.name, context),
+          description: resolveTemplate(entry.description, context),
+          type: entry.type,
+          filePath,
+          sourceId,
+        };
+
+        // ユーザー指定の orderBy があればそちらを優先、なければ行順を保持
+        const sortKey = this.resolveSortKey(entry, context);
+        item.sortKey = sortKey ?? String(lineIndex).padStart(8, '0');
+        lineIndex++;
+        if (entry.label) {
+          const resolvedLabel = resolveTemplate(entry.label, context);
+          if (resolvedLabel) item.label = resolvedLabel;
+        }
+        if (entry.color) {
+          const resolvedColor = this.resolveColorWithFallback(entry.color, context);
+          if (resolvedColor) item.color = resolvedColor as ColorValue;
+        }
+        if (entry.icon) {
+          const resolvedIcon = resolveTemplate(entry.icon, context);
+          if (resolvedIcon) item.icon = resolvedIcon.startsWith('codicon-') ? resolvedIcon : `codicon-${resolvedIcon}`;
+        }
+        if (entry.argumentHint) {
+          const resolvedHint = resolveTemplate(entry.argumentHint, context);
+          if (resolvedHint) item.argumentHint = resolvedHint;
+        }
+        if (entry.inputFormat) {
+          item.inputFormat = entry.inputFormat;
+          if (entry.inputFormat !== 'name' && entry.inputFormat !== 'path') {
+            item.inputText = resolveTemplate(entry.inputFormat, context);
+          }
+        }
+        item.updatedAt = fileStat.mtimeMs;
+
+        const displayTime = this.resolveDisplayTime(entry, context, fileStat.mtimeMs);
+        if (displayTime !== undefined) item.displayTime = displayTime;
+
+        if (item.name) {
+          items.push(item);
+        }
+      }
+
+      return items;
+    } catch (error) {
+      logger.warn('Failed to parse plain text file', { filePath, error });
+      return [];
     }
   }
 
@@ -567,7 +676,12 @@ class CustomSearchLoader {
           const resolvedHint = resolveTemplate(entry.argumentHint, context);
           if (resolvedHint) item.argumentHint = resolvedHint;
         }
-        if (entry.inputFormat) item.inputFormat = entry.inputFormat;
+        if (entry.inputFormat) {
+          item.inputFormat = entry.inputFormat;
+          if (entry.inputFormat !== 'name' && entry.inputFormat !== 'path') {
+            item.inputText = resolveTemplate(entry.inputFormat, context);
+          }
+        }
 
         const displayTime = this.resolveDisplayTime(entry, context);
         if (displayTime !== undefined) item.displayTime = displayTime;
@@ -748,7 +862,12 @@ class CustomSearchLoader {
       const resolvedHint = resolveTemplate(entry.argumentHint, context);
       if (resolvedHint) item.argumentHint = resolvedHint;
     }
-    if (entry.inputFormat) item.inputFormat = entry.inputFormat;
+    if (entry.inputFormat) {
+      item.inputFormat = entry.inputFormat;
+      if (entry.inputFormat !== 'name' && entry.inputFormat !== 'path') {
+        item.inputText = resolveTemplate(entry.inputFormat, context);
+      }
+    }
 
     const displayTime = this.resolveDisplayTime(entry, context);
     if (displayTime !== undefined) item.displayTime = displayTime;

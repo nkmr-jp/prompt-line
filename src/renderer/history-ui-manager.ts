@@ -16,6 +16,11 @@ export class HistoryUIManager {
   private thumbMouseDownHandler: ((e: MouseEvent) => void) | null = null;
   private documentMouseMoveHandler: ((e: MouseEvent) => void) | null = null;
   private documentMouseUpHandler: (() => void) | null = null;
+  private clickDelegationHandler: ((e: MouseEvent) => void) | null = null;
+  private scrollRAFId: number | null = null;
+  // Cached scrollbar DOM elements (avoid repeated getElementById per scroll event)
+  private scrollbarElement: HTMLElement | null = null;
+  private thumbElement: HTMLElement | null = null;
   private isDragging: boolean = false;
   private dragStartY: number = 0;
   private dragStartScrollTop: number = 0;
@@ -24,7 +29,7 @@ export class HistoryUIManager {
     private getHistoryList: () => HTMLElement | null,
     private setTextCallback: (text: string) => void,
     private focusTextCallback: () => void,
-    private getSearchManager: () => { isInSearchMode(): boolean; getSearchTerm(): string; highlightSearchTerms(text: string, term: string): string } | null,
+    private getSearchManager: () => { isInSearchMode(): boolean; getSearchTerm(): string; highlightSearchTerms(text: string, term: string): string; applyHighlightDOM(parent: HTMLElement, text: string, term: string): void } | null,
     getCurrentText: () => string,
     getCursorPosition: () => number,
     saveSnapshotCallback: (text: string, cursorPosition: number) => void,
@@ -43,16 +48,36 @@ export class HistoryUIManager {
     const historyList = this.getHistoryList();
     if (!historyList || this.scrollHandler) return;
 
+    // RAF-throttled scroll handler: limits to once per frame (16.67ms at 60fps)
     this.scrollHandler = () => {
-      this.checkScrollPosition();
-      this.showScrollbar();
+      if (this.scrollRAFId !== null) return;
+      this.scrollRAFId = requestAnimationFrame(() => {
+        this.checkScrollPosition();
+        this.showScrollbar();
+        this.scrollRAFId = null;
+      });
     };
 
-    historyList.addEventListener('scroll', this.scrollHandler);
+    historyList.addEventListener('scroll', this.scrollHandler, { passive: true });
+
+    // Setup click delegation (single handler instead of per-item)
+    if (!this.clickDelegationHandler) {
+      this.clickDelegationHandler = (e: MouseEvent) => {
+        const target = (e.target as HTMLElement).closest('.history-item') as HTMLElement;
+        if (target?.dataset.text !== undefined) {
+          this.selectHistoryItemFromClick(target.dataset.text);
+        }
+      };
+      historyList.addEventListener('click', this.clickDelegationHandler);
+    }
+
+    // Cache scrollbar DOM elements (used frequently in scroll handler)
+    this.scrollbarElement = document.getElementById('customScrollbar');
+    this.thumbElement = document.getElementById('customScrollbarThumb');
 
     // Setup scrollbar hover interactions
-    const scrollbar = document.getElementById('customScrollbar');
-    const thumb = document.getElementById('customScrollbarThumb');
+    const scrollbar = this.scrollbarElement;
+    const thumb = this.thumbElement;
     if (scrollbar) {
       // Forward wheel events from scrollbar to history list
       this.wheelHandler = (e: WheelEvent) => {
@@ -128,8 +153,8 @@ export class HistoryUIManager {
     const historyList = this.getHistoryList();
     if (!historyList) return;
 
-    const scrollbar = document.getElementById('customScrollbar');
-    const thumb = document.getElementById('customScrollbarThumb');
+    const scrollbar = this.scrollbarElement;
+    const thumb = this.thumbElement;
     if (!scrollbar || !thumb) return;
 
     // Batch read operations first to avoid layout thrashing
@@ -148,12 +173,10 @@ export class HistoryUIManager {
     const maxScrollTop = scrollHeight - clientHeight;
     const thumbTop = (scrollTop / maxScrollTop) * (clientHeight - thumbHeight);
 
-    // Batch write operations in requestAnimationFrame
-    requestAnimationFrame(() => {
-      thumb.style.height = `${thumbHeight}px`;
-      thumb.style.transform = `translateY(${thumbTop}px)`;
-      scrollbar.classList.add('visible');
-    });
+    // Write operations (already inside RAF from scroll handler)
+    thumb.style.height = `${thumbHeight}px`;
+    thumb.style.transform = `translateY(${thumbTop}px)`;
+    scrollbar.classList.add('visible');
 
     // Clear existing timeout
     if (this.scrollingTimeout) {
@@ -174,7 +197,7 @@ export class HistoryUIManager {
     const historyList = this.getHistoryList();
     if (!historyList) return;
 
-    const thumb = document.getElementById('customScrollbarThumb');
+    const thumb = this.thumbElement;
     if (!thumb) return;
 
     // Batch read operations first to avoid layout thrashing
@@ -227,35 +250,77 @@ export class HistoryUIManager {
         return;
       }
 
-      // Create fragment for batch DOM updates to avoid layout thrashing
-      const fragment = document.createDocumentFragment();
+      // Hoist search state once (avoids per-item getSearchManager() calls)
+      const searchTerm = isSearchMode ? (searchManager?.getSearchTerm() || '') : '';
+      // Cache Date.now() once for all items (avoids 50x Date.now() calls)
+      const now = Date.now();
 
-      // Create all history items
-      dataToRender.forEach((item) => {
-        const historyItem = this.createHistoryElement(item);
-        fragment.appendChild(historyItem);
-      });
+      // DOM recycling: reuse existing elements instead of full rebuild
+      const existingItems = historyList.querySelectorAll('.history-item');
+      const existingCount = existingItems.length;
+      const newCount = dataToRender.length;
 
-      // Create count indicator
-      const totalCount = totalMatches !== undefined ? totalMatches : dataToRender.length;
-      const countIndicator = document.createElement('div');
-      countIndicator.className = 'history-more';
-      if (totalCount > dataToRender.length) {
-        countIndicator.textContent = `+${totalCount - dataToRender.length} more items`;
+      if (existingCount > 0) {
+        // Recycle path: update existing DOM elements in-place
+        const updateCount = Math.min(existingCount, newCount);
+        for (let i = 0; i < updateCount; i++) {
+          this.updateHistoryElement(existingItems[i] as HTMLElement, dataToRender[i]!, isSearchMode, searchTerm, searchManager, now);
+        }
+
+        // Add new elements if needed
+        if (newCount > existingCount) {
+          const fragment = document.createDocumentFragment();
+          for (let i = existingCount; i < newCount; i++) {
+            fragment.appendChild(this.createHistoryElement(dataToRender[i]!, isSearchMode, searchTerm, searchManager, now));
+          }
+          const countIndicator = historyList.querySelector('.history-more');
+          if (countIndicator) {
+            historyList.insertBefore(fragment, countIndicator);
+          } else {
+            historyList.appendChild(fragment);
+          }
+        }
+
+        // Remove excess elements if needed
+        if (existingCount > newCount) {
+          for (let i = existingCount - 1; i >= newCount; i--) {
+            existingItems[i]!.remove();
+          }
+        }
+
+        // Update count indicator in-place
+        this.updateCountIndicator(historyList, dataToRender.length, totalMatches);
+
+        // Only update scrollbar if item count changed
+        if (existingCount !== newCount) {
+          requestAnimationFrame(() => {
+            this.updateScrollbarAfterRender();
+          });
+        }
       } else {
-        countIndicator.textContent = `${totalCount} items`;
+        // Full build path: no existing elements to recycle (first render or after empty state)
+        const fragment = document.createDocumentFragment();
+        for (let i = 0; i < newCount; i++) {
+          fragment.appendChild(this.createHistoryElement(dataToRender[i]!, isSearchMode, searchTerm, searchManager, now));
+        }
+
+        // Create count indicator
+        const totalCount = totalMatches !== undefined ? totalMatches : dataToRender.length;
+        const countIndicator = document.createElement('div');
+        countIndicator.className = 'history-more';
+        if (totalCount > dataToRender.length) {
+          countIndicator.textContent = `+${totalCount - dataToRender.length} more items`;
+        } else {
+          countIndicator.textContent = `${totalCount} items`;
+        }
+        fragment.appendChild(countIndicator);
+
+        historyList.replaceChildren(fragment);
+
+        requestAnimationFrame(() => {
+          this.updateScrollbarAfterRender();
+        });
       }
-      fragment.appendChild(countIndicator);
-
-      // Single DOM update: clear and append fragment
-      historyList.innerHTML = '';
-      historyList.appendChild(fragment);
-
-      // Update scrollbar after content is rendered
-      // Use requestAnimationFrame to ensure DOM layout is complete
-      requestAnimationFrame(() => {
-        this.updateScrollbarAfterRender();
-      });
 
     } catch (error) {
       console.error('Error rendering history:', error);
@@ -266,7 +331,107 @@ export class HistoryUIManager {
     }
   }
 
-  private createHistoryElement(item: HistoryItem): HTMLElement {
+  /**
+   * Append new items to existing history list (for loadMore)
+   * Avoids full DOM rebuild by only creating and appending new elements
+   */
+  public appendHistoryItems(newItems: HistoryItem[], totalMatches?: number): void {
+    const historyList = this.getHistoryList();
+    if (!historyList || newItems.length === 0) return;
+
+    const searchManager = this.getSearchManager();
+    const isSearchMode = searchManager?.isInSearchMode() || false;
+    const searchTerm = isSearchMode ? (searchManager?.getSearchTerm() || '') : '';
+
+    // Create fragment for new items only
+    const now = Date.now();
+    const fragment = document.createDocumentFragment();
+    for (const item of newItems) {
+      fragment.appendChild(this.createHistoryElement(item, isSearchMode, searchTerm, searchManager, now));
+    }
+
+    // Remove existing count indicator
+    const existingMore = historyList.querySelector('.history-more');
+    if (existingMore) {
+      existingMore.remove();
+    }
+
+    // Create updated count indicator
+    const displayedCount = historyList.querySelectorAll('.history-item').length + newItems.length;
+    const totalCount = totalMatches !== undefined ? totalMatches : displayedCount;
+    const countIndicator = document.createElement('div');
+    countIndicator.className = 'history-more';
+    if (totalCount > displayedCount) {
+      countIndicator.textContent = `+${totalCount - displayedCount} more items`;
+    } else {
+      countIndicator.textContent = `${totalCount} items`;
+    }
+    fragment.appendChild(countIndicator);
+
+    // Append only new items (existing DOM untouched)
+    historyList.appendChild(fragment);
+
+    // Update scrollbar
+    requestAnimationFrame(() => {
+      this.updateScrollbarAfterRender();
+    });
+  }
+
+  /**
+   * Update an existing DOM element in-place (avoids createElement overhead)
+   */
+  private updateHistoryElement(
+    element: HTMLElement,
+    item: HistoryItem,
+    isSearchMode: boolean,
+    searchTerm: string,
+    searchManager: { applyHighlightDOM(parent: HTMLElement, text: string, term: string): void } | null,
+    now: number
+  ): void {
+    // Update data attributes
+    element.dataset.text = item.text;
+    element.dataset.id = item.id;
+
+    // Update text (access children directly for speed, avoid querySelector)
+    const textDiv = element.children[0] as HTMLElement;
+    const displayText = item.text.replace(/\n/g, ' ');
+    if (isSearchMode && searchTerm && searchManager) {
+      // DOM direct building: avoids innerHTML HTML parsing overhead (~10x faster)
+      searchManager.applyHighlightDOM(textDiv, displayText, searchTerm);
+    } else {
+      textDiv.textContent = displayText;
+    }
+
+    // Update time
+    const timeDiv = element.children[1] as HTMLElement;
+    timeDiv.textContent = formatTime(item.timestamp, now);
+  }
+
+  /**
+   * Update the count indicator element in-place
+   */
+  private updateCountIndicator(historyList: HTMLElement, displayedCount: number, totalMatches?: number): void {
+    let countIndicator = historyList.querySelector('.history-more') as HTMLElement | null;
+    if (!countIndicator) {
+      countIndicator = document.createElement('div');
+      countIndicator.className = 'history-more';
+      historyList.appendChild(countIndicator);
+    }
+    const totalCount = totalMatches !== undefined ? totalMatches : displayedCount;
+    if (totalCount > displayedCount) {
+      countIndicator.textContent = `+${totalCount - displayedCount} more items`;
+    } else {
+      countIndicator.textContent = `${totalCount} items`;
+    }
+  }
+
+  private createHistoryElement(
+    item: HistoryItem,
+    isSearchMode: boolean,
+    searchTerm: string,
+    searchManager: { applyHighlightDOM(parent: HTMLElement, text: string, term: string): void } | null,
+    now?: number
+  ): HTMLElement {
     const historyItem = document.createElement('div');
     historyItem.className = 'history-item';
     historyItem.dataset.text = item.text;
@@ -274,30 +439,24 @@ export class HistoryUIManager {
 
     const textDiv = document.createElement('div');
     textDiv.className = 'history-text';
-    
+
     // Apply search highlighting if in search mode
     const displayText = item.text.replace(/\n/g, ' ');
-    const searchManager = this.getSearchManager();
-    const isSearchMode = searchManager?.isInSearchMode() || false;
-    const searchTerm = searchManager?.getSearchTerm() || '';
-    
-    if (isSearchMode && searchTerm) {
-      textDiv.innerHTML = searchManager?.highlightSearchTerms(displayText, searchTerm) || displayText;
+
+    if (isSearchMode && searchTerm && searchManager) {
+      searchManager.applyHighlightDOM(textDiv, displayText, searchTerm);
     } else {
       textDiv.textContent = displayText;
     }
 
     const timeDiv = document.createElement('div');
     timeDiv.className = 'history-time';
-    timeDiv.textContent = formatTime(item.timestamp);
+    timeDiv.textContent = formatTime(item.timestamp, now);
 
     historyItem.appendChild(textDiv);
     historyItem.appendChild(timeDiv);
 
-    historyItem.addEventListener('click', () => {
-      this.selectHistoryItemFromClick(item.text);
-    });
-
+    // Click handling is done via event delegation on the historyList
     return historyItem;
   }
 
@@ -384,8 +543,11 @@ export class HistoryUIManager {
   }
 
   public clearHistorySelection(): void {
+    // Skip DOM operations if no selection is active
+    if (this.historyIndex === -1 && !this.keyboardNavigationTimeout) return;
+
     this.historyIndex = -1;
-    
+
     // Clear all flash effects
     const historyList = this.getHistoryList();
     if (historyList) {
@@ -448,6 +610,11 @@ export class HistoryUIManager {
   }
 
   public cleanup(): void {
+    if (this.scrollRAFId !== null) {
+      cancelAnimationFrame(this.scrollRAFId);
+      this.scrollRAFId = null;
+    }
+
     if (this.keyboardNavigationTimeout) {
       clearTimeout(this.keyboardNavigationTimeout);
       this.keyboardNavigationTimeout = null;
@@ -459,17 +626,23 @@ export class HistoryUIManager {
     }
 
     // Remove scroll event listener
-    if (this.scrollHandler) {
+    if (this.scrollHandler || this.clickDelegationHandler) {
       const historyList = this.getHistoryList();
       if (historyList) {
-        historyList.removeEventListener('scroll', this.scrollHandler);
+        if (this.scrollHandler) {
+          historyList.removeEventListener('scroll', this.scrollHandler);
+        }
+        if (this.clickDelegationHandler) {
+          historyList.removeEventListener('click', this.clickDelegationHandler);
+        }
       }
       this.scrollHandler = null;
+      this.clickDelegationHandler = null;
     }
 
     // Remove scrollbar event listeners
-    const scrollbar = document.getElementById('customScrollbar');
-    const thumb = document.getElementById('customScrollbarThumb');
+    const scrollbar = this.scrollbarElement;
+    const thumb = this.thumbElement;
     if (scrollbar) {
       if (this.wheelHandler) {
         scrollbar.removeEventListener('wheel', this.wheelHandler);
@@ -493,5 +666,7 @@ export class HistoryUIManager {
       this.documentMouseUpHandler = null;
     }
     this.isDragging = false;
+    this.scrollbarElement = null;
+    this.thumbElement = null;
   }
 }
