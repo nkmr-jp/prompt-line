@@ -328,7 +328,7 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
     // No mentions configured - output commented template
     return `#mentions:
 #  # Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
-#  # Supports: Markdown (.md), JSON (.json), JSONL (.jsonl), and jq expressions.
+#  # Supports: Markdown (.md), JSON (.json), JSONL (.jsonl), jq expressions, and plain text files.
 #  # searchPrefix: Search with @<prefix>: (e.g., searchPrefix: "agent" → @agent:)
 #  customSearch:
 #    - name: "agent-{basename}"
@@ -361,7 +361,7 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
   // Custom search subsection (first, as the most configurable section)
   section += `  # Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
   # Scans directories for files matching glob patterns and provides @ mention suggestions.
-  # Supports: Markdown (.md), JSON (.json), JSONL (.jsonl), and jq expressions.
+  # Supports: Markdown (.md), JSON (.json), JSONL (.jsonl), jq expressions, and plain text files.
   #
   # Configuration fields:
   #   name            : Display name template
@@ -373,7 +373,7 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
   #   maxSuggestions  : Maximum number of suggestions to display
   #   orderBy         : Sort order (e.g., "name", "name desc", "{updatedAt} desc")
   #   displayTime     : Timestamp to display (e.g., "{updatedAt}", "{json@createdAt}", "none" to hide)
-  #   inputFormat     : Insert format (name, path)
+  #   inputFormat     : Insert format (name, path, or template string e.g. "~/ghq/{line}")
   #   color           : Badge color (name or hex)
   #   icon            : Codicon icon name (e.g., "agent", "rocket", "terminal")
   #                     https://microsoft.github.io/vscode-codicons/dist/codicon.html
@@ -385,6 +385,8 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
   #   {json@field}        — JSON field value (for .json/.jsonl files)
   #   {json:N@field}      — JSON field from N-th level array item
   #   {prefix}            — Prefix extracted via prefixPattern
+  #   {heading}           — First non-empty line of the file (for markdown: first heading)
+  #   {line}              — Each line of plain text file (generates one item per line)
   #   {dirname}           — Parent directory name
   #   {dirname:N}         — N levels up directory name (e.g., {dirname:2} = grandparent)
   #
@@ -398,6 +400,7 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
   #   "**/config.json@.members"          — JSON + jq expression (expands array into items)
   #   "*.json@.items | map(select(.active))" — Complex jq expressions supported
   #   "*.jsonl"                           — JSONL files (one JSON per line)
+  #   "*.txt"                             — Plain text files (one item per non-empty line, use {line})
   customSearch:
 `;
 
