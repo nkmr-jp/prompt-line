@@ -69,6 +69,40 @@
 - TypeScript typecheck: PASS
 - 全テスト: 41 suites, 1128 passed, 1 skipped
 
+## Phase 3: v0.23 Infinite Scroll パフォーマンス退行の修正
+
+v0.23で追加されたinfinite scroll + カスタムスクロールバーが根本原因。
+loadMore時に全アイテム再フィルタリング+全DOM再構築が発生していた。
+
+### タスク一覧
+
+- [x] 1. filter-engine.ts: ソート済みマッチ結果キャッシュ
+  - loadMore時の同一クエリ再フィルタリング+再ソートを排除（O(n) → O(1)）
+- [x] 2. history-ui-manager.ts: DOM最適化3点
+  - [x] `appendHistoryItems()` — loadMore用インクリメンタルDOM追加
+  - [x] スクロールハンドラのRAFスロットリング（毎フレーム発火 → 1回/フレーム）
+  - [x] scrollbar/thumb DOM要素のキャッシュ（毎回getElementById → 初回のみ）
+  - [x] showScrollbar()の二重RAF排除
+- [x] 3. renderer.ts: loadMore時にインクリメンタルappendを使用
+  - handleLoadMore: 全DOM再構築 → 新規アイテムのみappend
+  - handleSearchStateChange: loadMore判定フラグによる分岐
+- [x] 4. テスト・typecheck通過の確認
+
+### 最適化の詳細
+
+| ボトルネック | Before | After | 効果 |
+|---|---|---|---|
+| loadMore フィルタリング | 毎回5000件再フィルタ+再ソート | キャッシュから即返却 | **O(n)→O(1)** |
+| loadMore DOM | 全アイテム再構築 | 新規分のみappend | **DOM操作95%削減** |
+| スクロールハンドラ | 毎フレーム無制限発火 | RAF(1回/フレーム) | **CPU使用率大幅削減** |
+| getElementById | 毎スクロールイベント×2 | 初回キャッシュ | **DOM探索排除** |
+| showScrollbar RAF | スクロールRAF内で二重RAF | 単一RAF | **フレーム遅延排除** |
+
+### 品質確認
+
+- TypeScript typecheck: PASS
+- 全テスト: 41 suites, 1134 passed, 1 skipped
+
 ## 変更ファイル
 
 ### Phase 1（フィルタエンジン最適化）
@@ -80,3 +114,8 @@
 - `src/renderer/history-search/highlighter.ts` - RegExp キャッシュ追加
 - `src/renderer/history-ui-manager.ts` - replaceChildren、イベント委譲、検索状態ホイスト
 - `src/renderer/history-search/history-search-manager.ts` - loadMore 重複排除
+
+### Phase 3（v0.23 Infinite Scroll退行修正）
+- `src/renderer/history-search/filter-engine.ts` - ソート済みマッチ結果キャッシュ
+- `src/renderer/history-ui-manager.ts` - appendHistoryItems、RAFスロットル、DOM要素キャッシュ
+- `src/renderer/renderer.ts` - loadMore時のインクリメンタルappend

@@ -10,6 +10,7 @@
  * - Date.now() cached once per search (not per item)
  * - Inline tiebreak comparison (avoids compareTiebreak overhead)
  * - Pre-computed constants in local variables (V8 optimization)
+ * - Sorted match result cache (avoids re-filtering on loadMore)
  */
 
 import type { HistoryItem } from '../types';
@@ -27,6 +28,13 @@ export class HistorySearchFilterEngine {
   private normalizedCache: string[] = [];
   private normalizedCacheSource: HistoryItem[] | null = null;
   private normalizedCacheLength: number = 0;
+
+  // Sorted match result cache for loadMore optimization
+  // When query is unchanged, loadMore only needs to return more items from cached results
+  private resultCacheQuery: string = '';
+  private resultCacheItems: HistoryItem[] | null = null;
+  private resultCacheMatches: HistoryItem[] = [];
+  private resultCacheTotalMatches: number = 0;
 
   constructor(config: Partial<HistorySearchConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -55,6 +63,10 @@ export class HistorySearchFilterEngine {
   public invalidateCache(): void {
     this.normalizedCacheSource = null;
     this.normalizedCacheLength = 0;
+    this.resultCacheQuery = '';
+    this.resultCacheItems = null;
+    this.resultCacheMatches = [];
+    this.resultCacheTotalMatches = 0;
   }
 
   /**
@@ -92,6 +104,8 @@ export class HistorySearchFilterEngine {
     const limit = this.ensureNormalized(items);
 
     if (!query.trim()) {
+      // Clear result cache for empty query
+      this.resultCacheQuery = '';
       const resultLimit = Math.min(limit, displayLimit);
       const result: HistoryItem[] = new Array(resultLimit);
       for (let i = 0; i < resultLimit; i++) {
@@ -103,6 +117,17 @@ export class HistorySearchFilterEngine {
     const queryNormalized = this.config.caseSensitive
       ? query.trim()
       : query.trim().toLowerCase();
+
+    // Result cache hit: same query + same items → just return more/fewer from cached sorted results
+    // This makes loadMore() essentially free (no re-filtering, no re-sorting)
+    if (queryNormalized === this.resultCacheQuery && items === this.resultCacheItems) {
+      const resultLimit = Math.min(this.resultCacheTotalMatches, displayLimit);
+      const displayItems: HistoryItem[] = new Array(resultLimit);
+      for (let i = 0; i < resultLimit; i++) {
+        displayItems[i] = this.resultCacheMatches[i]!;
+      }
+      return { items: displayItems, totalMatches: this.resultCacheTotalMatches };
+    }
 
     // Split keywords once per search
     const keywords = this.splitKeywordsOptimized(queryNormalized);
@@ -162,10 +187,20 @@ export class HistorySearchFilterEngine {
       return a.index - b.index;
     });
 
+    // Cache sorted results for loadMore optimization
+    const sortedItems: HistoryItem[] = new Array(matches.length);
+    for (let i = 0; i < matches.length; i++) {
+      sortedItems[i] = matches[i]!.item;
+    }
+    this.resultCacheQuery = queryNormalized;
+    this.resultCacheItems = items;
+    this.resultCacheMatches = sortedItems;
+    this.resultCacheTotalMatches = matches.length;
+
     const resultLimit = Math.min(matches.length, displayLimit);
     const displayItems: HistoryItem[] = new Array(resultLimit);
     for (let i = 0; i < resultLimit; i++) {
-      displayItems[i] = matches[i]!.item;
+      displayItems[i] = sortedItems[i]!;
     }
 
     return { items: displayItems, totalMatches: matches.length };

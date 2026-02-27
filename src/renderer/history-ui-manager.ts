@@ -17,6 +17,10 @@ export class HistoryUIManager {
   private documentMouseMoveHandler: ((e: MouseEvent) => void) | null = null;
   private documentMouseUpHandler: (() => void) | null = null;
   private clickDelegationHandler: ((e: MouseEvent) => void) | null = null;
+  private scrollRAFId: number | null = null;
+  // Cached scrollbar DOM elements (avoid repeated getElementById per scroll event)
+  private scrollbarElement: HTMLElement | null = null;
+  private thumbElement: HTMLElement | null = null;
   private isDragging: boolean = false;
   private dragStartY: number = 0;
   private dragStartScrollTop: number = 0;
@@ -44,12 +48,17 @@ export class HistoryUIManager {
     const historyList = this.getHistoryList();
     if (!historyList || this.scrollHandler) return;
 
+    // RAF-throttled scroll handler: limits to once per frame (16.67ms at 60fps)
     this.scrollHandler = () => {
-      this.checkScrollPosition();
-      this.showScrollbar();
+      if (this.scrollRAFId !== null) return;
+      this.scrollRAFId = requestAnimationFrame(() => {
+        this.checkScrollPosition();
+        this.showScrollbar();
+        this.scrollRAFId = null;
+      });
     };
 
-    historyList.addEventListener('scroll', this.scrollHandler);
+    historyList.addEventListener('scroll', this.scrollHandler, { passive: true });
 
     // Setup click delegation (single handler instead of per-item)
     if (!this.clickDelegationHandler) {
@@ -62,9 +71,13 @@ export class HistoryUIManager {
       historyList.addEventListener('click', this.clickDelegationHandler);
     }
 
+    // Cache scrollbar DOM elements (used frequently in scroll handler)
+    this.scrollbarElement = document.getElementById('customScrollbar');
+    this.thumbElement = document.getElementById('customScrollbarThumb');
+
     // Setup scrollbar hover interactions
-    const scrollbar = document.getElementById('customScrollbar');
-    const thumb = document.getElementById('customScrollbarThumb');
+    const scrollbar = this.scrollbarElement;
+    const thumb = this.thumbElement;
     if (scrollbar) {
       // Forward wheel events from scrollbar to history list
       this.wheelHandler = (e: WheelEvent) => {
@@ -140,8 +153,8 @@ export class HistoryUIManager {
     const historyList = this.getHistoryList();
     if (!historyList) return;
 
-    const scrollbar = document.getElementById('customScrollbar');
-    const thumb = document.getElementById('customScrollbarThumb');
+    const scrollbar = this.scrollbarElement;
+    const thumb = this.thumbElement;
     if (!scrollbar || !thumb) return;
 
     // Batch read operations first to avoid layout thrashing
@@ -160,12 +173,10 @@ export class HistoryUIManager {
     const maxScrollTop = scrollHeight - clientHeight;
     const thumbTop = (scrollTop / maxScrollTop) * (clientHeight - thumbHeight);
 
-    // Batch write operations in requestAnimationFrame
-    requestAnimationFrame(() => {
-      thumb.style.height = `${thumbHeight}px`;
-      thumb.style.transform = `translateY(${thumbTop}px)`;
-      scrollbar.classList.add('visible');
-    });
+    // Write operations (already inside RAF from scroll handler)
+    thumb.style.height = `${thumbHeight}px`;
+    thumb.style.transform = `translateY(${thumbTop}px)`;
+    scrollbar.classList.add('visible');
 
     // Clear existing timeout
     if (this.scrollingTimeout) {
@@ -186,7 +197,7 @@ export class HistoryUIManager {
     const historyList = this.getHistoryList();
     if (!historyList) return;
 
-    const thumb = document.getElementById('customScrollbarThumb');
+    const thumb = this.thumbElement;
     if (!thumb) return;
 
     // Batch read operations first to avoid layout thrashing
@@ -278,6 +289,51 @@ export class HistoryUIManager {
         historyList.innerHTML = '<div class="history-empty">Error loading history</div>';
       }
     }
+  }
+
+  /**
+   * Append new items to existing history list (for loadMore)
+   * Avoids full DOM rebuild by only creating and appending new elements
+   */
+  public appendHistoryItems(newItems: HistoryItem[], totalMatches?: number): void {
+    const historyList = this.getHistoryList();
+    if (!historyList || newItems.length === 0) return;
+
+    const searchManager = this.getSearchManager();
+    const isSearchMode = searchManager?.isInSearchMode() || false;
+    const searchTerm = isSearchMode ? (searchManager?.getSearchTerm() || '') : '';
+
+    // Create fragment for new items only
+    const fragment = document.createDocumentFragment();
+    for (const item of newItems) {
+      fragment.appendChild(this.createHistoryElement(item, isSearchMode, searchTerm, searchManager));
+    }
+
+    // Remove existing count indicator
+    const existingMore = historyList.querySelector('.history-more');
+    if (existingMore) {
+      existingMore.remove();
+    }
+
+    // Create updated count indicator
+    const displayedCount = historyList.querySelectorAll('.history-item').length + newItems.length;
+    const totalCount = totalMatches !== undefined ? totalMatches : displayedCount;
+    const countIndicator = document.createElement('div');
+    countIndicator.className = 'history-more';
+    if (totalCount > displayedCount) {
+      countIndicator.textContent = `+${totalCount - displayedCount} more items`;
+    } else {
+      countIndicator.textContent = `${totalCount} items`;
+    }
+    fragment.appendChild(countIndicator);
+
+    // Append only new items (existing DOM untouched)
+    historyList.appendChild(fragment);
+
+    // Update scrollbar
+    requestAnimationFrame(() => {
+      this.updateScrollbarAfterRender();
+    });
   }
 
   private createHistoryElement(
@@ -461,6 +517,11 @@ export class HistoryUIManager {
   }
 
   public cleanup(): void {
+    if (this.scrollRAFId !== null) {
+      cancelAnimationFrame(this.scrollRAFId);
+      this.scrollRAFId = null;
+    }
+
     if (this.keyboardNavigationTimeout) {
       clearTimeout(this.keyboardNavigationTimeout);
       this.keyboardNavigationTimeout = null;
@@ -487,8 +548,8 @@ export class HistoryUIManager {
     }
 
     // Remove scrollbar event listeners
-    const scrollbar = document.getElementById('customScrollbar');
-    const thumb = document.getElementById('customScrollbarThumb');
+    const scrollbar = this.scrollbarElement;
+    const thumb = this.thumbElement;
     if (scrollbar) {
       if (this.wheelHandler) {
         scrollbar.removeEventListener('wheel', this.wheelHandler);
@@ -512,5 +573,7 @@ export class HistoryUIManager {
       this.documentMouseUpHandler = null;
     }
     this.isDragging = false;
+    this.scrollbarElement = null;
+    this.thumbElement = null;
   }
 }

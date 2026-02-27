@@ -550,7 +550,22 @@ export class PromptLineRenderer {
     this.searchManager?.toggleSearchMode();
   }
 
+  // Flag to track when loadMore is in progress (for incremental append optimization)
+  private _isLoadingMore: boolean = false;
+
   private handleSearchStateChange(isSearchMode: boolean, filteredData: HistoryItem[], totalMatches?: number): void {
+    // Incremental append for loadMore (avoids full DOM rebuild)
+    if (this._isLoadingMore && isSearchMode) {
+      const previousLength = this.filteredHistoryData.length;
+      this.filteredHistoryData = filteredData;
+      this.totalMatchCount = totalMatches;
+      const newItems = filteredData.slice(previousLength);
+      if (newItems.length > 0) {
+        this.historyUIManager.appendHistoryItems(newItems, totalMatches);
+      }
+      return;
+    }
+
     // Only clear history selection when entering search mode or when items are filtered down (not when loading more)
     const isLoadingMore = filteredData.length > this.filteredHistoryData.length;
     const shouldClearSelection = !isSearchMode || (filteredData.length !== this.filteredHistoryData.length && !isLoadingMore);
@@ -578,17 +593,24 @@ export class PromptLineRenderer {
   }
 
   private handleLoadMore(): void {
-    if (this.searchManager?.isInSearchMode()) {
-      this.searchManager.loadMore();
-    } else {
-      // Non-search mode: load more items from historyData
-      if (this.filteredHistoryData.length >= this.historyData.length) {
-        // Already showing all items
-        return;
+    this._isLoadingMore = true;
+    try {
+      if (this.searchManager?.isInSearchMode()) {
+        // Search mode: loadMore triggers handleSearchStateChange which uses incremental append
+        this.searchManager.loadMore();
+      } else {
+        // Non-search mode: incremental append directly
+        if (this.filteredHistoryData.length >= this.historyData.length) {
+          return;
+        }
+        const previousLength = this.filteredHistoryData.length;
+        this.nonSearchDisplayLimit += LOAD_MORE_INCREMENT;
+        this.filteredHistoryData = this.historyData.slice(0, this.nonSearchDisplayLimit);
+        const newItems = this.filteredHistoryData.slice(previousLength);
+        this.historyUIManager.appendHistoryItems(newItems, this.historyData.length);
       }
-      this.nonSearchDisplayLimit += LOAD_MORE_INCREMENT;
-      this.filteredHistoryData = this.historyData.slice(0, this.nonSearchDisplayLimit);
-      this.renderHistory();
+    } finally {
+      this._isLoadingMore = false;
     }
   }
 
