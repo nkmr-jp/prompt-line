@@ -53,6 +53,8 @@ export class PromptLineRenderer {
   private initCompleted: boolean = false;
   // Throttle timeout for mousemove events
   private mouseMoveThrottleTimeout: number | null = null;
+  // Last search term that was rendered (for render skip optimization)
+  private _lastRenderedSearchTerm: string = '';
 
   constructor() {
     this.domManager = new DomManager();
@@ -566,16 +568,20 @@ export class PromptLineRenderer {
       return;
     }
 
-    // Skip render if search results haven't changed (avoids unnecessary DOM recycling)
+    // Skip render if search results AND search term haven't changed
+    // (search term check is required because highlight needs updating even when items are the same)
     if (isSearchMode && this.filteredHistoryData.length > 0) {
+      const currentSearchTerm = this.searchManager?.getSearchTerm() || '';
       const prevData = this.filteredHistoryData;
-      if (filteredData.length === prevData.length &&
+      if (currentSearchTerm === this._lastRenderedSearchTerm &&
+          filteredData.length === prevData.length &&
           filteredData[0]?.id === prevData[0]?.id &&
           filteredData[filteredData.length - 1]?.id === prevData[prevData.length - 1]?.id) {
         this.filteredHistoryData = filteredData;
         this.totalMatchCount = totalMatches;
         return;
       }
+      this._lastRenderedSearchTerm = currentSearchTerm;
     }
 
     // Only clear history selection when entering search mode or when items are filtered down (not when loading more)
@@ -591,6 +597,7 @@ export class PromptLineRenderer {
       this.nonSearchDisplayLimit = DEFAULT_DISPLAY_LIMIT;
       this.filteredHistoryData = this.historyData.slice(0, this.nonSearchDisplayLimit);
       this.totalMatchCount = this.historyData.length;
+      this._lastRenderedSearchTerm = '';
     }
     this.renderHistory();
 
