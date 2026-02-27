@@ -2275,12 +2275,12 @@ Content`;
   });
 
   describe('plain text file support', () => {
-    test('should parse .txt file with first line as heading', async () => {
+    test('should create one item per non-empty line in .txt file', async () => {
       loader = new CustomSearchLoader(createTestConfig([
         {
-          name: '{basename}',
+          name: '{line}',
           type: 'command',
-          description: '{heading}',
+          description: '{basename}',
           path: '/path/to/logs',
           pattern: '*.txt',
         },
@@ -2292,17 +2292,19 @@ Content`;
 
       const items = await loader.getItems('command');
 
-      expect(items).toHaveLength(1);
-      expect(items[0]?.name).toBe('server');
-      expect(items[0]?.description).toBe('2024-01-01 Server started');
+      expect(items).toHaveLength(3);
+      expect(items[0]?.name).toBe('2024-01-01 Server started');
+      expect(items[1]?.name).toBe('Line 2');
+      expect(items[2]?.name).toBe('Line 3');
+      expect(items[0]?.description).toBe('server');
     });
 
-    test('should parse .log file as plain text', async () => {
+    test('should create one item per line in .log file', async () => {
       loader = new CustomSearchLoader(createTestConfig([
         {
-          name: '{basename}',
+          name: '{line}',
           type: 'command',
-          description: '{heading}',
+          description: '{basename}',
           path: '/path/to/logs',
           pattern: '*.log',
         },
@@ -2314,17 +2316,17 @@ Content`;
 
       const items = await loader.getItems('command');
 
-      expect(items).toHaveLength(1);
-      expect(items[0]?.name).toBe('app');
-      expect(items[0]?.description).toBe('ERROR: Connection timeout');
+      expect(items).toHaveLength(2);
+      expect(items[0]?.name).toBe('ERROR: Connection timeout');
+      expect(items[1]?.name).toBe('Retrying...');
     });
 
-    test('should return empty heading for empty plain text file', async () => {
+    test('should return empty array for empty plain text file', async () => {
       loader = new CustomSearchLoader(createTestConfig([
         {
-          name: '{basename}',
+          name: '{line}',
           type: 'command',
-          description: '{heading}',
+          description: '{basename}',
           path: '/path/to/logs',
           pattern: '*.txt',
         },
@@ -2336,14 +2338,35 @@ Content`;
 
       const items = await loader.getItems('command');
 
-      expect(items).toHaveLength(1);
-      expect(items[0]?.description).toBe('');
+      expect(items).toHaveLength(0);
     });
 
-    test('should skip blank lines when finding first line', async () => {
+    test('should skip blank lines', async () => {
       loader = new CustomSearchLoader(createTestConfig([
         {
-          name: '{basename}',
+          name: '{line}',
+          type: 'command',
+          description: '{basename}',
+          path: '/path/to/logs',
+          pattern: '*.txt',
+        },
+      ]));
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true, mtimeMs: 1000 } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('data.txt', true)] as any);
+      mockedFs.readFile.mockResolvedValue('\n\n  First real line\n\nSecond line\n');
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(2);
+      expect(items[0]?.name).toBe('First real line');
+      expect(items[1]?.name).toBe('Second line');
+    });
+
+    test('should resolve {heading} as first non-empty line for all items', async () => {
+      loader = new CustomSearchLoader(createTestConfig([
+        {
+          name: '{line}',
           type: 'command',
           description: '{heading}',
           path: '/path/to/logs',
@@ -2353,18 +2376,20 @@ Content`;
 
       mockedFs.stat.mockResolvedValue({ isDirectory: () => true, mtimeMs: 1000 } as any);
       mockedFs.readdir.mockResolvedValue([createDirent('data.txt', true)] as any);
-      mockedFs.readFile.mockResolvedValue('\n\n  First real line\nSecond line');
+      mockedFs.readFile.mockResolvedValue('Header line\nSecond line');
 
       const items = await loader.getItems('command');
 
-      expect(items).toHaveLength(1);
-      expect(items[0]?.description).toBe('First real line');
+      expect(items).toHaveLength(2);
+      // All items share the same heading (first line of file)
+      expect(items[0]?.description).toBe('Header line');
+      expect(items[1]?.description).toBe('Header line');
     });
 
     test('should not have frontmatter for plain text files', async () => {
       loader = new CustomSearchLoader(createTestConfig([
         {
-          name: '{frontmatter@title}|{basename}',
+          name: '{frontmatter@title}|{line}',
           type: 'command',
           description: '{frontmatter@description}',
           path: '/path/to/logs',
@@ -2378,21 +2403,26 @@ Content`;
 
       const items = await loader.getItems('command');
 
-      expect(items).toHaveLength(1);
-      // frontmatter@title is empty, so fallback to basename
-      expect(items[0]?.name).toBe('notes');
-      // frontmatter@description is empty
-      expect(items[0]?.description).toBe('');
-      // No raw frontmatter
-      expect(items[0]?.frontmatter).toBeUndefined();
+      // 4 non-empty lines but '---' appears twice and is deduplicated → 3 items
+      expect(items).toHaveLength(3);
+      // frontmatter@title is empty, so all names fallback to {line} (sorted by name asc)
+      const names = items.map(i => i.name);
+      expect(names).toContain('---');
+      expect(names).toContain('Body');
+      expect(names).toContain('title: This is not frontmatter');
+      // frontmatter@description is empty for all items
+      items.forEach(item => {
+        expect(item.description).toBe('');
+        expect(item.frontmatter).toBeUndefined();
+      });
     });
 
     test('should treat unknown extensions as plain text', async () => {
       loader = new CustomSearchLoader(createTestConfig([
         {
-          name: '{basename}',
+          name: '{line}',
           type: 'command',
-          description: '{heading}',
+          description: '{basename}',
           path: '/path/to/data',
           pattern: '*.csv',
         },
@@ -2404,9 +2434,12 @@ Content`;
 
       const items = await loader.getItems('command');
 
-      expect(items).toHaveLength(1);
-      expect(items[0]?.name).toBe('data');
-      expect(items[0]?.description).toBe('name,age,city');
+      expect(items).toHaveLength(2);
+      // Items sorted by name (default asc)
+      const names = items.map(i => i.name);
+      expect(names).toContain('name,age,city');
+      expect(names).toContain('Alice,30,Tokyo');
+      items.forEach(item => expect(item.description).toBe('data'));
     });
   });
 });

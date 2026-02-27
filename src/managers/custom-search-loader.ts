@@ -412,6 +412,9 @@ class CustomSearchLoader {
       } else if (filePath.endsWith('.jsonl')) {
         const jsonlItems = await this.parseJsonlToItems(filePath, entry, sourceId, jqExpression);
         items.push(...jsonlItems);
+      } else if (this.isPlainTextFile(filePath)) {
+        const textItems = await this.parsePlainTextToItems(filePath, entry, sourceId);
+        items.push(...textItems);
       } else {
         const item = await this.parseFileToItem(filePath, entry, sourceId);
         if (item) {
@@ -444,9 +447,8 @@ class CustomSearchLoader {
         fs.stat(filePath),
       ]);
       const isJsonFile = filePath.endsWith('.json');
-      const isPlainText = !isJsonFile && this.isPlainTextFile(filePath);
-      const frontmatter = (isJsonFile || isPlainText) ? {} : parseFrontmatter(content);
-      const rawFrontmatter = (isJsonFile || isPlainText) ? '' : extractRawFrontmatter(content);
+      const frontmatter = isJsonFile ? {} : parseFrontmatter(content);
+      const rawFrontmatter = isJsonFile ? '' : extractRawFrontmatter(content);
       const basename = getBasename(filePath);
 
       // Expand path for prefix resolution
@@ -459,7 +461,7 @@ class CustomSearchLoader {
       }
 
       const dirname = getDirname(filePath);
-      const heading = isJsonFile ? '' : isPlainText ? this.parseFirstLine(content) : parseFirstHeading(content);
+      const heading = isJsonFile ? '' : parseFirstHeading(content);
       const jsonData = isJsonFile ? parseJsonContent(content) : undefined;
       const context = { basename, frontmatter, prefix, dirname, filePath, heading, ...(jsonData && { jsonData }) };
 
@@ -516,6 +518,83 @@ class CustomSearchLoader {
   private parseFirstLine(content: string): string {
     const firstLine = content.split('\n').find(line => line.trim() !== '');
     return firstLine?.trim() ?? '';
+  }
+
+  /**
+   * Parse plain text file to generate multiple CustomSearchItems (one per non-empty line)
+   * テンプレート変数 {line} で各行のテキストを参照可能
+   */
+  private async parsePlainTextToItems(
+    filePath: string,
+    entry: CustomSearchEntry,
+    sourceId: string
+  ): Promise<CustomSearchItem[]> {
+    try {
+      const [content, fileStat] = await Promise.all([
+        fs.readFile(filePath, 'utf8'),
+        fs.stat(filePath),
+      ]);
+      const lines = content.split('\n');
+      const basename = getBasename(filePath);
+      const dirname = getDirname(filePath);
+      const items: CustomSearchItem[] = [];
+
+      const expandedPath = entry.path.replace(/^~/, os.homedir());
+      let prefix = '';
+      if (entry.prefixPattern) {
+        prefix = await resolvePrefix(filePath, entry.prefixPattern, expandedPath);
+      }
+
+      const heading = this.parseFirstLine(content);
+
+      for (const rawLine of lines) {
+        const trimmed = rawLine.trim();
+        if (!trimmed) continue;
+
+        const context = { basename, frontmatter: {}, prefix, dirname, filePath, heading, line: trimmed };
+
+        const item: CustomSearchItem = {
+          name: resolveTemplate(entry.name, context),
+          description: resolveTemplate(entry.description, context),
+          type: entry.type,
+          filePath,
+          sourceId,
+        };
+
+        const sortKey = this.resolveSortKey(entry, context);
+        if (sortKey) item.sortKey = sortKey;
+        if (entry.label) {
+          const resolvedLabel = resolveTemplate(entry.label, context);
+          if (resolvedLabel) item.label = resolvedLabel;
+        }
+        if (entry.color) {
+          const resolvedColor = this.resolveColorWithFallback(entry.color, context);
+          if (resolvedColor) item.color = resolvedColor as ColorValue;
+        }
+        if (entry.icon) {
+          const resolvedIcon = resolveTemplate(entry.icon, context);
+          if (resolvedIcon) item.icon = resolvedIcon.startsWith('codicon-') ? resolvedIcon : `codicon-${resolvedIcon}`;
+        }
+        if (entry.argumentHint) {
+          const resolvedHint = resolveTemplate(entry.argumentHint, context);
+          if (resolvedHint) item.argumentHint = resolvedHint;
+        }
+        if (entry.inputFormat) item.inputFormat = entry.inputFormat;
+        item.updatedAt = fileStat.mtimeMs;
+
+        const displayTime = this.resolveDisplayTime(entry, context, fileStat.mtimeMs);
+        if (displayTime !== undefined) item.displayTime = displayTime;
+
+        if (item.name) {
+          items.push(item);
+        }
+      }
+
+      return items;
+    } catch (error) {
+      logger.warn('Failed to parse plain text file', { filePath, error });
+      return [];
+    }
   }
 
   /**
