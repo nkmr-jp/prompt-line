@@ -71,6 +71,7 @@ builtInCommands:                      # List of tools to enable
 # Template variables: {basename}, {frontmatter@fieldName}
 
 # Agent skills: custom commands from markdown files
+# Search: Space-separated keywords enable AND search (e.g., "/commit fix" matches both words)
 # Configuration fields:
 #   name: Display name template (variables: {basename}, {frontmatter@field}, {prefix})
 #   description: Skill description template (variables: {basename}, {frontmatter@field}, {dirname}, {dirname:N})
@@ -129,6 +130,7 @@ mentions:
   # Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
   # Scans directories for files matching glob patterns and provides @ mention suggestions.
   # Supports: Markdown (.md), JSON (.json), JSONL (.jsonl), jq expressions, and plain text files.
+  # Search: Space-separated keywords enable AND search (e.g., @agent:dev api)
   #
   # Configuration fields:
   #   name            : Display name template
@@ -257,6 +259,7 @@ mentions:
 
   # Symbol search settings (@ts:Config, @go:Handler)
   # Note: ripgrep required (brew install ripgrep)
+  # Search: Space-separated keywords enable AND search (e.g., @ts:Config util)
   symbolSearch:
     maxSymbols: 200000                # Maximum symbols to return
     timeout: 60000                    # Search timeout in ms

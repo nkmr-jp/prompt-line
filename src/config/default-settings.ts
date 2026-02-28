@@ -111,6 +111,8 @@ export const defaultSettings: UserSettings = {
   /**
    * Agent skills — custom slash commands loaded from markdown files (type "/" to access)
    *
+   * Search: Space-separated keywords enable AND search (e.g., "/commit fix" matches both words)
+   *
    * Each entry defines a source directory and pattern to scan for skill files.
    * Template variables for name/description:
    *   {basename}              — File name without extension
@@ -247,6 +249,7 @@ export const defaultSettings: UserSettings = {
     /**
      * Symbol search settings — triggered by typing "@lang:query" (e.g., @ts:Config, @go:Handler)
      *
+     * Search: Space-separated keywords enable AND search (e.g., @ts:Config util)
      * Requires: ripgrep (brew install ripgrep)
      * Supported languages (20): go, ts, tsx, js, jsx, py, rs, java, kt, swift,
      *   rb, cpp, c, sh, make/mk, php, cs, scala, tf/terraform, md/markdown
@@ -269,6 +272,8 @@ export const defaultSettings: UserSettings = {
     },
     /**
      * Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
+     *
+     * Search: Space-separated keywords enable AND search (e.g., @agent:dev api)
      *
      * Each entry scans a directory for files matching a glob pattern and makes them
      * available as @ mention suggestions.
