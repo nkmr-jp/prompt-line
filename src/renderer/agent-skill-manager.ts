@@ -310,17 +310,22 @@ export class AgentSkillManager implements IInitializable {
     const { query, startPos } = result;
 
     // If in editing mode (Tab selected), check if command name still matches
+    // With allowSpaces, query may include trailing space and arguments (e.g. "skillname " or "skillname args")
     if (this.isEditingMode) {
-      // Exit editing mode if user modified the command name
-      if (query !== this.editingSkillName) {
-        this.isEditingMode = false;
-        this.editingSkillName = '';
-        this.editingSkillStartPos = 0;
-        // Continue to show suggestions based on new query
-      } else {
-        // Command name still matches, keep showing selected command
+      if (query === this.editingSkillName) {
+        // Exact match, keep showing argument hint
         return;
       }
+      if (query.startsWith(this.editingSkillName + ' ')) {
+        // User is at or past the argument position - hide UI but keep editing mode
+        this.hideUI();
+        return;
+      }
+      // Command name was modified, exit editing mode
+      this.isEditingMode = false;
+      this.editingSkillName = '';
+      this.editingSkillStartPos = 0;
+      // Continue to show suggestions based on new query
     }
 
     this.currentTriggerStartPos = startPos;
