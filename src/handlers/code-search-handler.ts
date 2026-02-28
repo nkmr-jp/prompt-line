@@ -8,6 +8,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { logger } from '../utils/utils';
 import { calculateFileMtimeBonus } from '../lib/usage-bonus-calculator';
+import { splitKeywords } from '../lib/keyword-utils';
 import {
   checkRgAvailable,
   getSupportedLanguages,
@@ -235,7 +236,7 @@ class CodeSearchHandler {
 
     // Filter by query - supports AND search with space-separated keywords
     if (query) {
-      const keywords = query.toLowerCase().split(/\s+/).filter(k => k.length > 0);
+      const keywords = splitKeywords(query.toLowerCase());
       if (keywords.length > 0) {
         filtered = filtered.filter(s => {
           const nameLower = s.nameLower ?? s.name.toLowerCase();

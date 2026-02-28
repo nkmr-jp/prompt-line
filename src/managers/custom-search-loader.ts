@@ -9,6 +9,7 @@ import { getDefaultCustomSearchConfig, DEFAULT_MAX_SUGGESTIONS, DEFAULT_ORDER_BY
 import { CACHE_TTL } from '../constants';
 import { resolvePrefix } from '../lib/prefix-resolver';
 import { isCommandEnabled } from '../lib/command-name-matcher';
+import { splitKeywords } from '../lib/keyword-utils';
 
 /**
  * CustomSearchLoader - 設定ベースの統合Markdownファイルローダー
@@ -128,7 +129,7 @@ class CustomSearchLoader {
       }
 
       // Split query into keywords for AND search (space-separated)
-      const keywords = actualQuery.toLowerCase().split(/\s+/).filter(k => k.length > 0);
+      const keywords = splitKeywords(actualQuery.toLowerCase());
       if (keywords.length === 0) {
         return true;
       }

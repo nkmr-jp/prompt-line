@@ -16,6 +16,7 @@
 import type { HistoryItem } from '../types';
 import type { HistorySearchConfig, SearchResult, FilterResult } from './types';
 import { DEFAULT_CONFIG, MATCH_SCORES, RECENCY_CONFIG } from './types';
+import { splitKeywords } from '../../lib/keyword-utils';
 
 /** Pre-computed TTL in milliseconds */
 const TTL_MS = RECENCY_CONFIG.TTL_DAYS * 86_400_000;
@@ -130,7 +131,7 @@ export class HistorySearchFilterEngine {
     }
 
     // Split keywords once per search
-    const keywords = this.splitKeywordsOptimized(queryNormalized);
+    const keywords = splitKeywords(queryNormalized);
     if (keywords.length === 0) {
       return { items: [], totalMatches: 0 };
     }
@@ -222,25 +223,6 @@ export class HistorySearchFilterEngine {
     return this.filterCore(items, query, displayLimit);
   }
 
-  /**
-   * Split query into keywords (space-separated)
-   * Optimized: avoids regex and filter for common cases
-   */
-  private splitKeywordsOptimized(query: string): string[] {
-    // Fast path: no spaces in query (single keyword)
-    if (query.indexOf(' ') === -1) {
-      return query.length > 0 ? [query] : [];
-    }
-    return query.split(/\s+/).filter(k => k.length > 0);
-  }
-
-  /**
-   * Split query into keywords (space-separated)
-   * Filters out empty strings
-   */
-  private splitKeywords(query: string): string[] {
-    return query.split(/\s+/).filter(k => k.length > 0);
-  }
 
   /**
    * Score a single keyword against text using simple contains matching
@@ -278,7 +260,7 @@ export class HistorySearchFilterEngine {
       ? item.text
       : item.text.toLowerCase();
 
-    const keywords = this.splitKeywords(queryNormalized);
+    const keywords = splitKeywords(queryNormalized);
     if (keywords.length === 0) {
       return { item, score: 0, matchPositions: [] };
     }

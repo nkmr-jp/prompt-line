@@ -469,7 +469,7 @@ export class SuggestionUIManager {
 
     if (this.mergedSuggestions.length === 0) {
       if (isIndexBuilding) {
-        this.renderEmptyState(isIndexBuilding);
+        this.renderIndexingState();
       } else {
         this.hideSuggestions();
       }
@@ -501,9 +501,9 @@ export class SuggestionUIManager {
   }
 
   /**
-   * Render empty state
+   * Render indexing state (shown while building file index)
    */
-  private renderEmptyState(isIndexBuilding: boolean): void {
+  private renderIndexingState(): void {
     if (!this.suggestionsContainer) return;
 
     while (this.suggestionsContainer.firstChild) {
@@ -511,8 +511,8 @@ export class SuggestionUIManager {
     }
 
     const emptyDiv = document.createElement('div');
-    emptyDiv.className = isIndexBuilding ? 'file-suggestion-empty indexing' : 'file-suggestion-empty';
-    emptyDiv.textContent = isIndexBuilding ? 'Building file index...' : 'No matching items found';
+    emptyDiv.className = 'file-suggestion-empty indexing';
+    emptyDiv.textContent = 'Building file index...';
     this.suggestionsContainer.appendChild(emptyDiv);
 
     this.suggestionsContainer.style.display = 'block';
