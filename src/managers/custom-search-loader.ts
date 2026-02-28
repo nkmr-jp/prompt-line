@@ -464,7 +464,7 @@ class CustomSearchLoader {
       const dirname = getDirname(filePath);
       const heading = isJsonFile ? '' : parseFirstHeading(content);
       const jsonData = isJsonFile ? parseJsonContent(content) : undefined;
-      const context = { basename, frontmatter, prefix, dirname, filePath, heading, ...(jsonData && { jsonData }) };
+      const context = { basename, frontmatter, prefix, dirname, filePath, heading, content, ...(jsonData && { jsonData }) };
 
       const item: CustomSearchItem = {
         name: resolveTemplate(entry.name, context),
@@ -558,7 +558,7 @@ class CustomSearchLoader {
         const trimmed = rawLine.trim();
         if (!trimmed) continue;
 
-        const context = { basename, frontmatter: {}, prefix, dirname, filePath, heading, line: trimmed };
+        const context = { basename, frontmatter: {}, prefix, dirname, filePath, heading, line: trimmed, content };
 
         const item: CustomSearchItem = {
           name: resolveTemplate(entry.name, context),
@@ -646,7 +646,7 @@ class CustomSearchLoader {
 
         const elementData = element as Record<string, unknown>;
         const parentJsonDataStack = [jsonData];
-        const context = { basename, frontmatter: {}, prefix: '', dirname, filePath, heading: '', jsonData: elementData, parentJsonDataStack };
+        const context = { basename, frontmatter: {}, prefix: '', dirname, filePath, heading: '', jsonData: elementData, parentJsonDataStack, content };
 
         const item: CustomSearchItem = {
           name: resolveTemplate(entry.name, context),
@@ -752,12 +752,12 @@ class CustomSearchLoader {
           for (const element of elements) {
             if (element === null || typeof element !== 'object' || Array.isArray(element)) continue;
             const elementData = element as Record<string, unknown>;
-            const item = this.createItemFromJsonData(elementData, basename, dirname, filePath, entry, sourceId, [lineData]);
+            const item = this.createItemFromJsonData(elementData, basename, dirname, filePath, entry, sourceId, [lineData], content);
             if (item) items.push(item);
           }
         } else {
           const elementData = parsed as Record<string, unknown>;
-          const item = this.createItemFromJsonData(elementData, basename, dirname, filePath, entry, sourceId);
+          const item = this.createItemFromJsonData(elementData, basename, dirname, filePath, entry, sourceId, undefined, content);
           if (item) items.push(item);
         }
       }
@@ -832,9 +832,10 @@ class CustomSearchLoader {
     filePath: string,
     entry: CustomSearchEntry,
     sourceId: string,
-    parentJsonDataStack?: Record<string, unknown>[]
+    parentJsonDataStack?: Record<string, unknown>[],
+    content?: string
   ): CustomSearchItem | null {
-    const context = { basename, frontmatter: {}, prefix: '', dirname, filePath, heading: '', jsonData: elementData, ...(parentJsonDataStack && { parentJsonDataStack }) };
+    const context = { basename, frontmatter: {}, prefix: '', dirname, filePath, heading: '', jsonData: elementData, ...(parentJsonDataStack && { parentJsonDataStack }), ...(content && { content }) };
     const item: CustomSearchItem = {
       name: resolveTemplate(entry.name, context),
       description: resolveTemplate(entry.description, context),

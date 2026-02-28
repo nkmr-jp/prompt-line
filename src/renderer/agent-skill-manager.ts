@@ -801,11 +801,15 @@ export class AgentSkillManager implements IInitializable {
     this.registerSkillToCache(command.name);
 
     // Determine what to insert based on inputFormat setting
-    // Default to 'name' for commands (backward compatible behavior)
-    const inputFormat = command.inputFormat ?? 'name';
+    // inputFormat が 'name' でも undefined でも従来通り / 付き（'name' はデフォルト値）
+    // 'name'/'path' 以外の明示指定（テンプレート等）の場合のみ / なし
     const skillText = command.inputText
       ? command.inputText
-      : inputFormat === 'path' ? command.filePath : `/${command.name}`;
+      : command.inputFormat === 'path'
+        ? command.filePath
+        : command.inputFormat && command.inputFormat !== 'name'
+          ? command.name          // inputFormat がテンプレート等 → / なし
+          : `/${command.name}`;   // デフォルト or 'name' → / あり
 
     // Show argumentHint if available, otherwise hide suggestions
     if (command.argumentHint) {
