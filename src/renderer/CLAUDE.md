@@ -205,7 +205,7 @@ Comprehensive @ mention system with modular architecture for file search and cod
 - Modular design with clear separation of concerns
 
 ### CodeSearchManager (mentions/code-search/)
-Code/symbol search functionality with `@language:query` syntax for 20+ programming languages:
+Code/symbol search functionality with `@language:query` syntax for 21 programming languages:
 
 **Module Structure:**
 - `mentions/code-search/types.ts`: Type definitions and symbol utilities

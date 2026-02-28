@@ -185,7 +185,7 @@ Shared utilities for all handlers:
 
 ### Code Search (code-search-handler.ts)
 - **`check-rg`**: Checks ripgrep availability for symbol search
-- **`get-supported-languages`**: Returns list of 20+ supported programming languages
+- **`get-supported-languages`**: Returns list of 21 supported programming languages
 - **`search-symbols`**: Searches for symbols in a directory for a specific language
   - Parameters: directory, language, options (maxSymbols, useCache)
   - Uses Node.js symbol search module with ripgrep
