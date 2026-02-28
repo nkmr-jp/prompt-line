@@ -1,8 +1,8 @@
-import { describe, test, expect, beforeEach, jest } from '@jest/globals';
+import type { Mock } from 'vitest';
 import type { FileInfo } from '../../src/types';
 
 // Mock the config module FIRST (must be before imports that use it)
-jest.mock('../../src/config/app-config', () => {
+vi.mock('../../src/config/app-config', () => {
   const mockUserDataDir = '/test/.prompt-line';
   return {
     __esModule: true,
@@ -17,47 +17,47 @@ jest.mock('../../src/config/app-config', () => {
 });
 
 // Mock fs promises module
-jest.mock('fs', () => ({
+vi.mock('fs', () => ({
   promises: {
-    mkdir: jest.fn(),
-    readFile: jest.fn(),
-    writeFile: jest.fn(),
-    access: jest.fn(),
-    readdir: jest.fn(),
-    stat: jest.fn(),
-    rm: jest.fn()
+    mkdir: vi.fn(),
+    readFile: vi.fn(),
+    writeFile: vi.fn(),
+    access: vi.fn(),
+    readdir: vi.fn(),
+    stat: vi.fn(),
+    rm: vi.fn()
   },
-  createReadStream: jest.fn(),
-  createWriteStream: jest.fn()
+  createReadStream: vi.fn(),
+  createWriteStream: vi.fn()
 }));
 
 // Mock the utils module
-jest.mock('../../src/utils/utils', () => ({
+vi.mock('../../src/utils/utils', () => ({
   logger: {
-    info: jest.fn(),
-    debug: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn()
+    info: vi.fn(),
+    debug: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn()
   }
 }));
 
 // Mock readline module
-jest.mock('readline', () => ({
-  createInterface: jest.fn()
+vi.mock('readline', () => ({
+  createInterface: vi.fn()
 }));
 
 // Import after mocks
 import FileCacheManager from '../../src/managers/file-cache-manager';
 import { promises as fs } from 'fs';
 
-const mockedFs = jest.mocked(fs);
+const mockedFs = vi.mocked(fs);
 
 describe('FileCacheManager', () => {
   let cacheManager: FileCacheManager;
 
   beforeEach(() => {
     cacheManager = new FileCacheManager();
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('initialization', () => {
@@ -156,7 +156,7 @@ describe('FileCacheManager', () => {
 
       // Mock readline for JSONL reading
       const mockRl = {
-        on: jest.fn((event: string, handler: Function) => {
+        on: vi.fn((event: string, handler: Function) => {
           if (event === 'line') {
             handler('{"path":"file1.ts","name":"file1.ts","type":"file","size":100,"mtime":1700000000000}');
             handler('{"path":"file2.ts","name":"file2.ts","type":"file","size":200,"mtime":1700000001000}');
@@ -168,7 +168,7 @@ describe('FileCacheManager', () => {
       };
 
       const { createInterface } = await import('readline');
-      (createInterface as jest.Mock).mockReturnValue(mockRl);
+      (createInterface as Mock).mockReturnValue(mockRl);
 
       const result = await cacheManager.loadCache(directory);
 
@@ -204,9 +204,9 @@ describe('FileCacheManager', () => {
 
       // Mock createWriteStream
       const mockWriteStream = {
-        write: jest.fn(),
-        end: jest.fn(),
-        on: jest.fn((event: string, handler: Function) => {
+        write: vi.fn(),
+        end: vi.fn(),
+        on: vi.fn((event: string, handler: Function) => {
           if (event === 'finish') {
             handler();
           }
@@ -214,7 +214,7 @@ describe('FileCacheManager', () => {
         })
       };
       const { createWriteStream } = await import('fs');
-      (createWriteStream as jest.Mock).mockReturnValue(mockWriteStream);
+      (createWriteStream as Mock).mockReturnValue(mockWriteStream);
 
       await cacheManager.saveCache(directory, files, {
         searchMode: 'recursive',
@@ -318,7 +318,7 @@ describe('FileCacheManager', () => {
       await cacheManager.updateCacheTimestamp('/test');
 
       expect(mockedFs.writeFile).toHaveBeenCalled();
-      const writtenData = (mockedFs.writeFile as jest.Mock).mock.calls[0]?.[1] as string;
+      const writtenData = (mockedFs.writeFile as Mock).mock.calls[0]?.[1] as string;
       const updatedMetadata = JSON.parse(writtenData);
 
       expect(updatedMetadata.createdAt).toBe(metadata.createdAt);
@@ -380,7 +380,7 @@ describe('FileCacheManager', () => {
       await cacheManager.setLastUsedDirectory('/new/dir');
 
       expect(mockedFs.writeFile).toHaveBeenCalled();
-      const writtenData = (mockedFs.writeFile as jest.Mock).mock.calls[0]?.[1] as string;
+      const writtenData = (mockedFs.writeFile as Mock).mock.calls[0]?.[1] as string;
       const updatedMetadata = JSON.parse(writtenData);
 
       expect(updatedMetadata.lastUsedDirectory).toBe('/new/dir');
@@ -406,7 +406,7 @@ describe('FileCacheManager', () => {
 
       await cacheManager.setLastUsedDirectory('/new/dir');
 
-      const writtenData = (mockedFs.writeFile as jest.Mock).mock.calls[0]?.[1] as string;
+      const writtenData = (mockedFs.writeFile as Mock).mock.calls[0]?.[1] as string;
       const updatedMetadata = JSON.parse(writtenData);
 
       expect(updatedMetadata.recentDirectories).toHaveLength(10); // MAX_RECENT_DIRECTORIES

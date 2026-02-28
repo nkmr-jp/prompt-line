@@ -1,52 +1,57 @@
+import type { Mocked } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
 import SettingsManager from '../../src/managers/settings-manager';
 import type { UserSettings } from '../../src/types';
+import jsYaml from 'js-yaml';
+import chokidar from 'chokidar';
+import * as utilsModule from '../../src/utils/utils';
 
 // Mock fs module
-jest.mock('fs', () => ({
+vi.mock('fs', () => ({
   promises: {
-    mkdir: jest.fn(),
-    readFile: jest.fn(),
-    writeFile: jest.fn()
+    mkdir: vi.fn(),
+    readFile: vi.fn(),
+    writeFile: vi.fn()
   }
 }));
 
 // Mock utils
-jest.mock('../../src/utils/utils', () => ({
+vi.mock('../../src/utils/utils', () => ({
   logger: {
-    debug: jest.fn(),
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn()
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn()
   }
 }));
 
 // Mock js-yaml
-jest.mock('js-yaml', () => ({
-  load: jest.fn((data: string) => {
-    // Handle different YAML content for tests
-    if (data.includes('main: Alt+Space')) {
-      return {
-        shortcuts: { main: 'Alt+Space', paste: 'Enter', close: 'Escape', search: 'Cmd+f' },
-        window: { position: 'center', width: 800, height: 400 }
-      };
-    }
-    if (data.includes('main: Ctrl+Space')) {
-      return {
-        shortcuts: { main: 'Ctrl+Space', paste: 'Enter', close: 'Escape' },
-        window: { position: 'cursor', width: 700, height: 350 }
-      };
-    }
-    if (data.includes('invalid: yaml:')) {
-      // Simulate invalid YAML that throws an error
-      throw new Error('Invalid YAML format');
-    }
-    return null;
-  }),
-  dump: jest.fn((data: unknown) => {
-    const yaml = `shortcuts:
+vi.mock('js-yaml', () => {
+  const yamlMock = {
+    load: vi.fn((data: string) => {
+      // Handle different YAML content for tests
+      if (data.includes('main: Alt+Space')) {
+        return {
+          shortcuts: { main: 'Alt+Space', paste: 'Enter', close: 'Escape', search: 'Cmd+f' },
+          window: { position: 'center', width: 800, height: 400 }
+        };
+      }
+      if (data.includes('main: Ctrl+Space')) {
+        return {
+          shortcuts: { main: 'Ctrl+Space', paste: 'Enter', close: 'Escape' },
+          window: { position: 'cursor', width: 700, height: 350 }
+        };
+      }
+      if (data.includes('invalid: yaml:')) {
+        // Simulate invalid YAML that throws an error
+        throw new Error('Invalid YAML format');
+      }
+      return null;
+    }),
+    dump: vi.fn((data: unknown) => {
+      const yaml = `shortcuts:
   main: ${(data as any).shortcuts.main}
   paste: ${(data as any).shortcuts.paste}
   close: ${(data as any).shortcuts.close}
@@ -54,33 +59,38 @@ window:
   position: ${(data as any).window.position}
   width: ${(data as any).window.width}
   height: ${(data as any).window.height}`;
-    return yaml;
-  }),
-  JSON_SCHEMA: {}  // Mock the JSON_SCHEMA constant
-}));
+      return yaml;
+    }),
+    JSON_SCHEMA: {}  // Mock the JSON_SCHEMA constant
+  };
+  return { ...yamlMock, default: yamlMock };
+});
 
 // Mock chokidar file watcher
-jest.mock('chokidar', () => ({
-  watch: jest.fn(() => ({
-    on: jest.fn(function(this: any, event: string, callback: Function) {
-      // Store callbacks for manual triggering in tests
-      if (!this.callbacks) this.callbacks = {};
-      this.callbacks[event] = callback;
-      return this;
-    }),
-    close: jest.fn(() => Promise.resolve()),
-    callbacks: {}
-  }))
-}));
+vi.mock('chokidar', () => {
+  const chokidarMock = {
+    watch: vi.fn(() => ({
+      on: vi.fn(function(this: any, event: string, callback: Function) {
+        // Store callbacks for manual triggering in tests
+        if (!this.callbacks) this.callbacks = {};
+        this.callbacks[event] = callback;
+        return this;
+      }),
+      close: vi.fn(() => Promise.resolve()),
+      callbacks: {}
+    }))
+  };
+  return { ...chokidarMock, default: chokidarMock };
+});
 
-const mockedFs = fs as jest.Mocked<typeof fs>;
+const mockedFs = fs as Mocked<typeof fs>;
 
 describe('SettingsManager', () => {
   let settingsManager: SettingsManager;
   const settingsPath = path.join(os.homedir(), '.prompt-line', 'settings.yml');
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     settingsManager = new SettingsManager();
   });
 
@@ -632,7 +642,7 @@ window:
 
       // Mock readFile to return YAML that js-yaml.load will parse
       // We need to simulate a user config that only has legacyBuiltInCommands
-      const yamlLoad = require('js-yaml').load;
+      const yamlLoad = (jsYaml as any).load;
       yamlLoad.mockReturnValueOnce({
         shortcuts: { main: 'Cmd+Shift+Space', paste: 'Cmd+Enter', close: 'Escape' },
         window: { position: 'active-text-field', width: 640, height: 320 },
@@ -821,15 +831,12 @@ window:
   });
 
   describe('hot reload functionality', () => {
-    let chokidar: any;
+    const chokidarMock = chokidar as any;
     let mockWatcher: any;
 
     beforeEach(async () => {
       // Enable fake timers for debouncing tests
-      jest.useFakeTimers();
-
-      // Get the mocked chokidar module
-      chokidar = require('chokidar');
+      vi.useFakeTimers();
 
       // Initialize settings manager
       mockedFs.readFile.mockRejectedValue({ code: 'ENOENT' });
@@ -839,13 +846,13 @@ window:
       await settingsManager.init();
 
       // Get the mock watcher instance created during init
-      mockWatcher = chokidar.watch.mock.results[chokidar.watch.mock.results.length - 1]?.value;
+      mockWatcher = chokidarMock.watch.mock.results[chokidarMock.watch.mock.results.length - 1]?.value;
     });
 
     afterEach(async () => {
       // Clean up timers
-      jest.clearAllTimers();
-      jest.useRealTimers();
+      vi.clearAllTimers();
+      vi.useRealTimers();
     });
 
     it('should call startWatching() during init()', async () => {
@@ -853,7 +860,7 @@ window:
       const newSettingsManager = new SettingsManager();
 
       // Clear previous calls
-      chokidar.watch.mockClear();
+      chokidarMock.watch.mockClear();
 
       // Initialize
       mockedFs.readFile.mockRejectedValue({ code: 'ENOENT' });
@@ -862,7 +869,7 @@ window:
       await newSettingsManager.init();
 
       // Verify that chokidar.watch was called
-      expect(chokidar.watch).toHaveBeenCalledWith(
+      expect(chokidarMock.watch).toHaveBeenCalledWith(
         settingsPath,
         expect.objectContaining({
           persistent: true,
@@ -879,7 +886,7 @@ window:
 
     it('should emit settings-changed event when file changes', async () => {
       // Set up spy for the event
-      const settingsChangedHandler = jest.fn();
+      const settingsChangedHandler = vi.fn();
       settingsManager.on('settings-changed', settingsChangedHandler);
 
       // Mock updated file content
@@ -900,7 +907,7 @@ window:
       }
 
       // Fast-forward timers to trigger debounced reload (300ms)
-      await jest.advanceTimersByTimeAsync(300);
+      await vi.advanceTimersByTimeAsync(300);
 
       // Verify event was emitted with new and previous settings
       expect(settingsChangedHandler).toHaveBeenCalledWith(
@@ -925,7 +932,7 @@ window:
     });
 
     it('should properly debounce file changes', async () => {
-      const settingsChangedHandler = jest.fn();
+      const settingsChangedHandler = vi.fn();
       settingsManager.on('settings-changed', settingsChangedHandler);
 
       const updatedYaml = `shortcuts:
@@ -942,14 +949,14 @@ window:
       // Trigger multiple file changes rapidly
       if (mockWatcher?.callbacks?.change) {
         mockWatcher.callbacks.change();
-        jest.advanceTimersByTime(100); // 100ms
+        vi.advanceTimersByTime(100); // 100ms
 
         mockWatcher.callbacks.change();
-        jest.advanceTimersByTime(100); // 200ms total
+        vi.advanceTimersByTime(100); // 200ms total
 
         mockWatcher.callbacks.change();
         // Final advance to trigger the debounced callback
-        await jest.advanceTimersByTimeAsync(300); // 300ms from last change
+        await vi.advanceTimersByTimeAsync(300); // 300ms from last change
       }
 
       // Verify event was emitted only once (debounced)
@@ -962,7 +969,7 @@ window:
       // Get initial settings
       const initialSettings = settingsManager.getSettings();
 
-      const settingsChangedHandler = jest.fn();
+      const settingsChangedHandler = vi.fn();
       settingsManager.on('settings-changed', settingsChangedHandler);
 
       // Mock invalid YAML that will cause parsing to fail
@@ -974,7 +981,7 @@ window:
       }
 
       // Fast-forward timers
-      await jest.advanceTimersByTimeAsync(300);
+      await vi.advanceTimersByTimeAsync(300);
 
       // Verify that event was NOT emitted (reload failed)
       expect(settingsChangedHandler).not.toHaveBeenCalled();
@@ -987,7 +994,7 @@ window:
     });
 
     it('should properly close watcher on destroy()', async () => {
-      const closeSpy = jest.fn(() => Promise.resolve());
+      const closeSpy = vi.fn(() => Promise.resolve());
 
       if (mockWatcher) {
         mockWatcher.close = closeSpy;
@@ -1000,7 +1007,7 @@ window:
     });
 
     it('should clear debounce timer on destroy()', async () => {
-      const settingsChangedHandler = jest.fn();
+      const settingsChangedHandler = vi.fn();
       settingsManager.on('settings-changed', settingsChangedHandler);
 
       const updatedYaml = `shortcuts:
@@ -1020,11 +1027,11 @@ window:
       }
 
       // Destroy before debounce timer fires
-      jest.advanceTimersByTime(150); // Only 150ms, not the full 300ms
+      vi.advanceTimersByTime(150); // Only 150ms, not the full 300ms
       await settingsManager.destroy();
 
       // Fast-forward remaining time
-      await jest.advanceTimersByTimeAsync(200);
+      await vi.advanceTimersByTimeAsync(200);
 
       // Verify event was NOT emitted (timer was cleared)
       expect(settingsChangedHandler).not.toHaveBeenCalled();
@@ -1033,10 +1040,10 @@ window:
     });
 
     it('should handle watcher errors gracefully', async () => {
-      const errorHandler = jest.fn();
+      const errorHandler = vi.fn();
 
       // Mock logger.error to verify error handling
-      const { logger } = require('../../src/utils/utils');
+      const { logger } = utilsModule as any;
       const originalError = logger.error;
       logger.error = errorHandler;
 
@@ -1058,7 +1065,7 @@ window:
 
     it('should not start multiple watchers on repeated init calls', async () => {
       // Clear previous watch calls
-      chokidar.watch.mockClear();
+      chokidarMock.watch.mockClear();
 
       // Call init again (already initialized in beforeEach)
       await settingsManager.init();
@@ -1066,7 +1073,7 @@ window:
       // Verify watch was not called again (already watching)
       // The first call was in the beforeEach, so this should not add another
       // Note: The implementation checks if watcher already exists
-      expect(chokidar.watch).not.toHaveBeenCalled();
+      expect(chokidarMock.watch).not.toHaveBeenCalled();
     });
   });
 

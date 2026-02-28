@@ -1,4 +1,3 @@
-import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { formatTime } from '../../../src/renderer/utils/time-formatter';
 
 describe('formatTime', () => {
@@ -7,7 +6,7 @@ describe('formatTime', () => {
   beforeEach(() => {
     originalDateNow = Date.now;
     // Set a fixed timestamp for consistent testing
-    Date.now = jest.fn(() => 1000000000000); // Fixed timestamp
+    Date.now = vi.fn(() => 1000000000000); // Fixed timestamp
   });
 
   afterEach(() => {

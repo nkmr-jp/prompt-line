@@ -2,7 +2,6 @@
  * Jest test setup file
  */
 
-import { jest, afterEach } from '@jest/globals';
 import type { BrowserWindow } from 'electron';
 
 // Polyfill for structuredClone (not available in Jest environment by default)
@@ -31,71 +30,71 @@ interface ConsoleCapture {
 }
 
 // Mock Electron modules for testing
-jest.mock('electron', () => ({
+vi.mock('electron', () => ({
     app: {
-        getPath: jest.fn((name: string) => {
+        getPath: vi.fn((name: string) => {
             const paths: Record<string, string> = {
                 userData: '/tmp/test-prompt-line',
                 home: '/tmp/test-home'
             };
             return paths[name] || '/tmp/test-path';
         }),
-        whenReady: jest.fn(() => Promise.resolve()),
-        isReady: jest.fn(() => true),
+        whenReady: vi.fn(() => Promise.resolve()),
+        isReady: vi.fn(() => true),
         dock: {
-            hide: jest.fn()
+            hide: vi.fn()
         },
-        on: jest.fn(),
-        quit: jest.fn(),
-        requestSingleInstanceLock: jest.fn(() => true)
+        on: vi.fn(),
+        quit: vi.fn(),
+        requestSingleInstanceLock: vi.fn(() => true)
     },
-    BrowserWindow: jest.fn().mockImplementation((): Partial<BrowserWindow> => {
+    BrowserWindow: vi.fn(function(): Partial<BrowserWindow> {
         const mockWindow: any = {
-            loadFile: jest.fn(() => Promise.resolve()),
-            show: jest.fn(),
-            hide: jest.fn(),
-            focus: jest.fn(),
-            destroy: jest.fn(),
-            isDestroyed: jest.fn(() => false),
-            isVisible: jest.fn(() => false),
-            setPosition: jest.fn(),
-            on: jest.fn(() => mockWindow),
+            loadFile: vi.fn(() => Promise.resolve()),
+            show: vi.fn(),
+            hide: vi.fn(),
+            focus: vi.fn(),
+            destroy: vi.fn(),
+            isDestroyed: vi.fn(() => false),
+            isVisible: vi.fn(() => false),
+            setPosition: vi.fn(),
+            on: vi.fn(() => mockWindow),
             webContents: {
-                send: jest.fn(),
-                on: jest.fn()
+                send: vi.fn(),
+                on: vi.fn()
             }
         };
         return mockWindow;
     }),
     screen: {
-        getCursorScreenPoint: jest.fn(() => ({ x: 100, y: 100 })),
-        getDisplayNearestPoint: jest.fn(() => ({
+        getCursorScreenPoint: vi.fn(() => ({ x: 100, y: 100 })),
+        getDisplayNearestPoint: vi.fn(() => ({
             bounds: { x: 0, y: 0, width: 1920, height: 1080 }
         }))
     },
     globalShortcut: {
-        register: jest.fn(() => true),
-        unregisterAll: jest.fn()
+        register: vi.fn(() => true),
+        unregisterAll: vi.fn()
     },
     ipcMain: {
-        handle: jest.fn(),
-        on: jest.fn(),
-        removeAllListeners: jest.fn(),
-        eventNames: jest.fn(() => [])
+        handle: vi.fn(),
+        on: vi.fn(),
+        removeAllListeners: vi.fn(),
+        eventNames: vi.fn(() => [])
     },
     clipboard: {
-        writeText: jest.fn(),
-        readText: jest.fn(() => '')
+        writeText: vi.fn(),
+        readText: vi.fn(() => '')
     }
 }));
 
 // Mock child_process for platform-specific operations
-jest.mock('child_process', () => ({
-    exec: jest.fn((_command: string, callback: (error: Error | null, stdout?: string) => void) => {
+vi.mock('child_process', () => ({
+    exec: vi.fn((_command: string, callback: (error: Error | null, stdout?: string) => void) => {
         // Mock successful execution
         callback(null, 'mocked output');
     }),
-    execFile: jest.fn((_file: string, _args: string[], _options: unknown, callback: (error: Error | null, stdout?: string, stderr?: string) => void) => {
+    execFile: vi.fn((_file: string, _args: string[], _options: unknown, callback: (error: Error | null, stdout?: string, stderr?: string) => void) => {
         // Mock successful execution
         if (typeof _options === 'function') {
             // Handle case where options is omitted and callback is in options position
@@ -107,22 +106,25 @@ jest.mock('child_process', () => ({
 }));
 
 // Mock fs/promises for file operations
-jest.mock('fs/promises', () => ({
-    readFile: jest.fn(),
-    writeFile: jest.fn(),
-    unlink: jest.fn(),
-    access: jest.fn(),
-    mkdir: jest.fn(),
-    readdir: jest.fn(() => []),
-    stat: jest.fn(() => ({ mtime: new Date() }))
+vi.mock('fs/promises', () => ({
+    readFile: vi.fn(),
+    writeFile: vi.fn(),
+    unlink: vi.fn(),
+    access: vi.fn(),
+    mkdir: vi.fn(),
+    readdir: vi.fn(() => []),
+    stat: vi.fn(() => ({ mtime: new Date() }))
 }));
 
 // Mock path module
-jest.mock('path', () => ({
-    join: jest.fn((...parts: string[]) => parts.join('/')),
-    dirname: jest.fn((filePath: string) => filePath.split('/').slice(0, -1).join('/')),
-    basename: jest.fn((filePath: string) => filePath.split('/').pop())
-}));
+vi.mock('path', () => {
+    const pathMock = {
+        join: vi.fn((...parts: string[]) => parts.join('/')),
+        dirname: vi.fn((filePath: string) => filePath.split('/').slice(0, -1).join('/')),
+        basename: vi.fn((filePath: string) => filePath.split('/').pop())
+    };
+    return { ...pathMock, default: pathMock };
+});
 
 // Set up test environment variables
 process.env.NODE_ENV = 'test';
@@ -148,18 +150,18 @@ declare global {
 
 // Clean up after each test
 afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 });
 
 // Set up console capture for tests
 const originalConsole = { ...console };
 (global as any).captureConsole = (): ConsoleCapture => {
     const logs: Array<[string, ...any[]]> = [];
-    console.log = jest.fn((...args) => logs.push(['log', ...args]));
-    console.error = jest.fn((...args) => logs.push(['error', ...args]));
-    console.warn = jest.fn((...args) => logs.push(['warn', ...args]));
-    console.info = jest.fn((...args) => logs.push(['info', ...args]));
-    console.debug = jest.fn((...args) => logs.push(['debug', ...args]));
+    console.log = vi.fn((...args) => logs.push(['log', ...args]));
+    console.error = vi.fn((...args) => logs.push(['error', ...args]));
+    console.warn = vi.fn((...args) => logs.push(['warn', ...args]));
+    console.info = vi.fn((...args) => logs.push(['info', ...args]));
+    console.debug = vi.fn((...args) => logs.push(['debug', ...args]));
     
     return {
         getLogs: () => logs,
@@ -168,6 +170,3 @@ const originalConsole = { ...console };
         }
     };
 };
-
-// Test timeout configuration
-jest.setTimeout(10000);

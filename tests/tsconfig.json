@@ -5,7 +5,7 @@
     "rootDir": "..",
     "noEmit": true,
     "allowJs": true,
-    "types": ["node", "jest"]
+    "types": ["node", "vitest/globals"]
   },
   "include": [
     "**/*",

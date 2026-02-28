@@ -1,13 +1,10 @@
-/**
- * @jest-environment jsdom
- */
+// @vitest-environment jsdom
 
-import { describe, test, expect, beforeEach, jest } from '@jest/globals';
 import type { UserSettings, HistoryItem } from '../../src/types';
 
 describe('DOM Integration Tests', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         
         // Set up DOM for tests
         document.body.innerHTML = `
