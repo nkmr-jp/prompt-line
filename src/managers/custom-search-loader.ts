@@ -740,10 +740,17 @@ class CustomSearchLoader {
           const elements = Array.isArray(jqResult) ? jqResult : [jqResult];
           const lineData = parsed as Record<string, unknown>;
           for (const element of elements) {
-            if (element === null || typeof element !== 'object' || Array.isArray(element)) continue;
-            const elementData = element as Record<string, unknown>;
-            const item = this.createItemFromJsonData(elementData, basename, dirname, filePath, entry, sourceId, [lineData], content);
-            if (item) items.push(item);
+            if (element === null || element === undefined) continue;
+            if (typeof element === 'object' && !Array.isArray(element)) {
+              // オブジェクトの場合: 既存動作
+              const elementData = element as Record<string, unknown>;
+              const item = this.createItemFromJsonData(elementData, basename, dirname, filePath, entry, sourceId, [lineData], content);
+              if (item) items.push(item);
+            } else if (typeof element === 'string' || typeof element === 'number') {
+              // プリミティブの場合: 元の行データを使い、抽出値をlineとして設定
+              const item = this.createItemFromJsonData(lineData, basename, dirname, filePath, entry, sourceId, undefined, content, String(element));
+              if (item) items.push(item);
+            }
           }
         } else {
           const elementData = parsed as Record<string, unknown>;
@@ -823,9 +830,10 @@ class CustomSearchLoader {
     entry: CustomSearchEntry,
     sourceId: string,
     parentJsonDataStack?: Record<string, unknown>[],
-    content?: string
+    content?: string,
+    line?: string
   ): CustomSearchItem | null {
-    const context = { basename, frontmatter: {}, prefix: '', dirname, filePath, heading: '', jsonData: elementData, ...(parentJsonDataStack && { parentJsonDataStack }), ...(content !== undefined && { content }) };
+    const context = { basename, frontmatter: {}, prefix: '', dirname, filePath, heading: '', jsonData: elementData, ...(parentJsonDataStack && { parentJsonDataStack }), ...(content !== undefined && { content }), ...(line !== undefined && { line }) };
     const item: CustomSearchItem = {
       name: resolveTemplate(entry.name, context),
       description: resolveTemplate(entry.description, context),

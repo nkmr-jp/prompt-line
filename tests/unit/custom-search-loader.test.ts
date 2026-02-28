@@ -1893,6 +1893,58 @@ Content`;
       expect(items[0]?.name).toBe('valid');
     });
 
+    test('should set {line} from jq primitive result on JSONL', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{line}',
+          type: 'mention',
+          description: '',
+          path: '/path/to/data',
+          pattern: '*.jsonl@.text',
+          inputFormat: '{line}',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('history.jsonl', true)] as any);
+      mockedFs.readFile.mockResolvedValue(
+        '{"text": "hello world", "timestamp": 1234567890}\n{"text": "foo bar", "timestamp": 1234567891}'
+      );
+      mockEvaluateJq
+        .mockResolvedValueOnce('hello world')
+        .mockResolvedValueOnce('foo bar');
+
+      const items = await loader.getItems('mention');
+
+      expect(items).toHaveLength(2);
+      expect(items.map(i => i.name).sort()).toEqual(['foo bar', 'hello world']);
+      expect(items.map(i => i.inputText).sort()).toEqual(['foo bar', 'hello world']);
+    });
+
+    test('should handle numeric jq primitive result on JSONL', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{line}',
+          type: 'mention',
+          description: '',
+          path: '/path/to/data',
+          pattern: '*.jsonl@.count',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('data.jsonl', true)] as any);
+      mockedFs.readFile.mockResolvedValue('{"count": 42}\n{"count": 100}');
+      mockEvaluateJq
+        .mockResolvedValueOnce(42)
+        .mockResolvedValueOnce(100);
+
+      const items = await loader.getItems('mention');
+
+      expect(items).toHaveLength(2);
+      expect(items.map(i => i.name).sort()).toEqual(['100', '42']);
+    });
+
     test('should parse JSONL without jq expression (default behavior)', async () => {
       loader = new CustomSearchLoader([
         {
