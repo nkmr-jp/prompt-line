@@ -453,15 +453,22 @@ export class AgentSkillManager implements IInitializable {
         });
     }
 
+    if (this.filteredSkills.length === 0 && keywords.length > 1) {
+      // AND search returned 0 - fall back to first keyword match
+      // to keep showing relevant results while user types additional keywords
+      this.filteredSkills = this.skills
+        .filter(cmd => {
+          const fields = [
+            cmd.name.toLowerCase(),
+            cmd.description.toLowerCase(),
+            cmd.displayName?.toLowerCase() ?? '',
+            cmd.label?.toLowerCase() ?? '',
+          ].join(' ');
+          return fields.includes(keywords[0]!);
+        });
+    }
+
     if (this.filteredSkills.length === 0) {
-      // When AND search with multiple keywords returns 0, keep popup visible
-      // so user can continue typing the next keyword without flickering
-      if (keywords.length > 1 && this.suggestionsContainer) {
-        this.suggestionsContainer.innerHTML = '';
-        this.suggestionsContainer.style.display = 'block';
-        this.isActive = true;
-        return;
-      }
       this.hideSuggestions();
       return;
     }
