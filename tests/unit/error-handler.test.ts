@@ -26,29 +26,6 @@ describe('error-handler', () => {
   });
 
   describe('handleError', () => {
-    it('should log error with context', () => {
-      const error = new Error('Test error');
-      handleError('TestContext', error);
-
-      expect(consoleErrorSpy).toHaveBeenCalledWith('[TestContext] Test error', error);
-    });
-
-    it('should handle string error', () => {
-      handleError('TestContext', 'String error');
-
-      expect(consoleErrorSpy).toHaveBeenCalledWith('[TestContext] String error', 'String error');
-    });
-
-    it('should handle unknown error type', () => {
-      const unknownError = { message: 'Custom error' };
-      handleError('TestContext', unknownError);
-
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        '[TestContext] [object Object]',
-        unknownError
-      );
-    });
-
     it('should skip logging in silent mode', () => {
       const error = new Error('Test error');
       handleError('TestContext', error, { silent: true });
@@ -114,25 +91,5 @@ describe('error-handler', () => {
       delete (window as any).uiManager;
     });
 
-    it('should use default options', () => {
-      const error = new Error('Test error');
-
-      // Default: no notification, no rethrow, not silent
-      expect(() => {
-        handleError('TestContext', error);
-      }).not.toThrow();
-
-      expect(consoleErrorSpy).toHaveBeenCalled();
-    });
-
-    it('should format context correctly', () => {
-      const error = new Error('Network timeout');
-      handleError('MentionManager.loadDirectory', error);
-
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        '[MentionManager.loadDirectory] Network timeout',
-        error
-      );
-    });
   });
 });

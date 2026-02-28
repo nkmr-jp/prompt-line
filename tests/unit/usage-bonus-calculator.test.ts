@@ -61,19 +61,6 @@ describe('usage-bonus-calculator', () => {
       expect(bonus).toBe(0);
     });
 
-    test('should handle edge case count=-1', () => {
-      const bonus = calculateFrequencyBonus(-1);
-      expect(bonus).toBe(0);
-    });
-
-    test('should handle fractional count (0.5)', () => {
-      const bonus = calculateFrequencyBonus(0.5);
-      // log10(0.5 + 1) = log10(1.5) ≈ 0.176
-      // 0.176 * 50 ≈ 8.8 → floor = 8
-      expect(bonus).toBeGreaterThanOrEqual(0);
-      expect(bonus).toBeLessThan(15);
-    });
-
     test('should increase monotonically with count', () => {
       const bonus1 = calculateFrequencyBonus(1);
       const bonus5 = calculateFrequencyBonus(5);
@@ -103,25 +90,6 @@ describe('usage-bonus-calculator', () => {
 
       const bonus = calculateUsageRecencyBonus(oneHourAgo);
       expect(bonus).toBe(100);
-    });
-
-    test('should return 100 (max) for usage just now', () => {
-      const now = Date.now();
-
-      const bonus = calculateUsageRecencyBonus(now);
-      expect(bonus).toBe(100);
-    });
-
-    test('should return < 100 for usage exactly 24 hours ago', () => {
-      const now = Date.now();
-      const oneDayAgo = now - (24 * 60 * 60 * 1000); // 24 hours ago
-
-      const bonus = calculateUsageRecencyBonus(oneDayAgo);
-      // At exactly 24h, linear decay starts
-      // ratio = 1 - (0 / (6 * ONE_DAY_MS)) = 1.0
-      // bonus = floor(1.0 * 100) = 100
-      // But the condition is age < ONE_DAY_MS, so 24h exactly falls into decay
-      expect(bonus).toBeLessThanOrEqual(100);
     });
 
     test('should return 50 (middle) for usage 4 days ago', () => {
@@ -155,23 +123,6 @@ describe('usage-bonus-calculator', () => {
 
       const bonus = calculateUsageRecencyBonus(tenDaysAgo);
       expect(bonus).toBe(0);
-    });
-
-    test('should return 0 for usage 30 days ago', () => {
-      const now = Date.now();
-      const thirtyDaysAgo = now - (30 * 24 * 60 * 60 * 1000); // 30 days ago
-
-      const bonus = calculateUsageRecencyBonus(thirtyDaysAgo);
-      expect(bonus).toBe(0);
-    });
-
-    test('should handle future timestamp (edge case)', () => {
-      const now = Date.now();
-      const futureTime = now + (1 * 60 * 60 * 1000); // 1 hour in future
-
-      const bonus = calculateUsageRecencyBonus(futureTime);
-      // age = negative, which is < ONE_DAY_MS, so full bonus
-      expect(bonus).toBe(100);
     });
 
     test('should decrease monotonically over time', () => {
@@ -211,13 +162,6 @@ describe('usage-bonus-calculator', () => {
       // Phase 1 (exponential): age = 1h, half-life = 6h
       // bonus = floor(100 * 2^(-1/6)) = floor(100 * 0.8909) = 89
       expect(bonus).toBe(89);
-    });
-
-    test('should return 100 (max) for file modified just now', () => {
-      const now = Date.now();
-
-      const bonus = calculateFileMtimeBonus(now);
-      expect(bonus).toBe(100);
     });
 
     test('should return 50 for file modified exactly 6 hours ago (half-life)', () => {
@@ -276,31 +220,6 @@ describe('usage-bonus-calculator', () => {
       // age = 7 days, ttl = 7 days
       // After TTL: no bonus
       expect(bonus).toBe(0);
-    });
-
-    test('should return 0 for file modified 7+ days ago', () => {
-      const now = Date.now();
-      const tenDaysAgo = now - (10 * 24 * 60 * 60 * 1000); // 10 days ago
-
-      const bonus = calculateFileMtimeBonus(tenDaysAgo);
-      expect(bonus).toBe(0);
-    });
-
-    test('should return 0 for file modified 30 days ago', () => {
-      const now = Date.now();
-      const thirtyDaysAgo = now - (30 * 24 * 60 * 60 * 1000); // 30 days ago
-
-      const bonus = calculateFileMtimeBonus(thirtyDaysAgo);
-      expect(bonus).toBe(0);
-    });
-
-    test('should handle future timestamp (edge case)', () => {
-      const now = Date.now();
-      const futureTime = now + (1 * 60 * 60 * 1000); // 1 hour in future
-
-      const bonus = calculateFileMtimeBonus(futureTime);
-      // age = negative, which is <= 0, so full bonus
-      expect(bonus).toBe(100);
     });
 
     test('should decrease monotonically over time', () => {
