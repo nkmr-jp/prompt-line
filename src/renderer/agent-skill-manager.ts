@@ -818,12 +818,13 @@ export class AgentSkillManager implements IInitializable {
       ? command.inputText
       : inputFormat === 'path' ? command.filePath : `/${command.name}`;
 
-    // Show argumentHint if available, otherwise hide suggestions
-    if (command.argumentHint) {
-      this.showArgumentHintOnly(command);
-    } else {
-      this.hideSuggestions();
-    }
+    // Set editing mode BEFORE inserting text.
+    // replaceRangeWithUndo triggers a synchronous input event → checkForAgentSkill.
+    // Without editing mode, the query (e.g. "model ") would re-trigger showSuggestions.
+    this.editingSkillName = command.name;
+    this.editingSkillStartPos = this.currentTriggerStartPos;
+    this.isEditingMode = true;
+    this.hideUI();
 
     // Insert with trailing space for editing
     const skillWithSpace = skillText + ' ';
@@ -831,6 +832,11 @@ export class AgentSkillManager implements IInitializable {
     const end = this.textarea.selectionStart;
     this.replaceRangeWithUndo(start, end, skillWithSpace);
     this.onSkillInsert(skillWithSpace);
+
+    // After insertion, show argumentHint if available
+    if (command.argumentHint) {
+      this.showArgumentHintOnly(command);
+    }
   }
 
   /**
