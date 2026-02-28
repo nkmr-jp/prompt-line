@@ -3,7 +3,7 @@ import path from 'path';
 import os from 'os';
 import { logger } from '../utils/utils';
 import type { CustomSearchEntry, CustomSearchItem, CustomSearchType, UserSettings, ColorValue } from '../types';
-import { resolveTemplate, getBasename, getDirname, parseFrontmatter, extractRawFrontmatter, parseFirstHeading, parseJsonContent } from '../lib/template-resolver';
+import { resolveTemplate, getBasename, getDirname, parseFrontmatter, extractRawFrontmatter, parseFirstHeading, parseJsonContent, type TemplateContext } from '../lib/template-resolver';
 import { evaluateJq } from '../lib/jq-resolver';
 import { getDefaultCustomSearchConfig, DEFAULT_MAX_SUGGESTIONS, DEFAULT_ORDER_BY } from '../lib/default-custom-search-config';
 import { CACHE_TTL } from '../constants';
@@ -464,7 +464,7 @@ class CustomSearchLoader {
       const dirname = getDirname(filePath);
       const heading = isJsonFile ? '' : parseFirstHeading(content);
       const jsonData = isJsonFile ? parseJsonContent(content) : undefined;
-      const context = { basename, frontmatter, prefix, dirname, filePath, heading, ...(jsonData && { jsonData }) };
+      const context = { basename, frontmatter, prefix, dirname, filePath, heading, content, ...(jsonData && { jsonData }) };
 
       const item: CustomSearchItem = {
         name: resolveTemplate(entry.name, context),
@@ -493,12 +493,7 @@ class CustomSearchLoader {
         const resolvedHint = resolveTemplate(entry.argumentHint, context);
         if (resolvedHint) item.argumentHint = resolvedHint;
       }
-      if (entry.inputFormat) {
-        item.inputFormat = entry.inputFormat;
-        if (entry.inputFormat !== 'name' && entry.inputFormat !== 'path') {
-          item.inputText = resolveTemplate(entry.inputFormat, context);
-        }
-      }
+      this.applyInputFormat(item, entry, context);
       item.updatedAt = fileStat.mtimeMs;
 
       const displayTime = this.resolveDisplayTime(entry, context, fileStat.mtimeMs);
@@ -558,7 +553,7 @@ class CustomSearchLoader {
         const trimmed = rawLine.trim();
         if (!trimmed) continue;
 
-        const context = { basename, frontmatter: {}, prefix, dirname, filePath, heading, line: trimmed };
+        const context = { basename, frontmatter: {}, prefix, dirname, filePath, heading, line: trimmed, content };
 
         const item: CustomSearchItem = {
           name: resolveTemplate(entry.name, context),
@@ -588,12 +583,7 @@ class CustomSearchLoader {
           const resolvedHint = resolveTemplate(entry.argumentHint, context);
           if (resolvedHint) item.argumentHint = resolvedHint;
         }
-        if (entry.inputFormat) {
-          item.inputFormat = entry.inputFormat;
-          if (entry.inputFormat !== 'name' && entry.inputFormat !== 'path') {
-            item.inputText = resolveTemplate(entry.inputFormat, context);
-          }
-        }
+        this.applyInputFormat(item, entry, context);
         item.updatedAt = fileStat.mtimeMs;
 
         const displayTime = this.resolveDisplayTime(entry, context, fileStat.mtimeMs);
@@ -646,7 +636,7 @@ class CustomSearchLoader {
 
         const elementData = element as Record<string, unknown>;
         const parentJsonDataStack = [jsonData];
-        const context = { basename, frontmatter: {}, prefix: '', dirname, filePath, heading: '', jsonData: elementData, parentJsonDataStack };
+        const context = { basename, frontmatter: {}, prefix: '', dirname, filePath, heading: '', jsonData: elementData, parentJsonDataStack, content };
 
         const item: CustomSearchItem = {
           name: resolveTemplate(entry.name, context),
@@ -676,12 +666,7 @@ class CustomSearchLoader {
           const resolvedHint = resolveTemplate(entry.argumentHint, context);
           if (resolvedHint) item.argumentHint = resolvedHint;
         }
-        if (entry.inputFormat) {
-          item.inputFormat = entry.inputFormat;
-          if (entry.inputFormat !== 'name' && entry.inputFormat !== 'path') {
-            item.inputText = resolveTemplate(entry.inputFormat, context);
-          }
-        }
+        this.applyInputFormat(item, entry, context);
 
         const displayTime = this.resolveDisplayTime(entry, context);
         if (displayTime !== undefined) item.displayTime = displayTime;
@@ -752,12 +737,12 @@ class CustomSearchLoader {
           for (const element of elements) {
             if (element === null || typeof element !== 'object' || Array.isArray(element)) continue;
             const elementData = element as Record<string, unknown>;
-            const item = this.createItemFromJsonData(elementData, basename, dirname, filePath, entry, sourceId, [lineData]);
+            const item = this.createItemFromJsonData(elementData, basename, dirname, filePath, entry, sourceId, [lineData], content);
             if (item) items.push(item);
           }
         } else {
           const elementData = parsed as Record<string, unknown>;
-          const item = this.createItemFromJsonData(elementData, basename, dirname, filePath, entry, sourceId);
+          const item = this.createItemFromJsonData(elementData, basename, dirname, filePath, entry, sourceId, undefined, content);
           if (item) items.push(item);
         }
       }
@@ -832,9 +817,10 @@ class CustomSearchLoader {
     filePath: string,
     entry: CustomSearchEntry,
     sourceId: string,
-    parentJsonDataStack?: Record<string, unknown>[]
+    parentJsonDataStack?: Record<string, unknown>[],
+    content?: string
   ): CustomSearchItem | null {
-    const context = { basename, frontmatter: {}, prefix: '', dirname, filePath, heading: '', jsonData: elementData, ...(parentJsonDataStack && { parentJsonDataStack }) };
+    const context = { basename, frontmatter: {}, prefix: '', dirname, filePath, heading: '', jsonData: elementData, ...(parentJsonDataStack && { parentJsonDataStack }), ...(content !== undefined && { content }) };
     const item: CustomSearchItem = {
       name: resolveTemplate(entry.name, context),
       description: resolveTemplate(entry.description, context),
@@ -862,17 +848,24 @@ class CustomSearchLoader {
       const resolvedHint = resolveTemplate(entry.argumentHint, context);
       if (resolvedHint) item.argumentHint = resolvedHint;
     }
-    if (entry.inputFormat) {
-      item.inputFormat = entry.inputFormat;
-      if (entry.inputFormat !== 'name' && entry.inputFormat !== 'path') {
-        item.inputText = resolveTemplate(entry.inputFormat, context);
-      }
-    }
+    this.applyInputFormat(item, entry, context);
 
     const displayTime = this.resolveDisplayTime(entry, context);
     if (displayTime !== undefined) item.displayTime = displayTime;
 
     return item.name ? item : null;
+  }
+
+  /**
+   * entry の inputFormat 設定を item に適用する
+   * 'name' の場合はそのまま（テンプレート解決なし）、それ以外はテンプレートとして解決
+   */
+  private applyInputFormat(item: CustomSearchItem, entry: CustomSearchEntry, context: TemplateContext): void {
+    if (!entry.inputFormat) return;
+    item.inputFormat = entry.inputFormat;
+    if (entry.inputFormat !== 'name') {
+      item.inputText = resolveTemplate(entry.inputFormat, context);
+    }
   }
 
   /**

@@ -451,7 +451,7 @@ export interface CustomSearchItem {
   sourceId: string;
   /** カスタムソートキー（orderByテンプレートの解決値） */
   sortKey?: string;
-  /** 入力フォーマット（'name' | 'path' | テンプレート文字列） */
+  /** 入力フォーマット（'name' | テンプレート文字列 e.g. '{filepath}', '{content}'） */
   inputFormat?: InputFormatType;
   /** テンプレート解決済みの入力テキスト（inputFormatがテンプレートの場合に使用） */
   inputText?: string;
@@ -470,7 +470,7 @@ export interface AgentSkillItem {
   argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
-  inputFormat?: InputFormatType;  // 入力フォーマット（'name' | 'path' | テンプレート）
+  inputFormat?: InputFormatType;  // 入力フォーマット（'name' | テンプレート e.g. '{filepath}', '{content}'）
   inputText?: string;  // テンプレート解決済みの入力テキスト
   source?: string;  // Source tool identifier (e.g., 'claude-code') for filtering
   displayName?: string;  // Human-readable source name for display (e.g., 'Claude Code')
@@ -485,7 +485,7 @@ export interface AgentItem {
   description: string;
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
-  inputFormat?: InputFormatType;  // 入力フォーマット（'name' | 'path' | テンプレート）
+  inputFormat?: InputFormatType;  // 入力フォーマット（'name' | テンプレート e.g. '{filepath}', '{content}'）
   inputText?: string;  // テンプレート解決済みの入力テキスト
   color?: ColorValue;
   icon?: string;  // Codicon icon class name (e.g., "codicon-rocket")
