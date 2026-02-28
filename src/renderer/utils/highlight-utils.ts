@@ -23,15 +23,18 @@ export function highlightMatch(
 ): string {
   if (!query) return escapeHtml(text);
 
-  // Escape special regex characters in query
-  const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  
-  // Create case-insensitive regex
-  const regex = new RegExp(`(${escapedQuery})`, 'gi');
-  
-  // Escape HTML first, then apply highlighting
-  return escapeHtml(text).replace(
-    regex,
-    `<span class="${highlightClass}">$1</span>`
-  );
+  // Split query into keywords for multi-keyword highlighting
+  const keywords = query.split(/\s+/).filter(k => k.length > 0);
+  if (keywords.length === 0) return escapeHtml(text);
+
+  let result = escapeHtml(text);
+
+  // Apply highlighting for each keyword
+  for (const keyword of keywords) {
+    const escapedKeyword = escapeHtml(keyword).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(${escapedKeyword})`, 'gi');
+    result = result.replace(regex, `<span class="${highlightClass}">$1</span>`);
+  }
+
+  return result;
 }

@@ -276,7 +276,8 @@ export class AgentSkillManager implements IInitializable {
     const result = extractTriggerQueryAtCursor(
       this.textarea.value,
       cursorPos,
-      '/'
+      '/',
+      { allowSpaces: true }
     );
 
     // If in editing mode, check if user has started typing arguments
@@ -322,12 +323,6 @@ export class AgentSkillManager implements IInitializable {
         // Command name still matches, keep showing selected command
         return;
       }
-    }
-
-    // Hide suggestions if there's a space in the query (user is typing arguments)
-    if (query.includes(' ')) {
-      this.hideSuggestions();
-      return;
     }
 
     this.currentTriggerStartPos = startPos;
@@ -405,25 +400,26 @@ export class AgentSkillManager implements IInitializable {
    * Higher score = better match
    */
   private getMatchScore(name: string, query: string, description?: string): number {
-    const lowerQuery = query.toLowerCase();
+    const keywords = query.toLowerCase().split(/\s+/).filter(k => k.length > 0);
+    if (keywords.length === 0) return 0;
+
     const lowerName = name.toLowerCase();
+    const lowerDesc = description?.toLowerCase() ?? '';
 
-    // Exact match is highest priority
-    if (lowerName === lowerQuery) return 1000;
-
-    // Name starts with query
-    if (lowerName.startsWith(lowerQuery)) return 500;
-
-    // Name contains query
-    if (lowerName.includes(lowerQuery)) return 200;
-
-    // Description contains query
-    if (description && description.toLowerCase().includes(lowerQuery)) {
-      return 50;
+    let totalScore = 0;
+    for (const kw of keywords) {
+      if (lowerName === kw) {
+        totalScore += 1000;
+      } else if (lowerName.startsWith(kw)) {
+        totalScore += 500;
+      } else if (lowerName.includes(kw)) {
+        totalScore += 200;
+      } else if (lowerDesc.includes(kw)) {
+        totalScore += 50;
+      }
     }
 
-    // No match
-    return 0;
+    return totalScore / keywords.length;
   }
 
   /**
@@ -435,15 +431,25 @@ export class AgentSkillManager implements IInitializable {
       await this.loadSkills();
     }
 
-    // Filter commands - prioritize: prefix match > contains match > description match > source match
+    // Filter commands - AND search with space-separated keywords
     const lowerQuery = query.toLowerCase();
-    this.filteredSkills = this.skills
-      .filter(cmd =>
-        cmd.name.toLowerCase().includes(lowerQuery) ||
-        cmd.description.toLowerCase().includes(lowerQuery) ||
-        (cmd.displayName && cmd.displayName.toLowerCase().includes(lowerQuery)) ||
-        (cmd.label && cmd.label.toLowerCase().includes(lowerQuery))
-      );
+    const keywords = lowerQuery.split(/\s+/).filter(k => k.length > 0);
+
+    if (keywords.length === 0) {
+      // Empty query: show all skills
+      this.filteredSkills = [...this.skills];
+    } else {
+      this.filteredSkills = this.skills
+        .filter(cmd => {
+          const fields = [
+            cmd.name.toLowerCase(),
+            cmd.description.toLowerCase(),
+            cmd.displayName?.toLowerCase() ?? '',
+            cmd.label?.toLowerCase() ?? '',
+          ].join(' ');
+          return keywords.every(kw => fields.includes(kw));
+        });
+    }
 
     if (this.filteredSkills.length === 0) {
       this.hideSuggestions();
