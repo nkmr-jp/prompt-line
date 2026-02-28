@@ -77,10 +77,14 @@ export function resolveTemplate(template: string, context: TemplateContext): str
   result = result.replace(/\{line\}/g, context.line ?? '');
 
   // Replace {content}
-  result = result.replace(/\{content\}/g, context.content ?? '');
+  if (context.content !== undefined) {
+    result = result.replace(/\{content\}/g, context.content);
+  }
 
   // Replace {filepath}
-  result = result.replace(/\{filepath\}/g, context.filePath ?? '');
+  if (context.filePath) {
+    result = result.replace(/\{filepath\}/g, context.filePath);
+  }
 
   // Replace {frontmatter@fieldName}
   result = result.replace(/\{frontmatter@([^}]+)\}/g, (_, fieldName: string) => {

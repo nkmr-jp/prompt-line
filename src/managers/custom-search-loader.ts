@@ -3,7 +3,7 @@ import path from 'path';
 import os from 'os';
 import { logger } from '../utils/utils';
 import type { CustomSearchEntry, CustomSearchItem, CustomSearchType, UserSettings, ColorValue } from '../types';
-import { resolveTemplate, getBasename, getDirname, parseFrontmatter, extractRawFrontmatter, parseFirstHeading, parseJsonContent } from '../lib/template-resolver';
+import { resolveTemplate, getBasename, getDirname, parseFrontmatter, extractRawFrontmatter, parseFirstHeading, parseJsonContent, type TemplateContext } from '../lib/template-resolver';
 import { evaluateJq } from '../lib/jq-resolver';
 import { getDefaultCustomSearchConfig, DEFAULT_MAX_SUGGESTIONS, DEFAULT_ORDER_BY } from '../lib/default-custom-search-config';
 import { CACHE_TTL } from '../constants';
@@ -493,12 +493,7 @@ class CustomSearchLoader {
         const resolvedHint = resolveTemplate(entry.argumentHint, context);
         if (resolvedHint) item.argumentHint = resolvedHint;
       }
-      if (entry.inputFormat) {
-        item.inputFormat = entry.inputFormat;
-        if (entry.inputFormat !== 'name') {
-          item.inputText = resolveTemplate(entry.inputFormat, context);
-        }
-      }
+      this.applyInputFormat(item, entry, context);
       item.updatedAt = fileStat.mtimeMs;
 
       const displayTime = this.resolveDisplayTime(entry, context, fileStat.mtimeMs);
@@ -588,12 +583,7 @@ class CustomSearchLoader {
           const resolvedHint = resolveTemplate(entry.argumentHint, context);
           if (resolvedHint) item.argumentHint = resolvedHint;
         }
-        if (entry.inputFormat) {
-          item.inputFormat = entry.inputFormat;
-          if (entry.inputFormat !== 'name') {
-            item.inputText = resolveTemplate(entry.inputFormat, context);
-          }
-        }
+        this.applyInputFormat(item, entry, context);
         item.updatedAt = fileStat.mtimeMs;
 
         const displayTime = this.resolveDisplayTime(entry, context, fileStat.mtimeMs);
@@ -676,12 +666,7 @@ class CustomSearchLoader {
           const resolvedHint = resolveTemplate(entry.argumentHint, context);
           if (resolvedHint) item.argumentHint = resolvedHint;
         }
-        if (entry.inputFormat) {
-          item.inputFormat = entry.inputFormat;
-          if (entry.inputFormat !== 'name') {
-            item.inputText = resolveTemplate(entry.inputFormat, context);
-          }
-        }
+        this.applyInputFormat(item, entry, context);
 
         const displayTime = this.resolveDisplayTime(entry, context);
         if (displayTime !== undefined) item.displayTime = displayTime;
@@ -835,7 +820,7 @@ class CustomSearchLoader {
     parentJsonDataStack?: Record<string, unknown>[],
     content?: string
   ): CustomSearchItem | null {
-    const context = { basename, frontmatter: {}, prefix: '', dirname, filePath, heading: '', jsonData: elementData, ...(parentJsonDataStack && { parentJsonDataStack }), ...(content && { content }) };
+    const context = { basename, frontmatter: {}, prefix: '', dirname, filePath, heading: '', jsonData: elementData, ...(parentJsonDataStack && { parentJsonDataStack }), ...(content !== undefined && { content }) };
     const item: CustomSearchItem = {
       name: resolveTemplate(entry.name, context),
       description: resolveTemplate(entry.description, context),
@@ -863,17 +848,24 @@ class CustomSearchLoader {
       const resolvedHint = resolveTemplate(entry.argumentHint, context);
       if (resolvedHint) item.argumentHint = resolvedHint;
     }
-    if (entry.inputFormat) {
-      item.inputFormat = entry.inputFormat;
-      if (entry.inputFormat !== 'name') {
-        item.inputText = resolveTemplate(entry.inputFormat, context);
-      }
-    }
+    this.applyInputFormat(item, entry, context);
 
     const displayTime = this.resolveDisplayTime(entry, context);
     if (displayTime !== undefined) item.displayTime = displayTime;
 
     return item.name ? item : null;
+  }
+
+  /**
+   * entry の inputFormat 設定を item に適用する
+   * 'name' の場合はそのまま（テンプレート解決なし）、それ以外はテンプレートとして解決
+   */
+  private applyInputFormat(item: CustomSearchItem, entry: CustomSearchEntry, context: TemplateContext): void {
+    if (!entry.inputFormat) return;
+    item.inputFormat = entry.inputFormat;
+    if (entry.inputFormat !== 'name') {
+      item.inputText = resolveTemplate(entry.inputFormat, context);
+    }
   }
 
   /**
