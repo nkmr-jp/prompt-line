@@ -127,36 +127,22 @@ vi.mock('../../src/renderer/lifecycle-manager', () => ({
     }; })
 }));
 
-// Mock MentionManager
+// Mock MentionManager (init: initializeElements, setupEventListeners; tests: clearAtPaths, destroy)
 vi.mock('../../src/renderer/mention-manager', () => ({
     MentionManager: vi.fn(function() { return {
-        initialize: vi.fn(),
         initializeElements: vi.fn(),
         setupEventListeners: vi.fn(),
-        handleKeyDown: vi.fn(),
-        updateCache: vi.fn(),
-        clearCache: vi.fn(),
-        updateHighlightBackdrop: vi.fn(),
         clearAtPaths: vi.fn(),
-        isActive: vi.fn().mockReturnValue(false),
-        destroy: vi.fn(),
-        setFileSearchEnabled: vi.fn(),
-        isFileSearchEnabled: vi.fn().mockReturnValue(false),
-        setSymbolSearchEnabled: vi.fn(),
-        isSymbolSearchEnabled: vi.fn().mockReturnValue(false),
-        handleCachedDirectoryData: vi.fn()
+        destroy: vi.fn()
     }; })
 }));
 
-// Mock AgentSkillManager
+// Mock AgentSkillManager (init: initializeElements, setupEventListeners, loadSkills; tests: invalidateCache)
 vi.mock('../../src/renderer/agent-skill-manager', () => ({
     AgentSkillManager: vi.fn(function() { return {
         initializeElements: vi.fn(),
         setupEventListeners: vi.fn(),
         loadSkills: vi.fn(),
-        handleKeyDown: vi.fn(),
-        isActive: vi.fn().mockReturnValue(false),
-        destroy: vi.fn(),
         invalidateCache: vi.fn(),
         getSkillSource: vi.fn(),
         getSkillColor: vi.fn(),
@@ -164,18 +150,17 @@ vi.mock('../../src/renderer/agent-skill-manager', () => ({
     }; })
 }));
 
-// Mock SimpleSnapshotManager
+// Mock SimpleSnapshotManager (tests: clearSnapshot, saveSnapshot, hasSnapshot, restore)
 vi.mock('../../src/renderer/snapshot-manager', () => ({
     SimpleSnapshotManager: vi.fn(function() { return {
         saveSnapshot: vi.fn(),
         clearSnapshot: vi.fn(),
-        undo: vi.fn(),
-        redo: vi.fn(),
-        clear: vi.fn()
+        hasSnapshot: vi.fn().mockReturnValue(false),
+        restore: vi.fn()
     }; })
 }));
 
-// Mock DirectoryDataHandler
+// Mock DirectoryDataHandler (tests: handleWindowShown)
 vi.mock('../../src/renderer/directory-data-handler', () => ({
     DirectoryDataHandler: vi.fn(function() { return {
         handleWindowShown: vi.fn(),
