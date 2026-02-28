@@ -1,5 +1,61 @@
 # Changelog
 
+## [0.25.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.24.1...prompt-line-v0.25.0) (2026-02-28)
+
+
+### Features
+
+* **agent-skills:** implement multi-keyword AND search for slash commands ([0685221](https://github.com/nkmr-jp/prompt-line/commit/0685221d238d3fbf0f29ee792cc2b26d4dd155f9))
+* **commands:** add batch and simplify built-in commands ([f2d18b9](https://github.com/nkmr-jp/prompt-line/commit/f2d18b9f43aa5c82061deaf6d8a7957ecbc62b74))
+* **custom-search:** add {content} and {filepath} template placeholders for inputFormat ([9f71937](https://github.com/nkmr-jp/prompt-line/commit/9f71937da04450113b684992557c62101b1041ba))
+* **mentions:** implement multi-keyword AND search for files and agents ([b981a5c](https://github.com/nkmr-jp/prompt-line/commit/b981a5cb8d4b00af8c80229f103b6edb3c85804b))
+* **search:** add AND search support for symbol search, custom search, and slash commands ([a7f3d61](https://github.com/nkmr-jp/prompt-line/commit/a7f3d612372f3195ac8cfbe9393f721ca207a375))
+* **search:** add space-separated AND search for slash commands and mentions ([04b29b2](https://github.com/nkmr-jp/prompt-line/commit/04b29b2df225171a39aac74ee73922010990f73b))
+* **search:** support AND search with space-separated keywords ([7d07868](https://github.com/nkmr-jp/prompt-line/commit/7d0786821ac29798a86ef276af056625670188a6))
+* **template-resolver:** add {content} placeholder and fix inputFormat handling ([988aec1](https://github.com/nkmr-jp/prompt-line/commit/988aec14e14427aac8c4978894d6b786f35dacee))
+
+
+### Bug Fixes
+
+* **agent-skill-manager:** add IME composition check for Japanese input support ([e048506](https://github.com/nkmr-jp/prompt-line/commit/e0485066913c140d7e377bb30b376385b7e51f0a))
+* **agent-skill-manager:** fall back to first keyword when AND search returns no results ([f4c282e](https://github.com/nkmr-jp/prompt-line/commit/f4c282e4a59103c336f5324191224f6dc92202f1))
+* **agent-skill-manager:** handle query with trailing space in editing mode ([7758e84](https://github.com/nkmr-jp/prompt-line/commit/7758e841b4ade38cd3007467518b5aae2d829818))
+* **agent-skill:** set editing mode before inserting text to prevent suggestion re-trigger ([7439a17](https://github.com/nkmr-jp/prompt-line/commit/7439a17a27a6269ef13d691649cbfc6b60d5682b))
+* **ci:** sync pnpm-lock.yaml specifier with package.json for jsdom ([481f8e4](https://github.com/nkmr-jp/prompt-line/commit/481f8e490c5466b091f4838745d1c19e384d8406))
+* **custom-search-loader:** implement keyword-based AND search for better query matching ([2fe2ab0](https://github.com/nkmr-jp/prompt-line/commit/2fe2ab00e54042909f414db79779bd057a1c1bb6))
+* **mentions:** hide suggestions when no search results found ([978b73d](https://github.com/nkmr-jp/prompt-line/commit/978b73dee4b63c22c715b659293a702eb74914ab))
+* **mentions:** prevent re-showing suggestions after file path insertion ([5c7ed83](https://github.com/nkmr-jp/prompt-line/commit/5c7ed839d79e2e21b87f8475b739037c652510d1))
+* **mentions:** prevent re-showing suggestions after symbol selection ([0321840](https://github.com/nkmr-jp/prompt-line/commit/0321840d9f59930624c73c48b6cc39a236da5989))
+
+
+### Performance Improvements
+
+* **search:** optimize keyword splitting and highlight matching ([ffc6784](https://github.com/nkmr-jp/prompt-line/commit/ffc6784db8452ddbd575650e319df46dc6db45eb))
+
+
+### Documentation
+
+* **readme:** clarify CJK character input support scope ([a023f4f](https://github.com/nkmr-jp/prompt-line/commit/a023f4fd18e9373ec3dd2a246012e74df30a0bf8))
+* **readme:** expand supported languages from Japanese to CJK characters ([042edfd](https://github.com/nkmr-jp/prompt-line/commit/042edfdffc9f0db3bc888ed6e372761474e58cd4))
+* **search:** document AND search functionality across command and mention features ([7ffd9b9](https://github.com/nkmr-jp/prompt-line/commit/7ffd9b9f8c0d9245fd93725f9e0fdeebb7a0442a))
+* **settings:** update inputFormat comments and regenerate settings.example.yml ([37e9146](https://github.com/nkmr-jp/prompt-line/commit/37e9146abc00451f947f34475a2cc56778e7e2c5))
+
+
+### Code Refactoring
+
+* **agent-skill-manager:** simplify skill insertion to always use trailing space ([991c934](https://github.com/nkmr-jp/prompt-line/commit/991c93492cdd08b424a18498199688f3044f10a7))
+* extract splitKeywords to shared module and clean up dead code ([f1931e5](https://github.com/nkmr-jp/prompt-line/commit/f1931e5a70f1745fe1b63fe6303c20bd52ead6a3))
+* **input-format:** replace 'path' literal with {filepath} template ([b93ceac](https://github.com/nkmr-jp/prompt-line/commit/b93ceacd20a3d06467bb887e07383308e9e0ceff))
+* **mentions:** simplify inputFormat existence check for @ prefix insertion ([8ca7ebb](https://github.com/nkmr-jp/prompt-line/commit/8ca7ebb2269753c36a36860a019367d34187e397))
+* **search:** extract inputFormat logic and optimize template resolution ([ff23168](https://github.com/nkmr-jp/prompt-line/commit/ff231683be70dc04966c0335e6adb61809c655be))
+* **tests:** cleanup post-migration issues found by code review ([2f70e59](https://github.com/nkmr-jp/prompt-line/commit/2f70e5906fa5d79e87778db891425bc88a64244c))
+
+
+### Tests
+
+* **highlight-utils:** migrate test environment configuration to Vitest ([fcd0165](https://github.com/nkmr-jp/prompt-line/commit/fcd01658a3380824c51e4d11cee35f7d770d3ed8))
+* migrate from Jest to Vitest ([848450a](https://github.com/nkmr-jp/prompt-line/commit/848450a106cdd7fa1719bc4fdc5ccb5175ba64ac))
+
 ## [0.24.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.24.0...prompt-line-v0.24.1) (2026-02-28)
 
 
