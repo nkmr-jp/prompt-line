@@ -420,6 +420,11 @@ Tests use comprehensive mocks defined in `tests/setup.ts`:
 - **Integration tests**: Test cross-module interactions
 - **Fixtures**: Shared test data in `tests/fixtures/`
 
+### Test Console Output Suppression
+- Suppress stderr in error-path tests with `vi.spyOn(console, 'error').mockImplementation(() => {})`
+- Use `.mockImplementation(() => {})` not `.mockImplementation()` (the latter doesn't suppress in vitest v4)
+- Place spy in `beforeEach` when the whole section needs it; use per-test spy/restore for individual tests
+
 ### Running Specific Tests
 ```bash
 # Test a specific manager
