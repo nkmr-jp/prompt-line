@@ -76,6 +76,10 @@ describe('Utils', () => {
     });
 
     describe('getCurrentApp', () => {
+        beforeEach(() => {
+            vi.spyOn(console, 'warn').mockImplementation(() => {});
+        });
+
         test('should return null on non-macOS platforms', async () => {
             const originalPlatform = process.platform;
             Object.defineProperty(process, 'platform', { value: 'linux' });
@@ -148,6 +152,10 @@ describe('Utils', () => {
     });
 
     describe('pasteWithNativeTool', () => {
+        beforeEach(() => {
+            vi.spyOn(console, 'error').mockImplementation(() => {});
+        });
+
         test('should execute paste command on macOS', async () => {
             const originalPlatform = process.platform;
             Object.defineProperty(process, 'platform', { value: 'darwin' });
@@ -240,6 +248,10 @@ describe('Utils', () => {
 
 
     describe('safeJsonParse', () => {
+        beforeEach(() => {
+            vi.spyOn(console, 'warn').mockImplementation(() => {});
+        });
+
         test('should parse valid JSON', () => {
             const result = safeJsonParse('{"test": "value"}', {});
             expect(result).toEqual({ test: 'value' });
@@ -350,7 +362,10 @@ describe('Utils', () => {
     });
 
     describe('getActiveWindowBounds', () => {
-        
+        beforeEach(() => {
+            vi.spyOn(console, 'warn').mockImplementation(() => {});
+        });
+
         test('should return null on non-macOS platforms', async () => {
             const originalPlatform = process.platform;
             Object.defineProperty(process, 'platform', { value: 'win32' });
@@ -435,6 +450,10 @@ describe('Utils', () => {
 
     describe('Command Sanitization Security', () => {
         describe('sanitizeCommandArgument', () => {
+            beforeEach(() => {
+                vi.spyOn(console, 'warn').mockImplementation(() => {});
+            });
+
             test('should remove dangerous shell metacharacters', () => {
                 const dangerous = 'app;rm -rf /;echo safe';
                 const sanitized = sanitizeCommandArgument(dangerous);
@@ -575,6 +594,10 @@ describe('Utils', () => {
         });
 
         describe('activateAndPasteWithNativeTool security', () => {
+            beforeEach(() => {
+                vi.spyOn(console, 'error').mockImplementation(() => {});
+            });
+
             test('should reject dangerous app names', async () => {
                 const originalPlatform = process.platform;
                 Object.defineProperty(process, 'platform', { value: 'darwin' });

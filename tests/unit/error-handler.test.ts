@@ -10,7 +10,7 @@ describe('error-handler', () => {
   let consoleErrorSpy: MockInstance;
 
   beforeEach(() => {
-    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation();
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     // Ensure window is available
     if (typeof window === 'undefined') {
       (global as any).window = {};

@@ -415,14 +415,16 @@ describe('PromptLineRenderer (Refactored)', () => {
         });
 
         test('should show error on paste failure', async () => {
-            (window as any).electronAPI.pasteText.mockResolvedValue({ 
-                success: false, 
-                error: 'Paste failed' 
+            const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+            (window as any).electronAPI.pasteText.mockResolvedValue({
+                success: false,
+                error: 'Paste failed'
             });
 
             await (renderer as any).handleTextPasteCallback('test text');
 
             expect((renderer as any).domManager.showError).toHaveBeenCalledWith('Paste failed: Paste failed');
+            consoleSpy.mockRestore();
         });
     });
 
