@@ -46,7 +46,8 @@ export class QueryExtractionManager {
     const result = extractTriggerQueryAtCursor(
       this.callbacks.getTextContent(),
       this.callbacks.getCursorPosition(),
-      '@'
+      '@',
+      { allowSpaces: true }
     );
     return result ? { query: result.query, startPos: result.startPos } : null;
   }

@@ -84,6 +84,7 @@ export interface NavigationCallbacks {
   addSelectedPath: (path: string) => void;
   updateHighlightBackdrop: () => void;
   resetCodeSearchState: () => void;
+  setLastInsertedMentionPath?: (path: string) => void;
 }
 
 /**
@@ -545,6 +546,10 @@ export class NavigationManager {
     // Save atStartPosition before replacement - replaceRangeWithUndo triggers input event
     // which calls checkForFileSearch() and may set atStartPosition to -1 via hideSuggestions()
     const savedAtStartPosition = atStartPosition;
+
+    // Set lastInsertedMentionPath before text insertion to prevent re-showing suggestions
+    const pathForGuard = `${symbol.relativePath}:${symbol.lineNumber}#${symbol.name}`;
+    this.callbacks.setLastInsertedMentionPath?.(pathForGuard);
 
     // Replace the lang:query part (after @) with the path:line#symbol
     // atStartPosition is the @ position, so we replace from atStartPosition + 1 to keep @
