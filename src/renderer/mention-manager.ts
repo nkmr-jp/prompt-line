@@ -56,6 +56,9 @@ export class MentionManager implements IInitializable {
   private eventListenerManager: EventListenerManager;
   private queryExtractionManager: QueryExtractionManager;
 
+  // Track last inserted mention path to prevent re-showing suggestions after selection
+  private lastInsertedMentionPath: string = '';
+
   // Symbol mode properties (delegated to CodeSearchManager)
   private get isInSymbolMode(): boolean {
     return this.codeSearchManager?.isInSymbolModeActive() || false;
@@ -571,6 +574,17 @@ export class MentionManager implements IInitializable {
 
     const { query, startPos } = result;
 
+    // Check if query matches a recently inserted path (prevent re-showing after selection)
+    if (this.lastInsertedMentionPath) {
+      if (query.trimEnd() === this.lastInsertedMentionPath ||
+          query.startsWith(this.lastInsertedMentionPath)) {
+        this.hideSuggestions();
+        return;
+      }
+      // Query no longer matches inserted path - user is typing something new
+      this.lastInsertedMentionPath = '';
+    }
+
     // Try code search first
     if (this.tryCodeSearch(query, startPos)) {
       return;
@@ -1030,6 +1044,7 @@ export class MentionManager implements IInitializable {
    * Delegates to PathManager
    */
   public insertFilePath(path: string): void {
+    this.lastInsertedMentionPath = path;
     this.state.atStartPosition = this.pathManager.insertFilePath(path, this.state.atStartPosition);
   }
 
