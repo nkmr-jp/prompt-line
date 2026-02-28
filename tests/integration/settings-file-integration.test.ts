@@ -1,4 +1,3 @@
-import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
@@ -6,10 +5,10 @@ import SettingsManager from '../../src/managers/settings-manager';
 // UserSettings type is used in test validation
 
 // Mock chokidar to avoid ESM import issues
-jest.mock('chokidar', () => ({
-  watch: jest.fn(() => ({
-    on: jest.fn(function(this: any) { return this; }),
-    close: jest.fn(() => Promise.resolve())
+vi.mock('chokidar', () => ({
+  watch: vi.fn(() => ({
+    on: vi.fn(function(this: any) { return this; }),
+    close: vi.fn(() => Promise.resolve())
   }))
 }));
 

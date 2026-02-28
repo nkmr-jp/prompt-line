@@ -1,47 +1,47 @@
-import { describe, test, expect, beforeEach, jest } from '@jest/globals';
 import CustomSearchLoader from '../../src/managers/custom-search-loader';
 import { promises as fs } from 'fs';
 import type { CustomSearchEntry } from '../../src/types';
 
 // Unmock path module (needed for prefix-resolver which is used by custom-search-loader)
-jest.unmock('path');
+vi.unmock('path');
 
 // Mock glob module
-jest.mock('glob', () => ({
-  glob: jest.fn()
+vi.mock('glob', () => ({
+  glob: vi.fn()
 }));
 
 // Mock fs promises module
-jest.mock('fs', () => ({
+vi.mock('fs', () => ({
   promises: {
-    readFile: jest.fn(),
-    readdir: jest.fn(),
-    stat: jest.fn()
+    readFile: vi.fn(),
+    readdir: vi.fn(),
+    stat: vi.fn()
   }
 }));
 
 // Mock the utils module
-jest.mock('../../src/utils/utils', () => ({
+vi.mock('../../src/utils/utils', () => ({
   logger: {
-    info: jest.fn(),
-    debug: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn()
+    info: vi.fn(),
+    debug: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn()
   }
 }));
 
 // Mock os module for home directory expansion
-jest.mock('os', () => ({
-  homedir: jest.fn(() => '/Users/test')
-}));
+vi.mock('os', () => {
+  const osMock = { homedir: vi.fn(() => '/Users/test') };
+  return { ...osMock, default: osMock };
+});
 
 // Mock jq-resolver module
-const mockEvaluateJq = jest.fn<(data: unknown, expression: string) => Promise<unknown>>();
-jest.mock('../../src/lib/jq-resolver', () => ({
+const mockEvaluateJq = vi.fn<(data: unknown, expression: string) => Promise<unknown>>();
+vi.mock('../../src/lib/jq-resolver', () => ({
   evaluateJq: (...args: unknown[]) => mockEvaluateJq(...args as [unknown, string])
 }));
 
-const mockedFs = jest.mocked(fs);
+const mockedFs = vi.mocked(fs);
 
 // Helper to create Dirent-like objects for readdir with withFileTypes
 const createDirent = (name: string, isFile: boolean) => ({
@@ -83,7 +83,7 @@ describe('CustomSearchLoader', () => {
 
   beforeEach(() => {
     loader = new CustomSearchLoader(createTestConfig());
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('constructor', () => {

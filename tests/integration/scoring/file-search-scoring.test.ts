@@ -3,7 +3,6 @@
  * Tests calculateMatchScore from fuzzy-matcher with scoring verification
  */
 
-import { describe, test, expect } from '@jest/globals';
 import { calculateMatchScore } from '../../../src/renderer/mentions/fuzzy-matcher';
 import { fileSearchTestCases } from '../../fixtures/scoring/file-search-cases';
 import type { FileInfo } from '../../../src/types/file-search';

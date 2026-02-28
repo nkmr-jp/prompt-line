@@ -6,7 +6,7 @@
 import type { InputFormatType, ColorValue } from '../types';
 import type { IInitializable } from './interfaces/initializable';
 import { FrontmatterPopupManager } from './frontmatter-popup-manager';
-import { highlightMatch } from './utils/highlight-utils';
+import { highlightMatch, splitKeywords } from './utils/highlight-utils';
 import { electronAPI } from './services/electron-api';
 import { extractTriggerQueryAtCursor } from './utils/trigger-query-extractor';
 import { getCaretCoordinates, createMirrorDiv } from './mentions/dom-utils';
@@ -46,7 +46,7 @@ interface AgentSkillItem {
   argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
-  inputFormat?: InputFormatType;  // 入力フォーマット（'name' | 'path' | テンプレート）
+  inputFormat?: InputFormatType;  // 入力フォーマット（'name' | テンプレート e.g. '{filepath}', '{content}'）
   inputText?: string;  // テンプレート解決済みの入力テキスト
   source?: string;  // Source tool identifier (e.g., 'claude-code') for filtering
   displayName?: string;  // Human-readable source name for display (e.g., 'Claude Code')
@@ -67,7 +67,6 @@ export class AgentSkillManager implements IInitializable {
   private editingSkillName: string = ''; // The command name being edited
   private editingSkillStartPos: number = 0; // Position where the editing command starts
   private currentTriggerStartPos: number = 0; // Position of trigger character
-  private onSkillSelect: (command: string) => void;
   private onSkillInsert: (command: string) => void;
   private onBeforeOpenFile: (() => void) | undefined;
   private setDraggable: ((enabled: boolean) => void) | undefined;
@@ -76,12 +75,11 @@ export class AgentSkillManager implements IInitializable {
   private frontmatterPopupManager: FrontmatterPopupManager;
 
   constructor(callbacks: {
-    onSkillSelect: (command: string) => void;
+    onSkillSelect?: (command: string) => void;
     onSkillInsert?: (command: string) => void;
     onBeforeOpenFile?: () => void;
     setDraggable?: (enabled: boolean) => void;
   }) {
-    this.onSkillSelect = callbacks.onSkillSelect;
     this.onSkillInsert = callbacks.onSkillInsert || (() => {});
     this.onBeforeOpenFile = callbacks.onBeforeOpenFile;
     this.setDraggable = callbacks.setDraggable;
@@ -96,7 +94,7 @@ export class AgentSkillManager implements IInitializable {
         const fullSkill = this.filteredSkills.find(cmd => cmd.name === command.name);
         if (fullSkill) {
           // Use Tab behavior (shouldPaste=false) to insert command with space for editing
-          this.selectSkill(this.filteredSkills.indexOf(fullSkill), false);
+          this.selectSkill(this.filteredSkills.indexOf(fullSkill));
         }
       }
     });
@@ -276,7 +274,8 @@ export class AgentSkillManager implements IInitializable {
     const result = extractTriggerQueryAtCursor(
       this.textarea.value,
       cursorPos,
-      '/'
+      '/',
+      { allowSpaces: true }
     );
 
     // If in editing mode, check if user has started typing arguments
@@ -311,23 +310,22 @@ export class AgentSkillManager implements IInitializable {
     const { query, startPos } = result;
 
     // If in editing mode (Tab selected), check if command name still matches
+    // With allowSpaces, query may include trailing space and arguments (e.g. "skillname " or "skillname args")
     if (this.isEditingMode) {
-      // Exit editing mode if user modified the command name
-      if (query !== this.editingSkillName) {
-        this.isEditingMode = false;
-        this.editingSkillName = '';
-        this.editingSkillStartPos = 0;
-        // Continue to show suggestions based on new query
-      } else {
-        // Command name still matches, keep showing selected command
+      if (query === this.editingSkillName) {
+        // Exact match, keep showing argument hint
         return;
       }
-    }
-
-    // Hide suggestions if there's a space in the query (user is typing arguments)
-    if (query.includes(' ')) {
-      this.hideSuggestions();
-      return;
+      if (query.startsWith(this.editingSkillName + ' ')) {
+        // User is at or past the argument position - hide UI but keep editing mode
+        this.hideUI();
+        return;
+      }
+      // Command name was modified, exit editing mode
+      this.isEditingMode = false;
+      this.editingSkillName = '';
+      this.editingSkillStartPos = 0;
+      // Continue to show suggestions based on new query
     }
 
     this.currentTriggerStartPos = startPos;
@@ -404,26 +402,38 @@ export class AgentSkillManager implements IInitializable {
    * Calculate match score for a command name
    * Higher score = better match
    */
-  private getMatchScore(name: string, query: string, description?: string): number {
-    const lowerQuery = query.toLowerCase();
+  private getMatchScore(name: string, keywords: string[], description?: string): number {
+    if (keywords.length === 0) return 0;
+
     const lowerName = name.toLowerCase();
+    const lowerDesc = description?.toLowerCase() ?? '';
 
-    // Exact match is highest priority
-    if (lowerName === lowerQuery) return 1000;
-
-    // Name starts with query
-    if (lowerName.startsWith(lowerQuery)) return 500;
-
-    // Name contains query
-    if (lowerName.includes(lowerQuery)) return 200;
-
-    // Description contains query
-    if (description && description.toLowerCase().includes(lowerQuery)) {
-      return 50;
+    let totalScore = 0;
+    for (const kw of keywords) {
+      if (lowerName === kw) {
+        totalScore += 1000;
+      } else if (lowerName.startsWith(kw)) {
+        totalScore += 500;
+      } else if (lowerName.includes(kw)) {
+        totalScore += 200;
+      } else if (lowerDesc.includes(kw)) {
+        totalScore += 50;
+      }
     }
 
-    // No match
-    return 0;
+    return totalScore / keywords.length;
+  }
+
+  /**
+   * Build searchable fields string from a skill for keyword matching
+   */
+  private getSearchableFields(cmd: { name: string; description: string; displayName?: string; label?: string }): string {
+    return [
+      cmd.name.toLowerCase(),
+      cmd.description.toLowerCase(),
+      cmd.displayName?.toLowerCase() ?? '',
+      cmd.label?.toLowerCase() ?? '',
+    ].join(' ');
   }
 
   /**
@@ -435,15 +445,27 @@ export class AgentSkillManager implements IInitializable {
       await this.loadSkills();
     }
 
-    // Filter commands - prioritize: prefix match > contains match > description match > source match
+    // Filter commands - AND search with space-separated keywords
     const lowerQuery = query.toLowerCase();
-    this.filteredSkills = this.skills
-      .filter(cmd =>
-        cmd.name.toLowerCase().includes(lowerQuery) ||
-        cmd.description.toLowerCase().includes(lowerQuery) ||
-        (cmd.displayName && cmd.displayName.toLowerCase().includes(lowerQuery)) ||
-        (cmd.label && cmd.label.toLowerCase().includes(lowerQuery))
-      );
+    const keywords = splitKeywords(lowerQuery);
+
+    if (keywords.length === 0) {
+      // Empty query: show all skills
+      this.filteredSkills = [...this.skills];
+    } else {
+      this.filteredSkills = this.skills
+        .filter(cmd => {
+          const fields = this.getSearchableFields(cmd);
+          return keywords.every(kw => fields.includes(kw));
+        });
+    }
+
+    if (this.filteredSkills.length === 0 && keywords.length > 1) {
+      // AND search returned 0 - fall back to first keyword match
+      // to keep showing relevant results while user types additional keywords
+      this.filteredSkills = this.skills
+        .filter(cmd => this.getSearchableFields(cmd).includes(keywords[0]!));
+    }
 
     if (this.filteredSkills.length === 0) {
       this.hideSuggestions();
@@ -464,8 +486,8 @@ export class AgentSkillManager implements IInitializable {
 
     // Sort by total score (match score + usage bonus)
     this.filteredSkills.sort((a, b) => {
-      const aMatchScore = this.getMatchScore(a.name, lowerQuery, a.description);
-      const bMatchScore = this.getMatchScore(b.name, lowerQuery, b.description);
+      const aMatchScore = this.getMatchScore(a.name, keywords, a.description);
+      const bMatchScore = this.getMatchScore(b.name, keywords, b.description);
 
       const aBonus = usageBonuses[a.name] ?? 0;
       const bBonus = usageBonuses[b.name] ?? 0;
@@ -692,6 +714,9 @@ export class AgentSkillManager implements IInitializable {
    * Supports: ArrowDown/Ctrl+n/Ctrl+j (next), ArrowUp/Ctrl+p/Ctrl+k (previous), Enter/Tab (select), Escape (close), Ctrl+i (toggle tooltip)
    */
   private handleKeyDown(e: KeyboardEvent): void {
+    // Skip all key handling if IME is active (for Japanese/CJK input)
+    if (e.isComposing) return;
+
     // Ctrl+i: Toggle auto-show tooltip
     if (e.ctrlKey && e.key === 'i') {
       e.preventDefault();
@@ -744,14 +769,14 @@ export class AgentSkillManager implements IInitializable {
           this.openSkillFile(this.selectedIndex);
         } else {
           // Enter: Paste immediately
-          this.selectSkill(this.selectedIndex, true);
+          this.selectSkill(this.selectedIndex);
         }
         break;
 
       case 'Tab':
         e.preventDefault();
         e.stopPropagation();
-        this.selectSkill(this.selectedIndex, false); // Insert for editing
+        this.selectSkill(this.selectedIndex);
         break;
 
       case 'Escape':
@@ -789,9 +814,8 @@ export class AgentSkillManager implements IInitializable {
   /**
    * Select a command and insert it into the textarea
    * @param index - The index of the command to select
-   * @param shouldPaste - If true, paste immediately (Enter). If false, insert for editing (Tab).
    */
-  private selectSkill(index: number, shouldPaste: boolean = true): void {
+  private selectSkill(index: number): void {
     if (index < 0 || index >= this.filteredSkills.length) return;
 
     const command = this.filteredSkills[index];
@@ -801,34 +825,33 @@ export class AgentSkillManager implements IInitializable {
     this.registerSkillToCache(command.name);
 
     // Determine what to insert based on inputFormat setting
-    // Default to 'name' for commands (backward compatible behavior)
-    const inputFormat = command.inputFormat ?? 'name';
+    // inputText がある場合: テンプレート解決済みテキスト（inputFormat: '{filepath}' 等）
+    // inputFormat が 'name' or undefined: 従来通り / 付き（'name' はビルトインのデフォルト値）
+    // それ以外の inputFormat: / なし
     const skillText = command.inputText
       ? command.inputText
-      : inputFormat === 'path' ? command.filePath : `/${command.name}`;
+      : command.inputFormat && command.inputFormat !== 'name'
+        ? command.name            // inputFormat 指定あり（テンプレート等） → / なし
+        : `/${command.name}`;     // デフォルト or 'name' → / あり
 
-    // Show argumentHint if available, otherwise hide suggestions
+    // Set editing mode BEFORE inserting text.
+    // replaceRangeWithUndo triggers a synchronous input event → checkForAgentSkill.
+    // Without editing mode, the query (e.g. "model ") would re-trigger showSuggestions.
+    this.editingSkillName = command.name;
+    this.editingSkillStartPos = this.currentTriggerStartPos;
+    this.isEditingMode = true;
+    this.hideUI();
+
+    // Insert with trailing space for editing
+    const skillWithSpace = skillText + ' ';
+    const start = this.currentTriggerStartPos;
+    const end = this.textarea.selectionStart;
+    this.replaceRangeWithUndo(start, end, skillWithSpace);
+    this.onSkillInsert(skillWithSpace);
+
+    // After insertion, show argumentHint if available
     if (command.argumentHint) {
       this.showArgumentHintOnly(command);
-    } else {
-      this.hideSuggestions();
-    }
-
-    if (shouldPaste && this.currentTriggerStartPos === 0) {
-      // Enter at text start: Paste immediately
-      // Replace only the /query portion
-      const start = this.currentTriggerStartPos;
-      const end = this.textarea.selectionStart;
-      this.replaceRangeWithUndo(start, end, skillText);
-      this.onSkillSelect(skillText);
-    } else {
-      // Tab, or Enter at non-start position: Insert with trailing space for editing
-      const skillWithSpace = skillText + ' ';
-      // Replace only the /query portion
-      const start = this.currentTriggerStartPos;
-      const end = this.textarea.selectionStart;
-      this.replaceRangeWithUndo(start, end, skillWithSpace);
-      this.onSkillInsert(skillWithSpace);
     }
   }
 

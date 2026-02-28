@@ -71,6 +71,7 @@ builtInCommands:                      # List of tools to enable
 # Template variables: {basename}, {frontmatter@fieldName}
 
 # Agent skills: custom commands from markdown files
+# Search: Space-separated keywords enable AND search (e.g., "/commit fix" matches both words)
 # Configuration fields:
 #   name: Display name template (variables: {basename}, {frontmatter@field}, {prefix})
 #   description: Skill description template (variables: {basename}, {frontmatter@field}, {dirname}, {dirname:N})
@@ -129,6 +130,7 @@ mentions:
   # Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
   # Scans directories for files matching glob patterns and provides @ mention suggestions.
   # Supports: Markdown (.md), JSON (.json), JSONL (.jsonl), jq expressions, and plain text files.
+  # Search: Space-separated keywords enable AND search (e.g., @agent:dev api)
   #
   # Configuration fields:
   #   name            : Display name template
@@ -140,7 +142,7 @@ mentions:
   #   maxSuggestions  : Maximum number of suggestions to display
   #   orderBy         : Sort order (e.g., "name", "name desc", "{updatedAt} desc")
   #   displayTime     : Timestamp to display (e.g., "{updatedAt}", "{json@createdAt}", "none" to hide)
-  #   inputFormat     : Insert format (name, path, or template string e.g. "~/ghq/{line}")
+  #   inputFormat     : Insert format ('name' = display name, or template e.g. '{filepath}', '{content}')
   #   color           : Badge color (name or hex)
   #   icon            : Codicon icon name (e.g., "agent", "rocket", "terminal")
   #                     https://microsoft.github.io/vscode-codicons/dist/codicon.html
@@ -207,7 +209,7 @@ mentions:
       searchPrefix: plan            # Search with @plan:
       orderBy: "{updatedAt} desc"
       displayTime: "{updatedAt}"
-      inputFormat: path               # Insert file path instead of name
+      inputFormat: {filepath}               # Insert format template
 
     - name: "{basename}"
       label: "{dirname}"
@@ -219,7 +221,7 @@ mentions:
       searchPrefix: task            # Search with @task:
       orderBy: "{updatedAt} desc"
       displayTime: "{updatedAt}"
-      inputFormat: path               # Insert file path instead of name
+      inputFormat: {filepath}               # Insert format template
 
     # - name: "{basename}"
     #   description: "{frontmatter@title}"
@@ -228,7 +230,7 @@ mentions:
     #   searchPrefix: kb            # Search with @kb:
     #   maxSuggestions: 100
     #   orderBy: "{updatedAt} desc"
-    #   inputFormat: path               # Insert file path instead of name
+    #   inputFormat: {filepath}               # Insert format template
 
   # File search settings (@path/to/file completion)
   # Note: fd command required (brew install fd)
@@ -257,6 +259,7 @@ mentions:
 
   # Symbol search settings (@ts:Config, @go:Handler)
   # Note: ripgrep required (brew install ripgrep)
+  # Search: Space-separated keywords enable AND search (e.g., @ts:Config util)
   symbolSearch:
     maxSymbols: 200000                # Maximum symbols to return
     timeout: 60000                    # Search timeout in ms

@@ -1,134 +1,134 @@
-/**
- * @jest-environment jsdom
- */
+// @vitest-environment jsdom
 
-import { describe, test, expect, beforeEach, jest } from '@jest/globals';
+import type { Mocked, MockedFunction } from 'vitest';
 import type { IpcRenderer } from 'electron';
 
-// Mock electron before importing renderer
-const mockIpcRenderer: jest.Mocked<IpcRenderer> = {
-    invoke: jest.fn(),
-    on: jest.fn(),
-    once: jest.fn(),
-    removeListener: jest.fn(),
-    removeAllListeners: jest.fn(),
-    setMaxListeners: jest.fn(),
-    getMaxListeners: jest.fn(),
-    listeners: jest.fn(),
-    rawListeners: jest.fn(),
-    emit: jest.fn(),
-    listenerCount: jest.fn(),
-    prependListener: jest.fn(),
-    prependOnceListener: jest.fn(),
-    eventNames: jest.fn(),
-    addListener: jest.fn(),
-    off: jest.fn(),
-    send: jest.fn(),
-    sendSync: jest.fn(),
-    postMessage: jest.fn(),
-    sendToHost: jest.fn()
-} as any;
+// vi.hoisted ensures mockIpcRenderer is available when vi.mock factory runs
+const { mockIpcRenderer } = vi.hoisted(() => ({
+    mockIpcRenderer: {
+        invoke: vi.fn(),
+        on: vi.fn(),
+        once: vi.fn(),
+        removeListener: vi.fn(),
+        removeAllListeners: vi.fn(),
+        setMaxListeners: vi.fn(),
+        getMaxListeners: vi.fn(),
+        listeners: vi.fn(),
+        rawListeners: vi.fn(),
+        emit: vi.fn(),
+        listenerCount: vi.fn(),
+        prependListener: vi.fn(),
+        prependOnceListener: vi.fn(),
+        eventNames: vi.fn(),
+        addListener: vi.fn(),
+        off: vi.fn(),
+        send: vi.fn(),
+        sendSync: vi.fn(),
+        postMessage: vi.fn(),
+        sendToHost: vi.fn()
+    } as any as Mocked<IpcRenderer>
+}));
 
 // Mock electron module
-jest.mock('electron', () => ({
+vi.mock('electron', () => ({
     ipcRenderer: mockIpcRenderer
 }));
 
 // Mock EventHandler
-jest.mock('../../src/renderer/event-handler', () => ({
-    EventHandler: jest.fn().mockImplementation(() => ({
-        setTextarea: jest.fn(),
-        setSearchManager: jest.fn(),
-        setAgentSkillManager: jest.fn(),
-        setMentionManager: jest.fn(),
-        setDomManager: jest.fn(),
-        setUserSettings: jest.fn(),
-        setupEventListeners: jest.fn(),
-        getIsComposing: jest.fn().mockReturnValue(false)
-    }))
+vi.mock('../../src/renderer/event-handler', () => ({
+    EventHandler: vi.fn(function() { return {
+        setTextarea: vi.fn(),
+        setSearchManager: vi.fn(),
+        setAgentSkillManager: vi.fn(),
+        setMentionManager: vi.fn(),
+        setDomManager: vi.fn(),
+        setUserSettings: vi.fn(),
+        setupEventListeners: vi.fn(),
+        getIsComposing: vi.fn().mockReturnValue(false)
+    }; })
 }));
 
 // Mock HistorySearchManager
-jest.mock('../../src/renderer/history-search', () => ({
-    HistorySearchManager: jest.fn().mockImplementation(() => ({
-        initializeElements: jest.fn(),
-        setupEventListeners: jest.fn(),
-        updateHistoryData: jest.fn(),
-        isInSearchMode: jest.fn().mockReturnValue(false),
-        getSearchTerm: jest.fn().mockReturnValue(''),
-        focusMainTextarea: jest.fn(),
-        exitSearchMode: jest.fn(),
-        highlightSearchTerms: jest.fn((text: string) => text),
-        cleanup: jest.fn()
-    }))
+vi.mock('../../src/renderer/history-search', () => ({
+    HistorySearchManager: vi.fn(function() { return {
+        initializeElements: vi.fn(),
+        setupEventListeners: vi.fn(),
+        updateHistoryData: vi.fn(),
+        isInSearchMode: vi.fn().mockReturnValue(false),
+        getSearchTerm: vi.fn().mockReturnValue(''),
+        focusMainTextarea: vi.fn(),
+        exitSearchMode: vi.fn(),
+        highlightSearchTerms: vi.fn((text: string) => text),
+        cleanup: vi.fn()
+    }; })
 }));
 
 // Mock the new modular classes
-jest.mock('../../src/renderer/dom-manager', () => ({
-    DomManager: jest.fn().mockImplementation(() => ({
-        initializeElements: jest.fn(),
-        textarea: { 
-            addEventListener: jest.fn(), 
-            value: '', 
-            selectionStart: 0, 
-            selectionEnd: 0, 
-            setSelectionRange: jest.fn(), 
-            focus: jest.fn(), 
-            select: jest.fn() 
+vi.mock('../../src/renderer/dom-manager', () => ({
+    DomManager: vi.fn(function() { return {
+        initializeElements: vi.fn(),
+        textarea: {
+            addEventListener: vi.fn(),
+            value: '',
+            selectionStart: 0,
+            selectionEnd: 0,
+            setSelectionRange: vi.fn(),
+            focus: vi.fn(),
+            select: vi.fn()
         },
         appNameEl: { textContent: '', style: {} },
         charCountEl: { textContent: '' },
-        historyList: { 
-            innerHTML: '', 
-            querySelectorAll: jest.fn(() => []), 
-            classList: { add: jest.fn(), remove: jest.fn() } 
+        historyList: {
+            innerHTML: '',
+            querySelectorAll: vi.fn(() => []),
+            classList: { add: vi.fn(), remove: vi.fn() }
         },
-        searchInput: { addEventListener: jest.fn() },
-        updateCharCount: jest.fn(),
-        updateAppName: jest.fn(),
-        updateHintText: jest.fn(),
-        showError: jest.fn(),
-        insertTextAtCursor: jest.fn(),
-        clearText: jest.fn(),
-        setText: jest.fn(),
-        getCurrentText: jest.fn(() => ''),
-        focusTextarea: jest.fn(),
-        selectAll: jest.fn(),
-        setCursorPosition: jest.fn()
-    }))
+        searchInput: { addEventListener: vi.fn() },
+        updateCharCount: vi.fn(),
+        updateAppName: vi.fn(),
+        updateHintText: vi.fn(),
+        showError: vi.fn(),
+        insertTextAtCursor: vi.fn(),
+        clearText: vi.fn(),
+        setText: vi.fn(),
+        getCurrentText: vi.fn(() => ''),
+        focusTextarea: vi.fn(),
+        selectAll: vi.fn(),
+        setCursorPosition: vi.fn()
+    }; })
 }));
 
-jest.mock('../../src/renderer/draft-manager-client', () => ({
-    DraftManagerClient: jest.fn().mockImplementation(() => ({
-        setConfig: jest.fn(),
-        saveDraftDebounced: jest.fn(),
-        saveDraftImmediate: jest.fn(),
-        clearDraft: jest.fn(),
-        extractDraftValue: jest.fn((draft: any) => typeof draft === 'string' ? draft : (draft?.text || '')),
-        cleanup: jest.fn()
-    }))
+vi.mock('../../src/renderer/draft-manager-client', () => ({
+    DraftManagerClient: vi.fn(function() { return {
+        setConfig: vi.fn(),
+        saveDraftDebounced: vi.fn(),
+        saveDraftImmediate: vi.fn(),
+        clearDraft: vi.fn(),
+        extractDraftValue: vi.fn((draft: any) => typeof draft === 'string' ? draft : (draft?.text || '')),
+        cleanup: vi.fn()
+    }; })
 }));
 
-jest.mock('../../src/renderer/history-ui-manager', () => ({
-    HistoryUIManager: jest.fn().mockImplementation(() => ({
-        renderHistory: jest.fn(),
-        navigateHistory: jest.fn(),
-        clearHistorySelection: jest.fn(),
-        setupScrollListener: jest.fn(),
-        cleanup: jest.fn()
-    }))
+vi.mock('../../src/renderer/history-ui-manager', () => ({
+    HistoryUIManager: vi.fn(function() { return {
+        renderHistory: vi.fn(),
+        navigateHistory: vi.fn(),
+        clearHistorySelection: vi.fn(),
+        setupScrollListener: vi.fn(),
+        cleanup: vi.fn()
+    }; })
 }));
 
-jest.mock('../../src/renderer/lifecycle-manager', () => ({
-    LifecycleManager: jest.fn().mockImplementation(() => ({
-        handleWindowShown: jest.fn(),
-        handleWindowHide: jest.fn(),
-        getUserSettings: jest.fn(() => null)
-    }))
+vi.mock('../../src/renderer/lifecycle-manager', () => ({
+    LifecycleManager: vi.fn(function() { return {
+        handleWindowShown: vi.fn(),
+        handleWindowHide: vi.fn(),
+        getUserSettings: vi.fn(() => null)
+    }; })
 }));
 
 // Mock window.require before any imports
-(window as any).require = jest.fn((module: string) => {
+(window as any).require = vi.fn((module: string) => {
     if (module === 'electron') {
         return { ipcRenderer: mockIpcRenderer };
     }
@@ -136,40 +136,40 @@ jest.mock('../../src/renderer/lifecycle-manager', () => ({
 });
 
 // Mock window.electronAPI
-const mockPasteText = jest.fn() as jest.MockedFunction<any>;
-const mockPasteImage = jest.fn() as jest.MockedFunction<any>;
+const mockPasteText = vi.fn() as MockedFunction<any>;
+const mockPasteImage = vi.fn() as MockedFunction<any>;
 mockPasteText.mockResolvedValue({ success: true });
 mockPasteImage.mockResolvedValue({ success: true, path: '/tmp/image.png' });
 
 (window as any).electronAPI = {
     pasteText: mockPasteText,
     pasteImage: mockPasteImage,
-    invoke: jest.fn(),
-    on: jest.fn(),
+    invoke: vi.fn(),
+    on: vi.fn(),
     paste: {
-        text: jest.fn(),
-        image: jest.fn()
+        text: vi.fn(),
+        image: vi.fn()
     },
     draft: {
-        save: jest.fn(),
-        clear: jest.fn(),
-        get: jest.fn()
+        save: vi.fn(),
+        clear: vi.fn(),
+        get: vi.fn()
     },
     history: {
-        get: jest.fn(),
-        clear: jest.fn(),
-        remove: jest.fn(),
-        search: jest.fn()
+        get: vi.fn(),
+        clear: vi.fn(),
+        remove: vi.fn(),
+        search: vi.fn()
     },
     window: {
-        hide: jest.fn(),
-        show: jest.fn()
+        hide: vi.fn(),
+        show: vi.fn()
     },
     config: {
-        get: jest.fn()
+        get: vi.fn()
     },
     app: {
-        getInfo: jest.fn()
+        getInfo: vi.fn()
     }
 };
 
@@ -179,9 +179,9 @@ beforeEach(() => {
     document.head.innerHTML = '';
     document.body.innerHTML = '';
 
-    jest.spyOn(document, 'getElementById').mockImplementation(() => null);
-    jest.spyOn(document, 'addEventListener').mockImplementation(() => {});
-    jest.spyOn(window, 'addEventListener').mockImplementation(() => {});
+    vi.spyOn(document, 'getElementById').mockImplementation(() => null);
+    vi.spyOn(document, 'addEventListener').mockImplementation(() => {});
+    vi.spyOn(window, 'addEventListener').mockImplementation(() => {});
 
     // Mock config
     mockIpcRenderer.invoke.mockResolvedValue({
@@ -191,7 +191,7 @@ beforeEach(() => {
     // Setup electronAPI.invoke to delegate to mockIpcRenderer.invoke
     (window as any).electronAPI.invoke = mockIpcRenderer.invoke;
 
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 });
 
 // Import the renderer class directly - moved after mocks are set up
@@ -265,7 +265,7 @@ describe('PromptLineRenderer (Refactored)', () => {
 
     describe('event handling delegation', () => {
         test('should call historyUIManager for history navigation', () => {
-            const mockEvent = { preventDefault: jest.fn() } as any;
+            const mockEvent = { preventDefault: vi.fn() } as any;
             (renderer as any).navigateHistory(mockEvent, 'next');
             
             expect((renderer as any).historyUIManager.navigateHistory).toHaveBeenCalledWith(
@@ -320,14 +320,14 @@ describe('PromptLineRenderer (Refactored)', () => {
 
             // Mock textarea properties for the new implementation
             (renderer as any).domManager.textarea.selectionStart = 0;
-            (renderer as any).domManager.getCurrentText = jest.fn().mockReturnValue('initial text');
-            (renderer as any).domManager.setCursorPosition = jest.fn();
+            (renderer as any).domManager.getCurrentText = vi.fn().mockReturnValue('initial text');
+            (renderer as any).domManager.setCursorPosition = vi.fn();
 
             const event = new KeyboardEvent('keydown', {
                 key: 'v',
                 metaKey: true
             });
-            event.preventDefault = jest.fn();
+            event.preventDefault = vi.fn();
 
             // Handle the keydown event (which sets up the setTimeout)
             await (renderer as any).handleKeyDown(event);
@@ -354,7 +354,7 @@ describe('PromptLineRenderer (Refactored)', () => {
                 key: 'v',
                 metaKey: true
             });
-            event.preventDefault = jest.fn();
+            event.preventDefault = vi.fn();
 
             await (renderer as any).handleKeyDown(event);
 
@@ -418,9 +418,9 @@ describe('PromptLineRenderer (Refactored)', () => {
     describe('tab key handling', () => {
         test('should insert tab and save draft', () => {
             const event = {
-                preventDefault: jest.fn(),
-                stopPropagation: jest.fn(),
-                stopImmediatePropagation: jest.fn()
+                preventDefault: vi.fn(),
+                stopPropagation: vi.fn(),
+                stopImmediatePropagation: vi.fn()
             } as any;
 
             (renderer as any).handleTabKeyCallback(event);

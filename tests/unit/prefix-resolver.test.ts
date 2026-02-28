@@ -1,14 +1,13 @@
-import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
 // Unmock path module for this test (we need real path functions)
-jest.unmock('path');
+vi.unmock('path');
 
 // Mock glob before importing prefix-resolver
-jest.mock('glob', () => ({
-  glob: jest.fn()
+vi.mock('glob', () => ({
+  glob: vi.fn()
 }));
 
 // Import after mocks
@@ -19,7 +18,7 @@ import {
 } from '../../src/lib/prefix-resolver';
 import { glob } from 'glob';
 
-const mockedGlob = jest.mocked(glob);
+const mockedGlob = vi.mocked(glob);
 
 describe('prefix-resolver', () => {
   let testDir: string;
@@ -27,7 +26,7 @@ describe('prefix-resolver', () => {
   beforeEach(() => {
     // Create a unique temporary directory for each test
     testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'prefix-resolver-test-'));
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     clearPrefixCache();
   });
 

@@ -189,7 +189,7 @@ function formatCustomSearchEntry(entry: MentionEntry, indent: string, commented 
     lines.push(`${contentLinePrefix}displayTime: "${entry.displayTime}"`);
   }
   if (entry.inputFormat !== undefined) {
-    lines.push(`${contentLinePrefix}inputFormat: ${entry.inputFormat}               # Insert file path instead of name`);
+    lines.push(`${contentLinePrefix}inputFormat: ${entry.inputFormat}               # Insert format template`);
   }
 
   return lines.join('\n');
@@ -284,6 +284,7 @@ function buildAgentSkillsSection(settings: UserSettings, options: YamlGeneratorO
 
   // Build the section with actual values
   let section = '# Agent skills: custom commands from markdown files\n';
+  section += '# Search: Space-separated keywords enable AND search (e.g., "/commit fix" matches both words)\n';
   section += '# Configuration fields:\n';
   section += '#   name: Display name template (variables: {basename}, {frontmatter@field}, {prefix})\n';
   section += '#   description: Skill description template (variables: {basename}, {frontmatter@field}, {dirname}, {dirname:N})\n';
@@ -362,6 +363,7 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
   section += `  # Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
   # Scans directories for files matching glob patterns and provides @ mention suggestions.
   # Supports: Markdown (.md), JSON (.json), JSONL (.jsonl), jq expressions, and plain text files.
+  # Search: Space-separated keywords enable AND search (e.g., @agent:dev api)
   #
   # Configuration fields:
   #   name            : Display name template
@@ -373,7 +375,7 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
   #   maxSuggestions  : Maximum number of suggestions to display
   #   orderBy         : Sort order (e.g., "name", "name desc", "{updatedAt} desc")
   #   displayTime     : Timestamp to display (e.g., "{updatedAt}", "{json@createdAt}", "none" to hide)
-  #   inputFormat     : Insert format (name, path, or template string e.g. "~/ghq/{line}")
+  #   inputFormat     : Insert format ('name' = display name, or template e.g. '{filepath}', '{content}')
   #   color           : Badge color (name or hex)
   #   icon            : Codicon icon name (e.g., "agent", "rocket", "terminal")
   #                     https://microsoft.github.io/vscode-codicons/dist/codicon.html
@@ -472,6 +474,7 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
     section += `
   # Symbol search settings (@ts:Config, @go:Handler)
   # Note: ripgrep required (brew install ripgrep)
+  # Search: Space-separated keywords enable AND search (e.g., @ts:Config util)
   symbolSearch:
     maxSymbols: ${formatValue(ss.maxSymbols)}                # Maximum symbols to return
     timeout: ${formatValue(ss.timeout)}                    # Search timeout in ms

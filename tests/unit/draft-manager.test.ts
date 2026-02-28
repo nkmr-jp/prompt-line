@@ -1,72 +1,78 @@
-import { describe, test, expect, beforeEach, jest } from '@jest/globals';
 import DraftManager from '../../src/managers/draft-manager';
 import { promises as fs } from 'fs';
+import path from 'path';
 
 // Mock fs promises module
-jest.mock('fs', () => ({
+vi.mock('fs', () => ({
     promises: {
-    readFile: jest.fn(),
-    writeFile: jest.fn(),
-    unlink: jest.fn(),
-    readdir: jest.fn(),
-    stat: jest.fn(),
-    appendFile: jest.fn()
+    readFile: vi.fn(),
+    writeFile: vi.fn(),
+    unlink: vi.fn(),
+    readdir: vi.fn(),
+    stat: vi.fn(),
+    appendFile: vi.fn()
     }
 }));
 
 // Mock path module
-jest.mock('path', () => ({
-    dirname: jest.fn((p: string) => {
-        if (p === '/test/draft.json') return '/test';
-        return '/test';
-    }),
-    basename: jest.fn(),
-    join: jest.fn((...args: string[]) => args.join('/')),
-    normalize: jest.fn((p: string) => p)
-}));
+vi.mock('path', () => {
+    const pathMock = {
+        dirname: vi.fn((p: string) => {
+            if (p === '/test/draft.json') return '/test';
+            return '/test';
+        }),
+        basename: vi.fn(),
+        join: vi.fn((...args: string[]) => args.join('/')),
+        normalize: vi.fn((p: string) => p)
+    };
+    return { ...pathMock, default: pathMock };
+});
 
 // Mock the utils module
-jest.mock('../../src/utils/utils', () => ({
+vi.mock('../../src/utils/utils', () => ({
     logger: {
-        info: jest.fn(),
-        debug: jest.fn(),
-        warn: jest.fn(),
-        error: jest.fn()
+        info: vi.fn(),
+        debug: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn()
     },
-    safeJsonParse: jest.fn((data: string, fallback: any) => {
+    safeJsonParse: vi.fn((data: string, fallback: any) => {
         try {
             return JSON.parse(data);
         } catch {
             return fallback;
         }
     }),
-    safeJsonStringify: jest.fn((data: any) => JSON.stringify(data, null, 2)),
-    debounce: jest.fn((fn: Function, _delay: number) => {
+    safeJsonStringify: vi.fn((data: any) => JSON.stringify(data, null, 2)),
+    debounce: vi.fn((fn: Function, _delay: number) => {
         // Return a simple mock that calls the function immediately
-        const mockFn = jest.fn((...args: any[]) => fn(...args)) as any;
-        mockFn.cancel = jest.fn();
+        const mockFn = vi.fn((...args: any[]) => fn(...args)) as any;
+        mockFn.cancel = vi.fn();
         return mockFn;
     })
 }));
 
 // Mock the config module
-jest.mock('../../src/config/app-config', () => ({
-    paths: {
-        draftFile: '/test/draft.json'
-    },
-    draft: {
-        saveDelay: 500
-    }
-}));
+vi.mock('../../src/config/app-config', () => {
+    const configMock = {
+        paths: {
+            draftFile: '/test/draft.json'
+        },
+        draft: {
+            saveDelay: 500
+        }
+    };
+    return { ...configMock, default: configMock };
+});
 
-const mockedFs = jest.mocked(fs);
+const mockedFs = vi.mocked(fs);
 
 describe('DraftManager', () => {
     let draftManager: DraftManager;
 
     beforeEach(() => {
         draftManager = new DraftManager();
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     describe('initialization', () => {
@@ -377,10 +383,8 @@ describe('DraftManager', () => {
 
     describe('cleanupBackups', () => {
         beforeEach(() => {
-             
-            const path = require('path');
-            path.dirname.mockReturnValue('/test');
-            path.basename.mockReturnValue('draft.json');
+            (path as any).dirname.mockReturnValue('/test');
+            (path as any).basename.mockReturnValue('draft.json');
         });
 
         test('should clean up old backup files', async () => {

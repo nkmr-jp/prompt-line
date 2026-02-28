@@ -1,4 +1,3 @@
-import { describe, test, expect } from '@jest/globals';
 import { extractTriggerQueryAtCursor } from '../../src/renderer/utils/trigger-query-extractor';
 
 describe('extractTriggerQueryAtCursor', () => {
@@ -492,6 +491,87 @@ describe('extractTriggerQueryAtCursor', () => {
         startPos: 0,
         triggerChar: '@'
       });
+    });
+  });
+
+  describe('allowSpaces option tests', () => {
+    test('should extract query with spaces when allowSpaces is true', () => {
+      // '/claude model' with cursor at position 13
+      const result = extractTriggerQueryAtCursor('/claude model', 13, '/', { allowSpaces: true });
+      expect(result).toEqual({
+        query: 'claude model',
+        startPos: 0,
+        triggerChar: '/'
+      });
+    });
+
+    test('should extract multi-word query mid-text with allowSpaces', () => {
+      // 'hello /claude code model' with cursor at position 24
+      const result = extractTriggerQueryAtCursor('hello /claude code model', 24, '/', { allowSpaces: true });
+      expect(result).toEqual({
+        query: 'claude code model',
+        startPos: 6,
+        triggerChar: '/'
+      });
+    });
+
+    test('should still stop at newline even with allowSpaces', () => {
+      // '/query\nafter' with cursor at position 12
+      const result = extractTriggerQueryAtCursor('/query\nafter', 12, '/', { allowSpaces: true });
+      expect(result).toBeNull();
+    });
+
+    test('should still stop at tab even with allowSpaces', () => {
+      // '/query\tafter' with cursor at position 12
+      const result = extractTriggerQueryAtCursor('/query\tafter', 12, '/', { allowSpaces: true });
+      expect(result).toBeNull();
+    });
+
+    test('should not affect @ mention (without allowSpaces)', () => {
+      // 'hello @user name' with cursor at position 16
+      const result = extractTriggerQueryAtCursor('hello @user name', 16, '@');
+      expect(result).toBeNull();
+    });
+
+    test('should work without options (backward compatible)', () => {
+      // '/command' with cursor at position 8
+      const result = extractTriggerQueryAtCursor('/command', 8, '/');
+      expect(result).toEqual({
+        query: 'command',
+        startPos: 0,
+        triggerChar: '/'
+      });
+    });
+
+    test('should stop at space without allowSpaces (default behavior)', () => {
+      // '/claude model' with cursor at position 13, no allowSpaces
+      const result = extractTriggerQueryAtCursor('/claude model', 13, '/');
+      expect(result).toBeNull();
+    });
+
+    test('should handle allowSpaces with trigger after space', () => {
+      // 'text /multi word query' with cursor at position 21
+      const result = extractTriggerQueryAtCursor('text /multi word query', 22, '/', { allowSpaces: true });
+      expect(result).toEqual({
+        query: 'multi word query',
+        startPos: 5,
+        triggerChar: '/'
+      });
+    });
+
+    test('should handle allowSpaces with empty query', () => {
+      // '/' with cursor at position 1
+      const result = extractTriggerQueryAtCursor('/', 1, '/', { allowSpaces: true });
+      expect(result).toEqual({
+        query: '',
+        startPos: 0,
+        triggerChar: '/'
+      });
+    });
+
+    test('should handle allowSpaces: false explicitly', () => {
+      const result = extractTriggerQueryAtCursor('/claude model', 13, '/', { allowSpaces: false });
+      expect(result).toBeNull();
     });
   });
 

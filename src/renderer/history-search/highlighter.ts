@@ -5,6 +5,7 @@
  */
 
 import { escapeHtmlFast as escapeHtml } from '../utils/html-utils';
+import { splitKeywords } from '../../lib/keyword-utils';
 
 export class HistorySearchHighlighter {
   /** CSS class for highlighted text */
@@ -22,13 +23,6 @@ export class HistorySearchHighlighter {
     this.cachedReplacement = `<span class="${highlightClass}">$1</span>`;
   }
 
-  /**
-   * Split query into keywords (space-separated)
-   * Filters out empty strings
-   */
-  private splitKeywords(query: string): string[] {
-    return query.split(/\s+/).filter(k => k.length > 0);
-  }
 
   /**
    * Highlight search terms in text with XSS protection
@@ -107,7 +101,7 @@ export class HistorySearchHighlighter {
    */
   private rebuildRegexCache(searchTerm: string): void {
     this.cachedSearchTerm = searchTerm;
-    const keywords = this.splitKeywords(searchTerm);
+    const keywords = splitKeywords(searchTerm);
     // HTML-escaped regexes (for highlightSearchTerms)
     this.cachedRegexes = keywords.map(keyword => {
       const escapedKeyword = escapeHtml(keyword);

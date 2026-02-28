@@ -2,20 +2,19 @@
  * jq-resolver integration test - uses real jq-web (not mocked)
  * Tests actual jq evaluation with WebAssembly
  */
-import { describe, test, expect, jest } from '@jest/globals';
 
 // Mock only the logger, NOT jq-web
-jest.mock('../../src/utils/utils', () => ({
+vi.mock('../../src/utils/utils', () => ({
   logger: {
-    info: jest.fn(),
-    debug: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn()
+    info: vi.fn(),
+    debug: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn()
   }
 }));
 
 // Do NOT mock jq-web - use real implementation
-jest.unmock('jq-web');
+vi.unmock('jq-web');
 
 import { evaluateJq } from '../../src/lib/jq-resolver';
 

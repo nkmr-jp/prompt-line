@@ -1,51 +1,53 @@
-import { describe, test, expect, beforeEach, jest, afterEach } from '@jest/globals';
 import { UsageHistoryManager } from '../../src/managers/usage-history-manager';
 import fs from 'fs/promises';
 
 // Mock fs/promises module
-jest.mock('fs/promises', () => ({
+vi.mock('fs/promises', () => ({
   default: {
-    readFile: jest.fn(),
-    writeFile: jest.fn(),
+    readFile: vi.fn(),
+    writeFile: vi.fn(),
   },
-  readFile: jest.fn(),
-  writeFile: jest.fn(),
+  readFile: vi.fn(),
+  writeFile: vi.fn(),
 }));
 
 // Mock path module
-jest.mock('path', () => ({
-  dirname: jest.fn((p: string) => {
-    const parts = p.split('/');
-    parts.pop();
-    return parts.join('/');
-  }),
-  join: jest.fn((...args: string[]) => args.join('/')),
-}));
+vi.mock('path', () => {
+  const pathMock = {
+    dirname: vi.fn((p: string) => {
+      const parts = p.split('/');
+      parts.pop();
+      return parts.join('/');
+    }),
+    join: vi.fn((...args: string[]) => args.join('/')),
+  };
+  return { ...pathMock, default: pathMock };
+});
 
 // Mock the logger
-jest.mock('../../src/utils/logger', () => ({
+vi.mock('../../src/utils/logger', () => ({
   logger: {
-    debug: jest.fn(),
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
   },
 }));
 
 // Mock file-utils
-jest.mock('../../src/utils/file-utils', () => ({
-  ensureDir: jest.fn(() => Promise.resolve()),
+vi.mock('../../src/utils/file-utils', () => ({
+  ensureDir: vi.fn(() => Promise.resolve()),
 }));
 
 // Mock usage bonus calculator
-jest.mock('../../src/lib/usage-bonus-calculator', () => ({
-  calculateFrequencyBonus: jest.fn((count: number) => {
+vi.mock('../../src/lib/usage-bonus-calculator', () => ({
+  calculateFrequencyBonus: vi.fn((count: number) => {
     if (count <= 0) return 0;
     const logCount = Math.log10(count + 1);
     const bonus = Math.floor(logCount * 50);
     return Math.min(bonus, 100);
   }),
-  calculateUsageRecencyBonus: jest.fn((lastUsed: number) => {
+  calculateUsageRecencyBonus: vi.fn((lastUsed: number) => {
     const now = Date.now();
     const age = now - lastUsed;
     const ONE_DAY_MS = 24 * 60 * 60 * 1000;
@@ -65,21 +67,21 @@ jest.mock('../../src/lib/usage-bonus-calculator', () => ({
   }),
 }));
 
-const mockedFs = jest.mocked(fs);
+const mockedFs = vi.mocked(fs);
 
 describe('UsageHistoryManager', () => {
   let manager: UsageHistoryManager;
   const testFilePath = '/test/usage-history.jsonl';
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     // Use fake timers for time-based testing
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date('2024-01-15T12:00:00Z'));
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2024-01-15T12:00:00Z'));
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   describe('constructor', () => {
@@ -207,7 +209,7 @@ describe('UsageHistoryManager', () => {
     test('should increment count for existing entry', async () => {
       await manager.recordUsage('test-key');
 
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
 
       await manager.recordUsage('test-key');
 
@@ -221,7 +223,7 @@ describe('UsageHistoryManager', () => {
       await manager.recordUsage('test-key');
 
       const firstTimestamp = Date.now();
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
 
       await manager.recordUsage('test-key');
 
@@ -249,7 +251,7 @@ describe('UsageHistoryManager', () => {
       await manager.recordUsage('recent-key');
 
       // Advance time by 31 days
-      jest.advanceTimersByTime(31 * 24 * 60 * 60 * 1000);
+      vi.advanceTimersByTime(31 * 24 * 60 * 60 * 1000);
 
       // Add new entry (this will trigger pruning)
       await manager.recordUsage('new-key');
@@ -265,13 +267,13 @@ describe('UsageHistoryManager', () => {
       manager = new UsageHistoryManager(testFilePath, { maxEntries: 3 });
 
       await manager.recordUsage('key1');
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
 
       await manager.recordUsage('key2');
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
 
       await manager.recordUsage('key3');
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
 
       await manager.recordUsage('key4');
 
@@ -342,7 +344,7 @@ describe('UsageHistoryManager', () => {
       await manager.recordUsage('recent-key');
 
       // Advance time by 6 days (still within 7-day TTL)
-      jest.advanceTimersByTime(6 * 24 * 60 * 60 * 1000);
+      vi.advanceTimersByTime(6 * 24 * 60 * 60 * 1000);
 
       await manager.recordUsage('old-key');
 
@@ -510,7 +512,7 @@ describe('UsageHistoryManager', () => {
       await manager.recordUsage('key1');
 
       // Advance by 6 days (within TTL)
-      jest.advanceTimersByTime(6 * 24 * 60 * 60 * 1000);
+      vi.advanceTimersByTime(6 * 24 * 60 * 60 * 1000);
 
       await manager.recordUsage('key2');
 
@@ -524,10 +526,10 @@ describe('UsageHistoryManager', () => {
       mockedFs.writeFile.mockResolvedValue(undefined as any);
 
       await manager.recordUsage('key1');
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
 
       await manager.recordUsage('key2');
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
 
       await manager.recordUsage('key3');
 
@@ -544,7 +546,7 @@ describe('UsageHistoryManager', () => {
       await manager.recordUsage('old-key');
 
       // Advance by 8 days (beyond TTL)
-      jest.advanceTimersByTime(8 * 24 * 60 * 60 * 1000);
+      vi.advanceTimersByTime(8 * 24 * 60 * 60 * 1000);
 
       await manager.recordUsage('key1');
       await manager.recordUsage('key2');

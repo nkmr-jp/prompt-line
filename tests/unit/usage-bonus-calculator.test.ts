@@ -1,4 +1,3 @@
-import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import {
   USAGE_BONUS,
   calculateFrequencyBonus,
@@ -89,13 +88,13 @@ describe('usage-bonus-calculator', () => {
 
   describe('calculateUsageRecencyBonus', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       // Set system time to a fixed point: 2024-01-15 12:00:00 UTC
-      jest.setSystemTime(new Date('2024-01-15T12:00:00.000Z'));
+      vi.setSystemTime(new Date('2024-01-15T12:00:00.000Z'));
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     test('should return 100 (max) for usage within 24 hours', () => {
@@ -195,13 +194,13 @@ describe('usage-bonus-calculator', () => {
 
   describe('calculateFileMtimeBonus', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       // Set system time to a fixed point: 2024-01-15 12:00:00 UTC
-      jest.setSystemTime(new Date('2024-01-15T12:00:00.000Z'));
+      vi.setSystemTime(new Date('2024-01-15T12:00:00.000Z'));
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     test('should return high bonus for file modified within 24 hours', () => {
@@ -353,12 +352,12 @@ describe('usage-bonus-calculator', () => {
 
   describe('integration - combined bonus calculations', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
-      jest.setSystemTime(new Date('2024-01-15T12:00:00.000Z'));
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2024-01-15T12:00:00.000Z'));
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     test('should calculate bonuses for recently used and modified file', () => {

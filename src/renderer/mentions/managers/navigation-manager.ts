@@ -84,6 +84,7 @@ export interface NavigationCallbacks {
   addSelectedPath: (path: string) => void;
   updateHighlightBackdrop: () => void;
   resetCodeSearchState: () => void;
+  setLastInsertedMentionPath?: (path: string) => void;
 }
 
 /**
@@ -499,17 +500,17 @@ export class NavigationManager {
     }
 
     // Determine what to insert based on agent's inputFormat setting
-    // Default to 'name' for agents (backward compatible behavior)
-    const inputFormat = agent.inputFormat ?? 'name';
-
+    // mention のデフォルト config には inputFormat が設定されないため、
+    // inputFormat が存在すれば常にユーザーの明示指定 → @ なし
+    // 'name'/'path' 以外の inputFormat はテンプレートとして解決済み（inputText に格納）
     if (agent.inputText) {
-      // Template format: insert resolved text (no @)
+      // Template format (inputFormat: '{filepath}', '{content}' 等): insert resolved text (no @)
       this.callbacks.insertFilePathWithoutAt(agent.inputText);
-    } else if (inputFormat === 'path') {
-      // For 'path' format, replace @ and query with just the file path (no @)
-      this.callbacks.insertFilePathWithoutAt(agent.filePath);
+    } else if (agent.inputFormat) {
+      // inputFormat: 'name' が明示指定 → @ なし
+      this.callbacks.insertFilePathWithoutAt(agent.name);
     } else {
-      // For 'name' format, keep @ and insert just the name
+      // inputFormat 未指定 → デフォルト動作（@ あり）
       this.callbacks.insertFilePath(agent.name);
 
       // Register agent name in global cache for persistent highlighting
@@ -522,8 +523,8 @@ export class NavigationManager {
     this.callbacks.hideSuggestions();
 
     // Callback for external handling
-    const insertText = agent.inputText ?? (inputFormat === 'path' ? agent.filePath : agent.name);
-    this.callbacks.onFileSelected(agent.inputText ? insertText : (inputFormat === 'name' ? `@${insertText}` : insertText));
+    const insertText = agent.inputText ?? agent.name;
+    this.callbacks.onFileSelected(!agent.inputFormat && !agent.inputText ? `@${insertText}` : insertText);
   }
 
   /**
@@ -545,6 +546,10 @@ export class NavigationManager {
     // Save atStartPosition before replacement - replaceRangeWithUndo triggers input event
     // which calls checkForFileSearch() and may set atStartPosition to -1 via hideSuggestions()
     const savedAtStartPosition = atStartPosition;
+
+    // Set lastInsertedMentionPath before text insertion to prevent re-showing suggestions
+    const pathForGuard = `${symbol.relativePath}:${symbol.lineNumber}#${symbol.name}`;
+    this.callbacks.setLastInsertedMentionPath?.(pathForGuard);
 
     // Replace the lang:query part (after @) with the path:line#symbol
     // atStartPosition is the @ position, so we replace from atStartPosition + 1 to keep @

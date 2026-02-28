@@ -1,8 +1,5 @@
-/**
- * @jest-environment jsdom
- */
+// @vitest-environment jsdom
 
-import { describe, test, expect, beforeEach } from '@jest/globals';
 import { formatShortcut, updateShortcutsDisplay } from '../../../src/renderer/utils/shortcut-formatter';
 
 describe('formatShortcut', () => {

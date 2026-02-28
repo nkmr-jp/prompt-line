@@ -2,14 +2,15 @@
  * Tests for error-handler utility
  */
 
+import type { MockInstance } from 'vitest';
 import { handleError } from '../../src/renderer/utils/error-handler';
 
 describe('error-handler', () => {
   // Mock console.error
-  let consoleErrorSpy: jest.SpyInstance;
+  let consoleErrorSpy: MockInstance;
 
   beforeEach(() => {
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation();
     // Ensure window is available
     if (typeof window === 'undefined') {
       (global as any).window = {};
@@ -56,7 +57,7 @@ describe('error-handler', () => {
     });
 
     it('should show notification when notify option is true', () => {
-      const mockShowNotification = jest.fn();
+      const mockShowNotification = vi.fn();
       (window as any).uiManager = {
         showNotification: mockShowNotification
       };
@@ -91,7 +92,7 @@ describe('error-handler', () => {
     });
 
     it('should support all options combined', () => {
-      const mockShowNotification = jest.fn();
+      const mockShowNotification = vi.fn();
       (window as any).uiManager = {
         showNotification: mockShowNotification
       };

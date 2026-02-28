@@ -10,6 +10,8 @@
  * - {heading}: 最初の # heading のテキスト
  * - {json@path}: JSONデータの値参照（ドット記法・配列インデックス対応）
  * - {json:N@path}: 親要素のJSONデータ参照（N=1: 直接の親、N=2: 2つ上の親）
+ * - {content}: ファイルの全コンテンツ
+ * - {filepath}: ファイルの絶対パス
  *
  * フォールバック構文:
  * - テンプレート全体で `|` を使うと、左側が空文字の場合に右側にフォールバック
@@ -24,6 +26,7 @@ export interface TemplateContext {
   frontmatter: Record<string, string>;
   heading?: string;
   line?: string;
+  content?: string;
   jsonData?: Record<string, unknown>;
   parentJsonDataStack?: Record<string, unknown>[];
 }
@@ -72,6 +75,16 @@ export function resolveTemplate(template: string, context: TemplateContext): str
 
   // Replace {line}
   result = result.replace(/\{line\}/g, context.line ?? '');
+
+  // Replace {content}
+  if (context.content !== undefined) {
+    result = result.replace(/\{content\}/g, context.content);
+  }
+
+  // Replace {filepath}
+  if (context.filePath) {
+    result = result.replace(/\{filepath\}/g, context.filePath);
+  }
 
   // Replace {frontmatter@fieldName}
   result = result.replace(/\{frontmatter@([^}]+)\}/g, (_, fieldName: string) => {

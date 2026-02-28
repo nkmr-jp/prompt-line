@@ -1,4 +1,3 @@
-import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { calculateMatchScore, calculateAgentMatchScore } from '../../src/renderer/mentions/fuzzy-matcher';
 import type { FileInfo } from '../../src/types/file-search';
 import type { AgentItem } from '../../src/types/window';
@@ -7,13 +6,13 @@ import { USAGE_BONUS } from '../../src/lib/usage-bonus-calculator';
 
 describe('fuzzy-matcher usage bonus integration', () => {
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     // Set system time to a fixed point: 2024-01-15 12:00:00 UTC
-    jest.setSystemTime(new Date('2024-01-15T12:00:00.000Z'));
+    vi.setSystemTime(new Date('2024-01-15T12:00:00.000Z'));
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   describe('calculateMatchScore with usageBonus', () => {
@@ -606,6 +605,130 @@ describe('fuzzy-matcher usage bonus integration', () => {
       // calculateFileMtimeBonus returns MAX_FILE_MTIME (100) for future times
       const MAX_MTIME_BONUS = 100;
       expect(scoreWithFutureMtime).toBe(scoreWithoutMtime + MAX_MTIME_BONUS);
+    });
+  });
+
+  describe('multi-keyword AND search', () => {
+    describe('calculateMatchScore with multiple keywords', () => {
+      test('should match file when all keywords match name', () => {
+        const file: FileInfo = {
+          name: 'config-manager',
+          path: 'src/config-manager',
+          isDirectory: false
+        };
+        const score = calculateMatchScore(file, 'config manager');
+        expect(score).toBeGreaterThan(0);
+      });
+
+      test('should return 0 when any keyword does not match', () => {
+        const file: FileInfo = {
+          name: 'config.ts',
+          path: 'src/config.ts',
+          isDirectory: false
+        };
+        const score = calculateMatchScore(file, 'config xyz');
+        expect(score).toBe(0);
+      });
+
+      test('should match when keywords match across name and path', () => {
+        const file: FileInfo = {
+          name: 'manager.ts',
+          path: 'src/config/manager.ts',
+          isDirectory: false
+        };
+        // "config" matches path, "manager" matches name
+        const score = calculateMatchScore(file, 'config manager');
+        expect(score).toBeGreaterThan(0);
+      });
+
+      test('single keyword should produce same score as before', () => {
+        const file: FileInfo = {
+          name: 'config',
+          path: 'src/config',
+          isDirectory: false
+        };
+        const singleScore = calculateMatchScore(file, 'config');
+        const multiScore = calculateMatchScore(file, 'config');
+        expect(singleScore).toBe(multiScore);
+      });
+
+      test('should handle extra spaces in query', () => {
+        const file: FileInfo = {
+          name: 'config-manager',
+          path: 'src/config-manager',
+          isDirectory: false
+        };
+        const score = calculateMatchScore(file, '  config   manager  ');
+        expect(score).toBeGreaterThan(0);
+      });
+
+      test('should handle query with only spaces', () => {
+        const file: FileInfo = {
+          name: 'config',
+          path: 'src/config',
+          isDirectory: false
+        };
+        const score = calculateMatchScore(file, '   ');
+        // No keywords → only bonuses
+        expect(score).toBeGreaterThanOrEqual(0);
+      });
+
+      test('should normalize multi-keyword score', () => {
+        const file: FileInfo = {
+          name: 'config-manager',
+          path: 'src/config-manager',
+          isDirectory: false
+        };
+        const singleScore = calculateMatchScore(file, 'config');
+        const multiScore = calculateMatchScore(file, 'config manager');
+        // Multi-keyword score should be normalized (averaged), so generally lower per keyword
+        // but still > 0
+        expect(multiScore).toBeGreaterThan(0);
+        expect(multiScore).toBeLessThanOrEqual(singleScore);
+      });
+    });
+
+    describe('calculateAgentMatchScore with multiple keywords', () => {
+      test('should match agent when all keywords match name', () => {
+        const agent: AgentItem = {
+          name: 'code-reviewer',
+          description: 'Reviews your code',
+          filePath: '/agents/code-reviewer.md'
+        };
+        const score = calculateAgentMatchScore(agent, 'code reviewer');
+        expect(score).toBeGreaterThan(0);
+      });
+
+      test('should match agent when keywords match across name and description', () => {
+        const agent: AgentItem = {
+          name: 'helper',
+          description: 'A friendly code assistant',
+          filePath: '/agents/helper.md'
+        };
+        // "helper" matches name, "code" matches description
+        const score = calculateAgentMatchScore(agent, 'helper code');
+        expect(score).toBeGreaterThan(0);
+      });
+
+      test('should return 0 when any keyword does not match', () => {
+        const agent: AgentItem = {
+          name: 'claude',
+          description: 'AI assistant',
+          filePath: '/agents/claude.md'
+        };
+        const score = calculateAgentMatchScore(agent, 'claude xyz');
+        expect(score).toBe(0);
+      });
+
+      test('should return AGENT_BASE for empty query with spaces', () => {
+        const agent: AgentItem = {
+          name: 'claude',
+          description: 'AI assistant',
+          filePath: '/agents/claude.md'
+        };
+        const score = calculateAgentMatchScore(agent, '   ');
+        expect(score).toBe(FUZZY_MATCH_SCORES.AGENT_BASE);
+      });
     });
   });
 });

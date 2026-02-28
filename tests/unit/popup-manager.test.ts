@@ -1,8 +1,6 @@
-/**
- * @jest-environment jsdom
- */
+// @vitest-environment jsdom
 
-import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import type { Mock } from 'vitest';
 import { PopupManager, PopupManagerCallbacks } from '../../src/renderer/mentions/managers';
 
 describe('PopupManager', () => {
@@ -21,8 +19,8 @@ describe('PopupManager', () => {
 
     // Create mock callbacks
     mockCallbacks = {
-      getSelectedSuggestion: jest.fn(() => null),
-      getSuggestionsContainer: jest.fn(() => null)
+      getSelectedSuggestion: vi.fn(() => null),
+      getSuggestionsContainer: vi.fn(() => null)
     };
 
     // Create PopupManager
@@ -31,7 +29,7 @@ describe('PopupManager', () => {
 
   afterEach(() => {
     popupManager.destroy();
-    jest.clearAllTimers();
+    vi.clearAllTimers();
   });
 
   describe('initialize', () => {
@@ -102,7 +100,7 @@ describe('PopupManager', () => {
       });
 
       // Update mock to return suggestions container
-      (mockCallbacks.getSuggestionsContainer as jest.Mock).mockReturnValue(suggestionsContainer);
+      (mockCallbacks.getSuggestionsContainer as Mock).mockReturnValue(suggestionsContainer);
     });
 
     test('should show popup with agent frontmatter content', async () => {
@@ -160,7 +158,7 @@ describe('PopupManager', () => {
     test('should not show popup when suggestions container is null', () => {
       popupManager.initialize();
 
-      (mockCallbacks.getSuggestionsContainer as jest.Mock).mockReturnValue(null);
+      (mockCallbacks.getSuggestionsContainer as Mock).mockReturnValue(null);
 
       const agent = {
         name: 'test-agent',
@@ -198,11 +196,11 @@ describe('PopupManager', () => {
 
   describe('schedulePopupHide', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     test('should hide popup after delay', () => {
@@ -217,7 +215,7 @@ describe('PopupManager', () => {
       expect(popup?.style.display).toBe('block');
 
       // Fast forward timer
-      jest.advanceTimersByTime(100);
+      vi.advanceTimersByTime(100);
 
       // Popup should now be hidden
       expect(popup?.style.display).toBe('none');
@@ -233,7 +231,7 @@ describe('PopupManager', () => {
       popupManager.schedulePopupHide();
 
       // Fast forward timer
-      jest.advanceTimersByTime(100);
+      vi.advanceTimersByTime(100);
 
       // Popup should be hidden only once (no double execution)
       expect(popup?.style.display).toBe('none');
@@ -242,11 +240,11 @@ describe('PopupManager', () => {
 
   describe('cancelPopupHide', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     test('should cancel scheduled popup hide', () => {
@@ -259,7 +257,7 @@ describe('PopupManager', () => {
       popupManager.cancelPopupHide();
 
       // Fast forward timer
-      jest.advanceTimersByTime(100);
+      vi.advanceTimersByTime(100);
 
       // Popup should still be visible (hide was cancelled)
       expect(popup?.style.display).toBe('block');
@@ -338,7 +336,7 @@ describe('PopupManager', () => {
       selectedItem.appendChild(infoIcon);
       suggestionsContainer.appendChild(selectedItem);
 
-      (mockCallbacks.getSuggestionsContainer as jest.Mock).mockReturnValue(suggestionsContainer);
+      (mockCallbacks.getSuggestionsContainer as Mock).mockReturnValue(suggestionsContainer);
     });
 
     test('should show tooltip when auto-show is enabled and agent is selected', async () => {
@@ -348,7 +346,7 @@ describe('PopupManager', () => {
       popupManager.toggleAutoShowTooltip();
 
       // Mock selected suggestion with agent
-      (mockCallbacks.getSelectedSuggestion as jest.Mock).mockReturnValue({
+      (mockCallbacks.getSelectedSuggestion as Mock).mockReturnValue({
         type: 'agent',
         agent: {
           name: 'test-agent',
@@ -368,7 +366,7 @@ describe('PopupManager', () => {
       popupManager.initialize();
 
       // Mock selected suggestion with agent
-      (mockCallbacks.getSelectedSuggestion as jest.Mock).mockReturnValue({
+      (mockCallbacks.getSelectedSuggestion as Mock).mockReturnValue({
         type: 'agent',
         agent: {
           name: 'test-agent',
@@ -391,7 +389,7 @@ describe('PopupManager', () => {
       popupManager.toggleAutoShowTooltip();
 
       // Mock selected suggestion with file
-      (mockCallbacks.getSelectedSuggestion as jest.Mock).mockReturnValue({
+      (mockCallbacks.getSelectedSuggestion as Mock).mockReturnValue({
         type: 'file',
         file: {
           name: 'test.txt',
@@ -411,11 +409,11 @@ describe('PopupManager', () => {
 
   describe('destroy', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     test('should remove popup element from DOM', () => {
@@ -439,7 +437,7 @@ describe('PopupManager', () => {
 
       // Fast forward timer - should not throw even though popup is removed
       expect(() => {
-        jest.advanceTimersByTime(100);
+        vi.advanceTimersByTime(100);
       }).not.toThrow();
     });
 
@@ -454,7 +452,7 @@ describe('PopupManager', () => {
     let suggestionsContainer: HTMLElement;
 
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
 
       // Create suggestions container
       suggestionsContainer = document.createElement('div');
@@ -472,11 +470,11 @@ describe('PopupManager', () => {
         })
       });
 
-      (mockCallbacks.getSuggestionsContainer as jest.Mock).mockReturnValue(suggestionsContainer);
+      (mockCallbacks.getSuggestionsContainer as Mock).mockReturnValue(suggestionsContainer);
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     test('should cancel hide on mouseenter', () => {
@@ -495,7 +493,7 @@ describe('PopupManager', () => {
       popup.dispatchEvent(mouseenterEvent);
 
       // Fast forward timer
-      jest.advanceTimersByTime(100);
+      vi.advanceTimersByTime(100);
 
       // Popup should still be visible
       expect(popup.style.display).toBe('block');
@@ -514,7 +512,7 @@ describe('PopupManager', () => {
       popup.dispatchEvent(mouseleaveEvent);
 
       // Fast forward timer
-      jest.advanceTimersByTime(100);
+      vi.advanceTimersByTime(100);
 
       // Popup should be hidden
       expect(popup.style.display).toBe('none');
