@@ -276,19 +276,6 @@ window:
               pattern: '*.md',
               searchPrefix: 'plan',
               inputFormat: '{filepath}'
-            },
-            {
-              name: '{basename}',
-              description: '{heading}',
-              displayTime: '{updatedAt}',
-              color: 'violet',
-              icon: 'tasklist',
-              label: '{dirname}',
-              orderBy: '{updatedAt} desc',
-              path: '~/.claude/tasks',
-              pattern: '**/*/*.md',
-              searchPrefix: 'task',
-              inputFormat: '{filepath}'
             }
           ]
         }
@@ -498,19 +485,6 @@ window:
               path: '~/.claude/plans',
               pattern: '*.md',
               searchPrefix: 'plan',
-              inputFormat: '{filepath}'
-            },
-            {
-              name: '{basename}',
-              description: '{heading}',
-              displayTime: '{updatedAt}',
-              color: 'violet',
-              icon: 'tasklist',
-              label: '{dirname}',
-              orderBy: '{updatedAt} desc',
-              path: '~/.claude/tasks',
-              pattern: '**/*/*.md',
-              searchPrefix: 'task',
               inputFormat: '{filepath}'
             }
           ]
