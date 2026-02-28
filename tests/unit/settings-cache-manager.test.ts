@@ -44,11 +44,14 @@ describe('SettingsCacheManager', () => {
     });
 
     test('should return default value on API error', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       mockElectronAPI.customSearch.getMaxSuggestions = vi.fn(() => Promise.reject(new Error('API error')));
 
       const result = await settingsCacheManager.getMaxSuggestions('command');
 
       expect(result).toBe(20); // DEFAULT_MAX_SUGGESTIONS
+      expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
     });
   });
 
