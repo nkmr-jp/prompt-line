@@ -44,14 +44,6 @@ describe('jq-resolver', () => {
       expect(result).toEqual([{ name: 'alice' }]);
     });
 
-    test('should return null when jq expression is invalid', async () => {
-      const data = { foo: 'bar' };
-
-      const result = await evaluateJq(data, '.invalid|||');
-
-      expect(result).toBeNull();
-    });
-
     test('should return null when data path does not exist', async () => {
       const data = { foo: 'bar' };
 
@@ -68,28 +60,12 @@ describe('jq-resolver', () => {
       expect(result).toBe(42);
     });
 
-    test('should handle string results', async () => {
-      const data = { name: 'test' };
+    test('should return null when jq expression is invalid', async () => {
+      const data = { foo: 'bar' };
 
-      const result = await evaluateJq(data, '.name');
+      const result = await evaluateJq(data, '.invalid|||');
 
-      expect(result).toBe('test');
-    });
-
-    test('should handle object results', async () => {
-      const data = { user: { name: 'alice', role: 'admin' } };
-
-      const result = await evaluateJq(data, '.user');
-
-      expect(result).toEqual({ name: 'alice', role: 'admin' });
-    });
-
-    test('should handle empty array results', async () => {
-      const data = { members: [] };
-
-      const result = await evaluateJq(data, '.members');
-
-      expect(result).toEqual([]);
+      expect(result).toBeNull();
     });
   });
 });

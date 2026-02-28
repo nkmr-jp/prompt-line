@@ -376,22 +376,24 @@ Custom search and loading functionality for agent skills and agents:
 **Core Functionality:**
 ```typescript
 class CustomSearchLoader {
-  loadAgentSkills(directory: string, query?: string): Promise<AgentSkillItem[]>
-  loadAgents(directory: string, query?: string): Promise<AgentItem[]>
+  getItems(type: CustomSearchType): Promise<CustomSearchItem[]>
+  searchItems(type: CustomSearchType, query: string): Promise<CustomSearchItem[]>
   getMaxSuggestions(type: CustomSearchType): number
-  getPrefixes(type: CustomSearchType): string[]
-  getSortOrder(type: CustomSearchType): 'asc' | 'desc'
-  getSortOrderForQuery(type: CustomSearchType, query: string): 'asc' | 'desc'
+  getOrderBy(type: CustomSearchType): string
+  getOrderByForQuery(type: CustomSearchType, query: string): string
+  updateConfig(config: CustomSearchEntry[] | undefined): void
+  updateSettings(settings: UserSettings | undefined): void
+  invalidateCache(): void
 }
 ```
 
 **Features:**
-- Loads slash commands from markdown files in specified directories
-- Loads agent definitions from markdown files
+- Type-based generic item loading from markdown files
+- Query-based item search with filtering
 - Flexible name/description templating with YAML frontmatter support
 - Search prefix filtering (e.g., "agent:" prefix)
 - Configurable max suggestions per search type
-- Configurable sort order per entry ('asc' for A→Z, 'desc' for Z→A)
+- Configurable order-by per entry
 - Entry-level enable/disable filtering: Each entry can define its own enable/disable patterns
 - Global-level enable/disable filtering: Settings-based filtering applied after entry-level filtering
 

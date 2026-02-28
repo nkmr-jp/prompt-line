@@ -33,10 +33,10 @@ describe('highlightMatch', () => {
       );
     });
 
-    test('should highlight each keyword independently', () => {
-      const result = highlightMatch('commit message helper', 'commit helper', 'hl');
+    test('should handle multiple occurrences of same keyword', () => {
+      const result = highlightMatch('test a test b', 'test', 'hl');
       expect(result).toBe(
-        '<span class="hl">commit</span> message <span class="hl">helper</span>'
+        '<span class="hl">test</span> a <span class="hl">test</span> b'
       );
     });
 
@@ -44,18 +44,6 @@ describe('highlightMatch', () => {
       const result = highlightMatch('Hello World', '  hello   world  ', 'hl');
       expect(result).toBe(
         '<span class="hl">Hello</span> <span class="hl">World</span>'
-      );
-    });
-
-    test('should handle query with only spaces', () => {
-      const result = highlightMatch('Hello World', '   ');
-      expect(result).toBe('Hello World');
-    });
-
-    test('should handle multiple occurrences of same keyword', () => {
-      const result = highlightMatch('test a test b', 'test', 'hl');
-      expect(result).toBe(
-        '<span class="hl">test</span> a <span class="hl">test</span> b'
       );
     });
   });

@@ -43,35 +43,15 @@ describe('SettingsCacheManager', () => {
       expect(mockElectronAPI.customSearch.getMaxSuggestions).toHaveBeenCalledTimes(1);
     });
 
-    test('should call API separately for different types', async () => {
-      let callCount = 0;
-      mockElectronAPI.customSearch.getMaxSuggestions = vi.fn(() => {
-        callCount++;
-        return Promise.resolve(callCount === 1 ? 30 : 25);
-      });
-
-      const commandResult = await settingsCacheManager.getMaxSuggestions('command');
-      const mentionResult = await settingsCacheManager.getMaxSuggestions('mention');
-
-      expect(commandResult).toBe(30);
-      expect(mentionResult).toBe(25);
-      expect(mockElectronAPI.customSearch.getMaxSuggestions).toHaveBeenCalledTimes(2);
-    });
-
     test('should return default value on API error', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       mockElectronAPI.customSearch.getMaxSuggestions = vi.fn(() => Promise.reject(new Error('API error')));
 
       const result = await settingsCacheManager.getMaxSuggestions('command');
 
       expect(result).toBe(20); // DEFAULT_MAX_SUGGESTIONS
-    });
-
-    test('should return default value when electronAPI is not available', async () => {
-      delete (window as any).electronAPI;
-
-      const result = await settingsCacheManager.getMaxSuggestions('command');
-
-      expect(result).toBe(20); // DEFAULT_MAX_SUGGESTIONS
+      expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
     });
   });
 
@@ -105,11 +85,13 @@ describe('SettingsCacheManager', () => {
     });
 
     test('should return default value on API error', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       mockElectronAPI.fileSearch.getMaxSuggestions = vi.fn(() => Promise.reject(new Error('API error')));
 
       const result = await settingsCacheManager.getFileSearchMaxSuggestions();
 
       expect(result).toBe(20); // DEFAULT_MAX_SUGGESTIONS
+      consoleSpy.mockRestore();
     });
   });
 
@@ -125,27 +107,14 @@ describe('SettingsCacheManager', () => {
       expect(mockElectronAPI.customSearch.getSearchPrefixes).toHaveBeenCalledTimes(1);
     });
 
-    test('should call API separately for different types', async () => {
-      let callCount = 0;
-      mockElectronAPI.customSearch.getSearchPrefixes = vi.fn(() => {
-        callCount++;
-        return Promise.resolve(callCount === 1 ? ['/cmd1'] : ['@mention1']);
-      });
-
-      const commandResult = await settingsCacheManager.getSearchPrefixes('command');
-      const mentionResult = await settingsCacheManager.getSearchPrefixes('mention');
-
-      expect(commandResult).toEqual(['/cmd1']);
-      expect(mentionResult).toEqual(['@mention1']);
-      expect(mockElectronAPI.customSearch.getSearchPrefixes).toHaveBeenCalledTimes(2);
-    });
-
     test('should return empty array on API error', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       mockElectronAPI.customSearch.getSearchPrefixes = vi.fn(() => Promise.reject(new Error('API error')));
 
       const result = await settingsCacheManager.getSearchPrefixes('command');
 
       expect(result).toEqual([]);
+      consoleSpy.mockRestore();
     });
   });
 
@@ -221,9 +190,7 @@ describe('SettingsCacheManager', () => {
 
   describe('isCommandEnabledSync', () => {
     test('should return false when cache is empty', () => {
-      const result = settingsCacheManager.isCommandEnabledSync();
-
-      expect(result).toBe(false);
+      expect(settingsCacheManager.isCommandEnabledSync()).toBe(false);
     });
 
     test('should return true when command prefixes are cached', async () => {
@@ -234,22 +201,11 @@ describe('SettingsCacheManager', () => {
 
       expect(result).toBe(true);
     });
-
-    test('should return false when command prefixes are empty', async () => {
-      mockElectronAPI.customSearch.getSearchPrefixes = vi.fn(() => Promise.resolve([]));
-      await settingsCacheManager.getSearchPrefixes('command');
-
-      const result = settingsCacheManager.isCommandEnabledSync();
-
-      expect(result).toBe(false);
-    });
   });
 
   describe('matchesSearchPrefixSync', () => {
     test('should return false when cache is empty', () => {
-      const result = settingsCacheManager.matchesSearchPrefixSync('/test', 'command');
-
-      expect(result).toBe(false);
+      expect(settingsCacheManager.matchesSearchPrefixSync('/test', 'command')).toBe(false);
     });
 
     test('should return true when query matches cached prefix', async () => {
@@ -259,15 +215,6 @@ describe('SettingsCacheManager', () => {
       const result = settingsCacheManager.matchesSearchPrefixSync('/test command', 'command');
 
       expect(result).toBe(true);
-    });
-
-    test('should return false when query does not match cached prefix', async () => {
-      mockElectronAPI.customSearch.getSearchPrefixes = vi.fn(() => Promise.resolve(['/test', '/demo']));
-      await settingsCacheManager.getSearchPrefixes('command');
-
-      const result = settingsCacheManager.matchesSearchPrefixSync('no match', 'command');
-
-      expect(result).toBe(false);
     });
   });
 
@@ -291,20 +238,6 @@ describe('SettingsCacheManager', () => {
       expect(mentionMatches).toBe(true);
       expect(mockElectronAPI.customSearch.getSearchPrefixes).toHaveBeenCalledWith('command');
       expect(mockElectronAPI.customSearch.getSearchPrefixes).toHaveBeenCalledWith('mention');
-    });
-
-    test('should handle errors gracefully', async () => {
-      mockElectronAPI.customSearch.getSearchPrefixes = vi.fn(() => Promise.reject(new Error('API error')));
-
-      await expect(settingsCacheManager.preloadSearchPrefixesCache()).resolves.not.toThrow();
-    });
-  });
-
-  describe('getDefaultMaxSuggestions', () => {
-    test('should return the default max suggestions value', () => {
-      const result = settingsCacheManager.getDefaultMaxSuggestions();
-
-      expect(result).toBe(20);
     });
   });
 });

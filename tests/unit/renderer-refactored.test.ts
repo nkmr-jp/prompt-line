@@ -127,6 +127,47 @@ vi.mock('../../src/renderer/lifecycle-manager', () => ({
     }; })
 }));
 
+// Mock MentionManager (init: initializeElements, setupEventListeners; tests: clearAtPaths, destroy)
+vi.mock('../../src/renderer/mention-manager', () => ({
+    MentionManager: vi.fn(function() { return {
+        initializeElements: vi.fn(),
+        setupEventListeners: vi.fn(),
+        clearAtPaths: vi.fn(),
+        destroy: vi.fn()
+    }; })
+}));
+
+// Mock AgentSkillManager (init: initializeElements, setupEventListeners, loadSkills; tests: invalidateCache)
+vi.mock('../../src/renderer/agent-skill-manager', () => ({
+    AgentSkillManager: vi.fn(function() { return {
+        initializeElements: vi.fn(),
+        setupEventListeners: vi.fn(),
+        loadSkills: vi.fn(),
+        invalidateCache: vi.fn(),
+        getSkillSource: vi.fn(),
+        getSkillColor: vi.fn(),
+        getKnownSkillNames: vi.fn().mockReturnValue([])
+    }; })
+}));
+
+// Mock SimpleSnapshotManager (tests: clearSnapshot, saveSnapshot, hasSnapshot, restore)
+vi.mock('../../src/renderer/snapshot-manager', () => ({
+    SimpleSnapshotManager: vi.fn(function() { return {
+        saveSnapshot: vi.fn(),
+        clearSnapshot: vi.fn(),
+        hasSnapshot: vi.fn().mockReturnValue(false),
+        restore: vi.fn()
+    }; })
+}));
+
+// Mock DirectoryDataHandler (tests: handleWindowShown)
+vi.mock('../../src/renderer/directory-data-handler', () => ({
+    DirectoryDataHandler: vi.fn(function() { return {
+        handleWindowShown: vi.fn(),
+        handleDirectoryDataUpdated: vi.fn()
+    }; })
+}));
+
 // Mock window.require before any imports
 (window as any).require = vi.fn((module: string) => {
     if (module === 'electron') {
@@ -286,7 +327,7 @@ describe('PromptLineRenderer (Refactored)', () => {
     });
 
     describe('window lifecycle', () => {
-        test('should delegate window shown to lifecycleManager', () => {
+        test('should delegate window shown to directoryDataHandler', () => {
             const windowData = {
                 draft: 'test draft',
                 history: [],
@@ -299,7 +340,7 @@ describe('PromptLineRenderer (Refactored)', () => {
 
             (renderer as any).handleWindowShown(windowData);
 
-            expect((renderer as any).lifecycleManager.handleWindowShown).toHaveBeenCalledWith(windowData);
+            expect((renderer as any).directoryDataHandler.handleWindowShown).toHaveBeenCalledWith(windowData);
         });
 
         test('should delegate window hide to draftManager', async () => {
@@ -374,14 +415,16 @@ describe('PromptLineRenderer (Refactored)', () => {
         });
 
         test('should show error on paste failure', async () => {
-            (window as any).electronAPI.pasteText.mockResolvedValue({ 
-                success: false, 
-                error: 'Paste failed' 
+            const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+            (window as any).electronAPI.pasteText.mockResolvedValue({
+                success: false,
+                error: 'Paste failed'
             });
 
             await (renderer as any).handleTextPasteCallback('test text');
 
             expect((renderer as any).domManager.showError).toHaveBeenCalledWith('Paste failed: Paste failed');
+            consoleSpy.mockRestore();
         });
     });
 

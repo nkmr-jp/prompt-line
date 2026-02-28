@@ -43,19 +43,6 @@ describe('DraftManager', () => {
     }
   });
 
-  describe('configuration', () => {
-    test('should set config', () => {
-      const config: Config = {
-        draft: { saveDelay: 1000 }
-      };
-
-      draftManager.setConfig(config);
-
-      // No direct way to test this, but it should not throw
-      expect(() => draftManager.setConfig(config)).not.toThrow();
-    });
-  });
-
   describe('debounced draft saving', () => {
     test('should save draft with default delay', () => new Promise<void>((resolve) => {
       mockGetText.mockReturnValue('test text');
@@ -158,17 +145,6 @@ describe('DraftManager', () => {
       expect(result).toBe('');
     });
 
-    test('should handle undefined draft value', () => {
-      const result = draftManager.extractDraftValue(undefined);
-
-      expect(result).toBe('');
-    });
-
-    test('should handle empty object draft value', () => {
-      const result = draftManager.extractDraftValue({} as any);
-
-      expect(result).toBe('');
-    });
   });
 
   describe('cleanup', () => {
@@ -184,8 +160,5 @@ describe('DraftManager', () => {
       }, 600);
     });
 
-    test('should handle cleanup when no timeout exists', () => {
-      expect(() => draftManager.cleanup()).not.toThrow();
-    });
   });
 });

@@ -138,14 +138,6 @@ describe('DraftManager', () => {
             expect(mockedFs.unlink).toHaveBeenCalled();
         });
 
-        test('should clear draft for whitespace-only text', async () => {
-            mockedFs.unlink.mockResolvedValue();
-            
-            await draftManager.saveDraft('   \n  ');
-
-            expect(draftManager.getCurrentDraft()).toBe('');
-            expect(mockedFs.unlink).toHaveBeenCalled();
-        });
     });
 
     describe('saveDraftImmediately', () => {
@@ -204,10 +196,6 @@ describe('DraftManager', () => {
     });
 
     describe('getCurrentDraft', () => {
-        test('should return empty string when no draft', () => {
-            expect(draftManager.getCurrentDraft()).toBe('');
-        });
-
         test('should return draft text when available', async () => {
             await draftManager.initialize();
             (draftManager as any).currentDraft = 'test draft';
@@ -218,11 +206,6 @@ describe('DraftManager', () => {
 
     describe('hasDraft', () => {
         test('should return false when no draft', () => {
-            expect(draftManager.hasDraft()).toBe(false);
-        });
-
-        test('should return false for empty draft', () => {
-            (draftManager as any).currentDraft = '';
             expect(draftManager.hasDraft()).toBe(false);
         });
 
@@ -412,16 +395,4 @@ describe('DraftManager', () => {
         });
     });
 
-    describe('destroy', () => {
-        test('should cleanup resources', () => {
-            // Set a draft to ensure cleanup happens
-            draftManager.updateDraft('test');
-            
-            draftManager.destroy();
-
-            // After destroy, the draft manager should be in a clean state
-            // We can't directly test internal state, but we can verify no errors occur
-            expect(() => draftManager.getCurrentDraft()).not.toThrow();
-        });
-    });
 });

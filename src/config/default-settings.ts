@@ -363,20 +363,6 @@ export const defaultSettings: UserSettings = {
         inputFormat: '{filepath}',
         orderBy: '{updatedAt} desc',
         displayTime: '{updatedAt}'
-      },
-      // Claude Code tasks (from ~/.claude/tasks/**/*.md, search with @task:)
-      {
-        name: '{basename}',
-        label: '{dirname}',
-        icon: 'tasklist',
-        color: 'violet',
-        description: '{heading}',
-        path: '~/.claude/tasks',
-        pattern: '**/*/*.md',
-        searchPrefix: 'task',
-        inputFormat: '{filepath}',
-        orderBy: '{updatedAt} desc',
-        displayTime: '{updatedAt}'
       }
     ]
   }

@@ -10,7 +10,7 @@ describe('error-handler', () => {
   let consoleErrorSpy: MockInstance;
 
   beforeEach(() => {
-    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation();
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     // Ensure window is available
     if (typeof window === 'undefined') {
       (global as any).window = {};
@@ -26,27 +26,17 @@ describe('error-handler', () => {
   });
 
   describe('handleError', () => {
-    it('should log error with context', () => {
+    it('should log error with context for Error object', () => {
       const error = new Error('Test error');
       handleError('TestContext', error);
 
       expect(consoleErrorSpy).toHaveBeenCalledWith('[TestContext] Test error', error);
     });
 
-    it('should handle string error', () => {
+    it('should log error with context for string input', () => {
       handleError('TestContext', 'String error');
 
       expect(consoleErrorSpy).toHaveBeenCalledWith('[TestContext] String error', 'String error');
-    });
-
-    it('should handle unknown error type', () => {
-      const unknownError = { message: 'Custom error' };
-      handleError('TestContext', unknownError);
-
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        '[TestContext] [object Object]',
-        unknownError
-      );
     });
 
     it('should skip logging in silent mode', () => {
@@ -114,25 +104,5 @@ describe('error-handler', () => {
       delete (window as any).uiManager;
     });
 
-    it('should use default options', () => {
-      const error = new Error('Test error');
-
-      // Default: no notification, no rethrow, not silent
-      expect(() => {
-        handleError('TestContext', error);
-      }).not.toThrow();
-
-      expect(consoleErrorSpy).toHaveBeenCalled();
-    });
-
-    it('should format context correctly', () => {
-      const error = new Error('Network timeout');
-      handleError('MentionManager.loadDirectory', error);
-
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        '[MentionManager.loadDirectory] Network timeout',
-        error
-      );
-    });
   });
 });

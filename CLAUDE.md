@@ -176,14 +176,16 @@ The app uses Electron's two-process model with clean separation:
   - `renderer.ts`: Main renderer class with integrated keyboard handling and manager pattern
   - `ui-manager.ts`: Advanced UI management with themes, animations, and notifications
   - `input.html`: Main window template
-  - 15+ specialized managers: DOM, events, search, lifecycle, shortcuts, animation, mentions, agent-skills, history-ui, and more
+  - 13+ specialized managers: DOM, events, search, lifecycle, shortcuts, mentions, agent-skills, history-ui, and more
   - Comprehensive CSS architecture with themes and modular stylesheets
   - TypeScript configuration and utility functions
   - `interfaces/`: Shared TypeScript type definitions
   - `services/`: Service layer components
-  - `lib/`: Shared library code
+  - `src/types/`: TypeScript type definitions shared across processes (file-search, handlers, history, index, ipc, managers, window)
+  - `src/lib/`: Shared library code for custom search, template resolution, and scoring (built-in-commands-loader, command-name-matcher, default-custom-search-config, jq-resolver, keyword-utils, prefix-resolver, template-resolver, tiebreaker, usage-bonus-calculator)
+  - `src/constants/`: Application-wide constants (index.ts)
 - **Preload Script** (`src/preload/preload.ts`): Secure context bridge with whitelisted IPC channels
-- **IPC Handlers** (`src/handlers/`): Modular handler architecture with 9 specialized components:
+- **IPC Handlers** (`src/handlers/`): Modular handler architecture with 10 specialized files:
   - `ipc-handlers.ts`: Main coordinator that delegates to specialized handlers
   - `paste-handler.ts`: Text and image paste operations with security validation
   - `history-draft-handler.ts`: History CRUD and draft management operations
@@ -192,13 +194,14 @@ The app uses Electron's two-process model with clean separation:
   - `custom-search-handler.ts`: Slash commands and agent selection
   - `file-handler.ts`: File operations and external URL handling
   - `usage-history-handler.ts`: Usage history tracking operations
+  - `code-search-handler.ts`: Symbol search with ripgrep integration
   - `handler-utils.ts`: Shared validation and utility functions
 
 ### Manager Pattern
 Core functionality is organized into specialized managers:
 
 **Main Process Managers:**
-- **WindowManager** (`src/managers/window/`): Modular architecture with 9 specialized components:
+- **WindowManager** (`src/managers/window/`): Modular architecture with 12 files (9 main + 3 strategies/):
   - `window-manager.ts`: Main coordinator for window creation and lifecycle
   - `directory-detector.ts`: Directory detection and file search orchestration
   - `directory-cache-helper.ts`: Directory caching helper utilities
@@ -216,7 +219,6 @@ Core functionality is organized into specialized managers:
   - Native Swift tools integration for window and text field detection
   - Multi-monitor aware positioning with boundary constraints
 - **HistoryManager**: Manages unlimited paste history with optimized performance (persisted to JSONL)
-- **OptimizedHistoryManager**: Performance-optimized history management with LRU caching for large datasets
 - **DraftManager**: Auto-saves input drafts with adaptive debouncing
 - **SettingsManager**: Manages user preferences with YAML-based configuration
   - Default window positioning mode: `active-text-field`
@@ -234,7 +236,7 @@ Core functionality is organized into specialized managers:
 - **AgentUsageHistoryManager**: Agent selection history
 - **FileUsageHistoryManager**: File selection history
 - **SymbolUsageHistoryManager**: Symbol selection history
-- **symbol-search/**: Symbol search integration with ripgrep via Node.js (20+ languages)
+- **symbol-search/**: Symbol search integration with ripgrep via Node.js (21 languages)
 
 **Renderer Process Managers:**
 - **DomManager**: DOM element management and manipulation
@@ -342,7 +344,7 @@ IPC response → Renderer Process
 - `window-shown`: Window display with data context
 - `directory-data-updated`: Directory change notifications
 
-Total: 30+ IPC channels across 8 specialized handlers
+Total: 52 IPC channels across 9 specialized handlers
 
 ### Built-in Commands Hot Reload
 
@@ -377,7 +379,7 @@ The app uses compiled Swift native tools to simulate Cmd+V in the previously act
 
 **Node.js Tool Integrations (2 modules):**
 - **File Searcher** (`src/utils/file-search/`): Cross-platform file listing using `fd` command with Node.js `fs.readdir` fallback
-- **Symbol Searcher** (`src/utils/symbol-search/`): Cross-platform code symbol search using `ripgrep` directly from Node.js, supporting 20+ programming languages
+- **Symbol Searcher** (`src/utils/symbol-search/`): Cross-platform code symbol search using `ripgrep` directly from Node.js, supporting 21 programming languages
 
 **Integration Features:**
 - **JSON Communication**: Structured data exchange prevents parsing vulnerabilities
@@ -419,6 +421,11 @@ Tests use comprehensive mocks defined in `tests/setup.ts`:
 - **Unit tests**: Test individual managers/utilities in isolation
 - **Integration tests**: Test cross-module interactions
 - **Fixtures**: Shared test data in `tests/fixtures/`
+
+### Test Console Output Suppression
+- Suppress stderr in error-path tests with `vi.spyOn(console, 'error').mockImplementation(() => {})`
+- Use `.mockImplementation(() => {})` not `.mockImplementation()` (the latter doesn't suppress in vitest v4)
+- Place spy in `beforeEach` when the whole section needs it; use per-test spy/restore for individual tests
 
 ### Running Specific Tests
 ```bash
@@ -466,8 +473,7 @@ The window supports multiple positioning modes with dynamic configuration:
 - Backup system with timestamp-based naming for recovery
 
 ### History Management
-- **Two implementations**: Traditional HistoryManager and OptimizedHistoryManager for large datasets
-- **LRU Caching**: OptimizedHistoryManager uses 200-item cache for performance
+- **Single implementation**: HistoryManager with full-file based JSONL persistence
 - **Unlimited storage** with optimized performance (JSONL format)
 - **Newest items appear at top** with timestamp-based sorting
 - **Duplicates are prevented** through content comparison
@@ -479,7 +485,7 @@ The window supports multiple positioning modes with dynamic configuration:
 - **@ mention syntax**: Type `@` to trigger file search, `@lang:query` for code search
 - **Modular architecture**: 15+ specialized managers for mentions functionality
 - **File search**: Directory navigation with fuzzy matching and score-based ranking
-- **Code search**: Symbol search with ripgrep integration for 20+ languages
+- **Code search**: Symbol search with ripgrep integration for 21 languages
 - **Hybrid loading strategy**: Stage 1 (quick single-level) + Stage 2 (recursive fd command)
 - **@path highlighting**: Visual highlighting in textarea with Cmd+click to open files
 - **Undo/redo support**: Full undo/redo integration for file path insertion
@@ -507,7 +513,7 @@ The window supports multiple positioning modes with dynamic configuration:
 - **ripgrep-based**: Uses `rg` (ripgrep) for fast symbol searching via `code-search-manager.ts`
 - **Node.js implementation**: `src/utils/symbol-search/symbol-searcher-node.ts` (replaces former native Swift binary)
 - **Symbol caching**: Results cached per directory and language for faster subsequent searches
-- **Supported languages (20)**:
+- **Supported languages (21)**:
   | Language | Key | Example | Symbol Types |
   |----------|-----|---------|--------------|
   | Go | `go` | `@go:Handler` | function, method, struct, interface, type, constant, variable |
@@ -528,8 +534,8 @@ The window supports multiple positioning modes with dynamic configuration:
   | PHP | `php` | `@php:render` | function, class, interface, trait, constant, enum |
   | C# | `cs` | `@cs:Handle` | class, interface, struct, enum, method, namespace |
   | Scala | `scala` | `@scala:process` | function, class, trait, object, type, constant, variable |
-  | Terraform | `tf`, `terraform` | `@tf:instance`, `@terraform:vpc` | resource, data, variable, output, module, provider |
-  | Markdown | `md`, `markdown` | `@md:Installation`, `@markdown:Usage` | heading |
+  | Terraform | `tf` | `@tf:instance` | resource, data, variable, output, module, provider |
+  | Markdown | `md` | `@md:Installation` | heading |
 - **Requirements**: ripgrep (`rg`) must be installed (`brew install ripgrep`)
 - **File search must be enabled**: Code search is part of the @ mention system
 

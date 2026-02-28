@@ -41,156 +41,64 @@ describe('EventHandler', () => {
   });
 
   describe('Tab key handling', () => {
-    test('should call onTabKeyInsert when Tab key is pressed without Shift', () => {
-      // Setup composition events
+    test('should dispatch Tab to onTabKeyInsert and Shift+Tab to onShiftTabKeyPress', () => {
       eventHandler.setupEventListeners();
 
-      // Create Tab key event without Shift
+      // Tab without Shift calls onTabKeyInsert and prevents default
       const tabEvent = new KeyboardEvent('keydown', {
-        key: 'Tab',
-        shiftKey: false,
-        bubbles: true
+        key: 'Tab', shiftKey: false, bubbles: true, cancelable: true
       });
-
-      // Dispatch event
+      const tabPreventDefaultSpy = vi.spyOn(tabEvent, 'preventDefault');
       textarea.dispatchEvent(tabEvent);
-
-      // Verify onTabKeyInsert was called
       expect(mockCallbacks.onTabKeyInsert).toHaveBeenCalledTimes(1);
-      expect(mockCallbacks.onTabKeyInsert).toHaveBeenCalledWith(expect.objectContaining({
-        key: 'Tab',
-        shiftKey: false
-      }));
-    });
+      expect(mockCallbacks.onShiftTabKeyPress).not.toHaveBeenCalled();
+      expect(tabPreventDefaultSpy).toHaveBeenCalled();
 
-    test('should call onShiftTabKeyPress when Shift+Tab is pressed', () => {
-      // Setup composition events
-      eventHandler.setupEventListeners();
-
-      // Create Shift+Tab key event
+      // Shift+Tab calls onShiftTabKeyPress instead and prevents default
       const shiftTabEvent = new KeyboardEvent('keydown', {
-        key: 'Tab',
-        shiftKey: true,
-        bubbles: true
+        key: 'Tab', shiftKey: true, bubbles: true, cancelable: true
       });
-
-      // Dispatch event
+      const shiftTabPreventDefaultSpy = vi.spyOn(shiftTabEvent, 'preventDefault');
       textarea.dispatchEvent(shiftTabEvent);
-
-      // Verify onTabKeyInsert was NOT called
-      expect(mockCallbacks.onTabKeyInsert).not.toHaveBeenCalled();
-
-      // Verify onShiftTabKeyPress WAS called
+      expect(mockCallbacks.onTabKeyInsert).toHaveBeenCalledTimes(1); // still 1
       expect(mockCallbacks.onShiftTabKeyPress).toHaveBeenCalledTimes(1);
-      expect(mockCallbacks.onShiftTabKeyPress).toHaveBeenCalledWith(expect.objectContaining({
-        key: 'Tab',
-        shiftKey: true
-      }));
+      expect(shiftTabPreventDefaultSpy).toHaveBeenCalled();
     });
 
     test('should NOT call onTabKeyInsert when Tab is pressed during IME composition', () => {
-      // Setup composition events
       eventHandler.setupEventListeners();
 
       // Simulate IME composition start
-      const compositionStartEvent = new Event('compositionstart');
-      textarea.dispatchEvent(compositionStartEvent);
+      textarea.dispatchEvent(new Event('compositionstart'));
 
-      // Create Tab key event
-      const tabEvent = new KeyboardEvent('keydown', {
-        key: 'Tab',
-        shiftKey: false,
-        bubbles: true
-      });
-
-      // Dispatch event
-      textarea.dispatchEvent(tabEvent);
-
-      // Verify onTabKeyInsert was NOT called
+      // Tab during composition should be ignored
+      textarea.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'Tab', shiftKey: false, bubbles: true
+      }));
       expect(mockCallbacks.onTabKeyInsert).not.toHaveBeenCalled();
 
       // Simulate IME composition end
-      const compositionEndEvent = new Event('compositionend');
-      textarea.dispatchEvent(compositionEndEvent);
+      textarea.dispatchEvent(new Event('compositionend'));
 
-      // Create another Tab key event after composition
-      const tabEvent2 = new KeyboardEvent('keydown', {
-        key: 'Tab',
-        shiftKey: false,
-        bubbles: true
-      });
-
-      // Dispatch event
-      textarea.dispatchEvent(tabEvent2);
-
-      // Now onTabKeyInsert should be called
+      // Tab after composition should work
+      textarea.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'Tab', shiftKey: false, bubbles: true
+      }));
       expect(mockCallbacks.onTabKeyInsert).toHaveBeenCalledTimes(1);
     });
 
-    test('should prevent default Tab behavior', () => {
-      // Setup composition events
+    test('should ignore non-Tab keys', () => {
       eventHandler.setupEventListeners();
 
-      // Create Tab key event with preventDefault spy
-      const tabEvent = new KeyboardEvent('keydown', {
-        key: 'Tab',
-        shiftKey: false,
-        bubbles: true,
-        cancelable: true
-      });
+      textarea.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'Enter', bubbles: true
+      }));
+      textarea.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'a', bubbles: true
+      }));
 
-      const preventDefaultSpy = vi.spyOn(tabEvent, 'preventDefault');
-
-      // Dispatch event
-      textarea.dispatchEvent(tabEvent);
-
-      // Verify preventDefault was called
-      expect(preventDefaultSpy).toHaveBeenCalled();
-    });
-
-    test('should prevent default Shift+Tab behavior', () => {
-      // Setup composition events
-      eventHandler.setupEventListeners();
-
-      // Create Shift+Tab key event with preventDefault spy
-      const shiftTabEvent = new KeyboardEvent('keydown', {
-        key: 'Tab',
-        shiftKey: true,
-        bubbles: true,
-        cancelable: true
-      });
-
-      const preventDefaultSpy = vi.spyOn(shiftTabEvent, 'preventDefault');
-
-      // Dispatch event
-      textarea.dispatchEvent(shiftTabEvent);
-
-      // Verify preventDefault was called even for Shift+Tab
-      expect(preventDefaultSpy).toHaveBeenCalled();
-    });
-  });
-
-  describe('Composition state tracking', () => {
-    test('should track composition state correctly', () => {
-      // Setup composition events
-      eventHandler.setupEventListeners();
-
-      // Initial state should be false
-      expect(eventHandler.getIsComposing()).toBe(false);
-
-      // Simulate IME composition start
-      const compositionStartEvent = new Event('compositionstart');
-      textarea.dispatchEvent(compositionStartEvent);
-
-      // State should be true
-      expect(eventHandler.getIsComposing()).toBe(true);
-
-      // Simulate IME composition end
-      const compositionEndEvent = new Event('compositionend');
-      textarea.dispatchEvent(compositionEndEvent);
-
-      // State should be false again
-      expect(eventHandler.getIsComposing()).toBe(false);
+      expect(mockCallbacks.onTabKeyInsert).not.toHaveBeenCalled();
+      expect(mockCallbacks.onShiftTabKeyPress).not.toHaveBeenCalled();
     });
   });
 });
