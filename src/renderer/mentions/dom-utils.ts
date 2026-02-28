@@ -3,6 +3,8 @@
  * Pure functions for DOM manipulation
  */
 
+import { splitKeywords, buildKeywordRegex } from '../utils/highlight-utils';
+
 /**
  * Insert highlighted text into an element using safe DOM manipulation
  * This avoids innerHTML for security while allowing highlighting
@@ -16,25 +18,20 @@ export function insertHighlightedText(element: HTMLElement, text: string, query:
     return;
   }
 
-  // Split query into keywords for multi-keyword highlighting
-  const keywords = query.split(/\s+/).filter(k => k.length > 0);
+  const keywords = splitKeywords(query);
   if (keywords.length === 0) {
     element.textContent = text;
     return;
   }
 
-  // Build combined regex for all keywords (sorted by length desc for longest match first)
-  const escapedKeywords = keywords
-    .map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-    .sort((a, b) => b.length - a.length);
-  const regex = new RegExp(`(${escapedKeywords.join('|')})`, 'gi');
-  const keywordsLower = keywords.map(k => k.toLowerCase());
+  const regex = buildKeywordRegex(keywords);
+  const keywordsLowerSet = new Set(keywords.map(k => k.toLowerCase()));
 
   // Split text by matches
   const parts = text.split(regex);
 
   parts.forEach(part => {
-    if (keywordsLower.some(kw => part.toLowerCase() === kw)) {
+    if (part && keywordsLowerSet.has(part.toLowerCase())) {
       // This part matches a keyword - wrap in highlight span
       const highlight = document.createElement('span');
       highlight.className = 'highlight';

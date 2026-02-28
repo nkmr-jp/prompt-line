@@ -16,6 +16,7 @@
 import type { FileInfo, AgentItem } from '../../../types';
 import type { DirectoryData, SuggestionItem } from '../types';
 import { getRelativePath, calculateMatchScore, calculateAgentMatchScore, compareTiebreak } from '../index';
+import { splitKeywords } from '../../utils/highlight-utils';
 
 /**
  * Callbacks for FileFilterManager
@@ -286,7 +287,7 @@ export class FileFilterManager {
     const sourceFiles = canUseIncrementalSearch ? this.lastResults : allFiles;
 
     const queryLower = query.toLowerCase();
-    const keywords = queryLower.split(/\s+/).filter(k => k.length > 0);
+    const keywords = splitKeywords(queryLower);
     const seenDirs = new Set<string>();
     const seenDirNames = new Map<string, { path: string; depth: number }>();
     const matchingDirs: FileInfo[] = [];
@@ -298,7 +299,7 @@ export class FileFilterManager {
         const bonus = usageBonuses?.[file.path] ?? 0;
         return {
           file,
-          score: calculateMatchScore(file, queryLower, bonus, baseDir),
+          score: calculateMatchScore(file, queryLower, bonus, baseDir, keywords),
           relativePath: getRelativePath(file.path, baseDir)
         };
       })

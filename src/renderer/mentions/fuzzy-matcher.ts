@@ -7,6 +7,7 @@ import type { FileInfo, AgentItem } from '../../types';
 import { FUZZY_MATCH_SCORES } from '../../constants';
 import { calculateFileMtimeBonus } from '../../lib/usage-bonus-calculator';
 import { getRelativePath } from './path-utils';
+import { splitKeywords } from '../utils/highlight-utils';
 export { compareTiebreak } from '../../lib/tiebreaker';
 
 /** Maximum mtime bonus - caps the mtime bonus to balance with match scores */
@@ -91,19 +92,20 @@ export function fuzzyMatch(text: string, pattern: string): boolean {
  * @param queryLower - Lowercased search query
  * @param usageBonus - Optional usage history bonus (0-150)
  * @param baseDir - Optional base directory for relative path calculation
+ * @param preSplitKeywords - Optional pre-split keywords to avoid repeated splitting in hot loops
  * @returns Total score including bonuses
  */
 export function calculateMatchScore(
   file: FileInfo,
   queryLower: string,
   usageBonus: number = 0,
-  baseDir?: string
+  baseDir?: string,
+  preSplitKeywords?: string[]
 ): number {
   const nameLower = lowercaseCache.get(file.name);
   const pathLower = lowercaseCache.get(file.path);
 
-  // Split query into keywords for multi-keyword AND matching
-  const keywords = queryLower.split(/\s+/).filter(k => k.length > 0);
+  const keywords = preSplitKeywords ?? splitKeywords(queryLower);
 
   let matchScore = 0;
 
@@ -115,7 +117,8 @@ export function calculateMatchScore(
       else if (nameLower.startsWith(kw)) kwScore = FUZZY_MATCH_SCORES.STARTS_WITH;
       else if (nameLower.includes(kw)) kwScore = FUZZY_MATCH_SCORES.CONTAINS;
       else if (pathLower.includes(kw)) kwScore = FUZZY_MATCH_SCORES.PATH_CONTAINS;
-      else if (fuzzyMatch(nameLower, kw)) kwScore = FUZZY_MATCH_SCORES.BASE_FUZZY;
+      // nameLower.includes(kw) already covers fuzzyMatch's substring check
+      // so this branch is unreachable — kept as a no-op safety net
 
       if (kwScore === 0) return 0; // AND condition: all keywords must match
       totalKwScore += kwScore;
@@ -160,15 +163,15 @@ export function calculateMatchScore(
 export function calculateAgentMatchScore(
   agent: AgentItem,
   queryLower: string,
-  usageBonus: number = 0
+  usageBonus: number = 0,
+  preSplitKeywords?: string[]
 ): number {
   if (!queryLower) return FUZZY_MATCH_SCORES.AGENT_BASE; // Base score for no query
 
   const nameLower = lowercaseCache.get(agent.name);
   const descLower = lowercaseCache.get(agent.description);
 
-  // Split query into keywords for multi-keyword AND matching
-  const keywords = queryLower.split(/\s+/).filter(k => k.length > 0);
+  const keywords = preSplitKeywords ?? splitKeywords(queryLower);
   if (keywords.length === 0) return FUZZY_MATCH_SCORES.AGENT_BASE;
 
   let totalKwScore = 0;
@@ -178,7 +181,7 @@ export function calculateAgentMatchScore(
     else if (nameLower.startsWith(kw)) kwScore = FUZZY_MATCH_SCORES.STARTS_WITH;
     else if (nameLower.includes(kw)) kwScore = FUZZY_MATCH_SCORES.CONTAINS;
     else if (descLower.includes(kw)) kwScore = FUZZY_MATCH_SCORES.PATH_CONTAINS;
-    else if (fuzzyMatch(nameLower, kw)) kwScore = FUZZY_MATCH_SCORES.BASE_FUZZY;
+    // nameLower.includes(kw) already covers fuzzyMatch's substring check
 
     if (kwScore === 0) return 0; // AND condition: all keywords must match
     totalKwScore += kwScore;

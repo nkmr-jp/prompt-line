@@ -6,7 +6,7 @@
 import type { InputFormatType, ColorValue } from '../types';
 import type { IInitializable } from './interfaces/initializable';
 import { FrontmatterPopupManager } from './frontmatter-popup-manager';
-import { highlightMatch } from './utils/highlight-utils';
+import { highlightMatch, splitKeywords } from './utils/highlight-utils';
 import { electronAPI } from './services/electron-api';
 import { extractTriggerQueryAtCursor } from './utils/trigger-query-extractor';
 import { getCaretCoordinates, createMirrorDiv } from './mentions/dom-utils';
@@ -402,8 +402,7 @@ export class AgentSkillManager implements IInitializable {
    * Calculate match score for a command name
    * Higher score = better match
    */
-  private getMatchScore(name: string, query: string, description?: string): number {
-    const keywords = query.toLowerCase().split(/\s+/).filter(k => k.length > 0);
+  private getMatchScore(name: string, keywords: string[], description?: string): number {
     if (keywords.length === 0) return 0;
 
     const lowerName = name.toLowerCase();
@@ -436,7 +435,7 @@ export class AgentSkillManager implements IInitializable {
 
     // Filter commands - AND search with space-separated keywords
     const lowerQuery = query.toLowerCase();
-    const keywords = lowerQuery.split(/\s+/).filter(k => k.length > 0);
+    const keywords = splitKeywords(lowerQuery);
 
     if (keywords.length === 0) {
       // Empty query: show all skills
@@ -473,8 +472,8 @@ export class AgentSkillManager implements IInitializable {
 
     // Sort by total score (match score + usage bonus)
     this.filteredSkills.sort((a, b) => {
-      const aMatchScore = this.getMatchScore(a.name, lowerQuery, a.description);
-      const bMatchScore = this.getMatchScore(b.name, lowerQuery, b.description);
+      const aMatchScore = this.getMatchScore(a.name, keywords, a.description);
+      const bMatchScore = this.getMatchScore(b.name, keywords, b.description);
 
       const aBonus = usageBonuses[a.name] ?? 0;
       const bBonus = usageBonuses[b.name] ?? 0;
