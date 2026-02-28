@@ -42,29 +42,7 @@ const mockedExecFile = vi.mocked(execFile);
 const mockedExec = mockedExecFile;
 const mockedFs = vi.mocked(fs);
 
-// Console capture helper
-function captureConsole() {
-    const logs: any[] = [];
-    const originalLog = console.log;
-    const originalError = console.error;
-    const originalWarn = console.warn;
-    const originalInfo = console.info;
-
-    console.log = (...args: any[]) => logs.push(['log', ...args]);
-    console.error = (...args: any[]) => logs.push(['error', ...args]);
-    console.warn = (...args: any[]) => logs.push(['warn', ...args]);
-    console.info = (...args: any[]) => logs.push(['info', ...args]);
-
-    return {
-        getLogs: () => logs,
-        restore: () => {
-            console.log = originalLog;
-            console.error = originalError;
-            console.warn = originalWarn;
-            console.info = originalInfo;
-        }
-    };
-}
+// Use global captureConsole() from tests/setup.ts
 
 describe('Utils', () => {
     beforeEach(() => {
@@ -223,7 +201,14 @@ describe('Utils', () => {
     });
 
     describe('debounce', () => {
-        vi.useFakeTimers();
+        beforeEach(() => {
+            vi.useFakeTimers();
+        });
+
+        afterEach(() => {
+            vi.clearAllTimers();
+            vi.useRealTimers();
+        });
 
         test('should delay function execution', () => {
             const fn = vi.fn();
@@ -346,18 +331,21 @@ describe('Utils', () => {
     });
 
     describe('sleep', () => {
-        vi.useFakeTimers();
-
-        test('should delay execution', async () => {
-            const promise = sleep(1000);
-            
-            vi.advanceTimersByTime(1000);
-            
-            await expect(promise).resolves.toBeUndefined();
+        beforeEach(() => {
+            vi.useFakeTimers();
         });
 
         afterEach(() => {
             vi.clearAllTimers();
+            vi.useRealTimers();
+        });
+
+        test('should delay execution', async () => {
+            const promise = sleep(1000);
+
+            vi.advanceTimersByTime(1000);
+
+            await expect(promise).resolves.toBeUndefined();
         });
     });
 

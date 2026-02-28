@@ -238,7 +238,10 @@ module.exports = [
         afterEach: 'readonly',
         beforeAll: 'readonly',
         afterAll: 'readonly',
-        suite: 'readonly'
+        suite: 'readonly',
+        captureConsole: 'readonly',
+        createMockHistoryItem: 'readonly',
+        createMockDraft: 'readonly'
       }
     },
     plugins: {

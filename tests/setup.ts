@@ -1,15 +1,8 @@
 /**
- * Jest test setup file
+ * Vitest test setup file
  */
 
 import type { BrowserWindow } from 'electron';
-
-// Polyfill for structuredClone (not available in Jest environment by default)
-if (typeof global.structuredClone === 'undefined') {
-  global.structuredClone = <T>(obj: T): T => {
-    return JSON.parse(JSON.stringify(obj));
-  };
-}
 
 // Define types for test utilities
 interface MockHistoryItem {
@@ -148,10 +141,7 @@ declare global {
     version: '1.0'
 });
 
-// Clean up after each test
-afterEach(() => {
-    vi.clearAllMocks();
-});
+// Note: vi.clearAllMocks() is handled automatically by vitest.config.ts clearMocks: true
 
 // Set up console capture for tests
 const originalConsole = { ...console };

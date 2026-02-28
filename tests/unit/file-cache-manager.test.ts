@@ -5,7 +5,6 @@ import type { FileInfo } from '../../src/types';
 vi.mock('../../src/config/app-config', () => {
   const mockUserDataDir = '/test/.prompt-line';
   return {
-    __esModule: true,
     default: {
       paths: {
         userDataDir: mockUserDataDir,

@@ -53,7 +53,6 @@ vi.mock('../../src/utils/utils', () => ({
 vi.mock('../../src/lib/built-in-commands-loader', () => {
   const mockClearCache = vi.fn();
   return {
-    __esModule: true,
     default: {
       clearCache: mockClearCache
     }
