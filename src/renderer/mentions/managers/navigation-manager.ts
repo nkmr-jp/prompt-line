@@ -499,21 +499,17 @@ export class NavigationManager {
     }
 
     // Determine what to insert based on agent's inputFormat setting
-    // inputFormat が 'name' でも undefined でも従来通り @ 付き（'name' はデフォルト値）
-    // 'name'/'path' 以外の明示指定（テンプレート等）の場合のみ @ なし
-    const hasCustomInputFormat = agent.inputFormat && agent.inputFormat !== 'name' && agent.inputFormat !== 'path';
-
+    // mention のデフォルト config には inputFormat が設定されないため、
+    // inputFormat が存在すれば常にユーザーの明示指定 → @ なし
     if (agent.inputText) {
       // Template format: insert resolved text (no @)
       this.callbacks.insertFilePathWithoutAt(agent.inputText);
-    } else if (agent.inputFormat === 'path') {
-      // For 'path' format, replace @ and query with just the file path (no @)
-      this.callbacks.insertFilePathWithoutAt(agent.filePath);
-    } else if (hasCustomInputFormat) {
-      // inputFormat がテンプレート等 → @ なし
-      this.callbacks.insertFilePathWithoutAt(agent.name);
+    } else if (agent.inputFormat) {
+      // inputFormat が明示的に指定されている → @ なし
+      const text = agent.inputFormat === 'path' ? agent.filePath : agent.name;
+      this.callbacks.insertFilePathWithoutAt(text);
     } else {
-      // デフォルト動作: inputFormat 未指定 or 'name' → @ あり
+      // inputFormat 未指定 → デフォルト動作（@ あり）
       this.callbacks.insertFilePath(agent.name);
 
       // Register agent name in global cache for persistent highlighting
@@ -527,8 +523,7 @@ export class NavigationManager {
 
     // Callback for external handling
     const insertText = agent.inputText ?? (agent.inputFormat === 'path' ? agent.filePath : agent.name);
-    const needsPrefix = !agent.inputText && !hasCustomInputFormat && agent.inputFormat !== 'path';
-    this.callbacks.onFileSelected(needsPrefix ? `@${insertText}` : insertText);
+    this.callbacks.onFileSelected(agent.inputText ? insertText : (!agent.inputFormat ? `@${insertText}` : insertText));
   }
 
   /**
