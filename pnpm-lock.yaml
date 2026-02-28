@@ -94,7 +94,7 @@ importers:
         specifier: ^4.0.5
         version: 4.0.8
       jsdom:
-        specifier: ^27.4.0
+        specifier: ^27.0.0
         version: 27.4.0
       ts-node:
         specifier: ^10.9.2
