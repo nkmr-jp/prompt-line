@@ -102,28 +102,28 @@ export function calculateMatchScore(
   const nameLower = lowercaseCache.get(file.name);
   const pathLower = lowercaseCache.get(file.path);
 
-  let score = 0;
+  // Split query into keywords for multi-keyword AND matching
+  const keywords = queryLower.split(/\s+/).filter(k => k.length > 0);
 
-  // Exact name match
-  if (nameLower === queryLower) {
-    score += FUZZY_MATCH_SCORES.EXACT;
+  let matchScore = 0;
+
+  if (keywords.length > 0) {
+    let totalKwScore = 0;
+    for (const kw of keywords) {
+      let kwScore = 0;
+      if (nameLower === kw) kwScore = FUZZY_MATCH_SCORES.EXACT;
+      else if (nameLower.startsWith(kw)) kwScore = FUZZY_MATCH_SCORES.STARTS_WITH;
+      else if (nameLower.includes(kw)) kwScore = FUZZY_MATCH_SCORES.CONTAINS;
+      else if (pathLower.includes(kw)) kwScore = FUZZY_MATCH_SCORES.PATH_CONTAINS;
+      else if (fuzzyMatch(nameLower, kw)) kwScore = FUZZY_MATCH_SCORES.BASE_FUZZY;
+
+      if (kwScore === 0) return 0; // AND condition: all keywords must match
+      totalKwScore += kwScore;
+    }
+    matchScore = totalKwScore / keywords.length;
   }
-  // Name starts with query
-  else if (nameLower.startsWith(queryLower)) {
-    score += FUZZY_MATCH_SCORES.STARTS_WITH;
-  }
-  // Name contains query
-  else if (nameLower.includes(queryLower)) {
-    score += FUZZY_MATCH_SCORES.CONTAINS;
-  }
-  // Path contains query
-  else if (pathLower.includes(queryLower)) {
-    score += FUZZY_MATCH_SCORES.PATH_CONTAINS;
-  }
-  // Fuzzy match on name - basic substring match
-  else if (fuzzyMatch(nameLower, queryLower)) {
-    score += FUZZY_MATCH_SCORES.BASE_FUZZY;
-  }
+
+  let score = matchScore;
 
   // Bonus for files (not directories)
   if (!file.isDirectory) {
@@ -167,28 +167,24 @@ export function calculateAgentMatchScore(
   const nameLower = lowercaseCache.get(agent.name);
   const descLower = lowercaseCache.get(agent.description);
 
-  let score = 0;
+  // Split query into keywords for multi-keyword AND matching
+  const keywords = queryLower.split(/\s+/).filter(k => k.length > 0);
+  if (keywords.length === 0) return FUZZY_MATCH_SCORES.AGENT_BASE;
 
-  // Exact name match
-  if (nameLower === queryLower) {
-    score += FUZZY_MATCH_SCORES.EXACT;
+  let totalKwScore = 0;
+  for (const kw of keywords) {
+    let kwScore = 0;
+    if (nameLower === kw) kwScore = FUZZY_MATCH_SCORES.EXACT;
+    else if (nameLower.startsWith(kw)) kwScore = FUZZY_MATCH_SCORES.STARTS_WITH;
+    else if (nameLower.includes(kw)) kwScore = FUZZY_MATCH_SCORES.CONTAINS;
+    else if (descLower.includes(kw)) kwScore = FUZZY_MATCH_SCORES.PATH_CONTAINS;
+    else if (fuzzyMatch(nameLower, kw)) kwScore = FUZZY_MATCH_SCORES.BASE_FUZZY;
+
+    if (kwScore === 0) return 0; // AND condition: all keywords must match
+    totalKwScore += kwScore;
   }
-  // Name starts with query
-  else if (nameLower.startsWith(queryLower)) {
-    score += FUZZY_MATCH_SCORES.STARTS_WITH;
-  }
-  // Name contains query
-  else if (nameLower.includes(queryLower)) {
-    score += FUZZY_MATCH_SCORES.CONTAINS;
-  }
-  // Description contains query
-  else if (descLower.includes(queryLower)) {
-    score += FUZZY_MATCH_SCORES.PATH_CONTAINS;
-  }
-  // Fuzzy match on name - basic substring match
-  else if (fuzzyMatch(nameLower, queryLower)) {
-    score += FUZZY_MATCH_SCORES.BASE_FUZZY;
-  }
+
+  let score = totalKwScore / keywords.length;
 
   // Add usage history bonus
   score += usageBonus;

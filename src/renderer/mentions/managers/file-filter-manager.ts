@@ -286,6 +286,7 @@ export class FileFilterManager {
     const sourceFiles = canUseIncrementalSearch ? this.lastResults : allFiles;
 
     const queryLower = query.toLowerCase();
+    const keywords = queryLower.split(/\s+/).filter(k => k.length > 0);
     const seenDirs = new Set<string>();
     const seenDirNames = new Map<string, { path: string; depth: number }>();
     const matchingDirs: FileInfo[] = [];
@@ -316,8 +317,10 @@ export class FileFilterManager {
 
         if (!dirName || seenDirs.has(dirPath)) continue;
 
-        // Check if directory name or path matches query
-        if (dirName.toLowerCase().includes(queryLower) || dirPath.toLowerCase().includes(queryLower)) {
+        // Check if directory name or path matches all keywords (AND condition)
+        const dirNameLower = dirName.toLowerCase();
+        const dirPathLower = dirPath.toLowerCase();
+        if (keywords.every(kw => dirNameLower.includes(kw) || dirPathLower.includes(kw))) {
           seenDirs.add(dirPath);
 
           // Prefer shorter paths (likely the original, not symlink-resolved)

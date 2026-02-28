@@ -16,16 +16,26 @@ export function insertHighlightedText(element: HTMLElement, text: string, query:
     return;
   }
 
-  // Create regex for matching (case-insensitive)
-  const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const regex = new RegExp(`(${escapedQuery})`, 'gi');
+  // Split query into keywords for multi-keyword highlighting
+  const keywords = query.split(/\s+/).filter(k => k.length > 0);
+  if (keywords.length === 0) {
+    element.textContent = text;
+    return;
+  }
+
+  // Build combined regex for all keywords (sorted by length desc for longest match first)
+  const escapedKeywords = keywords
+    .map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .sort((a, b) => b.length - a.length);
+  const regex = new RegExp(`(${escapedKeywords.join('|')})`, 'gi');
+  const keywordsLower = keywords.map(k => k.toLowerCase());
 
   // Split text by matches
   const parts = text.split(regex);
 
   parts.forEach(part => {
-    if (part.toLowerCase() === query.toLowerCase()) {
-      // This part matches - wrap in highlight span
+    if (keywordsLower.some(kw => part.toLowerCase() === kw)) {
+      // This part matches a keyword - wrap in highlight span
       const highlight = document.createElement('span');
       highlight.className = 'highlight';
       highlight.textContent = part;
