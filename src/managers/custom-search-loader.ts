@@ -127,9 +127,13 @@ class CustomSearchLoader {
         return true;
       }
 
-      const lowerActualQuery = actualQuery.toLowerCase();
-      return item.name.toLowerCase().includes(lowerActualQuery) ||
-             item.description.toLowerCase().includes(lowerActualQuery);
+      // Split query into keywords for AND search (space-separated)
+      const keywords = actualQuery.toLowerCase().split(/\s+/).filter(k => k.length > 0);
+      if (keywords.length === 0) {
+        return true;
+      }
+      const fields = `${item.name.toLowerCase()} ${item.description.toLowerCase()}`;
+      return keywords.every(kw => fields.includes(kw));
     });
 
     return this.sortItems(filteredItems, orderBy);
