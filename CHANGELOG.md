@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.24.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.24.0...prompt-line-v0.24.1) (2026-02-28)
+
+
+### Miscellaneous Chores
+
+* **deps:** bump the npm_and_yarn group across 1 directory with 2 updates ([256fb9b](https://github.com/nkmr-jp/prompt-line/commit/256fb9b1b266c8adbc4982806012c96af2e4b3ee))
+* **deps:** bump the npm_and_yarn group across 1 directory with 2 updates ([d94cf2b](https://github.com/nkmr-jp/prompt-line/commit/d94cf2ba7ef48c84d12d21851c759c774c837ee3))
+
 ## [0.24.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.23.1...prompt-line-v0.24.0) (2026-02-27)
 
 
