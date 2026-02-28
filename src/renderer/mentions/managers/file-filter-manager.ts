@@ -16,6 +16,7 @@
 import type { FileInfo, AgentItem } from '../../../types';
 import type { DirectoryData, SuggestionItem } from '../types';
 import { getRelativePath, calculateMatchScore, calculateAgentMatchScore, compareTiebreak } from '../index';
+import { splitKeywords } from '../../utils/highlight-utils';
 
 /**
  * Callbacks for FileFilterManager
@@ -286,6 +287,7 @@ export class FileFilterManager {
     const sourceFiles = canUseIncrementalSearch ? this.lastResults : allFiles;
 
     const queryLower = query.toLowerCase();
+    const keywords = splitKeywords(queryLower);
     const seenDirs = new Set<string>();
     const seenDirNames = new Map<string, { path: string; depth: number }>();
     const matchingDirs: FileInfo[] = [];
@@ -297,7 +299,7 @@ export class FileFilterManager {
         const bonus = usageBonuses?.[file.path] ?? 0;
         return {
           file,
-          score: calculateMatchScore(file, queryLower, bonus, baseDir),
+          score: calculateMatchScore(file, queryLower, bonus, baseDir, keywords),
           relativePath: getRelativePath(file.path, baseDir)
         };
       })
@@ -316,8 +318,10 @@ export class FileFilterManager {
 
         if (!dirName || seenDirs.has(dirPath)) continue;
 
-        // Check if directory name or path matches query
-        if (dirName.toLowerCase().includes(queryLower) || dirPath.toLowerCase().includes(queryLower)) {
+        // Check if directory name or path matches all keywords (AND condition)
+        const dirNameLower = dirName.toLowerCase();
+        const dirPathLower = dirPath.toLowerCase();
+        if (keywords.every(kw => dirNameLower.includes(kw) || dirPathLower.includes(kw))) {
           seenDirs.add(dirPath);
 
           // Prefer shorter paths (likely the original, not symlink-resolved)

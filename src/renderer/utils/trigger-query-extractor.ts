@@ -40,15 +40,24 @@ export interface TriggerQueryResult {
 export function extractTriggerQueryAtCursor(
   text: string,
   cursorPos: number,
-  triggerChar: string
+  triggerChar: string,
+  options?: { allowSpaces?: boolean }
 ): TriggerQueryResult | null {
   // Find the trigger character before cursor
   let triggerPos = -1;
+  const allowSpaces = options?.allowSpaces === true;
+
   for (let i = cursorPos - 1; i >= 0; i--) {
     const char = text[i];
 
-    // Stop at whitespace or newline (trigger must be in current word)
-    if (char === ' ' || char === '\n' || char === '\t') {
+    // Stop at newline or tab (always a boundary)
+    if (char === '\n' || char === '\t') {
+      break;
+    }
+
+    // Space handling: skip if allowSpaces, otherwise stop
+    if (char === ' ') {
+      if (allowSpaces) continue;
       break;
     }
 
