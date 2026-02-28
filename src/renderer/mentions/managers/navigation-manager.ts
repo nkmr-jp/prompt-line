@@ -501,13 +501,13 @@ export class NavigationManager {
     // Determine what to insert based on agent's inputFormat setting
     // mention のデフォルト config には inputFormat が設定されないため、
     // inputFormat が存在すれば常にユーザーの明示指定 → @ なし
+    // 'name'/'path' 以外の inputFormat はテンプレートとして解決済み（inputText に格納）
     if (agent.inputText) {
-      // Template format: insert resolved text (no @)
+      // Template format (inputFormat: '{filepath}', '{content}' 等): insert resolved text (no @)
       this.callbacks.insertFilePathWithoutAt(agent.inputText);
     } else if (agent.inputFormat) {
-      // inputFormat が明示的に指定されている → @ なし
-      const text = agent.inputFormat === 'path' ? agent.filePath : agent.name;
-      this.callbacks.insertFilePathWithoutAt(text);
+      // inputFormat: 'name' が明示指定 → @ なし
+      this.callbacks.insertFilePathWithoutAt(agent.name);
     } else {
       // inputFormat 未指定 → デフォルト動作（@ あり）
       this.callbacks.insertFilePath(agent.name);
@@ -522,8 +522,8 @@ export class NavigationManager {
     this.callbacks.hideSuggestions();
 
     // Callback for external handling
-    const insertText = agent.inputText ?? (agent.inputFormat === 'path' ? agent.filePath : agent.name);
-    this.callbacks.onFileSelected(agent.inputText ? insertText : (!agent.inputFormat ? `@${insertText}` : insertText));
+    const insertText = agent.inputText ?? agent.name;
+    this.callbacks.onFileSelected(!agent.inputFormat && !agent.inputText ? `@${insertText}` : insertText);
   }
 
   /**

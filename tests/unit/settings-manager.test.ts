@@ -275,7 +275,7 @@ window:
               path: '~/.claude/plans',
               pattern: '*.md',
               searchPrefix: 'plan',
-              inputFormat: 'path'
+              inputFormat: '{filepath}'
             },
             {
               name: '{basename}',
@@ -288,7 +288,7 @@ window:
               path: '~/.claude/tasks',
               pattern: '**/*/*.md',
               searchPrefix: 'task',
-              inputFormat: 'path'
+              inputFormat: '{filepath}'
             }
           ]
         }
@@ -498,7 +498,7 @@ window:
               path: '~/.claude/plans',
               pattern: '*.md',
               searchPrefix: 'plan',
-              inputFormat: 'path'
+              inputFormat: '{filepath}'
             },
             {
               name: '{basename}',
@@ -511,7 +511,7 @@ window:
               path: '~/.claude/tasks',
               pattern: '**/*/*.md',
               searchPrefix: 'task',
-              inputFormat: 'path'
+              inputFormat: '{filepath}'
             }
           ]
         }

@@ -293,7 +293,7 @@ export const defaultSettings: UserSettings = {
      *   searchPrefix    — Prefix to trigger this search (e.g., "agent" → @agent:)
      *   maxSuggestions  — Max suggestions to display
      *   orderBy         — Sort order (e.g., "name", "name desc", "{updatedAt} desc")
-     *   inputFormat     — Insert format: 'name' (display name) or 'path' (file path)
+     *   inputFormat     — Insert format: 'name' (display name), '{filepath}' (file path), or template
      *   color           — Badge color (name or hex)
      *   icon            — Codicon icon name
      *   label           — UI badge label
@@ -307,7 +307,7 @@ export const defaultSettings: UserSettings = {
      *         pattern: "**{/}*.md"
      *         searchPrefix: kb
      *         maxSuggestions: 100
-     *         inputFormat: path
+     *         inputFormat: "{filepath}"
      */
     customSearch: [
       // Claude Code agents (from ~/.claude/agents/*.md, search with @agent:)
@@ -355,7 +355,7 @@ export const defaultSettings: UserSettings = {
         color: 'blue',
         pattern: '*.md',
         searchPrefix: 'plan',
-        inputFormat: 'path',
+        inputFormat: '{filepath}',
         orderBy: '{updatedAt} desc',
         displayTime: '{updatedAt}'
       },
@@ -369,7 +369,7 @@ export const defaultSettings: UserSettings = {
         path: '~/.claude/tasks',
         pattern: '**/*/*.md',
         searchPrefix: 'task',
-        inputFormat: 'path',
+        inputFormat: '{filepath}',
         orderBy: '{updatedAt} desc',
         displayTime: '{updatedAt}'
       }
@@ -411,7 +411,7 @@ export const commentedExamples = {
         searchPrefix: 'kb',
         maxSuggestions: 100,
         orderBy: '{updatedAt} desc',
-        inputFormat: 'path'
+        inputFormat: '{filepath}'
       }
     ]
   }

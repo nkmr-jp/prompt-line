@@ -495,7 +495,7 @@ class CustomSearchLoader {
       }
       if (entry.inputFormat) {
         item.inputFormat = entry.inputFormat;
-        if (entry.inputFormat !== 'name' && entry.inputFormat !== 'path') {
+        if (entry.inputFormat !== 'name') {
           item.inputText = resolveTemplate(entry.inputFormat, context);
         }
       }
@@ -590,7 +590,7 @@ class CustomSearchLoader {
         }
         if (entry.inputFormat) {
           item.inputFormat = entry.inputFormat;
-          if (entry.inputFormat !== 'name' && entry.inputFormat !== 'path') {
+          if (entry.inputFormat !== 'name') {
             item.inputText = resolveTemplate(entry.inputFormat, context);
           }
         }
@@ -678,7 +678,7 @@ class CustomSearchLoader {
         }
         if (entry.inputFormat) {
           item.inputFormat = entry.inputFormat;
-          if (entry.inputFormat !== 'name' && entry.inputFormat !== 'path') {
+          if (entry.inputFormat !== 'name') {
             item.inputText = resolveTemplate(entry.inputFormat, context);
           }
         }
@@ -865,7 +865,7 @@ class CustomSearchLoader {
     }
     if (entry.inputFormat) {
       item.inputFormat = entry.inputFormat;
-      if (entry.inputFormat !== 'name' && entry.inputFormat !== 'path') {
+      if (entry.inputFormat !== 'name') {
         item.inputText = resolveTemplate(entry.inputFormat, context);
       }
     }
