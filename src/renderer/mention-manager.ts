@@ -186,6 +186,9 @@ export class MentionManager implements IInitializable {
         this.state.codeSearchQuery = '';
         this.state.codeSearchLanguage = '';
         this.state.codeSearchCacheRefreshed = false;
+      },
+      setLastInsertedMentionPath: (path: string) => {
+        this.lastInsertedMentionPath = path;
       }
     });
 
