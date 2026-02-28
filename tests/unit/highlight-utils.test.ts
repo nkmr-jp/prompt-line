@@ -1,7 +1,4 @@
-/**
- * @jest-environment jsdom
- */
-import { describe, test, expect } from '@jest/globals';
+// @vitest-environment jsdom
 import { highlightMatch } from '../../src/renderer/utils/highlight-utils';
 
 describe('highlightMatch', () => {
