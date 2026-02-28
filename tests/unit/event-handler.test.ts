@@ -1,19 +1,17 @@
-/**
- * @jest-environment jsdom
- */
+// @vitest-environment jsdom
 
-import { describe, test, expect, beforeEach, jest } from '@jest/globals';
+import type { Mock } from 'vitest';
 import { EventHandler } from '../../src/renderer/event-handler';
 
 describe('EventHandler', () => {
   let eventHandler: EventHandler;
   let mockCallbacks: {
-    onTextPaste: jest.Mock;
-    onWindowHide: jest.Mock;
-    onTabKeyInsert: jest.Mock;
-    onShiftTabKeyPress: jest.Mock;
-    onHistoryNavigation: jest.Mock;
-    onSearchToggle: jest.Mock;
+    onTextPaste: Mock;
+    onWindowHide: Mock;
+    onTabKeyInsert: Mock;
+    onShiftTabKeyPress: Mock;
+    onHistoryNavigation: Mock;
+    onSearchToggle: Mock;
   };
   let textarea: HTMLTextAreaElement;
 
@@ -23,12 +21,12 @@ describe('EventHandler', () => {
 
     // Create mock callbacks
     mockCallbacks = {
-      onTextPaste: jest.fn(async () => {}),
-      onWindowHide: jest.fn(async () => {}),
-      onTabKeyInsert: jest.fn(),
-      onShiftTabKeyPress: jest.fn(),
-      onHistoryNavigation: jest.fn(),
-      onSearchToggle: jest.fn()
+      onTextPaste: vi.fn(async () => {}),
+      onWindowHide: vi.fn(async () => {}),
+      onTabKeyInsert: vi.fn(),
+      onShiftTabKeyPress: vi.fn(),
+      onHistoryNavigation: vi.fn(),
+      onSearchToggle: vi.fn()
     };
 
     // Create EventHandler
@@ -141,7 +139,7 @@ describe('EventHandler', () => {
         cancelable: true
       });
 
-      const preventDefaultSpy = jest.spyOn(tabEvent, 'preventDefault');
+      const preventDefaultSpy = vi.spyOn(tabEvent, 'preventDefault');
 
       // Dispatch event
       textarea.dispatchEvent(tabEvent);
@@ -162,7 +160,7 @@ describe('EventHandler', () => {
         cancelable: true
       });
 
-      const preventDefaultSpy = jest.spyOn(shiftTabEvent, 'preventDefault');
+      const preventDefaultSpy = vi.spyOn(shiftTabEvent, 'preventDefault');
 
       // Dispatch event
       textarea.dispatchEvent(shiftTabEvent);

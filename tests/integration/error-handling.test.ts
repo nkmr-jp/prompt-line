@@ -1,8 +1,5 @@
-/**
- * @jest-environment jsdom
- */
+// @vitest-environment jsdom
 
-import { describe, test, expect, beforeEach, afterEach } from '@jest/globals';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';

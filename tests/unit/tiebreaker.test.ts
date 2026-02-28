@@ -1,4 +1,3 @@
-import { describe, it, expect } from '@jest/globals';
 import { compareTiebreak, type TiebreakOptions, type TiebreakGetters } from '../../src/lib/tiebreaker';
 
 describe('compareTiebreak', () => {

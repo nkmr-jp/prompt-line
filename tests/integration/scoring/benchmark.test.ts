@@ -3,7 +3,6 @@
  * Measures real-world performance with actual user data
  */
 
-import { describe, test, expect } from '@jest/globals';
 import { loadRealTestData, getHistoryStats } from '../../fixtures/scoring/real-data-loader';
 import { HistorySearchFilterEngine } from '../../../src/renderer/history-search/filter-engine';
 import { calculateMatchScore } from '../../../src/renderer/mentions/fuzzy-matcher';

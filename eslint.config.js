@@ -5,7 +5,7 @@ const tseslint = require('@typescript-eslint/eslint-plugin');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const tsparser = require('@typescript-eslint/parser');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const jest = require('eslint-plugin-jest');
+const vitest = require('@vitest/eslint-plugin');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const globals = require('globals');
 
@@ -227,28 +227,40 @@ module.exports = [
       globals: {
         ...globals.browser,
         ...globals.node,
-        ...globals.jest,
-        NodeJS: 'readonly'
+        NodeJS: 'readonly',
+        vi: 'readonly',
+        vitest: 'readonly',
+        describe: 'readonly',
+        test: 'readonly',
+        expect: 'readonly',
+        it: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+        beforeAll: 'readonly',
+        afterAll: 'readonly',
+        suite: 'readonly',
+        captureConsole: 'readonly',
+        createMockHistoryItem: 'readonly',
+        createMockDraft: 'readonly'
       }
     },
     plugins: {
       '@typescript-eslint': tseslint,
-      jest: jest
+      vitest: vitest
     },
     rules: {
       ...tseslint.configs.recommended.rules,
-      ...jest.configs.recommended.rules,
+      ...vitest.configs.recommended.rules,
       // 意味のないテストを検出するルール
-      'jest/expect-expect': 'warn', // アサーションがないテストを検出
-      'jest/no-disabled-tests': 'warn', // スキップされたテスト（.skip, xit）を検出
-      'jest/no-focused-tests': 'error', // .only を使ったテストを検出（CI失敗防止）
-      'jest/no-identical-title': 'error', // 同じタイトルのテストを検出
-      'jest/valid-expect': 'error', // 無効なexpect()を検出
-      'jest/no-standalone-expect': 'error', // describe/it外のexpectを検出
-      'jest/prefer-to-have-length': 'warn', // .length よりも .toHaveLength() を推奨
-      'jest/prefer-to-be': 'warn', // toBe(null/undefined) を推奨
-      'jest/no-conditional-expect': 'off',
-      'jest/no-done-callback': 'off',
+      'vitest/expect-expect': 'warn', // アサーションがないテストを検出
+      'vitest/no-disabled-tests': 'warn', // スキップされたテスト（.skip, xit）を検出
+      'vitest/no-focused-tests': 'error', // .only を使ったテストを検出（CI失敗防止）
+      'vitest/no-identical-title': 'error', // 同じタイトルのテストを検出
+      'vitest/valid-expect': 'error', // 無効なexpect()を検出
+      'vitest/no-standalone-expect': 'error', // describe/it外のexpectを検出
+      'vitest/prefer-to-have-length': 'warn', // .length よりも .toHaveLength() を推奨
+      'vitest/prefer-to-be': 'warn', // toBe(null/undefined) を推奨
+      'vitest/no-conditional-expect': 'off',
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': [
         'error',

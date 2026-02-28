@@ -1,33 +1,33 @@
-import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import type { Mocked, MockedFunction } from 'vitest';
 import { DraftManagerClient } from '../../src/renderer/draft-manager-client';
 import type { IpcRenderer, Config } from '../../src/renderer/types';
 
 describe('DraftManager', () => {
   let draftManager: DraftManagerClient;
-  let mockIpcRenderer: jest.Mocked<IpcRenderer>;
-  let mockGetText: jest.MockedFunction<() => string>;
-  let mockGetScrollTop: jest.MockedFunction<() => number>;
+  let mockIpcRenderer: Mocked<IpcRenderer>;
+  let mockGetText: MockedFunction<() => string>;
+  let mockGetScrollTop: MockedFunction<() => number>;
 
   beforeEach(() => {
     mockIpcRenderer = {
-      invoke: jest.fn(),
-      send: jest.fn(),
-      on: jest.fn()
+      invoke: vi.fn(),
+      send: vi.fn(),
+      on: vi.fn()
     } as any;
 
     const mockElectronAPI = {
       draft: {
-        save: jest.fn().mockImplementation((...args: any[]) => {
+        save: vi.fn().mockImplementation((...args: any[]) => {
           return mockIpcRenderer.invoke('save-draft', ...args);
         }),
-        clear: jest.fn().mockImplementation((...args: any[]) => {
+        clear: vi.fn().mockImplementation((...args: any[]) => {
           return mockIpcRenderer.invoke('clear-draft', ...args);
         })
       }
     };
 
-    mockGetText = jest.fn();
-    mockGetScrollTop = jest.fn().mockReturnValue(0) as jest.MockedFunction<() => number>;
+    mockGetText = vi.fn();
+    mockGetScrollTop = vi.fn().mockReturnValue(0) as MockedFunction<() => number>;
     draftManager = new DraftManagerClient(mockElectronAPI, mockGetText, mockGetScrollTop);
 
     // Clear only the call history, not the mock implementations
@@ -57,18 +57,18 @@ describe('DraftManager', () => {
   });
 
   describe('debounced draft saving', () => {
-    test('should save draft with default delay', (done) => {
+    test('should save draft with default delay', () => new Promise<void>((resolve) => {
       mockGetText.mockReturnValue('test text');
 
       draftManager.saveDraftDebounced();
 
       setTimeout(() => {
         expect(mockIpcRenderer.invoke).toHaveBeenCalledWith('save-draft', 'test text', 0);
-        done();
+        resolve();
       }, 550); // Default delay is 500ms
-    });
+    }));
 
-    test('should save draft with custom delay', (done) => {
+    test('should save draft with custom delay', () => new Promise<void>((resolve) => {
       const config: Config = { draft: { saveDelay: 100 } };
       draftManager.setConfig(config);
       mockGetText.mockReturnValue('test text');
@@ -77,11 +77,11 @@ describe('DraftManager', () => {
 
       setTimeout(() => {
         expect(mockIpcRenderer.invoke).toHaveBeenCalledWith('save-draft', 'test text', 0);
-        done();
+        resolve();
       }, 150);
-    });
+    }));
 
-    test('should cancel previous debounced save', (done) => {
+    test('should cancel previous debounced save', () => new Promise<void>((resolve) => {
       mockGetText.mockReturnValue('first text').mockReturnValueOnce('second text');
       const config: Config = { draft: { saveDelay: 100 } };
       draftManager.setConfig(config);
@@ -93,9 +93,9 @@ describe('DraftManager', () => {
       setTimeout(() => {
         expect(mockIpcRenderer.invoke).toHaveBeenCalledTimes(1);
         expect(mockIpcRenderer.invoke).toHaveBeenCalledWith('save-draft', 'second text', 0);
-        done();
+        resolve();
       }, 150);
-    });
+    }));
   });
 
   describe('immediate draft saving', () => {

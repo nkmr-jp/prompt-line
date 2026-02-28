@@ -6,40 +6,40 @@
  * jq-resolver with a simulated jq implementation for testing the full pipeline.
  * Real jq-web integration is tested in jq-resolver-integration.test.ts.
  */
-import { describe, test, expect, jest, beforeEach } from '@jest/globals';
 import { promises as fs } from 'fs';
 
 // Unmock path module
-jest.unmock('path');
+vi.unmock('path');
 
 // Mock glob module
-jest.mock('glob', () => ({
-  glob: jest.fn()
+vi.mock('glob', () => ({
+  glob: vi.fn()
 }));
 
 // Mock fs promises module
-jest.mock('fs', () => ({
+vi.mock('fs', () => ({
   promises: {
-    readFile: jest.fn(),
-    readdir: jest.fn(),
-    stat: jest.fn()
+    readFile: vi.fn(),
+    readdir: vi.fn(),
+    stat: vi.fn()
   }
 }));
 
 // Mock the utils module
-jest.mock('../../src/utils/utils', () => ({
+vi.mock('../../src/utils/utils', () => ({
   logger: {
-    info: jest.fn(),
-    debug: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn()
+    info: vi.fn(),
+    debug: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn()
   }
 }));
 
 // Mock os module
-jest.mock('os', () => ({
-  homedir: jest.fn(() => '/Users/test')
-}));
+vi.mock('os', () => {
+  const osMock = { homedir: vi.fn(() => '/Users/test') };
+  return { ...osMock, default: osMock };
+});
 
 /**
  * Simulate jq behavior for testing
@@ -80,16 +80,16 @@ function simulateJq(data: unknown, expression: string): unknown {
   return null;
 }
 
-const mockEvaluateJq = jest.fn<(data: unknown, expression: string) => Promise<unknown>>();
+const mockEvaluateJq = vi.fn<(data: unknown, expression: string) => Promise<unknown>>();
 mockEvaluateJq.mockImplementation(async (data, expression) => simulateJq(data, expression));
 
-jest.mock('../../src/lib/jq-resolver', () => ({
+vi.mock('../../src/lib/jq-resolver', () => ({
   evaluateJq: (...args: unknown[]) => mockEvaluateJq(...args as [unknown, string])
 }));
 
 import CustomSearchLoader from '../../src/managers/custom-search-loader';
 
-const mockedFs = jest.mocked(fs);
+const mockedFs = vi.mocked(fs);
 
 const createDirent = (name: string, isFile: boolean) => ({
   name,
@@ -104,7 +104,7 @@ const createDirent = (name: string, isFile: boolean) => ({
 
 describe('CustomSearchLoader + jq integration', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockEvaluateJq.mockImplementation(async (data, expression) => simulateJq(data, expression));
   });
 
