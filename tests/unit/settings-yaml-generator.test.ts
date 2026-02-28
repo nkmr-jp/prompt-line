@@ -5,7 +5,6 @@
  * including both runtime-saved settings and example file generation.
  */
 
-import { describe, test, expect } from '@jest/globals';
 import { generateSettingsYaml } from '../../src/config/settings-yaml-generator';
 import type { YamlGeneratorOptions } from '../../src/config/settings-yaml-generator';
 import type { UserSettings } from '../../src/types';

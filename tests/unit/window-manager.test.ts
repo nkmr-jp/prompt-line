@@ -1,23 +1,26 @@
-import { describe, test, expect, beforeEach, jest } from '@jest/globals';
+import type { MockedFunction, MockedClass, Mock } from 'vitest';
 import WindowManager from '../../src/managers/window';
 import { BrowserWindow, screen } from 'electron';
+import { getCurrentApp, getActiveWindowBounds, logger } from '../../src/utils/utils';
+import { execFile } from 'child_process';
+import * as appConfig from '../../src/config/app-config';
 type ExecCallback = (error: Error | null, stdout: string, stderr: string) => void;
 
 // Mock child_process
-jest.mock('child_process', () => ({
-    exec: jest.fn(),
-    execFile: jest.fn()
+vi.mock('child_process', () => ({
+    exec: vi.fn(),
+    execFile: vi.fn()
 }));
 
 // Mock the utils module
-jest.mock('../../src/utils/utils', () => ({
-    getCurrentApp: jest.fn(),
-    getActiveWindowBounds: jest.fn(() => Promise.resolve(null)),
+vi.mock('../../src/utils/utils', () => ({
+    getCurrentApp: vi.fn(),
+    getActiveWindowBounds: vi.fn(() => Promise.resolve(null)),
     logger: {
-        info: jest.fn(),
-        debug: jest.fn(),
-        warn: jest.fn(),
-        error: jest.fn()
+        info: vi.fn(),
+        debug: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn()
     },
     KEYBOARD_SIMULATOR_PATH: '/path/to/keyboard-simulator',
     TEXT_FIELD_DETECTOR_PATH: '/path/to/text-field-detector',
@@ -26,37 +29,38 @@ jest.mock('../../src/utils/utils', () => ({
 }));
 
 // Mock the config module
-jest.mock('../../src/config/app-config', () => ({
-    window: {
-        width: 600,
-        height: 300,
-        frame: false,
-        transparent: true,
-        alwaysOnTop: true,
-        skipTaskbar: true,
-        resizable: false,
-        webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: false
-        }
-    },
-    platform: {
-        isMac: true
-    },
-    timing: {
-        windowHideDelay: 100,
-        appFocusDelay: 200
-    },
-    getInputHtmlPath: jest.fn(() => '/test/input.html')
-}));
+vi.mock('../../src/config/app-config', () => {
+    const configMock = {
+        window: {
+            width: 600,
+            height: 300,
+            frame: false,
+            transparent: true,
+            alwaysOnTop: true,
+            skipTaskbar: true,
+            resizable: false,
+            webPreferences: {
+                nodeIntegration: true,
+                contextIsolation: false
+            }
+        },
+        platform: {
+            isMac: true
+        },
+        timing: {
+            windowHideDelay: 100,
+            appFocusDelay: 200
+        },
+        getInputHtmlPath: vi.fn(() => '/test/input.html')
+    };
+    return { ...configMock, default: configMock };
+});
 
-const { getCurrentApp, getActiveWindowBounds, logger } = jest.requireMock('../../src/utils/utils') as any;
 // Fix getCurrentApp to return string for consistency
-getCurrentApp.mockResolvedValue('TestApp');
+(getCurrentApp as any).mockResolvedValue('TestApp');
 // Make getActiveWindowBounds return null so tests fall back to cursor positioning
-getActiveWindowBounds.mockResolvedValue(null);
-const { execFile } = jest.requireMock('child_process') as any;
-const mockedExecFile = execFile as jest.MockedFunction<typeof execFile>;
+(getActiveWindowBounds as any).mockResolvedValue(null);
+const mockedExecFile = execFile as MockedFunction<typeof execFile>;
 // Keep mockedExec as alias for backward compatibility in tests
 const mockedExec = mockedExecFile;
 
@@ -69,27 +73,27 @@ describe('WindowManager', () => {
         
         // Create mock BrowserWindow instance
         mockWindow = {
-            loadFile: jest.fn(),
-            show: jest.fn(),
-            hide: jest.fn(),
-            focus: jest.fn(),
-            destroy: jest.fn(),
-            isVisible: jest.fn(() => false),
-            isDestroyed: jest.fn(() => false),
-            setPosition: jest.fn(),
-            on: jest.fn(),
+            loadFile: vi.fn(),
+            show: vi.fn(),
+            hide: vi.fn(),
+            focus: vi.fn(),
+            destroy: vi.fn(),
+            isVisible: vi.fn(() => false),
+            isDestroyed: vi.fn(() => false),
+            setPosition: vi.fn(),
+            on: vi.fn(),
             webContents: {
-                send: jest.fn(),
-                on: jest.fn(),
-                isLoading: jest.fn(() => false),
-                once: jest.fn()
+                send: vi.fn(),
+                on: vi.fn(),
+                isLoading: vi.fn(() => false),
+                once: vi.fn()
             }
         };
         
-        jest.clearAllMocks();
+        vi.clearAllMocks();
 
         // Re-apply mocks after clearAllMocks
-        (BrowserWindow as jest.MockedClass<typeof BrowserWindow>).mockReturnValue(mockWindow);
+        (BrowserWindow as MockedClass<typeof BrowserWindow>).mockImplementation(function() { return mockWindow as any; });
 
         // Mock execFile for directory-detector, text-field-detector, and keyboard-simulator calls
         mockedExec.mockImplementation((file: string, args: string[], _options: any, callback: ExecCallback) => {
@@ -140,7 +144,7 @@ describe('WindowManager', () => {
         });
 
         test('should handle window creation errors', () => {
-            (BrowserWindow as jest.MockedClass<typeof BrowserWindow>).mockImplementation(() => {
+            (BrowserWindow as MockedClass<typeof BrowserWindow>).mockImplementation(function() {
                 throw new Error('Window creation failed');
             });
 
@@ -154,14 +158,14 @@ describe('WindowManager', () => {
             getCurrentApp.mockResolvedValue('TestApp');
             
             // Mock screen methods
-            (screen.getCursorScreenPoint as jest.Mock).mockReturnValue({ x: 500, y: 300 });
-            (screen.getDisplayNearestPoint as jest.Mock).mockReturnValue({
+            (screen.getCursorScreenPoint as Mock).mockReturnValue({ x: 500, y: 300 });
+            (screen.getDisplayNearestPoint as Mock).mockReturnValue({
                 bounds: { x: 0, y: 0, width: 1920, height: 1080 }
             });
         });
 
         test('should show window and send data to renderer', async () => {
-            jest.useFakeTimers();
+            vi.useFakeTimers();
             const testData = { history: [], draft: 'test draft' };
             // Make sure isLoading returns false so send is called immediately
             mockWindow.webContents.isLoading.mockReturnValue(false);
@@ -173,7 +177,7 @@ describe('WindowManager', () => {
             expect(mockWindow.focus).toHaveBeenCalled();
             
             // Advance timers to trigger the setTimeout
-            jest.advanceTimersByTime(50);
+            vi.advanceTimersByTime(50);
             
             expect(mockWindow.webContents.send).toHaveBeenCalledWith('window-shown', {
                 sourceApp: 'TestApp',
@@ -184,7 +188,7 @@ describe('WindowManager', () => {
                 draft: 'test draft'
             });
             
-            jest.useRealTimers();
+            vi.useRealTimers();
         });
 
         test('should create window if it does not exist', async () => {
@@ -200,7 +204,7 @@ describe('WindowManager', () => {
             // Ensure no existing window so it creates a new one and positions it
             (windowManager as any).inputWindow = null;
             // Reset mocks to ensure clean state
-            jest.clearAllMocks();
+            vi.clearAllMocks();
             // Force cursor positioning
             (windowManager as any).customWindowSettings = { position: 'cursor' };
             
@@ -212,11 +216,11 @@ describe('WindowManager', () => {
 
         test('should keep window within screen bounds', async () => {
             // Cursor near edge of screen
-            (screen.getCursorScreenPoint as jest.Mock).mockReturnValue({ x: 1900, y: 1000 });
+            (screen.getCursorScreenPoint as Mock).mockReturnValue({ x: 1900, y: 1000 });
             // Ensure no existing window so it creates a new one and positions it
             (windowManager as any).inputWindow = null;
             // Reset mocks to ensure clean state
-            jest.clearAllMocks();
+            vi.clearAllMocks();
             // Force cursor positioning
             (windowManager as any).customWindowSettings = { position: 'cursor' };
 
@@ -271,7 +275,7 @@ describe('WindowManager', () => {
         beforeEach(() => {
             // Use the public API to set previous app (delegates to NativeToolExecutor)
             windowManager.setPreviousApp('TestApp');
-            const config = jest.requireMock('../../src/config/app-config') as any;
+            const config = appConfig as any;
             config.platform.isMac = true;
         });
 
@@ -301,7 +305,7 @@ describe('WindowManager', () => {
         });
 
         test('should return false on non-macOS platforms', async () => {
-            const config = jest.requireMock('../../src/config/app-config') as any;
+            const config = appConfig as any;
             config.platform.isMac = false;
 
             const result = await windowManager.focusPreviousApp();
@@ -452,8 +456,8 @@ describe('WindowManager', () => {
     describe('setupEventListeners', () => {
         test('should set up event listeners when window exists', () => {
             windowManager.createInputWindow();
-            const onBlur = jest.fn();
-            const onClosed = jest.fn();
+            const onBlur = vi.fn();
+            const onClosed = vi.fn();
 
             (windowManager as any).setupEventListeners(onBlur, onClosed);
 
@@ -462,8 +466,8 @@ describe('WindowManager', () => {
         });
 
         test('should handle case when window does not exist', () => {
-            const onBlur = jest.fn();
-            const onClosed = jest.fn();
+            const onBlur = vi.fn();
+            const onClosed = vi.fn();
 
             (windowManager as any).setupEventListeners(onBlur, onClosed);
 

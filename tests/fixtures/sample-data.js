@@ -221,17 +221,17 @@ function createTestDraft(text = 'Test draft', timestamp = Date.now()) {
 
 function createMockWindow() {
     return {
-        loadFile: jest.fn(),
-        show: jest.fn(),
-        hide: jest.fn(),
-        focus: jest.fn(),
-        destroy: jest.fn(),
-        isVisible: jest.fn(() => false),
-        setPosition: jest.fn(),
-        on: jest.fn(),
+        loadFile: vi.fn(),
+        show: vi.fn(),
+        hide: vi.fn(),
+        focus: vi.fn(),
+        destroy: vi.fn(),
+        isVisible: vi.fn(() => false),
+        setPosition: vi.fn(),
+        on: vi.fn(),
         webContents: {
-            send: jest.fn(),
-            on: jest.fn()
+            send: vi.fn(),
+            on: vi.fn()
         }
     };
 }

@@ -1,52 +1,58 @@
+import type { Mocked, MockedFunction } from 'vitest';
 import fs from 'fs';
 import { EventEmitter } from 'events';
 
 // Mock chokidar before importing the manager
-jest.mock('chokidar', () => ({
-  watch: jest.fn()
+vi.mock('chokidar', () => ({
+  default: { watch: vi.fn() },
+  watch: vi.fn()
 }));
 
 // Mock fs and path
-jest.mock('fs');
-jest.mock('path', () => ({
-  join: jest.fn((...parts: string[]) => parts.join('/')),
-  extname: jest.fn((filePath: string) => {
-    const parts = filePath.split('.');
-    return parts.length > 1 ? '.' + parts[parts.length - 1] : '';
-  }),
-  basename: jest.fn((filePath: string, ext?: string) => {
-    const name = filePath.split('/').pop() || '';
-    if (ext && name.endsWith(ext)) {
-      return name.slice(0, -ext.length);
-    }
-    return name;
-  })
-}));
+vi.mock('fs');
+vi.mock('path', () => {
+  const pathMock = {
+    join: vi.fn((...parts: string[]) => parts.join('/')),
+    extname: vi.fn((filePath: string) => {
+      const parts = filePath.split('.');
+      return parts.length > 1 ? '.' + parts[parts.length - 1] : '';
+    }),
+    basename: vi.fn((filePath: string, ext?: string) => {
+      const name = filePath.split('/').pop() || '';
+      if (ext && name.endsWith(ext)) {
+        return name.slice(0, -ext.length);
+      }
+      return name;
+    })
+  };
+  return { ...pathMock, default: pathMock };
+});
 
 // Mock config
-const mockConfig = {
-  paths: {
-    builtInCommandsDir: '/test/built-in-commands'
+const { mockConfig } = vi.hoisted(() => ({
+  mockConfig: {
+    paths: {
+      builtInCommandsDir: '/test/built-in-commands'
+    }
   }
-};
+}));
 
-jest.mock('../../src/config/app-config', () => mockConfig);
+vi.mock('../../src/config/app-config', () => ({ ...mockConfig, default: mockConfig }));
 
-jest.mock('../../src/utils/utils', () => ({
+vi.mock('../../src/utils/utils', () => ({
   logger: {
-    info: jest.fn(),
-    debug: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn()
+    info: vi.fn(),
+    debug: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn()
   },
-  ensureDir: jest.fn()
+  ensureDir: vi.fn()
 }));
 
 // Mock built-in-commands-loader with clearCache method
-jest.mock('../../src/lib/built-in-commands-loader', () => {
-  const mockClearCache = jest.fn();
+vi.mock('../../src/lib/built-in-commands-loader', () => {
+  const mockClearCache = vi.fn();
   return {
-    __esModule: true,
     default: {
       clearCache: mockClearCache
     }
@@ -55,19 +61,22 @@ jest.mock('../../src/lib/built-in-commands-loader', () => {
 
 // Import after mocks
 import BuiltInCommandsManager from '../../src/managers/built-in-commands-manager';
+import chokidar from 'chokidar';
+import * as utilsModule from '../../src/utils/utils';
+import builtInCommandsLoaderModule from '../../src/lib/built-in-commands-loader';
 
 describe('BuiltInCommandsManager', () => {
   let manager: BuiltInCommandsManager;
-  const mockFs = fs as jest.Mocked<typeof fs>;
-  const mockChokidar = require('chokidar');
-  const mockUtils = require('../../src/utils/utils');
-  let mockClearCache: jest.MockedFunction<() => void>;
+  const mockFs = fs as Mocked<typeof fs>;
+  const mockChokidar = chokidar as any;
+  const mockUtils = utilsModule as any;
+  let mockClearCache: MockedFunction<() => void>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Get the mocked clearCache function
-    const builtInCommandsLoader = require('../../src/lib/built-in-commands-loader').default;
+    const builtInCommandsLoader = builtInCommandsLoaderModule as any;
     mockClearCache = builtInCommandsLoader.clearCache;
     mockClearCache.mockClear();
 
@@ -164,7 +173,7 @@ describe('BuiltInCommandsManager', () => {
     beforeEach(() => {
       // Create a mock watcher with necessary methods
       mockWatcher = Object.assign(new EventEmitter(), {
-        close: jest.fn().mockResolvedValue(undefined)
+        close: vi.fn().mockResolvedValue(undefined)
       });
       mockChokidar.watch.mockReturnValue(mockWatcher);
     });
@@ -189,7 +198,7 @@ describe('BuiltInCommandsManager', () => {
 
     it('should clear cache on file change', async () => {
       // Arrange
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       mockFs.readdirSync.mockReturnValue([]);
       mockFs.existsSync.mockReturnValue(true);
 
@@ -198,17 +207,17 @@ describe('BuiltInCommandsManager', () => {
 
       // Act
       mockWatcher.emit('change', '/test/built-in-commands/test.yml');
-      jest.advanceTimersByTime(300);
+      vi.advanceTimersByTime(300);
 
       // Assert
       expect(mockClearCache).toHaveBeenCalledTimes(1);
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('should debounce rapid file changes', async () => {
       // Arrange
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       mockFs.readdirSync.mockReturnValue([]);
       mockFs.existsSync.mockReturnValue(true);
 
@@ -217,18 +226,18 @@ describe('BuiltInCommandsManager', () => {
 
       // Act - trigger multiple changes rapidly
       mockWatcher.emit('change', '/test/built-in-commands/test1.yml');
-      jest.advanceTimersByTime(100);
+      vi.advanceTimersByTime(100);
 
       mockWatcher.emit('change', '/test/built-in-commands/test2.yml');
-      jest.advanceTimersByTime(100);
+      vi.advanceTimersByTime(100);
 
       mockWatcher.emit('change', '/test/built-in-commands/test3.yml');
-      jest.advanceTimersByTime(300);
+      vi.advanceTimersByTime(300);
 
       // Assert - cache should only be cleared once
       expect(mockClearCache).toHaveBeenCalledTimes(1);
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('should watch YAML files only', async () => {
@@ -253,28 +262,28 @@ describe('BuiltInCommandsManager', () => {
 
     it('should emit commands-changed event on file change', async () => {
       // Arrange
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       mockFs.readdirSync.mockReturnValue([]);
       mockFs.existsSync.mockReturnValue(true);
 
-      const eventSpy = jest.fn();
+      const eventSpy = vi.fn();
       manager.on('commands-changed', eventSpy);
 
       await manager.initialize();
 
       // Act
       mockWatcher.emit('change', '/test/built-in-commands/test.yml');
-      jest.advanceTimersByTime(300);
+      vi.advanceTimersByTime(300);
 
       // Assert
       expect(eventSpy).toHaveBeenCalledTimes(1);
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('should handle file addition', async () => {
       // Arrange
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       mockFs.readdirSync.mockReturnValue([]);
       mockFs.existsSync.mockReturnValue(true);
 
@@ -283,17 +292,17 @@ describe('BuiltInCommandsManager', () => {
 
       // Act
       mockWatcher.emit('add', '/test/built-in-commands/new.yml');
-      jest.advanceTimersByTime(300);
+      vi.advanceTimersByTime(300);
 
       // Assert
       expect(mockClearCache).toHaveBeenCalledTimes(1);
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('should handle file deletion', async () => {
       // Arrange
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       mockFs.readdirSync.mockReturnValue([]);
       mockFs.existsSync.mockReturnValue(true);
 
@@ -302,12 +311,12 @@ describe('BuiltInCommandsManager', () => {
 
       // Act
       mockWatcher.emit('unlink', '/test/built-in-commands/deleted.yml');
-      jest.advanceTimersByTime(300);
+      vi.advanceTimersByTime(300);
 
       // Assert
       expect(mockClearCache).toHaveBeenCalledTimes(1);
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('should handle watcher errors gracefully', async () => {
@@ -333,7 +342,7 @@ describe('BuiltInCommandsManager', () => {
     it('should close watcher on destroy', async () => {
       // Arrange
       const mockWatcher = Object.assign(new EventEmitter(), {
-        close: jest.fn().mockResolvedValue(undefined)
+        close: vi.fn().mockResolvedValue(undefined)
       });
       mockChokidar.watch.mockReturnValue(mockWatcher);
 
@@ -351,9 +360,9 @@ describe('BuiltInCommandsManager', () => {
 
     it('should clear debounce timer on destroy', async () => {
       // Arrange
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const mockWatcher = Object.assign(new EventEmitter(), {
-        close: jest.fn().mockResolvedValue(undefined)
+        close: vi.fn().mockResolvedValue(undefined)
       });
       mockChokidar.watch.mockReturnValue(mockWatcher);
 
@@ -368,25 +377,25 @@ describe('BuiltInCommandsManager', () => {
 
       // Act
       await manager.destroy();
-      jest.advanceTimersByTime(300);
+      vi.advanceTimersByTime(300);
 
       // Assert - cache should not be cleared after destroy
       expect(mockClearCache).not.toHaveBeenCalled();
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('should remove all event listeners on destroy', async () => {
       // Arrange
       const mockWatcher = Object.assign(new EventEmitter(), {
-        close: jest.fn().mockResolvedValue(undefined)
+        close: vi.fn().mockResolvedValue(undefined)
       });
       mockChokidar.watch.mockReturnValue(mockWatcher);
 
       mockFs.readdirSync.mockReturnValue([]);
       mockFs.existsSync.mockReturnValue(true);
 
-      const eventSpy = jest.fn();
+      const eventSpy = vi.fn();
       manager.on('commands-changed', eventSpy);
 
       await manager.initialize();

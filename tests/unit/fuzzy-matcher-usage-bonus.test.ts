@@ -1,4 +1,3 @@
-import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { calculateMatchScore, calculateAgentMatchScore } from '../../src/renderer/mentions/fuzzy-matcher';
 import type { FileInfo } from '../../src/types/file-search';
 import type { AgentItem } from '../../src/types/window';
@@ -7,13 +6,13 @@ import { USAGE_BONUS } from '../../src/lib/usage-bonus-calculator';
 
 describe('fuzzy-matcher usage bonus integration', () => {
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     // Set system time to a fixed point: 2024-01-15 12:00:00 UTC
-    jest.setSystemTime(new Date('2024-01-15T12:00:00.000Z'));
+    vi.setSystemTime(new Date('2024-01-15T12:00:00.000Z'));
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   describe('calculateMatchScore with usageBonus', () => {

@@ -1,48 +1,52 @@
+import type { Mocked, MockedFunction } from 'vitest';
 import { promises as fs } from 'fs';
 import { createReadStream } from 'fs';
 import { createInterface } from 'readline';
 import HistoryManager from '../../src/managers/history-manager';
 
 // モックの設定
-jest.mock('fs', () => ({
+vi.mock('fs', () => ({
   promises: {
-    readFile: jest.fn(),
-    writeFile: jest.fn(),
-    appendFile: jest.fn(),
-    access: jest.fn(),
-    stat: jest.fn(),
-    open: jest.fn(),
-    rename: jest.fn(),
-    unlink: jest.fn()
+    readFile: vi.fn(),
+    writeFile: vi.fn(),
+    appendFile: vi.fn(),
+    access: vi.fn(),
+    stat: vi.fn(),
+    open: vi.fn(),
+    rename: vi.fn(),
+    unlink: vi.fn()
   },
-  createReadStream: jest.fn(),
-  createWriteStream: jest.fn()
+  createReadStream: vi.fn(),
+  createWriteStream: vi.fn()
 }));
 
-jest.mock('readline', () => ({
-  createInterface: jest.fn()
+vi.mock('readline', () => ({
+  createInterface: vi.fn()
 }));
 
-jest.mock('../../src/config/app-config', () => ({
-  paths: {
-    historyFile: '/test/history.jsonl'
-  }
-}));
+vi.mock('../../src/config/app-config', () => {
+  const configMock = {
+    paths: {
+      historyFile: '/test/history.jsonl'
+    }
+  };
+  return { ...configMock, default: configMock };
+});
 
-jest.mock('../../src/utils/utils', () => ({
+vi.mock('../../src/utils/utils', () => ({
   logger: {
-    info: jest.fn(),
-    debug: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn()
+    info: vi.fn(),
+    debug: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn()
   },
-  generateId: jest.fn(() => `id-${Date.now()}`),
-  debounce: jest.fn((fn) => {
+  generateId: vi.fn(() => `id-${Date.now()}`),
+  debounce: vi.fn((fn) => {
     const debounced = (...args: any[]) => fn(...args);
-    debounced.cancel = jest.fn();
+    debounced.cancel = vi.fn();
     return debounced;
   }),
-  safeJsonParse: jest.fn((text) => {
+  safeJsonParse: vi.fn((text) => {
     try {
       return JSON.parse(text);
     } catch {
@@ -53,12 +57,12 @@ jest.mock('../../src/utils/utils', () => ({
 
 describe('HistoryManager', () => {
   let manager: HistoryManager;
-  const mockFs = fs as jest.Mocked<typeof fs>;
-  const mockCreateReadStream = createReadStream as jest.MockedFunction<typeof createReadStream>;
-  const mockCreateInterface = createInterface as jest.MockedFunction<typeof createInterface>;
+  const mockFs = fs as Mocked<typeof fs>;
+  const mockCreateReadStream = createReadStream as MockedFunction<typeof createReadStream>;
+  const mockCreateInterface = createInterface as MockedFunction<typeof createInterface>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     manager = new HistoryManager();
   });
 
@@ -69,7 +73,7 @@ describe('HistoryManager', () => {
       mockFs.stat.mockResolvedValue({ size: 0 } as any);
       
       const mockStream: any = {
-        on: jest.fn((event: string, callback: Function) => {
+        on: vi.fn((event: string, callback: Function) => {
           if (event === 'close') callback();
           return mockStream;
         })
@@ -77,7 +81,7 @@ describe('HistoryManager', () => {
       
       mockCreateReadStream.mockReturnValue(mockStream as any);
       mockCreateInterface.mockReturnValue({
-        on: jest.fn((event, callback) => {
+        on: vi.fn((event, callback) => {
           if (event === 'close') callback();
         })
       } as any);
@@ -92,22 +96,22 @@ describe('HistoryManager', () => {
       mockFs.stat.mockResolvedValue({ size: 1000 } as any);
       
       const mockFd = {
-        read: jest.fn().mockImplementation((_buffer: Buffer) => {
+        read: vi.fn().mockImplementation((_buffer: Buffer) => {
           const testData = '{"text":"item1","timestamp":1000,"id":"id1"}\n{"text":"item2","timestamp":2000,"id":"id2"}\n';
           if (_buffer) _buffer.write(testData, 0);
           return Promise.resolve({ bytesRead: testData.length });
         }),
-        stat: jest.fn().mockResolvedValue({ size: 1000 }),
-        close: jest.fn().mockResolvedValue(undefined)
+        stat: vi.fn().mockResolvedValue({ size: 1000 }),
+        close: vi.fn().mockResolvedValue(undefined)
       };
       
       mockFs.open.mockResolvedValue(mockFd as any);
       
-      const mockStream = { on: jest.fn() };
+      const mockStream = { on: vi.fn() };
       mockCreateReadStream.mockReturnValue(mockStream as any);
       
       const mockRl: any = {
-        on: jest.fn((event: string, callback: Function) => {
+        on: vi.fn((event: string, callback: Function) => {
           if (event === 'line') {
             callback('{"text":"item2","timestamp":2000,"id":"id2"}');
             callback('{"text":"item1","timestamp":1000,"id":"id1"}');
@@ -135,20 +139,20 @@ describe('HistoryManager', () => {
       mockFs.appendFile.mockResolvedValue();
       
       const mockFd = {
-        read: jest.fn().mockImplementation((_buffer: Buffer) => {
+        read: vi.fn().mockImplementation((_buffer: Buffer) => {
           return Promise.resolve({ bytesRead: 0 });
         }),
-        stat: jest.fn().mockResolvedValue({ size: 0 }),
-        close: jest.fn().mockResolvedValue(undefined)
+        stat: vi.fn().mockResolvedValue({ size: 0 }),
+        close: vi.fn().mockResolvedValue(undefined)
       };
       
       mockFs.open.mockResolvedValue(mockFd as any);
       
-      const mockStream = { on: jest.fn() };
+      const mockStream = { on: vi.fn() };
       mockCreateReadStream.mockReturnValue(mockStream as any);
       
       const mockRl: any = {
-        on: jest.fn((event: string, callback: Function) => {
+        on: vi.fn((event: string, callback: Function) => {
           if (event === 'close') callback();
           return mockRl;
         })
@@ -210,22 +214,22 @@ describe('HistoryManager', () => {
       mockFs.stat.mockResolvedValue({ size: 1000 } as any);
       
       const mockFd = {
-        read: jest.fn().mockImplementation((_buffer) => {
+        read: vi.fn().mockImplementation((_buffer) => {
           const testData = '{"text":"Hello world","timestamp":1000,"id":"id1"}\n{"text":"Hello JavaScript","timestamp":2000,"id":"id2"}\n{"text":"Goodbye world","timestamp":3000,"id":"id3"}\n';
           if (_buffer) _buffer.write(testData, 0);
           return Promise.resolve({ bytesRead: testData.length });
         }),
-        stat: jest.fn().mockResolvedValue({ size: 1000 }),
-        close: jest.fn().mockResolvedValue(undefined)
+        stat: vi.fn().mockResolvedValue({ size: 1000 }),
+        close: vi.fn().mockResolvedValue(undefined)
       };
       
       mockFs.open.mockResolvedValue(mockFd as any);
       
-      const mockStream = { on: jest.fn() };
+      const mockStream = { on: vi.fn() };
       mockCreateReadStream.mockReturnValue(mockStream as any);
       
       const mockRl: any = {
-        on: jest.fn((event: string, callback: Function) => {
+        on: vi.fn((event: string, callback: Function) => {
           if (event === 'line') {
             callback('{"text":"Hello world","timestamp":1000,"id":"id1"}');
             callback('{"text":"Hello JavaScript","timestamp":2000,"id":"id2"}');
@@ -274,19 +278,19 @@ describe('HistoryManager', () => {
       mockFs.stat.mockResolvedValue({ size: 100 } as any);
       
       const mockFd = {
-        read: jest.fn().mockImplementation((_buffer) => {
+        read: vi.fn().mockImplementation((_buffer) => {
           const testData = '{"text":"Item to remove","timestamp":1000,"id":"remove-me"}\n';
           if (_buffer) _buffer.write(testData, 0);
           return Promise.resolve({ bytesRead: testData.length });
         }),
-        stat: jest.fn().mockResolvedValue({ size: 100 }),
-        close: jest.fn().mockResolvedValue(undefined)
+        stat: vi.fn().mockResolvedValue({ size: 100 }),
+        close: vi.fn().mockResolvedValue(undefined)
       };
       
       mockFs.open.mockResolvedValue(mockFd as any);
       
       const mockRl: any = {
-        on: jest.fn((event: string, callback: Function) => {
+        on: vi.fn((event: string, callback: Function) => {
           if (event === 'line') {
             callback('{"text":"Item to remove","timestamp":1000,"id":"remove-me"}');
           }
@@ -322,7 +326,7 @@ describe('HistoryManager', () => {
       mockFs.writeFile.mockResolvedValue();
       
       const mockRl: any = {
-        on: jest.fn((event: string, callback: Function) => {
+        on: vi.fn((event: string, callback: Function) => {
           if (event === 'close') callback();
           return mockRl;
         })
@@ -347,22 +351,22 @@ describe('HistoryManager', () => {
       mockFs.stat.mockResolvedValue({ size: 200 } as any);
       
       const mockFd = {
-        read: jest.fn().mockImplementation((_buffer) => {
+        read: vi.fn().mockImplementation((_buffer) => {
           const testData = '{"text":"Short","timestamp":1000,"id":"id1"}\n{"text":"Longer text here","timestamp":2000,"id":"id2"}\n';
           if (_buffer) _buffer.write(testData, 0);
           return Promise.resolve({ bytesRead: testData.length });
         }),
-        stat: jest.fn().mockResolvedValue({ size: 200 }),
-        close: jest.fn().mockResolvedValue(undefined)
+        stat: vi.fn().mockResolvedValue({ size: 200 }),
+        close: vi.fn().mockResolvedValue(undefined)
       };
       
       mockFs.open.mockResolvedValue(mockFd as any);
       
-      const mockStream = { on: jest.fn() };
+      const mockStream = { on: vi.fn() };
       mockCreateReadStream.mockReturnValue(mockStream as any);
       
       const mockRl: any = {
-        on: jest.fn((event: string, callback: Function) => {
+        on: vi.fn((event: string, callback: Function) => {
           if (event === 'line') {
             callback('{"text":"Short","timestamp":1000,"id":"id1"}');
             callback('{"text":"Longer text here","timestamp":2000,"id":"id2"}');
@@ -396,7 +400,7 @@ describe('HistoryManager', () => {
       
       // 最後の100行だけ読み込むことをシミュレート
       const mockFd = {
-        read: jest.fn().mockImplementation((_buffer: Buffer) => {
+        read: vi.fn().mockImplementation((_buffer: Buffer) => {
           // 最後の部分だけ読み込む
           const lastLines = Array(100).fill(0).map((_, i) => 
             `{"text":"Item ${i}","timestamp":${1000 + i},"id":"id${i}"}`
@@ -405,13 +409,13 @@ describe('HistoryManager', () => {
           _buffer.write(lastLines, 0);
           return Promise.resolve({ bytesRead: lastLines.length });
         }),
-        close: jest.fn().mockResolvedValue(undefined)
+        close: vi.fn().mockResolvedValue(undefined)
       };
       
       mockFs.open.mockResolvedValue(mockFd as any);
       
       const mockRl: any = {
-        on: jest.fn((event: string, callback: Function) => {
+        on: vi.fn((event: string, callback: Function) => {
           if (event === 'line') {
             // 全体のカウントのみ
             for (let i = 0; i < 10000; i++) {

@@ -1,4 +1,3 @@
-import { describe, test, expect } from '@jest/globals';
 import { extractTriggerQueryAtCursor } from '../../src/renderer/utils/trigger-query-extractor';
 
 describe('extractTriggerQueryAtCursor', () => {
