@@ -211,18 +211,6 @@ mentions:
       displayTime: "{updatedAt}"
       inputFormat: {filepath}               # Insert format template
 
-    - name: "{basename}"
-      label: "{dirname}"
-      icon: tasklist
-      color: "violet"
-      description: "{heading}"
-      path: ~/.claude/tasks
-      pattern: "**/*/*.md"
-      searchPrefix: task            # Search with @task:
-      orderBy: "{updatedAt} desc"
-      displayTime: "{updatedAt}"
-      inputFormat: {filepath}               # Insert format template
-
     # - name: "{basename}"
     #   description: "{frontmatter@title}"
     #   path: /path/to/knowledge-base

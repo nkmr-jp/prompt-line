@@ -862,6 +862,7 @@ describe('settings-yaml-generator', () => {
 
     describe('formatValue edge cases', () => {
       test('should handle non-string array elements safely', () => {
+        const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
         // Create malformed settings with non-string array elements
         const malformedSettings: UserSettings = {
           shortcuts: defaultSettings.shortcuts,
@@ -892,9 +893,11 @@ describe('settings-yaml-generator', () => {
         // Should output '[]' for safety when non-string elements are detected
         expect(result).toContain('includePatterns: []');
         expect(result).toContain('excludePatterns: []');
+        consoleSpy.mockRestore();
       });
 
       test('should handle unexpected value types safely', () => {
+        const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
         // Create malformed settings with unexpected value types
         const malformedSettings: UserSettings = {
           shortcuts: defaultSettings.shortcuts,
@@ -925,6 +928,7 @@ describe('settings-yaml-generator', () => {
         // Should output 'null' for safety when unexpected types are detected
         expect(result).toContain('followSymlinks: null');
         expect(result).toContain('timeout: null');
+        consoleSpy.mockRestore();
       });
     });
 

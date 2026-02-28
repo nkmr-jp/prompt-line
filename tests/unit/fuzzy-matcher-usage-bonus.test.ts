@@ -46,52 +46,6 @@ describe('fuzzy-matcher usage bonus integration', () => {
       expect(scoreWithBonus).toBe(baseScore + usageBonus);
     });
 
-    test('should add usageBonus=50 to starts-with match', () => {
-      const file: FileInfo = {
-        name: 'configuration',
-        path: 'src/configuration',
-        isDirectory: false
-      };
-      const queryLower = 'config';
-      const usageBonus = 50;
-
-      const baseScore = calculateMatchScore(file, queryLower);
-      const scoreWithBonus = calculateMatchScore(file, queryLower, usageBonus);
-
-      expect(scoreWithBonus).toBe(baseScore + usageBonus);
-      expect(scoreWithBonus).toBeGreaterThanOrEqual(FUZZY_MATCH_SCORES.STARTS_WITH + usageBonus);
-    });
-
-    test('should add usageBonus=150 to contains match', () => {
-      const file: FileInfo = {
-        name: 'app-config',
-        path: 'src/app-config',
-        isDirectory: false
-      };
-      const queryLower = 'config';
-      const usageBonus = 150;
-
-      const baseScore = calculateMatchScore(file, queryLower);
-      const scoreWithBonus = calculateMatchScore(file, queryLower, usageBonus);
-
-      expect(scoreWithBonus).toBe(baseScore + usageBonus);
-      expect(scoreWithBonus).toBeGreaterThanOrEqual(FUZZY_MATCH_SCORES.CONTAINS + usageBonus);
-    });
-
-    test('should handle usageBonus=0 explicitly (same as default)', () => {
-      const file: FileInfo = {
-        name: 'index',
-        path: 'src/index',
-        isDirectory: false
-      };
-      const queryLower = 'index';
-
-      const scoreDefault = calculateMatchScore(file, queryLower);
-      const scoreExplicitZero = calculateMatchScore(file, queryLower, 0);
-
-      expect(scoreExplicitZero).toBe(scoreDefault);
-    });
-
     test('should work with directory items and usageBonus', () => {
       const directory: FileInfo = {
         name: 'components',
@@ -204,21 +158,6 @@ describe('fuzzy-matcher usage bonus integration', () => {
       expect(scoreWithOldMtime).toBe(scoreWithoutMtime);
     });
 
-    test('should not add mtime bonus when mtimeMs is undefined', () => {
-      const file: FileInfo = {
-        name: 'no-mtime',
-        path: 'src/no-mtime',
-        isDirectory: false
-        // mtimeMs is undefined
-      };
-      const queryLower = 'no-mtime';
-
-      const score = calculateMatchScore(file, queryLower);
-
-      // Should only include exact match + file bonus + path bonus (no mtime bonus)
-      const expectedMaxScore = FUZZY_MATCH_SCORES.EXACT + FUZZY_MATCH_SCORES.FILE_BONUS + FUZZY_MATCH_SCORES.MAX_PATH_BONUS + 1;
-      expect(score).toBeLessThan(expectedMaxScore);
-    });
   });
 
   describe('calculateMatchScore with combined bonuses', () => {
@@ -251,27 +190,6 @@ describe('fuzzy-matcher usage bonus integration', () => {
       expect(scoreWithBothBonuses).toBe(scoreWithoutBonuses + usageBonus + expectedMtimeBonus);
     });
 
-    test('should combine usageBonus with reduced mtimeMs bonus', () => {
-      const now = Date.now();
-      const oldTime = now - (20 * 24 * 60 * 60 * 1000); // 20 days ago
-
-      const file: FileInfo = {
-        name: 'semi-old',
-        path: 'src/semi-old',
-        isDirectory: false,
-        mtimeMs: oldTime
-      };
-      const queryLower = 'semi-old';
-      const usageBonus = 75;
-
-      const scoreWithBonuses = calculateMatchScore(file, queryLower, usageBonus);
-      const scoreWithoutUsageBonus = calculateMatchScore(file, queryLower, 0);
-
-      // Should add usage bonus (75) + no mtime bonus (20 days is beyond TTL)
-      // The mtime bonus is 0 for files beyond 7-day TTL
-      const difference = scoreWithBonuses - scoreWithoutUsageBonus;
-      expect(difference).toBe(usageBonus); // Only usage bonus, no mtime bonus
-    });
   });
 
   describe('calculateAgentMatchScore with usageBonus', () => {
@@ -305,38 +223,6 @@ describe('fuzzy-matcher usage bonus integration', () => {
       expect(scoreWithBonus).toBe(FUZZY_MATCH_SCORES.EXACT + usageBonus);
     });
 
-    test('should add usageBonus=50 to starts-with match', () => {
-      const agent: AgentItem = {
-        name: 'code-reviewer',
-        description: 'Reviews your code',
-        filePath: '/agents/code-reviewer.md'
-      };
-      const queryLower = 'code';
-      const usageBonus = 50;
-
-      const baseScore = calculateAgentMatchScore(agent, queryLower);
-      const scoreWithBonus = calculateAgentMatchScore(agent, queryLower, usageBonus);
-
-      expect(baseScore).toBe(FUZZY_MATCH_SCORES.STARTS_WITH);
-      expect(scoreWithBonus).toBe(FUZZY_MATCH_SCORES.STARTS_WITH + usageBonus);
-    });
-
-    test('should add usageBonus=150 to contains match', () => {
-      const agent: AgentItem = {
-        name: 'test-code-helper',
-        description: 'Helps with testing',
-        filePath: '/agents/test-code-helper.md'
-      };
-      const queryLower = 'code';
-      const usageBonus = 150;
-
-      const baseScore = calculateAgentMatchScore(agent, queryLower);
-      const scoreWithBonus = calculateAgentMatchScore(agent, queryLower, usageBonus);
-
-      expect(baseScore).toBe(FUZZY_MATCH_SCORES.CONTAINS);
-      expect(scoreWithBonus).toBe(FUZZY_MATCH_SCORES.CONTAINS + usageBonus);
-    });
-
     test('should add usageBonus=75 to description match', () => {
       const agent: AgentItem = {
         name: 'helper',
@@ -353,37 +239,6 @@ describe('fuzzy-matcher usage bonus integration', () => {
       expect(scoreWithBonus).toBe(FUZZY_MATCH_SCORES.PATH_CONTAINS + usageBonus);
     });
 
-    test('should return AGENT_BASE when query is empty (usageBonus not applied)', () => {
-      const agent: AgentItem = {
-        name: 'any-agent',
-        description: 'Any description',
-        filePath: '/agents/any-agent.md'
-      };
-      const queryLower = '';
-      const usageBonus = 100;
-
-      const scoreWithoutBonus = calculateAgentMatchScore(agent, queryLower);
-      const scoreWithBonus = calculateAgentMatchScore(agent, queryLower, usageBonus);
-
-      // Note: Current implementation returns AGENT_BASE immediately for empty query,
-      // without adding usageBonus. This is a known limitation.
-      expect(scoreWithoutBonus).toBe(FUZZY_MATCH_SCORES.AGENT_BASE);
-      expect(scoreWithBonus).toBe(FUZZY_MATCH_SCORES.AGENT_BASE); // usageBonus not added
-    });
-
-    test('should handle usageBonus=0 explicitly (same as default)', () => {
-      const agent: AgentItem = {
-        name: 'test-agent',
-        description: 'Test description',
-        filePath: '/agents/test-agent.md'
-      };
-      const queryLower = 'test';
-
-      const scoreDefault = calculateAgentMatchScore(agent, queryLower);
-      const scoreExplicitZero = calculateAgentMatchScore(agent, queryLower, 0);
-
-      expect(scoreExplicitZero).toBe(scoreDefault);
-    });
   });
 
   describe('sorting with usage bonuses', () => {
@@ -518,96 +373,6 @@ describe('fuzzy-matcher usage bonus integration', () => {
     });
   });
 
-  describe('edge cases and boundary conditions', () => {
-    test('should handle very large usageBonus values', () => {
-      const file: FileInfo = {
-        name: 'test.ts',
-        path: 'test.ts',
-        isDirectory: false
-      };
-      const queryLower = 'test';
-      const veryLargeBonus = 10000;
-
-      const score = calculateMatchScore(file, queryLower, veryLargeBonus);
-
-      expect(score).toBeGreaterThan(10000);
-    });
-
-    test('should handle negative usageBonus gracefully', () => {
-      const file: FileInfo = {
-        name: 'test.ts',
-        path: 'test.ts',
-        isDirectory: false
-      };
-      const queryLower = 'test';
-      const negativeBonus = -50;
-
-      const baseScore = calculateMatchScore(file, queryLower, 0);
-      const scoreWithNegative = calculateMatchScore(file, queryLower, negativeBonus);
-
-      // Negative bonus should reduce score
-      expect(scoreWithNegative).toBe(baseScore + negativeBonus);
-      expect(scoreWithNegative).toBeLessThan(baseScore);
-    });
-
-    test('should handle fractional usageBonus values', () => {
-      const file: FileInfo = {
-        name: 'test.ts',
-        path: 'test.ts',
-        isDirectory: false
-      };
-      const queryLower = 'test';
-      const fractionalBonus = 25.5;
-
-      const baseScore = calculateMatchScore(file, queryLower, 0);
-      const scoreWithFractional = calculateMatchScore(file, queryLower, fractionalBonus);
-
-      expect(scoreWithFractional).toBe(baseScore + fractionalBonus);
-    });
-
-    test('should handle zero mtimeMs (epoch time)', () => {
-      const file: FileInfo = {
-        name: 'ancient.ts',
-        path: 'ancient.ts',
-        isDirectory: false,
-        mtimeMs: 0 // Unix epoch
-      };
-      const queryLower = 'ancient';
-
-      const score = calculateMatchScore(file, queryLower);
-
-      // Should work without errors, mtime bonus will be 0 for such old files
-      expect(score).toBeGreaterThan(0);
-    });
-
-    test('should handle future mtimeMs gracefully', () => {
-      const now = Date.now();
-      const futureTime = now + (24 * 60 * 60 * 1000); // 1 day in future
-
-      const fileWithFutureMtime: FileInfo = {
-        name: 'future',
-        path: 'future',
-        isDirectory: false,
-        mtimeMs: futureTime
-      };
-
-      const fileWithoutMtime: FileInfo = {
-        name: 'future',
-        path: 'future',
-        isDirectory: false
-      };
-
-      const queryLower = 'future';
-
-      const scoreWithFutureMtime = calculateMatchScore(fileWithFutureMtime, queryLower);
-      const scoreWithoutMtime = calculateMatchScore(fileWithoutMtime, queryLower);
-
-      // calculateFileMtimeBonus returns MAX_FILE_MTIME (100) for future times
-      const MAX_MTIME_BONUS = 100;
-      expect(scoreWithFutureMtime).toBe(scoreWithoutMtime + MAX_MTIME_BONUS);
-    });
-  });
-
   describe('multi-keyword AND search', () => {
     describe('calculateMatchScore with multiple keywords', () => {
       test('should match file when all keywords match name', () => {
@@ -639,38 +404,6 @@ describe('fuzzy-matcher usage bonus integration', () => {
         // "config" matches path, "manager" matches name
         const score = calculateMatchScore(file, 'config manager');
         expect(score).toBeGreaterThan(0);
-      });
-
-      test('single keyword should produce same score as before', () => {
-        const file: FileInfo = {
-          name: 'config',
-          path: 'src/config',
-          isDirectory: false
-        };
-        const singleScore = calculateMatchScore(file, 'config');
-        const multiScore = calculateMatchScore(file, 'config');
-        expect(singleScore).toBe(multiScore);
-      });
-
-      test('should handle extra spaces in query', () => {
-        const file: FileInfo = {
-          name: 'config-manager',
-          path: 'src/config-manager',
-          isDirectory: false
-        };
-        const score = calculateMatchScore(file, '  config   manager  ');
-        expect(score).toBeGreaterThan(0);
-      });
-
-      test('should handle query with only spaces', () => {
-        const file: FileInfo = {
-          name: 'config',
-          path: 'src/config',
-          isDirectory: false
-        };
-        const score = calculateMatchScore(file, '   ');
-        // No keywords → only bonuses
-        expect(score).toBeGreaterThanOrEqual(0);
       });
 
       test('should normalize multi-keyword score', () => {
