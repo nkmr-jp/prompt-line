@@ -127,6 +127,62 @@ vi.mock('../../src/renderer/lifecycle-manager', () => ({
     }; })
 }));
 
+// Mock MentionManager
+vi.mock('../../src/renderer/mention-manager', () => ({
+    MentionManager: vi.fn(function() { return {
+        initialize: vi.fn(),
+        initializeElements: vi.fn(),
+        setupEventListeners: vi.fn(),
+        handleKeyDown: vi.fn(),
+        updateCache: vi.fn(),
+        clearCache: vi.fn(),
+        updateHighlightBackdrop: vi.fn(),
+        clearAtPaths: vi.fn(),
+        isActive: vi.fn().mockReturnValue(false),
+        destroy: vi.fn(),
+        setFileSearchEnabled: vi.fn(),
+        isFileSearchEnabled: vi.fn().mockReturnValue(false),
+        setSymbolSearchEnabled: vi.fn(),
+        isSymbolSearchEnabled: vi.fn().mockReturnValue(false),
+        handleCachedDirectoryData: vi.fn()
+    }; })
+}));
+
+// Mock AgentSkillManager
+vi.mock('../../src/renderer/agent-skill-manager', () => ({
+    AgentSkillManager: vi.fn(function() { return {
+        initializeElements: vi.fn(),
+        setupEventListeners: vi.fn(),
+        loadSkills: vi.fn(),
+        handleKeyDown: vi.fn(),
+        isActive: vi.fn().mockReturnValue(false),
+        destroy: vi.fn(),
+        invalidateCache: vi.fn(),
+        getSkillSource: vi.fn(),
+        getSkillColor: vi.fn(),
+        getKnownSkillNames: vi.fn().mockReturnValue([])
+    }; })
+}));
+
+// Mock SimpleSnapshotManager
+vi.mock('../../src/renderer/snapshot-manager', () => ({
+    SimpleSnapshotManager: vi.fn(function() { return {
+        saveSnapshot: vi.fn(),
+        clearSnapshot: vi.fn(),
+        undo: vi.fn(),
+        redo: vi.fn(),
+        clear: vi.fn()
+    }; })
+}));
+
+// Mock DirectoryDataHandler
+vi.mock('../../src/renderer/directory-data-handler', () => ({
+    DirectoryDataHandler: vi.fn(function() { return {
+        handleWindowShown: vi.fn(),
+        handleDirectoryDataUpdated: vi.fn()
+    }; })
+}));
+
 // Mock window.require before any imports
 (window as any).require = vi.fn((module: string) => {
     if (module === 'electron') {
@@ -286,7 +342,7 @@ describe('PromptLineRenderer (Refactored)', () => {
     });
 
     describe('window lifecycle', () => {
-        test('should delegate window shown to lifecycleManager', () => {
+        test('should delegate window shown to directoryDataHandler', () => {
             const windowData = {
                 draft: 'test draft',
                 history: [],
@@ -299,7 +355,7 @@ describe('PromptLineRenderer (Refactored)', () => {
 
             (renderer as any).handleWindowShown(windowData);
 
-            expect((renderer as any).lifecycleManager.handleWindowShown).toHaveBeenCalledWith(windowData);
+            expect((renderer as any).directoryDataHandler.handleWindowShown).toHaveBeenCalledWith(windowData);
         });
 
         test('should delegate window hide to draftManager', async () => {
