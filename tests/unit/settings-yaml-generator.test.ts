@@ -145,7 +145,7 @@ describe('settings-yaml-generator', () => {
                 searchPrefix: 'agent',
                 maxSuggestions: 20,
                 orderBy: 'name',
-                inputFormat: 'path'
+                inputFormat: '{filepath}'
               }
             ]
           }
@@ -201,7 +201,7 @@ describe('settings-yaml-generator', () => {
         // Mentions - customSearch
         expect(result).toContain('searchPrefix: agent');
         expect(result).toContain('orderBy: "name"');
-        expect(result).toContain('inputFormat: path');
+        expect(result).toContain('inputFormat: {filepath}');
       });
     });
 
@@ -666,7 +666,7 @@ describe('settings-yaml-generator', () => {
                 path: '~/.claude/agents',
                 pattern: '*.md',
                 searchPrefix: 'agent',
-                inputFormat: 'path'
+                inputFormat: '{filepath}'
               }
             ]
           }
@@ -678,7 +678,7 @@ describe('settings-yaml-generator', () => {
         expect(result).toMatch(/respectGitignore:.*# Respect .gitignore files/);
         expect(result).toMatch(/includeHidden:.*# Include hidden files/);
         expect(result).toMatch(/searchPrefix: agent.*# Search with @agent:/);
-        expect(result).toMatch(/inputFormat: path.*# Insert file path instead of name/);
+        expect(result).toMatch(/inputFormat: \{filepath\}.*# Insert format template/);
       });
     });
 
@@ -711,7 +711,7 @@ describe('settings-yaml-generator', () => {
                 searchPrefix: 'test',
                 maxSuggestions: 100,
                 orderBy: 'name desc',
-                inputFormat: 'path'
+                inputFormat: '{filepath}'
               }
             ]
           }
@@ -726,7 +726,7 @@ describe('settings-yaml-generator', () => {
         expect(result).toContain('searchPrefix: test');
         expect(result).toContain('maxSuggestions: 100');
         expect(result).toContain('orderBy: "name desc"');
-        expect(result).toContain('inputFormat: path');
+        expect(result).toContain('inputFormat: {filepath}');
       });
 
       test('should format customSearch entries without optional fields', () => {

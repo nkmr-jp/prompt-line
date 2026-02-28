@@ -46,7 +46,7 @@ interface AgentSkillItem {
   argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
   filePath: string;
   frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
-  inputFormat?: InputFormatType;  // 入力フォーマット（'name' | 'path' | テンプレート）
+  inputFormat?: InputFormatType;  // 入力フォーマット（'name' | テンプレート e.g. '{filepath}', '{content}'）
   inputText?: string;  // テンプレート解決済みの入力テキスト
   source?: string;  // Source tool identifier (e.g., 'claude-code') for filtering
   displayName?: string;  // Human-readable source name for display (e.g., 'Claude Code')
@@ -825,11 +825,14 @@ export class AgentSkillManager implements IInitializable {
     this.registerSkillToCache(command.name);
 
     // Determine what to insert based on inputFormat setting
-    // Default to 'name' for commands (backward compatible behavior)
-    const inputFormat = command.inputFormat ?? 'name';
+    // inputText がある場合: テンプレート解決済みテキスト（inputFormat: '{filepath}' 等）
+    // inputFormat が 'name' or undefined: 従来通り / 付き（'name' はビルトインのデフォルト値）
+    // それ以外の inputFormat: / なし
     const skillText = command.inputText
       ? command.inputText
-      : inputFormat === 'path' ? command.filePath : `/${command.name}`;
+      : command.inputFormat && command.inputFormat !== 'name'
+        ? command.name            // inputFormat 指定あり（テンプレート等） → / なし
+        : `/${command.name}`;     // デフォルト or 'name' → / あり
 
     // Set editing mode BEFORE inserting text.
     // replaceRangeWithUndo triggers a synchronous input event → checkForAgentSkill.

@@ -15,6 +15,8 @@ commands:
     description: Manage custom AI subagents for specialized tasks
   - name: bashes
     description: List and manage background tasks
+  - name: batch
+    description: "Research and plan a large-scale change, then execute it in parallel across 5\u201330 isolated worktree agents that each open a PR"
   - name: bug
     description: Report bugs (sends conversation to Anthropic)
   - name: chrome
@@ -111,6 +113,8 @@ commands:
     description: "Enable sandboxed bash tool with filesystem and network isolation for safer, more autonomous execution"
   - name: security-review
     description: Complete a security review of pending changes on the current branch
+  - name: simplify
+    description: Review changed code for reuse, quality, and efficiency, then fix any issues found
   - name: skills
     description: List available skills
   - name: stats

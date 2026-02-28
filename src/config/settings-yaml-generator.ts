@@ -189,7 +189,7 @@ function formatCustomSearchEntry(entry: MentionEntry, indent: string, commented 
     lines.push(`${contentLinePrefix}displayTime: "${entry.displayTime}"`);
   }
   if (entry.inputFormat !== undefined) {
-    lines.push(`${contentLinePrefix}inputFormat: ${entry.inputFormat}               # Insert file path instead of name`);
+    lines.push(`${contentLinePrefix}inputFormat: ${entry.inputFormat}               # Insert format template`);
   }
 
   return lines.join('\n');
@@ -375,7 +375,7 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
   #   maxSuggestions  : Maximum number of suggestions to display
   #   orderBy         : Sort order (e.g., "name", "name desc", "{updatedAt} desc")
   #   displayTime     : Timestamp to display (e.g., "{updatedAt}", "{json@createdAt}", "none" to hide)
-  #   inputFormat     : Insert format (name, path, or template string e.g. "~/ghq/{line}")
+  #   inputFormat     : Insert format ('name' = display name, or template e.g. '{filepath}', '{content}')
   #   color           : Badge color (name or hex)
   #   icon            : Codicon icon name (e.g., "agent", "rocket", "terminal")
   #                     https://microsoft.github.io/vscode-codicons/dist/codicon.html
