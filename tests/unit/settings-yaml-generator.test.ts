@@ -678,7 +678,7 @@ describe('settings-yaml-generator', () => {
         expect(result).toMatch(/respectGitignore:.*# Respect .gitignore files/);
         expect(result).toMatch(/includeHidden:.*# Include hidden files/);
         expect(result).toMatch(/searchPrefix: agent.*# Search with @agent:/);
-        expect(result).toMatch(/inputFormat: \{filepath\}.*# Insert file path instead of name/);
+        expect(result).toMatch(/inputFormat: \{filepath\}.*# Insert format template/);
       });
     });
 

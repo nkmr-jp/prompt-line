@@ -140,7 +140,7 @@ mentions:
   #   maxSuggestions  : Maximum number of suggestions to display
   #   orderBy         : Sort order (e.g., "name", "name desc", "{updatedAt} desc")
   #   displayTime     : Timestamp to display (e.g., "{updatedAt}", "{json@createdAt}", "none" to hide)
-  #   inputFormat     : Insert format (name, path, or template string e.g. "~/ghq/{line}")
+  #   inputFormat     : Insert format ('name' = display name, or template e.g. '{filepath}', '{content}')
   #   color           : Badge color (name or hex)
   #   icon            : Codicon icon name (e.g., "agent", "rocket", "terminal")
   #                     https://microsoft.github.io/vscode-codicons/dist/codicon.html
@@ -207,7 +207,7 @@ mentions:
       searchPrefix: plan            # Search with @plan:
       orderBy: "{updatedAt} desc"
       displayTime: "{updatedAt}"
-      inputFormat: path               # Insert file path instead of name
+      inputFormat: {filepath}               # Insert format template
 
     - name: "{basename}"
       label: "{dirname}"
@@ -219,7 +219,7 @@ mentions:
       searchPrefix: task            # Search with @task:
       orderBy: "{updatedAt} desc"
       displayTime: "{updatedAt}"
-      inputFormat: path               # Insert file path instead of name
+      inputFormat: {filepath}               # Insert format template
 
     # - name: "{basename}"
     #   description: "{frontmatter@title}"
@@ -228,7 +228,7 @@ mentions:
     #   searchPrefix: kb            # Search with @kb:
     #   maxSuggestions: 100
     #   orderBy: "{updatedAt} desc"
-    #   inputFormat: path               # Insert file path instead of name
+    #   inputFormat: {filepath}               # Insert format template
 
   # File search settings (@path/to/file completion)
   # Note: fd command required (brew install fd)
