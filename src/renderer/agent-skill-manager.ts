@@ -692,6 +692,9 @@ export class AgentSkillManager implements IInitializable {
    * Supports: ArrowDown/Ctrl+n/Ctrl+j (next), ArrowUp/Ctrl+p/Ctrl+k (previous), Enter/Tab (select), Escape (close), Ctrl+i (toggle tooltip)
    */
   private handleKeyDown(e: KeyboardEvent): void {
+    // Skip all key handling if IME is active (for Japanese/CJK input)
+    if (e.isComposing) return;
+
     // Ctrl+i: Toggle auto-show tooltip
     if (e.ctrlKey && e.key === 'i') {
       e.preventDefault();
