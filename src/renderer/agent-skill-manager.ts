@@ -67,7 +67,6 @@ export class AgentSkillManager implements IInitializable {
   private editingSkillName: string = ''; // The command name being edited
   private editingSkillStartPos: number = 0; // Position where the editing command starts
   private currentTriggerStartPos: number = 0; // Position of trigger character
-  private onSkillSelect: (command: string) => void;
   private onSkillInsert: (command: string) => void;
   private onBeforeOpenFile: (() => void) | undefined;
   private setDraggable: ((enabled: boolean) => void) | undefined;
@@ -76,12 +75,11 @@ export class AgentSkillManager implements IInitializable {
   private frontmatterPopupManager: FrontmatterPopupManager;
 
   constructor(callbacks: {
-    onSkillSelect: (command: string) => void;
+    onSkillSelect?: (command: string) => void;
     onSkillInsert?: (command: string) => void;
     onBeforeOpenFile?: () => void;
     setDraggable?: (enabled: boolean) => void;
   }) {
-    this.onSkillSelect = callbacks.onSkillSelect;
     this.onSkillInsert = callbacks.onSkillInsert || (() => {});
     this.onBeforeOpenFile = callbacks.onBeforeOpenFile;
     this.setDraggable = callbacks.setDraggable;
@@ -96,7 +94,7 @@ export class AgentSkillManager implements IInitializable {
         const fullSkill = this.filteredSkills.find(cmd => cmd.name === command.name);
         if (fullSkill) {
           // Use Tab behavior (shouldPaste=false) to insert command with space for editing
-          this.selectSkill(this.filteredSkills.indexOf(fullSkill), false);
+          this.selectSkill(this.filteredSkills.indexOf(fullSkill));
         }
       }
     });
@@ -753,14 +751,14 @@ export class AgentSkillManager implements IInitializable {
           this.openSkillFile(this.selectedIndex);
         } else {
           // Enter: Paste immediately
-          this.selectSkill(this.selectedIndex, true);
+          this.selectSkill(this.selectedIndex);
         }
         break;
 
       case 'Tab':
         e.preventDefault();
         e.stopPropagation();
-        this.selectSkill(this.selectedIndex, false); // Insert for editing
+        this.selectSkill(this.selectedIndex);
         break;
 
       case 'Escape':
@@ -798,9 +796,8 @@ export class AgentSkillManager implements IInitializable {
   /**
    * Select a command and insert it into the textarea
    * @param index - The index of the command to select
-   * @param shouldPaste - If true, paste immediately (Enter). If false, insert for editing (Tab).
    */
-  private selectSkill(index: number, shouldPaste: boolean = true): void {
+  private selectSkill(index: number): void {
     if (index < 0 || index >= this.filteredSkills.length) return;
 
     const command = this.filteredSkills[index];
@@ -823,22 +820,12 @@ export class AgentSkillManager implements IInitializable {
       this.hideSuggestions();
     }
 
-    if (shouldPaste && this.currentTriggerStartPos === 0) {
-      // Enter at text start: Paste immediately
-      // Replace only the /query portion
-      const start = this.currentTriggerStartPos;
-      const end = this.textarea.selectionStart;
-      this.replaceRangeWithUndo(start, end, skillText);
-      this.onSkillSelect(skillText);
-    } else {
-      // Tab, or Enter at non-start position: Insert with trailing space for editing
-      const skillWithSpace = skillText + ' ';
-      // Replace only the /query portion
-      const start = this.currentTriggerStartPos;
-      const end = this.textarea.selectionStart;
-      this.replaceRangeWithUndo(start, end, skillWithSpace);
-      this.onSkillInsert(skillWithSpace);
-    }
+    // Insert with trailing space for editing
+    const skillWithSpace = skillText + ' ';
+    const start = this.currentTriggerStartPos;
+    const end = this.textarea.selectionStart;
+    this.replaceRangeWithUndo(start, end, skillWithSpace);
+    this.onSkillInsert(skillWithSpace);
   }
 
   /**
