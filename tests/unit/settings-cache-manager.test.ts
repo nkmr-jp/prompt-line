@@ -83,6 +83,16 @@ describe('SettingsCacheManager', () => {
       expect(result2).toBe(50);
       expect(mockElectronAPI.fileSearch.getMaxSuggestions).toHaveBeenCalledTimes(1);
     });
+
+    test('should return default value on API error', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      mockElectronAPI.fileSearch.getMaxSuggestions = vi.fn(() => Promise.reject(new Error('API error')));
+
+      const result = await settingsCacheManager.getFileSearchMaxSuggestions();
+
+      expect(result).toBe(20); // DEFAULT_MAX_SUGGESTIONS
+      consoleSpy.mockRestore();
+    });
   });
 
   describe('getSearchPrefixes', () => {
@@ -95,6 +105,16 @@ describe('SettingsCacheManager', () => {
       expect(result1).toEqual(['/prefix1', '/prefix2']);
       expect(result2).toEqual(['/prefix1', '/prefix2']);
       expect(mockElectronAPI.customSearch.getSearchPrefixes).toHaveBeenCalledTimes(1);
+    });
+
+    test('should return empty array on API error', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      mockElectronAPI.customSearch.getSearchPrefixes = vi.fn(() => Promise.reject(new Error('API error')));
+
+      const result = await settingsCacheManager.getSearchPrefixes('command');
+
+      expect(result).toEqual([]);
+      consoleSpy.mockRestore();
     });
   });
 
@@ -169,6 +189,10 @@ describe('SettingsCacheManager', () => {
   });
 
   describe('isCommandEnabledSync', () => {
+    test('should return false when cache is empty', () => {
+      expect(settingsCacheManager.isCommandEnabledSync()).toBe(false);
+    });
+
     test('should return true when command prefixes are cached', async () => {
       mockElectronAPI.customSearch.getSearchPrefixes = vi.fn(() => Promise.resolve(['/cmd']));
       await settingsCacheManager.getSearchPrefixes('command');
@@ -180,6 +204,10 @@ describe('SettingsCacheManager', () => {
   });
 
   describe('matchesSearchPrefixSync', () => {
+    test('should return false when cache is empty', () => {
+      expect(settingsCacheManager.matchesSearchPrefixSync('/test', 'command')).toBe(false);
+    });
+
     test('should return true when query matches cached prefix', async () => {
       mockElectronAPI.customSearch.getSearchPrefixes = vi.fn(() => Promise.resolve(['/test', '/demo']));
       await settingsCacheManager.getSearchPrefixes('command');

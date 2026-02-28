@@ -26,6 +26,19 @@ describe('error-handler', () => {
   });
 
   describe('handleError', () => {
+    it('should log error with context for Error object', () => {
+      const error = new Error('Test error');
+      handleError('TestContext', error);
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith('[TestContext] Test error', error);
+    });
+
+    it('should log error with context for string input', () => {
+      handleError('TestContext', 'String error');
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith('[TestContext] String error', 'String error');
+    });
+
     it('should skip logging in silent mode', () => {
       const error = new Error('Test error');
       handleError('TestContext', error, { silent: true });

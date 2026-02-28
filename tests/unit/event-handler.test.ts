@@ -44,19 +44,25 @@ describe('EventHandler', () => {
     test('should dispatch Tab to onTabKeyInsert and Shift+Tab to onShiftTabKeyPress', () => {
       eventHandler.setupEventListeners();
 
-      // Tab without Shift calls onTabKeyInsert
-      textarea.dispatchEvent(new KeyboardEvent('keydown', {
-        key: 'Tab', shiftKey: false, bubbles: true
-      }));
+      // Tab without Shift calls onTabKeyInsert and prevents default
+      const tabEvent = new KeyboardEvent('keydown', {
+        key: 'Tab', shiftKey: false, bubbles: true, cancelable: true
+      });
+      const tabPreventDefaultSpy = vi.spyOn(tabEvent, 'preventDefault');
+      textarea.dispatchEvent(tabEvent);
       expect(mockCallbacks.onTabKeyInsert).toHaveBeenCalledTimes(1);
       expect(mockCallbacks.onShiftTabKeyPress).not.toHaveBeenCalled();
+      expect(tabPreventDefaultSpy).toHaveBeenCalled();
 
-      // Shift+Tab calls onShiftTabKeyPress instead
-      textarea.dispatchEvent(new KeyboardEvent('keydown', {
-        key: 'Tab', shiftKey: true, bubbles: true
-      }));
+      // Shift+Tab calls onShiftTabKeyPress instead and prevents default
+      const shiftTabEvent = new KeyboardEvent('keydown', {
+        key: 'Tab', shiftKey: true, bubbles: true, cancelable: true
+      });
+      const shiftTabPreventDefaultSpy = vi.spyOn(shiftTabEvent, 'preventDefault');
+      textarea.dispatchEvent(shiftTabEvent);
       expect(mockCallbacks.onTabKeyInsert).toHaveBeenCalledTimes(1); // still 1
       expect(mockCallbacks.onShiftTabKeyPress).toHaveBeenCalledTimes(1);
+      expect(shiftTabPreventDefaultSpy).toHaveBeenCalled();
     });
 
     test('should NOT call onTabKeyInsert when Tab is pressed during IME composition', () => {

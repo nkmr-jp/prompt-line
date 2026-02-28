@@ -44,6 +44,22 @@ describe('jq-resolver', () => {
       expect(result).toEqual([{ name: 'alice' }]);
     });
 
+    test('should return null when data path does not exist', async () => {
+      const data = { foo: 'bar' };
+
+      const result = await evaluateJq(data, '.nonexistent');
+
+      expect(result).toBeNull();
+    });
+
+    test('should handle scalar results', async () => {
+      const data = { count: 42 };
+
+      const result = await evaluateJq(data, '.count');
+
+      expect(result).toBe(42);
+    });
+
     test('should return null when jq expression is invalid', async () => {
       const data = { foo: 'bar' };
 

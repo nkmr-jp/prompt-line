@@ -33,6 +33,13 @@ describe('highlightMatch', () => {
       );
     });
 
+    test('should handle multiple occurrences of same keyword', () => {
+      const result = highlightMatch('test a test b', 'test', 'hl');
+      expect(result).toBe(
+        '<span class="hl">test</span> a <span class="hl">test</span> b'
+      );
+    });
+
     test('should handle query with extra spaces', () => {
       const result = highlightMatch('Hello World', '  hello   world  ', 'hl');
       expect(result).toBe(
