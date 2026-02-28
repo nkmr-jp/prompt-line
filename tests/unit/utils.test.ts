@@ -1,18 +1,17 @@
-import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globals';
 type ExecCallback = (error: Error | null, stdout: string, stderr: string) => void;
 
 // Mock child_process before importing utils
-jest.mock('child_process', () => ({
-    exec: jest.fn(),
-    execFile: jest.fn()
+vi.mock('child_process', () => ({
+    exec: vi.fn(),
+    execFile: vi.fn()
 }));
 
 // Mock fs before importing utils
-jest.mock('fs', () => ({
+vi.mock('fs', () => ({
     promises: {
-        access: jest.fn(),
-        mkdir: jest.fn(),
-        appendFile: jest.fn(() => Promise.resolve())
+        access: vi.fn(),
+        mkdir: vi.fn(),
+        appendFile: vi.fn(() => Promise.resolve())
     }
 }));
 
@@ -38,38 +37,16 @@ import {
 import { execFile } from 'child_process';
 import { promises as fs } from 'fs';
 
-const mockedExecFile = jest.mocked(execFile);
+const mockedExecFile = vi.mocked(execFile);
 // Keep mockedExec as an alias for backward compatibility
 const mockedExec = mockedExecFile;
-const mockedFs = jest.mocked(fs);
+const mockedFs = vi.mocked(fs);
 
-// Console capture helper
-function captureConsole() {
-    const logs: any[] = [];
-    const originalLog = console.log;
-    const originalError = console.error;
-    const originalWarn = console.warn;
-    const originalInfo = console.info;
-
-    console.log = (...args: any[]) => logs.push(['log', ...args]);
-    console.error = (...args: any[]) => logs.push(['error', ...args]);
-    console.warn = (...args: any[]) => logs.push(['warn', ...args]);
-    console.info = (...args: any[]) => logs.push(['info', ...args]);
-
-    return {
-        getLogs: () => logs,
-        restore: () => {
-            console.log = originalLog;
-            console.error = originalError;
-            console.warn = originalWarn;
-            console.info = originalInfo;
-        }
-    };
-}
+// Use global captureConsole() from tests/setup.ts
 
 describe('Utils', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     describe('Logger', () => {
@@ -224,33 +201,40 @@ describe('Utils', () => {
     });
 
     describe('debounce', () => {
-        jest.useFakeTimers();
+        beforeEach(() => {
+            vi.useFakeTimers();
+        });
+
+        afterEach(() => {
+            vi.clearAllTimers();
+            vi.useRealTimers();
+        });
 
         test('should delay function execution', () => {
-            const fn = jest.fn();
+            const fn = vi.fn();
             const debouncedFn = debounce(fn, 100);
             
             debouncedFn();
             expect(fn).not.toHaveBeenCalled();
             
-            jest.advanceTimersByTime(100);
+            vi.advanceTimersByTime(100);
             expect(fn).toHaveBeenCalledTimes(1);
         });
 
         test('should cancel previous calls', () => {
-            const fn = jest.fn();
+            const fn = vi.fn();
             const debouncedFn = debounce(fn, 100);
             
             debouncedFn();
             debouncedFn();
             debouncedFn();
             
-            jest.advanceTimersByTime(100);
+            vi.advanceTimersByTime(100);
             expect(fn).toHaveBeenCalledTimes(1);
         });
 
         afterEach(() => {
-            jest.clearAllTimers();
+            vi.clearAllTimers();
         });
     });
 
@@ -280,7 +264,7 @@ describe('Utils', () => {
             
             // Suppress console.warn for this test
             const originalWarn = console.warn;
-            console.warn = jest.fn();
+            console.warn = vi.fn();
             
             const result = safeJsonStringify(obj);
             expect(result).toBe('{}'); // Returns fallback value for circular references
@@ -347,18 +331,21 @@ describe('Utils', () => {
     });
 
     describe('sleep', () => {
-        jest.useFakeTimers();
-
-        test('should delay execution', async () => {
-            const promise = sleep(1000);
-            
-            jest.advanceTimersByTime(1000);
-            
-            await expect(promise).resolves.toBeUndefined();
+        beforeEach(() => {
+            vi.useFakeTimers();
         });
 
         afterEach(() => {
-            jest.clearAllTimers();
+            vi.clearAllTimers();
+            vi.useRealTimers();
+        });
+
+        test('should delay execution', async () => {
+            const promise = sleep(1000);
+
+            vi.advanceTimersByTime(1000);
+
+            await expect(promise).resolves.toBeUndefined();
         });
     });
 

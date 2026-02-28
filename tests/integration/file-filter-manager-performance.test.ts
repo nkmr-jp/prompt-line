@@ -3,7 +3,6 @@
  * Measures execution time for file filtering operations
  */
 
-import { describe, test, expect, beforeEach } from '@jest/globals';
 import { FileFilterManager } from '../../src/renderer/mentions/managers/file-filter-manager';
 import type { DirectoryData } from '../../src/renderer/mentions/types';
 import type { FileInfo } from '../../src/types';

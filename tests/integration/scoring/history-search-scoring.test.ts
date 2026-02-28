@@ -3,7 +3,6 @@
  * Tests FilterEngine from history-search module with scoring verification
  */
 
-import { describe, test, expect, beforeAll } from '@jest/globals';
 import { HistorySearchFilterEngine } from '../../../src/renderer/history-search/filter-engine';
 import { historySearchTestCases } from '../../fixtures/scoring/history-search-cases';
 import { loadRealTestData, type RealTestData } from '../../fixtures/scoring/real-data-loader';
@@ -109,7 +108,7 @@ describe('History Search Scoring', () => {
       const result = filterEngine.filter(history, '');
 
       // All items should be returned in original order
-      expect(result.items.length).toBe(3);
+      expect(result.items).toHaveLength(3);
       expect(result.totalMatches).toBe(3);
     });
   });
@@ -119,7 +118,7 @@ describe('History Search Scoring', () => {
       // Test simple case - all lowercase matching
       const result = filterEngine.fuzzyMatch('myclass', 'mc');
       expect(result.matched).toBe(true);
-      expect(result.positions.length).toBe(2);
+      expect(result.positions).toHaveLength(2);
     });
 
     test('fuzzyMatch fails when characters not in order', () => {

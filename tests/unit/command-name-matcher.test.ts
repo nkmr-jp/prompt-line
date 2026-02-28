@@ -1,4 +1,3 @@
-import { describe, test, expect } from '@jest/globals';
 import { matchCommandName, isCommandEnabled } from '../../src/lib/command-name-matcher';
 
 describe('command-name-matcher', () => {

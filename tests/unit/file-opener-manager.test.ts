@@ -1,39 +1,43 @@
+import type { MockedFunction, Mocked } from 'vitest';
 import { execFile } from 'child_process';
 import { FileOpenerManager } from '../../src/managers/file-opener-manager';
 import type SettingsManager from '../../src/managers/settings-manager';
 import type { UserSettings } from '../../src/types';
 
 // Mock child_process
-jest.mock('child_process', () => ({
-  execFile: jest.fn()
+vi.mock('child_process', () => ({
+  execFile: vi.fn()
 }));
 
 // Mock path module
-jest.mock('path', () => ({
-  extname: jest.fn((filePath: string) => {
-    const lastDot = filePath.lastIndexOf('.');
-    return lastDot === -1 ? '' : filePath.substring(lastDot);
-  }),
-  join: jest.fn((...parts: string[]) => parts.join('/')),
-  dirname: jest.fn((filePath: string) => filePath.split('/').slice(0, -1).join('/')),
-  basename: jest.fn((filePath: string) => filePath.split('/').pop())
-}));
+vi.mock('path', () => {
+  const pathMock = {
+    extname: vi.fn((filePath: string) => {
+      const lastDot = filePath.lastIndexOf('.');
+      return lastDot === -1 ? '' : filePath.substring(lastDot);
+    }),
+    join: vi.fn((...parts: string[]) => parts.join('/')),
+    dirname: vi.fn((filePath: string) => filePath.split('/').slice(0, -1).join('/')),
+    basename: vi.fn((filePath: string) => filePath.split('/').pop())
+  };
+  return { ...pathMock, default: pathMock };
+});
 
 // Mock utils
-jest.mock('../../src/utils/utils', () => ({
+vi.mock('../../src/utils/utils', () => ({
   logger: {
-    debug: jest.fn(),
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn()
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn()
   }
 }));
 
-const mockedExecFile = execFile as jest.MockedFunction<typeof execFile>;
+const mockedExecFile = execFile as MockedFunction<typeof execFile>;
 
 describe('FileOpenerManager', () => {
   let fileOpenerManager: FileOpenerManager;
-  let mockSettingsManager: jest.Mocked<SettingsManager>;
+  let mockSettingsManager: Mocked<SettingsManager>;
 
   // デフォルト設定
   const defaultSettings: UserSettings = {
@@ -66,11 +70,11 @@ describe('FileOpenerManager', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // SettingsManagerのモックを作成
     mockSettingsManager = {
-      getSettings: jest.fn().mockReturnValue({ ...defaultSettings })
+      getSettings: vi.fn().mockReturnValue({ ...defaultSettings })
     } as any;
 
     fileOpenerManager = new FileOpenerManager(mockSettingsManager);

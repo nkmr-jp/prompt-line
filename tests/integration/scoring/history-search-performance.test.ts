@@ -4,7 +4,6 @@
  * Test conditions: 5000 history items, various query lengths and match types
  */
 
-import { describe, test, expect, beforeAll } from '@jest/globals';
 import { HistorySearchFilterEngine } from '../../../src/renderer/history-search/filter-engine';
 import type { HistoryItem } from '../../../src/renderer/history-search/types';
 import { MATCH_SCORES, RECENCY_CONFIG } from '../../../src/renderer/history-search/types';

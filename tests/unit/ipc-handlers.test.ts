@@ -1,40 +1,42 @@
-import { describe, test, expect, beforeEach, jest } from '@jest/globals';
+import type { Mocked, Mock } from 'vitest';
 import IPCHandlers from '../../src/handlers/ipc-handlers';
 import { ipcMain, clipboard } from 'electron';
 import type WindowManager from '../../src/managers/window';
 import type HistoryManager from '../../src/managers/history-manager';
 import type DraftManager from '../../src/managers/draft-manager';
+import * as utils from '../../src/utils/utils';
+import * as appConfig from '../../src/config/app-config';
 
 // Unmock path module (needed for prefix-resolver)
-jest.unmock('path');
+vi.unmock('path');
 
 // Mock glob module
-jest.mock('glob', () => ({
-  glob: jest.fn()
+vi.mock('glob', () => ({
+  glob: vi.fn()
 }));
 
 // Mock dependencies
-const mockWindowManager: jest.Mocked<WindowManager> = {
-    hideInputWindow: jest.fn(),
-    showInputWindow: jest.fn(),
-    focusPreviousApp: jest.fn(() => Promise.resolve(true)),
-    getInputWindow: jest.fn(),
-    getPreviousApp: jest.fn(() => ({ name: 'TestApp', bundleId: 'com.test.app' })),
-    isVisible: jest.fn(() => false),
-    createInputWindow: jest.fn(),
-    repositionWindow: jest.fn(),
-    registerShortcuts: jest.fn(),
-    unregisterShortcuts: jest.fn(),
-    destroy: jest.fn()
+const mockWindowManager: Mocked<WindowManager> = {
+    hideInputWindow: vi.fn(),
+    showInputWindow: vi.fn(),
+    focusPreviousApp: vi.fn(() => Promise.resolve(true)),
+    getInputWindow: vi.fn(),
+    getPreviousApp: vi.fn(() => ({ name: 'TestApp', bundleId: 'com.test.app' })),
+    isVisible: vi.fn(() => false),
+    createInputWindow: vi.fn(),
+    repositionWindow: vi.fn(),
+    registerShortcuts: vi.fn(),
+    unregisterShortcuts: vi.fn(),
+    destroy: vi.fn()
 } as any;
 
-const mockHistoryManager: jest.Mocked<HistoryManager> = {
-    addToHistory: jest.fn(() => Promise.resolve({ id: 'test-id', text: 'test', timestamp: Date.now() })),
-    getHistory: jest.fn(() => []),
-    clearHistory: jest.fn(() => Promise.resolve()),
-    removeHistoryItem: jest.fn(() => Promise.resolve(true)),
-    searchHistory: jest.fn(() => []),
-    getHistoryStats: jest.fn(() => ({
+const mockHistoryManager: Mocked<HistoryManager> = {
+    addToHistory: vi.fn(() => Promise.resolve({ id: 'test-id', text: 'test', timestamp: Date.now() })),
+    getHistory: vi.fn(() => []),
+    clearHistory: vi.fn(() => Promise.resolve()),
+    removeHistoryItem: vi.fn(() => Promise.resolve(true)),
+    searchHistory: vi.fn(() => []),
+    getHistoryStats: vi.fn(() => ({
         totalItems: 0,
         totalCharacters: 0,
         averageLength: 0,
@@ -42,42 +44,42 @@ const mockHistoryManager: jest.Mocked<HistoryManager> = {
         newestTimestamp: null,
         maxItems: 50
     })),
-    initialize: jest.fn(),
-    getHistoryItem: jest.fn(),
-    getRecentHistory: jest.fn(),
-    exportHistory: jest.fn(),
-    importHistory: jest.fn()
+    initialize: vi.fn(),
+    getHistoryItem: vi.fn(),
+    getRecentHistory: vi.fn(),
+    exportHistory: vi.fn(),
+    importHistory: vi.fn()
 } as any;
 
-const mockDraftManager: jest.Mocked<DraftManager> = {
-    saveDraft: jest.fn(() => Promise.resolve()),
-    saveDraftImmediately: jest.fn(() => Promise.resolve()),
-    clearDraft: jest.fn(() => Promise.resolve()),
-    getCurrentDraft: jest.fn(() => ''),
-    getDraftStats: jest.fn(() => ({ hasContent: false, length: 0, wordCount: 0, lineCount: 0 })),
-    initialize: jest.fn(),
-    hasDraft: jest.fn(),
-    getDraftMetadata: jest.fn(),
-    updateDraft: jest.fn(),
-    backupDraft: jest.fn(),
-    restoreDraft: jest.fn(),
-    cleanupBackups: jest.fn(),
-    destroy: jest.fn(),
-    setDirectory: jest.fn(),
-    getDirectory: jest.fn(() => null)
+const mockDraftManager: Mocked<DraftManager> = {
+    saveDraft: vi.fn(() => Promise.resolve()),
+    saveDraftImmediately: vi.fn(() => Promise.resolve()),
+    clearDraft: vi.fn(() => Promise.resolve()),
+    getCurrentDraft: vi.fn(() => ''),
+    getDraftStats: vi.fn(() => ({ hasContent: false, length: 0, wordCount: 0, lineCount: 0 })),
+    initialize: vi.fn(),
+    hasDraft: vi.fn(),
+    getDraftMetadata: vi.fn(),
+    updateDraft: vi.fn(),
+    backupDraft: vi.fn(),
+    restoreDraft: vi.fn(),
+    cleanupBackups: vi.fn(),
+    destroy: vi.fn(),
+    setDirectory: vi.fn(),
+    getDirectory: vi.fn(() => null)
 } as any;
 
 // Mock utils
-jest.mock('../../src/utils/utils', () => ({
+vi.mock('../../src/utils/utils', () => ({
     logger: {
-        info: jest.fn(),
-        debug: jest.fn(),
-        warn: jest.fn(),
-        error: jest.fn()
+        info: vi.fn(),
+        debug: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn()
     },
-    pasteWithNativeTool: jest.fn(() => Promise.resolve()),
-    activateAndPasteWithNativeTool: jest.fn(() => Promise.resolve()),
-    sleep: jest.fn(() => Promise.resolve()),
+    pasteWithNativeTool: vi.fn(() => Promise.resolve()),
+    activateAndPasteWithNativeTool: vi.fn(() => Promise.resolve()),
+    sleep: vi.fn(() => Promise.resolve()),
     SecureErrors: {
         INVALID_INPUT: 'Invalid input provided',
         OPERATION_FAILED: 'Operation failed',
@@ -87,44 +89,47 @@ jest.mock('../../src/utils/utils', () => ({
         INVALID_FORMAT: 'Invalid format',
         SIZE_LIMIT_EXCEEDED: 'Size limit exceeded'
     },
-    checkAccessibilityPermission: jest.fn(() => Promise.resolve({ hasPermission: true, bundleId: 'test' }))
+    checkAccessibilityPermission: vi.fn(() => Promise.resolve({ hasPermission: true, bundleId: 'test' }))
 }));
 
 // Mock config
-jest.mock('../../src/config/app-config', () => ({
-    timing: {
-        windowHideDelay: 100,
-        appFocusDelay: 200
-    },
-    platform: {
-        isMac: true
-    },
-    app: {
-        name: 'Prompt Line',
-        version: '1.0.0',
-        description: 'Test app'
-    },
-    paths: {
-        builtInCommandsDir: '/test/.prompt-line/built-in-commands'
-    },
-    shortcuts: { main: 'Cmd+Shift+Space' },
-    history: { maxItems: 50 },
-    draft: { saveDelay: 500 },
-    isDevelopment: jest.fn(() => false),
-    get: jest.fn((key: string) => {
-        const config: any = {
-            timing: { windowHideDelay: 100, appFocusDelay: 200 },
-            platform: { isMac: true },
-            app: { name: 'Prompt Line', version: '1.0.0', description: 'Test app' },
-            shortcuts: { main: 'Cmd+Shift+Space' },
-            history: { maxItems: 50 },
-            draft: { saveDelay: 500 }
-        };
-        return config[key];
-    })
-}));
+vi.mock('../../src/config/app-config', () => {
+    const configObj = {
+        timing: {
+            windowHideDelay: 100,
+            appFocusDelay: 200
+        },
+        platform: {
+            isMac: true
+        },
+        app: {
+            name: 'Prompt Line',
+            version: '1.0.0',
+            description: 'Test app'
+        },
+        paths: {
+            builtInCommandsDir: '/test/.prompt-line/built-in-commands'
+        },
+        shortcuts: { main: 'Cmd+Shift+Space' },
+        history: { maxItems: 50 },
+        draft: { saveDelay: 500 },
+        isDevelopment: vi.fn(() => false),
+        get: vi.fn((key: string) => {
+            const config: any = {
+                timing: { windowHideDelay: 100, appFocusDelay: 200 },
+                platform: { isMac: true },
+                app: { name: 'Prompt Line', version: '1.0.0', description: 'Test app' },
+                shortcuts: { main: 'Cmd+Shift+Space' },
+                history: { maxItems: 50 },
+                draft: { saveDelay: 500 }
+            };
+            return config[key];
+        })
+    };
+    return { ...configObj, default: configObj };
+});
 
-const { logger, pasteWithNativeTool, activateAndPasteWithNativeTool } = jest.requireMock('../../src/utils/utils') as any;
+const { logger, pasteWithNativeTool, activateAndPasteWithNativeTool } = utils as any;
 
 /**
  * Helper function to get a registered IPC handler from the mock
@@ -132,7 +137,7 @@ const { logger, pasteWithNativeTool, activateAndPasteWithNativeTool } = jest.req
  */
 type HandlerFunction = (event: any, ...args: any[]) => Promise<any>;
 function getHandler(channel: string): HandlerFunction | null {
-    const calls = (ipcMain.handle as jest.Mock).mock.calls as [string, HandlerFunction][];
+    const calls = (ipcMain.handle as Mock).mock.calls as [string, HandlerFunction][];
     const call = calls.find((c) => c[0] === channel);
     return call ? call[1] : null;
 }
@@ -143,37 +148,37 @@ describe('IPCHandlers', () => {
     let mockDirectoryManager: any;
 
     beforeEach(() => {
-        jest.clearAllMocks();
-        (ipcMain.handle as jest.Mock).mockClear();
+        vi.clearAllMocks();
+        (ipcMain.handle as Mock).mockClear();
 
         mockSettingsManager = {
-            getSettings: jest.fn(() => ({
+            getSettings: vi.fn(() => ({
                 shortcuts: { main: 'Ctrl+Space', paste: 'Enter', close: 'Escape' },
                 window: { position: 'cursor', width: 600, height: 300 }
             })),
-            updateSettings: jest.fn(),
-            resetSettings: jest.fn(),
-            getCustomSearchEntries: jest.fn(() => []),
-            getBuiltInCommandsSettings: jest.fn(() => undefined),
+            updateSettings: vi.fn(),
+            resetSettings: vi.fn(),
+            getCustomSearchEntries: vi.fn(() => []),
+            getBuiltInCommandsSettings: vi.fn(() => undefined),
             // EventEmitter methods for hot reload
-            on: jest.fn(),
-            off: jest.fn(),
-            emit: jest.fn(),
-            removeAllListeners: jest.fn()
+            on: vi.fn(),
+            off: vi.fn(),
+            emit: vi.fn(),
+            removeAllListeners: vi.fn()
         };
 
         mockDirectoryManager = {
-            getDirectory: jest.fn(() => null),
-            setDirectory: jest.fn(),
-            saveDirectory: jest.fn()
+            getDirectory: vi.fn(() => null),
+            setDirectory: vi.fn(),
+            saveDirectory: vi.fn()
         };
 
         const mockBuiltInCommandsManager = {
-            initialize: jest.fn(),
-            destroy: jest.fn(),
-            getTargetDirectory: jest.fn(() => '/test/built-in-commands'),
-            on: jest.fn(),
-            emit: jest.fn()
+            initialize: vi.fn(),
+            destroy: vi.fn(),
+            getTargetDirectory: vi.fn(() => '/test/built-in-commands'),
+            on: vi.fn(),
+            emit: vi.fn()
         };
 
         ipcHandlers = new IPCHandlers(
@@ -201,7 +206,7 @@ describe('IPCHandlers', () => {
             const handler = getHandler('paste-text');
             expect(handler).not.toBeNull();
 
-            (clipboard.writeText as jest.Mock).mockImplementation(() => {});
+            (clipboard.writeText as Mock).mockImplementation(() => {});
             mockWindowManager.hideInputWindow.mockResolvedValue();
             mockWindowManager.focusPreviousApp.mockResolvedValue(true);
             activateAndPasteWithNativeTool.mockResolvedValue();
@@ -230,7 +235,7 @@ describe('IPCHandlers', () => {
             const handler = getHandler('paste-text');
             expect(handler).not.toBeNull();
 
-            (clipboard.writeText as jest.Mock).mockImplementation(() => {});
+            (clipboard.writeText as Mock).mockImplementation(() => {});
             mockWindowManager.hideInputWindow.mockResolvedValue();
             mockWindowManager.getPreviousApp.mockReturnValue({ name: 'TestApp', bundleId: 'com.test.app' });
             activateAndPasteWithNativeTool.mockRejectedValue(new Error('Paste failed'));
@@ -245,7 +250,7 @@ describe('IPCHandlers', () => {
             const handler = getHandler('paste-text');
             expect(handler).not.toBeNull();
 
-            (clipboard.writeText as jest.Mock).mockImplementation(() => {});
+            (clipboard.writeText as Mock).mockImplementation(() => {});
             mockWindowManager.hideInputWindow.mockResolvedValue();
             mockWindowManager.getPreviousApp.mockReturnValue(null); // No previous app
             mockWindowManager.focusPreviousApp.mockResolvedValue(false);
@@ -261,7 +266,7 @@ describe('IPCHandlers', () => {
             const handler = getHandler('paste-text');
             expect(handler).not.toBeNull();
 
-            (clipboard.writeText as jest.Mock).mockImplementation(() => {});
+            (clipboard.writeText as Mock).mockImplementation(() => {});
             mockWindowManager.hideInputWindow.mockResolvedValue();
             mockWindowManager.focusPreviousApp.mockResolvedValue(true);
             pasteWithNativeTool.mockResolvedValue();
@@ -278,7 +283,7 @@ describe('IPCHandlers', () => {
             const handler = getHandler('paste-text');
             expect(handler).not.toBeNull();
 
-            (clipboard.writeText as jest.Mock).mockImplementation(() => {});
+            (clipboard.writeText as Mock).mockImplementation(() => {});
             mockWindowManager.hideInputWindow.mockResolvedValue();
             mockWindowManager.focusPreviousApp.mockResolvedValue(true);
             pasteWithNativeTool.mockRejectedValue(new Error('Paste script failed'));
@@ -500,7 +505,7 @@ describe('IPCHandlers', () => {
             const handler = getHandler('hide-window');
             expect(handler).not.toBeNull();
 
-            const { sleep } = jest.requireMock('../../src/utils/utils') as any;
+            const { sleep } = utils as any;
 
             const result = await handler!(null);
 
@@ -539,7 +544,7 @@ describe('IPCHandlers', () => {
             const handler = getHandler('hide-window');
             expect(handler).not.toBeNull();
 
-            const { sleep } = jest.requireMock('../../src/utils/utils') as any;
+            const { sleep } = utils as any;
 
             const result = await handler!(null, true);
 
@@ -633,8 +638,8 @@ describe('IPCHandlers', () => {
             const handler = getHandler('get-config');
             expect(handler).not.toBeNull();
 
-            const config = jest.requireMock('../../src/config/app-config') as any;
-            config.get = jest.fn(() => ({ maxItems: 50 }));
+            const config = (appConfig as any).default;
+            config.get = vi.fn(() => ({ maxItems: 50 }));
 
             const result = await handler!(null, 'history');
 
@@ -645,7 +650,7 @@ describe('IPCHandlers', () => {
 
     describe('removeAllHandlers', () => {
         test('should remove all registered handlers', () => {
-            (ipcMain.removeAllListeners as jest.Mock).mockClear();
+            (ipcMain.removeAllListeners as Mock).mockClear();
 
             ipcHandlers.removeAllHandlers();
 
@@ -660,7 +665,7 @@ describe('IPCHandlers', () => {
 
     describe('getHandlerStats', () => {
         test('should return handler statistics', () => {
-            (ipcMain.eventNames as jest.Mock).mockReturnValue(['paste-text', 'get-history', 'hide-window']);
+            (ipcMain.eventNames as Mock).mockReturnValue(['paste-text', 'get-history', 'hide-window']);
 
             const stats = ipcHandlers.getHandlerStats();
 

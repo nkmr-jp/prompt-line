@@ -1,18 +1,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { describe, test, expect, beforeEach, jest } from '@jest/globals';
 
 // Mock child_process before importing the module under test
-jest.mock('child_process', () => ({
-  execFile: jest.fn()
+vi.mock('child_process', () => ({
+  execFile: vi.fn()
 }));
 
 // Mock the logger to prevent file writes during tests
-jest.mock('../../src/utils/logger', () => ({
+vi.mock('../../src/utils/logger', () => ({
   logger: {
-    debug: jest.fn(),
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn()
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn()
   }
 }));
 
@@ -23,7 +22,7 @@ import {
   searchSymbols
 } from '../../src/utils/symbol-search/symbol-searcher-node';
 
-const mockedExecFile = jest.mocked(execFile);
+const mockedExecFile = vi.mocked(execFile);
 
 function mockExecFileError(error: Error & { code?: number; killed?: boolean }) {
   mockedExecFile.mockImplementation(
@@ -77,7 +76,7 @@ function mockExecFileCapturingArgs(rgOutput: string): { getCapturedArgs: () => s
 
 describe('symbol-searcher-node', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   // ============================================================
@@ -772,7 +771,7 @@ describe('symbol-searcher-node', () => {
       };
 
       for (const [langKey, expectedRgType] of Object.entries(languageToRgType)) {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         const { getCapturedArgs } = mockExecFileCapturingArgs('');
 
         await searchSymbols('/project', langKey);
@@ -1257,7 +1256,7 @@ describe('symbol-searcher-node', () => {
       // Using (?! (?= (?<! (?<= in patterns will cause rg to fail with:
       // "look-around, including look-ahead and look-behind, is not supported"
       for (const lang of ALL_LANGUAGES) {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         const captor = mockExecFileCapturingArgs('');
         await searchSymbols('/project', lang);
         const args = captor.getCapturedArgs();

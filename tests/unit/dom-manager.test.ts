@@ -1,8 +1,5 @@
-/**
- * @jest-environment jsdom
- */
+// @vitest-environment jsdom
 
-import { describe, test, expect, beforeEach, jest } from '@jest/globals';
 import { DomManager } from '../../src/renderer/dom-manager';
 
 describe('DomManager', () => {
@@ -14,13 +11,13 @@ describe('DomManager', () => {
       value: '',
       selectionStart: 0,
       selectionEnd: 0,
-      setSelectionRange: jest.fn((start: number, end: number) => {
+      setSelectionRange: vi.fn((start: number, end: number) => {
         mock.selectionStart = start;
         mock.selectionEnd = end;
       }),
-      focus: jest.fn(),
-      select: jest.fn(),
-      dispatchEvent: jest.fn()
+      focus: vi.fn(),
+      select: vi.fn(),
+      dispatchEvent: vi.fn()
     };
     return mock;
   };
@@ -31,10 +28,10 @@ describe('DomManager', () => {
       textContent: '',
       style: {} as CSSStyleDeclaration,
       classList: {
-        add: jest.fn((className: string) => classes.add(className)),
-        remove: jest.fn((className: string) => classes.delete(className)),
-        contains: jest.fn((className: string) => classes.has(className)),
-        toggle: jest.fn((className: string) => {
+        add: vi.fn((className: string) => classes.add(className)),
+        remove: vi.fn((className: string) => classes.delete(className)),
+        contains: vi.fn((className: string) => classes.has(className)),
+        toggle: vi.fn((className: string) => {
           if (classes.has(className)) {
             classes.delete(className);
             return false;
@@ -58,7 +55,7 @@ describe('DomManager', () => {
     const mockCharCount = createMockElement();
     const mockHistoryList = createMockElement();
 
-    jest.spyOn(document, 'getElementById').mockImplementation((id: string) => {
+    vi.spyOn(document, 'getElementById').mockImplementation((id: string) => {
       switch (id) {
         case 'textInput': return mockTextarea as any;
         case 'appName': return mockAppName as any;
@@ -72,7 +69,7 @@ describe('DomManager', () => {
     });
 
     domManager = new DomManager();
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('initialization', () => {
@@ -86,7 +83,7 @@ describe('DomManager', () => {
     });
 
     test('should throw error if required elements not found', () => {
-      jest.spyOn(document, 'getElementById').mockReturnValue(null);
+      vi.spyOn(document, 'getElementById').mockReturnValue(null);
 
       expect(() => domManager.initializeElements()).toThrow('Required DOM elements not found');
     });
@@ -211,7 +208,7 @@ describe('DomManager', () => {
       expect(domManager.appNameEl!.classList.contains('app-name-error')).toBe(true);
     });
 
-    test('should restore original text after error duration', (done) => {
+    test('should restore original text after error duration', () => new Promise<void>((resolve) => {
       domManager.appNameEl!.textContent = 'Original Text';
 
       domManager.showError('Test error', 100);
@@ -219,9 +216,9 @@ describe('DomManager', () => {
       setTimeout(() => {
         expect(domManager.appNameEl!.textContent).toBe('Original Text');
         expect(domManager.appNameEl!.classList.contains('app-name-error')).toBe(false);
-        done();
+        resolve();
       }, 150);
-    });
+    }));
   });
 
   describe('null safety', () => {
