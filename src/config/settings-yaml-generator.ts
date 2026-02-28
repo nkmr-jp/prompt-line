@@ -284,6 +284,7 @@ function buildAgentSkillsSection(settings: UserSettings, options: YamlGeneratorO
 
   // Build the section with actual values
   let section = '# Agent skills: custom commands from markdown files\n';
+  section += '# Search: Space-separated keywords enable AND search (e.g., "/commit fix" matches both words)\n';
   section += '# Configuration fields:\n';
   section += '#   name: Display name template (variables: {basename}, {frontmatter@field}, {prefix})\n';
   section += '#   description: Skill description template (variables: {basename}, {frontmatter@field}, {dirname}, {dirname:N})\n';
@@ -362,6 +363,7 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
   section += `  # Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
   # Scans directories for files matching glob patterns and provides @ mention suggestions.
   # Supports: Markdown (.md), JSON (.json), JSONL (.jsonl), jq expressions, and plain text files.
+  # Search: Space-separated keywords enable AND search (e.g., @agent:dev api)
   #
   # Configuration fields:
   #   name            : Display name template
@@ -472,6 +474,7 @@ function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOpti
     section += `
   # Symbol search settings (@ts:Config, @go:Handler)
   # Note: ripgrep required (brew install ripgrep)
+  # Search: Space-separated keywords enable AND search (e.g., @ts:Config util)
   symbolSearch:
     maxSymbols: ${formatValue(ss.maxSymbols)}                # Maximum symbols to return
     timeout: ${formatValue(ss.timeout)}                    # Search timeout in ms

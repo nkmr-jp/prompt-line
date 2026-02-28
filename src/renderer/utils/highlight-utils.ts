@@ -3,17 +3,10 @@
  */
 
 import { escapeHtml } from './html-utils';
+import { splitKeywords } from '../../lib/keyword-utils';
 
-/**
- * Split a search query into normalized lowercase keywords.
- * Fast-paths the single-word case to avoid regex overhead.
- */
-export function splitKeywords(query: string): string[] {
-  if (query.indexOf(' ') === -1) {
-    return query.length > 0 ? [query] : [];
-  }
-  return query.split(/\s+/).filter(k => k.length > 0);
-}
+// Re-export from shared module for backward compatibility
+export { splitKeywords } from '../../lib/keyword-utils';
 
 /**
  * Build a single combined regex for multi-keyword highlighting.

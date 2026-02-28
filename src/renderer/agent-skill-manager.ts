@@ -425,6 +425,18 @@ export class AgentSkillManager implements IInitializable {
   }
 
   /**
+   * Build searchable fields string from a skill for keyword matching
+   */
+  private getSearchableFields(cmd: { name: string; description: string; displayName?: string; label?: string }): string {
+    return [
+      cmd.name.toLowerCase(),
+      cmd.description.toLowerCase(),
+      cmd.displayName?.toLowerCase() ?? '',
+      cmd.label?.toLowerCase() ?? '',
+    ].join(' ');
+  }
+
+  /**
    * Show suggestions based on query
    */
   private async showSuggestions(query: string): Promise<void> {
@@ -443,14 +455,16 @@ export class AgentSkillManager implements IInitializable {
     } else {
       this.filteredSkills = this.skills
         .filter(cmd => {
-          const fields = [
-            cmd.name.toLowerCase(),
-            cmd.description.toLowerCase(),
-            cmd.displayName?.toLowerCase() ?? '',
-            cmd.label?.toLowerCase() ?? '',
-          ].join(' ');
+          const fields = this.getSearchableFields(cmd);
           return keywords.every(kw => fields.includes(kw));
         });
+    }
+
+    if (this.filteredSkills.length === 0 && keywords.length > 1) {
+      // AND search returned 0 - fall back to first keyword match
+      // to keep showing relevant results while user types additional keywords
+      this.filteredSkills = this.skills
+        .filter(cmd => this.getSearchableFields(cmd).includes(keywords[0]!));
     }
 
     if (this.filteredSkills.length === 0) {
