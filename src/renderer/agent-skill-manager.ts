@@ -454,6 +454,14 @@ export class AgentSkillManager implements IInitializable {
     }
 
     if (this.filteredSkills.length === 0) {
+      // When AND search with multiple keywords returns 0, keep popup visible
+      // so user can continue typing the next keyword without flickering
+      if (keywords.length > 1 && this.suggestionsContainer) {
+        this.suggestionsContainer.innerHTML = '';
+        this.suggestionsContainer.style.display = 'block';
+        this.isActive = true;
+        return;
+      }
       this.hideSuggestions();
       return;
     }

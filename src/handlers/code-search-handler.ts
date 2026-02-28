@@ -233,45 +233,49 @@ class CodeSearchHandler {
       }
     }
 
-    // Filter by query
+    // Filter by query - supports AND search with space-separated keywords
     if (query) {
-      const lowerQuery = query.toLowerCase();
-      filtered = filtered.filter(s => {
-        // Use pre-computed nameLower if available, otherwise compute on the fly
-        const nameLower = s.nameLower ?? s.name.toLowerCase();
-        return nameLower.includes(lowerQuery) ||
-          s.lineContent.toLowerCase().includes(lowerQuery);
-      });
+      const keywords = query.toLowerCase().split(/\s+/).filter(k => k.length > 0);
+      if (keywords.length > 0) {
+        filtered = filtered.filter(s => {
+          const nameLower = s.nameLower ?? s.name.toLowerCase();
+          const lineContentLower = s.lineContent.toLowerCase();
+          return keywords.every(kw =>
+            nameLower.includes(kw) || lineContentLower.includes(kw)
+          );
+        });
 
-      // Sort by relevance (match score + mtime bonus)
-      // Match scores: exact=1000, starts=500, contains=200
-      // Mtime bonus: capped at 100
-      filtered.sort((a, b) => {
-        const aName = a.nameLower ?? a.name.toLowerCase();
-        const bName = b.nameLower ?? b.name.toLowerCase();
+        // Sort by relevance using first keyword for primary scoring
+        // Match scores: exact=1000, starts=500, contains=200
+        // Mtime bonus: capped at 100
+        const primaryKeyword = keywords[0]!;
+        filtered.sort((a, b) => {
+          const aName = a.nameLower ?? a.name.toLowerCase();
+          const bName = b.nameLower ?? b.name.toLowerCase();
 
-        // Calculate match scores
-        let aMatchScore = 0;
-        let bMatchScore = 0;
+          // Calculate match scores based on first keyword
+          let aMatchScore = 0;
+          let bMatchScore = 0;
 
-        if (aName === lowerQuery) aMatchScore = 1000;
-        else if (aName.startsWith(lowerQuery)) aMatchScore = 500;
-        else aMatchScore = 200;
+          if (aName === primaryKeyword) aMatchScore = 1000;
+          else if (aName.startsWith(primaryKeyword)) aMatchScore = 500;
+          else aMatchScore = 200;
 
-        if (bName === lowerQuery) bMatchScore = 1000;
-        else if (bName.startsWith(lowerQuery)) bMatchScore = 500;
-        else bMatchScore = 200;
+          if (bName === primaryKeyword) bMatchScore = 1000;
+          else if (bName.startsWith(primaryKeyword)) bMatchScore = 500;
+          else bMatchScore = 200;
 
-        // Add mtime bonus if available (capped at 100)
-        const aMtimeBonus = a.mtimeMs ? Math.min(calculateFileMtimeBonus(a.mtimeMs), 100) : 0;
-        const bMtimeBonus = b.mtimeMs ? Math.min(calculateFileMtimeBonus(b.mtimeMs), 100) : 0;
+          // Add mtime bonus if available (capped at 100)
+          const aMtimeBonus = a.mtimeMs ? Math.min(calculateFileMtimeBonus(a.mtimeMs), 100) : 0;
+          const bMtimeBonus = b.mtimeMs ? Math.min(calculateFileMtimeBonus(b.mtimeMs), 100) : 0;
 
-        const aTotal = aMatchScore + aMtimeBonus;
-        const bTotal = bMatchScore + bMtimeBonus;
+          const aTotal = aMatchScore + aMtimeBonus;
+          const bTotal = bMatchScore + bMtimeBonus;
 
-        if (aTotal !== bTotal) return bTotal - aTotal;
-        return aName.localeCompare(bName);
-      });
+          if (aTotal !== bTotal) return bTotal - aTotal;
+          return aName.localeCompare(bName);
+        });
+      }
     }
 
     // Update incremental cache (store full filtered results before limiting)
