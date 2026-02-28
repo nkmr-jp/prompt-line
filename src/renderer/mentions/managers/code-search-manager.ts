@@ -276,20 +276,8 @@ export class CodeSearchManager {
         `${filtered.slice(0, maxSuggestions).length} ${langInfo?.displayName || language} symbols`
       );
     } else {
-      // When AND search with multiple keywords returns 0, keep popup visible
-      // so user can continue typing the next keyword without the popup disappearing
-      const hasMultipleKeywords = query.trim().includes(' ');
       this.callbacks.updateHintText?.(`No symbols found for "${query}"`);
-      if (hasMultipleKeywords) {
-        // Keep container visible but clear items
-        const suggestionsContainer = this.callbacks.getSuggestionsContainer?.();
-        if (suggestionsContainer) {
-          suggestionsContainer.innerHTML = '';
-          suggestionsContainer.style.display = 'block';
-        }
-      } else {
-        this.callbacks.hideSuggestions?.();
-      }
+      this.callbacks.hideSuggestions?.();
     }
   }
 

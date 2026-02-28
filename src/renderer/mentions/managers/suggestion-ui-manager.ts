@@ -468,7 +468,11 @@ export class SuggestionUIManager {
     if (!this.suggestionsContainer) return;
 
     if (this.mergedSuggestions.length === 0) {
-      this.renderEmptyState(isIndexBuilding);
+      if (isIndexBuilding) {
+        this.renderEmptyState(isIndexBuilding);
+      } else {
+        this.hideSuggestions();
+      }
       return;
     }
 
