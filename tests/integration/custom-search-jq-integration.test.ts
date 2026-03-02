@@ -145,7 +145,8 @@ describe('CustomSearchLoader + jq integration', () => {
 
       expect(mockEvaluateJq).toHaveBeenCalledWith(
         expect.objectContaining({ team_name: 'my-project' }),
-        '.members'
+        '.members',
+        expect.any(String)
       );
       expect(items).toHaveLength(3);
       expect(items.map(i => i.name).sort()).toEqual(['researcher', 'team-lead', 'tester']);
@@ -181,7 +182,8 @@ describe('CustomSearchLoader + jq integration', () => {
 
       expect(mockEvaluateJq).toHaveBeenCalledWith(
         expect.any(Object),
-        '.members | map(select(.active))'
+        '.members | map(select(.active))',
+        expect.any(String)
       );
       expect(items).toHaveLength(2);
       expect(items.map(i => i.name).sort()).toEqual(['alice', 'carol']);

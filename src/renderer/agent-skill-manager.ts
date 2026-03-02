@@ -78,6 +78,9 @@ export class AgentSkillManager implements IInitializable {
   private usageBonusesCacheTime: number = 0;
   private static readonly USAGE_BONUSES_CACHE_TTL = 5000; // 5 seconds
 
+  // C3: Last keyword cache for checkForAgentSkill skip optimization
+  private lastSkillKeywords: string = '';
+
   // Frontmatter popup manager
   private frontmatterPopupManager: FrontmatterPopupManager;
 
@@ -346,6 +349,15 @@ export class AgentSkillManager implements IInitializable {
     }
 
     this.currentTriggerStartPos = startPos;
+
+    // C3: Skip full pipeline if splitKeywords result hasn't changed
+    const keywordsKey = splitKeywords(query.toLowerCase()).join('\0');
+    if (keywordsKey === this.lastSkillKeywords && this.isActive) {
+      // Keywords unchanged and suggestions already visible - skip re-computation
+      return;
+    }
+    this.lastSkillKeywords = keywordsKey;
+
     this.showSuggestions(query);
   }
 
@@ -734,6 +746,8 @@ export class AgentSkillManager implements IInitializable {
   public hideSuggestions(): void {
     this.hideUI();
     this.resetState();
+    // C3: Reset keyword cache on hide
+    this.lastSkillKeywords = '';
   }
 
   /**
@@ -1100,5 +1114,7 @@ export class AgentSkillManager implements IInitializable {
     this.searchableFieldsCache.clear();
     this.usageBonusesCache = {};
     this.usageBonusesCacheTime = 0;
+    // C3: Reset keyword cache on invalidate
+    this.lastSkillKeywords = '';
   }
 }

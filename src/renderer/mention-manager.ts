@@ -9,6 +9,7 @@ import type { SymbolResult, LanguageInfo } from './mentions/code-search/types';
 import type { DirectoryData, MentionCallbacks, SuggestionItem } from './mentions';
 import type { IInitializable } from './interfaces/initializable';
 import { handleError } from './utils/error-handler';
+import { splitKeywords } from './utils/highlight-utils';
 import { electronAPI } from './services/electron-api';
 import {
   normalizePath,
@@ -58,6 +59,18 @@ export class MentionManager implements IInitializable {
 
   // Track last inserted mention path to prevent re-showing suggestions after selection
   private lastInsertedMentionPath: string = '';
+
+  // C2: Debounce timer for showSuggestions (80ms)
+  private showSuggestionsTimer: ReturnType<typeof setTimeout> | null = null;
+  private showSuggestionsRequestId: number = 0;
+  private static readonly SHOW_SUGGESTIONS_DEBOUNCE_MS = 80;
+
+  // C3: Last keyword cache for checkForFileSearch skip optimization
+  private lastFileSearchKeywords: string = '';
+
+  // C5: Short-term TTL cache for searchAgents (2s)
+  private searchAgentsCache: { query: string; result: AgentItem[]; time: number } | null = null;
+  private static readonly SEARCH_AGENTS_CACHE_TTL = 2000;
 
   // Symbol mode properties (delegated to CodeSearchManager)
   private get isInSymbolMode(): boolean {
@@ -593,6 +606,14 @@ export class MentionManager implements IInitializable {
       return;
     }
 
+    // C3: Skip full pipeline if splitKeywords result hasn't changed
+    const keywordsKey = splitKeywords(query.toLowerCase()).join('\0');
+    if (keywordsKey === this.lastFileSearchKeywords && this.state.isVisible) {
+      // Keywords unchanged and suggestions already visible - skip re-computation
+      return;
+    }
+    this.lastFileSearchKeywords = keywordsKey;
+
     // Normal file search
     this.handleFileSearch(query, startPos);
   }
@@ -712,11 +733,27 @@ export class MentionManager implements IInitializable {
   }
 
   /**
-   * Handle normal file search
+   * Handle normal file search (with 80ms debounce to avoid heavy pipeline on every keystroke)
    */
   private handleFileSearch(query: string, startPos: number): void {
     this.state.atStartPosition = startPos;
-    this.showSuggestions(query);
+
+    // C2: Debounce showSuggestions calls (80ms)
+    // Cancel any pending debounced call
+    if (this.showSuggestionsTimer !== null) {
+      clearTimeout(this.showSuggestionsTimer);
+      this.showSuggestionsTimer = null;
+    }
+
+    // Increment request ID so stale results are discarded
+    const requestId = ++this.showSuggestionsRequestId;
+
+    this.showSuggestionsTimer = setTimeout(() => {
+      this.showSuggestionsTimer = null;
+      // Only process if this is still the latest request
+      if (requestId !== this.showSuggestionsRequestId) return;
+      this.showSuggestions(query);
+    }, MentionManager.SHOW_SUGGESTIONS_DEBOUNCE_MS);
   }
 
   /**
@@ -745,9 +782,19 @@ export class MentionManager implements IInitializable {
   }
 
   /**
-   * Search agents via IPC
+   * Search agents via IPC (with 2s TTL cache to avoid redundant IPC calls)
    */
   private async searchAgents(query: string): Promise<AgentItem[]> {
+    // C5: Return cached result if same query within TTL
+    const now = Date.now();
+    if (
+      this.searchAgentsCache &&
+      this.searchAgentsCache.query === query &&
+      now - this.searchAgentsCache.time < MentionManager.SEARCH_AGENTS_CACHE_TTL
+    ) {
+      return this.searchAgentsCache.result;
+    }
+
     try {
       if (electronAPI?.agents?.get) {
         const agents = await electronAPI.agents.get(query);
@@ -760,7 +807,12 @@ export class MentionManager implements IInitializable {
         // Store bonuses in state for use during scoring
         this.state.agentUsageBonuses = agentBonuses;
 
-        return agents.slice(0, maxSuggestions);
+        const result = agents.slice(0, maxSuggestions);
+
+        // C5: Cache the result
+        this.searchAgentsCache = { query, result, time: Date.now() };
+
+        return result;
       }
     } catch (error) {
       handleError('MentionManager.searchAgents', error);
@@ -798,6 +850,16 @@ export class MentionManager implements IInitializable {
    */
   public hideSuggestions(): void {
     if (!this.state.suggestionsContainer) return;
+
+    // C2: Cancel pending debounced showSuggestions
+    if (this.showSuggestionsTimer !== null) {
+      clearTimeout(this.showSuggestionsTimer);
+      this.showSuggestionsTimer = null;
+    }
+    this.showSuggestionsRequestId++;
+
+    // C3: Reset keyword cache on hide
+    this.lastFileSearchKeywords = '';
 
     // Delegate UI hiding to managers
     this.suggestionUIManager?.hide();

@@ -20,6 +20,8 @@ interface AgentSkillCacheEntry {
  */
 export class AgentSkillCacheManager {
   private _cacheDir: string | null = null;
+  /** In-memory cache for entries to avoid repeated file reads */
+  private entriesCache: AgentSkillCacheEntry[] | null = null;
 
   /**
    * Get cache directory with lazy initialization
@@ -90,19 +92,33 @@ export class AgentSkillCacheManager {
         }
       }
 
-      // Save
+      // Save and update in-memory cache
       const content = entries.map(e => JSON.stringify(e)).join('\n');
       await fs.writeFile(this.getGlobalCacheFilePath(), content, 'utf8');
+      this.entriesCache = entries;
     } catch (error) {
+      this.invalidateEntriesCache();
       logger.error('Error adding global agent skill:', error);
     }
   }
 
   /**
+   * Invalidate in-memory cache (called after write operations)
+   */
+  private invalidateEntriesCache(): void {
+    this.entriesCache = null;
+  }
+
+  /**
    * Load global entries (internal)
+   * Uses in-memory cache to avoid repeated file reads.
    * Handles backward compatibility with old format {name, timestamp}
    */
   private async loadGlobalEntries(): Promise<AgentSkillCacheEntry[]> {
+    if (this.entriesCache) {
+      return this.entriesCache;
+    }
+
     try {
       const filePath = this.getGlobalCacheFilePath();
       const content = await fs.readFile(filePath, 'utf8');
@@ -131,6 +147,7 @@ export class AgentSkillCacheManager {
         }
       }
 
+      this.entriesCache = entries;
       return entries;
     } catch {
       return [];
@@ -142,6 +159,7 @@ export class AgentSkillCacheManager {
    */
   async clearGlobalCache(): Promise<void> {
     try {
+      this.invalidateEntriesCache();
       const filePath = this.getGlobalCacheFilePath();
       await fs.rm(filePath, { force: true });
     } catch (error) {

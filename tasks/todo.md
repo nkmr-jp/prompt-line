@@ -125,3 +125,48 @@ v0.25 の速度低下は **単一の原因ではなく、以下の複合要因**
 4. **既存の IPC 直列呼び出し** が、#1 の頻度増加により体感速度への影響が増大
 
 特に #1（`allowSpaces: true`）は **乗数効果** があり、他のすべてのボトルネックの影響を増幅させている。
+
+---
+
+## 第2次調査結果（2026-03-03）
+
+前回の9項目修正後も体感速度が改善されなかった。詳細調査の結果、**パイプライン内部の最適化ではなく、パイプライン自体の不要な再実行が真の原因**であることが判明。
+
+### 新たに特定されたクリティカル問題
+
+#### C1. `loadAll()` の Cache Stampede（最大の原因）
+- **ファイル**: `src/managers/custom-search-loader.ts:287-301`
+- **問題**: キャッシュ期限切れ(5秒TTL)時に複数の同時IPC呼び出しが各々独立にフルファイルシステムスキャン(1,097ファイル)を実行。loading promise guard がないため、2-8個の並行ロードが走る
+- **実測**: 90秒間で26回のフルロード、約28,522回のファイルアクセス、ピーク330行/秒のログ出力
+
+#### C2. `showSuggestions` にデバウンスなし
+- **ファイル**: `src/renderer/mentions/managers/suggestion-ui-manager.ts`
+- **問題**: rAF (~16ms) では不十分。毎キーストロークで4-6 IPC呼び出し含む重いパイプラインが走る
+- **補足**: HistorySearch には 150ms デバウンスがあるが、mention にはない
+
+#### C3. キーワード変化チェックなし
+- **ファイル**: `src/renderer/mentions/mention-manager.ts` の `checkForFileSearch()`
+- **問題**: `@config` → `@config ` で splitKeywords 結果は同一 `["config"]` だがフル再計算が走る
+- **影響**: v0.25 の `allowSpaces: true` により、スペース入力だけでも不要なパイプライン再実行が発生
+
+#### C4. `AgentSkillCacheManager.calculateBonus()` が毎回ディスク読み取り
+- **ファイル**: `src/managers/agent-skill-cache-manager.ts`
+- **問題**: `calculateBonus()` が毎回 `loadGlobalEntries()` でJSONLファイルを全件読み取り。N コマンド名でN回のディスクI/O
+- **対比**: `UsageHistoryManager` は in-memory Map キャッシュで O(1) なのに、こちらはキャッシュなし
+
+#### C5. `searchAgents` にキャッシュなし
+- **ファイル**: `src/renderer/mentions/mention-manager.ts`
+- **問題**: 毎キーストロークで `electronAPI.agents.get(query)` + `getAgentUsageBonuses()` の2 IPC発行
+
+#### C6. jq evaluation が毎サイクル17件失敗
+- **ファイル**: `src/lib/jq-resolver.ts:54`
+- **問題**: `~/.claude/teams/**/config.json` のjq式が常に失敗するのに毎サイクル評価。1ロードあたり17 WARNログ
+
+### 改善計画（優先度順）
+
+- [x] **C1**: `loadAll()` に loading promise guard (singleflight) を追加
+- [x] **C2**: `showSuggestions` に 80ms デバウンスを追加
+- [x] **C3**: `checkForFileSearch` / `checkForAgentSkill` にキーワード変化チェックを追加
+- [x] **C4**: `AgentSkillCacheManager` に in-memory キャッシュを追加
+- [x] **C5**: `searchAgents` に短期 TTL キャッシュ（2秒）を追加
+- [x] **C6**: jq evaluation に失敗キャッシュを追加（30秒TTL）

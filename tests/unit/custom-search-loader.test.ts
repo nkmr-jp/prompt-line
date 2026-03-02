@@ -1632,7 +1632,7 @@ Content`;
 
       const items = await loader.searchItems('mention', 'member:');
 
-      expect(mockEvaluateJq).toHaveBeenCalledWith(expect.any(Object), '.members');
+      expect(mockEvaluateJq).toHaveBeenCalledWith(expect.any(Object), '.members', expect.any(String));
       expect(items).toHaveLength(3);
       expect(items.map(i => i.name).sort()).toEqual(['researcher', 'team-lead', 'worker']);
       expect(items.find(i => i.name === 'team-lead')?.description).toBe('team-lead');
@@ -1728,7 +1728,7 @@ Content`;
 
       const items = await loader.getItems('mention');
 
-      expect(mockEvaluateJq).toHaveBeenCalledWith(expect.any(Object), '.team.members | map(select(.active))');
+      expect(mockEvaluateJq).toHaveBeenCalledWith(expect.any(Object), '.team.members | map(select(.active))', expect.any(String));
       expect(items).toHaveLength(2);
       expect(items.find(i => i.name === 'alice')?.description).toBe('lead');
       expect(items.find(i => i.name === 'carol')?.description).toBe('pm');
@@ -1836,7 +1836,7 @@ Content`;
       const items = await loader.getItems('mention');
 
       expect(mockEvaluateJq).toHaveBeenCalledTimes(2);
-      expect(mockEvaluateJq).toHaveBeenCalledWith(expect.objectContaining({ user: expect.any(Object) }), '.user');
+      expect(mockEvaluateJq).toHaveBeenCalledWith(expect.objectContaining({ user: expect.any(Object) }), '.user', expect.any(String));
       expect(items).toHaveLength(2);
       expect(items.map(i => i.name).sort()).toEqual(['alice', 'bob']);
     });
