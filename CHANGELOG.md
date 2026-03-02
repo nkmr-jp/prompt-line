@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.25.3](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.25.2...prompt-line-v0.25.3) (2026-03-02)
+
+
+### Bug Fixes
+
+* **agent-skill:** fix tooltip stuck on first item during navigation ([8c2fd1d](https://github.com/nkmr-jp/prompt-line/commit/8c2fd1db55b845c50614f3d858263767e7cc4226))
+* **agent-skill:** track selected element reference during rendering ([a1d9cde](https://github.com/nkmr-jp/prompt-line/commit/a1d9cdea4921d7c75ac6fdf2443dde272326fbef))
+
 ## [0.25.2](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.25.1...prompt-line-v0.25.2) (2026-03-02)
 
 
