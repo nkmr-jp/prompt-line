@@ -58,6 +58,10 @@ export class EventListenerManager {
   private pendingInputUpdate: number | null = null;
   private pendingSelectionUpdate: number | null = null;
 
+  // Throttle state for mousemove handler
+  private lastMouseMoveTime: number = 0;
+  private static readonly MOUSE_MOVE_THROTTLE = 80;
+
   constructor(callbacks: EventListenerCallbacks) {
     this.callbacks = callbacks;
   }
@@ -145,8 +149,11 @@ export class EventListenerManager {
 
         // Execute callbacks only when text has actually changed
         this.callbacks.checkForFileSearch();
-        this.callbacks.updateHighlightBackdrop();
-        this.callbacks.updateCursorPositionHighlight();
+        // Defer non-critical updates when suggestions are visible to avoid blocking the critical path
+        if (!this.callbacks.isVisible()) {
+          this.callbacks.updateHighlightBackdrop();
+          this.callbacks.updateCursorPositionHighlight();
+        }
       });
     };
 
@@ -248,8 +255,11 @@ export class EventListenerManager {
       }
     });
 
-    // Handle Cmd+hover for link style on @paths
+    // Handle Cmd+hover for link style on @paths (throttled to 80ms)
     this.textInput.addEventListener('mousemove', (e) => {
+      const now = Date.now();
+      if (now - this.lastMouseMoveTime < EventListenerManager.MOUSE_MOVE_THROTTLE) return;
+      this.lastMouseMoveTime = now;
       this.callbacks.handleMouseMove(e);
     });
 

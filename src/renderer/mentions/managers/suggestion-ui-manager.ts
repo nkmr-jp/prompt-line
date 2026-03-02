@@ -111,6 +111,9 @@ export class SuggestionUIManager {
   private hoveredElement: HTMLElement | null = null;
   private queryHighlightCache: HighlightCache | null = null;
   private codeSearchHighlightCache: HighlightCache | null = null;
+  // D6: Track last queries to skip redundant buildHighlightCache calls
+  private lastHighlightQuery: string = '';
+  private lastCodeSearchHighlightQuery: string = '';
 
   constructor(textInput: HTMLTextAreaElement, callbacks: SuggestionUICallbacks) {
     this.textInput = textInput;
@@ -232,6 +235,9 @@ export class SuggestionUIManager {
     this.mergedSuggestions = [];
     this.selectedElement = null;
     this.hoveredElement = null;
+    // D6: Reset query tracking so caches are rebuilt fresh on next show
+    this.lastHighlightQuery = '';
+    this.lastCodeSearchHighlightQuery = '';
   }
 
   /**
@@ -491,12 +497,21 @@ export class SuggestionUIManager {
     this.selectedElement = null;
     this.hoveredElement = null;
 
-    // Build highlight caches once for the current render pass
+    // D6: Build highlight caches only when query has changed to avoid redundant computation
     const currentQuery = this.callbacks.getCurrentQuery?.() || '';
     const codeSearchQuery = this.callbacks.getCodeSearchQuery?.() || '';
-    this.queryHighlightCache = buildHighlightCache(currentQuery);
-    this.codeSearchHighlightCache = codeSearchQuery !== currentQuery
-      ? buildHighlightCache(codeSearchQuery) : this.queryHighlightCache;
+    if (currentQuery !== this.lastHighlightQuery) {
+      this.queryHighlightCache = buildHighlightCache(currentQuery);
+      this.lastHighlightQuery = currentQuery;
+    }
+    if (codeSearchQuery !== currentQuery) {
+      if (codeSearchQuery !== this.lastCodeSearchHighlightQuery) {
+        this.codeSearchHighlightCache = buildHighlightCache(codeSearchQuery);
+        this.lastCodeSearchHighlightQuery = codeSearchQuery;
+      }
+    } else {
+      this.codeSearchHighlightCache = this.queryHighlightCache;
+    }
 
     const fragment = document.createDocumentFragment();
 

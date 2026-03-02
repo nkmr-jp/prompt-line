@@ -555,6 +555,8 @@ export class MentionManager implements IInitializable {
   public clearCache(): void {
     this.directoryCacheManager?.clearCache();
     this.pathManager.invalidateValidPathsCache();
+    // Invalidate file usage bonuses cache when directory data changes
+    this.fileUsageBonusesCacheTime = 0;
     this.hideSuggestions();
   }
 
@@ -933,18 +935,18 @@ export class MentionManager implements IInitializable {
     this.pathManager.removeAtQueryText(this.state.atStartPosition);
   }
 
-  // Cached usage bonuses to avoid repeated IPC calls
-  private cachedFileUsageBonuses: Record<string, number> = {};
-  private usageBonusesCacheTime: number = 0;
-  private readonly USAGE_BONUSES_CACHE_TTL = 5000; // 5 seconds
+  // D1: TTL cache for getFileUsageBonuses to avoid repeated IPC calls on every keystroke
+  private fileUsageBonusesCache: Record<string, number> = {};
+  private fileUsageBonusesCacheTime: number = 0;
+  private static readonly FILE_USAGE_BONUSES_CACHE_TTL = 5000; // 5 seconds
 
   /**
-   * Get file usage bonuses (cached for performance)
+   * Get file usage bonuses (cached for performance, 5s TTL)
    */
   private async getFileUsageBonuses(): Promise<Record<string, number>> {
     const now = Date.now();
-    if (now - this.usageBonusesCacheTime < this.USAGE_BONUSES_CACHE_TTL) {
-      return this.cachedFileUsageBonuses;
+    if (now - this.fileUsageBonusesCacheTime < MentionManager.FILE_USAGE_BONUSES_CACHE_TTL) {
+      return this.fileUsageBonusesCache;
     }
 
     try {
@@ -960,8 +962,8 @@ export class MentionManager implements IInitializable {
       const bonuses = await electronAPI?.usageHistory?.getFileUsageBonuses(filePaths) ?? {};
 
       // Update cache
-      this.cachedFileUsageBonuses = bonuses;
-      this.usageBonusesCacheTime = now;
+      this.fileUsageBonusesCache = bonuses;
+      this.fileUsageBonusesCacheTime = now;
 
       return bonuses;
     } catch (error) {

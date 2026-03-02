@@ -81,6 +81,9 @@ export class AgentSkillManager implements IInitializable {
   // C3: Last keyword cache for checkForAgentSkill skip optimization
   private lastSkillKeywords: string = '';
 
+  // D5: Reference to currently selected DOM element for differential update
+  private selectedSkillElement: HTMLElement | null = null;
+
   // Frontmatter popup manager
   private frontmatterPopupManager: FrontmatterPopupManager;
 
@@ -351,14 +354,17 @@ export class AgentSkillManager implements IInitializable {
     this.currentTriggerStartPos = startPos;
 
     // C3: Skip full pipeline if splitKeywords result hasn't changed
-    const keywordsKey = splitKeywords(query.toLowerCase()).join('\0');
+    // D7: Compute keywords once here and pass to showSuggestions to avoid duplicate computation
+    const lowerQuery = query.toLowerCase();
+    const keywords = splitKeywords(lowerQuery);
+    const keywordsKey = keywords.join('\0');
     if (keywordsKey === this.lastSkillKeywords && this.isActive) {
       // Keywords unchanged and suggestions already visible - skip re-computation
       return;
     }
     this.lastSkillKeywords = keywordsKey;
 
-    this.showSuggestions(query);
+    this.showSuggestions(query, keywords);
   }
 
   /**
@@ -468,16 +474,18 @@ export class AgentSkillManager implements IInitializable {
 
   /**
    * Show suggestions based on query
+   * @param preComputedKeywords - Optional pre-computed keywords to avoid duplicate splitKeywords call (D7)
    */
-  private async showSuggestions(query: string): Promise<void> {
+  private async showSuggestions(query: string, preComputedKeywords?: string[]): Promise<void> {
     // Load commands if not loaded
     if (this.skills.length === 0) {
       await this.loadSkills();
     }
 
     // Filter commands - AND search with space-separated keywords
+    // D7: Use pre-computed keywords if available to avoid duplicate computation
     const lowerQuery = query.toLowerCase();
-    const keywords = splitKeywords(lowerQuery);
+    const keywords = preComputedKeywords ?? splitKeywords(lowerQuery);
 
     if (keywords.length === 0) {
       // Empty query: show all skills
@@ -562,6 +570,8 @@ export class AgentSkillManager implements IInitializable {
     this.suggestionsContainer.classList.remove('hover-enabled');
     // Reset scroll position to top when search text changes
     this.suggestionsContainer.scrollTop = 0;
+    // D5: Clear selected element reference since DOM is being rebuilt
+    this.selectedSkillElement = null;
 
     const fragment = document.createDocumentFragment();
 
@@ -726,6 +736,8 @@ export class AgentSkillManager implements IInitializable {
       this.suggestionsContainer.textContent = '';
       this.suggestionsContainer.classList.remove('hover-enabled');
     }
+    // D5: Clear selected element reference when DOM is cleared
+    this.selectedSkillElement = null;
     // Also hide frontmatter popup
     this.frontmatterPopupManager.hide();
   }
@@ -829,21 +841,28 @@ export class AgentSkillManager implements IInitializable {
   }
 
   /**
-   * Update visual selection
+   * Update visual selection (differential update via reference - O(1) instead of O(n))
    */
   private updateSelection(): void {
     if (!this.suggestionsContainer) return;
 
-    const items = this.suggestionsContainer.querySelectorAll('.agent-skill-suggestion-item');
-    items.forEach((item, index) => {
-      if (index === this.selectedIndex) {
-        item.classList.add('selected');
-        // Scroll into view if needed (use 'instant' to ensure scroll completes before popup positioning)
-        (item as HTMLElement).scrollIntoView({ block: 'nearest', behavior: 'instant' });
-      } else {
-        item.classList.remove('selected');
-      }
-    });
+    // Clear previous selection via reference (O(1))
+    if (this.selectedSkillElement) {
+      this.selectedSkillElement.classList.remove('selected');
+    }
+
+    // Find new selection via data attribute (O(1) lookup)
+    const newSelected = this.suggestionsContainer.querySelector(
+      `[data-index="${this.selectedIndex}"]`
+    ) as HTMLElement | null;
+
+    if (newSelected) {
+      newSelected.classList.add('selected');
+      // Scroll into view if needed (use 'instant' to ensure scroll completes before popup positioning)
+      newSelected.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+    }
+
+    this.selectedSkillElement = newSelected;
 
     // Update tooltip if auto-show is enabled
     // Use requestAnimationFrame to ensure scroll position is settled before calculating popup position

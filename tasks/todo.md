@@ -170,3 +170,84 @@ v0.25 の速度低下は **単一の原因ではなく、以下の複合要因**
 - [x] **C4**: `AgentSkillCacheManager` に in-memory キャッシュを追加
 - [x] **C5**: `searchAgents` に短期 TTL キャッシュ（2秒）を追加
 - [x] **C6**: jq evaluation に失敗キャッシュを追加（30秒TTL）
+
+---
+
+## 第3次調査結果（2026-03-03）
+
+第2次修正後、体感で若干の改善が見られた。E2E処理フロー全体を4つの並列エージェントで徹底調査し、残存ボトルネックを特定。
+
+### 特定されたボトルネック一覧（優先度順）
+
+#### P0: 不要な IPC ラウンドトリップの排除
+
+##### D1. `getFileUsageBonuses` に TTL キャッシュなし（@ メンション）
+- **ファイル**: `src/renderer/mentions/managers/suggestion-ui-manager.ts:293`
+- **問題**: 毎キーストローク（デバウンス後も）で `getFileUsageBonuses()` IPC を呼び出し。AgentSkillManager には 5秒 TTL キャッシュがあるが、mention 側にはない
+- **体感影響**: 高（IPC ラウンドトリップがキーストロークごとに発生）
+
+##### D2. `getMaxSuggestions` IPC を毎回呼び出し
+- **ファイル**: `src/renderer/mentions/managers/suggestion-ui-manager.ts:309`
+- **問題**: セッション中ほぼ変わらない設定値（デフォルト20）を毎回 IPC で取得
+- **体感影響**: 中（不要な IPC 1回分の遅延）
+
+##### D3. `matchesSearchPrefix` IPC を毎回呼び出し
+- **ファイル**: `src/renderer/mentions/managers/suggestion-ui-manager.ts:271`
+- **問題**: 単純な文字列プレフィックスチェックなのに毎回 IPC。ローカルで実行可能
+- **体感影響**: 中（不要な IPC 1回分の遅延）
+
+#### P1: レンダラー側の不要な処理
+
+##### D4. 入力イベントで3つのコールバックが毎回発火
+- **ファイル**: `src/renderer/mentions/managers/event-listener-manager.ts:147-149`
+- **問題**: `input` イベントごとに以下3つが全て実行:
+  1. `checkForFileSearch()` - @ メンション検出
+  2. `updateHighlightBackdrop()` - テキストエリア全文の @path 正規表現スキャン
+  3. `updateCursorPositionHighlight()` - カーソル位置計算
+- **改善**: サジェスト処理中は #2, #3 を遅延実行に変更可能
+- **体感影響**: 高（毎キーストロークで3倍の処理）
+
+##### D5. スラッシュコマンド `updateSelection` が `querySelectorAll` O(n)
+- **ファイル**: `src/renderer/agent-skill-manager.ts:837`
+- **問題**: キーボードナビゲーション時に全項目を走査して selected クラスを更新。メンション側は既に差分更新済みだが、スラッシュコマンド側は未対応
+- **体感影響**: 中（矢印キー操作のたびに O(n) DOM 更新）
+
+##### D6. `queryHighlightCache` がクエリ未変更でも毎レンダーで再構築
+- **ファイル**: `src/renderer/mentions/managers/suggestion-ui-manager.ts:494-499`
+- **問題**: `buildHighlightCache()` が毎レンダーで RegExp コンパイル。クエリが変わっていない場合はスキップ可能
+- **体感影響**: 低〜中（RegExp コンパイルコスト）
+
+##### D7. `splitKeywords` が `checkForAgentSkill` と `showSuggestions` で二重呼び出し
+- **ファイル**: `src/renderer/agent-skill-manager.ts:354, 480`
+- **問題**: C3 のキーワード変化チェックで一度 `splitKeywords` を呼び、`showSuggestions` 内で再度呼ぶ
+- **体感影響**: 低（マイクロ秒レベルだが不要な処理）
+
+#### P2: イベント処理の最適化
+
+##### D8. `mousemove` ハンドラーにスロットルなし
+- **ファイル**: `src/renderer/mentions/managers/event-listener-manager.ts:252`
+- **問題**: テキストエリア上のマウス移動でピクセル単位のイベント発火。@path のリンクスタイル検出用だが、50-100ms のスロットルで十分
+- **体感影響**: 中（マウス操作時のみ）
+
+##### D9. コードサーチで `toLowerCase` を毎フィルターで再計算
+- **ファイル**: `src/renderer/mentions/managers/code-search-manager.ts:541-547, 550-552`
+- **問題**: シンボルの `name` と `lineContent` に対して毎フィルターで `toLowerCase()` 呼び出し。ソート内でも再呼び出し
+- **改善**: シンボル読み込み時に小文字版を事前計算
+- **体感影響**: 中（シンボル数が多い場合に顕著）
+
+### 改善計画（優先度順）
+
+#### Quick Win（即効性が高い）
+
+- [x] **D1**: `getFileUsageBonuses` に TTL 5秒キャッシュを追加（AgentSkillManager と同パターン）
+- [x] **D2**: `getMaxSuggestions` → 既に `SettingsCacheManager` で永続キャッシュ済み（変更不要）
+- [x] **D3**: `matchesSearchPrefix` → 既に `SettingsCacheManager` でローカル処理済み（変更不要）
+- [x] **D5**: スラッシュコマンドの `updateSelection` に差分更新を適用（`selectedElement` 参照パターン）
+- [x] **D6**: `queryHighlightCache` にクエリ変化チェックを追加
+- [x] **D7**: `checkForAgentSkill` で計算した keywords を `showSuggestions` に渡す
+
+#### 中期改善
+
+- [x] **D4**: 入力イベントコールバックの最適化（サジェスト処理中は highlight/cursor 更新を遅延）
+- [x] **D8**: `mousemove` ハンドラーに 80ms スロットルを追加
+- [x] **D9**: コードサーチのシンボルに小文字版フィールドを事前計算
