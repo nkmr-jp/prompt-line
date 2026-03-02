@@ -84,6 +84,8 @@ export class CodeSearchManager {
   private isInSymbolMode: boolean = false;
   private currentFilePath: string = '';
   private currentFileSymbols: SymbolResult[] = [];
+  // Pre-computed lowercase cache for filter/sort performance
+  private currentFileSymbolsLower: Map<SymbolResult, { nameLower: string; lineContentLower: string }> | null = null;
 
   // Callbacks for external interaction
   private callbacks: CodeSearchManagerCallbacks;
@@ -343,6 +345,18 @@ export class CodeSearchManager {
   }
 
   /**
+   * Build a pre-computed lowercase cache for the given symbols.
+   * Avoids repeated toLowerCase() calls during filter/sort on every keystroke.
+   */
+  private buildSymbolsLowerCache(symbols: SymbolResult[]): Map<SymbolResult, { nameLower: string; lineContentLower: string }> {
+    const cache = new Map<SymbolResult, { nameLower: string; lineContentLower: string }>();
+    for (const s of symbols) {
+      cache.set(s, { nameLower: s.name.toLowerCase(), lineContentLower: s.lineContent.toLowerCase() });
+    }
+    return cache;
+  }
+
+  /**
    * Enter symbol mode with pre-loaded symbols.
    * Call this after tryLoadSymbols returns symbols.
    * @param relativePath - Relative path of the file
@@ -352,6 +366,7 @@ export class CodeSearchManager {
     this.isInSymbolMode = true;
     this.currentFilePath = relativePath;
     this.currentFileSymbols = symbols;
+    this.currentFileSymbolsLower = this.buildSymbolsLowerCache(symbols);
   }
 
   /**
@@ -387,6 +402,7 @@ export class CodeSearchManager {
     this.isInSymbolMode = false;
     this.currentFilePath = '';
     this.currentFileSymbols = [];
+    this.currentFileSymbolsLower = null;
 
     // Restore default hint text
     if (this.callbacks.getDefaultHintText) {
@@ -438,6 +454,7 @@ export class CodeSearchManager {
    */
   public setCurrentFileSymbols(symbols: SymbolResult[]): void {
     this.currentFileSymbols = symbols;
+    this.currentFileSymbolsLower = symbols.length > 0 ? this.buildSymbolsLowerCache(symbols) : null;
   }
 
   /**
@@ -506,6 +523,7 @@ export class CodeSearchManager {
     this.isInSymbolMode = false;
     this.currentFilePath = '';
     this.currentFileSymbols = [];
+    this.currentFileSymbolsLower = null;
   }
 
   /**
@@ -527,6 +545,7 @@ export class CodeSearchManager {
     this.isInSymbolMode = isInMode;
     this.currentFilePath = filePath;
     this.currentFileSymbols = symbols;
+    this.currentFileSymbolsLower = symbols.length > 0 ? this.buildSymbolsLowerCache(symbols) : null;
   }
 
   /**
@@ -541,15 +560,20 @@ export class CodeSearchManager {
     let filtered = this.currentFileSymbols;
     if (query) {
       const lowerQuery = query.toLowerCase();
-      filtered = this.currentFileSymbols.filter(s =>
-        s.name.toLowerCase().includes(lowerQuery) ||
-        s.lineContent.toLowerCase().includes(lowerQuery)
-      );
+      filtered = this.currentFileSymbols.filter(s => {
+        const lower = this.currentFileSymbolsLower?.get(s);
+        // Fallback to runtime toLowerCase() if cache is not built (defensive)
+        const nameLower = lower?.nameLower ?? s.name.toLowerCase();
+        const lineContentLower = lower?.lineContentLower ?? s.lineContent.toLowerCase();
+        return nameLower.includes(lowerQuery) || lineContentLower.includes(lowerQuery);
+      });
 
-      // Sort by relevance
+      // Sort by relevance using pre-computed lowercase values
       filtered.sort((a, b) => {
-        const aName = a.name.toLowerCase();
-        const bName = b.name.toLowerCase();
+        const aLower = this.currentFileSymbolsLower?.get(a);
+        const bLower = this.currentFileSymbolsLower?.get(b);
+        const aName = aLower?.nameLower ?? a.name.toLowerCase();
+        const bName = bLower?.nameLower ?? b.name.toLowerCase();
         const aStarts = aName.startsWith(lowerQuery);
         const bStarts = bName.startsWith(lowerQuery);
         if (aStarts && !bStarts) return -1;

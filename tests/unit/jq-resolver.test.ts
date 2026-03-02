@@ -68,4 +68,51 @@ describe('jq-resolver', () => {
       expect(result).toBeNull();
     });
   });
+
+  describe('failure cache', () => {
+    test('should cache failures and return null on subsequent calls within TTL', async () => {
+      const data = { foo: 'bar' };
+      const cacheKey = 'test-file-1';
+
+      // First call: evaluates and fails
+      const result1 = await evaluateJq(data, '.invalid|||', cacheKey);
+      expect(result1).toBeNull();
+
+      // Second call: should return null from cache without re-evaluating
+      const result2 = await evaluateJq(data, '.invalid|||', cacheKey);
+      expect(result2).toBeNull();
+    });
+
+    test('should not cache failures when cacheKey is not provided', async () => {
+      const data = { foo: 'bar' };
+
+      // Both calls should evaluate (no caching without cacheKey)
+      const result1 = await evaluateJq(data, '.invalid|||');
+      const result2 = await evaluateJq(data, '.invalid|||');
+      expect(result1).toBeNull();
+      expect(result2).toBeNull();
+    });
+
+    test('should use different cache entries for different cacheKeys', async () => {
+      const data = { value: 42 };
+
+      // Fail with one key
+      await evaluateJq(data, '.invalid|||', 'key-a');
+
+      // Different key with valid expression should still work
+      const result = await evaluateJq(data, '.value', 'key-b');
+      expect(result).toBe(42);
+    });
+
+    test('should use different cache entries for different expressions', async () => {
+      const data = { value: 42 };
+
+      // Fail with one expression
+      await evaluateJq(data, '.invalid|||', 'same-key');
+
+      // Same key but different (valid) expression should still work
+      const result = await evaluateJq(data, '.value', 'same-key');
+      expect(result).toBe(42);
+    });
+  });
 });

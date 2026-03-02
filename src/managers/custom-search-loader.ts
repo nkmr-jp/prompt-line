@@ -21,6 +21,7 @@ class CustomSearchLoader {
   private cache: Map<string, { items: CustomSearchItem[]; timestamp: number }> = new Map();
   private cacheTTL: number = CACHE_TTL.MD_SEARCH;
   private settings: UserSettings | undefined;
+  private loadingPromise: Promise<CustomSearchItem[]> | null = null;
 
   constructor(
     config?: CustomSearchEntry[],
@@ -58,6 +59,7 @@ class CustomSearchLoader {
    */
   invalidateCache(): void {
     this.cache.clear();
+    this.loadingPromise = null;
   }
 
   /**
@@ -283,6 +285,7 @@ class CustomSearchLoader {
 
   /**
    * 全設定エントリからアイテムをロード
+   * Singleflight パターン: 同時呼び出しが同一の Promise を共有し Cache Stampede を防止
    */
   private async loadAll(): Promise<CustomSearchItem[]> {
     const cacheKey = 'all';
@@ -291,13 +294,23 @@ class CustomSearchLoader {
       return cached.items;
     }
 
-    const allItems = await this.loadAllEntries();
-    allItems.sort((a, b) => a.name.localeCompare(b.name));
+    // Singleflight: 既に進行中のロードがあればそれを共有
+    if (this.loadingPromise) {
+      return this.loadingPromise;
+    }
 
-    this.cache.set(cacheKey, { items: allItems, timestamp: Date.now() });
-    this.logLoadedItems(allItems);
+    this.loadingPromise = this.loadAllEntries().then(allItems => {
+      allItems.sort((a, b) => a.name.localeCompare(b.name));
+      this.cache.set(cacheKey, { items: allItems, timestamp: Date.now() });
+      this.logLoadedItems(allItems);
+      this.loadingPromise = null;
+      return allItems;
+    }).catch(err => {
+      this.loadingPromise = null;
+      throw err;
+    });
 
-    return allItems;
+    return this.loadingPromise;
   }
 
   /**
@@ -620,8 +633,8 @@ class CustomSearchLoader {
       const jsonData = parseJsonContent(content);
       if (!jsonData) return [];
 
-      // Evaluate jq expression
-      const result = await evaluateJq(jsonData, jqExpression);
+      // Evaluate jq expression (filePath をキャッシュキーとして渡し、繰り返し失敗を防止)
+      const result = await evaluateJq(jsonData, jqExpression, filePath);
       logger.debug('parseJsonArrayToItems jq result', {
         filePath,
         jqExpression,
@@ -733,7 +746,7 @@ class CustomSearchLoader {
 
         // jq式が指定されている場合、各行に適用
         if (jqExpression) {
-          const jqResult = await evaluateJq(parsed, jqExpression);
+          const jqResult = await evaluateJq(parsed, jqExpression, filePath);
           if (jqResult === null || jqResult === undefined) continue;
 
           // 結果が配列なら展開して複数アイテムに

@@ -14,6 +14,24 @@ interface JqInstance {
 let jqInstance: JqInstance | null = null;
 let jqInitPromise: Promise<JqInstance> | null = null;
 
+/** 失敗キャッシュ: (filepath + expression) の組み合わせで短期間の再評価を防止 */
+const failureCache = new Map<string, number>();
+const FAILURE_CACHE_TTL = 30_000; // 30秒
+const FAILURE_CACHE_MAX_SIZE = 200;
+
+/**
+ * 失敗キャッシュから期限切れエントリを削除する
+ * キャッシュサイズが上限を超えた場合に呼び出される
+ */
+function evictExpiredFailures(): void {
+  const now = Date.now();
+  for (const [key, timestamp] of failureCache) {
+    if (now - timestamp >= FAILURE_CACHE_TTL) {
+      failureCache.delete(key);
+    }
+  }
+}
+
 /**
  * jq-web インスタンスを遅延初期化で取得
  */
@@ -43,8 +61,19 @@ async function getJqInstance(): Promise<JqInstance> {
 /**
  * jq式を評価し、結果をJS値で返す
  * - エラー時は null を返す
+ * - cacheKey を指定すると、失敗した組み合わせを短期キャッシュして再評価を防止
+ *   （例: ファイルパスを渡して同じファイル+式の繰り返し失敗を回避）
  */
-export async function evaluateJq(data: unknown, expression: string): Promise<unknown> {
+export async function evaluateJq(data: unknown, expression: string, cacheKey?: string): Promise<unknown> {
+  // 失敗キャッシュチェック: cacheKey が指定されている場合のみ
+  if (cacheKey) {
+    const failureKey = `${cacheKey}\0${expression}`;
+    const failedAt = failureCache.get(failureKey);
+    if (failedAt && Date.now() - failedAt < FAILURE_CACHE_TTL) {
+      return null;
+    }
+  }
+
   try {
     const jq = await getJqInstance();
     const result = jq.json(data, expression);
@@ -52,6 +81,15 @@ export async function evaluateJq(data: unknown, expression: string): Promise<unk
     return result;
   } catch (error) {
     logger.warn('jq evaluation failed', { expression, error: error instanceof Error ? error.message : String(error) });
+    // 失敗をキャッシュ
+    if (cacheKey) {
+      const failureKey = `${cacheKey}\0${expression}`;
+      failureCache.set(failureKey, Date.now());
+      // サイズ上限を超えたら期限切れエントリを掃除
+      if (failureCache.size > FAILURE_CACHE_MAX_SIZE) {
+        evictExpiredFailures();
+      }
+    }
     return null;
   }
 }
