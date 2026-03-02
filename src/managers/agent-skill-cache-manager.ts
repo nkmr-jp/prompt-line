@@ -48,8 +48,8 @@ export class AgentSkillCacheManager {
   async loadGlobalSkills(): Promise<string[]> {
     try {
       const entries = await this.loadGlobalEntries();
-      // Return in reverse order (most recent first)
-      return entries.reverse().map(e => e.name);
+      // Return in reverse order (most recent first) without mutating the cached array
+      return [...entries].reverse().map(e => e.name);
     } catch {
       return [];
     }
