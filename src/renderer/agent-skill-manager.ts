@@ -71,6 +71,13 @@ export class AgentSkillManager implements IInitializable {
   private onBeforeOpenFile: (() => void) | undefined;
   private setDraggable: ((enabled: boolean) => void) | undefined;
 
+  // Task #5: Pre-computed searchable fields cache (populated in loadSkills)
+  private searchableFieldsCache: Map<AgentSkillItem, string> = new Map();
+  // Task #3: Usage bonuses TTL cache
+  private usageBonusesCache: Record<string, number> = {};
+  private usageBonusesCacheTime: number = 0;
+  private static readonly USAGE_BONUSES_CACHE_TTL = 5000; // 5 seconds
+
   // Frontmatter popup manager
   private frontmatterPopupManager: FrontmatterPopupManager;
 
@@ -255,6 +262,16 @@ export class AgentSkillManager implements IInitializable {
     }
     // Pre-sort by name length descending for checkForArgumentHintAtCursor
     this.sortedSkillsByNameLength = [...this.skills].sort((a, b) => b.name.length - a.name.length);
+    // Pre-compute searchable fields for each skill (Task #5)
+    this.searchableFieldsCache = new Map();
+    for (const cmd of this.skills) {
+      this.searchableFieldsCache.set(cmd, [
+        cmd.name.toLowerCase(),
+        cmd.description.toLowerCase(),
+        cmd.displayName?.toLowerCase() ?? '',
+        cmd.label?.toLowerCase() ?? '',
+      ].join(' '));
+    }
   }
 
   /**
@@ -425,10 +442,11 @@ export class AgentSkillManager implements IInitializable {
   }
 
   /**
-   * Build searchable fields string from a skill for keyword matching
+   * Build searchable fields string from a skill for keyword matching.
+   * Uses pre-computed cache from loadSkills() for AgentSkillItem objects.
    */
-  private getSearchableFields(cmd: { name: string; description: string; displayName?: string; label?: string }): string {
-    return [
+  private getSearchableFields(cmd: AgentSkillItem): string {
+    return this.searchableFieldsCache.get(cmd) ?? [
       cmd.name.toLowerCase(),
       cmd.description.toLowerCase(),
       cmd.displayName?.toLowerCase() ?? '',
@@ -453,18 +471,24 @@ export class AgentSkillManager implements IInitializable {
       // Empty query: show all skills
       this.filteredSkills = [...this.skills];
     } else {
-      this.filteredSkills = this.skills
-        .filter(cmd => {
-          const fields = this.getSearchableFields(cmd);
-          return keywords.every(kw => fields.includes(kw));
-        });
-    }
+      // Task #6: AND filter + fallback in 1 pass
+      const fallbackResults: AgentSkillItem[] | null = keywords.length > 1 ? [] : null;
 
-    if (this.filteredSkills.length === 0 && keywords.length > 1) {
-      // AND search returned 0 - fall back to first keyword match
-      // to keep showing relevant results while user types additional keywords
-      this.filteredSkills = this.skills
-        .filter(cmd => this.getSearchableFields(cmd).includes(keywords[0]!));
+      this.filteredSkills = this.skills.filter(cmd => {
+        const fields = this.getSearchableFields(cmd);
+        if (keywords.every(kw => fields.includes(kw))) {
+          return true;
+        }
+        // Collect first-keyword matches as fallback candidates
+        if (fallbackResults && fields.includes(keywords[0]!)) {
+          fallbackResults.push(cmd);
+        }
+        return false;
+      });
+
+      if (this.filteredSkills.length === 0 && fallbackResults && fallbackResults.length > 0) {
+        this.filteredSkills = fallbackResults;
+      }
     }
 
     if (this.filteredSkills.length === 0) {
@@ -472,31 +496,34 @@ export class AgentSkillManager implements IInitializable {
       return;
     }
 
-    // Get usage bonuses for all filtered commands
-    const skillNames = this.filteredSkills.map(cmd => cmd.name);
+    // Task #3: Get usage bonuses with TTL cache
     let usageBonuses: Record<string, number> = {};
-    try {
-      if (electronAPI?.agentSkills?.getUsageBonuses) {
-        usageBonuses = await electronAPI.agentSkills.getUsageBonuses(skillNames);
+    const now = Date.now();
+    if (now - this.usageBonusesCacheTime < AgentSkillManager.USAGE_BONUSES_CACHE_TTL) {
+      usageBonuses = this.usageBonusesCache;
+    } else {
+      try {
+        const skillNames = this.filteredSkills.map(cmd => cmd.name);
+        if (electronAPI?.agentSkills?.getUsageBonuses) {
+          usageBonuses = await electronAPI.agentSkills.getUsageBonuses(skillNames);
+          this.usageBonusesCache = usageBonuses;
+          this.usageBonusesCacheTime = now;
+        }
+      } catch (error) {
+        console.error('Failed to get usage bonuses:', error);
       }
-    } catch (error) {
-      console.error('Failed to get usage bonuses:', error);
-      // Continue with empty bonuses (no usage bonus applied)
     }
 
-    // Sort by total score (match score + usage bonus)
+    // Task #4: Pre-compute scores before sorting
+    const scoreMap = new Map<AgentSkillItem, number>();
+    for (const cmd of this.filteredSkills) {
+      const matchScore = this.getMatchScore(cmd.name, keywords, cmd.description);
+      const bonus = usageBonuses[cmd.name] ?? 0;
+      scoreMap.set(cmd, matchScore + bonus);
+    }
+
     this.filteredSkills.sort((a, b) => {
-      const aMatchScore = this.getMatchScore(a.name, keywords, a.description);
-      const bMatchScore = this.getMatchScore(b.name, keywords, b.description);
-
-      const aBonus = usageBonuses[a.name] ?? 0;
-      const bBonus = usageBonuses[b.name] ?? 0;
-
-      const aTotal = aMatchScore + aBonus;
-      const bTotal = bMatchScore + bBonus;
-
-      // Sort by total score descending
-      const scoreDiff = bTotal - aTotal;
+      const scoreDiff = (scoreMap.get(b) ?? 0) - (scoreMap.get(a) ?? 0);
       if (scoreDiff !== 0) return scoreDiff;
 
       // Tiebreak: prefer shorter names, then alphabetical
@@ -862,6 +889,8 @@ export class AgentSkillManager implements IInitializable {
     try {
       if (electronAPI?.agentSkills?.registerGlobal) {
         await electronAPI.agentSkills.registerGlobal(skillName);
+        // Invalidate usage bonuses cache so next suggestion reflects the update
+        this.usageBonusesCacheTime = 0;
       }
     } catch (error) {
       console.error('Failed to register agent skill to cache:', error);
@@ -1068,5 +1097,8 @@ export class AgentSkillManager implements IInitializable {
    */
   public invalidateCache(): void {
     this.skills = [];
+    this.searchableFieldsCache.clear();
+    this.usageBonusesCache = {};
+    this.usageBonusesCacheTime = 0;
   }
 }

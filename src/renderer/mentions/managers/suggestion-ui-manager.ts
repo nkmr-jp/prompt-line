@@ -19,7 +19,8 @@ import { insertSvgIntoElement } from '../types';
 import type { FileInfo, AgentItem } from '../../../types';
 import type { SymbolResult } from '../code-search/types';
 import { getSymbolTypeDisplay } from '../code-search/types';
-import { getCaretCoordinates, createMirrorDiv, insertHighlightedText } from '../dom-utils';
+import { getCaretCoordinates, createMirrorDiv, insertHighlightedText, buildHighlightCache } from '../dom-utils';
+import type { HighlightCache } from '../dom-utils';
 import { getRelativePath, getDirectoryFromPath } from '../path-utils';
 import { getFileIconSvg, getSymbolCodiconClass } from '../../assets/icons/file-icons';
 import { formatTime } from '../../utils/time-formatter';
@@ -106,6 +107,10 @@ export class SuggestionUIManager {
   private containerClickHandler: ((e: MouseEvent) => void) | null = null;
   private containerMouseMoveHandler: ((e: MouseEvent) => void) | null = null;
   private containerMouseLeaveHandler: ((e: MouseEvent) => void) | null = null;
+  private selectedElement: HTMLElement | null = null;
+  private hoveredElement: HTMLElement | null = null;
+  private queryHighlightCache: HighlightCache | null = null;
+  private codeSearchHighlightCache: HighlightCache | null = null;
 
   constructor(textInput: HTMLTextAreaElement, callbacks: SuggestionUICallbacks) {
     this.textInput = textInput;
@@ -166,21 +171,25 @@ export class SuggestionUIManager {
       this.callbacks.onItemSelected(index);
     };
 
-    // MouseMove event delegation
+    // MouseMove event delegation (differential update via reference)
     this.containerMouseMoveHandler = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       const item = target.closest('[data-suggestion-index]') as HTMLElement;
-      if (!item) return;
+      if (!item || this.hoveredElement === item) return;
 
-      const allItems = this.suggestionsContainer?.querySelectorAll('.file-suggestion-item');
-      allItems?.forEach(el => el.classList.remove('hovered'));
+      if (this.hoveredElement) {
+        this.hoveredElement.classList.remove('hovered');
+      }
       item.classList.add('hovered');
+      this.hoveredElement = item;
     };
 
-    // MouseLeave event delegation - clear all hovered states when leaving container
+    // MouseLeave event delegation - clear hovered state via reference
     this.containerMouseLeaveHandler = () => {
-      const hoveredItems = this.suggestionsContainer?.querySelectorAll('.hovered');
-      hoveredItems?.forEach(item => item.classList.remove('hovered'));
+      if (this.hoveredElement) {
+        this.hoveredElement.classList.remove('hovered');
+        this.hoveredElement = null;
+      }
     };
 
     this.suggestionsContainer.addEventListener('click', this.containerClickHandler);
@@ -221,6 +230,8 @@ export class SuggestionUIManager {
     }
 
     this.mergedSuggestions = [];
+    this.selectedElement = null;
+    this.hoveredElement = null;
   }
 
   /**
@@ -272,19 +283,17 @@ export class SuggestionUIManager {
 
     this.callbacks.setCurrentQuery?.(searchTerm);
 
-    // Fetch agents matching the query (only at root level without path navigation)
-    if (!currentPath && this.callbacks.searchAgents) {
-      const agents = await this.callbacks.searchAgents(searchTerm);
-      this.callbacks.setFilteredAgents?.(agents);
-    } else {
-      this.callbacks.setFilteredAgents?.([]);
-    }
-
     // Check if index is being built
     const isIndexBuilding = this.callbacks.isIndexBeingBuilt?.() ?? false;
 
-    // Fetch file usage bonuses before filtering
-    const fileUsageBonuses = await this.callbacks.getFileUsageBonuses?.() ?? {};
+    // Fetch agents and file usage bonuses in parallel (independent IPC calls)
+    const agentsPromise = (!currentPath && this.callbacks.searchAgents)
+      ? this.callbacks.searchAgents(searchTerm)
+      : Promise.resolve([] as AgentItem[]);
+    const fileUsageBonusesPromise = this.callbacks.getFileUsageBonuses?.() ?? Promise.resolve({} as Record<string, number>);
+
+    const [agents, fileUsageBonuses] = await Promise.all([agentsPromise, fileUsageBonusesPromise]);
+    this.callbacks.setFilteredAgents?.(agents);
 
     // Filter files if directory data is available
     if (matchesPrefix) {
@@ -478,6 +487,17 @@ export class SuggestionUIManager {
 
     this.suggestionsContainer.scrollTop = 0;
 
+    // Clear DOM element references (DOM will be rebuilt)
+    this.selectedElement = null;
+    this.hoveredElement = null;
+
+    // Build highlight caches once for the current render pass
+    const currentQuery = this.callbacks.getCurrentQuery?.() || '';
+    const codeSearchQuery = this.callbacks.getCodeSearchQuery?.() || '';
+    this.queryHighlightCache = buildHighlightCache(currentQuery);
+    this.codeSearchHighlightCache = codeSearchQuery !== currentQuery
+      ? buildHighlightCache(codeSearchQuery) : this.queryHighlightCache;
+
     const fragment = document.createDocumentFragment();
 
     // Add path header if we're in a subdirectory
@@ -555,7 +575,7 @@ export class SuggestionUIManager {
 
     const currentQuery = this.callbacks.getCurrentQuery?.() || '';
     if (file.isDirectory) {
-      insertHighlightedText(name, file.name, currentQuery);
+      insertHighlightedText(name, file.name, currentQuery, this.queryHighlightCache);
 
       const fileCount = this.callbacks.countFilesInDirectory?.(file.path) || 0;
       const countSpan = document.createElement('span');
@@ -563,7 +583,7 @@ export class SuggestionUIManager {
       countSpan.textContent = ` (${fileCount} files)`;
       name.appendChild(countSpan);
     } else {
-      insertHighlightedText(name, file.name, currentQuery);
+      insertHighlightedText(name, file.name, currentQuery, this.queryHighlightCache);
     }
 
     item.appendChild(icon);
@@ -597,7 +617,7 @@ export class SuggestionUIManager {
     const name = document.createElement('span');
     name.className = 'file-name agent-name';
     const currentQuery = this.callbacks.getCurrentQuery?.() || '';
-    insertHighlightedText(name, agent.name, currentQuery);
+    insertHighlightedText(name, agent.name, currentQuery, this.queryHighlightCache);
 
     const desc = document.createElement('span');
     desc.className = 'file-path agent-description';
@@ -655,7 +675,7 @@ export class SuggestionUIManager {
     const name = document.createElement('span');
     name.className = 'file-name symbol-name';
     const codeSearchQuery = this.callbacks.getCodeSearchQuery?.() || '';
-    insertHighlightedText(name, symbol.name, codeSearchQuery);
+    insertHighlightedText(name, symbol.name, codeSearchQuery, this.codeSearchHighlightCache);
 
     const typeBadge = document.createElement('span');
     typeBadge.className = 'symbol-type-badge';
@@ -744,17 +764,24 @@ export class SuggestionUIManager {
   private updateSelection(): void {
     if (!this.suggestionsContainer) return;
 
-    const items = this.suggestionsContainer.querySelectorAll('.file-suggestion-item');
-    items.forEach((item, index) => {
-      if (index === this.selectedIndex) {
-        item.classList.add('selected');
-        item.setAttribute('aria-selected', 'true');
-        item.scrollIntoView({ block: 'nearest' });
-      } else {
-        item.classList.remove('selected');
-        item.setAttribute('aria-selected', 'false');
-      }
-    });
+    // Clear previous selection (differential update via reference)
+    if (this.selectedElement) {
+      this.selectedElement.classList.remove('selected');
+      this.selectedElement.setAttribute('aria-selected', 'false');
+    }
+
+    // Set new selection by data attribute (O(1) lookup instead of O(n) iteration)
+    const newSelected = this.suggestionsContainer.querySelector(
+      `[data-suggestion-index="${this.selectedIndex}"]`
+    ) as HTMLElement | null;
+
+    if (newSelected) {
+      newSelected.classList.add('selected');
+      newSelected.setAttribute('aria-selected', 'true');
+      newSelected.scrollIntoView({ block: 'nearest' });
+    }
+
+    this.selectedElement = newSelected;
   }
 
   // ============================================================
