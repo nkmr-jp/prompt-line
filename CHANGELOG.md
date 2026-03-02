@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.25.2](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.25.1...prompt-line-v0.25.2) (2026-03-02)
+
+
+### Bug Fixes
+
+* **agent-skill:** prevent in-place mutation of cached entries array ([d9ad7a8](https://github.com/nkmr-jp/prompt-line/commit/d9ad7a8631ac56cc9077a68e2407e6075ff184ec))
+* **perf:** address code review findings for suggestion optimization ([0edebc1](https://github.com/nkmr-jp/prompt-line/commit/0edebc18fa78e76d6151cee44920cfa225ddc8b1))
+
+
+### Performance Improvements
+
+* **suggest:** fix root causes of suggestion slowdown ([bed916d](https://github.com/nkmr-jp/prompt-line/commit/bed916dfcbc52e4bbe2bfd95e755369435d06ee8))
+* **suggestions:** fix @ mention and / command suggestion speed regression ([1ee59e2](https://github.com/nkmr-jp/prompt-line/commit/1ee59e2aed8d689e7c5a9191d61e4ef61d7d1472))
+* **suggestions:** optimize @ mention and slash command performance ([35abfd8](https://github.com/nkmr-jp/prompt-line/commit/35abfd87482f94bbd1e591b262938ef9792b9a91))
+* **suggestions:** optimize renderer-side processing and eliminate redundant computations ([0cc6389](https://github.com/nkmr-jp/prompt-line/commit/0cc6389e5a2e5a7c4b5a5438ac53dff7b76c0b00))
+* **suggest:** optimize @ mention and / command suggestion performance ([6901a58](https://github.com/nkmr-jp/prompt-line/commit/6901a585799a9b9c23a2eb636541261e2507033c))
+
+
+### Miscellaneous Chores
+
+* remove investigation report ([115c42f](https://github.com/nkmr-jp/prompt-line/commit/115c42f71bf8356a1f1531cd490b5ca810c4e5e2))
+
 ## [0.25.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.25.0...prompt-line-v0.25.1) (2026-02-28)
 
 
