@@ -169,12 +169,13 @@ export class FileFilterManager {
 
     // Score and filter files
     const queryLower = query.toLowerCase();
+    const keywords = splitKeywords(queryLower);
     const scored = files
       .map(file => {
         const bonus = usageBonuses?.[file.path] ?? 0;
         return {
           file,
-          score: calculateMatchScore(file, queryLower, bonus, baseDir)
+          score: calculateMatchScore(file, queryLower, bonus, baseDir, keywords)
         };
       })
       .filter(item => item.score > 0)
@@ -225,6 +226,16 @@ export class FileFilterManager {
     maxSuggestions: number,
     usageBonuses?: Record<string, number>
   ): FileInfo[] {
+    // Pre-build map: top-level directory name → FileInfo (O(n) instead of O(n²) find)
+    const dirMap = new Map<string, FileInfo>();
+    for (const file of allFiles) {
+      if (!file.isDirectory) continue;
+      const relativePath = getRelativePath(file.path, baseDir);
+      if (!relativePath.includes('/')) {
+        dirMap.set(relativePath, file);
+      }
+    }
+
     const seenDirs = new Set<string>();
     const files: FileInfo[] = [];
 
@@ -240,10 +251,7 @@ export class FileFilterManager {
         const dirName = relativePath.substring(0, slashIndex);
         if (!seenDirs.has(dirName)) {
           seenDirs.add(dirName);
-          // Check if we already have this directory in allFiles
-          const existingDir = allFiles.find(f =>
-            f.isDirectory && getRelativePath(f.path, baseDir) === dirName
-          );
+          const existingDir = dirMap.get(dirName);
           if (existingDir) {
             files.push(existingDir);
           } else {
@@ -352,7 +360,7 @@ export class FileFilterManager {
       const bonus = usageBonuses?.[dir.path] ?? 0;
       return {
         file: dir,
-        score: calculateMatchScore(dir, queryLower, bonus, baseDir),
+        score: calculateMatchScore(dir, queryLower, bonus, baseDir, keywords),
         relativePath: getRelativePath(dir.path, baseDir)
       };
     });
@@ -457,11 +465,12 @@ export class FileFilterManager {
   ): SuggestionItem[] {
     const items: SuggestionItem[] = [];
     const queryLower = query.toLowerCase();
+    const keywords = splitKeywords(queryLower);
 
     // Add files with scores (including usage bonuses)
     for (const file of filteredFiles) {
       const bonus = usageBonuses?.[file.path] ?? 0;
-      const score = calculateMatchScore(file, queryLower, bonus, baseDir);
+      const score = calculateMatchScore(file, queryLower, bonus, baseDir, keywords);
       items.push({ type: 'file', file, score });
     }
 

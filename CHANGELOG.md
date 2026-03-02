@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.25.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.25.0...prompt-line-v0.25.1) (2026-02-28)
+
+
+### Documentation
+
+* **claude-md:** Fix inconsistencies between documentation and implementation ([e671e21](https://github.com/nkmr-jp/prompt-line/commit/e671e2185b0698f5d8a87eea8a8dc4656ee6130b))
+* **testing:** add guidance for suppressing console output in tests ([4e131cb](https://github.com/nkmr-jp/prompt-line/commit/4e131cb24cf8eeefa9878cfe12a8eac67e62d8b0))
+
+
+### Miscellaneous Chores
+
+* **mentions:** remove built-in task mention configuration ([8e2fefd](https://github.com/nkmr-jp/prompt-line/commit/8e2fefd1a76d7c93c8f55b84d197d772414764c3))
+* update pnpm packageManager to 10.30.3 ([1dcbb4f](https://github.com/nkmr-jp/prompt-line/commit/1dcbb4fbedabcca223961858f093102f43201371))
+
+
+### Tests
+
+* mock console methods to suppress output during tests ([3b69e2b](https://github.com/nkmr-jp/prompt-line/commit/3b69e2b2a381aea1e4a0a0e1e3e5a0d35b6f3ae4))
+* **mocks:** simplify mock implementations to match actual usage ([986d055](https://github.com/nkmr-jp/prompt-line/commit/986d055edee15d22931734999a6db586cf18e7f6))
+* remove redundant test cases across multiple test suites ([4dfc3d5](https://github.com/nkmr-jp/prompt-line/commit/4dfc3d521c1215a83cce6ac41a65a3271bb5e9e0))
+* **renderer:** add missing mocks and fix window lifecycle test assertion ([d2e058e](https://github.com/nkmr-jp/prompt-line/commit/d2e058e72732f51002ccda019c66357502f8c7e7))
+* **settings-cache-manager:** verify error is logged on API failure ([35ba787](https://github.com/nkmr-jp/prompt-line/commit/35ba787a0f35ca9ecefa049bed83f73aab263dd9))
+* **unit:** restore and add missing critical unit tests ([f8bea0a](https://github.com/nkmr-jp/prompt-line/commit/f8bea0a04c999e294a290b8e67e069e1c05df845))
+
 ## [0.25.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.24.1...prompt-line-v0.25.0) (2026-02-28)
 
 

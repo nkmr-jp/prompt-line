@@ -6,10 +6,33 @@
 import { splitKeywords, buildKeywordRegex } from '../utils/highlight-utils';
 
 /**
+ * Pre-built highlight cache to avoid rebuilding RegExp for each item
+ */
+export interface HighlightCache {
+  regex: RegExp;
+  keywordsLowerSet: Set<string>;
+}
+
+/**
+ * Build a reusable highlight cache for a query.
+ * Call once per render pass and pass the result to insertHighlightedText.
+ */
+export function buildHighlightCache(query: string): HighlightCache | null {
+  if (!query) return null;
+  const keywords = splitKeywords(query);
+  if (keywords.length === 0) return null;
+  return {
+    regex: buildKeywordRegex(keywords),
+    keywordsLowerSet: new Set(keywords.map(k => k.toLowerCase()))
+  };
+}
+
+/**
  * Insert highlighted text into an element using safe DOM manipulation
  * This avoids innerHTML for security while allowing highlighting
+ * @param cache - Optional pre-built HighlightCache for performance (avoids per-item RegExp rebuild)
  */
-export function insertHighlightedText(element: HTMLElement, text: string, query: string): void {
+export function insertHighlightedText(element: HTMLElement, text: string, query: string, cache?: HighlightCache | null): void {
   // Clear existing content
   element.textContent = '';
 
@@ -18,14 +41,13 @@ export function insertHighlightedText(element: HTMLElement, text: string, query:
     return;
   }
 
-  const keywords = splitKeywords(query);
-  if (keywords.length === 0) {
+  const resolved = cache ?? buildHighlightCache(query);
+  if (!resolved) {
     element.textContent = text;
     return;
   }
 
-  const regex = buildKeywordRegex(keywords);
-  const keywordsLowerSet = new Set(keywords.map(k => k.toLowerCase()));
+  const { regex, keywordsLowerSet } = resolved;
 
   // Split text by matches
   const parts = text.split(regex);
