@@ -17,6 +17,20 @@ let jqInitPromise: Promise<JqInstance> | null = null;
 /** 失敗キャッシュ: (filepath + expression) の組み合わせで短期間の再評価を防止 */
 const failureCache = new Map<string, number>();
 const FAILURE_CACHE_TTL = 30_000; // 30秒
+const FAILURE_CACHE_MAX_SIZE = 200;
+
+/**
+ * 失敗キャッシュから期限切れエントリを削除する
+ * キャッシュサイズが上限を超えた場合に呼び出される
+ */
+function evictExpiredFailures(): void {
+  const now = Date.now();
+  for (const [key, timestamp] of failureCache) {
+    if (now - timestamp >= FAILURE_CACHE_TTL) {
+      failureCache.delete(key);
+    }
+  }
+}
 
 /**
  * jq-web インスタンスを遅延初期化で取得
@@ -71,6 +85,10 @@ export async function evaluateJq(data: unknown, expression: string, cacheKey?: s
     if (cacheKey) {
       const failureKey = `${cacheKey}\0${expression}`;
       failureCache.set(failureKey, Date.now());
+      // サイズ上限を超えたら期限切れエントリを掃除
+      if (failureCache.size > FAILURE_CACHE_MAX_SIZE) {
+        evictExpiredFailures();
+      }
     }
     return null;
   }

@@ -2466,4 +2466,45 @@ Content`;
       expect(items[2]?.name).toBe('CONNECT: Retry');
     });
   });
+
+  describe('singleflight pattern (loadAll)', () => {
+    test('concurrent getItems calls should share the same loading promise', async () => {
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('test.md', true)] as any);
+      mockedFs.readFile.mockResolvedValue('---\ndescription: Test\n---\nContent');
+
+      // Invalidate cache to force loading
+      loader.invalidateCache();
+
+      // Launch multiple concurrent calls
+      const [result1, result2, result3] = await Promise.all([
+        loader.getItems('command'),
+        loader.getItems('command'),
+        loader.getItems('command'),
+      ]);
+
+      // All should return the same results
+      expect(result1).toEqual(result2);
+      expect(result2).toEqual(result3);
+
+      // readdir should have been called only once (not 3 times) due to singleflight
+      // Each config entry triggers one readdir, so 2 entries = 2 readdir calls (not 6)
+      const readdirCallCount = mockedFs.readdir.mock.calls.length;
+      expect(readdirCallCount).toBeLessThanOrEqual(2);
+    });
+
+    test('subsequent call after completion should use cache, not re-load', async () => {
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('test.md', true)] as any);
+      mockedFs.readFile.mockResolvedValue('---\ndescription: Test\n---\nContent');
+
+      // First call loads
+      await loader.getItems('command');
+      const callCountAfterFirst = mockedFs.readdir.mock.calls.length;
+
+      // Second call should hit cache
+      await loader.getItems('command');
+      expect(mockedFs.readdir.mock.calls).toHaveLength(callCountAfterFirst);
+    });
+  });
 });

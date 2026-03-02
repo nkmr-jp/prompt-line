@@ -735,27 +735,35 @@ export class MentionManager implements IInitializable {
   }
 
   /**
-   * Handle normal file search (with 80ms debounce to avoid heavy pipeline on every keystroke)
+   * Handle normal file search (leading-edge debounce: immediate on first call, then 80ms)
    */
   private handleFileSearch(query: string, startPos: number): void {
     this.state.atStartPosition = startPos;
 
-    // C2: Debounce showSuggestions calls (80ms)
-    // Cancel any pending debounced call
+    // C2: Leading-edge debounce - execute immediately on first call,
+    // then debounce subsequent calls within the window
     if (this.showSuggestionsTimer !== null) {
       clearTimeout(this.showSuggestionsTimer);
       this.showSuggestionsTimer = null;
     }
 
-    // Increment request ID so stale results are discarded
     const requestId = ++this.showSuggestionsRequestId;
 
-    this.showSuggestionsTimer = setTimeout(() => {
-      this.showSuggestionsTimer = null;
-      // Only process if this is still the latest request
-      if (requestId !== this.showSuggestionsRequestId) return;
+    if (!this.state.isVisible) {
+      // First call (suggestions not yet visible): execute immediately for responsiveness
       this.showSuggestions(query);
-    }, MentionManager.SHOW_SUGGESTIONS_DEBOUNCE_MS);
+      // Set a "cooldown" timer to debounce rapid follow-up calls
+      this.showSuggestionsTimer = setTimeout(() => {
+        this.showSuggestionsTimer = null;
+      }, MentionManager.SHOW_SUGGESTIONS_DEBOUNCE_MS);
+    } else {
+      // Subsequent calls: debounce to avoid heavy pipeline on every keystroke
+      this.showSuggestionsTimer = setTimeout(() => {
+        this.showSuggestionsTimer = null;
+        if (requestId !== this.showSuggestionsRequestId) return;
+        this.showSuggestions(query);
+      }, MentionManager.SHOW_SUGGESTIONS_DEBOUNCE_MS);
+    }
   }
 
   /**

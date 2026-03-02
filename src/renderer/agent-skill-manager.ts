@@ -517,9 +517,12 @@ export class AgentSkillManager implements IInitializable {
     }
 
     // Task #3: Get usage bonuses with TTL cache
+    // Check if all filtered skills have cached bonuses (handle new skills entering the filter)
     let usageBonuses: Record<string, number> = {};
     const now = Date.now();
-    if (now - this.usageBonusesCacheTime < AgentSkillManager.USAGE_BONUSES_CACHE_TTL) {
+    const cacheValid = now - this.usageBonusesCacheTime < AgentSkillManager.USAGE_BONUSES_CACHE_TTL;
+    const allSkillsCovered = cacheValid && this.filteredSkills.every(cmd => cmd.name in this.usageBonusesCache);
+    if (allSkillsCovered) {
       usageBonuses = this.usageBonusesCache;
     } else {
       try {

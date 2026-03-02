@@ -562,8 +562,10 @@ export class CodeSearchManager {
       const lowerQuery = query.toLowerCase();
       filtered = this.currentFileSymbols.filter(s => {
         const lower = this.currentFileSymbolsLower?.get(s);
-        if (!lower) return false;
-        return lower.nameLower.includes(lowerQuery) || lower.lineContentLower.includes(lowerQuery);
+        // Fallback to runtime toLowerCase() if cache is not built (defensive)
+        const nameLower = lower?.nameLower ?? s.name.toLowerCase();
+        const lineContentLower = lower?.lineContentLower ?? s.lineContent.toLowerCase();
+        return nameLower.includes(lowerQuery) || lineContentLower.includes(lowerQuery);
       });
 
       // Sort by relevance using pre-computed lowercase values
