@@ -26,7 +26,8 @@ class LowercaseCache {
     const cached = this.cache.get(str);
     if (cached !== undefined) return cached;
 
-    const lower = str.toLowerCase();
+    // Normalize to NFC to handle macOS NFD filenames vs NFC IME input
+    const lower = str.normalize('NFC').toLowerCase();
     this.cache.set(str, lower);
     return lower;
   }
@@ -68,8 +69,8 @@ export function getLowercaseCacheSize(): number {
  * Simple fuzzy matching - checks if pattern appears in text
  */
 export function fuzzyMatch(text: string, pattern: string): boolean {
-  // Simple substring match (case-insensitive)
-  return text.toLowerCase().includes(pattern.toLowerCase());
+  // Simple substring match (case-insensitive, NFC-normalized for macOS compatibility)
+  return text.normalize('NFC').toLowerCase().includes(pattern.normalize('NFC').toLowerCase());
 }
 
 /**

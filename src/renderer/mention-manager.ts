@@ -620,7 +620,6 @@ export class MentionManager implements IInitializable {
     }
 
     const { query, startPos } = result;
-
     // Check if query matches a recently inserted path (prevent re-showing after selection)
     if (this.lastInsertedMentionPath) {
       if (query.trimEnd() === this.lastInsertedMentionPath ||

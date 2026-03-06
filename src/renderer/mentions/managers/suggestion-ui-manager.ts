@@ -114,6 +114,8 @@ export class SuggestionUIManager {
   // D6: Track last queries to skip redundant buildHighlightCache calls
   private lastHighlightQuery: string = '';
   private lastCodeSearchHighlightQuery: string = '';
+  // Sequence counter to detect stale async showSuggestions completions
+  private showSuggestionsSeq: number = 0;
 
   constructor(textInput: HTMLTextAreaElement, callbacks: SuggestionUICallbacks) {
     this.textInput = textInput;
@@ -273,8 +275,13 @@ export class SuggestionUIManager {
       return;
     }
 
+    // Track this call's sequence number to detect stale async completions.
+    // If a newer showSuggestions call starts while we're awaiting, our results are stale.
+    const seq = ++this.showSuggestionsSeq;
+
     // Check if query matches any searchPrefix for mention type
     const matchesPrefix = await this.callbacks.matchesSearchPrefix?.(query, 'mention') ?? false;
+    if (seq !== this.showSuggestionsSeq) return;
 
     // Adjust currentPath based on query
     if (!matchesPrefix) {
@@ -299,6 +306,7 @@ export class SuggestionUIManager {
     const fileUsageBonusesPromise = this.callbacks.getFileUsageBonuses?.() ?? Promise.resolve({} as Record<string, number>);
 
     const [agents, fileUsageBonuses] = await Promise.all([agentsPromise, fileUsageBonusesPromise]);
+    if (seq !== this.showSuggestionsSeq) return;
     this.callbacks.setFilteredAgents?.(agents);
 
     // Filter files if directory data is available
@@ -313,6 +321,7 @@ export class SuggestionUIManager {
 
     // Get maxSuggestions setting for merged list
     const maxSuggestions = await this.callbacks.getMaxSuggestions?.('mention') ?? 20;
+    if (seq !== this.showSuggestionsSeq) return;
 
     // Strip searchPrefix from query for scoring (e.g., "plan:" → "", "plan:custom" → "custom")
     let scoringQuery = searchTerm;
@@ -339,7 +348,6 @@ export class SuggestionUIManager {
     }
 
     this.callbacks.setMergedSuggestions?.(merged);
-
     this.callbacks.setSelectedIndex?.(0);
     this.callbacks.setIsVisible?.(true);
 
@@ -380,6 +388,11 @@ export class SuggestionUIManager {
    */
   public handleKeyDown(e: KeyboardEvent): boolean {
     if (!this.isVisible) return false;
+
+    // Skip all key handling during IME composition to allow Japanese input
+    if (e.isComposing || this.callbacks.getIsComposing?.()) {
+      return false;
+    }
 
     const totalItems = this.mergedSuggestions.length;
     const currentIndex = this.selectedIndex;
@@ -435,10 +448,6 @@ export class SuggestionUIManager {
   }
 
   private handleEnterKey(e: KeyboardEvent, totalItems: number, currentIndex: number): boolean {
-    if (e.isComposing || this.callbacks.getIsComposing?.()) {
-      return false;
-    }
-
     if (totalItems > 0) {
       e.preventDefault();
       e.stopPropagation();
