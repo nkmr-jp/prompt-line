@@ -583,6 +583,7 @@ export class AgentSkillManager implements IInitializable {
       item.className = 'agent-skill-suggestion-item';
       if (index === this.selectedIndex) {
         item.classList.add('selected');
+        this.selectedSkillElement = item;
       }
       item.dataset.index = index.toString();
 
