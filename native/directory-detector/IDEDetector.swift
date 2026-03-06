@@ -168,4 +168,86 @@ extension DirectoryDetector {
         }
         return nil
     }
+
+    /// Get project directory from JetBrains recent projects configuration file
+    /// Searches ~/Library/Application Support/JetBrains/*/options/recentProjects.xml
+    /// Matches by project name extracted from window title against entry key basenames
+    static func getDirectoryFromRecentProjects(projectName: String) -> String? {
+        let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
+        let jetbrainsDir = homeDir + "/Library/Application Support/JetBrains"
+        let fileManager = FileManager.default
+
+        guard let productDirs = try? fileManager.contentsOfDirectory(atPath: jetbrainsDir) else {
+            return nil
+        }
+
+        // Compile regex patterns once outside the loop
+        guard let entryRegex = try? NSRegularExpression(pattern: "entry key=\"([^\"]+)\""),
+              let tsRegex = try? NSRegularExpression(pattern: "name=\"activationTimestamp\" value=\"(\\d+)\"") else {
+            return nil
+        }
+
+        let projectSuffix = "/" + projectName
+        var bestMatch: (path: String, timestamp: Int64)? = nil
+
+        for productDir in productDirs {
+            let recentProjectsPath = jetbrainsDir + "/" + productDir + "/options/recentProjects.xml"
+            guard let xmlContent = try? String(contentsOfFile: recentProjectsPath, encoding: .utf8) else {
+                continue
+            }
+
+            let matches = entryRegex.matches(in: xmlContent, range: NSRange(xmlContent.startIndex..., in: xmlContent))
+
+            for match in matches {
+                guard let keyRange = Range(match.range(at: 1), in: xmlContent) else {
+                    continue
+                }
+
+                // Check suffix before allocating full String to avoid unnecessary work
+                let keySubstring = xmlContent[keyRange]
+                guard keySubstring.hasSuffix(projectSuffix) || keySubstring == projectName else {
+                    continue
+                }
+
+                let key = String(keySubstring)
+                let expandedPath = key.replacingOccurrences(of: "$USER_HOME$", with: homeDir)
+
+                guard fileManager.fileExists(atPath: expandedPath) else {
+                    continue
+                }
+
+                let timestamp = extractActivationTimestamp(xmlContent: xmlContent, entryKey: key, tsRegex: tsRegex)
+                if let current = bestMatch {
+                    if timestamp > current.timestamp {
+                        bestMatch = (expandedPath, timestamp)
+                    }
+                } else {
+                    bestMatch = (expandedPath, timestamp)
+                }
+            }
+        }
+
+        return bestMatch?.path
+    }
+
+    /// Extract activationTimestamp value from XML content for a specific entry
+    /// Uses literal string search (not regex) for entryKey to avoid special character issues
+    private static func extractActivationTimestamp(xmlContent: String, entryKey: String, tsRegex: NSRegularExpression) -> Int64 {
+        guard let entryStart = xmlContent.range(of: "entry key=\"\(entryKey)\"") else {
+            return 0
+        }
+
+        // Use </entry> tag as boundary instead of arbitrary character limit
+        let searchStart = entryStart.upperBound
+        let entryEnd = xmlContent.range(of: "</entry>", range: searchStart..<xmlContent.endIndex)
+        let searchEnd = entryEnd?.lowerBound ?? xmlContent.endIndex
+        let searchText = String(xmlContent[searchStart..<searchEnd])
+
+        if let tsMatch = tsRegex.firstMatch(in: searchText, range: NSRange(searchText.startIndex..., in: searchText)),
+           let tsRange = Range(tsMatch.range(at: 1), in: searchText) {
+            return Int64(searchText[tsRange]) ?? 0
+        }
+
+        return 0
+    }
 }

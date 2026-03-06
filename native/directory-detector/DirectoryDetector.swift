@@ -131,6 +131,20 @@ class DirectoryDetector {
 
                     return result
                 }
+
+                // Fallback: Use JetBrains recent projects config to find project directory
+                // This works even when no terminal tab is open in the IDE
+                if let projectName = projectNameHint,
+                   let recentProjectDir = getDirectoryFromRecentProjects(projectName: projectName) {
+                    return [
+                        "success": true,
+                        "directory": recentProjectDir,
+                        "appName": appName,
+                        "bundleId": bundleId,
+                        "idePid": appPid,
+                        "method": "jetbrains-recent-projects"
+                    ]
+                }
             }
 
             // IDE detected but no directory found
