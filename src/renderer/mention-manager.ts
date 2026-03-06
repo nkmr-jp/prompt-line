@@ -268,6 +268,13 @@ export class MentionManager implements IInitializable {
     return this.state.symbolSearchEnabled;
   }
 
+  /**
+   * Set whether the source app supports directory detection
+   */
+  public setDirectoryDetectionCapable(capable: boolean): void {
+    this.state.directoryDetectionCapable = capable;
+  }
+
 
   // ============================================
   // State Update Helpers
@@ -521,6 +528,10 @@ export class MentionManager implements IInitializable {
    * Returns true if directory data is not yet available or is from draft fallback with no files
    */
   private isIndexBeingBuilt(): boolean {
+    // Non-capable apps never have index building (no directory detection)
+    if (!this.state.directoryDetectionCapable) {
+      return false;
+    }
     // Delegate to DirectoryCacheManager
     return this.directoryCacheManager?.isIndexBeingBuilt() ?? true;
   }
@@ -529,6 +540,10 @@ export class MentionManager implements IInitializable {
    * Show hint that file index is being built
    */
   private showIndexingHint(): void {
+    // Don't show "Building Index" for non-capable apps (no directory detection)
+    if (!this.state.directoryDetectionCapable) {
+      return;
+    }
     // Don't show "Building Index" if there's a more important hint (e.g., fd not installed)
     if (this.directoryCacheManager?.getHint()) {
       return;
@@ -579,6 +594,22 @@ export class MentionManager implements IInitializable {
    * Check if file search should be triggered based on cursor position
    */
   public checkForFileSearch(): void {
+    // In symbol mode, check if user typed a space to exit
+    if (this.isInSymbolMode) {
+      const atPos = this.state.atStartPosition;
+      if (atPos >= 0) {
+        const text = this.state.textInput?.value ?? '';
+        const cursorPos = this.state.textInput?.selectionStart ?? text.length;
+        // Check if there's a space between the @ trigger and cursor
+        const afterAt = text.substring(atPos + 1, cursorPos);
+        if (afterAt.includes(' ')) {
+          this.codeSearchManager?.resetSymbolModeState();
+          this.hideSuggestions();
+        }
+      }
+      return;
+    }
+
     if (!this.shouldProcessFileSearch()) {
       return;
     }
@@ -591,7 +622,6 @@ export class MentionManager implements IInitializable {
     }
 
     const { query, startPos } = result;
-
     // Check if query matches a recently inserted path (prevent re-showing after selection)
     if (this.lastInsertedMentionPath) {
       if (query.trimEnd() === this.lastInsertedMentionPath ||
@@ -609,7 +639,9 @@ export class MentionManager implements IInitializable {
     }
 
     // C3: Skip full pipeline if splitKeywords result hasn't changed
-    const keywordsKey = splitKeywords(query.toLowerCase()).join('\0');
+    // Append the raw query length so that adding/removing spaces always busts the cache
+    const keywords = splitKeywords(query.toLowerCase());
+    const keywordsKey = keywords.join('\0') + '\0' + query.length;
     if (keywordsKey === this.lastFileSearchKeywords && this.state.isVisible) {
       // Keywords unchanged and suggestions already visible - skip re-computation
       return;

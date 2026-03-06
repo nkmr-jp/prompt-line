@@ -168,7 +168,7 @@ export class FileFilterManager {
     }
 
     // Score and filter files
-    const queryLower = query.toLowerCase();
+    const queryLower = query.normalize('NFC').toLowerCase();
     const keywords = splitKeywords(queryLower);
     const scored = files
       .map(file => {
@@ -294,7 +294,7 @@ export class FileFilterManager {
     // Select source files: previous results or all files
     const sourceFiles = canUseIncrementalSearch ? this.lastResults : allFiles;
 
-    const queryLower = query.toLowerCase();
+    const queryLower = query.normalize('NFC').toLowerCase();
     const keywords = splitKeywords(queryLower);
     const seenDirs = new Set<string>();
     const seenDirNames = new Map<string, { path: string; depth: number }>();
@@ -313,40 +313,34 @@ export class FileFilterManager {
       })
       .filter(item => item.score > 0);
 
-    // Find matching directories (by path containing the query)
+    // Find matching directories from:
+    // 1. Explicit directory entries in sourceFiles (isDirectory: true)
+    // 2. Intermediate directories in file paths
     for (const file of sourceFiles) {
 
       const relativePath = getRelativePath(file.path, baseDir);
       const pathParts = relativePath.split('/').filter(p => p);
 
+      // Handle explicit directory entries directly (e.g., Stage 1 top-level directories)
+      if (file.isDirectory && pathParts.length > 0) {
+        const dirPath = pathParts.join('/');
+        const dirName = pathParts[pathParts.length - 1] || '';
+        this.addMatchingDir(dirName, dirPath, pathParts.length, file, keywords, seenDirs, seenDirNames, matchingDirs);
+        continue;
+      }
+
       // Check each directory in the path (except the last part which is the file name)
       for (let i = 0; i < pathParts.length - 1; i++) {
         const dirPath = pathParts.slice(0, i + 1).join('/');
         const dirName = pathParts[i] || '';
+        if (!dirName) continue;
 
-        if (!dirName || seenDirs.has(dirPath)) continue;
-
-        // Check if directory name or path matches all keywords (AND condition)
-        const dirNameLower = dirName.toLowerCase();
-        const dirPathLower = dirPath.toLowerCase();
-        if (keywords.every(kw => dirNameLower.includes(kw) || dirPathLower.includes(kw))) {
-          seenDirs.add(dirPath);
-
-          // Prefer shorter paths (likely the original, not symlink-resolved)
-          const depth = pathParts.length;
-          const existing = seenDirNames.get(dirName);
-          if (existing && existing.depth <= depth) {
-            continue;
-          }
-
-          seenDirNames.set(dirName, { path: dirPath, depth });
-          const virtualDir: FileInfo = {
-            name: dirName,
-            path: baseDir + '/' + dirPath,
-            isDirectory: true
-          };
-          matchingDirs.push(virtualDir);
-        }
+        const virtualDir: FileInfo = {
+          name: dirName,
+          path: baseDir + '/' + dirPath,
+          isDirectory: true
+        };
+        this.addMatchingDir(dirName, dirPath, pathParts.length, virtualDir, keywords, seenDirs, seenDirNames, matchingDirs);
       }
     }
 
@@ -388,6 +382,36 @@ export class FileFilterManager {
 
     // Return truncated results
     return fullResults.slice(0, maxSuggestions);
+  }
+
+  /**
+   * Check if a directory matches all keywords and track it for dedup.
+   * Shared by explicit directory entry handling and intermediate directory detection.
+   */
+  private addMatchingDir(
+    dirName: string,
+    dirPath: string,
+    depth: number,
+    dirEntry: FileInfo,
+    keywords: string[],
+    seenDirs: Set<string>,
+    seenDirNames: Map<string, { path: string; depth: number }>,
+    matchingDirs: FileInfo[]
+  ): void {
+    if (!dirName || seenDirs.has(dirPath)) return;
+
+    const dirNameLower = dirName.normalize('NFC').toLowerCase();
+    const dirPathLower = dirPath.normalize('NFC').toLowerCase();
+    if (!keywords.every(kw => dirNameLower.includes(kw) || dirPathLower.includes(kw))) return;
+
+    seenDirs.add(dirPath);
+
+    // Prefer shorter paths (shallower depth)
+    const existing = seenDirNames.get(dirName);
+    if (existing && existing.depth <= depth) return;
+
+    seenDirNames.set(dirName, { path: dirPath, depth });
+    matchingDirs.push(dirEntry);
   }
 
   /**
@@ -464,7 +488,7 @@ export class FileFilterManager {
     baseDir?: string
   ): SuggestionItem[] {
     const items: SuggestionItem[] = [];
-    const queryLower = query.toLowerCase();
+    const queryLower = query.normalize('NFC').toLowerCase();
     const keywords = splitKeywords(queryLower);
 
     // Add files with scores (including usage bonuses)

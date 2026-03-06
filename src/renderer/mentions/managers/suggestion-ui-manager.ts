@@ -114,6 +114,8 @@ export class SuggestionUIManager {
   // D6: Track last queries to skip redundant buildHighlightCache calls
   private lastHighlightQuery: string = '';
   private lastCodeSearchHighlightQuery: string = '';
+  // Sequence counter to detect stale async showSuggestions completions
+  private showSuggestionsSeq: number = 0;
 
   constructor(textInput: HTMLTextAreaElement, callbacks: SuggestionUICallbacks) {
     this.textInput = textInput;
@@ -273,8 +275,13 @@ export class SuggestionUIManager {
       return;
     }
 
+    // Track this call's sequence number to detect stale async completions.
+    // If a newer showSuggestions call starts while we're awaiting, our results are stale.
+    const seq = ++this.showSuggestionsSeq;
+
     // Check if query matches any searchPrefix for mention type
     const matchesPrefix = await this.callbacks.matchesSearchPrefix?.(query, 'mention') ?? false;
+    if (seq !== this.showSuggestionsSeq) return;
 
     // Adjust currentPath based on query
     if (!matchesPrefix) {
@@ -299,6 +306,7 @@ export class SuggestionUIManager {
     const fileUsageBonusesPromise = this.callbacks.getFileUsageBonuses?.() ?? Promise.resolve({} as Record<string, number>);
 
     const [agents, fileUsageBonuses] = await Promise.all([agentsPromise, fileUsageBonusesPromise]);
+    if (seq !== this.showSuggestionsSeq) return;
     this.callbacks.setFilteredAgents?.(agents);
 
     // Filter files if directory data is available
@@ -313,6 +321,7 @@ export class SuggestionUIManager {
 
     // Get maxSuggestions setting for merged list
     const maxSuggestions = await this.callbacks.getMaxSuggestions?.('mention') ?? 20;
+    if (seq !== this.showSuggestionsSeq) return;
 
     // Strip searchPrefix from query for scoring (e.g., "plan:" → "", "plan:custom" → "custom")
     let scoringQuery = searchTerm;
@@ -325,8 +334,23 @@ export class SuggestionUIManager {
 
     // Merge files and agents into a single sorted list
     const merged = this.callbacks.mergeSuggestions?.(scoringQuery, maxSuggestions, fileUsageBonuses) ?? [];
-    this.callbacks.setMergedSuggestions?.(merged);
 
+    // Close mention when:
+    // - 2+ spaces in query: always close (user is writing normal text)
+    // - 1 space + 0-1 results: close (no further narrowing possible)
+    // - 1 space + 2+ results: continue AND search
+    let spaceCount = 0;
+    for (let i = 0; i < searchTerm.length; i++) {
+      if (searchTerm.charCodeAt(i) === 32) spaceCount++;
+    }
+    if (spaceCount > 0 && this.callbacks.getCachedDirectoryData?.()) {
+      if (spaceCount >= 2 || merged.length <= 1) {
+        this.hideSuggestions();
+        return;
+      }
+    }
+
+    this.callbacks.setMergedSuggestions?.(merged);
     this.callbacks.setSelectedIndex?.(0);
     this.callbacks.setIsVisible?.(true);
 
@@ -367,6 +391,11 @@ export class SuggestionUIManager {
    */
   public handleKeyDown(e: KeyboardEvent): boolean {
     if (!this.isVisible) return false;
+
+    // Skip all key handling during IME composition to allow Japanese input
+    if (e.isComposing || this.callbacks.getIsComposing?.()) {
+      return false;
+    }
 
     const totalItems = this.mergedSuggestions.length;
     const currentIndex = this.selectedIndex;
@@ -422,10 +451,6 @@ export class SuggestionUIManager {
   }
 
   private handleEnterKey(e: KeyboardEvent, totalItems: number, currentIndex: number): boolean {
-    if (e.isComposing || this.callbacks.getIsComposing?.()) {
-      return false;
-    }
-
     if (totalItems > 0) {
       e.preventDefault();
       e.stopPropagation();
@@ -449,30 +474,31 @@ export class SuggestionUIManager {
   }
 
   private handleTabKey(e: KeyboardEvent, totalItems: number, currentIndex: number): boolean {
-    if (e.isComposing || this.callbacks.getIsComposing?.()) {
-      return false;
+    // IME check already done in handleKeyDown — no need to duplicate here
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (totalItems === 0) {
+      // Empty state (e.g., "No matching items found") — just close
+      this.hideSuggestions();
+      return true;
     }
 
-    if (totalItems > 0) {
-      e.preventDefault();
-      e.stopPropagation();
-
-      // Check if current selection is a directory
-      if (currentIndex >= 0) {
-        const suggestion = this.mergedSuggestions[currentIndex];
-        if (suggestion?.type === 'file' && suggestion.file?.isDirectory) {
-          this.callbacks.onNavigateIntoDirectory(suggestion.file);
-          return true;
-        }
-      }
-
-      // Otherwise select the item
-      if (currentIndex >= 0) {
-        this.callbacks.onItemSelected(currentIndex);
+    // Check if current selection is a directory
+    if (currentIndex >= 0) {
+      const suggestion = this.mergedSuggestions[currentIndex];
+      if (suggestion?.type === 'file' && suggestion.file?.isDirectory) {
+        this.callbacks.onNavigateIntoDirectory(suggestion.file);
         return true;
       }
     }
-    return false;
+
+    // Otherwise select the item
+    if (currentIndex >= 0) {
+      this.callbacks.onItemSelected(currentIndex);
+      return true;
+    }
+    return true;
   }
 
   // ============================================================
@@ -483,8 +509,13 @@ export class SuggestionUIManager {
     if (!this.suggestionsContainer) return;
 
     if (this.mergedSuggestions.length === 0) {
+      const query = this.callbacks.getCurrentQuery?.() || '';
+      const hasDirectory = !!this.callbacks.getCachedDirectoryData?.();
+      const isSingleKeyword = query.length > 0 && !query.includes(' ');
       if (isIndexBuilding) {
-        this.renderIndexingState();
+        this.renderMessageState('Building file index...', 'indexing');
+      } else if (hasDirectory && isSingleKeyword) {
+        this.renderMessageState('No matching items found');
       } else {
         this.hideSuggestions();
       }
@@ -536,18 +567,16 @@ export class SuggestionUIManager {
   }
 
   /**
-   * Render indexing state (shown while building file index)
+   * Render a message state (indexing or empty)
    */
-  private renderIndexingState(): void {
+  private renderMessageState(message: string, extraClass?: string): void {
     if (!this.suggestionsContainer) return;
 
-    while (this.suggestionsContainer.firstChild) {
-      this.suggestionsContainer.removeChild(this.suggestionsContainer.firstChild);
-    }
+    this.suggestionsContainer.innerHTML = '';
 
     const emptyDiv = document.createElement('div');
-    emptyDiv.className = 'file-suggestion-empty indexing';
-    emptyDiv.textContent = 'Building file index...';
+    emptyDiv.className = extraClass ? `file-suggestion-empty ${extraClass}` : 'file-suggestion-empty';
+    emptyDiv.textContent = message;
     this.suggestionsContainer.appendChild(emptyDiv);
 
     this.suggestionsContainer.style.display = 'block';

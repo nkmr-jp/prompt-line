@@ -22,12 +22,12 @@ commands:
   - name: chrome
     description: Configure Claude in Chrome (Beta) settings
   - name: clear
-    description: Clear conversation history
+    description: "Clear conversation history and free up context (aliases: /reset, /new)"
   - name: compact
     description: Compact conversation with optional focus instructions
     argument-hint: "[instructions]"
   - name: config
-    description: Open the Settings interface (Config tab)
+    description: "Open the Settings interface (Config tab). Alias: /settings"
   - name: context
     description: Visualize current context usage as a colored grid
   - name: copy
@@ -38,14 +38,21 @@ commands:
     description: Troubleshoot the current session by reading the session debug log
     argument-hint: "[description]"
   - name: desktop
-    description: Hand off the current CLI session to the Claude Code Desktop app (macOS and Windows only)
+    description: "Continue the current session in the Claude Code Desktop app (macOS and Windows only). Alias: /app"
+  - name: diff
+    description: Interactive diff viewer for uncommitted changes and per-turn diffs
   - name: doctor
     description: Checks the health of your Claude Code installation
   - name: exit
-    description: Exit the REPL
+    description: "Exit the CLI. Alias: /quit"
   - name: export
     description: Export the current conversation to a file or clipboard
     argument-hint: "[filename]"
+  - name: extra-usage
+    description: Set additional usage to continue working when hitting rate limits
+  - name: fast
+    description: Toggle Fast mode on or off
+    argument-hint: "[on|off]"
   - name: feedback
     description: Submit feedback about Claude Code
   - name: fork
@@ -57,6 +64,8 @@ commands:
     description: Manage hook configurations for tool events
   - name: ide
     description: Manage IDE integrations and show status
+  - name: insights
+    description: Generate an analysis report of Claude Code sessions (project areas, operation patterns, friction points)
   - name: init
     description: Initialize project with CLAUDE.md guide
   - name: install-github-app
@@ -72,22 +81,26 @@ commands:
   - name: mcp
     description: Manage MCP server connections and OAuth authentication
   - name: memory
-    description: Edit CLAUDE.md memory files
+    description: Edit CLAUDE.md memory files, enable or disable auto-memory, and view auto-memory entries
   - name: mobile
     description: Show QR code to download the Claude mobile app
   - name: model
-    description: Select or change the AI model (use left/right arrows to adjust effort level)
+    description: Select or change the AI model (use left/right arrows to adjust effort level). Takes effect immediately
   - name: output-style
     description: Set the output style directly or from a selection menu
     argument-hint: "[style]"
+  - name: passes
+    description: Share a free 1-week Claude Code pass with friends (only shown for eligible accounts)
   - name: permissions
-    description: View or update permissions
+    description: "View or update permissions. Alias: /allowed-tools"
   - name: plan
     description: Enter plan mode directly from the prompt
   - name: plugin
     description: Manage Claude Code plugins
+  - name: reload-plugins
+    description: Reload all active plugins to apply pending changes without restarting
   - name: pr-comments
-    description: View pull request comments
+    description: Fetch and display comments from a GitHub pull request (auto-detects PR for current branch, requires gh CLI)
   - name: privacy-settings
     description: View and update your privacy settings
   - name: remote-env
@@ -103,12 +116,12 @@ commands:
     description: Rename the current session (without a name, generates one from conversation history)
     argument-hint: "[name]"
   - name: resume
-    description: "Resume a conversation by ID or name, or open the session picker"
+    description: "Resume a conversation by ID or name, or open the session picker. Alias: /continue"
     argument-hint: "[session]"
   - name: review
-    description: Request code review
+    description: Review a pull request for code quality, correctness, security, and test coverage (requires gh CLI)
   - name: rewind
-    description: Rewind the conversation and/or code, or summarize from a selected message
+    description: "Rewind the conversation and/or code to a previous point, or summarize from a selected message. Alias: /checkpoint"
   - name: sandbox
     description: "Enable sandboxed bash tool with filesystem and network isolation for safer, more autonomous execution"
   - name: security-review
@@ -131,7 +144,7 @@ commands:
     description: Resume a remote session from claude.ai (subscribers only)
     argument-hint: "[session]"
   - name: terminal-setup
-    description: Install Shift+Enter key binding for newlines (iTerm2 and VSCode only)
+    description: Configure terminal keybindings for Shift+Enter and other shortcuts (VS Code, Alacritty, Warp)
   - name: theme
     description: Change the color theme
   - name: todos
@@ -141,4 +154,4 @@ commands:
   - name: upgrade
     description: Upgrade to Max for higher rate limits and more Opus
   - name: vim
-    description: Enter vim mode for alternating insert and command modes
+    description: Toggle between Vim and Normal editing modes

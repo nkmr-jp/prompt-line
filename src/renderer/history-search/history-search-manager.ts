@@ -78,6 +78,8 @@ export class HistorySearchManager implements IInitializable {
 
       this.searchInput.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
+          // Skip during IME composition to allow composition cancellation
+          if (e.isComposing) return;
           e.preventDefault();
           e.stopPropagation();
           e.stopImmediatePropagation();

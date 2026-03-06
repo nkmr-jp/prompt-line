@@ -22,6 +22,7 @@ export interface MentionManagerCallbacks {
   getMentionManager: () => {
     setFileSearchEnabled: (enabled: boolean) => void;
     setSymbolSearchEnabled: (enabled: boolean) => void;
+    setDirectoryDetectionCapable: (capable: boolean) => void;
     preloadSearchPrefixesCache: () => void;
     handleCachedDirectoryData: (data: DirectoryInfo) => void;
     updateCache: (data: DirectoryInfo) => void;
@@ -110,6 +111,9 @@ export class DirectoryDataHandler {
 
       // Update file search enabled state in MentionManager
       fileSearchManager?.setFileSearchEnabled(data.fileSearchEnabled ?? false);
+
+      // Update directory detection capability based on source app
+      fileSearchManager?.setDirectoryDetectionCapable(this.isDirectoryDetectionCapable(data.sourceApp));
 
       // Update symbol search enabled state in MentionManager (disabled when rg is not available)
       fileSearchManager?.setSymbolSearchEnabled(data.symbolSearchEnabled ?? true);

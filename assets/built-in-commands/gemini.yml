@@ -17,7 +17,9 @@ commands:
     description: File an issue about Gemini CLI
     argument-hint: "[headline]"
   - name: chat
-    description: Manage conversation history with sub-commands for saving, resuming, listing, deleting, and sharing chats
+    description: Manage conversation history with sub-commands for saving, resuming, listing, deleting, sharing, and debugging chats
+  - name: commands
+    description: Manage custom slash commands loaded from .toml files
   - name: clear
     description: Clear the terminal screen including session history and scrollback
   - name: compress
@@ -28,22 +30,38 @@ commands:
     description: Manage workspace directories for multi-directory support
   - name: dir
     description: Alias for /directory
+  - name: docs
+    description: Open the Gemini CLI documentation in your browser
   - name: editor
     description: Open a dialog for selecting supported editors
   - name: exit
     description: Exit Gemini CLI
   - name: extensions
-    description: List all active extensions in the current session
+    description: "Manage extensions: install, enable, disable, explore, config, update, and more"
   - name: help
     description: Display help information about Gemini CLI and available commands
+  - name: hooks
+    description: "Manage hooks for intercepting and customizing behavior at lifecycle events"
+    argument-hint: "[disable-all|disable|enable-all|enable|list]"
+  - name: ide
+    description: "Manage IDE integration"
+    argument-hint: "[disable|enable|install|status]"
   - name: init
     description: Generate a tailored GEMINI.md context file for your project
   - name: mcp
-    description: List MCP servers, their status, and available tools
+    description: "Manage MCP servers: list, auth, disable, enable, refresh"
   - name: memory
-    description: Manage AI instructional context loaded from GEMINI.md files
+    description: Manage hierarchical instructional context loaded from GEMINI.md files
   - name: model
-    description: Open model selection dialog
+    description: "Open model selection dialog or set model directly"
+    argument-hint: "[manage|set <model-name>]"
+  - name: permissions
+    description: Manage folder trust settings and other permissions
+    argument-hint: "[trust <directory-path>]"
+  - name: plan
+    description: Switch to Plan Mode (read-only) and view the current plan
+  - name: policies
+    description: "Manage policies: list all active policies grouped by mode"
   - name: privacy
     description: Display the Privacy Notice and data collection preferences
   - name: quit
@@ -54,14 +72,21 @@ commands:
     description: Resume a previous conversation session
     argument-hint: "[session]"
   - name: rewind
-    description: Browse and rewind conversation history and file changes
+    description: Browse and rewind conversation history and file changes (Esc x2 shortcut)
   - name: settings
     description: Open the settings editor to view and modify settings
+  - name: setup-github
+    description: Set up GitHub Actions to triage issues and review PRs with Gemini
+  - name: shells
+    description: "Toggle background shells view and manage long-running processes. Alias: /bashes"
   - name: skills
     description: Manage Agent Skills for specialized workflows
     argument-hint: "[list|enable|disable|refresh]"
   - name: stats
-    description: Display session statistics including token usage and duration
+    description: "Display session statistics: session info, model tokens/quota, or per-tool stats"
+    argument-hint: "[session|model|tools]"
+  - name: terminal-setup
+    description: Configure terminal keybindings for multiline input (VS Code, Cursor, Windsurf)
   - name: theme
     description: Open a dialog to change the visual theme
   - name: tools

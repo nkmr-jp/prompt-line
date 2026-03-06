@@ -12,28 +12,38 @@ commands:
   - name: agent
     description: Switch the active agent thread
   - name: approvals
-    description: Set what Codex can do without asking first
+    description: Choose what Codex is allowed to do
   - name: apps
-    description: Browse apps (connectors) and insert them into your prompt
+    description: Manage apps
+  - name: clean
+    description: Stop all background terminals
+  - name: clear
+    description: Clear the terminal and start a new chat
+  - name: collab
+    description: Change collaboration mode (experimental)
   - name: compact
-    description: Summarize the visible conversation to free tokens
+    description: Summarize conversation to prevent hitting the context limit
+  - name: copy
+    description: Copy the latest Codex output to your clipboard
   - name: diff
     description: Show the Git diff, including files Git isn't tracking yet
   - name: elevate-sandbox
-    description: Upgrade to elevated sandbox mode for enhanced permissions
+    description: Set up elevated agent sandbox
   - name: debug-config
-    description: Print config layer and requirements diagnostics
+    description: Show config layers and requirement sources for debugging
   - name: exit
     description: Exit the CLI (alias for /quit)
   - name: experimental
     description: Toggle experimental features
+  - name: fast
+    description: Toggle Fast mode for fastest inference at 2X plan usage
   - name: feedback
     description: Send logs to the Codex maintainers
   - name: fork
-    description: Fork the current conversation into a new thread
+    description: Fork the current chat
     argument-hint: "[session]"
   - name: init
-    description: Generate an AGENTS.md scaffold in the current directory
+    description: Create an AGENTS.md file with instructions for Codex
   - name: logout
     description: Sign out of Codex
   - name: mcp
@@ -42,30 +52,39 @@ commands:
     description: Attach a file to the conversation
     argument-hint: "<path>"
   - name: model
-    description: Choose the active model (and reasoning effort, when available)
+    description: Choose what model and reasoning effort to use
   - name: new
-    description: Start a new conversation inside the same CLI session
+    description: Start a new chat during a conversation
   - name: permissions
-    description: Set what Codex can do without asking first
+    description: Choose what Codex is allowed to do
   - name: personality
     description: Choose a communication style for responses
   - name: plan
     description: Switch to plan mode and optionally send a prompt
   - name: ps
-    description: Show experimental background terminals and their recent output
+    description: List background terminals
   - name: quit
     description: Exit the CLI
+  - name: realtime
+    description: Toggle realtime voice mode (experimental)
+  - name: rename
+    description: Rename the current thread
+    argument-hint: "[name]"
   - name: resume
     description: Resume a saved conversation from your session list
   - name: review
-    description: Ask Codex to review your working tree
+    description: Review current changes and find issues
+  - name: settings
+    description: Configure realtime microphone/speaker
   - name: skills
-    description: Browse and insert skills (experimental)
+    description: Use skills to improve how Codex performs specific tasks
   - name: status
-    description: Display session configuration and token usage
+    description: Show current session configuration and token usage
   - name: sandbox-add-read-dir
     description: Grant sandbox read access to an extra directory (Windows only)
   - name: statusline
     description: Configure TUI status-line fields interactively
+  - name: theme
+    description: Choose a syntax highlighting theme
   - name: undo
     description: Revert Codex's most recent turn

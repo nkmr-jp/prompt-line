@@ -34,6 +34,7 @@ export class MentionState {
   isVisible: boolean = false;
   fileSearchEnabled: boolean = false;
   symbolSearchEnabled: boolean = true;  // Default true, disabled when rg is not available
+  directoryDetectionCapable: boolean = false;  // Whether source app supports directory detection
 
   // Filtered results
   filteredFiles: FileInfo[] = [];
