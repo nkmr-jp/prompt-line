@@ -58,7 +58,7 @@ describe('mention no-results hide on space', () => {
 
       // Simulate handleFileSearch -> showSuggestions
       // Close mention based on space count and result count
-      const spaceCount = (query.match(/ /g) || []).length;
+      const spaceCount = query.split(' ').length - 1;
       if (spaceCount > 0) {
         if (spaceCount >= 2 || merged.length <= 1) {
           hideSuggestionsCalled = true;

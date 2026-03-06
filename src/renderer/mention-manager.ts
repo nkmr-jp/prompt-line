@@ -596,8 +596,12 @@ export class MentionManager implements IInitializable {
   public checkForFileSearch(): void {
     // In symbol mode, check if user typed a space to exit
     if (this.isInSymbolMode) {
-      const result = this.extractQueryAtCursor();
-      if (result && result.query.includes(' ')) {
+      const text = this.state.textInput?.value ?? '';
+      const cursorPos = this.state.textInput?.selectionStart ?? text.length;
+      // Check if there's a space between the @ trigger and cursor
+      const textBeforeCursor = text.substring(0, cursorPos);
+      const atIndex = textBeforeCursor.lastIndexOf('@');
+      if (atIndex >= 0 && textBeforeCursor.substring(atIndex + 1).includes(' ')) {
         this.codeSearchManager?.resetSymbolModeState();
         this.hideSuggestions();
       }

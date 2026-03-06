@@ -508,12 +508,6 @@ export class CodeSearchManager {
    */
   public async handleShowSuggestions(query: string, fallbackHandler: () => Promise<void>): Promise<boolean> {
     if (this.isInSymbolMode) {
-      // Space in symbol mode query signals user has finished the mention
-      if (query.includes(' ')) {
-        this.resetSymbolModeState();
-        this.callbacks.hideSuggestions?.();
-        return true;
-      }
       this.callbacks.setCurrentQuery?.(query);
       await this.showSymbolSuggestions(query);
       return true;

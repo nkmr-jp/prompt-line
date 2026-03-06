@@ -330,7 +330,7 @@ export class SuggestionUIManager {
     // - 2+ spaces in query: always close (user is writing normal text)
     // - 1 space + 0-1 results: close (no further narrowing possible)
     // - 1 space + 2+ results: continue AND search
-    const spaceCount = (searchTerm.match(/ /g) || []).length;
+    const spaceCount = searchTerm.split(' ').length - 1;
     if (spaceCount > 0 && this.callbacks.getCachedDirectoryData?.()) {
       if (spaceCount >= 2 || merged.length <= 1) {
         this.hideSuggestions();
@@ -500,9 +500,9 @@ export class SuggestionUIManager {
       const hasDirectory = !!this.callbacks.getCachedDirectoryData?.();
       const isSingleKeyword = query.length > 0 && !query.includes(' ');
       if (isIndexBuilding) {
-        this.renderIndexingState();
+        this.renderMessageState('Building file index...', 'indexing');
       } else if (hasDirectory && isSingleKeyword) {
-        this.renderEmptyState();
+        this.renderMessageState('No matching items found');
       } else {
         this.hideSuggestions();
       }
@@ -554,37 +554,16 @@ export class SuggestionUIManager {
   }
 
   /**
-   * Render indexing state (shown while building file index)
+   * Render a message state (indexing or empty)
    */
-  private renderIndexingState(): void {
+  private renderMessageState(message: string, extraClass?: string): void {
     if (!this.suggestionsContainer) return;
 
-    while (this.suggestionsContainer.firstChild) {
-      this.suggestionsContainer.removeChild(this.suggestionsContainer.firstChild);
-    }
+    this.suggestionsContainer.innerHTML = '';
 
     const emptyDiv = document.createElement('div');
-    emptyDiv.className = 'file-suggestion-empty indexing';
-    emptyDiv.textContent = 'Building file index...';
-    this.suggestionsContainer.appendChild(emptyDiv);
-
-    this.suggestionsContainer.style.display = 'block';
-    this.suggestionsContainer.scrollTop = 0;
-  }
-
-  /**
-   * Render empty state (shown when single-keyword search has no results)
-   */
-  private renderEmptyState(): void {
-    if (!this.suggestionsContainer) return;
-
-    while (this.suggestionsContainer.firstChild) {
-      this.suggestionsContainer.removeChild(this.suggestionsContainer.firstChild);
-    }
-
-    const emptyDiv = document.createElement('div');
-    emptyDiv.className = 'file-suggestion-empty';
-    emptyDiv.textContent = 'No matching items found';
+    emptyDiv.className = extraClass ? `file-suggestion-empty ${extraClass}` : 'file-suggestion-empty';
+    emptyDiv.textContent = message;
     this.suggestionsContainer.appendChild(emptyDiv);
 
     this.suggestionsContainer.style.display = 'block';
