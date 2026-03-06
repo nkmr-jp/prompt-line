@@ -264,7 +264,7 @@ extension DirectoryDetector {
 
         let appNames: Set<String> = [
             "Visual Studio Code", "Visual Studio Code - Insiders", "VSCodium",
-            "Cursor", "Windsurf", "Kiro", "Zed"
+            "Cursor", "Windsurf", "Kiro", "Zed", "Antigravity"
         ]
 
         return parts.filter { !appNames.contains($0) }
@@ -288,6 +288,8 @@ extension DirectoryDetector {
             return appSupport + "/Windsurf"
         case "dev.kiro.desktop":
             return appSupport + "/Kiro"
+        case "com.google.antigravity":
+            return appSupport + "/Antigravity"
         default:
             return nil
         }
