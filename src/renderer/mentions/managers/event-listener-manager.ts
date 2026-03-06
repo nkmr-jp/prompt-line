@@ -58,6 +58,9 @@ export class EventListenerManager {
   private pendingInputUpdate: number | null = null;
   private pendingSelectionUpdate: number | null = null;
 
+  // IME composition tracking
+  private isComposing: boolean = false;
+
   // Throttle state for mousemove handler
   private lastMouseMoveTime: number = 0;
   private static readonly MOUSE_MOVE_THROTTLE = 80;
@@ -131,14 +134,18 @@ export class EventListenerManager {
     // Create bound input handler with rAF optimization
     // Skip processing if text hasn't changed to avoid redundant work
     this.boundInputHandler = () => {
+      // Skip during IME composition to avoid filtering with intermediate text
+      // (e.g., hiragana "しすとれ" before katakana conversion "シストレ")
+      if (this.isComposing) return;
+
       // Debounce with rAF - skip if already pending
       if (this.pendingInputUpdate) return;
 
       this.pendingInputUpdate = requestAnimationFrame(() => {
         this.pendingInputUpdate = null;
 
-        // Guard: skip if listeners are suspended
-        if (this.listenersAreSuspended) return;
+        // Guard: skip if listeners are suspended or composing
+        if (this.listenersAreSuspended || this.isComposing) return;
 
         if (!this.textInput) return;
         const currentText = this.textInput.value;
@@ -159,6 +166,31 @@ export class EventListenerManager {
 
     // Listen for input changes to detect @ mentions and update highlights
     this.textInput.addEventListener('input', this.boundInputHandler);
+
+    // Track IME composition state
+    this.textInput.addEventListener('compositionstart', () => {
+      this.isComposing = true;
+    });
+
+    // After IME composition ends, process the confirmed text synchronously.
+    // Using rAF here is unreliable: if the user quickly cycles conversion candidates
+    // (compositionend → compositionstart), the rAF fires after the new compositionstart
+    // and gets skipped by the isComposing guard.
+    this.textInput.addEventListener('compositionend', () => {
+      this.isComposing = false;
+      if (this.listenersAreSuspended || !this.textInput) return;
+
+      // Cancel pending rAF to prevent stale processing
+      if (this.pendingInputUpdate) {
+        cancelAnimationFrame(this.pendingInputUpdate);
+        this.pendingInputUpdate = null;
+      }
+
+      const currentText = this.textInput.value;
+      if (currentText === this.lastText) return;
+      this.lastText = currentText;
+      this.callbacks.checkForFileSearch();
+    });
 
     // Listen for keydown for navigation and backspace handling
     this.textInput.addEventListener('keydown', (e) => {
