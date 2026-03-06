@@ -466,26 +466,30 @@ export class SuggestionUIManager {
       return false;
     }
 
-    if (totalItems > 0) {
-      e.preventDefault();
-      e.stopPropagation();
+    e.preventDefault();
+    e.stopPropagation();
 
-      // Check if current selection is a directory
-      if (currentIndex >= 0) {
-        const suggestion = this.mergedSuggestions[currentIndex];
-        if (suggestion?.type === 'file' && suggestion.file?.isDirectory) {
-          this.callbacks.onNavigateIntoDirectory(suggestion.file);
-          return true;
-        }
-      }
+    if (totalItems === 0) {
+      // Empty state (e.g., "No matching items found") — just close
+      this.hideSuggestions();
+      return true;
+    }
 
-      // Otherwise select the item
-      if (currentIndex >= 0) {
-        this.callbacks.onItemSelected(currentIndex);
+    // Check if current selection is a directory
+    if (currentIndex >= 0) {
+      const suggestion = this.mergedSuggestions[currentIndex];
+      if (suggestion?.type === 'file' && suggestion.file?.isDirectory) {
+        this.callbacks.onNavigateIntoDirectory(suggestion.file);
         return true;
       }
     }
-    return false;
+
+    // Otherwise select the item
+    if (currentIndex >= 0) {
+      this.callbacks.onItemSelected(currentIndex);
+      return true;
+    }
+    return true;
   }
 
   // ============================================================
