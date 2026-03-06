@@ -346,23 +346,37 @@ IPC response → Renderer Process
 
 Total: 52 IPC channels across 9 specialized handlers
 
-### Built-in Commands Hot Reload
+### Built-in Commands
 
-Built-in command YAMLファイルの変更は自動的に検知され、リアルタイムで反映されます:
+Built-in commands are slash command definitions for external CLI tools (Claude Code, Codex CLI, Gemini CLI, etc.) stored as YAML files.
 
-**仕組み:**
-- ファイル監視: `~/.prompt-line/built-in-commands/`
-- デバウンス: 300ms
-- アプリ再起動不要
+**Source files:** `assets/built-in-commands/*.yml`
+**Installed to:** `~/.prompt-line/built-in-commands/` (copied via `pnpm run update-built-in-commands`)
 
-**実装パターン:**
-- SettingsManagerと同じchokidar + EventEmitterパターン
-- YAMLファイル(.yaml, .yml)のみを監視
-- ファイル変更時にキャッシュクリアと'commands-changed'イベント発火
+**Updating built-in commands to latest versions:**
+1. Check the latest slash commands for each CLI tool:
+   - **Claude Code**: Check [official changelog](https://github.com/anthropics/claude-code/releases) and [docs](https://code.claude.com/docs/en/interactive-mode#built-in-commands)
+   - **Codex CLI**: Check [source code](https://github.com/openai/codex) and [docs](https://developers.openai.com/codex/cli/slash-commands/)
+   - **Gemini CLI**: Check [docs](https://google-gemini.github.io/gemini-cli/docs/cli/commands.html) and [releases](https://github.com/google-gemini/gemini-cli/releases)
+2. Edit the YAML files in `assets/built-in-commands/` (add new commands, update changed descriptions; do not remove existing commands)
+3. Run `pnpm run update-built-in-commands` to install to user directory
 
-**関連ファイル:**
-- `src/managers/built-in-commands-manager.ts` - ファイルウォッチング実装
-- `src/handlers/custom-search-handler.ts` - イベントリスナー
+**YAML format:**
+```yaml
+name: claude
+color: amber
+reference: https://example.com/docs
+commands:
+  - name: command-name
+    description: Short description of what the command does
+    argument-hint: "[optional-args]"  # optional
+```
+
+**Hot reload:** Changes to `~/.prompt-line/built-in-commands/` are auto-detected (chokidar, 300ms debounce) and applied without app restart.
+
+**Related files:**
+- `src/managers/built-in-commands-manager.ts` - File watching and cache management
+- `src/handlers/custom-search-handler.ts` - Event listener for `commands-changed` events
 
 ## Platform-Specific Implementation
 
