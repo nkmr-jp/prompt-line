@@ -6,7 +6,6 @@ import type { CustomSearchEntry, CustomSearchItem, CustomSearchType, UserSetting
 import { resolveTemplate, getBasename, getDirname, parseFrontmatter, extractRawFrontmatter, parseFirstHeading, parseJsonContent, type TemplateContext } from '../lib/template-resolver';
 import { evaluateJq } from '../lib/jq-resolver';
 import { getDefaultCustomSearchConfig, DEFAULT_MAX_SUGGESTIONS, DEFAULT_ORDER_BY } from '../lib/default-custom-search-config';
-import { CACHE_TTL } from '../constants';
 import { resolvePrefix } from '../lib/prefix-resolver';
 import { isCommandEnabled } from '../lib/command-name-matcher';
 import { splitKeywords } from '../lib/keyword-utils';
@@ -18,8 +17,7 @@ import { splitKeywords } from '../lib/keyword-utils';
  */
 class CustomSearchLoader {
   private config: CustomSearchEntry[];
-  private cache: Map<string, { items: CustomSearchItem[]; timestamp: number }> = new Map();
-  private cacheTTL: number = CACHE_TTL.MD_SEARCH;
+  private cache: Map<string, { items: CustomSearchItem[] }> = new Map();
   private settings: UserSettings | undefined;
   private loadingPromise: Promise<CustomSearchItem[]> | null = null;
 
@@ -290,7 +288,7 @@ class CustomSearchLoader {
   private async loadAll(): Promise<CustomSearchItem[]> {
     const cacheKey = 'all';
     const cached = this.cache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < this.cacheTTL) {
+    if (cached) {
       return cached.items;
     }
 
@@ -301,7 +299,7 @@ class CustomSearchLoader {
 
     this.loadingPromise = this.loadAllEntries().then(allItems => {
       allItems.sort((a, b) => a.name.localeCompare(b.name));
-      this.cache.set(cacheKey, { items: allItems, timestamp: Date.now() });
+      this.cache.set(cacheKey, { items: allItems });
       this.logLoadedItems(allItems);
       this.loadingPromise = null;
       return allItems;
@@ -317,17 +315,23 @@ class CustomSearchLoader {
    * Load all entries with deduplication
    */
   private async loadAllEntries(): Promise<CustomSearchItem[]> {
+    const results = await Promise.all(
+      this.config.map(async (entry) => {
+        const sourceId = `${entry.path}:${entry.pattern}`;
+        try {
+          const items = await this.loadEntry(entry);
+          return { items, sourceId };
+        } catch (error) {
+          logger.error('Failed to load entry', { entry, error });
+          return { items: [] as CustomSearchItem[], sourceId };
+        }
+      })
+    );
+
     const allItems: CustomSearchItem[] = [];
     const seenNames = new Map<string, Set<string>>();
-
-    for (const entry of this.config) {
-      try {
-        const items = await this.loadEntry(entry);
-        const sourceId = `${entry.path}:${entry.pattern}`;
-        this.addItemsWithDeduplication(items, sourceId, seenNames, allItems);
-      } catch (error) {
-        logger.error('Failed to load entry', { entry, error });
-      }
+    for (const { items, sourceId } of results) {
+      this.addItemsWithDeduplication(items, sourceId, seenNames, allItems);
     }
 
     return allItems;
@@ -423,23 +427,25 @@ class CustomSearchLoader {
     jqExpression: string | null
   ): Promise<CustomSearchItem[]> {
     const items: CustomSearchItem[] = [];
+    const BATCH_SIZE = 50;
 
-    for (const filePath of files) {
-      if (jqExpression && filePath.endsWith('.json')) {
-        const arrayItems = await this.parseJsonArrayToItems(filePath, entry, sourceId, jqExpression);
-        items.push(...arrayItems);
-      } else if (filePath.endsWith('.jsonl')) {
-        const jsonlItems = await this.parseJsonlToItems(filePath, entry, sourceId, jqExpression);
-        items.push(...jsonlItems);
-      } else if (this.isPlainTextFile(filePath)) {
-        const textItems = await this.parsePlainTextToItems(filePath, entry, sourceId);
-        items.push(...textItems);
-      } else {
-        const item = await this.parseFileToItem(filePath, entry, sourceId);
-        if (item) {
-          items.push(item);
-        }
-      }
+    for (let i = 0; i < files.length; i += BATCH_SIZE) {
+      const batch = files.slice(i, i + BATCH_SIZE);
+      const batchResults = await Promise.all(
+        batch.map(async (filePath) => {
+          if (jqExpression && filePath.endsWith('.json')) {
+            return this.parseJsonArrayToItems(filePath, entry, sourceId, jqExpression);
+          } else if (filePath.endsWith('.jsonl')) {
+            return this.parseJsonlToItems(filePath, entry, sourceId, jqExpression);
+          } else if (this.isPlainTextFile(filePath)) {
+            return this.parsePlainTextToItems(filePath, entry, sourceId);
+          } else {
+            const item = await this.parseFileToItem(filePath, entry, sourceId);
+            return item ? [item] : [];
+          }
+        })
+      );
+      items.push(...batchResults.flat());
     }
 
     // Apply entry-level enable/disable filtering

@@ -48,7 +48,6 @@ export const LIMITS = {
 
 // Cache TTL (Time To Live) constants (in milliseconds)
 export const CACHE_TTL = {
-  MD_SEARCH: 5000,
   SYMBOL_MEMORY: 5 * 60 * 1000,
   DESKTOP_SPACE: 2000
 } as const;

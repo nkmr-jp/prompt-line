@@ -15,8 +15,6 @@ import type { IPCResult } from './handler-utils';
 class CustomSearchHandler {
   private customSearchLoader: CustomSearchLoader;
   private settingsManager: SettingsManager;
-  private lastConfigUpdate: number = 0;
-  private readonly CONFIG_CACHE_TTL = 5000; // 5 seconds cache TTL
 
   constructor(
     customSearchLoader: CustomSearchLoader,
@@ -92,24 +90,6 @@ class CustomSearchHandler {
     if (customSearchEntries && customSearchEntries.length > 0) {
       this.customSearchLoader.updateConfig(customSearchEntries);
     }
-    this.lastConfigUpdate = Date.now();
-  }
-
-  /**
-   * Check if the configuration cache is still valid
-   */
-  private isConfigCacheValid(): boolean {
-    return Date.now() - this.lastConfigUpdate < this.CONFIG_CACHE_TTL;
-  }
-
-  /**
-   * Update configuration only if cache has expired
-   * This prevents redundant config updates during rapid successive calls
-   */
-  private updateConfigIfNeeded(): void {
-    if (!this.isConfigCacheValid()) {
-      this.updateConfig();
-    }
   }
 
   /**
@@ -122,9 +102,6 @@ class CustomSearchHandler {
     query?: string
   ): Promise<AgentSkillItem[]> {
     try {
-      // Refresh config from settings if cache expired
-      this.updateConfigIfNeeded();
-
       // Get built-in commands settings (supports both new and legacy format)
       const builtInSettings = this.settingsManager.getBuiltInCommandsSettings();
 
@@ -213,9 +190,6 @@ class CustomSearchHandler {
         return null;
       }
 
-      // Refresh config from settings if cache expired
-      this.updateConfigIfNeeded();
-
       const items = await this.customSearchLoader.getItems('command');
       const command = items.find(c => c.name === commandName);
 
@@ -243,9 +217,6 @@ class CustomSearchHandler {
       if (!commandName || typeof commandName !== 'string') {
         return false;
       }
-
-      // Refresh config from settings if cache expired
-      this.updateConfigIfNeeded();
 
       // Check if this is a built-in command
       const builtInSettings = this.settingsManager.getBuiltInCommandsSettings();
@@ -277,9 +248,6 @@ class CustomSearchHandler {
     query?: string
   ): Promise<AgentItem[]> {
     try {
-      // Refresh config from settings if cache expired
-      this.updateConfigIfNeeded();
-
       // Get mentions (agents) from CustomSearchLoader
       // Always use searchItems to apply searchPrefix filtering, even for empty query
       const items = await this.customSearchLoader.searchItems('mention', query ?? '');
@@ -337,9 +305,6 @@ class CustomSearchHandler {
         return null;
       }
 
-      // Refresh config from settings if cache expired
-      this.updateConfigIfNeeded();
-
       const items = await this.customSearchLoader.getItems('mention');
       const agent = items.find(a => a.name === agentName);
 
@@ -363,9 +328,6 @@ class CustomSearchHandler {
     type: 'command' | 'mention'
   ): number {
     try {
-      // Refresh config from settings if cache expired
-      this.updateConfigIfNeeded();
-
       return this.customSearchLoader.getMaxSuggestions(type);
     } catch (error) {
       logger.error('Failed to get CustomSearch maxSuggestions:', error);
@@ -382,9 +344,6 @@ class CustomSearchHandler {
     type: 'command' | 'mention'
   ): string[] {
     try {
-      // Refresh config from settings if cache expired
-      this.updateConfigIfNeeded();
-
       return this.customSearchLoader.getSearchPrefixes(type);
     } catch (error) {
       logger.error('Failed to get CustomSearch searchPrefixes:', error);
