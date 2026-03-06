@@ -1,5 +1,54 @@
 # Changelog
 
+## [0.26.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.25.3...prompt-line-v0.26.0) (2026-03-06)
+
+
+### Features
+
+* **built-in-commands:** update Claude, Codex, and Gemini slash commands to latest ([e812b1b](https://github.com/nkmr-jp/prompt-line/commit/e812b1bd3533c5427aef52dca028ad11b3373951))
+
+
+### Bug Fixes
+
+* **directory-detector:** detect JetBrains project directory without terminal tab ([6868bde](https://github.com/nkmr-jp/prompt-line/commit/6868bded8d4ddc9c6ea194a903cb137d420455a6))
+* **directory-detector:** detect JetBrains project directory without terminal tab ([443c40f](https://github.com/nkmr-jp/prompt-line/commit/443c40f2bd646e121137a2b8a0aeff4813d584a1))
+* **directory-detector:** resolve CWD to project root for Electron IDEs ([f6afa1a](https://github.com/nkmr-jp/prompt-line/commit/f6afa1a2a77adf84897f6f2b42f8ce39eb6d7a4b))
+* **directory-detector:** resolve shell CWD to project root for IDE terminals ([036521a](https://github.com/nkmr-jp/prompt-line/commit/036521aaff6617061450ba4a336d43c6e73505ed))
+* **directory-detector:** resolve shell CWD to project root for JetBrains IDEs ([9582a67](https://github.com/nkmr-jp/prompt-line/commit/9582a67949e5db29e529a26b3aaffc9d09ffb986))
+* **mention:** prevent Tab focus escape when empty state popup is shown ([ad7344c](https://github.com/nkmr-jp/prompt-line/commit/ad7344c5b94e369aa48c2f68bb51626bb810405a))
+* **mentions:** improve mention dismissal with space input and show empty state ([fbd6e95](https://github.com/nkmr-jp/prompt-line/commit/fbd6e9561e409fa93c5d811d681f6016b3c04726))
+* **mentions:** improve mention dismissal with space input and show empty state ([f8e848c](https://github.com/nkmr-jp/prompt-line/commit/f8e848c1e70c9c6f91e45c597b9874f2830296d7))
+* **mentions:** prevent Tab from moving focus when empty state is shown ([09adb57](https://github.com/nkmr-jp/prompt-line/commit/09adb572e85a0abdb84decf74efaaa826a1d9b3f))
+* **mentions:** resolve Japanese file search issues (Unicode NFC/NFD, IME composition) ([3e57cc4](https://github.com/nkmr-jp/prompt-line/commit/3e57cc451a90144c8519deae3543c377d2402bd4))
+* **mentions:** resolve Japanese file search issues (Unicode NFC/NFD, IME composition) ([c54b105](https://github.com/nkmr-jp/prompt-line/commit/c54b10502b26061b74eb5cc1f804f25080082a2e))
+* **mentions:** suppress Building Index and hint for non-capable apps ([4b3bac4](https://github.com/nkmr-jp/prompt-line/commit/4b3bac4b6fbe51243255cc851dd611471bd46d9c))
+* **mentions:** suppress Building Index and hint messages for non-capable apps ([059d6bc](https://github.com/nkmr-jp/prompt-line/commit/059d6bc02cc52327be1c9047de82b8ce8f647381))
+* restore package.json version to 0.25.3 ([204e767](https://github.com/nkmr-jp/prompt-line/commit/204e767afc4d3ebcbec7df8c11cf3032d4ac998b))
+
+
+### Performance Improvements
+
+* **custom-search:** replace TTL cache with event-driven invalidation and parallelize loading ([99e854e](https://github.com/nkmr-jp/prompt-line/commit/99e854e71660d1b585e8b8de996d070f2e152f5e))
+* **custom-search:** replace TTL cache with event-driven invalidation and parallelize loading ([26019c2](https://github.com/nkmr-jp/prompt-line/commit/26019c25c8b463eef3531ba95dca69f97600d557))
+
+
+### Documentation
+
+* simplify subdirectory CLAUDE.md files and add built-in commands guide ([3d3a74e](https://github.com/nkmr-jp/prompt-line/commit/3d3a74e8b2d3e35290ee1e24efc6fedc9c612bde))
+
+
+### Miscellaneous Chores
+
+* **deps:** bump tar from 7.5.9 to 7.5.10 in the npm_and_yarn group across 1 directory ([3a4bb92](https://github.com/nkmr-jp/prompt-line/commit/3a4bb92bdaa0ff092785730fd4c6de83d0b21337))
+* **deps:** bump tar in the npm_and_yarn group across 1 directory ([0605d53](https://github.com/nkmr-jp/prompt-line/commit/0605d53b43786482e22c0e424e4f8ec01ac32b23))
+* **main:** release prompt-line 0.25.2 ([0fe07f5](https://github.com/nkmr-jp/prompt-line/commit/0fe07f58fe8cafc41791d4e426890e8f20c9d6ca))
+
+
+### Code Refactoring
+
+* **mentions:** consolidate render methods and optimize hot-path ([fa89294](https://github.com/nkmr-jp/prompt-line/commit/fa89294f83145bde01e8ccfb0d60b1bbc24faf32))
+* **mentions:** simplify after review findings ([e37ab7a](https://github.com/nkmr-jp/prompt-line/commit/e37ab7af50f6dc9f348a52289f498541682acd84))
+
 ## [0.25.3](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.25.2...prompt-line-v0.25.3) (2026-03-02)
 
 
