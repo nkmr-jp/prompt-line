@@ -594,6 +594,16 @@ export class MentionManager implements IInitializable {
    * Check if file search should be triggered based on cursor position
    */
   public checkForFileSearch(): void {
+    // In symbol mode, check if user typed a space to exit
+    if (this.isInSymbolMode) {
+      const result = this.extractQueryAtCursor();
+      if (result && result.query.includes(' ')) {
+        this.codeSearchManager?.resetSymbolModeState();
+        this.hideSuggestions();
+      }
+      return;
+    }
+
     if (!this.shouldProcessFileSearch()) {
       return;
     }
@@ -624,7 +634,9 @@ export class MentionManager implements IInitializable {
     }
 
     // C3: Skip full pipeline if splitKeywords result hasn't changed
-    const keywordsKey = splitKeywords(query.toLowerCase()).join('\0');
+    // Append the raw query length so that adding/removing spaces always busts the cache
+    const keywords = splitKeywords(query.toLowerCase());
+    const keywordsKey = keywords.join('\0') + '\0' + query.length;
     if (keywordsKey === this.lastFileSearchKeywords && this.state.isVisible) {
       // Keywords unchanged and suggestions already visible - skip re-computation
       return;

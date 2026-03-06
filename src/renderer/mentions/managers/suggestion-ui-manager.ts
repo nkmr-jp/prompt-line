@@ -325,6 +325,19 @@ export class SuggestionUIManager {
 
     // Merge files and agents into a single sorted list
     const merged = this.callbacks.mergeSuggestions?.(scoringQuery, maxSuggestions, fileUsageBonuses) ?? [];
+
+    // Close mention when:
+    // - 2+ spaces in query: always close (user is writing normal text)
+    // - 1 space + 0-1 results: close (no further narrowing possible)
+    // - 1 space + 2+ results: continue AND search
+    const spaceCount = (searchTerm.match(/ /g) || []).length;
+    if (spaceCount > 0 && this.callbacks.getCachedDirectoryData?.()) {
+      if (spaceCount >= 2 || merged.length <= 1) {
+        this.hideSuggestions();
+        return;
+      }
+    }
+
     this.callbacks.setMergedSuggestions?.(merged);
 
     this.callbacks.setSelectedIndex?.(0);
@@ -483,8 +496,13 @@ export class SuggestionUIManager {
     if (!this.suggestionsContainer) return;
 
     if (this.mergedSuggestions.length === 0) {
+      const query = this.callbacks.getCurrentQuery?.() || '';
+      const hasDirectory = !!this.callbacks.getCachedDirectoryData?.();
+      const isSingleKeyword = query.length > 0 && !query.includes(' ');
       if (isIndexBuilding) {
         this.renderIndexingState();
+      } else if (hasDirectory && isSingleKeyword) {
+        this.renderEmptyState();
       } else {
         this.hideSuggestions();
       }
@@ -548,6 +566,25 @@ export class SuggestionUIManager {
     const emptyDiv = document.createElement('div');
     emptyDiv.className = 'file-suggestion-empty indexing';
     emptyDiv.textContent = 'Building file index...';
+    this.suggestionsContainer.appendChild(emptyDiv);
+
+    this.suggestionsContainer.style.display = 'block';
+    this.suggestionsContainer.scrollTop = 0;
+  }
+
+  /**
+   * Render empty state (shown when single-keyword search has no results)
+   */
+  private renderEmptyState(): void {
+    if (!this.suggestionsContainer) return;
+
+    while (this.suggestionsContainer.firstChild) {
+      this.suggestionsContainer.removeChild(this.suggestionsContainer.firstChild);
+    }
+
+    const emptyDiv = document.createElement('div');
+    emptyDiv.className = 'file-suggestion-empty';
+    emptyDiv.textContent = 'No matching items found';
     this.suggestionsContainer.appendChild(emptyDiv);
 
     this.suggestionsContainer.style.display = 'block';
