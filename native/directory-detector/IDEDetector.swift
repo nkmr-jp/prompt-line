@@ -250,4 +250,163 @@ extension DirectoryDetector {
 
         return 0
     }
+
+    // MARK: - Electron IDE Recent Workspaces
+
+    /// Extract project name candidates from Electron-based IDE window title
+    /// VSCode format: "filename.ext — project-name — Visual Studio Code"
+    /// Cursor format: "filename.ext — project-name — Cursor"
+    /// Returns meaningful title parts (excluding known app names) for matching
+    static func extractProjectNameCandidatesFromElectronIDETitle(_ title: String) -> [String] {
+        let parts = title.components(separatedBy: " — ")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+
+        let appNames: Set<String> = [
+            "Visual Studio Code", "Visual Studio Code - Insiders", "VSCodium",
+            "Cursor", "Windsurf", "Kiro", "Zed"
+        ]
+
+        return parts.filter { !appNames.contains($0) }
+    }
+
+    /// Get the User Data directory for an Electron-based IDE
+    static func getElectronIDEUserDataDir(_ bundleId: String) -> String? {
+        let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
+        let appSupport = homeDir + "/Library/Application Support"
+
+        switch bundleId {
+        case "com.microsoft.VSCode":
+            return appSupport + "/Code"
+        case "com.microsoft.VSCodeInsiders":
+            return appSupport + "/Code - Insiders"
+        case "com.vscodium.VSCodium":
+            return appSupport + "/VSCodium"
+        case "com.todesktop.230313mzl4w4u92":
+            return appSupport + "/Cursor"
+        case "com.exafunction.windsurf":
+            return appSupport + "/Windsurf"
+        case "dev.kiro.desktop":
+            return appSupport + "/Kiro"
+        default:
+            return nil
+        }
+    }
+
+    /// Extract folder path from a file:// URI string
+    private static func pathFromFileURI(_ uri: String) -> String? {
+        guard let url = URL(string: uri), url.scheme == "file" else {
+            return nil
+        }
+        return url.path
+    }
+
+    /// Match project name candidates against folder paths
+    /// Tries candidates in reverse order (last part is most likely the project name)
+    private static func matchCandidatesAgainstFolders(_ candidates: [String], folders: [String]) -> String? {
+        let fileManager = FileManager.default
+        for candidate in candidates.reversed() {
+            for path in folders {
+                if (path as NSString).lastPathComponent == candidate && fileManager.fileExists(atPath: path) {
+                    return path
+                }
+            }
+        }
+        return nil
+    }
+
+    /// Extract folder paths from a VSCode-family window/entry dictionary
+    /// Handles both "folder" (single folder) and "workspace" (workspace file) entries
+    private static func extractFoldersFromEntry(_ entry: [String: Any]) -> [String] {
+        var paths: [String] = []
+        if let folderUri = entry["folderUri"] as? String ?? entry["folder"] as? String,
+           let path = pathFromFileURI(folderUri) {
+            paths.append(path)
+        }
+        if let workspace = entry["workspace"] as? [String: Any],
+           let configPath = workspace["configPath"] as? String,
+           let path = pathFromFileURI(configPath) {
+            paths.append((path as NSString).deletingLastPathComponent)
+        }
+        return paths
+    }
+
+    /// Collect folder paths from VSCode-family storage.json
+    private static func collectFoldersFromStorageJSON(_ userDataDir: String) -> [String] {
+        let storagePath = userDataDir + "/storage.json"
+        guard let data = FileManager.default.contents(atPath: storagePath),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let windowsState = json["windowsState"] as? [String: Any] else {
+            return []
+        }
+
+        var folders: [String] = []
+
+        if let lastWindow = windowsState["lastActiveWindow"] as? [String: Any] {
+            folders.append(contentsOf: extractFoldersFromEntry(lastWindow))
+        }
+        if let openedWindows = windowsState["openedWindows"] as? [[String: Any]] {
+            for window in openedWindows {
+                folders.append(contentsOf: extractFoldersFromEntry(window))
+            }
+        }
+
+        return folders
+    }
+
+    /// Collect folder paths from VSCode-family state.vscdb (SQLite)
+    private static func collectFoldersFromStateDB(_ userDataDir: String) -> [String] {
+        let dbPath = userDataDir + "/User/globalStorage/state.vscdb"
+        guard FileManager.default.fileExists(atPath: dbPath) else {
+            return []
+        }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
+        process.arguments = [dbPath, "SELECT value FROM ItemTable WHERE key = 'history.recentlyOpenedPathsList'"]
+
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+
+            guard process.terminationStatus == 0 else { return [] }
+
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            guard !data.isEmpty,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let entries = json["entries"] as? [[String: Any]] else {
+                return []
+            }
+
+            var folders: [String] = []
+            for entry in entries {
+                folders.append(contentsOf: extractFoldersFromEntry(entry))
+            }
+            return folders
+        } catch {
+            return []
+        }
+    }
+
+    /// Get project directory from Electron IDE configuration files
+    /// Tries storage.json first (lightweight), then falls back to state.vscdb (more historical data)
+    static func getDirectoryFromElectronIDERecentWorkspaces(candidates: [String], bundleId: String) -> String? {
+        guard let userDataDir = getElectronIDEUserDataDir(bundleId) else {
+            return nil
+        }
+
+        // Try storage.json first (no external tool needed)
+        let storageFolders = collectFoldersFromStorageJSON(userDataDir)
+        if let match = matchCandidatesAgainstFolders(candidates, folders: storageFolders) {
+            return match
+        }
+
+        // Fallback: try state.vscdb (requires sqlite3 CLI, has more historical data)
+        let dbFolders = collectFoldersFromStateDB(userDataDir)
+        return matchCandidatesAgainstFolders(candidates, folders: dbFolders)
+    }
 }

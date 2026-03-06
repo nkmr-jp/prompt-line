@@ -90,6 +90,36 @@ class DirectoryDetector {
 
                     return result
                 }
+
+                // Fallback: Use window title + recent workspaces config to find project directory
+                // This works even when no terminal tab is open in the IDE
+                if let windowTitle = getWindowTitle(pid: appPid, bundleId: bundleId) {
+                    // Try to extract full path from window title first
+                    if let directory = parsePathFromWindowTitle(windowTitle, bundleId: bundleId) {
+                        return [
+                            "success": true,
+                            "directory": directory,
+                            "appName": appName,
+                            "bundleId": bundleId,
+                            "idePid": appPid,
+                            "method": "window-title"
+                        ]
+                    }
+
+                    // Extract project name candidates and search recent workspaces
+                    let candidates = extractProjectNameCandidatesFromElectronIDETitle(windowTitle)
+                    if !candidates.isEmpty,
+                       let recentDir = getDirectoryFromElectronIDERecentWorkspaces(candidates: candidates, bundleId: bundleId) {
+                        return [
+                            "success": true,
+                            "directory": recentDir,
+                            "appName": appName,
+                            "bundleId": bundleId,
+                            "idePid": appPid,
+                            "method": "electron-recent-workspaces"
+                        ]
+                    }
+                }
             } else if isJetBrainsIDE(bundleId) {
                 // JetBrains IDEs: First try to get project name from focused window title
                 // Then use it as a hint to find the correct shell process
