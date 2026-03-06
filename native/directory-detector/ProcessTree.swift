@@ -57,11 +57,31 @@ extension DirectoryDetector {
         return nil
     }
 
+    // MARK: - Project Root Detection
+
+    /// Find project root by traversing parent directories from CWD
+    /// Single pass: checks .idea/ (JetBrains) and .git/ at each level,
+    /// preferring .idea at the same level. Returns the closest match.
+    static func findProjectRoot(_ cwd: String) -> String? {
+        let fileManager = FileManager.default
+        var currentDir = cwd
+        while currentDir != "/" && !currentDir.isEmpty {
+            // .idea takes priority at the same directory level
+            if fileManager.fileExists(atPath: currentDir + "/.idea") {
+                return currentDir
+            }
+            if fileManager.fileExists(atPath: currentDir + "/.git") {
+                return currentDir
+            }
+            currentDir = (currentDir as NSString).deletingLastPathComponent
+        }
+        return nil
+    }
+
     // MARK: - IDE Terminal Directory Detection (Fast Method)
 
     /// Fast method to get IDE terminal directory using pgrep
-    /// This is a simplified version that's much faster than full process tree traversal
-    /// Enhanced with early termination: returns immediately when a non-home directory is found
+    /// Resolves shell CWD to project root (.idea/.git) for accurate file search scoping
     /// Uses libproc for ~10-50x faster CWD detection compared to lsof
     static func getIDETerminalDirectoryFast(idePid: pid_t, projectNameHint: String? = nil) -> (directory: String?, shellPid: pid_t?) {
         // Use pgrep to quickly find shell processes with the IDE as ancestor
@@ -91,31 +111,30 @@ extension DirectoryDetector {
 
             let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
 
-            // Early termination optimization: If we have a project name hint,
-            // check matching shells first for immediate return
+            // Resolve project roots from shell CWDs
+            // If project name hint is available, match against project root basename
             if let projectName = projectNameHint {
                 for pid in shellPids {
-                    if let cwd = getCwdFromPid(pid) {
-                        let components = cwd.components(separatedBy: "/")
-                        if components.contains(where: { $0.lowercased().contains(projectName.lowercased()) }) {
-                            // Found matching project directory - return immediately
-                            return (cwd, pid)
+                    if let cwd = getCwdFromPid(pid),
+                       let projectRoot = findProjectRoot(cwd) {
+                        let rootBasename = (projectRoot as NSString).lastPathComponent
+                        if rootBasename.lowercased().contains(projectName.lowercased()) {
+                            return (projectRoot, pid)
                         }
                     }
                 }
             }
 
-            // Early termination: Return first non-home directory found
-            // This avoids checking all shells when we find a good match early
+            // No hint match: return first project root from a non-home CWD
             var firstHomeDir: (cwd: String, pid: pid_t)? = nil
 
             for pid in shellPids {
                 if let cwd = getCwdFromPid(pid) {
                     if cwd != homeDir {
-                        // Found non-home directory - return immediately (early termination!)
-                        return (cwd, pid)
+                        // Resolve to project root if possible, otherwise use CWD
+                        let dir = findProjectRoot(cwd) ?? cwd
+                        return (dir, pid)
                     }
-                    // Remember first home dir as fallback
                     if firstHomeDir == nil {
                         firstHomeDir = (cwd, pid)
                     }
@@ -287,10 +306,11 @@ extension DirectoryDetector {
 
                 let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
 
-                // Check each shell, prefer non-home directories
+                // Check each shell, prefer non-home directories, resolve to project root
                 for shellPid in shellPids.prefix(5) {
                     if let cwd = getCwdFromPid(shellPid), cwd != homeDir {
-                        return (cwd, shellPid)
+                        let dir = findProjectRoot(cwd) ?? cwd
+                        return (dir, shellPid)
                     }
                 }
 
@@ -365,10 +385,11 @@ extension DirectoryDetector {
 
             let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
 
-            // Step 4: Check CWD of each IDE shell, prefer non-home directories
+            // Step 4: Check CWD of each IDE shell, prefer non-home directories, resolve to project root
             for shellPid in ideShells.prefix(5) {
                 if let cwd = getCwdFromPid(shellPid), cwd != homeDir {
-                    return (cwd, shellPid)
+                    let dir = findProjectRoot(cwd) ?? cwd
+                    return (dir, shellPid)
                 }
             }
 
@@ -460,10 +481,11 @@ extension DirectoryDetector {
 
                 let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
 
-                // Check each shell, prefer non-home directories
+                // Check each shell, prefer non-home directories, resolve to project root
                 for shellPid in shellPids.prefix(5) {
                     if let cwd = getCwdFromPid(shellPid), cwd != homeDir {
-                        return (cwd, shellPid)
+                        let dir = findProjectRoot(cwd) ?? cwd
+                        return (dir, shellPid)
                     }
                 }
 
