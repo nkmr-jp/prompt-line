@@ -306,10 +306,11 @@ extension DirectoryDetector {
 
                 let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
 
-                // Check each shell, prefer non-home directories
+                // Check each shell, prefer non-home directories, resolve to project root
                 for shellPid in shellPids.prefix(5) {
                     if let cwd = getCwdFromPid(shellPid), cwd != homeDir {
-                        return (cwd, shellPid)
+                        let dir = findProjectRoot(cwd) ?? cwd
+                        return (dir, shellPid)
                     }
                 }
 
@@ -384,10 +385,11 @@ extension DirectoryDetector {
 
             let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
 
-            // Step 4: Check CWD of each IDE shell, prefer non-home directories
+            // Step 4: Check CWD of each IDE shell, prefer non-home directories, resolve to project root
             for shellPid in ideShells.prefix(5) {
                 if let cwd = getCwdFromPid(shellPid), cwd != homeDir {
-                    return (cwd, shellPid)
+                    let dir = findProjectRoot(cwd) ?? cwd
+                    return (dir, shellPid)
                 }
             }
 
@@ -479,10 +481,11 @@ extension DirectoryDetector {
 
                 let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
 
-                // Check each shell, prefer non-home directories
+                // Check each shell, prefer non-home directories, resolve to project root
                 for shellPid in shellPids.prefix(5) {
                     if let cwd = getCwdFromPid(shellPid), cwd != homeDir {
-                        return (cwd, shellPid)
+                        let dir = findProjectRoot(cwd) ?? cwd
+                        return (dir, shellPid)
                     }
                 }
 
