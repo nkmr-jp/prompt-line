@@ -71,9 +71,14 @@ class UsageHistoryHandler {
     filePaths: string[]
   ): Promise<Record<string, number>> {
     const bonuses: Record<string, number> = {};
+    const manager = getFileUsageHistoryManager();
 
     for (const filePath of filePaths) {
-      bonuses[filePath] = getFileUsageHistoryManager().calculateFileBonus(filePath);
+      try {
+        bonuses[filePath] = manager.calculateFileBonus(filePath);
+      } catch {
+        bonuses[filePath] = 0;
+      }
     }
 
     return bonuses;
@@ -105,8 +110,12 @@ class UsageHistoryHandler {
     const manager = getSymbolUsageHistoryManager();
 
     for (const { filePath, symbolName } of symbols) {
-      const key = manager.createSymbolKey(filePath, symbolName);
-      bonuses[key] = manager.calculateSymbolBonus(filePath, symbolName);
+      try {
+        const key = manager.createSymbolKey(filePath, symbolName);
+        bonuses[key] = manager.calculateSymbolBonus(filePath, symbolName);
+      } catch {
+        // Skip symbols with invalid paths
+      }
     }
 
     return bonuses;

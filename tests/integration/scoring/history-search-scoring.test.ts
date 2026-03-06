@@ -127,6 +127,36 @@ describe('History Search Scoring', () => {
     });
   });
 
+  describe('Japanese text search', () => {
+    test('searches Japanese text', () => {
+      const history: HistoryItem[] = [
+        { text: 'テスト用のコマンド', timestamp: Date.now() - 1000, id: 'jp1' },
+        { text: 'hello world', timestamp: Date.now() - 2000, id: 'en1' },
+        { text: '検索機能のテスト', timestamp: Date.now() - 3000, id: 'jp2' },
+      ];
+
+      const result = filterEngine.filter(history, 'テスト');
+
+      expect(result.items).toHaveLength(2);
+      expect(result.items.map(i => i.id)).toContain('jp1');
+      expect(result.items.map(i => i.id)).toContain('jp2');
+    });
+
+    test('AND search with full-width space separated keywords', () => {
+      const history: HistoryItem[] = [
+        { text: 'テスト 検索 実行', timestamp: Date.now() - 1000, id: 'all-match' },
+        { text: 'テスト のみ', timestamp: Date.now() - 2000, id: 'partial-match' },
+        { text: '関係ないテキスト', timestamp: Date.now() - 3000, id: 'no-match' },
+      ];
+
+      // Full-width space between keywords: AND search
+      const result = filterEngine.filter(history, 'テスト\u3000検索');
+
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]?.id).toBe('all-match');
+    });
+  });
+
   // Tests with real data - skip if no data available
   describe.skip('Real data tests (requires ~/.prompt-line/history.jsonl)', () => {
     let realData: RealTestData | null = null;

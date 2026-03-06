@@ -36,12 +36,11 @@ class SymbolUsageHistoryManager extends UsageHistoryManager {
    * Format: {filePath}:{symbolName}
    */
   createSymbolKey(filePath: string, symbolName: string): string {
-    // Path traversal detection BEFORE normalization
-    // (path.normalize resolves .. sequences, so check must be done first)
-    if (filePath.includes('..')) {
+    const normalized = path.normalize(filePath);
+    // Check for '..' as an actual path segment (not just a substring in a name)
+    if (normalized.split(path.sep).includes('..')) {
       throw new Error('Path traversal detected');
     }
-    const normalized = path.normalize(filePath);
     return `${normalized}:${symbolName}`;
   }
 
