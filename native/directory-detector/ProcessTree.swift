@@ -123,9 +123,13 @@ extension DirectoryDetector {
                         }
                     }
                 }
+                // Hint was provided but no shell matched - return nil
+                // so the caller can try alternative detection methods (e.g., recent projects)
+                // This prevents returning a shell from a different project window
+                return (nil, nil)
             }
 
-            // No hint match: return first project root from a non-home CWD
+            // No hint provided: return first project root from a non-home CWD
             var firstHomeDir: (cwd: String, pid: pid_t)? = nil
 
             for pid in shellPids {
