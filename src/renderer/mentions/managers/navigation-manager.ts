@@ -256,27 +256,31 @@ export class NavigationManager {
       return;
     }
 
-    // Tab: Navigate into directory (for files), or select item (for agents/files)
-    if (totalItems > 0 || this.callbacks.getIsInSymbolMode()) {
-      e.preventDefault();
-      e.stopPropagation();
+    // Always prevent default Tab behavior when suggestions are visible
+    e.preventDefault();
+    e.stopPropagation();
 
-      const selectedIndex = this.callbacks.getSelectedIndex();
-
-      // 未選択状態（selectedIndex < 0）の場合
-      if (this.handleUnselectedState(selectedIndex)) return;
-
-      // Check if current selection is a directory (for navigation)
-      const suggestion = this.callbacks.getMergedSuggestions()[selectedIndex];
-      if (suggestion?.type === 'file' && suggestion.file?.isDirectory) {
-        // Navigate into directory
-        this.navigateIntoDirectory(suggestion.file);
-        return;
-      }
-
-      // Otherwise select the item (file or agent)
-      this.selectItem(selectedIndex);
+    // Empty state (e.g., "No matching items found") — just close
+    if (totalItems === 0 && !this.callbacks.getIsInSymbolMode()) {
+      this.callbacks.hideSuggestions();
+      return;
     }
+
+    const selectedIndex = this.callbacks.getSelectedIndex();
+
+    // 未選択状態（selectedIndex < 0）の場合
+    if (this.handleUnselectedState(selectedIndex)) return;
+
+    // Check if current selection is a directory (for navigation)
+    const suggestion = this.callbacks.getMergedSuggestions()[selectedIndex];
+    if (suggestion?.type === 'file' && suggestion.file?.isDirectory) {
+      // Navigate into directory
+      this.navigateIntoDirectory(suggestion.file);
+      return;
+    }
+
+    // Otherwise select the item (file or agent)
+    this.selectItem(selectedIndex);
   }
 
   /**
