@@ -339,7 +339,10 @@ export class SuggestionUIManager {
     // - 2+ spaces in query: always close (user is writing normal text)
     // - 1 space + 0-1 results: close (no further narrowing possible)
     // - 1 space + 2+ results: continue AND search
-    const spaceCount = searchTerm.split(' ').length - 1;
+    let spaceCount = 0;
+    for (let i = 0; i < searchTerm.length; i++) {
+      if (searchTerm.charCodeAt(i) === 32) spaceCount++;
+    }
     if (spaceCount > 0 && this.callbacks.getCachedDirectoryData?.()) {
       if (spaceCount >= 2 || merged.length <= 1) {
         this.hideSuggestions();
@@ -471,10 +474,7 @@ export class SuggestionUIManager {
   }
 
   private handleTabKey(e: KeyboardEvent, totalItems: number, currentIndex: number): boolean {
-    if (e.isComposing || this.callbacks.getIsComposing?.()) {
-      return false;
-    }
-
+    // IME check already done in handleKeyDown — no need to duplicate here
     e.preventDefault();
     e.stopPropagation();
 
