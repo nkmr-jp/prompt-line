@@ -268,6 +268,13 @@ export class MentionManager implements IInitializable {
     return this.state.symbolSearchEnabled;
   }
 
+  /**
+   * Set whether the source app supports directory detection
+   */
+  public setDirectoryDetectionCapable(capable: boolean): void {
+    this.state.directoryDetectionCapable = capable;
+  }
+
 
   // ============================================
   // State Update Helpers
@@ -521,6 +528,10 @@ export class MentionManager implements IInitializable {
    * Returns true if directory data is not yet available or is from draft fallback with no files
    */
   private isIndexBeingBuilt(): boolean {
+    // Non-capable apps never have index building (no directory detection)
+    if (!this.state.directoryDetectionCapable) {
+      return false;
+    }
     // Delegate to DirectoryCacheManager
     return this.directoryCacheManager?.isIndexBeingBuilt() ?? true;
   }
@@ -529,6 +540,10 @@ export class MentionManager implements IInitializable {
    * Show hint that file index is being built
    */
   private showIndexingHint(): void {
+    // Don't show "Building Index" for non-capable apps (no directory detection)
+    if (!this.state.directoryDetectionCapable) {
+      return;
+    }
     // Don't show "Building Index" if there's a more important hint (e.g., fd not installed)
     if (this.directoryCacheManager?.getHint()) {
       return;
