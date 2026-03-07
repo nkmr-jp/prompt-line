@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.26.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.26.0...prompt-line-v0.26.1) (2026-03-07)
+
+
+### Documentation
+
+* **built-in-commands:** update Claude, Codex, and Gemini slash commands to latest ([9fc771e](https://github.com/nkmr-jp/prompt-line/commit/9fc771e3ecbd1919dce25714d4e67ae969647f0f))
+* **built-in-commands:** update Claude, Codex, and Gemini slash commands to latest ([b514b6a](https://github.com/nkmr-jp/prompt-line/commit/b514b6a9efe26b08f2517dbf4628b90800a268d4))
+
 ## [0.26.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.25.3...prompt-line-v0.26.0) (2026-03-06)
 
 
