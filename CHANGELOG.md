@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.26.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.26.0...prompt-line-v0.26.1) (2026-03-07)
+
+
+### Bug Fixes
+
+* **directory-detector:** add storage fallback for Electron IDE directory detection without terminal ([5416c8a](https://github.com/nkmr-jp/prompt-line/commit/5416c8a3e0536e778c6a9ad3efedbc29068b079c))
+* **directory-detector:** add storage fallback for Electron IDE directory detection without terminal ([478ef35](https://github.com/nkmr-jp/prompt-line/commit/478ef35e9d4d8b74d3c9ad256102f1ec18fec44a))
+* **directory-detector:** fix pipe deadlock and add sqlite3 timeout ([44ed5f5](https://github.com/nkmr-jp/prompt-line/commit/44ed5f5165c4bf8834bc4e32eef58a5bfccf0b83))
+
+
+### Documentation
+
+* add merge strategy guidelines to prevent CHANGELOG duplication ([b01b476](https://github.com/nkmr-jp/prompt-line/commit/b01b476130e591a26428b88a1555d4447c11b05c))
+* **built-in-commands:** update Claude, Codex, and Gemini slash commands to latest ([9fc771e](https://github.com/nkmr-jp/prompt-line/commit/9fc771e3ecbd1919dce25714d4e67ae969647f0f))
+* **built-in-commands:** update Claude, Codex, and Gemini slash commands to latest ([b514b6a](https://github.com/nkmr-jp/prompt-line/commit/b514b6a9efe26b08f2517dbf4628b90800a268d4))
+
 ## [0.26.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.25.3...prompt-line-v0.26.0) (2026-03-06)
 
 
