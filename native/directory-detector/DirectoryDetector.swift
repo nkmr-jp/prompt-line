@@ -90,6 +90,22 @@ class DirectoryDetector {
 
                     return result
                 }
+
+                // Fallback: Use window title + storage database (state.vscdb)
+                // This works even when no terminal tab is open in the IDE
+                if let windowTitle = getWindowTitle(pid: appPid, bundleId: bundleId) {
+                    let candidates = extractWorkspaceNamesFromElectronIDETitle(windowTitle)
+                    if let storageDir = getDirectoryFromElectronIDEStorage(workspaceNames: candidates, bundleId: bundleId) {
+                        return [
+                            "success": true,
+                            "directory": storageDir,
+                            "appName": appName,
+                            "bundleId": bundleId,
+                            "idePid": appPid,
+                            "method": "electron-ide-storage"
+                        ]
+                    }
+                }
             } else if isJetBrainsIDE(bundleId) {
                 // JetBrains IDEs: First try to get project name from focused window title
                 // Then use it as a hint to find the correct shell process
