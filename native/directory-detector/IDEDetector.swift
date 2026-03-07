@@ -144,6 +144,129 @@ extension DirectoryDetector {
         return nil
     }
 
+    // MARK: - Electron IDE Storage Fallback
+
+    /// Get the Application Support directory name for an Electron IDE
+    static func getElectronIDEAppSupportName(_ bundleId: String) -> String? {
+        if bundleId == "com.microsoft.VSCode" { return "Code" }
+        if bundleId == "com.microsoft.VSCodeInsiders" { return "Code - Insiders" }
+        if bundleId == "com.vscodium.VSCodium" { return "VSCodium" }
+        if isCursor(bundleId) { return "Cursor" }
+        if isWindsurf(bundleId) { return "Windsurf" }
+        if isKiro(bundleId) { return "Kiro" }
+        return nil
+    }
+
+    /// Extract workspace name candidates from Electron IDE window title
+    /// VSCode titles: "file.ext — FolderName", "FolderName", "● file.ext — FolderName"
+    static func extractWorkspaceNamesFromElectronIDETitle(_ title: String) -> [String] {
+        var cleanTitle = title
+        // Remove leading indicators (● for unsaved changes)
+        cleanTitle = cleanTitle.replacingOccurrences(of: "^[●◎]\\s*", with: "", options: .regularExpression)
+        // Remove trailing brackets like [SSH: remote], [Extension Development Host]
+        cleanTitle = cleanTitle.replacingOccurrences(of: "\\s*\\[.*\\]\\s*$", with: "", options: .regularExpression)
+
+        var candidates: [String] = []
+
+        // Split by " — " (em dash with spaces) - common VSCode separator
+        let emDashParts = cleanTitle.components(separatedBy: " \u{2014} ")
+        if emDashParts.count >= 2 {
+            for part in emDashParts {
+                let trimmed = part.trimmingCharacters(in: .whitespaces)
+                if !trimmed.isEmpty {
+                    candidates.append(trimmed)
+                }
+            }
+        }
+
+        // Also try splitting by " - " (regular dash) - some IDE variants
+        let dashParts = cleanTitle.components(separatedBy: " - ")
+        if dashParts.count >= 2 {
+            for part in dashParts {
+                let trimmed = part.trimmingCharacters(in: .whitespaces)
+                if !trimmed.isEmpty && !candidates.contains(trimmed) {
+                    candidates.append(trimmed)
+                }
+            }
+        }
+
+        // If no separator found, use the whole title
+        if candidates.isEmpty {
+            let trimmed = cleanTitle.trimmingCharacters(in: .whitespaces)
+            if !trimmed.isEmpty {
+                candidates.append(trimmed)
+            }
+        }
+
+        // Filter out known app name suffixes (only IDEs that use state.vscdb storage)
+        let appNames = ["visual studio code", "vs code", "cursor", "windsurf", "kiro"]
+        candidates = candidates.filter { candidate in
+            !appNames.contains(candidate.lowercased())
+        }
+
+        return candidates
+    }
+
+    /// Get project directory from Electron IDE's storage database (state.vscdb)
+    /// Reads recently opened workspaces and matches against workspace name
+    static func getDirectoryFromElectronIDEStorage(workspaceNames: [String], bundleId: String) -> String? {
+        guard let appSupportName = getElectronIDEAppSupportName(bundleId) else {
+            return nil
+        }
+
+        let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
+        let dbPath = "\(homeDir)/Library/Application Support/\(appSupportName)/User/globalStorage/state.vscdb"
+
+        // Query using sqlite3 command (available on macOS by default)
+        // .timeout 500 prevents blocking if the database is locked by the IDE
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
+        process.arguments = ["-cmd", ".timeout 500", dbPath, "SELECT value FROM ItemTable WHERE key = 'history.recentlyOpenedPathsList'"]
+
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+
+        do {
+            try process.run()
+            // Read pipe BEFORE waitUntilExit to prevent deadlock when output exceeds pipe buffer (64KB)
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
+
+            guard process.terminationStatus == 0 else {
+                return nil
+            }
+
+            guard let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !output.isEmpty,
+                  let jsonData = output.data(using: .utf8),
+                  let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+                  let entries = json["entries"] as? [[String: Any]] else {
+                return nil
+            }
+
+            // Find matching workspace by folder name
+            let lowercaseNames = Set(workspaceNames.map { $0.lowercased() })
+            for entry in entries {
+                if let folderUri = entry["folderUri"] as? String,
+                   folderUri.hasPrefix("file://") {
+                    let path = String(folderUri.dropFirst(7)) // Remove "file://"
+                    let decoded = path.removingPercentEncoding ?? path
+                    let basename = (decoded as NSString).lastPathComponent
+                    if lowercaseNames.contains(basename.lowercased()) {
+                        if FileManager.default.fileExists(atPath: decoded) {
+                            return decoded
+                        }
+                    }
+                }
+            }
+
+            return nil
+        } catch {
+            return nil
+        }
+    }
+
     /// Get project directory from IDE window title using Accessibility API (legacy function for compatibility)
     /// Most IDEs show the project path or name in the window title
     /// Uses kAXFocusedWindowAttribute to get the currently focused window (not just the first window)
