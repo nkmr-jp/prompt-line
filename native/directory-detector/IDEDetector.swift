@@ -198,8 +198,8 @@ extension DirectoryDetector {
             }
         }
 
-        // Filter out known app name suffixes
-        let appNames = ["visual studio code", "vs code", "cursor", "windsurf", "kiro", "zed", "opencode"]
+        // Filter out known app name suffixes (only IDEs that use state.vscdb storage)
+        let appNames = ["visual studio code", "vs code", "cursor", "windsurf", "kiro"]
         candidates = candidates.filter { candidate in
             !appNames.contains(candidate.lowercased())
         }
@@ -217,14 +217,11 @@ extension DirectoryDetector {
         let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
         let dbPath = "\(homeDir)/Library/Application Support/\(appSupportName)/User/globalStorage/state.vscdb"
 
-        guard FileManager.default.fileExists(atPath: dbPath) else {
-            return nil
-        }
-
         // Query using sqlite3 command (available on macOS by default)
+        // .timeout 500 prevents blocking if the database is locked by the IDE
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
-        process.arguments = [dbPath, "SELECT value FROM ItemTable WHERE key = 'history.recentlyOpenedPathsList'"]
+        process.arguments = ["-cmd", ".timeout 500", dbPath, "SELECT value FROM ItemTable WHERE key = 'history.recentlyOpenedPathsList'"]
 
         let pipe = Pipe()
         process.standardOutput = pipe
@@ -232,13 +229,14 @@ extension DirectoryDetector {
 
         do {
             try process.run()
+            // Read pipe BEFORE waitUntilExit to prevent deadlock when output exceeds pipe buffer (64KB)
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
             process.waitUntilExit()
 
             guard process.terminationStatus == 0 else {
                 return nil
             }
 
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
             guard let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
                   !output.isEmpty,
                   let jsonData = output.data(using: .utf8),
@@ -248,7 +246,7 @@ extension DirectoryDetector {
             }
 
             // Find matching workspace by folder name
-            let lowercaseNames = workspaceNames.map { $0.lowercased() }
+            let lowercaseNames = Set(workspaceNames.map { $0.lowercased() })
             for entry in entries {
                 if let folderUri = entry["folderUri"] as? String,
                    folderUri.hasPrefix("file://") {
