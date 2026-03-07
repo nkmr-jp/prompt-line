@@ -31,7 +31,7 @@ commands:
   - name: context
     description: Visualize current context usage as a colored grid
   - name: copy
-    description: Copy the last response to clipboard (with code block picker when applicable)
+    description: Copy the last assistant response to clipboard. When code blocks are present, shows an interactive picker to select individual blocks or the full response
   - name: cost
     description: Show token usage statistics
   - name: debug
@@ -42,7 +42,7 @@ commands:
   - name: diff
     description: Interactive diff viewer for uncommitted changes and per-turn diffs
   - name: doctor
-    description: Checks the health of your Claude Code installation
+    description: Diagnose and verify your Claude Code installation and settings
   - name: exit
     description: "Exit the CLI. Alias: /quit"
   - name: export
@@ -54,7 +54,7 @@ commands:
     description: Toggle Fast mode on or off
     argument-hint: "[on|off]"
   - name: feedback
-    description: Submit feedback about Claude Code
+    description: "Submit feedback about Claude Code. Alias: /bug"
   - name: fork
     description: Clone a conversation into a new thread
     argument-hint: "[session]"
@@ -75,7 +75,10 @@ commands:
   - name: keybindings
     description: Open or create your keybindings configuration file
   - name: login
-    description: Switch Anthropic accounts
+    description: Sign in to your Anthropic account
+  - name: loop
+    description: Run a prompt or slash command on a recurring interval (e.g. /loop 5m /foo, defaults to 10m)
+    argument-hint: "[interval] [command]"
   - name: logout
     description: Sign out from your Anthropic account
   - name: mcp
@@ -83,11 +86,11 @@ commands:
   - name: memory
     description: Edit CLAUDE.md memory files, enable or disable auto-memory, and view auto-memory entries
   - name: mobile
-    description: Show QR code to download the Claude mobile app
+    description: "Show QR code to download the Claude mobile app. Aliases: /ios, /android"
   - name: model
     description: Select or change the AI model (use left/right arrows to adjust effort level). Takes effect immediately
   - name: output-style
-    description: Set the output style directly or from a selection menu
+    description: "Switch between output styles: Default, Explanatory (educational insights), or Learning (hands-on practice). Supports custom styles"
     argument-hint: "[style]"
   - name: passes
     description: Share a free 1-week Claude Code pass with friends (only shown for eligible accounts)
@@ -119,13 +122,13 @@ commands:
     description: "Resume a conversation by ID or name, or open the session picker. Alias: /continue"
     argument-hint: "[session]"
   - name: review
-    description: Review a pull request for code quality, correctness, security, and test coverage (requires gh CLI)
+    description: Review a pull request for code quality, correctness, security, and test coverage. Pass a PR number, or omit to list open PRs (requires gh CLI)
   - name: rewind
     description: "Rewind the conversation and/or code to a previous point, or summarize from a selected message. Alias: /checkpoint"
   - name: sandbox
-    description: "Enable sandboxed bash tool with filesystem and network isolation for safer, more autonomous execution"
+    description: Toggle sandbox mode with filesystem and network isolation. Available on supported platforms only
   - name: security-review
-    description: Complete a security review of pending changes on the current branch
+    description: Analyze pending changes on the current branch for security vulnerabilities (injection, auth issues, data exposure)
   - name: simplify
     description: Review changed code for reuse, quality, and efficiency, then fix any issues found
   - name: skills
@@ -135,7 +138,7 @@ commands:
   - name: status
     description: "Open the Settings interface (Status tab) showing version, model, account, and connectivity"
   - name: statusline
-    description: "Set up Claude Code's status line UI"
+    description: "Configure Claude Code's status line. Describe what you want, or run without arguments to auto-configure from your shell prompt"
   - name: stickers
     description: Order Claude Code stickers
   - name: tasks
@@ -146,7 +149,7 @@ commands:
   - name: terminal-setup
     description: Configure terminal keybindings for Shift+Enter and other shortcuts (VS Code, Alacritty, Warp)
   - name: theme
-    description: Change the color theme
+    description: "Change the color theme. Includes light/dark variants, colorblind-accessible (daltonized), and ANSI themes"
   - name: todos
     description: List current TODO items
   - name: usage

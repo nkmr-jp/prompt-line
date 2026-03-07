@@ -14,7 +14,7 @@ commands:
   - name: approvals
     description: Choose what Codex is allowed to do
   - name: apps
-    description: Manage apps
+    description: Browse apps (connectors) and insert them into your prompt
   - name: clean
     description: Stop all background terminals
   - name: clear
@@ -30,7 +30,7 @@ commands:
   - name: elevate-sandbox
     description: Set up elevated agent sandbox
   - name: debug-config
-    description: Show config layers and requirement sources for debugging
+    description: Print config layer and requirements diagnostics
   - name: exit
     description: Exit the CLI (alias for /quit)
   - name: experimental
@@ -43,7 +43,7 @@ commands:
     description: Fork the current chat
     argument-hint: "[session]"
   - name: init
-    description: Create an AGENTS.md file with instructions for Codex
+    description: Generate an AGENTS.md scaffold in the current directory
   - name: logout
     description: Sign out of Codex
   - name: mcp
@@ -52,17 +52,17 @@ commands:
     description: Attach a file to the conversation
     argument-hint: "<path>"
   - name: model
-    description: Choose what model and reasoning effort to use
+    description: Choose the active model (and reasoning effort, when available)
   - name: new
     description: Start a new chat during a conversation
   - name: permissions
-    description: Choose what Codex is allowed to do
+    description: Set what Codex can do without asking first
   - name: personality
     description: Choose a communication style for responses
   - name: plan
     description: Switch to plan mode and optionally send a prompt
   - name: ps
-    description: List background terminals
+    description: Show experimental background terminals and their recent output
   - name: quit
     description: Exit the CLI
   - name: realtime
