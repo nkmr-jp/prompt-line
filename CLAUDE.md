@@ -165,6 +165,7 @@ When creating pull requests:
 
 - **Target Branch**: Always create PRs against the `develop` branch (not `main`)
 - **Language**: Write all PR titles and descriptions in English
+- **Merge Strategy**: Use **Squash and merge** for feature PRs to `develop`. Use **Rebase and merge** for `develop` → `main` PRs. Regular merge commits are disabled to prevent duplicate entries in CHANGELOG (Release Please picks up both merge commits and individual commits, causing duplication).
 
 ## Architecture Overview
 
