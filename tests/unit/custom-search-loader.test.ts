@@ -2676,4 +2676,80 @@ Content`;
       expect(results[1]?.name).toBe('smaller-number');
     });
   });
+
+  describe('Source file mtime cache freshness', () => {
+    test('should return cached results when source file has not changed', async () => {
+      const config: CustomSearchEntry[] = [
+        {
+          name: '{json@text}',
+          type: 'command',
+          description: '',
+          path: '/Users/test/.claude',
+          pattern: 'history.jsonl',
+          searchPrefix: 'r',
+          orderBy: '{json@timestamp} desc',
+          maxSuggestions: 100,
+        },
+      ];
+      const loader = new CustomSearchLoader(config);
+      const jsonlContent = '{"text":"item1","timestamp":1000}\n{"text":"item2","timestamp":2000}';
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true, size: 500, mtimeMs: 1000 } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('history.jsonl', true)] as any);
+      mockedFs.readFile.mockResolvedValue(jsonlContent);
+
+      // First call - loads from disk
+      const result1 = await loader.searchItems('command', 'r:');
+      expect(result1).toHaveLength(2);
+
+      // Reset readFile mock to verify it's NOT called again
+      mockedFs.readFile.mockClear();
+      // stat still returns same mtime
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true, size: 500, mtimeMs: 1000 } as any);
+
+      // Second call - should use cache (mtime unchanged)
+      const result2 = await loader.searchItems('command', 'r:');
+      expect(result2).toHaveLength(2);
+      expect(mockedFs.readFile).not.toHaveBeenCalled();
+    });
+
+    test('should reload when source file mtime changes', async () => {
+      const config: CustomSearchEntry[] = [
+        {
+          name: '{json@text}',
+          type: 'command',
+          description: '',
+          path: '/Users/test/.claude',
+          pattern: 'history.jsonl',
+          searchPrefix: 'r',
+          orderBy: '{json@timestamp} desc',
+          maxSuggestions: 100,
+        },
+      ];
+      const loader = new CustomSearchLoader(config);
+
+      // Initial load with mtime=1000
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true, size: 500, mtimeMs: 1000 } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('history.jsonl', true)] as any);
+      mockedFs.readFile.mockResolvedValue('{"text":"old-item","timestamp":1000}');
+
+      const result1 = await loader.searchItems('command', 'r:');
+      expect(result1).toHaveLength(1);
+      expect(result1[0]?.name).toBe('old-item');
+
+      // File is updated — mtime changes to 2000
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true, size: 500, mtimeMs: 2000 } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('history.jsonl', true)] as any);
+      mockedFs.readFile.mockResolvedValue(
+        '{"text":"old-item","timestamp":1000}\n{"text":"new-item","timestamp":2000}'
+      );
+
+      // Second call - should detect mtime change and reload
+      const result2 = await loader.searchItems('command', 'r:');
+      expect(result2).toHaveLength(2);
+      // Should contain the new item (desc order by timestamp)
+      expect(result2[0]?.name).toBe('new-item');
+      expect(result2[1]?.name).toBe('old-item');
+    });
+  });
 });

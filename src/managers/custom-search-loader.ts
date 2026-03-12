@@ -36,6 +36,9 @@ class CustomSearchLoader {
   // P3: RegExp cache for matchesGlobPattern
   private regexCache: Map<string, RegExp> = new Map();
 
+  // Source file mtime tracking for cache freshness check
+  private sourceFileMtimes: Map<string, number> = new Map();
+
   constructor(
     config?: CustomSearchEntry[],
     settings?: UserSettings
@@ -79,6 +82,47 @@ class CustomSearchLoader {
     this.resultCacheKey = '';
     this.resultCacheItems = [];
     this.regexCache.clear();
+    this.sourceFileMtimes.clear();
+  }
+
+  /**
+   * Check if any source file has been modified since last load
+   */
+  private async hasSourceFilesChanged(): Promise<boolean> {
+    if (this.sourceFileMtimes.size === 0) return false;
+    try {
+      const checks = Array.from(this.sourceFileMtimes.entries()).map(
+        async ([filePath, cachedMtime]) => {
+          try {
+            const stat = await fs.stat(filePath);
+            return stat.mtimeMs !== cachedMtime;
+          } catch {
+            // File deleted or inaccessible — treat as changed
+            return true;
+          }
+        }
+      );
+      const results = await Promise.all(checks);
+      return results.some(changed => changed);
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Record mtime for source files
+   */
+  private async recordSourceFileMtimes(files: string[]): Promise<void> {
+    await Promise.all(
+      files.map(async (filePath) => {
+        try {
+          const stat = await fs.stat(filePath);
+          this.sourceFileMtimes.set(filePath, stat.mtimeMs);
+        } catch {
+          // Ignore stat errors
+        }
+      })
+    );
   }
 
   /**
@@ -126,13 +170,15 @@ class CustomSearchLoader {
    * searchPrefixが設定されているエントリは、クエリがそのプレフィックスで始まる場合のみ検索対象
    */
   async searchItems(type: CustomSearchType, query: string): Promise<CustomSearchItem[]> {
-    // P1: result cache hit check
     const cacheKey = `${type}:${query}`;
+
+    // loadAll() first to trigger mtime-based cache invalidation if needed
+    const allItems = await this.loadAll();
+
+    // P1: result cache hit check (after loadAll to respect mtime invalidation)
     if (cacheKey === this.resultCacheKey && this.resultCacheItems.length > 0) {
       return this.resultCacheItems;
     }
-
-    const allItems = await this.loadAll();
     // P2: 表示件数制限
     const maxSuggestions = this.getMaxSuggestions(type);
 
@@ -388,7 +434,13 @@ class CustomSearchLoader {
     const cacheKey = 'all';
     const cached = this.cache.get(cacheKey);
     if (cached) {
-      return cached.items;
+      // Check if any source file has been modified since last load
+      if (await this.hasSourceFilesChanged()) {
+        logger.debug('CustomSearch source files changed, invalidating cache');
+        this.invalidateCache();
+      } else {
+        return cached.items;
+      }
     }
 
     // Singleflight: 既に進行中のロードがあればそれを共有
@@ -494,6 +546,10 @@ class CustomSearchLoader {
       jqExpression,
       filesFound: files.length
     });
+
+    // Record source file mtimes for cache freshness check
+    await this.recordSourceFileMtimes(files);
+
     const items = await this.parseFilesToItems(files, entry, sourceId, jqExpression);
     return items;
   }
