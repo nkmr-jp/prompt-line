@@ -24,6 +24,8 @@ commands:
     description: Manage custom slash commands loaded from .toml files
   - name: clear
     description: Clear the terminal screen including session history and scrollback
+  - name: compact
+    description: "Alias for /compress"
   - name: compress
     description: Replace chat context with a summary to reduce token usage
   - name: copy
@@ -97,5 +99,7 @@ commands:
     description: Open a dialog to change the visual theme
   - name: tools
     description: Display available tools with optional detailed descriptions
+  - name: upgrade
+    description: Update your Gemini CLI installation to the latest version
   - name: vim
     description: Toggle vim-style navigation and editing in the input area

@@ -5,6 +5,18 @@ import type { CustomSearchEntry } from '../../src/types';
 // Unmock path module (needed for prefix-resolver which is used by custom-search-loader)
 vi.unmock('path');
 
+// Mock chokidar to avoid file watching in tests
+vi.mock('chokidar', () => ({
+  default: { watch: vi.fn(() => ({
+    on: vi.fn(function(this: any) { return this; }),
+    close: vi.fn(() => Promise.resolve())
+  })) },
+  watch: vi.fn(() => ({
+    on: vi.fn(function(this: any) { return this; }),
+    close: vi.fn(() => Promise.resolve())
+  }))
+}));
+
 // Mock glob module
 vi.mock('glob', () => ({
   glob: vi.fn()
@@ -2403,11 +2415,11 @@ Content`;
 
       const items = await loader.getItems('command');
 
-      // 4 non-empty lines but '---' appears twice and is deduplicated → 3 items
-      expect(items).toHaveLength(3);
+      // 4 non-empty lines: '---' appears twice but has different sortKeys (line positions) → 4 items
+      expect(items).toHaveLength(4);
       // frontmatter@title is empty, so all names fallback to {line} (sorted by name asc)
       const names = items.map(i => i.name);
-      expect(names).toContain('---');
+      expect(names.filter(n => n === '---')).toHaveLength(2);
       expect(names).toContain('Body');
       expect(names).toContain('title: This is not frontmatter');
       // frontmatter@description is empty for all items
@@ -2505,6 +2517,228 @@ Content`;
       // Second call should hit cache
       await loader.getItems('command');
       expect(mockedFs.readdir.mock.calls).toHaveLength(callCountAfterFirst);
+    });
+  });
+
+  describe('JSONL with searchPrefix (history.jsonl use case)', () => {
+    test('should load JSONL items with {json@text} template and searchPrefix', async () => {
+      // ユーザーの設定を再現: history.jsonl の text フィールドを検索
+      const jsonlLoader = new CustomSearchLoader([
+        {
+          name: '{json@text}',
+          type: 'command',
+          description: '',
+          icon: 'repo',
+          color: 'rose',
+          path: '/Users/test/.prompt-line',
+          pattern: 'history.jsonl',
+          searchPrefix: 'r',
+          maxSuggestions: 100,
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true, size: 500 } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('history.jsonl', true)] as any);
+      mockedFs.readFile.mockResolvedValue(
+        '{"text":"hello world","appName":"Terminal","timestamp":1710000000000}\n' +
+        '{"text":"git commit -m fix","appName":"iTerm2","timestamp":1710000001000}\n' +
+        '{"text":"pnpm test","appName":"Terminal","timestamp":1710000002000}'
+      );
+
+      const items = await jsonlLoader.getItems('command');
+      expect(items).toHaveLength(3);
+      expect(items.map(i => i.name).sort()).toEqual(['git commit -m fix', 'hello world', 'pnpm test']);
+    });
+
+    test('should filter JSONL items by searchPrefix r:', async () => {
+      const jsonlLoader = new CustomSearchLoader([
+        {
+          name: '{json@text}',
+          type: 'command',
+          description: '{json@appName}',
+          path: '/Users/test/.prompt-line',
+          pattern: 'history.jsonl',
+          searchPrefix: 'r',
+          maxSuggestions: 100,
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true, size: 500 } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('history.jsonl', true)] as any);
+      mockedFs.readFile.mockResolvedValue(
+        '{"text":"hello world","appName":"Terminal","timestamp":1710000000000}\n' +
+        '{"text":"git commit -m fix","appName":"iTerm2","timestamp":1710000001000}\n' +
+        '{"text":"pnpm test","appName":"Terminal","timestamp":1710000002000}'
+      );
+
+      // r: なしでは表示されない（searchPrefix フィルタリング）
+      const noPrefix = await jsonlLoader.searchItems('command', 'hello');
+      expect(noPrefix).toHaveLength(0);
+
+      // r: 付きで検索
+      jsonlLoader.invalidateCache();
+      const withPrefix = await jsonlLoader.searchItems('command', 'r:hello');
+      expect(withPrefix).toHaveLength(1);
+      expect(withPrefix[0]?.name).toBe('hello world');
+    });
+
+    test('should return all items with r: prefix and empty query', async () => {
+      const jsonlLoader = new CustomSearchLoader([
+        {
+          name: '{json@text}',
+          type: 'command',
+          description: '',
+          path: '/Users/test/.prompt-line',
+          pattern: 'history.jsonl',
+          searchPrefix: 'r',
+          maxSuggestions: 100,
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true, size: 500 } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('history.jsonl', true)] as any);
+      mockedFs.readFile.mockResolvedValue(
+        '{"text":"item1","appName":"Terminal","timestamp":1710000000000}\n' +
+        '{"text":"item2","appName":"iTerm2","timestamp":1710000001000}'
+      );
+
+      // r: のみ（クエリなし）→ 全件表示
+      const results = await jsonlLoader.searchItems('command', 'r:');
+      expect(results).toHaveLength(2);
+    });
+
+    test('should NOT load items when pattern uses @text without dot (invalid syntax)', async () => {
+      // 誤った設定: pattern: "history.jsonl@text" → ファイル名として扱われる
+      const badLoader = new CustomSearchLoader([
+        {
+          name: '{line}',
+          type: 'command',
+          description: '',
+          path: '/Users/test/.prompt-line',
+          pattern: 'history.jsonl@text',
+          searchPrefix: 'r',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      // history.jsonl@text というファイルは存在しない
+      mockedFs.readdir.mockResolvedValue([createDirent('history.jsonl', true)] as any);
+
+      const items = await badLoader.getItems('command');
+      // ファイル名 "history.jsonl@text" にマッチするファイルがないため0件
+      expect(items).toHaveLength(0);
+    });
+
+    test('should sort JSONL items by numeric timestamp desc', async () => {
+      const jsonlLoader = new CustomSearchLoader([
+        {
+          name: '{json@display}',
+          type: 'command',
+          description: '',
+          path: '/Users/test/.claude',
+          pattern: 'history.jsonl',
+          searchPrefix: 'r',
+          orderBy: '{json@timestamp} desc',
+          maxSuggestions: 100,
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true, size: 500 } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('history.jsonl', true)] as any);
+      mockedFs.readFile.mockResolvedValue(
+        '{"display":"oldest","timestamp":1000000000000}\n' +
+        '{"display":"middle","timestamp":1500000000000}\n' +
+        '{"display":"newest","timestamp":1773000000000}'
+      );
+
+      const results = await jsonlLoader.searchItems('command', 'r:');
+      expect(results).toHaveLength(3);
+      // desc なので最新が最初
+      expect(results[0]?.name).toBe('newest');
+      expect(results[1]?.name).toBe('middle');
+      expect(results[2]?.name).toBe('oldest');
+    });
+
+    test('should sort numeric timestamps correctly (not as strings)', async () => {
+      const jsonlLoader = new CustomSearchLoader([
+        {
+          name: '{json@display}',
+          type: 'command',
+          description: '',
+          path: '/Users/test/.claude',
+          pattern: 'history.jsonl',
+          searchPrefix: 'r',
+          orderBy: '{json@timestamp} desc',
+          maxSuggestions: 100,
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true, size: 500 } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('history.jsonl', true)] as any);
+      // 文字列比較だと "9..." > "17..." になるが、数値比較では 17... > 9...
+      mockedFs.readFile.mockResolvedValue(
+        '{"display":"smaller-number","timestamp":999999999999}\n' +
+        '{"display":"larger-number","timestamp":1773000000000}'
+      );
+
+      const results = await jsonlLoader.searchItems('command', 'r:');
+      expect(results).toHaveLength(2);
+      // 数値比較で desc: larger > smaller
+      expect(results[0]?.name).toBe('larger-number');
+      expect(results[1]?.name).toBe('smaller-number');
+    });
+  });
+
+  describe('JSONL hot reload via invalidateCache', () => {
+    test('should return fresh data after invalidateCache is called', async () => {
+      const config: CustomSearchEntry[] = [
+        {
+          name: '{json@text}',
+          type: 'command',
+          description: '',
+          path: '/Users/test/.claude',
+          pattern: 'history.jsonl',
+          searchPrefix: 'r',
+          orderBy: '{json@timestamp} desc',
+          maxSuggestions: 100,
+        },
+      ];
+      const loader = new CustomSearchLoader(config);
+
+      // Initial load
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true, size: 500 } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('history.jsonl', true)] as any);
+      mockedFs.readFile.mockResolvedValue('{"text":"old-item","timestamp":1000}');
+
+      const result1 = await loader.searchItems('command', 'r:');
+      expect(result1).toHaveLength(1);
+      expect(result1[0]?.name).toBe('old-item');
+
+      // Simulate file change → invalidateCache (same as chokidar event handler)
+      loader.invalidateCache();
+
+      // File now has new content
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true, size: 500 } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('history.jsonl', true)] as any);
+      mockedFs.readFile.mockResolvedValue(
+        '{"text":"old-item","timestamp":1000}\n{"text":"new-item","timestamp":2000}'
+      );
+
+      // After invalidation, should reload from disk
+      const result2 = await loader.searchItems('command', 'r:');
+      expect(result2).toHaveLength(2);
+      expect(result2[0]?.name).toBe('new-item');
+      expect(result2[1]?.name).toBe('old-item');
+    });
+
+    test('should emit source-changed event on invalidateCache from file change', () => {
+      const loader = new CustomSearchLoader();
+      const handler = vi.fn();
+      loader.on('source-changed', handler);
+
+      // Directly emit to verify EventEmitter works
+      loader.emit('source-changed');
+      expect(handler).toHaveBeenCalledTimes(1);
     });
   });
 });

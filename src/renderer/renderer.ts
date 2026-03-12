@@ -50,6 +50,8 @@ export class PromptLineRenderer {
   private defaultHintText: string = 'Multi-line text and Image supported'; // Default hint text
   // Queue for pending window-shown data to handle race condition with init()
   private pendingWindowData: WindowData | null = null;
+  // Stored handler reference for cleanup
+  private customSearchUpdateHandler: (() => void) | null = null;
   private initCompleted: boolean = false;
   // Throttle timeout for mousemove events
   private mouseMoveThrottleTimeout: number | null = null;
@@ -323,6 +325,13 @@ export class PromptLineRenderer {
       const data = args[0] as DirectoryInfo;
       this.handleDirectoryDataUpdated(data);
     });
+
+    // Listen for custom search source file changes (hot reload)
+    this.customSearchUpdateHandler = () => {
+      this.agentSkillManager?.invalidateCache();
+      this.fileSearchManager?.clearAgentsCache();
+    };
+    window.addEventListener('custom-search-updated', this.customSearchUpdateHandler);
   }
 
   private async handleKeyDown(e: KeyboardEvent): Promise<void> {
@@ -479,9 +488,12 @@ export class PromptLineRenderer {
       return;
     }
 
-    // Invalidate agent skill cache to reload built-in commands with latest changes
-    // This enables hot reload for built-in command YAML files (similar to settings.yml)
+    // Invalidate renderer-side agent skill cache
     this.agentSkillManager?.invalidateCache();
+
+    // Invalidate main process CustomSearchLoader cache in background (fire-and-forget)
+    // This ensures fresh data on next query without blocking window display
+    electronAPI.invoke('invalidate-custom-search').catch(() => {});
 
     await this.directoryDataHandler.handleWindowShown(data);
   }
@@ -648,6 +660,11 @@ export class PromptLineRenderer {
     if (this.mouseMoveThrottleTimeout) {
       clearTimeout(this.mouseMoveThrottleTimeout);
       this.mouseMoveThrottleTimeout = null;
+    }
+    // Remove custom search update listener
+    if (this.customSearchUpdateHandler) {
+      window.removeEventListener('custom-search-updated', this.customSearchUpdateHandler);
+      this.customSearchUpdateHandler = null;
     }
   }
 }

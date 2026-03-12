@@ -1,6 +1,9 @@
-import { promises as fs } from 'fs';
+import { promises as fs, createReadStream } from 'fs';
+import { createInterface } from 'readline';
 import path from 'path';
 import os from 'os';
+import chokidar, { type FSWatcher } from 'chokidar';
+import { EventEmitter } from 'events';
 import { logger } from '../utils/utils';
 import type { CustomSearchEntry, CustomSearchItem, CustomSearchType, UserSettings, ColorValue } from '../types';
 import { resolveTemplate, getBasename, getDirname, parseFrontmatter, extractRawFrontmatter, parseFirstHeading, parseJsonContent, type TemplateContext } from '../lib/template-resolver';
@@ -15,16 +18,37 @@ import { splitKeywords } from '../lib/keyword-utils';
  *
  * AgentSkillLoaderとAgentLoaderを統合し、より柔軟な設定が可能
  */
-class CustomSearchLoader {
+class CustomSearchLoader extends EventEmitter {
   private config: CustomSearchEntry[];
   private cache: Map<string, { items: CustomSearchItem[] }> = new Map();
   private settings: UserSettings | undefined;
   private loadingPromise: Promise<CustomSearchItem[]> | null = null;
 
+  // P0: entryMap for O(1) lookup instead of O(n) linear search
+  private entryMap: Map<string, CustomSearchEntry> = new Map();
+
+  // P0: normalizedCache for pre-computed toLowerCase fields
+  private normalizedCache: string[] = [];
+  private normalizedCacheSource: CustomSearchItem[] | null = null;
+
+  // P1: search result cache to avoid re-filtering on same query
+  private resultCacheKey = '';
+  private resultCacheItems: CustomSearchItem[] = [];
+
+  // P3: RegExp cache for matchesGlobPattern
+  private regexCache: Map<string, RegExp> = new Map();
+
+  // File watchers for hot reload (individual files: JSONL + non-glob pattern files)
+  private fileWatchers: FSWatcher[] = [];
+  private watchedFilePaths: Set<string> = new Set();
+  private static readonly FILE_RELOAD_DEBOUNCE_MS = 300;
+  private fileReloadTimer: ReturnType<typeof setTimeout> | null = null;
+
   constructor(
     config?: CustomSearchEntry[],
     settings?: UserSettings
   ) {
+    super();
     // Use default config if config is undefined or empty array
     this.config = (config && config.length > 0) ? config : getDefaultCustomSearchConfig();
     this.settings = settings;
@@ -41,6 +65,8 @@ class CustomSearchLoader {
     if (JSON.stringify(this.config) !== JSON.stringify(newConfig)) {
       this.config = newConfig;
       this.invalidateCache();
+      // Reset file watchers since config paths may have changed
+      this.stopWatching();
     }
   }
 
@@ -58,6 +84,84 @@ class CustomSearchLoader {
   invalidateCache(): void {
     this.cache.clear();
     this.loadingPromise = null;
+    this.entryMap.clear();
+    this.normalizedCache = [];
+    this.normalizedCacheSource = null;
+    this.resultCacheKey = '';
+    this.resultCacheItems = [];
+    this.regexCache.clear();
+  }
+
+  /**
+   * Start watching source files for hot reload.
+   * Watches JSONL files and individual (non-glob) pattern files.
+   */
+  private startFileWatching(watchableFiles: string[]): void {
+    // Filter to only new files not already watched
+    const newFiles = watchableFiles.filter(f => !this.watchedFilePaths.has(f));
+    if (newFiles.length === 0) return;
+
+    for (const filePath of newFiles) {
+      this.watchedFilePaths.add(filePath);
+    }
+
+    const watcher = chokidar.watch(newFiles, {
+      persistent: true,
+      ignoreInitial: true,
+      awaitWriteFinish: {
+        stabilityThreshold: 100,
+        pollInterval: 50
+      },
+    });
+
+    watcher.on('change', (filePath: string) => {
+      logger.debug('CustomSearch source file changed:', filePath);
+      this.handleSourceFileChange();
+    });
+
+    watcher.on('error', (error: unknown) => {
+      logger.error('CustomSearch file watcher error:', error);
+    });
+
+    this.fileWatchers.push(watcher);
+    logger.info('CustomSearch file watcher started', { files: newFiles });
+  }
+
+  /**
+   * Check if a pattern represents an individual file (no glob characters)
+   */
+  private static isIndividualFilePattern(pattern: string): boolean {
+    return !pattern.includes('*') && !pattern.includes('?') && !pattern.includes('[') && !pattern.includes('{');
+  }
+
+  /**
+   * Handle source file change with debounce
+   */
+  private handleSourceFileChange(): void {
+    if (this.fileReloadTimer) {
+      clearTimeout(this.fileReloadTimer);
+    }
+
+    this.fileReloadTimer = setTimeout(() => {
+      this.invalidateCache();
+      this.emit('source-changed');
+      logger.info('CustomSearch cache invalidated from source file change');
+    }, CustomSearchLoader.FILE_RELOAD_DEBOUNCE_MS);
+  }
+
+  /**
+   * Stop all file watchers
+   */
+  async stopWatching(): Promise<void> {
+    for (const watcher of this.fileWatchers) {
+      await watcher.close();
+    }
+    this.fileWatchers = [];
+    this.watchedFilePaths.clear();
+    if (this.fileReloadTimer) {
+      clearTimeout(this.fileReloadTimer);
+      this.fileReloadTimer = null;
+    }
   }
 
   /**
@@ -89,11 +193,31 @@ class CustomSearchLoader {
   }
 
   /**
+   * normalizedCache を構築/更新（参照等値チェックで不要な再構築を回避）
+   */
+  private ensureNormalized(items: CustomSearchItem[]): void {
+    if (items === this.normalizedCacheSource) return;
+    this.normalizedCache = new Array(items.length);
+    for (let i = 0; i < items.length; i++) {
+      this.normalizedCache[i] = `${items[i]!.name} ${items[i]!.description}`.toLowerCase();
+    }
+    this.normalizedCacheSource = items;
+  }
+
+  /**
    * 指定タイプのアイテムを検索
    * searchPrefixが設定されているエントリは、クエリがそのプレフィックスで始まる場合のみ検索対象
    */
   async searchItems(type: CustomSearchType, query: string): Promise<CustomSearchItem[]> {
+    // P1: result cache hit check
+    const cacheKey = `${type}:${query}`;
+    if (cacheKey === this.resultCacheKey && this.resultCacheItems.length > 0) {
+      return this.resultCacheItems;
+    }
+
     const allItems = await this.loadAll();
+    // P2: 表示件数制限
+    const maxSuggestions = this.getMaxSuggestions(type);
 
     // タイプでフィルタリング
     let items = allItems.filter(item => item.type === type);
@@ -102,10 +226,8 @@ class CustomSearchLoader {
     items = items.filter(item => {
       const entry = this.findEntryForItem(item);
       if (!entry?.searchPrefix) {
-        // searchPrefixが未設定の場合は常に検索対象
         return true;
       }
-      // queryがsearchPrefix:で始まるかチェック（: は自動で追加）
       const prefixWithColon = entry.searchPrefix + ':';
       return query.startsWith(prefixWithColon);
     });
@@ -114,40 +236,86 @@ class CustomSearchLoader {
     const orderBy = this.getOrderByForQuery(type, query);
 
     if (!query) {
-      return this.sortItems(items, orderBy);
+      const sorted = this.sortItems(items, orderBy);
+      const result = sorted.length > maxSuggestions ? sorted.slice(0, maxSuggestions) : sorted;
+      this.resultCacheKey = cacheKey;
+      this.resultCacheItems = result;
+      return result;
     }
 
-    // 各アイテムの実際の検索クエリを計算（searchPrefix:を除去）
-    const filteredItems = items.filter(item => {
+    // P0: normalizedCache を構築して高速フィルタリング
+    this.ensureNormalized(allItems);
+
+    // allItems のインデックスからアイテムへの高速マッピング用にSetを構築
+    const itemSet = new Set(items);
+
+    // P2: キーワードの事前計算をループ外にホイスト
+    // searchPrefix ごとにキーワードを事前計算してMapに格納
+    const keywordsByPrefix = new Map<string, string[]>();
+
+    const filteredItems: CustomSearchItem[] = [];
+    for (let i = 0; i < allItems.length; i++) {
+      const item = allItems[i]!;
+      if (!itemSet.has(item)) continue;
+
       const entry = this.findEntryForItem(item);
       const prefixWithColon = entry?.searchPrefix ? entry.searchPrefix + ':' : '';
-      const actualQuery = query.startsWith(prefixWithColon) ? query.slice(prefixWithColon.length) : query;
 
-      // プレフィックスのみの場合は全て表示
-      if (!actualQuery) {
-        return true;
+      // キーワードをprefixごとにキャッシュして再計算を回避
+      let keywords = keywordsByPrefix.get(prefixWithColon);
+      if (keywords === undefined) {
+        const actualQuery = query.startsWith(prefixWithColon) ? query.slice(prefixWithColon.length) : query;
+        keywords = actualQuery ? splitKeywords(actualQuery.toLowerCase()) : [];
+        keywordsByPrefix.set(prefixWithColon, keywords);
       }
 
-      // Split query into keywords for AND search (space-separated)
-      const keywords = splitKeywords(actualQuery.toLowerCase());
       if (keywords.length === 0) {
-        return true;
+        filteredItems.push(item);
+        continue;
       }
-      const fields = `${item.name.toLowerCase()} ${item.description.toLowerCase()}`;
-      return keywords.every(kw => fields.includes(kw));
-    });
 
-    return this.sortItems(filteredItems, orderBy);
+      // P0: use normalizedCache instead of repeated toLowerCase()
+      const normalized = this.normalizedCache[i]!;
+      const keywordCount = keywords.length;
+      let allMatch = true;
+      for (let k = 0; k < keywordCount; k++) {
+        if (!normalized.includes(keywords[k]!)) {
+          allMatch = false;
+          break;
+        }
+      }
+      if (allMatch) {
+        filteredItems.push(item);
+      }
+    }
+
+    const sorted = this.sortItems(filteredItems, orderBy);
+    // P2: 表示件数制限
+    const result = sorted.length > maxSuggestions ? sorted.slice(0, maxSuggestions) : sorted;
+
+    // P1: cache result
+    this.resultCacheKey = cacheKey;
+    this.resultCacheItems = result;
+
+    return result;
   }
 
   /**
-   * アイテムに対応する設定エントリを検索
+   * entryMap を構築（loadAll完了後に1回だけ呼ばれる）
+   */
+  private buildEntryMap(): void {
+    this.entryMap.clear();
+    for (const entry of this.config) {
+      const key = `${entry.type}:${entry.path}:${entry.pattern}`;
+      this.entryMap.set(key, entry);
+    }
+  }
+
+  /**
+   * アイテムに対応する設定エントリを検索（O(1) Map lookup）
    */
   private findEntryForItem(item: CustomSearchItem): CustomSearchEntry | undefined {
-    return this.config.find(entry =>
-      entry.type === item.type &&
-      `${entry.path}:${entry.pattern}` === item.sourceId
-    );
+    return this.entryMap.get(`${item.type}:${item.sourceId}`);
   }
 
   /**
@@ -253,28 +421,42 @@ class CustomSearchLoader {
    */
   private sortItems(items: CustomSearchItem[], orderBy: string): CustomSearchItem[] {
     const { field, direction } = CustomSearchLoader.parseOrderBy(orderBy);
+    const isCustomField = field !== 'updatedAt' && field !== 'name' && field !== 'description';
+
+    // カスタムフィールドの場合、数値変換をソート前に1回だけ行う
+    let numericValues: Map<CustomSearchItem, number> | null = null;
+    if (isCustomField) {
+      const map = new Map<CustomSearchItem, number>();
+      let allNumeric = true;
+      for (const item of items) {
+        const value = item.sortKey ?? item.name;
+        const num = Number(value);
+        if (isNaN(num)) { allNumeric = false; break; }
+        map.set(item, num);
+      }
+      if (allNumeric && map.size > 0) numericValues = map;
+    }
+
     return [...items].sort((a, b) => {
-      // updatedAt: 数値比較（未設定は0扱い）
       if (field === 'updatedAt') {
-        const aTime = a.updatedAt ?? 0;
-        const bTime = b.updatedAt ?? 0;
-        const comparison = aTime - bTime;
+        const comparison = (a.updatedAt ?? 0) - (b.updatedAt ?? 0);
+        return direction === 'desc' ? -comparison : comparison;
+      }
+
+      // カスタムフィールドの数値比較（前計算済み）
+      if (numericValues) {
+        const comparison = numericValues.get(a)! - numericValues.get(b)!;
         return direction === 'desc' ? -comparison : comparison;
       }
 
       let aValue: string;
       let bValue: string;
-      if (field === 'name') {
-        // sortKeyがあればそちらを優先（プレーンテキストの行順保持用）
+      if (field === 'name' || isCustomField) {
         aValue = a.sortKey ?? a.name;
         bValue = b.sortKey ?? b.name;
-      } else if (field === 'description') {
+      } else {
         aValue = a.description;
         bValue = b.description;
-      } else {
-        // カスタムフィールド: sortKeyを使用（未設定の場合はnameにフォールバック）
-        aValue = a.sortKey ?? a.name;
-        bValue = b.sortKey ?? b.name;
       }
       const comparison = aValue.localeCompare(bValue);
       return direction === 'desc' ? -comparison : comparison;
@@ -297,10 +479,12 @@ class CustomSearchLoader {
       return this.loadingPromise;
     }
 
-    this.loadingPromise = this.loadAllEntries().then(allItems => {
+    this.loadingPromise = this.loadAllEntries().then(({ items: allItems, watchableFiles }) => {
       allItems.sort((a, b) => a.name.localeCompare(b.name));
       this.cache.set(cacheKey, { items: allItems });
+      this.buildEntryMap();
       this.logLoadedItems(allItems);
+      this.startFileWatching(watchableFiles);
       this.loadingPromise = null;
       return allItems;
     }).catch(err => {
@@ -314,27 +498,29 @@ class CustomSearchLoader {
   /**
    * Load all entries with deduplication
    */
-  private async loadAllEntries(): Promise<CustomSearchItem[]> {
+  private async loadAllEntries(): Promise<{ items: CustomSearchItem[]; watchableFiles: string[] }> {
     const results = await Promise.all(
       this.config.map(async (entry) => {
         const sourceId = `${entry.path}:${entry.pattern}`;
         try {
-          const items = await this.loadEntry(entry);
-          return { items, sourceId };
+          const { items, watchableFiles } = await this.loadEntry(entry);
+          return { items, sourceId, watchableFiles };
         } catch (error) {
           logger.error('Failed to load entry', { entry, error });
-          return { items: [] as CustomSearchItem[], sourceId };
+          return { items: [] as CustomSearchItem[], sourceId, watchableFiles: [] as string[] };
         }
       })
     );
 
     const allItems: CustomSearchItem[] = [];
+    const allWatchableFiles: string[] = [];
     const seenNames = new Map<string, Set<string>>();
-    for (const { items, sourceId } of results) {
+    for (const { items, sourceId, watchableFiles } of results) {
       this.addItemsWithDeduplication(items, sourceId, seenNames, allItems);
+      allWatchableFiles.push(...watchableFiles);
     }
 
-    return allItems;
+    return { items: allItems, watchableFiles: allWatchableFiles };
   }
 
   /**
@@ -352,8 +538,12 @@ class CustomSearchLoader {
     const sourceSeenNames = seenNames.get(sourceId)!;
 
     for (const item of items) {
-      // Use name+label as key to allow same name with different labels
-      const key = item.label ? `${item.name}:${item.label}` : item.name;
+      // Build dedup key: name + label + sortKey + inputText
+      // sortKey (e.g., timestamp) is essential for JSONL sources where multiple entries
+      // can have the same display value (e.g., "commit" entered at different times)
+      let key = item.label ? `${item.name}:${item.label}` : item.name;
+      if (item.sortKey) key += `\t${item.sortKey}`;
+      if (item.inputText) key += `\t${item.inputText}`;
       if (!sourceSeenNames.has(key)) {
         sourceSeenNames.add(key);
         allItems.push(item);
@@ -375,12 +565,12 @@ class CustomSearchLoader {
   /**
    * 単一エントリをロード
    */
-  private async loadEntry(entry: CustomSearchEntry): Promise<CustomSearchItem[]> {
+  private async loadEntry(entry: CustomSearchEntry): Promise<{ items: CustomSearchItem[]; watchableFiles: string[] }> {
     const expandedPath = entry.path.replace(/^~/, os.homedir());
 
     const isValid = await this.validateDirectory(expandedPath);
     if (!isValid) {
-      return [];
+      return { items: [], watchableFiles: [] };
     }
 
     // Parse jq expression from pattern: '**/config.json@.members' → filePattern + jqExpression
@@ -394,8 +584,13 @@ class CustomSearchLoader {
       jqExpression,
       filesFound: files.length
     });
+
+    // Watchable files: all files if pattern is individual (non-glob), otherwise JSONL only
+    const isIndividual = CustomSearchLoader.isIndividualFilePattern(filePattern);
+    const watchableFiles = isIndividual ? files : files.filter(f => f.endsWith('.jsonl'));
+
     const items = await this.parseFilesToItems(files, entry, sourceId, jqExpression);
-    return items;
+    return { items, watchableFiles };
   }
 
   /**
@@ -721,9 +916,13 @@ class CustomSearchLoader {
     };
   }
 
+  /** Threshold for switching to streaming JSONL parsing (1MB) */
+  private static readonly STREAMING_THRESHOLD = 1024 * 1024;
+
   /**
    * Parse JSONL file to generate multiple CustomSearchItems (one per line)
    * jqExpression がある場合、各行のJSONに対してjq式を適用する
+   * ファイルサイズ >= 1MB の場合はストリーミング読み込みに自動切替
    */
   private async parseJsonlToItems(
     filePath: string,
@@ -732,49 +931,102 @@ class CustomSearchLoader {
     jqExpression: string | null = null
   ): Promise<CustomSearchItem[]> {
     try {
-      const content = await fs.readFile(filePath, 'utf8');
-      const lines = content.split('\n');
-      const basename = getBasename(filePath);
-      const dirname = getDirname(filePath);
-      const items: CustomSearchItem[] = [];
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed) continue;
-
-        let parsed: unknown;
-        try {
-          parsed = JSON.parse(trimmed);
-          if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) continue;
-        } catch {
-          continue;  // skip invalid JSON lines
-        }
-
-        // jq式が指定されている場合、各行に適用
-        if (jqExpression) {
-          const jqResult = await evaluateJq(parsed, jqExpression, filePath);
-          if (jqResult === null || jqResult === undefined) continue;
-
-          // 結果が配列なら展開して複数アイテムに
-          const elements = Array.isArray(jqResult) ? jqResult : [jqResult];
-          const lineData = parsed as Record<string, unknown>;
-          for (const element of elements) {
-            if (element === null || typeof element !== 'object' || Array.isArray(element)) continue;
-            const elementData = element as Record<string, unknown>;
-            const item = this.createItemFromJsonData(elementData, basename, dirname, filePath, entry, sourceId, [lineData], content);
-            if (item) items.push(item);
-          }
-        } else {
-          const elementData = parsed as Record<string, unknown>;
-          const item = this.createItemFromJsonData(elementData, basename, dirname, filePath, entry, sourceId, undefined, content);
-          if (item) items.push(item);
-        }
+      const stat = await fs.stat(filePath);
+      if (stat.size >= CustomSearchLoader.STREAMING_THRESHOLD) {
+        return this.parseJsonlToItemsStreaming(filePath, entry, sourceId, jqExpression);
       }
-      return items;
+      return this.parseJsonlToItemsBatch(filePath, entry, sourceId, jqExpression);
     } catch (error) {
       logger.warn('Failed to parse JSONL file', { filePath, error });
       return [];
     }
+  }
+
+  /** Batch JSONL parsing for small files (< 1MB) */
+  private async parseJsonlToItemsBatch(
+    filePath: string,
+    entry: CustomSearchEntry,
+    sourceId: string,
+    jqExpression: string | null
+  ): Promise<CustomSearchItem[]> {
+    const content = await fs.readFile(filePath, 'utf8');
+    return this.iterateJsonlLines(content.split('\n'), filePath, entry, sourceId, jqExpression, content);
+  }
+
+  /** Streaming JSONL parsing for large files (>= 1MB) */
+  private async parseJsonlToItemsStreaming(
+    filePath: string,
+    entry: CustomSearchEntry,
+    sourceId: string,
+    jqExpression: string | null
+  ): Promise<CustomSearchItem[]> {
+    const rl = createInterface({
+      input: createReadStream(filePath, { encoding: 'utf8' }),
+      crlfDelay: Infinity,
+    });
+    return this.iterateJsonlLines(rl, filePath, entry, sourceId, jqExpression, undefined);
+  }
+
+  /** Common JSONL line iteration logic for both batch and streaming modes */
+  private async iterateJsonlLines(
+    lines: Iterable<string> | AsyncIterable<string>,
+    filePath: string,
+    entry: CustomSearchEntry,
+    sourceId: string,
+    jqExpression: string | null,
+    content: string | undefined
+  ): Promise<CustomSearchItem[]> {
+    const basename = getBasename(filePath);
+    const dirname = getDirname(filePath);
+    const items: CustomSearchItem[] = [];
+
+    for await (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      const result = await this.parseJsonlLine(trimmed, jqExpression, filePath, basename, dirname, entry, sourceId, content);
+      if (result) items.push(...result);
+    }
+    return items;
+  }
+
+  /** Parse a single JSONL line into CustomSearchItem(s) */
+  private async parseJsonlLine(
+    trimmedLine: string,
+    jqExpression: string | null,
+    filePath: string,
+    basename: string,
+    dirname: string,
+    entry: CustomSearchEntry,
+    sourceId: string,
+    content: string | undefined
+  ): Promise<CustomSearchItem[] | null> {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(trimmedLine);
+      if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    } catch {
+      return null;
+    }
+
+    if (jqExpression) {
+      const jqResult = await evaluateJq(parsed, jqExpression, filePath);
+      if (jqResult === null || jqResult === undefined) return null;
+
+      const elements = Array.isArray(jqResult) ? jqResult : [jqResult];
+      const lineData = parsed as Record<string, unknown>;
+      const items: CustomSearchItem[] = [];
+      for (const element of elements) {
+        if (element === null || typeof element !== 'object' || Array.isArray(element)) continue;
+        const elementData = element as Record<string, unknown>;
+        const item = this.createItemFromJsonData(elementData, basename, dirname, filePath, entry, sourceId, [lineData], content);
+        if (item) items.push(item);
+      }
+      return items.length > 0 ? items : null;
+    }
+
+    const elementData = parsed as Record<string, unknown>;
+    const item = this.createItemFromJsonData(elementData, basename, dirname, filePath, entry, sourceId, undefined, content);
+    return item ? [item] : null;
   }
 
   /**
@@ -1131,18 +1383,20 @@ class CustomSearchLoader {
    * - "*-test.md" - ワイルドカード + 後方一致
    */
   private matchesGlobPattern(name: string, pattern: string): boolean {
-    // "*" は全てにマッチ
     if (pattern === '*') {
       return true;
     }
 
-    // パターンを正規表現に変換
-    const regexPattern = pattern
-      .replace(/[.+^${}()|[\]\\]/g, '\\$&') // 特殊文字をエスケープ
-      .replace(/\*/g, '.*')  // * を .* に変換
-      .replace(/\?/g, '.');   // ? を . に変換
-
-    const regex = new RegExp(`^${regexPattern}$`);
+    // P3: RegExp cache to avoid recompilation per file
+    let regex = this.regexCache.get(pattern);
+    if (!regex) {
+      const regexPattern = pattern
+        .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+        .replace(/\*/g, '.*')
+        .replace(/\?/g, '.');
+      regex = new RegExp(`^${regexPattern}$`);
+      this.regexCache.set(pattern, regex);
+    }
     return regex.test(name);
   }
 }

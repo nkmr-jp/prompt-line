@@ -306,8 +306,10 @@ IPC response → Renderer Process
 
 **History & Draft Handler (history-draft-handler.ts):**
 - `get-history`, `clear-history`, `remove-history-item`, `search-history`: History operations
-- `save-draft`, `clear-draft`, `get-draft`: Draft management
+- `save-draft`, `clear-draft`, `get-draft`, `save-draft-to-history`: Draft management
 - `set-draft-directory`, `get-draft-directory`: Directory tracking
+- `register-at-path`, `get-registered-at-paths`: Project @path pattern caching
+- `register-global-at-path`, `get-global-at-paths`: Global @path pattern caching
 
 **Window Handler (window-handler.ts):**
 - `hide-window`, `show-window`, `focus-window`: Window visibility control
@@ -315,15 +317,19 @@ IPC response → Renderer Process
 **System Handler (system-handler.ts):**
 - `get-app-info`: Application metadata
 - `get-config`: Configuration access with whitelist validation
-- `open-settings`: Settings file management
+- `open-settings`, `open-settings-directory`: Settings file management
+- `get-file-search-max-suggestions`: File search configuration
 
 **CustomSearch Handler (custom-search-handler.ts):**
-- `get-agent-skills`, `get-agent-skill-file-path`: Agent skill support
+- `get-agent-skills`, `get-agent-skill-file-path`, `has-command-file`: Agent skill support
 - `get-agents`, `get-agent-file-path`: Agent selection and management
 - `get-custom-search-max-suggestions`, `get-custom-search-prefixes`: Search configuration
+- `invalidate-custom-search`: Cache invalidation (called by renderer on window-shown)
+- `register-global-agent-skill`, `get-global-agent-skills`: Agent skill global cache
+- `get-usage-bonuses`: Usage frequency scoring for search results
 
 **File Handler (file-handler.ts):**
-- `check-file-exists`, `open-file-in-editor`: File operations
+- `check-file-exists`, `open-file-in-editor`, `reveal-in-finder`: File operations
 - `open-external-url`: URL handling with protocol validation
 
 **Code Search Handler (code-search-handler.ts):**
@@ -345,7 +351,7 @@ IPC response → Renderer Process
 - `window-shown`: Window display with data context
 - `directory-data-updated`: Directory change notifications
 
-Total: 52 IPC channels across 9 specialized handlers
+Total: 50 IPC channels across 9 specialized handlers
 
 ### Built-in Commands
 
