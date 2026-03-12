@@ -572,7 +572,15 @@ export class MentionManager implements IInitializable {
     this.pathManager.invalidateValidPathsCache();
     // Invalidate file usage bonuses cache when directory data changes
     this.fileUsageBonusesCacheTime = 0;
+    this.searchAgentsCache = null;
     this.hideSuggestions();
+  }
+
+  /**
+   * Clear the agent search cache (for custom search hot reload)
+   */
+  public clearAgentsCache(): void {
+    this.searchAgentsCache = null;
   }
 
   /**

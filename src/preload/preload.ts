@@ -81,8 +81,12 @@ const ALLOWED_CHANNELS = [
   'get-symbol-usage-bonuses',
   'record-agent-usage',
   'get-agent-usage-bonuses',
+  // Cache invalidation
+  'invalidate-custom-search',
   // Settings update notification channel
-  'settings-updated'
+  'settings-updated',
+  // Custom search update notification channel
+  'custom-search-updated'
 ];
 
 // IPC channel validation with additional security checks
@@ -413,6 +417,12 @@ contextBridge.exposeInMainWorld('electronAPI', electronAPI);
 ipcRenderer.on('settings-updated', (_event, settings) => {
   // eslint-disable-next-line no-undef
   window.dispatchEvent(new CustomEvent('settings-updated', { detail: settings }));
+});
+
+// Listen for custom search updates and dispatch custom event
+ipcRenderer.on('custom-search-updated', () => {
+  // eslint-disable-next-line no-undef
+  window.dispatchEvent(new CustomEvent('custom-search-updated'));
 });
 
 // Re-export ElectronAPI type for external usage

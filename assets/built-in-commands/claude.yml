@@ -10,11 +10,14 @@ reference: https://code.claude.com/docs/en/interactive-mode#built-in-commands
 
 commands:
   - name: add-dir
-    description: Add additional working directories
+    description: Add a new working directory to the current session
   - name: agents
-    description: Manage custom AI subagents for specialized tasks
+    description: Manage agent configurations
   - name: bashes
     description: List and manage background tasks
+  - name: btw
+    description: Ask a quick side question without adding to the conversation. Runs independently even while Claude is processing
+    argument-hint: "<question>"
   - name: batch
     description: "Research and plan a large-scale change, then execute it in parallel across 5\u201330 isolated worktree agents that each open a PR"
   - name: bug
@@ -27,9 +30,9 @@ commands:
     description: Compact conversation with optional focus instructions
     argument-hint: "[instructions]"
   - name: config
-    description: "Open the Settings interface (Config tab). Alias: /settings"
+    description: "Open the Settings interface to adjust theme, model, output style, and other preferences. Alias: /settings"
   - name: context
-    description: Visualize current context usage as a colored grid
+    description: Visualize current context usage as a colored grid. Shows optimization suggestions for context-heavy tools, memory bloat, and capacity warnings
   - name: copy
     description: Copy the last assistant response to clipboard. When code blocks are present, shows an interactive picker to select individual blocks or the full response
   - name: cost
@@ -46,18 +49,18 @@ commands:
   - name: exit
     description: "Exit the CLI. Alias: /quit"
   - name: export
-    description: Export the current conversation to a file or clipboard
+    description: "Export the current conversation as plain text. With a filename, writes directly to that file; without, opens a dialog to copy to clipboard or save to a file"
     argument-hint: "[filename]"
   - name: extra-usage
-    description: Set additional usage to continue working when hitting rate limits
+    description: Configure extra usage to keep working when rate limits are hit
   - name: fast
     description: Toggle Fast mode on or off
     argument-hint: "[on|off]"
   - name: feedback
     description: "Submit feedback about Claude Code. Alias: /bug"
   - name: fork
-    description: Clone a conversation into a new thread
-    argument-hint: "[session]"
+    description: Create a fork of the current conversation at this point
+    argument-hint: "[name]"
   - name: help
     description: Get usage help
   - name: hooks
@@ -98,6 +101,7 @@ commands:
     description: "View or update permissions. Alias: /allowed-tools"
   - name: plan
     description: Enter plan mode directly from the prompt
+    argument-hint: "[description]"
   - name: plugin
     description: Manage Claude Code plugins
   - name: reload-plugins
@@ -107,14 +111,13 @@ commands:
   - name: privacy-settings
     description: View and update your privacy settings
   - name: remote-env
-    description: Configure remote sessions and environments
-    argument-hint: "[settings]"
+    description: Configure the default remote environment for teleport sessions
   - name: rc
     description: Alias for /remote-control
   - name: release-notes
-    description: View release notes
+    description: View the full changelog, with the most recent version closest to your prompt
   - name: remote-control
-    description: Start a Remote Control session to continue from another device via claude.ai/code or Claude mobile app
+    description: "Make this session available for remote control from claude.ai. Alias: /rc"
   - name: rename
     description: Rename the current session (without a name, generates one from conversation history)
     argument-hint: "[name]"
@@ -122,7 +125,7 @@ commands:
     description: "Resume a conversation by ID or name, or open the session picker. Alias: /continue"
     argument-hint: "[session]"
   - name: review
-    description: Review a pull request for code quality, correctness, security, and test coverage. Pass a PR number, or omit to list open PRs (requires gh CLI)
+    description: "Deprecated. Install the code-review plugin instead: claude plugin install code-review@claude-code-marketplace"
   - name: rewind
     description: "Rewind the conversation and/or code to a previous point, or summarize from a selected message. Alias: /checkpoint"
   - name: sandbox
@@ -153,8 +156,8 @@ commands:
   - name: todos
     description: List current TODO items
   - name: usage
-    description: "For subscription plans only: show plan usage limits and rate limit status"
+    description: Show plan usage limits and rate limit status
   - name: upgrade
-    description: Upgrade to Max for higher rate limits and more Opus
+    description: Open the upgrade page to switch to a higher plan tier
   - name: vim
     description: Toggle between Vim and Normal editing modes

@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.26.2](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.26.1...prompt-line-v0.26.2) (2026-03-12)
+
+
+### Miscellaneous Chores
+
+* **deps:** bump tar from 7.5.10 to 7.5.11 in the npm_and_yarn group across 1 directory ([#244](https://github.com/nkmr-jp/prompt-line/issues/244)) ([4bcb378](https://github.com/nkmr-jp/prompt-line/commit/4bcb378b762e5801ea6ca19e813d18003b4c0a0a))
+
+## [0.26.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.26.0...prompt-line-v0.26.1) (2026-03-07)
+
+
+### Bug Fixes
+
+* **directory-detector:** add storage fallback for Electron IDE directory detection without terminal ([478ef35](https://github.com/nkmr-jp/prompt-line/commit/478ef35e9d4d8b74d3c9ad256102f1ec18fec44a))
+* **directory-detector:** fix pipe deadlock and add sqlite3 timeout ([44ed5f5](https://github.com/nkmr-jp/prompt-line/commit/44ed5f5165c4bf8834bc4e32eef58a5bfccf0b83))
+
+
+### Documentation
+
+* add merge strategy guidelines to prevent CHANGELOG duplication ([b01b476](https://github.com/nkmr-jp/prompt-line/commit/b01b476130e591a26428b88a1555d4447c11b05c))
+* **built-in-commands:** update Claude, Codex, and Gemini slash commands to latest ([b514b6a](https://github.com/nkmr-jp/prompt-line/commit/b514b6a9efe26b08f2517dbf4628b90800a268d4))
+
 ## [0.26.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.25.3...prompt-line-v0.26.0) (2026-03-06)
 
 
@@ -10,25 +31,19 @@
 
 ### Bug Fixes
 
-* **directory-detector:** detect JetBrains project directory without terminal tab ([6868bde](https://github.com/nkmr-jp/prompt-line/commit/6868bded8d4ddc9c6ea194a903cb137d420455a6))
 * **directory-detector:** detect JetBrains project directory without terminal tab ([443c40f](https://github.com/nkmr-jp/prompt-line/commit/443c40f2bd646e121137a2b8a0aeff4813d584a1))
 * **directory-detector:** resolve CWD to project root for Electron IDEs ([f6afa1a](https://github.com/nkmr-jp/prompt-line/commit/f6afa1a2a77adf84897f6f2b42f8ce39eb6d7a4b))
-* **directory-detector:** resolve shell CWD to project root for IDE terminals ([036521a](https://github.com/nkmr-jp/prompt-line/commit/036521aaff6617061450ba4a336d43c6e73505ed))
 * **directory-detector:** resolve shell CWD to project root for JetBrains IDEs ([9582a67](https://github.com/nkmr-jp/prompt-line/commit/9582a67949e5db29e529a26b3aaffc9d09ffb986))
 * **mention:** prevent Tab focus escape when empty state popup is shown ([ad7344c](https://github.com/nkmr-jp/prompt-line/commit/ad7344c5b94e369aa48c2f68bb51626bb810405a))
-* **mentions:** improve mention dismissal with space input and show empty state ([fbd6e95](https://github.com/nkmr-jp/prompt-line/commit/fbd6e9561e409fa93c5d811d681f6016b3c04726))
 * **mentions:** improve mention dismissal with space input and show empty state ([f8e848c](https://github.com/nkmr-jp/prompt-line/commit/f8e848c1e70c9c6f91e45c597b9874f2830296d7))
 * **mentions:** prevent Tab from moving focus when empty state is shown ([09adb57](https://github.com/nkmr-jp/prompt-line/commit/09adb572e85a0abdb84decf74efaaa826a1d9b3f))
-* **mentions:** resolve Japanese file search issues (Unicode NFC/NFD, IME composition) ([3e57cc4](https://github.com/nkmr-jp/prompt-line/commit/3e57cc451a90144c8519deae3543c377d2402bd4))
 * **mentions:** resolve Japanese file search issues (Unicode NFC/NFD, IME composition) ([c54b105](https://github.com/nkmr-jp/prompt-line/commit/c54b10502b26061b74eb5cc1f804f25080082a2e))
-* **mentions:** suppress Building Index and hint for non-capable apps ([4b3bac4](https://github.com/nkmr-jp/prompt-line/commit/4b3bac4b6fbe51243255cc851dd611471bd46d9c))
 * **mentions:** suppress Building Index and hint messages for non-capable apps ([059d6bc](https://github.com/nkmr-jp/prompt-line/commit/059d6bc02cc52327be1c9047de82b8ce8f647381))
 * restore package.json version to 0.25.3 ([204e767](https://github.com/nkmr-jp/prompt-line/commit/204e767afc4d3ebcbec7df8c11cf3032d4ac998b))
 
 
 ### Performance Improvements
 
-* **custom-search:** replace TTL cache with event-driven invalidation and parallelize loading ([99e854e](https://github.com/nkmr-jp/prompt-line/commit/99e854e71660d1b585e8b8de996d070f2e152f5e))
 * **custom-search:** replace TTL cache with event-driven invalidation and parallelize loading ([26019c2](https://github.com/nkmr-jp/prompt-line/commit/26019c25c8b463eef3531ba95dca69f97600d557))
 
 
@@ -39,7 +54,6 @@
 
 ### Miscellaneous Chores
 
-* **deps:** bump tar from 7.5.9 to 7.5.10 in the npm_and_yarn group across 1 directory ([3a4bb92](https://github.com/nkmr-jp/prompt-line/commit/3a4bb92bdaa0ff092785730fd4c6de83d0b21337))
 * **deps:** bump tar in the npm_and_yarn group across 1 directory ([0605d53](https://github.com/nkmr-jp/prompt-line/commit/0605d53b43786482e22c0e424e4f8ec01ac32b23))
 * **main:** release prompt-line 0.25.2 ([0fe07f5](https://github.com/nkmr-jp/prompt-line/commit/0fe07f58fe8cafc41791d4e426890e8f20c9d6ca))
 
@@ -54,7 +68,6 @@
 
 ### Bug Fixes
 
-* **agent-skill:** fix tooltip stuck on first item during navigation ([8c2fd1d](https://github.com/nkmr-jp/prompt-line/commit/8c2fd1db55b845c50614f3d858263767e7cc4226))
 * **agent-skill:** track selected element reference during rendering ([a1d9cde](https://github.com/nkmr-jp/prompt-line/commit/a1d9cdea4921d7c75ac6fdf2443dde272326fbef))
 
 ## [0.25.2](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.25.1...prompt-line-v0.25.2) (2026-03-02)
@@ -69,8 +82,6 @@
 ### Performance Improvements
 
 * **suggest:** fix root causes of suggestion slowdown ([bed916d](https://github.com/nkmr-jp/prompt-line/commit/bed916dfcbc52e4bbe2bfd95e755369435d06ee8))
-* **suggestions:** fix @ mention and / command suggestion speed regression ([1ee59e2](https://github.com/nkmr-jp/prompt-line/commit/1ee59e2aed8d689e7c5a9191d61e4ef61d7d1472))
-* **suggestions:** optimize @ mention and slash command performance ([35abfd8](https://github.com/nkmr-jp/prompt-line/commit/35abfd87482f94bbd1e591b262938ef9792b9a91))
 * **suggestions:** optimize renderer-side processing and eliminate redundant computations ([0cc6389](https://github.com/nkmr-jp/prompt-line/commit/0cc6389e5a2e5a7c4b5a5438ac53dff7b76c0b00))
 * **suggest:** optimize @ mention and / command suggestion performance ([6901a58](https://github.com/nkmr-jp/prompt-line/commit/6901a585799a9b9c23a2eb636541261e2507033c))
 
@@ -110,10 +121,7 @@
 
 * **agent-skills:** implement multi-keyword AND search for slash commands ([0685221](https://github.com/nkmr-jp/prompt-line/commit/0685221d238d3fbf0f29ee792cc2b26d4dd155f9))
 * **commands:** add batch and simplify built-in commands ([f2d18b9](https://github.com/nkmr-jp/prompt-line/commit/f2d18b9f43aa5c82061deaf6d8a7957ecbc62b74))
-* **custom-search:** add {content} and {filepath} template placeholders for inputFormat ([9f71937](https://github.com/nkmr-jp/prompt-line/commit/9f71937da04450113b684992557c62101b1041ba))
 * **mentions:** implement multi-keyword AND search for files and agents ([b981a5c](https://github.com/nkmr-jp/prompt-line/commit/b981a5cb8d4b00af8c80229f103b6edb3c85804b))
-* **search:** add AND search support for symbol search, custom search, and slash commands ([a7f3d61](https://github.com/nkmr-jp/prompt-line/commit/a7f3d612372f3195ac8cfbe9393f721ca207a375))
-* **search:** add space-separated AND search for slash commands and mentions ([04b29b2](https://github.com/nkmr-jp/prompt-line/commit/04b29b2df225171a39aac74ee73922010990f73b))
 * **search:** support AND search with space-separated keywords ([7d07868](https://github.com/nkmr-jp/prompt-line/commit/7d0786821ac29798a86ef276af056625670188a6))
 * **template-resolver:** add {content} placeholder and fix inputFormat handling ([988aec1](https://github.com/nkmr-jp/prompt-line/commit/988aec14e14427aac8c4978894d6b786f35dacee))
 
@@ -164,7 +172,6 @@
 
 ### Miscellaneous Chores
 
-* **deps:** bump the npm_and_yarn group across 1 directory with 2 updates ([256fb9b](https://github.com/nkmr-jp/prompt-line/commit/256fb9b1b266c8adbc4982806012c96af2e4b3ee))
 * **deps:** bump the npm_and_yarn group across 1 directory with 2 updates ([d94cf2b](https://github.com/nkmr-jp/prompt-line/commit/d94cf2ba7ef48c84d12d21851c759c774c837ee3))
 
 ## [0.24.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.23.1...prompt-line-v0.24.0) (2026-02-27)
@@ -191,8 +198,6 @@
 * **history-search:** optimize filter engine with caching and inlined scoring ([8345db2](https://github.com/nkmr-jp/prompt-line/commit/8345db21a8f375b889b7fd8a6d9e845f1075424d))
 * **history-search:** replace innerHTML with direct DOM building for search highlights ([d7e51b4](https://github.com/nkmr-jp/prompt-line/commit/d7e51b4acea32b670d800e8e85dcbaf5b034d094))
 * **history:** optimize rendering with DOM recycling and caching ([61980a6](https://github.com/nkmr-jp/prompt-line/commit/61980a6a6545cf0fd23e0e653513f1767409f85c))
-* **history:** optimize search and input performance (Phase 1-5) ([42cf475](https://github.com/nkmr-jp/prompt-line/commit/42cf47598754513823b7edc6b04c55094e496e7c))
-* **history:** optimize search rendering and add custom search enhancements ([14423cc](https://github.com/nkmr-jp/prompt-line/commit/14423cc4f32f3b38365a4309b971fe278b88b531))
 * **infinite-scroll:** optimize loadMore with result caching and incremental DOM ([6e84522](https://github.com/nkmr-jp/prompt-line/commit/6e84522be19bb084f3e3d2de461b8d80337c36e6))
 * **renderer:** optimize text input event handlers with early returns and pre-sorted skills ([b4366c5](https://github.com/nkmr-jp/prompt-line/commit/b4366c57a7733ae2d147a79be947f5bdba390e29))
 
@@ -226,9 +231,6 @@
 
 ### Features
 
-* Add OpenClaw commands with hot reload and hex color support ([d78c1b3](https://github.com/nkmr-jp/prompt-line/commit/d78c1b3ce5a8181d7008fb4fc8c70d60a3c337e7))
-* add OpenCode support and built-in command management ([5af3e7b](https://github.com/nkmr-jp/prompt-line/commit/5af3e7bc7482e2c4ccbcc9c547ece67611721f68))
-* add settings hot reload, command filtering, and popup improvements ([25458d4](https://github.com/nkmr-jp/prompt-line/commit/25458d4d19046e67828a692d6f336f7c7fe1b835))
 * **agent-label:** add label display to agent suggestions ([6332c7b](https://github.com/nkmr-jp/prompt-line/commit/6332c7b4c22706c4633db635dcd5cdff5fbfa38e))
 * **agents:** add color support for agents with template resolution ([0559467](https://github.com/nkmr-jp/prompt-line/commit/05594673f785dd2b290605a4924321abbf8b5630))
 * **agentSkills:** rename slashCommands to agentSkills and add template variables ([4bd2025](https://github.com/nkmr-jp/prompt-line/commit/4bd2025b935fc35fc778f7cdb25e6dac2a51cdda))
@@ -236,7 +238,6 @@
 * **built-in-commands:** add hot reload support for command YAML files ([8be6ca4](https://github.com/nkmr-jp/prompt-line/commit/8be6ca49ad0318908c161b1c3088445a09499747))
 * **ci:** enable always-bump-patch versioning strategy ([8014389](https://github.com/nkmr-jp/prompt-line/commit/8014389d4bbb85e4637037d5d86e14440d66da50))
 * **ci:** migrate from go-semantic-release to Release Please ([fd0598b](https://github.com/nkmr-jp/prompt-line/commit/fd0598b917ae438ca5e78b2a3d4f51fbd905288e))
-* **ci:** Migrate from go-semantic-release to Release Please ([dc8dbf8](https://github.com/nkmr-jp/prompt-line/commit/dc8dbf8f9ec46074608e3bd3bb71cebd1bb2d8ea))
 * **code-search:** add relativePath filtering to symbol search ([885d7e1](https://github.com/nkmr-jp/prompt-line/commit/885d7e1c96c8b0f6386a6b0264d7f78ac462ad21))
 * **code-search:** enhance symbol ranking with file modification time scoring ([e99d94c](https://github.com/nkmr-jp/prompt-line/commit/e99d94cff4db878fe17aa1fb6fdcf2303bda0bd0))
 * **code-search:** integrate fzf-based scoring with mtime bonus capping ([0848cb1](https://github.com/nkmr-jp/prompt-line/commit/0848cb1f7ecdc062fdbb7909eb3a0decb3fd52d2))
@@ -245,19 +246,16 @@
 * **command-name-matcher:** add suffix wildcard pattern matching ([443a0c3](https://github.com/nkmr-jp/prompt-line/commit/443a0c3c20c3f4768ab903d05f4787e8017df753))
 * **commands:** add OpenCode built-in commands ([0416253](https://github.com/nkmr-jp/prompt-line/commit/0416253d149161023e5356ad16efd7d65d5b8708))
 * **config:** add opencode to built-in commands examples ([9211ecc](https://github.com/nkmr-jp/prompt-line/commit/9211ecc0d863b864edbf12312cf330e70d37206f))
-* custom search enhancements, agent skills rename, Tailwind CSS integration, and color palette expansion ([13ca207](https://github.com/nkmr-jp/prompt-line/commit/13ca207dcbaf07326a73ba720ab3f1e42799d063))
 * **custom-search:** add icon support for slash commands and agents ([e4add67](https://github.com/nkmr-jp/prompt-line/commit/e4add6716bd3795089fce4f36a3474030ea00f72))
 * **custom-search:** add jsonArrayPath support for expanding JSON arrays into multiple items ([05cae9d](https://github.com/nkmr-jp/prompt-line/commit/05cae9d49b5e0df331e43be60ca9ef08c43c50ef))
 * **custom-search:** replace jsonArrayPath with jq expression syntax in pattern ([01d0dac](https://github.com/nkmr-jp/prompt-line/commit/01d0dacc223b2cdcc3ed8f92ef08e5335ec08dbf))
 * **custom-search:** support custom field sorting in orderBy ([11aaf70](https://github.com/nkmr-jp/prompt-line/commit/11aaf70eb0df6b7654dd7d8a5debf9c9d29a5500))
 * **custom-search:** support label-based deduplication for commands and items ([5b42aa9](https://github.com/nkmr-jp/prompt-line/commit/5b42aa9681a4c973cbcbfe7e46541eae32e19d15))
 * **directory-detector:** add OpenCode support ([edfe970](https://github.com/nkmr-jp/prompt-line/commit/edfe9706c20104e430137c8d8edc2d73e056eb8c))
-* disable file/symbol search when fd/rg commands unavailable ([508a2e0](https://github.com/nkmr-jp/prompt-line/commit/508a2e07a26406630fa73bbbe5061f1ff6cc62eb))
 * **file-cache:** add mtime refresh on window show for accurate scoring ([ee848b9](https://github.com/nkmr-jp/prompt-line/commit/ee848b92d6bd350aed8aa85e1818774c12ea8be7))
 * **file-filter-manager:** exclude system directories from file search results ([3083396](https://github.com/nkmr-jp/prompt-line/commit/3083396c29e4efc0b2f6631d3b64f7fdfda56f26))
 * **file-opener-manager:** add lineFormat support for useOpenArgs editors ([db5a5e7](https://github.com/nkmr-jp/prompt-line/commit/db5a5e786b46225c66eb9e332deadde3b72c8102))
 * **file-opener:** add Xcode support with xed CLI and open fallback ([d1b63f0](https://github.com/nkmr-jp/prompt-line/commit/d1b63f0611c101222fda8bae1b20a08b06ff9e21))
-* **file-opener:** improve symbol link line jumping and unify editor launching ([09b4b49](https://github.com/nkmr-jp/prompt-line/commit/09b4b499cf5800d74ab7b95736a21aab300e5613))
 * **file-opener:** support line number jumping with default app detection ([6cc9ed9](https://github.com/nkmr-jp/prompt-line/commit/6cc9ed9ddb8b7206f0b27491cdc62f96c153c060))
 * **file-search:** calculate path bonus from relative path when baseDir is provided ([b4e59a2](https://github.com/nkmr-jp/prompt-line/commit/b4e59a25f97e438113e7d6d4a2bad1c7c99aa770))
 * **frontmatter-popup:** add file path link to frontmatter popup footer ([7256ade](https://github.com/nkmr-jp/prompt-line/commit/7256ade237a1ffdb195e111d5137e6fa5a603583))
@@ -266,7 +264,6 @@
 * **history-ui:** add scrollbar hover interactions and wheel event forwarding ([41a0c0c](https://github.com/nkmr-jp/prompt-line/commit/41a0c0c2be44d4a83e3f3b3df54131a93ed808c5))
 * **history-ui:** add scrollbar thumb drag functionality ([eaed605](https://github.com/nkmr-jp/prompt-line/commit/eaed6059a96b58b9d5c6903d479863321f8b6794))
 * **history:** add Cmd+S shortcut to save draft to history ([4621c01](https://github.com/nkmr-jp/prompt-line/commit/4621c0186acf9229f6e19a9a4e7ff9ba4712398b))
-* **history:** add save-to-history, multi-keyword search, and scrollbar improvements ([43d1f47](https://github.com/nkmr-jp/prompt-line/commit/43d1f47bf1e65ee6c3ed51405fc0a10385642c09))
 * **history:** capture app name and directory when saving draft to history ([7371dbb](https://github.com/nkmr-jp/prompt-line/commit/7371dbb7b025c7a6dd0205e3bc325c55bdbfcd9c))
 * **icons:** add icon property support for slash commands and mentions ([38fbad5](https://github.com/nkmr-jp/prompt-line/commit/38fbad504e4c4765f01e7c6f95e34ddc72cf5a96))
 * **input:** add feature guidance to input placeholder ([69b3b54](https://github.com/nkmr-jp/prompt-line/commit/69b3b548fada82c0ad7d337d81d261fdbfe1b122))
@@ -282,7 +279,6 @@
 * **mentions:** add multi-word slash command support via cursor detection ([74c408f](https://github.com/nkmr-jp/prompt-line/commit/74c408ff7c914f75dee967c08fcf35ba180ac246))
 * **mentions:** add slash command highlighting and hover support ([69b99e2](https://github.com/nkmr-jp/prompt-line/commit/69b99e2177dad46c7e595938a99a3513640b761d))
 * **native-tools:** add support for Warp and WezTerm terminals ([9137533](https://github.com/nkmr-jp/prompt-line/commit/9137533f651b9a316df50b5343c6f29dcf10b7f5))
-* **native-tools:** Add support for Warp, WezTerm, Zed, Antigravity, and Kiro ([a1f344e](https://github.com/nkmr-jp/prompt-line/commit/a1f344e61151eefb9b55e1e730b1de7cce909908))
 * **native-tools:** Add support for Zed IDE and update file opener configs ([6abe8c0](https://github.com/nkmr-jp/prompt-line/commit/6abe8c0fbcfe2fce25375f8342d60006b7750aec))
 * **popup-manager:** add command/agent selection callbacks for textarea insertion ([a48de3c](https://github.com/nkmr-jp/prompt-line/commit/a48de3c72475168edd4226d423bf37071fcced52))
 * **popup-managers:** add row hover tracking for tooltip persistence ([45d4504](https://github.com/nkmr-jp/prompt-line/commit/45d4504cc3fb97c437b386506a8a39b5c3ba65b2))
@@ -290,9 +286,7 @@
 * **release:** migrate to go-semantic-release ([e8c2733](https://github.com/nkmr-jp/prompt-line/commit/e8c273384c08fed94bf1c82c7e0f94ecf53465e0))
 * **renderer:** invalidate slash command cache on window shown ([f340644](https://github.com/nkmr-jp/prompt-line/commit/f3406446dfa52c06ccf9c5a187e9a1fa5e2b9b57))
 * **scoring:** add file modification time and usage history bonuses to fuzzy matching ([b7b748c](https://github.com/nkmr-jp/prompt-line/commit/b7b748c3ae10371f4047d366f8e652602294c3c8))
-* **search:** add usage history tracking and scoring improvements ([9605b4e](https://github.com/nkmr-jp/prompt-line/commit/9605b4ec68ee399b67b4c5115fb62eebb059d4df))
 * **search:** integrate FzfScorer for improved fuzzy matching across search modules ([08c0dbf](https://github.com/nkmr-jp/prompt-line/commit/08c0dbf17177467013c5d63737d59a3add4695b2))
-* **search:** integrate FzfScorer for improved fuzzy matching and scoring ([7219988](https://github.com/nkmr-jp/prompt-line/commit/7219988cfa0604144e232b50ce9a45500db58997))
 * **settings:** add migrate-settings command for automatic settings migration ([5ee6e9f](https://github.com/nkmr-jp/prompt-line/commit/5ee6e9fee93cda97c9b4912c72c5acbd8f34e499))
 * **settings:** enhance configuration with new label, color, and file pattern options ([f96358e](https://github.com/nkmr-jp/prompt-line/commit/f96358e2cd8d8a1456e200cf4506eb06c4f6ea7a))
 * **settings:** implement hot reload for settings with file watching ([d7dd6b4](https://github.com/nkmr-jp/prompt-line/commit/d7dd6b4570d5ca7be485b6e22561a123be09ca60))
@@ -321,7 +315,6 @@
 * **slash-commands:** add plugin commands and enhance skill command configuration ([913adda](https://github.com/nkmr-jp/prompt-line/commit/913addad09000d0ee1f77493a23d1b548708f5a2))
 * **slash-commands:** add source-based highlighting for slash commands ([97a4c30](https://github.com/nkmr-jp/prompt-line/commit/97a4c30c6bfedd747d0152ed6701973997005bf7))
 * **slash-commands:** add visual feedback when copying argument hints ([b9493ac](https://github.com/nkmr-jp/prompt-line/commit/b9493acec18d09d659614a5d528d7b368bf74e4a))
-* **slash-commands:** enhance slash command system with dynamic positioning and multi-word support ([553177c](https://github.com/nkmr-jp/prompt-line/commit/553177c05c947747fe5cd16cae0bcbe86aea2dd8))
 * **slash-commands:** expand color palette and rename blue to teal ([9d87700](https://github.com/nkmr-jp/prompt-line/commit/9d877008f8c3442b74134c6ee941e077ed32776f))
 * **slash-commands:** replace source badge with fixed 'arg' argument hint badge ([4cebc8a](https://github.com/nkmr-jp/prompt-line/commit/4cebc8a91def34a22eb6aaf03fb192150d5c7fc5))
 * **slash-commands:** support colon syntax in slash command patterns ([9fb0c15](https://github.com/nkmr-jp/prompt-line/commit/9fb0c15d45a1d25851685e0786a8aabda33e6d4e))
@@ -337,7 +330,6 @@
 * **template-resolver:** support hierarchical directory reference with {dirname:N} ([1f0fc45](https://github.com/nkmr-jp/prompt-line/commit/1f0fc454a8dc00983417d206c44612761d214807))
 * **types:** add relativePath filter option to SymbolSearchOptions ([6e201e8](https://github.com/nkmr-jp/prompt-line/commit/6e201e862b798abb56e84a6c9a2fdc3000413cd8))
 * **ui:** add icon support for slash commands and agents ([776f096](https://github.com/nkmr-jp/prompt-line/commit/776f096cd1bb9381989e676e43d694530520fe77))
-* usage history tracking and scoring improvements ([08fb698](https://github.com/nkmr-jp/prompt-line/commit/08fb6981562382cd0cddc64e09e12b7815a2b7ed))
 * **usage-history:** add usage history tracking infrastructure ([81f0529](https://github.com/nkmr-jp/prompt-line/commit/81f05294bb46d737daa89868e6db4f1bc6780f91))
 
 
@@ -347,7 +339,6 @@
 * **changelog:** correct version order and add header for release-please ([8398415](https://github.com/nkmr-jp/prompt-line/commit/83984152b0b5a5c855b7e5d3178660ec4dc8dab7))
 * **changelog:** correct version order to put latest version first ([fbcd82f](https://github.com/nkmr-jp/prompt-line/commit/fbcd82fa2bace2fb2661bec90b67f93a1c2c47cb))
 * **ci:** enable CHANGELOG.md auto-update in release workflow ([a441ab0](https://github.com/nkmr-jp/prompt-line/commit/a441ab0e67e97f99c819e4ad98cc127211ccdf65))
-* **ci:** Enable CHANGELOG.md auto-update in release workflow ([5ded770](https://github.com/nkmr-jp/prompt-line/commit/5ded7707cb1b6f879d67993e02e6d6adec586cd1))
 * **ci:** enable CHANGELOG.md auto-update via .semrelrc ([7f1c805](https://github.com/nkmr-jp/prompt-line/commit/7f1c805c26b38ba2d99a0ac8e8d0e3c9555db192))
 * **code-search:** allow empty query to show all symbols for language ([ce1d081](https://github.com/nkmr-jp/prompt-line/commit/ce1d081c40d3ba7b85dad4672de83d4d6553ac92))
 * **code-search:** allow single character search queries ([bcd818f](https://github.com/nkmr-jp/prompt-line/commit/bcd818fb3abde8ccf32b627cd8874bf9436ac570))
@@ -355,24 +346,15 @@
 * **config:** update default settings for team and inbox patterns ([13c68d2](https://github.com/nkmr-jp/prompt-line/commit/13c68d2e70f38395371f21b87d0ca7e02296b624))
 * **config:** update default task template description to use dirname ([4912514](https://github.com/nkmr-jp/prompt-line/commit/49125140dc7c637dd311ee6ec3581c37e64443bd))
 * **custom-search-loader:** scope deduplication per source entry instead of type ([c8b76d7](https://github.com/nkmr-jp/prompt-line/commit/c8b76d7898eef9eb6a77f91d60e0cbe8cf024ca4))
-* **deps-dev:** bump tar from 7.5.7 to 7.5.9 in the npm_and_yarn group across 1 directory ([709ff6d](https://github.com/nkmr-jp/prompt-line/commit/709ff6dc6aef3f4768ba61945234a69287d225b4))
-* **deps:** add missing glob dependency for production build ([8c33630](https://github.com/nkmr-jp/prompt-line/commit/8c336308280317e6036510ce88b62fefd613ad4d))
-* **deps:** bump the npm_and_yarn group across 1 directory with 2 updates ([8e42efb](https://github.com/nkmr-jp/prompt-line/commit/8e42efbc1c70fa54a76ffedaca84ee3648c0b9a5))
-* **deps:** correct ts-node version from 1.7.1 to 10.9.2 ([047bc58](https://github.com/nkmr-jp/prompt-line/commit/047bc587050ebac88f88f765683f63f49015e4f4))
 * **deps:** correct ts-node version from 1.7.1 to 10.9.2 ([1f9c990](https://github.com/nkmr-jp/prompt-line/commit/1f9c99063d06516b02b2cabb3b8604b3003c4050))
-* **deps:** resolve minimatch ReDoS and ajv ReDoS vulnerabilities ([8ba6dba](https://github.com/nkmr-jp/prompt-line/commit/8ba6dba06c1d60e9a0ca8bfb0410913b1134b854))
-* **deps:** resolve npm install deprecation warnings by updating Jest to v30 ([8ed176c](https://github.com/nkmr-jp/prompt-line/commit/8ed176c7bfe98e940289f47675c61e65536ebe2e))
 * **deps:** resolve npm install deprecation warnings by updating Jest to v30 ([c31dc0d](https://github.com/nkmr-jp/prompt-line/commit/c31dc0d12d31f6ed173f8f4ca123cd48b5fbbdd0))
-* **deps:** resolve npm install warnings by updating dependencies ([57faf35](https://github.com/nkmr-jp/prompt-line/commit/57faf3591b6cb8d79b6cee4adbf348307f859ac7))
 * **deps:** resolve npm install warnings by updating dependencies ([abbf942](https://github.com/nkmr-jp/prompt-line/commit/abbf94207dfda5e7f6aab16edb466116e40e1f48))
-* **deps:** upgrade minimatch and ajv to fix ReDoS vulnerabilities ([cc7160c](https://github.com/nkmr-jp/prompt-line/commit/cc7160c7571460dfa51d088b67e9ba8bb44b8d84))
 * **deps:** upgrade minimatch and ajv to fix ReDoS vulnerabilities ([3b19baa](https://github.com/nkmr-jp/prompt-line/commit/3b19baafee21e33b327045e04b1eaf4cc0707cfd))
 * **directory-detector:** skip Prompt Line itself during app detection ([56ebd68](https://github.com/nkmr-jp/prompt-line/commit/56ebd68367a5651cc3dd10ca170266c0a453579c))
 * **dom-manager, path-manager:** trigger input event on text update and add selected paths ([c262a07](https://github.com/nkmr-jp/prompt-line/commit/c262a076cc9b51aaf2686773f692ea06ef016681))
 * **dom-manager:** dispatch input event after text insertion to trigger slash command detection ([0f1614a](https://github.com/nkmr-jp/prompt-line/commit/0f1614afbed5b3adf567e0aa4d09dd0ff9dd0ce3))
 * **dom-manager:** remove manual input event dispatch on setText ([61db1ad](https://github.com/nkmr-jp/prompt-line/commit/61db1adba7640e4c395a4612fafe8e35d5e6860d))
 * **file-filter-manager, suggestion-ui-manager:** prevent missing candidates in incremental search and fix hover state handling ([e9e821f](https://github.com/nkmr-jp/prompt-line/commit/e9e821f5dbb02995d02d98f21586ddccda2117c5))
-* **file-opener-manager:** add case-insensitive editor config lookup ([c423dd8](https://github.com/nkmr-jp/prompt-line/commit/c423dd88821b6a7d50c976c22898b9433e1a3521))
 * **file-opener-manager:** add case-insensitive editor config lookup ([0538527](https://github.com/nkmr-jp/prompt-line/commit/0538527ec5aa2a3cc2c34b056f50424ce4a6a123))
 * **file-opener-manager:** correct JXA property name for getting app name ([c67cf3e](https://github.com/nkmr-jp/prompt-line/commit/c67cf3ea048600118f5c2b7fb304834ec2aebe97))
 * **file-search:** allow /tmp access on macOS while maintaining security ([8d6db98](https://github.com/nkmr-jp/prompt-line/commit/8d6db98ab27daadfb30197835d4626c73401d850))
@@ -427,7 +409,6 @@
 * **security:** harden file-opener against injection attacks ([ade7920](https://github.com/nkmr-jp/prompt-line/commit/ade7920d2966358a20613279e9cc6dd232b66cad))
 * **security:** harden input validation and sanitization ([2cf9392](https://github.com/nkmr-jp/prompt-line/commit/2cf9392eaf82c543a2a42dda1a9e505ef7c0b3c5))
 * **security:** remove semantic-release and resolve all vulnerabilities ([cc5198a](https://github.com/nkmr-jp/prompt-line/commit/cc5198afde4da55996b12775a568c59563f309c4))
-* **security:** resolve all vulnerabilities and migrate to go-semantic-release ([cdec77d](https://github.com/nkmr-jp/prompt-line/commit/cdec77d6206b405d31f97bf153dc496981cf6b0a))
 * **settings,prefix-resolver:** support tilde expansion in basePath and prefixPattern ([097ed7a](https://github.com/nkmr-jp/prompt-line/commit/097ed7a4a30224f7559cb60c3269cafa091415fd))
 * **settings:** add prefixPattern to getMdSearchEntries conversion ([bf5ce73](https://github.com/nkmr-jp/prompt-line/commit/bf5ce733c332cf2e356ca5ac0e9deeb22afdae52))
 * **settings:** improve error handling and array serialization ([a4b809d](https://github.com/nkmr-jp/prompt-line/commit/a4b809d59d0337c7d40ced68be88d15a09490811))
@@ -493,7 +474,6 @@
 * optimize config and cache management with TTL and LRU eviction ([2211d6b](https://github.com/nkmr-jp/prompt-line/commit/2211d6b544cbed941a22f4fc4f0974e060eb0769))
 * optimize event handling and caching for improved input performance ([2f0d1f8](https://github.com/nkmr-jp/prompt-line/commit/2f0d1f8b64a3fa0854ef3a0202fa4e95ca0acc3b))
 * optimize search filtering, symbol scoring, and event handling ([183d5c3](https://github.com/nkmr-jp/prompt-line/commit/183d5c3aee4bdaa47a0b8238f998f6cec6f7c29e))
-* optimize symbolSearch and improve input performance ([e415a7f](https://github.com/nkmr-jp/prompt-line/commit/e415a7f00fbe175215ec1c2ca005b9fe1c411590))
 * **scoring:** reduce file mtime bonus cap from 200 to 100 ([27543e1](https://github.com/nkmr-jp/prompt-line/commit/27543e1cc86c45fff9eee1d57184f949f69d2701))
 * **scoring:** reduce MAX_FILE_MTIME bonus from 500 to 200 ([f30fe1e](https://github.com/nkmr-jp/prompt-line/commit/f30fe1e9f2e4e3a8bcbb1b94a3e41bb87d40b960))
 * **slash-command-manager:** defer popup position calculation until scroll completes ([caa9fa5](https://github.com/nkmr-jp/prompt-line/commit/caa9fa519e49e57d1e3ac2a1048f2be17fc4789d))
@@ -582,7 +562,6 @@
 
 ### Miscellaneous Chores
 
-* **built-in-commands:** remove reset command and display path on update ([9383f59](https://github.com/nkmr-jp/prompt-line/commit/9383f59f8dae9135fd1802d6c89887e56b57308e))
 * **built-in-commands:** remove reset command and display path on update ([fbe36c3](https://github.com/nkmr-jp/prompt-line/commit/fbe36c3fc74860dd9d1d9284ad1f82af42e32a1b))
 * **built-in-commands:** update color scheme for CLI tools in YAML definitions ([54f5d35](https://github.com/nkmr-jp/prompt-line/commit/54f5d3558ddcf65e9c17e1609b509f525d4cb6a0))
 * **ci:** pin go-semantic-release action to commit hash ([9a9a3e5](https://github.com/nkmr-jp/prompt-line/commit/9a9a3e501352e96626710c27added4f56bd073b8))
@@ -594,33 +573,24 @@
 * **config:** update default settings color scheme for commands and skills ([a0cbc98](https://github.com/nkmr-jp/prompt-line/commit/a0cbc983d41e6c2df15f3f9876b510e388d789d3))
 * **config:** update release-type to node in release-please-config.json ([751e8af](https://github.com/nkmr-jp/prompt-line/commit/751e8af10ea23524d5072d2df991c3c3cf5026f7))
 * **deps-dev:** bump lodash ([e1f6cea](https://github.com/nkmr-jp/prompt-line/commit/e1f6cea8d2c91de9dbe9da896a1d239aaf698309))
-* **deps-dev:** bump lodash from 4.17.21 to 4.17.23 in the npm_and_yarn group across 1 directory ([349e492](https://github.com/nkmr-jp/prompt-line/commit/349e49236d0bc9021e5f6d7506306ab78f47d51e))
 * **deps-dev:** bump lodash-es ([cbc6c8b](https://github.com/nkmr-jp/prompt-line/commit/cbc6c8b943f6df5f993feea183d8e7ed6940b44d))
-* **deps-dev:** bump lodash-es from 4.17.22 to 4.17.23 in the npm_and_yarn group across 1 directory ([e6f648c](https://github.com/nkmr-jp/prompt-line/commit/e6f648c551a4c462cdba93617369ad72f8b9252d))
 * **deps-dev:** bump tar in the npm_and_yarn group across 1 directory ([e2d117c](https://github.com/nkmr-jp/prompt-line/commit/e2d117c0acaf8634b95a73efd84c917252ea6378))
 * **deps:** add @vscode/codicons dependency ([3e0fd01](https://github.com/nkmr-jp/prompt-line/commit/3e0fd01e416a06af662819ef0b13972c9113501b))
-* **deps:** bump qs from 6.14.1 to 6.14.2 in the npm_and_yarn group across 1 directory ([d623f9d](https://github.com/nkmr-jp/prompt-line/commit/d623f9d80266f0777406f57acc3cf72288878f1b))
 * **deps:** bump qs in the npm_and_yarn group across 1 directory ([983056f](https://github.com/nkmr-jp/prompt-line/commit/983056ff29c03931412a1e8d820d69899874f383))
-* **deps:** bump tar from 6.2.1 to 7.5.7 in the npm_and_yarn group across 1 directory ([b324d95](https://github.com/nkmr-jp/prompt-line/commit/b324d95adf17a44b5c69d5d217f21832d48b6344))
 * **deps:** bump tar in the npm_and_yarn group across 1 directory ([6388037](https://github.com/nkmr-jp/prompt-line/commit/6388037d012ac79a58239a6a9ad8d6b72847fb54))
 * **deps:** bump the npm_and_yarn group across 1 directory with 2 updates ([d4d01c9](https://github.com/nkmr-jp/prompt-line/commit/d4d01c94482141bf79a2ed0503e9a5cec2f2ecc4))
 * **deps:** mark dependency as peer in package-lock.json ([00504a7](https://github.com/nkmr-jp/prompt-line/commit/00504a7421632a2c1f9666f2b53af9781be5510a))
 * **deps:** remove tar override to fix @electron/rebuild compatibility ([fd22e14](https://github.com/nkmr-jp/prompt-line/commit/fd22e148d6809ef04fda6d5ef93bb440af0e5cbf))
-* **deps:** security updates for tar and test dependencies ([ce67e66](https://github.com/nkmr-jp/prompt-line/commit/ce67e66950eb44750ba5d731f310f0b3a77df329))
 * **deps:** update jest, ts-jest, and ts-node with lock file regeneration ([a0b4809](https://github.com/nkmr-jp/prompt-line/commit/a0b48093bbc3d31ac15474b126d34ef6f6a0b408))
 * **deps:** upgrade dependencies and resolve npm warnings ([54d69af](https://github.com/nkmr-jp/prompt-line/commit/54d69af656d8603e0823c2b865a2e511efb23c61))
 * **deps:** upgrade electron-builder to 26.7.0 and global-agent to 4.x ([32d3d60](https://github.com/nkmr-jp/prompt-line/commit/32d3d60dc110008630871fe6d1954dbf239e9041))
 * **deps:** upgrade glob to v13.0.0 and consolidate dependencies ([d5c7c6d](https://github.com/nkmr-jp/prompt-line/commit/d5c7c6dc1c94d2e4d14d8050d8eceb2336745cc4))
 * **deps:** upgrade tar to 7.5.3 and remove duplicate dependencies ([b7b6464](https://github.com/nkmr-jp/prompt-line/commit/b7b646466ce1d48a0eff5110ea8a53d2ae97a792))
 * downgrade version to 0.18.6 in release manifest ([4e639ab](https://github.com/nkmr-jp/prompt-line/commit/4e639abba4f97769aad5b87f2f59a98684831bf0))
-* **main:** release 0.20.0 ([3df5054](https://github.com/nkmr-jp/prompt-line/commit/3df505493702ec0e96189dc14bc3853046464eff))
 * **main:** release 0.20.0 ([21e98b0](https://github.com/nkmr-jp/prompt-line/commit/21e98b05d3154ef1d5fa1156029400f27687a6f5))
-* **main:** release 0.21.0 ([b64c460](https://github.com/nkmr-jp/prompt-line/commit/b64c460ed904fb4bb7e2b6c02b08693f2faa1a24))
 * **main:** release 0.21.0 ([f906c49](https://github.com/nkmr-jp/prompt-line/commit/f906c499f15e124fa205cce2a5b9c40734f2b348))
 * **main:** release 0.22.0 ([64614cd](https://github.com/nkmr-jp/prompt-line/commit/64614cd223e00ae6f70d30359cf250f63f962313))
-* **main:** release 0.22.0 ([4571162](https://github.com/nkmr-jp/prompt-line/commit/45711629a1a3224e826a8af61e9c2731f79c84a3))
 * **main:** release 0.22.0 ([3873bea](https://github.com/nkmr-jp/prompt-line/commit/3873bea74328f944366d73c32977ad443d0cad8f))
-* **pnpm:** migrate from npm to pnpm package manager ([29d0e35](https://github.com/nkmr-jp/prompt-line/commit/29d0e35068d6696b23b27922fb3fd86f258ad5a3))
 * **pnpm:** migrate from npm to pnpm package manager ([fb9ab96](https://github.com/nkmr-jp/prompt-line/commit/fb9ab96dafb0dafc9f6f9e0c384c9bf485b1cbf1))
 * **pnpm:** update pnpm from 10.30.0 to 10.30.1 ([1d1b775](https://github.com/nkmr-jp/prompt-line/commit/1d1b77542fd7252a59501c499e049e3e989d045a))
 * **release:** 0.15.0 [skip ci] ([ffb9157](https://github.com/nkmr-jp/prompt-line/commit/ffb9157fa2bc7e86ab6bcec4e6f3236c03c0e0cc))
@@ -636,7 +606,6 @@
 * **release:** 0.18.4 [skip ci] ([bc90887](https://github.com/nkmr-jp/prompt-line/commit/bc908876eb10288871b5be744aaf9870441af3a9))
 * **release:** 0.18.5 [skip ci] ([b1fc2f2](https://github.com/nkmr-jp/prompt-line/commit/b1fc2f2fededc9e22cd7f0ef8cb22d78c87c61e0))
 * **release:** 0.18.6 [skip ci] ([bac435f](https://github.com/nkmr-jp/prompt-line/commit/bac435f74727e0b09e75df3b65c47300fab08de5))
-* **release:** bump version to 0.19.1 ([5c58a9a](https://github.com/nkmr-jp/prompt-line/commit/5c58a9ae9baf46140aab3a2e5a7365b22dd7ae13))
 * **release:** bump version to 0.19.1 ([ac245fe](https://github.com/nkmr-jp/prompt-line/commit/ac245fe2cee7da7e82e24d947713b965a0629518))
 * remove claude-mem context blocks from CLAUDE.md files ([2e386a1](https://github.com/nkmr-jp/prompt-line/commit/2e386a11d2976920c3e970c6ece327ebc75a9ffa))
 * **settings:** update plugin command and skill labels and colors ([0fcd2e4](https://github.com/nkmr-jp/prompt-line/commit/0fcd2e40227928d5178ad04673e8a97304da58c7))
@@ -650,7 +619,6 @@
 * **code-search:** move symbol filtering to Main process ([99108f3](https://github.com/nkmr-jp/prompt-line/commit/99108f3df57ce2ba7c050ef506a53b67371f079b))
 * **code-search:** split symbol navigation into quiet load and UI update phases ([d1c970e](https://github.com/nkmr-jp/prompt-line/commit/d1c970e23bd3a14794c611750460c27cd4de84e7))
 * complete migration to Node.js for file-searcher and symbol-searcher ([b63fe3b](https://github.com/nkmr-jp/prompt-line/commit/b63fe3bde2bac752787f54ae5f2e95f258ea9f25))
-* Complete Phase 2 of cross-platform migration ([8d792ac](https://github.com/nkmr-jp/prompt-line/commit/8d792ac1ce12a9c7c01b51a91d34a52ce670b94f))
 * **config:** move skills from mdSearch to slashCommands ([04d2702](https://github.com/nkmr-jp/prompt-line/commit/04d27022193c3771eae68809e31107d9f902cc02))
 * **config:** rename slash command function to agent skill ([ba2ad41](https://github.com/nkmr-jp/prompt-line/commit/ba2ad414c4995538e4fc3e5b771117553df9bf29))
 * **config:** restructure agent skills configuration ([ae9f2a9](https://github.com/nkmr-jp/prompt-line/commit/ae9f2a9705df82c60235b18f963edf0ae4a39300))
@@ -684,7 +652,6 @@
 * rename slashCommand to agentSkill across codebase ([63b092d](https://github.com/nkmr-jp/prompt-line/commit/63b092d35436d3196c33f277ccdd02cab2a610ae))
 * **renderer:** extract load more increment to named constant ([8312c0a](https://github.com/nkmr-jp/prompt-line/commit/8312c0a6b60fa475cf1af11a7a0ae6a8031a9520))
 * **search:** remove FZF fuzzy matching and simplify scoring algorithms ([0c556d6](https://github.com/nkmr-jp/prompt-line/commit/0c556d6525612263d28b8c894775fe6775bef81e))
-* **search:** remove FZF fuzzy matching implementation ([fcbd960](https://github.com/nkmr-jp/prompt-line/commit/fcbd96097aab30c8c19e711c0c24f256fe4b87d1))
 * **search:** rename md-search to custom-search ([884dd84](https://github.com/nkmr-jp/prompt-line/commit/884dd8425832ca03391716b7f0e94112dce0041e))
 * **settings-manager:** improve null safety in settings merging and simplify defaults ([cfe9f59](https://github.com/nkmr-jp/prompt-line/commit/cfe9f5949d50537bf77cfbe6767ff07673977ce7))
 * **slash-command-manager:** move argumentHint logic before paste decision ([00e21aa](https://github.com/nkmr-jp/prompt-line/commit/00e21aad0de999a9f548650dd9fe31dc488702f4))
@@ -761,7 +728,6 @@
 
 * **file-opener-manager:** add lineFormat support for useOpenArgs editors ([db5a5e7](https://github.com/nkmr-jp/prompt-line/commit/db5a5e786b46225c66eb9e332deadde3b72c8102))
 * **file-opener:** add Xcode support with xed CLI and open fallback ([d1b63f0](https://github.com/nkmr-jp/prompt-line/commit/d1b63f0611c101222fda8bae1b20a08b06ff9e21))
-* **file-opener:** improve symbol link line jumping and unify editor launching ([09b4b49](https://github.com/nkmr-jp/prompt-line/commit/09b4b499cf5800d74ab7b95736a21aab300e5613))
 * **file-opener:** support line number jumping with default app detection ([6cc9ed9](https://github.com/nkmr-jp/prompt-line/commit/6cc9ed9ddb8b7206f0b27491cdc62f96c153c060))
 * **symbol-search:** implement multiline block detection for Go/Rust/TypeScript ([081670a](https://github.com/nkmr-jp/prompt-line/commit/081670a99ce90e6646c19caf6fb403a6eb79708b))
 
@@ -790,9 +756,7 @@
 
 ### Features
 
-* add OpenCode support and built-in command management ([5af3e7b](https://github.com/nkmr-jp/prompt-line/commit/5af3e7bc7482e2c4ccbcc9c547ece67611721f68))
 * **ci:** migrate from go-semantic-release to Release Please ([fd0598b](https://github.com/nkmr-jp/prompt-line/commit/fd0598b917ae438ca5e78b2a3d4f51fbd905288e))
-* **ci:** Migrate from go-semantic-release to Release Please ([dc8dbf8](https://github.com/nkmr-jp/prompt-line/commit/dc8dbf8f9ec46074608e3bd3bb71cebd1bb2d8ea))
 * **commands:** add OpenCode built-in commands ([0416253](https://github.com/nkmr-jp/prompt-line/commit/0416253d149161023e5356ad16efd7d65d5b8708))
 
 ### Bug Fixes

@@ -403,6 +403,19 @@ export const commentedExamples = {
         maxSuggestions: 100,
         orderBy: '{updatedAt} desc',
         inputFormat: '{filepath}'
+      },
+      {
+        name: '{json@display}',
+        icon: 'history',
+        color: 'orange',
+        description: '',
+        searchPrefix: 'r',
+        path: '~/.claude',
+        pattern: 'history.jsonl',
+        orderBy: '{json@timestamp} desc',
+        inputFormat: '{json@display}',
+        displayTime: '{json@timestamp}',
+        maxSuggestions: 100
       }
     ]
   }
