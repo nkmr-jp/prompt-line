@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.26.2](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.26.1...prompt-line-v0.26.2) (2026-03-12)
+
+
+### Miscellaneous Chores
+
+* **deps:** bump tar from 7.5.10 to 7.5.11 in the npm_and_yarn group across 1 directory ([#244](https://github.com/nkmr-jp/prompt-line/issues/244)) ([4bcb378](https://github.com/nkmr-jp/prompt-line/commit/4bcb378b762e5801ea6ca19e813d18003b4c0a0a))
+
 ## [0.26.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.26.0...prompt-line-v0.26.1) (2026-03-07)
 
 
