@@ -581,10 +581,9 @@ class CustomSearchLoader extends EventEmitter {
       filesFound: files.length
     });
 
-    // Watchable files: JSONL files always + all files if pattern is individual (non-glob)
-    const jsonlFiles = files.filter(f => f.endsWith('.jsonl'));
+    // Watchable files: all files if pattern is individual (non-glob), otherwise JSONL only
     const isIndividual = CustomSearchLoader.isIndividualFilePattern(filePattern);
-    const watchableFiles = isIndividual ? [...files] : jsonlFiles;
+    const watchableFiles = isIndividual ? files : files.filter(f => f.endsWith('.jsonl'));
 
     const items = await this.parseFilesToItems(files, entry, sourceId, jqExpression);
     return { items, watchableFiles };

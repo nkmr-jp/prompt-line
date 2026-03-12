@@ -369,7 +369,9 @@ class CustomSearchHandler {
   private async handleInvalidateCustomSearch(): Promise<void> {
     this.customSearchLoader.invalidateCache();
     // Background preload: trigger loadAll without awaiting
-    this.customSearchLoader.getItems('command').catch(() => {});
+    this.customSearchLoader.getItems('command').catch(err => {
+      logger.debug('Background preload failed:', err);
+    });
     logger.debug('CustomSearch cache invalidated via IPC (background preload started)');
   }
 

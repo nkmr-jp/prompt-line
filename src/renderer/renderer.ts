@@ -50,6 +50,8 @@ export class PromptLineRenderer {
   private defaultHintText: string = 'Multi-line text and Image supported'; // Default hint text
   // Queue for pending window-shown data to handle race condition with init()
   private pendingWindowData: WindowData | null = null;
+  // Stored handler reference for cleanup
+  private customSearchUpdateHandler: (() => void) | null = null;
   private initCompleted: boolean = false;
   // Throttle timeout for mousemove events
   private mouseMoveThrottleTimeout: number | null = null;
@@ -325,10 +327,11 @@ export class PromptLineRenderer {
     });
 
     // Listen for custom search source file changes (hot reload)
-    window.addEventListener('custom-search-updated', () => {
+    this.customSearchUpdateHandler = () => {
       this.agentSkillManager?.invalidateCache();
       this.fileSearchManager?.clearAgentsCache();
-    });
+    };
+    window.addEventListener('custom-search-updated', this.customSearchUpdateHandler);
   }
 
   private async handleKeyDown(e: KeyboardEvent): Promise<void> {
@@ -657,6 +660,11 @@ export class PromptLineRenderer {
     if (this.mouseMoveThrottleTimeout) {
       clearTimeout(this.mouseMoveThrottleTimeout);
       this.mouseMoveThrottleTimeout = null;
+    }
+    // Remove custom search update listener
+    if (this.customSearchUpdateHandler) {
+      window.removeEventListener('custom-search-updated', this.customSearchUpdateHandler);
+      this.customSearchUpdateHandler = null;
     }
   }
 }
