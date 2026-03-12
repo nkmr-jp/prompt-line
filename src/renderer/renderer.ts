@@ -323,6 +323,12 @@ export class PromptLineRenderer {
       const data = args[0] as DirectoryInfo;
       this.handleDirectoryDataUpdated(data);
     });
+
+    // Listen for custom search source file changes (hot reload)
+    window.addEventListener('custom-search-updated', () => {
+      this.agentSkillManager?.invalidateCache();
+      this.fileSearchManager?.clearAgentsCache();
+    });
   }
 
   private async handleKeyDown(e: KeyboardEvent): Promise<void> {
@@ -479,9 +485,12 @@ export class PromptLineRenderer {
       return;
     }
 
-    // Invalidate agent skill cache to reload built-in commands with latest changes
-    // This enables hot reload for built-in command YAML files (similar to settings.yml)
+    // Invalidate renderer-side agent skill cache
     this.agentSkillManager?.invalidateCache();
+
+    // Invalidate main process CustomSearchLoader cache in background (fire-and-forget)
+    // This ensures fresh data on next query without blocking window display
+    electronAPI.invoke('invalidate-custom-search').catch(() => {});
 
     await this.directoryDataHandler.handleWindowShown(data);
   }

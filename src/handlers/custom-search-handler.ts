@@ -1,4 +1,4 @@
-import { IpcMainInvokeEvent } from 'electron';
+import { IpcMainInvokeEvent, BrowserWindow } from 'electron';
 import { logger } from '../utils/utils';
 import type CustomSearchLoader from '../managers/custom-search-loader';
 import type SettingsManager from '../managers/settings-manager';
@@ -34,6 +34,13 @@ class CustomSearchHandler {
     builtInCommandsManager.on('commands-changed', () => {
       logger.debug('Built-in commands updated via hot reload');
       // Cache is already cleared by the manager, next request will trigger reload
+      this.notifyRenderer();
+    });
+
+    // Subscribe to custom search source file changes for hot reload
+    customSearchLoader.on('source-changed', () => {
+      logger.debug('CustomSearch source files changed via hot reload');
+      this.notifyRenderer();
     });
 
     // Initial config load
@@ -51,6 +58,8 @@ class CustomSearchHandler {
     ipcMain.handle('get-agent-file-path', this.handleGetAgentFilePath.bind(this));
     ipcMain.handle('get-custom-search-max-suggestions', this.handleGetCustomSearchMaxSuggestions.bind(this));
     ipcMain.handle('get-custom-search-prefixes', this.handleGetCustomSearchPrefixes.bind(this));
+    // Cache invalidation handler (called by renderer on window-shown)
+    ipcMain.handle('invalidate-custom-search', this.handleInvalidateCustomSearch.bind(this));
     // Agent skill cache handlers
     ipcMain.handle('register-global-agent-skill', this.handleRegisterGlobalAgentSkill.bind(this));
     ipcMain.handle('get-global-agent-skills', this.handleGetGlobalAgentSkills.bind(this));
@@ -69,6 +78,7 @@ class CustomSearchHandler {
       'get-agent-file-path',
       'get-custom-search-max-suggestions',
       'get-custom-search-prefixes',
+      'invalidate-custom-search',
       'register-global-agent-skill',
       'get-global-agent-skills',
       'get-usage-bonuses'
@@ -349,6 +359,29 @@ class CustomSearchHandler {
       logger.error('Failed to get CustomSearch searchPrefixes:', error);
       return []; // Default fallback
     }
+  }
+
+  /**
+   * Handler: invalidate-custom-search
+   * Invalidates CustomSearchLoader cache and triggers background preload.
+   * Called by renderer on window-shown for fresh data loading.
+   */
+  private async handleInvalidateCustomSearch(): Promise<void> {
+    this.customSearchLoader.invalidateCache();
+    // Background preload: trigger loadAll without awaiting
+    this.customSearchLoader.getItems('command').catch(() => {});
+    logger.debug('CustomSearch cache invalidated via IPC (background preload started)');
+  }
+
+  /**
+   * Notify renderer that custom search data has changed
+   */
+  private notifyRenderer(): void {
+    BrowserWindow.getAllWindows().forEach(win => {
+      if (!win.isDestroyed()) {
+        win.webContents.send('custom-search-updated');
+      }
+    });
   }
 
   // Agent skill cache handlers

@@ -38,11 +38,11 @@ class CustomSearchLoader extends EventEmitter {
   // P3: RegExp cache for matchesGlobPattern
   private regexCache: Map<string, RegExp> = new Map();
 
-  // JSONL file watchers for hot reload
-  private jsonlWatchers: FSWatcher[] = [];
-  private watchedJsonlPaths: Set<string> = new Set();
-  private static readonly JSONL_RELOAD_DEBOUNCE_MS = 300;
-  private jsonlReloadTimer: ReturnType<typeof setTimeout> | null = null;
+  // File watchers for hot reload (individual files: JSONL + non-glob pattern files)
+  private fileWatchers: FSWatcher[] = [];
+  private watchedFilePaths: Set<string> = new Set();
+  private static readonly FILE_RELOAD_DEBOUNCE_MS = 300;
+  private fileReloadTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     config?: CustomSearchEntry[],
@@ -65,7 +65,7 @@ class CustomSearchLoader extends EventEmitter {
     if (JSON.stringify(this.config) !== JSON.stringify(newConfig)) {
       this.config = newConfig;
       this.invalidateCache();
-      // Reset JSONL watchers since config paths may have changed
+      // Reset file watchers since config paths may have changed
       this.stopWatching();
     }
   }
@@ -93,16 +93,16 @@ class CustomSearchLoader extends EventEmitter {
   }
 
   /**
-   * Start watching JSONL source files for hot reload.
-   * Called after first loadAll to set up watchers for discovered JSONL files.
+   * Start watching source files for hot reload.
+   * Watches JSONL files and individual (non-glob) pattern files.
    */
-  private startJsonlWatching(jsonlFiles: string[]): void {
+  private startFileWatching(watchableFiles: string[]): void {
     // Filter to only new files not already watched
-    const newFiles = jsonlFiles.filter(f => !this.watchedJsonlPaths.has(f));
+    const newFiles = watchableFiles.filter(f => !this.watchedFilePaths.has(f));
     if (newFiles.length === 0) return;
 
     for (const filePath of newFiles) {
-      this.watchedJsonlPaths.add(filePath);
+      this.watchedFilePaths.add(filePath);
     }
 
     const watcher = chokidar.watch(newFiles, {
@@ -115,45 +115,52 @@ class CustomSearchLoader extends EventEmitter {
     });
 
     watcher.on('change', (filePath: string) => {
-      logger.debug('CustomSearch JSONL file changed:', filePath);
-      this.handleJsonlFileChange();
+      logger.debug('CustomSearch source file changed:', filePath);
+      this.handleSourceFileChange();
     });
 
     watcher.on('error', (error: unknown) => {
-      logger.error('CustomSearch JSONL watcher error:', error);
+      logger.error('CustomSearch file watcher error:', error);
     });
 
-    this.jsonlWatchers.push(watcher);
-    logger.info('CustomSearch JSONL watcher started', { files: newFiles });
+    this.fileWatchers.push(watcher);
+    logger.info('CustomSearch file watcher started', { files: newFiles });
   }
 
   /**
-   * Handle JSONL file change with debounce
+   * Check if a pattern represents an individual file (no glob characters)
    */
-  private handleJsonlFileChange(): void {
-    if (this.jsonlReloadTimer) {
-      clearTimeout(this.jsonlReloadTimer);
+  private static isIndividualFilePattern(pattern: string): boolean {
+    return !pattern.includes('*') && !pattern.includes('?') && !pattern.includes('[') && !pattern.includes('{');
+  }
+
+  /**
+   * Handle source file change with debounce
+   */
+  private handleSourceFileChange(): void {
+    if (this.fileReloadTimer) {
+      clearTimeout(this.fileReloadTimer);
     }
 
-    this.jsonlReloadTimer = setTimeout(() => {
+    this.fileReloadTimer = setTimeout(() => {
       this.invalidateCache();
       this.emit('source-changed');
-      logger.info('CustomSearch cache invalidated from JSONL file change');
-    }, CustomSearchLoader.JSONL_RELOAD_DEBOUNCE_MS);
+      logger.info('CustomSearch cache invalidated from source file change');
+    }, CustomSearchLoader.FILE_RELOAD_DEBOUNCE_MS);
   }
 
   /**
-   * Stop all JSONL file watchers
+   * Stop all file watchers
    */
   async stopWatching(): Promise<void> {
-    for (const watcher of this.jsonlWatchers) {
+    for (const watcher of this.fileWatchers) {
       await watcher.close();
     }
-    this.jsonlWatchers = [];
-    this.watchedJsonlPaths.clear();
-    if (this.jsonlReloadTimer) {
-      clearTimeout(this.jsonlReloadTimer);
-      this.jsonlReloadTimer = null;
+    this.fileWatchers = [];
+    this.watchedFilePaths.clear();
+    if (this.fileReloadTimer) {
+      clearTimeout(this.fileReloadTimer);
+      this.fileReloadTimer = null;
     }
   }
 
@@ -472,12 +479,12 @@ class CustomSearchLoader extends EventEmitter {
       return this.loadingPromise;
     }
 
-    this.loadingPromise = this.loadAllEntries().then(({ items: allItems, jsonlFiles }) => {
+    this.loadingPromise = this.loadAllEntries().then(({ items: allItems, watchableFiles }) => {
       allItems.sort((a, b) => a.name.localeCompare(b.name));
       this.cache.set(cacheKey, { items: allItems });
       this.buildEntryMap();
       this.logLoadedItems(allItems);
-      this.startJsonlWatching(jsonlFiles);
+      this.startFileWatching(watchableFiles);
       this.loadingPromise = null;
       return allItems;
     }).catch(err => {
@@ -491,29 +498,29 @@ class CustomSearchLoader extends EventEmitter {
   /**
    * Load all entries with deduplication
    */
-  private async loadAllEntries(): Promise<{ items: CustomSearchItem[]; jsonlFiles: string[] }> {
+  private async loadAllEntries(): Promise<{ items: CustomSearchItem[]; watchableFiles: string[] }> {
     const results = await Promise.all(
       this.config.map(async (entry) => {
         const sourceId = `${entry.path}:${entry.pattern}`;
         try {
-          const { items, jsonlFiles } = await this.loadEntry(entry);
-          return { items, sourceId, jsonlFiles };
+          const { items, watchableFiles } = await this.loadEntry(entry);
+          return { items, sourceId, watchableFiles };
         } catch (error) {
           logger.error('Failed to load entry', { entry, error });
-          return { items: [] as CustomSearchItem[], sourceId, jsonlFiles: [] as string[] };
+          return { items: [] as CustomSearchItem[], sourceId, watchableFiles: [] as string[] };
         }
       })
     );
 
     const allItems: CustomSearchItem[] = [];
-    const allJsonlFiles: string[] = [];
+    const allWatchableFiles: string[] = [];
     const seenNames = new Map<string, Set<string>>();
-    for (const { items, sourceId, jsonlFiles } of results) {
+    for (const { items, sourceId, watchableFiles } of results) {
       this.addItemsWithDeduplication(items, sourceId, seenNames, allItems);
-      allJsonlFiles.push(...jsonlFiles);
+      allWatchableFiles.push(...watchableFiles);
     }
 
-    return { items: allItems, jsonlFiles: allJsonlFiles };
+    return { items: allItems, watchableFiles: allWatchableFiles };
   }
 
   /**
@@ -554,12 +561,12 @@ class CustomSearchLoader extends EventEmitter {
   /**
    * 単一エントリをロード
    */
-  private async loadEntry(entry: CustomSearchEntry): Promise<{ items: CustomSearchItem[]; jsonlFiles: string[] }> {
+  private async loadEntry(entry: CustomSearchEntry): Promise<{ items: CustomSearchItem[]; watchableFiles: string[] }> {
     const expandedPath = entry.path.replace(/^~/, os.homedir());
 
     const isValid = await this.validateDirectory(expandedPath);
     if (!isValid) {
-      return { items: [], jsonlFiles: [] };
+      return { items: [], watchableFiles: [] };
     }
 
     // Parse jq expression from pattern: '**/config.json@.members' → filePattern + jqExpression
@@ -573,9 +580,14 @@ class CustomSearchLoader extends EventEmitter {
       jqExpression,
       filesFound: files.length
     });
+
+    // Watchable files: JSONL files always + all files if pattern is individual (non-glob)
     const jsonlFiles = files.filter(f => f.endsWith('.jsonl'));
+    const isIndividual = CustomSearchLoader.isIndividualFilePattern(filePattern);
+    const watchableFiles = isIndividual ? [...files] : jsonlFiles;
+
     const items = await this.parseFilesToItems(files, entry, sourceId, jqExpression);
-    return { items, jsonlFiles };
+    return { items, watchableFiles };
   }
 
   /**
