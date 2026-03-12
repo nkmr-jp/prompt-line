@@ -21,6 +21,17 @@ class CustomSearchLoader {
   private settings: UserSettings | undefined;
   private loadingPromise: Promise<CustomSearchItem[]> | null = null;
 
+  // P0: entryMap for O(1) lookup instead of O(n) linear search
+  private entryMap: Map<string, CustomSearchEntry> = new Map();
+
+  // P0: normalizedCache for pre-computed toLowerCase fields
+  private normalizedCache: string[] = [];
+  private normalizedCacheSource: CustomSearchItem[] | null = null;
+
+  // P1: search result cache to avoid re-filtering on same query
+  private resultCacheKey = '';
+  private resultCacheItems: CustomSearchItem[] = [];
+
   constructor(
     config?: CustomSearchEntry[],
     settings?: UserSettings
@@ -58,6 +69,11 @@ class CustomSearchLoader {
   invalidateCache(): void {
     this.cache.clear();
     this.loadingPromise = null;
+    this.entryMap.clear();
+    this.normalizedCache = [];
+    this.normalizedCacheSource = null;
+    this.resultCacheKey = '';
+    this.resultCacheItems = [];
   }
 
   /**
@@ -89,10 +105,28 @@ class CustomSearchLoader {
   }
 
   /**
+   * normalizedCache を構築/更新（参照等値チェックで不要な再構築を回避）
+   */
+  private ensureNormalized(items: CustomSearchItem[]): void {
+    if (items === this.normalizedCacheSource) return;
+    this.normalizedCache = new Array(items.length);
+    for (let i = 0; i < items.length; i++) {
+      this.normalizedCache[i] = `${items[i]!.name} ${items[i]!.description}`.toLowerCase();
+    }
+    this.normalizedCacheSource = items;
+  }
+
+  /**
    * 指定タイプのアイテムを検索
    * searchPrefixが設定されているエントリは、クエリがそのプレフィックスで始まる場合のみ検索対象
    */
   async searchItems(type: CustomSearchType, query: string): Promise<CustomSearchItem[]> {
+    // P1: result cache hit check
+    const cacheKey = `${type}:${query}`;
+    if (cacheKey === this.resultCacheKey && this.resultCacheItems.length > 0) {
+      return this.resultCacheItems;
+    }
+
     const allItems = await this.loadAll();
 
     // タイプでフィルタリング
@@ -102,10 +136,8 @@ class CustomSearchLoader {
     items = items.filter(item => {
       const entry = this.findEntryForItem(item);
       if (!entry?.searchPrefix) {
-        // searchPrefixが未設定の場合は常に検索対象
         return true;
       }
-      // queryがsearchPrefix:で始まるかチェック（: は自動で追加）
       const prefixWithColon = entry.searchPrefix + ':';
       return query.startsWith(prefixWithColon);
     });
@@ -114,40 +146,77 @@ class CustomSearchLoader {
     const orderBy = this.getOrderByForQuery(type, query);
 
     if (!query) {
-      return this.sortItems(items, orderBy);
+      const sorted = this.sortItems(items, orderBy);
+      this.resultCacheKey = cacheKey;
+      this.resultCacheItems = sorted;
+      return sorted;
     }
 
-    // 各アイテムの実際の検索クエリを計算（searchPrefix:を除去）
-    const filteredItems = items.filter(item => {
+    // P0: normalizedCache を構築して高速フィルタリング
+    this.ensureNormalized(allItems);
+
+    // allItems のインデックスからアイテムへの高速マッピング用にSetを構築
+    const itemSet = new Set(items);
+
+    const filteredItems: CustomSearchItem[] = [];
+    for (let i = 0; i < allItems.length; i++) {
+      const item = allItems[i]!;
+      if (!itemSet.has(item)) continue;
+
       const entry = this.findEntryForItem(item);
       const prefixWithColon = entry?.searchPrefix ? entry.searchPrefix + ':' : '';
       const actualQuery = query.startsWith(prefixWithColon) ? query.slice(prefixWithColon.length) : query;
 
-      // プレフィックスのみの場合は全て表示
       if (!actualQuery) {
-        return true;
+        filteredItems.push(item);
+        continue;
       }
 
-      // Split query into keywords for AND search (space-separated)
       const keywords = splitKeywords(actualQuery.toLowerCase());
       if (keywords.length === 0) {
-        return true;
+        filteredItems.push(item);
+        continue;
       }
-      const fields = `${item.name.toLowerCase()} ${item.description.toLowerCase()}`;
-      return keywords.every(kw => fields.includes(kw));
-    });
 
-    return this.sortItems(filteredItems, orderBy);
+      // P0: use normalizedCache instead of repeated toLowerCase()
+      const normalized = this.normalizedCache[i]!;
+      let allMatch = true;
+      for (let k = 0; k < keywords.length; k++) {
+        if (!normalized.includes(keywords[k]!)) {
+          allMatch = false;
+          break;
+        }
+      }
+      if (allMatch) {
+        filteredItems.push(item);
+      }
+    }
+
+    const sorted = this.sortItems(filteredItems, orderBy);
+
+    // P1: cache result
+    this.resultCacheKey = cacheKey;
+    this.resultCacheItems = sorted;
+
+    return sorted;
   }
 
   /**
-   * アイテムに対応する設定エントリを検索
+   * entryMap を構築（loadAll完了後に1回だけ呼ばれる）
+   */
+  private buildEntryMap(): void {
+    this.entryMap.clear();
+    for (const entry of this.config) {
+      const key = `${entry.type}:${entry.path}:${entry.pattern}`;
+      this.entryMap.set(key, entry);
+    }
+  }
+
+  /**
+   * アイテムに対応する設定エントリを検索（O(1) Map lookup）
    */
   private findEntryForItem(item: CustomSearchItem): CustomSearchEntry | undefined {
-    return this.config.find(entry =>
-      entry.type === item.type &&
-      `${entry.path}:${entry.pattern}` === item.sourceId
-    );
+    return this.entryMap.get(`${item.type}:${item.sourceId}`);
   }
 
   /**
@@ -300,6 +369,7 @@ class CustomSearchLoader {
     this.loadingPromise = this.loadAllEntries().then(allItems => {
       allItems.sort((a, b) => a.name.localeCompare(b.name));
       this.cache.set(cacheKey, { items: allItems });
+      this.buildEntryMap();
       this.logLoadedItems(allItems);
       this.loadingPromise = null;
       return allItems;
