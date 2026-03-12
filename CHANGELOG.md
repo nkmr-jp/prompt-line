@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.26.3](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.26.2...prompt-line-v0.26.3) (2026-03-12)
+
+
+### Performance Improvements
+
+* **custom-search:** optimize JSONL search with hot reload, dedup fix, and caching ([#247](https://github.com/nkmr-jp/prompt-line/issues/247)) ([592e204](https://github.com/nkmr-jp/prompt-line/commit/592e204b71da567db249b755096860da3758ebc4))
+
 ## [0.26.2](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.26.1...prompt-line-v0.26.2) (2026-03-12)
 
 
