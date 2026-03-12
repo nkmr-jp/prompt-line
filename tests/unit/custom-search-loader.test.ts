@@ -2616,5 +2616,64 @@ Content`;
       // ファイル名 "history.jsonl@text" にマッチするファイルがないため0件
       expect(items).toHaveLength(0);
     });
+
+    test('should sort JSONL items by numeric timestamp desc', async () => {
+      const jsonlLoader = new CustomSearchLoader([
+        {
+          name: '{json@display}',
+          type: 'command',
+          description: '',
+          path: '/Users/test/.claude',
+          pattern: 'history.jsonl',
+          searchPrefix: 'r',
+          orderBy: '{json@timestamp} desc',
+          maxSuggestions: 100,
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true, size: 500 } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('history.jsonl', true)] as any);
+      mockedFs.readFile.mockResolvedValue(
+        '{"display":"oldest","timestamp":1000000000000}\n' +
+        '{"display":"middle","timestamp":1500000000000}\n' +
+        '{"display":"newest","timestamp":1773000000000}'
+      );
+
+      const results = await jsonlLoader.searchItems('command', 'r:');
+      expect(results).toHaveLength(3);
+      // desc なので最新が最初
+      expect(results[0]?.name).toBe('newest');
+      expect(results[1]?.name).toBe('middle');
+      expect(results[2]?.name).toBe('oldest');
+    });
+
+    test('should sort numeric timestamps correctly (not as strings)', async () => {
+      const jsonlLoader = new CustomSearchLoader([
+        {
+          name: '{json@display}',
+          type: 'command',
+          description: '',
+          path: '/Users/test/.claude',
+          pattern: 'history.jsonl',
+          searchPrefix: 'r',
+          orderBy: '{json@timestamp} desc',
+          maxSuggestions: 100,
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true, size: 500 } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('history.jsonl', true)] as any);
+      // 文字列比較だと "9..." > "17..." になるが、数値比較では 17... > 9...
+      mockedFs.readFile.mockResolvedValue(
+        '{"display":"smaller-number","timestamp":999999999999}\n' +
+        '{"display":"larger-number","timestamp":1773000000000}'
+      );
+
+      const results = await jsonlLoader.searchItems('command', 'r:');
+      expect(results).toHaveLength(2);
+      // 数値比較で desc: larger > smaller
+      expect(results[0]?.name).toBe('larger-number');
+      expect(results[1]?.name).toBe('smaller-number');
+    });
   });
 });

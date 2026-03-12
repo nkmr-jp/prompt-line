@@ -360,6 +360,13 @@ class CustomSearchLoader {
         // カスタムフィールド: sortKeyを使用（未設定の場合はnameにフォールバック）
         aValue = a.sortKey ?? a.name;
         bValue = b.sortKey ?? b.name;
+        // 数値として解釈可能な場合は数値比較（タイムスタンプ等）
+        const aNum = Number(aValue);
+        const bNum = Number(bValue);
+        if (!isNaN(aNum) && !isNaN(bNum)) {
+          const numComparison = aNum - bNum;
+          return direction === 'desc' ? -numComparison : numComparison;
+        }
       }
       const comparison = aValue.localeCompare(bValue);
       return direction === 'desc' ? -comparison : comparison;
