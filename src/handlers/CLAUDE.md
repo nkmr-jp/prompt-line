@@ -1,6 +1,6 @@
 # IPC Handlers Module
 
-Central communication bridge between main and renderer processes. 10 specialized handler files, 52 IPC channels total.
+Central communication bridge between main and renderer processes. 10 specialized handler files, 50 IPC channels total.
 
 ## File Structure
 
@@ -11,7 +11,7 @@ Central communication bridge between main and renderer processes. 10 specialized
 | `history-draft-handler.ts` | History CRUD, draft management, @path caching |
 | `window-handler.ts` | Window visibility and focus control |
 | `system-handler.ts` | App info, config, settings retrieval |
-| `custom-search-handler.ts` | Slash commands, agent selection, built-in commands events |
+| `custom-search-handler.ts` | Slash commands, agent selection, built-in commands events, source file hot reload |
 | `file-handler.ts` | File operations, external URL handling |
 | `usage-history-handler.ts` | Usage tracking for files, symbols, agents |
 | `code-search-handler.ts` | Symbol search with ripgrep integration |
@@ -39,6 +39,7 @@ Central communication bridge between main and renderer processes. 10 specialized
 - Image paths: traversal prevention + restrictive permissions (0o700/0o600)
 - History IDs: lowercase alphanumeric only
 
-### custom-search-handler listens for built-in commands changes
+### custom-search-handler listens for hot reload events
 - Subscribes to `commands-changed` event from BuiltInCommandsManager
-- Invalidates cache and notifies renderer when YAML files change in `~/.prompt-line/built-in-commands/`
+- Subscribes to `source-changed` event from CustomSearchLoader (JSONL/individual file changes)
+- Both events invalidate cache and notify renderer via `custom-search-updated` push channel

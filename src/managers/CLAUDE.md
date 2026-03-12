@@ -81,3 +81,6 @@
 - Global-level enable/disable filtering (settings-based, applied after entry-level)
 - Configurable order-by per entry
 - Supports YAML frontmatter in markdown files for metadata
+- Chokidar file watching for individual (non-glob) files with 300ms debounce
+- Same EventEmitter pattern as BuiltInCommandsManager: emits `source-changed` on file changes
+- Streaming JSONL parsing for files >= 1MB (createReadStream + readline)
