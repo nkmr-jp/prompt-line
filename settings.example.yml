@@ -220,6 +220,18 @@ mentions:
     #   orderBy: "{updatedAt} desc"
     #   inputFormat: {filepath}               # Insert format template
 
+    # - name: "{json@display}"
+    #   icon: history
+    #   color: "orange"
+    #   description: ""
+    #   path: ~/.claude
+    #   pattern: "history.jsonl"
+    #   searchPrefix: r            # Search with @r:
+    #   maxSuggestions: 100
+    #   orderBy: "{json@timestamp} desc"
+    #   displayTime: "{json@timestamp}"
+    #   inputFormat: {json@display}               # Insert format template
+
   # File search settings (@path/to/file completion)
   # Note: fd command required (brew install fd)
   #
