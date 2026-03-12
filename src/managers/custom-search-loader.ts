@@ -1,4 +1,5 @@
-import { promises as fs } from 'fs';
+import { promises as fs, createReadStream } from 'fs';
+import { createInterface } from 'readline';
 import path from 'path';
 import os from 'os';
 import { logger } from '../utils/utils';
@@ -31,6 +32,9 @@ class CustomSearchLoader {
   // P1: search result cache to avoid re-filtering on same query
   private resultCacheKey = '';
   private resultCacheItems: CustomSearchItem[] = [];
+
+  // P3: RegExp cache for matchesGlobPattern
+  private regexCache: Map<string, RegExp> = new Map();
 
   constructor(
     config?: CustomSearchEntry[],
@@ -74,6 +78,7 @@ class CustomSearchLoader {
     this.normalizedCacheSource = null;
     this.resultCacheKey = '';
     this.resultCacheItems = [];
+    this.regexCache.clear();
   }
 
   /**
@@ -128,6 +133,8 @@ class CustomSearchLoader {
     }
 
     const allItems = await this.loadAll();
+    // P2: 表示件数制限
+    const maxSuggestions = this.getMaxSuggestions(type);
 
     // タイプでフィルタリング
     let items = allItems.filter(item => item.type === type);
@@ -147,9 +154,10 @@ class CustomSearchLoader {
 
     if (!query) {
       const sorted = this.sortItems(items, orderBy);
+      const result = sorted.length > maxSuggestions ? sorted.slice(0, maxSuggestions) : sorted;
       this.resultCacheKey = cacheKey;
-      this.resultCacheItems = sorted;
-      return sorted;
+      this.resultCacheItems = result;
+      return result;
     }
 
     // P0: normalizedCache を構築して高速フィルタリング
@@ -158,6 +166,10 @@ class CustomSearchLoader {
     // allItems のインデックスからアイテムへの高速マッピング用にSetを構築
     const itemSet = new Set(items);
 
+    // P2: キーワードの事前計算をループ外にホイスト
+    // searchPrefix ごとにキーワードを事前計算してMapに格納
+    const keywordsByPrefix = new Map<string, string[]>();
+
     const filteredItems: CustomSearchItem[] = [];
     for (let i = 0; i < allItems.length; i++) {
       const item = allItems[i]!;
@@ -165,14 +177,15 @@ class CustomSearchLoader {
 
       const entry = this.findEntryForItem(item);
       const prefixWithColon = entry?.searchPrefix ? entry.searchPrefix + ':' : '';
-      const actualQuery = query.startsWith(prefixWithColon) ? query.slice(prefixWithColon.length) : query;
 
-      if (!actualQuery) {
-        filteredItems.push(item);
-        continue;
+      // キーワードをprefixごとにキャッシュして再計算を回避
+      let keywords = keywordsByPrefix.get(prefixWithColon);
+      if (keywords === undefined) {
+        const actualQuery = query.startsWith(prefixWithColon) ? query.slice(prefixWithColon.length) : query;
+        keywords = actualQuery ? splitKeywords(actualQuery.toLowerCase()) : [];
+        keywordsByPrefix.set(prefixWithColon, keywords);
       }
 
-      const keywords = splitKeywords(actualQuery.toLowerCase());
       if (keywords.length === 0) {
         filteredItems.push(item);
         continue;
@@ -180,8 +193,9 @@ class CustomSearchLoader {
 
       // P0: use normalizedCache instead of repeated toLowerCase()
       const normalized = this.normalizedCache[i]!;
+      const keywordCount = keywords.length;
       let allMatch = true;
-      for (let k = 0; k < keywords.length; k++) {
+      for (let k = 0; k < keywordCount; k++) {
         if (!normalized.includes(keywords[k]!)) {
           allMatch = false;
           break;
@@ -193,12 +207,14 @@ class CustomSearchLoader {
     }
 
     const sorted = this.sortItems(filteredItems, orderBy);
+    // P2: 表示件数制限
+    const result = sorted.length > maxSuggestions ? sorted.slice(0, maxSuggestions) : sorted;
 
     // P1: cache result
     this.resultCacheKey = cacheKey;
-    this.resultCacheItems = sorted;
+    this.resultCacheItems = result;
 
-    return sorted;
+    return result;
   }
 
   /**
@@ -791,9 +807,13 @@ class CustomSearchLoader {
     };
   }
 
+  /** Threshold for switching to streaming JSONL parsing (1MB) */
+  private static readonly STREAMING_THRESHOLD = 1024 * 1024;
+
   /**
    * Parse JSONL file to generate multiple CustomSearchItems (one per line)
    * jqExpression がある場合、各行のJSONに対してjq式を適用する
+   * ファイルサイズ >= 1MB の場合はストリーミング読み込みに自動切替
    */
   private async parseJsonlToItems(
     filePath: string,
@@ -802,49 +822,102 @@ class CustomSearchLoader {
     jqExpression: string | null = null
   ): Promise<CustomSearchItem[]> {
     try {
-      const content = await fs.readFile(filePath, 'utf8');
-      const lines = content.split('\n');
-      const basename = getBasename(filePath);
-      const dirname = getDirname(filePath);
-      const items: CustomSearchItem[] = [];
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed) continue;
-
-        let parsed: unknown;
-        try {
-          parsed = JSON.parse(trimmed);
-          if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) continue;
-        } catch {
-          continue;  // skip invalid JSON lines
-        }
-
-        // jq式が指定されている場合、各行に適用
-        if (jqExpression) {
-          const jqResult = await evaluateJq(parsed, jqExpression, filePath);
-          if (jqResult === null || jqResult === undefined) continue;
-
-          // 結果が配列なら展開して複数アイテムに
-          const elements = Array.isArray(jqResult) ? jqResult : [jqResult];
-          const lineData = parsed as Record<string, unknown>;
-          for (const element of elements) {
-            if (element === null || typeof element !== 'object' || Array.isArray(element)) continue;
-            const elementData = element as Record<string, unknown>;
-            const item = this.createItemFromJsonData(elementData, basename, dirname, filePath, entry, sourceId, [lineData], content);
-            if (item) items.push(item);
-          }
-        } else {
-          const elementData = parsed as Record<string, unknown>;
-          const item = this.createItemFromJsonData(elementData, basename, dirname, filePath, entry, sourceId, undefined, content);
-          if (item) items.push(item);
-        }
+      const stat = await fs.stat(filePath);
+      if (stat.size >= CustomSearchLoader.STREAMING_THRESHOLD) {
+        return this.parseJsonlToItemsStreaming(filePath, entry, sourceId, jqExpression);
       }
-      return items;
+      return this.parseJsonlToItemsBatch(filePath, entry, sourceId, jqExpression);
     } catch (error) {
       logger.warn('Failed to parse JSONL file', { filePath, error });
       return [];
     }
+  }
+
+  /** Batch JSONL parsing for small files (< 1MB) */
+  private async parseJsonlToItemsBatch(
+    filePath: string,
+    entry: CustomSearchEntry,
+    sourceId: string,
+    jqExpression: string | null
+  ): Promise<CustomSearchItem[]> {
+    const content = await fs.readFile(filePath, 'utf8');
+    const lines = content.split('\n');
+    const basename = getBasename(filePath);
+    const dirname = getDirname(filePath);
+    const items: CustomSearchItem[] = [];
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      const result = await this.parseJsonlLine(trimmed, jqExpression, filePath, basename, dirname, entry, sourceId, content);
+      if (result) items.push(...result);
+    }
+    return items;
+  }
+
+  /** Streaming JSONL parsing for large files (>= 1MB) */
+  private async parseJsonlToItemsStreaming(
+    filePath: string,
+    entry: CustomSearchEntry,
+    sourceId: string,
+    jqExpression: string | null
+  ): Promise<CustomSearchItem[]> {
+    const basename = getBasename(filePath);
+    const dirname = getDirname(filePath);
+    const items: CustomSearchItem[] = [];
+
+    const rl = createInterface({
+      input: createReadStream(filePath, { encoding: 'utf8' }),
+      crlfDelay: Infinity,
+    });
+
+    for await (const line of rl) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      const result = await this.parseJsonlLine(trimmed, jqExpression, filePath, basename, dirname, entry, sourceId, undefined);
+      if (result) items.push(...result);
+    }
+    return items;
+  }
+
+  /** Parse a single JSONL line into CustomSearchItem(s) */
+  private async parseJsonlLine(
+    trimmedLine: string,
+    jqExpression: string | null,
+    filePath: string,
+    basename: string,
+    dirname: string,
+    entry: CustomSearchEntry,
+    sourceId: string,
+    content: string | undefined
+  ): Promise<CustomSearchItem[] | null> {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(trimmedLine);
+      if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    } catch {
+      return null;
+    }
+
+    if (jqExpression) {
+      const jqResult = await evaluateJq(parsed, jqExpression, filePath);
+      if (jqResult === null || jqResult === undefined) return null;
+
+      const elements = Array.isArray(jqResult) ? jqResult : [jqResult];
+      const lineData = parsed as Record<string, unknown>;
+      const items: CustomSearchItem[] = [];
+      for (const element of elements) {
+        if (element === null || typeof element !== 'object' || Array.isArray(element)) continue;
+        const elementData = element as Record<string, unknown>;
+        const item = this.createItemFromJsonData(elementData, basename, dirname, filePath, entry, sourceId, [lineData], content);
+        if (item) items.push(item);
+      }
+      return items.length > 0 ? items : null;
+    }
+
+    const elementData = parsed as Record<string, unknown>;
+    const item = this.createItemFromJsonData(elementData, basename, dirname, filePath, entry, sourceId, undefined, content);
+    return item ? [item] : null;
   }
 
   /**
@@ -1201,18 +1274,20 @@ class CustomSearchLoader {
    * - "*-test.md" - ワイルドカード + 後方一致
    */
   private matchesGlobPattern(name: string, pattern: string): boolean {
-    // "*" は全てにマッチ
     if (pattern === '*') {
       return true;
     }
 
-    // パターンを正規表現に変換
-    const regexPattern = pattern
-      .replace(/[.+^${}()|[\]\\]/g, '\\$&') // 特殊文字をエスケープ
-      .replace(/\*/g, '.*')  // * を .* に変換
-      .replace(/\?/g, '.');   // ? を . に変換
-
-    const regex = new RegExp(`^${regexPattern}$`);
+    // P3: RegExp cache to avoid recompilation per file
+    let regex = this.regexCache.get(pattern);
+    if (!regex) {
+      const regexPattern = pattern
+        .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+        .replace(/\*/g, '.*')
+        .replace(/\?/g, '.');
+      regex = new RegExp(`^${regexPattern}$`);
+      this.regexCache.set(pattern, regex);
+    }
     return regex.test(name);
   }
 }
