@@ -2507,4 +2507,114 @@ Content`;
       expect(mockedFs.readdir.mock.calls).toHaveLength(callCountAfterFirst);
     });
   });
+
+  describe('JSONL with searchPrefix (history.jsonl use case)', () => {
+    test('should load JSONL items with {json@text} template and searchPrefix', async () => {
+      // ユーザーの設定を再現: history.jsonl の text フィールドを検索
+      const jsonlLoader = new CustomSearchLoader([
+        {
+          name: '{json@text}',
+          type: 'command',
+          description: '',
+          icon: 'repo',
+          color: 'rose',
+          path: '/Users/test/.prompt-line',
+          pattern: 'history.jsonl',
+          searchPrefix: 'r',
+          maxSuggestions: 100,
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true, size: 500 } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('history.jsonl', true)] as any);
+      mockedFs.readFile.mockResolvedValue(
+        '{"text":"hello world","appName":"Terminal","timestamp":1710000000000}\n' +
+        '{"text":"git commit -m fix","appName":"iTerm2","timestamp":1710000001000}\n' +
+        '{"text":"pnpm test","appName":"Terminal","timestamp":1710000002000}'
+      );
+
+      const items = await jsonlLoader.getItems('command');
+      expect(items).toHaveLength(3);
+      expect(items.map(i => i.name).sort()).toEqual(['git commit -m fix', 'hello world', 'pnpm test']);
+    });
+
+    test('should filter JSONL items by searchPrefix r:', async () => {
+      const jsonlLoader = new CustomSearchLoader([
+        {
+          name: '{json@text}',
+          type: 'command',
+          description: '{json@appName}',
+          path: '/Users/test/.prompt-line',
+          pattern: 'history.jsonl',
+          searchPrefix: 'r',
+          maxSuggestions: 100,
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true, size: 500 } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('history.jsonl', true)] as any);
+      mockedFs.readFile.mockResolvedValue(
+        '{"text":"hello world","appName":"Terminal","timestamp":1710000000000}\n' +
+        '{"text":"git commit -m fix","appName":"iTerm2","timestamp":1710000001000}\n' +
+        '{"text":"pnpm test","appName":"Terminal","timestamp":1710000002000}'
+      );
+
+      // r: なしでは表示されない（searchPrefix フィルタリング）
+      const noPrefix = await jsonlLoader.searchItems('command', 'hello');
+      expect(noPrefix).toHaveLength(0);
+
+      // r: 付きで検索
+      jsonlLoader.invalidateCache();
+      const withPrefix = await jsonlLoader.searchItems('command', 'r:hello');
+      expect(withPrefix).toHaveLength(1);
+      expect(withPrefix[0]?.name).toBe('hello world');
+    });
+
+    test('should return all items with r: prefix and empty query', async () => {
+      const jsonlLoader = new CustomSearchLoader([
+        {
+          name: '{json@text}',
+          type: 'command',
+          description: '',
+          path: '/Users/test/.prompt-line',
+          pattern: 'history.jsonl',
+          searchPrefix: 'r',
+          maxSuggestions: 100,
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true, size: 500 } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('history.jsonl', true)] as any);
+      mockedFs.readFile.mockResolvedValue(
+        '{"text":"item1","appName":"Terminal","timestamp":1710000000000}\n' +
+        '{"text":"item2","appName":"iTerm2","timestamp":1710000001000}'
+      );
+
+      // r: のみ（クエリなし）→ 全件表示
+      const results = await jsonlLoader.searchItems('command', 'r:');
+      expect(results).toHaveLength(2);
+    });
+
+    test('should NOT load items when pattern uses @text without dot (invalid syntax)', async () => {
+      // 誤った設定: pattern: "history.jsonl@text" → ファイル名として扱われる
+      const badLoader = new CustomSearchLoader([
+        {
+          name: '{line}',
+          type: 'command',
+          description: '',
+          path: '/Users/test/.prompt-line',
+          pattern: 'history.jsonl@text',
+          searchPrefix: 'r',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      // history.jsonl@text というファイルは存在しない
+      mockedFs.readdir.mockResolvedValue([createDirent('history.jsonl', true)] as any);
+
+      const items = await badLoader.getItems('command');
+      // ファイル名 "history.jsonl@text" にマッチするファイルがないため0件
+      expect(items).toHaveLength(0);
+    });
+  });
 });
