@@ -338,35 +338,42 @@ class CustomSearchLoader {
    */
   private sortItems(items: CustomSearchItem[], orderBy: string): CustomSearchItem[] {
     const { field, direction } = CustomSearchLoader.parseOrderBy(orderBy);
+    const isCustomField = field !== 'updatedAt' && field !== 'name' && field !== 'description';
+
+    // カスタムフィールドの場合、数値変換をソート前に1回だけ行う
+    let numericValues: Map<CustomSearchItem, number> | null = null;
+    if (isCustomField) {
+      const map = new Map<CustomSearchItem, number>();
+      let allNumeric = true;
+      for (const item of items) {
+        const value = item.sortKey ?? item.name;
+        const num = Number(value);
+        if (isNaN(num)) { allNumeric = false; break; }
+        map.set(item, num);
+      }
+      if (allNumeric && map.size > 0) numericValues = map;
+    }
+
     return [...items].sort((a, b) => {
-      // updatedAt: 数値比較（未設定は0扱い）
       if (field === 'updatedAt') {
-        const aTime = a.updatedAt ?? 0;
-        const bTime = b.updatedAt ?? 0;
-        const comparison = aTime - bTime;
+        const comparison = (a.updatedAt ?? 0) - (b.updatedAt ?? 0);
+        return direction === 'desc' ? -comparison : comparison;
+      }
+
+      // カスタムフィールドの数値比較（前計算済み）
+      if (numericValues) {
+        const comparison = numericValues.get(a)! - numericValues.get(b)!;
         return direction === 'desc' ? -comparison : comparison;
       }
 
       let aValue: string;
       let bValue: string;
-      if (field === 'name') {
-        // sortKeyがあればそちらを優先（プレーンテキストの行順保持用）
+      if (field === 'name' || isCustomField) {
         aValue = a.sortKey ?? a.name;
         bValue = b.sortKey ?? b.name;
-      } else if (field === 'description') {
+      } else {
         aValue = a.description;
         bValue = b.description;
-      } else {
-        // カスタムフィールド: sortKeyを使用（未設定の場合はnameにフォールバック）
-        aValue = a.sortKey ?? a.name;
-        bValue = b.sortKey ?? b.name;
-        // 数値として解釈可能な場合は数値比較（タイムスタンプ等）
-        const aNum = Number(aValue);
-        const bNum = Number(bValue);
-        if (!isNaN(aNum) && !isNaN(bNum)) {
-          const numComparison = aNum - bNum;
-          return direction === 'desc' ? -numComparison : numComparison;
-        }
       }
       const comparison = aValue.localeCompare(bValue);
       return direction === 'desc' ? -comparison : comparison;
@@ -848,18 +855,7 @@ class CustomSearchLoader {
     jqExpression: string | null
   ): Promise<CustomSearchItem[]> {
     const content = await fs.readFile(filePath, 'utf8');
-    const lines = content.split('\n');
-    const basename = getBasename(filePath);
-    const dirname = getDirname(filePath);
-    const items: CustomSearchItem[] = [];
-
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      const result = await this.parseJsonlLine(trimmed, jqExpression, filePath, basename, dirname, entry, sourceId, content);
-      if (result) items.push(...result);
-    }
-    return items;
+    return this.iterateJsonlLines(content.split('\n'), filePath, entry, sourceId, jqExpression, content);
   }
 
   /** Streaming JSONL parsing for large files (>= 1MB) */
@@ -869,19 +865,30 @@ class CustomSearchLoader {
     sourceId: string,
     jqExpression: string | null
   ): Promise<CustomSearchItem[]> {
-    const basename = getBasename(filePath);
-    const dirname = getDirname(filePath);
-    const items: CustomSearchItem[] = [];
-
     const rl = createInterface({
       input: createReadStream(filePath, { encoding: 'utf8' }),
       crlfDelay: Infinity,
     });
+    return this.iterateJsonlLines(rl, filePath, entry, sourceId, jqExpression, undefined);
+  }
 
-    for await (const line of rl) {
+  /** Common JSONL line iteration logic for both batch and streaming modes */
+  private async iterateJsonlLines(
+    lines: Iterable<string> | AsyncIterable<string>,
+    filePath: string,
+    entry: CustomSearchEntry,
+    sourceId: string,
+    jqExpression: string | null,
+    content: string | undefined
+  ): Promise<CustomSearchItem[]> {
+    const basename = getBasename(filePath);
+    const dirname = getDirname(filePath);
+    const items: CustomSearchItem[] = [];
+
+    for await (const line of lines) {
       const trimmed = line.trim();
       if (!trimmed) continue;
-      const result = await this.parseJsonlLine(trimmed, jqExpression, filePath, basename, dirname, entry, sourceId, undefined);
+      const result = await this.parseJsonlLine(trimmed, jqExpression, filePath, basename, dirname, entry, sourceId, content);
       if (result) items.push(...result);
     }
     return items;
