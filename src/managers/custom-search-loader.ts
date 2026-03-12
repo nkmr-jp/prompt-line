@@ -2,6 +2,8 @@ import { promises as fs, createReadStream } from 'fs';
 import { createInterface } from 'readline';
 import path from 'path';
 import os from 'os';
+import chokidar, { type FSWatcher } from 'chokidar';
+import { EventEmitter } from 'events';
 import { logger } from '../utils/utils';
 import type { CustomSearchEntry, CustomSearchItem, CustomSearchType, UserSettings, ColorValue } from '../types';
 import { resolveTemplate, getBasename, getDirname, parseFrontmatter, extractRawFrontmatter, parseFirstHeading, parseJsonContent, type TemplateContext } from '../lib/template-resolver';
@@ -16,7 +18,7 @@ import { splitKeywords } from '../lib/keyword-utils';
  *
  * AgentSkillLoaderとAgentLoaderを統合し、より柔軟な設定が可能
  */
-class CustomSearchLoader {
+class CustomSearchLoader extends EventEmitter {
   private config: CustomSearchEntry[];
   private cache: Map<string, { items: CustomSearchItem[] }> = new Map();
   private settings: UserSettings | undefined;
@@ -36,13 +38,17 @@ class CustomSearchLoader {
   // P3: RegExp cache for matchesGlobPattern
   private regexCache: Map<string, RegExp> = new Map();
 
-  // Source file mtime tracking for cache freshness check
-  private sourceFileMtimes: Map<string, number> = new Map();
+  // JSONL file watchers for hot reload
+  private jsonlWatchers: FSWatcher[] = [];
+  private watchedJsonlPaths: Set<string> = new Set();
+  private static readonly JSONL_RELOAD_DEBOUNCE_MS = 300;
+  private jsonlReloadTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     config?: CustomSearchEntry[],
     settings?: UserSettings
   ) {
+    super();
     // Use default config if config is undefined or empty array
     this.config = (config && config.length > 0) ? config : getDefaultCustomSearchConfig();
     this.settings = settings;
@@ -59,6 +65,8 @@ class CustomSearchLoader {
     if (JSON.stringify(this.config) !== JSON.stringify(newConfig)) {
       this.config = newConfig;
       this.invalidateCache();
+      // Reset JSONL watchers since config paths may have changed
+      this.stopWatching();
     }
   }
 
@@ -82,47 +90,71 @@ class CustomSearchLoader {
     this.resultCacheKey = '';
     this.resultCacheItems = [];
     this.regexCache.clear();
-    this.sourceFileMtimes.clear();
   }
 
   /**
-   * Check if any source file has been modified since last load
+   * Start watching JSONL source files for hot reload.
+   * Called after first loadAll to set up watchers for discovered JSONL files.
    */
-  private async hasSourceFilesChanged(): Promise<boolean> {
-    if (this.sourceFileMtimes.size === 0) return false;
-    try {
-      const checks = Array.from(this.sourceFileMtimes.entries()).map(
-        async ([filePath, cachedMtime]) => {
-          try {
-            const stat = await fs.stat(filePath);
-            return stat.mtimeMs !== cachedMtime;
-          } catch {
-            // File deleted or inaccessible — treat as changed
-            return true;
-          }
-        }
-      );
-      const results = await Promise.all(checks);
-      return results.some(changed => changed);
-    } catch {
-      return false;
+  private startJsonlWatching(jsonlFiles: string[]): void {
+    // Filter to only new files not already watched
+    const newFiles = jsonlFiles.filter(f => !this.watchedJsonlPaths.has(f));
+    if (newFiles.length === 0) return;
+
+    for (const filePath of newFiles) {
+      this.watchedJsonlPaths.add(filePath);
     }
+
+    const watcher = chokidar.watch(newFiles, {
+      persistent: true,
+      ignoreInitial: true,
+      awaitWriteFinish: {
+        stabilityThreshold: 100,
+        pollInterval: 50
+      },
+    });
+
+    watcher.on('change', (filePath: string) => {
+      logger.debug('CustomSearch JSONL file changed:', filePath);
+      this.handleJsonlFileChange();
+    });
+
+    watcher.on('error', (error: unknown) => {
+      logger.error('CustomSearch JSONL watcher error:', error);
+    });
+
+    this.jsonlWatchers.push(watcher);
+    logger.info('CustomSearch JSONL watcher started', { files: newFiles });
   }
 
   /**
-   * Record mtime for source files
+   * Handle JSONL file change with debounce
    */
-  private async recordSourceFileMtimes(files: string[]): Promise<void> {
-    await Promise.all(
-      files.map(async (filePath) => {
-        try {
-          const stat = await fs.stat(filePath);
-          this.sourceFileMtimes.set(filePath, stat.mtimeMs);
-        } catch {
-          // Ignore stat errors
-        }
-      })
-    );
+  private handleJsonlFileChange(): void {
+    if (this.jsonlReloadTimer) {
+      clearTimeout(this.jsonlReloadTimer);
+    }
+
+    this.jsonlReloadTimer = setTimeout(() => {
+      this.invalidateCache();
+      this.emit('source-changed');
+      logger.info('CustomSearch cache invalidated from JSONL file change');
+    }, CustomSearchLoader.JSONL_RELOAD_DEBOUNCE_MS);
+  }
+
+  /**
+   * Stop all JSONL file watchers
+   */
+  async stopWatching(): Promise<void> {
+    for (const watcher of this.jsonlWatchers) {
+      await watcher.close();
+    }
+    this.jsonlWatchers = [];
+    this.watchedJsonlPaths.clear();
+    if (this.jsonlReloadTimer) {
+      clearTimeout(this.jsonlReloadTimer);
+      this.jsonlReloadTimer = null;
+    }
   }
 
   /**
@@ -170,15 +202,13 @@ class CustomSearchLoader {
    * searchPrefixが設定されているエントリは、クエリがそのプレフィックスで始まる場合のみ検索対象
    */
   async searchItems(type: CustomSearchType, query: string): Promise<CustomSearchItem[]> {
+    // P1: result cache hit check
     const cacheKey = `${type}:${query}`;
-
-    // loadAll() first to trigger mtime-based cache invalidation if needed
-    const allItems = await this.loadAll();
-
-    // P1: result cache hit check (after loadAll to respect mtime invalidation)
     if (cacheKey === this.resultCacheKey && this.resultCacheItems.length > 0) {
       return this.resultCacheItems;
     }
+
+    const allItems = await this.loadAll();
     // P2: 表示件数制限
     const maxSuggestions = this.getMaxSuggestions(type);
 
@@ -434,13 +464,7 @@ class CustomSearchLoader {
     const cacheKey = 'all';
     const cached = this.cache.get(cacheKey);
     if (cached) {
-      // Check if any source file has been modified since last load
-      if (await this.hasSourceFilesChanged()) {
-        logger.debug('CustomSearch source files changed, invalidating cache');
-        this.invalidateCache();
-      } else {
-        return cached.items;
-      }
+      return cached.items;
     }
 
     // Singleflight: 既に進行中のロードがあればそれを共有
@@ -448,11 +472,12 @@ class CustomSearchLoader {
       return this.loadingPromise;
     }
 
-    this.loadingPromise = this.loadAllEntries().then(allItems => {
+    this.loadingPromise = this.loadAllEntries().then(({ items: allItems, jsonlFiles }) => {
       allItems.sort((a, b) => a.name.localeCompare(b.name));
       this.cache.set(cacheKey, { items: allItems });
       this.buildEntryMap();
       this.logLoadedItems(allItems);
+      this.startJsonlWatching(jsonlFiles);
       this.loadingPromise = null;
       return allItems;
     }).catch(err => {
@@ -466,27 +491,29 @@ class CustomSearchLoader {
   /**
    * Load all entries with deduplication
    */
-  private async loadAllEntries(): Promise<CustomSearchItem[]> {
+  private async loadAllEntries(): Promise<{ items: CustomSearchItem[]; jsonlFiles: string[] }> {
     const results = await Promise.all(
       this.config.map(async (entry) => {
         const sourceId = `${entry.path}:${entry.pattern}`;
         try {
-          const items = await this.loadEntry(entry);
-          return { items, sourceId };
+          const { items, jsonlFiles } = await this.loadEntry(entry);
+          return { items, sourceId, jsonlFiles };
         } catch (error) {
           logger.error('Failed to load entry', { entry, error });
-          return { items: [] as CustomSearchItem[], sourceId };
+          return { items: [] as CustomSearchItem[], sourceId, jsonlFiles: [] as string[] };
         }
       })
     );
 
     const allItems: CustomSearchItem[] = [];
+    const allJsonlFiles: string[] = [];
     const seenNames = new Map<string, Set<string>>();
-    for (const { items, sourceId } of results) {
+    for (const { items, sourceId, jsonlFiles } of results) {
       this.addItemsWithDeduplication(items, sourceId, seenNames, allItems);
+      allJsonlFiles.push(...jsonlFiles);
     }
 
-    return allItems;
+    return { items: allItems, jsonlFiles: allJsonlFiles };
   }
 
   /**
@@ -527,12 +554,12 @@ class CustomSearchLoader {
   /**
    * 単一エントリをロード
    */
-  private async loadEntry(entry: CustomSearchEntry): Promise<CustomSearchItem[]> {
+  private async loadEntry(entry: CustomSearchEntry): Promise<{ items: CustomSearchItem[]; jsonlFiles: string[] }> {
     const expandedPath = entry.path.replace(/^~/, os.homedir());
 
     const isValid = await this.validateDirectory(expandedPath);
     if (!isValid) {
-      return [];
+      return { items: [], jsonlFiles: [] };
     }
 
     // Parse jq expression from pattern: '**/config.json@.members' → filePattern + jqExpression
@@ -546,12 +573,9 @@ class CustomSearchLoader {
       jqExpression,
       filesFound: files.length
     });
-
-    // Record source file mtimes for cache freshness check
-    await this.recordSourceFileMtimes(files);
-
+    const jsonlFiles = files.filter(f => f.endsWith('.jsonl'));
     const items = await this.parseFilesToItems(files, entry, sourceId, jqExpression);
-    return items;
+    return { items, jsonlFiles };
   }
 
   /**
