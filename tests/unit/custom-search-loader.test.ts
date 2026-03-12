@@ -2415,11 +2415,11 @@ Content`;
 
       const items = await loader.getItems('command');
 
-      // 4 non-empty lines but '---' appears twice and is deduplicated → 3 items
-      expect(items).toHaveLength(3);
+      // 4 non-empty lines: '---' appears twice but has different sortKeys (line positions) → 4 items
+      expect(items).toHaveLength(4);
       // frontmatter@title is empty, so all names fallback to {line} (sorted by name asc)
       const names = items.map(i => i.name);
-      expect(names).toContain('---');
+      expect(names.filter(n => n === '---')).toHaveLength(2);
       expect(names).toContain('Body');
       expect(names).toContain('title: This is not frontmatter');
       // frontmatter@description is empty for all items

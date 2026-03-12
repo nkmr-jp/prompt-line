@@ -538,8 +538,12 @@ class CustomSearchLoader extends EventEmitter {
     const sourceSeenNames = seenNames.get(sourceId)!;
 
     for (const item of items) {
-      // Use name+label as key to allow same name with different labels
-      const key = item.label ? `${item.name}:${item.label}` : item.name;
+      // Build dedup key: name + label + sortKey + inputText
+      // sortKey (e.g., timestamp) is essential for JSONL sources where multiple entries
+      // can have the same display value (e.g., "commit" entered at different times)
+      let key = item.label ? `${item.name}:${item.label}` : item.name;
+      if (item.sortKey) key += `\t${item.sortKey}`;
+      if (item.inputText) key += `\t${item.inputText}`;
       if (!sourceSeenNames.has(key)) {
         sourceSeenNames.add(key);
         allItems.push(item);
