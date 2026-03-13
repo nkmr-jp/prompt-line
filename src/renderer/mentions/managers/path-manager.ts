@@ -63,6 +63,7 @@ export interface PathManagerCallbacks {
 
   // Agent skill support (for multi-word command detection)
   getKnownSkillNames?: (() => string[]) | undefined;
+  getSkillTriggerPrefixes?: (() => string[]) | undefined;
 }
 
 /**
@@ -724,8 +725,9 @@ export class PathManager {
     const cursorPos = this.callbacks.getCursorPosition();
     const text = this.callbacks.getTextContent();
     const knownSkillNames = this.callbacks.getKnownSkillNames?.();
+    const triggerPrefixes = this.callbacks.getSkillTriggerPrefixes?.();
 
-    const agentSkill = findAgentSkillAtCursor(text, cursorPos, knownSkillNames);
+    const agentSkill = findAgentSkillAtCursor(text, cursorPos, knownSkillNames, triggerPrefixes);
 
     if (!agentSkill) {
       return false;
