@@ -150,7 +150,8 @@ export class PromptLineRenderer {
       onHistoryNavigation: this.navigateHistory.bind(this),
       onSearchToggle: this.handleSearchToggle.bind(this),
       onUndo: this.handleUndo.bind(this),
-      onSaveDraftToHistory: this.handleSaveDraftToHistory.bind(this)
+      onSaveDraftToHistory: this.handleSaveDraftToHistory.bind(this),
+      onCustomSearchActivate: this.handleCustomSearchActivate.bind(this)
     });
 
     this.eventHandler.setTextarea(this.domManager.textarea);
@@ -519,6 +520,8 @@ export class PromptLineRenderer {
       if (this.eventHandler) {
         this.eventHandler.setUserSettings(data.settings);
       }
+      // Update custom search shortcuts
+      this.updateCustomSearchShortcuts();
     }
 
     this.renderHistory();
@@ -558,6 +561,41 @@ export class PromptLineRenderer {
 
   public focus(): void {
     this.domManager.focusTextarea();
+  }
+
+  /**
+   * Activate custom search by inserting trigger text into textarea
+   */
+  private handleCustomSearchActivate(triggerText: string): void {
+    if (!this.domManager.textarea) return;
+
+    // Clear existing text and insert trigger text
+    this.domManager.setText(triggerText);
+    this.domManager.setCursorPosition(triggerText.length);
+    this.domManager.focusTextarea();
+
+    // Dispatch input event to trigger mention detection
+    this.domManager.textarea.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  /**
+   * Extract shortcut entries from customSearch settings and pass to event handler
+   */
+  private updateCustomSearchShortcuts(): void {
+    const shortcuts: Array<{ shortcut: string; triggerText: string }> = [];
+
+    if (this.userSettings?.customSearch) {
+      for (const entry of this.userSettings.customSearch) {
+        if (entry.shortcut && entry.searchPrefix) {
+          shortcuts.push({
+            shortcut: entry.shortcut,
+            triggerText: `@${entry.searchPrefix}:`
+          });
+        }
+      }
+    }
+
+    this.eventHandler?.setCustomSearchShortcuts(shortcuts);
   }
 
   // Search functionality callbacks

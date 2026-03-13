@@ -15,6 +15,7 @@ export class ShortcutHandler {
   private agentSkillManager: { isActiveMode(): boolean } | null = null;
   private fileSearchManager: { isActive(): boolean } | null = null;
   private userSettings: UserSettings | null = null;
+  private customSearchShortcuts: Array<{ shortcut: string; triggerText: string }> = [];
   private onTextPaste: (text: string) => Promise<void>;
   private onWindowHide: () => Promise<void>;
   private onTabKeyInsert: (e: KeyboardEvent) => void;
@@ -23,6 +24,7 @@ export class ShortcutHandler {
   private onSearchToggle: () => void;
   private onUndo: () => boolean;
   private onSaveDraftToHistory: () => Promise<void>;
+  private onCustomSearchActivate: (triggerText: string) => void;
 
   constructor(callbacks: {
     onTextPaste: (text: string) => Promise<void>;
@@ -33,6 +35,7 @@ export class ShortcutHandler {
     onSearchToggle: () => void;
     onUndo: () => boolean;
     onSaveDraftToHistory: () => Promise<void>;
+    onCustomSearchActivate: (triggerText: string) => void;
   }) {
     this.onTextPaste = callbacks.onTextPaste;
     this.onWindowHide = callbacks.onWindowHide;
@@ -42,6 +45,7 @@ export class ShortcutHandler {
     this.onSearchToggle = callbacks.onSearchToggle;
     this.onUndo = callbacks.onUndo;
     this.onSaveDraftToHistory = callbacks.onSaveDraftToHistory;
+    this.onCustomSearchActivate = callbacks.onCustomSearchActivate;
   }
 
   public setTextarea(textarea: HTMLTextAreaElement | null): void {
@@ -62,6 +66,10 @@ export class ShortcutHandler {
 
   public setUserSettings(settings: UserSettings): void {
     this.userSettings = settings;
+  }
+
+  public setCustomSearchShortcuts(shortcuts: Array<{ shortcut: string; triggerText: string }>): void {
+    this.customSearchShortcuts = shortcuts;
   }
 
   public setIsComposing(isComposing: boolean): void {
@@ -113,6 +121,11 @@ export class ShortcutHandler {
 
     // Handle search shortcut
     if (this.handleSearchShortcut(e)) {
+      return true;
+    }
+
+    // Handle custom search shortcuts (e.g., Ctrl+g → @ghq:)
+    if (this.handleCustomSearchShortcuts(e)) {
       return true;
     }
 
@@ -257,6 +270,27 @@ export class ShortcutHandler {
       e.preventDefault();
       this.onSearchToggle();
       return true;
+    }
+
+    return false;
+  }
+
+  private handleCustomSearchShortcuts(e: KeyboardEvent): boolean {
+    if (this.customSearchShortcuts.length === 0) {
+      return false;
+    }
+
+    // Skip if IME is active
+    if (this.isComposing || e.isComposing) {
+      return false;
+    }
+
+    for (const { shortcut, triggerText } of this.customSearchShortcuts) {
+      if (matchesShortcutString(e, shortcut)) {
+        e.preventDefault();
+        this.onCustomSearchActivate(triggerText);
+        return true;
+      }
     }
 
     return false;

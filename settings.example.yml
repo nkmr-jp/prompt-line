@@ -222,6 +222,7 @@ customSearch:
   #   path: /path/to/knowledge-base
   #   pattern: "**/*/*.md"
   #   searchPrefix: kb            # Search with @kb:
+  #   shortcut: Ctrl+g              # Keyboard shortcut to activate @kb:
   #   maxSuggestions: 100
   #   orderBy: "{updatedAt} desc"
   #   inputFormat: {filepath}               # Insert format template
