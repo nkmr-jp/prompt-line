@@ -287,6 +287,8 @@ export const defaultSettings: UserSettings = {
    *   color           — Badge color (name or hex)
    *   icon            — Codicon icon name
    *   label           — UI badge label
+   *   shortcut        — Keyboard shortcut to activate this search (e.g., "Ctrl+g")
+   *                     Inserts @searchPrefix: into the input and triggers mention detection
    *
    * Example (settings.yml):
    *   customSearch:
@@ -387,6 +389,7 @@ export const commentedExamples = {
       path: '/path/to/knowledge-base',
       pattern: '**/*/*.md',
       searchPrefix: 'kb',
+      shortcut: 'Ctrl+g',
       maxSuggestions: 100,
       orderBy: '{updatedAt} desc',
       inputFormat: '{filepath}'

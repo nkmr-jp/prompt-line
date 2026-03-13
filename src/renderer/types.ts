@@ -35,6 +35,11 @@ export interface UserSettings {
     width: number;
     height: number;
   };
+  customSearch?: Array<{
+    searchPrefix?: string;
+    shortcut?: string;
+    [key: string]: unknown;
+  }>;
 }
 
 export interface FileInfo {

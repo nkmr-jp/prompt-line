@@ -389,6 +389,8 @@ export interface MentionEntry {
    * - 前方一致: "old-*"
    */
   disable?: string[];
+  /** オプション: キーボードショートカット（例: "Ctrl+g"）- このショートカットで @searchPrefix: 検索を直接起動 */
+  shortcut?: string;
 }
 
 // ============================================================================
