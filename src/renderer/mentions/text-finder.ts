@@ -116,9 +116,9 @@ export function findUrlAtPosition(text: string, cursorPos: number): UrlMatch | n
  * Agent skills are like /commit, /help (single word after /)
  * When knownCommandNames is provided, also matches multi-word commands like /Linear API
  */
-export function findAgentSkillAtPosition(text: string, cursorPos: number, knownCommandNames?: string[]): CommandMatch | null {
+export function findAgentSkillAtPosition(text: string, cursorPos: number, knownCommandNames?: string[], triggerPrefixes?: string[]): CommandMatch | null {
   // Use findAllAgentSkills to get all commands (including multi-word ones if knownCommandNames provided)
-  const commands = findAllAgentSkills(text, knownCommandNames);
+  const commands = findAllAgentSkills(text, knownCommandNames, triggerPrefixes);
 
   for (const cmd of commands) {
     // Check if cursor is within this agent skill
@@ -284,10 +284,12 @@ export function findAllAbsolutePaths(text: string): PathMatch[] {
  * Agent skills are like /commit, /help (single word after /)
  * When knownCommandNames is provided, also matches multi-word commands like /Linear API
  */
-export function findAllAgentSkills(text: string, knownCommandNames?: string[]): CommandMatch[] {
+export function findAllAgentSkills(text: string, knownCommandNames?: string[], triggerPrefixes?: string[]): CommandMatch[] {
   const results: CommandMatch[] = [];
   // Track matched ranges to avoid duplicates
   const matchedRanges = new Set<string>();
+
+  const prefixes = triggerPrefixes && triggerPrefixes.length > 0 ? triggerPrefixes : ['/'];
 
   // First, find multi-word commands if known command names are provided
   // (Process these first so they take precedence over simple matches)
@@ -298,39 +300,43 @@ export function findAllAgentSkills(text: string, knownCommandNames?: string[]): 
       .sort((a, b) => b.length - a.length);
 
     for (const cmdName of sortedNames) {
-      const searchPattern = '/' + cmdName;
-      let searchStart = 0;
+      for (const prefix of prefixes) {
+        const searchPattern = prefix + cmdName;
+        let searchStart = 0;
 
-      while (true) {
-        const idx = text.indexOf(searchPattern, searchStart);
-        if (idx === -1) break;
+        while (true) {
+          const idx = text.indexOf(searchPattern, searchStart);
+          if (idx === -1) break;
 
-        const start = idx;
-        const end = idx + searchPattern.length;
-        const rangeKey = `${start}-${end}`;
+          const start = idx;
+          const end = idx + searchPattern.length;
+          const rangeKey = `${start}-${end}`;
 
-        // Check if at word boundary
-        const prevChar = start > 0 ? text[start - 1] : ' ';
-        const nextChar = end < text.length ? text[end] : ' ';
-        const isValidStart = prevChar === ' ' || prevChar === '\n' || prevChar === '\t' || start === 0;
-        const isValidEnd = nextChar === ' ' || nextChar === '\n' || nextChar === '\t' || end === text.length;
+          // Check if at word boundary
+          const prevChar = start > 0 ? text[start - 1] : ' ';
+          const nextChar = end < text.length ? text[end] : ' ';
+          const isValidStart = prevChar === ' ' || prevChar === '\n' || prevChar === '\t' || start === 0;
+          const isValidEnd = nextChar === ' ' || nextChar === '\n' || nextChar === '\t' || end === text.length;
 
-        if (isValidStart && isValidEnd && !matchedRanges.has(rangeKey)) {
-          matchedRanges.add(rangeKey);
-          results.push({
-            command: cmdName,
-            start,
-            end
-          });
+          if (isValidStart && isValidEnd && !matchedRanges.has(rangeKey)) {
+            matchedRanges.add(rangeKey);
+            results.push({
+              command: cmdName,
+              start,
+              end
+            });
+          }
+
+          searchStart = idx + 1;
         }
-
-        searchStart = idx + 1;
       }
     }
   }
 
   // Then, find simple agent skills using regex
-  const agentSkillPattern = /\/([a-zA-Z][a-zA-Z0-9_:-]*)/g;
+  const escapedPrefixes = prefixes.map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const prefixPattern = escapedPrefixes.length === 1 ? escapedPrefixes[0] : `(?:${escapedPrefixes.join('|')})`;
+  const agentSkillPattern = new RegExp(`${prefixPattern}([a-zA-Z][a-zA-Z0-9_:-]*)`, 'g');
   let match;
 
   while ((match = agentSkillPattern.exec(text)) !== null) {
@@ -417,9 +423,10 @@ export function resolveAtPathToAbsolute(
 export function findAgentSkillAtCursor(
   text: string,
   cursorPos: number,
-  knownCommandNames?: string[]
+  knownCommandNames?: string[],
+  triggerPrefixes?: string[]
 ): CommandMatch | null {
-  const commands = findAllAgentSkills(text, knownCommandNames);
+  const commands = findAllAgentSkills(text, knownCommandNames, triggerPrefixes);
 
   for (const cmd of commands) {
     // Check if cursor is at end of command (within 3 chars, only terminators between)

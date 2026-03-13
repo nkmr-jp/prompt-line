@@ -54,6 +54,7 @@ export interface MentionInitializerCallbacks {
   getSkillSource?: (commandName: string) => string | undefined;
   getSkillColor?: (commandName: string) => string | undefined;
   getKnownSkillNames?: () => string[];
+  getSkillTriggerPrefixes?: () => string[];
 
   // Actions
   invalidateValidPathsCache?: () => void;
@@ -249,6 +250,9 @@ export class MentionInitializer {
         }),
         ...(this.callbacks.getKnownSkillNames && {
           getKnownSkillNames: () => this.callbacks.getKnownSkillNames?.() ?? []
+        }),
+        ...(this.callbacks.getSkillTriggerPrefixes && {
+          getSkillTriggerPrefixes: () => this.callbacks.getSkillTriggerPrefixes?.() ?? ['/']
         })
       },
       this.deps.pathManager

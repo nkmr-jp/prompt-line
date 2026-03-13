@@ -1169,6 +1169,10 @@ export class AgentSkillManager implements IInitializable {
     return this.skills.map(cmd => cmd.name);
   }
 
+  public getTriggerPrefixes(): string[] {
+    return this.triggerPrefixes;
+  }
+
   /**
    * Invalidate command cache to force reload
    */

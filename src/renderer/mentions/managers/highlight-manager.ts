@@ -40,6 +40,7 @@ export interface HighlightManagerCallbacks {
   getSkillSource?: (commandName: string) => string | undefined;
   getSkillColor?: (commandName: string) => string | undefined;
   getKnownSkillNames?: () => string[];
+  getSkillTriggerPrefixes?: () => string[];
 }
 
 export interface DirectoryDataForHighlight {
@@ -446,7 +447,8 @@ export class HighlightManager {
     this.cachedAbsolutePaths = findAllAbsolutePaths(text);
 
     const knownSkillNames = this.callbacks.getKnownSkillNames?.();
-    this.cachedAgentSkills = findAllAgentSkills(text, knownSkillNames);
+    const triggerPrefixes = this.callbacks.getSkillTriggerPrefixes?.();
+    this.cachedAgentSkills = findAllAgentSkills(text, knownSkillNames, triggerPrefixes);
   }
 
   // ============================================================
@@ -541,7 +543,7 @@ export class HighlightManager {
   private getAgentSkillClassName(text: string, start: number, end: number): string {
     const baseClassName = 'agent-skill-highlight';
 
-    // Extract command name from text (skip leading "/")
+    // Extract command name from text (skip leading trigger prefix character)
     const commandName = text.substring(start + 1, end);
 
     // Check color first (takes priority over source)

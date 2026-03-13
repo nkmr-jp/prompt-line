@@ -241,7 +241,8 @@ export class PromptLineRenderer {
       showError: (message: string) => this.domManager.showError(message),
       getSkillSource: (skillName: string) => this.agentSkillManager?.getSkillSource(skillName),
       getSkillColor: (skillName: string) => this.agentSkillManager?.getSkillColor(skillName),
-      getKnownSkillNames: () => this.agentSkillManager?.getKnownSkillNames() ?? []
+      getKnownSkillNames: () => this.agentSkillManager?.getKnownSkillNames() ?? [],
+      getSkillTriggerPrefixes: () => this.agentSkillManager?.getTriggerPrefixes() ?? ['/']
     });
 
     this.fileSearchManager.initializeElements();
