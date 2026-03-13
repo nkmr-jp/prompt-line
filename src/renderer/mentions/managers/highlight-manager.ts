@@ -99,12 +99,12 @@ export class HighlightManager {
   // ============================================================
 
   private rangesOverlap(a: { start: number; end: number }, b: { start: number; end: number }): boolean {
-    return (a.start >= b.start && a.start < b.end) || (a.end > b.start && a.end <= b.end);
+    return a.start < b.end && a.end > b.start;
   }
 
   /**
    * Build base highlight ranges from cached URLs, absolute paths, and agent skills.
-   * Shared by renderBackdrop and renderBackdropWithCursor.
+   * Shared by renderBackdrop, renderBackdropWithCursor, and renderBackdropWithHover.
    */
   private buildBaseRanges(
     text: string,

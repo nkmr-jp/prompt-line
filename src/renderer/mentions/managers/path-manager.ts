@@ -137,6 +137,9 @@ export class PathManager {
    */
   public setTextInput(textInput: HTMLTextAreaElement): void {
     this.textInput = textInput;
+    // Invalidate layout cache when textarea changes (font metrics may differ)
+    this.cachedLineHeight = null;
+    this.cachedCharWidth = null;
   }
 
   // ==========================================================================
