@@ -1,5 +1,50 @@
 # Changelog
 
+## [0.27.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.27.0...prompt-line-v0.27.1) (2026-03-13)
+
+
+### Miscellaneous Chores
+
+* **deps:** bump flatted from 3.3.3 to 3.4.1 in the npm_and_yarn group across 1 directory ([#256](https://github.com/nkmr-jp/prompt-line/issues/256)) ([b10398f](https://github.com/nkmr-jp/prompt-line/commit/b10398ffecc9c91626c80a1efa7ff6a9e3d999e6))
+
+## [0.27.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.26.3...prompt-line-v0.27.0) (2026-03-13)
+
+
+### Features
+
+* **agent-skills:** support $ trigger prefix for highlight and backspace deletion ([d2e4993](https://github.com/nkmr-jp/prompt-line/commit/d2e4993ee471e9785c6af7cd09f4253d1e732820))
+* **custom-search:** open inputText path/URL with Ctrl+Enter instead of source file ([ccb6b02](https://github.com/nkmr-jp/prompt-line/commit/ccb6b02c0d0c63acc67f9ad74356157a169c1d6e))
+* **file-opener:** add directory-specific default editor with glob support ([9c7c0d0](https://github.com/nkmr-jp/prompt-line/commit/9c7c0d0462b00e1768108cc48c3498ab40182b42))
+* **settings:** add shortcut field to customSearch entries for direct activation ([500cb0b](https://github.com/nkmr-jp/prompt-line/commit/500cb0b0c9bfded3f61605357648e6d906c31df9))
+
+
+### Bug Fixes
+
+* **custom-search:** insert trigger text at cursor position instead of replacing all text ([c04f6a1](https://github.com/nkmr-jp/prompt-line/commit/c04f6a1193750534ae9817b80a890f970a9a88a9))
+* **file-opener:** match directory path itself in glob pattern matching ([7a09127](https://github.com/nkmr-jp/prompt-line/commit/7a09127467e5c1736d0ba92e656277af4e0a7e9c))
+* **mentions:** correct rangesOverlap to detect full containment and add cache invalidation ([f1e5676](https://github.com/nkmr-jp/prompt-line/commit/f1e5676cc6de9e769bccd27f7772d5be80492502))
+* **security:** escape user content in innerHTML and RegExp constructor ([cd98224](https://github.com/nkmr-jp/prompt-line/commit/cd9822424b06751d7c7566d3e2abe04b02f6208f))
+* **settings:** make shortcut overrides work and add toggle support ([2056534](https://github.com/nkmr-jp/prompt-line/commit/20565348cd9b08cce5db88a2cc1e7edddab7d459))
+
+
+### Documentation
+
+* simplify root CLAUDE.md (590→159 lines) and fix renderer mention system structure ([4cc0aff](https://github.com/nkmr-jp/prompt-line/commit/4cc0aff444fd8f9bd8f8c0e26d532d9e3f5f3ad0))
+* simplify root CLAUDE.md by removing redundant details covered in subdirectory files ([b3ab51a](https://github.com/nkmr-jp/prompt-line/commit/b3ab51aebcac5351988b099f83d9831e665f89f6))
+
+
+### Miscellaneous Chores
+
+* **file-opener:** simplify directory example to my-go* ([3513db1](https://github.com/nkmr-jp/prompt-line/commit/3513db1b39aad8023def63a3cf3703916fe6ca96))
+
+
+### Code Refactoring
+
+* extract helper functions to fix ESLint warnings and add symlink support ([8eecb1b](https://github.com/nkmr-jp/prompt-line/commit/8eecb1bce79a8d04a8f381fe16226126cdf02873))
+* **mentions:** extract shared helpers and fix overlap detection bug ([10d2d71](https://github.com/nkmr-jp/prompt-line/commit/10d2d713a709361b0f9bca0bed36561f23142bf6))
+* **settings:** refactor prefixPattern to values map and add configurable trigger characters ([4f259c9](https://github.com/nkmr-jp/prompt-line/commit/4f259c97d48ed302b883515e742ab656c147917b))
+* **settings:** rename mentions to customSearch configuration ([fdf0dcf](https://github.com/nkmr-jp/prompt-line/commit/fdf0dcf67c2dd115d298dd9276db618838fcd772))
+
 ## [0.26.3](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.26.2...prompt-line-v0.26.3) (2026-03-12)
 
 
