@@ -1392,9 +1392,7 @@ Content`;
             width: 600,
             height: 300,
           },
-          mentions: {
-            enable: ['agent-claude', 'agent-gemini*'],
-          },
+          mentionEnable: ['agent-claude', 'agent-gemini*'],
         }
       );
 
@@ -1450,9 +1448,7 @@ Content`;
             width: 600,
             height: 300,
           },
-          mentions: {
-            disable: ['agent-legacy', 'agent-old-*'],
-          },
+          mentionDisable: ['agent-legacy', 'agent-old-*'],
         }
       );
 
@@ -1508,10 +1504,8 @@ Content`;
             width: 600,
             height: 300,
           },
-          mentions: {
-            enable: ['agent-*'],
-            disable: ['agent-legacy'],
-          },
+          mentionEnable: ['agent-*'],
+          mentionDisable: ['agent-legacy'],
         }
       );
 
@@ -1567,9 +1561,7 @@ Content`;
             width: 600,
             height: 300,
           },
-          mentions: {
-            enable: ['agent-claude', 'agent-gemini*'],
-          },
+          mentionEnable: ['agent-claude', 'agent-gemini*'],
         }
       );
 

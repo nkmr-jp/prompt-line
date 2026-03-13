@@ -121,152 +121,159 @@ agentSkills:
     maxSuggestions: 20
 
 # ============================================================================
-# MENTION SETTINGS (@ mentions)
+# CUSTOM SEARCH SETTINGS (@ mentions)
 # ============================================================================
-# Configure @ mention sources: customSearch, fileSearch, symbolSearch
-# Template variables for customSearch: {basename}, {frontmatter@fieldName}
+# Custom search entries for @ mention sources
+# Template variables: {basename}, {frontmatter@fieldName}
 
-mentions:
-  # Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
-  # Scans directories for files matching glob patterns and provides @ mention suggestions.
-  # Supports: Markdown (.md), JSON (.json), JSONL (.jsonl), jq expressions, and plain text files.
-  # Search: Space-separated keywords enable AND search (e.g., @agent:dev api)
-  #
-  # Configuration fields:
-  #   name            : Display name template
-  #   description     : Entry description template (supports "|" fallback: "{json@a}|{json@b}")
-  #   path            : Directory path to scan (supports ~ for home)
-  #   pattern         : Glob pattern to match files
-  #   prefixPattern   : Pattern to extract prefix from plugin metadata
-  #   searchPrefix    : Prefix to trigger this search (e.g., "agent" → @agent:)
-  #   maxSuggestions  : Maximum number of suggestions to display
-  #   orderBy         : Sort order (e.g., "name", "name desc", "{updatedAt} desc")
-  #   displayTime     : Timestamp to display (e.g., "{updatedAt}", "{json@createdAt}", "none" to hide)
-  #   inputFormat     : Insert format ('name' = display name, or template e.g. '{filepath}', '{content}')
-  #   color           : Badge color (name or hex)
-  #   icon            : Codicon icon name (e.g., "agent", "rocket", "terminal")
-  #                     https://microsoft.github.io/vscode-codicons/dist/codicon.html
-  #   label           : UI badge label
-  #
-  # Template variables:
-  #   {basename}          — File name without extension
-  #   {frontmatter@field} — YAML frontmatter field from markdown files
-  #   {json@field}        — JSON field value (for .json/.jsonl files)
-  #   {json:N@field}      — JSON field from N-th level array item
-  #   {prefix}            — Prefix extracted via prefixPattern
-  #   {heading}           — First non-empty line of the file (for markdown: first heading)
-  #   {line}              — Each line of plain text file (generates one item per line)
-  #   {dirname}           — Parent directory name
-  #   {dirname:N}         — N levels up directory name (e.g., {dirname:2} = grandparent)
-  #
-  # Pattern examples:
-  #   "*.md"                              — Markdown files in root directory only
-  #   "**/*.md"                           — All subdirectories (recursive)
-  #   "**/commands/*.md"                  — Any "commands" subdirectory
-  #   "**/*/SKILL.md"                     — SKILL.md in any subdirectory
-  #   "**/{cmd,agent}/*.md"              — Brace expansion (cmd or agent dirs)
-  #   "*.json"                            — JSON files (use {json@field} for template variables)
-  #   "**/config.json@.members"          — JSON + jq expression (expands array into items)
-  #   "*.json@.items | map(select(.active))" — Complex jq expressions supported
-  #   "*.jsonl"                           — JSONL files (one JSON per line)
-  #   "*.txt"                             — Plain text files (one item per non-empty line, use {line})
-  customSearch:
-    - name: "{basename}(agent)"
-      label: "agent"
-      description: "{frontmatter@description}"
-      path: ~/.claude/agents
-      pattern: "*.md"
-      searchPrefix: agent            # Search with @agent:
-      displayTime: "{updatedAt}"
+# Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
+# Scans directories for files matching glob patterns and provides @ mention suggestions.
+# Supports: Markdown (.md), JSON (.json), JSONL (.jsonl), jq expressions, and plain text files.
+# Search: Space-separated keywords enable AND search (e.g., @agent:dev api)
+#
+# Configuration fields:
+#   name            : Display name template
+#   description     : Entry description template (supports "|" fallback: "{json@a}|{json@b}")
+#   path            : Directory path to scan (supports ~ for home)
+#   pattern         : Glob pattern to match files
+#   prefixPattern   : Pattern to extract prefix from plugin metadata
+#   searchPrefix    : Prefix to trigger this search (e.g., "agent" → @agent:)
+#   maxSuggestions  : Maximum number of suggestions to display
+#   orderBy         : Sort order (e.g., "name", "name desc", "{updatedAt} desc")
+#   displayTime     : Timestamp to display (e.g., "{updatedAt}", "{json@createdAt}", "none" to hide)
+#   inputFormat     : Insert format ('name' = display name, or template e.g. '{filepath}', '{content}')
+#   color           : Badge color (name or hex)
+#   icon            : Codicon icon name (e.g., "agent", "rocket", "terminal")
+#                     https://microsoft.github.io/vscode-codicons/dist/codicon.html
+#   label           : UI badge label
+#
+# Template variables:
+#   {basename}          — File name without extension
+#   {frontmatter@field} — YAML frontmatter field from markdown files
+#   {json@field}        — JSON field value (for .json/.jsonl files)
+#   {json:N@field}      — JSON field from N-th level array item
+#   {prefix}            — Prefix extracted via prefixPattern
+#   {heading}           — First non-empty line of the file (for markdown: first heading)
+#   {line}              — Each line of plain text file (generates one item per line)
+#   {dirname}           — Parent directory name
+#   {dirname:N}         — N levels up directory name (e.g., {dirname:2} = grandparent)
+#
+# Pattern examples:
+#   "*.md"                              — Markdown files in root directory only
+#   "**/*.md"                           — All subdirectories (recursive)
+#   "**/commands/*.md"                  — Any "commands" subdirectory
+#   "**/*/SKILL.md"                     — SKILL.md in any subdirectory
+#   "**/{cmd,agent}/*.md"              — Brace expansion (cmd or agent dirs)
+#   "*.json"                            — JSON files (use {json@field} for template variables)
+#   "**/config.json@.members"          — JSON + jq expression (expands array into items)
+#   "*.json@.items | map(select(.active))" — Complex jq expressions supported
+#   "*.jsonl"                           — JSONL files (one JSON per line)
+#   "*.txt"                             — Plain text files (one item per non-empty line, use {line})
+customSearch:
+  - name: "{basename}(agent)"
+    label: "agent"
+    description: "{frontmatter@description}"
+    path: ~/.claude/agents
+    pattern: "*.md"
+    searchPrefix: agent            # Search with @agent:
+    displayTime: "{updatedAt}"
 
-    - name: "{prefix}:{basename}(agent)"
-      label: "plugin agent"
-      color: "yellow"
-      description: "{frontmatter@description}"
-      path: ~/.claude/plugins/cache
-      pattern: "**/agents/*.md"
-      prefixPattern: "**/.claude-plugin/*.json@name"
-      searchPrefix: agent            # Search with @agent:
-      displayTime: "{updatedAt}"
+  - name: "{prefix}:{basename}(agent)"
+    label: "plugin agent"
+    color: "yellow"
+    description: "{frontmatter@description}"
+    path: ~/.claude/plugins/cache
+    pattern: "**/agents/*.md"
+    prefixPattern: "**/.claude-plugin/*.json@name"
+    searchPrefix: agent            # Search with @agent:
+    displayTime: "{updatedAt}"
 
-    - name: "{json@name}"
-      label: "{dirname}"
-      icon: organization
-      color: "{json@color}|#ffffff"
-      description: "{json@prompt}|{json:1@description}"
-      path: ~/.claude/teams
-      pattern: "**/config.json@. | select(.createdAt / 1000 > (now - 86400)) | select((.members | length) >= 2) | .members"
-      searchPrefix: team            # Search with @team:
-      orderBy: "{json@joinedAt} desc"
-      displayTime: "{json@joinedAt}"
+  - name: "{json@name}"
+    label: "{dirname}"
+    icon: organization
+    color: "{json@color}|#ffffff"
+    description: "{json@prompt}|{json:1@description}"
+    path: ~/.claude/teams
+    pattern: "**/config.json@. | select(.createdAt / 1000 > (now - 86400)) | select((.members | length) >= 2) | .members"
+    searchPrefix: team            # Search with @team:
+    orderBy: "{json@joinedAt} desc"
+    displayTime: "{json@joinedAt}"
 
-    - name: "{basename}"
-      icon: file-text
-      color: "blue"
-      description: "{heading}"
-      path: ~/.claude/plans
-      pattern: "*.md"
-      searchPrefix: plan            # Search with @plan:
-      orderBy: "{updatedAt} desc"
-      displayTime: "{updatedAt}"
-      inputFormat: {filepath}               # Insert format template
+  - name: "{basename}"
+    icon: file-text
+    color: "blue"
+    description: "{heading}"
+    path: ~/.claude/plans
+    pattern: "*.md"
+    searchPrefix: plan            # Search with @plan:
+    orderBy: "{updatedAt} desc"
+    displayTime: "{updatedAt}"
+    inputFormat: {filepath}               # Insert format template
 
-    # - name: "{basename}"
-    #   description: "{frontmatter@title}"
-    #   path: /path/to/knowledge-base
-    #   pattern: "**/*/*.md"
-    #   searchPrefix: kb            # Search with @kb:
-    #   maxSuggestions: 100
-    #   orderBy: "{updatedAt} desc"
-    #   inputFormat: {filepath}               # Insert format template
+  # - name: "{basename}"
+  #   description: "{frontmatter@title}"
+  #   path: /path/to/knowledge-base
+  #   pattern: "**/*/*.md"
+  #   searchPrefix: kb            # Search with @kb:
+  #   maxSuggestions: 100
+  #   orderBy: "{updatedAt} desc"
+  #   inputFormat: {filepath}               # Insert format template
 
-    # - name: "{json@display}"
-    #   icon: history
-    #   color: "orange"
-    #   description: ""
-    #   path: ~/.claude
-    #   pattern: "history.jsonl"
-    #   searchPrefix: r            # Search with @r:
-    #   maxSuggestions: 100
-    #   orderBy: "{json@timestamp} desc"
-    #   displayTime: "{json@timestamp}"
-    #   inputFormat: {json@display}               # Insert format template
+  # - name: "{json@display}"
+  #   icon: history
+  #   color: "orange"
+  #   description: ""
+  #   path: ~/.claude
+  #   pattern: "history.jsonl"
+  #   searchPrefix: r            # Search with @r:
+  #   maxSuggestions: 100
+  #   orderBy: "{json@timestamp} desc"
+  #   displayTime: "{json@timestamp}"
+  #   inputFormat: {json@display}               # Insert format template
 
-  # File search settings (@path/to/file completion)
-  # Note: fd command required (brew install fd)
-  #
-  # Pattern format (glob syntax):
-  #   - "*.log"           : Match all .log files
-  #   - "build/**"        : Match all files in build directory
-  #   - "*.{js,ts}"       : Match .js and .ts files
-  #   - ".git"            : Match .git directory
-  #   - "node_modules"    : Match node_modules directory
-  #
-  fileSearch:
-    respectGitignore: true           # Respect .gitignore files
-    includeHidden: true              # Include hidden files
-    maxFiles: 5000                   # Maximum files to return
-    maxDepth: null                   # Directory depth (null = unlimited)
-    maxSuggestions: 50               # Suggestions to show
-    followSymlinks: false            # Follow symbolic links
-    #fdPath: null                    # Custom path to fd
-    # Include patterns: Force include files even if in .gitignore (default: [])
-    # Example: includePatterns: ["*.log", "dist/**"]
-    includePatterns: []
-    # Exclude patterns: Additional patterns to exclude (default: [])
-    # Example: excludePatterns: ["node_modules", "*.min.js", "coverage/**"]
-    excludePatterns: []
+# ============================================================================
+# FILE SEARCH SETTINGS
+# ============================================================================
 
-  # Symbol search settings (@ts:Config, @go:Handler)
-  # Note: ripgrep required (brew install ripgrep)
-  # Search: Space-separated keywords enable AND search (e.g., @ts:Config util)
-  symbolSearch:
-    maxSymbols: 200000                # Maximum symbols to return
-    timeout: 60000                    # Search timeout in ms
-    #rgPath: null                    # Custom path to rg
-    # Include patterns: Force include files even if excluded by default (default: [])
-    # Example: includePatterns: ["*.test.ts", "vendor/**"]
-    includePatterns: []
-    # Exclude patterns: Additional patterns to exclude (default: [])
-    # Example: excludePatterns: ["*.generated.go", "node_modules/**"]
-    excludePatterns: []
+# File search settings (@path/to/file completion)
+# Note: fd command required (brew install fd)
+#
+# Pattern format (glob syntax):
+#   - "*.log"           : Match all .log files
+#   - "build/**"        : Match all files in build directory
+#   - "*.{js,ts}"       : Match .js and .ts files
+#   - ".git"            : Match .git directory
+#   - "node_modules"    : Match node_modules directory
+#
+fileSearch:
+  respectGitignore: true           # Respect .gitignore files
+  includeHidden: true              # Include hidden files
+  maxFiles: 5000                   # Maximum files to return
+  maxDepth: null                   # Directory depth (null = unlimited)
+  maxSuggestions: 50               # Suggestions to show
+  followSymlinks: false            # Follow symbolic links
+  #fdPath: null                    # Custom path to fd
+  # Include patterns: Force include files even if in .gitignore (default: [])
+  # Example: includePatterns: ["*.log", "dist/**"]
+  includePatterns: []
+  # Exclude patterns: Additional patterns to exclude (default: [])
+  # Example: excludePatterns: ["node_modules", "*.min.js", "coverage/**"]
+  excludePatterns: []
+
+# ============================================================================
+# SYMBOL SEARCH SETTINGS
+# ============================================================================
+
+# Symbol search settings (@ts:Config, @go:Handler)
+# Note: ripgrep required (brew install ripgrep)
+# Search: Space-separated keywords enable AND search (e.g., @ts:Config util)
+symbolSearch:
+  maxSymbols: 200000                # Maximum symbols to return
+  timeout: 60000                    # Search timeout in ms
+  #rgPath: null                    # Custom path to rg
+  # Include patterns: Force include files even if excluded by default (default: [])
+  # Example: includePatterns: ["*.test.ts", "vendor/**"]
+  includePatterns: []
+  # Exclude patterns: Additional patterns to exclude (default: [])
+  # Example: excludePatterns: ["*.generated.go", "node_modules/**"]
+  excludePatterns: []

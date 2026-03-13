@@ -199,178 +199,152 @@ export const defaultSettings: UserSettings = {
     }
   ],
   /**
-   * Mention settings — @ mention sources for file search, symbol search, and custom search
+   * File search settings — triggered by typing "@" in the input
    *
-   * Three sub-sections:
-   *   fileSearch    — @path/to/file completion (requires fd: brew install fd)
-   *   symbolSearch  — @lang:query code symbol search (requires ripgrep: brew install ripgrep)
-   *   customSearch  — @prefix: custom mention sources from markdown/JSON files
+   * Requires: fd command (brew install fd)
+   * Usage: Type "@" followed by a file path to search and insert file references.
    *
    * Example (settings.yml):
-   *   mentions:
-   *     fileSearch:
-   *       maxFiles: 10000
-   *     symbolSearch:
-   *       timeout: 30000
-   *     customSearch:
-   *       - name: "{basename}"
-   *         description: "{frontmatter@description}"
-   *         path: ~/my-notes
-   *         pattern: "*.md"
-   *         searchPrefix: note
+   *   fileSearch:
+   *     respectGitignore: true
+   *     includeHidden: false
+   *     maxFiles: 10000
+   *     maxDepth: 5
+   *     followSymlinks: true
+   *     includePatterns:
+   *       - "*.log"
+   *       - "dist/**"
+   *     excludePatterns:
+   *       - "node_modules"
+   *       - "*.min.js"
    */
-  mentions: {
-    /**
-     * File search settings — triggered by typing "@" in the input
-     *
-     * Requires: fd command (brew install fd)
-     * Usage: Type "@" followed by a file path to search and insert file references.
-     *
-     * Example (settings.yml):
-     *   mentions:
-     *     fileSearch:
-     *       respectGitignore: true
-     *       includeHidden: false
-     *       maxFiles: 10000
-     *       maxDepth: 5
-     *       followSymlinks: true
-     *       includePatterns:
-     *         - "*.log"
-     *         - "dist/**"
-     *       excludePatterns:
-     *         - "node_modules"
-     *         - "*.min.js"
-     */
-    fileSearch: {
-      respectGitignore: true,  // Respect .gitignore rules (fd only)
-      includeHidden: true,     // Include hidden files (starting with .)
-      maxFiles: 5000,          // Maximum number of files to index
-      maxDepth: null,          // Directory depth limit (null = unlimited)
-      maxSuggestions: 50,      // Max suggestions shown in popup
-      followSymlinks: false,   // Follow symbolic links during search
-      includePatterns: [],     // Force include patterns even if in .gitignore (glob syntax)
-      excludePatterns: []      // Additional exclude patterns (glob syntax)
+  fileSearch: {
+    respectGitignore: true,  // Respect .gitignore rules (fd only)
+    includeHidden: true,     // Include hidden files (starting with .)
+    maxFiles: 5000,          // Maximum number of files to index
+    maxDepth: null,          // Directory depth limit (null = unlimited)
+    maxSuggestions: 50,      // Max suggestions shown in popup
+    followSymlinks: false,   // Follow symbolic links during search
+    includePatterns: [],     // Force include patterns even if in .gitignore (glob syntax)
+    excludePatterns: []      // Additional exclude patterns (glob syntax)
+  },
+  /**
+   * Symbol search settings — triggered by typing "@lang:query" (e.g., @ts:Config, @go:Handler)
+   *
+   * Search: Space-separated keywords enable AND search (e.g., @ts:Config util)
+   * Requires: ripgrep (brew install ripgrep)
+   * Supported languages (20): go, ts, tsx, js, jsx, py, rs, java, kt, swift,
+   *   rb, cpp, c, sh, make/mk, php, cs, scala, tf/terraform, md/markdown
+   *
+   * Example (settings.yml):
+   *   symbolSearch:
+   *     maxSymbols: 100000
+   *     timeout: 30000
+   *     includePatterns:
+   *       - "*.test.ts"
+   *     excludePatterns:
+   *       - "*.generated.go"
+   */
+  symbolSearch: {
+    maxSymbols: 200000,    // Maximum number of symbols to index per directory
+    timeout: 60000,        // Search timeout in milliseconds
+    includePatterns: [],   // Force include file patterns (glob syntax)
+    excludePatterns: []    // Additional exclude file patterns (glob syntax)
+  },
+  /**
+   * Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
+   *
+   * Search: Space-separated keywords enable AND search (e.g., @agent:dev api)
+   *
+   * Each entry scans a directory for files matching a glob pattern and makes them
+   * available as @ mention suggestions.
+   *
+   * Template variables for name/description:
+   *   {basename}              — File name without extension
+   *   {frontmatter@field}     — YAML frontmatter field from markdown files
+   *   {json@field}            — JSON field value (for .json/.jsonl files)
+   *   {json:N@field}          — JSON field from N-th level array item
+   *   {prefix}                — Prefix extracted via prefixPattern
+   *   {dirname}               — Parent directory name
+   *   {dirname:N}             — N levels up directory name
+   *
+   * Configuration fields:
+   *   name            — Display name template
+   *   description     — Description template (supports "|" fallback: "{json@a}|{json@b}")
+   *   path            — Directory path to scan (supports ~ for home)
+   *   pattern         — Glob pattern to match files
+   *                     Supports: *.md, **{/}*.md, *.json, *.jsonl
+   *                     jq expressions: "config.json@.members" (expands array into items)
+   *   prefixPattern   — Pattern to extract prefix from plugin metadata JSON
+   *   searchPrefix    — Prefix to trigger this search (e.g., "agent" → @agent:)
+   *   maxSuggestions  — Max suggestions to display
+   *   orderBy         — Sort order (e.g., "name", "name desc", "{updatedAt} desc")
+   *   inputFormat     — Insert format: 'name' (display name), '{filepath}' (file path), or template
+   *   color           — Badge color (name or hex)
+   *   icon            — Codicon icon name
+   *   label           — UI badge label
+   *
+   * Example (settings.yml):
+   *   customSearch:
+   *     - name: "{basename}"
+   *       description: "{frontmatter@title}"
+   *       path: /path/to/knowledge-base
+   *       pattern: "**{/}*.md"
+   *       searchPrefix: kb
+   *       maxSuggestions: 100
+   *       inputFormat: "{filepath}"
+   */
+  customSearch: [
+    // Claude Code agents (from ~/.claude/agents/*.md, search with @agent:)
+    {
+      name: '{basename}(agent)',
+      label: "agent",
+      description: '{frontmatter@description}',
+      path: '~/.claude/agents',
+      pattern: '*.md',
+      searchPrefix: 'agent',
+      displayTime: '{updatedAt}'
     },
-    /**
-     * Symbol search settings — triggered by typing "@lang:query" (e.g., @ts:Config, @go:Handler)
-     *
-     * Search: Space-separated keywords enable AND search (e.g., @ts:Config util)
-     * Requires: ripgrep (brew install ripgrep)
-     * Supported languages (20): go, ts, tsx, js, jsx, py, rs, java, kt, swift,
-     *   rb, cpp, c, sh, make/mk, php, cs, scala, tf/terraform, md/markdown
-     *
-     * Example (settings.yml):
-     *   mentions:
-     *     symbolSearch:
-     *       maxSymbols: 100000
-     *       timeout: 30000
-     *       includePatterns:
-     *         - "*.test.ts"
-     *       excludePatterns:
-     *         - "*.generated.go"
-     */
-    symbolSearch: {
-      maxSymbols: 200000,    // Maximum number of symbols to index per directory
-      timeout: 60000,        // Search timeout in milliseconds
-      includePatterns: [],   // Force include file patterns (glob syntax)
-      excludePatterns: []    // Additional exclude file patterns (glob syntax)
+    // Plugin agents (from ~/.claude/plugins/cache/**/agents/*.md, search with @agent:)
+    {
+      name: '{prefix}:{basename}(agent)',
+      label: "plugin agent",
+      description: '{frontmatter@description}',
+      path: '~/.claude/plugins/cache',
+      color: "yellow",
+      pattern: '**/agents/*.md',
+      prefixPattern: '**/.claude-plugin/*.json@name',
+      searchPrefix: 'agent',
+      displayTime: '{updatedAt}'
     },
-    /**
-     * Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
-     *
-     * Search: Space-separated keywords enable AND search (e.g., @agent:dev api)
-     *
-     * Each entry scans a directory for files matching a glob pattern and makes them
-     * available as @ mention suggestions.
-     *
-     * Template variables for name/description:
-     *   {basename}              — File name without extension
-     *   {frontmatter@field}     — YAML frontmatter field from markdown files
-     *   {json@field}            — JSON field value (for .json/.jsonl files)
-     *   {json:N@field}          — JSON field from N-th level array item
-     *   {prefix}                — Prefix extracted via prefixPattern
-     *   {dirname}               — Parent directory name
-     *   {dirname:N}             — N levels up directory name
-     *
-     * Configuration fields:
-     *   name            — Display name template
-     *   description     — Description template (supports "|" fallback: "{json@a}|{json@b}")
-     *   path            — Directory path to scan (supports ~ for home)
-     *   pattern         — Glob pattern to match files
-     *                     Supports: *.md, **{/}*.md, *.json, *.jsonl
-     *                     jq expressions: "config.json@.members" (expands array into items)
-     *   prefixPattern   — Pattern to extract prefix from plugin metadata JSON
-     *   searchPrefix    — Prefix to trigger this search (e.g., "agent" → @agent:)
-     *   maxSuggestions  — Max suggestions to display
-     *   orderBy         — Sort order (e.g., "name", "name desc", "{updatedAt} desc")
-     *   inputFormat     — Insert format: 'name' (display name), '{filepath}' (file path), or template
-     *   color           — Badge color (name or hex)
-     *   icon            — Codicon icon name
-     *   label           — UI badge label
-     *
-     * Example (settings.yml):
-     *   mentions:
-     *     customSearch:
-     *       - name: "{basename}"
-     *         description: "{frontmatter@title}"
-     *         path: /path/to/knowledge-base
-     *         pattern: "**{/}*.md"
-     *         searchPrefix: kb
-     *         maxSuggestions: 100
-     *         inputFormat: "{filepath}"
-     */
-    customSearch: [
-      // Claude Code agents (from ~/.claude/agents/*.md, search with @agent:)
-      {
-        name: '{basename}(agent)',
-        label: "agent",
-        description: '{frontmatter@description}',
-        path: '~/.claude/agents',
-        pattern: '*.md',
-        searchPrefix: 'agent',
-        displayTime: '{updatedAt}'
-      },
-      // Plugin agents (from ~/.claude/plugins/cache/**/agents/*.md, search with @agent:)
-      {
-        name: '{prefix}:{basename}(agent)',
-        label: "plugin agent",
-        description: '{frontmatter@description}',
-        path: '~/.claude/plugins/cache',
-        color: "yellow",
-        pattern: '**/agents/*.md',
-        prefixPattern: '**/.claude-plugin/*.json@name',
-        searchPrefix: 'agent',
-        displayTime: '{updatedAt}'
-      },
-      // Claude Code team members (from ~/.claude/teams/**/config.json, search with @team:)
-      // Uses jq expression to filter teams created in last 24h with 2+ members
-      {
-        name: "{json@name}",
-        description: "{json@prompt}|{json:1@description}",
-        color: "{json@color}|#ffffff",
-        icon: "organization",
-        label: "{dirname}",
-        path: "~/.claude/teams",
-        pattern: "**/config.json@. | select(.createdAt / 1000 > (now - 86400)) | select((.members | length) >= 2) | .members",
-        searchPrefix: "team",
-        orderBy: "{json@joinedAt} desc",
-        displayTime: "{json@joinedAt}"
-      },
-      // Claude Code plans (from ~/.claude/plans/*.md, search with @plan:)
-      {
-        name: '{basename}',
-        description: '{heading}',
-        path: '~/.claude/plans',
-        icon: 'file-text',
-        color: 'blue',
-        pattern: '*.md',
-        searchPrefix: 'plan',
-        inputFormat: '{filepath}',
-        orderBy: '{updatedAt} desc',
-        displayTime: '{updatedAt}'
-      }
-    ]
-  }
+    // Claude Code team members (from ~/.claude/teams/**/config.json, search with @team:)
+    // Uses jq expression to filter teams created in last 24h with 2+ members
+    {
+      name: "{json@name}",
+      description: "{json@prompt}|{json:1@description}",
+      color: "{json@color}|#ffffff",
+      icon: "organization",
+      label: "{dirname}",
+      path: "~/.claude/teams",
+      pattern: "**/config.json@. | select(.createdAt / 1000 > (now - 86400)) | select((.members | length) >= 2) | .members",
+      searchPrefix: "team",
+      orderBy: "{json@joinedAt} desc",
+      displayTime: "{json@joinedAt}"
+    },
+    // Claude Code plans (from ~/.claude/plans/*.md, search with @plan:)
+    {
+      name: '{basename}',
+      description: '{heading}',
+      path: '~/.claude/plans',
+      icon: 'file-text',
+      color: 'blue',
+      pattern: '*.md',
+      searchPrefix: 'plan',
+      inputFormat: '{filepath}',
+      orderBy: '{updatedAt} desc',
+      displayTime: '{updatedAt}'
+    }
+  ]
 };
 
 /**
@@ -400,31 +374,29 @@ export const commentedExamples = {
       { path: '~/ghq/github.com/my-org/my-go*', editor: 'GoLand' }
     ]
   },
-  mentions: {
-    customSearch: [
-      {
-        name: '{basename}',
-        description: '{frontmatter@title}',
-        path: '/path/to/knowledge-base',
-        pattern: '**/*/*.md',
-        searchPrefix: 'kb',
-        maxSuggestions: 100,
-        orderBy: '{updatedAt} desc',
-        inputFormat: '{filepath}'
-      },
-      {
-        name: '{json@display}',
-        icon: 'history',
-        color: 'orange',
-        description: '',
-        searchPrefix: 'r',
-        path: '~/.claude',
-        pattern: 'history.jsonl',
-        orderBy: '{json@timestamp} desc',
-        inputFormat: '{json@display}',
-        displayTime: '{json@timestamp}',
-        maxSuggestions: 100
-      }
-    ]
-  }
+  customSearch: [
+    {
+      name: '{basename}',
+      description: '{frontmatter@title}',
+      path: '/path/to/knowledge-base',
+      pattern: '**/*/*.md',
+      searchPrefix: 'kb',
+      maxSuggestions: 100,
+      orderBy: '{updatedAt} desc',
+      inputFormat: '{filepath}'
+    },
+    {
+      name: '{json@display}',
+      icon: 'history',
+      color: 'orange',
+      description: '',
+      searchPrefix: 'r',
+      path: '~/.claude',
+      pattern: 'history.jsonl',
+      orderBy: '{json@timestamp} desc',
+      inputFormat: '{json@display}',
+      displayTime: '{json@timestamp}',
+      maxSuggestions: 100
+    }
+  ]
 };

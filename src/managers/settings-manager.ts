@@ -197,21 +197,35 @@ class SettingsManager extends EventEmitter {
       }
     };
 
-    // Handle mentions structure with deep merge (fileSearch, symbolSearch, customSearch)
-    result.mentions = {
-      fileSearch: {
-        ...this.defaultSettings.mentions?.fileSearch,
-        ...(userSettings.mentions?.fileSearch || {})
-      },
-      symbolSearch: {
-        ...this.defaultSettings.mentions?.symbolSearch,
-        ...(userSettings.mentions?.symbolSearch || {})
-      }
+    // Handle fileSearch with deep merge (top-level primary, mentions.fileSearch as legacy fallback)
+    result.fileSearch = {
+      ...this.defaultSettings.fileSearch,
+      ...(userSettings.fileSearch || userSettings.mentions?.fileSearch || {})
     };
-    // customSearch: use user settings if provided (new key first, then legacy mdSearch), otherwise use defaults
-    const customSearch = userSettings.mentions?.customSearch ?? userSettings.mentions?.mdSearch ?? this.defaultSettings.mentions?.customSearch;
-    if (customSearch) {
-      result.mentions.customSearch = customSearch;
+
+    // Handle symbolSearch with deep merge (top-level primary, mentions.symbolSearch as legacy fallback)
+    result.symbolSearch = {
+      ...this.defaultSettings.symbolSearch,
+      ...(userSettings.symbolSearch || userSettings.mentions?.symbolSearch || {})
+    };
+
+    // Handle customSearch (top-level primary, mentions.customSearch/mdSearch as legacy fallback)
+    const resolvedCustomSearch = userSettings.customSearch
+      ?? userSettings.mentions?.customSearch
+      ?? userSettings.mentions?.mdSearch
+      ?? this.defaultSettings.customSearch;
+    if (resolvedCustomSearch) {
+      result.customSearch = resolvedCustomSearch;
+    }
+
+    // Handle mentionEnable/mentionDisable (top-level primary, mentions.enable/disable as legacy fallback)
+    const resolvedMentionEnable = userSettings.mentionEnable ?? userSettings.mentions?.enable;
+    if (resolvedMentionEnable) {
+      result.mentionEnable = resolvedMentionEnable;
+    }
+    const resolvedMentionDisable = userSettings.mentionDisable ?? userSettings.mentions?.disable;
+    if (resolvedMentionDisable) {
+      result.mentionDisable = resolvedMentionDisable;
     }
 
     // Handle builtInCommands at root level
@@ -269,30 +283,6 @@ class SettingsManager extends EventEmitter {
       result.agentSkills = defaultAgentSkills;
     }
 
-    // Handle legacy fileSearch -> mentions.fileSearch (with deep merge)
-    if (userSettings.fileSearch) {
-      result.mentions = result.mentions || {};
-      result.mentions.fileSearch = {
-        ...this.defaultSettings.mentions?.fileSearch,
-        ...(result.mentions.fileSearch || {}),
-        ...(userSettings.fileSearch || {})
-      };
-      // Keep legacy for backward compatibility
-      result.fileSearch = userSettings.fileSearch;
-    }
-
-    // Handle legacy symbolSearch -> mentions.symbolSearch (with deep merge)
-    if (userSettings.symbolSearch) {
-      result.mentions = result.mentions || {};
-      result.mentions.symbolSearch = {
-        ...this.defaultSettings.mentions?.symbolSearch,
-        ...(result.mentions.symbolSearch || {}),
-        ...(userSettings.symbolSearch || {})
-      };
-      // Keep legacy for backward compatibility
-      result.symbolSearch = userSettings.symbolSearch;
-    }
-
     // Handle legacy settings (mdSearch) for backward compatibility
     if (userSettings.mdSearch && userSettings.mdSearch.length > 0) {
       const converted = this.convertLegacyCustomSearch(userSettings.mdSearch);
@@ -301,13 +291,10 @@ class SettingsManager extends EventEmitter {
       if (!result.agentSkills && converted.custom.length > 0) {
         result.agentSkills = converted.custom;
       }
-      // If mentions.customSearch not set, use converted customSearchMentions
+      // If customSearch not set, use converted customSearchMentions
       if (converted.customSearchMentions.length > 0) {
-        if (!result.mentions) {
-          result.mentions = {};
-        }
-        if (!result.mentions.customSearch || result.mentions.customSearch.length === 0) {
-          result.mentions.customSearch = converted.customSearchMentions;
+        if (!result.customSearch || result.customSearch.length === 0) {
+          result.customSearch = converted.customSearchMentions;
         }
       }
 
@@ -398,11 +385,9 @@ class SettingsManager extends EventEmitter {
 
   /**
    * Get file search settings
-   * Returns from mentions.fileSearch (new) or fileSearch (legacy)
    */
   getFileSearchSettings(): FileSearchSettings | undefined {
-    // Check new structure first
-    const fileSearch = this.currentSettings.mentions?.fileSearch || this.currentSettings.fileSearch;
+    const fileSearch = this.currentSettings.fileSearch;
     if (!fileSearch) {
       return undefined;
     }
@@ -411,30 +396,23 @@ class SettingsManager extends EventEmitter {
 
   /**
    * Check if file search is enabled
-   * Checks both mentions.fileSearch (new) and fileSearch (legacy)
    */
   isFileSearchEnabled(): boolean {
-    return !!(this.currentSettings.mentions?.fileSearch || this.currentSettings.fileSearch);
+    return !!this.currentSettings.fileSearch;
   }
 
   /**
    * Get symbol search settings
-   * Returns from mentions.symbolSearch (new) or symbolSearch (legacy)
    */
   getSymbolSearchSettings(): SymbolSearchUserSettings | undefined {
-    return this.currentSettings.mentions?.symbolSearch || this.currentSettings.symbolSearch;
+    return this.currentSettings.symbolSearch;
   }
 
   async updateFileSearchSettings(fileSearch: Partial<NonNullable<UserSettings['fileSearch']>>): Promise<void> {
-    // Update in new structure (mentions.fileSearch)
-    const currentMentions = this.currentSettings.mentions || {};
     await this.updateSettings({
-      mentions: {
-        ...currentMentions,
-        fileSearch: {
-          ...(currentMentions.fileSearch || {}),
-          ...(fileSearch || {})
-        }
+      fileSearch: {
+        ...(this.currentSettings.fileSearch || {}),
+        ...(fileSearch || {})
       }
     });
   }
@@ -448,16 +426,23 @@ class SettingsManager extends EventEmitter {
     return this.getAgentSkillsSettings();
   }
 
+  /** @deprecated Use getFileSearchSettings, getSymbolSearchSettings, getCustomSearchMentions instead */
   getMentionsSettings(): UserSettings['mentions'] {
-    return this.currentSettings.mentions;
+    // Build legacy MentionsSettings from top-level fields for backward compatibility
+    const result: NonNullable<UserSettings['mentions']> = {};
+    if (this.currentSettings.fileSearch) result.fileSearch = this.currentSettings.fileSearch;
+    if (this.currentSettings.symbolSearch) result.symbolSearch = this.currentSettings.symbolSearch;
+    if (this.currentSettings.customSearch) result.customSearch = this.currentSettings.customSearch;
+    if (this.currentSettings.mentionEnable) result.enable = this.currentSettings.mentionEnable;
+    if (this.currentSettings.mentionDisable) result.disable = this.currentSettings.mentionDisable;
+    return result;
   }
 
   /**
    * Get customSearch mentions for @ syntax
-   * Returns from mentions.customSearch (new structure), fallback to mentions.mdSearch
    */
   getCustomSearchMentions(): MentionEntry[] | undefined {
-    return this.currentSettings.mentions?.customSearch ?? this.currentSettings.mentions?.mdSearch;
+    return this.currentSettings.customSearch;
   }
 
   /**
@@ -472,16 +457,16 @@ class SettingsManager extends EventEmitter {
    * Convert current settings to CustomSearchEntry format for backward compatibility
    * This is used by CustomSearchLoader
    */
-  getCustomSearchEntries(): UserSettings['customSearch'] {
-    // If legacy customSearch or mdSearch exists, use it
-    if (this.currentSettings.customSearch && this.currentSettings.customSearch.length > 0) {
-      return this.currentSettings.customSearch;
+  getCustomSearchEntries(): CustomSearchEntry[] {
+    // If legacy mdSearch exists, use it
+    if (this.currentSettings.legacyCustomSearch && this.currentSettings.legacyCustomSearch.length > 0) {
+      return this.currentSettings.legacyCustomSearch;
     }
     if (this.currentSettings.mdSearch && this.currentSettings.mdSearch.length > 0) {
       return this.currentSettings.mdSearch;
     }
 
-    // Convert new format to legacy CustomSearchEntry format
+    // Convert current format to CustomSearchEntry format
     const entries: CustomSearchEntry[] = [];
 
     // Convert agent skills (flat array of slash command entries)
@@ -509,8 +494,8 @@ class SettingsManager extends EventEmitter {
       }
     }
 
-    // Convert customSearch mentions (from mentions.customSearch, fallback to mentions.mdSearch)
-    const customSearchMentions = this.currentSettings.mentions?.customSearch ?? this.currentSettings.mentions?.mdSearch;
+    // Convert customSearch mentions (top-level)
+    const customSearchMentions = this.currentSettings.customSearch;
     if (customSearchMentions) {
       for (const mention of customSearchMentions) {
         const entry: CustomSearchEntry = {
