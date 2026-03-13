@@ -186,12 +186,12 @@ For the full configuration example with all available options and comments, see:
 |---------|-------------|
 | `shortcuts` | Keyboard shortcuts (main, paste, close, history navigation, search) |
 | `window` | Window size and positioning mode |
-| `fileOpener` | Default editor and extension-specific applications |
+| `fileOpener` | Default editor, extension-specific and directory-specific (glob) applications |
 | `builtInCommands` | Built-in slash commands to enable (claude, codex, gemini, etc.) |
-| `agentSkills` | Agent Skills search functionality |
-| `mentions.customSearch` | Custom search triggered by @prefix: |
-| `mentions.fileSearch` | File search settings (@path/to/file completion) |
-| `mentions.symbolSearch` | Symbol search settings (@ts:Config, @go:Handler) |
+| `agentSkills` | Agent Skills search functionality (supports custom triggers like `$`) |
+| `customSearch` | Custom search triggered by `@prefix:` (supports keyboard shortcut activation) |
+| `fileSearch` | File search settings (`@path/to/file` completion) |
+| `symbolSearch` | Symbol search settings (`@ts:Config`, `@go:Handler`) |
 
 ## Prompt History
 

@@ -27,8 +27,8 @@ Frontend layer handling UI and user interactions. All TypeScript with modular ma
 | `FrontmatterPopupManager` | YAML frontmatter popup display |
 | `SnapshotManager` | Undo/redo with text + cursor state |
 
-### Mention System (`mentions/`)
-15+ specialized managers for `@` file search and `@lang:query` code search:
+### Custom Search & Mention System (`mentions/`)
+15+ specialized managers for `@prefix:` custom search, `@` file search, and `@lang:query` code search:
 - Root: `dom-utils.ts`, `fuzzy-matcher.ts`, `path-utils.ts`, `text-finder.ts` (shared utilities)
 - `managers/`: 16 specialized managers including:
   - `mention-initializer.ts`: Orchestrates initialization
@@ -74,6 +74,8 @@ Score-based filtering with fuzzy matching:
 - `shortcut-parser.ts`: Parses strings like `Cmd+Shift+Space` into structured objects
 - `shortcut-formatter.ts`: Platform-specific display (⌘, ⇧, ⌥ on macOS)
 - Dynamic: shortcuts update when user changes settings
+- customSearch shortcuts: `shortcut` field activates `@prefix:` insertion (e.g., `Ctrl+g` → `@kb:`)
+- Agent skills triggers: `triggers` field enables custom trigger characters (e.g., `$` in addition to `/`)
 
 ### IPC communication pattern
 - All main process calls go through `electronAPI` singleton proxy

@@ -87,6 +87,7 @@ builtInCommands:                      # List of tools to enable
 #   values: Map of template variable names to JSON extraction patterns (e.g., pluginName: "**/.claude-plugin/*.json@name")
 #   argumentHint: Hint for skill arguments
 #   maxSuggestions: Maximum number of suggestions to display
+#   triggers: Trigger character array (default: ["/"]). e.g., ["/", "$"] enables both / and $ activation
 #   {dirname}: Parent directory name
 #   {dirname:N}: N levels up directory name (e.g., {dirname:2} = grandparent)
 agentSkills:
@@ -152,6 +153,8 @@ agentSkills:
 #   icon            : Codicon icon name (e.g., "agent", "rocket", "terminal")
 #                     https://microsoft.github.io/vscode-codicons/dist/codicon.html
 #   label           : UI badge label
+#   shortcut        : Keyboard shortcut to activate this search (e.g., "Ctrl+g")
+#                     Inserts @searchPrefix: into the input and triggers mention detection
 #
 # Template variables:
 #   {basename}          — File name without extension

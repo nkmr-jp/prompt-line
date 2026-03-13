@@ -88,8 +88,8 @@ User Input → Renderer → IPC Event → IPCHandlers (coordinator) → Speciali
 ### Key Features
 - **Auto-paste**: Native Swift tools simulate Cmd+V in the previously active app (requires Accessibility permissions)
 - **Window positioning**: 4 modes (active-text-field → active-window-center → cursor → center) with fallback chain
-- **@ Mention system**: File search (`@`), code search (`@lang:query`), directory navigation (`@dir/`). Disabled by default
-- **Slash commands**: Type `/` for built-in and custom commands. Agent selection support
+- **Custom search system**: `@prefix:` triggers for custom file/data sources, `@` file search, `@lang:query` code search. Shortcut keys for direct activation (e.g., `Ctrl+g` → `@kb:`)
+- **Slash commands**: Type `/` (or custom triggers like `$`) for built-in and custom commands. Agent selection support
 - **History**: Unlimited JSONL-based paste history with real-time search
 - **Draft auto-save**: Adaptive debouncing, persists on Esc, cleared on successful paste (Cmd+Enter)
 
