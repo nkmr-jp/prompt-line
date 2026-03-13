@@ -21,11 +21,11 @@ Frontend layer handling UI and user interactions. All TypeScript with modular ma
 | `ShortcutHandler` | Keyboard shortcut handling |
 | `WindowBlurHandler` | Window blur/auto-hide |
 | `DirectoryDataHandler` | Directory data updates from main process |
-| `DraftManagerClient` | Client-side draft auto-save (500ms debounce) |
+| `DraftManagerClient` | Client-side draft auto-save (adaptive: 500ms/1000ms) |
 | `HistoryUIManager` | History rendering with DocumentFragment |
 | `AgentSkillManager` | Slash command skill system |
 | `FrontmatterPopupManager` | YAML frontmatter popup display |
-| `SimpleSnapshotManager` | Undo/redo with text + cursor state |
+| `SnapshotManager` | Undo/redo with text + cursor state |
 
 ### Mention System (`mentions/`)
 15+ specialized managers for `@` file search and `@lang:query` code search:

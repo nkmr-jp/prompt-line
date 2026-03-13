@@ -165,7 +165,7 @@ When creating pull requests:
 
 - **Target Branch**: Always create PRs against the `develop` branch (not `main`)
 - **Language**: Write all PR titles and descriptions in English
-- **Merge Strategy**: Use **Squash and merge** for feature PRs to `develop`. Use **Rebase and merge** for `develop` → `main` PRs. Regular merge commits are disabled to prevent duplicate entries in CHANGELOG (Release Please picks up both merge commits and individual commits, causing duplication).
+- **Merge Strategy**: Use **Squash and merge** for feature PRs to `develop`. Use **Merge commit** for `develop` → `main` PRs.
 
 ## Architecture Overview
 
@@ -298,60 +298,11 @@ System/Data
 IPC response → Renderer Process
 ```
 
-### Key IPC Channels (by Handler Module)
+### Key IPC Channels
 
-**Paste Handler (paste-handler.ts):**
-- `paste-text`: Main action - pastes text to previous application with security validation
-- `paste-image`: Clipboard image handling with path traversal prevention
+50 IPC channels across 9 specialized handlers: paste, history-draft, window, system, custom-search, file, code-search, usage-history, and events.
 
-**History & Draft Handler (history-draft-handler.ts):**
-- `get-history`, `clear-history`, `remove-history-item`, `search-history`: History operations
-- `save-draft`, `clear-draft`, `get-draft`, `save-draft-to-history`: Draft management
-- `set-draft-directory`, `get-draft-directory`: Directory tracking
-- `register-at-path`, `get-registered-at-paths`: Project @path pattern caching
-- `register-global-at-path`, `get-global-at-paths`: Global @path pattern caching
-
-**Window Handler (window-handler.ts):**
-- `hide-window`, `show-window`, `focus-window`: Window visibility control
-
-**System Handler (system-handler.ts):**
-- `get-app-info`: Application metadata
-- `get-config`: Configuration access with whitelist validation
-- `open-settings`, `open-settings-directory`: Settings file management
-- `get-file-search-max-suggestions`: File search configuration
-
-**CustomSearch Handler (custom-search-handler.ts):**
-- `get-agent-skills`, `get-agent-skill-file-path`, `has-command-file`: Agent skill support
-- `get-agents`, `get-agent-file-path`: Agent selection and management
-- `get-custom-search-max-suggestions`, `get-custom-search-prefixes`: Search configuration
-- `invalidate-custom-search`: Cache invalidation (called by renderer on window-shown)
-- `register-global-agent-skill`, `get-global-agent-skills`: Agent skill global cache
-- `get-usage-bonuses`: Usage frequency scoring for search results
-
-**File Handler (file-handler.ts):**
-- `check-file-exists`, `open-file-in-editor`, `reveal-in-finder`: File operations
-- `open-external-url`: URL handling with protocol validation
-
-**Code Search Handler (code-search-handler.ts):**
-- `check-rg`: Check ripgrep availability
-- `get-supported-languages`: List of 20+ supported programming languages
-- `search-symbols`: Symbol search with caching strategy
-- `get-cached-symbols`: Retrieve cached symbols
-- `clear-symbol-cache`: Clear symbol cache
-
-**Usage History Handler (usage-history-handler.ts):**
-- `record-file-usage`: Record file usage for intelligent scoring
-- `get-file-usage-bonuses`: Retrieve usage bonuses for file paths
-- `record-symbol-usage`: Record symbol usage for intelligent scoring
-- `get-symbol-usage-bonuses`: Retrieve usage bonuses for symbols
-- `record-agent-usage`: Record agent usage for intelligent scoring
-- `get-agent-usage-bonuses`: Retrieve usage bonuses for agents
-
-**Events (Renderer → Main):**
-- `window-shown`: Window display with data context
-- `directory-data-updated`: Directory change notifications
-
-Total: 50 IPC channels across 9 specialized handlers
+See `src/handlers/CLAUDE.md` for detailed channel listing and security boundaries per handler.
 
 ### Built-in Commands
 
@@ -513,50 +464,14 @@ The window supports multiple positioning modes with dynamic configuration:
 - **Disabled by default**: Enable via settings for stability
 - **Security**: Disabled in root and system directories (/, /System, /Library, etc.)
 - **fd command integration**: Uses `fd` for fast recursive file discovery
-- **Supported applications** (directory-detector):
-  - Terminal.app (`com.apple.Terminal`)
-  - iTerm2 (`com.googlecode.iterm2`)
-  - Ghostty (`com.mitchellh.ghostty`)
-  - Warp (`dev.warp.Warp-Stable`)
-  - WezTerm (`com.github.wez.wezterm`)
-  - JetBrains IDEs (`com.jetbrains.*` - IntelliJ IDEA, WebStorm, PyCharm, etc.)
-  - VSCode (`com.microsoft.VSCode`, VSCode Insiders, VSCodium)
-  - Cursor (`com.todesktop.230313mzl4w4u92`)
-  - Windsurf (`com.exafunction.windsurf`)
-  - Zed (`dev.zed.Zed`)
-  - OpenCode (`ai.opencode.desktop`)
-  - Antigravity (`com.google.antigravity`) - tmux-based terminal
-  - Kiro (`dev.kiro.desktop`)
+- **Supported applications** (directory-detector): 13 apps including Terminal.app, iTerm2, Ghostty, Warp, WezTerm, JetBrains IDEs, VSCode, Cursor, Windsurf, Zed, OpenCode, Antigravity, Kiro (see `native/CLAUDE.md` for details)
 
 ### Code Search (Symbol Search)
 - **Syntax**: Type `@<language>:<query>` to search for symbols (e.g., `@ts:Config`, `@go:Handler`)
 - **Part of @ mention system**: Integrated with file search in `src/renderer/mentions/`
-- **ripgrep-based**: Uses `rg` (ripgrep) for fast symbol searching via `code-search-manager.ts`
-- **Node.js implementation**: `src/utils/symbol-search/symbol-searcher-node.ts` (replaces former native Swift binary)
+- **ripgrep-based**: Uses `rg` (ripgrep) for fast symbol searching via Node.js (`src/utils/symbol-search/`)
+- **21 languages supported**: go, ts, tsx, js, jsx, py, rs, java, kt, swift, rb, cpp, c, sh, make/mk, php, cs, scala, tf, md
 - **Symbol caching**: Results cached per directory and language for faster subsequent searches
-- **Supported languages (21)**:
-  | Language | Key | Example | Symbol Types |
-  |----------|-----|---------|--------------|
-  | Go | `go` | `@go:Handler` | function, method, struct, interface, type, constant, variable |
-  | TypeScript | `ts` | `@ts:Config` | function, class, interface, type, enum, constant, namespace |
-  | TypeScript React | `tsx` | `@tsx:Component` | function, class, interface, type, enum, constant |
-  | JavaScript | `js` | `@js:init` | function, class, constant, variable |
-  | JavaScript React | `jsx` | `@jsx:Button` | function, class, constant, variable |
-  | Python | `py` | `@py:parse` | function, class, constant |
-  | Rust | `rs` | `@rs:handle` | function, struct, enum, trait, type, constant, variable, module |
-  | Java | `java` | `@java:Service` | class, interface, enum, method |
-  | Kotlin | `kt` | `@kt:create` | function, class, interface, enum, typealias, constant |
-  | Swift | `swift` | `@swift:detect` | function, class, struct, protocol, enum, typealias |
-  | Ruby | `rb` | `@rb:initialize` | function, class, module, constant |
-  | C++ | `cpp` | `@cpp:Node` | class, struct, enum, namespace, typedef |
-  | C | `c` | `@c:parse` | struct, enum, typedef |
-  | Shell | `sh` | `@sh:build` | function, variable |
-  | Makefile | `make`, `mk` | `@make:install`, `@mk:install` | function (targets), variable |
-  | PHP | `php` | `@php:render` | function, class, interface, trait, constant, enum |
-  | C# | `cs` | `@cs:Handle` | class, interface, struct, enum, method, namespace |
-  | Scala | `scala` | `@scala:process` | function, class, trait, object, type, constant, variable |
-  | Terraform | `tf` | `@tf:instance` | resource, data, variable, output, module, provider |
-  | Markdown | `md` | `@md:Installation` | heading |
 - **Requirements**: ripgrep (`rg`) must be installed (`brew install ripgrep`)
 - **File search must be enabled**: Code search is part of the @ mention system
 
