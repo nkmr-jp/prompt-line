@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.27.2](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.27.1...prompt-line-v0.27.2) (2026-03-13)
+
+
+### Bug Fixes
+
+* **layout:** override Tailwind v4 built-in .container max-width ([#259](https://github.com/nkmr-jp/prompt-line/issues/259)) ([b8b36b6](https://github.com/nkmr-jp/prompt-line/commit/b8b36b6d9614b7ad0b2cc88208ef97974f0e93bf))
+
 ## [0.27.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.27.0...prompt-line-v0.27.1) (2026-03-13)
 
 
