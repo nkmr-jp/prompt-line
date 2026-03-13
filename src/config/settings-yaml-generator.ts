@@ -134,15 +134,15 @@ function formatAgentSkillEntry(entry: AgentSkillEntry, indent: string, commented
  * Format a customSearch entry as YAML
  */
 function formatCustomSearchEntry(entry: MentionEntry, indent: string, commented = false): string {
-  // When commented, use "    # " prefix to match the customSearch indentation level
-  // Active:    "    - name:" (4 spaces + -)
-  // Commented: "    # - name:" (4 spaces + # + space + -)
+  // When commented, use indent + "# " prefix
+  // Active:    "  - name:" (indent + -)
+  // Commented: "  # - name:" (indent + # + space + -)
   let firstLinePrefix: string;
   let contentLinePrefix: string;
 
   if (commented) {
-    firstLinePrefix = '    # ';
-    contentLinePrefix = '    #   ';
+    firstLinePrefix = `${indent}# `;
+    contentLinePrefix = `${indent}#   `;
   } else {
     firstLinePrefix = indent;
     contentLinePrefix = `${indent}  `;
@@ -316,187 +316,165 @@ function buildAgentSkillsSection(settings: UserSettings, options: YamlGeneratorO
 }
 
 /**
- * Build mentions section
+ * Build customSearch section
  */
-function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOptions): string {
-  const fileSearch = settings.mentions?.fileSearch || settings.fileSearch;
-  const symbolSearch = settings.mentions?.symbolSearch || settings.symbolSearch;
-  const customSearchEntries = settings.mentions?.customSearch ?? settings.mentions?.mdSearch;
+function buildCustomSearchSection(settings: UserSettings, options: YamlGeneratorOptions): string {
+  const customSearchEntries = settings.customSearch;
+  const hasCustomSearch = customSearchEntries && customSearchEntries.length > 0;
 
-  const hasAnyMentionSettings = fileSearch || symbolSearch || (customSearchEntries && customSearchEntries.length > 0);
-
-  if (!hasAnyMentionSettings) {
-    // No mentions configured - output commented template
-    return `#mentions:
-#  # Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
-#  # Supports: Markdown (.md), JSON (.json), JSONL (.jsonl), jq expressions, and plain text files.
-#  # searchPrefix: Search with @<prefix>: (e.g., searchPrefix: "agent" → @agent:)
-#  customSearch:
-#    - name: "agent-{basename}"
-#      description: "{frontmatter@description}"
-#      path: ~/.claude/agents
-#      pattern: "*.md"
-#      searchPrefix: agent            # Search with @agent:
-#
-#  # File search settings (@path/to/file completion)
-#  # Note: fd command required (brew install fd)
-#  fileSearch:
-#    respectGitignore: true           # Respect .gitignore files
-#    includeHidden: true              # Include hidden files
-#    maxFiles: 5000                   # Maximum files to return
-#    maxDepth: null                   # Directory depth (null = unlimited)
-#    maxSuggestions: 50               # Suggestions to show
-#    followSymlinks: false            # Follow symbolic links
-#    #fdPath: null                    # Custom path to fd
-#
-#  # Symbol search settings (@ts:Config, @go:Handler)
-#  # Note: ripgrep required (brew install ripgrep)
-#  symbolSearch:
-#    maxSymbols: 200000               # Maximum symbols to return
-#    timeout: 60000                   # Search timeout in ms
-#    #rgPath: null                    # Custom path to rg`;
+  if (!hasCustomSearch) {
+    return `# Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
+# Supports: Markdown (.md), JSON (.json), JSONL (.jsonl), jq expressions, and plain text files.
+# searchPrefix: Search with @<prefix>: (e.g., searchPrefix: "agent" → @agent:)
+#customSearch:
+#  - name: "agent-{basename}"
+#    description: "{frontmatter@description}"
+#    path: ~/.claude/agents
+#    pattern: "*.md"
+#    searchPrefix: agent            # Search with @agent:`;
   }
 
-  let section = 'mentions:\n';
-
-  // Custom search subsection (first, as the most configurable section)
-  section += `  # Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
-  # Scans directories for files matching glob patterns and provides @ mention suggestions.
-  # Supports: Markdown (.md), JSON (.json), JSONL (.jsonl), jq expressions, and plain text files.
-  # Search: Space-separated keywords enable AND search (e.g., @agent:dev api)
-  #
-  # Configuration fields:
-  #   name            : Display name template
-  #   description     : Entry description template (supports "|" fallback: "{json@a}|{json@b}")
-  #   path            : Directory path to scan (supports ~ for home)
-  #   pattern         : Glob pattern to match files
-  #   prefixPattern   : Pattern to extract prefix from plugin metadata
-  #   searchPrefix    : Prefix to trigger this search (e.g., "agent" → @agent:)
-  #   maxSuggestions  : Maximum number of suggestions to display
-  #   orderBy         : Sort order (e.g., "name", "name desc", "{updatedAt} desc")
-  #   displayTime     : Timestamp to display (e.g., "{updatedAt}", "{json@createdAt}", "none" to hide)
-  #   inputFormat     : Insert format ('name' = display name, or template e.g. '{filepath}', '{content}')
-  #   color           : Badge color (name or hex)
-  #   icon            : Codicon icon name (e.g., "agent", "rocket", "terminal")
-  #                     https://microsoft.github.io/vscode-codicons/dist/codicon.html
-  #   label           : UI badge label
-  #
-  # Template variables:
-  #   {basename}          — File name without extension
-  #   {frontmatter@field} — YAML frontmatter field from markdown files
-  #   {json@field}        — JSON field value (for .json/.jsonl files)
-  #   {json:N@field}      — JSON field from N-th level array item
-  #   {prefix}            — Prefix extracted via prefixPattern
-  #   {heading}           — First non-empty line of the file (for markdown: first heading)
-  #   {line}              — Each line of plain text file (generates one item per line)
-  #   {dirname}           — Parent directory name
-  #   {dirname:N}         — N levels up directory name (e.g., {dirname:2} = grandparent)
-  #
-  # Pattern examples:
-  #   "*.md"                              — Markdown files in root directory only
-  #   "**/*.md"                           — All subdirectories (recursive)
-  #   "**/commands/*.md"                  — Any "commands" subdirectory
-  #   "**/*/SKILL.md"                     — SKILL.md in any subdirectory
-  #   "**/{cmd,agent}/*.md"              — Brace expansion (cmd or agent dirs)
-  #   "*.json"                            — JSON files (use {json@field} for template variables)
-  #   "**/config.json@.members"          — JSON + jq expression (expands array into items)
-  #   "*.json@.items | map(select(.active))" — Complex jq expressions supported
-  #   "*.jsonl"                           — JSONL files (one JSON per line)
-  #   "*.txt"                             — Plain text files (one item per non-empty line, use {line})
-  customSearch:
+  let section = `# Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
+# Scans directories for files matching glob patterns and provides @ mention suggestions.
+# Supports: Markdown (.md), JSON (.json), JSONL (.jsonl), jq expressions, and plain text files.
+# Search: Space-separated keywords enable AND search (e.g., @agent:dev api)
+#
+# Configuration fields:
+#   name            : Display name template
+#   description     : Entry description template (supports "|" fallback: "{json@a}|{json@b}")
+#   path            : Directory path to scan (supports ~ for home)
+#   pattern         : Glob pattern to match files
+#   prefixPattern   : Pattern to extract prefix from plugin metadata
+#   searchPrefix    : Prefix to trigger this search (e.g., "agent" → @agent:)
+#   maxSuggestions  : Maximum number of suggestions to display
+#   orderBy         : Sort order (e.g., "name", "name desc", "{updatedAt} desc")
+#   displayTime     : Timestamp to display (e.g., "{updatedAt}", "{json@createdAt}", "none" to hide)
+#   inputFormat     : Insert format ('name' = display name, or template e.g. '{filepath}', '{content}')
+#   color           : Badge color (name or hex)
+#   icon            : Codicon icon name (e.g., "agent", "rocket", "terminal")
+#                     https://microsoft.github.io/vscode-codicons/dist/codicon.html
+#   label           : UI badge label
+#
+# Template variables:
+#   {basename}          — File name without extension
+#   {frontmatter@field} — YAML frontmatter field from markdown files
+#   {json@field}        — JSON field value (for .json/.jsonl files)
+#   {json:N@field}      — JSON field from N-th level array item
+#   {prefix}            — Prefix extracted via prefixPattern
+#   {heading}           — First non-empty line of the file (for markdown: first heading)
+#   {line}              — Each line of plain text file (generates one item per line)
+#   {dirname}           — Parent directory name
+#   {dirname:N}         — N levels up directory name (e.g., {dirname:2} = grandparent)
+#
+# Pattern examples:
+#   "*.md"                              — Markdown files in root directory only
+#   "**/*.md"                           — All subdirectories (recursive)
+#   "**/commands/*.md"                  — Any "commands" subdirectory
+#   "**/*/SKILL.md"                     — SKILL.md in any subdirectory
+#   "**/{cmd,agent}/*.md"              — Brace expansion (cmd or agent dirs)
+#   "*.json"                            — JSON files (use {json@field} for template variables)
+#   "**/config.json@.members"          — JSON + jq expression (expands array into items)
+#   "*.json@.items | map(select(.active))" — Complex jq expressions supported
+#   "*.jsonl"                           — JSONL files (one JSON per line)
+#   "*.txt"                             — Plain text files (one item per non-empty line, use {line})
+customSearch:
 `;
 
-  if (customSearchEntries && customSearchEntries.length > 0) {
-    for (const entry of customSearchEntries) {
-      section += formatCustomSearchEntry(entry, '    ') + '\n\n';
-    }
+  for (const entry of customSearchEntries) {
+    section += formatCustomSearchEntry(entry, '  ') + '\n\n';
   }
 
   // Add commented customSearch examples if requested
   if (options.includeCommentedExamples) {
-    const commentedCustomSearch = commentedExamples.mentions?.customSearch ?? [];
+    const commentedCustomSearch = commentedExamples.customSearch ?? [];
     for (const entry of commentedCustomSearch) {
-      section += formatCustomSearchEntry(entry as MentionEntry, '    ', true) + '\n\n';
+      section += formatCustomSearchEntry(entry as MentionEntry, '  ', true) + '\n\n';
     }
   }
 
-  // File search subsection
-  if (fileSearch) {
-    const fs = fileSearch as FileSearchUserSettings;
-    const fdPathSection = fs.fdPath
-      ? `fdPath: "${fs.fdPath}"`
-      : `#fdPath: null                    # Custom path to fd`;
-
-    section += `  # File search settings (@path/to/file completion)
-  # Note: fd command required (brew install fd)
-  #
-  # Pattern format (glob syntax):
-  #   - "*.log"           : Match all .log files
-  #   - "build/**"        : Match all files in build directory
-  #   - "*.{js,ts}"       : Match .js and .ts files
-  #   - ".git"            : Match .git directory
-  #   - "node_modules"    : Match node_modules directory
-  #
-  fileSearch:
-    respectGitignore: ${formatValue(fs.respectGitignore)}           # Respect .gitignore files
-    includeHidden: ${formatValue(fs.includeHidden)}              # Include hidden files
-    maxFiles: ${formatValue(fs.maxFiles)}                   # Maximum files to return
-    maxDepth: ${formatValue(fs.maxDepth)}                   # Directory depth (null = unlimited)
-    maxSuggestions: ${formatValue(fs.maxSuggestions)}               # Suggestions to show
-    followSymlinks: ${formatValue(fs.followSymlinks)}            # Follow symbolic links
-    ${fdPathSection}
-    # Include patterns: Force include files even if in .gitignore (default: [])
-    # Example: includePatterns: ["*.log", "dist/**"]
-    includePatterns: ${formatValue(fs.includePatterns)}
-    # Exclude patterns: Additional patterns to exclude (default: [])
-    # Example: excludePatterns: ["node_modules", "*.min.js", "coverage/**"]
-    excludePatterns: ${formatValue(fs.excludePatterns)}
-`;
-  } else {
-    section += `  # File search settings (@path/to/file completion)
-  # Note: Uncomment fileSearch section to enable file search
-  #fileSearch:
-  #  respectGitignore: true
-  #  includeHidden: true
-  #  maxFiles: 5000
-  #  maxDepth: null
-  #  maxSuggestions: 50
-`;
-  }
-
-  // Symbol search subsection
-  if (symbolSearch) {
-    const ss = symbolSearch as SymbolSearchUserSettings;
-    const rgPathSection = ss.rgPath
-      ? `rgPath: "${ss.rgPath}"`
-      : `#rgPath: null                    # Custom path to rg`;
-
-    section += `
-  # Symbol search settings (@ts:Config, @go:Handler)
-  # Note: ripgrep required (brew install ripgrep)
-  # Search: Space-separated keywords enable AND search (e.g., @ts:Config util)
-  symbolSearch:
-    maxSymbols: ${formatValue(ss.maxSymbols)}                # Maximum symbols to return
-    timeout: ${formatValue(ss.timeout)}                    # Search timeout in ms
-    ${rgPathSection}
-    # Include patterns: Force include files even if excluded by default (default: [])
-    # Example: includePatterns: ["*.test.ts", "vendor/**"]
-    includePatterns: ${formatValue(ss.includePatterns ?? [])}
-    # Exclude patterns: Additional patterns to exclude (default: [])
-    # Example: excludePatterns: ["*.generated.go", "node_modules/**"]
-    excludePatterns: ${formatValue(ss.excludePatterns ?? [])}
-`;
-  } else {
-    section += `
-  # Symbol search settings (@ts:Config, @go:Handler)
-  symbolSearch:
-    maxSymbols: 200000
-    timeout: 60000
-    #rgPath: null
-`;
-  }
-
   return section.trimEnd();
+}
+
+/**
+ * Build fileSearch section
+ */
+function buildFileSearchSection(settings: UserSettings): string {
+  const fileSearch = settings.fileSearch;
+
+  if (!fileSearch) {
+    return `# File search settings (@path/to/file completion)
+# Note: Uncomment fileSearch section to enable file search
+#fileSearch:
+#  respectGitignore: true
+#  includeHidden: true
+#  maxFiles: 5000
+#  maxDepth: null
+#  maxSuggestions: 50`;
+  }
+
+  const fs = fileSearch as FileSearchUserSettings;
+  const fdPathSection = fs.fdPath
+    ? `fdPath: "${fs.fdPath}"`
+    : `#fdPath: null                    # Custom path to fd`;
+
+  return `# File search settings (@path/to/file completion)
+# Note: fd command required (brew install fd)
+#
+# Pattern format (glob syntax):
+#   - "*.log"           : Match all .log files
+#   - "build/**"        : Match all files in build directory
+#   - "*.{js,ts}"       : Match .js and .ts files
+#   - ".git"            : Match .git directory
+#   - "node_modules"    : Match node_modules directory
+#
+fileSearch:
+  respectGitignore: ${formatValue(fs.respectGitignore)}           # Respect .gitignore files
+  includeHidden: ${formatValue(fs.includeHidden)}              # Include hidden files
+  maxFiles: ${formatValue(fs.maxFiles)}                   # Maximum files to return
+  maxDepth: ${formatValue(fs.maxDepth)}                   # Directory depth (null = unlimited)
+  maxSuggestions: ${formatValue(fs.maxSuggestions)}               # Suggestions to show
+  followSymlinks: ${formatValue(fs.followSymlinks)}            # Follow symbolic links
+  ${fdPathSection}
+  # Include patterns: Force include files even if in .gitignore (default: [])
+  # Example: includePatterns: ["*.log", "dist/**"]
+  includePatterns: ${formatValue(fs.includePatterns)}
+  # Exclude patterns: Additional patterns to exclude (default: [])
+  # Example: excludePatterns: ["node_modules", "*.min.js", "coverage/**"]
+  excludePatterns: ${formatValue(fs.excludePatterns)}`;
+}
+
+/**
+ * Build symbolSearch section
+ */
+function buildSymbolSearchSection(settings: UserSettings): string {
+  const symbolSearch = settings.symbolSearch;
+
+  if (!symbolSearch) {
+    return `# Symbol search settings (@ts:Config, @go:Handler)
+#symbolSearch:
+#  maxSymbols: 200000
+#  timeout: 60000
+#  #rgPath: null`;
+  }
+
+  const ss = symbolSearch as SymbolSearchUserSettings;
+  const rgPathSection = ss.rgPath
+    ? `rgPath: "${ss.rgPath}"`
+    : `#rgPath: null                    # Custom path to rg`;
+
+  return `# Symbol search settings (@ts:Config, @go:Handler)
+# Note: ripgrep required (brew install ripgrep)
+# Search: Space-separated keywords enable AND search (e.g., @ts:Config util)
+symbolSearch:
+  maxSymbols: ${formatValue(ss.maxSymbols)}                # Maximum symbols to return
+  timeout: ${formatValue(ss.timeout)}                    # Search timeout in ms
+  ${rgPathSection}
+  # Include patterns: Force include files even if excluded by default (default: [])
+  # Example: includePatterns: ["*.test.ts", "vendor/**"]
+  includePatterns: ${formatValue(ss.includePatterns ?? [])}
+  # Exclude patterns: Additional patterns to exclude (default: [])
+  # Example: excludePatterns: ["*.generated.go", "node_modules/**"]
+  excludePatterns: ${formatValue(ss.excludePatterns ?? [])}`;
 }
 
 /**
@@ -510,7 +488,9 @@ export function generateSettingsYaml(settings: UserSettings, options: YamlGenera
   const extensionsSection = buildExtensionsSection(settings, options);
   const builtInCommandsSection = buildBuiltInCommandsSection(settings, options);
   const agentSkillsSection = buildAgentSkillsSection(settings, options);
-  const mentionsSection = buildMentionsSection(settings, options);
+  const customSearchSection = buildCustomSearchSection(settings, options);
+  const fileSearchSection = buildFileSearchSection(settings);
+  const symbolSearchSection = buildSymbolSearchSection(settings);
 
   return `# Prompt Line Settings Configuration
 # This file is automatically generated but can be manually edited
@@ -574,11 +554,23 @@ ${builtInCommandsSection}
 ${agentSkillsSection}
 
 # ============================================================================
-# MENTION SETTINGS (@ mentions)
+# CUSTOM SEARCH SETTINGS (@ mentions)
 # ============================================================================
-# Configure @ mention sources: customSearch, fileSearch, symbolSearch
-# Template variables for customSearch: {basename}, {frontmatter@fieldName}
+# Custom search entries for @ mention sources
+# Template variables: {basename}, {frontmatter@fieldName}
 
-${mentionsSection}
+${customSearchSection}
+
+# ============================================================================
+# FILE SEARCH SETTINGS
+# ============================================================================
+
+${fileSearchSection}
+
+# ============================================================================
+# SYMBOL SEARCH SETTINGS
+# ============================================================================
+
+${symbolSearchSection}
 `;
 }

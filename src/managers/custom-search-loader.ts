@@ -181,8 +181,9 @@ class CustomSearchLoader extends EventEmitter {
       );
     }
 
-    if (type === 'mention' && this.settings?.mentions) {
-      const { enable, disable } = this.settings.mentions;
+    if (type === 'mention' && (this.settings?.mentionEnable || this.settings?.mentionDisable)) {
+      const enable = this.settings.mentionEnable;
+      const disable = this.settings.mentionDisable;
       items = items.filter(item =>
         isCommandEnabled(item.name, enable, disable)
       );

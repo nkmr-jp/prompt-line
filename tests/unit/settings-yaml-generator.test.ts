@@ -78,9 +78,9 @@ describe('settings-yaml-generator', () => {
         // Should have commented agentSkills section
         expect(result).toContain('#agentSkills:');
 
-        // Should have commented mentions section
-        expect(result).toContain('#mentions:');
-        expect(result).toContain('#  fileSearch:');
+        // Should have commented fileSearch and symbolSearch sections
+        expect(result).toContain('#fileSearch:');
+        expect(result).toContain('#symbolSearch:');
       });
     });
 
@@ -119,36 +119,34 @@ describe('settings-yaml-generator', () => {
               maxSuggestions: 10
             }
           ],
-          mentions: {
-            fileSearch: {
-              respectGitignore: false,
-              includeHidden: false,
-              maxFiles: 1000,
-              maxDepth: 5,
-              maxSuggestions: 30,
-              followSymlinks: true,
-              fdPath: '/usr/local/bin/fd',
-              includePatterns: ['*.log', 'dist/**'],
-              excludePatterns: ['node_modules', '*.min.js']
-            },
-            symbolSearch: {
-              maxSymbols: 10000,
-              timeout: 3000,
-              rgPath: '/opt/homebrew/bin/rg'
-            },
-            customSearch: [
-              {
-                name: 'agent-{basename}',
-                description: 'Agent files',
-                path: '~/.claude/agents',
-                pattern: '*.md',
-                searchPrefix: 'agent',
-                maxSuggestions: 20,
-                orderBy: 'name',
-                inputFormat: '{filepath}'
-              }
-            ]
-          }
+          fileSearch: {
+            respectGitignore: false,
+            includeHidden: false,
+            maxFiles: 1000,
+            maxDepth: 5,
+            maxSuggestions: 30,
+            followSymlinks: true,
+            fdPath: '/usr/local/bin/fd',
+            includePatterns: ['*.log', 'dist/**'],
+            excludePatterns: ['node_modules', '*.min.js']
+          },
+          symbolSearch: {
+            maxSymbols: 10000,
+            timeout: 3000,
+            rgPath: '/opt/homebrew/bin/rg'
+          },
+          customSearch: [
+            {
+              name: 'agent-{basename}',
+              description: 'Agent files',
+              path: '~/.claude/agents',
+              pattern: '*.md',
+              searchPrefix: 'agent',
+              maxSuggestions: 20,
+              orderBy: 'name',
+              inputFormat: '{filepath}'
+            }
+          ]
         };
 
         const result = generateSettingsYaml(fullSettings);
@@ -269,23 +267,21 @@ describe('settings-yaml-generator', () => {
           window: defaultSettings.window,
           builtInCommands: [],
           agentSkills: [],
-          mentions: {
-            fileSearch: {
-              respectGitignore: true,
-              includeHidden: true,
-              maxFiles: 5000,
-              maxDepth: null,
-              maxSuggestions: 50,
-              followSymlinks: false,
-              includePatterns: [],
-              excludePatterns: []
-            },
-            symbolSearch: {
-              maxSymbols: 20000,
-              timeout: 5000
-            },
-            customSearch: []
-          }
+          fileSearch: {
+            respectGitignore: true,
+            includeHidden: true,
+            maxFiles: 5000,
+            maxDepth: null,
+            maxSuggestions: 50,
+            followSymlinks: false,
+            includePatterns: [],
+            excludePatterns: []
+          },
+          symbolSearch: {
+            maxSymbols: 20000,
+            timeout: 5000
+          },
+          customSearch: []
         };
 
         const result = generateSettingsYaml(settings);
@@ -303,21 +299,19 @@ describe('settings-yaml-generator', () => {
             defaultEditor: null,
             extensions: {}
           },
-          mentions: {
-            fileSearch: {
-              respectGitignore: true,
-              includeHidden: true,
-              maxFiles: 5000,
-              maxDepth: null,
-              maxSuggestions: 50,
-              followSymlinks: false,
-              includePatterns: [],
-              excludePatterns: []
-            },
-            symbolSearch: {
-              maxSymbols: 20000,
-              timeout: 5000
-            }
+          fileSearch: {
+            respectGitignore: true,
+            includeHidden: true,
+            maxFiles: 5000,
+            maxDepth: null,
+            maxSuggestions: 50,
+            followSymlinks: false,
+            includePatterns: [],
+            excludePatterns: []
+          },
+          symbolSearch: {
+            maxSymbols: 20000,
+            timeout: 5000
           }
         };
 
@@ -332,21 +326,19 @@ describe('settings-yaml-generator', () => {
         const settings: UserSettings = {
           shortcuts: defaultSettings.shortcuts,
           window: defaultSettings.window,
-          mentions: {
-            fileSearch: {
-              respectGitignore: true,
-              includeHidden: true,
-              maxFiles: 5000,
-              maxDepth: null,
-              maxSuggestions: 50,
-              followSymlinks: false,
-              includePatterns: [],
-              excludePatterns: []
-            },
-            symbolSearch: {
-              maxSymbols: 20000,
-              timeout: 5000
-            }
+          fileSearch: {
+            respectGitignore: true,
+            includeHidden: true,
+            maxFiles: 5000,
+            maxDepth: null,
+            maxSuggestions: 50,
+            followSymlinks: false,
+            includePatterns: [],
+            excludePatterns: []
+          },
+          symbolSearch: {
+            maxSymbols: 20000,
+            timeout: 5000
           }
         };
 
@@ -429,7 +421,7 @@ describe('settings-yaml-generator', () => {
         expect(result).toContain('#agentSkills:');
       });
 
-      test('should handle missing mentions section', () => {
+      test('should handle missing fileSearch/symbolSearch/customSearch sections', () => {
         const settings: UserSettings = {
           shortcuts: defaultSettings.shortcuts,
           window: defaultSettings.window
@@ -437,11 +429,10 @@ describe('settings-yaml-generator', () => {
 
         const result = generateSettingsYaml(settings);
 
-        // Should have commented mentions template
-        expect(result).toContain('#mentions:');
-        expect(result).toContain('#  fileSearch:');
-        expect(result).toContain('#  symbolSearch:');
-        expect(result).toContain('#  customSearch:');
+        // Should have commented fileSearch, symbolSearch, customSearch templates
+        expect(result).toContain('#fileSearch:');
+        expect(result).toContain('#symbolSearch:');
+        expect(result).toContain('#customSearch:');
       });
 
       test('should handle builtInCommands without agentSkills', () => {
@@ -509,31 +500,29 @@ describe('settings-yaml-generator', () => {
               maxSuggestions: 20
             }
           ],
-          mentions: {
-            fileSearch: {
-              respectGitignore: true,
-              includeHidden: true,
-              maxFiles: 5000,
-              maxDepth: null,
-              maxSuggestions: 50,
-              followSymlinks: false,
-              includePatterns: ['*.log'],
-              excludePatterns: ['*.tmp']
-            },
-            symbolSearch: {
-              maxSymbols: 20000,
-              timeout: 5000
-            },
-            customSearch: [
-              {
-                name: 'agent-{basename}',
-                description: 'Test agent',
-                path: '~/.claude/agents',
-                pattern: '*.md',
-                searchPrefix: 'agent'
-              }
-            ]
-          }
+          fileSearch: {
+            respectGitignore: true,
+            includeHidden: true,
+            maxFiles: 5000,
+            maxDepth: null,
+            maxSuggestions: 50,
+            followSymlinks: false,
+            includePatterns: ['*.log'],
+            excludePatterns: ['*.tmp']
+          },
+          symbolSearch: {
+            maxSymbols: 20000,
+            timeout: 5000
+          },
+          customSearch: [
+            {
+              name: 'agent-{basename}',
+              description: 'Test agent',
+              path: '~/.claude/agents',
+              pattern: '*.md',
+              searchPrefix: 'agent'
+            }
+          ]
         };
 
         const result = generateSettingsYaml(settings);
@@ -561,21 +550,19 @@ describe('settings-yaml-generator', () => {
             width: 600,
             height: 300
           },
-          mentions: {
-            fileSearch: {
-              respectGitignore: true,
-              includeHidden: false,
-              maxFiles: 5000,
-              maxDepth: null,
-              maxSuggestions: 50,
-              followSymlinks: false,
-              includePatterns: [],
-              excludePatterns: []
-            },
-            symbolSearch: {
-              maxSymbols: 20000,
-              timeout: 5000
-            }
+          fileSearch: {
+            respectGitignore: true,
+            includeHidden: false,
+            maxFiles: 5000,
+            maxDepth: null,
+            maxSuggestions: 50,
+            followSymlinks: false,
+            includePatterns: [],
+            excludePatterns: []
+          },
+          symbolSearch: {
+            maxSymbols: 20000,
+            timeout: 5000
           }
         };
 
@@ -592,9 +579,9 @@ describe('settings-yaml-generator', () => {
         // Check data types
         expect(typeof parsed.window.width).toBe('number');
         expect(typeof parsed.window.height).toBe('number');
-        expect(typeof parsed.mentions.fileSearch.respectGitignore).toBe('boolean');
-        expect(typeof parsed.mentions.fileSearch.includeHidden).toBe('boolean');
-        expect(parsed.mentions.fileSearch.maxDepth).toBeNull();
+        expect(typeof parsed.fileSearch.respectGitignore).toBe('boolean');
+        expect(typeof parsed.fileSearch.includeHidden).toBe('boolean');
+        expect(parsed.fileSearch.maxDepth).toBeNull();
       });
     });
 
@@ -612,7 +599,9 @@ describe('settings-yaml-generator', () => {
         expect(result).toContain('# FILE OPENER SETTINGS');
         expect(result).toContain('# BUILT-IN COMMANDS');
         expect(result).toContain('# AGENT SKILLS SETTINGS');
-        expect(result).toContain('# MENTION SETTINGS');
+        expect(result).toContain('# CUSTOM SEARCH SETTINGS');
+        expect(result).toContain('# FILE SEARCH SETTINGS');
+        expect(result).toContain('# SYMBOL SEARCH SETTINGS');
       });
 
       test('should have proper indentation for nested structures', () => {
@@ -644,32 +633,30 @@ describe('settings-yaml-generator', () => {
         const settings: UserSettings = {
           shortcuts: defaultSettings.shortcuts,
           window: defaultSettings.window,
-          mentions: {
-            fileSearch: {
-              respectGitignore: true,
-              includeHidden: true,
-              maxFiles: 5000,
-              maxDepth: null,
-              maxSuggestions: 50,
-              followSymlinks: false,
-              includePatterns: [],
-              excludePatterns: []
-            },
-            symbolSearch: {
-              maxSymbols: 20000,
-              timeout: 5000
-            },
-            customSearch: [
-              {
-                name: 'agent-{basename}',
-                description: 'Test',
-                path: '~/.claude/agents',
-                pattern: '*.md',
-                searchPrefix: 'agent',
-                inputFormat: '{filepath}'
-              }
-            ]
-          }
+          fileSearch: {
+            respectGitignore: true,
+            includeHidden: true,
+            maxFiles: 5000,
+            maxDepth: null,
+            maxSuggestions: 50,
+            followSymlinks: false,
+            includePatterns: [],
+            excludePatterns: []
+          },
+          symbolSearch: {
+            maxSymbols: 20000,
+            timeout: 5000
+          },
+          customSearch: [
+            {
+              name: 'agent-{basename}',
+              description: 'Test',
+              path: '~/.claude/agents',
+              pattern: '*.md',
+              searchPrefix: 'agent',
+              inputFormat: '{filepath}'
+            }
+          ]
         };
 
         const result = generateSettingsYaml(settings);
@@ -687,34 +674,32 @@ describe('settings-yaml-generator', () => {
         const settings: UserSettings = {
           shortcuts: defaultSettings.shortcuts,
           window: defaultSettings.window,
-          mentions: {
-            fileSearch: {
-              respectGitignore: true,
-              includeHidden: true,
-              maxFiles: 5000,
-              maxDepth: null,
-              maxSuggestions: 50,
-              followSymlinks: false,
-              includePatterns: [],
-              excludePatterns: []
-            },
-            symbolSearch: {
-              maxSymbols: 20000,
-              timeout: 5000
-            },
-            customSearch: [
-              {
-                name: 'test-{basename}',
-                description: 'Test description',
-                path: '~/.test/path',
-                pattern: '**/*.md',
-                searchPrefix: 'test',
-                maxSuggestions: 100,
-                orderBy: 'name desc',
-                inputFormat: '{filepath}'
-              }
-            ]
-          }
+          fileSearch: {
+            respectGitignore: true,
+            includeHidden: true,
+            maxFiles: 5000,
+            maxDepth: null,
+            maxSuggestions: 50,
+            followSymlinks: false,
+            includePatterns: [],
+            excludePatterns: []
+          },
+          symbolSearch: {
+            maxSymbols: 20000,
+            timeout: 5000
+          },
+          customSearch: [
+            {
+              name: 'test-{basename}',
+              description: 'Test description',
+              path: '~/.test/path',
+              pattern: '**/*.md',
+              searchPrefix: 'test',
+              maxSuggestions: 100,
+              orderBy: 'name desc',
+              inputFormat: '{filepath}'
+            }
+          ]
         };
 
         const result = generateSettingsYaml(settings);
@@ -733,30 +718,28 @@ describe('settings-yaml-generator', () => {
         const settings: UserSettings = {
           shortcuts: defaultSettings.shortcuts,
           window: defaultSettings.window,
-          mentions: {
-            fileSearch: {
-              respectGitignore: true,
-              includeHidden: true,
-              maxFiles: 5000,
-              maxDepth: null,
-              maxSuggestions: 50,
-              followSymlinks: false,
-              includePatterns: [],
-              excludePatterns: []
-            },
-            symbolSearch: {
-              maxSymbols: 20000,
-              timeout: 5000
-            },
-            customSearch: [
-              {
-                name: 'simple',
-                description: 'Simple entry',
-                path: '~/.simple',
-                pattern: '*.md'
-              }
-            ]
-          }
+          fileSearch: {
+            respectGitignore: true,
+            includeHidden: true,
+            maxFiles: 5000,
+            maxDepth: null,
+            maxSuggestions: 50,
+            followSymlinks: false,
+            includePatterns: [],
+            excludePatterns: []
+          },
+          symbolSearch: {
+            maxSymbols: 20000,
+            timeout: 5000
+          },
+          customSearch: [
+            {
+              name: 'simple',
+              description: 'Simple entry',
+              path: '~/.simple',
+              pattern: '*.md'
+            }
+          ]
         };
 
         const result = generateSettingsYaml(settings);
@@ -795,7 +778,7 @@ describe('settings-yaml-generator', () => {
     });
 
     describe('legacy field support', () => {
-      test('should handle legacy fileSearch field (outside mentions)', () => {
+      test('should handle fileSearch field correctly', () => {
         const settings: UserSettings = {
           shortcuts: defaultSettings.shortcuts,
           window: defaultSettings.window,
@@ -813,47 +796,35 @@ describe('settings-yaml-generator', () => {
 
         const result = generateSettingsYaml(settings);
 
-        // Should use legacy field for generation
+        // Should use fileSearch values for generation
         expect(result).toContain('respectGitignore: false');
         expect(result).toContain('maxFiles: 3000');
         expect(result).toContain('maxDepth: 3');
       });
 
-      test('should prefer mentions.fileSearch over legacy fileSearch', () => {
+      test('should use top-level fileSearch values', () => {
         const settings: UserSettings = {
           shortcuts: defaultSettings.shortcuts,
           window: defaultSettings.window,
           fileSearch: {
-            respectGitignore: false,
+            respectGitignore: true,
             includeHidden: true,
-            maxFiles: 3000,
-            maxDepth: 3,
-            maxSuggestions: 40,
+            maxFiles: 5000,
+            maxDepth: null,
+            maxSuggestions: 50,
             followSymlinks: false,
             includePatterns: [],
             excludePatterns: []
           },
-          mentions: {
-            fileSearch: {
-              respectGitignore: true,
-              includeHidden: true,
-              maxFiles: 5000,
-              maxDepth: null,
-              maxSuggestions: 50,
-              followSymlinks: false,
-              includePatterns: [],
-              excludePatterns: []
-            },
-            symbolSearch: {
-              maxSymbols: 20000,
-              timeout: 5000
-            }
+          symbolSearch: {
+            maxSymbols: 20000,
+            timeout: 5000
           }
         };
 
         const result = generateSettingsYaml(settings);
 
-        // Should use mentions.fileSearch values, not legacy
+        // Should use top-level fileSearch values
         expect(result).toContain('respectGitignore: true');
         expect(result).toContain('maxFiles: 5000');
         expect(result).toContain('maxDepth: null');
@@ -867,23 +838,21 @@ describe('settings-yaml-generator', () => {
         const malformedSettings: UserSettings = {
           shortcuts: defaultSettings.shortcuts,
           window: defaultSettings.window,
-          mentions: {
-            fileSearch: {
-              respectGitignore: true,
-              includeHidden: true,
-              maxFiles: 5000,
-              maxDepth: null,
-              maxSuggestions: 50,
-              followSymlinks: false,
-              // Array with non-string elements (numbers)
-              includePatterns: [123, 456] as any,
-              // Array with non-string elements (objects)
-              excludePatterns: [{ key: 'value' }, { key2: 'value2' }] as any
-            },
-            symbolSearch: {
-              maxSymbols: 20000,
-              timeout: 5000
-            }
+          fileSearch: {
+            respectGitignore: true,
+            includeHidden: true,
+            maxFiles: 5000,
+            maxDepth: null,
+            maxSuggestions: 50,
+            followSymlinks: false,
+            // Array with non-string elements (numbers)
+            includePatterns: [123, 456] as any,
+            // Array with non-string elements (objects)
+            excludePatterns: [{ key: 'value' }, { key2: 'value2' }] as any
+          },
+          symbolSearch: {
+            maxSymbols: 20000,
+            timeout: 5000
           }
         };
 
@@ -902,23 +871,21 @@ describe('settings-yaml-generator', () => {
         const malformedSettings: UserSettings = {
           shortcuts: defaultSettings.shortcuts,
           window: defaultSettings.window,
-          mentions: {
-            fileSearch: {
-              respectGitignore: true,
-              includeHidden: true,
-              maxFiles: 5000,
-              maxDepth: null,
-              maxSuggestions: 50,
-              // Function as value (unexpected type)
-              followSymlinks: (() => true) as any,
-              includePatterns: [],
-              excludePatterns: []
-            },
-            symbolSearch: {
-              maxSymbols: 20000,
-              // Symbol as value (unexpected type)
-              timeout: Symbol('timeout') as any
-            }
+          fileSearch: {
+            respectGitignore: true,
+            includeHidden: true,
+            maxFiles: 5000,
+            maxDepth: null,
+            maxSuggestions: 50,
+            // Function as value (unexpected type)
+            followSymlinks: (() => true) as any,
+            includePatterns: [],
+            excludePatterns: []
+          },
+          symbolSearch: {
+            maxSymbols: 20000,
+            // Symbol as value (unexpected type)
+            timeout: Symbol('timeout') as any
           }
         };
 
@@ -980,23 +947,21 @@ describe('settings-yaml-generator', () => {
         const settings: UserSettings = {
           shortcuts: defaultSettings.shortcuts,
           window: defaultSettings.window,
-          mentions: {
-            fileSearch: {
-              respectGitignore: true,
-              includeHidden: true,
-              maxFiles: 5000,
-              maxDepth: null,
-              maxSuggestions: 50,
-              followSymlinks: false,
-              includePatterns: [],
-              excludePatterns: []
-            },
-            symbolSearch: {
-              maxSymbols: 20000,
-              timeout: 5000
-            },
-            customSearch
-          }
+          fileSearch: {
+            respectGitignore: true,
+            includeHidden: true,
+            maxFiles: 5000,
+            maxDepth: null,
+            maxSuggestions: 50,
+            followSymlinks: false,
+            includePatterns: [],
+            excludePatterns: []
+          },
+          symbolSearch: {
+            maxSymbols: 20000,
+            timeout: 5000
+          },
+          customSearch
         };
 
         const result = generateSettingsYaml(settings);
@@ -1010,21 +975,19 @@ describe('settings-yaml-generator', () => {
         const settings: UserSettings = {
           shortcuts: defaultSettings.shortcuts,
           window: defaultSettings.window,
-          mentions: {
-            fileSearch: {
-              respectGitignore: false,
-              includeHidden: false,
-              maxFiles: 5000,
-              maxDepth: null,
-              maxSuggestions: 50,
-              followSymlinks: false,
-              includePatterns: [],
-              excludePatterns: []
-            },
-            symbolSearch: {
-              maxSymbols: 20000,
-              timeout: 5000
-            }
+          fileSearch: {
+            respectGitignore: false,
+            includeHidden: false,
+            maxFiles: 5000,
+            maxDepth: null,
+            maxSuggestions: 50,
+            followSymlinks: false,
+            includePatterns: [],
+            excludePatterns: []
+          },
+          symbolSearch: {
+            maxSymbols: 20000,
+            timeout: 5000
           }
         };
 

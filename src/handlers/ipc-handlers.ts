@@ -53,16 +53,16 @@ class IPCHandlers {
   ) {
     // Initialize CustomSearchLoader and FileOpenerManager
     const settings = settingsManager.getSettings();
+    const customSearchEntries = settingsManager.getCustomSearchEntries();
     const customSearchLoader = new CustomSearchLoader(
-      settings.customSearch ?? settings.mdSearch,
+      customSearchEntries,
       settings
     );
     const fileOpenerManager = new FileOpenerManager(settingsManager);
 
     // Initialize CustomSearchLoader with settings
-    const customSearchConfig = settings.customSearch ?? settings.mdSearch;
-    if (customSearchConfig) {
-      customSearchLoader.updateConfig(customSearchConfig);
+    if (customSearchEntries && customSearchEntries.length > 0) {
+      customSearchLoader.updateConfig(customSearchEntries);
       customSearchLoader.updateSettings(settings);
       logger.info('CustomSearch config updated from settings');
     }

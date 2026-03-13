@@ -155,15 +155,22 @@ export interface UserSettings {
   builtInCommands?: string[];
   // Agent skills: flat list of custom slash command entries (no more .custom nesting)
   agentSkills?: AgentSkillEntry[];
-  // Mention settings (@ mentions: fileSearch, symbolSearch, userDefined)
-  mentions?: MentionsSettings;
-
-  // Legacy: fileSearch configuration (use mentions.fileSearch instead)
+  // File search settings (@path/to/file completion)
   fileSearch?: FileSearchUserSettings;
-  // Legacy: symbolSearch configuration (use mentions.symbolSearch instead)
+  // Symbol search settings (@ts:Config, @go:Handler)
   symbolSearch?: SymbolSearchUserSettings;
-  // Legacy: customSearch configuration (for backward compatibility)
-  customSearch?: CustomSearchEntry[];
+  // Custom search entries for @ mentions (e.g., @agent:, @plan:)
+  customSearch?: MentionEntry[];
+  // Global mention filter: whitelist (exact match: "agent-claude", prefix match: "agent-*")
+  mentionEnable?: string[];
+  // Global mention filter: blacklist (exact match: "agent-legacy", prefix match: "old-*")
+  mentionDisable?: string[];
+
+  // Legacy: mentions wrapper (use top-level fileSearch, symbolSearch, customSearch instead)
+  /** @deprecated Use top-level fileSearch, symbolSearch, customSearch instead */
+  mentions?: MentionsSettings;
+  // Legacy: customSearch with type field (for backward compatibility)
+  legacyCustomSearch?: CustomSearchEntry[];
   // Legacy alias: mdSearch (for backward compatibility)
   mdSearch?: CustomSearchEntry[];
   // Legacy: slashCommands (use agentSkills instead)
@@ -226,6 +233,7 @@ export interface SymbolSearchUserSettings {
 
 /**
  * Mention settings combining fileSearch, symbolSearch, and userDefined mentions
+ * @deprecated Use top-level fileSearch, symbolSearch, customSearch instead
  */
 export interface MentionsSettings {
   /** File search settings (@path/to/file) */
