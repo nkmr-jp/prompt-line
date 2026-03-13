@@ -93,15 +93,23 @@ export class AgentSkillManager implements IInitializable {
   // Frontmatter popup manager
   private frontmatterPopupManager: FrontmatterPopupManager;
 
+  // Hint text callbacks for footer area
+  private updateHintText: ((text: string) => void) | undefined;
+  private getDefaultHintText: (() => string) | undefined;
+
   constructor(callbacks: {
     onSkillSelect?: (command: string) => void;
     onSkillInsert?: (command: string) => void;
     onBeforeOpenFile?: () => void;
     setDraggable?: (enabled: boolean) => void;
+    updateHintText?: (text: string) => void;
+    getDefaultHintText?: () => string;
   }) {
     this.onSkillInsert = callbacks.onSkillInsert || (() => {});
     this.onBeforeOpenFile = callbacks.onBeforeOpenFile;
     this.setDraggable = callbacks.setDraggable;
+    this.updateHintText = callbacks.updateHintText;
+    this.getDefaultHintText = callbacks.getDefaultHintText;
     this.frontmatterPopupManager = new FrontmatterPopupManager({
       getSuggestionsContainer: () => this.suggestionsContainer,
       getFilteredSkills: () => this.filteredSkills,
@@ -692,6 +700,9 @@ export class AgentSkillManager implements IInitializable {
     });
 
     this.suggestionsContainer.appendChild(fragment);
+
+    // Update hint text for the initially selected item
+    this.updateHintForSelectedItem();
   }
 
   /**
@@ -804,6 +815,8 @@ export class AgentSkillManager implements IInitializable {
     this.resetState();
     // C3: Reset keyword cache on hide
     this.lastSkillKeywords = '';
+    // Restore default hint text
+    this.restoreDefaultHintText();
   }
 
   /**
@@ -907,6 +920,9 @@ export class AgentSkillManager implements IInitializable {
     }
 
     this.selectedSkillElement = newSelected;
+
+    // Update hint text based on selected item's inputText
+    this.updateHintForSelectedItem();
 
     // Update tooltip if auto-show is enabled
     // Use requestAnimationFrame to ensure scroll position is settled before calculating popup position
@@ -1063,8 +1079,50 @@ export class AgentSkillManager implements IInitializable {
   }
 
   /**
-   * Open the command file in editor without inserting command text
-   * Similar to MentionManager behavior - window stays open and becomes draggable
+   * Check if a string looks like a URL, file path, or directory path
+   */
+  private isOpenablePath(text: string | undefined): boolean {
+    if (!text) return false;
+    // URL patterns
+    if (/^https?:\/\//.test(text)) return true;
+    // Absolute or home-relative paths (e.g., /usr/local, ~/ghq/...)
+    if (/^[~/]/.test(text)) return true;
+    return false;
+  }
+
+  /**
+   * Update hint text based on selected item's inputText.
+   * Shows path-specific hints when inputText is a URL, file path, or directory path.
+   */
+  private updateHintForSelectedItem(): void {
+    if (!this.updateHintText) return;
+    const command = this.filteredSkills[this.selectedIndex];
+    if (!command) return;
+
+    if (this.isOpenablePath(command.inputText)) {
+      const target = command.inputText!;
+      if (/^https?:\/\//.test(target)) {
+        this.updateHintText('Ctrl+Enter: open URL in browser');
+      } else {
+        this.updateHintText('Ctrl+Enter: open path / Ctrl+Shift+Enter: reveal in Finder');
+      }
+    } else {
+      this.updateHintText('Ctrl+Enter: open file / Ctrl+Shift+Enter: reveal in Finder');
+    }
+  }
+
+  /**
+   * Restore default hint text when suggestions are hidden
+   */
+  private restoreDefaultHintText(): void {
+    if (this.updateHintText && this.getDefaultHintText) {
+      this.updateHintText(this.getDefaultHintText());
+    }
+  }
+
+  /**
+   * Open the command's inputText path/URL, or fall back to opening the source file in editor.
+   * When inputText is a URL, file path, or directory path, open it instead of the source file.
    */
   private async openSkillFile(index: number): Promise<void> {
     if (index < 0 || index >= this.filteredSkills.length) return;
@@ -1078,9 +1136,25 @@ export class AgentSkillManager implements IInitializable {
       // Enable draggable state while file is opening
       this.setDraggable?.(true);
 
-      // Open the file in editor
-      if (electronAPI?.file?.openInEditor) {
-        await electronAPI.file.openInEditor(command.filePath);
+      // If inputText is an openable path/URL, open that instead of the source file
+      if (this.isOpenablePath(command.inputText)) {
+        const target = command.inputText!;
+        if (/^https?:\/\//.test(target)) {
+          // Open URL in browser
+          if (electronAPI?.shell?.openExternal) {
+            await electronAPI.shell.openExternal(target);
+          }
+        } else {
+          // Open file/directory path in editor
+          if (electronAPI?.file?.openInEditor) {
+            await electronAPI.file.openInEditor(target);
+          }
+        }
+      } else {
+        // Default: open the source file in editor
+        if (electronAPI?.file?.openInEditor) {
+          await electronAPI.file.openInEditor(command.filePath);
+        }
       }
       // Note: Do not restore focus to PromptLine window
       // The opened file's application should stay in foreground
@@ -1092,7 +1166,7 @@ export class AgentSkillManager implements IInitializable {
   }
 
   /**
-   * Reveal the directory of a skill file in Finder
+   * Reveal the directory of a skill file (or inputText path) in Finder
    */
   private async revealSkillFileDirectory(index: number): Promise<void> {
     if (index < 0 || index >= this.filteredSkills.length) return;
@@ -1100,12 +1174,17 @@ export class AgentSkillManager implements IInitializable {
     const command = this.filteredSkills[index];
     if (!command?.filePath) return;
 
+    // Use inputText path if it's an openable path, otherwise use source file path
+    const targetPath = (this.isOpenablePath(command.inputText) && !/^https?:\/\//.test(command.inputText!))
+      ? command.inputText!
+      : command.filePath;
+
     try {
       this.onBeforeOpenFile?.();
       this.setDraggable?.(true);
 
       if (electronAPI?.file?.revealInFinder) {
-        const result = await electronAPI.file.revealInFinder(command.filePath);
+        const result = await electronAPI.file.revealInFinder(targetPath);
         if (result.success) {
           // Restore focus to PromptLine window after a short delay
           setTimeout(() => {

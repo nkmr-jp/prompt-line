@@ -197,7 +197,11 @@ export class PromptLineRenderer {
       setDraggable: (enabled: boolean) => {
         // Enable/disable draggable state on header during file open
         this.domManager.setDraggable(enabled);
-      }
+      },
+      updateHintText: (text: string) => {
+        this.domManager.updateHintText(text);
+      },
+      getDefaultHintText: () => this.defaultHintText
     });
 
     this.agentSkillManager.initializeElements();
