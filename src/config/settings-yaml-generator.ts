@@ -101,6 +101,10 @@ function appendAgentSkillOptionalFields(lines: string[], entry: AgentSkillEntry,
   if (entry.prefixPattern && !entry.values) lines.push(`${p}prefixPattern: "${entry.prefixPattern}"`);
   if (entry.argumentHint) lines.push(`${p}argumentHint: "${entry.argumentHint}"`);
   if (entry.maxSuggestions !== undefined) lines.push(`${p}maxSuggestions: ${entry.maxSuggestions}`);
+  if (entry.triggers && entry.triggers.length > 0) {
+    const triggersStr = entry.triggers.map(t => `"${t}"`).join(', ');
+    lines.push(`${p}triggers: [${triggersStr}]`);
+  }
 }
 
 /**
@@ -268,6 +272,7 @@ function buildAgentSkillsHeader(): string {
     '#   values: Map of template variable names to JSON extraction patterns (e.g., pluginName: "**/.claude-plugin/*.json@name")',
     '#   argumentHint: Hint for skill arguments',
     '#   maxSuggestions: Maximum number of suggestions to display',
+    '#   triggers: Trigger character array (default: ["/"]). e.g., ["/", "$"] enables both / and $ activation',
     '#   {dirname}: Parent directory name',
     '#   {dirname:N}: N levels up directory name (e.g., {dirname:2} = grandparent)',
     'agentSkills:'
@@ -331,6 +336,8 @@ function buildCustomSearchHeader(): string {
 #   icon            : Codicon icon name (e.g., "agent", "rocket", "terminal")
 #                     https://microsoft.github.io/vscode-codicons/dist/codicon.html
 #   label           : UI badge label
+#   shortcut        : Keyboard shortcut to activate this search (e.g., "Ctrl+g")
+#                     Inserts @searchPrefix: into the input and triggers mention detection
 #
 # Template variables:
 #   {basename}          — File name without extension

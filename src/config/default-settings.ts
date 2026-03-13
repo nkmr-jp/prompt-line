@@ -141,6 +141,7 @@ export const defaultSettings: UserSettings = {
    *   prefixPattern   — (deprecated) Use values instead
    *   argumentHint    — Hint text for skill arguments
    *   maxSuggestions  — Max number of suggestions to display
+   *   triggers        — Trigger character array (default: ['/']). e.g., ['/', '$'] enables both / and $ activation
    *
    * Example (settings.yml):
    *   agentSkills:
@@ -150,6 +151,7 @@ export const defaultSettings: UserSettings = {
    *       label: "command"
    *       color: "purple"
    *       pattern: "*.md"
+   *       triggers: ['/', '$']
    *       values:
    *         pluginName: "path/to/metadata.json@fieldName"
    *       maxSuggestions: 20
@@ -297,6 +299,7 @@ export const defaultSettings: UserSettings = {
    *       path: /path/to/knowledge-base
    *       pattern: "**{/}*.md"
    *       searchPrefix: kb
+   *       shortcut: "Ctrl+g"
    *       values:
    *         pluginName: "path/to/metadata.json@fieldName"
    *       maxSuggestions: 100

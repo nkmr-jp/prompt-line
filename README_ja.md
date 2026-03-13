@@ -183,12 +183,12 @@ pnpm run reset-accessibility
 |---------|-----------------------------------------------|
 | `shortcuts` | キーボードショートカット（メイン、ペースト、クローズ、履歴ナビゲーション、検索）      |
 | `window` | ウィンドウサイズと配置モード                                |
-| `fileOpener` | デフォルトエディタと拡張子別アプリケーション                        |
+| `fileOpener` | デフォルトエディタ、拡張子別・ディレクトリ別（glob対応）アプリケーション |
 | `builtInCommands` | Built-inスラッシュコマンドの有効化（claude, codex, gemini等） |
-| `agentSkills` | Agent Skills検索機能                              |
-| `mentions.customSearch` | @prefix:で発動するカスタム検索                           |
-| `mentions.fileSearch` | ファイル検索設定（@path/to/file補完）                     |
-| `mentions.symbolSearch` | シンボル検索設定（@ts:Config、@go:Handler）              |
+| `agentSkills` | Agent Skills検索機能（`$`などのカスタムトリガーに対応） |
+| `customSearch` | `@prefix:`で発動するカスタム検索（キーボードショートカットによる直接起動に対応） |
+| `fileSearch` | ファイル検索設定（`@path/to/file`補完） |
+| `symbolSearch` | シンボル検索設定（`@ts:Config`、`@go:Handler`） |
 
 ## プロンプト履歴
 
