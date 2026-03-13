@@ -58,7 +58,8 @@ export function resolveTemplate(template: string, context: TemplateContext): str
   // Replace values-defined template variables (e.g., {prefix}, {custom_key}, etc.)
   if (context.values) {
     for (const [key, value] of Object.entries(context.values)) {
-      result = result.replace(new RegExp(`\\{${key}\\}`, 'g'), value);
+      const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      result = result.replace(new RegExp(`\\{${escapedKey}\\}`, 'g'), value);
     }
   }
 

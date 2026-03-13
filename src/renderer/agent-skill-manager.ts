@@ -7,6 +7,7 @@ import type { InputFormatType, ColorValue } from '../types';
 import type { IInitializable } from './interfaces/initializable';
 import { FrontmatterPopupManager } from './frontmatter-popup-manager';
 import { highlightMatch, splitKeywords } from './utils/highlight-utils';
+import { escapeHtml } from './utils/html-utils';
 import { electronAPI } from './services/electron-api';
 import { extractTriggerQueryAtCursor } from './utils/trigger-query-extractor';
 import { getCaretCoordinates, createMirrorDiv } from './mentions/dom-utils';
@@ -647,7 +648,7 @@ export class AgentSkillManager implements IInitializable {
       // Create name element with highlighting
       const nameSpan = document.createElement('span');
       nameSpan.className = 'agent-skill-name';
-      nameSpan.innerHTML = this.activeTriggerPrefix + highlightMatch(cmd.name, query, 'agent-skill-highlight');
+      nameSpan.innerHTML = escapeHtml(this.activeTriggerPrefix) + highlightMatch(cmd.name, query, 'agent-skill-highlight');
       item.appendChild(nameSpan);
 
       // Create badge (label takes priority over source/displayName)
