@@ -93,42 +93,44 @@ class SettingsManager extends EventEmitter {
     try {
       // Set restrictive directory permissions (owner read/write/execute only)
       await fs.mkdir(path.dirname(this.settingsFile), { recursive: true, mode: 0o700 });
-
-      try {
-        const data = await fs.readFile(this.settingsFile, 'utf8');
-        // Use JSON_SCHEMA to prevent arbitrary code execution from malicious YAML
-        // JSON_SCHEMA only allows JSON-compatible types (strings, numbers, booleans, null, arrays, objects)
-        // which prevents JavaScript-specific type coercion attacks
-        const parsed = yaml.load(data, { schema: yaml.JSON_SCHEMA }) as UserSettings;
-        
-        if (parsed && typeof parsed === 'object') {
-          this.currentSettings = this.mergeWithDefaults(parsed);
-        } else {
-          logger.warn('Invalid settings file format, using defaults');
-          try {
-            await this.saveSettings();
-          } catch (saveError) {
-            logger.error('Failed to save default settings after invalid format:', saveError);
-            // Continue with defaults in memory
-          }
-        }
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-          logger.info('Settings file not found, creating with defaults');
-          try {
-            await this.saveSettings();
-          } catch (saveError) {
-            logger.error('Failed to create default settings file:', saveError);
-            // Continue with defaults in memory
-          }
-        } else {
-          logger.error('Failed to read settings file:', error);
-          throw error;
-        }
-      }
+      await this.readAndApplySettingsFile();
     } catch (error) {
       logger.error('Failed to load settings:', error);
       throw error;
+    }
+  }
+
+  private async readAndApplySettingsFile(): Promise<void> {
+    try {
+      const data = await fs.readFile(this.settingsFile, 'utf8');
+      // Use JSON_SCHEMA to prevent arbitrary code execution from malicious YAML
+      // JSON_SCHEMA only allows JSON-compatible types (strings, numbers, booleans, null, arrays, objects)
+      // which prevents JavaScript-specific type coercion attacks
+      const parsed = yaml.load(data, { schema: yaml.JSON_SCHEMA }) as UserSettings;
+
+      if (parsed && typeof parsed === 'object') {
+        this.currentSettings = this.mergeWithDefaults(parsed);
+      } else {
+        logger.warn('Invalid settings file format, using defaults');
+        await this.trySaveSettings('Failed to save default settings after invalid format:');
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        logger.info('Settings file not found, creating with defaults');
+        await this.trySaveSettings('Failed to create default settings file:');
+      } else {
+        logger.error('Failed to read settings file:', error);
+        throw error;
+      }
+    }
+  }
+
+  private async trySaveSettings(errorMessage: string): Promise<void> {
+    try {
+      await this.saveSettings();
+    } catch (saveError) {
+      logger.error(errorMessage, saveError);
+      // Continue with defaults in memory
     }
   }
 
@@ -136,42 +138,101 @@ class SettingsManager extends EventEmitter {
    * Convert legacy mdSearch entries to new format
    * Separates command entries (/) and mention entries (@)
    */
+  private convertLegacyCommandEntry(entry: CustomSearchEntry): AgentSkillEntry {
+    const cmd: AgentSkillEntry = {
+      name: entry.name,
+      description: entry.description,
+      path: entry.path,
+      pattern: entry.pattern,
+    };
+    if (entry.argumentHint) cmd.argumentHint = entry.argumentHint;
+    if (entry.maxSuggestions) cmd.maxSuggestions = entry.maxSuggestions;
+    if (entry.orderBy) cmd.orderBy = entry.orderBy;
+    if (entry.prefixPattern) cmd.prefixPattern = entry.prefixPattern;
+    return cmd;
+  }
+
+  private convertLegacyMentionEntry(entry: CustomSearchEntry): MentionEntry {
+    const mention: MentionEntry = {
+      name: entry.name,
+      description: entry.description,
+      path: entry.path,
+      pattern: entry.pattern,
+    };
+    if (entry.maxSuggestions) mention.maxSuggestions = entry.maxSuggestions;
+    if (entry.searchPrefix) mention.searchPrefix = entry.searchPrefix;
+    if (entry.orderBy) mention.orderBy = entry.orderBy;
+    if (entry.displayTime !== undefined) mention.displayTime = entry.displayTime;
+    if (entry.inputFormat) mention.inputFormat = entry.inputFormat;
+    return mention;
+  }
+
   private convertLegacyCustomSearch(mdSearch: CustomSearchEntry[]): { custom: AgentSkillEntry[]; customSearchMentions: MentionEntry[] } {
     const custom: AgentSkillEntry[] = [];
     const customSearchMentions: MentionEntry[] = [];
 
     for (const entry of mdSearch) {
       if (entry.type === 'command') {
-        // Convert to AgentSkillEntry format (without type field)
-        const cmd: AgentSkillEntry = {
-          name: entry.name,
-          description: entry.description,
-          path: entry.path,
-          pattern: entry.pattern,
-        };
-        if (entry.argumentHint) cmd.argumentHint = entry.argumentHint;
-        if (entry.maxSuggestions) cmd.maxSuggestions = entry.maxSuggestions;
-        if (entry.orderBy) cmd.orderBy = entry.orderBy;
-        if (entry.prefixPattern) cmd.prefixPattern = entry.prefixPattern;
-        custom.push(cmd);
+        custom.push(this.convertLegacyCommandEntry(entry));
       } else if (entry.type === 'mention') {
-        // Convert to MentionEntry (without type field)
-        const mention: MentionEntry = {
-          name: entry.name,
-          description: entry.description,
-          path: entry.path,
-          pattern: entry.pattern,
-        };
-        if (entry.maxSuggestions) mention.maxSuggestions = entry.maxSuggestions;
-        if (entry.searchPrefix) mention.searchPrefix = entry.searchPrefix;
-        if (entry.orderBy) mention.orderBy = entry.orderBy;
-        if (entry.displayTime !== undefined) mention.displayTime = entry.displayTime;
-        if (entry.inputFormat) mention.inputFormat = entry.inputFormat;
-        customSearchMentions.push(mention);
+        customSearchMentions.push(this.convertLegacyMentionEntry(entry));
       }
     }
 
     return { custom, customSearchMentions };
+  }
+
+  private resolveBuiltInCommands(userSettings: Partial<UserSettings>, rawAgentSkills: unknown): string[] {
+    const defaultBuiltInCommands = this.defaultSettings.builtInCommands ?? ['claude'];
+
+    if (Array.isArray(userSettings.builtInCommands)) {
+      return userSettings.builtInCommands;
+    }
+    if (rawAgentSkills && !Array.isArray(rawAgentSkills) && typeof rawAgentSkills === 'object') {
+      // Legacy: agentSkills is an object with builtInCommands
+      const legacySkills = rawAgentSkills as Record<string, unknown>;
+      if (Array.isArray(legacySkills.builtInCommands)) return legacySkills.builtInCommands as string[];
+      if (Array.isArray(legacySkills.builtIn)) return legacySkills.builtIn as string[];
+      return defaultBuiltInCommands;
+    }
+    if (userSettings.slashCommands?.builtInCommands) {
+      return userSettings.slashCommands.builtInCommands;
+    }
+    const legacyBuiltIn = (userSettings as Record<string, unknown>).legacyBuiltInCommands as { tools?: string[] } | undefined;
+    if (legacyBuiltIn) {
+      return legacyBuiltIn.tools ?? defaultBuiltInCommands;
+    }
+    return defaultBuiltInCommands;
+  }
+
+  private resolveAgentSkills(userSettings: Partial<UserSettings>, rawAgentSkills: unknown): AgentSkillEntry[] {
+    const defaultAgentSkills = this.defaultSettings.agentSkills ?? [];
+
+    if (Array.isArray(userSettings.agentSkills)) {
+      return userSettings.agentSkills;
+    }
+    if (rawAgentSkills && !Array.isArray(rawAgentSkills) && typeof rawAgentSkills === 'object') {
+      // Legacy: agentSkills is an object with custom property
+      const legacySkills = rawAgentSkills as Record<string, unknown>;
+      if (Array.isArray(legacySkills.custom)) return legacySkills.custom as AgentSkillEntry[];
+      return defaultAgentSkills;
+    }
+    if (userSettings.slashCommands?.custom) {
+      return userSettings.slashCommands.custom;
+    }
+    return defaultAgentSkills;
+  }
+
+  private resolveLegacyMdSearch(result: UserSettings, mdSearch: CustomSearchEntry[]): void {
+    const converted = this.convertLegacyCustomSearch(mdSearch);
+
+    if (!result.agentSkills && converted.custom.length > 0) {
+      result.agentSkills = converted.custom;
+    }
+    if (converted.customSearchMentions.length > 0 && (!result.customSearch || result.customSearch.length === 0)) {
+      result.customSearch = converted.customSearchMentions;
+    }
+    result.mdSearch = mdSearch;
   }
 
   private mergeWithDefaults(userSettings: Partial<UserSettings>): UserSettings {
@@ -220,86 +281,19 @@ class SettingsManager extends EventEmitter {
 
     // Handle mentionEnable/mentionDisable (top-level primary, mentions.enable/disable as legacy fallback)
     const resolvedMentionEnable = userSettings.mentionEnable ?? userSettings.mentions?.enable;
-    if (resolvedMentionEnable) {
-      result.mentionEnable = resolvedMentionEnable;
-    }
+    if (resolvedMentionEnable) result.mentionEnable = resolvedMentionEnable;
     const resolvedMentionDisable = userSettings.mentionDisable ?? userSettings.mentions?.disable;
-    if (resolvedMentionDisable) {
-      result.mentionDisable = resolvedMentionDisable;
-    }
+    if (resolvedMentionDisable) result.mentionDisable = resolvedMentionDisable;
 
-    // Handle builtInCommands at root level
+    // Handle builtInCommands and agentSkills
     // Priority: root builtInCommands > legacy agentSkills.builtInCommands > legacy builtInCommands.tools > defaults
     const rawAgentSkills = userSettings.agentSkills as unknown;
-
-    const defaultBuiltInCommands = this.defaultSettings.builtInCommands ?? ['claude'];
-    const defaultAgentSkills = this.defaultSettings.agentSkills ?? [];
-
-    if (Array.isArray(userSettings.builtInCommands)) {
-      // New format: root-level builtInCommands as string[]
-      result.builtInCommands = userSettings.builtInCommands;
-    } else if (rawAgentSkills && !Array.isArray(rawAgentSkills) && typeof rawAgentSkills === 'object') {
-      // Legacy: agentSkills is an object with builtInCommands
-      const legacySkills = rawAgentSkills as Record<string, unknown>;
-      if (Array.isArray(legacySkills.builtInCommands)) {
-        result.builtInCommands = legacySkills.builtInCommands as string[];
-      } else if (Array.isArray(legacySkills.builtIn)) {
-        result.builtInCommands = legacySkills.builtIn as string[];
-      } else {
-        result.builtInCommands = defaultBuiltInCommands;
-      }
-    } else if (userSettings.slashCommands?.builtInCommands) {
-      // Legacy: slashCommands.builtInCommands
-      result.builtInCommands = userSettings.slashCommands.builtInCommands;
-    } else if ((userSettings as Record<string, unknown>).legacyBuiltInCommands) {
-      // Legacy: builtInCommands.tools format
-      const legacy = (userSettings as Record<string, unknown>).legacyBuiltInCommands as { tools?: string[] };
-      if (legacy.tools) {
-        result.builtInCommands = legacy.tools;
-      } else {
-        result.builtInCommands = defaultBuiltInCommands;
-      }
-    } else {
-      result.builtInCommands = defaultBuiltInCommands;
-    }
-
-    // Handle agentSkills as flat array
-    // Priority: flat array > legacy object.custom > legacy slashCommands.custom > defaults
-    if (Array.isArray(userSettings.agentSkills)) {
-      // New format: agentSkills is already a flat array
-      result.agentSkills = userSettings.agentSkills;
-    } else if (rawAgentSkills && !Array.isArray(rawAgentSkills) && typeof rawAgentSkills === 'object') {
-      // Legacy: agentSkills is an object with custom property
-      const legacySkills = rawAgentSkills as Record<string, unknown>;
-      if (Array.isArray(legacySkills.custom)) {
-        result.agentSkills = legacySkills.custom as AgentSkillEntry[];
-      } else {
-        result.agentSkills = defaultAgentSkills;
-      }
-    } else if (userSettings.slashCommands?.custom) {
-      // Legacy: slashCommands.custom
-      result.agentSkills = userSettings.slashCommands.custom;
-    } else {
-      result.agentSkills = defaultAgentSkills;
-    }
+    result.builtInCommands = this.resolveBuiltInCommands(userSettings, rawAgentSkills);
+    result.agentSkills = this.resolveAgentSkills(userSettings, rawAgentSkills);
 
     // Handle legacy settings (mdSearch) for backward compatibility
     if (userSettings.mdSearch && userSettings.mdSearch.length > 0) {
-      const converted = this.convertLegacyCustomSearch(userSettings.mdSearch);
-
-      // If agentSkills not set, use converted custom
-      if (!result.agentSkills && converted.custom.length > 0) {
-        result.agentSkills = converted.custom;
-      }
-      // If customSearch not set, use converted customSearchMentions
-      if (converted.customSearchMentions.length > 0) {
-        if (!result.customSearch || result.customSearch.length === 0) {
-          result.customSearch = converted.customSearchMentions;
-        }
-      }
-
-      // Keep legacy mdSearch for backward compatibility
-      result.mdSearch = userSettings.mdSearch;
+      this.resolveLegacyMdSearch(result, userSettings.mdSearch);
     }
 
     return result;
@@ -453,6 +447,48 @@ class SettingsManager extends EventEmitter {
     return this.currentSettings.builtInCommands;
   }
 
+  private agentSkillToEntry(cmd: AgentSkillEntry): CustomSearchEntry {
+    const entry: CustomSearchEntry = {
+      type: 'command',
+      name: cmd.name,
+      description: cmd.description,
+      path: cmd.path,
+      pattern: cmd.pattern,
+    };
+    if (cmd.argumentHint !== undefined) entry.argumentHint = cmd.argumentHint;
+    if (cmd.maxSuggestions !== undefined) entry.maxSuggestions = cmd.maxSuggestions;
+    if (cmd.orderBy !== undefined) entry.orderBy = cmd.orderBy;
+    if (cmd.label !== undefined) entry.label = cmd.label;
+    if (cmd.color !== undefined) entry.color = cmd.color;
+    if (cmd.icon !== undefined) entry.icon = cmd.icon;
+    if (cmd.prefixPattern !== undefined) entry.prefixPattern = cmd.prefixPattern;
+    if (cmd.enable !== undefined) entry.enable = cmd.enable;
+    if (cmd.disable !== undefined) entry.disable = cmd.disable;
+    return entry;
+  }
+
+  private mentionToEntry(mention: MentionEntry): CustomSearchEntry {
+    const entry: CustomSearchEntry = {
+      type: 'mention',
+      name: mention.name,
+      description: mention.description,
+      path: mention.path,
+      pattern: mention.pattern,
+    };
+    if (mention.maxSuggestions !== undefined) entry.maxSuggestions = mention.maxSuggestions;
+    if (mention.searchPrefix !== undefined) entry.searchPrefix = mention.searchPrefix;
+    if (mention.orderBy !== undefined) entry.orderBy = mention.orderBy;
+    if (mention.displayTime !== undefined) entry.displayTime = mention.displayTime;
+    if (mention.inputFormat !== undefined) entry.inputFormat = mention.inputFormat;
+    if (mention.label !== undefined) entry.label = mention.label;
+    if (mention.prefixPattern !== undefined) entry.prefixPattern = mention.prefixPattern;
+    if (mention.color !== undefined) entry.color = mention.color;
+    if (mention.icon !== undefined) entry.icon = mention.icon;
+    if (mention.enable !== undefined) entry.enable = mention.enable;
+    if (mention.disable !== undefined) entry.disable = mention.disable;
+    return entry;
+  }
+
   /**
    * Convert current settings to CustomSearchEntry format for backward compatibility
    * This is used by CustomSearchLoader
@@ -469,56 +505,14 @@ class SettingsManager extends EventEmitter {
     // Convert current format to CustomSearchEntry format
     const entries: CustomSearchEntry[] = [];
 
-    // Convert agent skills (flat array of slash command entries)
     const agentSkills = this.currentSettings.agentSkills;
     if (agentSkills && agentSkills.length > 0) {
-      for (const cmd of agentSkills) {
-        const entry: CustomSearchEntry = {
-          type: 'command',
-          name: cmd.name,
-          description: cmd.description,
-          path: cmd.path,
-          pattern: cmd.pattern,
-        };
-        // Only add optional properties if defined
-        if (cmd.argumentHint !== undefined) entry.argumentHint = cmd.argumentHint;
-        if (cmd.maxSuggestions !== undefined) entry.maxSuggestions = cmd.maxSuggestions;
-        if (cmd.orderBy !== undefined) entry.orderBy = cmd.orderBy;
-        if (cmd.label !== undefined) entry.label = cmd.label;
-        if (cmd.color !== undefined) entry.color = cmd.color;
-        if (cmd.icon !== undefined) entry.icon = cmd.icon;
-        if (cmd.prefixPattern !== undefined) entry.prefixPattern = cmd.prefixPattern;
-        if (cmd.enable !== undefined) entry.enable = cmd.enable;
-        if (cmd.disable !== undefined) entry.disable = cmd.disable;
-        entries.push(entry);
-      }
+      entries.push(...agentSkills.map(cmd => this.agentSkillToEntry(cmd)));
     }
 
-    // Convert customSearch mentions (top-level)
     const customSearchMentions = this.currentSettings.customSearch;
     if (customSearchMentions) {
-      for (const mention of customSearchMentions) {
-        const entry: CustomSearchEntry = {
-          type: 'mention',
-          name: mention.name,
-          description: mention.description,
-          path: mention.path,
-          pattern: mention.pattern,
-        };
-        // Only add optional properties if defined
-        if (mention.maxSuggestions !== undefined) entry.maxSuggestions = mention.maxSuggestions;
-        if (mention.searchPrefix !== undefined) entry.searchPrefix = mention.searchPrefix;
-        if (mention.orderBy !== undefined) entry.orderBy = mention.orderBy;
-        if (mention.displayTime !== undefined) entry.displayTime = mention.displayTime;
-        if (mention.inputFormat !== undefined) entry.inputFormat = mention.inputFormat;
-        if (mention.label !== undefined) entry.label = mention.label;
-        if (mention.prefixPattern !== undefined) entry.prefixPattern = mention.prefixPattern;
-        if (mention.color !== undefined) entry.color = mention.color;
-        if (mention.icon !== undefined) entry.icon = mention.icon;
-        if (mention.enable !== undefined) entry.enable = mention.enable;
-        if (mention.disable !== undefined) entry.disable = mention.disable;
-        entries.push(entry);
-      }
+      entries.push(...customSearchMentions.map(mention => this.mentionToEntry(mention)));
     }
 
     return entries;
