@@ -20,11 +20,6 @@
 * **settings:** make shortcut overrides work and add toggle support ([2056534](https://github.com/nkmr-jp/prompt-line/commit/20565348cd9b08cce5db88a2cc1e7edddab7d459))
 
 
-### Performance Improvements
-
-* **custom-search:** optimize JSONL search with hot reload, dedup fix, and caching ([#246](https://github.com/nkmr-jp/prompt-line/issues/246)) ([ba1fbc1](https://github.com/nkmr-jp/prompt-line/commit/ba1fbc1d071f1a94079c68ee43d42873bd2c21a2))
-
-
 ### Documentation
 
 * simplify root CLAUDE.md (590→159 lines) and fix renderer mention system structure ([4cc0aff](https://github.com/nkmr-jp/prompt-line/commit/4cc0aff444fd8f9bd8f8c0e26d532d9e3f5f3ad0))
