@@ -137,7 +137,8 @@ export const defaultSettings: UserSettings = {
    *                            emerald, teal, cyan, sky, blue, indigo, violet, purple, fuchsia, pink
    *   icon            — Codicon icon name (e.g., "agent", "rocket", "terminal")
    *                     See: https://microsoft.github.io/vscode-codicons/dist/codicon.html
-   *   prefixPattern   — Pattern to extract prefix from plugin metadata JSON
+   *   values          — Map of template variable names to JSON extraction patterns
+   *   prefixPattern   — (deprecated) Use values instead
    *   argumentHint    — Hint text for skill arguments
    *   maxSuggestions  — Max number of suggestions to display
    *
@@ -149,6 +150,8 @@ export const defaultSettings: UserSettings = {
    *       label: "command"
    *       color: "purple"
    *       pattern: "*.md"
+   *       values:
+   *         pluginName: "path/to/metadata.json@fieldName"
    *       maxSuggestions: 20
    */
   agentSkills: [
@@ -179,7 +182,7 @@ export const defaultSettings: UserSettings = {
       description: '{frontmatter@description}',
       path: '~/.claude/plugins/cache',
       pattern: '**/commands/*.md',
-      prefixPattern: '**/.claude-plugin/*.json@name',
+      values: { prefix: '**/.claude-plugin/*.json@name' },
       label: 'plugin command',
       color: 'green',
       argumentHint: '{frontmatter@argument-hint}',
@@ -191,7 +194,7 @@ export const defaultSettings: UserSettings = {
       description: '{frontmatter@description}',
       path: '~/.claude/plugins/cache',
       pattern: '**/*/SKILL.md',
-      prefixPattern: '**/.claude-plugin/*.json@name',
+      values: { prefix: '**/.claude-plugin/*.json@name' },
       label: 'plugin skill',
       color: 'cyan',
       argumentHint: '{frontmatter@argument-hint}',
@@ -275,7 +278,8 @@ export const defaultSettings: UserSettings = {
    *   pattern         — Glob pattern to match files
    *                     Supports: *.md, **{/}*.md, *.json, *.jsonl
    *                     jq expressions: "config.json@.members" (expands array into items)
-   *   prefixPattern   — Pattern to extract prefix from plugin metadata JSON
+   *   values          — Map of template variable names to JSON extraction patterns
+   *   prefixPattern   — (deprecated) Use values instead
    *   searchPrefix    — Prefix to trigger this search (e.g., "agent" → @agent:)
    *   maxSuggestions  — Max suggestions to display
    *   orderBy         — Sort order (e.g., "name", "name desc", "{updatedAt} desc")
@@ -291,6 +295,8 @@ export const defaultSettings: UserSettings = {
    *       path: /path/to/knowledge-base
    *       pattern: "**{/}*.md"
    *       searchPrefix: kb
+   *       values:
+   *         pluginName: "path/to/metadata.json@fieldName"
    *       maxSuggestions: 100
    *       inputFormat: "{filepath}"
    */
@@ -313,7 +319,7 @@ export const defaultSettings: UserSettings = {
       path: '~/.claude/plugins/cache',
       color: "yellow",
       pattern: '**/agents/*.md',
-      prefixPattern: '**/.claude-plugin/*.json@name',
+      values: { prefix: '**/.claude-plugin/*.json@name' },
       searchPrefix: 'agent',
       displayTime: '{updatedAt}'
     },

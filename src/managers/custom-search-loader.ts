@@ -9,7 +9,7 @@ import type { CustomSearchEntry, CustomSearchItem, CustomSearchType, UserSetting
 import { resolveTemplate, getBasename, getDirname, parseFrontmatter, extractRawFrontmatter, parseFirstHeading, parseJsonContent, type TemplateContext } from '../lib/template-resolver';
 import { evaluateJq } from '../lib/jq-resolver';
 import { getDefaultCustomSearchConfig, DEFAULT_MAX_SUGGESTIONS, DEFAULT_ORDER_BY } from '../lib/default-custom-search-config';
-import { resolvePrefix } from '../lib/prefix-resolver';
+import { resolveValues } from '../lib/prefix-resolver';
 import { isCommandEnabled } from '../lib/command-name-matcher';
 import { splitKeywords } from '../lib/keyword-utils';
 
@@ -696,11 +696,13 @@ class CustomSearchLoader extends EventEmitter {
       const frontmatter = isJsonFile ? {} : parseFrontmatter(content);
       const rawFrontmatter = isJsonFile ? '' : extractRawFrontmatter(content);
       const basename = getBasename(filePath);
-      const prefix = await this.resolveEntryPrefix(filePath, entry);
+      const values = await this.resolveEntryValues(filePath, entry);
+      const prefix = values.prefix ?? '';
       const dirname = getDirname(filePath);
       const heading = isJsonFile ? '' : parseFirstHeading(content);
       const jsonData = isJsonFile ? parseJsonContent(content) : undefined;
-      const context = { basename, frontmatter, prefix, dirname, filePath, heading, content, ...(jsonData && { jsonData }) };
+      const hasValues = Object.keys(values).length > 0;
+      const context = { basename, frontmatter, prefix, dirname, filePath, heading, content, ...(hasValues && { values }), ...(jsonData && { jsonData }) };
 
       const item: CustomSearchItem = {
         name: resolveTemplate(entry.name, context),
@@ -726,11 +728,11 @@ class CustomSearchLoader extends EventEmitter {
     }
   }
 
-  /** エントリのprefixPatternからプレフィックスを解決する */
-  private async resolveEntryPrefix(filePath: string, entry: CustomSearchEntry): Promise<string> {
-    if (!entry.prefixPattern) return '';
+  /** エントリのvalues/prefixPatternからテンプレート変数を解決する */
+  private async resolveEntryValues(filePath: string, entry: CustomSearchEntry): Promise<Record<string, string>> {
+    if (!entry.values && !entry.prefixPattern) return {};
     const expandedPath = await this.resolveSymlink(entry.path.replace(/^~/, os.homedir()));
-    return resolvePrefix(filePath, entry.prefixPattern, expandedPath);
+    return resolveValues(filePath, entry.values, entry.prefixPattern, expandedPath);
   }
 
   /** label/color/icon/argumentHint のオプションフィールドをアイテムに適用する */
@@ -754,6 +756,9 @@ class CustomSearchLoader extends EventEmitter {
     if (entry.argumentHint) {
       const resolvedHint = resolveTemplate(entry.argumentHint, context);
       if (resolvedHint) item.argumentHint = resolvedHint;
+    }
+    if (entry.triggers) {
+      item.triggers = entry.triggers;
     }
   }
 
@@ -789,7 +794,8 @@ class CustomSearchLoader extends EventEmitter {
       const lines = content.split('\n');
       const basename = getBasename(filePath);
       const dirname = getDirname(filePath);
-      const prefix = await this.resolveEntryPrefix(filePath, entry);
+      const entryValues = await this.resolveEntryValues(filePath, entry);
+      const prefix = entryValues.prefix ?? '';
       const heading = this.parseFirstLine(content);
       const items: CustomSearchItem[] = [];
       let lineIndex = 0;
@@ -798,7 +804,7 @@ class CustomSearchLoader extends EventEmitter {
         const trimmed = rawLine.trim();
         if (!trimmed) continue;
         const item = this.createItemFromPlainTextLine(
-          trimmed, basename, dirname, filePath, entry, sourceId, prefix, heading, lineIndex, fileStat.mtimeMs, content
+          trimmed, basename, dirname, filePath, entry, sourceId, prefix, heading, lineIndex, fileStat.mtimeMs, content, entryValues
         );
         if (item) { items.push(item); lineIndex++; }
       }
@@ -822,9 +828,10 @@ class CustomSearchLoader extends EventEmitter {
     heading: string,
     lineIndex: number,
     mtimeMs: number,
-    content: string
+    content: string,
+    values?: Record<string, string>
   ): CustomSearchItem | null {
-    const context = { basename, frontmatter: {}, prefix, dirname, filePath, heading, line: trimmed, content };
+    const context = { basename, frontmatter: {}, prefix, dirname, filePath, heading, line: trimmed, content, ...(values && { values }) };
     const item: CustomSearchItem = {
       name: resolveTemplate(entry.name, context),
       description: resolveTemplate(entry.description, context),

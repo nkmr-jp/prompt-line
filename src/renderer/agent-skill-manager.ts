@@ -51,6 +51,7 @@ interface AgentSkillItem {
   source?: string;  // Source tool identifier (e.g., 'claude-code') for filtering
   displayName?: string;  // Human-readable source name for display (e.g., 'Claude Code')
   updatedAt?: number;  // File modification timestamp (mtimeMs)
+  triggers?: string[];  // Trigger prefixes (e.g., ['/', '$'])
 }
 
 export class AgentSkillManager implements IInitializable {
@@ -84,6 +85,11 @@ export class AgentSkillManager implements IInitializable {
   // D5: Reference to currently selected DOM element for differential update
   private selectedSkillElement: HTMLElement | null = null;
 
+  // Configurable trigger prefixes (default: ['/'])
+  private triggerPrefixes: string[] = ['/'];
+  // Currently active trigger prefix (set when a trigger is detected)
+  private activeTriggerPrefix: string = '/';
+
   // Frontmatter popup manager
   private frontmatterPopupManager: FrontmatterPopupManager;
 
@@ -111,6 +117,22 @@ export class AgentSkillManager implements IInitializable {
         }
       }
     });
+  }
+
+  /**
+   * Collect all unique trigger prefixes from loaded skills.
+   * Called after loadSkills to update triggerPrefixes.
+   */
+  private collectTriggerPrefixes(): void {
+    const prefixes = new Set<string>(['/']); // always include '/'
+    for (const skill of this.skills) {
+      if (skill.triggers) {
+        for (const t of skill.triggers) {
+          prefixes.add(t);
+        }
+      }
+    }
+    this.triggerPrefixes = [...prefixes];
   }
 
   /**
@@ -278,6 +300,8 @@ export class AgentSkillManager implements IInitializable {
         cmd.label?.toLowerCase() ?? '',
       ].join(' '));
     }
+    // Collect trigger prefixes from loaded skills
+    this.collectTriggerPrefixes();
   }
 
   /**
@@ -286,10 +310,10 @@ export class AgentSkillManager implements IInitializable {
   private checkForAgentSkill(): void {
     if (!this.textarea) return;
 
-    // Quick check: skip if no '/' before cursor (avoids extractTriggerQueryAtCursor overhead)
+    // Quick check: skip if no trigger prefix before cursor (avoids extractTriggerQueryAtCursor overhead)
     const cursorPos = this.textarea.selectionStart;
     const textBeforeCursor = this.textarea.value.substring(0, cursorPos);
-    if (!this.isEditingMode && !textBeforeCursor.includes('/')) {
+    if (!this.isEditingMode && !this.triggerPrefixes.some(p => textBeforeCursor.includes(p))) {
       if (this.isActive) this.hideSuggestions();
       return;
     }
@@ -297,7 +321,7 @@ export class AgentSkillManager implements IInitializable {
     const result = extractTriggerQueryAtCursor(
       this.textarea.value,
       cursorPos,
-      '/',
+      this.triggerPrefixes,
       { allowSpaces: true }
     );
 
@@ -306,7 +330,7 @@ export class AgentSkillManager implements IInitializable {
       if (this.isEditingMode) {
         // Check if the text still contains the command at the original position
         const text = this.textarea.value;
-        const expectedSkill = `/${this.editingSkillName}`;
+        const expectedSkill = `${this.activeTriggerPrefix}${this.editingSkillName}`;
         const skillAtPos = text.substring(
           this.editingSkillStartPos,
           this.editingSkillStartPos + expectedSkill.length
@@ -352,6 +376,7 @@ export class AgentSkillManager implements IInitializable {
     }
 
     this.currentTriggerStartPos = startPos;
+    this.activeTriggerPrefix = result.triggerChar;
 
     // C3: Skip full pipeline if splitKeywords result hasn't changed
     // D7: Compute keywords once here and pass to showSuggestions to avoid duplicate computation
@@ -382,8 +407,8 @@ export class AgentSkillManager implements IInitializable {
     const cursorPos = this.textarea.selectionStart;
     const textBeforeCursor = text.substring(0, cursorPos);
 
-    // Quick check: skip if no '/' in text before cursor
-    if (!textBeforeCursor.includes('/')) return;
+    // Quick check: skip if no trigger prefix in text before cursor
+    if (!this.triggerPrefixes.some(p => textBeforeCursor.includes(p))) return;
 
     // Load commands if not loaded
     if (this.skills.length === 0) {
@@ -401,19 +426,24 @@ export class AgentSkillManager implements IInitializable {
     // sortedSkillsByNameLength is pre-sorted by name length descending (e.g., "Linear API" before "Linear")
     let matchedSkill: AgentSkillItem | null = null;
     let commandStartPos = -1;
+    let matchedPrefix = '/';
 
     for (const cmd of this.sortedSkillsByNameLength) {
-      const pattern = '/' + cmd.name + ' ';
-      if (textBeforeCursor.endsWith(pattern)) {
-        // Verify it's at start of text or preceded by whitespace
-        const patternStartPos = textBeforeCursor.length - pattern.length;
-        const prevChar = patternStartPos > 0 ? textBeforeCursor[patternStartPos - 1] : '';
-        if (prevChar === '' || prevChar === ' ' || prevChar === '\n' || prevChar === '\t') {
-          matchedSkill = cmd;
-          commandStartPos = patternStartPos;
-          break;
+      for (const prefix of this.triggerPrefixes) {
+        const pattern = prefix + cmd.name + ' ';
+        if (textBeforeCursor.endsWith(pattern)) {
+          // Verify it's at start of text or preceded by whitespace
+          const patternStartPos = textBeforeCursor.length - pattern.length;
+          const prevChar = patternStartPos > 0 ? textBeforeCursor[patternStartPos - 1] : '';
+          if (prevChar === '' || prevChar === ' ' || prevChar === '\n' || prevChar === '\t') {
+            matchedSkill = cmd;
+            commandStartPos = patternStartPos;
+            matchedPrefix = prefix;
+            break;
+          }
         }
       }
+      if (matchedSkill) break;
     }
 
     if (!matchedSkill || !matchedSkill.argumentHint) {
@@ -421,6 +451,9 @@ export class AgentSkillManager implements IInitializable {
       // 編集モード中でUIが非表示の場合、状態はリセットしない
       return;
     }
+
+    // Track which prefix was matched
+    this.activeTriggerPrefix = matchedPrefix;
 
     // Show argumentHint for this command
     this.filteredSkills = [matchedSkill];
@@ -487,14 +520,21 @@ export class AgentSkillManager implements IInitializable {
     const lowerQuery = query.toLowerCase();
     const keywords = preComputedKeywords ?? splitKeywords(lowerQuery);
 
+    // Filter by active trigger prefix: only show skills whose triggers include the active trigger
+    // Skills without triggers default to ['/']
+    const triggerFilteredSkills = this.skills.filter(cmd => {
+      const triggers = cmd.triggers ?? ['/'];
+      return triggers.includes(this.activeTriggerPrefix);
+    });
+
     if (keywords.length === 0) {
-      // Empty query: show all skills
-      this.filteredSkills = [...this.skills];
+      // Empty query: show all skills matching trigger
+      this.filteredSkills = [...triggerFilteredSkills];
     } else {
       // Task #6: AND filter + fallback in 1 pass
       const fallbackResults: AgentSkillItem[] | null = keywords.length > 1 ? [] : null;
 
-      this.filteredSkills = this.skills.filter(cmd => {
+      this.filteredSkills = triggerFilteredSkills.filter(cmd => {
         const fields = this.getSearchableFields(cmd);
         if (keywords.every(kw => fields.includes(kw))) {
           return true;
@@ -599,7 +639,7 @@ export class AgentSkillManager implements IInitializable {
       // Create name element with highlighting
       const nameSpan = document.createElement('span');
       nameSpan.className = 'agent-skill-name';
-      nameSpan.innerHTML = '/' + highlightMatch(cmd.name, query, 'agent-skill-highlight');
+      nameSpan.innerHTML = this.activeTriggerPrefix + highlightMatch(cmd.name, query, 'agent-skill-highlight');
       item.appendChild(nameSpan);
 
       // Create badge (label takes priority over source/displayName)
@@ -895,8 +935,8 @@ export class AgentSkillManager implements IInitializable {
     const skillText = command.inputText
       ? command.inputText
       : command.inputFormat && command.inputFormat !== 'name'
-        ? command.name            // inputFormat 指定あり（テンプレート等） → / なし
-        : `/${command.name}`;     // デフォルト or 'name' → / あり
+        ? command.name            // inputFormat 指定あり（テンプレート等） → prefix なし
+        : `${this.activeTriggerPrefix}${command.name}`;     // デフォルト or 'name' → prefix あり
 
     // Set editing mode BEFORE inserting text.
     // replaceRangeWithUndo triggers a synchronous input event → checkForAgentSkill.
@@ -975,7 +1015,7 @@ export class AgentSkillManager implements IInitializable {
     // Create name element
     const nameSpan = document.createElement('span');
     nameSpan.className = 'agent-skill-name';
-    nameSpan.textContent = `/${command.name}`;
+    nameSpan.textContent = `${this.activeTriggerPrefix}${command.name}`;
     item.appendChild(nameSpan);
 
     // Add 'arg' badge with gray color

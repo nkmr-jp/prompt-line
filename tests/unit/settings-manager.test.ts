@@ -197,7 +197,7 @@ window:
             description: '{frontmatter@description}',
             path: '~/.claude/plugins/cache',
             pattern: '**/commands/*.md',
-            prefixPattern: '**/.claude-plugin/*.json@name',
+            values: { prefix: '**/.claude-plugin/*.json@name' },
             label: 'plugin command',
             color: 'green',
             argumentHint: '{frontmatter@argument-hint}',
@@ -208,7 +208,7 @@ window:
             description: '{frontmatter@description}',
             path: '~/.claude/plugins/cache',
             pattern: '**/*/SKILL.md',
-            prefixPattern: '**/.claude-plugin/*.json@name',
+            values: { prefix: '**/.claude-plugin/*.json@name' },
             label: 'plugin skill',
             color: 'cyan',
             argumentHint: '{frontmatter@argument-hint}',
@@ -249,7 +249,7 @@ window:
             color: 'yellow',
             path: '~/.claude/plugins/cache',
             pattern: '**/agents/*.md',
-            prefixPattern: '**/.claude-plugin/*.json@name',
+            values: { prefix: '**/.claude-plugin/*.json@name' },
             searchPrefix: 'agent'
           },
           {
@@ -405,7 +405,7 @@ window:
             description: '{frontmatter@description}',
             path: '~/.claude/plugins/cache',
             pattern: '**/commands/*.md',
-            prefixPattern: '**/.claude-plugin/*.json@name',
+            values: { prefix: '**/.claude-plugin/*.json@name' },
             label: 'plugin command',
             color: 'green',
             argumentHint: '{frontmatter@argument-hint}',
@@ -416,7 +416,7 @@ window:
             description: '{frontmatter@description}',
             path: '~/.claude/plugins/cache',
             pattern: '**/*/SKILL.md',
-            prefixPattern: '**/.claude-plugin/*.json@name',
+            values: { prefix: '**/.claude-plugin/*.json@name' },
             label: 'plugin skill',
             color: 'cyan',
             argumentHint: '{frontmatter@argument-hint}',
@@ -457,7 +457,7 @@ window:
             color: 'yellow',
             path: '~/.claude/plugins/cache',
             pattern: '**/agents/*.md',
-            prefixPattern: '**/.claude-plugin/*.json@name',
+            values: { prefix: '**/.claude-plugin/*.json@name' },
             searchPrefix: 'agent'
           },
           {
@@ -685,7 +685,7 @@ window:
       expect(settings.fileSearch?.respectGitignore).toBe(true);
     });
 
-    it('should deep merge symbolSearch with defaults', async () => {
+    it('should preserve symbolSearch timeout defaults when updating maxSymbols', async () => {
       // User specifies partial symbolSearch
       const userSettings: Partial<UserSettings> = {
         symbolSearch: {
