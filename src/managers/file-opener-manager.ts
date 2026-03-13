@@ -1,7 +1,9 @@
 import { execFile } from 'child_process';
+import os from 'os';
 import path from 'path';
 import { logger } from '../utils/utils';
 import type SettingsManager from './settings-manager';
+import type { FileOpenerDirectoryEntry } from '../types';
 
 interface OpenFileResult {
   success: boolean;
@@ -97,8 +99,10 @@ export class FileOpenerManager {
     const settings = this.settingsManager.getSettings();
     const ext = path.extname(filePath).slice(1).toLowerCase();
 
-    // 拡張子に対応するアプリを取得
+    // 拡張子に対応するアプリを取得（最優先）
+    // 次にディレクトリ設定、最後にグローバルdefaultEditor
     const app = settings.fileOpener?.extensions?.[ext]
+                || this.findDirectoryEditor(filePath, settings.fileOpener?.directories)
                 || settings.fileOpener?.defaultEditor;
 
     if (app) {
@@ -379,6 +383,67 @@ export class FileOpenerManager {
     const settings = this.settingsManager.getSettings();
     const ext = extension.startsWith('.') ? extension.slice(1) : extension;
     return settings.fileOpener?.extensions?.[ext.toLowerCase()] || null;
+  }
+
+  /**
+   * ファイルパスに対応するディレクトリ設定のエディタを取得
+   * glob パターン（* / **）をサポート。最も具体的なパターンが優先される。
+   */
+  private findDirectoryEditor(filePath: string, directories?: FileOpenerDirectoryEntry[]): string | null {
+    if (!directories || directories.length === 0) {
+      return null;
+    }
+
+    const normalizedFilePath = path.resolve(filePath);
+    let bestMatch: string | null = null;
+    let bestSpecificity = -1;
+
+    for (const entry of directories) {
+      // ~ をホームディレクトリに展開
+      const expandedDir = entry.path.startsWith('~')
+        ? path.join(os.homedir(), entry.path.slice(1))
+        : entry.path;
+      const normalizedPattern = path.resolve(expandedDir);
+
+      // パターンの具体性（globでない部分の長さ）を計算
+      const specificity = this.getPatternSpecificity(normalizedPattern);
+
+      // glob パターンを正規表現に変換してマッチ判定
+      const regex = this.globToRegex(normalizedPattern);
+      if (regex.test(normalizedFilePath) && specificity > bestSpecificity) {
+        bestMatch = entry.editor;
+        bestSpecificity = specificity;
+      }
+    }
+
+    return bestMatch;
+  }
+
+  /**
+   * glob パターンの具体性を返す（glob 以前の固定部分の長さ）
+   * 具体性が高い（固定部分が長い）パターンが優先される
+   */
+  private getPatternSpecificity(pattern: string): number {
+    const firstGlob = pattern.indexOf('*');
+    return firstGlob === -1 ? pattern.length : firstGlob;
+  }
+
+  /**
+   * ディレクトリ glob パターンを正規表現に変換
+   * - ** → 任意のパス（/ を含む）
+   * - * → 1階層分（/ を含まない）
+   * パターン配下のファイルすべてにマッチする
+   */
+  private globToRegex(pattern: string): RegExp {
+    // 特殊文字をエスケープ（* 以外）
+    let regexStr = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+    // ** → 任意のパス
+    regexStr = regexStr.replace(/\*\*/g, '§GLOBSTAR§');
+    // * → 1階層
+    regexStr = regexStr.replace(/\*/g, '[^/]*');
+    regexStr = regexStr.replace(/§GLOBSTAR§/g, '.*');
+    // パターン配下のファイルにマッチ（末尾に /任意 を追加）
+    return new RegExp(`^${regexStr}/`);
   }
 
   /**
