@@ -125,6 +125,13 @@ export interface LoggingConfig {
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
+export interface FileOpenerDirectoryEntry {
+  // Directory path pattern (supports ~ for home, glob: * and **)
+  path: string;
+  // Editor application name
+  editor: string;
+}
+
 export interface UserSettings {
   shortcuts: {
     main: string;
@@ -148,22 +155,33 @@ export interface UserSettings {
   fileOpener?: {
     // Extension-specific application settings (e.g., { "ts": "WebStorm", "md": "Typora" })
     extensions?: Record<string, string>;
-    // Default editor when no extension-specific setting exists
+    // Directory-specific default editor with glob support
+    // Supports * (single directory level) and ** (multiple levels)
+    // Most specific (longest non-glob prefix) match wins
+    directories?: FileOpenerDirectoryEntry[];
+    // Default editor when no extension-specific or directory-specific setting exists
     defaultEditor?: string | null;
   };
   // Built-in commands: list of tools to enable (e.g., ['claude', 'codex', 'gemini'])
   builtInCommands?: string[];
   // Agent skills: flat list of custom slash command entries (no more .custom nesting)
   agentSkills?: AgentSkillEntry[];
-  // Mention settings (@ mentions: fileSearch, symbolSearch, userDefined)
-  mentions?: MentionsSettings;
-
-  // Legacy: fileSearch configuration (use mentions.fileSearch instead)
+  // File search settings (@path/to/file completion)
   fileSearch?: FileSearchUserSettings;
-  // Legacy: symbolSearch configuration (use mentions.symbolSearch instead)
+  // Symbol search settings (@ts:Config, @go:Handler)
   symbolSearch?: SymbolSearchUserSettings;
-  // Legacy: customSearch configuration (for backward compatibility)
-  customSearch?: CustomSearchEntry[];
+  // Custom search entries for @ mentions (e.g., @agent:, @plan:)
+  customSearch?: MentionEntry[];
+  // Global mention filter: whitelist (exact match: "agent-claude", prefix match: "agent-*")
+  mentionEnable?: string[];
+  // Global mention filter: blacklist (exact match: "agent-legacy", prefix match: "old-*")
+  mentionDisable?: string[];
+
+  // Legacy: mentions wrapper (use top-level fileSearch, symbolSearch, customSearch instead)
+  /** @deprecated Use top-level fileSearch, symbolSearch, customSearch instead */
+  mentions?: MentionsSettings;
+  // Legacy: customSearch with type field (for backward compatibility)
+  legacyCustomSearch?: CustomSearchEntry[];
   // Legacy alias: mdSearch (for backward compatibility)
   mdSearch?: CustomSearchEntry[];
   // Legacy: slashCommands (use agentSkills instead)
@@ -226,6 +244,7 @@ export interface SymbolSearchUserSettings {
 
 /**
  * Mention settings combining fileSearch, symbolSearch, and userDefined mentions
+ * @deprecated Use top-level fileSearch, symbolSearch, customSearch instead
  */
 export interface MentionsSettings {
   /** File search settings (@path/to/file) */
@@ -303,8 +322,12 @@ export interface AgentSkillEntry {
   color?: ColorValue;
   /** オプション: codiconアイコンクラス名（例: "codicon-rocket", "symbol-class"） */
   icon?: string;
-  /** オプション: プレフィックスパターン - 特定JSONファイルからプレフィックスを動的に読み込むためのパターン */
+  /** オプション: テンプレート変数の値パターン - JSONファイルから動的に値を読み込む（キー名がテンプレート変数名になる） */
+  values?: Record<string, string>;
+  /** @deprecated Use values instead (e.g., values: { prefix: "pattern" }) */
   prefixPattern?: string;
+  /** オプション: トリガー文字の配列（デフォルト: ['/']）。例: ['/', '$'] で / と $ 両方で起動可能 */
+  triggers?: string[];
   /**
    * このエントリで有効にするコマンド名のリスト（ホワイトリスト）
    * - 完全一致: "commit"
@@ -344,7 +367,9 @@ export interface MentionEntry {
   displayTime?: string;
   /** オプション: 入力フォーマット（デフォルト: 'name'） */
   inputFormat?: InputFormatType;
-  /** オプション: プレフィックスパターン - 特定JSONファイルからプレフィックスを動的に読み込むためのパターン */
+  /** オプション: テンプレート変数の値パターン - JSONファイルから動的に値を読み込む（キー名がテンプレート変数名になる） */
+  values?: Record<string, string>;
+  /** @deprecated Use values instead (e.g., values: { prefix: "pattern" }) */
   prefixPattern?: string;
   /** オプション: label（静的な値 "skill" または テンプレート "{frontmatter@label}"） */
   label?: string;
@@ -364,6 +389,8 @@ export interface MentionEntry {
    * - 前方一致: "old-*"
    */
   disable?: string[];
+  /** オプション: キーボードショートカット（例: "Ctrl+g"）- このショートカットで @searchPrefix: 検索を直接起動 */
+  shortcut?: string;
 }
 
 // ============================================================================
@@ -409,8 +436,12 @@ export interface CustomSearchEntry {
   displayTime?: string;
   /** オプション: 入力フォーマット（デフォルト: 'name'） - 'name': 名前のみ, 'path': ファイルパス */
   inputFormat?: InputFormatType;
-  /** オプション: プレフィックスパターン - 特定JSONファイルからプレフィックスを動的に読み込むためのパターン */
+  /** オプション: テンプレート変数の値パターン - JSONファイルから動的に値を読み込む（キー名がテンプレート変数名になる） */
+  values?: Record<string, string>;
+  /** @deprecated Use values instead (e.g., values: { prefix: "pattern" }) */
   prefixPattern?: string;
+  /** オプション: トリガー文字の配列（commandタイプのみ、デフォルト: ['/']） */
+  triggers?: string[];
   /**
    * オプション: 有効にするアイテム名のリスト（このエントリのみに適用）
    * - 完全一致: "commit"
@@ -459,6 +490,8 @@ export interface CustomSearchItem {
   updatedAt?: number;
   /** 表示用日時（displayTime設定で解決された値。undefinedはupdatedAtにフォールバック、nullは非表示） */
   displayTime?: number | null;
+  /** トリガー文字の配列（commandタイプのみ） */
+  triggers?: string[];
 }
 
 export interface AgentSkillItem {
@@ -475,6 +508,7 @@ export interface AgentSkillItem {
   source?: string;  // Source tool identifier (e.g., 'claude-code') for filtering
   displayName?: string;  // Human-readable source name for display (e.g., 'Claude Code')
   updatedAt?: number;  // File modification timestamp (mtimeMs)
+  triggers?: string[];  // Trigger prefixes (e.g., ['/', '$'])
 }
 
 /** @deprecated Use AgentSkillItem instead */

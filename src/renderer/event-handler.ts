@@ -46,6 +46,7 @@ export class EventHandler implements IInitializable {
     onSearchToggle: () => void;
     onUndo: () => boolean;
     onSaveDraftToHistory: () => Promise<void>;
+    onCustomSearchActivate: (triggerText: string) => void;
   }) {
     this.onTabKeyInsert = callbacks.onTabKeyInsert;
     this.onShiftTabKeyPress = callbacks.onShiftTabKeyPress;
@@ -80,6 +81,10 @@ export class EventHandler implements IInitializable {
 
   public setUserSettings(settings: UserSettings): void {
     this.shortcutHandler.setUserSettings(settings);
+  }
+
+  public setCustomSearchShortcuts(shortcuts: Array<{ shortcut: string; triggerText: string }>): void {
+    this.shortcutHandler.setCustomSearchShortcuts(shortcuts);
   }
 
   /**

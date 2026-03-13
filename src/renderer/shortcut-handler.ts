@@ -15,6 +15,7 @@ export class ShortcutHandler {
   private agentSkillManager: { isActiveMode(): boolean } | null = null;
   private fileSearchManager: { isActive(): boolean } | null = null;
   private userSettings: UserSettings | null = null;
+  private customSearchShortcuts: Array<{ shortcut: string; triggerText: string }> = [];
   private onTextPaste: (text: string) => Promise<void>;
   private onWindowHide: () => Promise<void>;
   private onTabKeyInsert: (e: KeyboardEvent) => void;
@@ -23,6 +24,7 @@ export class ShortcutHandler {
   private onSearchToggle: () => void;
   private onUndo: () => boolean;
   private onSaveDraftToHistory: () => Promise<void>;
+  private onCustomSearchActivate: (triggerText: string) => void;
 
   constructor(callbacks: {
     onTextPaste: (text: string) => Promise<void>;
@@ -33,6 +35,7 @@ export class ShortcutHandler {
     onSearchToggle: () => void;
     onUndo: () => boolean;
     onSaveDraftToHistory: () => Promise<void>;
+    onCustomSearchActivate: (triggerText: string) => void;
   }) {
     this.onTextPaste = callbacks.onTextPaste;
     this.onWindowHide = callbacks.onWindowHide;
@@ -42,6 +45,7 @@ export class ShortcutHandler {
     this.onSearchToggle = callbacks.onSearchToggle;
     this.onUndo = callbacks.onUndo;
     this.onSaveDraftToHistory = callbacks.onSaveDraftToHistory;
+    this.onCustomSearchActivate = callbacks.onCustomSearchActivate;
   }
 
   public setTextarea(textarea: HTMLTextAreaElement | null): void {
@@ -64,6 +68,10 @@ export class ShortcutHandler {
     this.userSettings = settings;
   }
 
+  public setCustomSearchShortcuts(shortcuts: Array<{ shortcut: string; triggerText: string }>): void {
+    this.customSearchShortcuts = shortcuts;
+  }
+
   public setIsComposing(isComposing: boolean): void {
     this.isComposing = isComposing;
   }
@@ -84,8 +92,8 @@ export class ShortcutHandler {
       return this.handleUndoShortcut(e);
     }
 
-    // Handle Cmd+Enter for paste action
-    if (e.key === 'Enter' && e.metaKey) {
+    // Handle paste shortcut (default: Cmd+Enter, configurable via settings)
+    if (this.matchesPasteShortcut(e)) {
       await this.handlePasteShortcut(e);
       return true;
     }
@@ -96,8 +104,8 @@ export class ShortcutHandler {
       return true;
     }
 
-    // Handle Escape for hide window
-    if (e.key === 'Escape') {
+    // Handle close shortcut (default: Escape, configurable via settings)
+    if (this.matchesCloseShortcut(e)) {
       return await this.handleEscapeKey(e);
     }
 
@@ -113,6 +121,11 @@ export class ShortcutHandler {
 
     // Handle search shortcut
     if (this.handleSearchShortcut(e)) {
+      return true;
+    }
+
+    // Handle custom search shortcuts (e.g., Ctrl+g → @ghq:)
+    if (this.handleCustomSearchShortcuts(e)) {
       return true;
     }
 
@@ -262,6 +275,27 @@ export class ShortcutHandler {
     return false;
   }
 
+  private handleCustomSearchShortcuts(e: KeyboardEvent): boolean {
+    if (this.customSearchShortcuts.length === 0) {
+      return false;
+    }
+
+    // Skip if IME is active
+    if (this.isComposing || e.isComposing) {
+      return false;
+    }
+
+    for (const { shortcut, triggerText } of this.customSearchShortcuts) {
+      if (matchesShortcutString(e, shortcut)) {
+        e.preventDefault();
+        this.onCustomSearchActivate(triggerText);
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   private async handleSettingsShortcut(e: KeyboardEvent): Promise<void> {
     e.preventDefault();
 
@@ -282,6 +316,24 @@ export class ShortcutHandler {
     } catch (error) {
       rendererLogger.error('Failed to open settings directory:', error);
     }
+  }
+
+  private matchesPasteShortcut(e: KeyboardEvent): boolean {
+    const shortcut = this.userSettings?.shortcuts?.paste;
+    if (shortcut) {
+      return matchesShortcutString(e, shortcut);
+    }
+    // Fallback to default: Cmd+Enter
+    return e.key === 'Enter' && e.metaKey;
+  }
+
+  private matchesCloseShortcut(e: KeyboardEvent): boolean {
+    const shortcut = this.userSettings?.shortcuts?.close;
+    if (shortcut) {
+      return matchesShortcutString(e, shortcut);
+    }
+    // Fallback to default: Escape
+    return e.key === 'Escape';
   }
 
   /**

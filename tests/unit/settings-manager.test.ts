@@ -149,7 +149,7 @@ window:
     it('should return default settings', () => {
       const settings = settingsManager.getSettings();
 
-      // includes all default values: shortcuts, window, fileOpener, builtInCommands, agentSkills, mentions
+      // includes all default values: shortcuts, window, fileOpener, builtInCommands, agentSkills, fileSearch, symbolSearch, customSearch
       expect(settings).toEqual({
         shortcuts: {
           main: 'Cmd+Shift+Space',
@@ -197,7 +197,7 @@ window:
             description: '{frontmatter@description}',
             path: '~/.claude/plugins/cache',
             pattern: '**/commands/*.md',
-            prefixPattern: '**/.claude-plugin/*.json@name',
+            values: { prefix: '**/.claude-plugin/*.json@name' },
             label: 'plugin command',
             color: 'green',
             argumentHint: '{frontmatter@argument-hint}',
@@ -208,77 +208,75 @@ window:
             description: '{frontmatter@description}',
             path: '~/.claude/plugins/cache',
             pattern: '**/*/SKILL.md',
-            prefixPattern: '**/.claude-plugin/*.json@name',
+            values: { prefix: '**/.claude-plugin/*.json@name' },
             label: 'plugin skill',
             color: 'cyan',
             argumentHint: '{frontmatter@argument-hint}',
             maxSuggestions: 20
           }
         ],
-        mentions: {
-          fileSearch: {
-            respectGitignore: true,
-            includeHidden: true,
-            maxFiles: 5000,
-            maxDepth: null,
-            maxSuggestions: 50,
-            followSymlinks: false,
-            includePatterns: [],
-            excludePatterns: []
+        fileSearch: {
+          respectGitignore: true,
+          includeHidden: true,
+          maxFiles: 5000,
+          maxDepth: null,
+          maxSuggestions: 50,
+          followSymlinks: false,
+          includePatterns: [],
+          excludePatterns: []
+        },
+        symbolSearch: {
+          maxSymbols: 200000,
+          timeout: 60000,
+          includePatterns: [],
+          excludePatterns: []
+        },
+        customSearch: [
+          {
+            name: '{basename}(agent)',
+            label: 'agent',
+            description: '{frontmatter@description}',
+            displayTime: '{updatedAt}',
+            path: '~/.claude/agents',
+            pattern: '*.md',
+            searchPrefix: 'agent'
           },
-          symbolSearch: {
-            maxSymbols: 200000,
-            timeout: 60000,
-            includePatterns: [],
-            excludePatterns: []
+          {
+            name: '{prefix}:{basename}(agent)',
+            label: 'plugin agent',
+            description: '{frontmatter@description}',
+            displayTime: '{updatedAt}',
+            color: 'yellow',
+            path: '~/.claude/plugins/cache',
+            pattern: '**/agents/*.md',
+            values: { prefix: '**/.claude-plugin/*.json@name' },
+            searchPrefix: 'agent'
           },
-          customSearch: [
-            {
-              name: '{basename}(agent)',
-              label: 'agent',
-              description: '{frontmatter@description}',
-              displayTime: '{updatedAt}',
-              path: '~/.claude/agents',
-              pattern: '*.md',
-              searchPrefix: 'agent'
-            },
-            {
-              name: '{prefix}:{basename}(agent)',
-              label: 'plugin agent',
-              description: '{frontmatter@description}',
-              displayTime: '{updatedAt}',
-              color: 'yellow',
-              path: '~/.claude/plugins/cache',
-              pattern: '**/agents/*.md',
-              prefixPattern: '**/.claude-plugin/*.json@name',
-              searchPrefix: 'agent'
-            },
-            {
-              name: '{json@name}',
-              description: '{json@prompt}|{json:1@description}',
-              displayTime: '{json@joinedAt}',
-              color: '{json@color}|#ffffff',
-              icon: 'organization',
-              label: '{dirname}',
-              orderBy: '{json@joinedAt} desc',
-              path: '~/.claude/teams',
-              pattern: '**/config.json@. | select(.createdAt / 1000 > (now - 86400)) | select((.members | length) >= 2) | .members',
-              searchPrefix: 'team'
-            },
-            {
-              name: '{basename}',
-              description: '{heading}',
-              displayTime: '{updatedAt}',
-              color: 'blue',
-              icon: 'file-text',
-              orderBy: '{updatedAt} desc',
-              path: '~/.claude/plans',
-              pattern: '*.md',
-              searchPrefix: 'plan',
-              inputFormat: '{filepath}'
-            }
-          ]
-        }
+          {
+            name: '{json@name}',
+            description: '{json@prompt}|{json:1@description}',
+            displayTime: '{json@joinedAt}',
+            color: '{json@color}|#ffffff',
+            icon: 'organization',
+            label: '{dirname}',
+            orderBy: '{json@joinedAt} desc',
+            path: '~/.claude/teams',
+            pattern: '**/config.json@. | select(.createdAt / 1000 > (now - 86400)) | select((.members | length) >= 2) | .members',
+            searchPrefix: 'team'
+          },
+          {
+            name: '{basename}',
+            description: '{heading}',
+            displayTime: '{updatedAt}',
+            color: 'blue',
+            icon: 'file-text',
+            orderBy: '{updatedAt} desc',
+            path: '~/.claude/plans',
+            pattern: '*.md',
+            searchPrefix: 'plan',
+            inputFormat: '{filepath}'
+          }
+        ]
       });
     });
 
@@ -359,7 +357,7 @@ window:
     it('should return default settings copy', () => {
       const defaults = settingsManager.getDefaultSettings();
 
-      // includes all default values: shortcuts, window, fileOpener, builtInCommands, agentSkills, mentions
+      // includes all default values: shortcuts, window, fileOpener, builtInCommands, agentSkills, fileSearch, symbolSearch, customSearch
       expect(defaults).toEqual({
         shortcuts: {
           main: 'Cmd+Shift+Space',
@@ -407,7 +405,7 @@ window:
             description: '{frontmatter@description}',
             path: '~/.claude/plugins/cache',
             pattern: '**/commands/*.md',
-            prefixPattern: '**/.claude-plugin/*.json@name',
+            values: { prefix: '**/.claude-plugin/*.json@name' },
             label: 'plugin command',
             color: 'green',
             argumentHint: '{frontmatter@argument-hint}',
@@ -418,77 +416,75 @@ window:
             description: '{frontmatter@description}',
             path: '~/.claude/plugins/cache',
             pattern: '**/*/SKILL.md',
-            prefixPattern: '**/.claude-plugin/*.json@name',
+            values: { prefix: '**/.claude-plugin/*.json@name' },
             label: 'plugin skill',
             color: 'cyan',
             argumentHint: '{frontmatter@argument-hint}',
             maxSuggestions: 20
           }
         ],
-        mentions: {
-          fileSearch: {
-            respectGitignore: true,
-            includeHidden: true,
-            maxFiles: 5000,
-            maxDepth: null,
-            maxSuggestions: 50,
-            followSymlinks: false,
-            includePatterns: [],
-            excludePatterns: []
+        fileSearch: {
+          respectGitignore: true,
+          includeHidden: true,
+          maxFiles: 5000,
+          maxDepth: null,
+          maxSuggestions: 50,
+          followSymlinks: false,
+          includePatterns: [],
+          excludePatterns: []
+        },
+        symbolSearch: {
+          maxSymbols: 200000,
+          timeout: 60000,
+          includePatterns: [],
+          excludePatterns: []
+        },
+        customSearch: [
+          {
+            name: '{basename}(agent)',
+            label: 'agent',
+            description: '{frontmatter@description}',
+            displayTime: '{updatedAt}',
+            path: '~/.claude/agents',
+            pattern: '*.md',
+            searchPrefix: 'agent'
           },
-          symbolSearch: {
-            maxSymbols: 200000,
-            timeout: 60000,
-            includePatterns: [],
-            excludePatterns: []
+          {
+            name: '{prefix}:{basename}(agent)',
+            label: 'plugin agent',
+            description: '{frontmatter@description}',
+            displayTime: '{updatedAt}',
+            color: 'yellow',
+            path: '~/.claude/plugins/cache',
+            pattern: '**/agents/*.md',
+            values: { prefix: '**/.claude-plugin/*.json@name' },
+            searchPrefix: 'agent'
           },
-          customSearch: [
-            {
-              name: '{basename}(agent)',
-              label: 'agent',
-              description: '{frontmatter@description}',
-              displayTime: '{updatedAt}',
-              path: '~/.claude/agents',
-              pattern: '*.md',
-              searchPrefix: 'agent'
-            },
-            {
-              name: '{prefix}:{basename}(agent)',
-              label: 'plugin agent',
-              description: '{frontmatter@description}',
-              displayTime: '{updatedAt}',
-              color: 'yellow',
-              path: '~/.claude/plugins/cache',
-              pattern: '**/agents/*.md',
-              prefixPattern: '**/.claude-plugin/*.json@name',
-              searchPrefix: 'agent'
-            },
-            {
-              name: '{json@name}',
-              description: '{json@prompt}|{json:1@description}',
-              displayTime: '{json@joinedAt}',
-              color: '{json@color}|#ffffff',
-              icon: 'organization',
-              label: '{dirname}',
-              orderBy: '{json@joinedAt} desc',
-              path: '~/.claude/teams',
-              pattern: '**/config.json@. | select(.createdAt / 1000 > (now - 86400)) | select((.members | length) >= 2) | .members',
-              searchPrefix: 'team'
-            },
-            {
-              name: '{basename}',
-              description: '{heading}',
-              displayTime: '{updatedAt}',
-              color: 'blue',
-              icon: 'file-text',
-              orderBy: '{updatedAt} desc',
-              path: '~/.claude/plans',
-              pattern: '*.md',
-              searchPrefix: 'plan',
-              inputFormat: '{filepath}'
-            }
-          ]
-        }
+          {
+            name: '{json@name}',
+            description: '{json@prompt}|{json:1@description}',
+            displayTime: '{json@joinedAt}',
+            color: '{json@color}|#ffffff',
+            icon: 'organization',
+            label: '{dirname}',
+            orderBy: '{json@joinedAt} desc',
+            path: '~/.claude/teams',
+            pattern: '**/config.json@. | select(.createdAt / 1000 > (now - 86400)) | select((.members | length) >= 2) | .members',
+            searchPrefix: 'team'
+          },
+          {
+            name: '{basename}',
+            description: '{heading}',
+            displayTime: '{updatedAt}',
+            color: 'blue',
+            icon: 'file-text',
+            orderBy: '{updatedAt} desc',
+            path: '~/.claude/plans',
+            pattern: '*.md',
+            searchPrefix: 'plan',
+            inputFormat: '{filepath}'
+          }
+        ]
       });
 
       // Ensure it's a copy and not reference
@@ -535,13 +531,11 @@ window:
       await settingsManager.init();
     });
 
-    it('should deep merge mentions.fileSearch with defaults', async () => {
+    it('should deep merge fileSearch with defaults', async () => {
       // User only specifies maxFiles, should get all other defaults
       const userSettings: Partial<UserSettings> = {
-        mentions: {
-          fileSearch: {
-            maxFiles: 1000
-          }
+        fileSearch: {
+          maxFiles: 1000
         }
       };
 
@@ -549,25 +543,23 @@ window:
       const settings = settingsManager.getSettings();
 
       // Check that maxFiles was updated
-      expect(settings.mentions?.fileSearch?.maxFiles).toBe(1000);
+      expect(settings.fileSearch?.maxFiles).toBe(1000);
 
       // Check that all other defaults are preserved
-      expect(settings.mentions?.fileSearch?.respectGitignore).toBe(true);
-      expect(settings.mentions?.fileSearch?.includeHidden).toBe(true);
-      expect(settings.mentions?.fileSearch?.maxDepth).toBeNull();
-      expect(settings.mentions?.fileSearch?.maxSuggestions).toBe(50);
-      expect(settings.mentions?.fileSearch?.followSymlinks).toBe(false);
-      expect(settings.mentions?.fileSearch?.includePatterns).toEqual([]);
-      expect(settings.mentions?.fileSearch?.excludePatterns).toEqual([]);
+      expect(settings.fileSearch?.respectGitignore).toBe(true);
+      expect(settings.fileSearch?.includeHidden).toBe(true);
+      expect(settings.fileSearch?.maxDepth).toBeNull();
+      expect(settings.fileSearch?.maxSuggestions).toBe(50);
+      expect(settings.fileSearch?.followSymlinks).toBe(false);
+      expect(settings.fileSearch?.includePatterns).toEqual([]);
+      expect(settings.fileSearch?.excludePatterns).toEqual([]);
     });
 
-    it('should deep merge mentions.symbolSearch with defaults', async () => {
+    it('should deep merge symbolSearch with defaults', async () => {
       // User only specifies timeout, should get maxSymbols from defaults
       const userSettings: Partial<UserSettings> = {
-        mentions: {
-          symbolSearch: {
-            timeout: 3000
-          }
+        symbolSearch: {
+          timeout: 3000
         }
       };
 
@@ -575,38 +567,43 @@ window:
       const settings = settingsManager.getSettings();
 
       // Check that timeout was updated
-      expect(settings.mentions?.symbolSearch?.timeout).toBe(3000);
+      expect(settings.symbolSearch?.timeout).toBe(3000);
 
       // Check that maxSymbols defaults are preserved
-      expect(settings.mentions?.symbolSearch?.maxSymbols).toBe(200000);
+      expect(settings.symbolSearch?.maxSymbols).toBe(200000);
     });
 
-    it('should migrate legacy fileSearch to mentions.fileSearch with deep merge', async () => {
-      // User has old fileSearch format, should migrate and merge with defaults
-      const userSettings: Partial<UserSettings> = {
-        fileSearch: {
-          maxFiles: 1000,
-          respectGitignore: false
+    it('should migrate legacy mentions.fileSearch to top-level fileSearch during init', async () => {
+      // When loading from file with legacy mentions.fileSearch format,
+      // it should be migrated to top-level fileSearch
+      const legacyManager = new SettingsManager();
+
+      const yamlLoad = (jsYaml as any).load;
+      yamlLoad.mockReturnValueOnce({
+        shortcuts: { main: 'Cmd+Shift+Space', paste: 'Cmd+Enter', close: 'Escape' },
+        window: { position: 'active-text-field', width: 640, height: 320 },
+        mentions: {
+          fileSearch: {
+            maxFiles: 1000,
+            respectGitignore: false
+          }
         }
-      };
+      });
+      mockedFs.readFile.mockResolvedValueOnce('mock yaml content');
+      mockedFs.mkdir.mockResolvedValue(undefined);
+      mockedFs.writeFile.mockResolvedValue();
 
-      await settingsManager.updateSettings(userSettings);
-      const settings = settingsManager.getSettings();
+      await legacyManager.init();
+      const settings = legacyManager.getSettings();
 
-      // Check that legacy fileSearch was migrated to mentions.fileSearch
-      expect(settings.mentions?.fileSearch?.maxFiles).toBe(1000);
-      expect(settings.mentions?.fileSearch?.respectGitignore).toBe(false);
+      // Check that legacy mentions.fileSearch was migrated to top-level fileSearch
+      expect(settings.fileSearch?.maxFiles).toBe(1000);
+      expect(settings.fileSearch?.respectGitignore).toBe(false);
 
       // Check that other defaults are preserved
-      expect(settings.mentions?.fileSearch?.includeHidden).toBe(true);
-      expect(settings.mentions?.fileSearch?.maxSuggestions).toBe(50);
-      expect(settings.mentions?.fileSearch?.followSymlinks).toBe(false);
-
-      // Check that legacy fileSearch is kept for backward compatibility
-      expect(settings.fileSearch).toEqual({
-        maxFiles: 1000,
-        respectGitignore: false
-      });
+      expect(settings.fileSearch?.includeHidden).toBe(true);
+      expect(settings.fileSearch?.maxSuggestions).toBe(50);
+      expect(settings.fileSearch?.followSymlinks).toBe(false);
     });
 
     it('should migrate legacy builtInCommands.tools to root-level builtInCommands', async () => {
@@ -638,13 +635,11 @@ window:
     it('should deep merge multiple fileSearch properties', async () => {
       // User specifies multiple properties
       const userSettings: Partial<UserSettings> = {
-        mentions: {
-          fileSearch: {
-            maxFiles: 2000,
-            respectGitignore: false,
-            includeHidden: false,
-            maxSuggestions: 100
-          }
+        fileSearch: {
+          maxFiles: 2000,
+          respectGitignore: false,
+          includeHidden: false,
+          maxSuggestions: 100
         }
       };
 
@@ -652,57 +647,46 @@ window:
       const settings = settingsManager.getSettings();
 
       // Check that all user-specified properties were updated
-      expect(settings.mentions?.fileSearch?.maxFiles).toBe(2000);
-      expect(settings.mentions?.fileSearch?.respectGitignore).toBe(false);
-      expect(settings.mentions?.fileSearch?.includeHidden).toBe(false);
-      expect(settings.mentions?.fileSearch?.maxSuggestions).toBe(100);
+      expect(settings.fileSearch?.maxFiles).toBe(2000);
+      expect(settings.fileSearch?.respectGitignore).toBe(false);
+      expect(settings.fileSearch?.includeHidden).toBe(false);
+      expect(settings.fileSearch?.maxSuggestions).toBe(100);
 
       // Check that non-specified defaults are preserved
-      expect(settings.mentions?.fileSearch?.maxDepth).toBeNull();
-      expect(settings.mentions?.fileSearch?.followSymlinks).toBe(false);
-      expect(settings.mentions?.fileSearch?.includePatterns).toEqual([]);
-      expect(settings.mentions?.fileSearch?.excludePatterns).toEqual([]);
+      expect(settings.fileSearch?.maxDepth).toBeNull();
+      expect(settings.fileSearch?.followSymlinks).toBe(false);
+      expect(settings.fileSearch?.includePatterns).toEqual([]);
+      expect(settings.fileSearch?.excludePatterns).toEqual([]);
     });
 
-    it('should handle partial symbolSearch updates while preserving other mentions settings', async () => {
+    it('should handle partial symbolSearch updates while preserving fileSearch settings', async () => {
       // First set fileSearch settings
       await settingsManager.updateSettings({
-        mentions: {
-          fileSearch: {
-            maxFiles: 1000
-          }
+        fileSearch: {
+          maxFiles: 1000
         }
       });
 
-      // Get current settings to preserve fileSearch
-      const currentSettings = settingsManager.getSettings();
-      const currentFileSearch = currentSettings.mentions?.fileSearch;
-
-      // Then update symbolSearch while preserving fileSearch
-      if (currentFileSearch) {
-        await settingsManager.updateSettings({
-          mentions: {
-            fileSearch: currentFileSearch,
-            symbolSearch: {
-              timeout: 8000
-            }
-          }
-        });
-      }
+      // Then update symbolSearch independently
+      await settingsManager.updateSettings({
+        symbolSearch: {
+          timeout: 8000
+        }
+      });
 
       const settings = settingsManager.getSettings();
 
       // Check that symbolSearch was updated
-      expect(settings.mentions?.symbolSearch?.timeout).toBe(8000);
-      expect(settings.mentions?.symbolSearch?.maxSymbols).toBe(200000);
+      expect(settings.symbolSearch?.timeout).toBe(8000);
+      expect(settings.symbolSearch?.maxSymbols).toBe(200000);
 
       // Check that fileSearch was preserved
-      expect(settings.mentions?.fileSearch?.maxFiles).toBe(1000);
-      expect(settings.mentions?.fileSearch?.respectGitignore).toBe(true);
+      expect(settings.fileSearch?.maxFiles).toBe(1000);
+      expect(settings.fileSearch?.respectGitignore).toBe(true);
     });
 
-    it('should deep merge legacy symbolSearch to mentions.symbolSearch', async () => {
-      // User has old symbolSearch format
+    it('should preserve symbolSearch timeout defaults when updating maxSymbols', async () => {
+      // User specifies partial symbolSearch
       const userSettings: Partial<UserSettings> = {
         symbolSearch: {
           maxSymbols: 10000
@@ -712,16 +696,11 @@ window:
       await settingsManager.updateSettings(userSettings);
       const settings = settingsManager.getSettings();
 
-      // Check that legacy symbolSearch was migrated to mentions.symbolSearch
-      expect(settings.mentions?.symbolSearch?.maxSymbols).toBe(10000);
+      // Check that symbolSearch maxSymbols was updated
+      expect(settings.symbolSearch?.maxSymbols).toBe(10000);
 
       // Check that timeout defaults are preserved
-      expect(settings.mentions?.symbolSearch?.timeout).toBe(60000);
-
-      // Check that legacy symbolSearch is kept for backward compatibility
-      expect(settings.symbolSearch).toEqual({
-        maxSymbols: 10000
-      });
+      expect(settings.symbolSearch?.timeout).toBe(60000);
     });
   });
 
@@ -752,21 +731,19 @@ window:
       expect(filteredEntry?.disable).toEqual(['ralph-loop:cancel']);
     });
 
-    it('should convert mentions.customSearch with enable/disable filters', async () => {
+    it('should convert customSearch with enable/disable filters', async () => {
       const userSettings: Partial<UserSettings> = {
-        mentions: {
-          customSearch: [
-            {
-              name: 'agent-{basename}',
-              description: '{frontmatter@description}',
-              path: '~/.claude/agents',
-              pattern: '*.md',
-              searchPrefix: 'agent',
-              enable: ['agent-*'],
-              disable: ['agent-legacy']
-            }
-          ]
-        }
+        customSearch: [
+          {
+            name: 'agent-{basename}',
+            description: '{frontmatter@description}',
+            path: '~/.claude/agents',
+            pattern: '*.md',
+            searchPrefix: 'agent',
+            enable: ['agent-*'],
+            disable: ['agent-legacy']
+          }
+        ]
       };
 
       await settingsManager.updateSettings(userSettings);
@@ -779,20 +756,18 @@ window:
       expect(filteredEntry?.disable).toEqual(['agent-legacy']);
     });
 
-    it('should convert mentions.customSearch with prefixPattern', async () => {
+    it('should convert customSearch with prefixPattern', async () => {
       const userSettings: Partial<UserSettings> = {
-        mentions: {
-          customSearch: [
-            {
-              name: 'agent-{prefix}:{basename}',
-              description: '{frontmatter@description}',
-              path: '~/.claude/plugins/cache',
-              pattern: '**/agents/*.md',
-              searchPrefix: 'agent',
-              prefixPattern: '**/.claude-plugin/plugin.json@name'
-            }
-          ]
-        }
+        customSearch: [
+          {
+            name: 'agent-{prefix}:{basename}',
+            description: '{frontmatter@description}',
+            path: '~/.claude/plugins/cache',
+            pattern: '**/agents/*.md',
+            searchPrefix: 'agent',
+            prefixPattern: '**/.claude-plugin/plugin.json@name'
+          }
+        ]
       };
 
       await settingsManager.updateSettings(userSettings);

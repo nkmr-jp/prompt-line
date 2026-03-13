@@ -2,7 +2,7 @@
  * TemplateResolver - テンプレート変数を解決するユーティリティ
  *
  * サポートする変数:
- * - {prefix}: プレフィックス文字列
+ * - {<key>}: valuesマップで定義された任意のテンプレート変数（例: {prefix}）
  * - {basename}: ファイル名（拡張子なし）
  * - {dirname}: 親ディレクトリ名
  * - {dirname:N}: N階層上のディレクトリ名（例: {dirname:2} = 2つ上）
@@ -19,7 +19,10 @@
  */
 
 export interface TemplateContext {
+  /** @deprecated Use values instead */
   prefix?: string;
+  /** valuesマップで定義された任意のテンプレート変数（キー名が {key} として解決される） */
+  values?: Record<string, string>;
   basename: string;
   dirname?: string;
   filePath?: string;
@@ -52,8 +55,16 @@ export function resolveTemplate(template: string, context: TemplateContext): str
 
   let result = template;
 
-  // Replace {prefix}
-  if (context.prefix !== undefined) {
+  // Replace values-defined template variables (e.g., {prefix}, {custom_key}, etc.)
+  if (context.values) {
+    for (const [key, value] of Object.entries(context.values)) {
+      const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      result = result.replace(new RegExp(`\\{${escapedKey}\\}`, 'g'), value);
+    }
+  }
+
+  // Backward compatibility: Replace {prefix} from legacy context.prefix
+  if (context.prefix !== undefined && !context.values?.prefix) {
     result = result.replace(/\{prefix\}/g, context.prefix);
   }
 

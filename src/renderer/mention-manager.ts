@@ -132,7 +132,8 @@ export class MentionManager implements IInitializable {
       getCachedDirectoryData: () => this.directoryCacheManager?.getCachedData() ?? null,
       isCommandEnabledSync: () => this.isCommandEnabledSync(),
       checkFileExists: (path: string) => this.checkFileExistsAbsolute(path),
-      getKnownSkillNames: () => this.callbacks.getKnownSkillNames?.() ?? []
+      getKnownSkillNames: () => this.callbacks.getKnownSkillNames?.() ?? [],
+      getSkillTriggerPrefixes: () => this.callbacks.getSkillTriggerPrefixes?.() ?? ['/']
     });
 
     // Initialize NavigationManager (consolidated keyboard + directory/file navigation + item selection)
@@ -169,9 +170,14 @@ export class MentionManager implements IInitializable {
       openFileAndRestoreFocus: async (filePath: string) => {
         await this.fileOpenerManager?.openFile(filePath);
       },
+      openUrlInBrowser: async (url: string) => {
+        await this.fileOpenerManager?.openUrl(url);
+      },
       revealInFinderAndRestoreFocus: async (filePath: string) => {
         await this.fileOpenerManager?.revealInFinder(filePath);
       },
+      updateHintText: (text: string) => this.callbacks.updateHintText?.(text),
+      getDefaultHintText: () => this.callbacks.getDefaultHintText?.() ?? '',
       toggleAutoShowTooltip: () => this.popupManager.toggleAutoShowTooltip(),
       expandCurrentFile: () => this.expandCurrentFile(),
       // Directory/File navigation helpers
@@ -391,6 +397,9 @@ export class MentionManager implements IInitializable {
         }),
         ...(this.callbacks.getKnownSkillNames && {
           getKnownSkillNames: () => this.callbacks.getKnownSkillNames?.() ?? []
+        }),
+        ...(this.callbacks.getSkillTriggerPrefixes && {
+          getSkillTriggerPrefixes: () => this.callbacks.getSkillTriggerPrefixes?.() ?? ['/']
         }),
         invalidateValidPathsCache: () => this.invalidateValidPathsCache(),
         updateHighlightBackdrop: () => this.updateHighlightBackdrop(),

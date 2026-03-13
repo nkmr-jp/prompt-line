@@ -7,6 +7,7 @@ import type { InputFormatType, ColorValue } from '../types';
 import type { IInitializable } from './interfaces/initializable';
 import { FrontmatterPopupManager } from './frontmatter-popup-manager';
 import { highlightMatch, splitKeywords } from './utils/highlight-utils';
+import { escapeHtml } from './utils/html-utils';
 import { electronAPI } from './services/electron-api';
 import { extractTriggerQueryAtCursor } from './utils/trigger-query-extractor';
 import { getCaretCoordinates, createMirrorDiv } from './mentions/dom-utils';
@@ -51,6 +52,7 @@ interface AgentSkillItem {
   source?: string;  // Source tool identifier (e.g., 'claude-code') for filtering
   displayName?: string;  // Human-readable source name for display (e.g., 'Claude Code')
   updatedAt?: number;  // File modification timestamp (mtimeMs)
+  triggers?: string[];  // Trigger prefixes (e.g., ['/', '$'])
 }
 
 export class AgentSkillManager implements IInitializable {
@@ -84,18 +86,31 @@ export class AgentSkillManager implements IInitializable {
   // D5: Reference to currently selected DOM element for differential update
   private selectedSkillElement: HTMLElement | null = null;
 
+  // Configurable trigger prefixes (default: ['/'])
+  private triggerPrefixes: string[] = ['/'];
+  // Currently active trigger prefix (set when a trigger is detected)
+  private activeTriggerPrefix: string = '/';
+
   // Frontmatter popup manager
   private frontmatterPopupManager: FrontmatterPopupManager;
+
+  // Hint text callbacks for footer area
+  private updateHintText: ((text: string) => void) | undefined;
+  private getDefaultHintText: (() => string) | undefined;
 
   constructor(callbacks: {
     onSkillSelect?: (command: string) => void;
     onSkillInsert?: (command: string) => void;
     onBeforeOpenFile?: () => void;
     setDraggable?: (enabled: boolean) => void;
+    updateHintText?: (text: string) => void;
+    getDefaultHintText?: () => string;
   }) {
     this.onSkillInsert = callbacks.onSkillInsert || (() => {});
     this.onBeforeOpenFile = callbacks.onBeforeOpenFile;
     this.setDraggable = callbacks.setDraggable;
+    this.updateHintText = callbacks.updateHintText;
+    this.getDefaultHintText = callbacks.getDefaultHintText;
     this.frontmatterPopupManager = new FrontmatterPopupManager({
       getSuggestionsContainer: () => this.suggestionsContainer,
       getFilteredSkills: () => this.filteredSkills,
@@ -111,6 +126,22 @@ export class AgentSkillManager implements IInitializable {
         }
       }
     });
+  }
+
+  /**
+   * Collect all unique trigger prefixes from loaded skills.
+   * Called after loadSkills to update triggerPrefixes.
+   */
+  private collectTriggerPrefixes(): void {
+    const prefixes = new Set<string>(['/']); // always include '/'
+    for (const skill of this.skills) {
+      if (skill.triggers) {
+        for (const t of skill.triggers) {
+          prefixes.add(t);
+        }
+      }
+    }
+    this.triggerPrefixes = [...prefixes];
   }
 
   /**
@@ -278,6 +309,8 @@ export class AgentSkillManager implements IInitializable {
         cmd.label?.toLowerCase() ?? '',
       ].join(' '));
     }
+    // Collect trigger prefixes from loaded skills
+    this.collectTriggerPrefixes();
   }
 
   /**
@@ -286,10 +319,10 @@ export class AgentSkillManager implements IInitializable {
   private checkForAgentSkill(): void {
     if (!this.textarea) return;
 
-    // Quick check: skip if no '/' before cursor (avoids extractTriggerQueryAtCursor overhead)
+    // Quick check: skip if no trigger prefix before cursor (avoids extractTriggerQueryAtCursor overhead)
     const cursorPos = this.textarea.selectionStart;
     const textBeforeCursor = this.textarea.value.substring(0, cursorPos);
-    if (!this.isEditingMode && !textBeforeCursor.includes('/')) {
+    if (!this.isEditingMode && !this.triggerPrefixes.some(p => textBeforeCursor.includes(p))) {
       if (this.isActive) this.hideSuggestions();
       return;
     }
@@ -297,7 +330,7 @@ export class AgentSkillManager implements IInitializable {
     const result = extractTriggerQueryAtCursor(
       this.textarea.value,
       cursorPos,
-      '/',
+      this.triggerPrefixes,
       { allowSpaces: true }
     );
 
@@ -306,7 +339,7 @@ export class AgentSkillManager implements IInitializable {
       if (this.isEditingMode) {
         // Check if the text still contains the command at the original position
         const text = this.textarea.value;
-        const expectedSkill = `/${this.editingSkillName}`;
+        const expectedSkill = `${this.activeTriggerPrefix}${this.editingSkillName}`;
         const skillAtPos = text.substring(
           this.editingSkillStartPos,
           this.editingSkillStartPos + expectedSkill.length
@@ -352,6 +385,7 @@ export class AgentSkillManager implements IInitializable {
     }
 
     this.currentTriggerStartPos = startPos;
+    this.activeTriggerPrefix = result.triggerChar;
 
     // C3: Skip full pipeline if splitKeywords result hasn't changed
     // D7: Compute keywords once here and pass to showSuggestions to avoid duplicate computation
@@ -382,8 +416,8 @@ export class AgentSkillManager implements IInitializable {
     const cursorPos = this.textarea.selectionStart;
     const textBeforeCursor = text.substring(0, cursorPos);
 
-    // Quick check: skip if no '/' in text before cursor
-    if (!textBeforeCursor.includes('/')) return;
+    // Quick check: skip if no trigger prefix in text before cursor
+    if (!this.triggerPrefixes.some(p => textBeforeCursor.includes(p))) return;
 
     // Load commands if not loaded
     if (this.skills.length === 0) {
@@ -401,19 +435,24 @@ export class AgentSkillManager implements IInitializable {
     // sortedSkillsByNameLength is pre-sorted by name length descending (e.g., "Linear API" before "Linear")
     let matchedSkill: AgentSkillItem | null = null;
     let commandStartPos = -1;
+    let matchedPrefix = '/';
 
     for (const cmd of this.sortedSkillsByNameLength) {
-      const pattern = '/' + cmd.name + ' ';
-      if (textBeforeCursor.endsWith(pattern)) {
-        // Verify it's at start of text or preceded by whitespace
-        const patternStartPos = textBeforeCursor.length - pattern.length;
-        const prevChar = patternStartPos > 0 ? textBeforeCursor[patternStartPos - 1] : '';
-        if (prevChar === '' || prevChar === ' ' || prevChar === '\n' || prevChar === '\t') {
-          matchedSkill = cmd;
-          commandStartPos = patternStartPos;
-          break;
+      for (const prefix of this.triggerPrefixes) {
+        const pattern = prefix + cmd.name + ' ';
+        if (textBeforeCursor.endsWith(pattern)) {
+          // Verify it's at start of text or preceded by whitespace
+          const patternStartPos = textBeforeCursor.length - pattern.length;
+          const prevChar = patternStartPos > 0 ? textBeforeCursor[patternStartPos - 1] : '';
+          if (prevChar === '' || prevChar === ' ' || prevChar === '\n' || prevChar === '\t') {
+            matchedSkill = cmd;
+            commandStartPos = patternStartPos;
+            matchedPrefix = prefix;
+            break;
+          }
         }
       }
+      if (matchedSkill) break;
     }
 
     if (!matchedSkill || !matchedSkill.argumentHint) {
@@ -421,6 +460,9 @@ export class AgentSkillManager implements IInitializable {
       // 編集モード中でUIが非表示の場合、状態はリセットしない
       return;
     }
+
+    // Track which prefix was matched
+    this.activeTriggerPrefix = matchedPrefix;
 
     // Show argumentHint for this command
     this.filteredSkills = [matchedSkill];
@@ -487,14 +529,21 @@ export class AgentSkillManager implements IInitializable {
     const lowerQuery = query.toLowerCase();
     const keywords = preComputedKeywords ?? splitKeywords(lowerQuery);
 
+    // Filter by active trigger prefix: only show skills whose triggers include the active trigger
+    // Skills without triggers default to ['/']
+    const triggerFilteredSkills = this.skills.filter(cmd => {
+      const triggers = cmd.triggers ?? ['/'];
+      return triggers.includes(this.activeTriggerPrefix);
+    });
+
     if (keywords.length === 0) {
-      // Empty query: show all skills
-      this.filteredSkills = [...this.skills];
+      // Empty query: show all skills matching trigger
+      this.filteredSkills = [...triggerFilteredSkills];
     } else {
       // Task #6: AND filter + fallback in 1 pass
       const fallbackResults: AgentSkillItem[] | null = keywords.length > 1 ? [] : null;
 
-      this.filteredSkills = this.skills.filter(cmd => {
+      this.filteredSkills = triggerFilteredSkills.filter(cmd => {
         const fields = this.getSearchableFields(cmd);
         if (keywords.every(kw => fields.includes(kw))) {
           return true;
@@ -599,7 +648,7 @@ export class AgentSkillManager implements IInitializable {
       // Create name element with highlighting
       const nameSpan = document.createElement('span');
       nameSpan.className = 'agent-skill-name';
-      nameSpan.innerHTML = '/' + highlightMatch(cmd.name, query, 'agent-skill-highlight');
+      nameSpan.innerHTML = escapeHtml(this.activeTriggerPrefix) + highlightMatch(cmd.name, query, 'agent-skill-highlight');
       item.appendChild(nameSpan);
 
       // Create badge (label takes priority over source/displayName)
@@ -652,6 +701,9 @@ export class AgentSkillManager implements IInitializable {
     });
 
     this.suggestionsContainer.appendChild(fragment);
+
+    // Update hint text for the initially selected item
+    this.updateHintForSelectedItem();
   }
 
   /**
@@ -764,6 +816,8 @@ export class AgentSkillManager implements IInitializable {
     this.resetState();
     // C3: Reset keyword cache on hide
     this.lastSkillKeywords = '';
+    // Restore default hint text
+    this.restoreDefaultHintText();
   }
 
   /**
@@ -868,6 +922,9 @@ export class AgentSkillManager implements IInitializable {
 
     this.selectedSkillElement = newSelected;
 
+    // Update hint text based on selected item's inputText
+    this.updateHintForSelectedItem();
+
     // Update tooltip if auto-show is enabled
     // Use requestAnimationFrame to ensure scroll position is settled before calculating popup position
     requestAnimationFrame(() => {
@@ -895,8 +952,8 @@ export class AgentSkillManager implements IInitializable {
     const skillText = command.inputText
       ? command.inputText
       : command.inputFormat && command.inputFormat !== 'name'
-        ? command.name            // inputFormat 指定あり（テンプレート等） → / なし
-        : `/${command.name}`;     // デフォルト or 'name' → / あり
+        ? command.name            // inputFormat 指定あり（テンプレート等） → prefix なし
+        : `${this.activeTriggerPrefix}${command.name}`;     // デフォルト or 'name' → prefix あり
 
     // Set editing mode BEFORE inserting text.
     // replaceRangeWithUndo triggers a synchronous input event → checkForAgentSkill.
@@ -975,7 +1032,7 @@ export class AgentSkillManager implements IInitializable {
     // Create name element
     const nameSpan = document.createElement('span');
     nameSpan.className = 'agent-skill-name';
-    nameSpan.textContent = `/${command.name}`;
+    nameSpan.textContent = `${this.activeTriggerPrefix}${command.name}`;
     item.appendChild(nameSpan);
 
     // Add 'arg' badge with gray color
@@ -1023,8 +1080,50 @@ export class AgentSkillManager implements IInitializable {
   }
 
   /**
-   * Open the command file in editor without inserting command text
-   * Similar to MentionManager behavior - window stays open and becomes draggable
+   * Check if a string looks like a URL, file path, or directory path
+   */
+  private isOpenablePath(text: string | undefined): boolean {
+    if (!text) return false;
+    // URL patterns
+    if (/^https?:\/\//.test(text)) return true;
+    // Absolute or home-relative paths (e.g., /usr/local, ~/ghq/...)
+    if (/^[~/]/.test(text)) return true;
+    return false;
+  }
+
+  /**
+   * Update hint text based on selected item's inputText.
+   * Shows path-specific hints when inputText is a URL, file path, or directory path.
+   */
+  private updateHintForSelectedItem(): void {
+    if (!this.updateHintText) return;
+    const command = this.filteredSkills[this.selectedIndex];
+    if (!command) return;
+
+    if (this.isOpenablePath(command.inputText)) {
+      const target = command.inputText!;
+      if (/^https?:\/\//.test(target)) {
+        this.updateHintText('Ctrl+Enter: open URL in browser');
+      } else {
+        this.updateHintText('Ctrl+Enter: open path / Ctrl+Shift+Enter: reveal in Finder');
+      }
+    } else {
+      this.updateHintText('Ctrl+Enter: open file / Ctrl+Shift+Enter: reveal in Finder');
+    }
+  }
+
+  /**
+   * Restore default hint text when suggestions are hidden
+   */
+  private restoreDefaultHintText(): void {
+    if (this.updateHintText && this.getDefaultHintText) {
+      this.updateHintText(this.getDefaultHintText());
+    }
+  }
+
+  /**
+   * Open the command's inputText path/URL, or fall back to opening the source file in editor.
+   * When inputText is a URL, file path, or directory path, open it instead of the source file.
    */
   private async openSkillFile(index: number): Promise<void> {
     if (index < 0 || index >= this.filteredSkills.length) return;
@@ -1038,9 +1137,25 @@ export class AgentSkillManager implements IInitializable {
       // Enable draggable state while file is opening
       this.setDraggable?.(true);
 
-      // Open the file in editor
-      if (electronAPI?.file?.openInEditor) {
-        await electronAPI.file.openInEditor(command.filePath);
+      // If inputText is an openable path/URL, open that instead of the source file
+      if (this.isOpenablePath(command.inputText)) {
+        const target = command.inputText!;
+        if (/^https?:\/\//.test(target)) {
+          // Open URL in browser
+          if (electronAPI?.shell?.openExternal) {
+            await electronAPI.shell.openExternal(target);
+          }
+        } else {
+          // Open file/directory path in editor
+          if (electronAPI?.file?.openInEditor) {
+            await electronAPI.file.openInEditor(target);
+          }
+        }
+      } else {
+        // Default: open the source file in editor
+        if (electronAPI?.file?.openInEditor) {
+          await electronAPI.file.openInEditor(command.filePath);
+        }
       }
       // Note: Do not restore focus to PromptLine window
       // The opened file's application should stay in foreground
@@ -1052,7 +1167,7 @@ export class AgentSkillManager implements IInitializable {
   }
 
   /**
-   * Reveal the directory of a skill file in Finder
+   * Reveal the directory of a skill file (or inputText path) in Finder
    */
   private async revealSkillFileDirectory(index: number): Promise<void> {
     if (index < 0 || index >= this.filteredSkills.length) return;
@@ -1060,12 +1175,17 @@ export class AgentSkillManager implements IInitializable {
     const command = this.filteredSkills[index];
     if (!command?.filePath) return;
 
+    // Use inputText path if it's an openable path, otherwise use source file path
+    const targetPath = (this.isOpenablePath(command.inputText) && !/^https?:\/\//.test(command.inputText!))
+      ? command.inputText!
+      : command.filePath;
+
     try {
       this.onBeforeOpenFile?.();
       this.setDraggable?.(true);
 
       if (electronAPI?.file?.revealInFinder) {
-        const result = await electronAPI.file.revealInFinder(command.filePath);
+        const result = await electronAPI.file.revealInFinder(targetPath);
         if (result.success) {
           // Restore focus to PromptLine window after a short delay
           setTimeout(() => {
@@ -1127,6 +1247,10 @@ export class AgentSkillManager implements IInitializable {
    */
   public getKnownSkillNames(): string[] {
     return this.skills.map(cmd => cmd.name);
+  }
+
+  public getTriggerPrefixes(): string[] {
+    return this.triggerPrefixes;
   }
 
   /**

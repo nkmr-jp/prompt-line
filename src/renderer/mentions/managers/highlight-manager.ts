@@ -40,6 +40,7 @@ export interface HighlightManagerCallbacks {
   getSkillSource?: (commandName: string) => string | undefined;
   getSkillColor?: (commandName: string) => string | undefined;
   getKnownSkillNames?: () => string[];
+  getSkillTriggerPrefixes?: () => string[];
 }
 
 export interface DirectoryDataForHighlight {
@@ -59,7 +60,6 @@ export class HighlightManager {
   private cursorPositionPath: AtPathRange | null = null;
 
   // Cmd+hover state (from CursorHighlightManager)
-  private isCmdHoverActive: boolean = false;
   private hoveredAtPath: AtPathRange | null = null;
   private lastMouseX: number = 0;
   private lastMouseY: number = 0;
@@ -92,6 +92,61 @@ export class HighlightManager {
 
     // Set textInput for coordinate calculations
     this.pathManager.setTextInput(textInput);
+  }
+
+  // ============================================================
+  // Private Helpers
+  // ============================================================
+
+  private rangesOverlap(a: { start: number; end: number }, b: { start: number; end: number }): boolean {
+    return a.start < b.end && a.end > b.start;
+  }
+
+  /**
+   * Build base highlight ranges from cached URLs, absolute paths, and agent skills.
+   * Shared by renderBackdrop, renderBackdropWithCursor, and renderBackdropWithHover.
+   */
+  private buildBaseRanges(
+    text: string,
+    atPaths: AtPathRange[],
+    classNameFn?: (type: 'url' | 'path' | 'agentSkill', range: { start: number; end: number }) => string
+  ): Array<AtPathRange & { className: string }> {
+    const ranges: Array<AtPathRange & { className: string }> = [];
+    const getClassName = classNameFn ?? (() => 'file-path-cursor-highlight');
+
+    // Add @paths
+    for (const atPath of atPaths) {
+      ranges.push({ ...atPath, className: 'at-path-highlight' });
+    }
+
+    // Add URLs
+    for (const url of this.cachedUrls) {
+      if (!atPaths.some(ap => this.rangesOverlap(url, ap))) {
+        ranges.push({ start: url.start, end: url.end, className: getClassName('url', url) });
+      }
+    }
+
+    // Add absolute paths
+    for (const pathInfo of this.cachedAbsolutePaths) {
+      if (!atPaths.some(ap => this.rangesOverlap(pathInfo, ap)) &&
+          !this.cachedUrls.some(u => this.rangesOverlap(pathInfo, u))) {
+        ranges.push({ start: pathInfo.start, end: pathInfo.end, className: getClassName('path', pathInfo) });
+      }
+    }
+
+    // Add agent skills
+    for (const cmd of this.cachedAgentSkills) {
+      if (!atPaths.some(ap => this.rangesOverlap(cmd, ap)) &&
+          !this.cachedUrls.some(u => this.rangesOverlap(cmd, u)) &&
+          !this.cachedAbsolutePaths.some(p => this.rangesOverlap(cmd, p))) {
+        const className = classNameFn
+          ? getClassName('agentSkill', cmd)
+          : this.getAgentSkillClassName(text, cmd.start, cmd.end);
+        ranges.push({ start: cmd.start, end: cmd.end, className });
+      }
+    }
+
+    return ranges;
   }
 
   // ============================================================
@@ -299,7 +354,6 @@ export class HighlightManager {
       return;
     }
 
-    this.isCmdHoverActive = true;
     this.checkAndHighlightAtPath(e.clientX, e.clientY);
   }
 
@@ -307,8 +361,7 @@ export class HighlightManager {
    * Handle Cmd key down
    */
   public onCmdKeyDown(): void {
-    if (!this.isCmdHoverActive) {
-      this.isCmdHoverActive = true;
+    if (!this.hoveredAtPath) {
       this.updateHoverStateAtLastPosition();
     }
   }
@@ -317,10 +370,7 @@ export class HighlightManager {
    * Handle Cmd key up
    */
   public onCmdKeyUp(): void {
-    if (this.isCmdHoverActive) {
-      this.isCmdHoverActive = false;
-      this.clearHover();
-    }
+    this.clearHover();
   }
 
   /**
@@ -446,7 +496,8 @@ export class HighlightManager {
     this.cachedAbsolutePaths = findAllAbsolutePaths(text);
 
     const knownSkillNames = this.callbacks.getKnownSkillNames?.();
-    this.cachedAgentSkills = findAllAgentSkills(text, knownSkillNames);
+    const triggerPrefixes = this.callbacks.getSkillTriggerPrefixes?.();
+    this.cachedAgentSkills = findAllAgentSkills(text, knownSkillNames, triggerPrefixes);
   }
 
   // ============================================================
@@ -541,7 +592,7 @@ export class HighlightManager {
   private getAgentSkillClassName(text: string, start: number, end: number): string {
     const baseClassName = 'agent-skill-highlight';
 
-    // Extract command name from text (skip leading "/")
+    // Extract command name from text (skip leading trigger prefix character)
     const commandName = text.substring(start + 1, end);
 
     // Check color first (takes priority over source)
@@ -609,63 +660,10 @@ export class HighlightManager {
     if (!this.highlightBackdrop || !this.textInput) return;
 
     const text = this.callbacks.getTextContent();
-
-    // Update cache if text has changed
     this.updateHighlightCache(text);
 
     const atPaths = this.pathManager.getAtPaths();
-    const ranges: Array<AtPathRange & { className: string }> = [];
-
-    // Add @paths
-    for (const atPath of atPaths) {
-      ranges.push({ ...atPath, className: 'at-path-highlight' });
-    }
-
-    // Add all URLs with underline (always visible) - use cached results
-    for (const url of this.cachedUrls) {
-      const overlapsWithAtPath = atPaths.some(
-        ap => (url.start >= ap.start && url.start < ap.end) ||
-              (url.end > ap.start && url.end <= ap.end)
-      );
-      if (!overlapsWithAtPath) {
-        ranges.push({ start: url.start, end: url.end, className: 'file-path-cursor-highlight' });
-      }
-    }
-
-    // Add all absolute paths with underline (always visible) - use cached results
-    for (const pathInfo of this.cachedAbsolutePaths) {
-      const overlapsWithAtPath = atPaths.some(
-        ap => (pathInfo.start >= ap.start && pathInfo.start < ap.end) ||
-              (pathInfo.end > ap.start && pathInfo.end <= ap.end)
-      );
-      const overlapsWithUrl = this.cachedUrls.some(
-        u => (pathInfo.start >= u.start && pathInfo.start < u.end) ||
-             (pathInfo.end > u.start && pathInfo.end <= u.end)
-      );
-      if (!overlapsWithAtPath && !overlapsWithUrl) {
-        ranges.push({ start: pathInfo.start, end: pathInfo.end, className: 'file-path-cursor-highlight' });
-      }
-    }
-
-    // Always highlight agent skills (no dependency on searchPrefixes) - use cached results
-    for (const cmd of this.cachedAgentSkills) {
-      const overlapsWithAtPath = atPaths.some(
-        ap => (cmd.start >= ap.start && cmd.start < ap.end) ||
-              (cmd.end > ap.start && cmd.end <= ap.end)
-      );
-      const overlapsWithUrl = this.cachedUrls.some(
-        u => (cmd.start >= u.start && cmd.start < u.end) ||
-             (cmd.end > u.start && cmd.end <= u.end)
-      );
-      const overlapsWithPath = this.cachedAbsolutePaths.some(
-        p => (cmd.start >= p.start && cmd.start < p.end) ||
-             (cmd.end > p.start && cmd.end <= p.end)
-      );
-      if (!overlapsWithAtPath && !overlapsWithUrl && !overlapsWithPath) {
-        const className = this.getAgentSkillClassName(text, cmd.start, cmd.end);
-        ranges.push({ start: cmd.start, end: cmd.end, className });
-      }
-    }
+    const ranges = this.buildBaseRanges(text, atPaths);
 
     if (ranges.length === 0) {
       this.setBackdropContent(text);
@@ -686,65 +684,10 @@ export class HighlightManager {
     }
 
     const text = this.callbacks.getTextContent();
-
-    // Update cache if text has changed
     this.updateHighlightCache(text);
 
     const atPaths = this.pathManager.getAtPaths();
-    const ranges: Array<AtPathRange & { className: string }> = [];
-
-    // Add @paths
-    for (const atPath of atPaths) {
-      ranges.push({ ...atPath, className: 'at-path-highlight' });
-    }
-
-    // Add all URLs with underline (always visible) - use cached results
-    for (const url of this.cachedUrls) {
-      // Check if this URL overlaps with any @path
-      const overlapsWithAtPath = atPaths.some(
-        ap => (url.start >= ap.start && url.start < ap.end) ||
-              (url.end > ap.start && url.end <= ap.end)
-      );
-      if (!overlapsWithAtPath) {
-        ranges.push({ start: url.start, end: url.end, className: 'file-path-cursor-highlight' });
-      }
-    }
-
-    // Add all absolute paths with underline (always visible) - use cached results
-    for (const pathInfo of this.cachedAbsolutePaths) {
-      // Check if this path overlaps with any @path or URL
-      const overlapsWithAtPath = atPaths.some(
-        ap => (pathInfo.start >= ap.start && pathInfo.start < ap.end) ||
-              (pathInfo.end > ap.start && pathInfo.end <= ap.end)
-      );
-      const overlapsWithUrl = this.cachedUrls.some(
-        u => (pathInfo.start >= u.start && pathInfo.start < u.end) ||
-             (pathInfo.end > u.start && pathInfo.end <= u.end)
-      );
-      if (!overlapsWithAtPath && !overlapsWithUrl) {
-        ranges.push({ start: pathInfo.start, end: pathInfo.end, className: 'file-path-cursor-highlight' });
-      }
-    }
-
-    // Always highlight agent skills (no dependency on searchPrefixes) - use cached results
-    for (const cmd of this.cachedAgentSkills) {
-      const overlapsWithAtPath = atPaths.some(
-        ap => (cmd.start >= ap.start && cmd.start < ap.end) ||
-              (cmd.end > ap.start && cmd.end <= ap.end)
-      );
-      const overlapsWithUrl = this.cachedUrls.some(
-        u => (cmd.start >= u.start && cmd.start < u.end) ||
-             (cmd.end > u.start && cmd.end <= u.end)
-      );
-      const overlapsWithPath = this.cachedAbsolutePaths.some(
-        p => (cmd.start >= p.start && cmd.start < p.end) ||
-             (cmd.end > p.start && cmd.end <= p.end)
-      );
-      if (!overlapsWithAtPath && !overlapsWithUrl && !overlapsWithPath) {
-        const className = this.getAgentSkillClassName(text, cmd.start, cmd.end);
-        ranges.push({ start: cmd.start, end: cmd.end, className });
-      }
-    }
+    const ranges = this.buildBaseRanges(text, atPaths);
 
     this.updateBackdropWithRanges(text, ranges);
   }
@@ -754,83 +697,42 @@ export class HighlightManager {
     if (!this.hoveredAtPath) return;
 
     const text = this.callbacks.getTextContent();
-
-    // Update cache if text has changed
     this.updateHighlightCache(text);
 
     const atPaths = this.pathManager.getAtPaths();
-    const ranges: Array<AtPathRange & { className: string }> = [];
+    const hovered = this.hoveredAtPath;
+    const isHoveredRange = (r: { start: number; end: number }) =>
+      r.start === hovered.start && r.end === hovered.end;
 
-    const isHoveredAtPath = atPaths.some(
-      ap => ap.start === this.hoveredAtPath!.start && ap.end === this.hoveredAtPath!.end
-    );
+    // Build ranges with hover-aware class names
+    const ranges = this.buildBaseRanges(text, atPaths, (type, range) => {
+      const isHovered = isHoveredRange(range);
+      switch (type) {
+        case 'url':
+        case 'path':
+          return isHovered ? 'file-path-link' : 'file-path-cursor-highlight';
+        case 'agentSkill': {
+          const baseClassName = this.getAgentSkillClassName(text, range.start, range.end);
+          return isHovered ? `${baseClassName} file-path-link` : baseClassName;
+        }
+      }
+    });
 
-    // Add @paths with appropriate styling
-    for (const atPath of atPaths) {
-      const isHovered = atPath.start === this.hoveredAtPath.start && atPath.end === this.hoveredAtPath.end;
-      const className = isHovered ? 'at-path-highlight file-path-link' : 'at-path-highlight';
-      ranges.push({ ...atPath, className });
-    }
-
-    // Add all URLs with underline (always visible) - use cached results
-    for (const url of this.cachedUrls) {
-      const overlapsWithAtPath = atPaths.some(
-        ap => (url.start >= ap.start && url.start < ap.end) ||
-              (url.end > ap.start && url.end <= ap.end)
-      );
-      if (!overlapsWithAtPath) {
-        const isHovered = url.start === this.hoveredAtPath.start && url.end === this.hoveredAtPath.end;
-        const className = isHovered ? 'file-path-link' : 'file-path-cursor-highlight';
-        ranges.push({ start: url.start, end: url.end, className });
+    // Override @path class names with hover styling
+    for (const range of ranges) {
+      if (range.className === 'at-path-highlight' && isHoveredRange(range)) {
+        range.className = 'at-path-highlight file-path-link';
       }
     }
 
-    // Add all absolute paths with underline (always visible) - use cached results
-    for (const pathInfo of this.cachedAbsolutePaths) {
-      const overlapsWithAtPath = atPaths.some(
-        ap => (pathInfo.start >= ap.start && pathInfo.start < ap.end) ||
-              (pathInfo.end > ap.start && pathInfo.end <= ap.end)
-      );
-      const overlapsWithUrl = this.cachedUrls.some(
-        u => (pathInfo.start >= u.start && pathInfo.start < u.end) ||
-             (pathInfo.end > u.start && pathInfo.end <= u.end)
-      );
-      if (!overlapsWithAtPath && !overlapsWithUrl) {
-        const isHovered = pathInfo.start === this.hoveredAtPath.start && pathInfo.end === this.hoveredAtPath.end;
-        const className = isHovered ? 'file-path-link' : 'file-path-cursor-highlight';
-        ranges.push({ start: pathInfo.start, end: pathInfo.end, className });
-      }
-    }
-
-    // Always highlight agent skills (no dependency on searchPrefixes) - use cached results
-    for (const cmd of this.cachedAgentSkills) {
-      const overlapsWithAtPath = atPaths.some(
-        ap => (cmd.start >= ap.start && cmd.start < ap.end) ||
-              (cmd.end > ap.start && cmd.end <= ap.end)
-      );
-      const overlapsWithUrl = this.cachedUrls.some(
-        u => (cmd.start >= u.start && cmd.start < u.end) ||
-             (cmd.end > u.start && cmd.end <= u.end)
-      );
-      const overlapsWithPath = this.cachedAbsolutePaths.some(
-        p => (cmd.start >= p.start && p.start < p.end) ||
-             (cmd.end > p.start && cmd.end <= p.end)
-      );
-      if (!overlapsWithAtPath && !overlapsWithUrl && !overlapsWithPath) {
-        const isHovered = cmd.start === this.hoveredAtPath.start && cmd.end === this.hoveredAtPath.end;
-        const baseClassName = this.getAgentSkillClassName(text, cmd.start, cmd.end);
-        const className = isHovered ? `${baseClassName} file-path-link` : baseClassName;
-        ranges.push({ start: cmd.start, end: cmd.end, className });
-      }
-    }
-
-    // Add hovered path if it's not already added (for other linkable types like agent skills)
+    // Add hovered path if it's not already in any collection
+    const isHoveredAtPath = atPaths.some(isHoveredRange);
     if (!isHoveredAtPath) {
-      const isHoveredUrl = this.cachedUrls.some(u => u.start === this.hoveredAtPath!.start && u.end === this.hoveredAtPath!.end);
-      const isHoveredPath = this.cachedAbsolutePaths.some(p => p.start === this.hoveredAtPath!.start && p.end === this.hoveredAtPath!.end);
-      const isHoveredAgentSkill = this.cachedAgentSkills.some(c => c.start === this.hoveredAtPath!.start && c.end === this.hoveredAtPath!.end);
-      if (!isHoveredUrl && !isHoveredPath && !isHoveredAgentSkill) {
-        ranges.push({ ...this.hoveredAtPath, className: 'file-path-link' });
+      const isKnown = this.cachedUrls.some(isHoveredRange) ||
+                      this.cachedAbsolutePaths.some(isHoveredRange) ||
+                      this.cachedAgentSkills.some(isHoveredRange);
+      if (!isKnown) {
+        ranges.push({ ...hovered, className: 'file-path-link' });
       }
     }
 

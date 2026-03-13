@@ -11,36 +11,8 @@ pnpm run update-built-in-commands # Update slash commands with confirmation
 pnpm run reset-accessibility      # Reset accessibility permissions for Prompt Line
 ```
 
-**Development vs Production Modes:**
-- **Development Mode** (`pnpm start`):
-  - Sets `LOG_LEVEL=debug` environment variable
-  - Enables DEBUG level logging
-  - Shows detailed debug information in console and log files
-  - Only active when running `pnpm start` with `LOG_LEVEL=debug`
-
-- **Production Mode** (packaged app):
-  - Packaged apps (.dmg, .app) always use INFO level logging (DEBUG logs disabled)
-  - Cannot be overridden by environment variables in packaged builds
-  - Provides cleaner logs for end users
-
-### Viewing Logs
-Application logs are stored in `~/.prompt-line/app.log`.
-
-```bash
-# View recent logs (last 50 lines)
-tail -50 ~/.prompt-line/app.log
-
-# Monitor logs in real-time
-tail -f ~/.prompt-line/app.log
-
-# Search for errors
-grep -i error ~/.prompt-line/app.log | tail -20
-
-# Search for specific patterns
-grep "Paste text" ~/.prompt-line/app.log | tail -10
-```
-
-**Note:** When running `pnpm start` in JetBrains IDE, the console output shows Electron startup messages. For detailed application logs (DEBUG/INFO level), always check the log file directly.
+- `pnpm start` sets `LOG_LEVEL=debug` automatically. Packaged apps always use INFO level.
+- Logs: `~/.prompt-line/app.log` (use `tail -f ~/.prompt-line/app.log` for real-time monitoring)
 
 ### Testing
 ```bash
@@ -50,323 +22,90 @@ pnpm run test:coverage      # Generate coverage report
 pnpm run test:unit          # Run unit tests only
 pnpm run test:integration   # Run integration tests only
 pnpm run test:mutation      # Run mutation tests with Stryker
-
-# Run a specific test file
-pnpm test tests/unit/utils.test.js
-
-# Run tests matching a pattern
-pnpm test -- --testNamePattern="formatTimeAgo"
+pnpm test tests/unit/utils.test.js              # Specific test file
+pnpm test -- --testNamePattern="formatTimeAgo"  # Pattern matching
 ```
 
 ### Build & Distribution
 ```bash
-pnpm run build      # Build the application for local use (creates app directory)
-pnpm run compile    # Full build: TypeScript + Renderer + Native Tools compilation
+pnpm run build      # Build the application (creates app + DMG)
+pnpm run compile    # Full build: TypeScript + Renderer + Native Tools
 pnpm run lint       # Check code style
 pnpm run lint:fix   # Auto-fix code style issues
 pnpm run typecheck  # Run TypeScript type checking
 pnpm run pre-push   # Run all pre-push checks (lint + typecheck + test)
-
-# Additional build commands
-pnpm run build:renderer  # Vite build for renderer process
-pnpm run clean      # Removes build artifacts (DMG, zip files, etc.)
-pnpm run clean:cache     # Clears build caches (node_modules/.cache, electron caches)
-pnpm run clean:full      # Full cleanup (build artifacts + caches + dist directory)
-pnpm run release    # Info about automated release process (via GitHub Actions)
-pnpm run prepare    # Husky setup
-pnpm run generate:settings-example  # Generate settings example file
-pnpm run migrate-settings            # Run settings migration script
-pnpm run lint:dupl                   # Check duplicate code with jscpd
+pnpm run clean      # Removes build artifacts (DMG, zip files)
+pnpm run clean:cache     # Clears build caches
+pnpm run clean:full      # Full cleanup (artifacts + caches + dist)
+pnpm run generate:settings-example  # Regenerate settings.example.yml
 ```
 
-**Build Process Details:**
-The `pnpm run compile` command performs:
-1. TypeScript compilation (`tsc`)
-2. Renderer build (`pnpm run build:renderer`)
-3. Native tools compilation (`cd native && make install`)
-4. Copy compiled tools to distribution directory
+`pnpm run compile` performs: tsc → Vite renderer build → native tools (`cd native && make install`) → copy to dist.
 
-**Release Process:**
-This project uses [Release Please](https://github.com/googleapis/release-please) (Google's official release automation tool) for automated releases:
-- Release PRs are created automatically on push to `main` branch via GitHub Actions
-- Version numbers follow [Semantic Versioning](https://semver.org/) based on [Conventional Commits](https://www.conventionalcommits.org/)
-- Configuration: `release-please-config.json` and `.release-please-manifest.json` in project root
-- Workflow: `.github/workflows/release-please.yml`
-- The release process automatically:
-  1. **Creates Release PR**: Analyzes commits and creates a PR with version bump and CHANGELOG updates
-  2. **Manual Review**: Team reviews the PR before merging (optional but recommended)
-  3. **On PR Merge**: Automatically creates GitHub release and runs tests
-  4. **Updates Files**:
-     - `package.json` and `package-lock.json` versions
-     - `CHANGELOG.md` with categorized changes
-     - Creates git tags and GitHub releases
-
-### Git Hooks & Quality Assurance
-The project uses automated git hooks to ensure code quality:
-
-**Pre-commit hooks (via husky):**
-- Custom script: Automatically runs ESLint with --fix on staged .js and .ts files
-- Runs TypeScript type checking
-- Re-adds auto-fixed files to staging
-- Only processes files that are actually being committed (faster than full project linting)
-
-**Pre-push hooks:**
-- TypeScript type checking (`pnpm run typecheck`)
-- Full test suite (`pnpm test`)
-- Prevents pushing if any checks fail
-
-**Manual quality checks:**
-```bash
-pnpm run pre-push   # Run all pre-push checks manually
-```
-
-**Setup for new contributors:**
-```bash
-pnpm install        # Installs husky and sets up hooks automatically via "prepare" script
-```
-
-### Development Tools
-```bash
-github             # Open repository in GitHub Desktop
-```
+### Git Hooks
+- **Pre-commit**: ESLint --fix on staged .js/.ts files + TypeScript type checking
+- **Pre-push**: typecheck + full test suite
+- Setup: `pnpm install` (husky auto-configured via "prepare" script)
 
 ### Commit Message Guidelines
-Follow the Angular Commit Message Conventions:
+Follow Angular Commit Message Conventions: `<type>(<scope>): <subject>`
 
-**Format:**
-```
-<type>(<scope>): <subject>
+Types: `feat`, `fix`, `docs`, `refactor`, `perf`, `test`, `chore`
 
-<body>
-
-<footer>
-```
-
-**Types:**
-- `feat`: A new feature
-- `fix`: A bug fix
-- `docs`: Documentation only changes
-- `refactor`: A code change that neither fixes a bug nor adds a feature
-- `perf`: A code change that improves performance
-- `test`: Adding missing tests or correcting existing tests
-- `chore`: Changes to the build process or auxiliary tools and libraries
-
-**Examples:**
 ```
 feat(history): add search functionality to paste history
 fix(window): resolve positioning issue on multi-monitor setups
-docs(readme): update installation instructions
 ```
 
-For full guidelines, see: https://github.com/angular/angular/blob/main/contributing-docs/commit-message-guidelines.md
-
 ### Pull Request Guidelines
-When creating pull requests:
-
 - **Target Branch**: Always create PRs against the `develop` branch (not `main`)
 - **Language**: Write all PR titles and descriptions in English
-- **Merge Strategy**: Use **Squash and merge** for feature PRs to `develop`. Use **Rebase and merge** for `develop` → `main` PRs. Regular merge commits are disabled to prevent duplicate entries in CHANGELOG (Release Please picks up both merge commits and individual commits, causing duplication).
+- **Merge Strategy**: **Squash and merge** for feature PRs to `develop`. **Merge commit** for `develop` → `main`.
+
+### Release Process
+Uses [Release Please](https://github.com/googleapis/release-please) for automated releases. Config: `release-please-config.json`, workflow: `.github/workflows/release-please.yml`. Pushes to `main` trigger Release PR creation with version bump and CHANGELOG updates.
 
 ## Architecture Overview
 
 ### Electron Process Architecture
-The app uses Electron's two-process model with clean separation:
-
-- **Main Process** (`src/main.ts`): Controls application lifecycle, window management, and system interactions
-- **Renderer Process** (`src/renderer/`): Handles UI and user interactions
-  - `renderer.ts`: Main renderer class with integrated keyboard handling and manager pattern
-  - `ui-manager.ts`: Advanced UI management with themes, animations, and notifications
-  - `input.html`: Main window template
-  - 13+ specialized managers: DOM, events, search, lifecycle, shortcuts, mentions, agent-skills, history-ui, and more
-  - Comprehensive CSS architecture with themes and modular stylesheets
-  - TypeScript configuration and utility functions
-  - `interfaces/`: Shared TypeScript type definitions
-  - `services/`: Service layer components
-  - `src/types/`: TypeScript type definitions shared across processes (file-search, handlers, history, index, ipc, managers, window)
-  - `src/lib/`: Shared library code for custom search, template resolution, and scoring (built-in-commands-loader, command-name-matcher, default-custom-search-config, jq-resolver, keyword-utils, prefix-resolver, template-resolver, tiebreaker, usage-bonus-calculator)
-  - `src/constants/`: Application-wide constants (index.ts)
-- **Preload Script** (`src/preload/preload.ts`): Secure context bridge with whitelisted IPC channels
-- **IPC Handlers** (`src/handlers/`): Modular handler architecture with 10 specialized files:
-  - `ipc-handlers.ts`: Main coordinator that delegates to specialized handlers
-  - `paste-handler.ts`: Text and image paste operations with security validation
-  - `history-draft-handler.ts`: History CRUD and draft management operations
-  - `window-handler.ts`: Window visibility and focus control
-  - `system-handler.ts`: App info, config, and settings retrieval
-  - `custom-search-handler.ts`: Slash commands and agent selection
-  - `file-handler.ts`: File operations and external URL handling
-  - `usage-history-handler.ts`: Usage history tracking operations
-  - `code-search-handler.ts`: Symbol search with ripgrep integration
-  - `handler-utils.ts`: Shared validation and utility functions
-
-### Manager Pattern
-Core functionality is organized into specialized managers:
-
-**Main Process Managers:**
-- **WindowManager** (`src/managers/window/`): Modular architecture with 12 files (9 main + 3 strategies/):
-  - `window-manager.ts`: Main coordinator for window creation and lifecycle
-  - `directory-detector.ts`: Directory detection and file search orchestration
-  - `directory-cache-helper.ts`: Directory caching helper utilities
-  - `directory-detector-utils.ts`: Directory detector utility functions
-  - `text-field-bounds-detector.ts`: Text field bounds detection using Accessibility APIs
-  - `position-calculator.ts`: Window positioning algorithms (4 modes)
-  - `native-tool-executor.ts`: Native macOS tool execution with timeout
-  - `types.ts`: Type definitions for window module
-  - `index.ts`: Public API exports
-  - `strategies/`: Positioning strategy implementations
-    - `strategies/index.ts`: Strategy exports
-    - `strategies/native-detector-strategy.ts`: Native detector strategy implementation
-    - `strategies/types.ts`: Strategy type definitions
-  - Supports multiple positioning modes: active-text-field (default), active-window-center, cursor, center
-  - Native Swift tools integration for window and text field detection
-  - Multi-monitor aware positioning with boundary constraints
-- **HistoryManager**: Manages unlimited paste history with optimized performance (persisted to JSONL)
-- **DraftManager**: Auto-saves input drafts with adaptive debouncing
-- **SettingsManager**: Manages user preferences with YAML-based configuration
-  - Default window positioning mode: `active-text-field`
-  - Real-time settings updates with deep merge functionality
-  - Automatic settings file creation with sensible defaults
-- **DesktopSpaceManager**: Ultra-fast desktop space change detection for window recreation
-- **FileCacheManager**: File caching with invalidation for performance optimization
-- **CustomSearchLoader**: Custom search and loading functionality for slash commands and agents
-- **DirectoryManager**: Directory operations and management
-- **FileOpenerManager**: File opening with custom editor support
-- **SymbolCacheManager**: Language-separated symbol search caching with TTL
-- **AtPathCacheManager**: @path pattern caching for file highlighting
-- **UsageHistoryManager**: Usage tracking with count-based scoring
-- **AgentSkillCacheManager**: Agent skill caching
-- **AgentUsageHistoryManager**: Agent selection history
-- **FileUsageHistoryManager**: File selection history
-- **SymbolUsageHistoryManager**: Symbol selection history
-- **symbol-search/**: Symbol search integration with ripgrep via Node.js (21 languages)
-
-**Renderer Process Managers:**
-- **DomManager**: DOM element management and manipulation
-- **EventHandler**: Centralized event processing
-- **AgentSkillManager**: Agent skill processing and execution
-- **FrontmatterPopupManager**: Frontmatter popup display and interaction
-- **MentionManager**: @ mention system coordination
-- **LifecycleManager**: Application lifecycle management
-- **ShortcutHandler**: Keyboard shortcut handling
-- **WindowBlurHandler**: Window blur event handling
-- **DirectoryDataHandler**: Directory data event handling
-- **DraftManagerClient**: Client-side draft management
-- **Types** (`types.ts`): Shared TypeScript type definitions for renderer
-- **MentionSystem** (`src/renderer/mentions/`): Modular @ mention architecture with 15+ specialized managers:
-  - `mention-initializer.ts`: System initialization and lifecycle management
-  - `mention-state.ts`: Centralized state management for mention system
-  - `suggestion-ui-manager.ts`: UI rendering and interaction for suggestions
-  - `popup-manager.ts`: Popup positioning and lifecycle control
-  - `file-filter-manager.ts`: File filtering and scoring algorithms
-  - `directory-cache-manager.ts`: Directory data caching with two-stage loading
-  - `navigation-manager.ts`: Keyboard navigation and selection handling
-  - `path-manager.ts`: Path detection, insertion, and tracking
-  - `base-cache-manager.ts`: Base cache functionality for directory and code search
-  - `highlight-manager.ts`: @path highlighting and visual tracking
-  - `file-opener-event-handler.ts`: File opening via Cmd+click
-  - `code-search-manager.ts`: Symbol search integration with ripgrep
-  - `event-listener-manager.ts`: Event lifecycle management
-  - `query-extraction-manager.ts`: Query parsing and extraction
-  - `settings-cache-manager.ts`: Settings caching and updates
-  - `code-search/index.ts`: Code search module exports
-  - `code-search/types.ts`: Code search type definitions
-  - Supports file search (`@`), code search (`@lang:query`), and directory navigation (`@dir/`)
-- **HistoryUIManager**: History display and interaction management
-- **SnapshotManager**: Undo/redo functionality with text and cursor state tracking
-- **HistorySearchManager** (`src/renderer/history-search/`): Score-based history search with fuzzy matching
-
-### Data Flow
 ```
 User Input → Renderer → IPC Event → IPCHandlers (coordinator) → Specialized Handler → Manager → Data/System
                 ↑                                                                            ↓
                 └─────────────────────────── IPC Response ───────────────────────────────────┘
 ```
 
-**Handler Coordination Flow:**
-```
-Renderer Process
-    ↓
-IPC invoke request
-    ↓
-IPCHandlers (coordinator)
-    ↓
-Specialized Handler (paste, history-draft, window, system, custom-search, file, code-search, usage-history)
-    ↓
-Manager (WindowManager, HistoryManager, SymbolCacheManager, etc.)
-    ↓
-System/Data
-    ↓
-IPC response → Renderer Process
-```
+- **Main Process** (`src/main.ts`): Application lifecycle, window management, system interactions
+- **Renderer Process** (`src/renderer/`): UI and user interactions with 13+ specialized managers. See `src/renderer/CLAUDE.md`
+- **Preload Script** (`src/preload/preload.ts`): Secure context bridge with whitelisted IPC channels
+- **IPC Handlers** (`src/handlers/`): 10 specialized files, 50 IPC channels. See `src/handlers/CLAUDE.md`
+- **Managers** (`src/managers/`): 16 specialized managers + window sub-module. See `src/managers/CLAUDE.md`
+- **Config** (`src/config/`): Centralized settings with `default-settings.ts` as Single Source of Truth. See `src/config/CLAUDE.md`
+- **Utils** (`src/utils/`): Shared utilities, native tools, file/symbol search. See `src/utils/CLAUDE.md`
+- **Native Tools** (`native/`): 4 compiled Swift tools for macOS integration. See `native/CLAUDE.md`
+- **Shared Types** (`src/types/`): TypeScript definitions shared across processes
+- **Shared Libraries** (`src/lib/`): Custom search, template resolution, scoring utilities
 
-### Key IPC Channels (by Handler Module)
-
-**Paste Handler (paste-handler.ts):**
-- `paste-text`: Main action - pastes text to previous application with security validation
-- `paste-image`: Clipboard image handling with path traversal prevention
-
-**History & Draft Handler (history-draft-handler.ts):**
-- `get-history`, `clear-history`, `remove-history-item`, `search-history`: History operations
-- `save-draft`, `clear-draft`, `get-draft`, `save-draft-to-history`: Draft management
-- `set-draft-directory`, `get-draft-directory`: Directory tracking
-- `register-at-path`, `get-registered-at-paths`: Project @path pattern caching
-- `register-global-at-path`, `get-global-at-paths`: Global @path pattern caching
-
-**Window Handler (window-handler.ts):**
-- `hide-window`, `show-window`, `focus-window`: Window visibility control
-
-**System Handler (system-handler.ts):**
-- `get-app-info`: Application metadata
-- `get-config`: Configuration access with whitelist validation
-- `open-settings`, `open-settings-directory`: Settings file management
-- `get-file-search-max-suggestions`: File search configuration
-
-**CustomSearch Handler (custom-search-handler.ts):**
-- `get-agent-skills`, `get-agent-skill-file-path`, `has-command-file`: Agent skill support
-- `get-agents`, `get-agent-file-path`: Agent selection and management
-- `get-custom-search-max-suggestions`, `get-custom-search-prefixes`: Search configuration
-- `invalidate-custom-search`: Cache invalidation (called by renderer on window-shown)
-- `register-global-agent-skill`, `get-global-agent-skills`: Agent skill global cache
-- `get-usage-bonuses`: Usage frequency scoring for search results
-
-**File Handler (file-handler.ts):**
-- `check-file-exists`, `open-file-in-editor`, `reveal-in-finder`: File operations
-- `open-external-url`: URL handling with protocol validation
-
-**Code Search Handler (code-search-handler.ts):**
-- `check-rg`: Check ripgrep availability
-- `get-supported-languages`: List of 20+ supported programming languages
-- `search-symbols`: Symbol search with caching strategy
-- `get-cached-symbols`: Retrieve cached symbols
-- `clear-symbol-cache`: Clear symbol cache
-
-**Usage History Handler (usage-history-handler.ts):**
-- `record-file-usage`: Record file usage for intelligent scoring
-- `get-file-usage-bonuses`: Retrieve usage bonuses for file paths
-- `record-symbol-usage`: Record symbol usage for intelligent scoring
-- `get-symbol-usage-bonuses`: Retrieve usage bonuses for symbols
-- `record-agent-usage`: Record agent usage for intelligent scoring
-- `get-agent-usage-bonuses`: Retrieve usage bonuses for agents
-
-**Events (Renderer → Main):**
-- `window-shown`: Window display with data context
-- `directory-data-updated`: Directory change notifications
-
-Total: 50 IPC channels across 9 specialized handlers
+### Key Features
+- **Auto-paste**: Native Swift tools simulate Cmd+V in the previously active app (requires Accessibility permissions)
+- **Window positioning**: 4 modes (active-text-field → active-window-center → cursor → center) with fallback chain
+- **@ Mention system**: File search (`@`), code search (`@lang:query`), directory navigation (`@dir/`). Disabled by default
+- **Slash commands**: Type `/` for built-in and custom commands. Agent selection support
+- **History**: Unlimited JSONL-based paste history with real-time search
+- **Draft auto-save**: Adaptive debouncing, persists on Esc, cleared on successful paste (Cmd+Enter)
 
 ### Built-in Commands
 
-Built-in commands are slash command definitions for external CLI tools (Claude Code, Codex CLI, Gemini CLI, etc.) stored as YAML files.
+Slash command definitions for CLI tools (Claude Code, Codex CLI, Gemini CLI) stored as YAML files.
 
-**Source files:** `assets/built-in-commands/*.yml`
-**Installed to:** `~/.prompt-line/built-in-commands/` (copied via `pnpm run update-built-in-commands`)
+**Source:** `assets/built-in-commands/*.yml` → **Installed to:** `~/.prompt-line/built-in-commands/`
 
-**Updating built-in commands to latest versions:**
-1. Check the latest slash commands for each CLI tool:
-   - **Claude Code**: Check [official changelog](https://github.com/anthropics/claude-code/releases) and [docs](https://code.claude.com/docs/en/interactive-mode#built-in-commands)
-   - **Codex CLI**: Check [source code](https://github.com/openai/codex) and [docs](https://developers.openai.com/codex/cli/slash-commands/)
-   - **Gemini CLI**: Check [docs](https://google-gemini.github.io/gemini-cli/docs/cli/commands.html) and [releases](https://github.com/google-gemini/gemini-cli/releases)
-2. Edit the YAML files in `assets/built-in-commands/` (add new commands, update changed descriptions; do not remove existing commands)
-3. Run `pnpm run update-built-in-commands` to install to user directory
+**Updating to latest versions:**
+1. Check latest slash commands:
+   - **Claude Code**: [changelog](https://github.com/anthropics/claude-code/releases) / [docs](https://code.claude.com/docs/en/interactive-mode#built-in-commands)
+   - **Codex CLI**: [source](https://github.com/openai/codex) / [docs](https://developers.openai.com/codex/cli/slash-commands/)
+   - **Gemini CLI**: [docs](https://google-gemini.github.io/gemini-cli/docs/cli/commands.html) / [releases](https://github.com/google-gemini/gemini-cli/releases)
+2. Edit YAML files in `assets/built-in-commands/` (add/update commands; do not remove existing)
+3. Run `pnpm run update-built-in-commands`
 
 **YAML format:**
 ```yaml
@@ -379,296 +118,42 @@ commands:
     argument-hint: "[optional-args]"  # optional
 ```
 
-**Hot reload:** Changes to `~/.prompt-line/built-in-commands/` are auto-detected (chokidar, 300ms debounce) and applied without app restart.
-
-**Related files:**
-- `src/managers/built-in-commands-manager.ts` - File watching and cache management
-- `src/handlers/custom-search-handler.ts` - Event listener for `commands-changed` events
-
-## Platform-Specific Implementation
-
-### macOS Auto-Paste
-The app uses compiled Swift native tools to simulate Cmd+V in the previously active application. This requires:
-- Accessibility permissions (prompted on first use)
-- Proper window management to restore focus
-
-**Native Swift Tools (4 tools):**
-- **Window Detector**: Compiled Swift binary for reliable window bounds and app detection
-- **Keyboard Simulator**: Native Cmd+V simulation and app activation with bundle ID support
-- **Text Field Detector**: Focused text field detection for precise positioning using Accessibility APIs
-- **Directory Detector**: Fast CWD (current working directory) detection using libproc for 10-50x faster performance
-
-**Node.js Tool Integrations (2 modules):**
-- **File Searcher** (`src/utils/file-search/`): Cross-platform file listing using `fd` command with Node.js `fs.readdir` fallback
-- **Symbol Searcher** (`src/utils/symbol-search/`): Cross-platform code symbol search using `ripgrep` directly from Node.js, supporting 21 programming languages
-
-**Integration Features:**
-- **JSON Communication**: Structured data exchange prevents parsing vulnerabilities
-- **Error Recovery**: Graceful fallback from text field → window center → cursor → center positioning
-- **Timeout Protection**: 3-5 second timeouts prevent hanging on unresponsive operations
-- **Security**: Compiled binaries for window/keyboard operations eliminate script injection vulnerabilities
+Hot reload: Changes auto-detected (chokidar, 300ms debounce) without app restart.
 
 ### Data Storage
-All data is stored in `~/.prompt-line/`:
-- `history.jsonl`: Paste history (JSONL format for efficient append operations)
-- `draft.json`: Auto-saved drafts (created on-demand when drafts are saved)
-- `settings.yml`: User preferences including window positioning mode
-- `directory.json`: Current working directory tracking for file search
-- `app.log`: Application logs with debug information
-- `images/`: Directory for image storage
-- `cache/`: Directory for file caching and metadata
-  - `<encoded-path>/symbol-metadata.json`: Symbol cache metadata with TTL
-  - `<encoded-path>/symbols-{lang}.jsonl`: Language-specific symbol cache
-  - `<encoded-path>/registered-at-paths.jsonl`: Project @path patterns
-  - `global-at-paths.jsonl`: Global @path patterns for customSearch agents
-
-### Build Output
-The built application is stored in `dist/`:
-- `dist/mac-arm64/Prompt Line.app`: Apple Silicon build
-- `dist/mac/Prompt Line.app`: Intel build
-- DMG files: `Prompt-Line-{version}-arm64.dmg` and `Prompt-Line-{version}-x64.dmg`
+All data stored in `~/.prompt-line/`:
+- `history.jsonl`: Paste history (JSONL append-only)
+- `draft.json`: Auto-saved drafts
+- `settings.yml`: User preferences
+- `directory.json`: CWD tracking for file search
+- `app.log`: Application logs
+- `images/`: Image storage
+- `cache/`: Symbol cache, @path patterns (per-project and global)
 
 ## Testing Strategy
 
-### Mock Infrastructure
-Tests use comprehensive mocks defined in `tests/setup.ts`:
-- Electron APIs (app, BrowserWindow, clipboard, screen, etc.)
-- File system operations
-- Child process execution
-- IPC communication
-- Advanced mocking with full TypeScript support
+- **Mocks**: Comprehensive mocks in `tests/setup.ts` (Electron APIs, fs, child_process, IPC)
+- **Organization**: Unit tests (isolation) + Integration tests (cross-module) + Fixtures (`tests/fixtures/`)
+- **Console suppression**: Use `vi.spyOn(console, 'error').mockImplementation(() => {})` (not `.mockImplementation()` — the latter doesn't suppress in vitest v4)
 
-### Test Organization
-- **Unit tests**: Test individual managers/utilities in isolation
-- **Integration tests**: Test cross-module interactions
-- **Fixtures**: Shared test data in `tests/fixtures/`
+## Troubleshooting
 
-### Test Console Output Suppression
-- Suppress stderr in error-path tests with `vi.spyOn(console, 'error').mockImplementation(() => {})`
-- Use `.mockImplementation(() => {})` not `.mockImplementation()` (the latter doesn't suppress in vitest v4)
-- Place spy in `beforeEach` when the whole section needs it; use per-test spy/restore for individual tests
+### electron-builder ENOENT Error
+Corrupted cache. Fix: `pnpm run clean:full && pnpm install && pnpm run build`
 
-### Running Specific Tests
-```bash
-# Test a specific manager
-pnpm test tests/unit/history-manager.test.js
+### TypeScript Compilation Errors
+Fix: `pnpm install && pnpm run build`
 
-# Test with pattern matching
-pnpm test -- --testNamePattern="should save draft"
+### Native Tools Compilation Errors
+Requires Xcode Command Line Tools: `xcode-select --install`
 
-# Debug test failures
-pnpm test -- --verbose
-```
+### Slow Build Times
+Use `pnpm run compile` instead of `pnpm run build` for development iterations.
 
-## Critical Implementation Details
+### Cleanup Reference
 
-### Window Positioning
-The window supports multiple positioning modes with dynamic configuration:
-
-**Default Mode: active-text-field**
-- Positions prompt window near the currently focused text field
-- Uses native text-field-detector tool for precise positioning
-- Falls back to active-window-center if no text field is focused
-- Provides optimal context by staying near the user's current input focus
-
-**Available Positioning Options:**
-- `active-text-field`: Position near the currently focused text field (default, falls back to active-window-center)
-- `active-window-center`: Center within the currently active window
-- `cursor`: Position at mouse cursor location
-- `center`: Center on primary display
-
-**Implementation Details:**
-1. Detect focused text field using native text-field-detector tool with JSON response
-2. If text field found, position window near text field with offset
-3. If no text field, get active window bounds via native window-detector tool
-4. Calculate optimal position within detected bounds (text field > window center > cursor > screen center)
-5. Apply screen boundary constraints for multi-monitor setups
-6. Create and position window with sub-pixel precision
-7. Handle fallback chain gracefully with comprehensive error handling
-
-### Draft Auto-Save
-- Adaptive debouncing: 500ms for short text (≤200 chars), 1000ms for longer text
-- Change detection prevents unnecessary saves when content hasn't changed
-- Draft persists until explicitly cleared by successful paste (Cmd+Enter)
-- Closing with Esc preserves the draft
-- Backup system with timestamp-based naming for recovery
-
-### History Management
-- **Single implementation**: HistoryManager with full-file based JSONL persistence
-- **Unlimited storage** with optimized performance (JSONL format)
-- **Newest items appear at top** with timestamp-based sorting
-- **Duplicates are prevented** through content comparison
-- **Configurable display limit** (default: 20 items) prevents DOM bloat
-- **Real-time search** with highlighting and case-insensitive matching
-- **Streaming operations** for large files with efficient append-only strategy
-
-### @ Mention System (File & Code Search)
-- **@ mention syntax**: Type `@` to trigger file search, `@lang:query` for code search
-- **Modular architecture**: 15+ specialized managers for mentions functionality
-- **File search**: Directory navigation with fuzzy matching and score-based ranking
-- **Code search**: Symbol search with ripgrep integration for 21 languages
-- **Hybrid loading strategy**: Stage 1 (quick single-level) + Stage 2 (recursive fd command)
-- **@path highlighting**: Visual highlighting in textarea with Cmd+click to open files
-- **Undo/redo support**: Full undo/redo integration for file path insertion
-- **Disabled by default**: Enable via settings for stability
-- **Security**: Disabled in root and system directories (/, /System, /Library, etc.)
-- **fd command integration**: Uses `fd` for fast recursive file discovery
-- **Supported applications** (directory-detector):
-  - Terminal.app (`com.apple.Terminal`)
-  - iTerm2 (`com.googlecode.iterm2`)
-  - Ghostty (`com.mitchellh.ghostty`)
-  - Warp (`dev.warp.Warp-Stable`)
-  - WezTerm (`com.github.wez.wezterm`)
-  - JetBrains IDEs (`com.jetbrains.*` - IntelliJ IDEA, WebStorm, PyCharm, etc.)
-  - VSCode (`com.microsoft.VSCode`, VSCode Insiders, VSCodium)
-  - Cursor (`com.todesktop.230313mzl4w4u92`)
-  - Windsurf (`com.exafunction.windsurf`)
-  - Zed (`dev.zed.Zed`)
-  - OpenCode (`ai.opencode.desktop`)
-  - Antigravity (`com.google.antigravity`) - tmux-based terminal
-  - Kiro (`dev.kiro.desktop`)
-
-### Code Search (Symbol Search)
-- **Syntax**: Type `@<language>:<query>` to search for symbols (e.g., `@ts:Config`, `@go:Handler`)
-- **Part of @ mention system**: Integrated with file search in `src/renderer/mentions/`
-- **ripgrep-based**: Uses `rg` (ripgrep) for fast symbol searching via `code-search-manager.ts`
-- **Node.js implementation**: `src/utils/symbol-search/symbol-searcher-node.ts` (replaces former native Swift binary)
-- **Symbol caching**: Results cached per directory and language for faster subsequent searches
-- **Supported languages (21)**:
-  | Language | Key | Example | Symbol Types |
-  |----------|-----|---------|--------------|
-  | Go | `go` | `@go:Handler` | function, method, struct, interface, type, constant, variable |
-  | TypeScript | `ts` | `@ts:Config` | function, class, interface, type, enum, constant, namespace |
-  | TypeScript React | `tsx` | `@tsx:Component` | function, class, interface, type, enum, constant |
-  | JavaScript | `js` | `@js:init` | function, class, constant, variable |
-  | JavaScript React | `jsx` | `@jsx:Button` | function, class, constant, variable |
-  | Python | `py` | `@py:parse` | function, class, constant |
-  | Rust | `rs` | `@rs:handle` | function, struct, enum, trait, type, constant, variable, module |
-  | Java | `java` | `@java:Service` | class, interface, enum, method |
-  | Kotlin | `kt` | `@kt:create` | function, class, interface, enum, typealias, constant |
-  | Swift | `swift` | `@swift:detect` | function, class, struct, protocol, enum, typealias |
-  | Ruby | `rb` | `@rb:initialize` | function, class, module, constant |
-  | C++ | `cpp` | `@cpp:Node` | class, struct, enum, namespace, typedef |
-  | C | `c` | `@c:parse` | struct, enum, typedef |
-  | Shell | `sh` | `@sh:build` | function, variable |
-  | Makefile | `make`, `mk` | `@make:install`, `@mk:install` | function (targets), variable |
-  | PHP | `php` | `@php:render` | function, class, interface, trait, constant, enum |
-  | C# | `cs` | `@cs:Handle` | class, interface, struct, enum, method, namespace |
-  | Scala | `scala` | `@scala:process` | function, class, trait, object, type, constant, variable |
-  | Terraform | `tf` | `@tf:instance` | resource, data, variable, output, module, provider |
-  | Markdown | `md` | `@md:Installation` | heading |
-- **Requirements**: ripgrep (`rg`) must be installed (`brew install ripgrep`)
-- **File search must be enabled**: Code search is part of the @ mention system
-
-### Slash Commands & Agents
-- **Slash command system**: Type `/` to access commands
-- **Custom commands**: User-defined commands from markdown files
-- **Agent selection**: Choose from available agents
-- **File path integration**: Commands can reference file paths
-
-### Desktop Space Management
-- **Ultra-fast detection**: <5ms performance target for space changes
-- **Space signatures**: Hash-based identification for efficient comparison
-- **Window recreation**: Automatic window recreation when desktop space changes
-- **Cache optimization**: 2-second TTL cache prevents expensive repeated operations
-- **Accessibility integration**: Seamless integration with macOS accessibility APIs
-
-### Security Considerations
-- **Native tools security**: Compiled Swift binaries for window/keyboard operations eliminate script injection vulnerabilities
-- **Input sanitization**: AppleScript sanitization with 64KB limits and character escaping, input size limits (1MB)
-- **Path validation**: Comprehensive path normalization prevents directory traversal in all handlers
-- **Image file security**: Path traversal prevention with restrictive file permissions (0o700/0o600)
-- **History ID validation**: Strict format validation (lowercase alphanumeric, max 32 chars)
-- **URL protocol whitelist**: Only `http:` and `https:` protocols allowed for external URLs
-- **Config section whitelist**: Configuration access limited to predefined sections
-- **File search restrictions**: Disabled in root and system directories for security
-- **Preload script security**: Context bridge with whitelisted IPC channels only
-- **Prototype pollution prevention**: Input validation against prototype attacks
-- **No app sandboxing** (required for auto-paste functionality)
-- **Explicit permissions**: Requires user accessibility permissions with guided setup
-- **Local data only**: All data stored locally, no network requests
-- **JSON communication**: Structured data exchange prevents parsing attacks
-- **XSS prevention**: Safe SVG injection using DOMParser in mentions module
-
-## Common Build Issues and Troubleshooting
-
-### Build Failures
-
-#### electron-builder ENOENT Error
-If you encounter an error like `ENOENT: no such file or directory, rename '...Electron' -> '...Prompt Line'`:
-
-**Root Cause:** Corrupted electron-builder cache or incomplete Electron binary download.
-
-**Solution:**
-```bash
-# Full cleanup and rebuild
-pnpm run clean:full
-pnpm install
-pnpm run build
-```
-
-**Quick Fix (cache only):**
-```bash
-pnpm run clean:cache
-pnpm run build
-```
-
-#### TypeScript Compilation Errors
-If `tsc` command is not found or TypeScript compilation fails:
-
-**Solution:**
-```bash
-# Reinstall dependencies
-pnpm install
-pnpm run build
-```
-
-#### Native Tools Compilation Errors
-If Swift compilation fails for native tools:
-
-**Common Issues:**
-- Xcode Command Line Tools not installed
-- Incompatible macOS SDK version
-
-**Solution:**
-```bash
-# Install Xcode Command Line Tools
-xcode-select --install
-
-# Verify installation
-xcode-select -p
-```
-
-### Performance Issues
-
-#### Slow Build Times
-- Use `pnpm run compile` instead of full `pnpm run build` for faster development iterations
-- Native tools are cached after first compilation
-- Consider using SSD for faster I/O operations
-
-#### Large Distribution Size
-- DMG files are ~100-110MB per architecture (expected size)
-- App bundle contains full Electron framework
-- Use `pnpm run clean` to remove old build artifacts
-
-### Cleanup Commands Reference
-
-| Command | Purpose | When to Use |
-|---------|---------|-------------|
-| `pnpm run clean` | Remove build artifacts only | After each build to clean up DMG/zip files |
-| `pnpm run clean:cache` | Clear build caches | When experiencing cache-related build issues |
-| `pnpm run clean:full` | Complete cleanup | Before fresh build or when troubleshooting build errors |
-
-### Build Process Verification
-
-To verify a successful build:
-```bash
-# Check generated files
-ls -lh dist/*.dmg
-
-# Verify app bundles exist
-ls -la dist/mac*/Prompt\ Line.app
-
-# Check native tools
-ls -la dist/mac*/Prompt\ Line.app/Contents/Resources/app.asar.unpacked/dist/native-tools/
-```
+| Command | When to Use |
+|---------|-------------|
+| `pnpm run clean` | Remove DMG/zip build artifacts |
+| `pnpm run clean:cache` | Cache-related build issues |
+| `pnpm run clean:full` | Fresh build or troubleshooting |

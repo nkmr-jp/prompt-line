@@ -116,6 +116,27 @@ function extractFieldFromJson(jsonPath: string, fieldPath: string): string {
   }
 }
 
+/**
+ * values マップの各パターンを解決し、テンプレート変数名→解決値のマップを返す
+ * prefixPattern (deprecated) もサポート: values がなく prefixPattern がある場合は { prefix: prefixPattern } として扱う
+ */
+export async function resolveValues(
+  commandFilePath: string,
+  values: Record<string, string> | undefined,
+  prefixPattern: string | undefined,
+  basePath: string
+): Promise<Record<string, string>> {
+  // values と prefixPattern の統合（values が優先、prefixPattern は後方互換）
+  const effectiveValues = values ?? (prefixPattern ? { prefix: prefixPattern } : undefined);
+  if (!effectiveValues || Object.keys(effectiveValues).length === 0) return {};
+
+  const resolved: Record<string, string> = {};
+  for (const [key, pattern] of Object.entries(effectiveValues)) {
+    resolved[key] = await resolvePrefix(commandFilePath, pattern, basePath);
+  }
+  return resolved;
+}
+
 export function clearPrefixCache(): void {
   prefixCache.clear();
 }

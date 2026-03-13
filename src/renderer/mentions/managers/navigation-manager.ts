@@ -23,6 +23,15 @@ import type { SymbolResult, LanguageInfo } from '../code-search/types';
 import { getRelativePath } from '../index';
 
 /**
+ * Check if a string looks like a URL, file path, or directory path
+ */
+function isOpenablePath(text: string): boolean {
+  if (/^https?:\/\//.test(text)) return true;
+  if (/^[~/]/.test(text)) return true;
+  return false;
+}
+
+/**
  * Callbacks for NavigationManager
  */
 export interface NavigationCallbacks {
@@ -63,7 +72,10 @@ export interface NavigationCallbacks {
   exitSymbolMode: () => void;
   removeAtQueryText: () => void;
   openFileAndRestoreFocus: (filePath: string) => Promise<void>;
+  openUrlInBrowser: (url: string) => Promise<void>;
   revealInFinderAndRestoreFocus: (filePath: string) => Promise<void>;
+  updateHintText?: (text: string) => void;
+  getDefaultHintText?: () => string;
   toggleAutoShowTooltip: () => void;
   expandCurrentFile: () => void;
 
@@ -176,6 +188,7 @@ export class NavigationManager {
       : Math.max(currentIndex + delta, 0);
     this.callbacks.setSelectedIndex(newIndex);
     this.callbacks.updateSelection();
+    this.updateHintForSelectedItem(newIndex);
   }
 
   private handleEnter(e: KeyboardEvent, totalItems: number): void {
@@ -199,9 +212,15 @@ export class NavigationManager {
         // Ctrl+Shift+EnterでFinderでディレクトリを開く（@検索テキストは削除、パス挿入なし）
         const suggestion = this.callbacks.getMergedSuggestions()[selectedIndex];
         if (suggestion) {
-          const filePath = suggestion.type === 'file'
-            ? suggestion.file?.path
-            : suggestion.agent?.filePath;
+          // For agents with inputText that is a file/dir path, reveal that path instead of source file
+          const agent = suggestion.agent;
+          const openableInputText = agent?.inputText && isOpenablePath(agent.inputText)
+            && !/^https?:\/\//.test(agent.inputText)
+            ? agent.inputText
+            : null;
+
+          const filePath = openableInputText
+            ?? (suggestion.type === 'file' ? suggestion.file?.path : agent?.filePath);
           if (filePath) {
             this.callbacks.removeAtQueryText();
             this.callbacks.revealInFinderAndRestoreFocus(filePath)
@@ -213,9 +232,28 @@ export class NavigationManager {
         // Ctrl+Enterでエディタで開く（@検索テキストは削除、パス挿入なし）
         const suggestion = this.callbacks.getMergedSuggestions()[selectedIndex];
         if (suggestion) {
+          // For agents with inputText that is a URL/path, open the inputText instead of source file
+          const agent = suggestion.agent;
+          const openableInputText = agent?.inputText && isOpenablePath(agent.inputText)
+            ? agent.inputText
+            : null;
+
+          if (openableInputText) {
+            this.callbacks.removeAtQueryText();
+            if (/^https?:\/\//.test(openableInputText)) {
+              this.callbacks.openUrlInBrowser(openableInputText)
+                .then(() => this.callbacks.hideSuggestions());
+            } else {
+              this.callbacks.openFileAndRestoreFocus(openableInputText)
+                .then(() => this.callbacks.hideSuggestions());
+            }
+            return;
+          }
+
+          // Default: open the source file
           const filePath = suggestion.type === 'file'
             ? suggestion.file?.path
-            : suggestion.agent?.filePath;
+            : agent?.filePath;
           if (filePath) {
             // Remove @query text without inserting file path
             this.callbacks.removeAtQueryText();
@@ -593,5 +631,27 @@ export class NavigationManager {
 
     // Hide suggestions
     this.callbacks.hideSuggestions();
+  }
+
+  /**
+   * Update hint text based on selected item's inputText.
+   * Shows path-specific hints when agent's inputText is a URL, file path, or directory path.
+   */
+  public updateHintForSelectedItem(index?: number): void {
+    if (!this.callbacks.updateHintText) return;
+    const selectedIndex = index ?? this.callbacks.getSelectedIndex();
+    const suggestion = this.callbacks.getMergedSuggestions()[selectedIndex];
+    if (!suggestion) return;
+
+    const inputText = suggestion.agent?.inputText;
+    if (inputText && isOpenablePath(inputText)) {
+      if (/^https?:\/\//.test(inputText)) {
+        this.callbacks.updateHintText('Ctrl+Enter: open URL in browser');
+      } else {
+        this.callbacks.updateHintText('Ctrl+Enter: open path / Ctrl+Shift+Enter: reveal in Finder');
+      }
+    } else {
+      this.callbacks.updateHintText('Ctrl+Enter: open file / Ctrl+Shift+Enter: reveal in Finder');
+    }
   }
 }

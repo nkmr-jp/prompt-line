@@ -42,6 +42,7 @@ export interface MentionCallbacks {
   getSkillSource?: (commandName: string) => string | undefined; // Get source for agent skill (e.g., "claude", "custom")
   getSkillColor?: (commandName: string) => string | undefined; // Get color for agent skill (used for label and highlight)
   getKnownSkillNames?: () => string[]; // Get list of all known agent skill names (for multi-word command detection)
+  getSkillTriggerPrefixes?: () => string[]; // Get trigger prefixes for agent skills (e.g., ['/', '$'])
 }
 
 // Represents a tracked @path in the text

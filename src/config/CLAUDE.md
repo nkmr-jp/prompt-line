@@ -41,5 +41,5 @@ default-settings.ts (Single Source of Truth)
 - Window: 640x320, position: `active-text-field`
 - Shortcuts: main=`Cmd+Shift+Space`, paste=`Cmd+Enter`, close=`Escape`, historyNext=`Ctrl+j`, historyPrev=`Ctrl+k`, search=`Cmd+f`
 - `builtInCommands`: default `['claude']`
-- `mentions.fileSearch.maxFiles`: 5000
-- `mentions.symbolSearch.maxSymbols`: 200000
+- `fileSearch.maxFiles`: 5000
+- `symbolSearch.maxSymbols`: 200000

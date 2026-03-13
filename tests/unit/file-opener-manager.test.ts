@@ -16,12 +16,20 @@ vi.mock('path', () => {
       const lastDot = filePath.lastIndexOf('.');
       return lastDot === -1 ? '' : filePath.substring(lastDot);
     }),
-    join: vi.fn((...parts: string[]) => parts.join('/')),
+    join: vi.fn((...parts: string[]) => parts.join('/').replace(/\/+/g, '/')),
     dirname: vi.fn((filePath: string) => filePath.split('/').slice(0, -1).join('/')),
-    basename: vi.fn((filePath: string) => filePath.split('/').pop())
+    basename: vi.fn((filePath: string) => filePath.split('/').pop()),
+    resolve: vi.fn((p: string) => p.startsWith('/') ? p : `/cwd/${p}`),
+    sep: '/'
   };
   return { ...pathMock, default: pathMock };
 });
+
+// Mock os module
+vi.mock('os', () => ({
+  homedir: vi.fn(() => '/Users/test'),
+  default: { homedir: vi.fn(() => '/Users/test') }
+}));
 
 // Mock utils
 vi.mock('../../src/utils/utils', () => ({
@@ -452,7 +460,345 @@ describe('FileOpenerManager', () => {
     });
   });
 
-  describe('edge cases', () => {
+  describe('with directory-specific editor', () => {
+      it('should open file with directory-specific editor when file is in configured directory', async () => {
+        mockSettingsManager.getSettings.mockReturnValue({
+          ...defaultSettings,
+          fileOpener: {
+            extensions: {},
+            directories: [{ path: '/Users/test/go-projects', editor: 'GoLand' }],
+            defaultEditor: 'Visual Studio Code'
+          }
+        });
+
+        mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
+          callback(null);
+          return {} as any;
+        });
+
+        const result = await fileOpenerManager.openFile('/Users/test/go-projects/main.go');
+
+        expect(result.success).toBe(true);
+        expect(mockedExecFile).toHaveBeenCalledWith(
+          'open',
+          ['-a', 'GoLand', '/Users/test/go-projects/main.go'],
+          expect.any(Function)
+        );
+      });
+
+      it('should use most specific pattern when multiple directories match', async () => {
+        mockSettingsManager.getSettings.mockReturnValue({
+          ...defaultSettings,
+          fileOpener: {
+            extensions: {},
+            directories: [
+              { path: '/Users/test/projects/*', editor: 'Visual Studio Code' },
+              { path: '/Users/test/projects/go-api', editor: 'GoLand' }
+            ],
+            defaultEditor: null
+          }
+        });
+
+        mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
+          callback(null);
+          return {} as any;
+        });
+
+        const result = await fileOpenerManager.openFile('/Users/test/projects/go-api/main.go');
+
+        expect(result.success).toBe(true);
+        expect(mockedExecFile).toHaveBeenCalledWith(
+          'open',
+          ['-a', 'GoLand', '/Users/test/projects/go-api/main.go'],
+          expect.any(Function)
+        );
+      });
+
+      it('should prefer extension-specific app over directory-specific editor', async () => {
+        mockSettingsManager.getSettings.mockReturnValue({
+          ...defaultSettings,
+          fileOpener: {
+            extensions: { pdf: 'Preview' },
+            directories: [{ path: '/Users/test/go-projects', editor: 'GoLand' }],
+            defaultEditor: null
+          }
+        });
+
+        mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
+          callback(null);
+          return {} as any;
+        });
+
+        const result = await fileOpenerManager.openFile('/Users/test/go-projects/doc.pdf');
+
+        expect(result.success).toBe(true);
+        expect(mockedExecFile).toHaveBeenCalledWith(
+          'open',
+          ['-a', 'Preview', '/Users/test/go-projects/doc.pdf'],
+          expect.any(Function)
+        );
+      });
+
+      it('should fall back to defaultEditor when file is not in any configured directory', async () => {
+        mockSettingsManager.getSettings.mockReturnValue({
+          ...defaultSettings,
+          fileOpener: {
+            extensions: {},
+            directories: [{ path: '/Users/test/go-projects', editor: 'GoLand' }],
+            defaultEditor: 'Visual Studio Code'
+          }
+        });
+
+        mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
+          callback(null);
+          return {} as any;
+        });
+
+        const result = await fileOpenerManager.openFile('/Users/test/other-project/file.ts');
+
+        expect(result.success).toBe(true);
+        expect(mockedExecFile).toHaveBeenCalledWith(
+          'open',
+          ['-a', 'Visual Studio Code', '/Users/test/other-project/file.ts'],
+          expect.any(Function)
+        );
+      });
+
+      it('should expand ~ in directory paths', async () => {
+        mockSettingsManager.getSettings.mockReturnValue({
+          ...defaultSettings,
+          fileOpener: {
+            extensions: {},
+            directories: [{ path: '~/go-projects', editor: 'GoLand' }],
+            defaultEditor: null
+          }
+        });
+
+        mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
+          callback(null);
+          return {} as any;
+        });
+
+        const result = await fileOpenerManager.openFile('/Users/test/go-projects/main.go');
+
+        expect(result.success).toBe(true);
+        expect(mockedExecFile).toHaveBeenCalledWith(
+          'open',
+          ['-a', 'GoLand', '/Users/test/go-projects/main.go'],
+          expect.any(Function)
+        );
+      });
+
+      it('should not match when file path is a prefix but not in directory', async () => {
+        mockSettingsManager.getSettings.mockReturnValue({
+          ...defaultSettings,
+          fileOpener: {
+            extensions: {},
+            directories: [{ path: '/Users/test/proj', editor: 'GoLand' }],
+            defaultEditor: null
+          }
+        });
+
+        mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
+          callback(null);
+          return {} as any;
+        });
+
+        // /Users/test/projects/file.ts should NOT match /Users/test/proj
+        const result = await fileOpenerManager.openFile('/Users/test/projects/file.ts');
+
+        expect(result.success).toBe(true);
+        expect(mockedExecFile).toHaveBeenCalledWith(
+          'open',
+          ['/Users/test/projects/file.ts'],
+          expect.any(Function)
+        );
+      });
+
+      it('should handle empty directories array', async () => {
+        mockSettingsManager.getSettings.mockReturnValue({
+          ...defaultSettings,
+          fileOpener: {
+            extensions: {},
+            directories: [],
+            defaultEditor: 'Visual Studio Code'
+          }
+        });
+
+        mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
+          callback(null);
+          return {} as any;
+        });
+
+        const result = await fileOpenerManager.openFile('/Users/test/project/file.ts');
+
+        expect(result.success).toBe(true);
+        expect(mockedExecFile).toHaveBeenCalledWith(
+          'open',
+          ['-a', 'Visual Studio Code', '/Users/test/project/file.ts'],
+          expect.any(Function)
+        );
+      });
+
+      it('should match * glob pattern (single directory level)', async () => {
+        mockSettingsManager.getSettings.mockReturnValue({
+          ...defaultSettings,
+          fileOpener: {
+            extensions: {},
+            directories: [{ path: '/Users/test/ghq/github.com/my-org/*', editor: 'GoLand' }],
+            defaultEditor: null
+          }
+        });
+
+        mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
+          callback(null);
+          return {} as any;
+        });
+
+        const result = await fileOpenerManager.openFile('/Users/test/ghq/github.com/my-org/my-go-repo/main.go');
+
+        expect(result.success).toBe(true);
+        expect(mockedExecFile).toHaveBeenCalledWith(
+          'open',
+          ['-a', 'GoLand', '/Users/test/ghq/github.com/my-org/my-go-repo/main.go'],
+          expect.any(Function)
+        );
+      });
+
+      it('should not match * glob across directory separators', async () => {
+        mockSettingsManager.getSettings.mockReturnValue({
+          ...defaultSettings,
+          fileOpener: {
+            extensions: {},
+            directories: [{ path: '/Users/test/ghq/github.com/*/repo', editor: 'GoLand' }],
+            defaultEditor: null
+          }
+        });
+
+        mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
+          callback(null);
+          return {} as any;
+        });
+
+        // * should not match "my-org/other" (contains /)
+        const result = await fileOpenerManager.openFile('/Users/test/ghq/github.com/my-org/other/repo/main.go');
+
+        expect(result.success).toBe(true);
+        // Should fall through to system default (no -a flag)
+        expect(mockedExecFile).toHaveBeenCalledWith(
+          'open',
+          ['/Users/test/ghq/github.com/my-org/other/repo/main.go'],
+          expect.any(Function)
+        );
+      });
+
+      it('should match ** glob pattern (multiple directory levels)', async () => {
+        mockSettingsManager.getSettings.mockReturnValue({
+          ...defaultSettings,
+          fileOpener: {
+            extensions: {},
+            directories: [{ path: '/Users/test/ghq/**', editor: 'GoLand' }],
+            defaultEditor: null
+          }
+        });
+
+        mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
+          callback(null);
+          return {} as any;
+        });
+
+        const result = await fileOpenerManager.openFile('/Users/test/ghq/github.com/my-org/repo/main.go');
+
+        expect(result.success).toBe(true);
+        expect(mockedExecFile).toHaveBeenCalledWith(
+          'open',
+          ['-a', 'GoLand', '/Users/test/ghq/github.com/my-org/repo/main.go'],
+          expect.any(Function)
+        );
+      });
+
+      it('should match glob with ~ expansion', async () => {
+        mockSettingsManager.getSettings.mockReturnValue({
+          ...defaultSettings,
+          fileOpener: {
+            extensions: {},
+            directories: [{ path: '~/ghq/github.com/my-org/go-*', editor: 'GoLand' }],
+            defaultEditor: null
+          }
+        });
+
+        mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
+          callback(null);
+          return {} as any;
+        });
+
+        const result = await fileOpenerManager.openFile('/Users/test/ghq/github.com/my-org/go-api/main.go');
+
+        expect(result.success).toBe(true);
+        expect(mockedExecFile).toHaveBeenCalledWith(
+          'open',
+          ['-a', 'GoLand', '/Users/test/ghq/github.com/my-org/go-api/main.go'],
+          expect.any(Function)
+        );
+      });
+
+      it('should match directory path itself (not just files under it)', async () => {
+        mockSettingsManager.getSettings.mockReturnValue({
+          ...defaultSettings,
+          fileOpener: {
+            extensions: {},
+            directories: [{ path: '~/ghq/github.com/my-org/prompt-line*', editor: 'GoLand' }],
+            defaultEditor: 'Visual Studio Code'
+          }
+        });
+
+        mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
+          callback(null);
+          return {} as any;
+        });
+
+        // Opening the directory itself (no trailing slash, no file after it)
+        const result = await fileOpenerManager.openFile('/Users/test/ghq/github.com/my-org/prompt-line');
+
+        expect(result.success).toBe(true);
+        expect(mockedExecFile).toHaveBeenCalledWith(
+          'open',
+          ['-a', 'GoLand', '/Users/test/ghq/github.com/my-org/prompt-line'],
+          expect.any(Function)
+        );
+      });
+
+      it('should prefer more specific pattern over glob', async () => {
+        mockSettingsManager.getSettings.mockReturnValue({
+          ...defaultSettings,
+          fileOpener: {
+            extensions: {},
+            directories: [
+              { path: '/Users/test/ghq/github.com/*', editor: 'Visual Studio Code' },
+              { path: '/Users/test/ghq/github.com/my-org/go-*', editor: 'GoLand' }
+            ],
+            defaultEditor: null
+          }
+        });
+
+        mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
+          callback(null);
+          return {} as any;
+        });
+
+        const result = await fileOpenerManager.openFile('/Users/test/ghq/github.com/my-org/go-api/main.go');
+
+        expect(result.success).toBe(true);
+        // More specific pattern (longer non-glob prefix) should win
+        expect(mockedExecFile).toHaveBeenCalledWith(
+          'open',
+          ['-a', 'GoLand', '/Users/test/ghq/github.com/my-org/go-api/main.go'],
+          expect.any(Function)
+        );
+      });
+    });
+
+    describe('edge cases', () => {
     it('should handle files without extension', async () => {
       mockSettingsManager.getSettings.mockReturnValue({
         ...defaultSettings,

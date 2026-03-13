@@ -575,6 +575,58 @@ describe('extractTriggerQueryAtCursor', () => {
     });
   });
 
+  describe('multiple trigger characters (array)', () => {
+    test('should match first trigger character found (/) from array', () => {
+      const result = extractTriggerQueryAtCursor('/cmd', 4, ['/', '$']);
+      expect(result).toEqual({
+        query: 'cmd',
+        startPos: 0,
+        triggerChar: '/'
+      });
+    });
+
+    test('should match second trigger character ($) from array', () => {
+      const result = extractTriggerQueryAtCursor('$cmd', 4, ['/', '$']);
+      expect(result).toEqual({
+        query: 'cmd',
+        startPos: 0,
+        triggerChar: '$'
+      });
+    });
+
+    test('should match $ mid-text from array', () => {
+      const result = extractTriggerQueryAtCursor('hello $skill', 12, ['/', '$']);
+      expect(result).toEqual({
+        query: 'skill',
+        startPos: 6,
+        triggerChar: '$'
+      });
+    });
+
+    test('should return null when no array trigger found', () => {
+      const result = extractTriggerQueryAtCursor('hello world', 11, ['/', '$']);
+      expect(result).toBeNull();
+    });
+
+    test('should work with allowSpaces and array triggers', () => {
+      const result = extractTriggerQueryAtCursor('$multi word', 11, ['/', '$'], { allowSpaces: true });
+      expect(result).toEqual({
+        query: 'multi word',
+        startPos: 0,
+        triggerChar: '$'
+      });
+    });
+
+    test('should use closest trigger to cursor when both exist', () => {
+      const result = extractTriggerQueryAtCursor('/first $second', 14, ['/', '$']);
+      expect(result).toEqual({
+        query: 'second',
+        startPos: 7,
+        triggerChar: '$'
+      });
+    });
+  });
+
   describe('specification compliance tests', () => {
     test('[SPEC] should extract query from / at start', () => {
       // Test case from specification: '/comm' (cursor=5)

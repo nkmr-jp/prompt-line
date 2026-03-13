@@ -75,123 +75,87 @@ function formatExtensionsAsList(ext: Record<string, string> | undefined): string
 }
 
 /**
+ * Resolve the line prefixes for a YAML entry based on commented flag
+ */
+function resolveEntryPrefixes(indent: string, commented: boolean): { first: string; content: string } {
+  if (commented) {
+    return { first: `${indent}# `, content: `${indent}#   ` };
+  }
+  return { first: indent, content: `${indent}  ` };
+}
+
+/**
+ * Append optional string fields to a YAML lines array
+ */
+function appendAgentSkillOptionalFields(lines: string[], entry: AgentSkillEntry, p: string): void {
+  if (entry.label) lines.push(`${p}label: "${entry.label}"`);
+  if (entry.color) lines.push(`${p}color: "${entry.color}"`);
+  if (entry.icon) lines.push(`${p}icon: "${entry.icon}"`);
+  lines.push(`${p}pattern: "${entry.pattern}"`);
+  if (entry.values) {
+    lines.push(`${p}values:`);
+    for (const [key, val] of Object.entries(entry.values)) {
+      lines.push(`${p}  ${key}: "${val}"`);
+    }
+  }
+  if (entry.prefixPattern && !entry.values) lines.push(`${p}prefixPattern: "${entry.prefixPattern}"`);
+  if (entry.argumentHint) lines.push(`${p}argumentHint: "${entry.argumentHint}"`);
+  if (entry.maxSuggestions !== undefined) lines.push(`${p}maxSuggestions: ${entry.maxSuggestions}`);
+}
+
+/**
  * Format an agent skill entry as YAML
  */
 function formatAgentSkillEntry(entry: AgentSkillEntry, indent: string, commented = false): string {
-  // When commented, use indent + "# " prefix
-  // Active:    "  - name:" (indent + -)
-  // Commented: "  # - name:" (indent trimmed to base + # + space + -)
-  let firstLinePrefix: string;
-  let contentLinePrefix: string;
-
-  if (commented) {
-    firstLinePrefix = `${indent}# `;
-    contentLinePrefix = `${indent}#   `;
-  } else {
-    firstLinePrefix = indent;
-    contentLinePrefix = `${indent}  `;
-  }
-
+  const { first, content } = resolveEntryPrefixes(indent, commented);
   const lines = [
-    `${firstLinePrefix}- name: "${entry.name}"`,
-    `${contentLinePrefix}description: "${entry.description || ''}"`,
-    `${contentLinePrefix}path: ${entry.path}`
+    `${first}- name: "${entry.name}"`,
+    `${content}description: "${entry.description || ''}"`,
+    `${content}path: ${entry.path}`
   ];
-
-  // Add label if present
-  if (entry.label) {
-    lines.push(`${contentLinePrefix}label: "${entry.label}"`);
-  }
-
-  // Add color if present
-  if (entry.color) {
-    lines.push(`${contentLinePrefix}color: "${entry.color}"`);
-  }
-
-  // Add icon if present
-  if (entry.icon) {
-    lines.push(`${contentLinePrefix}icon: "${entry.icon}"`);
-  }
-
-  lines.push(`${contentLinePrefix}pattern: "${entry.pattern}"`);
-
-  // Add prefixPattern if present
-  if (entry.prefixPattern) {
-    lines.push(`${contentLinePrefix}prefixPattern: "${entry.prefixPattern}"`);
-  }
-
-  if (entry.argumentHint) {
-    lines.push(`${contentLinePrefix}argumentHint: "${entry.argumentHint}"`);
-  }
-  if (entry.maxSuggestions !== undefined) {
-    lines.push(`${contentLinePrefix}maxSuggestions: ${entry.maxSuggestions}`);
-  }
-
+  appendAgentSkillOptionalFields(lines, entry, content);
   return lines.join('\n');
+}
+
+/**
+ * Append required core fields for a customSearch entry
+ */
+function appendCustomSearchCoreFields(lines: string[], entry: MentionEntry, p: string): void {
+  if (entry.label) lines.push(`${p}label: "${entry.label}"`);
+  if (entry.icon) lines.push(`${p}icon: ${entry.icon}`);
+  if (entry.color) lines.push(`${p}color: "${entry.color}"`);
+  lines.push(`${p}description: "${entry.description}"`);
+  lines.push(`${p}path: ${entry.path}`);
+  lines.push(`${p}pattern: "${entry.pattern}"`);
+}
+
+/**
+ * Append optional fields for a customSearch entry
+ */
+function appendCustomSearchOptionalFields(lines: string[], entry: MentionEntry, p: string): void {
+  if (entry.values) {
+    lines.push(`${p}values:`);
+    for (const [key, val] of Object.entries(entry.values)) {
+      lines.push(`${p}  ${key}: "${val}"`);
+    }
+  }
+  if (entry.prefixPattern && !entry.values) lines.push(`${p}prefixPattern: "${entry.prefixPattern}"`);
+  if (entry.searchPrefix) lines.push(`${p}searchPrefix: ${entry.searchPrefix}            # Search with @${entry.searchPrefix}:`);
+  if (entry.shortcut) lines.push(`${p}shortcut: ${entry.shortcut}              # Keyboard shortcut to activate @${entry.searchPrefix || ''}:`);
+  if (entry.maxSuggestions !== undefined) lines.push(`${p}maxSuggestions: ${entry.maxSuggestions}`);
+  if (entry.orderBy !== undefined) lines.push(`${p}orderBy: "${entry.orderBy}"`);
+  if (entry.displayTime !== undefined) lines.push(`${p}displayTime: "${entry.displayTime}"`);
+  if (entry.inputFormat !== undefined) lines.push(`${p}inputFormat: ${entry.inputFormat}               # Insert format template`);
 }
 
 /**
  * Format a customSearch entry as YAML
  */
 function formatCustomSearchEntry(entry: MentionEntry, indent: string, commented = false): string {
-  // When commented, use "    # " prefix to match the customSearch indentation level
-  // Active:    "    - name:" (4 spaces + -)
-  // Commented: "    # - name:" (4 spaces + # + space + -)
-  let firstLinePrefix: string;
-  let contentLinePrefix: string;
-
-  if (commented) {
-    firstLinePrefix = '    # ';
-    contentLinePrefix = '    #   ';
-  } else {
-    firstLinePrefix = indent;
-    contentLinePrefix = `${indent}  `;
-  }
-
-  const lines = [
-    `${firstLinePrefix}- name: "${entry.name}"`
-  ];
-
-  // Add label if present
-  if (entry.label) {
-    lines.push(`${contentLinePrefix}label: "${entry.label}"`);
-  }
-
-  // Add icon if present
-  if (entry.icon) {
-    lines.push(`${contentLinePrefix}icon: ${entry.icon}`);
-  }
-
-  // Add color if present
-  if (entry.color) {
-    lines.push(`${contentLinePrefix}color: "${entry.color}"`);
-  }
-
-  lines.push(`${contentLinePrefix}description: "${entry.description}"`);
-  lines.push(`${contentLinePrefix}path: ${entry.path}`);
-  lines.push(`${contentLinePrefix}pattern: "${entry.pattern}"`);
-
-  // Add prefixPattern if present
-  if (entry.prefixPattern) {
-    lines.push(`${contentLinePrefix}prefixPattern: "${entry.prefixPattern}"`);
-  }
-
-  if (entry.searchPrefix) {
-    lines.push(`${contentLinePrefix}searchPrefix: ${entry.searchPrefix}            # Search with @${entry.searchPrefix}:`);
-  }
-  if (entry.maxSuggestions !== undefined) {
-    lines.push(`${contentLinePrefix}maxSuggestions: ${entry.maxSuggestions}`);
-  }
-  if (entry.orderBy !== undefined) {
-    lines.push(`${contentLinePrefix}orderBy: "${entry.orderBy}"`);
-  }
-  if (entry.displayTime !== undefined) {
-    lines.push(`${contentLinePrefix}displayTime: "${entry.displayTime}"`);
-  }
-  if (entry.inputFormat !== undefined) {
-    lines.push(`${contentLinePrefix}inputFormat: ${entry.inputFormat}               # Insert format template`);
-  }
-
+  const { first, content } = resolveEntryPrefixes(indent, commented);
+  const lines = [`${first}- name: "${entry.name}"`];
+  appendCustomSearchCoreFields(lines, entry, content);
+  appendCustomSearchOptionalFields(lines, entry, content);
   return lines.join('\n');
 }
 
@@ -217,6 +181,28 @@ function buildExtensionsSection(settings: UserSettings, options: YamlGeneratorOp
     for (const [ext, app] of Object.entries(commented)) {
       section += `\n    # ${ext}: "${app}"`;
     }
+  }
+
+  return section;
+}
+
+/**
+ * Build directories section
+ */
+function buildDirectoriesSection(settings: UserSettings): string {
+  const directories = settings.fileOpener?.directories || [];
+  const hasDirectories = directories.length > 0;
+
+  if (!hasDirectories) {
+    return `#directories:                      # Directory-specific editors (supports glob: * and **)
+  #  - path: "~/ghq/github.com/my-org/my-go*"
+  #    editor: "GoLand"`;
+  }
+
+  let section = 'directories:';
+  for (const entry of directories) {
+    section += `\n    - path: "${entry.path}"`;
+    section += `\n      editor: "${entry.editor}"`;
   }
 
   return section;
@@ -265,6 +251,30 @@ builtInCommands:                      # List of tools to enable\n`;
 }
 
 /**
+ * Build the comment header for the agentSkills section
+ */
+function buildAgentSkillsHeader(): string {
+  return [
+    '# Agent skills: custom commands from markdown files',
+    '# Search: Space-separated keywords enable AND search (e.g., "/commit fix" matches both words)',
+    '# Configuration fields:',
+    '#   name: Display name template (variables: {basename}, {frontmatter@field}, {prefix})',
+    '#   description: Skill description template (variables: {basename}, {frontmatter@field}, {dirname}, {dirname:N})',
+    '#   path: Directory path to search for skill files',
+    '#   label: Display label for UI badge (e.g., "command", "skill", "agent")',
+    '#   color: Badge color (name: grey, darkGrey, slate, stone, red, rose, orange, amber, yellow, lime, green, emerald, teal, cyan, sky, blue, indigo, violet, purple, fuchsia, pink, or hex: #FF5733)',
+    '#   icon: Codicon icon name (e.g., "agent", "rocket", "terminal")',
+    '#   pattern: Glob pattern to match files (e.g., "*.md", "**/*/SKILL.md")',
+    '#   values: Map of template variable names to JSON extraction patterns (e.g., pluginName: "**/.claude-plugin/*.json@name")',
+    '#   argumentHint: Hint for skill arguments',
+    '#   maxSuggestions: Maximum number of suggestions to display',
+    '#   {dirname}: Parent directory name',
+    '#   {dirname:N}: N levels up directory name (e.g., {dirname:2} = grandparent)',
+    'agentSkills:'
+  ].join('\n') + '\n';
+}
+
+/**
  * Build agentSkills section
  */
 function buildAgentSkillsSection(settings: UserSettings, options: YamlGeneratorOptions): string {
@@ -272,7 +282,6 @@ function buildAgentSkillsSection(settings: UserSettings, options: YamlGeneratorO
   const hasAgentSkills = agentSkills && agentSkills.length > 0;
 
   if (!hasAgentSkills) {
-    // No agent skills configured - output commented template
     return `#agentSkills:
 #  - name: "{basename}"
 #    description: "{frontmatter@description}"
@@ -282,29 +291,12 @@ function buildAgentSkillsSection(settings: UserSettings, options: YamlGeneratorO
 #    maxSuggestions: 20`;
   }
 
-  // Build the section with actual values
-  let section = '# Agent skills: custom commands from markdown files\n';
-  section += '# Search: Space-separated keywords enable AND search (e.g., "/commit fix" matches both words)\n';
-  section += '# Configuration fields:\n';
-  section += '#   name: Display name template (variables: {basename}, {frontmatter@field}, {prefix})\n';
-  section += '#   description: Skill description template (variables: {basename}, {frontmatter@field}, {dirname}, {dirname:N})\n';
-  section += '#   path: Directory path to search for skill files\n';
-  section += '#   label: Display label for UI badge (e.g., "command", "skill", "agent")\n';
-  section += '#   color: Badge color (name: grey, darkGrey, slate, stone, red, rose, orange, amber, yellow, lime, green, emerald, teal, cyan, sky, blue, indigo, violet, purple, fuchsia, pink, or hex: #FF5733)\n';
-  section += '#   icon: Codicon icon name (e.g., "agent", "rocket", "terminal")\n';
-  section += '#   pattern: Glob pattern to match files (e.g., "*.md", "**/*/SKILL.md")\n';
-  section += '#   prefixPattern: Pattern to extract prefix from plugin metadata\n';
-  section += '#   argumentHint: Hint for skill arguments\n';
-  section += '#   maxSuggestions: Maximum number of suggestions to display\n';
-  section += '#   {dirname}: Parent directory name\n';
-  section += '#   {dirname:N}: N levels up directory name (e.g., {dirname:2} = grandparent)\n';
-  section += 'agentSkills:\n';
+  let section = buildAgentSkillsHeader();
 
   for (const entry of agentSkills) {
     section += formatAgentSkillEntry(entry, '  ') + '\n';
   }
 
-  // Add commented examples if requested
   if (options.includeCommentedExamples) {
     const commentedEntries = commentedExamples.agentSkills || [];
     for (const entry of commentedEntries) {
@@ -316,202 +308,180 @@ function buildAgentSkillsSection(settings: UserSettings, options: YamlGeneratorO
 }
 
 /**
- * Build mentions section
+ * Build the comment header for the customSearch section
  */
-function buildMentionsSection(settings: UserSettings, options: YamlGeneratorOptions): string {
-  const fileSearch = settings.mentions?.fileSearch || settings.fileSearch;
-  const symbolSearch = settings.mentions?.symbolSearch || settings.symbolSearch;
-  const customSearchEntries = settings.mentions?.customSearch ?? settings.mentions?.mdSearch;
-
-  const hasAnyMentionSettings = fileSearch || symbolSearch || (customSearchEntries && customSearchEntries.length > 0);
-
-  if (!hasAnyMentionSettings) {
-    // No mentions configured - output commented template
-    return `#mentions:
-#  # Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
-#  # Supports: Markdown (.md), JSON (.json), JSONL (.jsonl), jq expressions, and plain text files.
-#  # searchPrefix: Search with @<prefix>: (e.g., searchPrefix: "agent" → @agent:)
-#  customSearch:
-#    - name: "agent-{basename}"
-#      description: "{frontmatter@description}"
-#      path: ~/.claude/agents
-#      pattern: "*.md"
-#      searchPrefix: agent            # Search with @agent:
+function buildCustomSearchHeader(): string {
+  return `# Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
+# Scans directories for files matching glob patterns and provides @ mention suggestions.
+# Supports: Markdown (.md), JSON (.json), JSONL (.jsonl), jq expressions, and plain text files.
+# Search: Space-separated keywords enable AND search (e.g., @agent:dev api)
 #
-#  # File search settings (@path/to/file completion)
-#  # Note: fd command required (brew install fd)
-#  fileSearch:
-#    respectGitignore: true           # Respect .gitignore files
-#    includeHidden: true              # Include hidden files
-#    maxFiles: 5000                   # Maximum files to return
-#    maxDepth: null                   # Directory depth (null = unlimited)
-#    maxSuggestions: 50               # Suggestions to show
-#    followSymlinks: false            # Follow symbolic links
-#    #fdPath: null                    # Custom path to fd
+# Configuration fields:
+#   name            : Display name template
+#   description     : Entry description template (supports "|" fallback: "{json@a}|{json@b}")
+#   path            : Directory path to scan (supports ~ for home)
+#   pattern         : Glob pattern to match files
+#   values          : Map of template variable names to JSON extraction patterns (e.g., pluginName: "**/.claude-plugin/*.json@name")
+#   searchPrefix    : Prefix to trigger this search (e.g., "agent" → @agent:)
+#   maxSuggestions  : Maximum number of suggestions to display
+#   orderBy         : Sort order (e.g., "name", "name desc", "{updatedAt} desc")
+#   displayTime     : Timestamp to display (e.g., "{updatedAt}", "{json@createdAt}", "none" to hide)
+#   inputFormat     : Insert format ('name' = display name, or template e.g. '{filepath}', '{content}')
+#   color           : Badge color (name or hex)
+#   icon            : Codicon icon name (e.g., "agent", "rocket", "terminal")
+#                     https://microsoft.github.io/vscode-codicons/dist/codicon.html
+#   label           : UI badge label
 #
-#  # Symbol search settings (@ts:Config, @go:Handler)
-#  # Note: ripgrep required (brew install ripgrep)
-#  symbolSearch:
-#    maxSymbols: 200000               # Maximum symbols to return
-#    timeout: 60000                   # Search timeout in ms
-#    #rgPath: null                    # Custom path to rg`;
-  }
-
-  let section = 'mentions:\n';
-
-  // Custom search subsection (first, as the most configurable section)
-  section += `  # Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
-  # Scans directories for files matching glob patterns and provides @ mention suggestions.
-  # Supports: Markdown (.md), JSON (.json), JSONL (.jsonl), jq expressions, and plain text files.
-  # Search: Space-separated keywords enable AND search (e.g., @agent:dev api)
-  #
-  # Configuration fields:
-  #   name            : Display name template
-  #   description     : Entry description template (supports "|" fallback: "{json@a}|{json@b}")
-  #   path            : Directory path to scan (supports ~ for home)
-  #   pattern         : Glob pattern to match files
-  #   prefixPattern   : Pattern to extract prefix from plugin metadata
-  #   searchPrefix    : Prefix to trigger this search (e.g., "agent" → @agent:)
-  #   maxSuggestions  : Maximum number of suggestions to display
-  #   orderBy         : Sort order (e.g., "name", "name desc", "{updatedAt} desc")
-  #   displayTime     : Timestamp to display (e.g., "{updatedAt}", "{json@createdAt}", "none" to hide)
-  #   inputFormat     : Insert format ('name' = display name, or template e.g. '{filepath}', '{content}')
-  #   color           : Badge color (name or hex)
-  #   icon            : Codicon icon name (e.g., "agent", "rocket", "terminal")
-  #                     https://microsoft.github.io/vscode-codicons/dist/codicon.html
-  #   label           : UI badge label
-  #
-  # Template variables:
-  #   {basename}          — File name without extension
-  #   {frontmatter@field} — YAML frontmatter field from markdown files
-  #   {json@field}        — JSON field value (for .json/.jsonl files)
-  #   {json:N@field}      — JSON field from N-th level array item
-  #   {prefix}            — Prefix extracted via prefixPattern
-  #   {heading}           — First non-empty line of the file (for markdown: first heading)
-  #   {line}              — Each line of plain text file (generates one item per line)
-  #   {dirname}           — Parent directory name
-  #   {dirname:N}         — N levels up directory name (e.g., {dirname:2} = grandparent)
-  #
-  # Pattern examples:
-  #   "*.md"                              — Markdown files in root directory only
-  #   "**/*.md"                           — All subdirectories (recursive)
-  #   "**/commands/*.md"                  — Any "commands" subdirectory
-  #   "**/*/SKILL.md"                     — SKILL.md in any subdirectory
-  #   "**/{cmd,agent}/*.md"              — Brace expansion (cmd or agent dirs)
-  #   "*.json"                            — JSON files (use {json@field} for template variables)
-  #   "**/config.json@.members"          — JSON + jq expression (expands array into items)
-  #   "*.json@.items | map(select(.active))" — Complex jq expressions supported
-  #   "*.jsonl"                           — JSONL files (one JSON per line)
-  #   "*.txt"                             — Plain text files (one item per non-empty line, use {line})
-  customSearch:
+# Template variables:
+#   {basename}          — File name without extension
+#   {frontmatter@field} — YAML frontmatter field from markdown files
+#   {json@field}        — JSON field value (for .json/.jsonl files)
+#   {json:N@field}      — JSON field from N-th level array item
+#   {prefix}            — Prefix extracted via values (e.g., values: { prefix: "pattern" })
+#   {heading}           — First non-empty line of the file (for markdown: first heading)
+#   {line}              — Each line of plain text file (generates one item per line)
+#   {dirname}           — Parent directory name
+#   {dirname:N}         — N levels up directory name (e.g., {dirname:2} = grandparent)
+#
+# Pattern examples:
+#   "*.md"                              — Markdown files in root directory only
+#   "**/*.md"                           — All subdirectories (recursive)
+#   "**/commands/*.md"                  — Any "commands" subdirectory
+#   "**/*/SKILL.md"                     — SKILL.md in any subdirectory
+#   "**/{cmd,agent}/*.md"              — Brace expansion (cmd or agent dirs)
+#   "*.json"                            — JSON files (use {json@field} for template variables)
+#   "**/config.json@.members"          — JSON + jq expression (expands array into items)
+#   "*.json@.items | map(select(.active))" — Complex jq expressions supported
+#   "*.jsonl"                           — JSONL files (one JSON per line)
+#   "*.txt"                             — Plain text files (one item per non-empty line, use {line})
+customSearch:
 `;
+}
 
-  if (customSearchEntries && customSearchEntries.length > 0) {
-    for (const entry of customSearchEntries) {
-      section += formatCustomSearchEntry(entry, '    ') + '\n\n';
-    }
+/**
+ * Build customSearch section
+ */
+function buildCustomSearchSection(settings: UserSettings, options: YamlGeneratorOptions): string {
+  const customSearchEntries = settings.customSearch;
+  const hasCustomSearch = customSearchEntries && customSearchEntries.length > 0;
+
+  if (!hasCustomSearch) {
+    return `# Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
+# Supports: Markdown (.md), JSON (.json), JSONL (.jsonl), jq expressions, and plain text files.
+# searchPrefix: Search with @<prefix>: (e.g., searchPrefix: "agent" → @agent:)
+#customSearch:
+#  - name: "agent-{basename}"
+#    description: "{frontmatter@description}"
+#    path: ~/.claude/agents
+#    pattern: "*.md"
+#    searchPrefix: agent            # Search with @agent:`;
   }
 
-  // Add commented customSearch examples if requested
+  let section = buildCustomSearchHeader();
+
+  for (const entry of customSearchEntries) {
+    section += formatCustomSearchEntry(entry, '  ') + '\n\n';
+  }
+
   if (options.includeCommentedExamples) {
-    const commentedCustomSearch = commentedExamples.mentions?.customSearch ?? [];
+    const commentedCustomSearch = commentedExamples.customSearch ?? [];
     for (const entry of commentedCustomSearch) {
-      section += formatCustomSearchEntry(entry as MentionEntry, '    ', true) + '\n\n';
+      section += formatCustomSearchEntry(entry as MentionEntry, '  ', true) + '\n\n';
     }
-  }
-
-  // File search subsection
-  if (fileSearch) {
-    const fs = fileSearch as FileSearchUserSettings;
-    const fdPathSection = fs.fdPath
-      ? `fdPath: "${fs.fdPath}"`
-      : `#fdPath: null                    # Custom path to fd`;
-
-    section += `  # File search settings (@path/to/file completion)
-  # Note: fd command required (brew install fd)
-  #
-  # Pattern format (glob syntax):
-  #   - "*.log"           : Match all .log files
-  #   - "build/**"        : Match all files in build directory
-  #   - "*.{js,ts}"       : Match .js and .ts files
-  #   - ".git"            : Match .git directory
-  #   - "node_modules"    : Match node_modules directory
-  #
-  fileSearch:
-    respectGitignore: ${formatValue(fs.respectGitignore)}           # Respect .gitignore files
-    includeHidden: ${formatValue(fs.includeHidden)}              # Include hidden files
-    maxFiles: ${formatValue(fs.maxFiles)}                   # Maximum files to return
-    maxDepth: ${formatValue(fs.maxDepth)}                   # Directory depth (null = unlimited)
-    maxSuggestions: ${formatValue(fs.maxSuggestions)}               # Suggestions to show
-    followSymlinks: ${formatValue(fs.followSymlinks)}            # Follow symbolic links
-    ${fdPathSection}
-    # Include patterns: Force include files even if in .gitignore (default: [])
-    # Example: includePatterns: ["*.log", "dist/**"]
-    includePatterns: ${formatValue(fs.includePatterns)}
-    # Exclude patterns: Additional patterns to exclude (default: [])
-    # Example: excludePatterns: ["node_modules", "*.min.js", "coverage/**"]
-    excludePatterns: ${formatValue(fs.excludePatterns)}
-`;
-  } else {
-    section += `  # File search settings (@path/to/file completion)
-  # Note: Uncomment fileSearch section to enable file search
-  #fileSearch:
-  #  respectGitignore: true
-  #  includeHidden: true
-  #  maxFiles: 5000
-  #  maxDepth: null
-  #  maxSuggestions: 50
-`;
-  }
-
-  // Symbol search subsection
-  if (symbolSearch) {
-    const ss = symbolSearch as SymbolSearchUserSettings;
-    const rgPathSection = ss.rgPath
-      ? `rgPath: "${ss.rgPath}"`
-      : `#rgPath: null                    # Custom path to rg`;
-
-    section += `
-  # Symbol search settings (@ts:Config, @go:Handler)
-  # Note: ripgrep required (brew install ripgrep)
-  # Search: Space-separated keywords enable AND search (e.g., @ts:Config util)
-  symbolSearch:
-    maxSymbols: ${formatValue(ss.maxSymbols)}                # Maximum symbols to return
-    timeout: ${formatValue(ss.timeout)}                    # Search timeout in ms
-    ${rgPathSection}
-    # Include patterns: Force include files even if excluded by default (default: [])
-    # Example: includePatterns: ["*.test.ts", "vendor/**"]
-    includePatterns: ${formatValue(ss.includePatterns ?? [])}
-    # Exclude patterns: Additional patterns to exclude (default: [])
-    # Example: excludePatterns: ["*.generated.go", "node_modules/**"]
-    excludePatterns: ${formatValue(ss.excludePatterns ?? [])}
-`;
-  } else {
-    section += `
-  # Symbol search settings (@ts:Config, @go:Handler)
-  symbolSearch:
-    maxSymbols: 200000
-    timeout: 60000
-    #rgPath: null
-`;
   }
 
   return section.trimEnd();
 }
 
 /**
- * Generate YAML settings content
- *
- * @param settings The settings to generate YAML for
- * @param options Generation options
- * @returns YAML string with comments
+ * Build fileSearch section
  */
-export function generateSettingsYaml(settings: UserSettings, options: YamlGeneratorOptions = {}): string {
-  const extensionsSection = buildExtensionsSection(settings, options);
-  const builtInCommandsSection = buildBuiltInCommandsSection(settings, options);
-  const agentSkillsSection = buildAgentSkillsSection(settings, options);
-  const mentionsSection = buildMentionsSection(settings, options);
+function buildFileSearchSection(settings: UserSettings): string {
+  const fileSearch = settings.fileSearch;
 
+  if (!fileSearch) {
+    return `# File search settings (@path/to/file completion)
+# Note: Uncomment fileSearch section to enable file search
+#fileSearch:
+#  respectGitignore: true
+#  includeHidden: true
+#  maxFiles: 5000
+#  maxDepth: null
+#  maxSuggestions: 50`;
+  }
+
+  const fs = fileSearch as FileSearchUserSettings;
+  const fdPathSection = fs.fdPath
+    ? `fdPath: "${fs.fdPath}"`
+    : `#fdPath: null                    # Custom path to fd`;
+
+  return `# File search settings (@path/to/file completion)
+# Note: fd command required (brew install fd)
+#
+# Pattern format (glob syntax):
+#   - "*.log"           : Match all .log files
+#   - "build/**"        : Match all files in build directory
+#   - "*.{js,ts}"       : Match .js and .ts files
+#   - ".git"            : Match .git directory
+#   - "node_modules"    : Match node_modules directory
+#
+fileSearch:
+  respectGitignore: ${formatValue(fs.respectGitignore)}           # Respect .gitignore files
+  includeHidden: ${formatValue(fs.includeHidden)}              # Include hidden files
+  maxFiles: ${formatValue(fs.maxFiles)}                   # Maximum files to return
+  maxDepth: ${formatValue(fs.maxDepth)}                   # Directory depth (null = unlimited)
+  maxSuggestions: ${formatValue(fs.maxSuggestions)}               # Suggestions to show
+  followSymlinks: ${formatValue(fs.followSymlinks)}            # Follow symbolic links
+  ${fdPathSection}
+  # Include patterns: Force include files even if in .gitignore (default: [])
+  # Example: includePatterns: ["*.log", "dist/**"]
+  includePatterns: ${formatValue(fs.includePatterns)}
+  # Exclude patterns: Additional patterns to exclude (default: [])
+  # Example: excludePatterns: ["node_modules", "*.min.js", "coverage/**"]
+  excludePatterns: ${formatValue(fs.excludePatterns)}`;
+}
+
+/**
+ * Build symbolSearch section
+ */
+function buildSymbolSearchSection(settings: UserSettings): string {
+  const symbolSearch = settings.symbolSearch;
+
+  if (!symbolSearch) {
+    return `# Symbol search settings (@ts:Config, @go:Handler)
+#symbolSearch:
+#  maxSymbols: 200000
+#  timeout: 60000
+#  #rgPath: null`;
+  }
+
+  const ss = symbolSearch as SymbolSearchUserSettings;
+  const rgPathSection = ss.rgPath
+    ? `rgPath: "${ss.rgPath}"`
+    : `#rgPath: null                    # Custom path to rg`;
+
+  return `# Symbol search settings (@ts:Config, @go:Handler)
+# Note: ripgrep required (brew install ripgrep)
+# Search: Space-separated keywords enable AND search (e.g., @ts:Config util)
+symbolSearch:
+  maxSymbols: ${formatValue(ss.maxSymbols)}                # Maximum symbols to return
+  timeout: ${formatValue(ss.timeout)}                    # Search timeout in ms
+  ${rgPathSection}
+  # Include patterns: Force include files even if excluded by default (default: [])
+  # Example: includePatterns: ["*.test.ts", "vendor/**"]
+  includePatterns: ${formatValue(ss.includePatterns ?? [])}
+  # Exclude patterns: Additional patterns to exclude (default: [])
+  # Example: excludePatterns: ["*.generated.go", "node_modules/**"]
+  excludePatterns: ${formatValue(ss.excludePatterns ?? [])}`;
+}
+
+/**
+ * Build the top sections of the settings YAML (shortcuts, window, fileOpener)
+ */
+function buildTopSections(settings: UserSettings, extensionsSection: string, directoriesSection: string): string {
+  const defaultEditor = settings.fileOpener?.defaultEditor === null || settings.fileOpener?.defaultEditor === undefined
+    ? 'null'
+    : `"${settings.fileOpener.defaultEditor}"`;
   return `# Prompt Line Settings Configuration
 # This file is automatically generated but can be manually edited
 
@@ -552,10 +522,32 @@ window:
 fileOpener:
   # Default editor for all files (null = use system default application)
   # Example values: "Visual Studio Code", "Sublime Text", "WebStorm"
-  defaultEditor: ${settings.fileOpener?.defaultEditor === null || settings.fileOpener?.defaultEditor === undefined ? 'null' : `"${settings.fileOpener.defaultEditor}"`}
-  # Extension-specific applications (overrides defaultEditor)
+  defaultEditor: ${defaultEditor}
+  # Extension-specific applications (overrides defaultEditor and directories)
   ${extensionsSection}
+  # Directory-specific default editor (overrides defaultEditor, longest prefix match)
+  ${directoriesSection}
+`;
+}
 
+/**
+ * Generate YAML settings content
+ *
+ * @param settings The settings to generate YAML for
+ * @param options Generation options
+ * @returns YAML string with comments
+ */
+export function generateSettingsYaml(settings: UserSettings, options: YamlGeneratorOptions = {}): string {
+  const extensionsSection = buildExtensionsSection(settings, options);
+  const directoriesSection = buildDirectoriesSection(settings);
+  const builtInCommandsSection = buildBuiltInCommandsSection(settings, options);
+  const agentSkillsSection = buildAgentSkillsSection(settings, options);
+  const customSearchSection = buildCustomSearchSection(settings, options);
+  const fileSearchSection = buildFileSearchSection(settings);
+  const symbolSearchSection = buildSymbolSearchSection(settings);
+  const topSections = buildTopSections(settings, extensionsSection, directoriesSection);
+
+  return `${topSections}
 # ============================================================================
 # BUILT-IN COMMANDS
 # ============================================================================
@@ -574,11 +566,23 @@ ${builtInCommandsSection}
 ${agentSkillsSection}
 
 # ============================================================================
-# MENTION SETTINGS (@ mentions)
+# CUSTOM SEARCH SETTINGS (@ mentions)
 # ============================================================================
-# Configure @ mention sources: customSearch, fileSearch, symbolSearch
-# Template variables for customSearch: {basename}, {frontmatter@fieldName}
+# Custom search entries for @ mention sources
+# Template variables: {basename}, {frontmatter@fieldName}
 
-${mentionsSection}
+${customSearchSection}
+
+# ============================================================================
+# FILE SEARCH SETTINGS
+# ============================================================================
+
+${fileSearchSection}
+
+# ============================================================================
+# SYMBOL SEARCH SETTINGS
+# ============================================================================
+
+${symbolSearchSection}
 `;
 }
