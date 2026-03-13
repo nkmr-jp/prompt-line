@@ -170,9 +170,14 @@ export class MentionManager implements IInitializable {
       openFileAndRestoreFocus: async (filePath: string) => {
         await this.fileOpenerManager?.openFile(filePath);
       },
+      openUrlInBrowser: async (url: string) => {
+        await this.fileOpenerManager?.openUrl(url);
+      },
       revealInFinderAndRestoreFocus: async (filePath: string) => {
         await this.fileOpenerManager?.revealInFinder(filePath);
       },
+      updateHintText: (text: string) => this.callbacks.updateHintText?.(text),
+      getDefaultHintText: () => this.callbacks.getDefaultHintText?.() ?? '',
       toggleAutoShowTooltip: () => this.popupManager.toggleAutoShowTooltip(),
       expandCurrentFile: () => this.expandCurrentFile(),
       // Directory/File navigation helpers
