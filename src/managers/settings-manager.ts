@@ -191,7 +191,9 @@ class SettingsManager extends EventEmitter {
         extensions: {
           ...this.defaultSettings.fileOpener?.extensions,
           ...(userSettings.fileOpener?.extensions || {})
-        }
+        },
+        // Directories is an array - user setting replaces default entirely
+        directories: userSettings.fileOpener?.directories ?? this.defaultSettings.fileOpener?.directories ?? []
       }
     };
 

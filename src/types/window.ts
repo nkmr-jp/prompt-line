@@ -125,6 +125,13 @@ export interface LoggingConfig {
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
+export interface FileOpenerDirectoryEntry {
+  // Directory path pattern (supports ~ for home, glob: * and **)
+  path: string;
+  // Editor application name
+  editor: string;
+}
+
 export interface UserSettings {
   shortcuts: {
     main: string;
@@ -148,7 +155,11 @@ export interface UserSettings {
   fileOpener?: {
     // Extension-specific application settings (e.g., { "ts": "WebStorm", "md": "Typora" })
     extensions?: Record<string, string>;
-    // Default editor when no extension-specific setting exists
+    // Directory-specific default editor with glob support
+    // Supports * (single directory level) and ** (multiple levels)
+    // Most specific (longest non-glob prefix) match wins
+    directories?: FileOpenerDirectoryEntry[];
+    // Default editor when no extension-specific or directory-specific setting exists
     defaultEditor?: string | null;
   };
   // Built-in commands: list of tools to enable (e.g., ['claude', 'codex', 'gemini'])
