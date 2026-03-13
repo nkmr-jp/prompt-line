@@ -148,6 +148,7 @@ class SettingsManager extends EventEmitter {
     if (entry.argumentHint) cmd.argumentHint = entry.argumentHint;
     if (entry.maxSuggestions) cmd.maxSuggestions = entry.maxSuggestions;
     if (entry.orderBy) cmd.orderBy = entry.orderBy;
+    if (entry.values) cmd.values = entry.values;
     if (entry.prefixPattern) cmd.prefixPattern = entry.prefixPattern;
     return cmd;
   }
@@ -461,7 +462,9 @@ class SettingsManager extends EventEmitter {
     if (cmd.label !== undefined) entry.label = cmd.label;
     if (cmd.color !== undefined) entry.color = cmd.color;
     if (cmd.icon !== undefined) entry.icon = cmd.icon;
+    if (cmd.values !== undefined) entry.values = cmd.values;
     if (cmd.prefixPattern !== undefined) entry.prefixPattern = cmd.prefixPattern;
+    if (cmd.triggers !== undefined) entry.triggers = cmd.triggers;
     if (cmd.enable !== undefined) entry.enable = cmd.enable;
     if (cmd.disable !== undefined) entry.disable = cmd.disable;
     return entry;
@@ -481,6 +484,7 @@ class SettingsManager extends EventEmitter {
     if (mention.displayTime !== undefined) entry.displayTime = mention.displayTime;
     if (mention.inputFormat !== undefined) entry.inputFormat = mention.inputFormat;
     if (mention.label !== undefined) entry.label = mention.label;
+    if (mention.values !== undefined) entry.values = mention.values;
     if (mention.prefixPattern !== undefined) entry.prefixPattern = mention.prefixPattern;
     if (mention.color !== undefined) entry.color = mention.color;
     if (mention.icon !== undefined) entry.icon = mention.icon;

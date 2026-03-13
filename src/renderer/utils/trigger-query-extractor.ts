@@ -40,12 +40,14 @@ export interface TriggerQueryResult {
 export function extractTriggerQueryAtCursor(
   text: string,
   cursorPos: number,
-  triggerChar: string,
+  triggerChar: string | string[],
   options?: { allowSpaces?: boolean }
 ): TriggerQueryResult | null {
   // Find the trigger character before cursor
   let triggerPos = -1;
+  let matchedTrigger = '';
   const allowSpaces = options?.allowSpaces === true;
+  const triggerChars = Array.isArray(triggerChar) ? triggerChar : [triggerChar];
 
   for (let i = cursorPos - 1; i >= 0; i--) {
     const char = text[i];
@@ -62,8 +64,9 @@ export function extractTriggerQueryAtCursor(
     }
 
     // Found trigger character
-    if (char === triggerChar) {
+    if (triggerChars.includes(char!)) {
       triggerPos = i;
+      matchedTrigger = char!;
       break;
     }
   }
@@ -85,6 +88,6 @@ export function extractTriggerQueryAtCursor(
   return {
     query,
     startPos: triggerPos,
-    triggerChar
+    triggerChar: matchedTrigger
   };
 }

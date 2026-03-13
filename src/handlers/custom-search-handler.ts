@@ -156,6 +156,9 @@ class CustomSearchHandler {
         if (item.updatedAt) {
           cmd.updatedAt = item.updatedAt;
         }
+        if (item.triggers) {
+          cmd.triggers = item.triggers;
+        }
         return cmd;
       });
 

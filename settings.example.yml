@@ -39,12 +39,16 @@ fileOpener:
   # Default editor for all files (null = use system default application)
   # Example values: "Visual Studio Code", "Sublime Text", "WebStorm"
   defaultEditor: null
-  # Extension-specific applications (overrides defaultEditor)
+  # Extension-specific applications (overrides defaultEditor and directories)
   extensions:
     png: "Preview"
     pdf: "Preview"
     # go: "Goland"
     # md: "Typora"
+  # Directory-specific default editor (overrides defaultEditor, longest prefix match)
+  #directories:                      # Directory-specific editors (supports glob: * and **)
+  #  - path: "~/ghq/github.com/my-org/my-go*"
+  #    editor: "GoLand"
 
 # ============================================================================
 # BUILT-IN COMMANDS
@@ -80,7 +84,7 @@ builtInCommands:                      # List of tools to enable
 #   color: Badge color (name: grey, darkGrey, slate, stone, red, rose, orange, amber, yellow, lime, green, emerald, teal, cyan, sky, blue, indigo, violet, purple, fuchsia, pink, or hex: #FF5733)
 #   icon: Codicon icon name (e.g., "agent", "rocket", "terminal")
 #   pattern: Glob pattern to match files (e.g., "*.md", "**/*/SKILL.md")
-#   prefixPattern: Pattern to extract prefix from plugin metadata
+#   values: Map of template variable names to JSON extraction patterns (e.g., pluginName: "**/.claude-plugin/*.json@name")
 #   argumentHint: Hint for skill arguments
 #   maxSuggestions: Maximum number of suggestions to display
 #   {dirname}: Parent directory name
@@ -107,7 +111,8 @@ agentSkills:
     label: "plugin command"
     color: "green"
     pattern: "**/commands/*.md"
-    prefixPattern: "**/.claude-plugin/*.json@name"
+    values:
+      prefix: "**/.claude-plugin/*.json@name"
     argumentHint: "{frontmatter@argument-hint}"
     maxSuggestions: 20
   - name: "{prefix}:{frontmatter@name}"
@@ -116,7 +121,8 @@ agentSkills:
     label: "plugin skill"
     color: "cyan"
     pattern: "**/*/SKILL.md"
-    prefixPattern: "**/.claude-plugin/*.json@name"
+    values:
+      prefix: "**/.claude-plugin/*.json@name"
     argumentHint: "{frontmatter@argument-hint}"
     maxSuggestions: 20
 
@@ -136,7 +142,7 @@ agentSkills:
 #   description     : Entry description template (supports "|" fallback: "{json@a}|{json@b}")
 #   path            : Directory path to scan (supports ~ for home)
 #   pattern         : Glob pattern to match files
-#   prefixPattern   : Pattern to extract prefix from plugin metadata
+#   values          : Map of template variable names to JSON extraction patterns (e.g., pluginName: "**/.claude-plugin/*.json@name")
 #   searchPrefix    : Prefix to trigger this search (e.g., "agent" → @agent:)
 #   maxSuggestions  : Maximum number of suggestions to display
 #   orderBy         : Sort order (e.g., "name", "name desc", "{updatedAt} desc")
@@ -152,7 +158,7 @@ agentSkills:
 #   {frontmatter@field} — YAML frontmatter field from markdown files
 #   {json@field}        — JSON field value (for .json/.jsonl files)
 #   {json:N@field}      — JSON field from N-th level array item
-#   {prefix}            — Prefix extracted via prefixPattern
+#   {prefix}            — Prefix extracted via values (e.g., values: { prefix: "pattern" })
 #   {heading}           — First non-empty line of the file (for markdown: first heading)
 #   {line}              — Each line of plain text file (generates one item per line)
 #   {dirname}           — Parent directory name
@@ -184,7 +190,8 @@ customSearch:
     description: "{frontmatter@description}"
     path: ~/.claude/plugins/cache
     pattern: "**/agents/*.md"
-    prefixPattern: "**/.claude-plugin/*.json@name"
+    values:
+      prefix: "**/.claude-plugin/*.json@name"
     searchPrefix: agent            # Search with @agent:
     displayTime: "{updatedAt}"
 

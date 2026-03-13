@@ -92,7 +92,13 @@ function appendAgentSkillOptionalFields(lines: string[], entry: AgentSkillEntry,
   if (entry.color) lines.push(`${p}color: "${entry.color}"`);
   if (entry.icon) lines.push(`${p}icon: "${entry.icon}"`);
   lines.push(`${p}pattern: "${entry.pattern}"`);
-  if (entry.prefixPattern) lines.push(`${p}prefixPattern: "${entry.prefixPattern}"`);
+  if (entry.values) {
+    lines.push(`${p}values:`);
+    for (const [key, val] of Object.entries(entry.values)) {
+      lines.push(`${p}  ${key}: "${val}"`);
+    }
+  }
+  if (entry.prefixPattern && !entry.values) lines.push(`${p}prefixPattern: "${entry.prefixPattern}"`);
   if (entry.argumentHint) lines.push(`${p}argumentHint: "${entry.argumentHint}"`);
   if (entry.maxSuggestions !== undefined) lines.push(`${p}maxSuggestions: ${entry.maxSuggestions}`);
 }
@@ -127,7 +133,13 @@ function appendCustomSearchCoreFields(lines: string[], entry: MentionEntry, p: s
  * Append optional fields for a customSearch entry
  */
 function appendCustomSearchOptionalFields(lines: string[], entry: MentionEntry, p: string): void {
-  if (entry.prefixPattern) lines.push(`${p}prefixPattern: "${entry.prefixPattern}"`);
+  if (entry.values) {
+    lines.push(`${p}values:`);
+    for (const [key, val] of Object.entries(entry.values)) {
+      lines.push(`${p}  ${key}: "${val}"`);
+    }
+  }
+  if (entry.prefixPattern && !entry.values) lines.push(`${p}prefixPattern: "${entry.prefixPattern}"`);
   if (entry.searchPrefix) lines.push(`${p}searchPrefix: ${entry.searchPrefix}            # Search with @${entry.searchPrefix}:`);
   if (entry.maxSuggestions !== undefined) lines.push(`${p}maxSuggestions: ${entry.maxSuggestions}`);
   if (entry.orderBy !== undefined) lines.push(`${p}orderBy: "${entry.orderBy}"`);
@@ -252,7 +264,7 @@ function buildAgentSkillsHeader(): string {
     '#   color: Badge color (name: grey, darkGrey, slate, stone, red, rose, orange, amber, yellow, lime, green, emerald, teal, cyan, sky, blue, indigo, violet, purple, fuchsia, pink, or hex: #FF5733)',
     '#   icon: Codicon icon name (e.g., "agent", "rocket", "terminal")',
     '#   pattern: Glob pattern to match files (e.g., "*.md", "**/*/SKILL.md")',
-    '#   prefixPattern: Pattern to extract prefix from plugin metadata',
+    '#   values: Map of template variable names to JSON extraction patterns (e.g., pluginName: "**/.claude-plugin/*.json@name")',
     '#   argumentHint: Hint for skill arguments',
     '#   maxSuggestions: Maximum number of suggestions to display',
     '#   {dirname}: Parent directory name',
@@ -308,7 +320,7 @@ function buildCustomSearchHeader(): string {
 #   description     : Entry description template (supports "|" fallback: "{json@a}|{json@b}")
 #   path            : Directory path to scan (supports ~ for home)
 #   pattern         : Glob pattern to match files
-#   prefixPattern   : Pattern to extract prefix from plugin metadata
+#   values          : Map of template variable names to JSON extraction patterns (e.g., pluginName: "**/.claude-plugin/*.json@name")
 #   searchPrefix    : Prefix to trigger this search (e.g., "agent" → @agent:)
 #   maxSuggestions  : Maximum number of suggestions to display
 #   orderBy         : Sort order (e.g., "name", "name desc", "{updatedAt} desc")
@@ -324,7 +336,7 @@ function buildCustomSearchHeader(): string {
 #   {frontmatter@field} — YAML frontmatter field from markdown files
 #   {json@field}        — JSON field value (for .json/.jsonl files)
 #   {json:N@field}      — JSON field from N-th level array item
-#   {prefix}            — Prefix extracted via prefixPattern
+#   {prefix}            — Prefix extracted via values (e.g., values: { prefix: "pattern" })
 #   {heading}           — First non-empty line of the file (for markdown: first heading)
 #   {line}              — Each line of plain text file (generates one item per line)
 #   {dirname}           — Parent directory name

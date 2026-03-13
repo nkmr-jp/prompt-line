@@ -322,8 +322,12 @@ export interface AgentSkillEntry {
   color?: ColorValue;
   /** オプション: codiconアイコンクラス名（例: "codicon-rocket", "symbol-class"） */
   icon?: string;
-  /** オプション: プレフィックスパターン - 特定JSONファイルからプレフィックスを動的に読み込むためのパターン */
+  /** オプション: テンプレート変数の値パターン - JSONファイルから動的に値を読み込む（キー名がテンプレート変数名になる） */
+  values?: Record<string, string>;
+  /** @deprecated Use values instead (e.g., values: { prefix: "pattern" }) */
   prefixPattern?: string;
+  /** オプション: トリガー文字の配列（デフォルト: ['/']）。例: ['/', '$'] で / と $ 両方で起動可能 */
+  triggers?: string[];
   /**
    * このエントリで有効にするコマンド名のリスト（ホワイトリスト）
    * - 完全一致: "commit"
@@ -363,7 +367,9 @@ export interface MentionEntry {
   displayTime?: string;
   /** オプション: 入力フォーマット（デフォルト: 'name'） */
   inputFormat?: InputFormatType;
-  /** オプション: プレフィックスパターン - 特定JSONファイルからプレフィックスを動的に読み込むためのパターン */
+  /** オプション: テンプレート変数の値パターン - JSONファイルから動的に値を読み込む（キー名がテンプレート変数名になる） */
+  values?: Record<string, string>;
+  /** @deprecated Use values instead (e.g., values: { prefix: "pattern" }) */
   prefixPattern?: string;
   /** オプション: label（静的な値 "skill" または テンプレート "{frontmatter@label}"） */
   label?: string;
@@ -428,8 +434,12 @@ export interface CustomSearchEntry {
   displayTime?: string;
   /** オプション: 入力フォーマット（デフォルト: 'name'） - 'name': 名前のみ, 'path': ファイルパス */
   inputFormat?: InputFormatType;
-  /** オプション: プレフィックスパターン - 特定JSONファイルからプレフィックスを動的に読み込むためのパターン */
+  /** オプション: テンプレート変数の値パターン - JSONファイルから動的に値を読み込む（キー名がテンプレート変数名になる） */
+  values?: Record<string, string>;
+  /** @deprecated Use values instead (e.g., values: { prefix: "pattern" }) */
   prefixPattern?: string;
+  /** オプション: トリガー文字の配列（commandタイプのみ、デフォルト: ['/']） */
+  triggers?: string[];
   /**
    * オプション: 有効にするアイテム名のリスト（このエントリのみに適用）
    * - 完全一致: "commit"
@@ -478,6 +488,8 @@ export interface CustomSearchItem {
   updatedAt?: number;
   /** 表示用日時（displayTime設定で解決された値。undefinedはupdatedAtにフォールバック、nullは非表示） */
   displayTime?: number | null;
+  /** トリガー文字の配列（commandタイプのみ） */
+  triggers?: string[];
 }
 
 export interface AgentSkillItem {
@@ -494,6 +506,7 @@ export interface AgentSkillItem {
   source?: string;  // Source tool identifier (e.g., 'claude-code') for filtering
   displayName?: string;  // Human-readable source name for display (e.g., 'Claude Code')
   updatedAt?: number;  // File modification timestamp (mtimeMs)
+  triggers?: string[];  // Trigger prefixes (e.g., ['/', '$'])
 }
 
 /** @deprecated Use AgentSkillItem instead */
