@@ -29,15 +29,18 @@ Frontend layer handling UI and user interactions. All TypeScript with modular ma
 
 ### Mention System (`mentions/`)
 15+ specialized managers for `@` file search and `@lang:query` code search:
-- `mention-initializer.ts`: Orchestrates initialization
-- `mention-state.ts`: Centralized state
-- `suggestion-ui-manager.ts`: Dropdown display
-- `file-filter-manager.ts`: Fuzzy matching with score-based ranking
-- `directory-cache-manager.ts`: Hybrid loading (Stage 1 single-level + Stage 2 recursive fd)
-- `navigation-manager.ts`: Keyboard navigation
-- `path-manager.ts`: Path detection and insertion
-- `highlight-manager.ts`: @path highlighting with Cmd+click
-- `code-search-manager.ts`: Symbol search integration
+- Root: `dom-utils.ts`, `fuzzy-matcher.ts`, `path-utils.ts`, `text-finder.ts` (shared utilities)
+- `managers/`: 16 specialized managers including:
+  - `mention-initializer.ts`: Orchestrates initialization
+  - `mention-state.ts`: Centralized state
+  - `suggestion-ui-manager.ts`: Dropdown display
+  - `file-filter-manager.ts`: Fuzzy matching with score-based ranking
+  - `directory-cache-manager.ts`: Hybrid loading (Stage 1 single-level + Stage 2 recursive fd)
+  - `navigation-manager.ts`: Keyboard navigation
+  - `path-manager.ts`: Path detection and insertion
+  - `highlight-manager.ts`: @path highlighting with Cmd+click
+  - `code-search-manager.ts`: Symbol search integration
+- `code-search/`: Code search types and exports
 
 ### History Search (`history-search/`)
 Score-based filtering with fuzzy matching:
