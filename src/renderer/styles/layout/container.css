@@ -1,6 +1,8 @@
 /* Main Layout Container */
+/* Override Tailwind v4 built-in .container responsive max-width */
 .container {
     @apply w-screen h-screen flex items-center justify-center p-0;
+    max-width: none;
 }
 
 .main-content {
