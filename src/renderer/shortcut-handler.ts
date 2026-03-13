@@ -84,8 +84,8 @@ export class ShortcutHandler {
       return this.handleUndoShortcut(e);
     }
 
-    // Handle Cmd+Enter for paste action
-    if (e.key === 'Enter' && e.metaKey) {
+    // Handle paste shortcut (default: Cmd+Enter, configurable via settings)
+    if (this.matchesPasteShortcut(e)) {
       await this.handlePasteShortcut(e);
       return true;
     }
@@ -96,8 +96,8 @@ export class ShortcutHandler {
       return true;
     }
 
-    // Handle Escape for hide window
-    if (e.key === 'Escape') {
+    // Handle close shortcut (default: Escape, configurable via settings)
+    if (this.matchesCloseShortcut(e)) {
       return await this.handleEscapeKey(e);
     }
 
@@ -282,6 +282,24 @@ export class ShortcutHandler {
     } catch (error) {
       rendererLogger.error('Failed to open settings directory:', error);
     }
+  }
+
+  private matchesPasteShortcut(e: KeyboardEvent): boolean {
+    const shortcut = this.userSettings?.shortcuts?.paste;
+    if (shortcut) {
+      return matchesShortcutString(e, shortcut);
+    }
+    // Fallback to default: Cmd+Enter
+    return e.key === 'Enter' && e.metaKey;
+  }
+
+  private matchesCloseShortcut(e: KeyboardEvent): boolean {
+    const shortcut = this.userSettings?.shortcuts?.close;
+    if (shortcut) {
+      return matchesShortcutString(e, shortcut);
+    }
+    // Fallback to default: Escape
+    return e.key === 'Escape';
   }
 
   /**

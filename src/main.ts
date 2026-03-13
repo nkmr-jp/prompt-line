@@ -109,13 +109,18 @@ class PromptLineApp {
     codeSearchHandler.register();
 
     // Register settings change listener for hot reload
-    this.settingsManager.on('settings-changed', (newSettings: UserSettings) => {
+    this.settingsManager.on('settings-changed', (newSettings: UserSettings, previousSettings?: UserSettings) => {
       if (this.windowManager && this.settingsManager) {
         this.windowManager.updateWindowSettings(newSettings.window);
         const fileSearchSettings = this.settingsManager.getFileSearchSettings();
         if (fileSearchSettings) {
           this.windowManager.updateFileSearchSettings(fileSearchSettings);
         }
+      }
+
+      // Re-register global shortcut if main shortcut changed
+      if (newSettings.shortcuts?.main !== previousSettings?.shortcuts?.main) {
+        this.reRegisterGlobalShortcut(newSettings.shortcuts.main);
       }
 
       // Notify renderer process about settings change
@@ -224,9 +229,9 @@ class PromptLineApp {
     try {
       const settings = this.settingsManager?.getSettings();
       const mainShortcut = settings?.shortcuts.main || config.shortcuts.main;
-      
+
       const mainRegistered = globalShortcut.register(mainShortcut, async () => {
-        await this.showInputWindow();
+        await this.toggleInputWindow();
       });
 
       if (!mainRegistered) {
@@ -236,6 +241,41 @@ class PromptLineApp {
     } catch (error) {
       logger.error('Error registering shortcuts:', error);
       throw error;
+    }
+  }
+
+  private async toggleInputWindow(): Promise<void> {
+    if (this.windowManager?.isVisible()) {
+      await this.windowManager.hideInputWindow();
+    } else {
+      await this.showInputWindow();
+    }
+  }
+
+  private reRegisterGlobalShortcut(newShortcut: string): void {
+    try {
+      globalShortcut.unregisterAll();
+
+      const shortcut = newShortcut || config.shortcuts.main;
+      const registered = globalShortcut.register(shortcut, async () => {
+        await this.toggleInputWindow();
+      });
+
+      if (registered) {
+        logger.info('Global shortcut re-registered:', shortcut);
+      } else {
+        logger.error('Failed to re-register global shortcut:', shortcut);
+        // Fallback to default shortcut
+        const fallback = config.shortcuts.main;
+        if (fallback !== shortcut) {
+          globalShortcut.register(fallback, async () => {
+            await this.showInputWindow();
+          });
+          logger.info('Fell back to default global shortcut:', fallback);
+        }
+      }
+    } catch (error) {
+      logger.error('Error re-registering global shortcut:', error);
     }
   }
 
