@@ -742,6 +742,32 @@ describe('FileOpenerManager', () => {
         );
       });
 
+      it('should match directory path itself (not just files under it)', async () => {
+        mockSettingsManager.getSettings.mockReturnValue({
+          ...defaultSettings,
+          fileOpener: {
+            extensions: {},
+            directories: [{ path: '~/ghq/github.com/my-org/prompt-line*', editor: 'GoLand' }],
+            defaultEditor: 'Visual Studio Code'
+          }
+        });
+
+        mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
+          callback(null);
+          return {} as any;
+        });
+
+        // Opening the directory itself (no trailing slash, no file after it)
+        const result = await fileOpenerManager.openFile('/Users/test/ghq/github.com/my-org/prompt-line');
+
+        expect(result.success).toBe(true);
+        expect(mockedExecFile).toHaveBeenCalledWith(
+          'open',
+          ['-a', 'GoLand', '/Users/test/ghq/github.com/my-org/prompt-line'],
+          expect.any(Function)
+        );
+      });
+
       it('should prefer more specific pattern over glob', async () => {
         mockSettingsManager.getSettings.mockReturnValue({
           ...defaultSettings,

@@ -442,8 +442,8 @@ export class FileOpenerManager {
     // * → 1階層
     regexStr = regexStr.replace(/\*/g, '[^/]*');
     regexStr = regexStr.replace(/§GLOBSTAR§/g, '.*');
-    // パターン配下のファイルにマッチ（末尾に /任意 を追加）
-    return new RegExp(`^${regexStr}/`);
+    // パターン自体またはパターン配下のファイルにマッチ
+    return new RegExp(`^${regexStr}(/|$)`);
   }
 
   /**
