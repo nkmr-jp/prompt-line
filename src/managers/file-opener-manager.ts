@@ -292,10 +292,7 @@ export class FileOpenerManager {
    * EDITOR_CONFIGSに登録されているアプリのみを許可
    */
   private isWhitelistedApp(appName: string): boolean {
-    // Case-insensitive match against EDITOR_CONFIGS
-    const lowerAppName = appName.toLowerCase();
-    const whitelistedApps = Object.keys(EDITOR_CONFIGS).map(name => name.toLowerCase());
-    return whitelistedApps.includes(lowerAppName);
+    return findEditorConfig(appName) !== null;
   }
 
   /**

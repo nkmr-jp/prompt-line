@@ -96,6 +96,10 @@ export class PathManager {
   // Cached valid paths set (rebuilt only when directory data changes)
   private cachedValidPaths: Set<string> | null = null;
 
+  // Cached layout metrics (avoids getComputedStyle on every mouse move)
+  private cachedLineHeight: number | null = null;
+  private cachedCharWidth: number | null = null;
+
   /**
    * Set registered at-paths from persistent cache
    * These paths may contain spaces and are matched before the default regex
@@ -443,11 +447,14 @@ export class PathManager {
     const relativeX = clientX - textareaRect.left + this.textInput.scrollLeft;
     const relativeY = clientY - textareaRect.top + this.textInput.scrollTop;
 
-    // Simple approximation based on line height and character width
-    const style = window.getComputedStyle(this.textInput);
-    const lineHeight = parseFloat(style.lineHeight) || 20;
-    const fontSize = parseFloat(style.fontSize) || 15;
-    const charWidth = fontSize * 0.6; // Approximate for monospace fonts
+    // Simple approximation based on line height and character width (cached)
+    if (!this.cachedLineHeight) {
+      const style = window.getComputedStyle(this.textInput);
+      this.cachedLineHeight = parseFloat(style.lineHeight) || 20;
+      this.cachedCharWidth = (parseFloat(style.fontSize) || 15) * 0.6;
+    }
+    const lineHeight = this.cachedLineHeight;
+    const charWidth = this.cachedCharWidth!;
 
     const text = this.textInput.value;
     const lines = text.split('\n');
@@ -622,164 +629,96 @@ export class PathManager {
   }
 
   /**
-   * Handle backspace key for @path deletion
-   * Deletes the entire @path when cursor is at the end
-   *
-   * Uses event listener suspension instead of flags to prevent cursor interference.
-   * This eliminates timing-dependent bugs from the previous multi-stage delay approach.
+   * Shared backspace deletion logic for @paths and agent skills.
+   * Suspends input listeners, performs deletion, restores scroll, and resumes listeners.
    *
    * @param e - Keyboard event
-   * @returns true if @path was deleted, false otherwise
+   * @param token - The token range to delete (start/end)
+   * @param afterDelete - Optional callback invoked after deletion (e.g., rescan, cleanup)
+   * @returns true if token was deleted, false otherwise
    */
-  public handleBackspaceForAtPath(e: KeyboardEvent): boolean {
+  private handleBackspaceForToken(
+    e: KeyboardEvent,
+    token: { start: number; end: number } | null,
+    afterDelete?: (updatedText: string) => void
+  ): boolean {
     if (!this.callbacks.getCursorPosition || !this.callbacks.setCursorPosition) return false;
+    if (!token) return false;
 
-    const cursorPos = this.callbacks.getCursorPosition();
     const text = this.callbacks.getTextContent();
-
-    const atPath = this.findAtPathAtCursor(cursorPos, text);
-
-    if (!atPath) {
-      return false;
-    }
-
-    // Save state before deletion
     const savedScrollTop = this.textInput?.scrollTop ?? 0;
     const savedScrollLeft = this.textInput?.scrollLeft ?? 0;
-    const deletedPathContent = atPath.path;
-    const savedStart = atPath.start;
-    const savedEnd = atPath.end;
 
     // Calculate delete range (include trailing space if present)
-    let deleteEnd = savedEnd;
-    // Count all trailing spaces
+    let deleteEnd = token.end;
     while (deleteEnd < text.length && text[deleteEnd] === ' ') {
       deleteEnd++;
     }
     // If there are multiple spaces, let normal backspace behavior handle it
-    if (deleteEnd > savedEnd + 1) {
-      return false;
-    }
+    if (deleteEnd > token.end + 1) return false;
 
-    // Prevent default backspace behavior only when we will handle deletion
     e.preventDefault();
-
-    // CRITICAL: Suspend input/selectionchange listeners to prevent cursor interference
-    // This replaces the fragile flag-based approach with direct listener control
     this.callbacks.suspendInputListeners?.();
 
-    // Perform deletion
-    // Note: replaceRangeWithUndo will set cursor position to (start + newText.length)
-    // For deletion (newText = ''), cursor will be at savedStart
     if (this.callbacks.replaceRangeWithUndo) {
-      this.callbacks.replaceRangeWithUndo(savedStart, deleteEnd, '');
+      this.callbacks.replaceRangeWithUndo(token.start, deleteEnd, '');
     } else if (this.callbacks.setTextContent) {
-      const newText = text.substring(0, savedStart) + text.substring(deleteEnd);
+      const newText = text.substring(0, token.start) + text.substring(deleteEnd);
       this.callbacks.setTextContent(newText);
-      // Set cursor position after manual text replacement
-      this.callbacks.setCursorPosition?.(savedStart);
+      this.callbacks.setCursorPosition?.(token.start);
     }
 
-    // Restore scroll position immediately after deletion
-    // Note: replaceRangeWithUndo already handles scroll restoration, but we force it here
     if (this.textInput) {
       this.textInput.scrollTop = savedScrollTop;
       this.textInput.scrollLeft = savedScrollLeft;
     }
 
-    // Get updated text after deletion for rescan
-    const updatedText = this.callbacks.getTextContent();
+    afterDelete?.(this.callbacks.getTextContent());
 
-    // Rescan @paths with updated text (synchronously to ensure correct state)
-    this.rescanAtPaths(updatedText);
-
-    // Update highlight backdrop (uses RAF internally, but won't affect cursor)
     this.callbacks.updateHighlightBackdrop?.();
 
-    // Resume listeners after a short delay to ensure all updates are complete
-    // Use RAF to allow highlight update to complete first
     requestAnimationFrame(() => {
       this.callbacks.resumeInputListeners?.();
     });
-
-    // Remove deleted path from selectedPaths if no longer in text
-    if (deletedPathContent && !this.atPaths.some(p => p.path === deletedPathContent)) {
-      this.removeSelectedPath(deletedPathContent);
-    }
 
     return true;
   }
 
   /**
+   * Handle backspace key for @path deletion
+   * Deletes the entire @path when cursor is at the end
+   */
+  public handleBackspaceForAtPath(e: KeyboardEvent): boolean {
+    if (!this.callbacks.getCursorPosition) return false;
+
+    const cursorPos = this.callbacks.getCursorPosition();
+    const text = this.callbacks.getTextContent();
+    const atPath = this.findAtPathAtCursor(cursorPos, text);
+
+    const deletedPathContent = atPath?.path;
+
+    return this.handleBackspaceForToken(e, atPath, (updatedText) => {
+      this.rescanAtPaths(updatedText);
+      if (deletedPathContent && !this.atPaths.some(p => p.path === deletedPathContent)) {
+        this.removeSelectedPath(deletedPathContent);
+      }
+    });
+  }
+
+  /**
    * Handle backspace key for agent skill deletion
    * Deletes the entire agent skill when cursor is at the end
-   *
-   * Uses event listener suspension to prevent cursor interference.
-   *
-   * @param e - Keyboard event
-   * @returns true if agent skill was deleted, false otherwise
    */
   public handleBackspaceForAgentSkill(e: KeyboardEvent): boolean {
-    if (!this.callbacks.getCursorPosition || !this.callbacks.setCursorPosition) return false;
+    if (!this.callbacks.getCursorPosition) return false;
 
     const cursorPos = this.callbacks.getCursorPosition();
     const text = this.callbacks.getTextContent();
     const knownSkillNames = this.callbacks.getKnownSkillNames?.();
     const triggerPrefixes = this.callbacks.getSkillTriggerPrefixes?.();
-
     const agentSkill = findAgentSkillAtCursor(text, cursorPos, knownSkillNames, triggerPrefixes);
 
-    if (!agentSkill) {
-      return false;
-    }
-
-    // Save state before deletion
-    const savedScrollTop = this.textInput?.scrollTop ?? 0;
-    const savedScrollLeft = this.textInput?.scrollLeft ?? 0;
-    const savedStart = agentSkill.start;
-    const savedEnd = agentSkill.end;
-
-    // Calculate delete range (include trailing space if present)
-    let deleteEnd = savedEnd;
-    // Count all trailing spaces
-    while (deleteEnd < text.length && text[deleteEnd] === ' ') {
-      deleteEnd++;
-    }
-    // If there are multiple spaces, let normal backspace behavior handle it
-    if (deleteEnd > savedEnd + 1) {
-      return false;
-    }
-
-    // Prevent default backspace behavior only when we will handle deletion
-    e.preventDefault();
-
-    // CRITICAL: Suspend input/selectionchange listeners to prevent cursor interference
-    this.callbacks.suspendInputListeners?.();
-
-    // Perform deletion
-    if (this.callbacks.replaceRangeWithUndo) {
-      this.callbacks.replaceRangeWithUndo(savedStart, deleteEnd, '');
-    } else if (this.callbacks.setTextContent) {
-      const newText = text.substring(0, savedStart) + text.substring(deleteEnd);
-      this.callbacks.setTextContent(newText);
-      this.callbacks.setCursorPosition?.(savedStart);
-    }
-
-    // Restore scroll position immediately after deletion
-    if (this.textInput) {
-      this.textInput.scrollTop = savedScrollTop;
-      this.textInput.scrollLeft = savedScrollLeft;
-    }
-
-    // Update highlight backdrop (agent skills are found dynamically, no rescan needed)
-    this.callbacks.updateHighlightBackdrop?.();
-
-    // Resume listeners after a short delay to ensure all updates are complete
-    requestAnimationFrame(() => {
-      this.callbacks.resumeInputListeners?.();
-    });
-
-    return true;
+    return this.handleBackspaceForToken(e, agentSkill);
   }
 
   // ==========================================================================
@@ -829,31 +768,6 @@ export class PathManager {
     if (!cachedData?.files || cachedData.files.length === 0) {
       return null;
     }
-
-    const baseDir = cachedData.directory;
-    const validPaths = new Set<string>();
-
-    for (const file of cachedData.files) {
-      const relativePath = getRelativePath(file.path, baseDir);
-      validPaths.add(relativePath);
-      // For directories: add both with and without trailing slash
-      if (file.isDirectory) {
-        if (!relativePath.endsWith('/')) {
-          validPaths.add(relativePath + '/');
-        } else {
-          validPaths.add(relativePath.slice(0, -1));
-        }
-      }
-      // Also add parent directories
-      const pathParts = relativePath.split('/');
-      let parentPath = '';
-      for (let i = 0; i < pathParts.length - 1; i++) {
-        parentPath += (i > 0 ? '/' : '') + pathParts[i];
-        validPaths.add(parentPath);
-        validPaths.add(parentPath + '/');
-      }
-    }
-
-    return validPaths;
+    return this.buildRelativePathsSet(cachedData.files, cachedData.directory);
   }
 }
