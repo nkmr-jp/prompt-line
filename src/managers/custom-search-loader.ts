@@ -217,20 +217,14 @@ class CustomSearchLoader extends EventEmitter {
     }
 
     const allItems = await this.loadAll();
-    // P2: 表示件数制限
     const maxSuggestions = this.getMaxSuggestions(type);
 
-    // タイプでフィルタリング
+    // タイプ・searchPrefixでフィルタリング
     let items = allItems.filter(item => item.type === type);
-
-    // searchPrefixが設定されているエントリをフィルタリング
     items = items.filter(item => {
       const entry = this.findEntryForItem(item);
-      if (!entry?.searchPrefix) {
-        return true;
-      }
-      const prefixWithColon = entry.searchPrefix + ':';
-      return query.startsWith(prefixWithColon);
+      if (!entry?.searchPrefix) return true;
+      return query.startsWith(entry.searchPrefix + ':');
     });
 
     // クエリに基づいてソート順を決定
@@ -246,15 +240,29 @@ class CustomSearchLoader extends EventEmitter {
 
     // P0: normalizedCache を構築して高速フィルタリング
     this.ensureNormalized(allItems);
+    const filteredItems = this.filterByKeywords(allItems, items, query);
 
-    // allItems のインデックスからアイテムへの高速マッピング用にSetを構築
+    const sorted = this.sortItems(filteredItems, orderBy);
+    const result = sorted.length > maxSuggestions ? sorted.slice(0, maxSuggestions) : sorted;
+    this.resultCacheKey = cacheKey;
+    this.resultCacheItems = result;
+    return result;
+  }
+
+  /**
+   * normalizedCache を使って items をキーワードフィルタリングする
+   * allItems のインデックスで normalizedCache にアクセスするため両方必要
+   */
+  private filterByKeywords(
+    allItems: CustomSearchItem[],
+    items: CustomSearchItem[],
+    query: string
+  ): CustomSearchItem[] {
     const itemSet = new Set(items);
-
-    // P2: キーワードの事前計算をループ外にホイスト
     // searchPrefix ごとにキーワードを事前計算してMapに格納
     const keywordsByPrefix = new Map<string, string[]>();
-
     const filteredItems: CustomSearchItem[] = [];
+
     for (let i = 0; i < allItems.length; i++) {
       const item = allItems[i]!;
       if (!itemSet.has(item)) continue;
@@ -262,7 +270,6 @@ class CustomSearchLoader extends EventEmitter {
       const entry = this.findEntryForItem(item);
       const prefixWithColon = entry?.searchPrefix ? entry.searchPrefix + ':' : '';
 
-      // キーワードをprefixごとにキャッシュして再計算を回避
       let keywords = keywordsByPrefix.get(prefixWithColon);
       if (keywords === undefined) {
         const actualQuery = query.startsWith(prefixWithColon) ? query.slice(prefixWithColon.length) : query;
@@ -277,28 +284,17 @@ class CustomSearchLoader extends EventEmitter {
 
       // P0: use normalizedCache instead of repeated toLowerCase()
       const normalized = this.normalizedCache[i]!;
-      const keywordCount = keywords.length;
       let allMatch = true;
-      for (let k = 0; k < keywordCount; k++) {
+      for (let k = 0; k < keywords.length; k++) {
         if (!normalized.includes(keywords[k]!)) {
           allMatch = false;
           break;
         }
       }
-      if (allMatch) {
-        filteredItems.push(item);
-      }
+      if (allMatch) filteredItems.push(item);
     }
 
-    const sorted = this.sortItems(filteredItems, orderBy);
-    // P2: 表示件数制限
-    const result = sorted.length > maxSuggestions ? sorted.slice(0, maxSuggestions) : sorted;
-
-    // P1: cache result
-    this.resultCacheKey = cacheKey;
-    this.resultCacheItems = result;
-
-    return result;
+    return filteredItems;
   }
 
   /**
@@ -567,7 +563,7 @@ class CustomSearchLoader extends EventEmitter {
    * 単一エントリをロード
    */
   private async loadEntry(entry: CustomSearchEntry): Promise<{ items: CustomSearchItem[]; watchableFiles: string[] }> {
-    const expandedPath = entry.path.replace(/^~/, os.homedir());
+    const expandedPath = await this.resolveSymlink(entry.path.replace(/^~/, os.homedir()));
 
     const isValid = await this.validateDirectory(expandedPath);
     if (!isValid) {
@@ -592,6 +588,35 @@ class CustomSearchLoader extends EventEmitter {
 
     const items = await this.parseFilesToItems(files, entry, sourceId, jqExpression);
     return { items, watchableFiles };
+  }
+
+  /**
+   * Resolve symlink to real path (returns original path if not a symlink or on error)
+   */
+  private async resolveSymlink(targetPath: string): Promise<string> {
+    try {
+      return await fs.realpath(targetPath);
+    } catch {
+      return targetPath;
+    }
+  }
+
+  /**
+   * Resolve Dirent entry type, following symlinks
+   */
+  private async resolveEntryType(entry: import('fs').Dirent, fullPath: string): Promise<'file' | 'directory' | 'other'> {
+    if (entry.isFile()) return 'file';
+    if (entry.isDirectory()) return 'directory';
+    if (entry.isSymbolicLink()) {
+      try {
+        const stats = await fs.stat(fullPath);
+        if (stats.isDirectory()) return 'directory';
+        if (stats.isFile()) return 'file';
+      } catch {
+        // Broken symlink
+      }
+    }
+    return 'other';
   }
 
   /**
@@ -671,16 +696,7 @@ class CustomSearchLoader extends EventEmitter {
       const frontmatter = isJsonFile ? {} : parseFrontmatter(content);
       const rawFrontmatter = isJsonFile ? '' : extractRawFrontmatter(content);
       const basename = getBasename(filePath);
-
-      // Expand path for prefix resolution
-      const expandedPath = entry.path.replace(/^~/, os.homedir());
-
-      // プレフィックス解決
-      let prefix = '';
-      if (entry.prefixPattern) {
-        prefix = await resolvePrefix(filePath, entry.prefixPattern, expandedPath);
-      }
-
+      const prefix = await this.resolveEntryPrefix(filePath, entry);
       const dirname = getDirname(filePath);
       const heading = isJsonFile ? '' : parseFirstHeading(content);
       const jsonData = isJsonFile ? parseJsonContent(content) : undefined;
@@ -697,23 +713,7 @@ class CustomSearchLoader extends EventEmitter {
       const sortKey = this.resolveSortKey(entry, context);
       if (sortKey) item.sortKey = sortKey;
       if (rawFrontmatter) item.frontmatter = rawFrontmatter;
-      if (entry.label) {
-        const resolvedLabel = resolveTemplate(entry.label, context);
-        if (resolvedLabel) item.label = resolvedLabel;
-      }
-      if (entry.color) {
-        const resolvedColor = this.resolveColorWithFallback(entry.color, context);
-        if (resolvedColor) item.color = resolvedColor as ColorValue;
-      }
-      if (entry.icon) {
-        const resolvedIcon = resolveTemplate(entry.icon, context);
-        if (resolvedIcon) item.icon = resolvedIcon.startsWith('codicon-') ? resolvedIcon : `codicon-${resolvedIcon}`;
-      }
-      if (entry.argumentHint) {
-        const resolvedHint = resolveTemplate(entry.argumentHint, context);
-        if (resolvedHint) item.argumentHint = resolvedHint;
-      }
-      this.applyInputFormat(item, entry, context);
+      this.applyOptionalItemFields(item, entry, context);
       item.updatedAt = fileStat.mtimeMs;
 
       const displayTime = this.resolveDisplayTime(entry, context, fileStat.mtimeMs);
@@ -723,6 +723,37 @@ class CustomSearchLoader extends EventEmitter {
     } catch (error) {
       logger.warn('Failed to parse file', { filePath, error });
       return null;
+    }
+  }
+
+  /** エントリのprefixPatternからプレフィックスを解決する */
+  private async resolveEntryPrefix(filePath: string, entry: CustomSearchEntry): Promise<string> {
+    if (!entry.prefixPattern) return '';
+    const expandedPath = await this.resolveSymlink(entry.path.replace(/^~/, os.homedir()));
+    return resolvePrefix(filePath, entry.prefixPattern, expandedPath);
+  }
+
+  /** label/color/icon/argumentHint のオプションフィールドをアイテムに適用する */
+  private applyOptionalItemFields(
+    item: CustomSearchItem,
+    entry: CustomSearchEntry,
+    context: Parameters<typeof resolveTemplate>[1]
+  ): void {
+    if (entry.label) {
+      const resolvedLabel = resolveTemplate(entry.label, context);
+      if (resolvedLabel) item.label = resolvedLabel;
+    }
+    if (entry.color) {
+      const resolvedColor = this.resolveColorWithFallback(entry.color, context);
+      if (resolvedColor) item.color = resolvedColor as ColorValue;
+    }
+    if (entry.icon) {
+      const resolvedIcon = resolveTemplate(entry.icon, context);
+      if (resolvedIcon) item.icon = resolvedIcon.startsWith('codicon-') ? resolvedIcon : `codicon-${resolvedIcon}`;
+    }
+    if (entry.argumentHint) {
+      const resolvedHint = resolveTemplate(entry.argumentHint, context);
+      if (resolvedHint) item.argumentHint = resolvedHint;
     }
   }
 
@@ -758,60 +789,18 @@ class CustomSearchLoader extends EventEmitter {
       const lines = content.split('\n');
       const basename = getBasename(filePath);
       const dirname = getDirname(filePath);
-      const items: CustomSearchItem[] = [];
-
-      const expandedPath = entry.path.replace(/^~/, os.homedir());
-      let prefix = '';
-      if (entry.prefixPattern) {
-        prefix = await resolvePrefix(filePath, entry.prefixPattern, expandedPath);
-      }
-
+      const prefix = await this.resolveEntryPrefix(filePath, entry);
       const heading = this.parseFirstLine(content);
-
+      const items: CustomSearchItem[] = [];
       let lineIndex = 0;
+
       for (const rawLine of lines) {
         const trimmed = rawLine.trim();
         if (!trimmed) continue;
-
-        const context = { basename, frontmatter: {}, prefix, dirname, filePath, heading, line: trimmed, content };
-
-        const item: CustomSearchItem = {
-          name: resolveTemplate(entry.name, context),
-          description: resolveTemplate(entry.description, context),
-          type: entry.type,
-          filePath,
-          sourceId,
-        };
-
-        // ユーザー指定の orderBy があればそちらを優先、なければ行順を保持
-        const sortKey = this.resolveSortKey(entry, context);
-        item.sortKey = sortKey ?? String(lineIndex).padStart(8, '0');
-        lineIndex++;
-        if (entry.label) {
-          const resolvedLabel = resolveTemplate(entry.label, context);
-          if (resolvedLabel) item.label = resolvedLabel;
-        }
-        if (entry.color) {
-          const resolvedColor = this.resolveColorWithFallback(entry.color, context);
-          if (resolvedColor) item.color = resolvedColor as ColorValue;
-        }
-        if (entry.icon) {
-          const resolvedIcon = resolveTemplate(entry.icon, context);
-          if (resolvedIcon) item.icon = resolvedIcon.startsWith('codicon-') ? resolvedIcon : `codicon-${resolvedIcon}`;
-        }
-        if (entry.argumentHint) {
-          const resolvedHint = resolveTemplate(entry.argumentHint, context);
-          if (resolvedHint) item.argumentHint = resolvedHint;
-        }
-        this.applyInputFormat(item, entry, context);
-        item.updatedAt = fileStat.mtimeMs;
-
-        const displayTime = this.resolveDisplayTime(entry, context, fileStat.mtimeMs);
-        if (displayTime !== undefined) item.displayTime = displayTime;
-
-        if (item.name) {
-          items.push(item);
-        }
+        const item = this.createItemFromPlainTextLine(
+          trimmed, basename, dirname, filePath, entry, sourceId, prefix, heading, lineIndex, fileStat.mtimeMs, content
+        );
+        if (item) { items.push(item); lineIndex++; }
       }
 
       return items;
@@ -819,6 +808,42 @@ class CustomSearchLoader extends EventEmitter {
       logger.warn('Failed to parse plain text file', { filePath, error });
       return [];
     }
+  }
+
+  /** プレーンテキストの1行からCustomSearchItemを生成する */
+  private createItemFromPlainTextLine(
+    trimmed: string,
+    basename: string,
+    dirname: string,
+    filePath: string,
+    entry: CustomSearchEntry,
+    sourceId: string,
+    prefix: string,
+    heading: string,
+    lineIndex: number,
+    mtimeMs: number,
+    content: string
+  ): CustomSearchItem | null {
+    const context = { basename, frontmatter: {}, prefix, dirname, filePath, heading, line: trimmed, content };
+    const item: CustomSearchItem = {
+      name: resolveTemplate(entry.name, context),
+      description: resolveTemplate(entry.description, context),
+      type: entry.type,
+      filePath,
+      sourceId,
+    };
+
+    // ユーザー指定の orderBy があればそちらを優先、なければ行順を保持
+    const sortKey = this.resolveSortKey(entry, context);
+    item.sortKey = sortKey ?? String(lineIndex).padStart(8, '0');
+    this.applyOptionalItemFields(item, entry, context);
+    this.applyInputFormat(item, entry, context);
+    item.updatedAt = mtimeMs;
+
+    const displayTime = this.resolveDisplayTime(entry, context, mtimeMs);
+    if (displayTime !== undefined) item.displayTime = displayTime;
+
+    return item.name ? item : null;
   }
 
   /**
@@ -835,65 +860,17 @@ class CustomSearchLoader extends EventEmitter {
       const jsonData = parseJsonContent(content);
       if (!jsonData) return [];
 
-      // Evaluate jq expression (filePath をキャッシュキーとして渡し、繰り返し失敗を防止)
-      const result = await evaluateJq(jsonData, jqExpression, filePath);
-      logger.debug('parseJsonArrayToItems jq result', {
-        filePath,
-        jqExpression,
-        resultType: typeof result,
-        isArray: Array.isArray(result),
-        length: Array.isArray(result) ? result.length : 'N/A'
-      });
-      if (!Array.isArray(result)) return [];
-      const arrayData: unknown[] = result;
+      const arrayData = await this.evaluateJqArrayResult(jsonData, jqExpression, filePath);
+      if (!arrayData) return [];
 
-      const basename = getBasename(filePath);
-      const dirname = getDirname(filePath);
       const items: CustomSearchItem[] = [];
-
       for (const element of arrayData) {
         if (element === null || typeof element !== 'object' || Array.isArray(element)) continue;
-
         const elementData = element as Record<string, unknown>;
-        const parentJsonDataStack = [jsonData];
-        const context = { basename, frontmatter: {}, prefix: '', dirname, filePath, heading: '', jsonData: elementData, parentJsonDataStack, content };
-
-        const item: CustomSearchItem = {
-          name: resolveTemplate(entry.name, context),
-          description: resolveTemplate(entry.description, context),
-          type: entry.type,
-          filePath,
-          sourceId,
-        };
-
-        const sortKey = this.resolveSortKey(entry, context);
-        if (sortKey) item.sortKey = sortKey;
-
-        if (entry.label) {
-          const resolvedLabel = resolveTemplate(entry.label, context);
-          if (resolvedLabel) item.label = resolvedLabel;
-        }
-        if (entry.color) {
-          logger.debug('parseJsonArrayToItems entry.color', { entryColor: entry.color, itemName: item.name });
-          const resolvedColor = this.resolveColorWithFallback(entry.color, context);
-          if (resolvedColor) item.color = resolvedColor as ColorValue;
-        }
-        if (entry.icon) {
-          const resolvedIcon = resolveTemplate(entry.icon, context);
-          if (resolvedIcon) item.icon = resolvedIcon.startsWith('codicon-') ? resolvedIcon : `codicon-${resolvedIcon}`;
-        }
-        if (entry.argumentHint) {
-          const resolvedHint = resolveTemplate(entry.argumentHint, context);
-          if (resolvedHint) item.argumentHint = resolvedHint;
-        }
-        this.applyInputFormat(item, entry, context);
-
-        const displayTime = this.resolveDisplayTime(entry, context);
-        if (displayTime !== undefined) item.displayTime = displayTime;
-
-        if (item.name) {
-          items.push(item);
-        }
+        const item = this.createItemFromJsonData(
+          elementData, getBasename(filePath), getDirname(filePath), filePath, entry, sourceId, [jsonData], content
+        );
+        if (item) items.push(item);
       }
 
       return items;
@@ -901,6 +878,24 @@ class CustomSearchLoader extends EventEmitter {
       logger.warn('Failed to parse JSON array file', { filePath, error });
       return [];
     }
+  }
+
+  /** jqExpression を評価して配列結果を返す。配列でなければ null を返す */
+  private async evaluateJqArrayResult(
+    jsonData: Record<string, unknown>,
+    jqExpression: string,
+    filePath: string
+  ): Promise<unknown[] | null> {
+    // filePath をキャッシュキーとして渡し、繰り返し失敗を防止
+    const result = await evaluateJq(jsonData, jqExpression, filePath);
+    logger.debug('evaluateJqArrayResult', {
+      filePath,
+      jqExpression,
+      resultType: typeof result,
+      isArray: Array.isArray(result),
+      length: Array.isArray(result) ? result.length : 'N/A'
+    });
+    return Array.isArray(result) ? result : null;
   }
 
   /**
@@ -1010,24 +1005,39 @@ class CustomSearchLoader extends EventEmitter {
     }
 
     if (jqExpression) {
-      const jqResult = await evaluateJq(parsed, jqExpression, filePath);
-      if (jqResult === null || jqResult === undefined) return null;
-
-      const elements = Array.isArray(jqResult) ? jqResult : [jqResult];
-      const lineData = parsed as Record<string, unknown>;
-      const items: CustomSearchItem[] = [];
-      for (const element of elements) {
-        if (element === null || typeof element !== 'object' || Array.isArray(element)) continue;
-        const elementData = element as Record<string, unknown>;
-        const item = this.createItemFromJsonData(elementData, basename, dirname, filePath, entry, sourceId, [lineData], content);
-        if (item) items.push(item);
-      }
-      return items.length > 0 ? items : null;
+      return this.applyJqToJsonlLine(
+        parsed as Record<string, unknown>, jqExpression, filePath, basename, dirname, entry, sourceId, content
+      );
     }
 
     const elementData = parsed as Record<string, unknown>;
     const item = this.createItemFromJsonData(elementData, basename, dirname, filePath, entry, sourceId, undefined, content);
     return item ? [item] : null;
+  }
+
+  /** JSONL行にjq式を適用してCustomSearchItemsを生成する */
+  private async applyJqToJsonlLine(
+    lineData: Record<string, unknown>,
+    jqExpression: string,
+    filePath: string,
+    basename: string,
+    dirname: string,
+    entry: CustomSearchEntry,
+    sourceId: string,
+    content: string | undefined
+  ): Promise<CustomSearchItem[] | null> {
+    const jqResult = await evaluateJq(lineData, jqExpression, filePath);
+    if (jqResult === null || jqResult === undefined) return null;
+
+    const elements = Array.isArray(jqResult) ? jqResult : [jqResult];
+    const items: CustomSearchItem[] = [];
+    for (const element of elements) {
+      if (element === null || typeof element !== 'object' || Array.isArray(element)) continue;
+      const elementData = element as Record<string, unknown>;
+      const item = this.createItemFromJsonData(elementData, basename, dirname, filePath, entry, sourceId, [lineData], content);
+      if (item) items.push(item);
+    }
+    return items.length > 0 ? items : null;
   }
 
   /**
@@ -1108,23 +1118,7 @@ class CustomSearchLoader extends EventEmitter {
 
     const sortKey = this.resolveSortKey(entry, context);
     if (sortKey) item.sortKey = sortKey;
-
-    if (entry.label) {
-      const resolvedLabel = resolveTemplate(entry.label, context);
-      if (resolvedLabel) item.label = resolvedLabel;
-    }
-    if (entry.color) {
-      const resolvedColor = this.resolveColorWithFallback(entry.color, context);
-      if (resolvedColor) item.color = resolvedColor as ColorValue;
-    }
-    if (entry.icon) {
-      const resolvedIcon = resolveTemplate(entry.icon, context);
-      if (resolvedIcon) item.icon = resolvedIcon.startsWith('codicon-') ? resolvedIcon : `codicon-${resolvedIcon}`;
-    }
-    if (entry.argumentHint) {
-      const resolvedHint = resolveTemplate(entry.argumentHint, context);
-      if (resolvedHint) item.argumentHint = resolvedHint;
-    }
+    this.applyOptionalItemFields(item, entry, context);
     this.applyInputFormat(item, entry, context);
 
     const displayTime = this.resolveDisplayTime(entry, context);
@@ -1215,11 +1209,12 @@ class CustomSearchLoader extends EventEmitter {
       for (const entry of entries) {
         const fullPath = path.join(directory, entry.name);
         const entryRelativePath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
+        const entryType = await this.resolveEntryType(entry, fullPath);
 
-        if (entry.isDirectory()) {
+        if (entryType === 'directory') {
           const dirFiles = await this.processDirectoryEntry(fullPath, entryRelativePath, pattern, parsed);
           files.push(...dirFiles);
-        } else if (entry.isFile() && this.matchesFilePattern(entry.name, entryRelativePath, parsed)) {
+        } else if (entryType === 'file' && this.matchesFilePattern(entry.name, entryRelativePath, parsed)) {
           files.push(fullPath);
         }
       }
@@ -1266,8 +1261,10 @@ class CustomSearchLoader extends EventEmitter {
       const entries = await fs.readdir(directory, { withFileTypes: true });
 
       for (const entry of entries) {
-        if (entry.isFile() && this.matchesGlobPattern(entry.name, filePattern)) {
-          files.push(path.join(directory, entry.name));
+        const fullPath = path.join(directory, entry.name);
+        const entryType = await this.resolveEntryType(entry, fullPath);
+        if (entryType === 'file' && this.matchesGlobPattern(entry.name, filePattern)) {
+          files.push(fullPath);
         }
       }
     } catch {

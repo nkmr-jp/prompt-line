@@ -75,123 +75,74 @@ function formatExtensionsAsList(ext: Record<string, string> | undefined): string
 }
 
 /**
+ * Resolve the line prefixes for a YAML entry based on commented flag
+ */
+function resolveEntryPrefixes(indent: string, commented: boolean): { first: string; content: string } {
+  if (commented) {
+    return { first: `${indent}# `, content: `${indent}#   ` };
+  }
+  return { first: indent, content: `${indent}  ` };
+}
+
+/**
+ * Append optional string fields to a YAML lines array
+ */
+function appendAgentSkillOptionalFields(lines: string[], entry: AgentSkillEntry, p: string): void {
+  if (entry.label) lines.push(`${p}label: "${entry.label}"`);
+  if (entry.color) lines.push(`${p}color: "${entry.color}"`);
+  if (entry.icon) lines.push(`${p}icon: "${entry.icon}"`);
+  lines.push(`${p}pattern: "${entry.pattern}"`);
+  if (entry.prefixPattern) lines.push(`${p}prefixPattern: "${entry.prefixPattern}"`);
+  if (entry.argumentHint) lines.push(`${p}argumentHint: "${entry.argumentHint}"`);
+  if (entry.maxSuggestions !== undefined) lines.push(`${p}maxSuggestions: ${entry.maxSuggestions}`);
+}
+
+/**
  * Format an agent skill entry as YAML
  */
 function formatAgentSkillEntry(entry: AgentSkillEntry, indent: string, commented = false): string {
-  // When commented, use indent + "# " prefix
-  // Active:    "  - name:" (indent + -)
-  // Commented: "  # - name:" (indent trimmed to base + # + space + -)
-  let firstLinePrefix: string;
-  let contentLinePrefix: string;
-
-  if (commented) {
-    firstLinePrefix = `${indent}# `;
-    contentLinePrefix = `${indent}#   `;
-  } else {
-    firstLinePrefix = indent;
-    contentLinePrefix = `${indent}  `;
-  }
-
+  const { first, content } = resolveEntryPrefixes(indent, commented);
   const lines = [
-    `${firstLinePrefix}- name: "${entry.name}"`,
-    `${contentLinePrefix}description: "${entry.description || ''}"`,
-    `${contentLinePrefix}path: ${entry.path}`
+    `${first}- name: "${entry.name}"`,
+    `${content}description: "${entry.description || ''}"`,
+    `${content}path: ${entry.path}`
   ];
-
-  // Add label if present
-  if (entry.label) {
-    lines.push(`${contentLinePrefix}label: "${entry.label}"`);
-  }
-
-  // Add color if present
-  if (entry.color) {
-    lines.push(`${contentLinePrefix}color: "${entry.color}"`);
-  }
-
-  // Add icon if present
-  if (entry.icon) {
-    lines.push(`${contentLinePrefix}icon: "${entry.icon}"`);
-  }
-
-  lines.push(`${contentLinePrefix}pattern: "${entry.pattern}"`);
-
-  // Add prefixPattern if present
-  if (entry.prefixPattern) {
-    lines.push(`${contentLinePrefix}prefixPattern: "${entry.prefixPattern}"`);
-  }
-
-  if (entry.argumentHint) {
-    lines.push(`${contentLinePrefix}argumentHint: "${entry.argumentHint}"`);
-  }
-  if (entry.maxSuggestions !== undefined) {
-    lines.push(`${contentLinePrefix}maxSuggestions: ${entry.maxSuggestions}`);
-  }
-
+  appendAgentSkillOptionalFields(lines, entry, content);
   return lines.join('\n');
+}
+
+/**
+ * Append required core fields for a customSearch entry
+ */
+function appendCustomSearchCoreFields(lines: string[], entry: MentionEntry, p: string): void {
+  if (entry.label) lines.push(`${p}label: "${entry.label}"`);
+  if (entry.icon) lines.push(`${p}icon: ${entry.icon}`);
+  if (entry.color) lines.push(`${p}color: "${entry.color}"`);
+  lines.push(`${p}description: "${entry.description}"`);
+  lines.push(`${p}path: ${entry.path}`);
+  lines.push(`${p}pattern: "${entry.pattern}"`);
+}
+
+/**
+ * Append optional fields for a customSearch entry
+ */
+function appendCustomSearchOptionalFields(lines: string[], entry: MentionEntry, p: string): void {
+  if (entry.prefixPattern) lines.push(`${p}prefixPattern: "${entry.prefixPattern}"`);
+  if (entry.searchPrefix) lines.push(`${p}searchPrefix: ${entry.searchPrefix}            # Search with @${entry.searchPrefix}:`);
+  if (entry.maxSuggestions !== undefined) lines.push(`${p}maxSuggestions: ${entry.maxSuggestions}`);
+  if (entry.orderBy !== undefined) lines.push(`${p}orderBy: "${entry.orderBy}"`);
+  if (entry.displayTime !== undefined) lines.push(`${p}displayTime: "${entry.displayTime}"`);
+  if (entry.inputFormat !== undefined) lines.push(`${p}inputFormat: ${entry.inputFormat}               # Insert format template`);
 }
 
 /**
  * Format a customSearch entry as YAML
  */
 function formatCustomSearchEntry(entry: MentionEntry, indent: string, commented = false): string {
-  // When commented, use indent + "# " prefix
-  // Active:    "  - name:" (indent + -)
-  // Commented: "  # - name:" (indent + # + space + -)
-  let firstLinePrefix: string;
-  let contentLinePrefix: string;
-
-  if (commented) {
-    firstLinePrefix = `${indent}# `;
-    contentLinePrefix = `${indent}#   `;
-  } else {
-    firstLinePrefix = indent;
-    contentLinePrefix = `${indent}  `;
-  }
-
-  const lines = [
-    `${firstLinePrefix}- name: "${entry.name}"`
-  ];
-
-  // Add label if present
-  if (entry.label) {
-    lines.push(`${contentLinePrefix}label: "${entry.label}"`);
-  }
-
-  // Add icon if present
-  if (entry.icon) {
-    lines.push(`${contentLinePrefix}icon: ${entry.icon}`);
-  }
-
-  // Add color if present
-  if (entry.color) {
-    lines.push(`${contentLinePrefix}color: "${entry.color}"`);
-  }
-
-  lines.push(`${contentLinePrefix}description: "${entry.description}"`);
-  lines.push(`${contentLinePrefix}path: ${entry.path}`);
-  lines.push(`${contentLinePrefix}pattern: "${entry.pattern}"`);
-
-  // Add prefixPattern if present
-  if (entry.prefixPattern) {
-    lines.push(`${contentLinePrefix}prefixPattern: "${entry.prefixPattern}"`);
-  }
-
-  if (entry.searchPrefix) {
-    lines.push(`${contentLinePrefix}searchPrefix: ${entry.searchPrefix}            # Search with @${entry.searchPrefix}:`);
-  }
-  if (entry.maxSuggestions !== undefined) {
-    lines.push(`${contentLinePrefix}maxSuggestions: ${entry.maxSuggestions}`);
-  }
-  if (entry.orderBy !== undefined) {
-    lines.push(`${contentLinePrefix}orderBy: "${entry.orderBy}"`);
-  }
-  if (entry.displayTime !== undefined) {
-    lines.push(`${contentLinePrefix}displayTime: "${entry.displayTime}"`);
-  }
-  if (entry.inputFormat !== undefined) {
-    lines.push(`${contentLinePrefix}inputFormat: ${entry.inputFormat}               # Insert format template`);
-  }
-
+  const { first, content } = resolveEntryPrefixes(indent, commented);
+  const lines = [`${first}- name: "${entry.name}"`];
+  appendCustomSearchCoreFields(lines, entry, content);
+  appendCustomSearchOptionalFields(lines, entry, content);
   return lines.join('\n');
 }
 
@@ -287,6 +238,30 @@ builtInCommands:                      # List of tools to enable\n`;
 }
 
 /**
+ * Build the comment header for the agentSkills section
+ */
+function buildAgentSkillsHeader(): string {
+  return [
+    '# Agent skills: custom commands from markdown files',
+    '# Search: Space-separated keywords enable AND search (e.g., "/commit fix" matches both words)',
+    '# Configuration fields:',
+    '#   name: Display name template (variables: {basename}, {frontmatter@field}, {prefix})',
+    '#   description: Skill description template (variables: {basename}, {frontmatter@field}, {dirname}, {dirname:N})',
+    '#   path: Directory path to search for skill files',
+    '#   label: Display label for UI badge (e.g., "command", "skill", "agent")',
+    '#   color: Badge color (name: grey, darkGrey, slate, stone, red, rose, orange, amber, yellow, lime, green, emerald, teal, cyan, sky, blue, indigo, violet, purple, fuchsia, pink, or hex: #FF5733)',
+    '#   icon: Codicon icon name (e.g., "agent", "rocket", "terminal")',
+    '#   pattern: Glob pattern to match files (e.g., "*.md", "**/*/SKILL.md")',
+    '#   prefixPattern: Pattern to extract prefix from plugin metadata',
+    '#   argumentHint: Hint for skill arguments',
+    '#   maxSuggestions: Maximum number of suggestions to display',
+    '#   {dirname}: Parent directory name',
+    '#   {dirname:N}: N levels up directory name (e.g., {dirname:2} = grandparent)',
+    'agentSkills:'
+  ].join('\n') + '\n';
+}
+
+/**
  * Build agentSkills section
  */
 function buildAgentSkillsSection(settings: UserSettings, options: YamlGeneratorOptions): string {
@@ -294,7 +269,6 @@ function buildAgentSkillsSection(settings: UserSettings, options: YamlGeneratorO
   const hasAgentSkills = agentSkills && agentSkills.length > 0;
 
   if (!hasAgentSkills) {
-    // No agent skills configured - output commented template
     return `#agentSkills:
 #  - name: "{basename}"
 #    description: "{frontmatter@description}"
@@ -304,29 +278,12 @@ function buildAgentSkillsSection(settings: UserSettings, options: YamlGeneratorO
 #    maxSuggestions: 20`;
   }
 
-  // Build the section with actual values
-  let section = '# Agent skills: custom commands from markdown files\n';
-  section += '# Search: Space-separated keywords enable AND search (e.g., "/commit fix" matches both words)\n';
-  section += '# Configuration fields:\n';
-  section += '#   name: Display name template (variables: {basename}, {frontmatter@field}, {prefix})\n';
-  section += '#   description: Skill description template (variables: {basename}, {frontmatter@field}, {dirname}, {dirname:N})\n';
-  section += '#   path: Directory path to search for skill files\n';
-  section += '#   label: Display label for UI badge (e.g., "command", "skill", "agent")\n';
-  section += '#   color: Badge color (name: grey, darkGrey, slate, stone, red, rose, orange, amber, yellow, lime, green, emerald, teal, cyan, sky, blue, indigo, violet, purple, fuchsia, pink, or hex: #FF5733)\n';
-  section += '#   icon: Codicon icon name (e.g., "agent", "rocket", "terminal")\n';
-  section += '#   pattern: Glob pattern to match files (e.g., "*.md", "**/*/SKILL.md")\n';
-  section += '#   prefixPattern: Pattern to extract prefix from plugin metadata\n';
-  section += '#   argumentHint: Hint for skill arguments\n';
-  section += '#   maxSuggestions: Maximum number of suggestions to display\n';
-  section += '#   {dirname}: Parent directory name\n';
-  section += '#   {dirname:N}: N levels up directory name (e.g., {dirname:2} = grandparent)\n';
-  section += 'agentSkills:\n';
+  let section = buildAgentSkillsHeader();
 
   for (const entry of agentSkills) {
     section += formatAgentSkillEntry(entry, '  ') + '\n';
   }
 
-  // Add commented examples if requested
   if (options.includeCommentedExamples) {
     const commentedEntries = commentedExamples.agentSkills || [];
     for (const entry of commentedEntries) {
@@ -338,25 +295,10 @@ function buildAgentSkillsSection(settings: UserSettings, options: YamlGeneratorO
 }
 
 /**
- * Build customSearch section
+ * Build the comment header for the customSearch section
  */
-function buildCustomSearchSection(settings: UserSettings, options: YamlGeneratorOptions): string {
-  const customSearchEntries = settings.customSearch;
-  const hasCustomSearch = customSearchEntries && customSearchEntries.length > 0;
-
-  if (!hasCustomSearch) {
-    return `# Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
-# Supports: Markdown (.md), JSON (.json), JSONL (.jsonl), jq expressions, and plain text files.
-# searchPrefix: Search with @<prefix>: (e.g., searchPrefix: "agent" → @agent:)
-#customSearch:
-#  - name: "agent-{basename}"
-#    description: "{frontmatter@description}"
-#    path: ~/.claude/agents
-#    pattern: "*.md"
-#    searchPrefix: agent            # Search with @agent:`;
-  }
-
-  let section = `# Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
+function buildCustomSearchHeader(): string {
+  return `# Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
 # Scans directories for files matching glob patterns and provides @ mention suggestions.
 # Supports: Markdown (.md), JSON (.json), JSONL (.jsonl), jq expressions, and plain text files.
 # Search: Space-separated keywords enable AND search (e.g., @agent:dev api)
@@ -401,12 +343,33 @@ function buildCustomSearchSection(settings: UserSettings, options: YamlGenerator
 #   "*.txt"                             — Plain text files (one item per non-empty line, use {line})
 customSearch:
 `;
+}
+
+/**
+ * Build customSearch section
+ */
+function buildCustomSearchSection(settings: UserSettings, options: YamlGeneratorOptions): string {
+  const customSearchEntries = settings.customSearch;
+  const hasCustomSearch = customSearchEntries && customSearchEntries.length > 0;
+
+  if (!hasCustomSearch) {
+    return `# Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
+# Supports: Markdown (.md), JSON (.json), JSONL (.jsonl), jq expressions, and plain text files.
+# searchPrefix: Search with @<prefix>: (e.g., searchPrefix: "agent" → @agent:)
+#customSearch:
+#  - name: "agent-{basename}"
+#    description: "{frontmatter@description}"
+#    path: ~/.claude/agents
+#    pattern: "*.md"
+#    searchPrefix: agent            # Search with @agent:`;
+  }
+
+  let section = buildCustomSearchHeader();
 
   for (const entry of customSearchEntries) {
     section += formatCustomSearchEntry(entry, '  ') + '\n\n';
   }
 
-  // Add commented customSearch examples if requested
   if (options.includeCommentedExamples) {
     const commentedCustomSearch = commentedExamples.customSearch ?? [];
     for (const entry of commentedCustomSearch) {
@@ -500,21 +463,12 @@ symbolSearch:
 }
 
 /**
- * Generate YAML settings content
- *
- * @param settings The settings to generate YAML for
- * @param options Generation options
- * @returns YAML string with comments
+ * Build the top sections of the settings YAML (shortcuts, window, fileOpener)
  */
-export function generateSettingsYaml(settings: UserSettings, options: YamlGeneratorOptions = {}): string {
-  const extensionsSection = buildExtensionsSection(settings, options);
-  const directoriesSection = buildDirectoriesSection(settings);
-  const builtInCommandsSection = buildBuiltInCommandsSection(settings, options);
-  const agentSkillsSection = buildAgentSkillsSection(settings, options);
-  const customSearchSection = buildCustomSearchSection(settings, options);
-  const fileSearchSection = buildFileSearchSection(settings);
-  const symbolSearchSection = buildSymbolSearchSection(settings);
-
+function buildTopSections(settings: UserSettings, extensionsSection: string, directoriesSection: string): string {
+  const defaultEditor = settings.fileOpener?.defaultEditor === null || settings.fileOpener?.defaultEditor === undefined
+    ? 'null'
+    : `"${settings.fileOpener.defaultEditor}"`;
   return `# Prompt Line Settings Configuration
 # This file is automatically generated but can be manually edited
 
@@ -555,12 +509,32 @@ window:
 fileOpener:
   # Default editor for all files (null = use system default application)
   # Example values: "Visual Studio Code", "Sublime Text", "WebStorm"
-  defaultEditor: ${settings.fileOpener?.defaultEditor === null || settings.fileOpener?.defaultEditor === undefined ? 'null' : `"${settings.fileOpener.defaultEditor}"`}
+  defaultEditor: ${defaultEditor}
   # Extension-specific applications (overrides defaultEditor and directories)
   ${extensionsSection}
   # Directory-specific default editor (overrides defaultEditor, longest prefix match)
   ${directoriesSection}
+`;
+}
 
+/**
+ * Generate YAML settings content
+ *
+ * @param settings The settings to generate YAML for
+ * @param options Generation options
+ * @returns YAML string with comments
+ */
+export function generateSettingsYaml(settings: UserSettings, options: YamlGeneratorOptions = {}): string {
+  const extensionsSection = buildExtensionsSection(settings, options);
+  const directoriesSection = buildDirectoriesSection(settings);
+  const builtInCommandsSection = buildBuiltInCommandsSection(settings, options);
+  const agentSkillsSection = buildAgentSkillsSection(settings, options);
+  const customSearchSection = buildCustomSearchSection(settings, options);
+  const fileSearchSection = buildFileSearchSection(settings);
+  const symbolSearchSection = buildSymbolSearchSection(settings);
+  const topSections = buildTopSections(settings, extensionsSection, directoriesSection);
+
+  return `${topSections}
 # ============================================================================
 # BUILT-IN COMMANDS
 # ============================================================================

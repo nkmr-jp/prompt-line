@@ -51,23 +51,9 @@ class IPCHandlers {
     settingsManager: SettingsManager,
     builtInCommandsManager: BuiltInCommandsManager
   ) {
-    // Initialize CustomSearchLoader and FileOpenerManager
-    const settings = settingsManager.getSettings();
-    const customSearchEntries = settingsManager.getCustomSearchEntries();
-    const customSearchLoader = new CustomSearchLoader(
-      customSearchEntries,
-      settings
-    );
-    const fileOpenerManager = new FileOpenerManager(settingsManager);
+    const { customSearchLoader, fileOpenerManager } =
+      this.initDependencies(settingsManager);
 
-    // Initialize CustomSearchLoader with settings
-    if (customSearchEntries && customSearchEntries.length > 0) {
-      customSearchLoader.updateConfig(customSearchEntries);
-      customSearchLoader.updateSettings(settings);
-      logger.info('CustomSearch config updated from settings');
-    }
-
-    // Instantiate specialized handler classes
     this.pasteHandler = new PasteHandler(
       windowManager,
       historyManager,
@@ -90,8 +76,28 @@ class IPCHandlers {
     this.fileHandler = new FileHandler(fileOpenerManager, directoryManager);
     this.usageHistoryHandler = new UsageHistoryHandler();
 
-    // Setup all handlers
     this.setupHandlers();
+  }
+
+  private initDependencies(settingsManager: SettingsManager): {
+    customSearchLoader: CustomSearchLoader;
+    fileOpenerManager: FileOpenerManager;
+  } {
+    const settings = settingsManager.getSettings();
+    const customSearchEntries = settingsManager.getCustomSearchEntries();
+    const customSearchLoader = new CustomSearchLoader(
+      customSearchEntries,
+      settings
+    );
+    const fileOpenerManager = new FileOpenerManager(settingsManager);
+
+    if (customSearchEntries && customSearchEntries.length > 0) {
+      customSearchLoader.updateConfig(customSearchEntries);
+      customSearchLoader.updateSettings(settings);
+      logger.info('CustomSearch config updated from settings');
+    }
+
+    return { customSearchLoader, fileOpenerManager };
   }
 
   /**
