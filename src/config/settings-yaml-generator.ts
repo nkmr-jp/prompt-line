@@ -231,7 +231,7 @@ function buildDirectoriesSection(settings: UserSettings): string {
 
   if (!hasDirectories) {
     return `#directories:                      # Directory-specific editors (supports glob: * and **)
-  #  - path: "~/ghq/github.com/my-org/my-go-worktree-*"
+  #  - path: "~/ghq/github.com/my-org/my-go*"
   #    editor: "GoLand"`;
   }
 

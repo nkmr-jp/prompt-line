@@ -90,7 +90,7 @@ export const defaultSettings: UserSettings = {
    *     extensions:
    *       pdf: "Preview"
    *     directories:
-   *       - path: "~/ghq/github.com/my-org/my-go-worktree-*"
+   *       - path: "~/ghq/github.com/my-org/my-go*"
    *         editor: "GoLand"
    */
   fileOpener: {
@@ -397,7 +397,7 @@ export const commentedExamples = {
       md: 'Typora'
     },
     directories: [
-      { path: '~/ghq/github.com/my-org/my-go-worktree-*', editor: 'GoLand' }
+      { path: '~/ghq/github.com/my-org/my-go*', editor: 'GoLand' }
     ]
   },
   mentions: {
