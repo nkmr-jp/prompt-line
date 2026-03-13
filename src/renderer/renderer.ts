@@ -573,13 +573,18 @@ export class PromptLineRenderer {
   private handleCustomSearchActivate(triggerText: string): void {
     if (!this.domManager.textarea) return;
 
-    // Clear existing text and insert trigger text
-    this.domManager.setText(triggerText);
-    this.domManager.setCursorPosition(triggerText.length);
+    const textarea = this.domManager.textarea;
+    const cursorPos = textarea.selectionStart ?? textarea.value.length;
+    const before = textarea.value.substring(0, cursorPos);
+    const after = textarea.value.substring(textarea.selectionEnd ?? cursorPos);
+
+    // Insert trigger text at current cursor position
+    this.domManager.setText(before + triggerText + after);
+    this.domManager.setCursorPosition(cursorPos + triggerText.length);
     this.domManager.focusTextarea();
 
     // Dispatch input event to trigger mention detection
-    this.domManager.textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
   /**
