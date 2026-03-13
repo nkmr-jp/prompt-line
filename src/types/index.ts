@@ -48,6 +48,7 @@ export type {
   LoggingConfig,
   LogLevel,
   UserSettings,
+  FileOpenerDirectoryEntry,
   // Color types
   ColorValue,
   // Mention settings types (@ mentions)

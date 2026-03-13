@@ -76,17 +76,22 @@ export const defaultSettings: UserSettings = {
   /**
    * File opener settings — configure which app opens each file type
    *
-   * extensions: Map of file extension → application name (overrides defaultEditor)
+   * extensions: Map of file extension → application name (overrides defaultEditor and directories)
+   * directories: Array of { path, editor } entries with glob support (overrides defaultEditor)
+   *   - path supports ~ for home, * (single level), ** (multiple levels)
+   *   - Most specific pattern (longest non-glob prefix) wins
    * defaultEditor: Fallback editor for all files (null = system default via macOS "open" command)
+   *
+   * Priority: extensions > directories > defaultEditor > system default
    *
    * Example (settings.yml):
    *   fileOpener:
    *     defaultEditor: "Visual Studio Code"
    *     extensions:
-   *       ts: "WebStorm"
-   *       md: "Typora"
-   *       go: "Goland"
    *       pdf: "Preview"
+   *     directories:
+   *       - path: "~/ghq/github.com/my-org/my-go*"
+   *         editor: "GoLand"
    */
   fileOpener: {
     extensions: {
@@ -364,7 +369,10 @@ export const commentedExamples = {
     extensions: {
       go: 'Goland',
       md: 'Typora'
-    }
+    },
+    directories: [
+      { path: '~/ghq/github.com/my-org/my-go*', editor: 'GoLand' }
+    ]
   },
   customSearch: [
     {

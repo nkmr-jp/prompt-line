@@ -223,6 +223,28 @@ function buildExtensionsSection(settings: UserSettings, options: YamlGeneratorOp
 }
 
 /**
+ * Build directories section
+ */
+function buildDirectoriesSection(settings: UserSettings): string {
+  const directories = settings.fileOpener?.directories || [];
+  const hasDirectories = directories.length > 0;
+
+  if (!hasDirectories) {
+    return `#directories:                      # Directory-specific editors (supports glob: * and **)
+  #  - path: "~/ghq/github.com/my-org/my-go*"
+  #    editor: "GoLand"`;
+  }
+
+  let section = 'directories:';
+  for (const entry of directories) {
+    section += `\n    - path: "${entry.path}"`;
+    section += `\n      editor: "${entry.editor}"`;
+  }
+
+  return section;
+}
+
+/**
  * Build builtInCommands section
  */
 function buildBuiltInCommandsSection(settings: UserSettings, options: YamlGeneratorOptions): string {
@@ -486,6 +508,7 @@ symbolSearch:
  */
 export function generateSettingsYaml(settings: UserSettings, options: YamlGeneratorOptions = {}): string {
   const extensionsSection = buildExtensionsSection(settings, options);
+  const directoriesSection = buildDirectoriesSection(settings);
   const builtInCommandsSection = buildBuiltInCommandsSection(settings, options);
   const agentSkillsSection = buildAgentSkillsSection(settings, options);
   const customSearchSection = buildCustomSearchSection(settings, options);
@@ -533,8 +556,10 @@ fileOpener:
   # Default editor for all files (null = use system default application)
   # Example values: "Visual Studio Code", "Sublime Text", "WebStorm"
   defaultEditor: ${settings.fileOpener?.defaultEditor === null || settings.fileOpener?.defaultEditor === undefined ? 'null' : `"${settings.fileOpener.defaultEditor}"`}
-  # Extension-specific applications (overrides defaultEditor)
+  # Extension-specific applications (overrides defaultEditor and directories)
   ${extensionsSection}
+  # Directory-specific default editor (overrides defaultEditor, longest prefix match)
+  ${directoriesSection}
 
 # ============================================================================
 # BUILT-IN COMMANDS
