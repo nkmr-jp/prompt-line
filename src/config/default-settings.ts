@@ -164,6 +164,7 @@ export const defaultSettings: UserSettings = {
       path: '~/.claude/commands',
       label: 'command',
       color: 'purple',
+      icon: '{frontmatter@icon}',
       pattern: '*.md',
       argumentHint: '{frontmatter@argument-hint}',
       maxSuggestions: 20
@@ -175,6 +176,7 @@ export const defaultSettings: UserSettings = {
       path: '~/.claude/skills',
       label: 'skill',
       color: 'pink',
+      icon: '{frontmatter@icon}',
       pattern: '**/*/SKILL.md',
       maxSuggestions: 20
     },
@@ -187,6 +189,7 @@ export const defaultSettings: UserSettings = {
       values: { prefix: '**/.claude-plugin/*.json@name' },
       label: 'plugin command',
       color: 'green',
+      icon: '{frontmatter@icon}',
       argumentHint: '{frontmatter@argument-hint}',
       maxSuggestions: 20
     },
@@ -199,6 +202,7 @@ export const defaultSettings: UserSettings = {
       values: { prefix: '**/.claude-plugin/*.json@name' },
       label: 'plugin skill',
       color: 'cyan',
+      icon: '{frontmatter@icon}',
       argumentHint: '{frontmatter@argument-hint}',
       maxSuggestions: 20
     }
@@ -395,7 +399,8 @@ export const commentedExamples = {
       shortcut: 'Ctrl+g',
       maxSuggestions: 100,
       orderBy: '{updatedAt} desc',
-      inputFormat: '{filepath}'
+      inputFormat: '{filepath}',
+      command: "open -a 'Google Chrome' {filepath}"
     },
     {
       name: '{json@display}',
@@ -408,6 +413,20 @@ export const commentedExamples = {
       orderBy: '{json@timestamp} desc',
       inputFormat: '{json@display}',
       displayTime: '{json@timestamp}',
+      maxSuggestions: 100
+    },
+    {
+      _comment: 'ghq Repository\nadd .zshrc (ghq list > ~/.prompt-line/ghq.txt)',
+      name: '{line}',
+      icon: 'repo',
+      color: 'rose',
+      description: '',
+      searchPrefix: 'ghq',
+      shortcut: 'Ctrl+g',
+      command: 'open -a iTerm ~/ghq/{line}',
+      path: '~/.prompt-line',
+      pattern: 'ghq.txt',
+      inputFormat: '~/ghq/{line}',
       maxSuggestions: 100
     }
   ]

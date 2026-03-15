@@ -36,6 +36,9 @@ export interface TemplateContext {
 
 /**
  * テンプレート変数を解決する
+ * @param template - テンプレート文字列
+ * @param context - 変数値を持つコンテキスト
+ * @param valueTransform - 解決された各変数値に適用する変換関数（例: shellQuote）
  * @example
  * resolve("{basename}", { basename: "my-command", frontmatter: {} })
  * // => "my-command"
@@ -43,14 +46,20 @@ export interface TemplateContext {
  * resolve("agent-{frontmatter@name}", { basename: "agent", frontmatter: { name: "helper" } })
  * // => "agent-helper"
  */
-export function resolveTemplate(template: string, context: TemplateContext): string {
+export function resolveTemplate(
+  template: string,
+  context: TemplateContext,
+  valueTransform?: (value: string) => string,
+): string {
+  const t = valueTransform ?? ((v: string) => v);
+
   // フォールバック構文: "templateA|templateB" → templateAが空ならtemplateBを使用
   const pipeIndex = template.indexOf('|');
   if (pipeIndex !== -1) {
     const primary = template.slice(0, pipeIndex);
     const fallback = template.slice(pipeIndex + 1);
-    const primaryResult = resolveTemplate(primary, context);
-    return primaryResult || resolveTemplate(fallback, context);
+    const primaryResult = resolveTemplate(primary, context, valueTransform);
+    return primaryResult || resolveTemplate(fallback, context, valueTransform);
   }
 
   let result = template;
@@ -59,47 +68,47 @@ export function resolveTemplate(template: string, context: TemplateContext): str
   if (context.values) {
     for (const [key, value] of Object.entries(context.values)) {
       const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      result = result.replace(new RegExp(`\\{${escapedKey}\\}`, 'g'), value);
+      result = result.replace(new RegExp(`\\{${escapedKey}\\}`, 'g'), t(value));
     }
   }
 
   // Backward compatibility: Replace {prefix} from legacy context.prefix
   if (context.prefix !== undefined && !context.values?.prefix) {
-    result = result.replace(/\{prefix\}/g, context.prefix);
+    result = result.replace(/\{prefix\}/g, t(context.prefix));
   }
 
   // Replace {basename}
-  result = result.replace(/\{basename\}/g, context.basename);
+  result = result.replace(/\{basename\}/g, t(context.basename));
 
   // Replace {dirname} and {dirname:N}
   if (context.filePath) {
     result = result.replace(/\{dirname:(\d+)\}/g, (_, level: string) => {
-      return getDirname(context.filePath!, parseInt(level, 10));
+      return t(getDirname(context.filePath!, parseInt(level, 10)));
     });
   }
   if (context.dirname !== undefined) {
-    result = result.replace(/\{dirname\}/g, context.dirname);
+    result = result.replace(/\{dirname\}/g, t(context.dirname));
   }
 
   // Replace {heading}
-  result = result.replace(/\{heading\}/g, context.heading ?? '');
+  result = result.replace(/\{heading\}/g, t(context.heading ?? ''));
 
   // Replace {line}
-  result = result.replace(/\{line\}/g, context.line ?? '');
+  result = result.replace(/\{line\}/g, t(context.line ?? ''));
 
   // Replace {content}
   if (context.content !== undefined) {
-    result = result.replace(/\{content\}/g, context.content);
+    result = result.replace(/\{content\}/g, t(context.content));
   }
 
   // Replace {filepath}
   if (context.filePath) {
-    result = result.replace(/\{filepath\}/g, context.filePath);
+    result = result.replace(/\{filepath\}/g, t(context.filePath));
   }
 
   // Replace {frontmatter@fieldName}
   result = result.replace(/\{frontmatter@([^}]+)\}/g, (_, fieldName: string) => {
-    return context.frontmatter[fieldName] ?? '';
+    return t(context.frontmatter[fieldName] ?? '');
   });
 
   // Replace {json:N@path} (parent JSON data reference)
@@ -108,14 +117,14 @@ export function resolveTemplate(template: string, context: TemplateContext): str
       const index = parseInt(level, 10) - 1; // N=1 → index 0 (direct parent)
       const stack = context.parentJsonDataStack!;
       if (index < 0 || index >= stack.length) return '';
-      return resolveJsonPath(stack[index]!, jsonPath);
+      return t(resolveJsonPath(stack[index]!, jsonPath));
     });
   }
 
   // Replace {json@path}
   if (context.jsonData) {
     result = result.replace(/\{json@([^}]+)\}/g, (_, jsonPath: string) => {
-      return resolveJsonPath(context.jsonData!, jsonPath);
+      return t(resolveJsonPath(context.jsonData!, jsonPath));
     });
   }
 

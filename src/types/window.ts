@@ -391,6 +391,8 @@ export interface MentionEntry {
   disable?: string[];
   /** オプション: キーボードショートカット（例: "Ctrl+g"）- このショートカットで @searchPrefix: 検索を直接起動 */
   shortcut?: string;
+  /** オプション: Ctrl+Enter で実行するシェルコマンド。テンプレート変数({filepath}, {basename}, {content}等)使用可 */
+  command?: string;
 }
 
 // ============================================================================
@@ -454,6 +456,8 @@ export interface CustomSearchEntry {
    * - 前方一致: "debug-*"
    */
   disable?: string[];
+  /** オプション: Ctrl+Enter で実行するシェルコマンド。テンプレート変数({filepath}, {basename}, {content}等)使用可 */
+  command?: string;
 }
 
 /**
@@ -492,6 +496,8 @@ export interface CustomSearchItem {
   displayTime?: number | null;
   /** トリガー文字の配列（commandタイプのみ） */
   triggers?: string[];
+  /** テンプレート解決済みのコマンド文字列（Ctrl+Enter で実行） */
+  command?: string;
 }
 
 export interface AgentSkillItem {
@@ -526,4 +532,5 @@ export interface AgentItem {
   label?: string;
   updatedAt?: number;  // File modification timestamp (mtimeMs)
   displayTime?: number | null;  // Resolved display time (null = hidden, undefined = fallback to updatedAt)
+  command?: string;  // Shell command to execute on Ctrl+Enter (template-resolved)
 }

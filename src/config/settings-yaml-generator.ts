@@ -150,6 +150,7 @@ function appendCustomSearchOptionalFields(lines: string[], entry: MentionEntry, 
   if (entry.orderBy !== undefined) lines.push(`${p}orderBy: "${entry.orderBy}"`);
   if (entry.displayTime !== undefined) lines.push(`${p}displayTime: "${entry.displayTime}"`);
   if (entry.inputFormat !== undefined) lines.push(`${p}inputFormat: ${entry.inputFormat}               # Insert format template`);
+  if (entry.command) lines.push(`${p}command: "${entry.command}"            # Shell command on Ctrl+Enter`);
 }
 
 /**
@@ -393,6 +394,12 @@ function buildCustomSearchSection(settings: UserSettings, options: YamlGenerator
   if (options.includeCommentedExamples) {
     const commentedCustomSearch = commentedExamples.customSearch ?? [];
     for (const entry of commentedCustomSearch) {
+      const comment = (entry as Record<string, unknown>)._comment as string | undefined;
+      if (comment) {
+        for (const line of comment.split('\n')) {
+          section += `  # ${line}\n`;
+        }
+      }
       section += formatCustomSearchEntry(entry as MentionEntry, '  ', true) + '\n\n';
     }
   }

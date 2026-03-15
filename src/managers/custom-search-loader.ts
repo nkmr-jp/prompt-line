@@ -12,12 +12,15 @@ import { getDefaultCustomSearchConfig, DEFAULT_MAX_SUGGESTIONS, DEFAULT_ORDER_BY
 import { resolveValues } from '../lib/prefix-resolver';
 import { isCommandEnabled } from '../lib/command-name-matcher';
 import { splitKeywords } from '../lib/keyword-utils';
+import { shellQuote } from '../utils/security';
 
 /**
  * CustomSearchLoader - 設定ベースの統合Markdownファイルローダー
  *
  * AgentSkillLoaderとAgentLoaderを統合し、より柔軟な設定が可能
  */
+const SKILL_PATTERN = /SKILL\.md/i;
+
 class CustomSearchLoader extends EventEmitter {
   private config: CustomSearchEntry[];
   private cache: Map<string, { items: CustomSearchItem[] }> = new Map();
@@ -753,12 +756,23 @@ class CustomSearchLoader extends EventEmitter {
       const resolvedIcon = resolveTemplate(entry.icon, context);
       if (resolvedIcon) item.icon = resolvedIcon.startsWith('codicon-') ? resolvedIcon : `codicon-${resolvedIcon}`;
     }
+    // Auto-detect default icon from pattern when not explicitly set
+    if (!item.icon && entry.pattern) {
+      item.icon = SKILL_PATTERN.test(entry.pattern) ? 'codicon-edit-sparkle' : 'codicon-terminal';
+    }
     if (entry.argumentHint) {
       const resolvedHint = resolveTemplate(entry.argumentHint, context);
       if (resolvedHint) item.argumentHint = resolvedHint;
     }
     if (entry.triggers) {
       item.triggers = entry.triggers;
+    }
+    if (entry.command) {
+      // Shell-quote all resolved template values to prevent shell injection (CWE-78).
+      // valueTransform is applied AFTER resolveJsonPath/getDirname/etc. produce their
+      // final string, so JSON.stringify output (including object keys) is also quoted.
+      const resolvedCommand = resolveTemplate(entry.command, context, shellQuote);
+      if (resolvedCommand) item.command = resolvedCommand;
     }
   }
 

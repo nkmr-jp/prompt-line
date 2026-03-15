@@ -96,6 +96,7 @@ agentSkills:
     path: ~/.claude/commands
     label: "command"
     color: "purple"
+    icon: "{frontmatter@icon}"
     pattern: "*.md"
     argumentHint: "{frontmatter@argument-hint}"
     maxSuggestions: 20
@@ -104,6 +105,7 @@ agentSkills:
     path: ~/.claude/skills
     label: "skill"
     color: "pink"
+    icon: "{frontmatter@icon}"
     pattern: "**/*/SKILL.md"
     maxSuggestions: 20
   - name: "{prefix}:{basename}"
@@ -111,6 +113,7 @@ agentSkills:
     path: ~/.claude/plugins/cache
     label: "plugin command"
     color: "green"
+    icon: "{frontmatter@icon}"
     pattern: "**/commands/*.md"
     values:
       prefix: "**/.claude-plugin/*.json@name"
@@ -121,6 +124,7 @@ agentSkills:
     path: ~/.claude/plugins/cache
     label: "plugin skill"
     color: "cyan"
+    icon: "{frontmatter@icon}"
     pattern: "**/*/SKILL.md"
     values:
       prefix: "**/.claude-plugin/*.json@name"
@@ -229,6 +233,7 @@ customSearch:
   #   maxSuggestions: 100
   #   orderBy: "{updatedAt} desc"
   #   inputFormat: {filepath}               # Insert format template
+  #   command: "open -a 'Google Chrome' {filepath}"            # Shell command on Ctrl+Enter (values are auto-quoted)
 
   # - name: "{json@display}"
   #   icon: history
@@ -241,6 +246,20 @@ customSearch:
   #   orderBy: "{json@timestamp} desc"
   #   displayTime: "{json@timestamp}"
   #   inputFormat: {json@display}               # Insert format template
+
+  # ghq Repository
+  # add .zshrc (ghq list > ~/.prompt-line/ghq.txt)
+  # - name: "{line}"
+  #   icon: repo
+  #   color: "rose"
+  #   description: ""
+  #   path: ~/.prompt-line
+  #   pattern: "ghq.txt"
+  #   searchPrefix: ghq            # Search with @ghq:
+  #   shortcut: Ctrl+g              # Keyboard shortcut to activate @ghq:
+  #   maxSuggestions: 100
+  #   inputFormat: ~/ghq/{line}               # Insert format template
+  #   command: "open -a iTerm ~/ghq/{line}"            # Shell command on Ctrl+Enter
 
 # ============================================================================
 # FILE SEARCH SETTINGS

@@ -62,6 +62,16 @@ export function sanitizeCommandArgument(input: string, maxLength = 256): string 
  * @param input - The input string to validate
  * @returns boolean indicating if the input is safe
  */
+/**
+ * Shell-quotes a string using single quotes to prevent shell metacharacter expansion.
+ * All single quotes within the string are escaped using the '\'' technique.
+ * @param value - The string to quote
+ * @returns Shell-safe quoted string
+ */
+export function shellQuote(value: string): string {
+  return "'" + value.replace(/'/g, "'\\''") + "'";
+}
+
 export function isCommandArgumentSafe(input: string): boolean {
   if (typeof input !== 'string') {
     return false;

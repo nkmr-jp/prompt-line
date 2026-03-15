@@ -939,14 +939,28 @@ Content`;
       expect(items[0]?.icon).toBe('codicon-symbol-class');
     });
 
-    test('should not set icon when entry has no icon config', async () => {
+    test('should auto-detect default icon from pattern when entry has no icon config', async () => {
       mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
       mockedFs.readdir.mockResolvedValue([createDirent('test.md', true)] as any);
       mockedFs.readFile.mockResolvedValue('---\ndescription: Test\n---\nContent');
 
       const items = await loader.getItems('command');
 
-      expect(items[0]?.icon).toBeUndefined();
+      // pattern '*.md' (non-SKILL) → auto-detected as command → codicon-terminal
+      expect(items[0]?.icon).toBe('codicon-terminal');
+    });
+
+    test('should auto-detect lightbulb icon for SKILL.md pattern', async () => {
+      const skillLoader = new CustomSearchLoader(createTestConfig([
+        { pattern: 'SKILL.md', path: '/path/to/skills' }
+      ]));
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('SKILL.md', true)] as any);
+      mockedFs.readFile.mockResolvedValue('---\ndescription: A skill\n---\nContent');
+
+      const items = await skillLoader.getItems('command');
+
+      expect(items[0]?.icon).toBe('codicon-edit-sparkle');
     });
   });
 

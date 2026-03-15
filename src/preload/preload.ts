@@ -19,6 +19,7 @@ import type {
   CachedSymbolsResult,
   IPCEventCallback,
   ElectronAPI,
+  CommandExecutionResult,
 } from '../types/ipc';
 import type { HistoryItem, AgentSkillItem, AgentItem } from '../types';
 
@@ -83,6 +84,8 @@ const ALLOWED_CHANNELS = [
   'get-agent-usage-bonuses',
   // Cache invalidation
   'invalidate-custom-search',
+  // Custom search command execution
+  'execute-custom-search-command',
   // Settings update notification channel
   'settings-updated',
   // Custom search update notification channel
@@ -317,6 +320,9 @@ const electronAPI: ElectronAPI = {
     },
     getSearchPrefixes: async (type: 'command' | 'mention'): Promise<string[]> => {
       return ipcRenderer.invoke('get-custom-search-prefixes', type);
+    },
+    executeCommand: async (command: string): Promise<CommandExecutionResult> => {
+      return ipcRenderer.invoke('execute-custom-search-command', command);
     }
   },
 

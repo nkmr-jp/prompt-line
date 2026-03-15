@@ -196,6 +196,9 @@ export class MentionManager implements IInitializable {
       replaceRangeWithUndo: this.callbacks.replaceRangeWithUndo
         ? (start: number, end: number, text: string) => this.callbacks.replaceRangeWithUndo!(start, end, text)
         : undefined,
+      insertTextAtCursor: this.callbacks.insertTextAtCursor
+        ? (text: string) => this.callbacks.insertTextAtCursor!(text)
+        : undefined,
       addSelectedPath: (path: string) => {
         this.state.selectedPaths.add(path);
         this.highlightManager?.addSelectedPath(path);

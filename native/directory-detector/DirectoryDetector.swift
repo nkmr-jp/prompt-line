@@ -67,11 +67,28 @@ class DirectoryDetector {
 
         // Check if this is an IDE with integrated terminal (JetBrains, VSCode, etc.)
         if isIDEWithTerminal(bundleId) {
-            // For Electron IDEs, use process tree method directly (faster and more reliable)
-            // Window title method uses Accessibility APIs that can hang without permission
             if isElectronIDE(bundleId) {
-                // Electron IDEs (VSCode, Cursor, Windsurf): Use optimized process tree traversal
-                // Shell processes are deeply nested in Electron's process hierarchy
+                // PRIMARY: Window title + storage database (state.vscdb)
+                // Most reliable for multi-window scenarios because:
+                // - kAXFocusedWindowAttribute correctly identifies the focused window
+                // - state.vscdb maps workspace names to full directory paths
+                // - Process tree cannot distinguish which window a shell belongs to
+                //   (all shells share one Code Helper process)
+                if let windowTitle = getWindowTitle(pid: appPid, bundleId: bundleId) {
+                    let candidates = extractWorkspaceNamesFromElectronIDETitle(windowTitle)
+                    if let storageDir = getDirectoryFromElectronIDEStorage(workspaceNames: candidates, bundleId: bundleId) {
+                        return [
+                            "success": true,
+                            "directory": storageDir,
+                            "appName": appName,
+                            "bundleId": bundleId,
+                            "idePid": appPid,
+                            "method": "electron-ide-storage"
+                        ]
+                    }
+                }
+
+                // FALLBACK: Process tree (for new projects not yet in storage history)
                 let (directory, shellPid) = getElectronIDETerminalDirectory(appPid: appPid, bundleId: bundleId)
 
                 if let cwd = directory {
@@ -89,22 +106,6 @@ class DirectoryDetector {
                     }
 
                     return result
-                }
-
-                // Fallback: Use window title + storage database (state.vscdb)
-                // This works even when no terminal tab is open in the IDE
-                if let windowTitle = getWindowTitle(pid: appPid, bundleId: bundleId) {
-                    let candidates = extractWorkspaceNamesFromElectronIDETitle(windowTitle)
-                    if let storageDir = getDirectoryFromElectronIDEStorage(workspaceNames: candidates, bundleId: bundleId) {
-                        return [
-                            "success": true,
-                            "directory": storageDir,
-                            "appName": appName,
-                            "bundleId": bundleId,
-                            "idePid": appPid,
-                            "method": "electron-ide-storage"
-                        ]
-                    }
                 }
             } else if isJetBrainsIDE(bundleId) {
                 // JetBrains IDEs: First try to get project name from focused window title
