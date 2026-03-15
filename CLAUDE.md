@@ -77,7 +77,7 @@ User Input → Renderer → IPC Event → IPCHandlers (coordinator) → Speciali
 - **Main Process** (`src/main.ts`): Application lifecycle, window management, system interactions
 - **Renderer Process** (`src/renderer/`): UI and user interactions with 13+ specialized managers. See `src/renderer/CLAUDE.md`
 - **Preload Script** (`src/preload/preload.ts`): Secure context bridge with whitelisted IPC channels
-- **IPC Handlers** (`src/handlers/`): 10 specialized files, 50 IPC channels. See `src/handlers/CLAUDE.md`
+- **IPC Handlers** (`src/handlers/`): 10 specialized files, 51 IPC channels. See `src/handlers/CLAUDE.md`
 - **Managers** (`src/managers/`): 16 specialized managers + window sub-module. See `src/managers/CLAUDE.md`
 - **Config** (`src/config/`): Centralized settings with `default-settings.ts` as Single Source of Truth. See `src/config/CLAUDE.md`
 - **Utils** (`src/utils/`): Shared utilities, native tools, file/symbol search. See `src/utils/CLAUDE.md`

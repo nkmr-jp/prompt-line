@@ -15,6 +15,21 @@ import { splitKeywords } from '../lib/keyword-utils';
 import { shellQuote } from '../utils/security';
 
 /**
+ * Recursively shell-quote all string values in an object or array.
+ * Non-string primitives are left as-is so JSON path resolution still works.
+ */
+function deepShellQuote(value: unknown): unknown {
+  if (typeof value === 'string') return shellQuote(value);
+  if (Array.isArray(value)) return value.map(deepShellQuote);
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, deepShellQuote(v)])
+    );
+  }
+  return value;
+}
+
+/**
  * Build a shell-safe copy of TemplateContext by quoting all string values.
  * Used when resolving `command` templates to prevent shell injection (CWE-78).
  */
@@ -25,8 +40,8 @@ function buildShellSafeContext(ctx: TemplateContext): TemplateContext {
     frontmatter: Object.fromEntries(
       Object.entries(ctx.frontmatter).map(([k, v]) => [k, q(v)])
     ),
-    ...(ctx.jsonData !== undefined ? { jsonData: ctx.jsonData } : {}),
-    ...(ctx.parentJsonDataStack !== undefined ? { parentJsonDataStack: ctx.parentJsonDataStack } : {}),
+    ...(ctx.jsonData !== undefined ? { jsonData: deepShellQuote(ctx.jsonData) as Record<string, unknown> } : {}),
+    ...(ctx.parentJsonDataStack !== undefined ? { parentJsonDataStack: (ctx.parentJsonDataStack).map(d => deepShellQuote(d) as Record<string, unknown>) } : {}),
     ...(ctx.prefix !== undefined ? { prefix: q(ctx.prefix) } : {}),
     ...(ctx.dirname !== undefined ? { dirname: q(ctx.dirname) } : {}),
     ...(ctx.filePath !== undefined ? { filePath: q(ctx.filePath) } : {}),
