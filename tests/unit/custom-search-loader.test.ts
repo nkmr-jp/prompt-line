@@ -946,8 +946,8 @@ Content`;
 
       const items = await loader.getItems('command');
 
-      // pattern '*.md' (non-SKILL) → auto-detected as command → codicon-edit-sparkle
-      expect(items[0]?.icon).toBe('codicon-edit-sparkle');
+      // pattern '*.md' (non-SKILL) → auto-detected as command → codicon-terminal
+      expect(items[0]?.icon).toBe('codicon-terminal');
     });
 
     test('should auto-detect lightbulb icon for SKILL.md pattern', async () => {
@@ -960,7 +960,7 @@ Content`;
 
       const items = await skillLoader.getItems('command');
 
-      expect(items[0]?.icon).toBe('codicon-lightbulb');
+      expect(items[0]?.icon).toBe('codicon-edit-sparkle');
     });
   });
 
