@@ -84,3 +84,5 @@
 - Chokidar file watching for individual (non-glob) files with 300ms debounce
 - Same EventEmitter pattern as BuiltInCommandsManager: emits `source-changed` on file changes
 - Streaming JSONL parsing for files >= 1MB (createReadStream + readline)
+- Shell command template resolution with `shellQuote` valueTransform (CWE-78 prevention)
+- Icon auto-detection from file pattern: `SKILL_PATTERN` → codicon-edit-sparkle, others → codicon-terminal
