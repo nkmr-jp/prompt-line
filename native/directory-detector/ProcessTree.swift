@@ -256,7 +256,9 @@ extension DirectoryDetector {
     /// Electron IDE terminal directory detection using targeted pty-host search
     /// This method is designed for Electron-based IDEs (VSCode, Cursor, Windsurf)
     /// where shell processes are children of the "pty-host" process
-    static func getElectronIDETerminalDirectory(appPid: pid_t, bundleId: String) -> (directory: String?, shellPid: pid_t?) {
+    /// When workspaceNameHint is provided, matches shell project roots against the hint
+    /// to detect the correct project in multi-window scenarios
+    static func getElectronIDETerminalDirectory(appPid: pid_t, bundleId: String, workspaceNameHint: String? = nil) -> (directory: String?, shellPid: pid_t?) {
         // Fast approach: Find "pty-host" process under the Electron app
         // Shell processes are direct children of pty-host
         let process = Process()
@@ -274,14 +276,14 @@ extension DirectoryDetector {
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             guard let output = String(data: data, encoding: .utf8) else {
                 // pty-host not found, try fallback
-                return getElectronIDETerminalDirectoryFallback(appPid: appPid)
+                return getElectronIDETerminalDirectoryFallback(appPid: appPid, workspaceNameHint: workspaceNameHint)
             }
 
             // Get pty-host PIDs
             let ptyHostPids = output.split(separator: "\n").compactMap { Int32(String($0)) }
             if ptyHostPids.isEmpty {
                 // pty-host not found, try fallback
-                return getElectronIDETerminalDirectoryFallback(appPid: appPid)
+                return getElectronIDETerminalDirectoryFallback(appPid: appPid, workspaceNameHint: workspaceNameHint)
             }
 
             // For each pty-host, find shell children
@@ -310,7 +312,34 @@ extension DirectoryDetector {
 
                 let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
 
-                // Check each shell, prefer non-home directories, resolve to project root
+                // If workspace name hint is provided, try to match against project root basenames
+                if let hint = workspaceNameHint {
+                    for shellPid in shellPids.prefix(5) {
+                        if let cwd = getCwdFromPid(shellPid),
+                           let projectRoot = findProjectRoot(cwd) {
+                            let rootBasename = (projectRoot as NSString).lastPathComponent
+                            if rootBasename.lowercased() == hint.lowercased() {
+                                return (projectRoot, shellPid)
+                            }
+                        }
+                    }
+                    // Contains match
+                    for shellPid in shellPids.prefix(5) {
+                        if let cwd = getCwdFromPid(shellPid),
+                           let projectRoot = findProjectRoot(cwd) {
+                            let rootBasename = (projectRoot as NSString).lastPathComponent
+                            if rootBasename.lowercased().contains(hint.lowercased()) ||
+                               hint.lowercased().contains(rootBasename.lowercased()) {
+                                return (projectRoot, shellPid)
+                            }
+                        }
+                    }
+                    // Hint was provided but no shell matched - return nil
+                    // so the caller can try storage fallback (state.vscdb)
+                    return (nil, nil)
+                }
+
+                // No hint: check each shell, prefer non-home directories, resolve to project root
                 for shellPid in shellPids.prefix(5) {
                     if let cwd = getCwdFromPid(shellPid), cwd != homeDir {
                         let dir = findProjectRoot(cwd) ?? cwd
@@ -325,9 +354,9 @@ extension DirectoryDetector {
             }
 
             // pty-host found but no shells, try fallback
-            return getElectronIDETerminalDirectoryFallback(appPid: appPid)
+            return getElectronIDETerminalDirectoryFallback(appPid: appPid, workspaceNameHint: workspaceNameHint)
         } catch {
-            return getElectronIDETerminalDirectoryFallback(appPid: appPid)
+            return getElectronIDETerminalDirectoryFallback(appPid: appPid, workspaceNameHint: workspaceNameHint)
         }
     }
 
@@ -335,7 +364,8 @@ extension DirectoryDetector {
     /// Uses pgrep for fast shell discovery and single ps call for parent map building
     /// This handles cases where pty-host is not found (e.g., some VSCode configurations)
     /// Also supports tmux-based terminals (e.g., Antigravity)
-    static func getElectronIDETerminalDirectoryFallback(appPid: pid_t) -> (directory: String?, shellPid: pid_t?) {
+    /// When workspaceNameHint is provided, matches shell project roots against the hint
+    static func getElectronIDETerminalDirectoryFallback(appPid: pid_t, workspaceNameHint: String? = nil) -> (directory: String?, shellPid: pid_t?) {
         // First, try tmux detection (for IDEs like Antigravity that use tmux)
         let tmuxResult = getTmuxTerminalDirectory(appPid: appPid)
         if tmuxResult.directory != nil {
@@ -389,7 +419,35 @@ extension DirectoryDetector {
 
             let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
 
-            // Step 4: Check CWD of each IDE shell, prefer non-home directories, resolve to project root
+            // Step 4: If workspace name hint is provided, match against project root basenames
+            if let hint = workspaceNameHint {
+                // Exact match
+                for shellPid in ideShells.prefix(10) {
+                    if let cwd = getCwdFromPid(shellPid),
+                       let projectRoot = findProjectRoot(cwd) {
+                        let rootBasename = (projectRoot as NSString).lastPathComponent
+                        if rootBasename.lowercased() == hint.lowercased() {
+                            return (projectRoot, shellPid)
+                        }
+                    }
+                }
+                // Contains match
+                for shellPid in ideShells.prefix(10) {
+                    if let cwd = getCwdFromPid(shellPid),
+                       let projectRoot = findProjectRoot(cwd) {
+                        let rootBasename = (projectRoot as NSString).lastPathComponent
+                        if rootBasename.lowercased().contains(hint.lowercased()) ||
+                           hint.lowercased().contains(rootBasename.lowercased()) {
+                            return (projectRoot, shellPid)
+                        }
+                    }
+                }
+                // Hint was provided but no shell matched - return nil
+                // so the caller can try storage fallback (state.vscdb)
+                return (nil, nil)
+            }
+
+            // No hint: prefer non-home directories, resolve to project root
             for shellPid in ideShells.prefix(5) {
                 if let cwd = getCwdFromPid(shellPid), cwd != homeDir {
                     let dir = findProjectRoot(cwd) ?? cwd
