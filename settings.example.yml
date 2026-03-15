@@ -233,7 +233,7 @@ customSearch:
   #   maxSuggestions: 100
   #   orderBy: "{updatedAt} desc"
   #   inputFormat: {filepath}               # Insert format template
-  #   command: "open -a 'Google Chrome' '{filepath}'"            # Shell command on Ctrl+Enter
+  #   command: "open -a 'Google Chrome' {filepath}"            # Shell command on Ctrl+Enter (values are auto-quoted)
 
   # - name: "{json@display}"
   #   icon: history

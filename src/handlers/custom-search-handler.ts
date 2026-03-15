@@ -483,10 +483,15 @@ class CustomSearchHandler {
 
       // Security: verify command matches a loaded custom search item's command
       // This prevents a compromised renderer from executing arbitrary commands
-      const loadedItems = await this.customSearchLoader.getItems('mention');
-      const isAuthorized = loadedItems.some(item => item.command === command);
+      // Check both mention and command types since either can have a command field
+      const [mentionItems, commandItems] = await Promise.all([
+        this.customSearchLoader.getItems('mention'),
+        this.customSearchLoader.getItems('command'),
+      ]);
+      const isAuthorized = mentionItems.some(item => item.command === command)
+        || commandItems.some(item => item.command === command);
       if (!isAuthorized) {
-        logger.warn('Unauthorized command execution attempt blocked', { command });
+        logger.warn('Unauthorized command execution attempt blocked', { commandLength: command.length });
         return { success: false, error: 'Command not authorized' };
       }
 

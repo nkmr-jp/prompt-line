@@ -400,7 +400,7 @@ export const commentedExamples = {
       maxSuggestions: 100,
       orderBy: '{updatedAt} desc',
       inputFormat: '{filepath}',
-      command: "open -a 'Google Chrome' '{filepath}'"
+      command: "open -a 'Google Chrome' {filepath}"
     },
     {
       name: '{json@display}',
