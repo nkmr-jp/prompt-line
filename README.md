@@ -80,7 +80,7 @@ Skip if already installed.
 brew install fd ripgrep
 ```
 
-### Build from Source
+### Prompt Line Installation
 
 1. Clone the repository:
    ```bash
