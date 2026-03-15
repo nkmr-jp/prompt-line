@@ -394,6 +394,12 @@ function buildCustomSearchSection(settings: UserSettings, options: YamlGenerator
   if (options.includeCommentedExamples) {
     const commentedCustomSearch = commentedExamples.customSearch ?? [];
     for (const entry of commentedCustomSearch) {
+      const comment = (entry as Record<string, unknown>)._comment as string | undefined;
+      if (comment) {
+        for (const line of comment.split('\n')) {
+          section += `  # ${line}\n`;
+        }
+      }
       section += formatCustomSearchEntry(entry as MentionEntry, '  ', true) + '\n\n';
     }
   }

@@ -243,6 +243,8 @@ customSearch:
   #   displayTime: "{json@timestamp}"
   #   inputFormat: {json@display}               # Insert format template
 
+  # ghq Repository
+  # add .zshrc (ghq list > ~/.prompt-line/ghq.txt)
   # - name: "{line}"
   #   icon: repo
   #   color: "rose"
