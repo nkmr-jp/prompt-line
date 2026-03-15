@@ -760,6 +760,10 @@ class CustomSearchLoader extends EventEmitter {
     if (entry.triggers) {
       item.triggers = entry.triggers;
     }
+    if (entry.command) {
+      const resolvedCommand = resolveTemplate(entry.command, context);
+      if (resolvedCommand) item.command = resolvedCommand;
+    }
   }
 
   /** Markdown構造化ファイルの拡張子 */

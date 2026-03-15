@@ -150,6 +150,7 @@ function appendCustomSearchOptionalFields(lines: string[], entry: MentionEntry, 
   if (entry.orderBy !== undefined) lines.push(`${p}orderBy: "${entry.orderBy}"`);
   if (entry.displayTime !== undefined) lines.push(`${p}displayTime: "${entry.displayTime}"`);
   if (entry.inputFormat !== undefined) lines.push(`${p}inputFormat: ${entry.inputFormat}               # Insert format template`);
+  if (entry.command) lines.push(`${p}command: "${entry.command}"            # Shell command on Ctrl+Enter`);
 }
 
 /**

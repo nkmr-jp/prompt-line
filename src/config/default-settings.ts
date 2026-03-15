@@ -395,7 +395,8 @@ export const commentedExamples = {
       shortcut: 'Ctrl+g',
       maxSuggestions: 100,
       orderBy: '{updatedAt} desc',
-      inputFormat: '{filepath}'
+      inputFormat: '{filepath}',
+      command: "open -a 'Google Chrome' '{filepath}'"
     },
     {
       name: '{json@display}',
@@ -408,6 +409,19 @@ export const commentedExamples = {
       orderBy: '{json@timestamp} desc',
       inputFormat: '{json@display}',
       displayTime: '{json@timestamp}',
+      maxSuggestions: 100
+    },
+    {
+      name: '{line}',
+      icon: 'repo',
+      color: 'rose',
+      description: '',
+      searchPrefix: 'ghq',
+      shortcut: 'Ctrl+g',
+      command: 'open -a iTerm ~/ghq/{line}',
+      path: '~/.prompt-line',
+      pattern: 'ghq.txt',
+      inputFormat: '~/ghq/{line}',
       maxSuggestions: 100
     }
   ]

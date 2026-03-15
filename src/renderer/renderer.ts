@@ -242,6 +242,9 @@ export class PromptLineRenderer {
         // Replace text range with native Undo/Redo support
         this.domManager.replaceRangeWithUndo(start, end, newText);
       },
+      insertTextAtCursor: (text: string) => {
+        this.domManager.insertTextAtCursor(text);
+      },
       getIsComposing: () => this.eventHandler?.getIsComposing() ?? false,
       showError: (message: string) => this.domManager.showError(message),
       getSkillSource: (skillName: string) => this.agentSkillManager?.getSkillSource(skillName),

@@ -490,6 +490,7 @@ class SettingsManager extends EventEmitter {
     if (mention.icon !== undefined) entry.icon = mention.icon;
     if (mention.enable !== undefined) entry.enable = mention.enable;
     if (mention.disable !== undefined) entry.disable = mention.disable;
+    if (mention.command !== undefined) entry.command = mention.command;
     return entry;
   }
 
