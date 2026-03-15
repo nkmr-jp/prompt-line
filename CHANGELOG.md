@@ -1,5 +1,42 @@
 # Changelog
 
+## [0.28.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.27.2...prompt-line-v0.28.0) (2026-03-15)
+
+
+### Features
+
+* **agent-skills:** add icon support with auto-detection from pattern ([4ffcdf0](https://github.com/nkmr-jp/prompt-line/commit/4ffcdf0c9592304f931d9add753013a1a3a4bc7a))
+* **custom-search:** add Ctrl+Enter command execution for custom search items ([04da505](https://github.com/nkmr-jp/prompt-line/commit/04da505e04ec99185f2310a79fcbd3dbe04445b7))
+
+
+### Bug Fixes
+
+* **agent-skills:** use terminal for commands and edit-sparkle for skills ([3fc229d](https://github.com/nkmr-jp/prompt-line/commit/3fc229d5fe0978e3fb99388005358992e72a1265))
+* **directory-detector:** prioritize window title + state.vscdb for Electron IDE detection ([e11d3aa](https://github.com/nkmr-jp/prompt-line/commit/e11d3aa2d143dcaaddf101bd60329e7c51a0ce74))
+* **fileSearch:** pass maxFiles from settings to DirectoryInfo response ([aa93b3a](https://github.com/nkmr-jp/prompt-line/commit/aa93b3a28dcaa79ec0772af295b217a7f9bbc9f3))
+* **security:** prevent shell injection in custom search command execution ([2c876d3](https://github.com/nkmr-jp/prompt-line/commit/2c876d35f766e6684eb6f4c0e8af09289c4c57cb))
+* **security:** remove double-quoting in command template and expand whitelist ([840cdc4](https://github.com/nkmr-jp/prompt-line/commit/840cdc45ea8584d01edabfde900bf530839c4a41))
+* **security:** replace deepShellQuote with valueTransform to prevent CWE-78 bypass via JSON keys ([876eba5](https://github.com/nkmr-jp/prompt-line/commit/876eba5258178049511678b833386683240caa5e))
+* **security:** shell-quote jsonData in buildShellSafeContext to prevent CWE-78 ([48cc668](https://github.com/nkmr-jp/prompt-line/commit/48cc668a7c7473a5ae270597534830f4a89e6f30))
+
+
+### Documentation
+
+* **native:** add testing workflow and Electron IDE detection strategy to CLAUDE.md ([354aae2](https://github.com/nkmr-jp/prompt-line/commit/354aae2b4242acec316f156d2d169652bcb29e1a))
+* **settings:** add ghq repository comment to custom search example ([3a23bd5](https://github.com/nkmr-jp/prompt-line/commit/3a23bd5ce7cc9f7d8cea9851ae6c469c43a3f342))
+* update CLAUDE.md files for command execution and security boundary ([70b7cd5](https://github.com/nkmr-jp/prompt-line/commit/70b7cd5f11bef5960e346b89e10b3eecca81ca96))
+
+
+### Miscellaneous Chores
+
+* **serena:** add line_ending and read_only_memory_patterns config options ([5d204fd](https://github.com/nkmr-jp/prompt-line/commit/5d204fd3d3f83c990dba010b881cc4f55fcb527b))
+
+
+### Code Refactoring
+
+* **agent-skills:** simplify icon rendering and hoist regex constant ([bf645fb](https://github.com/nkmr-jp/prompt-line/commit/bf645fb3c4bb731df4d38c978edfeaabf862b870))
+* **directory-detector:** extract shared hint matching helper to eliminate duplication ([6aa93de](https://github.com/nkmr-jp/prompt-line/commit/6aa93de266c2101522b29590d2f5b1310e146c02))
+
 ## [0.27.2](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.27.1...prompt-line-v0.27.2) (2026-03-13)
 
 
