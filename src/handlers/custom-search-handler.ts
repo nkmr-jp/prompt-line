@@ -4,6 +4,9 @@ import type CustomSearchLoader from '../managers/custom-search-loader';
 import type SettingsManager from '../managers/settings-manager';
 import type BuiltInCommandsManager from '../managers/built-in-commands-manager';
 import type { AgentSkillItem, AgentItem } from '../types';
+import type { CommandExecutionResult } from '../types/ipc';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import builtInCommandsLoader from '../lib/built-in-commands-loader';
 import { agentSkillCacheManager } from '../managers/agent-skill-cache-manager';
 import type { IPCResult } from './handler-utils';
@@ -64,6 +67,7 @@ class CustomSearchHandler {
     ipcMain.handle('register-global-agent-skill', this.handleRegisterGlobalAgentSkill.bind(this));
     ipcMain.handle('get-global-agent-skills', this.handleGetGlobalAgentSkills.bind(this));
     ipcMain.handle('get-usage-bonuses', this.handleGetUsageBonuses.bind(this));
+    ipcMain.handle('execute-custom-search-command', this.handleExecuteCustomSearchCommand.bind(this));
   }
 
   /**
@@ -81,7 +85,8 @@ class CustomSearchHandler {
       'invalidate-custom-search',
       'register-global-agent-skill',
       'get-global-agent-skills',
-      'get-usage-bonuses'
+      'get-usage-bonuses',
+      'execute-custom-search-command'
     ];
 
     handlers.forEach(handler => {
@@ -295,6 +300,9 @@ class CustomSearchHandler {
         if (item.displayTime !== undefined) {
           agent.displayTime = item.displayTime;
         }
+        if (item.command) {
+          agent.command = item.command;
+        }
         return agent;
       });
 
@@ -458,6 +466,37 @@ class CustomSearchHandler {
     } catch (error) {
       logger.error('Failed to get usage bonuses:', error);
       return {};
+    }
+  }
+  /**
+   * Handler: execute-custom-search-command
+   * Executes a shell command defined in customSearch entry's command field
+   */
+  private async handleExecuteCustomSearchCommand(
+    _event: IpcMainInvokeEvent,
+    command: string
+  ): Promise<CommandExecutionResult> {
+    try {
+      if (!command || typeof command !== 'string') {
+        return { success: false, error: 'Invalid command' };
+      }
+
+      const execAsync = promisify(exec);
+      const { stdout, stderr } = await execAsync(command, {
+        timeout: 30000,
+        env: { ...process.env },
+      });
+
+      const output = (stdout || '').trimEnd();
+      logger.info('Custom search command executed', { command, outputLength: output.length });
+      return { success: true, output: output || undefined, error: stderr ? stderr.trimEnd() : undefined };
+    } catch (error) {
+      const execError = error as { message: string; stderr?: string; signal?: string };
+      const errorMsg = execError.signal === 'SIGTERM'
+        ? 'Command timed out (30s)'
+        : (execError.stderr || execError.message);
+      logger.error('Custom search command failed', { command, error: errorMsg });
+      return { success: false, error: errorMsg };
     }
   }
 }

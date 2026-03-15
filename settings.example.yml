@@ -229,6 +229,7 @@ customSearch:
   #   maxSuggestions: 100
   #   orderBy: "{updatedAt} desc"
   #   inputFormat: {filepath}               # Insert format template
+  #   command: "open -a 'Google Chrome' '{filepath}'"            # Shell command on Ctrl+Enter
 
   # - name: "{json@display}"
   #   icon: history
@@ -241,6 +242,18 @@ customSearch:
   #   orderBy: "{json@timestamp} desc"
   #   displayTime: "{json@timestamp}"
   #   inputFormat: {json@display}               # Insert format template
+
+  # - name: "{line}"
+  #   icon: repo
+  #   color: "rose"
+  #   description: ""
+  #   path: ~/.prompt-line
+  #   pattern: "ghq.txt"
+  #   searchPrefix: ghq            # Search with @ghq:
+  #   shortcut: Ctrl+g              # Keyboard shortcut to activate @ghq:
+  #   maxSuggestions: 100
+  #   inputFormat: ~/ghq/{line}               # Insert format template
+  #   command: "open -a iTerm ~/ghq/{line}"            # Shell command on Ctrl+Enter
 
 # ============================================================================
 # FILE SEARCH SETTINGS

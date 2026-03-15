@@ -654,11 +654,11 @@ describe('IPCHandlers', () => {
 
             ipcHandlers.removeAllHandlers();
 
-            // Should be called for each handler (count: 45 handlers)
+            // Should be called for each handler (count: 46 handlers)
             // paste-handler: 2, window-handler: 3, history-draft-handler: 14 (includes 2 at-path cache handlers + save-draft-to-history)
-            // system-handler: 5, file-handler: 4 (includes reveal-in-finder), custom-search-handler: 11 (includes has-command-file + 3 slash command cache handlers + invalidate-custom-search), code-search-handler: 1
+            // system-handler: 5, file-handler: 4 (includes reveal-in-finder), custom-search-handler: 12 (includes has-command-file + 3 slash command cache handlers + invalidate-custom-search + execute-custom-search-command), code-search-handler: 1
             // usage-history-handler: 6 (record/get bonuses for file, symbol, agent)
-            expect(ipcMain.removeAllListeners).toHaveBeenCalledTimes(45);
+            expect(ipcMain.removeAllListeners).toHaveBeenCalledTimes(46);
             expect(logger.info).toHaveBeenCalledWith('All IPC handlers removed via coordinator');
         });
     });

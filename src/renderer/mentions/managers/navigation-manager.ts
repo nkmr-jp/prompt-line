@@ -93,6 +93,7 @@ export interface NavigationCallbacks {
   getLanguageForFile: (fileName: string) => LanguageInfo | null;
   isCodeSearchAvailable: () => boolean;
   replaceRangeWithUndo?: ((start: number, end: number, text: string) => void) | undefined;
+  insertTextAtCursor?: ((text: string) => void) | undefined;
   addSelectedPath: (path: string) => void;
   updateHighlightBackdrop: () => void;
   resetCodeSearchState: () => void;
@@ -229,11 +230,29 @@ export class NavigationManager {
           }
         }
       } else if (e.ctrlKey) {
-        // Ctrl+Enterでエディタで開く（@検索テキストは削除、パス挿入なし）
+        // Ctrl+Enterでコマンド実行またはエディタで開く
         const suggestion = this.callbacks.getMergedSuggestions()[selectedIndex];
         if (suggestion) {
-          // For agents with inputText that is a URL/path, open the inputText instead of source file
           const agent = suggestion.agent;
+
+          // command フィールドがある場合はコマンドを実行し、出力をテキストエリアに挿入
+          if (agent?.command && electronAPI?.customSearch?.executeCommand) {
+            this.callbacks.removeAtQueryText();
+            this.callbacks.hideSuggestions();
+            electronAPI.customSearch.executeCommand(agent.command)
+              .then((result) => {
+                if (result.output && this.callbacks.insertTextAtCursor) {
+                  this.callbacks.insertTextAtCursor(result.output);
+                }
+                if (!result.success) {
+                  console.warn('[NavigationManager] Command execution failed:', result.error);
+                }
+              })
+              .catch((error) => console.warn('[NavigationManager] executeCustomCommand failed:', error));
+            return;
+          }
+
+          // For agents with inputText that is a URL/path, open the inputText instead of source file
           const openableInputText = agent?.inputText && isOpenablePath(agent.inputText)
             ? agent.inputText
             : null;
@@ -643,9 +662,11 @@ export class NavigationManager {
     const suggestion = this.callbacks.getMergedSuggestions()[selectedIndex];
     if (!suggestion) return;
 
-    const inputText = suggestion.agent?.inputText;
-    if (inputText && isOpenablePath(inputText)) {
-      if (/^https?:\/\//.test(inputText)) {
+    const agent = suggestion.agent;
+    if (agent?.command) {
+      this.callbacks.updateHintText('Ctrl+Enter: execute command');
+    } else if (agent?.inputText && isOpenablePath(agent.inputText)) {
+      if (/^https?:\/\//.test(agent.inputText)) {
         this.callbacks.updateHintText('Ctrl+Enter: open URL in browser');
       } else {
         this.callbacks.updateHintText('Ctrl+Enter: open path / Ctrl+Shift+Enter: reveal in Finder');

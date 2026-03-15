@@ -37,6 +37,7 @@ export interface MentionCallbacks {
   getDefaultHintText?: () => string; // Get default hint text (directory path)
   setDraggable?: (enabled: boolean) => void; // Enable/disable window dragging during file open
   replaceRangeWithUndo?: (start: number, end: number, newText: string) => void; // Replace text range with undo support
+  insertTextAtCursor?: (text: string) => void; // Insert text at current cursor position
   getIsComposing?: () => boolean; // Check if IME is active to avoid conflicts with Japanese input
   showError?: (message: string) => void; // Show error message to user
   getSkillSource?: (commandName: string) => string | undefined; // Get source for agent skill (e.g., "claude", "custom")

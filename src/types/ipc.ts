@@ -40,6 +40,15 @@ export interface IPCResult {
 }
 
 /**
+ * Custom command execution result
+ */
+export interface CommandExecutionResult {
+  success: boolean;
+  output?: string | undefined;
+  error?: string | undefined;
+}
+
+/**
  * Paste operation result
  */
 export interface PasteResult extends IPCResult {
@@ -237,6 +246,7 @@ export interface ElectronAPI {
   customSearch: {
     getMaxSuggestions: (type: 'command' | 'mention') => Promise<number>;
     getSearchPrefixes: (type: 'command' | 'mention') => Promise<string[]>;
+    executeCommand: (command: string) => Promise<CommandExecutionResult>;
   };
   fileSearch: {
     getMaxSuggestions: () => Promise<number>;
