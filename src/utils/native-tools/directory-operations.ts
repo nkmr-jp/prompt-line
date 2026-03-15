@@ -113,7 +113,13 @@ export async function detectCurrentDirectoryWithFiles(options?: DirectoryDetecti
   if (fileResult.files) result.files = fileResult.files;
   if (fileResult.fileCount !== undefined) result.fileCount = fileResult.fileCount;
   if (fileResult.searchMode) result.searchMode = fileResult.searchMode;
-  if (fileResult.partial !== undefined) result.partial = fileResult.partial;
+  if (fileResult.partial !== undefined) {
+    result.partial = fileResult.partial;
+    result.fileLimitReached = fileResult.partial;
+    if (options?.fileSearchSettings?.maxFiles !== undefined) {
+      result.maxFiles = options.fileSearchSettings.maxFiles;
+    }
+  }
 
   return result;
 }
