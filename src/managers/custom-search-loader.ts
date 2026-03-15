@@ -777,6 +777,11 @@ class CustomSearchLoader extends EventEmitter {
       const resolvedIcon = resolveTemplate(entry.icon, context);
       if (resolvedIcon) item.icon = resolvedIcon.startsWith('codicon-') ? resolvedIcon : `codicon-${resolvedIcon}`;
     }
+    // Auto-detect default icon from pattern when not explicitly set
+    if (!item.icon && entry.pattern) {
+      const defaultIcon = /SKILL\.md/i.test(entry.pattern) ? 'codicon-lightbulb' : 'codicon-edit-sparkle';
+      item.icon = defaultIcon;
+    }
     if (entry.argumentHint) {
       const resolvedHint = resolveTemplate(entry.argumentHint, context);
       if (resolvedHint) item.argumentHint = resolvedHint;

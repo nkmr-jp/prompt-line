@@ -636,14 +636,14 @@ export class AgentSkillManager implements IInitializable {
       }
       item.dataset.index = index.toString();
 
-      // Create codicon icon only if explicitly configured
-      if (cmd.icon) {
-        const iconSpan = document.createElement('span');
-        const iconClass = cmd.icon.startsWith('codicon-') ? cmd.icon : `codicon-${cmd.icon}`;
-        iconSpan.className = `file-icon codicon ${iconClass}`;
-        iconSpan.style.color = resolveColorValue(cmd.color, 'var(--color-teal-400)');
-        item.appendChild(iconSpan);
-      }
+      // Create codicon icon (defaults to 'codicon-terminal' if not configured)
+      const iconSpan = document.createElement('span');
+      const iconClass = cmd.icon
+        ? (cmd.icon.startsWith('codicon-') ? cmd.icon : `codicon-${cmd.icon}`)
+        : 'codicon-edit-sparkle';
+      iconSpan.className = `file-icon codicon ${iconClass}`;
+      iconSpan.style.color = resolveColorValue(cmd.color, 'var(--color-teal-400)');
+      item.appendChild(iconSpan);
 
       // Create name element with highlighting
       const nameSpan = document.createElement('span');
