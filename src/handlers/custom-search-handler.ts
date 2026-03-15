@@ -481,6 +481,15 @@ class CustomSearchHandler {
         return { success: false, error: 'Invalid command' };
       }
 
+      // Security: verify command matches a loaded custom search item's command
+      // This prevents a compromised renderer from executing arbitrary commands
+      const loadedItems = await this.customSearchLoader.getItems('mention');
+      const isAuthorized = loadedItems.some(item => item.command === command);
+      if (!isAuthorized) {
+        logger.warn('Unauthorized command execution attempt blocked', { command });
+        return { success: false, error: 'Command not authorized' };
+      }
+
       const execAsync = promisify(exec);
       const { stdout, stderr } = await execAsync(command, {
         timeout: 30000,
@@ -488,14 +497,14 @@ class CustomSearchHandler {
       });
 
       const output = (stdout || '').trimEnd();
-      logger.info('Custom search command executed', { command, outputLength: output.length });
+      logger.info('Custom search command executed', { outputLength: output.length });
       return { success: true, output: output || undefined, error: stderr ? stderr.trimEnd() : undefined };
     } catch (error) {
       const execError = error as { message: string; stderr?: string; signal?: string };
       const errorMsg = execError.signal === 'SIGTERM'
         ? 'Command timed out (30s)'
         : (execError.stderr || execError.message);
-      logger.error('Custom search command failed', { command, error: errorMsg });
+      logger.error('Custom search command failed', { error: errorMsg });
       return { success: false, error: errorMsg };
     }
   }

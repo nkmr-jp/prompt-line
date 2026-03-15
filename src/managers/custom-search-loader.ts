@@ -12,6 +12,30 @@ import { getDefaultCustomSearchConfig, DEFAULT_MAX_SUGGESTIONS, DEFAULT_ORDER_BY
 import { resolveValues } from '../lib/prefix-resolver';
 import { isCommandEnabled } from '../lib/command-name-matcher';
 import { splitKeywords } from '../lib/keyword-utils';
+import { shellQuote } from '../utils/security';
+
+/**
+ * Build a shell-safe copy of TemplateContext by quoting all string values.
+ * Used when resolving `command` templates to prevent shell injection (CWE-78).
+ */
+function buildShellSafeContext(ctx: TemplateContext): TemplateContext {
+  const q = shellQuote;
+  return {
+    basename: q(ctx.basename),
+    frontmatter: Object.fromEntries(
+      Object.entries(ctx.frontmatter).map(([k, v]) => [k, q(v)])
+    ),
+    ...(ctx.jsonData !== undefined ? { jsonData: ctx.jsonData } : {}),
+    ...(ctx.parentJsonDataStack !== undefined ? { parentJsonDataStack: ctx.parentJsonDataStack } : {}),
+    ...(ctx.prefix !== undefined ? { prefix: q(ctx.prefix) } : {}),
+    ...(ctx.dirname !== undefined ? { dirname: q(ctx.dirname) } : {}),
+    ...(ctx.filePath !== undefined ? { filePath: q(ctx.filePath) } : {}),
+    ...(ctx.heading !== undefined ? { heading: q(ctx.heading) } : {}),
+    ...(ctx.line !== undefined ? { line: q(ctx.line) } : {}),
+    ...(ctx.content !== undefined ? { content: q(ctx.content) } : {}),
+    ...(ctx.values ? { values: Object.fromEntries(Object.entries(ctx.values).map(([k, v]) => [k, q(v)])) } : {}),
+  };
+}
 
 /**
  * CustomSearchLoader - 設定ベースの統合Markdownファイルローダー
@@ -761,7 +785,9 @@ class CustomSearchLoader extends EventEmitter {
       item.triggers = entry.triggers;
     }
     if (entry.command) {
-      const resolvedCommand = resolveTemplate(entry.command, context);
+      // Shell-quote all template variable values to prevent shell injection (CWE-78)
+      const shellSafeContext = buildShellSafeContext(context);
+      const resolvedCommand = resolveTemplate(entry.command, shellSafeContext);
       if (resolvedCommand) item.command = resolvedCommand;
     }
   }
