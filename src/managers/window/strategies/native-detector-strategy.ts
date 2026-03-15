@@ -93,6 +93,9 @@ export class NativeDetectorStrategy implements IDirectoryDetectionStrategy {
               }
               if (listResult.partial !== undefined) {
                 result.fileLimitReached = listResult.partial;
+                if (fileSearchSettings?.maxFiles !== undefined) {
+                  result.maxFiles = fileSearchSettings.maxFiles;
+                }
               }
             }
 
