@@ -18,6 +18,8 @@ import { splitKeywords } from '../lib/keyword-utils';
  *
  * AgentSkillLoaderとAgentLoaderを統合し、より柔軟な設定が可能
  */
+const SKILL_PATTERN = /SKILL\.md/i;
+
 class CustomSearchLoader extends EventEmitter {
   private config: CustomSearchEntry[];
   private cache: Map<string, { items: CustomSearchItem[] }> = new Map();
@@ -755,8 +757,7 @@ class CustomSearchLoader extends EventEmitter {
     }
     // Auto-detect default icon from pattern when not explicitly set
     if (!item.icon && entry.pattern) {
-      const defaultIcon = /SKILL\.md/i.test(entry.pattern) ? 'codicon-edit-sparkle' : 'codicon-terminal';
-      item.icon = defaultIcon;
+      item.icon = SKILL_PATTERN.test(entry.pattern) ? 'codicon-edit-sparkle' : 'codicon-terminal';
     }
     if (entry.argumentHint) {
       const resolvedHint = resolveTemplate(entry.argumentHint, context);
