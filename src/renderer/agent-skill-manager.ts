@@ -640,7 +640,7 @@ export class AgentSkillManager implements IInitializable {
       const iconSpan = document.createElement('span');
       const iconClass = cmd.icon
         ? (cmd.icon.startsWith('codicon-') ? cmd.icon : `codicon-${cmd.icon}`)
-        : 'codicon-edit-sparkle';
+        : 'codicon-terminal';
       iconSpan.className = `file-icon codicon ${iconClass}`;
       iconSpan.style.color = resolveColorValue(cmd.color, 'var(--color-teal-400)');
       item.appendChild(iconSpan);
