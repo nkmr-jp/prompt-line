@@ -314,29 +314,8 @@ extension DirectoryDetector {
 
                 // If workspace name hint is provided, try to match against project root basenames
                 if let hint = workspaceNameHint {
-                    for shellPid in shellPids.prefix(5) {
-                        if let cwd = getCwdFromPid(shellPid),
-                           let projectRoot = findProjectRoot(cwd) {
-                            let rootBasename = (projectRoot as NSString).lastPathComponent
-                            if rootBasename.lowercased() == hint.lowercased() {
-                                return (projectRoot, shellPid)
-                            }
-                        }
-                    }
-                    // Contains match
-                    for shellPid in shellPids.prefix(5) {
-                        if let cwd = getCwdFromPid(shellPid),
-                           let projectRoot = findProjectRoot(cwd) {
-                            let rootBasename = (projectRoot as NSString).lastPathComponent
-                            if rootBasename.lowercased().contains(hint.lowercased()) ||
-                               hint.lowercased().contains(rootBasename.lowercased()) {
-                                return (projectRoot, shellPid)
-                            }
-                        }
-                    }
-                    // Hint was provided but no shell matched - return nil
-                    // so the caller can try storage fallback (state.vscdb)
-                    return (nil, nil)
+                    let result = matchShellsByHint(shellPids: Array(shellPids.prefix(5)), hint: hint)
+                    return result
                 }
 
                 // No hint: check each shell, prefer non-home directories, resolve to project root
@@ -421,30 +400,8 @@ extension DirectoryDetector {
 
             // Step 4: If workspace name hint is provided, match against project root basenames
             if let hint = workspaceNameHint {
-                // Exact match
-                for shellPid in ideShells.prefix(10) {
-                    if let cwd = getCwdFromPid(shellPid),
-                       let projectRoot = findProjectRoot(cwd) {
-                        let rootBasename = (projectRoot as NSString).lastPathComponent
-                        if rootBasename.lowercased() == hint.lowercased() {
-                            return (projectRoot, shellPid)
-                        }
-                    }
-                }
-                // Contains match
-                for shellPid in ideShells.prefix(10) {
-                    if let cwd = getCwdFromPid(shellPid),
-                       let projectRoot = findProjectRoot(cwd) {
-                        let rootBasename = (projectRoot as NSString).lastPathComponent
-                        if rootBasename.lowercased().contains(hint.lowercased()) ||
-                           hint.lowercased().contains(rootBasename.lowercased()) {
-                            return (projectRoot, shellPid)
-                        }
-                    }
-                }
-                // Hint was provided but no shell matched - return nil
-                // so the caller can try storage fallback (state.vscdb)
-                return (nil, nil)
+                let result = matchShellsByHint(shellPids: Array(ideShells.prefix(10)), hint: hint)
+                return result
             }
 
             // No hint: prefer non-home directories, resolve to project root
@@ -470,6 +427,33 @@ extension DirectoryDetector {
     /// tmux uses a client-server model where:
     /// - tmux client is spawned by the IDE
     /// - tmux server is a separate process that manages sessions
+    /// Shared hint matching for shell PIDs: single pass with cached cwd/projectRoot,
+    /// exact match preferred over contains match
+    private static func matchShellsByHint(shellPids: [pid_t], hint: String) -> (directory: String?, shellPid: pid_t?) {
+        let hintLower = hint.lowercased()
+        var containsMatch: (String, pid_t)? = nil
+
+        for shellPid in shellPids {
+            guard let cwd = getCwdFromPid(shellPid),
+                  let projectRoot = findProjectRoot(cwd) else { continue }
+            let basenameLower = (projectRoot as NSString).lastPathComponent.lowercased()
+            if basenameLower == hintLower {
+                return (projectRoot, shellPid)
+            }
+            if containsMatch == nil &&
+               (basenameLower.contains(hintLower) || hintLower.contains(basenameLower)) {
+                containsMatch = (projectRoot, shellPid)
+            }
+        }
+
+        if let match = containsMatch {
+            return (match.0, match.1)
+        }
+        // Hint was provided but no shell matched - return nil
+        // so the caller can try storage fallback (state.vscdb)
+        return (nil, nil)
+    }
+
     /// - shell processes are children of the tmux server, not the IDE
     static func getTmuxTerminalDirectory(appPid: pid_t) -> (directory: String?, shellPid: pid_t?) {
         // Step 1: Check if there's a tmux client under the IDE
