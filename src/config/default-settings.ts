@@ -412,6 +412,7 @@ export const commentedExamples = {
       maxSuggestions: 100
     },
     {
+      _comment: 'ghq Repository\nadd .zshrc (ghq list > ~/.prompt-line/ghq.txt)',
       name: '{line}',
       icon: 'repo',
       color: 'rose',
