@@ -164,6 +164,7 @@ export const defaultSettings: UserSettings = {
       path: '~/.claude/commands',
       label: 'command',
       color: 'purple',
+      icon: '{frontmatter@icon}',
       pattern: '*.md',
       argumentHint: '{frontmatter@argument-hint}',
       maxSuggestions: 20
@@ -175,6 +176,7 @@ export const defaultSettings: UserSettings = {
       path: '~/.claude/skills',
       label: 'skill',
       color: 'pink',
+      icon: '{frontmatter@icon}',
       pattern: '**/*/SKILL.md',
       maxSuggestions: 20
     },
@@ -187,6 +189,7 @@ export const defaultSettings: UserSettings = {
       values: { prefix: '**/.claude-plugin/*.json@name' },
       label: 'plugin command',
       color: 'green',
+      icon: '{frontmatter@icon}',
       argumentHint: '{frontmatter@argument-hint}',
       maxSuggestions: 20
     },
@@ -199,6 +202,7 @@ export const defaultSettings: UserSettings = {
       values: { prefix: '**/.claude-plugin/*.json@name' },
       label: 'plugin skill',
       color: 'cyan',
+      icon: '{frontmatter@icon}',
       argumentHint: '{frontmatter@argument-hint}',
       maxSuggestions: 20
     }

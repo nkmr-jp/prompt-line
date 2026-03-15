@@ -96,6 +96,7 @@ agentSkills:
     path: ~/.claude/commands
     label: "command"
     color: "purple"
+    icon: "{frontmatter@icon}"
     pattern: "*.md"
     argumentHint: "{frontmatter@argument-hint}"
     maxSuggestions: 20
@@ -104,6 +105,7 @@ agentSkills:
     path: ~/.claude/skills
     label: "skill"
     color: "pink"
+    icon: "{frontmatter@icon}"
     pattern: "**/*/SKILL.md"
     maxSuggestions: 20
   - name: "{prefix}:{basename}"
@@ -111,6 +113,7 @@ agentSkills:
     path: ~/.claude/plugins/cache
     label: "plugin command"
     color: "green"
+    icon: "{frontmatter@icon}"
     pattern: "**/commands/*.md"
     values:
       prefix: "**/.claude-plugin/*.json@name"
@@ -121,6 +124,7 @@ agentSkills:
     path: ~/.claude/plugins/cache
     label: "plugin skill"
     color: "cyan"
+    icon: "{frontmatter@icon}"
     pattern: "**/*/SKILL.md"
     values:
       prefix: "**/.claude-plugin/*.json@name"
