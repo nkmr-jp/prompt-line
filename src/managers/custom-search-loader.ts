@@ -15,44 +15,6 @@ import { splitKeywords } from '../lib/keyword-utils';
 import { shellQuote } from '../utils/security';
 
 /**
- * Recursively shell-quote all string values in an object or array.
- * Non-string primitives are left as-is so JSON path resolution still works.
- */
-function deepShellQuote(value: unknown): unknown {
-  if (typeof value === 'string') return shellQuote(value);
-  if (Array.isArray(value)) return value.map(deepShellQuote);
-  if (value !== null && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, deepShellQuote(v)])
-    );
-  }
-  return value;
-}
-
-/**
- * Build a shell-safe copy of TemplateContext by quoting all string values.
- * Used when resolving `command` templates to prevent shell injection (CWE-78).
- */
-function buildShellSafeContext(ctx: TemplateContext): TemplateContext {
-  const q = shellQuote;
-  return {
-    basename: q(ctx.basename),
-    frontmatter: Object.fromEntries(
-      Object.entries(ctx.frontmatter).map(([k, v]) => [k, q(v)])
-    ),
-    ...(ctx.jsonData !== undefined ? { jsonData: deepShellQuote(ctx.jsonData) as Record<string, unknown> } : {}),
-    ...(ctx.parentJsonDataStack !== undefined ? { parentJsonDataStack: (ctx.parentJsonDataStack).map(d => deepShellQuote(d) as Record<string, unknown>) } : {}),
-    ...(ctx.prefix !== undefined ? { prefix: q(ctx.prefix) } : {}),
-    ...(ctx.dirname !== undefined ? { dirname: q(ctx.dirname) } : {}),
-    ...(ctx.filePath !== undefined ? { filePath: q(ctx.filePath) } : {}),
-    ...(ctx.heading !== undefined ? { heading: q(ctx.heading) } : {}),
-    ...(ctx.line !== undefined ? { line: q(ctx.line) } : {}),
-    ...(ctx.content !== undefined ? { content: q(ctx.content) } : {}),
-    ...(ctx.values ? { values: Object.fromEntries(Object.entries(ctx.values).map(([k, v]) => [k, q(v)])) } : {}),
-  };
-}
-
-/**
  * CustomSearchLoader - 設定ベースの統合Markdownファイルローダー
  *
  * AgentSkillLoaderとAgentLoaderを統合し、より柔軟な設定が可能
@@ -806,9 +768,10 @@ class CustomSearchLoader extends EventEmitter {
       item.triggers = entry.triggers;
     }
     if (entry.command) {
-      // Shell-quote all template variable values to prevent shell injection (CWE-78)
-      const shellSafeContext = buildShellSafeContext(context);
-      const resolvedCommand = resolveTemplate(entry.command, shellSafeContext);
+      // Shell-quote all resolved template values to prevent shell injection (CWE-78).
+      // valueTransform is applied AFTER resolveJsonPath/getDirname/etc. produce their
+      // final string, so JSON.stringify output (including object keys) is also quoted.
+      const resolvedCommand = resolveTemplate(entry.command, context, shellQuote);
       if (resolvedCommand) item.command = resolvedCommand;
     }
   }

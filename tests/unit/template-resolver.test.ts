@@ -461,3 +461,78 @@ describe('resolveTemplate fallback syntax (pipe)', () => {
     expect(resolveTemplate(template, context)).toBe('test');
   });
 });
+
+describe('valueTransform support', () => {
+  const shellQuote = (v: string) => "'" + v.replace(/'/g, "'\\''") + "'";
+
+  test('{dirname:N} の結果に valueTransform が適用される', () => {
+    expect(resolveTemplate('{dirname:1}', {
+      basename: 'file',
+      frontmatter: {},
+      filePath: '/a/b/c/file.md',
+    }, shellQuote)).toBe("'c'");
+  });
+
+  test('{filepath} に valueTransform が適用される', () => {
+    expect(resolveTemplate('{filepath}', {
+      basename: 'file',
+      frontmatter: {},
+      filePath: '/a/b/file.md',
+    }, shellQuote)).toBe("'/a/b/file.md'");
+  });
+
+  test('valueTransform がシェルメタ文字を含むディレクトリ名を安全にクォートする', () => {
+    expect(resolveTemplate('{dirname:1}', {
+      basename: 'file',
+      frontmatter: {},
+      filePath: '/a/$(malicious)/file.md',
+    }, shellQuote)).toBe("'$(malicious)'");
+  });
+
+  test('valueTransform 未設定時は従来通り動作する', () => {
+    expect(resolveTemplate('{dirname:1}', {
+      basename: 'file',
+      frontmatter: {},
+      filePath: '/a/b/c/file.md',
+    })).toBe('c');
+  });
+
+  test('{dirname}（N なし）にも valueTransform が適用される', () => {
+    expect(resolveTemplate('{dirname}', {
+      basename: 'file',
+      frontmatter: {},
+      dirname: 'my-dir',
+    }, shellQuote)).toBe("'my-dir'");
+  });
+
+  test('{basename} に valueTransform が適用される', () => {
+    expect(resolveTemplate('{basename}', {
+      basename: '$(whoami)',
+      frontmatter: {},
+    }, shellQuote)).toBe("'$(whoami)'");
+  });
+
+  test('{frontmatter@field} に valueTransform が適用される', () => {
+    expect(resolveTemplate('{frontmatter@name}', {
+      basename: 'file',
+      frontmatter: { name: '`evil`' },
+    }, shellQuote)).toBe("'`evil`'");
+  });
+
+  test('{json@path} の JSON.stringify 結果にも valueTransform が適用される', () => {
+    const data = { nested: { '$(whoami)': 'safe' } };
+    expect(resolveTemplate('{json@nested}', {
+      basename: 'file',
+      frontmatter: {},
+      jsonData: data,
+    }, shellQuote)).toBe("'{\"$(whoami)\":\"safe\"}'");
+  });
+
+  test('{content} に valueTransform が適用される', () => {
+    expect(resolveTemplate('{content}', {
+      basename: 'file',
+      frontmatter: {},
+      content: '; rm -rf /',
+    }, shellQuote)).toBe("'; rm -rf /'");
+  });
+});
