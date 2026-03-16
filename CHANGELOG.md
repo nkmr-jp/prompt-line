@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.28.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.28.0...prompt-line-v0.28.1) (2026-03-16)
+
+
+### Bug Fixes
+
+* **security:** upgrade yauzl to 3.2.1 (CVE-2026-31988) ([51e9ea5](https://github.com/nkmr-jp/prompt-line/commit/51e9ea59cae91c137fb179a20a37ac7132986d5f))
+* **security:** upgrade yauzl to 3.2.1 via pnpm override (CVE-2026-31988) ([c14d8dc](https://github.com/nkmr-jp/prompt-line/commit/c14d8dca8d81745eef043af57a7ce7515b807184))
+
 ## [0.28.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.27.2...prompt-line-v0.28.0) (2026-03-15)
 
 
