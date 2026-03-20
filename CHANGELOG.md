@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.28.2](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.28.1...prompt-line-v0.28.2) (2026-03-20)
+
+
+### Documentation
+
+* update Claude Code docs URL and built-in-commands guidelines ([78378c7](https://github.com/nkmr-jp/prompt-line/commit/78378c78b1474e729d1afd2bf7131bd4754f7799))
+
+
+### Miscellaneous Chores
+
+* **built-in-commands:** add new Claude Code commands and update descriptions ([a3ab77f](https://github.com/nkmr-jp/prompt-line/commit/a3ab77f032cbd4274e731a59aff45750a3e2a4de))
+
+
 ## [0.28.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.28.0...prompt-line-v0.28.1) (2026-03-16)
 
 
