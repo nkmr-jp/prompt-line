@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.28.3](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.28.2...prompt-line-v0.28.3) (2026-03-20)
+
+
+### Miscellaneous Chores
+
+* **deps:** bump flatted in the npm_and_yarn group across 1 directory ([d556b44](https://github.com/nkmr-jp/prompt-line/commit/d556b44d1cd7b9fd835c2ad7848b5a663a5d9a42))
+
 ## [0.28.2](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.28.1...prompt-line-v0.28.2) (2026-03-20)
 
 
