@@ -6,7 +6,7 @@
 
 name: claude
 color: amber  # You can also use hex codes like "#FF6B35"
-reference: https://code.claude.com/docs/en/interactive-mode#built-in-commands
+reference: https://code.claude.com/docs/en/commands
 
 commands:
   - name: add-dir
