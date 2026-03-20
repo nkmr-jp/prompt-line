@@ -6,7 +6,7 @@
 
 name: claude
 color: amber  # You can also use hex codes like "#FF6B35"
-reference: https://code.claude.com/docs/en/interactive-mode#built-in-commands
+reference: https://code.claude.com/docs/en/commands
 
 commands:
   - name: add-dir
@@ -26,6 +26,9 @@ commands:
     description: Configure Claude in Chrome (Beta) settings
   - name: clear
     description: "Clear conversation history and free up context (aliases: /reset, /new)"
+  - name: color
+    description: "Set the prompt bar color for the current session. Available colors: red, blue, green, yellow, purple, orange, pink, cyan. Use `default` to reset"
+    argument-hint: "[color|default]"
   - name: compact
     description: Compact conversation with optional focus instructions
     argument-hint: "[instructions]"
@@ -34,7 +37,8 @@ commands:
   - name: context
     description: Visualize current context usage as a colored grid. Shows optimization suggestions for context-heavy tools, memory bloat, and capacity warnings
   - name: copy
-    description: Copy the last assistant response to clipboard. When code blocks are present, shows an interactive picker to select individual blocks or the full response
+    description: "Copy the last assistant response to clipboard. Pass a number N to copy the Nth-latest response (e.g. /copy 2). When code blocks are present, shows an interactive picker to select individual blocks or the full response"
+    argument-hint: "[N]"
   - name: cost
     description: Show token usage statistics
   - name: debug
@@ -46,6 +50,9 @@ commands:
     description: Interactive diff viewer for uncommitted changes and per-turn diffs
   - name: doctor
     description: Diagnose and verify your Claude Code installation and settings
+  - name: effort
+    description: "Set the model effort level. low/medium/high persist across sessions; max applies to the current session only (requires Opus 4.6); auto resets to model default. Without an argument, shows the current level"
+    argument-hint: "[low|medium|high|max|auto]"
   - name: exit
     description: "Exit the CLI. Alias: /quit"
   - name: export
@@ -58,6 +65,9 @@ commands:
     argument-hint: "[on|off]"
   - name: feedback
     description: "Submit feedback about Claude Code. Alias: /bug"
+  - name: branch
+    description: "Create a branch of the current conversation at this point. Alias: /fork"
+    argument-hint: "[name]"
   - name: fork
     description: Create a fork of the current conversation at this point
     argument-hint: "[name]"
@@ -161,3 +171,5 @@ commands:
     description: Open the upgrade page to switch to a higher plan tier
   - name: vim
     description: Toggle between Vim and Normal editing modes
+  - name: voice
+    description: Toggle push-to-talk voice dictation. Requires a Claude.ai account

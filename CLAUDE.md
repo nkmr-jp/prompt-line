@@ -101,11 +101,13 @@ Slash command definitions for CLI tools (Claude Code, Codex CLI, Gemini CLI) sto
 
 **Updating to latest versions:**
 1. Check latest slash commands:
-   - **Claude Code**: [changelog](https://github.com/anthropics/claude-code/releases) / [docs](https://code.claude.com/docs/en/interactive-mode#built-in-commands)
+   - **Claude Code**: [changelog](https://github.com/anthropics/claude-code/releases) / [docs](https://code.claude.com/docs/en/commands)
    - **Codex CLI**: [source](https://github.com/openai/codex) / [docs](https://developers.openai.com/codex/cli/slash-commands/)
    - **Gemini CLI**: [docs](https://google-gemini.github.io/gemini-cli/docs/cli/commands.html) / [releases](https://github.com/google-gemini/gemini-cli/releases)
 2. Edit YAML files in `assets/built-in-commands/` (add/update commands; do not remove existing)
-3. Run `pnpm run update-built-in-commands`
+3. Run `pnpm run update-built-in-commands` (requires `pnpm install` if node_modules is missing)
+
+**Commit type for built-in-commands updates:** Use `chore` (not `feat`)
 
 **YAML format:**
 ```yaml
