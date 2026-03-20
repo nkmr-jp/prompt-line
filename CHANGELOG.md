@@ -3,11 +3,6 @@
 ## [0.28.2](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.28.1...prompt-line-v0.28.2) (2026-03-20)
 
 
-### Bug Fixes
-
-* **security:** upgrade yauzl to 3.2.1 via pnpm override (CVE-2026-31988) ([6347528](https://github.com/nkmr-jp/prompt-line/commit/6347528c89e87207b82bd75b1cc8ecdcbc061417))
-
-
 ### Documentation
 
 * update Claude Code docs URL and built-in-commands guidelines ([78378c7](https://github.com/nkmr-jp/prompt-line/commit/78378c78b1474e729d1afd2bf7131bd4754f7799))
@@ -16,8 +11,7 @@
 ### Miscellaneous Chores
 
 * **built-in-commands:** add new Claude Code commands and update descriptions ([a3ab77f](https://github.com/nkmr-jp/prompt-line/commit/a3ab77f032cbd4274e731a59aff45750a3e2a4de))
-* **main:** release prompt-line 0.28.0 ([b9c96e8](https://github.com/nkmr-jp/prompt-line/commit/b9c96e8f9f7b1f542ae972c074bba373fe6a10db))
-* **main:** release prompt-line 0.28.1 ([b0051d6](https://github.com/nkmr-jp/prompt-line/commit/b0051d6d420e97a40286d9a44268938a549ef802))
+
 
 ## [0.28.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.28.0...prompt-line-v0.28.1) (2026-03-16)
 
