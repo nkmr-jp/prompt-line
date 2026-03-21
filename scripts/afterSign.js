@@ -39,7 +39,6 @@ exports.default = async function afterSign(context) {
   const appName = context.packager.appInfo.productFilename;
   const appPath = path.join(appOutDir, `${appName}.app`);
 
-  console.log('=== Enhanced Custom Code Signing Process ===');
   console.log(`App Path: ${appPath}`);
 
   // Use build/entitlements.mac.plist file
@@ -55,13 +54,12 @@ exports.default = async function afterSign(context) {
     const identity = getSigningIdentity();
     const identityLabel = identity === '-' ? 'ad-hoc' : `"${identity}"`;
 
-    console.log('Removing existing signature...');
-    execSync(`codesign --remove-signature "${appPath}"`);
-
+    // Sign native binaries individually (electron-builder doesn't sign unpacked binaries)
     console.log('Signing native binaries...');
     await signNativeBinaries(appPath, identity);
 
-    console.log(`Applying ${identityLabel} signature...`);
+    // Re-sign entire app bundle (--deep) to ensure consistent Team ID across all components
+    console.log(`Re-signing app bundle with ${identityLabel} signature...`);
     execSync(`codesign --force --deep --sign "${identity}" --entitlements "${entitlementsPath}" "${appPath}"`);
 
     console.log('Verifying signature...');
