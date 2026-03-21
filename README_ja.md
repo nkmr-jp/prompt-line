@@ -67,6 +67,7 @@ Enterを押しても勝手に送信されないので、改行する場合も気
 
 - macOS 10.14以降
 - Node.js 20以上
+- [pnpm](https://pnpm.io/installation)
 - Xcodeコマンドラインツール または Xcode（ネイティブツールのコンパイル用）
 
 ### コマンドインストール
@@ -79,39 +80,20 @@ brew install fd ripgrep
 
 ### Prompt Line の インストール
 
-1. リポジトリをクローン:
-   ```bash
-   git clone https://github.com/nkmr-jp/prompt-line.git
-   cd prompt-line
-   ```
+```bash
+git clone https://github.com/nkmr-jp/prompt-line.git
+cd prompt-line
+git checkout v0.x.x  # 任意: 必要なバージョンタグに置き換え
+pnpm install
+pnpm run setup-codesign # 初回のみ: コード署名証明書をセットアップ
+pnpm run install-app    # ビルドして/Applicationsにインストール
+```
 
-   特定のバージョンをビルドする場合:
-   ```bash
-   git clone https://github.com/nkmr-jp/prompt-line.git
-   cd prompt-line
-   git checkout v0.x.x  # 必要なバージョンタグに置き換え
-   ```
+Prompt Lineを起動。システムトレーにアイコンが表示されます。
 
-2. 依存関係をインストール:
-   ```bash
-   pnpm install
-   ```
-
-3. コード署名証明書をセットアップ（初回のみ、再ビルド時のアクセシビリティ権限維持に必要）:
-   ```bash
-   pnpm run setup-codesign
-   ```
-
-4. アプリケーションをビルドしてインストール:
-   ```bash
-   pnpm run install-app
-   ```
-   お使いのMacのアーキテクチャに合わせてビルドし、`/Applications`に直接インストールします。
-
-5. Prompt Lineを起動。システムトレーにアイコンが表示されます。
 <div><img src="assets/doc6.png" width="200"></div>
 
-6. `Cmd+Shift+Space`で使い始められます。
+`Cmd+Shift+Space`で使い始められます。
 
 ### アクセシビリティ権限
 
@@ -142,11 +124,15 @@ pnpm run reset-accessibility
 
 ## 📦 アップデート
 
-既に古いバージョンをインストール済みで、最新版にアップデートする場合は以下の手順を実行してください。
+既に古いバージョンをインストール済みで、最新版にアップデートする場合:
 
-1. 「📦 インストール」の項目を参照して、再度インストール
-2. `pnpm run migrate-settings`を実行して設定ファイルを最新のデフォルトに移行（既存設定は自動バックアップされます）
-3. `pnpm run update-built-in-commands`を実行してビルトインコマンドを最新版に更新
+```bash
+git pull
+pnpm install
+pnpm run install-app
+pnpm run migrate-settings        # 設定ファイルを最新のデフォルトに移行（自動バックアップ）
+pnpm run update-built-in-commands # ビルトインコマンドを最新版に更新
+```
 
 
 ## 使用方法

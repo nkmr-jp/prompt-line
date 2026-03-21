@@ -70,6 +70,7 @@ These can be customized in the settings file (`~/.prompt-line/settings.yml`). Se
 
 - macOS 10.14 or later
 - Node.js 20 or later
+- [pnpm](https://pnpm.io/installation)
 - Xcode Command Line Tools or Xcode (for compiling native tools)
 
 ### Command Installation
@@ -82,39 +83,20 @@ brew install fd ripgrep
 
 ### Prompt Line Installation
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/nkmr-jp/prompt-line.git
-   cd prompt-line
-   ```
+```bash
+git clone https://github.com/nkmr-jp/prompt-line.git
+cd prompt-line
+git checkout v0.x.x  # Optional: replace with desired version tag
+pnpm install
+pnpm run setup-codesign # One-time: setup code signing certificate
+pnpm run install-app    # Build and install to /Applications
+```
 
-   To build a specific version:
-   ```bash
-   git clone https://github.com/nkmr-jp/prompt-line.git
-   cd prompt-line
-   git checkout v0.x.x  # Replace with desired version tag
-   ```
+Launch Prompt Line. An icon will appear in the system tray.
 
-2. Install dependencies:
-   ```bash
-   pnpm install
-   ```
-
-3. Setup code signing certificate (one-time, keeps Accessibility permissions across rebuilds):
-   ```bash
-   pnpm run setup-codesign
-   ```
-
-4. Build and install the application:
-   ```bash
-   pnpm run install-app
-   ```
-   This builds for your Mac's architecture and installs directly to `/Applications`.
-
-5. Launch Prompt Line. An icon will appear in the system tray.
 <div><img src="assets/doc6.png" width="200"></div>
 
-6. You can start using it with `Cmd+Shift+Space`.
+You can start using it with `Cmd+Shift+Space`.
 
 ### Accessibility Permissions
 
@@ -145,11 +127,15 @@ pnpm run reset-accessibility
 
 ## 📦 Update
 
-If you already have an older version installed and want to update to the latest version, follow these steps.
+If you already have an older version installed and want to update to the latest version:
 
-1. Refer to the “📦 Installation” section and reinstall
-2. Run `pnpm run migrate-settings` to migrate your settings to the latest defaults (existing settings are automatically backed up)
-3. Run `pnpm run update-built-in-commands` to update built-in commands to the latest version
+```bash
+git pull
+pnpm install
+pnpm run install-app
+pnpm run migrate-settings        # Migrate settings to latest defaults (auto-backup)
+pnpm run update-built-in-commands # Update built-in commands to latest version
+```
 
 
 ## Usage
