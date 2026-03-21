@@ -100,22 +100,27 @@ brew install fd ripgrep
    pnpm install
    ```
 
-3. Build the application:
+3. Setup code signing certificate (one-time, keeps Accessibility permissions across rebuilds):
+   ```bash
+   pnpm run setup-codesign
+   ```
+
+4. Build the application:
    ```bash
    pnpm run build
    ```
 
-4. The built app will be created in the `dist/` directory
-5. Open the dmg file:
+5. The built app will be created in the `dist/` directory
+6. Open the dmg file:
    ```bash
    open dist/Prompt-Line-0.x.x-arm64.dmg # Apple Silicon
    open dist/Prompt-Line-0.x.x-x64.dmg # Intel
    ```
-6. Drag Prompt Line.app to Applications folder
-7. Launch Prompt Line. An icon will appear in the system tray.
+7. Drag Prompt Line.app to Applications folder
+8. Launch Prompt Line. An icon will appear in the system tray.
 <div><img src="assets/doc6.png" width="200"></div>
 
-8. You can start using it with `Cmd+Shift+Space`.
+9. You can start using it with `Cmd+Shift+Space`.
 
 ### Accessibility Permissions
 
