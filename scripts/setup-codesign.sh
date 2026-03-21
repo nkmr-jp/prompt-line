@@ -44,11 +44,15 @@ openssl req -x509 -newkey rsa:2048 -nodes \
   2>/dev/null
 
 # Convert to PKCS#12 format for Keychain import
+# Use old-format encryption (PBE-SHA1-3DES) for macOS Keychain compatibility with OpenSSL 3.x
 openssl pkcs12 -export \
+  -certpbe PBE-SHA1-3DES \
+  -keypbe PBE-SHA1-3DES \
+  -macalg sha1 \
   -inkey "${TMPDIR_CERT}/key.pem" \
   -in "${TMPDIR_CERT}/cert.pem" \
   -out "${TMPDIR_CERT}/cert.p12" \
-  -passout pass: \
+  -passout pass:prompt-line \
   -name "${CERT_NAME}" \
   2>/dev/null
 
@@ -57,9 +61,9 @@ security import "${TMPDIR_CERT}/cert.p12" \
   -k "${KEYCHAIN}" \
   -T /usr/bin/codesign \
   -f pkcs12 \
-  -P ""
+  -P "prompt-line"
 
-# Trust the certificate for code signing (may prompt for password)
+# Trust the certificate for code signing (may prompt for login password)
 echo "Setting certificate as trusted for code signing (you may be prompted for your login password)..."
 security add-trusted-cert -p codeSign -k "${KEYCHAIN}" "${TMPDIR_CERT}/cert.pem"
 
