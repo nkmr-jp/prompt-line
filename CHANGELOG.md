@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.28.5](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.28.4...prompt-line-v0.28.5) (2026-03-21)
+
+
+### Bug Fixes
+
+* **build:** preserve accessibility permissions across rebuilds with self-signed certificate ([#278](https://github.com/nkmr-jp/prompt-line/issues/278)) ([6402ce7](https://github.com/nkmr-jp/prompt-line/commit/6402ce774b58a5cfcde2880dd341435e477eac9e))
+
 ## [0.28.4](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.28.3...prompt-line-v0.28.4) (2026-03-21)
 
 
