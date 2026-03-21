@@ -2,6 +2,33 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
+const CERT_NAME = 'Prompt Line';
+
+/**
+ * Detect the best available signing identity.
+ * Priority: CODE_SIGN_IDENTITY env var > "Prompt Line" certificate > ad-hoc ("-")
+ */
+function getSigningIdentity() {
+  const envIdentity = process.env.CODE_SIGN_IDENTITY;
+  if (envIdentity) {
+    console.log(`Using signing identity from CODE_SIGN_IDENTITY: ${envIdentity}`);
+    return envIdentity;
+  }
+
+  try {
+    const result = execSync('security find-identity -v -p codesigning', { encoding: 'utf8' });
+    if (result.includes(`"${CERT_NAME}"`)) {
+      console.log(`Found "${CERT_NAME}" certificate in keychain`);
+      return CERT_NAME;
+    }
+  } catch {
+    // security command failed, fall back to ad-hoc
+  }
+
+  console.log('No signing certificate found, using ad-hoc signing');
+  return '-';
+}
+
 exports.default = async function afterSign(context) {
   const { electronPlatformName, appOutDir } = context;
   
@@ -25,22 +52,25 @@ exports.default = async function afterSign(context) {
   console.log(`Entitlements file: ${entitlementsPath}`);
 
   try {
+    const identity = getSigningIdentity();
+    const identityLabel = identity === '-' ? 'ad-hoc' : `"${identity}"`;
+
     console.log('Removing existing signature...');
     execSync(`codesign --remove-signature "${appPath}"`);
-    
+
     console.log('Signing native binaries...');
-    await signNativeBinaries(appPath);
-    
-    console.log('Applying ad-hoc signature...');
-    execSync(`codesign --force --deep --sign - --entitlements "${entitlementsPath}" "${appPath}"`);
-    
+    await signNativeBinaries(appPath, identity);
+
+    console.log(`Applying ${identityLabel} signature...`);
+    execSync(`codesign --force --deep --sign "${identity}" --entitlements "${entitlementsPath}" "${appPath}"`);
+
     console.log('Verifying signature...');
     execSync(`codesign --verify --verbose "${appPath}"`);
-    
+
     console.log('Running security verification...');
     await runSecurityChecks(appPath);
-    
-    console.log('✅ Enhanced code signing completed successfully');
+
+    console.log(`✅ Code signing completed successfully (${identityLabel})`);
   } catch (error) {
     console.error('Code signing error:', error);
     throw error;
@@ -48,7 +78,7 @@ exports.default = async function afterSign(context) {
 };
 
 // Native binary signing function
-async function signNativeBinaries(appPath) {
+async function signNativeBinaries(appPath, identity) {
   const binariesPath = path.join(appPath, 'Contents', 'Resources', 'app.asar.unpacked', 'dist', 'native-tools');
   
   if (!fs.existsSync(binariesPath)) {
@@ -63,8 +93,7 @@ async function signNativeBinaries(appPath) {
   for (const binary of binaries) {
     const binaryPath = path.join(binariesPath, binary);
     try {
-      // Apply ad-hoc signature to native binary
-      execSync(`codesign --force --sign - "${binaryPath}"`);
+      execSync(`codesign --force --sign "${identity}" "${binaryPath}"`);
       console.log(`✅ Signed: ${binary}`);
     } catch (error) {
       console.warn(`⚠️ Failed to sign ${binary}:`, error.message);

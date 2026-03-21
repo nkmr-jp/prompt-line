@@ -24,6 +24,7 @@
     "test:mutation": "stryker run",
     "pre-push": "pnpm run lint && pnpm run typecheck && pnpm test",
     "prepare": "husky",
+    "setup-codesign": "bash scripts/setup-codesign.sh",
     "reset-accessibility": "tccutil reset Accessibility com.electron.prompt-line && echo '✅ Accessibility permissions for Prompt Line have been reset'",
     "update-built-in-commands": "pnpm exec ts-node scripts/update-built-in-commands.ts",
     "generate:settings-example": "pnpm exec ts-node scripts/generate-settings-example.ts",
