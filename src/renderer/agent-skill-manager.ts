@@ -62,6 +62,7 @@ export class AgentSkillManager implements IInitializable {
   private mirrorDiv: HTMLDivElement | null = null;
   private skills: AgentSkillItem[] = [];
   private sortedSkillsByNameLength: AgentSkillItem[] = []; // Pre-sorted for checkForArgumentHintAtCursor
+  private sortedLowerNamesWithSpace: string[] = []; // Pre-computed lowercase names with trailing space
   private filteredSkills: AgentSkillItem[] = [];
   private selectedIndex: number = 0;
   private isActive: boolean = false;
@@ -299,6 +300,7 @@ export class AgentSkillManager implements IInitializable {
     }
     // Pre-sort by name length descending for checkForArgumentHintAtCursor
     this.sortedSkillsByNameLength = [...this.skills].sort((a, b) => b.name.length - a.name.length);
+    this.sortedLowerNamesWithSpace = this.sortedSkillsByNameLength.map(cmd => cmd.name.toLowerCase() + ' ');
     // Pre-compute searchable fields for each skill (Task #5)
     this.searchableFieldsCache = new Map();
     for (const cmd of this.skills) {
@@ -391,6 +393,17 @@ export class AgentSkillManager implements IInitializable {
     // D7: Compute keywords once here and pass to showSuggestions to avoid duplicate computation
     const lowerQuery = query.toLowerCase();
     const keywords = splitKeywords(lowerQuery);
+
+    // Suppress suggestions once the user has completed a command name and is typing its argument
+    if (keywords.length > 1) {
+      for (const lowerNameWithSpace of this.sortedLowerNamesWithSpace) {
+        if (lowerQuery.startsWith(lowerNameWithSpace)) {
+          if (this.isActive) this.hideSuggestions();
+          return;
+        }
+      }
+    }
+
     const keywordsKey = keywords.join('\0');
     if (keywordsKey === this.lastSkillKeywords && this.isActive) {
       // Keywords unchanged and suggestions already visible - skip re-computation
@@ -424,42 +437,21 @@ export class AgentSkillManager implements IInitializable {
       await this.loadSkills();
     }
 
-    // Cursor must be right after a space (argument input position)
-    if (!textBeforeCursor.endsWith(' ')) {
-      // 編集モード中で、UIが非表示の場合は何もしない（状態を保持）
-      // UIを非表示にするのは checkForAgentSkill() の責任
-      return;
-    }
+    // Find a matching command only when cursor is right after "commandName " (argument position)
+    const matchResult = textBeforeCursor.endsWith(' ')
+      ? this.findCommandAtArgumentPosition(textBeforeCursor)
+      : null;
 
-    // Use known command names to find matching command
-    // sortedSkillsByNameLength is pre-sorted by name length descending (e.g., "Linear API" before "Linear")
-    let matchedSkill: AgentSkillItem | null = null;
-    let commandStartPos = -1;
-    let matchedPrefix = '/';
-
-    for (const cmd of this.sortedSkillsByNameLength) {
-      for (const prefix of this.triggerPrefixes) {
-        const pattern = prefix + cmd.name + ' ';
-        if (textBeforeCursor.endsWith(pattern)) {
-          // Verify it's at start of text or preceded by whitespace
-          const patternStartPos = textBeforeCursor.length - pattern.length;
-          const prevChar = patternStartPos > 0 ? textBeforeCursor[patternStartPos - 1] : '';
-          if (prevChar === '' || prevChar === ' ' || prevChar === '\n' || prevChar === '\t') {
-            matchedSkill = cmd;
-            commandStartPos = patternStartPos;
-            matchedPrefix = prefix;
-            break;
-          }
-        }
+    if (!matchResult) {
+      // Cursor is not adjacent to a command — hide hint and clear editing state
+      if (this.isEditingMode) {
+        this.hideUI();
+        this.resetState();
       }
-      if (matchedSkill) break;
-    }
-
-    if (!matchedSkill || !matchedSkill.argumentHint) {
-      // No command found or command has no argumentHint
-      // 編集モード中でUIが非表示の場合、状態はリセットしない
       return;
     }
+
+    const { skill: matchedSkill, startPos: commandStartPos, prefix: matchedPrefix } = matchResult;
 
     // Track which prefix was matched
     this.activeTriggerPrefix = matchedPrefix;
@@ -473,6 +465,31 @@ export class AgentSkillManager implements IInitializable {
     this.currentTriggerStartPos = commandStartPos;
 
     this.showArgumentHintOnly(matchedSkill);
+  }
+
+  /**
+   * Find a command whose "prefix + name + space" pattern matches the end of textBeforeCursor.
+   * Returns null if no match with an argumentHint is found.
+   */
+  private findCommandAtArgumentPosition(textBeforeCursor: string): {
+    skill: AgentSkillItem; startPos: number; prefix: string;
+  } | null {
+    for (const cmd of this.sortedSkillsByNameLength) {
+      for (const prefix of this.triggerPrefixes) {
+        const pattern = prefix + cmd.name + ' ';
+        if (textBeforeCursor.endsWith(pattern)) {
+          const patternStartPos = textBeforeCursor.length - pattern.length;
+          const prevChar = patternStartPos > 0 ? textBeforeCursor[patternStartPos - 1] : '';
+          if (prevChar === '' || prevChar === ' ' || prevChar === '\n' || prevChar === '\t') {
+            if (cmd.argumentHint) {
+              return { skill: cmd, startPos: patternStartPos, prefix };
+            }
+            return null; // Command found but has no argumentHint
+          }
+        }
+      }
+    }
+    return null;
   }
 
   /**

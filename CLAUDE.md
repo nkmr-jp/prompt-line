@@ -58,9 +58,9 @@ fix(window): resolve positioning issue on multi-monitor setups
 ```
 
 ### Pull Request Guidelines
-- **Target Branch**: Always create PRs against the `develop` branch (not `main`)
+- **Target Branch**: Always create PRs against the `main` branch
 - **Language**: Write all PR titles and descriptions in English
-- **Merge Strategy**: **Squash and merge** for feature PRs to `develop`. **Merge commit** for `develop` → `main`.
+- **Merge Strategy**: **Squash and merge** for feature PRs to `main`.
 
 ### Release Process
 Uses [Release Please](https://github.com/googleapis/release-please) for automated releases. Config: `release-please-config.json`, workflow: `.github/workflows/release-please.yml`. Pushes to `main` trigger Release PR creation with version bump and CHANGELOG updates.
