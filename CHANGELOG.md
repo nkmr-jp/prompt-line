@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.28.7](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.28.6...prompt-line-v0.28.7) (2026-03-21)
+
+
+### Bug Fixes
+
+* **build:** improve build speed and add install-app command ([#283](https://github.com/nkmr-jp/prompt-line/issues/283)) ([14a4666](https://github.com/nkmr-jp/prompt-line/commit/14a4666d15314359fc2137872724f936281e0a8c))
+
 ## [0.28.6](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.28.5...prompt-line-v0.28.6) (2026-03-21)
 
 
