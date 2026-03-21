@@ -153,10 +153,9 @@ pnpm run reset-accessibility
 
 If you already have an older version installed and want to update to the latest version, follow these steps.
 
-1. Run the `pnpm run reset-accessibility` command to reset the accessibility permissions in the “Prompt Line.”
-2. Refer to the “📦 Installation” section and reinstall
-3. Run `pnpm run migrate-settings` to migrate your settings to the latest defaults (existing settings are automatically backed up)
-4. Run `pnpm run update-built-in-commands` to update built-in commands to the latest version
+1. Refer to the “📦 Installation” section and reinstall
+2. Run `pnpm run migrate-settings` to migrate your settings to the latest defaults (existing settings are automatically backed up)
+3. Run `pnpm run update-built-in-commands` to update built-in commands to the latest version
 
 
 ## Usage
