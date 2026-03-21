@@ -280,6 +280,17 @@ window:
             searchPrefix: 'plan',
             inputFormat: '{filepath}'
           }
+        ],
+        plugins: [
+          'prompt-line-plugins/agent-skills/claude-commands',
+          'prompt-line-plugins/agent-skills/claude-skills',
+          'prompt-line-plugins/agent-skills/plugin-commands',
+          'prompt-line-plugins/agent-skills/plugin-skills',
+          'prompt-line-plugins/custom-search/claude-agents',
+          'prompt-line-plugins/custom-search/plugin-agents',
+          'prompt-line-plugins/custom-search/claude-teams',
+          'prompt-line-plugins/custom-search/claude-plans',
+          'prompt-line-plugins/built-in-commands/claude'
         ]
       });
     });
@@ -492,6 +503,17 @@ window:
             searchPrefix: 'plan',
             inputFormat: '{filepath}'
           }
+        ],
+        plugins: [
+          'prompt-line-plugins/agent-skills/claude-commands',
+          'prompt-line-plugins/agent-skills/claude-skills',
+          'prompt-line-plugins/agent-skills/plugin-commands',
+          'prompt-line-plugins/agent-skills/plugin-skills',
+          'prompt-line-plugins/custom-search/claude-agents',
+          'prompt-line-plugins/custom-search/plugin-agents',
+          'prompt-line-plugins/custom-search/claude-teams',
+          'prompt-line-plugins/custom-search/claude-plans',
+          'prompt-line-plugins/built-in-commands/claude'
         ]
       });
 

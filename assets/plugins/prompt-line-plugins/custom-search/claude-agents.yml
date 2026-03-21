@@ -1,0 +1,8 @@
+# Claude Code agents (from ~/.claude/agents/*.md, search with @agent:)
+name: "{basename}(agent)"
+label: agent
+description: "{frontmatter@description}"
+path: ~/.claude/agents
+pattern: "*.md"
+searchPrefix: agent
+displayTime: "{updatedAt}"

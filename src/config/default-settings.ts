@@ -261,6 +261,33 @@ export const defaultSettings: UserSettings = {
     excludePatterns: []    // Additional exclude file patterns (glob syntax)
   },
   /**
+   * Plugin entries to enable (paths relative to ~/.prompt-line/plugins/, without .yml extension)
+   * Comment out entries to disable them.
+   *
+   * Directory determines the plugin type:
+   *   - .../agent-skills/  → Slash commands (type: command, triggered by "/")
+   *   - .../custom-search/ → Mention search (type: mention, triggered by "@prefix:")
+   *   - .../built-in-commands/ → Built-in tool commands (triggered by "/")
+   *
+   * Example (settings.yml):
+   *   plugins:
+   *     - prompt-line-plugins/agent-skills/claude-commands
+   *     - prompt-line-plugins/custom-search/claude-agents
+   *     - prompt-line-plugins/built-in-commands/claude
+   *     # - prompt-line-plugins/built-in-commands/codex   # disabled
+   */
+  plugins: [
+    'prompt-line-plugins/agent-skills/claude-commands',
+    'prompt-line-plugins/agent-skills/claude-skills',
+    'prompt-line-plugins/agent-skills/plugin-commands',
+    'prompt-line-plugins/agent-skills/plugin-skills',
+    'prompt-line-plugins/custom-search/claude-agents',
+    'prompt-line-plugins/custom-search/plugin-agents',
+    'prompt-line-plugins/custom-search/claude-teams',
+    'prompt-line-plugins/custom-search/claude-plans',
+    'prompt-line-plugins/built-in-commands/claude'
+  ],
+  /**
    * Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
    *
    * Search: Space-separated keywords enable AND search (e.g., @agent:dev api)

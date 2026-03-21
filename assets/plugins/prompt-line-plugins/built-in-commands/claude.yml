@@ -1,0 +1,175 @@
+# Claude Code built-in slash commands
+#
+# Color property supports both named colors and hex color codes:
+# - Named colors: grey, darkGrey, slate, stone, red, rose, orange, amber, yellow, lime, green, emerald, teal, cyan, sky, blue, indigo, violet, purple, fuchsia, pink
+# - Hex codes: #RGB or #RRGGBB (e.g., #FF6B35, #F63)
+
+name: claude
+color: amber  # You can also use hex codes like "#FF6B35"
+reference: https://code.claude.com/docs/en/commands
+
+commands:
+  - name: add-dir
+    description: Add a new working directory to the current session
+  - name: agents
+    description: Manage agent configurations
+  - name: bashes
+    description: List and manage background tasks
+  - name: btw
+    description: Ask a quick side question without adding to the conversation. Runs independently even while Claude is processing
+    argument-hint: "<question>"
+  - name: batch
+    description: "Research and plan a large-scale change, then execute it in parallel across 5\u201330 isolated worktree agents that each open a PR"
+  - name: bug
+    description: Report bugs (sends conversation to Anthropic)
+  - name: chrome
+    description: Configure Claude in Chrome (Beta) settings
+  - name: clear
+    description: "Clear conversation history and free up context (aliases: /reset, /new)"
+  - name: color
+    description: "Set the prompt bar color for the current session. Available colors: red, blue, green, yellow, purple, orange, pink, cyan. Use `default` to reset"
+    argument-hint: "[color|default]"
+  - name: compact
+    description: Compact conversation with optional focus instructions
+    argument-hint: "[instructions]"
+  - name: config
+    description: "Open the Settings interface to adjust theme, model, output style, and other preferences. Alias: /settings"
+  - name: context
+    description: Visualize current context usage as a colored grid. Shows optimization suggestions for context-heavy tools, memory bloat, and capacity warnings
+  - name: copy
+    description: "Copy the last assistant response to clipboard. Pass a number N to copy the Nth-latest response (e.g. /copy 2). When code blocks are present, shows an interactive picker to select individual blocks or the full response"
+    argument-hint: "[N]"
+  - name: cost
+    description: Show token usage statistics
+  - name: debug
+    description: Troubleshoot the current session by reading the session debug log
+    argument-hint: "[description]"
+  - name: desktop
+    description: "Continue the current session in the Claude Code Desktop app (macOS and Windows only). Alias: /app"
+  - name: diff
+    description: Interactive diff viewer for uncommitted changes and per-turn diffs
+  - name: doctor
+    description: Diagnose and verify your Claude Code installation and settings
+  - name: effort
+    description: "Set the model effort level. low/medium/high persist across sessions; max applies to the current session only (requires Opus 4.6); auto resets to model default. Without an argument, shows the current level"
+    argument-hint: "[low|medium|high|max|auto]"
+  - name: exit
+    description: "Exit the CLI. Alias: /quit"
+  - name: export
+    description: "Export the current conversation as plain text. With a filename, writes directly to that file; without, opens a dialog to copy to clipboard or save to a file"
+    argument-hint: "[filename]"
+  - name: extra-usage
+    description: Configure extra usage to keep working when rate limits are hit
+  - name: fast
+    description: Toggle Fast mode on or off
+    argument-hint: "[on|off]"
+  - name: feedback
+    description: "Submit feedback about Claude Code. Alias: /bug"
+  - name: branch
+    description: "Create a branch of the current conversation at this point. Alias: /fork"
+    argument-hint: "[name]"
+  - name: fork
+    description: Create a fork of the current conversation at this point
+    argument-hint: "[name]"
+  - name: help
+    description: Get usage help
+  - name: hooks
+    description: Manage hook configurations for tool events
+  - name: ide
+    description: Manage IDE integrations and show status
+  - name: insights
+    description: Generate an analysis report of Claude Code sessions (project areas, operation patterns, friction points)
+  - name: init
+    description: Initialize project with CLAUDE.md guide
+  - name: install-github-app
+    description: Set up Claude GitHub Actions for a repository
+  - name: install-slack-app
+    description: Install the Claude Slack app
+  - name: keybindings
+    description: Open or create your keybindings configuration file
+  - name: login
+    description: Sign in to your Anthropic account
+  - name: loop
+    description: Run a prompt or slash command on a recurring interval (e.g. /loop 5m /foo, defaults to 10m)
+    argument-hint: "[interval] [command]"
+  - name: logout
+    description: Sign out from your Anthropic account
+  - name: mcp
+    description: Manage MCP server connections and OAuth authentication
+  - name: memory
+    description: Edit CLAUDE.md memory files, enable or disable auto-memory, and view auto-memory entries
+  - name: mobile
+    description: "Show QR code to download the Claude mobile app. Aliases: /ios, /android"
+  - name: model
+    description: Select or change the AI model (use left/right arrows to adjust effort level). Takes effect immediately
+  - name: output-style
+    description: "Switch between output styles: Default, Explanatory (educational insights), or Learning (hands-on practice). Supports custom styles"
+    argument-hint: "[style]"
+  - name: passes
+    description: Share a free 1-week Claude Code pass with friends (only shown for eligible accounts)
+  - name: permissions
+    description: "View or update permissions. Alias: /allowed-tools"
+  - name: plan
+    description: Enter plan mode directly from the prompt
+    argument-hint: "[description]"
+  - name: plugin
+    description: Manage Claude Code plugins
+  - name: reload-plugins
+    description: Reload all active plugins to apply pending changes without restarting
+  - name: pr-comments
+    description: Fetch and display comments from a GitHub pull request (auto-detects PR for current branch, requires gh CLI)
+  - name: privacy-settings
+    description: View and update your privacy settings
+  - name: remote-env
+    description: Configure the default remote environment for teleport sessions
+  - name: rc
+    description: Alias for /remote-control
+  - name: release-notes
+    description: View the full changelog, with the most recent version closest to your prompt
+  - name: remote-control
+    description: "Make this session available for remote control from claude.ai. Alias: /rc"
+  - name: rename
+    description: Rename the current session (without a name, generates one from conversation history)
+    argument-hint: "[name]"
+  - name: resume
+    description: "Resume a conversation by ID or name, or open the session picker. Alias: /continue"
+    argument-hint: "[session]"
+  - name: review
+    description: "Deprecated. Install the code-review plugin instead: claude plugin install code-review@claude-code-marketplace"
+  - name: rewind
+    description: "Rewind the conversation and/or code to a previous point, or summarize from a selected message. Alias: /checkpoint"
+  - name: sandbox
+    description: Toggle sandbox mode with filesystem and network isolation. Available on supported platforms only
+  - name: security-review
+    description: Analyze pending changes on the current branch for security vulnerabilities (injection, auth issues, data exposure)
+  - name: simplify
+    description: Review changed code for reuse, quality, and efficiency, then fix any issues found
+  - name: skills
+    description: List available skills
+  - name: stats
+    description: "Visualize daily usage, session history, streaks, and model preferences"
+  - name: status
+    description: "Open the Settings interface (Status tab) showing version, model, account, and connectivity"
+  - name: statusline
+    description: "Configure Claude Code's status line. Describe what you want, or run without arguments to auto-configure from your shell prompt"
+  - name: stickers
+    description: Order Claude Code stickers
+  - name: tasks
+    description: List and manage background tasks
+  - name: teleport
+    description: Resume a remote session from claude.ai (subscribers only)
+    argument-hint: "[session]"
+  - name: terminal-setup
+    description: Configure terminal keybindings for Shift+Enter and other shortcuts (VS Code, Alacritty, Warp)
+  - name: theme
+    description: "Change the color theme. Includes light/dark variants, colorblind-accessible (daltonized), and ANSI themes"
+  - name: todos
+    description: List current TODO items
+  - name: usage
+    description: Show plan usage limits and rate limit status
+  - name: upgrade
+    description: Open the upgrade page to switch to a higher plan tier
+  - name: vim
+    description: Toggle between Vim and Normal editing modes
+  - name: voice
+    description: Toggle push-to-talk voice dictation. Requires a Claude.ai account
