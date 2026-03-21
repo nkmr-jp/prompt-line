@@ -105,22 +105,16 @@ brew install fd ripgrep
    pnpm run setup-codesign
    ```
 
-4. Build the application:
+4. Build and install the application:
    ```bash
-   pnpm run build
+   pnpm run install-app
    ```
+   This builds for your Mac's architecture and installs directly to `/Applications`.
 
-5. The built app will be created in the `dist/` directory
-6. Open the dmg file:
-   ```bash
-   open dist/Prompt-Line-0.x.x-arm64.dmg # Apple Silicon
-   open dist/Prompt-Line-0.x.x-x64.dmg # Intel
-   ```
-7. Drag Prompt Line.app to Applications folder
-8. Launch Prompt Line. An icon will appear in the system tray.
+5. Launch Prompt Line. An icon will appear in the system tray.
 <div><img src="assets/doc6.png" width="200"></div>
 
-9. You can start using it with `Cmd+Shift+Space`.
+6. You can start using it with `Cmd+Shift+Space`.
 
 ### Accessibility Permissions
 

@@ -102,22 +102,16 @@ brew install fd ripgrep
    pnpm run setup-codesign
    ```
 
-4. アプリケーションをビルド:
+4. アプリケーションをビルドしてインストール:
    ```bash
-   pnpm run build
+   pnpm run install-app
    ```
+   お使いのMacのアーキテクチャに合わせてビルドし、`/Applications`に直接インストールします。
 
-5. ビルドされたアプリは `dist/` ディレクトリに作成されます
-6. dmgファイルを開く
-   ```bash
-   open dist/Prompt-Line-0.x.x-arm64.dmg # Apple Silicon
-   open dist/Prompt-Line-0.x.x-x64.dmg # Intel
-   ```
-7. Prompt Line.appをApplicationsフォルダにドラッグ
-8. Prompt Lineを起動。システムトレーにアイコンが表示されます。
+5. Prompt Lineを起動。システムトレーにアイコンが表示されます。
 <div><img src="assets/doc6.png" width="200"></div>
 
-9. `Cmd+Shift+Space`で使い始められます。
+6. `Cmd+Shift+Space`で使い始められます。
 
 ### アクセシビリティ権限
 
