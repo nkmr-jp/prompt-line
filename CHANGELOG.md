@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.28.6](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.28.5...prompt-line-v0.28.6) (2026-03-21)
+
+
+### Documentation
+
+* remove reset-accessibility step from update instructions ([#280](https://github.com/nkmr-jp/prompt-line/issues/280)) ([6187373](https://github.com/nkmr-jp/prompt-line/commit/61873735af12afce5af0a2388962be48c422d53d))
+
 ## [0.28.5](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.28.4...prompt-line-v0.28.5) (2026-03-21)
 
 
