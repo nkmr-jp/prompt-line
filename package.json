@@ -8,7 +8,8 @@
     "compile": "node node_modules/electron/install.js && tsc && pnpm run build:renderer && cd native && make install && cp -r ../src/native-tools ../dist/",
     "build:renderer": "vite build && cp src/renderer/input.html dist/renderer/input.html",
     "typecheck": "tsc --noEmit",
-    "build": "pnpm run compile && electron-builder --mac --publish=never",
+    "build": "pnpm run compile && node scripts/build.js",
+    "install-app": "pnpm run compile && node scripts/install.js",
     "clean": "rm -rf dist/mac* dist/*.dmg dist/*.zip dist/*.blockmap",
     "clean:cache": "rm -rf node_modules/.cache ~/Library/Caches/electron-builder ~/Library/Caches/electron",
     "clean:full": "pnpm run clean && pnpm run clean:cache && rm -rf dist/",
@@ -82,6 +83,7 @@
     "asarUnpack": [
       "dist/native-tools/**/*"
     ],
+    "afterPack": "scripts/afterPack.js",
     "afterSign": "scripts/afterSign.js",
     "mac": {
       "category": "public.app-category.productivity",
@@ -96,16 +98,7 @@
         "NSAppleEventsUsageDescription": "This app needs to control other applications to paste text.",
         "NSAccessibilityUsageDescription": "This app needs accessibility access to paste text into other applications."
       },
-      "target": [
-        {
-          "target": "dmg",
-          "arch": "x64"
-        },
-        {
-          "target": "dmg",
-          "arch": "arm64"
-        }
-      ]
+      "target": ["dmg"]
     },
     "dmg": {
       "contents": [
