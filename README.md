@@ -72,14 +72,7 @@ These can be customized in the settings file (`~/.prompt-line/settings.yml`). Se
 - Node.js 20 or later
 - [pnpm](https://pnpm.io/installation)
 - Xcode Command Line Tools or Xcode (for compiling native tools)
-
-### Command Installation
-
-Install [fd](https://github.com/sharkdp/fd) and [rg (ripgrep)](https://github.com/BurntSushi/ripgrep) commands. Used for file search and symbol search features.
-Skip if already installed.
-```bash
-brew install fd ripgrep
-```
+- [fd](https://github.com/sharkdp/fd) and [rg (ripgrep)](https://github.com/BurntSushi/ripgrep) (for file search and symbol search features)
 
 ### Prompt Line Installation
 

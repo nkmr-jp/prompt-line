@@ -69,14 +69,7 @@ Enterを押しても勝手に送信されないので、改行する場合も気
 - Node.js 20以上
 - [pnpm](https://pnpm.io/installation)
 - Xcodeコマンドラインツール または Xcode（ネイティブツールのコンパイル用）
-
-### コマンドインストール
-
-[fd](https://github.com/sharkdp/fd)と[rg(ripgrep)](https://github.com/BurntSushi/ripgrep)コマンドのインストール。ファイル検索やシンボル検索の機能で使います。
-すでにインストール済みの場合は不要です。
-```bash
-brew install fd ripgrep
-```
+- [fd](https://github.com/sharkdp/fd) と [rg(ripgrep)](https://github.com/BurntSushi/ripgrep)（ファイル検索・シンボル検索機能で使用）
 
 ### Prompt Line の インストール
 
