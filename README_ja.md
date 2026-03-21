@@ -97,22 +97,27 @@ brew install fd ripgrep
    pnpm install
    ```
 
-3. アプリケーションをビルド:
+3. コード署名証明書をセットアップ（初回のみ、再ビルド時のアクセシビリティ権限維持に必要）:
+   ```bash
+   pnpm run setup-codesign
+   ```
+
+4. アプリケーションをビルド:
    ```bash
    pnpm run build
    ```
 
-4. ビルドされたアプリは `dist/` ディレクトリに作成されます
-5. dmgファイルを開く
+5. ビルドされたアプリは `dist/` ディレクトリに作成されます
+6. dmgファイルを開く
    ```bash
    open dist/Prompt-Line-0.x.x-arm64.dmg # Apple Silicon
    open dist/Prompt-Line-0.x.x-x64.dmg # Intel
    ```
-6. Prompt Line.appをApplicationsフォルダにドラッグ
-7. Prompt Lineを起動。システムトレーにアイコンが表示されます。
+7. Prompt Line.appをApplicationsフォルダにドラッグ
+8. Prompt Lineを起動。システムトレーにアイコンが表示されます。
 <div><img src="assets/doc6.png" width="200"></div>
 
-8. `Cmd+Shift+Space`で使い始められます。
+9. `Cmd+Shift+Space`で使い始められます。
 
 ### アクセシビリティ権限
 

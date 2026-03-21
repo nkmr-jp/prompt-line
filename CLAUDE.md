@@ -7,10 +7,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Development
 ```bash
 pnpm start          # Run app in development mode (with DEBUG logging enabled)
+pnpm run setup-codesign          # Create self-signed code signing certificate (one-time setup)
 pnpm run update-built-in-commands # Update slash commands with confirmation
 pnpm run reset-accessibility      # Reset accessibility permissions for Prompt Line
 ```
 
+- `pnpm run setup-codesign` creates a "Prompt Line" self-signed certificate in the login Keychain. Required once before first build to prevent macOS from resetting Accessibility permissions on every rebuild.
 - `pnpm start` sets `LOG_LEVEL=debug` automatically. Packaged apps always use INFO level.
 - Logs: `~/.prompt-line/app.log` (use `tail -f ~/.prompt-line/app.log` for real-time monitoring)
 
@@ -41,6 +43,11 @@ pnpm run generate:settings-example  # Regenerate settings.example.yml
 ```
 
 `pnpm run compile` performs: tsc → Vite renderer build → native tools (`cd native && make install`) → copy to dist.
+
+### Code Signing
+- `scripts/afterSign.js` auto-detects "Prompt Line" certificate in Keychain; falls back to ad-hoc signing if not found
+- Override with `CODE_SIGN_IDENTITY` env var (e.g., `CODE_SIGN_IDENTITY=- pnpm run build` for ad-hoc)
+- Verify signature: `codesign -d --requirements -` should show `certificate leaf = H"..."` (not `cdhash`)
 
 ### Git Hooks
 - **Pre-commit**: ESLint --fix on staged .js/.ts files + TypeScript type checking
