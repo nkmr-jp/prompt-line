@@ -66,7 +66,7 @@ fix(window): resolve positioning issue on multi-monitor setups
 ```
 
 ### Pull Request Guidelines
-- **Target Branch**: Always create PRs against the `main` branch
+- **Target Branch**: `develop` ブランチが存在する場合は `develop` に対してPRを作成する。存在しない場合は `main` に対して作成する
 - **Language**: Write all PR titles and descriptions in English
 - **Merge Strategy**: **Squash and merge** for feature PRs to `main`.
 
