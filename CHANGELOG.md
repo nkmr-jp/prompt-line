@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.28.4](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.28.3...prompt-line-v0.28.4) (2026-03-21)
+
+
+### Bug Fixes
+
+* **agent-skill:** hide hint when cursor moves away from command highlight ([#276](https://github.com/nkmr-jp/prompt-line/issues/276)) ([c36689f](https://github.com/nkmr-jp/prompt-line/commit/c36689f72372dfcfd71b86c6971386ed6172c669))
+
 ## [0.28.3](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.28.2...prompt-line-v0.28.3) (2026-03-20)
 
 
