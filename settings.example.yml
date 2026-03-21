@@ -51,6 +51,29 @@ fileOpener:
   #    editor: "GoLand"
 
 # ============================================================================
+# PLUGINS
+# ============================================================================
+# Plugin entries to enable (paths relative to ~/.prompt-line/plugins/, without .yml extension)
+# Comment out entries to disable them.
+# Directory determines the plugin type:
+#   .../agent-skills/      → Slash commands (type: command, triggered by "/")
+#   .../custom-search/     → Mention search (type: mention, triggered by "@prefix:")
+#   .../built-in-commands/ → Built-in tool commands (triggered by "/")
+# Storage: ~/.prompt-line/plugins/ (YAML files per entry)
+# Hot-reload: YAML file changes are auto-detected (no restart needed)
+
+plugins:
+  - prompt-line-plugins/agent-skills/claude-commands
+  - prompt-line-plugins/agent-skills/claude-skills
+  - prompt-line-plugins/agent-skills/plugin-commands
+  - prompt-line-plugins/agent-skills/plugin-skills
+  - prompt-line-plugins/custom-search/claude-agents
+  - prompt-line-plugins/custom-search/plugin-agents
+  - prompt-line-plugins/custom-search/claude-teams
+  - prompt-line-plugins/custom-search/claude-plans
+  - prompt-line-plugins/built-in-commands/claude
+
+# ============================================================================
 # BUILT-IN COMMANDS
 # ============================================================================
 # Built-in slash commands for CLI tools (Claude Code, Codex, Gemini CLI, etc.)
@@ -233,7 +256,7 @@ customSearch:
   #   maxSuggestions: 100
   #   orderBy: "{updatedAt} desc"
   #   inputFormat: {filepath}               # Insert format template
-  #   command: "open -a 'Google Chrome' {filepath}"            # Shell command on Ctrl+Enter (values are auto-quoted)
+  #   command: "open -a 'Google Chrome' {filepath}"            # Shell command on Ctrl+Enter
 
   # - name: "{json@display}"
   #   icon: history

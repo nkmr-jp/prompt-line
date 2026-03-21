@@ -214,6 +214,27 @@ function buildDirectoriesSection(settings: UserSettings): string {
 }
 
 /**
+ * Build plugins section
+ */
+function buildPluginsSection(settings: UserSettings): string {
+  const plugins = settings.plugins;
+  const hasPlugins = plugins && plugins.length > 0;
+
+  if (!hasPlugins) {
+    return `#plugins:
+#  - prompt-line-plugins/agent-skills/claude-commands
+#  - prompt-line-plugins/built-in-commands/claude`;
+  }
+
+  let section = `plugins:\n`;
+  for (const plugin of plugins) {
+    section += `  - ${plugin}\n`;
+  }
+
+  return section.trimEnd();
+}
+
+/**
  * Build builtInCommands section
  */
 function buildBuiltInCommandsSection(settings: UserSettings, options: YamlGeneratorOptions): string {
@@ -557,11 +578,26 @@ export function generateSettingsYaml(settings: UserSettings, options: YamlGenera
   const builtInCommandsSection = buildBuiltInCommandsSection(settings, options);
   const agentSkillsSection = buildAgentSkillsSection(settings, options);
   const customSearchSection = buildCustomSearchSection(settings, options);
+  const pluginsSection = buildPluginsSection(settings);
   const fileSearchSection = buildFileSearchSection(settings);
   const symbolSearchSection = buildSymbolSearchSection(settings);
   const topSections = buildTopSections(settings, extensionsSection, directoriesSection);
 
   return `${topSections}
+# ============================================================================
+# PLUGINS
+# ============================================================================
+# Plugin entries to enable (paths relative to ~/.prompt-line/plugins/, without .yml extension)
+# Comment out entries to disable them.
+# Directory determines the plugin type:
+#   .../agent-skills/      → Slash commands (type: command, triggered by "/")
+#   .../custom-search/     → Mention search (type: mention, triggered by "@prefix:")
+#   .../built-in-commands/ → Built-in tool commands (triggered by "/")
+# Storage: ~/.prompt-line/plugins/ (YAML files per entry)
+# Hot-reload: YAML file changes are auto-detected (no restart needed)
+
+${pluginsSection}
+
 # ============================================================================
 # BUILT-IN COMMANDS
 # ============================================================================

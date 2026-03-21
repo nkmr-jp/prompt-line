@@ -7,6 +7,7 @@ import chokidar, { type FSWatcher } from 'chokidar';
 import { logger } from '../utils/utils';
 import { defaultSettings as sharedDefaultSettings } from '../config/default-settings';
 import { generateSettingsYaml } from '../config/settings-yaml-generator';
+import pluginLoader from '../lib/plugin-loader';
 import type {
   UserSettings,
   FileSearchSettings,
@@ -510,6 +511,14 @@ class SettingsManager extends EventEmitter {
     // Convert current format to CustomSearchEntry format
     const entries: CustomSearchEntry[] = [];
 
+    // Load entries from plugin YAML files (agent-skills and custom-search only)
+    const enabledPlugins = this.getPluginSettings();
+    if (enabledPlugins.length > 0) {
+      const pluginEntries = pluginLoader.loadPluginEntries(enabledPlugins);
+      entries.push(...pluginEntries);
+    }
+
+    // Merge inline settings entries (these take precedence for backward compatibility)
     const agentSkills = this.currentSettings.agentSkills;
     if (agentSkills && agentSkills.length > 0) {
       entries.push(...agentSkills.map(cmd => this.agentSkillToEntry(cmd)));
@@ -521,6 +530,14 @@ class SettingsManager extends EventEmitter {
     }
 
     return entries;
+  }
+
+  /**
+   * Get enabled plugin paths from settings
+   * Returns the plugins array or defaults if not configured
+   */
+  getPluginSettings(): string[] {
+    return this.currentSettings.plugins || [];
   }
 
   getSettingsFilePath(): string {

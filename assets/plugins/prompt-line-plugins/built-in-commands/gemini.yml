@@ -1,0 +1,105 @@
+# Google Gemini CLI built-in slash commands
+#
+# Color property supports both named colors and hex color codes:
+# - Named colors: grey, darkGrey, slate, stone, red, rose, orange, amber, yellow, lime, green, emerald, teal, cyan, sky, blue, indigo, violet, purple, fuchsia, pink
+# - Hex codes: #RGB or #RRGGBB (e.g., #0066CC, #06C)
+
+name: gemini
+color: indigo  # You can also use hex codes like "#0066CC"
+reference: https://google-gemini.github.io/gemini-cli/docs/cli/commands.html
+
+commands:
+  - name: about
+    description: Display version information
+  - name: agents
+    description: "Manage agents: list, enable, disable, configure, and refresh the agent registry"
+  - name: auth
+    description: Open a dialog to change authentication methods
+  - name: bug
+    description: File an issue about Gemini CLI
+    argument-hint: "[headline]"
+  - name: chat
+    description: Manage conversation history with sub-commands for saving, resuming, listing, deleting, sharing, and debugging chats
+  - name: commands
+    description: Manage custom slash commands loaded from .toml files
+  - name: clear
+    description: Clear the terminal screen including session history and scrollback
+  - name: compact
+    description: "Alias for /compress"
+  - name: compress
+    description: Replace chat context with a summary to reduce token usage
+  - name: copy
+    description: Copy the last output produced by Gemini CLI to your clipboard
+  - name: directory
+    description: Manage workspace directories for multi-directory support
+  - name: dir
+    description: Alias for /directory
+  - name: docs
+    description: Open the Gemini CLI documentation in your browser
+  - name: editor
+    description: Open a dialog for selecting supported editors
+  - name: exit
+    description: Exit Gemini CLI
+  - name: extensions
+    description: "Manage extensions: install, enable, disable, explore, config, update, and more"
+  - name: footer
+    description: Configure which items appear in the footer (statusline)
+  - name: help
+    description: Display help information about Gemini CLI and available commands
+  - name: hooks
+    description: "Manage hooks for intercepting and customizing behavior at lifecycle events"
+    argument-hint: "[disable-all|disable|enable-all|enable|list]"
+  - name: ide
+    description: "Manage IDE integration"
+    argument-hint: "[disable|enable|install|status]"
+  - name: init
+    description: Generate a tailored GEMINI.md context file for your project
+  - name: mcp
+    description: "Manage MCP servers: list, auth, disable, enable, refresh"
+  - name: memory
+    description: Manage hierarchical instructional context loaded from GEMINI.md files
+  - name: model
+    description: "Open model selection dialog or set model directly"
+    argument-hint: "[manage|set <model-name>]"
+  - name: permissions
+    description: Manage folder trust settings and other permissions
+    argument-hint: "[trust <directory-path>]"
+  - name: plan
+    description: Switch to Plan Mode (read-only) and view the current plan
+  - name: policies
+    description: "Manage policies: list all active policies grouped by mode"
+  - name: privacy
+    description: Display the Privacy Notice and data collection preferences
+  - name: quit
+    description: Exit Gemini CLI
+  - name: restore
+    description: Restore project files to a previous state before tool execution
+  - name: resume
+    description: Resume a previous conversation session
+    argument-hint: "[session]"
+  - name: rewind
+    description: Jump back to a specific message and restart the conversation (Esc x2 shortcut)
+  - name: settings
+    description: Open the settings editor to view and modify settings
+  - name: setup-github
+    description: Set up GitHub Actions to triage issues and review PRs with Gemini
+  - name: shortcuts
+    description: Toggle the shortcuts panel above the input
+  - name: shells
+    description: "Toggle background shells view and manage long-running processes. Alias: /bashes"
+  - name: skills
+    description: Manage Agent Skills for specialized workflows
+    argument-hint: "[list|enable|disable|refresh]"
+  - name: stats
+    description: "Display session statistics: session info, model tokens/quota, or per-tool stats"
+    argument-hint: "[session|model|tools]"
+  - name: terminal-setup
+    description: Configure terminal keybindings for multiline input (VS Code, Cursor, Windsurf)
+  - name: theme
+    description: Open a dialog to change the visual theme
+  - name: tools
+    description: Display available tools with optional detailed descriptions
+  - name: upgrade
+    description: Update your Gemini CLI installation to the latest version
+  - name: vim
+    description: Toggle vim-style navigation and editing in the input area
