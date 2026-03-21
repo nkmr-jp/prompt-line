@@ -64,9 +64,17 @@ interface LoadedPlugin {
  * Unified plugin loader for all plugin types.
  * Reads YAML files from ~/.prompt-line/plugins/ and converts them to
  * CustomSearchEntry[] (for agent-skills/custom-search) or AgentSkillItem[] (for built-in-commands).
+ *
+ * Directory structure:
+ *   ~/.prompt-line/plugins/<package>/<hash>/<type>/<name>.yml
+ *   e.g., ~/.prompt-line/plugins/prompt-line-plugins/a53c003/agent-skills/claude-commands.yml
+ *
+ * Plugin paths in settings.yml use the format: <package>/<type>/<name>
+ * The loader automatically resolves to the latest hash directory (by mtime).
  */
 class PluginLoader {
   private cache: Map<string, LoadedPlugin> = new Map();
+  private latestHashCache: Map<string, string> = new Map();
   private pluginsDir: string;
 
   constructor() {
@@ -82,7 +90,6 @@ class PluginLoader {
     if (parts.length < 2) return null;
 
     // The second-to-last directory determines the type
-    // e.g., "prompt-line-plugins/agent-skills/claude-commands" → parts[1] = "agent-skills"
     const typeDir = parts[parts.length - 2];
     if (typeDir === 'agent-skills') return 'agent-skills';
     if (typeDir === 'custom-search') return 'custom-search';
@@ -91,28 +98,99 @@ class PluginLoader {
   }
 
   /**
-   * Load a single plugin by its relative path
+   * Find the latest hash directory for a package.
+   * Looks at all subdirectories under pluginsDir/<package>/ and returns the one
+   * with the most recent mtime.
+   *
+   * e.g., for package "prompt-line-plugins", checks:
+   *   ~/.prompt-line/plugins/prompt-line-plugins/a53c003/
+   *   ~/.prompt-line/plugins/prompt-line-plugins/b1234ef/
+   * Returns the most recent.
    */
+  private findLatestHashDir(packageName: string): string | null {
+    // Check cache first
+    const cached = this.latestHashCache.get(packageName);
+    if (cached) return cached;
+
+    const packageDir = path.join(this.pluginsDir, packageName);
+    if (!fs.existsSync(packageDir)) return null;
+
+    let latestDir: string | null = null;
+    let latestMtime = 0;
+
+    try {
+      const entries = fs.readdirSync(packageDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+
+        const dirPath = path.join(packageDir, entry.name);
+        const stat = fs.statSync(dirPath);
+        if (stat.mtimeMs > latestMtime) {
+          latestMtime = stat.mtimeMs;
+          latestDir = entry.name;
+        }
+      }
+    } catch (error) {
+      logger.warn(`Failed to read package directory: ${packageDir}`, error);
+      return null;
+    }
+
+    if (latestDir) {
+      this.latestHashCache.set(packageName, latestDir);
+    }
+
+    return latestDir;
+  }
+
   /**
-   * Validate that a plugin path stays within the plugins directory
+   * Resolve a plugin path to an actual file path.
+   * Input:  "prompt-line-plugins/agent-skills/claude-commands"
+   * Output: "/home/user/.prompt-line/plugins/prompt-line-plugins/a53c003/agent-skills/claude-commands"
+   *
+   * Also supports non-hash layout (flat) as fallback for backward compatibility.
    */
-  private validatePluginPath(pluginPath: string): string | null {
+  private resolvePluginBasePath(pluginPath: string): string | null {
     // Reject paths with traversal or absolute paths
     if (pluginPath.includes('..') || path.isAbsolute(pluginPath)) {
       logger.warn(`Invalid plugin path rejected: ${pluginPath}`);
       return null;
     }
 
-    const resolvedPath = path.resolve(this.pluginsDir, pluginPath);
-    const normalizedBase = path.resolve(this.pluginsDir);
-    if (!resolvedPath.startsWith(normalizedBase + path.sep) && resolvedPath !== normalizedBase) {
-      logger.warn(`Plugin path traversal attempt blocked: ${pluginPath}`);
+    const parts = pluginPath.split('/');
+    if (parts.length < 3) {
+      logger.warn(`Invalid plugin path format: ${pluginPath}`);
       return null;
     }
 
-    return resolvedPath;
+    const packageName = parts[0] as string;  // e.g., "prompt-line-plugins"
+    const subPath = parts.slice(1).join('/');  // e.g., "agent-skills/claude-commands"
+
+    // Try hash-based layout first: <package>/<hash>/<subpath>
+    const latestHash = this.findLatestHashDir(packageName);
+    if (latestHash) {
+      const hashBasedPath = path.resolve(this.pluginsDir, packageName, latestHash as string, subPath);
+
+      // Validate it stays within plugins dir
+      const normalizedBase = path.resolve(this.pluginsDir);
+      if (hashBasedPath.startsWith(normalizedBase + path.sep)) {
+        return hashBasedPath;
+      }
+    }
+
+    // Fallback: flat layout <package>/<subpath> (backward compat)
+    const flatPath = path.resolve(this.pluginsDir, pluginPath);
+    const normalizedBase = path.resolve(this.pluginsDir);
+    if (flatPath.startsWith(normalizedBase + path.sep)) {
+      return flatPath;
+    }
+
+    logger.warn(`Plugin path traversal attempt blocked: ${pluginPath}`);
+    return null;
   }
 
+  /**
+   * Load a single plugin by its relative path
+   */
   private loadPlugin(pluginPath: string): LoadedPlugin | null {
     // Check cache first
     const cached = this.cache.get(pluginPath);
@@ -124,14 +202,12 @@ class PluginLoader {
       return null;
     }
 
-    // Validate plugin path stays within plugins directory
-    const validatedBase = this.validatePluginPath(pluginPath);
-    if (!validatedBase) return null;
+    const basePath = this.resolvePluginBasePath(pluginPath);
+    if (!basePath) return null;
 
-    const filePath = validatedBase + '.yml';
+    const filePath = basePath + '.yml';
     if (!fs.existsSync(filePath)) {
-      // Try .yaml extension
-      const yamlPath = validatedBase + '.yaml';
+      const yamlPath = basePath + '.yaml';
       if (!fs.existsSync(yamlPath)) {
         logger.debug(`Plugin file not found: ${filePath}`);
         return null;
@@ -330,6 +406,7 @@ class PluginLoader {
    */
   clearCache(): void {
     this.cache.clear();
+    this.latestHashCache.clear();
     logger.debug('Plugin loader cache cleared');
   }
 }
