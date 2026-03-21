@@ -5,7 +5,7 @@
   "main": "dist/main.js",
   "scripts": {
     "start": "LOG_LEVEL=debug pnpm run compile && LOG_LEVEL=debug electron .",
-    "compile": "node node_modules/electron/install.js && tsc && pnpm run build:renderer && cd native && make install && cp -r ../src/native-tools ../dist/",
+    "compile": "node node_modules/electron/install.js && bash scripts/download-search-tools.sh && tsc && pnpm run build:renderer && cd native && make install && cp -r ../src/native-tools ../dist/",
     "build:renderer": "vite build && cp src/renderer/input.html dist/renderer/input.html",
     "typecheck": "tsc --noEmit",
     "build": "pnpm run compile && electron-builder --mac --publish=never",

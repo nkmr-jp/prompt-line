@@ -7,6 +7,7 @@ import { execFile } from 'child_process';
 import { readdir, stat, lstat, realpath } from 'fs/promises';
 import { join, basename, resolve, normalize } from 'path';
 import { logger } from '../logger';
+import { FD_PATH } from '../native-tools/paths';
 import type { FileSearchSettings, FileInfo, DirectoryInfo } from '../../types';
 
 // Restricted directories for security (prevent accidental enumeration of sensitive system directories)
@@ -129,6 +130,7 @@ async function validateAndResolvePath(pathString: string, basePath?: string): Pr
  */
 export async function checkFdAvailable(): Promise<{ fdAvailable: boolean; fdPath: string | null }> {
   const fdPaths = [
+    FD_PATH,                 // Bundled binary
     '/opt/homebrew/bin/fd',  // Apple Silicon Homebrew
     '/usr/local/bin/fd',     // Intel Homebrew
     '/usr/bin/fd',           // System

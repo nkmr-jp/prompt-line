@@ -9,6 +9,7 @@
 
 import { execFile } from 'child_process';
 import { logger } from '../logger';
+import { RG_PATH } from '../native-tools/paths';
 import type {
   SymbolSearchResponse,
   RgCheckResponse,
@@ -647,6 +648,7 @@ const BLOCK_SEARCH_CONFIGS: Record<string, BlockSearchConfig[]> = {
  */
 export async function checkRgAvailable(): Promise<RgCheckResponse> {
   const rgPaths = [
+    RG_PATH,                 // Bundled binary
     '/opt/homebrew/bin/rg',  // Apple Silicon Homebrew
     '/usr/local/bin/rg',     // Intel Homebrew
     '/usr/bin/rg',           // System
