@@ -391,6 +391,18 @@ export class AgentSkillManager implements IInitializable {
     // D7: Compute keywords once here and pass to showSuggestions to avoid duplicate computation
     const lowerQuery = query.toLowerCase();
     const keywords = splitKeywords(lowerQuery);
+
+    // Hide suggestions when cursor is past a completed command name
+    // (user is typing arguments/text after the command, not searching)
+    if (keywords.length > 1) {
+      for (const cmd of this.sortedSkillsByNameLength) {
+        if (lowerQuery.startsWith(cmd.name.toLowerCase() + ' ')) {
+          if (this.isActive) this.hideSuggestions();
+          return;
+        }
+      }
+    }
+
     const keywordsKey = keywords.join('\0');
     if (keywordsKey === this.lastSkillKeywords && this.isActive) {
       // Keywords unchanged and suggestions already visible - skip re-computation
@@ -426,8 +438,10 @@ export class AgentSkillManager implements IInitializable {
 
     // Cursor must be right after a space (argument input position)
     if (!textBeforeCursor.endsWith(' ')) {
-      // 編集モード中で、UIが非表示の場合は何もしない（状態を保持）
-      // UIを非表示にするのは checkForAgentSkill() の責任
+      // カーソルがコマンドの隣でない場合、表示中のhintを非表示にする
+      if (this.isEditingMode) {
+        this.hideUI();
+      }
       return;
     }
 
@@ -456,8 +470,10 @@ export class AgentSkillManager implements IInitializable {
     }
 
     if (!matchedSkill || !matchedSkill.argumentHint) {
-      // No command found or command has no argumentHint
-      // 編集モード中でUIが非表示の場合、状態はリセットしない
+      // カーソルがコマンドの隣でない場合、表示中のhintを非表示にする
+      if (this.isEditingMode) {
+        this.hideUI();
+      }
       return;
     }
 
