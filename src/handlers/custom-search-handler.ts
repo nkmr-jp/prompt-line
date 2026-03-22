@@ -36,6 +36,8 @@ class CustomSearchHandler {
 
     // Subscribe to plugin changes for hot reload
     pluginManagerInstance.on('plugins-changed', () => {
+      pluginLoader.clearCache();
+      this.updateConfig();
       logger.debug('Plugins updated via hot reload');
       this.notifyRenderer();
     });
