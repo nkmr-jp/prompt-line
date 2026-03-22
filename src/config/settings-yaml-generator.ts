@@ -321,7 +321,11 @@ function buildAgentSkillsSection(settings: UserSettings, options: YamlGeneratorO
   let section = buildAgentSkillsHeader();
 
   for (const entry of agentSkills) {
-    section += formatAgentSkillEntry(entry, '  ') + '\n';
+    if (typeof entry === 'string') {
+      section += `  - ${entry}\n`;
+    } else {
+      section += formatAgentSkillEntry(entry, '  ') + '\n';
+    }
   }
 
   if (options.includeCommentedExamples) {
@@ -409,7 +413,11 @@ function buildCustomSearchSection(settings: UserSettings, options: YamlGenerator
   let section = buildCustomSearchHeader();
 
   for (const entry of customSearchEntries) {
-    section += formatCustomSearchEntry(entry, '  ') + '\n\n';
+    if (typeof entry === 'string') {
+      section += `  - ${entry}\n\n`;
+    } else {
+      section += formatCustomSearchEntry(entry, '  ') + '\n\n';
+    }
   }
 
   if (options.includeCommentedExamples) {

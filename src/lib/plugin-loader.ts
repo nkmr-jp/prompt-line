@@ -150,41 +150,49 @@ class PluginLoader {
   }
 
   /**
+   * Read and parse a YAML file safely.
+   * Uses JSON_SCHEMA to prevent arbitrary code execution from malicious YAML.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private readYamlFile(filePath: string): any {
+    try {
+      const content = fs.readFileSync(filePath, 'utf-8');
+      const parsed = yaml.load(content, { schema: yaml.JSON_SCHEMA });
+      if (!parsed || typeof parsed !== 'object') {
+        logger.warn(`Invalid YAML in file: ${filePath}`);
+        return null;
+      }
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Parse a plugin YAML file
    */
   private parsePlugin(filePath: string, pluginPath: string, type: PluginType): LoadedPlugin | null {
-    try {
-      const content = fs.readFileSync(filePath, 'utf-8');
-      // Use JSON_SCHEMA to prevent arbitrary code execution from malicious YAML
-      const parsed = yaml.load(content, { schema: yaml.JSON_SCHEMA });
+    const parsed = this.readYamlFile(filePath);
+    if (!parsed) return null;
 
-      if (!parsed || typeof parsed !== 'object') {
-        logger.warn(`Invalid YAML in plugin file: ${filePath}`);
-        return null;
+    const plugin: LoadedPlugin = {
+      pluginPath,
+      type,
+      entries: [],
+      builtInCommands: []
+    };
+
+    if (type === 'built-in-commands') {
+      plugin.builtInCommands = this.parseBuiltInCommands(parsed as BuiltInCommandsYaml, filePath);
+    } else {
+      const entry = this.parsePluginEntry(parsed as PluginEntryYaml, type);
+      if (entry) {
+        plugin.entries = [entry];
       }
-
-      const plugin: LoadedPlugin = {
-        pluginPath,
-        type,
-        entries: [],
-        builtInCommands: []
-      };
-
-      if (type === 'built-in-commands') {
-        plugin.builtInCommands = this.parseBuiltInCommands(parsed as BuiltInCommandsYaml, filePath);
-      } else {
-        const entry = this.parsePluginEntry(parsed as PluginEntryYaml, type);
-        if (entry) {
-          plugin.entries = [entry];
-        }
-      }
-
-      this.cache.set(pluginPath, plugin);
-      return plugin;
-    } catch (error) {
-      logger.warn(`Failed to parse plugin file: ${filePath}`, error);
-      return null;
     }
+
+    this.cache.set(pluginPath, plugin);
+    return plugin;
   }
 
   /**
@@ -331,6 +339,48 @@ class PluginLoader {
     }
 
     return commands;
+  }
+
+  /**
+   * Load an agent-skills YAML file from ~/.prompt-line/agent-skills/{name}.yml
+   * Returns a CustomSearchEntry with type 'command', or null if not found/invalid.
+   */
+  loadAgentSkillFile(name: string): CustomSearchEntry | null {
+    return this.loadStandaloneFile(name, config.paths.agentSkillsDir, 'agent-skills');
+  }
+
+  /**
+   * Load a custom-search YAML file from ~/.prompt-line/custom-search/{name}.yml
+   * Returns a CustomSearchEntry with type 'mention', or null if not found/invalid.
+   */
+  loadCustomSearchFile(name: string): CustomSearchEntry | null {
+    return this.loadStandaloneFile(name, config.paths.customSearchDir, 'custom-search');
+  }
+
+  /**
+   * Load a standalone YAML file from a directory by name.
+   * Reuses parsePluginEntry for consistent field handling.
+   */
+  private loadStandaloneFile(name: string, dir: string, type: PluginType): CustomSearchEntry | null {
+    if (name.includes('..') || name.includes('/') || name.includes('\\') || path.isAbsolute(name)) {
+      logger.warn(`Invalid standalone entry name rejected: ${name}`);
+      return null;
+    }
+
+    const cacheKey = `standalone:${type}:${name}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached.entries[0] ?? null;
+
+    const basePath = path.join(dir, name);
+    const parsed = this.readYamlFile(basePath + '.yml') ?? this.readYamlFile(basePath + '.yaml');
+    const entry = parsed ? this.parsePluginEntry(parsed, type) : null;
+
+    // Cache both hits and misses to avoid repeated I/O for invalid names
+    this.cache.set(cacheKey, { pluginPath: cacheKey, type, entries: entry ? [entry] : [], builtInCommands: [] });
+    if (!entry) {
+      logger.debug(`Standalone ${type} file not found: ${basePath}.yml`);
+    }
+    return entry;
   }
 
   /**

@@ -207,7 +207,7 @@ class SettingsManager extends EventEmitter {
     return defaultBuiltInCommands;
   }
 
-  private resolveAgentSkills(userSettings: Partial<UserSettings>, rawAgentSkills: unknown): AgentSkillEntry[] {
+  private resolveAgentSkills(userSettings: Partial<UserSettings>, rawAgentSkills: unknown): (AgentSkillEntry | string)[] {
     const defaultAgentSkills = this.defaultSettings.agentSkills ?? [];
 
     if (Array.isArray(userSettings.agentSkills)) {
@@ -433,7 +433,9 @@ class SettingsManager extends EventEmitter {
     const result: NonNullable<UserSettings['mentions']> = {};
     if (this.currentSettings.fileSearch) result.fileSearch = this.currentSettings.fileSearch;
     if (this.currentSettings.symbolSearch) result.symbolSearch = this.currentSettings.symbolSearch;
-    if (this.currentSettings.customSearch) result.customSearch = this.currentSettings.customSearch;
+    if (this.currentSettings.customSearch) {
+      result.customSearch = this.currentSettings.customSearch.filter((item): item is MentionEntry => typeof item !== 'string');
+    }
     if (this.currentSettings.mentionEnable) result.enable = this.currentSettings.mentionEnable;
     if (this.currentSettings.mentionDisable) result.disable = this.currentSettings.mentionDisable;
     return result;
@@ -443,7 +445,7 @@ class SettingsManager extends EventEmitter {
    * Get customSearch mentions for @ syntax
    */
   getCustomSearchMentions(): MentionEntry[] | undefined {
-    return this.currentSettings.customSearch;
+    return this.currentSettings.customSearch?.filter((item): item is MentionEntry => typeof item !== 'string');
   }
 
   /**
@@ -526,12 +528,28 @@ class SettingsManager extends EventEmitter {
     // Merge inline settings entries (these take precedence for backward compatibility)
     const agentSkills = this.currentSettings.agentSkills;
     if (agentSkills && agentSkills.length > 0) {
-      entries.push(...agentSkills.map(cmd => this.agentSkillToEntry(cmd)));
+      for (const item of agentSkills) {
+        if (typeof item === 'string') {
+          // Load from ~/.prompt-line/agent-skills/{name}.yml
+          const entry = pluginLoader.loadAgentSkillFile(item);
+          if (entry) entries.push(entry);
+        } else {
+          entries.push(this.agentSkillToEntry(item));
+        }
+      }
     }
 
     const customSearchMentions = this.currentSettings.customSearch;
     if (customSearchMentions) {
-      entries.push(...customSearchMentions.map(mention => this.mentionToEntry(mention)));
+      for (const item of customSearchMentions) {
+        if (typeof item === 'string') {
+          // Load from ~/.prompt-line/custom-search/{name}.yml
+          const entry = pluginLoader.loadCustomSearchFile(item);
+          if (entry) entries.push(entry);
+        } else {
+          entries.push(this.mentionToEntry(item));
+        }
+      }
     }
 
     return entries;
