@@ -222,8 +222,8 @@ function buildPluginsSection(settings: UserSettings): string {
 
   if (!hasPlugins) {
     return `#plugins:
-#  - prompt-line-plugin/agent-skills/claude-commands
-#  - prompt-line-plugin/built-in-commands/claude`;
+#  - prompt-line-plugin/claude/agent-skills/commands
+#  - prompt-line-plugin/claude/built-in-commands/claude`;
   }
 
   let section = `plugins:\n`;
@@ -243,13 +243,13 @@ function buildBuiltInCommandsSection(settings: UserSettings, options: YamlGenera
 
   if (!hasBuiltInCommands) {
     return `# Built-in slash commands (type "/" to access)
-# @deprecated Use plugins setting instead (prompt-line-plugin/built-in-commands/*)
+# @deprecated Use plugins setting instead (prompt-line-plugin/<tool>/built-in-commands/*)
 #builtInCommands:
 #  - claude`;
   }
 
   let section = `# Built-in slash commands (type "/" to access)
-# @deprecated Use plugins setting instead (prompt-line-plugin/built-in-commands/*)
+# @deprecated Use plugins setting instead (prompt-line-plugin/<tool>/built-in-commands/*)
 builtInCommands:\n`;
   for (const cmd of builtInCommands) {
     section += `  - ${cmd}\n`;
