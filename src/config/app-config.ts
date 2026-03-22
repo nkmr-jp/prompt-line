@@ -108,6 +108,12 @@ class AppConfigClass {
       },
       get pluginsDir() {
         return path.join(userDataDir, 'plugins');
+      },
+      get agentSkillsDir() {
+        return path.join(userDataDir, 'agent-skills');
+      },
+      get customSearchDir() {
+        return path.join(userDataDir, 'custom-search');
       }
     };
 

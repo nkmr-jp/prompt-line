@@ -64,6 +64,8 @@ class PluginManager extends EventEmitter {
   async initialize(): Promise<void> {
     try {
       await ensureDir(this.targetDir);
+      await ensureDir(config.paths.agentSkillsDir);
+      await ensureDir(config.paths.customSearchDir);
 
       if (!fs.existsSync(this.sourceDir)) {
         logger.warn('Plugins source directory does not exist:', this.sourceDir);
@@ -150,7 +152,7 @@ class PluginManager extends EventEmitter {
       return;
     }
 
-    this.watcher = chokidar.watch(this.targetDir, {
+    this.watcher = chokidar.watch([this.targetDir, config.paths.agentSkillsDir, config.paths.customSearchDir], {
       persistent: true,
       ignoreInitial: true,
       depth: 10,

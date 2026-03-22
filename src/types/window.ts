@@ -103,6 +103,8 @@ export interface PathsConfig {
   cacheDir: string;             // Cache root directory
   projectsCacheDir: string;     // Projects cache directory
   pluginsDir: string;           // Plugins directory
+  agentSkillsDir: string;       // Agent skills YAML files directory
+  customSearchDir: string;      // Custom search YAML files directory
 }
 
 export interface TimingConfig {
@@ -165,14 +167,14 @@ export interface UserSettings {
   };
   // Built-in commands: list of tools to enable (e.g., ['claude', 'codex', 'gemini'])
   builtInCommands?: string[];
-  // Agent skills: flat list of custom slash command entries (no more .custom nesting)
-  agentSkills?: AgentSkillEntry[];
+  // Agent skills: inline entries or file names from ~/.prompt-line/agent-skills/
+  agentSkills?: (AgentSkillEntry | string)[];
   // File search settings (@path/to/file completion)
   fileSearch?: FileSearchUserSettings;
   // Symbol search settings (@ts:Config, @go:Handler)
   symbolSearch?: SymbolSearchUserSettings;
-  // Custom search entries for @ mentions (e.g., @agent:, @plan:)
-  customSearch?: MentionEntry[];
+  // Custom search entries: inline entries or file names from ~/.prompt-line/custom-search/
+  customSearch?: (MentionEntry | string)[];
   // Global mention filter: whitelist (exact match: "agent-claude", prefix match: "agent-*")
   mentionEnable?: string[];
   // Global mention filter: blacklist (exact match: "agent-legacy", prefix match: "old-*")
