@@ -1,5 +1,5 @@
-# Plugin skills (from ~/.claude/plugins/cache/**/SKILL.md)
-pluginDescription: "Plugin skills (from ~/.claude/plugins/cache/**/SKILL.md)"
+# Claude Code plugin skills (from ~/.claude/plugins/cache/**/SKILL.md)
+pluginDescription: "Claude Code plugin skills (from ~/.claude/plugins/cache/**/SKILL.md)"
 name: "{prefix}:{frontmatter@name}"
 description: "{frontmatter@description}"
 path: ~/.claude/plugins/cache
