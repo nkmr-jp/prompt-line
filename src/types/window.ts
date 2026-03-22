@@ -103,7 +103,6 @@ export interface PathsConfig {
   cacheDir: string;             // Cache root directory
   projectsCacheDir: string;     // Projects cache directory
   builtInCommandsDir: string;   // Built-in slash commands directory
-  pluginsDir: string;           // Plugins directory
 }
 
 export interface TimingConfig {
@@ -114,7 +113,6 @@ export interface TimingConfig {
 export interface AppConfig {
   name: string;
   version: string;
-  versionDisplay: string;
   description: string;
 }
 
@@ -184,12 +182,6 @@ export interface UserSettings {
   mentions?: MentionsSettings;
   // Legacy: customSearch with type field (for backward compatibility)
   legacyCustomSearch?: CustomSearchEntry[];
-  /**
-   * Plugin entries to enable (paths relative to ~/.prompt-line/plugins/, without .yml extension)
-   * Comment out entries to disable them.
-   * Example: "prompt-line-plugin/agent-skills/claude-commands"
-   */
-  plugins?: string[];
   // Legacy alias: mdSearch (for backward compatibility)
   mdSearch?: CustomSearchEntry[];
   // Legacy: slashCommands (use agentSkills instead)
@@ -466,8 +458,6 @@ export interface CustomSearchEntry {
   disable?: string[];
   /** オプション: Ctrl+Enter で実行するシェルコマンド。テンプレート変数({filepath}, {basename}, {content}等)使用可 */
   command?: string;
-  /** オプション: このファイルが存在するディレクトリを検索対象から除外する（例: ".orphaned_at"） */
-  excludeMarker?: string;
 }
 
 /**

@@ -200,16 +200,15 @@ class BuiltInCommandsManager extends EventEmitter {
    * Cleanup resources
    */
   async destroy(): Promise<void> {
-    // Clear timer first to prevent post-destroy events
-    if (this.reloadDebounceTimer) {
-      clearTimeout(this.reloadDebounceTimer);
-      this.reloadDebounceTimer = null;
-    }
-
     if (this.watcher) {
       await this.watcher.close();
       this.watcher = null;
       logger.info('Built-in commands watcher closed');
+    }
+
+    if (this.reloadDebounceTimer) {
+      clearTimeout(this.reloadDebounceTimer);
+      this.reloadDebounceTimer = null;
     }
 
     this.removeAllListeners();

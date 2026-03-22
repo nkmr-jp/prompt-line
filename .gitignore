@@ -17,9 +17,6 @@ src/**/*.map
 # Native binaries (built from native/ source)
 src/native-tools/
 
-# Generated at build time
-src/generated/
-
 # Local configuration
 .claude/
 .junie/

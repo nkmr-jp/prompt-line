@@ -575,7 +575,7 @@ class CustomSearchLoader extends EventEmitter {
 
     // Parse jq expression from pattern: '**/config.json@.members' → filePattern + jqExpression
     const { filePattern, jqExpression } = this.parseJqPath(entry.pattern);
-    const files = await this.findFiles(expandedPath, filePattern, entry.excludeMarker);
+    const files = await this.findFiles(expandedPath, filePattern);
     const sourceId = `${entry.path}:${entry.pattern}`;
     logger.debug('CustomSearch loadEntry', {
       path: entry.path,
@@ -1170,13 +1170,13 @@ class CustomSearchLoader extends EventEmitter {
    * - "**\/*\/SKILL.md" - 再帰的な任意ディレクトリ内の SKILL.md
    * - "**\/{commands,agents}/*.md" - ブレース展開対応
    */
-  private async findFiles(directory: string, pattern: string, excludeMarker?: string): Promise<string[]> {
+  private async findFiles(directory: string, pattern: string): Promise<string[]> {
     // ブレース展開を処理（例: {commands,agents} → ['commands', 'agents']）
     const expandedPatterns = this.expandBraces(pattern);
 
     const allFiles: string[] = [];
     for (const expandedPattern of expandedPatterns) {
-      const files = await this.findFilesWithPattern(directory, expandedPattern, '', excludeMarker);
+      const files = await this.findFilesWithPattern(directory, expandedPattern, '');
       allFiles.push(...files);
     }
 
@@ -1219,8 +1219,7 @@ class CustomSearchLoader extends EventEmitter {
   private async findFilesWithPattern(
     directory: string,
     pattern: string,
-    relativePath: string,
-    excludeMarker?: string
+    relativePath: string
   ): Promise<string[]> {
     const files: string[] = [];
     const parsed = this.parsePattern(pattern);
@@ -1228,18 +1227,13 @@ class CustomSearchLoader extends EventEmitter {
     try {
       const entries = await fs.readdir(directory, { withFileTypes: true });
 
-      // excludeMarker が指定されている場合、そのファイルが存在するディレクトリをスキップ
-      if (excludeMarker && entries.some(e => e.name === excludeMarker)) {
-        return files;
-      }
-
       for (const entry of entries) {
         const fullPath = path.join(directory, entry.name);
         const entryRelativePath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
         const entryType = await this.resolveEntryType(entry, fullPath);
 
         if (entryType === 'directory') {
-          const dirFiles = await this.processDirectoryEntry(fullPath, entryRelativePath, pattern, parsed, excludeMarker);
+          const dirFiles = await this.processDirectoryEntry(fullPath, entryRelativePath, pattern, parsed);
           files.push(...dirFiles);
         } else if (entryType === 'file' && this.matchesFilePattern(entry.name, entryRelativePath, parsed)) {
           files.push(fullPath);
@@ -1259,8 +1253,7 @@ class CustomSearchLoader extends EventEmitter {
     fullPath: string,
     entryRelativePath: string,
     pattern: string,
-    parsed: ReturnType<typeof this.parsePattern>,
-    excludeMarker?: string
+    parsed: ReturnType<typeof this.parsePattern>
   ): Promise<string[]> {
     if (!parsed.isRecursive) return [];
 
@@ -1273,7 +1266,7 @@ class CustomSearchLoader extends EventEmitter {
     }
 
     // Always recurse into subdirectories
-    const subFiles = await this.findFilesWithPattern(fullPath, pattern, entryRelativePath, excludeMarker);
+    const subFiles = await this.findFilesWithPattern(fullPath, pattern, entryRelativePath);
     files.push(...subFiles);
 
     return files;

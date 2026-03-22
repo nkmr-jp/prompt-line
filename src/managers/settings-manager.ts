@@ -7,7 +7,6 @@ import chokidar, { type FSWatcher } from 'chokidar';
 import { logger } from '../utils/utils';
 import { defaultSettings as sharedDefaultSettings } from '../config/default-settings';
 import { generateSettingsYaml } from '../config/settings-yaml-generator';
-import pluginLoader from '../lib/plugin-loader';
 import type {
   UserSettings,
   FileSearchSettings,
@@ -184,8 +183,8 @@ class SettingsManager extends EventEmitter {
     return { custom, customSearchMentions };
   }
 
-  private resolveBuiltInCommands(userSettings: Partial<UserSettings>, rawAgentSkills: unknown): string[] | undefined {
-    const defaultBuiltInCommands = this.defaultSettings.builtInCommands;
+  private resolveBuiltInCommands(userSettings: Partial<UserSettings>, rawAgentSkills: unknown): string[] {
+    const defaultBuiltInCommands = this.defaultSettings.builtInCommands ?? ['claude'];
 
     if (Array.isArray(userSettings.builtInCommands)) {
       return userSettings.builtInCommands;
@@ -287,15 +286,10 @@ class SettingsManager extends EventEmitter {
     const resolvedMentionDisable = userSettings.mentionDisable ?? userSettings.mentions?.disable;
     if (resolvedMentionDisable) result.mentionDisable = resolvedMentionDisable;
 
-    // Handle plugins
-    const resolvedPlugins = userSettings.plugins ?? this.defaultSettings.plugins;
-    if (resolvedPlugins) result.plugins = resolvedPlugins;
-
     // Handle builtInCommands and agentSkills
     // Priority: root builtInCommands > legacy agentSkills.builtInCommands > legacy builtInCommands.tools > defaults
     const rawAgentSkills = userSettings.agentSkills as unknown;
-    const resolvedBuiltInCommands = this.resolveBuiltInCommands(userSettings, rawAgentSkills);
-    if (resolvedBuiltInCommands) result.builtInCommands = resolvedBuiltInCommands;
+    result.builtInCommands = this.resolveBuiltInCommands(userSettings, rawAgentSkills);
     result.agentSkills = this.resolveAgentSkills(userSettings, rawAgentSkills);
 
     // Handle legacy settings (mdSearch) for backward compatibility
@@ -516,14 +510,6 @@ class SettingsManager extends EventEmitter {
     // Convert current format to CustomSearchEntry format
     const entries: CustomSearchEntry[] = [];
 
-    // Load entries from plugin YAML files (agent-skills and custom-search only)
-    const enabledPlugins = this.getPluginSettings();
-    if (enabledPlugins.length > 0) {
-      const pluginEntries = pluginLoader.loadPluginEntries(enabledPlugins);
-      entries.push(...pluginEntries);
-    }
-
-    // Merge inline settings entries (these take precedence for backward compatibility)
     const agentSkills = this.currentSettings.agentSkills;
     if (agentSkills && agentSkills.length > 0) {
       entries.push(...agentSkills.map(cmd => this.agentSkillToEntry(cmd)));
@@ -535,14 +521,6 @@ class SettingsManager extends EventEmitter {
     }
 
     return entries;
-  }
-
-  /**
-   * Get enabled plugin paths from settings
-   * Returns the plugins array or defaults if not configured
-   */
-  getPluginSettings(): string[] {
-    return this.currentSettings.plugins || [];
   }
 
   getSettingsFilePath(): string {

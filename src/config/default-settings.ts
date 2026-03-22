@@ -102,33 +102,111 @@ export const defaultSettings: UserSettings = {
   },
   /**
    * Built-in slash commands to enable (type "/" to access)
-   * @deprecated Use plugins setting instead. Kept for backward compatibility.
-   * undefined = disabled (use plugins instead), [] = all enabled, ['claude'] = only claude
+   *
+   * Each entry corresponds to a tool's built-in command YAML in ~/.prompt-line/built-in-commands/
+   * Available: 'claude', 'openclaw', 'codex', 'gemini', etc.
    *
    * Example (settings.yml):
    *   builtInCommands:
    *     - claude
+   *     - codex
+   *     - gemini
    */
-  // Not set: disabled by default. Use plugins setting instead.
+  builtInCommands: ['claude'],
   /**
    * Agent skills — custom slash commands loaded from markdown files (type "/" to access)
-   * @deprecated Use plugins setting instead. Kept for backward compatibility.
-   * Inline entries here are merged with plugin file entries.
+   *
+   * Search: Space-separated keywords enable AND search (e.g., "/commit fix" matches both words)
+   *
+   * Each entry defines a source directory and pattern to scan for skill files.
+   * Template variables for name/description:
+   *   {basename}              — File name without extension
+   *   {frontmatter@field}     — YAML frontmatter field value (e.g., {frontmatter@description})
+   *   {prefix}                — Prefix extracted via prefixPattern
+   *   {dirname}               — Parent directory name
+   *   {dirname:N}             — N levels up directory name (e.g., {dirname:2} = grandparent)
+   *
+   * Configuration fields:
+   *   name            — Display name template
+   *   description     — Description template
+   *   path            — Directory path to scan (supports ~ for home)
+   *   pattern         — Glob pattern to match files (e.g., "*.md", "SKILL.md in subdirs")
+   *   label           — UI badge label (e.g., "command", "skill")
+   *   color           — Badge color (name or hex, e.g., "purple", "#FF5733")
+   *                     Names: grey, darkGrey, slate, stone, red, rose, orange, amber, yellow, lime, green,
+   *                            emerald, teal, cyan, sky, blue, indigo, violet, purple, fuchsia, pink
+   *   icon            — Codicon icon name (e.g., "agent", "rocket", "terminal")
+   *                     See: https://microsoft.github.io/vscode-codicons/dist/codicon.html
+   *   values          — Map of template variable names to JSON extraction patterns
+   *   prefixPattern   — (deprecated) Use values instead
+   *   argumentHint    — Hint text for skill arguments
+   *   maxSuggestions  — Max number of suggestions to display
+   *   triggers        — Trigger character array (default: ['/']). e.g., ['/', '$'] enables both / and $ activation
    *
    * Example (settings.yml):
    *   agentSkills:
    *     - name: "{basename}"
    *       description: "{frontmatter@description}"
    *       path: ~/.claude/commands
+   *       label: "command"
+   *       color: "purple"
    *       pattern: "*.md"
+   *       triggers: ['/', '$']
+   *       values:
+   *         pluginName: "path/to/metadata.json@fieldName"
+   *       maxSuggestions: 20
    */
-  agentSkills: [] as Array<{
-    name: string;
-    description: string;
-    path: string;
-    pattern: string;
-    [key: string]: unknown;
-  }>,
+  agentSkills: [
+    // Claude Code custom commands (from ~/.claude/commands/*.md)
+    {
+      name: '{basename}',
+      description: '{frontmatter@description}',
+      path: '~/.claude/commands',
+      label: 'command',
+      color: 'purple',
+      icon: '{frontmatter@icon}',
+      pattern: '*.md',
+      argumentHint: '{frontmatter@argument-hint}',
+      maxSuggestions: 20
+    },
+    // Claude Code skills (from ~/.claude/skills/**/SKILL.md)
+    {
+      name: '{frontmatter@name}',
+      description: '{frontmatter@description}',
+      path: '~/.claude/skills',
+      label: 'skill',
+      color: 'pink',
+      icon: '{frontmatter@icon}',
+      pattern: '**/*/SKILL.md',
+      maxSuggestions: 20
+    },
+    // Plugin commands (from ~/.claude/plugins/cache/**/commands/*.md)
+    {
+      name: '{prefix}:{basename}',
+      description: '{frontmatter@description}',
+      path: '~/.claude/plugins/cache',
+      pattern: '**/commands/*.md',
+      values: { prefix: '**/.claude-plugin/*.json@name' },
+      label: 'plugin command',
+      color: 'green',
+      icon: '{frontmatter@icon}',
+      argumentHint: '{frontmatter@argument-hint}',
+      maxSuggestions: 20
+    },
+    // Plugin skills (from ~/.claude/plugins/cache/**/SKILL.md)
+    {
+      name: '{prefix}:{frontmatter@name}',
+      description: '{frontmatter@description}',
+      path: '~/.claude/plugins/cache',
+      pattern: '**/*/SKILL.md',
+      values: { prefix: '**/.claude-plugin/*.json@name' },
+      label: 'plugin skill',
+      color: 'cyan',
+      icon: '{frontmatter@icon}',
+      argumentHint: '{frontmatter@argument-hint}',
+      maxSuggestions: 20
+    }
+  ],
   /**
    * File search settings — triggered by typing "@" in the input
    *
@@ -183,26 +261,40 @@ export const defaultSettings: UserSettings = {
     excludePatterns: []    // Additional exclude file patterns (glob syntax)
   },
   /**
-   * Plugin entries to enable (paths relative to ~/.prompt-line/plugins/, without .yml extension)
-   * Comment out entries to disable them.
-   *
-   * Directory determines the plugin type:
-   *   - .../agent-skills/  → Slash commands (type: command, triggered by "/")
-   *   - .../custom-search/ → Mention search (type: mention, triggered by "@prefix:")
-   *   - .../built-in-commands/ → Built-in tool commands (triggered by "/")
-   *
-   * Example (settings.yml):
-   *   plugins:
-   *     - prompt-line-plugin/agent-skills/claude-commands
-   *     - prompt-line-plugin/custom-search/claude-agents
-   *     - prompt-line-plugin/built-in-commands/claude
-   *     # - prompt-line-plugin/built-in-commands/codex   # disabled
-   */
-  plugins: [] as string[],
-  /**
    * Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
-   * @deprecated Use plugins setting instead. Kept for backward compatibility.
-   * Inline entries here are merged with plugin file entries.
+   *
+   * Search: Space-separated keywords enable AND search (e.g., @agent:dev api)
+   *
+   * Each entry scans a directory for files matching a glob pattern and makes them
+   * available as @ mention suggestions.
+   *
+   * Template variables for name/description:
+   *   {basename}              — File name without extension
+   *   {frontmatter@field}     — YAML frontmatter field from markdown files
+   *   {json@field}            — JSON field value (for .json/.jsonl files)
+   *   {json:N@field}          — JSON field from N-th level array item
+   *   {prefix}                — Prefix extracted via prefixPattern
+   *   {dirname}               — Parent directory name
+   *   {dirname:N}             — N levels up directory name
+   *
+   * Configuration fields:
+   *   name            — Display name template
+   *   description     — Description template (supports "|" fallback: "{json@a}|{json@b}")
+   *   path            — Directory path to scan (supports ~ for home)
+   *   pattern         — Glob pattern to match files
+   *                     Supports: *.md, **{/}*.md, *.json, *.jsonl
+   *                     jq expressions: "config.json@.members" (expands array into items)
+   *   values          — Map of template variable names to JSON extraction patterns
+   *   prefixPattern   — (deprecated) Use values instead
+   *   searchPrefix    — Prefix to trigger this search (e.g., "agent" → @agent:)
+   *   maxSuggestions  — Max suggestions to display
+   *   orderBy         — Sort order (e.g., "name", "name desc", "{updatedAt} desc")
+   *   inputFormat     — Insert format: 'name' (display name), '{filepath}' (file path), or template
+   *   color           — Badge color (name or hex)
+   *   icon            — Codicon icon name
+   *   label           — UI badge label
+   *   shortcut        — Keyboard shortcut to activate this search (e.g., "Ctrl+g")
+   *                     Inserts @searchPrefix: into the input and triggers mention detection
    *
    * Example (settings.yml):
    *   customSearch:
@@ -211,14 +303,63 @@ export const defaultSettings: UserSettings = {
    *       path: /path/to/knowledge-base
    *       pattern: "**{/}*.md"
    *       searchPrefix: kb
+   *       shortcut: "Ctrl+g"
+   *       values:
+   *         pluginName: "path/to/metadata.json@fieldName"
+   *       maxSuggestions: 100
+   *       inputFormat: "{filepath}"
    */
-  customSearch: [] as Array<{
-    name: string;
-    description: string;
-    path: string;
-    pattern: string;
-    [key: string]: unknown;
-  }>
+  customSearch: [
+    // Claude Code agents (from ~/.claude/agents/*.md, search with @agent:)
+    {
+      name: '{basename}(agent)',
+      label: "agent",
+      description: '{frontmatter@description}',
+      path: '~/.claude/agents',
+      pattern: '*.md',
+      searchPrefix: 'agent',
+      displayTime: '{updatedAt}'
+    },
+    // Plugin agents (from ~/.claude/plugins/cache/**/agents/*.md, search with @agent:)
+    {
+      name: '{prefix}:{basename}(agent)',
+      label: "plugin agent",
+      description: '{frontmatter@description}',
+      path: '~/.claude/plugins/cache',
+      color: "yellow",
+      pattern: '**/agents/*.md',
+      values: { prefix: '**/.claude-plugin/*.json@name' },
+      searchPrefix: 'agent',
+      displayTime: '{updatedAt}'
+    },
+    // Claude Code team members (from ~/.claude/teams/**/config.json, search with @team:)
+    // Uses jq expression to filter teams created in last 24h with 2+ members
+    {
+      name: "{json@name}",
+      description: "{json@prompt}|{json:1@description}",
+      color: "{json@color}|#ffffff",
+      icon: "organization",
+      label: "{dirname}",
+      path: "~/.claude/teams",
+      pattern: "**/config.json@. | select(.createdAt / 1000 > (now - 86400)) | select((.members | length) >= 2) | .members",
+      searchPrefix: "team",
+      orderBy: "{json@joinedAt} desc",
+      displayTime: "{json@joinedAt}"
+    },
+    // Claude Code plans (from ~/.claude/plans/*.md, search with @plan:)
+    {
+      name: '{basename}',
+      description: '{heading}',
+      path: '~/.claude/plans',
+      icon: 'file-text',
+      color: 'blue',
+      pattern: '*.md',
+      searchPrefix: 'plan',
+      inputFormat: '{filepath}',
+      orderBy: '{updatedAt} desc',
+      displayTime: '{updatedAt}'
+    }
+  ]
 };
 
 /**

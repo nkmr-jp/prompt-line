@@ -181,22 +181,13 @@ describe('IPCHandlers', () => {
             emit: vi.fn()
         };
 
-        const mockPluginManager = {
-            initialize: vi.fn(),
-            destroy: vi.fn(),
-            getTargetDirectory: vi.fn(() => '/test/plugins'),
-            on: vi.fn(),
-            emit: vi.fn()
-        };
-
         ipcHandlers = new IPCHandlers(
             mockWindowManager,
             mockHistoryManager,
             mockDraftManager,
             mockDirectoryManager,
             mockSettingsManager,
-            mockBuiltInCommandsManager as any,
-            mockPluginManager as any
+            mockBuiltInCommandsManager as any
         );
     });
 

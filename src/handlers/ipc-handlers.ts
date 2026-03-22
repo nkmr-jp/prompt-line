@@ -5,7 +5,6 @@ import type DraftManager from '../managers/draft-manager';
 import type DirectoryManager from '../managers/directory-manager';
 import type SettingsManager from '../managers/settings-manager';
 import type BuiltInCommandsManager from '../managers/built-in-commands-manager';
-import type PluginManager from '../managers/plugin-manager';
 import type { IHistoryManager, HandlerStats } from '../types';
 import CustomSearchLoader from '../managers/custom-search-loader';
 import FileOpenerManager from '../managers/file-opener-manager';
@@ -50,8 +49,7 @@ class IPCHandlers {
     draftManager: DraftManager,
     directoryManager: DirectoryManager,
     settingsManager: SettingsManager,
-    builtInCommandsManager: BuiltInCommandsManager,
-    pluginManager: PluginManager
+    builtInCommandsManager: BuiltInCommandsManager
   ) {
     const { customSearchLoader, fileOpenerManager } =
       this.initDependencies(settingsManager);
@@ -73,8 +71,7 @@ class IPCHandlers {
     this.customSearchHandler = new CustomSearchHandler(
       customSearchLoader,
       settingsManager,
-      builtInCommandsManager,
-      pluginManager
+      builtInCommandsManager
     );
     this.fileHandler = new FileHandler(fileOpenerManager, directoryManager);
     this.usageHistoryHandler = new UsageHistoryHandler();

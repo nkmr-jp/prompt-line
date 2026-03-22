@@ -414,43 +414,6 @@ describe('CustomSearchLoader', () => {
   });
 
   describe('file pattern matching', () => {
-    // Shared mock setup for excludeMarker tests
-    function setupPluginDirectoryMocks() {
-      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
-      mockedFs.readdir.mockImplementation((dir) => {
-        const dirStr = String(dir);
-        if (dirStr === '/path/to/plugins') {
-          return Promise.resolve([
-            createDirent('plugin-old', false),
-            createDirent('plugin-new', false),
-          ] as any);
-        }
-        if (dirStr === '/path/to/plugins/plugin-old') {
-          return Promise.resolve([
-            createDirent('.orphaned_at', true),
-            createDirent('commands', false),
-          ] as any);
-        }
-        if (dirStr === '/path/to/plugins/plugin-old/commands') {
-          return Promise.resolve([
-            createDirent('old-cmd.md', true),
-          ] as any);
-        }
-        if (dirStr === '/path/to/plugins/plugin-new') {
-          return Promise.resolve([
-            createDirent('commands', false),
-          ] as any);
-        }
-        if (dirStr === '/path/to/plugins/plugin-new/commands') {
-          return Promise.resolve([
-            createDirent('new-cmd.md', true),
-          ] as any);
-        }
-        return Promise.resolve([] as any);
-      });
-      mockedFs.readFile.mockResolvedValue('---\ndescription: Command\n---\nContent');
-    }
-
     test('should match *.md pattern', async () => {
       mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
       mockedFs.readdir.mockResolvedValue([
@@ -738,46 +701,6 @@ describe('CustomSearchLoader', () => {
 
       expect(items).toHaveLength(2);
       expect(items.map(i => i.name).sort()).toEqual(['test-command', 'test-other']);
-    });
-
-    test('should exclude directories containing excludeMarker file', async () => {
-      loader = new CustomSearchLoader([
-        {
-          name: '{basename}',
-          type: 'command',
-          description: '{frontmatter@description}',
-          path: '/path/to/plugins',
-          pattern: '**/commands/*.md',
-          excludeMarker: '.orphaned_at',
-        },
-      ]);
-
-      setupPluginDirectoryMocks();
-
-      const items = await loader.getItems('command');
-
-      expect(items).toHaveLength(1);
-      expect(items[0]?.name).toBe('new-cmd');
-    });
-
-    test('should not exclude directories when excludeMarker is not set', async () => {
-      loader = new CustomSearchLoader([
-        {
-          name: '{basename}',
-          type: 'command',
-          description: '{frontmatter@description}',
-          path: '/path/to/plugins',
-          pattern: '**/commands/*.md',
-        },
-      ]);
-
-      setupPluginDirectoryMocks();
-
-      const items = await loader.getItems('command');
-
-      // Without excludeMarker, both directories are included
-      expect(items).toHaveLength(2);
-      expect(items.map(i => i.name).sort()).toEqual(['new-cmd', 'old-cmd']);
     });
   });
 

@@ -232,10 +232,9 @@ describe('settings-yaml-generator', () => {
         expect(result).toContain('# go: "Goland"');
         expect(result).toContain('# md: "Typora"');
 
-        // Should include commented builtInCommands section (all commented out since default is empty)
-        expect(result).toContain('#builtInCommands:');
-        expect(result).toContain('#  - codex');
-        expect(result).toContain('#  - gemini');
+        // Should include commented builtInCommands examples
+        expect(result).toContain('# - codex');
+        expect(result).toContain('# - gemini');
       });
 
       test('should add commented examples after active values', () => {
