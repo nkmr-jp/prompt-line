@@ -27,6 +27,16 @@ vi.mock('../../src/utils/utils', () => ({
   }
 }));
 
+// Mock plugin-loader (uses path functions not available in test mock)
+vi.mock('../../src/lib/plugin-loader', () => ({
+  default: {
+    loadPluginEntries: vi.fn(() => []),
+    loadBuiltInCommands: vi.fn(() => []),
+    searchBuiltInCommands: vi.fn(() => []),
+    clearCache: vi.fn()
+  }
+}));
+
 // Mock js-yaml
 vi.mock('js-yaml', () => {
   const yamlMock = {
@@ -171,54 +181,8 @@ window:
           },
           defaultEditor: null
         },
-        builtInCommands: ['claude'],
-        agentSkills: [
-          {
-            name: '{basename}',
-            description: '{frontmatter@description}',
-            path: '~/.claude/commands',
-            label: 'command',
-            color: 'purple',
-            icon: '{frontmatter@icon}',
-            pattern: '*.md',
-            argumentHint: '{frontmatter@argument-hint}',
-            maxSuggestions: 20
-          },
-          {
-            name: '{frontmatter@name}',
-            description: '{frontmatter@description}',
-            path: '~/.claude/skills',
-            label: 'skill',
-            color: 'pink',
-            icon: '{frontmatter@icon}',
-            pattern: '**/*/SKILL.md',
-            maxSuggestions: 20
-          },
-          {
-            name: '{prefix}:{basename}',
-            description: '{frontmatter@description}',
-            path: '~/.claude/plugins/cache',
-            pattern: '**/commands/*.md',
-            values: { prefix: '**/.claude-plugin/*.json@name' },
-            label: 'plugin command',
-            color: 'green',
-            icon: '{frontmatter@icon}',
-            argumentHint: '{frontmatter@argument-hint}',
-            maxSuggestions: 20
-          },
-          {
-            name: '{prefix}:{frontmatter@name}',
-            description: '{frontmatter@description}',
-            path: '~/.claude/plugins/cache',
-            pattern: '**/*/SKILL.md',
-            values: { prefix: '**/.claude-plugin/*.json@name' },
-            label: 'plugin skill',
-            color: 'cyan',
-            icon: '{frontmatter@icon}',
-            argumentHint: '{frontmatter@argument-hint}',
-            maxSuggestions: 20
-          }
-        ],
+        builtInCommands: undefined,
+        agentSkills: [],
         fileSearch: {
           respectGitignore: true,
           includeHidden: true,
@@ -235,52 +199,7 @@ window:
           includePatterns: [],
           excludePatterns: []
         },
-        customSearch: [
-          {
-            name: '{basename}(agent)',
-            label: 'agent',
-            description: '{frontmatter@description}',
-            displayTime: '{updatedAt}',
-            path: '~/.claude/agents',
-            pattern: '*.md',
-            searchPrefix: 'agent'
-          },
-          {
-            name: '{prefix}:{basename}(agent)',
-            label: 'plugin agent',
-            description: '{frontmatter@description}',
-            displayTime: '{updatedAt}',
-            color: 'yellow',
-            path: '~/.claude/plugins/cache',
-            pattern: '**/agents/*.md',
-            values: { prefix: '**/.claude-plugin/*.json@name' },
-            searchPrefix: 'agent'
-          },
-          {
-            name: '{json@name}',
-            description: '{json@prompt}|{json:1@description}',
-            displayTime: '{json@joinedAt}',
-            color: '{json@color}|#ffffff',
-            icon: 'organization',
-            label: '{dirname}',
-            orderBy: '{json@joinedAt} desc',
-            path: '~/.claude/teams',
-            pattern: '**/config.json@. | select(.createdAt / 1000 > (now - 86400)) | select((.members | length) >= 2) | .members',
-            searchPrefix: 'team'
-          },
-          {
-            name: '{basename}',
-            description: '{heading}',
-            displayTime: '{updatedAt}',
-            color: 'blue',
-            icon: 'file-text',
-            orderBy: '{updatedAt} desc',
-            path: '~/.claude/plans',
-            pattern: '*.md',
-            searchPrefix: 'plan',
-            inputFormat: '{filepath}'
-          }
-        ],
+        customSearch: [],
         plugins: [
           'prompt-line-plugins/agent-skills/claude-commands',
           'prompt-line-plugins/agent-skills/claude-skills',
@@ -394,54 +313,8 @@ window:
           },
           defaultEditor: null
         },
-        builtInCommands: ['claude'],
-        agentSkills: [
-          {
-            name: '{basename}',
-            description: '{frontmatter@description}',
-            path: '~/.claude/commands',
-            label: 'command',
-            color: 'purple',
-            icon: '{frontmatter@icon}',
-            pattern: '*.md',
-            argumentHint: '{frontmatter@argument-hint}',
-            maxSuggestions: 20
-          },
-          {
-            name: '{frontmatter@name}',
-            description: '{frontmatter@description}',
-            path: '~/.claude/skills',
-            label: 'skill',
-            color: 'pink',
-            icon: '{frontmatter@icon}',
-            pattern: '**/*/SKILL.md',
-            maxSuggestions: 20
-          },
-          {
-            name: '{prefix}:{basename}',
-            description: '{frontmatter@description}',
-            path: '~/.claude/plugins/cache',
-            pattern: '**/commands/*.md',
-            values: { prefix: '**/.claude-plugin/*.json@name' },
-            label: 'plugin command',
-            color: 'green',
-            icon: '{frontmatter@icon}',
-            argumentHint: '{frontmatter@argument-hint}',
-            maxSuggestions: 20
-          },
-          {
-            name: '{prefix}:{frontmatter@name}',
-            description: '{frontmatter@description}',
-            path: '~/.claude/plugins/cache',
-            pattern: '**/*/SKILL.md',
-            values: { prefix: '**/.claude-plugin/*.json@name' },
-            label: 'plugin skill',
-            color: 'cyan',
-            icon: '{frontmatter@icon}',
-            argumentHint: '{frontmatter@argument-hint}',
-            maxSuggestions: 20
-          }
-        ],
+        builtInCommands: undefined,
+        agentSkills: [],
         fileSearch: {
           respectGitignore: true,
           includeHidden: true,
@@ -458,52 +331,7 @@ window:
           includePatterns: [],
           excludePatterns: []
         },
-        customSearch: [
-          {
-            name: '{basename}(agent)',
-            label: 'agent',
-            description: '{frontmatter@description}',
-            displayTime: '{updatedAt}',
-            path: '~/.claude/agents',
-            pattern: '*.md',
-            searchPrefix: 'agent'
-          },
-          {
-            name: '{prefix}:{basename}(agent)',
-            label: 'plugin agent',
-            description: '{frontmatter@description}',
-            displayTime: '{updatedAt}',
-            color: 'yellow',
-            path: '~/.claude/plugins/cache',
-            pattern: '**/agents/*.md',
-            values: { prefix: '**/.claude-plugin/*.json@name' },
-            searchPrefix: 'agent'
-          },
-          {
-            name: '{json@name}',
-            description: '{json@prompt}|{json:1@description}',
-            displayTime: '{json@joinedAt}',
-            color: '{json@color}|#ffffff',
-            icon: 'organization',
-            label: '{dirname}',
-            orderBy: '{json@joinedAt} desc',
-            path: '~/.claude/teams',
-            pattern: '**/config.json@. | select(.createdAt / 1000 > (now - 86400)) | select((.members | length) >= 2) | .members',
-            searchPrefix: 'team'
-          },
-          {
-            name: '{basename}',
-            description: '{heading}',
-            displayTime: '{updatedAt}',
-            color: 'blue',
-            icon: 'file-text',
-            orderBy: '{updatedAt} desc',
-            path: '~/.claude/plans',
-            pattern: '*.md',
-            searchPrefix: 'plan',
-            inputFormat: '{filepath}'
-          }
-        ],
+        customSearch: [],
         plugins: [
           'prompt-line-plugins/agent-skills/claude-commands',
           'prompt-line-plugins/agent-skills/claude-skills',

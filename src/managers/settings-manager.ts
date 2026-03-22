@@ -184,8 +184,8 @@ class SettingsManager extends EventEmitter {
     return { custom, customSearchMentions };
   }
 
-  private resolveBuiltInCommands(userSettings: Partial<UserSettings>, rawAgentSkills: unknown): string[] {
-    const defaultBuiltInCommands = this.defaultSettings.builtInCommands ?? ['claude'];
+  private resolveBuiltInCommands(userSettings: Partial<UserSettings>, rawAgentSkills: unknown): string[] | undefined {
+    const defaultBuiltInCommands = this.defaultSettings.builtInCommands;
 
     if (Array.isArray(userSettings.builtInCommands)) {
       return userSettings.builtInCommands;
@@ -287,10 +287,15 @@ class SettingsManager extends EventEmitter {
     const resolvedMentionDisable = userSettings.mentionDisable ?? userSettings.mentions?.disable;
     if (resolvedMentionDisable) result.mentionDisable = resolvedMentionDisable;
 
+    // Handle plugins
+    const resolvedPlugins = userSettings.plugins ?? this.defaultSettings.plugins;
+    if (resolvedPlugins) result.plugins = resolvedPlugins;
+
     // Handle builtInCommands and agentSkills
     // Priority: root builtInCommands > legacy agentSkills.builtInCommands > legacy builtInCommands.tools > defaults
     const rawAgentSkills = userSettings.agentSkills as unknown;
-    result.builtInCommands = this.resolveBuiltInCommands(userSettings, rawAgentSkills);
+    const resolvedBuiltInCommands = this.resolveBuiltInCommands(userSettings, rawAgentSkills);
+    if (resolvedBuiltInCommands) result.builtInCommands = resolvedBuiltInCommands;
     result.agentSkills = this.resolveAgentSkills(userSettings, rawAgentSkills);
 
     // Handle legacy settings (mdSearch) for backward compatibility

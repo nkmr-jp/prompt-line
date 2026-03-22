@@ -21,12 +21,13 @@ function getGitShortHash(): string {
 }
 
 /**
- * Recursively copy all YAML files from source to target, creating directories as needed
+ * Recursively copy all YAML files from source to target, creating directories as needed.
+ * Returns the list of relative plugin paths (without extension).
  */
-function copyDirectoryRecursive(source: string, target: string): number {
-  let count = 0;
+function copyDirectoryRecursive(source: string, target: string, baseSource: string): string[] {
+  const pluginPaths: string[] = [];
 
-  if (!fs.existsSync(source)) return count;
+  if (!fs.existsSync(source)) return pluginPaths;
 
   if (!fs.existsSync(target)) {
     fs.mkdirSync(target, { recursive: true });
@@ -39,14 +40,38 @@ function copyDirectoryRecursive(source: string, target: string): number {
     const targetPath = path.join(target, entry.name);
 
     if (entry.isDirectory()) {
-      count += copyDirectoryRecursive(sourcePath, targetPath);
+      pluginPaths.push(...copyDirectoryRecursive(sourcePath, targetPath, baseSource));
     } else if (entry.isFile() && (entry.name.endsWith('.yml') || entry.name.endsWith('.yaml'))) {
       fs.copyFileSync(sourcePath, targetPath);
-      count++;
+      // Collect relative path without extension (e.g., "agent-skills/claude-commands")
+      const relPath = path.relative(baseSource, sourcePath);
+      const withoutExt = relPath.replace(/\.(yml|yaml)$/, '');
+      pluginPaths.push(withoutExt);
     }
   }
 
-  return count;
+  return pluginPaths;
+}
+
+/**
+ * Collect plugin paths from an existing directory (for already-installed case)
+ */
+function collectPluginPaths(dir: string, baseDir: string): string[] {
+  const pluginPaths: string[] = [];
+  if (!fs.existsSync(dir)) return pluginPaths;
+
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      pluginPaths.push(...collectPluginPaths(fullPath, baseDir));
+    } else if (entry.isFile() && (entry.name.endsWith('.yml') || entry.name.endsWith('.yaml'))) {
+      const relPath = path.relative(baseDir, fullPath);
+      const withoutExt = relPath.replace(/\.(yml|yaml)$/, '');
+      pluginPaths.push(withoutExt);
+    }
+  }
+  return pluginPaths;
 }
 
 /**
@@ -66,7 +91,8 @@ function main(): void {
   const packages = fs.readdirSync(ASSETS_DIR, { withFileTypes: true })
     .filter(d => d.isDirectory());
 
-  let totalCount = 0;
+  // Map of packageName → plugin paths (relative, without hash)
+  const allPluginPaths: Map<string, string[]> = new Map();
 
   for (const pkg of packages) {
     const sourcePackageDir = path.join(ASSETS_DIR, pkg.name);
@@ -74,16 +100,17 @@ function main(): void {
 
     if (fs.existsSync(targetPackageDir)) {
       console.log(`⏭️  Already installed: ${pkg.name}/${hash}`);
-      // Count existing files
-      const count = countYamlFiles(targetPackageDir);
-      totalCount += count;
+      const paths = collectPluginPaths(targetPackageDir, targetPackageDir);
+      allPluginPaths.set(pkg.name, paths);
       continue;
     }
 
-    const count = copyDirectoryRecursive(sourcePackageDir, targetPackageDir);
-    totalCount += count;
-    console.log(`✅ Installed: ${pkg.name}/${hash} (${count} files)`);
+    const paths = copyDirectoryRecursive(sourcePackageDir, targetPackageDir, sourcePackageDir);
+    allPluginPaths.set(pkg.name, paths);
+    console.log(`✅ Installed: ${pkg.name}/${hash} (${paths.length} files)`);
   }
+
+  const totalCount = Array.from(allPluginPaths.values()).reduce((sum, p) => sum + p.length, 0);
 
   if (totalCount === 0) {
     console.log('⚠️  No plugin files found in assets directory.');
@@ -92,23 +119,20 @@ function main(): void {
 
   console.log(`\n✅ ${totalCount} plugin file(s) installed successfully!`);
   console.log('🔄 Changes are auto-detected — no app restart needed.');
-  console.log(`\n📂 Plugins directory: ${PLUGINS_DIR}`);
-}
 
-/**
- * Count YAML files recursively in a directory
- */
-function countYamlFiles(dir: string): number {
-  let count = 0;
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
-  for (const entry of entries) {
-    if (entry.isDirectory()) {
-      count += countYamlFiles(path.join(dir, entry.name));
-    } else if (entry.isFile() && (entry.name.endsWith('.yml') || entry.name.endsWith('.yaml'))) {
-      count++;
+  // Print settings.yml configuration guide
+  console.log('\n' + '─'.repeat(60));
+  console.log('📝 Copy the following to ~/.prompt-line/settings.yml');
+  console.log('   and keep only the plugins you want to use:');
+  console.log('─'.repeat(60));
+  console.log('plugins:');
+  for (const [pkgName, paths] of allPluginPaths) {
+    const sorted = paths.sort();
+    for (const p of sorted) {
+      console.log(`  - ${pkgName}/${p}`);
     }
   }
-  return count;
+  console.log('─'.repeat(60));
 }
 
 main();
