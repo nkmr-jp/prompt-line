@@ -11,3 +11,4 @@ color: green
 icon: "{frontmatter@icon}"
 argumentHint: "{frontmatter@argument-hint}"
 maxSuggestions: 20
+excludeMarker: ".orphaned_at"
