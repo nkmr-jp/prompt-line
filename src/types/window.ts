@@ -114,6 +114,7 @@ export interface TimingConfig {
 export interface AppConfig {
   name: string;
   version: string;
+  versionDisplay: string;
   description: string;
 }
 

@@ -383,7 +383,7 @@ class PromptLineApp {
       },
       { type: 'separator' },
       {
-        label: `Version ${config.app.version}`,
+        label: `Version ${config.app.versionDisplay}`,
         enabled: false
       },
       {

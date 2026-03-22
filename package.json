@@ -5,9 +5,9 @@
   "main": "dist/main.js",
   "scripts": {
     "start": "LOG_LEVEL=debug pnpm run compile && LOG_LEVEL=debug electron .",
-    "compile": "node node_modules/electron/install.js && tsc && pnpm run build:renderer && cd native && make install && cp -r ../src/native-tools ../dist/",
+    "compile": "node scripts/generate-git-info.js && node node_modules/electron/install.js && tsc && pnpm run build:renderer && cd native && make install && cp -r ../src/native-tools ../dist/",
     "build:renderer": "vite build && cp src/renderer/input.html dist/renderer/input.html",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "node scripts/generate-git-info.js && tsc --noEmit",
     "build": "pnpm run compile && node scripts/build.js",
     "install-app": "pnpm run compile && node scripts/install.js && pnpm run install-plugin",
     "clean": "rm -rf dist/mac* dist/*.dmg dist/*.zip dist/*.blockmap",
