@@ -222,8 +222,8 @@ function buildPluginsSection(settings: UserSettings): string {
 
   if (!hasPlugins) {
     return `#plugins:
-#  - prompt-line-plugin/agent-skills/claude-commands
-#  - prompt-line-plugin/built-in-commands/claude`;
+#  - prompt-line-plugin/claude/agent-skills/commands
+#  - prompt-line-plugin/claude/built-in-commands/claude`;
   }
 
   let section = `plugins:\n`;
@@ -243,24 +243,14 @@ function buildBuiltInCommandsSection(settings: UserSettings, options: YamlGenera
 
   if (!hasBuiltInCommands) {
     return `# Built-in slash commands (type "/" to access)
-# Available: claude, codex, gemini, openclaw, opencode
-# Storage: ~/.prompt-line/built-in-commands/ (YAML files, hot-reload supported)
-# Customize: Edit YAML files in the storage directory to add/modify/remove commands
-#            Changes are detected automatically — no app restart needed
-# Update: pnpm run update-built-in-commands (reset to defaults with confirmation)
+# @deprecated Use plugins setting instead (prompt-line-plugin/<tool>/built-in-commands/*)
 #builtInCommands:
-#  - claude
-#  - codex
-#  - gemini`;
+#  - claude`;
   }
 
   let section = `# Built-in slash commands (type "/" to access)
-# Available: claude, codex, gemini, openclaw, opencode
-# Storage: ~/.prompt-line/built-in-commands/ (YAML files, hot-reload supported)
-# Customize: Edit YAML files in the storage directory to add/modify/remove commands
-#            Changes are detected automatically — no app restart needed
-# Update: pnpm run update-built-in-commands (reset to defaults with confirmation)
-builtInCommands:                      # List of tools to enable\n`;
+# @deprecated Use plugins setting instead (prompt-line-plugin/<tool>/built-in-commands/*)
+builtInCommands:\n`;
   for (const cmd of builtInCommands) {
     section += `  - ${cmd}\n`;
   }
@@ -607,11 +597,8 @@ export function generateSettingsYaml(settings: UserSettings, options: YamlGenera
 ${pluginsSection}
 
 # ============================================================================
-# BUILT-IN COMMANDS
+# BUILT-IN COMMANDS (deprecated — use plugins instead)
 # ============================================================================
-# Built-in slash commands for CLI tools (Claude Code, Codex, Gemini CLI, etc.)
-# Storage: ~/.prompt-line/built-in-commands/ (YAML files per tool)
-# Hot-reload: YAML file changes are auto-detected (no restart needed)
 
 ${builtInCommandsSection}
 

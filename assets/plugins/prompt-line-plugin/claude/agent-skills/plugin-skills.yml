@@ -1,0 +1,28 @@
+# Claude Code plugin skills (from ~/.claude/plugins/cache/**/SKILL.md)
+#pluginDescription: "~/.claude/plugins/cache/**/SKILL.md"
+#name: "{prefix}:{frontmatter@name}"
+#description: "{frontmatter@description}"
+#path: ~/.claude/plugins/cache
+#pattern: "**/*/SKILL.md"
+#values:
+#  prefix: "**/.claude-plugin/*.json@name"
+#label: plugin skill
+#color: cyan
+#icon: "{frontmatter@icon}"
+#argumentHint: "{frontmatter@argument-hint}"
+#maxSuggestions: 20
+#excludeMarker: ".orphaned_at"
+
+
+name: "{frontmatter@name}"
+description: "{frontmatter@description}"
+path: ~/.claude/plugins/cache
+pattern: "**/*/SKILL.md"
+values:
+  pluginName: "**/.claude-plugin/*.json@name"
+label: "{dirname:5} > {pluginName}"
+color: blue
+icon: "{frontmatter@icon}"
+argumentHint: "{frontmatter@argument-hint}"
+maxSuggestions: 20
+excludeMarker: ".orphaned_at"

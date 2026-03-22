@@ -1,6 +1,6 @@
 # Managers Module
 
-16 specialized managers + 2 sub-modules implementing core application functionality.
+15 specialized managers + 2 sub-modules implementing core application functionality.
 
 ## Overview
 
@@ -18,7 +18,6 @@
 | `symbol-cache-manager.ts` | Language-separated symbol caching (JSONL) |
 | `at-path-cache-manager.ts` | @path pattern caching (project + global) |
 | `agent-skill-cache-manager.ts` | Agent skill caching with TTL |
-| `built-in-commands-manager.ts` | Built-in command definitions, YAML file watching |
 | `usage-history-manager.ts` | Base class for usage tracking (LRU) |
 | `agent-usage-history-manager.ts` | Agent selection history (singleton) |
 | `file-usage-history-manager.ts` | File selection history (singleton) |
@@ -59,12 +58,6 @@
 - TTL: 30 days, stored in `~/.prompt-line/cache/projects/`
 - Bonus calculation uses frequency + recency scoring
 
-### Built-in commands manager
-- Watches `~/.prompt-line/built-in-commands/` with chokidar (300ms debounce)
-- Same EventEmitter pattern as SettingsManager
-- Fires `commands-changed` event on YAML file changes
-- No app restart required for hot reload
-
 ### Settings manager deep merge
 - User settings.yml is merged with defaults: `{ ...defaults.section, ...user.section }`
 - Automatic file creation with defaults if missing
@@ -82,7 +75,7 @@
 - Configurable order-by per entry
 - Supports YAML frontmatter in markdown files for metadata
 - Chokidar file watching for individual (non-glob) files with 300ms debounce
-- Same EventEmitter pattern as BuiltInCommandsManager: emits `source-changed` on file changes
+- Same EventEmitter pattern as PluginManager: emits `source-changed` on file changes
 - Streaming JSONL parsing for files >= 1MB (createReadStream + readline)
 - Shell command template resolution with `shellQuote` valueTransform (CWE-78 prevention)
 - Icon auto-detection from file pattern: `SKILL_PATTERN` → codicon-edit-sparkle, others → codicon-terminal

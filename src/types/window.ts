@@ -102,7 +102,6 @@ export interface PathsConfig {
   directoryFile: string;
   cacheDir: string;             // Cache root directory
   projectsCacheDir: string;     // Projects cache directory
-  builtInCommandsDir: string;   // Built-in slash commands directory
   pluginsDir: string;           // Plugins directory
   agentSkillsDir: string;       // Agent skills YAML files directory
   customSearchDir: string;      // Custom search YAML files directory
@@ -189,7 +188,7 @@ export interface UserSettings {
   /**
    * Plugin entries to enable (paths relative to ~/.prompt-line/plugins/, without .yml extension)
    * Comment out entries to disable them.
-   * Example: "prompt-line-plugin/agent-skills/claude-commands"
+   * Example: "prompt-line-plugin/claude/agent-skills/commands"
    */
   plugins?: string[];
   // Legacy alias: mdSearch (for backward compatibility)
