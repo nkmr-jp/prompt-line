@@ -3,22 +3,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { execSync } from 'child_process';
 
 const PLUGINS_DIR = path.join(os.homedir(), '.prompt-line', 'plugins');
 const ASSETS_DIR = path.join(__dirname, '..', 'assets', 'plugins');
-
-/**
- * Get git short hash of HEAD
- */
-function getGitShortHash(): string {
-  try {
-    return execSync('git rev-parse --short HEAD', { encoding: 'utf-8', cwd: __dirname }).trim();
-  } catch {
-    // Fallback: use timestamp if git is not available
-    return `v${Date.now()}`;
-  }
-}
 
 /**
  * Recursively copy all YAML files from source to target, creating directories as needed.
@@ -54,33 +41,10 @@ function copyDirectoryRecursive(source: string, target: string, baseSource: stri
 }
 
 /**
- * Collect plugin paths from an existing directory (for already-installed case)
- */
-function collectPluginPaths(dir: string, baseDir: string): string[] {
-  const pluginPaths: string[] = [];
-  if (!fs.existsSync(dir)) return pluginPaths;
-
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
-  for (const entry of entries) {
-    const fullPath = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      pluginPaths.push(...collectPluginPaths(fullPath, baseDir));
-    } else if (entry.isFile() && (entry.name.endsWith('.yml') || entry.name.endsWith('.yaml'))) {
-      const relPath = path.relative(baseDir, fullPath);
-      const withoutExt = relPath.replace(/\.(yml|yaml)$/, '');
-      pluginPaths.push(withoutExt);
-    }
-  }
-  return pluginPaths;
-}
-
-/**
  * Main function
  */
 function main(): void {
-  const hash = getGitShortHash();
-
-  console.log(`🔄 Installing plugins (${hash})...`);
+  console.log(`🔄 Installing plugins...`);
   console.log(`📂 Plugins directory: ${PLUGINS_DIR}\n`);
 
   if (!fs.existsSync(PLUGINS_DIR)) {
@@ -91,23 +55,15 @@ function main(): void {
   const packages = fs.readdirSync(ASSETS_DIR, { withFileTypes: true })
     .filter(d => d.isDirectory());
 
-  // Map of packageName → plugin paths (relative, without hash)
   const allPluginPaths: Map<string, string[]> = new Map();
 
   for (const pkg of packages) {
     const sourcePackageDir = path.join(ASSETS_DIR, pkg.name);
-    const targetPackageDir = path.join(PLUGINS_DIR, pkg.name, hash);
-
-    if (fs.existsSync(targetPackageDir)) {
-      console.log(`⏭️  Already installed: ${pkg.name}/${hash}`);
-      const paths = collectPluginPaths(targetPackageDir, targetPackageDir);
-      allPluginPaths.set(pkg.name, paths);
-      continue;
-    }
+    const targetPackageDir = path.join(PLUGINS_DIR, pkg.name);
 
     const paths = copyDirectoryRecursive(sourcePackageDir, targetPackageDir, sourcePackageDir);
     allPluginPaths.set(pkg.name, paths);
-    console.log(`✅ Installed: ${pkg.name}/${hash} (${paths.length} files)`);
+    console.log(`✅ Installed: ${pkg.name} (${paths.length} files)`);
   }
 
   const totalCount = Array.from(allPluginPaths.values()).reduce((sum, p) => sum + p.length, 0);
