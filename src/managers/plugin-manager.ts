@@ -79,22 +79,27 @@ class PluginManager extends EventEmitter {
       }
 
       const hash = this.getVersionHash();
+      let totalCopied = 0;
 
-      // Copy each package directory with hash subdirectory
+      // Skip source directory read if all packages are already installed for this version
       const packages = fs.readdirSync(this.sourceDir, { withFileTypes: true })
         .filter(d => d.isDirectory());
+      const allInstalled = packages.every(pkg =>
+        fs.existsSync(path.join(this.targetDir, pkg.name, hash))
+      );
 
-      let totalCopied = 0;
-      for (const pkg of packages) {
-        const sourcePackageDir = path.join(this.sourceDir, pkg.name);
-        const targetPackageDir = path.join(this.targetDir, pkg.name, hash);
+      if (!allInstalled) {
+        for (const pkg of packages) {
+          const sourcePackageDir = path.join(this.sourceDir, pkg.name);
+          const targetPackageDir = path.join(this.targetDir, pkg.name, hash);
 
-        if (fs.existsSync(targetPackageDir)) {
-          logger.debug(`Plugin version already installed: ${pkg.name}/${hash}`);
-          continue;
+          if (fs.existsSync(targetPackageDir)) {
+            logger.debug(`Plugin version already installed: ${pkg.name}/${hash}`);
+            continue;
+          }
+
+          totalCopied += this.copyDirectoryRecursive(sourcePackageDir, targetPackageDir);
         }
-
-        totalCopied += this.copyDirectoryRecursive(sourcePackageDir, targetPackageDir);
       }
 
       logger.info('Plugins initialized', {

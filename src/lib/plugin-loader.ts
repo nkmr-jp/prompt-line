@@ -89,7 +89,6 @@ class PluginLoader {
     const parts = pluginPath.split('/');
     if (parts.length < 2) return null;
 
-    // The second-to-last directory determines the type
     const typeDir = parts[parts.length - 2];
     if (typeDir === 'agent-skills') return 'agent-skills';
     if (typeDir === 'custom-search') return 'custom-search';
@@ -162,15 +161,12 @@ class PluginLoader {
       return null;
     }
 
-    const packageName = parts[0] as string;  // e.g., "prompt-line-plugin"
-    const subPath = parts.slice(1).join('/');  // e.g., "agent-skills/claude-commands"
+    const packageName = parts[0]!;
+    const subPath = parts.slice(1).join('/');
 
-    // Try hash-based layout first: <package>/<hash>/<subpath>
     const latestHash = this.findLatestHashDir(packageName);
     if (latestHash) {
-      const hashBasedPath = path.resolve(this.pluginsDir, packageName, latestHash as string, subPath);
-
-      // Validate it stays within plugins dir
+      const hashBasedPath = path.resolve(this.pluginsDir, packageName, latestHash, subPath);
       const normalizedBase = path.resolve(this.pluginsDir);
       if (hashBasedPath.startsWith(normalizedBase + path.sep)) {
         return hashBasedPath;
@@ -205,17 +201,13 @@ class PluginLoader {
     const basePath = this.resolvePluginBasePath(pluginPath);
     if (!basePath) return null;
 
-    const filePath = basePath + '.yml';
-    if (!fs.existsSync(filePath)) {
-      const yamlPath = basePath + '.yaml';
-      if (!fs.existsSync(yamlPath)) {
-        logger.debug(`Plugin file not found: ${filePath}`);
-        return null;
-      }
-      return this.parsePlugin(yamlPath, pluginPath, type);
+    // Try .yml first, then .yaml — parsePlugin handles missing files gracefully
+    const result = this.parsePlugin(basePath + '.yml', pluginPath, type)
+      ?? this.parsePlugin(basePath + '.yaml', pluginPath, type);
+    if (!result) {
+      logger.debug(`Plugin file not found: ${basePath}.yml`);
     }
-
-    return this.parsePlugin(filePath, pluginPath, type);
+    return result;
   }
 
   /**
