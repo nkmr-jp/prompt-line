@@ -1,5 +1,6 @@
 import path from 'path';
 import os from 'os';
+import { execSync } from 'child_process';
 import type {
   WindowConfig,
   ShortcutsConfig,
@@ -18,6 +19,27 @@ import packageJson from '../../package.json';
 
 // Import shared default settings (single source of truth)
 import { defaultSettings } from './default-settings';
+
+function getGitInfo(): { hash: string; branch: string } | null {
+  try {
+    const hash = execSync('git rev-parse --short HEAD', { encoding: 'utf8', timeout: 3000 }).trim();
+    const branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8', timeout: 3000 }).trim();
+    return { hash, branch };
+  } catch {
+    return null;
+  }
+}
+
+function buildVersionDisplay(version: string): string {
+  const git = getGitInfo();
+  if (!git) return version;
+
+  const isMainBranch = git.branch === 'main' || git.branch === 'master';
+  if (isMainBranch) {
+    return `${version} (${git.hash})`;
+  }
+  return `${version} (${git.branch} ${git.hash})`;
+}
 
 class AppConfigClass {
   public window!: WindowConfig;
@@ -115,6 +137,7 @@ class AppConfigClass {
     this.app = {
       name: 'Prompt Line',
       version: packageJson.version,
+      versionDisplay: buildVersionDisplay(packageJson.version),
       description: 'プロンプトラインアプリ - カーソル位置にテキストを素早く貼り付け'
     };
 
