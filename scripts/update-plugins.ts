@@ -20,14 +20,32 @@ function getGitShortHash(): string {
   }
 }
 
+interface PluginEntry {
+  path: string;
+  description?: string | undefined;
+}
+
+/**
+ * Extract pluginDescription from a YAML file content
+ */
+function extractPluginDescription(filePath: string): string | undefined {
+  try {
+    const content = fs.readFileSync(filePath, 'utf-8');
+    const match = content.match(/^pluginDescription:\s*["']?(.+?)["']?\s*$/m);
+    return match ? match[1] : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Recursively copy all YAML files from source to target, creating directories as needed.
- * Returns the list of relative plugin paths (without extension).
+ * Returns the list of plugin entries (path without extension + description).
  */
-function copyDirectoryRecursive(source: string, target: string, baseSource: string): string[] {
-  const pluginPaths: string[] = [];
+function copyDirectoryRecursive(source: string, target: string, baseSource: string): PluginEntry[] {
+  const pluginEntries: PluginEntry[] = [];
 
-  if (!fs.existsSync(source)) return pluginPaths;
+  if (!fs.existsSync(source)) return pluginEntries;
 
   if (!fs.existsSync(target)) {
     fs.mkdirSync(target, { recursive: true });
@@ -40,38 +58,39 @@ function copyDirectoryRecursive(source: string, target: string, baseSource: stri
     const targetPath = path.join(target, entry.name);
 
     if (entry.isDirectory()) {
-      pluginPaths.push(...copyDirectoryRecursive(sourcePath, targetPath, baseSource));
+      pluginEntries.push(...copyDirectoryRecursive(sourcePath, targetPath, baseSource));
     } else if (entry.isFile() && (entry.name.endsWith('.yml') || entry.name.endsWith('.yaml'))) {
       fs.copyFileSync(sourcePath, targetPath);
-      // Collect relative path without extension (e.g., "agent-skills/claude-commands")
       const relPath = path.relative(baseSource, sourcePath);
       const withoutExt = relPath.replace(/\.(yml|yaml)$/, '');
-      pluginPaths.push(withoutExt);
+      const description = extractPluginDescription(sourcePath);
+      pluginEntries.push({ path: withoutExt, description });
     }
   }
 
-  return pluginPaths;
+  return pluginEntries;
 }
 
 /**
- * Collect plugin paths from an existing directory (for already-installed case)
+ * Collect plugin entries from an existing directory (for already-installed case)
  */
-function collectPluginPaths(dir: string, baseDir: string): string[] {
-  const pluginPaths: string[] = [];
-  if (!fs.existsSync(dir)) return pluginPaths;
+function collectPluginEntries(dir: string, baseDir: string): PluginEntry[] {
+  const pluginEntries: PluginEntry[] = [];
+  if (!fs.existsSync(dir)) return pluginEntries;
 
   const entries = fs.readdirSync(dir, { withFileTypes: true });
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      pluginPaths.push(...collectPluginPaths(fullPath, baseDir));
+      pluginEntries.push(...collectPluginEntries(fullPath, baseDir));
     } else if (entry.isFile() && (entry.name.endsWith('.yml') || entry.name.endsWith('.yaml'))) {
       const relPath = path.relative(baseDir, fullPath);
       const withoutExt = relPath.replace(/\.(yml|yaml)$/, '');
-      pluginPaths.push(withoutExt);
+      const description = extractPluginDescription(fullPath);
+      pluginEntries.push({ path: withoutExt, description });
     }
   }
-  return pluginPaths;
+  return pluginEntries;
 }
 
 /**
@@ -91,8 +110,8 @@ function main(): void {
   const packages = fs.readdirSync(ASSETS_DIR, { withFileTypes: true })
     .filter(d => d.isDirectory());
 
-  // Map of packageName → plugin paths (relative, without hash)
-  const allPluginPaths: Map<string, string[]> = new Map();
+  // Map of packageName → plugin entries (relative path + description)
+  const allPluginEntries: Map<string, PluginEntry[]> = new Map();
 
   for (const pkg of packages) {
     const sourcePackageDir = path.join(ASSETS_DIR, pkg.name);
@@ -100,17 +119,17 @@ function main(): void {
 
     if (fs.existsSync(targetPackageDir)) {
       console.log(`⏭️  Already installed: ${pkg.name}/${hash}`);
-      const paths = collectPluginPaths(targetPackageDir, targetPackageDir);
-      allPluginPaths.set(pkg.name, paths);
+      const entries = collectPluginEntries(targetPackageDir, targetPackageDir);
+      allPluginEntries.set(pkg.name, entries);
       continue;
     }
 
-    const paths = copyDirectoryRecursive(sourcePackageDir, targetPackageDir, sourcePackageDir);
-    allPluginPaths.set(pkg.name, paths);
-    console.log(`✅ Installed: ${pkg.name}/${hash} (${paths.length} files)`);
+    const entries = copyDirectoryRecursive(sourcePackageDir, targetPackageDir, sourcePackageDir);
+    allPluginEntries.set(pkg.name, entries);
+    console.log(`✅ Installed: ${pkg.name}/${hash} (${entries.length} files)`);
   }
 
-  const totalCount = Array.from(allPluginPaths.values()).reduce((sum, p) => sum + p.length, 0);
+  const totalCount = Array.from(allPluginEntries.values()).reduce((sum, e) => sum + e.length, 0);
 
   if (totalCount === 0) {
     console.log('⚠️  No plugin files found in assets directory.');
@@ -126,10 +145,11 @@ function main(): void {
   console.log('   and keep only the plugins you want to use:');
   console.log('─'.repeat(60));
   console.log('plugins:');
-  for (const [pkgName, paths] of allPluginPaths) {
-    const sorted = paths.sort();
-    for (const p of sorted) {
-      console.log(`  - ${pkgName}/${p}`);
+  for (const [pkgName, entries] of allPluginEntries) {
+    const sorted = entries.sort((a, b) => a.path.localeCompare(b.path));
+    for (const entry of sorted) {
+      const desc = entry.description ? `  # ${entry.description}` : '';
+      console.log(`  - ${pkgName}/${entry.path}${desc}`);
     }
   }
   console.log('─'.repeat(60));

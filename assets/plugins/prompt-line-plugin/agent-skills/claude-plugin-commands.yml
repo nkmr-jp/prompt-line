@@ -1,4 +1,5 @@
-# Plugin commands (from ~/.claude/plugins/cache/**/commands/*.md)
+# Claude Code plugin commands (from ~/.claude/plugins/cache/**/commands/*.md)
+pluginDescription: "~/.claude/plugins/cache/**/commands/*.md"
 name: "{prefix}:{basename}"
 description: "{frontmatter@description}"
 path: ~/.claude/plugins/cache
