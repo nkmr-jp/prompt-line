@@ -22,6 +22,7 @@ import DraftManager from './managers/draft-manager';
 import DirectoryManager from './managers/directory-manager';
 import SettingsManager from './managers/settings-manager';
 import BuiltInCommandsManager from './managers/built-in-commands-manager';
+import PluginManager from './managers/plugin-manager';
 import IPCHandlers from './handlers/ipc-handlers';
 import { codeSearchHandler } from './handlers/code-search-handler';
 import { logger, ensureDir, detectCurrentDirectoryWithFiles } from './utils/utils';
@@ -35,6 +36,7 @@ class PromptLineApp {
   private directoryManager: DirectoryManager | null = null;
   private settingsManager: SettingsManager | null = null;
   private builtInCommandsManager: BuiltInCommandsManager | null = null;
+  private pluginManager: PluginManager | null = null;
   private ipcHandlers: IPCHandlers | null = null;
   private tray: Tray | null = null;
   private isInitialized = false;
@@ -64,6 +66,10 @@ class PromptLineApp {
     // Initialize built-in commands (copy to user data directory)
     this.builtInCommandsManager = new BuiltInCommandsManager();
     await this.builtInCommandsManager.initialize();
+
+    // Initialize plugins (copy to user data directory)
+    this.pluginManager = new PluginManager();
+    await this.pluginManager.initialize();
   }
 
   /**
@@ -95,6 +101,9 @@ class PromptLineApp {
     if (!this.builtInCommandsManager) {
       throw new Error('BuiltInCommandsManager not initialized');
     }
+    if (!this.pluginManager) {
+      throw new Error('PluginManager not initialized');
+    }
 
     this.ipcHandlers = new IPCHandlers(
       this.windowManager,
@@ -102,7 +111,8 @@ class PromptLineApp {
       this.draftManager,
       this.directoryManager,
       this.settingsManager,
-      this.builtInCommandsManager
+      this.builtInCommandsManager,
+      this.pluginManager
     );
 
     codeSearchHandler.setSettingsManager(this.settingsManager);
@@ -441,6 +451,15 @@ class PromptLineApp {
           await this.builtInCommandsManager.destroy();
         } catch (error) {
           logger.error('Error destroying built-in commands manager:', error);
+        }
+      }
+
+      // Clean up plugin manager
+      if (this.pluginManager) {
+        try {
+          await this.pluginManager.destroy();
+        } catch (error) {
+          logger.error('Error destroying plugin manager:', error);
         }
       }
     });

@@ -96,6 +96,9 @@ class AppConfigClass {
       },
       get builtInCommandsDir() {
         return path.join(userDataDir, 'built-in-commands');
+      },
+      get pluginsDir() {
+        return path.join(userDataDir, 'plugins');
       }
     };
 
