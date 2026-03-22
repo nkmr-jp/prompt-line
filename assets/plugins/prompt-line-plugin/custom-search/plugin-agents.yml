@@ -9,3 +9,4 @@ values:
   prefix: "**/.claude-plugin/*.json@name"
 searchPrefix: agent
 displayTime: "{updatedAt}"
+excludeMarker: ".orphaned_at"
