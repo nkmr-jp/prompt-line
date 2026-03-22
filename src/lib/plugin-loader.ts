@@ -33,6 +33,7 @@ interface PluginEntryYaml {
   inputFormat?: string;
   shortcut?: string;
   command?: string;
+  excludeMarker?: string;
 }
 
 /**
@@ -219,6 +220,7 @@ class PluginLoader {
     if (yamlData.displayTime !== undefined) entry.displayTime = yamlData.displayTime;
     if (yamlData.inputFormat !== undefined) entry.inputFormat = yamlData.inputFormat;
     if (yamlData.command !== undefined) entry.command = yamlData.command;
+    if (yamlData.excludeMarker !== undefined) entry.excludeMarker = yamlData.excludeMarker;
 
     return entry;
   }
