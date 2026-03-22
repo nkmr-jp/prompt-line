@@ -525,12 +525,11 @@ class SettingsManager extends EventEmitter {
       entries.push(...pluginEntries);
     }
 
-    // Merge inline settings entries (these take precedence for backward compatibility)
+    // Merge inline/file-based settings entries
     const agentSkills = this.currentSettings.agentSkills;
     if (agentSkills && agentSkills.length > 0) {
       for (const item of agentSkills) {
         if (typeof item === 'string') {
-          // Load from ~/.prompt-line/agent-skills/{name}.yml
           const entry = pluginLoader.loadAgentSkillFile(item);
           if (entry) entries.push(entry);
         } else {
@@ -543,7 +542,6 @@ class SettingsManager extends EventEmitter {
     if (customSearchMentions) {
       for (const item of customSearchMentions) {
         if (typeof item === 'string') {
-          // Load from ~/.prompt-line/custom-search/{name}.yml
           const entry = pluginLoader.loadCustomSearchFile(item);
           if (entry) entries.push(entry);
         } else {

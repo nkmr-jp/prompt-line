@@ -44,9 +44,11 @@ class CustomSearchHandler {
       this.notifyRenderer();
     });
 
-    // Subscribe to plugin changes for hot reload
+    // Subscribe to plugin/standalone file changes for hot reload
     pluginManagerInstance.on('plugins-changed', () => {
       logger.debug('Plugins updated via hot reload');
+      this.customSearchLoader.invalidateCache();
+      this.updateConfig();
       this.notifyRenderer();
     });
 
@@ -116,6 +118,7 @@ class CustomSearchHandler {
       this.customSearchLoader.updateConfig(customSearchEntries);
     }
   }
+
 
   /**
    * Handler: get-agent-skills
