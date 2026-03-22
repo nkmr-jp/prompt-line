@@ -13,7 +13,7 @@ import pluginLoader from '../lib/plugin-loader';
  *
  * Directory structure:
  *   ~/.prompt-line/plugins/<package>/<hash>/<type>/<name>.yml
- *   e.g., ~/.prompt-line/plugins/prompt-line-plugins/v0.28.7/agent-skills/claude-commands.yml
+ *   e.g., ~/.prompt-line/plugins/prompt-line-plugin/v0.28.7/agent-skills/claude-commands.yml
  */
 class PluginManager extends EventEmitter {
   private sourceDir: string;

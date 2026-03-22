@@ -54,7 +54,7 @@ interface BuiltInCommandsYaml {
  * Loaded plugin data
  */
 interface LoadedPlugin {
-  pluginPath: string;  // relative path (e.g., "prompt-line-plugins/agent-skills/claude-commands")
+  pluginPath: string;  // relative path (e.g., "prompt-line-plugin/agent-skills/claude-commands")
   type: PluginType;
   entries: CustomSearchEntry[];
   builtInCommands: AgentSkillItem[];
@@ -67,7 +67,7 @@ interface LoadedPlugin {
  *
  * Directory structure:
  *   ~/.prompt-line/plugins/<package>/<hash>/<type>/<name>.yml
- *   e.g., ~/.prompt-line/plugins/prompt-line-plugins/a53c003/agent-skills/claude-commands.yml
+ *   e.g., ~/.prompt-line/plugins/prompt-line-plugin/a53c003/agent-skills/claude-commands.yml
  *
  * Plugin paths in settings.yml use the format: <package>/<type>/<name>
  * The loader automatically resolves to the latest hash directory (by mtime).
@@ -83,7 +83,7 @@ class PluginLoader {
 
   /**
    * Determine plugin type from the relative path
-   * e.g., "prompt-line-plugins/agent-skills/claude-commands" → 'agent-skills'
+   * e.g., "prompt-line-plugin/agent-skills/claude-commands" → 'agent-skills'
    */
   private getPluginType(pluginPath: string): PluginType | null {
     const parts = pluginPath.split('/');
@@ -102,9 +102,9 @@ class PluginLoader {
    * Looks at all subdirectories under pluginsDir/<package>/ and returns the one
    * with the most recent mtime.
    *
-   * e.g., for package "prompt-line-plugins", checks:
-   *   ~/.prompt-line/plugins/prompt-line-plugins/a53c003/
-   *   ~/.prompt-line/plugins/prompt-line-plugins/b1234ef/
+   * e.g., for package "prompt-line-plugin", checks:
+   *   ~/.prompt-line/plugins/prompt-line-plugin/a53c003/
+   *   ~/.prompt-line/plugins/prompt-line-plugin/b1234ef/
    * Returns the most recent.
    */
   private findLatestHashDir(packageName: string): string | null {
@@ -144,8 +144,8 @@ class PluginLoader {
 
   /**
    * Resolve a plugin path to an actual file path.
-   * Input:  "prompt-line-plugins/agent-skills/claude-commands"
-   * Output: "/home/user/.prompt-line/plugins/prompt-line-plugins/a53c003/agent-skills/claude-commands"
+   * Input:  "prompt-line-plugin/agent-skills/claude-commands"
+   * Output: "/home/user/.prompt-line/plugins/prompt-line-plugin/a53c003/agent-skills/claude-commands"
    *
    * Also supports non-hash layout (flat) as fallback for backward compatibility.
    */
@@ -162,7 +162,7 @@ class PluginLoader {
       return null;
     }
 
-    const packageName = parts[0] as string;  // e.g., "prompt-line-plugins"
+    const packageName = parts[0] as string;  // e.g., "prompt-line-plugin"
     const subPath = parts.slice(1).join('/');  // e.g., "agent-skills/claude-commands"
 
     // Try hash-based layout first: <package>/<hash>/<subpath>

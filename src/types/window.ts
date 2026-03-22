@@ -186,7 +186,7 @@ export interface UserSettings {
   /**
    * Plugin entries to enable (paths relative to ~/.prompt-line/plugins/, without .yml extension)
    * Comment out entries to disable them.
-   * Example: "prompt-line-plugins/agent-skills/claude-commands"
+   * Example: "prompt-line-plugin/agent-skills/claude-commands"
    */
   plugins?: string[];
   // Legacy alias: mdSearch (for backward compatibility)

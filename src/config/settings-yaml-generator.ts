@@ -222,8 +222,8 @@ function buildPluginsSection(settings: UserSettings): string {
 
   if (!hasPlugins) {
     return `#plugins:
-#  - prompt-line-plugins/agent-skills/claude-commands
-#  - prompt-line-plugins/built-in-commands/claude`;
+#  - prompt-line-plugin/agent-skills/claude-commands
+#  - prompt-line-plugin/built-in-commands/claude`;
   }
 
   let section = `plugins:\n`;

@@ -87,7 +87,7 @@ function main(): void {
     fs.mkdirSync(PLUGINS_DIR, { recursive: true });
   }
 
-  // Find all package directories in assets (e.g., "prompt-line-plugins")
+  // Find all package directories in assets (e.g., "prompt-line-plugin")
   const packages = fs.readdirSync(ASSETS_DIR, { withFileTypes: true })
     .filter(d => d.isDirectory());
 

@@ -193,10 +193,10 @@ export const defaultSettings: UserSettings = {
    *
    * Example (settings.yml):
    *   plugins:
-   *     - prompt-line-plugins/agent-skills/claude-commands
-   *     - prompt-line-plugins/custom-search/claude-agents
-   *     - prompt-line-plugins/built-in-commands/claude
-   *     # - prompt-line-plugins/built-in-commands/codex   # disabled
+   *     - prompt-line-plugin/agent-skills/claude-commands
+   *     - prompt-line-plugin/custom-search/claude-agents
+   *     - prompt-line-plugin/built-in-commands/claude
+   *     # - prompt-line-plugin/built-in-commands/codex   # disabled
    */
   plugins: [] as string[],
   /**
