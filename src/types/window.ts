@@ -466,6 +466,8 @@ export interface CustomSearchEntry {
   disable?: string[];
   /** オプション: Ctrl+Enter で実行するシェルコマンド。テンプレート変数({filepath}, {basename}, {content}等)使用可 */
   command?: string;
+  /** オプション: このファイルが存在するディレクトリを検索対象から除外する（例: ".orphaned_at"） */
+  excludeMarker?: string;
 }
 
 /**
