@@ -173,14 +173,6 @@ describe('IPCHandlers', () => {
             saveDirectory: vi.fn()
         };
 
-        const mockBuiltInCommandsManager = {
-            initialize: vi.fn(),
-            destroy: vi.fn(),
-            getTargetDirectory: vi.fn(() => '/test/built-in-commands'),
-            on: vi.fn(),
-            emit: vi.fn()
-        };
-
         const mockPluginManager = {
             initialize: vi.fn(),
             destroy: vi.fn(),
@@ -195,7 +187,6 @@ describe('IPCHandlers', () => {
             mockDraftManager,
             mockDirectoryManager,
             mockSettingsManager,
-            mockBuiltInCommandsManager as any,
             mockPluginManager as any
         );
     });

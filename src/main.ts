@@ -21,7 +21,6 @@ import HistoryManager from './managers/history-manager';
 import DraftManager from './managers/draft-manager';
 import DirectoryManager from './managers/directory-manager';
 import SettingsManager from './managers/settings-manager';
-import BuiltInCommandsManager from './managers/built-in-commands-manager';
 import PluginManager from './managers/plugin-manager';
 import IPCHandlers from './handlers/ipc-handlers';
 import { codeSearchHandler } from './handlers/code-search-handler';
@@ -35,7 +34,6 @@ class PromptLineApp {
   private draftManager: DraftManager | null = null;
   private directoryManager: DirectoryManager | null = null;
   private settingsManager: SettingsManager | null = null;
-  private builtInCommandsManager: BuiltInCommandsManager | null = null;
   private pluginManager: PluginManager | null = null;
   private ipcHandlers: IPCHandlers | null = null;
   private tray: Tray | null = null;
@@ -62,10 +60,6 @@ class PromptLineApp {
   private async initializeDirectories(): Promise<void> {
     await ensureDir(config.paths.userDataDir);
     await ensureDir(config.paths.imagesDir);
-
-    // Initialize built-in commands (copy to user data directory)
-    this.builtInCommandsManager = new BuiltInCommandsManager();
-    await this.builtInCommandsManager.initialize();
 
     // Initialize plugins (copy to user data directory)
     this.pluginManager = new PluginManager();
@@ -98,9 +92,6 @@ class PromptLineApp {
     }
     this.windowManager.setDirectoryManager(this.directoryManager);
 
-    if (!this.builtInCommandsManager) {
-      throw new Error('BuiltInCommandsManager not initialized');
-    }
     if (!this.pluginManager) {
       throw new Error('PluginManager not initialized');
     }
@@ -111,7 +102,6 @@ class PromptLineApp {
       this.draftManager,
       this.directoryManager,
       this.settingsManager,
-      this.builtInCommandsManager,
       this.pluginManager
     );
 
@@ -443,15 +433,6 @@ class PromptLineApp {
         logger.info('Critical data saved before quit');
       } catch (error) {
         logger.error('Error saving critical data before quit:', error);
-      }
-
-      // Clean up built-in commands manager
-      if (this.builtInCommandsManager) {
-        try {
-          await this.builtInCommandsManager.destroy();
-        } catch (error) {
-          logger.error('Error destroying built-in commands manager:', error);
-        }
       }
 
       // Clean up plugin manager

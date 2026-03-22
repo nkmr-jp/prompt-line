@@ -102,7 +102,6 @@ export interface PathsConfig {
   directoryFile: string;
   cacheDir: string;             // Cache root directory
   projectsCacheDir: string;     // Projects cache directory
-  builtInCommandsDir: string;   // Built-in slash commands directory
   pluginsDir: string;           // Plugins directory
 }
 

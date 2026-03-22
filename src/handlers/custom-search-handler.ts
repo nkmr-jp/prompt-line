@@ -2,13 +2,11 @@ import { IpcMainInvokeEvent, BrowserWindow } from 'electron';
 import { logger } from '../utils/utils';
 import type CustomSearchLoader from '../managers/custom-search-loader';
 import type SettingsManager from '../managers/settings-manager';
-import type BuiltInCommandsManager from '../managers/built-in-commands-manager';
 import type PluginManager from '../managers/plugin-manager';
 import type { AgentSkillItem, AgentItem } from '../types';
 import type { CommandExecutionResult } from '../types/ipc';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import builtInCommandsLoader from '../lib/built-in-commands-loader';
 import pluginLoader from '../lib/plugin-loader';
 import { agentSkillCacheManager } from '../managers/agent-skill-cache-manager';
 import type { IPCResult } from './handler-utils';
@@ -24,7 +22,6 @@ class CustomSearchHandler {
   constructor(
     customSearchLoader: CustomSearchLoader,
     settingsManager: SettingsManager,
-    builtInCommandsManager: BuiltInCommandsManager,
     pluginManagerInstance: PluginManager
   ) {
     this.customSearchLoader = customSearchLoader;
@@ -35,13 +32,6 @@ class CustomSearchHandler {
       pluginLoader.clearCache();
       this.updateConfig();
       logger.debug('CustomSearch config updated via hot reload');
-    });
-
-    // Subscribe to built-in commands changes for hot reload
-    builtInCommandsManager.on('commands-changed', () => {
-      logger.debug('Built-in commands updated via hot reload');
-      // Cache is already cleared by the manager, next request will trigger reload
-      this.notifyRenderer();
     });
 
     // Subscribe to plugin changes for hot reload
@@ -127,18 +117,9 @@ class CustomSearchHandler {
     query?: string
   ): Promise<AgentSkillItem[]> {
     try {
-      // Get built-in commands settings (supports both new and legacy format)
-      const builtInSettings = this.settingsManager.getBuiltInCommandsSettings();
-
-      // Get built-in commands from legacy YAML files (respects enabled/tools settings)
-      const legacyBuiltInCommands = builtInCommandsLoader.searchCommands(query, builtInSettings);
-
       // Get built-in commands from plugin YAML files
       const enabledPlugins = this.settingsManager.getPluginSettings();
-      const pluginBuiltInCommands = pluginLoader.searchBuiltInCommands(enabledPlugins, query);
-
-      // Merge legacy and plugin built-in commands
-      const builtInCommands = [...legacyBuiltInCommands, ...pluginBuiltInCommands];
+      const builtInCommands = pluginLoader.searchBuiltInCommands(enabledPlugins, query);
 
       // Get user commands from CustomSearchLoader (MD files)
       const items = query
@@ -253,14 +234,12 @@ class CustomSearchHandler {
         return false;
       }
 
-      // Check if this is a built-in command
-      const builtInSettings = this.settingsManager.getBuiltInCommandsSettings();
-      if (builtInSettings) {
-        const builtInCommands = builtInCommandsLoader.searchCommands(undefined, builtInSettings);
-        const isBuiltIn = builtInCommands.some(cmd => cmd.name === commandName);
-        if (isBuiltIn) {
-          return false; // Built-in commands don't have individual files
-        }
+      // Check if this is a built-in command from plugins
+      const enabledPlugins = this.settingsManager.getPluginSettings();
+      const builtInCommands = pluginLoader.searchBuiltInCommands(enabledPlugins);
+      const isBuiltIn = builtInCommands.some(cmd => cmd.name === commandName);
+      if (isBuiltIn) {
+        return false; // Built-in commands don't have individual files
       }
 
       // Check if this is a user-defined command (custom)

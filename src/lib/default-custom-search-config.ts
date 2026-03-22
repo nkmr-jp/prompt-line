@@ -13,9 +13,8 @@ export const DEFAULT_ORDER_BY = 'name';
 
 export function getDefaultCustomSearchConfig(): CustomSearchEntry[] {
   return [
-    // NOTE: Built-in commands (Claude Code, etc.) are loaded from YAML files
-    // via BuiltInCommandsLoader, not via customSearch. This keeps them separate
-    // and allows YAML-based management.
+    // NOTE: Built-in commands (Claude Code, etc.) are loaded from plugin YAML files
+    // via pluginLoader, not via customSearch. This keeps them separate.
 
     // User's custom slash commands
     {

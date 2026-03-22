@@ -11,7 +11,7 @@ Central communication bridge between main and renderer processes. 10 specialized
 | `history-draft-handler.ts` | History CRUD, draft management, @path caching |
 | `window-handler.ts` | Window visibility and focus control |
 | `system-handler.ts` | App info, config, settings retrieval |
-| `custom-search-handler.ts` | Slash commands, agent selection, built-in commands events, source file hot reload, shell command execution |
+| `custom-search-handler.ts` | Slash commands, agent selection, plugin hot reload, source file hot reload, shell command execution |
 | `file-handler.ts` | File operations, external URL handling |
 | `usage-history-handler.ts` | Usage tracking for files, symbols, agents |
 | `code-search-handler.ts` | Symbol search with ripgrep integration |
@@ -41,6 +41,6 @@ Central communication bridge between main and renderer processes. 10 specialized
 - Command execution: allowlist check against loaded custom search items (prevents renderer command injection)
 
 ### custom-search-handler listens for hot reload events
-- Subscribes to `commands-changed` event from BuiltInCommandsManager
+- Subscribes to `plugins-changed` event from PluginManager
 - Subscribes to `source-changed` event from CustomSearchLoader (JSONL/individual file changes)
 - Both events invalidate cache and notify renderer via `custom-search-updated` push channel

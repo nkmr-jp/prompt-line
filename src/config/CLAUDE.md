@@ -35,11 +35,11 @@ default-settings.ts (Single Source of Truth)
 ### Path management
 - All data stored under `~/.prompt-line/` (based on `os.homedir()`)
 - Getter-based lazy path generation
-- `builtInCommandsDir`: `~/.prompt-line/built-in-commands/`
+- `pluginsDir`: `~/.prompt-line/plugins/`
 
 ### Key default values
 - Window: 640x320, position: `active-text-field`
 - Shortcuts: main=`Cmd+Shift+Space`, paste=`Cmd+Enter`, close=`Escape`, historyNext=`Ctrl+j`, historyPrev=`Ctrl+k`, search=`Cmd+f`
-- `builtInCommands`: default `['claude']`
+- `builtInCommands`: deprecated (use plugins instead)
 - `fileSearch.maxFiles`: 5000
 - `symbolSearch.maxSymbols`: 200000
