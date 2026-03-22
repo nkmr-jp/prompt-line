@@ -1,0 +1,11 @@
+# Claude Code team members (from ~/.claude/teams/**/config.json, search with @team:)
+name: "{json@name}"
+description: "{json@prompt}|{json:1@description}"
+color: "{json@color}|#ffffff"
+icon: organization
+label: "{dirname}"
+path: ~/.claude/teams
+pattern: "**/config.json@. | select(.createdAt / 1000 > (now - 86400)) | select((.members | length) >= 2) | .members"
+searchPrefix: team
+orderBy: "{json@joinedAt} desc"
+displayTime: "{json@joinedAt}"

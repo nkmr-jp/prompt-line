@@ -1,0 +1,12 @@
+# Plugin agents (from ~/.claude/plugins/cache/**/agents/*.md, search with @agent:)
+name: "{prefix}:{basename}(agent)"
+label: plugin agent
+description: "{frontmatter@description}"
+path: ~/.claude/plugins/cache
+color: yellow
+pattern: "**/agents/*.md"
+values:
+  prefix: "**/.claude-plugin/*.json@name"
+searchPrefix: agent
+displayTime: "{updatedAt}"
+excludeMarker: ".orphaned_at"

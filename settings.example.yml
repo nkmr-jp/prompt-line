@@ -51,6 +51,22 @@ fileOpener:
   #    editor: "GoLand"
 
 # ============================================================================
+# PLUGINS
+# ============================================================================
+# Plugin entries to enable (paths relative to ~/.prompt-line/plugins/, without .yml extension)
+# Comment out entries to disable them.
+# Directory determines the plugin type:
+#   .../agent-skills/      → Slash commands (type: command, triggered by "/")
+#   .../custom-search/     → Mention search (type: mention, triggered by "@prefix:")
+#   .../built-in-commands/ → Built-in tool commands (triggered by "/")
+# Storage: ~/.prompt-line/plugins/ (YAML files per entry)
+# Hot-reload: YAML file changes are auto-detected (no restart needed)
+
+#plugins:
+#  - prompt-line-plugin/agent-skills/claude-commands
+#  - prompt-line-plugin/built-in-commands/claude
+
+# ============================================================================
 # BUILT-IN COMMANDS
 # ============================================================================
 # Built-in slash commands for CLI tools (Claude Code, Codex, Gemini CLI, etc.)
@@ -63,10 +79,10 @@ fileOpener:
 # Customize: Edit YAML files in the storage directory to add/modify/remove commands
 #            Changes are detected automatically — no app restart needed
 # Update: pnpm run update-built-in-commands (reset to defaults with confirmation)
-builtInCommands:                      # List of tools to enable
-  - claude
-  # - codex
-  # - gemini
+#builtInCommands:
+#  - claude
+#  - codex
+#  - gemini
 
 # ============================================================================
 # AGENT SKILLS SETTINGS
@@ -74,62 +90,13 @@ builtInCommands:                      # List of tools to enable
 # Configure agent skills: custom commands from markdown files
 # Template variables: {basename}, {frontmatter@fieldName}
 
-# Agent skills: custom commands from markdown files
-# Search: Space-separated keywords enable AND search (e.g., "/commit fix" matches both words)
-# Configuration fields:
-#   name: Display name template (variables: {basename}, {frontmatter@field}, {prefix})
-#   description: Skill description template (variables: {basename}, {frontmatter@field}, {dirname}, {dirname:N})
-#   path: Directory path to search for skill files
-#   label: Display label for UI badge (e.g., "command", "skill", "agent")
-#   color: Badge color (name: grey, darkGrey, slate, stone, red, rose, orange, amber, yellow, lime, green, emerald, teal, cyan, sky, blue, indigo, violet, purple, fuchsia, pink, or hex: #FF5733)
-#   icon: Codicon icon name (e.g., "agent", "rocket", "terminal")
-#   pattern: Glob pattern to match files (e.g., "*.md", "**/*/SKILL.md")
-#   values: Map of template variable names to JSON extraction patterns (e.g., pluginName: "**/.claude-plugin/*.json@name")
-#   argumentHint: Hint for skill arguments
-#   maxSuggestions: Maximum number of suggestions to display
-#   triggers: Trigger character array (default: ["/"]). e.g., ["/", "$"] enables both / and $ activation
-#   {dirname}: Parent directory name
-#   {dirname:N}: N levels up directory name (e.g., {dirname:2} = grandparent)
-agentSkills:
-  - name: "{basename}"
-    description: "{frontmatter@description}"
-    path: ~/.claude/commands
-    label: "command"
-    color: "purple"
-    icon: "{frontmatter@icon}"
-    pattern: "*.md"
-    argumentHint: "{frontmatter@argument-hint}"
-    maxSuggestions: 20
-  - name: "{frontmatter@name}"
-    description: "{frontmatter@description}"
-    path: ~/.claude/skills
-    label: "skill"
-    color: "pink"
-    icon: "{frontmatter@icon}"
-    pattern: "**/*/SKILL.md"
-    maxSuggestions: 20
-  - name: "{prefix}:{basename}"
-    description: "{frontmatter@description}"
-    path: ~/.claude/plugins/cache
-    label: "plugin command"
-    color: "green"
-    icon: "{frontmatter@icon}"
-    pattern: "**/commands/*.md"
-    values:
-      prefix: "**/.claude-plugin/*.json@name"
-    argumentHint: "{frontmatter@argument-hint}"
-    maxSuggestions: 20
-  - name: "{prefix}:{frontmatter@name}"
-    description: "{frontmatter@description}"
-    path: ~/.claude/plugins/cache
-    label: "plugin skill"
-    color: "cyan"
-    icon: "{frontmatter@icon}"
-    pattern: "**/*/SKILL.md"
-    values:
-      prefix: "**/.claude-plugin/*.json@name"
-    argumentHint: "{frontmatter@argument-hint}"
-    maxSuggestions: 20
+#agentSkills:
+#  - name: "{basename}"
+#    description: "{frontmatter@description}"
+#    path: ~/.claude/commands
+#    pattern: "*.md"
+#    argumentHint: "{frontmatter@argument-hint}"
+#    maxSuggestions: 20
 
 # ============================================================================
 # CUSTOM SEARCH SETTINGS (@ mentions)
@@ -138,128 +105,14 @@ agentSkills:
 # Template variables: {basename}, {frontmatter@fieldName}
 
 # Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
-# Scans directories for files matching glob patterns and provides @ mention suggestions.
 # Supports: Markdown (.md), JSON (.json), JSONL (.jsonl), jq expressions, and plain text files.
-# Search: Space-separated keywords enable AND search (e.g., @agent:dev api)
-#
-# Configuration fields:
-#   name            : Display name template
-#   description     : Entry description template (supports "|" fallback: "{json@a}|{json@b}")
-#   path            : Directory path to scan (supports ~ for home)
-#   pattern         : Glob pattern to match files
-#   values          : Map of template variable names to JSON extraction patterns (e.g., pluginName: "**/.claude-plugin/*.json@name")
-#   searchPrefix    : Prefix to trigger this search (e.g., "agent" → @agent:)
-#   maxSuggestions  : Maximum number of suggestions to display
-#   orderBy         : Sort order (e.g., "name", "name desc", "{updatedAt} desc")
-#   displayTime     : Timestamp to display (e.g., "{updatedAt}", "{json@createdAt}", "none" to hide)
-#   inputFormat     : Insert format ('name' = display name, or template e.g. '{filepath}', '{content}')
-#   color           : Badge color (name or hex)
-#   icon            : Codicon icon name (e.g., "agent", "rocket", "terminal")
-#                     https://microsoft.github.io/vscode-codicons/dist/codicon.html
-#   label           : UI badge label
-#   shortcut        : Keyboard shortcut to activate this search (e.g., "Ctrl+g")
-#                     Inserts @searchPrefix: into the input and triggers mention detection
-#
-# Template variables:
-#   {basename}          — File name without extension
-#   {frontmatter@field} — YAML frontmatter field from markdown files
-#   {json@field}        — JSON field value (for .json/.jsonl files)
-#   {json:N@field}      — JSON field from N-th level array item
-#   {prefix}            — Prefix extracted via values (e.g., values: { prefix: "pattern" })
-#   {heading}           — First non-empty line of the file (for markdown: first heading)
-#   {line}              — Each line of plain text file (generates one item per line)
-#   {dirname}           — Parent directory name
-#   {dirname:N}         — N levels up directory name (e.g., {dirname:2} = grandparent)
-#
-# Pattern examples:
-#   "*.md"                              — Markdown files in root directory only
-#   "**/*.md"                           — All subdirectories (recursive)
-#   "**/commands/*.md"                  — Any "commands" subdirectory
-#   "**/*/SKILL.md"                     — SKILL.md in any subdirectory
-#   "**/{cmd,agent}/*.md"              — Brace expansion (cmd or agent dirs)
-#   "*.json"                            — JSON files (use {json@field} for template variables)
-#   "**/config.json@.members"          — JSON + jq expression (expands array into items)
-#   "*.json@.items | map(select(.active))" — Complex jq expressions supported
-#   "*.jsonl"                           — JSONL files (one JSON per line)
-#   "*.txt"                             — Plain text files (one item per non-empty line, use {line})
-customSearch:
-  - name: "{basename}(agent)"
-    label: "agent"
-    description: "{frontmatter@description}"
-    path: ~/.claude/agents
-    pattern: "*.md"
-    searchPrefix: agent            # Search with @agent:
-    displayTime: "{updatedAt}"
-
-  - name: "{prefix}:{basename}(agent)"
-    label: "plugin agent"
-    color: "yellow"
-    description: "{frontmatter@description}"
-    path: ~/.claude/plugins/cache
-    pattern: "**/agents/*.md"
-    values:
-      prefix: "**/.claude-plugin/*.json@name"
-    searchPrefix: agent            # Search with @agent:
-    displayTime: "{updatedAt}"
-
-  - name: "{json@name}"
-    label: "{dirname}"
-    icon: organization
-    color: "{json@color}|#ffffff"
-    description: "{json@prompt}|{json:1@description}"
-    path: ~/.claude/teams
-    pattern: "**/config.json@. | select(.createdAt / 1000 > (now - 86400)) | select((.members | length) >= 2) | .members"
-    searchPrefix: team            # Search with @team:
-    orderBy: "{json@joinedAt} desc"
-    displayTime: "{json@joinedAt}"
-
-  - name: "{basename}"
-    icon: file-text
-    color: "blue"
-    description: "{heading}"
-    path: ~/.claude/plans
-    pattern: "*.md"
-    searchPrefix: plan            # Search with @plan:
-    orderBy: "{updatedAt} desc"
-    displayTime: "{updatedAt}"
-    inputFormat: {filepath}               # Insert format template
-
-  # - name: "{basename}"
-  #   description: "{frontmatter@title}"
-  #   path: /path/to/knowledge-base
-  #   pattern: "**/*/*.md"
-  #   searchPrefix: kb            # Search with @kb:
-  #   shortcut: Ctrl+g              # Keyboard shortcut to activate @kb:
-  #   maxSuggestions: 100
-  #   orderBy: "{updatedAt} desc"
-  #   inputFormat: {filepath}               # Insert format template
-  #   command: "open -a 'Google Chrome' {filepath}"            # Shell command on Ctrl+Enter (values are auto-quoted)
-
-  # - name: "{json@display}"
-  #   icon: history
-  #   color: "orange"
-  #   description: ""
-  #   path: ~/.claude
-  #   pattern: "history.jsonl"
-  #   searchPrefix: r            # Search with @r:
-  #   maxSuggestions: 100
-  #   orderBy: "{json@timestamp} desc"
-  #   displayTime: "{json@timestamp}"
-  #   inputFormat: {json@display}               # Insert format template
-
-  # ghq Repository
-  # add .zshrc (ghq list > ~/.prompt-line/ghq.txt)
-  # - name: "{line}"
-  #   icon: repo
-  #   color: "rose"
-  #   description: ""
-  #   path: ~/.prompt-line
-  #   pattern: "ghq.txt"
-  #   searchPrefix: ghq            # Search with @ghq:
-  #   shortcut: Ctrl+g              # Keyboard shortcut to activate @ghq:
-  #   maxSuggestions: 100
-  #   inputFormat: ~/ghq/{line}               # Insert format template
-  #   command: "open -a iTerm ~/ghq/{line}"            # Shell command on Ctrl+Enter
+# searchPrefix: Search with @<prefix>: (e.g., searchPrefix: "agent" → @agent:)
+#customSearch:
+#  - name: "agent-{basename}"
+#    description: "{frontmatter@description}"
+#    path: ~/.claude/agents
+#    pattern: "*.md"
+#    searchPrefix: agent            # Search with @agent:
 
 # ============================================================================
 # FILE SEARCH SETTINGS

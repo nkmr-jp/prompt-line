@@ -16,8 +16,20 @@ import type {
 // Import package.json to get the version dynamically
 import packageJson from '../../package.json';
 
+import gitInfo from '../generated/git-info.json';
+
 // Import shared default settings (single source of truth)
 import { defaultSettings } from './default-settings';
+
+function buildVersionDisplay(version: string): string {
+  if (!gitInfo.hash) return version;
+
+  const isMainBranch = gitInfo.branch === 'main' || gitInfo.branch === 'master';
+  if (isMainBranch) {
+    return `${version} (${gitInfo.hash})`;
+  }
+  return `${version} (${gitInfo.branch} ${gitInfo.hash})`;
+}
 
 class AppConfigClass {
   public window!: WindowConfig;
@@ -96,6 +108,9 @@ class AppConfigClass {
       },
       get builtInCommandsDir() {
         return path.join(userDataDir, 'built-in-commands');
+      },
+      get pluginsDir() {
+        return path.join(userDataDir, 'plugins');
       }
     };
 
@@ -115,6 +130,7 @@ class AppConfigClass {
     this.app = {
       name: 'Prompt Line',
       version: packageJson.version,
+      versionDisplay: buildVersionDisplay(packageJson.version),
       description: 'プロンプトラインアプリ - カーソル位置にテキストを素早く貼り付け'
     };
 
