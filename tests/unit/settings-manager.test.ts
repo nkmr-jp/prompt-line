@@ -200,17 +200,7 @@ window:
           excludePatterns: []
         },
         customSearch: [],
-        plugins: [
-          'prompt-line-plugins/agent-skills/claude-commands',
-          'prompt-line-plugins/agent-skills/claude-skills',
-          'prompt-line-plugins/agent-skills/plugin-commands',
-          'prompt-line-plugins/agent-skills/plugin-skills',
-          'prompt-line-plugins/custom-search/claude-agents',
-          'prompt-line-plugins/custom-search/plugin-agents',
-          'prompt-line-plugins/custom-search/claude-teams',
-          'prompt-line-plugins/custom-search/claude-plans',
-          'prompt-line-plugins/built-in-commands/claude'
-        ]
+        plugins: []
       });
     });
 
@@ -332,17 +322,7 @@ window:
           excludePatterns: []
         },
         customSearch: [],
-        plugins: [
-          'prompt-line-plugins/agent-skills/claude-commands',
-          'prompt-line-plugins/agent-skills/claude-skills',
-          'prompt-line-plugins/agent-skills/plugin-commands',
-          'prompt-line-plugins/agent-skills/plugin-skills',
-          'prompt-line-plugins/custom-search/claude-agents',
-          'prompt-line-plugins/custom-search/plugin-agents',
-          'prompt-line-plugins/custom-search/claude-teams',
-          'prompt-line-plugins/custom-search/claude-plans',
-          'prompt-line-plugins/built-in-commands/claude'
-        ]
+        plugins: []
       });
 
       // Ensure it's a copy and not reference

@@ -63,8 +63,8 @@ fileOpener:
 # Hot-reload: YAML file changes are auto-detected (no restart needed)
 
 #plugins:
-#  - prompt-line-plugin/agent-skills/claude-commands
-#  - prompt-line-plugin/built-in-commands/claude
+#  - prompt-line-plugins/agent-skills/claude-commands
+#  - prompt-line-plugins/built-in-commands/claude
 
 # ============================================================================
 # BUILT-IN COMMANDS
