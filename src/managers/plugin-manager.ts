@@ -8,12 +8,11 @@ import pluginLoader from '../lib/plugin-loader';
 
 /**
  * Manages plugin YAML files for all plugin types (agent-skills, custom-search, built-in-commands).
- * Copies default plugin files from assets to user data directory (hash-based versioning)
- * and watches for changes.
+ * Copies default plugin files from assets to user data directory and watches for changes.
  *
  * Directory structure:
- *   ~/.prompt-line/plugins/<package>/<hash>/<type>/<name>.yml
- *   e.g., ~/.prompt-line/plugins/prompt-line-plugin/v0.28.7/agent-skills/claude-commands.yml
+ *   ~/.prompt-line/plugins/<package>/<type>/<name>.yml
+ *   e.g., ~/.prompt-line/plugins/prompt-line-plugin/agent-skills/claude-commands.yml
  */
 class PluginManager extends EventEmitter {
   private sourceDir: string;
@@ -59,15 +58,8 @@ class PluginManager extends EventEmitter {
   }
 
   /**
-   * Get the version hash for the current app (used as directory name)
-   */
-  private getVersionHash(): string {
-    return `v${config.app.version}`;
-  }
-
-  /**
    * Initialize plugin manager
-   * Copies plugin files to user data directory (hash-based) and starts watcher
+   * Copies plugin files to user data directory and starts watcher
    */
   async initialize(): Promise<void> {
     try {
@@ -78,34 +70,19 @@ class PluginManager extends EventEmitter {
         return;
       }
 
-      const hash = this.getVersionHash();
       let totalCopied = 0;
 
-      // Skip source directory read if all packages are already installed for this version
       const packages = fs.readdirSync(this.sourceDir, { withFileTypes: true })
         .filter(d => d.isDirectory());
-      const allInstalled = packages.every(pkg =>
-        fs.existsSync(path.join(this.targetDir, pkg.name, hash))
-      );
 
-      if (!allInstalled) {
-        for (const pkg of packages) {
-          const sourcePackageDir = path.join(this.sourceDir, pkg.name);
-          const targetPackageDir = path.join(this.targetDir, pkg.name, hash);
-
-          if (fs.existsSync(targetPackageDir)) {
-            logger.debug(`Plugin version already installed: ${pkg.name}/${hash}`);
-            continue;
-          }
-
-          totalCopied += this.copyDirectoryRecursive(sourcePackageDir, targetPackageDir);
-        }
+      for (const pkg of packages) {
+        const sourcePackageDir = path.join(this.sourceDir, pkg.name);
+        totalCopied += this.copyDirectoryRecursive(sourcePackageDir, path.join(this.targetDir, pkg.name));
       }
 
       logger.info('Plugins initialized', {
         sourceDir: this.sourceDir,
         targetDir: this.targetDir,
-        hash,
         copiedFiles: totalCopied
       });
 
@@ -137,9 +114,17 @@ class PluginManager extends EventEmitter {
         copiedCount += this.copyDirectoryRecursive(sourcePath, targetPath);
       } else if (entry.isFile() && (entry.name.endsWith('.yml') || entry.name.endsWith('.yaml'))) {
         try {
+          // Skip if target already exists and is not older than source
+          if (fs.existsSync(targetPath)) {
+            const sourceStat = fs.statSync(sourcePath);
+            const targetStat = fs.statSync(targetPath);
+            if (targetStat.mtimeMs >= sourceStat.mtimeMs) {
+              continue;
+            }
+          }
           fs.copyFileSync(sourcePath, targetPath);
           copiedCount++;
-          logger.info(`Copied plugin file: ${path.relative(this.sourceDir, sourcePath)}`);
+          logger.debug(`Copied plugin file: ${path.relative(this.sourceDir, sourcePath)}`);
         } catch (error) {
           logger.warn(`Failed to copy plugin file: ${entry.name}`, error);
         }
