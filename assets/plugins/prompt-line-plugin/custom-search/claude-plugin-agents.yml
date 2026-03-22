@@ -1,5 +1,5 @@
 # Claude Code plugin agents (from ~/.claude/plugins/cache/**/agents/*.md, search with @agent:)
-pluginDescription: "Claude Code plugin agents (from ~/.claude/plugins/cache/**/agents/*.md, search with @agent:)"
+pluginDescription: "~/.claude/plugins/cache/**/agents/*.md, search with @agent:"
 name: "{prefix}:{basename}(agent)"
 label: plugin agent
 description: "{frontmatter@description}"

@@ -1,5 +1,5 @@
 # Claude Code plans (from ~/.claude/plans/*.md, search with @plan:)
-pluginDescription: "Claude Code plans (from ~/.claude/plans/*.md, search with @plan:)"
+pluginDescription: "~/.claude/plans/*.md, search with @plan:"
 name: "{basename}"
 description: "{heading}"
 path: ~/.claude/plans
