@@ -1,4 +1,5 @@
 # Claude Code custom commands (from ~/.claude/commands/*.md)
+pluginDescription: "Claude Code custom commands"
 name: "{basename}"
 description: "{frontmatter@description}"
 path: ~/.claude/commands

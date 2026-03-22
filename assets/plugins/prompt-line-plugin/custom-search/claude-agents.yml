@@ -1,4 +1,5 @@
 # Claude Code agents (from ~/.claude/agents/*.md, search with @agent:)
+pluginDescription: "Claude Code agents"
 name: "{basename}(agent)"
 label: agent
 description: "{frontmatter@description}"

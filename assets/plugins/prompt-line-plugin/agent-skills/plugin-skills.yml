@@ -1,4 +1,5 @@
 # Plugin skills (from ~/.claude/plugins/cache/**/SKILL.md)
+pluginDescription: "Plugin skills"
 name: "{prefix}:{frontmatter@name}"
 description: "{frontmatter@description}"
 path: ~/.claude/plugins/cache
