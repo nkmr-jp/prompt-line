@@ -102,12 +102,8 @@ export const defaultSettings: UserSettings = {
   },
   /**
    * Built-in slash commands to enable (type "/" to access)
-   * @deprecated Use plugins setting instead. Kept for backward compatibility.
-   * undefined = disabled (use plugins instead), [] = all enabled, ['claude'] = only claude
-   *
-   * Example (settings.yml):
-   *   builtInCommands:
-   *     - claude
+   * @deprecated Use plugins setting instead. Built-in commands are now managed as plugins
+   * under plugins/prompt-line-plugin/<tool>/built-in-commands/.
    */
   // Not set: disabled by default. Use plugins setting instead.
   /**
@@ -193,10 +189,10 @@ export const defaultSettings: UserSettings = {
    *
    * Example (settings.yml):
    *   plugins:
-   *     - prompt-line-plugin/agent-skills/claude-commands
-   *     - prompt-line-plugin/custom-search/claude-agents
-   *     - prompt-line-plugin/built-in-commands/claude
-   *     # - prompt-line-plugin/built-in-commands/codex   # disabled
+   *     - prompt-line-plugin/claude/agent-skills/commands
+   *     - prompt-line-plugin/claude/custom-search/agents
+   *     - prompt-line-plugin/claude/built-in-commands/claude
+   *     # - prompt-line-plugin/codex/built-in-commands/codex   # disabled
    */
   plugins: [] as string[],
   /**
@@ -231,7 +227,7 @@ export const defaultSettings: UserSettings = {
  * To use these examples, uncomment them in ~/.prompt-line/settings.yml.
  */
 export const commentedExamples = {
-  builtInCommands: ['codex', 'gemini'],
+  builtInCommands: [] as string[],
   agentSkills: [] as Array<{
     name: string;
     description: string;

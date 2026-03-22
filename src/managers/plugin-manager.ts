@@ -12,7 +12,7 @@ import pluginLoader from '../lib/plugin-loader';
  *
  * Directory structure:
  *   ~/.prompt-line/plugins/<package>/<type>/<name>.yml
- *   e.g., ~/.prompt-line/plugins/prompt-line-plugin/agent-skills/claude-commands.yml
+ *   e.g., ~/.prompt-line/plugins/prompt-line-plugin/claude/agent-skills/commands.yml
  */
 class PluginManager extends EventEmitter {
   private sourceDir: string;
@@ -114,11 +114,11 @@ class PluginManager extends EventEmitter {
         copiedCount += this.copyDirectoryRecursive(sourcePath, targetPath);
       } else if (entry.isFile() && (entry.name.endsWith('.yml') || entry.name.endsWith('.yaml'))) {
         try {
-          // Skip if target already exists and is not older than source
+          // Skip if target has identical content (avoids unnecessary watcher events)
           if (fs.existsSync(targetPath)) {
-            const sourceStat = fs.statSync(sourcePath);
-            const targetStat = fs.statSync(targetPath);
-            if (targetStat.mtimeMs >= sourceStat.mtimeMs) {
+            const sourceContent = fs.readFileSync(sourcePath);
+            const targetContent = fs.readFileSync(targetPath);
+            if (sourceContent.equals(targetContent)) {
               continue;
             }
           }

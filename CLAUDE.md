@@ -8,7 +8,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 pnpm start          # Run app in development mode (with DEBUG logging enabled)
 pnpm run setup-codesign          # Create self-signed code signing certificate (one-time setup)
-pnpm run update-built-in-commands # Update slash commands with confirmation
 pnpm run reset-accessibility      # Reset accessibility permissions for Prompt Line
 ```
 
@@ -103,22 +102,22 @@ User Input → Renderer → IPC Event → IPCHandlers (coordinator) → Speciali
 
 ### Built-in Commands
 
-Slash command definitions for CLI tools (Claude Code, Codex CLI, Gemini CLI) stored as YAML files.
+Slash command definitions for CLI tools (Claude Code, Codex CLI, Gemini CLI) stored as plugin YAML files.
 
-**Source:** `assets/built-in-commands/*.yml` → **Installed to:** `~/.prompt-line/built-in-commands/`
+**Source:** `assets/plugins/prompt-line-plugin/<tool>/built-in-commands/*.yml` → **Installed to:** `~/.prompt-line/plugins/prompt-line-plugin/<tool>/built-in-commands/`
 
 **Updating to latest versions:**
 1. Check latest slash commands:
    - **Claude Code**: [changelog](https://github.com/anthropics/claude-code/releases) / [docs](https://code.claude.com/docs/en/commands)
    - **Codex CLI**: [source](https://github.com/openai/codex) / [docs](https://developers.openai.com/codex/cli/slash-commands/)
    - **Gemini CLI**: [docs](https://google-gemini.github.io/gemini-cli/docs/cli/commands.html) / [releases](https://github.com/google-gemini/gemini-cli/releases)
-2. Edit YAML files in `assets/built-in-commands/` (add/update commands; do not remove existing)
-3. Run `pnpm run update-built-in-commands` (requires `pnpm install` if node_modules is missing)
+2. Edit YAML files in `assets/plugins/prompt-line-plugin/<tool>/built-in-commands/`
 
 **Commit type for built-in-commands updates:** Use `chore` (not `feat`)
 
 **YAML format:**
 ```yaml
+pluginDescription: "Claude Code built-in slash commands"
 name: claude
 color: amber
 reference: https://example.com/docs
