@@ -33,6 +33,7 @@ interface PluginEntryYaml {
   inputFormat?: string;
   shortcut?: string;
   command?: string;
+  excludeMarker?: string;
 }
 
 /**
@@ -66,15 +67,13 @@ interface LoadedPlugin {
  * CustomSearchEntry[] (for agent-skills/custom-search) or AgentSkillItem[] (for built-in-commands).
  *
  * Directory structure:
- *   ~/.prompt-line/plugins/<package>/<hash>/<type>/<name>.yml
- *   e.g., ~/.prompt-line/plugins/prompt-line-plugin/a53c003/agent-skills/claude-commands.yml
+ *   ~/.prompt-line/plugins/<package>/<type>/<name>.yml
+ *   e.g., ~/.prompt-line/plugins/prompt-line-plugin/agent-skills/claude-commands.yml
  *
  * Plugin paths in settings.yml use the format: <package>/<type>/<name>
- * The loader automatically resolves to the latest hash directory (by mtime).
  */
 class PluginLoader {
   private cache: Map<string, LoadedPlugin> = new Map();
-  private latestHashCache: Map<string, string> = new Map();
   private pluginsDir: string;
 
   constructor() {
@@ -97,56 +96,9 @@ class PluginLoader {
   }
 
   /**
-   * Find the latest hash directory for a package.
-   * Looks at all subdirectories under pluginsDir/<package>/ and returns the one
-   * with the most recent mtime.
-   *
-   * e.g., for package "prompt-line-plugin", checks:
-   *   ~/.prompt-line/plugins/prompt-line-plugin/a53c003/
-   *   ~/.prompt-line/plugins/prompt-line-plugin/b1234ef/
-   * Returns the most recent.
-   */
-  private findLatestHashDir(packageName: string): string | null {
-    // Check cache first
-    const cached = this.latestHashCache.get(packageName);
-    if (cached) return cached;
-
-    const packageDir = path.join(this.pluginsDir, packageName);
-    if (!fs.existsSync(packageDir)) return null;
-
-    let latestDir: string | null = null;
-    let latestMtime = 0;
-
-    try {
-      const entries = fs.readdirSync(packageDir, { withFileTypes: true });
-      for (const entry of entries) {
-        if (!entry.isDirectory()) continue;
-
-        const dirPath = path.join(packageDir, entry.name);
-        const stat = fs.statSync(dirPath);
-        if (stat.mtimeMs > latestMtime) {
-          latestMtime = stat.mtimeMs;
-          latestDir = entry.name;
-        }
-      }
-    } catch (error) {
-      logger.warn(`Failed to read package directory: ${packageDir}`, error);
-      return null;
-    }
-
-    if (latestDir) {
-      this.latestHashCache.set(packageName, latestDir);
-    }
-
-    return latestDir;
-  }
-
-  /**
    * Resolve a plugin path to an actual file path.
    * Input:  "prompt-line-plugin/agent-skills/claude-commands"
-   * Output: "/home/user/.prompt-line/plugins/prompt-line-plugin/a53c003/agent-skills/claude-commands"
-   *
-   * Also supports non-hash layout (flat) as fallback for backward compatibility.
+   * Output: "/home/user/.prompt-line/plugins/prompt-line-plugin/agent-skills/claude-commands"
    */
   private resolvePluginBasePath(pluginPath: string): string | null {
     // Reject paths with traversal or absolute paths
@@ -161,23 +113,10 @@ class PluginLoader {
       return null;
     }
 
-    const packageName = parts[0]!;
-    const subPath = parts.slice(1).join('/');
-
-    const latestHash = this.findLatestHashDir(packageName);
-    if (latestHash) {
-      const hashBasedPath = path.resolve(this.pluginsDir, packageName, latestHash, subPath);
-      const normalizedBase = path.resolve(this.pluginsDir);
-      if (hashBasedPath.startsWith(normalizedBase + path.sep)) {
-        return hashBasedPath;
-      }
-    }
-
-    // Fallback: flat layout <package>/<subpath> (backward compat)
-    const flatPath = path.resolve(this.pluginsDir, pluginPath);
+    const resolved = path.resolve(this.pluginsDir, pluginPath);
     const normalizedBase = path.resolve(this.pluginsDir);
-    if (flatPath.startsWith(normalizedBase + path.sep)) {
-      return flatPath;
+    if (resolved.startsWith(normalizedBase + path.sep)) {
+      return resolved;
     }
 
     logger.warn(`Plugin path traversal attempt blocked: ${pluginPath}`);
@@ -281,6 +220,7 @@ class PluginLoader {
     if (yamlData.displayTime !== undefined) entry.displayTime = yamlData.displayTime;
     if (yamlData.inputFormat !== undefined) entry.inputFormat = yamlData.inputFormat;
     if (yamlData.command !== undefined) entry.command = yamlData.command;
+    if (yamlData.excludeMarker !== undefined) entry.excludeMarker = yamlData.excludeMarker;
 
     return entry;
   }
@@ -398,7 +338,6 @@ class PluginLoader {
    */
   clearCache(): void {
     this.cache.clear();
-    this.latestHashCache.clear();
     logger.debug('Plugin loader cache cleared');
   }
 }
