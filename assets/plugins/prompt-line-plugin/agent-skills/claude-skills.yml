@@ -1,5 +1,5 @@
 # Claude Code skills (from ~/.claude/skills/**/SKILL.md)
-pluginDescription: "Claude Code skills"
+pluginDescription: "Claude Code skills (from ~/.claude/skills/**/SKILL.md)"
 name: "{frontmatter@name}"
 description: "{frontmatter@description}"
 path: ~/.claude/skills

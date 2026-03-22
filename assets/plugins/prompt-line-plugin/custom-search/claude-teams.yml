@@ -1,5 +1,5 @@
 # Claude Code team members (from ~/.claude/teams/**/config.json, search with @team:)
-pluginDescription: "Claude Code team members"
+pluginDescription: "Claude Code team members (from ~/.claude/teams/**/config.json, search with @team:)"
 name: "{json@name}"
 description: "{json@prompt}|{json:1@description}"
 color: "{json@color}|#ffffff"
