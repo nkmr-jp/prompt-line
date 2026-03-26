@@ -57,7 +57,6 @@ export class PromptLineRenderer {
   private mouseMoveThrottleTimeout: number | null = null;
   // Last search term that was rendered (for render skip optimization)
   private _lastRenderedSearchTerm: string = '';
-  // P1: Track last known custom search change timestamp for conditional invalidation
   private lastCustomSearchChangeTimestamp: number = 0;
 
   constructor() {
@@ -499,7 +498,6 @@ export class PromptLineRenderer {
       return;
     }
 
-    // P1: Only invalidate renderer caches when main process data has actually changed
     try {
       const lastChange = await electronAPI.customSearch.getLastChangeTimestamp();
       if (lastChange > this.lastCustomSearchChangeTimestamp) {

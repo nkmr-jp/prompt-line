@@ -1429,7 +1429,6 @@ class CustomSearchLoader extends EventEmitter {
       return true;
     }
 
-    // P3: RegExp cache to avoid recompilation per file
     let regex = this.regexCache.get(pattern);
     if (!regex) {
       const regexPattern = pattern
