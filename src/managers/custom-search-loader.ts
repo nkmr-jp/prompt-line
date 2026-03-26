@@ -27,24 +27,13 @@ class CustomSearchLoader extends EventEmitter {
   private settings: UserSettings | undefined;
   private loadingPromise: Promise<CustomSearchItem[]> | null = null;
 
-  // P0: entryMap for O(1) lookup instead of O(n) linear search
   private entryMap: Map<string, CustomSearchEntry> = new Map();
-
-  // P0: normalizedCache for pre-computed toLowerCase fields
   private normalizedCache: string[] = [];
   private normalizedCacheSource: CustomSearchItem[] | null = null;
-
-  // P1: search result cache to avoid re-filtering on same query
   private resultCacheKey = '';
   private resultCacheItems: CustomSearchItem[] = [];
-
-  // P3: RegExp cache for matchesGlobPattern
   private regexCache: Map<string, RegExp> = new Map();
-
-  // P1: Track when cache was last invalidated (for conditional invalidation)
   private lastChangeTimestamp: number = 0;
-
-  // P4: Stale-while-revalidate flag (defer actual cache clear until next access)
   private isStale: boolean = false;
 
   // File watchers for hot reload (individual files: JSONL + non-glob pattern files)
@@ -239,7 +228,6 @@ class CustomSearchLoader extends EventEmitter {
    * searchPrefixが設定されているエントリは、クエリがそのプレフィックスで始まる場合のみ検索対象
    */
   async searchItems(type: CustomSearchType, query: string): Promise<CustomSearchItem[]> {
-    // P1: result cache hit check
     const cacheKey = `${type}:${query}`;
     if (cacheKey === this.resultCacheKey && this.resultCacheItems.length > 0) {
       return this.resultCacheItems;
@@ -267,7 +255,6 @@ class CustomSearchLoader extends EventEmitter {
       return result;
     }
 
-    // P0: normalizedCache を構築して高速フィルタリング
     this.ensureNormalized(allItems);
     const filteredItems = this.filterByKeywords(allItems, items, query);
 
@@ -311,7 +298,6 @@ class CustomSearchLoader extends EventEmitter {
         continue;
       }
 
-      // P0: use normalizedCache instead of repeated toLowerCase()
       const normalized = this.normalizedCache[i]!;
       let allMatch = true;
       for (let k = 0; k < keywords.length; k++) {
@@ -494,7 +480,6 @@ class CustomSearchLoader extends EventEmitter {
    * Singleflight パターン: 同時呼び出しが同一の Promise を共有し Cache Stampede を防止
    */
   private async loadAll(): Promise<CustomSearchItem[]> {
-    // P4: Stale-while-revalidate - clear caches lazily on next access
     if (this.isStale) {
       this.clearAllCaches();
     }
