@@ -909,13 +909,13 @@ class CustomSearchLoader extends EventEmitter {
   ): Promise<unknown[] | null> {
     // filePath をキャッシュキーとして渡し、繰り返し失敗を防止
     const result = await evaluateJq(jsonData, jqExpression, filePath);
-    logger.debug('evaluateJqArrayResult', {
-      filePath,
-      jqExpression,
-      resultType: typeof result,
-      isArray: Array.isArray(result),
-      length: Array.isArray(result) ? result.length : 'N/A'
-    });
+    // logger.debug('evaluateJqArrayResult', {
+    //   filePath,
+    //   jqExpression,
+    //   resultType: typeof result,
+    //   isArray: Array.isArray(result),
+    //   length: Array.isArray(result) ? result.length : 'N/A'
+    // });
     return Array.isArray(result) ? result : null;
   }
 

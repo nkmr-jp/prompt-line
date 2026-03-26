@@ -41,12 +41,12 @@ async function getJqInstance(): Promise<JqInstance> {
 
   if (!jqInitPromise) {
     jqInitPromise = (async () => {
-      logger.debug('jq-web: initializing WASM module...');
+      // logger.debug('jq-web: initializing WASM module...');
       try {
         const jqModule = require('jq-web');
         const instance = await jqModule;
         jqInstance = instance;
-        logger.debug('jq-web: initialized successfully');
+        // logger.debug('jq-web: initialized successfully');
         return instance;
       } catch (error) {
         logger.error('jq-web: WASM initialization failed', { error: error instanceof Error ? error.message : String(error) });
@@ -104,7 +104,7 @@ export async function evaluateJq(data: unknown, expression: string, cacheKey?: s
       // select() filtered out the data — expected, not an error
       return null;
     }
-    logger.debug('jq evaluation success', { expression, resultType: typeof result, isArray: Array.isArray(result) });
+    // logger.debug('jq evaluation success', { expression, resultType: typeof result, isArray: Array.isArray(result) });
     return result;
   } catch (error) {
     logger.warn('jq evaluation failed', { expression, error: error instanceof Error ? error.message : String(error) });
