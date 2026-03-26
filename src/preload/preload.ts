@@ -84,6 +84,7 @@ const ALLOWED_CHANNELS = [
   'get-agent-usage-bonuses',
   // Cache invalidation
   'invalidate-custom-search',
+  'get-custom-search-last-change',
   // Custom search command execution
   'execute-custom-search-command',
   // Settings update notification channel
@@ -323,6 +324,9 @@ const electronAPI: ElectronAPI = {
     },
     executeCommand: async (command: string): Promise<CommandExecutionResult> => {
       return ipcRenderer.invoke('execute-custom-search-command', command);
+    },
+    getLastChangeTimestamp: async (): Promise<number> => {
+      return ipcRenderer.invoke('get-custom-search-last-change');
     }
   },
 

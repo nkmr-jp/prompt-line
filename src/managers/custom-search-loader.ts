@@ -27,19 +27,14 @@ class CustomSearchLoader extends EventEmitter {
   private settings: UserSettings | undefined;
   private loadingPromise: Promise<CustomSearchItem[]> | null = null;
 
-  // P0: entryMap for O(1) lookup instead of O(n) linear search
   private entryMap: Map<string, CustomSearchEntry> = new Map();
-
-  // P0: normalizedCache for pre-computed toLowerCase fields
   private normalizedCache: string[] = [];
   private normalizedCacheSource: CustomSearchItem[] | null = null;
-
-  // P1: search result cache to avoid re-filtering on same query
   private resultCacheKey = '';
   private resultCacheItems: CustomSearchItem[] = [];
-
-  // P3: RegExp cache for matchesGlobPattern
   private regexCache: Map<string, RegExp> = new Map();
+  private lastChangeTimestamp: number = 0;
+  private isStale: boolean = false;
 
   // File watchers for hot reload (individual files: JSONL + non-glob pattern files)
   private fileWatchers: FSWatcher[] = [];
@@ -85,6 +80,25 @@ class CustomSearchLoader extends EventEmitter {
    * キャッシュを無効化
    */
   invalidateCache(): void {
+    this.lastChangeTimestamp = Date.now();
+    this.isStale = true;
+    // Clear result cache immediately (checked before loadAll's stale check)
+    this.resultCacheKey = '';
+    this.resultCacheItems = [];
+  }
+
+  /**
+   * Returns the timestamp of the last cache invalidation.
+   * Used by renderer to avoid unnecessary invalidation on window-shown.
+   */
+  getLastChangeTimestamp(): number {
+    return this.lastChangeTimestamp;
+  }
+
+  /**
+   * Actually clear all caches. Called lazily when stale data is accessed.
+   */
+  private clearAllCaches(): void {
     this.cache.clear();
     this.loadingPromise = null;
     this.entryMap.clear();
@@ -93,6 +107,7 @@ class CustomSearchLoader extends EventEmitter {
     this.resultCacheKey = '';
     this.resultCacheItems = [];
     this.regexCache.clear();
+    this.isStale = false;
   }
 
   /**
@@ -213,7 +228,6 @@ class CustomSearchLoader extends EventEmitter {
    * searchPrefixが設定されているエントリは、クエリがそのプレフィックスで始まる場合のみ検索対象
    */
   async searchItems(type: CustomSearchType, query: string): Promise<CustomSearchItem[]> {
-    // P1: result cache hit check
     const cacheKey = `${type}:${query}`;
     if (cacheKey === this.resultCacheKey && this.resultCacheItems.length > 0) {
       return this.resultCacheItems;
@@ -241,7 +255,6 @@ class CustomSearchLoader extends EventEmitter {
       return result;
     }
 
-    // P0: normalizedCache を構築して高速フィルタリング
     this.ensureNormalized(allItems);
     const filteredItems = this.filterByKeywords(allItems, items, query);
 
@@ -285,7 +298,6 @@ class CustomSearchLoader extends EventEmitter {
         continue;
       }
 
-      // P0: use normalizedCache instead of repeated toLowerCase()
       const normalized = this.normalizedCache[i]!;
       let allMatch = true;
       for (let k = 0; k < keywords.length; k++) {
@@ -468,6 +480,10 @@ class CustomSearchLoader extends EventEmitter {
    * Singleflight パターン: 同時呼び出しが同一の Promise を共有し Cache Stampede を防止
    */
   private async loadAll(): Promise<CustomSearchItem[]> {
+    if (this.isStale) {
+      this.clearAllCaches();
+    }
+
     const cacheKey = 'all';
     const cached = this.cache.get(cacheKey);
     if (cached) {
@@ -1413,7 +1429,6 @@ class CustomSearchLoader extends EventEmitter {
       return true;
     }
 
-    // P3: RegExp cache to avoid recompilation per file
     let regex = this.regexCache.get(pattern);
     if (!regex) {
       const regexPattern = pattern

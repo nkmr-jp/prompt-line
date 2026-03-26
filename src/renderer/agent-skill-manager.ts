@@ -1279,4 +1279,15 @@ export class AgentSkillManager implements IInitializable {
     // C3: Reset keyword cache on invalidate
     this.lastSkillKeywords = '';
   }
+
+  /**
+   * P2: Prefetch skills in background to warm cache before user interaction
+   */
+  public async prefetchSkills(): Promise<void> {
+    try {
+      await this.loadSkills();
+    } catch {
+      // Prefetch failure is non-critical
+    }
+  }
 }

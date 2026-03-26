@@ -247,6 +247,7 @@ export interface ElectronAPI {
     getMaxSuggestions: (type: 'command' | 'mention') => Promise<number>;
     getSearchPrefixes: (type: 'command' | 'mention') => Promise<string[]>;
     executeCommand: (command: string) => Promise<CommandExecutionResult>;
+    getLastChangeTimestamp: () => Promise<number>;
   };
   fileSearch: {
     getMaxSuggestions: () => Promise<number>;

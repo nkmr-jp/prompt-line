@@ -68,9 +68,9 @@ export class MentionManager implements IInitializable {
   // C3: Last keyword cache for checkForFileSearch skip optimization
   private lastFileSearchKeywords: string = '';
 
-  // C5: Short-term TTL cache for searchAgents (2s)
+  // C5: Short-term TTL cache for searchAgents
   private searchAgentsCache: { query: string; result: AgentItem[]; time: number } | null = null;
-  private static readonly SEARCH_AGENTS_CACHE_TTL = 2000;
+  private static readonly SEARCH_AGENTS_CACHE_TTL = 15000;
 
   // Symbol mode properties (delegated to CodeSearchManager)
   private get isInSymbolMode(): boolean {
@@ -844,7 +844,7 @@ export class MentionManager implements IInitializable {
   }
 
   /**
-   * Search agents via IPC (with 2s TTL cache to avoid redundant IPC calls)
+   * Search agents via IPC (with TTL cache to avoid redundant IPC calls)
    */
   private async searchAgents(query: string): Promise<AgentItem[]> {
     // C5: Return cached result if same query within TTL
