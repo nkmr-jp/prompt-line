@@ -66,6 +66,8 @@ class CustomSearchHandler {
     ipcMain.handle('get-custom-search-prefixes', this.handleGetCustomSearchPrefixes.bind(this));
     // Cache invalidation handler (called by renderer on window-shown)
     ipcMain.handle('invalidate-custom-search', this.handleInvalidateCustomSearch.bind(this));
+    // Last change timestamp (for conditional invalidation)
+    ipcMain.handle('get-custom-search-last-change', this.handleGetLastChange.bind(this));
     // Agent skill cache handlers
     ipcMain.handle('register-global-agent-skill', this.handleRegisterGlobalAgentSkill.bind(this));
     ipcMain.handle('get-global-agent-skills', this.handleGetGlobalAgentSkills.bind(this));
@@ -86,6 +88,7 @@ class CustomSearchHandler {
       'get-custom-search-max-suggestions',
       'get-custom-search-prefixes',
       'invalidate-custom-search',
+      'get-custom-search-last-change',
       'register-global-agent-skill',
       'get-global-agent-skills',
       'get-usage-bonuses',
@@ -384,6 +387,15 @@ class CustomSearchHandler {
       logger.debug('Background preload failed:', err);
     });
     logger.debug('CustomSearch cache invalidated via IPC (background preload started)');
+  }
+
+  /**
+   * Handler: get-custom-search-last-change
+   * Returns the timestamp of the last cache invalidation.
+   * Used by renderer to skip unnecessary invalidation on window-shown.
+   */
+  private handleGetLastChange(): number {
+    return this.customSearchLoader.getLastChangeTimestamp();
   }
 
   /**

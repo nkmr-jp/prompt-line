@@ -57,6 +57,8 @@ export class PromptLineRenderer {
   private mouseMoveThrottleTimeout: number | null = null;
   // Last search term that was rendered (for render skip optimization)
   private _lastRenderedSearchTerm: string = '';
+  // P1: Track last known custom search change timestamp for conditional invalidation
+  private lastCustomSearchChangeTimestamp: number = 0;
 
   constructor() {
     this.domManager = new DomManager();
@@ -497,12 +499,20 @@ export class PromptLineRenderer {
       return;
     }
 
-    // Invalidate renderer-side agent skill cache
-    this.agentSkillManager?.invalidateCache();
-
-    // Invalidate main process CustomSearchLoader cache in background (fire-and-forget)
-    // This ensures fresh data on next query without blocking window display
-    electronAPI.invoke('invalidate-custom-search').catch(() => {});
+    // P1: Only invalidate renderer caches when main process data has actually changed
+    try {
+      const lastChange = await electronAPI.customSearch.getLastChangeTimestamp();
+      if (lastChange > this.lastCustomSearchChangeTimestamp) {
+        this.lastCustomSearchChangeTimestamp = lastChange;
+        this.agentSkillManager?.invalidateCache();
+        this.fileSearchManager?.clearAgentsCache();
+        this.agentSkillManager?.prefetchSkills();
+      }
+    } catch {
+      this.agentSkillManager?.invalidateCache();
+      this.fileSearchManager?.clearAgentsCache();
+      electronAPI.invoke('invalidate-custom-search').catch(() => {});
+    }
 
     await this.directoryDataHandler.handleWindowShown(data);
   }

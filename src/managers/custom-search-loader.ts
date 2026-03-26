@@ -41,6 +41,12 @@ class CustomSearchLoader extends EventEmitter {
   // P3: RegExp cache for matchesGlobPattern
   private regexCache: Map<string, RegExp> = new Map();
 
+  // P1: Track when cache was last invalidated (for conditional invalidation)
+  private lastChangeTimestamp: number = 0;
+
+  // P4: Stale-while-revalidate flag (defer actual cache clear until next access)
+  private isStale: boolean = false;
+
   // File watchers for hot reload (individual files: JSONL + non-glob pattern files)
   private fileWatchers: FSWatcher[] = [];
   private watchedFilePaths: Set<string> = new Set();
@@ -85,6 +91,25 @@ class CustomSearchLoader extends EventEmitter {
    * キャッシュを無効化
    */
   invalidateCache(): void {
+    this.lastChangeTimestamp = Date.now();
+    this.isStale = true;
+    // Clear result cache immediately (checked before loadAll's stale check)
+    this.resultCacheKey = '';
+    this.resultCacheItems = [];
+  }
+
+  /**
+   * Returns the timestamp of the last cache invalidation.
+   * Used by renderer to avoid unnecessary invalidation on window-shown.
+   */
+  getLastChangeTimestamp(): number {
+    return this.lastChangeTimestamp;
+  }
+
+  /**
+   * Actually clear all caches. Called lazily when stale data is accessed.
+   */
+  private clearAllCaches(): void {
     this.cache.clear();
     this.loadingPromise = null;
     this.entryMap.clear();
@@ -93,6 +118,7 @@ class CustomSearchLoader extends EventEmitter {
     this.resultCacheKey = '';
     this.resultCacheItems = [];
     this.regexCache.clear();
+    this.isStale = false;
   }
 
   /**
@@ -468,6 +494,11 @@ class CustomSearchLoader extends EventEmitter {
    * Singleflight パターン: 同時呼び出しが同一の Promise を共有し Cache Stampede を防止
    */
   private async loadAll(): Promise<CustomSearchItem[]> {
+    // P4: Stale-while-revalidate - clear caches lazily on next access
+    if (this.isStale) {
+      this.clearAllCaches();
+    }
+
     const cacheKey = 'all';
     const cached = this.cache.get(cacheKey);
     if (cached) {
