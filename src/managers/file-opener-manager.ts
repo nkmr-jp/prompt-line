@@ -63,25 +63,16 @@ const EDITOR_CONFIGS: Record<string, EditorConfig> = {
   'Zed': { useOpenArgs: true, lineFormat: 'colon' },
 };
 
-// JetBrains IDEs: useOpenArgs only, no lineFormat (default = --line N style)
-const JETBRAINS_IDES_LOWER = new Set(
-  Object.entries(EDITOR_CONFIGS)
-    .filter(([, cfg]) => cfg.useOpenArgs && !cfg.lineFormat && !cfg.cli)
-    .map(([name]) => name.toLowerCase())
-);
-
-function isJetBrainsIde(appName: string): boolean {
-  return JETBRAINS_IDES_LOWER.has(appName.toLowerCase());
-}
-
-function findProjectRoot(filePath: string, markers: string[]): string | null {
+/**
+ * Find project root by traversing parent directories looking for .git
+ * Works with both regular repos (.git directory) and worktrees (.git file)
+ */
+function findProjectRoot(filePath: string): string | null {
   let dir = path.dirname(filePath);
   let parent = path.dirname(dir);
   while (dir !== parent) {
-    for (const marker of markers) {
-      if (existsSync(path.join(dir, marker))) {
-        return dir;
-      }
+    if (existsSync(path.join(dir, '.git'))) {
+      return dir;
     }
     dir = parent;
     parent = path.dirname(dir);
@@ -176,9 +167,8 @@ export class FileOpenerManager {
         return;
       }
 
-      // Detect project root once for all code paths
-      const markers = isJetBrainsIde(appName) ? ['.idea'] : ['.git'];
-      const projectRoot = findProjectRoot(filePath, markers);
+      // Detect project root (.git) once for all code paths
+      const projectRoot = findProjectRoot(filePath);
       if (projectRoot) {
         logger.info('Detected project root for file opener', { projectRoot, appName, filePath });
       }

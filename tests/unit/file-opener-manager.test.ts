@@ -1268,7 +1268,7 @@ describe('FileOpenerManager', () => {
   });
 
   describe('project root detection', () => {
-    it('should pass project root to JetBrains IDE when .idea is found', async () => {
+    it('should pass project root to GoLand when .git is found', async () => {
       mockSettingsManager.getSettings.mockReturnValue({
         ...defaultSettings,
         fileOpener: {
@@ -1277,9 +1277,8 @@ describe('FileOpenerManager', () => {
         }
       });
 
-      // .idea exists at /Users/test/go-projects
       mockedExistsSync.mockImplementation((p: any) => {
-        return String(p) === '/Users/test/go-projects/.idea';
+        return String(p) === '/Users/test/go-projects/.git';
       });
 
       mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
@@ -1297,7 +1296,7 @@ describe('FileOpenerManager', () => {
       );
     });
 
-    it('should use original behavior when .idea is not found for JetBrains IDE', async () => {
+    it('should use original behavior when .git is not found', async () => {
       mockSettingsManager.getSettings.mockReturnValue({
         ...defaultSettings,
         fileOpener: {
@@ -1306,7 +1305,6 @@ describe('FileOpenerManager', () => {
         }
       });
 
-      // No .idea found anywhere
       mockedExistsSync.mockReturnValue(false);
 
       mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
@@ -1324,7 +1322,7 @@ describe('FileOpenerManager', () => {
       );
     });
 
-    it('should pass project root with line number for JetBrains IDE', async () => {
+    it('should pass project root with line number for GoLand', async () => {
       mockSettingsManager.getSettings.mockReturnValue({
         ...defaultSettings,
         fileOpener: {
@@ -1334,7 +1332,7 @@ describe('FileOpenerManager', () => {
       });
 
       mockedExistsSync.mockImplementation((p: any) => {
-        return String(p) === '/Users/test/go-projects/.idea';
+        return String(p) === '/Users/test/go-projects/.git';
       });
 
       mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
@@ -1380,7 +1378,7 @@ describe('FileOpenerManager', () => {
       );
     });
 
-    it('should use original behavior when .git is not found for non-JetBrains editor', async () => {
+    it('should use original behavior when .git is not found for any editor', async () => {
       mockSettingsManager.getSettings.mockReturnValue({
         ...defaultSettings,
         fileOpener: {
@@ -1406,7 +1404,7 @@ describe('FileOpenerManager', () => {
       );
     });
 
-    it('should find .idea in ancestor directory', async () => {
+    it('should find .git in ancestor directory', async () => {
       mockSettingsManager.getSettings.mockReturnValue({
         ...defaultSettings,
         fileOpener: {
@@ -1415,9 +1413,8 @@ describe('FileOpenerManager', () => {
         }
       });
 
-      // .idea exists only at the top-level project root, 2 levels up
       mockedExistsSync.mockImplementation((p: any) => {
-        return String(p) === '/Users/test/go-projects/.idea';
+        return String(p) === '/Users/test/go-projects/.git';
       });
 
       mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
@@ -1459,6 +1456,37 @@ describe('FileOpenerManager', () => {
       expect(mockedExecFile).toHaveBeenCalledWith(
         'open',
         ['-na', 'Visual Studio Code', '--args', '/Users/test/my-project', '--goto', '/Users/test/my-project/src/index.ts:10:1'],
+        expect.any(Function)
+      );
+    });
+
+    it('should ignore stale .idea in subdirectory and use .git at correct root', async () => {
+      mockSettingsManager.getSettings.mockReturnValue({
+        ...defaultSettings,
+        fileOpener: {
+          extensions: { go: 'GoLand' },
+          defaultEditor: null
+        }
+      });
+
+      // .idea in src/ (stale artifact) AND .git at project root
+      // findProjectRoot uses .git only, so it correctly finds the project root
+      mockedExistsSync.mockImplementation((p: any) => {
+        const s = String(p);
+        return s === '/Users/test/go-projects/.git';
+      });
+
+      mockedExecFile.mockImplementation((_cmd, _args, callback: any) => {
+        callback(null);
+        return {} as any;
+      });
+
+      const result = await fileOpenerManager.openFile('/Users/test/go-projects/src/main.go');
+
+      expect(result.success).toBe(true);
+      expect(mockedExecFile).toHaveBeenCalledWith(
+        'open',
+        ['-na', 'GoLand', '--args', '/Users/test/go-projects', '/Users/test/go-projects/src/main.go'],
         expect.any(Function)
       );
     });
