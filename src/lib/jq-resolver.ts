@@ -9,6 +9,7 @@ import { logger } from '../utils/utils';
 // jq-web の型定義
 interface JqInstance {
   json(data: unknown, expression: string): unknown;
+  raw(jsonstring: string, filter: string, flags: string[]): string | undefined;
 }
 
 let jqInstance: JqInstance | null = null;
@@ -58,6 +59,28 @@ async function getJqInstance(): Promise<JqInstance> {
   return jqInitPromise;
 }
 
+/** jq-web raw() に渡すフラグ（compact output） */
+const JQ_RAW_FLAGS = ['-c'];
+
+/**
+ * jq-web の json() を安全にラップする
+ * jq-web の json() は内部で raw().trim() を呼ぶが、select() でフィルタアウトされた場合
+ * raw() が undefined を返し、undefined.trim() で TypeError が発生する。
+ * この関数は raw() を直接呼び、undefined を安全にハンドリングする。
+ */
+function safeJqJson(jq: JqInstance, data: unknown, expression: string): unknown {
+  const jsonstring = JSON.stringify(data);
+  const rawResult = jq.raw(jsonstring, expression, JQ_RAW_FLAGS);
+  if (rawResult === undefined || rawResult === null) return undefined;
+  const trimmed = rawResult.trim();
+  if (!trimmed) return undefined;
+
+  if (trimmed.includes('\n')) {
+    return trimmed.split('\n').filter(Boolean).map(line => JSON.parse(line));
+  }
+  return JSON.parse(trimmed);
+}
+
 /**
  * jq式を評価し、結果をJS値で返す
  * - エラー時は null を返す
@@ -76,7 +99,11 @@ export async function evaluateJq(data: unknown, expression: string, cacheKey?: s
 
   try {
     const jq = await getJqInstance();
-    const result = jq.json(data, expression);
+    const result = safeJqJson(jq, data, expression);
+    if (result === undefined) {
+      // select() filtered out the data — expected, not an error
+      return null;
+    }
     logger.debug('jq evaluation success', { expression, resultType: typeof result, isArray: Array.isArray(result) });
     return result;
   } catch (error) {

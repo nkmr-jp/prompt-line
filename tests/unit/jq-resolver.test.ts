@@ -60,6 +60,22 @@ describe('jq-resolver', () => {
       expect(result).toBe(42);
     });
 
+    test('should return null when select() filters out the data', async () => {
+      const data = { status: 'completed' };
+
+      const result = await evaluateJq(data, '. | select(.status != "completed") | [.]');
+
+      expect(result).toBeNull();
+    });
+
+    test('should return result when select() matches the data', async () => {
+      const data = { status: 'active', name: 'task1' };
+
+      const result = await evaluateJq(data, '. | select(.status != "completed") | [.]');
+
+      expect(result).toEqual([{ status: 'active', name: 'task1' }]);
+    });
+
     test('should return null when jq expression is invalid', async () => {
       const data = { foo: 'bar' };
 
