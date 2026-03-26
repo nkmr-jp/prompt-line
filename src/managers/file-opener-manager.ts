@@ -1,5 +1,5 @@
 import { execFile } from 'child_process';
-import { existsSync } from 'fs';
+import { existsSync, statSync } from 'fs';
 import os from 'os';
 import path from 'path';
 import { logger } from '../utils/utils';
@@ -197,9 +197,16 @@ export class FileOpenerManager {
    */
   private openWithAppSimple(filePath: string, appName: string, projectRoot?: string | null): Promise<OpenFileResult> {
     return new Promise((resolve) => {
-      const openArgs = projectRoot
-        ? ['-na', appName, '--args', projectRoot, filePath]
-        : ['-a', appName, filePath];
+      let openArgs: string[];
+      if (projectRoot) {
+        // Directories passed as second arg cause editors to open them as separate projects
+        const isDir = this.isDirectory(filePath);
+        openArgs = isDir
+          ? ['-na', appName, '--args', projectRoot]
+          : ['-na', appName, '--args', projectRoot, filePath];
+      } else {
+        openArgs = ['-a', appName, filePath];
+      }
 
       execFile('open', openArgs, (error) => {
         if (error) {
@@ -317,6 +324,14 @@ export class FileOpenerManager {
         return projectRoot
           ? ['--line', String(lineNumber), projectRoot, filePath]
           : ['--line', String(lineNumber), filePath];
+    }
+  }
+
+  private isDirectory(filePath: string): boolean {
+    try {
+      return statSync(filePath).isDirectory();
+    } catch {
+      return false;
     }
   }
 
