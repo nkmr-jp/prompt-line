@@ -1,4 +1,5 @@
 import { execFile } from 'child_process';
+import { existsSync, statSync } from 'fs';
 import os from 'os';
 import path from 'path';
 import { logger } from '../utils/utils';
@@ -61,6 +62,23 @@ const EDITOR_CONFIGS: Record<string, EditorConfig> = {
   'Atom': { useOpenArgs: true, lineFormat: 'colon' },
   'Zed': { useOpenArgs: true, lineFormat: 'colon' },
 };
+
+/**
+ * Find project root by traversing parent directories looking for .git
+ * Works with both regular repos (.git directory) and worktrees (.git file)
+ */
+function findProjectRoot(filePath: string): string | null {
+  let dir = path.dirname(filePath);
+  let parent = path.dirname(dir);
+  while (dir !== parent) {
+    if (existsSync(path.join(dir, '.git'))) {
+      return dir;
+    }
+    dir = parent;
+    parent = path.dirname(dir);
+  }
+  return null;
+}
 
 /**
  * Case-insensitive lookup for editor config
@@ -149,33 +167,48 @@ export class FileOpenerManager {
         return;
       }
 
+      // Detect project root (.git) once for all code paths
+      const projectRoot = findProjectRoot(filePath);
+      if (projectRoot) {
+        logger.info('Detected project root for file opener', { projectRoot, appName, filePath });
+      }
+
       // Check if we have a line number and the editor supports it
       // Use case-insensitive lookup for editor config
       const editorMatch = findEditorConfig(appName);
       if (options?.lineNumber && editorMatch) {
-        this.openWithLineNumber(filePath, appName, editorMatch.config, options)
+        this.openWithLineNumber(filePath, appName, editorMatch.config, options, projectRoot)
           .then(resolve)
           .catch(() => {
             // Fallback to regular open if line number open fails
             logger.warn('Line number open failed, falling back to regular open', { appName, filePath });
-            this.openWithAppSimple(filePath, appName).then(resolve);
+            this.openWithAppSimple(filePath, appName, projectRoot).then(resolve);
           });
         return;
       }
 
       // No line number or unsupported editor - use simple open
-      this.openWithAppSimple(filePath, appName).then(resolve);
+      this.openWithAppSimple(filePath, appName, projectRoot).then(resolve);
     });
   }
 
   /**
    * シンプルなアプリ起動（行番号なし）
    */
-  private openWithAppSimple(filePath: string, appName: string): Promise<OpenFileResult> {
+  private openWithAppSimple(filePath: string, appName: string, projectRoot?: string | null): Promise<OpenFileResult> {
     return new Promise((resolve) => {
-      // execFileを使用（引数を配列で渡すことでシェルインジェクションを防止）
-      // デフォルトでアプリはフロントに持ってくる（-g を付けないことでフォアグラウンドで開く）
-      execFile('open', ['-a', appName, filePath], (error) => {
+      let openArgs: string[];
+      if (projectRoot) {
+        // Directories passed as second arg cause editors to open them as separate projects
+        const isDir = this.isDirectory(filePath);
+        openArgs = isDir
+          ? ['-na', appName, '--args', projectRoot]
+          : ['-na', appName, '--args', projectRoot, filePath];
+      } else {
+        openArgs = ['-a', appName, filePath];
+      }
+
+      execFile('open', openArgs, (error) => {
         if (error) {
           // アプリが見つからない等のエラー時はフォールバック
           logger.warn(`Failed to open with ${appName}, falling back to default`, {
@@ -203,7 +236,8 @@ export class FileOpenerManager {
     filePath: string,
     appName: string,
     config: EditorConfig,
-    options: OpenFileOptions
+    options: OpenFileOptions,
+    projectRoot?: string | null
   ): Promise<OpenFileResult> {
     return new Promise((resolve, reject) => {
       // Comprehensive file path validation to prevent argument injection
@@ -229,7 +263,7 @@ export class FileOpenerManager {
       const columnNumber = Math.max(1, Math.min(options.columnNumber || 1, 9999));
 
       // Build app-specific arguments based on lineFormat
-      const appArgs = this.buildLineArgs(filePath, lineNumber, columnNumber, config.lineFormat);
+      const appArgs = this.buildLineArgs(filePath, lineNumber, columnNumber, config.lineFormat, projectRoot);
 
       if (config.cli) {
         // CLI-based launch (e.g. xed for Xcode)
@@ -270,20 +304,34 @@ export class FileOpenerManager {
   /**
    * lineFormat に応じた引数配列を生成する
    */
-  private buildLineArgs(filePath: string, lineNumber: number, columnNumber: number, lineFormat?: string): string[] {
+  private buildLineArgs(filePath: string, lineNumber: number, columnNumber: number, lineFormat?: string, projectRoot?: string | null): string[] {
     switch (lineFormat) {
       case 'goto':
         // VSCode/Cursor/Windsurf style: --goto file:line:column
-        return ['--goto', `${filePath}:${lineNumber}:${columnNumber}`];
+        return projectRoot
+          ? [projectRoot, '--goto', `${filePath}:${lineNumber}:${columnNumber}`]
+          : ['--goto', `${filePath}:${lineNumber}:${columnNumber}`];
       case 'colon':
         // Sublime/Zed style: file:line:column
-        return [`${filePath}:${lineNumber}:${columnNumber}`];
+        return projectRoot
+          ? [projectRoot, `${filePath}:${lineNumber}:${columnNumber}`]
+          : [`${filePath}:${lineNumber}:${columnNumber}`];
       case 'line':
-        // TextMate/Xcode(xed) style: -l <line> file
+        // TextMate/Xcode(xed) style: -l <line> file (no project root needed)
         return ['-l', String(lineNumber), filePath];
       default:
-        // JetBrains IDEs: --line <line> file
-        return ['--line', String(lineNumber), filePath];
+        // JetBrains IDEs: --line <line> [projectRoot] file
+        return projectRoot
+          ? ['--line', String(lineNumber), projectRoot, filePath]
+          : ['--line', String(lineNumber), filePath];
+    }
+  }
+
+  private isDirectory(filePath: string): boolean {
+    try {
+      return statSync(filePath).isDirectory();
+    } catch {
+      return false;
     }
   }
 
