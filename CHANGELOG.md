@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.28.8](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.28.7...prompt-line-v0.28.8) (2026-03-27)
+
+
+### Bug Fixes
+
+* **plugins:** copy excludeMarker field in plugin search entry parsing ([#289](https://github.com/nkmr-jp/prompt-line/issues/289)) ([3549844](https://github.com/nkmr-jp/prompt-line/commit/35498441641aac39d05293144196519ca7bb0ff4))
+
+
+### Documentation
+
+* move fd and ripgrep to system requirements section ([451c35b](https://github.com/nkmr-jp/prompt-line/commit/451c35b4fce9ed050a0358f116bd58311538914a))
+
+
+### Miscellaneous Chores
+
+* **deps:** bump brace-expansion from 5.0.2 to 5.0.5 in the npm_and_yarn group across 1 directory ([#299](https://github.com/nkmr-jp/prompt-line/issues/299)) ([348cd08](https://github.com/nkmr-jp/prompt-line/commit/348cd08d339835a89d15c10f6bfa11ea59f41c8a))
+* **deps:** bump picomatch from 2.3.1 to 2.3.2 in the npm_and_yarn group across 1 directory ([#294](https://github.com/nkmr-jp/prompt-line/issues/294)) ([63b0e07](https://github.com/nkmr-jp/prompt-line/commit/63b0e0718aea480117476316303c31aa4ff88c2b))
+
 ## [0.28.7](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.28.6...prompt-line-v0.28.7) (2026-03-21)
 
 
