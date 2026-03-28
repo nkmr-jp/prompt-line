@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { mockExecuteAppleScriptSafely } = vi.hoisted(() => ({
-  mockExecuteAppleScriptSafely: vi.fn()
+const { mockExecFile } = vi.hoisted(() => ({
+  mockExecFile: vi.fn()
 }));
 
 vi.mock('electron', () => ({
@@ -9,11 +9,11 @@ vi.mock('electron', () => ({
 }));
 
 vi.mock('child_process', () => ({
-  execFile: vi.fn()
+  execFile: mockExecFile
 }));
 
 vi.mock('../../src/utils/apple-script-sanitizer', () => ({
-  executeAppleScriptSafely: mockExecuteAppleScriptSafely,
+  executeAppleScriptSafely: vi.fn(),
   validateAppleScriptSecurity: vi.fn(() => [])
 }));
 
@@ -66,31 +66,41 @@ describe('getITermSessionId', () => {
     vi.clearAllMocks();
   });
 
-  it('should return session ID from AppleScript', async () => {
-    mockExecuteAppleScriptSafely.mockResolvedValue('w0t0p0:12345678-ABCD');
+  it('should return session unique ID from osascript', async () => {
+    mockExecFile.mockImplementation((_cmd: string, _args: string[], _opts: unknown, cb: Function) => {
+      cb(null, '30088CC4-3726-4ECB-90CE-0DA3EA4AC757\n', '');
+    });
     const result = await getITermSessionId();
-    expect(result).toBe('w0t0p0:12345678-ABCD');
-    expect(mockExecuteAppleScriptSafely).toHaveBeenCalledWith(
-      expect.stringContaining('ITERM_SESSION_ID'),
-      expect.any(Number)
+    expect(result).toBe('30088CC4-3726-4ECB-90CE-0DA3EA4AC757');
+    expect(mockExecFile).toHaveBeenCalledWith(
+      'osascript',
+      ['-e', expect.stringContaining('unique id')],
+      expect.any(Object),
+      expect.any(Function)
     );
   });
 
-  it('should return undefined on AppleScript failure', async () => {
-    mockExecuteAppleScriptSafely.mockRejectedValue(new Error('Script failed'));
+  it('should return undefined on execFile error', async () => {
+    mockExecFile.mockImplementation((_cmd: string, _args: string[], _opts: unknown, cb: Function) => {
+      cb(new Error('Script failed'), '', '');
+    });
     const result = await getITermSessionId();
     expect(result).toBeUndefined();
   });
 
-  it('should return undefined for empty result', async () => {
-    mockExecuteAppleScriptSafely.mockResolvedValue('');
+  it('should return undefined for empty output', async () => {
+    mockExecFile.mockImplementation((_cmd: string, _args: string[], _opts: unknown, cb: Function) => {
+      cb(null, '', '');
+    });
     const result = await getITermSessionId();
     expect(result).toBeUndefined();
   });
 
-  it('should trim whitespace from result', async () => {
-    mockExecuteAppleScriptSafely.mockResolvedValue('  w0t0p0:SESSION  \n');
+  it('should trim whitespace from output', async () => {
+    mockExecFile.mockImplementation((_cmd: string, _args: string[], _opts: unknown, cb: Function) => {
+      cb(null, '  30088CC4-3726-4ECB  \n', '');
+    });
     const result = await getITermSessionId();
-    expect(result).toBe('w0t0p0:SESSION');
+    expect(result).toBe('30088CC4-3726-4ECB');
   });
 });

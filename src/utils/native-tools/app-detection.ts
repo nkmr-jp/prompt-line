@@ -180,16 +180,22 @@ export function isITerm2(app: AppInfo | string | null): boolean {
 }
 
 /**
- * Get ITERM_SESSION_ID from iTerm2's current session via AppleScript.
+ * Get iTerm2 session unique ID via AppleScript.
+ * Uses execFile directly to avoid sanitizeAppleScript escaping double quotes in the static script.
  * Returns undefined if the call fails or times out.
  */
-export async function getITermSessionId(): Promise<string | undefined> {
-  try {
-    const script = 'tell application "iTerm2" to tell current window to tell current session to variable named "ITERM_SESSION_ID"';
-    const result = await executeAppleScriptSafely(script, TIMEOUTS.SHORT_OPERATION);
-    return result?.trim() || undefined;
-  } catch (error) {
-    logger.warn('Failed to get ITERM_SESSION_ID (non-blocking):', (error as Error).message);
-    return undefined;
-  }
+export function getITermSessionId(): Promise<string | undefined> {
+  return new Promise((resolve) => {
+    execFile('osascript', ['-e', 'tell application "iTerm2" to tell current window to tell current session to unique id'],
+      { timeout: TIMEOUTS.SHORT_OPERATION, killSignal: 'SIGTERM' as const },
+      (error, stdout) => {
+        if (error) {
+          logger.warn('Failed to get iTerm2 session ID (non-blocking):', error.message);
+          resolve(undefined);
+          return;
+        }
+        resolve(stdout?.trim() || undefined);
+      }
+    );
+  });
 }
