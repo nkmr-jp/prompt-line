@@ -1,6 +1,7 @@
 import type Electron from 'electron';
 import { IpcMainInvokeEvent } from 'electron';
 import { logger, SecureErrors } from '../utils/utils';
+import { isITerm2, getITermSessionId } from '../utils/native-tools/app-detection';
 import type DraftManager from '../managers/draft-manager';
 import type DirectoryManager from '../managers/directory-manager';
 import type WindowManager from '../managers/window';
@@ -319,9 +320,10 @@ class HistoryDraftHandler {
       const previousApp = this.windowManager.getPreviousApp();
       const appName = this.extractAppName(previousApp);
       const directory = this.directoryManager.getDirectory() || undefined;
+      const itermSessionId = isITerm2(previousApp) ? await getITermSessionId() : undefined;
 
       // Add to history with appName and directory
-      const item = await this.historyManager.addToHistory(trimmedText, appName, directory);
+      const item = await this.historyManager.addToHistory(trimmedText, appName, directory, itermSessionId);
       if (!item) {
         return { success: false, error: 'Failed to add to history' };
       }

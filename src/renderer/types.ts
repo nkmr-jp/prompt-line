@@ -14,6 +14,7 @@ export interface HistoryItem {
   timestamp: number;
   id: string;
   appName?: string;
+  itermSessionId?: string;
 }
 
 export interface AppInfo {

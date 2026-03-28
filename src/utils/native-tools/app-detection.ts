@@ -6,6 +6,8 @@ import { executeAppleScriptSafely, validateAppleScriptSecurity } from '../apple-
 import { logger } from '../logger';
 import { WINDOW_DETECTOR_PATH } from './paths';
 
+const ITERM2_BUNDLE_ID = 'com.googlecode.iterm2';
+
 // Accessibility permission check result
 interface AccessibilityStatus {
   hasPermission: boolean;
@@ -162,5 +164,38 @@ export function checkAccessibilityPermission(): Promise<AccessibilityStatus> {
       logger.error('Failed to check accessibility permission:', error);
       resolve({ hasPermission: false, bundleId: 'com.electron.prompt-line' });
     }
+  });
+}
+
+/**
+ * Check if the given AppInfo or app name string represents iTerm2
+ */
+export function isITerm2(app: AppInfo | string | null): boolean {
+  if (!app) return false;
+  if (typeof app === 'string') {
+    const lower = app.toLowerCase();
+    return lower === 'iterm2' || lower === 'iterm';
+  }
+  return app.bundleId === ITERM2_BUNDLE_ID;
+}
+
+/**
+ * Get iTerm2 session unique ID via AppleScript.
+ * Uses execFile directly to avoid sanitizeAppleScript escaping double quotes in the static script.
+ * Returns undefined if the call fails or times out.
+ */
+export function getITermSessionId(): Promise<string | undefined> {
+  return new Promise((resolve) => {
+    execFile('osascript', ['-e', 'tell application "iTerm2" to tell current window to tell current session to unique id'],
+      { timeout: TIMEOUTS.SHORT_OPERATION, killSignal: 'SIGTERM' as const },
+      (error, stdout) => {
+        if (error) {
+          logger.warn('Failed to get iTerm2 session ID (non-blocking):', error.message);
+          resolve(undefined);
+          return;
+        }
+        resolve(stdout?.trim() || undefined);
+      }
+    );
   });
 }
