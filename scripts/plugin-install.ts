@@ -119,7 +119,9 @@ function resolveSource(source: string): ResolvedSource {
     process.exit(1);
   }
 
-  const [, user, repo, subPath] = ghMatch;
+  const user = ghMatch[1] as string;
+  const repo = ghMatch[2] as string;
+  const subPath = ghMatch[3] as string | undefined;
   const githubBase = `https://github.com/${user}/${repo}`;
   const repoRelativePath = subPath || '';
 
@@ -136,7 +138,7 @@ function resolveSource(source: string): ResolvedSource {
 
   // Try remote clone
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'plugin-install-'));
-  const cloneTarget = path.join(tempDir, repo);
+  const cloneTarget = path.join(tempDir, repo as string);
 
   const hasGh = hasCommand('gh');
   const hasGit = hasCommand('git');
@@ -413,10 +415,9 @@ function copyYamlFiles(
 
       const relPath = path.relative(targetDir, targetPath);
       const descMatch = content.match(/^pluginDescription:\s*["']?(.+?)["']?\s*$/m);
-      pluginEntries.push({
-        path: relPath.replace(/\.(yml|yaml)$/, ''),
-        description: descMatch ? descMatch[1] : undefined,
-      });
+      const entry: PluginEntry = { path: relPath.replace(/\.(yml|yaml)$/, '') };
+      if (descMatch?.[1]) entry.description = descMatch[1];
+      pluginEntries.push(entry);
 
       totalFiles++;
     }
