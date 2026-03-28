@@ -439,7 +439,8 @@ class PluginLoader {
   /**
    * Search legacy built-in commands with optional query filter
    */
-  searchLegacyBuiltInCommands(names: string[], query?: string): AgentSkillItem[] {
+  searchLegacyBuiltInCommands(names?: string[], query?: string): AgentSkillItem[] {
+    if (!names || names.length === 0) return [];
     return this.filterByQuery(this.loadLegacyBuiltInCommands(names), query);
   }
 
