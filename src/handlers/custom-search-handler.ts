@@ -126,7 +126,13 @@ class CustomSearchHandler {
     try {
       // Get built-in commands from plugin YAML files
       const enabledPlugins = this.settingsManager.getPluginSettings();
-      const builtInCommands = pluginLoader.searchBuiltInCommands(enabledPlugins, query);
+      const pluginCommands = pluginLoader.searchBuiltInCommands(enabledPlugins, query);
+
+      // Get built-in commands from builtInCommands setting (legacy ~/.prompt-line/built-in-commands/)
+      const builtInSettings = this.settingsManager.getBuiltInCommandsSettings();
+      const legacyCommands = builtInSettings ? pluginLoader.searchLegacyBuiltInCommands(builtInSettings, query) : [];
+
+      const builtInCommands = [...pluginCommands, ...legacyCommands];
 
       // Get user commands from CustomSearchLoader (MD files)
       const items = query
@@ -241,10 +247,12 @@ class CustomSearchHandler {
         return false;
       }
 
-      // Check if this is a built-in command from plugins
+      // Check if this is a built-in command from plugins or builtInCommands setting
       const enabledPlugins = this.settingsManager.getPluginSettings();
-      const builtInCommands = pluginLoader.searchBuiltInCommands(enabledPlugins);
-      const isBuiltIn = builtInCommands.some(cmd => cmd.name === commandName);
+      const pluginCommands = pluginLoader.searchBuiltInCommands(enabledPlugins);
+      const builtInSettings = this.settingsManager.getBuiltInCommandsSettings();
+      const legacyCommands = builtInSettings ? pluginLoader.loadLegacyBuiltInCommands(builtInSettings) : [];
+      const isBuiltIn = [...pluginCommands, ...legacyCommands].some(cmd => cmd.name === commandName);
       if (isBuiltIn) {
         return false; // Built-in commands don't have individual files
       }

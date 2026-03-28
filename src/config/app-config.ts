@@ -106,6 +106,9 @@ class AppConfigClass {
       get projectsCacheDir() {
         return path.join(userDataDir, 'cache', 'projects');
       },
+      get builtInCommandsDir() {
+        return path.join(userDataDir, 'built-in-commands');
+      },
       get pluginsDir() {
         return path.join(userDataDir, 'plugins');
       },
