@@ -372,7 +372,9 @@ function copyYamlFiles(
   repoRelativePath: string,
   githubBase: string,
   baseSourceDir: string,
+  baseTargetDir?: string,
 ): CopyResult {
+  const rootTargetDir = baseTargetDir || targetDir;
   const hasGit = gitCwd !== '';
   const pluginEntries: PluginEntry[] = [];
   const leafFolders: string[] = [];
@@ -390,7 +392,7 @@ function copyYamlFiles(
     const targetPath = path.join(targetDir, entry.name);
 
     if (entry.isDirectory()) {
-      const sub = copyYamlFiles(sourcePath, targetPath, gitCwd, repoRelativePath, githubBase, baseSourceDir);
+      const sub = copyYamlFiles(sourcePath, targetPath, gitCwd, repoRelativePath, githubBase, baseSourceDir, rootTargetDir);
       pluginEntries.push(...sub.pluginEntries);
       leafFolders.push(...sub.leafFolders);
       totalFiles += sub.totalFiles;
@@ -413,7 +415,7 @@ function copyYamlFiles(
       fs.mkdirSync(path.dirname(targetPath), { recursive: true });
       fs.writeFileSync(targetPath, versionComment + content, 'utf-8');
 
-      const relPath = path.relative(targetDir, targetPath);
+      const relPath = path.relative(rootTargetDir, targetPath);
       const descMatch = content.match(/^pluginDescription:\s*["']?(.+?)["']?\s*$/m);
       const entry: PluginEntry = { path: relPath.replace(/\.(yml|yaml)$/, '') };
       if (descMatch?.[1]) entry.description = descMatch[1];
