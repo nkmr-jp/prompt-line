@@ -120,7 +120,7 @@ function resolveSource(source: string): ResolvedSource {
     }
 
     // Derive packageId from git remote URL if available
-    const gitRoot = isGitRepo(resolved) ? getGitRoot(resolved) : '';
+    const gitRoot = getGitRoot(resolved);
     if (gitRoot) {
       const remote = parseGitHubRemote(gitRoot);
       if (remote) {
