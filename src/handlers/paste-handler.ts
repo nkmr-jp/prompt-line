@@ -11,6 +11,7 @@ import {
   checkAccessibilityPermission,
   SecureErrors
 } from '../utils/utils';
+import { isITerm2, getITermSessionId } from '../utils/native-tools/app-detection';
 import type WindowManager from '../managers/window';
 import type DraftManager from '../managers/draft-manager';
 import type DirectoryManager from '../managers/directory-manager';
@@ -147,9 +148,11 @@ class PasteHandler {
       const previousApp = await this.getPreviousAppAsync();
       const appName = this.extractAppName(previousApp);
       const directory = this.directoryManager.getDirectory() || undefined;
-
       await Promise.all([
-        this.historyManager.addToHistory(text, appName, directory),
+        (async () => {
+          const itermSessionId = isITerm2(previousApp) ? await getITermSessionId() : undefined;
+          await this.historyManager.addToHistory(text, appName, directory, itermSessionId);
+        })(),
         this.draftManager.clearDraft(),
         this.setClipboardAsync(text),
       ]);

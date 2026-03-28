@@ -6,6 +6,8 @@ import { executeAppleScriptSafely, validateAppleScriptSecurity } from '../apple-
 import { logger } from '../logger';
 import { WINDOW_DETECTOR_PATH } from './paths';
 
+const ITERM2_BUNDLE_ID = 'com.googlecode.iterm2';
+
 // Accessibility permission check result
 interface AccessibilityStatus {
   hasPermission: boolean;
@@ -163,4 +165,31 @@ export function checkAccessibilityPermission(): Promise<AccessibilityStatus> {
       resolve({ hasPermission: false, bundleId: 'com.electron.prompt-line' });
     }
   });
+}
+
+/**
+ * Check if the given AppInfo or app name string represents iTerm2
+ */
+export function isITerm2(app: AppInfo | string | null): boolean {
+  if (!app) return false;
+  if (typeof app === 'string') {
+    const lower = app.toLowerCase();
+    return lower === 'iterm2' || lower === 'iterm';
+  }
+  return app.bundleId === ITERM2_BUNDLE_ID;
+}
+
+/**
+ * Get ITERM_SESSION_ID from iTerm2's current session via AppleScript.
+ * Returns undefined if the call fails or times out.
+ */
+export async function getITermSessionId(): Promise<string | undefined> {
+  try {
+    const script = 'tell application "iTerm2" to tell current window to tell current session to variable named "ITERM_SESSION_ID"';
+    const result = await executeAppleScriptSafely(script, TIMEOUTS.SHORT_OPERATION);
+    return result?.trim() || undefined;
+  } catch (error) {
+    logger.warn('Failed to get ITERM_SESSION_ID (non-blocking):', (error as Error).message);
+    return undefined;
+  }
 }
