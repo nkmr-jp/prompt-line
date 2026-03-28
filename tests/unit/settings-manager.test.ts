@@ -31,8 +31,8 @@ vi.mock('../../src/utils/utils', () => ({
 vi.mock('../../src/lib/plugin-loader', () => ({
   default: {
     loadPluginEntries: vi.fn(() => []),
-    loadBuiltInCommands: vi.fn(() => []),
-    searchBuiltInCommands: vi.fn(() => []),
+    loadAgentBuiltIn: vi.fn(() => []),
+    searchAgentBuiltIn: vi.fn(() => []),
     clearCache: vi.fn()
   }
 }));
@@ -159,7 +159,7 @@ window:
     it('should return default settings', () => {
       const settings = settingsManager.getSettings();
 
-      // includes all default values: shortcuts, window, fileOpener, builtInCommands, agentSkills, fileSearch, symbolSearch, customSearch
+      // includes all default values: shortcuts, window, fileOpener, agentBuiltIn, agentSkills, fileSearch, symbolSearch, customSearch
       expect(settings).toEqual({
         shortcuts: {
           main: 'Cmd+Shift+Space',
@@ -181,7 +181,7 @@ window:
           },
           defaultEditor: null
         },
-        builtInCommands: undefined,
+        agentBuiltIn: undefined,
         agentSkills: [],
         fileSearch: {
           respectGitignore: true,
@@ -281,7 +281,7 @@ window:
     it('should return default settings copy', () => {
       const defaults = settingsManager.getDefaultSettings();
 
-      // includes all default values: shortcuts, window, fileOpener, builtInCommands, agentSkills, fileSearch, symbolSearch, customSearch
+      // includes all default values: shortcuts, window, fileOpener, agentBuiltIn, agentSkills, fileSearch, symbolSearch, customSearch
       expect(defaults).toEqual({
         shortcuts: {
           main: 'Cmd+Shift+Space',
@@ -303,7 +303,7 @@ window:
           },
           defaultEditor: null
         },
-        builtInCommands: undefined,
+        agentBuiltIn: undefined,
         agentSkills: [],
         fileSearch: {
           respectGitignore: true,
@@ -444,18 +444,18 @@ window:
       expect(settings.fileSearch?.followSymlinks).toBe(false);
     });
 
-    it('should migrate legacy builtInCommands.tools to root-level builtInCommands', async () => {
-      // Simulate a fresh settings load where user only has legacyBuiltInCommands (no root builtInCommands)
+    it('should migrate legacy agentBuiltIn.tools to root-level agentBuiltIn', async () => {
+      // Simulate a fresh settings load where user only has legacyAgentBuiltIn (no root agentBuiltIn)
       // This tests the mergeWithDefaults migration logic directly
       const legacyManager = new SettingsManager();
 
       // Mock readFile to return YAML that js-yaml.load will parse
-      // We need to simulate a user config that only has legacyBuiltInCommands
+      // We need to simulate a user config that only has legacyAgentBuiltIn
       const yamlLoad = (jsYaml as any).load;
       yamlLoad.mockReturnValueOnce({
         shortcuts: { main: 'Cmd+Shift+Space', paste: 'Cmd+Enter', close: 'Escape' },
         window: { position: 'active-text-field', width: 640, height: 320 },
-        legacyBuiltInCommands: {
+        legacyAgentBuiltIn: {
           tools: ['claude', 'custom-tool']
         }
       });
@@ -466,8 +466,8 @@ window:
       await legacyManager.init();
       const settings = legacyManager.getSettings();
 
-      // Check that legacy builtInCommands.tools was migrated to root-level builtInCommands
-      expect(settings.builtInCommands).toEqual(['claude', 'custom-tool']);
+      // Check that legacy agentBuiltIn.tools was migrated to root-level agentBuiltIn
+      expect(settings.agentBuiltIn).toEqual(['claude', 'custom-tool']);
     });
 
     it('should deep merge multiple fileSearch properties', async () => {

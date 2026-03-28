@@ -184,27 +184,27 @@ class SettingsManager extends EventEmitter {
     return { custom, customSearchMentions };
   }
 
-  private resolveBuiltInCommands(userSettings: Partial<UserSettings>, rawAgentSkills: unknown): string[] | undefined {
-    const defaultBuiltInCommands = this.defaultSettings.builtInCommands;
+  private resolveAgentBuiltIn(userSettings: Partial<UserSettings>, rawAgentSkills: unknown): string[] | undefined {
+    const defaultAgentBuiltIn = this.defaultSettings.agentBuiltIn;
 
-    if (Array.isArray(userSettings.builtInCommands)) {
-      return userSettings.builtInCommands;
+    if (Array.isArray(userSettings.agentBuiltIn)) {
+      return userSettings.agentBuiltIn;
     }
     if (rawAgentSkills && !Array.isArray(rawAgentSkills) && typeof rawAgentSkills === 'object') {
-      // Legacy: agentSkills is an object with builtInCommands
+      // Legacy: agentSkills is an object with agentBuiltIn
       const legacySkills = rawAgentSkills as Record<string, unknown>;
-      if (Array.isArray(legacySkills.builtInCommands)) return legacySkills.builtInCommands as string[];
+      if (Array.isArray(legacySkills.agentBuiltIn)) return legacySkills.agentBuiltIn as string[];
       if (Array.isArray(legacySkills.builtIn)) return legacySkills.builtIn as string[];
-      return defaultBuiltInCommands;
+      return defaultAgentBuiltIn;
     }
-    if (userSettings.slashCommands?.builtInCommands) {
-      return userSettings.slashCommands.builtInCommands;
+    if (userSettings.slashCommands?.agentBuiltIn) {
+      return userSettings.slashCommands.agentBuiltIn;
     }
-    const legacyBuiltIn = (userSettings as Record<string, unknown>).legacyBuiltInCommands as { tools?: string[] } | undefined;
+    const legacyBuiltIn = (userSettings as Record<string, unknown>).legacyAgentBuiltIn as { tools?: string[] } | undefined;
     if (legacyBuiltIn) {
-      return legacyBuiltIn.tools ?? defaultBuiltInCommands;
+      return legacyBuiltIn.tools ?? defaultAgentBuiltIn;
     }
-    return defaultBuiltInCommands;
+    return defaultAgentBuiltIn;
   }
 
   private resolveAgentSkills(userSettings: Partial<UserSettings>, rawAgentSkills: unknown): (AgentSkillEntry | string)[] {
@@ -291,11 +291,11 @@ class SettingsManager extends EventEmitter {
     const resolvedPlugins = userSettings.plugins ?? this.defaultSettings.plugins;
     if (resolvedPlugins) result.plugins = resolvedPlugins;
 
-    // Handle builtInCommands and agentSkills
-    // Priority: root builtInCommands > legacy agentSkills.builtInCommands > legacy builtInCommands.tools > defaults
+    // Handle agentBuiltIn and agentSkills
+    // Priority: root agentBuiltIn > legacy agentSkills.agentBuiltIn > legacy agentBuiltIn.tools > defaults
     const rawAgentSkills = userSettings.agentSkills as unknown;
-    const resolvedBuiltInCommands = this.resolveBuiltInCommands(userSettings, rawAgentSkills);
-    if (resolvedBuiltInCommands) result.builtInCommands = resolvedBuiltInCommands;
+    const resolvedAgentBuiltIn = this.resolveAgentBuiltIn(userSettings, rawAgentSkills);
+    if (resolvedAgentBuiltIn) result.agentBuiltIn = resolvedAgentBuiltIn;
     result.agentSkills = this.resolveAgentSkills(userSettings, rawAgentSkills);
 
     // Handle legacy settings (mdSearch) for backward compatibility
@@ -449,11 +449,11 @@ class SettingsManager extends EventEmitter {
   }
 
   /**
-   * Get built-in commands settings
-   * Returns from root-level builtInCommands
+   * Get agent built-in settings
+   * Returns from root-level agentBuiltIn
    */
-  getBuiltInCommandsSettings(): string[] | undefined {
-    return this.currentSettings.builtInCommands;
+  getAgentBuiltInSettings(): string[] | undefined {
+    return this.currentSettings.agentBuiltIn;
   }
 
   private agentSkillToEntry(cmd: AgentSkillEntry): CustomSearchEntry {

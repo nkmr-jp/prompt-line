@@ -61,12 +61,12 @@ function mergeWithDefaults(userSettings: Partial<UserSettings>): UserSettings {
     result.mentions.customSearch = customSearch;
   }
 
-  // builtInCommands
-  const defaultBuiltInCommands = defaultSettings.builtInCommands ?? ['claude'];
-  if (Array.isArray(userSettings.builtInCommands)) {
-    result.builtInCommands = userSettings.builtInCommands;
+  // agentBuiltIn
+  const defaultAgentBuiltIn = defaultSettings.agentBuiltIn ?? ['claude'];
+  if (Array.isArray(userSettings.agentBuiltIn)) {
+    result.agentBuiltIn = userSettings.agentBuiltIn;
   } else {
-    result.builtInCommands = defaultBuiltInCommands;
+    result.agentBuiltIn = defaultAgentBuiltIn;
   }
 
   // agentSkills

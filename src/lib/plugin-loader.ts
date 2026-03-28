@@ -8,7 +8,7 @@ import type { AgentSkillItem, CustomSearchEntry, ColorValue } from '../types/win
 /**
  * Plugin type determined by directory name
  */
-type PluginType = 'agent-skills' | 'custom-search' | 'built-in-commands';
+type PluginType = 'agent-skills' | 'custom-search' | 'agent-built-in';
 
 /**
  * YAML structure for agent-skills and custom-search plugins
@@ -37,9 +37,9 @@ interface PluginEntryYaml {
 }
 
 /**
- * YAML structure for built-in commands plugins
+ * YAML structure for agent built-in plugins
  */
-interface BuiltInCommandsYaml {
+interface AgentBuiltInYaml {
   name?: string;
   reference?: string;
   color?: ColorValue;
@@ -58,13 +58,13 @@ interface LoadedPlugin {
   pluginPath: string;  // relative path (e.g., "prompt-line-plugin/claude/agent-skills/commands")
   type: PluginType;
   entries: CustomSearchEntry[];
-  builtInCommands: AgentSkillItem[];
+  agentBuiltIn: AgentSkillItem[];
 }
 
 /**
  * Unified plugin loader for all plugin types.
  * Reads YAML files from ~/.prompt-line/plugins/ and converts them to
- * CustomSearchEntry[] (for agent-skills/custom-search) or AgentSkillItem[] (for built-in-commands).
+ * CustomSearchEntry[] (for agent-skills/custom-search) or AgentSkillItem[] (for agent-built-in).
  *
  * Directory structure:
  *   ~/.prompt-line/plugins/<package>/<type>/<name>.yml
@@ -91,7 +91,7 @@ class PluginLoader {
     const typeDir = parts[parts.length - 2];
     if (typeDir === 'agent-skills') return 'agent-skills';
     if (typeDir === 'custom-search') return 'custom-search';
-    if (typeDir === 'built-in-commands') return 'built-in-commands';
+    if (typeDir === 'agent-built-in') return 'agent-built-in';
     return null;
   }
 
@@ -179,11 +179,11 @@ class PluginLoader {
       pluginPath,
       type,
       entries: [],
-      builtInCommands: []
+      agentBuiltIn: []
     };
 
-    if (type === 'built-in-commands') {
-      plugin.builtInCommands = this.parseBuiltInCommands(parsed as BuiltInCommandsYaml, filePath);
+    if (type === 'agent-built-in') {
+      plugin.agentBuiltIn = this.parseAgentBuiltIn(parsed as AgentBuiltInYaml, filePath);
     } else {
       const entry = this.parsePluginEntry(parsed as PluginEntryYaml, type);
       if (entry) {
@@ -234,9 +234,9 @@ class PluginLoader {
   }
 
   /**
-   * Parse built-in commands YAML (existing format with commands: array)
+   * Parse agent built-in YAML (existing format with commands: array)
    */
-  private parseBuiltInCommands(yamlData: BuiltInCommandsYaml, filePath: string): AgentSkillItem[] {
+  private parseAgentBuiltIn(yamlData: AgentBuiltInYaml, filePath: string): AgentSkillItem[] {
     if (!yamlData?.commands || !Array.isArray(yamlData.commands)) {
       return [];
     }
@@ -295,7 +295,7 @@ class PluginLoader {
 
     for (const pluginPath of enabledPlugins) {
       const type = this.getPluginType(pluginPath);
-      if (type === 'built-in-commands') continue; // handled separately
+      if (type === 'agent-built-in') continue; // handled separately
 
       const plugin = this.loadPlugin(pluginPath);
       if (plugin) {
@@ -307,18 +307,18 @@ class PluginLoader {
   }
 
   /**
-   * Load all enabled built-in command plugins and return AgentSkillItem[]
+   * Load all enabled agent-built-in plugins and return AgentSkillItem[]
    */
-  loadBuiltInCommands(enabledPlugins: string[]): AgentSkillItem[] {
+  loadAgentBuiltIn(enabledPlugins: string[]): AgentSkillItem[] {
     const commands: AgentSkillItem[] = [];
 
     for (const pluginPath of enabledPlugins) {
       const type = this.getPluginType(pluginPath);
-      if (type !== 'built-in-commands') continue;
+      if (type !== 'agent-built-in') continue;
 
       const plugin = this.loadPlugin(pluginPath);
       if (plugin) {
-        commands.push(...plugin.builtInCommands);
+        commands.push(...plugin.agentBuiltIn);
       }
     }
 
@@ -326,10 +326,10 @@ class PluginLoader {
   }
 
   /**
-   * Search built-in commands with optional query filter
+   * Search agent built-in with optional query filter
    */
-  searchBuiltInCommands(enabledPlugins: string[], query?: string): AgentSkillItem[] {
-    return this.filterByQuery(this.loadBuiltInCommands(enabledPlugins), query);
+  searchAgentBuiltIn(enabledPlugins: string[], query?: string): AgentSkillItem[] {
+    return this.filterByQuery(this.loadAgentBuiltIn(enabledPlugins), query);
   }
 
   /**
@@ -397,7 +397,7 @@ class PluginLoader {
     const basePath = path.join(dir, name);
 
     // Cache both hits and misses to avoid repeated I/O for invalid names
-    this.cache.set(cacheKey, { pluginPath: cacheKey, type, entries: entry ? [entry] : [], builtInCommands: [] });
+    this.cache.set(cacheKey, { pluginPath: cacheKey, type, entries: entry ? [entry] : [], agentBuiltIn: [] });
     if (!entry) {
       logger.debug(`Standalone ${type} file not found: ${basePath}.yml`);
     }
@@ -405,31 +405,31 @@ class PluginLoader {
   }
 
   /**
-   * Load built-in commands from ~/.prompt-line/built-in-commands/ directory.
+   * Load agent built-in from ~/.prompt-line/agent-built-in/ directory.
    * Reads YAML files matching the given names (e.g., ["claude-ja"] → claude-ja.yml).
-   * Used for the builtInCommands setting (backward-compatible with pre-plugin system).
+   * Used for the agentBuiltIn setting (backward-compatible with pre-plugin system).
    */
-  loadLegacyBuiltInCommands(names: string[]): AgentSkillItem[] {
+  loadLegacyAgentBuiltIn(names: string[]): AgentSkillItem[] {
     const commands: AgentSkillItem[] = [];
-    const dir = config.paths.builtInCommandsDir;
+    const dir = config.paths.agentBuiltInDir;
 
     for (const name of names) {
       if (this.isInvalidName(name)) {
-        logger.warn(`Invalid built-in command name rejected: ${name}`);
+        logger.warn(`Invalid agent built-in name rejected: ${name}`);
         continue;
       }
 
       const cacheKey = `legacy-built-in:${name}`;
       const cached = this.cache.get(cacheKey);
       if (cached) {
-        commands.push(...cached.builtInCommands);
+        commands.push(...cached.agentBuiltIn);
         continue;
       }
 
       const result = this.readYamlByName(dir, name);
-      const items = result ? this.parseBuiltInCommands(result.parsed as BuiltInCommandsYaml, result.filePath) : [];
+      const items = result ? this.parseAgentBuiltIn(result.parsed as AgentBuiltInYaml, result.filePath) : [];
 
-      this.cache.set(cacheKey, { pluginPath: cacheKey, type: 'built-in-commands', entries: [], builtInCommands: items });
+      this.cache.set(cacheKey, { pluginPath: cacheKey, type: 'agent-built-in', entries: [], agentBuiltIn: items });
       commands.push(...items);
     }
 
@@ -437,11 +437,11 @@ class PluginLoader {
   }
 
   /**
-   * Search legacy built-in commands with optional query filter
+   * Search legacy agent built-in with optional query filter
    */
-  searchLegacyBuiltInCommands(names?: string[], query?: string): AgentSkillItem[] {
+  searchLegacyAgentBuiltIn(names?: string[], query?: string): AgentSkillItem[] {
     if (!names || names.length === 0) return [];
-    return this.filterByQuery(this.loadLegacyBuiltInCommands(names), query);
+    return this.filterByQuery(this.loadLegacyAgentBuiltIn(names), query);
   }
 
   /**

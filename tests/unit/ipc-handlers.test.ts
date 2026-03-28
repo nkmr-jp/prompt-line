@@ -108,7 +108,7 @@ vi.mock('../../src/config/app-config', () => {
             description: 'Test app'
         },
         paths: {
-            builtInCommandsDir: '/test/.prompt-line/built-in-commands'
+            agentBuiltInDir: '/test/.prompt-line/agent-built-in'
         },
         shortcuts: { main: 'Cmd+Shift+Space' },
         history: { maxItems: 50 },
@@ -159,7 +159,7 @@ describe('IPCHandlers', () => {
             updateSettings: vi.fn(),
             resetSettings: vi.fn(),
             getCustomSearchEntries: vi.fn(() => []),
-            getBuiltInCommandsSettings: vi.fn(() => undefined),
+            getAgentBuiltInSettings: vi.fn(() => undefined),
             // EventEmitter methods for hot reload
             on: vi.fn(),
             off: vi.fn(),

@@ -7,7 +7,7 @@ import { logger, ensureDir } from '../utils/utils';
 import pluginLoader from '../lib/plugin-loader';
 
 /**
- * Manages plugin YAML files for all plugin types (agent-skills, custom-search, built-in-commands).
+ * Manages plugin YAML files for all plugin types (agent-skills, custom-search, agent-built-in).
  * Copies default plugin files from assets to user data directory and watches for changes.
  *
  * Directory structure:

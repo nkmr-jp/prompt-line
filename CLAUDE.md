@@ -100,20 +100,20 @@ User Input → Renderer → IPC Event → IPCHandlers (coordinator) → Speciali
 - **History**: Unlimited JSONL-based paste history with real-time search
 - **Draft auto-save**: Adaptive debouncing, persists on Esc, cleared on successful paste (Cmd+Enter)
 
-### Built-in Commands
+### Agent Built-in
 
 Slash command definitions for CLI tools (Claude Code, Codex CLI, Gemini CLI) stored as plugin YAML files.
 
-**Source:** `assets/plugins/prompt-line-plugin/<tool>/built-in-commands/*.yml` → **Installed to:** `~/.prompt-line/plugins/prompt-line-plugin/<tool>/built-in-commands/`
+**Source:** `assets/plugins/prompt-line-plugin/<tool>/agent-built-in/*.yml` → **Installed to:** `~/.prompt-line/plugins/prompt-line-plugin/<tool>/agent-built-in/`
 
 **Updating to latest versions:**
 1. Check latest slash commands:
    - **Claude Code**: [changelog](https://github.com/anthropics/claude-code/releases) / [docs](https://code.claude.com/docs/en/commands)
    - **Codex CLI**: [source](https://github.com/openai/codex) / [docs](https://developers.openai.com/codex/cli/slash-commands/)
    - **Gemini CLI**: [docs](https://google-gemini.github.io/gemini-cli/docs/cli/commands.html) / [releases](https://github.com/google-gemini/gemini-cli/releases)
-2. Edit YAML files in `assets/plugins/prompt-line-plugin/<tool>/built-in-commands/`
+2. Edit YAML files in `assets/plugins/prompt-line-plugin/<tool>/agent-built-in/`
 
-**Commit type for built-in-commands updates:** Use `chore` (not `feat`)
+**Commit type for agent-built-in updates:** Use `chore` (not `feat`)
 
 **YAML format:**
 ```yaml

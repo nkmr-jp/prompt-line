@@ -101,9 +101,9 @@ export const defaultSettings: UserSettings = {
     defaultEditor: null // null = use system default application
   },
   /**
-   * Built-in slash commands to enable (type "/" to access)
-   * @deprecated Use plugins setting instead. Built-in commands are now managed as plugins
-   * under plugins/prompt-line-plugin/<tool>/built-in-commands/.
+   * Agent built-in slash commands to enable (type "/" to access)
+   * @deprecated Use plugins setting instead. Agent built-in commands are now managed as plugins
+   * under plugins/prompt-line-plugin/<tool>/agent-built-in/.
    */
   // Not set: disabled by default. Use plugins setting instead.
   /**
@@ -185,14 +185,14 @@ export const defaultSettings: UserSettings = {
    * Directory determines the plugin type:
    *   - .../agent-skills/  → Slash commands (type: command, triggered by "/")
    *   - .../custom-search/ → Mention search (type: mention, triggered by "@prefix:")
-   *   - .../built-in-commands/ → Built-in tool commands (triggered by "/")
+   *   - .../agent-built-in/ → Agent built-in tool commands (triggered by "/")
    *
    * Example (settings.yml):
    *   plugins:
    *     - prompt-line-plugin/claude/agent-skills/commands
    *     - prompt-line-plugin/claude/custom-search/agents
-   *     - prompt-line-plugin/claude/built-in-commands/claude
-   *     # - prompt-line-plugin/codex/built-in-commands/codex   # disabled
+   *     - prompt-line-plugin/claude/agent-built-in/claude
+   *     # - prompt-line-plugin/codex/agent-built-in/codex   # disabled
    */
   plugins: [] as string[],
   /**
@@ -227,7 +227,7 @@ export const defaultSettings: UserSettings = {
  * To use these examples, uncomment them in ~/.prompt-line/settings.yml.
  */
 export const commentedExamples = {
-  builtInCommands: [] as string[],
+  agentBuiltIn: [] as string[],
   agentSkills: [] as Array<{
     name: string;
     description: string;
