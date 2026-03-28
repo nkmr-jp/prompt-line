@@ -76,6 +76,28 @@ function getFolderCommitLog(folderPath: string, cwd: string): LogEntry[] {
 
 // --- Source Resolution ---
 
+interface GitHubRemoteInfo {
+  packagePrefix: string; // "github.com/user/repo"
+  githubBase: string;    // "https://github.com/user/repo"
+}
+
+function parseGitHubRemote(dir: string): GitHubRemoteInfo | null {
+  const remoteUrl = execGit('git remote get-url origin', dir);
+  if (!remoteUrl) return null;
+
+  // Match HTTPS (https://github.com/user/repo.git) or SSH (git@github.com:user/repo.git)
+  const httpsMatch = remoteUrl.match(/github\.com\/([^/]+)\/([^/.]+)/);
+  const sshMatch = remoteUrl.match(/github\.com:([^/]+)\/([^/.]+)/);
+  const match = httpsMatch || sshMatch;
+  if (!match) return null;
+
+  const [, user, repo] = match;
+  return {
+    packagePrefix: `github.com/${user}/${repo}`,
+    githubBase: `https://github.com/${user}/${repo}`,
+  };
+}
+
 interface ResolvedSource {
   localPath: string;
   packageId: string;
@@ -95,6 +117,25 @@ function resolveSource(source: string): ResolvedSource {
     if (!fs.existsSync(resolved)) {
       console.error(`❌ Error: Path not found: ${resolved}`);
       process.exit(1);
+    }
+
+    // Derive packageId from git remote URL if available
+    const gitRoot = isGitRepo(resolved) ? getGitRoot(resolved) : '';
+    if (gitRoot) {
+      const remote = parseGitHubRemote(gitRoot);
+      if (remote) {
+        const repoRelativePath = path.relative(gitRoot, resolved);
+        const packageId = repoRelativePath
+          ? `${remote.packagePrefix}/${repoRelativePath}`
+          : remote.packagePrefix;
+        return {
+          localPath: resolved,
+          packageId,
+          githubBase: remote.githubBase,
+          repoRelativePath,
+          isGithub: true,
+        };
+      }
     }
 
     return {
