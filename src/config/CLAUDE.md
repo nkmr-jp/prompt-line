@@ -41,5 +41,6 @@ default-settings.ts (Single Source of Truth)
 - Window: 640x320, position: `active-text-field`
 - Shortcuts: main=`Cmd+Shift+Space`, paste=`Cmd+Enter`, close=`Escape`, historyNext=`Ctrl+j`, historyPrev=`Ctrl+k`, search=`Cmd+f`
 - `agentBuiltIn`: deprecated (use plugins instead)
+- `plugins`: supports v1 (`string[]`) and v2 (`Record<string, string[]>`) formats. Type alias: `PluginFormat`
 - `fileSearch.maxFiles`: 5000
 - `symbolSearch.maxSymbols`: 200000
