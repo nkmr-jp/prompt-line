@@ -189,9 +189,12 @@ export interface UserSettings {
   /**
    * Plugin entries to enable (paths relative to ~/.prompt-line/plugins/, without .yml extension)
    * Comment out entries to disable them.
-   * Example: "prompt-line-plugin/claude/agent-skills/commands"
+   *
+   * v1 format (string[]): ["prompt-line-plugin/claude/agent-skills/commands"]
+   * v2 format (Record<string, string[]>):
+   *   { "github.com/user/repo/path": ["claude/agent-skills/commands"] }
    */
-  plugins?: string[];
+  plugins?: string[] | Record<string, string[]>;
   // Legacy alias: mdSearch (for backward compatibility)
   mdSearch?: CustomSearchEntry[];
   // Legacy: slashCommands (use agentSkills instead)

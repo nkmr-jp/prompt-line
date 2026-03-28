@@ -218,19 +218,29 @@ function buildDirectoriesSection(settings: UserSettings): string {
  */
 function buildPluginsSection(settings: UserSettings): string {
   const plugins = settings.plugins;
-  const hasPlugins = plugins && plugins.length > 0;
 
-  if (!hasPlugins) {
+  const isEmpty = !plugins ||
+    (Array.isArray(plugins) ? plugins.length === 0 : Object.keys(plugins).length === 0);
+
+  if (isEmpty) {
     return `#plugins:
 #  - prompt-line-plugin/claude/agent-skills/commands
 #  - prompt-line-plugin/claude/agent-built-in/claude`;
   }
 
   let section = `plugins:\n`;
-  for (const plugin of plugins) {
-    section += `  - ${plugin}\n`;
+  if (Array.isArray(plugins)) {
+    for (const plugin of plugins) {
+      section += `  - ${plugin}\n`;
+    }
+  } else {
+    for (const [packageId, entries] of Object.entries(plugins)) {
+      section += `  ${packageId}:\n`;
+      for (const entry of entries) {
+        section += `    - ${entry}\n`;
+      }
+    }
   }
-
   return section.trimEnd();
 }
 

@@ -554,11 +554,14 @@ class SettingsManager extends EventEmitter {
   }
 
   /**
-   * Get enabled plugin paths from settings
-   * Returns the plugins array or defaults if not configured
+   * Get enabled plugin paths from settings.
+   * Normalizes both v1 (string[]) and v2 (Record<string, string[]>) formats
+   * into a flat string array for plugin-loader compatibility.
    */
   getPluginSettings(): string[] {
-    return this.currentSettings.plugins || [];
+    const plugins = this.currentSettings.plugins;
+    if (!plugins) return [];
+    return normalizePlugins(plugins);
   }
 
   getSettingsFilePath(): string {
@@ -579,6 +582,23 @@ class SettingsManager extends EventEmitter {
 
     this.removeAllListeners();
   }
+}
+
+/**
+ * Normalize plugins setting to flat string array.
+ * Supports both v1 (string[]) and v2 (Record<string, string[]>) formats.
+ * v2 format: { "github.com/user/repo/path": ["claude/agent-built-in/en"] }
+ * → ["github.com/user/repo/path/claude/agent-built-in/en"]
+ */
+function normalizePlugins(plugins: string[] | Record<string, string[]>): string[] {
+  if (Array.isArray(plugins)) return plugins;
+  const result: string[] = [];
+  for (const [packageId, entries] of Object.entries(plugins)) {
+    for (const entry of entries) {
+      result.push(`${packageId}/${entry}`);
+    }
+  }
+  return result;
 }
 
 export default SettingsManager;
