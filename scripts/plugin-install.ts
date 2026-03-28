@@ -186,6 +186,16 @@ function hasCommand(cmd: string): boolean {
 
 // --- YAML Helpers ---
 
+function extractPluginDescription(filePath: string): string | undefined {
+  try {
+    const content = fs.readFileSync(filePath, 'utf-8');
+    const match = content.match(/^pluginDescription:\s*["']?(.+?)["']?\s*$/m);
+    return match ? match[1] : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function getNowISO(): string {
   const now = new Date();
   const offset = -now.getTimezoneOffset();
@@ -454,18 +464,17 @@ function main(): void {
   console.log(`📂 Target: ${targetDir}`);
   console.log('');
 
-  // Determine git context
-  const hasGitRepo = isGitRepo(resolved.localPath);
-  const gitRoot = hasGitRepo ? getGitRoot(resolved.localPath) : '';
+  // Determine git context (empty gitRoot means no git repo)
+  const gitRoot = isGitRepo(resolved.localPath) ? getGitRoot(resolved.localPath) : '';
 
-  // Copy YAML files with version comments
-  const { pluginEntries, totalFiles } = copyYamlFiles(
+  // Copy YAML files with version comments (also collects leaf folders in one pass)
+  const { pluginEntries, leafFolders, totalFiles } = copyYamlFiles(
     resolved.localPath,
     targetDir,
     gitRoot,
     resolved.repoRelativePath,
     resolved.githubBase,
-    hasGitRepo,
+    resolved.localPath,
   );
 
   if (totalFiles === 0) {
@@ -475,7 +484,6 @@ function main(): void {
   }
 
   // Generate .prompt-line-plugin metadata files
-  const leafFolders = collectLeafFolders(resolved.localPath, resolved.localPath);
   const folderInfos: FolderInfo[] = [];
   let metadataCount = 0;
 
@@ -486,7 +494,6 @@ function main(): void {
       resolved.githubBase,
       resolved.repoRelativePath,
       gitRoot,
-      hasGitRepo,
     );
 
     const folderTargetDir = path.join(targetDir, folderRelPath);
@@ -524,7 +531,7 @@ function main(): void {
     const gitRelFolder = resolved.repoRelativePath
       ? path.join(resolved.repoRelativePath, intermediateDir)
       : intermediateDir;
-    const version = hasGitRepo ? getFolderCommitHash(gitRelFolder, gitRoot) : '';
+    const version = gitRoot ? getFolderCommitHash(gitRelFolder, gitRoot) : '';
     const intermediateSource = resolved.isGithub
       ? `${resolved.packageId}/${intermediateDir}`
       : intermediateDir;
@@ -534,7 +541,7 @@ function main(): void {
   }
 
   // Generate root .prompt-line-plugin
-  const rootVersion = hasGitRepo
+  const rootVersion = gitRoot
     ? getFolderCommitHash(resolved.repoRelativePath || '.', gitRoot)
     : '';
 

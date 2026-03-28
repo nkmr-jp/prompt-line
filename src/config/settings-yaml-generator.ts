@@ -214,16 +214,16 @@ function buildDirectoriesSection(settings: UserSettings): string {
   return section;
 }
 
-/**
- * Build plugins section
- */
+function isPluginsEmpty(plugins: PluginFormat | undefined): boolean {
+  if (!plugins) return true;
+  if (Array.isArray(plugins)) return plugins.length === 0;
+  return Object.keys(plugins).length === 0;
+}
+
 function buildPluginsSection(settings: UserSettings): string {
   const plugins = settings.plugins;
 
-  const isEmpty = !plugins ||
-    (Array.isArray(plugins) ? plugins.length === 0 : Object.keys(plugins).length === 0);
-
-  if (isEmpty) {
+  if (isPluginsEmpty(plugins)) {
     return `#plugins:
 #  - prompt-line-plugin/claude/agent-skills/commands
 #  - prompt-line-plugin/claude/agent-built-in/claude`;
@@ -235,7 +235,7 @@ function buildPluginsSection(settings: UserSettings): string {
       section += `  - ${plugin}\n`;
     }
   } else {
-    for (const [packageId, entries] of Object.entries(plugins)) {
+    for (const [packageId, entries] of Object.entries(plugins as Record<string, string[]>)) {
       section += `  ${packageId}:\n`;
       for (const entry of entries) {
         section += `    - ${entry}\n`;

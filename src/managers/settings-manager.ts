@@ -564,11 +564,23 @@ class SettingsManager extends EventEmitter {
    * Get enabled plugin paths from settings.
    * Normalizes both v1 (string[]) and v2 (Record<string, string[]>) formats
    * into a flat string array for plugin-loader compatibility.
+   * Caches result until settings change for performance in hot paths (IPC handlers).
    */
   getPluginSettings(): string[] {
+    // Return cached result if available (cache is invalidated on settings change)
+    if (this.cachedPluginSettings !== null) {
+      return this.cachedPluginSettings;
+    }
+
     const plugins = this.currentSettings.plugins;
-    if (!plugins) return [];
-    return normalizePlugins(plugins);
+    if (!plugins) {
+      this.cachedPluginSettings = [];
+      return [];
+    }
+
+    // Normalize and cache result (computed only once until settings change)
+    this.cachedPluginSettings = normalizePlugins(plugins);
+    return this.cachedPluginSettings;
   }
 
   getSettingsFilePath(): string {
@@ -589,12 +601,6 @@ class SettingsManager extends EventEmitter {
 
     this.removeAllListeners();
   }
-}
-
-function isPluginsEmpty(plugins: PluginFormat | undefined): boolean {
-  if (!plugins) return true;
-  if (Array.isArray(plugins)) return plugins.length === 0;
-  return Object.keys(plugins).length === 0;
 }
 
 function normalizePlugins(plugins: PluginFormat): string[] {
