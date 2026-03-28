@@ -117,7 +117,6 @@ plugins:
 **Plugin commands:**
 ```bash
 pnpm run plugin:install <source>    # Install from local path or GitHub
-pnpm run install-plugin             # Legacy: copy built-in plugins from assets/
 ```
 
 `plugin:install` supports local paths (`./plugins`, `~/path`) and GitHub repos (`github.com/user/repo/path`). It generates `.prompt-line-plugin` metadata files with commit-hash-pinned GitHub URLs for version tracking.
