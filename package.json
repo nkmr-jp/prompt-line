@@ -9,7 +9,7 @@
     "build:renderer": "vite build && cp src/renderer/input.html dist/renderer/input.html",
     "typecheck": "node scripts/generate-git-info.js && tsc --noEmit",
     "build": "pnpm run compile && node scripts/build.js",
-    "install-app": "pnpm run compile && node scripts/install.js && pnpm run plugin:update-builtin",
+    "install-app": "pnpm run compile && node scripts/install.js && pnpm exec ts-node scripts/plugin-install.ts ./assets/plugins/prompt-line-plugin",
     "clean": "rm -rf dist/mac* dist/*.dmg dist/*.zip dist/*.blockmap",
     "clean:cache": "rm -rf node_modules/.cache ~/Library/Caches/electron-builder ~/Library/Caches/electron",
     "clean:full": "pnpm run clean && pnpm run clean:cache && rm -rf dist/",
@@ -27,7 +27,6 @@
     "prepare": "husky",
     "setup-codesign": "bash scripts/setup-codesign.sh",
     "reset-accessibility": "tccutil reset Accessibility com.electron.prompt-line && echo '✅ Accessibility permissions for Prompt Line have been reset'",
-    "plugin:update-builtin": "pnpm exec ts-node scripts/plugin-install.ts ./assets/plugins/prompt-line-plugin",
     "plugin:install": "pnpm exec ts-node scripts/plugin-install.ts",
     "generate:settings-example": "pnpm exec ts-node scripts/generate-settings-example.ts",
     "migrate-settings": "pnpm exec ts-node scripts/migrate-settings.ts"
