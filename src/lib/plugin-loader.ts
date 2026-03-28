@@ -329,16 +329,7 @@ class PluginLoader {
    * Search built-in commands with optional query filter
    */
   searchBuiltInCommands(enabledPlugins: string[], query?: string): AgentSkillItem[] {
-    let commands = this.loadBuiltInCommands(enabledPlugins);
-
-    if (query && query.trim() !== '') {
-      const lowerQuery = query.toLowerCase();
-      commands = commands.filter(cmd =>
-        cmd.name.toLowerCase().startsWith(lowerQuery)
-      );
-    }
-
-    return commands;
+    return this.filterByQuery(this.loadBuiltInCommands(enabledPlugins), query);
   }
 
   /**
@@ -358,11 +349,41 @@ class PluginLoader {
   }
 
   /**
+   * Validate that a name doesn't contain path traversal or absolute paths
+   */
+  private isInvalidName(name: string): boolean {
+    return name.includes('..') || name.includes('/') || name.includes('\\') || path.isAbsolute(name);
+  }
+
+  /**
+   * Read a YAML file by name, trying .yml then .yaml extension
+   */
+  private readYamlByName(dir: string, name: string): { parsed: unknown; filePath: string } | null {
+    const basePath = path.join(dir, name);
+    const ymlPath = basePath + '.yml';
+    const parsedYml = this.readYamlFile(ymlPath);
+    if (parsedYml) return { parsed: parsedYml, filePath: ymlPath };
+    const yamlPath = basePath + '.yaml';
+    const parsedYaml = this.readYamlFile(yamlPath);
+    if (parsedYaml) return { parsed: parsedYaml, filePath: yamlPath };
+    return null;
+  }
+
+  /**
+   * Filter commands by query prefix (case-insensitive)
+   */
+  private filterByQuery(commands: AgentSkillItem[], query?: string): AgentSkillItem[] {
+    if (!query || query.trim() === '') return commands;
+    const lowerQuery = query.toLowerCase();
+    return commands.filter(cmd => cmd.name.toLowerCase().startsWith(lowerQuery));
+  }
+
+  /**
    * Load a standalone YAML file from a directory by name.
    * Reuses parsePluginEntry for consistent field handling.
    */
   private loadStandaloneFile(name: string, dir: string, type: PluginType): CustomSearchEntry | null {
-    if (name.includes('..') || name.includes('/') || name.includes('\\') || path.isAbsolute(name)) {
+    if (this.isInvalidName(name)) {
       logger.warn(`Invalid standalone entry name rejected: ${name}`);
       return null;
     }
@@ -371,9 +392,9 @@ class PluginLoader {
     const cached = this.cache.get(cacheKey);
     if (cached) return cached.entries[0] ?? null;
 
+    const result = this.readYamlByName(dir, name);
+    const entry = result ? this.parsePluginEntry(result.parsed as PluginEntryYaml, type) : null;
     const basePath = path.join(dir, name);
-    const parsed = this.readYamlFile(basePath + '.yml') ?? this.readYamlFile(basePath + '.yaml');
-    const entry = parsed ? this.parsePluginEntry(parsed, type) : null;
 
     // Cache both hits and misses to avoid repeated I/O for invalid names
     this.cache.set(cacheKey, { pluginPath: cacheKey, type, entries: entry ? [entry] : [], builtInCommands: [] });
@@ -381,6 +402,46 @@ class PluginLoader {
       logger.debug(`Standalone ${type} file not found: ${basePath}.yml`);
     }
     return entry;
+  }
+
+  /**
+   * Load built-in commands from ~/.prompt-line/built-in-commands/ directory.
+   * Reads YAML files matching the given names (e.g., ["claude-ja"] → claude-ja.yml).
+   * Used for the builtInCommands setting (backward-compatible with pre-plugin system).
+   */
+  loadLegacyBuiltInCommands(names: string[]): AgentSkillItem[] {
+    const commands: AgentSkillItem[] = [];
+    const dir = config.paths.builtInCommandsDir;
+
+    for (const name of names) {
+      if (this.isInvalidName(name)) {
+        logger.warn(`Invalid built-in command name rejected: ${name}`);
+        continue;
+      }
+
+      const cacheKey = `legacy-built-in:${name}`;
+      const cached = this.cache.get(cacheKey);
+      if (cached) {
+        commands.push(...cached.builtInCommands);
+        continue;
+      }
+
+      const result = this.readYamlByName(dir, name);
+      const items = result ? this.parseBuiltInCommands(result.parsed as BuiltInCommandsYaml, result.filePath) : [];
+
+      this.cache.set(cacheKey, { pluginPath: cacheKey, type: 'built-in-commands', entries: [], builtInCommands: items });
+      commands.push(...items);
+    }
+
+    return commands;
+  }
+
+  /**
+   * Search legacy built-in commands with optional query filter
+   */
+  searchLegacyBuiltInCommands(names?: string[], query?: string): AgentSkillItem[] {
+    if (!names || names.length === 0) return [];
+    return this.filterByQuery(this.loadLegacyBuiltInCommands(names), query);
   }
 
   /**

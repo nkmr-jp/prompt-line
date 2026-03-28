@@ -102,6 +102,7 @@ export interface PathsConfig {
   directoryFile: string;
   cacheDir: string;             // Cache root directory
   projectsCacheDir: string;     // Projects cache directory
+  builtInCommandsDir: string;   // Built-in commands YAML files directory
   pluginsDir: string;           // Plugins directory
   agentSkillsDir: string;       // Agent skills YAML files directory
   customSearchDir: string;      // Custom search YAML files directory

@@ -124,9 +124,10 @@ class CustomSearchHandler {
     query?: string
   ): Promise<AgentSkillItem[]> {
     try {
-      // Get built-in commands from plugin YAML files
       const enabledPlugins = this.settingsManager.getPluginSettings();
-      const builtInCommands = pluginLoader.searchBuiltInCommands(enabledPlugins, query);
+      const pluginCommands = pluginLoader.searchBuiltInCommands(enabledPlugins, query);
+      const legacyCommands = pluginLoader.searchLegacyBuiltInCommands(this.settingsManager.getBuiltInCommandsSettings(), query);
+      const builtInCommands = [...pluginCommands, ...legacyCommands];
 
       // Get user commands from CustomSearchLoader (MD files)
       const items = query
@@ -241,10 +242,10 @@ class CustomSearchHandler {
         return false;
       }
 
-      // Check if this is a built-in command from plugins
       const enabledPlugins = this.settingsManager.getPluginSettings();
-      const builtInCommands = pluginLoader.searchBuiltInCommands(enabledPlugins);
-      const isBuiltIn = builtInCommands.some(cmd => cmd.name === commandName);
+      const pluginCommands = pluginLoader.searchBuiltInCommands(enabledPlugins);
+      const legacyCommands = pluginLoader.searchLegacyBuiltInCommands(this.settingsManager.getBuiltInCommandsSettings());
+      const isBuiltIn = [...pluginCommands, ...legacyCommands].some(cmd => cmd.name === commandName);
       if (isBuiltIn) {
         return false; // Built-in commands don't have individual files
       }
