@@ -40,6 +40,6 @@ default-settings.ts (Single Source of Truth)
 ### Key default values
 - Window: 640x320, position: `active-text-field`
 - Shortcuts: main=`Cmd+Shift+Space`, paste=`Cmd+Enter`, close=`Escape`, historyNext=`Ctrl+j`, historyPrev=`Ctrl+k`, search=`Cmd+f`
-- `builtInCommands`: deprecated (use plugins instead)
+- `agentBuiltIn`: deprecated (use plugins instead)
 - `fileSearch.maxFiles`: 5000
 - `symbolSearch.maxSymbols`: 200000

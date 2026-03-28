@@ -47,11 +47,11 @@ Of course, it also works with apps other than Terminal.
 
 ### Context Search and Autocomplete
 
-Type `/` or `@` to search and autocomplete contexts such as Agent Skills, Built-in Commands, files, and symbols.<br>
+Type `/` or `@` to search and autocomplete contexts such as Agent Skills, Agent Built-in, files, and symbols.<br>
 These can be customized in the settings file (`~/.prompt-line/settings.yml`). See: [settings.example.yml](settings.example.yml)
 <table>
 <tr>
-<td>Agent Skills and Built-in Commands <img src="assets/doc9.png"> </td>
+<td>Agent Skills and Agent Built-in <img src="assets/doc9.png"> </td>
 <td>File and Directory Search <img src="assets/doc10.png"> </td>
 </tr>
 <tr>
@@ -127,7 +127,7 @@ git pull
 pnpm install
 pnpm run install-app
 pnpm run migrate-settings        # Migrate settings to latest defaults (auto-backup)
-pnpm run update-built-in-commands # Update built-in commands to latest version
+pnpm run update-agent-built-in    # Update agent built-in to latest version
 ```
 
 
@@ -164,7 +164,7 @@ For the full configuration example with all available options and comments, see:
 | `shortcuts` | Keyboard shortcuts (main, paste, close, history navigation, search) |
 | `window` | Window size and positioning mode |
 | `fileOpener` | Default editor, extension-specific and directory-specific (glob) applications |
-| `builtInCommands` | Built-in slash commands to enable (claude, codex, gemini, etc.) |
+| `agentBuiltIn` | Agent built-in slash commands to enable (claude, codex, gemini, etc.) |
 | `agentSkills` | Agent Skills search functionality (supports custom triggers like `$`) |
 | `customSearch` | Custom search triggered by `@prefix:` (supports keyboard shortcut activation) |
 | `fileSearch` | File search settings (`@path/to/file` completion) |

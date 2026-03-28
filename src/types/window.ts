@@ -102,7 +102,7 @@ export interface PathsConfig {
   directoryFile: string;
   cacheDir: string;             // Cache root directory
   projectsCacheDir: string;     // Projects cache directory
-  builtInCommandsDir: string;   // Built-in commands YAML files directory
+  agentBuiltInDir: string;      // Agent built-in YAML files directory
   pluginsDir: string;           // Plugins directory
   agentSkillsDir: string;       // Agent skills YAML files directory
   customSearchDir: string;      // Custom search YAML files directory
@@ -166,8 +166,8 @@ export interface UserSettings {
     // Default editor when no extension-specific or directory-specific setting exists
     defaultEditor?: string | null;
   };
-  // Built-in commands: list of tools to enable (e.g., ['claude', 'codex', 'gemini'])
-  builtInCommands?: string[];
+  // Agent built-in: list of tools to enable (e.g., ['claude', 'codex', 'gemini'])
+  agentBuiltIn?: string[];
   // Agent skills: inline entries or file names from ~/.prompt-line/agent-skills/
   agentSkills?: (AgentSkillEntry | string)[];
   // File search settings (@path/to/file completion)
@@ -196,8 +196,8 @@ export interface UserSettings {
   mdSearch?: CustomSearchEntry[];
   // Legacy: slashCommands (use agentSkills instead)
   slashCommands?: AgentSkillsSettings;
-  // Legacy: Built-in commands configuration (use builtInCommands instead)
-  legacyBuiltInCommands?: {
+  // Legacy: Agent built-in configuration (use agentBuiltIn instead)
+  legacyAgentBuiltIn?: {
     tools?: string[];
   };
 }
@@ -301,8 +301,8 @@ export interface AgentSkillsSettings {
    * - 前方一致: "debug-*"
    */
   disable?: string[];
-  // Legacy: builtInCommands (use root-level builtInCommands instead)
-  builtInCommands?: string[];
+  // Legacy: agentBuiltIn (use root-level agentBuiltIn instead)
+  agentBuiltIn?: string[];
 }
 
 /** @deprecated Use AgentSkillsSettings instead */

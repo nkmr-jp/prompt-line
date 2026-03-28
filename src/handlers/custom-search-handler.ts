@@ -117,7 +117,7 @@ class CustomSearchHandler {
   /**
    * Handler: get-agent-skills
    * Retrieves agent skills with optional query filtering
-   * Merges built-in commands (from YAML) with user commands (from MD files)
+   * Merges agent built-in (from YAML) with user commands (from MD files)
    */
   private async handleGetAgentSkills(
     _event: IpcMainInvokeEvent,
@@ -125,9 +125,9 @@ class CustomSearchHandler {
   ): Promise<AgentSkillItem[]> {
     try {
       const enabledPlugins = this.settingsManager.getPluginSettings();
-      const pluginCommands = pluginLoader.searchBuiltInCommands(enabledPlugins, query);
-      const legacyCommands = pluginLoader.searchLegacyBuiltInCommands(this.settingsManager.getBuiltInCommandsSettings(), query);
-      const builtInCommands = [...pluginCommands, ...legacyCommands];
+      const pluginCommands = pluginLoader.searchAgentBuiltIn(enabledPlugins, query);
+      const legacyCommands = pluginLoader.searchLegacyAgentBuiltIn(this.settingsManager.getAgentBuiltInSettings(), query);
+      const agentBuiltIn = [...pluginCommands, ...legacyCommands];
 
       // Get user commands from CustomSearchLoader (MD files)
       const items = query
@@ -173,12 +173,12 @@ class CustomSearchHandler {
         return cmd;
       });
 
-      // Merge: built-in commands first, then custom commands
+      // Merge: agent built-in first, then custom commands
       // Commands with same name but different sources or labels are kept
       const commandMap = new Map<string, AgentSkillItem>();
 
-      // Add built-in commands first
-      for (const cmd of builtInCommands) {
+      // Add agent built-in first
+      for (const cmd of agentBuiltIn) {
         const key = `${cmd.name}:${cmd.source || ''}:${cmd.label || ''}`;
         commandMap.set(key, cmd);
       }
@@ -231,7 +231,7 @@ class CustomSearchHandler {
   /**
    * Handler: has-command-file
    * Checks if a command has an individual file (user-defined commands only)
-   * Built-in commands share a YAML file, so they don't have individual files
+   * Agent built-in share a YAML file, so they don't have individual files
    */
   private async handleHasCommandFile(
     _event: IpcMainInvokeEvent,
@@ -243,11 +243,11 @@ class CustomSearchHandler {
       }
 
       const enabledPlugins = this.settingsManager.getPluginSettings();
-      const pluginCommands = pluginLoader.searchBuiltInCommands(enabledPlugins);
-      const legacyCommands = pluginLoader.searchLegacyBuiltInCommands(this.settingsManager.getBuiltInCommandsSettings());
+      const pluginCommands = pluginLoader.searchAgentBuiltIn(enabledPlugins);
+      const legacyCommands = pluginLoader.searchLegacyAgentBuiltIn(this.settingsManager.getAgentBuiltInSettings());
       const isBuiltIn = [...pluginCommands, ...legacyCommands].some(cmd => cmd.name === commandName);
       if (isBuiltIn) {
-        return false; // Built-in commands don't have individual files
+        return false; // Agent built-in don't have individual files
       }
 
       // Check if this is a user-defined command (custom)

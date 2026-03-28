@@ -72,8 +72,8 @@ describe('settings-yaml-generator', () => {
         expect(result).toContain('#extensions:');
         expect(result).toContain('#  ts: "WebStorm"');
 
-        // Should have commented builtInCommands section
-        expect(result).toContain('#builtInCommands:');
+        // Should have commented agentBuiltIn section
+        expect(result).toContain('#agentBuiltIn:');
 
         // Should have commented agentSkills section
         expect(result).toContain('#agentSkills:');
@@ -108,7 +108,7 @@ describe('settings-yaml-generator', () => {
               md: 'Typora'
             }
           },
-          builtInCommands: ['claude', 'codex'],
+          agentBuiltIn: ['claude', 'codex'],
           agentSkills: [
             {
               name: 'test-{basename}',
@@ -232,8 +232,8 @@ describe('settings-yaml-generator', () => {
         expect(result).toContain('# go: "Goland"');
         expect(result).toContain('# md: "Typora"');
 
-        // Should include commented builtInCommands section (deprecated, use plugins instead)
-        expect(result).toContain('#builtInCommands:');
+        // Should include commented agentBuiltIn section (deprecated, use plugins instead)
+        expect(result).toContain('#agentBuiltIn:');
         expect(result).toContain('#  - claude');
       });
 
@@ -265,7 +265,7 @@ describe('settings-yaml-generator', () => {
         const settings: UserSettings = {
           shortcuts: defaultSettings.shortcuts,
           window: defaultSettings.window,
-          builtInCommands: [],
+          agentBuiltIn: [],
           agentSkills: [],
           fileSearch: {
             respectGitignore: true,
@@ -355,7 +355,7 @@ describe('settings-yaml-generator', () => {
         const settings: UserSettings = {
           shortcuts: defaultSettings.shortcuts,
           window: defaultSettings.window,
-          builtInCommands: ['claude'],
+          agentBuiltIn: ['claude'],
           agentSkills: [
             {
               name: 'test: command',
@@ -377,7 +377,7 @@ describe('settings-yaml-generator', () => {
         const settings: UserSettings = {
           shortcuts: defaultSettings.shortcuts,
           window: defaultSettings.window,
-          builtInCommands: ['claude'],
+          agentBuiltIn: ['claude'],
           agentSkills: [
             {
               name: 'test',
@@ -416,8 +416,8 @@ describe('settings-yaml-generator', () => {
 
         const result = generateSettingsYaml(settings);
 
-        // Should have commented builtInCommands and agentSkills templates
-        expect(result).toContain('#builtInCommands:');
+        // Should have commented agentBuiltIn and agentSkills templates
+        expect(result).toContain('#agentBuiltIn:');
         expect(result).toContain('#agentSkills:');
       });
 
@@ -435,17 +435,17 @@ describe('settings-yaml-generator', () => {
         expect(result).toContain('#customSearch:');
       });
 
-      test('should handle builtInCommands without agentSkills', () => {
+      test('should handle agentBuiltIn without agentSkills', () => {
         const settings: UserSettings = {
           shortcuts: defaultSettings.shortcuts,
           window: defaultSettings.window,
-          builtInCommands: ['claude']
+          agentBuiltIn: ['claude']
           // No agentSkills
         };
 
         const result = generateSettingsYaml(settings);
 
-        expect(result).toContain('builtInCommands:');
+        expect(result).toContain('agentBuiltIn:');
         expect(result).toContain('- claude');
         // agentSkills should be commented since not provided
         expect(result).toContain('#agentSkills:');
@@ -489,7 +489,7 @@ describe('settings-yaml-generator', () => {
               md: 'Typora'
             }
           },
-          builtInCommands: ['claude', 'codex'],
+          agentBuiltIn: ['claude', 'codex'],
           agentSkills: [
             {
               name: '{basename}',
@@ -539,7 +539,7 @@ describe('settings-yaml-generator', () => {
         expect(parsed.shortcuts.main).toBe('Alt+Space');
         expect(parsed.window.position).toBe('cursor');
         expect(parsed.fileOpener.defaultEditor).toBe('VSCode');
-        expect(parsed.builtInCommands).toEqual(['claude', 'codex']);
+        expect(parsed.agentBuiltIn).toEqual(['claude', 'codex']);
       });
 
       test('should preserve data types after round-trip parsing', () => {
@@ -597,7 +597,7 @@ describe('settings-yaml-generator', () => {
         expect(result).toContain('# KEYBOARD SHORTCUTS');
         expect(result).toContain('# WINDOW SETTINGS');
         expect(result).toContain('# FILE OPENER SETTINGS');
-        expect(result).toContain('# BUILT-IN COMMANDS');
+        expect(result).toContain('# AGENT BUILT-IN');
         expect(result).toContain('# AGENT SKILLS SETTINGS');
         expect(result).toContain('# CUSTOM SEARCH SETTINGS');
         expect(result).toContain('# FILE SEARCH SETTINGS');
@@ -608,7 +608,7 @@ describe('settings-yaml-generator', () => {
         const settings: UserSettings = {
           shortcuts: defaultSettings.shortcuts,
           window: defaultSettings.window,
-          builtInCommands: ['claude'],
+          agentBuiltIn: ['claude'],
           agentSkills: [
             {
               name: 'test',
@@ -622,7 +622,7 @@ describe('settings-yaml-generator', () => {
         const result = generateSettingsYaml(settings);
 
         // Check indentation patterns
-        expect(result).toContain('builtInCommands:');
+        expect(result).toContain('agentBuiltIn:');
         expect(result).toContain('  - claude');
         expect(result).toContain('agentSkills:');
         expect(result).toContain('  - name: "test"');

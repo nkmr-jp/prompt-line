@@ -223,7 +223,7 @@ function buildPluginsSection(settings: UserSettings): string {
   if (!hasPlugins) {
     return `#plugins:
 #  - prompt-line-plugin/claude/agent-skills/commands
-#  - prompt-line-plugin/claude/built-in-commands/claude`;
+#  - prompt-line-plugin/claude/agent-built-in/claude`;
   }
 
   let section = `plugins:\n`;
@@ -235,29 +235,29 @@ function buildPluginsSection(settings: UserSettings): string {
 }
 
 /**
- * Build builtInCommands section
+ * Build agentBuiltIn section
  */
-function buildBuiltInCommandsSection(settings: UserSettings, options: YamlGeneratorOptions): string {
-  const builtInCommands = settings.builtInCommands;
-  const hasBuiltInCommands = builtInCommands && builtInCommands.length > 0;
+function buildAgentBuiltInSection(settings: UserSettings, options: YamlGeneratorOptions): string {
+  const agentBuiltIn = settings.agentBuiltIn;
+  const hasAgentBuiltIn = agentBuiltIn && agentBuiltIn.length > 0;
 
-  if (!hasBuiltInCommands) {
-    return `# Built-in slash commands (type "/" to access)
-# @deprecated Use plugins setting instead (prompt-line-plugin/<tool>/built-in-commands/*)
-#builtInCommands:
+  if (!hasAgentBuiltIn) {
+    return `# Agent built-in slash commands (type "/" to access)
+# @deprecated Use plugins setting instead (prompt-line-plugin/<tool>/agent-built-in/*)
+#agentBuiltIn:
 #  - claude`;
   }
 
-  let section = `# Built-in slash commands (type "/" to access)
-# @deprecated Use plugins setting instead (prompt-line-plugin/<tool>/built-in-commands/*)
-builtInCommands:\n`;
-  for (const cmd of builtInCommands) {
+  let section = `# Agent built-in slash commands (type "/" to access)
+# @deprecated Use plugins setting instead (prompt-line-plugin/<tool>/agent-built-in/*)
+agentBuiltIn:\n`;
+  for (const cmd of agentBuiltIn) {
     section += `  - ${cmd}\n`;
   }
 
   // Add commented examples if requested
   if (options.includeCommentedExamples) {
-    const commentedCmds = commentedExamples.builtInCommands || [];
+    const commentedCmds = commentedExamples.agentBuiltIn || [];
     for (const cmd of commentedCmds) {
       section += `  # - ${cmd}\n`;
     }
@@ -573,7 +573,7 @@ fileOpener:
 export function generateSettingsYaml(settings: UserSettings, options: YamlGeneratorOptions = {}): string {
   const extensionsSection = buildExtensionsSection(settings, options);
   const directoriesSection = buildDirectoriesSection(settings);
-  const builtInCommandsSection = buildBuiltInCommandsSection(settings, options);
+  const agentBuiltInSection = buildAgentBuiltInSection(settings, options);
   const agentSkillsSection = buildAgentSkillsSection(settings, options);
   const customSearchSection = buildCustomSearchSection(settings, options);
   const pluginsSection = buildPluginsSection(settings);
@@ -590,17 +590,17 @@ export function generateSettingsYaml(settings: UserSettings, options: YamlGenera
 # Directory determines the plugin type:
 #   .../agent-skills/      → Slash commands (type: command, triggered by "/")
 #   .../custom-search/     → Mention search (type: mention, triggered by "@prefix:")
-#   .../built-in-commands/ → Built-in tool commands (triggered by "/")
+#   .../agent-built-in/ → Agent built-in tool commands (triggered by "/")
 # Storage: ~/.prompt-line/plugins/ (YAML files per entry)
 # Hot-reload: YAML file changes are auto-detected (no restart needed)
 
 ${pluginsSection}
 
 # ============================================================================
-# BUILT-IN COMMANDS (deprecated — use plugins instead)
+# AGENT BUILT-IN (deprecated — use plugins instead)
 # ============================================================================
 
-${builtInCommandsSection}
+${agentBuiltInSection}
 
 # ============================================================================
 # AGENT SKILLS SETTINGS
