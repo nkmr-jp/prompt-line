@@ -586,8 +586,7 @@ class SettingsManager extends EventEmitter {
 
 /**
  * Normalize plugins setting to flat string array.
- * Supports both v1 (string[]) and v2 (Record<string, string[]>) formats.
- * v2 format: { "github.com/user/repo/path": ["claude/agent-built-in/en"] }
+ * v2 example: { "github.com/user/repo/path": ["claude/agent-built-in/en"] }
  * → ["github.com/user/repo/path/claude/agent-built-in/en"]
  */
 function normalizePlugins(plugins: string[] | Record<string, string[]>): string[] {
