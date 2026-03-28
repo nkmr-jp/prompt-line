@@ -606,7 +606,7 @@ class SettingsManager extends EventEmitter {
 function normalizePlugins(plugins: PluginFormat): string[] {
   if (Array.isArray(plugins)) return plugins;
   const result: string[] = [];
-  for (const [packageId, entries] of Object.entries(plugins)) {
+  for (const [packageId, entries] of Object.entries(plugins as Record<string, string[]>)) {
     for (const entry of entries) {
       result.push(`${packageId}/${entry}`);
     }

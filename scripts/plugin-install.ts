@@ -186,16 +186,6 @@ function hasCommand(cmd: string): boolean {
 
 // --- YAML Helpers ---
 
-function extractPluginDescription(filePath: string): string | undefined {
-  try {
-    const content = fs.readFileSync(filePath, 'utf-8');
-    const match = content.match(/^pluginDescription:\s*["']?(.+?)["']?\s*$/m);
-    return match ? match[1] : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
 function getNowISO(): string {
   const now = new Date();
   const offset = -now.getTimezoneOffset();
