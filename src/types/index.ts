@@ -51,6 +51,7 @@ export type {
   FileOpenerDirectoryEntry,
   // Color types
   ColorValue,
+  PluginFormat,
   // Mention settings types (@ mentions)
   FileSearchUserSettings,
   SymbolSearchUserSettings,

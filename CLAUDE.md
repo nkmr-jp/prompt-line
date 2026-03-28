@@ -40,6 +40,7 @@ pnpm run clean      # Removes build artifacts (DMG, zip files)
 pnpm run clean:cache     # Clears build caches
 pnpm run clean:full      # Full cleanup (artifacts + caches + dist)
 pnpm run generate:settings-example  # Regenerate settings.example.yml
+pnpm run plugin:install <source>    # Install plugins from local path or GitHub repo
 ```
 
 `pnpm run compile` performs: tsc → Vite renderer build → native tools (`cd native && make install`) → copy to dist.
@@ -100,18 +101,40 @@ User Input → Renderer → IPC Event → IPCHandlers (coordinator) → Speciali
 - **History**: Unlimited JSONL-based paste history with real-time search
 - **Draft auto-save**: Adaptive debouncing, persists on Esc, cleared on successful paste (Cmd+Enter)
 
+### Plugin System
+
+Plugins provide agent-built-in slash commands, agent-skills, and custom-search entries. Two settings formats are supported:
+
+**v1 format (string[]):** `plugins: ["prompt-line-plugin/claude/agent-built-in/claude"]`
+**v2 format (Record<string, string[]>):**
+```yaml
+plugins:
+  github.com/nkmr-jp/prompt-line/plugins:
+    - claude/agent-built-in/en
+    - claude/agent-skills/commands
+```
+
+**Plugin commands:**
+```bash
+pnpm run plugin:install <source>    # Install from local path or GitHub
+```
+
+`plugin:install` supports local paths (`./plugins`, `~/path`) and GitHub repos (`github.com/user/repo/path`). It generates `.prompt-line-plugin` metadata files with commit-hash-pinned GitHub URLs for version tracking.
+
+**Source resolution for `github.com/...`:** local ghq → `gh repo clone --depth=1` → `git clone --depth=1`
+
 ### Agent Built-in
 
 Slash command definitions for CLI tools (Claude Code, Codex CLI, Gemini CLI) stored as plugin YAML files.
 
-**Source:** `assets/plugins/prompt-line-plugin/<tool>/agent-built-in/*.yml` → **Installed to:** `~/.prompt-line/plugins/prompt-line-plugin/<tool>/agent-built-in/`
+**Source:** `plugins/<tool>/agent-built-in/*.yml` → **Installed to:** `~/.prompt-line/plugins/plugins/<tool>/agent-built-in/`
 
 **Updating to latest versions:**
 1. Check latest slash commands:
    - **Claude Code**: [changelog](https://github.com/anthropics/claude-code/releases) / [docs](https://code.claude.com/docs/en/commands)
    - **Codex CLI**: [source](https://github.com/openai/codex) / [docs](https://developers.openai.com/codex/cli/slash-commands/)
    - **Gemini CLI**: [docs](https://google-gemini.github.io/gemini-cli/docs/cli/commands.html) / [releases](https://github.com/google-gemini/gemini-cli/releases)
-2. Edit YAML files in `assets/plugins/prompt-line-plugin/<tool>/agent-built-in/`
+2. Edit YAML files in `plugins/<tool>/agent-built-in/`
 
 **Commit type for agent-built-in updates:** Use `chore` (not `feat`)
 
@@ -138,6 +161,7 @@ All data stored in `~/.prompt-line/`:
 - `app.log`: Application logs
 - `images/`: Image storage
 - `cache/`: Symbol cache, @path patterns (per-project and global)
+- `plugins/`: Plugin YAML files with `.prompt-line-plugin` metadata
 
 ## Testing Strategy
 

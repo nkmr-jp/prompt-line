@@ -10,6 +10,7 @@ import { generateSettingsYaml } from '../config/settings-yaml-generator';
 import pluginLoader from '../lib/plugin-loader';
 import type {
   UserSettings,
+  PluginFormat,
   FileSearchSettings,
   SymbolSearchUserSettings,
   AgentSkillEntry,
@@ -24,6 +25,7 @@ class SettingsManager extends EventEmitter {
   private watcher: FSWatcher | null = null;
   private reloadDebounceTimer: NodeJS.Timeout | null = null;
   private readonly RELOAD_DEBOUNCE_MS = 300;
+  private cachedPluginSettings: string[] | null = null;
 
   constructor() {
     super();
@@ -33,6 +35,11 @@ class SettingsManager extends EventEmitter {
     this.defaultSettings = sharedDefaultSettings;
 
     this.currentSettings = { ...this.defaultSettings };
+
+    // Invalidate cached plugin settings on any settings change
+    this.on('settings-changed', () => {
+      this.cachedPluginSettings = null;
+    });
   }
 
   async init(): Promise<void> {
@@ -554,11 +561,26 @@ class SettingsManager extends EventEmitter {
   }
 
   /**
-   * Get enabled plugin paths from settings
-   * Returns the plugins array or defaults if not configured
+   * Get enabled plugin paths from settings.
+   * Normalizes both v1 (string[]) and v2 (Record<string, string[]>) formats
+   * into a flat string array for plugin-loader compatibility.
+   * Caches result until settings change for performance in hot paths (IPC handlers).
    */
   getPluginSettings(): string[] {
-    return this.currentSettings.plugins || [];
+    // Return cached result if available (cache is invalidated on settings change)
+    if (this.cachedPluginSettings !== null) {
+      return this.cachedPluginSettings;
+    }
+
+    const plugins = this.currentSettings.plugins;
+    if (!plugins) {
+      this.cachedPluginSettings = [];
+      return [];
+    }
+
+    // Normalize and cache result (computed only once until settings change)
+    this.cachedPluginSettings = normalizePlugins(plugins);
+    return this.cachedPluginSettings;
   }
 
   getSettingsFilePath(): string {
@@ -579,6 +601,17 @@ class SettingsManager extends EventEmitter {
 
     this.removeAllListeners();
   }
+}
+
+function normalizePlugins(plugins: PluginFormat): string[] {
+  if (Array.isArray(plugins)) return plugins;
+  const result: string[] = [];
+  for (const [packageId, entries] of Object.entries(plugins as Record<string, string[]>)) {
+    for (const entry of entries) {
+      result.push(`${packageId}/${entry}`);
+    }
+  }
+  return result;
 }
 
 export default SettingsManager;

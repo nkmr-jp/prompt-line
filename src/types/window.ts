@@ -12,6 +12,11 @@ import type { DirectoryInfo } from './file-search';
  */
 export type ColorValue = 'grey' | 'darkGrey' | 'slate' | 'stone' | 'red' | 'rose' | 'orange' | 'amber' | 'yellow' | 'lime' | 'green' | 'emerald' | 'teal' | 'cyan' | 'sky' | 'blue' | 'indigo' | 'violet' | 'purple' | 'fuchsia' | 'pink' | string;
 
+/**
+ * Plugin format: v1 (string[]) or v2 (Record<string, string[]>)
+ */
+export type PluginFormat = string[] | Record<string, string[]>;
+
 export interface AppInfo {
   name: string;
   bundleId?: string | null;
@@ -189,9 +194,12 @@ export interface UserSettings {
   /**
    * Plugin entries to enable (paths relative to ~/.prompt-line/plugins/, without .yml extension)
    * Comment out entries to disable them.
-   * Example: "prompt-line-plugin/claude/agent-skills/commands"
+   *
+   * v1 format (string[]): ["prompt-line-plugin/claude/agent-skills/commands"]
+   * v2 format (Record<string, string[]>):
+   *   { "github.com/user/repo/path": ["claude/agent-skills/commands"] }
    */
-  plugins?: string[];
+  plugins?: PluginFormat;
   // Legacy alias: mdSearch (for backward compatibility)
   mdSearch?: CustomSearchEntry[];
   // Legacy: slashCommands (use agentSkills instead)

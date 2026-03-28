@@ -187,12 +187,18 @@ export const defaultSettings: UserSettings = {
    *   - .../custom-search/ → Mention search (type: mention, triggered by "@prefix:")
    *   - .../agent-built-in/ → Agent built-in tool commands (triggered by "/")
    *
-   * Example (settings.yml):
+   * Supports v1 (string[]) and v2 (Record<string, string[]>) formats:
+   *
+   * v1 Example (settings.yml):
    *   plugins:
    *     - prompt-line-plugin/claude/agent-skills/commands
-   *     - prompt-line-plugin/claude/custom-search/agents
    *     - prompt-line-plugin/claude/agent-built-in/claude
-   *     # - prompt-line-plugin/codex/agent-built-in/codex   # disabled
+   *
+   * v2 Example (settings.yml):
+   *   plugins:
+   *     github.com/nkmr-jp/prompt-line/plugins:
+   *       - claude/agent-built-in/en
+   *       - claude/agent-skills/commands
    */
   plugins: [] as string[],
   /**

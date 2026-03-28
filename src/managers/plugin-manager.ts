@@ -32,17 +32,17 @@ class PluginManager extends EventEmitter {
    * Handles both development and production environments
    */
   private getSourceDirectory(): string {
-    const defaultPath = path.join(__dirname, '..', '..', 'assets', 'plugins');
+    const defaultPath = path.join(__dirname, '..', '..', 'plugins');
 
     const possiblePaths: string[] = [
       defaultPath,
-      path.join(__dirname, '..', '..', 'app.asar.unpacked', 'assets', 'plugins'),
-      path.join(__dirname, '..', 'assets', 'plugins'),
+      path.join(__dirname, '..', '..', 'app.asar.unpacked', 'plugins'),
+      path.join(__dirname, '..', 'plugins'),
     ];
 
     if (process.resourcesPath) {
       possiblePaths.push(
-        path.join(process.resourcesPath, 'app.asar.unpacked', 'assets', 'plugins')
+        path.join(process.resourcesPath, 'app.asar.unpacked', 'plugins')
       );
     }
 

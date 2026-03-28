@@ -11,6 +11,7 @@
 
 import type {
   UserSettings,
+  PluginFormat,
   MentionEntry,
   AgentSkillEntry,
   FileSearchUserSettings,
@@ -213,24 +214,34 @@ function buildDirectoriesSection(settings: UserSettings): string {
   return section;
 }
 
-/**
- * Build plugins section
- */
+function isPluginsEmpty(plugins: PluginFormat | undefined): boolean {
+  if (!plugins) return true;
+  if (Array.isArray(plugins)) return plugins.length === 0;
+  return Object.keys(plugins).length === 0;
+}
+
 function buildPluginsSection(settings: UserSettings): string {
   const plugins = settings.plugins;
-  const hasPlugins = plugins && plugins.length > 0;
 
-  if (!hasPlugins) {
+  if (isPluginsEmpty(plugins)) {
     return `#plugins:
 #  - prompt-line-plugin/claude/agent-skills/commands
 #  - prompt-line-plugin/claude/agent-built-in/claude`;
   }
 
   let section = `plugins:\n`;
-  for (const plugin of plugins) {
-    section += `  - ${plugin}\n`;
+  if (Array.isArray(plugins)) {
+    for (const plugin of plugins) {
+      section += `  - ${plugin}\n`;
+    }
+  } else {
+    for (const [packageId, entries] of Object.entries(plugins as Record<string, string[]>)) {
+      section += `  ${packageId}:\n`;
+      for (const entry of entries) {
+        section += `    - ${entry}\n`;
+      }
+    }
   }
-
   return section.trimEnd();
 }
 
