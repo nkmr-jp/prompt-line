@@ -10,6 +10,7 @@ import { generateSettingsYaml } from '../config/settings-yaml-generator';
 import pluginLoader from '../lib/plugin-loader';
 import type {
   UserSettings,
+  PluginFormat,
   FileSearchSettings,
   SymbolSearchUserSettings,
   AgentSkillEntry,
@@ -24,6 +25,7 @@ class SettingsManager extends EventEmitter {
   private watcher: FSWatcher | null = null;
   private reloadDebounceTimer: NodeJS.Timeout | null = null;
   private readonly RELOAD_DEBOUNCE_MS = 300;
+  private cachedPluginSettings: string[] | null = null;
 
   constructor() {
     super();
@@ -33,6 +35,11 @@ class SettingsManager extends EventEmitter {
     this.defaultSettings = sharedDefaultSettings;
 
     this.currentSettings = { ...this.defaultSettings };
+
+    // Invalidate cached plugin settings on any settings change
+    this.on('settings-changed', () => {
+      this.cachedPluginSettings = null;
+    });
   }
 
   async init(): Promise<void> {
@@ -584,12 +591,13 @@ class SettingsManager extends EventEmitter {
   }
 }
 
-/**
- * Normalize plugins setting to flat string array.
- * v2 example: { "github.com/user/repo/path": ["claude/agent-built-in/en"] }
- * → ["github.com/user/repo/path/claude/agent-built-in/en"]
- */
-function normalizePlugins(plugins: string[] | Record<string, string[]>): string[] {
+function isPluginsEmpty(plugins: PluginFormat | undefined): boolean {
+  if (!plugins) return true;
+  if (Array.isArray(plugins)) return plugins.length === 0;
+  return Object.keys(plugins).length === 0;
+}
+
+function normalizePlugins(plugins: PluginFormat): string[] {
   if (Array.isArray(plugins)) return plugins;
   const result: string[] = [];
   for (const [packageId, entries] of Object.entries(plugins)) {

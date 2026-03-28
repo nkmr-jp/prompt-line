@@ -54,12 +54,10 @@ function getGitRoot(dir: string): string {
   return execGit('git rev-parse --show-toplevel', dir);
 }
 
-function getFileCommitHash(filePath: string, cwd: string): string {
-  return execGit(`git log -1 --format="%h" -- "${filePath}"`, cwd);
-}
-
-function getFileCommitMessage(filePath: string, cwd: string): string {
-  return execGit(`git log -1 --format="%s" -- "${filePath}"`, cwd);
+function getCommitInfo(gitPath: string, cwd: string): { hash: string; message: string } {
+  const raw = execGit(`git log -1 --format="%h%n%s" -- "${gitPath}"`, cwd);
+  const [hash = '', ...rest] = raw.split('\n');
+  return { hash, message: rest.join('\n').trim() };
 }
 
 function getFolderCommitHash(folderPath: string, cwd: string): string {
@@ -188,16 +186,6 @@ function hasCommand(cmd: string): boolean {
 
 // --- YAML Helpers ---
 
-function extractPluginDescription(filePath: string): string | undefined {
-  try {
-    const content = fs.readFileSync(filePath, 'utf-8');
-    const match = content.match(/^pluginDescription:\s*["']?(.+?)["']?\s*$/m);
-    return match ? match[1] : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
 function getNowISO(): string {
   const now = new Date();
   const offset = -now.getTimezoneOffset();
@@ -232,8 +220,8 @@ function buildFolderMetadata(
   githubBase: string,
   repoRelativePath: string,
   gitCwd: string,
-  hasGit: boolean,
 ): FolderInfo {
+  const hasGit = gitCwd !== '';
   const fullSourceFolder = path.join(sourcePath, folderRelPath);
   const gitRelFolder = repoRelativePath
     ? path.join(repoRelativePath, folderRelPath)
@@ -242,7 +230,6 @@ function buildFolderMetadata(
   const version = hasGit ? getFolderCommitHash(gitRelFolder, gitCwd) : '';
   const log = hasGit ? getFolderCommitLog(gitRelFolder, gitCwd) : [];
 
-  // Add GitHub URLs to log entries
   if (githubBase) {
     for (const entry of log) {
       entry.githubUrl = `${githubBase}/tree/${entry.hash}/${gitRelFolder}`;
@@ -253,15 +240,15 @@ function buildFolderMetadata(
     ? `${githubBase}/tree/${version}/${gitRelFolder}`
     : '';
 
-  // Collect YAML files in this folder
   const files: FileInfo[] = [];
   if (fs.existsSync(fullSourceFolder)) {
     const entries = fs.readdirSync(fullSourceFolder, { withFileTypes: true });
     for (const entry of entries) {
       if (entry.isFile() && (entry.name.endsWith('.yml') || entry.name.endsWith('.yaml'))) {
         const gitRelFile = path.join(gitRelFolder, entry.name);
-        const fileVersion = hasGit ? getFileCommitHash(gitRelFile, gitCwd) : '';
-        const commitMessage = hasGit ? getFileCommitMessage(gitRelFile, gitCwd) : '';
+        const { hash: fileVersion, message: commitMessage } = hasGit
+          ? getCommitInfo(gitRelFile, gitCwd)
+          : { hash: '', message: '' };
         const fileGithubUrl = githubBase && fileVersion
           ? `${githubBase}/blob/${fileVersion}/${gitRelFile}`
           : '';
@@ -370,23 +357,10 @@ function writeRootMetadata(
 
 // --- File Copy ---
 
-function collectLeafFolders(dir: string, base: string): string[] {
-  const results: string[] = [];
-  if (!fs.existsSync(dir)) return results;
-
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
-  const hasYaml = entries.some(e => e.isFile() && (e.name.endsWith('.yml') || e.name.endsWith('.yaml')));
-  const subDirs = entries.filter(e => e.isDirectory());
-
-  if (hasYaml) {
-    results.push(path.relative(base, dir));
-  }
-
-  for (const sub of subDirs) {
-    results.push(...collectLeafFolders(path.join(dir, sub.name), base));
-  }
-
-  return results;
+interface CopyResult {
+  pluginEntries: PluginEntry[];
+  leafFolders: string[];
+  totalFiles: number;
 }
 
 function copyYamlFiles(
@@ -395,10 +369,13 @@ function copyYamlFiles(
   gitCwd: string,
   repoRelativePath: string,
   githubBase: string,
-  hasGitRepo: boolean,
-): { pluginEntries: PluginEntry[]; totalFiles: number } {
+  baseSourceDir: string,
+): CopyResult {
+  const hasGit = gitCwd !== '';
   const pluginEntries: PluginEntry[] = [];
+  const leafFolders: string[] = [];
   let totalFiles = 0;
+  let hasYamlInDir = false;
 
   if (!fs.existsSync(targetDir)) {
     fs.mkdirSync(targetDir, { recursive: true });
@@ -411,46 +388,45 @@ function copyYamlFiles(
     const targetPath = path.join(targetDir, entry.name);
 
     if (entry.isDirectory()) {
-      const sub = copyYamlFiles(sourcePath, targetPath, gitCwd, repoRelativePath, githubBase, hasGitRepo);
+      const sub = copyYamlFiles(sourcePath, targetPath, gitCwd, repoRelativePath, githubBase, baseSourceDir);
       pluginEntries.push(...sub.pluginEntries);
+      leafFolders.push(...sub.leafFolders);
       totalFiles += sub.totalFiles;
     } else if (entry.isFile() && (entry.name.endsWith('.yml') || entry.name.endsWith('.yaml'))) {
+      hasYamlInDir = true;
       const content = fs.readFileSync(sourcePath, 'utf-8');
-
-      // Get git info for version comment
-      const gitRelFile = repoRelativePath
-        ? path.relative(path.resolve(gitCwd), sourcePath)
-        : path.relative(gitCwd, sourcePath);
+      const gitRelFile = path.relative(gitCwd, sourcePath);
 
       let versionComment = '';
-      if (hasGitRepo) {
-        const fileVersion = getFileCommitHash(gitRelFile, gitCwd);
-        const commitMessage = getFileCommitMessage(gitRelFile, gitCwd);
-        const sourceUrl = githubBase && fileVersion
-          ? `${githubBase}/blob/${fileVersion}/${gitRelFile}`
+      if (hasGit) {
+        const { hash, message } = getCommitInfo(gitRelFile, gitCwd);
+        const sourceUrl = githubBase && hash
+          ? `${githubBase}/blob/${hash}/${gitRelFile}`
           : '';
-        if (fileVersion) {
-          versionComment = buildVersionComment(fileVersion, sourceUrl, commitMessage) + '\n';
+        if (hash) {
+          versionComment = buildVersionComment(hash, sourceUrl, message) + '\n';
         }
       }
 
       fs.mkdirSync(path.dirname(targetPath), { recursive: true });
       fs.writeFileSync(targetPath, versionComment + content, 'utf-8');
 
-      // Build plugin entry for settings example
-      const relPath = path.relative(targetDir, targetPath).replace(/^\.\//, '');
-      // We need relative from the package root, so recalculate
-      const description = extractPluginDescription(sourcePath);
+      const relPath = path.relative(targetDir, targetPath);
+      const descMatch = content.match(/^pluginDescription:\s*["']?(.+?)["']?\s*$/m);
       pluginEntries.push({
         path: relPath.replace(/\.(yml|yaml)$/, ''),
-        description,
+        description: descMatch ? descMatch[1] : undefined,
       });
 
       totalFiles++;
     }
   }
 
-  return { pluginEntries, totalFiles };
+  if (hasYamlInDir) {
+    leafFolders.push(path.relative(baseSourceDir, sourceDir));
+  }
+
+  return { pluginEntries, leafFolders, totalFiles };
 }
 
 // --- Main ---

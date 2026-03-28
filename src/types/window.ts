@@ -12,6 +12,11 @@ import type { DirectoryInfo } from './file-search';
  */
 export type ColorValue = 'grey' | 'darkGrey' | 'slate' | 'stone' | 'red' | 'rose' | 'orange' | 'amber' | 'yellow' | 'lime' | 'green' | 'emerald' | 'teal' | 'cyan' | 'sky' | 'blue' | 'indigo' | 'violet' | 'purple' | 'fuchsia' | 'pink' | string;
 
+/**
+ * Plugin format: v1 (string[]) or v2 (Record<string, string[]>)
+ */
+export type PluginFormat = string[] | Record<string, string[]>;
+
 export interface AppInfo {
   name: string;
   bundleId?: string | null;
@@ -194,7 +199,7 @@ export interface UserSettings {
    * v2 format (Record<string, string[]>):
    *   { "github.com/user/repo/path": ["claude/agent-skills/commands"] }
    */
-  plugins?: string[] | Record<string, string[]>;
+  plugins?: PluginFormat;
   // Legacy alias: mdSearch (for backward compatibility)
   mdSearch?: CustomSearchEntry[];
   // Legacy: slashCommands (use agentSkills instead)

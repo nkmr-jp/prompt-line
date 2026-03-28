@@ -11,6 +11,7 @@
 
 import type {
   UserSettings,
+  PluginFormat,
   MentionEntry,
   AgentSkillEntry,
   FileSearchUserSettings,
