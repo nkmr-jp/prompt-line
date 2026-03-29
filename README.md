@@ -127,7 +127,37 @@ git pull
 pnpm install
 pnpm run install-app
 pnpm run migrate-settings        # Migrate settings to latest defaults (auto-backup)
-pnpm run update-agent-built-in    # Update agent built-in to latest version
+```
+
+## 🔌 Plugins
+
+Plugins provide agent-built-in, agent-skills, and custom-search entries. Plugin YAML files are managed in the [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins) repository.
+
+### Install Plugins
+
+```bash
+# From the prompt-line directory
+pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins
+
+# Install at specific branch/tag/commit hash
+pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@develop
+pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@v1.0.0
+pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@sea8pxe
+```
+
+### Global CLI Setup (Optional)
+
+Run `plugin:install` from anywhere by adding to your shell config (e.g., `~/.zshrc`):
+
+```bash
+function prompt-line-plugin() {
+    pnpm --dir /path/to/prompt-line run "plugin:$1" "${@:2}"
+}
+```
+
+Then use:
+```bash
+prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
 ```
 
 
