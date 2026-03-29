@@ -124,9 +124,38 @@ git pull
 pnpm install
 pnpm run install-app
 pnpm run migrate-settings        # 設定ファイルを最新のデフォルトに移行（自動バックアップ）
-pnpm run update-agent-built-in    # エージェントビルトインを最新版に更新
 ```
 
+## 🔌 プラグイン
+
+プラグインは agent-built-in、agent-skills、custom-search エントリを提供します。プラグインの YAML ファイルは [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins) リポジトリで管理されています。
+
+### プラグインのインストール
+
+```bash
+# prompt-line ディレクトリ内で実行
+pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins
+
+# ブランチ・タグ・コミットハッシュを指定してインストール
+pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@develop
+pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@v1.0.0
+pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@sea8pxe
+```
+
+### グローバル CLI セットアップ（オプション）
+
+シェル設定ファイル（例: `~/.zshrc`）に追加すると、任意のディレクトリから実行できます:
+
+```bash
+function prompt-line-plugin() {
+    pnpm --dir /path/to/prompt-line run "plugin:$1" "${@:2}"
+}
+```
+
+使用例:
+```bash
+prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
+```
 
 ## 使用方法
 

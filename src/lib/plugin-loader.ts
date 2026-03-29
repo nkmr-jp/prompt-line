@@ -55,7 +55,7 @@ interface AgentBuiltInYaml {
  * Loaded plugin data
  */
 interface LoadedPlugin {
-  pluginPath: string;  // relative path (e.g., "prompt-line-plugin/claude/agent-skills/commands")
+  pluginPath: string;  // relative path (e.g., "github.com/nkmr-jp/prompt-line-plugins/claude/agent-skills/commands")
   type: PluginType;
   entries: CustomSearchEntry[];
   agentBuiltIn: AgentSkillItem[];
@@ -68,7 +68,7 @@ interface LoadedPlugin {
  *
  * Directory structure:
  *   ~/.prompt-line/plugins/<package>/<type>/<name>.yml
- *   e.g., ~/.prompt-line/plugins/prompt-line-plugin/claude/agent-skills/commands.yml
+ *   e.g., ~/.prompt-line/plugins/github.com/nkmr-jp/prompt-line-plugins/claude/agent-skills/commands.yml
  *
  * Plugin paths in settings.yml use the format: <package>/<type>/<name>
  */
@@ -82,7 +82,7 @@ class PluginLoader {
 
   /**
    * Determine plugin type from the relative path
-   * e.g., "prompt-line-plugin/claude/agent-skills/commands" → 'agent-skills'
+   * e.g., "github.com/nkmr-jp/prompt-line-plugins/claude/agent-skills/commands" → 'agent-skills'
    */
   private getPluginType(pluginPath: string): PluginType | null {
     const parts = pluginPath.split('/');
@@ -97,8 +97,8 @@ class PluginLoader {
 
   /**
    * Resolve a plugin path to an actual file path.
-   * Input:  "prompt-line-plugin/claude/agent-skills/commands"
-   * Output: "/home/user/.prompt-line/plugins/prompt-line-plugin/claude/agent-skills/commands"
+   * Input:  "github.com/nkmr-jp/prompt-line-plugins/claude/agent-skills/commands"
+   * Output: "/home/user/.prompt-line/plugins/github.com/nkmr-jp/prompt-line-plugins/claude/agent-skills/commands"
    */
   private resolvePluginBasePath(pluginPath: string): string | null {
     // Reject paths with traversal or absolute paths

@@ -225,8 +225,9 @@ function buildPluginsSection(settings: UserSettings): string {
 
   if (isPluginsEmpty(plugins)) {
     return `#plugins:
-#  - prompt-line-plugin/claude/agent-skills/commands
-#  - prompt-line-plugin/claude/agent-built-in/claude`;
+#  github.com/nkmr-jp/prompt-line-plugins:
+#    - claude/agent-skills/commands
+#    - claude/agent-built-in/claude`;
   }
 
   let section = `plugins:\n`;
@@ -254,13 +255,13 @@ function buildAgentBuiltInSection(settings: UserSettings, options: YamlGenerator
 
   if (!hasAgentBuiltIn) {
     return `# Agent built-in slash commands (type "/" to access)
-# @deprecated Use plugins setting instead (prompt-line-plugin/<tool>/agent-built-in/*)
+# @deprecated Use plugins setting instead (github.com/nkmr-jp/prompt-line-plugins/<tool>/agent-built-in/*)
 #agentBuiltIn:
 #  - claude`;
   }
 
   let section = `# Agent built-in slash commands (type "/" to access)
-# @deprecated Use plugins setting instead (prompt-line-plugin/<tool>/agent-built-in/*)
+# @deprecated Use plugins setting instead (github.com/nkmr-jp/prompt-line-plugins/<tool>/agent-built-in/*)
 agentBuiltIn:\n`;
   for (const cmd of agentBuiltIn) {
     section += `  - ${cmd}\n`;
