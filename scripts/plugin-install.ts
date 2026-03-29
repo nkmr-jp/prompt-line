@@ -479,6 +479,7 @@ function copyYamlFiles(
     const targetPath = path.join(targetDir, entry.name);
 
     if (entry.isDirectory()) {
+      if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
       const sub = copyYamlFiles(sourcePath, targetPath, gitCwd, repoRelativePath, githubBase, baseSourceDir, rootTargetDir);
       pluginEntries.push(...sub.pluginEntries);
       leafFolders.push(...sub.leafFolders);
