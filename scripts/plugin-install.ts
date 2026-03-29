@@ -175,12 +175,11 @@ function resolveSource(source: string): ResolvedSource {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'plugin-install-'));
   const cloneTarget = path.join(tempDir, repo as string);
 
-  const hasGh = hasCommand('gh');
   const hasGit = hasCommand('git');
+  const hasGh = !ref && hasCommand('gh'); // gh not used for @ref (gh misinterprets @ in args)
 
-  if (!hasGh && !hasGit) {
-    console.error('❌ Error: Neither "gh" nor "git" command is available.');
-    console.error('  Install GitHub CLI (gh) or git to clone remote repositories.');
+  if (!hasGit && !hasGh) {
+    console.error('❌ Error: "git" command is not available.');
     fs.rmSync(tempDir, { recursive: true, force: true });
     process.exit(1);
   }
@@ -189,7 +188,7 @@ function resolveSource(source: string): ResolvedSource {
   console.log(`📥 Cloning ${refLabel}...`);
 
   const cloned = ref
-    ? cloneWithRef(user, repo, ref, githubBase, cloneTarget, hasGh, hasGit)
+    ? cloneWithRef(ref, githubBase, cloneTarget)
     : cloneDefault(user, repo, githubBase, cloneTarget, hasGh);
 
   if (!cloned) {
@@ -223,20 +222,14 @@ function cloneDefault(user: string, repo: string, githubBase: string, target: st
   }
 }
 
-function cloneWithRef(user: string, repo: string, ref: string, githubBase: string, target: string, hasGh: boolean, hasGit: boolean): boolean {
+function cloneWithRef(ref: string, githubBase: string, target: string): boolean {
   // Try shallow clone with --branch (works for branches and tags)
   try {
-    if (hasGh) {
-      execSync(`gh repo clone ${user}/${repo} "${target}" -- --branch ${ref} --depth=1`, { stdio: 'inherit' });
-    } else {
-      execSync(`git clone --branch ${ref} --depth=1 ${githubBase}.git "${target}"`, { stdio: 'inherit' });
-    }
+    execSync(`git clone --branch ${ref} --depth=1 ${githubBase}.git "${target}"`, { stdio: 'inherit' });
     return true;
   } catch {
     // --branch failed (likely a commit hash) — fall back to full clone + checkout
   }
-
-  if (!hasGit) return false;
 
   try {
     execSync(`git clone ${githubBase}.git "${target}"`, { stdio: 'inherit' });
