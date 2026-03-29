@@ -1,4 +1,3 @@
-import type { Stats } from 'fs';
 import path from 'path';
 import { EventEmitter } from 'events';
 import chokidar, { type FSWatcher } from 'chokidar';
@@ -64,33 +63,34 @@ class PluginManager extends EventEmitter {
       return;
     }
 
+    // NOTE: Do NOT use the `ignored` callback — chokidar loses track of
+    // recreated directories when an ignored callback is present, which breaks
+    // hot reload after `plugin:install` (it deletes and recreates the target dir).
+    // Instead, filter by extension in the event handlers below.
     this.watcher = chokidar.watch([this.targetDir, config.paths.agentSkillsDir, config.paths.customSearchDir], {
       persistent: true,
       ignoreInitial: true,
       depth: 10,
       awaitWriteFinish: {
-        stabilityThreshold: 100,
+        stabilityThreshold: 200,
         pollInterval: 50
       },
-      ignored: (filePath: string, stats?: Stats) => {
-        if (stats && stats.isDirectory()) return false;
-        const ext = path.extname(filePath);
-        if (!ext) return false;
-        return ext !== '.yaml' && ext !== '.yml';
-      }
     });
 
     this.watcher.on('change', (filePath: string) => {
+      if (!this.isYamlFile(filePath)) return;
       logger.debug('Plugin file changed:', filePath);
       this.handleFileChange();
     });
 
     this.watcher.on('add', (filePath: string) => {
+      if (!this.isYamlFile(filePath)) return;
       logger.debug('Plugin file added:', filePath);
       this.handleFileChange();
     });
 
     this.watcher.on('unlink', (filePath: string) => {
+      if (!this.isYamlFile(filePath)) return;
       logger.debug('Plugin file removed:', filePath);
       this.handleFileChange();
     });
@@ -100,6 +100,11 @@ class PluginManager extends EventEmitter {
     });
 
     logger.info('Plugins file watcher started');
+  }
+
+  private isYamlFile(filePath: string): boolean {
+    const ext = path.extname(filePath);
+    return ext === '.yml' || ext === '.yaml';
   }
 
   /**

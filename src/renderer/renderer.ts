@@ -340,6 +340,7 @@ export class PromptLineRenderer {
     this.customSearchUpdateHandler = () => {
       this.agentSkillManager?.invalidateCache();
       this.fileSearchManager?.clearAgentsCache();
+      this.agentSkillManager?.prefetchSkills();
     };
     window.addEventListener('custom-search-updated', this.customSearchUpdateHandler);
   }

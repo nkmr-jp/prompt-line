@@ -529,6 +529,9 @@ function main(): void {
   console.log(`📂 Target: ${targetDir}`);
   console.log('');
 
+  // Clean existing install directory to remove stale plugins
+  fs.rmSync(targetDir, { recursive: true, force: true });
+
   // Determine git context (empty gitRoot means no git repo)
   const gitRoot = isGitRepo(resolved.localPath) ? getGitRoot(resolved.localPath) : '';
 
@@ -633,11 +636,41 @@ function main(): void {
   console.log('─'.repeat(50));
   console.log('plugins:');
 
-  const sorted = pluginEntries.sort((a, b) => a.path.localeCompare(b.path));
+  // Group agent-built-in entries by directory: show only 'en', list other langs as comment
+  const agentBuiltInGroups = new Map<string, PluginEntry[]>();
+  const otherEntries: PluginEntry[] = [];
+
+  for (const entry of pluginEntries) {
+    const parentDir = path.dirname(entry.path);
+    if (path.basename(parentDir) === 'agent-built-in') {
+      const group = agentBuiltInGroups.get(parentDir) || [];
+      group.push(entry);
+      agentBuiltInGroups.set(parentDir, group);
+    } else {
+      otherEntries.push(entry);
+    }
+  }
+
+  const displayEntries: { path: string; comment: string }[] = [];
+
+  for (const [, group] of agentBuiltInGroups) {
+    const enEntry = group.find(e => path.basename(e.path) === 'en');
+    const allLangs = group.map(e => path.basename(e.path)).sort();
+    const representative = enEntry || group[0];
+    if (!representative) continue;
+    const parts = [representative.description, allLangs.length > 0 ? `lang: ${allLangs.join(', ')}` : ''].filter(Boolean);
+    displayEntries.push({ path: representative.path, comment: parts.length > 0 ? `  # ${parts.join(' | ')}` : '' });
+  }
+
+  for (const entry of otherEntries) {
+    const parts = [entry.description].filter(Boolean);
+    displayEntries.push({ path: entry.path, comment: parts.length > 0 ? `  # ${parts.join(' | ')}` : '' });
+  }
+
+  displayEntries.sort((a, b) => a.path.localeCompare(b.path));
   console.log(`  ${resolved.packageId}:`);
-  for (const entry of sorted) {
-    const desc = entry.description ? `  # ${entry.description}` : '';
-    console.log(`    - ${entry.path}${desc}`);
+  for (const entry of displayEntries) {
+    console.log(`    - ${entry.path}${entry.comment}`);
   }
 
   console.log('─'.repeat(50));
