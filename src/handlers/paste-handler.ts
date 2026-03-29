@@ -243,7 +243,7 @@ class PasteHandler {
       }
 
       const buffer = image.toPNG();
-      await fs.writeFile(pathValidation.normalizedPath, buffer, { mode: 0o600 });
+      await fs.writeFile(pathValidation.normalizedPath, buffer, { mode: 0o644 });
       clipboard.writeText('');
 
       logger.info('Image saved successfully', { filepath: pathValidation.normalizedPath });
