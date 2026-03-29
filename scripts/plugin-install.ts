@@ -652,13 +652,10 @@ function main(): void {
 
   for (const [, group] of agentBuiltInGroups) {
     const enEntry = group.find(e => path.basename(e.path) === 'en');
-    const otherLangs = group
-      .filter(e => path.basename(e.path) !== 'en')
-      .map(e => path.basename(e.path))
-      .sort();
+    const allLangs = group.map(e => path.basename(e.path)).sort();
     const representative = enEntry || group[0];
     if (!representative) continue;
-    const parts = [representative.description, otherLangs.length > 0 ? `lang: ${otherLangs.join(', ')}` : ''].filter(Boolean);
+    const parts = [representative.description, allLangs.length > 0 ? `lang: ${allLangs.join(', ')}` : ''].filter(Boolean);
     displayEntries.push({ path: representative.path, comment: parts.length > 0 ? `  # ${parts.join(' | ')}` : '' });
   }
 
