@@ -124,6 +124,14 @@ pnpm run plugin:install <source>@<ref>        # Install at specific branch/tag/h
 
 **Source resolution for `github.com/...`:** `gh repo clone` → `git clone`
 
+**Global CLI setup** — run `plugin:install` from anywhere by adding to your shell config (e.g., `~/.zshrc`):
+```bash
+function prompt-line-plugin() {
+    pnpm --dir /path/to/prompt-line run "plugin:$1" "${@:2}"
+}
+```
+Then use: `prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins`
+
 ### Agent Built-in
 
 Slash command definitions for CLI tools (Claude Code, Codex CLI, Gemini CLI) stored as plugin YAML files in the [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins) repository.
