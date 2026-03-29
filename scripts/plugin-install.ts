@@ -104,6 +104,7 @@ interface ResolvedSource {
   githubBase: string; // e.g. "https://github.com/user/repo"
   repoRelativePath: string; // e.g. "plugins"
   isGithub: boolean;
+  ref?: string; // branch, tag, or commit hash (e.g. "develop", "v1.0.1", "sea8pxe")
   tempDir?: string;
 }
 
@@ -147,37 +148,43 @@ function resolveSource(source: string): ResolvedSource {
     };
   }
 
-  // github.com/user/repo/path format
-  const ghMatch = source.match(/^github\.com\/([^/]+)\/([^/]+)(?:\/(.+))?$/);
+  // github.com/user/repo[/path][@ref] format
+  const ghMatch = source.match(/^github\.com\/([^/]+)\/([^/@]+)(?:\/([^@]+))?(?:@(.+))?$/);
   if (!ghMatch) {
     console.error(`❌ Error: Invalid source format: ${source}`);
     console.error('Usage: pnpm run plugin:install <source>');
     console.error('  <source> can be:');
-    console.error('    ./local/path          - Local directory');
-    console.error('    ~/local/path          - Local directory (home-relative)');
-    console.error('    /absolute/path        - Absolute path');
-    console.error('    github.com/user/repo/path - GitHub repository');
+    console.error('    ./local/path                        - Local directory');
+    console.error('    ~/local/path                        - Local directory (home-relative)');
+    console.error('    /absolute/path                      - Absolute path');
+    console.error('    github.com/user/repo[/path]         - GitHub repository (default branch)');
+    console.error('    github.com/user/repo[/path]@ref     - GitHub repository at branch/tag/hash');
     process.exit(1);
   }
 
   const user = ghMatch[1] as string;
   const repo = ghMatch[2] as string;
   const subPath = ghMatch[3] as string | undefined;
+  const ref = ghMatch[4] as string | undefined;
   const githubBase = `https://github.com/${user}/${repo}`;
   const repoRelativePath = subPath || '';
+  // packageId excludes @ref so install target is consistent regardless of ref
+  const packageId = subPath ? `github.com/${user}/${repo}/${subPath}` : `github.com/${user}/${repo}`;
 
-  // Try local ghq path first
-  const ghqPath = path.join(os.homedir(), 'ghq', 'github.com', user, repo);
-  if (fs.existsSync(ghqPath)) {
-    const localPath = repoRelativePath ? path.join(ghqPath, repoRelativePath) : ghqPath;
-    if (!fs.existsSync(localPath)) {
-      console.error(`❌ Error: Path not found in local repository: ${localPath}`);
-      process.exit(1);
+  // Try local ghq path first (only when no ref specified)
+  if (!ref) {
+    const ghqPath = path.join(os.homedir(), 'ghq', 'github.com', user, repo);
+    if (fs.existsSync(ghqPath)) {
+      const localPath = repoRelativePath ? path.join(ghqPath, repoRelativePath) : ghqPath;
+      if (!fs.existsSync(localPath)) {
+        console.error(`❌ Error: Path not found in local repository: ${localPath}`);
+        process.exit(1);
+      }
+      return { localPath, packageId, githubBase, repoRelativePath, isGithub: true };
     }
-    return { localPath, packageId: source, githubBase, repoRelativePath, isGithub: true };
   }
 
-  // Try remote clone
+  // Clone to temp directory
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'plugin-install-'));
   const cloneTarget = path.join(tempDir, repo as string);
 
@@ -191,19 +198,15 @@ function resolveSource(source: string): ResolvedSource {
     process.exit(1);
   }
 
-  console.log(`📥 Cloning ${user}/${repo}...`);
-  try {
-    if (hasGh) {
-      execSync(`gh repo clone ${user}/${repo} "${cloneTarget}" -- --depth=1`, {
-        stdio: 'inherit',
-      });
-    } else {
-      execSync(`git clone --depth=1 ${githubBase}.git "${cloneTarget}"`, {
-        stdio: 'inherit',
-      });
-    }
-  } catch {
-    console.error(`❌ Error: Failed to clone repository: ${user}/${repo}`);
+  const refLabel = ref ? `${user}/${repo}@${ref}` : `${user}/${repo}`;
+  console.log(`📥 Cloning ${refLabel}...`);
+
+  const cloned = ref
+    ? cloneWithRef(user, repo, ref, githubBase, cloneTarget, hasGh, hasGit)
+    : cloneDefault(user, repo, githubBase, cloneTarget, hasGh);
+
+  if (!cloned) {
+    console.error(`❌ Error: Failed to clone repository: ${refLabel}`);
     fs.rmSync(tempDir, { recursive: true, force: true });
     process.exit(1);
   }
@@ -215,7 +218,46 @@ function resolveSource(source: string): ResolvedSource {
     process.exit(1);
   }
 
-  return { localPath, packageId: source, githubBase, repoRelativePath, isGithub: true, tempDir };
+  const result: ResolvedSource = { localPath, packageId, githubBase, repoRelativePath, isGithub: true, tempDir };
+  if (ref) result.ref = ref;
+  return result;
+}
+
+function cloneDefault(user: string, repo: string, githubBase: string, target: string, hasGh: boolean): boolean {
+  try {
+    if (hasGh) {
+      execSync(`gh repo clone ${user}/${repo} "${target}" -- --depth=1`, { stdio: 'inherit' });
+    } else {
+      execSync(`git clone --depth=1 ${githubBase}.git "${target}"`, { stdio: 'inherit' });
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function cloneWithRef(user: string, repo: string, ref: string, githubBase: string, target: string, hasGh: boolean, hasGit: boolean): boolean {
+  // Try shallow clone with --branch (works for branches and tags)
+  try {
+    if (hasGh) {
+      execSync(`gh repo clone ${user}/${repo} "${target}" -- --branch ${ref} --depth=1`, { stdio: 'inherit' });
+    } else {
+      execSync(`git clone --branch ${ref} --depth=1 ${githubBase}.git "${target}"`, { stdio: 'inherit' });
+    }
+    return true;
+  } catch {
+    // --branch failed (likely a commit hash) — fall back to full clone + checkout
+  }
+
+  if (!hasGit) return false;
+
+  try {
+    execSync(`git clone ${githubBase}.git "${target}"`, { stdio: 'inherit' });
+    execSync(`git checkout ${ref}`, { cwd: target, stdio: 'inherit' });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function hasCommand(cmd: string): boolean {
@@ -322,6 +364,7 @@ function writePromptLinePluginFile(
   version: string,
   files: FileInfo[],
   log: LogEntry[],
+  ref?: string,
 ): void {
   const lines: string[] = [
     '# Plugin Metadata',
@@ -331,6 +374,7 @@ function writePromptLinePluginFile(
   ];
 
   if (githubUrl) lines.push(`github: ${githubUrl}`);
+  if (ref) lines.push(`ref: ${ref}`);
   if (version) lines.push(`version: ${version}`);
   lines.push(`installed: ${getNowISO()}`);
 
@@ -367,6 +411,7 @@ function writeRootMetadata(
   repoRelativePath: string,
   version: string,
   folders: FolderInfo[],
+  ref?: string,
 ): void {
   const githubUrl = githubBase && version
     ? `${githubBase}/tree/${version}/${repoRelativePath}`
@@ -380,6 +425,7 @@ function writeRootMetadata(
   ];
 
   if (githubUrl) lines.push(`github: ${githubUrl}`);
+  if (ref) lines.push(`ref: ${ref}`);
   if (version) lines.push(`version: ${version}`);
   lines.push(`installed: ${getNowISO()}`);
 
@@ -485,6 +531,9 @@ function main(): void {
     console.error('');
     console.error('Examples:');
     console.error('  pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins');
+    console.error('  pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@develop');
+    console.error('  pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@v1.0.0');
+    console.error('  pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@sea8pxe');
     console.error('  pnpm run plugin:install ~/ghq/github.com/nkmr-jp/prompt-line-plugins');
     console.error('  pnpm run plugin:install ./path/to/local/plugins');
     process.exit(1);
@@ -495,6 +544,7 @@ function main(): void {
 
   console.log(`🔄 Installing plugins from ${source}...`);
   console.log(`📂 Source: ${resolved.localPath}`);
+  if (resolved.ref) console.log(`🏷️  Ref: ${resolved.ref}`);
   console.log(`📂 Target: ${targetDir}`);
   console.log('');
 
@@ -542,6 +592,7 @@ function main(): void {
       folderInfo.version,
       folderInfo.files,
       folderInfo.log,
+      resolved.ref,
     );
 
     folderInfos.push(folderInfo);
@@ -570,7 +621,7 @@ function main(): void {
       ? `${resolved.packageId}/${intermediateDir}`
       : intermediateDir;
 
-    writeRootMetadata(intermediateTargetDir, intermediateSource, resolved.githubBase, gitRelFolder, version, childFolders);
+    writeRootMetadata(intermediateTargetDir, intermediateSource, resolved.githubBase, gitRelFolder, version, childFolders, resolved.ref);
     metadataCount++;
   }
 
@@ -579,7 +630,7 @@ function main(): void {
     ? getFolderCommitHash(resolved.repoRelativePath || '.', gitRoot)
     : '';
 
-  writeRootMetadata(targetDir, resolved.packageId, resolved.githubBase, resolved.repoRelativePath, rootVersion, folderInfos);
+  writeRootMetadata(targetDir, resolved.packageId, resolved.githubBase, resolved.repoRelativePath, rootVersion, folderInfos, resolved.ref);
   metadataCount++;
 
   // Print summary
@@ -587,7 +638,8 @@ function main(): void {
     ? `${resolved.githubBase}/tree/${rootVersion}/${resolved.repoRelativePath}`
     : '';
 
-  console.log(`✅ Installed ${totalFiles} plugin file(s)${rootVersion ? ` (version: ${rootVersion})` : ''}`);
+  const refInfo = resolved.ref ? ` @${resolved.ref}` : '';
+  console.log(`✅ Installed ${totalFiles} plugin file(s)${rootVersion ? ` (version: ${rootVersion}${refInfo})` : ''}`);
   console.log(`📋 Generated .prompt-line-plugin files for ${metadataCount} folders`);
   if (rootGithubUrl) {
     console.log(`🔗 GitHub: ${rootGithubUrl}`);

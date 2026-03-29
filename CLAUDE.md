@@ -116,12 +116,13 @@ plugins:
 
 **Plugin commands:**
 ```bash
-pnpm run plugin:install <source>    # Install from local path or GitHub
+pnpm run plugin:install <source>              # Install from local path or GitHub
+pnpm run plugin:install <source>@<ref>        # Install at specific branch/tag/hash
 ```
 
-`plugin:install` supports local paths (`./path`, `~/path`) and GitHub repos (`github.com/user/repo/path`). It generates `.prompt-line-plugin` metadata files with commit-hash-pinned GitHub URLs for version tracking.
+`plugin:install` supports local paths (`./path`, `~/path`) and GitHub repos (`github.com/user/repo[/path][@ref]`). Append `@ref` to specify a branch, tag, or commit hash (e.g., `@develop`, `@v1.0.0`, `@sea8pxe`). It generates `.prompt-line-plugin` metadata files with commit-hash-pinned GitHub URLs for version tracking.
 
-**Source resolution for `github.com/...`:** local ghq → `gh repo clone --depth=1` → `git clone --depth=1`
+**Source resolution for `github.com/...`:** local ghq (skipped when `@ref` specified) → `gh repo clone` → `git clone`
 
 ### Agent Built-in
 
