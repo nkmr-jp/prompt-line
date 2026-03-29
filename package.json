@@ -9,7 +9,7 @@
     "build:renderer": "vite build && cp src/renderer/input.html dist/renderer/input.html",
     "typecheck": "node scripts/generate-git-info.js && tsc --noEmit",
     "build": "pnpm run compile && node scripts/build.js",
-    "install-app": "pnpm run compile && node scripts/install.js && pnpm exec ts-node scripts/plugin-install.ts github.com/nkmr-jp/prompt-line-plugins",
+    "install-app": "pnpm run compile && node scripts/install.js && pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins",
     "clean": "rm -rf dist/mac* dist/*.dmg dist/*.zip dist/*.blockmap",
     "clean:cache": "rm -rf node_modules/.cache ~/Library/Caches/electron-builder ~/Library/Caches/electron",
     "clean:full": "pnpm run clean && pnpm run clean:cache && rm -rf dist/",
