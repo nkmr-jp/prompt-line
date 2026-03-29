@@ -122,7 +122,7 @@ pnpm run plugin:install <source>@<ref>        # Install at specific branch/tag/h
 
 `plugin:install` supports local paths (`./path`, `~/path`) and GitHub repos (`github.com/user/repo[/path][@ref]`). Append `@ref` to specify a branch, tag, or commit hash (e.g., `@develop`, `@v1.0.0`, `@sea8pxe`). It generates `.prompt-line-plugin` metadata files with commit-hash-pinned GitHub URLs for version tracking.
 
-**Source resolution for `github.com/...`:** local ghq (skipped when `@ref` specified) → `gh repo clone` → `git clone`
+**Source resolution for `github.com/...`:** `gh repo clone` → `git clone`
 
 ### Agent Built-in
 

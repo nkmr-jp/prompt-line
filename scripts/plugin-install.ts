@@ -171,19 +171,6 @@ function resolveSource(source: string): ResolvedSource {
   // packageId excludes @ref so install target is consistent regardless of ref
   const packageId = subPath ? `github.com/${user}/${repo}/${subPath}` : `github.com/${user}/${repo}`;
 
-  // Try local ghq path first (only when no ref specified)
-  if (!ref) {
-    const ghqPath = path.join(os.homedir(), 'ghq', 'github.com', user, repo);
-    if (fs.existsSync(ghqPath)) {
-      const localPath = repoRelativePath ? path.join(ghqPath, repoRelativePath) : ghqPath;
-      if (!fs.existsSync(localPath)) {
-        console.error(`❌ Error: Path not found in local repository: ${localPath}`);
-        process.exit(1);
-      }
-      return { localPath, packageId, githubBase, repoRelativePath, isGithub: true };
-    }
-  }
-
   // Clone to temp directory
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'plugin-install-'));
   const cloneTarget = path.join(tempDir, repo as string);
