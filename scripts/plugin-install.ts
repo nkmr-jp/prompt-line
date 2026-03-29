@@ -529,6 +529,9 @@ function main(): void {
   console.log(`📂 Target: ${targetDir}`);
   console.log('');
 
+  // Clean existing install directory to remove stale plugins
+  fs.rmSync(targetDir, { recursive: true, force: true });
+
   // Determine git context (empty gitRoot means no git repo)
   const gitRoot = isGitRepo(resolved.localPath) ? getGitRoot(resolved.localPath) : '';
 
