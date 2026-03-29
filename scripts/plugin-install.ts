@@ -484,9 +484,9 @@ function main(): void {
     console.error('Usage: pnpm run plugin:install <source>');
     console.error('');
     console.error('Examples:');
-    console.error('  pnpm run plugin:install ./plugins');
-    console.error('  pnpm run plugin:install ~/ghq/github.com/nkmr-jp/prompt-line/plugins');
-    console.error('  pnpm run plugin:install github.com/nkmr-jp/prompt-line/plugins');
+    console.error('  pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins');
+    console.error('  pnpm run plugin:install ~/ghq/github.com/nkmr-jp/prompt-line-plugins');
+    console.error('  pnpm run plugin:install ./path/to/local/plugins');
     process.exit(1);
   }
 

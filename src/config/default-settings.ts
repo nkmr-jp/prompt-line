@@ -103,7 +103,7 @@ export const defaultSettings: UserSettings = {
   /**
    * Agent built-in slash commands to enable (type "/" to access)
    * @deprecated Use plugins setting instead. Agent built-in commands are now managed as plugins
-   * under plugins/prompt-line-plugin/<tool>/agent-built-in/.
+   * under github.com/nkmr-jp/prompt-line-plugins/<tool>/agent-built-in/.
    */
   // Not set: disabled by default. Use plugins setting instead.
   /**
@@ -191,13 +191,13 @@ export const defaultSettings: UserSettings = {
    *
    * v1 Example (settings.yml):
    *   plugins:
-   *     - prompt-line-plugin/claude/agent-skills/commands
-   *     - prompt-line-plugin/claude/agent-built-in/claude
+   *     - github.com/nkmr-jp/prompt-line-plugins/claude/agent-skills/commands
+   *     - github.com/nkmr-jp/prompt-line-plugins/claude/agent-built-in/claude
    *
    * v2 Example (settings.yml):
    *   plugins:
-   *     github.com/nkmr-jp/prompt-line/plugins:
-   *       - claude/agent-built-in/en
+   *     github.com/nkmr-jp/prompt-line-plugins:
+   *       - claude/agent-built-in/claude
    *       - claude/agent-skills/commands
    */
   plugins: [] as string[],
