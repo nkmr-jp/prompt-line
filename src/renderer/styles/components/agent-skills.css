@@ -80,6 +80,7 @@
 }
 
 /* Source badge color variations (same as label colors) */
+.agent-skill-source[data-color="gray"],
 .agent-skill-source[data-color="grey"] {
   color: var(--color-neutral-400);
   background: oklch(from var(--color-neutral-400) l c h / 0.2);
@@ -189,6 +190,7 @@
 }
 
 /* Label color variations */
+.agent-skill-label[data-color="gray"],
 .agent-skill-label[data-color="grey"] {
   color: var(--color-neutral-400);
   background: oklch(from var(--color-neutral-400) l c h / 0.2);
