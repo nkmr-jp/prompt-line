@@ -188,7 +188,9 @@ export class FileOpenerManager {
       }
 
       // No line number or unsupported editor - use simple open
-      this.openWithAppSimple(filePath, appName, projectRoot).then(resolve);
+      // Only pass projectRoot for known editors; non-editor apps (Preview, Marked2, etc.)
+      // don't understand --args and need LaunchServices file access via 'open -a'
+      this.openWithAppSimple(filePath, appName, editorMatch ? projectRoot : null).then(resolve);
     });
   }
 
