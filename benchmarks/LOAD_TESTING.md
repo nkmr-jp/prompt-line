@@ -32,7 +32,7 @@ npm run compile
 ```bash
 # 無制限履歴機能を有効化
 echo "history:
-  unlimited: true" >> ~/.prompt-line/settings.yml
+  unlimited: true" >> ~/.prompt-line/settings.yaml
 ```
 
 ## 📊 負荷テスト実行手順
@@ -137,13 +137,13 @@ time npm start
 
 ```bash
 # 設定を標準履歴に変更
-sed -i '' 's/unlimited: true/unlimited: false/' ~/.prompt-line/settings.yml
+sed -i '' 's/unlimited: true/unlimited: false/' ~/.prompt-line/settings.yaml
 
 # 標準実装での起動時間測定
 time npm start
 
 # 無制限履歴に戻す
-sed -i '' 's/unlimited: false/unlimited: true/' ~/.prompt-line/settings.yml
+sed -i '' 's/unlimited: false/unlimited: true/' ~/.prompt-line/settings.yaml
 ```
 
 ## 📈 パフォーマンス基準

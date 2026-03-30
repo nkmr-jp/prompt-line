@@ -45,7 +45,7 @@ Enterを押しても勝手に送信されないので、改行する場合も気
 ### コンテキスト検索と入力補完
 
 `/`や`@`を入力するとAgent Skills・Agent Built-in・ファイル・シンボルなどのコンテキストを検索して入力補完できます。<br>
-これらは設定ファイル(`~/.prompt-line/settings.yml`)でカスタマイズできます。参考: [settings.example.yml](settings.example.yml)
+これらは設定ファイル(`~/.prompt-line/settings.yaml`)でカスタマイズできます。参考: [settings.example.yaml](settings.example.yaml)
 <table>
 <tr>
 <td>Agent SkillsとAgent Built-in 検索<img src="assets/doc9.png"> </td>
@@ -147,10 +147,10 @@ pnpm run migrate-settings        # 設定ファイルを最新のデフォルト
 
 ## ⚙️ 設定
 
-`~/.prompt-line/settings.yml`に設定ファイルを作成してPrompt Lineの動作をカスタマイズできます。
+`~/.prompt-line/settings.yaml`に設定ファイルを作成してPrompt Lineの動作をカスタマイズできます。
 
 利用可能なすべてのオプションとコメント付きの完全な設定例については、以下を参照してください：
-**[settings.example.yml](settings.example.yml)**
+**[settings.example.yaml](settings.example.yaml)**
 
 ### 設定項目の概要
 

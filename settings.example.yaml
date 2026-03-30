@@ -53,7 +53,7 @@ fileOpener:
 # ============================================================================
 # PLUGINS
 # ============================================================================
-# Plugin entries to enable (paths relative to ~/.prompt-line/plugins/, without .yml extension)
+# Plugin entries to enable (paths relative to ~/.prompt-line/plugins/, without .yaml extension)
 # Comment out entries to disable them.
 # Directory determines the plugin type:
 #   .../agent-skills/      → Slash commands (type: command, triggered by "/")

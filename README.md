@@ -48,7 +48,7 @@ Of course, it also works with apps other than Terminal.
 ### Context Search and Autocomplete
 
 Type `/` or `@` to search and autocomplete contexts such as Agent Skills, Agent Built-in, files, and symbols.<br>
-These can be customized in the settings file (`~/.prompt-line/settings.yml`). See: [settings.example.yml](settings.example.yml)
+These can be customized in the settings file (`~/.prompt-line/settings.yaml`). See: [settings.example.yaml](settings.example.yaml)
 <table>
 <tr>
 <td>Agent Skills and Agent Built-in <img src="assets/doc9.png"> </td>
@@ -150,10 +150,10 @@ pnpm run migrate-settings        # Migrate settings to latest defaults (auto-bac
 
 ## ⚙️ Settings
 
-You can customize Prompt Line's behavior by creating a settings file at `~/.prompt-line/settings.yml`.
+You can customize Prompt Line's behavior by creating a settings file at `~/.prompt-line/settings.yaml`.
 
 For the full configuration example with all available options and comments, see:
-**[settings.example.yml](settings.example.yml)**
+**[settings.example.yaml](settings.example.yaml)**
 
 ### Quick Overview
 
