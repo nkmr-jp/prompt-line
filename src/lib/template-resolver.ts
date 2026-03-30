@@ -159,23 +159,37 @@ export function parseFrontmatter(content: string): Record<string, string> {
     return {};
   }
 
+  const raw = frontmatterMatch[1];
+
+  // Try js-yaml first for proper block scalar support (>-, |, etc.)
   try {
     const yaml = require('js-yaml');
-    const parsed = yaml.load(frontmatterMatch[1]);
-    if (!parsed || typeof parsed !== 'object') {
-      return {};
-    }
-    const result: Record<string, string> = {};
-    for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
-      if (value !== null && value !== undefined) {
-        // Collapse newlines to spaces for display
-        result[key] = String(value).replace(/\n+/g, ' ').trim();
+    const parsed = yaml.load(raw);
+    if (parsed && typeof parsed === 'object') {
+      const result: Record<string, string> = {};
+      for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+        if (value !== null && value !== undefined) {
+          result[key] = String(value).replace(/\n+/g, ' ').trim();
+        }
       }
+      if (Object.keys(result).length > 0) return result;
     }
-    return result;
-  } catch {
-    return {};
+  } catch { /* fall through to regex parser */ }
+
+  // Fallback: simple line-by-line parser for non-standard YAML
+  const result: Record<string, string> = {};
+  for (const line of raw.split('\n')) {
+    const match = line.match(/^([a-zA-Z0-9_-]+):\s*(.+)$/);
+    if (match?.[1] && match[2]) {
+      let value = match[2].trim();
+      if ((value.startsWith('"') && value.endsWith('"')) ||
+          (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      result[match[1]] = value.replace(/\n+/g, ' ').trim();
+    }
   }
+  return result;
 }
 
 /**
