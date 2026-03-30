@@ -6,6 +6,7 @@
  * - {basename}: ファイル名（拡張子なし）
  * - {dirname}: 親ディレクトリ名
  * - {dirname:N}: N階層上のディレクトリ名（例: {dirname:2} = 2つ上）
+ * - {pathdir:N}: pathから下にN番目のディレクトリ名（例: path/a/b/file.md → {pathdir:1} = a）
  * - {frontmatter@fieldName}: frontmatterの任意フィールド
  * - {heading}: 最初の # heading のテキスト
  * - {json@path}: JSONデータの値参照（ドット記法・配列インデックス対応）
@@ -26,6 +27,7 @@ export interface TemplateContext {
   basename: string;
   dirname?: string;
   filePath?: string;
+  basePath?: string;
   frontmatter: Record<string, string>;
   heading?: string;
   line?: string;
@@ -90,6 +92,13 @@ export function resolveTemplate(
     result = result.replace(/\{dirname\}/g, t(context.dirname));
   }
 
+  // Replace {pathdir:N} — N-th directory segment counting down from basePath
+  if (context.filePath && context.basePath) {
+    result = result.replace(/\{pathdir:(\d+)\}/g, (_, level: string) => {
+      return t(getPathdir(context.filePath!, context.basePath!, parseInt(level, 10)));
+    });
+  }
+
   // Replace {heading}
   result = result.replace(/\{heading\}/g, t(context.heading ?? ''));
 
@@ -142,6 +151,22 @@ export function getDirname(filePath: string, level: number = 1): string {
 }
 
 /**
+ * basePath からの相対パスでN番目のディレクトリ名を取得
+ * @param level N番目（1=basePath直下の最初のディレクトリ）
+ * @example getPathdir('/a/b/c/d/file.md', '/a/b', 1) → 'c'
+ * @example getPathdir('/a/b/c/d/file.md', '/a/b', 2) → 'd'
+ */
+export function getPathdir(filePath: string, basePath: string, level: number): string {
+  const normalizedBase = basePath.endsWith('/') ? basePath : basePath + '/';
+  if (!filePath.startsWith(normalizedBase)) return '';
+  const relative = filePath.slice(normalizedBase.length);
+  const parts = relative.split('/');
+  // parts: ['c', 'd', 'file.md'] — last element is the file, so directories are 0..length-2
+  const index = level - 1;
+  return (index >= 0 && index < parts.length - 1) ? parts[index] ?? '' : '';
+}
+
+/**
  * ファイルのbasenameを取得（拡張子を除く）
  */
 export function getBasename(filePath: string): string {
@@ -159,24 +184,36 @@ export function parseFrontmatter(content: string): Record<string, string> {
     return {};
   }
 
-  const frontmatter = frontmatterMatch[1];
-  const result: Record<string, string> = {};
+  const raw = frontmatterMatch[1];
 
-  // 各行を解析
-  const lines = frontmatter.split('\n');
-  for (const line of lines) {
+  // Try js-yaml first for proper block scalar support (>-, |, etc.)
+  try {
+    const yaml = require('js-yaml');
+    const parsed = yaml.load(raw);
+    if (parsed && typeof parsed === 'object') {
+      const result: Record<string, string> = {};
+      for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+        if (value !== null && value !== undefined) {
+          result[key] = String(value).replace(/\n+/g, ' ').trim();
+        }
+      }
+      if (Object.keys(result).length > 0) return result;
+    }
+  } catch { /* fall through to regex parser */ }
+
+  // Fallback: simple line-by-line parser for non-standard YAML
+  const result: Record<string, string> = {};
+  for (const line of raw.split('\n')) {
     const match = line.match(/^([a-zA-Z0-9_-]+):\s*(.+)$/);
     if (match?.[1] && match[2]) {
       let value = match[2].trim();
-      // クォートを除去
       if ((value.startsWith('"') && value.endsWith('"')) ||
           (value.startsWith("'") && value.endsWith("'"))) {
         value = value.slice(1, -1);
       }
-      result[match[1]] = value;
+      result[match[1]] = value.replace(/\n+/g, ' ').trim();
     }
   }
-
   return result;
 }
 

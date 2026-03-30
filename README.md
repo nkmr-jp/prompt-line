@@ -129,38 +129,6 @@ pnpm run install-app
 pnpm run migrate-settings        # Migrate settings to latest defaults (auto-backup)
 ```
 
-## 🔌 Plugins
-
-Plugins provide agent-built-in, agent-skills, and custom-search entries. Plugin YAML files are managed in the [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins) repository.
-
-### Install Plugins
-
-```bash
-# From the prompt-line directory
-pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins
-
-# Install at specific branch/tag/commit hash
-pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@develop
-pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@v1.0.0
-pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@sea8pxe
-```
-
-### Global CLI Setup (Optional)
-
-Run `plugin:install` from anywhere by adding to your shell config (e.g., `~/.zshrc`):
-
-```bash
-function prompt-line-plugin() {
-    pnpm --dir /path/to/prompt-line run "plugin:$1" "${@:2}"
-}
-```
-
-Then use:
-```bash
-prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
-```
-
-
 ## Usage
 
 ### Basic Workflow
@@ -194,11 +162,33 @@ For the full configuration example with all available options and comments, see:
 | `shortcuts` | Keyboard shortcuts (main, paste, close, history navigation, search) |
 | `window` | Window size and positioning mode |
 | `fileOpener` | Default editor, extension-specific and directory-specific (glob) applications |
-| `agentBuiltIn` | Agent built-in slash commands to enable (claude, codex, gemini, etc.) |
+| `agentBuiltIn` | Agent built-in entries to enable (claude, codex, gemini, etc.) |
 | `agentSkills` | Agent Skills search functionality (supports custom triggers like `$`) |
 | `customSearch` | Custom search triggered by `@prefix:` (supports keyboard shortcut activation) |
 | `fileSearch` | File search settings (`@path/to/file` completion) |
 | `symbolSearch` | Symbol search settings (`@ts:Config`, `@go:Handler`) |
+
+## 🔌 Plugins
+
+Plugins let you customize Agent Built-in, Agent Skills, and Custom Search entries by writing simple YAML files hosted in a GitHub repository. You can create your own plugin repository to tailor Prompt Line to your workflow.
+
+For an example, see [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins).
+
+### Install Plugins
+
+```bash
+# From the prompt-line directory
+pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins
+
+# Install at specific branch or commit hash
+pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@develop
+pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@e5afde2
+```
+
+For more details (source formats, global CLI setup, etc.), run:
+```bash
+pnpm run plugin:help
+```
 
 ## Prompt History
 

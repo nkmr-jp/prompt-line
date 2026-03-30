@@ -152,13 +152,8 @@ function resolveSource(source: string): ResolvedSource {
   const ghMatch = source.match(/^github\.com\/([^/]+)\/([^/@]+)(?:\/([^@]+))?(?:@(.+))?$/);
   if (!ghMatch) {
     console.error(`❌ Error: Invalid source format: ${source}`);
-    console.error('Usage: pnpm run plugin:install <source>');
-    console.error('  <source> can be:');
-    console.error('    ./local/path                        - Local directory');
-    console.error('    ~/local/path                        - Local directory (home-relative)');
-    console.error('    /absolute/path                      - Absolute path');
-    console.error('    github.com/user/repo[/path]         - GitHub repository (default branch)');
-    console.error('    github.com/user/repo[/path]@ref     - GitHub repository at branch/tag/hash');
+    console.error('');
+    console.error('Run "pnpm run plugin:help" for usage details.');
     process.exit(1);
   }
 
@@ -505,19 +500,9 @@ function copyYamlFiles(
 function main(): void {
   const source = process.argv[2];
 
-  if (!source) {
-    console.error('❌ Error: No source specified.');
-    console.error('');
-    console.error('Usage: pnpm run plugin:install <source>');
-    console.error('');
-    console.error('Examples:');
-    console.error('  pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins');
-    console.error('  pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@develop');
-    console.error('  pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@v1.0.0');
-    console.error('  pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@sea8pxe');
-    console.error('  pnpm run plugin:install ~/ghq/github.com/nkmr-jp/prompt-line-plugins');
-    console.error('  pnpm run plugin:install ./path/to/local/plugins');
-    process.exit(1);
+  if (!source || source === 'help' || source === '--help' || source === '-h') {
+    execSync('pnpm exec ts-node scripts/plugin-help.ts', { cwd: __dirname + '/..', stdio: 'inherit' });
+    process.exit(source ? 0 : 1);
   }
 
   const resolved = resolveSource(source);

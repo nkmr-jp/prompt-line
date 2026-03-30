@@ -675,7 +675,7 @@ export class AgentSkillManager implements IInitializable {
         }
         labelBadge.textContent = cmd.label;
         item.appendChild(labelBadge);
-      } else if (cmd.displayName) {
+      } else if (cmd.displayName && cmd.source !== 'custom') {
         const sourceBadge = document.createElement('span');
         sourceBadge.className = 'agent-skill-source';
         sourceBadge.dataset.source = cmd.source || cmd.displayName;

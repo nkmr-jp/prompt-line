@@ -126,37 +126,6 @@ pnpm run install-app
 pnpm run migrate-settings        # 設定ファイルを最新のデフォルトに移行（自動バックアップ）
 ```
 
-## 🔌 プラグイン
-
-プラグインは agent-built-in、agent-skills、custom-search エントリを提供します。プラグインの YAML ファイルは [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins) リポジトリで管理されています。
-
-### プラグインのインストール
-
-```bash
-# prompt-line ディレクトリ内で実行
-pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins
-
-# ブランチ・タグ・コミットハッシュを指定してインストール
-pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@develop
-pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@v1.0.0
-pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@sea8pxe
-```
-
-### グローバル CLI セットアップ（オプション）
-
-シェル設定ファイル（例: `~/.zshrc`）に追加すると、任意のディレクトリから実行できます:
-
-```bash
-function prompt-line-plugin() {
-    pnpm --dir /path/to/prompt-line run "plugin:$1" "${@:2}"
-}
-```
-
-使用例:
-```bash
-prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
-```
-
 ## 使用方法
 
 ### 基本的なワークフロー
@@ -190,11 +159,33 @@ prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
 | `shortcuts` | キーボードショートカット（メイン、ペースト、クローズ、履歴ナビゲーション、検索）      |
 | `window` | ウィンドウサイズと配置モード                                |
 | `fileOpener` | デフォルトエディタ、拡張子別・ディレクトリ別（glob対応）アプリケーション |
-| `agentBuiltIn` | Agent Built-inスラッシュコマンドの有効化（claude, codex, gemini等） |
+| `agentBuiltIn` | Agent Built-inの有効化（claude, codex, gemini等） |
 | `agentSkills` | Agent Skills検索機能（`$`などのカスタムトリガーに対応） |
 | `customSearch` | `@prefix:`で発動するカスタム検索（キーボードショートカットによる直接起動に対応） |
 | `fileSearch` | ファイル検索設定（`@path/to/file`補完） |
 | `symbolSearch` | シンボル検索設定（`@ts:Config`、`@go:Handler`） |
+
+## 🔌 プラグイン
+
+プラグインを使うと、GitHubリポジトリでホストされたシンプルなYAMLファイルを書くだけで、Agent Built-in・Agent Skills・Custom Searchエントリを自由にカスタマイズできます。独自のプラグインリポジトリを作成して、自分のワークフローに合わせたPrompt Lineにカスタマイズしましょう。
+
+参考例: [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins)
+
+### プラグインのインストール
+
+```bash
+# prompt-line ディレクトリ内で実行
+pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins
+
+# ブランチやコミットハッシュを指定してインストール
+pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@develop
+pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@e5afde2
+```
+
+詳細（ソースフォーマット、グローバルCLIセットアップなど）は以下で確認できます:
+```bash
+pnpm run plugin:help
+```
 
 ## プロンプト履歴
 

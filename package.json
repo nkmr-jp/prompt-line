@@ -27,7 +27,9 @@
     "prepare": "husky",
     "setup-codesign": "bash scripts/setup-codesign.sh",
     "reset-accessibility": "tccutil reset Accessibility com.electron.prompt-line && echo '✅ Accessibility permissions for Prompt Line have been reset'",
+    "plugin": "pnpm exec ts-node scripts/plugin-help.ts",
     "plugin:install": "pnpm exec ts-node scripts/plugin-install.ts",
+    "plugin:help": "pnpm exec ts-node scripts/plugin-help.ts",
     "generate:settings-example": "pnpm exec ts-node scripts/generate-settings-example.ts",
     "migrate-settings": "pnpm exec ts-node scripts/migrate-settings.ts"
   },

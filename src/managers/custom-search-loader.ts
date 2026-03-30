@@ -721,7 +721,8 @@ class CustomSearchLoader extends EventEmitter {
       const heading = isJsonFile ? '' : parseFirstHeading(content);
       const jsonData = isJsonFile ? parseJsonContent(content) : undefined;
       const hasValues = Object.keys(values).length > 0;
-      const context = { basename, frontmatter, prefix, dirname, filePath, heading, content, ...(hasValues && { values }), ...(jsonData && { jsonData }) };
+      const basePath = entry.path.replace(/^~/, os.homedir());
+      const context = { basename, frontmatter, prefix, dirname, filePath, basePath, heading, content, ...(hasValues && { values }), ...(jsonData && { jsonData }) };
 
       const item: CustomSearchItem = {
         name: resolveTemplate(entry.name, context),
@@ -861,7 +862,8 @@ class CustomSearchLoader extends EventEmitter {
     content: string,
     values?: Record<string, string>
   ): CustomSearchItem | null {
-    const context = { basename, frontmatter: {}, prefix, dirname, filePath, heading, line: trimmed, content, ...(values && { values }) };
+    const basePath = entry.path.replace(/^~/, os.homedir());
+    const context = { basename, frontmatter: {}, prefix, dirname, filePath, basePath, heading, line: trimmed, content, ...(values && { values }) };
     const item: CustomSearchItem = {
       name: resolveTemplate(entry.name, context),
       description: resolveTemplate(entry.description, context),
@@ -1144,7 +1146,8 @@ class CustomSearchLoader extends EventEmitter {
     parentJsonDataStack?: Record<string, unknown>[],
     content?: string
   ): CustomSearchItem | null {
-    const context = { basename, frontmatter: {}, prefix: '', dirname, filePath, heading: '', jsonData: elementData, ...(parentJsonDataStack && { parentJsonDataStack }), ...(content !== undefined && { content }) };
+    const basePath = entry.path.replace(/^~/, os.homedir());
+    const context = { basename, frontmatter: {}, prefix: '', dirname, filePath, basePath, heading: '', jsonData: elementData, ...(parentJsonDataStack && { parentJsonDataStack }), ...(content !== undefined && { content }) };
     const item: CustomSearchItem = {
       name: resolveTemplate(entry.name, context),
       description: resolveTemplate(entry.description, context),
@@ -1187,6 +1190,11 @@ class CustomSearchLoader extends EventEmitter {
    * - "**\/{commands,agents}/*.md" - ブレース展開対応
    */
   private async findFiles(directory: string, pattern: string, excludeMarker?: string): Promise<string[]> {
+    // {latest} handling: walk prefix segments, pick newest dir, delegate suffix to findFilesWithPattern
+    if (pattern.includes('{latest}')) {
+      return this.findFilesWithLatest(directory, pattern, excludeMarker);
+    }
+
     // ブレース展開を処理（例: {commands,agents} → ['commands', 'agents']）
     const expandedPatterns = this.expandBraces(pattern);
 
@@ -1198,6 +1206,80 @@ class CustomSearchLoader extends EventEmitter {
 
     // 重複を除去
     return [...new Set(allFiles)];
+  }
+
+  /**
+   * {latest} を含むパターンを処理:
+   * 1. {latest} 前のセグメントでディレクトリを走査（* glob対応）
+   * 2. {latest} 位置で各グループの最新ディレクトリのみ選択
+   * 3. {latest} 後のパターンを findFilesWithPattern に委譲
+   */
+  private async findFilesWithLatest(directory: string, pattern: string, excludeMarker?: string): Promise<string[]> {
+    const segments = pattern.split('/');
+    const latestIndex = segments.findIndex(s => s === '{latest}');
+    if (latestIndex < 0) return this.findFiles(directory, pattern, excludeMarker);
+
+    const prefixSegments = segments.slice(0, latestIndex); // segments before {latest}
+    const suffixPattern = segments.slice(latestIndex + 1).join('/'); // pattern after {latest}
+
+    // Walk prefix segments to find parent directories of {latest}
+    const parentDirs = await this.walkGlobSegments(directory, prefixSegments);
+
+    // For each parent dir, find the latest subdirectory
+    const allFiles: string[] = [];
+    for (const parentDir of parentDirs) {
+      const latestDir = await this.findLatestSubdir(parentDir);
+      if (!latestDir) continue;
+
+      // Delegate suffix pattern to existing findFiles (handles **, braces, etc.)
+      const files = await this.findFiles(latestDir, suffixPattern, excludeMarker);
+      allFiles.push(...files);
+    }
+
+    return [...new Set(allFiles)];
+  }
+
+  /** Walk glob segments (e.g., ["*", "*"]) to find matching directories */
+  private async walkGlobSegments(baseDir: string, segments: string[]): Promise<string[]> {
+    let dirs = [baseDir];
+    for (const segment of segments) {
+      const nextDirs: string[] = [];
+      for (const dir of dirs) {
+        try {
+          const entries = await fs.readdir(dir, { withFileTypes: true });
+          for (const entry of entries) {
+            if (entry.isDirectory() && this.matchesGlobPattern(entry.name, segment)) {
+              nextDirs.push(path.join(dir, entry.name));
+            }
+          }
+        } catch { /* skip unreadable dirs */ }
+      }
+      dirs = nextDirs;
+    }
+    return dirs;
+  }
+
+  /** Find the most recently modified subdirectory */
+  private async findLatestSubdir(parentDir: string): Promise<string | null> {
+    try {
+      const entries = await fs.readdir(parentDir, { withFileTypes: true });
+      let latestDir = '';
+      let latestMtime = -1;
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        const fullPath = path.join(parentDir, entry.name);
+        try {
+          const stat = await fs.stat(fullPath);
+          if (stat.mtimeMs > latestMtime) {
+            latestMtime = stat.mtimeMs;
+            latestDir = fullPath;
+          }
+        } catch { /* skip */ }
+      }
+      return latestDir || null;
+    } catch {
+      return null;
+    }
   }
 
   /**
