@@ -39,7 +39,7 @@ pnpm run pre-push   # Run all pre-push checks (lint + typecheck + test)
 pnpm run clean      # Removes build artifacts (DMG, zip files)
 pnpm run clean:cache     # Clears build caches
 pnpm run clean:full      # Full cleanup (artifacts + caches + dist)
-pnpm run generate:settings-example  # Regenerate settings.example.yml
+pnpm run generate:settings-example  # Regenerate settings.example.yaml
 pnpm run plugin:install <source>    # Install plugins from local path or GitHub repo
 ```
 
@@ -136,7 +136,7 @@ Then use: `prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins`
 
 Slash command definitions for CLI tools (Claude Code, Codex CLI, Gemini CLI) stored as plugin YAML files in the [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins) repository.
 
-**Source:** `github.com/nkmr-jp/prompt-line-plugins/<tool>/agent-built-in/*.yml` → **Installed to:** `~/.prompt-line/plugins/github.com/nkmr-jp/prompt-line-plugins/<tool>/agent-built-in/`
+**Source:** `github.com/nkmr-jp/prompt-line-plugins/<tool>/agent-built-in/*.yaml` → **Installed to:** `~/.prompt-line/plugins/github.com/nkmr-jp/prompt-line-plugins/<tool>/agent-built-in/`
 
 **Updating to latest versions:**
 1. Check latest slash commands:
@@ -165,7 +165,7 @@ Hot reload: Changes auto-detected (chokidar, 300ms debounce) without app restart
 All data stored in `~/.prompt-line/`:
 - `history.jsonl`: Paste history (JSONL append-only)
 - `draft.json`: Auto-saved drafts
-- `settings.yml`: User preferences
+- `settings.yaml`: User preferences (falls back to `settings.yml`)
 - `directory.json`: CWD tracking for file search
 - `app.log`: Application logs
 - `images/`: Image storage

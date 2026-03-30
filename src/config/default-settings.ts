@@ -6,17 +6,17 @@
  * Used by:
  * - app-config.ts (application configuration)
  * - settings-manager.ts (runtime defaults)
- * - generate-settings-example.ts (settings.example.yml generation)
+ * - generate-settings-example.ts (settings.example.yaml generation)
  *
- * IMPORTANT: defaultSettings = runtime defaults = settings.example.yml active values
+ * IMPORTANT: defaultSettings = runtime defaults = settings.example.yaml active values
  * This ensures no discrepancy between what users see and what they get.
  *
  * When modifying defaults:
  * 1. Update this file
  * 2. Run: pnpm run generate:settings-example
- * 3. Commit both this file and settings.example.yml
+ * 3. Commit both this file and settings.example.yaml
  *
- * Configuration file location: ~/.prompt-line/settings.yml
+ * Configuration file location: ~/.prompt-line/settings.yaml
  * The settings file is auto-created on first launch with these defaults.
  * Edit the YAML file directly to customize — changes are hot-reloaded (300ms debounce).
  */
@@ -27,10 +27,10 @@ import type { UserSettings } from '../types';
  * Default settings - the single source of truth
  *
  * These are:
- * - The actual runtime defaults when user has no settings.yml
- * - The active (non-commented) values in settings.example.yml
+ * - The actual runtime defaults when user has no settings.yaml
+ * - The active (non-commented) values in settings.example.yaml
  *
- * Settings file: ~/.prompt-line/settings.yml (YAML format, auto-created on first launch)
+ * Settings file: ~/.prompt-line/settings.yaml (YAML format, auto-created on first launch)
  * Hot reload: File changes are automatically detected and applied without restarting the app.
  */
 export const defaultSettings: UserSettings = {
@@ -40,7 +40,7 @@ export const defaultSettings: UserSettings = {
    * Format: Modifier+Key (e.g., "Cmd+Shift+Space", "Ctrl+Alt+Space")
    * Available modifiers: Cmd, Ctrl, Alt, Shift
    *
-   * Example (settings.yml):
+   * Example (settings.yaml):
    *   shortcuts:
    *     main: Cmd+Shift+Space
    *     paste: Cmd+Enter
@@ -62,7 +62,7 @@ export const defaultSettings: UserSettings = {
    *   - 'cursor': At the current mouse cursor location
    *   - 'center': Center on primary display
    *
-   * Example (settings.yml):
+   * Example (settings.yaml):
    *   window:
    *     position: cursor
    *     width: 800
@@ -84,7 +84,7 @@ export const defaultSettings: UserSettings = {
    *
    * Priority: extensions > directories > defaultEditor > system default
    *
-   * Example (settings.yml):
+   * Example (settings.yaml):
    *   fileOpener:
    *     defaultEditor: "Visual Studio Code"
    *     extensions:
@@ -111,7 +111,7 @@ export const defaultSettings: UserSettings = {
    * @deprecated Use plugins setting instead. Kept for backward compatibility.
    * Inline entries here are merged with plugin file entries.
    *
-   * Example (settings.yml):
+   * Example (settings.yaml):
    *   agentSkills:
    *     - name: "{basename}"
    *       description: "{frontmatter@description}"
@@ -131,7 +131,7 @@ export const defaultSettings: UserSettings = {
    * Requires: fd command (brew install fd)
    * Usage: Type "@" followed by a file path to search and insert file references.
    *
-   * Example (settings.yml):
+   * Example (settings.yaml):
    *   fileSearch:
    *     respectGitignore: true
    *     includeHidden: false
@@ -163,7 +163,7 @@ export const defaultSettings: UserSettings = {
    * Supported languages (20): go, ts, tsx, js, jsx, py, rs, java, kt, swift,
    *   rb, cpp, c, sh, make/mk, php, cs, scala, tf/terraform, md/markdown
    *
-   * Example (settings.yml):
+   * Example (settings.yaml):
    *   symbolSearch:
    *     maxSymbols: 100000
    *     timeout: 30000
@@ -179,7 +179,7 @@ export const defaultSettings: UserSettings = {
     excludePatterns: []    // Additional exclude file patterns (glob syntax)
   },
   /**
-   * Plugin entries to enable (paths relative to ~/.prompt-line/plugins/, without .yml extension)
+   * Plugin entries to enable (paths relative to ~/.prompt-line/plugins/, without .yaml extension)
    * Comment out entries to disable them.
    *
    * Directory determines the plugin type:
@@ -189,12 +189,12 @@ export const defaultSettings: UserSettings = {
    *
    * Supports v1 (string[]) and v2 (Record<string, string[]>) formats:
    *
-   * v1 Example (settings.yml):
+   * v1 Example (settings.yaml):
    *   plugins:
    *     - github.com/nkmr-jp/prompt-line-plugins/claude/agent-skills/commands
    *     - github.com/nkmr-jp/prompt-line-plugins/claude/agent-built-in/claude
    *
-   * v2 Example (settings.yml):
+   * v2 Example (settings.yaml):
    *   plugins:
    *     github.com/nkmr-jp/prompt-line-plugins:
    *       - claude/agent-built-in/claude
@@ -206,7 +206,7 @@ export const defaultSettings: UserSettings = {
    * @deprecated Use plugins setting instead. Kept for backward compatibility.
    * Inline entries here are merged with plugin file entries.
    *
-   * Example (settings.yml):
+   * Example (settings.yaml):
    *   customSearch:
    *     - name: "{basename}"
    *       description: "{frontmatter@title}"
@@ -224,13 +224,13 @@ export const defaultSettings: UserSettings = {
 };
 
 /**
- * Additional example entries shown as comments in settings.example.yml
+ * Additional example entries shown as comments in settings.example.yaml
  *
  * These are NOT runtime defaults — they are just examples to help users
  * understand available options. They appear as commented-out lines (# ...)
- * in the generated settings.example.yml file.
+ * in the generated settings.example.yaml file.
  *
- * To use these examples, uncomment them in ~/.prompt-line/settings.yml.
+ * To use these examples, uncomment them in ~/.prompt-line/settings.yaml.
  */
 export const commentedExamples = {
   agentBuiltIn: [] as string[],

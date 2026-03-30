@@ -192,7 +192,7 @@ export interface UserSettings {
   // Legacy: customSearch with type field (for backward compatibility)
   legacyCustomSearch?: CustomSearchEntry[];
   /**
-   * Plugin entries to enable (paths relative to ~/.prompt-line/plugins/, without .yml extension)
+   * Plugin entries to enable (paths relative to ~/.prompt-line/plugins/, without .yaml extension)
    * Comment out entries to disable them.
    *
    * v1 format (string[]): ["github.com/nkmr-jp/prompt-line-plugins/claude/agent-skills/commands"]

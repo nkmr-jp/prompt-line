@@ -67,10 +67,10 @@ interface LoadedPlugin {
  * CustomSearchEntry[] (for agent-skills/custom-search) or AgentSkillItem[] (for agent-built-in).
  *
  * Directory structure:
- *   ~/.prompt-line/plugins/<package>/<type>/<name>.yml
- *   e.g., ~/.prompt-line/plugins/github.com/nkmr-jp/prompt-line-plugins/claude/agent-skills/commands.yml
+ *   ~/.prompt-line/plugins/<package>/<type>/<name>.yaml
+ *   e.g., ~/.prompt-line/plugins/github.com/nkmr-jp/prompt-line-plugins/claude/agent-skills/commands.yaml
  *
- * Plugin paths in settings.yml use the format: <package>/<type>/<name>
+ * Plugin paths in settings.yaml use the format: <package>/<type>/<name>
  */
 class PluginLoader {
   private cache: Map<string, LoadedPlugin> = new Map();
@@ -140,11 +140,11 @@ class PluginLoader {
     const basePath = this.resolvePluginBasePath(pluginPath);
     if (!basePath) return null;
 
-    // Try .yml first, then .yaml — parsePlugin handles missing files gracefully
-    const result = this.parsePlugin(basePath + '.yml', pluginPath, type)
-      ?? this.parsePlugin(basePath + '.yaml', pluginPath, type);
+    // Try .yaml first, then .yml — parsePlugin handles missing files gracefully
+    const result = this.parsePlugin(basePath + '.yaml', pluginPath, type)
+      ?? this.parsePlugin(basePath + '.yml', pluginPath, type);
     if (!result) {
-      logger.debug(`Plugin file not found: ${basePath}.yml`);
+      logger.debug(`Plugin file not found: ${basePath}.yaml`);
     }
     return result;
   }
@@ -333,7 +333,7 @@ class PluginLoader {
   }
 
   /**
-   * Load an agent-skills YAML file from ~/.prompt-line/agent-skills/{name}.yml
+   * Load an agent-skills YAML file from ~/.prompt-line/agent-skills/{name}.yaml
    * Returns a CustomSearchEntry with type 'command', or null if not found/invalid.
    */
   loadAgentSkillFile(name: string): CustomSearchEntry | null {
@@ -341,7 +341,7 @@ class PluginLoader {
   }
 
   /**
-   * Load a custom-search YAML file from ~/.prompt-line/custom-search/{name}.yml
+   * Load a custom-search YAML file from ~/.prompt-line/custom-search/{name}.yaml
    * Returns a CustomSearchEntry with type 'mention', or null if not found/invalid.
    */
   loadCustomSearchFile(name: string): CustomSearchEntry | null {
@@ -356,16 +356,16 @@ class PluginLoader {
   }
 
   /**
-   * Read a YAML file by name, trying .yml then .yaml extension
+   * Read a YAML file by name, trying .yaml then .yml extension
    */
   private readYamlByName(dir: string, name: string): { parsed: unknown; filePath: string } | null {
     const basePath = path.join(dir, name);
-    const ymlPath = basePath + '.yml';
-    const parsedYml = this.readYamlFile(ymlPath);
-    if (parsedYml) return { parsed: parsedYml, filePath: ymlPath };
     const yamlPath = basePath + '.yaml';
     const parsedYaml = this.readYamlFile(yamlPath);
     if (parsedYaml) return { parsed: parsedYaml, filePath: yamlPath };
+    const ymlPath = basePath + '.yml';
+    const parsedYml = this.readYamlFile(ymlPath);
+    if (parsedYml) return { parsed: parsedYml, filePath: ymlPath };
     return null;
   }
 
@@ -399,14 +399,14 @@ class PluginLoader {
     // Cache both hits and misses to avoid repeated I/O for invalid names
     this.cache.set(cacheKey, { pluginPath: cacheKey, type, entries: entry ? [entry] : [], agentBuiltIn: [] });
     if (!entry) {
-      logger.debug(`Standalone ${type} file not found: ${basePath}.yml`);
+      logger.debug(`Standalone ${type} file not found: ${basePath}.yaml`);
     }
     return entry;
   }
 
   /**
    * Load agent built-in from ~/.prompt-line/agent-built-in/ directory.
-   * Reads YAML files matching the given names (e.g., ["claude-ja"] → claude-ja.yml).
+   * Reads YAML files matching the given names (e.g., ["claude-ja"] → claude-ja.yaml).
    * Used for the agentBuiltIn setting (backward-compatible with pre-plugin system).
    */
   loadLegacyAgentBuiltIn(names: string[]): AgentSkillItem[] {

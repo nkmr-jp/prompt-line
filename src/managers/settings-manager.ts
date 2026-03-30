@@ -29,7 +29,8 @@ class SettingsManager extends EventEmitter {
 
   constructor() {
     super();
-    this.settingsFile = path.join(os.homedir(), '.prompt-line', 'settings.yml');
+    // Always use .yaml — legacy .yml is read as fallback during init, then migrated
+    this.settingsFile = path.join(os.homedir(), '.prompt-line', 'settings.yaml');
 
     // Use shared default settings from config/default-settings.ts
     this.defaultSettings = sharedDefaultSettings;
@@ -111,26 +112,38 @@ class SettingsManager extends EventEmitter {
   private async readAndApplySettingsFile(): Promise<void> {
     try {
       const data = await fs.readFile(this.settingsFile, 'utf8');
-      // Use JSON_SCHEMA to prevent arbitrary code execution from malicious YAML
-      // JSON_SCHEMA only allows JSON-compatible types (strings, numbers, booleans, null, arrays, objects)
-      // which prevents JavaScript-specific type coercion attacks
-      const parsed = yaml.load(data, { schema: yaml.JSON_SCHEMA }) as UserSettings;
-
-      if (parsed && typeof parsed === 'object') {
-        this.currentSettings = this.mergeWithDefaults(parsed);
-      } else {
-        logger.warn('Invalid settings file format, using defaults');
+      if (!this.applyParsedSettings(data)) {
         await this.trySaveSettings('Failed to save default settings after invalid format:');
       }
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        logger.info('Settings file not found, creating with defaults');
-        await this.trySaveSettings('Failed to create default settings file:');
+        // Try legacy .yml fallback, then migrate to .yaml
+        const ymlPath = this.settingsFile.replace(/\.yaml$/, '.yml');
+        try {
+          const data = await fs.readFile(ymlPath, 'utf8');
+          this.applyParsedSettings(data);
+          await this.trySaveSettings('Failed to migrate settings to .yaml:');
+          logger.info(`Migrated settings from ${ymlPath} to ${this.settingsFile}`);
+        } catch {
+          logger.info('Settings file not found, creating with defaults');
+          await this.trySaveSettings('Failed to create default settings file:');
+        }
       } else {
         logger.error('Failed to read settings file:', error);
         throw error;
       }
     }
+  }
+
+  /** @returns true if parsed successfully, false if invalid format */
+  private applyParsedSettings(data: string): boolean {
+    const parsed = yaml.load(data, { schema: yaml.JSON_SCHEMA }) as UserSettings;
+    if (parsed && typeof parsed === 'object') {
+      this.currentSettings = this.mergeWithDefaults(parsed);
+      return true;
+    }
+    logger.warn('Invalid settings file format, using defaults');
+    return false;
   }
 
   private async trySaveSettings(errorMessage: string): Promise<void> {

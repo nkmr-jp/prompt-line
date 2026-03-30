@@ -11,7 +11,7 @@ let settingsFile: string;
 describe('Error Handling Integration Tests', () => {
     beforeEach(async () => {
         testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'prompt-line-error-test-'));
-        settingsFile = path.join(testDir, 'settings.yml');
+        settingsFile = path.join(testDir, 'settings.yaml');
         
         // Set up DOM for tests
         document.body.innerHTML = `
