@@ -1,7 +1,7 @@
 /**
- * Script to generate settings.example.yml from shared settings
+ * Script to generate settings.example.yaml from shared settings
  *
- * This ensures settings.example.yml stays in sync with the values
+ * This ensures settings.example.yaml stays in sync with the values
  * defined in config/default-settings.ts (single source of truth)
  *
  * Usage: pnpm exec ts-node scripts/generate-settings-example.ts
@@ -16,8 +16,8 @@ import { defaultSettings } from '../src/config/default-settings';
 // Import shared YAML generator (single source of truth for YAML generation)
 import { generateSettingsYaml } from '../src/config/settings-yaml-generator';
 
-// Generate and write settings.example.yml
-const outputPath = path.join(__dirname, '..', 'settings.example.yml');
+// Generate and write settings.example.yaml
+const outputPath = path.join(__dirname, '..', 'settings.example.yaml');
 const outputDir = path.dirname(outputPath);
 
 try {

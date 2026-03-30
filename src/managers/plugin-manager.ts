@@ -11,8 +11,8 @@ import pluginLoader from '../lib/plugin-loader';
  * Plugins are installed via `pnpm run plugin:install` from external repositories.
  *
  * Directory structure:
- *   ~/.prompt-line/plugins/<package>/<type>/<name>.yml
- *   e.g., ~/.prompt-line/plugins/github.com/nkmr-jp/prompt-line-plugins/claude/agent-skills/commands.yml
+ *   ~/.prompt-line/plugins/<package>/<type>/<name>.yaml
+ *   e.g., ~/.prompt-line/plugins/github.com/nkmr-jp/prompt-line-plugins/claude/agent-skills/commands.yaml
  */
 class PluginManager extends EventEmitter {
   private targetDir: string;

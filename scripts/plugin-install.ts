@@ -614,10 +614,10 @@ function main(): void {
     console.log(`🔗 GitHub: ${rootGithubUrl}`);
   }
 
-  // Print settings.yml configuration guide
+  // Print settings.yaml configuration guide
   console.log('');
   console.log('─'.repeat(50));
-  console.log('📝 Copy the following to ~/.prompt-line/settings.yml:');
+  console.log('📝 Copy the following to ~/.prompt-line/settings.yaml:');
   console.log('─'.repeat(50));
   console.log('plugins:');
 

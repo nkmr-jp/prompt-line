@@ -3,7 +3,7 @@
 /**
  * Settings migration script
  *
- * Backs up existing settings.yml and regenerates it with the latest defaults
+ * Backs up existing settings.yaml and regenerates it with the latest defaults
  * while preserving user customizations.
  *
  * Usage: pnpm run migrate-settings
@@ -18,7 +18,9 @@ import { generateSettingsYaml } from '../src/config/settings-yaml-generator';
 import type { UserSettings, AgentSkillEntry, MentionEntry } from '../src/types';
 
 const SETTINGS_DIR = path.join(os.homedir(), '.prompt-line');
-const SETTINGS_FILE = path.join(SETTINGS_DIR, 'settings.yml');
+// Always write to .yaml; read from .yml only as fallback for migration
+const SETTINGS_FILE = path.join(SETTINGS_DIR, 'settings.yaml');
+const LEGACY_YML_PATH = path.join(SETTINGS_DIR, 'settings.yml');
 
 /**
  * Merge user settings with defaults (simplified version of SettingsManager.mergeWithDefaults)
@@ -125,7 +127,7 @@ function createBackupFilename(): string {
     String(now.getHours()).padStart(2, '0') +
     String(now.getMinutes()).padStart(2, '0') +
     String(now.getSeconds()).padStart(2, '0');
-  return `settings.backup.${timestamp}.yml`;
+  return `settings.backup.${timestamp}.yaml`;
 }
 
 /**
@@ -135,26 +137,31 @@ function main(): void {
   console.log('🔄 Migrating settings...');
   console.log(`📂 Settings directory: ${SETTINGS_DIR}\n`);
 
-  // Check if settings file exists
+  // Read from .yaml first, then fall back to legacy .yml
+  let sourceFile = SETTINGS_FILE;
   if (!fs.existsSync(SETTINGS_FILE)) {
-    console.log('⚠️  No existing settings.yml found.');
-    console.log('📝 Creating new settings.yml with defaults...');
+    if (fs.existsSync(LEGACY_YML_PATH)) {
+      sourceFile = LEGACY_YML_PATH;
+      console.log(`📄 Found legacy ${LEGACY_YML_PATH}, will migrate to .yaml`);
+    } else {
+      console.log('⚠️  No existing settings.yaml found.');
+      console.log('📝 Creating new settings.yaml with defaults...');
 
-    // Ensure directory exists
-    if (!fs.existsSync(SETTINGS_DIR)) {
-      fs.mkdirSync(SETTINGS_DIR, { recursive: true });
+      if (!fs.existsSync(SETTINGS_DIR)) {
+        fs.mkdirSync(SETTINGS_DIR, { recursive: true });
+      }
+
+      const content = generateSettingsYaml(defaultSettings, { includeCommentedExamples: true });
+      fs.writeFileSync(SETTINGS_FILE, content, { encoding: 'utf8', mode: 0o600 });
+      console.log(`✅ Created: ${SETTINGS_FILE}`);
+      printOpenCommand();
+      return;
     }
-
-    const content = generateSettingsYaml(defaultSettings, { includeCommentedExamples: true });
-    fs.writeFileSync(SETTINGS_FILE, content, { encoding: 'utf8', mode: 0o600 });
-    console.log(`✅ Created: ${SETTINGS_FILE}`);
-    printOpenCommand();
-    return;
   }
 
   // Read existing settings
   console.log('📖 Reading existing settings...');
-  const existingContent = fs.readFileSync(SETTINGS_FILE, 'utf8');
+  const existingContent = fs.readFileSync(sourceFile, 'utf8');
 
   let userSettings: Partial<UserSettings>;
   try {
@@ -163,7 +170,7 @@ function main(): void {
       throw new Error('Invalid YAML format');
     }
   } catch (error) {
-    console.error('❌ Failed to parse existing settings.yml');
+    console.error('❌ Failed to parse existing settings file');
     if (error instanceof Error) {
       console.error(`   Error: ${error.message}`);
     }
