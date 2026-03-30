@@ -126,26 +126,6 @@ pnpm run install-app
 pnpm run migrate-settings        # 設定ファイルを最新のデフォルトに移行（自動バックアップ）
 ```
 
-## 🔌 プラグイン
-
-プラグインは agent-built-in、agent-skills、custom-search エントリを提供します。プラグインの YAML ファイルは [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins) リポジトリで管理されています。
-
-### プラグインのインストール
-
-```bash
-# prompt-line ディレクトリ内で実行
-pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins
-
-# ブランチやコミットハッシュを指定してインストール
-pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@develop
-pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@e5afde2
-```
-
-詳細（ソースフォーマット、グローバルCLIセットアップなど）は以下で確認できます:
-```bash
-pnpm run plugin:help
-```
-
 ## 使用方法
 
 ### 基本的なワークフロー
@@ -184,6 +164,28 @@ pnpm run plugin:help
 | `customSearch` | `@prefix:`で発動するカスタム検索（キーボードショートカットによる直接起動に対応） |
 | `fileSearch` | ファイル検索設定（`@path/to/file`補完） |
 | `symbolSearch` | シンボル検索設定（`@ts:Config`、`@go:Handler`） |
+
+## 🔌 プラグイン
+
+プラグインを使うと、GitHubリポジトリでホストされたシンプルなYAMLファイルを書くだけで、スラッシュコマンド・Agent Skills・カスタム検索エントリを自由にカスタマイズできます。独自のプラグインリポジトリを作成して、自分のワークフローに合わせたPrompt Lineにカスタマイズしましょう。
+
+参考例: [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins)
+
+### プラグインのインストール
+
+```bash
+# prompt-line ディレクトリ内で実行
+pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins
+
+# ブランチやコミットハッシュを指定してインストール
+pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@develop
+pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@e5afde2
+```
+
+詳細（ソースフォーマット、グローバルCLIセットアップなど）は以下で確認できます:
+```bash
+pnpm run plugin:help
+```
 
 ## プロンプト履歴
 
