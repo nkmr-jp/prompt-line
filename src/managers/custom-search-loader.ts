@@ -1190,17 +1190,77 @@ class CustomSearchLoader extends EventEmitter {
    * - "**\/{commands,agents}/*.md" - ブレース展開対応
    */
   private async findFiles(directory: string, pattern: string, excludeMarker?: string): Promise<string[]> {
+    // {latest} を検出し、一時的に退避してブレース展開を回避
+    const LATEST_PLACEHOLDER = '__LATEST_PLACEHOLDER__';
+    const hasLatest = pattern.includes('{latest}');
+    const safePattern = hasLatest ? pattern.replace(/\{latest\}/g, LATEST_PLACEHOLDER) : pattern;
+
     // ブレース展開を処理（例: {commands,agents} → ['commands', 'agents']）
-    const expandedPatterns = this.expandBraces(pattern);
+    const expandedPatterns = this.expandBraces(safePattern);
 
     const allFiles: string[] = [];
-    for (const expandedPattern of expandedPatterns) {
+    for (let expandedPattern of expandedPatterns) {
+      // {latest} を復元後、* に置換して全ファイルを検索
+      if (hasLatest) {
+        expandedPattern = expandedPattern.replace(new RegExp(LATEST_PLACEHOLDER, 'g'), '*');
+      }
       const files = await this.findFilesWithPattern(directory, expandedPattern, '', excludeMarker);
       allFiles.push(...files);
     }
 
     // 重複を除去
-    return [...new Set(allFiles)];
+    const uniqueFiles = [...new Set(allFiles)];
+
+    // {latest} フィルタ: パターン内の {latest} 位置で最新ディレクトリのみ残す
+    if (hasLatest) {
+      return this.filterLatestFiles(uniqueFiles, directory, pattern);
+    }
+    return uniqueFiles;
+  }
+
+  /**
+   * {latest} フィルタ: パターン内の {latest} 位置のディレクトリで
+   * 各グループの最新（mtime最大）のもののみ残す
+   */
+  private async filterLatestFiles(files: string[], directory: string, pattern: string): Promise<string[]> {
+    const latestIndex = pattern.split('/').findIndex(s => s.includes('{latest}'));
+    if (latestIndex < 0) return files;
+
+    const prefix = directory + '/';
+    const getRelativeParts = (f: string) => f.slice(prefix.length).split('/');
+    const getLatestDirPath = (parts: string[]) => path.join(directory, ...parts.slice(0, latestIndex + 1));
+
+    // Group files by segments before {latest} position
+    const groups = new Map<string, string[]>();
+    for (const filePath of files) {
+      const parts = getRelativeParts(filePath);
+      const groupKey = parts.slice(0, latestIndex).join('/');
+      const existing = groups.get(groupKey) ?? [];
+      existing.push(filePath);
+      groups.set(groupKey, existing);
+    }
+
+    // For each group, keep only files from the latest-modified directory
+    const result: string[] = [];
+    for (const groupFiles of groups.values()) {
+      const dirMtimes = new Map<string, number>();
+      for (const filePath of groupFiles) {
+        const dirPath = getLatestDirPath(getRelativeParts(filePath));
+        if (!dirMtimes.has(dirPath)) {
+          try {
+            const stat = await fs.stat(dirPath);
+            dirMtimes.set(dirPath, stat.mtimeMs);
+          } catch {
+            dirMtimes.set(dirPath, 0);
+          }
+        }
+      }
+
+      const latestDir = [...dirMtimes.entries()].reduce((a, b) => a[1] >= b[1] ? a : b)[0]!;
+      result.push(...groupFiles.filter(f => getLatestDirPath(getRelativeParts(f)) === latestDir));
+    }
+
+    return result;
   }
 
   /**

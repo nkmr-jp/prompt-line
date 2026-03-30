@@ -300,6 +300,7 @@ function buildAgentSkillsHeader(): string {
     '#   {dirname}: Parent directory name',
     '#   {dirname:N}: N levels up directory name (e.g., {dirname:2} = grandparent)',
     '#   {pathdir:N}: N-th directory from path downward (e.g., path/a/b/file.md → {pathdir:1} = a)',
+    '#   {latest}: In pattern, matches only the most recently modified directory at that position',
     'agentSkills:'
   ].join('\n') + '\n';
 }
@@ -379,6 +380,7 @@ function buildCustomSearchHeader(): string {
 #   {dirname}           — Parent directory name
 #   {dirname:N}         — N levels up directory name (e.g., {dirname:2} = grandparent)
 #   {pathdir:N}         — N-th directory from path downward (e.g., path/a/b/file.md → {pathdir:1} = a)
+#   {latest}            — In pattern, matches only the most recently modified directory at that position
 #
 # Pattern examples:
 #   "*.md"                              — Markdown files in root directory only
