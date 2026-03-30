@@ -511,12 +511,11 @@ function main(): void {
     console.error('Usage: pnpm run plugin:install <source>');
     console.error('');
     console.error('Examples:');
-    console.error('  pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins');
-    console.error('  pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@develop');
-    console.error('  pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@v1.0.0');
-    console.error('  pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@sea8pxe');
-    console.error('  pnpm run plugin:install ~/ghq/github.com/nkmr-jp/prompt-line-plugins');
-    console.error('  pnpm run plugin:install ./path/to/local/plugins');
+    console.error('  pnpm run plugin:install ./plugins');
+    console.error('  pnpm run plugin:install github.com/user/repo');
+    console.error('  pnpm run plugin:install github.com/user/repo@develop');
+    console.error('  pnpm run plugin:install github.com/user/repo@v1.0.0');
+    console.error('  pnpm run plugin:install ~/path/to/local/plugins');
     process.exit(1);
   }
 

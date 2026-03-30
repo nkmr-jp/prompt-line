@@ -105,11 +105,11 @@ User Input → Renderer → IPC Event → IPCHandlers (coordinator) → Speciali
 
 Plugins provide agent-built-in slash commands, agent-skills, and custom-search entries. Two settings formats are supported:
 
-**v1 format (string[]):** `plugins: ["github.com/nkmr-jp/prompt-line-plugins/claude/agent-built-in/claude"]`
+**v1 format (string[]):** `plugins: ["plugins/claude/agent-built-in/claude"]`
 **v2 format (Record<string, string[]>):**
 ```yaml
 plugins:
-  github.com/nkmr-jp/prompt-line-plugins:
+  plugins:
     - claude/agent-built-in/claude
     - claude/agent-skills/commands
 ```
@@ -124,26 +124,20 @@ pnpm run plugin:install <source>@<ref>        # Install at specific branch/tag/h
 
 **Source resolution for `github.com/...`:** `gh repo clone` → `git clone`
 
-**Global CLI setup** — run `plugin:install` from anywhere by adding to your shell config (e.g., `~/.zshrc`):
-```bash
-function prompt-line-plugin() {
-    pnpm --dir /path/to/prompt-line run "plugin:$1" "${@:2}"
-}
-```
-Then use: `prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins`
+**Default plugins:** Bundled in `./plugins/` directory and installed via `pnpm run install-app`.
 
 ### Agent Built-in
 
-Slash command definitions for CLI tools (Claude Code, Codex CLI, Gemini CLI) stored as plugin YAML files in the [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins) repository.
+Slash command definitions for CLI tools (Claude Code, Codex CLI, Gemini CLI) stored as plugin YAML files in the `plugins/` directory of this repository.
 
-**Source:** `github.com/nkmr-jp/prompt-line-plugins/<tool>/agent-built-in/*.yml` → **Installed to:** `~/.prompt-line/plugins/github.com/nkmr-jp/prompt-line-plugins/<tool>/agent-built-in/`
+**Source:** `plugins/<tool>/agent-built-in/*.yml` → **Installed to:** `~/.prompt-line/plugins/plugins/<tool>/agent-built-in/`
 
 **Updating to latest versions:**
 1. Check latest slash commands:
    - **Claude Code**: [changelog](https://github.com/anthropics/claude-code/releases) / [docs](https://code.claude.com/docs/en/commands)
    - **Codex CLI**: [source](https://github.com/openai/codex) / [docs](https://developers.openai.com/codex/cli/slash-commands/)
    - **Gemini CLI**: [docs](https://google-gemini.github.io/gemini-cli/docs/cli/commands.html) / [releases](https://github.com/google-gemini/gemini-cli/releases)
-2. Edit YAML files in the [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins) repository
+2. Edit YAML files in the `plugins/` directory
 
 **Commit type for agent-built-in updates:** Use `chore` (not `feat`)
 

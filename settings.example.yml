@@ -63,7 +63,7 @@ fileOpener:
 # Hot-reload: YAML file changes are auto-detected (no restart needed)
 
 #plugins:
-#  github.com/nkmr-jp/prompt-line-plugins:
+#  plugins:
 #    - claude/agent-skills/commands
 #    - claude/agent-built-in/claude
 
@@ -72,7 +72,7 @@ fileOpener:
 # ============================================================================
 
 # Agent built-in slash commands (type "/" to access)
-# @deprecated Use plugins setting instead (github.com/nkmr-jp/prompt-line-plugins/<tool>/agent-built-in/*)
+# @deprecated Use plugins setting instead (plugins/<tool>/agent-built-in/*)
 #agentBuiltIn:
 #  - claude
 

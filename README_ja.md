@@ -128,33 +128,22 @@ pnpm run migrate-settings        # 設定ファイルを最新のデフォルト
 
 ## 🔌 プラグイン
 
-プラグインは agent-built-in、agent-skills、custom-search エントリを提供します。プラグインの YAML ファイルは [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins) リポジトリで管理されています。
+プラグインは agent-built-in、agent-skills、custom-search エントリを提供します。プラグインの YAML ファイルはこのリポジトリの `plugins/` ディレクトリにバンドルされており、`pnpm run install-app` で自動的にインストールされます。
 
 ### プラグインのインストール
 
+バンドルされたプラグインは `pnpm run install-app` で自動的にインストールされます。手動インストールや他のソースからのインストール:
+
 ```bash
-# prompt-line ディレクトリ内で実行
-pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins
+# バンドルプラグインのインストール
+pnpm run plugin:install ./plugins
+
+# GitHub リポジトリからインストール
+pnpm run plugin:install github.com/user/repo
 
 # ブランチ・タグ・コミットハッシュを指定してインストール
-pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@develop
-pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@v1.0.0
-pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@sea8pxe
-```
-
-### グローバル CLI セットアップ（オプション）
-
-シェル設定ファイル（例: `~/.zshrc`）に追加すると、任意のディレクトリから実行できます:
-
-```bash
-function prompt-line-plugin() {
-    pnpm --dir /path/to/prompt-line run "plugin:$1" "${@:2}"
-}
-```
-
-使用例:
-```bash
-prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
+pnpm run plugin:install github.com/user/repo@develop
+pnpm run plugin:install github.com/user/repo@v1.0.0
 ```
 
 ## 使用方法
