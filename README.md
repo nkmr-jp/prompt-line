@@ -162,7 +162,7 @@ For the full configuration example with all available options and comments, see:
 | `shortcuts` | Keyboard shortcuts (main, paste, close, history navigation, search) |
 | `window` | Window size and positioning mode |
 | `fileOpener` | Default editor, extension-specific and directory-specific (glob) applications |
-| `agentBuiltIn` | Agent built-in slash commands to enable (claude, codex, gemini, etc.) |
+| `agentBuiltIn` | Agent built-in entries to enable (claude, codex, gemini, etc.) |
 | `agentSkills` | Agent Skills search functionality (supports custom triggers like `$`) |
 | `customSearch` | Custom search triggered by `@prefix:` (supports keyboard shortcut activation) |
 | `fileSearch` | File search settings (`@path/to/file` completion) |
@@ -170,7 +170,7 @@ For the full configuration example with all available options and comments, see:
 
 ## 🔌 Plugins
 
-Plugins let you customize slash commands, agent skills, and custom search entries by writing simple YAML files hosted in a GitHub repository. You can create your own plugin repository to tailor Prompt Line to your workflow.
+Plugins let you customize Agent Built-in, Agent Skills, and Custom Search entries by writing simple YAML files hosted in a GitHub repository. You can create your own plugin repository to tailor Prompt Line to your workflow.
 
 For an example, see [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins).
 
