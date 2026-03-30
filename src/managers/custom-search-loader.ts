@@ -1190,77 +1190,96 @@ class CustomSearchLoader extends EventEmitter {
    * - "**\/{commands,agents}/*.md" - ブレース展開対応
    */
   private async findFiles(directory: string, pattern: string, excludeMarker?: string): Promise<string[]> {
-    // {latest} を検出し、一時的に退避してブレース展開を回避
-    const LATEST_PLACEHOLDER = '__LATEST_PLACEHOLDER__';
-    const hasLatest = pattern.includes('{latest}');
-    const safePattern = hasLatest ? pattern.replace(/\{latest\}/g, LATEST_PLACEHOLDER) : pattern;
+    // {latest} handling: walk prefix segments, pick newest dir, delegate suffix to findFilesWithPattern
+    if (pattern.includes('{latest}')) {
+      return this.findFilesWithLatest(directory, pattern, excludeMarker);
+    }
 
     // ブレース展開を処理（例: {commands,agents} → ['commands', 'agents']）
-    const expandedPatterns = this.expandBraces(safePattern);
+    const expandedPatterns = this.expandBraces(pattern);
 
     const allFiles: string[] = [];
-    for (let expandedPattern of expandedPatterns) {
-      // {latest} を復元後、* に置換して全ファイルを検索
-      if (hasLatest) {
-        expandedPattern = expandedPattern.replace(new RegExp(LATEST_PLACEHOLDER, 'g'), '*');
-      }
+    for (const expandedPattern of expandedPatterns) {
       const files = await this.findFilesWithPattern(directory, expandedPattern, '', excludeMarker);
       allFiles.push(...files);
     }
 
     // 重複を除去
-    const uniqueFiles = [...new Set(allFiles)];
-
-    // {latest} フィルタ: パターン内の {latest} 位置で最新ディレクトリのみ残す
-    if (hasLatest) {
-      return this.filterLatestFiles(uniqueFiles, directory, pattern);
-    }
-    return uniqueFiles;
+    return [...new Set(allFiles)];
   }
 
   /**
-   * {latest} フィルタ: パターン内の {latest} 位置のディレクトリで
-   * 各グループの最新（mtime最大）のもののみ残す
+   * {latest} を含むパターンを処理:
+   * 1. {latest} 前のセグメントでディレクトリを走査（* glob対応）
+   * 2. {latest} 位置で各グループの最新ディレクトリのみ選択
+   * 3. {latest} 後のパターンを findFilesWithPattern に委譲
    */
-  private async filterLatestFiles(files: string[], directory: string, pattern: string): Promise<string[]> {
-    const latestIndex = pattern.split('/').findIndex(s => s.includes('{latest}'));
-    if (latestIndex < 0) return files;
+  private async findFilesWithLatest(directory: string, pattern: string, excludeMarker?: string): Promise<string[]> {
+    const segments = pattern.split('/');
+    const latestIndex = segments.findIndex(s => s === '{latest}');
+    if (latestIndex < 0) return this.findFiles(directory, pattern, excludeMarker);
 
-    const prefix = directory + '/';
-    const getRelativeParts = (f: string) => f.slice(prefix.length).split('/');
-    const getLatestDirPath = (parts: string[]) => path.join(directory, ...parts.slice(0, latestIndex + 1));
+    const prefixSegments = segments.slice(0, latestIndex); // segments before {latest}
+    const suffixPattern = segments.slice(latestIndex + 1).join('/'); // pattern after {latest}
 
-    // Group files by segments before {latest} position
-    const groups = new Map<string, string[]>();
-    for (const filePath of files) {
-      const parts = getRelativeParts(filePath);
-      const groupKey = parts.slice(0, latestIndex).join('/');
-      const existing = groups.get(groupKey) ?? [];
-      existing.push(filePath);
-      groups.set(groupKey, existing);
+    // Walk prefix segments to find parent directories of {latest}
+    const parentDirs = await this.walkGlobSegments(directory, prefixSegments);
+
+    // For each parent dir, find the latest subdirectory
+    const allFiles: string[] = [];
+    for (const parentDir of parentDirs) {
+      const latestDir = await this.findLatestSubdir(parentDir);
+      if (!latestDir) continue;
+
+      // Delegate suffix pattern to existing findFiles (handles **, braces, etc.)
+      const files = await this.findFiles(latestDir, suffixPattern, excludeMarker);
+      allFiles.push(...files);
     }
 
-    // For each group, keep only files from the latest-modified directory
-    const result: string[] = [];
-    for (const groupFiles of groups.values()) {
-      const dirMtimes = new Map<string, number>();
-      for (const filePath of groupFiles) {
-        const dirPath = getLatestDirPath(getRelativeParts(filePath));
-        if (!dirMtimes.has(dirPath)) {
-          try {
-            const stat = await fs.stat(dirPath);
-            dirMtimes.set(dirPath, stat.mtimeMs);
-          } catch {
-            dirMtimes.set(dirPath, 0);
+    return [...new Set(allFiles)];
+  }
+
+  /** Walk glob segments (e.g., ["*", "*"]) to find matching directories */
+  private async walkGlobSegments(baseDir: string, segments: string[]): Promise<string[]> {
+    let dirs = [baseDir];
+    for (const segment of segments) {
+      const nextDirs: string[] = [];
+      for (const dir of dirs) {
+        try {
+          const entries = await fs.readdir(dir, { withFileTypes: true });
+          for (const entry of entries) {
+            if (entry.isDirectory() && this.matchesGlobPattern(entry.name, segment)) {
+              nextDirs.push(path.join(dir, entry.name));
+            }
           }
-        }
+        } catch { /* skip unreadable dirs */ }
       }
-
-      const latestDir = [...dirMtimes.entries()].reduce((a, b) => a[1] >= b[1] ? a : b)[0]!;
-      result.push(...groupFiles.filter(f => getLatestDirPath(getRelativeParts(f)) === latestDir));
+      dirs = nextDirs;
     }
+    return dirs;
+  }
 
-    return result;
+  /** Find the most recently modified subdirectory */
+  private async findLatestSubdir(parentDir: string): Promise<string | null> {
+    try {
+      const entries = await fs.readdir(parentDir, { withFileTypes: true });
+      let latestDir = '';
+      let latestMtime = -1;
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        const fullPath = path.join(parentDir, entry.name);
+        try {
+          const stat = await fs.stat(fullPath);
+          if (stat.mtimeMs > latestMtime) {
+            latestMtime = stat.mtimeMs;
+            latestDir = fullPath;
+          }
+        } catch { /* skip */ }
+      }
+      return latestDir || null;
+    } catch {
+      return null;
+    }
   }
 
   /**
