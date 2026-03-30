@@ -136,25 +136,14 @@ pnpm run migrate-settings        # 設定ファイルを最新のデフォルト
 # prompt-line ディレクトリ内で実行
 pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins
 
-# ブランチ・タグ・コミットハッシュを指定してインストール
+# ブランチやコミットハッシュを指定してインストール
 pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@develop
-pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@v1.0.0
-pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@sea8pxe
+pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@e5afde2
 ```
 
-### グローバル CLI セットアップ（オプション）
-
-シェル設定ファイル（例: `~/.zshrc`）に追加すると、任意のディレクトリから実行できます:
-
+詳細（ソースフォーマット、グローバルCLIセットアップなど）は以下で確認できます:
 ```bash
-function prompt-line-plugin() {
-    pnpm --dir /path/to/prompt-line run "plugin:$1" "${@:2}"
-}
-```
-
-使用例:
-```bash
-prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
+pnpm run plugin:help
 ```
 
 ## 使用方法

@@ -139,25 +139,14 @@ Plugins provide agent-built-in, agent-skills, and custom-search entries. Plugin 
 # From the prompt-line directory
 pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins
 
-# Install at specific branch/tag/commit hash
+# Install at specific branch or commit hash
 pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@develop
-pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@v1.0.0
-pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@sea8pxe
+pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@e5afde2
 ```
 
-### Global CLI Setup (Optional)
-
-Run `plugin:install` from anywhere by adding to your shell config (e.g., `~/.zshrc`):
-
+For more details (source formats, global CLI setup, etc.), run:
 ```bash
-function prompt-line-plugin() {
-    pnpm --dir /path/to/prompt-line run "plugin:$1" "${@:2}"
-}
-```
-
-Then use:
-```bash
-prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
+pnpm run plugin:help
 ```
 
 
