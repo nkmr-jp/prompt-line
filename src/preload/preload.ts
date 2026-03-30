@@ -90,7 +90,9 @@ const ALLOWED_CHANNELS = [
   // Settings update notification channel
   'settings-updated',
   // Custom search update notification channel
-  'custom-search-updated'
+  'custom-search-updated',
+  // Custom search command source error notification
+  'custom-search-command-error'
 ];
 
 // IPC channel validation with additional security checks
@@ -433,6 +435,12 @@ ipcRenderer.on('settings-updated', (_event, settings) => {
 ipcRenderer.on('custom-search-updated', () => {
   // eslint-disable-next-line no-undef
   window.dispatchEvent(new CustomEvent('custom-search-updated'));
+});
+
+// Listen for custom search command source errors and dispatch custom event
+ipcRenderer.on('custom-search-command-error', (_event: unknown, message: string) => {
+  // eslint-disable-next-line no-undef
+  window.dispatchEvent(new CustomEvent('custom-search-command-error', { detail: message }));
 });
 
 // Re-export ElectronAPI type for external usage

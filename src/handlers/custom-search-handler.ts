@@ -49,6 +49,12 @@ class CustomSearchHandler {
       this.notifyRenderer();
     });
 
+    // Subscribe to command source errors for UI notification
+    customSearchLoader.on('command-error', ({ message }: { message: string }) => {
+      logger.warn('CustomSearch command source error:', message);
+      this.notifyRendererError(message);
+    });
+
     // Initial config load
     this.updateConfig();
   }
@@ -402,12 +408,20 @@ class CustomSearchHandler {
   /**
    * Notify renderer that custom search data has changed
    */
-  private notifyRenderer(): void {
+  private broadcastToWindows(channel: string, ...args: unknown[]): void {
     BrowserWindow.getAllWindows().forEach(win => {
       if (!win.isDestroyed()) {
-        win.webContents.send('custom-search-updated');
+        win.webContents.send(channel, ...args);
       }
     });
+  }
+
+  private notifyRenderer(): void {
+    this.broadcastToWindows('custom-search-updated');
+  }
+
+  private notifyRendererError(message: string): void {
+    this.broadcastToWindows('custom-search-command-error', message);
   }
 
   // Agent skill cache handlers

@@ -1,6 +1,10 @@
 import { promises as fs, createReadStream } from 'fs';
 import { createInterface } from 'readline';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import path from 'path';
+
+const execAsync = promisify(exec);
 import os from 'os';
 import chokidar, { type FSWatcher } from 'chokidar';
 import { EventEmitter } from 'events';
@@ -35,6 +39,11 @@ class CustomSearchLoader extends EventEmitter {
   private regexCache: Map<string, RegExp> = new Map();
   private lastChangeTimestamp: number = 0;
   private isStale: boolean = false;
+
+  // Command source cache (stale-while-revalidate)
+  private commandCache: Map<string, { items: CustomSearchItem[]; fetchedAt: number }> = new Map();
+  private commandFetchPromises: Map<string, Promise<CustomSearchItem[]>> = new Map();
+  private static readonly COMMAND_SOURCE_TIMEOUT = 5000;
 
   // File watchers for hot reload (individual files: JSONL + non-glob pattern files)
   private fileWatchers: FSWatcher[] = [];
@@ -107,6 +116,7 @@ class CustomSearchLoader extends EventEmitter {
     this.resultCacheKey = '';
     this.resultCacheItems = [];
     this.regexCache.clear();
+    // Note: commandCache is NOT cleared here (stale-while-revalidate)
     this.isStale = false;
   }
 
@@ -180,6 +190,7 @@ class CustomSearchLoader extends EventEmitter {
       clearTimeout(this.fileReloadTimer);
       this.fileReloadTimer = null;
     }
+    this.commandFetchPromises.clear();
   }
 
   /**
@@ -318,7 +329,9 @@ class CustomSearchLoader extends EventEmitter {
   private buildEntryMap(): void {
     this.entryMap.clear();
     for (const entry of this.config) {
-      const key = `${entry.type}:${entry.path}:${entry.pattern}`;
+      const key = entry.source
+        ? `${entry.type}:source:${entry.source}`
+        : `${entry.type}:${entry.path}:${entry.pattern}`;
       this.entryMap.set(key, entry);
     }
   }
@@ -517,9 +530,13 @@ class CustomSearchLoader extends EventEmitter {
   private async loadAllEntries(): Promise<{ items: CustomSearchItem[]; watchableFiles: string[] }> {
     const results = await Promise.all(
       this.config.map(async (entry) => {
-        const sourceId = `${entry.path}:${entry.pattern}`;
+        const sourceId = entry.source
+          ? `source:${entry.source}`
+          : `${entry.path}:${entry.pattern}`;
         try {
-          const { items, watchableFiles } = await this.loadEntry(entry);
+          const { items, watchableFiles } = entry.source
+            ? await this.loadCommandEntry(entry)
+            : await this.loadEntry(entry);
           return { items, sourceId, watchableFiles };
         } catch (error) {
           logger.error('Failed to load entry', { entry, error });
@@ -607,6 +624,167 @@ class CustomSearchLoader extends EventEmitter {
 
     const items = await this.parseFilesToItems(files, entry, sourceId, jqExpression);
     return { items, watchableFiles };
+  }
+
+  /**
+   * Load items from command source (stale-while-revalidate)
+   * Returns cached items immediately and triggers background refresh.
+   */
+  private async loadCommandEntry(
+    entry: CustomSearchEntry
+  ): Promise<{ items: CustomSearchItem[]; watchableFiles: string[] }> {
+    const sourceId = `source:${entry.source}`;
+    const cached = this.commandCache.get(sourceId);
+
+    if (cached) {
+      // Return stale cache immediately and refresh in background
+      this.scheduleCommandRefresh(entry, sourceId);
+      return { items: cached.items, watchableFiles: [] };
+    }
+
+    // First load: fetch synchronously
+    const items = await this.fetchCommandItems(entry, sourceId);
+    return { items, watchableFiles: [] };
+  }
+
+  /**
+   * Schedule a background refresh for command source (Singleflight)
+   */
+  private scheduleCommandRefresh(entry: CustomSearchEntry, sourceId: string): void {
+    if (this.commandFetchPromises.has(sourceId)) return;
+
+    // Capture previous item count before fetch overwrites the cache
+    const previousCount = this.commandCache.get(sourceId)?.items.length ?? 0;
+    const promise = this.fetchCommandItems(entry, sourceId).then(items => {
+      this.commandFetchPromises.delete(sourceId);
+      // Notify renderer if item count changed (intentionally count-only for performance)
+      if (items.length !== previousCount) {
+        this.invalidateCache();
+        this.emit('source-changed');
+      }
+      return items;
+    }).catch(err => {
+      this.commandFetchPromises.delete(sourceId);
+      // fetchCommandItems handles its own errors and returns stale cache,
+      // so this catch is defensive for unexpected errors only
+      logger.debug('Background command refresh failed:', err);
+      return [] as CustomSearchItem[];
+    });
+
+    this.commandFetchPromises.set(sourceId, promise);
+  }
+
+  /**
+   * Execute command and parse stdout into CustomSearchItems
+   */
+  private async fetchCommandItems(
+    entry: CustomSearchEntry,
+    sourceId: string
+  ): Promise<CustomSearchItem[]> {
+    try {
+      const { stdout } = await execAsync(entry.source!, {
+        timeout: CustomSearchLoader.COMMAND_SOURCE_TIMEOUT,
+        env: { ...process.env },
+      });
+
+      const output = stdout.trimEnd();
+      if (!output) {
+        this.commandCache.set(sourceId, { items: [], fetchedAt: Date.now() });
+        return [];
+      }
+
+      const items = this.parseCommandOutput(output, entry, sourceId);
+      this.commandCache.set(sourceId, { items, fetchedAt: Date.now() });
+      logger.info('CustomSearch command source loaded', { source: entry.source, itemCount: items.length });
+      return items;
+    } catch (error) {
+      const execError = error as { message: string; stderr?: string; signal?: string };
+      const msg = execError.signal === 'SIGTERM'
+        ? `Command timed out (5s): ${entry.source}`
+        : `Command failed: ${execError.stderr || execError.message}`;
+      logger.warn('CustomSearch command source error', { source: entry.source, error: msg });
+      this.emit('command-error', { message: msg });
+
+      // Return stale cache if available, otherwise empty
+      const cached = this.commandCache.get(sourceId);
+      return cached ? cached.items : [];
+    }
+  }
+
+  /**
+   * Parse command output into CustomSearchItems.
+   * Auto-detects format: JSONL (first non-empty line starts with '{') or plain text.
+   */
+  private parseCommandOutput(
+    output: string,
+    entry: CustomSearchEntry,
+    sourceId: string
+  ): CustomSearchItem[] {
+    const lines = output.split('\n');
+    const firstLine = lines.find(l => l.trim());
+    const isJsonl = firstLine?.trimStart().startsWith('{');
+
+    if (isJsonl) {
+      return this.parseCommandOutputJsonl(lines, output, entry, sourceId);
+    }
+    return this.parseCommandOutputPlainText(lines, output, entry, sourceId);
+  }
+
+  /**
+   * Parse plain text command output (one item per non-empty line)
+   */
+  private parseCommandOutputPlainText(
+    lines: string[],
+    content: string,
+    entry: CustomSearchEntry,
+    sourceId: string
+  ): CustomSearchItem[] {
+    const items: CustomSearchItem[] = [];
+    const virtualPath = `command-source:${entry.source}`;
+    const nowMs = Date.now();
+    let lineIndex = 0;
+
+    for (const rawLine of lines) {
+      const trimmed = rawLine.trim();
+      if (!trimmed) continue;
+      const item = this.createItemFromPlainTextLine(
+        trimmed, entry.source!, '', virtualPath,
+        entry, sourceId, '', '', lineIndex, nowMs, content, {}
+      );
+      if (item) { items.push(item); lineIndex++; }
+    }
+    return items;
+  }
+
+  /**
+   * Parse JSONL command output (one JSON object per line)
+   */
+  private parseCommandOutputJsonl(
+    lines: string[],
+    content: string,
+    entry: CustomSearchEntry,
+    sourceId: string
+  ): CustomSearchItem[] {
+    const items: CustomSearchItem[] = [];
+    const virtualPath = `command-source:${entry.source}`;
+
+    for (const rawLine of lines) {
+      const trimmed = rawLine.trim();
+      if (!trimmed) continue;
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(trimmed);
+        if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) continue;
+      } catch {
+        continue;
+      }
+      const elementData = parsed as Record<string, unknown>;
+      const item = this.createItemFromJsonData(
+        elementData, entry.source!, '', virtualPath, entry, sourceId, undefined, content
+      );
+      if (item) items.push(item);
+    }
+    return items;
   }
 
   /**

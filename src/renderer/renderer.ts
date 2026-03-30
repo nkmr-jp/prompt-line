@@ -52,6 +52,7 @@ export class PromptLineRenderer {
   private pendingWindowData: WindowData | null = null;
   // Stored handler reference for cleanup
   private customSearchUpdateHandler: (() => void) | null = null;
+  private commandErrorHandler: ((e: Event) => void) | null = null;
   private initCompleted: boolean = false;
   // Throttle timeout for mousemove events
   private mouseMoveThrottleTimeout: number | null = null;
@@ -343,6 +344,13 @@ export class PromptLineRenderer {
       this.agentSkillManager?.prefetchSkills();
     };
     window.addEventListener('custom-search-updated', this.customSearchUpdateHandler);
+
+    // Listen for custom search command source errors
+    this.commandErrorHandler = (e: Event) => {
+      const message = (e as CustomEvent<string>).detail;
+      this.domManager.showError(message, 4000);
+    };
+    window.addEventListener('custom-search-command-error', this.commandErrorHandler);
   }
 
   private async handleKeyDown(e: KeyboardEvent): Promise<void> {
@@ -725,6 +733,10 @@ export class PromptLineRenderer {
     if (this.customSearchUpdateHandler) {
       window.removeEventListener('custom-search-updated', this.customSearchUpdateHandler);
       this.customSearchUpdateHandler = null;
+    }
+    if (this.commandErrorHandler) {
+      window.removeEventListener('custom-search-command-error', this.commandErrorHandler);
+      this.commandErrorHandler = null;
     }
   }
 }

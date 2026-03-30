@@ -358,6 +358,8 @@ export interface AgentSkillEntry {
    * - 前方一致: "debug-*"
    */
   disable?: string[];
+  /** オプション: コマンドの標準出力を検索ソースとして使用するシェルコマンド文字列（指定時は path/pattern の代わりに使用） */
+  source?: string;
 }
 
 /** @deprecated Use AgentSkillEntry instead */
@@ -411,6 +413,8 @@ export interface MentionEntry {
   shortcut?: string;
   /** オプション: Ctrl+Enter で実行するシェルコマンド。テンプレート変数({filepath}, {basename}, {content}等)使用可 */
   command?: string;
+  /** オプション: コマンドの標準出力を検索ソースとして使用するシェルコマンド文字列（指定時は path/pattern の代わりに使用） */
+  source?: string;
 }
 
 // ============================================================================
@@ -434,9 +438,9 @@ export interface CustomSearchEntry {
   type: CustomSearchType;
   /** 説明テンプレート（例: "{frontmatter@description}"） */
   description: string;
-  /** 検索ディレクトリパス */
+  /** 検索ディレクトリパス（source指定時は空文字""を設定） */
   path: string;
-  /** ファイルパターン（glob形式、例: "*.md", "SKILL.md"） */
+  /** ファイルパターン（glob形式、例: "*.md", "SKILL.md"）（source指定時は空文字""を設定） */
   pattern: string;
   /** オプション: label（静的な値 "skill" または テンプレート "{frontmatter@label}"） */
   label?: string;
@@ -478,6 +482,8 @@ export interface CustomSearchEntry {
   command?: string;
   /** オプション: このファイルが存在するディレクトリを検索対象から除外する（例: ".orphaned_at"） */
   excludeMarker?: string;
+  /** オプション: コマンドの標準出力を検索ソースとして使用するシェルコマンド文字列（指定時は path/pattern の代わりに使用） */
+  source?: string;
 }
 
 /**

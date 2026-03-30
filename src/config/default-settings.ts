@@ -289,6 +289,21 @@ export const commentedExamples = {
       pattern: 'ghq.txt',
       inputFormat: '~/ghq/{line}',
       maxSuggestions: 100
+    },
+    {
+      _comment: 'ghq Repository (command source)\nUses `ghq list` command output directly instead of a text file',
+      name: '{line}',
+      icon: 'repo',
+      color: 'rose',
+      description: '',
+      searchPrefix: 'ghq',
+      shortcut: 'Ctrl+g',
+      command: 'open -a iTerm ~/ghq/{line}',
+      source: 'ghq list',
+      path: '',
+      pattern: '',
+      inputFormat: '~/ghq/{line}',
+      maxSuggestions: 100
     }
   ]
 };

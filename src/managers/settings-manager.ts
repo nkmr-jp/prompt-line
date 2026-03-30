@@ -482,6 +482,7 @@ class SettingsManager extends EventEmitter {
     if (cmd.triggers !== undefined) entry.triggers = cmd.triggers;
     if (cmd.enable !== undefined) entry.enable = cmd.enable;
     if (cmd.disable !== undefined) entry.disable = cmd.disable;
+    if (cmd.source !== undefined) entry.source = cmd.source;
     return entry;
   }
 
@@ -506,6 +507,7 @@ class SettingsManager extends EventEmitter {
     if (mention.enable !== undefined) entry.enable = mention.enable;
     if (mention.disable !== undefined) entry.disable = mention.disable;
     if (mention.command !== undefined) entry.command = mention.command;
+    if (mention.source !== undefined) entry.source = mention.source;
     return entry;
   }
 
