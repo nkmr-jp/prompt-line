@@ -6,6 +6,7 @@
  * - {basename}: ファイル名（拡張子なし）
  * - {dirname}: 親ディレクトリ名
  * - {dirname:N}: N階層上のディレクトリ名（例: {dirname:2} = 2つ上）
+ * - {pathdir:N}: pathから下にN番目のディレクトリ名（例: path/a/b/file.md → {pathdir:1} = a）
  * - {frontmatter@fieldName}: frontmatterの任意フィールド
  * - {heading}: 最初の # heading のテキスト
  * - {json@path}: JSONデータの値参照（ドット記法・配列インデックス対応）
@@ -26,6 +27,7 @@ export interface TemplateContext {
   basename: string;
   dirname?: string;
   filePath?: string;
+  basePath?: string;
   frontmatter: Record<string, string>;
   heading?: string;
   line?: string;
@@ -90,6 +92,13 @@ export function resolveTemplate(
     result = result.replace(/\{dirname\}/g, t(context.dirname));
   }
 
+  // Replace {pathdir:N} — N-th directory segment counting down from basePath
+  if (context.filePath && context.basePath) {
+    result = result.replace(/\{pathdir:(\d+)\}/g, (_, level: string) => {
+      return t(getPathdir(context.filePath!, context.basePath!, parseInt(level, 10)));
+    });
+  }
+
   // Replace {heading}
   result = result.replace(/\{heading\}/g, t(context.heading ?? ''));
 
@@ -139,6 +148,22 @@ export function getDirname(filePath: string, level: number = 1): string {
   const parts = filePath.split('/');
   const index = parts.length - 1 - level;
   return index >= 0 ? parts[index] ?? '' : '';
+}
+
+/**
+ * basePath からの相対パスでN番目のディレクトリ名を取得
+ * @param level N番目（1=basePath直下の最初のディレクトリ）
+ * @example getPathdir('/a/b/c/d/file.md', '/a/b', 1) → 'c'
+ * @example getPathdir('/a/b/c/d/file.md', '/a/b', 2) → 'd'
+ */
+export function getPathdir(filePath: string, basePath: string, level: number): string {
+  const normalizedBase = basePath.endsWith('/') ? basePath : basePath + '/';
+  if (!filePath.startsWith(normalizedBase)) return '';
+  const relative = filePath.slice(normalizedBase.length);
+  const parts = relative.split('/');
+  // parts: ['c', 'd', 'file.md'] — last element is the file, so directories are 0..length-2
+  const index = level - 1;
+  return (index >= 0 && index < parts.length - 1) ? parts[index] ?? '' : '';
 }
 
 /**

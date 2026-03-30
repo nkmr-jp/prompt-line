@@ -721,7 +721,8 @@ class CustomSearchLoader extends EventEmitter {
       const heading = isJsonFile ? '' : parseFirstHeading(content);
       const jsonData = isJsonFile ? parseJsonContent(content) : undefined;
       const hasValues = Object.keys(values).length > 0;
-      const context = { basename, frontmatter, prefix, dirname, filePath, heading, content, ...(hasValues && { values }), ...(jsonData && { jsonData }) };
+      const basePath = entry.path.replace(/^~/, os.homedir());
+      const context = { basename, frontmatter, prefix, dirname, filePath, basePath, heading, content, ...(hasValues && { values }), ...(jsonData && { jsonData }) };
 
       const item: CustomSearchItem = {
         name: resolveTemplate(entry.name, context),
@@ -861,7 +862,8 @@ class CustomSearchLoader extends EventEmitter {
     content: string,
     values?: Record<string, string>
   ): CustomSearchItem | null {
-    const context = { basename, frontmatter: {}, prefix, dirname, filePath, heading, line: trimmed, content, ...(values && { values }) };
+    const basePath = entry.path.replace(/^~/, os.homedir());
+    const context = { basename, frontmatter: {}, prefix, dirname, filePath, basePath, heading, line: trimmed, content, ...(values && { values }) };
     const item: CustomSearchItem = {
       name: resolveTemplate(entry.name, context),
       description: resolveTemplate(entry.description, context),
@@ -1144,7 +1146,8 @@ class CustomSearchLoader extends EventEmitter {
     parentJsonDataStack?: Record<string, unknown>[],
     content?: string
   ): CustomSearchItem | null {
-    const context = { basename, frontmatter: {}, prefix: '', dirname, filePath, heading: '', jsonData: elementData, ...(parentJsonDataStack && { parentJsonDataStack }), ...(content !== undefined && { content }) };
+    const basePath = entry.path.replace(/^~/, os.homedir());
+    const context = { basename, frontmatter: {}, prefix: '', dirname, filePath, basePath, heading: '', jsonData: elementData, ...(parentJsonDataStack && { parentJsonDataStack }), ...(content !== undefined && { content }) };
     const item: CustomSearchItem = {
       name: resolveTemplate(entry.name, context),
       description: resolveTemplate(entry.description, context),

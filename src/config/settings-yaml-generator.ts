@@ -299,6 +299,7 @@ function buildAgentSkillsHeader(): string {
     '#   triggers: Trigger character array (default: ["/"]). e.g., ["/", "$"] enables both / and $ activation',
     '#   {dirname}: Parent directory name',
     '#   {dirname:N}: N levels up directory name (e.g., {dirname:2} = grandparent)',
+    '#   {pathdir:N}: N-th directory from path downward (e.g., path/a/b/file.md → {pathdir:1} = a)',
     'agentSkills:'
   ].join('\n') + '\n';
 }
@@ -377,6 +378,7 @@ function buildCustomSearchHeader(): string {
 #   {line}              — Each line of plain text file (generates one item per line)
 #   {dirname}           — Parent directory name
 #   {dirname:N}         — N levels up directory name (e.g., {dirname:2} = grandparent)
+#   {pathdir:N}         — N-th directory from path downward (e.g., path/a/b/file.md → {pathdir:1} = a)
 #
 # Pattern examples:
 #   "*.md"                              — Markdown files in root directory only
