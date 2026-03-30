@@ -26,7 +26,7 @@ import { logger } from '../utils/utils';
 export interface YamlGeneratorOptions {
   /**
    * Include additional commented examples from commentedExamples
-   * Used for settings.example.yml generation
+   * Used for settings.example.yaml generation
    */
   includeCommentedExamples?: boolean;
 }
@@ -601,7 +601,7 @@ export function generateSettingsYaml(settings: UserSettings, options: YamlGenera
 # ============================================================================
 # PLUGINS
 # ============================================================================
-# Plugin entries to enable (paths relative to ~/.prompt-line/plugins/, without .yml extension)
+# Plugin entries to enable (paths relative to ~/.prompt-line/plugins/, without .yaml extension)
 # Comment out entries to disable them.
 # Directory determines the plugin type:
 #   .../agent-skills/      → Slash commands (type: command, triggered by "/")

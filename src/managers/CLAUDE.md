@@ -59,7 +59,7 @@
 - Bonus calculation uses frequency + recency scoring
 
 ### Settings manager deep merge
-- User settings.yml is merged with defaults: `{ ...defaults.section, ...user.section }`
+- User settings.yaml is merged with defaults: `{ ...defaults.section, ...user.section }`
 - Automatic file creation with defaults if missing
 - Real-time file watching for live updates
 - `getPluginSettings()` normalizes v2 map format to flat string[] and caches result (invalidated on settings change)

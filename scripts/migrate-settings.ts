@@ -3,7 +3,7 @@
 /**
  * Settings migration script
  *
- * Backs up existing settings.yml and regenerates it with the latest defaults
+ * Backs up existing settings.yaml and regenerates it with the latest defaults
  * while preserving user customizations.
  *
  * Usage: pnpm run migrate-settings
@@ -18,7 +18,10 @@ import { generateSettingsYaml } from '../src/config/settings-yaml-generator';
 import type { UserSettings, AgentSkillEntry, MentionEntry } from '../src/types';
 
 const SETTINGS_DIR = path.join(os.homedir(), '.prompt-line');
-const SETTINGS_FILE = path.join(SETTINGS_DIR, 'settings.yml');
+// Prefer .yaml, fall back to .yml for backward compatibility
+const YAML_PATH = path.join(SETTINGS_DIR, 'settings.yaml');
+const YML_PATH = path.join(SETTINGS_DIR, 'settings.yml');
+const SETTINGS_FILE = fs.existsSync(YML_PATH) && !fs.existsSync(YAML_PATH) ? YML_PATH : YAML_PATH;
 
 /**
  * Merge user settings with defaults (simplified version of SettingsManager.mergeWithDefaults)
@@ -125,7 +128,8 @@ function createBackupFilename(): string {
     String(now.getHours()).padStart(2, '0') +
     String(now.getMinutes()).padStart(2, '0') +
     String(now.getSeconds()).padStart(2, '0');
-  return `settings.backup.${timestamp}.yml`;
+  const ext = SETTINGS_FILE.endsWith('.yml') ? 'yml' : 'yaml';
+  return `settings.backup.${timestamp}.${ext}`;
 }
 
 /**
@@ -137,8 +141,8 @@ function main(): void {
 
   // Check if settings file exists
   if (!fs.existsSync(SETTINGS_FILE)) {
-    console.log('⚠️  No existing settings.yml found.');
-    console.log('📝 Creating new settings.yml with defaults...');
+    console.log('⚠️  No existing settings.yaml found.');
+    console.log('📝 Creating new settings.yaml with defaults...');
 
     // Ensure directory exists
     if (!fs.existsSync(SETTINGS_DIR)) {
@@ -163,7 +167,7 @@ function main(): void {
       throw new Error('Invalid YAML format');
     }
   } catch (error) {
-    console.error('❌ Failed to parse existing settings.yml');
+    console.error('❌ Failed to parse existing settings file');
     if (error instanceof Error) {
       console.error(`   Error: ${error.message}`);
     }

@@ -1,4 +1,4 @@
-import { promises as fs } from 'fs';
+import { promises as fs, existsSync } from 'fs';
 import path from 'path';
 import os from 'os';
 import * as yaml from 'js-yaml';
@@ -29,7 +29,11 @@ class SettingsManager extends EventEmitter {
 
   constructor() {
     super();
-    this.settingsFile = path.join(os.homedir(), '.prompt-line', 'settings.yml');
+    const dir = path.join(os.homedir(), '.prompt-line');
+    const yamlPath = path.join(dir, 'settings.yaml');
+    const ymlPath = path.join(dir, 'settings.yml');
+    // Prefer .yaml, fall back to .yml for backward compatibility
+    this.settingsFile = existsSync(ymlPath) && !existsSync(yamlPath) ? ymlPath : yamlPath;
 
     // Use shared default settings from config/default-settings.ts
     this.defaultSettings = sharedDefaultSettings;

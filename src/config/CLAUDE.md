@@ -8,21 +8,21 @@ Centralized configuration management using a singleton pattern for consistent ac
 |------|------|
 | `default-settings.ts` | **Single Source of Truth for all default values** |
 | `app-config.ts` | Electron/app-specific config (singleton instance) |
-| `settings-yaml-generator.ts` | Generates `settings.example.yml` |
+| `settings-yaml-generator.ts` | Generates `settings.example.yaml` |
 
 ## Key Principles
 
 ### default-settings.ts is the only place to change defaults
 - **Always edit this file only** when modifying default values
-- Run `pnpm run generate:settings-example` after changes to regenerate `settings.example.yml`
+- Run `pnpm run generate:settings-example` after changes to regenerate `settings.example.yaml`
 - Runtime defaults = documentation = example file are always in sync by design
 
 ### Configuration hierarchy
 ```
 default-settings.ts (Single Source of Truth)
     ├→ app-config.ts (Electron config, paths, timing)
-    ├→ SettingsManager (merges with user settings.yml)
-    └→ settings-yaml-generator.ts (generates settings.example.yml)
+    ├→ SettingsManager (merges with user settings.yaml)
+    └→ settings-yaml-generator.ts (generates settings.example.yaml)
 ```
 
 ## Non-obvious Patterns

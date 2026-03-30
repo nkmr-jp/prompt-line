@@ -10,6 +10,7 @@ import * as utilsModule from '../../src/utils/utils';
 
 // Mock fs module
 vi.mock('fs', () => ({
+  existsSync: vi.fn(() => false),
   promises: {
     mkdir: vi.fn(),
     readFile: vi.fn(),
@@ -97,7 +98,7 @@ const mockedFs = fs as Mocked<typeof fs>;
 
 describe('SettingsManager', () => {
   let settingsManager: SettingsManager;
-  const settingsPath = path.join(os.homedir(), '.prompt-line', 'settings.yml');
+  const settingsPath = path.join(os.homedir(), '.prompt-line', 'settings.yaml');
 
   beforeEach(() => {
     vi.clearAllMocks();
