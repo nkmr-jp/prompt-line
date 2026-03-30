@@ -500,18 +500,9 @@ function copyYamlFiles(
 function main(): void {
   const source = process.argv[2];
 
-  if (!source) {
-    console.error('❌ Error: No source specified.');
-    console.error('');
-    console.error('Usage: pnpm run plugin:install <source>');
-    console.error('');
-    console.error('Examples:');
-    console.error('  pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins');
-    console.error('  pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@develop');
-    console.error('  pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@e5afde2');
-    console.error('');
-    console.error('Run "pnpm run plugin:help" for more details.');
-    process.exit(1);
+  if (!source || source === 'help' || source === '--help' || source === '-h') {
+    execSync('pnpm exec ts-node scripts/plugin-help.ts', { cwd: __dirname + '/..', stdio: 'inherit' });
+    process.exit(source ? 0 : 1);
   }
 
   const resolved = resolveSource(source);
