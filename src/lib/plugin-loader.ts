@@ -208,7 +208,7 @@ class PluginLoader {
     const entry: CustomSearchEntry = {
       type: entryType,
       name: yamlData.name,
-      description: yamlData.description || '',
+      description: (yamlData.description || '').replace(/\n+/g, ' ').trim(),
       path: yamlData.path,
       pattern: yamlData.pattern,
     };
@@ -268,7 +268,7 @@ class PluginLoader {
 
         const item: AgentSkillItem = {
           name: cmd.name,
-          description: cmd.description,
+          description: (cmd.description || '').replace(/\n+/g, ' ').trim(),
           filePath: filePath,
           frontmatter: frontmatterLines.join('\n'),
           inputFormat: 'name',

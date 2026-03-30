@@ -159,25 +159,23 @@ export function parseFrontmatter(content: string): Record<string, string> {
     return {};
   }
 
-  const frontmatter = frontmatterMatch[1];
-  const result: Record<string, string> = {};
-
-  // 各行を解析
-  const lines = frontmatter.split('\n');
-  for (const line of lines) {
-    const match = line.match(/^([a-zA-Z0-9_-]+):\s*(.+)$/);
-    if (match?.[1] && match[2]) {
-      let value = match[2].trim();
-      // クォートを除去
-      if ((value.startsWith('"') && value.endsWith('"')) ||
-          (value.startsWith("'") && value.endsWith("'"))) {
-        value = value.slice(1, -1);
-      }
-      result[match[1]] = value;
+  try {
+    const yaml = require('js-yaml');
+    const parsed = yaml.load(frontmatterMatch[1]);
+    if (!parsed || typeof parsed !== 'object') {
+      return {};
     }
+    const result: Record<string, string> = {};
+    for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+      if (value !== null && value !== undefined) {
+        // Collapse newlines to spaces for display
+        result[key] = String(value).replace(/\n+/g, ' ').trim();
+      }
+    }
+    return result;
+  } catch {
+    return {};
   }
-
-  return result;
 }
 
 /**
