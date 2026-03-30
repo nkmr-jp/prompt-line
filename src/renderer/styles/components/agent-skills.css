@@ -181,8 +181,8 @@
 .agent-skill-label {
   @apply shrink-0 whitespace-nowrap;
   font-size: 9px;
-  color: var(--color-purple-400);
-  background: oklch(from var(--color-purple-400) l c h / 0.2);
+  color: var(--color-teal-400);
+  background: oklch(from var(--color-teal-400) l c h / 0.2);
   padding: 2px 4px;
   border-radius: 3px;
   margin-right: 2px;
