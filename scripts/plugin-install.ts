@@ -112,14 +112,17 @@ interface ResolvedSource {
 function resolveSource(source: string): ResolvedSource {
   // Local path
   if (source.startsWith('./') || source.startsWith('~/') || source.startsWith('/')) {
-    const resolved = source.startsWith('~/')
+    const rawPath = source.startsWith('~/')
       ? path.join(os.homedir(), source.slice(2))
       : path.resolve(source);
 
-    if (!fs.existsSync(resolved)) {
-      console.error(`❌ Error: Path not found: ${resolved}`);
+    if (!fs.existsSync(rawPath)) {
+      console.error(`❌ Error: Path not found: ${rawPath}`);
       process.exit(1);
     }
+
+    // Resolve symlinks (e.g. /tmp → /private/tmp on macOS) for consistent path.relative
+    const resolved = fs.realpathSync(rawPath);
 
     // Derive packageId from git remote URL if available
     const gitRoot = getGitRoot(resolved);
@@ -140,11 +143,17 @@ function resolveSource(source: string): ResolvedSource {
       }
     }
 
+    // No remote origin — install under local/<dirname>
+    const dirName = gitRoot ? path.basename(gitRoot) : path.basename(resolved);
+    const repoRelativePath = gitRoot ? path.relative(gitRoot, resolved) : '';
+    const packageId = repoRelativePath
+      ? `local/${dirName}/${repoRelativePath}`
+      : `local/${dirName}`;
     return {
       localPath: resolved,
-      packageId: path.basename(resolved),
+      packageId,
       githubBase: '',
-      repoRelativePath: '',
+      repoRelativePath,
       isGithub: false,
     };
   }
