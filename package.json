@@ -3,6 +3,9 @@
   "version": "0.28.7",
   "description": "Prompt Line is a macOS app developed to improve the prompt input experience in the terminal for CLI-based AI coding agents such as Claude Code, OpenAI Codex CLI, and Aider.",
   "main": "dist/main.js",
+  "bin": {
+    "prompt-line-plugin": "scripts/plugin.ts"
+  },
   "scripts": {
     "start": "LOG_LEVEL=debug pnpm run compile && LOG_LEVEL=debug electron .",
     "compile": "node scripts/generate-git-info.js && node node_modules/electron/install.js && tsc && pnpm run build:renderer && cd native && make install && cp -r ../src/native-tools ../dist/",
@@ -27,9 +30,9 @@
     "prepare": "husky",
     "setup-codesign": "bash scripts/setup-codesign.sh",
     "reset-accessibility": "tccutil reset Accessibility com.electron.prompt-line && echo '✅ Accessibility permissions for Prompt Line have been reset'",
-    "plugin": "pnpm exec ts-node scripts/plugin-help.ts",
-    "plugin:install": "pnpm exec ts-node scripts/plugin-install.ts",
-    "plugin:help": "pnpm exec ts-node scripts/plugin-help.ts",
+    "plugin": "pnpm exec ts-node scripts/plugin.ts",
+    "plugin:install": "pnpm exec ts-node scripts/plugin.ts install",
+    "plugin:help": "pnpm exec ts-node scripts/plugin.ts help",
     "generate:settings-example": "pnpm exec ts-node scripts/generate-settings-example.ts",
     "migrate-settings": "pnpm exec ts-node scripts/migrate-settings.ts"
   },

@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { execSync } from 'child_process';
+import { showHelp } from './plugin-help';
 
 const PLUGINS_DIR = path.join(os.homedir(), '.prompt-line', 'plugins');
 
@@ -497,12 +498,10 @@ function copyYamlFiles(
 
 // --- Main ---
 
-function main(): void {
-  const source = process.argv[2];
-
-  if (!source || source === 'help' || source === '--help' || source === '-h') {
-    execSync('pnpm exec ts-node scripts/plugin-help.ts', { cwd: __dirname + '/..', stdio: 'inherit' });
-    process.exit(source ? 0 : 1);
+export function main(source?: string): void {
+  if (!source) {
+    showHelp();
+    process.exit(1);
   }
 
   const resolved = resolveSource(source);
@@ -670,4 +669,7 @@ function cleanup(tempDir?: string): void {
   }
 }
 
-main();
+// Run directly
+if (require.main === module) {
+  main(process.argv[2]);
+}

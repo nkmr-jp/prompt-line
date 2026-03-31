@@ -177,18 +177,27 @@ For an example, see [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line
 ### Install Plugins
 
 ```bash
-# From the prompt-line directory
-pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins
+prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
 
 # Install at specific branch or commit hash
-pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@develop
-pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins@e5afde2
+prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins@develop
+prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins@e5afde2
 ```
 
-For more details (source formats, global CLI setup, etc.), run:
+For more details (source formats, etc.), run:
 ```bash
-pnpm run plugin:help
+prompt-line-plugin help
 ```
+
+### Global CLI Setup
+
+Run the following in the prompt-line project directory to install the CLI globally:
+
+```bash
+pnpm link
+```
+
+This makes `prompt-line-plugin` available from any directory.
 
 ## Prompt History
 
