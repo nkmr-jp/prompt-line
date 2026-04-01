@@ -3,7 +3,7 @@ import path from 'path';
 import yaml from 'js-yaml';
 import config from '../config/app-config';
 import { logger, validateColorValue } from '../utils/utils';
-import type { AgentSkillItem, CustomSearchEntry, ColorValue } from '../types/window';
+import type { AgentSkillItem, AgentItem, CustomSearchEntry, ColorValue } from '../types/window';
 
 /**
  * Plugin type determined by directory name
@@ -39,15 +39,23 @@ interface PluginEntryYaml {
 /**
  * YAML structure for agent built-in plugins
  */
+interface AgentBuiltInCommandYaml {
+  name: string;
+  description: string;
+  'argument-hint'?: string;
+  color?: ColorValue;
+}
+
 interface AgentBuiltInYaml {
   name?: string;
   reference?: string;
+  references?: string[];
   color?: ColorValue;
-  commands: Array<{
+  commands?: AgentBuiltInCommandYaml[];
+  skills?: AgentBuiltInCommandYaml[];
+  agents?: Array<{
     name: string;
     description: string;
-    'argument-hint'?: string;
-    color?: ColorValue;
   }>;
 }
 
@@ -59,6 +67,7 @@ interface LoadedPlugin {
   type: PluginType;
   entries: CustomSearchEntry[];
   agentBuiltIn: AgentSkillItem[];
+  agentBuiltInAgents: AgentItem[];
 }
 
 /**
@@ -179,11 +188,14 @@ class PluginLoader {
       pluginPath,
       type,
       entries: [],
-      agentBuiltIn: []
+      agentBuiltIn: [],
+      agentBuiltInAgents: []
     };
 
     if (type === 'agent-built-in') {
-      plugin.agentBuiltIn = this.parseAgentBuiltIn(parsed as AgentBuiltInYaml, filePath);
+      const yamlData = parsed as AgentBuiltInYaml;
+      plugin.agentBuiltIn = this.parseAgentBuiltIn(yamlData, filePath);
+      plugin.agentBuiltInAgents = this.parseAgentBuiltInAgents(yamlData, filePath);
     } else {
       const entry = this.parsePluginEntry(parsed as PluginEntryYaml, type);
       if (entry) {
@@ -234,55 +246,144 @@ class PluginLoader {
   }
 
   /**
-   * Parse agent built-in YAML (existing format with commands: array)
+   * Resolve reference URLs from both legacy `reference` (string) and new `references` (string[]).
+   * When `references` array is present, it takes precedence over legacy `reference`.
+   */
+  private resolveReferences(yamlData: AgentBuiltInYaml): string[] {
+    if (Array.isArray(yamlData.references)) {
+      return yamlData.references.filter(r => typeof r === 'string' && r.trim() !== '');
+    }
+    if (yamlData.reference) {
+      return [yamlData.reference];
+    }
+    return [];
+  }
+
+  /**
+   * Extract common context from agent-built-in YAML data
+   */
+  private resolvePluginContext(yamlData: AgentBuiltInYaml, filePath: string) {
+    const toolName = path.basename(filePath, path.extname(filePath));
+    return {
+      toolName,
+      displayName: yamlData.name || toolName,
+      references: this.resolveReferences(yamlData),
+      defaultColor: yamlData.color,
+    };
+  }
+
+  /**
+   * Build frontmatter lines with description, source, optional fields, and references
+   */
+  private buildFrontmatterLines(
+    description: string,
+    displayName: string,
+    color: ColorValue | undefined,
+    references: string[],
+    options?: { argumentHint?: string; isSkill?: boolean }
+  ): string[] {
+    const lines = [
+      `description: ${description.replace(/\n+/g, ' ').trim()}`,
+      `source: ${displayName}`,
+    ];
+    if (options?.isSkill) {
+      lines.push('type: skill');
+    }
+    if (options?.argumentHint) {
+      lines.push(`argument-hint: ${options.argumentHint}`);
+    }
+    if (color) {
+      lines.push(`color: ${color}`);
+    }
+    for (const ref of references) {
+      lines.push(`reference: ${ref}`);
+    }
+    return lines;
+  }
+
+  /**
+   * Parse agent built-in YAML commands and skills into AgentSkillItem[]
    */
   private parseAgentBuiltIn(yamlData: AgentBuiltInYaml, filePath: string): AgentSkillItem[] {
-    if (!yamlData?.commands || !Array.isArray(yamlData.commands)) {
+    const commands = Array.isArray(yamlData?.commands) ? yamlData.commands : [];
+    const skills = Array.isArray(yamlData?.skills) ? yamlData.skills : [];
+    if (commands.length === 0 && skills.length === 0) {
       return [];
     }
 
-    const toolName = path.basename(filePath, path.extname(filePath));
-    const displayName = yamlData.name || toolName;
-    const reference = yamlData.reference;
-    const defaultColor = yamlData.color;
+    const { toolName, displayName, references, defaultColor } = this.resolvePluginContext(yamlData, filePath);
 
-    return yamlData.commands
-      .filter(cmd => cmd.name && cmd.description)
-      .map(cmd => {
-        const rawColor = cmd.color || defaultColor;
-        const color = rawColor ? validateColorValue(rawColor) : undefined;
+    const mapEntry = (cmd: AgentBuiltInCommandYaml, icon?: string): AgentSkillItem | null => {
+      if (!cmd.name || !cmd.description) return null;
 
-        const frontmatterLines = [
-          `description: ${cmd.description}`,
-          `source: ${displayName}`,
-        ];
-        if (cmd['argument-hint']) {
-          frontmatterLines.push(`argument-hint: ${cmd['argument-hint']}`);
-        }
-        if (color) {
-          frontmatterLines.push(`color: ${color}`);
-        }
-        if (reference) {
-          frontmatterLines.push(`reference: ${reference}`);
-        }
+      const rawColor = cmd.color || defaultColor;
+      const color = rawColor ? validateColorValue(rawColor) : undefined;
+      const frontmatterLines = this.buildFrontmatterLines(
+        cmd.description, displayName, color, references,
+        { ...(cmd['argument-hint'] ? { argumentHint: cmd['argument-hint'] } : {}), isSkill: !!icon }
+      );
 
-        const item: AgentSkillItem = {
-          name: cmd.name,
-          description: (cmd.description || '').replace(/\n+/g, ' ').trim(),
+      const item: AgentSkillItem = {
+        name: cmd.name,
+        description: (cmd.description || '').replace(/\n+/g, ' ').trim(),
+        filePath: filePath,
+        frontmatter: frontmatterLines.join('\n'),
+        inputFormat: 'name',
+        source: toolName,
+        displayName: displayName
+      };
+
+      if (cmd['argument-hint']) {
+        item.argumentHint = cmd['argument-hint'];
+      }
+      if (color) {
+        item.color = color;
+      }
+      if (icon) {
+        item.icon = icon;
+      }
+
+      return item;
+    };
+
+    const results: AgentSkillItem[] = [];
+    for (const cmd of commands) {
+      const item = mapEntry(cmd);
+      if (item) results.push(item);
+    }
+    for (const cmd of skills) {
+      const item = mapEntry(cmd, 'codicon-edit-sparkle');
+      if (item) results.push(item);
+    }
+    return results;
+  }
+
+  /**
+   * Parse agent built-in YAML agents section into AgentItem[]
+   */
+  private parseAgentBuiltInAgents(yamlData: AgentBuiltInYaml, filePath: string): AgentItem[] {
+    if (!Array.isArray(yamlData?.agents) || yamlData.agents.length === 0) {
+      return [];
+    }
+
+    const { displayName, references, defaultColor } = this.resolvePluginContext(yamlData, filePath);
+    const color = defaultColor ? validateColorValue(defaultColor) : undefined;
+
+    return yamlData.agents
+      .filter(agent => agent.name && agent.description)
+      .map(agent => {
+        const frontmatterLines = this.buildFrontmatterLines(agent.description, displayName, color, references);
+
+        const item: AgentItem = {
+          name: agent.name,
+          description: (agent.description || '').replace(/\n+/g, ' ').trim(),
           filePath: filePath,
           frontmatter: frontmatterLines.join('\n'),
-          inputFormat: 'name',
-          source: toolName,
-          displayName: displayName
+          label: displayName,
         };
-
-        if (cmd['argument-hint']) {
-          item.argumentHint = cmd['argument-hint'];
-        }
         if (color) {
           item.color = color;
         }
-
         return item;
       });
   }
@@ -307,22 +408,23 @@ class PluginLoader {
   }
 
   /**
+   * Collect items from all agent-built-in plugins using a field selector
+   */
+  private collectFromAgentBuiltIn<T>(enabledPlugins: string[], pick: (plugin: LoadedPlugin) => T[]): T[] {
+    const results: T[] = [];
+    for (const pluginPath of enabledPlugins) {
+      if (this.getPluginType(pluginPath) !== 'agent-built-in') continue;
+      const plugin = this.loadPlugin(pluginPath);
+      if (plugin) results.push(...pick(plugin));
+    }
+    return results;
+  }
+
+  /**
    * Load all enabled agent-built-in plugins and return AgentSkillItem[]
    */
   loadAgentBuiltIn(enabledPlugins: string[]): AgentSkillItem[] {
-    const commands: AgentSkillItem[] = [];
-
-    for (const pluginPath of enabledPlugins) {
-      const type = this.getPluginType(pluginPath);
-      if (type !== 'agent-built-in') continue;
-
-      const plugin = this.loadPlugin(pluginPath);
-      if (plugin) {
-        commands.push(...plugin.agentBuiltIn);
-      }
-    }
-
-    return commands;
+    return this.collectFromAgentBuiltIn(enabledPlugins, p => p.agentBuiltIn);
   }
 
   /**
@@ -330,6 +432,20 @@ class PluginLoader {
    */
   searchAgentBuiltIn(enabledPlugins: string[], query?: string): AgentSkillItem[] {
     return this.filterByQuery(this.loadAgentBuiltIn(enabledPlugins), query);
+  }
+
+  /**
+   * Load all enabled agent-built-in plugins and return AgentItem[] from their agents sections
+   */
+  loadAgentBuiltInAgents(enabledPlugins: string[]): AgentItem[] {
+    return this.collectFromAgentBuiltIn(enabledPlugins, p => p.agentBuiltInAgents);
+  }
+
+  /**
+   * Search agent built-in agents with optional query filter
+   */
+  searchAgentBuiltInAgents(enabledPlugins: string[], query?: string): AgentItem[] {
+    return this.filterByQuery(this.loadAgentBuiltInAgents(enabledPlugins), query);
   }
 
   /**
@@ -370,12 +486,12 @@ class PluginLoader {
   }
 
   /**
-   * Filter commands by query prefix (case-insensitive)
+   * Filter items by query prefix (case-insensitive)
    */
-  private filterByQuery(commands: AgentSkillItem[], query?: string): AgentSkillItem[] {
-    if (!query || query.trim() === '') return commands;
+  private filterByQuery<T extends { name: string }>(items: T[], query?: string): T[] {
+    if (!query || query.trim() === '') return items;
     const lowerQuery = query.toLowerCase();
-    return commands.filter(cmd => cmd.name.toLowerCase().startsWith(lowerQuery));
+    return items.filter(item => item.name.toLowerCase().startsWith(lowerQuery));
   }
 
   /**
@@ -397,7 +513,7 @@ class PluginLoader {
     const basePath = path.join(dir, name);
 
     // Cache both hits and misses to avoid repeated I/O for invalid names
-    this.cache.set(cacheKey, { pluginPath: cacheKey, type, entries: entry ? [entry] : [], agentBuiltIn: [] });
+    this.cache.set(cacheKey, { pluginPath: cacheKey, type, entries: entry ? [entry] : [], agentBuiltIn: [], agentBuiltInAgents: [] });
     if (!entry) {
       logger.debug(`Standalone ${type} file not found: ${basePath}.yaml`);
     }
@@ -429,7 +545,7 @@ class PluginLoader {
       const result = this.readYamlByName(dir, name);
       const items = result ? this.parseAgentBuiltIn(result.parsed as AgentBuiltInYaml, result.filePath) : [];
 
-      this.cache.set(cacheKey, { pluginPath: cacheKey, type: 'agent-built-in', entries: [], agentBuiltIn: items });
+      this.cache.set(cacheKey, { pluginPath: cacheKey, type: 'agent-built-in', entries: [], agentBuiltIn: items, agentBuiltInAgents: [] });
       commands.push(...items);
     }
 

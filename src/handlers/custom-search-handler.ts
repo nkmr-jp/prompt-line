@@ -276,11 +276,15 @@ class CustomSearchHandler {
     query?: string
   ): Promise<AgentItem[]> {
     try {
+      // Get agent-built-in agents from plugin YAML files
+      const enabledPlugins = this.settingsManager.getPluginSettings();
+      const builtInAgents = pluginLoader.searchAgentBuiltInAgents(enabledPlugins, query);
+
       // Get mentions (agents) from CustomSearchLoader
       // Always use searchItems to apply searchPrefix filtering, even for empty query
       const items = await this.customSearchLoader.searchItems('mention', query ?? '');
       // Convert CustomSearchItem to AgentItem for backward compatibility
-      const agents: AgentItem[] = items.map(item => {
+      const customAgents: AgentItem[] = items.map(item => {
         const agent: AgentItem = {
           name: item.name,
           description: item.description,
@@ -316,7 +320,18 @@ class CustomSearchHandler {
         return agent;
       });
 
-      return agents;
+      // Merge: built-in first, custom agents can override built-in with same name:label key
+      const agentMap = new Map<string, AgentItem>();
+      for (const agent of builtInAgents) {
+        const key = `${agent.name}:${agent.label || ''}`;
+        agentMap.set(key, agent);
+      }
+      for (const agent of customAgents) {
+        const key = `${agent.name}:${agent.label || ''}`;
+        agentMap.set(key, agent);
+      }
+
+      return Array.from(agentMap.values());
     } catch (error) {
       logger.error('Failed to get agents:', error);
       return [];
