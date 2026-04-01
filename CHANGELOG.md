@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.28.8](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.28.7...prompt-line-v0.28.8) (2026-04-01)
+
+
+### Documentation
+
+* move fd and ripgrep to system requirements section ([451c35b](https://github.com/nkmr-jp/prompt-line/commit/451c35b4fce9ed050a0358f116bd58311538914a))
+
+
+### Miscellaneous Chores
+
+* **deps:** bump @xmldom/xmldom from 0.8.11 to 0.8.12 in the npm_and_yarn group across 1 directory ([#311](https://github.com/nkmr-jp/prompt-line/issues/311)) ([69e35ab](https://github.com/nkmr-jp/prompt-line/commit/69e35ab461bb656b7c8f318e4ca64a28863533e2))
+* **deps:** bump brace-expansion from 5.0.2 to 5.0.5 in the npm_and_yarn group across 1 directory ([#299](https://github.com/nkmr-jp/prompt-line/issues/299)) ([348cd08](https://github.com/nkmr-jp/prompt-line/commit/348cd08d339835a89d15c10f6bfa11ea59f41c8a))
+* **deps:** bump lodash from 4.17.21 to 4.17.23 in the npm_and_yarn group across 1 directory ([#314](https://github.com/nkmr-jp/prompt-line/issues/314)) ([508bf4a](https://github.com/nkmr-jp/prompt-line/commit/508bf4ae6db4cc36b02947d1f4a8b3e2f17fb095))
+* **deps:** bump picomatch from 2.3.1 to 2.3.2 in the npm_and_yarn group across 1 directory ([#294](https://github.com/nkmr-jp/prompt-line/issues/294)) ([63b0e07](https://github.com/nkmr-jp/prompt-line/commit/63b0e0718aea480117476316303c31aa4ff88c2b))
+
 ## [0.28.7](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.28.6...prompt-line-v0.28.7) (2026-03-21)
 
 
