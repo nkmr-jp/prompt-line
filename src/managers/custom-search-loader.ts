@@ -1040,7 +1040,7 @@ class CustomSearchLoader extends EventEmitter {
     content: string,
     values?: Record<string, string>
   ): CustomSearchItem | null {
-    const basePath = entry.path.replace(/^~/, os.homedir());
+    const basePath = entry.path ? entry.path.replace(/^~/, os.homedir()) : '';
     const context = { basename, frontmatter: {}, prefix, dirname, filePath, basePath, heading, line: trimmed, content, ...(values && { values }) };
     const item: CustomSearchItem = {
       name: resolveTemplate(entry.name, context),
@@ -1324,7 +1324,7 @@ class CustomSearchLoader extends EventEmitter {
     parentJsonDataStack?: Record<string, unknown>[],
     content?: string
   ): CustomSearchItem | null {
-    const basePath = entry.path.replace(/^~/, os.homedir());
+    const basePath = entry.path ? entry.path.replace(/^~/, os.homedir()) : '';
     const context = { basename, frontmatter: {}, prefix: '', dirname, filePath, basePath, heading: '', jsonData: elementData, ...(parentJsonDataStack && { parentJsonDataStack }), ...(content !== undefined && { content }) };
     const item: CustomSearchItem = {
       name: resolveTemplate(entry.name, context),
