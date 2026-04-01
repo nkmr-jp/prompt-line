@@ -72,6 +72,7 @@ class CustomSearchLoader extends EventEmitter {
     if (JSON.stringify(this.config) !== JSON.stringify(newConfig)) {
       this.config = newConfig;
       this.invalidateCache();
+      this.commandCache.clear();
       // Reset file watchers since config paths may have changed
       this.stopWatching();
     }
@@ -636,14 +637,23 @@ class CustomSearchLoader extends EventEmitter {
     const sourceId = `source:${entry.source}`;
     const cached = this.commandCache.get(sourceId);
 
+    let items: CustomSearchItem[];
     if (cached) {
       // Return stale cache immediately and refresh in background
       this.scheduleCommandRefresh(entry, sourceId);
-      return { items: cached.items, watchableFiles: [] };
+      items = cached.items;
+    } else {
+      // First load: fetch synchronously
+      items = await this.fetchCommandItems(entry, sourceId);
     }
 
-    // First load: fetch synchronously
-    const items = await this.fetchCommandItems(entry, sourceId);
+    // Apply entry-level enable/disable filtering
+    if (entry.enable || entry.disable) {
+      items = items.filter(item =>
+        isCommandEnabled(item.name, entry.enable, entry.disable)
+      );
+    }
+
     return { items, watchableFiles: [] };
   }
 
@@ -653,12 +663,12 @@ class CustomSearchLoader extends EventEmitter {
   private scheduleCommandRefresh(entry: CustomSearchEntry, sourceId: string): void {
     if (this.commandFetchPromises.has(sourceId)) return;
 
-    // Capture previous item count before fetch overwrites the cache
-    const previousCount = this.commandCache.get(sourceId)?.items.length ?? 0;
+    // Capture previous fingerprint before fetch overwrites the cache
+    const previousFingerprint = this.commandCacheFingerprint(sourceId);
     const promise = this.fetchCommandItems(entry, sourceId).then(items => {
       this.commandFetchPromises.delete(sourceId);
-      // Notify renderer if item count changed (intentionally count-only for performance)
-      if (items.length !== previousCount) {
+      // Notify renderer if content changed (name-based fingerprint comparison)
+      if (this.commandCacheFingerprint(sourceId) !== previousFingerprint) {
         this.invalidateCache();
         this.emit('source-changed');
       }
@@ -672,6 +682,16 @@ class CustomSearchLoader extends EventEmitter {
     });
 
     this.commandFetchPromises.set(sourceId, promise);
+  }
+
+  /**
+   * Generate a lightweight fingerprint for cached command items.
+   * Uses item names for fast comparison without deep equality.
+   */
+  private commandCacheFingerprint(sourceId: string): string {
+    const cached = this.commandCache.get(sourceId);
+    if (!cached) return '';
+    return cached.items.map(i => i.name).join('\0');
   }
 
   /**
