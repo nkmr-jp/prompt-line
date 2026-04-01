@@ -3,11 +3,6 @@
 ## [0.28.8](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.28.7...prompt-line-v0.28.8) (2026-04-01)
 
 
-### Bug Fixes
-
-* **plugins:** copy excludeMarker field in plugin search entry parsing ([#289](https://github.com/nkmr-jp/prompt-line/issues/289)) ([3549844](https://github.com/nkmr-jp/prompt-line/commit/35498441641aac39d05293144196519ca7bb0ff4))
-
-
 ### Documentation
 
 * move fd and ripgrep to system requirements section ([451c35b](https://github.com/nkmr-jp/prompt-line/commit/451c35b4fce9ed050a0358f116bd58311538914a))
