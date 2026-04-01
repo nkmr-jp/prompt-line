@@ -99,12 +99,23 @@ fileOpener:
 # Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
 # Supports: Markdown (.md), JSON (.json), JSONL (.jsonl), jq expressions, and plain text files.
 # searchPrefix: Search with @<prefix>: (e.g., searchPrefix: "agent" → @agent:)
+# source: Use command stdout as search source (replaces path/pattern)
 #customSearch:
 #  - name: "agent-{basename}"
 #    description: "{frontmatter@description}"
 #    path: ~/.claude/agents
 #    pattern: "*.md"
 #    searchPrefix: agent            # Search with @agent:
+#
+#  # Command source example: use command stdout directly
+#  - name: "{line}"
+#    description: ""
+#    source: "ghq list"             # Command stdout as search source
+#    path: ""
+#    pattern: ""
+#    searchPrefix: ghq
+#    inputFormat: "~/ghq/{line}"
+#    maxSuggestions: 100
 
 # ============================================================================
 # FILE SEARCH SETTINGS
