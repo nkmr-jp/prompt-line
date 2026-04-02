@@ -23,6 +23,7 @@ src/generated/
 # Local configuration
 .claude/
 .junie/
+.serena/
 
 # Logs
 logs/
