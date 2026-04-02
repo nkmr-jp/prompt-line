@@ -13,7 +13,10 @@
     "clean": "rm -rf dist/mac* dist/*.dmg dist/*.zip dist/*.blockmap",
     "clean:cache": "rm -rf node_modules/.cache ~/Library/Caches/electron-builder ~/Library/Caches/electron",
     "clean:full": "pnpm run clean && pnpm run clean:cache && rm -rf dist/",
-    "release": "echo 'Releases are automated via GitHub Actions on push to main branch'",
+    "changeset": "changeset",
+    "changeset:version": "changeset version",
+    "changeset:status": "changeset status",
+    "release": "echo 'Releases are automated via GitHub Actions with Changesets on push to main branch'",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -45,6 +48,8 @@
     "node": ">=20.8.1"
   },
   "devDependencies": {
+    "@changesets/changelog-github": "^0.6.0",
+    "@changesets/cli": "^2.30.0",
     "@eslint/js": "^9.29.0",
     "@stryker-mutator/core": "^9.4.0",
     "@stryker-mutator/typescript-checker": "^9.4.0",

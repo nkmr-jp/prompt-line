@@ -71,7 +71,15 @@ fix(window): resolve positioning issue on multi-monitor setups
 - **Merge Strategy**: **Squash and merge** for feature PRs into `develop`. Use **regular merge commit** (no squash) when merging `develop` into `main`.
 
 ### Release Process
-Uses [Release Please](https://github.com/googleapis/release-please) for automated releases. Config: `release-please-config.json`, workflow: `.github/workflows/release-please.yml`. Pushes to `main` trigger Release PR creation with version bump and CHANGELOG updates.
+Uses [Changesets](https://github.com/changesets/changesets) for automated releases. Config: `.changeset/config.json`, workflow: `.github/workflows/release.yml`.
+
+**Adding a changeset:**
+```bash
+pnpm changeset           # Create a new changeset (interactive prompt for bump type + summary)
+pnpm changeset:status    # Check pending changesets
+```
+
+When making changes that should appear in the CHANGELOG, run `pnpm changeset` before committing. This creates a markdown file in `.changeset/` describing the change. Pushes to `main` with pending changesets trigger a "Version Packages" PR with version bump and CHANGELOG updates. Merging that PR creates a git tag (`prompt-line-v{VERSION}`) and GitHub Release.
 
 ## Architecture Overview
 
