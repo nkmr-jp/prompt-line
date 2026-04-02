@@ -1,0 +1,14 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@3.1.1/schema.json",
+  "changelog": [
+    "@changesets/changelog-github",
+    { "repo": "nkmr-jp/prompt-line" }
+  ],
+  "commit": false,
+  "access": "restricted",
+  "baseBranch": "main",
+  "privatePackages": {
+    "version": true,
+    "tag": true
+  }
+}
