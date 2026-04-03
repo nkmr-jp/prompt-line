@@ -53,7 +53,7 @@
     "@typescript-eslint/parser": "^8.34.0",
     "@vitest/coverage-v8": "^4.0.18",
     "@vitest/eslint-plugin": "^1.6.9",
-    "electron": "^36.9.5",
+    "electron": "^39.8.4",
     "electron-builder": "26.7.0",
     "electron-mock-ipc": "0.3.12",
     "eslint": "^9.29.0",

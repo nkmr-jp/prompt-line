@@ -74,14 +74,14 @@ importers:
         specifier: ^1.6.9
         version: 1.6.9(eslint@9.39.2(jiti@2.6.1))(typescript@5.5.4)(vitest@4.0.18(@types/node@20.19.33)(jiti@2.6.1)(jsdom@27.4.0)(lightningcss@1.31.1))
       electron:
-        specifier: ^36.9.5
-        version: 36.9.5
+        specifier: ^39.8.4
+        version: 39.8.4
       electron-builder:
         specifier: 26.7.0
         version: 26.7.0(electron-builder-squirrel-windows@26.7.0)
       electron-mock-ipc:
         specifier: 0.3.12
-        version: 0.3.12(electron@36.9.5)
+        version: 0.3.12(electron@39.8.4)
       eslint:
         specifier: ^9.29.0
         version: 9.39.2(jiti@2.6.1)
@@ -1128,8 +1128,8 @@ packages:
   '@types/node@20.19.33':
     resolution: {integrity: sha512-Rs1bVAIdBs5gbTIKza/tgpMuG1k3U/UMJLWecIMxNdJFDMzcM5LOiLVRYh3PilWEYDIeUDv7bpiHPLPsbydGcw==}
 
-  '@types/node@22.19.11':
-    resolution: {integrity: sha512-BH7YwL6rA93ReqeQS1c4bsPpcfOmJasG+Fkr6Y59q83f9M1WcBRHR2vM+P9eOisYRcN3ujQoiZY8uk5W+1WL8w==}
+  '@types/node@22.19.15':
+    resolution: {integrity: sha512-F0R/h2+dsy5wJAUe3tAU6oqa2qbWY5TpNfL/RGmo1y38hiyO1w3x2jPtt76wmuaJI4DQnOBu21cNXQ2STIUUWg==}
 
   '@types/plist@3.0.5':
     resolution: {integrity: sha512-E6OCaRmAe4WDmWNsL/9RMqdkkzDCY1etutkflWk4c+AcjDU07Pcz1fQwTX0TQz+Pxqn9i4L1TU3UFpjnrcDgxA==}
@@ -1697,8 +1697,8 @@ packages:
     resolution: {integrity: sha512-bO3y10YikuUwUuDUQRM4KfwNkKhnpVO7IPdbsrejwN9/AABJzzTQ4GeHwyzNSrVO+tEH3/Np255a3sVZpZDjvg==}
     engines: {node: '>=8.0.0'}
 
-  electron@36.9.5:
-    resolution: {integrity: sha512-1UCss2IqxqujSzg/2jkRjuiT3G+EEXgd6UKB5kUekwQW1LJ6d4QCr8YItfC3Rr9VIGRDJ29eOERmnRNO1Eh+NA==}
+  electron@39.8.4:
+    resolution: {integrity: sha512-eXYKxr4y+s31xs78keVJYg+XY20tGQMQzyIhZvc5L0XRDH2Gp08mbeFlbR1OjAeM5h5l/T2JYT2MFK2kYe2fMg==}
     engines: {node: '>= 12.20.55'}
     hasBin: true
 
@@ -1984,8 +1984,8 @@ packages:
     resolution: {integrity: sha512-Wjlyrolmm8uDpm/ogGyXZXb1Z+Ca2B8NbJwqBVg0axK9GbBeoS7yGV6vjXnYdGm6X53iehEuxxbyiKp8QmN4Vw==}
     engines: {node: 18 || 20 || >=22}
 
-  global-agent@4.1.2:
-    resolution: {integrity: sha512-CvUwIRwmDHu33Y71P8v1Pr8yo5/U2inzrdRNEtPdiYKBd8J4oQ6aDkt9WqZhMQDtAcTAl+akDTHssRYaBTTlhQ==}
+  global-agent@4.1.3:
+    resolution: {integrity: sha512-KUJEViiuFT3I97t+GYMikLPJS2Lfo/S2F+DQuBWzuzaMPnvt5yyZePzArx36fBzpGTxZjIpDbXLeySLgh+k76g==}
     engines: {node: '>=10.0'}
 
   globals@14.0.0:
@@ -2366,6 +2366,9 @@ packages:
 
   lodash@4.17.23:
     resolution: {integrity: sha512-LgVTMpQtIopCi79SJeDiP0TfWi5CNEc/L/aRdTh3yIvmZXTnheWpKjSZhnvMl8iXbC1tFg9gdHHDMLoV7CnG+w==}
+
+  lodash@4.18.1:
+    resolution: {integrity: sha512-dMInicTPVE8d1e5otfwmmjlxkZoUpiVLwyeTdUsi/Caj/gfzzblBcCE5sRHV/AsjuCmxWrte2TNGSYuCeCq+0Q==}
 
   log-symbols@4.1.0:
     resolution: {integrity: sha512-8XPvpAA8uyhfteu8pIvQxpJZ7SYYdpUivZpGy6sFsBuKRY/7rQGavedeB8aK+Zkyq6upMFVL/9AW6vOYzfRyLg==}
@@ -2760,8 +2763,8 @@ packages:
   pug@3.0.3:
     resolution: {integrity: sha512-uBi6kmc9f3SZ3PXxqcHiUZLmIXgfgWooKWXcwSGwQd2Zi5Rb0bT14+8CJjJgI8AB+nndLaNgHGrcc6bPIB665g==}
 
-  pump@3.0.3:
-    resolution: {integrity: sha512-todwxLMY7/heScKmntwQG8CXVkWUOdYxIvY2s0VWAAMh/nd8SoYiRaKjlr7+iCs984f2P8zvrfWcDDYVb73NfA==}
+  pump@3.0.4:
+    resolution: {integrity: sha512-VS7sjc6KR7e1ukRFhQSY5LM2uBWAUPiOPa/A3mkKmiMwSmRFUITt0xuj+/lesgnCv+dPIEYlkzrcyXgquIHMcA==}
 
   punycode@2.3.1:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
@@ -3357,8 +3360,8 @@ packages:
     resolution: {integrity: sha512-7dSzzRQ++CKnNI/krKnYRV7JKKPUXMEh61soaHKg9mrWEhzFWhFnxPxGl+69cD1Ou63C13NUPCnmIcrvqCuM6w==}
     engines: {node: '>=12'}
 
-  yauzl@3.2.1:
-    resolution: {integrity: sha512-k1isifdbpNSFEHFJ1ZY4YDewv0IH9FR61lDetaRMD3j2ae3bIXGV+7c+LHCqtQGofSd8PIyV4X6+dHMAnSr60A==}
+  yauzl@3.3.0:
+    resolution: {integrity: sha512-PtGEvEP30p7sbIBJKUBjUnqgTVOyMURc4dLo9iNyAJnNIEz9pm88cCXF21w94Kg3k6RXkeZh5DHOGS0qEONvNQ==}
     engines: {node: '>=12'}
 
   yn@3.1.1:
@@ -3692,7 +3695,7 @@ snapshots:
       semver: 6.3.1
       sumchecker: 3.0.1
     optionalDependencies:
-      global-agent: 4.1.2
+      global-agent: 4.1.3
     transitivePeerDependencies:
       - supports-color
 
@@ -3706,7 +3709,7 @@ snapshots:
       semver: 6.3.1
       sumchecker: 3.0.1
     optionalDependencies:
-      global-agent: 4.1.2
+      global-agent: 4.1.3
     transitivePeerDependencies:
       - supports-color
 
@@ -3753,7 +3756,7 @@ snapshots:
       '@malept/cross-spawn-promise': 2.0.0
       debug: 4.4.3
       dir-compare: 4.2.0
-      fs-extra: 11.3.3
+      fs-extra: 11.3.4
       minimatch: 10.2.4
       plist: 3.1.0
     transitivePeerDependencies:
@@ -4405,7 +4408,7 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
-  '@types/node@22.19.11':
+  '@types/node@22.19.15':
     dependencies:
       undici-types: 6.21.0
 
@@ -5071,9 +5074,9 @@ snapshots:
       - electron-builder-squirrel-windows
       - supports-color
 
-  electron-mock-ipc@0.3.12(electron@36.9.5):
+  electron-mock-ipc@0.3.12(electron@39.8.4):
     dependencies:
-      electron: 36.9.5
+      electron: 39.8.4
 
   electron-publish@26.6.0:
     dependencies:
@@ -5095,17 +5098,17 @@ snapshots:
       '@electron/asar': 4.2.0
       debug: 4.4.3
       fs-extra: 7.0.1
-      lodash: 4.17.23
+      lodash: 4.18.1
       temp: 0.9.4
     optionalDependencies:
       '@electron/windows-sign': 1.2.2
     transitivePeerDependencies:
       - supports-color
 
-  electron@36.9.5:
+  electron@39.8.4:
     dependencies:
       '@electron/get': 2.0.3
-      '@types/node': 22.19.11
+      '@types/node': 22.19.15
       extract-zip: 2.0.1
     transitivePeerDependencies:
       - supports-color
@@ -5295,7 +5298,7 @@ snapshots:
     dependencies:
       debug: 4.4.3
       get-stream: 5.2.0
-      yauzl: 3.2.1
+      yauzl: 3.3.0
     optionalDependencies:
       '@types/yauzl': 2.10.3
     transitivePeerDependencies:
@@ -5391,7 +5394,6 @@ snapshots:
       graceful-fs: 4.2.11
       jsonfile: 6.2.0
       universalify: 2.0.1
-    optional: true
 
   fs-extra@7.0.1:
     dependencies:
@@ -5445,7 +5447,7 @@ snapshots:
 
   get-stream@5.2.0:
     dependencies:
-      pump: 3.0.3
+      pump: 3.0.4
 
   get-stream@9.0.1:
     dependencies:
@@ -5474,7 +5476,7 @@ snapshots:
       minipass: 7.1.3
       path-scurry: 2.0.2
 
-  global-agent@4.1.2:
+  global-agent@4.1.3:
     dependencies:
       globalthis: 1.0.4
       matcher: 4.0.0
@@ -5828,6 +5830,8 @@ snapshots:
 
   lodash@4.17.23: {}
 
+  lodash@4.18.1: {}
+
   log-symbols@4.1.0:
     dependencies:
       chalk: 4.1.2
@@ -6020,7 +6024,7 @@ snapshots:
   node-sarif-builder@3.4.0:
     dependencies:
       '@types/sarif': 2.1.7
-      fs-extra: 11.3.3
+      fs-extra: 11.3.4
 
   nopt@8.1.0:
     dependencies:
@@ -6238,7 +6242,7 @@ snapshots:
       pug-runtime: 3.0.1
       pug-strip-comments: 2.0.0
 
-  pump@3.0.3:
+  pump@3.0.4:
     dependencies:
       end-of-stream: 1.4.5
       once: 1.4.0
@@ -6782,7 +6786,7 @@ snapshots:
       y18n: 5.0.8
       yargs-parser: 21.1.1
 
-  yauzl@3.2.1:
+  yauzl@3.3.0:
     dependencies:
       buffer-crc32: 0.2.13
       pend: 1.2.0
