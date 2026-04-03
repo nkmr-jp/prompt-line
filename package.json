@@ -1,6 +1,6 @@
 {
   "name": "prompt-line",
-  "version": "0.28.7",
+  "version": "0.28.9",
   "description": "Prompt Line is a macOS app developed to improve the prompt input experience in the terminal for CLI-based AI coding agents such as Claude Code, OpenAI Codex CLI, and Aider.",
   "main": "dist/main.js",
   "scripts": {
@@ -60,7 +60,7 @@
     "@typescript-eslint/parser": "^8.34.0",
     "@vitest/coverage-v8": "^4.0.18",
     "@vitest/eslint-plugin": "^1.6.9",
-    "electron": "^36.9.5",
+    "electron": "^39.8.4",
     "electron-builder": "26.7.0",
     "electron-mock-ipc": "0.3.12",
     "eslint": "^9.29.0",
