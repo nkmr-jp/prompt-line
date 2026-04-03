@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.28.9](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.28.8...prompt-line-v0.28.9) (2026-04-03)
+
+
+### Miscellaneous Chores
+
+* **deps-dev:** bump electron from 36.9.5 to 39.8.4 in the npm_and_yarn group across 1 directory ([#316](https://github.com/nkmr-jp/prompt-line/issues/316)) ([b4bf2a8](https://github.com/nkmr-jp/prompt-line/commit/b4bf2a81fefd43381c4107ed5e1623689ac49be7))
+* **deps:** bump lodash from 4.17.23 to 4.18.1 in the npm_and_yarn group across 1 directory ([#318](https://github.com/nkmr-jp/prompt-line/issues/318)) ([082695d](https://github.com/nkmr-jp/prompt-line/commit/082695d51b396aafe923ac6696db84625c63dc6d))
+
 ## [0.28.8](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.28.7...prompt-line-v0.28.8) (2026-04-01)
 
 
