@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.28.10](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.28.9...prompt-line-v0.28.10) (2026-04-03)
+
+
+### Miscellaneous Chores
+
+* update serena project.yml to latest template ([daf6672](https://github.com/nkmr-jp/prompt-line/commit/daf667254718767c61354acc494ce5bc71ea6eac))
+
 ## [0.28.9](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.28.8...prompt-line-v0.28.9) (2026-04-03)
 
 
