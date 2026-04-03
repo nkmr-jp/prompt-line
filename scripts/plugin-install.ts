@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { execSync } from 'child_process';
+import { showHelp } from './plugin-help';
 
 const PLUGINS_DIR = path.join(os.homedir(), '.prompt-line', 'plugins');
 
@@ -111,14 +112,17 @@ interface ResolvedSource {
 function resolveSource(source: string): ResolvedSource {
   // Local path
   if (source.startsWith('./') || source.startsWith('~/') || source.startsWith('/')) {
-    const resolved = source.startsWith('~/')
+    const rawPath = source.startsWith('~/')
       ? path.join(os.homedir(), source.slice(2))
       : path.resolve(source);
 
-    if (!fs.existsSync(resolved)) {
-      console.error(`❌ Error: Path not found: ${resolved}`);
+    if (!fs.existsSync(rawPath)) {
+      console.error(`❌ Error: Path not found: ${rawPath}`);
       process.exit(1);
     }
+
+    // Resolve symlinks (e.g. /tmp → /private/tmp on macOS) for consistent path.relative
+    const resolved = fs.realpathSync(rawPath);
 
     // Derive packageId from git remote URL if available
     const gitRoot = getGitRoot(resolved);
@@ -139,11 +143,17 @@ function resolveSource(source: string): ResolvedSource {
       }
     }
 
+    // No remote origin — install under local/<dirname>
+    const dirName = gitRoot ? path.basename(gitRoot) : path.basename(resolved);
+    const repoRelativePath = gitRoot ? path.relative(gitRoot, resolved) : '';
+    const packageId = repoRelativePath
+      ? `local/${dirName}/${repoRelativePath}`
+      : `local/${dirName}`;
     return {
       localPath: resolved,
-      packageId: path.basename(resolved),
+      packageId,
       githubBase: '',
-      repoRelativePath: '',
+      repoRelativePath,
       isGithub: false,
     };
   }
@@ -497,12 +507,10 @@ function copyYamlFiles(
 
 // --- Main ---
 
-function main(): void {
-  const source = process.argv[2];
-
-  if (!source || source === 'help' || source === '--help' || source === '-h') {
-    execSync('pnpm exec ts-node scripts/plugin-help.ts', { cwd: __dirname + '/..', stdio: 'inherit' });
-    process.exit(source ? 0 : 1);
+export function main(source?: string): void {
+  if (!source) {
+    showHelp();
+    process.exit(1);
   }
 
   const resolved = resolveSource(source);
@@ -670,4 +678,7 @@ function cleanup(tempDir?: string): void {
   }
 }
 
-main();
+// Run directly
+if (require.main === module) {
+  main(process.argv[2]);
+}

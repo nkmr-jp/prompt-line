@@ -124,21 +124,20 @@ plugins:
 
 **Plugin commands:**
 ```bash
-pnpm run plugin:install <source>              # Install from local path or GitHub
-pnpm run plugin:install <source>@<ref>        # Install at specific branch/tag/hash
+prompt-line-plugin install <source>              # Install from local path or GitHub
+prompt-line-plugin install <source>@<ref>        # Install at specific branch/tag/hash
+prompt-line-plugin help                          # Show help
 ```
 
 `plugin:install` supports local paths (`./path`, `~/path`) and GitHub repos (`github.com/user/repo[/path][@ref]`). Append `@ref` to specify a branch, tag, or commit hash (e.g., `@develop`, `@v1.0.0`, `@sea8pxe`). It generates `.prompt-line-plugin` metadata files with commit-hash-pinned GitHub URLs for version tracking.
 
 **Source resolution for `github.com/...`:** `gh repo clone` → `git clone`
 
-**Global CLI setup** — run `plugin:install` from anywhere by adding to your shell config (e.g., `~/.zshrc`):
+**Global CLI setup** — run `pnpm link` in the project directory to install `prompt-line-plugin` globally:
 ```bash
-function prompt-line-plugin() {
-    pnpm --dir /path/to/prompt-line run "plugin:$1" "${@:2}"
-}
+pnpm link
+prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
 ```
-Then use: `prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins`
 
 ### Agent Built-in
 
