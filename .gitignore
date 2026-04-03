@@ -65,3 +65,5 @@ temp/
 benchmarks/data/*.jsonl
 benchmarks/reports/*.json
 benchmarks/reports/*.txt
+
+.serena
