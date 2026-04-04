@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.28.10](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.28.9...prompt-line-v0.28.10) (2026-04-04)
+
+
+### Miscellaneous Chores
+
+* **deps-dev:** bump electron ([b429e7f](https://github.com/nkmr-jp/prompt-line/commit/b429e7fb9ad28a20e6b68f6862aee9743d6ad7f2))
+* **deps-dev:** bump electron from 39.8.4 to 39.8.5 in the npm_and_yarn group across 1 directory ([390da53](https://github.com/nkmr-jp/prompt-line/commit/390da5366396a54f676d87a4e29a4a2bf458a66f))
+* remove Serena project-specific files and directories ([1c07d72](https://github.com/nkmr-jp/prompt-line/commit/1c07d7254834e494294ae2440e582f1e33a4c20c))
+* update serena project.yml to latest template ([daf6672](https://github.com/nkmr-jp/prompt-line/commit/daf667254718767c61354acc494ce5bc71ea6eac))
+
 ## [0.28.9](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.28.8...prompt-line-v0.28.9) (2026-04-03)
 
 
