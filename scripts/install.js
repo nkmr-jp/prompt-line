@@ -43,5 +43,9 @@ console.log(`✅ Installed successfully`);
 
 // Relaunch the app
 console.log(`🚀 Launching ${appName}...`);
-execSync(`open "${installPath}"`);
-console.log(`✅ ${appName} is running`);
+try {
+  execSync(`open "${installPath}"`);
+  console.log(`✅ ${appName} is running`);
+} catch {
+  console.warn(`⚠️  Failed to launch ${appName} automatically; installation completed successfully`);
+}
