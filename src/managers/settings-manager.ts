@@ -292,9 +292,9 @@ class SettingsManager extends EventEmitter {
     result.builtInCommands = this.resolveBuiltInCommands(userSettings, rawAgentSkills);
     result.agentSkills = this.resolveAgentSkills(userSettings, rawAgentSkills);
 
-    // Handle imageDirectory (simple string passthrough)
-    if (userSettings.imageDirectory) {
-      result.imageDirectory = userSettings.imageDirectory;
+    // Handle imagesDirectory (simple string passthrough)
+    if (userSettings.imagesDirectory) {
+      result.imagesDirectory = userSettings.imagesDirectory;
     }
 
     // Handle legacy settings (mdSearch) for backward compatibility

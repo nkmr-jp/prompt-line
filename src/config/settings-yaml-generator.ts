@@ -498,19 +498,19 @@ const IMAGE_DIR_COMMENT = `# Image storage directory (relative to CWD, or absolu
 # Relative paths are resolved against the current working directory`;
 
 function buildImageDirectorySection(settings: UserSettings, options: YamlGeneratorOptions): string {
-  const imageDirectory = settings.imageDirectory;
+  const imagesDirectory = settings.imagesDirectory;
 
-  if (imageDirectory) {
+  if (imagesDirectory) {
     return `${IMAGE_DIR_COMMENT}
-imageDirectory: ${imageDirectory}`;
+imagesDirectory: ${imagesDirectory}`;
   }
 
-  const example = options.includeCommentedExamples && commentedExamples.imageDirectory
-    ? commentedExamples.imageDirectory
+  const example = options.includeCommentedExamples && commentedExamples.imagesDirectory
+    ? commentedExamples.imagesDirectory
     : '.prompt-line/images';
 
   return `${IMAGE_DIR_COMMENT}
-#imageDirectory: ${example}`;
+#imagesDirectory: ${example}`;
 }
 
 function buildTopSections(settings: UserSettings, extensionsSection: string, directoriesSection: string): string {
@@ -575,7 +575,7 @@ fileOpener:
 export function generateSettingsYaml(settings: UserSettings, options: YamlGeneratorOptions = {}): string {
   const extensionsSection = buildExtensionsSection(settings, options);
   const directoriesSection = buildDirectoriesSection(settings);
-  const imageDirectorySection = buildImageDirectorySection(settings, options);
+  const imagesDirectorySection = buildImageDirectorySection(settings, options);
   const builtInCommandsSection = buildBuiltInCommandsSection(settings, options);
   const agentSkillsSection = buildAgentSkillsSection(settings, options);
   const customSearchSection = buildCustomSearchSection(settings, options);
@@ -588,7 +588,7 @@ export function generateSettingsYaml(settings: UserSettings, options: YamlGenera
 # IMAGE STORAGE
 # ============================================================================
 
-${imageDirectorySection}
+${imagesDirectorySection}
 
 # ============================================================================
 # BUILT-IN COMMANDS

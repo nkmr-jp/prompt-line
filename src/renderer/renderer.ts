@@ -360,7 +360,7 @@ export class PromptLineRenderer {
               // Image paste successful - remove any text that was pasted and insert image path
               this.domManager.setText(textBeforePaste);
               this.domManager.setCursorPosition(cursorPosition);
-              // Use relative path with @ prefix when imageDirectory is relative
+              // Use relative path with @ prefix when imagesDirectory is relative
               const insertPath = result.relativePath
                 ? `@${result.relativePath}`
                 : result.path;

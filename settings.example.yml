@@ -57,7 +57,7 @@ fileOpener:
 # Image storage directory (relative to CWD, or absolute path)
 # Default (when unset): ~/.prompt-line/images/
 # Relative paths are resolved against the current working directory
-#imageDirectory: .prompt-line/images
+#imagesDirectory: .prompt-line/images
 
 # ============================================================================
 # BUILT-IN COMMANDS

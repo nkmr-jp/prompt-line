@@ -174,7 +174,7 @@ export interface UserSettings {
   customSearch?: MentionEntry[];
   // Image directory path (relative to CWD, or absolute path)
   // When relative, resolved against current working directory
-  imageDirectory?: string;
+  imagesDirectory?: string;
   // Global mention filter: whitelist (exact match: "agent-claude", prefix match: "agent-*")
   mentionEnable?: string[];
   // Global mention filter: blacklist (exact match: "agent-legacy", prefix match: "old-*")

@@ -223,24 +223,24 @@ class PasteHandler {
 
   /**
    * Resolve the images directory. Returns the absolute path and, when
-   * imageDirectory is a relative setting with a valid CWD, the relative prefix.
+   * imagesDirectory is a relative setting with a valid CWD, the relative prefix.
    */
   private resolveImagesDir(): { absolute: string; relativePrefix?: string } {
-    const imageDirectory = this.settingsManager.getSettings().imageDirectory;
-    if (!imageDirectory) {
+    const imagesDirectory = this.settingsManager.getSettings().imagesDirectory;
+    if (!imagesDirectory) {
       return { absolute: config.paths.imagesDir };
     }
 
-    if (path.isAbsolute(imageDirectory)) {
-      return { absolute: imageDirectory };
+    if (path.isAbsolute(imagesDirectory)) {
+      return { absolute: imagesDirectory };
     }
 
     const cwd = this.directoryManager.getDirectory();
     if (cwd) {
-      return { absolute: path.join(cwd, imageDirectory), relativePrefix: imageDirectory };
+      return { absolute: path.join(cwd, imagesDirectory), relativePrefix: imagesDirectory };
     }
 
-    logger.warn('imageDirectory is relative but no CWD available, falling back to default');
+    logger.warn('imagesDirectory is relative but no CWD available, falling back to default');
     return { absolute: config.paths.imagesDir };
   }
 
