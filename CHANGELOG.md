@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.29.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.29.0...prompt-line-v0.29.1) (2026-04-05)
+
+
+### Bug Fixes
+
+* **install:** auto-restart app after install-app command ([#325](https://github.com/nkmr-jp/prompt-line/issues/325)) ([561c809](https://github.com/nkmr-jp/prompt-line/commit/561c8090d144b9b96b92a312164abebcc5077964))
+
 ## [0.29.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.28.9...prompt-line-v0.29.0) (2026-04-05)
 
 
