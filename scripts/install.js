@@ -41,7 +41,8 @@ try {
 // Read versions from Info.plist before and after install
 function getAppVersion(bundlePath) {
   try {
-    return execSync(`defaults read "${bundlePath}/Contents/Info" CFBundleShortVersionString`, { encoding: 'utf8' }).trim();
+    const absPath = path.resolve(bundlePath);
+    return execSync(`defaults read "${absPath}/Contents/Info" CFBundleShortVersionString`, { encoding: 'utf8' }).trim();
   } catch {
     return null;
   }
