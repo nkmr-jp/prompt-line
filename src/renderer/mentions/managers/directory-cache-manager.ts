@@ -256,6 +256,27 @@ export class DirectoryCacheManager {
   }
 
   /**
+   * Add a single file to the cached files array.
+   * Used for dynamically created files (e.g., pasted images).
+   */
+  public addFile(fileInfo: FileInfo): void {
+    if (!this.cachedDirectoryData) {
+      return;
+    }
+
+    const exists = this.cachedDirectoryData.files.some(f => f.path === fileInfo.path);
+    if (exists) {
+      return;
+    }
+
+    this.cachedDirectoryData.files.push(fileInfo);
+
+    if (this.callbacks.onCacheUpdated) {
+      this.callbacks.onCacheUpdated(this.cachedDirectoryData);
+    }
+  }
+
+  /**
    * Get all cached files
    */
   public getFiles(): FileInfo[] {
