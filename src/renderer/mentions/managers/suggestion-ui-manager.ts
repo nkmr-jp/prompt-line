@@ -561,18 +561,9 @@ export class SuggestionUIManager {
       fragment.appendChild(item);
     });
 
-    // Suppress macOS accessibility processing during DOM rebuild to prevent
-    // "representedObject is not a WeakPtrToElectronMenuModelAsNSObject" warnings.
-    // The role="listbox" + role="option" combination triggers native NSMenu creation
-    // on every rebuild, causing log spam when suggestions change rapidly.
-    this.suggestionsContainer.setAttribute('aria-hidden', 'true');
     this.suggestionsContainer.innerHTML = '';
     this.suggestionsContainer.appendChild(fragment);
     this.suggestionsContainer.style.display = 'block';
-    // Restore accessibility after DOM is stable
-    requestAnimationFrame(() => {
-      this.suggestionsContainer?.removeAttribute('aria-hidden');
-    });
   }
 
   /**
