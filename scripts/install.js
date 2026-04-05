@@ -47,14 +47,28 @@ function getAppVersion(bundlePath) {
   }
 }
 
+// Append git hash on non-main branches for dev builds
+function formatVersion(version) {
+  if (!version) return 'unknown';
+  try {
+    const gitInfo = require('../src/generated/git-info.json');
+    if (!gitInfo.hash) return version;
+    const isMain = gitInfo.branch === 'main' || gitInfo.branch === 'master';
+    if (isMain) return version;
+    return `${version} (${gitInfo.branch} ${gitInfo.hash})`;
+  } catch {
+    return version;
+  }
+}
+
 const oldVersion = getAppVersion(installPath);
 const newVersion = getAppVersion(appPath);
 
 console.log(`\n📦 Installing to ${installPath}...`);
 if (oldVersion) {
-  console.log(`   ${oldVersion} → ${newVersion || 'unknown'}`);
+  console.log(`   ${oldVersion} → ${formatVersion(newVersion)}`);
 } else {
-  console.log(`   New install: ${newVersion || 'unknown'}`);
+  console.log(`   New install: ${formatVersion(newVersion)}`);
 }
 execSync(`rm -rf "${installPath}" && cp -R "${appPath}" "${installPath}"`);
 console.log(`✅ Installed successfully`);
