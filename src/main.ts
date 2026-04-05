@@ -138,6 +138,37 @@ class PromptLineApp {
    * Setup UI components (shortcuts, tray, event listeners)
    */
   private setupUI(): void {
+    // Set a minimal application menu to prevent macOS "representedObject is not a
+    // WeakPtrToElectronMenuModelAsNSObject" warnings. Without an explicit menu,
+    // Electron auto-creates a default one whose NSMenuItem references become stale
+    // during rapid DOM changes, producing log spam on every suggestion rebuild.
+    Menu.setApplicationMenu(Menu.buildFromTemplate([
+      {
+        label: app.name,
+        submenu: [
+          { role: 'about' },
+          { type: 'separator' },
+          { role: 'hide' },
+          { role: 'hideOthers' },
+          { role: 'unhide' },
+          { type: 'separator' },
+          { role: 'quit' }
+        ]
+      },
+      {
+        label: 'Edit',
+        submenu: [
+          { role: 'undo' },
+          { role: 'redo' },
+          { type: 'separator' },
+          { role: 'cut' },
+          { role: 'copy' },
+          { role: 'paste' },
+          { role: 'selectAll' }
+        ]
+      }
+    ]));
+
     this.registerShortcuts();
     this.createTray();
     this.setupAppEventListeners();

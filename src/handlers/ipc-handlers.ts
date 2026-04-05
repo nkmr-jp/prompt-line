@@ -58,7 +58,8 @@ class IPCHandlers {
       windowManager,
       historyManager,
       draftManager,
-      directoryManager
+      directoryManager,
+      settingsManager
     );
     this.historyDraftHandler = new HistoryDraftHandler(
       historyManager,

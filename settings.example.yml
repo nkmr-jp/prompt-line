@@ -51,6 +51,16 @@ fileOpener:
   #    editor: "GoLand"
 
 # ============================================================================
+# IMAGE STORAGE
+# ============================================================================
+
+# Image storage directory (relative to CWD, or absolute path)
+# Default (when unset): ~/.prompt-line/images/
+# Relative paths are resolved against the current working directory
+# Tip: Add the directory to .gitignore when using a relative path
+#imagesDirectory: .prompt-line/images
+
+# ============================================================================
 # BUILT-IN COMMANDS
 # ============================================================================
 # Built-in slash commands for CLI tools (Claude Code, Codex, Gemini CLI, etc.)
@@ -233,7 +243,7 @@ customSearch:
   #   maxSuggestions: 100
   #   orderBy: "{updatedAt} desc"
   #   inputFormat: {filepath}               # Insert format template
-  #   command: "open -a 'Google Chrome' {filepath}"            # Shell command on Ctrl+Enter (values are auto-quoted)
+  #   command: "open -a 'Google Chrome' {filepath}"            # Shell command on Ctrl+Enter
 
   # - name: "{json@display}"
   #   icon: history
