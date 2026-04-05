@@ -221,9 +221,6 @@ class PasteHandler {
     return { valid: true, normalizedPath };
   }
 
-  /**
-   * Resolve image directory from settings, CWD, and default config
-   */
   private resolveImagesDir(): string {
     const imageDirectory = this.settingsManager.getSettings().imageDirectory;
     if (!imageDirectory) {

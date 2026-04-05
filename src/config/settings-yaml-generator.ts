@@ -492,27 +492,24 @@ symbolSearch:
 /**
  * Build the top sections of the settings YAML (shortcuts, window, fileOpener)
  */
-/**
- * Build imageDirectory section
- */
+
+const IMAGE_DIR_COMMENT = `# Image storage directory (relative to CWD, or absolute path)
+# Default (when unset): ~/.prompt-line/images/
+# Relative paths are resolved against the current working directory`;
+
 function buildImageDirectorySection(settings: UserSettings, options: YamlGeneratorOptions): string {
   const imageDirectory = settings.imageDirectory;
 
   if (imageDirectory) {
-    return `# Image storage directory (relative to CWD, or absolute path)
-# Default (when unset): ~/.prompt-line/images/
-# Relative paths are resolved against the current working directory
+    return `${IMAGE_DIR_COMMENT}
 imageDirectory: ${imageDirectory}`;
   }
 
-  // No active value - show as commented example
   const example = options.includeCommentedExamples && commentedExamples.imageDirectory
     ? commentedExamples.imageDirectory
     : '.prompt-line/images';
 
-  return `# Image storage directory (relative to CWD, or absolute path)
-# Default (when unset): ~/.prompt-line/images/
-# Relative paths are resolved against the current working directory
+  return `${IMAGE_DIR_COMMENT}
 #imageDirectory: ${example}`;
 }
 
