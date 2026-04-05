@@ -13,29 +13,39 @@ execSync(`electron-builder --mac --${arch} --dir --publish=never`, {
   stdio: 'inherit',
 });
 
-// Quit the running app before installing
+// Check if the app is currently running and quit it before installing
+let wasRunning = false;
 try {
-  execSync(`osascript -e 'quit app "${appName}"'`, { stdio: 'inherit' });
-  // Poll until the process has fully exited (timeout after 10s)
-  const maxWait = 10000;
-  const interval = 200;
-  let waited = 0;
-  while (waited < maxWait) {
-    try {
-      execSync(`pgrep -f "${appName}"`, { stdio: 'ignore' });
-    } catch {
-      break; // pgrep exits non-zero when no process found
-    }
-    execSync(`sleep 0.2`);
-    waited += interval;
-  }
-  if (waited >= maxWait) {
-    console.warn(`⚠️  ${appName} did not exit within ${maxWait / 1000}s, proceeding anyway`);
-  } else {
-    console.log(`🔄 Quit ${appName}`);
-  }
+  execSync(`pgrep -f "${appName}"`, { stdio: 'ignore' });
+  wasRunning = true;
 } catch {
-  // App may not be running — ignore
+  // App is not running
+}
+
+if (wasRunning) {
+  try {
+    execSync(`osascript -e 'quit app "${appName}"'`, { stdio: 'inherit' });
+    // Poll until the process has fully exited (timeout after 10s)
+    const maxWait = 10000;
+    const interval = 200;
+    let waited = 0;
+    while (waited < maxWait) {
+      try {
+        execSync(`pgrep -f "${appName}"`, { stdio: 'ignore' });
+      } catch {
+        break; // pgrep exits non-zero when no process found
+      }
+      execSync(`sleep 0.2`);
+      waited += interval;
+    }
+    if (waited >= maxWait) {
+      console.warn(`⚠️  ${appName} did not exit within ${maxWait / 1000}s, proceeding anyway`);
+    } else {
+      console.log(`🔄 Quit ${appName}`);
+    }
+  } catch {
+    // quit command failed — proceed anyway
+  }
 }
 
 // Read versions from Info.plist before and after install
@@ -74,11 +84,15 @@ if (oldVersion) {
 execSync(`rm -rf "${installPath}" && cp -R "${appPath}" "${installPath}"`);
 console.log(`✅ Installed successfully`);
 
-// Relaunch the app
-console.log(`🚀 Launching ${appName}...`);
-try {
-  execSync(`open "${installPath}"`);
-  console.log(`✅ ${appName} is running`);
-} catch {
-  console.warn(`⚠️  Failed to launch ${appName} automatically; installation completed successfully`);
+// Relaunch the app only if it was previously running
+if (wasRunning) {
+  console.log(`🚀 Launching ${appName}...`);
+  try {
+    execSync(`open "${installPath}"`);
+    console.log(`✅ ${appName} is running`);
+  } catch {
+    console.warn(`⚠️  Failed to launch ${appName} automatically; installation completed successfully`);
+  }
+} else {
+  console.log(`ℹ️  ${appName} was not running; skipping launch`);
 }
