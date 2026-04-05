@@ -38,7 +38,24 @@ try {
   // App may not be running — ignore
 }
 
+// Read versions from Info.plist before and after install
+function getAppVersion(bundlePath) {
+  try {
+    return execSync(`defaults read "${bundlePath}/Contents/Info" CFBundleShortVersionString`, { encoding: 'utf8' }).trim();
+  } catch {
+    return null;
+  }
+}
+
+const oldVersion = getAppVersion(installPath);
+const newVersion = getAppVersion(appPath);
+
 console.log(`\n📦 Installing to ${installPath}...`);
+if (oldVersion) {
+  console.log(`   ${oldVersion} → ${newVersion || 'unknown'}`);
+} else {
+  console.log(`   New install: ${newVersion || 'unknown'}`);
+}
 execSync(`rm -rf "${installPath}" && cp -R "${appPath}" "${installPath}"`);
 console.log(`✅ Installed successfully`);
 
