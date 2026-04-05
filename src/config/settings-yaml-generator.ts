@@ -495,7 +495,8 @@ symbolSearch:
 
 const IMAGE_DIR_COMMENT = `# Image storage directory (relative to CWD, or absolute path)
 # Default (when unset): ~/.prompt-line/images/
-# Relative paths are resolved against the current working directory`;
+# Relative paths are resolved against the current working directory
+# Tip: Add the directory to .gitignore when using a relative path`;
 
 function buildImageDirectorySection(settings: UserSettings, options: YamlGeneratorOptions): string {
   const imagesDirectory = settings.imagesDirectory;

@@ -57,6 +57,7 @@ fileOpener:
 # Image storage directory (relative to CWD, or absolute path)
 # Default (when unset): ~/.prompt-line/images/
 # Relative paths are resolved against the current working directory
+# Tip: Add the directory to .gitignore when using a relative path
 #imagesDirectory: .prompt-line/images
 
 # ============================================================================
