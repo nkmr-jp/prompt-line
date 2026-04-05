@@ -16,8 +16,22 @@ execSync(`electron-builder --mac --${arch} --dir --publish=never`, {
 // Quit the running app before installing
 try {
   execSync(`osascript -e 'quit app "${appName}"'`, { stdio: 'inherit' });
-  // Wait briefly for the process to fully exit
-  execSync('sleep 1');
+  // Poll until the process has fully exited (timeout after 10s)
+  const maxWait = 10000;
+  const interval = 200;
+  let waited = 0;
+  while (waited < maxWait) {
+    try {
+      execSync(`pgrep -x "${appName}"`, { stdio: 'ignore' });
+    } catch {
+      break; // pgrep exits non-zero when no process found
+    }
+    execSync(`sleep 0.2`);
+    waited += interval;
+  }
+  if (waited >= maxWait) {
+    console.warn(`⚠️  ${appName} did not exit within ${maxWait / 1000}s, proceeding anyway`);
+  }
   console.log(`🛑 Quit ${appName}`);
 } catch {
   // App may not be running — ignore
