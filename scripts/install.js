@@ -22,7 +22,7 @@ try {
   let waited = 0;
   while (waited < maxWait) {
     try {
-      execSync(`pgrep -x "${appName}"`, { stdio: 'ignore' });
+      execSync(`pgrep -f "${appName}"`, { stdio: 'ignore' });
     } catch {
       break; // pgrep exits non-zero when no process found
     }
@@ -31,8 +31,9 @@ try {
   }
   if (waited >= maxWait) {
     console.warn(`⚠️  ${appName} did not exit within ${maxWait / 1000}s, proceeding anyway`);
+  } else {
+    console.log(`🛑 Quit ${appName}`);
   }
-  console.log(`🛑 Quit ${appName}`);
 } catch {
   // App may not be running — ignore
 }
