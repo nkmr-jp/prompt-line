@@ -492,6 +492,30 @@ symbolSearch:
 /**
  * Build the top sections of the settings YAML (shortcuts, window, fileOpener)
  */
+/**
+ * Build imageDirectory section
+ */
+function buildImageDirectorySection(settings: UserSettings, options: YamlGeneratorOptions): string {
+  const imageDirectory = settings.imageDirectory;
+
+  if (imageDirectory) {
+    return `# Image storage directory (relative to CWD, or absolute path)
+# Default (when unset): ~/.prompt-line/images/
+# Relative paths are resolved against the current working directory
+imageDirectory: ${imageDirectory}`;
+  }
+
+  // No active value - show as commented example
+  const example = options.includeCommentedExamples && commentedExamples.imageDirectory
+    ? commentedExamples.imageDirectory
+    : '.prompt-line/images';
+
+  return `# Image storage directory (relative to CWD, or absolute path)
+# Default (when unset): ~/.prompt-line/images/
+# Relative paths are resolved against the current working directory
+#imageDirectory: ${example}`;
+}
+
 function buildTopSections(settings: UserSettings, extensionsSection: string, directoriesSection: string): string {
   const defaultEditor = settings.fileOpener?.defaultEditor === null || settings.fileOpener?.defaultEditor === undefined
     ? 'null'
@@ -554,6 +578,7 @@ fileOpener:
 export function generateSettingsYaml(settings: UserSettings, options: YamlGeneratorOptions = {}): string {
   const extensionsSection = buildExtensionsSection(settings, options);
   const directoriesSection = buildDirectoriesSection(settings);
+  const imageDirectorySection = buildImageDirectorySection(settings, options);
   const builtInCommandsSection = buildBuiltInCommandsSection(settings, options);
   const agentSkillsSection = buildAgentSkillsSection(settings, options);
   const customSearchSection = buildCustomSearchSection(settings, options);
@@ -562,6 +587,12 @@ export function generateSettingsYaml(settings: UserSettings, options: YamlGenera
   const topSections = buildTopSections(settings, extensionsSection, directoriesSection);
 
   return `${topSections}
+# ============================================================================
+# IMAGE STORAGE
+# ============================================================================
+
+${imageDirectorySection}
+
 # ============================================================================
 # BUILT-IN COMMANDS
 # ============================================================================

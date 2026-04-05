@@ -14,6 +14,7 @@ import {
 import type WindowManager from '../managers/window';
 import type DraftManager from '../managers/draft-manager';
 import type DirectoryManager from '../managers/directory-manager';
+import type SettingsManager from '../managers/settings-manager';
 import type { AppInfo, IHistoryManager } from '../types';
 
 interface PasteResult {
@@ -30,17 +31,20 @@ class PasteHandler {
   private historyManager: IHistoryManager;
   private draftManager: DraftManager;
   private directoryManager: DirectoryManager;
+  private settingsManager: SettingsManager;
 
   constructor(
     windowManager: WindowManager,
     historyManager: IHistoryManager,
     draftManager: DraftManager,
-    directoryManager: DirectoryManager
+    directoryManager: DirectoryManager,
+    settingsManager: SettingsManager
   ) {
     this.windowManager = windowManager;
     this.historyManager = historyManager;
     this.draftManager = draftManager;
     this.directoryManager = directoryManager;
+    this.settingsManager = settingsManager;
   }
 
   setupHandlers(ipcMainInstance: typeof ipcMain): void {
@@ -217,6 +221,28 @@ class PasteHandler {
     return { valid: true, normalizedPath };
   }
 
+  /**
+   * Resolve image directory from settings, CWD, and default config
+   */
+  private resolveImagesDir(): string {
+    const imageDirectory = this.settingsManager.getSettings().imageDirectory;
+    if (!imageDirectory) {
+      return config.paths.imagesDir;
+    }
+
+    if (path.isAbsolute(imageDirectory)) {
+      return imageDirectory;
+    }
+
+    const cwd = this.directoryManager.getDirectory();
+    if (cwd) {
+      return path.join(cwd, imageDirectory);
+    }
+
+    logger.warn('imageDirectory is relative but no CWD available, falling back to default');
+    return config.paths.imagesDir;
+  }
+
   private async handlePasteImage(_event: IpcMainInvokeEvent): Promise<{ success: boolean; error?: string; path?: string }> {
     try {
       logger.info('Paste image requested');
@@ -226,7 +252,7 @@ class PasteHandler {
         return { success: false, error: 'No image in clipboard' };
       }
 
-      const imagesDir = config.paths.imagesDir;
+      const imagesDir = this.resolveImagesDir();
       try {
         await fs.mkdir(imagesDir, { recursive: true, mode: 0o700 });
       } catch (error) {
