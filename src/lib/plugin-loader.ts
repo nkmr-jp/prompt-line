@@ -16,8 +16,10 @@ type PluginType = 'agent-skills' | 'custom-search' | 'agent-built-in';
 interface PluginEntryYaml {
   name: string;
   description: string;
-  path: string;
-  pattern: string;
+  sourcePath?: string;
+  sourceCommand?: string;
+  runCommand?: string;
+  args?: Record<string, string>;
   label?: string;
   color?: ColorValue;
   icon?: string;
@@ -32,7 +34,6 @@ interface PluginEntryYaml {
   displayTime?: string;
   inputFormat?: string;
   shortcut?: string;
-  command?: string;
   excludeMarker?: string;
 }
 
@@ -209,9 +210,14 @@ class PluginLoader {
 
   /**
    * Convert a plugin YAML to CustomSearchEntry
+   * @param overrides - Optional overrides applied after YAML fields (e.g., from `@suffix?params` plugin path feature)
    */
-  private parsePluginEntry(yamlData: PluginEntryYaml, type: PluginType): CustomSearchEntry | null {
-    if (!yamlData.name || !yamlData.path || !yamlData.pattern) {
+  private parsePluginEntry(
+    yamlData: PluginEntryYaml,
+    type: PluginType,
+    overrides?: { searchPrefix?: string; args?: Record<string, string> }
+  ): CustomSearchEntry | null {
+    if (!yamlData.name || (!yamlData.sourcePath && !yamlData.sourceCommand)) {
       return null;
     }
 
@@ -221,9 +227,13 @@ class PluginLoader {
       type: entryType,
       name: yamlData.name,
       description: (yamlData.description || '').replace(/\n+/g, ' ').trim(),
-      path: yamlData.path,
-      pattern: yamlData.pattern,
+      sourcePath: yamlData.sourcePath || '',
     };
+
+    // Copy source/run fields
+    if (yamlData.sourceCommand !== undefined) entry.sourceCommand = yamlData.sourceCommand;
+    if (yamlData.runCommand !== undefined) entry.runCommand = yamlData.runCommand;
+    if (yamlData.args !== undefined) entry.args = yamlData.args;
 
     // Copy optional fields
     if (yamlData.label !== undefined) entry.label = yamlData.label;
@@ -239,8 +249,11 @@ class PluginLoader {
     if (yamlData.searchPrefix !== undefined) entry.searchPrefix = yamlData.searchPrefix;
     if (yamlData.displayTime !== undefined) entry.displayTime = yamlData.displayTime;
     if (yamlData.inputFormat !== undefined) entry.inputFormat = yamlData.inputFormat;
-    if (yamlData.command !== undefined) entry.command = yamlData.command;
     if (yamlData.excludeMarker !== undefined) entry.excludeMarker = yamlData.excludeMarker;
+
+    // Apply overrides (from plugin path suffixes like @suffix?params)
+    if (overrides?.searchPrefix !== undefined) entry.searchPrefix = overrides.searchPrefix;
+    if (overrides?.args !== undefined) entry.args = { ...entry.args, ...overrides.args };
 
     return entry;
   }

@@ -115,8 +115,7 @@ describe('CustomSearchLoader + jq integration', () => {
           name: '{json@name}',
           type: 'mention',
           description: '{json@agentType}',
-          path: '/path/to/teams',
-          pattern: '**/config.json@.members',
+          sourcePath: '/path/to/teams/**/config.json@.members',
           searchPrefix: 'member',
         },
       ]);
@@ -163,8 +162,7 @@ describe('CustomSearchLoader + jq integration', () => {
           name: '{json@name}',
           type: 'mention',
           description: '{json@role}',
-          path: '/path/to/data',
-          pattern: '*.json@.members | map(select(.active))',
+          sourcePath: '/path/to/data/*.json@.members | map(select(.active))',
         },
       ]);
 
@@ -199,8 +197,7 @@ describe('CustomSearchLoader + jq integration', () => {
           name: '{json@name}',
           type: 'mention',
           description: '{json@role}',
-          path: '/path/to/data',
-          pattern: '*.json@.team.members',
+          sourcePath: '/path/to/data/*.json@.team.members',
         },
       ]);
 
@@ -231,8 +228,7 @@ describe('CustomSearchLoader + jq integration', () => {
           name: '{json@name}',
           type: 'mention',
           description: '',
-          path: '/path/to/data',
-          pattern: '*.json@.name',
+          sourcePath: '/path/to/data/*.json@.name',
         },
       ]);
 
@@ -251,8 +247,7 @@ describe('CustomSearchLoader + jq integration', () => {
           name: '{json@name}',
           type: 'mention',
           description: '',
-          path: '/path/to/data',
-          pattern: '*.json@.nonexistent',
+          sourcePath: '/path/to/data/*.json@.nonexistent',
         },
       ]);
 
@@ -273,8 +268,7 @@ describe('CustomSearchLoader + jq integration', () => {
           name: '{json@name}',
           type: 'mention',
           description: '{json@role}',
-          path: '/path/to/data',
-          pattern: '*.jsonl@.user',
+          sourcePath: '/path/to/data/*.jsonl@.user',
         },
       ]);
 
@@ -300,8 +294,7 @@ describe('CustomSearchLoader + jq integration', () => {
           name: '{json@name}',
           type: 'mention',
           description: '',
-          path: '/path/to/data',
-          pattern: '*.jsonl@.items',
+          sourcePath: '/path/to/data/*.jsonl@.items',
         },
       ]);
 
@@ -324,8 +317,7 @@ describe('CustomSearchLoader + jq integration', () => {
           name: '{json@name}',
           type: 'mention',
           description: '',
-          path: '/path/to/data',
-          pattern: '*.jsonl@.data',
+          sourcePath: '/path/to/data/*.jsonl@.data',
         },
       ]);
 
@@ -351,8 +343,7 @@ describe('CustomSearchLoader + jq integration', () => {
           name: '{json@name}',
           type: 'mention',
           description: '{json@role}',
-          path: '/path/to/data',
-          pattern: '*.jsonl',
+          sourcePath: '/path/to/data/*.jsonl',
         },
       ]);
 
@@ -378,8 +369,7 @@ describe('CustomSearchLoader + jq integration', () => {
           name: '{basename}',
           type: 'command',
           description: '{frontmatter@description}',
-          path: '/path/to/commands',
-          pattern: '*.md',
+          sourcePath: '/path/to/commands/*.md',
         },
       ]);
 
@@ -401,8 +391,7 @@ describe('CustomSearchLoader + jq integration', () => {
           name: '{json@name}',
           type: 'command',
           description: '{json@description}',
-          path: '/path/to/json',
-          pattern: '*.json',
+          sourcePath: '/path/to/json/*.json',
         },
       ]);
 
@@ -429,8 +418,7 @@ describe('CustomSearchLoader + jq integration', () => {
           name: '{json@name}',
           type: 'mention',
           description: '{json:1@team_name}',
-          path: '/path/to/teams',
-          pattern: '**/config.json@.members',
+          sourcePath: '/path/to/teams/**/config.json@.members',
         },
       ]);
 
@@ -467,8 +455,7 @@ describe('CustomSearchLoader + jq integration', () => {
           name: '{json@name}',
           type: 'mention',
           description: '{json@role} in {json:1@team_name}',
-          path: '/path/to/teams',
-          pattern: '**/config.json@.members',
+          sourcePath: '/path/to/teams/**/config.json@.members',
         },
       ]);
 
@@ -504,8 +491,7 @@ describe('CustomSearchLoader + jq integration', () => {
           name: '{json@name}',
           type: 'mention',
           description: '{json:1@group}',
-          path: '/path/to/data',
-          pattern: '*.jsonl@.items',
+          sourcePath: '/path/to/data/*.jsonl@.items',
         },
       ]);
 
@@ -532,8 +518,7 @@ describe('CustomSearchLoader + jq integration', () => {
           name: '{json@name}',
           type: 'mention',
           description: '',
-          path: '/path/to/data',
-          pattern: '*.json@.members | map(select(.active))',
+          sourcePath: '/path/to/data/*.json@.members | map(select(.active))',
         },
       ]);
 
@@ -557,8 +542,7 @@ describe('CustomSearchLoader + jq integration', () => {
           name: '{json@name}',
           type: 'mention',
           description: '',
-          path: '/path/to/teams',
-          pattern: '**/config.json@.members',
+          sourcePath: '/path/to/teams/**/config.json@.members',
         },
       ]);
 
@@ -603,8 +587,7 @@ describe('CustomSearchLoader + jq integration', () => {
           name: '{json@name}',
           type: 'mention',
           description: '',
-          path: '/path/to/data',
-          pattern: '*.json@.members',
+          sourcePath: '/path/to/data/*.json@.members',
         },
       ]);
 

@@ -41,6 +41,10 @@ export interface UserSettings {
     shortcut?: string;
     [key: string]: unknown;
   }>;
+  customShortcuts?: Array<{
+    key: string;
+    action: string;
+  }>;
 }
 
 export interface FileInfo {

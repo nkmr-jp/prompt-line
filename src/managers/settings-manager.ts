@@ -15,7 +15,9 @@ import type {
   SymbolSearchUserSettings,
   AgentSkillEntry,
   MentionEntry,
-  CustomSearchEntry
+  CustomSearchEntry,
+  ParsedPluginEntry,
+  CustomShortcutEntry
 } from '../types';
 
 class SettingsManager extends EventEmitter {
@@ -25,7 +27,7 @@ class SettingsManager extends EventEmitter {
   private watcher: FSWatcher | null = null;
   private reloadDebounceTimer: NodeJS.Timeout | null = null;
   private readonly RELOAD_DEBOUNCE_MS = 300;
-  private cachedPluginSettings: string[] | null = null;
+  private cachedPluginSettings: ParsedPluginEntry[] | null = null;
 
   constructor() {
     super();
@@ -163,8 +165,7 @@ class SettingsManager extends EventEmitter {
     const cmd: AgentSkillEntry = {
       name: entry.name,
       description: entry.description,
-      path: entry.path,
-      pattern: entry.pattern,
+      sourcePath: entry.sourcePath,
     };
     if (entry.argumentHint) cmd.argumentHint = entry.argumentHint;
     if (entry.maxSuggestions) cmd.maxSuggestions = entry.maxSuggestions;
@@ -178,8 +179,7 @@ class SettingsManager extends EventEmitter {
     const mention: MentionEntry = {
       name: entry.name,
       description: entry.description,
-      path: entry.path,
-      pattern: entry.pattern,
+      sourcePath: entry.sourcePath,
     };
     if (entry.maxSuggestions) mention.maxSuggestions = entry.maxSuggestions;
     if (entry.searchPrefix) mention.searchPrefix = entry.searchPrefix;
@@ -258,10 +258,17 @@ class SettingsManager extends EventEmitter {
   }
 
   private mergeWithDefaults(userSettings: Partial<UserSettings>): UserSettings {
+    // Normalize shortcuts (detect new {key: action} format and extract custom shortcuts)
+    const rawShortcuts = {
+      ...this.defaultSettings.shortcuts,
+      ...(userSettings.shortcuts || {})
+    };
+    const { normalized: mergedShortcuts, customShortcuts } = normalizeShortcuts(rawShortcuts as Record<string, string>);
+
     const result: UserSettings = {
       shortcuts: {
         ...this.defaultSettings.shortcuts,
-        ...(userSettings.shortcuts || {})
+        ...mergedShortcuts
       },
       window: {
         ...this.defaultSettings.window,
@@ -326,6 +333,11 @@ class SettingsManager extends EventEmitter {
     // Handle legacy settings (mdSearch) for backward compatibility
     if (userSettings.mdSearch && userSettings.mdSearch.length > 0) {
       this.resolveLegacyMdSearch(result, userSettings.mdSearch);
+    }
+
+    // Set custom shortcuts extracted from normalizeShortcuts
+    if (customShortcuts.length > 0) {
+      result.customShortcuts = customShortcuts;
     }
 
     return result;
@@ -486,8 +498,7 @@ class SettingsManager extends EventEmitter {
       type: 'command',
       name: cmd.name,
       description: cmd.description,
-      path: cmd.path,
-      pattern: cmd.pattern,
+      sourcePath: cmd.sourcePath,
     };
     if (cmd.argumentHint !== undefined) entry.argumentHint = cmd.argumentHint;
     if (cmd.maxSuggestions !== undefined) entry.maxSuggestions = cmd.maxSuggestions;
@@ -500,7 +511,7 @@ class SettingsManager extends EventEmitter {
     if (cmd.triggers !== undefined) entry.triggers = cmd.triggers;
     if (cmd.enable !== undefined) entry.enable = cmd.enable;
     if (cmd.disable !== undefined) entry.disable = cmd.disable;
-    if (cmd.source !== undefined) entry.source = cmd.source;
+    if (cmd.sourceCommand !== undefined) entry.sourceCommand = cmd.sourceCommand;
     return entry;
   }
 
@@ -509,8 +520,7 @@ class SettingsManager extends EventEmitter {
       type: 'mention',
       name: mention.name,
       description: mention.description,
-      path: mention.path,
-      pattern: mention.pattern,
+      sourcePath: mention.sourcePath,
     };
     if (mention.maxSuggestions !== undefined) entry.maxSuggestions = mention.maxSuggestions;
     if (mention.searchPrefix !== undefined) entry.searchPrefix = mention.searchPrefix;
@@ -524,8 +534,8 @@ class SettingsManager extends EventEmitter {
     if (mention.icon !== undefined) entry.icon = mention.icon;
     if (mention.enable !== undefined) entry.enable = mention.enable;
     if (mention.disable !== undefined) entry.disable = mention.disable;
-    if (mention.command !== undefined) entry.command = mention.command;
-    if (mention.source !== undefined) entry.source = mention.source;
+    if (mention.runCommand !== undefined) entry.runCommand = mention.runCommand;
+    if (mention.sourceCommand !== undefined) entry.sourceCommand = mention.sourceCommand;
     return entry;
   }
 
@@ -548,7 +558,8 @@ class SettingsManager extends EventEmitter {
     // Load entries from plugin YAML files (agent-skills and custom-search only)
     const enabledPlugins = this.getPluginSettings();
     if (enabledPlugins.length > 0) {
-      const pluginEntries = pluginLoader.loadPluginEntries(enabledPlugins);
+      const pluginPaths = enabledPlugins.map(p => p.path);
+      const pluginEntries = pluginLoader.loadPluginEntries(pluginPaths);
       entries.push(...pluginEntries);
     }
 
@@ -586,7 +597,7 @@ class SettingsManager extends EventEmitter {
    * into a flat string array for plugin-loader compatibility.
    * Caches result until settings change for performance in hot paths (IPC handlers).
    */
-  getPluginSettings(): string[] {
+  getPluginSettings(): ParsedPluginEntry[] {
     // Return cached result if available (cache is invalidated on settings change)
     if (this.cachedPluginSettings !== null) {
       return this.cachedPluginSettings;
@@ -623,15 +634,91 @@ class SettingsManager extends EventEmitter {
   }
 }
 
-function normalizePlugins(plugins: PluginFormat): string[] {
-  if (Array.isArray(plugins)) return plugins;
-  const result: string[] = [];
-  for (const [packageId, entries] of Object.entries(plugins as Record<string, string[]>)) {
-    for (const entry of entries) {
-      result.push(`${packageId}/${entry}`);
+function parsePluginPath(rawPath: string): ParsedPluginEntry {
+  let basePath = rawPath;
+  let searchPrefix: string | undefined;
+  let args: Record<string, string> | undefined;
+
+  // Extract ?params first
+  const qIndex = basePath.indexOf('?');
+  if (qIndex !== -1) {
+    const queryStr = basePath.slice(qIndex + 1);
+    basePath = basePath.slice(0, qIndex);
+    args = {};
+    for (const pair of queryStr.split('&')) {
+      const [key, value] = pair.split('=');
+      if (key && value !== undefined) {
+        args[key] = decodeURIComponent(value);
+      }
     }
   }
-  return result;
+
+  // Extract @suffix
+  const atIndex = basePath.lastIndexOf('@');
+  if (atIndex !== -1) {
+    // Make sure @ is not part of a path component (not at position 0 or after /)
+    const beforeAt = basePath[atIndex - 1];
+    if (beforeAt && beforeAt !== '/') {
+      searchPrefix = basePath.slice(atIndex + 1);
+      basePath = basePath.slice(0, atIndex);
+    }
+  }
+
+  if (!searchPrefix && !args) {
+    return { path: basePath };
+  }
+  const overrides: NonNullable<ParsedPluginEntry['overrides']> = {};
+  if (searchPrefix) overrides.searchPrefix = searchPrefix;
+  if (args) overrides.args = args;
+  return { path: basePath, overrides };
+}
+
+function normalizePlugins(plugins: PluginFormat): ParsedPluginEntry[] {
+  const rawPaths: string[] = Array.isArray(plugins)
+    ? plugins
+    : Object.entries(plugins as Record<string, string[]>).flatMap(
+        ([packageId, entries]) => entries.map(entry => `${packageId}/${entry}`)
+      );
+  return rawPaths.map(parsePluginPath);
+}
+
+const KNOWN_ACTIONS = new Set(['main', 'paste', 'close', 'historyNext', 'historyPrev', 'search']);
+const MODIFIER_PATTERN = /^(Cmd|Ctrl|Alt|Shift|Escape|Tab|Enter)/;
+
+function normalizeShortcuts(
+  shortcuts: Record<string, string>
+): { normalized: UserSettings['shortcuts']; customShortcuts: CustomShortcutEntry[] } {
+  const entries = Object.entries(shortcuts);
+  if (entries.length === 0) {
+    return { normalized: {} as UserSettings['shortcuts'], customShortcuts: [] };
+  }
+
+  // Detect format: check if keys look like action names or key combos
+  const firstEntry = entries[0];
+  if (!firstEntry) {
+    return { normalized: {} as UserSettings['shortcuts'], customShortcuts: [] };
+  }
+  const firstKey = firstEntry[0];
+  const isNewFormat = MODIFIER_PATTERN.test(firstKey) || firstKey === 'Escape';
+
+  if (!isNewFormat) {
+    // Old format: { action: key } — return as-is
+    return { normalized: shortcuts as UserSettings['shortcuts'], customShortcuts: [] };
+  }
+
+  // New format: { key: action } — invert and extract custom actions
+  const normalized: Record<string, string> = {};
+  const customShortcuts: CustomShortcutEntry[] = [];
+
+  for (const [key, action] of entries) {
+    if (KNOWN_ACTIONS.has(action)) {
+      normalized[action] = key;
+    } else {
+      customShortcuts.push({ key, action });
+    }
+  }
+
+  return { normalized: normalized as UserSettings['shortcuts'], customShortcuts };
 }
 
 export default SettingsManager;
