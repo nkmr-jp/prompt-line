@@ -63,50 +63,61 @@ security import "${TMPDIR_CERT}/cert.p12" \
   -f pkcs12 \
   -P "prompt-line"
 
-# Set private key label to "Prompt Line" so macOS dialogs show a recognizable name
-# (OpenSSL's -name flag only sets the certificate friendlyName, not the key label)
-echo "Setting private key label..."
+# Rename the private key's ACL description from "cert" to "Prompt Line"
+# so macOS Keychain access dialogs show a recognizable name.
+# (PKCS#12 import sets ACL description to "cert" by default)
+echo "Setting private key name in Keychain..."
 swift - "${CERT_NAME}" <<'SWIFT'
 import Foundation
 import Security
 
-let label = CommandLine.arguments[1]
+let newName = CommandLine.arguments[1]
 
-// Find the private key whose label does not match the desired name
+// Find the most recently imported RSA private key
 let query: [String: Any] = [
     kSecClass as String: kSecClassKey,
     kSecAttrKeyType as String: kSecAttrKeyTypeRSA,
     kSecAttrKeyClass as String: kSecAttrKeyClassPrivate,
-    kSecReturnAttributes as String: true,
+    kSecAttrKeySizeInBits as String: 2048,
     kSecReturnRef as String: true,
     kSecMatchLimit as String: kSecMatchLimitAll
 ]
 
 var result: AnyObject?
 guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
-      let items = result as? [[String: Any]] else {
-    // No private keys found; skip
-    exit(0)
-}
+      let keys = result as? [SecKey] else { exit(0) }
 
-// Find the most recently added RSA private key that is NOT already labeled correctly
-// (it was just imported, so it should be the last one)
-for item in items.reversed() {
-    let currentLabel = item[kSecAttrLabel as String] as? String ?? ""
-    if currentLabel == label { break } // Already correctly labeled
+// Find the key whose ACL description is "cert" (last one = most recently imported)
+for key in keys.reversed() {
+    var access: SecAccess?
+    guard SecKeychainItemCopyAccess(key as! SecKeychainItem, &access) == errSecSuccess,
+          let acc = access else { continue }
 
-    let updateQuery: [String: Any] = [
-        kSecClass as String: kSecClassKey,
-        kSecAttrKeyType as String: kSecAttrKeyTypeRSA,
-        kSecAttrKeyClass as String: kSecAttrKeyClassPrivate,
-        kSecAttrLabel as String: currentLabel,
-        kSecMatchLimit as String: kSecMatchLimitOne
-    ]
-    let attrs: [String: Any] = [kSecAttrLabel as String: label]
-    let status = SecItemUpdate(updateQuery as CFDictionary, attrs as CFDictionary)
-    if status == errSecSuccess {
-        print("✅ Private key label set to '\(label)'")
+    var aclList: CFArray?
+    SecAccessCopyACLList(acc, &aclList)
+    guard let acls = aclList as? [SecACL] else { continue }
+
+    var found = false
+    for acl in acls {
+        var appList: CFArray?
+        var desc: CFString?
+        var prompt = SecKeychainPromptSelector()
+        SecACLCopyContents(acl, &appList, &desc, &prompt)
+        if (desc as String?) == "cert" { found = true; break }
     }
+    guard found else { continue }
+
+    // Update all ACL entries for this key
+    for acl in acls {
+        var appList: CFArray?
+        var desc: CFString?
+        var prompt = SecKeychainPromptSelector()
+        SecACLCopyContents(acl, &appList, &desc, &prompt)
+        guard let currentDesc = desc as String?, currentDesc == "cert" else { continue }
+        SecACLSetContents(acl, appList, newName as CFString, prompt)
+    }
+    SecKeychainItemSetAccess(key as! SecKeychainItem, acc)
+    print("✅ Key ACL description set to '\(newName)'")
     break
 }
 SWIFT
