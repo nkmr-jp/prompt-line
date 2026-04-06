@@ -102,6 +102,7 @@ export interface PasteResult {
 export interface ImageResult {
   success: boolean;
   path?: string;
+  relativePath?: string;
   error?: string;
 }
 

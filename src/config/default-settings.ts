@@ -233,6 +233,7 @@ export const defaultSettings: UserSettings = {
  * To use these examples, uncomment them in ~/.prompt-line/settings.yaml.
  */
 export const commentedExamples = {
+  imagesDirectory: '.prompt-line/images',
   agentBuiltIn: [] as string[],
   agentSkills: [] as Array<{
     name: string;

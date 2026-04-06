@@ -370,8 +370,21 @@ export class PromptLineRenderer {
               // Image paste successful - remove any text that was pasted and insert image path
               this.domManager.setText(textBeforePaste);
               this.domManager.setCursorPosition(cursorPosition);
-              this.domManager.insertTextAtCursor(result.path);
+              // Use relative path with @ prefix when imagesDirectory is relative
+              const insertPath = result.relativePath
+                ? `@${result.relativePath}`
+                : result.path;
+              this.domManager.insertTextAtCursor(insertPath);
               this.draftManager.saveDraftDebounced();
+              // Add pasted image to file search index
+              if (result.relativePath) {
+                this.fileSearchManager?.addFileToIndex({
+                  name: result.relativePath.split('/').pop() || result.relativePath,
+                  path: result.relativePath,
+                  isDirectory: false,
+                  mtimeMs: Date.now()
+                });
+              }
             }
             // If no image, the default text paste behavior is preserved
           } catch (error) {

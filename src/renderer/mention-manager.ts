@@ -577,6 +577,14 @@ export class MentionManager implements IInitializable {
   }
 
   /**
+   * Add a single file to the directory cache index.
+   * Used for dynamically created files (e.g., pasted images).
+   */
+  public addFileToIndex(fileInfo: FileInfo): void {
+    this.directoryCacheManager?.addFile(fileInfo);
+  }
+
+  /**
    * Clear the cached directory data
    */
   public clearCache(): void {

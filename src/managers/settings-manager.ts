@@ -318,6 +318,11 @@ class SettingsManager extends EventEmitter {
     if (resolvedAgentBuiltIn) result.agentBuiltIn = resolvedAgentBuiltIn;
     result.agentSkills = this.resolveAgentSkills(userSettings, rawAgentSkills);
 
+    // Handle imagesDirectory (simple string passthrough)
+    if (userSettings.imagesDirectory) {
+      result.imagesDirectory = userSettings.imagesDirectory;
+    }
+
     // Handle legacy settings (mdSearch) for backward compatibility
     if (userSettings.mdSearch && userSettings.mdSearch.length > 0) {
       this.resolveLegacyMdSearch(result, userSettings.mdSearch);

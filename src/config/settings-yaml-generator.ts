@@ -527,6 +527,28 @@ symbolSearch:
 /**
  * Build the top sections of the settings YAML (shortcuts, window, fileOpener)
  */
+
+const IMAGE_DIR_COMMENT = `# Image storage directory (relative to CWD, or absolute path)
+# Default (when unset): ~/.prompt-line/images/
+# Relative paths are resolved against the current working directory
+# Tip: Add the directory to .gitignore when using a relative path`;
+
+function buildImageDirectorySection(settings: UserSettings, options: YamlGeneratorOptions): string {
+  const imagesDirectory = settings.imagesDirectory;
+
+  if (imagesDirectory) {
+    return `${IMAGE_DIR_COMMENT}
+imagesDirectory: ${imagesDirectory}`;
+  }
+
+  const example = options.includeCommentedExamples && commentedExamples.imagesDirectory
+    ? commentedExamples.imagesDirectory
+    : '.prompt-line/images';
+
+  return `${IMAGE_DIR_COMMENT}
+#imagesDirectory: ${example}`;
+}
+
 function buildTopSections(settings: UserSettings, extensionsSection: string, directoriesSection: string): string {
   const defaultEditor = settings.fileOpener?.defaultEditor === null || settings.fileOpener?.defaultEditor === undefined
     ? 'null'
@@ -589,6 +611,7 @@ fileOpener:
 export function generateSettingsYaml(settings: UserSettings, options: YamlGeneratorOptions = {}): string {
   const extensionsSection = buildExtensionsSection(settings, options);
   const directoriesSection = buildDirectoriesSection(settings);
+  const imagesDirectorySection = buildImageDirectorySection(settings, options);
   const agentBuiltInSection = buildAgentBuiltInSection(settings, options);
   const agentSkillsSection = buildAgentSkillsSection(settings, options);
   const customSearchSection = buildCustomSearchSection(settings, options);
@@ -598,6 +621,12 @@ export function generateSettingsYaml(settings: UserSettings, options: YamlGenera
   const topSections = buildTopSections(settings, extensionsSection, directoriesSection);
 
   return `${topSections}
+# ============================================================================
+# IMAGE STORAGE
+# ============================================================================
+
+${imagesDirectorySection}
+
 # ============================================================================
 # PLUGINS
 # ============================================================================

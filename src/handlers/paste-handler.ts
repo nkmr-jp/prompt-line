@@ -15,6 +15,7 @@ import { isITerm2, getITermSessionId } from '../utils/native-tools/app-detection
 import type WindowManager from '../managers/window';
 import type DraftManager from '../managers/draft-manager';
 import type DirectoryManager from '../managers/directory-manager';
+import type SettingsManager from '../managers/settings-manager';
 import type { AppInfo, IHistoryManager } from '../types';
 
 interface PasteResult {
@@ -31,17 +32,20 @@ class PasteHandler {
   private historyManager: IHistoryManager;
   private draftManager: DraftManager;
   private directoryManager: DirectoryManager;
+  private settingsManager: SettingsManager;
 
   constructor(
     windowManager: WindowManager,
     historyManager: IHistoryManager,
     draftManager: DraftManager,
-    directoryManager: DirectoryManager
+    directoryManager: DirectoryManager,
+    settingsManager: SettingsManager
   ) {
     this.windowManager = windowManager;
     this.historyManager = historyManager;
     this.draftManager = draftManager;
     this.directoryManager = directoryManager;
+    this.settingsManager = settingsManager;
   }
 
   setupHandlers(ipcMainInstance: typeof ipcMain): void {
@@ -220,7 +224,30 @@ class PasteHandler {
     return { valid: true, normalizedPath };
   }
 
-  private async handlePasteImage(_event: IpcMainInvokeEvent): Promise<{ success: boolean; error?: string; path?: string }> {
+  /**
+   * Resolve the images directory. Returns the absolute path and, when
+   * imagesDirectory is a relative setting with a valid CWD, the relative prefix.
+   */
+  private resolveImagesDir(): { absolute: string; relativePrefix?: string } {
+    const imagesDirectory = this.settingsManager.getSettings().imagesDirectory;
+    if (!imagesDirectory) {
+      return { absolute: config.paths.imagesDir };
+    }
+
+    if (path.isAbsolute(imagesDirectory)) {
+      return { absolute: imagesDirectory };
+    }
+
+    const cwd = this.directoryManager.getDirectory();
+    if (cwd) {
+      return { absolute: path.join(cwd, imagesDirectory), relativePrefix: imagesDirectory };
+    }
+
+    logger.warn('imagesDirectory is relative but no CWD available, falling back to default');
+    return { absolute: config.paths.imagesDir };
+  }
+
+  private async handlePasteImage(_event: IpcMainInvokeEvent): Promise<{ success: boolean; error?: string; path?: string; relativePath?: string }> {
     try {
       logger.info('Paste image requested');
 
@@ -229,7 +256,7 @@ class PasteHandler {
         return { success: false, error: 'No image in clipboard' };
       }
 
-      const imagesDir = config.paths.imagesDir;
+      const { absolute: imagesDir, relativePrefix } = this.resolveImagesDir();
       try {
         await fs.mkdir(imagesDir, { recursive: true, mode: 0o700 });
       } catch (error) {
@@ -246,8 +273,10 @@ class PasteHandler {
       await fs.writeFile(pathValidation.normalizedPath, buffer, { mode: 0o600 });
       clipboard.writeText('');
 
-      logger.info('Image saved successfully', { filepath: pathValidation.normalizedPath });
-      return { success: true, path: pathValidation.normalizedPath };
+      logger.info('Image saved successfully', { filepath: pathValidation.normalizedPath, relativePrefix });
+      const result: { success: boolean; path: string; relativePath?: string } = { success: true, path: pathValidation.normalizedPath };
+      if (relativePrefix) result.relativePath = path.join(relativePrefix, filename);
+      return result;
     } catch (error) {
       logger.error('Failed to handle paste image:', error);
       return { success: false, error: (error as Error).message };

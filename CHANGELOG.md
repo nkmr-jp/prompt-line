@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.29.2](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.29.1...prompt-line-v0.29.2) (2026-04-06)
+
+
+### Performance Improvements
+
+* **install:** optimize install-app build time and improve codesign UX ([#327](https://github.com/nkmr-jp/prompt-line/issues/327)) ([22b4f47](https://github.com/nkmr-jp/prompt-line/commit/22b4f47b9b0c702425427bb9fa6582a742935aaf))
+
+## [0.29.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.29.0...prompt-line-v0.29.1) (2026-04-05)
+
+
+### Bug Fixes
+
+* **install:** auto-restart app after install-app command ([#325](https://github.com/nkmr-jp/prompt-line/issues/325)) ([561c809](https://github.com/nkmr-jp/prompt-line/commit/561c8090d144b9b96b92a312164abebcc5077964))
+
+## [0.29.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.28.9...prompt-line-v0.29.0) (2026-04-05)
+
+
+### Features
+
+* **config:** add imageDirectory setting for custom image storage ([#324](https://github.com/nkmr-jp/prompt-line/issues/324)) ([ef8cf36](https://github.com/nkmr-jp/prompt-line/commit/ef8cf36d8a2f8a2d3ac9349eb989685d9f2aa5bf))
+
+
+### Miscellaneous Chores
+
+* **deps-dev:** bump electron ([b429e7f](https://github.com/nkmr-jp/prompt-line/commit/b429e7fb9ad28a20e6b68f6862aee9743d6ad7f2))
+* **deps-dev:** bump electron from 39.8.4 to 39.8.5 in the npm_and_yarn group across 1 directory ([390da53](https://github.com/nkmr-jp/prompt-line/commit/390da5366396a54f676d87a4e29a4a2bf458a66f))
+* remove Serena project-specific files and directories ([1c07d72](https://github.com/nkmr-jp/prompt-line/commit/1c07d7254834e494294ae2440e582f1e33a4c20c))
+* update serena project.yml to latest template ([daf6672](https://github.com/nkmr-jp/prompt-line/commit/daf667254718767c61354acc494ce5bc71ea6eac))
+
 ## [0.28.9](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.28.8...prompt-line-v0.28.9) (2026-04-03)
 
 

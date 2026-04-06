@@ -7,11 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Development
 ```bash
 pnpm start          # Run app in development mode (with DEBUG logging enabled)
-pnpm run setup-codesign          # Create self-signed code signing certificate (one-time setup)
 pnpm run reset-accessibility      # Reset accessibility permissions for Prompt Line
 ```
 
-- `pnpm run setup-codesign` creates a "Prompt Line" self-signed certificate in the login Keychain. Required once before first build to prevent macOS from resetting Accessibility permissions on every rebuild.
+- `pnpm run setup-codesign` creates a "Prompt Line" self-signed certificate in the login Keychain. Automatically run by `install-app`, so manual execution is not needed.
 - `pnpm start` sets `LOG_LEVEL=debug` automatically. Packaged apps always use INFO level.
 - Logs: `~/.prompt-line/app.log` (use `tail -f ~/.prompt-line/app.log` for real-time monitoring)
 
