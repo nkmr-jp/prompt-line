@@ -22,7 +22,7 @@ TMPDIR_CERT=$(mktemp -d)
 trap "rm -rf ${TMPDIR_CERT}" EXIT
 
 # Generate certificate config with Code Signing extended key usage
-cat > "${TMPDIR_CERT}/cert.conf" <<EOF
+cat > "${TMPDIR_CERT}/prompt-line-cert.conf" <<EOF
 [ req ]
 distinguished_name = req_dn
 prompt = no
@@ -36,10 +36,10 @@ EOF
 
 # Generate self-signed certificate (valid for 10 years)
 openssl req -x509 -newkey rsa:2048 -nodes \
-  -keyout "${TMPDIR_CERT}/key.pem" \
-  -out "${TMPDIR_CERT}/cert.pem" \
+  -keyout "${TMPDIR_CERT}/prompt-line-cert.pem" \
+  -out "${TMPDIR_CERT}/prompt-line-cert.crt" \
   -days 3650 \
-  -config "${TMPDIR_CERT}/cert.conf" \
+  -config "${TMPDIR_CERT}/prompt-line-cert.conf" \
   -extensions extensions \
   2>/dev/null
 
@@ -49,15 +49,15 @@ openssl pkcs12 -export \
   -certpbe PBE-SHA1-3DES \
   -keypbe PBE-SHA1-3DES \
   -macalg sha1 \
-  -inkey "${TMPDIR_CERT}/key.pem" \
-  -in "${TMPDIR_CERT}/cert.pem" \
-  -out "${TMPDIR_CERT}/cert.p12" \
+  -inkey "${TMPDIR_CERT}/prompt-line-cert.pem" \
+  -in "${TMPDIR_CERT}/prompt-line-cert.crt" \
+  -out "${TMPDIR_CERT}/prompt-line-cert.p12" \
   -passout pass:prompt-line \
   -name "${CERT_NAME}" \
   2>/dev/null
 
 # Import into login keychain
-security import "${TMPDIR_CERT}/cert.p12" \
+security import "${TMPDIR_CERT}/prompt-line-cert.p12" \
   -k "${KEYCHAIN}" \
   -T /usr/bin/codesign \
   -f pkcs12 \
@@ -124,7 +124,7 @@ SWIFT
 
 # Trust the certificate for code signing (may prompt for login password)
 echo "Setting certificate as trusted for code signing (you may be prompted for your login password)..."
-security add-trusted-cert -p codeSign -k "${KEYCHAIN}" "${TMPDIR_CERT}/cert.pem"
+security add-trusted-cert -p codeSign -k "${KEYCHAIN}" "${TMPDIR_CERT}/prompt-line-cert.crt"
 
 # Verify the certificate is available
 if security find-identity -v -p codesigning 2>/dev/null | grep -q "\"${CERT_NAME}\""; then
