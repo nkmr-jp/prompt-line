@@ -63,6 +63,54 @@ security import "${TMPDIR_CERT}/cert.p12" \
   -f pkcs12 \
   -P "prompt-line"
 
+# Set private key label to "Prompt Line" so macOS dialogs show a recognizable name
+# (OpenSSL's -name flag only sets the certificate friendlyName, not the key label)
+echo "Setting private key label..."
+swift - "${CERT_NAME}" <<'SWIFT'
+import Foundation
+import Security
+
+let label = CommandLine.arguments[1]
+
+// Find the private key whose label does not match the desired name
+let query: [String: Any] = [
+    kSecClass as String: kSecClassKey,
+    kSecAttrKeyType as String: kSecAttrKeyTypeRSA,
+    kSecAttrKeyClass as String: kSecAttrKeyClassPrivate,
+    kSecReturnAttributes as String: true,
+    kSecReturnRef as String: true,
+    kSecMatchLimit as String: kSecMatchLimitAll
+]
+
+var result: AnyObject?
+guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
+      let items = result as? [[String: Any]] else {
+    // No private keys found; skip
+    exit(0)
+}
+
+// Find the most recently added RSA private key that is NOT already labeled correctly
+// (it was just imported, so it should be the last one)
+for item in items.reversed() {
+    let currentLabel = item[kSecAttrLabel as String] as? String ?? ""
+    if currentLabel == label { break } // Already correctly labeled
+
+    let updateQuery: [String: Any] = [
+        kSecClass as String: kSecClassKey,
+        kSecAttrKeyType as String: kSecAttrKeyTypeRSA,
+        kSecAttrKeyClass as String: kSecAttrKeyClassPrivate,
+        kSecAttrLabel as String: currentLabel,
+        kSecMatchLimit as String: kSecMatchLimitOne
+    ]
+    let attrs: [String: Any] = [kSecAttrLabel as String: label]
+    let status = SecItemUpdate(updateQuery as CFDictionary, attrs as CFDictionary)
+    if status == errSecSuccess {
+        print("✅ Private key label set to '\(label)'")
+    }
+    break
+}
+SWIFT
+
 # Trust the certificate for code signing (may prompt for login password)
 echo "Setting certificate as trusted for code signing (you may be prompted for your login password)..."
 security add-trusted-cert -p codeSign -k "${KEYCHAIN}" "${TMPDIR_CERT}/cert.pem"
