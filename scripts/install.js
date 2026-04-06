@@ -9,7 +9,9 @@ const installPath = `/Applications/${appName}.app`;
 
 console.log(`Building for ${arch} architecture (skip DMG)...`);
 
-execSync(`electron-builder --mac --${arch} --dir --publish=never`, {
+// Skip electron-builder's built-in signing (takes ~3-4 min for Electron framework).
+// afterSign.js handles all signing via codesign --deep (~1s).
+execSync(`electron-builder --mac --${arch} --dir --publish=never -c.mac.identity=null`, {
   stdio: 'inherit',
 });
 
