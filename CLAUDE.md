@@ -31,8 +31,7 @@ pnpm test -- --testNamePattern="formatTimeAgo"  # Pattern matching
 ### Build & Distribution
 ```bash
 pnpm run build      # Build the application (creates app + DMG for current architecture)
-pnpm run install-app       # Build and install directly to /Applications (skip DMG, for development)
-pnpm run install-app:quick # Incremental install (~15s vs ~250s). Requires prior install-app run
+pnpm run install-app # Build and install directly to /Applications (skip DMG, for development)
 pnpm run compile    # Full build: TypeScript + Renderer + Native Tools
 pnpm run lint       # Check code style
 pnpm run lint:fix   # Auto-fix code style issues
@@ -159,7 +158,7 @@ Fix: `pnpm install && pnpm run build`
 Requires Xcode Command Line Tools: `xcode-select --install`
 
 ### Slow Build Times
-Use `pnpm run install-app:quick` for iterative development (~15s). Requires a prior `pnpm run install-app` full build (~250s). Falls back to full build only when Electron version or dependencies change.
+Use `pnpm run install-app` for development — it skips DMG creation and installs directly to `/Applications`.
 
 ### Cleanup Reference
 
