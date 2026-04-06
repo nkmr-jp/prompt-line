@@ -36,7 +36,7 @@ EOF
 
 # Generate self-signed certificate (valid for 10 years)
 openssl req -x509 -newkey rsa:2048 -nodes \
-  -keyout "${TMPDIR_CERT}/prompt-line-cert.pem" \
+  -keyout "${TMPDIR_CERT}/prompt-line-key.pem" \
   -out "${TMPDIR_CERT}/prompt-line-cert.pem" \
   -days 3650 \
   -config "${TMPDIR_CERT}/prompt-line-cert.conf" \
@@ -49,7 +49,7 @@ openssl pkcs12 -export \
   -certpbe PBE-SHA1-3DES \
   -keypbe PBE-SHA1-3DES \
   -macalg sha1 \
-  -inkey "${TMPDIR_CERT}/prompt-line-cert.pem" \
+  -inkey "${TMPDIR_CERT}/prompt-line-key.pem" \
   -in "${TMPDIR_CERT}/prompt-line-cert.pem" \
   -out "${TMPDIR_CERT}/prompt-line-cert.p12" \
   -passout pass:prompt-line \
