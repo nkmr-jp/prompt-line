@@ -37,7 +37,7 @@ EOF
 # Generate self-signed certificate (valid for 10 years)
 openssl req -x509 -newkey rsa:2048 -nodes \
   -keyout "${TMPDIR_CERT}/prompt-line-cert.pem" \
-  -out "${TMPDIR_CERT}/prompt-line-cert.crt" \
+  -out "${TMPDIR_CERT}/prompt-line-cert.pem" \
   -days 3650 \
   -config "${TMPDIR_CERT}/prompt-line-cert.conf" \
   -extensions extensions \
@@ -50,7 +50,7 @@ openssl pkcs12 -export \
   -keypbe PBE-SHA1-3DES \
   -macalg sha1 \
   -inkey "${TMPDIR_CERT}/prompt-line-cert.pem" \
-  -in "${TMPDIR_CERT}/prompt-line-cert.crt" \
+  -in "${TMPDIR_CERT}/prompt-line-cert.pem" \
   -out "${TMPDIR_CERT}/prompt-line-cert.p12" \
   -passout pass:prompt-line \
   -name "${CERT_NAME}" \
@@ -124,7 +124,7 @@ SWIFT
 
 # Trust the certificate for code signing (may prompt for login password)
 echo "Setting certificate as trusted for code signing (you may be prompted for your login password)..."
-security add-trusted-cert -p codeSign -k "${KEYCHAIN}" "${TMPDIR_CERT}/prompt-line-cert.crt"
+security add-trusted-cert -p codeSign -k "${KEYCHAIN}" "${TMPDIR_CERT}/prompt-line-cert.pem"
 
 # Verify the certificate is available
 if security find-identity -v -p codesigning 2>/dev/null | grep -q "\"${CERT_NAME}\""; then
