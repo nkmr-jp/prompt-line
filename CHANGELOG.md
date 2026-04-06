@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.29.2](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.29.1...prompt-line-v0.29.2) (2026-04-06)
+
+
+### Performance Improvements
+
+* **install:** optimize install-app build time and improve codesign UX ([#327](https://github.com/nkmr-jp/prompt-line/issues/327)) ([22b4f47](https://github.com/nkmr-jp/prompt-line/commit/22b4f47b9b0c702425427bb9fa6582a742935aaf))
+
 ## [0.29.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.29.0...prompt-line-v0.29.1) (2026-04-05)
 
 
