@@ -439,16 +439,15 @@ interface CopyResult {
 }
 
 /**
- * Check if a directory is a valid plugin folder based on its parent directory name.
- * A valid plugin folder has one of the VALID_PLUGIN_TYPES as its parent directory.
- * e.g., "claude/agent-built-in/claude" → parent is "agent-built-in" → valid
- *       "claude/some-other/foo" → parent is "some-other" → invalid
+ * Check if a directory is a valid plugin folder.
+ * Returns true if any path component exactly matches a valid plugin type.
+ * e.g., "claude/agent-built-in" → contains "agent-built-in" → valid
+ *       "claude/agent-skills/commands" → contains "agent-skills" → valid
+ *       "claude/agent-skills-new/commands" → "agent-skills-new" is not an exact match → invalid
  */
 function isValidPluginFolder(relPath: string): boolean {
   const parts = relPath.split(path.sep);
-  if (parts.length < 2) return false;
-  const parentDir = parts[parts.length - 2];
-  return (VALID_PLUGIN_TYPES as readonly string[]).includes(parentDir!);
+  return parts.some(part => (VALID_PLUGIN_TYPES as readonly string[]).includes(part));
 }
 
 function copyYamlFiles(
