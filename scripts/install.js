@@ -83,7 +83,7 @@ if (oldVersion) {
 } else {
   console.log(`   New install: ${formatVersion(newVersion)}`);
 }
-execSync(`rm -rf "${installPath}" && cp -R "${appPath}" "${installPath}"`);
+execSync(`rsync -a --delete "${appPath}/" "${installPath}/"`);
 console.log(`✅ Installed successfully`);
 
 // Relaunch the app only if it was previously running
