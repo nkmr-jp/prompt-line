@@ -3,7 +3,7 @@ import path from 'path';
 import yaml from 'js-yaml';
 import config from '../config/app-config';
 import { logger, validateColorValue } from '../utils/utils';
-import type { AgentSkillItem, AgentItem, CustomSearchEntry, ColorValue } from '../types/window';
+import type { AgentSkillItem, AgentItem, CustomSearchEntry, ColorValue, ParsedPluginEntry } from '../types/window';
 
 /**
  * Plugin type determined by directory name
@@ -136,9 +136,10 @@ class PluginLoader {
   /**
    * Load a single plugin by its relative path
    */
-  private loadPlugin(pluginPath: string): LoadedPlugin | null {
-    // Check cache first
-    const cached = this.cache.get(pluginPath);
+  private loadPlugin(pluginPath: string, overrides?: ParsedPluginEntry['overrides']): LoadedPlugin | null {
+    // Check cache (cache key includes overrides to avoid stale entries)
+    const cacheKey = overrides ? `${pluginPath}@${JSON.stringify(overrides)}` : pluginPath;
+    const cached = this.cache.get(cacheKey);
     if (cached) return cached;
 
     const type = this.getPluginType(pluginPath);
@@ -151,8 +152,8 @@ class PluginLoader {
     if (!basePath) return null;
 
     // Try .yaml first, then .yml — parsePlugin handles missing files gracefully
-    const result = this.parsePlugin(basePath + '.yaml', pluginPath, type)
-      ?? this.parsePlugin(basePath + '.yml', pluginPath, type);
+    const result = this.parsePlugin(basePath + '.yaml', pluginPath, type, overrides)
+      ?? this.parsePlugin(basePath + '.yml', pluginPath, type, overrides);
     if (!result) {
       logger.debug(`Plugin file not found: ${basePath}.yaml`);
     }
@@ -181,10 +182,11 @@ class PluginLoader {
   /**
    * Parse a plugin YAML file
    */
-  private parsePlugin(filePath: string, pluginPath: string, type: PluginType): LoadedPlugin | null {
+  private parsePlugin(filePath: string, pluginPath: string, type: PluginType, overrides?: ParsedPluginEntry['overrides']): LoadedPlugin | null {
     const parsed = this.readYamlFile(filePath);
     if (!parsed) return null;
 
+    const cacheKey = overrides ? `${pluginPath}@${JSON.stringify(overrides)}` : pluginPath;
     const plugin: LoadedPlugin = {
       pluginPath,
       type,
@@ -198,13 +200,13 @@ class PluginLoader {
       plugin.agentBuiltIn = this.parseAgentBuiltIn(yamlData, filePath);
       plugin.agentBuiltInAgents = this.parseAgentBuiltInAgents(yamlData, filePath);
     } else {
-      const entry = this.parsePluginEntry(parsed as PluginEntryYaml, type);
+      const entry = this.parsePluginEntry(parsed as PluginEntryYaml, type, overrides);
       if (entry) {
         plugin.entries = [entry];
       }
     }
 
-    this.cache.set(pluginPath, plugin);
+    this.cache.set(cacheKey, plugin);
     return plugin;
   }
 
@@ -404,14 +406,14 @@ class PluginLoader {
   /**
    * Load all enabled plugins and return CustomSearchEntry[] for agent-skills/custom-search
    */
-  loadPluginEntries(enabledPlugins: string[]): CustomSearchEntry[] {
+  loadPluginEntries(enabledPlugins: ParsedPluginEntry[]): CustomSearchEntry[] {
     const entries: CustomSearchEntry[] = [];
 
-    for (const pluginPath of enabledPlugins) {
+    for (const { path: pluginPath, overrides } of enabledPlugins) {
       const type = this.getPluginType(pluginPath);
       if (type === 'agent-built-in') continue; // handled separately
 
-      const plugin = this.loadPlugin(pluginPath);
+      const plugin = this.loadPlugin(pluginPath, overrides);
       if (plugin) {
         entries.push(...plugin.entries);
       }

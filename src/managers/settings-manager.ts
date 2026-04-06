@@ -556,8 +556,7 @@ class SettingsManager extends EventEmitter {
     // Load entries from plugin YAML files (agent-skills and custom-search only)
     const enabledPlugins = this.getPluginSettings();
     if (enabledPlugins.length > 0) {
-      const pluginPaths = enabledPlugins.map(p => p.path);
-      const pluginEntries = pluginLoader.loadPluginEntries(pluginPaths);
+      const pluginEntries = pluginLoader.loadPluginEntries(enabledPlugins);
       entries.push(...pluginEntries);
     }
 
