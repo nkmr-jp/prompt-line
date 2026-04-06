@@ -63,7 +63,6 @@ security import "${TMPDIR_CERT}/prompt-line-certificate.p12" \
   -f pkcs12 \
   -P "prompt-line"
 
-
 # Trust the certificate for code signing (may prompt for login password)
 echo "Setting certificate as trusted for code signing (you may be prompted for your login password)..."
 security add-trusted-cert -p codeSign -k "${KEYCHAIN}" "${TMPDIR_CERT}/prompt-line-certificate.pem"

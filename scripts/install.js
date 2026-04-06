@@ -37,7 +37,7 @@ if (wasRunning) {
       } catch {
         break; // pgrep exits non-zero when no process found
       }
-      execSync(`sleep 0.2`);
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, interval);
       waited += interval;
     }
     if (waited >= maxWait) {
