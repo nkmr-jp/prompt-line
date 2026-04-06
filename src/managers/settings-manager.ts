@@ -258,17 +258,15 @@ class SettingsManager extends EventEmitter {
   }
 
   private mergeWithDefaults(userSettings: Partial<UserSettings>): UserSettings {
-    // Normalize shortcuts (detect new {key: action} format and extract custom shortcuts)
-    const rawShortcuts = {
-      ...this.defaultSettings.shortcuts,
-      ...(userSettings.shortcuts || {})
-    };
-    const { normalized: mergedShortcuts, customShortcuts } = normalizeShortcuts(rawShortcuts as Record<string, string>);
+    // Normalize shortcuts: detect format on user settings BEFORE merging with defaults
+    const { normalized: userShortcuts, customShortcuts } = normalizeShortcuts(
+      (userSettings.shortcuts || {}) as Record<string, string>
+    );
 
     const result: UserSettings = {
       shortcuts: {
         ...this.defaultSettings.shortcuts,
-        ...mergedShortcuts
+        ...userShortcuts
       },
       window: {
         ...this.defaultSettings.window,
@@ -645,20 +643,15 @@ function parsePluginPath(rawPath: string): ParsedPluginEntry {
     const queryStr = basePath.slice(qIndex + 1);
     basePath = basePath.slice(0, qIndex);
     args = {};
-    for (const pair of queryStr.split('&')) {
-      const [key, value] = pair.split('=');
-      if (key && value !== undefined) {
-        args[key] = decodeURIComponent(value);
-      }
+    for (const [key, value] of new URLSearchParams(queryStr)) {
+      args[key] = value;
     }
   }
 
   // Extract @suffix
   const atIndex = basePath.lastIndexOf('@');
   if (atIndex !== -1) {
-    // Make sure @ is not part of a path component (not at position 0 or after /)
-    const beforeAt = basePath[atIndex - 1];
-    if (beforeAt && beforeAt !== '/') {
+    if (atIndex > 0 && basePath[atIndex - 1] !== '/') {
       searchPrefix = basePath.slice(atIndex + 1);
       basePath = basePath.slice(0, atIndex);
     }
@@ -693,13 +686,8 @@ function normalizeShortcuts(
     return { normalized: {} as UserSettings['shortcuts'], customShortcuts: [] };
   }
 
-  // Detect format: check if keys look like action names or key combos
-  const firstEntry = entries[0];
-  if (!firstEntry) {
-    return { normalized: {} as UserSettings['shortcuts'], customShortcuts: [] };
-  }
-  const firstKey = firstEntry[0];
-  const isNewFormat = MODIFIER_PATTERN.test(firstKey) || firstKey === 'Escape';
+  // Detect format by checking if any key looks like a key combo
+  const isNewFormat = entries.some(([key]) => MODIFIER_PATTERN.test(key) || key === 'Escape');
 
   if (!isNewFormat) {
     // Old format: { action: key } — return as-is
