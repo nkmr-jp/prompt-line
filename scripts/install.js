@@ -9,7 +9,9 @@ const installPath = `/Applications/${appName}.app`;
 
 console.log(`Building for ${arch} architecture (skip DMG)...`);
 
-execSync(`electron-builder --mac --${arch} --dir --publish=never`, {
+// Skip electron-builder's built-in signing (takes ~3-4 min for Electron framework).
+// afterSign.js handles all signing via codesign --deep (~1s).
+execSync(`electron-builder --mac --${arch} --dir --publish=never -c.mac.identity=null`, {
   stdio: 'inherit',
 });
 
@@ -35,7 +37,7 @@ if (wasRunning) {
       } catch {
         break; // pgrep exits non-zero when no process found
       }
-      execSync(`sleep 0.2`);
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, interval);
       waited += interval;
     }
     if (waited >= maxWait) {
@@ -81,7 +83,7 @@ if (oldVersion) {
 } else {
   console.log(`   New install: ${formatVersion(newVersion)}`);
 }
-execSync(`rm -rf "${installPath}" && cp -R "${appPath}" "${installPath}"`);
+execSync(`rsync -a --delete "${appPath}/" "${installPath}/"`);
 console.log(`✅ Installed successfully`);
 
 // Relaunch the app only if it was previously running
