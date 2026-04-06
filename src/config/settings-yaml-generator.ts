@@ -224,8 +224,11 @@ function buildPluginsSection(settings: UserSettings): string {
   if (isPluginsEmpty(plugins)) {
     return `#plugins:
 #  github.com/nkmr-jp/prompt-line-plugins:
-#    - claude/agent-skills/commands
-#    - claude/agent-built-in/claude`;
+#    - claude/agent-built-in/en                  # Claude Code built-in commands,skills,agents | lang: en,ja
+#    - claude/agent-skills/commands              # sourcePath: ~/.claude/commands/*.md
+#    - claude/agent-skills/skills                # sourcePath: ~/.claude/skills/**/SKILL.md
+#    - claude/custom-search/agents@agent         # sourcePath: ~/.claude/agents/*.md
+#    - claude/custom-search/history@r            # sourcePath: ~/.claude/history.jsonl`;
   }
 
   let section = `plugins:\n`;
@@ -286,11 +289,10 @@ function buildAgentSkillsHeader(): string {
     '# Configuration fields:',
     '#   name: Display name template (variables: {basename}, {frontmatter@field}, {prefix})',
     '#   description: Skill description template (variables: {basename}, {frontmatter@field}, {dirname}, {dirname:N})',
-    '#   path: Directory path to search for skill files',
+    '#   sourcePath: Source path with glob (e.g., "~/.claude/commands/*.md")',
     '#   label: Display label for UI badge (e.g., "command", "skill", "agent")',
     '#   color: Badge color (name: grey, darkGrey, slate, stone, red, rose, orange, amber, yellow, lime, green, emerald, teal, cyan, sky, blue, indigo, violet, purple, fuchsia, pink, or hex: #FF5733)',
     '#   icon: Codicon icon name (e.g., "agent", "rocket", "terminal")',
-    '#   pattern: Glob pattern to match files (e.g., "*.md", "**/*/SKILL.md")',
     '#   values: Map of template variable names to JSON extraction patterns (e.g., pluginName: "**/.claude-plugin/*.json@name")',
     '#   argumentHint: Hint for skill arguments',
     '#   maxSuggestions: Maximum number of suggestions to display',
@@ -314,8 +316,7 @@ function buildAgentSkillsSection(settings: UserSettings, options: YamlGeneratorO
     return `#agentSkills:
 #  - name: "{basename}"
 #    description: "{frontmatter@description}"
-#    path: ~/.claude/commands
-#    pattern: "*.md"
+#    sourcePath: ~/.claude/commands/*.md
 #    argumentHint: "{frontmatter@argument-hint}"
 #    maxSuggestions: 20`;
   }
@@ -363,6 +364,9 @@ function buildCustomSearchHeader(): string {
 #   icon            : Codicon icon name (e.g., "agent", "rocket", "terminal")
 #                     https://microsoft.github.io/vscode-codicons/dist/codicon.html
 #   label           : UI badge label
+#   sourceCommand   : Shell command for data source (e.g., "ghq list") — used instead of sourcePath
+#   runCommand      : Shell command on Ctrl+Enter (e.g., "open -a iTerm ~/ghq/{line}")
+#   args            : Template arguments (e.g., { open: "iTerm" } → {args.open})
 #   shortcut        : Keyboard shortcut to activate this search (e.g., "Ctrl+g")
 #                     Inserts @searchPrefix: into the input and triggers mention detection
 #
