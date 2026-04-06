@@ -4,7 +4,7 @@
 # preventing accessibility permission resets on every update.
 #
 # Usage: pnpm run setup-codesign
-set -euo pipefail
+set -uo pipefail
 
 CERT_NAME="Prompt Line"
 KEYCHAIN="${HOME}/Library/Keychains/login.keychain-db"
@@ -14,6 +14,10 @@ if security find-identity -v -p codesigning 2>/dev/null | grep -q "\"${CERT_NAME
   echo "✅ Certificate '${CERT_NAME}' already exists. Skipping."
   exit 0
 fi
+
+# Wrap certificate creation in a function so failures don't abort install-app.
+# If this fails, afterSign.js will fall back to ad-hoc signing.
+setup_certificate() {
 
 echo "Creating self-signed Code Signing certificate '${CERT_NAME}'..."
 
@@ -79,5 +83,11 @@ else
   echo "❌ Certificate creation failed. Please try creating it manually via Keychain Access."
   echo "   Open Keychain Access > Certificate Assistant > Create a Certificate"
   echo "   Name: ${CERT_NAME}, Type: Code Signing"
-  exit 1
+  return 1
+fi
+}
+
+if ! setup_certificate; then
+  echo "⚠️  Code signing certificate setup failed. Continuing with ad-hoc signing."
+  exit 0
 fi
