@@ -7,6 +7,9 @@ const outDir = arch === 'arm64' ? 'dist/mac-arm64' : 'dist/mac';
 const appPath = path.join(outDir, `${appName}.app`);
 const installPath = `/Applications/${appName}.app`;
 
+// Ensure code signing certificate exists (skips if already set up)
+execSync('bash scripts/setup-codesign.sh', { stdio: 'inherit' });
+
 console.log(`Building for ${arch} architecture (skip DMG)...`);
 
 // Skip electron-builder's built-in signing (takes ~3-4 min for Electron framework).
