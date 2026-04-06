@@ -17,6 +17,28 @@ export type ColorValue = 'grey' | 'darkGrey' | 'slate' | 'stone' | 'red' | 'rose
  */
 export type PluginFormat = string[] | Record<string, string[]>;
 
+/**
+ * Parsed plugin entry with optional overrides from @suffix?params syntax
+ * e.g., "claude/custom-search/agents@agent?open=iTerm"
+ * → { path: "claude/custom-search/agents", overrides: { searchPrefix: "agent", args: { open: "iTerm" } } }
+ */
+export interface ParsedPluginEntry {
+  path: string;
+  overrides?: {
+    searchPrefix?: string;
+    args?: Record<string, string>;
+  };
+}
+
+/**
+ * Custom shortcut action entry (from settings shortcuts with custom actions)
+ * e.g., { key: "Ctrl+m", action: "input=@md:" }
+ */
+export interface CustomShortcutEntry {
+  key: string;
+  action: string;
+}
+
 export interface AppInfo {
   name: string;
   bundleId?: string | null;
@@ -188,6 +210,8 @@ export interface UserSettings {
   mentionEnable?: string[];
   // Global mention filter: blacklist (exact match: "agent-legacy", prefix match: "old-*")
   mentionDisable?: string[];
+  // Custom shortcut actions (extracted from {key: action} shortcuts format)
+  customShortcuts?: CustomShortcutEntry[];
 
   // Legacy: mentions wrapper (use top-level fileSearch, symbolSearch, customSearch instead)
   /** @deprecated Use top-level fileSearch, symbolSearch, customSearch instead */
@@ -251,6 +275,8 @@ export interface FileSearchUserSettings {
  * All fields are optional - defaults are applied by the application
  */
 export interface SymbolSearchUserSettings {
+  /** Respect .gitignore files (default: true) */
+  respectGitignore?: boolean;
   /** Maximum number of symbols to return (default: 200000) */
   maxSymbols?: number;
   /** Search timeout in milliseconds (default: 60000) */
@@ -327,10 +353,8 @@ export interface AgentSkillEntry {
   name: string;
   /** 説明テンプレート（例: "{frontmatter@description}"） */
   description: string;
-  /** 検索ディレクトリパス */
-  path: string;
-  /** ファイルパターン（glob形式、例: "*.md"） */
-  pattern: string;
+  /** ソースパス（ディレクトリ+globパターン、例: "~/.claude/commands/*.md"） */
+  sourcePath: string;
   /** オプション: argumentHintテンプレート */
   argumentHint?: string;
   /** オプション: 検索候補の最大表示数（デフォルト: 20） */
@@ -361,8 +385,10 @@ export interface AgentSkillEntry {
    * - 前方一致: "debug-*"
    */
   disable?: string[];
-  /** オプション: コマンドの標準出力を検索ソースとして使用するシェルコマンド文字列（指定時は path/pattern の代わりに使用） */
-  source?: string;
+  /** オプション: コマンドの標準出力を検索ソースとして使用するシェルコマンド文字列（指定時は sourcePath の代わりに使用） */
+  sourceCommand?: string;
+  /** オプション: テンプレート引数（例: { open: "iTerm" } → {args.open} で参照可能） */
+  args?: Record<string, string>;
 }
 
 /** @deprecated Use AgentSkillEntry instead */
@@ -376,10 +402,8 @@ export interface MentionEntry {
   name: string;
   /** 説明テンプレート（例: "{frontmatter@description}"） */
   description: string;
-  /** 検索ディレクトリパス */
-  path: string;
-  /** ファイルパターン（glob形式、例: "*.md"） */
-  pattern: string;
+  /** ソースパス（ディレクトリ+globパターン、例: "~/.claude/agents/*.md"） */
+  sourcePath: string;
   /** オプション: 検索候補の最大表示数（デフォルト: 20） */
   maxSuggestions?: number;
   /** オプション: 検索プレフィックス（例: "agent"）- 自動で : が追加されます（@agent: で検索） */
@@ -415,9 +439,11 @@ export interface MentionEntry {
   /** オプション: キーボードショートカット（例: "Ctrl+g"）- このショートカットで @searchPrefix: 検索を直接起動 */
   shortcut?: string;
   /** オプション: Ctrl+Enter で実行するシェルコマンド。テンプレート変数({filepath}, {basename}, {content}等)使用可 */
-  command?: string;
-  /** オプション: コマンドの標準出力を検索ソースとして使用するシェルコマンド文字列（指定時は path/pattern の代わりに使用） */
-  source?: string;
+  runCommand?: string;
+  /** オプション: コマンドの標準出力を検索ソースとして使用するシェルコマンド文字列（指定時は sourcePath の代わりに使用） */
+  sourceCommand?: string;
+  /** オプション: テンプレート引数（例: { open: "iTerm" } → {args.open} で参照可能） */
+  args?: Record<string, string>;
 }
 
 // ============================================================================
@@ -441,10 +467,8 @@ export interface CustomSearchEntry {
   type: CustomSearchType;
   /** 説明テンプレート（例: "{frontmatter@description}"） */
   description: string;
-  /** 検索ディレクトリパス（source指定時は空文字""を設定） */
-  path: string;
-  /** ファイルパターン（glob形式、例: "*.md", "SKILL.md"）（source指定時は空文字""を設定） */
-  pattern: string;
+  /** ソースパス（ディレクトリ+globパターン、例: "~/.claude/commands/*.md"）（sourceCommand指定時は空文字""を設定） */
+  sourcePath: string;
   /** オプション: label（静的な値 "skill" または テンプレート "{frontmatter@label}"） */
   label?: string;
   /** オプション: ラベルとハイライトの色（grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red） */
@@ -482,11 +506,13 @@ export interface CustomSearchEntry {
    */
   disable?: string[];
   /** オプション: Ctrl+Enter で実行するシェルコマンド。テンプレート変数({filepath}, {basename}, {content}等)使用可 */
-  command?: string;
+  runCommand?: string;
   /** オプション: このファイルが存在するディレクトリを検索対象から除外する（例: ".orphaned_at"） */
   excludeMarker?: string;
-  /** オプション: コマンドの標準出力を検索ソースとして使用するシェルコマンド文字列（指定時は path/pattern の代わりに使用） */
-  source?: string;
+  /** オプション: コマンドの標準出力を検索ソースとして使用するシェルコマンド文字列（指定時は sourcePath の代わりに使用） */
+  sourceCommand?: string;
+  /** オプション: テンプレート引数（例: { open: "iTerm" } → {args.open} で参照可能） */
+  args?: Record<string, string>;
 }
 
 /**
@@ -511,7 +537,7 @@ export interface CustomSearchItem {
   icon?: string;
   /** argumentHint（commandタイプのみ） */
   argumentHint?: string;
-  /** 検索ソースの識別子（path + pattern） */
+  /** 検索ソースの識別子（sourcePath） */
   sourceId: string;
   /** カスタムソートキー（orderByテンプレートの解決値） */
   sortKey?: string;
@@ -526,7 +552,7 @@ export interface CustomSearchItem {
   /** トリガー文字の配列（commandタイプのみ） */
   triggers?: string[];
   /** テンプレート解決済みのコマンド文字列（Ctrl+Enter で実行） */
-  command?: string;
+  runCommand?: string;
 }
 
 export interface AgentSkillItem {
@@ -561,5 +587,5 @@ export interface AgentItem {
   label?: string;
   updatedAt?: number;  // File modification timestamp (mtimeMs)
   displayTime?: number | null;  // Resolved display time (null = hidden, undefined = fallback to updatedAt)
-  command?: string;  // Shell command to execute on Ctrl+Enter (template-resolved)
+  runCommand?: string;  // Shell command to execute on Ctrl+Enter (template-resolved)
 }

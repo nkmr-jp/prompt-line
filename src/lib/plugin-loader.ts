@@ -3,7 +3,7 @@ import path from 'path';
 import yaml from 'js-yaml';
 import config from '../config/app-config';
 import { logger, validateColorValue } from '../utils/utils';
-import type { AgentSkillItem, AgentItem, CustomSearchEntry, ColorValue } from '../types/window';
+import type { AgentSkillItem, AgentItem, CustomSearchEntry, ColorValue, ParsedPluginEntry } from '../types/window';
 
 /**
  * Plugin type determined by directory name
@@ -16,8 +16,10 @@ type PluginType = 'agent-skills' | 'custom-search' | 'agent-built-in';
 interface PluginEntryYaml {
   name: string;
   description: string;
-  path: string;
-  pattern: string;
+  sourcePath?: string;
+  sourceCommand?: string;
+  runCommand?: string;
+  args?: Record<string, string>;
   label?: string;
   color?: ColorValue;
   icon?: string;
@@ -32,7 +34,6 @@ interface PluginEntryYaml {
   displayTime?: string;
   inputFormat?: string;
   shortcut?: string;
-  command?: string;
   excludeMarker?: string;
 }
 
@@ -135,9 +136,10 @@ class PluginLoader {
   /**
    * Load a single plugin by its relative path
    */
-  private loadPlugin(pluginPath: string): LoadedPlugin | null {
-    // Check cache first
-    const cached = this.cache.get(pluginPath);
+  private loadPlugin(pluginPath: string, overrides?: ParsedPluginEntry['overrides']): LoadedPlugin | null {
+    // Check cache (cache key includes overrides to avoid stale entries)
+    const cacheKey = overrides ? `${pluginPath}@${JSON.stringify(overrides)}` : pluginPath;
+    const cached = this.cache.get(cacheKey);
     if (cached) return cached;
 
     const type = this.getPluginType(pluginPath);
@@ -150,8 +152,8 @@ class PluginLoader {
     if (!basePath) return null;
 
     // Try .yaml first, then .yml — parsePlugin handles missing files gracefully
-    const result = this.parsePlugin(basePath + '.yaml', pluginPath, type)
-      ?? this.parsePlugin(basePath + '.yml', pluginPath, type);
+    const result = this.parsePlugin(basePath + '.yaml', pluginPath, type, overrides)
+      ?? this.parsePlugin(basePath + '.yml', pluginPath, type, overrides);
     if (!result) {
       logger.debug(`Plugin file not found: ${basePath}.yaml`);
     }
@@ -180,10 +182,11 @@ class PluginLoader {
   /**
    * Parse a plugin YAML file
    */
-  private parsePlugin(filePath: string, pluginPath: string, type: PluginType): LoadedPlugin | null {
+  private parsePlugin(filePath: string, pluginPath: string, type: PluginType, overrides?: ParsedPluginEntry['overrides']): LoadedPlugin | null {
     const parsed = this.readYamlFile(filePath);
     if (!parsed) return null;
 
+    const cacheKey = overrides ? `${pluginPath}@${JSON.stringify(overrides)}` : pluginPath;
     const plugin: LoadedPlugin = {
       pluginPath,
       type,
@@ -197,21 +200,26 @@ class PluginLoader {
       plugin.agentBuiltIn = this.parseAgentBuiltIn(yamlData, filePath);
       plugin.agentBuiltInAgents = this.parseAgentBuiltInAgents(yamlData, filePath);
     } else {
-      const entry = this.parsePluginEntry(parsed as PluginEntryYaml, type);
+      const entry = this.parsePluginEntry(parsed as PluginEntryYaml, type, overrides);
       if (entry) {
         plugin.entries = [entry];
       }
     }
 
-    this.cache.set(pluginPath, plugin);
+    this.cache.set(cacheKey, plugin);
     return plugin;
   }
 
   /**
    * Convert a plugin YAML to CustomSearchEntry
+   * @param overrides - Optional overrides applied after YAML fields (e.g., from `@suffix?params` plugin path feature)
    */
-  private parsePluginEntry(yamlData: PluginEntryYaml, type: PluginType): CustomSearchEntry | null {
-    if (!yamlData.name || !yamlData.path || !yamlData.pattern) {
+  private parsePluginEntry(
+    yamlData: PluginEntryYaml,
+    type: PluginType,
+    overrides?: { searchPrefix?: string; args?: Record<string, string> }
+  ): CustomSearchEntry | null {
+    if (!yamlData.name || (!yamlData.sourcePath && !yamlData.sourceCommand)) {
       return null;
     }
 
@@ -221,9 +229,13 @@ class PluginLoader {
       type: entryType,
       name: yamlData.name,
       description: (yamlData.description || '').replace(/\n+/g, ' ').trim(),
-      path: yamlData.path,
-      pattern: yamlData.pattern,
+      sourcePath: yamlData.sourcePath || '',
     };
+
+    // Copy source/run fields
+    if (yamlData.sourceCommand !== undefined) entry.sourceCommand = yamlData.sourceCommand;
+    if (yamlData.runCommand !== undefined) entry.runCommand = yamlData.runCommand;
+    if (yamlData.args !== undefined) entry.args = yamlData.args;
 
     // Copy optional fields
     if (yamlData.label !== undefined) entry.label = yamlData.label;
@@ -239,8 +251,11 @@ class PluginLoader {
     if (yamlData.searchPrefix !== undefined) entry.searchPrefix = yamlData.searchPrefix;
     if (yamlData.displayTime !== undefined) entry.displayTime = yamlData.displayTime;
     if (yamlData.inputFormat !== undefined) entry.inputFormat = yamlData.inputFormat;
-    if (yamlData.command !== undefined) entry.command = yamlData.command;
     if (yamlData.excludeMarker !== undefined) entry.excludeMarker = yamlData.excludeMarker;
+
+    // Apply overrides (from plugin path suffixes like @suffix?params)
+    if (overrides?.searchPrefix !== undefined) entry.searchPrefix = overrides.searchPrefix;
+    if (overrides?.args !== undefined) entry.args = { ...entry.args, ...overrides.args };
 
     return entry;
   }
@@ -391,14 +406,14 @@ class PluginLoader {
   /**
    * Load all enabled plugins and return CustomSearchEntry[] for agent-skills/custom-search
    */
-  loadPluginEntries(enabledPlugins: string[]): CustomSearchEntry[] {
+  loadPluginEntries(enabledPlugins: ParsedPluginEntry[]): CustomSearchEntry[] {
     const entries: CustomSearchEntry[] = [];
 
-    for (const pluginPath of enabledPlugins) {
+    for (const { path: pluginPath, overrides } of enabledPlugins) {
       const type = this.getPluginType(pluginPath);
       if (type === 'agent-built-in') continue; // handled separately
 
-      const plugin = this.loadPlugin(pluginPath);
+      const plugin = this.loadPlugin(pluginPath, overrides);
       if (plugin) {
         entries.push(...plugin.entries);
       }

@@ -92,7 +92,6 @@ function appendAgentSkillOptionalFields(lines: string[], entry: AgentSkillEntry,
   if (entry.label) lines.push(`${p}label: "${entry.label}"`);
   if (entry.color) lines.push(`${p}color: "${entry.color}"`);
   if (entry.icon) lines.push(`${p}icon: "${entry.icon}"`);
-  lines.push(`${p}pattern: "${entry.pattern}"`);
   if (entry.values) {
     lines.push(`${p}values:`);
     for (const [key, val] of Object.entries(entry.values)) {
@@ -116,7 +115,7 @@ function formatAgentSkillEntry(entry: AgentSkillEntry, indent: string, commented
   const lines = [
     `${first}- name: "${entry.name}"`,
     `${content}description: "${entry.description || ''}"`,
-    `${content}path: ${entry.path}`
+    `${content}sourcePath: ${entry.sourcePath}`
   ];
   appendAgentSkillOptionalFields(lines, entry, content);
   return lines.join('\n');
@@ -130,8 +129,7 @@ function appendCustomSearchCoreFields(lines: string[], entry: MentionEntry, p: s
   if (entry.icon) lines.push(`${p}icon: ${entry.icon}`);
   if (entry.color) lines.push(`${p}color: "${entry.color}"`);
   lines.push(`${p}description: "${entry.description}"`);
-  lines.push(`${p}path: ${entry.path}`);
-  lines.push(`${p}pattern: "${entry.pattern}"`);
+  lines.push(`${p}sourcePath: ${entry.sourcePath}`);
 }
 
 /**
@@ -151,7 +149,7 @@ function appendCustomSearchOptionalFields(lines: string[], entry: MentionEntry, 
   if (entry.orderBy !== undefined) lines.push(`${p}orderBy: "${entry.orderBy}"`);
   if (entry.displayTime !== undefined) lines.push(`${p}displayTime: "${entry.displayTime}"`);
   if (entry.inputFormat !== undefined) lines.push(`${p}inputFormat: ${entry.inputFormat}               # Insert format template`);
-  if (entry.command) lines.push(`${p}command: "${entry.command}"            # Shell command on Ctrl+Enter`);
+  if (entry.runCommand) lines.push(`${p}runCommand: "${entry.runCommand}"            # Shell command on Ctrl+Enter`);
 }
 
 /**
@@ -226,8 +224,11 @@ function buildPluginsSection(settings: UserSettings): string {
   if (isPluginsEmpty(plugins)) {
     return `#plugins:
 #  github.com/nkmr-jp/prompt-line-plugins:
-#    - claude/agent-skills/commands
-#    - claude/agent-built-in/claude`;
+#    - claude/agent-built-in/en                  # Claude Code built-in commands,skills,agents | lang: en,ja
+#    - claude/agent-skills/commands              # sourcePath: ~/.claude/commands/*.md
+#    - claude/agent-skills/skills                # sourcePath: ~/.claude/skills/**/SKILL.md
+#    - claude/custom-search/agents@agent         # sourcePath: ~/.claude/agents/*.md
+#    - claude/custom-search/history@r            # sourcePath: ~/.claude/history.jsonl`;
   }
 
   let section = `plugins:\n`;
@@ -288,11 +289,10 @@ function buildAgentSkillsHeader(): string {
     '# Configuration fields:',
     '#   name: Display name template (variables: {basename}, {frontmatter@field}, {prefix})',
     '#   description: Skill description template (variables: {basename}, {frontmatter@field}, {dirname}, {dirname:N})',
-    '#   path: Directory path to search for skill files',
+    '#   sourcePath: Source path with glob (e.g., "~/.claude/commands/*.md")',
     '#   label: Display label for UI badge (e.g., "command", "skill", "agent")',
     '#   color: Badge color (name: grey, darkGrey, slate, stone, red, rose, orange, amber, yellow, lime, green, emerald, teal, cyan, sky, blue, indigo, violet, purple, fuchsia, pink, or hex: #FF5733)',
     '#   icon: Codicon icon name (e.g., "agent", "rocket", "terminal")',
-    '#   pattern: Glob pattern to match files (e.g., "*.md", "**/*/SKILL.md")',
     '#   values: Map of template variable names to JSON extraction patterns (e.g., pluginName: "**/.claude-plugin/*.json@name")',
     '#   argumentHint: Hint for skill arguments',
     '#   maxSuggestions: Maximum number of suggestions to display',
@@ -316,8 +316,7 @@ function buildAgentSkillsSection(settings: UserSettings, options: YamlGeneratorO
     return `#agentSkills:
 #  - name: "{basename}"
 #    description: "{frontmatter@description}"
-#    path: ~/.claude/commands
-#    pattern: "*.md"
+#    sourcePath: ~/.claude/commands/*.md
 #    argumentHint: "{frontmatter@argument-hint}"
 #    maxSuggestions: 20`;
   }
@@ -354,8 +353,7 @@ function buildCustomSearchHeader(): string {
 # Configuration fields:
 #   name            : Display name template
 #   description     : Entry description template (supports "|" fallback: "{json@a}|{json@b}")
-#   path            : Directory path to scan (supports ~ for home)
-#   pattern         : Glob pattern to match files
+#   sourcePath      : Source path with glob pattern (e.g., "~/.claude/commands/*.md")
 #   values          : Map of template variable names to JSON extraction patterns (e.g., pluginName: "**/.claude-plugin/*.json@name")
 #   searchPrefix    : Prefix to trigger this search (e.g., "agent" → @agent:)
 #   maxSuggestions  : Maximum number of suggestions to display
@@ -366,6 +364,9 @@ function buildCustomSearchHeader(): string {
 #   icon            : Codicon icon name (e.g., "agent", "rocket", "terminal")
 #                     https://microsoft.github.io/vscode-codicons/dist/codicon.html
 #   label           : UI badge label
+#   sourceCommand   : Shell command for data source (e.g., "ghq list") — used instead of sourcePath
+#   runCommand      : Shell command on Ctrl+Enter (e.g., "open -a iTerm ~/ghq/{line}")
+#   args            : Template arguments (e.g., { open: "iTerm" } → {args.open})
 #   shortcut        : Keyboard shortcut to activate this search (e.g., "Ctrl+g")
 #                     Inserts @searchPrefix: into the input and triggers mention detection
 #
@@ -411,8 +412,7 @@ function buildCustomSearchSection(settings: UserSettings, options: YamlGenerator
 #customSearch:
 #  - name: "agent-{basename}"
 #    description: "{frontmatter@description}"
-#    path: ~/.claude/agents
-#    pattern: "*.md"
+#    sourcePath: ~/.claude/agents/*.md
 #    searchPrefix: agent            # Search with @agent:`;
   }
 

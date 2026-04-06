@@ -121,8 +121,7 @@ export const defaultSettings: UserSettings = {
   agentSkills: [] as Array<{
     name: string;
     description: string;
-    path: string;
-    pattern: string;
+    sourcePath: string;
     [key: string]: unknown;
   }>,
   /**
@@ -217,8 +216,7 @@ export const defaultSettings: UserSettings = {
   customSearch: [] as Array<{
     name: string;
     description: string;
-    path: string;
-    pattern: string;
+    sourcePath: string;
     [key: string]: unknown;
   }>
 };
@@ -238,8 +236,7 @@ export const commentedExamples = {
   agentSkills: [] as Array<{
     name: string;
     description: string;
-    path: string;
-    pattern: string;
+    sourcePath: string;
     argumentHint?: string;
   }>,
   fileOpener: {
@@ -255,14 +252,13 @@ export const commentedExamples = {
     {
       name: '{basename}',
       description: '{frontmatter@title}',
-      path: '/path/to/knowledge-base',
-      pattern: '**/*/*.md',
+      sourcePath: '/path/to/knowledge-base/**/*/*.md',
       searchPrefix: 'kb',
       shortcut: 'Ctrl+g',
       maxSuggestions: 100,
       orderBy: '{updatedAt} desc',
       inputFormat: '{filepath}',
-      command: "open -a 'Google Chrome' {filepath}"
+      runCommand: "open -a 'Google Chrome' {filepath}"
     },
     {
       name: '{json@display}',
@@ -270,8 +266,7 @@ export const commentedExamples = {
       color: 'orange',
       description: '',
       searchPrefix: 'r',
-      path: '~/.claude',
-      pattern: 'history.jsonl',
+      sourcePath: '~/.claude/history.jsonl',
       orderBy: '{json@timestamp} desc',
       inputFormat: '{json@display}',
       displayTime: '{json@timestamp}',
@@ -285,9 +280,8 @@ export const commentedExamples = {
       description: '',
       searchPrefix: 'ghq',
       shortcut: 'Ctrl+g',
-      command: 'open -a iTerm ~/ghq/{line}',
-      path: '~/.prompt-line',
-      pattern: 'ghq.txt',
+      runCommand: 'open -a iTerm ~/ghq/{line}',
+      sourcePath: '~/.prompt-line/ghq.txt',
       inputFormat: '~/ghq/{line}',
       maxSuggestions: 100
     },
@@ -299,10 +293,9 @@ export const commentedExamples = {
       description: '',
       searchPrefix: 'ghq',
       shortcut: 'Ctrl+g',
-      command: 'open -a iTerm ~/ghq/{line}',
-      source: 'ghq list',
-      path: '',
-      pattern: '',
+      runCommand: 'open -a iTerm ~/ghq/{line}',
+      sourceCommand: 'ghq list',
+      sourcePath: '',
       inputFormat: '~/ghq/{line}',
       maxSuggestions: 100
     }

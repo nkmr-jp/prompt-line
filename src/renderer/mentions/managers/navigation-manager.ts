@@ -235,11 +235,11 @@ export class NavigationManager {
         if (suggestion) {
           const agent = suggestion.agent;
 
-          // command フィールドがある場合はコマンドを実行し、出力をテキストエリアに挿入
-          if (agent?.command && electronAPI?.customSearch?.executeCommand) {
+          // runCommand フィールドがある場合はコマンドを実行し、出力をテキストエリアに挿入
+          if (agent?.runCommand && electronAPI?.customSearch?.executeCommand) {
             this.callbacks.removeAtQueryText();
             this.callbacks.hideSuggestions();
-            electronAPI.customSearch.executeCommand(agent.command)
+            electronAPI.customSearch.executeCommand(agent.runCommand)
               .then((result) => {
                 if (result.output && this.callbacks.insertTextAtCursor) {
                   this.callbacks.insertTextAtCursor(result.output);
@@ -663,7 +663,7 @@ export class NavigationManager {
     if (!suggestion) return;
 
     const agent = suggestion.agent;
-    if (agent?.command) {
+    if (agent?.runCommand) {
       this.callbacks.updateHintText('Ctrl+Enter: execute command');
     } else if (agent?.inputText && isOpenablePath(agent.inputText)) {
       if (/^https?:\/\//.test(agent.inputText)) {

@@ -7,6 +7,7 @@ import { execSync } from 'child_process';
 import { showHelp } from './plugin-help';
 
 const PLUGINS_DIR = path.join(os.homedir(), '.prompt-line', 'plugins');
+const VALID_PLUGIN_TYPES = ['agent-built-in', 'agent-skills', 'custom-search'] as const;
 
 // --- Types ---
 
@@ -437,6 +438,18 @@ interface CopyResult {
   totalFiles: number;
 }
 
+/**
+ * Check if a directory is a valid plugin folder.
+ * Returns true if any path component exactly matches a valid plugin type.
+ * e.g., "claude/agent-built-in" → contains "agent-built-in" → valid
+ *       "claude/agent-skills/commands" → contains "agent-skills" → valid
+ *       "claude/agent-skills-new/commands" → "agent-skills-new" is not an exact match → invalid
+ */
+function isValidPluginFolder(relPath: string): boolean {
+  const parts = relPath.split(path.sep);
+  return parts.some(part => (VALID_PLUGIN_TYPES as readonly string[]).includes(part));
+}
+
 function copyYamlFiles(
   sourceDir: string,
   targetDir: string,
@@ -453,11 +466,11 @@ function copyYamlFiles(
   let totalFiles = 0;
   let hasYamlInDir = false;
 
-  if (!fs.existsSync(targetDir)) {
-    fs.mkdirSync(targetDir, { recursive: true });
-  }
-
   const entries = fs.readdirSync(sourceDir, { withFileTypes: true });
+
+  // Check if this directory is a valid plugin folder (only process YAML files if so)
+  const folderRelPath = path.relative(baseSourceDir, sourceDir);
+  const isPluginFolder = folderRelPath !== '' && isValidPluginFolder(folderRelPath);
 
   for (const entry of entries) {
     const sourcePath = path.join(sourceDir, entry.name);
@@ -469,7 +482,7 @@ function copyYamlFiles(
       pluginEntries.push(...sub.pluginEntries);
       leafFolders.push(...sub.leafFolders);
       totalFiles += sub.totalFiles;
-    } else if (entry.isFile() && (entry.name.endsWith('.yml') || entry.name.endsWith('.yaml'))) {
+    } else if (isPluginFolder && entry.isFile() && (entry.name.endsWith('.yml') || entry.name.endsWith('.yaml'))) {
       hasYamlInDir = true;
       const content = fs.readFileSync(sourcePath, 'utf-8');
       const gitRelFile = path.relative(gitCwd, sourcePath);
@@ -485,7 +498,9 @@ function copyYamlFiles(
         }
       }
 
-      fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
       fs.writeFileSync(targetPath, versionComment + content, 'utf-8');
 
       const relPath = path.relative(rootTargetDir, targetPath);
@@ -499,7 +514,7 @@ function copyYamlFiles(
   }
 
   if (hasYamlInDir) {
-    leafFolders.push(path.relative(baseSourceDir, sourceDir));
+    leafFolders.push(folderRelPath);
   }
 
   return { pluginEntries, leafFolders, totalFiles };

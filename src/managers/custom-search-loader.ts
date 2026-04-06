@@ -25,6 +25,37 @@ import { shellQuote } from '../utils/security';
  */
 const SKILL_PATTERN = /SKILL\.md/i;
 
+/**
+ * Split a sourcePath into directory and glob pattern parts.
+ * The split happens at the first path segment containing glob characters (*, ?, [).
+ */
+const splitSourcePathCache = new Map<string, { dir: string; pattern: string }>();
+
+function splitSourcePath(sourcePath: string): { dir: string; pattern: string } {
+  const cached = splitSourcePathCache.get(sourcePath);
+  if (cached) return cached;
+
+  const segments = sourcePath.split('/');
+  const globIndex = segments.findIndex(s => /[*?[]/.test(s));
+  let result: { dir: string; pattern: string };
+  if (globIndex === -1) {
+    // No glob chars - check if last segment looks like a filename (contains .)
+    const lastSegment = segments[segments.length - 1];
+    if (lastSegment && lastSegment.includes('.')) {
+      result = { dir: segments.slice(0, -1).join('/'), pattern: lastSegment };
+    } else {
+      result = { dir: sourcePath, pattern: '*' };
+    }
+  } else {
+    result = {
+      dir: segments.slice(0, globIndex).join('/'),
+      pattern: segments.slice(globIndex).join('/')
+    };
+  }
+  splitSourcePathCache.set(sourcePath, result);
+  return result;
+}
+
 class CustomSearchLoader extends EventEmitter {
   private config: CustomSearchEntry[];
   private cache: Map<string, { items: CustomSearchItem[] }> = new Map();
@@ -330,9 +361,9 @@ class CustomSearchLoader extends EventEmitter {
   private buildEntryMap(): void {
     this.entryMap.clear();
     for (const entry of this.config) {
-      const key = entry.source
-        ? `${entry.type}:source:${entry.source}`
-        : `${entry.type}:${entry.path}:${entry.pattern}`;
+      const key = entry.sourceCommand
+        ? `${entry.type}:sourceCommand:${entry.sourceCommand}`
+        : `${entry.type}:${entry.sourcePath}`;
       this.entryMap.set(key, entry);
     }
   }
@@ -531,11 +562,11 @@ class CustomSearchLoader extends EventEmitter {
   private async loadAllEntries(): Promise<{ items: CustomSearchItem[]; watchableFiles: string[] }> {
     const results = await Promise.all(
       this.config.map(async (entry) => {
-        const sourceId = entry.source
-          ? `source:${entry.source}`
-          : `${entry.path}:${entry.pattern}`;
+        const sourceId = entry.sourceCommand
+          ? `sourceCommand:${entry.sourceCommand}`
+          : entry.sourcePath;
         try {
-          const { items, watchableFiles } = entry.source
+          const { items, watchableFiles } = entry.sourceCommand
             ? await this.loadCommandEntry(entry)
             : await this.loadEntry(entry);
           return { items, sourceId, watchableFiles };
@@ -600,7 +631,8 @@ class CustomSearchLoader extends EventEmitter {
    * 単一エントリをロード
    */
   private async loadEntry(entry: CustomSearchEntry): Promise<{ items: CustomSearchItem[]; watchableFiles: string[] }> {
-    const expandedPath = await this.resolveSymlink(entry.path.replace(/^~/, os.homedir()));
+    const { dir, pattern } = splitSourcePath(entry.sourcePath);
+    const expandedPath = await this.resolveSymlink(dir.replace(/^~/, os.homedir()));
 
     const isValid = await this.validateDirectory(expandedPath);
     if (!isValid) {
@@ -608,12 +640,13 @@ class CustomSearchLoader extends EventEmitter {
     }
 
     // Parse jq expression from pattern: '**/config.json@.members' → filePattern + jqExpression
-    const { filePattern, jqExpression } = this.parseJqPath(entry.pattern);
+    const { filePattern, jqExpression } = this.parseJqPath(pattern);
     const files = await this.findFiles(expandedPath, filePattern, entry.excludeMarker);
-    const sourceId = `${entry.path}:${entry.pattern}`;
+    const sourceId = entry.sourcePath;
     logger.debug('CustomSearch loadEntry', {
-      path: entry.path,
-      pattern: entry.pattern,
+      sourcePath: entry.sourcePath,
+      dir,
+      pattern,
       filePattern,
       jqExpression,
       filesFound: files.length
@@ -634,7 +667,7 @@ class CustomSearchLoader extends EventEmitter {
   private async loadCommandEntry(
     entry: CustomSearchEntry
   ): Promise<{ items: CustomSearchItem[]; watchableFiles: string[] }> {
-    const sourceId = `source:${entry.source}`;
+    const sourceId = `sourceCommand:${entry.sourceCommand}`;
     const cached = this.commandCache.get(sourceId);
 
     let items: CustomSearchItem[];
@@ -702,7 +735,7 @@ class CustomSearchLoader extends EventEmitter {
     sourceId: string
   ): Promise<CustomSearchItem[]> {
     try {
-      const { stdout } = await execAsync(entry.source!, {
+      const { stdout } = await execAsync(entry.sourceCommand!, {
         timeout: CustomSearchLoader.COMMAND_SOURCE_TIMEOUT,
         env: { ...process.env },
       });
@@ -715,14 +748,14 @@ class CustomSearchLoader extends EventEmitter {
 
       const items = this.parseCommandOutput(output, entry, sourceId);
       this.commandCache.set(sourceId, { items, fetchedAt: Date.now() });
-      logger.info('CustomSearch command source loaded', { source: entry.source, itemCount: items.length });
+      logger.info('CustomSearch command source loaded', { source: entry.sourceCommand, itemCount: items.length });
       return items;
     } catch (error) {
       const execError = error as { message: string; stderr?: string; signal?: string };
       const msg = execError.signal === 'SIGTERM'
-        ? `Command timed out (5s): ${entry.source}`
+        ? `Command timed out (5s): ${entry.sourceCommand}`
         : `Command failed: ${execError.stderr || execError.message}`;
-      logger.warn('CustomSearch command source error', { source: entry.source, error: msg });
+      logger.warn('CustomSearch command source error', { source: entry.sourceCommand, error: msg });
       this.emit('command-error', { message: msg });
 
       // Return stale cache if available, otherwise empty
@@ -760,7 +793,7 @@ class CustomSearchLoader extends EventEmitter {
     sourceId: string
   ): CustomSearchItem[] {
     const items: CustomSearchItem[] = [];
-    const virtualPath = `command-source:${entry.source}`;
+    const virtualPath = `command-source:${entry.sourceCommand}`;
     const nowMs = Date.now();
     let lineIndex = 0;
 
@@ -768,7 +801,7 @@ class CustomSearchLoader extends EventEmitter {
       const trimmed = rawLine.trim();
       if (!trimmed) continue;
       const item = this.createItemFromPlainTextLine(
-        trimmed, entry.source!, '', virtualPath,
+        trimmed, entry.sourceCommand!, '', virtualPath,
         entry, sourceId, '', '', lineIndex, nowMs, content, {}
       );
       if (item) { items.push(item); lineIndex++; }
@@ -786,7 +819,7 @@ class CustomSearchLoader extends EventEmitter {
     sourceId: string
   ): CustomSearchItem[] {
     const items: CustomSearchItem[] = [];
-    const virtualPath = `command-source:${entry.source}`;
+    const virtualPath = `command-source:${entry.sourceCommand}`;
 
     for (const rawLine of lines) {
       const trimmed = rawLine.trim();
@@ -800,7 +833,7 @@ class CustomSearchLoader extends EventEmitter {
       }
       const elementData = parsed as Record<string, unknown>;
       const item = this.createItemFromJsonData(
-        elementData, entry.source!, '', virtualPath, entry, sourceId, undefined, content
+        elementData, entry.sourceCommand!, '', virtualPath, entry, sourceId, undefined, content
       );
       if (item) items.push(item);
     }
@@ -919,7 +952,7 @@ class CustomSearchLoader extends EventEmitter {
       const heading = isJsonFile ? '' : parseFirstHeading(content);
       const jsonData = isJsonFile ? parseJsonContent(content) : undefined;
       const hasValues = Object.keys(values).length > 0;
-      const basePath = entry.path.replace(/^~/, os.homedir());
+      const basePath = splitSourcePath(entry.sourcePath).dir.replace(/^~/, os.homedir());
       const context = { basename, frontmatter, prefix, dirname, filePath, basePath, heading, content, ...(hasValues && { values }), ...(jsonData && { jsonData }) };
 
       const item: CustomSearchItem = {
@@ -949,7 +982,8 @@ class CustomSearchLoader extends EventEmitter {
   /** エントリのvalues/prefixPatternからテンプレート変数を解決する */
   private async resolveEntryValues(filePath: string, entry: CustomSearchEntry): Promise<Record<string, string>> {
     if (!entry.values && !entry.prefixPattern) return {};
-    const expandedPath = await this.resolveSymlink(entry.path.replace(/^~/, os.homedir()));
+    const { dir } = splitSourcePath(entry.sourcePath);
+    const expandedPath = await this.resolveSymlink(dir.replace(/^~/, os.homedir()));
     return resolveValues(filePath, entry.values, entry.prefixPattern, expandedPath);
   }
 
@@ -971,9 +1005,10 @@ class CustomSearchLoader extends EventEmitter {
       const resolvedIcon = resolveTemplate(entry.icon, context);
       if (resolvedIcon) item.icon = resolvedIcon.startsWith('codicon-') ? resolvedIcon : `codicon-${resolvedIcon}`;
     }
-    // Auto-detect default icon from pattern when not explicitly set
-    if (!item.icon && entry.pattern) {
-      item.icon = SKILL_PATTERN.test(entry.pattern) ? 'codicon-edit-sparkle' : 'codicon-terminal';
+    // Auto-detect default icon from sourcePath pattern when not explicitly set
+    if (!item.icon && entry.sourcePath) {
+      const { pattern } = splitSourcePath(entry.sourcePath);
+      item.icon = SKILL_PATTERN.test(pattern) ? 'codicon-edit-sparkle' : 'codicon-terminal';
     }
     if (entry.argumentHint) {
       const resolvedHint = resolveTemplate(entry.argumentHint, context);
@@ -982,12 +1017,12 @@ class CustomSearchLoader extends EventEmitter {
     if (entry.triggers) {
       item.triggers = entry.triggers;
     }
-    if (entry.command) {
+    if (entry.runCommand) {
       // Shell-quote all resolved template values to prevent shell injection (CWE-78).
       // valueTransform is applied AFTER resolveJsonPath/getDirname/etc. produce their
       // final string, so JSON.stringify output (including object keys) is also quoted.
-      const resolvedCommand = resolveTemplate(entry.command, context, shellQuote);
-      if (resolvedCommand) item.command = resolvedCommand;
+      const resolvedCommand = resolveTemplate(entry.runCommand, context, shellQuote);
+      if (resolvedCommand) item.runCommand = resolvedCommand;
     }
   }
 
@@ -1060,7 +1095,7 @@ class CustomSearchLoader extends EventEmitter {
     content: string,
     values?: Record<string, string>
   ): CustomSearchItem | null {
-    const basePath = entry.path ? entry.path.replace(/^~/, os.homedir()) : '';
+    const basePath = entry.sourcePath ? splitSourcePath(entry.sourcePath).dir.replace(/^~/, os.homedir()) : '';
     const context = { basename, frontmatter: {}, prefix, dirname, filePath, basePath, heading, line: trimmed, content, ...(values && { values }) };
     const item: CustomSearchItem = {
       name: resolveTemplate(entry.name, context),
@@ -1344,7 +1379,7 @@ class CustomSearchLoader extends EventEmitter {
     parentJsonDataStack?: Record<string, unknown>[],
     content?: string
   ): CustomSearchItem | null {
-    const basePath = entry.path ? entry.path.replace(/^~/, os.homedir()) : '';
+    const basePath = entry.sourcePath ? splitSourcePath(entry.sourcePath).dir.replace(/^~/, os.homedir()) : '';
     const context = { basename, frontmatter: {}, prefix: '', dirname, filePath, basePath, heading: '', jsonData: elementData, ...(parentJsonDataStack && { parentJsonDataStack }), ...(content !== undefined && { content }) };
     const item: CustomSearchItem = {
       name: resolveTemplate(entry.name, context),

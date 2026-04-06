@@ -626,6 +626,7 @@ export class PromptLineRenderer {
   private updateCustomSearchShortcuts(): void {
     const shortcuts: Array<{ shortcut: string; triggerText: string }> = [];
 
+    // Plugin YAML shortcuts (from customSearch entries)
     if (this.userSettings?.customSearch) {
       for (const entry of this.userSettings.customSearch) {
         if (entry.shortcut && entry.searchPrefix) {
@@ -633,6 +634,16 @@ export class PromptLineRenderer {
             shortcut: entry.shortcut,
             triggerText: `@${entry.searchPrefix}:`
           });
+        }
+      }
+    }
+
+    // Settings custom shortcuts (from {key: action} format, e.g., Ctrl+m: "input=@md:")
+    if (this.userSettings?.customShortcuts) {
+      for (const { key, action } of this.userSettings.customShortcuts) {
+        if (action.startsWith('input=')) {
+          const triggerText = action.slice('input='.length);
+          shortcuts.push({ shortcut: key, triggerText });
         }
       }
     }

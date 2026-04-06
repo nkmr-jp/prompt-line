@@ -131,7 +131,8 @@ class CustomSearchHandler {
   ): Promise<AgentSkillItem[]> {
     try {
       const enabledPlugins = this.settingsManager.getPluginSettings();
-      const pluginCommands = pluginLoader.searchAgentBuiltIn(enabledPlugins, query);
+      const pluginPaths = enabledPlugins.map(p => p.path);
+      const pluginCommands = pluginLoader.searchAgentBuiltIn(pluginPaths, query);
       const legacyCommands = pluginLoader.searchLegacyAgentBuiltIn(this.settingsManager.getAgentBuiltInSettings(), query);
       const agentBuiltIn = [...pluginCommands, ...legacyCommands];
 
@@ -249,7 +250,8 @@ class CustomSearchHandler {
       }
 
       const enabledPlugins = this.settingsManager.getPluginSettings();
-      const pluginCommands = pluginLoader.searchAgentBuiltIn(enabledPlugins);
+      const pluginPaths = enabledPlugins.map(p => p.path);
+      const pluginCommands = pluginLoader.searchAgentBuiltIn(pluginPaths);
       const legacyCommands = pluginLoader.searchLegacyAgentBuiltIn(this.settingsManager.getAgentBuiltInSettings());
       const isBuiltIn = [...pluginCommands, ...legacyCommands].some(cmd => cmd.name === commandName);
       if (isBuiltIn) {
@@ -278,7 +280,8 @@ class CustomSearchHandler {
     try {
       // Get agent-built-in agents from plugin YAML files
       const enabledPlugins = this.settingsManager.getPluginSettings();
-      const builtInAgents = pluginLoader.searchAgentBuiltInAgents(enabledPlugins, query);
+      const pluginPaths = enabledPlugins.map(p => p.path);
+      const builtInAgents = pluginLoader.searchAgentBuiltInAgents(pluginPaths, query);
 
       // Get mentions (agents) from CustomSearchLoader
       // Always use searchItems to apply searchPrefix filtering, even for empty query
@@ -314,8 +317,8 @@ class CustomSearchHandler {
         if (item.displayTime !== undefined) {
           agent.displayTime = item.displayTime;
         }
-        if (item.command) {
-          agent.command = item.command;
+        if (item.runCommand) {
+          agent.runCommand = item.runCommand;
         }
         return agent;
       });
@@ -530,8 +533,8 @@ class CustomSearchHandler {
         this.customSearchLoader.getItems('mention'),
         this.customSearchLoader.getItems('command'),
       ]);
-      const isAuthorized = mentionItems.some(item => item.command === command)
-        || commandItems.some(item => item.command === command);
+      const isAuthorized = mentionItems.some(item => item.runCommand === command)
+        || commandItems.some(item => item.runCommand === command);
       if (!isAuthorized) {
         logger.warn('Unauthorized command execution attempt blocked', { commandLength: command.length });
         return { success: false, error: 'Command not authorized' };
