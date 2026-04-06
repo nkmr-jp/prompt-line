@@ -81,8 +81,7 @@ git clone https://github.com/nkmr-jp/prompt-line.git
 cd prompt-line
 git checkout v0.x.x  # Optional: replace with desired version tag
 pnpm install
-pnpm run setup-codesign # One-time: setup code signing certificate
-pnpm run install-app    # Build and install to /Applications
+pnpm run install-app    # Build and install to /Applications (includes code signing setup)
 ```
 
 Launch Prompt Line. An icon will appear in the system tray.

@@ -78,8 +78,7 @@ git clone https://github.com/nkmr-jp/prompt-line.git
 cd prompt-line
 git checkout v0.x.x  # 任意: 必要なバージョンタグに置き換え
 pnpm install
-pnpm run setup-codesign # 初回のみ: コード署名証明書をセットアップ
-pnpm run install-app    # ビルドして/Applicationsにインストール
+pnpm run install-app    # ビルドして/Applicationsにインストール（コード署名セットアップ含む）
 ```
 
 Prompt Lineを起動。システムトレーにアイコンが表示されます。
