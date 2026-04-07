@@ -604,7 +604,6 @@ ${buildShortcutsSection(settings)}
  */
 export function generateSettingsYaml(settings: UserSettings, options: YamlGeneratorOptions = {}): string {
   const imagesDirectorySection = buildImageDirectorySection(settings, options);
-  const customSearchSection = buildCustomSearchSection(settings, options);
   const pluginsSection = buildPluginsSection(settings);
   const fileSearchSection = buildFileSearchSection(settings);
   const symbolSearchSection = buildSymbolSearchSection(settings);
@@ -633,6 +632,15 @@ ${buildAgentBuiltInSection(settings, options)}
 # ============================================================================
 
 ${buildAgentSkillsSection(settings, options)}
+`;
+  }
+  if (settings.customSearch && settings.customSearch.length > 0) {
+    deprecatedSections += `
+# ============================================================================
+# CUSTOM SEARCH SETTINGS (deprecated — use plugins instead)
+# ============================================================================
+
+${buildCustomSearchSection(settings, options)}
 `;
   }
 
@@ -673,13 +681,5 @@ ${fileSearchSection}
 # ============================================================================
 
 ${symbolSearchSection}
-
-# ============================================================================
-# CUSTOM SEARCH SETTINGS (@ mentions)
-# ============================================================================
-# Custom search entries for @ mention sources
-# Template variables: {basename}, {frontmatter@fieldName}
-
-${customSearchSection}
 ${deprecatedSections}`;
 }

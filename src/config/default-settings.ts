@@ -205,16 +205,8 @@ export const defaultSettings: UserSettings = {
   plugins: [] as string[],
   /**
    * Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
-   * @deprecated Use plugins setting instead. Kept for backward compatibility.
-   * Inline entries here are merged with plugin file entries.
-   *
-   * Example (settings.yaml):
-   *   customSearch:
-   *     - name: "{basename}"
-   *       description: "{frontmatter@title}"
-   *       path: /path/to/knowledge-base
-   *       pattern: "**{/}*.md"
-   *       searchPrefix: kb
+   * @deprecated Use plugins or ~/.prompt-line/custom-search/*.yaml instead.
+   * Kept for backward compatibility. Inline entries here are merged with plugin file entries.
    */
   customSearch: [] as Array<{
     name: string;
