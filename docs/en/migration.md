@@ -141,9 +141,13 @@ The commented plugin examples now show the full v2 format with more available pl
 
 ---
 
-### 7. Custom search `sourcePath` replaces `path` + `pattern`
+### 7. `customSearch` section deprecated
 
-The `path` and `pattern` fields have been consolidated into a single `sourcePath` field.
+The inline `customSearch` section in settings.yaml is now deprecated, same as `agentBuiltIn` and `agentSkills`. It will only appear in the settings file when you have active entries.
+
+**Migration:** Use plugins or local YAML files instead (see item 8).
+
+If you have inline entries using the old `path`/`pattern` fields, combine them into `sourcePath`:
 
 **Before:**
 ```yaml
@@ -154,15 +158,40 @@ customSearch:
     searchPrefix: agent
 ```
 
-**After:**
+**After (plugin YAML or local YAML):**
 ```yaml
-customSearch:
-  - name: "{basename}"
-    sourcePath: ~/.claude/agents/*.md
-    searchPrefix: agent
+sourcePath: ~/.claude/agents/*.md
+name: "{basename}"
+searchPrefix: agent
 ```
 
-**Action required:** If you have inline `customSearch` entries using `path`/`pattern`, combine them into `sourcePath`. Both formats are supported for backward compatibility.
+---
+
+### 8. Local YAML directories (no plugin required)
+
+You can now place YAML config files directly in `~/.prompt-line/` subdirectories without creating a plugin:
+
+```
+~/.prompt-line/
+  agent-built-in/     # Agent built-in slash commands (*.yaml)
+  agent-skills/       # Slash commands from markdown files (*.yaml)
+  custom-search/      # Custom search entries (*.yaml)
+```
+
+These directories are automatically created and watched for changes (hot reload).
+
+**Example:** Create `~/.prompt-line/custom-search/my-notes.yaml`:
+```yaml
+sourcePath: ~/notes/**/*.md
+name: "{basename}"
+description: "{heading}"
+searchPrefix: note
+shortcut: Ctrl+n
+```
+
+This is equivalent to using a plugin but simpler for personal configurations.
+
+**Action required:** None. This is an additional option alongside plugins.
 
 ---
 

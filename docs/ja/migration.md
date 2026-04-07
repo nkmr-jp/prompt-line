@@ -141,9 +141,13 @@ plugins:
 
 ---
 
-### 7. カスタム検索の `sourcePath` が `path` + `pattern` を置き換え
+### 7. `customSearch` セクションの非推奨化
 
-`path` と `pattern` フィールドが単一の `sourcePath` フィールドに統合されました。
+settings.yaml のインライン `customSearch` セクションは、`agentBuiltIn` や `agentSkills` と同様に非推奨になりました。アクティブなエントリがある場合のみ設定ファイルに表示されます。
+
+**移行方法:** プラグインまたはローカルYAMLファイルを使用してください（項目8参照）。
+
+旧 `path`/`pattern` フィールドを使用したインラインエントリがある場合、`sourcePath` に統合してください：
 
 **変更前:**
 ```yaml
@@ -154,15 +158,40 @@ customSearch:
     searchPrefix: agent
 ```
 
-**変更後:**
+**変更後（プラグインYAMLまたはローカルYAML）:**
 ```yaml
-customSearch:
-  - name: "{basename}"
-    sourcePath: ~/.claude/agents/*.md
-    searchPrefix: agent
+sourcePath: ~/.claude/agents/*.md
+name: "{basename}"
+searchPrefix: agent
 ```
 
-**対応:** `path`/`pattern` を使用したインラインの `customSearch` エントリがある場合、`sourcePath` に統合してください。後方互換性のため、両方のフォーマットがサポートされます。
+---
+
+### 8. ローカルYAMLディレクトリ（プラグイン不要）
+
+プラグインを作成せずに、`~/.prompt-line/` のサブディレクトリにYAML設定ファイルを直接配置できます：
+
+```
+~/.prompt-line/
+  agent-built-in/     # エージェント組み込みスラッシュコマンド (*.yaml)
+  agent-skills/       # マークダウンファイルからのスラッシュコマンド (*.yaml)
+  custom-search/      # カスタム検索エントリ (*.yaml)
+```
+
+これらのディレクトリは自動的に作成され、変更が監視されます（ホットリロード）。
+
+**例:** `~/.prompt-line/custom-search/my-notes.yaml` を作成：
+```yaml
+sourcePath: ~/notes/**/*.md
+name: "{basename}"
+description: "{heading}"
+searchPrefix: note
+shortcut: Ctrl+n
+```
+
+これはプラグインと同等ですが、個人設定にはよりシンプルです。
+
+**対応:** 不要。プラグインと併用できる追加オプションです。
 
 ---
 

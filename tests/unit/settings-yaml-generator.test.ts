@@ -421,10 +421,11 @@ describe('settings-yaml-generator', () => {
 
         const result = generateSettingsYaml(settings);
 
-        // Should have commented fileSearch, symbolSearch, customSearch templates
+        // Should have commented fileSearch, symbolSearch templates
         expect(result).toContain('#fileSearch:');
         expect(result).toContain('#symbolSearch:');
-        expect(result).toContain('#customSearch:');
+        // customSearch is deprecated — should not appear when empty
+        expect(result).not.toContain('# CUSTOM SEARCH');
       });
 
       test('should handle agentBuiltIn without agentSkills', () => {
@@ -589,12 +590,12 @@ describe('settings-yaml-generator', () => {
         expect(result).toContain('# KEYBOARD SHORTCUTS');
         expect(result).toContain('# PLUGIN SETTINGS');
         expect(result).toContain('# FILE OPENER SETTINGS');
-        expect(result).toContain('# CUSTOM SEARCH SETTINGS');
         expect(result).toContain('# FILE SEARCH SETTINGS');
         expect(result).toContain('# SYMBOL SEARCH SETTINGS');
         // Deprecated sections should not appear with default (empty) settings
         expect(result).not.toContain('# AGENT BUILT-IN');
         expect(result).not.toContain('# AGENT SKILLS');
+        expect(result).not.toContain('# CUSTOM SEARCH');
       });
 
       test('should have proper indentation for nested structures', () => {
