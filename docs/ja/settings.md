@@ -95,92 +95,27 @@ prompt-line-plugin install github.com/user/repo@branch   # 特定のブランチ
 prompt-line-plugin install ./local/path                   # ローカルパス
 ```
 
-## カスタム検索（インライン）
+## ローカルYAMLディレクトリ
 
-設定でカスタム検索エントリを直接定義（プラグインの代替手段）：
+プラグインを作成せずに、`~/.prompt-line/` のサブディレクトリにYAML設定ファイルを直接配置できます：
 
-```yaml
-customSearch:
-  # ファイルベースのソース
-  - name: "{line}"
-    icon: folder
-    color: lime
-    description: ""
-    sourcePath: "~/.prompt-line/z.txt"
-    searchPrefix: z
-    shortcut: Ctrl+]
-    inputFormat: "{line}"
-    maxSuggestions: 100
-
-  # コマンドベースのソース
-  - name: "{line}"
-    icon: repo
-    color: rose
-    description: ""
-    searchPrefix: ghq
-    sourceCommand: "ghq list"
-    shortcut: Ctrl+g
-    runCommand: "open -a iTerm ~/ghq/{line}"
-    sourcePath: ""
-    inputFormat: "~/ghq/{line}"
-    maxSuggestions: 100
-
-  # JSONLソース
-  - name: "{json@display}"
-    icon: history
-    color: orange
-    description: ""
-    searchPrefix: r
-    shortcut: Ctrl+r
-    sourcePath: "~/.claude/history.jsonl"
-    orderBy: "{json@timestamp} desc"
-    inputFormat: "{json@display}"
-    displayTime: "{json@timestamp}"
-    maxSuggestions: 100
+```
+~/.prompt-line/
+  agent-built-in/     # エージェント組み込みコマンド (*.yaml)
+  agent-skills/       # ファイルからのエージェントスキル (*.yaml)
+  custom-search/      # カスタム検索エントリ (*.yaml)
 ```
 
-### エントリフィールド
+これらのディレクトリは自動作成され、変更が監視されます（ホットリロード）。YAMLフォーマットはプラグインYAMLと同じです。フィールドリファレンスとテンプレート変数については [plugins.md](plugins.md) を参照してください。
 
-| フィールド | 説明 |
-|-------|-------------|
-| `name` | 表示名テンプレート |
-| `description` | 説明テンプレート（`\|` フォールバック対応） |
-| `sourcePath` | glob 付きソースパス（例: `~/.claude/commands/*.md`） |
-| `sourceCommand` | データソース用シェルコマンド（sourcePathの代替） |
-| `runCommand` | Ctrl+Enter で実行するシェルコマンド |
-| `args` | テンプレート引数（例: `{ open: "iTerm" }` → `{args.open}`） |
-| `searchPrefix` | トリガープレフィックス（例: `agent` → `@agent:`） |
-| `shortcut` | 検索を有効化するキーボードショートカット |
-| `icon` | Codicon アイコン名 |
-| `color` | バッジカラー（名前または16進数） |
-| `label` | UI バッジラベル |
-| `orderBy` | ソート順（例: `{updatedAt} desc`） |
-| `displayTime` | タイムスタンプ表示テンプレート |
-| `inputFormat` | 挿入フォーマット（`name` またはテンプレート） |
-| `maxSuggestions` | 表示する最大サジェスト数 |
-| `values` | テンプレート変数パターン |
-| `triggers` | トリガー文字（デフォルト: `["/"]`） |
-| `excludeMarker` | このファイルを含むディレクトリをスキップ |
-
-### テンプレート変数
-
-| 変数 | 説明 |
-|----------|-------------|
-| `{basename}` | 拡張子なしファイル名 |
-| `{frontmatter@field}` | YAML フロントマターフィールド |
-| `{json@field}` | JSON フィールド値 |
-| `{json:N@field}` | N番目の親の JSON フィールド |
-| `{heading}` | 最初のマークダウン見出し |
-| `{line}` | プレーンテキストファイルの各行 |
-| `{content}` | ファイル全体の内容 |
-| `{filepath}` | 絶対ファイルパス |
-| `{dirname}` | 親ディレクトリ名 |
-| `{dirname:N}` | N階層上のディレクトリ |
-| `{pathdir:N}` | ベースパスからN番目のディレクトリ |
-| `{latest}` | 最新の更新ディレクトリ |
-| `{args.key}` | `args` フィールドの値 |
-
-フォールバック構文: `{frontmatter@description}|{heading}` — 左側が空の場合、右側を使用。
+**例:** `~/.prompt-line/custom-search/my-notes.yaml`
+```yaml
+sourcePath: ~/notes/**/*.md
+name: "{basename}"
+description: "{heading}"
+searchPrefix: note
+shortcut: Ctrl+n
+```
 
 ## ファイル検索
 

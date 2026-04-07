@@ -84,7 +84,7 @@ plugins:
 | Directory | Type | Trigger |
 |-----------|------|---------|
 | `agent-built-in/` | Agent built-in commands | `/` |
-| `agent-skills/` | Slash commands from files | `/` |
+| `agent-skills/` | Agent skills from files | `/` |
 | `custom-search/` | Custom search | `@prefix:` |
 
 ### Install plugins
@@ -95,92 +95,27 @@ prompt-line-plugin install github.com/user/repo@branch   # specific branch/tag
 prompt-line-plugin install ./local/path                   # local path
 ```
 
-## Custom Search (inline)
+## Local YAML Directories
 
-Define custom search entries directly in settings (alternative to plugins):
+You can place YAML config files directly in `~/.prompt-line/` subdirectories without creating a plugin:
 
-```yaml
-customSearch:
-  # File-based source
-  - name: "{line}"
-    icon: folder
-    color: lime
-    description: ""
-    sourcePath: "~/.prompt-line/z.txt"
-    searchPrefix: z
-    shortcut: Ctrl+]
-    inputFormat: "{line}"
-    maxSuggestions: 100
-
-  # Command-based source
-  - name: "{line}"
-    icon: repo
-    color: rose
-    description: ""
-    searchPrefix: ghq
-    sourceCommand: "ghq list"
-    shortcut: Ctrl+g
-    runCommand: "open -a iTerm ~/ghq/{line}"
-    sourcePath: ""
-    inputFormat: "~/ghq/{line}"
-    maxSuggestions: 100
-
-  # JSONL source
-  - name: "{json@display}"
-    icon: history
-    color: orange
-    description: ""
-    searchPrefix: r
-    shortcut: Ctrl+r
-    sourcePath: "~/.claude/history.jsonl"
-    orderBy: "{json@timestamp} desc"
-    inputFormat: "{json@display}"
-    displayTime: "{json@timestamp}"
-    maxSuggestions: 100
+```
+~/.prompt-line/
+  agent-built-in/     # Agent built-in commands (*.yaml)
+  agent-skills/       # Agent skills from files (*.yaml)
+  custom-search/      # Custom search entries (*.yaml)
 ```
 
-### Entry fields
+These directories are automatically created and watched for changes (hot reload). The YAML format is the same as plugin YAML files — see [plugins.md](plugins.md) for field reference and template variables.
 
-| Field | Description |
-|-------|-------------|
-| `name` | Display name template |
-| `description` | Description template (supports `\|` fallback) |
-| `sourcePath` | Source path with glob (e.g., `~/.claude/commands/*.md`) |
-| `sourceCommand` | Shell command for data source (instead of sourcePath) |
-| `runCommand` | Shell command on Ctrl+Enter |
-| `args` | Template arguments (e.g., `{ open: "iTerm" }` → `{args.open}`) |
-| `searchPrefix` | Trigger prefix (e.g., `agent` → `@agent:`) |
-| `shortcut` | Keyboard shortcut to activate search |
-| `icon` | Codicon icon name |
-| `color` | Badge color (name or hex) |
-| `label` | UI badge label |
-| `orderBy` | Sort order (e.g., `{updatedAt} desc`) |
-| `displayTime` | Timestamp display template |
-| `inputFormat` | Insert format (`name` or template like `{filepath}`) |
-| `maxSuggestions` | Max suggestions to show |
-| `values` | Template variable patterns |
-| `triggers` | Trigger characters (default: `["/"]`) |
-| `excludeMarker` | Skip directories containing this file |
-
-### Template variables
-
-| Variable | Description |
-|----------|-------------|
-| `{basename}` | Filename without extension |
-| `{frontmatter@field}` | YAML frontmatter field |
-| `{json@field}` | JSON field value |
-| `{json:N@field}` | Nth parent JSON field |
-| `{heading}` | First markdown heading |
-| `{line}` | Each line of plain text file |
-| `{content}` | Full file content |
-| `{filepath}` | Absolute file path |
-| `{dirname}` | Parent directory name |
-| `{dirname:N}` | N levels up directory |
-| `{pathdir:N}` | Nth directory from base path |
-| `{latest}` | Most recently modified directory |
-| `{args.key}` | Value from `args` field |
-
-Fallback syntax: `{frontmatter@description}|{heading}` — uses right side if left is empty.
+**Example:** `~/.prompt-line/custom-search/my-notes.yaml`
+```yaml
+sourcePath: ~/notes/**/*.md
+name: "{basename}"
+description: "{heading}"
+searchPrefix: note
+shortcut: Ctrl+n
+```
 
 ## File Search
 
