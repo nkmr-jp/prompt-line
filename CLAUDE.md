@@ -192,6 +192,11 @@ Requires Xcode Command Line Tools: `xcode-select --install`
 ### Slow Build Times
 Use `pnpm run install-app` for development — it skips DMG creation and installs directly to `/Applications`.
 
+### Electron CDP Debugging
+- `LOG_LEVEL=debug ./node_modules/.bin/electron . --remote-debugging-port=9222` to start with CDP
+- `curl http://localhost:9222/json/list` to get WebSocket URL for the renderer page
+- Python `websockets` library works for CDP communication: `pip3 install websockets`
+
 ### Cleanup Reference
 
 | Command | When to Use |

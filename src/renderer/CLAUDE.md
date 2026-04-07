@@ -48,6 +48,11 @@ Score-based filtering with fuzzy matching:
 - Recency bonus: 0-50 points (7-day window)
 - 150ms debounce, max 5000 search items, max 50 display results
 
+### Frontmatter Popup (dual implementation)
+- `frontmatter-popup-manager.ts`: Slash command popup (has `renderFrontmatter()` with clickable reference links)
+- `mentions/managers/popup-manager.ts`: Agent popup (same `renderFrontmatter()` logic)
+- **Both must be kept in sync** when changing frontmatter rendering behavior
+
 ## Non-obvious Patterns
 
 ### IME composition handling
