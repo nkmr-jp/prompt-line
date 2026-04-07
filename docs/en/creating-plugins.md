@@ -6,17 +6,17 @@ Plugins are YAML files that add agent skills (`/`), custom search (`@prefix:`), 
 
 The simplest way is to place a YAML file in a local directory — no GitHub repo needed.
 
-### Add an agent skill (slash command)
+### Add an agent skill
 
-Create `~/.prompt-line/agent-skills/my-commands.yaml`:
+Create `~/.prompt-line/agent-skills/my-skills.yaml`:
 ```yaml
-sourcePath: ~/my-project/commands/*.md
-name: "{basename}"
+sourcePath: ~/my-project/skills/**/*/SKILL.md
+name: "{frontmatter@name}"
 description: "{frontmatter@description}"
 argumentHint: "{frontmatter@argument-hint}"
 ```
 
-Type `/` in the input and your commands appear.
+Type `/` in the input and your skills appear.
 
 ### Add a custom search
 
@@ -59,7 +59,7 @@ agents:
 | Directory | Type | Trigger | Purpose |
 |-----------|------|---------|---------|
 | `agent-built-in/` | Agent built-in | `/`, `@` | Define commands, skills, and agents for CLI tools |
-| `agent-skills/` | Agent skills | `/` | Load slash commands from markdown files |
+| `agent-skills/` | Agent skills | `/` | Load skills from markdown files |
 | `custom-search/` | Custom search | `@prefix:` | Search files, JSON, JSONL, or command output |
 
 ---
@@ -92,14 +92,21 @@ agents:
 
 ## agent-skills
 
-Loads slash commands from markdown files. Each YAML maps to a directory of `.md` files.
+Loads skills from markdown files. Each YAML maps to a directory of `.md` files (typically `SKILL.md`).
 
 ```yaml
-sourcePath: ~/.claude/commands/*.md
-name: "{basename}"
+sourcePath: ~/.claude/skills/**/*/SKILL.md
+name: "{frontmatter@name}"
 label: global
 description: "{frontmatter@description}"
 argumentHint: "{frontmatter@argument-hint}"
+```
+
+Also works with commands:
+```yaml
+sourcePath: ~/.claude/commands/*.md
+name: "{basename}"
+description: "{frontmatter@description}"
 ```
 
 ### Fields
@@ -223,8 +230,8 @@ inputFormat: "~/ghq/{line}"
 Single field combining directory and glob pattern:
 
 ```yaml
-sourcePath: ~/.claude/commands/*.md           # Simple glob
 sourcePath: ~/.claude/skills/**/*/SKILL.md    # Recursive glob
+sourcePath: ~/.claude/commands/*.md           # Simple glob
 sourcePath: ~/.claude/history.jsonl            # Specific file
 sourcePath: "~/.claude/teams/**/config.json@. | select(.active)"  # JSON + jq
 ```
@@ -235,8 +242,8 @@ The `sourcePath` is split into directory + pattern at the first glob character (
 
 | sourcePath | Directory | Pattern |
 |-----------|-----------|---------|
-| `~/.claude/commands/*.md` | `~/.claude/commands` | `*.md` |
 | `~/.claude/skills/**/*/SKILL.md` | `~/.claude/skills` | `**/*/SKILL.md` |
+| `~/.claude/commands/*.md` | `~/.claude/commands` | `*.md` |
 
 ---
 
@@ -258,7 +265,7 @@ To share your plugin with others, create a GitHub repository:
 my-plugins/
   my-tool/
     agent-built-in/en.yaml
-    agent-skills/commands.yaml
+    agent-skills/skills.yaml
     custom-search/search.yaml
 ```
 
@@ -275,7 +282,7 @@ prompt-line-plugin install github.com/user/my-plugins@v1.0.0   # specific versio
 plugins:
   github.com/user/my-plugins:
     - my-tool/agent-built-in/en
-    - my-tool/agent-skills/commands
+    - my-tool/agent-skills/skills
     - my-tool/custom-search/search@prefix    # @prefix overrides searchPrefix
 ```
 

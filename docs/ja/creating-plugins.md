@@ -8,15 +8,15 @@
 
 ### エージェントスキルを追加
 
-`~/.prompt-line/agent-skills/my-commands.yaml` を作成：
+`~/.prompt-line/agent-skills/my-skills.yaml` を作成：
 ```yaml
-sourcePath: ~/my-project/commands/*.md
-name: "{basename}"
+sourcePath: ~/my-project/skills/**/*/SKILL.md
+name: "{frontmatter@name}"
 description: "{frontmatter@description}"
 argumentHint: "{frontmatter@argument-hint}"
 ```
 
-入力欄で `/` を入力するとコマンドが表示されます。
+入力欄で `/` を入力するとスキルが表示されます。
 
 ### カスタム検索を追加
 
@@ -59,7 +59,7 @@ agents:
 | ディレクトリ | タイプ | トリガー | 用途 |
 |-----------|------|---------|------|
 | `agent-built-in/` | エージェント組み込み | `/`, `@` | CLIツールのコマンド、スキル、エージェントを定義 |
-| `agent-skills/` | エージェントスキル | `/` | マークダウンファイルからスキルを読み込み |
+| `agent-skills/` | エージェントスキル | `/` | マークダウンファイル（SKILL.md等）からスキルを読み込み |
 | `custom-search/` | カスタム検索 | `@prefix:` | ファイル、JSON、JSONL、コマンド出力を検索 |
 
 ---
@@ -92,14 +92,21 @@ agents:
 
 ## agent-skills
 
-マークダウンファイルからスキルを読み込みます。各YAMLは `.md` ファイルのディレクトリに対応します。
+マークダウンファイルからスキルを読み込みます。各YAMLは `.md` ファイル（通常は `SKILL.md`）のディレクトリに対応します。
 
 ```yaml
-sourcePath: ~/.claude/commands/*.md
-name: "{basename}"
+sourcePath: ~/.claude/skills/**/*/SKILL.md
+name: "{frontmatter@name}"
 label: global
 description: "{frontmatter@description}"
 argumentHint: "{frontmatter@argument-hint}"
+```
+
+コマンドにも対応：
+```yaml
+sourcePath: ~/.claude/commands/*.md
+name: "{basename}"
+description: "{frontmatter@description}"
 ```
 
 ### フィールド
@@ -223,8 +230,8 @@ inputFormat: "~/ghq/{line}"
 ディレクトリとglobパターンを1つのフィールドで指定：
 
 ```yaml
-sourcePath: ~/.claude/commands/*.md           # シンプルなglob
 sourcePath: ~/.claude/skills/**/*/SKILL.md    # 再帰glob
+sourcePath: ~/.claude/commands/*.md           # シンプルなglob
 sourcePath: ~/.claude/history.jsonl            # 特定ファイル
 sourcePath: "~/.claude/teams/**/config.json@. | select(.active)"  # JSON + jq
 ```
@@ -235,8 +242,8 @@ sourcePath: "~/.claude/teams/**/config.json@. | select(.active)"  # JSON + jq
 
 | sourcePath | ディレクトリ | パターン |
 |-----------|-----------|---------|
-| `~/.claude/commands/*.md` | `~/.claude/commands` | `*.md` |
 | `~/.claude/skills/**/*/SKILL.md` | `~/.claude/skills` | `**/*/SKILL.md` |
+| `~/.claude/commands/*.md` | `~/.claude/commands` | `*.md` |
 
 ---
 
@@ -258,7 +265,7 @@ sourcePath: "~/.claude/teams/**/config.json@. | select(.active)"  # JSON + jq
 my-plugins/
   my-tool/
     agent-built-in/en.yaml
-    agent-skills/commands.yaml
+    agent-skills/skills.yaml
     custom-search/search.yaml
 ```
 
@@ -275,7 +282,7 @@ prompt-line-plugin install github.com/user/my-plugins@v1.0.0   # バージョン
 plugins:
   github.com/user/my-plugins:
     - my-tool/agent-built-in/en
-    - my-tool/agent-skills/commands
+    - my-tool/agent-skills/skills
     - my-tool/custom-search/search@prefix    # @prefixでsearchPrefixを上書き
 ```
 
