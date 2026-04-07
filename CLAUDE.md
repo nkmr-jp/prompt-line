@@ -70,15 +70,9 @@ fix(window): resolve positioning issue on multi-monitor setups
 - **Merge Strategy**: **Squash and merge** for feature PRs into `develop`. Use **regular merge commit** (no squash) when merging `develop` into `main`.
 
 ### Release Process
-Uses [Changesets](https://github.com/changesets/changesets) for automated releases. Config: `.changeset/config.json`, workflow: `.github/workflows/release.yml`.
+Uses [Release Please](https://github.com/googleapis/release-please) for automated releases. Config: `release-please-config.json`, manifest: `.release-please-manifest.json`, workflow: `.github/workflows/release-please.yml`.
 
-**Adding a changeset:**
-```bash
-pnpm changeset           # Create a new changeset (interactive prompt for bump type + summary)
-pnpm changeset:status    # Check pending changesets
-```
-
-When making changes that should appear in the CHANGELOG, run `pnpm changeset` before committing. This creates a markdown file in `.changeset/` describing the change. Pushes to `main` with pending changesets trigger a "Version Packages" PR with version bump and CHANGELOG updates. Merging that PR creates a git tag (`prompt-line-v{VERSION}`) and GitHub Release.
+Pushes to `main` with conventional commits automatically trigger a Release Please PR with version bump and CHANGELOG updates. Merging that PR creates a GitHub Release.
 
 ## Architecture Overview
 
