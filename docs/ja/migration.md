@@ -1,0 +1,171 @@
+# 設定マイグレーションガイド
+
+`~/.prompt-line/settings.yaml` のバージョン間の変更点をまとめたガイドです。
+
+## v0.29 → v0.30
+
+### 1. ショートカットフォーマットの変更（キー → アクション）
+
+ショートカットセクションが **アクション → キー** 形式から **キー → アクション** 形式に変更されました。
+
+**変更前:**
+```yaml
+shortcuts:
+  main: Cmd+Shift+Space
+  paste: Cmd+Enter
+  close: Escape
+  historyNext: Ctrl+j
+  historyPrev: Ctrl+k
+  search: Cmd+f
+```
+
+**変更後:**
+```yaml
+shortcuts:
+  Cmd+Shift+Space: main    # 入力ウィンドウの表示/非表示（グローバル）
+  Cmd+Enter: paste          # テキストを貼り付けてウィンドウを閉じる
+  Escape: close             # 貼り付けずにウィンドウを閉じる
+  Ctrl+j: historyNext       # 次の履歴項目へ移動
+  Ctrl+k: historyPrev       # 前の履歴項目へ移動
+  Cmd+f: search             # 履歴の検索モードを有効化
+  # Ctrl+m: "input=@md:"   # カスタムアクション
+  # Ctrl+g: "input=@ghq:"
+```
+
+**対応:** 不要。両方のフォーマットが自動検出され、サポートされます。新フォーマットは `input=@md:` のような**カスタムアクション**もサポートするため推奨です。
+
+---
+
+### 2. セクション順序の変更
+
+設定ファイルのセクション順序が整理されました。
+
+**変更前:** shortcuts → window → fileOpener → plugins → agentBuiltIn → agentSkills → customSearch → fileSearch → symbolSearch
+
+**変更後:** window → shortcuts → plugins → fileOpener → fileSearch → symbolSearch → customSearch
+
+**対応:** 不要。セクション順序は動作に影響しません。
+
+---
+
+### 3. `fileSearch.maxFiles` のデフォルト値増加
+
+| 設定 | 変更前 | 変更後 |
+|------|--------|--------|
+| `fileSearch.maxFiles` | 5000 | 100000 |
+
+**対応:** 不要。`maxFiles: 5000` を明示的に設定していた場合、大規模プロジェクトでのファイル検索を改善するために値を増やすことを検討してください。
+
+---
+
+### 4. `symbolSearch.respectGitignore` の追加
+
+シンボル検索で `.gitignore` を尊重する新しい設定が追加されました。
+
+```yaml
+symbolSearch:
+  respectGitignore: true   # 新規（デフォルト: true）
+  maxSymbols: 200000
+  timeout: 60000
+```
+
+**対応:** 不要。デフォルトは `true` で、従来の動作と同じです。
+
+---
+
+### 5. 非推奨セクションのデフォルト出力を廃止
+
+以下のセクションは、データが空の場合に設定ファイルに表示されなくなりました：
+
+- `agentBuiltIn` — 代わりに `plugins` を使用
+- `agentSkills` — 代わりに `plugins` を使用
+
+これらのセクションにアクティブなエントリがある場合は、引き続き表示され動作します。
+
+**移行方法:** `plugins` フォーマットに移行してください。
+
+**変更前 (agentBuiltIn):**
+```yaml
+agentBuiltIn:
+  - claude
+```
+
+**変更後 (plugins):**
+```yaml
+plugins:
+  github.com/nkmr-jp/prompt-line-plugins:
+    - claude/agent-built-in/en
+```
+
+**変更前 (agentSkills):**
+```yaml
+agentSkills:
+  - name: "{basename}"
+    description: "{frontmatter@description}"
+    sourcePath: ~/.claude/commands/*.md
+```
+
+**変更後 (plugins):**
+```yaml
+plugins:
+  github.com/nkmr-jp/prompt-line-plugins:
+    - claude/agent-skills/commands    # sourcePath: ~/.claude/commands/*.md
+```
+
+---
+
+### 6. プラグイン例の更新
+
+コメントアウトされたプラグイン例が、より多くの利用可能なプラグインを含むv2フォーマットに更新されました。
+
+**変更前:**
+```yaml
+#plugins:
+#  github.com/nkmr-jp/prompt-line-plugins:
+#    - claude/agent-skills/commands
+#    - claude/agent-built-in/claude
+```
+
+**変更後:**
+```yaml
+#plugins:
+#  github.com/nkmr-jp/prompt-line-plugins:
+#    - claude/agent-built-in/en                  # Claude Code 組み込みコマンド、スキル、エージェント
+#    - claude/agent-skills/commands              # sourcePath: ~/.claude/commands/*.md
+#    - claude/agent-skills/skills                # sourcePath: ~/.claude/skills/**/SKILL.md
+#    - claude/custom-search/agents@agent         # sourcePath: ~/.claude/agents/*.md
+#    - claude/custom-search/history@r            # sourcePath: ~/.claude/history.jsonl
+```
+
+**対応:** 有効にしたいプラグインのコメントを解除してカスタマイズしてください。
+
+---
+
+### 7. カスタム検索の `sourcePath` が `path` + `pattern` を置き換え
+
+`path` と `pattern` フィールドが単一の `sourcePath` フィールドに統合されました。
+
+**変更前:**
+```yaml
+customSearch:
+  - name: "{basename}"
+    path: ~/.claude/agents
+    pattern: "*.md"
+    searchPrefix: agent
+```
+
+**変更後:**
+```yaml
+customSearch:
+  - name: "{basename}"
+    sourcePath: ~/.claude/agents/*.md
+    searchPrefix: agent
+```
+
+**対応:** `path`/`pattern` を使用したインラインの `customSearch` エントリがある場合、`sourcePath` に統合してください。後方互換性のため、両方のフォーマットがサポートされます。
+
+---
+
+## クイックリファレンス: 新フォーマット全体
+
+完全な設定リファレンスは [settings.md](settings.md) を参照してください。
