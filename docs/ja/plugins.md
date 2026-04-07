@@ -1,6 +1,6 @@
 # プラグイン YAML リファレンス
 
-プラグインは `~/.prompt-line/plugins/` にインストールされるYAMLファイルで、スラッシュコマンド、カスタム検索エントリ、エージェント組み込みコマンドを定義します。
+プラグインは `~/.prompt-line/plugins/` にインストールされるYAMLファイルで、エージェントスキル、カスタム検索エントリ、エージェント組み込みコマンドを定義します。
 
 ## ディレクトリ構造
 
@@ -8,8 +8,8 @@
 ~/.prompt-line/plugins/
   <package>/                          # 例: github.com/nkmr-jp/prompt-line-plugins
     <category>/                       # 例: claude, codex, gemini
-      agent-built-in/<name>.yaml      # → CLIツールのスラッシュコマンド
-      agent-skills/<name>.yaml        # → マークダウンファイルからのスラッシュコマンド
+      agent-built-in/<name>.yaml      # → CLIツールのエージェントスキル
+      agent-skills/<name>.yaml        # → マークダウンファイルからのエージェントスキル
       custom-search/<name>.yaml       # → @prefix: カスタム検索エントリ
 ```
 
@@ -17,7 +17,7 @@
 
 ### agent-built-in
 
-CLIツール（Claude Code, Codex, Gemini）の組み込みスラッシュコマンド、スキル、エージェントを定義します。
+CLIツール（Claude Code, Codex, Gemini）の組み込みエージェントスキル、スキル、エージェントを定義します。
 
 ```yaml
 name: Claude Code                     # 表示名
@@ -41,7 +41,7 @@ agents:
 
 ### agent-skills
 
-マークダウンファイルから読み込むスラッシュコマンドを定義します。各YAMLは`.md`ファイルのディレクトリに対応します。
+マークダウンファイルから読み込むエージェントスキルを定義します。各YAMLは`.md`ファイルのディレクトリに対応します。
 
 ```yaml
 # Claude Code グローバルコマンド

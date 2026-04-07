@@ -173,8 +173,8 @@ searchPrefix: agent
 
 ```
 ~/.prompt-line/
-  agent-built-in/     # エージェント組み込みスラッシュコマンド (*.yaml)
-  agent-skills/       # マークダウンファイルからのスラッシュコマンド (*.yaml)
+  agent-built-in/     # エージェント組み込みエージェントスキル (*.yaml)
+  agent-skills/       # マークダウンファイルからのエージェントスキル (*.yaml)
   custom-search/      # カスタム検索エントリ (*.yaml)
 ```
 
