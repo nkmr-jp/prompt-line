@@ -186,7 +186,7 @@ window:
         fileSearch: {
           respectGitignore: true,
           includeHidden: true,
-          maxFiles: 5000,
+          maxFiles: 100000,
           maxDepth: null,
           maxSuggestions: 50,
           followSymlinks: false,
@@ -194,6 +194,7 @@ window:
           excludePatterns: []
         },
         symbolSearch: {
+          respectGitignore: true,
           maxSymbols: 200000,
           timeout: 60000,
           includePatterns: [],
@@ -308,7 +309,7 @@ window:
         fileSearch: {
           respectGitignore: true,
           includeHidden: true,
-          maxFiles: 5000,
+          maxFiles: 100000,
           maxDepth: null,
           maxSuggestions: 50,
           followSymlinks: false,
@@ -316,6 +317,7 @@ window:
           excludePatterns: []
         },
         symbolSearch: {
+          respectGitignore: true,
           maxSymbols: 200000,
           timeout: 60000,
           includePatterns: [],
