@@ -555,6 +555,7 @@ function buildShortcutsSection(settings: UserSettings): string {
   const col = 36;
   const pad = (str: string) => str.padEnd(col);
   const lines = [
+    `shortcuts:`,
     `${pad(`  ${s.main}: main`)}# Show/hide the input window (global)`,
     `${pad(`  ${s.paste}: paste`)}# Paste text and close window`,
     `${pad(`  ${s.close}: close`)}# Close window without pasting`,
@@ -590,7 +591,6 @@ window:
 # ============================================================================
 # Format: Modifier+Key (e.g., Cmd+Shift+Space, Ctrl+Alt+Space)
 # Available modifiers: Cmd, Ctrl, Alt, Shift
-shortcuts:
 ${buildShortcutsSection(settings)}
 `;
 }
