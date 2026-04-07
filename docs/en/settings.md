@@ -117,36 +117,79 @@ searchPrefix: note
 shortcut: Ctrl+n
 ```
 
+## Image Storage
+
+```yaml
+imagesDirectory: .prompt-line/images
+```
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `imagesDirectory` | (unset) | Image storage directory. Relative paths are resolved against CWD. When unset, defaults to `~/.prompt-line/images/` |
+
+Tip: Add the directory to `.gitignore` when using a relative path within a project.
+
 ## File Search
+
+Triggered by typing `@` in the input. Requires `fd` command (`brew install fd`).
 
 ```yaml
 fileSearch:
-  respectGitignore: true
-  includeHidden: true
-  maxFiles: 100000
-  maxDepth: null
-  maxSuggestions: 50
-  followSymlinks: false
-  includePatterns: []
-  excludePatterns: []
+  respectGitignore: true    # Respect .gitignore files (fd only)
+  includeHidden: true       # Include hidden files (starting with .)
+  maxFiles: 100000          # Maximum number of files to index
+  maxDepth: null            # Directory depth limit (null = unlimited)
+  maxSuggestions: 50        # Max suggestions shown in popup
+  followSymlinks: false     # Follow symbolic links during search
+  #fdPath: null             # Custom path to fd command
+  includePatterns: []       # Force include patterns even if in .gitignore (glob syntax)
+  excludePatterns: []       # Additional exclude patterns (glob syntax)
 ```
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `respectGitignore` | `true` | Respect `.gitignore` rules |
+| `includeHidden` | `true` | Include hidden files (starting with `.`) |
+| `maxFiles` | `100000` | Maximum number of files to index |
+| `maxDepth` | `null` | Directory depth limit (`null` = unlimited) |
+| `maxSuggestions` | `50` | Max suggestions shown in popup |
+| `followSymlinks` | `false` | Follow symbolic links during search |
+| `fdPath` | `null` | Custom path to `fd` command (`null` = auto-detect) |
+| `includePatterns` | `[]` | Force include patterns even if in `.gitignore` (e.g., `["*.log", "dist/**"]`) |
+| `excludePatterns` | `[]` | Additional exclude patterns (e.g., `["node_modules", "*.min.js"]`) |
 
 ## Symbol Search
 
+Triggered by typing `@lang:query` (e.g., `@ts:Config`, `@go:Handler`). Requires `ripgrep` (`brew install ripgrep`).
+
+Space-separated keywords enable AND search (e.g., `@ts:Config util`).
+
 ```yaml
 symbolSearch:
-  respectGitignore: true
-  maxSymbols: 200000
-  timeout: 60000
-  includePatterns: []
-  excludePatterns: []
+  respectGitignore: true    # Respect .gitignore files
+  maxSymbols: 200000        # Maximum number of symbols to index
+  timeout: 60000            # Search timeout in milliseconds
+  #rgPath: null             # Custom path to rg command
+  includePatterns: []       # Force include file patterns (glob syntax)
+  excludePatterns: []       # Additional exclude file patterns (glob syntax)
 ```
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `respectGitignore` | `true` | Respect `.gitignore` files |
+| `maxSymbols` | `200000` | Maximum number of symbols to index per directory |
+| `timeout` | `60000` | Search timeout in milliseconds |
+| `rgPath` | `null` | Custom path to `rg` command (`null` = auto-detect) |
+| `includePatterns` | `[]` | Force include file patterns (e.g., `["*.test.ts", "vendor/**"]`) |
+| `excludePatterns` | `[]` | Additional exclude file patterns (e.g., `["*.generated.go"]`) |
 
 ## File Opener
 
+Configure which applications open file links (Cmd+click on `@path` references).
+
 ```yaml
 fileOpener:
-  defaultEditor: null             # null = system default
+  defaultEditor: null             # null = system default (macOS "open" command)
   extensions:
     png: "Preview"
     pdf: "Preview"
@@ -155,4 +198,12 @@ fileOpener:
       editor: "GoLand"
 ```
 
-Priority: `extensions` > `directories` > `defaultEditor` > system default.
+| Field | Default | Description |
+|-------|---------|-------------|
+| `defaultEditor` | `null` | Fallback editor for all files (`null` = system default) |
+| `extensions` | `{png: Preview, pdf: Preview}` | Extension-specific apps (e.g., `ts: "WebStorm"`) |
+| `directories` | `[]` | Directory-specific editors with glob support |
+
+**Priority:** `extensions` > `directories` > `defaultEditor` > system default.
+
+**Directory glob patterns:** `path` supports `~` for home, `*` (single level), and `**` (multiple levels). Most specific pattern (longest non-glob prefix) wins.
