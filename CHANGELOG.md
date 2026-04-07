@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.29.3](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.29.2...prompt-line-v0.29.3) (2026-04-07)
+
+
+### Miscellaneous Chores
+
+* **deps-dev:** bump vite from 6.4.1 to 6.4.2 in the npm_and_yarn group across 1 directory ([#331](https://github.com/nkmr-jp/prompt-line/issues/331)) ([d1256b3](https://github.com/nkmr-jp/prompt-line/commit/d1256b33bbbeb3512e60c1d49f816a961e2dece5))
+
 ## [0.29.2](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.29.1...prompt-line-v0.29.2) (2026-04-06)
 
 
