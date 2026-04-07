@@ -1,62 +1,119 @@
-# Plugin YAML Reference
+# Plugin Guide
 
-Plugins are YAML files installed to `~/.prompt-line/plugins/` that define slash commands, custom search entries, and agent built-in commands.
+Plugins are YAML files that add agent skills (`/`), custom search (`@prefix:`), and agent built-in commands to Prompt Line.
 
-## Directory Structure
+## Quick Start
 
+Place a YAML file in a local directory — no GitHub repo needed.
+
+### Add an agent skill
+
+Create `~/.prompt-line/agent-skills/my-skills.yaml`:
+```yaml
+sourcePath: ~/my-project/skills/**/*/SKILL.md
+name: "{frontmatter@name}"
+description: "{frontmatter@description}"
+argumentHint: "{frontmatter@argument-hint}"
 ```
-~/.prompt-line/plugins/
-  <package>/                          # e.g., github.com/nkmr-jp/prompt-line-plugins
-    <category>/                       # e.g., claude, codex, gemini
-      agent-built-in/<name>.yaml      # → slash commands from CLI tools
-      agent-skills/<name>.yaml        # → slash commands from markdown files
-      custom-search/<name>.yaml       # → @prefix: custom search entries
+
+Type `/` in the input and your skills appear.
+
+### Add a custom search
+
+Create `~/.prompt-line/custom-search/my-notes.yaml`:
+```yaml
+sourcePath: ~/notes/**/*.md
+name: "{basename}"
+description: "{heading}"
+searchPrefix: note
+shortcut: Ctrl+n
 ```
+
+Type `@note:` or press `Ctrl+n` to search your notes.
+
+### Add agent built-in commands
+
+Create `~/.prompt-line/agent-built-in/my-tool.yaml`:
+```yaml
+name: My Tool
+color: blue
+reference: https://example.com/docs
+commands:
+  - name: deploy
+    description: Deploy to production
+  - name: rollback
+    description: Rollback last deployment
+    argument-hint: "[version]"
+skills:
+  - name: test
+    description: Run test suite
+agents:
+  - name: reviewer
+    description: Code review agent
+```
+
+---
 
 ## Plugin Types
 
-### agent-built-in
+| Directory | Type | Trigger | Purpose |
+|-----------|------|---------|---------|
+| `agent-built-in/` | Agent built-in | `/`, `@` | Define commands, skills, and agents for CLI tools |
+| `agent-skills/` | Agent skills | `/` | Load skills from markdown files |
+| `custom-search/` | Custom search | `@prefix:` | Search files, JSON, JSONL, or command output |
 
-Defines built-in slash commands, skills, and agents for CLI tools (Claude Code, Codex, Gemini).
+---
+
+## agent-built-in
+
+Defines a list of commands, skills, and agents that appear when typing `/` or `@`.
 
 ```yaml
-name: Claude Code                     # Display name
+name: Tool Name                       # Display name
 color: amber                          # Badge color
-reference: https://code.claude.com/docs/en/commands
-references:                           # Multiple reference URLs
-  - https://code.claude.com/docs/en/commands
-  - https://code.claude.com/docs/en/skills
+reference: https://example.com/docs   # Single reference URL
+references:                           # Or multiple URLs
+  - https://example.com/commands
+  - https://example.com/skills
 commands:
   - name: commit
     description: Create a git commit
     argument-hint: "[-m message]"
-    color: green                      # Per-command color override
+    color: green                      # Per-item color override
 skills:
   - name: batch
     description: Run batch operations
 agents:
   - name: Explore
-    description: Fast codebase exploration agent
+    description: Fast codebase exploration
 ```
 
-### agent-skills
+---
 
-Defines slash commands loaded from markdown files. Each YAML maps to a directory of `.md` files.
+## agent-skills
+
+Loads skills from markdown files. Each YAML maps to a directory of `.md` files (typically `SKILL.md`).
 
 ```yaml
-# Claude Code global commands
-sourcePath: ~/.claude/commands/*.md
-name: "{basename}"
+sourcePath: ~/.claude/skills/**/*/SKILL.md
+name: "{frontmatter@name}"
 label: global
 description: "{frontmatter@description}"
 argumentHint: "{frontmatter@argument-hint}"
 ```
 
-#### Fields
+Also works with commands:
+```yaml
+sourcePath: ~/.claude/commands/*.md
+name: "{basename}"
+description: "{frontmatter@description}"
+```
+
+### Fields
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `sourcePath` | No* | Glob path to source files (e.g., `~/.claude/commands/*.md`) |
+| `sourcePath` | No* | Glob path to source files |
 | `sourceCommand` | No* | Shell command for data source (alternative to sourcePath) |
 | `name` | Yes | Display name template |
 | `description` | No | Description template |
@@ -72,12 +129,21 @@ argumentHint: "{frontmatter@argument-hint}"
 
 \* At least one of `sourcePath` or `sourceCommand` is required.
 
-### custom-search
+**Example with custom triggers:**
+```yaml
+sourcePath: ~/prompts/*.md
+name: "{basename}"
+description: "{heading}"
+triggers: ["/", "$"]                  # Activates with both / and $
+```
+
+---
+
+## custom-search
 
 Defines `@prefix:` search entries loaded from files, commands, or JSON sources.
 
 ```yaml
-# Claude Code global agents
 sourcePath: ~/.claude/agents/*.md
 searchPrefix: agent
 name: "{basename}(agent)"
@@ -86,7 +152,7 @@ description: "{frontmatter@description}"
 displayTime: "{updatedAt}"
 ```
 
-#### Additional fields (custom-search only)
+### Additional fields (custom-search only)
 
 | Field | Description |
 |-------|-------------|
@@ -97,50 +163,48 @@ displayTime: "{updatedAt}"
 | `runCommand` | Shell command on Ctrl+Enter |
 | `excludeMarker` | Skip directories with this file |
 
-## sourcePath Format
+### Source types
 
-Single field combining directory and glob pattern:
-
+**Markdown files:**
 ```yaml
-# Simple glob
-sourcePath: ~/.claude/commands/*.md
-
-# Recursive glob
-sourcePath: ~/.claude/skills/**/*/SKILL.md
-
-# Specific file
-sourcePath: ~/.claude/history.jsonl
-
-# With jq expression (JSON/JSONL)
-sourcePath: "~/.claude/teams/**/config.json@. | select(.createdAt / 1000 > (now - 86400))"
-
-# Command source (sourceCommand instead of sourcePath)
-sourceCommand: "ghq list"
+sourcePath: ~/docs/**/*.md
+name: "{basename}"
+description: "{frontmatter@description}|{heading}"
+searchPrefix: doc
 ```
 
-### Splitting rules
-
-The `sourcePath` is split into directory + pattern at the first glob character (`*`, `?`, `[`):
-
-| sourcePath | Directory | Pattern |
-|-----------|-----------|---------|
-| `~/.claude/commands/*.md` | `~/.claude/commands` | `*.md` |
-| `~/.claude/skills/**/*/SKILL.md` | `~/.claude/skills` | `**/*/SKILL.md` |
-| `~/.claude/history.jsonl` | `~/.claude` | `history.jsonl` |
-
-## sourceCommand
-
-Shell command whose stdout is used as data source:
-
+**JSONL files:**
 ```yaml
-sourceCommand: "ghq list"            # Each line becomes an item
+sourcePath: ~/.claude/history.jsonl
+name: "{json@display}"
+searchPrefix: r
+orderBy: "{json@timestamp} desc"
+displayTime: "{json@timestamp}"
+```
+
+**JSON with jq expression:**
+```yaml
+sourcePath: "~/.claude/teams/**/config.json@.members"
+name: "{json@name}"
+description: "{json@prompt}"
+searchPrefix: team
+```
+
+**Command output:**
+```yaml
+sourceCommand: "ghq list"
+name: "{line}"
+searchPrefix: ghq
 runCommand: "open -a {args.open} ~/ghq/{line}"
+inputFormat: "~/ghq/{line}"
 args:
   open: iTerm
 ```
 
 - Output format: plain text (one item per line) or JSONL (one JSON per line)
 - Auto-detected from first line of output
+
+---
 
 ## Template Variables
 
@@ -158,49 +222,97 @@ args:
 | `{dirname:N}` | N levels up directory | `{dirname:2}` |
 | `{pathdir:N}` | Nth directory from base | `{pathdir:1}` |
 | `{latest}` | Most recently modified dir | |
+| `{updatedAt}` | File modification time | |
 | `{args.key}` | Value from `args` field | `{args.open}` |
 
 **Fallback:** `{frontmatter@description}|{heading}` — uses right side if left is empty.
 
-## Plugin Path Overrides (settings.yaml)
+---
 
-In `settings.yaml`, plugin paths can include overrides:
+## sourcePath Format
+
+Single field combining directory and glob pattern:
+
+```yaml
+sourcePath: ~/.claude/skills/**/*/SKILL.md    # Recursive glob
+sourcePath: ~/.claude/commands/*.md           # Simple glob
+sourcePath: ~/.claude/history.jsonl            # Specific file
+sourcePath: "~/.claude/teams/**/config.json@. | select(.active)"  # JSON + jq
+```
+
+### Splitting rules
+
+The `sourcePath` is split into directory + pattern at the first glob character (`*`, `?`, `[`):
+
+| sourcePath | Directory | Pattern |
+|-----------|-----------|---------|
+| `~/.claude/skills/**/*/SKILL.md` | `~/.claude/skills` | `**/*/SKILL.md` |
+| `~/.claude/commands/*.md` | `~/.claude/commands` | `*.md` |
+| `~/.claude/history.jsonl` | `~/.claude` | `history.jsonl` |
+
+---
+
+## Color
+
+Badge colors support named colors and hex codes:
+
+**Named:** grey, darkGrey, slate, stone, red, rose, orange, amber, yellow, lime, green, emerald, teal, cyan, sky, blue, indigo, violet, purple, fuchsia, pink
+
+**Hex:** `#RGB` or `#RRGGBB` (e.g., `#FF6B35`, `#F63`)
+
+---
+
+## Distributing as a GitHub Plugin
+
+To share your plugin with others, create a GitHub repository:
+
+```
+my-plugins/
+  my-tool/
+    agent-built-in/en.yaml
+    agent-skills/skills.yaml
+    custom-search/search.yaml
+```
+
+### Install
+
+```bash
+prompt-line-plugin install github.com/user/my-plugins
+prompt-line-plugin install github.com/user/my-plugins@v1.0.0   # specific version
+prompt-line-plugin install ./local/path                         # local path
+```
+
+### Enable in settings.yaml
 
 ```yaml
 plugins:
-  github.com/nkmr-jp/prompt-line-plugins:
-    - claude/custom-search/agents@agent         # @agent overrides searchPrefix
-    - path/custom-search/ghq@ghq?open=iTerm     # ?open=iTerm overrides args.open
+  github.com/user/my-plugins:
+    - my-tool/agent-built-in/en
+    - my-tool/agent-skills/skills
+    - my-tool/custom-search/search@prefix    # @prefix overrides searchPrefix
 ```
 
-### Syntax
+### Path overrides
 
 ```
 <path>[@searchPrefix][?key=value&key2=value2]
 ```
 
-- `@suffix` after path → sets/overrides `searchPrefix`
-- `?params` after path → sets/overrides `args` field
+- `@suffix` → overrides `searchPrefix`
+- `?key=val` → overrides `args` (e.g., `?open=iTerm`)
 
-## Installation
+### Plugin directory structure
 
-```bash
-# From GitHub
-prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
-
-# Specific branch/tag/commit
-prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins@develop
-
-# Local path
-prompt-line-plugin install ./my-plugins
-prompt-line-plugin install ~/my-plugins
+```
+~/.prompt-line/plugins/
+  <package>/                          # e.g., github.com/nkmr-jp/prompt-line-plugins
+    <category>/                       # e.g., claude, codex, gemini
+      agent-built-in/<name>.yaml
+      agent-skills/<name>.yaml
+      custom-search/<name>.yaml
 ```
 
-## Hot Reload
-
-Plugin YAML files are watched by chokidar (300ms debounce). Changes are auto-detected without app restart.
-
-## Repository Structure
+### Example repository (prompt-line-plugins)
 
 ```
 prompt-line-plugins/
@@ -208,13 +320,9 @@ prompt-line-plugins/
     agent-built-in/en.yaml          # Claude Code built-in (English)
     agent-built-in/ja.yaml          # Claude Code built-in (Japanese)
     agent-skills/commands.yaml      # ~/.claude/commands/*.md
-    agent-skills/plugin-commands.yaml
-    agent-skills/plugin-skills.yaml
     agent-skills/skills.yaml        # ~/.claude/skills/**/SKILL.md
     custom-search/agents.yaml       # @agent: search
     custom-search/history.yaml      # @r: Claude history
-    custom-search/plans.yaml        # @plan: search
-    custom-search/plugin-agents.yaml
     custom-search/teams.yaml        # @team: search
   codex/
     agent-built-in/en.yaml          # Codex CLI built-in
@@ -222,6 +330,10 @@ prompt-line-plugins/
     agent-built-in/en.yaml          # Gemini CLI built-in
   path/
     custom-search/ghq.yaml          # @ghq: repository search
-  skills/
-    agent-skills/skills.yaml        # ~/.agents/skills/**/SKILL.md
 ```
+
+---
+
+## Hot Reload
+
+All YAML files are watched by chokidar (300ms debounce). Changes are auto-detected without app restart — both local directories and plugin directories.
