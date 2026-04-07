@@ -1,6 +1,6 @@
 # Managers Module
 
-15 specialized managers + 2 sub-modules implementing core application functionality.
+16 specialized managers + 2 sub-modules implementing core application functionality.
 
 ## Overview
 
@@ -18,6 +18,7 @@
 | `symbol-cache-manager.ts` | Language-separated symbol caching (JSONL) |
 | `at-path-cache-manager.ts` | @path pattern caching (project + global) |
 | `agent-skill-cache-manager.ts` | Agent skill caching with TTL |
+| `plugin-manager.ts` | Plugin loading, installation, and hot reload (chokidar-based) |
 | `usage-history-manager.ts` | Base class for usage tracking (LRU) |
 | `agent-usage-history-manager.ts` | Agent selection history (singleton) |
 | `file-usage-history-manager.ts` | File selection history (singleton) |
