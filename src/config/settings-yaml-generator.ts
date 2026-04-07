@@ -552,13 +552,15 @@ imagesDirectory: ${imagesDirectory}`;
 
 function buildShortcutsSection(settings: UserSettings): string {
   const s = settings.shortcuts;
+  const col = 36;
+  const pad = (str: string) => str.padEnd(col);
   const lines = [
-    `  ${s.main}: main  # Show/hide the input window (global)`,
-    `  ${s.paste}: paste  # Paste text and close window`,
-    `  ${s.close}: close  # Close window without pasting`,
-    `  ${s.historyNext}: historyNext  # Navigate to next history item`,
-    `  ${s.historyPrev}: historyPrev  # Navigate to previous history item`,
-    `  ${s.search}: search  # Enable search mode in history`,
+    `${pad(`  ${s.main}: main`)}# Show/hide the input window (global)`,
+    `${pad(`  ${s.paste}: paste`)}# Paste text and close window`,
+    `${pad(`  ${s.close}: close`)}# Close window without pasting`,
+    `${pad(`  ${s.historyNext}: historyNext`)}# Navigate to next history item`,
+    `${pad(`  ${s.historyPrev}: historyPrev`)}# Navigate to previous history item`,
+    `${pad(`  ${s.search}: search`)}# Enable search mode in history`,
     `  # Ctrl+m: "input=@md:"  # Custom action (e.g. input text field "input=xxx")`,
     `  # Ctrl+g: "input=@ghq:"`,
   ];

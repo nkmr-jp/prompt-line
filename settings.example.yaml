@@ -21,12 +21,12 @@ window:
 # Format: Modifier+Key (e.g., Cmd+Shift+Space, Ctrl+Alt+Space)
 # Available modifiers: Cmd, Ctrl, Alt, Shift
 shortcuts:
-  Cmd+Shift+Space: main  # Show/hide the input window (global)
-  Cmd+Enter: paste  # Paste text and close window
-  Escape: close  # Close window without pasting
-  Ctrl+j: historyNext  # Navigate to next history item
-  Ctrl+k: historyPrev  # Navigate to previous history item
-  Cmd+f: search  # Enable search mode in history
+  Cmd+Shift+Space: main             # Show/hide the input window (global)
+  Cmd+Enter: paste                  # Paste text and close window
+  Escape: close                     # Close window without pasting
+  Ctrl+j: historyNext               # Navigate to next history item
+  Ctrl+k: historyPrev               # Navigate to previous history item
+  Cmd+f: search                     # Enable search mode in history
   # Ctrl+m: "input=@md:"  # Custom action (e.g. input text field "input=xxx")
   # Ctrl+g: "input=@ghq:"
 
