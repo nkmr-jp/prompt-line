@@ -56,8 +56,8 @@ argumentHint: "{frontmatter@argument-hint}"
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `sourcePath` | Yes* | Glob path to source files (e.g., `~/.claude/commands/*.md`) |
-| `sourceCommand` | Yes* | Shell command for data source (alternative to sourcePath) |
+| `sourcePath` | No* | Glob path to source files (e.g., `~/.claude/commands/*.md`) |
+| `sourceCommand` | No* | Shell command for data source (alternative to sourcePath) |
 | `name` | Yes | Display name template |
 | `description` | No | Description template |
 | `label` | No | UI badge label |
@@ -70,7 +70,7 @@ argumentHint: "{frontmatter@argument-hint}"
 | `triggers` | No | Trigger characters (default: `["/"]`) |
 | `args` | No | Template arguments |
 
-\* Either `sourcePath` or `sourceCommand` is required.
+\* At least one of `sourcePath` or `sourceCommand` is required.
 
 ### custom-search
 
@@ -114,9 +114,8 @@ sourcePath: ~/.claude/history.jsonl
 # With jq expression (JSON/JSONL)
 sourcePath: "~/.claude/teams/**/config.json@. | select(.createdAt / 1000 > (now - 86400))"
 
-# Command source (sourcePath empty, sourceCommand instead)
+# Command source (sourceCommand instead of sourcePath)
 sourceCommand: "ghq list"
-sourcePath: ""
 ```
 
 ### Splitting rules

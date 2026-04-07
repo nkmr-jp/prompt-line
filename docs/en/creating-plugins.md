@@ -113,8 +113,8 @@ description: "{frontmatter@description}"
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `sourcePath` | Yes* | Glob path to source files |
-| `sourceCommand` | Yes* | Shell command for data source (alternative to sourcePath) |
+| `sourcePath` | No* | Glob path to source files |
+| `sourceCommand` | No* | Shell command for data source (alternative to sourcePath) |
 | `name` | Yes | Display name template |
 | `description` | No | Description template |
 | `label` | No | UI badge label |
@@ -127,7 +127,7 @@ description: "{frontmatter@description}"
 | `triggers` | No | Trigger characters (default: `["/"]`) |
 | `args` | No | Template arguments |
 
-\* Either `sourcePath` or `sourceCommand` is required.
+\* At least one of `sourcePath` or `sourceCommand` is required.
 
 **Example with custom triggers:**
 ```yaml
@@ -193,7 +193,6 @@ searchPrefix: team
 **Command output:**
 ```yaml
 sourceCommand: "ghq list"
-sourcePath: ""
 name: "{line}"
 searchPrefix: ghq
 runCommand: "open -a iTerm ~/ghq/{line}"

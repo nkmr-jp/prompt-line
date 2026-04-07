@@ -56,8 +56,8 @@ argumentHint: "{frontmatter@argument-hint}"
 
 | フィールド | 必須 | 説明 |
 |-------|----------|-------------|
-| `sourcePath` | Yes* | ソースファイルへのglobパス（例: `~/.claude/commands/*.md`） |
-| `sourceCommand` | Yes* | データソース用シェルコマンド（sourcePathの代替） |
+| `sourcePath` | No* | ソースファイルへのglobパス（例: `~/.claude/commands/*.md`） |
+| `sourceCommand` | No* | データソース用シェルコマンド（sourcePathの代替） |
 | `name` | Yes | 表示名テンプレート |
 | `description` | No | 説明テンプレート |
 | `label` | No | UIバッジラベル |
@@ -70,7 +70,7 @@ argumentHint: "{frontmatter@argument-hint}"
 | `triggers` | No | トリガー文字（デフォルト: `["/"]`） |
 | `args` | No | テンプレート引数 |
 
-\* `sourcePath` または `sourceCommand` のいずれかが必須。
+\* `sourcePath` または `sourceCommand` のいずれかが必要。
 
 ### custom-search
 
@@ -114,9 +114,8 @@ sourcePath: ~/.claude/history.jsonl
 # jq式付き（JSON/JSONL）
 sourcePath: "~/.claude/teams/**/config.json@. | select(.createdAt / 1000 > (now - 86400))"
 
-# コマンドソース（sourcePathは空、代わりにsourceCommand）
+# コマンドソース（sourcePathの代わりにsourceCommand）
 sourceCommand: "ghq list"
-sourcePath: ""
 ```
 
 ### 分割ルール
