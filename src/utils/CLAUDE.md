@@ -44,5 +44,4 @@ Shared utility functions used across the application. Organized into specialized
 
 ### Logger
 - Masks sensitive data (paths, tokens) in log output
-- File-based logging to `~/.prompt-line/app.log`
-- Max 5MB per file, 3 file rotation
+- File-based logging to `~/.prompt-line/app.log` (append-only)

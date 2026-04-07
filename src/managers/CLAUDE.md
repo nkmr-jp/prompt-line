@@ -41,8 +41,7 @@
 - Window reuse: checks if window exists and is visible before creating new one
 
 ### History manager debounce strategy
-- Standard save: 2000ms debounce
-- Critical save: 500ms debounce (add/remove operations)
+- Append queue flush: 100ms debounce
 - Immediate save: synchronous (shutdown scenarios)
 - JSONL format: oldest-first on disk, reversed in memory for display
 
