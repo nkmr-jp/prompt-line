@@ -7,13 +7,13 @@
 ## 概要
 
 Prompt Lineは、[Claude Code](https://github.com/anthropics/claude-code)、[Gemini CLI](https://github.com/google-gemini/gemini-cli)、[OpenAI Codex CLI](https://github.com/openai/codex)、[Aider](https://github.com/paul-gauthier/aider) などのCLI型AIコーディングエージェントのターミナルでのプロンプト入力体験を改善することを目的として開発したmacOSアプリです。
-CJK文字(中国語・日本語・韓国語)の入力時のUXの課題を専用のフローティング入力インターフェースで解決します。/や＠によるコンテキスト検索と入力補完の機能も備えています。 
+CJK文字(中国語・日本語・韓国語)の入力時のUXの課題を専用のフローティング入力インターフェースで解決します。`/`や`@`によるコンテキスト検索と入力補完の機能も備えており、[YAMLプラグインシステム](docs/ja/plugins.md)で拡張可能です。
 
-特に以下のようなケースでのテキスト入力のストレスを大幅に軽減します。
+主な機能：
 
-1. **ターミナルでのCLI型AIコーディングエージェントへのプロンプト入力**
-2. **Enterを押したら意図しないタイミングで送信されてしまうチャットアプリ**
-3. **入力の重たいテキストエディタ(例：巨大なコンフルエンスのドキュメントなど)**
+1. **サクッと入力、サクッと貼り付け** — `Cmd+Shift+Space`でフローティングウィンドウを起動、`Cmd+Enter`でどこにでも貼り付け
+2. **コンテキスト検索** — `/`や`@`でエージェントスキル、ファイル、シンボルなどを検索。プロンプト履歴の再利用も可能
+3. **プラグインで拡張** — シンプルなYAMLファイルでカスタム検索やスキルを追加（[プラグインガイド](docs/ja/plugins.md)）
 
 ## 特徴
 ### サクッと起動、サクッと貼付け
@@ -44,20 +44,20 @@ Enterを押しても勝手に送信されないので、改行する場合も気
 
 ### コンテキスト検索と入力補完
 
-`/`や`@`を入力するとAgent Skills・Agent Built-in・ファイル・シンボルなどのコンテキストを検索して入力補完できます。<br>
-これらは設定ファイル(`~/.prompt-line/settings.yaml`)でカスタマイズできます。参考: [settings.example.yaml](settings.example.yaml)
+`/`や`@`を入力するとエージェントスキル・組み込みコマンド・ファイル・シンボルなどのコンテキストを検索して入力補完できます。<br>
+プラグインで拡張可能です。詳細: [プラグインガイド](docs/ja/plugins.md) | [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins)
 <table>
 <tr>
-<td>Agent SkillsとAgent Built-in 検索<img src="assets/doc9.png"> </td>
+<td>エージェントスキルと組み込みコマンド<img src="assets/doc9.png"> </td>
 <td>ファイルとディレクトリ検索 <img src="assets/doc10.png"> </td>
 </tr>
 <tr>
 <td>シンボル検索<img src="assets/doc11.png"> </td>
-<td>サブエージェント検索(~/.claude/agents)  <img src="assets/doc14.png"> </td>
+<td>カスタム検索 (@agent:, @plan: 等) <img src="assets/doc14.png"> </td>
 </tr>
 <tr>
-<td>プラン検索(~/.claude/plans) <img src="assets/doc12.png"> </td>
-<td>エージェントチーム検索(~/.claude/teams)  <img src="assets/doc13.png"> </td>
+<td>カスタム検索 (@plan:) <img src="assets/doc12.png"> </td>
+<td>カスタム検索 (@team:)  <img src="assets/doc13.png"> </td>
 </tr>
 </table>
 
@@ -142,58 +142,33 @@ pnpm run migrate-settings        # 設定ファイルを最新のデフォルト
 - **ファイルオープン** - ファイルパスのテキストからファイルを起動 (`Ctrl+Enter` or `Cmd+クリック`)
 - **ファイル検索** - `@`を入力してファイルを検索
 - **シンボル検索** - `@<言語>:<クエリ>`と入力してコードシンボルを検索 (例: `@ts:Config`)
-- **カスタム検索** - `/`を入力してSlash CommandsやAgent Skillsを検索、または`@`でサブエージェントを検索
+- **カスタム検索** - `@prefix:` でエージェント、プラン、チーム、履歴などを検索（[プラグイン](docs/ja/plugins.md)で拡張可能）
 
 ## ⚙️ 設定
 
-`~/.prompt-line/settings.yaml`に設定ファイルを作成してPrompt Lineの動作をカスタマイズできます。
+設定ファイル: `~/.prompt-line/settings.yaml`（ホットリロード対応、再起動不要）
 
-利用可能なすべてのオプションとコメント付きの完全な設定例については、以下を参照してください：
-**[settings.example.yaml](settings.example.yaml)**
-
-### 設定項目の概要
-
-| セクション | 説明                                            |
-|---------|-----------------------------------------------|
-| `shortcuts` | キーボードショートカット（メイン、ペースト、クローズ、履歴ナビゲーション、検索）      |
-| `window` | ウィンドウサイズと配置モード                                |
-| `fileOpener` | デフォルトエディタ、拡張子別・ディレクトリ別（glob対応）アプリケーション |
-| `agentBuiltIn` | Agent Built-inの有効化（claude, codex, gemini等） |
-| `agentSkills` | Agent Skills検索機能（`$`などのカスタムトリガーに対応） |
-| `customSearch` | `@prefix:`で発動するカスタム検索（キーボードショートカットによる直接起動に対応） |
-| `fileSearch` | ファイル検索設定（`@path/to/file`補完） |
-| `symbolSearch` | シンボル検索設定（`@ts:Config`、`@go:Handler`） |
+参照: [設定リファレンス](docs/ja/settings.md) | [settings.example.yaml](settings.example.yaml) | [マイグレーションガイド](docs/ja/migration.md)
 
 ## 🔌 プラグイン
 
-プラグインを使うと、GitHubリポジトリでホストされたシンプルなYAMLファイルを書くだけで、Agent Built-in・Agent Skills・Custom Searchエントリを自由にカスタマイズできます。独自のプラグインリポジトリを作成して、自分のワークフローに合わせたPrompt Lineにカスタマイズしましょう。
+プラグインはYAMLファイルで、エージェントスキル（`/`）、カスタム検索（`@prefix:`）、CLIツールの組み込みコマンド・スキル・エージェントを追加します。
 
-参考例: [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins)
+**最も簡単な方法:** `~/.prompt-line/agent-skills/`、`~/.prompt-line/custom-search/`、`~/.prompt-line/agent-built-in/` にYAMLファイルを配置するだけ。GitHubリポジトリは不要です。
 
-### プラグインのインストール
-
-```bash
-prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
-
-# ブランチやコミットハッシュを指定してインストール
-prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins@develop
-prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins@e5afde2
-```
-
-詳細（ソースフォーマットなど）は以下で確認できます:
-```bash
-prompt-line-plugin help
-```
-
-### グローバルCLIセットアップ
-
-prompt-line プロジェクトディレクトリで以下を実行すると、CLIをグローバルにインストールできます:
+**GitHubで共有:** リポジトリからプラグインをインストール：
 
 ```bash
+# グローバルCLIセットアップ（prompt-lineプロジェクトディレクトリで一度だけ実行）
 pnpm link
+
+# プラグインのインストール
+prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
+prompt-line-plugin install github.com/user/repo@branch   # バージョン指定
 ```
 
-これにより、任意のディレクトリから `prompt-line-plugin` コマンドが使えるようになります。
+**詳細:** [docs/ja/plugins.md](docs/ja/plugins.md)<br>
+**リポジトリ例:** [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins)
 
 ## プロンプト履歴
 

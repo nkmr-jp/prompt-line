@@ -8,13 +8,13 @@ English |
 ## Overview
 
 Prompt Line is a macOS app developed to improve the prompt input experience in the terminal for CLI-based AI coding agents such as [Claude Code](https://github.com/anthropics/claude-code), [Gemini CLI](https://github.com/google-gemini/gemini-cli), [OpenAI Codex CLI](https://github.com/openai/codex), and [Aider](https://github.com/paul-gauthier/aider).
-It addresses UX challenges related to CJK (Chinese, Japanese, Korean) character input by providing a dedicated floating input interface. It also features context search and autocomplete with / and @.
+It addresses UX challenges related to CJK (Chinese, Japanese, Korean) character input by providing a dedicated floating input interface. It also features context search and autocomplete with `/` and `@`, extensible via a [YAML plugin system](docs/en/plugins.md).
 
-This greatly reduces stress when entering text in the following cases in particular. 
+Key capabilities:
 
-1. **Prompt input for CLI-based AI coding agents in the terminal** 
-2. **Chat apps where pressing Enter sends the message at an unintended time** 
-3. **Text editor with slow input response (e.g., large Confluence documents)**
+1. **Quick input, quick paste** — Floating window with `Cmd+Shift+Space`, paste anywhere with `Cmd+Enter`
+2. **Context search** — Search agent skills, files, symbols, and more with `/` and `@`, with prompt history reuse
+3. **Extensible via plugins** — Add custom search and skills with simple YAML files ([Plugin Guide](docs/en/plugins.md))
 
 
 ## Features
@@ -47,20 +47,20 @@ Of course, it also works with apps other than Terminal.
 
 ### Context Search and Autocomplete
 
-Type `/` or `@` to search and autocomplete contexts such as Agent Skills, Agent Built-in, files, and symbols.<br>
-These can be customized in the settings file (`~/.prompt-line/settings.yaml`). See: [settings.example.yaml](settings.example.yaml)
+Type `/` or `@` to search and autocomplete contexts such as agent skills, built-in commands, files, and symbols.<br>
+These can be extended with plugins. See: [Plugin Guide](docs/en/plugins.md) | [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins)
 <table>
 <tr>
-<td>Agent Skills and Agent Built-in <img src="assets/doc9.png"> </td>
+<td>Agent Skills and Built-in Commands <img src="assets/doc9.png"> </td>
 <td>File and Directory Search <img src="assets/doc10.png"> </td>
 </tr>
 <tr>
 <td>Symbol Search<img src="assets/doc11.png"> </td>
-<td>Subagents Search (~/.claude/agents)  <img src="assets/doc14.png"> </td>
+<td>Custom Search (@agent:, @plan:, etc.) <img src="assets/doc14.png"> </td>
 </tr>
 <tr>
-<td>Plans Search (~/.claude/plans) <img src="assets/doc12.png"> </td>
-<td>Agent Teams Search (~/.claude/teams)  <img src="assets/doc13.png"> </td>
+<td>Custom Search (@plan:) <img src="assets/doc12.png"> </td>
+<td>Custom Search (@team:)  <img src="assets/doc13.png"> </td>
 </tr>
 </table>
 
@@ -145,58 +145,33 @@ pnpm run migrate-settings        # Migrate settings to latest defaults (auto-bac
 - **File Opener** - Open files from file path text (`Ctrl+Enter` or `Cmd+Click`)
 - **File Search** - Search files by typing `@`
 - **Symbol Search** - Search code symbols by typing `@<lang>:<query>` (e.g., `@ts:Config`)
-- **Custom Search** - Search Slash Commands and Agent Skills by typing `/`, or search sub-agents by typing `@`
+- **Custom Search** - Search agents, plans, teams, history, etc. by typing `@prefix:` (extensible with [plugins](docs/en/plugins.md))
 
 ## ⚙️ Settings
 
-You can customize Prompt Line's behavior by creating a settings file at `~/.prompt-line/settings.yaml`.
+Settings file: `~/.prompt-line/settings.yaml` (hot-reloaded, no restart needed)
 
-For the full configuration example with all available options and comments, see:
-**[settings.example.yaml](settings.example.yaml)**
-
-### Quick Overview
-
-| Section | Description |
-|---------|-------------|
-| `shortcuts` | Keyboard shortcuts (main, paste, close, history navigation, search) |
-| `window` | Window size and positioning mode |
-| `fileOpener` | Default editor, extension-specific and directory-specific (glob) applications |
-| `agentBuiltIn` | Agent built-in entries to enable (claude, codex, gemini, etc.) |
-| `agentSkills` | Agent Skills search functionality (supports custom triggers like `$`) |
-| `customSearch` | Custom search triggered by `@prefix:` (supports keyboard shortcut activation) |
-| `fileSearch` | File search settings (`@path/to/file` completion) |
-| `symbolSearch` | Symbol search settings (`@ts:Config`, `@go:Handler`) |
+See: [Settings Reference](docs/en/settings.md) | [settings.example.yaml](settings.example.yaml) | [Migration Guide](docs/en/migration.md)
 
 ## 🔌 Plugins
 
-Plugins let you customize Agent Built-in, Agent Skills, and Custom Search entries by writing simple YAML files hosted in a GitHub repository. You can create your own plugin repository to tailor Prompt Line to your workflow.
+Plugins are YAML files that add agent skills (`/`), custom search (`@prefix:`), and built-in commands/skills/agents for CLI tools.
 
-For an example, see [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins).
+**Quickest way:** Place a YAML file in `~/.prompt-line/agent-skills/`, `~/.prompt-line/custom-search/`, or `~/.prompt-line/agent-built-in/` — no GitHub repo needed.
 
-### Install Plugins
-
-```bash
-prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
-
-# Install at specific branch or commit hash
-prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins@develop
-prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins@e5afde2
-```
-
-For more details (source formats, etc.), run:
-```bash
-prompt-line-plugin help
-```
-
-### Global CLI Setup
-
-Run the following in the prompt-line project directory to install the CLI globally:
+**Share via GitHub:** Install plugins from repositories:
 
 ```bash
+# Global CLI setup (run once in the prompt-line project directory)
 pnpm link
+
+# Install plugins
+prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
+prompt-line-plugin install github.com/user/repo@branch   # specific version
 ```
 
-This makes `prompt-line-plugin` available from any directory.
+**Details:** [docs/en/plugins.md](docs/en/plugins.md)<br>
+**Example repo:** [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins)
 
 ## Prompt History
 

@@ -25,6 +25,7 @@ Frontend layer handling UI and user interactions. All TypeScript with modular ma
 | `HistoryUIManager` | History rendering with DocumentFragment |
 | `AgentSkillManager` | Slash command skill system |
 | `FrontmatterPopupManager` | YAML frontmatter popup display |
+| `MentionManager` | @mention system coordinator |
 | `SnapshotManager` | Undo/redo with text + cursor state |
 
 ### Custom Search & Mention System (`mentions/`)
@@ -44,9 +45,14 @@ Frontend layer handling UI and user interactions. All TypeScript with modular ma
 
 ### History Search (`history-search/`)
 Score-based filtering with fuzzy matching:
-- Exact match (1000) > starts-with (500) > contains (200) > fuzzy (10)
-- Recency bonus: 0-50 points (7-day window)
-- 150ms debounce, max 5000 search items, max 50 display results
+- Exact match (1000) > starts-with (300) > contains (200) > fuzzy (10)
+- Recency bonus: 0-1500 points (30-day window)
+- 30ms debounce, max 5000 search items, max 50 display results
+
+### Frontmatter Popup (dual implementation)
+- `frontmatter-popup-manager.ts`: Slash command popup (has `renderFrontmatter()` with clickable reference links)
+- `mentions/managers/popup-manager.ts`: Agent popup (same `renderFrontmatter()` logic)
+- **Both must be kept in sync** when changing frontmatter rendering behavior
 
 ## Non-obvious Patterns
 

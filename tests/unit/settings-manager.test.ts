@@ -41,16 +41,16 @@ vi.mock('../../src/lib/plugin-loader', () => ({
 vi.mock('js-yaml', () => {
   const yamlMock = {
     load: vi.fn((data: string) => {
-      // Handle different YAML content for tests
-      if (data.includes('main: Alt+Space')) {
+      // Handle different YAML content for tests (key→action format)
+      if (data.includes('Alt+Space: main')) {
         return {
-          shortcuts: { main: 'Alt+Space', paste: 'Enter', close: 'Escape', search: 'Cmd+f' },
+          shortcuts: { 'Alt+Space': 'main', 'Enter': 'paste', 'Escape': 'close', 'Cmd+f': 'search' },
           window: { position: 'center', width: 800, height: 400 }
         };
       }
-      if (data.includes('main: Ctrl+Space')) {
+      if (data.includes('Ctrl+Space: main')) {
         return {
-          shortcuts: { main: 'Ctrl+Space', paste: 'Enter', close: 'Escape' },
+          shortcuts: { 'Ctrl+Space': 'main', 'Enter': 'paste', 'Escape': 'close' },
           window: { position: 'cursor', width: 700, height: 350 }
         };
       }
@@ -119,9 +119,9 @@ describe('SettingsManager', () => {
     it('should load existing settings file', async () => {
       mockedFs.mkdir.mockResolvedValue(undefined);
       const yamlSettings = `shortcuts:
-  main: Alt+Space
-  paste: Enter
-  close: Escape
+  Alt+Space: main
+  Enter: paste
+  Escape: close
 window:
   position: center
   width: 800
@@ -186,7 +186,7 @@ window:
         fileSearch: {
           respectGitignore: true,
           includeHidden: true,
-          maxFiles: 5000,
+          maxFiles: 100000,
           maxDepth: null,
           maxSuggestions: 50,
           followSymlinks: false,
@@ -194,6 +194,7 @@ window:
           excludePatterns: []
         },
         symbolSearch: {
+          respectGitignore: true,
           maxSymbols: 200000,
           timeout: 60000,
           includePatterns: [],
@@ -308,7 +309,7 @@ window:
         fileSearch: {
           respectGitignore: true,
           includeHidden: true,
-          maxFiles: 5000,
+          maxFiles: 100000,
           maxDepth: null,
           maxSuggestions: 50,
           followSymlinks: false,
@@ -316,6 +317,7 @@ window:
           excludePatterns: []
         },
         symbolSearch: {
+          respectGitignore: true,
           maxSymbols: 200000,
           timeout: 60000,
           includePatterns: [],
@@ -678,9 +680,9 @@ window:
 
       // Mock updated file content
       const updatedYaml = `shortcuts:
-  main: Ctrl+Space
-  paste: Enter
-  close: Escape
+  Ctrl+Space: main
+  Enter: paste
+  Escape: close
 window:
   position: cursor
   width: 700
@@ -723,9 +725,9 @@ window:
       settingsManager.on('settings-changed', settingsChangedHandler);
 
       const updatedYaml = `shortcuts:
-  main: Ctrl+Space
-  paste: Enter
-  close: Escape
+  Ctrl+Space: main
+  Enter: paste
+  Escape: close
 window:
   position: cursor
   width: 700
@@ -798,9 +800,9 @@ window:
       settingsManager.on('settings-changed', settingsChangedHandler);
 
       const updatedYaml = `shortcuts:
-  main: Ctrl+Space
-  paste: Enter
-  close: Escape
+  Ctrl+Space: main
+  Enter: paste
+  Escape: close
 window:
   position: cursor
   width: 700

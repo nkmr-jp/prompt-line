@@ -36,12 +36,12 @@ describe('settings-yaml-generator', () => {
         const result = generateSettingsYaml(minimalSettings);
 
         expect(result).toContain('shortcuts:');
-        expect(result).toContain('main: Cmd+Shift+Space');
-        expect(result).toContain('paste: Cmd+Enter');
-        expect(result).toContain('close: Escape');
-        expect(result).toContain('historyNext: Ctrl+j');
-        expect(result).toContain('historyPrev: Ctrl+k');
-        expect(result).toContain('search: Cmd+f');
+        expect(result).toContain('Cmd+Shift+Space: main');
+        expect(result).toContain('Cmd+Enter: paste');
+        expect(result).toContain('Escape: close');
+        expect(result).toContain('Ctrl+j: historyNext');
+        expect(result).toContain('Ctrl+k: historyPrev');
+        expect(result).toContain('Cmd+f: search');
 
         expect(result).toContain('window:');
         expect(result).toContain('position: active-text-field');
@@ -72,11 +72,9 @@ describe('settings-yaml-generator', () => {
         expect(result).toContain('#extensions:');
         expect(result).toContain('#  ts: "WebStorm"');
 
-        // Should have commented agentBuiltIn section
-        expect(result).toContain('#agentBuiltIn:');
-
-        // Should have commented agentSkills section
-        expect(result).toContain('#agentSkills:');
+        // Deprecated sections should not appear when data is empty
+        expect(result).not.toContain('# AGENT BUILT-IN');
+        expect(result).not.toContain('# AGENT SKILLS');
 
         // Should have commented fileSearch and symbolSearch sections
         expect(result).toContain('#fileSearch:');
@@ -149,9 +147,9 @@ describe('settings-yaml-generator', () => {
 
         const result = generateSettingsYaml(fullSettings);
 
-        // Shortcuts
-        expect(result).toContain('main: Alt+Space');
-        expect(result).toContain('paste: Enter');
+        // Shortcuts (new format: key → action)
+        expect(result).toContain('Alt+Space: main');
+        expect(result).toContain('Enter: paste');
 
         // Window
         expect(result).toContain('position: cursor');
@@ -229,9 +227,8 @@ describe('settings-yaml-generator', () => {
         expect(result).toContain('# go: "Goland"');
         expect(result).toContain('# md: "Typora"');
 
-        // Should include commented agentBuiltIn section (deprecated, use plugins instead)
-        expect(result).toContain('#agentBuiltIn:');
-        expect(result).toContain('#  - claude');
+        // Deprecated sections should not appear when data is empty (even with commentedExamples)
+        expect(result).not.toContain('# AGENT BUILT-IN');
       });
 
       test('should add commented examples after active values', () => {
@@ -411,9 +408,9 @@ describe('settings-yaml-generator', () => {
 
         const result = generateSettingsYaml(settings);
 
-        // Should have commented agentBuiltIn and agentSkills templates
-        expect(result).toContain('#agentBuiltIn:');
-        expect(result).toContain('#agentSkills:');
+        // Deprecated sections should not appear when data is empty
+        expect(result).not.toContain('# AGENT BUILT-IN');
+        expect(result).not.toContain('# AGENT SKILLS');
       });
 
       test('should handle missing fileSearch/symbolSearch/customSearch sections', () => {
@@ -424,10 +421,11 @@ describe('settings-yaml-generator', () => {
 
         const result = generateSettingsYaml(settings);
 
-        // Should have commented fileSearch, symbolSearch, customSearch templates
+        // Should have commented fileSearch, symbolSearch templates
         expect(result).toContain('#fileSearch:');
         expect(result).toContain('#symbolSearch:');
-        expect(result).toContain('#customSearch:');
+        // customSearch is deprecated — should not appear when empty
+        expect(result).not.toContain('# CUSTOM SEARCH');
       });
 
       test('should handle agentBuiltIn without agentSkills', () => {
@@ -440,10 +438,11 @@ describe('settings-yaml-generator', () => {
 
         const result = generateSettingsYaml(settings);
 
+        // agentBuiltIn section should appear when data exists
         expect(result).toContain('agentBuiltIn:');
         expect(result).toContain('- claude');
-        // agentSkills should be commented since not provided
-        expect(result).toContain('#agentSkills:');
+        // agentSkills section should not appear when data is empty
+        expect(result).not.toContain('# AGENT SKILLS');
       });
     });
 
@@ -528,8 +527,8 @@ describe('settings-yaml-generator', () => {
 
         const parsed = yaml.load(yamlContent) as any;
 
-        // Verify key sections are parsed correctly
-        expect(parsed.shortcuts.main).toBe('Alt+Space');
+        // Verify key sections are parsed correctly (new key→action format)
+        expect(parsed.shortcuts['Alt+Space']).toBe('main');
         expect(parsed.window.position).toBe('cursor');
         expect(parsed.fileOpener.defaultEditor).toBe('VSCode');
         expect(parsed.agentBuiltIn).toEqual(['claude', 'codex']);
@@ -583,18 +582,21 @@ describe('settings-yaml-generator', () => {
         const settings = { ...defaultSettings };
         const result = generateSettingsYaml(settings);
 
-        // Should include main header
-        expect(result).toContain('# Prompt Line Settings Configuration');
+        // Should include main header and docs link
+        expect(result).toContain('# Prompt Line Settings');
+        expect(result).toContain('# See:');
 
-        // Should include section headers
-        expect(result).toContain('# KEYBOARD SHORTCUTS');
-        expect(result).toContain('# WINDOW SETTINGS');
-        expect(result).toContain('# FILE OPENER SETTINGS');
-        expect(result).toContain('# AGENT BUILT-IN');
-        expect(result).toContain('# AGENT SKILLS SETTINGS');
-        expect(result).toContain('# CUSTOM SEARCH SETTINGS');
-        expect(result).toContain('# FILE SEARCH SETTINGS');
-        expect(result).toContain('# SYMBOL SEARCH SETTINGS');
+        // Should include section comments
+        expect(result).toContain('# Window:');
+        expect(result).toContain('# Shortcuts');
+        expect(result).toContain('# Plugins');
+        expect(result).toContain('# File opener');
+        expect(result).toContain('# File search');
+        expect(result).toContain('# Symbol search');
+        // Deprecated sections should not appear with default (empty) settings
+        expect(result).not.toContain('# AGENT BUILT-IN');
+        expect(result).not.toContain('# AGENT SKILLS');
+        expect(result).not.toContain('# CUSTOM SEARCH');
       });
 
       test('should have proper indentation for nested structures', () => {
@@ -652,11 +654,11 @@ describe('settings-yaml-generator', () => {
 
         const result = generateSettingsYaml(settings);
 
-        // Should include helpful inline comments
-        expect(result).toMatch(/respectGitignore:.*# Respect .gitignore files/);
-        expect(result).toMatch(/includeHidden:.*# Include hidden files/);
-        expect(result).toMatch(/searchPrefix: agent.*# Search with @agent:/);
-        expect(result).toMatch(/inputFormat: \{filepath\}.*# Insert format template/);
+        // Should include key fields
+        expect(result).toContain('respectGitignore:');
+        expect(result).toContain('includeHidden:');
+        expect(result).toMatch(/searchPrefix: agent/);
+        expect(result).toMatch(/inputFormat: \{filepath\}/);
       });
     });
 

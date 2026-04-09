@@ -98,3 +98,8 @@ if (wasRunning) {
 } else {
   console.log(`ℹ️  ${appName} was not running; skipping launch`);
 }
+
+console.log(`\n📌 To install plugins:`);
+console.log(`   pnpm link`);
+console.log(`   prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins`);
+console.log(`   See: docs/en/plugins.md`);

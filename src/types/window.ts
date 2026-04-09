@@ -436,8 +436,6 @@ export interface MentionEntry {
    * - 前方一致: "old-*"
    */
   disable?: string[];
-  /** オプション: キーボードショートカット（例: "Ctrl+g"）- このショートカットで @searchPrefix: 検索を直接起動 */
-  shortcut?: string;
   /** オプション: Ctrl+Enter で実行するシェルコマンド。テンプレート変数({filepath}, {basename}, {content}等)使用可 */
   runCommand?: string;
   /** オプション: コマンドの標準出力を検索ソースとして使用するシェルコマンド文字列（指定時は sourcePath の代わりに使用） */

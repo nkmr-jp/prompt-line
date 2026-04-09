@@ -39,6 +39,7 @@ pnpm run clean      # Removes build artifacts (DMG, zip files)
 pnpm run clean:cache     # Clears build caches
 pnpm run clean:full      # Full cleanup (artifacts + caches + dist)
 pnpm run generate:settings-example  # Regenerate settings.example.yaml
+pnpm run migrate-settings           # Backup existing settings and replace with fresh defaults
 pnpm run plugin:install <source>    # Install plugins from local path or GitHub repo
 ```
 
@@ -86,7 +87,7 @@ User Input → Renderer → IPC Event → IPCHandlers (coordinator) → Speciali
 - **Main Process** (`src/main.ts`): Application lifecycle, window management, system interactions
 - **Renderer Process** (`src/renderer/`): UI and user interactions with 13+ specialized managers. See `src/renderer/CLAUDE.md`
 - **Preload Script** (`src/preload/preload.ts`): Secure context bridge with whitelisted IPC channels
-- **IPC Handlers** (`src/handlers/`): 10 specialized files, 53 IPC channels. See `src/handlers/CLAUDE.md`
+- **IPC Handlers** (`src/handlers/`): 10 specialized files, 52 IPC channels. See `src/handlers/CLAUDE.md`
 - **Managers** (`src/managers/`): 16 specialized managers + window sub-module. See `src/managers/CLAUDE.md`
 - **Config** (`src/config/`): Centralized settings with `default-settings.ts` as Single Source of Truth. See `src/config/CLAUDE.md`
 - **Utils** (`src/utils/`): Shared utilities, native tools, file/symbol search. See `src/utils/CLAUDE.md`
@@ -191,6 +192,11 @@ Requires Xcode Command Line Tools: `xcode-select --install`
 
 ### Slow Build Times
 Use `pnpm run install-app` for development — it skips DMG creation and installs directly to `/Applications`.
+
+### Electron CDP Debugging
+- `LOG_LEVEL=debug ./node_modules/.bin/electron . --remote-debugging-port=9222` to start with CDP
+- `curl http://localhost:9222/json/list` to get WebSocket URL for the renderer page
+- Python `websockets` library works for CDP communication: `pip3 install websockets`
 
 ### Cleanup Reference
 

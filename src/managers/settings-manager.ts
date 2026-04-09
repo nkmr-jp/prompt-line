@@ -141,6 +141,14 @@ class SettingsManager extends EventEmitter {
   private applyParsedSettings(data: string): boolean {
     const parsed = yaml.load(data, { schema: yaml.JSON_SCHEMA }) as UserSettings;
     if (parsed && typeof parsed === 'object') {
+      // Normalize shortcuts from YAML format (key→action) to internal format (action→key)
+      if (parsed.shortcuts) {
+        const { normalized, customShortcuts } = normalizeShortcuts(
+          parsed.shortcuts as unknown as Record<string, string>
+        );
+        parsed.shortcuts = normalized;
+        parsed.customShortcuts = customShortcuts;
+      }
       this.currentSettings = this.mergeWithDefaults(parsed);
       return true;
     }
@@ -258,15 +266,10 @@ class SettingsManager extends EventEmitter {
   }
 
   private mergeWithDefaults(userSettings: Partial<UserSettings>): UserSettings {
-    // Normalize shortcuts: detect format on user settings BEFORE merging with defaults
-    const { normalized: userShortcuts, customShortcuts } = normalizeShortcuts(
-      (userSettings.shortcuts || {}) as Record<string, string>
-    );
-
     const result: UserSettings = {
       shortcuts: {
         ...this.defaultSettings.shortcuts,
-        ...userShortcuts
+        ...(userSettings.shortcuts || {})
       },
       window: {
         ...this.defaultSettings.window,
@@ -333,9 +336,9 @@ class SettingsManager extends EventEmitter {
       this.resolveLegacyMdSearch(result, userSettings.mdSearch);
     }
 
-    // Set custom shortcuts extracted from normalizeShortcuts
-    if (customShortcuts.length > 0) {
-      result.customShortcuts = customShortcuts;
+    // Preserve custom shortcuts (set by applyParsedSettings from YAML)
+    if (userSettings.customShortcuts && userSettings.customShortcuts.length > 0) {
+      result.customShortcuts = userSettings.customShortcuts;
     }
 
     return result;
@@ -675,7 +678,6 @@ function normalizePlugins(plugins: PluginFormat): ParsedPluginEntry[] {
 }
 
 const KNOWN_ACTIONS = new Set(['main', 'paste', 'close', 'historyNext', 'historyPrev', 'search']);
-const MODIFIER_PATTERN = /^(Cmd|Ctrl|Alt|Shift|Escape|Tab|Enter)/;
 
 function normalizeShortcuts(
   shortcuts: Record<string, string>
@@ -685,15 +687,7 @@ function normalizeShortcuts(
     return { normalized: {} as UserSettings['shortcuts'], customShortcuts: [] };
   }
 
-  // Detect format by checking if any key looks like a key combo
-  const isNewFormat = entries.some(([key]) => MODIFIER_PATTERN.test(key) || key === 'Escape');
-
-  if (!isNewFormat) {
-    // Old format: { action: key } — return as-is
-    return { normalized: shortcuts as UserSettings['shortcuts'], customShortcuts: [] };
-  }
-
-  // New format: { key: action } — invert and extract custom actions
+  // Format: { key: action } — invert and extract custom actions
   const normalized: Record<string, string> = {};
   const customShortcuts: CustomShortcutEntry[] = [];
 

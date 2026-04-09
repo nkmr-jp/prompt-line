@@ -1,6 +1,6 @@
 # IPC Handlers Module
 
-Central communication bridge between main and renderer processes. 10 specialized handler files, 53 IPC channels total.
+Central communication bridge between main and renderer processes. 10 specialized handler files, 52 IPC channels total.
 
 ## File Structure
 

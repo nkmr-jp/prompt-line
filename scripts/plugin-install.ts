@@ -36,6 +36,10 @@ interface FolderInfo {
 interface PluginEntry {
   path: string;
   description?: string;
+  sourcePath?: string;
+  sourceCommand?: string;
+  searchPrefix?: string;
+  args?: Record<string, string>;
 }
 
 // --- Git Helpers ---
@@ -504,10 +508,28 @@ function copyYamlFiles(
       fs.writeFileSync(targetPath, versionComment + content, 'utf-8');
 
       const relPath = path.relative(rootTargetDir, targetPath);
-      const descMatch = content.match(/^pluginDescription:\s*["']?(.+?)["']?\s*$/m);
-      const entry: PluginEntry = { path: relPath.replace(/\.(yml|yaml)$/, '') };
-      if (descMatch?.[1]) entry.description = descMatch[1];
-      pluginEntries.push(entry);
+      const descMatch = content.match(/^(?:pluginDescription|description):\s*["']?([^"'\n]+?)["']?\s*$/m);
+      const sourcePathMatch = content.match(/^sourcePath:\s*["']?(.+?)["']?\s*$/m);
+      const sourceCommandMatch = content.match(/^sourceCommand:\s*["']?(.+?)["']?\s*$/m);
+      const searchPrefixMatch = content.match(/^searchPrefix:\s*["']?(\w+)["']?\s*$/m);
+      const pluginEntry: PluginEntry = { path: relPath.replace(/\.(yml|yaml)$/, '') };
+      if (descMatch?.[1]) pluginEntry.description = descMatch[1];
+      if (sourcePathMatch?.[1]) pluginEntry.sourcePath = sourcePathMatch[1];
+      if (sourceCommandMatch?.[1]) pluginEntry.sourceCommand = sourceCommandMatch[1];
+      if (searchPrefixMatch?.[1]) pluginEntry.searchPrefix = searchPrefixMatch[1];
+
+      // Extract args (e.g., args:\n  open: iTerm → {open: "iTerm"})
+      const argsBlockMatch = content.match(/^args:\n((?:  \w+:.*\n?)+)/m);
+      if (argsBlockMatch?.[1]) {
+        const args: Record<string, string> = {};
+        for (const line of argsBlockMatch[1].split('\n').filter(Boolean)) {
+          const kv = line.match(/^\s+(\w+):\s*["']?(.+?)["']?\s*$/);
+          if (kv?.[1] && kv[2]) args[kv[1]] = kv[2];
+        }
+        if (Object.keys(args).length > 0) pluginEntry.args = args;
+      }
+
+      pluginEntries.push(pluginEntry);
 
       totalFiles++;
     }
@@ -640,7 +662,8 @@ export function main(source?: string): void {
   // Print settings.yaml configuration guide
   console.log('');
   console.log('─'.repeat(50));
-  console.log('📝 Copy the following to ~/.prompt-line/settings.yaml:');
+  console.log('📝 To enable, add the following to ~/.prompt-line/settings.yaml');
+  console.log('   (pick the entries you need):');
   console.log('─'.repeat(50));
   console.log('plugins:');
 
@@ -666,19 +689,41 @@ export function main(source?: string): void {
     const allLangs = group.map(e => path.basename(e.path)).sort();
     const representative = enEntry || group[0];
     if (!representative) continue;
-    const parts = [representative.description, allLangs.length > 0 ? `lang: ${allLangs.join(', ')}` : ''].filter(Boolean);
-    displayEntries.push({ path: representative.path, comment: parts.length > 0 ? `  # ${parts.join(' | ')}` : '' });
+    const parts = [representative.description, allLangs.length > 0 ? `lang: ${allLangs.join(',')}` : ''].filter(Boolean);
+    displayEntries.push({ path: representative.path, comment: parts.length > 0 ? `# ${parts.join(' | ')}` : '' });
   }
 
   for (const entry of otherEntries) {
-    const parts = [entry.description].filter(Boolean);
-    displayEntries.push({ path: entry.path, comment: parts.length > 0 ? `  # ${parts.join(' | ')}` : '' });
+    // Build display path: append @searchPrefix and ?args for custom-search entries
+    let displayPath = entry.path;
+    if (entry.searchPrefix) displayPath += `@${entry.searchPrefix}`;
+    if (entry.args) {
+      const argsStr = Object.entries(entry.args).map(([k, v]) => `${k}=${v}`).join('&');
+      displayPath += `?${argsStr}`;
+    }
+    // Build comment: show sourcePath without jq expression (strip @... suffix)
+    let comment = '';
+    if (entry.sourcePath) {
+      const withoutJq = entry.sourcePath.split('@')[0] ?? entry.sourcePath;
+      comment = `# sourcePath: ${withoutJq}`;
+    } else if (entry.sourceCommand) {
+      comment = `# sourceCommand: ${entry.sourceCommand}`;
+    } else if (entry.description) {
+      comment = `# ${entry.description}`;
+    }
+    displayEntries.push({ path: displayPath, comment });
   }
 
   displayEntries.sort((a, b) => a.path.localeCompare(b.path));
+
+  // Calculate padding for right-aligned comments
+  const maxPathLen = displayEntries.reduce((max, e) => Math.max(max, e.path.length), 0);
+  const padWidth = Math.max(maxPathLen + 2, 40); // minimum 40 chars for path column
+
   console.log(`  ${resolved.packageId}:`);
   for (const entry of displayEntries) {
-    console.log(`    - ${entry.path}${entry.comment}`);
+    const padded = entry.path.padEnd(padWidth);
+    console.log(`    - ${padded}${entry.comment}`);
   }
 
   console.log('─'.repeat(50));

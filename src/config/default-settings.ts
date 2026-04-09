@@ -42,8 +42,10 @@ export const defaultSettings: UserSettings = {
    *
    * Example (settings.yaml):
    *   shortcuts:
-   *     main: Cmd+Shift+Space
-   *     paste: Cmd+Enter
+   *     Cmd+Shift+Space: main    # Show/hide the input window (global)
+   *     Cmd+Enter: paste          # Paste text and close window
+   *     Escape: close             # Close window without pasting
+   *     # Ctrl+m: "input=@md:"   # Custom action (inserts text into input field)
    */
   shortcuts: {
     main: 'Cmd+Shift+Space',   // Show/hide the input window (global hotkey)
@@ -147,7 +149,7 @@ export const defaultSettings: UserSettings = {
   fileSearch: {
     respectGitignore: true,  // Respect .gitignore rules (fd only)
     includeHidden: true,     // Include hidden files (starting with .)
-    maxFiles: 5000,          // Maximum number of files to index
+    maxFiles: 100000,        // Maximum number of files to index
     maxDepth: null,          // Directory depth limit (null = unlimited)
     maxSuggestions: 50,      // Max suggestions shown in popup
     followSymlinks: false,   // Follow symbolic links during search
@@ -172,6 +174,7 @@ export const defaultSettings: UserSettings = {
    *       - "*.generated.go"
    */
   symbolSearch: {
+    respectGitignore: true, // Respect .gitignore files
     maxSymbols: 200000,    // Maximum number of symbols to index per directory
     timeout: 60000,        // Search timeout in milliseconds
     includePatterns: [],   // Force include file patterns (glob syntax)
@@ -202,16 +205,8 @@ export const defaultSettings: UserSettings = {
   plugins: [] as string[],
   /**
    * Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
-   * @deprecated Use plugins setting instead. Kept for backward compatibility.
-   * Inline entries here are merged with plugin file entries.
-   *
-   * Example (settings.yaml):
-   *   customSearch:
-   *     - name: "{basename}"
-   *       description: "{frontmatter@title}"
-   *       path: /path/to/knowledge-base
-   *       pattern: "**{/}*.md"
-   *       searchPrefix: kb
+   * @deprecated Use plugins or ~/.prompt-line/custom-search/*.yaml instead.
+   * Kept for backward compatibility. Inline entries here are merged with plugin file entries.
    */
   customSearch: [] as Array<{
     name: string;
