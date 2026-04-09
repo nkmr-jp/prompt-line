@@ -276,7 +276,7 @@ args:
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `{basename}` | Filename without extension | `SKILL.md` → `SKILL` |
+| `{basename}` | Filename without extension | `commit.md` → `commit` |
 | `{frontmatter@field}` | YAML frontmatter field | `{frontmatter@description}` |
 | `{json@field}` | JSON field value | `{json@display}`, `{json@items[0].name}` |
 | `{json:N@field}` | Nth parent JSON field | `{json:1@name}` |

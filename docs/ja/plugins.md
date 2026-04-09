@@ -276,7 +276,7 @@ args:
 
 | 変数 | 説明 | 例 |
 |----------|-------------|---------|
-| `{basename}` | 拡張子なしファイル名 | `SKILL.md` → `SKILL` |
+| `{basename}` | 拡張子なしファイル名 | `commit.md` → `commit` |
 | `{frontmatter@field}` | YAMLフロントマターフィールド | `{frontmatter@description}` |
 | `{json@field}` | JSONフィールド値 | `{json@display}`, `{json@items[0].name}` |
 | `{json:N@field}` | N番目の親のJSONフィールド | `{json:1@name}` |
