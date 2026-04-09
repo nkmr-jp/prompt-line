@@ -51,26 +51,6 @@ Plugin paths in settings.yaml support overrides:
 - `@suffix` → overrides `searchPrefix` (e.g., `agents@agent` → `@agent:`)
 - `?key=val` → overrides `args` (e.g., `?open=iTerm`)
 
-### Available plugins (prompt-line-plugins)
-
-```
-prompt-line-plugins/
-  claude/
-    agent-built-in/en.yaml          # Claude Code built-in (English)
-    agent-built-in/ja.yaml          # Claude Code built-in (Japanese)
-    agent-skills/commands.yaml      # ~/.claude/commands/*.md
-    agent-skills/skills.yaml        # ~/.claude/skills/**/SKILL.md
-    custom-search/agents.yaml       # @agent: search
-    custom-search/history.yaml      # @r: Claude history
-    custom-search/teams.yaml        # @team: search
-  codex/
-    agent-built-in/en.yaml          # Codex CLI built-in
-  gemini/
-    agent-built-in/en.yaml          # Gemini CLI built-in
-  path/
-    custom-search/ghq.yaml          # @ghq: repository search
-```
-
 ---
 
 ## Creating Plugins

@@ -51,26 +51,6 @@ settings.yaml のプラグインパスは上書きが可能です：
 - `@suffix` → `searchPrefix` を上書き（例: `agents@agent` → `@agent:`）
 - `?key=val` → `args` を上書き（例: `?open=iTerm`）
 
-### 利用可能なプラグイン (prompt-line-plugins)
-
-```
-prompt-line-plugins/
-  claude/
-    agent-built-in/en.yaml          # Claude Code 組み込み（英語）
-    agent-built-in/ja.yaml          # Claude Code 組み込み（日本語）
-    agent-skills/commands.yaml      # ~/.claude/commands/*.md
-    agent-skills/skills.yaml        # ~/.claude/skills/**/SKILL.md
-    custom-search/agents.yaml       # @agent: 検索
-    custom-search/history.yaml      # @r: Claude 履歴
-    custom-search/teams.yaml        # @team: 検索
-  codex/
-    agent-built-in/en.yaml          # Codex CLI 組み込み
-  gemini/
-    agent-built-in/en.yaml          # Gemini CLI 組み込み
-  path/
-    custom-search/ghq.yaml          # @ghq: リポジトリ検索
-```
-
 ---
 
 ## プラグインの作成
