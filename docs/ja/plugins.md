@@ -278,7 +278,7 @@ args:
 |----------|-------------|---------|
 | `{basename}` | 拡張子なしファイル名 | `SKILL.md` → `SKILL` |
 | `{frontmatter@field}` | YAMLフロントマターフィールド | `{frontmatter@description}` |
-| `{json@field}` | JSONフィールド（ドット記法） | `{json@display}` |
+| `{json@field}` | JSONフィールド値 | `{json@display}`, `{json@items[0].name}` |
 | `{json:N@field}` | N番目の親のJSONフィールド | `{json:1@name}` |
 | `{heading}` | 最初のマークダウン見出し | |
 | `{line}` | プレーンテキストの各行 | |

@@ -278,7 +278,7 @@ args:
 |----------|-------------|---------|
 | `{basename}` | Filename without extension | `SKILL.md` → `SKILL` |
 | `{frontmatter@field}` | YAML frontmatter field | `{frontmatter@description}` |
-| `{json@field}` | JSON field (dot notation) | `{json@display}` |
+| `{json@field}` | JSON field value | `{json@display}`, `{json@items[0].name}` |
 | `{json:N@field}` | Nth parent JSON field | `{json:1@name}` |
 | `{heading}` | First markdown heading | |
 | `{line}` | Each line of plain text | |
