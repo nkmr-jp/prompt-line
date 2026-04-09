@@ -44,11 +44,11 @@ Enterを押しても勝手に送信されないので、改行する場合も気
 
 ### コンテキスト検索と入力補完
 
-`/`や`@`を入力するとAgent Skills・Agent Built-in・ファイル・シンボルなどのコンテキストを検索して入力補完できます。<br>
+`/`や`@`を入力するとエージェントスキル・組み込みコマンド・ファイル・シンボルなどのコンテキストを検索して入力補完できます。<br>
 プラグインで拡張可能です。詳細: [プラグインガイド](docs/ja/plugins.md)
 <table>
 <tr>
-<td>Agent SkillsとAgent Built-in 検索<img src="assets/doc9.png"> </td>
+<td>エージェントスキルと組み込みコマンド<img src="assets/doc9.png"> </td>
 <td>ファイルとディレクトリ検索 <img src="assets/doc10.png"> </td>
 </tr>
 <tr>
@@ -164,7 +164,7 @@ pnpm run migrate-settings        # 設定ファイルを最新のデフォルト
 
 ## 🔌 プラグイン
 
-プラグインはYAMLファイルで、エージェントスキル（`/`）、カスタム検索（`@prefix:`）、エージェント組み込みコマンドを追加します。
+プラグインはYAMLファイルで、エージェントスキル（`/`）、カスタム検索（`@prefix:`）、CLIツールの組み込みコマンド・スキル・エージェントを追加します。
 
 **最も簡単な方法:** `~/.prompt-line/agent-skills/`、`~/.prompt-line/custom-search/`、`~/.prompt-line/agent-built-in/` にYAMLファイルを配置するだけ。GitHubリポジトリは不要です。
 

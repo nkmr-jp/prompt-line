@@ -47,11 +47,11 @@ Of course, it also works with apps other than Terminal.
 
 ### Context Search and Autocomplete
 
-Type `/` or `@` to search and autocomplete contexts such as Agent Skills, Agent Built-in, files, and symbols.<br>
+Type `/` or `@` to search and autocomplete contexts such as agent skills, built-in commands, files, and symbols.<br>
 These can be extended with plugins. See: [Plugin Guide](docs/en/plugins.md)
 <table>
 <tr>
-<td>Agent Skills and Agent Built-in <img src="assets/doc9.png"> </td>
+<td>Agent Skills and Built-in Commands <img src="assets/doc9.png"> </td>
 <td>File and Directory Search <img src="assets/doc10.png"> </td>
 </tr>
 <tr>
@@ -155,7 +155,7 @@ Settings file: `~/.prompt-line/settings.yaml` (hot-reloaded, no restart needed)
 |---------|-------------|
 | `window` | Window size and positioning mode |
 | `shortcuts` | Keyboard shortcuts ([key → action](docs/en/settings.md#shortcuts) format with custom actions) |
-| `plugins` | Enable agent skills, custom search, and agent built-in via YAML plugins |
+| `plugins` | Enable agent skills, custom search, and built-in commands via YAML plugins |
 | `fileOpener` | Default editor, extension-specific and directory-specific applications |
 | `imagesDirectory` | Image storage directory (relative to CWD or absolute) |
 | `fileSearch` | File search settings (`@path/to/file` completion) |
@@ -167,7 +167,7 @@ Settings file: `~/.prompt-line/settings.yaml` (hot-reloaded, no restart needed)
 
 ## 🔌 Plugins
 
-Plugins are YAML files that add agent skills (`/`), custom search (`@prefix:`), and agent built-in commands.
+Plugins are YAML files that add agent skills (`/`), custom search (`@prefix:`), and built-in commands/skills/agents for CLI tools.
 
 **Quickest way:** Place a YAML file in `~/.prompt-line/agent-skills/`, `~/.prompt-line/custom-search/`, or `~/.prompt-line/agent-built-in/` — no GitHub repo needed.
 
