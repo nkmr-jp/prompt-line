@@ -89,6 +89,7 @@ sourcePath: ~/my-project/skills/**/*/SKILL.md
 name: "{frontmatter@name}"
 description: "{frontmatter@description}"
 argumentHint: "{frontmatter@argument-hint}"
+icon: codicon-edit-sparkle
 ```
 
 **カスタム検索の例** — `~/.prompt-line/custom-search/my-notes.yaml`:
@@ -97,6 +98,7 @@ sourcePath: ~/notes/**/*.md
 name: "{basename}"
 description: "{heading}"
 searchPrefix: note
+icon: codicon-note
 ```
 
 **組み込みコマンドの例** — `~/.prompt-line/agent-built-in/my-tool.yaml`:
@@ -108,12 +110,15 @@ commands:
   - name: deploy
     description: 本番環境にデプロイ
     argument-hint: "[env]"
+    icon: codicon-rocket
 skills:
   - name: test
     description: テストスイートを実行
+    icon: codicon-beaker
 agents:
   - name: reviewer
     description: コードレビューエージェント
+    icon: codicon-eye
 ```
 
 ### Gitリポジトリで管理
@@ -159,6 +164,7 @@ YAMLファイルは `~/.prompt-line/plugins/` にコピーされ、`settings.yam
 ```yaml
 name: ツール名                         # 表示名
 color: amber                          # バッジカラー
+icon: codicon-tools                   # Codiconアイコン（アイコンの項を参照）
 reference: https://example.com/docs   # 参照URL（単一）
 references:                           # または複数URL
   - https://example.com/commands
@@ -168,12 +174,15 @@ commands:
     description: gitコミットを作成
     argument-hint: "[-m message]"
     color: green                      # アイテム個別のカラー上書き
+    icon: codicon-git-commit          # アイテム個別のアイコン上書き
 skills:
   - name: batch
     description: バッチ操作を実行
+    icon: codicon-run-all
 agents:
   - name: Explore
     description: 高速コードベース探索
+    icon: codicon-search
 ```
 
 ### agent-skills
@@ -186,6 +195,7 @@ name: "{frontmatter@name}"
 label: global
 description: "{frontmatter@description}"
 argumentHint: "{frontmatter@argument-hint}"
+icon: codicon-edit-sparkle
 ```
 
 コマンドにも対応：
@@ -193,6 +203,7 @@ argumentHint: "{frontmatter@argument-hint}"
 sourcePath: ~/.claude/commands/*.md
 name: "{basename}"
 description: "{frontmatter@description}"
+icon: codicon-terminal
 ```
 
 #### フィールド
@@ -234,6 +245,7 @@ name: "{basename}(agent)"
 label: global
 description: "{frontmatter@description}"
 displayTime: "{updatedAt}"
+icon: codicon-hubot
 ```
 
 #### 追加フィールド（custom-search専用）
@@ -328,6 +340,19 @@ sourcePath: "~/.claude/teams/**/config.json@. | select(.active)"  # JSON + jq
 **名前付き：** grey, darkGrey, slate, stone, red, rose, orange, amber, yellow, lime, green, emerald, teal, cyan, sky, blue, indigo, violet, purple, fuchsia, pink
 
 **16進コード：** `#RGB` または `#RRGGBB`（例: `#FF6B35`, `#F63`）
+
+## アイコン
+
+`icon` フィールドに [Codicon](https://microsoft.github.io/vscode-codicons/dist/codicon.html) のクラス名を指定すると、アイテムの横にアイコンが表示されます。
+
+```yaml
+icon: codicon-rocket          # ロケットアイコン
+icon: codicon-terminal        # ターミナルアイコン
+icon: codicon-edit-sparkle    # 編集スパークル（スキル向け）
+icon: codicon-hubot           # ロボットアイコン（エージェント向け）
+```
+
+アイコンはエントリレベル（全アイテムに適用）とアイテム個別レベル（エントリレベルを上書き）の両方で設定できます。利用可能なアイコン一覧は [Codicon](https://microsoft.github.io/vscode-codicons/dist/codicon.html) を参照してください。
 
 ## ホットリロード
 

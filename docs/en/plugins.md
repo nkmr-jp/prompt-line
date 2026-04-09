@@ -89,6 +89,7 @@ sourcePath: ~/my-project/skills/**/*/SKILL.md
 name: "{frontmatter@name}"
 description: "{frontmatter@description}"
 argumentHint: "{frontmatter@argument-hint}"
+icon: codicon-edit-sparkle
 ```
 
 **Custom search example** — `~/.prompt-line/custom-search/my-notes.yaml`:
@@ -97,6 +98,7 @@ sourcePath: ~/notes/**/*.md
 name: "{basename}"
 description: "{heading}"
 searchPrefix: note
+icon: codicon-note
 ```
 
 **Built-in commands example** — `~/.prompt-line/agent-built-in/my-tool.yaml`:
@@ -108,12 +110,15 @@ commands:
   - name: deploy
     description: Deploy to production
     argument-hint: "[env]"
+    icon: codicon-rocket
 skills:
   - name: test
     description: Run test suite
+    icon: codicon-beaker
 agents:
   - name: reviewer
     description: Code review agent
+    icon: codicon-eye
 ```
 
 ### Managing with a Git repository
@@ -159,6 +164,7 @@ YAML files are copied to `~/.prompt-line/plugins/` and then enabled via `setting
 ```yaml
 name: Tool Name                       # Display name
 color: amber                          # Badge color
+icon: codicon-tools                   # Codicon icon (see Icon section)
 reference: https://example.com/docs   # Single reference URL
 references:                           # Or multiple URLs
   - https://example.com/commands
@@ -168,12 +174,15 @@ commands:
     description: Create a git commit
     argument-hint: "[-m message]"
     color: green                      # Per-item color override
+    icon: codicon-git-commit          # Per-item icon override
 skills:
   - name: batch
     description: Run batch operations
+    icon: codicon-run-all
 agents:
   - name: Explore
     description: Fast codebase exploration
+    icon: codicon-search
 ```
 
 ### agent-skills
@@ -186,6 +195,7 @@ name: "{frontmatter@name}"
 label: global
 description: "{frontmatter@description}"
 argumentHint: "{frontmatter@argument-hint}"
+icon: codicon-edit-sparkle
 ```
 
 Also works with commands:
@@ -193,6 +203,7 @@ Also works with commands:
 sourcePath: ~/.claude/commands/*.md
 name: "{basename}"
 description: "{frontmatter@description}"
+icon: codicon-terminal
 ```
 
 #### Fields
@@ -234,6 +245,7 @@ name: "{basename}(agent)"
 label: global
 description: "{frontmatter@description}"
 displayTime: "{updatedAt}"
+icon: codicon-hubot
 ```
 
 #### Additional fields (custom-search only)
@@ -328,6 +340,19 @@ Badge colors support named colors and hex codes:
 **Named:** grey, darkGrey, slate, stone, red, rose, orange, amber, yellow, lime, green, emerald, teal, cyan, sky, blue, indigo, violet, purple, fuchsia, pink
 
 **Hex:** `#RGB` or `#RRGGBB` (e.g., `#FF6B35`, `#F63`)
+
+## Icon
+
+Set the `icon` field to a [Codicon](https://microsoft.github.io/vscode-codicons/dist/codicon.html) class name to display an icon next to the item.
+
+```yaml
+icon: codicon-rocket          # Rocket icon
+icon: codicon-terminal        # Terminal icon
+icon: codicon-edit-sparkle    # Edit sparkle (used for skills)
+icon: codicon-hubot           # Robot icon (used for agents)
+```
+
+Icons can be set at both the entry level (applies to all items) and per-item level (overrides entry-level). Browse all available icons at [Codicon](https://microsoft.github.io/vscode-codicons/dist/codicon.html).
 
 ## Hot Reload
 
