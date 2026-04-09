@@ -4,21 +4,13 @@
 
 ## セットアップ
 
-### プラグインのインストール
-
-```bash
-pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins
-```
-
-### グローバルCLIセットアップ（任意）
-
-prompt-lineプロジェクトディレクトリで以下を実行すると、任意のディレクトリから `prompt-line-plugin` コマンドが使えるようになります：
+prompt-lineプロジェクトディレクトリで以下を一度実行してください：
 
 ```bash
 pnpm link
 ```
 
-設定後は任意の場所からプラグインをインストールできます：
+プラグインをインストール：
 
 ```bash
 prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins

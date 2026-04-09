@@ -4,21 +4,13 @@ Plugins are YAML files that add agent skills (`/`), custom search (`@prefix:`), 
 
 ## Setup
 
-### Install plugins
-
-```bash
-pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins
-```
-
-### Global CLI setup (optional)
-
-Run the following in the prompt-line project directory to make `prompt-line-plugin` available from any directory:
+Run the following once in the prompt-line project directory:
 
 ```bash
 pnpm link
 ```
 
-After this, you can install plugins from anywhere:
+Then install plugins:
 
 ```bash
 prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
