@@ -106,15 +106,11 @@ searchPrefix: note
 
 ## Image Storage
 
+Image storage directory. Relative paths are resolved against CWD. When unset, defaults to `~/.prompt-line/images/`. Tip: Add the directory to `.gitignore` when using a relative path.
+
 ```yaml
 imagesDirectory: .prompt-line/images
 ```
-
-| Field | Default | Description |
-|-------|---------|-------------|
-| `imagesDirectory` | (unset) | Image storage directory. Relative paths are resolved against CWD. When unset, defaults to `~/.prompt-line/images/` |
-
-Tip: Add the directory to `.gitignore` when using a relative path within a project.
 
 ## File Search
 

@@ -106,15 +106,11 @@ searchPrefix: note
 
 ## 画像ストレージ
 
+画像保存ディレクトリ。相対パスはCWDを基準に解決。未設定時は `~/.prompt-line/images/`。ヒント: 相対パスを使用する場合は `.gitignore` に追加してください。
+
 ```yaml
 imagesDirectory: .prompt-line/images
 ```
-
-| フィールド | デフォルト | 説明 |
-|-------|---------|-------------|
-| `imagesDirectory` | （未設定） | 画像保存ディレクトリ。相対パスはCWDを基準に解決。未設定時は `~/.prompt-line/images/` |
-
-ヒント: プロジェクト内で相対パスを使用する場合、`.gitignore` にディレクトリを追加してください。
 
 ## ファイル検索
 
