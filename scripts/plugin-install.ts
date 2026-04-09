@@ -662,7 +662,8 @@ export function main(source?: string): void {
   // Print settings.yaml configuration guide
   console.log('');
   console.log('─'.repeat(50));
-  console.log('📝 Copy the following to ~/.prompt-line/settings.yaml:');
+  console.log('📝 To enable, add the following to ~/.prompt-line/settings.yaml');
+  console.log('   (comment out entries you don\'t need):');
   console.log('─'.repeat(50));
   console.log('plugins:');
 
