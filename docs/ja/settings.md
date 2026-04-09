@@ -38,70 +38,16 @@ window:
 
 ## プラグイン
 
-プラグインはエージェントスキル（`/`）、カスタム検索（`@prefix:`）、エージェント組み込みコマンドを提供します。
+使いたいエントリを追加してください。セットアップ、プラグイン作成、YAMLリファレンスは[プラグインガイド](plugins.md)を参照。
 
 ```yaml
 plugins:
   github.com/nkmr-jp/prompt-line-plugins:
-    - claude/agent-built-in/en                  # Claude Code 組み込みコマンド | lang: en,ja
+    - claude/agent-built-in/en                  # 組み込みコマンド、スキル、エージェント | lang: en,ja
     - claude/agent-skills/commands              # sourcePath: ~/.claude/commands/*.md
-    - claude/agent-skills/plugin-commands       # sourcePath: ~/.claude/plugins/cache/*/*/{latest}/**/commands/*.md
-    - claude/agent-skills/plugin-skills         # sourcePath: ~/.claude/plugins/cache/*/*/{latest}/**/SKILL.md
     - claude/agent-skills/skills                # sourcePath: ~/.claude/skills/**/SKILL.md
     - claude/custom-search/agents@agent         # sourcePath: ~/.claude/agents/*.md
-    - claude/custom-search/plans@plan           # sourcePath: ~/.claude/plans/*.md
-    - claude/custom-search/plugin-agents@agent  # sourcePath: ~/.claude/plugins/cache/*/*/{latest}/**/agents/*.md
-    - claude/custom-search/teams@team           # sourcePath: ~/.claude/teams/**/config.json
     - claude/custom-search/history@r            # sourcePath: ~/.claude/history.jsonl
-    # - codex/agent-built-in/en                 # Codex CLI 組み込みコマンド
-    # - gemini/agent-built-in/en                # Gemini CLI 組み込みコマンド
-    # - path/custom-search/ghq@ghq?open=iTerm   # sourceCommand: ghq list
-```
-
-### プラグインパス構文
-
-```
-<package>/<type>/<name>[@searchPrefix][?key=value&key2=value2]
-```
-
-- `@suffix` — プラグインYAMLの `searchPrefix` を上書き
-- `?key=val` — プラグインYAMLの `args` を上書き（例: `?open=iTerm`）
-
-### プラグインタイプ
-
-| ディレクトリ | タイプ | トリガー |
-|-----------|------|---------|
-| `agent-built-in/` | エージェント組み込みコマンド | `/` |
-| `agent-skills/` | ファイルからのエージェントスキル | `/` |
-| `custom-search/` | カスタム検索 | `@prefix:` |
-
-### プラグインのインストール
-
-```bash
-prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
-prompt-line-plugin install github.com/user/repo@branch   # 特定のブランチ/タグ
-prompt-line-plugin install ./local/path                   # ローカルパス
-```
-
-## ローカルYAMLディレクトリ
-
-プラグインを作成せずに、`~/.prompt-line/` のサブディレクトリにYAML設定ファイルを直接配置できます：
-
-```
-~/.prompt-line/
-  agent-built-in/     # エージェント組み込みコマンド (*.yaml)
-  agent-skills/       # ファイルからのエージェントスキル (*.yaml)
-  custom-search/      # カスタム検索エントリ (*.yaml)
-```
-
-これらのディレクトリは自動作成され、変更が監視されます（ホットリロード）。YAMLフォーマットはプラグインYAMLと同じです。フィールドリファレンスとテンプレート変数については [plugins.md](plugins.md) を参照してください。
-
-**例:** `~/.prompt-line/custom-search/my-notes.yaml`
-```yaml
-sourcePath: ~/notes/**/*.md
-name: "{basename}"
-description: "{heading}"
-searchPrefix: note
 ```
 
 ## 画像ストレージ

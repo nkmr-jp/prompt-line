@@ -38,70 +38,16 @@ window:
 
 ## Plugins
 
-Plugins provide slash commands (`/`), custom search (`@prefix:`), and agent built-in commands.
+Add the entries you need to enable. See [Plugin Guide](plugins.md) for setup, creating plugins, and YAML reference.
 
 ```yaml
 plugins:
   github.com/nkmr-jp/prompt-line-plugins:
-    - claude/agent-built-in/en                  # Claude Code built-in commands | lang: en,ja
+    - claude/agent-built-in/en                  # Built-in commands, skills, agents | lang: en,ja
     - claude/agent-skills/commands              # sourcePath: ~/.claude/commands/*.md
-    - claude/agent-skills/plugin-commands       # sourcePath: ~/.claude/plugins/cache/*/*/{latest}/**/commands/*.md
-    - claude/agent-skills/plugin-skills         # sourcePath: ~/.claude/plugins/cache/*/*/{latest}/**/SKILL.md
     - claude/agent-skills/skills                # sourcePath: ~/.claude/skills/**/SKILL.md
     - claude/custom-search/agents@agent         # sourcePath: ~/.claude/agents/*.md
-    - claude/custom-search/plans@plan           # sourcePath: ~/.claude/plans/*.md
-    - claude/custom-search/plugin-agents@agent  # sourcePath: ~/.claude/plugins/cache/*/*/{latest}/**/agents/*.md
-    - claude/custom-search/teams@team           # sourcePath: ~/.claude/teams/**/config.json
     - claude/custom-search/history@r            # sourcePath: ~/.claude/history.jsonl
-    # - codex/agent-built-in/en                 # Codex CLI built-in commands
-    # - gemini/agent-built-in/en                # Gemini CLI built-in commands
-    # - path/custom-search/ghq@ghq?open=iTerm   # sourceCommand: ghq list
-```
-
-### Plugin path syntax
-
-```
-<package>/<type>/<name>[@searchPrefix][?key=value&key2=value2]
-```
-
-- `@suffix` — overrides `searchPrefix` in the plugin YAML
-- `?key=val` — overrides `args` in the plugin YAML (e.g., `?open=iTerm`)
-
-### Plugin types
-
-| Directory | Type | Trigger |
-|-----------|------|---------|
-| `agent-built-in/` | Agent built-in commands | `/` |
-| `agent-skills/` | Agent skills from files | `/` |
-| `custom-search/` | Custom search | `@prefix:` |
-
-### Install plugins
-
-```bash
-prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
-prompt-line-plugin install github.com/user/repo@branch   # specific branch/tag
-prompt-line-plugin install ./local/path                   # local path
-```
-
-## Local YAML Directories
-
-You can place YAML config files directly in `~/.prompt-line/` subdirectories without creating a plugin:
-
-```
-~/.prompt-line/
-  agent-built-in/     # Agent built-in commands (*.yaml)
-  agent-skills/       # Agent skills from files (*.yaml)
-  custom-search/      # Custom search entries (*.yaml)
-```
-
-These directories are automatically created and watched for changes (hot reload). The YAML format is the same as plugin YAML files — see [plugins.md](plugins.md) for field reference and template variables.
-
-**Example:** `~/.prompt-line/custom-search/my-notes.yaml`
-```yaml
-sourcePath: ~/notes/**/*.md
-name: "{basename}"
-description: "{heading}"
-searchPrefix: note
 ```
 
 ## Image Storage
