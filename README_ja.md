@@ -146,54 +146,41 @@ pnpm run migrate-settings        # 設定ファイルを最新のデフォルト
 
 ## ⚙️ 設定
 
-`~/.prompt-line/settings.yaml`に設定ファイルを作成してPrompt Lineの動作をカスタマイズできます。
+設定ファイル: `~/.prompt-line/settings.yaml`（ホットリロード対応、再起動不要）
 
-利用可能なすべてのオプションとコメント付きの完全な設定例については、以下を参照してください：
-**[settings.example.yaml](settings.example.yaml)**
-
-### 設定項目の概要
-
-| セクション | 説明                                            |
-|---------|-----------------------------------------------|
-| `shortcuts` | キーボードショートカット（メイン、ペースト、クローズ、履歴ナビゲーション、検索）      |
-| `window` | ウィンドウサイズと配置モード                                |
-| `fileOpener` | デフォルトエディタ、拡張子別・ディレクトリ別（glob対応）アプリケーション |
-| `agentBuiltIn` | Agent Built-inの有効化（claude, codex, gemini等） |
-| `agentSkills` | Agent Skills検索機能（`$`などのカスタムトリガーに対応） |
-| `customSearch` | `@prefix:`で発動するカスタム検索（キーボードショートカットによる直接起動に対応） |
+| セクション | 説明 |
+|---------|-------------|
+| `window` | ウィンドウサイズと配置モード |
+| `shortcuts` | キーボードショートカット（[キー→アクション](docs/ja/settings.md#ショートカット)形式、カスタムアクション対応） |
+| `plugins` | YAMLプラグインでエージェントスキル、カスタム検索、組み込みコマンドを有効化 |
+| `fileOpener` | デフォルトエディタ、拡張子別・ディレクトリ別アプリケーション |
+| `imagesDirectory` | 画像保存ディレクトリ（CWDからの相対パスまたは絶対パス） |
 | `fileSearch` | ファイル検索設定（`@path/to/file`補完） |
 | `symbolSearch` | シンボル検索設定（`@ts:Config`、`@go:Handler`） |
 
+**詳細:** [docs/ja/settings.md](docs/ja/settings.md) | [docs/en/settings.md](docs/en/settings.md)<br>
+**設定例:** [settings.example.yaml](settings.example.yaml)<br>
+**マイグレーション:** [docs/ja/migration.md](docs/ja/migration.md) | [docs/en/migration.md](docs/en/migration.md)
+
 ## 🔌 プラグイン
 
-プラグインを使うと、GitHubリポジトリでホストされたシンプルなYAMLファイルを書くだけで、Agent Built-in・Agent Skills・Custom Searchエントリを自由にカスタマイズできます。独自のプラグインリポジトリを作成して、自分のワークフローに合わせたPrompt Lineにカスタマイズしましょう。
+プラグインはYAMLファイルで、エージェントスキル（`/`）、カスタム検索（`@prefix:`）、エージェント組み込みコマンドを追加します。
 
-参考例: [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins)
+**最も簡単な方法:** `~/.prompt-line/agent-skills/`、`~/.prompt-line/custom-search/`、`~/.prompt-line/agent-built-in/` にYAMLファイルを配置するだけ。GitHubリポジトリは不要です。
 
-### プラグインのインストール
-
-```bash
-prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
-
-# ブランチやコミットハッシュを指定してインストール
-prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins@develop
-prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins@e5afde2
-```
-
-詳細（ソースフォーマットなど）は以下で確認できます:
-```bash
-prompt-line-plugin help
-```
-
-### グローバルCLIセットアップ
-
-prompt-line プロジェクトディレクトリで以下を実行すると、CLIをグローバルにインストールできます:
+**GitHubで共有:** リポジトリからプラグインをインストール：
 
 ```bash
+# グローバルCLIセットアップ（prompt-lineプロジェクトディレクトリで一度だけ実行）
 pnpm link
+
+# プラグインのインストール
+prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
+prompt-line-plugin install github.com/user/repo@branch   # バージョン指定
 ```
 
-これにより、任意のディレクトリから `prompt-line-plugin` コマンドが使えるようになります。
+**詳細:** [docs/ja/plugins.md](docs/ja/plugins.md) | [docs/en/plugins.md](docs/en/plugins.md)<br>
+**リポジトリ例:** [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins)
 
 ## プロンプト履歴
 

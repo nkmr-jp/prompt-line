@@ -149,54 +149,41 @@ pnpm run migrate-settings        # Migrate settings to latest defaults (auto-bac
 
 ## ⚙️ Settings
 
-You can customize Prompt Line's behavior by creating a settings file at `~/.prompt-line/settings.yaml`.
-
-For the full configuration example with all available options and comments, see:
-**[settings.example.yaml](settings.example.yaml)**
-
-### Quick Overview
+Settings file: `~/.prompt-line/settings.yaml` (hot-reloaded, no restart needed)
 
 | Section | Description |
 |---------|-------------|
-| `shortcuts` | Keyboard shortcuts (main, paste, close, history navigation, search) |
 | `window` | Window size and positioning mode |
-| `fileOpener` | Default editor, extension-specific and directory-specific (glob) applications |
-| `agentBuiltIn` | Agent built-in entries to enable (claude, codex, gemini, etc.) |
-| `agentSkills` | Agent Skills search functionality (supports custom triggers like `$`) |
-| `customSearch` | Custom search triggered by `@prefix:` (supports keyboard shortcut activation) |
+| `shortcuts` | Keyboard shortcuts ([key → action](docs/en/settings.md#shortcuts) format with custom actions) |
+| `plugins` | Enable agent skills, custom search, and agent built-in via YAML plugins |
+| `fileOpener` | Default editor, extension-specific and directory-specific applications |
+| `imagesDirectory` | Image storage directory (relative to CWD or absolute) |
 | `fileSearch` | File search settings (`@path/to/file` completion) |
 | `symbolSearch` | Symbol search settings (`@ts:Config`, `@go:Handler`) |
 
+**Details:** [docs/en/settings.md](docs/en/settings.md) | [docs/ja/settings.md](docs/ja/settings.md)<br>
+**Example:** [settings.example.yaml](settings.example.yaml)<br>
+**Migration:** [docs/en/migration.md](docs/en/migration.md) | [docs/ja/migration.md](docs/ja/migration.md)
+
 ## 🔌 Plugins
 
-Plugins let you customize Agent Built-in, Agent Skills, and Custom Search entries by writing simple YAML files hosted in a GitHub repository. You can create your own plugin repository to tailor Prompt Line to your workflow.
+Plugins are YAML files that add agent skills (`/`), custom search (`@prefix:`), and agent built-in commands.
 
-For an example, see [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins).
+**Quickest way:** Place a YAML file in `~/.prompt-line/agent-skills/`, `~/.prompt-line/custom-search/`, or `~/.prompt-line/agent-built-in/` — no GitHub repo needed.
 
-### Install Plugins
-
-```bash
-prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
-
-# Install at specific branch or commit hash
-prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins@develop
-prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins@e5afde2
-```
-
-For more details (source formats, etc.), run:
-```bash
-prompt-line-plugin help
-```
-
-### Global CLI Setup
-
-Run the following in the prompt-line project directory to install the CLI globally:
+**Share via GitHub:** Install plugins from repositories:
 
 ```bash
+# Global CLI setup (run once in the prompt-line project directory)
 pnpm link
+
+# Install plugins
+prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
+prompt-line-plugin install github.com/user/repo@branch   # specific version
 ```
 
-This makes `prompt-line-plugin` available from any directory.
+**Details:** [docs/en/plugins.md](docs/en/plugins.md) | [docs/ja/plugins.md](docs/ja/plugins.md)<br>
+**Example repo:** [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins)
 
 ## Prompt History
 
