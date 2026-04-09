@@ -118,7 +118,7 @@ imagesDirectory: .prompt-line/images
 
 ## ファイル検索
 
-入力欄で `@` を入力すると起動。`fd` コマンドが必要（`brew install fd`）。
+入力欄で `@` を入力すると起動。`fd` が必要（`brew install fd`）。
 
 ```yaml
 fileSearch:
@@ -128,69 +128,36 @@ fileSearch:
   maxDepth: null            # ディレクトリ深度制限（null = 無制限）
   maxSuggestions: 50        # ポップアップに表示する最大サジェスト数
   followSymlinks: false     # シンボリックリンクをたどる
-  #fdPath: null             # fd コマンドのカスタムパス
-  includePatterns: []       # .gitignore でも強制的に含めるパターン（glob構文）
-  excludePatterns: []       # 追加の除外パターン（glob構文）
+  #fdPath: null             # fd のカスタムパス（null = 自動検出）
+  includePatterns: []       # .gitignore でも強制的に含める（例: ["*.log", "dist/**"]）
+  excludePatterns: []       # 追加の除外パターン（例: ["node_modules", "*.min.js"]）
 ```
-
-| フィールド | デフォルト | 説明 |
-|-------|---------|-------------|
-| `respectGitignore` | `true` | `.gitignore` ルールを尊重 |
-| `includeHidden` | `true` | 隠しファイル（`.`で始まる）を含む |
-| `maxFiles` | `100000` | インデックスするファイルの最大数 |
-| `maxDepth` | `null` | ディレクトリ深度制限（`null` = 無制限） |
-| `maxSuggestions` | `50` | ポップアップに表示する最大サジェスト数 |
-| `followSymlinks` | `false` | シンボリックリンクをたどる |
-| `fdPath` | `null` | `fd` コマンドのカスタムパス（`null` = 自動検出） |
-| `includePatterns` | `[]` | `.gitignore` でも強制的に含めるパターン（例: `["*.log", "dist/**"]`） |
-| `excludePatterns` | `[]` | 追加の除外パターン（例: `["node_modules", "*.min.js"]`） |
 
 ## シンボル検索
 
-`@lang:query` と入力すると起動（例: `@ts:Config`, `@go:Handler`）。`ripgrep` が必要（`brew install ripgrep`）。
-
-スペース区切りのキーワードでAND検索が可能（例: `@ts:Config util`）。
+`@lang:query` と入力すると起動（例: `@ts:Config`, `@go:Handler`）。`ripgrep` が必要（`brew install ripgrep`）。スペース区切りでAND検索（例: `@ts:Config util`）。
 
 ```yaml
 symbolSearch:
   respectGitignore: true    # .gitignore を尊重
   maxSymbols: 200000        # インデックスするシンボルの最大数
   timeout: 60000            # 検索タイムアウト（ミリ秒）
-  #rgPath: null             # rg コマンドのカスタムパス
-  includePatterns: []       # 強制的に含めるファイルパターン（glob構文）
-  excludePatterns: []       # 追加の除外ファイルパターン（glob構文）
+  #rgPath: null             # rg のカスタムパス（null = 自動検出）
+  includePatterns: []       # 強制的に含める（例: ["*.test.ts", "vendor/**"]）
+  excludePatterns: []       # 追加の除外（例: ["*.generated.go"]）
 ```
-
-| フィールド | デフォルト | 説明 |
-|-------|---------|-------------|
-| `respectGitignore` | `true` | `.gitignore` ファイルを尊重 |
-| `maxSymbols` | `200000` | ディレクトリあたりのインデックスするシンボルの最大数 |
-| `timeout` | `60000` | 検索タイムアウト（ミリ秒） |
-| `rgPath` | `null` | `rg` コマンドのカスタムパス（`null` = 自動検出） |
-| `includePatterns` | `[]` | 強制的に含めるファイルパターン（例: `["*.test.ts", "vendor/**"]`） |
-| `excludePatterns` | `[]` | 追加の除外ファイルパターン（例: `["*.generated.go"]`） |
 
 ## ファイルオープナー
 
-ファイルリンク（`@path` 参照のCmd+クリック）を開くアプリケーションを設定。
+ファイルリンク（`@path` 参照のCmd+クリック）を開くアプリケーションを設定。優先順位: `extensions` > `directories` > `defaultEditor` > システムデフォルト。
 
 ```yaml
 fileOpener:
   defaultEditor: null             # null = システムデフォルト（macOS "open" コマンド）
-  extensions:
+  extensions:                     # 拡張子別アプリ（defaultEditorより優先）
     png: "Preview"
     pdf: "Preview"
-  directories:
+  directories:                    # ディレクトリ別エディタ（glob: ~, *, **）
     - path: "~/ghq/github.com/my-org/my-go*"
       editor: "GoLand"
 ```
-
-| フィールド | デフォルト | 説明 |
-|-------|---------|-------------|
-| `defaultEditor` | `null` | 全ファイルのフォールバックエディタ（`null` = システムデフォルト） |
-| `extensions` | `{png: Preview, pdf: Preview}` | 拡張子別アプリ（例: `ts: "WebStorm"`） |
-| `directories` | `[]` | ディレクトリ別エディタ（glob対応） |
-
-**優先順位:** `extensions` > `directories` > `defaultEditor` > システムデフォルト。
-
-**ディレクトリglobパターン:** `path` は `~`（ホーム）、`*`（単一階層）、`**`（複数階層）に対応。最も具体的なパターン（最長の非globプレフィックス）が優先されます。
