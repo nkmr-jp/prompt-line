@@ -57,7 +57,7 @@ Plugin paths in settings.yaml support overrides:
 
 ## Creating Plugins
 
-### Quick start — local YAML (no GitHub repo needed)
+### Quick start — local YAML
 
 Place a YAML file in `~/.prompt-line/` subdirectories:
 
@@ -102,9 +102,9 @@ agents:
     description: Code review agent
 ```
 
-### Distributing via GitHub
+### Managing with a Git repository
 
-Create a GitHub repository to share plugins:
+You can manage plugins in a Git repository (public, private, or local):
 
 ```
 my-plugins/
