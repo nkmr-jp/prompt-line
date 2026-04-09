@@ -156,7 +156,7 @@ fileOpener:
   defaultEditor: "Visual Studio Code"   # null = システムデフォルト（macOS "open" コマンド）
   extensions:                           # 拡張子別アプリ（defaultEditorより優先）
     go: "GoLand"
-    rs: "RustRover"
+    py: "PyCharm"
     png: "Preview"
     pdf: "Preview"
   directories:                          # ディレクトリ別エディタ（glob: ~, *, **）

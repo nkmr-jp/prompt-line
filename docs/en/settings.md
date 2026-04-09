@@ -156,7 +156,7 @@ fileOpener:
   defaultEditor: "Visual Studio Code"   # null = system default (macOS "open" command)
   extensions:                           # Extension-specific apps (overrides defaultEditor)
     go: "GoLand"
-    rs: "RustRover"
+    py: "PyCharm"
     png: "Preview"
     pdf: "Preview"
   directories:                          # Directory-specific editors (glob: ~, *, **)
