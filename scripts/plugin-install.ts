@@ -701,10 +701,17 @@ export function main(source?: string): void {
       const argsStr = Object.entries(entry.args).map(([k, v]) => `${k}=${v}`).join('&');
       displayPath += `?${argsStr}`;
     }
-    // Build comment: prefer sourcePath/sourceCommand for agent-skills/custom-search
-    const comment = entry.sourcePath
-      ? `# sourcePath: ${entry.sourcePath}`
-      : entry.sourceCommand ? `# sourceCommand: ${entry.sourceCommand}` : entry.description ? `# ${entry.description}` : '';
+    // Build comment: show filename from sourcePath (strip directory and jq expression)
+    let comment = '';
+    if (entry.sourcePath) {
+      const withoutJq = entry.sourcePath.split('@')[0];
+      const filename = withoutJq.split('/').pop() || withoutJq;
+      comment = `# ${filename}`;
+    } else if (entry.sourceCommand) {
+      comment = `# sourceCommand: ${entry.sourceCommand}`;
+    } else if (entry.description) {
+      comment = `# ${entry.description}`;
+    }
     displayEntries.push({ path: displayPath, comment });
   }
 
