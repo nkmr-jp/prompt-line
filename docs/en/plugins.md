@@ -221,11 +221,11 @@ triggers: ["/", "$"]                  # Activates with both / and $
 
 ### custom-search
 
-Defines `@prefix:` search entries loaded from files, commands, or JSON sources.
+Defines custom search entries activated by typing `@` followed by a prefix. For example, setting `searchPrefix: agent` lets you type `@agent:` in the input to search the configured source.
 
 ```yaml
 sourcePath: ~/.claude/agents/*.md
-searchPrefix: agent
+searchPrefix: agent                   # → type @agent: to search
 name: "{basename}(agent)"
 label: global
 description: "{frontmatter@description}"
@@ -236,7 +236,7 @@ displayTime: "{updatedAt}"
 
 | Field | Description |
 |-------|-------------|
-| `searchPrefix` | Prefix for `@prefix:` activation |
+| `searchPrefix` | Activation prefix — typing `@agent:` triggers search when set to `agent` |
 | `displayTime` | Timestamp display template |
 | `inputFormat` | Insert format template |
 | `runCommand` | Shell command on Ctrl+Enter |

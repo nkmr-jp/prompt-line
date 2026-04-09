@@ -221,11 +221,11 @@ triggers: ["/", "$"]                  # / と $ の両方で起動
 
 ### custom-search
 
-ファイル、コマンド、またはJSONソースから読み込む `@prefix:` 検索エントリを定義します。
+`@` に続けてプレフィックスを入力することで起動するカスタム検索エントリを定義します。例えば `searchPrefix: agent` と設定すると、入力欄で `@agent:` と入力して検索を開始できます。
 
 ```yaml
 sourcePath: ~/.claude/agents/*.md
-searchPrefix: agent
+searchPrefix: agent                   # → @agent: と入力して検索
 name: "{basename}(agent)"
 label: global
 description: "{frontmatter@description}"
@@ -236,7 +236,7 @@ displayTime: "{updatedAt}"
 
 | フィールド | 説明 |
 |-------|-------------|
-| `searchPrefix` | `@prefix:` 起動用プレフィックス |
+| `searchPrefix` | 起動プレフィックス — `agent` に設定すると `@agent:` と入力して検索を開始 |
 | `displayTime` | タイムスタンプ表示テンプレート |
 | `inputFormat` | 挿入フォーマットテンプレート |
 | `runCommand` | Ctrl+Enterで実行するシェルコマンド |
