@@ -663,7 +663,7 @@ export function main(source?: string): void {
   console.log('');
   console.log('─'.repeat(50));
   console.log('📝 To enable, add the following to ~/.prompt-line/settings.yaml');
-  console.log('   (comment out entries you don\'t need):');
+  console.log('   (pick the entries you need):');
   console.log('─'.repeat(50));
   console.log('plugins:');
 
