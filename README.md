@@ -14,7 +14,7 @@ Key capabilities:
 
 1. **Quick input, quick paste** — Floating window with `Cmd+Shift+Space`, paste anywhere with `Cmd+Enter`
 2. **Context search** — Search agent skills, files, symbols, and more with `/` and `@`, with prompt history reuse
-3. **Extensible via plugins** — Add custom search and skills with simple YAML files or a [plugin repository](https://github.com/nkmr-jp/prompt-line-plugins)
+3. **Extensible via plugins** — Add custom search and skills with simple YAML files ([Plugin Guide](docs/en/plugins.md))
 
 
 ## Features
