@@ -40,7 +40,7 @@ default-settings.ts (Single Source of Truth)
 ### Key default values
 - Window: 640x320, position: `active-text-field`
 - Shortcuts: main=`Cmd+Shift+Space`, paste=`Cmd+Enter`, close=`Escape`, historyNext=`Ctrl+j`, historyPrev=`Ctrl+k`, search=`Cmd+f`
-- Shortcuts format: new key→action format (e.g., `Cmd+Shift+Space: main`) used for YAML output
+- Shortcuts format: key→action (e.g., `Cmd+Shift+Space: main`)
 - `agentBuiltIn`: deprecated (use plugins instead)
 - `plugins`: supports v1 (`string[]`) and v2 (`Record<string, string[]>`) formats. Type alias: `PluginFormat`
 - `fileSearch.maxFiles`: 100000

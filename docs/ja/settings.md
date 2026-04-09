@@ -6,20 +6,8 @@ Prompt Line 設定ファイル: `~/.prompt-line/settings.yaml`
 
 ## ショートカット
 
-2つのフォーマットに対応。アプリが自動判別します。
+フォーマット: `キー: アクション`（例: `Cmd+Shift+Space: main`）
 
-### 旧フォーマット（アクション → キー）
-```yaml
-shortcuts:
-  main: Cmd+Shift+Space
-  paste: Cmd+Enter
-  close: Escape
-  historyNext: Ctrl+j
-  historyPrev: Ctrl+k
-  search: Cmd+f
-```
-
-### 新フォーマット（キー → アクション）
 ```yaml
 shortcuts:
   Cmd+Shift+Space: main    # 入力ウィンドウの表示/非表示（グローバル）

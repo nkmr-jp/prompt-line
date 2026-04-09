@@ -40,7 +40,7 @@ export const defaultSettings: UserSettings = {
    * Format: Modifier+Key (e.g., "Cmd+Shift+Space", "Ctrl+Alt+Space")
    * Available modifiers: Cmd, Ctrl, Alt, Shift
    *
-   * Example (settings.yaml — new key→action format):
+   * Example (settings.yaml):
    *   shortcuts:
    *     Cmd+Shift+Space: main    # Show/hide the input window (global)
    *     Cmd+Enter: paste          # Paste text and close window

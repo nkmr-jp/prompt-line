@@ -6,20 +6,8 @@ Settings are hot-reloaded (300ms debounce) — changes take effect without resta
 
 ## Shortcuts
 
-Two formats supported. The app auto-detects which format is used.
+Format: `Key: action` (e.g., `Cmd+Shift+Space: main`)
 
-### Old format (action → key)
-```yaml
-shortcuts:
-  main: Cmd+Shift+Space
-  paste: Cmd+Enter
-  close: Escape
-  historyNext: Ctrl+j
-  historyPrev: Ctrl+k
-  search: Cmd+f
-```
-
-### New format (key → action)
 ```yaml
 shortcuts:
   Cmd+Shift+Space: main    # Show/hide the input window (global)
