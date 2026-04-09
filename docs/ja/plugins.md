@@ -1,6 +1,6 @@
 # プラグインガイド
 
-プラグインはYAMLファイルで、Prompt Lineにエージェントスキル（`/`）、カスタム検索（`@prefix:`）、エージェント組み込みコマンドを追加します。
+プラグインはYAMLファイルで、Prompt Lineにエージェントスキル（`/`）、カスタム検索（`@prefix:`）、CLIツールの組み込みコマンド・スキル・エージェントを追加します。
 
 ## セットアップ
 
@@ -10,23 +10,83 @@ prompt-lineプロジェクトディレクトリで以下を一度実行してく
 pnpm link
 ```
 
-プラグインをインストール：
+## プラグインの利用
+
+### インストール
 
 ```bash
 prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
-prompt-line-plugin install github.com/user/repo@branch   # バージョン指定
-prompt-line-plugin help                                   # ヘルプ表示
+```
+
+### settings.yaml で有効化
+
+インストール後、`~/.prompt-line/settings.yaml` でプラグインを有効化します：
+
+```yaml
+plugins:
+  github.com/nkmr-jp/prompt-line-plugins:
+    - claude/agent-built-in/en                  # 組み込みコマンド、スキル、エージェント | lang: en, ja
+    - claude/agent-skills/commands              # sourcePath: ~/.claude/commands/*.md
+    - claude/agent-skills/skills                # sourcePath: ~/.claude/skills/**/SKILL.md
+    - claude/agent-skills/plugin-commands       # sourcePath: ~/.claude/plugins/cache/*/*/{latest}/**/commands/*.md
+    - claude/agent-skills/plugin-skills         # sourcePath: ~/.claude/plugins/cache/*/*/{latest}/**/SKILL.md
+    - claude/custom-search/agents@agent         # sourcePath: ~/.claude/agents/*.md
+    - claude/custom-search/plans@plan           # sourcePath: ~/.claude/plans/*.md
+    - claude/custom-search/plugin-agents@agent  # sourcePath: ~/.claude/plugins/cache/*/*/{latest}/**/agents/*.md
+    - claude/custom-search/teams@team           # sourcePath: ~/.claude/teams/**/config.json
+    - claude/custom-search/history@r            # sourcePath: ~/.claude/history.jsonl
+    # - codex/agent-built-in/en                 # Codex CLI 組み込み
+    # - gemini/agent-built-in/en                # Gemini CLI 組み込み
+    # - path/custom-search/ghq@ghq?open=iTerm   # sourceCommand: ghq list
+```
+
+### パスの上書き
+
+settings.yaml のプラグインパスは上書きが可能です：
+
+```
+<path>[@searchPrefix][?key=value&key2=value2]
+```
+
+- `@suffix` → `searchPrefix` を上書き（例: `agents@agent` → `@agent:`）
+- `?key=val` → `args` を上書き（例: `?open=iTerm`）
+
+### 利用可能なプラグイン (prompt-line-plugins)
+
+```
+prompt-line-plugins/
+  claude/
+    agent-built-in/en.yaml          # Claude Code 組み込み（英語）
+    agent-built-in/ja.yaml          # Claude Code 組み込み（日本語）
+    agent-skills/commands.yaml      # ~/.claude/commands/*.md
+    agent-skills/skills.yaml        # ~/.claude/skills/**/SKILL.md
+    custom-search/agents.yaml       # @agent: 検索
+    custom-search/history.yaml      # @r: Claude 履歴
+    custom-search/teams.yaml        # @team: 検索
+  codex/
+    agent-built-in/en.yaml          # Codex CLI 組み込み
+  gemini/
+    agent-built-in/en.yaml          # Gemini CLI 組み込み
+  path/
+    custom-search/ghq.yaml          # @ghq: リポジトリ検索
 ```
 
 ---
 
-## クイックスタート
+## プラグインの作成
 
-ローカルディレクトリにYAMLファイルを配置するだけで利用可能。GitHubリポジトリは不要です。
+### クイックスタート — ローカルYAML（GitHubリポジトリ不要）
 
-### エージェントスキルを追加
+`~/.prompt-line/` のサブディレクトリにYAMLファイルを配置するだけで利用できます：
 
-`~/.prompt-line/agent-skills/my-skills.yaml` を作成：
+```
+~/.prompt-line/
+  agent-built-in/     # 組み込みコマンド、スキル、エージェント (*.yaml)
+  agent-skills/       # ファイルからのエージェントスキル (*.yaml)
+  custom-search/      # カスタム検索エントリ (*.yaml)
+```
+
+**エージェントスキルの例** — `~/.prompt-line/agent-skills/my-skills.yaml`:
 ```yaml
 sourcePath: ~/my-project/skills/**/*/SKILL.md
 name: "{frontmatter@name}"
@@ -34,11 +94,7 @@ description: "{frontmatter@description}"
 argumentHint: "{frontmatter@argument-hint}"
 ```
 
-入力欄で `/` を入力するとスキルが表示されます。
-
-### カスタム検索を追加
-
-`~/.prompt-line/custom-search/my-notes.yaml` を作成：
+**カスタム検索の例** — `~/.prompt-line/custom-search/my-notes.yaml`:
 ```yaml
 sourcePath: ~/notes/**/*.md
 name: "{basename}"
@@ -47,11 +103,7 @@ searchPrefix: note
 shortcut: Ctrl+n
 ```
 
-`@note:` と入力するか `Ctrl+n` を押すとノートを検索できます。
-
-### エージェント組み込みコマンドを追加
-
-`~/.prompt-line/agent-built-in/my-tool.yaml` を作成：
+**組み込みコマンドの例** — `~/.prompt-line/agent-built-in/my-tool.yaml`:
 ```yaml
 name: My Tool
 color: blue
@@ -59,9 +111,7 @@ reference: https://example.com/docs
 commands:
   - name: deploy
     description: 本番環境にデプロイ
-  - name: rollback
-    description: 前回のデプロイをロールバック
-    argument-hint: "[version]"
+    argument-hint: "[env]"
 skills:
   - name: test
     description: テストスイートを実行
@@ -70,21 +120,41 @@ agents:
     description: コードレビューエージェント
 ```
 
+### GitHubで配布
+
+プラグインを共有するにはGitHubリポジトリを作成します：
+
+```
+my-plugins/
+  my-tool/
+    agent-built-in/en.yaml
+    agent-skills/skills.yaml
+    custom-search/search.yaml
+```
+
+```bash
+prompt-line-plugin install github.com/user/my-plugins
+prompt-line-plugin install github.com/user/my-plugins@v1.0.0   # バージョン指定
+prompt-line-plugin install ./local/path                         # ローカルパス
+```
+
+インストール先: `~/.prompt-line/plugins/<package>/<category>/<type>/<name>.yaml`
+
 ---
 
 ## プラグインタイプ
 
 | ディレクトリ | タイプ | トリガー | 用途 |
 |-----------|------|---------|------|
-| `agent-built-in/` | エージェント組み込み | `/`, `@` | CLIツールのコマンド、スキル、エージェントを定義 |
+| `agent-built-in/` | 組み込み | `/`, `@` | CLIツールのコマンド、スキル、エージェントを定義 |
 | `agent-skills/` | エージェントスキル | `/` | マークダウンファイル（SKILL.md等）からスキルを読み込み |
 | `custom-search/` | カスタム検索 | `@prefix:` | ファイル、JSON、JSONL、コマンド出力を検索 |
 
 ---
 
-## agent-built-in
+## YAMLリファレンス
 
-`/` や `@` 入力時に表示されるコマンド、スキル、エージェントのリストを定義します。
+### agent-built-in
 
 ```yaml
 name: ツール名                         # 表示名
@@ -106,9 +176,7 @@ agents:
     description: 高速コードベース探索
 ```
 
----
-
-## agent-skills
+### agent-skills
 
 マークダウンファイルからスキルを読み込みます。各YAMLは `.md` ファイル（通常は `SKILL.md`）のディレクトリに対応します。
 
@@ -127,7 +195,7 @@ name: "{basename}"
 description: "{frontmatter@description}"
 ```
 
-### フィールド
+#### フィールド
 
 | フィールド | 必須 | 説明 |
 |-------|----------|-------------|
@@ -155,9 +223,7 @@ description: "{heading}"
 triggers: ["/", "$"]                  # / と $ の両方で起動
 ```
 
----
-
-## custom-search
+### custom-search
 
 ファイル、コマンド、またはJSONソースから読み込む `@prefix:` 検索エントリを定義します。
 
@@ -170,7 +236,7 @@ description: "{frontmatter@description}"
 displayTime: "{updatedAt}"
 ```
 
-### 追加フィールド（custom-search専用）
+#### 追加フィールド（custom-search専用）
 
 | フィールド | 説明 |
 |-------|-------------|
@@ -181,7 +247,7 @@ displayTime: "{updatedAt}"
 | `runCommand` | Ctrl+Enterで実行するシェルコマンド |
 | `excludeMarker` | このファイルを含むディレクトリをスキップ |
 
-### ソースタイプ
+#### ソースタイプ
 
 **マークダウンファイル：**
 ```yaml
@@ -245,8 +311,6 @@ args:
 
 **フォールバック：** `{frontmatter@description}|{heading}` — 左側が空の場合、右側を使用。
 
----
-
 ## sourcePath フォーマット
 
 ディレクトリとglobパターンを1つのフィールドで指定：
@@ -268,8 +332,6 @@ sourcePath: "~/.claude/teams/**/config.json@. | select(.active)"  # JSON + jq
 | `~/.claude/commands/*.md` | `~/.claude/commands` | `*.md` |
 | `~/.claude/history.jsonl` | `~/.claude` | `history.jsonl` |
 
----
-
 ## カラー
 
 バッジカラーは名前付きカラーと16進コードに対応：
@@ -277,80 +339,6 @@ sourcePath: "~/.claude/teams/**/config.json@. | select(.active)"  # JSON + jq
 **名前付き：** grey, darkGrey, slate, stone, red, rose, orange, amber, yellow, lime, green, emerald, teal, cyan, sky, blue, indigo, violet, purple, fuchsia, pink
 
 **16進コード：** `#RGB` または `#RRGGBB`（例: `#FF6B35`, `#F63`）
-
----
-
-## GitHubプラグインとして配布
-
-プラグインを他のユーザーと共有するには、GitHubリポジトリを作成します：
-
-```
-my-plugins/
-  my-tool/
-    agent-built-in/en.yaml
-    agent-skills/skills.yaml
-    custom-search/search.yaml
-```
-
-### インストール
-
-```bash
-prompt-line-plugin install github.com/user/my-plugins
-prompt-line-plugin install github.com/user/my-plugins@v1.0.0   # バージョン指定
-prompt-line-plugin install ./local/path                         # ローカルパス
-```
-
-### settings.yaml で有効化
-
-```yaml
-plugins:
-  github.com/user/my-plugins:
-    - my-tool/agent-built-in/en
-    - my-tool/agent-skills/skills
-    - my-tool/custom-search/search@prefix    # @prefixでsearchPrefixを上書き
-```
-
-### パスの上書き
-
-```
-<path>[@searchPrefix][?key=value&key2=value2]
-```
-
-- `@suffix` → `searchPrefix` を上書き
-- `?key=val` → `args` を上書き（例: `?open=iTerm`）
-
-### プラグインディレクトリ構造
-
-```
-~/.prompt-line/plugins/
-  <package>/                          # 例: github.com/nkmr-jp/prompt-line-plugins
-    <category>/                       # 例: claude, codex, gemini
-      agent-built-in/<name>.yaml
-      agent-skills/<name>.yaml
-      custom-search/<name>.yaml
-```
-
-### リポジトリ例 (prompt-line-plugins)
-
-```
-prompt-line-plugins/
-  claude/
-    agent-built-in/en.yaml          # Claude Code 組み込み（英語）
-    agent-built-in/ja.yaml          # Claude Code 組み込み（日本語）
-    agent-skills/commands.yaml      # ~/.claude/commands/*.md
-    agent-skills/skills.yaml        # ~/.claude/skills/**/SKILL.md
-    custom-search/agents.yaml       # @agent: 検索
-    custom-search/history.yaml      # @r: Claude 履歴
-    custom-search/teams.yaml        # @team: 検索
-  codex/
-    agent-built-in/en.yaml          # Codex CLI 組み込み
-  gemini/
-    agent-built-in/en.yaml          # Gemini CLI 組み込み
-  path/
-    custom-search/ghq.yaml          # @ghq: リポジトリ検索
-```
-
----
 
 ## ホットリロード
 

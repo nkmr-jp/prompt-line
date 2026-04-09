@@ -1,6 +1,6 @@
 # Plugin Guide
 
-Plugins are YAML files that add agent skills (`/`), custom search (`@prefix:`), and agent built-in commands to Prompt Line.
+Plugins are YAML files that add agent skills (`/`), custom search (`@prefix:`), and built-in commands/skills/agents for CLI tools to Prompt Line.
 
 ## Setup
 
@@ -10,23 +10,83 @@ Run the following once in the prompt-line project directory:
 pnpm link
 ```
 
-Then install plugins:
+## Using Plugins
+
+### Install
 
 ```bash
 prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
-prompt-line-plugin install github.com/user/repo@branch   # specific version
-prompt-line-plugin help                                   # show help
+```
+
+### Enable in settings.yaml
+
+After installing, enable plugins in `~/.prompt-line/settings.yaml`:
+
+```yaml
+plugins:
+  github.com/nkmr-jp/prompt-line-plugins:
+    - claude/agent-built-in/en                  # Built-in commands, skills, agents | lang: en, ja
+    - claude/agent-skills/commands              # sourcePath: ~/.claude/commands/*.md
+    - claude/agent-skills/skills                # sourcePath: ~/.claude/skills/**/SKILL.md
+    - claude/agent-skills/plugin-commands       # sourcePath: ~/.claude/plugins/cache/*/*/{latest}/**/commands/*.md
+    - claude/agent-skills/plugin-skills         # sourcePath: ~/.claude/plugins/cache/*/*/{latest}/**/SKILL.md
+    - claude/custom-search/agents@agent         # sourcePath: ~/.claude/agents/*.md
+    - claude/custom-search/plans@plan           # sourcePath: ~/.claude/plans/*.md
+    - claude/custom-search/plugin-agents@agent  # sourcePath: ~/.claude/plugins/cache/*/*/{latest}/**/agents/*.md
+    - claude/custom-search/teams@team           # sourcePath: ~/.claude/teams/**/config.json
+    - claude/custom-search/history@r            # sourcePath: ~/.claude/history.jsonl
+    # - codex/agent-built-in/en                 # Codex CLI built-in
+    # - gemini/agent-built-in/en                # Gemini CLI built-in
+    # - path/custom-search/ghq@ghq?open=iTerm   # sourceCommand: ghq list
+```
+
+### Path overrides
+
+Plugin paths in settings.yaml support overrides:
+
+```
+<path>[@searchPrefix][?key=value&key2=value2]
+```
+
+- `@suffix` → overrides `searchPrefix` (e.g., `agents@agent` → `@agent:`)
+- `?key=val` → overrides `args` (e.g., `?open=iTerm`)
+
+### Available plugins (prompt-line-plugins)
+
+```
+prompt-line-plugins/
+  claude/
+    agent-built-in/en.yaml          # Claude Code built-in (English)
+    agent-built-in/ja.yaml          # Claude Code built-in (Japanese)
+    agent-skills/commands.yaml      # ~/.claude/commands/*.md
+    agent-skills/skills.yaml        # ~/.claude/skills/**/SKILL.md
+    custom-search/agents.yaml       # @agent: search
+    custom-search/history.yaml      # @r: Claude history
+    custom-search/teams.yaml        # @team: search
+  codex/
+    agent-built-in/en.yaml          # Codex CLI built-in
+  gemini/
+    agent-built-in/en.yaml          # Gemini CLI built-in
+  path/
+    custom-search/ghq.yaml          # @ghq: repository search
 ```
 
 ---
 
-## Quick Start
+## Creating Plugins
 
-Place a YAML file in a local directory — no GitHub repo needed.
+### Quick start — local YAML (no GitHub repo needed)
 
-### Add an agent skill
+Place a YAML file in `~/.prompt-line/` subdirectories:
 
-Create `~/.prompt-line/agent-skills/my-skills.yaml`:
+```
+~/.prompt-line/
+  agent-built-in/     # Built-in commands, skills, agents (*.yaml)
+  agent-skills/       # Agent skills from files (*.yaml)
+  custom-search/      # Custom search entries (*.yaml)
+```
+
+**Agent skill example** — `~/.prompt-line/agent-skills/my-skills.yaml`:
 ```yaml
 sourcePath: ~/my-project/skills/**/*/SKILL.md
 name: "{frontmatter@name}"
@@ -34,11 +94,7 @@ description: "{frontmatter@description}"
 argumentHint: "{frontmatter@argument-hint}"
 ```
 
-Type `/` in the input and your skills appear.
-
-### Add a custom search
-
-Create `~/.prompt-line/custom-search/my-notes.yaml`:
+**Custom search example** — `~/.prompt-line/custom-search/my-notes.yaml`:
 ```yaml
 sourcePath: ~/notes/**/*.md
 name: "{basename}"
@@ -47,11 +103,7 @@ searchPrefix: note
 shortcut: Ctrl+n
 ```
 
-Type `@note:` or press `Ctrl+n` to search your notes.
-
-### Add agent built-in commands
-
-Create `~/.prompt-line/agent-built-in/my-tool.yaml`:
+**Built-in commands example** — `~/.prompt-line/agent-built-in/my-tool.yaml`:
 ```yaml
 name: My Tool
 color: blue
@@ -59,9 +111,7 @@ reference: https://example.com/docs
 commands:
   - name: deploy
     description: Deploy to production
-  - name: rollback
-    description: Rollback last deployment
-    argument-hint: "[version]"
+    argument-hint: "[env]"
 skills:
   - name: test
     description: Run test suite
@@ -70,21 +120,41 @@ agents:
     description: Code review agent
 ```
 
+### Distributing via GitHub
+
+Create a GitHub repository to share plugins:
+
+```
+my-plugins/
+  my-tool/
+    agent-built-in/en.yaml
+    agent-skills/skills.yaml
+    custom-search/search.yaml
+```
+
+```bash
+prompt-line-plugin install github.com/user/my-plugins
+prompt-line-plugin install github.com/user/my-plugins@v1.0.0   # specific version
+prompt-line-plugin install ./local/path                         # local path
+```
+
+Installed to: `~/.prompt-line/plugins/<package>/<category>/<type>/<name>.yaml`
+
 ---
 
 ## Plugin Types
 
 | Directory | Type | Trigger | Purpose |
 |-----------|------|---------|---------|
-| `agent-built-in/` | Agent built-in | `/`, `@` | Define commands, skills, and agents for CLI tools |
+| `agent-built-in/` | Built-in | `/`, `@` | Define commands, skills, and agents for CLI tools |
 | `agent-skills/` | Agent skills | `/` | Load skills from markdown files |
 | `custom-search/` | Custom search | `@prefix:` | Search files, JSON, JSONL, or command output |
 
 ---
 
-## agent-built-in
+## YAML Reference
 
-Defines a list of commands, skills, and agents that appear when typing `/` or `@`.
+### agent-built-in
 
 ```yaml
 name: Tool Name                       # Display name
@@ -106,9 +176,7 @@ agents:
     description: Fast codebase exploration
 ```
 
----
-
-## agent-skills
+### agent-skills
 
 Loads skills from markdown files. Each YAML maps to a directory of `.md` files (typically `SKILL.md`).
 
@@ -127,7 +195,7 @@ name: "{basename}"
 description: "{frontmatter@description}"
 ```
 
-### Fields
+#### Fields
 
 | Field | Required | Description |
 |-------|----------|-------------|
@@ -155,9 +223,7 @@ description: "{heading}"
 triggers: ["/", "$"]                  # Activates with both / and $
 ```
 
----
-
-## custom-search
+### custom-search
 
 Defines `@prefix:` search entries loaded from files, commands, or JSON sources.
 
@@ -170,7 +236,7 @@ description: "{frontmatter@description}"
 displayTime: "{updatedAt}"
 ```
 
-### Additional fields (custom-search only)
+#### Additional fields (custom-search only)
 
 | Field | Description |
 |-------|-------------|
@@ -181,7 +247,7 @@ displayTime: "{updatedAt}"
 | `runCommand` | Shell command on Ctrl+Enter |
 | `excludeMarker` | Skip directories with this file |
 
-### Source types
+#### Source types
 
 **Markdown files:**
 ```yaml
@@ -245,8 +311,6 @@ args:
 
 **Fallback:** `{frontmatter@description}|{heading}` — uses right side if left is empty.
 
----
-
 ## sourcePath Format
 
 Single field combining directory and glob pattern:
@@ -268,8 +332,6 @@ The `sourcePath` is split into directory + pattern at the first glob character (
 | `~/.claude/commands/*.md` | `~/.claude/commands` | `*.md` |
 | `~/.claude/history.jsonl` | `~/.claude` | `history.jsonl` |
 
----
-
 ## Color
 
 Badge colors support named colors and hex codes:
@@ -277,80 +339,6 @@ Badge colors support named colors and hex codes:
 **Named:** grey, darkGrey, slate, stone, red, rose, orange, amber, yellow, lime, green, emerald, teal, cyan, sky, blue, indigo, violet, purple, fuchsia, pink
 
 **Hex:** `#RGB` or `#RRGGBB` (e.g., `#FF6B35`, `#F63`)
-
----
-
-## Distributing as a GitHub Plugin
-
-To share your plugin with others, create a GitHub repository:
-
-```
-my-plugins/
-  my-tool/
-    agent-built-in/en.yaml
-    agent-skills/skills.yaml
-    custom-search/search.yaml
-```
-
-### Install
-
-```bash
-prompt-line-plugin install github.com/user/my-plugins
-prompt-line-plugin install github.com/user/my-plugins@v1.0.0   # specific version
-prompt-line-plugin install ./local/path                         # local path
-```
-
-### Enable in settings.yaml
-
-```yaml
-plugins:
-  github.com/user/my-plugins:
-    - my-tool/agent-built-in/en
-    - my-tool/agent-skills/skills
-    - my-tool/custom-search/search@prefix    # @prefix overrides searchPrefix
-```
-
-### Path overrides
-
-```
-<path>[@searchPrefix][?key=value&key2=value2]
-```
-
-- `@suffix` → overrides `searchPrefix`
-- `?key=val` → overrides `args` (e.g., `?open=iTerm`)
-
-### Plugin directory structure
-
-```
-~/.prompt-line/plugins/
-  <package>/                          # e.g., github.com/nkmr-jp/prompt-line-plugins
-    <category>/                       # e.g., claude, codex, gemini
-      agent-built-in/<name>.yaml
-      agent-skills/<name>.yaml
-      custom-search/<name>.yaml
-```
-
-### Example repository (prompt-line-plugins)
-
-```
-prompt-line-plugins/
-  claude/
-    agent-built-in/en.yaml          # Claude Code built-in (English)
-    agent-built-in/ja.yaml          # Claude Code built-in (Japanese)
-    agent-skills/commands.yaml      # ~/.claude/commands/*.md
-    agent-skills/skills.yaml        # ~/.claude/skills/**/SKILL.md
-    custom-search/agents.yaml       # @agent: search
-    custom-search/history.yaml      # @r: Claude history
-    custom-search/teams.yaml        # @team: search
-  codex/
-    agent-built-in/en.yaml          # Codex CLI built-in
-  gemini/
-    agent-built-in/en.yaml          # Gemini CLI built-in
-  path/
-    custom-search/ghq.yaml          # @ghq: repository search
-```
-
----
 
 ## Hot Reload
 
