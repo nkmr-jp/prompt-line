@@ -2,6 +2,22 @@
 
 This guide covers changes to `~/.prompt-line/settings.yaml` between versions.
 
+## Auto-migration
+
+Run the migration command to back up your existing settings and replace with fresh defaults:
+
+```bash
+pnpm run migrate-settings
+```
+
+This will:
+1. Back up `~/.prompt-line/settings.yaml` → `settings.backup.<timestamp>.yaml`
+2. Replace with the latest default settings (same as `settings.example.yaml`)
+
+Your backup is preserved, so you can refer to it when re-applying customizations.
+
+---
+
 ## v0.29 → v0.30
 
 ### 1. Shortcuts format changed (key → action)

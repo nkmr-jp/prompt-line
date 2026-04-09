@@ -39,6 +39,7 @@ pnpm run clean      # Removes build artifacts (DMG, zip files)
 pnpm run clean:cache     # Clears build caches
 pnpm run clean:full      # Full cleanup (artifacts + caches + dist)
 pnpm run generate:settings-example  # Regenerate settings.example.yaml
+pnpm run migrate-settings           # Backup existing settings and replace with fresh defaults
 pnpm run plugin:install <source>    # Install plugins from local path or GitHub repo
 ```
 
