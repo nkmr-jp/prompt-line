@@ -24,7 +24,7 @@ prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
 
 ### Enable in settings.yaml
 
-After installing, enable plugins in `~/.prompt-line/settings.yaml`:
+After installing, add the entries you need to `~/.prompt-line/settings.yaml`:
 
 ```yaml
 plugins:

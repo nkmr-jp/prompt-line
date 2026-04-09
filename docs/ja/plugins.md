@@ -24,7 +24,7 @@ prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
 
 ### settings.yaml で有効化
 
-インストール後、`~/.prompt-line/settings.yaml` でプラグインを有効化します：
+インストール後、使いたいエントリを `~/.prompt-line/settings.yaml` に追加します：
 
 ```yaml
 plugins:
