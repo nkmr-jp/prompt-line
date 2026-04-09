@@ -704,8 +704,8 @@ export function main(source?: string): void {
     // Build comment: show filename from sourcePath (strip directory and jq expression)
     let comment = '';
     if (entry.sourcePath) {
-      const withoutJq = entry.sourcePath.split('@')[0];
-      const filename = withoutJq.split('/').pop() || withoutJq;
+      const withoutJq = entry.sourcePath.split('@')[0] ?? entry.sourcePath;
+      const filename = withoutJq.split('/').pop() ?? withoutJq;
       comment = `# ${filename}`;
     } else if (entry.sourceCommand) {
       comment = `# sourceCommand: ${entry.sourceCommand}`;
