@@ -45,7 +45,7 @@ Enterを押しても勝手に送信されないので、改行する場合も気
 ### コンテキスト検索と入力補完
 
 `/`や`@`を入力するとエージェントスキル・組み込みコマンド・ファイル・シンボルなどのコンテキストを検索して入力補完できます。<br>
-プラグインで拡張可能です。詳細: [プラグインガイド](docs/ja/plugins.md)
+プラグインで拡張可能です。詳細: [プラグインガイド](docs/ja/plugins.md) | [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins)
 <table>
 <tr>
 <td>エージェントスキルと組み込みコマンド<img src="assets/doc9.png"> </td>

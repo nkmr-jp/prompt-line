@@ -48,7 +48,7 @@ Of course, it also works with apps other than Terminal.
 ### Context Search and Autocomplete
 
 Type `/` or `@` to search and autocomplete contexts such as agent skills, built-in commands, files, and symbols.<br>
-These can be extended with plugins. See: [Plugin Guide](docs/en/plugins.md)
+These can be extended with plugins. See: [Plugin Guide](docs/en/plugins.md) | [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins)
 <table>
 <tr>
 <td>Agent Skills and Built-in Commands <img src="assets/doc9.png"> </td>
