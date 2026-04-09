@@ -9,11 +9,11 @@
 Prompt Lineは、[Claude Code](https://github.com/anthropics/claude-code)、[Gemini CLI](https://github.com/google-gemini/gemini-cli)、[OpenAI Codex CLI](https://github.com/openai/codex)、[Aider](https://github.com/paul-gauthier/aider) などのCLI型AIコーディングエージェントのターミナルでのプロンプト入力体験を改善することを目的として開発したmacOSアプリです。
 CJK文字(中国語・日本語・韓国語)の入力時のUXの課題を専用のフローティング入力インターフェースで解決します。`/`や`@`によるコンテキスト検索と入力補完の機能も備えており、[YAMLプラグインシステム](docs/ja/plugins.md)で拡張可能です。
 
-特に以下のようなケースでのテキスト入力のストレスを大幅に軽減します。
+主な機能：
 
-1. **ターミナルでのCLI型AIコーディングエージェントへのプロンプト入力**
-2. **Enterを押したら意図しないタイミングで送信されてしまうチャットアプリ**
-3. **入力の重たいテキストエディタ(例：巨大なコンフルエンスのドキュメントなど)**
+1. **サクッと入力、サクッと貼り付け** — `Cmd+Shift+Space`でフローティングウィンドウを起動、`Cmd+Enter`でどこにでも貼り付け
+2. **コンテキスト検索** — `/`や`@`でエージェントスキル、ファイル、シンボルなどを検索。プロンプト履歴の再利用も可能
+3. **プラグインで拡張** — シンプルなYAMLファイルや[プラグインリポジトリ](https://github.com/nkmr-jp/prompt-line-plugins)でカスタム検索やスキルを追加
 
 ## 特徴
 ### サクッと起動、サクッと貼付け
