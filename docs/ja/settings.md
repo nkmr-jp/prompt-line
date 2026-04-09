@@ -153,11 +153,13 @@ symbolSearch:
 
 ```yaml
 fileOpener:
-  defaultEditor: null             # null = システムデフォルト（macOS "open" コマンド）
-  extensions:                     # 拡張子別アプリ（defaultEditorより優先）
+  defaultEditor: "Visual Studio Code"   # null = システムデフォルト（macOS "open" コマンド）
+  extensions:                           # 拡張子別アプリ（defaultEditorより優先）
+    go: "GoLand"
+    rs: "RustRover"
     png: "Preview"
     pdf: "Preview"
-  directories:                    # ディレクトリ別エディタ（glob: ~, *, **）
+  directories:                          # ディレクトリ別エディタ（glob: ~, *, **）
     - path: "~/ghq/github.com/my-org/my-go*"
       editor: "GoLand"
 ```

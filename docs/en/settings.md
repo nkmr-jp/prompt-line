@@ -153,11 +153,13 @@ Configure which applications open file links (Cmd+click on `@path` references). 
 
 ```yaml
 fileOpener:
-  defaultEditor: null             # null = system default (macOS "open" command)
-  extensions:                     # Extension-specific apps (overrides defaultEditor)
+  defaultEditor: "Visual Studio Code"   # null = system default (macOS "open" command)
+  extensions:                           # Extension-specific apps (overrides defaultEditor)
+    go: "GoLand"
+    rs: "RustRover"
     png: "Preview"
     pdf: "Preview"
-  directories:                    # Directory-specific editors (glob: ~, *, **)
+  directories:                          # Directory-specific editors (glob: ~, *, **)
     - path: "~/ghq/github.com/my-org/my-go*"
       editor: "GoLand"
 ```
