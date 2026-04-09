@@ -304,16 +304,6 @@ sourcePath: ~/.claude/history.jsonl            # Specific file
 sourcePath: "~/.claude/teams/**/config.json@. | select(.active)"  # JSON + jq
 ```
 
-### Splitting rules
-
-The `sourcePath` is split into directory + pattern at the first glob character (`*`, `?`, `[`):
-
-| sourcePath | Directory | Pattern |
-|-----------|-----------|---------|
-| `~/.claude/skills/**/*/SKILL.md` | `~/.claude/skills` | `**/*/SKILL.md` |
-| `~/.claude/commands/*.md` | `~/.claude/commands` | `*.md` |
-| `~/.claude/history.jsonl` | `~/.claude` | `history.jsonl` |
-
 ## Color
 
 Badge colors support named colors and hex codes:

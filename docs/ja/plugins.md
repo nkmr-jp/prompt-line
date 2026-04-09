@@ -304,16 +304,6 @@ sourcePath: ~/.claude/history.jsonl            # 特定ファイル
 sourcePath: "~/.claude/teams/**/config.json@. | select(.active)"  # JSON + jq
 ```
 
-### 分割ルール
-
-`sourcePath` は最初のglob文字（`*`, `?`, `[`）でディレクトリ + パターンに分割されます：
-
-| sourcePath | ディレクトリ | パターン |
-|-----------|-----------|---------|
-| `~/.claude/skills/**/*/SKILL.md` | `~/.claude/skills` | `**/*/SKILL.md` |
-| `~/.claude/commands/*.md` | `~/.claude/commands` | `*.md` |
-| `~/.claude/history.jsonl` | `~/.claude` | `history.jsonl` |
-
 ## カラー
 
 バッジカラーは名前付きカラーと16進コードに対応：
