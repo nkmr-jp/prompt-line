@@ -55,6 +55,19 @@ settings.yaml のプラグインパスは上書きが可能です：
 - `@suffix` → `searchPrefix` を上書き（例: `agents@agent` → `@agent:`）
 - `?key=val` → `args` を上書き（例: `?open=iTerm`）
 
+### ショートカットで起動
+
+`searchPrefix` を設定したプラグインに、`settings.yaml` でキーボードショートカットを割り当てると直接起動できます：
+
+```yaml
+shortcuts:
+  Ctrl+g: "input=@ghq:"    # Ctrl+g → @ghq: を挿入して検索を開始
+  Ctrl+r: "input=@r:"      # Ctrl+r → @r: を挿入して履歴検索を開始
+  Ctrl+n: "input=@note:"   # Ctrl+n → @note: を挿入してノート検索を開始
+```
+
+カスタムアクション `input=@prefix:` を使って、入力欄に検索プレフィックスを挿入し、プラグインの検索機能を起動します。
+
 ---
 
 ## プラグインの作成

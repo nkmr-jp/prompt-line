@@ -55,6 +55,19 @@ Plugin paths in settings.yaml support overrides:
 - `@suffix` → overrides `searchPrefix` (e.g., `agents@agent` → `@agent:`)
 - `?key=val` → overrides `args` (e.g., `?open=iTerm`)
 
+### Shortcut activation
+
+After setting up a plugin with a `searchPrefix`, you can assign a keyboard shortcut in `settings.yaml` to activate it directly:
+
+```yaml
+shortcuts:
+  Ctrl+g: "input=@ghq:"    # Press Ctrl+g → inserts @ghq: and opens search
+  Ctrl+r: "input=@r:"      # Press Ctrl+r → inserts @r: and opens history search
+  Ctrl+n: "input=@note:"   # Press Ctrl+n → inserts @note: and opens note search
+```
+
+This uses the custom action format `input=@prefix:` to insert the search prefix into the input field and trigger the plugin's search.
+
 ---
 
 ## Creating Plugins
