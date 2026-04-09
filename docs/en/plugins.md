@@ -286,7 +286,7 @@ args:
 | `{filepath}` | Absolute file path | |
 | `{dirname}` | Parent directory name | |
 | `{dirname:N}` | N levels up directory | `{dirname:2}` |
-| `{pathdir:N}` | Nth directory from base | `{pathdir:1}` |
+| `{pathdir:N}` | Nth directory from sourcePath base | e.g., `sourcePath: ~/a/b/*/file.md` → base=`~/a/b`, `{pathdir:1}`=first dir after base |
 | `{latest}` | Most recently modified dir | |
 | `{updatedAt}` | File modification time | |
 | `{args.key}` | Value from `args` field | `{args.open}` |

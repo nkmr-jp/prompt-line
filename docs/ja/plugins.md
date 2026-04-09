@@ -286,7 +286,7 @@ args:
 | `{filepath}` | 絶対ファイルパス | |
 | `{dirname}` | 親ディレクトリ名 | |
 | `{dirname:N}` | N階層上のディレクトリ | `{dirname:2}` |
-| `{pathdir:N}` | ベースからN番目のディレクトリ | `{pathdir:1}` |
+| `{pathdir:N}` | sourcePathのベースからN番目のディレクトリ | 例: `sourcePath: ~/a/b/*/file.md` → ベース=`~/a/b`、`{pathdir:1}`=ベース直下のディレクトリ |
 | `{latest}` | 最新の更新ディレクトリ | |
 | `{updatedAt}` | ファイル更新日時 | |
 | `{args.key}` | `args`フィールドの値 | `{args.open}` |
