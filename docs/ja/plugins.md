@@ -12,6 +12,8 @@ pnpm link
 
 ## プラグインの利用
 
+公式プラグイン: [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins)
+
 ### インストール
 
 ```bash

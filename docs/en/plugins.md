@@ -12,6 +12,8 @@ pnpm link
 
 ## Using Plugins
 
+Official plugins: [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins)
+
 ### Install
 
 ```bash
