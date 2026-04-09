@@ -118,15 +118,19 @@ agents:
 
 ### Gitリポジトリで管理
 
-プラグインをGitリポジトリ（公開・プライベート・ローカル）で管理できます：
+`~/.prompt-line/` に直接配置する代わりに、Gitリポジトリでプラグイン設定を管理できます。バージョン管理や複数マシンでの共有に便利です。GitHubリポジトリ、プライベートリポジトリ、ローカルリポジトリに対応しています。
+
+カテゴリとタイプごとにYAMLファイルを整理したリポジトリを作成します：
 
 ```
 my-plugins/
   my-tool/
-    agent-built-in/en.yaml
-    agent-skills/skills.yaml
-    custom-search/search.yaml
+    agent-built-in/en.yaml      # 組み込みコマンド、スキル、エージェント
+    agent-skills/skills.yaml    # マークダウンファイルからのエージェントスキル
+    custom-search/search.yaml   # カスタム検索エントリ
 ```
+
+GitHubリポジトリ、バージョン指定、ローカルパスからインストール：
 
 ```bash
 prompt-line-plugin install github.com/user/my-plugins
@@ -134,7 +138,7 @@ prompt-line-plugin install github.com/user/my-plugins@v1.0.0   # バージョン
 prompt-line-plugin install ./local/path                         # ローカルパス
 ```
 
-インストール先: `~/.prompt-line/plugins/<package>/<category>/<type>/<name>.yaml`
+YAMLファイルは `~/.prompt-line/plugins/` にコピーされ、`settings.yaml` で有効化します（[settings.yaml で有効化](#settingsyaml-で有効化)を参照）。
 
 ---
 

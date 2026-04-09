@@ -118,15 +118,19 @@ agents:
 
 ### Managing with a Git repository
 
-You can manage plugins in a Git repository (public, private, or local):
+Instead of placing YAML files directly in `~/.prompt-line/`, you can organize them in a Git repository. This lets you version-control your plugin configurations and share them across machines. Works with GitHub repos, private repos, or local Git repos.
+
+Create a repository with YAML files organized by category and type:
 
 ```
 my-plugins/
   my-tool/
-    agent-built-in/en.yaml
-    agent-skills/skills.yaml
-    custom-search/search.yaml
+    agent-built-in/en.yaml      # Built-in commands, skills, agents
+    agent-skills/skills.yaml    # Agent skills from markdown files
+    custom-search/search.yaml   # Custom search entries
 ```
+
+Install from a GitHub repo, specific version, or local path:
 
 ```bash
 prompt-line-plugin install github.com/user/my-plugins
@@ -134,7 +138,7 @@ prompt-line-plugin install github.com/user/my-plugins@v1.0.0   # specific versio
 prompt-line-plugin install ./local/path                         # local path
 ```
 
-Installed to: `~/.prompt-line/plugins/<package>/<category>/<type>/<name>.yaml`
+YAML files are copied to `~/.prompt-line/plugins/` and then enabled via `settings.yaml` (see [Enable in settings.yaml](#enable-in-settingsyaml)).
 
 ---
 
