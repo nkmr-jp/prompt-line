@@ -48,7 +48,7 @@ Of course, it also works with apps other than Terminal.
 ### Context Search and Autocomplete
 
 Type `/` or `@` to search and autocomplete contexts such as Agent Skills, Agent Built-in, files, and symbols.<br>
-These can be customized in the settings file (`~/.prompt-line/settings.yaml`). See: [settings.example.yaml](settings.example.yaml)
+These can be extended with plugins. See: [Plugin Guide](docs/en/plugins.md)
 <table>
 <tr>
 <td>Agent Skills and Agent Built-in <img src="assets/doc9.png"> </td>
@@ -56,11 +56,11 @@ These can be customized in the settings file (`~/.prompt-line/settings.yaml`). S
 </tr>
 <tr>
 <td>Symbol Search<img src="assets/doc11.png"> </td>
-<td>Subagents Search (~/.claude/agents)  <img src="assets/doc14.png"> </td>
+<td>Custom Search (@agent:, @plan:, etc.) <img src="assets/doc14.png"> </td>
 </tr>
 <tr>
-<td>Plans Search (~/.claude/plans) <img src="assets/doc12.png"> </td>
-<td>Agent Teams Search (~/.claude/teams)  <img src="assets/doc13.png"> </td>
+<td>Custom Search (@plan:) <img src="assets/doc12.png"> </td>
+<td>Custom Search (@team:)  <img src="assets/doc13.png"> </td>
 </tr>
 </table>
 
@@ -145,7 +145,7 @@ pnpm run migrate-settings        # Migrate settings to latest defaults (auto-bac
 - **File Opener** - Open files from file path text (`Ctrl+Enter` or `Cmd+Click`)
 - **File Search** - Search files by typing `@`
 - **Symbol Search** - Search code symbols by typing `@<lang>:<query>` (e.g., `@ts:Config`)
-- **Custom Search** - Search Slash Commands and Agent Skills by typing `/`, or search sub-agents by typing `@`
+- **Custom Search** - Search agents, plans, teams, history, etc. by typing `@prefix:` (extensible with [plugins](docs/en/plugins.md))
 
 ## ⚙️ Settings
 

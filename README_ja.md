@@ -45,7 +45,7 @@ Enterを押しても勝手に送信されないので、改行する場合も気
 ### コンテキスト検索と入力補完
 
 `/`や`@`を入力するとAgent Skills・Agent Built-in・ファイル・シンボルなどのコンテキストを検索して入力補完できます。<br>
-これらは設定ファイル(`~/.prompt-line/settings.yaml`)でカスタマイズできます。参考: [settings.example.yaml](settings.example.yaml)
+プラグインで拡張可能です。詳細: [プラグインガイド](docs/ja/plugins.md)
 <table>
 <tr>
 <td>Agent SkillsとAgent Built-in 検索<img src="assets/doc9.png"> </td>
@@ -53,11 +53,11 @@ Enterを押しても勝手に送信されないので、改行する場合も気
 </tr>
 <tr>
 <td>シンボル検索<img src="assets/doc11.png"> </td>
-<td>サブエージェント検索(~/.claude/agents)  <img src="assets/doc14.png"> </td>
+<td>カスタム検索 (@agent:, @plan: 等) <img src="assets/doc14.png"> </td>
 </tr>
 <tr>
-<td>プラン検索(~/.claude/plans) <img src="assets/doc12.png"> </td>
-<td>エージェントチーム検索(~/.claude/teams)  <img src="assets/doc13.png"> </td>
+<td>カスタム検索 (@plan:) <img src="assets/doc12.png"> </td>
+<td>カスタム検索 (@team:)  <img src="assets/doc13.png"> </td>
 </tr>
 </table>
 
@@ -142,7 +142,7 @@ pnpm run migrate-settings        # 設定ファイルを最新のデフォルト
 - **ファイルオープン** - ファイルパスのテキストからファイルを起動 (`Ctrl+Enter` or `Cmd+クリック`)
 - **ファイル検索** - `@`を入力してファイルを検索
 - **シンボル検索** - `@<言語>:<クエリ>`と入力してコードシンボルを検索 (例: `@ts:Config`)
-- **カスタム検索** - `/`を入力してSlash CommandsやAgent Skillsを検索、または`@`でサブエージェントを検索
+- **カスタム検索** - `@prefix:` でエージェント、プラン、チーム、履歴などを検索（[プラグイン](docs/ja/plugins.md)で拡張可能）
 
 ## ⚙️ 設定
 
