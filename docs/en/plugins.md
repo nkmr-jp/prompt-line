@@ -97,7 +97,6 @@ sourcePath: ~/notes/**/*.md
 name: "{basename}"
 description: "{heading}"
 searchPrefix: note
-shortcut: Ctrl+n
 ```
 
 **Built-in commands example** — `~/.prompt-line/agent-built-in/my-tool.yaml`:
@@ -240,7 +239,6 @@ displayTime: "{updatedAt}"
 | `searchPrefix` | Prefix for `@prefix:` activation |
 | `displayTime` | Timestamp display template |
 | `inputFormat` | Insert format template |
-| `shortcut` | Keyboard shortcut to activate |
 | `runCommand` | Shell command on Ctrl+Enter |
 | `excludeMarker` | Skip directories with this file |
 

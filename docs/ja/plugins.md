@@ -97,7 +97,6 @@ sourcePath: ~/notes/**/*.md
 name: "{basename}"
 description: "{heading}"
 searchPrefix: note
-shortcut: Ctrl+n
 ```
 
 **組み込みコマンドの例** — `~/.prompt-line/agent-built-in/my-tool.yaml`:
@@ -240,7 +239,6 @@ displayTime: "{updatedAt}"
 | `searchPrefix` | `@prefix:` 起動用プレフィックス |
 | `displayTime` | タイムスタンプ表示テンプレート |
 | `inputFormat` | 挿入フォーマットテンプレート |
-| `shortcut` | 起動用キーボードショートカット |
 | `runCommand` | Ctrl+Enterで実行するシェルコマンド |
 | `excludeMarker` | このファイルを含むディレクトリをスキップ |
 

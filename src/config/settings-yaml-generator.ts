@@ -144,7 +144,6 @@ function appendCustomSearchOptionalFields(lines: string[], entry: MentionEntry, 
   }
   if (entry.prefixPattern && !entry.values) lines.push(`${p}prefixPattern: "${entry.prefixPattern}"`);
   if (entry.searchPrefix) lines.push(`${p}searchPrefix: ${entry.searchPrefix}            # Search with @${entry.searchPrefix}:`);
-  if (entry.shortcut) lines.push(`${p}shortcut: ${entry.shortcut}              # Keyboard shortcut to activate @${entry.searchPrefix || ''}:`);
   if (entry.maxSuggestions !== undefined) lines.push(`${p}maxSuggestions: ${entry.maxSuggestions}`);
   if (entry.orderBy !== undefined) lines.push(`${p}orderBy: "${entry.orderBy}"`);
   if (entry.displayTime !== undefined) lines.push(`${p}displayTime: "${entry.displayTime}"`);
@@ -367,8 +366,6 @@ function buildCustomSearchHeader(): string {
 #   sourceCommand   : Shell command for data source (e.g., "ghq list") — used instead of sourcePath
 #   runCommand      : Shell command on Ctrl+Enter (e.g., "open -a iTerm ~/ghq/{line}")
 #   args            : Template arguments (e.g., { open: "iTerm" } → {args.open})
-#   shortcut        : Keyboard shortcut to activate this search (e.g., "Ctrl+g")
-#                     Inserts @searchPrefix: into the input and triggers mention detection
 #
 # Template variables:
 #   {basename}          — File name without extension

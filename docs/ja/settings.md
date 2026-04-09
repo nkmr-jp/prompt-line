@@ -114,7 +114,6 @@ sourcePath: ~/notes/**/*.md
 name: "{basename}"
 description: "{heading}"
 searchPrefix: note
-shortcut: Ctrl+n
 ```
 
 ## 画像ストレージ
