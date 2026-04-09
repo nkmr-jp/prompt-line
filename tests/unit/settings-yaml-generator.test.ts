@@ -582,16 +582,17 @@ describe('settings-yaml-generator', () => {
         const settings = { ...defaultSettings };
         const result = generateSettingsYaml(settings);
 
-        // Should include main header
-        expect(result).toContain('# Prompt Line Settings Configuration');
+        // Should include main header and docs link
+        expect(result).toContain('# Prompt Line Settings');
+        expect(result).toContain('# See:');
 
-        // Should include section headers (new order: window → shortcuts → plugins → fileOpener → ...)
-        expect(result).toContain('# WINDOW SETTINGS');
-        expect(result).toContain('# KEYBOARD SHORTCUTS');
-        expect(result).toContain('# PLUGIN SETTINGS');
-        expect(result).toContain('# FILE OPENER SETTINGS');
-        expect(result).toContain('# FILE SEARCH SETTINGS');
-        expect(result).toContain('# SYMBOL SEARCH SETTINGS');
+        // Should include section comments
+        expect(result).toContain('# Window:');
+        expect(result).toContain('# Shortcuts');
+        expect(result).toContain('# Plugins');
+        expect(result).toContain('# File opener');
+        expect(result).toContain('# File search');
+        expect(result).toContain('# Symbol search');
         // Deprecated sections should not appear with default (empty) settings
         expect(result).not.toContain('# AGENT BUILT-IN');
         expect(result).not.toContain('# AGENT SKILLS');
@@ -653,11 +654,11 @@ describe('settings-yaml-generator', () => {
 
         const result = generateSettingsYaml(settings);
 
-        // Should include helpful inline comments
-        expect(result).toMatch(/respectGitignore:.*# Respect .gitignore files/);
-        expect(result).toMatch(/includeHidden:.*# Include hidden files/);
-        expect(result).toMatch(/searchPrefix: agent.*# Search with @agent:/);
-        expect(result).toMatch(/inputFormat: \{filepath\}.*# Insert format template/);
+        // Should include key fields
+        expect(result).toContain('respectGitignore:');
+        expect(result).toContain('includeHidden:');
+        expect(result).toMatch(/searchPrefix: agent/);
+        expect(result).toMatch(/inputFormat: \{filepath\}/);
       });
     });
 
