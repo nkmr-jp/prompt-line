@@ -705,7 +705,7 @@ export function main(source?: string): void {
     let comment = '';
     if (entry.sourcePath) {
       const withoutJq = entry.sourcePath.split('@')[0] ?? entry.sourcePath;
-      comment = `# ${withoutJq}`;
+      comment = `# sourcePath: ${withoutJq}`;
     } else if (entry.sourceCommand) {
       comment = `# sourceCommand: ${entry.sourceCommand}`;
     } else if (entry.description) {
