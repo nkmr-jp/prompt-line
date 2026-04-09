@@ -100,5 +100,6 @@ if (wasRunning) {
 }
 
 console.log(`\n📌 To install plugins:`);
-console.log(`   pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins`);
+console.log(`   pnpm link`);
+console.log(`   prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins`);
 console.log(`   See: docs/en/plugins.md`);
