@@ -148,19 +148,7 @@ pnpm run migrate-settings        # 設定ファイルを最新のデフォルト
 
 設定ファイル: `~/.prompt-line/settings.yaml`（ホットリロード対応、再起動不要）
 
-| セクション | 説明 |
-|---------|-------------|
-| `window` | ウィンドウサイズと配置モード |
-| `shortcuts` | キーボードショートカット（[キー→アクション](docs/ja/settings.md#ショートカット)形式、カスタムアクション対応） |
-| `plugins` | YAMLプラグインでエージェントスキル、カスタム検索、組み込みコマンドを有効化 |
-| `fileOpener` | デフォルトエディタ、拡張子別・ディレクトリ別アプリケーション |
-| `imagesDirectory` | 画像保存ディレクトリ（CWDからの相対パスまたは絶対パス） |
-| `fileSearch` | ファイル検索設定（`@path/to/file`補完） |
-| `symbolSearch` | シンボル検索設定（`@ts:Config`、`@go:Handler`） |
-
-**詳細:** [docs/ja/settings.md](docs/ja/settings.md)<br>
-**設定例:** [settings.example.yaml](settings.example.yaml)<br>
-**マイグレーション:** [docs/ja/migration.md](docs/ja/migration.md)
+参照: [設定リファレンス](docs/ja/settings.md) | [settings.example.yaml](settings.example.yaml) | [マイグレーションガイド](docs/ja/migration.md)
 
 ## 🔌 プラグイン
 

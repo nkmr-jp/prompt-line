@@ -151,19 +151,7 @@ pnpm run migrate-settings        # Migrate settings to latest defaults (auto-bac
 
 Settings file: `~/.prompt-line/settings.yaml` (hot-reloaded, no restart needed)
 
-| Section | Description |
-|---------|-------------|
-| `window` | Window size and positioning mode |
-| `shortcuts` | Keyboard shortcuts ([key → action](docs/en/settings.md#shortcuts) format with custom actions) |
-| `plugins` | Enable agent skills, custom search, and built-in commands via YAML plugins |
-| `fileOpener` | Default editor, extension-specific and directory-specific applications |
-| `imagesDirectory` | Image storage directory (relative to CWD or absolute) |
-| `fileSearch` | File search settings (`@path/to/file` completion) |
-| `symbolSearch` | Symbol search settings (`@ts:Config`, `@go:Handler`) |
-
-**Details:** [docs/en/settings.md](docs/en/settings.md)<br>
-**Example:** [settings.example.yaml](settings.example.yaml)<br>
-**Migration:** [docs/en/migration.md](docs/en/migration.md)
+See: [Settings Reference](docs/en/settings.md) | [settings.example.yaml](settings.example.yaml) | [Migration Guide](docs/en/migration.md)
 
 ## 🔌 Plugins
 
