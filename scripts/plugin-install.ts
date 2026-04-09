@@ -701,12 +701,11 @@ export function main(source?: string): void {
       const argsStr = Object.entries(entry.args).map(([k, v]) => `${k}=${v}`).join('&');
       displayPath += `?${argsStr}`;
     }
-    // Build comment: show filename from sourcePath (strip directory and jq expression)
+    // Build comment: show sourcePath without jq expression (strip @... suffix)
     let comment = '';
     if (entry.sourcePath) {
       const withoutJq = entry.sourcePath.split('@')[0] ?? entry.sourcePath;
-      const filename = withoutJq.split('/').pop() ?? withoutJq;
-      comment = `# ${filename}`;
+      comment = `# ${withoutJq}`;
     } else if (entry.sourceCommand) {
       comment = `# sourceCommand: ${entry.sourceCommand}`;
     } else if (entry.description) {
