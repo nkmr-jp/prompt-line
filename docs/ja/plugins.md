@@ -2,6 +2,32 @@
 
 プラグインはYAMLファイルで、Prompt Lineにエージェントスキル（`/`）、カスタム検索（`@prefix:`）、エージェント組み込みコマンドを追加します。
 
+## セットアップ
+
+### プラグインのインストール
+
+```bash
+pnpm run plugin:install github.com/nkmr-jp/prompt-line-plugins
+```
+
+### グローバルCLIセットアップ（任意）
+
+prompt-lineプロジェクトディレクトリで以下を実行すると、任意のディレクトリから `prompt-line-plugin` コマンドが使えるようになります：
+
+```bash
+pnpm link
+```
+
+設定後は任意の場所からプラグインをインストールできます：
+
+```bash
+prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
+prompt-line-plugin install github.com/user/repo@branch   # バージョン指定
+prompt-line-plugin help                                   # ヘルプ表示
+```
+
+---
+
 ## クイックスタート
 
 ローカルディレクトリにYAMLファイルを配置するだけで利用可能。GitHubリポジトリは不要です。
