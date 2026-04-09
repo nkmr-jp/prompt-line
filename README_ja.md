@@ -158,9 +158,9 @@ pnpm run migrate-settings        # 設定ファイルを最新のデフォルト
 | `fileSearch` | ファイル検索設定（`@path/to/file`補完） |
 | `symbolSearch` | シンボル検索設定（`@ts:Config`、`@go:Handler`） |
 
-**詳細:** [docs/ja/settings.md](docs/ja/settings.md) | [docs/en/settings.md](docs/en/settings.md)<br>
+**詳細:** [docs/ja/settings.md](docs/ja/settings.md)<br>
 **設定例:** [settings.example.yaml](settings.example.yaml)<br>
-**マイグレーション:** [docs/ja/migration.md](docs/ja/migration.md) | [docs/en/migration.md](docs/en/migration.md)
+**マイグレーション:** [docs/ja/migration.md](docs/ja/migration.md)
 
 ## 🔌 プラグイン
 
@@ -179,7 +179,7 @@ prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
 prompt-line-plugin install github.com/user/repo@branch   # バージョン指定
 ```
 
-**詳細:** [docs/ja/plugins.md](docs/ja/plugins.md) | [docs/en/plugins.md](docs/en/plugins.md)<br>
+**詳細:** [docs/ja/plugins.md](docs/ja/plugins.md)<br>
 **リポジトリ例:** [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins)
 
 ## プロンプト履歴

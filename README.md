@@ -161,9 +161,9 @@ Settings file: `~/.prompt-line/settings.yaml` (hot-reloaded, no restart needed)
 | `fileSearch` | File search settings (`@path/to/file` completion) |
 | `symbolSearch` | Symbol search settings (`@ts:Config`, `@go:Handler`) |
 
-**Details:** [docs/en/settings.md](docs/en/settings.md) | [docs/ja/settings.md](docs/ja/settings.md)<br>
+**Details:** [docs/en/settings.md](docs/en/settings.md)<br>
 **Example:** [settings.example.yaml](settings.example.yaml)<br>
-**Migration:** [docs/en/migration.md](docs/en/migration.md) | [docs/ja/migration.md](docs/ja/migration.md)
+**Migration:** [docs/en/migration.md](docs/en/migration.md)
 
 ## 🔌 Plugins
 
@@ -182,7 +182,7 @@ prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
 prompt-line-plugin install github.com/user/repo@branch   # specific version
 ```
 
-**Details:** [docs/en/plugins.md](docs/en/plugins.md) | [docs/ja/plugins.md](docs/ja/plugins.md)<br>
+**Details:** [docs/en/plugins.md](docs/en/plugins.md)<br>
 **Example repo:** [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins)
 
 ## Prompt History
