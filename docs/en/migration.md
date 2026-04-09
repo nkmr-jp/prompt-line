@@ -130,38 +130,11 @@ plugins:
 
 ---
 
-### 6. Plugin examples updated
-
-The commented plugin examples now show the full v2 format with more available plugins.
-
-**Before:**
-```yaml
-#plugins:
-#  github.com/nkmr-jp/prompt-line-plugins:
-#    - claude/agent-skills/commands
-#    - claude/agent-built-in/claude
-```
-
-**After:**
-```yaml
-#plugins:
-#  github.com/nkmr-jp/prompt-line-plugins:
-#    - claude/agent-built-in/en                  # Claude Code built-in commands,skills,agents
-#    - claude/agent-skills/commands              # sourcePath: ~/.claude/commands/*.md
-#    - claude/agent-skills/skills                # sourcePath: ~/.claude/skills/**/SKILL.md
-#    - claude/custom-search/agents@agent         # sourcePath: ~/.claude/agents/*.md
-#    - claude/custom-search/history@r            # sourcePath: ~/.claude/history.jsonl
-```
-
-**Action required:** Uncomment and customize the plugins you want to enable.
-
----
-
-### 7. `customSearch` section deprecated
+### 6. `customSearch` section deprecated
 
 The inline `customSearch` section in settings.yaml is now deprecated, same as `agentBuiltIn` and `agentSkills`. It will only appear in the settings file when you have active entries.
 
-**Migration:** Use plugins or local YAML files instead (see item 8).
+**Migration:** Use plugins or local YAML files instead (see item 7).
 
 If you have inline entries using the old `path`/`pattern` fields, combine them into `sourcePath`:
 
@@ -183,7 +156,7 @@ searchPrefix: agent
 
 ---
 
-### 8. Local YAML directories (no plugin required)
+### 7. Local YAML directories (no plugin required)
 
 You can now place YAML config files directly in `~/.prompt-line/` subdirectories without creating a plugin:
 

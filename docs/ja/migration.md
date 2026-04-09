@@ -130,38 +130,11 @@ plugins:
 
 ---
 
-### 6. プラグイン例の更新
-
-コメントアウトされたプラグイン例が、より多くの利用可能なプラグインを含むv2フォーマットに更新されました。
-
-**変更前:**
-```yaml
-#plugins:
-#  github.com/nkmr-jp/prompt-line-plugins:
-#    - claude/agent-skills/commands
-#    - claude/agent-built-in/claude
-```
-
-**変更後:**
-```yaml
-#plugins:
-#  github.com/nkmr-jp/prompt-line-plugins:
-#    - claude/agent-built-in/en                  # Claude Code 組み込みコマンド、スキル、エージェント
-#    - claude/agent-skills/commands              # sourcePath: ~/.claude/commands/*.md
-#    - claude/agent-skills/skills                # sourcePath: ~/.claude/skills/**/SKILL.md
-#    - claude/custom-search/agents@agent         # sourcePath: ~/.claude/agents/*.md
-#    - claude/custom-search/history@r            # sourcePath: ~/.claude/history.jsonl
-```
-
-**対応:** 有効にしたいプラグインのコメントを解除してカスタマイズしてください。
-
----
-
-### 7. `customSearch` セクションの非推奨化
+### 6. `customSearch` セクションの非推奨化
 
 settings.yaml のインライン `customSearch` セクションは、`agentBuiltIn` や `agentSkills` と同様に非推奨になりました。アクティブなエントリがある場合のみ設定ファイルに表示されます。
 
-**移行方法:** プラグインまたはローカルYAMLファイルを使用してください（項目8参照）。
+**移行方法:** プラグインまたはローカルYAMLファイルを使用してください（項目7参照）。
 
 旧 `path`/`pattern` フィールドを使用したインラインエントリがある場合、`sourcePath` に統合してください：
 
@@ -183,7 +156,7 @@ searchPrefix: agent
 
 ---
 
-### 8. ローカルYAMLディレクトリ（プラグイン不要）
+### 7. ローカルYAMLディレクトリ（プラグイン不要）
 
 プラグインを作成せずに、`~/.prompt-line/` のサブディレクトリにYAML設定ファイルを直接配置できます：
 
