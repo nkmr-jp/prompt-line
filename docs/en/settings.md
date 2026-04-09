@@ -4,6 +4,23 @@ Prompt Line settings file: `~/.prompt-line/settings.yaml`
 
 Settings are hot-reloaded (300ms debounce) — changes take effect without restarting.
 
+## Window
+
+Window size and positioning mode. The window appears near the active context based on the `position` setting.
+
+```yaml
+window:
+  position: active-text-field   # Where the window appears (see below)
+  width: 640                    # Recommended: 400-800 pixels
+  height: 320                   # Recommended: 200-400 pixels
+```
+
+**Position options:**
+- `active-text-field` — Near the focused text field (default, falls back to `active-window-center`)
+- `active-window-center` — Center within the currently active window
+- `cursor` — At the current mouse cursor location
+- `center` — Center on primary display
+
 ## Shortcuts
 
 Format: `Key: action` (e.g., `Cmd+Shift+Space: main`)
@@ -26,15 +43,6 @@ shortcuts:
 **Custom actions:** `input=<text>` — inserts text into the input field and triggers search.
 
 **Available modifiers:** `Cmd`, `Ctrl`, `Alt`, `Shift`
-
-## Window
-
-```yaml
-window:
-  position: active-text-field   # active-text-field | active-window-center | cursor | center
-  width: 640                    # Recommended: 400-800 pixels
-  height: 320                   # Recommended: 200-400 pixels
-```
 
 ## Plugins
 

@@ -4,6 +4,23 @@ Prompt Line 設定ファイル: `~/.prompt-line/settings.yaml`
 
 設定はホットリロード対応（300msデバウンス）で、再起動不要で反映されます。
 
+## ウィンドウ
+
+ウィンドウのサイズと表示位置。`position` の設定に基づいて、アクティブなコンテキストの近くに表示されます。
+
+```yaml
+window:
+  position: active-text-field   # ウィンドウの表示位置（下記参照）
+  width: 640                    # 推奨: 400-800 ピクセル
+  height: 320                   # 推奨: 200-400 ピクセル
+```
+
+**位置オプション:**
+- `active-text-field` — フォーカス中のテキストフィールド付近（デフォルト、`active-window-center` にフォールバック）
+- `active-window-center` — アクティブウィンドウの中央
+- `cursor` — マウスカーソルの位置
+- `center` — プライマリディスプレイの中央
+
 ## ショートカット
 
 フォーマット: `キー: アクション`（例: `Cmd+Shift+Space: main`）
@@ -26,15 +43,6 @@ shortcuts:
 **カスタムアクション:** `input=<テキスト>` — 入力欄にテキストを挿入して検索をトリガー。
 
 **使用可能な修飾キー:** `Cmd`, `Ctrl`, `Alt`, `Shift`
-
-## ウィンドウ
-
-```yaml
-window:
-  position: active-text-field   # active-text-field | active-window-center | cursor | center
-  width: 640                    # 推奨: 400-800 ピクセル
-  height: 320                   # 推奨: 200-400 ピクセル
-```
 
 ## プラグイン
 
