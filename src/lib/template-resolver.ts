@@ -11,6 +11,7 @@
  * - {heading}: 最初の # heading のテキスト
  * - {json@path}: JSONデータの値参照（ドット記法・配列インデックス対応）
  * - {json:N@path}: 親要素のJSONデータ参照（N=1: 直接の親、N=2: 2つ上の親）
+ * - {args.key}: テンプレート引数（例: args: { open: "iTerm" } → {args.open} = "iTerm"）
  * - {content}: ファイルの全コンテンツ
  * - {filepath}: ファイルの絶対パス
  *
@@ -34,6 +35,8 @@ export interface TemplateContext {
   content?: string;
   jsonData?: Record<string, unknown>;
   parentJsonDataStack?: Record<string, unknown>[];
+  /** テンプレート引数（{args.key} として解決される） */
+  args?: Record<string, string>;
 }
 
 /**
@@ -127,6 +130,13 @@ export function resolveTemplate(
       const stack = context.parentJsonDataStack!;
       if (index < 0 || index >= stack.length) return '';
       return t(resolveJsonPath(stack[index]!, jsonPath));
+    });
+  }
+
+  // Replace {args.key}
+  if (context.args) {
+    result = result.replace(/\{args\.([^}]+)\}/g, (_, key: string) => {
+      return t(context.args![key] ?? '');
     });
   }
 

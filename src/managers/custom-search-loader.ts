@@ -953,7 +953,7 @@ class CustomSearchLoader extends EventEmitter {
       const jsonData = isJsonFile ? parseJsonContent(content) : undefined;
       const hasValues = Object.keys(values).length > 0;
       const basePath = splitSourcePath(entry.sourcePath).dir.replace(/^~/, os.homedir());
-      const context = { basename, frontmatter, prefix, dirname, filePath, basePath, heading, content, ...(hasValues && { values }), ...(jsonData && { jsonData }) };
+      const context = { basename, frontmatter, prefix, dirname, filePath, basePath, heading, content, ...(hasValues && { values }), ...(jsonData && { jsonData }), ...(entry.args && { args: entry.args }) };
 
       const item: CustomSearchItem = {
         name: resolveTemplate(entry.name, context),
@@ -1096,7 +1096,7 @@ class CustomSearchLoader extends EventEmitter {
     values?: Record<string, string>
   ): CustomSearchItem | null {
     const basePath = entry.sourcePath ? splitSourcePath(entry.sourcePath).dir.replace(/^~/, os.homedir()) : '';
-    const context = { basename, frontmatter: {}, prefix, dirname, filePath, basePath, heading, line: trimmed, content, ...(values && { values }) };
+    const context = { basename, frontmatter: {}, prefix, dirname, filePath, basePath, heading, line: trimmed, content, ...(values && { values }), ...(entry.args && { args: entry.args }) };
     const item: CustomSearchItem = {
       name: resolveTemplate(entry.name, context),
       description: resolveTemplate(entry.description, context),
@@ -1380,7 +1380,7 @@ class CustomSearchLoader extends EventEmitter {
     content?: string
   ): CustomSearchItem | null {
     const basePath = entry.sourcePath ? splitSourcePath(entry.sourcePath).dir.replace(/^~/, os.homedir()) : '';
-    const context = { basename, frontmatter: {}, prefix: '', dirname, filePath, basePath, heading: '', jsonData: elementData, ...(parentJsonDataStack && { parentJsonDataStack }), ...(content !== undefined && { content }) };
+    const context = { basename, frontmatter: {}, prefix: '', dirname, filePath, basePath, heading: '', jsonData: elementData, ...(parentJsonDataStack && { parentJsonDataStack }), ...(content !== undefined && { content }), ...(entry.args && { args: entry.args }) };
     const item: CustomSearchItem = {
       name: resolveTemplate(entry.name, context),
       description: resolveTemplate(entry.description, context),
