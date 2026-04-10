@@ -6,9 +6,10 @@
  * (Homebrew, etc.) so that sourceCommand and other exec() calls can find
  * user-installed CLI tools.
  */
-export function getEnhancedEnv(): NodeJS.ProcessEnv {
+export function getEnhancedEnv(userPaths?: string[]): NodeJS.ProcessEnv {
   const env = { ...process.env };
   const additionalPaths = [
+    ...(userPaths || []),
     '/opt/homebrew/bin',
     '/opt/homebrew/sbin',
     '/usr/local/bin',

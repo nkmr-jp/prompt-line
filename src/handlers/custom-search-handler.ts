@@ -118,6 +118,7 @@ class CustomSearchHandler {
     if (customSearchEntries && customSearchEntries.length > 0) {
       this.customSearchLoader.updateConfig(customSearchEntries);
     }
+    this.customSearchLoader.updateSettings(this.settingsManager.getSettings());
   }
 
 
@@ -544,7 +545,7 @@ class CustomSearchHandler {
       const execAsync = promisify(exec);
       const { stdout, stderr } = await execAsync(command, {
         timeout: 30000,
-        env: getEnhancedEnv(),
+        env: getEnhancedEnv(this.settingsManager.getAdditionalPaths()),
       });
 
       const output = (stdout || '').trimEnd();

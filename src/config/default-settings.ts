@@ -204,6 +204,16 @@ export const defaultSettings: UserSettings = {
    */
   plugins: [] as string[],
   /**
+   * Additional PATH entries for shell command execution (e.g., sourceCommand).
+   * Paths listed here are prepended to PATH when executing shell commands.
+   *
+   * Example (settings.yaml):
+   *   additionalPaths:
+   *     - /opt/local/bin
+   *     - ~/my-tools/bin
+   */
+  additionalPaths: [] as string[],
+  /**
    * Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
    * @deprecated Use plugins or ~/.prompt-line/custom-search/*.yaml instead.
    * Kept for backward compatibility. Inline entries here are merged with plugin file entries.
@@ -294,5 +304,9 @@ export const commentedExamples = {
       inputFormat: '~/ghq/{line}',
       maxSuggestions: 100
     }
+  ],
+  additionalPaths: [
+    '/opt/local/bin',
+    '~/my-tools/bin'
   ]
 };

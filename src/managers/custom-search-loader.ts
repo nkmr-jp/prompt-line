@@ -114,6 +114,7 @@ class CustomSearchLoader extends EventEmitter {
    * 設定を更新（設定変更時に呼び出す）
    */
   updateSettings(settings: UserSettings | undefined): void {
+    if (this.settings === settings) return;
     this.settings = settings;
     this.invalidateCache();
   }
@@ -738,7 +739,7 @@ class CustomSearchLoader extends EventEmitter {
     try {
       const { stdout } = await execAsync(entry.sourceCommand!, {
         timeout: CustomSearchLoader.COMMAND_SOURCE_TIMEOUT,
-        env: getEnhancedEnv(),
+        env: getEnhancedEnv(this.settings?.additionalPaths),
       });
 
       const output = stdout.trimEnd();

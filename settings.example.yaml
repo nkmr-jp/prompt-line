@@ -62,3 +62,8 @@ symbolSearch:
   #rgPath: null                    # Custom path to rg
   includePatterns: []
   excludePatterns: []
+
+# Additional PATH entries for shell command execution (e.g., sourceCommand)
+#additionalPaths:
+#  - /opt/local/bin
+#  - ~/my-tools/bin

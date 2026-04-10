@@ -227,6 +227,8 @@ export interface UserSettings {
    *   { "github.com/user/repo/path": ["claude/agent-skills/commands"] }
    */
   plugins?: PluginFormat;
+  /** Additional PATH entries for shell command execution (e.g., sourceCommand) */
+  additionalPaths?: string[];
   // Legacy alias: mdSearch (for backward compatibility)
   mdSearch?: CustomSearchEntry[];
   // Legacy: slashCommands (use agentSkills instead)

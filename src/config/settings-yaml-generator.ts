@@ -541,6 +541,31 @@ function buildShortcutsSection(settings: UserSettings): string {
   return lines.join('\n');
 }
 
+function buildAdditionalPathsSection(settings: UserSettings, options: YamlGeneratorOptions): string {
+  const paths = settings.additionalPaths;
+  const hasPaths = paths && paths.length > 0;
+
+  if (!hasPaths) {
+    if (options.includeCommentedExamples) {
+      const examples = commentedExamples.additionalPaths || [];
+      if (examples.length > 0) {
+        let section = `# Additional PATH entries for shell command execution (e.g., sourceCommand)\n#additionalPaths:`;
+        for (const p of examples) {
+          section += `\n#  - ${p}`;
+        }
+        return section;
+      }
+    }
+    return `# Additional PATH entries for shell command execution (e.g., sourceCommand)\n#additionalPaths:\n#  - /opt/local/bin`;
+  }
+
+  let section = `# Additional PATH entries for shell command execution (e.g., sourceCommand)\nadditionalPaths:`;
+  for (const p of paths) {
+    section += `\n  - ${p}`;
+  }
+  return section;
+}
+
 function buildTopSections(settings: UserSettings): string {
   return `# Prompt Line Settings
 # See: https://github.com/nkmr-jp/prompt-line/docs/en/settings.md
@@ -568,6 +593,7 @@ export function generateSettingsYaml(settings: UserSettings, options: YamlGenera
   const pluginsSection = buildPluginsSection(settings);
   const fileSearchSection = buildFileSearchSection(settings);
   const symbolSearchSection = buildSymbolSearchSection(settings);
+  const additionalPathsSection = buildAdditionalPathsSection(settings, options);
   const extensionsSection = buildExtensionsSection(settings, options);
   const directoriesSection = buildDirectoriesSection(settings);
   const defaultEditor = settings.fileOpener?.defaultEditor === null || settings.fileOpener?.defaultEditor === undefined
@@ -622,5 +648,7 @@ ${fileSearchSection}
 
 # Symbol search (@lang:query) — requires ripgrep (brew install ripgrep)
 ${symbolSearchSection}
+
+${additionalPathsSection}
 ${deprecatedSections}`;
 }

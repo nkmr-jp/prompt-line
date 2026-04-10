@@ -201,7 +201,8 @@ window:
           excludePatterns: []
         },
         customSearch: [],
-        plugins: []
+        plugins: [],
+        additionalPaths: []
       });
     });
 
@@ -324,7 +325,8 @@ window:
           excludePatterns: []
         },
         customSearch: [],
-        plugins: []
+        plugins: [],
+        additionalPaths: []
       });
 
       // Ensure it's a copy and not reference
