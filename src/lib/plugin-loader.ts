@@ -33,7 +33,6 @@ interface PluginEntryYaml {
   searchPrefix?: string;
   displayTime?: string;
   inputFormat?: string;
-  shortcut?: string;
   excludeMarker?: string;
 }
 

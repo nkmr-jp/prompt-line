@@ -3,7 +3,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { execSync } from 'child_process';
+import { execSync, execFileSync } from 'child_process';
 import { showHelp } from './plugin-help';
 
 const PLUGINS_DIR = path.join(os.homedir(), '.prompt-line', 'plugins');
@@ -222,9 +222,9 @@ function resolveSource(source: string): ResolvedSource {
 function cloneDefault(user: string, repo: string, githubBase: string, target: string, hasGh: boolean): boolean {
   try {
     if (hasGh) {
-      execSync(`gh repo clone ${user}/${repo} "${target}" -- --depth=1`, { stdio: 'inherit' });
+      execFileSync('gh', ['repo', 'clone', `${user}/${repo}`, target, '--', '--depth=1'], { stdio: 'inherit' });
     } else {
-      execSync(`git clone --depth=1 ${githubBase}.git "${target}"`, { stdio: 'inherit' });
+      execFileSync('git', ['clone', '--depth=1', `${githubBase}.git`, target], { stdio: 'inherit' });
     }
     return true;
   } catch {
@@ -235,15 +235,15 @@ function cloneDefault(user: string, repo: string, githubBase: string, target: st
 function cloneWithRef(ref: string, githubBase: string, target: string): boolean {
   // Try shallow clone with --branch (works for branches and tags)
   try {
-    execSync(`git clone --branch ${ref} --depth=1 ${githubBase}.git "${target}"`, { stdio: 'inherit' });
+    execFileSync('git', ['clone', '--branch', ref, '--depth=1', `${githubBase}.git`, target], { stdio: 'inherit' });
     return true;
   } catch {
     // --branch failed (likely a commit hash) — fall back to full clone + checkout
   }
 
   try {
-    execSync(`git clone ${githubBase}.git "${target}"`, { stdio: 'inherit' });
-    execSync(`git checkout ${ref}`, { cwd: target, stdio: 'inherit' });
+    execFileSync('git', ['clone', `${githubBase}.git`, target], { stdio: 'inherit' });
+    execFileSync('git', ['checkout', ref], { cwd: target, stdio: 'inherit' });
     return true;
   } catch {
     return false;
@@ -252,7 +252,7 @@ function cloneWithRef(ref: string, githubBase: string, target: string): boolean 
 
 function hasCommand(cmd: string): boolean {
   try {
-    execSync(`which ${cmd}`, { stdio: 'pipe' });
+    execFileSync('which', [cmd], { stdio: 'pipe' });
     return true;
   } catch {
     return false;
