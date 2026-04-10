@@ -13,6 +13,7 @@ import type { CustomSearchEntry, CustomSearchItem, CustomSearchType, UserSetting
 import { resolveTemplate, getBasename, getDirname, parseFrontmatter, extractRawFrontmatter, parseFirstHeading, parseJsonContent, type TemplateContext } from '../lib/template-resolver';
 import { evaluateJq } from '../lib/jq-resolver';
 import { getDefaultCustomSearchConfig, DEFAULT_MAX_SUGGESTIONS, DEFAULT_ORDER_BY } from '../lib/default-custom-search-config';
+import { getEnhancedEnv } from '../utils/shell-env';
 import { resolveValues } from '../lib/prefix-resolver';
 import { isCommandEnabled } from '../lib/command-name-matcher';
 import { splitKeywords } from '../lib/keyword-utils';
@@ -737,7 +738,7 @@ class CustomSearchLoader extends EventEmitter {
     try {
       const { stdout } = await execAsync(entry.sourceCommand!, {
         timeout: CustomSearchLoader.COMMAND_SOURCE_TIMEOUT,
-        env: { ...process.env },
+        env: getEnhancedEnv(),
       });
 
       const output = stdout.trimEnd();

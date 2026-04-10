@@ -10,6 +10,7 @@ import { promisify } from 'util';
 import pluginLoader from '../lib/plugin-loader';
 import { agentSkillCacheManager } from '../managers/agent-skill-cache-manager';
 import type { IPCResult } from './handler-utils';
+import { getEnhancedEnv } from '../utils/shell-env';
 
 /**
  * CustomSearchHandler manages all IPC handlers related to MD search functionality.
@@ -543,7 +544,7 @@ class CustomSearchHandler {
       const execAsync = promisify(exec);
       const { stdout, stderr } = await execAsync(command, {
         timeout: 30000,
-        env: { ...process.env },
+        env: getEnhancedEnv(),
       });
 
       const output = (stdout || '').trimEnd();
