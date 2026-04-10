@@ -276,6 +276,13 @@ function sanitize(str: string): string {
   return str.replace(/[\r\n]/g, ' ').trim();
 }
 
+const COMMENT_MAX_LEN = 60;
+
+function truncateComment(comment: string): string {
+  if (comment.length <= COMMENT_MAX_LEN) return comment;
+  return comment.slice(0, COMMENT_MAX_LEN - 1) + '…';
+}
+
 function buildVersionComment(fileVersion: string, sourceUrl: string, commitMessage: string): string {
   const lines = [
     `# version: ${fileVersion}`,
@@ -690,7 +697,8 @@ export function main(source?: string): void {
     const representative = enEntry || group[0];
     if (!representative) continue;
     const parts = [representative.description, allLangs.length > 0 ? `lang: ${allLangs.join(',')}` : ''].filter(Boolean);
-    displayEntries.push({ path: representative.path, comment: parts.length > 0 ? `# ${parts.join(' | ')}` : '' });
+    const comment = parts.length > 0 ? truncateComment(`# ${parts.join(' | ')}`) : '';
+    displayEntries.push({ path: representative.path, comment });
   }
 
   for (const entry of otherEntries) {
@@ -705,11 +713,11 @@ export function main(source?: string): void {
     let comment = '';
     if (entry.sourcePath) {
       const withoutJq = entry.sourcePath.split('@')[0] ?? entry.sourcePath;
-      comment = `# sourcePath: ${withoutJq}`;
+      comment = truncateComment(`# sourcePath: ${withoutJq}`);
     } else if (entry.sourceCommand) {
-      comment = `# sourceCommand: ${entry.sourceCommand}`;
+      comment = truncateComment(`# sourceCommand: ${entry.sourceCommand}`);
     } else if (entry.description) {
-      comment = `# ${entry.description}`;
+      comment = truncateComment(`# ${entry.description}`);
     }
     displayEntries.push({ path: displayPath, comment });
   }
