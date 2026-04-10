@@ -3,11 +3,7 @@ import { IpcMainInvokeEvent, shell } from 'electron';
 import config from '../config/app-config';
 import { logger } from '../utils/utils';
 import type SettingsManager from '../managers/settings-manager';
-
-interface IPCResult {
-  success: boolean;
-  error?: string;
-}
+import type { IPCResult } from '../types';
 
 interface AppInfoResult {
   name: string;

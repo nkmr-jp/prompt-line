@@ -7,7 +7,7 @@ import type DirectoryManager from '../managers/directory-manager';
 import type WindowManager from '../managers/window';
 import type { AppInfo, HistoryItem, IHistoryManager } from '../types';
 import { VALIDATION } from '../constants';
-import type { IPCResult } from './handler-utils';
+import type { IPCResult } from '../types';
 import { atPathCacheManager } from '../managers/at-path-cache-manager';
 
 /**

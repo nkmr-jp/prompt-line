@@ -3,4 +3,4 @@
  * Cross-platform file search implementation
  */
 
-export { listDirectory, checkFdAvailable } from './file-searcher';
+export { listDirectory } from './file-searcher';

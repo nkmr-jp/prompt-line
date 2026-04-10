@@ -14,7 +14,7 @@ pnpm link
 
 ## プラグインの利用
 
-公式プラグイン: [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins)
+プラグインの例: [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins)
 
 ### インストール
 

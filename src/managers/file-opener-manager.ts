@@ -501,5 +501,3 @@ export class FileOpenerManager {
     return settings.fileOpener?.defaultEditor || null;
   }
 }
-
-export default FileOpenerManager;

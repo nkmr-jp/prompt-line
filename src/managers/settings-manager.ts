@@ -591,6 +591,10 @@ class SettingsManager extends EventEmitter {
     return entries;
   }
 
+  getAdditionalPaths(): string[] {
+    return [...(this.currentSettings.additionalPaths || [])];
+  }
+
   /**
    * Get enabled plugin paths from settings.
    * Normalizes both v1 (string[]) and v2 (Record<string, string[]>) formats

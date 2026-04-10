@@ -18,7 +18,6 @@ import {
 // Default search options (exported for use by handlers)
 export const DEFAULT_MAX_SYMBOLS = 200000;
 export const DEFAULT_SEARCH_TIMEOUT = 5000; // 5 seconds
-export const DEFAULT_MAX_BUFFER = 100 * 1024 * 1024; // 100MB buffer for large codebases
 
 /**
  * Check if ripgrep (rg) is available
