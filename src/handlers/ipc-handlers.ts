@@ -7,7 +7,7 @@ import type SettingsManager from '../managers/settings-manager';
 import type PluginManager from '../managers/plugin-manager';
 import type { IHistoryManager, HandlerStats } from '../types';
 import CustomSearchLoader from '../managers/custom-search-loader';
-import FileOpenerManager from '../managers/file-opener-manager';
+import { FileOpenerManager } from '../managers/file-opener-manager';
 
 // Import specialized handlers
 import PasteHandler from './paste-handler';

@@ -49,9 +49,6 @@ importers:
       '@stryker-mutator/core':
         specifier: ^9.4.0
         version: 9.5.1(@types/node@20.19.33)
-      '@stryker-mutator/typescript-checker':
-        specifier: ^9.4.0
-        version: 9.5.1(@stryker-mutator/core@9.5.1(@types/node@20.19.33))(typescript@5.5.4)
       '@stryker-mutator/vitest-runner':
         specifier: ^9.5.1
         version: 9.5.1(@stryker-mutator/core@9.5.1(@types/node@20.19.33))(vitest@4.0.18(@types/node@20.19.33)(jiti@2.6.1)(jsdom@27.4.0)(lightningcss@1.31.1)(yaml@2.8.3))
@@ -79,9 +76,6 @@ importers:
       electron-builder:
         specifier: 26.7.0
         version: 26.7.0(electron-builder-squirrel-windows@26.7.0)
-      electron-mock-ipc:
-        specifier: 0.3.12
-        version: 0.3.12(electron@39.8.5)
       eslint:
         specifier: ^9.29.0
         version: 9.39.2(jiti@2.6.1)
@@ -1221,13 +1215,6 @@ packages:
     resolution: {integrity: sha512-WjuqwJOmiftTGCzhtWhyXqMd5+TVMVsoAWDonvp4uVf5/1HPN/dVcDYILTrfK/sfiOvtLCK30byRBhoaUnOs4A==}
     engines: {node: '>=20.0.0'}
 
-  '@stryker-mutator/typescript-checker@9.5.1':
-    resolution: {integrity: sha512-VEcpCvg7wl4FxCxhx3u5VjKpMTHiSB2iW/0gejZGli/m5BSmW3ERhV3eRPEjXAeg7eq7wp5FXYhTbRjO8mWzwA==}
-    engines: {node: '>=20.0.0'}
-    peerDependencies:
-      '@stryker-mutator/core': 9.5.1
-      typescript: '>=3.6'
-
   '@stryker-mutator/util@9.5.1':
     resolution: {integrity: sha512-KXmbEeXF3Z20P+9W8i/f1j+U5nWSm9oeb1VNV6j5/RfzhnMKWZCrvojJqRfnxdkCiMIFWMAHSlM9K0mfFZLNXQ==}
 
@@ -1940,11 +1927,6 @@ packages:
     resolution: {integrity: sha512-LoXbCvSFxLesPneQ/fM7FB4OheIDA2tjqCdUkKlObV5ZKGhYgi5VHPHO/6UUOUodAlg7SrkPx7BZJPby+Vrtbg==}
     engines: {node: '>=14.0.0'}
     hasBin: true
-
-  electron-mock-ipc@0.3.12:
-    resolution: {integrity: sha512-/uwZRpbX+k4E+GesmREg6XcQiTLNhi35M/cw8Czr+ij9k+EYTYY3UPkILnsTr5KTEeAx5/uypf/KwjZDQFDyjA==}
-    peerDependencies:
-      electron: '>=6.0.0'
 
   electron-publish@26.6.0:
     resolution: {integrity: sha512-LsyHMMqbvJ2vsOvuWJ19OezgF2ANdCiHpIucDHNiLhuI+/F3eW98ouzWSRmXXi82ZOPZXC07jnIravY4YYwCLQ==}
@@ -4724,14 +4706,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@stryker-mutator/typescript-checker@9.5.1(@stryker-mutator/core@9.5.1(@types/node@20.19.33))(typescript@5.5.4)':
-    dependencies:
-      '@stryker-mutator/api': 9.5.1
-      '@stryker-mutator/core': 9.5.1(@types/node@20.19.33)
-      '@stryker-mutator/util': 9.5.1
-      semver: 7.7.4
-      typescript: 5.5.4
-
   '@stryker-mutator/util@9.5.1': {}
 
   '@stryker-mutator/vitest-runner@9.5.1(@stryker-mutator/core@9.5.1(@types/node@20.19.33))(vitest@4.0.18(@types/node@20.19.33)(jiti@2.6.1)(jsdom@27.4.0)(lightningcss@1.31.1)(yaml@2.8.3))':
@@ -5532,10 +5506,6 @@ snapshots:
     transitivePeerDependencies:
       - electron-builder-squirrel-windows
       - supports-color
-
-  electron-mock-ipc@0.3.12(electron@39.8.5):
-    dependencies:
-      electron: 39.8.5
 
   electron-publish@26.6.0:
     dependencies:

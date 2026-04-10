@@ -9,7 +9,6 @@ Frontend layer handling UI and user interactions. All TypeScript with modular ma
 |------|------|
 | `input.html` | Main window template with accessibility attributes |
 | `renderer.ts` | Central coordinator (PromptLineRenderer class) |
-| `ui-manager.ts` | Theme system and notifications |
 | `types.ts` | Shared TypeScript definitions |
 
 ### Manager Classes

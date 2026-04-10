@@ -9,7 +9,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import pluginLoader from '../lib/plugin-loader';
 import { agentSkillCacheManager } from '../managers/agent-skill-cache-manager';
-import type { IPCResult } from './handler-utils';
+import type { IPCResult } from '../types';
 import { getEnhancedEnv } from '../utils/shell-env';
 
 /**

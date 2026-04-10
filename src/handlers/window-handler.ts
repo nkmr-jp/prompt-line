@@ -3,11 +3,7 @@ import { logger, sleep } from '../utils/utils';
 import type WindowManager from '../managers/window';
 import type { WindowData } from '../types';
 import config from '../config/app-config';
-
-interface IPCResult {
-  success: boolean;
-  error?: string;
-}
+import type { IPCResult } from '../types';
 
 /**
  * WindowHandler manages window-related IPC communication

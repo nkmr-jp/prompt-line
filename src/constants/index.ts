@@ -88,17 +88,3 @@ export const TIME_CALCULATIONS = {
   RANDOM_ID_START: 2,
   RANDOM_ID_END: 11
 } as const;
-
-// Export all constants as a single object for convenience
-export const CONSTANTS = {
-  TIMEOUTS,
-  DELAYS,
-  DEBOUNCE,
-  LIMITS,
-  CACHE_TTL,
-  UI_TIMING,
-  SUGGESTIONS,
-  VALIDATION,
-  FUZZY_MATCH_SCORES,
-  TIME_CALCULATIONS,
-} as const;
