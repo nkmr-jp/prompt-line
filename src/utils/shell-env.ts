@@ -13,8 +13,12 @@ export function getEnhancedEnv(): NodeJS.ProcessEnv {
     '/opt/homebrew/sbin',
     '/usr/local/bin',
     '/usr/local/sbin',
+    '/usr/bin',
+    '/bin',
+    '/usr/sbin',
+    '/sbin',
   ];
-  const currentPath = env.PATH || '/usr/bin:/bin:/usr/sbin:/sbin';
+  const currentPath = env.PATH || '';
   const pathSet = new Set(currentPath.split(':'));
   const missingPaths = additionalPaths.filter(p => !pathSet.has(p));
   if (missingPaths.length > 0) {
