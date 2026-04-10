@@ -14,7 +14,7 @@ This makes the `prompt-line-plugin` command available from any directory.
 
 ## Using Plugins
 
-Official plugins: [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins)
+Plugin examples: [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins)
 
 ### Install
 
