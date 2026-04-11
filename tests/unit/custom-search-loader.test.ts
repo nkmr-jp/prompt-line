@@ -2981,5 +2981,105 @@ Content`;
       expect(calls.some(c => c.options?.cwd === '/plugin-a')).toBe(true);
       expect(calls.some(c => c.options?.cwd === '/plugin-b')).toBe(true);
     });
+
+    test('should execute multiple sourceCommand entries in parallel with correct cwd', async () => {
+      const config: CustomSearchEntry[] = [
+        {
+          name: '{line}', type: 'mention', description: '', sourcePath: '',
+          sourceCommand: './alpha.sh', sourceDir: '/plugins/alpha', searchPrefix: 'a',
+        },
+        {
+          name: '{line}', type: 'mention', description: '', sourcePath: '',
+          sourceCommand: './beta.sh', sourceDir: '/plugins/beta', searchPrefix: 'b',
+        },
+        {
+          name: '{line}', type: 'mention', description: '', sourcePath: '',
+          sourceCommand: 'ghq list', searchPrefix: 'ghq',
+        },
+      ];
+
+      const loader = new CustomSearchLoader(config);
+      await loader.getItems('mention');
+
+      // All three commands should have been executed
+      expect(execCalls).toHaveLength(3);
+      expect(execCalls.find(c => c.command === './alpha.sh')!.options.cwd).toBe('/plugins/alpha');
+      expect(execCalls.find(c => c.command === './beta.sh')!.options.cwd).toBe('/plugins/beta');
+      expect(execCalls.find(c => c.command === 'ghq list')!.options).not.toHaveProperty('cwd');
+    });
+
+    test('should isolate errors: one failed sourceCommand should not affect others', async () => {
+      vi.mocked(exec).mockImplementation(((cmd: string, optsOrCb: any, cb?: any) => {
+        const callback = typeof optsOrCb === 'function' ? optsOrCb : cb;
+        const options = typeof optsOrCb === 'object' ? optsOrCb : {};
+        execCalls.push({ command: cmd, options });
+        if (cmd === './failing.sh') {
+          // Simulate command failure
+          if (callback) callback(new Error('script not found'), '', 'No such file or directory');
+        } else {
+          if (callback) callback(null, 'result1\nresult2', '');
+        }
+      }) as any);
+
+      const config: CustomSearchEntry[] = [
+        {
+          name: '{line}', type: 'mention', description: '', sourcePath: '',
+          sourceCommand: './success.sh', sourceDir: '/plugins/good', searchPrefix: 'good',
+        },
+        {
+          name: '{line}', type: 'mention', description: '', sourcePath: '',
+          sourceCommand: './failing.sh', sourceDir: '/plugins/bad', searchPrefix: 'bad',
+        },
+        {
+          name: '{line}', type: 'mention', description: '', sourcePath: '',
+          sourceCommand: './another.sh', sourceDir: '/plugins/also-good', searchPrefix: 'ok',
+        },
+      ];
+
+      const loader = new CustomSearchLoader(config);
+      // Should not throw despite one command failing
+      await expect(loader.getItems('mention')).resolves.toBeDefined();
+
+      // All three commands should have been attempted
+      expect(execCalls).toHaveLength(3);
+      expect(execCalls.find(c => c.command === './success.sh')).toBeDefined();
+      expect(execCalls.find(c => c.command === './failing.sh')).toBeDefined();
+      expect(execCalls.find(c => c.command === './another.sh')).toBeDefined();
+    });
+
+    test('should isolate timeout: one timed-out command should not block others', async () => {
+      vi.mocked(exec).mockImplementation(((cmd: string, optsOrCb: any, cb?: any) => {
+        const callback = typeof optsOrCb === 'function' ? optsOrCb : cb;
+        const options = typeof optsOrCb === 'object' ? optsOrCb : {};
+        execCalls.push({ command: cmd, options });
+        if (cmd === './slow.sh') {
+          // Simulate SIGTERM timeout
+          const err = new Error('Command timed out') as Error & { signal?: string };
+          err.signal = 'SIGTERM';
+          if (callback) callback(err, '', '');
+        } else {
+          if (callback) callback(null, 'fast-result', '');
+        }
+      }) as any);
+
+      const config: CustomSearchEntry[] = [
+        {
+          name: '{line}', type: 'mention', description: '', sourcePath: '',
+          sourceCommand: './fast.sh', sourceDir: '/plugins/fast', searchPrefix: 'fast',
+        },
+        {
+          name: '{line}', type: 'mention', description: '', sourcePath: '',
+          sourceCommand: './slow.sh', sourceDir: '/plugins/slow', searchPrefix: 'slow',
+        },
+      ];
+
+      const loader = new CustomSearchLoader(config);
+      await expect(loader.getItems('mention')).resolves.toBeDefined();
+
+      // Both commands should have been attempted
+      expect(execCalls).toHaveLength(2);
+      expect(execCalls.find(c => c.command === './fast.sh')).toBeDefined();
+      expect(execCalls.find(c => c.command === './slow.sh')).toBeDefined();
+    });
   });
 });
