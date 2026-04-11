@@ -5,15 +5,14 @@
 日本語
 
 ## 概要
-
-Prompt Lineは、[Claude Code](https://github.com/anthropics/claude-code)、[Codex CLI](https://github.com/openai/codex)、[Gemini CLI](https://github.com/google-gemini/gemini-cli) などのCLI型AIコーディングエージェントでのプロンプト入力をもっと快適にするために開発したmacOSアプリです。
-フローティングウィンドウでの編集、`/`や`@`によるコンテキスト検索、プロンプト履歴の再利用など、プロンプト入力のUX向上に特化した機能を提供します。[YAMLプラグイン](docs/ja/plugins.md)で自由に拡張できます。
+Prompt Lineは、[Claude Code](https://github.com/anthropics/claude-code)、[Codex CLI](https://github.com/openai/codex)、[Gemini CLI](https://github.com/google-gemini/gemini-cli) などのCLI型AIコーディングエージェントのターミナルでのプロンプト入力体験の向上を目的として開発したmacOSアプリです。
+フローティングウィンドウによる快適な入力体験を提供します。
 
 主な機能：
 
 1. **サクッと入力、サクッと貼り付け** — `Cmd+Shift+Space`でフローティングウィンドウを起動、`Cmd+Enter`でどこにでも貼り付け
 2. **コンテキスト検索** — `/`や`@`でエージェントスキル、ファイル、シンボルなどを検索。プロンプト履歴の再利用も可能
-3. **プラグインで拡張** — シンプルなYAMLファイルでカスタム検索やスキルを追加（[プラグインガイド](docs/ja/plugins.md)）
+3. **プラグインで拡張** — シンプルなYAMLファイルでカスタム検索やスキル検索を追加（[プラグインガイド](docs/ja/plugins.md)）
 
 ## 特徴
 ### サクッと起動、サクッと貼付け
@@ -53,11 +52,7 @@ Enterを押しても勝手に送信されないので、改行する場合も気
 </tr>
 <tr>
 <td>シンボル検索<img src="assets/doc11.png"> </td>
-<td>カスタム検索 (@agent:, @plan: 等) <img src="assets/doc14.png"> </td>
-</tr>
-<tr>
-<td>カスタム検索 (@plan:) <img src="assets/doc12.png"> </td>
-<td>カスタム検索 (@team:)  <img src="assets/doc13.png"> </td>
+<td>カスタム検索 (@agent:, @plan:, @team:, @ghq: 等) <img src="assets/doc14.png"> </td>
 </tr>
 </table>
 
