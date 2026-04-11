@@ -546,7 +546,7 @@ export function copyYamlFiles(
       }
       fs.copyFileSync(sourcePath, targetPath);
       const stat = fs.statSync(sourcePath);
-      fs.chmodSync(targetPath, stat.mode);
+      fs.chmodSync(targetPath, stat.mode & 0o777);
     }
   }
 
