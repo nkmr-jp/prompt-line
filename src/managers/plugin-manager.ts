@@ -33,6 +33,7 @@ class PluginManager extends EventEmitter {
     try {
       await Promise.all([
         ensureDir(this.targetDir),
+        ensureDir(config.paths.agentBuiltInDir),
         ensureDir(config.paths.agentSkillsDir),
         ensureDir(config.paths.customSearchDir),
       ]);
@@ -67,7 +68,7 @@ class PluginManager extends EventEmitter {
     // recreated directories when an ignored callback is present, which breaks
     // hot reload after `plugin:install` (it deletes and recreates the target dir).
     // Instead, filter by extension in the event handlers below.
-    this.watcher = chokidar.watch([this.targetDir, config.paths.agentSkillsDir, config.paths.customSearchDir], {
+    this.watcher = chokidar.watch([this.targetDir, config.paths.agentBuiltInDir, config.paths.agentSkillsDir, config.paths.customSearchDir], {
       persistent: true,
       ignoreInitial: true,
       depth: 10,

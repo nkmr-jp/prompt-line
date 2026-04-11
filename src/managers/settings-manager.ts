@@ -564,10 +564,12 @@ class SettingsManager extends EventEmitter {
     }
 
     // Merge inline/file-based settings entries
+    const explicitAgentSkillNames = new Set<string>();
     const agentSkills = this.currentSettings.agentSkills;
     if (agentSkills && agentSkills.length > 0) {
       for (const item of agentSkills) {
         if (typeof item === 'string') {
+          explicitAgentSkillNames.add(item);
           const entry = pluginLoader.loadAgentSkillFile(item);
           if (entry) entries.push(entry);
         } else {
@@ -576,10 +578,12 @@ class SettingsManager extends EventEmitter {
       }
     }
 
+    const explicitCustomSearchNames = new Set<string>();
     const customSearchMentions = this.currentSettings.customSearch;
     if (customSearchMentions) {
       for (const item of customSearchMentions) {
         if (typeof item === 'string') {
+          explicitCustomSearchNames.add(item);
           const entry = pluginLoader.loadCustomSearchFile(item);
           if (entry) entries.push(entry);
         } else {
@@ -587,6 +591,10 @@ class SettingsManager extends EventEmitter {
         }
       }
     }
+
+    // Auto-discover local YAML files not explicitly listed in settings
+    entries.push(...pluginLoader.loadAllLocalAgentSkills(explicitAgentSkillNames));
+    entries.push(...pluginLoader.loadAllLocalCustomSearch(explicitCustomSearchNames));
 
     return entries;
   }

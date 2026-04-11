@@ -83,6 +83,7 @@ interface LoadedPlugin {
  */
 class PluginLoader {
   private cache: Map<string, LoadedPlugin> = new Map();
+  private dirScanCache: Map<string, string[]> = new Map();
   private pluginsDir: string;
 
   constructor() {
@@ -558,8 +559,9 @@ class PluginLoader {
 
       const result = this.readYamlByName(dir, name);
       const items = result ? this.parseAgentBuiltIn(result.parsed as AgentBuiltInYaml, result.filePath) : [];
+      const agentItems = result ? this.parseAgentBuiltInAgents(result.parsed as AgentBuiltInYaml, result.filePath) : [];
 
-      this.cache.set(cacheKey, { pluginPath: cacheKey, type: 'agent-built-in', entries: [], agentBuiltIn: items, agentBuiltInAgents: [] });
+      this.cache.set(cacheKey, { pluginPath: cacheKey, type: 'agent-built-in', entries: [], agentBuiltIn: items, agentBuiltInAgents: agentItems });
       commands.push(...items);
     }
 
@@ -575,10 +577,113 @@ class PluginLoader {
   }
 
   /**
+   * Scan a directory for YAML files and return base names (without extension).
+   * Results are cached per directory and invalidated via clearCache().
+   */
+  private scanYamlFiles(dir: string): string[] {
+    const cached = this.dirScanCache.get(dir);
+    if (cached) return cached;
+
+    try {
+      const files = fs.readdirSync(dir);
+      const names = new Set<string>();
+      for (const file of files) {
+        if (file.endsWith('.yaml') || file.endsWith('.yml')) {
+          names.add(path.basename(file, path.extname(file)));
+        }
+      }
+      const result = Array.from(names);
+      this.dirScanCache.set(dir, result);
+      return result;
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Load all YAML entries from a local directory, skipping excluded names.
+   */
+  private loadAllLocalEntries(
+    dir: string,
+    loader: (name: string) => CustomSearchEntry | null,
+    excludeNames?: Set<string>
+  ): CustomSearchEntry[] {
+    const entries: CustomSearchEntry[] = [];
+    for (const name of this.scanYamlFiles(dir)) {
+      if (excludeNames?.has(name)) continue;
+      const entry = loader(name);
+      if (entry) entries.push(entry);
+    }
+    return entries;
+  }
+
+  /**
+   * Auto-load all agent-skills YAML files from ~/.prompt-line/agent-skills/
+   */
+  loadAllLocalAgentSkills(excludeNames?: Set<string>): CustomSearchEntry[] {
+    return this.loadAllLocalEntries(config.paths.agentSkillsDir, n => this.loadAgentSkillFile(n), excludeNames);
+  }
+
+  /**
+   * Auto-load all custom-search YAML files from ~/.prompt-line/custom-search/
+   */
+  loadAllLocalCustomSearch(excludeNames?: Set<string>): CustomSearchEntry[] {
+    return this.loadAllLocalEntries(config.paths.customSearchDir, n => this.loadCustomSearchFile(n), excludeNames);
+  }
+
+  /**
+   * Filter local directory names by excludeNames set.
+   */
+  private getFilteredLocalNames(dir: string, excludeNames?: Set<string>): string[] {
+    const names = this.scanYamlFiles(dir);
+    const filtered = excludeNames ? names.filter(n => !excludeNames.has(n)) : names;
+    return filtered;
+  }
+
+  /**
+   * Auto-load all agent-built-in YAML files from ~/.prompt-line/agent-built-in/
+   */
+  loadAllLocalAgentBuiltIn(excludeNames?: Set<string>): AgentSkillItem[] {
+    const filtered = this.getFilteredLocalNames(config.paths.agentBuiltInDir, excludeNames);
+    if (filtered.length === 0) return [];
+    return this.loadLegacyAgentBuiltIn(filtered);
+  }
+
+  /**
+   * Search local agent-built-in with optional query filter.
+   */
+  searchAllLocalAgentBuiltIn(excludeNames?: Set<string>, query?: string): AgentSkillItem[] {
+    return this.filterByQuery(this.loadAllLocalAgentBuiltIn(excludeNames), query);
+  }
+
+  /**
+   * Auto-load all agent-built-in agents from ~/.prompt-line/agent-built-in/
+   * Delegates to loadLegacyAgentBuiltIn to prime cache, then reads agentBuiltInAgents.
+   */
+  loadAllLocalAgentBuiltInAgents(excludeNames?: Set<string>): AgentItem[] {
+    const filtered = this.getFilteredLocalNames(config.paths.agentBuiltInDir, excludeNames);
+    if (filtered.length === 0) return [];
+    // Prime the cache via loadLegacyAgentBuiltIn, then read agentBuiltInAgents
+    this.loadLegacyAgentBuiltIn(filtered);
+    return filtered.flatMap(name => {
+      const cached = this.cache.get(`legacy-built-in:${name}`);
+      return cached?.agentBuiltInAgents ?? [];
+    });
+  }
+
+  /**
+   * Search local agent-built-in agents with optional query filter.
+   */
+  searchAllLocalAgentBuiltInAgents(excludeNames?: Set<string>, query?: string): AgentItem[] {
+    return this.filterByQuery(this.loadAllLocalAgentBuiltInAgents(excludeNames), query);
+  }
+
+  /**
    * Clear the cache to force reload
    */
   clearCache(): void {
     this.cache.clear();
+    this.dirScanCache.clear();
     logger.debug('Plugin loader cache cleared');
   }
 }
