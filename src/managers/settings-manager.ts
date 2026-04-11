@@ -7,13 +7,17 @@ import chokidar, { type FSWatcher } from 'chokidar';
 import { logger } from '../utils/utils';
 import { defaultSettings as sharedDefaultSettings } from '../config/default-settings';
 import { generateSettingsYaml } from '../config/settings-yaml-generator';
+import pluginLoader from '../lib/plugin-loader';
 import type {
   UserSettings,
+  PluginFormat,
   FileSearchSettings,
   SymbolSearchUserSettings,
   AgentSkillEntry,
   MentionEntry,
-  CustomSearchEntry
+  CustomSearchEntry,
+  ParsedPluginEntry,
+  CustomShortcutEntry
 } from '../types';
 
 class SettingsManager extends EventEmitter {
@@ -23,15 +27,22 @@ class SettingsManager extends EventEmitter {
   private watcher: FSWatcher | null = null;
   private reloadDebounceTimer: NodeJS.Timeout | null = null;
   private readonly RELOAD_DEBOUNCE_MS = 300;
+  private cachedPluginSettings: ParsedPluginEntry[] | null = null;
 
   constructor() {
     super();
-    this.settingsFile = path.join(os.homedir(), '.prompt-line', 'settings.yml');
+    // Always use .yaml — legacy .yml is read as fallback during init, then migrated
+    this.settingsFile = path.join(os.homedir(), '.prompt-line', 'settings.yaml');
 
     // Use shared default settings from config/default-settings.ts
     this.defaultSettings = sharedDefaultSettings;
 
     this.currentSettings = { ...this.defaultSettings };
+
+    // Invalidate cached plugin settings on any settings change
+    this.on('settings-changed', () => {
+      this.cachedPluginSettings = null;
+    });
   }
 
   async init(): Promise<void> {
@@ -103,26 +114,46 @@ class SettingsManager extends EventEmitter {
   private async readAndApplySettingsFile(): Promise<void> {
     try {
       const data = await fs.readFile(this.settingsFile, 'utf8');
-      // Use JSON_SCHEMA to prevent arbitrary code execution from malicious YAML
-      // JSON_SCHEMA only allows JSON-compatible types (strings, numbers, booleans, null, arrays, objects)
-      // which prevents JavaScript-specific type coercion attacks
-      const parsed = yaml.load(data, { schema: yaml.JSON_SCHEMA }) as UserSettings;
-
-      if (parsed && typeof parsed === 'object') {
-        this.currentSettings = this.mergeWithDefaults(parsed);
-      } else {
-        logger.warn('Invalid settings file format, using defaults');
+      if (!this.applyParsedSettings(data)) {
         await this.trySaveSettings('Failed to save default settings after invalid format:');
       }
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        logger.info('Settings file not found, creating with defaults');
-        await this.trySaveSettings('Failed to create default settings file:');
+        // Try legacy .yml fallback, then migrate to .yaml
+        const ymlPath = this.settingsFile.replace(/\.yaml$/, '.yml');
+        try {
+          const data = await fs.readFile(ymlPath, 'utf8');
+          this.applyParsedSettings(data);
+          await this.trySaveSettings('Failed to migrate settings to .yaml:');
+          logger.info(`Migrated settings from ${ymlPath} to ${this.settingsFile}`);
+        } catch {
+          logger.info('Settings file not found, creating with defaults');
+          await this.trySaveSettings('Failed to create default settings file:');
+        }
       } else {
         logger.error('Failed to read settings file:', error);
         throw error;
       }
     }
+  }
+
+  /** @returns true if parsed successfully, false if invalid format */
+  private applyParsedSettings(data: string): boolean {
+    const parsed = yaml.load(data, { schema: yaml.JSON_SCHEMA }) as UserSettings;
+    if (parsed && typeof parsed === 'object') {
+      // Normalize shortcuts from YAML format (key→action) to internal format (action→key)
+      if (parsed.shortcuts) {
+        const { normalized, customShortcuts } = normalizeShortcuts(
+          parsed.shortcuts as unknown as Record<string, string>
+        );
+        parsed.shortcuts = normalized;
+        parsed.customShortcuts = customShortcuts;
+      }
+      this.currentSettings = this.mergeWithDefaults(parsed);
+      return true;
+    }
+    logger.warn('Invalid settings file format, using defaults');
+    return false;
   }
 
   private async trySaveSettings(errorMessage: string): Promise<void> {
@@ -142,8 +173,7 @@ class SettingsManager extends EventEmitter {
     const cmd: AgentSkillEntry = {
       name: entry.name,
       description: entry.description,
-      path: entry.path,
-      pattern: entry.pattern,
+      sourcePath: entry.sourcePath,
     };
     if (entry.argumentHint) cmd.argumentHint = entry.argumentHint;
     if (entry.maxSuggestions) cmd.maxSuggestions = entry.maxSuggestions;
@@ -157,8 +187,7 @@ class SettingsManager extends EventEmitter {
     const mention: MentionEntry = {
       name: entry.name,
       description: entry.description,
-      path: entry.path,
-      pattern: entry.pattern,
+      sourcePath: entry.sourcePath,
     };
     if (entry.maxSuggestions) mention.maxSuggestions = entry.maxSuggestions;
     if (entry.searchPrefix) mention.searchPrefix = entry.searchPrefix;
@@ -183,30 +212,30 @@ class SettingsManager extends EventEmitter {
     return { custom, customSearchMentions };
   }
 
-  private resolveBuiltInCommands(userSettings: Partial<UserSettings>, rawAgentSkills: unknown): string[] {
-    const defaultBuiltInCommands = this.defaultSettings.builtInCommands ?? ['claude'];
+  private resolveAgentBuiltIn(userSettings: Partial<UserSettings>, rawAgentSkills: unknown): string[] | undefined {
+    const defaultAgentBuiltIn = this.defaultSettings.agentBuiltIn;
 
-    if (Array.isArray(userSettings.builtInCommands)) {
-      return userSettings.builtInCommands;
+    if (Array.isArray(userSettings.agentBuiltIn)) {
+      return userSettings.agentBuiltIn;
     }
     if (rawAgentSkills && !Array.isArray(rawAgentSkills) && typeof rawAgentSkills === 'object') {
-      // Legacy: agentSkills is an object with builtInCommands
+      // Legacy: agentSkills is an object with agentBuiltIn
       const legacySkills = rawAgentSkills as Record<string, unknown>;
-      if (Array.isArray(legacySkills.builtInCommands)) return legacySkills.builtInCommands as string[];
+      if (Array.isArray(legacySkills.agentBuiltIn)) return legacySkills.agentBuiltIn as string[];
       if (Array.isArray(legacySkills.builtIn)) return legacySkills.builtIn as string[];
-      return defaultBuiltInCommands;
+      return defaultAgentBuiltIn;
     }
-    if (userSettings.slashCommands?.builtInCommands) {
-      return userSettings.slashCommands.builtInCommands;
+    if (userSettings.slashCommands?.agentBuiltIn) {
+      return userSettings.slashCommands.agentBuiltIn;
     }
-    const legacyBuiltIn = (userSettings as Record<string, unknown>).legacyBuiltInCommands as { tools?: string[] } | undefined;
+    const legacyBuiltIn = (userSettings as Record<string, unknown>).legacyAgentBuiltIn as { tools?: string[] } | undefined;
     if (legacyBuiltIn) {
-      return legacyBuiltIn.tools ?? defaultBuiltInCommands;
+      return legacyBuiltIn.tools ?? defaultAgentBuiltIn;
     }
-    return defaultBuiltInCommands;
+    return defaultAgentBuiltIn;
   }
 
-  private resolveAgentSkills(userSettings: Partial<UserSettings>, rawAgentSkills: unknown): AgentSkillEntry[] {
+  private resolveAgentSkills(userSettings: Partial<UserSettings>, rawAgentSkills: unknown): (AgentSkillEntry | string)[] {
     const defaultAgentSkills = this.defaultSettings.agentSkills ?? [];
 
     if (Array.isArray(userSettings.agentSkills)) {
@@ -286,10 +315,15 @@ class SettingsManager extends EventEmitter {
     const resolvedMentionDisable = userSettings.mentionDisable ?? userSettings.mentions?.disable;
     if (resolvedMentionDisable) result.mentionDisable = resolvedMentionDisable;
 
-    // Handle builtInCommands and agentSkills
-    // Priority: root builtInCommands > legacy agentSkills.builtInCommands > legacy builtInCommands.tools > defaults
+    // Handle plugins
+    const resolvedPlugins = userSettings.plugins ?? this.defaultSettings.plugins;
+    if (resolvedPlugins) result.plugins = resolvedPlugins;
+
+    // Handle agentBuiltIn and agentSkills
+    // Priority: root agentBuiltIn > legacy agentSkills.agentBuiltIn > legacy agentBuiltIn.tools > defaults
     const rawAgentSkills = userSettings.agentSkills as unknown;
-    result.builtInCommands = this.resolveBuiltInCommands(userSettings, rawAgentSkills);
+    const resolvedAgentBuiltIn = this.resolveAgentBuiltIn(userSettings, rawAgentSkills);
+    if (resolvedAgentBuiltIn) result.agentBuiltIn = resolvedAgentBuiltIn;
     result.agentSkills = this.resolveAgentSkills(userSettings, rawAgentSkills);
 
     // Handle imagesDirectory (simple string passthrough)
@@ -300,6 +334,11 @@ class SettingsManager extends EventEmitter {
     // Handle legacy settings (mdSearch) for backward compatibility
     if (userSettings.mdSearch && userSettings.mdSearch.length > 0) {
       this.resolveLegacyMdSearch(result, userSettings.mdSearch);
+    }
+
+    // Preserve custom shortcuts (set by applyParsedSettings from YAML)
+    if (userSettings.customShortcuts && userSettings.customShortcuts.length > 0) {
+      result.customShortcuts = userSettings.customShortcuts;
     }
 
     return result;
@@ -432,7 +471,9 @@ class SettingsManager extends EventEmitter {
     const result: NonNullable<UserSettings['mentions']> = {};
     if (this.currentSettings.fileSearch) result.fileSearch = this.currentSettings.fileSearch;
     if (this.currentSettings.symbolSearch) result.symbolSearch = this.currentSettings.symbolSearch;
-    if (this.currentSettings.customSearch) result.customSearch = this.currentSettings.customSearch;
+    if (this.currentSettings.customSearch) {
+      result.customSearch = this.currentSettings.customSearch.filter((item): item is MentionEntry => typeof item !== 'string');
+    }
     if (this.currentSettings.mentionEnable) result.enable = this.currentSettings.mentionEnable;
     if (this.currentSettings.mentionDisable) result.disable = this.currentSettings.mentionDisable;
     return result;
@@ -442,15 +483,15 @@ class SettingsManager extends EventEmitter {
    * Get customSearch mentions for @ syntax
    */
   getCustomSearchMentions(): MentionEntry[] | undefined {
-    return this.currentSettings.customSearch;
+    return this.currentSettings.customSearch?.filter((item): item is MentionEntry => typeof item !== 'string');
   }
 
   /**
-   * Get built-in commands settings
-   * Returns from root-level builtInCommands
+   * Get agent built-in settings
+   * Returns from root-level agentBuiltIn
    */
-  getBuiltInCommandsSettings(): string[] | undefined {
-    return this.currentSettings.builtInCommands;
+  getAgentBuiltInSettings(): string[] | undefined {
+    return this.currentSettings.agentBuiltIn;
   }
 
   private agentSkillToEntry(cmd: AgentSkillEntry): CustomSearchEntry {
@@ -458,8 +499,7 @@ class SettingsManager extends EventEmitter {
       type: 'command',
       name: cmd.name,
       description: cmd.description,
-      path: cmd.path,
-      pattern: cmd.pattern,
+      sourcePath: cmd.sourcePath,
     };
     if (cmd.argumentHint !== undefined) entry.argumentHint = cmd.argumentHint;
     if (cmd.maxSuggestions !== undefined) entry.maxSuggestions = cmd.maxSuggestions;
@@ -472,6 +512,7 @@ class SettingsManager extends EventEmitter {
     if (cmd.triggers !== undefined) entry.triggers = cmd.triggers;
     if (cmd.enable !== undefined) entry.enable = cmd.enable;
     if (cmd.disable !== undefined) entry.disable = cmd.disable;
+    if (cmd.sourceCommand !== undefined) entry.sourceCommand = cmd.sourceCommand;
     return entry;
   }
 
@@ -480,8 +521,7 @@ class SettingsManager extends EventEmitter {
       type: 'mention',
       name: mention.name,
       description: mention.description,
-      path: mention.path,
-      pattern: mention.pattern,
+      sourcePath: mention.sourcePath,
     };
     if (mention.maxSuggestions !== undefined) entry.maxSuggestions = mention.maxSuggestions;
     if (mention.searchPrefix !== undefined) entry.searchPrefix = mention.searchPrefix;
@@ -495,7 +535,8 @@ class SettingsManager extends EventEmitter {
     if (mention.icon !== undefined) entry.icon = mention.icon;
     if (mention.enable !== undefined) entry.enable = mention.enable;
     if (mention.disable !== undefined) entry.disable = mention.disable;
-    if (mention.command !== undefined) entry.command = mention.command;
+    if (mention.runCommand !== undefined) entry.runCommand = mention.runCommand;
+    if (mention.sourceCommand !== undefined) entry.sourceCommand = mention.sourceCommand;
     return entry;
   }
 
@@ -515,17 +556,66 @@ class SettingsManager extends EventEmitter {
     // Convert current format to CustomSearchEntry format
     const entries: CustomSearchEntry[] = [];
 
+    // Load entries from plugin YAML files (agent-skills and custom-search only)
+    const enabledPlugins = this.getPluginSettings();
+    if (enabledPlugins.length > 0) {
+      const pluginEntries = pluginLoader.loadPluginEntries(enabledPlugins);
+      entries.push(...pluginEntries);
+    }
+
+    // Merge inline/file-based settings entries
     const agentSkills = this.currentSettings.agentSkills;
     if (agentSkills && agentSkills.length > 0) {
-      entries.push(...agentSkills.map(cmd => this.agentSkillToEntry(cmd)));
+      for (const item of agentSkills) {
+        if (typeof item === 'string') {
+          const entry = pluginLoader.loadAgentSkillFile(item);
+          if (entry) entries.push(entry);
+        } else {
+          entries.push(this.agentSkillToEntry(item));
+        }
+      }
     }
 
     const customSearchMentions = this.currentSettings.customSearch;
     if (customSearchMentions) {
-      entries.push(...customSearchMentions.map(mention => this.mentionToEntry(mention)));
+      for (const item of customSearchMentions) {
+        if (typeof item === 'string') {
+          const entry = pluginLoader.loadCustomSearchFile(item);
+          if (entry) entries.push(entry);
+        } else {
+          entries.push(this.mentionToEntry(item));
+        }
+      }
     }
 
     return entries;
+  }
+
+  getAdditionalPaths(): string[] {
+    return [...(this.currentSettings.additionalPaths || [])];
+  }
+
+  /**
+   * Get enabled plugin paths from settings.
+   * Normalizes both v1 (string[]) and v2 (Record<string, string[]>) formats
+   * into a flat string array for plugin-loader compatibility.
+   * Caches result until settings change for performance in hot paths (IPC handlers).
+   */
+  getPluginSettings(): ParsedPluginEntry[] {
+    // Return cached result if available (cache is invalidated on settings change)
+    if (this.cachedPluginSettings !== null) {
+      return this.cachedPluginSettings;
+    }
+
+    const plugins = this.currentSettings.plugins;
+    if (!plugins) {
+      this.cachedPluginSettings = [];
+      return [];
+    }
+
+    // Normalize and cache result (computed only once until settings change)
+    this.cachedPluginSettings = normalizePlugins(plugins);
+    return this.cachedPluginSettings;
   }
 
   getSettingsFilePath(): string {
@@ -546,6 +636,74 @@ class SettingsManager extends EventEmitter {
 
     this.removeAllListeners();
   }
+}
+
+function parsePluginPath(rawPath: string): ParsedPluginEntry {
+  let basePath = rawPath;
+  let searchPrefix: string | undefined;
+  let args: Record<string, string> | undefined;
+
+  // Extract ?params first
+  const qIndex = basePath.indexOf('?');
+  if (qIndex !== -1) {
+    const queryStr = basePath.slice(qIndex + 1);
+    basePath = basePath.slice(0, qIndex);
+    args = {};
+    for (const [key, value] of new URLSearchParams(queryStr)) {
+      args[key] = value;
+    }
+  }
+
+  // Extract @suffix
+  const atIndex = basePath.lastIndexOf('@');
+  if (atIndex !== -1) {
+    if (atIndex > 0 && basePath[atIndex - 1] !== '/') {
+      searchPrefix = basePath.slice(atIndex + 1);
+      basePath = basePath.slice(0, atIndex);
+    }
+  }
+
+  if (!searchPrefix && !args) {
+    return { path: basePath };
+  }
+  const overrides: NonNullable<ParsedPluginEntry['overrides']> = {};
+  if (searchPrefix) overrides.searchPrefix = searchPrefix;
+  if (args) overrides.args = args;
+  return { path: basePath, overrides };
+}
+
+function normalizePlugins(plugins: PluginFormat): ParsedPluginEntry[] {
+  const rawPaths: string[] = Array.isArray(plugins)
+    ? plugins
+    : Object.entries(plugins as Record<string, string[]>).flatMap(
+        ([packageId, entries]) => entries.map(entry => `${packageId}/${entry}`)
+      );
+  return rawPaths.map(parsePluginPath);
+}
+
+const KNOWN_ACTIONS = new Set(['main', 'paste', 'close', 'historyNext', 'historyPrev', 'search']);
+
+function normalizeShortcuts(
+  shortcuts: Record<string, string>
+): { normalized: UserSettings['shortcuts']; customShortcuts: CustomShortcutEntry[] } {
+  const entries = Object.entries(shortcuts);
+  if (entries.length === 0) {
+    return { normalized: {} as UserSettings['shortcuts'], customShortcuts: [] };
+  }
+
+  // Format: { key: action } — invert and extract custom actions
+  const normalized: Record<string, string> = {};
+  const customShortcuts: CustomShortcutEntry[] = [];
+
+  for (const [key, action] of entries) {
+    if (KNOWN_ACTIONS.has(action)) {
+      normalized[action] = key;
+    } else {
+      customShortcuts.push({ key, action });
+    }
+  }
+
+  return { normalized: normalized as UserSettings['shortcuts'], customShortcuts };
 }
 
 export default SettingsManager;

@@ -907,5 +907,3 @@ export class SuggestionUIManager {
     }
   }
 }
-
-export default SuggestionUIManager;

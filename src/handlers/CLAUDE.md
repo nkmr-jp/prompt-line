@@ -1,6 +1,6 @@
 # IPC Handlers Module
 
-Central communication bridge between main and renderer processes. 10 specialized handler files, 53 IPC channels total.
+Central communication bridge between main and renderer processes. 9 specialized handler files, 52 IPC channels total.
 
 ## File Structure
 
@@ -11,11 +11,10 @@ Central communication bridge between main and renderer processes. 10 specialized
 | `history-draft-handler.ts` | History CRUD, draft management, @path caching |
 | `window-handler.ts` | Window visibility and focus control |
 | `system-handler.ts` | App info, config, settings retrieval |
-| `custom-search-handler.ts` | Slash commands, agent selection, built-in commands events, source file hot reload, shell command execution |
+| `custom-search-handler.ts` | Slash commands, agent selection, plugin hot reload, source file hot reload, shell command execution |
 | `file-handler.ts` | File operations, external URL handling |
 | `usage-history-handler.ts` | Usage tracking for files, symbols, agents |
 | `code-search-handler.ts` | Symbol search with ripgrep integration |
-| `handler-utils.ts` | Shared validation utilities |
 
 ## Non-obvious Patterns
 
@@ -24,13 +23,6 @@ Central communication bridge between main and renderer processes. 10 specialized
 - Registered directly from `main.ts` via `codeSearchHandler.register()`
 - Uses `initialized` flag to prevent double registration
 - Implements stale-while-revalidate caching with background deduplication
-
-### Handler utilities (handler-utils.ts)
-- `withIPCErrorHandling`: HOF wrapper for standardized error handling
-- `withIPCDataHandler`: HOF for data handlers with default values
-- `normalizeAndValidatePath`: Path normalization with traversal attack prevention
-- `validateHistoryId`: Strict regex `/^[a-z0-9]+$/` (max 32 chars)
-- `updateCustomSearchConfig`: CustomSearch configuration update utility
 
 ### Security boundaries
 - Paste text: 1MB byte-based limit via `Buffer.byteLength()`
@@ -41,6 +33,6 @@ Central communication bridge between main and renderer processes. 10 specialized
 - Command execution: allowlist check against loaded custom search items (prevents renderer command injection)
 
 ### custom-search-handler listens for hot reload events
-- Subscribes to `commands-changed` event from BuiltInCommandsManager
+- Subscribes to `plugins-changed` event from PluginManager
 - Subscribes to `source-changed` event from CustomSearchLoader (JSONL/individual file changes)
 - Both events invalidate cache and notify renderer via `custom-search-updated` push channel

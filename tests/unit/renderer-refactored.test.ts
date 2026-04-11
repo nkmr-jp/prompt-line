@@ -211,6 +211,9 @@ mockPasteImage.mockResolvedValue({ success: true, path: '/tmp/image.png' });
     },
     app: {
         getInfo: vi.fn()
+    },
+    customSearch: {
+        getLastChangeTimestamp: vi.fn().mockResolvedValue(0)
     }
 };
 
@@ -327,7 +330,7 @@ describe('PromptLineRenderer (Refactored)', () => {
     });
 
     describe('window lifecycle', () => {
-        test('should delegate window shown to directoryDataHandler', () => {
+        test('should delegate window shown to directoryDataHandler', async () => {
             const windowData = {
                 draft: 'test draft',
                 history: [],
@@ -338,7 +341,7 @@ describe('PromptLineRenderer (Refactored)', () => {
             // (otherwise the data is queued for later processing)
             (renderer as any).initCompleted = true;
 
-            (renderer as any).handleWindowShown(windowData);
+            await (renderer as any).handleWindowShown(windowData);
 
             expect((renderer as any).directoryDataHandler.handleWindowShown).toHaveBeenCalledWith(windowData);
         });

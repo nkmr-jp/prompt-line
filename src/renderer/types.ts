@@ -14,6 +14,7 @@ export interface HistoryItem {
   timestamp: number;
   id: string;
   appName?: string;
+  itermSessionId?: string;
 }
 
 export interface AppInfo {
@@ -39,6 +40,10 @@ export interface UserSettings {
     searchPrefix?: string;
     shortcut?: string;
     [key: string]: unknown;
+  }>;
+  customShortcuts?: Array<{
+    key: string;
+    action: string;
   }>;
 }
 

@@ -13,17 +13,15 @@ export const DEFAULT_ORDER_BY = 'name';
 
 export function getDefaultCustomSearchConfig(): CustomSearchEntry[] {
   return [
-    // NOTE: Built-in commands (Claude Code, etc.) are loaded from YAML files
-    // via BuiltInCommandsLoader, not via customSearch. This keeps them separate
-    // and allows YAML-based management.
+    // NOTE: Built-in commands (Claude Code, etc.) are loaded from plugin YAML files
+    // via pluginLoader, not via customSearch. This keeps them separate.
 
     // User's custom slash commands
     {
       name: '{basename}',
       type: 'command',
       description: '{frontmatter@description}|{heading}',
-      path: '~/.claude/commands',
-      pattern: '*.md',
+      sourcePath: '~/.claude/commands/*.md',
       argumentHint: '{frontmatter@argument-hint}',
       maxSuggestions: DEFAULT_MAX_SUGGESTIONS,
       orderBy: DEFAULT_ORDER_BY,
@@ -33,8 +31,7 @@ export function getDefaultCustomSearchConfig(): CustomSearchEntry[] {
       name: 'agent-{basename}',
       type: 'mention',
       description: '{frontmatter@description}|{heading}',
-      path: '~/.claude/agents',
-      pattern: '*.md',
+      sourcePath: '~/.claude/agents/*.md',
       maxSuggestions: DEFAULT_MAX_SUGGESTIONS,
       orderBy: DEFAULT_ORDER_BY,
       // searchPrefix: 'agent', // Uncomment to require @agent: prefix for agent search

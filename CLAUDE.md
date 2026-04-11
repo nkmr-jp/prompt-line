@@ -7,7 +7,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Development
 ```bash
 pnpm start          # Run app in development mode (with DEBUG logging enabled)
-pnpm run update-built-in-commands # Update slash commands with confirmation
 pnpm run reset-accessibility      # Reset accessibility permissions for Prompt Line
 ```
 
@@ -39,7 +38,9 @@ pnpm run pre-push   # Run all pre-push checks (lint + typecheck + test)
 pnpm run clean      # Removes build artifacts (DMG, zip files)
 pnpm run clean:cache     # Clears build caches
 pnpm run clean:full      # Full cleanup (artifacts + caches + dist)
-pnpm run generate:settings-example  # Regenerate settings.example.yml
+pnpm run generate:settings-example  # Regenerate settings.example.yaml
+pnpm run migrate-settings           # Backup existing settings and replace with fresh defaults
+pnpm run plugin:install <source>    # Install plugins from local path or GitHub repo
 ```
 
 `pnpm run compile` performs: tsc → Vite renderer build → native tools (`cd native && make install`) → copy to dist.
@@ -65,12 +66,14 @@ fix(window): resolve positioning issue on multi-monitor setups
 ```
 
 ### Pull Request Guidelines
-- **Target Branch**: Always create PRs against the `main` branch
+- **Target Branch**: Create PRs against `develop` if it exists, otherwise against `main`
 - **Language**: Write all PR titles and descriptions in English
-- **Merge Strategy**: **Squash and merge** for feature PRs to `main`.
+- **Merge Strategy**: **Squash and merge** for feature PRs into `develop`. Use **regular merge commit** (no squash) when merging `develop` into `main`.
 
 ### Release Process
-Uses [Release Please](https://github.com/googleapis/release-please) for automated releases. Config: `release-please-config.json`, workflow: `.github/workflows/release-please.yml`. Pushes to `main` trigger Release PR creation with version bump and CHANGELOG updates.
+Uses [Release Please](https://github.com/googleapis/release-please) for automated releases. Config: `release-please-config.json`, manifest: `.release-please-manifest.json`, workflow: `.github/workflows/release-please.yml`.
+
+Pushes to `main` with conventional commits automatically trigger a Release Please PR with version bump and CHANGELOG updates. Merging that PR creates a GitHub Release.
 
 ## Architecture Overview
 
@@ -84,7 +87,7 @@ User Input → Renderer → IPC Event → IPCHandlers (coordinator) → Speciali
 - **Main Process** (`src/main.ts`): Application lifecycle, window management, system interactions
 - **Renderer Process** (`src/renderer/`): UI and user interactions with 13+ specialized managers. See `src/renderer/CLAUDE.md`
 - **Preload Script** (`src/preload/preload.ts`): Secure context bridge with whitelisted IPC channels
-- **IPC Handlers** (`src/handlers/`): 10 specialized files, 53 IPC channels. See `src/handlers/CLAUDE.md`
+- **IPC Handlers** (`src/handlers/`): 9 specialized files, 52 IPC channels. See `src/handlers/CLAUDE.md`
 - **Managers** (`src/managers/`): 16 specialized managers + window sub-module. See `src/managers/CLAUDE.md`
 - **Config** (`src/config/`): Centralized settings with `default-settings.ts` as Single Source of Truth. See `src/config/CLAUDE.md`
 - **Utils** (`src/utils/`): Shared utilities, native tools, file/symbol search. See `src/utils/CLAUDE.md`
@@ -100,24 +103,54 @@ User Input → Renderer → IPC Event → IPCHandlers (coordinator) → Speciali
 - **History**: Unlimited JSONL-based paste history with real-time search
 - **Draft auto-save**: Adaptive debouncing, persists on Esc, cleared on successful paste (Cmd+Enter)
 
-### Built-in Commands
+### Plugin System
 
-Slash command definitions for CLI tools (Claude Code, Codex CLI, Gemini CLI) stored as YAML files.
+Plugins provide agent-built-in slash commands, agent-skills, and custom-search entries. Two settings formats are supported:
 
-**Source:** `assets/built-in-commands/*.yml` → **Installed to:** `~/.prompt-line/built-in-commands/`
+**v1 format (string[]):** `plugins: ["github.com/nkmr-jp/prompt-line-plugins/claude/agent-built-in/claude"]`
+**v2 format (Record<string, string[]>):**
+```yaml
+plugins:
+  github.com/nkmr-jp/prompt-line-plugins:
+    - claude/agent-built-in/claude
+    - claude/agent-skills/commands
+```
+
+**Plugin commands:**
+```bash
+prompt-line-plugin install <source>              # Install from local path or GitHub
+prompt-line-plugin install <source>@<ref>        # Install at specific branch/tag/hash
+prompt-line-plugin help                          # Show help
+```
+
+`plugin:install` supports local paths (`./path`, `~/path`) and GitHub repos (`github.com/user/repo[/path][@ref]`). Append `@ref` to specify a branch, tag, or commit hash (e.g., `@develop`, `@v1.0.0`, `@sea8pxe`). It generates `.prompt-line-plugin` metadata files with commit-hash-pinned GitHub URLs for version tracking.
+
+**Source resolution for `github.com/...`:** `gh repo clone` → `git clone`
+
+**Global CLI setup** — run `pnpm link` in the project directory to install `prompt-line-plugin` globally:
+```bash
+pnpm link
+prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
+```
+
+### Agent Built-in
+
+Slash command definitions for CLI tools (Claude Code, Codex CLI, Gemini CLI) stored as plugin YAML files in the [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins) repository.
+
+**Source:** `github.com/nkmr-jp/prompt-line-plugins/<tool>/agent-built-in/*.yaml` → **Installed to:** `~/.prompt-line/plugins/github.com/nkmr-jp/prompt-line-plugins/<tool>/agent-built-in/`
 
 **Updating to latest versions:**
 1. Check latest slash commands:
    - **Claude Code**: [changelog](https://github.com/anthropics/claude-code/releases) / [docs](https://code.claude.com/docs/en/commands)
    - **Codex CLI**: [source](https://github.com/openai/codex) / [docs](https://developers.openai.com/codex/cli/slash-commands/)
    - **Gemini CLI**: [docs](https://google-gemini.github.io/gemini-cli/docs/cli/commands.html) / [releases](https://github.com/google-gemini/gemini-cli/releases)
-2. Edit YAML files in `assets/built-in-commands/` (add/update commands; do not remove existing)
-3. Run `pnpm run update-built-in-commands` (requires `pnpm install` if node_modules is missing)
+2. Edit YAML files in the [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-plugins) repository
 
-**Commit type for built-in-commands updates:** Use `chore` (not `feat`)
+**Commit type for agent-built-in updates:** Use `chore` (not `feat`)
 
 **YAML format:**
 ```yaml
+pluginDescription: "Claude Code built-in slash commands"
 name: claude
 color: amber
 reference: https://example.com/docs
@@ -133,11 +166,12 @@ Hot reload: Changes auto-detected (chokidar, 300ms debounce) without app restart
 All data stored in `~/.prompt-line/`:
 - `history.jsonl`: Paste history (JSONL append-only)
 - `draft.json`: Auto-saved drafts
-- `settings.yml`: User preferences
+- `settings.yaml`: User preferences (falls back to `settings.yml`)
 - `directory.json`: CWD tracking for file search
 - `app.log`: Application logs
 - `images/`: Image storage
 - `cache/`: Symbol cache, @path patterns (per-project and global)
+- `plugins/`: Plugin YAML files with `.prompt-line-plugin` metadata
 
 ## Testing Strategy
 
@@ -158,6 +192,11 @@ Requires Xcode Command Line Tools: `xcode-select --install`
 
 ### Slow Build Times
 Use `pnpm run install-app` for development — it skips DMG creation and installs directly to `/Applications`.
+
+### Electron CDP Debugging
+- `LOG_LEVEL=debug ./node_modules/.bin/electron . --remote-debugging-port=9222` to start with CDP
+- `curl http://localhost:9222/json/list` to get WebSocket URL for the renderer page
+- Python `websockets` library works for CDP communication: `pip3 install websockets`
 
 ### Cleanup Reference
 

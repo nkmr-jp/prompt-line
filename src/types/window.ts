@@ -12,6 +12,33 @@ import type { DirectoryInfo } from './file-search';
  */
 export type ColorValue = 'grey' | 'darkGrey' | 'slate' | 'stone' | 'red' | 'rose' | 'orange' | 'amber' | 'yellow' | 'lime' | 'green' | 'emerald' | 'teal' | 'cyan' | 'sky' | 'blue' | 'indigo' | 'violet' | 'purple' | 'fuchsia' | 'pink' | string;
 
+/**
+ * Plugin format: v1 (string[]) or v2 (Record<string, string[]>)
+ */
+export type PluginFormat = string[] | Record<string, string[]>;
+
+/**
+ * Parsed plugin entry with optional overrides from @suffix?params syntax
+ * e.g., "claude/custom-search/agents@agent?open=iTerm"
+ * → { path: "claude/custom-search/agents", overrides: { searchPrefix: "agent", args: { open: "iTerm" } } }
+ */
+export interface ParsedPluginEntry {
+  path: string;
+  overrides?: {
+    searchPrefix?: string;
+    args?: Record<string, string>;
+  };
+}
+
+/**
+ * Custom shortcut action entry (from settings shortcuts with custom actions)
+ * e.g., { key: "Ctrl+m", action: "input=@md:" }
+ */
+export interface CustomShortcutEntry {
+  key: string;
+  action: string;
+}
+
 export interface AppInfo {
   name: string;
   bundleId?: string | null;
@@ -102,7 +129,10 @@ export interface PathsConfig {
   directoryFile: string;
   cacheDir: string;             // Cache root directory
   projectsCacheDir: string;     // Projects cache directory
-  builtInCommandsDir: string;   // Built-in slash commands directory
+  agentBuiltInDir: string;      // Agent built-in YAML files directory
+  pluginsDir: string;           // Plugins directory
+  agentSkillsDir: string;       // Agent skills YAML files directory
+  customSearchDir: string;      // Custom search YAML files directory
 }
 
 export interface TimingConfig {
@@ -163,16 +193,16 @@ export interface UserSettings {
     // Default editor when no extension-specific or directory-specific setting exists
     defaultEditor?: string | null;
   };
-  // Built-in commands: list of tools to enable (e.g., ['claude', 'codex', 'gemini'])
-  builtInCommands?: string[];
-  // Agent skills: flat list of custom slash command entries (no more .custom nesting)
-  agentSkills?: AgentSkillEntry[];
+  // Agent built-in: list of tools to enable (e.g., ['claude', 'codex', 'gemini'])
+  agentBuiltIn?: string[];
+  // Agent skills: inline entries or file names from ~/.prompt-line/agent-skills/
+  agentSkills?: (AgentSkillEntry | string)[];
   // File search settings (@path/to/file completion)
   fileSearch?: FileSearchUserSettings;
   // Symbol search settings (@ts:Config, @go:Handler)
   symbolSearch?: SymbolSearchUserSettings;
-  // Custom search entries for @ mentions (e.g., @agent:, @plan:)
-  customSearch?: MentionEntry[];
+  // Custom search entries: inline entries or file names from ~/.prompt-line/custom-search/
+  customSearch?: (MentionEntry | string)[];
   // Image directory path (relative to CWD, or absolute path)
   // When relative, resolved against current working directory
   imagesDirectory?: string;
@@ -180,18 +210,31 @@ export interface UserSettings {
   mentionEnable?: string[];
   // Global mention filter: blacklist (exact match: "agent-legacy", prefix match: "old-*")
   mentionDisable?: string[];
+  // Custom shortcut actions (extracted from {key: action} shortcuts format)
+  customShortcuts?: CustomShortcutEntry[];
 
   // Legacy: mentions wrapper (use top-level fileSearch, symbolSearch, customSearch instead)
   /** @deprecated Use top-level fileSearch, symbolSearch, customSearch instead */
   mentions?: MentionsSettings;
   // Legacy: customSearch with type field (for backward compatibility)
   legacyCustomSearch?: CustomSearchEntry[];
+  /**
+   * Plugin entries to enable (paths relative to ~/.prompt-line/plugins/, without .yaml extension)
+   * Comment out entries to disable them.
+   *
+   * v1 format (string[]): ["github.com/nkmr-jp/prompt-line-plugins/claude/agent-skills/commands"]
+   * v2 format (Record<string, string[]>):
+   *   { "github.com/user/repo/path": ["claude/agent-skills/commands"] }
+   */
+  plugins?: PluginFormat;
+  /** Additional PATH entries for shell command execution (e.g., sourceCommand) */
+  additionalPaths?: string[];
   // Legacy alias: mdSearch (for backward compatibility)
   mdSearch?: CustomSearchEntry[];
   // Legacy: slashCommands (use agentSkills instead)
   slashCommands?: AgentSkillsSettings;
-  // Legacy: Built-in commands configuration (use builtInCommands instead)
-  legacyBuiltInCommands?: {
+  // Legacy: Agent built-in configuration (use agentBuiltIn instead)
+  legacyAgentBuiltIn?: {
     tools?: string[];
   };
 }
@@ -234,6 +277,8 @@ export interface FileSearchUserSettings {
  * All fields are optional - defaults are applied by the application
  */
 export interface SymbolSearchUserSettings {
+  /** Respect .gitignore files (default: true) */
+  respectGitignore?: boolean;
   /** Maximum number of symbols to return (default: 200000) */
   maxSymbols?: number;
   /** Search timeout in milliseconds (default: 60000) */
@@ -295,8 +340,8 @@ export interface AgentSkillsSettings {
    * - 前方一致: "debug-*"
    */
   disable?: string[];
-  // Legacy: builtInCommands (use root-level builtInCommands instead)
-  builtInCommands?: string[];
+  // Legacy: agentBuiltIn (use root-level agentBuiltIn instead)
+  agentBuiltIn?: string[];
 }
 
 /** @deprecated Use AgentSkillsSettings instead */
@@ -310,10 +355,8 @@ export interface AgentSkillEntry {
   name: string;
   /** 説明テンプレート（例: "{frontmatter@description}"） */
   description: string;
-  /** 検索ディレクトリパス */
-  path: string;
-  /** ファイルパターン（glob形式、例: "*.md"） */
-  pattern: string;
+  /** ソースパス（ディレクトリ+globパターン、例: "~/.claude/commands/*.md"） */
+  sourcePath: string;
   /** オプション: argumentHintテンプレート */
   argumentHint?: string;
   /** オプション: 検索候補の最大表示数（デフォルト: 20） */
@@ -344,6 +387,10 @@ export interface AgentSkillEntry {
    * - 前方一致: "debug-*"
    */
   disable?: string[];
+  /** オプション: コマンドの標準出力を検索ソースとして使用するシェルコマンド文字列（指定時は sourcePath の代わりに使用） */
+  sourceCommand?: string;
+  /** オプション: テンプレート引数（例: { open: "iTerm" } → {args.open} で参照可能） */
+  args?: Record<string, string>;
 }
 
 /** @deprecated Use AgentSkillEntry instead */
@@ -357,10 +404,8 @@ export interface MentionEntry {
   name: string;
   /** 説明テンプレート（例: "{frontmatter@description}"） */
   description: string;
-  /** 検索ディレクトリパス */
-  path: string;
-  /** ファイルパターン（glob形式、例: "*.md"） */
-  pattern: string;
+  /** ソースパス（ディレクトリ+globパターン、例: "~/.claude/agents/*.md"） */
+  sourcePath: string;
   /** オプション: 検索候補の最大表示数（デフォルト: 20） */
   maxSuggestions?: number;
   /** オプション: 検索プレフィックス（例: "agent"）- 自動で : が追加されます（@agent: で検索） */
@@ -393,10 +438,12 @@ export interface MentionEntry {
    * - 前方一致: "old-*"
    */
   disable?: string[];
-  /** オプション: キーボードショートカット（例: "Ctrl+g"）- このショートカットで @searchPrefix: 検索を直接起動 */
-  shortcut?: string;
   /** オプション: Ctrl+Enter で実行するシェルコマンド。テンプレート変数({filepath}, {basename}, {content}等)使用可 */
-  command?: string;
+  runCommand?: string;
+  /** オプション: コマンドの標準出力を検索ソースとして使用するシェルコマンド文字列（指定時は sourcePath の代わりに使用） */
+  sourceCommand?: string;
+  /** オプション: テンプレート引数（例: { open: "iTerm" } → {args.open} で参照可能） */
+  args?: Record<string, string>;
 }
 
 // ============================================================================
@@ -420,10 +467,8 @@ export interface CustomSearchEntry {
   type: CustomSearchType;
   /** 説明テンプレート（例: "{frontmatter@description}"） */
   description: string;
-  /** 検索ディレクトリパス */
-  path: string;
-  /** ファイルパターン（glob形式、例: "*.md", "SKILL.md"） */
-  pattern: string;
+  /** ソースパス（ディレクトリ+globパターン、例: "~/.claude/commands/*.md"）（sourceCommand指定時は空文字""を設定） */
+  sourcePath: string;
   /** オプション: label（静的な値 "skill" または テンプレート "{frontmatter@label}"） */
   label?: string;
   /** オプション: ラベルとハイライトの色（grey, darkGrey, blue, purple, teal, green, yellow, orange, pink, red） */
@@ -461,7 +506,13 @@ export interface CustomSearchEntry {
    */
   disable?: string[];
   /** オプション: Ctrl+Enter で実行するシェルコマンド。テンプレート変数({filepath}, {basename}, {content}等)使用可 */
-  command?: string;
+  runCommand?: string;
+  /** オプション: このファイルが存在するディレクトリを検索対象から除外する（例: ".orphaned_at"） */
+  excludeMarker?: string;
+  /** オプション: コマンドの標準出力を検索ソースとして使用するシェルコマンド文字列（指定時は sourcePath の代わりに使用） */
+  sourceCommand?: string;
+  /** オプション: テンプレート引数（例: { open: "iTerm" } → {args.open} で参照可能） */
+  args?: Record<string, string>;
 }
 
 /**
@@ -486,7 +537,7 @@ export interface CustomSearchItem {
   icon?: string;
   /** argumentHint（commandタイプのみ） */
   argumentHint?: string;
-  /** 検索ソースの識別子（path + pattern） */
+  /** 検索ソースの識別子（sourcePath） */
   sourceId: string;
   /** カスタムソートキー（orderByテンプレートの解決値） */
   sortKey?: string;
@@ -501,7 +552,7 @@ export interface CustomSearchItem {
   /** トリガー文字の配列（commandタイプのみ） */
   triggers?: string[];
   /** テンプレート解決済みのコマンド文字列（Ctrl+Enter で実行） */
-  command?: string;
+  runCommand?: string;
 }
 
 export interface AgentSkillItem {
@@ -536,5 +587,5 @@ export interface AgentItem {
   label?: string;
   updatedAt?: number;  // File modification timestamp (mtimeMs)
   displayTime?: number | null;  // Resolved display time (null = hidden, undefined = fallback to updatedAt)
-  command?: string;  // Shell command to execute on Ctrl+Enter (template-resolved)
+  runCommand?: string;  // Shell command to execute on Ctrl+Enter (template-resolved)
 }

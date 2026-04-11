@@ -105,5 +105,3 @@ export class MentionState {
     return this.mergedSuggestions.length;
   }
 }
-
-export default MentionState;

@@ -18,7 +18,7 @@
 | `symbol-cache-manager.ts` | Language-separated symbol caching (JSONL) |
 | `at-path-cache-manager.ts` | @path pattern caching (project + global) |
 | `agent-skill-cache-manager.ts` | Agent skill caching with TTL |
-| `built-in-commands-manager.ts` | Built-in command definitions, YAML file watching |
+| `plugin-manager.ts` | Plugin loading, installation, and hot reload (chokidar-based) |
 | `usage-history-manager.ts` | Base class for usage tracking (LRU) |
 | `agent-usage-history-manager.ts` | Agent selection history (singleton) |
 | `file-usage-history-manager.ts` | File selection history (singleton) |
@@ -41,8 +41,7 @@
 - Window reuse: checks if window exists and is visible before creating new one
 
 ### History manager debounce strategy
-- Standard save: 2000ms debounce
-- Critical save: 500ms debounce (add/remove operations)
+- Append queue flush: 100ms debounce
 - Immediate save: synchronous (shutdown scenarios)
 - JSONL format: oldest-first on disk, reversed in memory for display
 
@@ -59,16 +58,11 @@
 - TTL: 30 days, stored in `~/.prompt-line/cache/projects/`
 - Bonus calculation uses frequency + recency scoring
 
-### Built-in commands manager
-- Watches `~/.prompt-line/built-in-commands/` with chokidar (300ms debounce)
-- Same EventEmitter pattern as SettingsManager
-- Fires `commands-changed` event on YAML file changes
-- No app restart required for hot reload
-
 ### Settings manager deep merge
-- User settings.yml is merged with defaults: `{ ...defaults.section, ...user.section }`
+- User settings.yaml is merged with defaults: `{ ...defaults.section, ...user.section }`
 - Automatic file creation with defaults if missing
 - Real-time file watching for live updates
+- `getPluginSettings()` normalizes v2 map format to flat string[] and caches result (invalidated on settings change)
 
 ### Desktop space manager
 - Hash-based space signatures for efficient comparison
@@ -82,7 +76,7 @@
 - Configurable order-by per entry
 - Supports YAML frontmatter in markdown files for metadata
 - Chokidar file watching for individual (non-glob) files with 300ms debounce
-- Same EventEmitter pattern as BuiltInCommandsManager: emits `source-changed` on file changes
+- Same EventEmitter pattern as PluginManager: emits `source-changed` on file changes
 - Streaming JSONL parsing for files >= 1MB (createReadStream + readline)
 - Shell command template resolution with `shellQuote` valueTransform (CWE-78 prevention)
 - Icon auto-detection from file pattern: `SKILL_PATTERN` → codicon-edit-sparkle, others → codicon-terminal

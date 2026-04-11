@@ -25,6 +25,9 @@ jobs:
     - name: Install dependencies
       run: pnpm install --frozen-lockfile
 
+    - name: Generate git info
+      run: node scripts/generate-git-info.js
+
     - name: Run tests
       run: pnpm test
 

@@ -11,6 +11,7 @@ import {
   checkAccessibilityPermission,
   SecureErrors
 } from '../utils/utils';
+import { isITerm2, getITermSessionId } from '../utils/native-tools/app-detection';
 import type WindowManager from '../managers/window';
 import type DraftManager from '../managers/draft-manager';
 import type DirectoryManager from '../managers/directory-manager';
@@ -151,9 +152,11 @@ class PasteHandler {
       const previousApp = await this.getPreviousAppAsync();
       const appName = this.extractAppName(previousApp);
       const directory = this.directoryManager.getDirectory() || undefined;
-
       await Promise.all([
-        this.historyManager.addToHistory(text, appName, directory),
+        (async () => {
+          const itermSessionId = isITerm2(previousApp) ? await getITermSessionId() : undefined;
+          await this.historyManager.addToHistory(text, appName, directory, itermSessionId);
+        })(),
         this.draftManager.clearDraft(),
         this.setClipboardAsync(text),
       ]);
@@ -244,7 +247,7 @@ class PasteHandler {
     return { absolute: config.paths.imagesDir };
   }
 
-  private async handlePasteImage(_event: IpcMainInvokeEvent): Promise<{ success: boolean; error?: string | undefined; path?: string | undefined; relativePath?: string | undefined }> {
+  private async handlePasteImage(_event: IpcMainInvokeEvent): Promise<{ success: boolean; error?: string; path?: string; relativePath?: string }> {
     try {
       logger.info('Paste image requested');
 
@@ -270,9 +273,10 @@ class PasteHandler {
       await fs.writeFile(pathValidation.normalizedPath, buffer, { mode: 0o600 });
       clipboard.writeText('');
 
-      const relativePath = relativePrefix ? path.join(relativePrefix, filename) : undefined;
-      logger.info('Image saved successfully', { filepath: pathValidation.normalizedPath, relativePath });
-      return { success: true, path: pathValidation.normalizedPath, relativePath };
+      logger.info('Image saved successfully', { filepath: pathValidation.normalizedPath, relativePrefix });
+      const result: { success: boolean; path: string; relativePath?: string } = { success: true, path: pathValidation.normalizedPath };
+      if (relativePrefix) result.relativePath = path.join(relativePrefix, filename);
+      return result;
     } catch (error) {
       logger.error('Failed to handle paste image:', error);
       return { success: false, error: (error as Error).message };

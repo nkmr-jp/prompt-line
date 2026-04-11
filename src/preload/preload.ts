@@ -84,12 +84,15 @@ const ALLOWED_CHANNELS = [
   'get-agent-usage-bonuses',
   // Cache invalidation
   'invalidate-custom-search',
+  'get-custom-search-last-change',
   // Custom search command execution
   'execute-custom-search-command',
   // Settings update notification channel
   'settings-updated',
   // Custom search update notification channel
-  'custom-search-updated'
+  'custom-search-updated',
+  // Custom search command source error notification
+  'custom-search-command-error'
 ];
 
 // IPC channel validation with additional security checks
@@ -323,6 +326,9 @@ const electronAPI: ElectronAPI = {
     },
     executeCommand: async (command: string): Promise<CommandExecutionResult> => {
       return ipcRenderer.invoke('execute-custom-search-command', command);
+    },
+    getLastChangeTimestamp: async (): Promise<number> => {
+      return ipcRenderer.invoke('get-custom-search-last-change');
     }
   },
 
@@ -429,6 +435,12 @@ ipcRenderer.on('settings-updated', (_event, settings) => {
 ipcRenderer.on('custom-search-updated', () => {
   // eslint-disable-next-line no-undef
   window.dispatchEvent(new CustomEvent('custom-search-updated'));
+});
+
+// Listen for custom search command source errors and dispatch custom event
+ipcRenderer.on('custom-search-command-error', (_event: unknown, message: string) => {
+  // eslint-disable-next-line no-undef
+  window.dispatchEvent(new CustomEvent('custom-search-command-error', { detail: message }));
 });
 
 // Re-export ElectronAPI type for external usage

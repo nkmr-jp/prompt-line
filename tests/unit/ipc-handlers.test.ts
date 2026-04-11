@@ -108,7 +108,7 @@ vi.mock('../../src/config/app-config', () => {
             description: 'Test app'
         },
         paths: {
-            builtInCommandsDir: '/test/.prompt-line/built-in-commands'
+            agentBuiltInDir: '/test/.prompt-line/agent-built-in'
         },
         shortcuts: { main: 'Cmd+Shift+Space' },
         history: { maxItems: 50 },
@@ -159,7 +159,7 @@ describe('IPCHandlers', () => {
             updateSettings: vi.fn(),
             resetSettings: vi.fn(),
             getCustomSearchEntries: vi.fn(() => []),
-            getBuiltInCommandsSettings: vi.fn(() => undefined),
+            getAgentBuiltInSettings: vi.fn(() => undefined),
             // EventEmitter methods for hot reload
             on: vi.fn(),
             off: vi.fn(),
@@ -173,10 +173,10 @@ describe('IPCHandlers', () => {
             saveDirectory: vi.fn()
         };
 
-        const mockBuiltInCommandsManager = {
+        const mockPluginManager = {
             initialize: vi.fn(),
             destroy: vi.fn(),
-            getTargetDirectory: vi.fn(() => '/test/built-in-commands'),
+            getTargetDirectory: vi.fn(() => '/test/plugins'),
             on: vi.fn(),
             emit: vi.fn()
         };
@@ -187,7 +187,7 @@ describe('IPCHandlers', () => {
             mockDraftManager,
             mockDirectoryManager,
             mockSettingsManager,
-            mockBuiltInCommandsManager as any
+            mockPluginManager as any
         );
     });
 
@@ -214,7 +214,7 @@ describe('IPCHandlers', () => {
             const result = await handler!(null, 'test text');
 
             expect(result.success).toBe(true);
-            expect(mockHistoryManager.addToHistory).toHaveBeenCalledWith('test text', 'TestApp', undefined);
+            expect(mockHistoryManager.addToHistory).toHaveBeenCalledWith('test text', 'TestApp', undefined, undefined);
             expect(mockDraftManager.clearDraft).toHaveBeenCalled();
             expect(clipboard.writeText).toHaveBeenCalledWith('test text');
             expect(mockWindowManager.hideInputWindow).toHaveBeenCalled();
@@ -276,7 +276,7 @@ describe('IPCHandlers', () => {
             await handler!(null, 'test text');
 
             expect(mockDraftManager.clearDraft).toHaveBeenCalledTimes(1);
-            expect(mockHistoryManager.addToHistory).toHaveBeenCalledWith('test text', 'TestApp', undefined);
+            expect(mockHistoryManager.addToHistory).toHaveBeenCalledWith('test text', 'TestApp', undefined, undefined);
         });
 
         test('should clear draft even when paste fails', async () => {
@@ -294,7 +294,7 @@ describe('IPCHandlers', () => {
 
             expect(result.success).toBe(false);
             expect(mockDraftManager.clearDraft).toHaveBeenCalledTimes(1);
-            expect(mockHistoryManager.addToHistory).toHaveBeenCalledWith('test text', 'TestApp', undefined);
+            expect(mockHistoryManager.addToHistory).toHaveBeenCalledWith('test text', 'TestApp', undefined, undefined);
         });
 
         test('should not clear draft when text is empty', async () => {
@@ -654,11 +654,11 @@ describe('IPCHandlers', () => {
 
             ipcHandlers.removeAllHandlers();
 
-            // Should be called for each handler (count: 46 handlers)
+            // Should be called for each handler (count: 47 handlers)
             // paste-handler: 2, window-handler: 3, history-draft-handler: 14 (includes 2 at-path cache handlers + save-draft-to-history)
-            // system-handler: 5, file-handler: 4 (includes reveal-in-finder), custom-search-handler: 12 (includes has-command-file + 3 slash command cache handlers + invalidate-custom-search + execute-custom-search-command), code-search-handler: 1
+            // system-handler: 5, file-handler: 4 (includes reveal-in-finder), custom-search-handler: 13 (includes has-command-file + 3 slash command cache handlers + invalidate-custom-search + execute-custom-search-command + get-custom-search-last-change), code-search-handler: 1
             // usage-history-handler: 6 (record/get bonuses for file, symbol, agent)
-            expect(ipcMain.removeAllListeners).toHaveBeenCalledTimes(46);
+            expect(ipcMain.removeAllListeners).toHaveBeenCalledTimes(47);
             expect(logger.info).toHaveBeenCalledWith('All IPC handlers removed via coordinator');
         });
     });

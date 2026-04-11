@@ -11,7 +11,6 @@ Shared utility functions used across the application. Organized into specialized
 | `common.ts` | General utilities (debounce, JSON, ID generation) |
 | `security.ts` | Security utilities and error handling |
 | `file-utils.ts` | File system operations |
-| `rate-limiter.ts` | Rate limiting for abuse prevention |
 | `apple-script-sanitizer.ts` | AppleScript input sanitization |
 | `native-tools.ts` | Re-export hub for native tools |
 | `native-tools/` | Modular native tool integrations (paths, app-detection, paste-operations, directory-operations) |
@@ -40,9 +39,7 @@ Shared utility functions used across the application. Organized into specialized
 - AppleScript sanitization: 64KB limit, character escaping
 - Input size limit: 1MB (byte-based via `Buffer.byteLength()`)
 - Path normalization prevents directory traversal
-- Rate limiter uses token bucket algorithm
 
 ### Logger
 - Masks sensitive data (paths, tokens) in log output
-- File-based logging to `~/.prompt-line/app.log`
-- Max 5MB per file, 3 file rotation
+- File-based logging to `~/.prompt-line/app.log` (append-only)

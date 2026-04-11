@@ -36,12 +36,12 @@ describe('settings-yaml-generator', () => {
         const result = generateSettingsYaml(minimalSettings);
 
         expect(result).toContain('shortcuts:');
-        expect(result).toContain('main: Cmd+Shift+Space');
-        expect(result).toContain('paste: Cmd+Enter');
-        expect(result).toContain('close: Escape');
-        expect(result).toContain('historyNext: Ctrl+j');
-        expect(result).toContain('historyPrev: Ctrl+k');
-        expect(result).toContain('search: Cmd+f');
+        expect(result).toContain('Cmd+Shift+Space: main');
+        expect(result).toContain('Cmd+Enter: paste');
+        expect(result).toContain('Escape: close');
+        expect(result).toContain('Ctrl+j: historyNext');
+        expect(result).toContain('Ctrl+k: historyPrev');
+        expect(result).toContain('Cmd+f: search');
 
         expect(result).toContain('window:');
         expect(result).toContain('position: active-text-field');
@@ -72,11 +72,9 @@ describe('settings-yaml-generator', () => {
         expect(result).toContain('#extensions:');
         expect(result).toContain('#  ts: "WebStorm"');
 
-        // Should have commented builtInCommands section
-        expect(result).toContain('#builtInCommands:');
-
-        // Should have commented agentSkills section
-        expect(result).toContain('#agentSkills:');
+        // Deprecated sections should not appear when data is empty
+        expect(result).not.toContain('# AGENT BUILT-IN');
+        expect(result).not.toContain('# AGENT SKILLS');
 
         // Should have commented fileSearch and symbolSearch sections
         expect(result).toContain('#fileSearch:');
@@ -108,13 +106,12 @@ describe('settings-yaml-generator', () => {
               md: 'Typora'
             }
           },
-          builtInCommands: ['claude', 'codex'],
+          agentBuiltIn: ['claude', 'codex'],
           agentSkills: [
             {
               name: 'test-{basename}',
               description: 'Test command',
-              path: '~/.claude/test',
-              pattern: '*.md',
+              sourcePath: '~/.claude/test/*.md',
               argumentHint: 'Enter argument',
               maxSuggestions: 10
             }
@@ -139,8 +136,7 @@ describe('settings-yaml-generator', () => {
             {
               name: 'agent-{basename}',
               description: 'Agent files',
-              path: '~/.claude/agents',
-              pattern: '*.md',
+              sourcePath: '~/.claude/agents/*.md',
               searchPrefix: 'agent',
               maxSuggestions: 20,
               orderBy: 'name',
@@ -151,9 +147,9 @@ describe('settings-yaml-generator', () => {
 
         const result = generateSettingsYaml(fullSettings);
 
-        // Shortcuts
-        expect(result).toContain('main: Alt+Space');
-        expect(result).toContain('paste: Enter');
+        // Shortcuts (new format: key → action)
+        expect(result).toContain('Alt+Space: main');
+        expect(result).toContain('Enter: paste');
 
         // Window
         expect(result).toContain('position: cursor');
@@ -171,8 +167,7 @@ describe('settings-yaml-generator', () => {
         expect(result).toContain('- codex');
         expect(result).toContain('name: "test-{basename}"');
         expect(result).toContain('description: "Test command"');
-        expect(result).toContain('path: ~/.claude/test');
-        expect(result).toContain('pattern: "*.md"');
+        expect(result).toContain('sourcePath: ~/.claude/test/*.md');
         expect(result).toContain('argumentHint: "Enter argument"');
         expect(result).toContain('maxSuggestions: 10');
 
@@ -232,9 +227,8 @@ describe('settings-yaml-generator', () => {
         expect(result).toContain('# go: "Goland"');
         expect(result).toContain('# md: "Typora"');
 
-        // Should include commented builtInCommands examples
-        expect(result).toContain('# - codex');
-        expect(result).toContain('# - gemini');
+        // Deprecated sections should not appear when data is empty (even with commentedExamples)
+        expect(result).not.toContain('# AGENT BUILT-IN');
       });
 
       test('should add commented examples after active values', () => {
@@ -265,7 +259,7 @@ describe('settings-yaml-generator', () => {
         const settings: UserSettings = {
           shortcuts: defaultSettings.shortcuts,
           window: defaultSettings.window,
-          builtInCommands: [],
+          agentBuiltIn: [],
           agentSkills: [],
           fileSearch: {
             respectGitignore: true,
@@ -355,13 +349,12 @@ describe('settings-yaml-generator', () => {
         const settings: UserSettings = {
           shortcuts: defaultSettings.shortcuts,
           window: defaultSettings.window,
-          builtInCommands: ['claude'],
+          agentBuiltIn: ['claude'],
           agentSkills: [
             {
               name: 'test: command',
               description: 'Command with "quotes" and special chars',
-              path: '~/path/with spaces/commands',
-              pattern: '*.md'
+              sourcePath: '~/path/with spaces/commands/*.md'
             }
           ]
         };
@@ -377,13 +370,12 @@ describe('settings-yaml-generator', () => {
         const settings: UserSettings = {
           shortcuts: defaultSettings.shortcuts,
           window: defaultSettings.window,
-          builtInCommands: ['claude'],
+          agentBuiltIn: ['claude'],
           agentSkills: [
             {
               name: 'test',
               description: '',
-              path: '~/.claude/commands',
-              pattern: '*.md'
+              sourcePath: '~/.claude/commands/*.md'
             }
           ]
         };
@@ -416,9 +408,9 @@ describe('settings-yaml-generator', () => {
 
         const result = generateSettingsYaml(settings);
 
-        // Should have commented builtInCommands and agentSkills templates
-        expect(result).toContain('#builtInCommands:');
-        expect(result).toContain('#agentSkills:');
+        // Deprecated sections should not appear when data is empty
+        expect(result).not.toContain('# AGENT BUILT-IN');
+        expect(result).not.toContain('# AGENT SKILLS');
       });
 
       test('should handle missing fileSearch/symbolSearch/customSearch sections', () => {
@@ -429,26 +421,28 @@ describe('settings-yaml-generator', () => {
 
         const result = generateSettingsYaml(settings);
 
-        // Should have commented fileSearch, symbolSearch, customSearch templates
+        // Should have commented fileSearch, symbolSearch templates
         expect(result).toContain('#fileSearch:');
         expect(result).toContain('#symbolSearch:');
-        expect(result).toContain('#customSearch:');
+        // customSearch is deprecated — should not appear when empty
+        expect(result).not.toContain('# CUSTOM SEARCH');
       });
 
-      test('should handle builtInCommands without agentSkills', () => {
+      test('should handle agentBuiltIn without agentSkills', () => {
         const settings: UserSettings = {
           shortcuts: defaultSettings.shortcuts,
           window: defaultSettings.window,
-          builtInCommands: ['claude']
+          agentBuiltIn: ['claude']
           // No agentSkills
         };
 
         const result = generateSettingsYaml(settings);
 
-        expect(result).toContain('builtInCommands:');
+        // agentBuiltIn section should appear when data exists
+        expect(result).toContain('agentBuiltIn:');
         expect(result).toContain('- claude');
-        // agentSkills should be commented since not provided
-        expect(result).toContain('#agentSkills:');
+        // agentSkills section should not appear when data is empty
+        expect(result).not.toContain('# AGENT SKILLS');
       });
     });
 
@@ -489,13 +483,12 @@ describe('settings-yaml-generator', () => {
               md: 'Typora'
             }
           },
-          builtInCommands: ['claude', 'codex'],
+          agentBuiltIn: ['claude', 'codex'],
           agentSkills: [
             {
               name: '{basename}',
               description: 'Test',
-              path: '~/.claude/commands',
-              pattern: '*.md',
+              sourcePath: '~/.claude/commands/*.md',
               argumentHint: 'hint',
               maxSuggestions: 20
             }
@@ -518,8 +511,7 @@ describe('settings-yaml-generator', () => {
             {
               name: 'agent-{basename}',
               description: 'Test agent',
-              path: '~/.claude/agents',
-              pattern: '*.md',
+              sourcePath: '~/.claude/agents/*.md',
               searchPrefix: 'agent'
             }
           ]
@@ -535,11 +527,11 @@ describe('settings-yaml-generator', () => {
 
         const parsed = yaml.load(yamlContent) as any;
 
-        // Verify key sections are parsed correctly
-        expect(parsed.shortcuts.main).toBe('Alt+Space');
+        // Verify key sections are parsed correctly (new key→action format)
+        expect(parsed.shortcuts['Alt+Space']).toBe('main');
         expect(parsed.window.position).toBe('cursor');
         expect(parsed.fileOpener.defaultEditor).toBe('VSCode');
-        expect(parsed.builtInCommands).toEqual(['claude', 'codex']);
+        expect(parsed.agentBuiltIn).toEqual(['claude', 'codex']);
       });
 
       test('should preserve data types after round-trip parsing', () => {
@@ -590,31 +582,33 @@ describe('settings-yaml-generator', () => {
         const settings = { ...defaultSettings };
         const result = generateSettingsYaml(settings);
 
-        // Should include main header
-        expect(result).toContain('# Prompt Line Settings Configuration');
+        // Should include main header and docs link
+        expect(result).toContain('# Prompt Line Settings');
+        expect(result).toContain('# See:');
 
-        // Should include section headers
-        expect(result).toContain('# KEYBOARD SHORTCUTS');
-        expect(result).toContain('# WINDOW SETTINGS');
-        expect(result).toContain('# FILE OPENER SETTINGS');
-        expect(result).toContain('# BUILT-IN COMMANDS');
-        expect(result).toContain('# AGENT SKILLS SETTINGS');
-        expect(result).toContain('# CUSTOM SEARCH SETTINGS');
-        expect(result).toContain('# FILE SEARCH SETTINGS');
-        expect(result).toContain('# SYMBOL SEARCH SETTINGS');
+        // Should include section comments
+        expect(result).toContain('# Window:');
+        expect(result).toContain('# Shortcuts');
+        expect(result).toContain('# Plugins');
+        expect(result).toContain('# File opener');
+        expect(result).toContain('# File search');
+        expect(result).toContain('# Symbol search');
+        // Deprecated sections should not appear with default (empty) settings
+        expect(result).not.toContain('# AGENT BUILT-IN');
+        expect(result).not.toContain('# AGENT SKILLS');
+        expect(result).not.toContain('# CUSTOM SEARCH');
       });
 
       test('should have proper indentation for nested structures', () => {
         const settings: UserSettings = {
           shortcuts: defaultSettings.shortcuts,
           window: defaultSettings.window,
-          builtInCommands: ['claude'],
+          agentBuiltIn: ['claude'],
           agentSkills: [
             {
               name: 'test',
               description: 'desc',
-              path: '~/.claude/commands',
-              pattern: '*.md'
+              sourcePath: '~/.claude/commands/*.md'
             }
           ]
         };
@@ -622,7 +616,7 @@ describe('settings-yaml-generator', () => {
         const result = generateSettingsYaml(settings);
 
         // Check indentation patterns
-        expect(result).toContain('builtInCommands:');
+        expect(result).toContain('agentBuiltIn:');
         expect(result).toContain('  - claude');
         expect(result).toContain('agentSkills:');
         expect(result).toContain('  - name: "test"');
@@ -651,8 +645,7 @@ describe('settings-yaml-generator', () => {
             {
               name: 'agent-{basename}',
               description: 'Test',
-              path: '~/.claude/agents',
-              pattern: '*.md',
+              sourcePath: '~/.claude/agents/*.md',
               searchPrefix: 'agent',
               inputFormat: '{filepath}'
             }
@@ -661,11 +654,11 @@ describe('settings-yaml-generator', () => {
 
         const result = generateSettingsYaml(settings);
 
-        // Should include helpful inline comments
-        expect(result).toMatch(/respectGitignore:.*# Respect .gitignore files/);
-        expect(result).toMatch(/includeHidden:.*# Include hidden files/);
-        expect(result).toMatch(/searchPrefix: agent.*# Search with @agent:/);
-        expect(result).toMatch(/inputFormat: \{filepath\}.*# Insert format template/);
+        // Should include key fields
+        expect(result).toContain('respectGitignore:');
+        expect(result).toContain('includeHidden:');
+        expect(result).toMatch(/searchPrefix: agent/);
+        expect(result).toMatch(/inputFormat: \{filepath\}/);
       });
     });
 
@@ -692,8 +685,7 @@ describe('settings-yaml-generator', () => {
             {
               name: 'test-{basename}',
               description: 'Test description',
-              path: '~/.test/path',
-              pattern: '**/*.md',
+              sourcePath: '~/.test/path/**/*.md',
               searchPrefix: 'test',
               maxSuggestions: 100,
               orderBy: 'name desc',
@@ -706,8 +698,7 @@ describe('settings-yaml-generator', () => {
 
         expect(result).toContain('- name: "test-{basename}"');
         expect(result).toContain('description: "Test description"');
-        expect(result).toContain('path: ~/.test/path');
-        expect(result).toContain('pattern: "**/*.md"');
+        expect(result).toContain('sourcePath: ~/.test/path/**/*.md');
         expect(result).toContain('searchPrefix: test');
         expect(result).toContain('maxSuggestions: 100');
         expect(result).toContain('orderBy: "name desc"');
@@ -736,8 +727,7 @@ describe('settings-yaml-generator', () => {
             {
               name: 'simple',
               description: 'Simple entry',
-              path: '~/.simple',
-              pattern: '*.md'
+              sourcePath: '~/.simple/*.md'
             }
           ]
         };
@@ -746,8 +736,7 @@ describe('settings-yaml-generator', () => {
 
         expect(result).toContain('- name: "simple"');
         expect(result).toContain('description: "Simple entry"');
-        expect(result).toContain('path: ~/.simple');
-        expect(result).toContain('pattern: "*.md"');
+        expect(result).toContain('sourcePath: ~/.simple/*.md');
 
         // The result will still contain "searchPrefix:" in the commented help text
         // Verify that optional fields are not present in the entry by checking for
@@ -927,20 +916,17 @@ describe('settings-yaml-generator', () => {
           {
             name: 'entry1',
             description: 'First entry',
-            path: '~/.path1',
-            pattern: '*.md'
+            sourcePath: '~/.path1/*.md'
           },
           {
             name: 'entry2',
             description: 'Second entry',
-            path: '~/.path2',
-            pattern: '**/*.md'
+            sourcePath: '~/.path2/**/*.md'
           },
           {
             name: 'entry3',
             description: 'Third entry',
-            path: '~/.path3',
-            pattern: 'test-*.md'
+            sourcePath: '~/.path3/test-*.md'
           }
         ];
 

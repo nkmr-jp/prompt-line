@@ -207,19 +207,19 @@ class HistoryManager implements IHistoryManager {
     }, 100);
   }
 
-  async addToHistory(text: string, appName?: string, directory?: string): Promise<HistoryItem | null> {
+  async addToHistory(text: string, appName?: string, directory?: string, itermSessionId?: string): Promise<HistoryItem | null> {
     try {
       const trimmedText = text.trim();
       if (!trimmedText) {
         return null;
       }
 
-      const duplicateResult = this.handleDuplicateUpdate(trimmedText, appName, directory);
+      const duplicateResult = this.handleDuplicateUpdate(trimmedText, appName, directory, itermSessionId);
       if (duplicateResult) {
         return duplicateResult;
       }
 
-      const historyItem = this.createHistoryItem(trimmedText, appName, directory);
+      const historyItem = this.createHistoryItem(trimmedText, appName, directory, itermSessionId);
       this.addItemToCache(historyItem);
 
       return historyItem;
@@ -236,7 +236,8 @@ class HistoryManager implements IHistoryManager {
   private handleDuplicateUpdate(
     trimmedText: string,
     appName?: string,
-    directory?: string
+    directory?: string,
+    itermSessionId?: string
   ): HistoryItem | null {
     // Only check the most recent item
     const latestItem = this.recentCache[0];
@@ -245,6 +246,7 @@ class HistoryManager implements IHistoryManager {
       latestItem.timestamp = Date.now();
       if (appName) latestItem.appName = appName;
       if (directory) latestItem.directory = directory;
+      if (itermSessionId) latestItem.itermSessionId = itermSessionId;
       return latestItem;
     }
     return null;
@@ -253,13 +255,14 @@ class HistoryManager implements IHistoryManager {
   /**
    * Create a new history item
    */
-  private createHistoryItem(text: string, appName?: string, directory?: string): HistoryItem {
+  private createHistoryItem(text: string, appName?: string, directory?: string, itermSessionId?: string): HistoryItem {
     return {
       text,
       timestamp: Date.now(),
       id: generateId(),
       ...(appName && { appName }),
-      ...(directory && { directory })
+      ...(directory && { directory }),
+      ...(itermSessionId && { itermSessionId })
     };
   }
 

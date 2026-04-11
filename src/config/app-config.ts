@@ -106,8 +106,17 @@ class AppConfigClass {
       get projectsCacheDir() {
         return path.join(userDataDir, 'cache', 'projects');
       },
-      get builtInCommandsDir() {
-        return path.join(userDataDir, 'built-in-commands');
+      get agentBuiltInDir() {
+        return path.join(userDataDir, 'agent-built-in');
+      },
+      get pluginsDir() {
+        return path.join(userDataDir, 'plugins');
+      },
+      get agentSkillsDir() {
+        return path.join(userDataDir, 'agent-skills');
+      },
+      get customSearchDir() {
+        return path.join(userDataDir, 'custom-search');
       }
     };
 

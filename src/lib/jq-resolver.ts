@@ -9,6 +9,7 @@ import { logger } from '../utils/utils';
 // jq-web の型定義
 interface JqInstance {
   json(data: unknown, expression: string): unknown;
+  raw(jsonstring: string, filter: string, flags: string[]): string | undefined;
 }
 
 let jqInstance: JqInstance | null = null;
@@ -40,12 +41,12 @@ async function getJqInstance(): Promise<JqInstance> {
 
   if (!jqInitPromise) {
     jqInitPromise = (async () => {
-      logger.debug('jq-web: initializing WASM module...');
+      // logger.debug('jq-web: initializing WASM module...');
       try {
         const jqModule = require('jq-web');
         const instance = await jqModule;
         jqInstance = instance;
-        logger.debug('jq-web: initialized successfully');
+        // logger.debug('jq-web: initialized successfully');
         return instance;
       } catch (error) {
         logger.error('jq-web: WASM initialization failed', { error: error instanceof Error ? error.message : String(error) });
@@ -56,6 +57,28 @@ async function getJqInstance(): Promise<JqInstance> {
   }
 
   return jqInitPromise;
+}
+
+/** jq-web raw() に渡すフラグ（compact output） */
+const JQ_RAW_FLAGS = ['-c'];
+
+/**
+ * jq-web の json() を安全にラップする
+ * jq-web の json() は内部で raw().trim() を呼ぶが、select() でフィルタアウトされた場合
+ * raw() が undefined を返し、undefined.trim() で TypeError が発生する。
+ * この関数は raw() を直接呼び、undefined を安全にハンドリングする。
+ */
+function safeJqJson(jq: JqInstance, data: unknown, expression: string): unknown {
+  const jsonstring = JSON.stringify(data);
+  const rawResult = jq.raw(jsonstring, expression, JQ_RAW_FLAGS);
+  if (rawResult === undefined || rawResult === null) return undefined;
+  const trimmed = rawResult.trim();
+  if (!trimmed) return undefined;
+
+  if (trimmed.includes('\n')) {
+    return trimmed.split('\n').filter(Boolean).map(line => JSON.parse(line));
+  }
+  return JSON.parse(trimmed);
 }
 
 /**
@@ -76,8 +99,12 @@ export async function evaluateJq(data: unknown, expression: string, cacheKey?: s
 
   try {
     const jq = await getJqInstance();
-    const result = jq.json(data, expression);
-    logger.debug('jq evaluation success', { expression, resultType: typeof result, isArray: Array.isArray(result) });
+    const result = safeJqJson(jq, data, expression);
+    if (result === undefined) {
+      // select() filtered out the data — expected, not an error
+      return null;
+    }
+    // logger.debug('jq evaluation success', { expression, resultType: typeof result, isArray: Array.isArray(result) });
     return result;
   } catch (error) {
     logger.warn('jq evaluation failed', { expression, error: error instanceof Error ? error.message : String(error) });

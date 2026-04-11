@@ -1,0 +1,69 @@
+# Prompt Line Settings
+# See: https://github.com/nkmr-jp/prompt-line/docs/en/settings.md
+
+# Window: active-text-field | active-window-center | cursor | center
+window:
+  position: active-text-field
+  width: 640
+  height: 320
+
+# Shortcuts (key → action)
+shortcuts:
+  Cmd+Shift+Space: main             # Show/hide the input window (global)
+  Cmd+Enter: paste                  # Paste text and close window
+  Escape: close                     # Close window without pasting
+  Ctrl+j: historyNext               # Navigate to next history item
+  Ctrl+k: historyPrev               # Navigate to previous history item
+  Cmd+f: search                     # Enable search mode in history
+  # Ctrl+m: "input=@md:"  # Custom action (e.g. input text field "input=xxx")
+  # Ctrl+g: "input=@ghq:"
+
+# Plugins (refs: `prompt-line-plugin help`)
+#plugins:
+#  github.com/nkmr-jp/prompt-line-plugins:
+#    - claude/agent-built-in/en                  # Claude Code built-in commands,skills,agents | lang: en,ja
+#    - claude/agent-skills/commands              # sourcePath: ~/.claude/commands/*.md
+#    - claude/agent-skills/skills                # sourcePath: ~/.claude/skills/**/SKILL.md
+#    - claude/custom-search/agents@agent         # sourcePath: ~/.claude/agents/*.md
+#    - claude/custom-search/history@r            # sourcePath: ~/.claude/history.jsonl
+
+# File opener (priority: extensions > directories > defaultEditor > system default)
+fileOpener:
+  defaultEditor: null
+  extensions:
+    png: "Preview"
+    pdf: "Preview"
+    # go: "Goland"
+    # md: "Typora"
+  #directories:                      # Directory-specific editors (supports glob: * and **)
+  #  - path: "~/ghq/github.com/my-org/my-go*"
+  #    editor: "GoLand"
+
+# Image storage directory (default: ~/.prompt-line/images/)
+#imagesDirectory: .prompt-line/images
+
+# File search (@path/to/file) — requires fd (brew install fd)
+fileSearch:
+  respectGitignore: true
+  includeHidden: true
+  maxFiles: 100000
+  maxDepth: null
+  maxSuggestions: 50
+  followSymlinks: false
+  #fdPath: null                    # Custom path to fd
+  includePatterns: []
+  excludePatterns: []
+
+# Symbol search (@lang:query) — requires ripgrep (brew install ripgrep)
+symbolSearch:
+  respectGitignore: true
+  maxSymbols: 200000
+  timeout: 60000
+  #rgPath: null                    # Custom path to rg
+  includePatterns: []
+  excludePatterns: []
+
+# Additional PATH entries for shell command execution (e.g., sourceCommand)
+#additionalPaths:
+#  - /opt/local/bin
+#  - ~/my-tools/bin

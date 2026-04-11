@@ -188,7 +188,7 @@
 }
 
 .highlight-backdrop .agent-skill-highlight.agent-skill-source-custom {
-    background: oklch(from var(--color-purple-400) l c h / 0.25);
+    background: oklch(from var(--color-teal-400) l c h / 0.25);
 }
 
 /* Color based highlights (takes priority over source) */

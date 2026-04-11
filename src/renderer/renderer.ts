@@ -52,11 +52,13 @@ export class PromptLineRenderer {
   private pendingWindowData: WindowData | null = null;
   // Stored handler reference for cleanup
   private customSearchUpdateHandler: (() => void) | null = null;
+  private commandErrorHandler: ((e: Event) => void) | null = null;
   private initCompleted: boolean = false;
   // Throttle timeout for mousemove events
   private mouseMoveThrottleTimeout: number | null = null;
   // Last search term that was rendered (for render skip optimization)
   private _lastRenderedSearchTerm: string = '';
+  private lastCustomSearchChangeTimestamp: number = 0;
 
   constructor() {
     this.domManager = new DomManager();
@@ -339,8 +341,16 @@ export class PromptLineRenderer {
     this.customSearchUpdateHandler = () => {
       this.agentSkillManager?.invalidateCache();
       this.fileSearchManager?.clearAgentsCache();
+      this.agentSkillManager?.prefetchSkills();
     };
     window.addEventListener('custom-search-updated', this.customSearchUpdateHandler);
+
+    // Listen for custom search command source errors
+    this.commandErrorHandler = (e: Event) => {
+      const message = (e as CustomEvent<string>).detail;
+      this.domManager.showError(message, 4000);
+    };
+    window.addEventListener('custom-search-command-error', this.commandErrorHandler);
   }
 
   private async handleKeyDown(e: KeyboardEvent): Promise<void> {
@@ -510,12 +520,19 @@ export class PromptLineRenderer {
       return;
     }
 
-    // Invalidate renderer-side agent skill cache
-    this.agentSkillManager?.invalidateCache();
-
-    // Invalidate main process CustomSearchLoader cache in background (fire-and-forget)
-    // This ensures fresh data on next query without blocking window display
-    electronAPI.invoke('invalidate-custom-search').catch(() => {});
+    try {
+      const lastChange = await electronAPI.customSearch.getLastChangeTimestamp();
+      if (lastChange > this.lastCustomSearchChangeTimestamp) {
+        this.lastCustomSearchChangeTimestamp = lastChange;
+        this.agentSkillManager?.invalidateCache();
+        this.fileSearchManager?.clearAgentsCache();
+        this.agentSkillManager?.prefetchSkills();
+      }
+    } catch {
+      this.agentSkillManager?.invalidateCache();
+      this.fileSearchManager?.clearAgentsCache();
+      electronAPI.invoke('invalidate-custom-search').catch(() => {});
+    }
 
     await this.directoryDataHandler.handleWindowShown(data);
   }
@@ -609,13 +626,12 @@ export class PromptLineRenderer {
   private updateCustomSearchShortcuts(): void {
     const shortcuts: Array<{ shortcut: string; triggerText: string }> = [];
 
-    if (this.userSettings?.customSearch) {
-      for (const entry of this.userSettings.customSearch) {
-        if (entry.shortcut && entry.searchPrefix) {
-          shortcuts.push({
-            shortcut: entry.shortcut,
-            triggerText: `@${entry.searchPrefix}:`
-          });
+    // Settings custom shortcuts (from {key: action} format, e.g., Ctrl+m: "input=@md:")
+    if (this.userSettings?.customShortcuts) {
+      for (const { key, action } of this.userSettings.customShortcuts) {
+        if (action.startsWith('input=')) {
+          const triggerText = action.slice('input='.length);
+          shortcuts.push({ shortcut: key, triggerText });
         }
       }
     }
@@ -729,6 +745,10 @@ export class PromptLineRenderer {
     if (this.customSearchUpdateHandler) {
       window.removeEventListener('custom-search-updated', this.customSearchUpdateHandler);
       this.customSearchUpdateHandler = null;
+    }
+    if (this.commandErrorHandler) {
+      window.removeEventListener('custom-search-command-error', this.commandErrorHandler);
+      this.commandErrorHandler = null;
     }
   }
 }

@@ -1,0 +1,115 @@
+# 設定リファレンス
+
+Prompt Line 設定ファイル: `~/.prompt-line/settings.yaml`
+
+設定はホットリロード対応（300msデバウンス）で、再起動不要で反映されます。
+
+## ウィンドウ
+
+ウィンドウのサイズと表示位置。`position` の設定に基づいて、アクティブなコンテキストの近くに表示されます。
+
+```yaml
+window:
+  position: active-text-field   # ウィンドウの表示位置（下記参照）
+  width: 640                    # 推奨: 400-800 ピクセル
+  height: 320                   # 推奨: 200-400 ピクセル
+```
+
+**位置オプション:**
+- `active-text-field` — フォーカス中のテキストフィールド付近（デフォルト、`active-window-center` にフォールバック）
+- `active-window-center` — アクティブウィンドウの中央
+- `cursor` — マウスカーソルの位置
+- `center` — プライマリディスプレイの中央
+
+## ショートカット
+
+フォーマット: `キー: アクション`（例: `Cmd+Shift+Space: main`）
+
+```yaml
+shortcuts:
+  Cmd+Shift+Space: main    # 入力ウィンドウの表示/非表示（グローバル）
+  Cmd+Enter: paste          # テキストを貼り付けてウィンドウを閉じる
+  Escape: close             # 貼り付けずにウィンドウを閉じる
+  Ctrl+j: historyNext       # 次の履歴項目へ移動
+  Ctrl+k: historyPrev       # 前の履歴項目へ移動
+  Cmd+f: search             # 履歴の検索モードを有効化
+  # カスタムアクション
+  Ctrl+m: "input=@md:"      # 入力欄に @md: を挿入
+  Ctrl+g: "input=@ghq:"     # 入力欄に @ghq: を挿入
+```
+
+**組み込みアクション:** `main`, `paste`, `close`, `historyNext`, `historyPrev`, `search`
+
+**カスタムアクション:** `input=<テキスト>` — 入力欄にテキストを挿入して検索をトリガー。
+
+**使用可能な修飾キー:** `Cmd`, `Ctrl`, `Alt`, `Shift`
+
+## プラグイン
+
+使いたいエントリを追加してください。セットアップ、プラグイン作成、YAMLリファレンスは[プラグインガイド](plugins.md)を参照。
+
+```yaml
+plugins:
+  github.com/nkmr-jp/prompt-line-plugins:
+    - claude/agent-built-in/en                  # 組み込みコマンド、スキル、エージェント | lang: en,ja
+    - claude/agent-skills/commands              # sourcePath: ~/.claude/commands/*.md
+    - claude/agent-skills/skills                # sourcePath: ~/.claude/skills/**/SKILL.md
+    - claude/custom-search/agents@agent         # sourcePath: ~/.claude/agents/*.md
+    - claude/custom-search/history@r            # sourcePath: ~/.claude/history.jsonl
+```
+
+## 画像ストレージ
+
+画像保存ディレクトリ。相対パスはCWDを基準に解決。未設定時は `~/.prompt-line/images/`。ヒント: 相対パスを使用する場合は `.gitignore` に追加してください。
+
+```yaml
+imagesDirectory: .prompt-line/images
+```
+
+## ファイル検索
+
+入力欄で `@` を入力すると起動。`fd` が必要（`brew install fd`）。
+
+```yaml
+fileSearch:
+  respectGitignore: true    # .gitignore を尊重（fd のみ）
+  includeHidden: true       # 隠しファイルを含む（.で始まるファイル）
+  maxFiles: 100000          # インデックスするファイルの最大数
+  maxDepth: null            # ディレクトリ深度制限（null = 無制限）
+  maxSuggestions: 50        # ポップアップに表示する最大サジェスト数
+  followSymlinks: false     # シンボリックリンクをたどる
+  #fdPath: null             # fd のカスタムパス（null = 自動検出）
+  includePatterns: []       # .gitignore でも強制的に含める（例: ["*.log", "dist/**"]）
+  excludePatterns: []       # 追加の除外パターン（例: ["node_modules", "*.min.js"]）
+```
+
+## シンボル検索
+
+`@lang:query` と入力すると起動（例: `@ts:Config`, `@go:Handler`）。`ripgrep` が必要（`brew install ripgrep`）。スペース区切りでAND検索（例: `@ts:Config util`）。
+
+```yaml
+symbolSearch:
+  respectGitignore: true    # .gitignore を尊重
+  maxSymbols: 200000        # インデックスするシンボルの最大数
+  timeout: 60000            # 検索タイムアウト（ミリ秒）
+  #rgPath: null             # rg のカスタムパス（null = 自動検出）
+  includePatterns: []       # 強制的に含める（例: ["*.test.ts", "vendor/**"]）
+  excludePatterns: []       # 追加の除外（例: ["*.generated.go"]）
+```
+
+## ファイルオープナー
+
+ファイルリンク（`@path` 参照のCmd+クリック）を開くアプリケーションを設定。優先順位: `extensions` > `directories` > `defaultEditor` > システムデフォルト。
+
+```yaml
+fileOpener:
+  defaultEditor: "Visual Studio Code"   # null = システムデフォルト（macOS "open" コマンド）
+  extensions:                           # 拡張子別アプリ（defaultEditorより優先）
+    go: "GoLand"
+    py: "PyCharm"
+    png: "Preview"
+    pdf: "Preview"
+  directories:                          # ディレクトリ別エディタ（glob: ~, *, **）
+    - path: "~/ghq/github.com/my-org/my-go*"
+      editor: "GoLand"
+```

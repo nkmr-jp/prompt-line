@@ -51,6 +51,7 @@ export type {
   FileOpenerDirectoryEntry,
   // Color types
   ColorValue,
+  PluginFormat,
   // Mention settings types (@ mentions)
   FileSearchUserSettings,
   SymbolSearchUserSettings,
@@ -69,6 +70,10 @@ export type {
   CustomSearchEntry,
   CustomSearchItem,
   AgentItem,
+  // Plugin path parsing
+  ParsedPluginEntry,
+  // Custom shortcuts
+  CustomShortcutEntry,
 } from './window';
 
 // IPC communication types

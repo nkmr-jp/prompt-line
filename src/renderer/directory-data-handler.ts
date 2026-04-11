@@ -153,7 +153,7 @@ export class DirectoryDataHandler {
           const formattedPath = this.formatDirectoryPath(data.directoryData.directory);
           // If file limit reached, show limit message instead of path
           if (data.directoryData.fileLimitReached) {
-            const limitMessage = `Over ${data.directoryData.maxFiles || 5000} files (adjust settings.yml)`;
+            const limitMessage = `Over ${data.directoryData.maxFiles || 5000} files (adjust settings.yaml)`;
             this.callbacks.setDefaultHintText(limitMessage);
             this.callbacks.updateHintText(limitMessage);
           } else {
@@ -239,7 +239,7 @@ export class DirectoryDataHandler {
         const formattedPath = this.formatDirectoryPath(data.directory);
         // If file limit reached, show limit message instead of path
         if (data.fileLimitReached) {
-          const limitMessage = `Over ${data.maxFiles || 5000} files (adjust settings.yml)`;
+          const limitMessage = `Over ${data.maxFiles || 5000} files (adjust settings.yaml)`;
           this.callbacks.setDefaultHintText(limitMessage);
           this.callbacks.updateHintText(limitMessage);
         } else {

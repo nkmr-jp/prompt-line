@@ -2,14 +2,15 @@ import { IpcMainInvokeEvent, BrowserWindow } from 'electron';
 import { logger } from '../utils/utils';
 import type CustomSearchLoader from '../managers/custom-search-loader';
 import type SettingsManager from '../managers/settings-manager';
-import type BuiltInCommandsManager from '../managers/built-in-commands-manager';
+import type PluginManager from '../managers/plugin-manager';
 import type { AgentSkillItem, AgentItem } from '../types';
 import type { CommandExecutionResult } from '../types/ipc';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import builtInCommandsLoader from '../lib/built-in-commands-loader';
+import pluginLoader from '../lib/plugin-loader';
 import { agentSkillCacheManager } from '../managers/agent-skill-cache-manager';
-import type { IPCResult } from './handler-utils';
+import type { IPCResult } from '../types';
+import { getEnhancedEnv } from '../utils/shell-env';
 
 /**
  * CustomSearchHandler manages all IPC handlers related to MD search functionality.
@@ -22,21 +23,24 @@ class CustomSearchHandler {
   constructor(
     customSearchLoader: CustomSearchLoader,
     settingsManager: SettingsManager,
-    builtInCommandsManager: BuiltInCommandsManager
+    pluginManagerInstance: PluginManager
   ) {
     this.customSearchLoader = customSearchLoader;
     this.settingsManager = settingsManager;
 
     // Subscribe to settings changes for hot reload
     settingsManager.on('settings-changed', () => {
+      pluginLoader.clearCache();
       this.updateConfig();
       logger.debug('CustomSearch config updated via hot reload');
     });
 
-    // Subscribe to built-in commands changes for hot reload
-    builtInCommandsManager.on('commands-changed', () => {
-      logger.debug('Built-in commands updated via hot reload');
-      // Cache is already cleared by the manager, next request will trigger reload
+    // Subscribe to plugin/standalone file changes for hot reload
+    pluginManagerInstance.on('plugins-changed', () => {
+      pluginLoader.clearCache();
+      this.customSearchLoader.invalidateCache();
+      this.updateConfig();
+      logger.debug('Plugins updated via hot reload');
       this.notifyRenderer();
     });
 
@@ -44,6 +48,12 @@ class CustomSearchHandler {
     customSearchLoader.on('source-changed', () => {
       logger.debug('CustomSearch source files changed via hot reload');
       this.notifyRenderer();
+    });
+
+    // Subscribe to command source errors for UI notification
+    customSearchLoader.on('command-error', ({ message }: { message: string }) => {
+      logger.warn('CustomSearch command source error:', message);
+      this.notifyRendererError(message);
     });
 
     // Initial config load
@@ -63,6 +73,8 @@ class CustomSearchHandler {
     ipcMain.handle('get-custom-search-prefixes', this.handleGetCustomSearchPrefixes.bind(this));
     // Cache invalidation handler (called by renderer on window-shown)
     ipcMain.handle('invalidate-custom-search', this.handleInvalidateCustomSearch.bind(this));
+    // Last change timestamp (for conditional invalidation)
+    ipcMain.handle('get-custom-search-last-change', this.handleGetLastChange.bind(this));
     // Agent skill cache handlers
     ipcMain.handle('register-global-agent-skill', this.handleRegisterGlobalAgentSkill.bind(this));
     ipcMain.handle('get-global-agent-skills', this.handleGetGlobalAgentSkills.bind(this));
@@ -83,6 +95,7 @@ class CustomSearchHandler {
       'get-custom-search-max-suggestions',
       'get-custom-search-prefixes',
       'invalidate-custom-search',
+      'get-custom-search-last-change',
       'register-global-agent-skill',
       'get-global-agent-skills',
       'get-usage-bonuses',
@@ -105,23 +118,25 @@ class CustomSearchHandler {
     if (customSearchEntries && customSearchEntries.length > 0) {
       this.customSearchLoader.updateConfig(customSearchEntries);
     }
+    this.customSearchLoader.updateSettings(this.settingsManager.getSettings());
   }
+
 
   /**
    * Handler: get-agent-skills
    * Retrieves agent skills with optional query filtering
-   * Merges built-in commands (from YAML) with user commands (from MD files)
+   * Merges agent built-in (from YAML) with user commands (from MD files)
    */
   private async handleGetAgentSkills(
     _event: IpcMainInvokeEvent,
     query?: string
   ): Promise<AgentSkillItem[]> {
     try {
-      // Get built-in commands settings (supports both new and legacy format)
-      const builtInSettings = this.settingsManager.getBuiltInCommandsSettings();
-
-      // Get built-in commands from YAML files (respects enabled/tools settings)
-      const builtInCommands = builtInCommandsLoader.searchCommands(query, builtInSettings);
+      const enabledPlugins = this.settingsManager.getPluginSettings();
+      const pluginPaths = enabledPlugins.map(p => p.path);
+      const pluginCommands = pluginLoader.searchAgentBuiltIn(pluginPaths, query);
+      const legacyCommands = pluginLoader.searchLegacyAgentBuiltIn(this.settingsManager.getAgentBuiltInSettings(), query);
+      const agentBuiltIn = [...pluginCommands, ...legacyCommands];
 
       // Get user commands from CustomSearchLoader (MD files)
       const items = query
@@ -167,12 +182,12 @@ class CustomSearchHandler {
         return cmd;
       });
 
-      // Merge: built-in commands first, then custom commands
+      // Merge: agent built-in first, then custom commands
       // Commands with same name but different sources or labels are kept
       const commandMap = new Map<string, AgentSkillItem>();
 
-      // Add built-in commands first
-      for (const cmd of builtInCommands) {
+      // Add agent built-in first
+      for (const cmd of agentBuiltIn) {
         const key = `${cmd.name}:${cmd.source || ''}:${cmd.label || ''}`;
         commandMap.set(key, cmd);
       }
@@ -225,7 +240,7 @@ class CustomSearchHandler {
   /**
    * Handler: has-command-file
    * Checks if a command has an individual file (user-defined commands only)
-   * Built-in commands share a YAML file, so they don't have individual files
+   * Agent built-in share a YAML file, so they don't have individual files
    */
   private async handleHasCommandFile(
     _event: IpcMainInvokeEvent,
@@ -236,14 +251,13 @@ class CustomSearchHandler {
         return false;
       }
 
-      // Check if this is a built-in command
-      const builtInSettings = this.settingsManager.getBuiltInCommandsSettings();
-      if (builtInSettings) {
-        const builtInCommands = builtInCommandsLoader.searchCommands(undefined, builtInSettings);
-        const isBuiltIn = builtInCommands.some(cmd => cmd.name === commandName);
-        if (isBuiltIn) {
-          return false; // Built-in commands don't have individual files
-        }
+      const enabledPlugins = this.settingsManager.getPluginSettings();
+      const pluginPaths = enabledPlugins.map(p => p.path);
+      const pluginCommands = pluginLoader.searchAgentBuiltIn(pluginPaths);
+      const legacyCommands = pluginLoader.searchLegacyAgentBuiltIn(this.settingsManager.getAgentBuiltInSettings());
+      const isBuiltIn = [...pluginCommands, ...legacyCommands].some(cmd => cmd.name === commandName);
+      if (isBuiltIn) {
+        return false; // Agent built-in don't have individual files
       }
 
       // Check if this is a user-defined command (custom)
@@ -266,11 +280,16 @@ class CustomSearchHandler {
     query?: string
   ): Promise<AgentItem[]> {
     try {
+      // Get agent-built-in agents from plugin YAML files
+      const enabledPlugins = this.settingsManager.getPluginSettings();
+      const pluginPaths = enabledPlugins.map(p => p.path);
+      const builtInAgents = pluginLoader.searchAgentBuiltInAgents(pluginPaths, query);
+
       // Get mentions (agents) from CustomSearchLoader
       // Always use searchItems to apply searchPrefix filtering, even for empty query
       const items = await this.customSearchLoader.searchItems('mention', query ?? '');
       // Convert CustomSearchItem to AgentItem for backward compatibility
-      const agents: AgentItem[] = items.map(item => {
+      const customAgents: AgentItem[] = items.map(item => {
         const agent: AgentItem = {
           name: item.name,
           description: item.description,
@@ -300,13 +319,24 @@ class CustomSearchHandler {
         if (item.displayTime !== undefined) {
           agent.displayTime = item.displayTime;
         }
-        if (item.command) {
-          agent.command = item.command;
+        if (item.runCommand) {
+          agent.runCommand = item.runCommand;
         }
         return agent;
       });
 
-      return agents;
+      // Merge: built-in first, custom agents can override built-in with same name:label key
+      const agentMap = new Map<string, AgentItem>();
+      for (const agent of builtInAgents) {
+        const key = `${agent.name}:${agent.label || ''}`;
+        agentMap.set(key, agent);
+      }
+      for (const agent of customAgents) {
+        const key = `${agent.name}:${agent.label || ''}`;
+        agentMap.set(key, agent);
+      }
+
+      return Array.from(agentMap.values());
     } catch (error) {
       logger.error('Failed to get agents:', error);
       return [];
@@ -387,14 +417,31 @@ class CustomSearchHandler {
   }
 
   /**
+   * Handler: get-custom-search-last-change
+   * Returns the timestamp of the last cache invalidation.
+   * Used by renderer to skip unnecessary invalidation on window-shown.
+   */
+  private handleGetLastChange(): number {
+    return this.customSearchLoader.getLastChangeTimestamp();
+  }
+
+  /**
    * Notify renderer that custom search data has changed
    */
-  private notifyRenderer(): void {
+  private broadcastToWindows(channel: string, ...args: unknown[]): void {
     BrowserWindow.getAllWindows().forEach(win => {
       if (!win.isDestroyed()) {
-        win.webContents.send('custom-search-updated');
+        win.webContents.send(channel, ...args);
       }
     });
+  }
+
+  private notifyRenderer(): void {
+    this.broadcastToWindows('custom-search-updated');
+  }
+
+  private notifyRendererError(message: string): void {
+    this.broadcastToWindows('custom-search-command-error', message);
   }
 
   // Agent skill cache handlers
@@ -488,8 +535,8 @@ class CustomSearchHandler {
         this.customSearchLoader.getItems('mention'),
         this.customSearchLoader.getItems('command'),
       ]);
-      const isAuthorized = mentionItems.some(item => item.command === command)
-        || commandItems.some(item => item.command === command);
+      const isAuthorized = mentionItems.some(item => item.runCommand === command)
+        || commandItems.some(item => item.runCommand === command);
       if (!isAuthorized) {
         logger.warn('Unauthorized command execution attempt blocked', { commandLength: command.length });
         return { success: false, error: 'Command not authorized' };
@@ -498,7 +545,7 @@ class CustomSearchHandler {
       const execAsync = promisify(exec);
       const { stdout, stderr } = await execAsync(command, {
         timeout: 30000,
-        env: { ...process.env },
+        env: getEnhancedEnv(this.settingsManager.getAdditionalPaths()),
       });
 
       const output = (stdout || '').trimEnd();

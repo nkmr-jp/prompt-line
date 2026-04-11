@@ -37,7 +37,7 @@ if (wasRunning) {
       } catch {
         break; // pgrep exits non-zero when no process found
       }
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, interval);
+      execSync(`sleep ${interval / 1000}`, { stdio: 'ignore' });
       waited += interval;
     }
     if (waited >= maxWait) {
@@ -98,3 +98,8 @@ if (wasRunning) {
 } else {
   console.log(`ℹ️  ${appName} was not running; skipping launch`);
 }
+
+console.log(`\n📌 To install plugins:`);
+console.log(`   pnpm link`);
+console.log(`   prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins`);
+console.log(`   See: docs/en/plugins.md`);

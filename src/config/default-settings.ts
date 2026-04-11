@@ -6,17 +6,17 @@
  * Used by:
  * - app-config.ts (application configuration)
  * - settings-manager.ts (runtime defaults)
- * - generate-settings-example.ts (settings.example.yml generation)
+ * - generate-settings-example.ts (settings.example.yaml generation)
  *
- * IMPORTANT: defaultSettings = runtime defaults = settings.example.yml active values
+ * IMPORTANT: defaultSettings = runtime defaults = settings.example.yaml active values
  * This ensures no discrepancy between what users see and what they get.
  *
  * When modifying defaults:
  * 1. Update this file
  * 2. Run: pnpm run generate:settings-example
- * 3. Commit both this file and settings.example.yml
+ * 3. Commit both this file and settings.example.yaml
  *
- * Configuration file location: ~/.prompt-line/settings.yml
+ * Configuration file location: ~/.prompt-line/settings.yaml
  * The settings file is auto-created on first launch with these defaults.
  * Edit the YAML file directly to customize — changes are hot-reloaded (300ms debounce).
  */
@@ -27,10 +27,10 @@ import type { UserSettings } from '../types';
  * Default settings - the single source of truth
  *
  * These are:
- * - The actual runtime defaults when user has no settings.yml
- * - The active (non-commented) values in settings.example.yml
+ * - The actual runtime defaults when user has no settings.yaml
+ * - The active (non-commented) values in settings.example.yaml
  *
- * Settings file: ~/.prompt-line/settings.yml (YAML format, auto-created on first launch)
+ * Settings file: ~/.prompt-line/settings.yaml (YAML format, auto-created on first launch)
  * Hot reload: File changes are automatically detected and applied without restarting the app.
  */
 export const defaultSettings: UserSettings = {
@@ -40,10 +40,12 @@ export const defaultSettings: UserSettings = {
    * Format: Modifier+Key (e.g., "Cmd+Shift+Space", "Ctrl+Alt+Space")
    * Available modifiers: Cmd, Ctrl, Alt, Shift
    *
-   * Example (settings.yml):
+   * Example (settings.yaml):
    *   shortcuts:
-   *     main: Cmd+Shift+Space
-   *     paste: Cmd+Enter
+   *     Cmd+Shift+Space: main    # Show/hide the input window (global)
+   *     Cmd+Enter: paste          # Paste text and close window
+   *     Escape: close             # Close window without pasting
+   *     # Ctrl+m: "input=@md:"   # Custom action (inserts text into input field)
    */
   shortcuts: {
     main: 'Cmd+Shift+Space',   // Show/hide the input window (global hotkey)
@@ -62,7 +64,7 @@ export const defaultSettings: UserSettings = {
    *   - 'cursor': At the current mouse cursor location
    *   - 'center': Center on primary display
    *
-   * Example (settings.yml):
+   * Example (settings.yaml):
    *   window:
    *     position: cursor
    *     width: 800
@@ -84,7 +86,7 @@ export const defaultSettings: UserSettings = {
    *
    * Priority: extensions > directories > defaultEditor > system default
    *
-   * Example (settings.yml):
+   * Example (settings.yaml):
    *   fileOpener:
    *     defaultEditor: "Visual Studio Code"
    *     extensions:
@@ -101,119 +103,36 @@ export const defaultSettings: UserSettings = {
     defaultEditor: null // null = use system default application
   },
   /**
-   * Built-in slash commands to enable (type "/" to access)
-   *
-   * Each entry corresponds to a tool's built-in command YAML in ~/.prompt-line/built-in-commands/
-   * Available: 'claude', 'openclaw', 'codex', 'gemini', etc.
-   *
-   * Example (settings.yml):
-   *   builtInCommands:
-   *     - claude
-   *     - codex
-   *     - gemini
+   * Agent built-in slash commands to enable (type "/" to access)
+   * @deprecated Use plugins setting instead. Agent built-in commands are now managed as plugins
+   * under github.com/nkmr-jp/prompt-line-plugins/<tool>/agent-built-in/.
    */
-  builtInCommands: ['claude'],
+  // Not set: disabled by default. Use plugins setting instead.
   /**
    * Agent skills — custom slash commands loaded from markdown files (type "/" to access)
+   * @deprecated Use plugins setting instead. Kept for backward compatibility.
+   * Inline entries here are merged with plugin file entries.
    *
-   * Search: Space-separated keywords enable AND search (e.g., "/commit fix" matches both words)
-   *
-   * Each entry defines a source directory and pattern to scan for skill files.
-   * Template variables for name/description:
-   *   {basename}              — File name without extension
-   *   {frontmatter@field}     — YAML frontmatter field value (e.g., {frontmatter@description})
-   *   {prefix}                — Prefix extracted via prefixPattern
-   *   {dirname}               — Parent directory name
-   *   {dirname:N}             — N levels up directory name (e.g., {dirname:2} = grandparent)
-   *
-   * Configuration fields:
-   *   name            — Display name template
-   *   description     — Description template
-   *   path            — Directory path to scan (supports ~ for home)
-   *   pattern         — Glob pattern to match files (e.g., "*.md", "SKILL.md in subdirs")
-   *   label           — UI badge label (e.g., "command", "skill")
-   *   color           — Badge color (name or hex, e.g., "purple", "#FF5733")
-   *                     Names: grey, darkGrey, slate, stone, red, rose, orange, amber, yellow, lime, green,
-   *                            emerald, teal, cyan, sky, blue, indigo, violet, purple, fuchsia, pink
-   *   icon            — Codicon icon name (e.g., "agent", "rocket", "terminal")
-   *                     See: https://microsoft.github.io/vscode-codicons/dist/codicon.html
-   *   values          — Map of template variable names to JSON extraction patterns
-   *   prefixPattern   — (deprecated) Use values instead
-   *   argumentHint    — Hint text for skill arguments
-   *   maxSuggestions  — Max number of suggestions to display
-   *   triggers        — Trigger character array (default: ['/']). e.g., ['/', '$'] enables both / and $ activation
-   *
-   * Example (settings.yml):
+   * Example (settings.yaml):
    *   agentSkills:
    *     - name: "{basename}"
    *       description: "{frontmatter@description}"
    *       path: ~/.claude/commands
-   *       label: "command"
-   *       color: "purple"
    *       pattern: "*.md"
-   *       triggers: ['/', '$']
-   *       values:
-   *         pluginName: "path/to/metadata.json@fieldName"
-   *       maxSuggestions: 20
    */
-  agentSkills: [
-    // Claude Code custom commands (from ~/.claude/commands/*.md)
-    {
-      name: '{basename}',
-      description: '{frontmatter@description}',
-      path: '~/.claude/commands',
-      label: 'command',
-      color: 'purple',
-      icon: '{frontmatter@icon}',
-      pattern: '*.md',
-      argumentHint: '{frontmatter@argument-hint}',
-      maxSuggestions: 20
-    },
-    // Claude Code skills (from ~/.claude/skills/**/SKILL.md)
-    {
-      name: '{frontmatter@name}',
-      description: '{frontmatter@description}',
-      path: '~/.claude/skills',
-      label: 'skill',
-      color: 'pink',
-      icon: '{frontmatter@icon}',
-      pattern: '**/*/SKILL.md',
-      maxSuggestions: 20
-    },
-    // Plugin commands (from ~/.claude/plugins/cache/**/commands/*.md)
-    {
-      name: '{prefix}:{basename}',
-      description: '{frontmatter@description}',
-      path: '~/.claude/plugins/cache',
-      pattern: '**/commands/*.md',
-      values: { prefix: '**/.claude-plugin/*.json@name' },
-      label: 'plugin command',
-      color: 'green',
-      icon: '{frontmatter@icon}',
-      argumentHint: '{frontmatter@argument-hint}',
-      maxSuggestions: 20
-    },
-    // Plugin skills (from ~/.claude/plugins/cache/**/SKILL.md)
-    {
-      name: '{prefix}:{frontmatter@name}',
-      description: '{frontmatter@description}',
-      path: '~/.claude/plugins/cache',
-      pattern: '**/*/SKILL.md',
-      values: { prefix: '**/.claude-plugin/*.json@name' },
-      label: 'plugin skill',
-      color: 'cyan',
-      icon: '{frontmatter@icon}',
-      argumentHint: '{frontmatter@argument-hint}',
-      maxSuggestions: 20
-    }
-  ],
+  agentSkills: [] as Array<{
+    name: string;
+    description: string;
+    sourcePath: string;
+    [key: string]: unknown;
+  }>,
   /**
    * File search settings — triggered by typing "@" in the input
    *
    * Requires: fd command (brew install fd)
    * Usage: Type "@" followed by a file path to search and insert file references.
    *
-   * Example (settings.yml):
+   * Example (settings.yaml):
    *   fileSearch:
    *     respectGitignore: true
    *     includeHidden: false
@@ -230,7 +149,7 @@ export const defaultSettings: UserSettings = {
   fileSearch: {
     respectGitignore: true,  // Respect .gitignore rules (fd only)
     includeHidden: true,     // Include hidden files (starting with .)
-    maxFiles: 5000,          // Maximum number of files to index
+    maxFiles: 100000,        // Maximum number of files to index
     maxDepth: null,          // Directory depth limit (null = unlimited)
     maxSuggestions: 50,      // Max suggestions shown in popup
     followSymlinks: false,   // Follow symbolic links during search
@@ -245,7 +164,7 @@ export const defaultSettings: UserSettings = {
    * Supported languages (20): go, ts, tsx, js, jsx, py, rs, java, kt, swift,
    *   rb, cpp, c, sh, make/mk, php, cs, scala, tf/terraform, md/markdown
    *
-   * Example (settings.yml):
+   * Example (settings.yaml):
    *   symbolSearch:
    *     maxSymbols: 100000
    *     timeout: 30000
@@ -255,130 +174,74 @@ export const defaultSettings: UserSettings = {
    *       - "*.generated.go"
    */
   symbolSearch: {
+    respectGitignore: true, // Respect .gitignore files
     maxSymbols: 200000,    // Maximum number of symbols to index per directory
     timeout: 60000,        // Search timeout in milliseconds
     includePatterns: [],   // Force include file patterns (glob syntax)
     excludePatterns: []    // Additional exclude file patterns (glob syntax)
   },
   /**
-   * Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
+   * Plugin entries to enable (paths relative to ~/.prompt-line/plugins/, without .yaml extension)
+   * Comment out entries to disable them.
    *
-   * Search: Space-separated keywords enable AND search (e.g., @agent:dev api)
+   * Directory determines the plugin type:
+   *   - .../agent-skills/  → Slash commands (type: command, triggered by "/")
+   *   - .../custom-search/ → Mention search (type: mention, triggered by "@prefix:")
+   *   - .../agent-built-in/ → Agent built-in tool commands (triggered by "/")
    *
-   * Each entry scans a directory for files matching a glob pattern and makes them
-   * available as @ mention suggestions.
+   * Supports v1 (string[]) and v2 (Record<string, string[]>) formats:
    *
-   * Template variables for name/description:
-   *   {basename}              — File name without extension
-   *   {frontmatter@field}     — YAML frontmatter field from markdown files
-   *   {json@field}            — JSON field value (for .json/.jsonl files)
-   *   {json:N@field}          — JSON field from N-th level array item
-   *   {prefix}                — Prefix extracted via prefixPattern
-   *   {dirname}               — Parent directory name
-   *   {dirname:N}             — N levels up directory name
+   * v1 Example (settings.yaml):
+   *   plugins:
+   *     - github.com/nkmr-jp/prompt-line-plugins/claude/agent-skills/commands
+   *     - github.com/nkmr-jp/prompt-line-plugins/claude/agent-built-in/claude
    *
-   * Configuration fields:
-   *   name            — Display name template
-   *   description     — Description template (supports "|" fallback: "{json@a}|{json@b}")
-   *   path            — Directory path to scan (supports ~ for home)
-   *   pattern         — Glob pattern to match files
-   *                     Supports: *.md, **{/}*.md, *.json, *.jsonl
-   *                     jq expressions: "config.json@.members" (expands array into items)
-   *   values          — Map of template variable names to JSON extraction patterns
-   *   prefixPattern   — (deprecated) Use values instead
-   *   searchPrefix    — Prefix to trigger this search (e.g., "agent" → @agent:)
-   *   maxSuggestions  — Max suggestions to display
-   *   orderBy         — Sort order (e.g., "name", "name desc", "{updatedAt} desc")
-   *   inputFormat     — Insert format: 'name' (display name), '{filepath}' (file path), or template
-   *   color           — Badge color (name or hex)
-   *   icon            — Codicon icon name
-   *   label           — UI badge label
-   *   shortcut        — Keyboard shortcut to activate this search (e.g., "Ctrl+g")
-   *                     Inserts @searchPrefix: into the input and triggers mention detection
-   *
-   * Example (settings.yml):
-   *   customSearch:
-   *     - name: "{basename}"
-   *       description: "{frontmatter@title}"
-   *       path: /path/to/knowledge-base
-   *       pattern: "**{/}*.md"
-   *       searchPrefix: kb
-   *       shortcut: "Ctrl+g"
-   *       values:
-   *         pluginName: "path/to/metadata.json@fieldName"
-   *       maxSuggestions: 100
-   *       inputFormat: "{filepath}"
+   * v2 Example (settings.yaml):
+   *   plugins:
+   *     github.com/nkmr-jp/prompt-line-plugins:
+   *       - claude/agent-built-in/claude
+   *       - claude/agent-skills/commands
    */
-  customSearch: [
-    // Claude Code agents (from ~/.claude/agents/*.md, search with @agent:)
-    {
-      name: '{basename}(agent)',
-      label: "agent",
-      description: '{frontmatter@description}',
-      path: '~/.claude/agents',
-      pattern: '*.md',
-      searchPrefix: 'agent',
-      displayTime: '{updatedAt}'
-    },
-    // Plugin agents (from ~/.claude/plugins/cache/**/agents/*.md, search with @agent:)
-    {
-      name: '{prefix}:{basename}(agent)',
-      label: "plugin agent",
-      description: '{frontmatter@description}',
-      path: '~/.claude/plugins/cache',
-      color: "yellow",
-      pattern: '**/agents/*.md',
-      values: { prefix: '**/.claude-plugin/*.json@name' },
-      searchPrefix: 'agent',
-      displayTime: '{updatedAt}'
-    },
-    // Claude Code team members (from ~/.claude/teams/**/config.json, search with @team:)
-    // Uses jq expression to filter teams created in last 24h with 2+ members
-    {
-      name: "{json@name}",
-      description: "{json@prompt}|{json:1@description}",
-      color: "{json@color}|#ffffff",
-      icon: "organization",
-      label: "{dirname}",
-      path: "~/.claude/teams",
-      pattern: "**/config.json@. | select(.createdAt / 1000 > (now - 86400)) | select((.members | length) >= 2) | .members",
-      searchPrefix: "team",
-      orderBy: "{json@joinedAt} desc",
-      displayTime: "{json@joinedAt}"
-    },
-    // Claude Code plans (from ~/.claude/plans/*.md, search with @plan:)
-    {
-      name: '{basename}',
-      description: '{heading}',
-      path: '~/.claude/plans',
-      icon: 'file-text',
-      color: 'blue',
-      pattern: '*.md',
-      searchPrefix: 'plan',
-      inputFormat: '{filepath}',
-      orderBy: '{updatedAt} desc',
-      displayTime: '{updatedAt}'
-    }
-  ]
+  plugins: [] as string[],
+  /**
+   * Additional PATH entries for shell command execution (e.g., sourceCommand).
+   * Paths listed here are prepended to PATH when executing shell commands.
+   *
+   * Example (settings.yaml):
+   *   additionalPaths:
+   *     - /opt/local/bin
+   *     - ~/my-tools/bin
+   */
+  additionalPaths: [] as string[],
+  /**
+   * Custom search entries — triggered by typing "@prefix:" (e.g., @agent:, @plan:)
+   * @deprecated Use plugins or ~/.prompt-line/custom-search/*.yaml instead.
+   * Kept for backward compatibility. Inline entries here are merged with plugin file entries.
+   */
+  customSearch: [] as Array<{
+    name: string;
+    description: string;
+    sourcePath: string;
+    [key: string]: unknown;
+  }>
 };
 
 /**
- * Additional example entries shown as comments in settings.example.yml
+ * Additional example entries shown as comments in settings.example.yaml
  *
  * These are NOT runtime defaults — they are just examples to help users
  * understand available options. They appear as commented-out lines (# ...)
- * in the generated settings.example.yml file.
+ * in the generated settings.example.yaml file.
  *
- * To use these examples, uncomment them in ~/.prompt-line/settings.yml.
+ * To use these examples, uncomment them in ~/.prompt-line/settings.yaml.
  */
 export const commentedExamples = {
   imagesDirectory: '.prompt-line/images',
-  builtInCommands: ['codex', 'gemini'],
+  agentBuiltIn: [] as string[],
   agentSkills: [] as Array<{
     name: string;
     description: string;
-    path: string;
-    pattern: string;
+    sourcePath: string;
     argumentHint?: string;
   }>,
   fileOpener: {
@@ -394,14 +257,13 @@ export const commentedExamples = {
     {
       name: '{basename}',
       description: '{frontmatter@title}',
-      path: '/path/to/knowledge-base',
-      pattern: '**/*/*.md',
+      sourcePath: '/path/to/knowledge-base/**/*/*.md',
       searchPrefix: 'kb',
       shortcut: 'Ctrl+g',
       maxSuggestions: 100,
       orderBy: '{updatedAt} desc',
       inputFormat: '{filepath}',
-      command: "open -a 'Google Chrome' {filepath}"
+      runCommand: "open -a 'Google Chrome' {filepath}"
     },
     {
       name: '{json@display}',
@@ -409,8 +271,7 @@ export const commentedExamples = {
       color: 'orange',
       description: '',
       searchPrefix: 'r',
-      path: '~/.claude',
-      pattern: 'history.jsonl',
+      sourcePath: '~/.claude/history.jsonl',
       orderBy: '{json@timestamp} desc',
       inputFormat: '{json@display}',
       displayTime: '{json@timestamp}',
@@ -424,11 +285,28 @@ export const commentedExamples = {
       description: '',
       searchPrefix: 'ghq',
       shortcut: 'Ctrl+g',
-      command: 'open -a iTerm ~/ghq/{line}',
-      path: '~/.prompt-line',
-      pattern: 'ghq.txt',
+      runCommand: 'open -a iTerm ~/ghq/{line}',
+      sourcePath: '~/.prompt-line/ghq.txt',
+      inputFormat: '~/ghq/{line}',
+      maxSuggestions: 100
+    },
+    {
+      _comment: 'ghq Repository (command source)\nUses `ghq list` command output directly instead of a text file',
+      name: '{line}',
+      icon: 'repo',
+      color: 'rose',
+      description: '',
+      searchPrefix: 'ghq',
+      shortcut: 'Ctrl+g',
+      runCommand: 'open -a iTerm ~/ghq/{line}',
+      sourceCommand: 'ghq list',
+      sourcePath: '',
       inputFormat: '~/ghq/{line}',
       maxSuggestions: 100
     }
+  ],
+  additionalPaths: [
+    '/opt/local/bin',
+    '~/my-tools/bin'
   ]
 };

@@ -3,14 +3,9 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
 import { logger } from '../utils/utils';
-import type FileOpenerManager from '../managers/file-opener-manager';
+import type { FileOpenerManager } from '../managers/file-opener-manager';
 import type DirectoryManager from '../managers/directory-manager';
-
-interface IPCResult {
-  success: boolean;
-  error?: string;
-  warning?: string;
-}
+import type { IPCResult } from '../types';
 
 // Constants
 const ALLOWED_URL_PROTOCOLS = ['http:', 'https:'];

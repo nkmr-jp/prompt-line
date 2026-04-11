@@ -675,7 +675,7 @@ export class AgentSkillManager implements IInitializable {
         }
         labelBadge.textContent = cmd.label;
         item.appendChild(labelBadge);
-      } else if (cmd.displayName) {
+      } else if (cmd.displayName && cmd.source !== 'custom') {
         const sourceBadge = document.createElement('span');
         sourceBadge.className = 'agent-skill-source';
         sourceBadge.dataset.source = cmd.source || cmd.displayName;
@@ -1278,5 +1278,16 @@ export class AgentSkillManager implements IInitializable {
     this.usageBonusesCacheTime = 0;
     // C3: Reset keyword cache on invalidate
     this.lastSkillKeywords = '';
+  }
+
+  /**
+   * P2: Prefetch skills in background to warm cache before user interaction
+   */
+  public async prefetchSkills(): Promise<void> {
+    try {
+      await this.loadSkills();
+    } catch {
+      // Prefetch failure is non-critical
+    }
   }
 }

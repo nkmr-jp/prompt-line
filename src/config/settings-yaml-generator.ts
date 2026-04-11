@@ -11,6 +11,7 @@
 
 import type {
   UserSettings,
+  PluginFormat,
   MentionEntry,
   AgentSkillEntry,
   FileSearchUserSettings,
@@ -25,7 +26,7 @@ import { logger } from '../utils/utils';
 export interface YamlGeneratorOptions {
   /**
    * Include additional commented examples from commentedExamples
-   * Used for settings.example.yml generation
+   * Used for settings.example.yaml generation
    */
   includeCommentedExamples?: boolean;
 }
@@ -91,7 +92,6 @@ function appendAgentSkillOptionalFields(lines: string[], entry: AgentSkillEntry,
   if (entry.label) lines.push(`${p}label: "${entry.label}"`);
   if (entry.color) lines.push(`${p}color: "${entry.color}"`);
   if (entry.icon) lines.push(`${p}icon: "${entry.icon}"`);
-  lines.push(`${p}pattern: "${entry.pattern}"`);
   if (entry.values) {
     lines.push(`${p}values:`);
     for (const [key, val] of Object.entries(entry.values)) {
@@ -115,7 +115,7 @@ function formatAgentSkillEntry(entry: AgentSkillEntry, indent: string, commented
   const lines = [
     `${first}- name: "${entry.name}"`,
     `${content}description: "${entry.description || ''}"`,
-    `${content}path: ${entry.path}`
+    `${content}sourcePath: ${entry.sourcePath}`
   ];
   appendAgentSkillOptionalFields(lines, entry, content);
   return lines.join('\n');
@@ -129,8 +129,7 @@ function appendCustomSearchCoreFields(lines: string[], entry: MentionEntry, p: s
   if (entry.icon) lines.push(`${p}icon: ${entry.icon}`);
   if (entry.color) lines.push(`${p}color: "${entry.color}"`);
   lines.push(`${p}description: "${entry.description}"`);
-  lines.push(`${p}path: ${entry.path}`);
-  lines.push(`${p}pattern: "${entry.pattern}"`);
+  lines.push(`${p}sourcePath: ${entry.sourcePath}`);
 }
 
 /**
@@ -145,12 +144,11 @@ function appendCustomSearchOptionalFields(lines: string[], entry: MentionEntry, 
   }
   if (entry.prefixPattern && !entry.values) lines.push(`${p}prefixPattern: "${entry.prefixPattern}"`);
   if (entry.searchPrefix) lines.push(`${p}searchPrefix: ${entry.searchPrefix}            # Search with @${entry.searchPrefix}:`);
-  if (entry.shortcut) lines.push(`${p}shortcut: ${entry.shortcut}              # Keyboard shortcut to activate @${entry.searchPrefix || ''}:`);
   if (entry.maxSuggestions !== undefined) lines.push(`${p}maxSuggestions: ${entry.maxSuggestions}`);
   if (entry.orderBy !== undefined) lines.push(`${p}orderBy: "${entry.orderBy}"`);
   if (entry.displayTime !== undefined) lines.push(`${p}displayTime: "${entry.displayTime}"`);
   if (entry.inputFormat !== undefined) lines.push(`${p}inputFormat: ${entry.inputFormat}               # Insert format template`);
-  if (entry.command) lines.push(`${p}command: "${entry.command}"            # Shell command on Ctrl+Enter`);
+  if (entry.runCommand) lines.push(`${p}runCommand: "${entry.runCommand}"            # Shell command on Ctrl+Enter`);
 }
 
 /**
@@ -213,40 +211,65 @@ function buildDirectoriesSection(settings: UserSettings): string {
   return section;
 }
 
-/**
- * Build builtInCommands section
- */
-function buildBuiltInCommandsSection(settings: UserSettings, options: YamlGeneratorOptions): string {
-  const builtInCommands = settings.builtInCommands;
-  const hasBuiltInCommands = builtInCommands && builtInCommands.length > 0;
+function isPluginsEmpty(plugins: PluginFormat | undefined): boolean {
+  if (!plugins) return true;
+  if (Array.isArray(plugins)) return plugins.length === 0;
+  return Object.keys(plugins).length === 0;
+}
 
-  if (!hasBuiltInCommands) {
-    return `# Built-in slash commands (type "/" to access)
-# Available: claude, codex, gemini, openclaw, opencode
-# Storage: ~/.prompt-line/built-in-commands/ (YAML files, hot-reload supported)
-# Customize: Edit YAML files in the storage directory to add/modify/remove commands
-#            Changes are detected automatically — no app restart needed
-# Update: pnpm run update-built-in-commands (reset to defaults with confirmation)
-#builtInCommands:
-#  - claude
-#  - codex
-#  - gemini`;
+function buildPluginsSection(settings: UserSettings): string {
+  const plugins = settings.plugins;
+
+  if (isPluginsEmpty(plugins)) {
+    return `#plugins:
+#  github.com/nkmr-jp/prompt-line-plugins:
+#    - claude/agent-built-in/en                  # Claude Code built-in commands,skills,agents | lang: en,ja
+#    - claude/agent-skills/commands              # sourcePath: ~/.claude/commands/*.md
+#    - claude/agent-skills/skills                # sourcePath: ~/.claude/skills/**/SKILL.md
+#    - claude/custom-search/agents@agent         # sourcePath: ~/.claude/agents/*.md
+#    - claude/custom-search/history@r            # sourcePath: ~/.claude/history.jsonl`;
   }
 
-  let section = `# Built-in slash commands (type "/" to access)
-# Available: claude, codex, gemini, openclaw, opencode
-# Storage: ~/.prompt-line/built-in-commands/ (YAML files, hot-reload supported)
-# Customize: Edit YAML files in the storage directory to add/modify/remove commands
-#            Changes are detected automatically — no app restart needed
-# Update: pnpm run update-built-in-commands (reset to defaults with confirmation)
-builtInCommands:                      # List of tools to enable\n`;
-  for (const cmd of builtInCommands) {
+  let section = `plugins:\n`;
+  if (Array.isArray(plugins)) {
+    for (const plugin of plugins) {
+      section += `  - ${plugin}\n`;
+    }
+  } else {
+    for (const [packageId, entries] of Object.entries(plugins as Record<string, string[]>)) {
+      section += `  ${packageId}:\n`;
+      for (const entry of entries) {
+        section += `    - ${entry}\n`;
+      }
+    }
+  }
+  return section.trimEnd();
+}
+
+/**
+ * Build agentBuiltIn section
+ */
+function buildAgentBuiltInSection(settings: UserSettings, options: YamlGeneratorOptions): string {
+  const agentBuiltIn = settings.agentBuiltIn;
+  const hasAgentBuiltIn = agentBuiltIn && agentBuiltIn.length > 0;
+
+  if (!hasAgentBuiltIn) {
+    return `# Agent built-in slash commands (type "/" to access)
+# @deprecated Use plugins setting instead (github.com/nkmr-jp/prompt-line-plugins/<tool>/agent-built-in/*)
+#agentBuiltIn:
+#  - claude`;
+  }
+
+  let section = `# Agent built-in slash commands (type "/" to access)
+# @deprecated Use plugins setting instead (github.com/nkmr-jp/prompt-line-plugins/<tool>/agent-built-in/*)
+agentBuiltIn:\n`;
+  for (const cmd of agentBuiltIn) {
     section += `  - ${cmd}\n`;
   }
 
   // Add commented examples if requested
   if (options.includeCommentedExamples) {
-    const commentedCmds = commentedExamples.builtInCommands || [];
+    const commentedCmds = commentedExamples.agentBuiltIn || [];
     for (const cmd of commentedCmds) {
       section += `  # - ${cmd}\n`;
     }
@@ -265,17 +288,18 @@ function buildAgentSkillsHeader(): string {
     '# Configuration fields:',
     '#   name: Display name template (variables: {basename}, {frontmatter@field}, {prefix})',
     '#   description: Skill description template (variables: {basename}, {frontmatter@field}, {dirname}, {dirname:N})',
-    '#   path: Directory path to search for skill files',
+    '#   sourcePath: Source path with glob (e.g., "~/.claude/commands/*.md")',
     '#   label: Display label for UI badge (e.g., "command", "skill", "agent")',
     '#   color: Badge color (name: grey, darkGrey, slate, stone, red, rose, orange, amber, yellow, lime, green, emerald, teal, cyan, sky, blue, indigo, violet, purple, fuchsia, pink, or hex: #FF5733)',
     '#   icon: Codicon icon name (e.g., "agent", "rocket", "terminal")',
-    '#   pattern: Glob pattern to match files (e.g., "*.md", "**/*/SKILL.md")',
     '#   values: Map of template variable names to JSON extraction patterns (e.g., pluginName: "**/.claude-plugin/*.json@name")',
     '#   argumentHint: Hint for skill arguments',
     '#   maxSuggestions: Maximum number of suggestions to display',
     '#   triggers: Trigger character array (default: ["/"]). e.g., ["/", "$"] enables both / and $ activation',
     '#   {dirname}: Parent directory name',
     '#   {dirname:N}: N levels up directory name (e.g., {dirname:2} = grandparent)',
+    '#   {pathdir:N}: N-th directory from path downward (e.g., path/a/b/file.md → {pathdir:1} = a)',
+    '#   {latest}: In pattern, matches only the most recently modified directory at that position',
     'agentSkills:'
   ].join('\n') + '\n';
 }
@@ -291,8 +315,7 @@ function buildAgentSkillsSection(settings: UserSettings, options: YamlGeneratorO
     return `#agentSkills:
 #  - name: "{basename}"
 #    description: "{frontmatter@description}"
-#    path: ~/.claude/commands
-#    pattern: "*.md"
+#    sourcePath: ~/.claude/commands/*.md
 #    argumentHint: "{frontmatter@argument-hint}"
 #    maxSuggestions: 20`;
   }
@@ -300,7 +323,11 @@ function buildAgentSkillsSection(settings: UserSettings, options: YamlGeneratorO
   let section = buildAgentSkillsHeader();
 
   for (const entry of agentSkills) {
-    section += formatAgentSkillEntry(entry, '  ') + '\n';
+    if (typeof entry === 'string') {
+      section += `  - ${entry}\n`;
+    } else {
+      section += formatAgentSkillEntry(entry, '  ') + '\n';
+    }
   }
 
   if (options.includeCommentedExamples) {
@@ -325,8 +352,7 @@ function buildCustomSearchHeader(): string {
 # Configuration fields:
 #   name            : Display name template
 #   description     : Entry description template (supports "|" fallback: "{json@a}|{json@b}")
-#   path            : Directory path to scan (supports ~ for home)
-#   pattern         : Glob pattern to match files
+#   sourcePath      : Source path with glob pattern (e.g., "~/.claude/commands/*.md")
 #   values          : Map of template variable names to JSON extraction patterns (e.g., pluginName: "**/.claude-plugin/*.json@name")
 #   searchPrefix    : Prefix to trigger this search (e.g., "agent" → @agent:)
 #   maxSuggestions  : Maximum number of suggestions to display
@@ -337,8 +363,9 @@ function buildCustomSearchHeader(): string {
 #   icon            : Codicon icon name (e.g., "agent", "rocket", "terminal")
 #                     https://microsoft.github.io/vscode-codicons/dist/codicon.html
 #   label           : UI badge label
-#   shortcut        : Keyboard shortcut to activate this search (e.g., "Ctrl+g")
-#                     Inserts @searchPrefix: into the input and triggers mention detection
+#   sourceCommand   : Shell command for data source (e.g., "ghq list") — used instead of sourcePath
+#   runCommand      : Shell command on Ctrl+Enter (e.g., "open -a iTerm ~/ghq/{line}")
+#   args            : Template arguments (e.g., { open: "iTerm" } → {args.open})
 #
 # Template variables:
 #   {basename}          — File name without extension
@@ -350,6 +377,8 @@ function buildCustomSearchHeader(): string {
 #   {line}              — Each line of plain text file (generates one item per line)
 #   {dirname}           — Parent directory name
 #   {dirname:N}         — N levels up directory name (e.g., {dirname:2} = grandparent)
+#   {pathdir:N}         — N-th directory from path downward (e.g., path/a/b/file.md → {pathdir:1} = a)
+#   {latest}            — In pattern, matches only the most recently modified directory at that position
 #
 # Pattern examples:
 #   "*.md"                              — Markdown files in root directory only
@@ -380,15 +409,18 @@ function buildCustomSearchSection(settings: UserSettings, options: YamlGenerator
 #customSearch:
 #  - name: "agent-{basename}"
 #    description: "{frontmatter@description}"
-#    path: ~/.claude/agents
-#    pattern: "*.md"
+#    sourcePath: ~/.claude/agents/*.md
 #    searchPrefix: agent            # Search with @agent:`;
   }
 
   let section = buildCustomSearchHeader();
 
   for (const entry of customSearchEntries) {
-    section += formatCustomSearchEntry(entry, '  ') + '\n\n';
+    if (typeof entry === 'string') {
+      section += `  - ${entry}\n\n`;
+    } else {
+      section += formatCustomSearchEntry(entry, '  ') + '\n\n';
+    }
   }
 
   if (options.includeCommentedExamples) {
@@ -429,29 +461,15 @@ function buildFileSearchSection(settings: UserSettings): string {
     ? `fdPath: "${fs.fdPath}"`
     : `#fdPath: null                    # Custom path to fd`;
 
-  return `# File search settings (@path/to/file completion)
-# Note: fd command required (brew install fd)
-#
-# Pattern format (glob syntax):
-#   - "*.log"           : Match all .log files
-#   - "build/**"        : Match all files in build directory
-#   - "*.{js,ts}"       : Match .js and .ts files
-#   - ".git"            : Match .git directory
-#   - "node_modules"    : Match node_modules directory
-#
-fileSearch:
-  respectGitignore: ${formatValue(fs.respectGitignore)}           # Respect .gitignore files
-  includeHidden: ${formatValue(fs.includeHidden)}              # Include hidden files
-  maxFiles: ${formatValue(fs.maxFiles)}                   # Maximum files to return
-  maxDepth: ${formatValue(fs.maxDepth)}                   # Directory depth (null = unlimited)
-  maxSuggestions: ${formatValue(fs.maxSuggestions)}               # Suggestions to show
-  followSymlinks: ${formatValue(fs.followSymlinks)}            # Follow symbolic links
+  return `fileSearch:
+  respectGitignore: ${formatValue(fs.respectGitignore)}
+  includeHidden: ${formatValue(fs.includeHidden)}
+  maxFiles: ${formatValue(fs.maxFiles)}
+  maxDepth: ${formatValue(fs.maxDepth)}
+  maxSuggestions: ${formatValue(fs.maxSuggestions)}
+  followSymlinks: ${formatValue(fs.followSymlinks)}
   ${fdPathSection}
-  # Include patterns: Force include files even if in .gitignore (default: [])
-  # Example: includePatterns: ["*.log", "dist/**"]
   includePatterns: ${formatValue(fs.includePatterns)}
-  # Exclude patterns: Additional patterns to exclude (default: [])
-  # Example: excludePatterns: ["node_modules", "*.min.js", "coverage/**"]
   excludePatterns: ${formatValue(fs.excludePatterns)}`;
 }
 
@@ -474,18 +492,12 @@ function buildSymbolSearchSection(settings: UserSettings): string {
     ? `rgPath: "${ss.rgPath}"`
     : `#rgPath: null                    # Custom path to rg`;
 
-  return `# Symbol search settings (@ts:Config, @go:Handler)
-# Note: ripgrep required (brew install ripgrep)
-# Search: Space-separated keywords enable AND search (e.g., @ts:Config util)
-symbolSearch:
-  maxSymbols: ${formatValue(ss.maxSymbols)}                # Maximum symbols to return
-  timeout: ${formatValue(ss.timeout)}                    # Search timeout in ms
+  return `symbolSearch:
+  respectGitignore: ${formatValue(ss.respectGitignore)}
+  maxSymbols: ${formatValue(ss.maxSymbols)}
+  timeout: ${formatValue(ss.timeout)}
   ${rgPathSection}
-  # Include patterns: Force include files even if excluded by default (default: [])
-  # Example: includePatterns: ["*.test.ts", "vendor/**"]
   includePatterns: ${formatValue(ss.includePatterns ?? [])}
-  # Exclude patterns: Additional patterns to exclude (default: [])
-  # Example: excludePatterns: ["*.generated.go", "node_modules/**"]
   excludePatterns: ${formatValue(ss.excludePatterns ?? [])}`;
 }
 
@@ -493,10 +505,7 @@ symbolSearch:
  * Build the top sections of the settings YAML (shortcuts, window, fileOpener)
  */
 
-const IMAGE_DIR_COMMENT = `# Image storage directory (relative to CWD, or absolute path)
-# Default (when unset): ~/.prompt-line/images/
-# Relative paths are resolved against the current working directory
-# Tip: Add the directory to .gitignore when using a relative path`;
+const IMAGE_DIR_COMMENT = `# Image storage directory (default: ~/.prompt-line/images/)`;
 
 function buildImageDirectorySection(settings: UserSettings, options: YamlGeneratorOptions): string {
   const imagesDirectory = settings.imagesDirectory;
@@ -514,55 +523,61 @@ imagesDirectory: ${imagesDirectory}`;
 #imagesDirectory: ${example}`;
 }
 
-function buildTopSections(settings: UserSettings, extensionsSection: string, directoriesSection: string): string {
-  const defaultEditor = settings.fileOpener?.defaultEditor === null || settings.fileOpener?.defaultEditor === undefined
-    ? 'null'
-    : `"${settings.fileOpener.defaultEditor}"`;
-  return `# Prompt Line Settings Configuration
-# This file is automatically generated but can be manually edited
+function buildShortcutsSection(settings: UserSettings): string {
+  const s = settings.shortcuts;
+  const col = 36;
+  const pad = (str: string) => str.padEnd(col);
+  const lines = [
+    `shortcuts:`,
+    `${pad(`  ${s.main}: main`)}# Show/hide the input window (global)`,
+    `${pad(`  ${s.paste}: paste`)}# Paste text and close window`,
+    `${pad(`  ${s.close}: close`)}# Close window without pasting`,
+    `${pad(`  ${s.historyNext}: historyNext`)}# Navigate to next history item`,
+    `${pad(`  ${s.historyPrev}: historyPrev`)}# Navigate to previous history item`,
+    `${pad(`  ${s.search}: search`)}# Enable search mode in history`,
+    `  # Ctrl+m: "input=@md:"  # Custom action (e.g. input text field "input=xxx")`,
+    `  # Ctrl+g: "input=@ghq:"`,
+  ];
+  return lines.join('\n');
+}
 
-# ============================================================================
-# KEYBOARD SHORTCUTS
-# ============================================================================
-# Format: Modifier+Key (e.g., Cmd+Shift+Space, Ctrl+Alt+Space)
-# Available modifiers: Cmd, Ctrl, Alt, Shift
+function buildAdditionalPathsSection(settings: UserSettings, options: YamlGeneratorOptions): string {
+  const paths = settings.additionalPaths;
+  const hasPaths = paths && paths.length > 0;
 
-shortcuts:
-  main: ${settings.shortcuts.main}           # Show/hide the input window (global)
-  paste: ${settings.shortcuts.paste}         # Paste text and close window
-  close: ${settings.shortcuts.close}              # Close window without pasting
-  historyNext: ${settings.shortcuts.historyNext}          # Navigate to next history item
-  historyPrev: ${settings.shortcuts.historyPrev}          # Navigate to previous history item
-  search: ${settings.shortcuts.search}            # Enable search mode in history
+  if (!hasPaths) {
+    if (options.includeCommentedExamples) {
+      const examples = commentedExamples.additionalPaths || [];
+      if (examples.length > 0) {
+        let section = `# Additional PATH entries for shell command execution (e.g., sourceCommand)\n#additionalPaths:`;
+        for (const p of examples) {
+          section += `\n#  - ${p}`;
+        }
+        return section;
+      }
+    }
+    return `# Additional PATH entries for shell command execution (e.g., sourceCommand)\n#additionalPaths:\n#  - /opt/local/bin`;
+  }
 
-# ============================================================================
-# WINDOW SETTINGS
-# ============================================================================
-# Position options:
-#   - active-text-field: Near focused text field (default, falls back to active-window-center)
-#   - active-window-center: Center within active window
-#   - cursor: At mouse cursor location
-#   - center: Center on primary display
+  let section = `# Additional PATH entries for shell command execution (e.g., sourceCommand)\nadditionalPaths:`;
+  for (const p of paths) {
+    section += `\n  - ${p}`;
+  }
+  return section;
+}
 
+function buildTopSections(settings: UserSettings): string {
+  return `# Prompt Line Settings
+# See: https://github.com/nkmr-jp/prompt-line/docs/en/settings.md
+
+# Window: active-text-field | active-window-center | cursor | center
 window:
   position: ${settings.window.position}
-  width: ${settings.window.width}                      # Recommended: 400-800 pixels
-  height: ${settings.window.height}                     # Recommended: 200-400 pixels
+  width: ${settings.window.width}
+  height: ${settings.window.height}
 
-# ============================================================================
-# FILE OPENER SETTINGS
-# ============================================================================
-# Configure which applications to use when opening file links
-# When defaultEditor is null, system default application is used
-
-fileOpener:
-  # Default editor for all files (null = use system default application)
-  # Example values: "Visual Studio Code", "Sublime Text", "WebStorm"
-  defaultEditor: ${defaultEditor}
-  # Extension-specific applications (overrides defaultEditor and directories)
-  ${extensionsSection}
-  # Directory-specific default editor (overrides defaultEditor, longest prefix match)
-  ${directoriesSection}
+# Shortcuts (key → action)
+${buildShortcutsSection(settings)}
 `;
 }
 
@@ -574,58 +589,66 @@ fileOpener:
  * @returns YAML string with comments
  */
 export function generateSettingsYaml(settings: UserSettings, options: YamlGeneratorOptions = {}): string {
-  const extensionsSection = buildExtensionsSection(settings, options);
-  const directoriesSection = buildDirectoriesSection(settings);
   const imagesDirectorySection = buildImageDirectorySection(settings, options);
-  const builtInCommandsSection = buildBuiltInCommandsSection(settings, options);
-  const agentSkillsSection = buildAgentSkillsSection(settings, options);
-  const customSearchSection = buildCustomSearchSection(settings, options);
+  const pluginsSection = buildPluginsSection(settings);
   const fileSearchSection = buildFileSearchSection(settings);
   const symbolSearchSection = buildSymbolSearchSection(settings);
-  const topSections = buildTopSections(settings, extensionsSection, directoriesSection);
+  const additionalPathsSection = buildAdditionalPathsSection(settings, options);
+  const extensionsSection = buildExtensionsSection(settings, options);
+  const directoriesSection = buildDirectoriesSection(settings);
+  const defaultEditor = settings.fileOpener?.defaultEditor === null || settings.fileOpener?.defaultEditor === undefined
+    ? 'null'
+    : `"${settings.fileOpener.defaultEditor}"`;
+  const topSections = buildTopSections(settings);
+
+  // Build deprecated sections only if user has data
+  let deprecatedSections = '';
+  if (settings.agentBuiltIn && settings.agentBuiltIn.length > 0) {
+    deprecatedSections += `
+# ============================================================================
+# AGENT BUILT-IN (deprecated — use plugins instead)
+# ============================================================================
+
+${buildAgentBuiltInSection(settings, options)}
+`;
+  }
+  if (settings.agentSkills && settings.agentSkills.length > 0) {
+    deprecatedSections += `
+# ============================================================================
+# AGENT SKILLS SETTINGS (deprecated — use plugins instead)
+# ============================================================================
+
+${buildAgentSkillsSection(settings, options)}
+`;
+  }
+  if (settings.customSearch && settings.customSearch.length > 0) {
+    deprecatedSections += `
+# ============================================================================
+# CUSTOM SEARCH SETTINGS (deprecated — use plugins instead)
+# ============================================================================
+
+${buildCustomSearchSection(settings, options)}
+`;
+  }
 
   return `${topSections}
-# ============================================================================
-# IMAGE STORAGE
-# ============================================================================
+# Plugins (refs: \`prompt-line-plugin help\`)
+${pluginsSection}
+
+# File opener (priority: extensions > directories > defaultEditor > system default)
+fileOpener:
+  defaultEditor: ${defaultEditor}
+  ${extensionsSection}
+  ${directoriesSection}
 
 ${imagesDirectorySection}
 
-# ============================================================================
-# BUILT-IN COMMANDS
-# ============================================================================
-# Built-in slash commands for CLI tools (Claude Code, Codex, Gemini CLI, etc.)
-# Storage: ~/.prompt-line/built-in-commands/ (YAML files per tool)
-# Hot-reload: YAML file changes are auto-detected (no restart needed)
-
-${builtInCommandsSection}
-
-# ============================================================================
-# AGENT SKILLS SETTINGS
-# ============================================================================
-# Configure agent skills: custom commands from markdown files
-# Template variables: {basename}, {frontmatter@fieldName}
-
-${agentSkillsSection}
-
-# ============================================================================
-# CUSTOM SEARCH SETTINGS (@ mentions)
-# ============================================================================
-# Custom search entries for @ mention sources
-# Template variables: {basename}, {frontmatter@fieldName}
-
-${customSearchSection}
-
-# ============================================================================
-# FILE SEARCH SETTINGS
-# ============================================================================
-
+# File search (@path/to/file) — requires fd (brew install fd)
 ${fileSearchSection}
 
-# ============================================================================
-# SYMBOL SEARCH SETTINGS
-# ============================================================================
-
+# Symbol search (@lang:query) — requires ripgrep (brew install ripgrep)
 ${symbolSearchSection}
-`;
+
+${additionalPathsSection}
+${deprecatedSections}`;
 }

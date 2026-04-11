@@ -1,6 +1,10 @@
 import { promises as fs, createReadStream } from 'fs';
 import { createInterface } from 'readline';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import path from 'path';
+
+const execAsync = promisify(exec);
 import os from 'os';
 import chokidar, { type FSWatcher } from 'chokidar';
 import { EventEmitter } from 'events';
@@ -9,6 +13,7 @@ import type { CustomSearchEntry, CustomSearchItem, CustomSearchType, UserSetting
 import { resolveTemplate, getBasename, getDirname, parseFrontmatter, extractRawFrontmatter, parseFirstHeading, parseJsonContent, type TemplateContext } from '../lib/template-resolver';
 import { evaluateJq } from '../lib/jq-resolver';
 import { getDefaultCustomSearchConfig, DEFAULT_MAX_SUGGESTIONS, DEFAULT_ORDER_BY } from '../lib/default-custom-search-config';
+import { getEnhancedEnv } from '../utils/shell-env';
 import { resolveValues } from '../lib/prefix-resolver';
 import { isCommandEnabled } from '../lib/command-name-matcher';
 import { splitKeywords } from '../lib/keyword-utils';
@@ -21,25 +26,56 @@ import { shellQuote } from '../utils/security';
  */
 const SKILL_PATTERN = /SKILL\.md/i;
 
+/**
+ * Split a sourcePath into directory and glob pattern parts.
+ * The split happens at the first path segment containing glob characters (*, ?, [).
+ */
+const splitSourcePathCache = new Map<string, { dir: string; pattern: string }>();
+
+function splitSourcePath(sourcePath: string): { dir: string; pattern: string } {
+  const cached = splitSourcePathCache.get(sourcePath);
+  if (cached) return cached;
+
+  const segments = sourcePath.split('/');
+  const globIndex = segments.findIndex(s => /[*?[]/.test(s));
+  let result: { dir: string; pattern: string };
+  if (globIndex === -1) {
+    // No glob chars - check if last segment looks like a filename (contains .)
+    const lastSegment = segments[segments.length - 1];
+    if (lastSegment && lastSegment.includes('.')) {
+      result = { dir: segments.slice(0, -1).join('/'), pattern: lastSegment };
+    } else {
+      result = { dir: sourcePath, pattern: '*' };
+    }
+  } else {
+    result = {
+      dir: segments.slice(0, globIndex).join('/'),
+      pattern: segments.slice(globIndex).join('/')
+    };
+  }
+  splitSourcePathCache.set(sourcePath, result);
+  return result;
+}
+
 class CustomSearchLoader extends EventEmitter {
   private config: CustomSearchEntry[];
   private cache: Map<string, { items: CustomSearchItem[] }> = new Map();
   private settings: UserSettings | undefined;
   private loadingPromise: Promise<CustomSearchItem[]> | null = null;
 
-  // P0: entryMap for O(1) lookup instead of O(n) linear search
   private entryMap: Map<string, CustomSearchEntry> = new Map();
-
-  // P0: normalizedCache for pre-computed toLowerCase fields
   private normalizedCache: string[] = [];
   private normalizedCacheSource: CustomSearchItem[] | null = null;
-
-  // P1: search result cache to avoid re-filtering on same query
   private resultCacheKey = '';
   private resultCacheItems: CustomSearchItem[] = [];
-
-  // P3: RegExp cache for matchesGlobPattern
   private regexCache: Map<string, RegExp> = new Map();
+  private lastChangeTimestamp: number = 0;
+  private isStale: boolean = false;
+
+  // Command source cache (stale-while-revalidate)
+  private commandCache: Map<string, { items: CustomSearchItem[]; fetchedAt: number }> = new Map();
+  private commandFetchPromises: Map<string, Promise<CustomSearchItem[]>> = new Map();
+  private static readonly COMMAND_SOURCE_TIMEOUT = 5000;
 
   // File watchers for hot reload (individual files: JSONL + non-glob pattern files)
   private fileWatchers: FSWatcher[] = [];
@@ -68,6 +104,7 @@ class CustomSearchLoader extends EventEmitter {
     if (JSON.stringify(this.config) !== JSON.stringify(newConfig)) {
       this.config = newConfig;
       this.invalidateCache();
+      this.commandCache.clear();
       // Reset file watchers since config paths may have changed
       this.stopWatching();
     }
@@ -77,6 +114,7 @@ class CustomSearchLoader extends EventEmitter {
    * 設定を更新（設定変更時に呼び出す）
    */
   updateSettings(settings: UserSettings | undefined): void {
+    if (this.settings === settings) return;
     this.settings = settings;
     this.invalidateCache();
   }
@@ -85,6 +123,25 @@ class CustomSearchLoader extends EventEmitter {
    * キャッシュを無効化
    */
   invalidateCache(): void {
+    this.lastChangeTimestamp = Date.now();
+    this.isStale = true;
+    // Clear result cache immediately (checked before loadAll's stale check)
+    this.resultCacheKey = '';
+    this.resultCacheItems = [];
+  }
+
+  /**
+   * Returns the timestamp of the last cache invalidation.
+   * Used by renderer to avoid unnecessary invalidation on window-shown.
+   */
+  getLastChangeTimestamp(): number {
+    return this.lastChangeTimestamp;
+  }
+
+  /**
+   * Actually clear all caches. Called lazily when stale data is accessed.
+   */
+  private clearAllCaches(): void {
     this.cache.clear();
     this.loadingPromise = null;
     this.entryMap.clear();
@@ -93,6 +150,8 @@ class CustomSearchLoader extends EventEmitter {
     this.resultCacheKey = '';
     this.resultCacheItems = [];
     this.regexCache.clear();
+    // Note: commandCache is NOT cleared here (stale-while-revalidate)
+    this.isStale = false;
   }
 
   /**
@@ -165,6 +224,7 @@ class CustomSearchLoader extends EventEmitter {
       clearTimeout(this.fileReloadTimer);
       this.fileReloadTimer = null;
     }
+    this.commandFetchPromises.clear();
   }
 
   /**
@@ -213,7 +273,6 @@ class CustomSearchLoader extends EventEmitter {
    * searchPrefixが設定されているエントリは、クエリがそのプレフィックスで始まる場合のみ検索対象
    */
   async searchItems(type: CustomSearchType, query: string): Promise<CustomSearchItem[]> {
-    // P1: result cache hit check
     const cacheKey = `${type}:${query}`;
     if (cacheKey === this.resultCacheKey && this.resultCacheItems.length > 0) {
       return this.resultCacheItems;
@@ -241,7 +300,6 @@ class CustomSearchLoader extends EventEmitter {
       return result;
     }
 
-    // P0: normalizedCache を構築して高速フィルタリング
     this.ensureNormalized(allItems);
     const filteredItems = this.filterByKeywords(allItems, items, query);
 
@@ -285,7 +343,6 @@ class CustomSearchLoader extends EventEmitter {
         continue;
       }
 
-      // P0: use normalizedCache instead of repeated toLowerCase()
       const normalized = this.normalizedCache[i]!;
       let allMatch = true;
       for (let k = 0; k < keywords.length; k++) {
@@ -306,7 +363,9 @@ class CustomSearchLoader extends EventEmitter {
   private buildEntryMap(): void {
     this.entryMap.clear();
     for (const entry of this.config) {
-      const key = `${entry.type}:${entry.path}:${entry.pattern}`;
+      const key = entry.sourceCommand
+        ? `${entry.type}:sourceCommand:${entry.sourceCommand}`
+        : `${entry.type}:${entry.sourcePath}`;
       this.entryMap.set(key, entry);
     }
   }
@@ -468,6 +527,10 @@ class CustomSearchLoader extends EventEmitter {
    * Singleflight パターン: 同時呼び出しが同一の Promise を共有し Cache Stampede を防止
    */
   private async loadAll(): Promise<CustomSearchItem[]> {
+    if (this.isStale) {
+      this.clearAllCaches();
+    }
+
     const cacheKey = 'all';
     const cached = this.cache.get(cacheKey);
     if (cached) {
@@ -501,9 +564,13 @@ class CustomSearchLoader extends EventEmitter {
   private async loadAllEntries(): Promise<{ items: CustomSearchItem[]; watchableFiles: string[] }> {
     const results = await Promise.all(
       this.config.map(async (entry) => {
-        const sourceId = `${entry.path}:${entry.pattern}`;
+        const sourceId = entry.sourceCommand
+          ? `sourceCommand:${entry.sourceCommand}`
+          : entry.sourcePath;
         try {
-          const { items, watchableFiles } = await this.loadEntry(entry);
+          const { items, watchableFiles } = entry.sourceCommand
+            ? await this.loadCommandEntry(entry)
+            : await this.loadEntry(entry);
           return { items, sourceId, watchableFiles };
         } catch (error) {
           logger.error('Failed to load entry', { entry, error });
@@ -566,7 +633,8 @@ class CustomSearchLoader extends EventEmitter {
    * 単一エントリをロード
    */
   private async loadEntry(entry: CustomSearchEntry): Promise<{ items: CustomSearchItem[]; watchableFiles: string[] }> {
-    const expandedPath = await this.resolveSymlink(entry.path.replace(/^~/, os.homedir()));
+    const { dir, pattern } = splitSourcePath(entry.sourcePath);
+    const expandedPath = await this.resolveSymlink(dir.replace(/^~/, os.homedir()));
 
     const isValid = await this.validateDirectory(expandedPath);
     if (!isValid) {
@@ -574,12 +642,13 @@ class CustomSearchLoader extends EventEmitter {
     }
 
     // Parse jq expression from pattern: '**/config.json@.members' → filePattern + jqExpression
-    const { filePattern, jqExpression } = this.parseJqPath(entry.pattern);
-    const files = await this.findFiles(expandedPath, filePattern);
-    const sourceId = `${entry.path}:${entry.pattern}`;
+    const { filePattern, jqExpression } = this.parseJqPath(pattern);
+    const files = await this.findFiles(expandedPath, filePattern, entry.excludeMarker);
+    const sourceId = entry.sourcePath;
     logger.debug('CustomSearch loadEntry', {
-      path: entry.path,
-      pattern: entry.pattern,
+      sourcePath: entry.sourcePath,
+      dir,
+      pattern,
       filePattern,
       jqExpression,
       filesFound: files.length
@@ -591,6 +660,186 @@ class CustomSearchLoader extends EventEmitter {
 
     const items = await this.parseFilesToItems(files, entry, sourceId, jqExpression);
     return { items, watchableFiles };
+  }
+
+  /**
+   * Load items from command source (stale-while-revalidate)
+   * Returns cached items immediately and triggers background refresh.
+   */
+  private async loadCommandEntry(
+    entry: CustomSearchEntry
+  ): Promise<{ items: CustomSearchItem[]; watchableFiles: string[] }> {
+    const sourceId = `sourceCommand:${entry.sourceCommand}`;
+    const cached = this.commandCache.get(sourceId);
+
+    let items: CustomSearchItem[];
+    if (cached) {
+      // Return stale cache immediately and refresh in background
+      this.scheduleCommandRefresh(entry, sourceId);
+      items = cached.items;
+    } else {
+      // First load: fetch synchronously
+      items = await this.fetchCommandItems(entry, sourceId);
+    }
+
+    // Apply entry-level enable/disable filtering
+    if (entry.enable || entry.disable) {
+      items = items.filter(item =>
+        isCommandEnabled(item.name, entry.enable, entry.disable)
+      );
+    }
+
+    return { items, watchableFiles: [] };
+  }
+
+  /**
+   * Schedule a background refresh for command source (Singleflight)
+   */
+  private scheduleCommandRefresh(entry: CustomSearchEntry, sourceId: string): void {
+    if (this.commandFetchPromises.has(sourceId)) return;
+
+    // Capture previous fingerprint before fetch overwrites the cache
+    const previousFingerprint = this.commandCacheFingerprint(sourceId);
+    const promise = this.fetchCommandItems(entry, sourceId).then(items => {
+      this.commandFetchPromises.delete(sourceId);
+      // Notify renderer if content changed (name-based fingerprint comparison)
+      if (this.commandCacheFingerprint(sourceId) !== previousFingerprint) {
+        this.invalidateCache();
+        this.emit('source-changed');
+      }
+      return items;
+    }).catch(err => {
+      this.commandFetchPromises.delete(sourceId);
+      // fetchCommandItems handles its own errors and returns stale cache,
+      // so this catch is defensive for unexpected errors only
+      logger.debug('Background command refresh failed:', err);
+      return [] as CustomSearchItem[];
+    });
+
+    this.commandFetchPromises.set(sourceId, promise);
+  }
+
+  /**
+   * Generate a lightweight fingerprint for cached command items.
+   * Uses item names for fast comparison without deep equality.
+   */
+  private commandCacheFingerprint(sourceId: string): string {
+    const cached = this.commandCache.get(sourceId);
+    if (!cached) return '';
+    return cached.items.map(i => i.name).join('\0');
+  }
+
+  /**
+   * Execute command and parse stdout into CustomSearchItems
+   */
+  private async fetchCommandItems(
+    entry: CustomSearchEntry,
+    sourceId: string
+  ): Promise<CustomSearchItem[]> {
+    try {
+      const { stdout } = await execAsync(entry.sourceCommand!, {
+        timeout: CustomSearchLoader.COMMAND_SOURCE_TIMEOUT,
+        env: getEnhancedEnv(this.settings?.additionalPaths),
+      });
+
+      const output = stdout.trimEnd();
+      if (!output) {
+        this.commandCache.set(sourceId, { items: [], fetchedAt: Date.now() });
+        return [];
+      }
+
+      const items = this.parseCommandOutput(output, entry, sourceId);
+      this.commandCache.set(sourceId, { items, fetchedAt: Date.now() });
+      logger.info('CustomSearch command source loaded', { source: entry.sourceCommand, itemCount: items.length });
+      return items;
+    } catch (error) {
+      const execError = error as { message: string; stderr?: string; signal?: string };
+      const msg = execError.signal === 'SIGTERM'
+        ? `Command timed out (5s): ${entry.sourceCommand}`
+        : `Command failed: ${execError.stderr || execError.message}`;
+      logger.warn('CustomSearch command source error', { source: entry.sourceCommand, error: msg });
+      this.emit('command-error', { message: msg });
+
+      // Return stale cache if available, otherwise empty
+      const cached = this.commandCache.get(sourceId);
+      return cached ? cached.items : [];
+    }
+  }
+
+  /**
+   * Parse command output into CustomSearchItems.
+   * Auto-detects format: JSONL (first non-empty line starts with '{') or plain text.
+   */
+  private parseCommandOutput(
+    output: string,
+    entry: CustomSearchEntry,
+    sourceId: string
+  ): CustomSearchItem[] {
+    const lines = output.split('\n');
+    const firstLine = lines.find(l => l.trim());
+    const isJsonl = firstLine?.trimStart().startsWith('{');
+
+    if (isJsonl) {
+      return this.parseCommandOutputJsonl(lines, output, entry, sourceId);
+    }
+    return this.parseCommandOutputPlainText(lines, output, entry, sourceId);
+  }
+
+  /**
+   * Parse plain text command output (one item per non-empty line)
+   */
+  private parseCommandOutputPlainText(
+    lines: string[],
+    content: string,
+    entry: CustomSearchEntry,
+    sourceId: string
+  ): CustomSearchItem[] {
+    const items: CustomSearchItem[] = [];
+    const virtualPath = `command-source:${entry.sourceCommand}`;
+    const nowMs = Date.now();
+    let lineIndex = 0;
+
+    for (const rawLine of lines) {
+      const trimmed = rawLine.trim();
+      if (!trimmed) continue;
+      const item = this.createItemFromPlainTextLine(
+        trimmed, entry.sourceCommand!, '', virtualPath,
+        entry, sourceId, '', '', lineIndex, nowMs, content, {}
+      );
+      if (item) { items.push(item); lineIndex++; }
+    }
+    return items;
+  }
+
+  /**
+   * Parse JSONL command output (one JSON object per line)
+   */
+  private parseCommandOutputJsonl(
+    lines: string[],
+    content: string,
+    entry: CustomSearchEntry,
+    sourceId: string
+  ): CustomSearchItem[] {
+    const items: CustomSearchItem[] = [];
+    const virtualPath = `command-source:${entry.sourceCommand}`;
+
+    for (const rawLine of lines) {
+      const trimmed = rawLine.trim();
+      if (!trimmed) continue;
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(trimmed);
+        if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) continue;
+      } catch {
+        continue;
+      }
+      const elementData = parsed as Record<string, unknown>;
+      const item = this.createItemFromJsonData(
+        elementData, entry.sourceCommand!, '', virtualPath, entry, sourceId, undefined, content
+      );
+      if (item) items.push(item);
+    }
+    return items;
   }
 
   /**
@@ -705,7 +954,8 @@ class CustomSearchLoader extends EventEmitter {
       const heading = isJsonFile ? '' : parseFirstHeading(content);
       const jsonData = isJsonFile ? parseJsonContent(content) : undefined;
       const hasValues = Object.keys(values).length > 0;
-      const context = { basename, frontmatter, prefix, dirname, filePath, heading, content, ...(hasValues && { values }), ...(jsonData && { jsonData }) };
+      const basePath = splitSourcePath(entry.sourcePath).dir.replace(/^~/, os.homedir());
+      const context = { basename, frontmatter, prefix, dirname, filePath, basePath, heading, content, ...(hasValues && { values }), ...(jsonData && { jsonData }), ...(entry.args && { args: entry.args }) };
 
       const item: CustomSearchItem = {
         name: resolveTemplate(entry.name, context),
@@ -734,7 +984,8 @@ class CustomSearchLoader extends EventEmitter {
   /** エントリのvalues/prefixPatternからテンプレート変数を解決する */
   private async resolveEntryValues(filePath: string, entry: CustomSearchEntry): Promise<Record<string, string>> {
     if (!entry.values && !entry.prefixPattern) return {};
-    const expandedPath = await this.resolveSymlink(entry.path.replace(/^~/, os.homedir()));
+    const { dir } = splitSourcePath(entry.sourcePath);
+    const expandedPath = await this.resolveSymlink(dir.replace(/^~/, os.homedir()));
     return resolveValues(filePath, entry.values, entry.prefixPattern, expandedPath);
   }
 
@@ -756,9 +1007,10 @@ class CustomSearchLoader extends EventEmitter {
       const resolvedIcon = resolveTemplate(entry.icon, context);
       if (resolvedIcon) item.icon = resolvedIcon.startsWith('codicon-') ? resolvedIcon : `codicon-${resolvedIcon}`;
     }
-    // Auto-detect default icon from pattern when not explicitly set
-    if (!item.icon && entry.pattern) {
-      item.icon = SKILL_PATTERN.test(entry.pattern) ? 'codicon-edit-sparkle' : 'codicon-terminal';
+    // Auto-detect default icon from sourcePath pattern when not explicitly set
+    if (!item.icon && entry.sourcePath) {
+      const { pattern } = splitSourcePath(entry.sourcePath);
+      item.icon = SKILL_PATTERN.test(pattern) ? 'codicon-edit-sparkle' : 'codicon-terminal';
     }
     if (entry.argumentHint) {
       const resolvedHint = resolveTemplate(entry.argumentHint, context);
@@ -767,12 +1019,12 @@ class CustomSearchLoader extends EventEmitter {
     if (entry.triggers) {
       item.triggers = entry.triggers;
     }
-    if (entry.command) {
+    if (entry.runCommand) {
       // Shell-quote all resolved template values to prevent shell injection (CWE-78).
       // valueTransform is applied AFTER resolveJsonPath/getDirname/etc. produce their
       // final string, so JSON.stringify output (including object keys) is also quoted.
-      const resolvedCommand = resolveTemplate(entry.command, context, shellQuote);
-      if (resolvedCommand) item.command = resolvedCommand;
+      const resolvedCommand = resolveTemplate(entry.runCommand, context, shellQuote);
+      if (resolvedCommand) item.runCommand = resolvedCommand;
     }
   }
 
@@ -845,7 +1097,8 @@ class CustomSearchLoader extends EventEmitter {
     content: string,
     values?: Record<string, string>
   ): CustomSearchItem | null {
-    const context = { basename, frontmatter: {}, prefix, dirname, filePath, heading, line: trimmed, content, ...(values && { values }) };
+    const basePath = entry.sourcePath ? splitSourcePath(entry.sourcePath).dir.replace(/^~/, os.homedir()) : '';
+    const context = { basename, frontmatter: {}, prefix, dirname, filePath, basePath, heading, line: trimmed, content, ...(values && { values }), ...(entry.args && { args: entry.args }) };
     const item: CustomSearchItem = {
       name: resolveTemplate(entry.name, context),
       description: resolveTemplate(entry.description, context),
@@ -909,13 +1162,13 @@ class CustomSearchLoader extends EventEmitter {
   ): Promise<unknown[] | null> {
     // filePath をキャッシュキーとして渡し、繰り返し失敗を防止
     const result = await evaluateJq(jsonData, jqExpression, filePath);
-    logger.debug('evaluateJqArrayResult', {
-      filePath,
-      jqExpression,
-      resultType: typeof result,
-      isArray: Array.isArray(result),
-      length: Array.isArray(result) ? result.length : 'N/A'
-    });
+    // logger.debug('evaluateJqArrayResult', {
+    //   filePath,
+    //   jqExpression,
+    //   resultType: typeof result,
+    //   isArray: Array.isArray(result),
+    //   length: Array.isArray(result) ? result.length : 'N/A'
+    // });
     return Array.isArray(result) ? result : null;
   }
 
@@ -1128,7 +1381,8 @@ class CustomSearchLoader extends EventEmitter {
     parentJsonDataStack?: Record<string, unknown>[],
     content?: string
   ): CustomSearchItem | null {
-    const context = { basename, frontmatter: {}, prefix: '', dirname, filePath, heading: '', jsonData: elementData, ...(parentJsonDataStack && { parentJsonDataStack }), ...(content !== undefined && { content }) };
+    const basePath = entry.sourcePath ? splitSourcePath(entry.sourcePath).dir.replace(/^~/, os.homedir()) : '';
+    const context = { basename, frontmatter: {}, prefix: '', dirname, filePath, basePath, heading: '', jsonData: elementData, ...(parentJsonDataStack && { parentJsonDataStack }), ...(content !== undefined && { content }), ...(entry.args && { args: entry.args }) };
     const item: CustomSearchItem = {
       name: resolveTemplate(entry.name, context),
       description: resolveTemplate(entry.description, context),
@@ -1170,18 +1424,97 @@ class CustomSearchLoader extends EventEmitter {
    * - "**\/*\/SKILL.md" - 再帰的な任意ディレクトリ内の SKILL.md
    * - "**\/{commands,agents}/*.md" - ブレース展開対応
    */
-  private async findFiles(directory: string, pattern: string): Promise<string[]> {
+  private async findFiles(directory: string, pattern: string, excludeMarker?: string): Promise<string[]> {
+    // {latest} handling: walk prefix segments, pick newest dir, delegate suffix to findFilesWithPattern
+    if (pattern.includes('{latest}')) {
+      return this.findFilesWithLatest(directory, pattern, excludeMarker);
+    }
+
     // ブレース展開を処理（例: {commands,agents} → ['commands', 'agents']）
     const expandedPatterns = this.expandBraces(pattern);
 
     const allFiles: string[] = [];
     for (const expandedPattern of expandedPatterns) {
-      const files = await this.findFilesWithPattern(directory, expandedPattern, '');
+      const files = await this.findFilesWithPattern(directory, expandedPattern, '', excludeMarker);
       allFiles.push(...files);
     }
 
     // 重複を除去
     return [...new Set(allFiles)];
+  }
+
+  /**
+   * {latest} を含むパターンを処理:
+   * 1. {latest} 前のセグメントでディレクトリを走査（* glob対応）
+   * 2. {latest} 位置で各グループの最新ディレクトリのみ選択
+   * 3. {latest} 後のパターンを findFilesWithPattern に委譲
+   */
+  private async findFilesWithLatest(directory: string, pattern: string, excludeMarker?: string): Promise<string[]> {
+    const segments = pattern.split('/');
+    const latestIndex = segments.findIndex(s => s === '{latest}');
+    if (latestIndex < 0) return this.findFiles(directory, pattern, excludeMarker);
+
+    const prefixSegments = segments.slice(0, latestIndex); // segments before {latest}
+    const suffixPattern = segments.slice(latestIndex + 1).join('/'); // pattern after {latest}
+
+    // Walk prefix segments to find parent directories of {latest}
+    const parentDirs = await this.walkGlobSegments(directory, prefixSegments);
+
+    // For each parent dir, find the latest subdirectory
+    const allFiles: string[] = [];
+    for (const parentDir of parentDirs) {
+      const latestDir = await this.findLatestSubdir(parentDir);
+      if (!latestDir) continue;
+
+      // Delegate suffix pattern to existing findFiles (handles **, braces, etc.)
+      const files = await this.findFiles(latestDir, suffixPattern, excludeMarker);
+      allFiles.push(...files);
+    }
+
+    return [...new Set(allFiles)];
+  }
+
+  /** Walk glob segments (e.g., ["*", "*"]) to find matching directories */
+  private async walkGlobSegments(baseDir: string, segments: string[]): Promise<string[]> {
+    let dirs = [baseDir];
+    for (const segment of segments) {
+      const nextDirs: string[] = [];
+      for (const dir of dirs) {
+        try {
+          const entries = await fs.readdir(dir, { withFileTypes: true });
+          for (const entry of entries) {
+            if (entry.isDirectory() && this.matchesGlobPattern(entry.name, segment)) {
+              nextDirs.push(path.join(dir, entry.name));
+            }
+          }
+        } catch { /* skip unreadable dirs */ }
+      }
+      dirs = nextDirs;
+    }
+    return dirs;
+  }
+
+  /** Find the most recently modified subdirectory */
+  private async findLatestSubdir(parentDir: string): Promise<string | null> {
+    try {
+      const entries = await fs.readdir(parentDir, { withFileTypes: true });
+      let latestDir = '';
+      let latestMtime = -1;
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        const fullPath = path.join(parentDir, entry.name);
+        try {
+          const stat = await fs.stat(fullPath);
+          if (stat.mtimeMs > latestMtime) {
+            latestMtime = stat.mtimeMs;
+            latestDir = fullPath;
+          }
+        } catch { /* skip */ }
+      }
+      return latestDir || null;
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -1219,7 +1552,8 @@ class CustomSearchLoader extends EventEmitter {
   private async findFilesWithPattern(
     directory: string,
     pattern: string,
-    relativePath: string
+    relativePath: string,
+    excludeMarker?: string
   ): Promise<string[]> {
     const files: string[] = [];
     const parsed = this.parsePattern(pattern);
@@ -1227,13 +1561,18 @@ class CustomSearchLoader extends EventEmitter {
     try {
       const entries = await fs.readdir(directory, { withFileTypes: true });
 
+      // excludeMarker が指定されている場合、そのファイルが存在するディレクトリをスキップ
+      if (excludeMarker && entries.some(e => e.name === excludeMarker)) {
+        return files;
+      }
+
       for (const entry of entries) {
         const fullPath = path.join(directory, entry.name);
         const entryRelativePath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
         const entryType = await this.resolveEntryType(entry, fullPath);
 
         if (entryType === 'directory') {
-          const dirFiles = await this.processDirectoryEntry(fullPath, entryRelativePath, pattern, parsed);
+          const dirFiles = await this.processDirectoryEntry(fullPath, entryRelativePath, pattern, parsed, excludeMarker);
           files.push(...dirFiles);
         } else if (entryType === 'file' && this.matchesFilePattern(entry.name, entryRelativePath, parsed)) {
           files.push(fullPath);
@@ -1253,7 +1592,8 @@ class CustomSearchLoader extends EventEmitter {
     fullPath: string,
     entryRelativePath: string,
     pattern: string,
-    parsed: ReturnType<typeof this.parsePattern>
+    parsed: ReturnType<typeof this.parsePattern>,
+    excludeMarker?: string
   ): Promise<string[]> {
     if (!parsed.isRecursive) return [];
 
@@ -1266,7 +1606,7 @@ class CustomSearchLoader extends EventEmitter {
     }
 
     // Always recurse into subdirectories
-    const subFiles = await this.findFilesWithPattern(fullPath, pattern, entryRelativePath);
+    const subFiles = await this.findFilesWithPattern(fullPath, pattern, entryRelativePath, excludeMarker);
     files.push(...subFiles);
 
     return files;
@@ -1406,7 +1746,6 @@ class CustomSearchLoader extends EventEmitter {
       return true;
     }
 
-    // P3: RegExp cache to avoid recompilation per file
     let regex = this.regexCache.get(pattern);
     if (!regex) {
       const regexPattern = pattern
