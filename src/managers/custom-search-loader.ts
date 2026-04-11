@@ -589,7 +589,7 @@ class CustomSearchLoader extends EventEmitter {
     const results = await Promise.all(
       this.config.map(async (entry) => {
         const sourceId = entry.sourceCommand
-          ? `sourceCommand:${entry.sourceCommand}`
+          ? `sourceCommand:${entry.sourceCommand}${entry.sourceDir ? ':' + entry.sourceDir : ''}`
           : entry.sourcePath;
         try {
           const { items, watchableFiles, watchGlobs } = entry.sourceCommand
@@ -698,7 +698,7 @@ class CustomSearchLoader extends EventEmitter {
   private async loadCommandEntry(
     entry: CustomSearchEntry
   ): Promise<{ items: CustomSearchItem[]; watchableFiles: string[]; watchGlobs: string[] }> {
-    const sourceId = `sourceCommand:${entry.sourceCommand}`;
+    const sourceId = `sourceCommand:${entry.sourceCommand}${entry.sourceDir ? ':' + entry.sourceDir : ''}`;
     const cached = this.commandCache.get(sourceId);
 
     let items: CustomSearchItem[];

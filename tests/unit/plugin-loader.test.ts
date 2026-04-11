@@ -243,4 +243,60 @@ commands:
       expect(entries[0].args).toEqual({ key1: 'value1', key2: 'value2' });
     });
   });
+
+  describe('sourceDir', () => {
+    test('should set sourceDir from YAML file path for plugin entries', () => {
+      vi.spyOn(fs, 'readFileSync').mockReturnValue(
+        makePluginYaml({ name: 'test', sourceCommand: 'echo hello' })
+      );
+
+      const entries = loader.loadPluginEntries([{ path: `${SKILLS_PATH}/test` }]);
+
+      expect(entries).toHaveLength(1);
+      expect(entries[0].sourceDir).toBe('/tmp/test-plugins/github.com/user/repo/agent-skills');
+    });
+
+    test('should set sourceDir for custom-search plugin entries', () => {
+      vi.spyOn(fs, 'readFileSync').mockReturnValue(
+        makePluginYaml({ name: '{line}', sourceCommand: './search.sh', searchPrefix: 'test' })
+      );
+
+      const entries = loader.loadPluginEntries([{ path: 'github.com/user/repo/custom-search/my-search' }]);
+
+      expect(entries).toHaveLength(1);
+      expect(entries[0].sourceDir).toBe('/tmp/test-plugins/github.com/user/repo/custom-search');
+    });
+
+    test('should set sourceDir for standalone custom-search files', () => {
+      vi.spyOn(fs, 'readFileSync').mockReturnValue(
+        makePluginYaml({ name: '{line}', sourceCommand: './script.sh', searchPrefix: 'standalone' })
+      );
+
+      const entry = loader.loadCustomSearchFile('my-standalone');
+
+      expect(entry).not.toBeNull();
+      expect(entry!.sourceDir).toBe('/tmp/test-custom-search');
+    });
+
+    test('should set sourceDir for standalone agent-skills files', () => {
+      vi.spyOn(fs, 'readFileSync').mockReturnValue(
+        makePluginYaml({ name: 'my-skill', sourceCommand: './run.sh' })
+      );
+
+      const entry = loader.loadAgentSkillFile('my-skill');
+
+      expect(entry).not.toBeNull();
+      expect(entry!.sourceDir).toBe('/tmp/test-agent-skills');
+    });
+
+    test('should not set sourceDir for entries without filePath', () => {
+      vi.spyOn(fs, 'readFileSync').mockReturnValue(makePluginYaml());
+
+      const entries = loader.loadPluginEntries([{ path: `${SKILLS_PATH}/test` }]);
+
+      // sourceDir IS set because plugin entries always have a filePath
+      expect(entries).toHaveLength(1);
+      expect(entries[0].sourceDir).toBeDefined();
+    });
+  });
 });

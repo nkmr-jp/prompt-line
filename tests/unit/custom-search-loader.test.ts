@@ -1,5 +1,18 @@
+// Override child_process.exec to support 3-arg form (command, options, callback)
+// needed by promisify(exec) in custom-search-loader's sourceCommand handling
+const execCalls: Array<{ command: string; options: any }> = [];
+vi.mock('child_process', () => ({
+  exec: vi.fn((cmd: string, optsOrCb: any, cb?: any) => {
+    const callback = typeof optsOrCb === 'function' ? optsOrCb : cb;
+    const options = typeof optsOrCb === 'object' ? optsOrCb : {};
+    execCalls.push({ command: cmd, options });
+    if (callback) callback(null, 'line1\nline2', '');
+  })
+}));
+
 import CustomSearchLoader from '../../src/managers/custom-search-loader';
 import { promises as fs } from 'fs';
+import { exec } from 'child_process';
 import chokidarModule from 'chokidar';
 import type { CustomSearchEntry } from '../../src/types';
 
@@ -2881,6 +2894,92 @@ Content`;
       await loader.getItems('command');
 
       await expect(loader.stopWatching()).resolves.toBeUndefined();
+    });
+  });
+
+  describe('sourceCommand with sourceDir (cwd)', () => {
+    const defaultExecImpl = ((cmd: string, optsOrCb: any, cb?: any) => {
+      const callback = typeof optsOrCb === 'function' ? optsOrCb : cb;
+      const options = typeof optsOrCb === 'object' ? optsOrCb : {};
+      execCalls.push({ command: cmd, options });
+      if (callback) callback(null, 'line1\nline2', '');
+    }) as any;
+
+    beforeEach(() => {
+      execCalls.length = 0;
+      vi.mocked(exec).mockImplementation(defaultExecImpl);
+    });
+
+    test('should pass sourceDir as cwd to execAsync', async () => {
+      const config: CustomSearchEntry[] = [
+        {
+          name: '{line}',
+          type: 'mention',
+          description: '',
+          sourcePath: '',
+          sourceCommand: './search.sh',
+          sourceDir: '/path/to/plugin/dir',
+          searchPrefix: 'test',
+        },
+      ];
+      const loader = new CustomSearchLoader(config);
+      await loader.getItems('mention');
+
+      // Verify cwd was passed to exec
+      const call = execCalls.find(c => c.command === './search.sh');
+      expect(call).toBeDefined();
+      expect(call!.options.cwd).toBe('/path/to/plugin/dir');
+    });
+
+    test('should not pass cwd when sourceDir is undefined', async () => {
+      const config: CustomSearchEntry[] = [
+        {
+          name: '{line}',
+          type: 'mention',
+          description: '',
+          sourcePath: '',
+          sourceCommand: 'echo hello',
+          searchPrefix: 'test',
+        },
+      ];
+      const loader = new CustomSearchLoader(config);
+      await loader.searchItems('mention', 'test:');
+
+      const call = execCalls.find(c => c.command === 'echo hello');
+      expect(call).toBeDefined();
+      expect(call!.options).not.toHaveProperty('cwd');
+    });
+
+    test('should use different cache keys for same command with different sourceDir', async () => {
+      const config: CustomSearchEntry[] = [
+        {
+          name: '{line}',
+          type: 'mention',
+          description: '',
+          sourcePath: '',
+          sourceCommand: './search.sh',
+          sourceDir: '/plugin-a',
+          searchPrefix: 'a',
+        },
+        {
+          name: '{line}',
+          type: 'mention',
+          description: '',
+          sourcePath: '',
+          sourceCommand: './search.sh',
+          sourceDir: '/plugin-b',
+          searchPrefix: 'b',
+        },
+      ];
+
+      const loader = new CustomSearchLoader(config);
+      await loader.getItems('mention');
+
+      // Both entries should trigger separate exec calls (different cache keys)
+      const calls = execCalls.filter(c => c.command === './search.sh');
+      expect(calls).toHaveLength(2);
+      expect(calls.some(c => c.options?.cwd === '/plugin-a')).toBe(true);
+      expect(calls.some(c => c.options?.cwd === '/plugin-b')).toBe(true);
     });
   });
 });
