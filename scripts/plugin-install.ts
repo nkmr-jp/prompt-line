@@ -461,7 +461,7 @@ function isValidPluginFolder(relPath: string): boolean {
   return parts.some(part => (VALID_PLUGIN_TYPES as readonly string[]).includes(part));
 }
 
-function copyYamlFiles(
+export function copyYamlFiles(
   sourceDir: string,
   targetDir: string,
   gitCwd: string,
@@ -539,6 +539,14 @@ function copyYamlFiles(
       pluginEntries.push(pluginEntry);
 
       totalFiles++;
+    } else if (isPluginFolder && entry.isFile() && !entry.name.endsWith('.yml') && !entry.name.endsWith('.yaml')) {
+      // Copy non-YAML resource files (scripts, etc.) as-is, preserving permissions
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
+      fs.copyFileSync(sourcePath, targetPath);
+      const stat = fs.statSync(sourcePath);
+      fs.chmodSync(targetPath, stat.mode);
     }
   }
 
