@@ -589,7 +589,7 @@ class CustomSearchLoader extends EventEmitter {
     const results = await Promise.all(
       this.config.map(async (entry) => {
         const sourceId = entry.sourceCommand
-          ? `sourceCommand:${entry.sourceCommand}`
+          ? `sourceCommand:${entry.sourceCommand}${entry.sourceDir ? ':' + entry.sourceDir : ''}`
           : entry.sourcePath;
         try {
           const { items, watchableFiles, watchGlobs } = entry.sourceCommand
@@ -698,7 +698,7 @@ class CustomSearchLoader extends EventEmitter {
   private async loadCommandEntry(
     entry: CustomSearchEntry
   ): Promise<{ items: CustomSearchItem[]; watchableFiles: string[]; watchGlobs: string[] }> {
-    const sourceId = `sourceCommand:${entry.sourceCommand}`;
+    const sourceId = `sourceCommand:${entry.sourceCommand}${entry.sourceDir ? ':' + entry.sourceDir : ''}`;
     const cached = this.commandCache.get(sourceId);
 
     let items: CustomSearchItem[];
@@ -769,6 +769,7 @@ class CustomSearchLoader extends EventEmitter {
       const { stdout } = await execAsync(entry.sourceCommand!, {
         timeout: CustomSearchLoader.COMMAND_SOURCE_TIMEOUT,
         env: getEnhancedEnv(this.settings?.additionalPaths),
+        ...(entry.sourceDir && { cwd: entry.sourceDir }),
       });
 
       const output = stdout.trimEnd();
@@ -1054,6 +1055,9 @@ class CustomSearchLoader extends EventEmitter {
       // final string, so JSON.stringify output (including object keys) is also quoted.
       const resolvedCommand = resolveTemplate(entry.runCommand, context, shellQuote);
       if (resolvedCommand) item.runCommand = resolvedCommand;
+    }
+    if (entry.sourceDir) {
+      item.sourceDir = entry.sourceDir;
     }
   }
 

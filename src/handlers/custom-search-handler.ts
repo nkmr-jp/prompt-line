@@ -541,9 +541,9 @@ class CustomSearchHandler {
         this.customSearchLoader.getItems('mention'),
         this.customSearchLoader.getItems('command'),
       ]);
-      const isAuthorized = mentionItems.some(item => item.runCommand === command)
-        || commandItems.some(item => item.runCommand === command);
-      if (!isAuthorized) {
+      const allItems = [...mentionItems, ...commandItems];
+      const authorizedItem = allItems.find(item => item.runCommand === command);
+      if (!authorizedItem) {
         logger.warn('Unauthorized command execution attempt blocked', { commandLength: command.length });
         return { success: false, error: 'Command not authorized' };
       }
@@ -552,6 +552,7 @@ class CustomSearchHandler {
       const { stdout, stderr } = await execAsync(command, {
         timeout: 30000,
         env: getEnhancedEnv(this.settingsManager.getAdditionalPaths()),
+        ...(authorizedItem.sourceDir && { cwd: authorizedItem.sourceDir }),
       });
 
       const output = (stdout || '').trimEnd();

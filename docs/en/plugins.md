@@ -299,6 +299,24 @@ args:
 - Output format: plain text (one item per line) or JSONL (one JSON per line)
 - Auto-detected from first line of output
 
+**Custom scripts:**
+
+`sourceCommand` and `runCommand` are executed with the YAML file's directory as the working directory (`cwd`). You can place scripts alongside the plugin YAML and reference them with relative paths.
+
+```yaml
+sourceCommand: "./search.sh"
+name: "{line}"
+searchPrefix: mydata
+runCommand: "./open.sh {line}"
+```
+
+```
+~/.prompt-line/plugins/my-plugin/custom-search/
+  ├── my-search.yaml    # sourceCommand: "./search.sh"
+  ├── search.sh         # cwd = this directory when executed
+  └── open.sh
+```
+
 ---
 
 ## Template Variables

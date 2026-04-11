@@ -200,7 +200,7 @@ class PluginLoader {
       plugin.agentBuiltIn = this.parseAgentBuiltIn(yamlData, filePath);
       plugin.agentBuiltInAgents = this.parseAgentBuiltInAgents(yamlData, filePath);
     } else {
-      const entry = this.parsePluginEntry(parsed as PluginEntryYaml, type, overrides);
+      const entry = this.parsePluginEntry(parsed as PluginEntryYaml, type, filePath, overrides);
       if (entry) {
         plugin.entries = [entry];
       }
@@ -217,6 +217,7 @@ class PluginLoader {
   private parsePluginEntry(
     yamlData: PluginEntryYaml,
     type: PluginType,
+    filePath?: string,
     overrides?: { searchPrefix?: string; args?: Record<string, string> }
   ): CustomSearchEntry | null {
     if (!yamlData.name || (!yamlData.sourcePath && !yamlData.sourceCommand)) {
@@ -231,6 +232,9 @@ class PluginLoader {
       description: (yamlData.description || '').replace(/\n+/g, ' ').trim(),
       sourcePath: yamlData.sourcePath || '',
     };
+
+    // Set sourceDir from YAML file path (for sourceCommand/runCommand cwd)
+    if (filePath) entry.sourceDir = path.dirname(filePath);
 
     // Copy source/run fields
     if (yamlData.sourceCommand !== undefined) entry.sourceCommand = yamlData.sourceCommand;
@@ -524,7 +528,7 @@ class PluginLoader {
     if (cached) return cached.entries[0] ?? null;
 
     const result = this.readYamlByName(dir, name);
-    const entry = result ? this.parsePluginEntry(result.parsed as PluginEntryYaml, type) : null;
+    const entry = result ? this.parsePluginEntry(result.parsed as PluginEntryYaml, type, result.filePath) : null;
     const basePath = path.join(dir, name);
 
     // Cache both hits and misses to avoid repeated I/O for invalid names
