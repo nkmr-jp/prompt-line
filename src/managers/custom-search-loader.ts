@@ -77,9 +77,9 @@ class CustomSearchLoader extends EventEmitter {
   private commandFetchPromises: Map<string, Promise<CustomSearchItem[]>> = new Map();
   private static readonly COMMAND_SOURCE_TIMEOUT = 5000;
 
-  // File watchers for hot reload (individual files: JSONL + non-glob pattern files)
-  private fileWatchers: FSWatcher[] = [];
-  private watchedFilePaths: Set<string> = new Set();
+  // Watchers for hot reload (individual files + glob-pattern directories)
+  private watchers: FSWatcher[] = [];
+  private watchedPaths: Set<string> = new Set();
   private static readonly FILE_RELOAD_DEBOUNCE_MS = 300;
   private fileReloadTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -159,34 +159,57 @@ class CustomSearchLoader extends EventEmitter {
    * Watches JSONL files and individual (non-glob) pattern files.
    */
   private startFileWatching(watchableFiles: string[]): void {
-    // Filter to only new files not already watched
-    const newFiles = watchableFiles.filter(f => !this.watchedFilePaths.has(f));
-    if (newFiles.length === 0) return;
+    this.startWatching(watchableFiles, {
+      awaitWriteFinish: { stabilityThreshold: 100, pollInterval: 50 },
+    }, ['change']);
+  }
 
-    for (const filePath of newFiles) {
-      this.watchedFilePaths.add(filePath);
+  /**
+   * Start watching glob patterns for hot reload (glob-pattern sources).
+   * Passes glob patterns directly to chokidar to constrain watched scope.
+   * Detects file additions, changes, and deletions.
+   */
+  private startGlobWatching(watchGlobs: string[]): void {
+    this.startWatching(watchGlobs, {
+      awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 50 },
+    }, ['add', 'change', 'unlink', 'unlinkDir']);
+  }
+
+  /**
+   * Shared watcher setup: deduplicates paths, creates chokidar watcher, registers events.
+   */
+  private startWatching(
+    paths: string[],
+    extraOptions: Record<string, unknown>,
+    events: ('add' | 'change' | 'unlink' | 'unlinkDir')[]
+  ): void {
+    const newPaths = paths.filter(p => !this.watchedPaths.has(p));
+    if (newPaths.length === 0) return;
+
+    for (const p of newPaths) {
+      this.watchedPaths.add(p);
     }
 
-    const watcher = chokidar.watch(newFiles, {
+    const watcher = chokidar.watch(newPaths, {
       persistent: true,
       ignoreInitial: true,
-      awaitWriteFinish: {
-        stabilityThreshold: 100,
-        pollInterval: 50
-      },
+      ...extraOptions,
     });
 
-    watcher.on('change', (filePath: string) => {
-      logger.debug('CustomSearch source file changed:', filePath);
+    const handler = (changedPath: string) => {
+      logger.debug('CustomSearch watcher:', changedPath);
       this.handleSourceFileChange();
-    });
+    };
+    for (const event of events) {
+      watcher.on(event, handler);
+    }
 
     watcher.on('error', (error: unknown) => {
-      logger.error('CustomSearch file watcher error:', error);
+      logger.error('CustomSearch watcher error:', error);
     });
 
-    this.fileWatchers.push(watcher);
-    logger.info('CustomSearch file watcher started', { files: newFiles });
+    this.watchers.push(watcher);
+    logger.info('CustomSearch watcher started', { paths: newPaths, events });
   }
 
   /**
@@ -215,11 +238,11 @@ class CustomSearchLoader extends EventEmitter {
    * Stop all file watchers
    */
   async stopWatching(): Promise<void> {
-    for (const watcher of this.fileWatchers) {
+    for (const watcher of this.watchers) {
       await watcher.close();
     }
-    this.fileWatchers = [];
-    this.watchedFilePaths.clear();
+    this.watchers = [];
+    this.watchedPaths.clear();
     if (this.fileReloadTimer) {
       clearTimeout(this.fileReloadTimer);
       this.fileReloadTimer = null;
@@ -542,12 +565,13 @@ class CustomSearchLoader extends EventEmitter {
       return this.loadingPromise;
     }
 
-    this.loadingPromise = this.loadAllEntries().then(({ items: allItems, watchableFiles }) => {
+    this.loadingPromise = this.loadAllEntries().then(({ items: allItems, watchableFiles, watchGlobs }) => {
       allItems.sort((a, b) => a.name.localeCompare(b.name));
       this.cache.set(cacheKey, { items: allItems });
       this.buildEntryMap();
       this.logLoadedItems(allItems);
       this.startFileWatching(watchableFiles);
+      this.startGlobWatching(watchGlobs);
       this.loadingPromise = null;
       return allItems;
     }).catch(err => {
@@ -561,33 +585,35 @@ class CustomSearchLoader extends EventEmitter {
   /**
    * Load all entries with deduplication
    */
-  private async loadAllEntries(): Promise<{ items: CustomSearchItem[]; watchableFiles: string[] }> {
+  private async loadAllEntries(): Promise<{ items: CustomSearchItem[]; watchableFiles: string[]; watchGlobs: string[] }> {
     const results = await Promise.all(
       this.config.map(async (entry) => {
         const sourceId = entry.sourceCommand
           ? `sourceCommand:${entry.sourceCommand}`
           : entry.sourcePath;
         try {
-          const { items, watchableFiles } = entry.sourceCommand
+          const { items, watchableFiles, watchGlobs } = entry.sourceCommand
             ? await this.loadCommandEntry(entry)
             : await this.loadEntry(entry);
-          return { items, sourceId, watchableFiles };
+          return { items, sourceId, watchableFiles, watchGlobs };
         } catch (error) {
           logger.error('Failed to load entry', { entry, error });
-          return { items: [] as CustomSearchItem[], sourceId, watchableFiles: [] as string[] };
+          return { items: [] as CustomSearchItem[], sourceId, watchableFiles: [] as string[], watchGlobs: [] as string[] };
         }
       })
     );
 
     const allItems: CustomSearchItem[] = [];
     const allWatchableFiles: string[] = [];
+    const allWatchGlobs: string[] = [];
     const seenNames = new Map<string, Set<string>>();
-    for (const { items, sourceId, watchableFiles } of results) {
+    for (const { items, sourceId, watchableFiles, watchGlobs } of results) {
       this.addItemsWithDeduplication(items, sourceId, seenNames, allItems);
       allWatchableFiles.push(...watchableFiles);
+      allWatchGlobs.push(...watchGlobs);
     }
 
-    return { items: allItems, watchableFiles: allWatchableFiles };
+    return { items: allItems, watchableFiles: allWatchableFiles, watchGlobs: allWatchGlobs };
   }
 
   /**
@@ -632,13 +658,13 @@ class CustomSearchLoader extends EventEmitter {
   /**
    * 単一エントリをロード
    */
-  private async loadEntry(entry: CustomSearchEntry): Promise<{ items: CustomSearchItem[]; watchableFiles: string[] }> {
+  private async loadEntry(entry: CustomSearchEntry): Promise<{ items: CustomSearchItem[]; watchableFiles: string[]; watchGlobs: string[] }> {
     const { dir, pattern } = splitSourcePath(entry.sourcePath);
     const expandedPath = await this.resolveSymlink(dir.replace(/^~/, os.homedir()));
 
     const isValid = await this.validateDirectory(expandedPath);
     if (!isValid) {
-      return { items: [], watchableFiles: [] };
+      return { items: [], watchableFiles: [], watchGlobs: [] };
     }
 
     // Parse jq expression from pattern: '**/config.json@.members' → filePattern + jqExpression
@@ -657,9 +683,12 @@ class CustomSearchLoader extends EventEmitter {
     // Watchable files: all files if pattern is individual (non-glob), otherwise JSONL only
     const isIndividual = CustomSearchLoader.isIndividualFilePattern(filePattern);
     const watchableFiles = isIndividual ? files : files.filter(f => f.endsWith('.jsonl'));
+    // Watch glob patterns to detect file additions, changes, and deletions
+    // Replace {latest} custom token with * wildcard for chokidar compatibility
+    const watchGlobs = isIndividual ? [] : [path.join(expandedPath, filePattern.replace(/\{latest\}/g, '*'))];
 
     const items = await this.parseFilesToItems(files, entry, sourceId, jqExpression);
-    return { items, watchableFiles };
+    return { items, watchableFiles, watchGlobs };
   }
 
   /**
@@ -668,7 +697,7 @@ class CustomSearchLoader extends EventEmitter {
    */
   private async loadCommandEntry(
     entry: CustomSearchEntry
-  ): Promise<{ items: CustomSearchItem[]; watchableFiles: string[] }> {
+  ): Promise<{ items: CustomSearchItem[]; watchableFiles: string[]; watchGlobs: string[] }> {
     const sourceId = `sourceCommand:${entry.sourceCommand}`;
     const cached = this.commandCache.get(sourceId);
 
@@ -689,7 +718,7 @@ class CustomSearchLoader extends EventEmitter {
       );
     }
 
-    return { items, watchableFiles: [] };
+    return { items, watchableFiles: [], watchGlobs: [] };
   }
 
   /**
