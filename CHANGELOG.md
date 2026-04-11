@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.31.2](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.31.1...prompt-line-v0.31.2) (2026-04-11)
+
+
+### Bug Fixes
+
+* **plugin:** copy resource files alongside YAML during plugin install ([#345](https://github.com/nkmr-jp/prompt-line/issues/345)) ([0edf54b](https://github.com/nkmr-jp/prompt-line/commit/0edf54ba187acf3a2e49fed04ae63d8b33137886))
+
 ## [0.31.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.31.0...prompt-line-v0.31.1) (2026-04-11)
 
 
