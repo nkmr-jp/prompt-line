@@ -387,7 +387,7 @@ class CustomSearchLoader extends EventEmitter {
     this.entryMap.clear();
     for (const entry of this.config) {
       const key = entry.sourceCommand
-        ? `${entry.type}:sourceCommand:${entry.sourceCommand}`
+        ? `${entry.type}:sourceCommand:${entry.sourceCommand}${entry.sourceDir ? ':' + entry.sourceDir : ''}`
         : `${entry.type}:${entry.sourcePath}`;
       this.entryMap.set(key, entry);
     }
