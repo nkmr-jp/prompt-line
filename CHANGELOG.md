@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.31.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.31.0...prompt-line-v0.31.1) (2026-04-11)
+
+
+### Bug Fixes
+
+* **plugin:** align entryMap key with sourceId for sourceDir-based entries ([#343](https://github.com/nkmr-jp/prompt-line/issues/343)) ([c2bf9cc](https://github.com/nkmr-jp/prompt-line/commit/c2bf9cc41b4ce08c37b8f40fe63e4de1c2e432c8))
+
 ## [0.31.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.30.2...prompt-line-v0.31.0) (2026-04-11)
 
 
