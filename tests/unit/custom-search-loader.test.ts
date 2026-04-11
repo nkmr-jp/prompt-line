@@ -1,5 +1,6 @@
 import CustomSearchLoader from '../../src/managers/custom-search-loader';
 import { promises as fs } from 'fs';
+import chokidarModule from 'chokidar';
 import type { CustomSearchEntry } from '../../src/types';
 
 // Unmock path module (needed for prefix-resolver which is used by custom-search-loader)
@@ -54,6 +55,7 @@ vi.mock('../../src/lib/jq-resolver', () => ({
 }));
 
 const mockedFs = vi.mocked(fs);
+const mockedChokidar = vi.mocked(chokidarModule);
 
 // Helper to create Dirent-like objects for readdir with withFileTypes
 const createDirent = (name: string, isFile: boolean) => ({
@@ -2746,6 +2748,139 @@ Content`;
       // Directly emit to verify EventEmitter works
       loader.emit('source-changed');
       expect(handler).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('glob watching', () => {
+    test('should create glob watcher for glob-pattern sources after getItems', async () => {
+      const config: CustomSearchEntry[] = [
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '',
+          sourcePath: '~/plugins/cache/**/*.md',
+        },
+      ];
+      const loader = new CustomSearchLoader(config);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('skill.md', true)] as any);
+      mockedFs.readFile.mockResolvedValue('---\ndescription: test\n---\n# Test');
+
+      mockedChokidar.watch.mockClear();
+      await loader.getItems('command');
+
+      const globWatchCall = mockedChokidar.watch.mock.calls.find((call) => {
+        const paths = call[0] as string[];
+        return paths.some((p) => p.includes('**/*.md'));
+      });
+      expect(globWatchCall).toBeDefined();
+    });
+
+    test('should not create glob watcher for individual file sources', async () => {
+      const config: CustomSearchEntry[] = [
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '',
+          sourcePath: '/path/to/commands/readme.md',
+        },
+      ];
+      const loader = new CustomSearchLoader(config);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('readme.md', true)] as any);
+      mockedFs.readFile.mockResolvedValue('---\ndescription: test\n---\n# Test');
+
+      mockedChokidar.watch.mockClear();
+      await loader.getItems('command');
+
+      const globWatchCall = mockedChokidar.watch.mock.calls.find((call) => {
+        const paths = call[0] as string[];
+        return paths.some((p) => p.includes('*'));
+      });
+      expect(globWatchCall).toBeUndefined();
+    });
+
+    test('should replace {latest} token with * wildcard in glob patterns', async () => {
+      const config: CustomSearchEntry[] = [
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '',
+          sourcePath: '~/plugins/cache/*/*/{latest}/**/SKILL.md',
+        },
+      ];
+      const loader = new CustomSearchLoader(config);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([] as any);
+
+      mockedChokidar.watch.mockClear();
+      await loader.getItems('command');
+
+      const globWatchCall = mockedChokidar.watch.mock.calls.find((call) => {
+        const paths = call[0] as string[];
+        return paths.some((p) => p.includes('SKILL.md'));
+      });
+
+      if (globWatchCall) {
+        const watchedPaths = globWatchCall[0] as string[];
+        const skillPath = watchedPaths.find((p) => p.includes('SKILL.md'));
+        expect(skillPath).not.toContain('{latest}');
+        expect(skillPath).toContain('/*/*/**/SKILL.md');
+      }
+    });
+
+    test('should not create duplicate watchers for the same glob path', async () => {
+      const config: CustomSearchEntry[] = [
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '',
+          sourcePath: '~/plugins/cache/**/*.md',
+        },
+      ];
+      const loader = new CustomSearchLoader(config);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('test.md', true)] as any);
+      mockedFs.readFile.mockResolvedValue('---\ndescription: test\n---\n# Test');
+
+      mockedChokidar.watch.mockClear();
+      await loader.getItems('command');
+      const callsAfterFirst = mockedChokidar.watch.mock.calls.length;
+
+      // Invalidate and reload — same paths should not create new watchers
+      loader.invalidateCache();
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('test.md', true)] as any);
+      mockedFs.readFile.mockResolvedValue('---\ndescription: test\n---\n# Test');
+
+      await loader.getItems('command');
+      const callsAfterSecond = mockedChokidar.watch.mock.calls.length;
+
+      expect(callsAfterSecond).toBe(callsAfterFirst);
+    });
+
+    test('should close all watchers on stopWatching', async () => {
+      const config: CustomSearchEntry[] = [
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '',
+          sourcePath: '~/plugins/cache/**/*.md',
+        },
+      ];
+      const loader = new CustomSearchLoader(config);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('test.md', true)] as any);
+      mockedFs.readFile.mockResolvedValue('---\ndescription: test\n---\n# Test');
+
+      await loader.getItems('command');
+
+      await expect(loader.stopWatching()).resolves.toBeUndefined();
     });
   });
 });

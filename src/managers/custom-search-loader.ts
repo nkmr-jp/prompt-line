@@ -605,15 +605,15 @@ class CustomSearchLoader extends EventEmitter {
 
     const allItems: CustomSearchItem[] = [];
     const allWatchableFiles: string[] = [];
-    const allWatchDirs: string[] = [];
+    const allWatchGlobs: string[] = [];
     const seenNames = new Map<string, Set<string>>();
     for (const { items, sourceId, watchableFiles, watchGlobs } of results) {
       this.addItemsWithDeduplication(items, sourceId, seenNames, allItems);
       allWatchableFiles.push(...watchableFiles);
-      allWatchDirs.push(...watchGlobs);
+      allWatchGlobs.push(...watchGlobs);
     }
 
-    return { items: allItems, watchableFiles: allWatchableFiles, watchGlobs: allWatchDirs };
+    return { items: allItems, watchableFiles: allWatchableFiles, watchGlobs: allWatchGlobs };
   }
 
   /**
