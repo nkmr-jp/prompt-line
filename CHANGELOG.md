@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.30.0...prompt-line-v0.30.1) (2026-04-11)
+
+
+### Bug Fixes
+
+* **plugin:** auto-discover local YAML plugins without settings.yaml entries ([#337](https://github.com/nkmr-jp/prompt-line/issues/337)) ([3a91831](https://github.com/nkmr-jp/prompt-line/commit/3a91831030e3d8aa267b7efc54ac5674b1b2545f))
+
 ## [0.30.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.29.3...prompt-line-v0.30.0) (2026-04-11)
 
 
