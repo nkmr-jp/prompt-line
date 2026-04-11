@@ -6,7 +6,7 @@
 
 ## 概要
 
-Prompt Lineは、[Claude Code](https://github.com/anthropics/claude-code)、[Gemini CLI](https://github.com/google-gemini/gemini-cli)、[Codex CLI](https://github.com/openai/codex) などのCLI型AIコーディングエージェント向けに、プロンプト入力のUXを向上させるmacOSアプリです。
+Prompt Lineは、[Claude Code](https://github.com/anthropics/claude-code)、[Codex CLI](https://github.com/openai/codex)、[Gemini CLI](https://github.com/google-gemini/gemini-cli) などのCLI型AIコーディングエージェント向けに、プロンプト入力のUXを向上させるmacOSアプリです。
 フローティング入力ウィンドウによる快適な編集体験、`/`や`@`によるコンテキスト検索と入力補完、プロンプト履歴の再利用を提供します。[YAMLプラグインシステム](docs/ja/plugins.md)で自由に拡張できます。
 
 主な機能：
