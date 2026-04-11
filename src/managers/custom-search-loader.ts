@@ -684,7 +684,8 @@ class CustomSearchLoader extends EventEmitter {
     const isIndividual = CustomSearchLoader.isIndividualFilePattern(filePattern);
     const watchableFiles = isIndividual ? files : files.filter(f => f.endsWith('.jsonl'));
     // Watch glob patterns to detect file additions, changes, and deletions
-    const watchGlobs = isIndividual ? [] : [path.join(expandedPath, filePattern)];
+    // Replace {latest} custom token with * wildcard for chokidar compatibility
+    const watchGlobs = isIndividual ? [] : [path.join(expandedPath, filePattern.replace(/\{latest\}/g, '*'))];
 
     const items = await this.parseFilesToItems(files, entry, sourceId, jqExpression);
     return { items, watchableFiles, watchGlobs };
