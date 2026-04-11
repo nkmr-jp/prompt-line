@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.31.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.30.2...prompt-line-v0.31.0) (2026-04-11)
+
+
+### Features
+
+* **plugin:** use YAML file directory as cwd for sourceCommand/runCommand ([#341](https://github.com/nkmr-jp/prompt-line/issues/341)) ([43a4608](https://github.com/nkmr-jp/prompt-line/commit/43a46087748ca53c67b29c0768c0d08f30459892))
+
 ## [0.30.2](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.30.1...prompt-line-v0.30.2) (2026-04-11)
 
 
