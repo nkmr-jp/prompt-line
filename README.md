@@ -7,8 +7,8 @@ English |
 
 ## Overview
 
-Prompt Line is a macOS app developed to make prompt input more comfortable for CLI-based AI coding agents such as [Claude Code](https://github.com/anthropics/claude-code), [Codex CLI](https://github.com/openai/codex), and [Gemini CLI](https://github.com/google-gemini/gemini-cli).
-It provides features focused on improving the prompt input UX, including editing in a floating window, context search with `/` and `@`, and prompt history reuse. Extensible via [YAML plugins](docs/en/plugins.md).
+Prompt Line is a macOS app developed to improve the prompt input experience in the terminal for CLI-based AI coding agents such as [Claude Code](https://github.com/anthropics/claude-code), [Codex CLI](https://github.com/openai/codex), and [Gemini CLI](https://github.com/google-gemini/gemini-cli).
+It provides a comfortable input experience through a floating window.
 
 Key capabilities:
 
