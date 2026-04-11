@@ -33,6 +33,8 @@ vi.mock('../../src/lib/plugin-loader', () => ({
     loadPluginEntries: vi.fn(() => []),
     loadAgentBuiltIn: vi.fn(() => []),
     searchAgentBuiltIn: vi.fn(() => []),
+    loadAllLocalAgentSkills: vi.fn(() => []),
+    loadAllLocalCustomSearch: vi.fn(() => []),
     clearCache: vi.fn()
   }
 }));

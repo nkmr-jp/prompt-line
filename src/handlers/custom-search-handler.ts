@@ -135,8 +135,10 @@ class CustomSearchHandler {
       const enabledPlugins = this.settingsManager.getPluginSettings();
       const pluginPaths = enabledPlugins.map(p => p.path);
       const pluginCommands = pluginLoader.searchAgentBuiltIn(pluginPaths, query);
-      const legacyCommands = pluginLoader.searchLegacyAgentBuiltIn(this.settingsManager.getAgentBuiltInSettings(), query);
-      const agentBuiltIn = [...pluginCommands, ...legacyCommands];
+      const explicitNames = this.settingsManager.getAgentBuiltInSettings();
+      const legacyCommands = pluginLoader.searchLegacyAgentBuiltIn(explicitNames, query);
+      const localCommands = pluginLoader.searchAllLocalAgentBuiltIn(new Set(explicitNames ?? []), query);
+      const agentBuiltIn = [...pluginCommands, ...legacyCommands, ...localCommands];
 
       // Get user commands from CustomSearchLoader (MD files)
       const items = query
@@ -254,8 +256,10 @@ class CustomSearchHandler {
       const enabledPlugins = this.settingsManager.getPluginSettings();
       const pluginPaths = enabledPlugins.map(p => p.path);
       const pluginCommands = pluginLoader.searchAgentBuiltIn(pluginPaths);
-      const legacyCommands = pluginLoader.searchLegacyAgentBuiltIn(this.settingsManager.getAgentBuiltInSettings());
-      const isBuiltIn = [...pluginCommands, ...legacyCommands].some(cmd => cmd.name === commandName);
+      const explicitBuiltInNames = this.settingsManager.getAgentBuiltInSettings();
+      const legacyCommands = pluginLoader.searchLegacyAgentBuiltIn(explicitBuiltInNames);
+      const localBuiltInCommands = pluginLoader.loadAllLocalAgentBuiltIn(new Set(explicitBuiltInNames ?? []));
+      const isBuiltIn = [...pluginCommands, ...legacyCommands, ...localBuiltInCommands].some(cmd => cmd.name === commandName);
       if (isBuiltIn) {
         return false; // Agent built-in don't have individual files
       }
@@ -284,6 +288,8 @@ class CustomSearchHandler {
       const enabledPlugins = this.settingsManager.getPluginSettings();
       const pluginPaths = enabledPlugins.map(p => p.path);
       const builtInAgents = pluginLoader.searchAgentBuiltInAgents(pluginPaths, query);
+      const explicitAgentNames = new Set(this.settingsManager.getAgentBuiltInSettings() ?? []);
+      builtInAgents.push(...pluginLoader.searchAllLocalAgentBuiltInAgents(explicitAgentNames, query));
 
       // Get mentions (agents) from CustomSearchLoader
       // Always use searchItems to apply searchPrefix filtering, even for empty query
