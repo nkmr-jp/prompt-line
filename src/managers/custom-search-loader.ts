@@ -769,6 +769,7 @@ class CustomSearchLoader extends EventEmitter {
       const { stdout } = await execAsync(entry.sourceCommand!, {
         timeout: CustomSearchLoader.COMMAND_SOURCE_TIMEOUT,
         env: getEnhancedEnv(this.settings?.additionalPaths),
+        ...(entry.sourceDir && { cwd: entry.sourceDir }),
       });
 
       const output = stdout.trimEnd();
@@ -1054,6 +1055,9 @@ class CustomSearchLoader extends EventEmitter {
       // final string, so JSON.stringify output (including object keys) is also quoted.
       const resolvedCommand = resolveTemplate(entry.runCommand, context, shellQuote);
       if (resolvedCommand) item.runCommand = resolvedCommand;
+    }
+    if (entry.sourceDir) {
+      item.sourceDir = entry.sourceDir;
     }
   }
 

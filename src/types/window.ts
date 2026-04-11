@@ -513,6 +513,8 @@ export interface CustomSearchEntry {
   sourceCommand?: string;
   /** オプション: テンプレート引数（例: { open: "iTerm" } → {args.open} で参照可能） */
   args?: Record<string, string>;
+  /** オプション: sourceCommand/runCommand 実行時の作業ディレクトリ（YAMLファイルのディレクトリパス） */
+  sourceDir?: string;
 }
 
 /**
@@ -553,6 +555,8 @@ export interface CustomSearchItem {
   triggers?: string[];
   /** テンプレート解決済みのコマンド文字列（Ctrl+Enter で実行） */
   runCommand?: string;
+  /** sourceCommand/runCommand 実行時の作業ディレクトリ（YAMLファイルのディレクトリパス） */
+  sourceDir?: string;
 }
 
 export interface AgentSkillItem {

@@ -299,6 +299,24 @@ args:
 - 出力フォーマット: プレーンテキスト（1行1アイテム）またはJSONL（1行1JSON）
 - 出力の最初の行から自動判別
 
+**カスタムスクリプト：**
+
+`sourceCommand` や `runCommand` はYAMLファイルのディレクトリを作業ディレクトリ（`cwd`）として実行されます。プラグインYAMLと同じフォルダにスクリプトを配置し、相対パスで参照できます。
+
+```yaml
+sourceCommand: "./search.sh"
+name: "{line}"
+searchPrefix: mydata
+runCommand: "./open.sh {line}"
+```
+
+```
+~/.prompt-line/plugins/my-plugin/custom-search/
+  ├── my-search.yaml    # sourceCommand: "./search.sh"
+  ├── search.sh         # cwd = このディレクトリで実行
+  └── open.sh
+```
+
 ---
 
 ## テンプレート変数
