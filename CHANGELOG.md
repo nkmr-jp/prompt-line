@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.2](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.30.1...prompt-line-v0.30.2) (2026-04-11)
+
+
+### Bug Fixes
+
+* **plugin:** hot reload for glob-pattern source file deletions ([#339](https://github.com/nkmr-jp/prompt-line/issues/339)) ([8f3ee3f](https://github.com/nkmr-jp/prompt-line/commit/8f3ee3fe098a64b18fef2431c098ebbe5222fce8))
+
 ## [0.30.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.30.0...prompt-line-v0.30.1) (2026-04-11)
 
 
