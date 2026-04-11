@@ -276,7 +276,7 @@ function sanitize(str: string): string {
   return str.replace(/[\r\n]/g, ' ').trim();
 }
 
-const COMMENT_MAX_LEN = 60;
+const COMMENT_MAX_LEN = 100;
 
 function truncateComment(comment: string): string {
   if (comment.length <= COMMENT_MAX_LEN) return comment;
