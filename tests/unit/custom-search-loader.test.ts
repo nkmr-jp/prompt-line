@@ -3081,5 +3081,54 @@ Content`;
       expect(execCalls.find(c => c.command === './fast.sh')).toBeDefined();
       expect(execCalls.find(c => c.command === './slow.sh')).toBeDefined();
     });
+
+    test('should build entryMap keys matching sourceId when sourceDir is set', async () => {
+      // This test verifies that buildEntryMap generates keys that match the sourceId
+      // used by loadAllEntries, so that findEntryForItem can resolve entries correctly.
+      // Without this fix, sourceDir-based entries would fail findEntryForItem lookup,
+      // breaking searchPrefix filtering in searchItems.
+      const config: CustomSearchEntry[] = [
+        {
+          name: '{line}', type: 'mention', description: '', sourcePath: '',
+          sourceCommand: 'zoxide query -l', sourceDir: '/plugins/path/custom-search', searchPrefix: 'z',
+        },
+        {
+          name: '{line}', type: 'mention', description: '', sourcePath: '',
+          sourceCommand: 'ghq list', sourceDir: '/plugins/path/custom-search', searchPrefix: 'ghq',
+        },
+        {
+          name: '{line}', type: 'mention', description: '', sourcePath: '',
+          sourceCommand: 'echo hello', searchPrefix: 'echo',
+        },
+      ];
+
+      const loader = new CustomSearchLoader(config);
+
+      // Access private entryMap via buildEntryMap (called by loadAll, but we trigger it directly)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const loaderAny = loader as any;
+      loaderAny.buildEntryMap();
+
+      // Verify entryMap keys include sourceDir suffix for entries that have sourceDir
+      const keys = Array.from(loaderAny.entryMap.keys()) as string[];
+
+      // Entry with sourceDir should have key: "mention:sourceCommand:zoxide query -l:/plugins/path/custom-search"
+      expect(keys).toContain('mention:sourceCommand:zoxide query -l:/plugins/path/custom-search');
+      expect(keys).toContain('mention:sourceCommand:ghq list:/plugins/path/custom-search');
+
+      // Entry without sourceDir should have key without suffix
+      expect(keys).toContain('mention:sourceCommand:echo hello');
+
+      // Verify findEntryForItem resolves correctly with sourceDir in sourceId
+      const mockItem = {
+        type: 'mention' as const,
+        sourceId: 'sourceCommand:zoxide query -l:/plugins/path/custom-search',
+        name: 'test', description: '', filePath: '',
+      };
+      const entry = loaderAny.findEntryForItem(mockItem);
+      expect(entry).toBeDefined();
+      expect(entry.sourceCommand).toBe('zoxide query -l');
+      expect(entry.searchPrefix).toBe('z');
+    });
   });
 });
