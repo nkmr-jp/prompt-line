@@ -81,10 +81,7 @@ describe('updateShortcutsDisplay', () => {
 
     updateShortcutsDisplay(headerShortcutsEl, historyShortcutsEl, shortcuts);
 
-    expect(headerShortcutsEl.innerHTML).toBe(`
-      <kbd>⌘</kbd>+<kbd>↵</kbd> Paste
-      <kbd>Esc</kbd> Close
-    `);
+    expect(headerShortcutsEl.innerHTML).toBe('<kbd>⌘</kbd>+<kbd>↵</kbd> Paste <kbd>Esc</kbd> Close');
   });
 
   test('should update history shortcuts display', () => {
@@ -119,10 +116,7 @@ describe('updateShortcutsDisplay', () => {
 
     updateShortcutsDisplay(headerShortcutsEl, historyShortcutsEl, shortcuts);
 
-    expect(headerShortcutsEl.innerHTML).toBe(`
-      <kbd>⌘+⇧</kbd>+<kbd>↵</kbd> Paste
-      <kbd>Esc</kbd> Close
-    `);
+    expect(headerShortcutsEl.innerHTML).toBe('<kbd>⌘+⇧</kbd>+<kbd>↵</kbd> Paste <kbd>Esc</kbd> Close');
   });
 
   test('should handle null elements gracefully', () => {
@@ -144,10 +138,7 @@ describe('updateShortcutsDisplay', () => {
 
     updateShortcutsDisplay(headerShortcutsEl, null, shortcuts);
 
-    expect(headerShortcutsEl.innerHTML).toBe(`
-      <kbd>⌘</kbd>+<kbd>↵</kbd> Paste
-      <kbd>Esc</kbd> Close
-    `);
+    expect(headerShortcutsEl.innerHTML).toBe('<kbd>⌘</kbd>+<kbd>↵</kbd> Paste <kbd>Esc</kbd> Close');
   });
 
   test('should handle only history element', () => {
