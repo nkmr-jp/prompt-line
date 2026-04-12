@@ -334,7 +334,7 @@ runCommand: "./open.sh {line}"
 | `{dirname}` | 親ディレクトリ名 | |
 | `{dirname:N}` | N階層上のディレクトリ | `{dirname:2}` |
 | `{pathdir:N}` | sourcePathのベースからN番目のディレクトリ | 例: `sourcePath: ~/a/b/*/file.md` → ベース=`~/a/b`、`{pathdir:1}`=ベース直下のディレクトリ |
-| `{projectdir}` | 現在のプロジェクトディレクトリ（検出されたCWD）。未検出時は未解決のまま残る — プラグイン側でハンドリングが必要 | 例: `git -C {projectdir} log` |
+| `{projectdir}` | 現在のプロジェクトディレクトリ（検出されたCWD） | 例: `git -C {projectdir} log` |
 | `{latest}` | 最新の更新ディレクトリ | |
 | `{updatedAt}` | ファイル更新日時 | |
 | `{args.key}` | `args`フィールドの値 | `{args.open}` |
