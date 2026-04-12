@@ -18,6 +18,30 @@ pnpm run migrate-settings
 
 ---
 
+## v0.32 → v0.33
+
+### 1. テンプレート変数 `{updatedAt}` を `{mtime}` にリネーム
+
+テンプレート変数 `{updatedAt}` は、他の小文字テンプレート変数（`{basename}`, `{heading}`, `{filepath}` 等）との一貫性のため `{mtime}` にリネームされました。
+
+`settings.yaml` のカスタム検索エントリで `{updatedAt}` を使用している場合は更新してください：
+
+**変更前:**
+```yaml
+orderBy: "{updatedAt} desc"
+displayTime: "{updatedAt}"
+```
+
+**変更後:**
+```yaml
+orderBy: "{mtime} desc"
+displayTime: "{mtime}"
+```
+
+カスタムプラグインYAMLファイルで `{updatedAt}` を参照している場合も同様に更新してください。
+
+---
+
 ## v0.29 → v0.30
 
 ### 1. ショートカットフォーマットの変更（キー → アクション）
