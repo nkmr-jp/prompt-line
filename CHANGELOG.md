@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.32.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.31.2...prompt-line-v0.32.0) (2026-04-12)
+
+
+### Features
+
+* **template:** add {projectdir} template variable ([#350](https://github.com/nkmr-jp/prompt-line/issues/350)) ([75cbc5e](https://github.com/nkmr-jp/prompt-line/commit/75cbc5e4a2165d52d9b742d7b21a0658517cf569))
+* **tooltip:** add tooltip support to customSearch with Markdown link rendering ([#352](https://github.com/nkmr-jp/prompt-line/issues/352)) ([9b101ee](https://github.com/nkmr-jp/prompt-line/commit/9b101ee55f1e366ad6533d95797752e188af3a1b))
+
+
+### Bug Fixes
+
+* **agent-built-in:** enable label search and hide agents on bare [@mention](https://github.com/mention) ([#353](https://github.com/nkmr-jp/prompt-line/issues/353)) ([f6e3fd0](https://github.com/nkmr-jp/prompt-line/commit/f6e3fd0b9061c570a0102e712184da2854079283))
+
 ## [0.31.2](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.31.1...prompt-line-v0.31.2) (2026-04-11)
 
 
