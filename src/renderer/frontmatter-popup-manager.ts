@@ -8,6 +8,7 @@ import { UI_TIMING } from '../constants';
 
 interface AgentSkillItemLike {
   name: string;
+  filePath: string;
   tooltip?: string;
 }
 
@@ -84,28 +85,11 @@ export class FrontmatterPopupManager {
   /**
    * Add file path as frontmatter line to content container
    */
-  private async addFilePathLine(contentDiv: HTMLElement, command: AgentSkillItemLike): Promise<void> {
+  private addFilePathLine(contentDiv: HTMLElement, command: AgentSkillItemLike): void {
+    const filePath = command.filePath;
+    if (!filePath || filePath.startsWith('command-source:')) return;
+
     try {
-      // Determine if this is an agent skill or agent, then get file path
-      let filePath: string | null | undefined;
-      try {
-        // Try agent skill API first
-        filePath = await window.electronAPI?.agentSkills?.getFilePath?.(command.name);
-      } catch (_err) {
-        // Silently ignore error - will try agent API next
-      }
-
-      // If no agent skill file path, try agent API
-      if (!filePath) {
-        try {
-          filePath = await window.electronAPI?.agents?.getFilePath?.(command.name);
-        } catch (_err) {
-          // Silently ignore error
-        }
-      }
-
-      if (!filePath) return;
-
       // Replace home directory with ~ for display
       const displayPath = filePath.replace(/^\/Users\/[^/]+/, '~');
 
@@ -220,7 +204,7 @@ export class FrontmatterPopupManager {
   /**
    * Show the frontmatter popup for a command
    */
-  public async show(command: AgentSkillItemLike, targetElement: HTMLElement): Promise<void> {
+  public show(command: AgentSkillItemLike, targetElement: HTMLElement): void {
     const suggestionsContainer = this.callbacks.getSuggestionsContainer();
     if (!this.frontmatterPopup || !command.tooltip || !suggestionsContainer) return;
 
@@ -238,7 +222,7 @@ export class FrontmatterPopupManager {
     this.renderFrontmatter(contentDiv, command.tooltip);
 
     // Add file path line as last frontmatter item (before hint)
-    await this.addFilePathLine(contentDiv, command);
+    this.addFilePathLine(contentDiv, command);
 
     this.frontmatterPopup.appendChild(contentDiv);
 
@@ -333,7 +317,7 @@ export class FrontmatterPopupManager {
   /**
    * Show tooltip for the currently selected item (if auto-show is enabled)
    */
-  public async showForSelectedItem(): Promise<void> {
+  public showForSelectedItem(): void {
     const suggestionsContainer = this.callbacks.getSuggestionsContainer();
     if (!this.autoShowTooltip || !suggestionsContainer) return;
 
@@ -349,17 +333,17 @@ export class FrontmatterPopupManager {
     const selectedItem = suggestionsContainer.querySelector('.agent-skill-suggestion-item.selected');
     const infoIcon = selectedItem?.querySelector('.frontmatter-info-icon') as HTMLElement;
     if (infoIcon) {
-      await this.show(selectedSkill, infoIcon);
+      this.show(selectedSkill, infoIcon);
     }
   }
 
   /**
    * Toggle auto-show tooltip mode
    */
-  public async toggleAutoShow(): Promise<void> {
+  public toggleAutoShow(): void {
     this.autoShowTooltip = !this.autoShowTooltip;
     if (this.autoShowTooltip) {
-      await this.showForSelectedItem();
+      this.showForSelectedItem();
     } else {
       this.hide();
     }

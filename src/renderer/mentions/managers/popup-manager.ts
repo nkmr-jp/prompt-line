@@ -105,11 +105,10 @@ export class PopupManager {
   /**
    * Add file path line to the frontmatter content
    */
-  private async addFilePathLine(contentDiv: HTMLElement, agentName: string): Promise<void> {
-    try {
-      const filePath = await window.electronAPI?.agents?.getFilePath?.(agentName);
-      if (!filePath) return;
+  private addFilePathLine(contentDiv: HTMLElement, filePath: string): void {
+    if (!filePath || filePath.startsWith('command-source:')) return;
 
+    try {
       // Replace home directory with ~ for display
       const displayPath = filePath.replace(/^\/Users\/[^/]+/, '~');
 
@@ -162,7 +161,6 @@ export class PopupManager {
       lineDiv.appendChild(link);
       contentDiv.appendChild(lineDiv);
     } catch (error) {
-      // Silently fail - file link is optional
       console.error('Failed to add file path line:', error);
     }
   }
@@ -221,7 +219,7 @@ export class PopupManager {
    * Show frontmatter popup for an agent
    * Position: to the left of the info icon
    */
-  public async showFrontmatterPopup(agent: AgentItem, targetElement: HTMLElement): Promise<void> {
+  public showFrontmatterPopup(agent: AgentItem, targetElement: HTMLElement): void {
     const suggestionsContainer = this.callbacks.getSuggestionsContainer();
     if (!this.frontmatterPopup || !agent.tooltip || !suggestionsContainer) return;
 
@@ -239,7 +237,7 @@ export class PopupManager {
     this.renderFrontmatter(contentDiv, agent.tooltip);
 
     // Add file path line after frontmatter content
-    await this.addFilePathLine(contentDiv, agent.name);
+    this.addFilePathLine(contentDiv, agent.filePath);
 
     this.frontmatterPopup.appendChild(contentDiv);
 
@@ -346,7 +344,7 @@ export class PopupManager {
   /**
    * Show tooltip for the currently selected item (agent only)
    */
-  public async showTooltipForSelectedItem(): Promise<void> {
+  public showTooltipForSelectedItem(): void {
     const suggestionsContainer = this.callbacks.getSuggestionsContainer();
     if (!this.autoShowTooltip || !suggestionsContainer) return;
 
@@ -360,7 +358,7 @@ export class PopupManager {
     const selectedItem = suggestionsContainer.querySelector('.file-suggestion-item.selected');
     const infoIcon = selectedItem?.querySelector('.frontmatter-info-icon') as HTMLElement;
     if (infoIcon) {
-      await this.showFrontmatterPopup(suggestion.agent, infoIcon);
+      this.showFrontmatterPopup(suggestion.agent, infoIcon);
     }
   }
 

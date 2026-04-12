@@ -113,13 +113,13 @@ describe('PopupManager', () => {
         tooltip: 'This is the agent description'
       };
 
-      await popupManager.showFrontmatterPopup(agent, targetElement);
+      popupManager.showFrontmatterPopup(agent, targetElement);
 
       const popup = document.getElementById('frontmatterPopup');
       expect(popup?.style.display).toBe('block');
 
       const content = popup?.querySelector('.frontmatter-content');
-      expect(content?.textContent).toBe('This is the agent description');
+      expect(content?.textContent).toContain('This is the agent description');
     });
 
     test('should show hint message in popup', async () => {
@@ -132,7 +132,7 @@ describe('PopupManager', () => {
         tooltip: 'Agent description'
       };
 
-      await popupManager.showFrontmatterPopup(agent, targetElement);
+      popupManager.showFrontmatterPopup(agent, targetElement);
 
       const popup = document.getElementById('frontmatterPopup');
       const hint = popup?.querySelector('.frontmatter-hint');
@@ -356,7 +356,7 @@ describe('PopupManager', () => {
         }
       });
 
-      await popupManager.showTooltipForSelectedItem();
+      popupManager.showTooltipForSelectedItem();
 
       const popup = document.getElementById('frontmatterPopup');
       expect(popup?.style.display).toBe('block');
