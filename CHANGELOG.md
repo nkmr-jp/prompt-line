@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.33.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.32.0...prompt-line-v0.33.0) (2026-04-12)
+
+
+### Features
+
+* **displayTime:** flexible timestamp normalization for custom search ([#356](https://github.com/nkmr-jp/prompt-line/issues/356)) ([3b721da](https://github.com/nkmr-jp/prompt-line/commit/3b721daaf18862de5f00dec00bbc27ee2a6b39e6))
+
+
+### Bug Fixes
+
+* **projectdir:** invalidate {projectdir} command cache on directory change ([#357](https://github.com/nkmr-jp/prompt-line/issues/357)) ([525f91c](https://github.com/nkmr-jp/prompt-line/commit/525f91cb5140170f7996f7332597e4f643681f4b))
+
+
+### Code Refactoring
+
+* **template:** rename {updatedAt} variable to {mtime} ([#354](https://github.com/nkmr-jp/prompt-line/issues/354)) ([ed19e53](https://github.com/nkmr-jp/prompt-line/commit/ed19e536d1072eeea3031f3260724de8989ae0d3))
+
 ## [0.32.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.31.2...prompt-line-v0.32.0) (2026-04-12)
 
 
