@@ -39,19 +39,21 @@ function appendWithMarkdownLinks(container: HTMLElement, text: string): void {
   }
 }
 
+const KEY_VALUE_PATTERN = /^([\w-]+):\s*(.*)/;
+
 export function renderFrontmatter(container: HTMLElement, frontmatter: string): void {
   const lines = frontmatter.split('\n');
 
   for (const line of lines) {
-    const colonIndex = line.indexOf(':');
-    if (colonIndex === -1) {
+    const kvMatch = KEY_VALUE_PATTERN.exec(line);
+    if (!kvMatch) {
       appendWithMarkdownLinks(container, line);
       container.appendChild(document.createElement('br'));
       continue;
     }
 
-    const key = line.substring(0, colonIndex).trim();
-    const value = line.substring(colonIndex + 1).trim();
+    const key = kvMatch[1]!;
+    const value = kvMatch[2]!;
 
     const lineDiv = document.createElement('div');
     lineDiv.className = 'frontmatter-line';
