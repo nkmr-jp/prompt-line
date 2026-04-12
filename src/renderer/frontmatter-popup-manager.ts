@@ -66,13 +66,17 @@ export class FrontmatterPopupManager {
       this.scheduleHide();
     });
 
-    // Capture wheel events on document when popup is visible
-    document.addEventListener('wheel', (e) => {
-      if (this.isPopupVisible && this.frontmatterPopup) {
-        // Prevent default scrolling behavior
-        e.preventDefault();
-        // Scroll the popup instead
-        this.frontmatterPopup.scrollTop += e.deltaY;
+    // Handle wheel events on popup element only (scroll popup content)
+    this.frontmatterPopup.addEventListener('wheel', (e) => {
+      const popup = this.frontmatterPopup;
+      if (popup) {
+        const canScrollDown = popup.scrollTop < popup.scrollHeight - popup.clientHeight;
+        const canScrollUp = popup.scrollTop > 0;
+        if ((e.deltaY > 0 && canScrollDown) || (e.deltaY < 0 && canScrollUp)) {
+          e.preventDefault();
+          e.stopPropagation();
+          popup.scrollTop += e.deltaY;
+        }
       }
     }, { passive: false });
 
@@ -308,5 +312,17 @@ export class FrontmatterPopupManager {
    */
   public getIsVisible(): boolean {
     return this.isPopupVisible;
+  }
+
+  /**
+   * Clean up resources
+   */
+  public destroy(): void {
+    this.cancelHide();
+    this.cleanupRowListeners();
+    if (this.frontmatterPopup && this.frontmatterPopup.parentNode) {
+      this.frontmatterPopup.parentNode.removeChild(this.frontmatterPopup);
+      this.frontmatterPopup = null;
+    }
   }
 }
