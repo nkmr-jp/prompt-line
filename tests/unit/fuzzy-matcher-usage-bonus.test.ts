@@ -129,7 +129,7 @@ describe('fuzzy-matcher usage bonus integration', () => {
       const mtimeBonus = scoreWithMtime - scoreWithoutMtime;
       expect(mtimeBonus).toBeGreaterThan(0);
       expect(mtimeBonus).toBeLessThan(USAGE_BONUS.MAX_FILE_MTIME);
-      expect(mtimeBonus).toBeGreaterThanOrEqual(10); // At 4 days (96h) = 9
+      expect(mtimeBonus).toBeGreaterThanOrEqual(10); // At 4 days (96h) = 10
     });
 
     test('should add no mtime bonus for file modified 7+ days ago', () => {
@@ -462,6 +462,53 @@ describe('fuzzy-matcher usage bonus integration', () => {
         const score = calculateAgentMatchScore(agent, '   ');
         expect(score).toBe(FUZZY_MATCH_SCORES.AGENT_BASE);
       });
+    });
+  });
+
+  describe('calculateAgentMatchScore with label', () => {
+    test('should match agent by label (plugin name)', () => {
+      const agent: AgentItem = {
+        name: 'Explore',
+        description: 'Fast agent for exploring codebases',
+        filePath: '/plugins/claude/agent-built-in/en.yaml',
+        label: 'claude'
+      };
+      const score = calculateAgentMatchScore(agent, 'claude');
+      expect(score).toBe(FUZZY_MATCH_SCORES.CONTAINS);
+    });
+
+    test('should return 0 when query matches neither name, description, nor label', () => {
+      const agent: AgentItem = {
+        name: 'Explore',
+        description: 'Fast agent for exploring codebases',
+        filePath: '/plugins/claude/agent-built-in/en.yaml',
+        label: 'claude'
+      };
+      const score = calculateAgentMatchScore(agent, 'gemini');
+      expect(score).toBe(0);
+    });
+
+    test('should match agent by label even without name/description match', () => {
+      const agent: AgentItem = {
+        name: 'Plan',
+        description: 'Software architect agent for designing plans',
+        filePath: '/plugins/claude/agent-built-in/en.yaml',
+        label: 'claude'
+      };
+      // "claude" matches label but not name or description
+      const score = calculateAgentMatchScore(agent, 'claude');
+      expect(score).toBeGreaterThan(0);
+    });
+
+    test('should score label match same as CONTAINS', () => {
+      const agentWithLabel: AgentItem = {
+        name: 'Plan',
+        description: 'Planning agent',
+        filePath: '/plugins/claude/agent-built-in/en.yaml',
+        label: 'claude'
+      };
+      const score = calculateAgentMatchScore(agentWithLabel, 'claude');
+      expect(score).toBe(FUZZY_MATCH_SCORES.CONTAINS);
     });
   });
 });
