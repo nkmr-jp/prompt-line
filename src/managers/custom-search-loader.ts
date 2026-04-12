@@ -500,6 +500,22 @@ class CustomSearchLoader extends EventEmitter {
   }
 
   /**
+   * string | number の値をミリ秒タイムスタンプに正規化する
+   * - number: 0 以上 10^12 未満なら秒とみなして ×1000、10^12 以上はそのまま ms として使用
+   * - string: ISO 8601 形式 ("2024-01-15", "2024-01-15T12:00:00Z" 等) を Date.parse() で変換。
+   *   非標準フォーマット ("2024/01/15" 等) は実装依存のため undefined が返ることがある。
+   *   変換失敗時は undefined を返す。
+   */
+  static normalizeToTimestampMs(value: string | number): number | undefined {
+    if (typeof value === 'number') {
+      if (!isFinite(value) || value < 0) return undefined;
+      return value < 1e12 ? value * 1000 : value;
+    }
+    const ms = Date.parse(value);
+    return isNaN(ms) ? undefined : ms;
+  }
+
+  /**
    * orderBy文字列からテンプレート部分を抽出（ソート方向を除く）
    * 例: "{json@createdAt} desc" → "{json@createdAt}"
    *     "name desc" → "name"
@@ -1185,7 +1201,10 @@ class CustomSearchLoader extends EventEmitter {
     jqExpression: string
   ): Promise<CustomSearchItem[]> {
     try {
-      const content = await fs.readFile(filePath, 'utf8');
+      const [content, fileStat] = await Promise.all([
+        fs.readFile(filePath, 'utf8'),
+        fs.stat(filePath),
+      ]);
       const jsonData = parseJsonContent(content);
       if (!jsonData) return [];
 
@@ -1197,7 +1216,7 @@ class CustomSearchLoader extends EventEmitter {
         if (element === null || typeof element !== 'object' || Array.isArray(element)) continue;
         const elementData = element as Record<string, unknown>;
         const item = this.createItemFromJsonData(
-          elementData, getBasename(filePath), getDirname(filePath), filePath, entry, sourceId, [jsonData], content
+          elementData, getBasename(filePath), getDirname(filePath), filePath, entry, sourceId, [jsonData], content, fileStat.mtimeMs
         );
         if (item) items.push(item);
       }
@@ -1258,9 +1277,9 @@ class CustomSearchLoader extends EventEmitter {
     try {
       const stat = await fs.stat(filePath);
       if (stat.size >= CustomSearchLoader.STREAMING_THRESHOLD) {
-        return this.parseJsonlToItemsStreaming(filePath, entry, sourceId, jqExpression);
+        return this.parseJsonlToItemsStreaming(filePath, entry, sourceId, jqExpression, stat.mtimeMs);
       }
-      return this.parseJsonlToItemsBatch(filePath, entry, sourceId, jqExpression);
+      return this.parseJsonlToItemsBatch(filePath, entry, sourceId, jqExpression, stat.mtimeMs);
     } catch (error) {
       logger.warn('Failed to parse JSONL file', { filePath, error });
       return [];
@@ -1272,10 +1291,11 @@ class CustomSearchLoader extends EventEmitter {
     filePath: string,
     entry: CustomSearchEntry,
     sourceId: string,
-    jqExpression: string | null
+    jqExpression: string | null,
+    fileMtimeMs?: number
   ): Promise<CustomSearchItem[]> {
     const content = await fs.readFile(filePath, 'utf8');
-    return this.iterateJsonlLines(content.split('\n'), filePath, entry, sourceId, jqExpression, content);
+    return this.iterateJsonlLines(content.split('\n'), filePath, entry, sourceId, jqExpression, content, fileMtimeMs);
   }
 
   /** Streaming JSONL parsing for large files (>= 1MB) */
@@ -1283,13 +1303,14 @@ class CustomSearchLoader extends EventEmitter {
     filePath: string,
     entry: CustomSearchEntry,
     sourceId: string,
-    jqExpression: string | null
+    jqExpression: string | null,
+    fileMtimeMs?: number
   ): Promise<CustomSearchItem[]> {
     const rl = createInterface({
       input: createReadStream(filePath, { encoding: 'utf8' }),
       crlfDelay: Infinity,
     });
-    return this.iterateJsonlLines(rl, filePath, entry, sourceId, jqExpression, undefined);
+    return this.iterateJsonlLines(rl, filePath, entry, sourceId, jqExpression, undefined, fileMtimeMs);
   }
 
   /** Common JSONL line iteration logic for both batch and streaming modes */
@@ -1299,7 +1320,8 @@ class CustomSearchLoader extends EventEmitter {
     entry: CustomSearchEntry,
     sourceId: string,
     jqExpression: string | null,
-    content: string | undefined
+    content: string | undefined,
+    fileMtimeMs?: number
   ): Promise<CustomSearchItem[]> {
     const basename = getBasename(filePath);
     const dirname = getDirname(filePath);
@@ -1308,7 +1330,7 @@ class CustomSearchLoader extends EventEmitter {
     for await (const line of lines) {
       const trimmed = line.trim();
       if (!trimmed) continue;
-      const result = await this.parseJsonlLine(trimmed, jqExpression, filePath, basename, dirname, entry, sourceId, content);
+      const result = await this.parseJsonlLine(trimmed, jqExpression, filePath, basename, dirname, entry, sourceId, content, fileMtimeMs);
       if (result) items.push(...result);
     }
     return items;
@@ -1323,7 +1345,8 @@ class CustomSearchLoader extends EventEmitter {
     dirname: string,
     entry: CustomSearchEntry,
     sourceId: string,
-    content: string | undefined
+    content: string | undefined,
+    fileMtimeMs?: number
   ): Promise<CustomSearchItem[] | null> {
     let parsed: unknown;
     try {
@@ -1335,12 +1358,12 @@ class CustomSearchLoader extends EventEmitter {
 
     if (jqExpression) {
       return this.applyJqToJsonlLine(
-        parsed as Record<string, unknown>, jqExpression, filePath, basename, dirname, entry, sourceId, content
+        parsed as Record<string, unknown>, jqExpression, filePath, basename, dirname, entry, sourceId, content, fileMtimeMs
       );
     }
 
     const elementData = parsed as Record<string, unknown>;
-    const item = this.createItemFromJsonData(elementData, basename, dirname, filePath, entry, sourceId, undefined, content);
+    const item = this.createItemFromJsonData(elementData, basename, dirname, filePath, entry, sourceId, undefined, content, fileMtimeMs);
     return item ? [item] : null;
   }
 
@@ -1353,7 +1376,8 @@ class CustomSearchLoader extends EventEmitter {
     dirname: string,
     entry: CustomSearchEntry,
     sourceId: string,
-    content: string | undefined
+    content: string | undefined,
+    fileMtimeMs?: number
   ): Promise<CustomSearchItem[] | null> {
     const jqResult = await evaluateJq(lineData, jqExpression, filePath);
     if (jqResult === null || jqResult === undefined) return null;
@@ -1363,7 +1387,7 @@ class CustomSearchLoader extends EventEmitter {
     for (const element of elements) {
       if (element === null || typeof element !== 'object' || Array.isArray(element)) continue;
       const elementData = element as Record<string, unknown>;
-      const item = this.createItemFromJsonData(elementData, basename, dirname, filePath, entry, sourceId, [lineData], content);
+      const item = this.createItemFromJsonData(elementData, basename, dirname, filePath, entry, sourceId, [lineData], content, fileMtimeMs);
       if (item) items.push(item);
     }
     return items.length > 0 ? items : null;
@@ -1403,11 +1427,10 @@ class CustomSearchLoader extends EventEmitter {
       return fileMtimeMs;
     }
 
-    // テンプレートを解決して数値に変換
+    // テンプレートを解決して数値/日付文字列に変換
     const resolved = resolveTemplate(entry.displayTime, context);
     if (!resolved) return undefined;
-    const num = Number(resolved);
-    return isNaN(num) ? undefined : num;
+    return CustomSearchLoader.normalizeToTimestampMs(resolved);
   }
 
   /**
@@ -1434,7 +1457,8 @@ class CustomSearchLoader extends EventEmitter {
     entry: CustomSearchEntry,
     sourceId: string,
     parentJsonDataStack?: Record<string, unknown>[],
-    content?: string
+    content?: string,
+    fileMtimeMs?: number
   ): CustomSearchItem | null {
     const basePath = entry.sourcePath ? splitSourcePath(entry.sourcePath).dir.replace(/^~/, os.homedir()) : '';
     const projectdir = this.getProjectdir();
@@ -1452,7 +1476,7 @@ class CustomSearchLoader extends EventEmitter {
     this.applyOptionalItemFields(item, entry, context);
     this.applyInputFormat(item, entry, context);
 
-    const displayTime = this.resolveDisplayTime(entry, context);
+    const displayTime = this.resolveDisplayTime(entry, context, fileMtimeMs);
     if (displayTime !== undefined) item.displayTime = displayTime;
 
     return item.name ? item : null;

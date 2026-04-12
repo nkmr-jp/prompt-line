@@ -2138,6 +2138,59 @@ Content`;
     });
   });
 
+  describe('normalizeToTimestampMs', () => {
+    describe('number input: seconds vs milliseconds auto-detection', () => {
+      test('should multiply by 1000 when value is Unix seconds (< 1e12)', () => {
+        expect(CustomSearchLoader.normalizeToTimestampMs(1700000000)).toBe(1700000000000);
+      });
+
+      test('should keep value as-is when already in milliseconds (>= 1e12)', () => {
+        expect(CustomSearchLoader.normalizeToTimestampMs(1700000000000)).toBe(1700000000000);
+      });
+
+      test('should treat boundary value 999_999_999_999 as seconds', () => {
+        expect(CustomSearchLoader.normalizeToTimestampMs(999_999_999_999)).toBe(999_999_999_999_000);
+      });
+
+      test('should treat boundary value 1_000_000_000_000 as milliseconds', () => {
+        expect(CustomSearchLoader.normalizeToTimestampMs(1_000_000_000_000)).toBe(1_000_000_000_000);
+      });
+
+      test('should return undefined for NaN', () => {
+        expect(CustomSearchLoader.normalizeToTimestampMs(NaN)).toBeUndefined();
+      });
+
+      test('should return undefined for Infinity', () => {
+        expect(CustomSearchLoader.normalizeToTimestampMs(Infinity)).toBeUndefined();
+      });
+
+      test('should return undefined for negative values', () => {
+        expect(CustomSearchLoader.normalizeToTimestampMs(-1)).toBeUndefined();
+        expect(CustomSearchLoader.normalizeToTimestampMs(-1700000000)).toBeUndefined();
+      });
+    });
+
+    describe('string input: date string conversion', () => {
+      test('should parse ISO 8601 string to milliseconds', () => {
+        const isoString = '2024-01-15T12:00:00.000Z';
+        expect(CustomSearchLoader.normalizeToTimestampMs(isoString)).toBe(Date.parse(isoString));
+      });
+
+      test('should parse date-only string to milliseconds', () => {
+        const dateString = '2024-01-15';
+        expect(CustomSearchLoader.normalizeToTimestampMs(dateString)).toBe(Date.parse(dateString));
+      });
+
+      test('should return undefined for invalid date string', () => {
+        expect(CustomSearchLoader.normalizeToTimestampMs('not-a-date')).toBeUndefined();
+      });
+
+      test('should return undefined for empty string', () => {
+        expect(CustomSearchLoader.normalizeToTimestampMs('')).toBeUndefined();
+      });
+    });
+  });
+
   describe('sortKey-based sorting with orderBy custom field', () => {
     test('should sort JSON array items by createdAt desc using sortKey', async () => {
       loader = new CustomSearchLoader([
