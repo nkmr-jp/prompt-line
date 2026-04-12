@@ -1,3 +1,10 @@
+function makeKbd(text: string, className?: string): HTMLElement {
+  const kbd = document.createElement('kbd');
+  if (className) kbd.className = className;
+  kbd.textContent = text;
+  return kbd;
+}
+
 export function formatShortcut(shortcut: string): string {
   return shortcut
     .replace(/Cmd/gi, '⌘')
@@ -30,12 +37,13 @@ export function updateShortcutsDisplay(
     
     const parts = pasteKey.split('+');
     const modifiers = parts.slice(0, -1).join('+');
-    const key = parts[parts.length - 1];
+    const key = parts[parts.length - 1] ?? '';
     
-    headerShortcutsEl.innerHTML = `
-      <kbd>${modifiers}</kbd>+<kbd>${key}</kbd> Paste
-      <kbd>${closeKey}</kbd> Close
-    `;
+    headerShortcutsEl.replaceChildren(
+      makeKbd(modifiers), document.createTextNode(`+`),
+      makeKbd(key), document.createTextNode(` Paste `),
+      makeKbd(closeKey), document.createTextNode(` Close`)
+    );
   }
 
   // Update history navigation shortcuts
@@ -52,10 +60,14 @@ export function updateShortcutsDisplay(
     const prevParts = formattedPrev.split('+');
     
     const nextModifier = nextParts.slice(0, -1).join('+');
-    const nextKey = nextParts[nextParts.length - 1];
-    const prevKey = prevParts[prevParts.length - 1];
+    const nextKey = nextParts[nextParts.length - 1] ?? '';
+    const prevKey = prevParts[prevParts.length - 1] ?? '';
     
-    historyShortcutsEl.innerHTML = `<kbd class="history-kbd">${nextModifier}</kbd>+<kbd class="history-kbd">${nextKey}</kbd>/<kbd class="history-kbd">${prevKey}</kbd>`;
+    historyShortcutsEl.replaceChildren(
+      makeKbd(nextModifier, 'history-kbd'), document.createTextNode(`+`),
+      makeKbd(nextKey, 'history-kbd'), document.createTextNode(`/`),
+      makeKbd(prevKey, 'history-kbd')
+    );
   }
 
   // Update search button tooltip
