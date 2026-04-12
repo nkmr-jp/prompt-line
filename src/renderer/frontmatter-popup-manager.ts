@@ -4,11 +4,13 @@
  */
 
 import { calculatePopupPosition, applyPopupPosition } from './utils/popup-position-calculator';
+import { renderFrontmatter } from './utils/frontmatter-renderer';
 import { UI_TIMING } from '../constants';
 
 interface AgentSkillItemLike {
   name: string;
-  frontmatter?: string;
+  filePath: string;
+  tooltip?: string;
 }
 
 /**
@@ -64,13 +66,17 @@ export class FrontmatterPopupManager {
       this.scheduleHide();
     });
 
-    // Capture wheel events on document when popup is visible
-    document.addEventListener('wheel', (e) => {
-      if (this.isPopupVisible && this.frontmatterPopup) {
-        // Prevent default scrolling behavior
-        e.preventDefault();
-        // Scroll the popup instead
-        this.frontmatterPopup.scrollTop += e.deltaY;
+    // Handle wheel events on popup element only (scroll popup content)
+    this.frontmatterPopup.addEventListener('wheel', (e) => {
+      const popup = this.frontmatterPopup;
+      if (popup) {
+        const canScrollDown = popup.scrollTop < popup.scrollHeight - popup.clientHeight;
+        const canScrollUp = popup.scrollTop > 0;
+        if ((e.deltaY > 0 && canScrollDown) || (e.deltaY < 0 && canScrollUp)) {
+          e.preventDefault();
+          e.stopPropagation();
+          popup.scrollTop += e.deltaY;
+        }
       }
     }, { passive: false });
 
@@ -84,28 +90,11 @@ export class FrontmatterPopupManager {
   /**
    * Add file path as frontmatter line to content container
    */
-  private async addFilePathLine(contentDiv: HTMLElement, command: AgentSkillItemLike): Promise<void> {
+  private addFilePathLine(contentDiv: HTMLElement, command: AgentSkillItemLike): void {
+    const filePath = command.filePath;
+    if (!filePath || filePath.startsWith('command-source:')) return;
+
     try {
-      // Determine if this is an agent skill or agent, then get file path
-      let filePath: string | null | undefined;
-      try {
-        // Try agent skill API first
-        filePath = await window.electronAPI?.agentSkills?.getFilePath?.(command.name);
-      } catch (_err) {
-        // Silently ignore error - will try agent API next
-      }
-
-      // If no agent skill file path, try agent API
-      if (!filePath) {
-        try {
-          filePath = await window.electronAPI?.agents?.getFilePath?.(command.name);
-        } catch (_err) {
-          // Silently ignore error
-        }
-      }
-
-      if (!filePath) return;
-
       // Replace home directory with ~ for display
       const displayPath = filePath.replace(/^\/Users\/[^/]+/, '~');
 
@@ -162,67 +151,13 @@ export class FrontmatterPopupManager {
     }
   }
 
-  /**
-   * Render frontmatter content with clickable reference links
-   */
-  private renderFrontmatter(container: HTMLElement, frontmatter: string): void {
-    const lines = frontmatter.split('\n');
-
-    for (const line of lines) {
-      const colonIndex = line.indexOf(':');
-      if (colonIndex === -1) {
-        // Plain text line
-        const textNode = document.createTextNode(line);
-        container.appendChild(textNode);
-        container.appendChild(document.createElement('br'));
-        continue;
-      }
-
-      const key = line.substring(0, colonIndex).trim();
-      const value = line.substring(colonIndex + 1).trim();
-
-      // Create line container
-      const lineDiv = document.createElement('div');
-      lineDiv.className = 'frontmatter-line';
-
-      // Add key
-      const keySpan = document.createElement('span');
-      keySpan.className = 'frontmatter-key';
-      keySpan.textContent = key + ': ';
-      lineDiv.appendChild(keySpan);
-
-      // Check if value is a URL (for reference field)
-      if (key === 'reference' && value.startsWith('http')) {
-        const link = document.createElement('a');
-        link.href = value;
-        link.textContent = value;
-        link.className = 'frontmatter-link';
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        // Handle click to open in external browser
-        link.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          window.electronAPI?.shell?.openExternal?.(value);
-        });
-        lineDiv.appendChild(link);
-      } else {
-        const valueSpan = document.createElement('span');
-        valueSpan.className = 'frontmatter-value';
-        valueSpan.textContent = value;
-        lineDiv.appendChild(valueSpan);
-      }
-
-      container.appendChild(lineDiv);
-    }
-  }
 
   /**
    * Show the frontmatter popup for a command
    */
-  public async show(command: AgentSkillItemLike, targetElement: HTMLElement): Promise<void> {
+  public show(command: AgentSkillItemLike, targetElement: HTMLElement): void {
     const suggestionsContainer = this.callbacks.getSuggestionsContainer();
-    if (!this.frontmatterPopup || !command.frontmatter || !suggestionsContainer) return;
+    if (!this.frontmatterPopup || !command.tooltip || !suggestionsContainer) return;
 
     // Cancel any pending hide
     this.cancelHide();
@@ -235,10 +170,10 @@ export class FrontmatterPopupManager {
     // Create content container with parsed frontmatter
     const contentDiv = document.createElement('div');
     contentDiv.className = 'frontmatter-content';
-    this.renderFrontmatter(contentDiv, command.frontmatter);
+    renderFrontmatter(contentDiv, command.tooltip);
 
     // Add file path line as last frontmatter item (before hint)
-    await this.addFilePathLine(contentDiv, command);
+    this.addFilePathLine(contentDiv, command);
 
     this.frontmatterPopup.appendChild(contentDiv);
 
@@ -333,14 +268,14 @@ export class FrontmatterPopupManager {
   /**
    * Show tooltip for the currently selected item (if auto-show is enabled)
    */
-  public async showForSelectedItem(): Promise<void> {
+  public showForSelectedItem(): void {
     const suggestionsContainer = this.callbacks.getSuggestionsContainer();
     if (!this.autoShowTooltip || !suggestionsContainer) return;
 
     const filteredSkills = this.callbacks.getFilteredSkills();
     const selectedIndex = this.callbacks.getSelectedIndex();
     const selectedSkill = filteredSkills[selectedIndex];
-    if (!selectedSkill?.frontmatter) {
+    if (!selectedSkill?.tooltip) {
       this.hide();
       return;
     }
@@ -349,17 +284,17 @@ export class FrontmatterPopupManager {
     const selectedItem = suggestionsContainer.querySelector('.agent-skill-suggestion-item.selected');
     const infoIcon = selectedItem?.querySelector('.frontmatter-info-icon') as HTMLElement;
     if (infoIcon) {
-      await this.show(selectedSkill, infoIcon);
+      this.show(selectedSkill, infoIcon);
     }
   }
 
   /**
    * Toggle auto-show tooltip mode
    */
-  public async toggleAutoShow(): Promise<void> {
+  public toggleAutoShow(): void {
     this.autoShowTooltip = !this.autoShowTooltip;
     if (this.autoShowTooltip) {
-      await this.showForSelectedItem();
+      this.showForSelectedItem();
     } else {
       this.hide();
     }
@@ -377,5 +312,17 @@ export class FrontmatterPopupManager {
    */
   public getIsVisible(): boolean {
     return this.isPopupVisible;
+  }
+
+  /**
+   * Clean up resources
+   */
+  public destroy(): void {
+    this.cancelHide();
+    this.cleanupRowListeners();
+    if (this.frontmatterPopup && this.frontmatterPopup.parentNode) {
+      this.frontmatterPopup.parentNode.removeChild(this.frontmatterPopup);
+      this.frontmatterPopup = null;
+    }
   }
 }

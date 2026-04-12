@@ -34,6 +34,7 @@ interface PluginEntryYaml {
   displayTime?: string;
   inputFormat?: string;
   excludeMarker?: string;
+  tooltip?: string;
 }
 
 /**
@@ -256,6 +257,7 @@ class PluginLoader {
     if (yamlData.displayTime !== undefined) entry.displayTime = yamlData.displayTime;
     if (yamlData.inputFormat !== undefined) entry.inputFormat = yamlData.inputFormat;
     if (yamlData.excludeMarker !== undefined) entry.excludeMarker = yamlData.excludeMarker;
+    if (yamlData.tooltip !== undefined) entry.tooltip = yamlData.tooltip;
 
     // Apply overrides (from plugin path suffixes like @suffix?params)
     if (overrides?.searchPrefix !== undefined) entry.searchPrefix = overrides.searchPrefix;
@@ -346,7 +348,7 @@ class PluginLoader {
         name: cmd.name,
         description: (cmd.description || '').replace(/\n+/g, ' ').trim(),
         filePath: filePath,
-        frontmatter: frontmatterLines.join('\n'),
+        tooltip: frontmatterLines.join('\n'),
         inputFormat: 'name',
         source: toolName,
         displayName: displayName
@@ -397,7 +399,7 @@ class PluginLoader {
           name: agent.name,
           description: (agent.description || '').replace(/\n+/g, ' ').trim(),
           filePath: filePath,
-          frontmatter: frontmatterLines.join('\n'),
+          tooltip: frontmatterLines.join('\n'),
           label: displayName,
         };
         if (color) {

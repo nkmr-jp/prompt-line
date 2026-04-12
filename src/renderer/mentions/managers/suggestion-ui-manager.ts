@@ -681,14 +681,14 @@ export class SuggestionUIManager {
 
     // displayTime: null means explicitly hidden, undefined means no display
     const timeValue = agent.displayTime;
-    if (timeValue != null && timeValue !== undefined) {
+    if (timeValue != null) {
       const timeSpan = document.createElement('span');
       timeSpan.className = 'agent-skill-updated-at';
       timeSpan.textContent = formatTime(timeValue);
       item.appendChild(timeSpan);
     }
 
-    if (agent.frontmatter && this.callbacks.onMouseEnterInfo) {
+    if (agent.tooltip && this.callbacks.onMouseEnterInfo) {
       const infoIcon = document.createElement('span');
       infoIcon.className = 'frontmatter-info-icon';
       infoIcon.textContent = 'ⓘ';

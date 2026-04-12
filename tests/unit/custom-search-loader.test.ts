@@ -957,9 +957,9 @@ Content`;
 
       const items = await loader.getItems('command');
 
-      expect(items[0]?.frontmatter).toBeDefined();
-      expect(items[0]?.frontmatter).toContain('description: Test description');
-      expect(items[0]?.frontmatter).toContain('argument-hint: <arg>');
+      expect(items[0]?.tooltip).toBeDefined();
+      expect(items[0]?.tooltip).toContain('description: Test description');
+      expect(items[0]?.tooltip).toContain('argument-hint: <arg>');
     });
 
     test('should not include frontmatter when file has no frontmatter', async () => {
@@ -967,7 +967,7 @@ Content`;
 
       const items = await loader.getItems('command');
 
-      expect(items[0]?.frontmatter).toBeUndefined();
+      expect(items[0]?.tooltip).toBeUndefined();
     });
   });
 
@@ -2085,7 +2085,7 @@ Content`;
       const items = await loader.getItems('command');
 
       expect(items).toHaveLength(1);
-      expect(items[0]?.frontmatter).toBeUndefined();
+      expect(items[0]?.tooltip).toBeUndefined();
     });
   });
 
@@ -2456,7 +2456,7 @@ Content`;
       // frontmatter@description is empty for all items
       items.forEach(item => {
         expect(item.description).toBe('');
-        expect(item.frontmatter).toBeUndefined();
+        expect(item.tooltip).toBeUndefined();
       });
     });
 

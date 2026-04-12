@@ -10,6 +10,7 @@
 
 import type { AgentItem } from '../../../types';
 import { calculatePopupPosition, applyPopupPosition } from '../../utils/popup-position-calculator';
+import { renderFrontmatter } from '../../utils/frontmatter-renderer';
 import { UI_TIMING } from '../../../constants';
 
 /**
@@ -105,11 +106,10 @@ export class PopupManager {
   /**
    * Add file path line to the frontmatter content
    */
-  private async addFilePathLine(contentDiv: HTMLElement, agentName: string): Promise<void> {
-    try {
-      const filePath = await window.electronAPI?.agents?.getFilePath?.(agentName);
-      if (!filePath) return;
+  private addFilePathLine(contentDiv: HTMLElement, filePath: string, agent: AgentItem): void {
+    if (!filePath || filePath.startsWith('command-source:')) return;
 
+    try {
       // Replace home directory with ~ for display
       const displayPath = filePath.replace(/^\/Users\/[^/]+/, '~');
 
@@ -136,10 +136,9 @@ export class PopupManager {
         e.stopPropagation();
 
         try {
-          // First, get the agent and insert it into textarea
-          const suggestion = this.callbacks.getSelectedSuggestion?.();
-          if (suggestion?.type === 'agent' && suggestion.agent && this.callbacks.onSelectAgent) {
-            this.callbacks.onSelectAgent(suggestion.agent);
+          // Insert the agent captured at popup-creation time (not current selection)
+          if (this.callbacks.onSelectAgent) {
+            this.callbacks.onSelectAgent(agent);
           }
 
           // Then, open the file in editor
@@ -162,68 +161,18 @@ export class PopupManager {
       lineDiv.appendChild(link);
       contentDiv.appendChild(lineDiv);
     } catch (error) {
-      // Silently fail - file link is optional
       console.error('Failed to add file path line:', error);
     }
   }
 
-  /**
-   * Render frontmatter content with clickable reference links
-   */
-  private renderFrontmatter(container: HTMLElement, frontmatter: string): void {
-    const lines = frontmatter.split('\n');
-
-    for (const line of lines) {
-      const colonIndex = line.indexOf(':');
-      if (colonIndex === -1) {
-        const textNode = document.createTextNode(line);
-        container.appendChild(textNode);
-        container.appendChild(document.createElement('br'));
-        continue;
-      }
-
-      const key = line.substring(0, colonIndex).trim();
-      const value = line.substring(colonIndex + 1).trim();
-
-      const lineDiv = document.createElement('div');
-      lineDiv.className = 'frontmatter-line';
-
-      const keySpan = document.createElement('span');
-      keySpan.className = 'frontmatter-key';
-      keySpan.textContent = key + ': ';
-      lineDiv.appendChild(keySpan);
-
-      if (key === 'reference' && value.startsWith('http')) {
-        const link = document.createElement('a');
-        link.href = value;
-        link.textContent = value;
-        link.className = 'frontmatter-link';
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        link.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          window.electronAPI?.shell?.openExternal?.(value);
-        });
-        lineDiv.appendChild(link);
-      } else {
-        const valueSpan = document.createElement('span');
-        valueSpan.className = 'frontmatter-value';
-        valueSpan.textContent = value;
-        lineDiv.appendChild(valueSpan);
-      }
-
-      container.appendChild(lineDiv);
-    }
-  }
 
   /**
    * Show frontmatter popup for an agent
    * Position: to the left of the info icon
    */
-  public async showFrontmatterPopup(agent: AgentItem, targetElement: HTMLElement): Promise<void> {
+  public showFrontmatterPopup(agent: AgentItem, targetElement: HTMLElement): void {
     const suggestionsContainer = this.callbacks.getSuggestionsContainer();
-    if (!this.frontmatterPopup || !agent.frontmatter || !suggestionsContainer) return;
+    if (!this.frontmatterPopup || !agent.tooltip || !suggestionsContainer) return;
 
     // Cancel any pending hide
     this.cancelPopupHide();
@@ -236,10 +185,10 @@ export class PopupManager {
     // Create content container with parsed frontmatter (clickable reference links)
     const contentDiv = document.createElement('div');
     contentDiv.className = 'frontmatter-content';
-    this.renderFrontmatter(contentDiv, agent.frontmatter);
+    renderFrontmatter(contentDiv, agent.tooltip);
 
     // Add file path line after frontmatter content
-    await this.addFilePathLine(contentDiv, agent.name);
+    this.addFilePathLine(contentDiv, agent.filePath, agent);
 
     this.frontmatterPopup.appendChild(contentDiv);
 
@@ -346,12 +295,12 @@ export class PopupManager {
   /**
    * Show tooltip for the currently selected item (agent only)
    */
-  public async showTooltipForSelectedItem(): Promise<void> {
+  public showTooltipForSelectedItem(): void {
     const suggestionsContainer = this.callbacks.getSuggestionsContainer();
     if (!this.autoShowTooltip || !suggestionsContainer) return;
 
     const suggestion = this.callbacks.getSelectedSuggestion();
-    if (!suggestion || suggestion.type !== 'agent' || !suggestion.agent?.frontmatter) {
+    if (!suggestion || suggestion.type !== 'agent' || !suggestion.agent?.tooltip) {
       this.hideFrontmatterPopup();
       return;
     }
@@ -360,7 +309,7 @@ export class PopupManager {
     const selectedItem = suggestionsContainer.querySelector('.file-suggestion-item.selected');
     const infoIcon = selectedItem?.querySelector('.frontmatter-info-icon') as HTMLElement;
     if (infoIcon) {
-      await this.showFrontmatterPopup(suggestion.agent, infoIcon);
+      this.showFrontmatterPopup(suggestion.agent, infoIcon);
     }
   }
 

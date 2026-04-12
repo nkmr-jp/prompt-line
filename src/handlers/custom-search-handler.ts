@@ -166,8 +166,8 @@ class CustomSearchHandler {
         if (item.argumentHint) {
           cmd.argumentHint = item.argumentHint;
         }
-        if (item.frontmatter) {
-          cmd.frontmatter = item.frontmatter;
+        if (item.tooltip) {
+          cmd.tooltip = item.tooltip;
         }
         if (item.inputFormat) {
           cmd.inputFormat = item.inputFormat;
@@ -305,8 +305,8 @@ class CustomSearchHandler {
           description: item.description,
           filePath: item.filePath,
         };
-        if (item.frontmatter) {
-          agent.frontmatter = item.frontmatter;
+        if (item.tooltip) {
+          agent.tooltip = item.tooltip;
         }
         if (item.inputFormat) {
           agent.inputFormat = item.inputFormat;

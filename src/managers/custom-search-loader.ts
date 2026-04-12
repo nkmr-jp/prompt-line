@@ -1014,7 +1014,7 @@ class CustomSearchLoader extends EventEmitter {
 
       const sortKey = this.resolveSortKey(entry, context);
       if (sortKey) item.sortKey = sortKey;
-      if (rawFrontmatter) item.frontmatter = rawFrontmatter;
+      if (rawFrontmatter) item.tooltip = rawFrontmatter;
       this.applyOptionalItemFields(item, entry, context);
       item.updatedAt = fileStat.mtimeMs;
 
@@ -1036,7 +1036,7 @@ class CustomSearchLoader extends EventEmitter {
     return resolveValues(filePath, entry.values, entry.prefixPattern, expandedPath);
   }
 
-  /** label/color/icon/argumentHint のオプションフィールドをアイテムに適用する */
+  /** label/color/icon/argumentHint/tooltip/runCommand のオプションフィールドをアイテムに適用する */
   private applyOptionalItemFields(
     item: CustomSearchItem,
     entry: CustomSearchEntry,
@@ -1075,6 +1075,10 @@ class CustomSearchLoader extends EventEmitter {
     }
     if (entry.sourceDir) {
       item.sourceDir = entry.sourceDir;
+    }
+    if (entry.tooltip) {
+      const resolvedTooltip = resolveTemplate(entry.tooltip, context);
+      if (resolvedTooltip) item.tooltip = resolvedTooltip;
     }
   }
 

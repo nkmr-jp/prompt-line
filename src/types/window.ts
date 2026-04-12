@@ -444,6 +444,8 @@ export interface MentionEntry {
   sourceCommand?: string;
   /** オプション: テンプレート引数（例: { open: "iTerm" } → {args.open} で参照可能） */
   args?: Record<string, string>;
+  /** オプション: tooltip popup に表示するテキスト（テンプレート変数使用可）。設定時はファイルのfrontmatterより優先 */
+  tooltip?: string;
 }
 
 // ============================================================================
@@ -515,6 +517,8 @@ export interface CustomSearchEntry {
   args?: Record<string, string>;
   /** オプション: sourceCommand/runCommand 実行時の作業ディレクトリ（YAMLファイルのディレクトリパス） */
   sourceDir?: string;
+  /** オプション: tooltip popup に表示するテキスト（テンプレート変数使用可）。設定時はファイルのfrontmatterより優先 */
+  tooltip?: string;
 }
 
 /**
@@ -529,8 +533,8 @@ export interface CustomSearchItem {
   type: CustomSearchType;
   /** ファイルパス */
   filePath: string;
-  /** 元のfrontmatter文字列 */
-  frontmatter?: string;
+  /** Tooltip popup content（ポップアップ表示用テキスト） */
+  tooltip?: string;
   /** label（オプション） */
   label?: string;
   /** ラベルとハイライトの色（オプション） */
@@ -567,7 +571,7 @@ export interface AgentSkillItem {
   icon?: string;  // Codicon icon class name (e.g., "codicon-rocket")
   argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
   filePath: string;
-  frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
+  tooltip?: string;  // Tooltip popup content（ポップアップ表示用テキスト）
   inputFormat?: InputFormatType;  // 入力フォーマット（'name' | テンプレート e.g. '{filepath}', '{content}'）
   inputText?: string;  // テンプレート解決済みの入力テキスト
   source?: string;  // Source tool identifier (e.g., 'claude-code') for filtering
@@ -583,7 +587,7 @@ export interface AgentItem {
   name: string;
   description: string;
   filePath: string;
-  frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
+  tooltip?: string;  // Tooltip popup content（ポップアップ表示用テキスト）
   inputFormat?: InputFormatType;  // 入力フォーマット（'name' | テンプレート e.g. '{filepath}', '{content}'）
   inputText?: string;  // テンプレート解決済みの入力テキスト
   color?: ColorValue;
