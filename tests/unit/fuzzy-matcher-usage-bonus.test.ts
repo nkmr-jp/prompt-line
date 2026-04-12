@@ -129,7 +129,7 @@ describe('fuzzy-matcher usage bonus integration', () => {
       const mtimeBonus = scoreWithMtime - scoreWithoutMtime;
       expect(mtimeBonus).toBeGreaterThan(0);
       expect(mtimeBonus).toBeLessThan(USAGE_BONUS.MAX_FILE_MTIME);
-      expect(mtimeBonus).toBeGreaterThanOrEqual(10); // At 4 days (96h) = 9
+      expect(mtimeBonus).toBeGreaterThanOrEqual(10); // At 4 days (96h) = 10
     });
 
     test('should add no mtime bonus for file modified 7+ days ago', () => {
