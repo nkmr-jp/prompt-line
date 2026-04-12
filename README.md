@@ -56,11 +56,7 @@ These can be extended with plugins. See: [Plugin Guide](docs/en/plugins.md) | [p
 </tr>
 <tr>
 <td>Symbol Search<img src="assets/doc11.png"> </td>
-<td>Custom Search (@agent:, @plan:, etc.) <img src="assets/doc14.png"> </td>
-</tr>
-<tr>
-<td>Custom Search (@plan:) <img src="assets/doc12.png"> </td>
-<td>Custom Search (@team:)  <img src="assets/doc13.png"> </td>
+<td>Custom Search (@agent:, @plan:, @team:, etc.) <img src="assets/doc14.png"> </td>
 </tr>
 </table>
 
