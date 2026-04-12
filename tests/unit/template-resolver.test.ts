@@ -535,4 +535,45 @@ describe('valueTransform support', () => {
       content: '; rm -rf /',
     }, shellQuote)).toBe("'; rm -rf /'");
   });
+
+  test('{projectdir} に valueTransform が適用される', () => {
+    expect(resolveTemplate('{projectdir}', {
+      basename: 'file',
+      frontmatter: {},
+      projectdir: '/path/with spaces',
+    }, shellQuote)).toBe("'/path/with spaces'");
+  });
+});
+
+describe('resolveTemplate with projectdir', () => {
+  test('{projectdir}を置換できる', () => {
+    expect(resolveTemplate('{projectdir}', {
+      basename: 'test',
+      frontmatter: {},
+      projectdir: '/Users/user/project',
+    })).toBe('/Users/user/project');
+  });
+
+  test('{projectdir}がundefinedの場合はそのまま残る', () => {
+    expect(resolveTemplate('{projectdir}', {
+      basename: 'test',
+      frontmatter: {},
+    })).toBe('{projectdir}');
+  });
+
+  test('{projectdir}と他の変数を組み合わせて使用できる', () => {
+    expect(resolveTemplate('git -C {projectdir} log', {
+      basename: 'test',
+      frontmatter: {},
+      projectdir: '/Users/user/project',
+    })).toBe('git -C /Users/user/project log');
+  });
+
+  test('{projectdir}が空文字の場合は空に置換される', () => {
+    expect(resolveTemplate('{projectdir}', {
+      basename: 'test',
+      frontmatter: {},
+      projectdir: '',
+    })).toBe('');
+  });
 });

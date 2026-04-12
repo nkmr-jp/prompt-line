@@ -14,6 +14,7 @@
  * - {args.key}: テンプレート引数（例: args: { open: "iTerm" } → {args.open} = "iTerm"）
  * - {content}: ファイルの全コンテンツ
  * - {filepath}: ファイルの絶対パス
+ * - {projectdir}: 現在のプロジェクトディレクトリ（DirectoryManagerのCWD）
  *
  * フォールバック構文:
  * - テンプレート全体で `|` を使うと、左側が空文字の場合に右側にフォールバック
@@ -37,6 +38,8 @@ export interface TemplateContext {
   parentJsonDataStack?: Record<string, unknown>[];
   /** テンプレート引数（{args.key} として解決される） */
   args?: Record<string, string>;
+  /** 現在のプロジェクトディレクトリ（{projectdir} として解決される） */
+  projectdir?: string;
 }
 
 /**
@@ -116,6 +119,11 @@ export function resolveTemplate(
   // Replace {filepath}
   if (context.filePath) {
     result = result.replace(/\{filepath\}/g, t(context.filePath));
+  }
+
+  // Replace {projectdir}
+  if (context.projectdir !== undefined) {
+    result = result.replace(/\{projectdir\}/g, t(context.projectdir));
   }
 
   // Replace {frontmatter@fieldName}

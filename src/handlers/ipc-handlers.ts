@@ -69,6 +69,8 @@ class IPCHandlers {
     );
     this.windowHandler = new WindowHandler(windowManager);
     this.systemHandler = new SystemHandler(settingsManager);
+    // Connect DirectoryManager to CustomSearchLoader for {projectdir} template variable
+    customSearchLoader.setProjectdirGetter(() => directoryManager.getDirectory());
     this.customSearchHandler = new CustomSearchHandler(
       customSearchLoader,
       settingsManager,

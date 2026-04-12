@@ -82,6 +82,7 @@ class CustomSearchLoader extends EventEmitter {
   private watchedPaths: Set<string> = new Set();
   private static readonly FILE_RELOAD_DEBOUNCE_MS = 300;
   private fileReloadTimer: ReturnType<typeof setTimeout> | null = null;
+  private projectdirGetter: (() => string | null) | null = null;
 
   constructor(
     config?: CustomSearchEntry[],
@@ -91,6 +92,19 @@ class CustomSearchLoader extends EventEmitter {
     // Use default config if config is undefined or empty array
     this.config = (config && config.length > 0) ? config : getDefaultCustomSearchConfig();
     this.settings = settings;
+  }
+
+  /**
+   * Set the getter function for the current project directory.
+   * Used to resolve {projectdir} template variable.
+   */
+  setProjectdirGetter(getter: () => string | null): void {
+    this.projectdirGetter = getter;
+  }
+
+  /** Get the current project directory or empty string */
+  private getProjectdir(): string {
+    return this.projectdirGetter?.() ?? '';
   }
 
   /**
@@ -766,7 +780,9 @@ class CustomSearchLoader extends EventEmitter {
     sourceId: string
   ): Promise<CustomSearchItem[]> {
     try {
-      const { stdout } = await execAsync(entry.sourceCommand!, {
+      const projectdir = this.getProjectdir();
+      const resolvedCommand = resolveTemplate(entry.sourceCommand!, { basename: '', frontmatter: {}, ...(projectdir && { projectdir }) }, shellQuote);
+      const { stdout } = await execAsync(resolvedCommand, {
         timeout: CustomSearchLoader.COMMAND_SOURCE_TIMEOUT,
         env: getEnhancedEnv(this.settings?.additionalPaths),
         ...(entry.sourceDir && { cwd: entry.sourceDir }),
@@ -985,7 +1001,8 @@ class CustomSearchLoader extends EventEmitter {
       const jsonData = isJsonFile ? parseJsonContent(content) : undefined;
       const hasValues = Object.keys(values).length > 0;
       const basePath = splitSourcePath(entry.sourcePath).dir.replace(/^~/, os.homedir());
-      const context = { basename, frontmatter, prefix, dirname, filePath, basePath, heading, content, ...(hasValues && { values }), ...(jsonData && { jsonData }), ...(entry.args && { args: entry.args }) };
+      const projectdir = this.getProjectdir();
+      const context = { basename, frontmatter, prefix, dirname, filePath, basePath, heading, content, ...(hasValues && { values }), ...(jsonData && { jsonData }), ...(entry.args && { args: entry.args }), ...(projectdir && { projectdir }) };
 
       const item: CustomSearchItem = {
         name: resolveTemplate(entry.name, context),
@@ -1131,7 +1148,8 @@ class CustomSearchLoader extends EventEmitter {
     values?: Record<string, string>
   ): CustomSearchItem | null {
     const basePath = entry.sourcePath ? splitSourcePath(entry.sourcePath).dir.replace(/^~/, os.homedir()) : '';
-    const context = { basename, frontmatter: {}, prefix, dirname, filePath, basePath, heading, line: trimmed, content, ...(values && { values }), ...(entry.args && { args: entry.args }) };
+    const projectdir = this.getProjectdir();
+    const context = { basename, frontmatter: {}, prefix, dirname, filePath, basePath, heading, line: trimmed, content, ...(values && { values }), ...(entry.args && { args: entry.args }), ...(projectdir && { projectdir }) };
     const item: CustomSearchItem = {
       name: resolveTemplate(entry.name, context),
       description: resolveTemplate(entry.description, context),
@@ -1415,7 +1433,8 @@ class CustomSearchLoader extends EventEmitter {
     content?: string
   ): CustomSearchItem | null {
     const basePath = entry.sourcePath ? splitSourcePath(entry.sourcePath).dir.replace(/^~/, os.homedir()) : '';
-    const context = { basename, frontmatter: {}, prefix: '', dirname, filePath, basePath, heading: '', jsonData: elementData, ...(parentJsonDataStack && { parentJsonDataStack }), ...(content !== undefined && { content }), ...(entry.args && { args: entry.args }) };
+    const projectdir = this.getProjectdir();
+    const context = { basename, frontmatter: {}, prefix: '', dirname, filePath, basePath, heading: '', jsonData: elementData, ...(parentJsonDataStack && { parentJsonDataStack }), ...(content !== undefined && { content }), ...(entry.args && { args: entry.args }), ...(projectdir && { projectdir }) };
     const item: CustomSearchItem = {
       name: resolveTemplate(entry.name, context),
       description: resolveTemplate(entry.description, context),
