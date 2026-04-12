@@ -244,7 +244,7 @@ searchPrefix: agent                   # → @agent: と入力して検索
 name: "{basename}(agent)"
 label: global
 description: "{frontmatter@description}"
-displayTime: "{updatedAt}"
+displayTime: "{mtime}"
 icon: codicon-hubot
 ```
 
@@ -352,7 +352,7 @@ runCommand: "./open.sh {line}"
 | `{pathdir:N}` | sourcePathのベースからN番目のディレクトリ | 例: `sourcePath: ~/a/b/*/file.md` → ベース=`~/a/b`、`{pathdir:1}`=ベース直下のディレクトリ |
 | `{projectdir}` | 現在のプロジェクトディレクトリ（検出されたCWD） | 例: `git -C {projectdir} log` |
 | `{latest}` | 最新の更新ディレクトリ | |
-| `{updatedAt}` | ファイル更新日時 | |
+| `{mtime}` | ファイル更新日時 | |
 | `{args.key}` | `args`フィールドの値 | `{args.open}` |
 
 **フォールバック：** `{frontmatter@description}|{heading}` — 左側が空の場合、右側を使用。

@@ -357,8 +357,8 @@ function buildCustomSearchHeader(): string {
 #   values          : Map of template variable names to JSON extraction patterns (e.g., pluginName: "**/.claude-plugin/*.json@name")
 #   searchPrefix    : Prefix to trigger this search (e.g., "agent" → @agent:)
 #   maxSuggestions  : Maximum number of suggestions to display
-#   orderBy         : Sort order (e.g., "name", "name desc", "{updatedAt} desc")
-#   displayTime     : Timestamp to display (e.g., "{updatedAt}", "{json@createdAt}", "none" to hide)
+#   orderBy         : Sort order (e.g., "name", "name desc", "{mtime} desc")
+#   displayTime     : Timestamp to display (e.g., "{mtime}", "{json@createdAt}", "none" to hide)
 #   inputFormat     : Insert format ('name' = display name, or template e.g. '{filepath}', '{content}')
 #   color           : Badge color (name or hex)
 #   icon            : Codicon icon name (e.g., "agent", "rocket", "terminal")

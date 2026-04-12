@@ -175,8 +175,8 @@ class CustomSearchHandler {
         if (item.inputText) {
           cmd.inputText = item.inputText;
         }
-        if (item.updatedAt) {
-          cmd.updatedAt = item.updatedAt;
+        if (item.mtime) {
+          cmd.mtime = item.mtime;
         }
         if (item.triggers) {
           cmd.triggers = item.triggers;
@@ -323,8 +323,8 @@ class CustomSearchHandler {
         if (item.label) {
           agent.label = item.label;
         }
-        if (item.updatedAt) {
-          agent.updatedAt = item.updatedAt;
+        if (item.mtime) {
+          agent.mtime = item.mtime;
         }
         if (item.displayTime !== undefined) {
           agent.displayTime = item.displayTime;
