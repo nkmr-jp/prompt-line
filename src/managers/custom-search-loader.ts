@@ -145,6 +145,32 @@ class CustomSearchLoader extends EventEmitter {
   }
 
   /**
+   * Invalidate commandCache entries for entries that use {projectdir} in their sourceCommand.
+   * Called when the active directory changes. Other command cache entries are preserved.
+   */
+  invalidateProjectdirCommandCache(): boolean {
+    let invalidated = false;
+    for (const entry of this.config) {
+      if (!entry.sourceCommand || !entry.sourceCommand.includes('{projectdir}')) continue;
+      const sourceId = this.getCommandSourceId(entry);
+      if (this.commandCache.has(sourceId)) {
+        this.commandCache.delete(sourceId);
+        invalidated = true;
+      }
+      this.commandFetchPromises.delete(sourceId);
+    }
+    if (invalidated) {
+      this.invalidateCache();
+      logger.debug('CustomSearch: {projectdir} command cache invalidated on directory change');
+    }
+    return invalidated;
+  }
+
+  private getCommandSourceId(entry: CustomSearchEntry): string {
+    return `sourceCommand:${entry.sourceCommand}${entry.sourceDir ? ':' + entry.sourceDir : ''}`;
+  }
+
+  /**
    * Returns the timestamp of the last cache invalidation.
    * Used by renderer to avoid unnecessary invalidation on window-shown.
    */
@@ -738,7 +764,7 @@ class CustomSearchLoader extends EventEmitter {
   private async loadCommandEntry(
     entry: CustomSearchEntry
   ): Promise<{ items: CustomSearchItem[]; watchableFiles: string[]; watchGlobs: string[] }> {
-    const sourceId = `sourceCommand:${entry.sourceCommand}${entry.sourceDir ? ':' + entry.sourceDir : ''}`;
+    const sourceId = this.getCommandSourceId(entry);
     const cached = this.commandCache.get(sourceId);
 
     let items: CustomSearchItem[];

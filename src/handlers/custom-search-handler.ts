@@ -3,6 +3,7 @@ import { logger } from '../utils/utils';
 import type CustomSearchLoader from '../managers/custom-search-loader';
 import type SettingsManager from '../managers/settings-manager';
 import type PluginManager from '../managers/plugin-manager';
+import type DirectoryManager from '../managers/directory-manager';
 import type { AgentSkillItem, AgentItem } from '../types';
 import type { CommandExecutionResult } from '../types/ipc';
 import { exec } from 'child_process';
@@ -23,10 +24,21 @@ class CustomSearchHandler {
   constructor(
     customSearchLoader: CustomSearchLoader,
     settingsManager: SettingsManager,
-    pluginManagerInstance: PluginManager
+    pluginManagerInstance: PluginManager,
+    directoryManager: DirectoryManager
   ) {
     this.customSearchLoader = customSearchLoader;
     this.settingsManager = settingsManager;
+
+    // Invalidate {projectdir}-dependent command cache when directory changes
+    directoryManager.on('directory-changed', ({ previousDirectory }: { previousDirectory: string | null }) => {
+      if (!previousDirectory) return;
+      const wasInvalidated = this.customSearchLoader.invalidateProjectdirCommandCache();
+      if (wasInvalidated) {
+        this.notifyRenderer();
+        logger.debug('CustomSearch: projectdir cache invalidated on directory change');
+      }
+    });
 
     // Subscribe to settings changes for hot reload
     settingsManager.on('settings-changed', () => {
