@@ -688,7 +688,7 @@ export class SuggestionUIManager {
       item.appendChild(timeSpan);
     }
 
-    if (agent.frontmatter && this.callbacks.onMouseEnterInfo) {
+    if (agent.tooltip && this.callbacks.onMouseEnterInfo) {
       const infoIcon = document.createElement('span');
       infoIcon.className = 'frontmatter-info-icon';
       infoIcon.textContent = 'ⓘ';

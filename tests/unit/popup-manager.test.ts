@@ -110,7 +110,7 @@ describe('PopupManager', () => {
         name: 'test-agent',
         description: 'Test agent description',
         filePath: '/path/to/agent',
-        frontmatter: 'This is the agent description'
+        tooltip: 'This is the agent description'
       };
 
       await popupManager.showFrontmatterPopup(agent, targetElement);
@@ -129,7 +129,7 @@ describe('PopupManager', () => {
         name: 'test-agent',
         description: 'Test agent description',
         filePath: '/path/to/agent',
-        frontmatter: 'Agent description'
+        tooltip: 'Agent description'
       };
 
       await popupManager.showFrontmatterPopup(agent, targetElement);
@@ -146,7 +146,7 @@ describe('PopupManager', () => {
         name: 'test-agent',
         description: 'Test agent description',
         filePath: '/path/to/agent',
-        frontmatter: undefined
+        tooltip: undefined
       };
 
       popupManager.showFrontmatterPopup(agent as any, targetElement);
@@ -164,7 +164,7 @@ describe('PopupManager', () => {
         name: 'test-agent',
         description: 'Test agent description',
         filePath: '/path/to/agent',
-        frontmatter: 'Agent description'
+        tooltip: 'Agent description'
       };
 
       popupManager.showFrontmatterPopup(agent, targetElement);
@@ -352,7 +352,7 @@ describe('PopupManager', () => {
           name: 'test-agent',
           description: 'Test agent description',
           filePath: '/path/to/agent',
-          frontmatter: 'Agent description'
+          tooltip: 'Agent description'
         }
       });
 
@@ -372,7 +372,7 @@ describe('PopupManager', () => {
           name: 'test-agent',
           description: 'Test agent description',
           filePath: '/path/to/agent',
-          frontmatter: 'Agent description'
+          tooltip: 'Agent description'
         }
       });
 

@@ -223,7 +223,7 @@ export class PopupManager {
    */
   public async showFrontmatterPopup(agent: AgentItem, targetElement: HTMLElement): Promise<void> {
     const suggestionsContainer = this.callbacks.getSuggestionsContainer();
-    if (!this.frontmatterPopup || !agent.frontmatter || !suggestionsContainer) return;
+    if (!this.frontmatterPopup || !agent.tooltip || !suggestionsContainer) return;
 
     // Cancel any pending hide
     this.cancelPopupHide();
@@ -236,7 +236,7 @@ export class PopupManager {
     // Create content container with parsed frontmatter (clickable reference links)
     const contentDiv = document.createElement('div');
     contentDiv.className = 'frontmatter-content';
-    this.renderFrontmatter(contentDiv, agent.frontmatter);
+    this.renderFrontmatter(contentDiv, agent.tooltip);
 
     // Add file path line after frontmatter content
     await this.addFilePathLine(contentDiv, agent.name);
@@ -351,7 +351,7 @@ export class PopupManager {
     if (!this.autoShowTooltip || !suggestionsContainer) return;
 
     const suggestion = this.callbacks.getSelectedSuggestion();
-    if (!suggestion || suggestion.type !== 'agent' || !suggestion.agent?.frontmatter) {
+    if (!suggestion || suggestion.type !== 'agent' || !suggestion.agent?.tooltip) {
       this.hideFrontmatterPopup();
       return;
     }

@@ -8,7 +8,7 @@ import { UI_TIMING } from '../constants';
 
 interface AgentSkillItemLike {
   name: string;
-  frontmatter?: string;
+  tooltip?: string;
 }
 
 /**
@@ -222,7 +222,7 @@ export class FrontmatterPopupManager {
    */
   public async show(command: AgentSkillItemLike, targetElement: HTMLElement): Promise<void> {
     const suggestionsContainer = this.callbacks.getSuggestionsContainer();
-    if (!this.frontmatterPopup || !command.frontmatter || !suggestionsContainer) return;
+    if (!this.frontmatterPopup || !command.tooltip || !suggestionsContainer) return;
 
     // Cancel any pending hide
     this.cancelHide();
@@ -235,7 +235,7 @@ export class FrontmatterPopupManager {
     // Create content container with parsed frontmatter
     const contentDiv = document.createElement('div');
     contentDiv.className = 'frontmatter-content';
-    this.renderFrontmatter(contentDiv, command.frontmatter);
+    this.renderFrontmatter(contentDiv, command.tooltip);
 
     // Add file path line as last frontmatter item (before hint)
     await this.addFilePathLine(contentDiv, command);
@@ -340,7 +340,7 @@ export class FrontmatterPopupManager {
     const filteredSkills = this.callbacks.getFilteredSkills();
     const selectedIndex = this.callbacks.getSelectedIndex();
     const selectedSkill = filteredSkills[selectedIndex];
-    if (!selectedSkill?.frontmatter) {
+    if (!selectedSkill?.tooltip) {
       this.hide();
       return;
     }

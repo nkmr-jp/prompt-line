@@ -46,7 +46,7 @@ interface AgentSkillItem {
   icon?: string;  // Codicon icon class name (e.g., "codicon-rocket")
   argumentHint?: string; // Hint text shown when editing arguments (after Tab selection)
   filePath: string;
-  frontmatter?: string;  // Front Matter 全文（ポップアップ表示用）
+  tooltip?: string;  // Tooltip popup content（ポップアップ表示用テキスト）
   inputFormat?: InputFormatType;  // 入力フォーマット（'name' | テンプレート e.g. '{filepath}', '{content}'）
   inputText?: string;  // テンプレート解決済みの入力テキスト
   source?: string;  // Source tool identifier (e.g., 'claude-code') for filtering
@@ -694,8 +694,7 @@ export class AgentSkillManager implements IInitializable {
         item.appendChild(descSpan);
       }
 
-      // Add info icon for frontmatter popup (only if frontmatter exists)
-      if (cmd.frontmatter) {
+      if (cmd.tooltip) {
         const infoIcon = document.createElement('span');
         infoIcon.className = 'frontmatter-info-icon';
         infoIcon.textContent = 'ⓘ';
