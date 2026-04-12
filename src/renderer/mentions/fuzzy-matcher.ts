@@ -159,6 +159,7 @@ export function calculateMatchScore(
  * - Name starts with query: FUZZY_MATCH_SCORES.STARTS_WITH (500)
  * - Name contains query: FUZZY_MATCH_SCORES.CONTAINS (200)
  * - Description contains query: FUZZY_MATCH_SCORES.PATH_CONTAINS (50)
+ * - Label contains query: FUZZY_MATCH_SCORES.CONTAINS (200)
  * - Fuzzy match on name: FUZZY_MATCH_SCORES.BASE_FUZZY (10)
  */
 export function calculateAgentMatchScore(
@@ -171,6 +172,7 @@ export function calculateAgentMatchScore(
 
   const nameLower = lowercaseCache.get(agent.name);
   const descLower = lowercaseCache.get(agent.description);
+  const labelLower = agent.label != null ? lowercaseCache.get(agent.label) : '';
 
   const keywords = preSplitKeywords ?? splitKeywords(queryLower);
   if (keywords.length === 0) return FUZZY_MATCH_SCORES.AGENT_BASE;
@@ -182,6 +184,7 @@ export function calculateAgentMatchScore(
     else if (nameLower.startsWith(kw)) kwScore = FUZZY_MATCH_SCORES.STARTS_WITH;
     else if (nameLower.includes(kw)) kwScore = FUZZY_MATCH_SCORES.CONTAINS;
     else if (descLower.includes(kw)) kwScore = FUZZY_MATCH_SCORES.PATH_CONTAINS;
+    else if (labelLower && labelLower.includes(kw)) kwScore = FUZZY_MATCH_SCORES.CONTAINS;
     // nameLower.includes(kw) already covers fuzzyMatch's substring check
 
     if (kwScore === 0) return 0; // AND condition: all keywords must match

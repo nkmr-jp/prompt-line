@@ -505,12 +505,16 @@ class PluginLoader {
   }
 
   /**
-   * Filter items by query prefix (case-insensitive)
+   * Filter items by query prefix (case-insensitive).
+   * Matches on name (prefix) or label (prefix).
    */
-  private filterByQuery<T extends { name: string }>(items: T[], query?: string): T[] {
+  private filterByQuery<T extends { name: string; label?: string }>(items: T[], query?: string): T[] {
     if (!query || query.trim() === '') return items;
     const lowerQuery = query.toLowerCase();
-    return items.filter(item => item.name.toLowerCase().startsWith(lowerQuery));
+    return items.filter(item =>
+      item.name.toLowerCase().startsWith(lowerQuery) ||
+      (item.label != null && item.label.toLowerCase().startsWith(lowerQuery))
+    );
   }
 
   /**

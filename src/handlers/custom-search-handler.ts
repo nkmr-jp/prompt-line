@@ -284,12 +284,16 @@ class CustomSearchHandler {
     query?: string
   ): Promise<AgentItem[]> {
     try {
-      // Get agent-built-in agents from plugin YAML files
+      // Get agent-built-in agents from plugin YAML files.
+      // Only include when query is non-empty — they should not appear on bare @mention input.
       const enabledPlugins = this.settingsManager.getPluginSettings();
       const pluginPaths = enabledPlugins.map(p => p.path);
-      const builtInAgents = pluginLoader.searchAgentBuiltInAgents(pluginPaths, query);
-      const explicitAgentNames = new Set(this.settingsManager.getAgentBuiltInSettings() ?? []);
-      builtInAgents.push(...pluginLoader.searchAllLocalAgentBuiltInAgents(explicitAgentNames, query));
+      const builtInAgents: AgentItem[] = [];
+      if (query) {
+        builtInAgents.push(...pluginLoader.searchAgentBuiltInAgents(pluginPaths, query));
+        const explicitAgentNames = new Set(this.settingsManager.getAgentBuiltInSettings() ?? []);
+        builtInAgents.push(...pluginLoader.searchAllLocalAgentBuiltInAgents(explicitAgentNames, query));
+      }
 
       // Get mentions (agents) from CustomSearchLoader
       // Always use searchItems to apply searchPrefix filtering, even for empty query
