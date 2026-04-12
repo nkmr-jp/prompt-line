@@ -502,8 +502,8 @@ class CustomSearchLoader extends EventEmitter {
   /**
    * string | number の値をミリ秒タイムスタンプに正規化する
    * - number: 0 以上 10^12 未満なら秒とみなして ×1000、10^12 以上はそのまま ms として使用
-   * - string: ISO 8601 形式 ("2024-01-15", "2024-01-15T12:00:00Z" 等) を Date.parse() で変換。
-   *   非標準フォーマット ("2024/01/15" 等) は実装依存のため undefined が返ることがある。
+   * - string: まず数値変換を試みる（例: git %at の "1744657200" 等の数字文字列）。
+   *   失敗した場合は ISO 8601 形式 ("2024-01-15T12:00:00Z" 等) を Date.parse() で変換。
    *   変換失敗時は undefined を返す。
    */
   static normalizeToTimestampMs(value: string | number): number | undefined {
@@ -511,6 +511,14 @@ class CustomSearchLoader extends EventEmitter {
       if (!isFinite(value) || value < 0) return undefined;
       return value < 1e12 ? value * 1000 : value;
     }
+    if (value === '') return undefined;
+    // 数値文字列を先に処理（例: "1744657200", "1744657200000"）
+    const num = Number(value);
+    if (!isNaN(num) && isFinite(num)) {
+      if (num < 0) return undefined;
+      return num < 1e12 ? num * 1000 : num;
+    }
+    // ISO 8601 等の日付文字列にフォールバック
     const ms = Date.parse(value);
     return isNaN(ms) ? undefined : ms;
   }

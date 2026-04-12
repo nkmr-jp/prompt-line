@@ -2170,6 +2170,20 @@ Content`;
       });
     });
 
+    describe('string input: numeric string (e.g., git %at output)', () => {
+      test('should treat numeric string < 1e12 as Unix seconds and multiply by 1000', () => {
+        expect(CustomSearchLoader.normalizeToTimestampMs('1700000000')).toBe(1700000000000);
+      });
+
+      test('should treat numeric string >= 1e12 as milliseconds', () => {
+        expect(CustomSearchLoader.normalizeToTimestampMs('1700000000000')).toBe(1700000000000);
+      });
+
+      test('should return undefined for negative numeric string', () => {
+        expect(CustomSearchLoader.normalizeToTimestampMs('-1')).toBeUndefined();
+      });
+    });
+
     describe('string input: date string conversion', () => {
       test('should parse ISO 8601 string to milliseconds', () => {
         const isoString = '2024-01-15T12:00:00.000Z';
