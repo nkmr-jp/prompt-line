@@ -51,7 +51,7 @@ interface AgentSkillItem {
   inputText?: string;  // テンプレート解決済みの入力テキスト
   source?: string;  // Source tool identifier (e.g., 'claude-code') for filtering
   displayName?: string;  // Human-readable source name for display (e.g., 'Claude Code')
-  updatedAt?: number;  // File modification timestamp (mtimeMs)
+  mtime?: number;  // File modification timestamp (mtimeMs)
   triggers?: string[];  // Trigger prefixes (e.g., ['/', '$'])
 }
 

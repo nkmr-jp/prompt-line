@@ -501,7 +501,7 @@ export class FileFilterManager {
     // Get agent usage bonuses
     const agentBonuses = this.callbacks.getAgentUsageBonuses?.() ?? {};
 
-    // Track original agent order from backend (preserves orderBy setting like updatedAt desc)
+    // Track original agent order from backend (preserves orderBy setting like mtime desc)
     const agentOrder = new Map<AgentItem, number>();
     filteredAgents.forEach((agent, i) => agentOrder.set(agent, i));
 
@@ -521,7 +521,7 @@ export class FileFilterManager {
         if (aIsDir && !bIsDir) return -1;
         if (!aIsDir && bIsDir) return 1;
 
-        // Both agents: preserve backend sort order (e.g., orderBy: updatedAt desc)
+        // Both agents: preserve backend sort order (e.g., orderBy: mtime desc)
         if (a.type === 'agent' && b.type === 'agent') {
           return (agentOrder.get(a.agent!) ?? 0) - (agentOrder.get(b.agent!) ?? 0);
         }

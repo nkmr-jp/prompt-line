@@ -244,7 +244,7 @@ searchPrefix: agent                   # → type @agent: to search
 name: "{basename}(agent)"
 label: global
 description: "{frontmatter@description}"
-displayTime: "{updatedAt}"
+displayTime: "{mtime}"
 icon: codicon-hubot
 ```
 
@@ -352,7 +352,7 @@ runCommand: "./open.sh {line}"
 | `{pathdir:N}` | Nth directory from sourcePath base | e.g., `sourcePath: ~/a/b/*/file.md` → base=`~/a/b`, `{pathdir:1}`=first dir after base |
 | `{projectdir}` | Current project directory (detected CWD) | e.g., `git -C {projectdir} log` |
 | `{latest}` | Most recently modified dir | |
-| `{updatedAt}` | File modification time | |
+| `{mtime}` | File modification time | |
 | `{args.key}` | Value from `args` field | `{args.open}` |
 
 **Fallback:** `{frontmatter@description}|{heading}` — uses right side if left is empty.

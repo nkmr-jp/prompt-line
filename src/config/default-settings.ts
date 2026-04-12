@@ -261,7 +261,7 @@ export const commentedExamples = {
       searchPrefix: 'kb',
       shortcut: 'Ctrl+g',
       maxSuggestions: 100,
-      orderBy: '{updatedAt} desc',
+      orderBy: '{mtime} desc',
       inputFormat: '{filepath}',
       runCommand: "open -a 'Google Chrome' {filepath}"
     },

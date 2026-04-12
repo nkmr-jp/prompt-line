@@ -517,7 +517,7 @@ class CustomSearchLoader extends EventEmitter {
    */
   private sortItems(items: CustomSearchItem[], orderBy: string): CustomSearchItem[] {
     const { field, direction } = CustomSearchLoader.parseOrderBy(orderBy);
-    const isCustomField = field !== 'updatedAt' && field !== 'name' && field !== 'description';
+    const isCustomField = field !== 'mtime' && field !== 'name' && field !== 'description';
 
     // カスタムフィールドの場合、数値変換をソート前に1回だけ行う
     let numericValues: Map<CustomSearchItem, number> | null = null;
@@ -534,8 +534,8 @@ class CustomSearchLoader extends EventEmitter {
     }
 
     return [...items].sort((a, b) => {
-      if (field === 'updatedAt') {
-        const comparison = (a.updatedAt ?? 0) - (b.updatedAt ?? 0);
+      if (field === 'mtime') {
+        const comparison = (a.mtime ?? 0) - (b.mtime ?? 0);
         return direction === 'desc' ? -comparison : comparison;
       }
 
@@ -1016,7 +1016,7 @@ class CustomSearchLoader extends EventEmitter {
       if (sortKey) item.sortKey = sortKey;
       if (rawFrontmatter) item.tooltip = rawFrontmatter;
       this.applyOptionalItemFields(item, entry, context);
-      item.updatedAt = fileStat.mtimeMs;
+      item.mtime = fileStat.mtimeMs;
 
       const displayTime = this.resolveDisplayTime(entry, context, fileStat.mtimeMs);
       if (displayTime !== undefined) item.displayTime = displayTime;
@@ -1167,7 +1167,7 @@ class CustomSearchLoader extends EventEmitter {
     item.sortKey = sortKey ?? String(lineIndex).padStart(8, '0');
     this.applyOptionalItemFields(item, entry, context);
     this.applyInputFormat(item, entry, context);
-    item.updatedAt = mtimeMs;
+    item.mtime = mtimeMs;
 
     const displayTime = this.resolveDisplayTime(entry, context, mtimeMs);
     if (displayTime !== undefined) item.displayTime = displayTime;
@@ -1397,9 +1397,9 @@ class CustomSearchLoader extends EventEmitter {
     if (!entry.displayTime) return undefined;
     if (entry.displayTime === 'none') return null;
 
-    // {updatedAt} は特別扱い: ファイル更新日時を使用
+    // {mtime} は特別扱い: ファイル更新日時を使用
     const parsed = CustomSearchLoader.parseOrderBy(entry.displayTime);
-    if (parsed.field === 'updatedAt') {
+    if (parsed.field === 'mtime') {
       return fileMtimeMs;
     }
 
@@ -1417,7 +1417,7 @@ class CustomSearchLoader extends EventEmitter {
   private resolveSortKey(entry: CustomSearchEntry, context: Parameters<typeof resolveTemplate>[1]): string | undefined {
     if (!entry.orderBy) return undefined;
     const { field } = CustomSearchLoader.parseOrderBy(entry.orderBy);
-    if (field === 'name' || field === 'description' || field === 'updatedAt') return undefined;
+    if (field === 'name' || field === 'description' || field === 'mtime') return undefined;
     const template = CustomSearchLoader.extractOrderByTemplate(entry.orderBy);
     const resolved = resolveTemplate(template, context);
     return resolved || undefined;

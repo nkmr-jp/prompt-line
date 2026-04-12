@@ -2114,6 +2114,16 @@ Content`;
       const result = CustomSearchLoader.parseOrderBy('description asc');
       expect(result).toEqual({ field: 'description', direction: 'asc' });
     });
+
+    test('should parse "{mtime} desc" to field mtime with desc direction', () => {
+      const result = CustomSearchLoader.parseOrderBy('{mtime} desc');
+      expect(result).toEqual({ field: 'mtime', direction: 'desc' });
+    });
+
+    test('should parse "{mtime}" to field mtime with asc direction (default)', () => {
+      const result = CustomSearchLoader.parseOrderBy('{mtime}');
+      expect(result).toEqual({ field: 'mtime', direction: 'asc' });
+    });
   });
 
   describe('extractOrderByTemplate', () => {

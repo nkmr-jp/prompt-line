@@ -18,6 +18,30 @@ Your backup is preserved, so you can refer to it when re-applying customizations
 
 ---
 
+## v0.32 → v0.33
+
+### 1. Template variable `{updatedAt}` renamed to `{mtime}`
+
+The `{updatedAt}` template variable has been renamed to `{mtime}` for consistency with other lowercase template variables (`{basename}`, `{heading}`, `{filepath}`, etc.).
+
+If you use `{updatedAt}` in your `settings.yaml` custom search entries (e.g., `orderBy` or `displayTime`), update them:
+
+**Before:**
+```yaml
+orderBy: "{updatedAt} desc"
+displayTime: "{updatedAt}"
+```
+
+**After:**
+```yaml
+orderBy: "{mtime} desc"
+displayTime: "{mtime}"
+```
+
+Also update any custom plugin YAML files that reference `{updatedAt}`.
+
+---
+
 ## v0.29 → v0.30
 
 ### 1. Shortcuts format changed (key → action)

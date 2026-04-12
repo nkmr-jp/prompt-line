@@ -412,7 +412,7 @@ export interface MentionEntry {
   searchPrefix?: string;
   /** オプション: ソート順（デフォルト: 'name'） - 'name', 'name desc', 'description desc' など */
   orderBy?: string;
-  /** オプション: 末尾に表示する日時テンプレート（例: "{updatedAt}", "{json@createdAt}", "none"で非表示） */
+  /** オプション: 末尾に表示する日時テンプレート（例: "{mtime}", "{json@createdAt}", "none"で非表示） */
   displayTime?: string;
   /** オプション: 入力フォーマット（デフォルト: 'name'） */
   inputFormat?: InputFormatType;
@@ -485,7 +485,7 @@ export interface CustomSearchEntry {
   searchPrefix?: string;
   /** オプション: ソート順（デフォルト: 'name'） - 'name', 'name desc', 'description desc' など */
   orderBy?: string;
-  /** オプション: 末尾に表示する日時テンプレート（例: "{updatedAt}", "{json@createdAt}", "none"で非表示） */
+  /** オプション: 末尾に表示する日時テンプレート（例: "{mtime}", "{json@createdAt}", "none"で非表示） */
   displayTime?: string;
   /** オプション: 入力フォーマット（デフォルト: 'name'） - 'name': 名前のみ, 'path': ファイルパス */
   inputFormat?: InputFormatType;
@@ -552,8 +552,8 @@ export interface CustomSearchItem {
   /** テンプレート解決済みの入力テキスト（inputFormatがテンプレートの場合に使用） */
   inputText?: string;
   /** ファイル更新日時（mtimeMs） */
-  updatedAt?: number;
-  /** 表示用日時（displayTime設定で解決された値。undefinedはupdatedAtにフォールバック、nullは非表示） */
+  mtime?: number;
+  /** 表示用日時（displayTime設定で解決された値。undefinedはmtimeにフォールバック、nullは非表示） */
   displayTime?: number | null;
   /** トリガー文字の配列（commandタイプのみ） */
   triggers?: string[];
@@ -576,7 +576,7 @@ export interface AgentSkillItem {
   inputText?: string;  // テンプレート解決済みの入力テキスト
   source?: string;  // Source tool identifier (e.g., 'claude-code') for filtering
   displayName?: string;  // Human-readable source name for display (e.g., 'Claude Code')
-  updatedAt?: number;  // File modification timestamp (mtimeMs)
+  mtime?: number;  // File modification timestamp (mtimeMs)
   triggers?: string[];  // Trigger prefixes (e.g., ['/', '$'])
 }
 
@@ -593,7 +593,7 @@ export interface AgentItem {
   color?: ColorValue;
   icon?: string;  // Codicon icon class name (e.g., "codicon-rocket")
   label?: string;
-  updatedAt?: number;  // File modification timestamp (mtimeMs)
-  displayTime?: number | null;  // Resolved display time (null = hidden, undefined = fallback to updatedAt)
+  mtime?: number;  // File modification timestamp (mtimeMs)
+  displayTime?: number | null;  // Resolved display time (null = hidden, undefined = fallback to mtime)
   runCommand?: string;  // Shell command to execute on Ctrl+Enter (template-resolved)
 }
