@@ -63,7 +63,7 @@ export function renderFrontmatter(container: HTMLElement, frontmatter: string): 
     keySpan.textContent = key + ': ';
     lineDiv.appendChild(keySpan);
 
-    if (value.startsWith('http')) {
+    if (/^https?:\/\//.test(value)) {
       const link = document.createElement('a');
       link.href = value;
       link.textContent = value;

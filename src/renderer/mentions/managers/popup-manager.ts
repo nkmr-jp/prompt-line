@@ -106,7 +106,7 @@ export class PopupManager {
   /**
    * Add file path line to the frontmatter content
    */
-  private addFilePathLine(contentDiv: HTMLElement, filePath: string): void {
+  private addFilePathLine(contentDiv: HTMLElement, filePath: string, agent: AgentItem): void {
     if (!filePath || filePath.startsWith('command-source:')) return;
 
     try {
@@ -136,10 +136,9 @@ export class PopupManager {
         e.stopPropagation();
 
         try {
-          // First, get the agent and insert it into textarea
-          const suggestion = this.callbacks.getSelectedSuggestion?.();
-          if (suggestion?.type === 'agent' && suggestion.agent && this.callbacks.onSelectAgent) {
-            this.callbacks.onSelectAgent(suggestion.agent);
+          // Insert the agent captured at popup-creation time (not current selection)
+          if (this.callbacks.onSelectAgent) {
+            this.callbacks.onSelectAgent(agent);
           }
 
           // Then, open the file in editor
@@ -189,7 +188,7 @@ export class PopupManager {
     renderFrontmatter(contentDiv, agent.tooltip);
 
     // Add file path line after frontmatter content
-    this.addFilePathLine(contentDiv, agent.filePath);
+    this.addFilePathLine(contentDiv, agent.filePath, agent);
 
     this.frontmatterPopup.appendChild(contentDiv);
 
