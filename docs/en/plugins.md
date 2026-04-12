@@ -257,6 +257,22 @@ icon: codicon-hubot
 | `inputFormat` | Insert format template |
 | `runCommand` | Shell command on Ctrl+Enter |
 | `excludeMarker` | Skip directories with this file |
+| `tooltip` | Tooltip popup text (template variables supported). Overrides file frontmatter when set |
+
+#### Tooltip
+
+The `tooltip` field adds a popup that appears when hovering over or selecting a search result. Tooltip text supports `key: value` formatting, auto-linkified `http` URLs, and Markdown link syntax `[text](url)`.
+
+```yaml
+sourcePath: ~/bookmarks/**/*.yaml
+searchPrefix: bm
+name: "{frontmatter@title}"
+description: "{frontmatter@category}"
+tooltip: "url: {frontmatter@url}\ntags: {frontmatter@tags}\nnote: {frontmatter@note}"
+icon: codicon-bookmark
+```
+
+When `tooltip` is set, it takes priority over the file's frontmatter for popup display.
 
 #### Source types
 

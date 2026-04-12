@@ -257,6 +257,22 @@ icon: codicon-hubot
 | `inputFormat` | 挿入フォーマットテンプレート |
 | `runCommand` | Ctrl+Enterで実行するシェルコマンド |
 | `excludeMarker` | このファイルを含むディレクトリをスキップ |
+| `tooltip` | ツールチップポップアップテキスト（テンプレート変数使用可）。設定時はファイルのfrontmatterより優先 |
+
+#### ツールチップ
+
+`tooltip` フィールドを設定すると、検索結果にホバーまたは選択時にポップアップが表示されます。ツールチップのテキストは `key: value` 形式、`http` で始まるURLの自動リンク化、Markdownリンク記法 `[text](url)` に対応しています。
+
+```yaml
+sourcePath: ~/bookmarks/**/*.yaml
+searchPrefix: bm
+name: "{frontmatter@title}"
+description: "{frontmatter@category}"
+tooltip: "url: {frontmatter@url}\ntags: {frontmatter@tags}\nnote: {frontmatter@note}"
+icon: codicon-bookmark
+```
+
+`tooltip` を設定すると、ポップアップ表示時にファイルのfrontmatterより優先されます。
 
 #### ソースタイプ
 
