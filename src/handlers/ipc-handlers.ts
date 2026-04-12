@@ -74,7 +74,8 @@ class IPCHandlers {
     this.customSearchHandler = new CustomSearchHandler(
       customSearchLoader,
       settingsManager,
-      pluginManager
+      pluginManager,
+      directoryManager
     );
     this.fileHandler = new FileHandler(fileOpenerManager, directoryManager);
     this.usageHistoryHandler = new UsageHistoryHandler();

@@ -1,4 +1,5 @@
 import { promises as fs } from 'fs';
+import { EventEmitter } from 'events';
 import config from '../config/app-config';
 import {
   logger,
@@ -21,13 +22,14 @@ interface DirectoryData {
  * - @path highlighting restoration
  * - Window context preservation
  */
-class DirectoryManager {
+class DirectoryManager extends EventEmitter {
   private directoryFile: string;
   private currentDirectory: string | null = null;
   private currentMethod: string | null = null;
   private lastSaveTimestamp: number = 0;
 
   constructor() {
+    super();
     this.directoryFile = config.paths.directoryFile;
   }
 
@@ -137,11 +139,16 @@ class DirectoryManager {
 
   /**
    * Set the current directory (in memory only, does not persist)
+   * Emits 'directory-changed' when the directory actually changes
    */
   setDirectory(directory: string | null, method?: string): void {
+    const previous = this.currentDirectory;
     this.currentDirectory = directory;
     if (method) {
       this.currentMethod = method;
+    }
+    if (previous !== directory) {
+      this.emit('directory-changed', { directory, previousDirectory: previous });
     }
   }
 
@@ -198,6 +205,7 @@ class DirectoryManager {
     this.currentDirectory = null;
     this.currentMethod = null;
     this.lastSaveTimestamp = 0;
+    this.removeAllListeners();
   }
 }
 

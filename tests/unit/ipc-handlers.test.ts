@@ -170,7 +170,10 @@ describe('IPCHandlers', () => {
         mockDirectoryManager = {
             getDirectory: vi.fn(() => null),
             setDirectory: vi.fn(),
-            saveDirectory: vi.fn()
+            saveDirectory: vi.fn(),
+            on: vi.fn(),
+            emit: vi.fn(),
+            removeAllListeners: vi.fn()
         };
 
         const mockPluginManager = {
