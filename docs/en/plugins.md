@@ -334,7 +334,7 @@ runCommand: "./open.sh {line}"
 | `{dirname}` | Parent directory name | |
 | `{dirname:N}` | N levels up directory | `{dirname:2}` |
 | `{pathdir:N}` | Nth directory from sourcePath base | e.g., `sourcePath: ~/a/b/*/file.md` → base=`~/a/b`, `{pathdir:1}`=first dir after base |
-| `{projectdir}` | Current project directory (detected CWD) | e.g., `git -C {projectdir} log` |
+| `{projectdir}` | Current project directory (detected CWD). Remains unresolved if no directory is detected — plugin should handle this case | e.g., `git -C {projectdir} log` |
 | `{latest}` | Most recently modified dir | |
 | `{updatedAt}` | File modification time | |
 | `{args.key}` | Value from `args` field | `{args.open}` |
