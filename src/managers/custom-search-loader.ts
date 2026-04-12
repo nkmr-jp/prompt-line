@@ -505,6 +505,8 @@ class CustomSearchLoader extends EventEmitter {
    * - string: まず数値変換を試みる（例: git %at の "1744657200" 等の数字文字列）。
    *   失敗した場合は ISO 8601 形式 ("2024-01-15T12:00:00Z" 等) を Date.parse() で変換。
    *   変換失敗時は undefined を返す。
+   * NOTE: 1e12 の閾値は 2001-09-09 相当。2001年以前の日付を ms で表す値（例: 946684800000）は
+   * 秒と誤判定されて遠い未来の日付になる。実用上 displayTime は最近のデータに使用するため許容する。
    */
   static normalizeToTimestampMs(value: string | number): number | undefined {
     if (typeof value === 'number') {
