@@ -354,11 +354,12 @@ class CustomSearchHandler {
         const key = `${agent.name}:${agent.label || ''}`;
         agentMap.set(key, agent);
       }
-      const builtInKeys = new Set(agentMap.keys());
+      const insertedCustomKeys = new Set<string>();
       for (const agent of customAgents) {
         const key = `${agent.name}:${agent.label || ''}`;
-        if (builtInKeys.has(key) || !agentMap.has(key)) {
+        if (!insertedCustomKeys.has(key)) {
           agentMap.set(key, agent);
+          insertedCustomKeys.add(key);
         }
       }
 
