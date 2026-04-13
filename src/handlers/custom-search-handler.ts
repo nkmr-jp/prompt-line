@@ -348,14 +348,19 @@ class CustomSearchHandler {
       });
 
       // Merge: built-in first, custom agents can override built-in with same name:label key
+      // Among custom agents with the same key, keep the first one (preserves sort order from searchItems)
       const agentMap = new Map<string, AgentItem>();
       for (const agent of builtInAgents) {
         const key = `${agent.name}:${agent.label || ''}`;
         agentMap.set(key, agent);
       }
+      const insertedCustomKeys = new Set<string>();
       for (const agent of customAgents) {
         const key = `${agent.name}:${agent.label || ''}`;
-        agentMap.set(key, agent);
+        if (!insertedCustomKeys.has(key)) {
+          agentMap.set(key, agent);
+          insertedCustomKeys.add(key);
+        }
       }
 
       return Array.from(agentMap.values());
