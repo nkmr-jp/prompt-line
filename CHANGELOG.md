@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.33.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.33.0...prompt-line-v0.33.1) (2026-04-13)
+
+
+### Bug Fixes
+
+* **displayTime:** preserve sort order in agent dedup to show correct timestamps ([#358](https://github.com/nkmr-jp/prompt-line/issues/358)) ([65ad3be](https://github.com/nkmr-jp/prompt-line/commit/65ad3be9a2088b2e9752cac8c8e27a493b3f5a5d))
+
 ## [0.33.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.32.0...prompt-line-v0.33.0) (2026-04-12)
 
 
