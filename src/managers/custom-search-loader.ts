@@ -1056,6 +1056,8 @@ class CustomSearchLoader extends EventEmitter {
       const projectdir = this.getProjectdir();
       const context = { basename, frontmatter, prefix, dirname, filePath, basePath, heading, content, ...(hasValues && { values }), ...(jsonData && { jsonData }), ...(entry.args && { args: entry.args }), ...(projectdir && { projectdir }) };
 
+      if (this.shouldExcludeByTemplate(entry.excludeIf, context)) return null;
+
       const item: CustomSearchItem = {
         name: resolveTemplate(entry.name, context),
         description: resolveTemplate(entry.description, context),
@@ -1078,6 +1080,22 @@ class CustomSearchLoader extends EventEmitter {
       logger.warn('Failed to parse file', { filePath, error });
       return null;
     }
+  }
+
+  /** `==` があれば左辺テンプレートを右辺 literal と比較、なければ truthy チェック */
+  private shouldExcludeByTemplate(
+    excludeIf: string | undefined,
+    context: TemplateContext
+  ): boolean {
+    if (!excludeIf) return false;
+    const eqIdx = excludeIf.indexOf('==');
+    if (eqIdx === -1) {
+      return resolveTemplate(excludeIf, context).trim() !== '';
+    }
+    const leftTemplate = excludeIf.slice(0, eqIdx);
+    const expected = excludeIf.slice(eqIdx + 2).trim();
+    const actual = resolveTemplate(leftTemplate, context).trim();
+    return actual === expected;
   }
 
   /** エントリのvalues/prefixPatternからテンプレート変数を解決する */
@@ -1206,6 +1224,9 @@ class CustomSearchLoader extends EventEmitter {
     const basePath = entry.sourcePath ? splitSourcePath(entry.sourcePath).dir.replace(/^~/, os.homedir()) : '';
     const projectdir = this.getProjectdir();
     const context = { basename, frontmatter: {}, prefix, dirname, filePath, basePath, heading, line: trimmed, content, ...(values && { values }), ...(entry.args && { args: entry.args }), ...(projectdir && { projectdir }) };
+
+    if (this.shouldExcludeByTemplate(entry.excludeIf, context)) return null;
+
     const item: CustomSearchItem = {
       name: resolveTemplate(entry.name, context),
       description: resolveTemplate(entry.description, context),
@@ -1499,6 +1520,9 @@ class CustomSearchLoader extends EventEmitter {
     const basePath = entry.sourcePath ? splitSourcePath(entry.sourcePath).dir.replace(/^~/, os.homedir()) : '';
     const projectdir = this.getProjectdir();
     const context = { basename, frontmatter: {}, prefix: '', dirname, filePath, basePath, heading: '', jsonData: elementData, ...(parentJsonDataStack && { parentJsonDataStack }), ...(content !== undefined && { content }), ...(entry.args && { args: entry.args }), ...(projectdir && { projectdir }) };
+
+    if (this.shouldExcludeByTemplate(entry.excludeIf, context)) return null;
+
     const item: CustomSearchItem = {
       name: resolveTemplate(entry.name, context),
       description: resolveTemplate(entry.description, context),

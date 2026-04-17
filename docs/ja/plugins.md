@@ -223,6 +223,7 @@ icon: codicon-terminal
 | `values` | No | テンプレート変数パターン |
 | `triggers` | No | トリガー文字（デフォルト: `["/"]`） |
 | `args` | No | テンプレート引数 |
+| `excludeIf` | No | 個別アイテムを検索対象から除外する条件式（[excludeIf](#excludeif) 参照） |
 
 \* `sourcePath` または `sourceCommand` のいずれかが必要。
 
@@ -258,6 +259,8 @@ icon: codicon-hubot
 | `runCommand` | Ctrl+Enterで実行するシェルコマンド |
 | `excludeMarker` | このファイルを含むディレクトリをスキップ |
 | `tooltip` | ツールチップポップアップテキスト（テンプレート変数使用可）。設定時はファイルのfrontmatterより優先 |
+
+（`excludeIf` は agent-skills と共通。[excludeIf](#excludeif) 参照）
 
 #### ツールチップ
 
@@ -334,6 +337,56 @@ runCommand: "./open.sh {line}"
 ```
 
 ---
+
+## excludeIf
+
+`excludeIf` フィールドを設定すると、テンプレート式の評価結果に応じて個別のアイテムを検索対象から除外できます。`agent-skills` と `custom-search` の両方で利用可能です。
+
+### 構文
+
+2つの形式をサポートします：
+
+| 形式 | セマンティクス |
+|------|----------------|
+| `excludeIf: "<template>"` | テンプレート解決の結果が**非空**なら除外（truthy チェック） |
+| `excludeIf: "<template>==<value>"` | テンプレート解決の結果が `<value>` と**完全一致**したら除外 |
+
+- 左辺（`==` の前）はテンプレートとして解決されます（`{frontmatter@...}`, `{json@...}`, `{basename}` など使用可）。
+- 右辺（`==` の後）は literal 文字列として扱われます（テンプレート解決されません）。
+- `<template>` も `<value>` も前後の空白はトリムされます。
+
+### 例
+
+**frontmatter の `hidden` フィールドが設定されたファイルを除外：**
+```yaml
+sourcePath: ~/.claude/skills/**/SKILL.md
+name: "{frontmatter@name}"
+description: "{frontmatter@description}"
+excludeIf: "{frontmatter@hidden}"           # hidden フィールドに値があれば除外
+```
+
+**frontmatter で `searchable: false` が指定されたファイルを除外：**
+```yaml
+sourcePath: ~/notes/**/*.md
+name: "{basename}"
+searchPrefix: note
+excludeIf: "{frontmatter@searchable}==false"
+```
+
+**ステータスが draft のアイテムを除外：**
+```yaml
+sourcePath: ~/articles/*.md
+name: "{frontmatter@title}"
+excludeIf: "{frontmatter@status}==draft"
+```
+
+**JSONL ソースでも利用可能（例: 特定タイプのレコードを除外）：**
+```yaml
+sourcePath: ~/.claude/history.jsonl
+name: "{json@display}"
+searchPrefix: r
+excludeIf: "{json@type}==system"
+```
 
 ## テンプレート変数
 
