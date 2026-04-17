@@ -1082,7 +1082,7 @@ class CustomSearchLoader extends EventEmitter {
     }
   }
 
-  /** `==` があれば左辺テンプレートを右辺 literal と比較、なければ truthy チェック */
+  /** If `==` is present, compare the left-side template against the right-side literal; otherwise truthy-check the resolved template. */
   private shouldExcludeByTemplate(
     excludeIf: string | undefined,
     context: TemplateContext

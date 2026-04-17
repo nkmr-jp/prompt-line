@@ -512,9 +512,9 @@ export interface CustomSearchEntry {
   /** オプション: このファイルが存在するディレクトリを検索対象から除外する（例: ".orphaned_at"） */
   excludeMarker?: string;
   /**
-   * オプション: テンプレート式の評価結果で個別アイテムを除外する
-   * - `"{frontmatter@hidden}"` — テンプレート解決結果が非空なら除外
-   * - `"{frontmatter@searchable}==false"` — 解決結果が値と完全一致したら除外
+   * Optional: exclude individual items based on a template expression result
+   * - `"{frontmatter@hidden}"` — exclude when the resolved template is non-empty
+   * - `"{frontmatter@searchable}==false"` — exclude when the resolved value exactly matches the right-hand literal
    */
   excludeIf?: string;
   /** オプション: コマンドの標準出力を検索ソースとして使用するシェルコマンド文字列（指定時は sourcePath の代わりに使用） */
