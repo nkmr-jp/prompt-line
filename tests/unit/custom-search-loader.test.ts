@@ -783,6 +783,121 @@ describe('CustomSearchLoader', () => {
     });
   });
 
+  describe('excludeIf', () => {
+    test('should exclude items when frontmatter flag is non-empty (truthy check)', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          sourcePath: '/path/to/commands/*.md',
+          excludeIf: '{frontmatter@hidden}',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([
+        createDirent('visible.md', true),
+        createDirent('secret.md', true),
+      ] as any);
+      mockedFs.readFile.mockImplementation(((filePath: any) => {
+        const pathStr = String(filePath);
+        if (pathStr.includes('secret.md')) {
+          return Promise.resolve('---\ndescription: Secret\nhidden: true\n---\n');
+        }
+        return Promise.resolve('---\ndescription: Visible\n---\n');
+      }) as any);
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(1);
+      expect(items[0]?.name).toBe('visible');
+    });
+
+    test('should exclude items when template result equals expected value (== comparison)', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          sourcePath: '/path/to/commands/*.md',
+          excludeIf: '{frontmatter@searchable}==false',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([
+        createDirent('a.md', true),
+        createDirent('b.md', true),
+        createDirent('c.md', true),
+      ] as any);
+      mockedFs.readFile.mockImplementation(((filePath: any) => {
+        const pathStr = String(filePath);
+        if (pathStr.includes('a.md')) {
+          return Promise.resolve('---\ndescription: A\nsearchable: true\n---\n');
+        }
+        if (pathStr.includes('b.md')) {
+          return Promise.resolve('---\ndescription: B\nsearchable: false\n---\n');
+        }
+        return Promise.resolve('---\ndescription: C\n---\n');
+      }) as any);
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(2);
+      expect(items.map(i => i.name).sort()).toEqual(['a', 'c']);
+    });
+
+    test('should not exclude items when excludeIf is not set', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          sourcePath: '/path/to/commands/*.md',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([createDirent('a.md', true)] as any);
+      mockedFs.readFile.mockResolvedValue('---\ndescription: A\nhidden: true\n---\n');
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(1);
+    });
+
+    test('should exclude by status value match', async () => {
+      loader = new CustomSearchLoader([
+        {
+          name: '{basename}',
+          type: 'command',
+          description: '{frontmatter@description}',
+          sourcePath: '/path/to/commands/*.md',
+          excludeIf: '{frontmatter@status}==draft',
+        },
+      ]);
+
+      mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockedFs.readdir.mockResolvedValue([
+        createDirent('published.md', true),
+        createDirent('draft.md', true),
+      ] as any);
+      mockedFs.readFile.mockImplementation(((filePath: any) => {
+        const pathStr = String(filePath);
+        if (pathStr.includes('draft.md')) {
+          return Promise.resolve('---\ndescription: D\nstatus: draft\n---\n');
+        }
+        return Promise.resolve('---\ndescription: P\nstatus: published\n---\n');
+      }) as any);
+
+      const items = await loader.getItems('command');
+
+      expect(items).toHaveLength(1);
+      expect(items[0]?.name).toBe('published');
+    });
+  });
+
   describe('duplicate handling', () => {
     test('should prevent duplicates within same type', async () => {
       loader = new CustomSearchLoader([

@@ -223,6 +223,7 @@ icon: codicon-terminal
 | `values` | No | Template variable patterns |
 | `triggers` | No | Trigger characters (default: `["/"]`) |
 | `args` | No | Template arguments |
+| `excludeIf` | No | Expression to exclude individual items from search (see [excludeIf](#excludeif)) |
 
 \* At least one of `sourcePath` or `sourceCommand` is required.
 
@@ -258,6 +259,8 @@ icon: codicon-hubot
 | `runCommand` | Shell command on Ctrl+Enter |
 | `excludeMarker` | Skip directories with this file |
 | `tooltip` | Tooltip popup text (template variables supported). Overrides file frontmatter when set |
+
+(`excludeIf` is shared with agent-skills; see [excludeIf](#excludeif).)
 
 #### Tooltip
 
@@ -334,6 +337,56 @@ runCommand: "./open.sh {line}"
 ```
 
 ---
+
+## excludeIf
+
+The `excludeIf` field excludes individual items from search based on the result of a template expression. Available for both `agent-skills` and `custom-search`.
+
+### Syntax
+
+Two forms are supported:
+
+| Form | Semantics |
+|------|-----------|
+| `excludeIf: "<template>"` | Exclude when the resolved template is **non-empty** (truthy check) |
+| `excludeIf: "<template>==<value>"` | Exclude when the resolved template **exactly equals** `<value>` |
+
+- The left side (before `==`) is resolved as a template — you can use `{frontmatter@...}`, `{json@...}`, `{basename}`, and others.
+- The right side (after `==`) is treated as a literal string (not template-resolved).
+- Both sides are trimmed of leading/trailing whitespace.
+
+### Examples
+
+**Exclude files where frontmatter `hidden` is set:**
+```yaml
+sourcePath: ~/.claude/skills/**/SKILL.md
+name: "{frontmatter@name}"
+description: "{frontmatter@description}"
+excludeIf: "{frontmatter@hidden}"           # exclude if hidden has any value
+```
+
+**Exclude files where frontmatter is `searchable: false`:**
+```yaml
+sourcePath: ~/notes/**/*.md
+name: "{basename}"
+searchPrefix: note
+excludeIf: "{frontmatter@searchable}==false"
+```
+
+**Exclude draft items by status:**
+```yaml
+sourcePath: ~/articles/*.md
+name: "{frontmatter@title}"
+excludeIf: "{frontmatter@status}==draft"
+```
+
+**Works for JSONL sources too (e.g., exclude system records):**
+```yaml
+sourcePath: ~/.claude/history.jsonl
+name: "{json@display}"
+searchPrefix: r
+excludeIf: "{json@type}==system"
+```
 
 ## Template Variables
 

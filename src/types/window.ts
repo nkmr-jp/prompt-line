@@ -511,6 +511,12 @@ export interface CustomSearchEntry {
   runCommand?: string;
   /** オプション: このファイルが存在するディレクトリを検索対象から除外する（例: ".orphaned_at"） */
   excludeMarker?: string;
+  /**
+   * Optional: exclude individual items based on a template expression result
+   * - `"{frontmatter@hidden}"` — exclude when the resolved template is non-empty
+   * - `"{frontmatter@searchable}==false"` — exclude when the resolved value exactly matches the right-hand literal
+   */
+  excludeIf?: string;
   /** オプション: コマンドの標準出力を検索ソースとして使用するシェルコマンド文字列（指定時は sourcePath の代わりに使用） */
   sourceCommand?: string;
   /** オプション: テンプレート引数（例: { open: "iTerm" } → {args.open} で参照可能） */

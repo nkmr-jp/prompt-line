@@ -34,6 +34,7 @@ interface PluginEntryYaml {
   displayTime?: string;
   inputFormat?: string;
   excludeMarker?: string;
+  excludeIf?: string;
   tooltip?: string;
 }
 
@@ -257,6 +258,7 @@ class PluginLoader {
     if (yamlData.displayTime !== undefined) entry.displayTime = yamlData.displayTime;
     if (yamlData.inputFormat !== undefined) entry.inputFormat = yamlData.inputFormat;
     if (yamlData.excludeMarker !== undefined) entry.excludeMarker = yamlData.excludeMarker;
+    if (yamlData.excludeIf !== undefined) entry.excludeIf = yamlData.excludeIf;
     if (yamlData.tooltip !== undefined) entry.tooltip = yamlData.tooltip;
 
     // Apply overrides (from plugin path suffixes like @suffix?params)
