@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.34.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.33.1...prompt-line-v0.34.0) (2026-04-17)
+
+
+### Features
+
+* **excludeIf:** add template-based item exclusion for plugin entries ([#360](https://github.com/nkmr-jp/prompt-line/issues/360)) ([98a288c](https://github.com/nkmr-jp/prompt-line/commit/98a288c9d427edd5917f2de55bb8e90c0d4835df))
+
 ## [0.33.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.33.0...prompt-line-v0.33.1) (2026-04-13)
 
 
