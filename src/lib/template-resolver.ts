@@ -83,6 +83,13 @@ const jsonPathTokenCache = new Map<string, string[]>();
 const TEMPLATE_CACHE_MAX = 500;
 const JSON_PATH_CACHE_MAX = 1000;
 
+// Custom-search hot paths resolve 10+ templates against the same row's jsonData;
+// if a terminal lands on a large object, we would re-stringify it per call.
+// Memoize by object identity so the string is shared; GC reclaims with the row.
+// Safe because templates only read jsonData — callers must not mutate a cached
+// object and expect the serialized form to update.
+const stringifyCache = new WeakMap<object, string>();
+
 const INDEX_TOKEN_RE = /^\[(-?\d+)\]$/;
 
 /** Parse a JSON path like "items[0].name" into tokens like ["items", "[0]", "name"]. */
@@ -210,8 +217,16 @@ function walkJsonPath(data: Record<string, unknown>, tokens: string[]): string {
     }
   }
   if (current === null || current === undefined) return '';
-  if (typeof current === 'object') return JSON.stringify(current);
+  if (typeof current === 'object') return stringifyObject(current as object);
   return String(current);
+}
+
+function stringifyObject(obj: object): string {
+  const cached = stringifyCache.get(obj);
+  if (cached !== undefined) return cached;
+  const result = JSON.stringify(obj);
+  stringifyCache.set(obj, result);
+  return result;
 }
 
 /** Evaluate one op against a context. */
