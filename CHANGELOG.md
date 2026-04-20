@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.34.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.34.0...prompt-line-v0.34.1) (2026-04-20)
+
+
+### Performance Improvements
+
+* **template-resolver:** cache JSON.stringify for object terminals ([#364](https://github.com/nkmr-jp/prompt-line/issues/364)) ([4571eba](https://github.com/nkmr-jp/prompt-line/commit/4571ebadd89c69f837b14415840e460357f9db12))
+* **template-resolver:** precompile templates and cache JSON path tokens ([#362](https://github.com/nkmr-jp/prompt-line/issues/362)) ([301ca2f](https://github.com/nkmr-jp/prompt-line/commit/301ca2f209814f9b28a268ac4bd697953b52c1da))
+
 ## [0.34.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.33.1...prompt-line-v0.34.0) (2026-04-17)
 
 
