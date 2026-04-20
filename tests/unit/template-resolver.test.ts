@@ -577,3 +577,169 @@ describe('resolveTemplate with projectdir', () => {
     })).toBe('');
   });
 });
+
+describe('resolveTemplate pathological / special inputs', () => {
+  describe('special characters in values', () => {
+    test('emoji / surrogate pair を壊さずに展開する', () => {
+      const ctx = {
+        basename: 'x',
+        frontmatter: {},
+        jsonData: { display: '🎉 surrogate 𝕳𝖊𝖑𝖑𝖔 👨‍👩‍👧‍👦' },
+      };
+      expect(resolveTemplate('{json@display}', ctx)).toBe('🎉 surrogate 𝕳𝖊𝖑𝖑𝖔 👨‍👩‍👧‍👦');
+    });
+
+    test('ANSI escape / control chars / null byte を保持する', () => {
+      const ctx = {
+        basename: 'x',
+        frontmatter: {},
+        jsonData: { display: '\u001b[31mRED\u001b[0m\tnull\u0000end\r\n' },
+      };
+      expect(resolveTemplate('{json@display}', ctx)).toBe('\u001b[31mRED\u001b[0m\tnull\u0000end\r\n');
+    });
+
+    test('RTL・合字・正規化違い（NFC/NFD）を壊さない', () => {
+      const composed = 'café';               // NFC
+      const decomposed = 'cafe\u0301';       // NFD
+      const ctx = {
+        basename: 'x',
+        frontmatter: {},
+        jsonData: { a: composed, b: decomposed, rtl: 'שלום עולם' },
+      };
+      expect(resolveTemplate('{json@a}', ctx)).toBe(composed);
+      expect(resolveTemplate('{json@b}', ctx)).toBe(decomposed);
+      expect(resolveTemplate('{json@rtl}', ctx)).toBe('שלום עולם');
+    });
+
+    test('値側に含まれる {json@...} ライクな文字列は再解釈しない', () => {
+      const ctx = {
+        basename: 'x',
+        frontmatter: {},
+        jsonData: { display: 'literal {json@foo} and {basename}' },
+      };
+      expect(resolveTemplate('{json@display}', ctx))
+        .toBe('literal {json@foo} and {basename}');
+    });
+
+    test('正規表現メタ文字を含むキー／値を正しく扱う', () => {
+      // Note: トークン内に `|` `{` `}` を含むキーはテンプレート構文と衝突するため非対応
+      const ctx = {
+        basename: 'x',
+        frontmatter: { 'a.b*c': 'matched' },
+        values: { '.*+?^()[].\\': 'escaped-value' },
+      };
+      expect(resolveTemplate('{frontmatter@a.b*c}', ctx)).toBe('matched');
+      expect(resolveTemplate('{.*+?^()[].\\}', ctx)).toBe('escaped-value');
+    });
+  });
+
+  describe('large data', () => {
+    test('1MB の文字列を content として展開してもクラッシュしない', () => {
+      const huge = 'x'.repeat(1024 * 1024);
+      const ctx = { basename: 'x', frontmatter: {}, jsonData: { display: huge } };
+      const out = resolveTemplate('{json@display}', ctx);
+      expect(out).toHaveLength(huge.length);
+      expect(out[0]).toBe('x');
+    });
+
+    test('オブジェクト値は JSON.stringify で返される（歴史的挙動の維持）', () => {
+      const ctx = {
+        basename: 'x',
+        frontmatter: {},
+        jsonData: { items: [1, 2, { nested: true }] },
+      };
+      expect(resolveTemplate('{json@items}', ctx)).toBe('[1,2,{"nested":true}]');
+    });
+
+    test('50 段のネストを辿れる', () => {
+      let deep: Record<string, unknown> = { leaf: 'found' };
+      for (let i = 50; i > 0; i--) deep = { [`l${i}`]: deep };
+      const path = Array.from({ length: 50 }, (_, i) => `l${i + 1}`).join('.') + '.leaf';
+      const ctx = { basename: 'x', frontmatter: {}, jsonData: deep };
+      expect(resolveTemplate(`{json@${path}}`, ctx)).toBe('found');
+    });
+
+    test('50 段の pipe フォールバック後に最後の非空セグメントを返す', () => {
+      const segs = Array.from({ length: 50 }, (_, i) => `{json@missing${i}}`);
+      const tmpl = segs.join('|') + '|found';
+      const ctx = { basename: 'x', frontmatter: {}, jsonData: {} };
+      expect(resolveTemplate(tmpl, ctx)).toBe('found');
+    });
+  });
+
+  describe('unexpected data shapes', () => {
+    test('jsonData が null/undefined ならリテラルを残す', () => {
+      const ctx = { basename: 'x', frontmatter: {} };
+      expect(resolveTemplate('{json@foo}', ctx)).toBe('{json@foo}');
+    });
+
+    test('パス途中が配列・プリミティブでも安全に空を返す', () => {
+      const ctx = {
+        basename: 'x',
+        frontmatter: {},
+        jsonData: { arr: [1, 2, 3], prim: 'string', obj: { x: null } },
+      };
+      // 配列にキーアクセス→空
+      expect(resolveTemplate('{json@arr.foo}', ctx)).toBe('');
+      // プリミティブにキーアクセス→空
+      expect(resolveTemplate('{json@prim.foo}', ctx)).toBe('');
+      // null 値→空
+      expect(resolveTemplate('{json@obj.x}', ctx)).toBe('');
+      // 配列の負インデックス
+      expect(resolveTemplate('{json@arr[-1]}', ctx)).toBe('3');
+      // 範囲外
+      expect(resolveTemplate('{json@arr[99]}', ctx)).toBe('');
+      // 存在しないキー
+      expect(resolveTemplate('{json@missing.key.path}', ctx)).toBe('');
+    });
+
+    test('値が 0/false/空文字のとき pipe フォールバックは発動する', () => {
+      const ctx = {
+        basename: 'x',
+        frontmatter: {},
+        jsonData: { a: '', b: 0, c: false, d: 'hit' },
+      };
+      // '' はフォールバック対象
+      expect(resolveTemplate('{json@a}|{json@d}', ctx)).toBe('hit');
+      // 0 は "0" になるのでフォールバックしない (非空文字列)
+      expect(resolveTemplate('{json@b}|{json@d}', ctx)).toBe('0');
+      // false は "false" になる
+      expect(resolveTemplate('{json@c}|{json@d}', ctx)).toBe('false');
+    });
+
+    test('ブレース内に @ や : を含む不正トークンはリテラルのまま残る', () => {
+      const ctx = { basename: 'x', frontmatter: {}, jsonData: { a: 1 } };
+      expect(resolveTemplate('{json@}', ctx)).toBe('{json@}');
+      expect(resolveTemplate('{frontmatter@}', ctx)).toBe('{frontmatter@}');
+      expect(resolveTemplate('{json:abc@x}', ctx)).toBe('{json:abc@x}');
+    });
+  });
+
+  describe('cache robustness', () => {
+    test('同じテンプレートを 10,000 回呼んでも結果が一貫する', () => {
+      const tmpl = '{json@a}|{json@b}|{json@c}';
+      const ctx = { basename: 'x', frontmatter: {}, jsonData: { a: '', b: '', c: 'ok' } };
+      for (let i = 0; i < 10_000; i++) {
+        expect(resolveTemplate(tmpl, ctx)).toBe('ok');
+      }
+    });
+
+    test('cache 上限（500 超）を超える相異なテンプレートでも正しく解決する', () => {
+      const ctx = { basename: 'x', frontmatter: {}, jsonData: { v: 'ok' } };
+      for (let i = 0; i < 700; i++) {
+        expect(resolveTemplate(`#${i}:{json@v}`, ctx)).toBe(`#${i}:ok`);
+      }
+      // 直後に古いテンプレートを呼んでも、再解決で同じ結果になる
+      expect(resolveTemplate('#0:{json@v}', ctx)).toBe('#0:ok');
+    });
+
+    test('values 優先（json/frontmatter/args より先）を保つ', () => {
+      const ctx = {
+        basename: 'x',
+        frontmatter: { name: 'fm' },
+        values: { 'frontmatter@name': 'values-wins' },
+      };
+      expect(resolveTemplate('{frontmatter@name}', ctx)).toBe('values-wins');
+    });
+  });
+});

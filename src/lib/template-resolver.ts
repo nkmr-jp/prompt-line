@@ -19,6 +19,10 @@
  * フォールバック構文:
  * - テンプレート全体で `|` を使うと、左側が空文字の場合に右側にフォールバック
  * - 例: "{frontmatter@description}|{heading}" → frontmatterが空なら最初のheadingを使用
+ *
+ * パフォーマンス:
+ * - 同じテンプレート文字列に対する解析結果をプロセス内でキャッシュ（LRUなし、YAML由来で有界）
+ * - {json@...} のパストークナイズ結果も別キャッシュで再利用
  */
 
 export interface TemplateContext {
@@ -42,6 +46,221 @@ export interface TemplateContext {
   projectdir?: string;
 }
 
+type ValueTransform = (v: string) => string;
+
+/** Compiled op kinds. The discriminator `k` is numeric for fast switch dispatch. */
+const enum OpKind {
+  LIT = 0,
+  VAR = 1,
+  DIRNAME_N = 2,
+  PATHDIR = 3,
+  FRONTMATTER = 4,
+  ARGS = 5,
+  JSON = 6,
+  JSON_PARENT = 7,
+}
+
+type Op =
+  | { k: OpKind.LIT; v: string }
+  | { k: OpKind.VAR; name: string; raw: string }
+  | { k: OpKind.DIRNAME_N; level: number; raw: string }
+  | { k: OpKind.PATHDIR; level: number; raw: string }
+  | { k: OpKind.FRONTMATTER; field: string; raw: string }
+  | { k: OpKind.ARGS; key: string; raw: string }
+  | { k: OpKind.JSON; tokens: string[]; pathRaw: string; raw: string }
+  | { k: OpKind.JSON_PARENT; level: number; tokens: string[]; pathRaw: string; raw: string };
+
+type Segment = Op[];
+interface Compiled {
+  segments: Segment[];
+}
+
+// Module-level caches. Templates are user-authored (YAML) so the set of distinct
+// strings is bounded; the size caps below are a safety net for any caller that
+// feeds dynamic strings through.
+const templateCache = new Map<string, Compiled>();
+const jsonPathTokenCache = new Map<string, string[]>();
+const TEMPLATE_CACHE_MAX = 500;
+const JSON_PATH_CACHE_MAX = 1000;
+
+const INDEX_TOKEN_RE = /^\[(-?\d+)\]$/;
+
+/** Parse a JSON path like "items[0].name" into tokens like ["items", "[0]", "name"]. */
+function tokenizeJsonPath(path: string): string[] {
+  let tokens = jsonPathTokenCache.get(path);
+  if (tokens) return tokens;
+  if (jsonPathTokenCache.size >= JSON_PATH_CACHE_MAX) jsonPathTokenCache.clear();
+  tokens = path.split(/\.|\[/).reduce<string[]>((acc, part) => {
+    if (part === '') return acc;
+    acc.push(part.endsWith(']') ? '[' + part : part);
+    return acc;
+  }, []);
+  jsonPathTokenCache.set(path, tokens);
+  return tokens;
+}
+
+/** Parse a single `{...}` token's inner content into an op. */
+function parseToken(raw: string): Op {
+  // {dirname:N}
+  const dirMatch = /^dirname:(\d+)$/.exec(raw);
+  if (dirMatch) return { k: OpKind.DIRNAME_N, level: parseInt(dirMatch[1]!, 10), raw };
+
+  // {pathdir:N}
+  const pathMatch = /^pathdir:(\d+)$/.exec(raw);
+  if (pathMatch) return { k: OpKind.PATHDIR, level: parseInt(pathMatch[1]!, 10), raw };
+
+  // {frontmatter@field} (requires at least one char after @, matching original regex `[^}]+`)
+  if (raw.startsWith('frontmatter@') && raw.length > 'frontmatter@'.length) {
+    return { k: OpKind.FRONTMATTER, field: raw.slice('frontmatter@'.length), raw };
+  }
+
+  // {args.key}
+  if (raw.startsWith('args.') && raw.length > 'args.'.length) {
+    return { k: OpKind.ARGS, key: raw.slice('args.'.length), raw };
+  }
+
+  // {json:N@path}
+  const jpMatch = /^json:(\d+)@(.+)$/.exec(raw);
+  if (jpMatch) {
+    const pathRaw = jpMatch[2]!;
+    return {
+      k: OpKind.JSON_PARENT,
+      level: parseInt(jpMatch[1]!, 10),
+      tokens: tokenizeJsonPath(pathRaw),
+      pathRaw,
+      raw,
+    };
+  }
+
+  // {json@path}
+  if (raw.startsWith('json@') && raw.length > 'json@'.length) {
+    const pathRaw = raw.slice('json@'.length);
+    return {
+      k: OpKind.JSON,
+      tokens: tokenizeJsonPath(pathRaw),
+      pathRaw,
+      raw,
+    };
+  }
+
+  // Bare {name}. Unknown names fall back to literal at runtime (see runVar).
+  return { k: OpKind.VAR, name: raw, raw };
+}
+
+/** Scan a pipe-free segment into a list of ops (literals + tokens). */
+function compileSegment(segmentText: string): Segment {
+  const ops: Segment = [];
+  const re = /\{([^}]+)\}/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(segmentText)) !== null) {
+    if (m.index > last) {
+      ops.push({ k: OpKind.LIT, v: segmentText.slice(last, m.index) });
+    }
+    ops.push(parseToken(m[1]!));
+    last = m.index + m[0].length;
+  }
+  if (last < segmentText.length) {
+    ops.push({ k: OpKind.LIT, v: segmentText.slice(last) });
+  }
+  return ops;
+}
+
+/** Compile a full template string (top-level `|` split into fallback segments). */
+function compile(template: string): Compiled {
+  let cached = templateCache.get(template);
+  if (cached) return cached;
+  if (templateCache.size >= TEMPLATE_CACHE_MAX) templateCache.clear();
+  const segments = template.split('|').map(compileSegment);
+  cached = { segments };
+  templateCache.set(template, cached);
+  return cached;
+}
+
+/** Resolve a bare {name} op. Returns `undefined` when the name is unresolvable
+ *  (i.e., the original literal must be emitted). */
+function runVar(name: string, ctx: TemplateContext): string | undefined {
+  switch (name) {
+    case 'basename': return ctx.basename;
+    case 'dirname': return ctx.dirname;
+    case 'heading': return ctx.heading ?? '';
+    case 'line': return ctx.line ?? '';
+    case 'content': return ctx.content;
+    case 'filepath': return ctx.filePath ? ctx.filePath : undefined;
+    case 'projectdir': return ctx.projectdir;
+    case 'prefix': return ctx.prefix;
+    default: return undefined;
+  }
+}
+
+/** Walk a JSON path (pre-tokenized) and return the string value. */
+function walkJsonPath(data: Record<string, unknown>, tokens: string[]): string {
+  let current: unknown = data;
+  for (let i = 0; i < tokens.length; i++) {
+    if (current === null || current === undefined) return '';
+    const token = tokens[i]!;
+    if (token.startsWith('[')) {
+      const indexMatch = INDEX_TOKEN_RE.exec(token);
+      if (!indexMatch || !Array.isArray(current)) return '';
+      const index = parseInt(indexMatch[1]!, 10);
+      current = index < 0 ? current[current.length + index] : current[index];
+    } else {
+      if (typeof current !== 'object' || Array.isArray(current)) return '';
+      current = (current as Record<string, unknown>)[token];
+    }
+  }
+  if (current === null || current === undefined) return '';
+  if (typeof current === 'object') return JSON.stringify(current);
+  return String(current);
+}
+
+/** Evaluate one op against a context. */
+function execOp(op: Op, ctx: TemplateContext, t: ValueTransform): string {
+  if (op.k === OpKind.LIT) return op.v;
+
+  if (ctx.values) {
+    const v = ctx.values[op.raw];
+    if (v !== undefined) return t(v);
+  }
+
+  switch (op.k) {
+    case OpKind.VAR: {
+      const resolved = runVar(op.name, ctx);
+      return resolved !== undefined ? t(resolved) : `{${op.raw}}`;
+    }
+    case OpKind.DIRNAME_N:
+      return ctx.filePath ? t(getDirname(ctx.filePath, op.level)) : `{${op.raw}}`;
+    case OpKind.PATHDIR:
+      return (ctx.filePath && ctx.basePath) ? t(getPathdir(ctx.filePath, ctx.basePath, op.level)) : `{${op.raw}}`;
+    case OpKind.FRONTMATTER:
+      return t(ctx.frontmatter[op.field] ?? '');
+    case OpKind.ARGS:
+      return ctx.args !== undefined ? t(ctx.args[op.key] ?? '') : `{${op.raw}}`;
+    case OpKind.JSON:
+      return ctx.jsonData ? t(walkJsonPath(ctx.jsonData, op.tokens)) : `{${op.raw}}`;
+    case OpKind.JSON_PARENT: {
+      const stack = ctx.parentJsonDataStack;
+      if (!stack) return `{${op.raw}}`;
+      const index = op.level - 1;
+      if (index < 0 || index >= stack.length) return '';
+      return t(walkJsonPath(stack[index]!, op.tokens));
+    }
+  }
+}
+
+/** Run an entire segment (literal + ops) and concatenate. */
+function execSegment(seg: Segment, ctx: TemplateContext, t: ValueTransform): string {
+  if (seg.length === 1) {
+    const only = seg[0]!;
+    if (only.k === OpKind.LIT) return only.v;
+  }
+  let out = '';
+  for (let i = 0; i < seg.length; i++) {
+    out += execOp(seg[i]!, ctx, t);
+  }
+  return out;
+}
+
 /**
  * テンプレート変数を解決する
  * @param template - テンプレート文字列
@@ -57,106 +276,19 @@ export interface TemplateContext {
 export function resolveTemplate(
   template: string,
   context: TemplateContext,
-  valueTransform?: (value: string) => string,
+  valueTransform?: ValueTransform,
 ): string {
-  const t = valueTransform ?? ((v: string) => v);
-
-  // フォールバック構文: "templateA|templateB" → templateAが空ならtemplateBを使用
-  const pipeIndex = template.indexOf('|');
-  if (pipeIndex !== -1) {
-    const primary = template.slice(0, pipeIndex);
-    const fallback = template.slice(pipeIndex + 1);
-    const primaryResult = resolveTemplate(primary, context, valueTransform);
-    return primaryResult || resolveTemplate(fallback, context, valueTransform);
+  const t = valueTransform ?? identity;
+  const { segments } = compile(template);
+  // Fallback chain: return first non-empty segment.
+  for (let i = 0; i < segments.length; i++) {
+    const result = execSegment(segments[i]!, context, t);
+    if (result !== '') return result;
   }
-
-  let result = template;
-
-  // Replace values-defined template variables (e.g., {prefix}, {custom_key}, etc.)
-  if (context.values) {
-    for (const [key, value] of Object.entries(context.values)) {
-      const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      result = result.replace(new RegExp(`\\{${escapedKey}\\}`, 'g'), t(value));
-    }
-  }
-
-  // Backward compatibility: Replace {prefix} from legacy context.prefix
-  if (context.prefix !== undefined && !context.values?.prefix) {
-    result = result.replace(/\{prefix\}/g, t(context.prefix));
-  }
-
-  // Replace {basename}
-  result = result.replace(/\{basename\}/g, t(context.basename));
-
-  // Replace {dirname} and {dirname:N}
-  if (context.filePath) {
-    result = result.replace(/\{dirname:(\d+)\}/g, (_, level: string) => {
-      return t(getDirname(context.filePath!, parseInt(level, 10)));
-    });
-  }
-  if (context.dirname !== undefined) {
-    result = result.replace(/\{dirname\}/g, t(context.dirname));
-  }
-
-  // Replace {pathdir:N} — N-th directory segment counting down from basePath
-  if (context.filePath && context.basePath) {
-    result = result.replace(/\{pathdir:(\d+)\}/g, (_, level: string) => {
-      return t(getPathdir(context.filePath!, context.basePath!, parseInt(level, 10)));
-    });
-  }
-
-  // Replace {heading}
-  result = result.replace(/\{heading\}/g, t(context.heading ?? ''));
-
-  // Replace {line}
-  result = result.replace(/\{line\}/g, t(context.line ?? ''));
-
-  // Replace {content}
-  if (context.content !== undefined) {
-    result = result.replace(/\{content\}/g, t(context.content));
-  }
-
-  // Replace {filepath}
-  if (context.filePath) {
-    result = result.replace(/\{filepath\}/g, t(context.filePath));
-  }
-
-  // Replace {projectdir}
-  if (context.projectdir !== undefined) {
-    result = result.replace(/\{projectdir\}/g, t(context.projectdir));
-  }
-
-  // Replace {frontmatter@fieldName}
-  result = result.replace(/\{frontmatter@([^}]+)\}/g, (_, fieldName: string) => {
-    return t(context.frontmatter[fieldName] ?? '');
-  });
-
-  // Replace {json:N@path} (parent JSON data reference)
-  if (context.parentJsonDataStack) {
-    result = result.replace(/\{json:(\d+)@([^}]+)\}/g, (_, level: string, jsonPath: string) => {
-      const index = parseInt(level, 10) - 1; // N=1 → index 0 (direct parent)
-      const stack = context.parentJsonDataStack!;
-      if (index < 0 || index >= stack.length) return '';
-      return t(resolveJsonPath(stack[index]!, jsonPath));
-    });
-  }
-
-  // Replace {args.key}
-  if (context.args) {
-    result = result.replace(/\{args\.([^}]+)\}/g, (_, key: string) => {
-      return t(context.args![key] ?? '');
-    });
-  }
-
-  // Replace {json@path}
-  if (context.jsonData) {
-    result = result.replace(/\{json@([^}]+)\}/g, (_, jsonPath: string) => {
-      return t(resolveJsonPath(context.jsonData!, jsonPath));
-    });
-  }
-
-  return result;
+  return '';
 }
+
+function identity(v: string): string { return v; }
 
 /**
  * ファイルの親ディレクトリ名を取得
@@ -276,50 +408,7 @@ export function parseJsonContent(content: string): Record<string, unknown> | nul
  * - 値がobject/arrayの場合はJSON.stringifyして返す
  */
 export function resolveJsonPath(data: Record<string, unknown>, path: string): string {
-  // パスをトークンに分割: "items[0].name" -> ["items", "[0]", "name"]
-  const tokens = path.split(/\.|\[/).reduce<string[]>((acc, part) => {
-    if (part === '') return acc;
-    if (part.endsWith(']')) {
-      acc.push('[' + part);
-    } else {
-      acc.push(part);
-    }
-    return acc;
-  }, []);
-
-  let current: unknown = data;
-
-  for (const token of tokens) {
-    if (current === null || current === undefined) {
-      return '';
-    }
-
-    const indexMatch = token.match(/^\[(-?\d+)\]$/);
-    if (indexMatch) {
-      // 配列インデックスアクセス
-      if (!Array.isArray(current)) {
-        return '';
-      }
-      const index = parseInt(indexMatch[1]!, 10);
-      current = index < 0 ? current[current.length + index] : current[index];
-    } else {
-      // オブジェクトキーアクセス
-      if (typeof current !== 'object' || Array.isArray(current)) {
-        return '';
-      }
-      current = (current as Record<string, unknown>)[token];
-    }
-  }
-
-  if (current === null || current === undefined) {
-    return '';
-  }
-
-  if (typeof current === 'object') {
-    return JSON.stringify(current);
-  }
-
-  return String(current);
+  return walkJsonPath(data, tokenizeJsonPath(path));
 }
 
 /**
