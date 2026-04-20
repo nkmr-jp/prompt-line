@@ -724,7 +724,7 @@ describe('resolveTemplate pathological / special inputs', () => {
       }
     });
 
-    test('cache 上限（500 超）を超える距違なテンプレートでも正しく解決する', () => {
+    test('cache 上限（500 超）を超える相異なテンプレートでも正しく解決する', () => {
       const ctx = { basename: 'x', frontmatter: {}, jsonData: { v: 'ok' } };
       for (let i = 0; i < 700; i++) {
         expect(resolveTemplate(`#${i}:{json@v}`, ctx)).toBe(`#${i}:ok`);
