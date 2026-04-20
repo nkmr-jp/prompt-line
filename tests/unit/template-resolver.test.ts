@@ -742,4 +742,62 @@ describe('resolveTemplate pathological / special inputs', () => {
       expect(resolveTemplate('{frontmatter@name}', ctx)).toBe('values-wins');
     });
   });
+
+  describe('object stringify cache', () => {
+    test('同じオブジェクト参照への 2 回目の解決は JSON.stringify を再実行しない', () => {
+      let toJsonCalls = 0;
+      const nested = {
+        toJSON() { toJsonCalls++; return { k: 1 }; },
+      };
+      const ctx = { basename: 'x', frontmatter: {}, jsonData: { nested } };
+      expect(resolveTemplate('{json@nested}', ctx)).toBe('{"k":1}');
+      expect(resolveTemplate('{json@nested}', ctx)).toBe('{"k":1}');
+      expect(resolveTemplate('{json@nested}', ctx)).toBe('{"k":1}');
+      expect(toJsonCalls).toBe(1);
+    });
+
+    test('異なる参照のオブジェクトは独立にキャッシュされる', () => {
+      const a = { id: 'a', payload: [1, 2, 3] };
+      const b = { id: 'b', payload: [4, 5, 6] };
+      const ctxA = { basename: 'x', frontmatter: {}, jsonData: { v: a } };
+      const ctxB = { basename: 'x', frontmatter: {}, jsonData: { v: b } };
+      expect(resolveTemplate('{json@v}', ctxA)).toBe('{"id":"a","payload":[1,2,3]}');
+      expect(resolveTemplate('{json@v}', ctxB)).toBe('{"id":"b","payload":[4,5,6]}');
+    });
+
+    test('配列終端もキャッシュされる（2 回目は toJSON が呼ばれない）', () => {
+      let calls = 0;
+      const arr = [
+        { toJSON() { calls++; return 'x'; } },
+        { toJSON() { calls++; return 'y'; } },
+      ];
+      const ctx = { basename: 'x', frontmatter: {}, jsonData: { arr } };
+      expect(resolveTemplate('{json@arr}', ctx)).toBe('["x","y"]');
+      expect(resolveTemplate('{json@arr}', ctx)).toBe('["x","y"]');
+      expect(calls).toBe(2); // 1 pass over both elements, then cache hit
+    });
+
+    test('プリミティブ終端はキャッシュを経由しない（引き続き String(v) 経由）', () => {
+      const ctx = {
+        basename: 'x',
+        frontmatter: {},
+        jsonData: { n: 42, s: 'hello', b: true, z: 0 },
+      };
+      expect(resolveTemplate('{json@n}', ctx)).toBe('42');
+      expect(resolveTemplate('{json@s}', ctx)).toBe('hello');
+      expect(resolveTemplate('{json@b}', ctx)).toBe('true');
+      expect(resolveTemplate('{json@z}', ctx)).toBe('0');
+    });
+
+    test('同一 jsonData を共有する複数テンプレート呼び出しでヒットする', () => {
+      let calls = 0;
+      const big = { toJSON() { calls++; return { deep: 'v' }; } };
+      const ctx = { basename: 'x', frontmatter: {}, jsonData: { obj: big } };
+      // custom-search loader が 1 行に対して 10+ テンプレートを呼ぶ状況を模擬
+      for (let i = 0; i < 20; i++) {
+        expect(resolveTemplate('{json@obj}', ctx)).toBe('{"deep":"v"}');
+      }
+      expect(calls).toBe(1);
+    });
+  });
 });
