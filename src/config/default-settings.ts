@@ -168,6 +168,7 @@ export const defaultSettings: UserSettings = {
    *   symbolSearch:
    *     maxSymbols: 100000
    *     timeout: 30000
+   *     followSymlinks: true
    *     includePatterns:
    *       - "*.test.ts"
    *     excludePatterns:
@@ -177,6 +178,7 @@ export const defaultSettings: UserSettings = {
     respectGitignore: true, // Respect .gitignore files
     maxSymbols: 200000,    // Maximum number of symbols to index per directory
     timeout: 60000,        // Search timeout in milliseconds
+    followSymlinks: false, // Follow symbolic links during search
     includePatterns: [],   // Force include file patterns (glob syntax)
     excludePatterns: []    // Additional exclude file patterns (glob syntax)
   },

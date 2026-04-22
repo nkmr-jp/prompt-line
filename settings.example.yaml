@@ -59,6 +59,7 @@ symbolSearch:
   respectGitignore: true
   maxSymbols: 200000
   timeout: 60000
+  followSymlinks: false
   #rgPath: null                    # Custom path to rg
   includePatterns: []
   excludePatterns: []

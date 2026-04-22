@@ -76,6 +76,7 @@ export interface SymbolSearchOptions {
   rgPath?: string | null;
   excludePatterns?: string[];
   includePatterns?: string[];
+  followSymlinks?: boolean;
 }
 
 // Symbol cache metadata for a language

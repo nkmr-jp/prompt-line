@@ -820,7 +820,8 @@ function buildRgArgs(
   combinedPattern: string,
   rgType: string,
   excludePatterns: string[],
-  includePatterns: string[]
+  includePatterns: string[],
+  followSymlinks: boolean
 ): string[] {
   const args = [
     '--line-number',
@@ -833,6 +834,10 @@ function buildRgArgs(
   if (includePatterns.length > 0) {
     args.push('--hidden');
     args.push('--no-ignore');
+  }
+
+  if (followSymlinks) {
+    args.push('--follow');
   }
 
   args.push('--type', rgType);
@@ -942,7 +947,8 @@ async function searchBlockSymbols(
   rgType: string,
   maxSymbols: number,
   timeout: number,
-  excludePatterns: string[]
+  excludePatterns: string[],
+  followSymlinks: boolean
 ): Promise<SymbolResult[]> {
   // Group configs by blockPattern to avoid running the same rg search multiple times
   const patternGroups = new Map<string, BlockSearchConfig[]>();
@@ -963,6 +969,10 @@ async function searchBlockSymbols(
       '--color', 'never',
       '--type', rgType
     ];
+
+    if (followSymlinks) {
+      args.push('--follow');
+    }
 
     // Add exclude patterns
     for (const pattern of excludePatterns) {
@@ -1096,6 +1106,7 @@ export async function searchSymbols(
     const rgCommand: string = rgPath;
     const maxSymbols = options.maxSymbols || DEFAULT_MAX_SYMBOLS;
     const timeout = options.timeout || DEFAULT_SEARCH_TIMEOUT;
+    const followSymlinks = options.followSymlinks === true;
     const hasIncludePatterns = options.includePatterns && options.includePatterns.length > 0;
 
     // Combine all pattern regexes into one (used for both phases)
@@ -1107,7 +1118,8 @@ export async function searchSymbols(
       combinedPattern,
       config.rgType,
       options.excludePatterns || [],
-      [] // No includePatterns for normal search
+      [], // No includePatterns for normal search
+      followSymlinks
     );
 
     const normalOutput = await executeRg(rgCommand, normalArgs, timeout);
@@ -1121,7 +1133,8 @@ export async function searchSymbols(
         combinedPattern,
         config.rgType,
         [], // No excludePatterns for include search
-        options.includePatterns!
+        options.includePatterns!,
+        followSymlinks
       );
 
       const includeOutput = await executeRg(rgCommand, includeArgs, timeout);
@@ -1136,7 +1149,8 @@ export async function searchSymbols(
       const blockResults = await searchBlockSymbols(
         rgCommand, directory, blockConfigs, language,
         config.rgType, maxSymbols, timeout,
-        options.excludePatterns || []
+        options.excludePatterns || [],
+        followSymlinks
       );
       allSymbols = allSymbols.concat(blockResults);
     }

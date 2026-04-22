@@ -56,6 +56,7 @@ class CodeSearchHandler {
   private getSymbolSearchOptions(): {
     maxSymbols: number;
     timeout: number;
+    followSymlinks?: boolean;
     includePatterns?: string[];
     excludePatterns?: string[];
   } {
@@ -63,6 +64,7 @@ class CodeSearchHandler {
     const result: {
       maxSymbols: number;
       timeout: number;
+      followSymlinks?: boolean;
       includePatterns?: string[];
       excludePatterns?: string[];
     } = {
@@ -70,6 +72,9 @@ class CodeSearchHandler {
       timeout: symbolSearchSettings?.timeout ?? DEFAULT_SEARCH_TIMEOUT
     };
 
+    if (symbolSearchSettings?.followSymlinks !== undefined) {
+      result.followSymlinks = symbolSearchSettings.followSymlinks;
+    }
     if (symbolSearchSettings?.includePatterns) {
       result.includePatterns = symbolSearchSettings.includePatterns;
     }

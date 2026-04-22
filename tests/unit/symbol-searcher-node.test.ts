@@ -1375,4 +1375,59 @@ describe('symbol-searcher-node', () => {
       expect(args).toHaveLength(2);
     });
   });
+
+  // ============================================================
+  // followSymlinks propagation
+  // ============================================================
+  describe('followSymlinks propagation', () => {
+    test('passes --follow to rg when followSymlinks is true', async () => {
+      const { getCapturedArgs } = mockExecFileCapturingArgs('');
+
+      await searchSymbols('/project', 'py', { followSymlinks: true });
+      const args = getCapturedArgs();
+      expect(args[0]).toContain('--follow');
+    });
+
+    test('omits --follow when followSymlinks is false', async () => {
+      const { getCapturedArgs } = mockExecFileCapturingArgs('');
+
+      await searchSymbols('/project', 'py', { followSymlinks: false });
+      const args = getCapturedArgs();
+      expect(args[0]).not.toContain('--follow');
+    });
+
+    test('omits --follow when followSymlinks is unspecified', async () => {
+      const { getCapturedArgs } = mockExecFileCapturingArgs('');
+
+      await searchSymbols('/project', 'py');
+      const args = getCapturedArgs();
+      expect(args[0]).not.toContain('--follow');
+    });
+
+    test('passes --follow to includePattern rg call when followSymlinks is true', async () => {
+      const { getCapturedArgs } = mockExecFileCapturingArgs('');
+
+      await searchSymbols('/project', 'py', {
+        followSymlinks: true,
+        includePatterns: ['.agentsws/**']
+      });
+      const args = getCapturedArgs();
+      expect(args).toHaveLength(2);
+      expect(args[0]).toContain('--follow');
+      expect(args[1]).toContain('--follow');
+    });
+
+    test('passes --follow to block-search rg call when followSymlinks is true', async () => {
+      const { getCapturedArgs } = mockExecFileCapturingArgs('');
+
+      // 'go' has block configs (const/var blocks), triggering Phase 3
+      await searchSymbols('/project', 'go', { followSymlinks: true });
+      const args = getCapturedArgs();
+      // Phase 1 (normal) + Phase 3 (block search). Both must include --follow.
+      expect(args.length).toBeGreaterThanOrEqual(2);
+      for (const callArgs of args) {
+        expect(callArgs).toContain('--follow');
+      }
+    });
+  });
 });

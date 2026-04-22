@@ -199,6 +199,7 @@ window:
           respectGitignore: true,
           maxSymbols: 200000,
           timeout: 60000,
+          followSymlinks: false,
           includePatterns: [],
           excludePatterns: []
         },
@@ -323,6 +324,7 @@ window:
           respectGitignore: true,
           maxSymbols: 200000,
           timeout: 60000,
+          followSymlinks: false,
           includePatterns: [],
           excludePatterns: []
         },
