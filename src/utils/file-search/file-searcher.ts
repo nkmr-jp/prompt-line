@@ -176,6 +176,11 @@ function buildFdArgs(settings: FileSearchSettings): string[] {
     args.push('--hidden');
   }
 
+  // Follow symlinks
+  if (settings.followSymlinks) {
+    args.push('--follow');
+  }
+
   // Depth limit
   if (settings.maxDepth !== null && settings.maxDepth !== undefined) {
     args.push('--max-depth', String(settings.maxDepth));
@@ -422,6 +427,11 @@ export async function listDirectory(
                 '--no-ignore-vcs',       // Force ignore VCS ignore files
                 '--hidden'               // Include hidden files
               ];
+
+              // Follow symlinks if enabled
+              if (includeSettings.followSymlinks) {
+                args.push('--follow');
+              }
 
               // Add depth limit if specified
               if (includeSettings.maxDepth !== null && includeSettings.maxDepth !== undefined) {
