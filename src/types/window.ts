@@ -289,6 +289,8 @@ export interface SymbolSearchUserSettings {
   excludePatterns?: string[];
   /** Include patterns (force include even if excluded by default) */
   includePatterns?: string[];
+  /** Follow symbolic links (default: false) */
+  followSymlinks?: boolean;
 }
 
 /**

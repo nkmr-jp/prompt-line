@@ -7,6 +7,7 @@ import { execFile } from 'child_process';
 import { readdir, stat, lstat, realpath } from 'fs/promises';
 import { join, basename, resolve, normalize } from 'path';
 import { logger } from '../logger';
+import { getGlobalGitExcludesFile } from '../git-excludes';
 import type { FileSearchSettings, FileInfo, DirectoryInfo } from '../../types';
 
 // Restricted directories for security (prevent accidental enumeration of sensitive system directories)
@@ -158,7 +159,7 @@ export async function checkFdAvailable(): Promise<{ fdAvailable: boolean; fdPath
 /**
  * Build fd command arguments from file search settings
  */
-function buildFdArgs(settings: FileSearchSettings): string[] {
+function buildFdArgs(settings: FileSearchSettings, globalExcludesFile: string | null): string[] {
   const args: string[] = [
     '--type', 'f',           // Files only
     '--color', 'never',      // No color output
@@ -169,11 +170,22 @@ function buildFdArgs(settings: FileSearchSettings): string[] {
   if (!settings.respectGitignore) {
     args.push('--no-ignore');
     args.push('--no-ignore-vcs');
+  } else if (globalExcludesFile) {
+    // fd does not follow [include] directives in ~/.gitconfig, so a
+    // user-configured core.excludesfile is silently ignored. Pass it
+    // explicitly so .gitignore patterns from the user's global excludes
+    // file are honored when respectGitignore is true.
+    args.push('--ignore-file', globalExcludesFile);
   }
 
   // Hidden files setting
   if (settings.includeHidden) {
     args.push('--hidden');
+  }
+
+  // Follow symlinks
+  if (settings.followSymlinks) {
+    args.push('--follow');
   }
 
   // Depth limit
@@ -202,8 +214,9 @@ async function listFilesWithFd(
   fdPath: string,
   settings: FileSearchSettings
 ): Promise<FileInfo[]> {
+  const globalExcludesFile = await getGlobalGitExcludesFile();
   return new Promise((resolve, reject) => {
-    const args = buildFdArgs(settings);
+    const args = buildFdArgs(settings, globalExcludesFile);
 
     const options = {
       cwd: directory,
@@ -422,6 +435,11 @@ export async function listDirectory(
                 '--no-ignore-vcs',       // Force ignore VCS ignore files
                 '--hidden'               // Include hidden files
               ];
+
+              // Follow symlinks if enabled
+              if (includeSettings.followSymlinks) {
+                args.push('--follow');
+              }
 
               // Add depth limit if specified
               if (includeSettings.maxDepth !== null && includeSettings.maxDepth !== undefined) {

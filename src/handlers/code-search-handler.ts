@@ -4,6 +4,7 @@
  */
 
 import { ipcMain, IpcMainInvokeEvent } from 'electron';
+import { createHash } from 'crypto';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { logger } from '../utils/utils';
@@ -53,9 +54,27 @@ class CodeSearchHandler {
   /**
    * Get symbol search settings with defaults
    */
+  /**
+   * Hash the settings that affect which symbols a search will find, so the
+   * cache can be invalidated when the user changes them.
+   */
+  private computeSettingsHash(opts: {
+    followSymlinks?: boolean;
+    includePatterns?: string[];
+    excludePatterns?: string[];
+  }): string {
+    const payload = JSON.stringify({
+      followSymlinks: opts.followSymlinks === true,
+      includePatterns: [...(opts.includePatterns ?? [])].sort(),
+      excludePatterns: [...(opts.excludePatterns ?? [])].sort()
+    });
+    return createHash('sha256').update(payload).digest('hex').slice(0, 16);
+  }
+
   private getSymbolSearchOptions(): {
     maxSymbols: number;
     timeout: number;
+    followSymlinks?: boolean;
     includePatterns?: string[];
     excludePatterns?: string[];
   } {
@@ -63,6 +82,7 @@ class CodeSearchHandler {
     const result: {
       maxSymbols: number;
       timeout: number;
+      followSymlinks?: boolean;
       includePatterns?: string[];
       excludePatterns?: string[];
     } = {
@@ -70,6 +90,9 @@ class CodeSearchHandler {
       timeout: symbolSearchSettings?.timeout ?? DEFAULT_SEARCH_TIMEOUT
     };
 
+    if (symbolSearchSettings?.followSymlinks !== undefined) {
+      result.followSymlinks = symbolSearchSettings.followSymlinks;
+    }
     if (symbolSearchSettings?.includePatterns) {
       result.includePatterns = symbolSearchSettings.includePatterns;
     }
@@ -337,11 +360,20 @@ class CodeSearchHandler {
       };
     }
 
+    const currentSettingsHash = this.computeSettingsHash(settingsOptions);
+
     // Check cache first if requested
     if (options?.useCache !== false) {
       const hasLanguage = await symbolCacheManager.hasLanguageCache(directory, language);
+      const cachedHash = hasLanguage
+        ? await symbolCacheManager.getLanguageSettingsHash(directory, language)
+        : null;
+      // Require an exact match. A null cachedHash means the cache was
+      // written before settings-hash tracking existed and must be treated
+      // as stale so the user's current settings take effect.
+      const hashMatches = cachedHash === currentSettingsHash;
 
-      if (hasLanguage) {
+      if (hasLanguage && hashMatches) {
         let cachedSymbols = await symbolCacheManager.loadSymbols(directory, language);
         if (cachedSymbols.length > 0) {
           // Apply relativePath filtering first if provided
@@ -386,12 +418,16 @@ class CodeSearchHandler {
             const refreshOptions: {
               maxSymbols: number;
               timeout: number;
+              followSymlinks?: boolean;
               includePatterns?: string[];
               excludePatterns?: string[];
             } = {
               maxSymbols: effectiveMaxSymbols,
               timeout: settingsOptions.timeout
             };
+            if (settingsOptions.followSymlinks !== undefined) {
+              refreshOptions.followSymlinks = settingsOptions.followSymlinks;
+            }
             if (settingsOptions.includePatterns) {
               refreshOptions.includePatterns = settingsOptions.includePatterns;
             }
@@ -420,12 +456,16 @@ class CodeSearchHandler {
     const searchOptions: {
       maxSymbols: number;
       timeout: number;
+      followSymlinks?: boolean;
       includePatterns?: string[];
       excludePatterns?: string[];
     } = {
       maxSymbols: effectiveMaxSymbols,
       timeout: settingsOptions.timeout
     };
+    if (settingsOptions.followSymlinks !== undefined) {
+      searchOptions.followSymlinks = settingsOptions.followSymlinks;
+    }
     if (settingsOptions.includePatterns) {
       searchOptions.includePatterns = settingsOptions.includePatterns;
     }
@@ -440,7 +480,8 @@ class CodeSearchHandler {
         directory,
         language,
         result.symbols,
-        'full'
+        'full',
+        currentSettingsHash
       );
 
       // Store unfilteredCount before relativePath filtering
@@ -558,6 +599,7 @@ class CodeSearchHandler {
     options?: {
       maxSymbols?: number;
       timeout?: number;
+      followSymlinks?: boolean;
       includePatterns?: string[];
       excludePatterns?: string[];
     }
@@ -573,6 +615,18 @@ class CodeSearchHandler {
     // Mark as pending
     this.pendingRefreshes.set(refreshKey, true);
 
+    // Compute hash from the options actually used for this refresh, so the
+    // cache entry reflects the settings the refresh ran with.
+    const hashInput: {
+      followSymlinks?: boolean;
+      includePatterns?: string[];
+      excludePatterns?: string[];
+    } = {};
+    if (options?.followSymlinks !== undefined) hashInput.followSymlinks = options.followSymlinks;
+    if (options?.includePatterns !== undefined) hashInput.includePatterns = options.includePatterns;
+    if (options?.excludePatterns !== undefined) hashInput.excludePatterns = options.excludePatterns;
+    const settingsHash = this.computeSettingsHash(hashInput);
+
     // Run in background without awaiting
     (async () => {
       try {
@@ -583,7 +637,8 @@ class CodeSearchHandler {
             directory,
             language,
             result.symbols,
-            'full'
+            'full',
+            settingsHash
           );
           // Clear incremental cache after background update to ensure fresh results
           this.clearIncrementalCache();

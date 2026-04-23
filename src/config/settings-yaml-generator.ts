@@ -498,6 +498,7 @@ function buildSymbolSearchSection(settings: UserSettings): string {
   respectGitignore: ${formatValue(ss.respectGitignore)}
   maxSymbols: ${formatValue(ss.maxSymbols)}
   timeout: ${formatValue(ss.timeout)}
+  followSymlinks: ${formatValue(ss.followSymlinks)}
   ${rgPathSection}
   includePatterns: ${formatValue(ss.includePatterns ?? [])}
   excludePatterns: ${formatValue(ss.excludePatterns ?? [])}`;
