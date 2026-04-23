@@ -1529,5 +1529,23 @@ describe('symbol-searcher-node', () => {
         expect(call.options).toMatchObject({ cwd: '/my/project' });
       }
     });
+
+    test('resolves relative directory so cwd and rg path arg do not stack', async () => {
+      // Guard against regression where a relative `directory` (e.g. `repo/subdir`)
+      // is set as both cwd *and* the rg positional arg, which would make rg
+      // descend into cwd/subdir instead of the intended directory.
+      const { getCapturedOptions } = mockExecFileCapturingOptions('');
+
+      await searchSymbols('repo/subdir', 'py');
+      const captured = getCapturedOptions();
+      expect(captured).toHaveLength(1);
+
+      const { args, options } = captured[0]!;
+      const cwd = options.cwd as string;
+      const rgPathArg = args[args.length - 1]!;
+
+      expect(cwd).toBe(rgPathArg);
+      expect(cwd.startsWith('/')).toBe(true);
+    });
   });
 });

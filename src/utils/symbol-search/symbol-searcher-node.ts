@@ -8,6 +8,7 @@
  */
 
 import { execFile } from 'child_process';
+import path from 'path';
 import { logger } from '../logger';
 import { getGlobalGitExcludesFile } from '../git-excludes';
 import type {
@@ -1128,12 +1129,16 @@ export async function searchSymbols(
     const hasIncludePatterns = options.includePatterns && options.includePatterns.length > 0;
     const globalExcludesFile = await getGlobalGitExcludesFile();
 
+    // Resolve to absolute so that cwd and the rg path arg don't stack and
+    // produce `dir/dir` double-descent for relative `directory` inputs.
+    const resolvedDirectory = path.resolve(directory);
+
     // Combine all pattern regexes into one (used for both phases)
     const combinedPattern = config.patterns.map(p => `(${p.pattern})`).join('|');
 
     // Phase 1: Normal search (respects .gitignore, uses excludePatterns)
     const normalArgs = buildRgArgs(
-      directory,
+      resolvedDirectory,
       combinedPattern,
       config.rgType,
       options.excludePatterns || [],
@@ -1142,14 +1147,14 @@ export async function searchSymbols(
       globalExcludesFile
     );
 
-    const normalOutput = await executeRg(rgCommand, normalArgs, timeout, directory);
-    let allSymbols = parseRipgrepOutput(normalOutput, language, maxSymbols, directory);
+    const normalOutput = await executeRg(rgCommand, normalArgs, timeout, resolvedDirectory);
+    let allSymbols = parseRipgrepOutput(normalOutput, language, maxSymbols, resolvedDirectory);
 
     // Phase 2: Include patterns search (with --hidden --no-ignore, only when includePatterns specified)
     // This matches Swift behavior: separate rg execution for include patterns
     if (hasIncludePatterns) {
       const includeArgs = buildRgArgs(
-        directory,
+        resolvedDirectory,
         combinedPattern,
         config.rgType,
         [], // No excludePatterns for include search
@@ -1158,8 +1163,8 @@ export async function searchSymbols(
         globalExcludesFile
       );
 
-      const includeOutput = await executeRg(rgCommand, includeArgs, timeout, directory);
-      const includeSymbols = parseRipgrepOutput(includeOutput, language, maxSymbols, directory);
+      const includeOutput = await executeRg(rgCommand, includeArgs, timeout, resolvedDirectory);
+      const includeSymbols = parseRipgrepOutput(includeOutput, language, maxSymbols, resolvedDirectory);
       allSymbols = allSymbols.concat(includeSymbols);
     }
 
@@ -1168,7 +1173,7 @@ export async function searchSymbols(
     const blockConfigs = BLOCK_SEARCH_CONFIGS[language];
     if (blockConfigs && blockConfigs.length > 0) {
       const blockResults = await searchBlockSymbols(
-        rgCommand, directory, blockConfigs, language,
+        rgCommand, resolvedDirectory, blockConfigs, language,
         config.rgType, maxSymbols, timeout,
         options.excludePatterns || [],
         followSymlinks,
