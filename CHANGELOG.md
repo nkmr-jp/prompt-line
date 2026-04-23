@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.34.3](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.34.2...prompt-line-v0.34.3) (2026-04-23)
+
+
+### Bug Fixes
+
+* **symbol-search:** set rg cwd so includePatterns match ([#368](https://github.com/nkmr-jp/prompt-line/issues/368)) ([3812cd9](https://github.com/nkmr-jp/prompt-line/commit/3812cd9d50f2c5119370a1ef9ef857b34fe5d6a0))
+
 ## [0.34.2](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.34.1...prompt-line-v0.34.2) (2026-04-23)
 
 
