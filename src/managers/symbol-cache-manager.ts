@@ -207,6 +207,22 @@ export class SymbolCacheManager {
   }
 
   /**
+   * Return the settingsHash recorded for a cached language, or null when
+   * missing. A mismatch with the caller's current hash means the cache
+   * should be treated as stale.
+   */
+  async getLanguageSettingsHash(directory: string, language: string): Promise<string | null> {
+    try {
+      const metadataPath = this.getMetadataPath(directory);
+      const content = await fs.readFile(metadataPath, 'utf8');
+      const metadata: SymbolCacheMetadata = JSON.parse(content);
+      return metadata.languages[language]?.settingsHash ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Load cached symbols for a directory and language
    * If language is specified, loads from language-specific file
    * If language is not specified, loads from all language files
@@ -385,7 +401,8 @@ export class SymbolCacheManager {
     directory: string,
     language: string,
     symbols: SymbolResult[],
-    searchMode: 'quick' | 'full'
+    searchMode: 'quick' | 'full',
+    settingsHash?: string
   ): Promise<void> {
     try {
       const projectCacheDir = this.getProjectCacheDir(directory);
@@ -410,7 +427,8 @@ export class SymbolCacheManager {
       // Update language metadata
       metadata.languages[language] = {
         symbolCount: symbols.length,
-        searchMode
+        searchMode,
+        ...(settingsHash ? { settingsHash } : {})
       };
       metadata.updatedAt = now;
 

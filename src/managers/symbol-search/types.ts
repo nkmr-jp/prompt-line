@@ -83,6 +83,11 @@ export interface SymbolSearchOptions {
 export interface LanguageCacheMetadata {
   symbolCount: number;
   searchMode: 'full' | 'quick';
+  // Hash of search-affecting settings at save time. When current settings
+  // produce a different hash, the cache is treated as stale even if within
+  // TTL so setting changes (e.g. includePatterns, followSymlinks) take
+  // effect on the next search.
+  settingsHash?: string;
 }
 
 // Symbol cache metadata
