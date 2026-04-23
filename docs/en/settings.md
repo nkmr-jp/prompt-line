@@ -92,6 +92,7 @@ symbolSearch:
   respectGitignore: true    # Respect .gitignore files
   maxSymbols: 200000        # Maximum number of symbols to index
   timeout: 60000            # Search timeout in milliseconds
+  followSymlinks: false     # Follow symbolic links during search
   #rgPath: null             # Custom path to rg (null = auto-detect)
   includePatterns: []       # Force include (e.g., ["*.test.ts", "vendor/**"])
   excludePatterns: []       # Additional excludes (e.g., ["*.generated.go"])

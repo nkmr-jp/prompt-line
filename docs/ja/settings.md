@@ -92,6 +92,7 @@ symbolSearch:
   respectGitignore: true    # .gitignore を尊重
   maxSymbols: 200000        # インデックスするシンボルの最大数
   timeout: 60000            # 検索タイムアウト（ミリ秒）
+  followSymlinks: false     # シンボリックリンクをたどる
   #rgPath: null             # rg のカスタムパス（null = 自動検出）
   includePatterns: []       # 強制的に含める（例: ["*.test.ts", "vendor/**"]）
   excludePatterns: []       # 追加の除外（例: ["*.generated.go"]）

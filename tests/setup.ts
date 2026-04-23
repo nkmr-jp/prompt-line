@@ -114,7 +114,16 @@ vi.mock('path', () => {
     const pathMock = {
         join: vi.fn((...parts: string[]) => parts.join('/')),
         dirname: vi.fn((filePath: string) => filePath.split('/').slice(0, -1).join('/')),
-        basename: vi.fn((filePath: string) => filePath.split('/').pop())
+        basename: vi.fn((filePath: string) => filePath.split('/').pop()),
+        resolve: vi.fn((...parts: string[]) => {
+            // Minimal POSIX-ish resolve: return the last absolute segment, or join from /.
+            for (let i = parts.length - 1; i >= 0; i--) {
+                if (parts[i]!.startsWith('/')) {
+                    return parts.slice(i).join('/');
+                }
+            }
+            return '/' + parts.join('/');
+        })
     };
     return { ...pathMock, default: pathMock };
 });

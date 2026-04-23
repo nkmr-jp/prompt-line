@@ -59,9 +59,11 @@ function mockExecFileForSearch(rgOutput: string) {
   );
 }
 
-// Helper to capture the args passed to rg for the search call
-function mockExecFileCapturingArgs(rgOutput: string): { getCapturedArgs: () => string[][] } {
-  const capturedArgs: string[][] = [];
+// Helper to capture both args and execFile options for the search call
+function mockExecFileCapturingOptions(rgOutput: string): {
+  getCapturedOptions: () => Array<{ args: string[]; options: any }>;
+} {
+  const captured: Array<{ args: string[]; options: any }> = [];
   mockedExecFile.mockImplementation(
     ((_file: any, _args: any, _options: any, callback: any) => {
       const args = Array.isArray(_args) ? _args : [];
@@ -72,12 +74,18 @@ function mockExecFileCapturingArgs(rgOutput: string): { getCapturedArgs: () => s
       } else if (_file === 'git' && args[0] === 'config') {
         cb(null, '', '');
       } else {
-        capturedArgs.push(args);
+        captured.push({ args, options: _options });
         cb(null, rgOutput, '');
       }
     }) as any
   );
-  return { getCapturedArgs: () => capturedArgs };
+  return { getCapturedOptions: () => captured };
+}
+
+// Helper to capture the args passed to rg for the search call
+function mockExecFileCapturingArgs(rgOutput: string): { getCapturedArgs: () => string[][] } {
+  const { getCapturedOptions } = mockExecFileCapturingOptions(rgOutput);
+  return { getCapturedArgs: () => getCapturedOptions().map(c => c.args) };
 }
 
 describe('symbol-searcher-node', () => {
@@ -1478,6 +1486,66 @@ describe('symbol-searcher-node', () => {
       for (const args of getCapturedArgs()) {
         expect(args).not.toContain('--ignore-file');
       }
+    });
+  });
+
+  // ============================================================
+  // cwd propagation — relative --glob patterns like `.agentsws/**` are
+  // only matched correctly when rg runs with cwd set to the search
+  // directory. Without it, rg walks paths as absolute strings and
+  // anchored globs never match.
+  // ============================================================
+  describe('cwd propagation to rg (includePatterns glob matching)', () => {
+    test('normal search invocation sets cwd to search directory', async () => {
+      const { getCapturedOptions } = mockExecFileCapturingOptions('');
+
+      await searchSymbols('/my/project', 'py');
+      const captured = getCapturedOptions();
+      expect(captured).toHaveLength(1);
+      expect(captured[0]!.options).toMatchObject({ cwd: '/my/project' });
+    });
+
+    test('includePattern phase also sets cwd to search directory', async () => {
+      const { getCapturedOptions } = mockExecFileCapturingOptions('');
+
+      await searchSymbols('/my/project', 'py', {
+        includePatterns: ['.agentsws/**']
+      });
+      const captured = getCapturedOptions();
+      expect(captured).toHaveLength(2);
+      for (const call of captured) {
+        expect(call.options).toMatchObject({ cwd: '/my/project' });
+      }
+    });
+
+    test('block-search phase also sets cwd to search directory', async () => {
+      const { getCapturedOptions } = mockExecFileCapturingOptions('');
+
+      // Go triggers block-search phase (const/var blocks) in addition to normal phase.
+      await searchSymbols('/my/project', 'go');
+      const captured = getCapturedOptions();
+      expect(captured.length).toBeGreaterThanOrEqual(2);
+      for (const call of captured) {
+        expect(call.options).toMatchObject({ cwd: '/my/project' });
+      }
+    });
+
+    test('resolves relative directory so cwd and rg path arg do not stack', async () => {
+      // Guard against regression where a relative `directory` (e.g. `repo/subdir`)
+      // is set as both cwd *and* the rg positional arg, which would make rg
+      // descend into cwd/subdir instead of the intended directory.
+      const { getCapturedOptions } = mockExecFileCapturingOptions('');
+
+      await searchSymbols('repo/subdir', 'py');
+      const captured = getCapturedOptions();
+      expect(captured).toHaveLength(1);
+
+      const { args, options } = captured[0]!;
+      const cwd = options.cwd as string;
+      const rgPathArg = args[args.length - 1]!;
+
+      expect(cwd).toBe(rgPathArg);
+      expect(cwd.startsWith('/')).toBe(true);
     });
   });
 });
