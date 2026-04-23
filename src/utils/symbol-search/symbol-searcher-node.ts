@@ -779,17 +779,23 @@ function parseRipgrepOutput(
 
 /**
  * Execute a single ripgrep search and return raw output
+ *
+ * `cwd` must be the search directory. rg matches `--glob` patterns against
+ * paths relative to its cwd, so anchored globs like `.agentsws/**` fail to
+ * match when rg inherits an unrelated parent-process cwd.
  */
 function executeRg(
   rgCommand: string,
   args: string[],
-  timeout: number
+  timeout: number,
+  cwd: string
 ): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     const execOptions = {
       timeout,
       maxBuffer: DEFAULT_MAX_BUFFER,
-      killSignal: 'SIGTERM' as const
+      killSignal: 'SIGTERM' as const,
+      cwd
     };
 
     execFile(rgCommand, args, execOptions, (error, stdout, stderr) => {
@@ -994,7 +1000,7 @@ async function searchBlockSymbols(
     args.push('-e', blockPattern, directory);
 
     try {
-      const output = await executeRg(rgCommand, args, timeout);
+      const output = await executeRg(rgCommand, args, timeout, directory);
       // Apply each config's symbolNameRegex to the same block output
       for (const config of groupConfigs) {
         const results = parseBlockOutput(output, config, language, directory, maxSymbols);
@@ -1136,7 +1142,7 @@ export async function searchSymbols(
       globalExcludesFile
     );
 
-    const normalOutput = await executeRg(rgCommand, normalArgs, timeout);
+    const normalOutput = await executeRg(rgCommand, normalArgs, timeout, directory);
     let allSymbols = parseRipgrepOutput(normalOutput, language, maxSymbols, directory);
 
     // Phase 2: Include patterns search (with --hidden --no-ignore, only when includePatterns specified)
@@ -1152,7 +1158,7 @@ export async function searchSymbols(
         globalExcludesFile
       );
 
-      const includeOutput = await executeRg(rgCommand, includeArgs, timeout);
+      const includeOutput = await executeRg(rgCommand, includeArgs, timeout, directory);
       const includeSymbols = parseRipgrepOutput(includeOutput, language, maxSymbols, directory);
       allSymbols = allSymbols.concat(includeSymbols);
     }
