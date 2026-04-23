@@ -11,38 +11,42 @@
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { access } from 'fs/promises';
-import { homedir } from 'os';
-import { isAbsolute, resolve } from 'path';
 import { logger } from './logger';
 
 const execFileAsync = promisify(execFile);
 
 let cached: string | null | undefined = undefined;
 
-function expandTilde(p: string): string {
-  if (p === '~') return homedir();
-  if (p.startsWith('~/')) return resolve(homedir(), p.slice(2));
-  return p;
-}
-
 export async function getGlobalGitExcludesFile(): Promise<string | null> {
   if (cached !== undefined) return cached;
 
   try {
-    const { stdout } = await execFileAsync('git', ['config', '--get', 'core.excludesfile'], {
-      timeout: 2000,
-      windowsHide: true
-    });
-    const raw = stdout.trim();
-    if (!raw) {
+    // Scope: `--global` limits lookup to the user's global config chain,
+    // without which a repo-local core.excludesfile set in a project's
+    // .git/config would be cached at first resolution and then silently
+    // applied to every other search path for the rest of the session.
+    //
+    // Includes: `--global` alone does not follow `[include]` directives,
+    // so a user who sets `core.excludesfile` in an included gitconfig
+    // (common when dotfiles live outside `~/.gitconfig`) would look
+    // unset. `--includes` restores that.
+    //
+    // Path: `--path` asks git itself to resolve the value, which expands
+    // leading `~` and honors git's "relative to the config file that
+    // defined it" semantics for relative paths.
+    const { stdout } = await execFileAsync(
+      'git',
+      ['config', '--global', '--includes', '--get', '--path', 'core.excludesfile'],
+      { timeout: 2000, windowsHide: true }
+    );
+    const resolved = stdout.trim();
+    if (!resolved) {
       cached = null;
       return cached;
     }
 
-    const expanded = expandTilde(raw);
-    const absolute = isAbsolute(expanded) ? expanded : resolve(homedir(), expanded);
-    await access(absolute);
-    cached = absolute;
+    await access(resolved);
+    cached = resolved;
   } catch {
     cached = null;
   }
