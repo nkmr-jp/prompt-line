@@ -391,12 +391,16 @@ class CodeSearchHandler {
             const refreshOptions: {
               maxSymbols: number;
               timeout: number;
+              followSymlinks?: boolean;
               includePatterns?: string[];
               excludePatterns?: string[];
             } = {
               maxSymbols: effectiveMaxSymbols,
               timeout: settingsOptions.timeout
             };
+            if (settingsOptions.followSymlinks !== undefined) {
+              refreshOptions.followSymlinks = settingsOptions.followSymlinks;
+            }
             if (settingsOptions.includePatterns) {
               refreshOptions.includePatterns = settingsOptions.includePatterns;
             }
@@ -425,12 +429,16 @@ class CodeSearchHandler {
     const searchOptions: {
       maxSymbols: number;
       timeout: number;
+      followSymlinks?: boolean;
       includePatterns?: string[];
       excludePatterns?: string[];
     } = {
       maxSymbols: effectiveMaxSymbols,
       timeout: settingsOptions.timeout
     };
+    if (settingsOptions.followSymlinks !== undefined) {
+      searchOptions.followSymlinks = settingsOptions.followSymlinks;
+    }
     if (settingsOptions.includePatterns) {
       searchOptions.includePatterns = settingsOptions.includePatterns;
     }
@@ -563,6 +571,7 @@ class CodeSearchHandler {
     options?: {
       maxSymbols?: number;
       timeout?: number;
+      followSymlinks?: boolean;
       includePatterns?: string[];
       excludePatterns?: string[];
     }
