@@ -9,6 +9,7 @@
 
 import { execFile } from 'child_process';
 import { logger } from '../logger';
+import { getGlobalGitExcludesFile } from '../git-excludes';
 import type {
   SymbolSearchResponse,
   RgCheckResponse,
@@ -821,7 +822,8 @@ function buildRgArgs(
   rgType: string,
   excludePatterns: string[],
   includePatterns: string[],
-  followSymlinks: boolean
+  followSymlinks: boolean,
+  globalExcludesFile: string | null
 ): string[] {
   const args = [
     '--line-number',
@@ -834,6 +836,11 @@ function buildRgArgs(
   if (includePatterns.length > 0) {
     args.push('--hidden');
     args.push('--no-ignore');
+  } else if (globalExcludesFile) {
+    // rg does not follow [include] directives in ~/.gitconfig, so a
+    // user-configured core.excludesfile is silently ignored. Pass it
+    // explicitly so the normal gitignore-respecting phase honors it.
+    args.push('--ignore-file', globalExcludesFile);
   }
 
   if (followSymlinks) {
@@ -948,7 +955,8 @@ async function searchBlockSymbols(
   maxSymbols: number,
   timeout: number,
   excludePatterns: string[],
-  followSymlinks: boolean
+  followSymlinks: boolean,
+  globalExcludesFile: string | null
 ): Promise<SymbolResult[]> {
   // Group configs by blockPattern to avoid running the same rg search multiple times
   const patternGroups = new Map<string, BlockSearchConfig[]>();
@@ -972,6 +980,10 @@ async function searchBlockSymbols(
 
     if (followSymlinks) {
       args.push('--follow');
+    }
+
+    if (globalExcludesFile) {
+      args.push('--ignore-file', globalExcludesFile);
     }
 
     // Add exclude patterns
@@ -1108,6 +1120,7 @@ export async function searchSymbols(
     const timeout = options.timeout || DEFAULT_SEARCH_TIMEOUT;
     const followSymlinks = options.followSymlinks === true;
     const hasIncludePatterns = options.includePatterns && options.includePatterns.length > 0;
+    const globalExcludesFile = await getGlobalGitExcludesFile();
 
     // Combine all pattern regexes into one (used for both phases)
     const combinedPattern = config.patterns.map(p => `(${p.pattern})`).join('|');
@@ -1119,7 +1132,8 @@ export async function searchSymbols(
       config.rgType,
       options.excludePatterns || [],
       [], // No includePatterns for normal search
-      followSymlinks
+      followSymlinks,
+      globalExcludesFile
     );
 
     const normalOutput = await executeRg(rgCommand, normalArgs, timeout);
@@ -1134,7 +1148,8 @@ export async function searchSymbols(
         config.rgType,
         [], // No excludePatterns for include search
         options.includePatterns!,
-        followSymlinks
+        followSymlinks,
+        globalExcludesFile
       );
 
       const includeOutput = await executeRg(rgCommand, includeArgs, timeout);
@@ -1150,7 +1165,8 @@ export async function searchSymbols(
         rgCommand, directory, blockConfigs, language,
         config.rgType, maxSymbols, timeout,
         options.excludePatterns || [],
-        followSymlinks
+        followSymlinks,
+        globalExcludesFile
       );
       allSymbols = allSymbols.concat(blockResults);
     }

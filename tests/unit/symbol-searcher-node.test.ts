@@ -21,6 +21,7 @@ import {
   getSupportedLanguages,
   searchSymbols
 } from '../../src/utils/symbol-search/symbol-searcher-node';
+import { resetGlobalGitExcludesFileCache } from '../../src/utils/git-excludes';
 
 const mockedExecFile = vi.mocked(execFile);
 
@@ -47,6 +48,9 @@ function mockExecFileForSearch(rgOutput: string) {
       // First call is checkRgAvailable (--version)
       if (args.includes('--version')) {
         cb(null, 'ripgrep 14.0.0', '');
+      } else if (_file === 'git' && args[0] === 'config') {
+        // Git excludes-file probe — return empty
+        cb(null, '', '');
       } else {
         // Search call
         cb(null, rgOutput, '');
@@ -65,6 +69,8 @@ function mockExecFileCapturingArgs(rgOutput: string): { getCapturedArgs: () => s
 
       if (args.includes('--version')) {
         cb(null, 'ripgrep 14.0.0', '');
+      } else if (_file === 'git' && args[0] === 'config') {
+        cb(null, '', '');
       } else {
         capturedArgs.push(args);
         cb(null, rgOutput, '');
@@ -77,6 +83,7 @@ function mockExecFileCapturingArgs(rgOutput: string): { getCapturedArgs: () => s
 describe('symbol-searcher-node', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetGlobalGitExcludesFileCache();
   });
 
   // ============================================================
@@ -1427,6 +1434,49 @@ describe('symbol-searcher-node', () => {
       expect(args.length).toBeGreaterThanOrEqual(2);
       for (const callArgs of args) {
         expect(callArgs).toContain('--follow');
+      }
+    });
+  });
+
+  // ============================================================
+  // Global core.excludesfile propagation
+  // ============================================================
+  describe('global gitignore (core.excludesfile) propagation', () => {
+    function mockWithGitConfig(excludesFilePath: string | null, rgOutput: string) {
+      const capturedArgs: string[][] = [];
+      mockedExecFile.mockImplementation(
+        ((_file: any, _args: any, _options: any, callback: any) => {
+          const args = Array.isArray(_args) ? _args : [];
+          const cb = typeof _options === 'function' ? _options : callback;
+          if (args.includes('--version')) {
+            cb(null, 'ripgrep 14.0.0', '');
+          } else if (_file === 'git' && args[0] === 'config') {
+            cb(null, excludesFilePath ? `${excludesFilePath}\n` : '', '');
+          } else {
+            capturedArgs.push(args);
+            cb(null, rgOutput, '');
+          }
+        }) as any
+      );
+      return { getCapturedArgs: () => capturedArgs };
+    }
+
+    test('omits --ignore-file when core.excludesfile is unset', async () => {
+      const { getCapturedArgs } = mockWithGitConfig(null, '');
+      await searchSymbols('/project', 'py');
+      for (const args of getCapturedArgs()) {
+        expect(args).not.toContain('--ignore-file');
+      }
+    });
+
+    test('omits --ignore-file on the includePattern phase (respects --no-ignore semantics)', async () => {
+      // core.excludesfile exists but must NOT be reached because access() would
+      // fail on a bogus path — verify we still do not accidentally push the flag
+      // on the include-phase rg call.
+      const { getCapturedArgs } = mockWithGitConfig('/definitely/does/not/exist/gitignore', '');
+      await searchSymbols('/project', 'py', { includePatterns: ['.agentsws/**'] });
+      for (const args of getCapturedArgs()) {
+        expect(args).not.toContain('--ignore-file');
       }
     });
   });
