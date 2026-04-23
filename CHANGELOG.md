@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.34.2](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.34.1...prompt-line-v0.34.2) (2026-04-23)
+
+
+### Bug Fixes
+
+* **search:** honor followSymlinks, core.excludesfile, and settings-aware cache invalidation ([#367](https://github.com/nkmr-jp/prompt-line/issues/367)) ([874418f](https://github.com/nkmr-jp/prompt-line/commit/874418ffb038e4695b2c6bb722a9a8cdc42e5c75))
+
+
+### Miscellaneous Chores
+
+* **deps:** bump @xmldom/xmldom from 0.8.12 to 0.8.13 in the npm_and_yarn group across 1 directory ([#365](https://github.com/nkmr-jp/prompt-line/issues/365)) ([c0d6921](https://github.com/nkmr-jp/prompt-line/commit/c0d69219d250372b5b0944718706604185abbde2))
+
 ## [0.34.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.34.0...prompt-line-v0.34.1) (2026-04-20)
 
 
