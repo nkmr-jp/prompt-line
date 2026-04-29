@@ -30,7 +30,7 @@ vi.mock('../../src/utils/native-tools/paths', () => ({
   WINDOW_DETECTOR_PATH: '/mock/window-detector'
 }));
 
-import { isITerm2, getITermSessionId } from '../../src/utils/native-tools/app-detection';
+import { isITerm2, isCmux, getITermSessionId } from '../../src/utils/native-tools/app-detection';
 
 describe('isITerm2', () => {
   it('should return true for AppInfo with iTerm2 bundleId', () => {
@@ -58,6 +58,32 @@ describe('isITerm2', () => {
   it('should return false for other apps', () => {
     expect(isITerm2('Terminal')).toBe(false);
     expect(isITerm2({ name: 'VS Code', bundleId: 'com.microsoft.VSCode' })).toBe(false);
+  });
+});
+
+describe('isCmux', () => {
+  it('should return true for AppInfo with cmux bundleId', () => {
+    expect(isCmux({ name: 'cmux', bundleId: 'com.cmuxterm.app' })).toBe(true);
+  });
+
+  it('should return false for AppInfo with different bundleId', () => {
+    expect(isCmux({ name: 'cmux', bundleId: 'com.mitchellh.ghostty' })).toBe(false);
+  });
+
+  it('should return true for string "cmux" (case-insensitive)', () => {
+    expect(isCmux('cmux')).toBe(true);
+    expect(isCmux('CMUX')).toBe(true);
+    expect(isCmux('Cmux')).toBe(true);
+  });
+
+  it('should return false for null', () => {
+    expect(isCmux(null)).toBe(false);
+  });
+
+  it('should return false for other terminals', () => {
+    expect(isCmux('Terminal')).toBe(false);
+    expect(isCmux({ name: 'iTerm2', bundleId: 'com.googlecode.iterm2' })).toBe(false);
+    expect(isCmux({ name: 'Ghostty', bundleId: 'com.mitchellh.ghostty' })).toBe(false);
   });
 });
 

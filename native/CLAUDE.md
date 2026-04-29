@@ -41,6 +41,9 @@ Terminal.app, iTerm2, Ghostty, Warp, WezTerm, cmux, JetBrains IDEs, VSCode/Insid
 ### cmux directory detection
 cmux (`com.cmuxterm.app`) exposes a `working directory` property on its focused terminal via its AppleScript dictionary (`Contents/Resources/cmux.sdef`). The detector uses AppleScript directly instead of process tree traversal — cmux embeds Ghostty internally, but the parent app's bundle ID is what `NSWorkspace.frontmostApplication` returns, so process-tree detection wouldn't run correctly without explicit handling.
 
+### cmux paste handling (NOT keyboard-simulator)
+Cmd+V CGEvents posted by `keyboard-simulator paste` do not reach cmux's embedded Ghostty terminal — the parent NSApplication consumes the event and the keystroke never lands in the focused PTY. For cmux, `src/utils/native-tools/paste-operations.ts` bypasses keyboard-simulator entirely and runs a single `osascript` invocation that activates cmux and forwards Ghostty's `paste_from_clipboard` action via `cmux.sdef` (`CmuxPfAc`) to the focused terminal pane.
+
 ### Testing native tool changes
 - After modifying Swift source, run `cd native && make install` then `pnpm run compile` to update `dist/native-tools/`
 - Dev mode uses `dist/native-tools/` (NOT `src/native-tools/`) — `make install` alone is insufficient
