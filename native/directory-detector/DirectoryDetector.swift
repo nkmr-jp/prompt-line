@@ -173,6 +173,24 @@ class DirectoryDetector {
             ]
         }
 
+        if isCmux(bundleId) {
+            if let cwd = getCmuxWorkingDirectory() {
+                return [
+                    "success": true,
+                    "directory": cwd,
+                    "appName": appName,
+                    "bundleId": bundleId,
+                    "method": "cmux-applescript"
+                ]
+            }
+
+            return [
+                "error": "Failed to detect directory from \(appName)",
+                "appName": appName,
+                "bundleId": bundleId
+            ]
+        }
+
         // Check for native terminals (Ghostty, Warp, WezTerm) with process-based detection
         if isNativeTerminal(bundleId) {
             let (directory, shellPid) = getNativeTerminalDirectory(appPid: appPid)

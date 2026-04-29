@@ -330,6 +330,7 @@ export class DirectoryDataHandler {
       'warp',
       'tabby',
       'wezterm',
+      'cmux',
       // IDEs and editors
       'visual studio code',
       'code',
