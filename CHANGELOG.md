@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.35.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.34.3...prompt-line-v0.35.0) (2026-04-29)
+
+
+### Features
+
+* **directory-detector:** support cmux.app terminal ([#370](https://github.com/nkmr-jp/prompt-line/issues/370)) ([4e07d4e](https://github.com/nkmr-jp/prompt-line/commit/4e07d4e1e2f2ce519551744c1621004720a48567))
+
+
+### Bug Fixes
+
+* **paste:** route cmux paste through AppleScript instead of Cmd+V ([#372](https://github.com/nkmr-jp/prompt-line/issues/372)) ([b37d278](https://github.com/nkmr-jp/prompt-line/commit/b37d27819963f954e786cf78f28089268be257a6))
+
 ## [0.34.3](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.34.2...prompt-line-v0.34.3) (2026-04-23)
 
 
