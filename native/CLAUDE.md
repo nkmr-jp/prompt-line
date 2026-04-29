@@ -36,7 +36,14 @@ Other 3 tools are single `.swift` files, but `directory-detector/` is a director
 - Stops at AXWindow level to avoid returning entire window bounds
 
 ### Supported applications (directory-detector)
-Terminal.app, iTerm2, Ghostty, Warp, WezTerm, JetBrains IDEs, VSCode/Insiders/VSCodium, Cursor, Windsurf, Zed, OpenCode, Antigravity, Kiro
+Terminal.app, iTerm2, Ghostty, Warp, WezTerm, JetBrains IDEs, VSCode/Insiders/VSCodium, Cursor, Windsurf, Zed, OpenCode, Antigravity, Kiro, Codex
+
+### Codex Desktop detection strategy
+- Codex.app (`com.openai.codex`) has no integrated terminal and no `state.vscdb`
+- CWD is recovered from session metadata: `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` (first line is `session_meta` with `payload.cwd` and `payload.originator`)
+- Only sessions with `originator == "Codex Desktop"` are considered (filters out Claude Code / codex_exec / sub-agent sessions)
+- When the focused Codex window has a parseable title, workspace-name candidates from the title are matched against session cwd basenames to disambiguate between multiple open projects; otherwise the most recent matching session wins
+- Legacy flat `~/.codex/sessions/rollout-*.json[l]` layout is still walked as a fallback
 
 ### Testing native tool changes
 - After modifying Swift source, run `cd native && make install` then `pnpm run compile` to update `dist/native-tools/`

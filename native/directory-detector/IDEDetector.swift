@@ -50,6 +50,13 @@ extension DirectoryDetector {
         return bundleId == "ai.opencode.desktop"
     }
 
+    /// Check if bundle ID is OpenAI Codex Desktop App
+    /// Codex stores its CWD in session metadata at ~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl
+    /// rather than in a state.vscdb, so it is intentionally NOT included in `isElectronIDE`
+    static func isCodex(_ bundleId: String) -> Bool {
+        return bundleId == "com.openai.codex"
+    }
+
     /// Check if bundle ID is an Electron-based IDE or similar (VSCode, Cursor, Windsurf, Antigravity, Kiro, Zed, OpenCode)
     /// These IDEs have a different process hierarchy than JetBrains IDEs
     /// Note: Zed and OpenCode are not Electron-based (Zed uses native, OpenCode uses Tauri) but use similar process tree detection
@@ -372,5 +379,128 @@ extension DirectoryDetector {
         }
 
         return 0
+    }
+
+    // MARK: - Codex Desktop session metadata
+
+    /// Get the Codex Desktop session CWD, optionally narrowed by window-title workspace candidates.
+    /// Reads ~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl (newest-first) and returns the most
+    /// recent `cwd` from a session whose `originator` is "Codex Desktop". When `workspaceNames`
+    /// is non-empty, prefers a session whose cwd basename matches one of the candidates and
+    /// falls back to the newest valid session if no match is found.
+    static func getDirectoryFromCodexSession(workspaceNames: [String]) -> String? {
+        let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
+        let sessionsDir = "\(homeDir)/.codex/sessions"
+
+        let files = findRecentCodexSessionFiles(at: sessionsDir, limit: 30)
+        let fileManager = FileManager.default
+        let lowercased = Set(workspaceNames.map { $0.lowercased() })
+
+        var firstValidCwd: String?
+        for path in files {
+            guard let firstLine = readCodexSessionFirstLine(at: path, maxBytes: 65_536),
+                  let meta = parseCodexSessionMeta(firstLine),
+                  meta.originator == "Codex Desktop",
+                  fileManager.fileExists(atPath: meta.cwd) else {
+                continue
+            }
+
+            if lowercased.isEmpty {
+                return meta.cwd
+            }
+
+            let basename = (meta.cwd as NSString).lastPathComponent
+            if lowercased.contains(basename.lowercased()) {
+                return meta.cwd
+            }
+
+            if firstValidCwd == nil {
+                firstValidCwd = meta.cwd
+            }
+        }
+
+        return firstValidCwd
+    }
+
+    /// Walk ~/.codex/sessions/YYYY/MM/DD/ in descending order and return up to `limit` jsonl paths
+    /// (newest first). Falls back to the legacy flat layout (~/.codex/sessions/rollout-*.json[l])
+    /// for sessions written before the date-stamped layout.
+    private static func findRecentCodexSessionFiles(at sessionsDir: String, limit: Int) -> [String] {
+        let fileManager = FileManager.default
+        guard fileManager.fileExists(atPath: sessionsDir) else { return [] }
+        var results: [String] = []
+
+        if let entries = try? fileManager.contentsOfDirectory(atPath: sessionsDir) {
+            let yearDirs = entries.filter { $0.count == 4 && Int($0) != nil }.sorted(by: >)
+            for year in yearDirs {
+                let yearPath = "\(sessionsDir)/\(year)"
+                guard let months = try? fileManager.contentsOfDirectory(atPath: yearPath) else { continue }
+                let monthDirs = months.filter { $0.count == 2 && Int($0) != nil }.sorted(by: >)
+                for month in monthDirs {
+                    let monthPath = "\(yearPath)/\(month)"
+                    guard let days = try? fileManager.contentsOfDirectory(atPath: monthPath) else { continue }
+                    let dayDirs = days.filter { $0.count == 2 && Int($0) != nil }.sorted(by: >)
+                    for day in dayDirs {
+                        let dayPath = "\(monthPath)/\(day)"
+                        guard let files = try? fileManager.contentsOfDirectory(atPath: dayPath) else { continue }
+                        // Filenames embed an ISO timestamp, so descending lexical sort = newest first.
+                        let jsonlFiles = files.filter { $0.hasPrefix("rollout-") && $0.hasSuffix(".jsonl") }
+                                              .sorted(by: >)
+                        for f in jsonlFiles {
+                            results.append("\(dayPath)/\(f)")
+                            if results.count >= limit { return results }
+                        }
+                    }
+                }
+            }
+
+            // Legacy flat layout fallback (mtime-sorted)
+            let flatFiles = entries.filter {
+                $0.hasPrefix("rollout-") && ($0.hasSuffix(".json") || $0.hasSuffix(".jsonl"))
+            }
+            let sorted = flatFiles.compactMap { name -> (String, Date)? in
+                let p = "\(sessionsDir)/\(name)"
+                guard let attrs = try? fileManager.attributesOfItem(atPath: p),
+                      let mtime = attrs[.modificationDate] as? Date else { return nil }
+                return (p, mtime)
+            }.sorted { $0.1 > $1.1 }
+            for (p, _) in sorted {
+                results.append(p)
+                if results.count >= limit { break }
+            }
+        }
+
+        return results
+    }
+
+    /// Read the first newline-terminated line of a (possibly very large) JSONL file, up to `maxBytes`.
+    /// Codex session_meta lines are typically <30KB; 64KB gives ~2x headroom.
+    private static func readCodexSessionFirstLine(at path: String, maxBytes: Int) -> String? {
+        guard let handle = FileHandle(forReadingAtPath: path) else { return nil }
+        defer { try? handle.close() }
+
+        var buffer = Data()
+        while buffer.count < maxBytes {
+            let chunk = handle.readData(ofLength: maxBytes - buffer.count)
+            if chunk.isEmpty { break }
+            buffer.append(chunk)
+            if let nlIdx = buffer.firstIndex(of: 0x0a) {
+                return String(data: buffer.prefix(upTo: nlIdx), encoding: .utf8)
+            }
+        }
+        return nil
+    }
+
+    /// Parse a Codex `session_meta` JSON line and return (cwd, originator) when valid.
+    private static func parseCodexSessionMeta(_ firstLine: String) -> (cwd: String, originator: String)? {
+        guard let data = firstLine.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              (json["type"] as? String) == "session_meta",
+              let payload = json["payload"] as? [String: Any],
+              let cwd = payload["cwd"] as? String else {
+            return nil
+        }
+        let originator = (payload["originator"] as? String) ?? ""
+        return (cwd, originator)
     }
 }
