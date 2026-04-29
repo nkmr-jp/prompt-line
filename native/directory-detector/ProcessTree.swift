@@ -170,9 +170,12 @@ extension DirectoryDetector {
 
         do {
             try process.run()
+            // Read pipe BEFORE waitUntilExit to prevent deadlock when output exceeds pipe
+            // buffer (64KB). Triggered when many helper processes (e.g. Codex.app's
+            // SkyComputerUseClient pool) push the system-wide ps output past the limit.
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
             process.waitUntilExit()
 
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
             guard let output = String(data: data, encoding: .utf8) else {
                 return [:]
             }

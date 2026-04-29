@@ -67,12 +67,7 @@ class DirectoryDetector {
 
         // Codex resolves CWD from session metadata (see isCodex docstring).
         if isCodex(bundleId) {
-            var workspaceNames: [String] = []
-            if let windowTitle = getWindowTitle(pid: appPid, bundleId: bundleId) {
-                workspaceNames = extractWorkspaceNamesFromElectronIDETitle(windowTitle)
-            }
-
-            if let cwd = getDirectoryFromCodexSession(workspaceNames: workspaceNames) {
+            if let cwd = getDirectoryFromCodexSession(appPid: appPid) {
                 return [
                     "success": true,
                     "directory": cwd,

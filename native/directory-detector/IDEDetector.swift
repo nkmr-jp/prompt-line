@@ -383,94 +383,125 @@ extension DirectoryDetector {
 
     // MARK: - Codex Desktop session metadata
 
-    /// Get the Codex Desktop session CWD, optionally narrowed by window-title workspace candidates.
-    /// Reads ~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl (newest-first) and returns the most
-    /// recent `cwd` from a session whose `originator` is "Codex Desktop". When `workspaceNames`
-    /// is non-empty, prefers a session whose cwd basename matches one of the candidates and
-    /// falls back to the newest valid session if no match is found.
-    static func getDirectoryFromCodexSession(workspaceNames: [String]) -> String? {
+    /// Get the Codex Desktop session CWD that the user most likely has selected in the UI.
+    ///
+    /// Codex.app launches a `node_repl` child process per open worktree. Their cwds are the
+    /// authoritative list of "currently-open" Codex Desktop projects. We pick whichever one
+    /// has the most recently written main session jsonl (`originator == "Codex Desktop"`,
+    /// not a sub-agent). When no node_repl info is available (older Codex builds), we fall
+    /// back to the mtime-newest valid session.
+    static func getDirectoryFromCodexSession(appPid: pid_t) -> String? {
         let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
         let sessionsDir = "\(homeDir)/.codex/sessions"
-
-        let files = findRecentCodexSessionFiles(at: sessionsDir, limit: 30)
         let fileManager = FileManager.default
-        let lowercased = Set(workspaceNames.map { $0.lowercased() })
 
-        var firstValidCwd: String?
-        for path in files {
-            guard let firstLine = readCodexSessionFirstLine(at: path, maxBytes: 65_536),
+        let openWorktreeCwds = Set(getCodexNodeReplCwds(appPid: appPid))
+        let candidates = findRecentCodexSessionFiles(at: sessionsDir, limit: 100)
+
+        var fallbackCwd: String?
+        for entry in candidates {
+            guard let firstLine = readCodexSessionFirstLine(at: entry.path, maxBytes: 65_536),
                   let meta = parseCodexSessionMeta(firstLine),
                   meta.originator == "Codex Desktop",
+                  !meta.isSubAgent,
                   fileManager.fileExists(atPath: meta.cwd) else {
                 continue
             }
 
-            if lowercased.isEmpty {
+            if openWorktreeCwds.isEmpty {
                 return meta.cwd
             }
-
-            let basename = (meta.cwd as NSString).lastPathComponent
-            if lowercased.contains(basename.lowercased()) {
+            if openWorktreeCwds.contains(meta.cwd) {
                 return meta.cwd
             }
-
-            if firstValidCwd == nil {
-                firstValidCwd = meta.cwd
+            if fallbackCwd == nil {
+                fallbackCwd = meta.cwd
             }
         }
 
-        return firstValidCwd
+        return fallbackCwd
     }
 
-    /// Walk ~/.codex/sessions/YYYY/MM/DD/ in descending order and return up to `limit` jsonl paths
-    /// (newest first). Falls back to the legacy flat layout (~/.codex/sessions/rollout-*.json[l])
-    /// for sessions written before the date-stamped layout.
-    private static func findRecentCodexSessionFiles(at sessionsDir: String, limit: Int) -> [String] {
+    /// Collect cwds of `node_repl` descendants of the given Codex.app pid.
+    /// Each Codex Desktop session the user has open is backed by its own `node_repl` whose
+    /// cwd is the worktree root (e.g. ~/.codex/worktrees/<id>/<project>).
+    static func getCodexNodeReplCwds(appPid: pid_t) -> [String] {
+        let nodes = getAllProcessNodes()
+        let childrenMap = buildChildrenMap(nodes)
+        let descendants = getDescendantsFromTree(appPid, childrenMap: childrenMap, maxDepth: 6)
+
+        var results: [String] = []
+        var seen: Set<String> = []
+        for pid in descendants {
+            guard let node = nodes[pid] else { continue }
+            // `ps -o comm` returns truncated executable name (e.g. "node_repl"), not full path.
+            guard node.command == "node_repl" || node.command.hasSuffix("/node_repl") else { continue }
+            guard let cwd = getCwdFromPid(pid) else { continue }
+            if seen.insert(cwd).inserted {
+                results.append(cwd)
+            }
+        }
+        return results
+    }
+
+    /// Walk ~/.codex/sessions/ and return up to `limit` jsonl candidates with their mtimes,
+    /// sorted newest-first by mtime. Walks the YYYY/MM/DD layout (file-name lexical order is a
+    /// good initial filter) plus the legacy flat layout for pre-2025-05 sessions.
+    private static func findRecentCodexSessionFiles(at sessionsDir: String, limit: Int) -> [(path: String, mtime: Date)] {
         let fileManager = FileManager.default
         guard fileManager.fileExists(atPath: sessionsDir) else { return [] }
-        var results: [String] = []
 
-        if let entries = try? fileManager.contentsOfDirectory(atPath: sessionsDir) {
-            let yearDirs = entries.filter { $0.count == 4 && Int($0) != nil }.sorted(by: >)
-            for year in yearDirs {
-                let yearPath = "\(sessionsDir)/\(year)"
-                guard let months = try? fileManager.contentsOfDirectory(atPath: yearPath) else { continue }
-                let monthDirs = months.filter { $0.count == 2 && Int($0) != nil }.sorted(by: >)
-                for month in monthDirs {
-                    let monthPath = "\(yearPath)/\(month)"
-                    guard let days = try? fileManager.contentsOfDirectory(atPath: monthPath) else { continue }
-                    let dayDirs = days.filter { $0.count == 2 && Int($0) != nil }.sorted(by: >)
-                    for day in dayDirs {
-                        let dayPath = "\(monthPath)/\(day)"
-                        guard let files = try? fileManager.contentsOfDirectory(atPath: dayPath) else { continue }
-                        // Filenames embed an ISO timestamp, so descending lexical sort = newest first.
-                        let jsonlFiles = files.filter { $0.hasPrefix("rollout-") && $0.hasSuffix(".jsonl") }
-                                              .sorted(by: >)
-                        for f in jsonlFiles {
-                            results.append("\(dayPath)/\(f)")
-                            if results.count >= limit { return results }
+        func mtime(of path: String) -> Date? {
+            guard let attrs = try? fileManager.attributesOfItem(atPath: path),
+                  let mtime = attrs[.modificationDate] as? Date else { return nil }
+            return mtime
+        }
+
+        var results: [(path: String, mtime: Date)] = []
+
+        guard let entries = try? fileManager.contentsOfDirectory(atPath: sessionsDir) else {
+            return []
+        }
+
+        let yearDirs = entries.filter { $0.count == 4 && Int($0) != nil }.sorted(by: >)
+        outer: for year in yearDirs {
+            let yearPath = "\(sessionsDir)/\(year)"
+            guard let months = try? fileManager.contentsOfDirectory(atPath: yearPath) else { continue }
+            let monthDirs = months.filter { $0.count == 2 && Int($0) != nil }.sorted(by: >)
+            for month in monthDirs {
+                let monthPath = "\(yearPath)/\(month)"
+                guard let days = try? fileManager.contentsOfDirectory(atPath: monthPath) else { continue }
+                let dayDirs = days.filter { $0.count == 2 && Int($0) != nil }.sorted(by: >)
+                for day in dayDirs {
+                    let dayPath = "\(monthPath)/\(day)"
+                    guard let files = try? fileManager.contentsOfDirectory(atPath: dayPath) else { continue }
+                    let jsonlFiles = files.filter { $0.hasPrefix("rollout-") && $0.hasSuffix(".jsonl") }
+                                          .sorted(by: >)
+                    for f in jsonlFiles {
+                        let p = "\(dayPath)/\(f)"
+                        if let mt = mtime(of: p) {
+                            results.append((p, mt))
                         }
+                        if results.count >= limit { break outer }
                     }
                 }
             }
+        }
 
-            // Legacy flat layout fallback (mtime-sorted)
+        if results.count < limit {
             let flatFiles = entries.filter {
                 $0.hasPrefix("rollout-") && ($0.hasSuffix(".json") || $0.hasSuffix(".jsonl"))
             }
-            let sorted = flatFiles.compactMap { name -> (String, Date)? in
-                let p = "\(sessionsDir)/\(name)"
-                guard let attrs = try? fileManager.attributesOfItem(atPath: p),
-                      let mtime = attrs[.modificationDate] as? Date else { return nil }
-                return (p, mtime)
-            }.sorted { $0.1 > $1.1 }
-            for (p, _) in sorted {
-                results.append(p)
+            for name in flatFiles {
                 if results.count >= limit { break }
+                let p = "\(sessionsDir)/\(name)"
+                if let mt = mtime(of: p) {
+                    results.append((p, mt))
+                }
             }
         }
 
-        return results
+        return results.sorted { $0.mtime > $1.mtime }
     }
 
     /// Read the first newline-terminated line of a (possibly very large) JSONL file, up to `maxBytes`.
@@ -491,8 +522,9 @@ extension DirectoryDetector {
         return nil
     }
 
-    /// Parse a Codex `session_meta` JSON line and return (cwd, originator) when valid.
-    private static func parseCodexSessionMeta(_ firstLine: String) -> (cwd: String, originator: String)? {
+    /// Parse a Codex `session_meta` JSON line.
+    /// `isSubAgent` is true when `payload.source.subagent` is present (e.g. guardian).
+    private static func parseCodexSessionMeta(_ firstLine: String) -> (cwd: String, originator: String, isSubAgent: Bool)? {
         guard let data = firstLine.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               (json["type"] as? String) == "session_meta",
@@ -501,6 +533,7 @@ extension DirectoryDetector {
             return nil
         }
         let originator = (payload["originator"] as? String) ?? ""
-        return (cwd, originator)
+        let isSubAgent = (payload["source"] as? [String: Any])?["subagent"] != nil
+        return (cwd, originator, isSubAgent)
     }
 }
