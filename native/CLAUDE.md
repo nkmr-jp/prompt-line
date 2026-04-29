@@ -36,17 +36,7 @@ Other 3 tools are single `.swift` files, but `directory-detector/` is a director
 - Stops at AXWindow level to avoid returning entire window bounds
 
 ### Supported applications (directory-detector)
-Terminal.app, iTerm2, Ghostty, Warp, WezTerm, JetBrains IDEs, VSCode/Insiders/VSCodium, Cursor, Windsurf, Zed, OpenCode, Antigravity, Kiro, Codex
-
-### Codex Desktop detection strategy
-- Codex.app (`com.openai.codex`) has no `state.vscdb`. Its window title is just `"Codex"` (no project info) and its renderer never enables a11y, so AX-tree introspection yields nothing useful.
-- Each Codex Desktop session is backed by a `node_repl` child process whose cwd is the worktree root (`~/.codex/worktrees/<id>/<project>`). The set of these cwds is the authoritative list of currently-open Codex projects.
-- CWD is resolved by intersecting the open `node_repl` cwds with the session metadata in `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` (first line is `session_meta` with `payload.cwd`, `payload.originator`, and optionally `payload.source.subagent`):
-  1. Filter sessions to `originator == "Codex Desktop"` and *not* `payload.source.subagent` (this strips guardian / other sub-agent runs).
-  2. Sort the remaining sessions by jsonl mtime descending — the most recently written file is the session the user most recently interacted with.
-  3. Return the first cwd that is also in the open `node_repl` cwd set; if no `node_repl` info is available (older Codex builds), return the mtime-newest valid session.
-- Limitation: when the user switches sessions in Codex's sidebar but hasn't yet sent a new message, mtime still points at the previous session. Codex stores selected-session state only in renderer memory, not on disk.
-- Legacy flat `~/.codex/sessions/rollout-*.json[l]` layout is still walked as a fallback for pre-2025-05 sessions.
+Terminal.app, iTerm2, Ghostty, Warp, WezTerm, JetBrains IDEs, VSCode/Insiders/VSCodium, Cursor, Windsurf, Zed, OpenCode, Antigravity, Kiro
 
 ### Testing native tool changes
 - After modifying Swift source, run `cd native && make install` then `pnpm run compile` to update `dist/native-tools/`

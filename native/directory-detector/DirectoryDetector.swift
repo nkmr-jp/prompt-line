@@ -65,27 +65,6 @@ class DirectoryDetector {
             appPid = frontApp.processIdentifier
         }
 
-        // Codex resolves CWD from session metadata (see isCodex docstring).
-        if isCodex(bundleId) {
-            if let cwd = getDirectoryFromCodexSession(appPid: appPid) {
-                return [
-                    "success": true,
-                    "directory": cwd,
-                    "appName": appName,
-                    "bundleId": bundleId,
-                    "idePid": appPid,
-                    "method": "codex-session-meta"
-                ]
-            }
-
-            return [
-                "error": "No matching Codex Desktop session found",
-                "appName": appName,
-                "bundleId": bundleId,
-                "idePid": appPid
-            ]
-        }
-
         // Check if this is an IDE with integrated terminal (JetBrains, VSCode, etc.)
         if isIDEWithTerminal(bundleId) {
             if isElectronIDE(bundleId) {
