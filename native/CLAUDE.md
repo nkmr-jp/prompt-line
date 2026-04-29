@@ -36,7 +36,10 @@ Other 3 tools are single `.swift` files, but `directory-detector/` is a director
 - Stops at AXWindow level to avoid returning entire window bounds
 
 ### Supported applications (directory-detector)
-Terminal.app, iTerm2, Ghostty, Warp, WezTerm, JetBrains IDEs, VSCode/Insiders/VSCodium, Cursor, Windsurf, Zed, OpenCode, Antigravity, Kiro
+Terminal.app, iTerm2, Ghostty, Warp, WezTerm, cmux, JetBrains IDEs, VSCode/Insiders/VSCodium, Cursor, Windsurf, Zed, OpenCode, Antigravity, Kiro
+
+### cmux directory detection
+cmux (`com.cmuxterm.app`) exposes a `working directory` property on its focused terminal via its AppleScript dictionary (`Contents/Resources/cmux.sdef`). The detector uses AppleScript directly instead of process tree traversal — cmux embeds Ghostty internally, but the parent app's bundle ID is what `NSWorkspace.frontmostApplication` returns, so process-tree detection wouldn't run correctly without explicit handling.
 
 ### Testing native tool changes
 - After modifying Swift source, run `cd native && make install` then `pnpm run compile` to update `dist/native-tools/`

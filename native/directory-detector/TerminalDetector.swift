@@ -45,6 +45,47 @@ extension DirectoryDetector {
         return result.stringValue
     }
 
+    // MARK: - cmux directory detection
+
+    /// Check if bundle ID is cmux
+    static func isCmux(_ bundleId: String) -> Bool {
+        return bundleId == "com.cmuxterm.app"
+    }
+
+    /// Get working directory from cmux's focused terminal via AppleScript.
+    /// Why AppleScript instead of process-tree: cmux embeds Ghostty internally, but
+    /// the parent app's bundle ID is what NSWorkspace.frontmostApplication returns,
+    /// so process-tree detection (used for Ghostty/Warp/WezTerm) wouldn't match.
+    /// cmux exposes a "working directory" property on its focused terminal
+    /// (see Contents/Resources/cmux.sdef in the app bundle).
+    static func getCmuxWorkingDirectory() -> String? {
+        // `focused terminal` can momentarily be nil (e.g. right after a pane split or
+        // when no pane has keyboard focus). Fall back to the tab's first terminal so we
+        // still return a directory instead of failing the whole detection.
+        let script = """
+        tell application "cmux"
+            tell front window
+                tell selected tab
+                    try
+                        return working directory of focused terminal
+                    on error
+                        return working directory of (first terminal)
+                    end try
+                end tell
+            end tell
+        end tell
+        """
+
+        let appleScript = NSAppleScript(source: script)
+        var error: NSDictionary?
+        guard let result = appleScript?.executeAndReturnError(&error),
+              let value = result.stringValue,
+              !value.isEmpty else {
+            return nil
+        }
+        return value
+    }
+
     // MARK: - Native Terminal Detection (Ghostty, Warp, WezTerm)
 
     /// Check if bundle ID is Ghostty
