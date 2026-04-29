@@ -4,6 +4,17 @@ import { TIMEOUTS } from '../../constants';
 import { logger } from '../logger';
 import { sanitizeCommandArgument, isCommandArgumentSafe } from '../security';
 import { KEYBOARD_SIMULATOR_PATH } from './paths';
+import { isCmux } from './app-detection';
+
+// cmux embeds Ghostty as a subprocess and the parent NSApplication consumes
+// Cmd+V CGEvents before they reach the focused PTY. We bypass keyboard-simulator
+// entirely and route activation + paste through cmux's AppleScript dictionary,
+// which forwards `paste_from_clipboard` to Ghostty's native action handler.
+const CMUX_PASTE_APPLESCRIPT =
+  'tell application "cmux"\n' +
+  '  activate\n' +
+  '  perform action "paste_from_clipboard" on focused terminal of selected tab of front window\n' +
+  'end tell';
 
 export function pasteWithNativeTool(): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -53,6 +64,33 @@ export function pasteWithNativeTool(): Promise<void> {
   });
 }
 
+function activateAndPasteCmux(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const options = {
+      timeout: TIMEOUTS.ACTIVATE_PASTE_TIMEOUT,
+      killSignal: 'SIGTERM' as const
+    };
+
+    execFile('osascript', ['-e', CMUX_PASTE_APPLESCRIPT], options, (error, stdout, stderr) => {
+      if (error) {
+        logger.error('cmux AppleScript paste failed:', {
+          error: error.message,
+          code: error.code,
+          signal: error.signal,
+          stderr
+        });
+        reject(error);
+        return;
+      }
+
+      if (stdout.trim() !== 'true') {
+        logger.warn('cmux AppleScript paste returned non-true:', { stdout, stderr });
+      }
+      resolve();
+    });
+  });
+}
+
 export function activateAndPasteWithNativeTool(appInfo: AppInfo | string): Promise<void> {
   return new Promise((resolve, reject) => {
     if (process.platform !== 'darwin') {
@@ -71,6 +109,11 @@ export function activateAndPasteWithNativeTool(appInfo: AppInfo | string): Promi
       bundleId = appInfo.bundleId || null;
     } else {
       reject(new Error('Invalid app info provided'));
+      return;
+    }
+
+    if (isCmux(appInfo)) {
+      activateAndPasteCmux().then(resolve).catch(reject);
       return;
     }
 

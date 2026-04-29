@@ -7,6 +7,7 @@ import { logger } from '../logger';
 import { WINDOW_DETECTOR_PATH } from './paths';
 
 const ITERM2_BUNDLE_ID = 'com.googlecode.iterm2';
+const CMUX_BUNDLE_ID = 'com.cmuxterm.app';
 
 // Accessibility permission check result
 interface AccessibilityStatus {
@@ -177,6 +178,19 @@ export function isITerm2(app: AppInfo | string | null): boolean {
     return lower === 'iterm2' || lower === 'iterm';
   }
   return app.bundleId === ITERM2_BUNDLE_ID;
+}
+
+/**
+ * Check if the given AppInfo or app name string represents cmux.
+ * cmux requires special paste handling because it embeds Ghostty as
+ * a subprocess and Cmd+V CGEvents do not reach the focused terminal.
+ */
+export function isCmux(app: AppInfo | string | null): boolean {
+  if (!app) return false;
+  if (typeof app === 'string') {
+    return app.toLowerCase() === 'cmux';
+  }
+  return app.bundleId === CMUX_BUNDLE_ID;
 }
 
 /**
