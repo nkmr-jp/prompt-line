@@ -233,9 +233,13 @@ extension DirectoryDetector {
     }
 
     /// Check if command name is a shell
-    /// Handles formats like: "zsh", "/bin/zsh", "zsh (qterm)", "-zsh"
+    /// Handles formats like: "zsh", "/bin/zsh", "zsh (qterm)", "-zsh".
+    /// Keep `nu` and `pwsh` here too — the previous detector used
+    /// `pgrep -f "zsh|bash|fish|sh|nu|pwsh"`, and dropping them silently
+    /// breaks CWD detection for Nushell/PowerShell users in Warp and on the
+    /// Ghostty/WezTerm process-tree fallback path.
     static func isShellCommand(_ command: String) -> Bool {
-        let shellNames = ["zsh", "bash", "fish", "sh"]
+        let shellNames = ["zsh", "bash", "fish", "sh", "nu", "pwsh"]
         let baseName = (command as NSString).lastPathComponent.lowercased()
 
         // Check exact match
