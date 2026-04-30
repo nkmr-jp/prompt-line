@@ -228,9 +228,60 @@ extension DirectoryDetector {
         return modDate.timeIntervalSince1970
     }
 
-    /// Get CWD from Ghostty terminal (wrapper for getNativeTerminalDirectory)
-    static func getGhosttyDirectory(appPid: pid_t) -> (directory: String?, shellPid: pid_t?) {
-        return getNativeTerminalDirectory(appPid: appPid)
+    /// Get CWD from Ghostty terminal.
+    /// Ghostty exposes the focused pane's working directory via the AXWindow's
+    /// `AXDocument` attribute (the proxy-icon URL). This updates instantly on
+    /// pane/tab focus changes, while tty mtime can lag by seconds because
+    /// background panes keep redrawing their prompts.
+    /// Falls back to the generic process-tree detector if AX is unavailable.
+    static func getGhosttyDirectory(appPid: pid_t) -> (directory: String?, shellPid: pid_t?, usedAx: Bool) {
+        if let path = getGhosttyDirectoryViaAx(appPid: appPid) {
+            // shellPid is only emitted as metadata; nothing in the renderer
+            // depends on it. Skip the ps walk entirely when AX gives us a
+            // direct answer — that keeps detection well under 50ms.
+            return (path, nil, true)
+        }
+        let fallback = getNativeTerminalDirectory(appPid: appPid)
+        return (fallback.directory, fallback.shellPid, false)
+    }
+
+    /// Read the focused pane's CWD from AXWindow.AXDocument. Returns nil when
+    /// the attribute is missing or doesn't decode as a `file://` URL.
+    private static func getGhosttyDirectoryViaAx(appPid: pid_t) -> String? {
+        let appRef = AXUIElementCreateApplication(appPid)
+
+        var focusedWinRef: CFTypeRef?
+        let winResult = AXUIElementCopyAttributeValue(appRef, kAXFocusedWindowAttribute as CFString, &focusedWinRef)
+        guard winResult == .success, let focusedWindow = focusedWinRef else { return nil }
+        let win = focusedWindow as! AXUIElement
+
+        var docRef: CFTypeRef?
+        let docResult = AXUIElementCopyAttributeValue(win, "AXDocument" as CFString, &docRef)
+        guard docResult == .success else { return nil }
+
+        // AXDocument is documented as a String containing a file URL on macOS,
+        // but defensively accept NSURL too in case Ghostty switches encoding.
+        let urlString: String?
+        if let s = docRef as? String {
+            urlString = s
+        } else if let url = docRef as? NSURL {
+            urlString = url.absoluteString
+        } else {
+            urlString = nil
+        }
+
+        guard let str = urlString,
+              let url = URL(string: str),
+              url.isFileURL else {
+            return nil
+        }
+
+        var path = url.path
+        // Other detectors return paths without a trailing slash; normalise here.
+        if path.hasSuffix("/") && path != "/" {
+            path.removeLast()
+        }
+        return path.isEmpty ? nil : path
     }
 
     /// Get CWD from Warp terminal (wrapper for getNativeTerminalDirectory)

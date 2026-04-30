@@ -205,13 +205,19 @@ class DirectoryDetector {
                 directory = result.directory
                 shellPid = result.shellPid
                 methodName = result.usedCli ? "wezterm-cli" : "wezterm-process"
+            } else if isGhostty(bundleId) {
+                // Ghostty's AXWindow.AXDocument carries the focused pane's CWD,
+                // which updates instantly on pane focus changes. tty mtime is
+                // lossy here because background panes redraw their prompts.
+                let result = getGhosttyDirectory(appPid: appPid)
+                directory = result.directory
+                shellPid = result.shellPid
+                methodName = result.usedAx ? "ghostty-ax" : "ghostty-process"
             } else {
                 let result = getNativeTerminalDirectory(appPid: appPid)
                 directory = result.directory
                 shellPid = result.shellPid
-                if isGhostty(bundleId) {
-                    methodName = "ghostty-process"
-                } else if isWarp(bundleId) {
+                if isWarp(bundleId) {
                     methodName = "warp-process"
                 } else {
                     methodName = "native-terminal-process"
