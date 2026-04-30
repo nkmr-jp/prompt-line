@@ -170,9 +170,11 @@ extension DirectoryDetector {
 
         do {
             try process.run()
+            // Drain the pipe before waiting — `ps -ax` output exceeds the 64KB pipe
+            // buffer on busy systems, so waiting first would deadlock the writer.
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
             process.waitUntilExit()
 
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
             guard let output = String(data: data, encoding: .utf8) else {
                 return [:]
             }
@@ -559,9 +561,10 @@ extension DirectoryDetector {
 
         do {
             try process.run()
+            // Drain the pipe before waiting — see getAllProcessNodes for the same pattern.
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
             process.waitUntilExit()
 
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
             guard let output = String(data: data, encoding: .utf8) else {
                 return [:]
             }
