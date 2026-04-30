@@ -113,37 +113,27 @@ extension DirectoryDetector {
     /// Works for Ghostty, Warp, WezTerm, and other native terminals
     /// Uses the same fast approach as Electron IDE detection
     static func getNativeTerminalDirectory(appPid: pid_t) -> (directory: String?, shellPid: pid_t?) {
-        // Step 1: Snapshot every process via `ps`. We avoid `pgrep -f` here because
-        // macOS pgrep silently drops long-running processes whose KERN_PROCARGS2 has
-        // become unreadable, which can hide the focused login shell in old Ghostty
-        // tabs and flip CWD detection to an unrelated tab.
-        let allNodes = getAllProcessNodes()
-        if allNodes.isEmpty {
+        // One `ps` call gathers pid/ppid/tty/comm for every process. We avoid
+        // `pgrep -f` because macOS pgrep silently drops long-running processes
+        // whose KERN_PROCARGS2 has become unreadable — the focused login shell
+        // of an old Ghostty tab is exactly the one that gets dropped.
+        let snapshot = snapshotProcessesWithTty()
+        if snapshot.isEmpty {
             return (nil, nil)
         }
 
-        let parentMap = buildParentMapFast()
-        if parentMap.isEmpty {
-            return (nil, nil)
+        // Reuse the snapshot for parent lookups so we don't fork another `ps`.
+        var parentMap: [pid_t: pid_t] = [:]
+        parentMap.reserveCapacity(snapshot.count)
+        for entry in snapshot {
+            parentMap[entry.pid] = entry.ppid
         }
 
-        // Step 2: Keep shell processes that descend from this terminal app.
-        var terminalShells: [pid_t] = []
-        for (pid, node) in allNodes where isShellCommand(node.command) {
-            if isDescendantOf(pid, ancestorPid: appPid, parentMap: parentMap, maxDepth: 10) {
-                terminalShells.append(pid)
-            }
-        }
-
-        if terminalShells.isEmpty {
-            return (nil, nil)
-        }
-
-        // Step 3: Pick the shell whose tty was most recently active.
-        // A pty's mtime advances on read/write traffic, so it tracks the tab/window
-        // the user just interacted with. Ghostty's AX hierarchy only exposes the
-        // focused window's title — there is no direct pty mapping — so tty mtime
-        // is what lets us resolve focus across multiple terminal windows/tabs.
+        // Pick the shell whose tty was most recently active. A pty's mtime
+        // advances on read/write traffic, so it tracks the tab/window the user
+        // just interacted with. Ghostty's AX hierarchy only exposes the focused
+        // window's title — there is no direct pty mapping — so tty mtime is
+        // what lets us resolve focus across multiple terminal windows/tabs.
         struct ShellCandidate {
             let pid: pid_t
             let cwd: String
@@ -151,18 +141,19 @@ extension DirectoryDetector {
         }
 
         var candidates: [ShellCandidate] = []
-        for shellPid in terminalShells {
-            guard let cwd = getCwdFromPid(shellPid) else { continue }
-            let mtime = getTtyModTime(for: shellPid) ?? 0
-            candidates.append(ShellCandidate(pid: shellPid, cwd: cwd, ttyMtime: mtime))
+        for entry in snapshot where isShellCommand(entry.comm) && !entry.tty.isEmpty {
+            guard isDescendantOf(entry.pid, ancestorPid: appPid, parentMap: parentMap, maxDepth: 10) else { continue }
+            guard let cwd = getCwdFromPid(entry.pid) else { continue }
+            let mtime = mtimeForTty(entry.tty) ?? 0
+            candidates.append(ShellCandidate(pid: entry.pid, cwd: cwd, ttyMtime: mtime))
         }
 
         if candidates.isEmpty {
             return (nil, nil)
         }
 
-        // Sort shells with a known tty mtime first (newest first); shells without a
-        // resolvable tty fall back to pid order (newest first).
+        // Sort shells with a known tty mtime first (newest first); shells
+        // without a resolvable tty fall back to pid order (newest first).
         candidates.sort { lhs, rhs in
             if lhs.ttyMtime > 0 && rhs.ttyMtime > 0 {
                 return lhs.ttyMtime > rhs.ttyMtime
@@ -174,6 +165,63 @@ extension DirectoryDetector {
 
         let focused = candidates[0]
         return (focused.cwd, focused.pid)
+    }
+
+    private struct ProcessEntry {
+        let pid: pid_t
+        let ppid: pid_t
+        let tty: String
+        let comm: String
+    }
+
+    /// Capture pid/ppid/tty/comm for every process in a single `ps` invocation.
+    private static func snapshotProcessesWithTty() -> [ProcessEntry] {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/ps")
+        process.arguments = ["-axo", "pid=,ppid=,tty=,comm="]
+
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+
+        do {
+            try process.run()
+            // Drain before waiting — `ps -ax` output exceeds the 64KB pipe
+            // buffer on busy systems, and waiting first would deadlock.
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
+
+            guard let output = String(data: data, encoding: .utf8) else {
+                return []
+            }
+
+            var entries: [ProcessEntry] = []
+            entries.reserveCapacity(256)
+
+            for rawLine in output.split(separator: "\n") {
+                let line = rawLine.trimmingCharacters(in: .whitespaces)
+                if line.isEmpty { continue }
+                let parts = line.split(separator: " ", maxSplits: 3, omittingEmptySubsequences: true)
+                if parts.count < 4 { continue }
+                guard let pid = Int32(parts[0]),
+                      let ppid = Int32(parts[1]) else { continue }
+                let tty = parts[2] == "??" ? "" : String(parts[2])
+                entries.append(ProcessEntry(pid: pid, ppid: ppid, tty: tty, comm: String(parts[3])))
+            }
+
+            return entries
+        } catch {
+            return []
+        }
+    }
+
+    private static func mtimeForTty(_ tty: String) -> TimeInterval? {
+        let path = tty.hasPrefix("/dev/") ? tty : "/dev/\(tty)"
+        guard let attrs = try? FileManager.default.attributesOfItem(atPath: path),
+              let modDate = attrs[.modificationDate] as? Date else {
+            return nil
+        }
+        return modDate.timeIntervalSince1970
     }
 
     /// Get CWD from Ghostty terminal (wrapper for getNativeTerminalDirectory)
