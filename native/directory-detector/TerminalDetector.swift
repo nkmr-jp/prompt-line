@@ -206,7 +206,11 @@ extension DirectoryDetector {
                 guard let pid = Int32(parts[0]),
                       let ppid = Int32(parts[1]) else { continue }
                 let tty = parts[2] == "??" ? "" : String(parts[2])
-                entries.append(ProcessEntry(pid: pid, ppid: ppid, tty: tty, comm: String(parts[3])))
+                // `ps` pads each column to a fixed width, so the comm slice
+                // can carry a leading space (e.g. " -zsh"). Trim before use —
+                // otherwise isShellCommand misses WezTerm's "-zsh" entries.
+                let comm = parts[3].trimmingCharacters(in: .whitespaces)
+                entries.append(ProcessEntry(pid: pid, ppid: ppid, tty: tty, comm: comm))
             }
 
             return entries
