@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.35.2](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.35.1...prompt-line-v0.35.2) (2026-04-30)
+
+
+### Bug Fixes
+
+* **directory:** correctly detect CWD on Ghostty pane switch ([#375](https://github.com/nkmr-jp/prompt-line/issues/375)) ([5b5c995](https://github.com/nkmr-jp/prompt-line/commit/5b5c995534285d222c6aab732ad763103d3c943b))
+
 ## [0.35.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.35.0...prompt-line-v0.35.1) (2026-04-30)
 
 
