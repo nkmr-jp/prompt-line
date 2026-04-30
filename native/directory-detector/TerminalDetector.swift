@@ -158,21 +158,41 @@ extension DirectoryDetector {
                 return (nil, nil)
             }
 
-            let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
+            // Step 4: Pick the shell whose tty was most recently active.
+            // The pty device's mtime updates on read/write activity, so it tracks the
+            // tab/window the user just interacted with. AX APIs only expose Ghostty's
+            // focused window title (no pty mapping), so tty mtime is what lets us
+            // resolve focus across multiple terminal windows/tabs.
+            struct ShellCandidate {
+                let pid: pid_t
+                let cwd: String
+                let ttyMtime: TimeInterval
+            }
 
-            // Step 4: Check CWD of each shell, prefer non-home directories
-            for shellPid in terminalShells.prefix(5) {
-                if let cwd = getCwdFromPid(shellPid), cwd != homeDir {
-                    return (cwd, shellPid)
+            var candidates: [ShellCandidate] = []
+            for shellPid in terminalShells.prefix(10) {
+                guard let cwd = getCwdFromPid(shellPid) else { continue }
+                let mtime = getTtyModTime(for: shellPid) ?? 0
+                candidates.append(ShellCandidate(pid: shellPid, cwd: cwd, ttyMtime: mtime))
+            }
+
+            if candidates.isEmpty {
+                return (nil, nil)
+            }
+
+            // Sort shells with a known tty mtime first (newest first); shells without a
+            // resolvable tty fall back to pgrep order (already newest-pid-first).
+            candidates.sort { lhs, rhs in
+                if lhs.ttyMtime > 0 && rhs.ttyMtime > 0 {
+                    return lhs.ttyMtime > rhs.ttyMtime
                 }
+                if lhs.ttyMtime > 0 { return true }
+                if rhs.ttyMtime > 0 { return false }
+                return lhs.pid > rhs.pid
             }
 
-            // Fallback: return first shell even if in home directory
-            if let firstPid = terminalShells.first, let cwd = getCwdFromPid(firstPid) {
-                return (cwd, firstPid)
-            }
-
-            return (nil, nil)
+            let focused = candidates[0]
+            return (focused.cwd, focused.pid)
         } catch {
             return (nil, nil)
         }
