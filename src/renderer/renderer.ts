@@ -50,6 +50,15 @@ export class PromptLineRenderer {
   private defaultHintText: string = 'Multi-line text and Image supported'; // Default hint text
   // Queue for pending window-shown data to handle race condition with init()
   private pendingWindowData: WindowData | null = null;
+  // Queue for pending directory-data-updated payloads that arrive before init()
+  // finishes. Without this, the BG detection result silently no-ops because
+  // domManager.initializeElements has not yet wired up #hintText.
+  private pendingDirectoryData: DirectoryInfo | null = null;
+  // Tracks the in-flight handleWindowShown promise so a directory-data-updated
+  // event that arrives while window-shown is still awaiting its own internal
+  // IPC roundtrips waits for it to settle. Otherwise the BG result lands first
+  // and window-shown overwrites the hint with the cached/stale directory.
+  private inflightWindowShown: Promise<void> | null = null;
   // Stored handler reference for cleanup
   private customSearchUpdateHandler: (() => void) | null = null;
   private commandErrorHandler: ((e: Event) => void) | null = null;
@@ -137,6 +146,14 @@ export class PromptLineRenderer {
         console.debug('[PromptLineRenderer] Processing pending window-shown data');
         await this.directoryDataHandler.handleWindowShown(this.pendingWindowData);
         this.pendingWindowData = null;
+      }
+      // Then process any pending background-detection update. Order matters:
+      // window-shown sets the hint to the cached directory; the BG update
+      // overwrites it with the freshly detected one.
+      if (this.pendingDirectoryData) {
+        console.debug('[PromptLineRenderer] Processing pending directory-data-updated');
+        await this.directoryDataHandler.handleDirectoryDataUpdated(this.pendingDirectoryData);
+        this.pendingDirectoryData = null;
       }
     } catch (error) {
       rendererLogger.error('Failed to initialize renderer:', error);
@@ -520,24 +537,58 @@ export class PromptLineRenderer {
       return;
     }
 
-    try {
-      const lastChange = await electronAPI.customSearch.getLastChangeTimestamp();
-      if (lastChange > this.lastCustomSearchChangeTimestamp) {
-        this.lastCustomSearchChangeTimestamp = lastChange;
+    // Mark window-shown as in-flight so a concurrent directory-data-updated
+    // does not overtake us and get its hint write overwritten when the
+    // window-shown body resumes.
+    const work = (async (): Promise<void> => {
+      try {
+        const lastChange = await electronAPI.customSearch.getLastChangeTimestamp();
+        if (lastChange > this.lastCustomSearchChangeTimestamp) {
+          this.lastCustomSearchChangeTimestamp = lastChange;
+          this.agentSkillManager?.invalidateCache();
+          this.fileSearchManager?.clearAgentsCache();
+          this.agentSkillManager?.prefetchSkills();
+        }
+      } catch {
         this.agentSkillManager?.invalidateCache();
         this.fileSearchManager?.clearAgentsCache();
-        this.agentSkillManager?.prefetchSkills();
+        electronAPI.invoke('invalidate-custom-search').catch(() => {});
       }
-    } catch {
-      this.agentSkillManager?.invalidateCache();
-      this.fileSearchManager?.clearAgentsCache();
-      electronAPI.invoke('invalidate-custom-search').catch(() => {});
+      await this.directoryDataHandler.handleWindowShown(data);
+    })();
+    this.inflightWindowShown = work;
+    try {
+      await work;
+    } finally {
+      if (this.inflightWindowShown === work) this.inflightWindowShown = null;
     }
-
-    await this.directoryDataHandler.handleWindowShown(data);
   }
 
   private async handleDirectoryDataUpdated(data: DirectoryInfo): Promise<void> {
+    // Defer in two cases:
+    //   1. init() hasn't finished wiring up domManager — the hint write would
+    //      land on a null hintTextEl.
+    //   2. window-shown is still pending (init's queue has not consumed it
+    //      yet) — without this, the BG result lands first, then window-shown
+    //      runs and overwrites the hint with the cached/stale directory.
+    if (!this.initCompleted || this.pendingWindowData) {
+      console.debug('[PromptLineRenderer] Queueing directory-data-updated', {
+        initCompleted: this.initCompleted,
+        hasPendingWindow: !!this.pendingWindowData
+      });
+      this.pendingDirectoryData = data;
+      return;
+    }
+    // If window-shown is mid-flight (started before us but its body is still
+    // awaiting an internal IPC), wait for it to settle before applying the
+    // BG-detection update. Otherwise we'd be overwritten by its tail.
+    if (this.inflightWindowShown) {
+      try {
+        await this.inflightWindowShown;
+      } catch {
+        // window-shown errors are logged elsewhere; we just need ordering
+      }
+    }
     await this.directoryDataHandler.handleDirectoryDataUpdated(data);
   }
 
