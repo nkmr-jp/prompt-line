@@ -193,18 +193,29 @@ class DirectoryDetector {
 
         // Check for native terminals (Ghostty, Warp, WezTerm) with process-based detection
         if isNativeTerminal(bundleId) {
-            let (directory, shellPid) = getNativeTerminalDirectory(appPid: appPid)
-
-            // Determine the method name based on the terminal
+            let directory: String?
+            let shellPid: pid_t?
             let methodName: String
-            if isGhostty(bundleId) {
-                methodName = "ghostty-process"
-            } else if isWarp(bundleId) {
-                methodName = "warp-process"
-            } else if isWezTerm(bundleId) {
-                methodName = "wezterm-process"
+
+            if isWezTerm(bundleId) {
+                // WezTerm exposes a CLI that reports the focused pane directly,
+                // which is much more reliable than tty mtime — background panes
+                // redraw their prompts and skew mtime away from the focused one.
+                let result = getWezTermDirectory(appPid: appPid)
+                directory = result.directory
+                shellPid = result.shellPid
+                methodName = result.usedCli ? "wezterm-cli" : "wezterm-process"
             } else {
-                methodName = "native-terminal-process"
+                let result = getNativeTerminalDirectory(appPid: appPid)
+                directory = result.directory
+                shellPid = result.shellPid
+                if isGhostty(bundleId) {
+                    methodName = "ghostty-process"
+                } else if isWarp(bundleId) {
+                    methodName = "warp-process"
+                } else {
+                    methodName = "native-terminal-process"
+                }
             }
 
             if let cwd = directory {

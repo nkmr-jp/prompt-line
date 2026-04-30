@@ -238,8 +238,102 @@ extension DirectoryDetector {
         return getNativeTerminalDirectory(appPid: appPid)
     }
 
-    /// Get CWD from WezTerm terminal (wrapper for getNativeTerminalDirectory)
-    static func getWezTermDirectory(appPid: pid_t) -> (directory: String?, shellPid: pid_t?) {
-        return getNativeTerminalDirectory(appPid: appPid)
+    /// Get CWD from WezTerm terminal.
+    /// Prefers `wezterm cli` because tty mtime is unreliable on WezTerm —
+    /// background panes/tabs keep redrawing prompts (starship, themes), so
+    /// the focused pane often has neither the newest mtime nor a clear lead.
+    /// Falls back to the generic process-tree detector if the CLI fails.
+    static func getWezTermDirectory(appPid: pid_t) -> (directory: String?, shellPid: pid_t?, usedCli: Bool) {
+        if let result = getWezTermDirectoryViaCli() {
+            return (result.directory, result.shellPid, true)
+        }
+        let fallback = getNativeTerminalDirectory(appPid: appPid)
+        return (fallback.directory, fallback.shellPid, false)
+    }
+
+    /// Ask the running WezTerm GUI which pane is focused via `wezterm cli`.
+    /// Returns nil if the CLI is unavailable, the daemon is not reachable,
+    /// or the JSON shape is unexpected — callers should fall back.
+    private static func getWezTermDirectoryViaCli() -> (directory: String, shellPid: pid_t?)? {
+        guard let focusedPaneId = runWezTermCli(args: ["cli", "list-clients", "--format", "json"])
+            .flatMap({ parseFirstFocusedPaneId(from: $0) }) else {
+            return nil
+        }
+
+        guard let paneListData = runWezTermCli(args: ["cli", "list", "--format", "json"]),
+              let panes = (try? JSONSerialization.jsonObject(with: paneListData)) as? [[String: Any]],
+              let pane = panes.first(where: { ($0["pane_id"] as? Int) == focusedPaneId }),
+              let cwdString = pane["cwd"] as? String,
+              let directory = pathFromCwdString(cwdString) else {
+            return nil
+        }
+
+        let shellPid: pid_t? = (pane["tty_name"] as? String).flatMap { tty in
+            getShellPidFromTty(tty)
+        }
+
+        return (directory, shellPid)
+    }
+
+    /// Locate the WezTerm CLI. Prefer the binary the user already has on
+    /// PATH; fall back to the bundled binary so we still work when PATH
+    /// isn't inherited (e.g. Electron launched from Finder).
+    private static func wezTermCliPath() -> String? {
+        let candidates = [
+            "/opt/homebrew/bin/wezterm",
+            "/usr/local/bin/wezterm",
+            "/Applications/WezTerm.app/Contents/MacOS/wezterm"
+        ]
+        let fileManager = FileManager.default
+        return candidates.first { fileManager.isExecutableFile(atPath: $0) }
+    }
+
+    private static func runWezTermCli(args: [String]) -> Data? {
+        guard let cliPath = wezTermCliPath() else { return nil }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: cliPath)
+        process.arguments = args
+
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+
+        do {
+            try process.run()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
+            guard process.terminationStatus == 0 else { return nil }
+            return data
+        } catch {
+            return nil
+        }
+    }
+
+    private static func parseFirstFocusedPaneId(from data: Data) -> Int? {
+        guard let clients = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] else {
+            return nil
+        }
+        // WezTerm reports one client per connected GUI; the GUI process is
+        // what we care about. Take the first entry that has a focused pane.
+        for client in clients {
+            if let paneId = client["focused_pane_id"] as? Int {
+                return paneId
+            }
+        }
+        return nil
+    }
+
+    /// Convert a `cwd` string from `wezterm cli list` into a filesystem path.
+    /// WezTerm reports either a `file://` URL (with percent-encoding) or, on
+    /// older builds, a bare path.
+    private static func pathFromCwdString(_ cwd: String) -> String? {
+        if cwd.hasPrefix("file://") {
+            if let url = URL(string: cwd), url.isFileURL {
+                return url.path
+            }
+            return nil
+        }
+        return cwd.isEmpty ? nil : cwd
     }
 }
