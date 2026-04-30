@@ -161,9 +161,13 @@ export class DirectoryDataHandler {
             this.callbacks.updateHintText(formattedPath);
           }
 
-          // Only save directory to draft if it's NOT already from draft
-          // (to avoid redundant IPC call when directory is from draft fallback)
-          if (!data.directoryData.fromDraft) {
+          // Only save directory to draft when this came from a fresh detection.
+          // Skip writes for cache hits and draft fallbacks: the user may have
+          // switched tabs/panes since the cache was written, so we must let the
+          // background detection's `directory-data-updated` event provide the
+          // authoritative value. Otherwise a stale cache directory races the
+          // detection result and can overwrite it.
+          if (!data.directoryData.fromDraft && !data.directoryData.fromCache) {
             await electronAPI.invoke('set-draft-directory', data.directoryData.directory);
           }
         }

@@ -195,11 +195,26 @@ class DirectoryDetector {
   }
 
   /**
-   * Notify renderer of directory data update
+   * Notify renderer of directory data update.
+   *
+   * If the renderer is still loading (a fresh BrowserWindow was just created
+   * — e.g. when WindowManager recreates on a desktop-space signature change)
+   * the IPC listener may not be registered yet, so `webContents.send` would
+   * silently drop the event. In that case we defer the send until
+   * `did-finish-load`, which fires after the renderer registers its handlers.
    */
   private notifyRenderer(inputWindow: BrowserWindow, data: DirectoryInfo): void {
-    if (!inputWindow.isDestroyed()) {
-      inputWindow.webContents.send('directory-data-updated', data);
+    if (inputWindow.isDestroyed()) return;
+    const wc = inputWindow.webContents;
+    const send = (): void => {
+      if (!inputWindow.isDestroyed()) {
+        wc.send('directory-data-updated', data);
+      }
+    };
+    if (wc.isLoading()) {
+      wc.once('did-finish-load', send);
+    } else {
+      send();
     }
   }
 
