@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.35.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.35.0...prompt-line-v0.35.1) (2026-04-30)
+
+
+### Miscellaneous Chores
+
+* **deps:** bump postcss from 8.5.8 to 8.5.12 in the npm_and_yarn group across 1 directory ([#373](https://github.com/nkmr-jp/prompt-line/issues/373)) ([3274f2e](https://github.com/nkmr-jp/prompt-line/commit/3274f2e5accd81343e4b50a0e377fcefcf2dbb30))
+
 ## [0.35.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.34.3...prompt-line-v0.35.0) (2026-04-29)
 
 
