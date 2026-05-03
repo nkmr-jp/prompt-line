@@ -35,8 +35,13 @@ const MAX_PASTE_TEXT_LENGTH_BYTES = 1024 * 1024; // 1MB limit for paste text
 // text into alternating text/path segments lets each path arrive as its
 // own paste so the conversion fires for each one.
 const IMAGE_PATH_REGEX = /(\S+\.(?:png|jpg|jpeg|gif|webp))/gi;
-const SEGMENT_PASTE_DELAY_MS = 80;
-const CLIPBOARD_SETTLE_DELAY_MS = 30;
+// Time between segments. Empirically, anything below ~30ms causes the next
+// paste to occasionally be merged into the previous one by Claude Code.
+const SEGMENT_PASTE_DELAY_MS = 40;
+// Time after writing the clipboard before triggering the AppleScript paste.
+// macOS NSPasteboard updates are synchronous from Electron's perspective but
+// the receiving terminal needs a moment to observe the change.
+const CLIPBOARD_SETTLE_DELAY_MS = 10;
 
 export interface PasteSegment {
   type: 'text' | 'image' | 'newline';
