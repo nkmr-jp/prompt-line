@@ -23,10 +23,12 @@ vi.mock('../../src/utils/utils', () => ({
 vi.mock('../../src/utils/native-tools/app-detection', () => ({
   isITerm2: vi.fn(() => false),
   isCmux: vi.fn(() => false),
+  isGhostty: vi.fn(() => false),
+  isWezTerm: vi.fn(() => false),
   getITermSessionId: vi.fn()
 }));
 
-import { splitTextByImagePaths, splitTextForCmuxTerminal } from '../../src/handlers/paste-handler';
+import { splitTextByImagePaths, splitTextForClaudeCodeTerminal } from '../../src/handlers/paste-handler';
 
 describe('splitTextByImagePaths', () => {
   it('returns single text segment when no image path is present', () => {
@@ -89,9 +91,9 @@ describe('splitTextByImagePaths', () => {
   });
 });
 
-describe('splitTextForCmuxTerminal', () => {
+describe('splitTextForClaudeCodeTerminal', () => {
   it('splits text + newline + image into three segments', () => {
-    const segments = splitTextForCmuxTerminal('テスト\n/Users/nkmr/.prompt-line/images/foo.png');
+    const segments = splitTextForClaudeCodeTerminal('テスト\n/Users/nkmr/.prompt-line/images/foo.png');
     expect(segments).toEqual([
       { type: 'text', content: 'テスト' },
       { type: 'newline', content: '' },
@@ -100,7 +102,7 @@ describe('splitTextForCmuxTerminal', () => {
   });
 
   it('keeps multiple newlines as multiple newline segments', () => {
-    const segments = splitTextForCmuxTerminal('a\n\nb');
+    const segments = splitTextForClaudeCodeTerminal('a\n\nb');
     expect(segments).toEqual([
       { type: 'text', content: 'a' },
       { type: 'newline', content: '' },
@@ -110,12 +112,12 @@ describe('splitTextForCmuxTerminal', () => {
   });
 
   it('handles a single image path with no surrounding text', () => {
-    const segments = splitTextForCmuxTerminal('/Users/x/foo.png');
+    const segments = splitTextForClaudeCodeTerminal('/Users/x/foo.png');
     expect(segments).toEqual([{ type: 'image', content: '/Users/x/foo.png' }]);
   });
 
   it('handles trailing newline by emitting only the newline segment', () => {
-    const segments = splitTextForCmuxTerminal('hello\n');
+    const segments = splitTextForClaudeCodeTerminal('hello\n');
     expect(segments).toEqual([
       { type: 'text', content: 'hello' },
       { type: 'newline', content: '' }
@@ -123,7 +125,7 @@ describe('splitTextForCmuxTerminal', () => {
   });
 
   it('handles leading newline correctly', () => {
-    const segments = splitTextForCmuxTerminal('\n/path.png');
+    const segments = splitTextForClaudeCodeTerminal('\n/path.png');
     expect(segments).toEqual([
       { type: 'newline', content: '' },
       { type: 'image', content: '/path.png' }
@@ -131,7 +133,7 @@ describe('splitTextForCmuxTerminal', () => {
   });
 
   it('intersperses newlines between image paths on separate lines', () => {
-    const segments = splitTextForCmuxTerminal('text\n/a.png\nmore\n/b.jpg');
+    const segments = splitTextForClaudeCodeTerminal('text\n/a.png\nmore\n/b.jpg');
     expect(segments).toEqual([
       { type: 'text', content: 'text' },
       { type: 'newline', content: '' },
