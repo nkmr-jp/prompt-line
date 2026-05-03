@@ -260,9 +260,6 @@ export interface ElectronAPI {
   shell: {
     openExternal: (url: string) => Promise<IPCResult>;
   };
-  shortcut: {
-    exec: (command: string) => Promise<IPCResult>;
-  };
   codeSearch: {
     checkRg: () => Promise<RgCheckResult>;
     getSupportedLanguages: () => Promise<{ languages: SupportedLanguage[] }>;

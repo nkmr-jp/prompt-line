@@ -1,6 +1,6 @@
 # IPC Handlers Module
 
-Central communication bridge between main and renderer processes. 9 specialized handler files, 53 IPC channels total.
+Central communication bridge between main and renderer processes. 9 specialized handler files, 52 IPC channels total.
 
 ## File Structure
 
@@ -10,7 +10,7 @@ Central communication bridge between main and renderer processes. 9 specialized 
 | `paste-handler.ts` | Text/image paste with security validation |
 | `history-draft-handler.ts` | History CRUD, draft management, @path caching |
 | `window-handler.ts` | Window visibility and focus control |
-| `system-handler.ts` | App info, config, settings retrieval, `run=` shortcut command execution |
+| `system-handler.ts` | App info, config, settings retrieval |
 | `custom-search-handler.ts` | Slash commands, agent selection, plugin hot reload, source file hot reload, shell command execution |
 | `file-handler.ts` | File operations, external URL handling |
 | `usage-history-handler.ts` | Usage tracking for files, symbols, agents |

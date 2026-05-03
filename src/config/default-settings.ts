@@ -45,8 +45,7 @@ export const defaultSettings: UserSettings = {
    *     Cmd+Shift+Space: main    # Show/hide the input window (global)
    *     Cmd+Enter: paste          # Paste text and close window
    *     Escape: close             # Close window without pasting
-   *     # Ctrl+m: "input=@md:"           # Custom action (inserts text into input field)
-   *     # Ctrl+e: "run=code {projectdir}" # Custom action (runs shell command in CWD)
+   *     # Ctrl+m: "input=@md:"   # Custom action (inserts text into input field)
    */
   shortcuts: {
     main: 'Cmd+Shift+Space',   // Show/hide the input window (global hotkey)

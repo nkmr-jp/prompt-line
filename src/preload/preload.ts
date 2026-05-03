@@ -87,8 +87,6 @@ const ALLOWED_CHANNELS = [
   'get-custom-search-last-change',
   // Custom search command execution
   'execute-custom-search-command',
-  // Shortcut "run=" command execution
-  'execute-shortcut-command',
   // Settings update notification channel
   'settings-updated',
   // Custom search update notification channel
@@ -358,13 +356,6 @@ const electronAPI: ElectronAPI = {
   shell: {
     openExternal: async (url: string): Promise<{ success: boolean; error?: string }> => {
       return ipcRenderer.invoke('open-external-url', url);
-    }
-  },
-
-  // Shortcut "run=" command execution
-  shortcut: {
-    exec: async (command: string): Promise<IPCResult> => {
-      return ipcRenderer.invoke('execute-shortcut-command', command);
     }
   },
 

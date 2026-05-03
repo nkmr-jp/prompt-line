@@ -16,7 +16,6 @@ export class ShortcutHandler {
   private fileSearchManager: { isActive(): boolean } | null = null;
   private userSettings: UserSettings | null = null;
   private customSearchShortcuts: Array<{ shortcut: string; triggerText: string }> = [];
-  private runShortcuts: Array<{ shortcut: string; command: string }> = [];
   private onTextPaste: (text: string) => Promise<void>;
   private onWindowHide: () => Promise<void>;
   private onTabKeyInsert: (e: KeyboardEvent) => void;
@@ -26,7 +25,6 @@ export class ShortcutHandler {
   private onUndo: () => boolean;
   private onSaveDraftToHistory: () => Promise<void>;
   private onCustomSearchActivate: (triggerText: string) => void;
-  private onRunCommand: (command: string) => Promise<void>;
 
   constructor(callbacks: {
     onTextPaste: (text: string) => Promise<void>;
@@ -38,7 +36,6 @@ export class ShortcutHandler {
     onUndo: () => boolean;
     onSaveDraftToHistory: () => Promise<void>;
     onCustomSearchActivate: (triggerText: string) => void;
-    onRunCommand: (command: string) => Promise<void>;
   }) {
     this.onTextPaste = callbacks.onTextPaste;
     this.onWindowHide = callbacks.onWindowHide;
@@ -49,7 +46,6 @@ export class ShortcutHandler {
     this.onUndo = callbacks.onUndo;
     this.onSaveDraftToHistory = callbacks.onSaveDraftToHistory;
     this.onCustomSearchActivate = callbacks.onCustomSearchActivate;
-    this.onRunCommand = callbacks.onRunCommand;
   }
 
   public setTextarea(textarea: HTMLTextAreaElement | null): void {
@@ -74,10 +70,6 @@ export class ShortcutHandler {
 
   public setCustomSearchShortcuts(shortcuts: Array<{ shortcut: string; triggerText: string }>): void {
     this.customSearchShortcuts = shortcuts;
-  }
-
-  public setRunShortcuts(shortcuts: Array<{ shortcut: string; command: string }>): void {
-    this.runShortcuts = shortcuts;
   }
 
   public setIsComposing(isComposing: boolean): void {
@@ -134,11 +126,6 @@ export class ShortcutHandler {
 
     // Handle custom search shortcuts (e.g., Ctrl+g → @ghq:)
     if (this.handleCustomSearchShortcuts(e)) {
-      return true;
-    }
-
-    // Handle "run=" shortcuts (e.g., Ctrl+e → run shell command)
-    if (await this.handleRunShortcuts(e)) {
       return true;
     }
 
@@ -302,27 +289,6 @@ export class ShortcutHandler {
       if (matchesShortcutString(e, shortcut)) {
         e.preventDefault();
         this.onCustomSearchActivate(triggerText);
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  private async handleRunShortcuts(e: KeyboardEvent): Promise<boolean> {
-    if (this.runShortcuts.length === 0) {
-      return false;
-    }
-
-    // Skip if IME is active
-    if (this.isComposing || e.isComposing) {
-      return false;
-    }
-
-    for (const { shortcut, command } of this.runShortcuts) {
-      if (matchesShortcutString(e, shortcut)) {
-        e.preventDefault();
-        await this.onRunCommand(command);
         return true;
       }
     }

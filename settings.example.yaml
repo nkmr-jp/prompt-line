@@ -17,7 +17,6 @@ shortcuts:
   Cmd+f: search                     # Enable search mode in history
   # Ctrl+m: "input=@md:"  # Custom action (e.g. input text field "input=xxx")
   # Ctrl+g: "input=@ghq:"
-  # Ctrl+e: "run=code {projectdir}"  # Run shell command (template variable: {projectdir})
 
 # Plugins (refs: `prompt-line-plugin help`)
 #plugins:

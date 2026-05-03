@@ -540,7 +540,6 @@ function buildShortcutsSection(settings: UserSettings): string {
     `${pad(`  ${s.search}: search`)}# Enable search mode in history`,
     `  # Ctrl+m: "input=@md:"  # Custom action (e.g. input text field "input=xxx")`,
     `  # Ctrl+g: "input=@ghq:"`,
-    `  # Ctrl+e: "run=code {projectdir}"  # Run shell command (template variable: {projectdir})`,
   ];
   return lines.join('\n');
 }
