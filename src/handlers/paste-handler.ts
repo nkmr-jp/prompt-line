@@ -147,11 +147,12 @@ class PasteHandler {
 
   /**
    * Execute paste operation with proper app handling.
-   * cmux/Ghostty go via AppleScript `paste_from_clipboard` (text from clipboard);
-   * WezTerm via `wezterm cli send-text` (text from argument); others via Cmd+V.
-   * For Claude Code-capable terminals, paste the text in alternating
-   * text/image-path segments so Claude Code converts each path to an
-   * `[Image #N]` token (it drops paths when mixed with other text in one paste).
+   * cmux goes via AppleScript `paste_from_clipboard` (Cmd+V CGEvent doesn't
+   * reach its embedded Ghostty PTY); Ghostty/WezTerm/iTerm2/others all use
+   * keyboard-simulator Cmd+V CGEvent. For cmux/Ghostty/WezTerm + Claude Code,
+   * paste the text in alternating text/image-path segments so Claude Code
+   * converts each path to an `[Image #N]` token (it drops paths when mixed
+   * with other text in a single paste).
    */
   private async executePasteOperation(previousApp: AppInfo | string | null, text: string): Promise<PasteResult> {
     if (previousApp && config.platform.isMac) {
@@ -185,11 +186,10 @@ class PasteHandler {
   }
 
   /**
-   * Paste segments one by one. Image paths and text runs go through the
-   * normal paste path (refreshing the clipboard each time so Claude Code
-   * sees each image path as its own paste and converts it to `[Image #N]`).
-   * `newline` segments are sent as Shift+Enter keystrokes so Claude Code
-   * inserts a soft newline instead of treating it as submit.
+   * Paste segments one by one, refreshing the clipboard between each so
+   * Claude Code sees each image path as its own paste and converts it to
+   * `[Image #N]` (mixing a path with surrounding text in one paste makes
+   * Claude Code drop the surrounding text).
    */
   private async pasteSegments(previousApp: AppInfo | string, segments: PasteSegment[]): Promise<void> {
     for (let i = 0; i < segments.length; i++) {
