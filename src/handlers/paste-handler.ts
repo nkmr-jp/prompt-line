@@ -92,9 +92,8 @@ class PasteHandler {
 
   /**
    * Execute paste operation with proper app handling.
-   * For cmux/Ghostty, the text is sent directly via AppleScript `input text`
-   * to bypass NSPasteboard; for other apps, the system clipboard set earlier
-   * by setClipboardAsync drives the paste.
+   * cmux/Ghostty go via AppleScript `paste_from_clipboard` (text from clipboard);
+   * WezTerm via `wezterm cli send-text` (text from argument); others via Cmd+V.
    */
   private async executePasteOperation(previousApp: AppInfo | string | null, text: string): Promise<PasteResult> {
     if (previousApp && config.platform.isMac) {
