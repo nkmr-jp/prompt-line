@@ -34,15 +34,34 @@ shortcuts:
   Ctrl+k: historyPrev       # 前の履歴項目へ移動
   Cmd+f: search             # 履歴の検索モードを有効化
   # カスタムアクション
-  Ctrl+m: "input=@md:"      # 入力欄に @md: を挿入
-  Ctrl+g: "input=@ghq:"     # 入力欄に @ghq: を挿入
+  Ctrl+m: "input=@md:"               # 入力欄に @md: を挿入
+  Ctrl+g: "input=@ghq:"              # 入力欄に @ghq: を挿入
+  Ctrl+e: "run=code {projectdir}"    # 現在のプロジェクトを VS Code で開く
 ```
 
 **組み込みアクション:** `main`, `paste`, `close`, `historyNext`, `historyPrev`, `search`
 
-**カスタムアクション:** `input=<テキスト>` — 入力欄にテキストを挿入して検索をトリガー。
+**カスタムアクション:**
+
+- `input=<テキスト>` — 入力欄にテキストを挿入して検索をトリガー。
+- `run=<シェルコマンド>` — 現在のプロジェクトディレクトリでシェルコマンドを実行し、ウィンドウを閉じる。テンプレート変数 `{projectdir}`（検出された CWD）が利用でき、shell-quote されるためスペースを含むパスも安全。
 
 **使用可能な修飾キー:** `Cmd`, `Ctrl`, `Alt`, `Shift`
+
+### `run=` の使用例
+
+```yaml
+shortcuts:
+  Ctrl+e: "run=code {projectdir}"          # VS Code
+  Ctrl+i: "run=open -a iTerm {projectdir}" # iTerm
+  Ctrl+f: "run=open {projectdir}"          # Finder
+```
+
+メモ:
+
+- コマンドは fire-and-forget で実行され、タイムアウトは 30 秒。IPC のラウンドトリップ完了後にウィンドウは無条件で閉じる（成否を問わない）。エラーは `~/.prompt-line/app.log` に記録される。
+- 実行できるのは `settings.yaml` で `run=` アクションとして定義済みのコマンドのみ（メインプロセスで照合される）。
+- PATH は macOS の標準的な場所（`/opt/homebrew/bin`、`/usr/local/bin` など）と `additionalPaths` で設定したパスで補強される。
 
 ## プラグイン
 

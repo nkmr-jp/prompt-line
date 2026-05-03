@@ -34,15 +34,34 @@ shortcuts:
   Ctrl+k: historyPrev       # Navigate to previous history item
   Cmd+f: search             # Enable search mode in history
   # Custom actions
-  Ctrl+m: "input=@md:"      # Insert @md: into input field
-  Ctrl+g: "input=@ghq:"     # Insert @ghq: into input field
+  Ctrl+m: "input=@md:"               # Insert @md: into input field
+  Ctrl+g: "input=@ghq:"              # Insert @ghq: into input field
+  Ctrl+e: "run=code {projectdir}"    # Open current project in VS Code
 ```
 
 **Built-in actions:** `main`, `paste`, `close`, `historyNext`, `historyPrev`, `search`
 
-**Custom actions:** `input=<text>` — inserts text into the input field and triggers search.
+**Custom actions:**
+
+- `input=<text>` — inserts text into the input field and triggers search.
+- `run=<shell command>` — runs a shell command in the active project directory, then closes the window. Supports the `{projectdir}` template variable (the detected CWD), which is shell-quoted so paths with spaces are safe.
 
 **Available modifiers:** `Cmd`, `Ctrl`, `Alt`, `Shift`
+
+### `run=` examples
+
+```yaml
+shortcuts:
+  Ctrl+e: "run=code {projectdir}"          # VS Code
+  Ctrl+i: "run=open -a iTerm {projectdir}" # iTerm
+  Ctrl+f: "run=open {projectdir}"          # Finder
+```
+
+Notes:
+
+- The command runs fire-and-forget with a 30 s timeout. The window closes after the IPC roundtrip regardless of success — errors are logged to `~/.prompt-line/app.log`.
+- Only commands explicitly defined as `run=` actions in `settings.yaml` can be executed (validated in the main process).
+- PATH is augmented with common macOS locations (`/opt/homebrew/bin`, `/usr/local/bin`, etc.) and any `additionalPaths` you have configured.
 
 ## Plugins
 
