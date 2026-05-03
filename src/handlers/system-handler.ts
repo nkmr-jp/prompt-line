@@ -184,6 +184,16 @@ class SystemHandler {
       return { success: false, error: 'Invalid command' };
     }
 
+    // Authorize: command must match a configured "run=" shortcut in settings.yaml.
+    // This prevents a compromised renderer from executing arbitrary shell commands
+    // (matches the pattern used by execute-custom-search-command).
+    const customShortcuts = this.settingsManager.getSettings().customShortcuts ?? [];
+    const authorized = customShortcuts.some(s => s.action === `run=${command}`);
+    if (!authorized) {
+      logger.warn('Unauthorized shortcut command blocked', { commandLength: command.length });
+      return { success: false, error: 'Command not authorized' };
+    }
+
     try {
       const projectdir = this.directoryManager.getDirectory() ?? '';
       // shellQuote is applied only to resolved template variable values (e.g. {projectdir}),
