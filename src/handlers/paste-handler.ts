@@ -147,13 +147,14 @@ class PasteHandler {
 
   private async handlePasteText(_event: IpcMainInvokeEvent, text: string): Promise<PasteResult> {
     try {
-      logger.info('Paste text requested', { length: text.length });
+      const previousApp = await this.getPreviousAppAsync();
+      const appName = this.extractAppName(previousApp);
+      const previousBundleId = previousApp && typeof previousApp === 'object' ? previousApp.bundleId : null;
+      logger.info('Paste text requested', { length: text.length, appName, bundleId: previousBundleId });
 
       const validationError = this.validatePasteInput(text);
       if (validationError) return validationError;
 
-      const previousApp = await this.getPreviousAppAsync();
-      const appName = this.extractAppName(previousApp);
       const directory = this.directoryManager.getDirectory() || undefined;
       await Promise.all([
         (async () => {
@@ -274,7 +275,11 @@ class PasteHandler {
 
       const buffer = image.toPNG();
       await fs.writeFile(pathValidation.normalizedPath, buffer, { mode: 0o600 });
-      clipboard.writeText('');
+      // Use clear() not writeText('') — writeText only replaces the text type,
+      // leaving image formats (TIFF/PNG/AVIF…) on NSPasteboard. Stale image
+      // data prevents subsequent paste-from-clipboard calls from delivering
+      // the prompt text.
+      clipboard.clear();
 
       logger.info('Image saved successfully', { filepath: pathValidation.normalizedPath, relativePrefix });
       const result: { success: boolean; path: string; relativePath?: string } = { success: true, path: pathValidation.normalizedPath };
@@ -289,6 +294,11 @@ class PasteHandler {
   private async setClipboardAsync(text: string): Promise<void> {
     return new Promise((resolve) => {
       try {
+        // Clear all pasteboard types before writing text. clipboard.writeText
+        // alone may leave image formats from a prior copy on NSPasteboard,
+        // which can cause Cmd+V or paste_from_clipboard to deliver stale
+        // image data to the target terminal instead of the prompt text.
+        clipboard.clear();
         clipboard.writeText(text);
         resolve();
       } catch (error) {
