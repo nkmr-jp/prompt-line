@@ -12,7 +12,7 @@ import {
   SecureErrors
 } from '../utils/utils';
 import { sendShiftEnterToFocusedApp } from '../utils/native-tools/paste-operations';
-import { isITerm2, getITermSessionId, isCmux, isGhostty, isWezTerm } from '../utils/native-tools/app-detection';
+import { isITerm2, getITermSessionId, isCmux } from '../utils/native-tools/app-detection';
 import type WindowManager from '../managers/window';
 import type DraftManager from '../managers/draft-manager';
 import type DirectoryManager from '../managers/directory-manager';
@@ -72,7 +72,7 @@ export function splitTextByImagePaths(text: string): PasteSegment[] {
 // Newlines become explicit `newline` segments so the paster can replace them
 // with Shift+Enter keystrokes — Claude Code's TUI treats a pasted newline as
 // submit, but Shift+Enter inserts a soft newline.
-export function splitTextForClaudeCodeTerminal(text: string): PasteSegment[] {
+export function splitTextForCmuxTerminal(text: string): PasteSegment[] {
   const result: PasteSegment[] = [];
   const lines = text.split('\n');
   lines.forEach((line, idx) => {
@@ -88,8 +88,12 @@ export function splitTextForClaudeCodeTerminal(text: string): PasteSegment[] {
   return result;
 }
 
-function isClaudeCodeTerminal(app: AppInfo | string | null): boolean {
-  return isCmux(app) || isGhostty(app) || isWezTerm(app);
+// Only cmux needs segmented paste because (a) it can't use Cmd+V CGEvent
+// (parent NSApp consumes it) and (b) when paste goes through cmux's
+// AppleScript bridge, Claude Code interprets pasted newlines as submit.
+// Ghostty/WezTerm/iTerm2 work fine with the standard Cmd+V CGEvent path.
+function isCmuxTerminal(app: AppInfo | string | null): boolean {
+  return isCmux(app);
 }
 
 class PasteHandler {
@@ -165,14 +169,14 @@ class PasteHandler {
    */
   private async executePasteOperation(previousApp: AppInfo | string | null, text: string): Promise<PasteResult> {
     if (previousApp && config.platform.isMac) {
-      if (isClaudeCodeTerminal(previousApp) && IMAGE_PATH_REGEX.test(text)) {
+      if (isCmuxTerminal(previousApp) && IMAGE_PATH_REGEX.test(text)) {
         IMAGE_PATH_REGEX.lastIndex = 0;
-        const segments = splitTextForClaudeCodeTerminal(text);
+        const segments = splitTextForCmuxTerminal(text);
         await this.pasteSegments(previousApp, segments);
         return { success: true };
       }
       IMAGE_PATH_REGEX.lastIndex = 0;
-      await activateAndPasteWithNativeTool(previousApp, text);
+      await activateAndPasteWithNativeTool(previousApp);
       return { success: true };
     }
 
@@ -210,7 +214,7 @@ class PasteHandler {
         clipboard.clear();
         clipboard.writeText(segment.content);
         await sleep(CLIPBOARD_SETTLE_DELAY_MS);
-        await activateAndPasteWithNativeTool(previousApp, segment.content);
+        await activateAndPasteWithNativeTool(previousApp);
       }
       if (i < segments.length - 1) {
         await sleep(SEGMENT_PASTE_DELAY_MS);

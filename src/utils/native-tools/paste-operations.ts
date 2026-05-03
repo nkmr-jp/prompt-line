@@ -4,23 +4,16 @@ import { TIMEOUTS } from '../../constants';
 import { logger } from '../logger';
 import { sanitizeCommandArgument, isCommandArgumentSafe } from '../security';
 import { KEYBOARD_SIMULATOR_PATH } from './paths';
-import { isCmux, isGhostty, isWezTerm } from './app-detection';
+import { isCmux } from './app-detection';
 
-const WEZTERM_BINARY_PATH = '/Applications/WezTerm.app/Contents/MacOS/wezterm';
-
-// cmux (`CmuxPfAc`) and Ghostty (`GhstPfAc`) both expose `perform action`
-// with the `paste_from_clipboard` action string. We use this rather than
-// `input text` because `input text` does NOT wrap with bracketed paste
-// markers (`ESC[200~`/`ESC[201~`), causing TUI apps like Claude Code to
-// interpret embedded newlines as Enter and submit prematurely — chopping
-// off everything after the first newline. `paste_from_clipboard` is
-// equivalent to a real Cmd+V and goes through the terminal's standard
-// paste pipeline, which respects bracketed paste mode.
-//
-// The image-residue issue that motivated bypassing the clipboard is now
-// handled by `clipboard.clear()` in paste-handler.ts before each paste.
-const PASTE_FROM_CLIPBOARD_APPLESCRIPT = (appName: string): string =>
-  `tell application "${appName}"\n` +
+// cmux embeds Ghostty as a subprocess and the parent NSApplication consumes
+// Cmd+V CGEvents before they reach the focused PTY. We bypass keyboard-
+// simulator entirely and route activation + paste through cmux's AppleScript
+// dictionary, which forwards `paste_from_clipboard` to Ghostty's native
+// action handler. (Ghostty/WezTerm don't need this — Cmd+V CGEvent reaches
+// their PTY directly.)
+const CMUX_PASTE_APPLESCRIPT =
+  'tell application "cmux"\n' +
   '  activate\n' +
   '  perform action "paste_from_clipboard" on focused terminal of selected tab of front window\n' +
   'end tell';
@@ -73,17 +66,16 @@ export function pasteWithNativeTool(): Promise<void> {
   });
 }
 
-function pasteFromClipboardInTerminal(targetApp: 'cmux' | 'Ghostty'): Promise<void> {
+function pasteFromClipboardCmux(): Promise<void> {
   return new Promise((resolve, reject) => {
     const options = {
       timeout: TIMEOUTS.ACTIVATE_PASTE_TIMEOUT,
       killSignal: 'SIGTERM' as const
     };
 
-    const script = PASTE_FROM_CLIPBOARD_APPLESCRIPT(targetApp);
-    execFile('osascript', ['-e', script], options, (error, _stdout, stderr) => {
+    execFile('osascript', ['-e', CMUX_PASTE_APPLESCRIPT], options, (error, _stdout, stderr) => {
       if (error) {
-        logger.error(`${targetApp} AppleScript paste_from_clipboard failed:`, {
+        logger.error('cmux AppleScript paste_from_clipboard failed:', {
           error: error.message,
           code: error.code,
           signal: error.signal,
@@ -93,41 +85,6 @@ function pasteFromClipboardInTerminal(targetApp: 'cmux' | 'Ghostty'): Promise<vo
         return;
       }
       resolve();
-    });
-  });
-}
-
-// `wezterm cli send-text` reads text from stdin and sends it to the active
-// pane. It uses bracketed paste when the pane has the mode enabled, which is
-// what Claude Code and other TUI apps need to keep embedded newlines from
-// being treated as Enter.
-function pasteToWezTerm(text: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const options = {
-      timeout: TIMEOUTS.ACTIVATE_PASTE_TIMEOUT,
-      killSignal: 'SIGTERM' as const
-    };
-
-    execFile('osascript', ['-e', 'tell application "WezTerm" to activate'], { timeout: 1000, killSignal: 'SIGTERM' as const }, (activateErr) => {
-      if (activateErr) {
-        logger.warn('WezTerm activate failed (continuing with paste):', activateErr.message);
-      }
-
-      const proc = execFile(WEZTERM_BINARY_PATH, ['cli', 'send-text'], options, (error, _stdout, stderr) => {
-        if (error) {
-          logger.error('WezTerm cli send-text failed:', {
-            error: error.message,
-            code: error.code,
-            signal: error.signal,
-            stderr,
-            executable: WEZTERM_BINARY_PATH
-          });
-          reject(error);
-          return;
-        }
-        resolve();
-      });
-      proc.stdin?.end(text, 'utf8');
     });
   });
 }
@@ -154,7 +111,7 @@ export function sendShiftEnterToFocusedApp(): Promise<void> {
   });
 }
 
-export function activateAndPasteWithNativeTool(appInfo: AppInfo | string, text: string): Promise<void> {
+export function activateAndPasteWithNativeTool(appInfo: AppInfo | string): Promise<void> {
   return new Promise((resolve, reject) => {
     if (process.platform !== 'darwin') {
       reject(new Error('Native paste only supported on macOS'));
@@ -175,23 +132,12 @@ export function activateAndPasteWithNativeTool(appInfo: AppInfo | string, text: 
       return;
     }
 
-    // cmux/Ghostty: AppleScript `paste_from_clipboard` action runs through
-    // the terminal's standard paste pipeline and is wrapped in bracketed
-    // paste markers. WezTerm: `wezterm cli send-text` does the same via
-    // stdin. Both routes are required because direct CGEvent Cmd+V into
-    // these apps has been observed to skip bracketed paste, causing TUI
-    // apps (e.g. Claude Code) to interpret embedded newlines as Enter and
-    // truncate the paste at the first newline.
+    // cmux requires AppleScript `paste_from_clipboard` because Cmd+V CGEvent
+    // does not reach its embedded Ghostty PTY (parent NSApp consumes it).
+    // Ghostty/WezTerm work fine with the standard keyboard-simulator path
+    // below (same as iTerm2), so they fall through.
     if (isCmux(appInfo)) {
-      pasteFromClipboardInTerminal('cmux').then(resolve).catch(reject);
-      return;
-    }
-    if (isGhostty(appInfo)) {
-      pasteFromClipboardInTerminal('Ghostty').then(resolve).catch(reject);
-      return;
-    }
-    if (isWezTerm(appInfo)) {
-      pasteToWezTerm(text).then(resolve).catch(reject);
+      pasteFromClipboardCmux().then(resolve).catch(reject);
       return;
     }
 

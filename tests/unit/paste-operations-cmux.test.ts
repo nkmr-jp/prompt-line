@@ -41,7 +41,7 @@ describe('activateAndPasteWithNativeTool — terminal paste dispatch', () => {
       cb(null, '', '');
     });
 
-    await activateAndPasteWithNativeTool({ name: 'cmux', bundleId: 'com.cmuxterm.app' }, 'hello\nworld');
+    await activateAndPasteWithNativeTool({ name: 'cmux', bundleId: 'com.cmuxterm.app' });
 
     expect(mockExecFile).toHaveBeenCalledTimes(1);
     const [cmd, args] = mockExecFile.mock.calls[0]!;
@@ -52,59 +52,12 @@ describe('activateAndPasteWithNativeTool — terminal paste dispatch', () => {
     expect(args[1]).toContain('focused terminal of selected tab of front window');
   });
 
-  it('routes Ghostty paste through osascript paste_from_clipboard', async () => {
+  it('does NOT invoke keyboard-simulator for cmux (avoids ineffective Cmd+V)', async () => {
     mockExecFile.mockImplementation((_cmd: string, _args: string[], _opts: unknown, cb: Function) => {
       cb(null, '', '');
     });
 
-    await activateAndPasteWithNativeTool(
-      { name: 'Ghostty', bundleId: 'com.mitchellh.ghostty' },
-      'テスト\n/Users/nkmr/.prompt-line/images/foo.png'
-    );
-
-    expect(mockExecFile).toHaveBeenCalledTimes(1);
-    const [cmd, args] = mockExecFile.mock.calls[0]!;
-    expect(cmd).toBe('osascript');
-    expect(args[1]).toContain('tell application "Ghostty"');
-    expect(args[1]).toContain('perform action "paste_from_clipboard"');
-  });
-
-  it('routes WezTerm paste through `wezterm cli send-text` with text on stdin', async () => {
-    const fakeStdin = { end: vi.fn() };
-    mockExecFile.mockImplementation((_cmd: string, _args: string[], _opts: unknown, cb: Function) => {
-      // First call: osascript activate (returns success)
-      // Second call: wezterm cli send-text (returns success)
-      cb(null, '', '');
-      return { stdin: fakeStdin };
-    });
-
-    await activateAndPasteWithNativeTool(
-      { name: 'WezTerm', bundleId: 'com.github.wez.wezterm' },
-      'テスト\n/Users/nkmr/.prompt-line/images/foo.png'
-    );
-
-    // Two execFile calls: activate, then wezterm cli send-text
-    expect(mockExecFile).toHaveBeenCalledTimes(2);
-    const activateCall = mockExecFile.mock.calls[0]!;
-    expect(activateCall[0]).toBe('osascript');
-    expect(activateCall[1][1]).toContain('WezTerm');
-
-    const sendTextCall = mockExecFile.mock.calls[1]!;
-    expect(sendTextCall[0]).toBe('/Applications/WezTerm.app/Contents/MacOS/wezterm');
-    expect(sendTextCall[1]).toEqual(['cli', 'send-text']);
-    expect(fakeStdin.end).toHaveBeenCalledWith('テスト\n/Users/nkmr/.prompt-line/images/foo.png', 'utf8');
-  });
-
-  it('does NOT invoke keyboard-simulator for cmux/Ghostty/WezTerm', async () => {
-    const fakeStdin = { end: vi.fn() };
-    mockExecFile.mockImplementation((_cmd: string, _args: string[], _opts: unknown, cb: Function) => {
-      cb(null, '', '');
-      return { stdin: fakeStdin };
-    });
-
-    await activateAndPasteWithNativeTool({ name: 'cmux', bundleId: 'com.cmuxterm.app' }, 'x');
-    await activateAndPasteWithNativeTool({ name: 'Ghostty', bundleId: 'com.mitchellh.ghostty' }, 'y');
-    await activateAndPasteWithNativeTool({ name: 'WezTerm', bundleId: 'com.github.wez.wezterm' }, 'z');
+    await activateAndPasteWithNativeTool({ name: 'cmux', bundleId: 'com.cmuxterm.app' });
 
     const usedKeyboardSimulator = mockExecFile.mock.calls.some(
       ([cmd]) => cmd === '/mock/keyboard-simulator'
@@ -118,16 +71,42 @@ describe('activateAndPasteWithNativeTool — terminal paste dispatch', () => {
     });
 
     await expect(
-      activateAndPasteWithNativeTool({ name: 'cmux', bundleId: 'com.cmuxterm.app' }, 'x')
+      activateAndPasteWithNativeTool({ name: 'cmux', bundleId: 'com.cmuxterm.app' })
     ).rejects.toThrow('osascript failed');
   });
 
-  it('falls through to keyboard-simulator activate-and-paste-bundle for non-special apps', async () => {
+  it('routes Ghostty through keyboard-simulator (same path as iTerm2)', async () => {
     mockExecFile.mockImplementation((_cmd: string, _args: string[], _opts: unknown, cb: Function) => {
       cb(null, JSON.stringify({ success: true }), '');
     });
 
-    await activateAndPasteWithNativeTool({ name: 'iTerm2', bundleId: 'com.googlecode.iterm2' }, 'x');
+    await activateAndPasteWithNativeTool({ name: 'Ghostty', bundleId: 'com.mitchellh.ghostty' });
+
+    expect(mockExecFile).toHaveBeenCalledTimes(1);
+    const firstCall = mockExecFile.mock.calls[0]!;
+    expect(firstCall[0]).toBe('/mock/keyboard-simulator');
+    expect(firstCall[1]).toEqual(['activate-and-paste-bundle', 'com.mitchellh.ghostty']);
+  });
+
+  it('routes WezTerm through keyboard-simulator (same path as iTerm2)', async () => {
+    mockExecFile.mockImplementation((_cmd: string, _args: string[], _opts: unknown, cb: Function) => {
+      cb(null, JSON.stringify({ success: true }), '');
+    });
+
+    await activateAndPasteWithNativeTool({ name: 'WezTerm', bundleId: 'com.github.wez.wezterm' });
+
+    expect(mockExecFile).toHaveBeenCalledTimes(1);
+    const firstCall = mockExecFile.mock.calls[0]!;
+    expect(firstCall[0]).toBe('/mock/keyboard-simulator');
+    expect(firstCall[1]).toEqual(['activate-and-paste-bundle', 'com.github.wez.wezterm']);
+  });
+
+  it('falls through to keyboard-simulator activate-and-paste-bundle for non-cmux apps', async () => {
+    mockExecFile.mockImplementation((_cmd: string, _args: string[], _opts: unknown, cb: Function) => {
+      cb(null, JSON.stringify({ success: true }), '');
+    });
+
+    await activateAndPasteWithNativeTool({ name: 'iTerm2', bundleId: 'com.googlecode.iterm2' });
 
     expect(mockExecFile).toHaveBeenCalledTimes(1);
     const firstCall = mockExecFile.mock.calls[0]!;

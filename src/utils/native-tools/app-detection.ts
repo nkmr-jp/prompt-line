@@ -8,8 +8,6 @@ import { WINDOW_DETECTOR_PATH } from './paths';
 
 const ITERM2_BUNDLE_ID = 'com.googlecode.iterm2';
 const CMUX_BUNDLE_ID = 'com.cmuxterm.app';
-const GHOSTTY_BUNDLE_ID = 'com.mitchellh.ghostty';
-const WEZTERM_BUNDLE_ID = 'com.github.wez.wezterm';
 
 // Accessibility permission check result
 interface AccessibilityStatus {
@@ -193,36 +191,6 @@ export function isCmux(app: AppInfo | string | null): boolean {
     return app.toLowerCase() === 'cmux';
   }
   return app.bundleId === CMUX_BUNDLE_ID;
-}
-
-/**
- * Check if the given AppInfo or app name string represents Ghostty.
- * Ghostty needs the AppleScript paste_from_clipboard path so the paste goes
- * through the terminal's pipeline with bracketed paste markers — required for
- * TUI apps like Claude Code to receive embedded newlines as paste data
- * rather than Enter keystrokes.
- */
-export function isGhostty(app: AppInfo | string | null): boolean {
-  if (!app) return false;
-  if (typeof app === 'string') {
-    return app.toLowerCase() === 'ghostty';
-  }
-  return app.bundleId === GHOSTTY_BUNDLE_ID;
-}
-
-/**
- * Check if the given AppInfo or app name string represents WezTerm.
- * WezTerm has no AppleScript dictionary, but its CLI `wezterm cli send-text`
- * sends bracketed paste when the target pane has bracketed paste mode on.
- * Direct CGEvent Cmd+V into WezTerm has been observed to drop content after
- * the first newline in TUI apps (e.g. Claude Code), so we route through the CLI.
- */
-export function isWezTerm(app: AppInfo | string | null): boolean {
-  if (!app) return false;
-  if (typeof app === 'string') {
-    return app.toLowerCase() === 'wezterm';
-  }
-  return app.bundleId === WEZTERM_BUNDLE_ID;
 }
 
 /**

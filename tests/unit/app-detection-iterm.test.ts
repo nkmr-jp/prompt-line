@@ -30,7 +30,7 @@ vi.mock('../../src/utils/native-tools/paths', () => ({
   WINDOW_DETECTOR_PATH: '/mock/window-detector'
 }));
 
-import { isITerm2, isCmux, isGhostty, isWezTerm, getITermSessionId } from '../../src/utils/native-tools/app-detection';
+import { isITerm2, isCmux, getITermSessionId } from '../../src/utils/native-tools/app-detection';
 
 describe('isITerm2', () => {
   it('should return true for AppInfo with iTerm2 bundleId', () => {
@@ -84,54 +84,6 @@ describe('isCmux', () => {
     expect(isCmux('Terminal')).toBe(false);
     expect(isCmux({ name: 'iTerm2', bundleId: 'com.googlecode.iterm2' })).toBe(false);
     expect(isCmux({ name: 'Ghostty', bundleId: 'com.mitchellh.ghostty' })).toBe(false);
-  });
-});
-
-describe('isGhostty', () => {
-  it('should return true for AppInfo with Ghostty bundleId', () => {
-    expect(isGhostty({ name: 'Ghostty', bundleId: 'com.mitchellh.ghostty' })).toBe(true);
-  });
-
-  it('should return false for AppInfo with cmux bundleId', () => {
-    expect(isGhostty({ name: 'cmux', bundleId: 'com.cmuxterm.app' })).toBe(false);
-  });
-
-  it('should return true for string "ghostty" (case-insensitive)', () => {
-    expect(isGhostty('ghostty')).toBe(true);
-    expect(isGhostty('Ghostty')).toBe(true);
-    expect(isGhostty('GHOSTTY')).toBe(true);
-  });
-
-  it('should return false for null', () => {
-    expect(isGhostty(null)).toBe(false);
-  });
-
-  it('should return false for other terminals', () => {
-    expect(isGhostty('Terminal')).toBe(false);
-    expect(isGhostty({ name: 'iTerm2', bundleId: 'com.googlecode.iterm2' })).toBe(false);
-    expect(isGhostty({ name: 'cmux', bundleId: 'com.cmuxterm.app' })).toBe(false);
-  });
-});
-
-describe('isWezTerm', () => {
-  it('should return true for AppInfo with WezTerm bundleId', () => {
-    expect(isWezTerm({ name: 'WezTerm', bundleId: 'com.github.wez.wezterm' })).toBe(true);
-  });
-
-  it('should return true for string "wezterm" (case-insensitive)', () => {
-    expect(isWezTerm('wezterm')).toBe(true);
-    expect(isWezTerm('WezTerm')).toBe(true);
-    expect(isWezTerm('WEZTERM')).toBe(true);
-  });
-
-  it('should return false for null', () => {
-    expect(isWezTerm(null)).toBe(false);
-  });
-
-  it('should return false for other terminals', () => {
-    expect(isWezTerm({ name: 'cmux', bundleId: 'com.cmuxterm.app' })).toBe(false);
-    expect(isWezTerm({ name: 'Ghostty', bundleId: 'com.mitchellh.ghostty' })).toBe(false);
-    expect(isWezTerm({ name: 'iTerm2', bundleId: 'com.googlecode.iterm2' })).toBe(false);
   });
 });
 
