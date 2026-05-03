@@ -610,7 +610,7 @@ describe('Utils', () => {
                 const dangerousAppName = 'App;rm -rf /';
 
                 await expect(
-                    activateAndPasteWithNativeTool(dangerousAppName)
+                    activateAndPasteWithNativeTool(dangerousAppName, '')
                 ).rejects.toThrow('App name contains unsafe characters');
 
                 Object.defineProperty(process, 'platform', { value: originalPlatform });
@@ -631,7 +631,7 @@ describe('Utils', () => {
                 };
 
                 await expect(
-                    activateAndPasteWithNativeTool(dangerousAppInfo)
+                    activateAndPasteWithNativeTool(dangerousAppInfo, '')
                 ).rejects.toThrow('Bundle ID contains unsafe characters');
 
                 Object.defineProperty(process, 'platform', { value: originalPlatform });
@@ -644,7 +644,7 @@ describe('Utils', () => {
                 const emptyAfterSanitization = ';|`$(){}[]<>"\'\\*?~^';
 
                 await expect(
-                    activateAndPasteWithNativeTool(emptyAfterSanitization)
+                    activateAndPasteWithNativeTool(emptyAfterSanitization, '')
                 ).rejects.toThrow('App name contains unsafe characters');
 
                 Object.defineProperty(process, 'platform', { value: originalPlatform });
@@ -666,7 +666,7 @@ describe('Utils', () => {
                 };
 
                 await expect(
-                    activateAndPasteWithNativeTool(safeAppInfo)
+                    activateAndPasteWithNativeTool(safeAppInfo, '')
                 ).resolves.toBeUndefined();
 
                 // Verify that execFile was called with the correct arguments

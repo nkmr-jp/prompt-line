@@ -4,17 +4,28 @@ import { TIMEOUTS } from '../../constants';
 import { logger } from '../logger';
 import { sanitizeCommandArgument, isCommandArgumentSafe } from '../security';
 import { KEYBOARD_SIMULATOR_PATH } from './paths';
-import { isCmux } from './app-detection';
+import { isCmux, isGhostty } from './app-detection';
 
-// cmux embeds Ghostty as a subprocess and the parent NSApplication consumes
-// Cmd+V CGEvents before they reach the focused PTY. We bypass keyboard-simulator
-// entirely and route activation + paste through cmux's AppleScript dictionary,
-// which forwards `paste_from_clipboard` to Ghostty's native action handler.
-const CMUX_PASTE_APPLESCRIPT =
-  'tell application "cmux"\n' +
-  '  activate\n' +
-  '  perform action "paste_from_clipboard" on focused terminal of selected tab of front window\n' +
-  'end tell';
+// Both cmux (`CmuxInTx`) and Ghostty (`GhstInTx`) expose an `input text` AppleScript
+// command that pastes text directly into the focused terminal as if it were
+// a paste, without consulting the system clipboard. We use this instead of
+// `paste_from_clipboard` (cmux's prior path) or CGEvent Cmd+V (Ghostty's
+// prior path) because macOS NSPasteboard can retain image formats (TIFF/PNG/
+// AVIF…) after Electron's `clipboard.writeText('')`, causing the terminal
+// to receive stale image data — or nothing — when the user pastes a prompt
+// that contains an image path. Sending the text via `input text` sidesteps
+// the clipboard entirely.
+//
+// We pass the user's text via osascript's `argv` rather than embedding it in
+// the script body so that backslashes, quotes, and newlines do not need to
+// be re-escaped by us — AppleScript receives them verbatim.
+const INPUT_TEXT_APPLESCRIPT = (appName: string): string =>
+  'on run argv\n' +
+  `  tell application "${appName}"\n` +
+  '    activate\n' +
+  '    input text (item 1 of argv) to focused terminal of selected tab of front window\n' +
+  '  end tell\n' +
+  'end run';
 
 export function pasteWithNativeTool(): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -64,16 +75,17 @@ export function pasteWithNativeTool(): Promise<void> {
   });
 }
 
-function activateAndPasteCmux(): Promise<void> {
+function inputTextToTerminal(targetApp: 'cmux' | 'Ghostty', text: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const options = {
       timeout: TIMEOUTS.ACTIVATE_PASTE_TIMEOUT,
       killSignal: 'SIGTERM' as const
     };
 
-    execFile('osascript', ['-e', CMUX_PASTE_APPLESCRIPT], options, (error, stdout, stderr) => {
+    const script = INPUT_TEXT_APPLESCRIPT(targetApp);
+    execFile('osascript', ['-e', script, '--', text], options, (error, _stdout, stderr) => {
       if (error) {
-        logger.error('cmux AppleScript paste failed:', {
+        logger.error(`${targetApp} AppleScript input text failed:`, {
           error: error.message,
           code: error.code,
           signal: error.signal,
@@ -82,16 +94,12 @@ function activateAndPasteCmux(): Promise<void> {
         reject(error);
         return;
       }
-
-      if (stdout.trim() !== 'true') {
-        logger.warn('cmux AppleScript paste returned non-true:', { stdout, stderr });
-      }
       resolve();
     });
   });
 }
 
-export function activateAndPasteWithNativeTool(appInfo: AppInfo | string): Promise<void> {
+export function activateAndPasteWithNativeTool(appInfo: AppInfo | string, text: string): Promise<void> {
   return new Promise((resolve, reject) => {
     if (process.platform !== 'darwin') {
       reject(new Error('Native paste only supported on macOS'));
@@ -112,8 +120,16 @@ export function activateAndPasteWithNativeTool(appInfo: AppInfo | string): Promi
       return;
     }
 
+    // cmux and Ghostty: route through AppleScript `input text` to bypass the
+    // system pasteboard. macOS retains image formats on NSPasteboard even after
+    // `clipboard.writeText('')`, which can cause Cmd+V / paste_from_clipboard to
+    // deliver the residual image instead of the prompt text.
     if (isCmux(appInfo)) {
-      activateAndPasteCmux().then(resolve).catch(reject);
+      inputTextToTerminal('cmux', text).then(resolve).catch(reject);
+      return;
+    }
+    if (isGhostty(appInfo)) {
+      inputTextToTerminal('Ghostty', text).then(resolve).catch(reject);
       return;
     }
 

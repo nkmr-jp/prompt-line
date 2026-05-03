@@ -8,6 +8,7 @@ import { WINDOW_DETECTOR_PATH } from './paths';
 
 const ITERM2_BUNDLE_ID = 'com.googlecode.iterm2';
 const CMUX_BUNDLE_ID = 'com.cmuxterm.app';
+const GHOSTTY_BUNDLE_ID = 'com.mitchellh.ghostty';
 
 // Accessibility permission check result
 interface AccessibilityStatus {
@@ -191,6 +192,21 @@ export function isCmux(app: AppInfo | string | null): boolean {
     return app.toLowerCase() === 'cmux';
   }
   return app.bundleId === CMUX_BUNDLE_ID;
+}
+
+/**
+ * Check if the given AppInfo or app name string represents Ghostty.
+ * Ghostty needs the same AppleScript-based paste path as cmux because
+ * macOS NSPasteboard can retain image formats after `clipboard.writeText('')`,
+ * which causes Cmd+V CGEvents to deliver stale image data (or nothing) to
+ * the terminal when the user pastes a prompt that contains an image path.
+ */
+export function isGhostty(app: AppInfo | string | null): boolean {
+  if (!app) return false;
+  if (typeof app === 'string') {
+    return app.toLowerCase() === 'ghostty';
+  }
+  return app.bundleId === GHOSTTY_BUNDLE_ID;
 }
 
 /**

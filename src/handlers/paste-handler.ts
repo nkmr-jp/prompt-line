@@ -91,11 +91,14 @@ class PasteHandler {
   }
 
   /**
-   * Execute paste operation with proper app handling
+   * Execute paste operation with proper app handling.
+   * For cmux/Ghostty, the text is sent directly via AppleScript `input text`
+   * to bypass NSPasteboard; for other apps, the system clipboard set earlier
+   * by setClipboardAsync drives the paste.
    */
-  private async executePasteOperation(previousApp: AppInfo | string | null): Promise<PasteResult> {
+  private async executePasteOperation(previousApp: AppInfo | string | null, text: string): Promise<PasteResult> {
     if (previousApp && config.platform.isMac) {
-      await activateAndPasteWithNativeTool(previousApp);
+      await activateAndPasteWithNativeTool(previousApp, text);
       return { success: true };
     }
 
@@ -165,7 +168,7 @@ class PasteHandler {
       await sleep(Math.max(config.timing.windowHideDelay, 5));
 
       try {
-        return await this.executePasteOperation(previousApp);
+        return await this.executePasteOperation(previousApp, text);
       } catch (pasteError) {
         return await this.handlePasteError(pasteError as Error);
       }
