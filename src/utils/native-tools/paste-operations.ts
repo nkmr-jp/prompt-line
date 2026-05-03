@@ -7,9 +7,11 @@ import { KEYBOARD_SIMULATOR_PATH } from './paths';
 import { isCmux } from './app-detection';
 
 // cmux embeds Ghostty as a subprocess and the parent NSApplication consumes
-// Cmd+V CGEvents before they reach the focused PTY. We bypass keyboard-simulator
-// entirely and route activation + paste through cmux's AppleScript dictionary,
-// which forwards `paste_from_clipboard` to Ghostty's native action handler.
+// Cmd+V CGEvents before they reach the focused PTY. We bypass keyboard-
+// simulator entirely and route activation + paste through cmux's AppleScript
+// dictionary, which forwards `paste_from_clipboard` to Ghostty's native
+// action handler. (Ghostty/WezTerm don't need this — Cmd+V CGEvent reaches
+// their PTY directly.)
 const CMUX_PASTE_APPLESCRIPT =
   'tell application "cmux"\n' +
   '  activate\n' +
@@ -64,16 +66,16 @@ export function pasteWithNativeTool(): Promise<void> {
   });
 }
 
-function activateAndPasteCmux(): Promise<void> {
+function pasteFromClipboardCmux(): Promise<void> {
   return new Promise((resolve, reject) => {
     const options = {
       timeout: TIMEOUTS.ACTIVATE_PASTE_TIMEOUT,
       killSignal: 'SIGTERM' as const
     };
 
-    execFile('osascript', ['-e', CMUX_PASTE_APPLESCRIPT], options, (error, stdout, stderr) => {
+    execFile('osascript', ['-e', CMUX_PASTE_APPLESCRIPT], options, (error, _stdout, stderr) => {
       if (error) {
-        logger.error('cmux AppleScript paste failed:', {
+        logger.error('cmux AppleScript paste_from_clipboard failed:', {
           error: error.message,
           code: error.code,
           signal: error.signal,
@@ -81,10 +83,6 @@ function activateAndPasteCmux(): Promise<void> {
         });
         reject(error);
         return;
-      }
-
-      if (stdout.trim() !== 'true') {
-        logger.warn('cmux AppleScript paste returned non-true:', { stdout, stderr });
       }
       resolve();
     });
@@ -112,8 +110,12 @@ export function activateAndPasteWithNativeTool(appInfo: AppInfo | string): Promi
       return;
     }
 
+    // cmux requires AppleScript `paste_from_clipboard` because Cmd+V CGEvent
+    // does not reach its embedded Ghostty PTY (parent NSApp consumes it).
+    // Ghostty/WezTerm work fine with the standard keyboard-simulator path
+    // below (same as iTerm2), so they fall through.
     if (isCmux(appInfo)) {
-      activateAndPasteCmux().then(resolve).catch(reject);
+      pasteFromClipboardCmux().then(resolve).catch(reject);
       return;
     }
 

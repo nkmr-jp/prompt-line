@@ -30,15 +30,15 @@ const ORIGINAL_PLATFORM = process.platform;
 
 import { activateAndPasteWithNativeTool } from '../../src/utils/native-tools/paste-operations';
 
-describe('activateAndPasteWithNativeTool — cmux dispatch', () => {
+describe('activateAndPasteWithNativeTool — terminal paste dispatch', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     Object.defineProperty(process, 'platform', { value: 'darwin' });
   });
 
-  it('routes cmux paste through a single osascript call combining activate + paste_from_clipboard', async () => {
+  it('routes cmux paste through osascript paste_from_clipboard (bracketed paste via terminal pipeline)', async () => {
     mockExecFile.mockImplementation((_cmd: string, _args: string[], _opts: unknown, cb: Function) => {
-      cb(null, 'true\n', '');
+      cb(null, '', '');
     });
 
     await activateAndPasteWithNativeTool({ name: 'cmux', bundleId: 'com.cmuxterm.app' });
@@ -48,14 +48,13 @@ describe('activateAndPasteWithNativeTool — cmux dispatch', () => {
     expect(cmd).toBe('osascript');
     expect(args[0]).toBe('-e');
     expect(args[1]).toContain('tell application "cmux"');
-    expect(args[1]).toContain('activate');
     expect(args[1]).toContain('perform action "paste_from_clipboard"');
     expect(args[1]).toContain('focused terminal of selected tab of front window');
   });
 
   it('does NOT invoke keyboard-simulator for cmux (avoids ineffective Cmd+V)', async () => {
     mockExecFile.mockImplementation((_cmd: string, _args: string[], _opts: unknown, cb: Function) => {
-      cb(null, 'true\n', '');
+      cb(null, '', '');
     });
 
     await activateAndPasteWithNativeTool({ name: 'cmux', bundleId: 'com.cmuxterm.app' });
@@ -66,7 +65,7 @@ describe('activateAndPasteWithNativeTool — cmux dispatch', () => {
     expect(usedKeyboardSimulator).toBe(false);
   });
 
-  it('rejects when AppleScript paste fails', async () => {
+  it('rejects when AppleScript paste_from_clipboard fails', async () => {
     mockExecFile.mockImplementation((_cmd: string, _args: string[], _opts: unknown, cb: Function) => {
       cb(new Error('osascript failed'), '', 'cmux not running');
     });
@@ -76,7 +75,7 @@ describe('activateAndPasteWithNativeTool — cmux dispatch', () => {
     ).rejects.toThrow('osascript failed');
   });
 
-  it('falls through to standard activate-and-paste-bundle for non-cmux apps', async () => {
+  it('routes Ghostty through keyboard-simulator (same path as iTerm2)', async () => {
     mockExecFile.mockImplementation((_cmd: string, _args: string[], _opts: unknown, cb: Function) => {
       cb(null, JSON.stringify({ success: true }), '');
     });
@@ -87,6 +86,32 @@ describe('activateAndPasteWithNativeTool — cmux dispatch', () => {
     const firstCall = mockExecFile.mock.calls[0]!;
     expect(firstCall[0]).toBe('/mock/keyboard-simulator');
     expect(firstCall[1]).toEqual(['activate-and-paste-bundle', 'com.mitchellh.ghostty']);
+  });
+
+  it('routes WezTerm through keyboard-simulator (same path as iTerm2)', async () => {
+    mockExecFile.mockImplementation((_cmd: string, _args: string[], _opts: unknown, cb: Function) => {
+      cb(null, JSON.stringify({ success: true }), '');
+    });
+
+    await activateAndPasteWithNativeTool({ name: 'WezTerm', bundleId: 'com.github.wez.wezterm' });
+
+    expect(mockExecFile).toHaveBeenCalledTimes(1);
+    const firstCall = mockExecFile.mock.calls[0]!;
+    expect(firstCall[0]).toBe('/mock/keyboard-simulator');
+    expect(firstCall[1]).toEqual(['activate-and-paste-bundle', 'com.github.wez.wezterm']);
+  });
+
+  it('falls through to keyboard-simulator activate-and-paste-bundle for non-cmux apps', async () => {
+    mockExecFile.mockImplementation((_cmd: string, _args: string[], _opts: unknown, cb: Function) => {
+      cb(null, JSON.stringify({ success: true }), '');
+    });
+
+    await activateAndPasteWithNativeTool({ name: 'iTerm2', bundleId: 'com.googlecode.iterm2' });
+
+    expect(mockExecFile).toHaveBeenCalledTimes(1);
+    const firstCall = mockExecFile.mock.calls[0]!;
+    expect(firstCall[0]).toBe('/mock/keyboard-simulator');
+    expect(firstCall[1]).toEqual(['activate-and-paste-bundle', 'com.googlecode.iterm2']);
   });
 
   afterAll(() => {

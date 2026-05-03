@@ -77,7 +77,9 @@ vi.mock('electron', () => ({
     },
     clipboard: {
         writeText: vi.fn(),
-        readText: vi.fn(() => '')
+        readText: vi.fn(() => ''),
+        clear: vi.fn(),
+        readImage: vi.fn(() => ({ isEmpty: () => true, toPNG: () => Buffer.alloc(0) }))
     }
 }));
 
