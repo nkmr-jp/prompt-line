@@ -33,7 +33,16 @@ const MAX_PASTE_TEXT_LENGTH_BYTES = 1024 * 1024; // 1MB limit for paste text
 // when it appears in the same paste alongside other text. Splitting the
 // text into alternating text/path segments lets each path arrive as its
 // own paste so the conversion fires for each one.
-const IMAGE_PATH_REGEX = /(\S+\.(?:png|jpg|jpeg|gif|webp))/gi;
+// Match image paths in two flavors:
+//   (a) `/<path>` or `@<path>` — directory portion may contain spaces, e.g.
+//       `/Users/me/My Pictures/foo.png` or `@My Images/foo.png` (Prompt Line
+//       generates paths like `@<imagesDirectory>/<timestamp>.<ext>` so a
+//       user-configured imagesDirectory with spaces lands here verbatim).
+//       Lazy match stops at the first `.<ext>` preceded by a non-whitespace
+//       character, so a sentence like `これは /foo.png のテスト` only
+//       captures `/foo.png`.
+//   (b) `<non-whitespace>.<ext>` — a plain filename or path without spaces.
+const IMAGE_PATH_REGEX = /([/@][^\n]*?\S\.(?:png|jpg|jpeg|gif|webp)|\S+\.(?:png|jpg|jpeg|gif|webp))/gi;
 // Time between segments. Empirically, anything below ~30ms causes the next
 // paste to occasionally be merged into the previous one by Claude Code.
 const SEGMENT_PASTE_DELAY_MS = 40;

@@ -89,6 +89,33 @@ describe('splitTextByImagePaths', () => {
     const segments = splitTextByImagePaths('config.json and main.ts');
     expect(segments).toEqual([{ type: 'text', content: 'config.json and main.ts' }]);
   });
+
+  it('captures absolute paths that contain spaces', () => {
+    const segments = splitTextByImagePaths('see /Users/me/My Pictures/foo.png please');
+    expect(segments).toEqual([
+      { type: 'text', content: 'see ' },
+      { type: 'image', content: '/Users/me/My Pictures/foo.png' },
+      { type: 'text', content: ' please' }
+    ]);
+  });
+
+  it('captures @-prefixed relative paths that contain spaces', () => {
+    const segments = splitTextByImagePaths('テスト @My Images/20260503_191755.png');
+    expect(segments).toEqual([
+      { type: 'text', content: 'テスト ' },
+      { type: 'image', content: '@My Images/20260503_191755.png' },
+      { type: 'text', content: '' }
+    ].filter(s => s.content.length > 0));
+  });
+
+  it('does not greedily swallow trailing prose after a path with spaces', () => {
+    const segments = splitTextByImagePaths('これは /foo.png のテストです');
+    expect(segments).toEqual([
+      { type: 'text', content: 'これは ' },
+      { type: 'image', content: '/foo.png' },
+      { type: 'text', content: ' のテストです' }
+    ]);
+  });
 });
 
 describe('splitTextByImagePaths — newlines stay inside text segments', () => {
