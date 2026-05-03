@@ -5,7 +5,6 @@
 
 ### Features
 
-* **shortcuts:** add "run=" action to execute shell commands from settings.yaml ([#377](https://github.com/nkmr-jp/prompt-line/issues/377)) ([f28e41b](https://github.com/nkmr-jp/prompt-line/commit/f28e41b569d3a0ae5f97f656e9fcfd99868c3ed0))
 * **shortcuts:** add "run=" action to execute shell commands from settings.yaml ([#380](https://github.com/nkmr-jp/prompt-line/issues/380)) ([4768f18](https://github.com/nkmr-jp/prompt-line/commit/4768f186c6bf517091a143602126c77b13fe4a5f))
 
 
