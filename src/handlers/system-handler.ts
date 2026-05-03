@@ -1,8 +1,13 @@
 import path from 'path';
+import { exec } from 'child_process';
 import { IpcMainInvokeEvent, shell } from 'electron';
 import config from '../config/app-config';
 import { logger } from '../utils/utils';
+import { resolveTemplate } from '../lib/template-resolver';
+import { shellQuote } from '../utils/security';
+import { getEnhancedEnv } from '../utils/shell-env';
 import type SettingsManager from '../managers/settings-manager';
+import type DirectoryManager from '../managers/directory-manager';
 import type { IPCResult } from '../types';
 
 interface AppInfoResult {
@@ -30,9 +35,11 @@ const VALID_CONFIG_SECTIONS = ['shortcuts', 'history', 'draft', 'timing', 'app',
 
 class SystemHandler {
   private settingsManager: SettingsManager;
+  private directoryManager: DirectoryManager;
 
-  constructor(settingsManager: SettingsManager) {
+  constructor(settingsManager: SettingsManager, directoryManager: DirectoryManager) {
     this.settingsManager = settingsManager;
+    this.directoryManager = directoryManager;
   }
 
   setupHandlers(ipcMain: typeof import('electron').ipcMain): void {
@@ -41,10 +48,11 @@ class SystemHandler {
     ipcMain.handle('open-settings', this.handleOpenSettings.bind(this));
     ipcMain.handle('open-settings-directory', this.handleOpenSettingsDirectory.bind(this));
     ipcMain.handle('get-file-search-max-suggestions', this.handleGetFileSearchMaxSuggestions.bind(this));
+    ipcMain.handle('execute-shortcut-command', this.handleExecuteShortcutCommand.bind(this));
   }
 
   removeHandlers(ipcMain: typeof import('electron').ipcMain): void {
-    const handlers = ['get-app-info', 'get-config', 'open-settings', 'open-settings-directory', 'get-file-search-max-suggestions'];
+    const handlers = ['get-app-info', 'get-config', 'open-settings', 'open-settings-directory', 'get-file-search-max-suggestions', 'execute-shortcut-command'];
 
     handlers.forEach(handler => {
       ipcMain.removeAllListeners(handler);
@@ -159,6 +167,56 @@ class SystemHandler {
     } catch (error) {
       logger.error('Failed to get fileSearch maxSuggestions:', error);
       return 50; // Default fallback
+    }
+  }
+
+  /**
+   * Handler: execute-shortcut-command
+   * Runs a shell command bound to a "run=" shortcut from settings.yaml.
+   * Resolves {projectdir} and other supported template variables, executes
+   * fire-and-forget with the active CWD, and returns immediately.
+   */
+  private async handleExecuteShortcutCommand(
+    _event: IpcMainInvokeEvent,
+    command: string
+  ): Promise<IPCResult> {
+    if (!command || typeof command !== 'string') {
+      return { success: false, error: 'Invalid command' };
+    }
+
+    try {
+      const projectdir = this.directoryManager.getDirectory() ?? '';
+      // shellQuote is applied only to resolved template variable values (e.g. {projectdir}),
+      // not to the literal command parts written by the user in settings.yaml.
+      // This protects paths with spaces/quotes while leaving the command structure intact.
+      const resolvedCommand = resolveTemplate(
+        command,
+        { basename: '', frontmatter: {}, projectdir },
+        shellQuote
+      );
+
+      logger.info('Executing shortcut command', { commandLength: resolvedCommand.length });
+
+      exec(resolvedCommand, {
+        timeout: 30000,
+        env: getEnhancedEnv(this.settingsManager.getAdditionalPaths()),
+        ...(projectdir && { cwd: projectdir })
+      }, (error, _stdout, stderr) => {
+        if (error) {
+          logger.error('Shortcut command execution failed', {
+            error: error.message,
+            stderr: stderr?.trim() || undefined
+          });
+        } else if (stderr?.trim()) {
+          logger.warn('Shortcut command produced stderr', { stderr: stderr.trim() });
+        }
+      });
+
+      return { success: true };
+    } catch (error) {
+      const message = (error as Error).message;
+      logger.error('Failed to start shortcut command:', error);
+      return { success: false, error: message };
     }
   }
 }
