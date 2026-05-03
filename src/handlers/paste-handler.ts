@@ -11,7 +11,7 @@ import {
   checkAccessibilityPermission,
   SecureErrors
 } from '../utils/utils';
-import { isITerm2, getITermSessionId } from '../utils/native-tools/app-detection';
+import { isITerm2, getITermSessionId, isCmux, isGhostty, isWezTerm } from '../utils/native-tools/app-detection';
 import type WindowManager from '../managers/window';
 import type DraftManager from '../managers/draft-manager';
 import type DirectoryManager from '../managers/directory-manager';
@@ -26,6 +26,45 @@ interface PasteResult {
 
 // Constants
 const MAX_PASTE_TEXT_LENGTH_BYTES = 1024 * 1024; // 1MB limit for paste text
+
+// Image extensions used to split paste content for terminals where Claude
+// Code (or similar TUIs) may be running. Claude Code converts a paste that
+// is *only* an image path into an `[Image #N]` token, but drops the path
+// when it appears in the same paste alongside other text. Splitting the
+// text into alternating text/path segments lets each path arrive as its
+// own paste so the conversion fires for each one.
+const IMAGE_PATH_REGEX = /(\S+\.(?:png|jpg|jpeg|gif|webp))/gi;
+const SEGMENT_PASTE_DELAY_MS = 80;
+const CLIPBOARD_SETTLE_DELAY_MS = 30;
+
+export interface PasteSegment {
+  type: 'text' | 'image';
+  content: string;
+}
+
+export function splitTextByImagePaths(text: string): PasteSegment[] {
+  const segments: PasteSegment[] = [];
+  let lastIndex = 0;
+  IMAGE_PATH_REGEX.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = IMAGE_PATH_REGEX.exec(text)) !== null) {
+    const matched = match[1];
+    if (matched === undefined) continue;
+    if (match.index > lastIndex) {
+      segments.push({ type: 'text', content: text.slice(lastIndex, match.index) });
+    }
+    segments.push({ type: 'image', content: matched });
+    lastIndex = match.index + matched.length;
+  }
+  if (lastIndex < text.length) {
+    segments.push({ type: 'text', content: text.slice(lastIndex) });
+  }
+  return segments;
+}
+
+function isClaudeCodeTerminal(app: AppInfo | string | null): boolean {
+  return isCmux(app) || isGhostty(app) || isWezTerm(app);
+}
 
 class PasteHandler {
   private windowManager: WindowManager;
@@ -94,9 +133,19 @@ class PasteHandler {
    * Execute paste operation with proper app handling.
    * cmux/Ghostty go via AppleScript `paste_from_clipboard` (text from clipboard);
    * WezTerm via `wezterm cli send-text` (text from argument); others via Cmd+V.
+   * For Claude Code-capable terminals, paste the text in alternating
+   * text/image-path segments so Claude Code converts each path to an
+   * `[Image #N]` token (it drops paths when mixed with other text in one paste).
    */
   private async executePasteOperation(previousApp: AppInfo | string | null, text: string): Promise<PasteResult> {
     if (previousApp && config.platform.isMac) {
+      if (isClaudeCodeTerminal(previousApp)) {
+        const segments = splitTextByImagePaths(text);
+        if (segments.length > 1) {
+          await this.pasteSegments(previousApp, segments);
+          return { success: true };
+        }
+      }
       await activateAndPasteWithNativeTool(previousApp, text);
       return { success: true };
     }
@@ -117,6 +166,34 @@ class PasteHandler {
 
     logger.warn('Auto-paste not supported on this platform');
     return { success: true, warning: 'Auto-paste not supported on this platform' };
+  }
+
+  /**
+   * Paste segments one by one, refreshing the clipboard between each so
+   * Claude Code sees each image path as its own paste and converts it to
+   * `[Image #N]`. Trailing newline-only/whitespace-only segments after the
+   * last image are skipped to avoid leaving an empty Enter at the end.
+   */
+  private async pasteSegments(previousApp: AppInfo | string, segments: PasteSegment[]): Promise<void> {
+    const lastImageIdx = segments.reduceRight(
+      (acc, seg, idx) => (acc === -1 && seg.type === 'image' ? idx : acc),
+      -1
+    );
+
+    for (let i = 0; i < segments.length; i++) {
+      const segment = segments[i]!;
+      const isAfterLastImage = lastImageIdx !== -1 && i > lastImageIdx;
+      const content = isAfterLastImage ? segment.content.replace(/^\s+/, '') : segment.content;
+      if (!content) continue;
+
+      clipboard.clear();
+      clipboard.writeText(content);
+      await sleep(CLIPBOARD_SETTLE_DELAY_MS);
+      await activateAndPasteWithNativeTool(previousApp, content);
+      if (i < segments.length - 1) {
+        await sleep(SEGMENT_PASTE_DELAY_MS);
+      }
+    }
   }
 
   /**
