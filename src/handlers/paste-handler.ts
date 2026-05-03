@@ -155,15 +155,13 @@ class PasteHandler {
    */
   private async executePasteOperation(previousApp: AppInfo | string | null, text: string): Promise<PasteResult> {
     if (previousApp && config.platform.isMac) {
-      if (isClaudeCodeAffectedTerminal(previousApp) && IMAGE_PATH_REGEX.test(text)) {
-        IMAGE_PATH_REGEX.lastIndex = 0;
+      if (isClaudeCodeAffectedTerminal(previousApp)) {
         const segments = splitTextByImagePaths(text);
         if (segments.length > 1) {
           await this.pasteSegments(previousApp, segments);
           return { success: true };
         }
       }
-      IMAGE_PATH_REGEX.lastIndex = 0;
       await activateAndPasteWithNativeTool(previousApp);
       return { success: true };
     }
