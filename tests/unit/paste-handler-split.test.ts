@@ -28,7 +28,7 @@ vi.mock('../../src/utils/native-tools/app-detection', () => ({
   getITermSessionId: vi.fn()
 }));
 
-import { splitTextByImagePaths, splitTextForClaudeCodeTerminal } from '../../src/handlers/paste-handler';
+import { splitTextByImagePaths } from '../../src/handlers/paste-handler';
 
 describe('splitTextByImagePaths', () => {
   it('returns single text segment when no image path is present', () => {
@@ -91,56 +91,26 @@ describe('splitTextByImagePaths', () => {
   });
 });
 
-describe('splitTextForClaudeCodeTerminal', () => {
-  it('splits text + newline + image into three segments', () => {
-    const segments = splitTextForClaudeCodeTerminal('テスト\n/Users/nkmr/.prompt-line/images/foo.png');
+describe('splitTextByImagePaths — newlines stay inside text segments', () => {
+  it('keeps newline-bearing prefix as one text segment, then image', () => {
+    const segments = splitTextByImagePaths('テスト\n/Users/nkmr/.prompt-line/images/foo.png');
     expect(segments).toEqual([
-      { type: 'text', content: 'テスト' },
-      { type: 'newline', content: '' },
+      { type: 'text', content: 'テスト\n' },
       { type: 'image', content: '/Users/nkmr/.prompt-line/images/foo.png' }
     ]);
   });
 
-  it('keeps multiple newlines as multiple newline segments', () => {
-    const segments = splitTextForClaudeCodeTerminal('a\n\nb');
-    expect(segments).toEqual([
-      { type: 'text', content: 'a' },
-      { type: 'newline', content: '' },
-      { type: 'newline', content: '' },
-      { type: 'text', content: 'b' }
-    ]);
+  it('keeps multi-line text without image paths as a single text segment', () => {
+    const segments = splitTextByImagePaths('line1\nline2\nline3');
+    expect(segments).toEqual([{ type: 'text', content: 'line1\nline2\nline3' }]);
   });
 
-  it('handles a single image path with no surrounding text', () => {
-    const segments = splitTextForClaudeCodeTerminal('/Users/x/foo.png');
-    expect(segments).toEqual([{ type: 'image', content: '/Users/x/foo.png' }]);
-  });
-
-  it('handles trailing newline by emitting only the newline segment', () => {
-    const segments = splitTextForClaudeCodeTerminal('hello\n');
+  it('splits text/image/text-with-newlines correctly', () => {
+    const segments = splitTextByImagePaths('describe /a.png\nthen do X\nthen /b.jpg');
     expect(segments).toEqual([
-      { type: 'text', content: 'hello' },
-      { type: 'newline', content: '' }
-    ]);
-  });
-
-  it('handles leading newline correctly', () => {
-    const segments = splitTextForClaudeCodeTerminal('\n/path.png');
-    expect(segments).toEqual([
-      { type: 'newline', content: '' },
-      { type: 'image', content: '/path.png' }
-    ]);
-  });
-
-  it('intersperses newlines between image paths on separate lines', () => {
-    const segments = splitTextForClaudeCodeTerminal('text\n/a.png\nmore\n/b.jpg');
-    expect(segments).toEqual([
-      { type: 'text', content: 'text' },
-      { type: 'newline', content: '' },
+      { type: 'text', content: 'describe ' },
       { type: 'image', content: '/a.png' },
-      { type: 'newline', content: '' },
-      { type: 'text', content: 'more' },
-      { type: 'newline', content: '' },
+      { type: 'text', content: '\nthen do X\nthen ' },
       { type: 'image', content: '/b.jpg' }
     ]);
   });

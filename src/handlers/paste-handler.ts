@@ -11,7 +11,6 @@ import {
   checkAccessibilityPermission,
   SecureErrors
 } from '../utils/utils';
-import { sendShiftEnterToFocusedApp } from '../utils/native-tools/paste-operations';
 import { isITerm2, getITermSessionId, isCmux, isGhostty, isWezTerm } from '../utils/native-tools/app-detection';
 import type WindowManager from '../managers/window';
 import type DraftManager from '../managers/draft-manager';
@@ -44,10 +43,15 @@ const SEGMENT_PASTE_DELAY_MS = 40;
 const CLIPBOARD_SETTLE_DELAY_MS = 10;
 
 export interface PasteSegment {
-  type: 'text' | 'image' | 'newline';
+  type: 'text' | 'image';
   content: string;
 }
 
+// Split paste text at image-path boundaries only. Newlines stay inside text
+// segments — pasted newlines work fine in Claude Code; only the path-bearing
+// portion needs to arrive as its own paste so it gets converted to [Image #N]
+// without dragging the surrounding text into the conversion (which drops
+// content).
 export function splitTextByImagePaths(text: string): PasteSegment[] {
   const segments: PasteSegment[] = [];
   let lastIndex = 0;
@@ -66,26 +70,6 @@ export function splitTextByImagePaths(text: string): PasteSegment[] {
     segments.push({ type: 'text', content: text.slice(lastIndex) });
   }
   return segments;
-}
-
-// Split paste text into image paths, newlines, and text runs without newlines.
-// Newlines become explicit `newline` segments so the paster can replace them
-// with Shift+Enter keystrokes — Claude Code's TUI treats a pasted newline as
-// submit, but Shift+Enter inserts a soft newline.
-export function splitTextForClaudeCodeTerminal(text: string): PasteSegment[] {
-  const result: PasteSegment[] = [];
-  const lines = text.split('\n');
-  lines.forEach((line, idx) => {
-    if (line.length > 0) {
-      for (const seg of splitTextByImagePaths(line)) {
-        result.push(seg);
-      }
-    }
-    if (idx < lines.length - 1) {
-      result.push({ type: 'newline', content: '' });
-    }
-  });
-  return result;
 }
 
 // cmux/Ghostty/WezTerm + Claude Code triggers an image-path-dropped-when-
@@ -173,9 +157,11 @@ class PasteHandler {
     if (previousApp && config.platform.isMac) {
       if (isClaudeCodeAffectedTerminal(previousApp) && IMAGE_PATH_REGEX.test(text)) {
         IMAGE_PATH_REGEX.lastIndex = 0;
-        const segments = splitTextForClaudeCodeTerminal(text);
-        await this.pasteSegments(previousApp, segments);
-        return { success: true };
+        const segments = splitTextByImagePaths(text);
+        if (segments.length > 1) {
+          await this.pasteSegments(previousApp, segments);
+          return { success: true };
+        }
       }
       IMAGE_PATH_REGEX.lastIndex = 0;
       await activateAndPasteWithNativeTool(previousApp);
@@ -210,14 +196,11 @@ class PasteHandler {
   private async pasteSegments(previousApp: AppInfo | string, segments: PasteSegment[]): Promise<void> {
     for (let i = 0; i < segments.length; i++) {
       const segment = segments[i]!;
-      if (segment.type === 'newline') {
-        await sendShiftEnterToFocusedApp();
-      } else if (segment.content) {
-        clipboard.clear();
-        clipboard.writeText(segment.content);
-        await sleep(CLIPBOARD_SETTLE_DELAY_MS);
-        await activateAndPasteWithNativeTool(previousApp);
-      }
+      if (!segment.content) continue;
+      clipboard.clear();
+      clipboard.writeText(segment.content);
+      await sleep(CLIPBOARD_SETTLE_DELAY_MS);
+      await activateAndPasteWithNativeTool(previousApp);
       if (i < segments.length - 1) {
         await sleep(SEGMENT_PASTE_DELAY_MS);
       }

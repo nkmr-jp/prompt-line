@@ -89,28 +89,6 @@ function pasteFromClipboardCmux(): Promise<void> {
   });
 }
 
-// Send a Shift+Enter keystroke to the focused app via System Events. Used to
-// produce a newline inside Claude Code's TUI input without firing the
-// Enter-as-submit handler (Claude Code reads pasted newlines as submit, but
-// honors Shift+Enter as a soft newline).
-export function sendShiftEnterToFocusedApp(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const options = {
-      timeout: TIMEOUTS.ACTIVATE_PASTE_TIMEOUT,
-      killSignal: 'SIGTERM' as const
-    };
-    const script = 'tell application "System Events" to keystroke return using shift down';
-    execFile('osascript', ['-e', script], options, (error, _stdout, stderr) => {
-      if (error) {
-        logger.error('Failed to send Shift+Enter:', { error: error.message, stderr });
-        reject(error);
-        return;
-      }
-      resolve();
-    });
-  });
-}
-
 export function activateAndPasteWithNativeTool(appInfo: AppInfo | string): Promise<void> {
   return new Promise((resolve, reject) => {
     if (process.platform !== 'darwin') {
