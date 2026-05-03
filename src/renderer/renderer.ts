@@ -170,7 +170,8 @@ export class PromptLineRenderer {
       onSearchToggle: this.handleSearchToggle.bind(this),
       onUndo: this.handleUndo.bind(this),
       onSaveDraftToHistory: this.handleSaveDraftToHistory.bind(this),
-      onCustomSearchActivate: this.handleCustomSearchActivate.bind(this)
+      onCustomSearchActivate: this.handleCustomSearchActivate.bind(this),
+      onRunCommand: this.handleRunCommand.bind(this)
     });
 
     this.eventHandler.setTextarea(this.domManager.textarea);
@@ -672,22 +673,45 @@ export class PromptLineRenderer {
   }
 
   /**
-   * Extract shortcut entries from customSearch settings and pass to event handler
+   * Execute a "run=" shortcut command via main process and close the window.
+   * Fire-and-forget: the window always closes after the IPC roundtrip,
+   * regardless of command success/failure (errors are logged to ~/.prompt-line/app.log).
+   * This matches the typical use case (launching an editor, opening a folder).
+   */
+  private async handleRunCommand(command: string): Promise<void> {
+    try {
+      const result = await electronAPI.shortcut.exec(command);
+      if (!result.success) {
+        rendererLogger.error('Shortcut command execution failed:', result.error);
+      }
+    } catch (error) {
+      rendererLogger.error('Failed to invoke shortcut command:', error);
+    }
+    await this.handleWindowHideCallback();
+  }
+
+  /**
+   * Extract shortcut entries from customShortcuts and dispatch to event handler.
+   * Supported action prefixes:
+   *   "input=<text>" — insert <text> into the textarea (and trigger custom-search detection)
+   *   "run=<command>" — execute <command> as a shell command (template variables allowed)
    */
   private updateCustomSearchShortcuts(): void {
-    const shortcuts: Array<{ shortcut: string; triggerText: string }> = [];
+    const customSearchShortcuts: Array<{ shortcut: string; triggerText: string }> = [];
+    const runShortcuts: Array<{ shortcut: string; command: string }> = [];
 
-    // Settings custom shortcuts (from {key: action} format, e.g., Ctrl+m: "input=@md:")
     if (this.userSettings?.customShortcuts) {
       for (const { key, action } of this.userSettings.customShortcuts) {
         if (action.startsWith('input=')) {
-          const triggerText = action.slice('input='.length);
-          shortcuts.push({ shortcut: key, triggerText });
+          customSearchShortcuts.push({ shortcut: key, triggerText: action.slice('input='.length) });
+        } else if (action.startsWith('run=')) {
+          runShortcuts.push({ shortcut: key, command: action.slice('run='.length) });
         }
       }
     }
 
-    this.eventHandler?.setCustomSearchShortcuts(shortcuts);
+    this.eventHandler?.setCustomSearchShortcuts(customSearchShortcuts);
+    this.eventHandler?.setRunShortcuts(runShortcuts);
   }
 
   // Search functionality callbacks
