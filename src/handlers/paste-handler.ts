@@ -11,6 +11,7 @@ import {
   checkAccessibilityPermission,
   SecureErrors
 } from '../utils/utils';
+import { sendShiftEnterToFocusedApp } from '../utils/native-tools/paste-operations';
 import { isITerm2, getITermSessionId, isCmux, isGhostty, isWezTerm } from '../utils/native-tools/app-detection';
 import type WindowManager from '../managers/window';
 import type DraftManager from '../managers/draft-manager';
@@ -38,7 +39,7 @@ const SEGMENT_PASTE_DELAY_MS = 80;
 const CLIPBOARD_SETTLE_DELAY_MS = 30;
 
 export interface PasteSegment {
-  type: 'text' | 'image';
+  type: 'text' | 'image' | 'newline';
   content: string;
 }
 
@@ -60,6 +61,26 @@ export function splitTextByImagePaths(text: string): PasteSegment[] {
     segments.push({ type: 'text', content: text.slice(lastIndex) });
   }
   return segments;
+}
+
+// Split paste text into image paths, newlines, and text runs without newlines.
+// Newlines become explicit `newline` segments so the paster can replace them
+// with Shift+Enter keystrokes — Claude Code's TUI treats a pasted newline as
+// submit, but Shift+Enter inserts a soft newline.
+export function splitTextForClaudeCodeTerminal(text: string): PasteSegment[] {
+  const result: PasteSegment[] = [];
+  const lines = text.split('\n');
+  lines.forEach((line, idx) => {
+    if (line.length > 0) {
+      for (const seg of splitTextByImagePaths(line)) {
+        result.push(seg);
+      }
+    }
+    if (idx < lines.length - 1) {
+      result.push({ type: 'newline', content: '' });
+    }
+  });
+  return result;
 }
 
 function isClaudeCodeTerminal(app: AppInfo | string | null): boolean {
@@ -139,13 +160,13 @@ class PasteHandler {
    */
   private async executePasteOperation(previousApp: AppInfo | string | null, text: string): Promise<PasteResult> {
     if (previousApp && config.platform.isMac) {
-      if (isClaudeCodeTerminal(previousApp)) {
-        const segments = splitTextByImagePaths(text);
-        if (segments.length > 1) {
-          await this.pasteSegments(previousApp, segments);
-          return { success: true };
-        }
+      if (isClaudeCodeTerminal(previousApp) && IMAGE_PATH_REGEX.test(text)) {
+        IMAGE_PATH_REGEX.lastIndex = 0;
+        const segments = splitTextForClaudeCodeTerminal(text);
+        await this.pasteSegments(previousApp, segments);
+        return { success: true };
       }
+      IMAGE_PATH_REGEX.lastIndex = 0;
       await activateAndPasteWithNativeTool(previousApp, text);
       return { success: true };
     }
@@ -169,27 +190,23 @@ class PasteHandler {
   }
 
   /**
-   * Paste segments one by one, refreshing the clipboard between each so
-   * Claude Code sees each image path as its own paste and converts it to
-   * `[Image #N]`. Trailing newline-only/whitespace-only segments after the
-   * last image are skipped to avoid leaving an empty Enter at the end.
+   * Paste segments one by one. Image paths and text runs go through the
+   * normal paste path (refreshing the clipboard each time so Claude Code
+   * sees each image path as its own paste and converts it to `[Image #N]`).
+   * `newline` segments are sent as Shift+Enter keystrokes so Claude Code
+   * inserts a soft newline instead of treating it as submit.
    */
   private async pasteSegments(previousApp: AppInfo | string, segments: PasteSegment[]): Promise<void> {
-    const lastImageIdx = segments.reduceRight(
-      (acc, seg, idx) => (acc === -1 && seg.type === 'image' ? idx : acc),
-      -1
-    );
-
     for (let i = 0; i < segments.length; i++) {
       const segment = segments[i]!;
-      const isAfterLastImage = lastImageIdx !== -1 && i > lastImageIdx;
-      const content = isAfterLastImage ? segment.content.replace(/^\s+/, '') : segment.content;
-      if (!content) continue;
-
-      clipboard.clear();
-      clipboard.writeText(content);
-      await sleep(CLIPBOARD_SETTLE_DELAY_MS);
-      await activateAndPasteWithNativeTool(previousApp, content);
+      if (segment.type === 'newline') {
+        await sendShiftEnterToFocusedApp();
+      } else if (segment.content) {
+        clipboard.clear();
+        clipboard.writeText(segment.content);
+        await sleep(CLIPBOARD_SETTLE_DELAY_MS);
+        await activateAndPasteWithNativeTool(previousApp, segment.content);
+      }
       if (i < segments.length - 1) {
         await sleep(SEGMENT_PASTE_DELAY_MS);
       }
