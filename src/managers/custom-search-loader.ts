@@ -1634,27 +1634,52 @@ class CustomSearchLoader extends EventEmitter {
     return dirs;
   }
 
-  /** Find the most recently modified subdirectory */
+  /**
+   * Find the latest subdirectory.
+   * Prefers semver order (e.g., 1.2.0 > 1.0.0) since plugin caches use semver names;
+   * falls back to mtime when names are not comparable (or tied) so non-versioned
+   * directories still work.
+   */
   private async findLatestSubdir(parentDir: string): Promise<string | null> {
     try {
       const entries = await fs.readdir(parentDir, { withFileTypes: true });
-      let latestDir = '';
-      let latestMtime = -1;
+      const candidates: { name: string; fullPath: string; mtimeMs: number }[] = [];
       for (const entry of entries) {
         if (!entry.isDirectory()) continue;
         const fullPath = path.join(parentDir, entry.name);
         try {
           const stat = await fs.stat(fullPath);
-          if (stat.mtimeMs > latestMtime) {
-            latestMtime = stat.mtimeMs;
-            latestDir = fullPath;
-          }
+          candidates.push({ name: entry.name, fullPath, mtimeMs: stat.mtimeMs });
         } catch { /* skip */ }
       }
-      return latestDir || null;
+      if (candidates.length === 0) return null;
+      candidates.sort((a, b) => {
+        const semverDiff = CustomSearchLoader.compareSemver(b.name, a.name);
+        if (semverDiff !== 0) return semverDiff;
+        return b.mtimeMs - a.mtimeMs;
+      });
+      return candidates[0]?.fullPath ?? null;
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Compare two directory names as semver-like dotted numeric versions.
+   * Returns >0 if a is newer, <0 if b is newer, 0 if equal or non-comparable.
+   * Non-numeric names return 0 so the caller can fall back to mtime.
+   */
+  private static readonly SEMVER_RE = /^\d+(?:\.\d+)*$/;
+  private static compareSemver(a: string, b: string): number {
+    if (!CustomSearchLoader.SEMVER_RE.test(a) || !CustomSearchLoader.SEMVER_RE.test(b)) return 0;
+    const aParts = a.split('.').map(Number);
+    const bParts = b.split('.').map(Number);
+    const len = Math.max(aParts.length, bParts.length);
+    for (let i = 0; i < len; i++) {
+      const diff = (aParts[i] ?? 0) - (bParts[i] ?? 0);
+      if (diff !== 0) return diff;
+    }
+    return 0;
   }
 
   /**

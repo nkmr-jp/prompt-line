@@ -781,6 +781,84 @@ describe('CustomSearchLoader', () => {
       expect(items).toHaveLength(2);
       expect(items.map(i => i.name).sort()).toEqual(['new-cmd', 'old-cmd']);
     });
+
+    describe('{latest} token resolution', () => {
+      // Builds a fake plugin cache layout: /cache/<plugin>/<version>/SKILL.md
+      // Caller supplies version dir entries (with optional mtime) so we can
+      // assert semver wins even when mtimes are equal or favor the older dir.
+      function setupVersionedPluginMocks(versionDirs: { name: string; mtimeMs: number }[]) {
+        mockedFs.readdir.mockImplementation((dir) => {
+          const dirStr = String(dir);
+          if (dirStr === '/cache') {
+            return Promise.resolve([createDirent('finance', false)] as any);
+          }
+          if (dirStr === '/cache/finance') {
+            return Promise.resolve(versionDirs.map(v => createDirent(v.name, false)) as any);
+          }
+          if (versionDirs.some(v => dirStr === `/cache/finance/${v.name}`)) {
+            return Promise.resolve([createDirent('SKILL.md', true)] as any);
+          }
+          return Promise.resolve([] as any);
+        });
+        mockedFs.stat.mockImplementation((p) => {
+          const pStr = String(p);
+          const match = versionDirs.find(v => pStr === `/cache/finance/${v.name}`);
+          if (match) {
+            return Promise.resolve({ isDirectory: () => true, mtimeMs: match.mtimeMs } as any);
+          }
+          return Promise.resolve({ isDirectory: () => true, mtimeMs: 0 } as any);
+        });
+        mockedFs.readFile.mockImplementation(((filePath: any) =>
+          Promise.resolve(`---\ndescription: From ${String(filePath)}\n---\n`)) as any);
+      }
+
+      function makeLoader() {
+        return new CustomSearchLoader([
+          {
+            name: '{pathdir:1}',
+            type: 'command',
+            description: '{frontmatter@description}',
+            sourcePath: '/cache/*/{latest}/SKILL.md',
+          },
+        ]);
+      }
+
+      test('should pick the highest semver version when mtimes are equal', async () => {
+        setupVersionedPluginMocks([
+          { name: '1.0.0', mtimeMs: 1000 },
+          { name: '1.2.0', mtimeMs: 1000 },
+        ]);
+
+        const items = await makeLoader().getItems('command');
+
+        expect(items).toHaveLength(1);
+        expect(items[0]?.description).toContain('/cache/finance/1.2.0/SKILL.md');
+      });
+
+      test('should pick the highest semver version even when older dir has newer mtime', async () => {
+        setupVersionedPluginMocks([
+          { name: '1.0.0', mtimeMs: 9999 }, // newer mtime but older version
+          { name: '1.2.0', mtimeMs: 1000 },
+        ]);
+
+        const items = await makeLoader().getItems('command');
+
+        expect(items).toHaveLength(1);
+        expect(items[0]?.description).toContain('/cache/finance/1.2.0/SKILL.md');
+      });
+
+      test('should fall back to mtime when directory names are not semver', async () => {
+        setupVersionedPluginMocks([
+          { name: 'abc123', mtimeMs: 1000 },
+          { name: 'def456', mtimeMs: 9999 },
+        ]);
+
+        const items = await makeLoader().getItems('command');
+
+        expect(items).toHaveLength(1);
+        expect(items[0]?.description).toContain('/cache/finance/def456/SKILL.md');
+      });
+    });
   });
 
   describe('excludeIf', () => {
