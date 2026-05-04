@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.36.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.36.0...prompt-line-v0.36.1) (2026-05-04)
+
+
+### Bug Fixes
+
+* **custom-search:** resolve {latest} by semver and prefer newer version on duplicates ([#381](https://github.com/nkmr-jp/prompt-line/issues/381)) ([4600d77](https://github.com/nkmr-jp/prompt-line/commit/4600d77994ee2d227287e1609396d819c08015c2))
+
 ## [0.36.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.35.2...prompt-line-v0.36.0) (2026-05-03)
 
 
