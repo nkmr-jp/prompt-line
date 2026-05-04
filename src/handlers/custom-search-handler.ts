@@ -1,6 +1,6 @@
 import { IpcMainInvokeEvent, BrowserWindow } from 'electron';
 import { logger } from '../utils/utils';
-import type CustomSearchLoader from '../managers/custom-search-loader';
+import CustomSearchLoader from '../managers/custom-search-loader';
 import type SettingsManager from '../managers/settings-manager';
 import type PluginManager from '../managers/plugin-manager';
 import type DirectoryManager from '../managers/directory-manager';
@@ -12,6 +12,18 @@ import pluginLoader from '../lib/plugin-loader';
 import { agentSkillCacheManager } from '../managers/agent-skill-cache-manager';
 import type { IPCResult } from '../types';
 import { getEnhancedEnv } from '../utils/shell-env';
+
+const VERSION_PATH_RE = /\/(\d+(?:\.\d+)+)\//;
+
+/** Returns true when `candidate` has a strictly newer semver in its filePath than `incumbent`.
+ *  When either path lacks a version, defaults to true so the later-iterated entry wins
+ *  (preserves prior settings-order behavior for non-versioned sources). */
+export function isNewerByPathVersion(candidate: string | undefined, incumbent: string | undefined): boolean {
+  const newVer = candidate?.match(VERSION_PATH_RE)?.[1];
+  const oldVer = incumbent?.match(VERSION_PATH_RE)?.[1];
+  if (!newVer || !oldVer) return true;
+  return CustomSearchLoader.compareSemver(newVer, oldVer) > 0;
+}
 
 /**
  * CustomSearchHandler manages all IPC handlers related to MD search functionality.
@@ -206,9 +218,14 @@ class CustomSearchHandler {
         commandMap.set(key, cmd);
       }
 
-      // Add custom commands (same name with different source or label is kept)
+      // Add custom commands (same name with different source or label is kept).
+      // When the same key collides (e.g., two plugin caches expose the same
+      // skill with the same label), keep the candidate whose filePath has the
+      // newer semver — without this, settings order silently picked the loser.
       for (const cmd of userCommands) {
         const key = `${cmd.name}:${cmd.source || ''}:${cmd.label || ''}`;
+        const existing = commandMap.get(key);
+        if (existing && !isNewerByPathVersion(cmd.filePath, existing.filePath)) continue;
         commandMap.set(key, cmd);
       }
 

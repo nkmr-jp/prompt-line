@@ -1670,7 +1670,7 @@ class CustomSearchLoader extends EventEmitter {
    * Non-numeric names return 0 so the caller can fall back to mtime.
    */
   private static readonly SEMVER_RE = /^\d+(?:\.\d+)*$/;
-  private static compareSemver(a: string, b: string): number {
+  static compareSemver(a: string, b: string): number {
     if (!CustomSearchLoader.SEMVER_RE.test(a) || !CustomSearchLoader.SEMVER_RE.test(b)) return 0;
     const aParts = a.split('.').map(Number);
     const bParts = b.split('.').map(Number);
