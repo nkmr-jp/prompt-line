@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.36.2](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.36.1...prompt-line-v0.36.2) (2026-05-07)
+
+
+### Miscellaneous Chores
+
+* **deps:** bump ip-address from 10.1.0 to 10.2.0 in the npm_and_yarn group across 1 directory ([#383](https://github.com/nkmr-jp/prompt-line/issues/383)) ([bbfaac0](https://github.com/nkmr-jp/prompt-line/commit/bbfaac0c8e7f3f258d6898348daee273e6393f45))
+
 ## [0.36.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.36.0...prompt-line-v0.36.1) (2026-05-04)
 
 
