@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.36.3](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.36.2...prompt-line-v0.36.3) (2026-05-09)
+
+
+### Miscellaneous Chores
+
+* **deps:** bump fast-uri from 3.1.0 to 3.1.2 in the npm_and_yarn group across 1 directory ([#385](https://github.com/nkmr-jp/prompt-line/issues/385)) ([069a232](https://github.com/nkmr-jp/prompt-line/commit/069a232729cf11bd6406717086123ef7afad18f4))
+
 ## [0.36.2](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.36.1...prompt-line-v0.36.2) (2026-05-07)
 
 
