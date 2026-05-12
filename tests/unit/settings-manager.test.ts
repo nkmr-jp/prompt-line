@@ -401,6 +401,20 @@ window:
       expect(settings.fileSearch?.excludePatterns).toEqual([]);
     });
 
+    it('should preserve additionalPaths from user settings during merge', async () => {
+      // Regression: mergeWithDefaults previously omitted additionalPaths from
+      // its field-by-field rebuild, silently dropping user-supplied PATH entries
+      // and breaking "run=" shortcuts for tools outside the default PATH.
+      const userPaths = [
+        '/Users/test/Library/Application Support/JetBrains/Toolbox/scripts',
+        '~/bin'
+      ];
+
+      await settingsManager.updateSettings({ additionalPaths: userPaths });
+
+      expect(settingsManager.getAdditionalPaths()).toEqual(userPaths);
+    });
+
     it('should deep merge symbolSearch with defaults', async () => {
       // User only specifies timeout, should get maxSymbols from defaults
       const userSettings: Partial<UserSettings> = {
