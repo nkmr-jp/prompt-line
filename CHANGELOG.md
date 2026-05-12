@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.36.4](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.36.3...prompt-line-v0.36.4) (2026-05-12)
+
+
+### Bug Fixes
+
+* **settings:** preserve additionalPaths from user settings during merge ([#387](https://github.com/nkmr-jp/prompt-line/issues/387)) ([cc0fca4](https://github.com/nkmr-jp/prompt-line/commit/cc0fca42fe5c1f4b7d8d7716ffbeb9284a946d0c))
+
 ## [0.36.3](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.36.2...prompt-line-v0.36.3) (2026-05-09)
 
 
