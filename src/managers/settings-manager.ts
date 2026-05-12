@@ -331,6 +331,10 @@ class SettingsManager extends EventEmitter {
       result.imagesDirectory = userSettings.imagesDirectory;
     }
 
+    // Handle additionalPaths (user setting replaces default entirely)
+    const resolvedAdditionalPaths = userSettings.additionalPaths ?? this.defaultSettings.additionalPaths;
+    if (resolvedAdditionalPaths) result.additionalPaths = resolvedAdditionalPaths;
+
     // Handle legacy settings (mdSearch) for backward compatibility
     if (userSettings.mdSearch && userSettings.mdSearch.length > 0) {
       this.resolveLegacyMdSearch(result, userSettings.mdSearch);
