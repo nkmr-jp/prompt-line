@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.36.5](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.36.4...prompt-line-v0.36.5) (2026-05-19)
+
+
+### Miscellaneous Chores
+
+* **deps:** bump brace-expansion from 5.0.5 to 5.0.6 (via audit fix) in the npm_and_yarn group across 1 directory ([#389](https://github.com/nkmr-jp/prompt-line/issues/389)) ([a438134](https://github.com/nkmr-jp/prompt-line/commit/a4381346c2f21d456cca4863bacaf39c7951575b))
+
 ## [0.36.4](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.36.3...prompt-line-v0.36.4) (2026-05-12)
 
 
