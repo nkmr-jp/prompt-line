@@ -1,0 +1,86 @@
+import { logger } from './logger';
+import { generateId } from './common';
+
+const FORCE_TRACE = process.env.PROMPT_LINE_PERF_TRACE === '1';
+
+export interface PerfTrace {
+  id: string;
+  start: number;
+  marks: Record<string, number>;
+  flags: Record<string, unknown>;
+}
+
+export function startTrace(): PerfTrace {
+  return {
+    id: generateId(),
+    start: performance.now(),
+    marks: {},
+    flags: {},
+  };
+}
+
+export function mark(trace: PerfTrace | undefined, label: string): void {
+  if (!trace) return;
+  trace.marks[label] = +(performance.now() - trace.start).toFixed(2);
+}
+
+export function setFlag(trace: PerfTrace | undefined, key: string, value: unknown): void {
+  if (!trace) return;
+  trace.flags[key] = value;
+}
+
+export function flushShowTrace(trace: PerfTrace, payload: Record<string, unknown> = {}): void {
+  const total = +(performance.now() - trace.start).toFixed(2);
+  logger.info('show-window-trace', {
+    traceId: trace.id,
+    total,
+    marks: trace.marks,
+    flags: trace.flags,
+    ...payload,
+  });
+}
+
+export interface BackgroundTrace {
+  id: string;
+  start: number;
+  source: string;
+}
+
+export function startBackground(source: string): BackgroundTrace {
+  return { id: generateId(), start: performance.now(), source };
+}
+
+export function flushBackground(bg: BackgroundTrace, payload: Record<string, unknown> = {}): void {
+  const ms = +(performance.now() - bg.start).toFixed(2);
+  logger.info('background-trace', {
+    traceId: bg.id,
+    source: bg.source,
+    ms,
+    ...payload,
+  });
+}
+
+export interface NativeCallTrace {
+  id: string;
+  start: number;
+  tool: string;
+}
+
+export function startNative(tool: string): NativeCallTrace {
+  return { id: generateId(), start: performance.now(), tool };
+}
+
+export function flushNative(nt: NativeCallTrace, payload: Record<string, unknown> = {}): void {
+  const ms = +(performance.now() - nt.start).toFixed(2);
+  const event = {
+    traceId: nt.id,
+    tool: nt.tool,
+    ms,
+    ...payload,
+  };
+  if (FORCE_TRACE) {
+    logger.info('native-call-trace', event);
+  } else {
+    logger.debug('native-call-trace', event);
+  }
+}

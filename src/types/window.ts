@@ -67,6 +67,7 @@ export interface WindowData {
   directoryData?: DirectoryInfo;
   fileSearchEnabled?: boolean;
   symbolSearchEnabled?: boolean;
+  traceId?: string;
 }
 
 export interface WindowBounds {

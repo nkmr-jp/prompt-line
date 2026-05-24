@@ -115,6 +115,18 @@ class IPCHandlers {
     this.customSearchHandler.setupHandlers(ipcMain);
     this.fileHandler.setupHandlers(ipcMain);
     this.usageHistoryHandler.setupHandlers(ipcMain);
+    this.setupPerfTraceReceiver();
+  }
+
+  private setupPerfTraceReceiver(): void {
+    ipcMain.on('perf-trace-report', (_event, payload: { traceId?: string; event: string; ms: number; [key: string]: unknown }) => {
+      try {
+        const { event, ...rest } = payload;
+        logger.info(event || 'renderer-trace', rest);
+      } catch (error) {
+        logger.warn('Failed to log perf trace from renderer:', error);
+      }
+    });
   }
 
   /**

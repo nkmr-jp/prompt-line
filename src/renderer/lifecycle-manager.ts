@@ -24,6 +24,7 @@ export class LifecycleManager {
   ) {}
 
   public handleWindowShown(data: WindowData): void {
+    const t0 = performance.now();
     try {
       const draftInfo = this.extractDraftInfo(data.draft);
       this.initializeTextArea(draftInfo, !!data.draft);
@@ -35,6 +36,16 @@ export class LifecycleManager {
       // Draft is loaded instantly, no notification needed
     } catch (error) {
       console.error('Error handling window shown:', error);
+    } finally {
+      const ms = +(performance.now() - t0).toFixed(2);
+      const traceId = (data as { traceId?: string }).traceId;
+      this.electronAPI?.perfTrace?.report?.({
+        traceId,
+        event: 'renderer-window-shown',
+        ms,
+        historyCount: data.history?.length ?? 0,
+        hasDraft: !!data.draft,
+      });
     }
   }
 

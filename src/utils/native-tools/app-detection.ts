@@ -4,6 +4,7 @@ import type { AppInfo, WindowBounds } from '../../types';
 import { TIMEOUTS } from '../../constants';
 import { executeAppleScriptSafely, validateAppleScriptSecurity } from '../apple-script-sanitizer';
 import { logger } from '../logger';
+import { startNative, flushNative } from '../perf-trace';
 import { WINDOW_DETECTOR_PATH } from './paths';
 
 const ITERM2_BUNDLE_ID = 'com.googlecode.iterm2';
@@ -29,8 +30,10 @@ export function getCurrentApp(): Promise<AppInfo | null> {
       killSignal: 'SIGTERM' as const
     };
 
+    const nt = startNative('getCurrentApp');
     execFile(WINDOW_DETECTOR_PATH, ['current-app'], options, (error, stdout) => {
       if (error) {
+        flushNative(nt, { ok: false });
         logger.warn('Error getting current app (non-blocking):', error.message);
         resolve(null);
       } else {
@@ -38,6 +41,7 @@ export function getCurrentApp(): Promise<AppInfo | null> {
           const result = JSON.parse(stdout.trim());
 
           if (result.error) {
+            flushNative(nt, { ok: false, parseError: false });
             logger.warn('Native tool returned error:', result.error);
             resolve(null);
             return;
@@ -48,8 +52,10 @@ export function getCurrentApp(): Promise<AppInfo | null> {
             bundleId: result.bundleId === null ? null : result.bundleId
           };
 
+          flushNative(nt, { ok: true });
           resolve(appInfo);
         } catch (parseError) {
+          flushNative(nt, { ok: false, parseError: true });
           logger.warn('Error parsing app info:', parseError);
           resolve(null);
         }
@@ -70,14 +76,17 @@ export function getActiveWindowBounds(): Promise<WindowBounds | null> {
       killSignal: 'SIGTERM' as const
     };
 
+    const nt = startNative('getActiveWindowBounds');
     execFile(WINDOW_DETECTOR_PATH, ['window-bounds'], options, (error, stdout) => {
       if (error) {
+        flushNative(nt, { ok: false });
         logger.warn('Error getting active window bounds (non-blocking):', error.message);
         resolve(null);
       } else {
         try {
           const result = JSON.parse(stdout.trim());
           if (result.error) {
+            flushNative(nt, { ok: false, parseError: false });
             logger.warn('Native tool returned error for window bounds:', result.error);
             resolve(null);
             return;
@@ -91,13 +100,16 @@ export function getActiveWindowBounds(): Promise<WindowBounds | null> {
           };
 
           if (Object.values(windowBounds).some(val => typeof val !== 'number' || isNaN(val))) {
+            flushNative(nt, { ok: false, invalidBounds: true });
             logger.warn('Invalid numeric values in window bounds:', result);
             resolve(null);
             return;
           }
 
+          flushNative(nt, { ok: true });
           resolve(windowBounds);
         } catch (parseError) {
+          flushNative(nt, { ok: false, parseError: true });
           logger.warn('Error parsing window bounds:', parseError);
           resolve(null);
         }

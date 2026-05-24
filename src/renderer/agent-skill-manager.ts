@@ -1283,10 +1283,21 @@ export class AgentSkillManager implements IInitializable {
    * P2: Prefetch skills in background to warm cache before user interaction
    */
   public async prefetchSkills(): Promise<void> {
+    const t0 = performance.now();
+    let ok = true;
     try {
       await this.loadSkills();
     } catch {
+      ok = false;
       // Prefetch failure is non-critical
+    } finally {
+      const ms = +(performance.now() - t0).toFixed(2);
+      electronAPI?.perfTrace?.report?.({
+        event: 'renderer-prefetch-skills',
+        ms,
+        ok,
+        skillCount: this.skills?.length ?? 0,
+      });
     }
   }
 }

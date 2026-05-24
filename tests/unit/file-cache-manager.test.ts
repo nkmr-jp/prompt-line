@@ -37,7 +37,9 @@ vi.mock('../../src/utils/utils', () => ({
     debug: vi.fn(),
     warn: vi.fn(),
     error: vi.fn()
-  }
+  },
+  startBackground: vi.fn(() => ({ id: 'test', start: 0, source: 'test' })),
+  flushBackground: vi.fn()
 }));
 
 // Mock readline module

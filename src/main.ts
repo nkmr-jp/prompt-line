@@ -24,7 +24,7 @@ import SettingsManager from './managers/settings-manager';
 import PluginManager from './managers/plugin-manager';
 import IPCHandlers from './handlers/ipc-handlers';
 import { codeSearchHandler } from './handlers/code-search-handler';
-import { logger, ensureDir, detectCurrentDirectoryWithFiles } from './utils/utils';
+import { logger, ensureDir, detectCurrentDirectoryWithFiles, startTrace, mark, flushShowTrace } from './utils/utils';
 import { LIMITS } from './constants';
 import type { WindowData, UserSettings } from './types';
 
@@ -478,16 +478,21 @@ class PromptLineApp {
   }
 
   async showInputWindow(): Promise<void> {
+    const trace = startTrace();
     try {
       if (!this.isInitialized || !this.windowManager || !this.historyManager || !this.draftManager || !this.settingsManager) {
         logger.warn('App not initialized, cannot show window');
         return;
       }
 
+      mark(trace, 'entry');
       const draftData = this.draftManager.getDraftWithScrollTop();
+      mark(trace, 'draft-loaded');
       const settings = this.settingsManager.getSettings();
+      mark(trace, 'settings-loaded');
       // Use getHistoryForSearch for larger search scope (5000 items instead of 200)
       const history = await this.historyManager.getHistoryForSearch(LIMITS.MAX_SEARCH_ITEMS);
+      mark(trace, 'history-loaded');
 
       logger.debug('Settings from settingsManager:', {
         hasFileSearch: !!settings.fileSearch,
@@ -502,10 +507,12 @@ class PromptLineApp {
           timestamp: Date.now(),
           saved: true
         } : null,
-        settings
+        settings,
+        traceId: trace.id
       };
 
-      await this.windowManager.showInputWindow(windowData);
+      await this.windowManager.showInputWindow(windowData, trace);
+      mark(trace, 'window-shown');
       logger.debug('Input window shown with data', {
         historyItems: windowData.history?.length || 0,
         hasDraft: !!windowData.draft
@@ -517,6 +524,8 @@ class PromptLineApp {
       this.testDirectoryDetection(bundleId);
     } catch (error) {
       logger.error('Failed to show input window:', error);
+    } finally {
+      flushShowTrace(trace);
     }
   }
 

@@ -408,6 +408,13 @@ const electronAPI: ElectronAPI = {
     },
   },
 
+  // Performance trace from renderer (one-shot log forwarded to main process)
+  perfTrace: {
+    report: (payload: { traceId?: string; event: string; ms: number; [key: string]: unknown }): void => {
+      ipcRenderer.send('perf-trace-report', payload);
+    },
+  },
+
   // Usage history tracking
   usageHistory: {
     recordFileUsage: async (filePath: string): Promise<IPCResult> => {

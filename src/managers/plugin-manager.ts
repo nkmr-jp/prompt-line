@@ -2,7 +2,7 @@ import path from 'path';
 import { EventEmitter } from 'events';
 import chokidar, { type FSWatcher } from 'chokidar';
 import config from '../config/app-config';
-import { logger, ensureDir } from '../utils/utils';
+import { logger, ensureDir, startBackground, flushBackground } from '../utils/utils';
 import pluginLoader from '../lib/plugin-loader';
 
 /**
@@ -117,8 +117,10 @@ class PluginManager extends EventEmitter {
     }
 
     this.reloadDebounceTimer = setTimeout(() => {
+      const bg = startBackground('plugins:reload');
       pluginLoader.clearCache();
       this.emit('plugins-changed');
+      flushBackground(bg, { trigger: 'file-change' });
       logger.info('Plugins reloaded from file change');
     }, this.RELOAD_DEBOUNCE_MS);
   }

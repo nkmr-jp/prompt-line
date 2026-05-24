@@ -8,7 +8,7 @@ const execAsync = promisify(exec);
 import os from 'os';
 import chokidar, { type FSWatcher } from 'chokidar';
 import { EventEmitter } from 'events';
-import { logger } from '../utils/utils';
+import { logger, startBackground, flushBackground } from '../utils/utils';
 import type { CustomSearchEntry, CustomSearchItem, CustomSearchType, UserSettings, ColorValue } from '../types';
 import { resolveTemplate, getBasename, getDirname, parseFrontmatter, extractRawFrontmatter, parseFirstHeading, parseJsonContent, type TemplateContext } from '../lib/template-resolver';
 import { evaluateJq } from '../lib/jq-resolver';
@@ -268,8 +268,10 @@ class CustomSearchLoader extends EventEmitter {
     }
 
     this.fileReloadTimer = setTimeout(() => {
+      const bg = startBackground('custom-search:source-changed');
       this.invalidateCache();
       this.emit('source-changed');
+      flushBackground(bg, { trigger: 'file-change' });
       logger.info('CustomSearch cache invalidated from source file change');
     }, CustomSearchLoader.FILE_RELOAD_DEBOUNCE_MS);
   }
@@ -631,6 +633,7 @@ class CustomSearchLoader extends EventEmitter {
       return this.loadingPromise;
     }
 
+    const bg = startBackground('custom-search:loadAll');
     this.loadingPromise = this.loadAllEntries().then(({ items: allItems, watchableFiles, watchGlobs }) => {
       allItems.sort((a, b) => a.name.localeCompare(b.name));
       this.cache.set(cacheKey, { items: allItems });
@@ -639,9 +642,11 @@ class CustomSearchLoader extends EventEmitter {
       this.startFileWatching(watchableFiles);
       this.startGlobWatching(watchGlobs);
       this.loadingPromise = null;
+      flushBackground(bg, { itemCount: allItems.length, entryCount: this.config.length, watchableFiles: watchableFiles.length, watchGlobs: watchGlobs.length });
       return allItems;
     }).catch(err => {
       this.loadingPromise = null;
+      flushBackground(bg, { ok: false });
       throw err;
     });
 
@@ -795,16 +800,20 @@ class CustomSearchLoader extends EventEmitter {
 
     // Capture previous fingerprint before fetch overwrites the cache
     const previousFingerprint = this.commandCacheFingerprint(sourceId);
+    const bg = startBackground('custom-search:command-refresh');
     const promise = this.fetchCommandItems(entry, sourceId).then(items => {
       this.commandFetchPromises.delete(sourceId);
       // Notify renderer if content changed (name-based fingerprint comparison)
-      if (this.commandCacheFingerprint(sourceId) !== previousFingerprint) {
+      const changed = this.commandCacheFingerprint(sourceId) !== previousFingerprint;
+      if (changed) {
         this.invalidateCache();
         this.emit('source-changed');
       }
+      flushBackground(bg, { sourceId, changed, itemCount: items.length });
       return items;
     }).catch(err => {
       this.commandFetchPromises.delete(sourceId);
+      flushBackground(bg, { sourceId, ok: false });
       // fetchCommandItems handles its own errors and returns stale cache,
       // so this catch is defensive for unexpected errors only
       logger.debug('Background command refresh failed:', err);
