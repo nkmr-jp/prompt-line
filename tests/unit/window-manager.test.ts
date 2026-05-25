@@ -25,7 +25,16 @@ vi.mock('../../src/utils/utils', () => ({
     KEYBOARD_SIMULATOR_PATH: '/path/to/keyboard-simulator',
     TEXT_FIELD_DETECTOR_PATH: '/path/to/text-field-detector',
     WINDOW_DETECTOR_PATH: '/path/to/window-detector',
-    DIRECTORY_DETECTOR_PATH: '/path/to/directory-detector'
+    DIRECTORY_DETECTOR_PATH: '/path/to/directory-detector',
+    // Perf-trace stubs (no-op for tests)
+    mark: vi.fn(),
+    setFlag: vi.fn(),
+    startTrace: vi.fn(() => ({ id: 'test', start: 0, marks: {}, flags: {} })),
+    flushShowTrace: vi.fn(),
+    startBackground: vi.fn(() => ({ id: 'test', start: 0, source: 'test' })),
+    flushBackground: vi.fn(),
+    startNative: vi.fn(() => ({ id: 'test', start: 0, tool: 'test' })),
+    flushNative: vi.fn()
 }));
 
 // Mock the config module

@@ -40,3 +40,16 @@ export { ensureDir, fileExists } from './file-utils';
 
 // Apple Script sanitizer (re-export from original location)
 export { sanitizeAppleScript, executeAppleScriptSafely, validateAppleScriptSecurity } from './apple-script-sanitizer';
+
+// Performance trace helpers
+export {
+  startTrace,
+  mark,
+  setFlag,
+  flushShowTrace,
+  startBackground,
+  flushBackground,
+  startNative,
+  flushNative,
+} from './perf-trace';
+export type { PerfTrace, BackgroundTrace, NativeCallTrace } from './perf-trace';

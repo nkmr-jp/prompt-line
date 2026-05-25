@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { ensureDir } from '../utils/file-utils';
 import { logger } from '../utils/logger';
+import { startBackground, flushBackground } from '../utils/perf-trace';
 import { calculateFrequencyBonus, calculateUsageRecencyBonus } from '../lib/usage-bonus-calculator';
 
 const GLOBAL_CACHE_FILE_NAME = 'global-agent-skills.jsonl';
@@ -46,11 +47,14 @@ export class AgentSkillCacheManager {
    * Load global agent skill names (ordered by most recently used)
    */
   async loadGlobalSkills(): Promise<string[]> {
+    const bg = startBackground('agent-skill-cache:loadGlobalSkills');
     try {
       const entries = await this.loadGlobalEntries();
+      flushBackground(bg, { count: entries.length, cached: this.entriesCache !== null });
       // Return in reverse order (most recent first) without mutating the cached array
       return [...entries].reverse().map(e => e.name);
     } catch {
+      flushBackground(bg, { ok: false });
       return [];
     }
   }

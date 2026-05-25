@@ -1,6 +1,7 @@
 import { BrowserWindow } from 'electron';
 import config from '../../config/app-config';
-import { getCurrentApp, logger } from '../../utils/utils';
+import { getCurrentApp, logger, mark, setFlag } from '../../utils/utils';
+import type { PerfTrace } from '../../utils/utils';
 import DesktopSpaceManager from '../desktop-space-manager';
 import FileCacheManager from '../file-cache-manager';
 import type DirectoryManager from '../directory-manager';
@@ -104,8 +105,9 @@ class WindowManager {
    * Show input window with positioning and directory detection
    * Coordinates all sub-managers for window display
    */
-  async showInputWindow(data: WindowData = {}): Promise<void> {
+  async showInputWindow(data: WindowData = {}, trace?: PerfTrace): Promise<void> {
     try {
+      mark(trace, 'window-manager-enter');
       // Update settings from data
       if (data.settings?.window) {
         this.updateWindowSettings(data.settings.window);
@@ -113,6 +115,9 @@ class WindowManager {
       if (data.settings?.fileSearch) {
         this.directoryDetector.updateFileSearchSettings(data.settings.fileSearch as FileSearchSettings);
       }
+      setFlag(trace, 'historyCount', data.history?.length ?? 0);
+      setFlag(trace, 'fileSearchEnabled', this.isFileSearchEnabled());
+      setFlag(trace, 'positionMode', this.customWindowSettings.position || 'active-text-field');
 
       // Get current app and space information in parallel
       const [currentAppResult, currentSpaceResult] = await Promise.allSettled([
@@ -121,6 +126,7 @@ class WindowManager {
           ? this.desktopSpaceManager.getCurrentSpaceInfo(null)
           : Promise.resolve(null)
       ]);
+      mark(trace, 'parallel-app-space-done');
 
       // Process current app result
       let previousApp: AppInfo | string | null = null;
@@ -161,9 +167,11 @@ class WindowManager {
         }
 
         // Check if desktop space has changed
-        if (this.lastSpaceSignature !== currentSpaceInfo.signature) {
+        const signatureChanged = this.lastSpaceSignature !== currentSpaceInfo.signature;
+        if (signatureChanged) {
           needsWindowRecreation = true;
         }
+        setFlag(trace, 'signatureChanged', signatureChanged);
 
         this.lastSpaceSignature = currentSpaceInfo.signature;
       } else {
@@ -173,6 +181,9 @@ class WindowManager {
           logger.warn('Failed to get current space info:', currentSpaceResult.reason);
         }
       }
+      mark(trace, 'space-info-refined');
+      setFlag(trace, 'needsWindowRecreation', needsWindowRecreation);
+      setFlag(trace, 'isPromptLineFocused', isPromptLineFocused);
 
       // Handle window creation/reuse based on space changes
       if (needsWindowRecreation && this.inputWindow && !this.inputWindow.isDestroyed()) {
@@ -206,12 +217,15 @@ class WindowManager {
           }
         }
       }
+      mark(trace, 'position-done');
 
       // Prepare window data with directory information
-      const windowData = await this.prepareWindowData(data, previousApp, currentSpaceInfo);
+      const windowData = await this.prepareWindowData(data, previousApp, currentSpaceInfo, trace);
+      mark(trace, 'prepare-done');
 
       // Display window with prepared data
-      await this.displayWindow(windowData);
+      await this.displayWindow(windowData, trace);
+      mark(trace, 'display-done');
 
       // Background directory detection (non-blocking) - runs AFTER window is shown
       // Skip if fd command is not available (file search is disabled)
@@ -235,7 +249,8 @@ class WindowManager {
   private async prepareWindowData(
     data: WindowData,
     previousApp: AppInfo | string | null,
-    currentSpaceInfo: any
+    currentSpaceInfo: any,
+    trace?: PerfTrace
   ): Promise<WindowData> {
     // Get saved directory from DirectoryManager for fallback feature
     const savedDirectory = this.directoryDetector.getSavedDirectory();
@@ -253,9 +268,11 @@ class WindowManager {
     if (this.isFileSearchEnabled()) {
       // Check fd command availability
       await this.directoryDetector.checkFdCommandAvailability();
+      mark(trace, 'fd-checked');
 
       // Load cached file data for immediate file search availability
       const cachedData = await this.directoryDetector.loadCachedFilesForWindow();
+      mark(trace, 'cache-loaded');
       if (cachedData) {
         windowData.directoryData = cachedData;
       } else if (savedDirectory) {
@@ -286,6 +303,7 @@ class WindowManager {
       } else {
         // Check rg command availability (only if fd is available)
         const rgCheck = await checkRgAvailable();
+        mark(trace, 'rg-checked');
         if (!rgCheck.rgAvailable) {
           windowData.symbolSearchEnabled = false;
           if (!windowData.directoryData) {
@@ -306,22 +324,82 @@ class WindowManager {
    * Display window with data
    * @private
    */
-  private async displayWindow(windowData: WindowData): Promise<void> {
+  private async displayWindow(windowData: WindowData, trace?: PerfTrace): Promise<void> {
     if (this.inputWindow!.isVisible()) {
       // Window is already visible, just update data and focus
+      setFlag(trace, 'displayPath', 'reuse-visible');
       this.inputWindow!.webContents.send('window-shown', windowData);
+      mark(trace, 'shown-sent');
       this.inputWindow!.focus();
     } else if (this.inputWindow!.webContents.isLoading()) {
-      // Window is loading, wait for completion
-      this.inputWindow!.webContents.once('did-finish-load', () => {
-        this.inputWindow!.webContents.send('window-shown', windowData);
-        this.inputWindow!.show();
-        this.inputWindow!.focus();
+      // Window is loading, wait for completion. Await the load so the caller's
+      // flushShowTrace captures did-finish-load / shown-sent / show-called marks
+      // for the cold-startup path. Settle on did-fail-load / render-process-gone
+      // and a 3s fallback so a stalled load never freezes the toggle path.
+      setFlag(trace, 'displayPath', 'wait-finish-load');
+      const wc = this.inputWindow!.webContents;
+      await new Promise<void>(resolve => {
+        let settled = false;
+        const cleanup = (): void => {
+          wc.removeListener('did-finish-load', onFinish);
+          wc.removeListener('did-fail-load', onFail);
+          wc.removeListener('render-process-gone', onFail);
+          clearTimeout(timeoutId);
+        };
+        const settle = (path: string): void => {
+          if (settled) return;
+          settled = true;
+          setFlag(trace, 'waitFinishLoadResult', path);
+          cleanup();
+          resolve();
+        };
+        const onFinish = (): void => {
+          try {
+            if (this.inputWindow && !this.inputWindow.isDestroyed()) {
+              mark(trace, 'did-finish-load');
+              this.inputWindow.webContents.send('window-shown', windowData);
+              mark(trace, 'shown-sent');
+              this.inputWindow.show();
+              mark(trace, 'show-called');
+              this.inputWindow.focus();
+            }
+          } catch (err) {
+            logger.warn('Error in did-finish-load handler:', err);
+          }
+          settle('finish');
+        };
+        const showFallback = (reason: string): void => {
+          if (this.inputWindow && !this.inputWindow.isDestroyed()) {
+            try {
+              this.inputWindow.show();
+              this.inputWindow.focus();
+            } catch (err) {
+              logger.warn(`Fallback show after ${reason} failed:`, err);
+            }
+          }
+        };
+        const onFail = (): void => {
+          logger.warn('did-fail-load before did-finish-load; showing window without renderer ack');
+          showFallback('fail');
+          settle('fail');
+        };
+        const onTimeout = (): void => {
+          logger.warn('did-finish-load timed out (3s); showing window without renderer ack');
+          showFallback('timeout');
+          settle('timeout');
+        };
+        const timeoutId = setTimeout(onTimeout, 3000);
+        wc.once('did-finish-load', onFinish);
+        wc.once('did-fail-load', onFail);
+        wc.once('render-process-gone', onFail);
       });
     } else {
       // Window is ready, show it
+      setFlag(trace, 'displayPath', 'show-immediate');
       this.inputWindow!.webContents.send('window-shown', windowData);
+      mark(trace, 'shown-sent');
       this.inputWindow!.show();
+      mark(trace, 'show-called');
       this.inputWindow!.focus();
     }
   }

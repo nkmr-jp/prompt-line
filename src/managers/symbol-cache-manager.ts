@@ -16,7 +16,7 @@ import { promises as fs, createReadStream } from 'fs';
 import { createInterface } from 'readline';
 import path from 'path';
 import config from '../config/app-config';
-import { logger, ensureDir } from '../utils/utils';
+import { logger, ensureDir, startBackground, flushBackground } from '../utils/utils';
 import type {
   SymbolResult,
   SymbolCacheMetadata
@@ -231,15 +231,19 @@ export class SymbolCacheManager {
    * @param maxSymbols - Optional maximum number of symbols to load (for early termination)
    */
   async loadSymbols(directory: string, language?: string, maxSymbols?: number): Promise<SymbolResult[]> {
+    const bg = startBackground('symbol-cache:loadSymbols');
     try {
       if (language) {
         // Load from language-specific file
-        return await this.loadSymbolsForLanguage(directory, language, maxSymbols);
+        const symbols = await this.loadSymbolsForLanguage(directory, language, maxSymbols);
+        flushBackground(bg, { language, count: symbols.length });
+        return symbols;
       }
 
       // Load from all language files
       const metadata = await this.loadMetadata(directory);
       if (!metadata) {
+        flushBackground(bg, { hit: false });
         return [];
       }
 
@@ -254,8 +258,10 @@ export class SymbolCacheManager {
         allSymbols.push(...langSymbols);
       }
 
+      flushBackground(bg, { languages: Object.keys(metadata.languages).length, count: allSymbols.length });
       return allSymbols;
     } catch {
+      flushBackground(bg, { ok: false });
       return [];
     }
   }

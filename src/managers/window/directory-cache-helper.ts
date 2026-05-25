@@ -1,4 +1,4 @@
-import { logger } from '../../utils/utils';
+import { logger, startBackground, flushBackground } from '../../utils/utils';
 import FileCacheManager from '../file-cache-manager';
 import type { DirectoryInfo, FileInfo } from '../../types';
 import { DirectoryDetectorUtils } from './directory-detector-utils';
@@ -17,22 +17,30 @@ export class DirectoryCacheHelper {
   async loadCachedFilesForWindow(savedDirectory: string | null): Promise<DirectoryInfo | null> {
     if (!this.fileCacheManager) return null;
 
+    const bg = startBackground('file-cache:load-for-window');
     try {
       // Priority 1: Try to load cache for savedDirectory (from DirectoryManager)
       if (savedDirectory) {
         const result = await this.loadCacheForDirectory(savedDirectory);
-        if (result) return result;
+        if (result) {
+          flushBackground(bg, { source: 'savedDirectory', fileCount: result.fileCount ?? 0 });
+          return result;
+        }
       }
 
       // Priority 2: Try to load cache for lastUsedDirectory
       const lastUsedDir = await this.fileCacheManager.getLastUsedDirectory();
       if (lastUsedDir && lastUsedDir !== savedDirectory) {
-        return await this.loadCacheForDirectory(lastUsedDir);
+        const result = await this.loadCacheForDirectory(lastUsedDir);
+        flushBackground(bg, { source: 'lastUsedDirectory', hit: !!result, fileCount: result?.fileCount ?? 0 });
+        return result;
       }
 
+      flushBackground(bg, { source: 'none', hit: false });
       return null;
     } catch (error) {
       logger.error('Failed to load cached files:', error);
+      flushBackground(bg, { ok: false });
       return null;
     }
   }

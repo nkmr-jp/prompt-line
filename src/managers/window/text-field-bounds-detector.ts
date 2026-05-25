@@ -7,7 +7,7 @@
  */
 
 import { execFile } from 'child_process';
-import { TEXT_FIELD_DETECTOR_PATH } from '../../utils/utils';
+import { TEXT_FIELD_DETECTOR_PATH, startNative, flushNative } from '../../utils/utils';
 import config from '../../config/app-config';
 import type { TextFieldBounds } from './types';
 import { TIMEOUTS } from '../../constants';
@@ -29,8 +29,12 @@ export async function getActiveTextFieldBounds(): Promise<TextFieldBounds | null
   };
 
   return new Promise((resolve) => {
+    const nt = startNative('getActiveTextFieldBounds');
     execFile(TEXT_FIELD_DETECTOR_PATH, ['text-field-bounds'], options, (error: Error | null, stdout?: string) => {
       if (error) {
+        const e = error as Error & { killed?: boolean; signal?: string };
+        const timedOut = e.killed === true || e.signal === 'SIGTERM';
+        flushNative(nt, { ok: false, timedOut });
         resolve(null);
         return;
       }
@@ -39,9 +43,11 @@ export async function getActiveTextFieldBounds(): Promise<TextFieldBounds | null
         const result = JSON.parse(stdout?.trim() || '{}');
 
         if (result.error) {
+          flushNative(nt, { ok: false, toolError: true });
           resolve(null);
           return;
         }
+
 
         if (result.success && typeof result.x === 'number' && typeof result.y === 'number' &&
             typeof result.width === 'number' && typeof result.height === 'number') {
@@ -65,12 +71,15 @@ export async function getActiveTextFieldBounds(): Promise<TextFieldBounds | null
             };
           }
 
+          flushNative(nt, { ok: true });
           resolve(bounds);
           return;
         }
 
+        flushNative(nt, { ok: false, notFound: true });
         resolve(null);
       } catch {
+        flushNative(nt, { ok: false, parseError: true });
         resolve(null);
       }
     });

@@ -281,6 +281,9 @@ export interface ElectronAPI {
     registerGlobal: (atPath: string) => Promise<IPCResult>;
     getGlobalPaths: () => Promise<string[]>;
   };
+  perfTrace: {
+    report: (payload: { traceId?: string; event: string; ms: number; [key: string]: unknown }) => void;
+  };
   usageHistory: {
     recordFileUsage: (filePath: string) => Promise<IPCResult>;
     getFileUsageBonuses: (filePaths: string[]) => Promise<Record<string, number>>;

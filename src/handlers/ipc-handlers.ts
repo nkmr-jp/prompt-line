@@ -1,5 +1,6 @@
-import { ipcMain } from 'electron';
+import { ipcMain, IpcMainEvent } from 'electron';
 import { logger } from '../utils/utils';
+import { emitPerfTrace } from '../utils/perf-trace';
 import type WindowManager from '../managers/window';
 import type DraftManager from '../managers/draft-manager';
 import type DirectoryManager from '../managers/directory-manager';
@@ -17,6 +18,37 @@ import SystemHandler from './system-handler';
 import CustomSearchHandler from './custom-search-handler';
 import FileHandler from './file-handler';
 import UsageHistoryHandler from './usage-history-handler';
+
+const ALLOWED_PERF_TRACE_EVENTS = new Set([
+  'renderer-window-shown',
+  'renderer-prefetch-skills',
+]);
+const PERF_TRACE_MAX_KEYS = 16;
+const PERF_TRACE_MAX_VALUE_LENGTH = 256;
+
+function isPerfTraceValueOk(value: unknown): boolean {
+  if (value === null || value === undefined) return true;
+  if (typeof value === 'number') return Number.isFinite(value);
+  if (typeof value === 'boolean') return true;
+  if (typeof value === 'string') return value.length <= PERF_TRACE_MAX_VALUE_LENGTH;
+  return false;
+}
+
+function perfTraceReportListener(_event: IpcMainEvent, payload: unknown): void {
+  try {
+    if (!payload || typeof payload !== 'object') return;
+    const { event, ms, ...rest } = payload as Record<string, unknown>;
+    if (typeof event !== 'string' || !ALLOWED_PERF_TRACE_EVENTS.has(event)) return;
+    if (typeof ms !== 'number' || !Number.isFinite(ms)) return;
+    if (Object.keys(rest).length > PERF_TRACE_MAX_KEYS) return;
+    for (const v of Object.values(rest)) {
+      if (!isPerfTraceValueOk(v)) return;
+    }
+    emitPerfTrace(event, { ms, ...rest });
+  } catch (error) {
+    logger.warn('Failed to log perf trace from renderer:', error);
+  }
+}
 
 /**
  * IPCHandlers Coordinator
@@ -115,6 +147,11 @@ class IPCHandlers {
     this.customSearchHandler.setupHandlers(ipcMain);
     this.fileHandler.setupHandlers(ipcMain);
     this.usageHistoryHandler.setupHandlers(ipcMain);
+    this.setupPerfTraceReceiver();
+  }
+
+  private setupPerfTraceReceiver(): void {
+    ipcMain.on('perf-trace-report', perfTraceReportListener);
   }
 
   /**
@@ -128,6 +165,7 @@ class IPCHandlers {
     this.customSearchHandler.removeHandlers(ipcMain);
     this.fileHandler.removeHandlers(ipcMain);
     this.usageHistoryHandler.removeHandlers(ipcMain);
+    ipcMain.removeAllListeners('perf-trace-report');
 
     logger.info('All IPC handlers removed via coordinator');
   }

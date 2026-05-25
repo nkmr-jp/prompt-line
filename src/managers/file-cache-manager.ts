@@ -3,7 +3,7 @@ import path from 'path';
 import { createReadStream, createWriteStream } from 'fs';
 import { createInterface } from 'readline';
 import config from '../config/app-config';
-import { logger } from '../utils/utils';
+import { logger, startBackground, flushBackground } from '../utils/utils';
 import type {
   FileInfo,
   FileCacheMetadata,
@@ -65,6 +65,7 @@ class FileCacheManager {
     directory: string,
     options?: { withRecentMtimes?: boolean }
   ): Promise<CachedDirectoryData | null> {
+    const bg = startBackground('file-cache:loadCache');
     try {
       const cachePath = this.getCachePath(directory);
       const metadataPath = path.join(cachePath, 'metadata.json');
@@ -75,6 +76,7 @@ class FileCacheManager {
         await fs.access(metadataPath);
         await fs.access(filesPath);
       } catch {
+        flushBackground(bg, { hit: false, reason: 'missing' });
         return null;
       }
 
@@ -91,6 +93,7 @@ class FileCacheManager {
         files = await this.mergeRecentMtimes(directory, files);
       }
 
+      flushBackground(bg, { hit: true, fileCount: files.length, withRecentMtimes: !!options?.withRecentMtimes });
       return {
         directory,
         files,
@@ -98,6 +101,7 @@ class FileCacheManager {
       };
     } catch (error) {
       logger.error('Failed to load cache:', error);
+      flushBackground(bg, { ok: false });
       return null;
     }
   }

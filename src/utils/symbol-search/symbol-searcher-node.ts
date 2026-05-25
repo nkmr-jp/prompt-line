@@ -10,6 +10,7 @@
 import { execFile } from 'child_process';
 import path from 'path';
 import { logger } from '../logger';
+import { startNative, flushNative } from '../perf-trace';
 import { getGlobalGitExcludesFile } from '../git-excludes';
 import type {
   SymbolSearchResponse,
@@ -655,7 +656,10 @@ export async function checkRgAvailable(): Promise<RgCheckResponse> {
     'rg'                     // PATH
   ];
 
+  const nt = startNative('checkRgAvailable');
+  let attempts = 0;
   for (const rgPath of rgPaths) {
+    attempts++;
     try {
       await new Promise<void>((resolve, reject) => {
         execFile(rgPath, ['--version'], { timeout: 2000 }, (error) => {
@@ -664,12 +668,14 @@ export async function checkRgAvailable(): Promise<RgCheckResponse> {
         });
       });
 
+      flushNative(nt, { ok: true, attempts, rgPath });
       return { rgAvailable: true, rgPath };
     } catch {
       continue;
     }
   }
 
+  flushNative(nt, { ok: false, attempts });
   return { rgAvailable: false, rgPath: null };
 }
 

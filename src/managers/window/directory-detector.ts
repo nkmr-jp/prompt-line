@@ -1,5 +1,5 @@
 import type { BrowserWindow } from 'electron';
-import { logger } from '../../utils/utils';
+import { logger, startBackground, flushBackground } from '../../utils/utils';
 import FileCacheManager from '../file-cache-manager';
 import type DirectoryManager from '../directory-manager';
 import type { AppInfo, DirectoryInfo, FileSearchSettings } from '../../types';
@@ -283,6 +283,7 @@ class DirectoryDetector {
    */
   async executeBackgroundDirectoryDetection(inputWindow: BrowserWindow | null): Promise<void> {
     const startTime = performance.now();
+    const bg = startBackground('directory:bg-detection');
 
     try {
       // Single stage directory detection with fd
@@ -291,12 +292,15 @@ class DirectoryDetector {
       // Handle detection result
       if (result?.directory && inputWindow && !inputWindow.isDestroyed()) {
         await this.handleSuccessfulDetection(result, inputWindow, startTime);
+        flushBackground(bg, { ok: true, directory: result.directory, fileCount: result.fileCount ?? 0 });
       } else {
         this.handleFailedDetection(inputWindow);
+        flushBackground(bg, { ok: false, reason: result ? 'no-directory' : 'no-result' });
       }
     } catch (error) {
       logger.warn('Background directory detection failed:', error);
       this.handleFailedDetection(inputWindow);
+      flushBackground(bg, { ok: false, reason: 'exception' });
     }
   }
 

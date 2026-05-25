@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { ensureDir } from '../utils/file-utils';
 import { logger } from '../utils/logger';
+import { startBackground, flushBackground } from '../utils/perf-trace';
 
 const CACHE_FILE_NAME = 'registered-at-paths.jsonl';
 const GLOBAL_CACHE_FILE_NAME = 'global-at-paths.jsonl';
@@ -59,10 +60,13 @@ export class AtPathCacheManager {
    * Load registered paths for a directory
    */
   async loadPaths(directory: string): Promise<string[]> {
+    const bg = startBackground('at-path-cache:loadPaths');
     try {
       const entries = await this.loadEntries(directory);
+      flushBackground(bg, { count: entries.length });
       return entries.map(e => e.path);
     } catch {
+      flushBackground(bg, { ok: false });
       return [];
     }
   }
@@ -149,10 +153,13 @@ export class AtPathCacheManager {
    * Load global registered paths (project-independent)
    */
   async loadGlobalPaths(): Promise<string[]> {
+    const bg = startBackground('at-path-cache:loadGlobalPaths');
     try {
       const entries = await this.loadGlobalEntries();
+      flushBackground(bg, { count: entries.length });
       return entries.map(e => e.path);
     } catch {
+      flushBackground(bg, { ok: false });
       return [];
     }
   }

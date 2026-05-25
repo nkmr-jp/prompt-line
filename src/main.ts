@@ -24,9 +24,12 @@ import SettingsManager from './managers/settings-manager';
 import PluginManager from './managers/plugin-manager';
 import IPCHandlers from './handlers/ipc-handlers';
 import { codeSearchHandler } from './handlers/code-search-handler';
-import { logger, ensureDir, detectCurrentDirectoryWithFiles } from './utils/utils';
+import { execFile } from 'child_process';
+import { logger, ensureDir, detectCurrentDirectoryWithFiles, startTrace, mark, flushShowTrace, WINDOW_DETECTOR_PATH, TEXT_FIELD_DETECTOR_PATH } from './utils/utils';
 import { LIMITS } from './constants';
 import type { WindowData, UserSettings } from './types';
+
+const NATIVE_WARMUP_INTERVAL_MS = 60_000;
 
 class PromptLineApp {
   private windowManager: WindowManager | null = null;
@@ -38,12 +41,14 @@ class PromptLineApp {
   private ipcHandlers: IPCHandlers | null = null;
   private tray: Tray | null = null;
   private isInitialized = false;
+  private nativeWarmupTimer: NodeJS.Timeout | null = null;
 
   async initialize(): Promise<void> {
     try {
       await this.initializeDirectories();
       await this.initializeManagers();
       this.setupUI();
+      this.startNativeWarmup();
 
       this.isInitialized = true;
       this.logStartupInfo();
@@ -51,6 +56,28 @@ class PromptLineApp {
     } catch (error) {
       logger.error('Failed to initialize application:', error);
       throw error;
+    }
+  }
+
+  // Keep Swift Mach-O pages resident; first show after long idle otherwise
+  // hits a Gatekeeper/XProtect re-check that costs ~400-500ms. Call execFile
+  // directly so failures (revoked accessibility, etc.) don't spam logger.warn
+  // every minute. Set PROMPT_LINE_DISABLE_NATIVE_WARMUP=1 to skip.
+  private startNativeWarmup(): void {
+    if (process.platform !== 'darwin') return;
+    if (process.env.PROMPT_LINE_DISABLE_NATIVE_WARMUP === '1') return;
+    if (this.nativeWarmupTimer) return;
+    const opts = { timeout: 2000 };
+    this.nativeWarmupTimer = setInterval(() => {
+      execFile(WINDOW_DETECTOR_PATH, ['current-app'], opts, () => {});
+      execFile(TEXT_FIELD_DETECTOR_PATH, ['text-field-bounds'], opts, () => {});
+    }, NATIVE_WARMUP_INTERVAL_MS);
+  }
+
+  private stopNativeWarmup(): void {
+    if (this.nativeWarmupTimer) {
+      clearInterval(this.nativeWarmupTimer);
+      this.nativeWarmupTimer = null;
     }
   }
 
@@ -478,16 +505,21 @@ class PromptLineApp {
   }
 
   async showInputWindow(): Promise<void> {
+    const trace = startTrace();
     try {
       if (!this.isInitialized || !this.windowManager || !this.historyManager || !this.draftManager || !this.settingsManager) {
         logger.warn('App not initialized, cannot show window');
         return;
       }
 
+      mark(trace, 'entry');
       const draftData = this.draftManager.getDraftWithScrollTop();
+      mark(trace, 'draft-loaded');
       const settings = this.settingsManager.getSettings();
+      mark(trace, 'settings-loaded');
       // Use getHistoryForSearch for larger search scope (5000 items instead of 200)
       const history = await this.historyManager.getHistoryForSearch(LIMITS.MAX_SEARCH_ITEMS);
+      mark(trace, 'history-loaded');
 
       logger.debug('Settings from settingsManager:', {
         hasFileSearch: !!settings.fileSearch,
@@ -502,10 +534,12 @@ class PromptLineApp {
           timestamp: Date.now(),
           saved: true
         } : null,
-        settings
+        settings,
+        traceId: trace.id
       };
 
-      await this.windowManager.showInputWindow(windowData);
+      await this.windowManager.showInputWindow(windowData, trace);
+      mark(trace, 'window-shown');
       logger.debug('Input window shown with data', {
         historyItems: windowData.history?.length || 0,
         hasDraft: !!windowData.draft
@@ -517,6 +551,8 @@ class PromptLineApp {
       this.testDirectoryDetection(bundleId);
     } catch (error) {
       logger.error('Failed to show input window:', error);
+    } finally {
+      flushShowTrace(trace);
     }
   }
 
@@ -537,6 +573,7 @@ class PromptLineApp {
 
       const cleanupPromises: Promise<unknown>[] = [];
 
+      this.stopNativeWarmup();
       globalShortcut.unregisterAll();
 
       if (this.tray) {
