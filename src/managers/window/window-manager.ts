@@ -368,8 +368,27 @@ class WindowManager {
           }
           settle('finish');
         };
-        const onFail = (): void => settle('fail');
-        const timeoutId = setTimeout(() => settle('timeout'), 3000);
+        const showFallback = (reason: string): void => {
+          if (this.inputWindow && !this.inputWindow.isDestroyed()) {
+            try {
+              this.inputWindow.show();
+              this.inputWindow.focus();
+            } catch (err) {
+              logger.warn(`Fallback show after ${reason} failed:`, err);
+            }
+          }
+        };
+        const onFail = (): void => {
+          logger.warn('did-fail-load before did-finish-load; showing window without renderer ack');
+          showFallback('fail');
+          settle('fail');
+        };
+        const onTimeout = (): void => {
+          logger.warn('did-finish-load timed out (3s); showing window without renderer ack');
+          showFallback('timeout');
+          settle('timeout');
+        };
+        const timeoutId = setTimeout(onTimeout, 3000);
         wc.once('did-finish-load', onFinish);
         wc.once('did-fail-load', onFail);
         wc.once('render-process-gone', onFail);
