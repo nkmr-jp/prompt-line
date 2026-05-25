@@ -334,18 +334,45 @@ class WindowManager {
     } else if (this.inputWindow!.webContents.isLoading()) {
       // Window is loading, wait for completion. Await the load so the caller's
       // flushShowTrace captures did-finish-load / shown-sent / show-called marks
-      // for the cold-startup path.
+      // for the cold-startup path. Settle on did-fail-load / render-process-gone
+      // and a 3s fallback so a stalled load never freezes the toggle path.
       setFlag(trace, 'displayPath', 'wait-finish-load');
+      const wc = this.inputWindow!.webContents;
       await new Promise<void>(resolve => {
-        this.inputWindow!.webContents.once('did-finish-load', () => {
-          mark(trace, 'did-finish-load');
-          this.inputWindow!.webContents.send('window-shown', windowData);
-          mark(trace, 'shown-sent');
-          this.inputWindow!.show();
-          mark(trace, 'show-called');
-          this.inputWindow!.focus();
+        let settled = false;
+        const cleanup = (): void => {
+          wc.removeListener('did-finish-load', onFinish);
+          wc.removeListener('did-fail-load', onFail);
+          wc.removeListener('render-process-gone', onFail);
+          clearTimeout(timeoutId);
+        };
+        const settle = (path: string): void => {
+          if (settled) return;
+          settled = true;
+          setFlag(trace, 'waitFinishLoadResult', path);
+          cleanup();
           resolve();
-        });
+        };
+        const onFinish = (): void => {
+          try {
+            if (this.inputWindow && !this.inputWindow.isDestroyed()) {
+              mark(trace, 'did-finish-load');
+              this.inputWindow.webContents.send('window-shown', windowData);
+              mark(trace, 'shown-sent');
+              this.inputWindow.show();
+              mark(trace, 'show-called');
+              this.inputWindow.focus();
+            }
+          } catch (err) {
+            logger.warn('Error in did-finish-load handler:', err);
+          }
+          settle('finish');
+        };
+        const onFail = (): void => settle('fail');
+        const timeoutId = setTimeout(() => settle('timeout'), 3000);
+        wc.once('did-finish-load', onFinish);
+        wc.once('did-fail-load', onFail);
+        wc.once('render-process-gone', onFail);
       });
     } else {
       // Window is ready, show it

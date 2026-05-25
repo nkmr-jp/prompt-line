@@ -24,8 +24,8 @@ import SettingsManager from './managers/settings-manager';
 import PluginManager from './managers/plugin-manager';
 import IPCHandlers from './handlers/ipc-handlers';
 import { codeSearchHandler } from './handlers/code-search-handler';
-import { logger, ensureDir, detectCurrentDirectoryWithFiles, startTrace, mark, flushShowTrace, getCurrentApp } from './utils/utils';
-import { getActiveTextFieldBounds } from './managers/window/text-field-bounds-detector';
+import { execFile } from 'child_process';
+import { logger, ensureDir, detectCurrentDirectoryWithFiles, startTrace, mark, flushShowTrace, WINDOW_DETECTOR_PATH, TEXT_FIELD_DETECTOR_PATH } from './utils/utils';
 import { LIMITS } from './constants';
 import type { WindowData, UserSettings } from './types';
 
@@ -60,15 +60,17 @@ class PromptLineApp {
   }
 
   // Keep Swift Mach-O pages resident; first show after long idle otherwise
-  // hits a Gatekeeper/XProtect re-check that costs ~400-500ms. Set
-  // PROMPT_LINE_DISABLE_NATIVE_WARMUP=1 to skip (e.g. for battery diagnostics).
+  // hits a Gatekeeper/XProtect re-check that costs ~400-500ms. Call execFile
+  // directly so failures (revoked accessibility, etc.) don't spam logger.warn
+  // every minute. Set PROMPT_LINE_DISABLE_NATIVE_WARMUP=1 to skip.
   private startNativeWarmup(): void {
     if (process.platform !== 'darwin') return;
     if (process.env.PROMPT_LINE_DISABLE_NATIVE_WARMUP === '1') return;
     if (this.nativeWarmupTimer) return;
+    const opts = { timeout: 2000 };
     this.nativeWarmupTimer = setInterval(() => {
-      getCurrentApp().catch(() => {});
-      getActiveTextFieldBounds().catch(() => {});
+      execFile(WINDOW_DETECTOR_PATH, ['current-app'], opts, () => {});
+      execFile(TEXT_FIELD_DETECTOR_PATH, ['text-field-bounds'], opts, () => {});
     }, NATIVE_WARMUP_INTERVAL_MS);
   }
 
