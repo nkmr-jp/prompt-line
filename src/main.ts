@@ -24,7 +24,8 @@ import SettingsManager from './managers/settings-manager';
 import PluginManager from './managers/plugin-manager';
 import IPCHandlers from './handlers/ipc-handlers';
 import { codeSearchHandler } from './handlers/code-search-handler';
-import { logger, ensureDir, detectCurrentDirectoryWithFiles, startTrace, mark, flushShowTrace } from './utils/utils';
+import { logger, ensureDir, detectCurrentDirectoryWithFiles, startTrace, mark, flushShowTrace, getCurrentApp } from './utils/utils';
+import { getActiveTextFieldBounds } from './managers/window/text-field-bounds-detector';
 import { LIMITS } from './constants';
 import type { WindowData, UserSettings } from './types';
 
@@ -606,9 +607,17 @@ class PromptLineApp {
 
 const promptLineApp = new PromptLineApp();
 
+const NATIVE_WARMUP_INTERVAL_MS = 60_000;
+
 app.whenReady().then(async () => {
   try {
     await promptLineApp.initialize();
+    // Keep Swift Mach-O pages resident; first show after long idle otherwise
+    // hits a Gatekeeper/XProtect re-check that costs ~400-500ms.
+    setInterval(() => {
+      getCurrentApp().catch(() => {});
+      getActiveTextFieldBounds().catch(() => {});
+    }, NATIVE_WARMUP_INTERVAL_MS);
   } catch (error) {
     logger.error('Application failed to start:', error);
     app.quit();
