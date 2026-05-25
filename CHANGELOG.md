@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.36.6](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.36.5...prompt-line-v0.36.6) (2026-05-25)
+
+
+### Performance Improvements
+
+* **window:** warm Swift native helpers every 60s + add show traces ([#391](https://github.com/nkmr-jp/prompt-line/issues/391)) ([560eb93](https://github.com/nkmr-jp/prompt-line/commit/560eb93c687a6fbb9e7cb626011f0eea307560c8))
+
 ## [0.36.5](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.36.4...prompt-line-v0.36.5) (2026-05-19)
 
 
