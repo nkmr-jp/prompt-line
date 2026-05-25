@@ -186,7 +186,7 @@ class DesktopSpaceManager {
       if (frontmostApp) {
         const appName = typeof frontmostApp === 'string' ? frontmostApp : frontmostApp.name;
         const pid = typeof frontmostApp === 'string' ? 1000 : (frontmostApp.bundleId?.hashCode() || 1000);
-        
+
         // Create synthetic window entry for space signature
         windows.push({
           windowID: pid,
@@ -195,16 +195,7 @@ class DesktopSpaceManager {
           bounds: { x: 0, y: 0, width: 1, height: 1 }
         });
       }
-      
-      // Add timestamp-based variation to detect changes over time
-      const timeSlot = Math.floor(Date.now() / 1000); // 1-second slots
-      windows.push({
-        windowID: timeSlot,
-        ownerPID: timeSlot,
-        ownerName: `TimeSlot_${timeSlot}`,
-        bounds: { x: 0, y: 0, width: 1, height: 1 }
-      });
-      
+
       return windows;
     } catch (error) {
       logger.error('Error in ultra-fast detection:', error);
