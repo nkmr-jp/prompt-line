@@ -107,7 +107,7 @@ class WindowManager {
    */
   async showInputWindow(data: WindowData = {}, trace?: PerfTrace): Promise<void> {
     try {
-      mark(trace, 'wm-enter');
+      mark(trace, 'window-manager-enter');
       // Update settings from data
       if (data.settings?.window) {
         this.updateWindowSettings(data.settings.window);
@@ -332,15 +332,20 @@ class WindowManager {
       mark(trace, 'shown-sent');
       this.inputWindow!.focus();
     } else if (this.inputWindow!.webContents.isLoading()) {
-      // Window is loading, wait for completion
+      // Window is loading, wait for completion. Await the load so the caller's
+      // flushShowTrace captures did-finish-load / shown-sent / show-called marks
+      // for the cold-startup path.
       setFlag(trace, 'displayPath', 'wait-finish-load');
-      this.inputWindow!.webContents.once('did-finish-load', () => {
-        mark(trace, 'did-finish-load');
-        this.inputWindow!.webContents.send('window-shown', windowData);
-        mark(trace, 'shown-sent');
-        this.inputWindow!.show();
-        mark(trace, 'show-called');
-        this.inputWindow!.focus();
+      await new Promise<void>(resolve => {
+        this.inputWindow!.webContents.once('did-finish-load', () => {
+          mark(trace, 'did-finish-load');
+          this.inputWindow!.webContents.send('window-shown', windowData);
+          mark(trace, 'shown-sent');
+          this.inputWindow!.show();
+          mark(trace, 'show-called');
+          this.inputWindow!.focus();
+          resolve();
+        });
       });
     } else {
       // Window is ready, show it

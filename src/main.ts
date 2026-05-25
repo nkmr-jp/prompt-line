@@ -29,6 +29,8 @@ import { getActiveTextFieldBounds } from './managers/window/text-field-bounds-de
 import { LIMITS } from './constants';
 import type { WindowData, UserSettings } from './types';
 
+const NATIVE_WARMUP_INTERVAL_MS = 60_000;
+
 class PromptLineApp {
   private windowManager: WindowManager | null = null;
   private historyManager: HistoryManager | null = null;
@@ -39,12 +41,14 @@ class PromptLineApp {
   private ipcHandlers: IPCHandlers | null = null;
   private tray: Tray | null = null;
   private isInitialized = false;
+  private nativeWarmupTimer: NodeJS.Timeout | null = null;
 
   async initialize(): Promise<void> {
     try {
       await this.initializeDirectories();
       await this.initializeManagers();
       this.setupUI();
+      this.startNativeWarmup();
 
       this.isInitialized = true;
       this.logStartupInfo();
@@ -52,6 +56,26 @@ class PromptLineApp {
     } catch (error) {
       logger.error('Failed to initialize application:', error);
       throw error;
+    }
+  }
+
+  // Keep Swift Mach-O pages resident; first show after long idle otherwise
+  // hits a Gatekeeper/XProtect re-check that costs ~400-500ms. Set
+  // PROMPT_LINE_DISABLE_NATIVE_WARMUP=1 to skip (e.g. for battery diagnostics).
+  private startNativeWarmup(): void {
+    if (process.platform !== 'darwin') return;
+    if (process.env.PROMPT_LINE_DISABLE_NATIVE_WARMUP === '1') return;
+    if (this.nativeWarmupTimer) return;
+    this.nativeWarmupTimer = setInterval(() => {
+      getCurrentApp().catch(() => {});
+      getActiveTextFieldBounds().catch(() => {});
+    }, NATIVE_WARMUP_INTERVAL_MS);
+  }
+
+  private stopNativeWarmup(): void {
+    if (this.nativeWarmupTimer) {
+      clearInterval(this.nativeWarmupTimer);
+      this.nativeWarmupTimer = null;
     }
   }
 
@@ -547,6 +571,7 @@ class PromptLineApp {
 
       const cleanupPromises: Promise<unknown>[] = [];
 
+      this.stopNativeWarmup();
       globalShortcut.unregisterAll();
 
       if (this.tray) {
@@ -607,17 +632,9 @@ class PromptLineApp {
 
 const promptLineApp = new PromptLineApp();
 
-const NATIVE_WARMUP_INTERVAL_MS = 60_000;
-
 app.whenReady().then(async () => {
   try {
     await promptLineApp.initialize();
-    // Keep Swift Mach-O pages resident; first show after long idle otherwise
-    // hits a Gatekeeper/XProtect re-check that costs ~400-500ms.
-    setInterval(() => {
-      getCurrentApp().catch(() => {});
-      getActiveTextFieldBounds().catch(() => {});
-    }, NATIVE_WARMUP_INTERVAL_MS);
   } catch (error) {
     logger.error('Application failed to start:', error);
     app.quit();

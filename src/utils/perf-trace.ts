@@ -3,6 +3,17 @@ import { generateId } from './common';
 
 const FORCE_TRACE = process.env.PROMPT_LINE_PERF_TRACE === '1';
 
+// In packaged builds the logger writes to ~/.prompt-line/app.log on every call;
+// route traces through debug() so they only land in the log when the user
+// opts in (LOG_LEVEL=debug via `pnpm start`, or PROMPT_LINE_PERF_TRACE=1).
+function emit(name: string, event: Record<string, unknown>): void {
+  if (FORCE_TRACE) {
+    logger.info(name, event);
+  } else {
+    logger.debug(name, event);
+  }
+}
+
 export interface PerfTrace {
   id: string;
   start: number;
@@ -31,7 +42,7 @@ export function setFlag(trace: PerfTrace | undefined, key: string, value: unknow
 
 export function flushShowTrace(trace: PerfTrace, payload: Record<string, unknown> = {}): void {
   const total = +(performance.now() - trace.start).toFixed(2);
-  logger.info('show-window-trace', {
+  emit('show-window-trace', {
     traceId: trace.id,
     total,
     marks: trace.marks,
@@ -52,7 +63,7 @@ export function startBackground(source: string): BackgroundTrace {
 
 export function flushBackground(bg: BackgroundTrace, payload: Record<string, unknown> = {}): void {
   const ms = +(performance.now() - bg.start).toFixed(2);
-  logger.info('background-trace', {
+  emit('background-trace', {
     traceId: bg.id,
     source: bg.source,
     ms,
@@ -72,15 +83,10 @@ export function startNative(tool: string): NativeCallTrace {
 
 export function flushNative(nt: NativeCallTrace, payload: Record<string, unknown> = {}): void {
   const ms = +(performance.now() - nt.start).toFixed(2);
-  const event = {
+  emit('native-call-trace', {
     traceId: nt.id,
     tool: nt.tool,
     ms,
     ...payload,
-  };
-  if (FORCE_TRACE) {
-    logger.info('native-call-trace', event);
-  } else {
-    logger.debug('native-call-trace', event);
-  }
+  });
 }

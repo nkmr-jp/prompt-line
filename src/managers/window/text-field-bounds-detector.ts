@@ -32,7 +32,9 @@ export async function getActiveTextFieldBounds(): Promise<TextFieldBounds | null
     const nt = startNative('getActiveTextFieldBounds');
     execFile(TEXT_FIELD_DETECTOR_PATH, ['text-field-bounds'], options, (error: Error | null, stdout?: string) => {
       if (error) {
-        flushNative(nt, { ok: false, timedOut: error.message?.includes('SIGTERM') ?? false });
+        const e = error as Error & { killed?: boolean; signal?: string };
+        const timedOut = e.killed === true || e.signal === 'SIGTERM';
+        flushNative(nt, { ok: false, timedOut });
         resolve(null);
         return;
       }
@@ -45,6 +47,7 @@ export async function getActiveTextFieldBounds(): Promise<TextFieldBounds | null
           resolve(null);
           return;
         }
+
 
         if (result.success && typeof result.x === 'number' && typeof result.y === 'number' &&
             typeof result.width === 'number' && typeof result.height === 'number') {

@@ -33,7 +33,9 @@ export function getCurrentApp(): Promise<AppInfo | null> {
     const nt = startNative('getCurrentApp');
     execFile(WINDOW_DETECTOR_PATH, ['current-app'], options, (error, stdout) => {
       if (error) {
-        flushNative(nt, { ok: false });
+        const e = error as Error & { killed?: boolean; signal?: string };
+        const timedOut = e.killed === true || e.signal === 'SIGTERM';
+        flushNative(nt, { ok: false, timedOut });
         logger.warn('Error getting current app (non-blocking):', error.message);
         resolve(null);
       } else {
@@ -41,7 +43,7 @@ export function getCurrentApp(): Promise<AppInfo | null> {
           const result = JSON.parse(stdout.trim());
 
           if (result.error) {
-            flushNative(nt, { ok: false, parseError: false });
+            flushNative(nt, { ok: false, toolError: true });
             logger.warn('Native tool returned error:', result.error);
             resolve(null);
             return;
@@ -79,14 +81,16 @@ export function getActiveWindowBounds(): Promise<WindowBounds | null> {
     const nt = startNative('getActiveWindowBounds');
     execFile(WINDOW_DETECTOR_PATH, ['window-bounds'], options, (error, stdout) => {
       if (error) {
-        flushNative(nt, { ok: false });
+        const e = error as Error & { killed?: boolean; signal?: string };
+        const timedOut = e.killed === true || e.signal === 'SIGTERM';
+        flushNative(nt, { ok: false, timedOut });
         logger.warn('Error getting active window bounds (non-blocking):', error.message);
         resolve(null);
       } else {
         try {
           const result = JSON.parse(stdout.trim());
           if (result.error) {
-            flushNative(nt, { ok: false, parseError: false });
+            flushNative(nt, { ok: false, toolError: true });
             logger.warn('Native tool returned error for window bounds:', result.error);
             resolve(null);
             return;

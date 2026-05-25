@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron';
+import { ipcMain, IpcMainEvent } from 'electron';
 import { logger } from '../utils/utils';
 import type WindowManager from '../managers/window';
 import type DraftManager from '../managers/draft-manager';
@@ -17,6 +17,25 @@ import SystemHandler from './system-handler';
 import CustomSearchHandler from './custom-search-handler';
 import FileHandler from './file-handler';
 import UsageHistoryHandler from './usage-history-handler';
+
+const ALLOWED_PERF_TRACE_EVENTS = new Set([
+  'renderer-window-shown',
+  'renderer-prefetch-skills',
+]);
+const PERF_TRACE_MAX_KEYS = 16;
+
+function perfTraceReportListener(_event: IpcMainEvent, payload: unknown): void {
+  try {
+    if (!payload || typeof payload !== 'object') return;
+    const { event, ms, ...rest } = payload as Record<string, unknown>;
+    if (typeof event !== 'string' || !ALLOWED_PERF_TRACE_EVENTS.has(event)) return;
+    if (typeof ms !== 'number' || !Number.isFinite(ms)) return;
+    if (Object.keys(rest).length > PERF_TRACE_MAX_KEYS) return;
+    logger.info(event, { ms, ...rest });
+  } catch (error) {
+    logger.warn('Failed to log perf trace from renderer:', error);
+  }
+}
 
 /**
  * IPCHandlers Coordinator
@@ -119,14 +138,7 @@ class IPCHandlers {
   }
 
   private setupPerfTraceReceiver(): void {
-    ipcMain.on('perf-trace-report', (_event, payload: { traceId?: string; event: string; ms: number; [key: string]: unknown }) => {
-      try {
-        const { event, ...rest } = payload;
-        logger.info(event || 'renderer-trace', rest);
-      } catch (error) {
-        logger.warn('Failed to log perf trace from renderer:', error);
-      }
-    });
+    ipcMain.on('perf-trace-report', perfTraceReportListener);
   }
 
   /**
@@ -140,6 +152,7 @@ class IPCHandlers {
     this.customSearchHandler.removeHandlers(ipcMain);
     this.fileHandler.removeHandlers(ipcMain);
     this.usageHistoryHandler.removeHandlers(ipcMain);
+    ipcMain.removeAllListeners('perf-trace-report');
 
     logger.info('All IPC handlers removed via coordinator');
   }
