@@ -19,8 +19,7 @@ import { execFile } from 'child_process';
 import {
   checkRgAvailable,
   getSupportedLanguages,
-  searchSymbols,
-  _resetRgCheckCacheForTest
+  searchSymbols
 } from '../../src/utils/symbol-search/symbol-searcher-node';
 import { resetGlobalGitExcludesFileCache } from '../../src/utils/git-excludes';
 
@@ -93,7 +92,6 @@ describe('symbol-searcher-node', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetGlobalGitExcludesFileCache();
-    _resetRgCheckCacheForTest();
   });
 
   // ============================================================

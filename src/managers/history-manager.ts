@@ -25,10 +25,7 @@ import {LIMITS} from "../constants";
  */
 class HistoryManager implements IHistoryManager {
   private recentCache: HistoryItem[] = [];
-  // Holds up to MAX_SEARCH_ITEMS so getHistoryForSearch can return synchronously
-  // from memory without re-reading the JSONL file on every window show.
-  // getHistory display API still caps the returned slice at the caller's limit.
-  private cacheSize = LIMITS.MAX_SEARCH_ITEMS;
+  private cacheSize = LIMITS.MAX_CACHE_ITEMS;
   private historyFile: string;
   private totalItemCount = 0;
   private totalItemCountCached = false;
@@ -349,7 +346,31 @@ class HistoryManager implements IHistoryManager {
    * @param limit Maximum number of items to return (e.g., 5000 for search)
    */
   async getHistoryForSearch(limit: number): Promise<HistoryItem[]> {
-    return this.recentCache.slice(0, Math.min(limit, this.recentCache.length));
+    try {
+      // If requested limit is within cache, return from cache (faster)
+      if (limit <= this.recentCache.length) {
+        return [...this.recentCache.slice(0, limit)];
+      }
+
+      // Read from file for larger limits
+      const lines = await this.readLastNLines(limit);
+      const items: HistoryItem[] = [];
+
+      for (const line of lines) {
+        const item = safeJsonParse<HistoryItem>(line);
+        if (item && this.validateHistoryItem(item)) {
+          items.push(item);
+        }
+      }
+
+      // Reverse once at the end for newest first - O(n) instead of O(n²)
+      items.reverse();
+      return items;
+    } catch (error) {
+      logger.error('Error in getHistoryForSearch:', error);
+      // Fallback to cache
+      return [...this.recentCache];
+    }
   }
 
   searchHistory(query: string, limit = 10): HistoryItem[] {

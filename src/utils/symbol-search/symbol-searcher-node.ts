@@ -645,66 +645,38 @@ const BLOCK_SEARCH_CONFIGS: Record<string, BlockSearchConfig[]> = {
   tsx: TS_BLOCK_CONFIGS
 };
 
-// Result is cached after first probe; rg install state doesn't change at runtime.
-let rgCheckCache: RgCheckResponse | null = null;
-let rgCheckInflight: Promise<RgCheckResponse> | null = null;
-
 /**
- * Reset the cached checkRgAvailable result. Intended for tests.
- */
-export function _resetRgCheckCacheForTest(): void {
-  rgCheckCache = null;
-  rgCheckInflight = null;
-}
-
-/**
- * Check if ripgrep (rg) is available. Result is cached per process — repeated
- * calls return synchronously after the first invocation (singleflight pattern).
+ * Check if ripgrep (rg) is available
  */
 export async function checkRgAvailable(): Promise<RgCheckResponse> {
-  if (rgCheckCache) return rgCheckCache;
-  if (rgCheckInflight) return rgCheckInflight;
+  const rgPaths = [
+    '/opt/homebrew/bin/rg',  // Apple Silicon Homebrew
+    '/usr/local/bin/rg',     // Intel Homebrew
+    '/usr/bin/rg',           // System
+    'rg'                     // PATH
+  ];
 
-  rgCheckInflight = (async () => {
-    const rgPaths = [
-      '/opt/homebrew/bin/rg',  // Apple Silicon Homebrew
-      '/usr/local/bin/rg',     // Intel Homebrew
-      '/usr/bin/rg',           // System
-      'rg'                     // PATH
-    ];
-
-    const nt = startNative('checkRgAvailable');
-    let attempts = 0;
-    for (const rgPath of rgPaths) {
-      attempts++;
-      try {
-        await new Promise<void>((resolve, reject) => {
-          execFile(rgPath, ['--version'], { timeout: 2000 }, (error) => {
-            if (error) reject(error);
-            else resolve();
-          });
+  const nt = startNative('checkRgAvailable');
+  let attempts = 0;
+  for (const rgPath of rgPaths) {
+    attempts++;
+    try {
+      await new Promise<void>((resolve, reject) => {
+        execFile(rgPath, ['--version'], { timeout: 2000 }, (error) => {
+          if (error) reject(error);
+          else resolve();
         });
+      });
 
-        flushNative(nt, { ok: true, attempts, rgPath });
-        const result: RgCheckResponse = { rgAvailable: true, rgPath };
-        rgCheckCache = result;
-        return result;
-      } catch {
-        continue;
-      }
+      flushNative(nt, { ok: true, attempts, rgPath });
+      return { rgAvailable: true, rgPath };
+    } catch {
+      continue;
     }
-
-    flushNative(nt, { ok: false, attempts });
-    const result: RgCheckResponse = { rgAvailable: false, rgPath: null };
-    rgCheckCache = result;
-    return result;
-  })();
-
-  try {
-    return await rgCheckInflight;
-  } finally {
-    rgCheckInflight = null;
   }
+
+  flushNative(nt, { ok: false, attempts });
+  return { rgAvailable: false, rgPath: null };
 }
 
 /**
