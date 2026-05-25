@@ -7,11 +7,6 @@
 
 * **window:** warm Swift native helpers every 60s + add show traces ([#391](https://github.com/nkmr-jp/prompt-line/issues/391)) ([560eb93](https://github.com/nkmr-jp/prompt-line/commit/560eb93c687a6fbb9e7cb626011f0eea307560c8))
 
-
-### Miscellaneous Chores
-
-* remove tasks/lessons.md ([#393](https://github.com/nkmr-jp/prompt-line/issues/393)) ([01ee0a4](https://github.com/nkmr-jp/prompt-line/commit/01ee0a4877d19be6792fb6428299efa85c2616d6))
-
 ## [0.36.5](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.36.4...prompt-line-v0.36.5) (2026-05-19)
 
 
