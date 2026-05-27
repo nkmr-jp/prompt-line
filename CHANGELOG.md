@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.37.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.36.6...prompt-line-v0.37.0) (2026-05-27)
+
+
+### Features
+
+* **file-search:** reverse-lookup symlink aliases for detected CWDs ([#396](https://github.com/nkmr-jp/prompt-line/issues/396)) ([4fffae5](https://github.com/nkmr-jp/prompt-line/commit/4fffae53323985e7c6dcb5281714b149fca86a7f))
+
+
+### Bug Fixes
+
+* **file-search:** preserve symlink path in file/symbol search results ([#394](https://github.com/nkmr-jp/prompt-line/issues/394)) ([99e3364](https://github.com/nkmr-jp/prompt-line/commit/99e33649911181655f9f37154ee7f28441d57184))
+
+
+### Documentation
+
+* **settings:** document symlinkScanRoots for file search ([#397](https://github.com/nkmr-jp/prompt-line/issues/397)) ([ced04c4](https://github.com/nkmr-jp/prompt-line/commit/ced04c4502109e447cbfe09a4ae8fe366da67823))
+
 ## [0.36.6](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.36.5...prompt-line-v0.36.6) (2026-05-25)
 
 
