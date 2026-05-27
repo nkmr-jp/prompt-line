@@ -100,7 +100,30 @@ fileSearch:
   #fdPath: null             # fd のカスタムパス（null = 自動検出）
   includePatterns: []       # .gitignore でも強制的に含める（例: ["*.log", "dist/**"]）
   excludePatterns: []       # 追加の除外パターン（例: ["node_modules", "*.min.js"]）
+  symlinkScanRoots: []      # シンボリックリンクの逆引き（下記参照）
 ```
+
+### シンボリックリンクのエイリアス復元（`symlinkScanRoots`）
+
+シンボリックリンク経由でプロジェクトディレクトリを開いている場合（例: `~/ghq/github.com/foo/vault` が iCloud Obsidian の vault を指している）、macOS はユーザー空間に渡す前に CWD を実体パス（realpath）に正規化します。この設定を有効にしないと、ファイル検索結果はあなたが `cd` した symlink パスではなく、実体側のパス（`~/Library/Mobile Documents/.../vault`）で表示されます。
+
+スキャンルート（シンボリックリンクを含む親ディレクトリ、または symlink そのもの）を設定することで、ユーザー視点のエイリアスを復元できます:
+
+```yaml
+fileSearch:
+  symlinkScanRoots:
+    - "~/ghq"                                  # ~/ghq/<host>/<user>/<repo> 配下の symlink を探索
+    - "~/projects"                             # ~/projects 配下の symlink を探索
+    - "~/ghq/github.com/foo/vault"             # symlink そのものを直接指定してもよい
+```
+
+動作:
+- 初回ルックアップ時に各ルートを最大 5 階層スキャンし、`realpath → エイリアス` のマップをメモリ上に構築します。
+- 検出された CWD の realpath が既知のターゲットに一致（またはその配下にある）場合、ファイル検索の前に symlink パスへ置換されます。
+- キャッシュ TTL は 5 分。1.5 秒のスキャン予算でウィンドウ表示が遅延しないよう保護されます。ノイズディレクトリ（`node_modules`、`.git`、`dist`、`target` 等）は自動で除外されます。
+- 空（デフォルト）の場合は機能無効。
+
+ヒント: `~/ghq` は `ghq` 管理の symlink の一般的なケースをカバーします。`~/links/` のような手動管理ディレクトリに symlink がある場合は、それをスキャンルートとして指定してください。symlink パスを直接書いてもよいです。
 
 ## シンボル検索
 

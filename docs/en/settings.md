@@ -100,7 +100,30 @@ fileSearch:
   #fdPath: null             # Custom path to fd (null = auto-detect)
   includePatterns: []       # Force include even if in .gitignore (e.g., ["*.log", "dist/**"])
   excludePatterns: []       # Additional excludes (e.g., ["node_modules", "*.min.js"])
+  symlinkScanRoots: []      # Reverse-lookup symlink aliases (see below)
 ```
+
+### Symlink Alias Recovery (`symlinkScanRoots`)
+
+When you work inside a symlinked project directory (e.g. `~/ghq/github.com/foo/vault` pointing to an iCloud Obsidian vault), macOS canonicalizes the CWD to the real path before user-space code sees it. Without this setting, file search results show the real path (`~/Library/Mobile Documents/.../vault`) instead of the symlink path you actually `cd`'d into.
+
+Configure scan roots — parent directories that contain symlinks, or the symlinks themselves — to recover the user-facing alias:
+
+```yaml
+fileSearch:
+  symlinkScanRoots:
+    - "~/ghq"                                  # Walks ~/ghq/<host>/<user>/<repo> for symlinks
+    - "~/projects"                             # Walks ~/projects for symlinks
+    - "~/ghq/github.com/foo/vault"             # OK to specify a known symlink directly
+```
+
+How it works:
+- On first lookup, scans each root up to 5 levels deep for symbolic links and builds an in-memory map `realpath → alias`.
+- When a detected CWD's realpath matches (or lives under) a known target, the alias is substituted before the file search runs.
+- Cache TTL is 5 minutes; a 1.5-second scan budget protects window-show from slow filesystems. Noise directories (`node_modules`, `.git`, `dist`, `target`, etc.) are skipped.
+- Disabled when empty (default).
+
+Tip: `~/ghq` covers the common case of `ghq`-managed symlinks. If your symlinks live elsewhere (e.g. you maintain a manual `~/links/` directory), add that as a scan root instead. Specifying the symlink path itself also works.
 
 ## Symbol Search
 
