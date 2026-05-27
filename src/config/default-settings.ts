@@ -146,9 +146,9 @@ export const defaultSettings: UserSettings = {
    *     excludePatterns:
    *       - "node_modules"
    *       - "*.min.js"
-   *     symlinkScanRoots:
-   *       - "~/ghq"
-   *       - "~/projects"
+   *     symlinkScanRoots:        # Parent dirs (or the symlink itself) to scan
+   *       - "~/ghq"              #   walks ghq/<host>/<user>/<repo> for symlinks
+   *       - "~/projects"         #   walks ~/projects for symlinks (depth 5)
    */
   fileSearch: {
     respectGitignore: true,  // Respect .gitignore rules (fd only)

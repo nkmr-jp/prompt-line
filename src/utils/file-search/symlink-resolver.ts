@@ -21,7 +21,22 @@ import { logger } from '../logger';
 
 const CACHE_TTL_MS = 5 * 60 * 1000;   // 5 minutes
 const DEFAULT_SCAN_DEPTH = 5;          // ghq layout: ~/ghq/<host>/<user>/<repo> ≈ depth 4
-const MAX_ENTRIES_PER_DIR = 500;       // safety cap to avoid pathological cases
+const MAX_ENTRIES_PER_DIR = 5000;      // safety cap; covers ~/ghq/github.com with 1000s of users
+const SCAN_TIMEOUT_MS = 1500;          // walk budget — fall back to null on overruns
+
+/**
+ * Directory names to skip during the walk. Recursing into these (especially
+ * node_modules) explodes the walk into millions of entries without ever
+ * finding a useful project-level symlink.
+ */
+const SKIP_DIR_NAMES = new Set<string>([
+  'node_modules', 'vendor', 'bower_components', '.pnpm',
+  '.next', '.nuxt', 'dist', 'build', 'out', 'target', '.output',
+  '.git', '.svn', '.hg',
+  '.idea', '.vscode', '.fleet',
+  '.cache', '__pycache__', '.pytest_cache', '.mypy_cache', '.ruff_cache',
+  'coverage', '.nyc_output', '.turbo', '.vercel', '.netlify'
+]);
 
 interface SymlinkMapEntry {
   /** The user-facing symlink path (e.g. /Users/foo/ghq/.../vault) */
@@ -31,14 +46,19 @@ interface SymlinkMapEntry {
 }
 
 interface ScanCache {
-  /** key = JSON-stringified expanded scan roots; value = entries sorted longest-target-first */
   entries: SymlinkMapEntry[];
   expandedRoots: string[];
   lastBuiltAt: number;
 }
 
+/** Cached scan result keyed by the roots-key (joined expanded roots). */
 let cache: ScanCache | null = null;
-let inflightBuild: Promise<ScanCache> | null = null;
+/** In-flight builds keyed by roots-key so concurrent callers with different roots don't share. */
+const inflightBuilds = new Map<string, Promise<ScanCache>>();
+
+function rootsKeyOf(expandedRoots: string[]): string {
+  return expandedRoots.join('\0');
+}
 
 /** Expand a leading `~` to the home directory. */
 function expandHome(path: string): string {
@@ -47,19 +67,26 @@ function expandHome(path: string): string {
   return path;
 }
 
+interface WalkContext {
+  onSymlink: (absPath: string) => Promise<void>;
+  deadlineAt: number;
+  timedOut: boolean;
+}
+
 /**
- * Walk a directory up to `maxDepth` levels, invoking `onSymlink(absPath)` for
- * every entry whose `lstat` says it's a symbolic link. Non-symlink directories
- * are recursed into; symlink directories are NOT followed to avoid cycles and
- * because the alias is exactly what we want to record.
+ * Walk a directory up to `maxDepth` levels, invoking `ctx.onSymlink(absPath)`
+ * for every entry whose `lstat` says it's a symbolic link. Non-symlink
+ * directories are recursed into UNLESS their name appears in `SKIP_DIR_NAMES`.
+ * Symlink directories are NOT followed (their alias is the recorded artifact).
+ * Aborts early when `ctx.deadlineAt` is reached so a slow filesystem never
+ * blocks the caller indefinitely.
  */
- 
-async function walkSymlinks(
-  dir: string,
-  maxDepth: number,
-  onSymlink: (absPath: string) => Promise<void>
-): Promise<void> {
-  if (maxDepth < 0) return;
+async function walkSymlinks(dir: string, maxDepth: number, ctx: WalkContext): Promise<void> {
+  if (maxDepth < 0 || ctx.timedOut) return;
+  if (Date.now() > ctx.deadlineAt) {
+    ctx.timedOut = true;
+    return;
+  }
 
   let entries: import('fs').Dirent[];
   try {
@@ -69,16 +96,39 @@ async function walkSymlinks(
   }
 
   if (entries.length > MAX_ENTRIES_PER_DIR) {
+    logger.warn('symlink-resolver: directory exceeds entry cap, truncating', {
+      dir,
+      entries: entries.length,
+      cap: MAX_ENTRIES_PER_DIR
+    });
     entries = entries.slice(0, MAX_ENTRIES_PER_DIR);
   }
 
   for (const entry of entries) {
+    if (ctx.timedOut) return;
     const abs = join(dir, entry.name);
     if (entry.isSymbolicLink()) {
-      await onSymlink(abs);
-    } else if (entry.isDirectory() && maxDepth > 0) {
-      await walkSymlinks(abs, maxDepth - 1, onSymlink);
+      await ctx.onSymlink(abs);
+    } else if (entry.isDirectory() && maxDepth > 0 && !SKIP_DIR_NAMES.has(entry.name)) {
+      await walkSymlinks(abs, maxDepth - 1, ctx);
     }
+  }
+}
+
+/** Record a single symlink alias (used for both walked entries and roots). */
+async function recordSymlink(
+  absPath: string,
+  entries: SymlinkMapEntry[],
+  seenAliases: Set<string>
+): Promise<void> {
+  if (seenAliases.has(absPath)) return;
+  try {
+    const target = await fs.realpath(absPath);
+    if (target === absPath) return;
+    seenAliases.add(absPath);
+    entries.push({ alias: absPath, target });
+  } catch {
+    // dangling symlink — skip silently
   }
 }
 
@@ -86,19 +136,25 @@ async function buildCache(expandedRoots: string[]): Promise<ScanCache> {
   const startedAt = Date.now();
   const entries: SymlinkMapEntry[] = [];
   const seenAliases = new Set<string>();
+  const ctx: WalkContext = {
+    deadlineAt: startedAt + SCAN_TIMEOUT_MS,
+    timedOut: false,
+    onSymlink: (absPath) => recordSymlink(absPath, entries, seenAliases)
+  };
 
   for (const root of expandedRoots) {
-    await walkSymlinks(root, DEFAULT_SCAN_DEPTH, async (absPath) => {
-      if (seenAliases.has(absPath)) return;
-      try {
-        const target = await fs.realpath(absPath);
-        if (target === absPath) return;  // not actually a symlink target → self
-        seenAliases.add(absPath);
-        entries.push({ alias: absPath, target });
-      } catch {
-        // dangling symlink — skip silently
+    // If the configured root is itself a symlink, record it directly — readdir
+    // would follow it but never see the alias name.
+    try {
+      const st = await fs.lstat(root);
+      if (st.isSymbolicLink()) {
+        await recordSymlink(root, entries, seenAliases);
+        continue;
       }
-    });
+    } catch {
+      // root missing — skip; walkSymlinks would also no-op.
+    }
+    await walkSymlinks(root, DEFAULT_SCAN_DEPTH, ctx);
   }
 
   // Sort longest-target-first so prefix matching prefers the most specific
@@ -106,42 +162,49 @@ async function buildCache(expandedRoots: string[]): Promise<ScanCache> {
   entries.sort((a, b) => b.target.length - a.target.length);
 
   const elapsedMs = Date.now() - startedAt;
-  logger.debug('symlink-resolver: cache built', {
-    roots: expandedRoots,
-    entryCount: entries.length,
-    elapsedMs
-  });
+  if (ctx.timedOut) {
+    logger.warn('symlink-resolver: scan timed out', {
+      roots: expandedRoots,
+      entryCount: entries.length,
+      elapsedMs,
+      budgetMs: SCAN_TIMEOUT_MS
+    });
+  } else {
+    logger.debug('symlink-resolver: cache built', {
+      roots: expandedRoots,
+      entryCount: entries.length,
+      elapsedMs
+    });
+  }
 
-  return {
-    entries,
-    expandedRoots,
-    lastBuiltAt: Date.now()
-  };
+  return { entries, expandedRoots, lastBuiltAt: Date.now() };
 }
 
 async function getCache(expandedRoots: string[]): Promise<ScanCache> {
-  const rootsKey = expandedRoots.join('\0');
+  const key = rootsKeyOf(expandedRoots);
   const existing = cache;
   if (existing &&
-      existing.expandedRoots.join('\0') === rootsKey &&
+      rootsKeyOf(existing.expandedRoots) === key &&
       Date.now() - existing.lastBuiltAt < CACHE_TTL_MS) {
     return existing;
   }
 
-  if (inflightBuild) {
-    return inflightBuild;
+  const inflight = inflightBuilds.get(key);
+  if (inflight) {
+    return inflight;
   }
 
-  inflightBuild = buildCache(expandedRoots).then((built) => {
+  const buildPromise = buildCache(expandedRoots).then((built) => {
     cache = built;
-    inflightBuild = null;
+    inflightBuilds.delete(key);
     return built;
   }).catch((err) => {
-    inflightBuild = null;
+    inflightBuilds.delete(key);
     throw err;
   });
 
-  return inflightBuild;
+  inflightBuilds.set(key, buildPromise);
+  return buildPromise;
 }
 
 /**
@@ -150,8 +213,8 @@ async function getCache(expandedRoots: string[]): Promise<ScanCache> {
  * symlink target) or null if no symlink in any scan root resolves to a prefix
  * of inputPath.
  *
- * Scan roots are expanded with `~` → $HOME. An empty or undefined scanRoots
- * array disables the feature (returns null without scanning).
+ * Scan roots are expanded with `~` → $HOME. Invalid or non-absolute entries
+ * are dropped with a logged warning so misconfigured settings surface.
  */
 export async function resolveSymlinkAlias(
   inputPath: string,
@@ -160,9 +223,19 @@ export async function resolveSymlinkAlias(
   if (!scanRoots || scanRoots.length === 0) return null;
   if (!inputPath || !inputPath.startsWith('/')) return null;
 
-  const expandedRoots = scanRoots
-    .map(expandHome)
-    .filter((p) => p.startsWith('/'));
+  const expandedRoots: string[] = [];
+  const dropped: string[] = [];
+  for (const raw of scanRoots) {
+    const expanded = expandHome(raw);
+    if (expanded.startsWith('/')) {
+      expandedRoots.push(expanded);
+    } else {
+      dropped.push(raw);
+    }
+  }
+  if (dropped.length > 0) {
+    logger.warn('symlink-resolver: ignoring non-absolute scan roots', { dropped });
+  }
   if (expandedRoots.length === 0) return null;
 
   const built = await getCache(expandedRoots);
@@ -180,5 +253,5 @@ export async function resolveSymlinkAlias(
 /** Reset the in-memory cache. Intended for tests. */
 export function resetSymlinkResolverCache(): void {
   cache = null;
-  inflightBuild = null;
+  inflightBuilds.clear();
 }
