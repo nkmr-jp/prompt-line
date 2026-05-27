@@ -74,6 +74,11 @@ function isRestrictedDirectory(pathString: string): boolean {
 /**
  * Validate and resolve path safely
  * Returns null if path is invalid, restricted, or doesn't exist
+ *
+ * Returns the absolute path with symlinks preserved (not resolved). The real
+ * path is only used for the restriction check so search results and the
+ * returned directory keep the user-facing symlink path (e.g.,
+ * /Users/foo/ghq/.../vault) rather than the resolved iCloud/real location.
  */
 // eslint-disable-next-line max-statements
 async function validateAndResolvePath(pathString: string, basePath?: string): Promise<string | null> {
@@ -91,7 +96,8 @@ async function validateAndResolvePath(pathString: string, basePath?: string): Pr
       return null;
     }
 
-    // Resolve symlinks to real path
+    // Resolve symlinks for the restriction check only (do not return the real
+    // path — callers and downstream tools need the original symlink path).
     const realPath = await realpath(absolutePath);
 
     // Check again after resolving symlinks
@@ -114,7 +120,7 @@ async function validateAndResolvePath(pathString: string, basePath?: string): Pr
       }
     }
 
-    return realPath;
+    return absolutePath;
   } catch (error) {
     // Path doesn't exist or other error
     logger.debug('Path validation failed', {
@@ -158,12 +164,21 @@ export async function checkFdAvailable(): Promise<{ fdAvailable: boolean; fdPath
 
 /**
  * Build fd command arguments from file search settings
+ *
+ * Note: `--absolute-path` is intentionally omitted. fd's `--absolute-path`
+ * canonicalizes the cwd via realpath and emits resolved paths, which breaks
+ * symlinked project roots (e.g. `~/ghq/.../vault` → iCloud real path). Instead
+ * the caller passes the directory as a positional path argument; fd then emits
+ * paths prefixed with that exact argument, preserving symlinks.
  */
-function buildFdArgs(settings: FileSearchSettings, globalExcludesFile: string | null): string[] {
+function buildFdArgs(
+  settings: FileSearchSettings,
+  globalExcludesFile: string | null,
+  searchPath: string
+): string[] {
   const args: string[] = [
     '--type', 'f',           // Files only
-    '--color', 'never',      // No color output
-    '--absolute-path'        // Absolute paths
+    '--color', 'never'       // No color output
   ];
 
   // .gitignore setting
@@ -203,6 +218,11 @@ function buildFdArgs(settings: FileSearchSettings, globalExcludesFile: string | 
   // Search pattern (default to '.' to match all)
   args.push('.');
 
+  // Pass the search directory explicitly so fd emits paths prefixed with this
+  // exact path — preserves symlinks vs. canonicalizing them like
+  // `--absolute-path` does.
+  args.push(searchPath);
+
   return args;
 }
 
@@ -216,7 +236,7 @@ async function listFilesWithFd(
 ): Promise<FileInfo[]> {
   const globalExcludesFile = await getGlobalGitExcludesFile();
   return new Promise((resolve, reject) => {
-    const args = buildFdArgs(settings, globalExcludesFile);
+    const args = buildFdArgs(settings, globalExcludesFile, directory);
 
     const options = {
       cwd: directory,
@@ -426,11 +446,14 @@ export async function listDirectory(
                 continue;
               }
 
-              // Build args with search directory instead of glob pattern
+              // Build args with search directory instead of glob pattern.
+              // `--absolute-path` is intentionally omitted; we pass the search
+              // directory as a positional argument below so fd emits paths
+              // that preserve the symlink (e.g. `~/ghq/.../vault/foo.md`
+              // instead of the iCloud real path).
               const args: string[] = [
                 '--type', 'f',
                 '--color', 'never',
-                '--absolute-path',
                 '--no-ignore',           // Force ignore .gitignore
                 '--no-ignore-vcs',       // Force ignore VCS ignore files
                 '--hidden'               // Include hidden files
@@ -453,8 +476,10 @@ export async function listDirectory(
               }
 
               // fd syntax: fd [PATTERN] [PATH...]
-              // Push pattern first
+              // Push pattern first, then the path argument so fd emits paths
+              // prefixed with the (symlink-preserving) validated search path.
               args.push('.');  // Match all files
+              args.push(validatedSearchPath);
 
               // Use the validated path as cwd for fd
               const searchPath = validatedSearchPath;
