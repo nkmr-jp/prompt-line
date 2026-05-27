@@ -463,6 +463,12 @@ function buildFileSearchSection(settings: UserSettings): string {
     ? `fdPath: "${fs.fdPath}"`
     : `#fdPath: null                    # Custom path to fd`;
 
+  const scanRoots = fs.symlinkScanRoots ?? [];
+  const symlinkScanSection = scanRoots.length === 0
+    ? `#symlinkScanRoots:                # Reverse-lookup symlink aliases (e.g. ~/ghq/.../vault)
+  #  - "~/ghq"`
+    : `symlinkScanRoots: ${formatValue(scanRoots)}`;
+
   return `fileSearch:
   respectGitignore: ${formatValue(fs.respectGitignore)}
   includeHidden: ${formatValue(fs.includeHidden)}
@@ -472,7 +478,8 @@ function buildFileSearchSection(settings: UserSettings): string {
   followSymlinks: ${formatValue(fs.followSymlinks)}
   ${fdPathSection}
   includePatterns: ${formatValue(fs.includePatterns)}
-  excludePatterns: ${formatValue(fs.excludePatterns)}`;
+  excludePatterns: ${formatValue(fs.excludePatterns)}
+  ${symlinkScanSection}`;
 }
 
 /**

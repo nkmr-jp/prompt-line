@@ -8,6 +8,7 @@ import { readdir, stat, lstat, realpath } from 'fs/promises';
 import { join, basename, resolve, normalize } from 'path';
 import { logger } from '../logger';
 import { getGlobalGitExcludesFile } from '../git-excludes';
+import { resolveSymlinkAlias } from './symlink-resolver';
 import type { FileSearchSettings, FileInfo, DirectoryInfo } from '../../types';
 
 // Restricted directories for security (prevent accidental enumeration of sensitive system directories)
@@ -368,7 +369,8 @@ export async function listDirectory(
     includeHidden: true,
     maxDepth: null,
     followSymlinks: false,
-    fdPath: null
+    fdPath: null,
+    symlinkScanRoots: []
   };
 
   const mergedSettings: FileSearchSettings = {
@@ -382,8 +384,16 @@ export async function listDirectory(
       return { error: 'Invalid directory path' };
     }
 
+    // The native directory-detector returns the kernel-canonical realpath
+    // (`proc_pidinfo(PROC_PIDVNODEPATHINFO)`), so a `cd ~/ghq/.../vault` into
+    // a symlink arrives here as the iCloud/real target. Reverse-lookup any
+    // configured scan root to recover the user-facing symlink path before
+    // the rest of the pipeline locks it in.
+    const aliased = await resolveSymlinkAlias(directoryPath, mergedSettings.symlinkScanRoots);
+    const effectivePath = aliased ?? directoryPath;
+
     // Validate and resolve path (includes sanitization, symlink resolution, and restriction checks)
-    const validatedPath = await validateAndResolvePath(directoryPath);
+    const validatedPath = await validateAndResolvePath(effectivePath);
     if (!validatedPath) {
       return { error: 'Invalid, restricted, or non-existent directory path', directory: directoryPath };
     }

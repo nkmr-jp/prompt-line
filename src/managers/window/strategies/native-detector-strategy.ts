@@ -84,6 +84,12 @@ export class NativeDetectorStrategy implements IDirectoryDetectionStrategy {
             if (listResult.error) {
               result.filesError = listResult.error;
             } else {
+              // listResult.directory may differ from the kernel-canonical
+              // detectResult.directory when reverse symlink lookup recovered
+              // a user-facing alias (e.g. ~/ghq/.../vault). Prefer that.
+              if (listResult.directory) {
+                result.directory = listResult.directory;
+              }
               if (listResult.files) {
                 result.files = listResult.files;
                 result.fileCount = listResult.fileCount ?? listResult.files.length;

@@ -110,6 +110,10 @@ export async function detectCurrentDirectoryWithFiles(options?: DirectoryDetecti
 
   // Combine results - only add file properties if they exist
   const result: DirectoryInfo = { ...dirResult };
+  // Prefer the alias-recovered directory from file-searcher (symlinkScanRoots)
+  // over the kernel-canonical directory from the native detector. Symmetric
+  // with NativeDetectorStrategy.
+  if (fileResult.directory) result.directory = fileResult.directory;
   if (fileResult.files) result.files = fileResult.files;
   if (fileResult.fileCount !== undefined) result.fileCount = fileResult.fileCount;
   if (fileResult.searchMode) result.searchMode = fileResult.searchMode;
