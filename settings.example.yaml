@@ -54,6 +54,8 @@ fileSearch:
   #fdPath: null                    # Custom path to fd
   includePatterns: []
   excludePatterns: []
+  #symlinkScanRoots:                # Reverse-lookup symlink aliases (e.g. ~/ghq/.../vault)
+  #  - "~/ghq"
 
 # Symbol search (@lang:query) — requires ripgrep (brew install ripgrep)
 symbolSearch:

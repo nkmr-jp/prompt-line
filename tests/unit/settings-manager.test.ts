@@ -193,7 +193,8 @@ window:
           maxSuggestions: 50,
           followSymlinks: false,
           includePatterns: [],
-          excludePatterns: []
+          excludePatterns: [],
+          symlinkScanRoots: []
         },
         symbolSearch: {
           respectGitignore: true,
@@ -318,7 +319,8 @@ window:
           maxSuggestions: 50,
           followSymlinks: false,
           includePatterns: [],
-          excludePatterns: []
+          excludePatterns: [],
+          symlinkScanRoots: []
         },
         symbolSearch: {
           respectGitignore: true,

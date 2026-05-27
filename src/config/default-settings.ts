@@ -146,6 +146,9 @@ export const defaultSettings: UserSettings = {
    *     excludePatterns:
    *       - "node_modules"
    *       - "*.min.js"
+   *     symlinkScanRoots:
+   *       - "~/ghq"
+   *       - "~/projects"
    */
   fileSearch: {
     respectGitignore: true,  // Respect .gitignore rules (fd only)
@@ -155,7 +158,11 @@ export const defaultSettings: UserSettings = {
     maxSuggestions: 50,      // Max suggestions shown in popup
     followSymlinks: false,   // Follow symbolic links during search
     includePatterns: [],     // Force include patterns even if in .gitignore (glob syntax)
-    excludePatterns: []      // Additional exclude patterns (glob syntax)
+    excludePatterns: [],     // Additional exclude patterns (glob syntax)
+    // Scan roots used to recover user-facing symlink paths when the kernel
+    // returns a canonicalized realpath (e.g., iCloud-backed Obsidian vault
+    // accessed via ~/ghq/.../vault). Empty list disables the reverse lookup.
+    symlinkScanRoots: [] as string[]
   },
   /**
    * Symbol search settings — triggered by typing "@lang:query" (e.g., @ts:Config, @go:Handler)

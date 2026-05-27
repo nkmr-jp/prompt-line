@@ -271,6 +271,13 @@ export interface FileSearchUserSettings {
   inputFormat?: InputFormatType;
   /** Maximum number of suggestions to show (default: 50) */
   maxSuggestions?: number;
+  /**
+   * Roots scanned for reverse-lookup of symlinks (e.g., ["~/ghq"]). When the
+   * native CWD detector returns a kernel-canonical realpath, the file searcher
+   * tries to recover a user-facing symlink alias by walking these roots.
+   * Empty array (default) disables the feature.
+   */
+  symlinkScanRoots?: string[];
 }
 
 /**
