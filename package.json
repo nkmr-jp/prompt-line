@@ -131,28 +131,5 @@
     "js-yaml": "^4.1.1",
     "tailwindcss": "^4.2.0"
   },
-  "packageManager": "pnpm@10.30.3+sha512.c961d1e0a2d8e354ecaa5166b822516668b7f44cb5bd95122d590dd81922f606f5473b6d23ec4a5be05e7fcd18e8488d47d978bbe981872f1145d06e9a740017",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "electron",
-      "esbuild",
-      "unrs-resolver"
-    ],
-    "ignoredBuiltDependencies": [
-      "electron-winstaller"
-    ],
-    "overrides": {
-      "js-yaml": "^4.1.1",
-      "test-exclude": "^7.0.1",
-      "@electron/asar": "^4.0.1",
-      "global-agent": "^4.0.0",
-      "rimraf": "^6.0.0",
-      "glob": "$glob",
-      "jsdom": "^27.0.0",
-      "minimatch": ">=10.2.1",
-      "ajv@<6.14.0": "6.14.0",
-      "ajv@>=7.0.0-alpha.0 <8.18.0": "8.18.0",
-      "yauzl": ">=3.2.1"
-    }
-  }
+  "packageManager": "pnpm@11.5.1+sha512.93f7b57422ea7068257235b4c16eb60762eb68e1dc23723199cc739043ea9be2c4143274a399d8c6defa2b1176226d9ca1c4b63482d6200c1a8fbaa78c1d1485"
 }

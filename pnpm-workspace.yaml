@@ -1,0 +1,19 @@
+allowBuilds:
+  electron: true
+  esbuild: true
+  unrs-resolver: true
+  electron-winstaller: false
+overrides:
+  js-yaml: ^4.1.1
+  test-exclude: ^7.0.1
+  "@electron/asar": ^4.0.1
+  global-agent: ^4.0.0
+  rimraf: ^6.0.0
+  glob: $glob
+  jsdom: ^27.0.0
+  minimatch: ">=10.2.1"
+  "ajv@<6.14.0": 6.14.0
+  "ajv@>=7.0.0-alpha.0 <8.18.0": 8.18.0
+  yauzl: ">=3.2.1"
+  tmp: ">=0.2.6"
+  qs: ">=6.15.2"
