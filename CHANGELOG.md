@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.37.2](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.37.1...prompt-line-v0.37.2) (2026-06-07)
+
+
+### Bug Fixes
+
+* **plugins:** replace broken `pnpm link` with `pnpm add -g .` ([#401](https://github.com/nkmr-jp/prompt-line/issues/401)) ([297918d](https://github.com/nkmr-jp/prompt-line/commit/297918db86b5d6bb1f53fe287550393e63414b2e))
+
 ## [0.37.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.37.0...prompt-line-v0.37.1) (2026-06-07)
 
 
