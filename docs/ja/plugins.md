@@ -7,7 +7,7 @@
 prompt-lineプロジェクトディレクトリで以下を一度実行して、`prompt-line-plugin` コマンドをグローバルにインストールします：
 
 ```bash
-pnpm link
+pnpm add -g .
 ```
 
 これにより、任意のディレクトリから `prompt-line-plugin` コマンドが使えるようになります。

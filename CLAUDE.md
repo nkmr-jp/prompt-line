@@ -127,9 +127,9 @@ prompt-line-plugin help                          # Show help
 
 **Source resolution for `github.com/...`:** `gh repo clone` → `git clone`
 
-**Global CLI setup** — run `pnpm link` in the project directory to install `prompt-line-plugin` globally:
+**Global CLI setup** — run `pnpm add -g .` in the project directory to install `prompt-line-plugin` globally (pnpm 11+ requires this; bare `pnpm link` no longer works):
 ```bash
-pnpm link
+pnpm add -g .
 prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
 ```
 

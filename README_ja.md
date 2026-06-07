@@ -155,7 +155,7 @@ pnpm run migrate-settings        # 設定ファイルを最新のデフォルト
 
 ```bash
 # グローバルCLIセットアップ（prompt-lineプロジェクトディレクトリで一度だけ実行）
-pnpm link
+pnpm add -g .
 
 # プラグインのインストール
 prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
