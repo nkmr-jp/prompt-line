@@ -159,7 +159,7 @@ Plugins are YAML files that add agent skills (`/`), custom search (`@prefix:`), 
 
 ```bash
 # Global CLI setup (run once in the prompt-line project directory)
-pnpm link
+pnpm add -g .
 
 # Install plugins
 prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
