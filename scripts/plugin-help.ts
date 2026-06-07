@@ -38,7 +38,7 @@ ${bold('Examples:')}
 ${bold('Global CLI Setup')} ${dim('(Optional)')}${bold(':')}
   Run the following in the prompt-line project directory to install the CLI globally:
 
-    ${dim('$')} ${cyan('pnpm link')}
+    ${dim('$')} ${cyan('pnpm add -g .')}
 
   Then use from anywhere:
     ${dim('$')} ${cyan('prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins')}
