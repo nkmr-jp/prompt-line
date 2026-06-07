@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.37.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.37.0...prompt-line-v0.37.1) (2026-06-07)
+
+
+### Miscellaneous Chores
+
+* **deps-dev:** bump vitest from 4.0.18 to 4.1.0 in the npm_and_yarn group across 1 directory ([#398](https://github.com/nkmr-jp/prompt-line/issues/398)) ([37326d7](https://github.com/nkmr-jp/prompt-line/commit/37326d7e53cb6abd0a9063df576b003d5c69cc9a))
+* **deps:** upgrade pnpm to 11.5.1 and patch tmp/qs vulnerabilities ([#400](https://github.com/nkmr-jp/prompt-line/issues/400)) ([994ce23](https://github.com/nkmr-jp/prompt-line/commit/994ce230c37cbd56a26a73643715f09f60010ec9))
+
 ## [0.37.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.36.6...prompt-line-v0.37.0) (2026-05-27)
 
 
