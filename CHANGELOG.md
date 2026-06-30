@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.37.3](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.37.2...prompt-line-v0.37.3) (2026-06-30)
+
+
+### Miscellaneous Chores
+
+* **deps:** bump js-yaml from 4.1.1 to 4.2.0 in the npm_and_yarn group across 1 directory ([#403](https://github.com/nkmr-jp/prompt-line/issues/403)) ([7560d4b](https://github.com/nkmr-jp/prompt-line/commit/7560d4b54fb3346d89b67b1675786735d7315132))
+
 ## [0.37.2](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.37.1...prompt-line-v0.37.2) (2026-06-07)
 
 
