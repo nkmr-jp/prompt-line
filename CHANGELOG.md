@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.37.4](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.37.3...prompt-line-v0.37.4) (2026-07-02)
+
+
+### Miscellaneous Chores
+
+* **deps:** patch vite, form-data, tar and @babel/core vulnerabilities ([#406](https://github.com/nkmr-jp/prompt-line/issues/406)) ([76c5300](https://github.com/nkmr-jp/prompt-line/commit/76c53004a2ac028719379bcb7993e4c2b28db446))
+
 ## [0.37.3](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.37.2...prompt-line-v0.37.3) (2026-06-30)
 
 
