@@ -27,12 +27,12 @@ interface PasteResult {
 // Constants
 const MAX_PASTE_TEXT_LENGTH_BYTES = 1024 * 1024; // 1MB limit for paste text
 
-// Image extensions used to split paste content for terminals where Claude
-// Code (or similar TUIs) may be running. Claude Code converts a paste that
-// is *only* an image path into an `[Image #N]` token, but drops the path
-// when it appears in the same paste alongside other text. Splitting the
-// text into alternating text/path segments lets each path arrive as its
-// own paste so the conversion fires for each one.
+// Image paths trigger a Claude Code paste bug on cmux/Ghostty/WezTerm (not
+// reproducible on iTerm2): a paste containing an image path converts that
+// path to an `[Image #N]` token and drops surrounding text, even when the
+// path is meant to be read as plain text. Wrapping matched paths in
+// backticks defeats Claude Code's image-path detection, so the whole paste
+// arrives as literal text (confirmed against cmux/Ghostty/WezTerm/iTerm2).
 // Match image paths in two flavors:
 //   (a) `/<path>` or `@<path>` — directory portion may contain spaces, e.g.
 //       `/Users/me/My Pictures/foo.png` or `@My Images/foo.png` (Prompt Line
@@ -43,50 +43,17 @@ const MAX_PASTE_TEXT_LENGTH_BYTES = 1024 * 1024; // 1MB limit for paste text
 //       captures `/foo.png`.
 //   (b) `<non-whitespace>.<ext>` — a plain filename or path without spaces.
 const IMAGE_PATH_REGEX = /([/@][^\n]*?\S\.(?:png|jpg|jpeg|gif|webp)|\S+\.(?:png|jpg|jpeg|gif|webp))/gi;
-// Time between segments. Empirically, anything below ~30ms causes the next
-// paste to occasionally be merged into the previous one by Claude Code.
-const SEGMENT_PASTE_DELAY_MS = 40;
-// Time after writing the clipboard before triggering the AppleScript paste.
-// macOS NSPasteboard updates are synchronous from Electron's perspective but
-// the receiving terminal needs a moment to observe the change.
-const CLIPBOARD_SETTLE_DELAY_MS = 10;
 
-export interface PasteSegment {
-  type: 'text' | 'image';
-  content: string;
-}
-
-// Split paste text at image-path boundaries only. Newlines stay inside text
-// segments — pasted newlines work fine in Claude Code; only the path-bearing
-// portion needs to arrive as its own paste so it gets converted to [Image #N]
-// without dragging the surrounding text into the conversion (which drops
-// content).
-export function splitTextByImagePaths(text: string): PasteSegment[] {
-  const segments: PasteSegment[] = [];
-  let lastIndex = 0;
-  IMAGE_PATH_REGEX.lastIndex = 0;
-  let match: RegExpExecArray | null;
-  while ((match = IMAGE_PATH_REGEX.exec(text)) !== null) {
-    const matched = match[1];
-    if (matched === undefined) continue;
-    if (match.index > lastIndex) {
-      segments.push({ type: 'text', content: text.slice(lastIndex, match.index) });
-    }
-    segments.push({ type: 'image', content: matched });
-    lastIndex = match.index + matched.length;
-  }
-  if (lastIndex < text.length) {
-    segments.push({ type: 'text', content: text.slice(lastIndex) });
-  }
-  return segments;
+export function wrapImagePathsInBackticks(text: string): string {
+  return text.replace(IMAGE_PATH_REGEX, (match) => `\`${match}\``);
 }
 
 // cmux/Ghostty/WezTerm + Claude Code triggers an image-path-dropped-when-
 // mixed-with-text bug that is NOT reproducible on iTerm2, even though the
 // underlying paste mechanism (Cmd+V CGEvent) is identical for Ghostty/
 // WezTerm. The exact terminal-side cause is unclear (likely subtle
-// differences in bracketed-paste timing/chunking), so we apply the same
-// segmented paste workaround used for cmux.
+// differences in bracketed-paste timing/chunking), so we wrap image paths
+// in backticks before writing to the clipboard for these terminals.
 function isClaudeCodeAffectedTerminal(app: AppInfo | string | null): boolean {
   return isCmux(app) || isGhostty(app) || isWezTerm(app);
 }
@@ -158,20 +125,10 @@ class PasteHandler {
    * Execute paste operation with proper app handling.
    * cmux goes via AppleScript `paste_from_clipboard` (Cmd+V CGEvent doesn't
    * reach its embedded Ghostty PTY); Ghostty/WezTerm/iTerm2/others all use
-   * keyboard-simulator Cmd+V CGEvent. For cmux/Ghostty/WezTerm + Claude Code,
-   * paste the text in alternating text/image-path segments so Claude Code
-   * converts each path to an `[Image #N]` token (it drops paths when mixed
-   * with other text in a single paste).
+   * keyboard-simulator Cmd+V CGEvent.
    */
-  private async executePasteOperation(previousApp: AppInfo | string | null, text: string): Promise<PasteResult> {
+  private async executePasteOperation(previousApp: AppInfo | string | null): Promise<PasteResult> {
     if (previousApp && config.platform.isMac) {
-      if (isClaudeCodeAffectedTerminal(previousApp)) {
-        const segments = splitTextByImagePaths(text);
-        if (segments.length > 1) {
-          await this.pasteSegments(previousApp, segments);
-          return { success: true };
-        }
-      }
       await activateAndPasteWithNativeTool(previousApp);
       return { success: true };
     }
@@ -192,26 +149,6 @@ class PasteHandler {
 
     logger.warn('Auto-paste not supported on this platform');
     return { success: true, warning: 'Auto-paste not supported on this platform' };
-  }
-
-  /**
-   * Paste segments one by one, refreshing the clipboard between each so
-   * Claude Code sees each image path as its own paste and converts it to
-   * `[Image #N]` (mixing a path with surrounding text in one paste makes
-   * Claude Code drop the surrounding text).
-   */
-  private async pasteSegments(previousApp: AppInfo | string, segments: PasteSegment[]): Promise<void> {
-    for (let i = 0; i < segments.length; i++) {
-      const segment = segments[i]!;
-      if (!segment.content) continue;
-      clipboard.clear();
-      clipboard.writeText(segment.content);
-      await sleep(CLIPBOARD_SETTLE_DELAY_MS);
-      await activateAndPasteWithNativeTool(previousApp);
-      if (i < segments.length - 1) {
-        await sleep(SEGMENT_PASTE_DELAY_MS);
-      }
-    }
   }
 
   /**
@@ -250,20 +187,24 @@ class PasteHandler {
       if (validationError) return validationError;
 
       const directory = this.directoryManager.getDirectory() || undefined;
+      const clipboardText =
+        config.platform.isMac && isClaudeCodeAffectedTerminal(previousApp)
+          ? wrapImagePathsInBackticks(text)
+          : text;
       await Promise.all([
         (async () => {
           const itermSessionId = isITerm2(previousApp) ? await getITermSessionId() : undefined;
           await this.historyManager.addToHistory(text, appName, directory, itermSessionId);
         })(),
         this.draftManager.clearDraft(),
-        this.setClipboardAsync(text),
+        this.setClipboardAsync(clipboardText),
       ]);
 
       await this.windowManager.hideInputWindow();
       await sleep(Math.max(config.timing.windowHideDelay, 5));
 
       try {
-        return await this.executePasteOperation(previousApp, text);
+        return await this.executePasteOperation(previousApp);
       } catch (pasteError) {
         return await this.handlePasteError(pasteError as Error);
       }

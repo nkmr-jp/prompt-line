@@ -28,117 +28,86 @@ vi.mock('../../src/utils/native-tools/app-detection', () => ({
   getITermSessionId: vi.fn()
 }));
 
-import { splitTextByImagePaths } from '../../src/handlers/paste-handler';
+import { wrapImagePathsInBackticks } from '../../src/handlers/paste-handler';
 
-describe('splitTextByImagePaths', () => {
-  it('returns single text segment when no image path is present', () => {
-    const segments = splitTextByImagePaths('hello world');
-    expect(segments).toEqual([{ type: 'text', content: 'hello world' }]);
+describe('wrapImagePathsInBackticks', () => {
+  it('returns text unchanged when no image path is present', () => {
+    expect(wrapImagePathsInBackticks('hello world')).toBe('hello world');
   });
 
-  it('extracts a single image path with surrounding text', () => {
-    const segments = splitTextByImagePaths('テスト\n/Users/nkmr/.prompt-line/images/20260503_191755.png');
-    expect(segments).toEqual([
-      { type: 'text', content: 'テスト\n' },
-      { type: 'image', content: '/Users/nkmr/.prompt-line/images/20260503_191755.png' }
-    ]);
+  it('wraps a single image path with surrounding text', () => {
+    expect(wrapImagePathsInBackticks('テスト\n/Users/nkmr/.prompt-line/images/20260503_191755.png')).toBe(
+      'テスト\n`/Users/nkmr/.prompt-line/images/20260503_191755.png`'
+    );
   });
 
-  it('extracts an image path at the start with trailing text', () => {
-    const segments = splitTextByImagePaths('/Users/me/img.png describe this');
-    expect(segments).toEqual([
-      { type: 'image', content: '/Users/me/img.png' },
-      { type: 'text', content: ' describe this' }
-    ]);
+  it('wraps an image path at the start with trailing text', () => {
+    expect(wrapImagePathsInBackticks('/Users/me/img.png describe this')).toBe(
+      '`/Users/me/img.png` describe this'
+    );
   });
 
-  it('extracts multiple image paths', () => {
-    const segments = splitTextByImagePaths('see /a.png and /b.jpg too');
-    expect(segments).toEqual([
-      { type: 'text', content: 'see ' },
-      { type: 'image', content: '/a.png' },
-      { type: 'text', content: ' and ' },
-      { type: 'image', content: '/b.jpg' },
-      { type: 'text', content: ' too' }
-    ]);
+  it('wraps multiple image paths', () => {
+    expect(wrapImagePathsInBackticks('see /a.png and /b.jpg too')).toBe(
+      'see `/a.png` and `/b.jpg` too'
+    );
   });
 
-  it('returns the path-only case as a single image segment', () => {
-    const segments = splitTextByImagePaths('/Users/x/photo.jpeg');
-    expect(segments).toEqual([{ type: 'image', content: '/Users/x/photo.jpeg' }]);
+  it('wraps the path-only case', () => {
+    expect(wrapImagePathsInBackticks('/Users/x/photo.jpeg')).toBe('`/Users/x/photo.jpeg`');
   });
 
-  it('matches relative @-prefixed paths used by Prompt Line', () => {
-    const segments = splitTextByImagePaths('look at @images/20260503_191755.png please');
-    expect(segments).toEqual([
-      { type: 'text', content: 'look at ' },
-      { type: 'image', content: '@images/20260503_191755.png' },
-      { type: 'text', content: ' please' }
-    ]);
+  it('wraps relative @-prefixed paths used by Prompt Line', () => {
+    expect(wrapImagePathsInBackticks('look at @images/20260503_191755.png please')).toBe(
+      'look at `@images/20260503_191755.png` please'
+    );
   });
 
   it('supports png/jpg/jpeg/gif/webp extensions', () => {
-    expect(splitTextByImagePaths('a.png')).toHaveLength(1);
-    expect(splitTextByImagePaths('a.jpg')).toHaveLength(1);
-    expect(splitTextByImagePaths('a.jpeg')).toHaveLength(1);
-    expect(splitTextByImagePaths('a.gif')).toHaveLength(1);
-    expect(splitTextByImagePaths('a.webp')).toHaveLength(1);
+    expect(wrapImagePathsInBackticks('a.png')).toBe('`a.png`');
+    expect(wrapImagePathsInBackticks('a.jpg')).toBe('`a.jpg`');
+    expect(wrapImagePathsInBackticks('a.jpeg')).toBe('`a.jpeg`');
+    expect(wrapImagePathsInBackticks('a.gif')).toBe('`a.gif`');
+    expect(wrapImagePathsInBackticks('a.webp')).toBe('`a.webp`');
   });
 
   it('does not match non-image extensions', () => {
-    const segments = splitTextByImagePaths('config.json and main.ts');
-    expect(segments).toEqual([{ type: 'text', content: 'config.json and main.ts' }]);
+    expect(wrapImagePathsInBackticks('config.json and main.ts')).toBe('config.json and main.ts');
   });
 
-  it('captures absolute paths that contain spaces', () => {
-    const segments = splitTextByImagePaths('see /Users/me/My Pictures/foo.png please');
-    expect(segments).toEqual([
-      { type: 'text', content: 'see ' },
-      { type: 'image', content: '/Users/me/My Pictures/foo.png' },
-      { type: 'text', content: ' please' }
-    ]);
+  it('wraps absolute paths that contain spaces', () => {
+    expect(wrapImagePathsInBackticks('see /Users/me/My Pictures/foo.png please')).toBe(
+      'see `/Users/me/My Pictures/foo.png` please'
+    );
   });
 
-  it('captures @-prefixed relative paths that contain spaces', () => {
-    const segments = splitTextByImagePaths('テスト @My Images/20260503_191755.png');
-    expect(segments).toEqual([
-      { type: 'text', content: 'テスト ' },
-      { type: 'image', content: '@My Images/20260503_191755.png' },
-      { type: 'text', content: '' }
-    ].filter(s => s.content.length > 0));
+  it('wraps @-prefixed relative paths that contain spaces', () => {
+    expect(wrapImagePathsInBackticks('テスト @My Images/20260503_191755.png')).toBe(
+      'テスト `@My Images/20260503_191755.png`'
+    );
   });
 
   it('does not greedily swallow trailing prose after a path with spaces', () => {
-    const segments = splitTextByImagePaths('これは /foo.png のテストです');
-    expect(segments).toEqual([
-      { type: 'text', content: 'これは ' },
-      { type: 'image', content: '/foo.png' },
-      { type: 'text', content: ' のテストです' }
-    ]);
+    expect(wrapImagePathsInBackticks('これは /foo.png のテストです')).toBe(
+      'これは `/foo.png` のテストです'
+    );
   });
 });
 
-describe('splitTextByImagePaths — newlines stay inside text segments', () => {
-  it('keeps newline-bearing prefix as one text segment, then image', () => {
-    const segments = splitTextByImagePaths('テスト\n/Users/nkmr/.prompt-line/images/foo.png');
-    expect(segments).toEqual([
-      { type: 'text', content: 'テスト\n' },
-      { type: 'image', content: '/Users/nkmr/.prompt-line/images/foo.png' }
-    ]);
+describe('wrapImagePathsInBackticks — newlines are preserved', () => {
+  it('keeps the newline-bearing prefix intact around the wrapped path', () => {
+    expect(wrapImagePathsInBackticks('テスト\n/Users/nkmr/.prompt-line/images/foo.png')).toBe(
+      'テスト\n`/Users/nkmr/.prompt-line/images/foo.png`'
+    );
   });
 
-  it('keeps multi-line text without image paths as a single text segment', () => {
-    const segments = splitTextByImagePaths('line1\nline2\nline3');
-    expect(segments).toEqual([{ type: 'text', content: 'line1\nline2\nline3' }]);
+  it('leaves multi-line text without image paths unchanged', () => {
+    expect(wrapImagePathsInBackticks('line1\nline2\nline3')).toBe('line1\nline2\nline3');
   });
 
-  it('splits text/image/text-with-newlines correctly', () => {
-    const segments = splitTextByImagePaths('describe /a.png\nthen do X\nthen /b.jpg');
-    expect(segments).toEqual([
-      { type: 'text', content: 'describe ' },
-      { type: 'image', content: '/a.png' },
-      { type: 'text', content: '\nthen do X\nthen ' },
-      { type: 'image', content: '/b.jpg' }
-    ]);
+  it('wraps paths within multi-line text correctly', () => {
+    expect(wrapImagePathsInBackticks('describe /a.png\nthen do X\nthen /b.jpg')).toBe(
+      'describe `/a.png`\nthen do X\nthen `/b.jpg`'
+    );
   });
 });
