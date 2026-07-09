@@ -68,7 +68,7 @@ fix(window): resolve positioning issue on multi-monitor setups
 ### Pull Request Guidelines
 - **Target Branch**: Create PRs against `develop` if it exists, otherwise against `main`
 - **Language**: Write all PR titles and descriptions in English
-- **Merge Strategy**: **Squash and merge** for feature PRs into `develop`. Use **regular merge commit** (no squash) when merging `develop` into `main`.
+- **Merge Strategy**: **Squash and merge** for feature PRs into `develop`. Use **regular merge commit** (no squash) when merging `develop` into `main`. **For PRs opened directly against `main`** (the common case now that `main` is branch-protected — see below), **use squash merge** (`gh pr merge --squash`), not a regular merge commit: `gh pr merge --merge` writes the PR title into the merge commit body, and since PR titles follow Conventional Commits format, Release Please's commit parser picks that up as a second, duplicate changelog entry alongside the branch's original commit. Squash merge avoids this — it's the only commit release-please sees.
 - **`main` is branch-protected** (public repo): direct pushes are disabled, even for admins. All changes to `main` must go through a PR with the `test` CI check passing. Never attempt `git push` directly to `main` — create a branch, push it, and open a PR with `gh pr create` instead.
 
 ### Release Process
