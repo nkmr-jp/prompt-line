@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.37.5](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.37.4...prompt-line-v0.37.5) (2026-07-09)
+
+
+### Bug Fixes
+
+* **paste:** wrap image paths in backticks instead of segmented paste ([a2b42cb](https://github.com/nkmr-jp/prompt-line/commit/a2b42cb7c3c256ffee6f94f48208d9601ddfed3d))
+
+  Pasting text that contained an image file path (e.g. a screenshot path) into Claude Code CLI running in cmux, Ghostty, or WezTerm could drop the path — and surrounding text — or turn it into an unwanted image attachment, even when it was meant to be read as plain text (iTerm2 was unaffected). Wrapping image paths in backticks before writing to the clipboard prevents this misinterpretation, replacing a more fragile previous workaround that split each paste into multiple separate clipboard writes with hardcoded delays.
+
+* **paste:** fix ReDoS and boundary bugs in image-path backtick wrapping ([f477122](https://github.com/nkmr-jp/prompt-line/commit/f47712249df99e9e6faac5049c8e9248419487a6))
+
+  Follow-up hardening of the fix above, found via review: the image-path detection regex could freeze the app for minutes on certain long pastes (a denial-of-service risk) and could insert stray backtick characters into unrelated text (e.g. filenames like `image.png.bak`). Both are fixed by anchoring matches to word boundaries.
+
+
+### Documentation
+
+* document that main is now branch-protected ([2d49190](https://github.com/nkmr-jp/prompt-line/commit/2d491904081383ceb8583f6be0c50106963cd8e2))
+* use squash merge for PRs opened directly against main ([#411](https://github.com/nkmr-jp/prompt-line/issues/411)) ([dd3f675](https://github.com/nkmr-jp/prompt-line/commit/dd3f6757747f3ed6b3a3b3e4af1f95debf5b6059))
+
+
+### Tests
+
+* **paste:** add handlePasteText integration coverage for backtick-wrapping ([7351ba3](https://github.com/nkmr-jp/prompt-line/commit/7351ba399867c92b197e87849737f9443e1ee631))
+
 ## [0.37.4](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.37.3...prompt-line-v0.37.4) (2026-07-02)
 
 
