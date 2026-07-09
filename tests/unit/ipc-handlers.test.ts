@@ -311,6 +311,48 @@ describe('IPCHandlers', () => {
             expect(mockDraftManager.clearDraft).not.toHaveBeenCalled();
             expect(mockHistoryManager.addToHistory).not.toHaveBeenCalled();
         });
+
+        describe('image path backtick-wrapping (issue#3)', () => {
+            const textWithImagePath = 'この画像を見て /Users/me/screenshot.png お願いします';
+            const wrappedText = 'この画像を見て `/Users/me/screenshot.png` お願いします';
+
+            beforeEach(() => {
+                (clipboard.writeText as Mock).mockImplementation(() => {});
+                mockWindowManager.hideInputWindow.mockResolvedValue();
+                mockWindowManager.focusPreviousApp.mockResolvedValue(true);
+                activateAndPasteWithNativeTool.mockResolvedValue();
+            });
+
+            test.each(['cmux', 'Ghostty', 'WezTerm'])(
+                'wraps image paths in backticks before writing to clipboard on %s',
+                async (appName) => {
+                    const handler = getHandler('paste-text');
+                    mockWindowManager.getPreviousApp.mockReturnValue(appName);
+
+                    const result = await handler!(null, textWithImagePath);
+
+                    expect(result.success).toBe(true);
+                    expect(clipboard.writeText).toHaveBeenCalledWith(wrappedText);
+                    // History keeps the original, unwrapped text
+                    expect(mockHistoryManager.addToHistory).toHaveBeenCalledWith(
+                        textWithImagePath, appName, undefined, undefined
+                    );
+                }
+            );
+
+            test.each(['iTerm2', 'TestApp'])(
+                'leaves image paths unwrapped on %s',
+                async (appName) => {
+                    const handler = getHandler('paste-text');
+                    mockWindowManager.getPreviousApp.mockReturnValue(appName);
+
+                    const result = await handler!(null, textWithImagePath);
+
+                    expect(result.success).toBe(true);
+                    expect(clipboard.writeText).toHaveBeenCalledWith(textWithImagePath);
+                }
+            );
+        });
     });
 
     describe('handleGetHistory', () => {
