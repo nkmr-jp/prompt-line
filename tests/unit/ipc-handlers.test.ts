@@ -312,9 +312,10 @@ describe('IPCHandlers', () => {
             expect(mockHistoryManager.addToHistory).not.toHaveBeenCalled();
         });
 
-        describe('image path backtick-wrapping (issue#3)', () => {
+        describe('image path backtick-wrapping', () => {
             const textWithImagePath = 'この画像を見て /Users/me/screenshot.png お願いします';
             const wrappedText = 'この画像を見て `/Users/me/screenshot.png` お願いします';
+            const plainText = 'この画像は関係ない普通のテキストです';
 
             beforeEach(() => {
                 (clipboard.writeText as Mock).mockImplementation(() => {});
@@ -352,6 +353,45 @@ describe('IPCHandlers', () => {
                     expect(clipboard.writeText).toHaveBeenCalledWith(textWithImagePath);
                 }
             );
+
+            test('leaves text with no image path unmodified when pasted into an affected terminal', async () => {
+                const handler = getHandler('paste-text');
+                mockWindowManager.getPreviousApp.mockReturnValue('Ghostty');
+
+                const result = await handler!(null, plainText);
+
+                expect(result.success).toBe(true);
+                expect(clipboard.writeText).toHaveBeenCalledWith(plainText);
+            });
+
+            test('wraps image paths when previousApp is a real AppInfo object (not just a plain string)', async () => {
+                const handler = getHandler('paste-text');
+                mockWindowManager.getPreviousApp.mockReturnValue({
+                    name: 'Ghostty',
+                    bundleId: 'com.mitchellh.ghostty'
+                });
+
+                const result = await handler!(null, textWithImagePath);
+
+                expect(result.success).toBe(true);
+                expect(clipboard.writeText).toHaveBeenCalledWith(wrappedText);
+                expect(mockHistoryManager.addToHistory).toHaveBeenCalledWith(
+                    textWithImagePath, 'Ghostty', undefined, undefined
+                );
+            });
+
+            test('leaves text unwrapped when previousApp is an AppInfo object for an unaffected terminal', async () => {
+                const handler = getHandler('paste-text');
+                mockWindowManager.getPreviousApp.mockReturnValue({
+                    name: 'iTerm2',
+                    bundleId: 'com.googlecode.iterm2'
+                });
+
+                const result = await handler!(null, textWithImagePath);
+
+                expect(result.success).toBe(true);
+                expect(clipboard.writeText).toHaveBeenCalledWith(textWithImagePath);
+            });
         });
     });
 

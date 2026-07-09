@@ -42,10 +42,25 @@ const MAX_PASTE_TEXT_LENGTH_BYTES = 1024 * 1024; // 1MB limit for paste text
 //       character, so a sentence like `これは /foo.png のテスト` only
 //       captures `/foo.png`.
 //   (b) `<non-whitespace>.<ext>` — a plain filename or path without spaces.
-const IMAGE_PATH_REGEX = /([/@][^\n]*?\S\.(?:png|jpg|jpeg|gif|webp)|\S+\.(?:png|jpg|jpeg|gif|webp))/gi;
+// The leading `(?<=^|\s)` / trailing `(?=\s|$)` anchors require a match to
+// start and end at whitespace/string boundaries. Two reasons:
+//   1. Correctness: without a trailing boundary, the extension could match
+//      as a mere substring of a longer token (`readme.pngx`, `image.png.bak`),
+//      corrupting text that isn't actually an image path.
+//   2. Performance: without the leading boundary, `\S+\.(?:ext)` is retried
+//      from every character offset inside a long non-matching run (e.g. a
+//      pasted base64 blob or minified JS with no whitespace), causing
+//      quadratic-time backtracking — a multi-minute UI freeze is reachable
+//      at the paste-text size limit. Anchoring the match to only start at a
+//      token boundary bounds backtracking to each token's own length.
+const IMAGE_PATH_REGEX = /(?<=^|\s)(?:[/@][^\n]*?\S\.(?:png|jpg|jpeg|gif|webp)|\S+\.(?:png|jpg|jpeg|gif|webp))(?=\s|$)/gi;
 
 export function wrapImagePathsInBackticks(text: string): string {
-  return text.replace(IMAGE_PATH_REGEX, (match) => `\`${match}\``);
+  return text.replace(IMAGE_PATH_REGEX, (match, offset: number) => {
+    // Don't double-wrap a path the user already quoted in backticks themselves.
+    const alreadyQuoted = text[offset - 1] === '`' && text[offset + match.length] === '`';
+    return alreadyQuoted ? match : `\`${match}\``;
+  });
 }
 
 // cmux/Ghostty/WezTerm + Claude Code triggers an image-path-dropped-when-
@@ -187,6 +202,11 @@ class PasteHandler {
       if (validationError) return validationError;
 
       const directory = this.directoryManager.getDirectory() || undefined;
+      // Note: this also wraps a screenshot path inserted by handlePasteImage
+      // (e.g. `@images/<timestamp>.png`), so on cmux/Ghostty/WezTerm it now
+      // arrives as literal backtick-quoted text instead of auto-converting to
+      // a Claude Code `[Image #N]` attachment the way it used to (and still
+      // does on iTerm2). Intentional tradeoff of the fix above.
       const clipboardText =
         config.platform.isMac && isClaudeCodeAffectedTerminal(previousApp)
           ? wrapImagePathsInBackticks(text)
