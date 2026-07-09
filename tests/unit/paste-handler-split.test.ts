@@ -111,3 +111,28 @@ describe('wrapImagePathsInBackticks — newlines are preserved', () => {
     );
   });
 });
+
+describe('wrapImagePathsInBackticks — boundary correctness', () => {
+  it('does not match an image extension that is a mere substring of a longer token', () => {
+    expect(wrapImagePathsInBackticks('readme.pngx')).toBe('readme.pngx');
+  });
+
+  it('does not match an image extension followed by another extension', () => {
+    expect(wrapImagePathsInBackticks('image.png.bak')).toBe('image.png.bak');
+  });
+
+  it('does not double-wrap a path the user already quoted in backticks', () => {
+    expect(
+      wrapImagePathsInBackticks('As discussed, `/Users/me/screenshot.png` was already generated')
+    ).toBe('As discussed, `/Users/me/screenshot.png` was already generated');
+  });
+});
+
+describe('wrapImagePathsInBackticks — performance safety', () => {
+  it('stays fast on a long non-matching, whitespace-free paste (no catastrophic backtracking)', () => {
+    const pathological = 'a'.repeat(1024 * 1024); // 1MB, at the paste size limit
+    const start = Date.now();
+    expect(wrapImagePathsInBackticks(pathological)).toBe(pathological);
+    expect(Date.now() - start).toBeLessThan(500);
+  });
+});
