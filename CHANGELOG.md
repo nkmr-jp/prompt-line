@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.38.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.37.5...prompt-line-v0.38.0) (2026-07-27)
+
+
+### Features
+
+* **dev:** add per-worktree isolated headless verification instance ([#413](https://github.com/nkmr-jp/prompt-line/issues/413)) ([8dc3e1f](https://github.com/nkmr-jp/prompt-line/commit/8dc3e1fc7bc447f57c8686bdbaa80e7e2445249b))
+
 ## [0.37.5](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.37.4...prompt-line-v0.37.5) (2026-07-09)
 
 
