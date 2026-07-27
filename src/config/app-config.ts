@@ -21,6 +21,36 @@ import gitInfo from '../generated/git-info.json';
 // Import shared default settings (single source of truth)
 import { defaultSettings } from './default-settings';
 
+/**
+ * Resolve the directory holding history, drafts, settings, logs and plugins.
+ *
+ * Defaults to `~/.prompt-line`. `PROMPT_LINE_DATA_DIR` overrides it so an
+ * isolated instance (typically one launched from a git worktree by
+ * `pnpm run isolated`) never touches the data of the app the user runs daily.
+ */
+export function resolveUserDataDir(): string {
+  const override = process.env.PROMPT_LINE_DATA_DIR?.trim();
+  if (!override) {
+    return path.join(os.homedir(), '.prompt-line');
+  }
+  if (override === '~') {
+    return os.homedir();
+  }
+  const expanded = override.startsWith('~/')
+    ? path.join(os.homedir(), override.slice(2))
+    : override;
+  return path.resolve(expanded);
+}
+
+/**
+ * True when this process runs as an isolated verification instance
+ * (`PROMPT_LINE_ISOLATED=1`). Such an instance must never compete with the
+ * user's running app: no global shortcut, no tray icon, no window activation.
+ */
+export function isIsolatedInstance(): boolean {
+  return process.env.PROMPT_LINE_ISOLATED === '1';
+}
+
 function buildVersionDisplay(version: string): string {
   if (!gitInfo.hash) return version;
 
@@ -82,7 +112,7 @@ class AppConfigClass {
     // Use shared default settings for shortcuts
     this.shortcuts = { ...defaultSettings.shortcuts };
 
-    const userDataDir = path.join(os.homedir(), '.prompt-line');
+    const userDataDir = resolveUserDataDir();
     this.paths = {
       userDataDir,
       get historyFile() {

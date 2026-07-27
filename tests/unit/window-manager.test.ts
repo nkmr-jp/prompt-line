@@ -62,7 +62,12 @@ vi.mock('../../src/config/app-config', () => {
         },
         getInputHtmlPath: vi.fn(() => '/test/input.html')
     };
-    return { ...configMock, default: configMock };
+    return {
+        ...configMock,
+        default: configMock,
+        resolveUserDataDir: vi.fn(() => '/test/.prompt-line'),
+        isIsolatedInstance: vi.fn(() => false)
+    };
 });
 
 // Fix getCurrentApp to return string for consistency
@@ -95,7 +100,8 @@ describe('WindowManager', () => {
                 send: vi.fn(),
                 on: vi.fn(),
                 isLoading: vi.fn(() => false),
-                once: vi.fn()
+                once: vi.fn(),
+                removeListener: vi.fn()
             }
         };
         
@@ -247,6 +253,41 @@ describe('WindowManager', () => {
             // Should still try to show window
             expect(mockWindow.show).toHaveBeenCalled();
             // Note: logger.error might be called asynchronously
+        });
+
+        describe('isolated instance (headless)', () => {
+            beforeEach(() => {
+                (appConfig.isIsolatedInstance as Mock).mockReturnValue(true);
+            });
+
+            afterEach(() => {
+                (appConfig.isIsolatedInstance as Mock).mockReturnValue(false);
+            });
+
+            test('should render the window data without showing or focusing', async () => {
+                mockWindow.webContents.isLoading.mockReturnValue(false);
+
+                await windowManager.showInputWindow({ history: [], draft: 'test draft' });
+
+                expect(mockWindow.webContents.send).toHaveBeenCalledWith(
+                    'window-shown',
+                    expect.objectContaining({ draft: 'test draft' })
+                );
+                expect(mockWindow.show).not.toHaveBeenCalled();
+                expect(mockWindow.focus).not.toHaveBeenCalled();
+            });
+
+            test('should stay hidden when the renderer fails to load', async () => {
+                mockWindow.webContents.isLoading.mockReturnValue(true);
+                mockWindow.webContents.once.mockImplementation((event: string, handler: () => void) => {
+                    if (event === 'did-fail-load') setTimeout(handler, 0);
+                });
+
+                await windowManager.showInputWindow();
+
+                expect(mockWindow.show).not.toHaveBeenCalled();
+                expect(mockWindow.focus).not.toHaveBeenCalled();
+            });
         });
     });
 

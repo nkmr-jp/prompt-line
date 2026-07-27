@@ -15,7 +15,7 @@ if (process.platform === 'darwin') {
   process.noDeprecation = true;
 }
 
-import config from './config/app-config';
+import config, { isIsolatedInstance } from './config/app-config';
 import WindowManager from './managers/window';
 import HistoryManager from './managers/history-manager';
 import DraftManager from './managers/draft-manager';
@@ -66,6 +66,9 @@ class PromptLineApp {
   private startNativeWarmup(): void {
     if (process.platform !== 'darwin') return;
     if (process.env.PROMPT_LINE_DISABLE_NATIVE_WARMUP === '1') return;
+    // Isolated instances run in the background for verification only; keeping
+    // Swift tools warm is the running app's job.
+    if (isIsolatedInstance()) return;
     if (this.nativeWarmupTimer) return;
     const opts = { timeout: 2000 };
     this.nativeWarmupTimer = setInterval(() => {
@@ -284,6 +287,14 @@ class PromptLineApp {
   }
 
   private registerShortcuts(): void {
+    // An isolated instance must not fight the user's running app for the
+    // global hotkey (registration would fail and abort startup anyway).
+    // Use `pnpm run isolated show` to open its window instead.
+    if (isIsolatedInstance()) {
+      logger.info('Isolated instance: skipping global shortcut registration');
+      return;
+    }
+
     try {
       const settings = this.settingsManager?.getSettings();
       const mainShortcut = settings?.shortcuts.main || config.shortcuts.main;
@@ -354,6 +365,12 @@ class PromptLineApp {
   }
 
   private createTray(): void {
+    // A second tray icon would be indistinguishable from the user's own app.
+    if (isIsolatedInstance()) {
+      logger.info('Isolated instance: skipping tray icon');
+      return;
+    }
+
     try {
       const icon = this.createTrayIcon();
       this.tray = new Tray(icon);
@@ -634,15 +651,11 @@ class PromptLineApp {
 
 const promptLineApp = new PromptLineApp();
 
-app.whenReady().then(async () => {
-  try {
-    await promptLineApp.initialize();
-  } catch (error) {
-    logger.error('Application failed to start:', error);
-    app.quit();
-  }
-});
-
+// Claim the lock before anything else runs: a second launch must exit without
+// initializing, so it never touches the data directory of the instance that
+// already owns it. The lock is keyed on Electron's userData path, so an
+// isolated instance (launched with its own --user-data-dir) gets its own lock
+// and can run alongside the app the user keeps open.
 const gotTheLock = app.requestSingleInstanceLock();
 
 if (!gotTheLock) {
@@ -652,6 +665,15 @@ if (!gotTheLock) {
   app.on('second-instance', async () => {
     logger.info('Second instance detected, showing main window');
     await promptLineApp.showInputWindow();
+  });
+
+  app.whenReady().then(async () => {
+    try {
+      await promptLineApp.initialize();
+    } catch (error) {
+      logger.error('Application failed to start:', error);
+      app.quit();
+    }
   });
 }
 

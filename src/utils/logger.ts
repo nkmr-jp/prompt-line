@@ -1,8 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import os from 'os';
 import type { LogLevel } from '../types';
-import config from "../config/app-config";
+import config, { resolveUserDataDir } from "../config/app-config";
 
 // Sensitive information patterns for masking
 const SENSITIVE_PATTERNS = [
@@ -57,7 +56,7 @@ class Logger {
 
   constructor() {
     // Initialize with defaults to avoid circular dependency
-    this.logFile = path.join(os.homedir(), '.prompt-line', 'app.log');
+    this.logFile = path.join(resolveUserDataDir(), 'app.log');
 
     // Set actual config values after initialization if available
     this.initializeConfig();
