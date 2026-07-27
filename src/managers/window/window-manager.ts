@@ -408,7 +408,10 @@ class WindowManager {
    * @private
    */
   private revealWindow(trace?: PerfTrace): void {
-    if (!this.inputWindow || this.inputWindow.isDestroyed()) return;
+    if (!this.inputWindow || this.inputWindow.isDestroyed()) {
+      logger.warn('Cannot reveal input window: no live window');
+      return;
+    }
 
     if (isIsolatedInstance()) {
       setFlag(trace, 'headless', true);
@@ -439,6 +442,7 @@ class WindowManager {
    */
   focusWindow(): void {
     try {
+      if (isIsolatedInstance()) return;
       if (this.inputWindow) {
         this.inputWindow.focus();
       }

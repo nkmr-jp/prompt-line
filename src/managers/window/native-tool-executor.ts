@@ -1,6 +1,6 @@
 import { execFile } from 'child_process';
 import { logger, KEYBOARD_SIMULATOR_PATH } from '../../utils/utils';
-import config from '../../config/app-config';
+import config, { isIsolatedInstance } from '../../config/app-config';
 import type { AppInfo } from '../../types';
 import { TIMEOUTS } from '../../constants';
 
@@ -21,6 +21,13 @@ class NativeToolExecutor {
   async focusPreviousApp(): Promise<boolean> {
     try {
       if (!this.previousApp || !config.platform.isMac) {
+        return false;
+      }
+
+      // An isolated instance records whatever app the user happens to have in
+      // front; activating it would yank their focus around mid-verification.
+      if (isIsolatedInstance()) {
+        logger.debug('Isolated instance: skipping focus of previous app');
         return false;
       }
 

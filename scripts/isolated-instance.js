@@ -34,11 +34,19 @@ const ROOT_DIR = path.join(os.homedir(), '.prompt-line-isolated');
 const PORT_RANGE_START = 9300;
 const PORT_RANGE_SIZE = 100;
 const START_TIMEOUT_MS = 30000;
+const STOP_TIMEOUT_MS = 10000;
 /** Copied into a fresh data directory so verification sees a realistic setup. */
 const SEED_ENTRIES = ['settings.yaml', 'plugins', 'custom-search'];
+/** An id becomes a directory name that `clean` deletes — keep it a plain segment. */
+const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
 function instanceId() {
-  return process.env.PROMPT_LINE_INSTANCE_ID || path.basename(REPO_ROOT);
+  const override = process.env.PROMPT_LINE_INSTANCE_ID;
+  if (!override) return path.basename(REPO_ROOT);
+  if (!ID_PATTERN.test(override)) {
+    throw new Error(`Invalid PROMPT_LINE_INSTANCE_ID: ${override} (allowed: letters, digits, . _ -)`);
+  }
+  return override;
 }
 
 function paths() {
@@ -54,13 +62,37 @@ function paths() {
   };
 }
 
+/**
+ * State of the instance for this checkout. Two worktrees whose directories
+ * happen to share a name would otherwise resolve to the same data directory
+ * and CDP port — refuse rather than drive (or report on) the other one.
+ */
 function readState() {
   const { stateFile } = paths();
+  let state;
   try {
-    return JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+    state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
   } catch {
     return null;
   }
+  if (state.repoRoot && state.repoRoot !== REPO_ROOT) {
+    throw new Error(
+      `Instance "${state.id}" belongs to ${state.repoRoot}.\n` +
+      'Set PROMPT_LINE_INSTANCE_ID to a distinct id for this checkout.'
+    );
+  }
+  return state;
+}
+
+function waitForExit(pid) {
+  const deadline = Date.now() + STOP_TIMEOUT_MS;
+  return (async () => {
+    while (Date.now() < deadline) {
+      if (!isAlive(pid)) return true;
+      await new Promise(r => setTimeout(r, 100));
+    }
+    return false;
+  })();
 }
 
 function isAlive(pid) {
@@ -146,6 +178,11 @@ async function waitForCdp(port, pid) {
 
 /** Minimal CDP client over the page target — no dependencies, no browser needed. */
 async function withPage(port, fn) {
+  if (typeof WebSocket === 'undefined') {
+    // Global WebSocket is only enabled by default from Node 22 on.
+    throw new Error(`CDP commands need Node 22 or newer (running ${process.version})`);
+  }
+
   const targets = await cdpTargets(port);
   const page = targets.find(t => t.type === 'page');
   if (!page) throw new Error('no page target — is the instance running?');
@@ -216,6 +253,8 @@ async function start(args) {
     if (build.status !== 0) throw new Error('compile failed');
   }
 
+  // 0700: the seeded copy carries the user's real settings and plugins.
+  fs.mkdirSync(ROOT_DIR, { recursive: true, mode: 0o700 });
   fs.mkdirSync(dataDir, { recursive: true });
   fs.mkdirSync(electronDir, { recursive: true });
   if (!args.includes('--no-seed')) seedDataDir(dataDir);
@@ -228,8 +267,9 @@ async function start(args) {
     { cwd: REPO_ROOT, env: instanceEnv(dataDir), detached: true, stdio: ['ignore', out, out] }
   );
   child.unref();
+  fs.closeSync(out);
 
-  const state = { id, pid: child.pid, port, repoRoot: REPO_ROOT, dataDir, startedAt: new Date().toISOString() };
+  const state ={ id, pid: child.pid, port, repoRoot: REPO_ROOT, dataDir, startedAt: new Date().toISOString() };
   fs.mkdirSync(home, { recursive: true });
   fs.writeFileSync(stateFile, `${JSON.stringify(state, null, 2)}\n`);
 
@@ -239,13 +279,22 @@ async function start(args) {
   console.log(`  stdout: ${stdoutLog}`);
 }
 
-function stop() {
+/** Stops and waits: `start` and `clean` must never race a dying instance. */
+async function stop() {
+  const { stateFile } = paths();
   const state = readState();
   if (!state || !isAlive(state.pid)) {
+    fs.rmSync(stateFile, { force: true });
     console.log('Not running');
     return;
   }
+
   process.kill(state.pid, 'SIGTERM');
+  if (!await waitForExit(state.pid)) {
+    process.kill(state.pid, 'SIGKILL');
+    await waitForExit(state.pid);
+  }
+  fs.rmSync(stateFile, { force: true });
   console.log(`Stopped pid ${state.pid}`);
 }
 
@@ -274,16 +323,41 @@ function status() {
 function show() {
   const { dataDir, electronDir } = paths();
   requireRunning();
-  spawnSync(electronBin(), [REPO_ROOT, `--user-data-dir=${electronDir}`], {
+  const result = spawnSync(electronBin(), [REPO_ROOT, `--user-data-dir=${electronDir}`], {
     cwd: REPO_ROOT,
     env: instanceEnv(dataDir),
     stdio: 'ignore'
   });
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error(`show trigger exited with ${result.status ?? result.signal}`);
+  }
 }
 
 async function typeText(port, text) {
-  await evaluate(port, `document.querySelector('textarea')?.focus(), true`);
+  // Without a focused textarea Input.insertText succeeds but goes nowhere.
+  const focused = await evaluate(port, `(() => {
+    const el = document.querySelector('textarea');
+    el?.focus();
+    return !!el;
+  })()`);
+  if (!focused) {
+    throw new Error('no input to type into — run `pnpm run isolated show` first');
+  }
   await withPage(port, send => send('Input.insertText', { text }));
+}
+
+async function clearInput(port) {
+  const cleared = await evaluate(port, `(() => {
+    const el = document.querySelector('textarea');
+    if (!el) return false;
+    el.value = '';
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    return true;
+  })()`);
+  if (!cleared) {
+    throw new Error('no input to clear — run `pnpm run isolated show` first');
+  }
 }
 
 async function screenshot(port, file) {
@@ -300,6 +374,9 @@ function logs(args) {
   const { dataDir } = paths();
   const index = args.indexOf('-n');
   const lines = index >= 0 ? args[index + 1] : '40';
+  if (!/^\d+$/.test(lines || '')) {
+    throw new Error(`-n needs a line count (got: ${lines ?? 'nothing'})`);
+  }
   const logFile = path.join(dataDir, 'app.log');
   if (!fs.existsSync(logFile)) {
     console.log(`No log yet: ${logFile}`);
@@ -308,9 +385,9 @@ function logs(args) {
   process.stdout.write(execFileSync('tail', ['-n', lines, logFile], { encoding: 'utf8' }));
 }
 
-function clean() {
+async function clean() {
   const { home } = paths();
-  stop();
+  await stop();
   fs.rmSync(home, { recursive: true, force: true });
   console.log(`Removed ${home}`);
 }
@@ -330,12 +407,7 @@ async function main() {
     case 'type':
       return typeText(requireRunning().port, args.join(' '));
     case 'clear':
-      return evaluate(requireRunning().port, `
-        const el = document.querySelector('textarea');
-        el.value = '';
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-        true;
-      `).then(() => undefined);
+      return clearInput(requireRunning().port);
     case 'eval': {
       const value = await evaluate(requireRunning().port, args.join(' '));
       console.log(typeof value === 'string' ? value : JSON.stringify(value, null, 2));

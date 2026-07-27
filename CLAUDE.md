@@ -33,7 +33,8 @@ How the isolation works (`scripts/isolated-instance.js`):
 - `PROMPT_LINE_DATA_DIR=~/.prompt-line-isolated/<worktree>/data` — its own history, drafts, settings, log, plugins and cache. On first start, `settings.yaml`, `plugins/` and `custom-search/` are **copied** (never symlinked) from `~/.prompt-line` so verification runs against a realistic config; pass `--no-seed` for a pristine one.
 - Its own Electron `--user-data-dir`, so it gets its own single-instance lock and runs alongside the installed app.
 - `PROMPT_LINE_ISOLATED=1` — no global shortcut (no fight over `Cmd+Shift+Space`), no tray icon, no native warmup, and the window is never shown or focused. The renderer still paints offscreen, so CDP screenshots show the real UI.
-- CDP port derived from the worktree directory name (9300–9399), so parallel worktrees never collide.
+- CDP port derived from the worktree directory name (9300–9399), so parallel worktrees never collide. Two checkouts whose directories share a name are rejected (the state file records `repoRoot`) — set `PROMPT_LINE_INSTANCE_ID` to give one of them a distinct id.
+- The CDP-driven commands (`type`, `clear`, `eval`, `screenshot`) need **Node 22+** (global `WebSocket`); `start`/`stop`/`status`/`show`/`logs` run on the version in `engines`.
 
 Do **not** use `pnpm run install-app` to verify a worktree — it replaces `/Applications/Prompt Line.app` and quits the app the user is running.
 
