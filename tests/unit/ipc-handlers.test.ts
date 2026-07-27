@@ -126,7 +126,12 @@ vi.mock('../../src/config/app-config', () => {
             return config[key];
         })
     };
-    return { ...configObj, default: configObj };
+    return {
+        ...configObj,
+        default: configObj,
+        resolveUserDataDir: vi.fn(() => '/test/.prompt-line'),
+        isIsolatedInstance: vi.fn(() => false)
+    };
 });
 
 const { logger, pasteWithNativeTool, activateAndPasteWithNativeTool } = utils as any;

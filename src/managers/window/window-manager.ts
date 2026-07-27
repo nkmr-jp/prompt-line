@@ -1,5 +1,5 @@
 import { BrowserWindow } from 'electron';
-import config from '../../config/app-config';
+import config, { isIsolatedInstance } from '../../config/app-config';
 import { getCurrentApp, logger, mark, setFlag } from '../../utils/utils';
 import type { PerfTrace } from '../../utils/utils';
 import DesktopSpaceManager from '../desktop-space-manager';
@@ -359,9 +359,7 @@ class WindowManager {
               mark(trace, 'did-finish-load');
               this.inputWindow.webContents.send('window-shown', windowData);
               mark(trace, 'shown-sent');
-              this.inputWindow.show();
-              mark(trace, 'show-called');
-              this.inputWindow.focus();
+              this.revealWindow(trace);
             }
           } catch (err) {
             logger.warn('Error in did-finish-load handler:', err);
@@ -371,8 +369,7 @@ class WindowManager {
         const showFallback = (reason: string): void => {
           if (this.inputWindow && !this.inputWindow.isDestroyed()) {
             try {
-              this.inputWindow.show();
-              this.inputWindow.focus();
+              this.revealWindow();
             } catch (err) {
               logger.warn(`Fallback show after ${reason} failed:`, err);
             }
@@ -398,10 +395,32 @@ class WindowManager {
       setFlag(trace, 'displayPath', 'show-immediate');
       this.inputWindow!.webContents.send('window-shown', windowData);
       mark(trace, 'shown-sent');
-      this.inputWindow!.show();
-      mark(trace, 'show-called');
-      this.inputWindow!.focus();
+      this.revealWindow(trace);
     }
+  }
+
+  /**
+   * Bring the window on screen and give it keyboard focus.
+   *
+   * An isolated verification instance (PROMPT_LINE_ISOLATED=1) stays headless:
+   * the renderer still receives `window-shown` and paints, so CDP can drive and
+   * screenshot it, but no window appears and the user's focus is never stolen.
+   * @private
+   */
+  private revealWindow(trace?: PerfTrace): void {
+    if (!this.inputWindow || this.inputWindow.isDestroyed()) {
+      logger.warn('Cannot reveal input window: no live window');
+      return;
+    }
+
+    if (isIsolatedInstance()) {
+      setFlag(trace, 'headless', true);
+      return;
+    }
+
+    this.inputWindow.show();
+    mark(trace, 'show-called');
+    this.inputWindow.focus();
   }
 
   /**
@@ -423,6 +442,7 @@ class WindowManager {
    */
   focusWindow(): void {
     try {
+      if (isIsolatedInstance()) return;
       if (this.inputWindow) {
         this.inputWindow.focus();
       }

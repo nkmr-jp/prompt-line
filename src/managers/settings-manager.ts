@@ -1,11 +1,11 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import os from 'os';
 import * as yaml from 'js-yaml';
 import { EventEmitter } from 'events';
 import chokidar, { type FSWatcher } from 'chokidar';
 import { logger } from '../utils/utils';
 import { defaultSettings as sharedDefaultSettings } from '../config/default-settings';
+import { resolveUserDataDir } from '../config/app-config';
 import { generateSettingsYaml } from '../config/settings-yaml-generator';
 import pluginLoader from '../lib/plugin-loader';
 import type {
@@ -32,7 +32,7 @@ class SettingsManager extends EventEmitter {
   constructor() {
     super();
     // Always use .yaml — legacy .yml is read as fallback during init, then migrated
-    this.settingsFile = path.join(os.homedir(), '.prompt-line', 'settings.yaml');
+    this.settingsFile = path.join(resolveUserDataDir(), 'settings.yaml');
 
     // Use shared default settings from config/default-settings.ts
     this.defaultSettings = sharedDefaultSettings;

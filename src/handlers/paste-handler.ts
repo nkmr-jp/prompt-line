@@ -2,7 +2,7 @@ import { ipcMain, clipboard, IpcMainInvokeEvent, dialog } from 'electron';
 import { promises as fs } from 'fs';
 import { execFile } from 'child_process';
 import path from 'path';
-import config from '../config/app-config';
+import config, { isIsolatedInstance } from '../config/app-config';
 import {
   logger,
   pasteWithNativeTool,
@@ -143,6 +143,13 @@ class PasteHandler {
    * keyboard-simulator Cmd+V CGEvent.
    */
   private async executePasteOperation(previousApp: AppInfo | string | null): Promise<PasteResult> {
+    // Pasting means activating whatever app is in front of the user and sending
+    // it Cmd+V. An isolated verification instance must never do that.
+    if (isIsolatedInstance()) {
+      logger.info('Isolated instance: skipping native paste');
+      return { success: true, warning: 'Isolated instance: native paste skipped' };
+    }
+
     if (previousApp && config.platform.isMac) {
       await activateAndPasteWithNativeTool(previousApp);
       return { success: true };
@@ -347,6 +354,12 @@ class PasteHandler {
   }
 
   private async setClipboardAsync(text: string): Promise<void> {
+    // The system clipboard is shared with everything the user is doing.
+    if (isIsolatedInstance()) {
+      logger.debug('Isolated instance: skipping clipboard write');
+      return;
+    }
+
     return new Promise((resolve) => {
       try {
         // Clear all pasteboard types before writing text. clipboard.writeText
@@ -373,6 +386,12 @@ class PasteHandler {
   }
 
   private showAccessibilityWarning(bundleId: string): void {
+    // A modal from a background verification instance would steal the screen.
+    if (isIsolatedInstance()) {
+      logger.warn('Isolated instance: accessibility permission missing', { bundleId });
+      return;
+    }
+
     dialog.showMessageBox({
       type: 'warning',
       title: 'Accessibility Permission Required',

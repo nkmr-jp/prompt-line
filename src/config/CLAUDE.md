@@ -33,7 +33,9 @@ default-settings.ts (Single Source of Truth)
 - `pnpm start` sets `LOG_LEVEL=debug` automatically
 
 ### Path management
-- All data stored under `~/.prompt-line/` (based on `os.homedir()`)
+- All data stored under `~/.prompt-line/` (`resolveUserDataDir()`)
+- `PROMPT_LINE_DATA_DIR` overrides that directory (used by `pnpm run isolated` so a worktree instance never touches the running app's data). `settings-manager.ts` and `logger.ts` resolve their paths through the same helper
+- `isIsolatedInstance()` (`PROMPT_LINE_ISOLATED=1`) marks a headless verification instance: no global shortcut, no tray, window never shown or focused
 - Getter-based lazy path generation
 - `pluginsDir`: `~/.prompt-line/plugins/`
 
