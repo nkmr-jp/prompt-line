@@ -3,6 +3,29 @@ import config from '../../config/app-config';
 import { logger } from '../../utils/utils';
 import type { AppInfo } from '../../types';
 
+type OverrideMap = Record<string, string>;
+
+/**
+ * Bundle ids are used as lookup keys, so the map must not inherit anything from
+ * `Object.prototype` (`constructor`, `toString`, ...).
+ */
+function emptyMap(): OverrideMap {
+  return Object.create(null) as OverrideMap;
+}
+
+/**
+ * The file is written by external tools: refuse anything that is not a plain
+ * absolute path rather than resolving it against the cwd. Applied at parse time
+ * so a bad entry warns once per file change, not once per window show.
+ */
+function isUsableOverridePath(bundleId: string, directory: string): boolean {
+  if (!directory.startsWith('/') || directory.split('/').includes('..')) {
+    logger.warn('Ignoring non-absolute app directory override', { bundleId, directory });
+    return false;
+  }
+  return true;
+}
+
 /**
  * Per-app startup directory overrides.
  *
@@ -21,10 +44,10 @@ import type { AppInfo } from '../../types';
  * chain. Nothing here throws.
  *
  * The parsed map is cached and only re-read when the file's mtime or size
- * changes, so resolving on every window show costs one `stat`.
+ * changes, so resolving on every window show costs one `stat` plus one lookup.
  */
 export class AppDirectoryOverrides {
-  private map: Record<string, string> = {};
+  private map: OverrideMap = emptyMap();
   private cachedMtimeMs: number | null = null;
   private cachedSize: number | null = null;
 
@@ -50,13 +73,6 @@ export class AppDirectoryOverrides {
     const directory = map[bundleId];
     if (!directory) return null;
 
-    // The file is written by external tools: refuse anything that is not a
-    // plain absolute path rather than resolving it against the cwd.
-    if (!directory.startsWith('/') || directory.split('/').includes('..')) {
-      logger.warn('Ignoring non-absolute app directory override', { bundleId, directory });
-      return null;
-    }
-
     // Entries go stale independently of the file (repo moved or deleted), so
     // this check cannot be cached alongside the parsed map.
     try {
@@ -73,7 +89,7 @@ export class AppDirectoryOverrides {
    * Load the override map, re-reading only when the file changed.
    * mtime alone has 1s granularity on some filesystems, so size is part of the key.
    */
-  private async loadMap(): Promise<Record<string, string>> {
+  private async loadMap(): Promise<OverrideMap> {
     const file = config.paths.appDirectoriesFile;
 
     let mtimeMs: number;
@@ -94,7 +110,7 @@ export class AppDirectoryOverrides {
 
     this.cachedMtimeMs = mtimeMs;
     this.cachedSize = size;
-    this.map = {};
+    this.map = emptyMap();
 
     try {
       const raw = await fs.readFile(file, 'utf8');
@@ -107,21 +123,28 @@ export class AppDirectoryOverrides {
       }
 
       for (const [bundleId, directory] of Object.entries(parsed as Record<string, unknown>)) {
-        if (typeof directory === 'string' && directory.trim()) {
+        // A blank value is an external tool's way of saying "no override right
+        // now" without dropping the key, so it is skipped, not warned about.
+        if (typeof directory !== 'string' || !directory.trim()) continue;
+        if (isUsableOverridePath(bundleId, directory)) {
           this.map[bundleId] = directory;
         }
       }
       logger.debug('Loaded app directory overrides', { count: Object.keys(this.map).length });
     } catch (error) {
-      logger.warn('Failed to read app-directories.json, ignoring:', error);
-      this.map = {};
+      // The parse error text is what the external tool that wrote this file needs.
+      logger.warn(
+        'Failed to read app-directories.json, ignoring:',
+        error instanceof Error ? error.message : String(error)
+      );
+      this.map = emptyMap();
     }
 
     return this.map;
   }
 
   private reset(): void {
-    this.map = {};
+    this.map = emptyMap();
     this.cachedMtimeMs = null;
     this.cachedSize = null;
   }

@@ -20,8 +20,18 @@ vi.mock('../../src/managers/window/strategies', () => ({
   withListedFiles: listedFiles
 }));
 
+vi.mock('../../src/utils/logger', () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  maskSensitiveData: vi.fn((data: unknown) => data)
+}));
+
 import { AppDirectoryOverrides } from '../../src/managers/window/app-directory-overrides';
 import DirectoryDetector from '../../src/managers/window/directory-detector';
+import { logger } from '../../src/utils/logger';
+
+function warningsMatching(needle: string): unknown[][] {
+  return vi.mocked(logger.warn).mock.calls.filter(call => String(call[0]).includes(needle));
+}
 
 const overrideFile = `${dataDir}/app-directories.json`;
 const BUNDLE_ID = 'com.example.someapp';
@@ -42,6 +52,7 @@ beforeAll(() => {
 
 beforeEach(async () => {
   await removeOverrides();
+  vi.mocked(logger.warn).mockClear();
   listedFiles.mockReset();
   listedFiles.mockImplementation(async (base: unknown) => base);
 });
@@ -129,6 +140,95 @@ describe('AppDirectoryOverrides', () => {
     await expect(overrides.resolve(null)).resolves.toBeNull();
     await expect(overrides.resolve('Some App')).resolves.toBeNull();
     await expect(overrides.resolve({ name: 'Some App' })).resolves.toBeNull();
+  });
+
+  test('a blank value disables an override without removing the key', async () => {
+    await writeOverrides(JSON.stringify({ [BUNDLE_ID]: projectDir }));
+    const overrides = new AppDirectoryOverrides();
+    await expect(overrides.resolve({ name: 'Some App', bundleId: BUNDLE_ID })).resolves.toBe(projectDir);
+
+    // Documented escape hatch for external tools: "no override right now".
+    await writeOverrides(JSON.stringify({ [BUNDLE_ID]: '   ' }));
+    await expect(overrides.resolve({ name: 'Some App', bundleId: BUNDLE_ID })).resolves.toBeNull();
+    expect(warningsMatching('Ignoring non-absolute')).toHaveLength(0);
+  });
+
+  test('resolves prototype-derived bundle ids to null without throwing', async () => {
+    await writeOverrides(JSON.stringify({ [BUNDLE_ID]: projectDir }));
+    const overrides = new AppDirectoryOverrides();
+
+    for (const bundleId of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) {
+      await expect(overrides.resolve({ name: 'Weird', bundleId })).resolves.toBeNull();
+    }
+  });
+
+  test('resolves prototype-derived bundle ids to null when the file is absent', async () => {
+    const overrides = new AppDirectoryOverrides();
+
+    for (const bundleId of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) {
+      await expect(overrides.resolve({ name: 'Weird', bundleId })).resolves.toBeNull();
+    }
+  });
+
+  test('keeps the parse error message in the warning', async () => {
+    await writeOverrides('{ this is not json');
+
+    const overrides = new AppDirectoryOverrides();
+    await expect(overrides.resolve({ name: 'Some App', bundleId: BUNDLE_ID })).resolves.toBeNull();
+
+    const [call] = warningsMatching('Failed to read app-directories.json');
+    // The exact wording is V8's and varies by Node version; what matters is that
+    // the external tool that wrote the file gets a reason instead of `{}`.
+    expect(typeof call?.[1]).toBe('string');
+    expect(call?.[1]).not.toBe('');
+  });
+
+  test('warns once per file change for an invalid entry, not once per resolve', async () => {
+    await writeOverrides(JSON.stringify({ [BUNDLE_ID]: 'relative/dir' }));
+
+    const overrides = new AppDirectoryOverrides();
+    await overrides.resolve({ name: 'Some App', bundleId: BUNDLE_ID });
+    await overrides.resolve({ name: 'Some App', bundleId: BUNDLE_ID });
+
+    expect(warningsMatching('Ignoring non-absolute')).toHaveLength(1);
+  });
+
+  test('keeps serving the cached map when mtime and size are both unchanged', async () => {
+    const otherDir = mkdtempSync('/tmp/pl-project-');
+    const first = JSON.stringify({ [BUNDLE_ID]: projectDir });
+    const second = JSON.stringify({ [BUNDLE_ID]: otherDir });
+    // mkdtemp names have a fixed length, so the two files are byte-identical in size.
+    expect(second).toHaveLength(first.length);
+
+    // Pin both writes to the same whole-millisecond timestamp; a stat-and-restore
+    // round trip would lose the sub-millisecond part and invalidate the cache.
+    const stamp = new Date(1700000000000);
+
+    await writeOverrides(first);
+    await fsp.utimes(overrideFile, stamp, stamp);
+
+    const overrides = new AppDirectoryOverrides();
+    await expect(overrides.resolve({ name: 'Some App', bundleId: BUNDLE_ID })).resolves.toBe(projectDir);
+
+    await writeOverrides(second);
+    await fsp.utimes(overrideFile, stamp, stamp);
+
+    // Content changed but the cache key (mtime + size) did not: the stale value
+    // is served until something observable about the file changes.
+    await expect(overrides.resolve({ name: 'Some App', bundleId: BUNDLE_ID })).resolves.toBe(projectDir);
+  });
+
+  test('re-reads after the file is deleted and re-created', async () => {
+    await writeOverrides(JSON.stringify({ [BUNDLE_ID]: projectDir }));
+    const overrides = new AppDirectoryOverrides();
+    await expect(overrides.resolve({ name: 'Some App', bundleId: BUNDLE_ID })).resolves.toBe(projectDir);
+
+    await removeOverrides();
+    await expect(overrides.resolve({ name: 'Some App', bundleId: BUNDLE_ID })).resolves.toBeNull();
+
+    const otherDir = mkdtempSync('/tmp/pl-project-');
+    await writeOverrides(JSON.stringify({ [BUNDLE_ID]: otherDir }));
+    await expect(overrides.resolve({ name: 'Some App', bundleId: BUNDLE_ID })).resolves.toBe(otherDir);
   });
 
   test('re-reads only when the file changes', async () => {

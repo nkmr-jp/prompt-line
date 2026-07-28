@@ -206,7 +206,7 @@ A flat map of macOS bundle id to absolute directory path:
 ```json
 {
   "com.example.someapp": "/Users/me/ghq/github.com/me/project",
-  "com.microsoft.VSCode": "/Users/me/work/foo"
+  "com.example.otherapp": "/Users/me/work/foo"
 }
 ```
 
@@ -221,8 +221,21 @@ from that app.
   `directory.json` fallback. Losing to live detection would make the override
   useless: the background detection that runs right after the window is shown
   would overwrite it within a few hundred ms.
-- Missing, empty, malformed, non-absolute, or stale entries (directory deleted)
-  are ignored silently and fall back to the normal detection chain.
+- **An entry suppresses live detection for that app for as long as it exists.**
+  An entry is dropped only when its directory no longer exists — never because it
+  is old. So do not write entries for apps whose cwd is detectable (terminals,
+  IDEs): they stay pinned to whatever was written first, however far the user has
+  moved since, with only a DEBUG log line as a clue.
+- Writing `""` (or whitespace) as the value means "no override right now": the
+  entry is skipped and that app falls back to the normal detection chain. Use it
+  to disable an override without removing the key.
+- **An override is not scoped to the app that declared it.** The background
+  detection that runs after the window is shown persists the resolved directory
+  to `directory.json`, the *global* last-used directory — so it also becomes the
+  `savedDirectory` fallback for other apps whose live detection fails, and the
+  value `{projectdir}` expands to.
+- Missing, empty, malformed, non-absolute, or non-existent entries are ignored
+  silently and fall back to the normal detection chain.
 - The file is re-read only when its mtime or size changes, so an entry can be
   updated at any time and takes effect on the next window show.
 - Overrides ride the normal directory pipeline, so like live detection they
