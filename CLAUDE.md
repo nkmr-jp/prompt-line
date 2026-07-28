@@ -193,10 +193,40 @@ All data stored in `~/.prompt-line/`:
 - `draft.json`: Auto-saved drafts
 - `settings.yaml`: User preferences (falls back to `settings.yml`)
 - `directory.json`: CWD tracking for file search
+- `app-directories.json`: Per-app startup directory overrides (see below)
 - `app.log`: Application logs
 - `images/`: Image storage
 - `cache/`: Symbol cache, @path patterns (per-project and global)
 - `plugins/`: Plugin YAML files with `.prompt-line-plugin` metadata
+
+#### `app-directories.json` (per-app directory override)
+
+A flat map of macOS bundle id to absolute directory path:
+
+```json
+{
+  "com.example.someapp": "/Users/me/ghq/github.com/me/project",
+  "com.microsoft.VSCode": "/Users/me/work/foo"
+}
+```
+
+**Prompt Line only reads this file — external tools own and write it.** This is a
+cross-repo contract: an app that knows which project the user is currently working
+on (for example a browser-like/Electron app whose terminal CWD cannot be detected)
+writes its own bundle id here, and Prompt Line opens that directory when triggered
+from that app.
+
+- Prompt Line looks up `previousApp.bundleId`; apps not listed are unaffected.
+- A matching entry **wins over live native directory detection** and over the
+  `directory.json` fallback. Losing to live detection would make the override
+  useless: the background detection that runs right after the window is shown
+  would overwrite it within a few hundred ms.
+- Missing, empty, malformed, non-absolute, or stale entries (directory deleted)
+  are ignored silently and fall back to the normal detection chain.
+- The file is re-read only when its mtime or size changes, so an entry can be
+  updated at any time and takes effect on the next window show.
+- Overrides ride the normal directory pipeline, so like live detection they
+  require file search to be configured and `fd` to be installed.
 
 ## Testing Strategy
 
