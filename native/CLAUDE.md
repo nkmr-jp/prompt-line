@@ -27,7 +27,7 @@ Output: `src/native-tools/`. Also built automatically by `pnpm run compile`.
 
 ### directory-detector is multi-file
 Other 3 tools are single `.swift` files, but `directory-detector/` is a directory:
-- `main.swift`, `DirectoryDetector.swift`, `CWDDetector.swift`, `TerminalDetector.swift`, `IDEDetector.swift`, `ProcessTree.swift`, `MultiplexerDetector.swift`
+- `main.swift`, `DirectoryDetector.swift`, `CWDDetector.swift`, `TerminalDetector.swift`, `IDEDetector.swift`, `ProcessTree.swift`, `ClaudeCodeDetector.swift`, `MultiplexerDetector.swift`
 - Requires `libproc-bridge.h` bridging header (uses libproc for CWD detection, 10-50x faster than lsof)
 
 ### text-field-detector container detection
@@ -40,6 +40,16 @@ Terminal.app, iTerm2, Ghostty, Warp, WezTerm, cmux, JetBrains IDEs, VSCode/Insid
 
 ### cmux directory detection
 cmux (`com.cmuxterm.app`) exposes a `working directory` property on its focused terminal via its AppleScript dictionary (`Contents/Resources/cmux.sdef`). The detector uses AppleScript directly instead of process tree traversal — cmux embeds Ghostty internally, but the parent app's bundle ID is what `NSWorkspace.frontmostApplication` returns, so process-tree detection wouldn't run correctly without explicit handling.
+
+### Claude Code sessions move without their shell (`ClaudeCodeDetector.swift`)
+Every terminal detector resolves a **shell's** working directory, but Claude Code's `Entering worktree(...)` performs a real `chdir()` inside the CLI process: the agent ends up in the worktree while its parent shell stays where the user started it, and nothing re-emits OSC 7, so Ghostty's `AXDocument`, `wezterm cli`, cmux's AppleScript and tty mtime all keep reporting the pre-move directory. Every terminal path therefore runs `preferClaudeCodeCwd` before returning, which prefers the agent process's own cwd and falls back to the shell's when no agent is running there. Two variants:
+- `preferClaudeCodeCwd(over:shellPid:)` — used where the pane's shell pid is known (tty path, Terminal.app/iTerm2, the tty-mtime process path shared by Warp/Ghostty/WezTerm fallbacks, `wezterm cli`).
+- `preferClaudeCodeCwd(over:appPid:)` — used where only a directory is known (Ghostty `AXDocument`, cmux AppleScript). It locates the shells under the app that sit in that directory, narrows them to the most recently active tty (so a second pane in the same directory cannot hijack the result), then looks for the agent beneath them.
+
+Matching is deliberately narrow: `isClaudeCodeExecutable` recognises `<...>/claude/versions/<version>` (the native install layout, which `proc_pidpath` resolves the `~/.local/bin/claude` symlink to) plus a defensive basename check. IDE integrated terminals are **not** covered.
+
+### libproc: `PROC_PIDT_SHORTBSDINFO` vs `PROC_PIDTBSDINFO`
+`proc_pidinfo(PROC_PIDTBSDINFO)` is refused for processes owned by another user, and a terminal's process tree runs straight through one — the setuid-root `/usr/bin/login` between the terminal app and the pane's shell. Building a pid→ppid table with the full flavour silently drops that link and every descendant becomes unreachable. Use `PROC_PIDT_SHORTBSDINFO` for the table (it is permitted cross-user) and ask for the full flavour only when the tty device is needed, on the user's own shell processes. Note the short flavour carries no `e_tdev`.
 
 ### cmux paste handling (NOT keyboard-simulator)
 Cmd+V CGEvents posted by `keyboard-simulator paste` do not reach cmux's embedded Ghostty terminal — the parent NSApplication consumes the event and the keystroke never lands in the focused PTY. For cmux, `src/utils/native-tools/paste-operations.ts` bypasses keyboard-simulator entirely and runs a single `osascript` invocation that activates cmux and forwards Ghostty's `paste_from_clipboard` action via `cmux.sdef` (`CmuxPfAc`) to the focused terminal pane.

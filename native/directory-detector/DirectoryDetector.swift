@@ -175,9 +175,11 @@ class DirectoryDetector {
 
         if isCmux(bundleId) {
             if let cwd = getCmuxWorkingDirectory() {
+                // cmux reports the pane's shell cwd, which a Claude Code session
+                // that entered a worktree has already moved away from.
                 return [
                     "success": true,
-                    "directory": cwd,
+                    "directory": preferClaudeCodeCwd(over: cwd, appPid: appPid),
                     "appName": appName,
                     "bundleId": bundleId,
                     "method": "cmux-applescript"
@@ -292,9 +294,11 @@ class DirectoryDetector {
             ]
         }
 
+        // The tty gives us the pane's process; a Claude Code session running there
+        // may have chdir'd into a worktree its shell knows nothing about.
         return [
             "success": true,
-            "directory": cwd,
+            "directory": preferClaudeCodeCwd(over: cwd, shellPid: pid),
             "tty": ttyPath,
             "pid": pid,
             "appName": appName,

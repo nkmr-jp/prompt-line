@@ -8,6 +8,8 @@ extension DirectoryDetector {
 
     /// Get process CWD using libproc (10-50x faster than lsof)
     /// Performance: ~1-5ms vs 50-200ms for lsof
+    /// Returns nil instead of falling back, so callers that probe many processes
+    /// (the Claude Code agent walk) can never fork lsof per candidate.
     static func getCwdFromPidFast(_ pid: pid_t) -> String? {
         var vnodeInfo = proc_vnodepathinfo()
         let size = MemoryLayout<proc_vnodepathinfo>.size
@@ -23,8 +25,7 @@ extension DirectoryDetector {
         }
 
         guard result > 0 else {
-            // Error: fall back to lsof
-            return getCwdFromPidLsof(pid)
+            return nil
         }
 
         let cwdPath = withUnsafePointer(to: &vnodeInfo.pvi_cdir.vip_path) { pointer in
@@ -91,6 +92,6 @@ extension DirectoryDetector {
 
     /// Main entry point with automatic fallback
     static func getCwdFromPid(_ pid: pid_t) -> String? {
-        return getCwdFromPidFast(pid)
+        return getCwdFromPidFast(pid) ?? getCwdFromPidLsof(pid)
     }
 }

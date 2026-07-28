@@ -164,7 +164,7 @@ extension DirectoryDetector {
         }
 
         let focused = candidates[0]
-        return (focused.cwd, focused.pid)
+        return (preferClaudeCodeCwd(over: focused.cwd, shellPid: focused.pid), focused.pid)
     }
 
     private struct ProcessEntry {
@@ -219,7 +219,7 @@ extension DirectoryDetector {
         }
     }
 
-    private static func mtimeForTty(_ tty: String) -> TimeInterval? {
+    static func mtimeForTty(_ tty: String) -> TimeInterval? {
         let path = tty.hasPrefix("/dev/") ? tty : "/dev/\(tty)"
         guard let attrs = try? FileManager.default.attributesOfItem(atPath: path),
               let modDate = attrs[.modificationDate] as? Date else {
@@ -239,7 +239,10 @@ extension DirectoryDetector {
             // shellPid is only emitted as metadata; nothing in the renderer
             // depends on it. Skip the ps walk entirely when AX gives us a
             // direct answer — that keeps detection well under 50ms.
-            return (path, nil, true)
+            // AXDocument tracks the shell's OSC 7, which a Claude Code session
+            // entering a worktree never re-emits, so the agent's own cwd still
+            // has to be checked (libproc walk, ~1ms — the ps walk stays skipped).
+            return (preferClaudeCodeCwd(over: path, appPid: appPid), nil, true)
         }
         let fallback = getNativeTerminalDirectory(appPid: appPid)
         return (fallback.directory, fallback.shellPid, false)
@@ -296,7 +299,16 @@ extension DirectoryDetector {
     /// Falls back to the generic process-tree detector if the CLI fails.
     static func getWezTermDirectory(appPid: pid_t) -> (directory: String?, shellPid: pid_t?, usedCli: Bool) {
         if let result = getWezTermDirectoryViaCli() {
-            return (result.directory, result.shellPid, true)
+            // `wezterm cli` reports the pane's shell cwd; a Claude Code session in
+            // that pane may have moved on to a worktree. Trust the pane's shell pid
+            // when the CLI gave us one, and only fall back to matching by directory.
+            let directory: String
+            if let shellPid = result.shellPid {
+                directory = preferClaudeCodeCwd(over: result.directory, shellPid: shellPid)
+            } else {
+                directory = preferClaudeCodeCwd(over: result.directory, appPid: appPid)
+            }
+            return (directory, result.shellPid, true)
         }
         let fallback = getNativeTerminalDirectory(appPid: appPid)
         return (fallback.directory, fallback.shellPid, false)
