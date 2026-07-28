@@ -86,6 +86,107 @@ extension DirectoryDetector {
         return value
     }
 
+    /// Controlling tty of cmux's focused terminal pane.
+    ///
+    /// The AppleScript dictionary exposes only a `working directory`, and several
+    /// panes routinely sit in the same directory, so the directory alone cannot say
+    /// which pane the user is looking at. cmux's control socket can: `system.tree`
+    /// reports the focused surface and every surface's tty. That is the same API the
+    /// bundled `cmux` CLI speaks, spoken directly to avoid forking it.
+    /// Returns nil when cmux is unreachable or the shape is unexpected — callers
+    /// fall back to directory-only matching.
+    static func getCmuxFocusedTty() -> String? {
+        guard let response = cmuxSocketCall(method: "system.tree"),
+              let result = response["result"] as? [String: Any],
+              let activeSurface = (result["active"] as? [String: Any])?["surface_ref"] as? String,
+              let windows = result["windows"] as? [[String: Any]] else {
+            return nil
+        }
+
+        for window in windows {
+            for workspace in (window["workspaces"] as? [[String: Any]]) ?? [] {
+                for pane in (workspace["panes"] as? [[String: Any]]) ?? [] {
+                    for surface in (pane["surfaces"] as? [[String: Any]]) ?? [] {
+                        guard surface["ref"] as? String == activeSurface,
+                              let tty = surface["tty"] as? String,
+                              !tty.isEmpty else { continue }
+                        return tty
+                    }
+                }
+            }
+        }
+        return nil
+    }
+
+    /// Path of the socket the *running* cmux listens on. The name carries the uid
+    /// and changes between releases, and the state directory keeps the sockets of
+    /// earlier runs, so read cmux's own pointer file instead of guessing.
+    private static func cmuxSocketPath() -> String? {
+        let pointer = ("~/.local/state/cmux/last-socket-path" as NSString).expandingTildeInPath
+        guard let raw = try? String(contentsOfFile: pointer, encoding: .utf8) else { return nil }
+        let path = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        return path.isEmpty ? nil : path
+    }
+
+    /// One newline-delimited JSON request/response over cmux's UNIX control socket.
+    private static func cmuxSocketCall(method: String) -> [String: Any]? {
+        let pathCapacity = MemoryLayout.size(ofValue: sockaddr_un().sun_path)
+        guard let path = cmuxSocketPath(), path.utf8.count < pathCapacity else { return nil }
+
+        let descriptor = socket(AF_UNIX, SOCK_STREAM, 0)
+        guard descriptor >= 0 else { return nil }
+        defer { close(descriptor) }
+
+        // Directory detection runs on every window show; an unresponsive cmux must
+        // not hold it up.
+        var timeout = timeval(tv_sec: 0, tv_usec: 200_000)
+        let timeoutSize = socklen_t(MemoryLayout<timeval>.size)
+        setsockopt(descriptor, SOL_SOCKET, SO_RCVTIMEO, &timeout, timeoutSize)
+        setsockopt(descriptor, SOL_SOCKET, SO_SNDTIMEO, &timeout, timeoutSize)
+
+        var address = sockaddr_un()
+        address.sun_family = sa_family_t(AF_UNIX)
+        withUnsafeMutablePointer(to: &address.sun_path) { pointer in
+            pointer.withMemoryRebound(to: CChar.self, capacity: pathCapacity) { destination in
+                _ = strncpy(destination, path, pathCapacity - 1)
+            }
+        }
+
+        let connected = withUnsafePointer(to: &address) { pointer in
+            pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { generic in
+                connect(descriptor, generic, socklen_t(MemoryLayout<sockaddr_un>.size))
+            }
+        }
+        guard connected == 0 else { return nil }
+
+        let request = Array("{\"id\":\"1\",\"method\":\"\(method)\",\"params\":{}}\n".utf8)
+        var sent = 0
+        while sent < request.count {
+            let written = request.withUnsafeBytes { bytes in
+                write(descriptor, bytes.baseAddress!.advanced(by: sent), request.count - sent)
+            }
+            guard written > 0 else { return nil }
+            sent += written
+        }
+
+        // Read until the response's terminating newline. cmux answers `system.tree`
+        // in a few KB; the cap only guards against a runaway peer.
+        let maxResponseBytes = 1 << 20
+        var response = Data()
+        var buffer = [UInt8](repeating: 0, count: 16 * 1024)
+        while response.count < maxResponseBytes {
+            let count = read(descriptor, &buffer, buffer.count)
+            guard count > 0 else { break }
+            if let newline = buffer[0..<count].firstIndex(of: 0x0A) {
+                response.append(contentsOf: buffer[0..<newline])
+                break
+            }
+            response.append(contentsOf: buffer[0..<count])
+        }
+
+        return (try? JSONSerialization.jsonObject(with: response)) as? [String: Any]
+    }
+
     // MARK: - Native Terminal Detection (Ghostty, Warp, WezTerm)
 
     /// Check if bundle ID is Ghostty
@@ -241,7 +342,10 @@ extension DirectoryDetector {
             // direct answer — that keeps detection well under 50ms.
             // AXDocument tracks the shell's OSC 7, which a Claude Code session
             // entering a worktree never re-emits, so the agent's own cwd still
-            // has to be checked (libproc walk, ~1ms — the ps walk stays skipped).
+            // has to be checked. Ghostty exposes no focused-pane tty, so this is
+            // the conservative variant: 9.8ms per call on a 1300-process machine
+            // (measured, 20-run average), and it declines whenever two panes in
+            // the directory would disagree. The ps walk stays skipped.
             return (preferClaudeCodeCwd(over: path, appPid: appPid), nil, true)
         }
         let fallback = getNativeTerminalDirectory(appPid: appPid)

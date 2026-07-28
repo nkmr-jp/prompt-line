@@ -81,16 +81,32 @@ extension DirectoryDetector {
     }
 
     /// Same, for detectors that only learn the focused pane's directory and not the
-    /// shell behind it (Ghostty's AXDocument, cmux's AppleScript): find the focused
-    /// shell sitting in that directory under `appPid` first, then look beneath it.
-    static func preferClaudeCodeCwd(over directory: String, appPid: pid_t) -> String {
+    /// shell behind it (Ghostty's AXDocument, cmux's AppleScript).
+    ///
+    /// `focusedTty` — when the terminal can name the focused pane's tty, as cmux
+    /// does through its control socket — identifies that pane exactly, and the agent
+    /// occupying it is the answer.
+    ///
+    /// Without it there is no focus information at all. Several panes routinely sit
+    /// in `directory`, and tty mtime cannot arbitrate between them: it measures
+    /// output traffic, not focus, which is precisely why `getGhosttyDirectory`
+    /// prefers AXDocument over it. Picking one would make the reported project
+    /// directory depend on which *background* pane last redrew its prompt. So the
+    /// agent's directory is adopted only when every pane in `directory` resolves to
+    /// the same place; anything else returns `directory` unchanged. A stable answer
+    /// beats silently scoping file search to another pane's worktree.
+    static func preferClaudeCodeCwd(over directory: String, appPid: pid_t, focusedTty: String? = nil) -> String {
         let table = snapshotProcessTable()
-        for shellPid in focusedShellPids(underAppPid: appPid, matching: directory, in: table) {
-            if let cwd = claudeCodeCwd(underShellPid: shellPid, in: table) {
-                return cwd
-            }
+        let descendants = walk(from: appPid, in: table, maxDepth: shellSearchMaxDepth)
+
+        if let tty = focusedTty {
+            return claudeCodeCwds(among: descendants, onTtys: [tty])[tty] ?? directory
         }
-        return directory
+
+        let ttys = ttysHostingShells(among: descendants, matching: directory, in: table)
+        let agents = claudeCodeCwds(among: descendants, onTtys: ttys)
+        let resolved = Set(ttys.map { agents[$0] ?? directory })
+        return resolved.count == 1 ? resolved.first! : directory
     }
 
     /// Working directory of the Claude Code session running under `shellPid`.
@@ -111,58 +127,65 @@ extension DirectoryDetector {
     /// Recognise the Claude Code CLI from its executable path.
     static func isClaudeCodeExecutable(_ path: String) -> Bool {
         let executable = path as NSString
+        let parent = executable.deletingLastPathComponent as NSString
 
         // Native installs exec the versioned binary: `<...>/claude/versions/<version>`.
         // `proc_pidpath` resolves the `~/.local/bin/claude` symlink to this form, so
         // this arm matches every live session regardless of how it was launched.
-        let versionsDir = executable.deletingLastPathComponent as NSString
-        if versionsDir.lastPathComponent == "versions",
-           (versionsDir.deletingLastPathComponent as NSString).lastPathComponent == "claude" {
+        if parent.lastPathComponent == "versions",
+           (parent.deletingLastPathComponent as NSString).lastPathComponent == "claude" {
             return true
         }
 
-        // Defensive second arm for installs that exec a binary literally named
-        // `claude`. It is a loose match, but it is only ever applied to processes
-        // already proven to be running under the focused shell.
+        // Second arm for installs that exec a binary literally named `claude`.
+        // Requiring a `bin` directory (`/opt/homebrew/bin`, `~/.local/bin`, npm's
+        // `node_modules/.bin`) keeps an unrelated `<project>/claude` from matching.
         return executable.lastPathComponent == "claude"
+            && (parent.lastPathComponent == "bin" || parent.lastPathComponent == ".bin")
     }
 
-    // MARK: - Focused shell resolution
+    // MARK: - Pane resolution
 
-    /// Shells under `appPid` whose cwd is `directory`, narrowed to the tty that was
-    /// most recently active. The tty narrowing matters when two panes sit in the
-    /// same directory and only one of them runs an agent: the pane the user is
-    /// actually looking at wins — the same focus heuristic that
-    /// `getNativeTerminalDirectory` already relies on.
-    /// Returns every shell on the winning tty rather than one pid, because a pane
-    /// owns a login shell plus any shells nested inside it and the agent may hang
-    /// off either.
-    private static func focusedShellPids(
-        underAppPid appPid: pid_t,
+    /// Working directory of the Claude Code session occupying each of `ttys`.
+    /// Matching the agent on its controlling tty rather than on a parent shell means
+    /// a pane whose foreground process *is* the agent resolves like one where the
+    /// agent hangs off the pane's shell, and it needs no guess about which of a
+    /// pane's nested shells started the session.
+    /// `pids` arrives breadth-first, so an outer session wins over a nested
+    /// `claude -p` that it may have spawned through a shell command.
+    private static func claudeCodeCwds(among pids: [pid_t], onTtys ttys: Set<String>) -> [String: String] {
+        var found: [String: String] = [:]
+        guard !ttys.isEmpty else { return found }
+
+        for pid in pids {
+            if found.count == ttys.count { break }
+            guard let path = executablePath(pid), isClaudeCodeExecutable(path) else { continue }
+            guard let tty = ttyName(ofPid: pid), ttys.contains(tty), found[tty] == nil else { continue }
+            guard let cwd = getCwdFromPidFast(pid), !cwd.isEmpty else { continue }
+            found[tty] = cwd
+        }
+
+        return found
+    }
+
+    /// ttys of the panes that host a shell sitting in `directory`. A pane owns one
+    /// tty, so this is the set of panes the reported directory could have come from.
+    private static func ttysHostingShells(
+        among pids: [pid_t],
         matching directory: String,
         in table: ProcessTable
-    ) -> [pid_t] {
+    ) -> Set<String> {
         let target = canonicalPath(directory)
-        var shellsByTty: [String: [pid_t]] = [:]
-        var mtimeByTty: [String: TimeInterval] = [:]
+        var ttys: Set<String> = []
 
-        for pid in walk(from: appPid, in: table, maxDepth: shellSearchMaxDepth) {
+        for pid in pids {
             guard let entry = table.entries[pid], isShellCommand(entry.comm) else { continue }
-            guard let tty = ttyName(ofPid: pid) else { continue }
             guard let cwd = getCwdFromPidFast(pid), canonicalPath(cwd) == target else { continue }
-
-            shellsByTty[tty, default: []].append(pid)
-            if mtimeByTty[tty] == nil {
-                mtimeByTty[tty] = mtimeForTty(tty) ?? 0
-            }
+            guard let tty = ttyName(ofPid: pid) else { continue }
+            ttys.insert(tty)
         }
 
-        // Compare the tty name on ties so the result never depends on dictionary
-        // ordering.
-        guard let focusedTty = mtimeByTty.max(by: { ($0.value, $0.key) < ($1.value, $1.key) })?.key else {
-            return []
-        }
-        return shellsByTty[focusedTty] ?? []
+        return ttys
     }
 
     // MARK: - Process tree helpers
