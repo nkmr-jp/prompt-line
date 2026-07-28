@@ -225,6 +225,8 @@ from that app.
   are ignored silently and fall back to the normal detection chain.
 - The file is re-read only when its mtime or size changes, so an entry can be
   updated at any time and takes effect on the next window show.
+- Overrides ride the normal directory pipeline, so like live detection they
+  require file search to be configured and `fd` to be installed.
 
 ## Testing Strategy
 

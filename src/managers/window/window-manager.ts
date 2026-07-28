@@ -291,6 +291,8 @@ class WindowManager {
           fileCount: 0,
           partial: false,
           searchMode: 'recursive',
+          // fromDraft means "directory known, file list not loaded yet, check the
+          // filesystem" to the renderer - true for the override path as well.
           fromDraft: true,
           ...(isRootDirectory ? {
             filesDisabled: true,

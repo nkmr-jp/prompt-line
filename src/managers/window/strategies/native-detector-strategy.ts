@@ -19,6 +19,8 @@ export async function withListedFiles(
   base: DirectoryInfo,
   fileSearchSettings: FileSearchSettings | null
 ): Promise<DirectoryInfo> {
+  if (!base.directory) return base;
+
   if (fileSearchSettings) {
     logger.debug('Applying file search settings:', {
       maxFiles: fileSearchSettings.maxFiles,
@@ -30,7 +32,7 @@ export async function withListedFiles(
   }
 
   try {
-    const listResult = await listDirectory(base.directory!, fileSearchSettings || undefined);
+    const listResult = await listDirectory(base.directory, fileSearchSettings || undefined);
 
     // Merge results
     const result: DirectoryInfo = { ...base };
