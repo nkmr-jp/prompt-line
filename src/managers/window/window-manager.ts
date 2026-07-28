@@ -256,6 +256,12 @@ class WindowManager {
     const savedDirectory = this.directoryDetector.getSavedDirectory();
     this.directoryDetector.updateSavedDirectory(savedDirectory);
 
+    // Re-read the per-app override (~/.prompt-line/app-directories.json) for the
+    // app the user came from. Must happen before the window data is built and
+    // before the background detection scheduled at the end of showInputWindow.
+    await this.directoryDetector.refreshOverrideDirectory();
+    const initialDirectory = this.directoryDetector.getEffectiveDirectory();
+
     const windowData: WindowData = {
       sourceApp: previousApp,
       currentSpaceInfo,
@@ -275,12 +281,12 @@ class WindowManager {
       mark(trace, 'cache-loaded');
       if (cachedData) {
         windowData.directoryData = cachedData;
-      } else if (savedDirectory) {
-        // Fallback to draft directory with empty files if no cache
-        const isRootDirectory = this.directoryDetector.isFileSearchDisabledDirectory(savedDirectory);
+      } else if (initialDirectory) {
+        // Fallback to override/draft directory with empty files if no cache
+        const isRootDirectory = this.directoryDetector.isFileSearchDisabledDirectory(initialDirectory);
         windowData.directoryData = {
           success: true,
-          directory: savedDirectory,
+          directory: initialDirectory,
           files: [],
           fileCount: 0,
           partial: false,

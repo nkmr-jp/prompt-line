@@ -128,6 +128,7 @@ export interface PathsConfig {
   logFile: string;
   imagesDir: string;
   directoryFile: string;
+  appDirectoriesFile: string;   // Per-app directory overrides written by external tools
   cacheDir: string;             // Cache root directory
   projectsCacheDir: string;     // Projects cache directory
   agentBuiltInDir: string;      // Agent built-in YAML files directory

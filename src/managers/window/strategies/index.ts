@@ -1,2 +1,2 @@
 export type { IDirectoryDetectionStrategy } from './types';
-export { NativeDetectorStrategy } from './native-detector-strategy';
+export { NativeDetectorStrategy, withListedFiles } from './native-detector-strategy';

@@ -7,6 +7,73 @@ import type { IDirectoryDetectionStrategy } from './types';
 import { TIMEOUTS } from '../../../constants';
 
 /**
+ * List the files of an already-resolved directory and merge them into the
+ * DirectoryInfo the renderer consumes.
+ *
+ * Shared by the native detection path (directory resolved by the Swift tool)
+ * and the app-directory-override path (directory resolved from
+ * `app-directories.json`), so both produce an identical result shape.
+ * Never throws: on a file-search failure the base result is returned as-is.
+ */
+export async function withListedFiles(
+  base: DirectoryInfo,
+  fileSearchSettings: FileSearchSettings | null
+): Promise<DirectoryInfo> {
+  if (fileSearchSettings) {
+    logger.debug('Applying file search settings:', {
+      maxFiles: fileSearchSettings.maxFiles,
+      respectGitignore: fileSearchSettings.respectGitignore,
+      includeHidden: fileSearchSettings.includeHidden
+    });
+  } else {
+    logger.debug('No file search settings provided, using defaults');
+  }
+
+  try {
+    const listResult = await listDirectory(base.directory!, fileSearchSettings || undefined);
+
+    // Merge results
+    const result: DirectoryInfo = { ...base };
+
+    if (listResult.error) {
+      result.filesError = listResult.error;
+    } else {
+      // listResult.directory may differ from the kernel-canonical
+      // base.directory when reverse symlink lookup recovered
+      // a user-facing alias (e.g. ~/ghq/.../vault). Prefer that.
+      if (listResult.directory) {
+        result.directory = listResult.directory;
+      }
+      if (listResult.files) {
+        result.files = listResult.files;
+        result.fileCount = listResult.fileCount ?? listResult.files.length;
+      }
+      if (listResult.searchMode) {
+        result.searchMode = listResult.searchMode;
+      }
+      if (listResult.partial !== undefined) {
+        result.fileLimitReached = listResult.partial;
+        if (fileSearchSettings?.maxFiles !== undefined) {
+          result.maxFiles = fileSearchSettings.maxFiles;
+        }
+      }
+    }
+
+    // Set hint message if fd is not available
+    if (listResult.fdAvailable === false) {
+      result.hint = 'Install fd for file search: brew install fd';
+      logger.warn('fd command not found. File search will not work. Install with: brew install fd');
+    }
+
+    return result;
+  } catch (listError) {
+    logger.warn('Error listing files:', listError);
+    // Return base result without files on file searcher error
+    return base;
+  }
+}
+
+/**
  * Native tool-based directory detection strategy
  * Uses compiled Swift binaries for macOS directory and file detection
  */
@@ -63,60 +130,7 @@ export class NativeDetectorStrategy implements IDirectoryDetectionStrategy {
           }
 
           // Step 2: List files using Node.js file-search module
-          if (fileSearchSettings) {
-            logger.debug('Applying file search settings:', {
-              maxFiles: fileSearchSettings.maxFiles,
-              respectGitignore: fileSearchSettings.respectGitignore,
-              includeHidden: fileSearchSettings.includeHidden
-            });
-          } else {
-            logger.debug('No file search settings provided, using defaults');
-          }
-
-          try {
-            const listResult = await listDirectory(detectResult.directory, fileSearchSettings || undefined);
-
-            // Merge results
-            const result: DirectoryInfo = {
-              ...detectResult
-            };
-
-            if (listResult.error) {
-              result.filesError = listResult.error;
-            } else {
-              // listResult.directory may differ from the kernel-canonical
-              // detectResult.directory when reverse symlink lookup recovered
-              // a user-facing alias (e.g. ~/ghq/.../vault). Prefer that.
-              if (listResult.directory) {
-                result.directory = listResult.directory;
-              }
-              if (listResult.files) {
-                result.files = listResult.files;
-                result.fileCount = listResult.fileCount ?? listResult.files.length;
-              }
-              if (listResult.searchMode) {
-                result.searchMode = listResult.searchMode;
-              }
-              if (listResult.partial !== undefined) {
-                result.fileLimitReached = listResult.partial;
-                if (fileSearchSettings?.maxFiles !== undefined) {
-                  result.maxFiles = fileSearchSettings.maxFiles;
-                }
-              }
-            }
-
-            // Set hint message if fd is not available
-            if (listResult.fdAvailable === false) {
-              result.hint = 'Install fd for file search: brew install fd';
-              logger.warn('fd command not found. File search will not work. Install with: brew install fd');
-            }
-
-            resolve(result);
-          } catch (listError) {
-            logger.warn('Error listing files:', listError);
-            // Return detect result without files on file searcher error
-            resolve(detectResult);
-          }
+          resolve(await withListedFiles(detectResult, fileSearchSettings));
         } catch (parseError) {
           logger.warn('Error parsing directory detection result:', parseError);
           resolve(null);

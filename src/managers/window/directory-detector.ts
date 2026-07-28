@@ -4,9 +4,10 @@ import FileCacheManager from '../file-cache-manager';
 import type DirectoryManager from '../directory-manager';
 import type { AppInfo, DirectoryInfo, FileSearchSettings } from '../../types';
 import type { IDirectoryDetectionStrategy } from './strategies';
-import { NativeDetectorStrategy } from './strategies';
+import { NativeDetectorStrategy, withListedFiles } from './strategies';
 import { DirectoryDetectorUtils } from './directory-detector-utils';
 import { DirectoryCacheHelper } from './directory-cache-helper';
+import { AppDirectoryOverrides } from './app-directory-overrides';
 import { TIMEOUTS } from '../../constants';
 
 /**
@@ -33,6 +34,8 @@ class DirectoryDetector {
   private previousApp: AppInfo | string | null = null;
   private strategy: IDirectoryDetectionStrategy;
   private cacheHelper: DirectoryCacheHelper;
+  private overrides = new AppDirectoryOverrides();
+  private overrideDirectory: string | null = null;
 
   constructor(fileCacheManager: FileCacheManager | null) {
     this.cacheHelper = new DirectoryCacheHelper(fileCacheManager);
@@ -84,6 +87,40 @@ class DirectoryDetector {
   }
 
   /**
+   * Re-read the per-app directory override for the app the user came from.
+   *
+   * Call once per window show, before the window data is prepared: the value is
+   * then reused by `loadCachedFilesForWindow` and by the background detection
+   * that runs after the window is displayed.
+   *
+   * Note: when Prompt Line itself is frontmost (double-trigger) WindowManager
+   * deliberately keeps the existing `previousApp`, so the override stays pinned
+   * to the app the user actually came from. That is intended.
+   *
+   * @returns the override directory, or null when the app has none
+   */
+  async refreshOverrideDirectory(): Promise<string | null> {
+    // Clear first so a throw or a racing show can never leave a stale override live.
+    this.overrideDirectory = null;
+    this.overrideDirectory = await this.overrides.resolve(this.previousApp);
+    if (this.overrideDirectory) {
+      logger.debug('Using app directory override', {
+        directory: this.overrideDirectory,
+        app: this.previousApp
+      });
+    }
+    return this.overrideDirectory;
+  }
+
+  /**
+   * Directory to use before live detection completes.
+   * Priority: app override > saved directory (directory.json)
+   */
+  getEffectiveDirectory(): string | null {
+    return this.overrideDirectory ?? this.savedDirectory;
+  }
+
+  /**
    * Check if fd command is available on the system (only once)
    */
   async checkFdCommandAvailability(): Promise<void> {
@@ -116,9 +153,14 @@ class DirectoryDetector {
 
   /**
    * Load cached files for window show - provides instant file search availability
-   * Priority: savedDirectory cache > lastUsedDirectory cache
+   * Priority: app override cache > savedDirectory cache > lastUsedDirectory cache
    */
   async loadCachedFilesForWindow(): Promise<DirectoryInfo | null> {
+    if (this.overrideDirectory) {
+      // Load only this directory's cache; falling back to lastUsedDirectory
+      // would show a directory the override explicitly replaced.
+      return this.cacheHelper.loadCacheForDirectory(this.overrideDirectory);
+    }
     return this.cacheHelper.loadCachedFilesForWindow(this.savedDirectory);
   }
 
@@ -131,12 +173,27 @@ class DirectoryDetector {
 
   /**
    * Execute directory detection using the current strategy
+   *
+   * An app directory override replaces live detection entirely: if it only beat
+   * the directory.json fallback it would be overwritten a few hundred ms later
+   * by the background detection, which is exactly the case the override exists
+   * for (browser-like apps with no terminal cwd to detect). Overrides are keyed
+   * by exact bundle id, so apps not listed in app-directories.json keep the
+   * unchanged detection chain.
+   *
    * @param timeout Timeout in milliseconds
    * @returns DirectoryInfo or null on error
    */
   async executeDirectoryDetector(
     timeout: number
   ): Promise<DirectoryInfo | null> {
+    if (this.overrideDirectory) {
+      return withListedFiles(
+        { success: true, directory: this.overrideDirectory },
+        this.fileSearchSettings
+      );
+    }
+
     if (!this.strategy.isAvailable()) {
       return null;
     }
