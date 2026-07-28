@@ -234,10 +234,12 @@ from that app.
   to `directory.json`, the *global* last-used directory — so it also becomes the
   `savedDirectory` fallback for other apps whose live detection fails, and the
   value `{projectdir}` expands to.
-- Missing, empty, malformed, non-absolute, or non-existent entries are ignored
-  silently and fall back to the normal detection chain.
+- Missing, empty, or non-existent entries are ignored silently; malformed JSON and
+  non-absolute entries are ignored with a WARN in `app.log`. All fall back to the
+  normal detection chain.
 - The file is re-read only when its mtime or size changes, so an entry can be
-  updated at any time and takes effect on the next window show.
+  updated at any time and takes effect on the next window show — an edit that
+  leaves both mtime and size unchanged is not picked up.
 - Overrides ride the normal directory pipeline, so like live detection they
   require file search to be configured and `fd` to be installed.
 

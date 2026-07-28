@@ -170,6 +170,17 @@ describe('AppDirectoryOverrides', () => {
     }
   });
 
+  test('accepts a raw __proto__ key in the file without losing the real entries', async () => {
+    // The only case that discriminates `Object.create(null)` from `{}`: on a plain
+    // object literal, assigning the parsed `__proto__` key is silently a no-op and
+    // would swallow the entry instead of storing it alongside the real one.
+    await writeOverrides(`{"__proto__": "${projectDir}", "${BUNDLE_ID}": "${projectDir}"}`);
+    const overrides = new AppDirectoryOverrides();
+
+    await expect(overrides.resolve({ name: 'Some App', bundleId: BUNDLE_ID })).resolves.toBe(projectDir);
+    await expect(overrides.resolve({ name: 'Weird', bundleId: '__proto__' })).resolves.toBe(projectDir);
+  });
+
   test('keeps the parse error message in the warning', async () => {
     await writeOverrides('{ this is not json');
 
