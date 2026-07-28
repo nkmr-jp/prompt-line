@@ -128,8 +128,12 @@ extension DirectoryDetector {
         return path.isEmpty ? nil : path
     }
 
+    /// Wall-clock budget for one control-socket round trip, connect excluded.
+    private static let cmuxSocketBudget: TimeInterval = 0.2
+
     /// One newline-delimited JSON request/response over cmux's UNIX control socket.
     private static func cmuxSocketCall(method: String) -> [String: Any]? {
+        let callBudget = cmuxSocketBudget
         let pathCapacity = MemoryLayout.size(ofValue: sockaddr_un().sun_path)
         guard let path = cmuxSocketPath(), path.utf8.count < pathCapacity else { return nil }
 
@@ -137,10 +141,13 @@ extension DirectoryDetector {
         guard descriptor >= 0 else { return nil }
         defer { close(descriptor) }
 
-        // Directory detection runs on every window show; an unresponsive cmux must
-        // not hold it up.
-        var timeout = timeval(tv_sec: 0, tv_usec: 200_000)
+        // Directory detection runs on every window show; a cmux that is not
+        // answering must not hold it up. `deadline` bounds the whole call — the
+        // socket timeouts below only bound one syscall each, which a peer that
+        // dribbles a byte at a time would reset forever.
+        let deadline = Date().addingTimeInterval(callBudget)
         let timeoutSize = socklen_t(MemoryLayout<timeval>.size)
+        var timeout = timeval(tv_sec: 0, tv_usec: Int32(callBudget * 1_000_000))
         setsockopt(descriptor, SOL_SOCKET, SO_RCVTIMEO, &timeout, timeoutSize)
         setsockopt(descriptor, SOL_SOCKET, SO_SNDTIMEO, &timeout, timeoutSize)
 
@@ -159,7 +166,8 @@ extension DirectoryDetector {
         }
         guard connected == 0 else { return nil }
 
-        let request = Array("{\"id\":\"1\",\"method\":\"\(method)\",\"params\":{}}\n".utf8)
+        let requestId = "1"
+        let request = Array("{\"id\":\"\(requestId)\",\"method\":\"\(method)\",\"params\":{}}\n".utf8)
         var sent = 0
         while sent < request.count {
             let written = request.withUnsafeBytes { bytes in
@@ -169,22 +177,39 @@ extension DirectoryDetector {
             sent += written
         }
 
-        // Read until the response's terminating newline. cmux answers `system.tree`
-        // in a few KB; the cap only guards against a runaway peer.
-        let maxResponseBytes = 1 << 20
-        var response = Data()
-        var buffer = [UInt8](repeating: 0, count: 16 * 1024)
-        while response.count < maxResponseBytes {
-            let count = read(descriptor, &buffer, buffer.count)
-            guard count > 0 else { break }
-            if let newline = buffer[0..<count].firstIndex(of: 0x0A) {
-                response.append(contentsOf: buffer[0..<newline])
-                break
-            }
-            response.append(contentsOf: buffer[0..<count])
+        // The answer is one NDJSON line carrying our id. Any other line — an event
+        // notification, a reply to a different request — is skipped rather than
+        // mistaken for the response, which would silently disable focus detection.
+        func matched(_ line: ArraySlice<UInt8>) -> [String: Any]? {
+            guard let object = try? JSONSerialization.jsonObject(with: Data(line)) as? [String: Any],
+                  object["id"] as? String == requestId else { return nil }
+            return object
         }
 
-        return (try? JSONSerialization.jsonObject(with: response)) as? [String: Any]
+        // cmux answers `system.tree` in a few KB; the cap only guards against a
+        // runaway peer.
+        let maxResponseBytes = 1 << 20
+        var pending: [UInt8] = []
+        var buffer = [UInt8](repeating: 0, count: 16 * 1024)
+        while pending.count < maxResponseBytes {
+            while let newline = pending.firstIndex(of: 0x0A) {
+                if let object = matched(pending[..<newline]) { return object }
+                pending.removeFirst(newline + 1)
+            }
+
+            let remaining = deadline.timeIntervalSinceNow
+            guard remaining > 0 else { return nil }
+            timeout = timeval(tv_sec: 0, tv_usec: Int32(max(remaining, 0.001) * 1_000_000))
+            setsockopt(descriptor, SOL_SOCKET, SO_RCVTIMEO, &timeout, timeoutSize)
+
+            let count = read(descriptor, &buffer, buffer.count)
+            if count < 0 && errno == EINTR { continue }
+            guard count > 0 else { break }
+            pending.append(contentsOf: buffer[0..<count])
+        }
+
+        // A peer that closes without a trailing newline still sent a whole line.
+        return matched(pending[...])
     }
 
     // MARK: - Native Terminal Detection (Ghostty, Warp, WezTerm)
@@ -343,9 +368,10 @@ extension DirectoryDetector {
             // AXDocument tracks the shell's OSC 7, which a Claude Code session
             // entering a worktree never re-emits, so the agent's own cwd still
             // has to be checked. Ghostty exposes no focused-pane tty, so this is
-            // the conservative variant: 9.8ms per call on a 1300-process machine
-            // (measured, 20-run average), and it declines whenever two panes in
-            // the directory would disagree. The ps walk stays skipped.
+            // the conservative variant: it declines whenever two panes in the
+            // directory would disagree. Cost scales with how many panes sit in
+            // the directory — 8.5-27ms measured, see native/CLAUDE.md. The ps
+            // walk stays skipped.
             return (preferClaudeCodeCwd(over: path, appPid: appPid), nil, true)
         }
         let fallback = getNativeTerminalDirectory(appPid: appPid)
