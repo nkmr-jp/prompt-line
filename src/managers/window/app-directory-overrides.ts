@@ -130,7 +130,9 @@ export class AppDirectoryOverrides {
           this.map[bundleId] = directory;
         }
       }
-      logger.debug('Loaded app directory overrides', { count: Object.keys(this.map).length });
+      // INFO, not DEBUG: the packaged app always runs at INFO, so a DEBUG line
+      // here could never tell a user whether their file was picked up at all.
+      logger.info('Loaded app directory overrides', { count: Object.keys(this.map).length });
     } catch (error) {
       // The parse error text is what the external tool that wrote this file needs.
       logger.warn(

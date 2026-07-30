@@ -38,7 +38,7 @@
 - `text-field-bounds-detector.ts`: Uses native text-field-detector tool
 - `directory-detector.ts` + `directory-cache-helper.ts`: CWD detection with 2-second TTL cache
 - `strategies/native-detector-strategy.ts`: Pluggable detection strategy pattern
-- `app-directory-overrides.ts`: Reads `~/.prompt-line/app-directories.json` (bundleId → directory, written by external tools); a match replaces live detection for that app
+- `app-directory-overrides.ts`: Reads `~/.prompt-line/app-directories.json` (bundleId → directory, written by external tools); consulted only as a fallback, after live detection for that show returned no directory
 - Window reuse: checks if window exists and is visible before creating new one
 
 ### History manager debounce strategy

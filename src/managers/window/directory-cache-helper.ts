@@ -46,13 +46,9 @@ export class DirectoryCacheHelper {
   }
 
   /**
-   * Load cache for a specific directory.
-   *
-   * Public because the app-directory-override path must load the cache for
-   * exactly that directory: unlike `loadCachedFilesForWindow` it must never
-   * fall back to `lastUsedDirectory`, which would show an unrelated directory.
+   * Load cache for a specific directory
    */
-  async loadCacheForDirectory(directory: string): Promise<DirectoryInfo | null> {
+  private async loadCacheForDirectory(directory: string): Promise<DirectoryInfo | null> {
     if (!this.fileCacheManager) return null;
 
     // Check if this directory has file search disabled

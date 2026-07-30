@@ -53,6 +53,7 @@ beforeAll(() => {
 beforeEach(async () => {
   await removeOverrides();
   vi.mocked(logger.warn).mockClear();
+  vi.mocked(logger.info).mockClear();
   listedFiles.mockReset();
   listedFiles.mockImplementation(async (base: unknown) => base);
 });
@@ -260,46 +261,174 @@ describe('AppDirectoryOverrides', () => {
   });
 });
 
+/**
+ * The override is a *fallback*: live detection always wins, and the override is
+ * consulted only when detection produced no directory. These pin that rule from
+ * both sides.
+ */
 describe('DirectoryDetector app directory overrides', () => {
-  test('override wins over live native detection', async () => {
-    await writeOverrides(JSON.stringify({ [BUNDLE_ID]: projectDir }));
+  // The unsupported-app payload the Swift detector returns for apps with no cwd
+  // to detect - an error and no directory. The primary case for an override.
+  const UNSUPPORTED_APP = { error: 'Not a supported terminal or IDE application' };
 
+  function detectorWithOverrideCandidate(): DirectoryDetector {
     const detector = new DirectoryDetector(null);
     detector.updatePreviousApp({ name: 'Some App', bundleId: BUNDLE_ID });
     detector.updateSavedDirectory('/saved/from/directory-json');
+    return detector;
+  }
 
-    await expect(detector.refreshOverrideDirectory()).resolves.toBe(projectDir);
-    expect(detector.getEffectiveDirectory()).toBe(projectDir);
+  /** Strategy stub standing in for one detection outcome. */
+  function strategyReturning(result: unknown): { detect: ReturnType<typeof vi.fn> } {
+    return {
+      getName: () => 'Stub',
+      isAvailable: () => true,
+      detect: vi.fn(async () => result)
+    } as never;
+  }
+
+  function usedOverrideLogLines(): unknown[][] {
+    return vi.mocked(logger.info).mock.calls.filter(
+      call => String(call[0]).includes('Using app directory override')
+    );
+  }
+
+  test('ignores the override while live detection works', async () => {
+    await writeOverrides(JSON.stringify({ [BUNDLE_ID]: projectDir }));
+
+    const detector = detectorWithOverrideCandidate();
+
+    // Default stub strategy detects /from/native for this app.
+    const result = await detector.executeDirectoryDetector(1000);
+    expect(result?.directory).toBe('/from/native');
+    expect(listedFiles).not.toHaveBeenCalled();
+    expect(usedOverrideLogLines()).toHaveLength(0);
+  });
+
+  test('applies the override when detection returns the unsupported-app error', async () => {
+    await writeOverrides(JSON.stringify({ [BUNDLE_ID]: projectDir }));
+
+    const detector = detectorWithOverrideCandidate();
+    detector.setStrategy(strategyReturning(UNSUPPORTED_APP) as never);
+
+    const result = await detector.executeDirectoryDetector(1000);
+    expect(result?.directory).toBe(projectDir);
+    expect(result?.error).toBeUndefined();
+    expect(listedFiles).toHaveBeenCalledWith({ success: true, directory: projectDir }, null);
+    expect(usedOverrideLogLines()).toHaveLength(1);
+  });
+
+  test('applies the override when detection times out (no result at all)', async () => {
+    await writeOverrides(JSON.stringify({ [BUNDLE_ID]: projectDir }));
+
+    const detector = detectorWithOverrideCandidate();
+    detector.setStrategy(strategyReturning(null) as never);
 
     const result = await detector.executeDirectoryDetector(1000);
     expect(result?.directory).toBe(projectDir);
     expect(listedFiles).toHaveBeenCalledWith({ success: true, directory: projectDir }, null);
   });
 
-  test('falls back to native detection and the saved directory without an override', async () => {
-    const detector = new DirectoryDetector(null);
-    detector.updatePreviousApp({ name: 'Some App', bundleId: BUNDLE_ID });
-    detector.updateSavedDirectory('/saved/from/directory-json');
+  test('keeps the detection error payload intact when there is no override', async () => {
+    const detector = detectorWithOverrideCandidate();
+    detector.setStrategy(strategyReturning(UNSUPPORTED_APP) as never);
 
-    await expect(detector.refreshOverrideDirectory()).resolves.toBeNull();
-    expect(detector.getEffectiveDirectory()).toBe('/saved/from/directory-json');
-
-    const result = await detector.executeDirectoryDetector(1000);
-    expect(result?.directory).toBe('/from/native');
+    // The reason detection failed must survive to the caller, not be swallowed.
+    await expect(detector.executeDirectoryDetector(1000)).resolves.toEqual(UNSUPPORTED_APP);
     expect(listedFiles).not.toHaveBeenCalled();
   });
 
-  test('a removed override file drops back to the saved directory on the next show', async () => {
+  test('returns null when there is neither a detection result nor an override', async () => {
+    const detector = detectorWithOverrideCandidate();
+    detector.setStrategy(strategyReturning(null) as never);
+
+    await expect(detector.executeDirectoryDetector(1000)).resolves.toBeNull();
+  });
+
+  test('a removed override file stops applying on the next detection', async () => {
     await writeOverrides(JSON.stringify({ [BUNDLE_ID]: projectDir }));
 
+    const detector = detectorWithOverrideCandidate();
+    detector.setStrategy(strategyReturning(UNSUPPORTED_APP) as never);
+    expect((await detector.executeDirectoryDetector(1000))?.directory).toBe(projectDir);
+
+    await removeOverrides();
+    await expect(detector.executeDirectoryDetector(1000)).resolves.toEqual(UNSUPPORTED_APP);
+  });
+
+  test('the initial paint uses the saved directory, never the override', async () => {
+    await writeOverrides(JSON.stringify({ [BUNDLE_ID]: projectDir }));
+
+    const loadCache = vi.fn(async (directory: string) => ({
+      directory,
+      files: [],
+      metadata: { updatedAt: new Date().toISOString() }
+    }));
+    const fileCacheManager = {
+      loadCache,
+      isCacheValid: () => true,
+      getLastUsedDirectory: vi.fn(async () => null)
+    };
+
+    const detector = new DirectoryDetector(fileCacheManager as never);
+    detector.updatePreviousApp({ name: 'Some App', bundleId: BUNDLE_ID });
+    detector.updateSavedDirectory('/saved/from/directory-json');
+
+    // At show time it is unknown whether detection will succeed, so painting the
+    // override would flash a directory detection is about to replace.
+    const cached = await detector.loadCachedFilesForWindow();
+    expect(cached?.directory).toBe('/saved/from/directory-json');
+    expect(loadCache).not.toHaveBeenCalledWith(projectDir, expect.anything());
+  });
+});
+
+describe('DirectoryDetector failed-detection notification', () => {
+  function fakeWindow(): { send: ReturnType<typeof vi.fn>; window: never } {
+    const send = vi.fn();
+    const window = {
+      isDestroyed: () => false,
+      webContents: { isLoading: () => false, send, once: vi.fn() }
+    };
+    return { send, window: window as never };
+  }
+
+  function throwingDetector(): DirectoryDetector {
     const detector = new DirectoryDetector(null);
     detector.updatePreviousApp({ name: 'Some App', bundleId: BUNDLE_ID });
     detector.updateSavedDirectory('/saved/from/directory-json');
-    await detector.refreshOverrideDirectory();
-    expect(detector.getEffectiveDirectory()).toBe(projectDir);
+    detector.setStrategy({
+      getName: () => 'Throwing',
+      isAvailable: () => true,
+      detect: vi.fn(async () => { throw new Error('detector blew up'); })
+    } as never);
+    return detector;
+  }
 
-    await removeOverrides();
-    await expect(detector.refreshOverrideDirectory()).resolves.toBeNull();
-    expect(detector.getEffectiveDirectory()).toBe('/saved/from/directory-json');
+  test('sends the override directory instead of the timeout hint', async () => {
+    await writeOverrides(JSON.stringify({ [BUNDLE_ID]: projectDir }));
+
+    const { send, window } = fakeWindow();
+    await throwingDetector().executeBackgroundDirectoryDetection(window);
+
+    const [channel, payload] = send.mock.calls[0] as [string, Record<string, unknown>];
+    expect(channel).toBe('directory-data-updated');
+    expect(payload.directory).toBe(projectDir);
+    // Not flagged as a timeout: the renderer would otherwise show
+    // "Open terminal in editor for directory detection" - advice about detecting
+    // a directory that is not being detected at all.
+    expect(payload.detectionTimedOut).toBeUndefined();
+  });
+
+  test('still reports the timeout with the saved directory when there is no override', async () => {
+    const { send, window } = fakeWindow();
+    await throwingDetector().executeBackgroundDirectoryDetection(window);
+
+    const [channel, payload] = send.mock.calls[0] as [string, Record<string, unknown>];
+    expect(channel).toBe('directory-data-updated');
+    expect(payload).toEqual({
+      success: false,
+      detectionTimedOut: true,
+      directory: '/saved/from/directory-json'
+    });
   });
 });

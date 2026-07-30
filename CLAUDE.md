@@ -217,15 +217,19 @@ writes its own bundle id here, and Prompt Line opens that directory when trigger
 from that app.
 
 - Prompt Line looks up `previousApp.bundleId`; apps not listed are unaffected.
-- A matching entry **wins over live native directory detection** and over the
-  `directory.json` fallback. Losing to live detection would make the override
-  useless: the background detection that runs right after the window is shown
-  would overwrite it within a few hundred ms.
-- **An entry suppresses live detection for that app for as long as it exists.**
-  An entry is dropped only when its directory no longer exists — never because it
-  is old. So do not write entries for apps whose cwd is detectable (terminals,
-  IDEs): they stay pinned to whatever was written first, however far the user has
-  moved since, with only a DEBUG log line as a clue.
+- **Live detection always wins.** An entry is a *fallback*: it is consulted only
+  after the native detection for that window show came back without a directory —
+  the unsupported-app case (`{"error":"Not a supported terminal or IDE
+  application"}`) and the timeout case.
+- **An entry for a detectable app is simply ignored while detection works.** A
+  terminal or an IDE keeps following its own cwd; the entry sits there unused and
+  only takes over on the shows where detection produces nothing. There is no
+  pinning footgun to warn about — writing an entry for such an app is pointless
+  rather than harmful.
+- The override never feeds the initial paint. At show time it is not yet known
+  whether detection will succeed, so the window opens on the saved directory
+  (`directory.json`) and an override arrives, if at all, with the background
+  detection result.
 - Writing `""` (or whitespace) as the value means "no override right now": the
   entry is skipped and that app falls back to the normal detection chain. Use it
   to disable an override without removing the key.
@@ -234,6 +238,9 @@ from that app.
   to `directory.json`, the *global* last-used directory — so it also becomes the
   `savedDirectory` fallback for other apps whose live detection fails, and the
   value `{projectdir}` expands to.
+- `Loaded app directory overrides` (once per file change) and `Using app directory
+  override` (when one applies) are logged at INFO, so they are visible in the
+  packaged app's `app.log`.
 - Missing, empty, or non-existent entries are ignored silently; malformed JSON and
   non-absolute entries are ignored with a WARN in `app.log`. All fall back to the
   normal detection chain.

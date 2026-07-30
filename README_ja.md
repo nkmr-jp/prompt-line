@@ -145,6 +145,34 @@ pnpm run migrate-settings        # 設定ファイルを最新のデフォルト
 
 参照: [設定リファレンス](docs/ja/settings.md) | [settings.example.yaml](settings.example.yaml) | [マイグレーションガイド](docs/ja/migration.md)
 
+### アプリ別ディレクトリのフォールバック
+
+Prompt Line は起動元アプリの作業ディレクトリを自動検出し、`@` のファイル検索が
+そのプロジェクトを対象にするようにします。ただしブラウザなど、検出できる
+ディレクトリを持たないアプリもあります。そうしたアプリ向けに
+`~/.prompt-line/app-directories.json` でディレクトリを指定できます：
+
+```json
+{
+  "com.google.Chrome": "/Users/me/ghq/github.com/me/my-project"
+}
+```
+
+macOS の bundle id と絶対パスのフラットなマップです。bundle id は、対象のアプリを
+最前面にした状態で次を実行すると分かります：
+
+```bash
+"/Applications/Prompt Line.app/Contents/Resources/app.asar.unpacked/dist/native-tools/window-detector" current-app
+# {"bundleId":"com.google.Chrome","name":"Google Chrome"}
+```
+
+**自動検出が常に優先されます。** この指定が使われるのはディレクトリを検出できなかった
+場合だけなので、ターミナルやIDEに対して書いても何も起きません（それらは従来どおり
+自分の作業ディレクトリに従います）。
+
+値を `""` にすると、キーを残したままその指定を無効にできます。ファイルは変更されるたびに
+読み直されるので、編集は次回の入力ウィンドウ表示から反映されます。
+
 ## 🔌 プラグイン
 
 プラグインはYAMLファイルで、エージェントスキル（`/`）、カスタム検索（`@prefix:`）、CLIツールの組み込みコマンド・スキル・エージェントを追加します。

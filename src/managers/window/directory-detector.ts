@@ -35,7 +35,6 @@ class DirectoryDetector {
   private strategy: IDirectoryDetectionStrategy;
   private cacheHelper: DirectoryCacheHelper;
   private overrides = new AppDirectoryOverrides();
-  private overrideDirectory: string | null = null;
 
   constructor(fileCacheManager: FileCacheManager | null) {
     this.cacheHelper = new DirectoryCacheHelper(fileCacheManager);
@@ -87,40 +86,6 @@ class DirectoryDetector {
   }
 
   /**
-   * Re-read the per-app directory override for the app the user came from.
-   *
-   * Call once per window show, before the window data is prepared: the value is
-   * then reused by `loadCachedFilesForWindow` and by the background detection
-   * that runs after the window is displayed.
-   *
-   * Note: when Prompt Line itself is frontmost (double-trigger) WindowManager
-   * deliberately keeps the existing `previousApp`, so the override stays pinned
-   * to the app the user actually came from. That is intended.
-   *
-   * @returns the override directory, or null when the app has none
-   */
-  async refreshOverrideDirectory(): Promise<string | null> {
-    // Clear first so a throw or a racing show can never leave a stale override live.
-    this.overrideDirectory = null;
-    this.overrideDirectory = await this.overrides.resolve(this.previousApp);
-    if (this.overrideDirectory) {
-      logger.debug('Using app directory override', {
-        directory: this.overrideDirectory,
-        app: this.previousApp
-      });
-    }
-    return this.overrideDirectory;
-  }
-
-  /**
-   * Directory to use before live detection completes.
-   * Priority: app override > saved directory (directory.json)
-   */
-  getEffectiveDirectory(): string | null {
-    return this.overrideDirectory ?? this.savedDirectory;
-  }
-
-  /**
    * Check if fd command is available on the system (only once)
    */
   async checkFdCommandAvailability(): Promise<void> {
@@ -153,14 +118,14 @@ class DirectoryDetector {
 
   /**
    * Load cached files for window show - provides instant file search availability
-   * Priority: app override cache > savedDirectory cache > lastUsedDirectory cache
+   * Priority: savedDirectory cache > lastUsedDirectory cache
+   *
+   * The per-app override is deliberately absent here: at show time we do not yet
+   * know whether detection will succeed, and painting the override first would
+   * flash a directory that detection is about to replace. It arrives, if at all,
+   * with the background detection result.
    */
   async loadCachedFilesForWindow(): Promise<DirectoryInfo | null> {
-    if (this.overrideDirectory) {
-      // Load only this directory's cache; falling back to lastUsedDirectory
-      // would show a directory the override explicitly replaced.
-      return this.cacheHelper.loadCacheForDirectory(this.overrideDirectory);
-    }
     return this.cacheHelper.loadCachedFilesForWindow(this.savedDirectory);
   }
 
@@ -174,12 +139,15 @@ class DirectoryDetector {
   /**
    * Execute directory detection using the current strategy
    *
-   * An app directory override replaces live detection entirely: if it only beat
-   * the directory.json fallback it would be overwritten a few hundred ms later
-   * by the background detection, which is exactly the case the override exists
-   * for (browser-like apps with no terminal cwd to detect). Overrides are keyed
-   * by exact bundle id, so apps not listed in app-directories.json keep the
-   * unchanged detection chain.
+   * Live detection always wins. The per-app override in `app-directories.json`
+   * is a fallback for apps whose working directory cannot be detected, so it is
+   * consulted only once the strategy has come back without a directory - the
+   * unsupported-app case ("Not a supported terminal or IDE application") and the
+   * timeout case. An entry for an app that *is* detectable therefore never
+   * applies, instead of pinning that app forever.
+   *
+   * With no override the strategy's own result is returned untouched, error
+   * payload included, so nothing about the failure is swallowed.
    *
    * @param timeout Timeout in milliseconds
    * @returns DirectoryInfo or null on error
@@ -187,18 +155,42 @@ class DirectoryDetector {
   async executeDirectoryDetector(
     timeout: number
   ): Promise<DirectoryInfo | null> {
-    if (this.overrideDirectory) {
-      return withListedFiles(
-        { success: true, directory: this.overrideDirectory },
-        this.fileSearchSettings
-      );
-    }
-
     if (!this.strategy.isAvailable()) {
       return null;
     }
 
-    return this.strategy.detect(timeout, this.previousApp, this.fileSearchSettings);
+    const detected = await this.strategy.detect(timeout, this.previousApp, this.fileSearchSettings);
+
+    // Discriminate on "did a directory come back", not on the absence of an
+    // `error` field: the unsupported-app result carries an error and no
+    // directory, and that is the primary case the override exists for.
+    if (detected?.directory) {
+      return detected;
+    }
+
+    return (await this.overrideDetectionResult()) ?? detected;
+  }
+
+  /**
+   * The detection result the per-app override stands in for, or null when the
+   * app has no usable override.
+   *
+   * Goes through `withListedFiles` so an override produces exactly the same
+   * shape as a native detection result.
+   *
+   * Logged at INFO on purpose: the packaged app always runs at INFO (only
+   * LOG_LEVEL=debug raises it), so at DEBUG this could never tell a user whether
+   * their override applied - and an override applying is the only reason the
+   * directory is not the one detection would have produced.
+   */
+  private async overrideDetectionResult(): Promise<DirectoryInfo | null> {
+    const directory = await this.overrides.resolve(this.previousApp);
+    if (!directory) {
+      return null;
+    }
+
+    logger.info('Using app directory override', { directory, app: this.previousApp });
+    return withListedFiles({ success: true, directory }, this.fileSearchSettings);
   }
 
   /**
@@ -236,9 +228,19 @@ class DirectoryDetector {
   }
 
   /**
-   * Create timeout/error notification
+   * Create the notification for a detection that produced nothing.
+   *
+   * An override answers the question detection failed to answer, so it is not a
+   * timeout as far as the renderer is concerned: flagging it would show
+   * "Open terminal in editor for directory detection" - advice about detecting a
+   * directory that is not being detected at all - instead of the override path.
    */
-  private createTimeoutNotification(): DirectoryInfo {
+  private async createFailedDetectionNotification(): Promise<DirectoryInfo> {
+    const override = await this.overrideDetectionResult();
+    if (override) {
+      return override;
+    }
+
     const notification: DirectoryInfo = {
       success: false,
       detectionTimedOut: true
@@ -317,9 +319,9 @@ class DirectoryDetector {
   /**
    * Handle failed detection (timeout or error)
    */
-  private handleFailedDetection(inputWindow: BrowserWindow | null): void {
+  private async handleFailedDetection(inputWindow: BrowserWindow | null): Promise<void> {
     if (inputWindow && !inputWindow.isDestroyed()) {
-      const notification = this.createTimeoutNotification();
+      const notification = await this.createFailedDetectionNotification();
       this.notifyRenderer(inputWindow, notification);
     }
   }
@@ -351,12 +353,12 @@ class DirectoryDetector {
         await this.handleSuccessfulDetection(result, inputWindow, startTime);
         flushBackground(bg, { ok: true, directory: result.directory, fileCount: result.fileCount ?? 0 });
       } else {
-        this.handleFailedDetection(inputWindow);
+        await this.handleFailedDetection(inputWindow);
         flushBackground(bg, { ok: false, reason: result ? 'no-directory' : 'no-result' });
       }
     } catch (error) {
       logger.warn('Background directory detection failed:', error);
-      this.handleFailedDetection(inputWindow);
+      await this.handleFailedDetection(inputWindow);
       flushBackground(bg, { ok: false, reason: 'exception' });
     }
   }

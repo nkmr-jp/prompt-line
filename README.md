@@ -149,6 +149,33 @@ Settings file: `~/.prompt-line/settings.yaml` (hot-reloaded, no restart needed)
 
 See: [Settings Reference](docs/en/settings.md) | [settings.example.yaml](settings.example.yaml) | [Migration Guide](docs/en/migration.md)
 
+### Per-App Directory Fallback
+
+Prompt Line detects the working directory of the app you came from, so `@` file search
+opens on the right project. Some apps have no directory to detect — browsers and other
+non-terminal apps. For those, `~/.prompt-line/app-directories.json` pins one:
+
+```json
+{
+  "com.google.Chrome": "/Users/me/ghq/github.com/me/my-project"
+}
+```
+
+A flat map of macOS bundle id to absolute path. Find an app's bundle id by bringing it
+to the front and running:
+
+```bash
+"/Applications/Prompt Line.app/Contents/Resources/app.asar.unpacked/dist/native-tools/window-detector" current-app
+# {"bundleId":"com.google.Chrome","name":"Google Chrome"}
+```
+
+**Auto-detection always wins.** An entry only takes effect when the directory could not
+be detected, so adding one for a terminal or an IDE does nothing — those keep following
+their own working directory.
+
+Set a value to `""` to switch an entry off without removing the key. The file is re-read
+whenever it changes, so edits apply on the next launch of the input window.
+
 ## 🔌 Plugins
 
 Plugins are YAML files that add agent skills (`/`), custom search (`@prefix:`), and built-in commands/skills/agents for CLI tools.
