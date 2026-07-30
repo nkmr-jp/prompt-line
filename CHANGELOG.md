@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.39.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.38.1...prompt-line-v0.39.0) (2026-07-30)
+
+
+### Features
+
+* **directory:** add per-app startup directory override file ([#417](https://github.com/nkmr-jp/prompt-line/issues/417)) ([ee79023](https://github.com/nkmr-jp/prompt-line/commit/ee7902360be36be423509679f4c70aff44f67996))
+
+
+### Bug Fixes
+
+* **directory-detector:** follow Claude Code sessions into worktrees ([ee79023](https://github.com/nkmr-jp/prompt-line/commit/ee7902360be36be423509679f4c70aff44f67996))
+
 ## [0.38.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.38.0...prompt-line-v0.38.1) (2026-07-27)
 
 
