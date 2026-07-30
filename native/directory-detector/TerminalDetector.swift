@@ -128,7 +128,8 @@ extension DirectoryDetector {
         return path.isEmpty ? nil : path
     }
 
-    /// Wall-clock budget for one control-socket round trip, connect excluded.
+    /// Wall-clock budget for one control-socket round trip. Taken before
+    /// `connect`, so connecting spends from it as well.
     private static let cmuxSocketBudget: TimeInterval = 0.2
 
     /// One newline-delimited JSON request/response over cmux's UNIX control socket.
