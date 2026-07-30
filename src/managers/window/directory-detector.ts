@@ -4,9 +4,10 @@ import FileCacheManager from '../file-cache-manager';
 import type DirectoryManager from '../directory-manager';
 import type { AppInfo, DirectoryInfo, FileSearchSettings } from '../../types';
 import type { IDirectoryDetectionStrategy } from './strategies';
-import { NativeDetectorStrategy } from './strategies';
+import { NativeDetectorStrategy, withListedFiles } from './strategies';
 import { DirectoryDetectorUtils } from './directory-detector-utils';
 import { DirectoryCacheHelper } from './directory-cache-helper';
+import { AppDirectoryOverrides } from './app-directory-overrides';
 import { TIMEOUTS } from '../../constants';
 
 /**
@@ -33,6 +34,7 @@ class DirectoryDetector {
   private previousApp: AppInfo | string | null = null;
   private strategy: IDirectoryDetectionStrategy;
   private cacheHelper: DirectoryCacheHelper;
+  private overrides = new AppDirectoryOverrides();
 
   constructor(fileCacheManager: FileCacheManager | null) {
     this.cacheHelper = new DirectoryCacheHelper(fileCacheManager);
@@ -117,6 +119,11 @@ class DirectoryDetector {
   /**
    * Load cached files for window show - provides instant file search availability
    * Priority: savedDirectory cache > lastUsedDirectory cache
+   *
+   * The per-app override is deliberately absent here: at show time we do not yet
+   * know whether detection will succeed, and painting the override first would
+   * flash a directory that detection is about to replace. It arrives, if at all,
+   * with the background detection result.
    */
   async loadCachedFilesForWindow(): Promise<DirectoryInfo | null> {
     return this.cacheHelper.loadCachedFilesForWindow(this.savedDirectory);
@@ -131,6 +138,17 @@ class DirectoryDetector {
 
   /**
    * Execute directory detection using the current strategy
+   *
+   * Live detection always wins. The per-app override in `app-directories.json`
+   * is a fallback for apps whose working directory cannot be detected, so it is
+   * consulted only once the strategy has come back without a directory - the
+   * unsupported-app case ("Not a supported terminal or IDE application") and the
+   * timeout case. An entry for an app that *is* detectable therefore never
+   * applies, instead of pinning that app forever.
+   *
+   * With no override the strategy's own result is returned untouched, error
+   * payload included, so nothing about the failure is swallowed.
+   *
    * @param timeout Timeout in milliseconds
    * @returns DirectoryInfo or null on error
    */
@@ -141,7 +159,48 @@ class DirectoryDetector {
       return null;
     }
 
-    return this.strategy.detect(timeout, this.previousApp, this.fileSearchSettings);
+    // A throwing strategy is one more way of producing no directory, so it is
+    // folded in here rather than left to the caller's catch. That keeps the
+    // override decision in this one method: everything downstream sees either a
+    // directory or the absence of one, and nothing else can reintroduce an
+    // override behind detection's back.
+    let detected: DirectoryInfo | null = null;
+    try {
+      detected = await this.strategy.detect(timeout, this.previousApp, this.fileSearchSettings);
+    } catch (error) {
+      logger.warn('Directory detection strategy threw:', error);
+    }
+
+    // Discriminate on "did a directory come back", not on the absence of an
+    // `error` field: the unsupported-app result carries an error and no
+    // directory, and that is the primary case the override exists for.
+    if (detected?.directory) {
+      return detected;
+    }
+
+    return (await this.overrideDetectionResult()) ?? detected;
+  }
+
+  /**
+   * The detection result the per-app override stands in for, or null when the
+   * app has no usable override.
+   *
+   * Goes through `withListedFiles` so an override produces exactly the same
+   * shape as a native detection result.
+   *
+   * Logged at INFO on purpose: the packaged app always runs at INFO (only
+   * LOG_LEVEL=debug raises it), so at DEBUG this could never tell a user whether
+   * their override applied - and an override applying is the only reason the
+   * directory is not the one detection would have produced.
+   */
+  private async overrideDetectionResult(): Promise<DirectoryInfo | null> {
+    const directory = await this.overrides.resolve(this.previousApp);
+    if (!directory) {
+      return null;
+    }
+
+    logger.info('Using app directory override', { directory, app: this.previousApp });
+    return withListedFiles({ success: true, directory }, this.fileSearchSettings);
   }
 
   /**
@@ -179,9 +238,16 @@ class DirectoryDetector {
   }
 
   /**
-   * Create timeout/error notification
+   * Create the notification for a detection that produced nothing.
+   *
+   * Deliberately does *not* consult the override. `executeDirectoryDetector`
+   * already substituted one if the app had a usable entry, in which case the
+   * result carries a directory and never reaches here. What does reach here is a
+   * throw from further down `executeBackgroundDirectoryDetection` - possibly
+   * *after* detection succeeded - and applying an override there would let it
+   * beat a detection that worked, breaking the guarantee the docs make.
    */
-  private createTimeoutNotification(): DirectoryInfo {
+  private createFailedDetectionNotification(): DirectoryInfo {
     const notification: DirectoryInfo = {
       success: false,
       detectionTimedOut: true
@@ -262,7 +328,7 @@ class DirectoryDetector {
    */
   private handleFailedDetection(inputWindow: BrowserWindow | null): void {
     if (inputWindow && !inputWindow.isDestroyed()) {
-      const notification = this.createTimeoutNotification();
+      const notification = this.createFailedDetectionNotification();
       this.notifyRenderer(inputWindow, notification);
     }
   }

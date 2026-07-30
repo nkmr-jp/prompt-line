@@ -145,6 +145,39 @@ pnpm run migrate-settings        # 設定ファイルを最新のデフォルト
 
 参照: [設定リファレンス](docs/ja/settings.md) | [settings.example.yaml](settings.example.yaml) | [マイグレーションガイド](docs/ja/migration.md)
 
+### アプリ別ディレクトリのフォールバック
+
+Prompt Line は起動元アプリの作業ディレクトリを自動検出し、`@` のファイル検索が
+そのプロジェクトを対象にするようにします。ただしブラウザなど、検出できる
+ディレクトリを持たないアプリもあります。そうしたアプリ向けに
+`~/.prompt-line/app-directories.json` でディレクトリを指定できます：
+
+```json
+{
+  "com.google.Chrome": "/Users/me/ghq/github.com/me/my-project"
+}
+```
+
+macOS の bundle id と絶対パスのフラットなマップです。bundle id は、対象のアプリを
+最前面にした状態で次を実行すると分かります：
+
+```bash
+"/Applications/Prompt Line.app/Contents/Resources/app.asar.unpacked/dist/native-tools/window-detector" current-app
+# {"bundleId":"com.google.Chrome","name":"Google Chrome"}
+```
+
+**自動検出が常に優先されます。** この指定が使われるのは、検出が何も返さなかった表示のときだけです。
+ターミナルやIDEでは通常それが起きないので書いても見た目の変化はありませんが、検出がたまたま
+タイムアウトした表示では効いてしまい、「ときどきディレクトリが別の場所に飛ぶ」ように見えることが
+あります。検出できるディレクトリを持たないアプリにだけ書いてください。
+
+なお、検出された場合もこの指定が使われた場合も、そのディレクトリが**全体の「最後に使った
+ディレクトリ」**になります。したがって他のアプリで検出が失敗したときのフォールバック先にもなり、
+`{projectdir}` の展開値にもなります。
+
+値を `""` にすると、キーを残したままその指定を無効にできます。ファイルは変更されるたびに
+読み直されるので、編集は次回の入力ウィンドウ表示から反映されます。
+
 ## 🔌 プラグイン
 
 プラグインはYAMLファイルで、エージェントスキル（`/`）、カスタム検索（`@prefix:`）、CLIツールの組み込みコマンド・スキル・エージェントを追加します。

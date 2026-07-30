@@ -193,10 +193,62 @@ All data stored in `~/.prompt-line/`:
 - `draft.json`: Auto-saved drafts
 - `settings.yaml`: User preferences (falls back to `settings.yml`)
 - `directory.json`: CWD tracking for file search
+- `app-directories.json`: Per-app startup directory overrides (see below)
 - `app.log`: Application logs
 - `images/`: Image storage
 - `cache/`: Symbol cache, @path patterns (per-project and global)
 - `plugins/`: Plugin YAML files with `.prompt-line-plugin` metadata
+
+#### `app-directories.json` (per-app directory override)
+
+A flat map of macOS bundle id to absolute directory path:
+
+```json
+{
+  "com.example.someapp": "/Users/me/ghq/github.com/me/project",
+  "com.example.otherapp": "/Users/me/work/foo"
+}
+```
+
+**Prompt Line only reads this file — external tools own and write it.** This is a
+cross-repo contract: an app that knows which project the user is currently working
+on (for example a browser-like/Electron app whose terminal CWD cannot be detected)
+writes its own bundle id here, and Prompt Line opens that directory when triggered
+from that app.
+
+- Prompt Line looks up `previousApp.bundleId`; apps not listed are unaffected.
+- **Live detection always wins.** An entry is a *fallback*: it is consulted only
+  after the native detection for that window show came back without a directory —
+  the unsupported-app case (`{"error":"Not a supported terminal or IDE
+  application"}`) and the timeout case.
+- **An entry for a detectable app is simply ignored while detection works.** A
+  terminal or an IDE keeps following its own cwd; the entry sits there unused and
+  only takes over on the shows where detection produces nothing. There is no
+  pinning footgun to warn about — writing an entry for such an app is pointless
+  rather than harmful.
+- The override never feeds the initial paint. At show time it is not yet known
+  whether detection will succeed, so the window opens on the saved directory
+  (`directory.json`) and an override arrives, if at all, with the background
+  detection result.
+- Writing `""` (or whitespace) as the value means "no override right now": the
+  entry is skipped and that app falls back to the normal detection chain. Use it
+  to disable an override without removing the key.
+- **An override is not scoped to the app that declared it.** The background
+  detection that runs after the window is shown persists the resolved directory
+  to `directory.json`, the *global* last-used directory — so it also becomes the
+  `savedDirectory` fallback for other apps whose live detection fails, and the
+  value `{projectdir}` expands to.
+- `Loaded app directory overrides` (once per file change) and `Using app directory
+  override` (when one applies) are logged at INFO, so they are visible in the
+  packaged app's `app.log`.
+- Missing, empty, or non-existent entries are ignored silently; malformed JSON and
+  non-absolute entries are ignored with a WARN in `app.log`. All fall back to the
+  normal detection chain.
+- The file is re-read only when its mtime or size changes, so an entry can be
+  updated at any time and takes effect on the next window show — an edit that
+  leaves both mtime and size unchanged is not picked up.
+- Overrides ride the normal directory pipeline, so like live detection they
+  require file search to be configured and `fd` to be installed.
 
 ## Testing Strategy
 

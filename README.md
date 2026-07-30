@@ -149,6 +149,39 @@ Settings file: `~/.prompt-line/settings.yaml` (hot-reloaded, no restart needed)
 
 See: [Settings Reference](docs/en/settings.md) | [settings.example.yaml](settings.example.yaml) | [Migration Guide](docs/en/migration.md)
 
+### Per-App Directory Fallback
+
+Prompt Line detects the working directory of the app you came from, so `@` file search
+opens on the right project. Some apps have no directory to detect — browsers and other
+non-terminal apps. For those, `~/.prompt-line/app-directories.json` pins one:
+
+```json
+{
+  "com.google.Chrome": "/Users/me/ghq/github.com/me/my-project"
+}
+```
+
+A flat map of macOS bundle id to absolute path. Find an app's bundle id by bringing it
+to the front and running:
+
+```bash
+"/Applications/Prompt Line.app/Contents/Resources/app.asar.unpacked/dist/native-tools/window-detector" current-app
+# {"bundleId":"com.google.Chrome","name":"Google Chrome"}
+```
+
+**Auto-detection always wins.** An entry only takes over on the launches where detection
+came back with nothing. For a terminal or an IDE that is normally never, so an entry there
+has no visible effect — but it will still step in on a launch where detection happens to
+time out, which can look like the directory jumping somewhere else at random. Keep entries
+to apps that have no directory to detect.
+
+Note that whichever directory is used — detected or pinned — becomes the global last-used
+directory, so it is also what other apps fall back to when their own detection fails, and
+what `{projectdir}` expands to.
+
+Set a value to `""` to switch an entry off without removing the key. The file is re-read
+whenever it changes, so edits apply on the next launch of the input window.
+
 ## 🔌 Plugins
 
 Plugins are YAML files that add agent skills (`/`), custom search (`@prefix:`), and built-in commands/skills/agents for CLI tools.
