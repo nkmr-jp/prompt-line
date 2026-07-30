@@ -169,9 +169,15 @@ to the front and running:
 # {"bundleId":"com.google.Chrome","name":"Google Chrome"}
 ```
 
-**Auto-detection always wins.** An entry only takes effect when the directory could not
-be detected, so adding one for a terminal or an IDE does nothing — those keep following
-their own working directory.
+**Auto-detection always wins.** An entry only takes over on the launches where detection
+came back with nothing. For a terminal or an IDE that is normally never, so an entry there
+has no visible effect — but it will still step in on a launch where detection happens to
+time out, which can look like the directory jumping somewhere else at random. Keep entries
+to apps that have no directory to detect.
+
+Note that whichever directory is used — detected or pinned — becomes the global last-used
+directory, so it is also what other apps fall back to when their own detection fails, and
+what `{projectdir}` expands to.
 
 Set a value to `""` to switch an entry off without removing the key. The file is re-read
 whenever it changes, so edits apply on the next launch of the input window.

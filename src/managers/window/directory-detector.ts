@@ -159,7 +159,17 @@ class DirectoryDetector {
       return null;
     }
 
-    const detected = await this.strategy.detect(timeout, this.previousApp, this.fileSearchSettings);
+    // A throwing strategy is one more way of producing no directory, so it is
+    // folded in here rather than left to the caller's catch. That keeps the
+    // override decision in this one method: everything downstream sees either a
+    // directory or the absence of one, and nothing else can reintroduce an
+    // override behind detection's back.
+    let detected: DirectoryInfo | null = null;
+    try {
+      detected = await this.strategy.detect(timeout, this.previousApp, this.fileSearchSettings);
+    } catch (error) {
+      logger.warn('Directory detection strategy threw:', error);
+    }
 
     // Discriminate on "did a directory come back", not on the absence of an
     // `error` field: the unsupported-app result carries an error and no
@@ -230,17 +240,14 @@ class DirectoryDetector {
   /**
    * Create the notification for a detection that produced nothing.
    *
-   * An override answers the question detection failed to answer, so it is not a
-   * timeout as far as the renderer is concerned: flagging it would show
-   * "Open terminal in editor for directory detection" - advice about detecting a
-   * directory that is not being detected at all - instead of the override path.
+   * Deliberately does *not* consult the override. `executeDirectoryDetector`
+   * already substituted one if the app had a usable entry, in which case the
+   * result carries a directory and never reaches here. What does reach here is a
+   * throw from further down `executeBackgroundDirectoryDetection` - possibly
+   * *after* detection succeeded - and applying an override there would let it
+   * beat a detection that worked, breaking the guarantee the docs make.
    */
-  private async createFailedDetectionNotification(): Promise<DirectoryInfo> {
-    const override = await this.overrideDetectionResult();
-    if (override) {
-      return override;
-    }
-
+  private createFailedDetectionNotification(): DirectoryInfo {
     const notification: DirectoryInfo = {
       success: false,
       detectionTimedOut: true
@@ -319,9 +326,9 @@ class DirectoryDetector {
   /**
    * Handle failed detection (timeout or error)
    */
-  private async handleFailedDetection(inputWindow: BrowserWindow | null): Promise<void> {
+  private handleFailedDetection(inputWindow: BrowserWindow | null): void {
     if (inputWindow && !inputWindow.isDestroyed()) {
-      const notification = await this.createFailedDetectionNotification();
+      const notification = this.createFailedDetectionNotification();
       this.notifyRenderer(inputWindow, notification);
     }
   }
@@ -353,12 +360,12 @@ class DirectoryDetector {
         await this.handleSuccessfulDetection(result, inputWindow, startTime);
         flushBackground(bg, { ok: true, directory: result.directory, fileCount: result.fileCount ?? 0 });
       } else {
-        await this.handleFailedDetection(inputWindow);
+        this.handleFailedDetection(inputWindow);
         flushBackground(bg, { ok: false, reason: result ? 'no-directory' : 'no-result' });
       }
     } catch (error) {
       logger.warn('Background directory detection failed:', error);
-      await this.handleFailedDetection(inputWindow);
+      this.handleFailedDetection(inputWindow);
       flushBackground(bg, { ok: false, reason: 'exception' });
     }
   }

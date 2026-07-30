@@ -419,6 +419,36 @@ describe('DirectoryDetector failed-detection notification', () => {
     expect(payload.detectionTimedOut).toBeUndefined();
   });
 
+  test('does not let an override in when the throw comes after detection succeeded', async () => {
+    // The hole this closes: the try in executeBackgroundDirectoryDetection also
+    // covers handleSuccessfulDetection, so a throw from there used to reach the
+    // same catch and hand the renderer an override - beating a detection that
+    // had already produced a directory, which the docs promise never happens.
+    await writeOverrides(JSON.stringify({ [BUNDLE_ID]: projectDir }));
+
+    const detector = new DirectoryDetector(null);
+    detector.updatePreviousApp({ name: 'Some App', bundleId: BUNDLE_ID });
+    detector.updateSavedDirectory('/saved/from/directory-json');
+    // Default stub strategy detects /from/native; blow up afterwards.
+    detector.setDirectoryManager({
+      setDirectory: () => { throw new Error('post-detection failure'); }
+    } as never);
+
+    const { send, window } = fakeWindow();
+    await detector.executeBackgroundDirectoryDetection(window);
+
+    const [, payload] = send.mock.calls[0] as [string, Record<string, unknown>];
+    expect(payload.directory).not.toBe(projectDir);
+    expect(payload).toEqual({
+      success: false,
+      detectionTimedOut: true,
+      directory: '/saved/from/directory-json'
+    });
+    expect(vi.mocked(logger.info).mock.calls.filter(
+      call => String(call[0]).includes('Using app directory override')
+    )).toHaveLength(0);
+  });
+
   test('still reports the timeout with the saved directory when there is no override', async () => {
     const { send, window } = fakeWindow();
     await throwingDetector().executeBackgroundDirectoryDetection(window);
