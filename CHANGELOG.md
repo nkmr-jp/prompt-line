@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.39.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.39.0...prompt-line-v0.39.1) (2026-08-14)
+
+
+### Bug Fixes
+
+* **plugins:** preserve commands with distinct triggers ([#422](https://github.com/nkmr-jp/prompt-line/issues/422)) ([3fcea0f](https://github.com/nkmr-jp/prompt-line/commit/3fcea0f94bc6f1896624f2c6dba3ebc8cb7e2c20))
+
+
+### Miscellaneous Chores
+
+* **deps-dev:** bump electron from 39.8.5 to 39.8.10 in the npm_and_yarn group across 1 directory ([#419](https://github.com/nkmr-jp/prompt-line/issues/419)) ([8621331](https://github.com/nkmr-jp/prompt-line/commit/862133112fb3071f87cb7ddfc437fa11e6b9594c))
+* **deps:** bump js-yaml from 4.3.0 to 4.3.1 in the npm_and_yarn group across 1 directory ([#421](https://github.com/nkmr-jp/prompt-line/issues/421)) ([913f6f1](https://github.com/nkmr-jp/prompt-line/commit/913f6f163843e993f0e71ce568ca119f45205725))
+
 ## [0.39.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.38.1...prompt-line-v0.39.0) (2026-07-30)
 
 
