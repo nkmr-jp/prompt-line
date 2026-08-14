@@ -25,6 +25,11 @@ export function isNewerByPathVersion(candidate: string | undefined, incumbent: s
   return CustomSearchLoader.compareSemver(newVer, oldVer) > 0;
 }
 
+export function getAgentSkillDedupKey(skill: AgentSkillItem): string {
+  const triggers = [...(skill.triggers ?? ['/'])].sort().join(',');
+  return `${skill.name}:${skill.source || ''}:${skill.label || ''}:${triggers}`;
+}
+
 /**
  * CustomSearchHandler manages all IPC handlers related to MD search functionality.
  * This includes slash commands, agents, and search configuration.
@@ -214,16 +219,16 @@ class CustomSearchHandler {
 
       // Add agent built-in first
       for (const cmd of agentBuiltIn) {
-        const key = `${cmd.name}:${cmd.source || ''}:${cmd.label || ''}`;
+        const key = getAgentSkillDedupKey(cmd);
         commandMap.set(key, cmd);
       }
 
-      // Add custom commands (same name with different source or label is kept).
+      // Add custom commands (same name with a different source, label, or trigger is kept).
       // When the same key collides (e.g., two plugin caches expose the same
       // skill with the same label), keep the candidate whose filePath has the
       // newer semver — without this, settings order silently picked the loser.
       for (const cmd of userCommands) {
-        const key = `${cmd.name}:${cmd.source || ''}:${cmd.label || ''}`;
+        const key = getAgentSkillDedupKey(cmd);
         const existing = commandMap.get(key);
         if (existing && !isNewerByPathVersion(cmd.filePath, existing.filePath)) continue;
         commandMap.set(key, cmd);

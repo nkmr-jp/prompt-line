@@ -16,7 +16,35 @@ vi.mock('../../src/utils/utils', () => ({
 }));
 vi.mock('../../src/utils/shell-env', () => ({ getEnhancedEnv: vi.fn(() => ({})) }));
 
-import { isNewerByPathVersion } from '../../src/handlers/custom-search-handler';
+import { getAgentSkillDedupKey, isNewerByPathVersion } from '../../src/handlers/custom-search-handler';
+
+describe('getAgentSkillDedupKey', () => {
+  test('keeps same-name Claude and Codex skills distinct by trigger', () => {
+    const common = {
+      name: 'issue',
+      description: 'Create an issue',
+      filePath: '/cache/issues-site/issue/1.0.0/skills/issue/SKILL.md',
+      source: 'custom',
+      label: 'issues-site / issue',
+    };
+
+    expect(getAgentSkillDedupKey({ ...common, triggers: ['/'] }))
+      .not.toBe(getAgentSkillDedupKey({ ...common, triggers: ['$'] }));
+  });
+
+  test('normalizes missing slash trigger and trigger order', () => {
+    const common = {
+      name: 'issue',
+      description: 'Create an issue',
+      filePath: '/cache/issues-site/issue/1.0.0/skills/issue/SKILL.md',
+    };
+
+    expect(getAgentSkillDedupKey(common))
+      .toBe(getAgentSkillDedupKey({ ...common, triggers: ['/'] }));
+    expect(getAgentSkillDedupKey({ ...common, triggers: ['$', '/'] }))
+      .toBe(getAgentSkillDedupKey({ ...common, triggers: ['/', '$'] }));
+  });
+});
 
 describe('isNewerByPathVersion', () => {
   test('returns true when candidate path has higher semver than incumbent', () => {
