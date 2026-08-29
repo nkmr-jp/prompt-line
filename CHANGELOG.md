@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.40.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.39.1...prompt-line-v0.40.0) (2026-08-29)
+
+
+### Features
+
+* **native:** detect working directory in Orca terminals ([#423](https://github.com/nkmr-jp/prompt-line/issues/423)) ([331b32b](https://github.com/nkmr-jp/prompt-line/commit/331b32bc74e246d50c6dc835a67f318397366c0c))
+
 ## [0.39.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.39.0...prompt-line-v0.39.1) (2026-08-14)
 
 
