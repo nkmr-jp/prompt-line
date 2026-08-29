@@ -273,11 +273,16 @@ extension DirectoryDetector {
         }
 
         var candidates: [ShellCandidate] = []
+        let normalizedRoot = rootDirectory.map {
+            URL(fileURLWithPath: $0).standardizedFileURL.path
+        }
+
         for entry in snapshot where isShellCommand(entry.comm) && !entry.tty.isEmpty {
             guard isDescendantOf(entry.pid, ancestorPid: appPid, parentMap: parentMap, maxDepth: 10) else { continue }
             guard let cwd = getCwdFromPid(entry.pid) else { continue }
-            if let root = rootDirectory,
-               cwd != root && !cwd.hasPrefix(root + "/") {
+            let normalizedCwd = URL(fileURLWithPath: cwd).standardizedFileURL.path
+            if let root = normalizedRoot,
+               normalizedCwd != root && !normalizedCwd.hasPrefix(root + "/") {
                 continue
             }
             let mtime = mtimeForTty(entry.tty) ?? 0
@@ -345,6 +350,10 @@ extension DirectoryDetector {
         let process = Process()
         process.executableURL = cliURL
         process.arguments = args
+        // Outside every managed worktree, `terminal show` resolves Orca's
+        // globally selected terminal. From inside a worktree it intentionally
+        // scopes itself to that worktree, which is not what Prompt Line needs.
+        process.currentDirectoryURL = URL(fileURLWithPath: "/", isDirectory: true)
 
         let pipe = Pipe()
         process.standardOutput = pipe
@@ -357,6 +366,10 @@ extension DirectoryDetector {
             try process.run()
             guard finished.wait(timeout: .now() + 0.5) == .success else {
                 process.terminate()
+                if finished.wait(timeout: .now() + 0.1) == .timedOut {
+                    kill(process.processIdentifier, SIGKILL)
+                    process.waitUntilExit()
+                }
                 return nil
             }
             guard process.terminationStatus == 0 else { return nil }
