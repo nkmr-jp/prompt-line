@@ -7,7 +7,7 @@ import Foundation
 /// Main class for directory detection from terminals and IDEs
 /// Methods are organized across multiple files using extensions:
 /// - CWDDetector.swift: CWD detection (libproc + lsof)
-/// - TerminalDetector.swift: Terminal.app, iTerm2, Ghostty, Warp, WezTerm
+/// - TerminalDetector.swift: Terminal.app, iTerm2, Ghostty, Warp, WezTerm, Orca
 /// - IDEDetector.swift: JetBrains, VSCode, Cursor, Windsurf, Zed, Antigravity, Kiro, OpenCode
 /// - ProcessTree.swift: Process tree traversal
 /// Note: FileSearch functionality has been moved to separate file-searcher tool
@@ -195,7 +195,7 @@ class DirectoryDetector {
             ]
         }
 
-        // Check for native terminals (Ghostty, Warp, WezTerm) with process-based detection
+        // Check for native terminals (Ghostty, Warp, WezTerm, Orca) with process-based detection
         if isNativeTerminal(bundleId) {
             let directory: String?
             let shellPid: pid_t?
@@ -217,6 +217,11 @@ class DirectoryDetector {
                 directory = result.directory
                 shellPid = result.shellPid
                 methodName = result.usedAx ? "ghostty-ax" : "ghostty-process"
+            } else if isOrca(bundleId) {
+                let result = getOrcaDirectory(appPid: appPid)
+                directory = result.directory
+                shellPid = result.shellPid
+                methodName = result.usedCli ? "orca-cli" : "orca-process"
             } else {
                 let result = getNativeTerminalDirectory(appPid: appPid)
                 directory = result.directory

@@ -230,16 +230,21 @@ extension DirectoryDetector {
         return bundleId == "com.github.wez.wezterm"
     }
 
-    /// Check if bundle ID is a native terminal (Ghostty, Warp, WezTerm)
+    /// Check if bundle ID is Orca
+    static func isOrca(_ bundleId: String) -> Bool {
+        return bundleId == "com.stablyai.orca"
+    }
+
+    /// Check if bundle ID is a native terminal (Ghostty, Warp, WezTerm, Orca)
     /// These terminals use process tree detection for CWD
     static func isNativeTerminal(_ bundleId: String) -> Bool {
-        return isGhostty(bundleId) || isWarp(bundleId) || isWezTerm(bundleId)
+        return isGhostty(bundleId) || isWarp(bundleId) || isWezTerm(bundleId) || isOrca(bundleId)
     }
 
     /// Get CWD from native terminal using optimized process tree detection
-    /// Works for Ghostty, Warp, WezTerm, and other native terminals
+    /// Works for Ghostty, Warp, WezTerm, Orca, and other native terminals
     /// Uses the same fast approach as Electron IDE detection
-    static func getNativeTerminalDirectory(appPid: pid_t) -> (directory: String?, shellPid: pid_t?) {
+    static func getNativeTerminalDirectory(appPid: pid_t, within rootDirectory: String? = nil) -> (directory: String?, shellPid: pid_t?) {
         // One `ps` call gathers pid/ppid/tty/comm for every process. We avoid
         // `pgrep -f` because macOS pgrep silently drops long-running processes
         // whose KERN_PROCARGS2 has become unreadable — the focused login shell
@@ -268,9 +273,18 @@ extension DirectoryDetector {
         }
 
         var candidates: [ShellCandidate] = []
+        let normalizedRoot = rootDirectory.map {
+            URL(fileURLWithPath: $0).standardizedFileURL.path
+        }
+
         for entry in snapshot where isShellCommand(entry.comm) && !entry.tty.isEmpty {
             guard isDescendantOf(entry.pid, ancestorPid: appPid, parentMap: parentMap, maxDepth: 10) else { continue }
             guard let cwd = getCwdFromPid(entry.pid) else { continue }
+            let normalizedCwd = URL(fileURLWithPath: cwd).standardizedFileURL.path
+            if let root = normalizedRoot,
+               normalizedCwd != root && !normalizedCwd.hasPrefix(root + "/") {
+                continue
+            }
             let mtime = mtimeForTty(entry.tty) ?? 0
             candidates.append(ShellCandidate(pid: entry.pid, cwd: cwd, ttyMtime: mtime))
         }
@@ -291,7 +305,109 @@ extension DirectoryDetector {
         }
 
         let focused = candidates[0]
-        return (preferClaudeCodeCwd(over: focused.cwd, shellPid: focused.pid), focused.pid)
+        let preferred = preferClaudeCodeCwd(over: focused.cwd, shellPid: focused.pid)
+        if let root = normalizedRoot {
+            let normalizedPreferred = URL(fileURLWithPath: preferred).standardizedFileURL.path
+            if normalizedPreferred != root && !normalizedPreferred.hasPrefix(root + "/") {
+                return (focused.cwd, focused.pid)
+            }
+        }
+        return (preferred, focused.pid)
+    }
+
+    /// Get CWD from Orca's selected terminal.
+    ///
+    /// Orca runs many agent terminals concurrently, so global tty mtime is a poor
+    /// focus signal: background agent output routinely makes an unrelated tty the
+    /// newest one. Its public CLI resolves the terminal selected in the UI and
+    /// reports its worktree. Restrict the process-tree candidates to that worktree,
+    /// then keep the existing detector for the shell's actual subdirectory.
+    static func getOrcaDirectory(appPid: pid_t) -> (directory: String?, shellPid: pid_t?, usedCli: Bool) {
+        guard let worktreePath = getOrcaSelectedWorktree(appPid: appPid) else {
+            let fallback = getNativeTerminalDirectory(appPid: appPid)
+            return (fallback.directory, fallback.shellPid, false)
+        }
+
+        let selected = getNativeTerminalDirectory(appPid: appPid, within: worktreePath)
+        return (selected.directory ?? worktreePath, selected.shellPid, true)
+    }
+
+    private static func getOrcaSelectedWorktree(appPid: pid_t) -> String? {
+        // `terminal show` resolves relative to the calling agent/session, not the
+        // worktree currently visible in Orca. Prompt Line is a separate process,
+        // so use Orca's persisted UI selection as the source of truth.
+        if let path = getOrcaActiveWorktreeFromState() {
+            return path
+        }
+
+        guard let data = runOrcaCli(appPid: appPid, args: ["terminal", "show", "--json"]),
+              let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let result = json["result"] as? [String: Any],
+              let terminal = result["terminal"] as? [String: Any],
+              let path = terminal["worktreePath"] as? String,
+              !path.isEmpty else {
+            return nil
+        }
+        return path
+    }
+
+    private static func getOrcaActiveWorktreeFromState() -> String? {
+        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        for directory in ["orca", "Orca"] {
+            let stateURL = support
+                .appendingPathComponent(directory, isDirectory: true)
+                .appendingPathComponent("profiles/local-default/orca-data.json")
+            guard let data = try? Data(contentsOf: stateURL),
+                  let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+                  let session = json["workspaceSession"] as? [String: Any],
+                  let activeId = session["activeWorktreeId"] as? String,
+                  let separator = activeId.range(of: "::") else { continue }
+            let path = String(activeId[separator.upperBound...])
+            if path.hasPrefix("/") { return path }
+        }
+        return nil
+    }
+
+    private static func runOrcaCli(appPid: pid_t, args: [String]) -> Data? {
+        guard let app = NSWorkspace.shared.runningApplications.first(where: {
+            $0.processIdentifier == appPid && isOrca($0.bundleIdentifier ?? "")
+        }), let bundleURL = app.bundleURL else {
+            return nil
+        }
+
+        let cliURL = bundleURL.appendingPathComponent("Contents/Resources/bin/orca")
+        guard FileManager.default.isExecutableFile(atPath: cliURL.path) else { return nil }
+
+        let process = Process()
+        process.executableURL = cliURL
+        process.arguments = args
+        // Outside every managed worktree, `terminal show` resolves Orca's
+        // globally selected terminal. From inside a worktree it intentionally
+        // scopes itself to that worktree, which is not what Prompt Line needs.
+        process.currentDirectoryURL = URL(fileURLWithPath: "/", isDirectory: true)
+
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+
+        let finished = DispatchSemaphore(value: 0)
+        process.terminationHandler = { _ in finished.signal() }
+
+        do {
+            try process.run()
+            guard finished.wait(timeout: .now() + 0.5) == .success else {
+                process.terminate()
+                if finished.wait(timeout: .now() + 0.1) == .timedOut {
+                    kill(process.processIdentifier, SIGKILL)
+                    process.waitUntilExit()
+                }
+                return nil
+            }
+            guard process.terminationStatus == 0 else { return nil }
+            return pipe.fileHandleForReading.readDataToEndOfFile()
+        } catch {
+            return nil
+        }
     }
 
     private struct ProcessEntry {
