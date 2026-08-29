@@ -230,14 +230,19 @@ extension DirectoryDetector {
         return bundleId == "com.github.wez.wezterm"
     }
 
-    /// Check if bundle ID is a native terminal (Ghostty, Warp, WezTerm)
+    /// Check if bundle ID is Orca
+    static func isOrca(_ bundleId: String) -> Bool {
+        return bundleId == "com.stablyai.orca"
+    }
+
+    /// Check if bundle ID is a native terminal (Ghostty, Warp, WezTerm, Orca)
     /// These terminals use process tree detection for CWD
     static func isNativeTerminal(_ bundleId: String) -> Bool {
-        return isGhostty(bundleId) || isWarp(bundleId) || isWezTerm(bundleId)
+        return isGhostty(bundleId) || isWarp(bundleId) || isWezTerm(bundleId) || isOrca(bundleId)
     }
 
     /// Get CWD from native terminal using optimized process tree detection
-    /// Works for Ghostty, Warp, WezTerm, and other native terminals
+    /// Works for Ghostty, Warp, WezTerm, Orca, and other native terminals
     /// Uses the same fast approach as Electron IDE detection
     static func getNativeTerminalDirectory(appPid: pid_t) -> (directory: String?, shellPid: pid_t?) {
         // One `ps` call gathers pid/ppid/tty/comm for every process. We avoid
