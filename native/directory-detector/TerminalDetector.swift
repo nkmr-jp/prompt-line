@@ -244,7 +244,7 @@ extension DirectoryDetector {
     /// Get CWD from native terminal using optimized process tree detection
     /// Works for Ghostty, Warp, WezTerm, Orca, and other native terminals
     /// Uses the same fast approach as Electron IDE detection
-    static func getNativeTerminalDirectory(appPid: pid_t) -> (directory: String?, shellPid: pid_t?) {
+    static func getNativeTerminalDirectory(appPid: pid_t, within rootDirectory: String? = nil) -> (directory: String?, shellPid: pid_t?) {
         // One `ps` call gathers pid/ppid/tty/comm for every process. We avoid
         // `pgrep -f` because macOS pgrep silently drops long-running processes
         // whose KERN_PROCARGS2 has become unreadable — the focused login shell
@@ -276,6 +276,10 @@ extension DirectoryDetector {
         for entry in snapshot where isShellCommand(entry.comm) && !entry.tty.isEmpty {
             guard isDescendantOf(entry.pid, ancestorPid: appPid, parentMap: parentMap, maxDepth: 10) else { continue }
             guard let cwd = getCwdFromPid(entry.pid) else { continue }
+            if let root = rootDirectory,
+               cwd != root && !cwd.hasPrefix(root + "/") {
+                continue
+            }
             let mtime = mtimeForTty(entry.tty) ?? 0
             candidates.append(ShellCandidate(pid: entry.pid, cwd: cwd, ttyMtime: mtime))
         }
@@ -297,6 +301,69 @@ extension DirectoryDetector {
 
         let focused = candidates[0]
         return (preferClaudeCodeCwd(over: focused.cwd, shellPid: focused.pid), focused.pid)
+    }
+
+    /// Get CWD from Orca's selected terminal.
+    ///
+    /// Orca runs many agent terminals concurrently, so global tty mtime is a poor
+    /// focus signal: background agent output routinely makes an unrelated tty the
+    /// newest one. Its public CLI resolves the terminal selected in the UI and
+    /// reports its worktree. Restrict the process-tree candidates to that worktree,
+    /// then keep the existing detector for the shell's actual subdirectory.
+    static func getOrcaDirectory(appPid: pid_t) -> (directory: String?, shellPid: pid_t?, usedCli: Bool) {
+        guard let worktreePath = getOrcaSelectedWorktree(appPid: appPid) else {
+            let fallback = getNativeTerminalDirectory(appPid: appPid)
+            return (fallback.directory, fallback.shellPid, false)
+        }
+
+        let selected = getNativeTerminalDirectory(appPid: appPid, within: worktreePath)
+        return (selected.directory ?? worktreePath, selected.shellPid, true)
+    }
+
+    private static func getOrcaSelectedWorktree(appPid: pid_t) -> String? {
+        guard let data = runOrcaCli(appPid: appPid, args: ["terminal", "show", "--json"]),
+              let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let result = json["result"] as? [String: Any],
+              let terminal = result["terminal"] as? [String: Any],
+              let path = terminal["worktreePath"] as? String,
+              !path.isEmpty else {
+            return nil
+        }
+        return path
+    }
+
+    private static func runOrcaCli(appPid: pid_t, args: [String]) -> Data? {
+        guard let app = NSWorkspace.shared.runningApplications.first(where: {
+            $0.processIdentifier == appPid && isOrca($0.bundleIdentifier ?? "")
+        }), let bundleURL = app.bundleURL else {
+            return nil
+        }
+
+        let cliURL = bundleURL.appendingPathComponent("Contents/Resources/bin/orca")
+        guard FileManager.default.isExecutableFile(atPath: cliURL.path) else { return nil }
+
+        let process = Process()
+        process.executableURL = cliURL
+        process.arguments = args
+
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+
+        let finished = DispatchSemaphore(value: 0)
+        process.terminationHandler = { _ in finished.signal() }
+
+        do {
+            try process.run()
+            guard finished.wait(timeout: .now() + 0.5) == .success else {
+                process.terminate()
+                return nil
+            }
+            guard process.terminationStatus == 0 else { return nil }
+            return pipe.fileHandleForReading.readDataToEndOfFile()
+        } catch {
+            return nil
+        }
     }
 
     private struct ProcessEntry {

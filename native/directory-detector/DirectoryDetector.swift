@@ -217,6 +217,11 @@ class DirectoryDetector {
                 directory = result.directory
                 shellPid = result.shellPid
                 methodName = result.usedAx ? "ghostty-ax" : "ghostty-process"
+            } else if isOrca(bundleId) {
+                let result = getOrcaDirectory(appPid: appPid)
+                directory = result.directory
+                shellPid = result.shellPid
+                methodName = result.usedCli ? "orca-cli" : "orca-process"
             } else {
                 let result = getNativeTerminalDirectory(appPid: appPid)
                 directory = result.directory
