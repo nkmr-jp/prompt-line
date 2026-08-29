@@ -305,7 +305,14 @@ extension DirectoryDetector {
         }
 
         let focused = candidates[0]
-        return (preferClaudeCodeCwd(over: focused.cwd, shellPid: focused.pid), focused.pid)
+        let preferred = preferClaudeCodeCwd(over: focused.cwd, shellPid: focused.pid)
+        if let root = normalizedRoot {
+            let normalizedPreferred = URL(fileURLWithPath: preferred).standardizedFileURL.path
+            if normalizedPreferred != root && !normalizedPreferred.hasPrefix(root + "/") {
+                return (focused.cwd, focused.pid)
+            }
+        }
+        return (preferred, focused.pid)
     }
 
     /// Get CWD from Orca's selected terminal.
@@ -326,6 +333,13 @@ extension DirectoryDetector {
     }
 
     private static func getOrcaSelectedWorktree(appPid: pid_t) -> String? {
+        // `terminal show` resolves relative to the calling agent/session, not the
+        // worktree currently visible in Orca. Prompt Line is a separate process,
+        // so use Orca's persisted UI selection as the source of truth.
+        if let path = getOrcaActiveWorktreeFromState() {
+            return path
+        }
+
         guard let data = runOrcaCli(appPid: appPid, args: ["terminal", "show", "--json"]),
               let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               let result = json["result"] as? [String: Any],
@@ -335,6 +349,23 @@ extension DirectoryDetector {
             return nil
         }
         return path
+    }
+
+    private static func getOrcaActiveWorktreeFromState() -> String? {
+        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        for directory in ["orca", "Orca"] {
+            let stateURL = support
+                .appendingPathComponent(directory, isDirectory: true)
+                .appendingPathComponent("profiles/local-default/orca-data.json")
+            guard let data = try? Data(contentsOf: stateURL),
+                  let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+                  let session = json["workspaceSession"] as? [String: Any],
+                  let activeId = session["activeWorktreeId"] as? String,
+                  let separator = activeId.range(of: "::") else { continue }
+            let path = String(activeId[separator.upperBound...])
+            if path.hasPrefix("/") { return path }
+        }
+        return nil
     }
 
     private static func runOrcaCli(appPid: pid_t, args: [String]) -> Data? {
