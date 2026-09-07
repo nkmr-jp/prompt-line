@@ -64,8 +64,8 @@ These can be extended with plugins. See: [Plugin Guide](docs/en/plugins.md) | [p
 
 ### System Requirements
 
-- macOS 10.14 or later
-- Node.js 20 or later
+- macOS 12 (Monterey) or later
+- Node.js 20.19 or later
 - [pnpm](https://pnpm.io/installation)
 - Xcode Command Line Tools or Xcode (for compiling native tools)
 - [fd](https://github.com/sharkdp/fd) and [rg (ripgrep)](https://github.com/BurntSushi/ripgrep) (for file search and symbol search features)
