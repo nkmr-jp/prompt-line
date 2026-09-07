@@ -78,6 +78,12 @@ function item(payloads: Record<string, Buffer | Error>) {
   };
 }
 
+// The decoder is mocked, but the PNG signature check runs against these bytes.
+const png = (payload = 'png') => Buffer.concat([
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+  Buffer.from(payload)
+]);
+
 function image(empty: boolean, png = Buffer.from('encoded')) {
   return { isEmpty: () => empty, toPNG: () => png };
 }
@@ -111,18 +117,21 @@ describe('paste-image via the Electron 44 clipboard API', () => {
   });
 
   describe('image data on the pasteboard', () => {
-    it('decodes an image/png item, writes it 0600 and clears the pasteboard', async () => {
-      clipboardRead.mockResolvedValue([item({ 'image/png': Buffer.from('the-png') })]);
-      createFromBuffer.mockReturnValue(image(false, Buffer.from('encoded')));
+    it('preserves the original PNG bytes, writes them 0600 and clears the pasteboard', async () => {
+      const original = png('original color metadata');
+      const toPNG = vi.fn(() => Buffer.from('re-encoded without metadata'));
+      clipboardRead.mockResolvedValue([item({ 'image/png': original })]);
+      createFromBuffer.mockReturnValue({ isEmpty: () => false, toPNG });
 
       const result = await pasteImage();
 
       expect(result.success).toBe(true);
-      expect(Buffer.from(createFromBuffer.mock.calls[0]![0] as Buffer).toString()).toBe('the-png');
+      expect(createFromBuffer).toHaveBeenCalledWith(original);
+      expect(toPNG).not.toHaveBeenCalled();
 
       const [written, data, options] = writeFile.mock.calls[0] as unknown as [string, Buffer, { mode: number }];
       expect(written).toBe('/tmp/images/' + written.split('/').pop());
-      expect(data.toString()).toBe('encoded');
+      expect(data).toEqual(original);
       expect(options.mode).toBe(0o600);
       expect(result.path).toBe(written);
 
@@ -133,7 +142,7 @@ describe('paste-image via the Electron 44 clipboard API', () => {
     });
 
     it('returns a relative path when imagesDirectory is relative to the project', async () => {
-      clipboardRead.mockResolvedValue([item({ 'image/png': Buffer.from('png') })]);
+      clipboardRead.mockResolvedValue([item({ 'image/png': png() })]);
       createFromBuffer.mockReturnValue(image(false));
 
       const result = await pasteImage({ imagesDirectory: 'screenshots' });
@@ -147,7 +156,7 @@ describe('paste-image via the Electron 44 clipboard API', () => {
     // carry a trailing slash. Comparing a normalize()d dir against dirname()
     // would then reject every paste.
     it('accepts an imagesDirectory written with a trailing slash', async () => {
-      clipboardRead.mockResolvedValue([item({ 'image/png': Buffer.from('png') })]);
+      clipboardRead.mockResolvedValue([item({ 'image/png': png() })]);
       createFromBuffer.mockReturnValue(image(false));
 
       const result = await pasteImage({ imagesDirectory: 'screenshots/' });
@@ -217,7 +226,7 @@ describe('paste-image via the Electron 44 clipboard API', () => {
 
     it('falls back to the file URL when the png in the same item fails to decode', async () => {
       clipboardRead.mockResolvedValue([
-        item({ 'image/png': Buffer.from('broken'), 'text/uri-list': Buffer.from('file:///Users/me/a.png') })
+        item({ 'image/png': png('broken'), 'text/uri-list': Buffer.from('file:///Users/me/a.png') })
       ]);
       createFromBuffer.mockReturnValue(image(true));
       createFromPath.mockReturnValue(image(false));
@@ -228,6 +237,34 @@ describe('paste-image via the Electron 44 clipboard API', () => {
   });
 
   describe('failure handling', () => {
+    it('rejects non-PNG data even if the native decoder could accept it', async () => {
+      clipboardRead.mockResolvedValue([item({ 'image/png': Buffer.from('JPEG data') })]);
+      createFromBuffer.mockReturnValue(image(false));
+
+      await expect(pasteImage()).resolves.toMatchObject({ success: false, error: 'No image in clipboard' });
+      expect(createFromBuffer).not.toHaveBeenCalled();
+      expect(writeFile).not.toHaveBeenCalled();
+      expect(clipboardClear).not.toHaveBeenCalled();
+    });
+
+    it('rejects PNG-signature data that cannot be decoded', async () => {
+      clipboardRead.mockResolvedValue([item({ 'image/png': png('truncated') })]);
+      createFromBuffer.mockReturnValue(image(true));
+
+      await expect(pasteImage()).resolves.toMatchObject({ success: false, error: 'No image in clipboard' });
+      expect(writeFile).not.toHaveBeenCalled();
+      expect(clipboardClear).not.toHaveBeenCalled();
+    });
+
+    it('preserves the clipboard when saving the original PNG fails', async () => {
+      clipboardRead.mockResolvedValue([item({ 'image/png': png() })]);
+      createFromBuffer.mockReturnValue(image(false));
+      writeFile.mockRejectedValue(new Error('private filesystem detail'));
+
+      await expect(pasteImage()).resolves.toMatchObject({ success: false, error: 'Operation failed' });
+      expect(clipboardClear).not.toHaveBeenCalled();
+    });
+
     it('reports no image when the clipboard is empty', async () => {
       clipboardRead.mockResolvedValue([]);
 
@@ -255,7 +292,7 @@ describe('paste-image via the Electron 44 clipboard API', () => {
     it('keeps scanning after one item throws', async () => {
       clipboardRead.mockResolvedValue([
         item({ 'image/png': new Error("The type 'image/png' was not found in the ClipboardItem") }),
-        item({ 'image/png': Buffer.from('good') })
+        item({ 'image/png': png('good') })
       ]);
       createFromBuffer.mockReturnValue(image(false));
 

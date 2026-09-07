@@ -403,10 +403,13 @@ export class PromptLineRenderer {
                   mtimeMs: Date.now()
                 });
               }
+            } else if (!result.success && result.error !== 'No image in clipboard') {
+              this.domManager.showError('Image paste failed: ' + (result.error || 'Operation failed'));
             }
             // If no image, the default text paste behavior is preserved
           } catch (error) {
             rendererLogger.error('Error handling image paste:', error);
+            this.domManager.showError('Image paste failed: Operation failed');
           }
         }, 0);
         return;

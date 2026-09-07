@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 
 const isIsolatedInstance = vi.fn(() => false);
 
@@ -57,6 +57,7 @@ describe('PasteHandler in an isolated instance', () => {
     }).handlePasteText({}, text);
 
   beforeEach(() => {
+    vi.useFakeTimers();
     vi.clearAllMocks();
     // clearAllMocks does not drop implementations, so a test that makes the
     // clipboard write reject or hang would leak into the next one.
@@ -80,6 +81,10 @@ describe('PasteHandler in an isolated instance', () => {
     );
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   // Electron 44 made writeText async, and the window is hidden and Cmd+V fired
   // as soon as this resolves. Without the await the paste races the write, and
   // nothing else in the suite notices: every other test hands back a mock that
@@ -101,12 +106,15 @@ describe('PasteHandler in an isolated instance', () => {
     await Promise.resolve();
 
     expect(written).toEqual([]);
+    expect(clearDraft).not.toHaveBeenCalled();
     expect(hideInputWindow).not.toHaveBeenCalled();
 
     releaseWrite();
     await pasted;
 
     expect(written).toEqual(['hello']);
+    expect(clearDraft).toHaveBeenCalledOnce();
+    expect(vi.getTimerCount()).toBe(0);
     expect(hideInputWindow).toHaveBeenCalled();
   });
 
@@ -117,12 +125,44 @@ describe('PasteHandler in an isolated instance', () => {
 
     await expect(paste('hello')).resolves.toEqual({ success: false, error: 'failed' });
     expect(activateAndPasteWithNativeTool).not.toHaveBeenCalled();
+    expect(hideInputWindow).not.toHaveBeenCalled();
+    expect(clearDraft).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
   });
+
+  it.each(['pending', 'resolve', 'reject'] as const)(
+    'times out and retains the draft when the write is late (%s)', async completion => {
+      let resolveWrite!: () => void;
+      let rejectWrite!: (error: Error) => void;
+      (clipboard.writeText as unknown as Mock).mockImplementation(() => new Promise<void>((resolve, reject) => {
+        resolveWrite = resolve;
+        rejectWrite = reject;
+      }));
+
+      const pasted = paste('hello');
+      await vi.advanceTimersByTimeAsync(1999);
+      expect(hideInputWindow).not.toHaveBeenCalled();
+      expect(clearDraft).not.toHaveBeenCalled();
+      expect(vi.getTimerCount()).toBe(1);
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(pasted).resolves.toEqual({ success: false, error: 'failed' });
+      expect(vi.getTimerCount()).toBe(0);
+
+      if (completion === 'resolve') resolveWrite();
+      if (completion === 'reject') rejectWrite(new Error('late failure'));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(clearDraft).not.toHaveBeenCalled();
+      expect(hideInputWindow).not.toHaveBeenCalled();
+      expect(activateAndPasteWithNativeTool).not.toHaveBeenCalled();
+      expect(pasteWithNativeTool).not.toHaveBeenCalled();
+    }
+  );
 
   it('writes the clipboard and pastes natively when not isolated', async () => {
     const result = await paste('hello');
 
     expect(result).toEqual({ success: true });
+    expect(vi.getTimerCount()).toBe(0);
     expect(clipboard.writeText).toHaveBeenCalledWith('hello');
     expect(activateAndPasteWithNativeTool).toHaveBeenCalledWith(previousApp);
   });

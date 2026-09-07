@@ -1,5 +1,5 @@
 import { ipcMain, clipboard, nativeImage, IpcMainInvokeEvent, dialog } from 'electron';
-import type { NativeImage, ClipboardItem } from 'electron';
+import type { ClipboardItem } from 'electron';
 import { fileURLToPath } from 'url';
 import { promises as fs } from 'fs';
 import { execFile } from 'child_process';
@@ -28,6 +28,8 @@ interface PasteResult {
 
 // Constants
 const MAX_PASTE_TEXT_LENGTH_BYTES = 1024 * 1024; // 1MB limit for paste text
+const CLIPBOARD_WRITE_TIMEOUT_MS = 2000;
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 // Image paths trigger a Claude Code paste bug on cmux/Ghostty/WezTerm (not
 // reproducible on iTerm2): a paste containing an image path converts that
@@ -225,10 +227,11 @@ class PasteHandler {
           const itermSessionId = isITerm2(previousApp) ? await getITermSessionId() : undefined;
           await this.historyManager.addToHistory(text, appName, directory, itermSessionId);
         })(),
-        this.draftManager.clearDraft(),
         this.setClipboardAsync(clipboardText),
       ]);
 
+      // Preserve the saved draft if writing the clipboard fails or times out.
+      await this.draftManager.clearDraft();
       await this.windowManager.hideInputWindow();
       await sleep(Math.max(config.timing.windowHideDelay, 5));
 
@@ -320,7 +323,7 @@ class PasteHandler {
   }
 
   /**
-   * Read the clipboard image as a NativeImage.
+   * Read the clipboard image as PNG bytes, preserving image-data metadata.
    *
    * Electron 44 replaced the synchronous clipboard with the W3C-modelled API,
    * so `clipboard.readImage()` is gone. Two pasteboard shapes carry an image
@@ -336,19 +339,19 @@ class PasteHandler {
    *   image — so the file URL has to be followed here to keep Finder paste
    *   working.
    */
-  private async readClipboardImage(): Promise<NativeImage | null> {
+  private async readClipboardImage(): Promise<Buffer | null> {
     const items = await clipboard.read();
     logger.debug('Clipboard items read', { types: items.map(item => item.types) });
 
     for (const item of items) {
-      const image = await this.decodeClipboardItem(item);
-      if (image) return image;
+      const buffer = await this.readClipboardItem(item);
+      if (buffer) return buffer;
     }
     return null;
   }
 
-  /** Decode one clipboard entry, preferring image data over a file reference. */
-  private async decodeClipboardItem(item: ClipboardItem): Promise<NativeImage | null> {
+  /** Read one clipboard entry, preferring image data over a file reference. */
+  private async readClipboardItem(item: ClipboardItem): Promise<Buffer | null> {
     try {
       if (item.types.includes('image/png')) {
         const blob = (await item.getType('image/png')) as Blob;
@@ -359,8 +362,12 @@ class PasteHandler {
         if (buffer.length === 0) {
           logger.warn('Clipboard advertised image/png but returned no bytes; the pasteboard changed mid-read');
         } else {
-          const image = nativeImage.createFromBuffer(buffer);
-          if (!image.isEmpty()) return image;
+          // Decode only to validate: re-encoding drops PNG color metadata and
+          // blocks the main process. Keep the original bytes, and do not retain
+          // the decoded bitmap across the filesystem awaits below. The signature
+          // also rejects JPEG data mislabeled as PNG (createFromBuffer accepts it).
+          if (buffer.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE) &&
+              !nativeImage.createFromBuffer(buffer).isEmpty()) return buffer;
           logger.warn('Clipboard image/png could not be decoded', { bytes: buffer.length });
         }
       }
@@ -376,7 +383,7 @@ class PasteHandler {
   }
 
   /** Follow a `text/uri-list` file URL, as readImage() did before Electron 44. */
-  private async readImageFromFileUrl(item: ClipboardItem): Promise<NativeImage | null> {
+  private async readImageFromFileUrl(item: ClipboardItem): Promise<Buffer | null> {
     const blob = (await item.getType('text/uri-list')) as Blob;
     const uri = Buffer.from(await blob.arrayBuffer())
       .toString('utf8')
@@ -399,7 +406,9 @@ class PasteHandler {
       logger.debug('Clipboard file URL does not point at an image', { filePath });
       return null;
     }
-    return image;
+    // File URLs may point at JPEGs or other supported formats. Convert these
+    // to match the generated .png filename, preserving the existing behavior.
+    return image.toPNG();
   }
 
   private async handlePasteImage(_event: IpcMainInvokeEvent): Promise<{ success: boolean; error?: string; path?: string; relativePath?: string }> {
@@ -413,8 +422,8 @@ class PasteHandler {
     try {
       logger.info('Paste image requested');
 
-      const image = await this.readClipboardImage();
-      if (!image) {
+      const buffer = await this.readClipboardImage();
+      if (!buffer) {
         return { success: false, error: 'No image in clipboard' };
       }
 
@@ -431,7 +440,6 @@ class PasteHandler {
         return { success: false, error: pathValidation.error || 'Invalid file path' };
       }
 
-      const buffer = image.toPNG();
       await fs.writeFile(pathValidation.normalizedPath, buffer, { mode: 0o600 });
       // Use clear() not writeText('') — writeText only replaces the text type,
       // leaving image formats (TIFF/PNG/AVIF…) on NSPasteboard. Stale image
@@ -469,7 +477,18 @@ class PasteHandler {
     // and fires Cmd+V immediately after this resolves, so reporting success on
     // a failed write would paste nothing while telling the user it worked; the
     // Promise.all in handlePasteText turns a throw into OPERATION_FAILED.
-    await clipboard.writeText(text);
+    // This bounds an unresolved Promise, not a synchronous main-thread block.
+    // Electron exposes no cancellation: a late write may still update the
+    // clipboard, but must never resume the failed paste operation.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const timeout = new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error('Clipboard write timed out')), CLIPBOARD_WRITE_TIMEOUT_MS);
+      });
+      await Promise.race([clipboard.writeText(text), timeout]);
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   private async getPreviousAppAsync(): Promise<AppInfo | string | null> {

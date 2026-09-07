@@ -386,23 +386,55 @@ describe('PromptLineRenderer (Refactored)', () => {
             expect((renderer as any).draftManager.saveDraftDebounced).toHaveBeenCalled();
         });
 
-        test('should not prevent default when no image', async () => {
-            mockIpcRenderer.invoke.mockImplementation((channel: string) => {
-                if (channel === 'paste-image') {
-                    return Promise.resolve({ success: false });
-                }
-                return Promise.resolve({});
-            });
-
-            const event = new KeyboardEvent('keydown', {
-                key: 'v',
-                metaKey: true
-            });
+        test.each([
+            ['No image in clipboard', undefined],
+            ['Operation failed', 'Image paste failed: Operation failed'],
+            ['Invalid file path', 'Image paste failed: Invalid file path'],
+            [undefined, 'Image paste failed: Operation failed']
+        ])('should preserve text and handle image failure %s', async (error, message) => {
+            mockIpcRenderer.invoke.mockImplementation((channel: string) =>
+                Promise.resolve(channel === 'paste-image' ? { success: false, error } : {})
+            );
+            const domManager = (renderer as any).domManager;
+            domManager.textarea.value = 'text already pasted';
+            const event = new KeyboardEvent('keydown', { key: 'v', metaKey: true });
             event.preventDefault = vi.fn();
 
             await (renderer as any).handleKeyDown(event);
+            await new Promise(resolve => setTimeout(resolve, 10));
 
             expect(event.preventDefault).not.toHaveBeenCalled();
+            expect(domManager.textarea.value).toBe('text already pasted');
+            expect(domManager.setText).not.toHaveBeenCalled();
+            expect(domManager.insertTextAtCursor).not.toHaveBeenCalled();
+            if (message) {
+                expect(domManager.showError).toHaveBeenCalledExactlyOnceWith(message);
+            } else {
+                expect(domManager.showError).not.toHaveBeenCalled();
+            }
+        });
+
+        test('should report rejected image IPC without exposing exception details', async () => {
+            const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+            mockIpcRenderer.invoke.mockImplementation((channel: string) =>
+                channel === 'paste-image'
+                    ? Promise.reject(new Error('Cannot write /private/secret/image.png'))
+                    : Promise.resolve({})
+            );
+            const domManager = (renderer as any).domManager;
+            domManager.textarea.value = 'text already pasted';
+            const event = new KeyboardEvent('keydown', { key: 'v', ctrlKey: true });
+            event.preventDefault = vi.fn();
+
+            await (renderer as any).handleKeyDown(event);
+            await new Promise(resolve => setTimeout(resolve, 10));
+
+            expect(domManager.showError).toHaveBeenCalledExactlyOnceWith('Image paste failed: Operation failed');
+            expect(domManager.textarea.value).toBe('text already pasted');
+            expect(domManager.setText).not.toHaveBeenCalled();
+            expect(domManager.insertTextAtCursor).not.toHaveBeenCalled();
+            expect(event.preventDefault).not.toHaveBeenCalled();
+            consoleSpy.mockRestore();
         });
     });
 
