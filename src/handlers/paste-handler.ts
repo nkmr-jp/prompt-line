@@ -28,6 +28,7 @@ interface PasteResult {
 
 // Constants
 const MAX_PASTE_TEXT_LENGTH_BYTES = 1024 * 1024; // 1MB limit for paste text
+const CLIPBOARD_WRITE_TIMEOUT_MS = 2000;
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 // Image paths trigger a Claude Code paste bug on cmux/Ghostty/WezTerm (not
@@ -226,10 +227,11 @@ class PasteHandler {
           const itermSessionId = isITerm2(previousApp) ? await getITermSessionId() : undefined;
           await this.historyManager.addToHistory(text, appName, directory, itermSessionId);
         })(),
-        this.draftManager.clearDraft(),
         this.setClipboardAsync(clipboardText),
       ]);
 
+      // Preserve the saved draft if writing the clipboard fails or times out.
+      await this.draftManager.clearDraft();
       await this.windowManager.hideInputWindow();
       await sleep(Math.max(config.timing.windowHideDelay, 5));
 
@@ -475,7 +477,18 @@ class PasteHandler {
     // and fires Cmd+V immediately after this resolves, so reporting success on
     // a failed write would paste nothing while telling the user it worked; the
     // Promise.all in handlePasteText turns a throw into OPERATION_FAILED.
-    await clipboard.writeText(text);
+    // This bounds an unresolved Promise, not a synchronous main-thread block.
+    // Electron exposes no cancellation: a late write may still update the
+    // clipboard, but must never resume the failed paste operation.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const timeout = new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error('Clipboard write timed out')), CLIPBOARD_WRITE_TIMEOUT_MS);
+      });
+      await Promise.race([clipboard.writeText(text), timeout]);
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   private async getPreviousAppAsync(): Promise<AppInfo | string | null> {

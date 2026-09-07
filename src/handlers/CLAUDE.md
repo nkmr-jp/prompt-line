@@ -40,3 +40,7 @@ Central communication bridge between main and renderer processes. 9 specialized 
 ### Clipboard image storage
 - Image-data clipboard items are validated as decodable PNGs and saved byte-for-byte, preserving embedded color metadata without PNG re-encoding.
 - Finder file URLs still use NativeImage conversion to PNG because the source file may be JPEG or another supported format.
+
+### Clipboard write failures
+- Text paste waits up to 2 seconds for the Electron clipboard write. Rejection or timeout returns the existing secure failure response and keeps the window and saved draft available.
+- The timeout does not cancel Electron's write or interrupt synchronous main-thread work. A late completion can still update the clipboard, but cannot resume hiding the window or native paste.
