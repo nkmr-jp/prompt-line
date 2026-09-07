@@ -36,3 +36,7 @@ Central communication bridge between main and renderer processes. 9 specialized 
 - Subscribes to `plugins-changed` event from PluginManager
 - Subscribes to `source-changed` event from CustomSearchLoader (JSONL/individual file changes)
 - Both events invalidate cache and notify renderer via `custom-search-updated` push channel
+
+### Clipboard image storage
+- Image-data clipboard items are validated as decodable PNGs and saved byte-for-byte, preserving embedded color metadata without PNG re-encoding.
+- Finder file URLs still use NativeImage conversion to PNG because the source file may be JPEG or another supported format.
