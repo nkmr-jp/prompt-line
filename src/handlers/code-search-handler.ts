@@ -278,8 +278,8 @@ class CodeSearchHandler {
           const bName = b.nameLower ?? b.name.toLowerCase();
 
           // Calculate match scores based on first keyword
-          let aMatchScore = 0;
-          let bMatchScore = 0;
+          let aMatchScore: number;
+          let bMatchScore: number;
 
           if (aName === primaryKeyword) aMatchScore = 1000;
           else if (aName.startsWith(primaryKeyword)) aMatchScore = 500;
