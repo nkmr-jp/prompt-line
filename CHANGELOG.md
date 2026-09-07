@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.40.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.40.0...prompt-line-v0.40.1) (2026-09-07)
+
+
+### Miscellaneous Chores
+
+* **deps:** resolve Dependabot security alerts ([#425](https://github.com/nkmr-jp/prompt-line/issues/425)) ([17b44d9](https://github.com/nkmr-jp/prompt-line/commit/17b44d9e0289516b2b6971e816e65dad5a3d0f30))
+* **deps:** upgrade electron to 43.x ([#428](https://github.com/nkmr-jp/prompt-line/issues/428)) ([958b0ea](https://github.com/nkmr-jp/prompt-line/commit/958b0eaac892abc4fdefb7e3bd03a4ed6c23165f))
+* **deps:** upgrade electron to 44.x and migrate the clipboard API ([#429](https://github.com/nkmr-jp/prompt-line/issues/429)) ([029774e](https://github.com/nkmr-jp/prompt-line/commit/029774e0b869e939925206b21f2944653e11ff78))
+* **deps:** upgrade eslint to 10.x ([#426](https://github.com/nkmr-jp/prompt-line/issues/426)) ([d478707](https://github.com/nkmr-jp/prompt-line/commit/d4787079d545aa40596f0d0bc0274094468141a7))
+
 ## [0.40.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.39.1...prompt-line-v0.40.0) (2026-08-29)
 
 
