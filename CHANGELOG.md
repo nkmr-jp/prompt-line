@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.40.2](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.40.1...prompt-line-v0.40.2) (2026-09-07)
+
+
+### Bug Fixes
+
+* **paste:** preserve PNG metadata and handle clipboard failures ([#430](https://github.com/nkmr-jp/prompt-line/issues/430)) ([5b55ef3](https://github.com/nkmr-jp/prompt-line/commit/5b55ef3694ecd91a9826ade400414ad7d8d241f6))
+
 ## [0.40.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.40.0...prompt-line-v0.40.1) (2026-09-07)
 
 
