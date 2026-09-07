@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 
 const isIsolatedInstance = vi.fn(() => false);
 
@@ -58,6 +58,9 @@ describe('PasteHandler in an isolated instance', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // clearAllMocks does not drop implementations, so a test that makes the
+    // clipboard write reject or hang would leak into the next one.
+    (clipboard.writeText as unknown as Mock).mockImplementation(async () => {});
     isIsolatedInstance.mockReturnValue(false);
 
     hideInputWindow = vi.fn(() => Promise.resolve());
@@ -75,6 +78,45 @@ describe('PasteHandler in an isolated instance', () => {
       { getDirectory: vi.fn(() => '/tmp') } as never,
       { getSettings: vi.fn(() => ({})) } as never
     );
+  });
+
+  // Electron 44 made writeText async, and the window is hidden and Cmd+V fired
+  // as soon as this resolves. Without the await the paste races the write, and
+  // nothing else in the suite notices: every other test hands back a mock that
+  // resolves in the same microtask, so awaited and un-awaited look identical.
+  it('waits for the clipboard write to finish before hiding the window', async () => {
+    let releaseWrite: () => void = () => {};
+    const written: string[] = [];
+    (clipboard.writeText as unknown as Mock).mockImplementation(
+      (value: string) =>
+        new Promise<void>(resolve => {
+          releaseWrite = () => {
+            written.push(value);
+            resolve();
+          };
+        })
+    );
+
+    const pasted = paste('hello');
+    await Promise.resolve();
+
+    expect(written).toEqual([]);
+    expect(hideInputWindow).not.toHaveBeenCalled();
+
+    releaseWrite();
+    await pasted;
+
+    expect(written).toEqual(['hello']);
+    expect(hideInputWindow).toHaveBeenCalled();
+  });
+
+  // A failed write leaves the pasteboard holding whatever it held before, so
+  // reporting success here would fire Cmd+V and paste the wrong thing.
+  it('reports failure when the clipboard write rejects', async () => {
+    (clipboard.writeText as unknown as Mock).mockRejectedValue(new Error('pasteboard busy'));
+
+    await expect(paste('hello')).resolves.toEqual({ success: false, error: 'failed' });
+    expect(activateAndPasteWithNativeTool).not.toHaveBeenCalled();
   });
 
   it('writes the clipboard and pastes natively when not isolated', async () => {

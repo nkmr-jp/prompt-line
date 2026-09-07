@@ -60,8 +60,8 @@ Enterを押しても勝手に送信されないので、改行する場合も気
 
 ### システム要件
 
-- macOS 10.14以降
-- Node.js 20以上
+- macOS 13 (Ventura) 以降
+- Node.js 22.12以上
 - [pnpm](https://pnpm.io/installation)
 - Xcodeコマンドラインツール または Xcode（ネイティブツールのコンパイル用）
 - [fd](https://github.com/sharkdp/fd) と [rg(ripgrep)](https://github.com/BurntSushi/ripgrep)（ファイル検索・シンボル検索機能で使用）
