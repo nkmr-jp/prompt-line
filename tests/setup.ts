@@ -76,10 +76,16 @@ vi.mock('electron', () => ({
         eventNames: vi.fn(() => [])
     },
     clipboard: {
-        writeText: vi.fn(),
-        readText: vi.fn(() => ''),
+        // Electron 44's W3C-modelled clipboard: writeText/read are async and
+        // read() returns ClipboardItem-likes rather than a NativeImage.
+        writeText: vi.fn(async () => {}),
+        readText: vi.fn(async () => ''),
         clear: vi.fn(),
-        readImage: vi.fn(() => ({ isEmpty: () => true, toPNG: () => Buffer.alloc(0) }))
+        read: vi.fn(async () => [])
+    },
+    nativeImage: {
+        createFromBuffer: vi.fn(() => ({ isEmpty: () => true, toPNG: () => Buffer.alloc(0) })),
+        createEmpty: vi.fn(() => ({ isEmpty: () => true, toPNG: () => Buffer.alloc(0) }))
     }
 }));
 
@@ -112,22 +118,16 @@ vi.mock('fs/promises', () => ({
 }));
 
 // Mock path module
-vi.mock('path', () => {
-    const pathMock = {
-        join: vi.fn((...parts: string[]) => parts.join('/')),
-        dirname: vi.fn((filePath: string) => filePath.split('/').slice(0, -1).join('/')),
-        basename: vi.fn((filePath: string) => filePath.split('/').pop()),
-        resolve: vi.fn((...parts: string[]) => {
-            // Minimal POSIX-ish resolve: return the last absolute segment, or join from /.
-            for (let i = parts.length - 1; i >= 0; i--) {
-                if (parts[i]!.startsWith('/')) {
-                    return parts.slice(i).join('/');
-                }
-            }
-            return '/' + parts.join('/');
-        })
-    };
-    return { ...pathMock, default: pathMock };
+// Use the real POSIX path implementation rather than a hand-rolled stand-in.
+// The previous fake diverged from Node on trailing slashes and on ".."
+// climbing past the root, which is exactly the shape of input the image-path
+// traversal guard exists to reject — so a fake made that guard untestable and
+// hid a real bug. The same idiom is already used in file-searcher.test.ts and
+// plugin-loader.test.ts. posix (not the platform default) keeps these tests
+// deterministic.
+vi.mock('path', async () => {
+    const actual = await vi.importActual<typeof import('path')>('path');
+    return { ...actual.posix, default: actual.posix };
 });
 
 // Set up test environment variables

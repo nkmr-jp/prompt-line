@@ -1,4 +1,6 @@
-import { ipcMain, clipboard, IpcMainInvokeEvent, dialog } from 'electron';
+import { ipcMain, clipboard, nativeImage, IpcMainInvokeEvent, dialog } from 'electron';
+import type { NativeImage, ClipboardItem } from 'electron';
+import { fileURLToPath } from 'url';
 import { promises as fs } from 'fs';
 import { execFile } from 'child_process';
 import path from 'path';
@@ -272,15 +274,19 @@ class PasteHandler {
       return { valid: false, error: 'Invalid filename' };
     }
 
+    // resolve() rather than normalize(): imagesDirectory is passed through
+    // from user settings verbatim, so it may carry a trailing slash, which
+    // normalize() keeps. That would leave expectedDir as "/dir/" against a
+    // dirname() of "/dir" and reject every single image paste.
     const filepath = path.join(imagesDir, filename);
-    const normalizedPath = path.normalize(filepath);
+    const expectedDir = path.resolve(imagesDir);
+    const normalizedPath = path.resolve(imagesDir, filename);
 
-    if (!normalizedPath.startsWith(path.normalize(imagesDir))) {
+    if (!normalizedPath.startsWith(expectedDir)) {
       logger.error('Attempted path traversal detected', { filepath, normalizedPath, source: 'handlePasteImage' });
       return { valid: false, error: 'Invalid file path' };
     }
 
-    const expectedDir = path.normalize(imagesDir);
     const actualDir = path.dirname(normalizedPath);
     if (actualDir !== expectedDir) {
       logger.error('Unexpected directory in path', { expected: expectedDir, actual: actualDir });
@@ -313,12 +319,102 @@ class PasteHandler {
     return { absolute: config.paths.imagesDir };
   }
 
+  /**
+   * Read the clipboard image as a NativeImage.
+   *
+   * Electron 44 replaced the synchronous clipboard with the W3C-modelled API,
+   * so `clipboard.readImage()` is gone. Two pasteboard shapes carry an image
+   * and only the first is obvious:
+   *
+   * - Image *data*. macOS surfaces `image/png` whatever the source actually
+   *   wrote — measured against a PNG entry, a TIFF-only entry and a
+   *   `screencapture -c` screenshot, all decodable as PNG.
+   * - An image copied as a *file*, i.e. Cmd+C in Finder. The pasteboard then
+   *   carries `text/uri-list` and **no `image/png` at all** (measured:
+   *   `clipboard.has('image/png')` is false). `readImage()` used to resolve
+   *   that file itself — on Electron 43 the same pasteboard yields a 64x64
+   *   image — so the file URL has to be followed here to keep Finder paste
+   *   working.
+   */
+  private async readClipboardImage(): Promise<NativeImage | null> {
+    const items = await clipboard.read();
+    logger.debug('Clipboard items read', { types: items.map(item => item.types) });
+
+    for (const item of items) {
+      const image = await this.decodeClipboardItem(item);
+      if (image) return image;
+    }
+    return null;
+  }
+
+  /** Decode one clipboard entry, preferring image data over a file reference. */
+  private async decodeClipboardItem(item: ClipboardItem): Promise<NativeImage | null> {
+    try {
+      if (item.types.includes('image/png')) {
+        const blob = (await item.getType('image/png')) as Blob;
+        const buffer = Buffer.from(await blob.arrayBuffer());
+        // `types` is a snapshot but getType() reads the *live* pasteboard. If
+        // it changed in between, this resolves with an empty blob rather than
+        // rejecting, so an empty buffer means a lost race, not a bad image.
+        if (buffer.length === 0) {
+          logger.warn('Clipboard advertised image/png but returned no bytes; the pasteboard changed mid-read');
+        } else {
+          const image = nativeImage.createFromBuffer(buffer);
+          if (!image.isEmpty()) return image;
+          logger.warn('Clipboard image/png could not be decoded', { bytes: buffer.length });
+        }
+      }
+
+      if (item.types.includes('text/uri-list')) {
+        return await this.readImageFromFileUrl(item);
+      }
+    } catch (error) {
+      // One unreadable entry must not abort the scan of the rest.
+      logger.warn('Failed to read a clipboard item:', error);
+    }
+    return null;
+  }
+
+  /** Follow a `text/uri-list` file URL, as readImage() did before Electron 44. */
+  private async readImageFromFileUrl(item: ClipboardItem): Promise<NativeImage | null> {
+    const blob = (await item.getType('text/uri-list')) as Blob;
+    const uri = Buffer.from(await blob.arrayBuffer())
+      .toString('utf8')
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .find(line => line.length > 0 && !line.startsWith('#'));
+
+    if (!uri || !uri.startsWith('file://')) return null;
+
+    let filePath: string;
+    try {
+      filePath = fileURLToPath(uri);
+    } catch (error) {
+      logger.warn('Clipboard file URL could not be parsed:', error);
+      return null;
+    }
+
+    const image = nativeImage.createFromPath(filePath);
+    if (image.isEmpty()) {
+      logger.debug('Clipboard file URL does not point at an image', { filePath });
+      return null;
+    }
+    return image;
+  }
+
   private async handlePasteImage(_event: IpcMainInvokeEvent): Promise<{ success: boolean; error?: string; path?: string; relativePath?: string }> {
+    // Reading the pasteboard is harmless, but the clear() below is not: an
+    // isolated verification instance would wipe whatever the user has copied.
+    if (isIsolatedInstance()) {
+      logger.info('Isolated instance: skipping clipboard image read');
+      return { success: false, error: 'No image in clipboard' };
+    }
+
     try {
       logger.info('Paste image requested');
 
-      const image = clipboard.readImage();
-      if (image.isEmpty()) {
+      const image = await this.readClipboardImage();
+      if (!image) {
         return { success: false, error: 'No image in clipboard' };
       }
 
@@ -348,8 +444,10 @@ class PasteHandler {
       if (relativePrefix) result.relativePath = path.join(relativePrefix, filename);
       return result;
     } catch (error) {
+      // Internal messages must not cross the IPC boundary, as handlePasteText
+      // already ensures for the same class of failure.
       logger.error('Failed to handle paste image:', error);
-      return { success: false, error: (error as Error).message };
+      return { success: false, error: SecureErrors.OPERATION_FAILED };
     }
   }
 
@@ -360,20 +458,18 @@ class PasteHandler {
       return;
     }
 
-    return new Promise((resolve) => {
-      try {
-        // Clear all pasteboard types before writing text. clipboard.writeText
-        // alone may leave image formats from a prior copy on NSPasteboard,
-        // which can cause Cmd+V or paste_from_clipboard to deliver stale
-        // image data to the target terminal instead of the prompt text.
-        clipboard.clear();
-        clipboard.writeText(text);
-        resolve();
-      } catch (error) {
-        logger.warn('Clipboard write failed:', error);
-        resolve();
-      }
-    });
+    // No clear() first: Electron 44's writeText replaces the whole pasteboard
+    // atomically (measured — an image/png entry is gone afterwards and
+    // has('image/png') is false), so the stale-image problem the old sync API
+    // had is solved by the write itself. Clearing separately would only mean
+    // that a failed write leaves the user with an empty clipboard instead of
+    // what they had before.
+    //
+    // The rejection is deliberately not swallowed. The caller hides the window
+    // and fires Cmd+V immediately after this resolves, so reporting success on
+    // a failed write would paste nothing while telling the user it worked; the
+    // Promise.all in handlePasteText turns a throw into OPERATION_FAILED.
+    await clipboard.writeText(text);
   }
 
   private async getPreviousAppAsync(): Promise<AppInfo | string | null> {
