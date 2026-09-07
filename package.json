@@ -46,10 +46,10 @@
   "author": "nkmr-jp",
   "license": "MIT",
   "engines": {
-    "node": ">=20.8.1"
+    "node": ">=20.19.0"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.5",
+    "@eslint/js": "^10.0.1",
     "@stryker-mutator/core": "^9.6.1",
     "@stryker-mutator/vitest-runner": "^9.6.1",
     "@types/js-yaml": "^4.0.9",
@@ -60,7 +60,7 @@
     "@vitest/eslint-plugin": "^1.6.27",
     "electron": "^39.8.10",
     "electron-builder": "26.15.3",
-    "eslint": "^9.39.5",
+    "eslint": "^10.10.0",
     "globals": "^16.5.0",
     "husky": "^9.1.7",
     "jscpd": "^4.3.0",
