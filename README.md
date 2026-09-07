@@ -64,7 +64,7 @@ These can be extended with plugins. See: [Plugin Guide](docs/en/plugins.md) | [p
 
 ### System Requirements
 
-- macOS 12 (Monterey) or later
+- macOS 13 (Ventura) or later
 - Node.js 20.19 or later
 - [pnpm](https://pnpm.io/installation)
 - Xcode Command Line Tools or Xcode (for compiling native tools)

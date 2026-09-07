@@ -1,4 +1,5 @@
-import { ipcMain, clipboard, IpcMainInvokeEvent, dialog } from 'electron';
+import { ipcMain, clipboard, nativeImage, IpcMainInvokeEvent, dialog } from 'electron';
+import type { NativeImage } from 'electron';
 import { promises as fs } from 'fs';
 import { execFile } from 'child_process';
 import path from 'path';
@@ -313,12 +314,32 @@ class PasteHandler {
     return { absolute: config.paths.imagesDir };
   }
 
+  /**
+   * Read the clipboard image as a NativeImage.
+   *
+   * Electron 44 replaced the synchronous clipboard with the W3C-modelled API,
+   * so `clipboard.readImage()` is gone. macOS surfaces `image/png` for a
+   * pasteboard image regardless of the format the source actually wrote —
+   * verified against a PNG entry, a TIFF-only entry and a `screencapture -c`
+   * screenshot, all of which came back decodable as PNG.
+   */
+  private async readClipboardImage(): Promise<NativeImage | null> {
+    const items = await clipboard.read();
+    for (const item of items) {
+      if (!item.types.includes('image/png')) continue;
+      const blob = (await item.getType('image/png')) as Blob;
+      const image = nativeImage.createFromBuffer(Buffer.from(await blob.arrayBuffer()));
+      if (!image.isEmpty()) return image;
+    }
+    return null;
+  }
+
   private async handlePasteImage(_event: IpcMainInvokeEvent): Promise<{ success: boolean; error?: string; path?: string; relativePath?: string }> {
     try {
       logger.info('Paste image requested');
 
-      const image = clipboard.readImage();
-      if (image.isEmpty()) {
+      const image = await this.readClipboardImage();
+      if (!image) {
         return { success: false, error: 'No image in clipboard' };
       }
 
@@ -360,20 +381,19 @@ class PasteHandler {
       return;
     }
 
-    return new Promise((resolve) => {
-      try {
-        // Clear all pasteboard types before writing text. clipboard.writeText
-        // alone may leave image formats from a prior copy on NSPasteboard,
-        // which can cause Cmd+V or paste_from_clipboard to deliver stale
-        // image data to the target terminal instead of the prompt text.
-        clipboard.clear();
-        clipboard.writeText(text);
-        resolve();
-      } catch (error) {
-        logger.warn('Clipboard write failed:', error);
-        resolve();
-      }
-    });
+    try {
+      // Clear all pasteboard types before writing text. clipboard.writeText
+      // alone may leave image formats from a prior copy on NSPasteboard,
+      // which can cause Cmd+V or paste_from_clipboard to deliver stale
+      // image data to the target terminal instead of the prompt text.
+      clipboard.clear();
+      // Electron 44 made writeText async. Awaiting it matters here: the caller
+      // hides the window and fires Cmd+V straight after, so returning early
+      // would race the paste against the clipboard write.
+      await clipboard.writeText(text);
+    } catch (error) {
+      logger.warn('Clipboard write failed:', error);
+    }
   }
 
   private async getPreviousAppAsync(): Promise<AppInfo | string | null> {

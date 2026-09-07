@@ -2,7 +2,8 @@ import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('electron', () => ({
   ipcMain: { handle: vi.fn(), removeAllListeners: vi.fn() },
-  clipboard: { writeText: vi.fn(), readImage: vi.fn(), clear: vi.fn() },
+  clipboard: { writeText: vi.fn(async () => {}), read: vi.fn(async () => []), clear: vi.fn() },
+  nativeImage: { createFromBuffer: vi.fn() },
   dialog: { showMessageBox: vi.fn() },
   app: { getApplicationInfoForProtocol: vi.fn(), getAppPath: vi.fn(() => '') }
 }));

@@ -76,10 +76,16 @@ vi.mock('electron', () => ({
         eventNames: vi.fn(() => [])
     },
     clipboard: {
-        writeText: vi.fn(),
-        readText: vi.fn(() => ''),
+        // Electron 44's W3C-modelled clipboard: writeText/read are async and
+        // read() returns ClipboardItem-likes rather than a NativeImage.
+        writeText: vi.fn(async () => {}),
+        readText: vi.fn(async () => ''),
         clear: vi.fn(),
-        readImage: vi.fn(() => ({ isEmpty: () => true, toPNG: () => Buffer.alloc(0) }))
+        read: vi.fn(async () => [])
+    },
+    nativeImage: {
+        createFromBuffer: vi.fn(() => ({ isEmpty: () => true, toPNG: () => Buffer.alloc(0) })),
+        createEmpty: vi.fn(() => ({ isEmpty: () => true, toPNG: () => Buffer.alloc(0) }))
     }
 }));
 
@@ -117,6 +123,18 @@ vi.mock('path', () => {
         join: vi.fn((...parts: string[]) => parts.join('/')),
         dirname: vi.fn((filePath: string) => filePath.split('/').slice(0, -1).join('/')),
         basename: vi.fn((filePath: string) => filePath.split('/').pop()),
+        // Minimal POSIX-ish normalize: collapse repeated slashes and resolve
+        // "." / ".." segments, keeping any leading slash.
+        normalize: vi.fn((filePath: string) => {
+            const absolute = filePath.startsWith('/');
+            const out: string[] = [];
+            for (const segment of filePath.split('/')) {
+                if (segment === '' || segment === '.') continue;
+                if (segment === '..' && out.length && out[out.length - 1] !== '..') out.pop();
+                else out.push(segment);
+            }
+            return (absolute ? '/' : '') + out.join('/');
+        }),
         resolve: vi.fn((...parts: string[]) => {
             // Minimal POSIX-ish resolve: return the last absolute segment, or join from /.
             for (let i = parts.length - 1; i >= 0; i--) {

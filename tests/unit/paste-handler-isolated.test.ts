@@ -4,7 +4,8 @@ const isIsolatedInstance = vi.fn(() => false);
 
 vi.mock('electron', () => ({
   ipcMain: { handle: vi.fn(), removeAllListeners: vi.fn() },
-  clipboard: { writeText: vi.fn(), readImage: vi.fn(), clear: vi.fn() },
+  clipboard: { writeText: vi.fn(async () => {}), read: vi.fn(async () => []), clear: vi.fn() },
+  nativeImage: { createFromBuffer: vi.fn() },
   dialog: { showMessageBox: vi.fn(() => Promise.resolve({ response: 1 })) },
   app: { getApplicationInfoForProtocol: vi.fn(), getAppPath: vi.fn(() => '') }
 }));
