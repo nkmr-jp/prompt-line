@@ -65,7 +65,7 @@ These can be extended with plugins. See: [Plugin Guide](docs/en/plugins.md) | [p
 ### System Requirements
 
 - macOS 13 (Ventura) or later
-- [fd](https://github.com/sharkdp/fd) and [rg (ripgrep)](https://github.com/BurntSushi/ripgrep) (for file search and symbol search features)
+- [fd](https://github.com/sharkdp/fd) and [rg (ripgrep)](https://github.com/BurntSushi/ripgrep) (for file search and symbol search features — installed automatically by the Homebrew cask; source builds need `brew install fd ripgrep`)
 
 For building from source, the following are also required:
 

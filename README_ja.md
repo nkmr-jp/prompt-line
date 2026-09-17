@@ -61,7 +61,7 @@ Enterを押しても勝手に送信されないので、改行する場合も気
 ### システム要件
 
 - macOS 13 (Ventura) 以降
-- [fd](https://github.com/sharkdp/fd) と [rg(ripgrep)](https://github.com/BurntSushi/ripgrep)（ファイル検索・シンボル検索機能で使用）
+- [fd](https://github.com/sharkdp/fd) と [rg(ripgrep)](https://github.com/BurntSushi/ripgrep)（ファイル検索・シンボル検索機能で使用。Homebrew cask では自動で入ります。ソースビルドの場合は `brew install fd ripgrep`）
 
 ソースからビルドする場合は以下も必要です:
 
