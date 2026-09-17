@@ -79,7 +79,7 @@ For building from source, the following are also required:
 brew install --cask nkmr-jp/tap/prompt-line
 ```
 
-Distributed through a [personal tap](https://github.com/nkmr-jp/homebrew-tap) as an unsigned cask (fixed self-signed certificate, not notarized). The cask removes the quarantine attribute automatically during installation. Update with `brew upgrade --cask prompt-line`. Apple Silicon only.
+Distributed through a [personal tap](https://github.com/nkmr-jp/homebrew-tap) as an unsigned cask (fixed self-signed certificate, not notarized). The cask removes the quarantine attribute automatically during installation. Update with `brew upgrade --cask prompt-line`. Apple Silicon only. The install also links the bundled `prompt-line-plugin` CLI — no Node.js required.
 
 For nix-darwin / home-manager:
 
@@ -217,7 +217,8 @@ Plugins are YAML files that add agent skills (`/`), custom search (`@prefix:`), 
 **Share via GitHub:** Install plugins from repositories:
 
 ```bash
-# Global CLI setup (run once in the prompt-line project directory)
+# If installed via Homebrew, the CLI is already linked — nothing to set up.
+# For a source build, run once in the prompt-line project directory:
 pnpm add -g .
 
 # Install plugins

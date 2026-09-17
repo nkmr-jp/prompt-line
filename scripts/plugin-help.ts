@@ -35,14 +35,9 @@ ${bold('Examples:')}
   ${dim('$')} ${cyan('prompt-line-plugin install ./my-plugins')}
   ${dim('$')} ${cyan('prompt-line-plugin install ~/Projects/my-plugins')}
 
-${bold('Global CLI Setup')} ${dim('(Optional)')}${bold(':')}
-  Run the following in the prompt-line project directory to install the CLI globally:
-
-    ${dim('$')} ${cyan('pnpm add -g .')}
-
-  Then use from anywhere:
-    ${dim('$')} ${cyan('prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins')}
-    ${dim('$')} ${cyan('prompt-line-plugin help')}
+${bold('CLI Setup:')}
+  ${cyan('brew install --cask nkmr-jp/tap/prompt-line')}   ${dim('# includes the prompt-line-plugin command')}
+  ${cyan('pnpm add -g .')}                               ${dim('# source build: run in the project directory')}
 `);
 }
 

@@ -8,7 +8,8 @@
   },
   "scripts": {
     "start": "LOG_LEVEL=debug pnpm run compile && LOG_LEVEL=debug electron .",
-    "compile": "node scripts/generate-git-info.js && node node_modules/electron/install.js && tsc && pnpm run build:renderer && cd native && make install && cp -r ../src/native-tools ../dist/",
+    "compile": "node scripts/generate-git-info.js && node node_modules/electron/install.js && tsc && pnpm run build:renderer && cd native && make install && cp -r ../src/native-tools ../dist/ && cd .. && pnpm run compile:plugin-cli",
+    "compile:plugin-cli": "tsc scripts/plugin.ts scripts/plugin-install.ts --outDir dist/plugin-cli --module commonjs --target es2020 --esModuleInterop --skipLibCheck",
     "build:renderer": "vite build && cp src/renderer/input.html dist/renderer/input.html",
     "typecheck": "node scripts/generate-git-info.js && tsc --noEmit",
     "build": "pnpm run compile && node scripts/build.js",
@@ -87,6 +88,16 @@
     ],
     "asarUnpack": [
       "dist/native-tools/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "dist/plugin-cli",
+        "to": "prompt-line-plugin"
+      },
+      {
+        "from": "build/prompt-line-plugin.sh",
+        "to": "prompt-line-plugin.sh"
+      }
     ],
     "afterPack": "scripts/afterPack.js",
     "afterSign": "scripts/afterSign.js",

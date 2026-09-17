@@ -75,7 +75,7 @@ Enterを押しても勝手に送信されないので、改行する場合も気
 brew install --cask nkmr-jp/tap/prompt-line
 ```
 
-[個人 tap](https://github.com/nkmr-jp/homebrew-tap) 経由で、無署名 cask（固定の自己署名証明書・公証なし）として配布しています。cask がインストール時に quarantine 属性を自動で除去するため手動操作は不要です。アップデートは `brew upgrade --cask prompt-line` で行います。Apple Silicon のみ対応。
+[個人 tap](https://github.com/nkmr-jp/homebrew-tap) 経由で、無署名 cask（固定の自己署名証明書・公証なし）として配布しています。cask がインストール時に quarantine 属性を自動で除去するため手動操作は不要です。アップデートは `brew upgrade --cask prompt-line` で行います。Apple Silicon のみ対応。`prompt-line-plugin` コマンドも同梱されており、Node.js なしでそのまま使えます。
 
 nix-darwin / home-manager の場合:
 
@@ -213,7 +213,8 @@ macOS の bundle id と絶対パスのフラットなマップです。bundle id
 **GitHubで共有:** リポジトリからプラグインをインストール：
 
 ```bash
-# グローバルCLIセットアップ（prompt-lineプロジェクトディレクトリで一度だけ実行）
+# Homebrew でインストールした場合はCLIもリンク済みのためセットアップ不要。
+# ソースビルドの場合は prompt-line プロジェクトディレクトリで一度だけ実行:
 pnpm add -g .
 
 # プラグインのインストール

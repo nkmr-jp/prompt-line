@@ -152,7 +152,7 @@ prompt-line-plugin help                          # Show help
 
 **Source resolution for `github.com/...`:** `gh repo clone` → `git clone`
 
-**Global CLI setup** — run `pnpm add -g .` in the project directory to install `prompt-line-plugin` globally (pnpm 11+ requires this; bare `pnpm link` no longer works):
+**Global CLI setup** — the Homebrew cask links `prompt-line-plugin` automatically (a shim runs the bundled `dist/plugin-cli` via `ELECTRON_RUN_AS_NODE`, no Node.js needed). For a source build, run `pnpm add -g .` in the project directory (pnpm 11+ requires this; bare `pnpm link` no longer works):
 ```bash
 pnpm add -g .
 prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
