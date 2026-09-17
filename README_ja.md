@@ -61,12 +61,32 @@ Enterを押しても勝手に送信されないので、改行する場合も気
 ### システム要件
 
 - macOS 13 (Ventura) 以降
+- [fd](https://github.com/sharkdp/fd) と [rg(ripgrep)](https://github.com/BurntSushi/ripgrep)（ファイル検索・シンボル検索機能で使用）
+
+ソースからビルドする場合は以下も必要です:
+
 - Node.js 22.12以上
 - [pnpm](https://pnpm.io/installation)
 - Xcodeコマンドラインツール または Xcode（ネイティブツールのコンパイル用）
-- [fd](https://github.com/sharkdp/fd) と [rg(ripgrep)](https://github.com/BurntSushi/ripgrep)（ファイル検索・シンボル検索機能で使用）
 
-### Prompt Line の インストール
+### Homebrew（Cask）でインストール
+
+```bash
+brew install --cask nkmr-jp/tap/prompt-line
+```
+
+[個人 tap](https://github.com/nkmr-jp/homebrew-tap) 経由で、無署名 cask（固定の自己署名証明書・公証なし）として配布しています。cask がインストール時に quarantine 属性を自動で除去するため手動操作は不要です。アップデートは `brew upgrade --cask prompt-line` で行います。Apple Silicon のみ対応。
+
+nix-darwin / home-manager の場合:
+
+```nix
+homebrew.taps = [
+  { name = "nkmr-jp/tap"; trusted = true; }
+];
+homebrew.casks = [ "prompt-line" ];
+```
+
+### ソースからビルドしてインストール
 
 ```bash
 git clone https://github.com/nkmr-jp/prompt-line.git
@@ -111,7 +131,13 @@ pnpm run reset-accessibility
 
 ## 📦 アップデート
 
-既に古いバージョンをインストール済みで、最新版にアップデートする場合:
+Homebrew でインストールした場合:
+
+```bash
+brew upgrade --cask prompt-line
+```
+
+ソースからインストールした場合:
 
 ```bash
 git pull

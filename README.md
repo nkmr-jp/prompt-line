@@ -65,12 +65,32 @@ These can be extended with plugins. See: [Plugin Guide](docs/en/plugins.md) | [p
 ### System Requirements
 
 - macOS 13 (Ventura) or later
+- [fd](https://github.com/sharkdp/fd) and [rg (ripgrep)](https://github.com/BurntSushi/ripgrep) (for file search and symbol search features)
+
+For building from source, the following are also required:
+
 - Node.js 22.12 or later
 - [pnpm](https://pnpm.io/installation)
 - Xcode Command Line Tools or Xcode (for compiling native tools)
-- [fd](https://github.com/sharkdp/fd) and [rg (ripgrep)](https://github.com/BurntSushi/ripgrep) (for file search and symbol search features)
 
-### Prompt Line Installation
+### Install via Homebrew (Cask)
+
+```bash
+brew install --cask nkmr-jp/tap/prompt-line
+```
+
+Distributed through a [personal tap](https://github.com/nkmr-jp/homebrew-tap) as an unsigned cask (fixed self-signed certificate, not notarized). The cask removes the quarantine attribute automatically during installation. Update with `brew upgrade --cask prompt-line`. Apple Silicon only.
+
+For nix-darwin / home-manager:
+
+```nix
+homebrew.taps = [
+  { name = "nkmr-jp/tap"; trusted = true; }
+];
+homebrew.casks = [ "prompt-line" ];
+```
+
+### Build and Install from Source
 
 ```bash
 git clone https://github.com/nkmr-jp/prompt-line.git
@@ -115,7 +135,13 @@ pnpm run reset-accessibility
 
 ## 📦 Update
 
-If you already have an older version installed and want to update to the latest version:
+If installed via Homebrew:
+
+```bash
+brew upgrade --cask prompt-line
+```
+
+If installed from source:
 
 ```bash
 git pull

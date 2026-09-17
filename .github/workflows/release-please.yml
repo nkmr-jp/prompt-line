@@ -16,6 +16,114 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    outputs:
+      releases_created: ${{ steps.release.outputs.releases_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
       - uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38 # v4.4.0
         id: release
+
+  # Build the signed DMG and attach it to the release Release Please just
+  # created. A separate `release: published` workflow would not fire here
+  # because events caused by GITHUB_TOKEN do not trigger new workflow runs,
+  # so this is chained inside the same workflow instead.
+  build-dmg:
+    needs: release-please
+    if: needs.release-please.outputs.releases_created == 'true'
+    runs-on: macos-15
+    timeout-minutes: 30
+    outputs:
+      dmg_sha256: ${{ steps.dmg.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
+
+      # Tag checkouts are detached HEAD, which would make the in-app version
+      # display "x.y.z (HEAD <sha>)". Check the tag out as local branch "main"
+      # (release tags always point at main) so it reads "x.y.z (<sha>)".
+      - name: Check out tag as local main branch
+        env:
+          TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
+        run: git checkout -B main "$TAG_NAME"
+
+      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      # The fixed self-signed "Prompt Line" certificate keeps the TCC
+      # designated requirement stable across releases, so Accessibility
+      # permission survives upgrades. A lost/rotated certificate breaks it.
+      - name: Import self-signed certificate
+        env:
+          P12_BASE64: ${{ secrets.PROMPT_LINE_CERT_P12 }}
+          P12_PASSWORD: ${{ secrets.PROMPT_LINE_CERT_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/prompt-line.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 16)"
+          echo "$P12_BASE64" | base64 -d > "$RUNNER_TEMP/prompt-line.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/prompt-line.p12" \
+            -k "$KEYCHAIN" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          # Word splitting is intentional: existing keychain paths become
+          # separate arguments to -s so the new keychain joins the search list.
+          # shellcheck disable=SC2046
+          security list-keychains -d user -s "$KEYCHAIN" \
+            $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/prompt-line.p12"
+          security find-identity -v -p codesigning
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build signed DMG
+        env:
+          CODE_SIGN_IDENTITY: "Prompt Line"
+          CSC_NAME: "Prompt Line"
+        run: pnpm run build
+
+      - name: Upload DMG to GitHub Release
+        id: dmg
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
+        run: |
+          DMG=$(find dist -maxdepth 1 -name 'Prompt-Line-*-arm64.dmg' | head -1)
+          gh release upload "$TAG_NAME" "$DMG" --clobber
+          echo "sha256=$(shasum -a 256 "$DMG" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+
+  # Bump the cask in nkmr-jp/homebrew-tap. Runs only after build-dmg has
+  # uploaded the asset, so the cask never points at a 404 URL. Pushing to
+  # another repository needs a PAT (TAP_GITHUB_TOKEN secret).
+  update-tap:
+    needs: [release-please, build-dmg]
+    if: needs.release-please.outputs.releases_created == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+        with:
+          repository: nkmr-jp/homebrew-tap
+          token: ${{ secrets.TAP_GITHUB_TOKEN }}
+
+      - name: Bump cask version and sha256
+        env:
+          TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
+          SHA256: ${{ needs.build-dmg.outputs.dmg_sha256 }}
+        run: |
+          VERSION="${TAG_NAME#prompt-line-v}"
+          sed -i.bak \
+            -e "s|^  version \".*\"|  version \"${VERSION}\"|" \
+            -e "s|^  sha256 \".*\"|  sha256 \"${SHA256}\"|" \
+            Casks/prompt-line.rb && rm Casks/prompt-line.rb.bak
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/prompt-line.rb
+          git commit -m "prompt-line ${VERSION}"
+          git push
