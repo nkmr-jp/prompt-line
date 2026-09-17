@@ -98,7 +98,7 @@ fix(window): resolve positioning issue on multi-monitor setups
 ### Release Process
 Uses [Release Please](https://github.com/googleapis/release-please) for automated releases. Config: `release-please-config.json`, manifest: `.release-please-manifest.json`, workflow: `.github/workflows/release-please.yml`.
 
-Pushes to `main` with conventional commits automatically trigger a Release Please PR with version bump and CHANGELOG updates. Merging that PR creates a GitHub Release.
+Pushes to `main` with conventional commits automatically trigger a Release Please PR with version bump and CHANGELOG updates. Merging that PR creates a GitHub Release, after which the same workflow builds the signed DMG, attaches it to the release, and bumps the cask in `nkmr-jp/homebrew-tap` (see `build-dmg` / `update-tap` jobs; requires `PROMPT_LINE_CERT_P12`, `PROMPT_LINE_CERT_PASSWORD`, and `TAP_GITHUB_TOKEN` secrets).
 
 ## Architecture Overview
 
