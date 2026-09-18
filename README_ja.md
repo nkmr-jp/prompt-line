@@ -75,7 +75,7 @@ Enterを押しても勝手に送信されないので、改行する場合も気
 brew install --cask nkmr-jp/tap/prompt-line
 ```
 
-[個人 tap](https://github.com/nkmr-jp/homebrew-tap) 経由で、無署名 cask（固定の自己署名証明書・公証なし）として配布しています。cask がインストール時に quarantine 属性を自動で除去するため手動操作は不要です。アップデートは `brew upgrade --cask prompt-line` で行います。Apple Silicon のみ対応。`prompt-line-plugin` コマンドも同梱されており、Node.js なしでそのまま使えます。
+[個人 tap](https://github.com/nkmr-jp/homebrew-tap) 経由で、無署名 cask（固定の自己署名証明書・公証なし）として配布しています。cask がインストール時に quarantine 属性を自動で除去するため手動操作は不要です。アップデートは `brew upgrade --cask prompt-line` で行います。Apple Silicon のみ対応。`prompt-line` コマンド（`plugin` / `reset-accessibility` / `migrate-settings` サブコマンド）も同梱されており、Node.js なしでそのまま使えます。
 
 nix-darwin / home-manager の場合:
 
@@ -144,9 +144,10 @@ Prompt Lineが他のアプリケーションにテキストを貼り付けるに
 2. 「-」ボタンでApplicationsからPrompt Lineを削除して権限をリセット
 3. 再度設定すれば動くようになります。
 
-アクセシビリティ権限のリセットは以下のコマンドでもできます（ソースチェックアウトが必要）。
+アクセシビリティ権限のリセットはコマンドからもできます。
 ```bash
-pnpm run reset-accessibility
+prompt-line reset-accessibility   # Homebrew インストールまたは `pnpm add -g .` 済みの場合
+pnpm run reset-accessibility      # ソースチェックアウト内
 ```
 
 ## 使用方法
@@ -221,8 +222,8 @@ macOS の bundle id と絶対パスのフラットなマップです。bundle id
 pnpm add -g .
 
 # プラグインのインストール
-prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
-prompt-line-plugin install github.com/user/repo@branch   # バージョン指定
+prompt-line plugin install github.com/nkmr-jp/prompt-line-plugins
+prompt-line plugin install github.com/user/repo@branch   # バージョン指定
 ```
 
 **詳細:** [docs/ja/plugins.md](docs/ja/plugins.md)<br>

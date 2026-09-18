@@ -7,7 +7,8 @@ This guide covers changes to `~/.prompt-line/settings.yaml` between versions.
 Run the migration command to back up your existing settings and replace with fresh defaults:
 
 ```bash
-pnpm run migrate-settings
+prompt-line migrate-settings   # Homebrew install or `pnpm add -g .`
+pnpm run migrate-settings      # in a source checkout
 ```
 
 This will:

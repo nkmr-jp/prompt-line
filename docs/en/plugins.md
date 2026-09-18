@@ -4,15 +4,15 @@ Plugins are YAML files that add agent skills (`/`), custom search (`@prefix:`), 
 
 ## Setup
 
-If you installed Prompt Line via Homebrew (`brew install --cask nkmr-jp/tap/prompt-line`), `prompt-line-plugin` is already linked — no setup needed.
+If you installed Prompt Line via Homebrew (`brew install --cask nkmr-jp/tap/prompt-line`), `prompt-line` is already linked — no setup needed.
 
-For a source build, run the following once in the prompt-line project directory to install `prompt-line-plugin` command globally:
+For a source build, run the following once in the prompt-line project directory to install `prompt-line` command globally:
 
 ```bash
 pnpm add -g .
 ```
 
-This makes the `prompt-line-plugin` command available from any directory.
+This makes the `prompt-line` command available from any directory.
 
 ## Using Plugins
 
@@ -21,7 +21,7 @@ Plugin examples: [prompt-line-plugins](https://github.com/nkmr-jp/prompt-line-pl
 ### Install
 
 ```bash
-prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
+prompt-line plugin install github.com/nkmr-jp/prompt-line-plugins
 ```
 
 ### Enable in settings.yaml
@@ -140,9 +140,9 @@ my-plugins/
 Install from a GitHub repo, specific version, or local path:
 
 ```bash
-prompt-line-plugin install github.com/user/my-plugins
-prompt-line-plugin install github.com/user/my-plugins@v1.0.0   # specific version
-prompt-line-plugin install ./local/path                         # local path
+prompt-line plugin install github.com/user/my-plugins
+prompt-line plugin install github.com/user/my-plugins@v1.0.0   # specific version
+prompt-line plugin install ./local/path                         # local path
 ```
 
 YAML files are copied to `~/.prompt-line/plugins/` and then enabled via `settings.yaml` (see [Enable in settings.yaml](#enable-in-settingsyaml)).

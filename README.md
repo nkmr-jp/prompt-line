@@ -79,7 +79,7 @@ For building from source, the following are also required:
 brew install --cask nkmr-jp/tap/prompt-line
 ```
 
-Distributed through a [personal tap](https://github.com/nkmr-jp/homebrew-tap) as an unsigned cask (fixed self-signed certificate, not notarized). The cask removes the quarantine attribute automatically during installation. Update with `brew upgrade --cask prompt-line`. Apple Silicon only. The install also links the bundled `prompt-line-plugin` CLI — no Node.js required.
+Distributed through a [personal tap](https://github.com/nkmr-jp/homebrew-tap) as an unsigned cask (fixed self-signed certificate, not notarized). The cask removes the quarantine attribute automatically during installation. Update with `brew upgrade --cask prompt-line`. Apple Silicon only. The install also links the bundled `prompt-line` CLI (`plugin`, `reset-accessibility`, `migrate-settings` subcommands) — no Node.js required.
 
 For nix-darwin / home-manager:
 
@@ -149,9 +149,10 @@ A dialog box will appear on first use, so follow the instructions to set it up.
 2. Delete “Prompt Line” from Applications using the “-” button to reset permissions
 3. The issue should be resolved after reconfiguring settings.
 
-Accessibility permissions can also be reset with the following command (requires a source checkout):
+Accessibility permissions can also be reset from the command line:
 ```bash
-pnpm run reset-accessibility
+prompt-line reset-accessibility   # Homebrew install or `pnpm add -g .`
+pnpm run reset-accessibility      # in a source checkout
 ```
 
 ## Usage
@@ -226,8 +227,8 @@ Plugins are YAML files that add agent skills (`/`), custom search (`@prefix:`), 
 pnpm add -g .
 
 # Install plugins
-prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
-prompt-line-plugin install github.com/user/repo@branch   # specific version
+prompt-line plugin install github.com/nkmr-jp/prompt-line-plugins
+prompt-line plugin install github.com/user/repo@branch   # specific version
 ```
 
 **Details:** [docs/en/plugins.md](docs/en/plugins.md)<br>
