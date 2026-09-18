@@ -79,6 +79,7 @@
       "dist/**/*",
       "assets/**/*",
       "package.json",
+      "!dist/plugin-cli",
       "!dist/mac",
       "!dist/mac-arm64",
       "!dist/*.dmg",

@@ -4,7 +4,9 @@ Plugins are YAML files that add agent skills (`/`), custom search (`@prefix:`), 
 
 ## Setup
 
-Run the following once in the prompt-line project directory to install `prompt-line-plugin` command globally:
+If you installed Prompt Line via Homebrew (`brew install --cask nkmr-jp/tap/prompt-line`), `prompt-line-plugin` is already linked — no setup needed.
+
+For a source build, run the following once in the prompt-line project directory to install `prompt-line-plugin` command globally:
 
 ```bash
 pnpm add -g .

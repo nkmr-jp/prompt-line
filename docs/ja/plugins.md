@@ -4,7 +4,9 @@
 
 ## セットアップ
 
-prompt-lineプロジェクトディレクトリで以下を一度実行して、`prompt-line-plugin` コマンドをグローバルにインストールします：
+Homebrew（`brew install --cask nkmr-jp/tap/prompt-line`）でインストールした場合、`prompt-line-plugin` はすでにリンク済みのためセットアップは不要です。
+
+ソースビルドの場合は、prompt-lineプロジェクトディレクトリで以下を一度実行して、`prompt-line-plugin` コマンドをグローバルにインストールします：
 
 ```bash
 pnpm add -g .

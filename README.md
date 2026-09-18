@@ -95,7 +95,7 @@ homebrew.casks = [ "prompt-line" ];
 ```bash
 git clone https://github.com/nkmr-jp/prompt-line.git
 cd prompt-line
-git checkout v0.x.x  # Optional: replace with desired version tag
+git checkout prompt-line-v0.x.x  # Optional: replace with desired version tag
 pnpm install
 pnpm run install-app    # Build and install to /Applications (includes code signing setup)
 ```

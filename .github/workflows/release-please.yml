@@ -63,12 +63,14 @@ jobs:
           P12_PASSWORD: ${{ secrets.PROMPT_LINE_CERT_PASSWORD }}
         run: |
           KEYCHAIN="$RUNNER_TEMP/prompt-line.keychain-db"
+          P12="$RUNNER_TEMP/prompt-line.p12"
+          trap 'rm -f "$P12"; security delete-keychain "$KEYCHAIN" 2>/dev/null || true' EXIT
           KEYCHAIN_PASSWORD="$(openssl rand -hex 16)"
-          echo "$P12_BASE64" | base64 -d > "$RUNNER_TEMP/prompt-line.p12"
+          echo "$P12_BASE64" | base64 -d > "$P12"
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
           security set-keychain-settings -lut 21600 "$KEYCHAIN"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
-          security import "$RUNNER_TEMP/prompt-line.p12" \
+          security import "$P12" \
             -k "$KEYCHAIN" -P "$P12_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: \
             -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
@@ -77,7 +79,6 @@ jobs:
           # shellcheck disable=SC2046
           security list-keychains -d user -s "$KEYCHAIN" \
             $(security list-keychains -d user | tr -d '"')
-          rm "$RUNNER_TEMP/prompt-line.p12"
           security find-identity -v -p codesigning
 
       - name: Install dependencies
@@ -96,6 +97,7 @@ jobs:
           TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
         run: |
           DMG=$(find dist -maxdepth 1 -name 'Prompt-Line-*-arm64.dmg' | head -1)
+          [ -n "$DMG" ] || { echo "::error::DMG not found in dist/"; exit 1; }
           gh release upload "$TAG_NAME" "$DMG" --clobber
           echo "sha256=$(shasum -a 256 "$DMG" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
 
@@ -118,12 +120,25 @@ jobs:
           SHA256: ${{ needs.build-dmg.outputs.dmg_sha256 }}
         run: |
           VERSION="${TAG_NAME#prompt-line-v}"
+          if [ "$VERSION" = "$TAG_NAME" ]; then
+            echo "::error::Unexpected tag format: ${TAG_NAME} (expected prompt-line-vX.Y.Z)"
+            exit 1
+          fi
           sed -i.bak \
             -e "s|^  version \".*\"|  version \"${VERSION}\"|" \
             -e "s|^  sha256 \".*\"|  sha256 \"${SHA256}\"|" \
             Casks/prompt-line.rb && rm Casks/prompt-line.rb.bak
+          if ! grep -q "^  version \"${VERSION}\"$" Casks/prompt-line.rb \
+            || ! grep -q "^  sha256 \"${SHA256}\"$" Casks/prompt-line.rb; then
+            echo "::error::Cask bump failed: sed did not produce expected values"
+            exit 1
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add Casks/prompt-line.rb
+          if git diff --cached --quiet; then
+            echo "Cask already at ${VERSION}; nothing to commit."
+            exit 0
+          fi
           git commit -m "prompt-line ${VERSION}"
           git push

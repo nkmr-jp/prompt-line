@@ -37,7 +37,7 @@ ${bold('Examples:')}
 
 ${bold('CLI Setup:')}
   ${cyan('brew install --cask nkmr-jp/tap/prompt-line')}   ${dim('# includes the prompt-line-plugin command')}
-  ${cyan('pnpm add -g .')}                               ${dim('# source build: run in the project directory')}
+  ${cyan('pnpm add -g .')}                                 ${dim('# source build: run in the project directory')}
 `);
 }
 
