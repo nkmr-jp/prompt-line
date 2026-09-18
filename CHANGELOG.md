@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.41.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.40.2...prompt-line-v0.41.0) (2026-09-18)
+
+
+### Features
+
+* **release:** add Homebrew Cask distribution via personal tap ([#433](https://github.com/nkmr-jp/prompt-line/issues/433)) ([3019973](https://github.com/nkmr-jp/prompt-line/commit/301997327f2bec933a6c99c9e7b684b79fedc1b8))
+
 ## [0.40.2](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.40.1...prompt-line-v0.40.2) (2026-09-07)
 
 
