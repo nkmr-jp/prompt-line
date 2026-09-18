@@ -78,13 +78,16 @@ jobs:
           # A self-signed cert is an untrusted root: without an explicit
           # trust entry for codeSign the codesigning policy rejects the
           # identity and codesign reports "no identity found". Mirrors
-          # scripts/setup-codesign.sh. The keychain must survive this
-          # step — the build step signs against it — so nothing here is
-          # deleted; the runner is ephemeral.
+          # scripts/setup-codesign.sh. Without sudo this call blocks on
+          # an interactive authorization prompt and hangs the step, so
+          # write to the admin trust domain via passwordless sudo.
+          # The keychain must survive this step — the build step signs
+          # against it — so nothing here is deleted; the runner is
+          # ephemeral.
           security find-certificate -c "Prompt Line" -p "$KEYCHAIN" \
             > "$CERT_PEM"
-          security add-trusted-cert -p codeSign -k "$KEYCHAIN" "$CERT_PEM" || \
-            sudo security add-trusted-cert -d -p codeSign -k "$KEYCHAIN" "$CERT_PEM"
+          sudo security add-trusted-cert -d -r trustRoot -p codeSign \
+            -k "$KEYCHAIN" "$CERT_PEM"
           rm -f "$CERT_PEM"
           # Word splitting is intentional: existing keychain paths become
           # separate arguments to -s so the new keychain joins the search list.
