@@ -96,6 +96,25 @@ pnpm install
 pnpm run install-app    # ビルドして/Applicationsにインストール（コード署名セットアップ含む）
 ```
 
+## 📦 アップデート
+
+Homebrew でインストールした場合:
+
+```bash
+brew upgrade --cask prompt-line
+```
+
+ソースからインストールした場合:
+
+```bash
+git pull
+pnpm install
+pnpm run install-app
+pnpm run migrate-settings        # 設定ファイルを最新のデフォルトに移行（自動バックアップ）
+```
+
+## 🚀 初期設定
+
 ### 起動
 
 Prompt Lineを起動。システムトレーにアイコンが表示されます。
@@ -125,27 +144,9 @@ Prompt Lineが他のアプリケーションにテキストを貼り付けるに
 2. 「-」ボタンでApplicationsからPrompt Lineを削除して権限をリセット
 3. 再度設定すれば動くようになります。
 
-アクセシビリティ権限のリセットは以下のコマンドでもできます。
+アクセシビリティ権限のリセットは以下のコマンドでもできます（ソースチェックアウトが必要）。
 ```bash
 pnpm run reset-accessibility
-```
-
-
-## 📦 アップデート
-
-Homebrew でインストールした場合:
-
-```bash
-brew upgrade --cask prompt-line
-```
-
-ソースからインストールした場合:
-
-```bash
-git pull
-pnpm install
-pnpm run install-app
-pnpm run migrate-settings        # 設定ファイルを最新のデフォルトに移行（自動バックアップ）
 ```
 
 ## 使用方法

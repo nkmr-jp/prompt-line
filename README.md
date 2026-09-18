@@ -100,6 +100,25 @@ pnpm install
 pnpm run install-app    # Build and install to /Applications (includes code signing setup)
 ```
 
+## 📦 Update
+
+If installed via Homebrew:
+
+```bash
+brew upgrade --cask prompt-line
+```
+
+If installed from source:
+
+```bash
+git pull
+pnpm install
+pnpm run install-app
+pnpm run migrate-settings        # Migrate settings to latest defaults (auto-backup)
+```
+
+## 🚀 Initial Setup
+
 ### Launch
 
 Launch Prompt Line. An icon will appear in the system tray.
@@ -130,26 +149,9 @@ A dialog box will appear on first use, so follow the instructions to set it up.
 2. Delete “Prompt Line” from Applications using the “-” button to reset permissions
 3. The issue should be resolved after reconfiguring settings.
 
-Accessibility permissions can also be reset using the following command:
+Accessibility permissions can also be reset with the following command (requires a source checkout):
 ```bash
 pnpm run reset-accessibility
-```
-
-## 📦 Update
-
-If installed via Homebrew:
-
-```bash
-brew upgrade --cask prompt-line
-```
-
-If installed from source:
-
-```bash
-git pull
-pnpm install
-pnpm run install-app
-pnpm run migrate-settings        # Migrate settings to latest defaults (auto-backup)
 ```
 
 ## Usage
