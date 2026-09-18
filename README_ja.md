@@ -91,10 +91,12 @@ homebrew.casks = [ "prompt-line" ];
 ```bash
 git clone https://github.com/nkmr-jp/prompt-line.git
 cd prompt-line
-git checkout v0.x.x  # 任意: 必要なバージョンタグに置き換え
+git checkout prompt-line-v0.x.x  # 任意: 必要なバージョンタグに置き換え
 pnpm install
 pnpm run install-app    # ビルドして/Applicationsにインストール（コード署名セットアップ含む）
 ```
+
+### 起動
 
 Prompt Lineを起動。システムトレーにアイコンが表示されます。
 

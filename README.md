@@ -100,6 +100,8 @@ pnpm install
 pnpm run install-app    # Build and install to /Applications (includes code signing setup)
 ```
 
+### Launch
+
 Launch Prompt Line. An icon will appear in the system tray.
 
 <div><img src="assets/doc6.png" width="200"></div>
