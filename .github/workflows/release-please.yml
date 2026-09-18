@@ -64,7 +64,7 @@ jobs:
         run: |
           KEYCHAIN="$RUNNER_TEMP/prompt-line.keychain-db"
           P12="$RUNNER_TEMP/prompt-line.p12"
-          trap 'rm -f "$P12"; security delete-keychain "$KEYCHAIN" 2>/dev/null || true' EXIT
+          CERT_PEM="$RUNNER_TEMP/prompt-line-cert.pem"
           KEYCHAIN_PASSWORD="$(openssl rand -hex 16)"
           echo "$P12_BASE64" | base64 -d > "$P12"
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
@@ -72,14 +72,27 @@ jobs:
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
           security import "$P12" \
             -k "$KEYCHAIN" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          rm -f "$P12"
           security set-key-partition-list -S apple-tool:,apple:,codesign: \
             -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          # A self-signed cert is an untrusted root: without an explicit
+          # trust entry for codeSign the codesigning policy rejects the
+          # identity and codesign reports "no identity found". Mirrors
+          # scripts/setup-codesign.sh. The keychain must survive this
+          # step — the build step signs against it — so nothing here is
+          # deleted; the runner is ephemeral.
+          security find-certificate -c "Prompt Line" -k "$KEYCHAIN" \
+            -p > "$CERT_PEM"
+          security add-trusted-cert -p codeSign -k "$KEYCHAIN" "$CERT_PEM" || \
+            sudo security add-trusted-cert -d -p codeSign -k "$KEYCHAIN" "$CERT_PEM"
+          rm -f "$CERT_PEM"
           # Word splitting is intentional: existing keychain paths become
           # separate arguments to -s so the new keychain joins the search list.
           # shellcheck disable=SC2046
           security list-keychains -d user -s "$KEYCHAIN" \
             $(security list-keychains -d user | tr -d '"')
-          security find-identity -v -p codesigning
+          # Fail fast here instead of surfacing "no identity found" at codesign.
+          security find-identity -v -p codesigning "$KEYCHAIN" | grep "Prompt Line"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
