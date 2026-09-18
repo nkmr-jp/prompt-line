@@ -30,7 +30,7 @@ jobs:
   build-dmg:
     needs: release-please
     if: needs.release-please.outputs.releases_created == 'true'
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 30
     outputs:
       dmg_sha256: ${{ steps.dmg.outputs.sha256 }}
