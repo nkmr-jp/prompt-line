@@ -3,8 +3,10 @@
 # Compiler settings
 # Deployment target is pinned to macOS 13 (Ventura, the app's documented floor).
 # Without -target, swiftc defaults it to the build host's OS version.
+# Architecture follows the build host (uname -m) so Intel source builds still work.
 SWIFTC = swiftc
-SWIFT_FLAGS = -O -target arm64-apple-macos13.0
+ARCH := $(shell uname -m)
+SWIFT_FLAGS = -O -target $(ARCH)-apple-macos13.0
 FRAMEWORKS = -framework Cocoa -framework ApplicationServices
 OUTPUT_DIR = ../src/native-tools
 
