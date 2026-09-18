@@ -79,7 +79,7 @@ For building from source, the following are also required:
 brew install --cask nkmr-jp/tap/prompt-line
 ```
 
-Distributed through a [personal tap](https://github.com/nkmr-jp/homebrew-tap) as an unsigned cask (fixed self-signed certificate, not notarized). The cask removes the quarantine attribute automatically during installation. Update with `brew upgrade --cask prompt-line`. Apple Silicon only. The install also links the bundled `prompt-line` CLI (`plugin`, `reset-accessibility`, `migrate-settings` subcommands) — no Node.js required.
+Distributed through a [personal tap](https://github.com/nkmr-jp/homebrew-tap) as an unsigned cask (fixed self-signed certificate, not notarized). The cask removes the quarantine attribute automatically during installation. Update with `brew upgrade --cask prompt-line`. Apple Silicon only — on an Intel Mac, use the source build below instead. The install also links the bundled `prompt-line` CLI (`plugin`, `reset-accessibility`, `migrate-settings` subcommands) — no Node.js required.
 
 ### Build and Install from Source
 
