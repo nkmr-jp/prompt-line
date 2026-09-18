@@ -1,8 +1,10 @@
 # Makefile for native macOS tools
 
 # Compiler settings
+# Deployment target is pinned to macOS 13 (Ventura, the app's documented floor).
+# Without -target, swiftc defaults it to the build host's OS version.
 SWIFTC = swiftc
-SWIFT_FLAGS = -O
+SWIFT_FLAGS = -O -target arm64-apple-macos13.0
 FRAMEWORKS = -framework Cocoa -framework ApplicationServices
 OUTPUT_DIR = ../src/native-tools
 
