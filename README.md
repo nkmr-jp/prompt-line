@@ -81,15 +81,6 @@ brew install --cask nkmr-jp/tap/prompt-line
 
 Distributed through a [personal tap](https://github.com/nkmr-jp/homebrew-tap) as an unsigned cask (fixed self-signed certificate, not notarized). The cask removes the quarantine attribute automatically during installation. Update with `brew upgrade --cask prompt-line`. Apple Silicon only. The install also links the bundled `prompt-line` CLI (`plugin`, `reset-accessibility`, `migrate-settings` subcommands) — no Node.js required.
 
-For nix-darwin / home-manager:
-
-```nix
-homebrew.taps = [
-  { name = "nkmr-jp/tap"; trusted = true; }
-];
-homebrew.casks = [ "prompt-line" ];
-```
-
 ### Build and Install from Source
 
 ```bash
