@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.41.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.41.0...prompt-line-v0.41.1) (2026-09-18)
+
+
+### Bug Fixes
+
+* **release:** trust self-signed cert and keep keychain for build step ([#435](https://github.com/nkmr-jp/prompt-line/issues/435)) ([0dad20a](https://github.com/nkmr-jp/prompt-line/commit/0dad20a5ad215e648e9d23a2cb785e1fe5f31dc9))
+
 ## [0.41.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.40.2...prompt-line-v0.41.0) (2026-09-18)
 
 
