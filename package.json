@@ -4,11 +4,13 @@
   "description": "Prompt Line is a macOS app developed to improve the prompt input experience in the terminal for CLI-based AI coding agents such as Claude Code, OpenAI Codex CLI, and Aider.",
   "main": "dist/main.js",
   "bin": {
+    "prompt-line": "scripts/prompt-line-cli.js",
     "prompt-line-plugin": "scripts/plugin-cli.js"
   },
   "scripts": {
     "start": "LOG_LEVEL=debug pnpm run compile && LOG_LEVEL=debug electron .",
-    "compile": "node scripts/generate-git-info.js && node node_modules/electron/install.js && tsc && pnpm run build:renderer && cd native && make install && cp -r ../src/native-tools ../dist/",
+    "compile": "node scripts/generate-git-info.js && node node_modules/electron/install.js && tsc && pnpm run build:renderer && cd native && make install && cp -r ../src/native-tools ../dist/ && cd .. && pnpm run compile:cli",
+    "compile:cli": "tsc scripts/prompt-line.ts scripts/plugin.ts scripts/plugin-install.ts --outDir dist/cli --module commonjs --target es2020 --esModuleInterop --skipLibCheck && pnpm exec ts-node scripts/generate-settings-example.ts dist/cli/settings.example.yaml",
     "build:renderer": "vite build && cp src/renderer/input.html dist/renderer/input.html",
     "typecheck": "node scripts/generate-git-info.js && tsc --noEmit",
     "build": "pnpm run compile && node scripts/build.js",
@@ -78,6 +80,7 @@
       "dist/**/*",
       "assets/**/*",
       "package.json",
+      "!dist/cli",
       "!dist/mac",
       "!dist/mac-arm64",
       "!dist/*.dmg",
@@ -87,6 +90,16 @@
     ],
     "asarUnpack": [
       "dist/native-tools/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "dist/cli",
+        "to": "prompt-line"
+      },
+      {
+        "from": "build/prompt-line.sh",
+        "to": "prompt-line.sh"
+      }
     ],
     "afterPack": "scripts/afterPack.js",
     "afterSign": "scripts/afterSign.js",

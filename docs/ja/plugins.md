@@ -4,13 +4,15 @@
 
 ## セットアップ
 
-prompt-lineプロジェクトディレクトリで以下を一度実行して、`prompt-line-plugin` コマンドをグローバルにインストールします：
+Homebrew（`brew install --cask nkmr-jp/tap/prompt-line`）でインストールした場合、`prompt-line` はすでにリンク済みのためセットアップは不要です。
+
+ソースビルドの場合は、prompt-lineプロジェクトディレクトリで以下を一度実行して、`prompt-line` コマンドをグローバルにインストールします：
 
 ```bash
 pnpm add -g .
 ```
 
-これにより、任意のディレクトリから `prompt-line-plugin` コマンドが使えるようになります。
+これにより、任意のディレクトリから `prompt-line` コマンドが使えるようになります。
 
 ## プラグインの利用
 
@@ -19,7 +21,7 @@ pnpm add -g .
 ### インストール
 
 ```bash
-prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
+prompt-line plugin install github.com/nkmr-jp/prompt-line-plugins
 ```
 
 ### settings.yaml で有効化
@@ -138,9 +140,9 @@ my-plugins/
 GitHubリポジトリ、バージョン指定、ローカルパスからインストール：
 
 ```bash
-prompt-line-plugin install github.com/user/my-plugins
-prompt-line-plugin install github.com/user/my-plugins@v1.0.0   # バージョン指定
-prompt-line-plugin install ./local/path                         # ローカルパス
+prompt-line plugin install github.com/user/my-plugins
+prompt-line plugin install github.com/user/my-plugins@v1.0.0   # バージョン指定
+prompt-line plugin install ./local/path                         # ローカルパス
 ```
 
 YAMLファイルは `~/.prompt-line/plugins/` にコピーされ、`settings.yaml` で有効化します（[settings.yaml で有効化](#settingsyaml-で有効化)を参照）。

@@ -11,8 +11,8 @@ export function showHelp(): void {
 ${bold('📦 Prompt Line Plugin Manager')}
 
 ${bold('Commands:')}
-  ${cyan('prompt-line-plugin install <source>')}   Install plugins
-  ${cyan('prompt-line-plugin help')}               Show this help message
+  ${cyan('prompt-line plugin install <source>')}   Install plugins
+  ${cyan('prompt-line plugin help')}               Show this help message
 
 ${bold('Source Format:')}
   ${green('github.com/user/repo[/path]')}        GitHub repository ${dim('(default branch)')}
@@ -27,22 +27,17 @@ ${bold('Install Destination:')}
 
 ${bold('Examples:')}
   ${dim('# From GitHub repository')}
-  ${dim('$')} ${cyan('prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins')}
-  ${dim('$')} ${cyan('prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins@develop')}
-  ${dim('$')} ${cyan('prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins@e5afde2')}
+  ${dim('$')} ${cyan('prompt-line plugin install github.com/nkmr-jp/prompt-line-plugins')}
+  ${dim('$')} ${cyan('prompt-line plugin install github.com/nkmr-jp/prompt-line-plugins@develop')}
+  ${dim('$')} ${cyan('prompt-line plugin install github.com/nkmr-jp/prompt-line-plugins@e5afde2')}
 
   ${dim('# From local directory')}
-  ${dim('$')} ${cyan('prompt-line-plugin install ./my-plugins')}
-  ${dim('$')} ${cyan('prompt-line-plugin install ~/Projects/my-plugins')}
+  ${dim('$')} ${cyan('prompt-line plugin install ./my-plugins')}
+  ${dim('$')} ${cyan('prompt-line plugin install ~/Projects/my-plugins')}
 
-${bold('Global CLI Setup')} ${dim('(Optional)')}${bold(':')}
-  Run the following in the prompt-line project directory to install the CLI globally:
-
-    ${dim('$')} ${cyan('pnpm add -g .')}
-
-  Then use from anywhere:
-    ${dim('$')} ${cyan('prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins')}
-    ${dim('$')} ${cyan('prompt-line-plugin help')}
+${bold('CLI Setup:')}
+  ${cyan('brew install --cask nkmr-jp/tap/prompt-line')}   ${dim('# includes the prompt-line command')}
+  ${cyan('pnpm add -g .')}                                 ${dim('# source build: run in the project directory')}
 `);
 }
 

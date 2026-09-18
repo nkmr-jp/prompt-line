@@ -13,6 +13,7 @@ pnpm run reset-accessibility      # Reset accessibility permissions for Prompt L
 - `pnpm run setup-codesign` creates a "Prompt Line" self-signed certificate in the login Keychain. Automatically run by `install-app`, so manual execution is not needed.
 - `pnpm start` sets `LOG_LEVEL=debug` automatically. Packaged apps always use INFO level.
 - Logs: `~/.prompt-line/app.log` (use `tail -f ~/.prompt-line/app.log` for real-time monitoring)
+- `prompt-line reset-accessibility` / `prompt-line migrate-settings` are the Homebrew-install equivalents of the pnpm commands below (the bundled `prompt-line` CLI needs no Node.js).
 
 ### Isolated Verification Instance (per worktree)
 Verify the checkout you are working in without disturbing the Prompt Line the user keeps running.
@@ -98,7 +99,7 @@ fix(window): resolve positioning issue on multi-monitor setups
 ### Release Process
 Uses [Release Please](https://github.com/googleapis/release-please) for automated releases. Config: `release-please-config.json`, manifest: `.release-please-manifest.json`, workflow: `.github/workflows/release-please.yml`.
 
-Pushes to `main` with conventional commits automatically trigger a Release Please PR with version bump and CHANGELOG updates. Merging that PR creates a GitHub Release.
+Pushes to `main` with conventional commits automatically trigger a Release Please PR with version bump and CHANGELOG updates. Merging that PR creates a GitHub Release, after which the same workflow builds the signed DMG, attaches it to the release, and bumps the cask in `nkmr-jp/homebrew-tap` (see `build-dmg` / `update-tap` jobs; requires `PROMPT_LINE_CERT_P12`, `PROMPT_LINE_CERT_PASSWORD`, and `TAP_GITHUB_TOKEN` secrets).
 
 ## Architecture Overview
 
@@ -143,19 +144,19 @@ plugins:
 
 **Plugin commands:**
 ```bash
-prompt-line-plugin install <source>              # Install from local path or GitHub
-prompt-line-plugin install <source>@<ref>        # Install at specific branch/tag/hash
-prompt-line-plugin help                          # Show help
+prompt-line plugin install <source>              # Install from local path or GitHub
+prompt-line plugin install <source>@<ref>        # Install at specific branch/tag/hash
+prompt-line plugin help                          # Show help
 ```
 
 `plugin:install` supports local paths (`./path`, `~/path`) and GitHub repos (`github.com/user/repo[/path][@ref]`). Append `@ref` to specify a branch, tag, or commit hash (e.g., `@develop`, `@v1.0.0`, `@sea8pxe`). It generates `.prompt-line-plugin` metadata files with commit-hash-pinned GitHub URLs for version tracking.
 
 **Source resolution for `github.com/...`:** `gh repo clone` → `git clone`
 
-**Global CLI setup** — run `pnpm add -g .` in the project directory to install `prompt-line-plugin` globally (pnpm 11+ requires this; bare `pnpm link` no longer works):
+**Global CLI setup** — the Homebrew cask links `prompt-line` automatically (a shim runs the bundled `dist/cli` via `ELECTRON_RUN_AS_NODE`, no Node.js needed; `plugin`, `reset-accessibility`, and `migrate-settings` subcommands included). For a source build, run `pnpm add -g .` in the project directory (pnpm 11+ requires this; bare `pnpm link` no longer works):
 ```bash
 pnpm add -g .
-prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
+prompt-line plugin install github.com/nkmr-jp/prompt-line-plugins
 ```
 
 ### Agent Built-in

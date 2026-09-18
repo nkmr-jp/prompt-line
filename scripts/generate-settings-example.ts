@@ -17,7 +17,10 @@ import { defaultSettings } from '../src/config/default-settings';
 import { generateSettingsYaml } from '../src/config/settings-yaml-generator';
 
 // Generate and write settings.example.yaml
-const outputPath = path.join(__dirname, '..', 'settings.example.yaml');
+// Optional argv[2]: output path (used by compile:cli to emit into dist/cli)
+const outputPath = process.argv[2]
+  ? path.resolve(process.argv[2])
+  : path.join(__dirname, '..', 'settings.example.yaml');
 const outputDir = path.dirname(outputPath);
 
 try {

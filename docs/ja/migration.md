@@ -7,7 +7,8 @@
 マイグレーションコマンドを実行すると、既存設定をバックアップして最新のデフォルトに置き換えます：
 
 ```bash
-pnpm run migrate-settings
+prompt-line migrate-settings   # Homebrew インストールまたは `pnpm add -g .` 済みの場合
+pnpm run migrate-settings      # ソースチェックアウト内
 ```
 
 実行内容：

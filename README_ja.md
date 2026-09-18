@@ -61,20 +61,52 @@ Enterを押しても勝手に送信されないので、改行する場合も気
 ### システム要件
 
 - macOS 13 (Ventura) 以降
+- [fd](https://github.com/sharkdp/fd) と [rg(ripgrep)](https://github.com/BurntSushi/ripgrep)（ファイル検索・シンボル検索機能で使用。Homebrew cask では自動で入ります。ソースビルドの場合は `brew install fd ripgrep`）
+
+ソースからビルドする場合は以下も必要です:
+
 - Node.js 22.12以上
 - [pnpm](https://pnpm.io/installation)
 - Xcodeコマンドラインツール または Xcode（ネイティブツールのコンパイル用）
-- [fd](https://github.com/sharkdp/fd) と [rg(ripgrep)](https://github.com/BurntSushi/ripgrep)（ファイル検索・シンボル検索機能で使用）
 
-### Prompt Line の インストール
+### Homebrew（Cask）でインストール
+
+```bash
+brew install --cask nkmr-jp/tap/prompt-line
+```
+
+[個人 tap](https://github.com/nkmr-jp/homebrew-tap) 経由で、無署名 cask（固定の自己署名証明書・公証なし）として配布しています。cask がインストール時に quarantine 属性を自動で除去するため手動操作は不要です。アップデートは `brew upgrade --cask prompt-line` で行います。Apple Silicon のみ対応（Intel Mac は下記のソースビルドを利用してください）。`prompt-line` コマンド（`plugin` / `reset-accessibility` / `migrate-settings` サブコマンド）も同梱されており、Node.js なしでそのまま使えます。
+
+### ソースからビルドしてインストール
 
 ```bash
 git clone https://github.com/nkmr-jp/prompt-line.git
 cd prompt-line
-git checkout v0.x.x  # 任意: 必要なバージョンタグに置き換え
+git checkout prompt-line-v0.x.x  # 任意: 必要なバージョンタグに置き換え
 pnpm install
 pnpm run install-app    # ビルドして/Applicationsにインストール（コード署名セットアップ含む）
 ```
+
+## 📦 アップデート
+
+Homebrew でインストールした場合:
+
+```bash
+brew upgrade --cask prompt-line
+```
+
+ソースからインストールした場合:
+
+```bash
+git pull
+pnpm install
+pnpm run install-app
+pnpm run migrate-settings        # 設定ファイルを最新のデフォルトに移行（自動バックアップ）
+```
+
+## 🚀 初期設定
+
+### 起動
 
 Prompt Lineを起動。システムトレーにアイコンが表示されます。
 
@@ -103,21 +135,10 @@ Prompt Lineが他のアプリケーションにテキストを貼り付けるに
 2. 「-」ボタンでApplicationsからPrompt Lineを削除して権限をリセット
 3. 再度設定すれば動くようになります。
 
-アクセシビリティ権限のリセットは以下のコマンドでもできます。
+アクセシビリティ権限のリセットはコマンドからもできます。
 ```bash
-pnpm run reset-accessibility
-```
-
-
-## 📦 アップデート
-
-既に古いバージョンをインストール済みで、最新版にアップデートする場合:
-
-```bash
-git pull
-pnpm install
-pnpm run install-app
-pnpm run migrate-settings        # 設定ファイルを最新のデフォルトに移行（自動バックアップ）
+prompt-line reset-accessibility   # Homebrew インストールまたは `pnpm add -g .` 済みの場合
+pnpm run reset-accessibility      # ソースチェックアウト内
 ```
 
 ## 使用方法
@@ -187,12 +208,13 @@ macOS の bundle id と絶対パスのフラットなマップです。bundle id
 **GitHubで共有:** リポジトリからプラグインをインストール：
 
 ```bash
-# グローバルCLIセットアップ（prompt-lineプロジェクトディレクトリで一度だけ実行）
+# Homebrew でインストールした場合はCLIもリンク済みのためセットアップ不要。
+# ソースビルドの場合は prompt-line プロジェクトディレクトリで一度だけ実行:
 pnpm add -g .
 
 # プラグインのインストール
-prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
-prompt-line-plugin install github.com/user/repo@branch   # バージョン指定
+prompt-line plugin install github.com/nkmr-jp/prompt-line-plugins
+prompt-line plugin install github.com/user/repo@branch   # バージョン指定
 ```
 
 **詳細:** [docs/ja/plugins.md](docs/ja/plugins.md)<br>

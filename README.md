@@ -65,20 +65,52 @@ These can be extended with plugins. See: [Plugin Guide](docs/en/plugins.md) | [p
 ### System Requirements
 
 - macOS 13 (Ventura) or later
+- [fd](https://github.com/sharkdp/fd) and [rg (ripgrep)](https://github.com/BurntSushi/ripgrep) (for file search and symbol search features — installed automatically by the Homebrew cask; source builds need `brew install fd ripgrep`)
+
+For building from source, the following are also required:
+
 - Node.js 22.12 or later
 - [pnpm](https://pnpm.io/installation)
 - Xcode Command Line Tools or Xcode (for compiling native tools)
-- [fd](https://github.com/sharkdp/fd) and [rg (ripgrep)](https://github.com/BurntSushi/ripgrep) (for file search and symbol search features)
 
-### Prompt Line Installation
+### Install via Homebrew (Cask)
+
+```bash
+brew install --cask nkmr-jp/tap/prompt-line
+```
+
+Distributed through a [personal tap](https://github.com/nkmr-jp/homebrew-tap) as an unsigned cask (fixed self-signed certificate, not notarized). The cask removes the quarantine attribute automatically during installation. Update with `brew upgrade --cask prompt-line`. Apple Silicon only — on an Intel Mac, use the source build below instead. The install also links the bundled `prompt-line` CLI (`plugin`, `reset-accessibility`, `migrate-settings` subcommands) — no Node.js required.
+
+### Build and Install from Source
 
 ```bash
 git clone https://github.com/nkmr-jp/prompt-line.git
 cd prompt-line
-git checkout v0.x.x  # Optional: replace with desired version tag
+git checkout prompt-line-v0.x.x  # Optional: replace with desired version tag
 pnpm install
 pnpm run install-app    # Build and install to /Applications (includes code signing setup)
 ```
+
+## 📦 Update
+
+If installed via Homebrew:
+
+```bash
+brew upgrade --cask prompt-line
+```
+
+If installed from source:
+
+```bash
+git pull
+pnpm install
+pnpm run install-app
+pnpm run migrate-settings        # Migrate settings to latest defaults (auto-backup)
+```
+
+## 🚀 Initial Setup
+
+### Launch
 
 Launch Prompt Line. An icon will appear in the system tray.
 
@@ -108,20 +140,10 @@ A dialog box will appear on first use, so follow the instructions to set it up.
 2. Delete “Prompt Line” from Applications using the “-” button to reset permissions
 3. The issue should be resolved after reconfiguring settings.
 
-Accessibility permissions can also be reset using the following command:
+Accessibility permissions can also be reset from the command line:
 ```bash
-pnpm run reset-accessibility
-```
-
-## 📦 Update
-
-If you already have an older version installed and want to update to the latest version:
-
-```bash
-git pull
-pnpm install
-pnpm run install-app
-pnpm run migrate-settings        # Migrate settings to latest defaults (auto-backup)
+prompt-line reset-accessibility   # Homebrew install or `pnpm add -g .`
+pnpm run reset-accessibility      # in a source checkout
 ```
 
 ## Usage
@@ -191,12 +213,13 @@ Plugins are YAML files that add agent skills (`/`), custom search (`@prefix:`), 
 **Share via GitHub:** Install plugins from repositories:
 
 ```bash
-# Global CLI setup (run once in the prompt-line project directory)
+# If installed via Homebrew, the CLI is already linked — nothing to set up.
+# For a source build, run once in the prompt-line project directory:
 pnpm add -g .
 
 # Install plugins
-prompt-line-plugin install github.com/nkmr-jp/prompt-line-plugins
-prompt-line-plugin install github.com/user/repo@branch   # specific version
+prompt-line plugin install github.com/nkmr-jp/prompt-line-plugins
+prompt-line plugin install github.com/user/repo@branch   # specific version
 ```
 
 **Details:** [docs/en/plugins.md](docs/en/plugins.md)<br>

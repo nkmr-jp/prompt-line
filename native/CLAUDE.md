@@ -23,6 +23,8 @@ make rebuild   # Clean + rebuild
 
 Output: `src/native-tools/`. Also built automatically by `pnpm run compile`.
 
+Deployment target is pinned to macOS 13 (Ventura) via `-target $(ARCH)-apple-macos13.0` in `SWIFT_FLAGS` (arch follows `uname -m`). Without it, swiftc defaults the minimum version to the build host's OS, so binaries built on newer macOS would refuse to launch on older supported versions.
+
 ## Non-obvious Patterns & Gotchas
 
 ### directory-detector is multi-file

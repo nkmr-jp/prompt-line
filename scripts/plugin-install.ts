@@ -168,7 +168,7 @@ function resolveSource(source: string): ResolvedSource {
   if (!ghMatch) {
     console.error(`❌ Error: Invalid source format: ${source}`);
     console.error('');
-    console.error('Run "pnpm run plugin:help" for usage details.');
+    console.error('Run "prompt-line plugin help" for usage details.');
     process.exit(1);
   }
 
