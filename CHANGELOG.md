@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.41.2](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.41.1...prompt-line-v0.41.2) (2026-09-18)
+
+
+### Bug Fixes
+
+* **release:** pass keychain to find-certificate as positional arg ([#437](https://github.com/nkmr-jp/prompt-line/issues/437)) ([648de05](https://github.com/nkmr-jp/prompt-line/commit/648de054db55064a7f29fd864a19d04411ebe02e))
+
 ## [0.41.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.41.0...prompt-line-v0.41.1) (2026-09-18)
 
 
