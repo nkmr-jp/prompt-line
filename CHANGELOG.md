@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.41.3](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.41.2...prompt-line-v0.41.3) (2026-09-18)
+
+
+### Bug Fixes
+
+* **release:** trust self-signed cert via sudo admin domain ([#439](https://github.com/nkmr-jp/prompt-line/issues/439)) ([822df54](https://github.com/nkmr-jp/prompt-line/commit/822df54dcf19ea033695cc2b7ded922db4a9e27c))
+
 ## [0.41.2](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.41.1...prompt-line-v0.41.2) (2026-09-18)
 
 
