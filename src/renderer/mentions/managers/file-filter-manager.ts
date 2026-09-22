@@ -297,7 +297,6 @@ export class FileFilterManager {
     const queryLower = query.normalize('NFC').toLowerCase();
     const keywords = splitKeywords(queryLower);
     const seenDirs = new Set<string>();
-    const seenDirNames = new Map<string, { path: string; depth: number }>();
     const matchingDirs: FileInfo[] = [];
 
     // Find all matching files (from source files)
@@ -325,7 +324,7 @@ export class FileFilterManager {
       if (file.isDirectory && pathParts.length > 0) {
         const dirPath = pathParts.join('/');
         const dirName = pathParts[pathParts.length - 1] || '';
-        this.addMatchingDir(dirName, dirPath, pathParts.length, file, keywords, seenDirs, seenDirNames, matchingDirs);
+        this.addMatchingDir(dirName, dirPath, file, keywords, seenDirs, matchingDirs);
         continue;
       }
 
@@ -340,17 +339,13 @@ export class FileFilterManager {
           path: baseDir + '/' + dirPath,
           isDirectory: true
         };
-        this.addMatchingDir(dirName, dirPath, pathParts.length, virtualDir, keywords, seenDirs, seenDirNames, matchingDirs);
+        this.addMatchingDir(dirName, dirPath, virtualDir, keywords, seenDirs, matchingDirs);
       }
     }
 
-    // Remove duplicate directories by name (keep shortest path)
-    const uniqueDirs = Array.from(seenDirNames.entries()).map(([name, info]) => {
-      return matchingDirs.find(d => d.name === name && d.path === baseDir + '/' + info.path);
-    }).filter((d): d is FileInfo => d !== undefined);
-
-    // Score directories
-    const scoredDirs = uniqueDirs.map(dir => {
+    // Score directories. Same-named directories at different paths are all kept;
+    // the path depth bonus in calculateMatchScore ranks shallower ones first.
+    const scoredDirs = matchingDirs.map(dir => {
       const bonus = usageBonuses?.[dir.path] ?? 0;
       return {
         file: dir,
@@ -385,17 +380,15 @@ export class FileFilterManager {
   }
 
   /**
-   * Check if a directory matches all keywords and track it for dedup.
+   * Check if a directory matches all keywords and track it for dedup by path.
    * Shared by explicit directory entry handling and intermediate directory detection.
    */
   private addMatchingDir(
     dirName: string,
     dirPath: string,
-    depth: number,
     dirEntry: FileInfo,
     keywords: string[],
     seenDirs: Set<string>,
-    seenDirNames: Map<string, { path: string; depth: number }>,
     matchingDirs: FileInfo[]
   ): void {
     if (!dirName || seenDirs.has(dirPath)) return;
@@ -405,12 +398,6 @@ export class FileFilterManager {
     if (!keywords.every(kw => dirNameLower.includes(kw) || dirPathLower.includes(kw))) return;
 
     seenDirs.add(dirPath);
-
-    // Prefer shorter paths (shallower depth)
-    const existing = seenDirNames.get(dirName);
-    if (existing && existing.depth <= depth) return;
-
-    seenDirNames.set(dirName, { path: dirPath, depth });
     matchingDirs.push(dirEntry);
   }
 
