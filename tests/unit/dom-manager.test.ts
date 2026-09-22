@@ -245,6 +245,28 @@ describe('DomManager', () => {
       }
     });
 
+    test('should restore the app name after a success message overlaps an error', () => {
+      vi.useFakeTimers();
+      try {
+        domManager.appNameEl!.textContent = 'Original Text';
+
+        domManager.showError('failed', 100);
+        domManager.showSuccess('Copied', 50);
+        expect(domManager.appNameEl!.textContent).toBe('Copied');
+        expect(domManager.appNameEl!.classList.contains('app-name-error')).toBe(false);
+        expect(domManager.appNameEl!.classList.contains('app-name-success')).toBe(true);
+
+        vi.advanceTimersByTime(50);
+        expect(domManager.appNameEl!.textContent).toBe('Original Text');
+        expect(domManager.appNameEl!.classList.contains('app-name-success')).toBe(false);
+
+        vi.advanceTimersByTime(100);
+        expect(domManager.appNameEl!.textContent).toBe('Original Text');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     test('should show an app name updated during an error once the error expires', () => {
       vi.useFakeTimers();
       try {
