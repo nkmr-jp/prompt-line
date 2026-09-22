@@ -219,6 +219,69 @@ describe('DomManager', () => {
         resolve();
       }, 150);
     }));
+
+    test('should show only the first non-empty line of a multi-line error', () => {
+      domManager.showError('\nError: database is locked (5)\nTraceback (most recent call last):\n  File "<string>"');
+
+      expect(domManager.appNameEl!.textContent).toBe('Error: Error: database is locked (5)');
+    });
+
+    test('should restore the app name, not a previous error, after overlapping errors', () => {
+      vi.useFakeTimers();
+      try {
+        domManager.appNameEl!.textContent = 'Original Text';
+
+        domManager.showError('first', 100);
+        vi.advanceTimersByTime(50);
+        domManager.showError('second', 100);
+        vi.advanceTimersByTime(60);
+        expect(domManager.appNameEl!.textContent).toBe('Error: second');
+
+        vi.advanceTimersByTime(50);
+        expect(domManager.appNameEl!.textContent).toBe('Original Text');
+        expect(domManager.appNameEl!.classList.contains('app-name-error')).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    test('should restore the app name after a success message overlaps an error', () => {
+      vi.useFakeTimers();
+      try {
+        domManager.appNameEl!.textContent = 'Original Text';
+
+        domManager.showError('failed', 100);
+        domManager.showSuccess('Copied', 50);
+        expect(domManager.appNameEl!.textContent).toBe('Copied');
+        expect(domManager.appNameEl!.classList.contains('app-name-error')).toBe(false);
+        expect(domManager.appNameEl!.classList.contains('app-name-success')).toBe(true);
+
+        vi.advanceTimersByTime(50);
+        expect(domManager.appNameEl!.textContent).toBe('Original Text');
+        expect(domManager.appNameEl!.classList.contains('app-name-success')).toBe(false);
+
+        vi.advanceTimersByTime(100);
+        expect(domManager.appNameEl!.textContent).toBe('Original Text');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    test('should show an app name updated during an error once the error expires', () => {
+      vi.useFakeTimers();
+      try {
+        domManager.appNameEl!.textContent = 'Paste to: Old';
+
+        domManager.showError('failed', 100);
+        domManager.updateAppName('Paste to: New');
+        expect(domManager.appNameEl!.textContent).toBe('Error: failed');
+
+        vi.advanceTimersByTime(100);
+        expect(domManager.appNameEl!.textContent).toBe('Paste to: New');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   describe('null safety', () => {

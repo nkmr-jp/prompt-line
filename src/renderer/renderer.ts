@@ -221,7 +221,8 @@ export class PromptLineRenderer {
       updateHintText: (text: string) => {
         this.domManager.updateHintText(text);
       },
-      getDefaultHintText: () => this.defaultHintText
+      getDefaultHintText: () => this.defaultHintText,
+      showSuccess: (message: string) => this.domManager.showSuccess(message)
     });
 
     this.agentSkillManager.initializeElements();
