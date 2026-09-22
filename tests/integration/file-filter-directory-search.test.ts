@@ -104,6 +104,29 @@ describe('FileFilterManager directory search', () => {
     });
   });
 
+  describe('same-named directories at different paths', () => {
+    // Nested plugins/ dirs appear first and the root-level one only has deep files
+    const files: FileInfo[] = [
+      { name: 'a.md', path: '/test/.agents/plugins/a.md', isDirectory: false },
+      { name: 'b.md', path: '/test/tools/plugins/b.md', isDirectory: false },
+      { name: 'c.md', path: '/test/plugins/issue/skills/c.md', isDirectory: false },
+    ];
+
+    test('keeps every matching directory, not just the first one found', () => {
+      const result = manager.filterFiles(makeCachedData(files), '', 'plugins');
+      const dirPaths = result.filter(f => f.isDirectory && f.name === 'plugins').map(f => f.path);
+      expect(dirPaths).toHaveLength(3);
+      expect(dirPaths).toEqual(expect.arrayContaining([
+        '/test/plugins', '/test/.agents/plugins', '/test/tools/plugins',
+      ]));
+    });
+
+    test('ranks the shallowest directory first', () => {
+      const result = manager.filterFiles(makeCachedData(files), '', 'plugins');
+      expect(result[0]?.path).toBe('/test/plugins');
+    });
+  });
+
   describe('mixed queries', () => {
     test('query matching file name finds file', () => {
       const result = manager.filterFiles(makeCachedData(stage2Files), '', 'README');
