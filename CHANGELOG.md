@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.41.4](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.41.3...prompt-line-v0.41.4) (2026-09-22)
+
+
+### Bug Fixes
+
+* **mentions:** keep same-named directories at different paths (PL-17) ([#441](https://github.com/nkmr-jp/prompt-line/issues/441)) ([3a243df](https://github.com/nkmr-jp/prompt-line/commit/3a243df94bea8712b7474b6c9c124c98323ecb6c))
+* **renderer:** keep header error messages on a single line (PL-18) ([#442](https://github.com/nkmr-jp/prompt-line/issues/442)) ([ffa96df](https://github.com/nkmr-jp/prompt-line/commit/ffa96df96623e50182b626b45e5457d1bd894359))
+
 ## [0.41.3](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.41.2...prompt-line-v0.41.3) (2026-09-18)
 
 
